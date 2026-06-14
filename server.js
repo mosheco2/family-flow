@@ -7704,18 +7704,22 @@ app.post('/api/food-cost/recipe/:catalogId', async (req, res) => {
 app.get('/api/calendar/:groupId', async (req, res) => {
     try {
         const { groupId } = req.params;
-        const setRes = await pool.query('SELECT * FROM calendar_settings WHERE group_id=$1', [groupId]);
-        let srvRes = await pool.query('SELECT * FROM calendar_services WHERE group_id=$1 ORDER BY created_at DESC', [groupId]);
-        // אם אין שירותים ביומן — קרא מ-beauty_services כ-fallback
-        if (!srvRes.rows.length) {
-            const bsrvRes = await pool.query(
-                `SELECT id, name, duration_minutes AS duration_mins, COALESCE(price,0) AS price FROM beauty_services WHERE group_id=$1 AND is_active=true ORDER BY created_at DESC`,
+        const [setRes, bizTypeRes] = await Promise.all([
+            pool.query('SELECT * FROM calendar_settings WHERE group_id=$1', [groupId]),
+            pool.query('SELECT business_type FROM family_groups WHERE id=$1', [groupId])
+        ]);
+        const bizType = bizTypeRes.rows[0]?.business_type;
+        let srvRes;
+        if (bizType === 'beauty') {
+            // עסקי יופי — beauty_service_catalog הוא מקור האמת היחיד
+            srvRes = await pool.query(
+                `SELECT id, name, duration_minutes AS duration_mins, COALESCE(price,0) AS price FROM beauty_service_catalog WHERE business_group_id=$1 AND is_active=true ORDER BY name`,
                 [groupId]
             ).catch(() => ({ rows: [] }));
-            if (bsrvRes.rows.length) srvRes = { rows: bsrvRes.rows, _fromBeauty: true };
+        } else {
+            srvRes = await pool.query('SELECT * FROM calendar_services WHERE group_id=$1 ORDER BY created_at DESC', [groupId]);
         }
         const evtRes = await pool.query('SELECT * FROM calendar_events WHERE group_id=$1 ORDER BY event_date ASC, start_time ASC', [groupId]);
-
         let settings = setRes.rows.length > 0 ? setRes.rows[0] : { is_active: false, open_time: '09:00', close_time: '18:00', interval_mins: 30 };
         res.json({ success: true, settings, services: srvRes.rows, events: evtRes.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -7738,7 +7742,15 @@ app.post('/api/calendar/settings', async (req, res) => {
 app.post('/api/calendar/services', async (req, res) => {
     try {
         const { groupId, name, durationMins, price } = req.body;
-        await pool.query('INSERT INTO calendar_services (group_id, name, duration_mins, price) VALUES ($1, $2, $3, $4)', [groupId, name, parseInt(durationMins) || 30, parseFloat(price) || 0]);
+        const btRes = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [groupId]);
+        if (btRes.rows[0]?.business_type === 'beauty') {
+            await pool.query(
+                'INSERT INTO beauty_service_catalog (business_group_id, name, duration_minutes, price) VALUES ($1,$2,$3,$4)',
+                [groupId, name, parseInt(durationMins)||30, parseFloat(price)||0]
+            );
+        } else {
+            await pool.query('INSERT INTO calendar_services (group_id, name, duration_mins, price) VALUES ($1, $2, $3, $4)', [groupId, name, parseInt(durationMins)||30, parseFloat(price)||0]);
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -12715,9 +12727,11 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
         // calendar_events — תורים שנקבעו דרך החנות הציבורית (כל סוגי עסקים)
         const calR = await pool.query(
             `SELECT ce.id, ce.title, ce.event_date, ce.start_time, ce.status, ce.notes, ce.created_at,
-                    cs.name AS service_name, cs.duration_mins
+                    COALESCE(cs.name, bsc.name) AS service_name,
+                    COALESCE(cs.duration_mins, bsc.duration_minutes) AS duration_mins
              FROM calendar_events ce
              LEFT JOIN calendar_services cs ON cs.id = ce.service_id
+             LEFT JOIN beauty_service_catalog bsc ON bsc.id = ce.service_id
              WHERE ce.group_id=$1 AND (ce.customer_group_id=$2 OR ce.customer_phone=$3)
              ORDER BY ce.event_date DESC, ce.start_time DESC LIMIT 20`,
             [bizGroupId, familyGroupId, familyPhone || '']

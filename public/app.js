@@ -9187,8 +9187,9 @@ window._toggleBizAccordion = async function(btn, bizGroupId, bizType) {
     }
     accordion.classList.remove('hidden');
     if (chevron) { chevron.classList.remove('fa-chevron-down'); chevron.classList.add('fa-chevron-up'); }
-    if (accordion.dataset.loaded) return; // already loaded
-    accordion.dataset.loaded = '1';
+    const loadedAt = accordion.dataset.loaded ? parseInt(accordion.dataset.loaded) : 0;
+    if (Date.now() - loadedAt < 30000) return; // cache 30s
+    accordion.dataset.loaded = String(Date.now());
     try {
         const r = await fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`).then(r => r.json());
         _renderBizAccordion(accordion, r, bizType);

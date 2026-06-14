@@ -33063,6 +33063,36 @@ window._beautyNoShowAp = async function(apId) {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
+window._beautySearchClient = async function(q) {
+    const resultsEl = document.getElementById('bnap-search-results');
+    if (!resultsEl) return;
+    if (!q || q.length < 2) { resultsEl.classList.add('hidden'); return; }
+    const biz = _beautyBizId(); if (!biz) return;
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/clients?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => ({ clients: [] }));
+        const clients = r.clients || [];
+        if (!clients.length) {
+            resultsEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">לא נמצא לקוח</p>';
+        } else {
+            resultsEl.innerHTML = clients.slice(0, 8).map(c => `<div class="px-3 py-2 hover:bg-purple-50 cursor-pointer border-b border-slate-50 last:border-0" onclick="window._beautySelectClient(${c.id},'${(c.client_name||'').replace(/'/g,'&#39;')}','${(c.client_phone||'').replace(/'/g,'&#39;')}')">
+                <p class="text-xs font-bold text-slate-800">${c.client_name || '—'}</p>
+                <p class="text-[10px] text-slate-400">${c.client_phone || ''}</p>
+            </div>`).join('');
+        }
+        resultsEl.classList.remove('hidden');
+    } catch(e) {}
+};
+
+window._beautySelectClient = function(id, name, phone) {
+    const nameEl = document.getElementById('bnap-client');
+    const phoneEl = document.getElementById('bnap-phone');
+    const searchEl = document.getElementById('bnap-search');
+    if (nameEl) nameEl.value = name;
+    if (phoneEl) phoneEl.value = phone;
+    if (searchEl) searchEl.value = name;
+    document.getElementById('bnap-search-results')?.classList.add('hidden');
+};
+
 window._beautyNewApModal = async function() {
     const biz = _beautyBizId(); if (!biz) return;
     const practitioners = window._beautyState.practitioners;
@@ -33085,6 +33115,11 @@ window._beautyNewApModal = async function() {
             <button onclick="document.getElementById('beauty-new-ap-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="p-5 space-y-3 overflow-y-auto flex-1">
+            <div class="relative">
+                <label class="text-xs font-bold text-slate-600 block mb-1">חיפוש לקוח קיים</label>
+                <input id="bnap-search" type="text" placeholder="חפש לפי שם או טלפון..." oninput="window._beautySearchClient(this.value)" autocomplete="off" class="w-full border border-purple-200 rounded-xl px-4 py-3 text-sm focus:border-purple-400 focus:outline-none bg-purple-50"/>
+                <div id="bnap-search-results" class="hidden absolute z-50 w-full bg-white border border-slate-200 rounded-xl shadow-xl mt-1 max-h-44 overflow-y-auto"></div>
+            </div>
             <div><label class="text-xs font-bold text-slate-600 block mb-1">שם לקוח *</label>
                 <input id="bnap-client" type="text" placeholder="שם מלא" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
             <div><label class="text-xs font-bold text-slate-600 block mb-1">טלפון</label>
