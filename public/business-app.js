@@ -32968,8 +32968,8 @@ function _renderBeautyCalendar() {
                 <p class="text-[10px] text-slate-500">${new Date(e.event_date).toLocaleDateString('he-IL')} ${(e.start_time||'').slice(0,5)}</p>
             </div>
             <div class="flex gap-1 shrink-0">
-                <button onclick="approveCalendarEvent(${e.id});loadBeautyCalendar()" class="bg-green-500 text-white px-2.5 py-1 rounded-lg text-[10px] font-black hover:bg-green-600 transition">✓ אשר</button>
-                <button onclick="deleteCalendarEvent(${e.id},true);loadBeautyCalendar()" class="bg-slate-100 text-slate-500 px-2 py-1 rounded-lg text-[10px] font-bold hover:bg-red-50 hover:text-red-500 transition">✕</button>
+                <button onclick="(async()=>{await approveCalendarEvent(${e.id});loadBeautyCalendar();})()" class="bg-green-500 text-white px-2.5 py-1 rounded-lg text-[10px] font-black hover:bg-green-600 transition">✓ אשר</button>
+                <button onclick="(async()=>{await deleteCalendarEvent(${e.id},true);loadBeautyCalendar();})()" class="bg-slate-100 text-slate-500 px-2 py-1 rounded-lg text-[10px] font-bold hover:bg-red-50 hover:text-red-500 transition">✕</button>
             </div>
         </div>`).join('')}
     </div>` : '';
@@ -33097,22 +33097,24 @@ window._beautySearchClient = async function(q) {
         if (!clients.length) {
             resultsEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">לא נמצא לקוח</p>';
         } else {
-            resultsEl.innerHTML = clients.slice(0, 8).map(c => `<div class="px-3 py-2 hover:bg-purple-50 cursor-pointer border-b border-slate-50 last:border-0" onclick="window._beautySelectClient(${c.id},'${(c.client_name||'').replace(/'/g,'&#39;')}','${(c.client_phone||'').replace(/'/g,'&#39;')}')">
+            resultsEl.innerHTML = clients.slice(0, 8).map(c => `<div class="px-3 py-2 hover:bg-purple-50 cursor-pointer border-b border-slate-50 last:border-0" onclick="window._beautySelectClient(${c.id},'${(c.client_name||'').replace(/'/g,'&#39;')}','${(c.client_phone||'').replace(/'/g,'&#39;')}',${c.client_family_id||'null'})">
                 <p class="text-xs font-bold text-slate-800">${c.client_name || '—'}</p>
-                <p class="text-[10px] text-slate-400">${c.client_phone || ''}</p>
+                <p class="text-[10px] text-slate-400">${c.client_phone || ''}${c.client_family_id ? ' 🔗' : ''}</p>
             </div>`).join('');
         }
         resultsEl.classList.remove('hidden');
     } catch(e) {}
 };
 
-window._beautySelectClient = function(id, name, phone) {
+window._beautySelectClient = function(id, name, phone, familyId) {
     const nameEl = document.getElementById('bnap-client');
     const phoneEl = document.getElementById('bnap-phone');
     const searchEl = document.getElementById('bnap-search');
+    const familyEl = document.getElementById('bnap-family-id');
     if (nameEl) nameEl.value = name;
     if (phoneEl) phoneEl.value = phone;
     if (searchEl) searchEl.value = name;
+    if (familyEl) familyEl.value = familyId || '';
     document.getElementById('bnap-search-results')?.classList.add('hidden');
 };
 
@@ -33138,6 +33140,7 @@ window._beautyNewApModal = async function() {
             <button onclick="document.getElementById('beauty-new-ap-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="p-5 space-y-3 overflow-y-auto flex-1">
+            <input type="hidden" id="bnap-family-id" value=""/>
             <div class="relative">
                 <label class="text-xs font-bold text-slate-600 block mb-1">חיפוש לקוח קיים</label>
                 <input id="bnap-search" type="text" placeholder="חפש לפי שם או טלפון..." oninput="window._beautySearchClient(this.value)" autocomplete="off" class="w-full border border-purple-200 rounded-xl px-4 py-3 text-sm focus:border-purple-400 focus:outline-none bg-purple-50"/>
@@ -33201,6 +33204,7 @@ window._beautySubmitNewAp = async function() {
     const biz = _beautyBizId(); if (!biz) return;
     const clientName = document.getElementById('bnap-client')?.value?.trim();
     const clientPhone = document.getElementById('bnap-phone')?.value?.trim();
+    const clientFamilyId = parseInt(document.getElementById('bnap-family-id')?.value) || null;
     const pracId = document.getElementById('bnap-prac')?.value;
     const date = document.getElementById('bnap-date')?.value;
     const time = document.getElementById('bnap-time')?.value;
@@ -33220,7 +33224,7 @@ window._beautySubmitNewAp = async function() {
     try {
         const r = await fetch(`${API}/beauty/${biz}/appointments`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ client_name: clientName, client_phone: clientPhone, practitioner_id: pracId ? parseInt(pracId) : null, start_time: startTime, end_time: endTime, total_price: price, notes, segments })
+            body: JSON.stringify({ client_name: clientName, client_phone: clientPhone, client_family_id: clientFamilyId, practitioner_id: pracId ? parseInt(pracId) : null, start_time: startTime, end_time: endTime, total_price: price, notes, segments })
         }).then(r=>r.json());
         if (r.id || r.success || r.appointment) {
             document.getElementById('beauty-new-ap-modal')?.remove();

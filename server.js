@@ -12370,8 +12370,8 @@ app.get('/api/beauty/:bizId/appointments', async (req, res) => {
         const { from, to, practitioner_id, resource_id, status } = req.query;
         let where = 'ba.business_group_id=$1';
         const vals = [req.params.bizId];
-        if (from) { vals.push(from); where += ` AND bas.start_time >= $${vals.length}`; }
-        if (to)   { vals.push(to);   where += ` AND bas.start_time <= $${vals.length}`; }
+        if (from) { vals.push(from); where += ` AND bas.start_time >= $${vals.length}::date`; }
+        if (to)   { vals.push(to);   where += ` AND bas.start_time < $${vals.length}::date + interval '1 day'`; }
         if (practitioner_id) { vals.push(practitioner_id); where += ` AND bas.practitioner_id=$${vals.length}`; }
         if (resource_id) { vals.push(resource_id); where += ` AND bas.resource_id=$${vals.length}`; }
         if (status) { vals.push(status); where += ` AND ba.status=$${vals.length}`; }
