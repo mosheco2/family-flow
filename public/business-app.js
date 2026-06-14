@@ -32831,11 +32831,12 @@ function _renderBeautyCalendar() {
         const heightPct = Math.max(((endH - startH) / (13*60*60*1000)) * 100, 3);
         const srcLabels = { storefront:'🌐', biz:'📅', rfq:'📋' };
         const srcBadge = srcLabels[ap.booking_source] || '';
+        const cardTitle = seg0?.service_name || ap.client_name || 'טיפול';
         return `<div class="absolute right-1 left-1 rounded-lg p-1.5 text-white text-[10px] font-bold shadow cursor-pointer hover:brightness-110 transition overflow-hidden"
             style="top:${topPct.toFixed(1)}%;height:${heightPct.toFixed(1)}%;background:${color};min-height:28px"
             onclick="window._beautyOpenAp(${ap.id})">
-            <div class="truncate">${srcBadge ? srcBadge + ' ' : ''}${ap.client_name || 'לקוח'}</div>
-            ${seg0?.service_name ? `<div class="truncate opacity-90 text-[9px] font-medium">${seg0.service_name}</div>` : ''}
+            <div class="truncate">${srcBadge ? srcBadge + ' ' : ''}${cardTitle}</div>
+            ${ap.client_name ? `<div class="truncate opacity-80 text-[9px] font-medium">${ap.client_name}</div>` : ''}
             <div class="opacity-80">${_beautyFmt(seg0?.start_time)}</div>
         </div>`;
     }
@@ -33070,10 +33071,10 @@ window._beautyOpenAp = function(apId) {
         <div class="bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-4 flex items-center justify-between">
             <div>
                 <div class="flex items-center gap-2 mb-0.5">
-                    <h3 class="font-black text-white text-base">${ap.client_name || 'לקוח'}</h3>
+                    <h3 class="font-black text-white text-base">${serviceName || ap.client_name || 'טיפול'}</h3>
                     ${srcInfo.label ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${srcInfo.cls} text-white">${srcInfo.label}</span>` : ''}
                 </div>
-                <p class="text-pink-100 text-xs">${serviceName ? serviceName + ' · ' : ''}${_beautyFmtDate(startTs)} · ${_beautyFmt(startTs)}–${_beautyFmt(endTs)}</p>
+                <p class="text-pink-100 text-xs">${ap.client_name ? ap.client_name + ' · ' : ''}${_beautyFmtDate(startTs)} · ${_beautyFmt(startTs)}–${_beautyFmt(endTs)}</p>
             </div>
             <button onclick="document.getElementById('beauty-ap-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
         </div>
@@ -33381,7 +33382,8 @@ window._beautySubmitNewAp = async function() {
         }).then(r=>r.json());
         if (r.id || r.success || r.appointment) {
             document.getElementById('beauty-new-ap-modal')?.remove();
-            showToast('success', 'תור נקבע בהצלחה! 💅');
+            const isPending = (r.status === 'pending_client') || ((r.appointment || r).status === 'pending_client');
+            showToast('success', isPending ? 'תור נשלח ללקוח לאישור ⏳' : 'תור נקבע בהצלחה! 💅');
             loadBeautyCalendar();
         } else {
             showToast('error', r.error || 'שגיאה ביצירת תור');

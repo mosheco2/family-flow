@@ -9055,6 +9055,7 @@ function _actRender(filterType, searchQ) {
                         <div class="flex items-center gap-1.5 flex-wrap">
                             <p class="font-black text-slate-800 text-sm truncate">${safeStr(b.business_name)}</p>
                             ${pendingBadge}
+                            <span id="biz-appt-pending-badge-${bizId}" class="hidden text-[9px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded-full">⏳ ממתין לאישורך</span>
                         </div>
                         <p class="text-[10px] text-slate-400 mt-0.5">${cat.label}${linkedDate ? ' · מ-' + linkedDate : ''}</p>
                     </div>
@@ -9216,6 +9217,10 @@ window._toggleBizAccordion = async function(btn, bizGroupId, bizType) {
     try {
         const r = await fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`).then(r => r.json());
         _renderBizAccordion(accordion, r, bizType);
+        // Show badge if there are pending_client appointments
+        const pendingCount = (r.activity?.appointments || []).filter(a => a.status === 'pending_client').length;
+        const badge = document.getElementById(`biz-appt-pending-badge-${bizGroupId}`);
+        if (badge) pendingCount > 0 ? badge.classList.remove('hidden') : badge.classList.add('hidden');
     } catch(e) {
         accordion.innerHTML = '<p class="p-4 text-xs text-red-500 text-center">שגיאה בטעינת ההיסטוריה</p>';
     }
@@ -9441,11 +9446,19 @@ function _renderBizAccordion(el, data, bizType) {
         </div>`;
     }
 
-    const tabPills = tabs.map((t, i) => `<button class="biz-acc-tab shrink-0 px-3 py-1 rounded-full text-[11px] font-bold border transition ${i===0?'bg-indigo-600 text-white border-indigo-600':'bg-white text-slate-500 border-slate-200'}" data-tab="${t.id}" onclick="window._switchBizTab(this,'${t.id}')">${t.label}</button>`).join('');
+    // If there are pending items → show "בקשות תור" as default tab
+    const defaultTabId = tabs.find(t => t.id === 'cal_evts') ? 'cal_evts' : tabs[0]?.id;
+    const tabPills = tabs.map(t => {
+        const isDefault = t.id === defaultTabId;
+        const isPendingTab = t.id === 'cal_evts';
+        const cls = isDefault ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-slate-200';
+        const dot = isPendingTab && !isDefault ? ' 🔔' : '';
+        return `<button class="biz-acc-tab shrink-0 px-3 py-1 rounded-full text-[11px] font-bold border transition ${cls}" data-tab="${t.id}" onclick="window._switchBizTab(this,'${t.id}')">${t.label}${dot}</button>`;
+    }).join('');
 
     el.innerHTML = `<div class="p-3">
         <div class="flex gap-2 mb-3 hide-scrollbar overflow-x-auto">${tabPills}</div>
-        <div class="biz-acc-content">${sections[tabs[0].id] || ''}</div>
+        <div class="biz-acc-content">${sections[defaultTabId] || ''}</div>
     </div>`;
     el._sections = sections;
 };
@@ -9454,9 +9467,12 @@ window._switchBizTab = function(btn, tabId) {
     const acc = btn.closest('.biz-accordion');
     if (!acc) return;
     acc.querySelectorAll('.biz-acc-tab').forEach(b => {
-        b.className = b.className.replace('bg-indigo-600 text-white border-indigo-600', 'bg-white text-slate-500 border-slate-200');
+        b.className = b.className
+            .replace('bg-indigo-600 text-white border-indigo-600', 'bg-white text-slate-500 border-slate-200')
+            .replace('bg-amber-500 text-white border-amber-500', 'bg-white text-slate-500 border-slate-200');
     });
-    btn.className = btn.className.replace('bg-white text-slate-500 border-slate-200', 'bg-indigo-600 text-white border-indigo-600');
+    const activeColor = tabId === 'cal_evts' ? 'bg-amber-500 text-white border-amber-500' : 'bg-indigo-600 text-white border-indigo-600';
+    btn.className = btn.className.replace('bg-white text-slate-500 border-slate-200', activeColor);
     const content = acc.querySelector('.biz-acc-content');
     if (content && acc._sections) content.innerHTML = acc._sections[tabId] || '';
 };
