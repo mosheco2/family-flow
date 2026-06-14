@@ -7791,7 +7791,8 @@ app.put('/api/calendar/events/:id/status', async (req, res) => {
                     const dateStr = evt.event_date instanceof Date
                         ? evt.event_date.toISOString().split('T')[0]
                         : String(evt.event_date).split('T')[0];
-                    const startISO = dateStr + 'T' + (evt.start_time || '10:00') + ':00';
+                    const timeStr = String(evt.start_time || '10:00').slice(0, 5); // HH:MM only
+                    const startISO = `${dateStr}T${timeStr}:00`;
                     let dur = 60, serviceName = evt.title || 'תור';
                     if (evt.service_id) {
                         const sR = await pool.query('SELECT name, duration_minutes FROM beauty_service_catalog WHERE id=$1', [evt.service_id]).catch(() => ({ rows: [] }));
@@ -12434,12 +12435,15 @@ app.post('/api/beauty/:bizId/appointments', async (req, res) => {
         }
 
         const totalPrice = (segments||[]).reduce((s, seg) => s + parseFloat(seg.price||0), 0);
+        // When business creates appointment for a connected client → pending client approval
+        const src = booking_source || 'biz';
+        const defaultStatus = (client_family_id && src === 'biz') ? 'pending_client' : 'confirmed';
         const appt = await client.query(
             `INSERT INTO beauty_appointments (business_group_id, client_family_id, client_name, client_phone, client_email,
-             client_type, booking_source, deposit_amount, total_price, notes, internal_notes, rfq_id, group_booking_ref)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+             client_type, booking_source, status, deposit_amount, total_price, notes, internal_notes, rfq_id, group_booking_ref)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
             [req.params.bizId, client_family_id||null, client_name||null, client_phone||null, client_email||null,
-             client_type||'external', booking_source||'biz', deposit_amount||0, totalPrice,
+             client_type||'external', src, defaultStatus, deposit_amount||0, totalPrice,
              notes||null, internal_notes||null, rfq_id||null, group_booking_ref||null]
         );
         const apptId = appt.rows[0].id;
@@ -12829,6 +12833,22 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
         result.activity.log = logItems.slice(0, 50);
 
         res.json(result);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Client confirms or declines a pending_client beauty appointment
+app.put('/api/family/:familyGroupId/beauty/appointments/:id/client-confirm', async (req, res) => {
+    try {
+        const { action } = req.body; // 'confirm' or 'decline'
+        const newStatus = action === 'confirm' ? 'confirmed' : 'cancelled';
+        const r = await pool.query(
+            `UPDATE beauty_appointments SET status=$1, updated_at=NOW()
+             WHERE id=$2 AND client_family_id=$3 AND status='pending_client'
+             RETURNING id`,
+            [newStatus, req.params.id, req.params.familyGroupId]
+        );
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצא או שהסטטוס שונה כבר' });
+        res.json({ success: true, newStatus });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
