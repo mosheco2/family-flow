@@ -32787,6 +32787,7 @@ async function loadBeautyCalendar() {
         ]);
         window._beautyState.practitioners = Array.isArray(prRes) ? prRes : (prRes.practitioners || []);
         window._beautyState.appointments = Array.isArray(apRes) ? apRes : (apRes.appointments || []);
+        window._beautyState.services = Array.isArray(calRes.services) ? calRes.services.filter(s => s.is_active !== false) : [];
         // בקשות ממתינות מהחנות הציבורית
         window._beautyState.pendingCalEvents = (calRes.events || []).filter(e => e.status === 'pending');
         window._beautyState.calFromDate = fromDate;
@@ -32794,6 +32795,7 @@ async function loadBeautyCalendar() {
     } catch(e) {
         window._beautyState.practitioners = [];
         window._beautyState.appointments = [];
+        window._beautyState.services = [];
         window._beautyState.pendingCalEvents = [];
     }
     _renderBeautyCalendar();
@@ -33107,19 +33109,29 @@ window._beautyEditApModal = async function(apId) {
     const curDate = seg0.start_time ? new Date(seg0.start_time).toISOString().split('T')[0] : '';
     const curTime = seg0.start_time ? new Date(seg0.start_time).toTimeString().slice(0,5) : '';
     const curDur = seg0.duration_minutes || 60;
+    const curServiceName = seg0.service_name || '';
+    const services = window._beautyState.services || [];
+    const matchedSvc = services.find(s => s.name === curServiceName);
+    const isOther = curServiceName && !matchedSvc;
+    const svcOpts = services.map(s => `<option value="${s.id}" data-name="${s.name}" ${matchedSvc?.id === s.id ? 'selected' : ''}>${s.name}</option>`).join('');
 
-    const serviceName = seg0.service_name || '';
     const html = `
 <div id="beauty-edit-ap-modal" class="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
     <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         <div class="bg-gradient-to-r from-purple-600 to-pink-500 px-5 py-4 flex items-center justify-between">
-            <div>
-                <h3 class="font-black text-white text-base">עריכת תור — ${ap.client_name || 'לקוח'}</h3>
-                ${serviceName ? `<p class="text-pink-100 text-xs mt-0.5">${serviceName}</p>` : ''}
-            </div>
+            <h3 class="font-black text-white text-base">עריכת תור — ${ap.client_name || 'לקוח'}</h3>
             <button onclick="document.getElementById('beauty-edit-ap-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="p-5 space-y-3 overflow-y-auto flex-1">
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">שירות</label>
+                <select id="bedit-svc-select" onchange="window._beautyEditSvcChange(this)" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white">
+                    <option value="">בחר שירות...</option>
+                    ${svcOpts}
+                    <option value="__other__" ${isOther ? 'selected' : ''}>אחר (הזן ידנית)</option>
+                </select>
+                <input id="bedit-service" type="text" value="${curServiceName}" placeholder="שם השירות..." class="${isOther ? '' : 'hidden'} w-full border border-pink-200 rounded-xl px-3 py-2.5 text-sm mt-2"/>
+            </div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="text-xs font-bold text-slate-600 block mb-1">תאריך</label>
                     <input id="bedit-date" type="date" value="${curDate}" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm"/></div>
@@ -33149,6 +33161,16 @@ window._beautyEditApModal = async function(apId) {
     document.body.insertAdjacentHTML('beforeend', html);
 };
 
+window._beautyEditSvcChange = function(sel) {
+    const freeInput = document.getElementById('bedit-service');
+    if (sel.value === '__other__') {
+        freeInput.classList.remove('hidden');
+        freeInput.focus();
+    } else {
+        freeInput.classList.add('hidden');
+    }
+};
+
 window._beautySubmitEditAp = async function(apId) {
     const biz = _beautyBizId(); if (!biz) return;
     const date = document.getElementById('bedit-date')?.value;
@@ -33157,10 +33179,15 @@ window._beautySubmitEditAp = async function(apId) {
     const pracVal = document.getElementById('bedit-prac')?.value;
     const status = document.getElementById('bedit-status')?.value;
     const notes = document.getElementById('bedit-notes')?.value?.trim();
+    const svcSel = document.getElementById('bedit-svc-select');
+    const svcSelVal = svcSel?.value;
+    const service_name = (svcSelVal === '__other__' || !svcSelVal)
+        ? (document.getElementById('bedit-service')?.value?.trim() || '')
+        : (svcSel?.options[svcSel?.selectedIndex]?.dataset?.name || svcSel?.options[svcSel?.selectedIndex]?.text?.trim() || '');
     try {
         const r = await fetch(`${API}/beauty/${biz}/appointments/${apId}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ date, time, duration_minutes: dur, practitioner_id: pracVal ? parseInt(pracVal) : null, status, notes })
+            body: JSON.stringify({ date, time, duration_minutes: dur, practitioner_id: pracVal ? parseInt(pracVal) : null, status, notes, service_name: service_name || undefined })
         }).then(r=>r.json());
         document.getElementById('beauty-edit-ap-modal')?.remove();
         if (r.success) { showToast('success', 'תור עודכן בהצלחה ✅'); loadBeautyCalendar(); }

@@ -12570,7 +12570,7 @@ app.post('/api/beauty/:bizId/appointments', async (req, res) => {
 
 app.patch('/api/beauty/:bizId/appointments/:id', async (req, res) => {
     try {
-        const { status, notes, internal_notes, deposit_paid, date, time, duration_minutes } = req.body;
+        const { status, notes, internal_notes, deposit_paid, date, time, duration_minutes, service_name } = req.body;
         const hasPracKey = Object.prototype.hasOwnProperty.call(req.body, 'practitioner_id');
         const practitioner_id = hasPracKey ? (req.body.practitioner_id || null) : undefined;
 
@@ -12583,8 +12583,8 @@ app.patch('/api/beauty/:bizId/appointments/:id', async (req, res) => {
             [status, notes, internal_notes, deposit_paid, req.params.id, req.params.bizId]
         );
 
-        // Update segment timing/practitioner if provided
-        if (date || time || duration_minutes || hasPracKey) {
+        // Update segment timing/practitioner/service_name if provided
+        if (date || time || duration_minutes || hasPracKey || service_name !== undefined) {
             const segR = await pool.query(
                 `SELECT * FROM beauty_appointment_segments WHERE appointment_id=$1 ORDER BY segment_order LIMIT 1`,
                 [req.params.id]
@@ -12602,16 +12602,18 @@ app.patch('/api/beauty/:bizId/appointments/:id', async (req, res) => {
                 if (hasPracKey) {
                     await pool.query(
                         `UPDATE beauty_appointment_segments SET
-                         start_time=$1, end_time=$2, duration_minutes=$3, practitioner_id=$4
-                         WHERE appointment_id=$5 AND segment_order=1`,
-                        [newStart, newEnd, dur, practitioner_id, req.params.id]
+                         start_time=$1, end_time=$2, duration_minutes=$3, practitioner_id=$4,
+                         service_name=COALESCE($5,service_name)
+                         WHERE appointment_id=$6 AND segment_order=1`,
+                        [newStart, newEnd, dur, practitioner_id, service_name||null, req.params.id]
                     );
                 } else {
                     await pool.query(
                         `UPDATE beauty_appointment_segments SET
-                         start_time=$1, end_time=$2, duration_minutes=$3
-                         WHERE appointment_id=$4 AND segment_order=1`,
-                        [newStart, newEnd, dur, req.params.id]
+                         start_time=$1, end_time=$2, duration_minutes=$3,
+                         service_name=COALESCE($4,service_name)
+                         WHERE appointment_id=$5 AND segment_order=1`,
+                        [newStart, newEnd, dur, service_name||null, req.params.id]
                     );
                 }
             }
