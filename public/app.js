@@ -9332,8 +9332,8 @@ function _renderBizAccordion(el, data, bizType) {
     // Log tab — unified timeline
     const logItems = act.log || [];
     if (logItems.length > 0) {
-        const typeIcon = { appointment:'📅', beauty_appt:'💅', message:'✉️', order:'🛒', service_call:'🔧' };
-        const statusLabels = { pending:'ממתין', approved:'אושר', confirmed:'אושר', completed:'הושלם', done:'הושלם', cancelled:'בוטל', inbound:'נשלחה', outbound:'התקבלה' };
+        const typeIcon = { appointment:'📅', beauty_appt:'💅', order:'🛒', service_call:'🔧' };
+        const statusLabels = { pending:'ממתין', approved:'אושר', confirmed:'אושר', completed:'הושלם', done:'הושלם', cancelled:'בוטל' };
         tabs.push({ id:'log', label:'לוג' });
         sections.log = '<div class="relative pr-4">' + logItems.map((item, i) => {
             const dt = new Date(item.time).toLocaleString('he-IL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });

@@ -12724,13 +12724,12 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
         ).catch(() => ({ rows: [] }));
         result.activity.calendarEvents = calR.rows;
 
-        // ציר זמן מאוחד (log) — כל האינטרקציות כרונולוגיות
+        // ציר זמן מאוחד (log) — ללא הודעות (מתועדות בטאב הודעות)
         const logItems = [];
         (calR.rows || []).forEach(e => {
-            logItems.push({ type: 'appointment', time: e.event_date + 'T' + e.start_time, status: e.status, label: e.service_name || e.title, id: e.id });
-        });
-        (msgsR.rows || []).forEach(m => {
-            logItems.push({ type: 'message', time: m.created_at, direction: m.direction, label: m.content?.slice(0,60) });
+            const dateStr = e.event_date ? String(e.event_date).split('T')[0] : null;
+            const timeVal = dateStr && e.start_time ? dateStr + 'T' + e.start_time : (e.created_at || new Date().toISOString());
+            logItems.push({ type: 'appointment', time: timeVal, status: e.status, label: e.service_name || e.title, id: e.id });
         });
         // הוסף גם beauty_appointments, store_orders, service_calls לציר הזמן
         if (result.activity.appointments) result.activity.appointments.forEach(a => {
