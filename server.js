@@ -12690,9 +12690,10 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
                                    json_agg(json_build_object('service_name',bas.service_name,'start_time',bas.start_time)) AS segments
                             FROM beauty_appointments ba
                             JOIN beauty_appointment_segments bas ON bas.appointment_id = ba.id
-                            JOIN beauty_client_records bcr ON bcr.id = ba.client_record_id
+                            LEFT JOIN beauty_client_records bcr ON bcr.id = ba.client_record_id
                             WHERE ba.business_group_id=$1
-                              AND (bcr.client_phone=$2 OR bcr.client_family_id=$3)
+                              AND (ba.client_phone=$2 OR ba.client_family_id=$3
+                                   OR bcr.client_phone=$2 OR bcr.client_family_id=$3)
                             GROUP BY ba.id ORDER BY MIN(bas.start_time) DESC LIMIT 30`,
                     [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] })),
                 pool.query(`SELECT id, status, service_description, preferred_date, created_at

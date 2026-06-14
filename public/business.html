@@ -717,7 +717,7 @@
                             <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button>
                             <button onclick="switchTab('timeclock')" id="tab-timeclock" class="tab-btn">נוכחות ⏱️</button>
                             <button onclick="switchTab('shifts')" id="tab-shifts" class="tab-btn">משמרות 🗓️</button>
-                            <button onclick="switchTab('calendar')" id="tab-calendar" class="tab-btn">יומן ותורים 📅</button>
+                            <button onclick="switchTab('calendar')" id="tab-calendar" class="tab-btn">יומן ציבורי 🌐</button>
                             <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">רכש 🛒</button>
                             <button onclick="switchTab('pantry')" id="tab-pantry" class="tab-btn">מלאי 📦</button>
                             <button onclick="switchTab('equipment')" id="tab-equipment" class="tab-btn relative">ציוד 🔧<span id="tab-equipment-badge" class="hidden absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] bg-red-500 rounded-full text-[9px] text-white font-bold flex items-center justify-center px-0.5"></span></button>
@@ -897,7 +897,7 @@
 
                     <div id="content-calendar" class="hidden">
                         <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 mb-4 relative overflow-hidden">
-                            <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">יומן ותורים 📅</h3>
+                            <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">יומן ציבורי 🌐</h3>
                             
                             <div class="flex bg-slate-100 p-1.5 rounded-xl mb-4 overflow-x-auto modal-scroll whitespace-nowrap">
                                 <button id="btn-cal-tab-main" onclick="if(typeof switchCalendarTab==='function') switchCalendarTab('main')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">לוח זמנים (היומן שלי)</button>
@@ -3491,7 +3491,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=100" defer></script>
+    <script src="business-app.js?v=101" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;

@@ -2516,7 +2516,7 @@ const ALL_TABS = [
     { id: 'feed', name: 'ראשי 🏠' },
     { id: 'timeclock', name: 'נוכחות ⏱️' },
     { id: 'shifts', name: 'משמרות 🗓️' },
-    { id: 'calendar', name: 'יומן ותורים 📅' },
+    { id: 'calendar', name: 'יומן ציבורי 🌐' },
     { id: 'shop', name: 'רכש ארגוני 🛒' },
     { id: 'pantry', name: 'ניהול מלאי 📦' },
     { id: 'sales', name: 'מכירות / חנות 🛍️' },
@@ -23552,7 +23552,7 @@ function renderQuickTiles() {
   ] : [
     { fa:'fa-clock-rotate-left', label:'נוכחות',        badge: null,            tab:'timeclock', bg:'#f8fafc', grad:'linear-gradient(135deg,#64748b,#334155)', badge_bg:'#475569' },
     { fa:'fa-calendar-days',     label:'משמרות',         badge: null,            tab:'shifts',    bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
-    { fa:'fa-calendar-check',    label:'יומן ותורים',    badge: null,            tab:'calendar',  bg:'#faf5ff', grad:'linear-gradient(135deg,#a78bfa,#7c3aed)', badge_bg:'#6d28d9' },
+    { fa:'fa-calendar-check',    label:'יומן ציבורי',    badge: null,            tab:'calendar',  bg:'#faf5ff', grad:'linear-gradient(135deg,#a78bfa,#7c3aed)', badge_bg:'#6d28d9' },
     { fa:'fa-bag-shopping',      label:'מכירות וחנות',   badge: storeOrderCount, tab:'sales',     bg:'#fffbeb', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
     { fa:'fa-cart-arrow-down',   label:'רכש',           badge: null,            tab:'shop',      bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0f766e)', badge_bg:'#0d9488' },
     { fa:'fa-chart-line',        label:'כספים',          badge: null,            tab:'bank',      bg:'#fff1f2', grad:'linear-gradient(135deg,#f43f5e,#be123c)', badge_bg:'#9f1239' },
@@ -24035,7 +24035,7 @@ const BIZ_HELP_CONTENT = {
         ]
     },
     calendar: {
-        icon: '📅', title: 'יומן ותורים',
+        icon: '📅', title: 'יומן ציבורי',
         what: 'ניהול יומן עסקי — פגישות, תורים ואירועים עם ניהול אישורים.',
         tips: [
             '➕ לחץ "+ אירוע" להוספת פגישה, תור או אירוע',
@@ -33222,7 +33222,7 @@ window._beautySubmitNewAp = async function() {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ client_name: clientName, client_phone: clientPhone, practitioner_id: pracId ? parseInt(pracId) : null, start_time: startTime, end_time: endTime, total_price: price, notes, segments })
         }).then(r=>r.json());
-        if (r.success || r.appointment) {
+        if (r.id || r.success || r.appointment) {
             document.getElementById('beauty-new-ap-modal')?.remove();
             showToast('success', 'תור נקבע בהצלחה! 💅');
             loadBeautyCalendar();
