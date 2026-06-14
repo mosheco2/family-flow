@@ -12552,7 +12552,7 @@ app.get('/api/family/linked-businesses/:groupId', async (req, res) => {
         // beauty client links
         const beautyR = await pool.query(
             `SELECT DISTINCT ON (bcr.business_group_id) bcr.business_group_id, fg.name AS business_name,
-                    fg.business_type, fg.group_code, fg.community_id, 'beauty' AS link_type,
+                    fg.business_type, fg.group_code, fg.community_id, fg.licensed_features, 'beauty' AS link_type,
                     bcr.created_at AS linked_at, 'active' AS status
              FROM beauty_client_records bcr
              JOIN family_groups fg ON fg.id = bcr.business_group_id
@@ -12563,7 +12563,7 @@ app.get('/api/family/linked-businesses/:groupId', async (req, res) => {
         // member_business_links (sport, restaurant, repair, etc.)
         const memberR = await pool.query(
             `SELECT DISTINCT ON (mbl.business_group_id) mbl.business_group_id,
-                    fg.name AS business_name, fg.business_type, fg.group_code, fg.community_id,
+                    fg.name AS business_name, fg.business_type, fg.group_code, fg.community_id, fg.licensed_features,
                     'member' AS link_type, mbl.linked_at, mbl.status
              FROM member_business_links mbl
              JOIN family_groups fg ON fg.id = mbl.business_group_id

@@ -9082,7 +9082,11 @@ const _BIZ_ACTIONS_MAP = {
 };
 
 window._bizQuickActions = function(bizGroupId, bizType, bizName, groupCode) {
-    const actions = _BIZ_ACTIONS_MAP[bizType] || [{ icon:'🌐', label:'בקר בחנות', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }];
+    const biz = _activityAllBiz.find(b => b.business_group_id == bizGroupId) || {};
+    const lf = biz.licensed_features || null;
+    const defaultActions = _BIZ_ACTIONS_MAP[bizType] || [{ icon:'🌐', label:'בקר בחנות', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }];
+    const actionKeyMap = { storefront:'ss_storefront', beauty_rfq:'ss_rfq', service_call:'ss_service_call', message:'ss_message' };
+    const actions = lf ? defaultActions.filter(a => { const k = actionKeyMap[a.action]; return !k || lf[k] !== false; }) : defaultActions;
     const storeUrl = groupCode ? `${window.location.origin}/storefront.html?store=${groupCode}` : null;
     const btns = actions.map(a => {
         let handler = '';

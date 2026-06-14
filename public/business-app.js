@@ -27599,6 +27599,36 @@ async function completeTaskQuick(taskId, btn) {
 
 // ===== BUSINESS TYPE SETTINGS MODAL =====
 
+const _SS_ACTIONS_DEF = {
+    beauty: [
+        { key:'ss_storefront', icon:'🏪', label:'חנות וקביעת תורים', desc:'לקוח יכול לצפות בשירותים ולקבוע תור' },
+        { key:'ss_rfq',        icon:'💌', label:'ייעוץ מוקדם',       desc:'לקוח יכול לשלוח בקשת ייעוץ' },
+        { key:'ss_message',    icon:'✉️', label:'הודעה לאינבוקס',    desc:'לקוח יכול לשלוח הודעה חופשית' },
+    ],
+    gym: [
+        { key:'ss_storefront', icon:'💳', label:'רכישת מנוי', desc:'לקוח יכול לרכוש מנוי דרך החנות' },
+        { key:'ss_message',    icon:'✉️', label:'הודעה לאינבוקס', desc:'לקוח יכול לשלוח הודעה חופשית' },
+    ],
+    sport: [
+        { key:'ss_storefront', icon:'💳', label:'רכישת מנוי', desc:'לקוח יכול לרכוש מנוי דרך החנות' },
+        { key:'ss_message',    icon:'✉️', label:'הודעה לאינבוקס', desc:'לקוח יכול לשלוח הודעה חופשית' },
+    ],
+    restaurant: [
+        { key:'ss_storefront', icon:'🛒', label:'הזמנה מהחנות', desc:'לקוח יכול להזמין דרך החנות' },
+        { key:'ss_message',    icon:'✉️', label:'הודעה לאינבוקס', desc:'לקוח יכול לשלוח הודעה חופשית' },
+    ],
+    maintenance_repair: [
+        { key:'ss_service_call', icon:'🔧', label:'פתיחת קריאת שירות', desc:'לקוח יכול לפתוח קריאה ישירות' },
+        { key:'ss_rfq',          icon:'📋', label:'בקשת הצעת מחיר',   desc:'לקוח יכול לבקש הצעת מחיר' },
+        { key:'ss_message',      icon:'✉️', label:'הודעה לאינבוקס',   desc:'לקוח יכול לשלוח הודעה חופשית' },
+    ],
+    logistics: [
+        { key:'ss_storefront', icon:'📦', label:'בקשת משלוח', desc:'לקוח יכול לבקש משלוח דרך החנות' },
+        { key:'ss_rfq',        icon:'📋', label:'הצעת מחיר',  desc:'לקוח יכול לבקש הצעת מחיר' },
+        { key:'ss_message',    icon:'✉️', label:'הודעה לאינבוקס', desc:'לקוח יכול לשלוח הודעה חופשית' },
+    ],
+};
+
 function openBusinessSettingsModal() {
     const current = currentGroup.business_type || 'other';
     const lf = currentGroup.licensed_features || {};
@@ -27649,6 +27679,22 @@ function openBusinessSettingsModal() {
             </div>
         </div>` : '';
 
+    const ssDefs = _SS_ACTIONS_DEF[current] || [
+        { key:'ss_storefront', icon:'🏪', label:'גישה לחנות', desc:'לקוח יכול לגלוש בחנות' },
+        { key:'ss_message',    icon:'✉️', label:'הודעה לאינבוקס', desc:'לקוח יכול לשלוח הודעה' },
+    ];
+    const ssHtml = ssDefs.map(a => `
+        <div class="flex items-center justify-between px-3 py-2.5 bg-white rounded-xl border border-slate-100 shadow-sm">
+            <div class="flex items-center gap-2">
+                <span class="text-lg">${a.icon}</span>
+                <div><div class="text-xs font-bold text-slate-700">${a.label}</div><div class="text-[10px] text-slate-400">${a.desc}</div></div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" ${lf[a.key] !== false ? 'checked' : ''} onchange="toggleFeatureLicense('${a.key}',this.checked)" class="sr-only peer">
+                <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+            </label>
+        </div>`).join('');
+
     const html = `<div id="biz-settings-modal" class="fixed inset-0 bg-black/60 z-[9999] flex items-end sm:items-center justify-center p-4">
         <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh]">
             <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center shrink-0">
@@ -27672,6 +27718,11 @@ function openBusinessSettingsModal() {
                     <h3 class="font-black text-slate-700 text-sm mb-1">ממשקי תפקיד (תוספת תשלום)</h3>
                     <p class="text-[10px] text-slate-400 mb-3">ממשקים ייעודיים לתפקידים הרלוונטיים לסוג העסק שלך</p>
                     <div class="space-y-2">${filteredRoleOptionsHtml}</div>
+                </div>
+                <div>
+                    <h3 class="font-black text-slate-700 text-sm mb-1">🤝 פעולות עצמיות ללקוחות ONEFLOW</h3>
+                    <p class="text-[10px] text-slate-400 mb-3">בחר אילו פעולות לקוחות מקושרים יוכלו לבצע מהאפליקציה שלהם</p>
+                    <div class="space-y-2">${ssHtml}</div>
                 </div>
             </div>
             <div class="px-5 py-4 border-t border-slate-100 shrink-0 flex gap-3">
