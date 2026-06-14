@@ -34563,8 +34563,9 @@ window._logisticsOrderDetail = async function(orderId) {
             <div class="bg-slate-50 rounded-2xl p-4 space-y-2 text-right">
                 <div class="text-sm"><span class="text-slate-400 text-xs">כתובת מסירה:</span><br/><span class="font-bold">${order.delivery_address||'—'}</span></div>
                 ${order.pickup_address ? `<div class="text-sm"><span class="text-slate-400 text-xs">כתובת איסוף:</span><br/><span class="font-bold">${order.pickup_address}</span></div>` : ''}
-                <div class="flex gap-4">
+                <div class="flex gap-4 flex-wrap items-end">
                     <div class="text-sm"><span class="text-slate-400 text-xs">טלפון:</span><br/><a href="tel:${order.customer_phone}" class="font-bold text-blue-600">${order.customer_phone||'—'}</a></div>
+                    ${order.customer_name||order.customer_phone ? `<button onclick="event.stopPropagation(); window.showAddToOneflow('${(order.customer_name||'').replace(/'/g,"\\'").replace(/`/g,'\\`')}','${(order.customer_phone||'').replace(/'/g,"\\'").replace(/`/g,'\\`')}',${order.id})" class="text-violet-500 hover:text-violet-700 bg-violet-50 px-2 h-7 rounded-lg flex items-center justify-center transition border border-violet-100 text-[10px] font-bold">🔗 ONEFLOW</button>` : ''}
                     ${order.cod_amount>0?`<div class="text-sm"><span class="text-slate-400 text-xs">COD:</span><br/><span class="font-bold ${order.cod_collected?'text-emerald-600':'text-orange-600'}">₪${order.cod_amount} ${order.cod_collected?'(שולם)':'(ממתין)'}</span></div>`:''}
                     ${order.delivery_fee>0?`<div class="text-sm"><span class="text-slate-400 text-xs">דמי משלוח:</span><br/><span class="font-bold">₪${order.delivery_fee}</span></div>`:''}
                 </div>

@@ -9242,6 +9242,31 @@ window._bizSortAppts = function(btn) {
     }).join('') || '<p class="text-xs text-slate-400 text-center py-3">אין תורים</p>';
 };
 
+window._bizSortList = function(btn) {
+    const acc = btn.closest('.biz-accordion');
+    if (!acc?._rawData || !acc?._listRenderers) return;
+    const dir       = btn.dataset.dir;
+    const listCls   = btn.dataset.list;
+    const dataKey   = btn.dataset.key;
+    const dateField = btn.dataset.date;
+    acc.querySelectorAll('.biz-sort-btn').forEach(b => {
+        b.className = b.className.replace('bg-indigo-600 text-white border-indigo-600', 'bg-white text-slate-500 border-slate-200');
+    });
+    btn.className = btn.className.replace('bg-white text-slate-500 border-slate-200', 'bg-indigo-600 text-white border-indigo-600');
+    const listEl = acc.querySelector('.' + listCls);
+    if (!listEl) return;
+    const renderer = acc._listRenderers[dataKey];
+    if (!renderer) return;
+    const items = [...((acc._rawData.activity || {})[dataKey] || [])];
+    items.sort((a, b) => {
+        const da = new Date(a[dateField] || 0).getTime();
+        const db = new Date(b[dateField] || 0).getTime();
+        return dir === 'asc' ? da - db : db - da;
+    });
+    listEl.innerHTML = items.map(renderer).join('') ||
+        '<p class="text-xs text-slate-400 text-center py-3">אין פריטים</p>';
+};
+
 // ─── BIZ ACCORDION ────────────────────────────────────────────────────────────
 
 window._toggleBizAccordion = async function(btn, bizGroupId, bizType) {
@@ -9281,6 +9306,7 @@ function _renderBizAccordion(el, data, bizType) {
     // Build tabs + items per type
     const tabs = [];
     const sections = {};
+    const listRenderers = {};
 
     if (bizType === 'beauty') {
         const appts = act.appointments || [];
@@ -9367,15 +9393,24 @@ function _renderBizAccordion(el, data, bizType) {
     } else if (bizType === 'sport' || bizType === 'gym') {
         const mems   = act.memberships || [];
         const checks = act.checkins || [];
-        tabs.push({ id:'all', label:'הכל' }, { id:'membership', label:`מנוי (${mems.length})` }, { id:'checkins', label:`כניסות (${checks.length})` });
-        const memHtml = mems.length ? mems.map(m => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+        const _ref = id => id ? `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>` : '';
+        const renderMem = m => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
                 <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-sm shrink-0">💳</div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs font-bold text-slate-700">${m.type_name || 'מנוי'}</p>
+                    <p class="text-xs font-bold text-slate-700">${m.type_name || 'מנוי'}${_ref(m.id)}</p>
                     <p class="text-[10px] text-slate-400">${fmtDate(m.start_date)} – ${fmtDate(m.end_date)}</p>
                 </div>
                 <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${m.status==='active'?'bg-green-100 text-green-700':'bg-slate-100 text-slate-500'}">${m.status==='active'?'פעיל':'לא פעיל'}</span>
-            </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין מנוי</p>';
+            </div>`;
+        listRenderers.memberships = renderMem;
+        tabs.push({ id:'all', label:'הכל' }, { id:'membership', label:`מנוי (${mems.length})` }, { id:'checkins', label:`כניסות (${checks.length})` });
+        const memSortControls = `<div class="flex gap-1.5 mb-2">
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-indigo-600 text-white border-indigo-600 transition" data-dir="desc" data-list="biz-mem-list" data-key="memberships" data-date="start_date" onclick="window._bizSortList(this)">חדש ראשון</button>
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-white text-slate-500 border-slate-200 transition" data-dir="asc" data-list="biz-mem-list" data-key="memberships" data-date="start_date" onclick="window._bizSortList(this)">ישן ראשון</button>
+        </div>`;
+        const memHtml = mems.length
+            ? memSortControls + `<div class="biz-mem-list">${mems.map(renderMem).join('')}</div>`
+            : '<p class="text-xs text-slate-400 text-center py-3">אין מנוי</p>';
         const checkHtml = checks.length ? checks.map(c => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
                 <div class="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center text-sm shrink-0">✅</div>
                 <p class="text-xs text-slate-600 flex-1">${fmtDateTime(c.checked_in_at)}</p>
@@ -9387,52 +9422,85 @@ function _renderBizAccordion(el, data, bizType) {
     } else if (bizType === 'restaurant' || bizType === 'services') {
         const orders = act.orders || [];
         const quotes = act.quotes || [];
-        tabs.push({ id:'all', label:'הכל' }, { id:'orders', label:`הזמנות (${orders.length})` }, { id:'quotes', label:`הצעות (${quotes.length})` });
-        const ordHtml = orders.length ? orders.map(o => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+        const _ref = id => id ? `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>` : '';
+        const renderOrd = o => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
                 <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-sm shrink-0">🛒</div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs font-bold text-slate-700">הזמנה #${o.id}</p>
+                    <p class="text-xs font-bold text-slate-700">הזמנה${_ref(o.id)}</p>
                     <p class="text-[10px] text-slate-400">${fmtDate(o.created_at)} · ₪${parseFloat(o.total_price||o.total||0).toFixed(0)}</p>
                 </div>
                 <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">${o.status||''}</span>
-            </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין הזמנות</p>';
-        const qHtml = quotes.length ? quotes.map(q => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+            </div>`;
+        const renderQuote = q => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
                 <div class="w-8 h-8 rounded-lg bg-yellow-50 flex items-center justify-center text-sm shrink-0">📋</div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs font-bold text-slate-700">הצעה #${q.id}</p>
+                    <p class="text-xs font-bold text-slate-700">הצעה${_ref(q.id)}</p>
                     <p class="text-[10px] text-slate-400">${fmtDate(q.created_at)}</p>
                 </div>
                 <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">${q.quote_status||q.status||''}</span>
-            </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין הצעות</p>';
+            </div>`;
+        listRenderers.orders = renderOrd;
+        listRenderers.quotes = renderQuote;
+        tabs.push({ id:'all', label:'הכל' }, { id:'orders', label:`הזמנות (${orders.length})` }, { id:'quotes', label:`הצעות (${quotes.length})` });
+        const ordSortControls = `<div class="flex gap-1.5 mb-2">
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-indigo-600 text-white border-indigo-600 transition" data-dir="desc" data-list="biz-ord-list" data-key="orders" data-date="created_at" onclick="window._bizSortList(this)">חדש ראשון</button>
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-white text-slate-500 border-slate-200 transition" data-dir="asc" data-list="biz-ord-list" data-key="orders" data-date="created_at" onclick="window._bizSortList(this)">ישן ראשון</button>
+        </div>`;
+        const ordHtml = orders.length
+            ? ordSortControls + `<div class="biz-ord-list">${orders.map(renderOrd).join('')}</div>`
+            : '<p class="text-xs text-slate-400 text-center py-3">אין הזמנות</p>';
+        const qHtml = quotes.length
+            ? `<div class="biz-quote-list">${quotes.map(renderQuote).join('')}</div>`
+            : '<p class="text-xs text-slate-400 text-center py-3">אין הצעות</p>';
         sections.orders = ordHtml;
         sections.quotes = qHtml;
         sections.all = (orders.length + quotes.length === 0) ? '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>' : ordHtml + qHtml;
 
     } else if (bizType === 'maintenance_repair') {
         const calls = act.serviceCalls || [];
-        tabs.push({ id:'all', label:'הכל' }, { id:'calls', label:`קריאות (${calls.length})` });
-        const callsHtml = calls.length ? calls.map(c => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+        const _ref = id => id ? `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>` : '';
+        const _callStatusMap = {new:'חדש',scheduled:'נקבע',processing:'בטיפול',done:'הושלם',cancelled:'בוטל',quote:'הצעה'};
+        const renderCall = c => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
                 <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-sm shrink-0">🔧</div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs font-bold text-slate-700 truncate">${c.issue_description||c.title||'קריאת שירות'}</p>
+                    <p class="text-xs font-bold text-slate-700 truncate">${c.issue_description||c.title||'קריאת שירות'}${_ref(c.id)}</p>
                     <p class="text-[10px] text-slate-400">${fmtDate(c.created_at)}</p>
                 </div>
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${c.status==='done'?'bg-green-100 text-green-700':c.status==='cancelled'?'bg-red-100 text-red-600':'bg-blue-100 text-blue-700'}">${{new:'חדש',scheduled:'נקבע',processing:'בטיפול',done:'הושלם',cancelled:'בוטל',quote:'הצעה'}[c.status]||c.status||''}</span>
-            </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין קריאות שירות</p>';
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${c.status==='done'?'bg-green-100 text-green-700':c.status==='cancelled'?'bg-red-100 text-red-600':'bg-blue-100 text-blue-700'}">${_callStatusMap[c.status]||c.status||''}</span>
+            </div>`;
+        listRenderers.serviceCalls = renderCall;
+        tabs.push({ id:'all', label:'הכל' }, { id:'calls', label:`קריאות (${calls.length})` });
+        const callSortControls = `<div class="flex gap-1.5 mb-2">
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-indigo-600 text-white border-indigo-600 transition" data-dir="desc" data-list="biz-calls-list" data-key="serviceCalls" data-date="created_at" onclick="window._bizSortList(this)">חדש ראשון</button>
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-white text-slate-500 border-slate-200 transition" data-dir="asc" data-list="biz-calls-list" data-key="serviceCalls" data-date="created_at" onclick="window._bizSortList(this)">ישן ראשון</button>
+        </div>`;
+        const callsHtml = calls.length
+            ? callSortControls + `<div class="biz-calls-list">${calls.map(renderCall).join('')}</div>`
+            : '<p class="text-xs text-slate-400 text-center py-3">אין קריאות שירות</p>';
         sections.calls = callsHtml;
         sections.all   = calls.length ? callsHtml : '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>';
 
     } else if (bizType === 'logistics') {
         const orders = act.logisticsOrders || [];
-        tabs.push({ id:'all', label:'הכל' }, { id:'orders', label:`משלוחים (${orders.length})` });
-        const ordHtml = orders.length ? orders.map(o => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+        const _ref = id => id ? `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>` : '';
+        const _logStatusLabel = s => ({new:'חדש',confirmed:'אושר',assigned:'שויך',picked_up:'נאסף',in_transit:'בדרך',arrived:'הגיע',delivered:'נמסר',partial:'חלקי',failed_attempt:'לא ענה',returned:'הוחזר',cancelled:'בוטל',pending_quote:'ממתין הצעה',quote_sent:'הצעה נשלחה'}[s]||s||'');
+        const renderLogOrd = o => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
                 <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-sm shrink-0">📦</div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs font-bold text-slate-700">${o.order_number||('#'+o.id)}</p>
+                    <p class="text-xs font-bold text-slate-700">${o.order_number ? o.order_number : ''}${_ref(o.id)}</p>
                     <p class="text-[10px] text-slate-400">${o.delivery_address||''} · ${fmtDate(o.created_at)}</p>
                 </div>
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">${o.status||''}</span>
-            </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין משלוחים</p>';
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">${_logStatusLabel(o.status)}</span>
+            </div>`;
+        listRenderers.logisticsOrders = renderLogOrd;
+        tabs.push({ id:'all', label:'הכל' }, { id:'orders', label:`משלוחים (${orders.length})` });
+        const logSortControls = `<div class="flex gap-1.5 mb-2">
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-indigo-600 text-white border-indigo-600 transition" data-dir="desc" data-list="biz-log-list" data-key="logisticsOrders" data-date="created_at" onclick="window._bizSortList(this)">חדש ראשון</button>
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-white text-slate-500 border-slate-200 transition" data-dir="asc" data-list="biz-log-list" data-key="logisticsOrders" data-date="created_at" onclick="window._bizSortList(this)">ישן ראשון</button>
+        </div>`;
+        const ordHtml = orders.length
+            ? logSortControls + `<div class="biz-log-list">${orders.map(renderLogOrd).join('')}</div>`
+            : '<p class="text-xs text-slate-400 text-center py-3">אין משלוחים</p>';
         sections.orders = ordHtml;
         sections.all    = orders.length ? ordHtml : '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>';
 
@@ -9495,9 +9563,10 @@ function _renderBizAccordion(el, data, bizType) {
         <div class="flex gap-2 mb-3 hide-scrollbar overflow-x-auto">${tabPills}</div>
         <div class="biz-acc-content">${sections[defaultTabId] || ''}</div>
     </div>`;
-    el._sections = sections;
-    el._bizType  = bizType;
-    el._rawData  = data;
+    el._sections      = sections;
+    el._bizType       = bizType;
+    el._rawData       = data;
+    el._listRenderers = listRenderers;
 };
 
 window._switchBizTab = function(btn, tabId) {
