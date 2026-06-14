@@ -9195,6 +9195,53 @@ window._clientConfirmBeautyAppt = async function(apptId, action, btn) {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); if(btn){ btn.disabled=false; } }
 };
 
+window._clientConfirmAp = (id, btn) => window._clientConfirmBeautyAppt(id, 'confirm', btn);
+window._clientRejectAp  = (id, btn) => window._clientConfirmBeautyAppt(id, 'decline', btn);
+
+window._bizSortAppts = function(btn) {
+    const acc = btn.closest('.biz-accordion');
+    if (!acc?._rawData) return;
+    const dir = btn.dataset.dir;
+    // toggle pill colors
+    acc.querySelectorAll('.biz-sort-btn').forEach(b => {
+        b.className = b.className.replace('bg-indigo-600 text-white border-indigo-600', 'bg-white text-slate-500 border-slate-200');
+    });
+    btn.className = btn.className.replace('bg-white text-slate-500 border-slate-200', 'bg-indigo-600 text-white border-indigo-600');
+    const listEl = acc.querySelector('.biz-appt-list');
+    if (!listEl) return;
+    const act = acc._rawData.activity || {};
+    const appts = act.appointments || [];
+    const calEvts = act.calendarEvents || [];
+    const fmtDT = d => d ? new Date(d).toLocaleString('he-IL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+    const ref = id => `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>`;
+    const sLabel = { completed:'הושלם', cancelled:'בוטל', pending:'ממתין', confirmed:'מאושר', scheduled:'מתוכנן', no_show:'לא הגיע' };
+    const sColor = a => a.status==='completed'?'bg-green-100 text-green-700':a.status==='cancelled'?'bg-red-100 text-red-600':'bg-blue-100 text-blue-700';
+    let active = appts.filter(a => a.status !== 'pending_client');
+    let approved = calEvts.filter(e => e.status === 'approved' || e.status === 'done');
+    if (dir === 'asc') { active = [...active].reverse(); approved = [...approved].reverse(); }
+    listEl.innerHTML = active.map(a => {
+        const seg = a.segments?.[0];
+        return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+            <div class="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center text-sm shrink-0">📅</div>
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-slate-700 truncate">${seg?.service_name||'טיפול'}${ref(a.id)}</p>
+                <p class="text-[10px] text-slate-400">${fmtDT(a.start_time||a.created_at)}</p>
+            </div>
+            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${sColor(a)}">${sLabel[a.status]||a.status}</span>
+        </div>`;
+    }).join('') + approved.map(e => {
+        const dt = new Date(e.event_date).toLocaleDateString('he-IL') + ' ' + (e.start_time||'').slice(0,5);
+        return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+            <div class="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center text-sm shrink-0">📅</div>
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-slate-700 truncate">${e.service_name||e.title||'תור'}${ref(e.id)}</p>
+                <p class="text-[10px] text-slate-400">${dt}${e.duration_mins?' · '+e.duration_mins+' דק':''}</p>
+            </div>
+            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">מאושר</span>
+        </div>`;
+    }).join('') || '<p class="text-xs text-slate-400 text-center py-3">אין תורים</p>';
+};
+
 // ─── BIZ ACCORDION ────────────────────────────────────────────────────────────
 
 window._toggleBizAccordion = async function(btn, bizGroupId, bizType) {
@@ -9221,8 +9268,6 @@ window._toggleBizAccordion = async function(btn, bizGroupId, bizType) {
         const pendingCount = (r.activity?.appointments || []).filter(a => a.status === 'pending_client').length;
         const badge = document.getElementById(`biz-appt-pending-badge-${bizGroupId}`);
         if (badge) pendingCount > 0 ? badge.classList.remove('hidden') : badge.classList.add('hidden');
-        // Debug: show group ID so business can compare with toast's [F:xxx]
-        console.log(`[DEBUG] family/biz-activity: familyGroupId=${currentGroup.id} bizGroupId=${bizGroupId} appts=${(r.activity?.appointments||[]).length} pending=${pendingCount}`);
     } catch(e) {
         accordion.innerHTML = '<p class="p-4 text-xs text-red-500 text-center">שגיאה בטעינת ההיסטוריה</p>';
     }
@@ -9241,18 +9286,18 @@ function _renderBizAccordion(el, data, bizType) {
         const appts = act.appointments || [];
         const rfqs  = act.rfqs || [];
         const allCalEvts = act.calendarEvents || [];
-        // Approved storefront bookings → merge into "תורים"; pending → "בקשות תור"
         const approvedCalEvts = allCalEvts.filter(e => e.status === 'approved' || e.status === 'done');
-        // "תורים" = confirmed/scheduled/completed appointments (exclude pending_client — those go to "בקשות תור")
-        const activeAppts = appts.filter(a => a.status !== 'pending_client');
-        const apptStatusLabel = { completed:'הושלם', cancelled:'בוטל', pending:'ממתין', confirmed:'מאושר', scheduled:'מתוכנן', no_show:'לא הגיע', pending_client:'ממתין לאישורך' };
+        const pendingAppts = appts.filter(a => a.status === 'pending_client');
+        const activeAppts  = appts.filter(a => a.status !== 'pending_client');
+        const apptStatusLabel = { completed:'הושלם', cancelled:'בוטל', pending:'ממתין', confirmed:'מאושר', scheduled:'מתוכנן', no_show:'לא הגיע' };
         const apptStatusColor = a => a.status==='completed'?'bg-green-100 text-green-700':a.status==='cancelled'?'bg-red-100 text-red-600':'bg-blue-100 text-blue-700';
+        const apptRef = id => `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>`;
         const renderApptRow = a => {
             const seg = a.segments?.[0];
             return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
                 <div class="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center text-sm shrink-0">📅</div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs font-bold text-slate-700 truncate">${seg?.service_name || 'טיפול'}</p>
+                    <p class="text-xs font-bold text-slate-700 truncate">${seg?.service_name || 'טיפול'}${apptRef(a.id)}</p>
                     <p class="text-[10px] text-slate-400">${fmtDateTime(a.start_time || a.created_at)}</p>
                 </div>
                 <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${apptStatusColor(a)}">${apptStatusLabel[a.status]||a.status}</span>
@@ -9263,17 +9308,49 @@ function _renderBizAccordion(el, data, bizType) {
             return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
                 <div class="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center text-sm shrink-0">📅</div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs font-bold text-slate-700 truncate">${e.service_name || e.title || 'תור'}</p>
+                    <p class="text-xs font-bold text-slate-700 truncate">${e.service_name || e.title || 'תור'}${apptRef(e.id)}</p>
                     <p class="text-[10px] text-slate-400">${dt}${e.duration_mins?' · '+e.duration_mins+' דק':''}</p>
                 </div>
                 <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">מאושר</span>
             </div>`;
         };
+        const renderPendingRow = a => {
+            const seg = a.segments?.[0];
+            const dt = fmtDateTime(a.start_time || a.created_at);
+            return `<div class="rounded-xl border border-amber-200 bg-amber-50 p-3 mb-2">
+                <div class="flex items-start justify-between gap-2 mb-2">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-black text-slate-800 truncate">${seg?.service_name || 'טיפול'}${apptRef(a.id)}</p>
+                        <p class="text-[10px] text-slate-500">${dt}</p>
+                    </div>
+                    <span class="text-[9px] font-black bg-amber-400 text-white px-1.5 py-0.5 rounded-full shrink-0">⏳ ממתין לאישורך</span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="window._clientConfirmAp(${a.id},this)" class="flex-1 bg-green-500 text-white text-[11px] font-black py-1.5 rounded-lg hover:bg-green-600 transition active:scale-95">✅ אשר תור</button>
+                    <button onclick="window._clientRejectAp(${a.id},this)" class="flex-1 bg-slate-200 text-slate-600 text-[11px] font-black py-1.5 rounded-lg hover:bg-red-100 hover:text-red-600 transition active:scale-95">✕ דחה</button>
+                </div>
+            </div>`;
+        };
         const totalAppts = activeAppts.length + approvedCalEvts.length;
-        tabs.push({ id:'all', label:'הכל' }, { id:'appts', label:`תורים (${totalAppts})` }, { id:'rfqs', label:`ייעוץ (${rfqs.length})` });
+        const pendingLabel = pendingAppts.length > 0 ? `בקשות תור (${pendingAppts.length}) 🔔` : 'בקשות תור';
+        tabs.push({ id:'all', label:'הכל' }, { id:'cal_evts', label: pendingLabel }, { id:'appts', label:`תורים (${totalAppts})` }, { id:'rfqs', label:`ייעוץ (${rfqs.length})` });
+        // appts section: sort pills + list
+        const buildApptHtml = (sortDir) => {
+            let rows = [...activeAppts];
+            let calRows = [...approvedCalEvts];
+            if (sortDir === 'asc') { rows.reverse(); calRows.reverse(); }
+            return rows.map(renderApptRow).join('') + calRows.map(renderApprovedCalRow).join('');
+        };
+        const sortControls = `<div class="flex gap-1.5 mb-2">
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-indigo-600 text-white border-indigo-600 transition" data-dir="desc" onclick="window._bizSortAppts(this)">חדש ראשון</button>
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-white text-slate-500 border-slate-200 transition" data-dir="asc" onclick="window._bizSortAppts(this)">ישן ראשון</button>
+        </div>`;
         const apptHtml = totalAppts > 0
-            ? activeAppts.map(renderApptRow).join('') + approvedCalEvts.map(renderApprovedCalRow).join('')
+            ? sortControls + `<div class="biz-appt-list">${buildApptHtml('desc')}</div>`
             : '<p class="text-xs text-slate-400 text-center py-3">אין תורים</p>';
+        const pendingHtml = pendingAppts.length > 0
+            ? pendingAppts.map(renderPendingRow).join('')
+            : '<p class="text-xs text-slate-400 text-center py-3">אין בקשות ממתינות</p>';
         const rfqHtml = rfqs.length ? rfqs.map(r => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
                 <div class="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center text-sm shrink-0">💌</div>
                 <div class="flex-1 min-w-0">
@@ -9282,9 +9359,10 @@ function _renderBizAccordion(el, data, bizType) {
                 </div>
                 <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">${r.status||''}</span>
             </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין פניות ייעוץ</p>';
+        sections.cal_evts = pendingHtml;
         sections.appts = apptHtml;
         sections.rfqs  = rfqHtml;
-        sections.all   = (totalAppts + rfqs.length === 0) ? '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>' : apptHtml + rfqHtml;
+        sections.all   = (totalAppts + rfqs.length + pendingAppts.length === 0) ? '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>' : pendingHtml + apptHtml + rfqHtml;
 
     } else if (bizType === 'sport' || bizType === 'gym') {
         const mems   = act.memberships || [];
@@ -9363,51 +9441,6 @@ function _renderBizAccordion(el, data, bizType) {
         sections.all = '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>';
     }
 
-    // Calendar events + pending_client beauty appointments → "בקשות תור"
-    const calEvts = act.calendarEvents || [];
-    const calEvtsForTab = bizType === 'beauty'
-        ? calEvts.filter(e => e.status !== 'approved' && e.status !== 'done')
-        : calEvts;
-    const pendingClientAppts = bizType === 'beauty'
-        ? (act.appointments || []).filter(a => a.status === 'pending_client')
-        : [];
-    const totalPending = calEvtsForTab.length + pendingClientAppts.length;
-    if (totalPending > 0) {
-        const statusMap = { pending:'ממתין לאישור', approved:'מאושר', cancelled:'בוטל', done:'הושלם' };
-        const statusColor = { pending:'bg-yellow-100 text-yellow-700', approved:'bg-green-100 text-green-700', cancelled:'bg-red-100 text-red-600', done:'bg-slate-100 text-slate-500' };
-        tabs.push({ id:'cal_evts', label:`בקשות תור (${totalPending})` });
-        const calEvtRows = calEvtsForTab.map(e => {
-            const dt = new Date(e.event_date).toLocaleDateString('he-IL') + ' ' + (e.start_time||'').slice(0,5);
-            return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
-                <div class="w-8 h-8 rounded-lg bg-cyan-50 flex items-center justify-center text-sm shrink-0">📅</div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-xs font-bold text-slate-700 truncate">${e.service_name || e.title || 'תור'}</p>
-                    <p class="text-[10px] text-slate-400">${dt}${e.duration_mins?' · '+e.duration_mins+' דק':''}</p>
-                </div>
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statusColor[e.status]||'bg-slate-100 text-slate-500'}">${statusMap[e.status]||e.status}</span>
-            </div>`;
-        }).join('');
-        const pendingClientRows = pendingClientAppts.map(a => {
-            const seg = a.segments?.[0];
-            const dt = seg?.start_time ? new Date(seg.start_time).toLocaleString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : fmtDateTime(a.created_at);
-            return `<div class="py-2 border-b border-slate-50 last:border-0">
-                <div class="flex items-center gap-2 mb-1.5">
-                    <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-sm shrink-0">💅</div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-xs font-bold text-slate-700 truncate">${seg?.service_name || 'תור'}</p>
-                        <p class="text-[10px] text-slate-400">${dt} · ממתין לאישורך</p>
-                    </div>
-                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">ממתין</span>
-                </div>
-                <div class="flex gap-2 mr-10">
-                    <button onclick="window._clientConfirmBeautyAppt(${a.id},'confirm',this)" class="flex-1 text-[10px] font-black py-1.5 rounded-xl bg-green-100 text-green-700 hover:bg-green-200 transition">✅ אשר תור</button>
-                    <button onclick="window._clientConfirmBeautyAppt(${a.id},'decline',this)" class="flex-1 text-[10px] font-black py-1.5 rounded-xl bg-red-100 text-red-600 hover:bg-red-200 transition">✕ דחה</button>
-                </div>
-            </div>`;
-        }).join('');
-        sections.cal_evts = pendingClientRows + calEvtRows;
-    }
-
     // Log tab — unified timeline
     const logItems = act.log || [];
     if (logItems.length > 0) {
@@ -9463,6 +9496,8 @@ function _renderBizAccordion(el, data, bizType) {
         <div class="biz-acc-content">${sections[defaultTabId] || ''}</div>
     </div>`;
     el._sections = sections;
+    el._bizType  = bizType;
+    el._rawData  = data;
 };
 
 window._switchBizTab = function(btn, tabId) {
