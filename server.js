@@ -12489,38 +12489,18 @@ app.post('/api/beauty/:bizId/appointments', async (req, res) => {
         const totalPrice = (segments||[]).reduce((s, seg) => s + parseFloat(seg.price||0), 0);
         const src = booking_source || 'biz';
 
-        // אם לא הועבר client_family_id, ננסה לזהות לפי טלפון
+        // אם לא הועבר client_family_id, ננסה לזהות לפי טלפון (עם נרמול ספרות בלבד)
         let resolvedFamilyId = client_family_id || null;
         if (!resolvedFamilyId && client_phone && src === 'biz') {
             const digits = (client_phone || '').replace(/\D/g, '');
             const alt = digits.startsWith('972') ? '0' + digits.substring(3) : digits.startsWith('0') ? '972' + digits.substring(1) : digits;
             const ur = await client.query(
                 `SELECT u.group_id FROM users u JOIN family_groups fg ON fg.id = u.group_id
-                 WHERE (u.phone=$1 OR u.phone=$2 OR u.phone=$3) AND fg.type='FAMILY' LIMIT 1`,
-                [digits, alt, client_phone]
+                 WHERE (REGEXP_REPLACE(u.phone,'[^0-9]','','g')=$1 OR REGEXP_REPLACE(u.phone,'[^0-9]','','g')=$2)
+                   AND fg.type='FAMILY' LIMIT 1`,
+                [digits, alt]
             ).catch(() => ({ rows: [] }));
             if (ur.rows[0]) resolvedFamilyId = ur.rows[0].group_id;
-        }
-
-        // עדכון beauty_client_records עם client_family_id — כדי שהעסק יופיע ב"עסקים שלי" של הלקוח
-        if (resolvedFamilyId && client_phone) {
-            const existR = await client.query(
-                `SELECT id, client_family_id FROM beauty_client_records WHERE business_group_id=$1 AND client_phone=$2 LIMIT 1`,
-                [req.params.bizId, client_phone]
-            ).catch(() => ({ rows: [] }));
-            if (existR.rows[0]) {
-                if (!existR.rows[0].client_family_id) {
-                    await client.query(
-                        `UPDATE beauty_client_records SET client_family_id=$1, updated_at=NOW() WHERE id=$2`,
-                        [resolvedFamilyId, existR.rows[0].id]
-                    ).catch(() => {});
-                }
-            } else if (client_name) {
-                await client.query(
-                    `INSERT INTO beauty_client_records (business_group_id, client_name, client_phone, client_family_id) VALUES ($1,$2,$3,$4)`,
-                    [req.params.bizId, client_name, client_phone, resolvedFamilyId]
-                ).catch(() => {});
-            }
         }
 
         // When business creates appointment for a connected client → pending client approval
@@ -12548,9 +12528,33 @@ app.post('/api/beauty/:bizId/appointments', async (req, res) => {
         }
 
         await client.query('COMMIT');
+        client.release();
+
+        // עדכון beauty_client_records (מחוץ לטרנזקציה — כישלון לא יבטל את התור)
+        if (resolvedFamilyId && client_phone) {
+            const bizId = appt.rows[0].business_group_id;
+            pool.query(
+                `SELECT id, client_family_id FROM beauty_client_records WHERE business_group_id=$1 AND REGEXP_REPLACE(client_phone,'[^0-9]','','g')=REGEXP_REPLACE($2,'[^0-9]','','g') LIMIT 1`,
+                [bizId, client_phone]
+            ).then(existR => {
+                if (existR.rows[0]) {
+                    if (!existR.rows[0].client_family_id) {
+                        pool.query(
+                            `UPDATE beauty_client_records SET client_family_id=$1, updated_at=NOW() WHERE id=$2`,
+                            [resolvedFamilyId, existR.rows[0].id]
+                        ).catch(() => {});
+                    }
+                } else if (client_name) {
+                    pool.query(
+                        `INSERT INTO beauty_client_records (business_group_id, client_name, client_phone, client_family_id) VALUES ($1,$2,$3,$4)`,
+                        [bizId, client_name, client_phone, resolvedFamilyId]
+                    ).catch(() => {});
+                }
+            }).catch(() => {});
+        }
+
         res.json(appt.rows[0]);
-    } catch(e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
-    finally { client.release(); }
+    } catch(e) { await client.query('ROLLBACK').catch(()=>{}); client.release(); res.status(500).json({ error: e.message }); }
 });
 
 app.patch('/api/beauty/:bizId/appointments/:id', async (req, res) => {
@@ -12814,25 +12818,33 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
         const result = { type: bizType, activity: {} };
 
         if (bizType === 'beauty') {
-            const [apptR, rfqR] = await Promise.all([
-                pool.query(`SELECT ba.id, ba.status, ba.total_price, ba.created_at, ba.client_name,
+            const [apptR, rfqR, calR] = await Promise.all([
+                pool.query(`SELECT ba.id, ba.status, ba.total_price, ba.created_at, ba.client_name, ba.booking_source,
                                    MIN(bas.start_time) AS start_time,
                                    json_agg(json_build_object('service_name',bas.service_name,'start_time',bas.start_time)) AS segments
                             FROM beauty_appointments ba
                             JOIN beauty_appointment_segments bas ON bas.appointment_id = ba.id
                             LEFT JOIN beauty_client_records bcr ON bcr.id = ba.client_record_id
                             WHERE ba.business_group_id=$1
-                              AND (ba.client_phone=$2 OR ba.client_family_id=$3
-                                   OR bcr.client_phone=$2 OR bcr.client_family_id=$3)
+                              AND (REGEXP_REPLACE(ba.client_phone,'[^0-9]','','g')=REGEXP_REPLACE($2,'[^0-9]','','g')
+                                   OR ba.client_family_id=$3
+                                   OR REGEXP_REPLACE(bcr.client_phone,'[^0-9]','','g')=REGEXP_REPLACE($2,'[^0-9]','','g')
+                                   OR bcr.client_family_id=$3)
                             GROUP BY ba.id ORDER BY MIN(bas.start_time) DESC LIMIT 30`,
-                    [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] })),
+                    [bizGroupId, familyPhone || '', familyGroupId]).catch(() => ({ rows: [] })),
                 pool.query(`SELECT id, status, service_description, preferred_date, created_at
                             FROM beauty_rfq WHERE business_group_id=$1
                               AND (client_phone=$2 OR client_family_id=$3)
                             ORDER BY created_at DESC LIMIT 20`,
+                    [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] })),
+                pool.query(`SELECT id, title, event_date, start_time, status, notes
+                            FROM calendar_events WHERE group_id=$1
+                              AND (customer_phone=$2 OR customer_group_id=$3)
+                              AND status NOT IN ('cancelled','done')
+                            ORDER BY event_date DESC, start_time DESC LIMIT 20`,
                     [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }))
             ]);
-            result.activity = { appointments: apptR.rows, rfqs: rfqR.rows };
+            result.activity = { appointments: apptR.rows, rfqs: rfqR.rows, calendarEvents: calR.rows };
 
         } else if (bizType === 'sport' || bizType === 'gym') {
             const [memR, checkR] = await Promise.all([

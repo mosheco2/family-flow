@@ -32825,10 +32825,12 @@ function _renderBeautyCalendar() {
         const endH   = new Date(seg0?.end_time   || startH.getTime() + 3600000);
         const topPct = Math.max(0, ((startH.getHours() - 8) * 60 + startH.getMinutes()) / (13*60) * 100);
         const heightPct = Math.max(((endH - startH) / (13*60*60*1000)) * 100, 3);
+        const srcLabels = { storefront:'🌐', biz:'📅', rfq:'📋' };
+        const srcBadge = srcLabels[ap.booking_source] || '';
         return `<div class="absolute right-1 left-1 rounded-lg p-1.5 text-white text-[10px] font-bold shadow cursor-pointer hover:brightness-110 transition overflow-hidden"
             style="top:${topPct.toFixed(1)}%;height:${heightPct.toFixed(1)}%;background:${color};min-height:28px"
             onclick="window._beautyOpenAp(${ap.id})">
-            <div class="truncate">${ap.client_name || 'לקוח'}</div>
+            <div class="truncate">${srcBadge ? srcBadge + ' ' : ''}${ap.client_name || 'לקוח'}</div>
             ${seg0?.service_name ? `<div class="truncate opacity-90 text-[9px] font-medium">${seg0.service_name}</div>` : ''}
             <div class="opacity-80">${_beautyFmt(seg0?.start_time)}</div>
         </div>`;
@@ -33056,12 +33058,17 @@ window._beautyOpenAp = function(apId) {
     const startTs = seg0?.start_time || ap.start_time;
     const endTs = seg0?.end_time || ap.end_time;
     const serviceName = seg0?.service_name || '';
+    const srcMap = { storefront:{ label:'לקוח', cls:'bg-blue-500' }, biz:{ label:'פנימי', cls:'bg-purple-600' }, rfq:{ label:'בקשה', cls:'bg-amber-500' } };
+    const srcInfo = srcMap[ap.booking_source] || { label:'', cls:'' };
     const html = `
 <div id="beauty-ap-modal" class="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
     <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
         <div class="bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-4 flex items-center justify-between">
             <div>
-                <h3 class="font-black text-white text-base">${ap.client_name || 'לקוח'}</h3>
+                <div class="flex items-center gap-2 mb-0.5">
+                    <h3 class="font-black text-white text-base">${ap.client_name || 'לקוח'}</h3>
+                    ${srcInfo.label ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${srcInfo.cls} text-white">${srcInfo.label}</span>` : ''}
+                </div>
                 <p class="text-pink-100 text-xs">${serviceName ? serviceName + ' · ' : ''}${_beautyFmtDate(startTs)} · ${_beautyFmt(startTs)}–${_beautyFmt(endTs)}</p>
             </div>
             <button onclick="document.getElementById('beauty-ap-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
