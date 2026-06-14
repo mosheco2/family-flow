@@ -35150,12 +35150,21 @@ const BEAUTY_CATEGORIES = [
     { id:'general',label:'כללי',         icon:'💎', color:'#94a3b8' }
 ];
 
+let _beautySvcCache = {};
+let _beautyPractCache = [];
+
 async function loadBeautyServices() {
     const biz = _beautyBizId(); if (!biz) return;
     const el = document.getElementById('content-beauty_services'); if (!el) return;
     el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>טוען שירותים...</div>`;
     try {
-        const items = await fetch(`${API}/beauty/${biz}/services`).then(r => r.json());
+        const [items, practitioners] = await Promise.all([
+            fetch(`${API}/beauty/${biz}/services`).then(r => r.json()),
+            fetch(`${API}/beauty/${biz}/practitioners`).then(r => r.json()).catch(() => [])
+        ]);
+        _beautySvcCache = {};
+        (Array.isArray(items) ? items : []).forEach(s => { _beautySvcCache[s.id] = s; });
+        _beautyPractCache = Array.isArray(practitioners) ? practitioners : [];
         _renderBeautyServices(el, Array.isArray(items) ? items : []);
     } catch(e) {
         el.innerHTML = `<div class="py-10 text-center text-red-400 text-sm">שגיאה בטעינה</div>`;
@@ -35190,7 +35199,7 @@ function _renderBeautyServices(el, items) {
                         <div class="text-[11px] text-slate-400">${s.duration_minutes} דק׳ · ₪${s.price}</div>
                         ${s.description ? `<div class="text-[11px] text-slate-500 mt-0.5 truncate">${s.description}</div>` : ''}
                     </div>
-                    <button onclick="window._beautyEditService(${s.id},'${(s.name).replace(/'/g,"\\'")}',${s.duration_minutes},${s.price},'${s.category||'general'}','${s.color_hex||'#6366f1'}',${s.requires_patch_test})"
+                    <button onclick="window._beautyEditService(${s.id})"
                         class="w-8 h-8 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition shrink-0">
                         <i class="fa-solid fa-pen text-xs"></i>
                     </button>
@@ -35223,15 +35232,32 @@ function _renderBeautyServices(el, items) {
 }
 
 window._beautyNewServiceModal = function() {
-    _beautyServiceModal(null);
+    _beautyServiceModal(null, _beautyPractCache);
 };
 
-window._beautyEditService = function(id, name, duration, price, category, color, patchTest) {
-    _beautyServiceModal({ id, name, duration_minutes: duration, price, category, color_hex: color, requires_patch_test: patchTest });
+window._beautyEditService = function(id) {
+    const svc = _beautySvcCache[id];
+    if (!svc) return;
+    _beautyServiceModal(svc, _beautyPractCache);
 };
 
-function _beautyServiceModal(svc) {
+function _beautyServiceModal(svc, practitioners) {
     const isEdit = !!svc;
+    const allowedIds = svc?.allowed_practitioner_ids || [];
+    const practHtml = (practitioners||[]).length > 0 ? `
+        <div>
+            <label class="text-xs font-bold text-slate-600 block mb-1.5">מטפלות מאושרות לשירות זה</label>
+            <div class="bg-slate-50 rounded-xl p-3 space-y-1.5 border border-slate-200">
+                ${(practitioners||[]).map(p => `
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" class="bsvc-pract w-4 h-4 accent-pink-500" value="${p.id}"
+                        ${allowedIds.includes(p.id)||allowedIds.includes(String(p.id))?'checked':''}>
+                    <span class="text-sm text-slate-700">${p.display_name||p.name||'מטפלת'}</span>
+                </label>`).join('')}
+                <div class="text-[10px] text-slate-400 pt-1">ריק = כל המטפלות מאושרות</div>
+            </div>
+        </div>` : '';
+
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4';
     modal.innerHTML = `
@@ -35267,6 +35293,14 @@ function _beautyServiceModal(svc) {
                         value="${svc?.price||0}" min="0">
                 </div>
                 <div>
+                    <label class="text-xs font-bold text-slate-600">% עמלה לשירות</label>
+                    <input id="bsvc-comm" type="number" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                        value="${svc?.commission_pct!=null?svc.commission_pct:''}" min="0" max="100" step="0.5"
+                        placeholder="ריק = ברירת מחדל מטפלת">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
                     <label class="text-xs font-bold text-slate-600">צבע ביומן</label>
                     <input id="bsvc-color" type="color" class="mt-1 w-full h-[38px] border border-slate-200 rounded-xl px-2 py-1 cursor-pointer"
                         value="${svc?.color_hex||'#6366f1'}">
@@ -35276,6 +35310,7 @@ function _beautyServiceModal(svc) {
                 <label class="text-xs font-bold text-slate-600">תיאור (אופציונלי)</label>
                 <textarea id="bsvc-desc" rows="2" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">${svc?.description||''}</textarea>
             </div>
+            ${practHtml}
             <label class="flex items-center gap-2 cursor-pointer">
                 <input id="bsvc-patch" type="checkbox" class="w-4 h-4 accent-red-500" ${svc?.requires_patch_test?'checked':''}>
                 <span class="text-sm text-slate-700">⚠️ שירות זה דורש Patch Test מוקדם</span>
@@ -35296,6 +35331,8 @@ window._beautySubmitService = async function(id, btn) {
     const dur = parseInt(document.getElementById('bsvc-dur')?.value) || 60;
     if (!name) { showToast('error', 'שם שירות הוא שדה חובה'); return; }
     btn.disabled = true; btn.textContent = 'שומר...';
+    const commRaw = document.getElementById('bsvc-comm')?.value;
+    const allowedPractIds = [...document.querySelectorAll('.bsvc-pract:checked')].map(cb => parseInt(cb.value));
     const body = {
         name,
         category: document.getElementById('bsvc-cat')?.value,
@@ -35303,7 +35340,9 @@ window._beautySubmitService = async function(id, btn) {
         price: parseFloat(document.getElementById('bsvc-price')?.value) || 0,
         color_hex: document.getElementById('bsvc-color')?.value || '#6366f1',
         description: document.getElementById('bsvc-desc')?.value?.trim() || null,
-        requires_patch_test: document.getElementById('bsvc-patch')?.checked || false
+        requires_patch_test: document.getElementById('bsvc-patch')?.checked || false,
+        commission_pct: commRaw !== '' && commRaw != null ? parseFloat(commRaw) : null,
+        allowed_practitioner_ids: allowedPractIds
     };
     try {
         if (id) {

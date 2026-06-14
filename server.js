@@ -1078,6 +1078,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
         created_at          TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_svc_biz ON beauty_service_catalog(business_group_id, is_active)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE beauty_service_catalog ADD COLUMN IF NOT EXISTS commission_pct DECIMAL(5,2)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE beauty_service_catalog ADD COLUMN IF NOT EXISTS allowed_practitioner_ids INT[] DEFAULT '{}'`); } catch(e) {}
 
       // ── Beauty subscription types (packages) ───────────────────────────
       try { await client.query(`CREATE TABLE IF NOT EXISTS beauty_subscription_types (
@@ -12795,13 +12797,15 @@ app.get('/api/beauty/:bizId/services', async (req, res) => {
 
 app.post('/api/beauty/:bizId/services', async (req, res) => {
     try {
-        const { name, category, duration_minutes, price, description, color_hex, requires_patch_test } = req.body;
+        const { name, category, duration_minutes, price, description, color_hex, requires_patch_test, commission_pct, allowed_practitioner_ids } = req.body;
         if (!name || !duration_minutes) return res.status(400).json({ error: 'name and duration required' });
         const r = await pool.query(
-            `INSERT INTO beauty_service_catalog (business_group_id, name, category, duration_minutes, price, description, color_hex, requires_patch_test)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            `INSERT INTO beauty_service_catalog (business_group_id, name, category, duration_minutes, price, description, color_hex, requires_patch_test, commission_pct, allowed_practitioner_ids)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
             [req.params.bizId, name, category||'general', duration_minutes, price||0,
-             description||null, color_hex||'#6366f1', requires_patch_test||false]
+             description||null, color_hex||'#6366f1', requires_patch_test||false,
+             commission_pct != null ? commission_pct : null,
+             allowed_practitioner_ids && allowed_practitioner_ids.length > 0 ? allowed_practitioner_ids : []]
         );
         res.json(r.rows[0]);
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -12809,7 +12813,7 @@ app.post('/api/beauty/:bizId/services', async (req, res) => {
 
 app.patch('/api/beauty/:bizId/services/:id', async (req, res) => {
     try {
-        const fields = ['name','category','duration_minutes','price','description','color_hex','requires_patch_test','is_active'];
+        const fields = ['name','category','duration_minutes','price','description','color_hex','requires_patch_test','is_active','commission_pct','allowed_practitioner_ids'];
         const sets = []; const vals = [];
         fields.forEach(f => { if (req.body[f] !== undefined) { vals.push(req.body[f]); sets.push(`${f}=$${vals.length}`); } });
         if (!sets.length) return res.json({ success: true });

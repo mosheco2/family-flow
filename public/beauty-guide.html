@@ -857,8 +857,8 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
       <div class="steps">
         <div class="step"><div class="step-num">1</div><div><div class="step-title">לחץ "+ שירות חדש"</div><div class="step-desc">כפתור בראש הרשימה. נפתח טופס יצירת שירות.</div></div></div>
         <div class="step"><div class="step-num">2</div><div><div class="step-title">מלא שם, קטגוריה ומשך</div><div class="step-desc">שם השירות (לדוג': "צביעה בסיסית"), קטגוריה (שיער / ציפורניים / פנים / גוף / ספא), ומשך הטיפול בדקות — משפיע ישירות על מרווחי היומן.</div></div></div>
-        <div class="step"><div class="step-num">3</div><div><div class="step-title">הגדר מחיר ועמלה</div><div class="step-desc">המחיר הקטלוגי הוא ברירת המחדל. ניתן לשנות לתור ספציפי. אחוז העמלה ייחשב אוטומטית בסיום טיפול.</div></div></div>
-        <div class="step"><div class="step-num">4</div><div><div class="step-title">שייך מטפלות מאושרות (אופציונלי)</div><div class="step-desc">קבע מי מוסמכת לבצע שירות זה. מונע שיוך שגוי ביומן.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div><div class="step-title">הגדר מחיר ו-% עמלה (אופציונלי)</div><div class="step-desc">המחיר הקטלוגי הוא ברירת המחדל. שדה "% עמלה לשירות" — אם ריק, המערכת משתמשת באחוז של המטפלת. מלא רק אם עמלת שירות זה שונה מהרגיל.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div><div class="step-title">שייך מטפלות מאושרות (אופציונלי)</div><div class="step-desc">סמן בצ'קבוקסים אילו מטפלות מוסמכות לבצע שירות זה. אם לא סומן כלום — כל המטפלות מאושרות.</div></div></div>
         <div class="step"><div class="step-num">5</div><div><div class="step-title">שמור — השירות מופיע מיד</div><div class="step-desc">ביומן התורים (לבחירה בקביעת תור) ובחנות הציבורית (ללקוחות לקביעה עצמאית).</div></div></div>
       </div>
     </div>
@@ -866,11 +866,13 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
     <div class="screen-section">
       <div class="screen-section-title">📋 שדות שירות — פירוט</div>
       <div class="field-row"><div class="field-name">שם השירות</div><div class="field-desc">יופיע ביומן, בתורים ובחנות. לדוג': "צביעה בסיסית", "תספורת + פן", "מניקור ג'ל"</div></div>
-      <div class="field-row"><div class="field-name">קטגוריה</div><div class="field-desc">שיער / ציפורניים / פנים / גוף / ספא — לניווט מהיר בחנות ובמסך הקביעה</div></div>
+      <div class="field-row"><div class="field-name">קטגוריה</div><div class="field-desc">שיער / ציפורניים / פנים / גוף / ספא / לייזר / איפור / כללי — לניווט מהיר בחנות ובמסך הקביעה</div></div>
       <div class="field-row"><div class="field-name">משך טיפול</div><div class="field-desc">בדקות — קובע את גודל המשבצת ביומן. שגיאה כאן תגרום לעומסים</div></div>
       <div class="field-row"><div class="field-name">מחיר</div><div class="field-desc">המחיר הקטלוגי — ניתן לשנות לתור ספציפי בשעת הקביעה</div></div>
-      <div class="field-row"><div class="field-name">מטפלות מאושרות</div><div class="field-desc">מי יכולה לבצע שירות זה — מגן על יומן מתורים שגויים</div></div>
-      <div class="field-row"><div class="field-name">מוצר נדרש מהמלאי</div><div class="field-desc">(אופציונלי) קישור לחומר גלם. בקביעת תור — המערכת מתריעה אם המוצר אזל</div></div>
+      <div class="field-row"><div class="field-name">% עמלה לשירות</div><div class="field-desc">(אופציונלי) אחוז עמלה ספציפי לשירות זה. אם ריק — משתמשים באחוז ברירת המחדל של המטפלת</div></div>
+      <div class="field-row"><div class="field-name">צבע ביומן</div><div class="field-desc">צבע הרקע של השירות ביומן התורים — עוזר לזהות סוג טיפול במבט מהיר</div></div>
+      <div class="field-row"><div class="field-name">מטפלות מאושרות</div><div class="field-desc">סמן אילו מטפלות יכולות לבצע שירות זה. ריק = כל המטפלות מאושרות</div></div>
+      <div class="field-row"><div class="field-name">⚠️ Patch Test</div><div class="field-desc">סמן אם השירות דורש בדיקת רגישות 48 שעות מראש — מופיע כתזכורת למטפלת בפרטי התור</div></div>
     </div>
 
     <div class="callout callout-pink">
