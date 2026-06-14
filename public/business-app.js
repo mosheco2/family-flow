@@ -33072,15 +33072,83 @@ window._beautyOpenAp = function(apId) {
             ${ap.notes ? `<p class="text-xs text-slate-500 bg-slate-50 rounded-xl px-3 py-2">${ap.notes}</p>` : ''}
             <p class="text-xs text-slate-500">מחיר: <span class="font-bold text-slate-700">₪${ap.total_price||0}</span></p>
         </div>
-        <div class="px-5 pb-5 flex gap-2">
+        <div class="px-5 pb-5 flex gap-2 flex-wrap">
+            <button onclick="document.getElementById('beauty-ap-modal').remove();window._beautyEditApModal(${ap.id})" class="flex-1 bg-purple-600 text-white py-2.5 rounded-2xl text-xs font-black hover:bg-purple-700 transition">✏️ ערוך</button>
             ${ap.status === 'scheduled' || ap.status === 'confirmed' ? `
-            <button onclick="window._beautyCompleteAp(${ap.id})" class="flex-1 bg-green-600 text-white py-2.5 rounded-2xl text-xs font-black hover:bg-green-700 transition">✅ השלם טיפול</button>
+            <button onclick="window._beautyCompleteAp(${ap.id})" class="flex-1 bg-green-600 text-white py-2.5 rounded-2xl text-xs font-black hover:bg-green-700 transition">✅ השלם</button>
             <button onclick="window._beautyNoShowAp(${ap.id})" class="flex-1 bg-orange-500 text-white py-2.5 rounded-2xl text-xs font-black hover:bg-orange-600 transition">😞 לא הגיע</button>
             ` : ''}
         </div>
     </div>
 </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._beautyEditApModal = async function(apId) {
+    const biz = _beautyBizId(); if (!biz) return;
+    const ap = window._beautyState.appointments.find(a => a.id === apId);
+    if (!ap) return;
+    const seg0 = ap.segments?.[0] || {};
+    const practitioners = window._beautyState.practitioners;
+    const pracOpts = `<option value="">ללא מטפלת</option>` + practitioners.map(p => `<option value="${p.id}" ${seg0.practitioner_id === p.id ? 'selected' : ''}>${p.display_name}</option>`).join('');
+    const curDate = seg0.start_time ? new Date(seg0.start_time).toISOString().split('T')[0] : '';
+    const curTime = seg0.start_time ? new Date(seg0.start_time).toTimeString().slice(0,5) : '';
+    const curDur = seg0.duration_minutes || 60;
+
+    const html = `
+<div id="beauty-edit-ap-modal" class="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="bg-gradient-to-r from-purple-600 to-pink-500 px-5 py-4 flex items-center justify-between">
+            <h3 class="font-black text-white text-base">עריכת תור — ${ap.client_name || 'לקוח'}</h3>
+            <button onclick="document.getElementById('beauty-edit-ap-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 space-y-3 overflow-y-auto flex-1">
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1">תאריך</label>
+                    <input id="bedit-date" type="date" value="${curDate}" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1">שעה</label>
+                    <input id="bedit-time" type="time" value="${curTime}" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm"/></div>
+            </div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">משך (דקות)</label>
+                <input id="bedit-dur" type="number" value="${curDur}" min="5" step="5" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">מטפלת</label>
+                <select id="bedit-prac" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm">${pracOpts}</select></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">סטטוס</label>
+                <select id="bedit-status" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm">
+                    <option value="scheduled" ${ap.status==='scheduled'?'selected':''}>מתוכנן</option>
+                    <option value="confirmed" ${ap.status==='confirmed'?'selected':''}>מאושר</option>
+                    <option value="completed" ${ap.status==='completed'?'selected':''}>הושלם</option>
+                    <option value="cancelled" ${ap.status==='cancelled'?'selected':''}>בוטל</option>
+                    <option value="no_show" ${ap.status==='no_show'?'selected':''}>לא הגיע</option>
+                </select></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">הערות</label>
+                <textarea id="bedit-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm resize-none">${ap.notes || ''}</textarea></div>
+        </div>
+        <div class="px-5 pb-5">
+            <button onclick="window._beautySubmitEditAp(${ap.id})" class="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white py-3 rounded-2xl text-sm font-black shadow-sm hover:opacity-90 transition">שמור שינויים ✅</button>
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._beautySubmitEditAp = async function(apId) {
+    const biz = _beautyBizId(); if (!biz) return;
+    const date = document.getElementById('bedit-date')?.value;
+    const time = document.getElementById('bedit-time')?.value;
+    const dur = parseInt(document.getElementById('bedit-dur')?.value) || 60;
+    const pracVal = document.getElementById('bedit-prac')?.value;
+    const status = document.getElementById('bedit-status')?.value;
+    const notes = document.getElementById('bedit-notes')?.value?.trim();
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/appointments/${apId}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date, time, duration_minutes: dur, practitioner_id: pracVal ? parseInt(pracVal) : null, status, notes })
+        }).then(r=>r.json());
+        document.getElementById('beauty-edit-ap-modal')?.remove();
+        if (r.success) { showToast('success', 'תור עודכן בהצלחה ✅'); loadBeautyCalendar(); }
+        else showToast('error', r.error || 'שגיאה בעדכון');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
 window._beautyCompleteAp = async function(apId) {
@@ -33237,7 +33305,7 @@ window._beautySubmitNewAp = async function() {
     const startTime = `${date}T${time}:00`;
     const endDt = new Date(startTime); endDt.setMinutes(endDt.getMinutes() + dur);
     const endTime = endDt.toISOString().slice(0,19);
-    const segments = [{ segment_order: 1, segment_type: 'active', service_name: service || 'טיפול', start_time: startTime, end_time: endTime, duration_minutes: dur, price }];
+    const segments = [{ segment_order: 1, segment_type: 'active', service_name: service || 'טיפול', start_time: startTime, end_time: endTime, duration_minutes: dur, practitioner_id: pracId ? parseInt(pracId) : null, price }];
     try {
         const r = await fetch(`${API}/beauty/${biz}/appointments`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },

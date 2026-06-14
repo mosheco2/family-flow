@@ -641,6 +641,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS attendees_user_ids JSONB DEFAULT '[]'::jsonb`); } catch(e) {}
       try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS customer_name VARCHAR(200)`); } catch(e) {}
       try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS customer_group_id INT REFERENCES family_groups(id)`); } catch(e) {}
+      // Drop FK on service_id so beauty_service_catalog IDs can be stored without constraint violation
+      try { await client.query(`ALTER TABLE calendar_events DROP CONSTRAINT IF EXISTS calendar_events_service_id_fkey`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_assignees (
           id SERIAL PRIMARY KEY,
           work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
@@ -12462,7 +12464,10 @@ app.post('/api/beauty/:bizId/appointments', async (req, res) => {
 
 app.patch('/api/beauty/:bizId/appointments/:id', async (req, res) => {
     try {
-        const { status, notes, internal_notes, deposit_paid } = req.body;
+        const { status, notes, internal_notes, deposit_paid, date, time, duration_minutes } = req.body;
+        const hasPracKey = Object.prototype.hasOwnProperty.call(req.body, 'practitioner_id');
+        const practitioner_id = hasPracKey ? (req.body.practitioner_id || null) : undefined;
+
         await pool.query(
             `UPDATE beauty_appointments SET
              status=COALESCE($1,status), notes=COALESCE($2,notes),
@@ -12471,6 +12476,34 @@ app.patch('/api/beauty/:bizId/appointments/:id', async (req, res) => {
              WHERE id=$5 AND business_group_id=$6`,
             [status, notes, internal_notes, deposit_paid, req.params.id, req.params.bizId]
         );
+
+        // Update segment timing/practitioner if provided
+        if (date || time || duration_minutes || hasPracKey) {
+            const segR = await pool.query(
+                `SELECT * FROM beauty_appointment_segments WHERE appointment_id=$1 ORDER BY segment_order LIMIT 1`,
+                [req.params.id]
+            );
+            if (segR.rows[0]) {
+                const seg = segR.rows[0];
+                const curStart = new Date(seg.start_time);
+                const newDateStr = date || curStart.toISOString().split('T')[0];
+                const newTimeStr = time || (curStart.getHours().toString().padStart(2,'0') + ':' + curStart.getMinutes().toString().padStart(2,'0'));
+                const newStart = `${newDateStr}T${newTimeStr}:00`;
+                const dur = parseInt(duration_minutes) || seg.duration_minutes || 60;
+                const endDt = new Date(newStart);
+                endDt.setMinutes(endDt.getMinutes() + dur);
+                const newEnd = endDt.toISOString().slice(0,19);
+                await pool.query(
+                    `UPDATE beauty_appointment_segments SET
+                     start_time=$1, end_time=$2, duration_minutes=$3,
+                     practitioner_id=${hasPracKey ? '$4' : 'practitioner_id'}
+                     WHERE appointment_id=$${hasPracKey ? '5' : '4'} AND segment_order=1`,
+                    hasPracKey
+                        ? [newStart, newEnd, dur, practitioner_id, req.params.id]
+                        : [newStart, newEnd, dur, req.params.id]
+                );
+            }
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
