@@ -33298,7 +33298,22 @@ window._beautyCreateMemberAccount = async function() {
     const name  = document.getElementById('bnc-name')?.value?.trim();
     const phone = document.getElementById('bnc-phone')?.value?.trim();
     const resEl = document.getElementById('bnc-oneflow-result');
-    if (!name || !phone) { if(resEl) resEl.innerHTML = '<p class="text-xs text-red-500 p-2">נא למלא שם וטלפון לפני יצירת החשבון</p>'; return; }
+    if (!phone) { if(resEl) resEl.innerHTML = '<p class="text-xs text-red-500 p-2 text-center">לא נמצא מספר טלפון</p>'; return; }
+    if (!name) {
+        // הצג שגיאה ושמור על הכפתור גלוי
+        const nameEl = document.getElementById('bnc-name');
+        if (nameEl) { nameEl.focus(); nameEl.style.borderColor = '#ef4444'; setTimeout(() => { if(nameEl) nameEl.style.borderColor = ''; }, 3000); }
+        if(resEl) resEl.innerHTML = `
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                <p class="text-xs text-red-600 font-bold">⚠️ יש למלא שם מלא לפני יצירת החשבון</p>
+                <p class="text-[10px] text-amber-600">מלא את שדה "שם מלא" למעלה ולאחר מכן לחץ שוב</p>
+                <button onclick="window._beautyCreateMemberAccount()" class="flex items-center gap-2 w-full bg-violet-600 hover:bg-violet-700 text-white rounded-xl px-3 py-2 text-xs font-bold transition">
+                    <i class="fa-solid fa-user-plus text-sm"></i>
+                    צור חשבון ONEFLOW וקשר ללקוח
+                </button>
+            </div>`;
+        return;
+    }
     if(resEl) resEl.innerHTML = '<p class="text-xs text-slate-400 p-2 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> יוצר חשבון...</p>';
     try {
         const r = await fetch(`${API}/member/create-for-business`, {
