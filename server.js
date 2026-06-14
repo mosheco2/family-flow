@@ -2424,11 +2424,21 @@ app.delete('/api/sa/staff/:id', verifySA, async (req, res) => {
 // --- עריכת שם סביבה (משפחה/עסק) והאימייל שלה מהאדמין כולל הרשאות מודולים ---
 app.put('/api/sa/groups/:id', async (req, res) => {
     try {
-        const { name, adminEmail, features } = req.body;
-        if (features !== undefined) {
-            await pool.query('UPDATE family_groups SET name=$1, admin_email=$2, features=$3 WHERE id=$4', [name, adminEmail, JSON.stringify(features), req.params.id]);
-        } else {
-            await pool.query('UPDATE family_groups SET name=$1, admin_email=$2 WHERE id=$3', [name, adminEmail, req.params.id]);
+        const { name, adminEmail, features, city, streetAddress, adminPhone, lastName, familyNickname, bizType, contactName } = req.body;
+        const vals = [name, adminEmail ? adminEmail.toLowerCase().trim() : null];
+        const sets = ['name=$1', 'admin_email=$2'];
+        if (features !== undefined) { vals.push(JSON.stringify(features)); sets.push(`features=$${vals.length}`); }
+        if (city !== undefined) { vals.push(city || null); sets.push(`city=$${vals.length}`); }
+        if (streetAddress !== undefined) { vals.push(streetAddress || null); sets.push(`street_address=$${vals.length}`); }
+        if (lastName !== undefined) { vals.push(lastName || null); sets.push(`last_name=$${vals.length}`); }
+        if (familyNickname !== undefined) { vals.push(familyNickname || null); sets.push(`family_nickname=$${vals.length}`); }
+        if (bizType !== undefined && bizType) { vals.push(bizType); sets.push(`business_type=$${vals.length}`); }
+        if (contactName !== undefined) { vals.push(contactName || null); sets.push(`contact_name=$${vals.length}`); }
+        vals.push(req.params.id);
+        await pool.query(`UPDATE family_groups SET ${sets.join(', ')} WHERE id=$${vals.length}`, vals);
+        // עדכון טלפון מנהל בטבלת users
+        if (adminPhone !== undefined) {
+            await pool.query(`UPDATE users SET phone=$1 WHERE group_id=$2 AND role='ADMIN'`, [adminPhone || null, req.params.id]);
         }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }

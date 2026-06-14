@@ -1963,15 +1963,80 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             
             <input type="hidden" id="sa-edit-group-id">
             
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <div>
-                    <label class="text-xs font-bold text-slate-500 mb-1 block">שם הסביבה:</label>
-                    <input type="text" id="sa-edit-group-name" class="modern-input py-2 text-sm" placeholder="שם המשפחה או העסק">
+            <div class="mb-5">
+                <!-- שורה 1: שם + קוד סביבה -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                    <div class="sm:col-span-2">
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">שם הסביבה</label>
+                        <input type="text" id="sa-edit-group-name" class="modern-input py-2 text-sm" placeholder="שם המשפחה או העסק">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">קוד סביבה <span class="text-slate-400 font-normal">(לא ניתן לשינוי)</span></label>
+                        <input type="text" id="sa-edit-group-code" class="modern-input py-2 text-sm font-mono tracking-widest bg-slate-100 text-slate-400 uppercase" readonly disabled placeholder="קוד">
+                    </div>
                 </div>
-                <div>
-                    <label class="text-xs font-bold text-slate-500 mb-1 block">אימייל מנהל הסביבה:</label>
-                    <input type="email" id="sa-edit-group-email" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="כתובת המייל">
+                <!-- שורה 2: מייל + טלפון מנהל -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">מייל מנהל</label>
+                        <input type="email" id="sa-edit-group-email" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="כתובת המייל">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">טלפון מנהל</label>
+                        <input type="tel" id="sa-edit-group-admin-phone" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="05X-XXXXXXX">
+                    </div>
                 </div>
+                <!-- שורה 3: עיר + כתובת -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">עיר</label>
+                        <input type="text" id="sa-edit-group-city" class="modern-input py-2 text-sm" placeholder="עיר">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">כתובת</label>
+                        <input type="text" id="sa-edit-group-address" class="modern-input py-2 text-sm" placeholder="רחוב ומספר">
+                    </div>
+                </div>
+                <!-- שדות ספציפיים למשפחה -->
+                <div id="sa-edit-family-fields" class="hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">שם משפחה (last_name)</label>
+                        <input type="text" id="sa-edit-group-last-name" class="modern-input py-2 text-sm" placeholder="שם משפחה">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">כינוי משפחה</label>
+                        <input type="text" id="sa-edit-group-family-nickname" class="modern-input py-2 text-sm" placeholder="לדוג׳: כהן">
+                    </div>
+                </div>
+                </div>
+                <!-- שדות ספציפיים לעסק -->
+                <div id="sa-edit-business-fields" class="hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">סוג עסק</label>
+                        <select id="sa-edit-group-biz-type" class="modern-input py-2 text-sm">
+                            <option value="other">כללי / אחר</option>
+                            <option value="restaurant">מסעדה / בית קפה 🍕</option>
+                            <option value="retail">חנות קמעונאית 🛍️</option>
+                            <option value="services">שירותים מקצועיים 💼</option>
+                            <option value="construction">בנייה / קבלנות 🏗️</option>
+                            <option value="maintenance_repair">תחזוקה ותיקונים 🔧</option>
+                            <option value="healthcare">בריאות / קליניקה 🏥</option>
+                            <option value="beauty">יופי / קוסמטיקה 💅</option>
+                            <option value="education">חינוך / הדרכה 🎓</option>
+                            <option value="sport">ספורט / כושר 🏋️</option>
+                            <option value="events">אירועים / הפקות 🎉</option>
+                            <option value="food_production">ייצור מזון 🏭</option>
+                            <option value="logistics">לוגיסטיקה / משלוחים 🚚</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">שם איש קשר</label>
+                        <input type="text" id="sa-edit-group-contact-name" class="modern-input py-2 text-sm" placeholder="שם איש הקשר בעסק">
+                    </div>
+                </div>
+                </div><!-- /sa-edit-business-fields -->
             </div>
 
             <!-- Family module unlocking (for member-type groups only) -->
@@ -2524,7 +2589,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
         </div>
     </div>
 
-    <script src="sa-app.js?v=23"></script>
+    <script src="sa-app.js?v=24"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">
             <button onclick="document.getElementById('sa-sla-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>

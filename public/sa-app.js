@@ -1758,9 +1758,34 @@ async function saTogglePremium(id, enable) {
 
 function openSAEditGroupModal(id, name, email) {
     const group = saAllGroups.find(g => g.id === id);
+    const adminUser = saAllUsers.find(u => u.group_id === id && u.role === 'ADMIN');
     getEl('sa-edit-group-id').value = id;
     getEl('sa-edit-group-name').value = name;
     getEl('sa-edit-group-email').value = email || '';
+    // שדות חדשים
+    const setV = (elId, v) => { const el = getEl(elId); if(el) el.value = v || ''; };
+    setV('sa-edit-group-code', group?.group_code || '');
+    setV('sa-edit-group-admin-phone', adminUser?.phone || '');
+    setV('sa-edit-group-city', group?.city || '');
+    setV('sa-edit-group-address', group?.street_address || '');
+
+    // הצגת שדות לפי סוג
+    const isFamily = group?.type === 'FAMILY' && group?.member_type !== 'member';
+    const isBusiness = group?.type === 'BUSINESS';
+    const familyFields = getEl('sa-edit-family-fields');
+    const bizFields = getEl('sa-edit-business-fields');
+    if (familyFields) familyFields.classList.toggle('hidden', !isFamily);
+    if (bizFields) bizFields.classList.toggle('hidden', !isBusiness);
+
+    if (isFamily) {
+        setV('sa-edit-group-last-name', group?.last_name || '');
+        setV('sa-edit-group-family-nickname', group?.family_nickname || '');
+    }
+    if (isBusiness) {
+        const sel = getEl('sa-edit-group-biz-type');
+        if (sel) sel.value = group?.business_type || 'other';
+        setV('sa-edit-group-contact-name', group?.contact_name || '');
+    }
 
     const isMember = group?.member_type === 'member';
     const flagsSection = getEl('sa-flags-section');
@@ -1807,6 +1832,13 @@ async function saveSAEditGroup() {
     const id = val('sa-edit-group-id');
     const name = val('sa-edit-group-name');
     const adminEmail = val('sa-edit-group-email');
+    const adminPhone = val('sa-edit-group-admin-phone') || '';
+    const city = val('sa-edit-group-city') || '';
+    const streetAddress = val('sa-edit-group-address') || '';
+    const lastName = val('sa-edit-group-last-name') || '';
+    const familyNickname = val('sa-edit-group-family-nickname') || '';
+    const bizType = (() => { const el = getEl('sa-edit-group-biz-type'); return el ? el.value : ''; })();
+    const contactName = val('sa-edit-group-contact-name') || '';
 
     if (!name || !adminEmail) return showToast('error', 'שם ומייל לא יכולים להיות ריקים');
 
@@ -1814,17 +1846,21 @@ async function saveSAEditGroup() {
     const isMember = group?.member_type === 'member';
 
     try {
+        const extraGroupFields = { city, streetAddress, adminPhone };
+        const groupIndex = saAllGroups.findIndex(g => g.id === parseInt(id));
+
         if (isMember) {
             const unlocked = Array.from(document.querySelectorAll('.fam-mod-cb:checked')).map(cb => cb.id.replace('fammod-', ''));
-            const groupIndex = saAllGroups.findIndex(g => g.id === parseInt(id));
             if (groupIndex > -1) {
                 saAllGroups[groupIndex].name = name;
                 saAllGroups[groupIndex].admin_email = adminEmail;
+                saAllGroups[groupIndex].city = city;
+                saAllGroups[groupIndex].street_address = streetAddress;
                 saAllGroups[groupIndex].unlocked_modules = unlocked;
             }
             await fetch(`${API}/sa/groups/${id}`, {
                 method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-                body: JSON.stringify({ name, adminEmail })
+                body: JSON.stringify({ name, adminEmail, ...extraGroupFields })
             });
             await fetch(`${API}/sa/groups/${id}/modules`, {
                 method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
@@ -1839,15 +1875,24 @@ async function saveSAEditGroup() {
                 budget: getCb('flag-budget'), forecast: getCb('flag-forecast'), tasks: getCb('flag-tasks'), community: getCb('flag-community'),
                 members: getCb('flag-members'), shifts: getCb('flag-shifts')
             };
-            const groupIndex = saAllGroups.findIndex(g => g.id === parseInt(id));
             if (groupIndex > -1) {
                 saAllGroups[groupIndex].name = name;
                 saAllGroups[groupIndex].admin_email = adminEmail;
                 saAllGroups[groupIndex].features = flags;
+                saAllGroups[groupIndex].city = city;
+                saAllGroups[groupIndex].street_address = streetAddress;
+                if (group?.type === 'FAMILY') {
+                    saAllGroups[groupIndex].last_name = lastName;
+                    saAllGroups[groupIndex].family_nickname = familyNickname;
+                }
+                if (group?.type === 'BUSINESS') {
+                    saAllGroups[groupIndex].business_type = bizType;
+                    saAllGroups[groupIndex].contact_name = contactName;
+                }
             }
             await fetch(`${API}/sa/groups/${id}`, {
                 method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-                body: JSON.stringify({ name, adminEmail, features: flags })
+                body: JSON.stringify({ name, adminEmail, features: flags, ...extraGroupFields, lastName, familyNickname, bizType, contactName })
             });
         }
 
