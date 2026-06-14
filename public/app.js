@@ -9051,11 +9051,7 @@ function _actRender(filterType, searchQ) {
             </div>`;
         }
 
-        if (type === 'beauty') {
-            html += `<div id="activities-beauty-rfq" class="mt-3 space-y-2">
-                <p class="text-xs text-slate-400 text-center py-3"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>
-            </div>`;
-        }
+
 
         html += `</div></div>`;
     }
@@ -9067,8 +9063,18 @@ function _actRender(filterType, searchQ) {
         </div>`;
     }
 
+    // Beauty RFQ discovery always appears at bottom, separated from business cards
+    const showBeautyRfq = filterType === 'all' || filterType === 'beauty';
+    if (showBeautyRfq) {
+        html += `<div class="mt-4 pt-4 border-t border-slate-100">
+            <div id="activities-beauty-rfq" class="space-y-2">
+                <p class="text-xs text-slate-400 text-center py-3"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>
+            </div>
+        </div>`;
+    }
+
     listEl.innerHTML = html;
-    _renderFamilyBeautyRfqInline();
+    if (showBeautyRfq) _renderFamilyBeautyRfqInline();
 }
 
 // ===== BEAUTY RFQ — FAMILY SIDE (P4) =======================

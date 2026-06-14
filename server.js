@@ -12505,7 +12505,7 @@ app.get('/api/beauty/:bizId/clients', async (req, res) => {
         if (q) { vals.push(`%${q}%`); query += ` AND (client_name ILIKE $${vals.length} OR client_phone ILIKE $${vals.length} OR client_email ILIKE $${vals.length})`; }
         query += ' ORDER BY last_visit_at DESC NULLS LAST LIMIT 100';
         const r = await pool.query(query, vals);
-        res.json(r.rows);
+        res.json({ clients: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
