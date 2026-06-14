@@ -575,50 +575,58 @@ mark { background: #fde68a; border-radius: 2px; padding: 0 2px; }
       <div class="card-body">
 
         <div class="screen-section">
-          <div class="screen-section-title">⚡ 6 KPIs יומיים</div>
+          <div class="screen-section-title">⚡ 6 KPIs יומיים — שורה עליונה</div>
           <div class="kpi-grid">
-            <div class="kpi-card"><div class="kpi-icon">📦</div><div class="kpi-val">47</div><div class="kpi-lbl">משלוחים היום</div></div>
-            <div class="kpi-card"><div class="kpi-icon">✅</div><div class="kpi-val">81%</div><div class="kpi-lbl">אחוז מסירה</div></div>
-            <div class="kpi-card"><div class="kpi-icon">🚗</div><div class="kpi-val">5/6</div><div class="kpi-lbl">נהגים פעילים</div></div>
+            <div class="kpi-card"><div class="kpi-icon">📥</div><div class="kpi-val">8</div><div class="kpi-lbl">משלוחים חדשים</div></div>
+            <div class="kpi-card"><div class="kpi-icon">✅</div><div class="kpi-val">22</div><div class="kpi-lbl">נמסרו היום</div></div>
+            <div class="kpi-card"><div class="kpi-icon">🚚</div><div class="kpi-val">9</div><div class="kpi-lbl">בדרך כעת</div></div>
+            <div class="kpi-card"><div class="kpi-icon">📵</div><div class="kpi-val" style="color:#dc2626">3</div><div class="kpi-lbl">לא ענו</div></div>
             <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-val">₪3,840</div><div class="kpi-lbl">הכנסה היום</div></div>
-            <div class="kpi-card"><div class="kpi-icon">⏱️</div><div class="kpi-val">28 דק'</div><div class="kpi-lbl">זמן מסירה ממוצע</div></div>
-            <div class="kpi-card"><div class="kpi-icon">⚠️</div><div class="kpi-val">3</div><div class="kpi-lbl">חריגים פתוחים</div></div>
+            <div class="kpi-card"><div class="kpi-icon">💵</div><div class="kpi-val" style="color:#ea580c">₪1,200</div><div class="kpi-lbl">COD ממתין</div></div>
+          </div>
+          <div class="callout callout-warn" style="margin-top:0.75rem">
+            <span class="callout-icon">⚠️</span>
+            <div>כאשר יש משלוחים "לא ענו" — KPI מודגש באדום + באנר התראה מופיע מעל הכרטיסיות. לחיצה על כל KPI מנווטת ישירות לטאב הרלוונטי.</div>
           </div>
         </div>
 
         <div class="screen-section">
-          <div class="screen-section-title">🎯 8 פעולות מהירות</div>
-          <div style="display:flex;flex-wrap:wrap;gap:0.625rem">
-            <span style="background:#fef3c7;color:#92400e;padding:0.4rem 0.875rem;border-radius:9999px;font-size:0.78rem;font-weight:700">+ הזמנה חדשה</span>
-            <span style="background:#dbeafe;color:#1e40af;padding:0.4rem 0.875rem;border-radius:9999px;font-size:0.78rem;font-weight:700">📦 שיוך לנהג</span>
-            <span style="background:#d1fae5;color:#065f46;padding:0.4rem 0.875rem;border-radius:9999px;font-size:0.78rem;font-weight:700">🗺️ מפה חיה</span>
-            <span style="background:#ede9fe;color:#5b21b6;padding:0.4rem 0.875rem;border-radius:9999px;font-size:0.78rem;font-weight:700">📋 קנבן</span>
-            <span style="background:#fdf4ff;color:#7e22ce;padding:0.4rem 0.875rem;border-radius:9999px;font-size:0.78rem;font-weight:700">💰 COD ממתין</span>
-            <span style="background:#fee2e2;color:#dc2626;padding:0.4rem 0.875rem;border-radius:9999px;font-size:0.78rem;font-weight:700">🚨 חריגים: 3</span>
-            <span style="background:#f0fdf4;color:#166534;padding:0.4rem 0.875rem;border-radius:9999px;font-size:0.78rem;font-weight:700">📊 דוח יומי</span>
-            <span style="background:#fff7ed;color:#c2410c;padding:0.4rem 0.875rem;border-radius:9999px;font-size:0.78rem;font-weight:700">⚙️ הגדרות מחירון</span>
+          <div class="screen-section-title">🎯 8 כפתורי פעולה מהירה</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-top:0.5rem">
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.875rem;padding:0.75rem;text-align:center;font-size:0.78rem">
+              <div style="font-size:1.25rem;margin-bottom:0.25rem">📦</div>
+              <div style="font-weight:700;color:#334155">קנבן הזמנות</div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.875rem;padding:0.75rem;text-align:center;font-size:0.78rem">
+              <div style="font-size:1.25rem;margin-bottom:0.25rem">🚗</div>
+              <div style="font-weight:700;color:#334155">נהגים</div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.875rem;padding:0.75rem;text-align:center;font-size:0.78rem">
+              <div style="font-size:1.25rem;margin-bottom:0.25rem">🚚</div>
+              <div style="font-weight:700;color:#334155">צי רכבים</div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.875rem;padding:0.75rem;text-align:center;font-size:0.78rem">
+              <div style="font-size:1.25rem;margin-bottom:0.25rem">💰</div>
+              <div style="font-weight:700;color:#334155">מחירון</div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.875rem;padding:0.75rem;text-align:center;font-size:0.78rem">
+              <div style="font-size:1.25rem;margin-bottom:0.25rem">💵</div>
+              <div style="font-weight:700;color:#334155">גבייה COD</div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.875rem;padding:0.75rem;text-align:center;font-size:0.78rem">
+              <div style="font-size:1.25rem;margin-bottom:0.25rem">📋</div>
+              <div style="font-weight:700;color:#334155">הצעות מחיר</div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.875rem;padding:0.75rem;text-align:center;font-size:0.78rem">
+              <div style="font-size:1.25rem;margin-bottom:0.25rem">📊</div>
+              <div style="font-weight:700;color:#334155">דוחות</div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.875rem;padding:0.75rem;text-align:center;font-size:0.78rem">
+              <div style="font-size:1.25rem;margin-bottom:0.25rem">👥</div>
+              <div style="font-weight:700;color:#334155">צוות</div>
+            </div>
           </div>
-        </div>
-
-        <div class="screen-section">
-          <div class="screen-section-title">👥 סטטוס נהגים בזמן אמת</div>
-          <div style="display:flex;flex-direction:column;gap:0.625rem">
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:0.625rem;background:white;border-radius:0.625rem;border:1px solid #e2e8f0;font-size:0.82rem">
-              <span>🟢 <strong>דני כהן</strong></span>
-              <span style="color:#64748b">4 משלוחים נותרו — אזור צפון</span>
-              <span class="status-badge status-transit">בנסיעה</span>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:0.625rem;background:white;border-radius:0.625rem;border:1px solid #e2e8f0;font-size:0.82rem">
-              <span>🟢 <strong>מוחמד עלי</strong></span>
-              <span style="color:#64748b">2 משלוחים — אזור מרכז</span>
-              <span class="status-badge status-assigned">איסוף</span>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:0.625rem;background:white;border-radius:0.625rem;border:1px solid #e2e8f0;font-size:0.82rem">
-              <span>🔴 <strong>יוסי לוי</strong></span>
-              <span style="color:#64748b">לא נכנס למערכת עדיין</span>
-              <span class="status-badge status-failed">לא פעיל</span>
-            </div>
-          </div>
+          <p style="font-size:0.8rem;color:#94a3b8;margin-top:0.75rem;text-align:center">לחיצה על כל כפתור מנווטת ישירות לטאב המתאים · "לתפריט המלא" בתחתית פותח את כל הטאבים</p>
         </div>
       </div>
     </div>
@@ -703,67 +711,64 @@ mark { background: #fde68a; border-radius: 2px; padding: 0 2px; }
       </div>
       <div class="card-body">
 
-        <div class="mockup">
-          <div class="mockup-bar">
-            <div class="mockup-dots">
-              <div class="mockup-dot" style="background:#ef4444"></div>
-              <div class="mockup-dot" style="background:#f59e0b"></div>
-              <div class="mockup-dot" style="background:#22c55e"></div>
-            </div>
-            <span style="color:#94a3b8;font-size:0.75rem;margin-right:auto">בdav אמת — Driver View</span>
-          </div>
-          <div class="mockup-screen" style="background:#f8fafc;gap:1rem">
-            <div style="background:white;border-radius:1rem;padding:1.25rem;width:100%;max-width:320px;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
-              <div style="font-size:0.7rem;font-weight:800;color:#d97706;margin-bottom:0.25rem">▶ עצירה 3/9</div>
-              <div style="font-size:0.95rem;font-weight:700;color:#1e293b;margin-bottom:0.25rem">📍 רחוב הרצל 45, רמת גן</div>
-              <div style="font-size:0.78rem;color:#64748b;margin-bottom:0.75rem">📦 חבילה קטנה — ₪0 (שולם מראש)<br>👤 יוחנן כהן | 📞 050-1234567</div>
-              <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem">
-                <button style="flex:1;background:#3b82f6;color:white;border:none;border-radius:0.5rem;padding:0.5rem;font-size:0.75rem;font-weight:700;cursor:pointer">🧭 נווט</button>
-                <button style="flex:1;background:#10b981;color:white;border:none;border-radius:0.5rem;padding:0.5rem;font-size:0.75rem;font-weight:700;cursor:pointer">📞 התקשר</button>
-                <button style="flex:1;background:#8b5cf6;color:white;border:none;border-radius:0.5rem;padding:0.5rem;font-size:0.75rem;font-weight:700;cursor:pointer">💬 SMS</button>
-              </div>
-              <button style="width:100%;background:linear-gradient(135deg,#d97706,#f59e0b);color:white;border:none;border-radius:0.875rem;padding:0.875rem;font-size:1rem;font-weight:800;cursor:pointer">🏁 הגעתי ליעד</button>
-              <div style="display:flex;gap:0.5rem;margin-top:0.5rem">
-                <button style="flex:1;background:#f1f5f9;color:#334155;border:none;border-radius:0.5rem;padding:0.5rem;font-size:0.72rem;font-weight:600;cursor:pointer">👤 החתם</button>
-                <button style="flex:1;background:#f1f5f9;color:#334155;border:none;border-radius:0.5rem;padding:0.5rem;font-size:0.72rem;font-weight:600;cursor:pointer">📷 צלם POD</button>
-                <button style="flex:1;background:#fee2e2;color:#dc2626;border:none;border-radius:0.5rem;padding:0.5rem;font-size:0.72rem;font-weight:600;cursor:pointer">❌ לא מענה</button>
+        <div class="screen-section">
+          <div class="screen-section-title">📱 מסך ראשי של הנהג — מה רואים?</div>
+          <!-- Header gradient mockup -->
+          <div style="background:linear-gradient(to left,#f97316,#f59e0b);border-radius:1rem;padding:1.25rem;color:white;margin-bottom:0.75rem">
+            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.875rem">
+              <div style="width:44px;height:44px;background:rgba(255,255,255,0.2);border-radius:0.75rem;display:flex;align-items:center;justify-content:center;font-size:1.5rem">🚗</div>
+              <div>
+                <div style="font-weight:900;font-size:1rem">דני כהן</div>
+                <div style="font-size:0.78rem;opacity:0.8">יום שלישי</div>
               </div>
             </div>
-            <div style="font-size:0.75rem;color:#64748b">○──●──○──○──○──○ | עצירה 3 מתוך 9</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;text-align:center">
+              <div style="background:rgba(255,255,255,0.2);border-radius:0.625rem;padding:0.5rem"><div style="font-weight:900;font-size:1.1rem">9</div><div style="font-size:0.65rem;opacity:0.8">סה"כ</div></div>
+              <div style="background:rgba(255,255,255,0.2);border-radius:0.625rem;padding:0.5rem"><div style="font-weight:900;font-size:1.1rem">5</div><div style="font-size:0.65rem;opacity:0.8">נמסרו</div></div>
+              <div style="background:rgba(255,255,255,0.2);border-radius:0.625rem;padding:0.5rem"><div style="font-weight:900;font-size:1.1rem;color:#fef08a">₪240</div><div style="font-size:0.65rem;opacity:0.8">COD גבייה</div></div>
+            </div>
           </div>
-          <div class="mockup-caption">Driver Companion View — מובייל ראשון, כפתורים בתחתית המסך</div>
+          <!-- Active order card mockup -->
+          <div style="font-size:0.78rem;font-weight:700;color:#475569;margin-bottom:0.5rem">🚚 פעיל עכשיו (3)</div>
+          <div style="background:white;border:1px solid #e2e8f0;border-radius:0.875rem;padding:0.875rem;margin-bottom:0.5rem">
+            <div style="display:flex;justify-content:space-between;margin-bottom:0.375rem">
+              <div style="font-weight:800;color:#1e293b;font-size:0.875rem">יוחנן כהן</div>
+              <span style="background:#ede9fe;color:#6d28d9;font-size:0.65rem;font-weight:700;padding:2px 8px;border-radius:9999px">בדרך</span>
+            </div>
+            <div style="font-size:0.75rem;color:#64748b;margin-bottom:0.375rem">📍 רחוב הרצל 45, רמת גן</div>
+            <div style="font-size:0.72rem;color:#94a3b8;margin-bottom:0.625rem">🕐 13:00–15:00</div>
+            <div style="display:flex;gap:0.4rem">
+              <button style="width:36px;height:36px;background:#22c55e;color:white;border:none;border-radius:0.625rem;font-size:0.75rem;cursor:pointer">📞</button>
+              <button style="width:36px;height:36px;background:#3b82f6;color:white;border:none;border-radius:0.625rem;font-size:0.75rem;cursor:pointer">🗺️</button>
+              <button style="flex:1;background:#f59e0b;color:white;border:none;border-radius:0.625rem;font-size:0.75rem;font-weight:700;cursor:pointer">הגעתי</button>
+              <button style="padding:0 0.625rem;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:0.625rem;font-size:0.72rem;font-weight:700;cursor:pointer">📵</button>
+            </div>
+          </div>
+          <div class="callout callout-info" style="margin-top:0.75rem">
+            <span class="callout-icon">ℹ️</span>
+            <div>הנהג רואה בנפרד: <strong>פעיל עכשיו</strong> (assigned/picked_up/in_transit) · <strong>לא ענה</strong> (failed_attempt) · <strong>הושלמו</strong> (delivered). הכרטיסיות מסתדרות לפי עדיפות אוטומטית.</div>
+          </div>
         </div>
 
         <div class="screen-section">
-          <div class="screen-section-title">🧭 ניווט משולב</div>
-          <p style="font-size:0.875rem;color:#475569;line-height:1.7">לחיצה על "נווט" פותחת deep-link ישיר ל-<strong>Waze</strong> או <strong>Google Maps</strong> עם הכתובת כבר מוזנת. הנהג בוחר את אפליקציית הניווט המועדפת עליו בהגדרות הפרופיל.</p>
+          <div class="screen-section-title">🔄 כפתורי מעבר סטטוס לפי שלב</div>
+          <div style="display:flex;flex-direction:column;gap:0.5rem">
+            <div class="field-row"><div class="field-name">שויך → נאסף</div><div class="field-desc">כפתור "נאסף" — הנהג אסף את החבילה מהשולח</div></div>
+            <div class="field-row"><div class="field-name">נאסף → בדרך</div><div class="field-desc">כפתור "בדרך" — יצא לכיוון הנמען</div></div>
+            <div class="field-row"><div class="field-name">בדרך → הגעתי</div><div class="field-desc">כפתור "הגעתי" — הנהג בחנייה ליד הנמען</div></div>
+            <div class="field-row"><div class="field-name">הגיע → נמסר</div><div class="field-desc">כפתור "נמסר ✓" — מסירה הושלמה</div></div>
+            <div class="field-row"><div class="field-name">כל שלב פעיל</div><div class="field-desc">כפתור 📵 תמיד זמין לרישום "לא ענה"</div></div>
+          </div>
         </div>
 
         <div class="screen-section">
-          <div class="screen-section-title">☝️ עיצוב ביד אחת (Thumb Zone)</div>
-          <div class="steps">
-            <div class="step">
-              <div class="step-num" style="font-size:0.65rem">UX</div>
-              <div>
-                <div class="step-title">כפתורי פעולה עיקריים — תחתית המסך</div>
-                <div class="step-desc">הגעתי / נמסר / לא היה מענה ממוקמים בתחתית — אזור הנגיעה הטבעי של האגודל (49% מהמשתמשים מחזיקים ביד אחת).</div>
-              </div>
-            </div>
-            <div class="step">
-              <div class="step-num" style="font-size:0.65rem">UX</div>
-              <div>
-                <div class="step-title">כפתורים גדולים — מינימום 48×48px</div>
-                <div class="step-desc">מניעת לחיצות שגויות בתנועה — מרחק מינימלי 8px בין כפתורים.</div>
-              </div>
-            </div>
-            <div class="step">
-              <div class="step-num" style="font-size:0.65rem">UX</div>
-              <div>
-                <div class="step-title">פעולה עיקרית אחת בכל שלב</div>
-                <div class="step-desc">בכל שלב רואים כפתור אחד בולט (Gradient) ואפשרויות משניות קטנות יותר — מונע בלבול.</div>
-              </div>
-            </div>
-          </div>
+          <div class="screen-section-title">🧭 ניווט ישיר ל-Waze</div>
+          <p style="font-size:0.875rem;color:#475569;line-height:1.7">לחיצה על כפתור 🗺️ בכל כרטיסייה פותחת <strong>Waze</strong> עם הכתובת מוזנת אוטומטית — ללא הקלדה. לחיצה על 📞 פותחת חיוג ישיר לנמען.</p>
+        </div>
+
+        <div class="callout callout-warn">
+          <span class="callout-icon">⚠️</span>
+          <div><strong>נהג ללא פרופיל משויך:</strong> אם חשבון הנהג לא קושר לפרופיל ב"נהגים", המסך יציג הודעת שגיאה ובקשה לפנות למנהל. המנהל מקשר ב-<strong>טאב נהגים → עריכה → בחר משתמש</strong>.</div>
         </div>
 
       </div>
