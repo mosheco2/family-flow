@@ -32750,11 +32750,13 @@ function _beautyStatusBadge(status) {
         in_progress: 'bg-yellow-100 text-yellow-700',
         completed: 'bg-slate-100 text-slate-600',
         cancelled: 'bg-red-100 text-red-600',
-        no_show: 'bg-orange-100 text-orange-600'
+        no_show: 'bg-orange-100 text-orange-600',
+        pending_client: 'bg-amber-100 text-amber-700'
     };
     const labels = {
         scheduled: 'מתוכנן', confirmed: 'מאושר', in_progress: 'בטיפול',
-        completed: 'הושלם', cancelled: 'בוטל', no_show: 'לא הגיע'
+        completed: 'הושלם', cancelled: 'בוטל', no_show: 'לא הגיע',
+        pending_client: 'ממתין לאישור לקוח'
     };
     return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${map[status]||'bg-slate-100 text-slate-500'}">${labels[status]||status}</span>`;
 }
@@ -33089,6 +33091,9 @@ window._beautyOpenAp = function(apId) {
         </div>
         <div class="px-5 pb-5 flex gap-2 flex-wrap">
             <button onclick="document.getElementById('beauty-ap-modal').remove();window._beautyEditApModal(${ap.id})" class="flex-1 bg-purple-600 text-white py-2.5 rounded-2xl text-xs font-black hover:bg-purple-700 transition">✏️ ערוך</button>
+            ${ap.status === 'pending_client' ? `
+            <button onclick="window._beautyConfirmApByBiz(${ap.id})" class="flex-1 bg-green-600 text-white py-2.5 rounded-2xl text-xs font-black hover:bg-green-700 transition">✅ אשר תור</button>
+            ` : ''}
             ${ap.status === 'scheduled' || ap.status === 'confirmed' ? `
             <button onclick="window._beautyCompleteAp(${ap.id})" class="flex-1 bg-green-600 text-white py-2.5 rounded-2xl text-xs font-black hover:bg-green-700 transition">✅ השלם</button>
             <button onclick="window._beautyNoShowAp(${ap.id})" class="flex-1 bg-orange-500 text-white py-2.5 rounded-2xl text-xs font-black hover:bg-orange-600 transition">😞 לא הגיע</button>
@@ -33192,6 +33197,19 @@ window._beautySubmitEditAp = async function(apId) {
         document.getElementById('beauty-edit-ap-modal')?.remove();
         if (r.success) { showToast('success', 'תור עודכן בהצלחה ✅'); loadBeautyCalendar(); }
         else showToast('error', r.error || 'שגיאה בעדכון');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._beautyConfirmApByBiz = async function(apId) {
+    const biz = _beautyBizId(); if (!biz) return;
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/appointments/${apId}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'confirmed' })
+        }).then(r=>r.json());
+        document.getElementById('beauty-ap-modal')?.remove();
+        if (r.success) { showToast('success', 'תור אושר ✅'); loadBeautyCalendar(); }
+        else showToast('error', r.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
