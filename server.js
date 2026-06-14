@@ -12544,15 +12544,33 @@ app.get('/api/family/linked-businesses/:groupId', async (req, res) => {
         const groupId = parseInt(req.params.groupId);
         // beauty client links
         const beautyR = await pool.query(
-            `SELECT DISTINCT bcr.business_group_id, fg.name AS business_name, fg.business_type,
-                    fg.group_code, fg.community_id, 'beauty' AS link_type, bcr.created_at AS linked_at
+            `SELECT DISTINCT ON (bcr.business_group_id) bcr.business_group_id, fg.name AS business_name,
+                    fg.business_type, fg.group_code, fg.community_id, 'beauty' AS link_type,
+                    bcr.created_at AS linked_at, 'active' AS status
              FROM beauty_client_records bcr
              JOIN family_groups fg ON fg.id = bcr.business_group_id
              WHERE bcr.client_family_id = $1
-             ORDER BY bcr.created_at DESC`,
+             ORDER BY bcr.business_group_id, bcr.created_at DESC`,
             [groupId]
         );
-        res.json({ businesses: beautyR.rows });
+        // member_business_links (sport, restaurant, repair, etc.)
+        const memberR = await pool.query(
+            `SELECT DISTINCT ON (mbl.business_group_id) mbl.business_group_id,
+                    fg.name AS business_name, fg.business_type, fg.group_code, fg.community_id,
+                    'member' AS link_type, mbl.linked_at, mbl.status
+             FROM member_business_links mbl
+             JOIN family_groups fg ON fg.id = mbl.business_group_id
+             WHERE mbl.member_group_id = $1 AND mbl.is_active = true
+             ORDER BY mbl.business_group_id, mbl.linked_at DESC`,
+            [groupId]
+        );
+        // merge — beauty entries take precedence, skip duplicates
+        const beautyIds = new Set(beautyR.rows.map(r => r.business_group_id));
+        const merged = [
+            ...beautyR.rows,
+            ...memberR.rows.filter(r => !beautyIds.has(r.business_group_id))
+        ].sort((a, b) => new Date(b.linked_at) - new Date(a.linked_at));
+        res.json({ businesses: merged });
     } catch(e) { res.status(500).json({ error: e.message, businesses: [] }); }
 });
 

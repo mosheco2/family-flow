@@ -347,7 +347,6 @@ function switchTab(t) { 
             loadFamilyServiceCalls();
         } catch(e) {}
     }
-    if (t === 'myorders') try { _prefetchBeautyRfqs(); } catch(e) {}
     if (t === 'home-maintenance') try { loadHomeMaintenance(); } catch(e) {}
 }
 
@@ -446,16 +445,17 @@ function applyOrdersFilter(orders) {
     return result;
 }
 function switchMyOrdersTab(tab) {
+    // redirect beauty to activities (tab removed)
+    if (tab === 'beauty') tab = 'activities';
     try { sessionStorage.setItem('myorders_sub_tab', tab); } catch(e) {}
-    ['orders','activities','faults','quotes','beauty'].forEach(t => {
+    ['orders','activities','faults','quotes'].forEach(t => {
         const btn = getEl(`myorders-tab-${t}`);
         const sec = getEl(`myorders-section-${t}`);
-        if (btn) btn.className = `flex-1 py-2 text-[10px] rounded-xl transition whitespace-nowrap ${t === tab ? 'font-black bg-white text-slate-700 shadow-sm' : 'font-bold text-slate-500'}`;
+        if (btn) btn.className = `flex-1 py-2 text-xs rounded-xl transition ${t === tab ? 'font-black bg-white text-slate-700 shadow-sm' : 'font-bold text-slate-500'}`;
         if (sec) sec.classList.toggle('hidden', t !== tab);
     });
     if (tab === 'faults') renderBusinessServiceCallsTab();
     if (tab === 'quotes') loadFamilyQuotes();
-    if (tab === 'beauty') loadFamilyBeautyRfqInline();
     if (tab === 'activities') loadMyActivities();
 }
 
@@ -8878,38 +8878,83 @@ async function loadMyActivities() {
     if (!el || !currentGroup) return;
     el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
     try {
-        const d = await fetch(`${API}/family/linked-businesses/${currentGroup.id}`).then(r => r.json());
-        const businesses = d.businesses || [];
-        if (!businesses.length) {
+        await Promise.all([
+            fetch(`${API}/family/linked-businesses/${currentGroup.id}`).then(r => r.json()).then(d => { el._bizData = d.businesses || []; }),
+            _prefetchBeautyRfqs()
+        ]);
+        const businesses = el._bizData || [];
+
+        const CAT = {
+            beauty:             { icon: '💅', label: 'יופי וטיפוח' },
+            gym:                { icon: '💪', label: 'כושר וספורט' },
+            sport:              { icon: '🏋️', label: 'ספורט' },
+            restaurant:         { icon: '🍽️', label: 'מסעדה' },
+            maintenance_repair: { icon: '🔧', label: 'תיקונים ואחזקה' },
+            construction:       { icon: '🏗️', label: 'בנייה ושיפוץ' },
+            services:           { icon: '🛎️', label: 'שירותים' },
+            healthcare:         { icon: '🏥', label: 'בריאות' },
+            events:             { icon: '🎉', label: 'אירועים' },
+        };
+
+        // Group by business type
+        const groups = {};
+        for (const b of businesses) {
+            const t = b.business_type || 'other';
+            if (!groups[t]) groups[t] = [];
+            groups[t].push(b);
+        }
+
+        // Ensure beauty category exists (even if no linked businesses — beauty RFQ always shown)
+        if (!groups.beauty) groups.beauty = [];
+
+        const hasAny = businesses.length > 0 || window._beautyRfqState.businesses?.length > 0 || window._beautyRfqState.rfqs?.length > 0;
+        if (!hasAny) {
             el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">עדיין לא קושרת לעסקים. כאשר עסק יוסיף אותך כלקוח, הוא יופיע כאן.</p>';
             return;
         }
-        const bizTypeLabel = { beauty: 'יופי וטיפוח', gym: 'כושר וספורט', restaurant: 'מסעדה', maintenance_repair: 'תיקונים ואחזקה' };
-        const bizTypeIcon = { beauty: '💅', gym: '💪', restaurant: '🍽️', maintenance_repair: '🔧' };
-        el.innerHTML = businesses.map(b => {
-            const icon = bizTypeIcon[b.business_type] || '🏢';
-            const typeLabel = bizTypeLabel[b.business_type] || b.business_type || 'עסק';
-            const storeLink = b.group_code ? `${window.location.origin}/storefront.html?store=${b.group_code}${b.community_id ? '&communityId=' + b.community_id : ''}` : '';
-            const linkedDate = b.linked_at ? new Date(b.linked_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
-            return `
-            <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-                <div class="flex items-center gap-3 mb-3">
-                    <div class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-xl flex-shrink-0">${icon}</div>
+
+        let html = '';
+        for (const [type, bizsOfType] of Object.entries(groups)) {
+            const cat = CAT[type] || { icon: '🏢', label: 'עסקים' };
+            html += `<div class="mb-5">
+                <div class="flex items-center gap-2 mb-2 px-1">
+                    <span class="text-base">${cat.icon}</span>
+                    <h3 class="text-xs font-black text-slate-600 uppercase tracking-wide">${cat.label}</h3>
+                </div>
+                <div class="space-y-2">`;
+
+            for (const b of bizsOfType) {
+                const storeLink = b.group_code ? `${window.location.origin}/storefront.html?store=${b.group_code}${b.community_id ? '&communityId=' + b.community_id : ''}` : '';
+                const linkedDate = b.linked_at ? new Date(b.linked_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+                const pendingBadge = b.status === 'pending' ? '<span class="text-[9px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">ממתין לאישור</span>' : '';
+                html += `<div class="bg-white border border-slate-200 rounded-2xl p-3 shadow-sm flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-xl flex-shrink-0">${cat.icon}</div>
                     <div class="flex-1 min-w-0">
-                        <p class="font-black text-slate-800 text-sm truncate">${safeStr(b.business_name)}</p>
-                        <p class="text-[10px] text-slate-400">${typeLabel}${linkedDate ? ' · לקוח מ-' + linkedDate : ''}</p>
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <p class="font-black text-slate-800 text-sm">${safeStr(b.business_name)}</p>
+                            ${pendingBadge}
+                        </div>
+                        ${linkedDate ? `<p class="text-[10px] text-slate-400">לקוח מ-${linkedDate}</p>` : ''}
                     </div>
-                </div>
-                <div class="flex gap-2">
-                    ${storeLink ? `<a href="${storeLink}" target="_blank" rel="noopener" class="flex-1 text-center bg-indigo-600 text-white rounded-xl py-2 text-[11px] font-bold hover:bg-indigo-700 transition">
-                        <i class="fa-solid fa-store ml-1"></i>חנות ציבורית
+                    ${storeLink ? `<a href="${storeLink}" target="_blank" rel="noopener" class="shrink-0 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl px-2.5 py-2 text-[10px] font-bold hover:bg-indigo-100 transition text-center">
+                        <i class="fa-solid fa-store block mb-0.5"></i>חנות
                     </a>` : ''}
-                    ${b.business_type === 'beauty' ? `<button onclick="switchTab('myorders');switchMyOrdersTab('beauty')" class="flex-1 bg-pink-50 border border-pink-200 text-pink-700 rounded-xl py-2 text-[11px] font-bold hover:bg-pink-100 transition">
-                        <i class="fa-solid fa-calendar-check ml-1"></i>בקש תור
-                    </button>` : ''}
-                </div>
-            </div>`;
-        }).join('');
+                </div>`;
+            }
+
+            // Beauty: append RFQ section (discovery + my requests)
+            if (type === 'beauty') {
+                html += `<div id="activities-beauty-rfq" class="mt-3 space-y-2">
+                    <p class="text-xs text-slate-400 text-center py-3"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>
+                </div>`;
+            }
+
+            html += `</div></div>`;
+        }
+
+        el.innerHTML = html;
+        _renderFamilyBeautyRfqInline();
+
     } catch(e) {
         el.innerHTML = '<p class="text-xs text-red-500 text-center py-6">שגיאה בטעינת הנתונים</p>';
     }
@@ -8933,7 +8978,7 @@ async function _prefetchBeautyRfqs() {
 }
 
 async function loadFamilyBeautyRfqInline() {
-    const el = document.getElementById('myorders-beauty-content'); if (!el) return;
+    const el = document.getElementById('activities-beauty-rfq') || document.getElementById('myorders-beauty-content'); if (!el) return;
     if (!currentGroup) { el.innerHTML = '<p class="text-slate-400 text-center py-6 text-sm">נא להתחבר תחילה</p>'; return; }
     if (!window._beautyRfqState.businesses.length && !window._beautyRfqState.rfqs.length) {
         el.innerHTML = `<div class="flex items-center justify-center py-8 text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען...</div>`;
@@ -8962,7 +9007,7 @@ function _rfqStatusLabel(status) {
 }
 
 function _renderFamilyBeautyRfqInline() {
-    const el = document.getElementById('myorders-beauty-content'); if (!el) return;
+    const el = document.getElementById('activities-beauty-rfq') || document.getElementById('myorders-beauty-content'); if (!el) return;
     const { businesses, rfqs } = window._beautyRfqState;
 
     const rfqCards = rfqs.length === 0
