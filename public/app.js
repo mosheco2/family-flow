@@ -9140,7 +9140,7 @@ window._sendBizMessage = async function(bizGroupId) {
     try {
         const r = await fetch(`${API}/inbox/customer`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ groupId: bizGroupId, name: currentUser?.nickname || 'לקוח', contact: currentUser?.phone || '', subject: 'פנייה מלקוח ONEFLOW', content: txt })
+            body: JSON.stringify({ groupId: bizGroupId, name: currentUser?.nickname || 'לקוח', contact: currentUser?.phone || '', subject: 'פנייה מלקוח ONEFLOW', content: txt, customerGroupId: currentGroup?.id || null })
         }).then(r => r.json());
         if (r.success) {
             document.getElementById('biz-msg-modal')?.remove();
@@ -9288,6 +9288,25 @@ function _renderBizAccordion(el, data, bizType) {
         sections.all = '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>';
     }
 
+    // Messages tab — present for all business types
+    const msgs = act.messages || [];
+    if (msgs.length > 0) {
+        tabs.push({ id:'messages', label:`הודעות (${msgs.length})` });
+        sections.messages = msgs.map(m => {
+            const isMine = m.direction === 'inbound';
+            const dt = new Date(m.created_at).toLocaleString('he-IL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+            return `<div class="flex ${isMine ? 'justify-end' : 'justify-start'} mb-2">
+                <div class="max-w-[80%] px-3 py-2 rounded-2xl text-xs ${isMine ? 'bg-indigo-600 text-white rounded-bl-none' : 'bg-slate-100 text-slate-700 rounded-br-none'}">
+                    <p class="leading-relaxed">${safeStr(m.content)}</p>
+                    <p class="text-[9px] mt-1 opacity-70 text-left">${dt}</p>
+                </div>
+            </div>`;
+        }).join('') + `<div class="mt-3 pt-3 border-t border-slate-100">
+            <textarea id="biz-acc-msg-${el.closest('[data-biz-id]')?.dataset?.bizId||''}" rows="2" placeholder="כתוב הודעה לעסק..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs resize-none focus:outline-none focus:border-indigo-400"></textarea>
+            <button onclick="window._sendBizAccordionMsg(this)" class="mt-1.5 w-full bg-indigo-600 text-white rounded-xl py-2 text-xs font-bold hover:bg-indigo-700 transition">שלח הודעה</button>
+        </div>`;
+    }
+
     const tabPills = tabs.map((t, i) => `<button class="biz-acc-tab shrink-0 px-3 py-1 rounded-full text-[11px] font-bold border transition ${i===0?'bg-indigo-600 text-white border-indigo-600':'bg-white text-slate-500 border-slate-200'}" data-tab="${t.id}" onclick="window._switchBizTab(this,'${t.id}')">${t.label}</button>`).join('');
 
     el.innerHTML = `<div class="p-3">
@@ -9306,6 +9325,35 @@ window._switchBizTab = function(btn, tabId) {
     btn.className = btn.className.replace('bg-white text-slate-500 border-slate-200', 'bg-indigo-600 text-white border-indigo-600');
     const content = acc.querySelector('.biz-acc-content');
     if (content && acc._sections) content.innerHTML = acc._sections[tabId] || '';
+};
+
+window._sendBizAccordionMsg = async function(btn) {
+    const wrapper = btn.closest('.biz-act-wrapper');
+    const bizId = wrapper?.dataset?.bizId;
+    if (!bizId) return;
+    const ta = wrapper.querySelector(`#biz-acc-msg-${bizId}`);
+    const txt = ta?.value?.trim();
+    if (!txt) return;
+    btn.disabled = true; btn.textContent = 'שולח...';
+    try {
+        const biz = _activityAllBiz.find(b => b.business_group_id == bizId) || {};
+        const r = await fetch(`${API}/inbox/customer`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: parseInt(bizId), name: currentUser?.nickname||'לקוח', contact: currentUser?.phone||'', subject:'פנייה מלקוח ONEFLOW', content: txt, customerGroupId: currentGroup?.id||null })
+        }).then(r=>r.json());
+        if (r.success) {
+            if (ta) ta.value = '';
+            // Add message to UI optimistically
+            const msgArea = btn.closest('.biz-acc-content');
+            const bubble = document.createElement('div');
+            bubble.className = 'flex justify-end mb-2';
+            bubble.innerHTML = `<div class="max-w-[80%] px-3 py-2 rounded-2xl text-xs bg-indigo-600 text-white rounded-bl-none"><p class="leading-relaxed">${safeStr(txt)}</p><p class="text-[9px] mt-1 opacity-70 text-left">עכשיו</p></div>`;
+            const replyBox = btn.closest('div.mt-3');
+            if (replyBox) replyBox.insertAdjacentElement('beforebegin', bubble);
+            showToast('success','ההודעה נשלחה ✅');
+        } else { showToast('error', r.error||'שגיאה'); }
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+    btn.disabled = false; btn.textContent = 'שלח הודעה';
 };
 
 // ===== BEAUTY RFQ — FAMILY SIDE (P4) =======================

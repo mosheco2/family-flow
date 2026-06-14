@@ -20244,6 +20244,17 @@ window.renderInboxList = function() {
             
             ${m.sender_contact && isCustomer ? `<div class="mt-3 pt-3 border-t border-slate-100"><a href="tel:${safeStr(m.sender_contact)}" class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 shadow-sm hover:bg-emerald-100 transition inline-flex items-center gap-1.5"><i class="fa-solid fa-phone"></i> צור קשר: <span dir="ltr">${safeStr(m.sender_contact)}</span></a></div>` : ''}
             
+            ${isCustomer && m.customer_group_id ? `<div class="mt-3 pt-3 border-t border-slate-100" id="inbox-reply-area-${m.id}">
+                <div id="inbox-thread-${m.id}" class="space-y-1 mb-2 hidden"></div>
+                <button onclick="window.toggleInboxThread(${m.id},${m.customer_group_id})" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition mb-2 block">
+                    <i class="fa-solid fa-comments ml-1"></i>היסטוריית שיחה
+                </button>
+                <div class="flex gap-2">
+                    <textarea id="inbox-reply-txt-${m.id}" rows="2" placeholder="כתוב תגובה ללקוח..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-xs resize-none focus:outline-none focus:border-indigo-400"></textarea>
+                    <button onclick="window.sendInboxReply(${m.id},${m.customer_group_id})" class="bg-indigo-600 text-white rounded-xl px-3 py-2 text-xs font-bold hover:bg-indigo-700 transition shrink-0"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>` : ''}
+            
             ${!m.is_read ? `<div class="mt-4 pt-3 border-t border-slate-100 text-left"><button onclick="window.markInboxAsRead(${m.id})" class="text-xs font-bold text-slate-500 bg-white border border-slate-200 px-4 py-2 rounded-xl shadow-sm hover:bg-slate-50 transition"><i class="fa-solid fa-check"></i> סמן כנקרא והסתר</button></div>` : ''}
         </div>
         `;
@@ -20258,6 +20269,51 @@ window.markInboxAsRead = async function(id) {
         window.renderInboxList();
         window.updateInboxBadge();
     } catch(e) {}
+};
+
+window.toggleInboxThread = async function(msgId, customerGroupId) {
+    const el = document.getElementById(`inbox-thread-${msgId}`);
+    if (!el) return;
+    if (!el.classList.contains('hidden')) { el.classList.add('hidden'); return; }
+    el.innerHTML = '<p class="text-[10px] text-slate-400">טוען...</p>';
+    el.classList.remove('hidden');
+    try {
+        const r = await fetch(`${API}/inbox/${currentGroup.id}/thread/${customerGroupId}`).then(r=>r.json());
+        const msgs = r.messages || [];
+        if (!msgs.length) { el.innerHTML = '<p class="text-[10px] text-slate-400">אין הודעות קודמות</p>'; return; }
+        el.innerHTML = msgs.map(m => {
+            const isMine = m.direction === 'outbound';
+            const dt = new Date(m.created_at).toLocaleString('he-IL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+            return `<div class="flex ${isMine ? 'justify-end' : 'justify-start'} mb-1">
+                <div class="max-w-[85%] px-2.5 py-1.5 rounded-xl text-[11px] ${isMine ? 'bg-indigo-600 text-white rounded-bl-none' : 'bg-slate-100 text-slate-700 rounded-br-none'}">
+                    <p>${safeStr(m.content)}</p>
+                    <p class="text-[9px] mt-0.5 opacity-60">${dt}</p>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) { el.innerHTML = '<p class="text-[10px] text-red-400">שגיאה בטעינה</p>'; }
+};
+
+window.sendInboxReply = async function(msgId, customerGroupId) {
+    const ta = document.getElementById(`inbox-reply-txt-${msgId}`);
+    const txt = ta?.value?.trim();
+    if (!txt) return;
+    const btn = ta?.nextElementSibling;
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+    try {
+        const r = await fetch(`${API}/inbox/${currentGroup.id}/reply/${customerGroupId}`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ content: txt })
+        }).then(r=>r.json());
+        if (r.success) {
+            if (ta) ta.value = '';
+            showToast('success','תגובה נשלחה ✅');
+            // Refresh thread
+            window.toggleInboxThread(msgId, customerGroupId);
+            setTimeout(() => window.toggleInboxThread(msgId, customerGroupId), 100);
+        } else { showToast('error', r.error||'שגיאה'); }
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i>'; }
 };
 
 window.deleteInboxMessage = async function(id) {

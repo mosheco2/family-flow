@@ -444,6 +444,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       // טבלת מערכת ההודעות החדשה (Inbox)
       try {
           await client.query(`CREATE TABLE IF NOT EXISTS inbox_messages (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, sender_type VARCHAR(50), sender_name VARCHAR(100), sender_contact VARCHAR(100), subject VARCHAR(200), content TEXT, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+          await client.query(`ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS customer_group_id INT REFERENCES family_groups(id)`);
+          await client.query(`ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS direction VARCHAR(20) DEFAULT 'inbound'`);
       } catch(e) { console.error('Error creating inbox_messages table:', e.message); }
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_qa_test_results (id SERIAL PRIMARY KEY, test_id VARCHAR(50) NOT NULL, env VARCHAR(20) NOT NULL, status VARCHAR(10), note TEXT DEFAULT '', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(test_id, env))`); } catch(e) {}
@@ -7795,14 +7797,44 @@ app.delete('/api/inbox/:id', async (req, res) => {
 // שליחת הודעה מהחנות (לקוח -> עסק)
 app.post('/api/inbox/customer', async (req, res) => {
     try {
-        const { groupId, name, contact, subject, content } = req.body;
+        const { groupId, name, contact, subject, content, customerGroupId } = req.body;
         if (!groupId || !content) return res.status(400).json({ error: 'חסרים נתונים' });
-        
         await pool.query(
-            'INSERT INTO inbox_messages (group_id, sender_type, sender_name, sender_contact, subject, content) VALUES ($1, $2, $3, $4, $5, $6)',
-            [groupId, 'customer', name || 'לקוח אנונימי', contact || '', subject || 'פנייה מהחנות הציבורית', content]
+            'INSERT INTO inbox_messages (group_id, sender_type, sender_name, sender_contact, subject, content, customer_group_id, direction) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+            [groupId, 'customer', name || 'לקוח אנונימי', contact || '', subject || 'פנייה מלקוח ONEFLOW', content, customerGroupId || null, 'inbound']
         );
         res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// תגובה של עסק ללקוח מקושר
+app.post('/api/inbox/:bizGroupId/reply/:customerGroupId', async (req, res) => {
+    try {
+        const bizGroupId = parseInt(req.params.bizGroupId);
+        const customerGroupId = parseInt(req.params.customerGroupId);
+        const { content } = req.body;
+        if (!content?.trim()) return res.status(400).json({ error: 'תוכן ריק' });
+        const bizR = await pool.query('SELECT name FROM family_groups WHERE id=$1', [bizGroupId]);
+        const bizName = bizR.rows[0]?.name || 'העסק';
+        await pool.query(
+            'INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content, customer_group_id, direction) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+            [bizGroupId, 'business', bizName, 'תגובה מהעסק', content.trim(), customerGroupId, 'outbound']
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שרשור הודעות בין עסק ללקוח ספציפי
+app.get('/api/inbox/:bizGroupId/thread/:customerGroupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT id, sender_type, sender_name, subject, content, direction, created_at, is_read
+             FROM inbox_messages
+             WHERE group_id=$1 AND customer_group_id=$2
+             ORDER BY created_at ASC LIMIT 50`,
+            [req.params.bizGroupId, req.params.customerGroupId]
+        );
+        res.json({ messages: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -12659,6 +12691,16 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
                 [bizGroupId, familyPhone, familyGroupId]);
             result.activity = { logisticsOrders: loR.rows };
         }
+
+        // הוסף שרשור הודעות לכל סוגי העסקים
+        const msgsR = await pool.query(
+            `SELECT id, sender_type, sender_name, content, direction, created_at
+             FROM inbox_messages
+             WHERE group_id=$1 AND customer_group_id=$2
+             ORDER BY created_at ASC LIMIT 30`,
+            [bizGroupId, familyGroupId]
+        );
+        result.activity.messages = msgsR.rows;
 
         res.json(result);
     } catch(e) { res.status(500).json({ error: e.message }); }
