@@ -633,6 +633,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
 
       // ===== WORK ORDERS MODULE =====
       try { await client.query(`CREATE TABLE IF NOT EXISTS restaurant_table_states (group_id INT PRIMARY KEY, states JSONB DEFAULT '{}', updated_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS alternatives_json JSONB DEFAULT NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS call_type VARCHAR(30) DEFAULT NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS order_source VARCHAR(20) DEFAULT 'website'`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_rating SMALLINT`); } catch(e) {}
@@ -8188,7 +8189,7 @@ app.put('/api/calendar/events/:id/status', async (req, res) => {
             const evt = evtR.rows[0];
             if (evt && evt.call_type === 'table_reservation') {
                 // הזמנת שולחן: תפוס שולחן אוטומטי + התראה ללקוח
-                const dateStr = String(evt.event_date).split('T')[0];
+                const dateStr = evt.event_date instanceof Date ? evt.event_date.toISOString().split('T')[0] : String(evt.event_date).split('T')[0];
                 const guests = evt.num_guests || 1;
                 const timeStr = String(evt.start_time || '18:00').slice(0,5);
                 const conflR = await pool.query(
@@ -8253,51 +8254,64 @@ app.put('/api/calendar/events/:id/status', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// דחיית הזמנת שולחן + שליחת 3 חלופות ללקוח
-app.post('/api/calendar/events/:id/reject-with-alts', async (req, res) => {
+// הצעת 3 שעות חלופיות (preview בלבד — לא משנה DB)
+app.get('/api/calendar/events/:id/suggest-alts', async (req, res) => {
     try {
         const evtR = await pool.query('SELECT * FROM calendar_events WHERE id=$1', [req.params.id]);
         const evt = evtR.rows[0];
         if (!evt) return res.status(404).json({ error: 'אירוע לא נמצא' });
-
-        // מצא 3 חלופות באותו יום שלא מתנגשות עם הזמנות קיימות (approved)
-        const dateStr = String(evt.event_date).split('T')[0];
+        const dateStr = evt.event_date instanceof Date ? evt.event_date.toISOString().split('T')[0] : String(evt.event_date).split('T')[0];
         const existingR = await pool.query(
             `SELECT start_time FROM calendar_events WHERE group_id=$1 AND event_date=$2 AND status='approved' AND call_type='table_reservation'`,
             [evt.group_id, dateStr]
-        );
+        ).catch(() => ({ rows: [] }));
         const existingTimes = new Set(existingR.rows.map(r => String(r.start_time).slice(0,5)));
-
-        // שעות אפשריות: 12:00 - 22:00 כל שעה
+        const reqTime = String(evt.start_time).slice(0,5);
         const slots = [];
         for (let h = 12; h <= 22 && slots.length < 3; h++) {
             const t = `${String(h).padStart(2,'0')}:00`;
-            if (!existingTimes.has(t) && t !== String(evt.start_time).slice(0,5)) {
-                slots.push(t);
-            }
+            if (!existingTimes.has(t) && t !== reqTime) slots.push(t);
         }
-        // אם אין 3 — גם שעות חצי
         if (slots.length < 3) {
             for (let h = 12; h <= 21 && slots.length < 3; h++) {
                 const t = `${String(h).padStart(2,'0')}:30`;
                 if (!existingTimes.has(t) && !slots.includes(t)) slots.push(t);
             }
         }
+        res.json({ event: { id: evt.id, event_date: dateStr, start_time: reqTime, num_guests: evt.num_guests || 2, title: evt.title }, suggestions: slots });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// דחיית הזמנת שולחן + שמירת חלופות + הודעה ללקוח
+app.post('/api/calendar/events/:id/reject-with-alts', async (req, res) => {
+    try {
+        const { slots } = req.body; // מערך שעות שנבחרו ע"י המנהל
+        const evtR = await pool.query('SELECT * FROM calendar_events WHERE id=$1', [req.params.id]);
+        const evt = evtR.rows[0];
+        if (!evt) return res.status(404).json({ error: 'אירוע לא נמצא' });
+
+        const dateStr = evt.event_date instanceof Date ? evt.event_date.toISOString().split('T')[0] : String(evt.event_date).split('T')[0];
+        const chosenSlots = Array.isArray(slots) && slots.length ? slots : [];
+
+        // עדכן האירוע: status='rejected', שמור חלופות ב-alternatives_json
+        await pool.query(
+            `UPDATE calendar_events SET status='rejected', alternatives_json=$1 WHERE id=$2`,
+            [JSON.stringify(chosenSlots), req.params.id]
+        );
 
         // שלח הודעה ללקוח עם החלופות
-        if (evt.customer_group_id) {
+        if (evt.customer_group_id && chosenSlots.length) {
             const dayHe = new Date(dateStr).toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
-            const slotsList = slots.map((t,i) => `${i+1}. ${t}`).join('\n');
-            const altContent = `בקשת הזמנת השולחן שלך ל${dayHe} בשעה ${String(evt.start_time).slice(0,5)} לא ניתנת לאישור.\n\nשעות פנויות חלופיות לאותו יום:\n${slotsList}\n\nנשמח לאשר אחת מהחלופות — צרו איתנו קשר.`;
+            const origTime = String(evt.start_time).slice(0,5);
+            const slotsList = chosenSlots.map((t,i) => `${i+1}. ${t}`).join('\n');
+            const altContent = `בקשת הזמנת השולחן שלך ל${dayHe} בשעה ${origTime} לא ניתנת לאישור.\n\nשעות פנויות חלופיות לאותו יום:\n${slotsList}\n\nניתן לבחור מועד חלופי באפליקציה — לחץ על ההזמנה ובחר שעה.`;
             await pool.query(
-                `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content, customer_group_id, direction) VALUES ($1,'business','המסעדה','הזמנת שולחן — חלופות',$2,$3,'outbound')`,
+                `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content, customer_group_id, direction) VALUES ($1,'business','המסעדה','הזמנת שולחן — חלופות זמינות',$2,$3,'outbound')`,
                 [evt.group_id, altContent, evt.customer_group_id]
             ).catch(()=>{});
         }
 
-        // מחק/דחה את הבקשה המקורית
-        await pool.query('DELETE FROM calendar_events WHERE id=$1', [req.params.id]);
-        res.json({ success: true, alternatives: slots });
+        res.json({ success: true, alternatives: chosenSlots });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -13360,7 +13374,7 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
                             ORDER BY created_at DESC LIMIT 10`,
                 [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
             const tableResR = await pool.query(
-                `SELECT id, title, event_date, start_time, status, notes, num_guests, reserved_table_number, call_type
+                `SELECT id, title, event_date, start_time, status, notes, num_guests, reserved_table_number, call_type, alternatives_json
                  FROM calendar_events
                  WHERE group_id=$1 AND call_type='table_reservation'
                    AND (customer_phone=$2 OR customer_group_id=$3)

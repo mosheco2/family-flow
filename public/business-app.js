@@ -17561,15 +17561,58 @@ window.deleteCalendarEvent = async function(id, isReject = false) {
     } catch(e) {}
 };
 window.rejectTableReservation = async function(id) {
-    if (!confirm('לדחות את הבקשה ולשלוח 3 חלופות ללקוח?')) return;
+    // שלב 1: טען הצעות שעות
+    let event_, suggestions;
     try {
-        const r = await fetch(`${API}/calendar/events/${id}/reject-with-alts`, { method: 'POST', headers: {'Content-Type':'application/json'} });
-        const d = await r.json();
-        if (d.success) {
-            showToast('info', `הבקשה נדחתה. נשלחו ${d.alternatives?.length||0} חלופות ללקוח`);
+        const r = await fetch(`${API}/calendar/events/${id}/suggest-alts`).then(r => r.json());
+        if (!r.event) return showToast('error', r.error || 'שגיאה בטעינת חלופות');
+        event_ = r.event;
+        suggestions = r.suggestions || [];
+    } catch(e) { return showToast('error', 'שגיאת תקשורת'); }
+
+    // שלב 2: פתח מודל בחירת 3 שעות חלופיות
+    document.getElementById('rej-alts-modal')?.remove();
+    const m = document.createElement('div');
+    m.id = 'rej-alts-modal';
+    m.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px;font-family:Rubik,sans-serif;direction:rtl';
+    const dateHe = event_.event_date ? new Date(event_.event_date).toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'}) : '';
+    const slotInputs = [0,1,2].map(i => {
+        const val = suggestions[i] || '';
+        return `<div class="flex items-center gap-2 mb-2">
+            <span class="text-sm font-bold text-slate-600 w-5">${i+1}.</span>
+            <input type="time" id="rej-alt-${i}" value="${val}" class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-400" />
+        </div>`;
+    }).join('');
+    m.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5">
+        <h3 class="font-black text-slate-800 text-base mb-1">📅 דחייה עם חלופות</h3>
+        <p class="text-xs text-slate-500 mb-4">בקשה של <strong>${safeStr(event_.title)}</strong><br>${dateHe} · ${event_.start_time} · ${event_.num_guests} סועדים</p>
+        <p class="text-xs font-bold text-slate-700 mb-2">בחר 3 שעות חלופיות לאותו יום:</p>
+        ${slotInputs}
+        <p class="text-[10px] text-slate-400 mb-4">ישלח ללקוח הודעה עם האפשרויות לבחירה</p>
+        <div class="flex gap-2">
+            <button onclick="document.getElementById('rej-alts-modal')?.remove()" class="flex-1 border border-slate-200 text-slate-600 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-50 transition">ביטול</button>
+            <button onclick="window._confirmRejectWithAlts(${id})" class="flex-1 bg-orange-500 text-white py-2.5 rounded-xl text-sm font-bold shadow hover:bg-orange-600 transition">📨 שלח חלופות</button>
+        </div>
+    </div>`;
+    document.body.appendChild(m);
+};
+
+window._confirmRejectWithAlts = async function(id) {
+    const slots = [0,1,2].map(i => document.getElementById(`rej-alt-${i}`)?.value || '').filter(Boolean);
+    if (!slots.length) return showToast('error', 'יש לבחור לפחות שעה אחת');
+    const btn = document.querySelector('#rej-alts-modal button[onclick*="_confirmRejectWithAlts"]');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ שולח...'; }
+    try {
+        const r = await fetch(`${API}/calendar/events/${id}/reject-with-alts`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ slots })
+        }).then(r => r.json());
+        if (r.success) {
+            document.getElementById('rej-alts-modal')?.remove();
+            showToast('success', `הבקשה נדחתה. נשלחו ${r.alternatives?.length||0} חלופות ללקוח ✅`);
             fetchCalendarData();
-        } else { showToast('error', d.error || 'שגיאה'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+        } else { showToast('error', r.error || 'שגיאה'); if(btn){btn.disabled=false;btn.textContent='📨 שלח חלופות';} }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); if(btn){btn.disabled=false;btn.textContent='📨 שלח חלופות';} }
 };
 
 window.convertEventToQuote = function(eventId) {

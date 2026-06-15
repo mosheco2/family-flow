@@ -9399,6 +9399,35 @@ window._clientConfirmBeautyAppt = async function(apptId, action, btn) {
 window._clientConfirmAp = (id, btn) => window._clientConfirmBeautyAppt(id, 'confirm', btn);
 window._clientRejectAp  = (id, btn) => window._clientConfirmBeautyAppt(id, 'decline', btn);
 
+// לקוח בחר שעה חלופית מתוך הזמנת שולחן שנדחתה
+window._acceptTableAlt = function(bizGroupId, bizName, dateStr, time, origEventId) {
+    // מחק את האירוע הישן (rejected) ופתח מודל הזמנה חדשה עם תאריך+שעה מולאים
+    document.getElementById('table-res-modal')?.remove();
+    window._tableReservationModal(parseInt(bizGroupId), bizName);
+    // מלא תאריך ושעה
+    setTimeout(() => {
+        const dateEl = document.getElementById('tres-date');
+        const timeEl = document.getElementById('tres-time');
+        if (dateEl) dateEl.value = dateStr;
+        if (timeEl) timeEl.value = time;
+    }, 100);
+};
+
+// לקוח דחה את כל החלופות — מסמן האירוע כ-cancelled
+window._declineAllTableAlts = async function(eventId) {
+    if (!confirm('לבטל את כל הבקשה?')) return;
+    try {
+        await fetch(`${API}/calendar/events/${eventId}/status`, {
+            method: 'PUT', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ status: 'cancelled' })
+        });
+        showToast('info', 'הבקשה בוטלה');
+        // רענן accordion
+        const acc = document.querySelector('.biz-accordion');
+        if (acc) { delete acc.dataset.loaded; acc.click?.(); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
 window._bizSortAppts = function(btn) {
     const acc = btn.closest('.biz-accordion');
     if (!acc?._rawData) return;
@@ -9664,12 +9693,30 @@ function _renderBizAccordion(el, data, bizType) {
         const qHtml = quotes.length
             ? `<div class="biz-quote-list">${quotes.map(renderQuote).join('')}</div>`
             : '<p class="text-xs text-slate-400 text-center py-3">אין הצעות</p>';
-        const _resStatusColor = s => s==='approved'?'bg-green-100 text-green-700':s==='pending'?'bg-amber-100 text-amber-700':'bg-slate-100 text-slate-500';
-        const _resStatusLabel = s => ({approved:'אושר ✅', pending:'ממתין לאישור ⏳', cancelled:'בוטל', rejected:'נדחה'}[s]||s||'');
+        const _resStatusColor = s => s==='approved'?'bg-green-100 text-green-700':s==='pending'?'bg-amber-100 text-amber-700':s==='rejected'?'bg-red-100 text-red-600':'bg-slate-100 text-slate-500';
+        const _resStatusLabel = s => ({approved:'אושר ✅', pending:'ממתין לאישור ⏳', cancelled:'בוטל', rejected:'נדחה ❌'}[s]||s||'');
         const renderRes = r => {
-            const dt = r.event_date ? new Date(String(r.event_date).split('T')[0]).toLocaleDateString('he-IL', {weekday:'short',day:'numeric',month:'numeric'}) : '';
+            const dt = r.event_date ? new Date(String(r.event_date).split('T')[0]+'T12:00:00').toLocaleDateString('he-IL', {weekday:'short',day:'numeric',month:'numeric'}) : '';
             const tm = r.start_time ? String(r.start_time).slice(0,5) : '';
             const tableInfo = r.reserved_table_number ? ` · שולחן ${r.reserved_table_number}` : '';
+            const dateStr = r.event_date ? String(r.event_date).split('T')[0] : '';
+            // חלופות: כשנדחה והמסעדה שלחה אפשרויות אחרות
+            let altsHtml = '';
+            if (r.status === 'rejected') {
+                let alts = [];
+                try { alts = Array.isArray(r.alternatives_json) ? r.alternatives_json : JSON.parse(r.alternatives_json || '[]'); } catch(e2) {}
+                if (alts.length) {
+                    const bizId = el.closest('[data-biz-id]')?.dataset?.bizId || '';
+                    const bizName = el.closest('[data-biz-id]')?.dataset?.bizName || '';
+                    altsHtml = `<div class="mt-2 pt-2 border-t border-red-100">
+                        <p class="text-[10px] font-bold text-slate-600 mb-1.5">⏰ בחר מועד חלופי:</p>
+                        <div class="flex flex-wrap gap-1.5">
+                            ${alts.map(t => `<button onclick="window._acceptTableAlt('${bizId}','${bizName}','${dateStr}','${t}',${r.id})" class="text-[11px] font-bold bg-amber-50 border border-amber-300 text-amber-700 px-3 py-1.5 rounded-full hover:bg-amber-100 transition active:scale-95">${t}</button>`).join('')}
+                            <button onclick="window._declineAllTableAlts(${r.id})" class="text-[11px] font-bold bg-slate-100 border border-slate-200 text-slate-500 px-3 py-1.5 rounded-full hover:bg-red-50 hover:text-red-500 transition">✕ לא מתאים</button>
+                        </div>
+                    </div>`;
+                }
+            }
             return `<div class="py-2 border-b border-slate-50 last:border-0">
                 <div class="flex items-center gap-2">
                     <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-sm shrink-0">🍽️</div>
@@ -9679,6 +9726,7 @@ function _renderBizAccordion(el, data, bizType) {
                     </div>
                     <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${_resStatusColor(r.status)}">${_resStatusLabel(r.status)}</span>
                 </div>
+                ${altsHtml}
             </div>`;
         };
         const resHtml = tableRes.length
@@ -9783,7 +9831,8 @@ function _renderBizAccordion(el, data, bizType) {
     }
 
     // If there are pending items → prefer pending tab
-    const defaultTabId = tabs.find(t => t.id === 'cal_evts') ? 'cal_evts' : (tabs.find(t => t.id === 'reservations' && pendingRes?.length > 0) ? 'reservations' : tabs[0]?.id);
+    const _resTab = tabs.find(t => t.id === 'reservations');
+    const defaultTabId = tabs.find(t => t.id === 'cal_evts') ? 'cal_evts' : (_resTab?.label?.includes('🔔') ? 'reservations' : tabs[0]?.id);
     const tabPills = tabs.map(t => {
         const isDefault = t.id === defaultTabId;
         const isPendingTab = t.id === 'cal_evts';
