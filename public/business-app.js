@@ -24044,7 +24044,9 @@ function renderQuickTiles() {
     { fa:'fa-chart-line',        label:'כספים',          badge: null,            tab:'bank',      bg:'#fff1f2', grad:'linear-gradient(135deg,#f43f5e,#be123c)', badge_bg:'#9f1239' },
   ]);
   container.innerHTML = tiles.map(t => {
-    const clickAction = t.tab === '__daily_close__' ? "window.openDailyCloseReport()" : `switchTab('${t.tab}')`;
+    const clickAction = t.tab === '__daily_close__' ? "window.openDailyCloseReport()" :
+                        t.tab === 'kds' ? "window.openAdminKDSPanel()" :
+                        `switchTab('${t.tab}')`;
     return `<button onclick="${clickAction}"
       style="background:${t.bg};border:1.5px solid rgba(0,0,0,0.06)"
       class="relative rounded-2xl p-3.5 flex flex-col items-center gap-2 shadow-sm hover:shadow-lg hover:scale-[1.04] active:scale-95 transition-all duration-200 cursor-pointer">
@@ -28193,6 +28195,20 @@ async function renderWaiterDashboard(el) {
         </div>
         ${roleFullMenuBtn()}`;
 }
+
+window.openAdminKDSPanel = async function() {
+    document.getElementById('admin-kds-panel')?.remove();
+    const panel = document.createElement('div');
+    panel.id = 'admin-kds-panel';
+    panel.style.cssText = 'position:fixed;inset:0;z-index:99998;background:#0f172a;overflow-y:auto;font-family:Rubik,sans-serif;direction:rtl';
+    panel.innerHTML = `<div style="position:sticky;top:0;z-index:1;background:#1e293b;padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #334155">
+      <button onclick="document.getElementById('admin-kds-panel')?.remove()" style="background:#334155;color:#e2e8f0;border:none;border-radius:10px;padding:8px 16px;font-size:14px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer">← חזרה</button>
+      <span style="color:white;font-size:16px;font-weight:800">🍳 מסך KDS מטבח</span>
+    </div>
+    <div id="admin-kds-inner" style="padding:12px"></div>`;
+    document.body.appendChild(panel);
+    await renderCookDashboard(document.getElementById('admin-kds-inner'));
+};
 
 // --- 11. Cook Dashboard (מסעדה / ייצור מזון) ---
 async function renderCookDashboard(el) {
