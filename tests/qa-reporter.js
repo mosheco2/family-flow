@@ -106,6 +106,23 @@ const ENV_MAP = {
   'SAF-16':['sa'],'SAF-17':['sa'],'SAF-18':['sa'],'SAF-19':['sa'],'SAF-20':['sa'],
   'SAF-21':['sa'],'SAF-22':['sa'],'SAF-23':['sa'],'SAF-24':['sa'],'SAF-25':['sa'],
   'SAF-26':['sa'],'SAF-27':['sa'],'SAF-28':['sa'],
+  'REST-01':['biz'],'REST-02':['biz'],'REST-03':['biz'],'REST-04':['biz'],'REST-05':['biz'],
+  'REST-06':['biz'],'REST-07':['biz'],'REST-08':['biz'],'REST-09':['biz'],'REST-10':['biz'],
+  'REST-11':['biz'],'REST-12':['biz'],'REST-13':['biz'],'REST-14':['biz'],'REST-15':['biz'],
+  'REST-16':['biz'],'REST-17':['biz'],'REST-18':['biz'],'REST-19':['biz'],'REST-20':['biz'],
+  'REST-21':['biz'],'REST-22':['biz'],'REST-23':['biz'],'REST-24':['biz'],'REST-25':['biz'],
+  'REST-26':['biz'],'REST-27':['biz'],'REST-28':['biz'],'REST-29':['biz'],'REST-30':['biz'],
+  'REST-31':['biz'],'REST-32':['biz'],'REST-33':['biz'],'REST-34':['biz'],'REST-35':['biz'],
+  'REST-36':['biz'],'REST-37':['biz'],'REST-38':['biz'],'REST-39':['biz'],'REST-40':['biz'],
+  'REST-41':['biz'],'REST-42':['biz'],'REST-43':['biz'],'REST-44':['biz'],'REST-45':['biz'],
+  'REST-46':['biz'],'REST-47':['biz'],'REST-48':['biz'],'REST-49':['biz'],'REST-50':['biz'],
+  'REST-51':['biz'],'REST-52':['biz'],'REST-53':['biz'],'REST-54':['biz'],'REST-55':['biz'],
+  'REST-56':['biz'],'REST-57':['biz'],'REST-58':['biz'],'REST-59':['biz'],'REST-60':['biz'],
+  'REST-61':['biz'],'REST-62':['biz'],'REST-63':['biz'],'REST-64':['biz'],'REST-65':['biz'],
+  'REST-66':['biz'],'REST-67':['biz'],'REST-68':['biz'],'REST-69':['biz'],'REST-70':['biz'],
+  'REST-71':['biz'],'REST-72':['biz'],'REST-73':['biz'],'REST-74':['biz'],'REST-75':['biz'],
+  'REST-76':['biz'],'REST-77':['biz'],'REST-78':['biz'],'REST-79':['biz'],'REST-80':['biz'],
+  'REST-81':['biz'],'REST-82':['biz'],
 };
 
 // Fallback: derive env from prefix when not in ENV_MAP
@@ -120,6 +137,7 @@ const PREFIX_ENV = {
   SA:  ['sa'], SMK: ['sa'], SAF: ['sa'],
   PWA: ['family','biz'],
   PFAM: ['family'], PBIZ: ['biz'],
+  REST: ['biz'],
 };
 
 function getEnvs(testId) {

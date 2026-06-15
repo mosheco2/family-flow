@@ -426,6 +426,10 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
     <div class="sb-link" onclick="filterBook('sa_full')"><i class="fa-solid fa-shield-halved"></i> SA — sa.html</div>
   </div>
   <div class="sb-section">
+    <div class="sb-section-title">סוגי עסקים</div>
+    <div class="sb-link" onclick="filterBook('rest')"><i class="fa-solid fa-utensils"></i> מסעדה (REST)</div>
+  </div>
+  <div class="sb-section">
     <div class="sb-section-title">הרשאות לפי תפקיד</div>
     <div class="sb-link" onclick="filterBook('perm_fam')"><i class="fa-solid fa-user-shield"></i> הורה vs ילד</div>
     <div class="sb-link" onclick="filterBook('perm_biz')"><i class="fa-solid fa-user-tie"></i> עובדים בעסק (4 רמות)</div>
@@ -711,6 +715,7 @@ async function loadTestsFromServer() {
                 'הרשאות — סביבת משפחה (הורה vs ילד)': { id: 'perm_fam', icon: 'fa-user-shield', color: '#0ea5e9' },
                 'הרשאות — סביבת עסק (4 תפקידים)': { id: 'perm_biz', icon: 'fa-user-tie', color: '#f59e0b' },
                 'SuperAdmin — sa.html ו-sa-app.js': { id: 'sa_full', icon: 'fa-shield-halved', color: '#6366f1' },
+                'מסעדה — מסלולי בדיקה': { id: 'rest', icon: 'fa-utensils', color: '#ef4444' },
                 'כללי': { id: 'general', icon: 'fa-inbox', color: '#f43f5e' }
             };
 
@@ -1212,6 +1217,92 @@ window.seedDatabase = async function(legacyData) {
 'SAF-27':{path:'sa.html ← כל לשונית ← לחיצה ראשונה',steps:['לחץ על לשונית שעוד לא נפתחה'],expected:'switchSATab() נקרא, תוכן הלשונית נטען'},
 'SAF-28':{path:'sa.html ← "Stats"',steps:['כנס ל"Stats"'],expected:'גרפים, מגמות, נתוני שימוש יומי/חודשי מוצגים'},
 
+// ============================================================
+// REST — מסעדה (REST-01 עד REST-82)
+// ============================================================
+'REST-01':{path:'ממשק עסק ← ויזארד הקמה ← "סוג עסק" ← מסעדה',env:'BIZ',user:'מנהל',actionType:'הקמה',affects:'כל המשתמשים',note:'businessType=restaurant, מודולים: pos,kds,tables,foodcost,deliveries',steps:['פתח /business.html ← ויזארד הקמה ראשוני','בחר "מסעדה" מרשימת סוגי העסקים','השלם את שאר שלבי הויזארד','לחץ "סיים"'],expected:'עסק נפתח עם לשוניות: קופה, KDS, שולחנות, עלות מנה, משלוחים'},
+'REST-02':{path:'ממשק עסק ← "שולחנות" ← הגדרת שולחנות ראשונית',env:'BIZ',user:'מנהל',actionType:'הגדרה',affects:'מנהל, מלצר',note:'renderTableGrid(), שולחנות מאוחסנים ב-DB',steps:['כנס ללשונית "שולחנות"','לחץ ⚙️ (הגדרות שולחן)','הוסף שולחן חדש עם מספר ישיבות','שמור'],expected:'שולחן חדש מופיע בגריד עם כושר ישיבה שהוגדר'},
+'REST-03':{path:'ממשק עסק ← "קופה" ← "קטגוריות תפריט" ← "+ קטגוריה"',env:'BIZ',user:'מנהל',actionType:'הגדרה',affects:'מנהל, מלצר',note:'קטגוריות תפריט מוצגות בסרגל העליון ב-POS',steps:['כנס ל"קופה"','לחץ על + להוספת קטגוריה','הזן שם קטגוריה (לדוג׳ "ראשונות")','שמור'],expected:'קטגוריה חדשה מופיעה בסרגל הקטגוריות ב-POS'},
+'REST-04':{path:'ממשק עסק ← "קופה" ← בחר קטגוריה ← "+ פריט"',env:'BIZ',user:'מנהל',actionType:'הגדרה',affects:'מנהל, מלצר, טבח',note:'כל פריט כולל: שם, מחיר, תמונה, station, עלות',steps:['בחר קטגוריה','לחץ "+ פריט"','הזן: שם, מחיר, עלות, בחר station KDS','שמור'],expected:'פריט חדש מופיע ברשת הפריטים בקטגוריה הנבחרת'},
+'REST-05':{path:'ממשק עסק ← "עובדים" ← "+ עובד"',env:'BIZ',user:'מנהל',actionType:'הגדרה',affects:'עובדים',note:'תפקידים: waiter,cook,cashier,shift_manager',steps:['כנס ל"עובדים"','לחץ "+ עובד"','הזן שם, מייל, בחר תפקיד (מלצר/טבח/קופאי/מנהל משמרת)','שמור'],expected:'עובד חדש מופיע ברשימה עם התפקיד שנבחר'},
+'REST-06':{path:'ממשק עסק ← "שולחנות" ← גריד שולחנות',env:'BIZ',user:'מנהל, מלצר',actionType:'ניהול שולחן',affects:'מנהל, מלצר, לקוח',note:'מצב free = ירוק (bg-green-50 border-green-300)',steps:['כנס ללשונית "שולחנות"','בדוק שולחן שמצבו "פנוי"'],expected:'שולחן מוצג בצבע ירוק, תוויות "פנוי"'},
+'REST-07':{path:'ממשק עסק ← "שולחנות" ← לחץ שולחן פנוי פעם אחת',env:'BIZ',user:'מנהל, מלצר',actionType:'ניהול שולחן',affects:'מנהל, מלצר, לקוח',note:'free→reserved: bg-blue-50 border-blue-400 text-blue-700',steps:['לחץ על שולחן ירוק (פנוי)'],expected:'שולחן עובר למצב "הוזמן מראש" ומוצג בכחול'},
+'REST-08':{path:'ממשק עסק ← "שולחנות" ← לחץ שולחן "הוזמן מראש" פעם שנייה',env:'BIZ',user:'מנהל, מלצר',actionType:'ניהול שולחן',affects:'מנהל, מלצר, לקוח',note:'reserved→occupied: bg-red-100 border-red-400 text-red-700',steps:['לחץ על שולחן כחול (הוזמן מראש)'],expected:'שולחן עובר למצב "תפוס" ומוצג באדום'},
+'REST-09':{path:'ממשק עסק ← "שולחנות" ← לחץ שולחן "תפוס" פעם שלישית',env:'BIZ',user:'מנהל, מלצר',actionType:'ניהול שולחן',affects:'מנהל, מלצר, לקוח',note:'occupied→awaiting_payment: bg-orange-100 border-orange-400',steps:['לחץ על שולחן אדום (תפוס)'],expected:'שולחן עובר ל"ממתין לתשלום" ומוצג בכתום'},
+'REST-10':{path:'ממשק עסק ← "שולחנות" ← ⚙️ הגדרות ← "השבת שולחן"',env:'BIZ',user:'מנהל',actionType:'ניהול שולחן',affects:'מנהל, מלצר',note:'disabled: bg-slate-100 border-slate-300 text-slate-400',steps:['לחץ ⚙️ על שולחן','בחר "השבת שולחן"'],expected:'שולחן מוצג באפור, לא ניתן ללחוץ עליו'},
+'REST-11':{path:'ממשק עסק ← "שולחנות" ← לחץ שולחן "ממתין לתשלום"',env:'BIZ',user:'מנהל, מלצר',actionType:'ניהול שולחן',affects:'מנהל, מלצר, לקוח',note:'awaiting_payment→free מחזור מלא',steps:['לחץ על שולחן כתום (ממתין לתשלום)'],expected:'שולחן חוזר למצב "פנוי" (ירוק) — מחזור מלא'},
+'REST-12':{path:'ממשק עסק ← "שולחנות" ← ⚙️ ← "כושר ישיבה"',env:'BIZ',user:'מנהל',actionType:'הגדרה',affects:'מנהל, מלצר',note:'_setTableCap(tableId, val) — מוצג כ-👥N',steps:['לחץ ⚙️ על שולחן','שנה כושר ישיבה ל-6','שמור'],expected:'שולחן מציג 👥6 בפינה העליונה'},
+'REST-13':{path:'ממשק עסק ← "שולחנות" ← לחץ אייקון QR על שולחן',env:'BIZ',user:'מנהל, מלצר',actionType:'צפייה',affects:'מנהל, מלצר, לקוח',note:'showTableQR() — QR דרך api.qrserver.com',steps:['לחץ על אייקון 📱 על שולחן'],expected:'מופיע popup עם QR קוד ייחודי לשולחן'},
+'REST-14':{path:'ממשק עסק ← "שולחנות" ← ⚙️ ← "העבר שולחן"',env:'BIZ',user:'מנהל, מלצר',actionType:'ניהול שולחן',affects:'מנהל, מלצר, לקוח',note:'openTableTransferModal(fromId) → executeTableTransfer(fromId,toId)',steps:['לחץ ⚙️ על שולחן תפוס','בחר "העבר לשולחן"','בחר שולחן יעד','אשר'],expected:'ההזמנה עוברת לשולחן היעד, שולחן המקור הופך לפנוי'},
+'REST-15':{path:'ממשק עסק ← "שולחנות" ← ⚙️ ← "מיזוג שולחן"',env:'BIZ',user:'מנהל, מלצר',actionType:'ניהול שולחן',affects:'מנהל, מלצר',note:'openTableMergeModal(fromId) → mergeTable(tableA,tableB)',steps:['לחץ ⚙️ על שולחן','בחר "מזג עם שולחן"','בחר שולחן לאיחוד','אשר'],expected:'שני שולחנות ממוזגים, מוצגים כיחידה אחת'},
+'REST-16':{path:'ממשק עסק ← "שולחנות" ← ⚙️ ← "בטל מיזוג"',env:'BIZ',user:'מנהל, מלצר',actionType:'ניהול שולחן',affects:'מנהל, מלצר',note:'unmergeTable(tableId) — משחזר שני שולחנות נפרדים',steps:['לחץ ⚙️ על שולחן ממוזג','בחר "בטל מיזוג"'],expected:'השולחנות מתפרדים ומוצגים שוב בנפרד'},
+'REST-17':{path:'ממשק עסק ← "קופה" ← "חיוב" ← תשלום ← אישור',env:'BIZ',user:'מנהל, מלצר, קופאי',actionType:'קופה',affects:'מנהל, מלצר, לקוח',note:'setTableAwaitingPayment נקרא אוטומטית לאחר finalizePOSOrder',steps:['בצע הזמנה על שולחן תפוס','עבור לתשלום ואשר','חזור ללשונית שולחנות'],expected:'שולחן עבר מ"תפוס" ל"ממתין לתשלום" (כתום) אוטומטית'},
+'REST-18':{path:'ממשק עסק ← לשונית "KDS"',env:'BIZ',user:'מנהל, טבח',actionType:'KDS',affects:'טבח, מנהל',note:'לשונית KDS מוצגת רק לסוג עסק restaurant/cafe',steps:['כנס ללשונית "KDS"'],expected:'מסך KDS נפתח עם 5 פסי הכנה'},
+'REST-19':{path:'ממשק עסק ← "KDS" ← "🔥 פס חם"',env:'BIZ',user:'טבח, מנהל',actionType:'KDS',affects:'טבח, מלצר',note:'id:hot — הצגת מנות חמות בלבד',steps:['כנס ל-KDS','לחץ על "🔥 פס חם"'],expected:'מוצגות רק הזמנות שהוגדר להן station=hot'},
+'REST-20':{path:'ממשק עסק ← "KDS" ← "❄️ פס קר"',env:'BIZ',user:'טבח, מנהל',actionType:'KDS',affects:'טבח, מלצר',note:'id:cold — סלטים, קינוחים קרים',steps:['כנס ל-KDS','לחץ על "❄️ פס קר"'],expected:'מוצגות הזמנות לפס הקר בלבד'},
+'REST-21':{path:'ממשק עסק ← "KDS" ← "🥤 שתיה"',env:'BIZ',user:'מנהל, מלצר',actionType:'KDS',affects:'מלצר, ברמן',note:'id:drinks — כוסות, שתייה קרה/חמה',steps:['כנס ל-KDS','לחץ על "🥤 שתיה"'],expected:'מוצגות הזמנות שתייה בלבד'},
+'REST-22':{path:'ממשק עסק ← "KDS" ← "🍞 לחמים"',env:'BIZ',user:'טבח, מנהל',actionType:'KDS',affects:'טבח',note:'id:bread',steps:['כנס ל-KDS','לחץ על "🍞 לחמים"'],expected:'מוצגות הזמנות לחמים ולחמניות'},
+'REST-23':{path:'ממשק עסק ← "KDS" ← "📋 אחר"',env:'BIZ',user:'טבח, מנהל',actionType:'KDS',affects:'טבח',note:'id:other — פריטים ללא station מוגדר',steps:['כנס ל-KDS','לחץ על "📋 אחר"'],expected:'מוצגות הזמנות ללא station ספציפי'},
+'REST-24':{path:'ממשק עסק ← "KDS" ← בחר פס ← לחץ ✓ על פריט',env:'BIZ',user:'טבח',actionType:'KDS',affects:'טבח, מלצר',note:'kdsItemCheck() — פריט מסומן כמוכן',steps:['כנס ל-KDS','בחר פס','לחץ ✓ על פריט ספציפי'],expected:'פריט מסומן כ"מוכן", עובר להצגה שונה (מוקטן/מסומן)'},
+'REST-25':{path:'ממשק עסק ← "KDS" ← לחץ "בון" על הזמנה',env:'BIZ',user:'טבח, מנהל',actionType:'KDS',affects:'טבח',note:'kdsShowBon() — מציג את כל הפריטים בהזמנה',steps:['כנס ל-KDS','לחץ "בון" על הזמנה'],expected:'מוצגת רשימת כל הפריטים בהזמנה + שולחן'},
+'REST-26':{path:'ממשק עסק ← "KDS" ← progress bar',env:'BIZ',user:'טבח',actionType:'KDS',affects:'טבח, מנהל',note:'kdsUpdateBonProgress() — מציג כמה פריטים הוכנו מתוך סך כל',steps:['כנס ל-KDS','סמן מספר פריטים כמוכנים','צפה ב-progress bar'],expected:'progress bar מתעדכן לפי יחס פריטים מוכנים/סה"כ'},
+'REST-27':{path:'ממשק עסק ← "KDS" ← לחץ "סיים הכנה" על הזמנה',env:'BIZ',user:'טבח',actionType:'KDS',affects:'טבח, מלצר, לקוח',note:'cookDoneOrder() — הזמנה הוסרה מ-KDS, מלצר מקבל התראה',steps:['כנס ל-KDS','בצע כל הפריטים','לחץ "סיים הכנה"'],expected:'הזמנה נעלמת מ-KDS, מלצר רואה שניתן להגיש'},
+'REST-28':{path:'ממשק עסק ← לשונית "קופה"',env:'BIZ',user:'מנהל, מלצר, קופאי',actionType:'קופה',affects:'מנהל, מלצר, לקוח',note:'לשונית POS הראשית של המסעדה',steps:['כנס ללשונית "קופה"'],expected:'מסך POS נפתח עם גריד מוצרים, קטגוריות וסל'},
+'REST-29':{path:'ממשק עסק ← "קופה" ← "שולחן" (בוחר שולחן)',env:'BIZ',user:'מנהל, מלצר',actionType:'קופה',affects:'מנהל, מלצר, לקוח',note:'שולחן נבחר לפני/תוך כדי הזמנה',steps:['כנס ל"קופה"','לחץ על בוחר השולחן','בחר שולחן מהרשימה'],expected:'שולחן נבחר, מוצג בראש מסך ה-POS'},
+'REST-30':{path:'ממשק עסק ← "קופה" ← לחץ על פריט בגריד',env:'BIZ',user:'מנהל, מלצר',actionType:'קופה',affects:'מנהל, מלצר, לקוח',note:'הוספת פריט לסל ב-POS',steps:['בחר קטגוריה','לחץ על פריט'],expected:'פריט מתווסף לסל בצד שמאל, סך כולל מתעדכן'},
+'REST-31':{path:'ממשק עסק ← "קופה" ← סל ← +/- על כמות פריט',env:'BIZ',user:'מנהל, מלצר',actionType:'קופה',affects:'מנהל, מלצר, לקוח',note:'שינוי כמות בסל',steps:['הוסף פריט לסל','לחץ + להגדלת כמות','לחץ - להקטנת כמות'],expected:'כמות משתנה, סך הסל מתעדכן בהתאם'},
+'REST-32':{path:'ממשק עסק ← "קופה" ← סל ← 🗑️ על פריט',env:'BIZ',user:'מנהל, מלצר',actionType:'קופה',affects:'מנהל, מלצר',note:'מחיקת פריט מהסל',steps:['לחץ על 🗑️ ליד פריט בסל'],expected:'פריט נמחק מהסל, סך הסל מתעדכן'},
+'REST-33':{path:'ממשק עסק ← "קופה" ← סל ← הוספת הערה על פריט',env:'BIZ',user:'מנהל, מלצר',actionType:'קופה',affects:'מנהל, מלצר, טבח',note:'הערה על פריט מועברת ל-KDS',steps:['לחץ על פריט בסל','הוסף הערה (לדוג׳ "ללא בצל")','אשר'],expected:'הערה מופיעה על הפריט, נשלחת ל-KDS'},
+'REST-34':{path:'ממשק עסק ← "קופה" ← "חיוב"',env:'BIZ',user:'מנהל, מלצר, קופאי',actionType:'קופה',affects:'מנהל, מלצר, לקוח',note:'openPOSTender() פותח מסך תשלום',steps:['הוסף פריטים לסל','לחץ "חיוב"'],expected:'מסך תשלום (tender) נפתח עם סכום כולל, שיטות תשלום'},
+'REST-35':{path:'ממשק עסק ← "קופה" ← "חיוב" ← "מזומן" ← אישור',env:'BIZ',user:'מנהל, מלצר, קופאי',actionType:'תשלום',affects:'מנהל, מלצר, לקוח',note:'method=cash',steps:['לחץ "חיוב"','בחר "מזומן"','הזן סכום שהתקבל','לחץ "אשר תשלום"'],expected:'הזמנה נסגרת, עודף מחושב, קבלה מוצגת'},
+'REST-36':{path:'ממשק עסק ← "קופה" ← "חיוב" ← "כרטיס אשראי" ← אישור',env:'BIZ',user:'מנהל, מלצר, קופאי',actionType:'תשלום',affects:'מנהל, מלצר, לקוח',note:'method=credit',steps:['לחץ "חיוב"','בחר "כרטיס אשראי"','לחץ "אשר תשלום"'],expected:'הזמנה נסגרת בתשלום אשראי, קבלה מוצגת'},
+'REST-37':{path:'ממשק עסק ← "קופה" ← "חיוב" ← "ביט" ← אישור',env:'BIZ',user:'מנהל, מלצר, קופאי',actionType:'תשלום',affects:'מנהל, מלצר, לקוח',note:'method=bit',steps:['לחץ "חיוב"','בחר "ביט"','לחץ "אשר תשלום"'],expected:'הזמנה נסגרת בתשלום ביט, קבלה מוצגת'},
+'REST-38':{path:'ממשק עסק ← "קופה" ← "חיוב" ← "פייבוקס" ← אישור',env:'BIZ',user:'מנהל, מלצר, קופאי',actionType:'תשלום',affects:'מנהל, מלצר, לקוח',note:'method=paybox',steps:['לחץ "חיוב"','בחר "פייבוקס"','לחץ "אשר תשלום"'],expected:'הזמנה נסגרת בתשלום פייבוקס, קבלה מוצגת'},
+'REST-39':{path:'ממשק עסק ← "קופה" ← "חיוב" ← "הקפה" ← אישור',env:'BIZ',user:'מנהל, מלצר, קופאי',actionType:'תשלום',affects:'מנהל, מלצר, לקוח',note:'method=on_account — מחייב בחירת לקוח',steps:['לחץ "חיוב"','בחר "הקפה"','בחר לקוח מהרשימה','לחץ "אשר תשלום"'],expected:'הזמנה נסגרת עם חיוב בחשבון הלקוח'},
+'REST-40':{path:'ממשק עסק ← "קופה" ← "חיוב" ← "שי/חינם" ← אישור',env:'BIZ',user:'מנהל',actionType:'תשלום',affects:'מנהל, לקוח',note:'method=gift — btn-tender-gift, מוסתר למלצרים רגילים',steps:['לחץ "חיוב"','לחץ כפתור "שי/חינם"','הזן הסבר','אשר'],expected:'הזמנה נסגרת ללא חיוב, מסומנת כ"שי"'},
+'REST-41':{path:'ממשק עסק ← "קופה" ← "חיוב" ← "טיפ"',env:'BIZ',user:'מנהל, מלצר, קופאי',actionType:'תשלום',affects:'מנהל, מלצר, לקוח',note:'tender-tip-row מוצג רק ל-restaurant/cafe, currentTipAmount',steps:['לחץ "חיוב"','הזן סכום טיפ בשדה "טיפ"'],expected:'טיפ מתווסף לסכום הכולל, מוצג בסיכום לפני אישור'},
+'REST-42':{path:'ממשק עסק ← "קופה" ← "חיוב" ← "פיצול תשלום"',env:'BIZ',user:'מנהל, מלצר, קופאי',actionType:'תשלום',affects:'מנהל, מלצר, לקוח',note:'posSplitPayments — פיצול לפי שיטת תשלום',steps:['לחץ "חיוב"','לחץ "פיצול תשלום"','הגדר 2 חלקים (50% מזומן, 50% אשראי)','אשר'],expected:'תשלום מחולק לפי שיטות, כל חלק נרשם בנפרד'},
+'REST-43':{path:'ממשק עסק ← "קופה" ← "חיוב" ← "פיצול לפי מנות"',env:'BIZ',user:'מנהל, מלצר, קופאי',actionType:'תשלום',affects:'מנהל, מלצר, לקוח',note:'openItemSplitModal() — 2-6 חלקים, צבעים שונים לכל חלק',steps:['לחץ "חיוב"','לחץ "פיצול לפי מנות" (✂️)','הגדר 2-6 חלקים','שייך כל פריט לחלק','לחץ "אשר פיצול"'],expected:'הסכום לכל חלק מחושב ומוצג, ניתן לשלם כל חלק בנפרד'},
+'REST-44':{path:'ממשק עסק ← "קופה" ← "חיוב" ← אישור תשלום ← "קבלה"',env:'BIZ',user:'מנהל, מלצר, קופאי',actionType:'קופה',affects:'מנהל, מלצר, לקוח',note:'קבלה מוצגת לאחר finalizePOSOrder',steps:['אשר תשלום','לחץ "הדפס קבלה" / "שלח קבלה"'],expected:'קבלה מוצגת עם: תאריך, פריטים, שיטת תשלום, שולחן'},
+'REST-45':{path:'ממשק עסק ← "קופה" ← סל ← "בטל הזמנה"',env:'BIZ',user:'מנהל, מלצר',actionType:'קופה',affects:'מנהל, מלצר',note:'ביטול לפני תשלום — מנקה את הסל',steps:['הוסף פריטים לסל','לחץ "בטל הזמנה"','אשר ביטול'],expected:'הסל מתרוקן, הזמנה מבוטלת, שולחן חוזר לפנוי'},
+'REST-46':{path:'ממשק עסק ← "קופה" ← ⚙️ ← "קטגוריות" ← "+ קטגוריה"',env:'BIZ',user:'מנהל',actionType:'תפריט',affects:'מנהל, מלצר',note:'קטגוריות מוצגות בסרגל העליון ב-POS',steps:['כנס להגדרות קופה','לחץ "+ קטגוריה"','הזן שם קטגוריה','שמור'],expected:'קטגוריה חדשה מופיעה בסרגל ה-POS'},
+'REST-47':{path:'ממשק עסק ← "קופה" ← ⚙️ ← "קטגוריות" ← עריכת קטגוריה',env:'BIZ',user:'מנהל',actionType:'תפריט',affects:'מנהל, מלצר',note:'עריכת שם/סדר קטגוריה',steps:['לחץ ✏️ על קטגוריה','שנה שם','שמור'],expected:'שם הקטגוריה משתנה ב-POS'},
+'REST-48':{path:'ממשק עסק ← "קופה" ← ⚙️ ← "קטגוריות" ← 🗑️ קטגוריה',env:'BIZ',user:'מנהל',actionType:'תפריט',affects:'מנהל, מלצר',note:'מחיקת קטגוריה מוחקת גם את הפריטים שלה',steps:['לחץ 🗑️ על קטגוריה ריקה','אשר מחיקה'],expected:'קטגוריה נמחקת, נעלמת מ-POS'},
+'REST-49':{path:'ממשק עסק ← "קופה" ← בחר קטגוריה ← "+ פריט"',env:'BIZ',user:'מנהל',actionType:'תפריט',affects:'מנהל, מלצר, טבח',note:'פריט כולל: שם, מחיר, תמונה, station KDS, עלות',steps:['בחר קטגוריה','לחץ "+ פריט"','הזן שם, מחיר, בחר station','שמור'],expected:'פריט חדש מופיע בגריד הפריטים'},
+'REST-50':{path:'ממשק עסק ← "קופה" ← לחץ לחיצה ארוכה על פריט ← עריכה',env:'BIZ',user:'מנהל',actionType:'תפריט',affects:'מנהל, מלצר, טבח',note:'עריכת שם, מחיר ותמונה של פריט',steps:['לחץ לחיצה ארוכה / ✏️ על פריט','שנה מחיר','שמור'],expected:'מחיר הפריט מתעדכן ב-POS ובהזמנות חדשות'},
+'REST-51':{path:'ממשק עסק ← "קופה" ← עריכת פריט ← "Station KDS"',env:'BIZ',user:'מנהל',actionType:'תפריט',affects:'מנהל, טבח',note:'station מגדיר לאיזה פס ב-KDS הפריט נשלח',steps:['פתח עריכת פריט','בחר station מהרשימה (hot/cold/drinks/bread/other)','שמור'],expected:'הפריט מופיע בפס הנכון ב-KDS בהזמנה הבאה'},
+'REST-52':{path:'ממשק עסק ← "קופה" ← עריכת פריט ← 🗑️',env:'BIZ',user:'מנהל',actionType:'תפריט',affects:'מנהל, מלצר',note:'מחיקת פריט מהתפריט',steps:['פתח עריכת פריט','לחץ 🗑️ מחק','אשר מחיקה'],expected:'פריט נמחק מהתפריט, לא מופיע ב-POS'},
+'REST-53':{path:'ממשק עסק ← "עלות מנה" ← הזן עלות לפריט',env:'BIZ',user:'מנהל',actionType:'עלות מנה',affects:'מנהל',note:'food cost = עלות / מחיר * 100',steps:['כנס ללשונית "עלות מנה"','הזן עלות חומרי גלם לפריט','שמור'],expected:'אחוז עלות מחושב ומוצג (עלות/מחיר*100)'},
+'REST-54':{path:'ממשק עסק ← "עלות מנה" ← צבעי אינדיקטורים',env:'BIZ',user:'מנהל',actionType:'עלות מנה',affects:'מנהל',note:'<35%=ירוק, 35-50%=כתום, >50%=אדום (תוקן ב-v116)',steps:['הגדר פריט עם עלות >50%','הגדר פריט עם עלות 36-50%','הגדר פריט עם עלות <35%'],expected:'אדום > 50%, כתום 35-50%, ירוק < 35%'},
+'REST-55':{path:'ממשק עסק ← "מלאי" ← עדכון כמות פריט',env:'BIZ',user:'מנהל',actionType:'מלאי',affects:'מנהל',note:'מלאי מסעדה — חומרי גלם ומוצרים',steps:['כנס ל"מלאי"','בחר פריט','עדכן כמות','שמור'],expected:'כמות הפריט מתעדכנת, אם נמוכה מהמינימום — התראה'},
+'REST-56':{path:'ממשק עסק ← "עובדים" ← "+ עובד" ← תפקיד: מלצר/ית',env:'BIZ',user:'מנהל',actionType:'ניהול עובדים',affects:'מנהל, מלצר',note:'role=waiter — הרשאות: POS, שולחנות, KDS (שתייה בלבד)',steps:['לחץ "+ עובד"','בחר תפקיד "מלצר/ית"','הזן שם ומייל','שמור'],expected:'עובד חדש ברשימה, תפקיד: מלצר/ית'},
+'REST-57':{path:'ממשק עסק ← "עובדים" ← "+ עובד" ← תפקיד: טבח/ית',env:'BIZ',user:'מנהל',actionType:'ניהול עובדים',affects:'מנהל, טבח',note:'role=cook — הרשאות: KDS בלבד',steps:['לחץ "+ עובד"','בחר תפקיד "טבח/ית"','הזן שם ומייל','שמור'],expected:'עובד חדש ברשימה, תפקיד: טבח/ית'},
+'REST-58':{path:'ממשק עסק ← "עובדים" ← "+ עובד" ← תפקיד: קופאי/ת',env:'BIZ',user:'מנהל',actionType:'ניהול עובדים',affects:'מנהל, קופאי',note:'role=cashier — הרשאות: POS ותשלומים',steps:['לחץ "+ עובד"','בחר תפקיד "קופאי/ת"','הזן שם ומייל','שמור'],expected:'עובד חדש ברשימה, תפקיד: קופאי/ת'},
+'REST-59':{path:'ממשק עסק ← "עובדים" ← "+ עובד" ← תפקיד: מנהל משמרת',env:'BIZ',user:'מנהל',actionType:'ניהול עובדים',affects:'מנהל, מנהל משמרת',note:'role=shift_manager — הרשאות רחבות, לא כולל SA',steps:['לחץ "+ עובד"','בחר תפקיד "מנהל משמרת"','הזן שם ומייל','שמור'],expected:'עובד חדש ברשימה, תפקיד: מנהל משמרת'},
+'REST-60':{path:'ממשק עסק ← "משמרות" ← "+ משמרת"',env:'BIZ',user:'מנהל, מנהל משמרת',actionType:'משמרות',affects:'מנהל, מנהל משמרת, עובדים',note:'יצירת משמרת עם שעות ותאריך',steps:['כנס ל"משמרות"','לחץ "+ משמרת"','הגדר תאריך, שעות התחלה וסיום','שמור'],expected:'משמרת חדשה מופיעה בלוח המשמרות'},
+'REST-61':{path:'ממשק עסק ← "משמרות" ← בחר משמרת ← "שיבוץ עובד"',env:'BIZ',user:'מנהל, מנהל משמרת',actionType:'משמרות',affects:'מנהל, מנהל משמרת, עובד',note:'שיבוץ עובד ספציפי למשמרת',steps:['פתח משמרת','לחץ "שיבוץ עובד"','בחר עובד מהרשימה','שמור'],expected:'עובד משובץ למשמרת, מופיע בלוח השיבוצים'},
+'REST-62':{path:'ממשק עסק ← "שעון נוכחות" ← "כניסה"',env:'BIZ',user:'כל עובדי המסעדה',actionType:'נוכחות',affects:'מנהל, עובד',note:'timeclock — כניסה ויציאה',steps:['עובד לוחץ "כניסה"'],expected:'שעת כניסה נרשמת, עובד מסומן כ"במשמרת"'},
+'REST-63':{path:'ממשק עסק ← "שעון נוכחות" ← בחר שורה ← "אשר שעות"',env:'BIZ',user:'מנהל, מנהל משמרת',actionType:'נוכחות',affects:'מנהל, עובד',note:'אישור/דחיית שעות עבודה שדווחו',steps:['כנס לדוח שעות','בחר שורת עובד','לחץ "אשר" או "דחה"','הוסף הערה אם נדרש'],expected:'שעות מאושרות/נדחות, עובד מקבל הודעה'},
+'REST-64':{path:'ממשק עסק ← "משמרות" ← "דוח שעות"',env:'BIZ',user:'מנהל, מנהל משמרת',actionType:'דוחות',affects:'מנהל, עובדים',note:'דוח שעות לפי עובד ותקופה',steps:['כנס ל"משמרות"','בחר "דוח שעות"','בחר תקופה (שבוע/חודש)'],expected:'דוח מוצג עם: שם עובד, שעות, ימים, סה"כ'},
+'REST-65':{path:'ממשק עסק ← כניסת מלצר ← בדיקת הרשאות',env:'BIZ',user:'מלצר',actionType:'הרשאות',affects:'מלצר',note:'מלצר רואה: POS, שולחנות, KDS — לא רואה: דוחות, הגדרות, שכר',steps:['כנס עם חשבון מלצר','בדוק אילו לשוניות מוצגות'],expected:'מלצר רואה רק POS, שולחנות, KDS — לשוניות אחרות מוסתרות'},
+'REST-66':{path:'ממשק עסק ← "משלוחים" ← "אזורי משלוח" ← "+ אזור"',env:'BIZ',user:'מנהל',actionType:'משלוחים',affects:'מנהל, לקוח',note:'openDeliveryZoneModal() — אזור עם תעריף',steps:['כנס ל"משלוחים"','לחץ "+ אזור משלוח"','הזן: שם אזור, מרחק מקסימלי, עלות משלוח','שמור'],expected:'אזור חדש מופיע ברשימה, עלות המשלוח מוגדרת'},
+'REST-67':{path:'ממשק עסק ← "משלוחים" ← "אזורי משלוח" ← ✏️ עריכה',env:'BIZ',user:'מנהל',actionType:'משלוחים',affects:'מנהל, לקוח',note:'עריכת שם/תעריף של אזור קיים',steps:['לחץ ✏️ על אזור משלוח','שנה עלות','שמור'],expected:'עלות המשלוח מתעדכנת לאזור'},
+'REST-68':{path:'ממשק עסק ← "משלוחים" ← "אזורי משלוח" ← 🗑️ מחיקה',env:'BIZ',user:'מנהל',actionType:'משלוחים',affects:'מנהל',note:'deleteDeliveryZone() — מחיקת אזור',steps:['לחץ 🗑️ על אזור','אשר מחיקה'],expected:'אזור נמחק מהרשימה'},
+'REST-69':{path:'ממשק עסק ← "משלוחים" ← הזמנה חדשה ← בחר אזור',env:'BIZ',user:'מנהל, מלצר',actionType:'משלוחים',affects:'מנהל, מלצר, לקוח',note:'applyDeliveryZoneFee() — עלות משלוח מתווספת לסל',steps:['צור הזמנת משלוח חדשה','בחר אזור משלוח','בדוק סל'],expected:'עלות המשלוח של האזור הנבחר מתווספת לסכום ההזמנה'},
+'REST-70':{path:'ממשק עסק ← "משלוחים" ← רשימת הזמנות ← שינוי סטטוס',env:'BIZ',user:'מנהל, מנהל משמרת',actionType:'משלוחים',affects:'מנהל, שליח, לקוח',note:'סטטוסי משלוח: ממתין, בדרך, הגיע',steps:['כנס לרשימת המשלוחים','שנה סטטוס הזמנה ל"בדרך"'],expected:'סטטוס משתנה, לקוח מקבל עדכון (אם מוגדר SMS/push)'},
+'REST-71':{path:'ממשק עסק ← "יומן" ← "+ הזמנה מראש"',env:'BIZ',user:'מנהל, מלצר',actionType:'הזמנות',affects:'מנהל, מלצר, לקוח',note:'הזמנת שולחן מראש עם תאריך ושעה',steps:['כנס ל"יומן"','לחץ "+ הזמנה מראש"','הזן: שם לקוח, תאריך, שעה, מספר סועדים','שמור'],expected:'הזמנה מופיעה ביומן, שולחן מסומן כ"הוזמן מראש" בתאריך'},
+'REST-72':{path:'ממשק עסק ← "יומן" ← הזמנה ← "בטל הזמנה"',env:'BIZ',user:'מנהל, מלצר',actionType:'הזמנות',affects:'מנהל, מלצר, לקוח',note:'ביטול הזמנה מראש',steps:['כנס ל"יומן"','בחר הזמנה','לחץ "בטל הזמנה"','אשר'],expected:'הזמנה מבוטלת, שולחן חוזר לפנוי בתאריך המדובר'},
+'REST-73':{path:'ממשק עסק ← "דוחות" ← "מכירות" ← סנן לפי יום',env:'BIZ',user:'מנהל, מנהל משמרת',actionType:'דוחות',affects:'מנהל',note:'דוח מכירות יומי — הכנסות, כמות עסקאות',steps:['כנס ל"דוחות"','בחר "מכירות"','סנן לפי "היום"'],expected:'מוצג: סה"כ הכנסות, מספר עסקאות, שיטות תשלום לפי היום'},
+'REST-74':{path:'ממשק עסק ← "דוחות" ← "שולחנות"',env:'BIZ',user:'מנהל',actionType:'דוחות',affects:'מנהל',note:'ניתוח שולחנות — ממוצע עסקה, זמן שהייה',steps:['כנס ל"דוחות"','בחר "שולחנות"'],expected:'מוצג: ממוצע סכום לשולחן, שולחנות פעילים, ממוצע זמן שהייה'},
+'REST-75':{path:'ממשק עסק ← "עלות מנה" ← דוח food cost',env:'BIZ',user:'מנהל',actionType:'דוחות',affects:'מנהל',note:'food cost מחושב לפי עלות/מחיר*100',steps:['כנס ל"עלות מנה"','צפה ברשימת הפריטים עם אחוזי עלות'],expected:'כל פריט מציג: מחיר מכירה, עלות, אחוז (ירוק/כתום/אדום)'},
+'REST-76':{path:'ממשק עסק ← "משמרות" ← סיום משמרת ← "סיכום משמרת"',env:'BIZ',user:'מנהל, מנהל משמרת',actionType:'דוחות',affects:'מנהל, מנהל משמרת',note:'סיכום: מכירות, מוצרים מובילים, שעות עבודה',steps:['בחר משמרת שהסתיימה','לחץ "סיכום משמרת"'],expected:'סיכום מוצג: הכנסות, כמות הזמנות, מוצרים מובילים'},
+'REST-77':{path:'ממשק עסק ← "דוחות" ← "ייצא דוח"',env:'BIZ',user:'מנהל',actionType:'דוחות',affects:'מנהל',note:'ייצוא ל-CSV/PDF',steps:['כנס לדוח','לחץ "ייצא"','בחר פורמט (CSV / PDF)'],expected:'קובץ דוח מורד למכשיר'},
+'REST-78':{path:'ממשק עסק ← "דוחות" ← מסנן תאריך',env:'BIZ',user:'מנהל',actionType:'דוחות',affects:'מנהל',note:'סינון לפי טווח תאריכים',steps:['כנס לדוח','לחץ על בוחר תאריך','בחר: מ-תאריך עד תאריך','לחץ "הצג"'],expected:'הדוח מציג נתונים רק לטווח התאריכים שנבחר'},
+'REST-79':{path:'ממשק עסק ← כניסת מלצר ← בדיקת הרשאות מלצר',env:'BIZ',user:'מלצר',actionType:'הרשאות',affects:'מלצר',note:'role=waiter: רואה POS+שולחנות+KDS שתייה, לא רואה דוחות/הגדרות/שכר',steps:['כנס עם משתמש מלצר','נסה לגשת ל"דוחות"','נסה לגשת ל"הגדרות"'],expected:'לשוניות דוחות והגדרות לא מוצגות/נחסמות למלצר'},
+'REST-80':{path:'ממשק עסק ← כניסת טבח ← בדיקת הרשאות טבח',env:'BIZ',user:'טבח',actionType:'הרשאות',affects:'טבח',note:'role=cook: רואה KDS בלבד',steps:['כנס עם משתמש טבח','בדוק אילו לשוניות מוצגות'],expected:'טבח רואה רק KDS — אין גישה ל-POS, שולחנות, דוחות'},
+'REST-81':{path:'ממשק עסק ← כניסת קופאי ← בדיקת הרשאות קופאי',env:'BIZ',user:'קופאי',actionType:'הרשאות',affects:'קופאי',note:'role=cashier: POS + תשלומים, ללא הגדרות תפריט',steps:['כנס עם משתמש קופאי','נסה לערוך פריט בתפריט','נסה לאשר תשלום'],expected:'קופאי יכול לאשר תשלום, לא יכול לערוך תפריט'},
+'REST-82':{path:'ממשק עסק ← כניסת מנהל משמרת ← בדיקת הרשאות',env:'BIZ',user:'מנהל משמרת',actionType:'הרשאות',affects:'מנהל משמרת',note:'role=shift_manager: הכל חוץ מ-SA והגדרות מערכת',steps:['כנס עם משתמש מנהל משמרת','בדוק גישה לדוחות','בדוק שאין גישה להגדרות SA'],expected:'מנהל משמרת רואה: POS, KDS, שולחנות, דוחות, משמרות — לא SA'},
+
 }; // סיום GUIDE_BOOK
 
 const ENV_MAP = {
@@ -1579,7 +1670,24 @@ const ENV_MAP = {
   'SAF-25':['sa'],
   'SAF-26':['sa'],
   'SAF-27':['sa'],
-  'SAF-28':['sa']
+  'SAF-28':['sa'],
+  'REST-01':['biz'],'REST-02':['biz'],'REST-03':['biz'],'REST-04':['biz'],'REST-05':['biz'],
+  'REST-06':['biz'],'REST-07':['biz'],'REST-08':['biz'],'REST-09':['biz'],'REST-10':['biz'],
+  'REST-11':['biz'],'REST-12':['biz'],'REST-13':['biz'],'REST-14':['biz'],'REST-15':['biz'],
+  'REST-16':['biz'],'REST-17':['biz'],'REST-18':['biz'],'REST-19':['biz'],'REST-20':['biz'],
+  'REST-21':['biz'],'REST-22':['biz'],'REST-23':['biz'],'REST-24':['biz'],'REST-25':['biz'],
+  'REST-26':['biz'],'REST-27':['biz'],'REST-28':['biz'],'REST-29':['biz'],'REST-30':['biz'],
+  'REST-31':['biz'],'REST-32':['biz'],'REST-33':['biz'],'REST-34':['biz'],'REST-35':['biz'],
+  'REST-36':['biz'],'REST-37':['biz'],'REST-38':['biz'],'REST-39':['biz'],'REST-40':['biz'],
+  'REST-41':['biz'],'REST-42':['biz'],'REST-43':['biz'],'REST-44':['biz'],'REST-45':['biz'],
+  'REST-46':['biz'],'REST-47':['biz'],'REST-48':['biz'],'REST-49':['biz'],'REST-50':['biz'],
+  'REST-51':['biz'],'REST-52':['biz'],'REST-53':['biz'],'REST-54':['biz'],'REST-55':['biz'],
+  'REST-56':['biz'],'REST-57':['biz'],'REST-58':['biz'],'REST-59':['biz'],'REST-60':['biz'],
+  'REST-61':['biz'],'REST-62':['biz'],'REST-63':['biz'],'REST-64':['biz'],'REST-65':['biz'],
+  'REST-66':['biz'],'REST-67':['biz'],'REST-68':['biz'],'REST-69':['biz'],'REST-70':['biz'],
+  'REST-71':['biz'],'REST-72':['biz'],'REST-73':['biz'],'REST-74':['biz'],'REST-75':['biz'],
+  'REST-76':['biz'],'REST-77':['biz'],'REST-78':['biz'],'REST-79':['biz'],'REST-80':['biz'],
+  'REST-81':['biz'],'REST-82':['biz']
 };
 
 // ============================================================
@@ -1613,7 +1721,8 @@ window.restoreFromGuideBook = async function() {
     'PWA':'PWA, ביצועים ואבטחה',
     'PFAM':'הרשאות — סביבת משפחה (הורה vs ילד)',
     'PBIZ':'הרשאות — סביבת עסק (4 תפקידים)',
-    'SAF':'SuperAdmin — sa.html ו-sa-app.js'
+    'SAF':'SuperAdmin — sa.html ו-sa-app.js',
+    'REST':'מסעדה — מסלולי בדיקה'
   };
   const prefixToPrio = {
     'AUTH':'critical','ONBD':'high','FAM':'medium','BIZ':'medium',
@@ -1621,7 +1730,8 @@ window.restoreFromGuideBook = async function() {
     'INV':'medium','AI':'low','CAL':'medium','SHF':'medium',
     'TSK':'medium','ACAD':'low','COM':'low','NOT':'medium',
     'SA':'high','SMK':'low','PWA':'medium',
-    'PFAM':'critical','PBIZ':'critical','SAF':'critical'
+    'PFAM':'critical','PBIZ':'critical','SAF':'critical',
+    'REST':'critical'
   };
 
   const tests = Object.entries(GUIDE_BOOK).map(([id, g]) => {
@@ -2029,7 +2139,17 @@ function renderRow(t, sec, env, showCb) {
   const _stepsVal    = _savedSteps    != null ? _savedSteps    : (guide ? guide.steps.join('\n') : '');
   const _expectedVal = _savedExpected != null ? _savedExpected : (guide ? guide.expected : (t.desc||''));
   const _pathLabel   = guide ? guide.path : t.name;
+  const _metaRow = guide && (guide.env || guide.user || guide.actionType || guide.affects) ?
+    `<div style="display:flex;gap:.6rem;padding:.35rem .75rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;flex-wrap:wrap;font-size:.65rem;font-weight:700;color:#475569">
+      ${guide.env ? `<span>🌐 סביבה: <span style="color:#1d4ed8">${guide.env}</span></span>` : ''}
+      ${guide.user ? `<span>👤 משתמש: <span style="color:#15803d">${guide.user}</span></span>` : ''}
+      ${guide.actionType ? `<span>⚙️ סוג: <span style="color:#7c3aed">${guide.actionType}</span></span>` : ''}
+      ${guide.affects ? `<span>📣 משפיע על: <span style="color:#92400e">${guide.affects}</span></span>` : ''}
+    </div>` : '';
+  const _noteRow = guide && guide.note ?
+    `<div style="padding:.3rem .75rem;background:#fefce8;border-top:1px solid #fde68a;font-size:.68rem;color:#713f12"><i class="fa-solid fa-circle-info" style="margin-left:.3rem"></i>${guide.note}</div>` : '';
   const _guideInner = `<div class="guide-path"><i class="fa-solid fa-route"></i> ${_pathLabel}</div>
+     ${_metaRow}
      <div class="guide-body">
        <div class="guide-steps">
          <div class="guide-label">מדריך בדיקה (צעדים)</div>
@@ -2039,7 +2159,8 @@ function renderRow(t, sec, env, showCb) {
          <div class="guide-label">קיים (צפוי)</div>
          <textarea class="guide-expected-input" rows="4" placeholder="מה אמור לקרות..." oninput="saveGuideExpected('${t.id}',this.value)">${_expectedVal}</textarea>
        </div>
-     </div>`;
+     </div>
+     ${_noteRow}`;
   const colSpan = showCb ? 5 : 4;
   const guideHtml = `
   <tr id="guide-row-${rowKey}" class="guide-row" style="display:none">
