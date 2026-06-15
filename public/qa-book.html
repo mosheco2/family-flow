@@ -1515,6 +1515,34 @@ window.seedDatabase = async function(legacyData) {
 'LOG-95':{path:'ממשק עסק ← FamliAI ← "צור לי משימה לבדוק נהגים עם כישלונות" ← ACTION:ADD_TASK',env:'BIZ',user:'מנהל',actionType:'AI + משימה',affects:'מנהל',note:'AI מחזיר [ACTION:ADD_TASK|כותרת]',steps:['שאל AI: "צור משימה לבדוק נהגים עם כישלונות"','לחץ כפתור'],expected:'מסך הוספת משימה נפתח עם כותרת מולאה'},
 'LOG-96':{path:'ממשק עסק ← FamliAI ← כישלון: BATTERY_EMPTY / תקלת רשת',env:'BIZ',user:'מנהל',actionType:'AI',affects:'מנהל',note:'handleAIResponseCheck → BATTERY_EMPTY Toast; catch(e) → "תקלת רשת"',steps:['מנה טוקני AI עד אפס OR נתק רשת','שלח שאלה'],expected:'Toast: "סוללת AI ריקה" או "תקלת רשת מול מנוע ה-AI" — המערכת לא קורסת'},
 
+// LOG מזמינים ונמענים (LOG-97 עד LOG-108)
+'LOG-97':{path:'ממשק עסק ← לוגיסטיקה ← "מזמינים ונמענים 🤝"',env:'BIZ',user:'מנהל',actionType:'ניווט',affects:'מנהל',note:'switchTab("logistics_customers") → loadLogisticsCustomers() → GET /api/logistics/customers/:groupId',steps:['כנס לעסק לוגיסטיקה','לחץ על לשונית "מזמינים ונמענים 🤝"'],expected:'טאב נטען, מוצגת רשימת לקוחות (או מסך ריק עם הוראות), כפתור "+ לקוח חדש"'},
+'LOG-98':{path:'ממשק עסק ← מזמינים ← "+ לקוח חדש" ← לקוח פרטי',env:'BIZ',user:'מנהל',actionType:'יצירה',affects:'מנהל',note:'POST /api/logistics/customers — customer_type=private',steps:['לחץ "+ לקוח חדש"','הזן שם, טלפון, מייל','בחר סוג: פרטי','לחץ "שמור"'],expected:'לקוח נוצר, מוצג ברשימה עם תגית "פרטי" (כחולה)'},
+'LOG-99':{path:'ממשק עסק ← מזמינים ← "+ לקוח חדש" ← לקוח עסקי B2B',env:'BIZ',user:'מנהל',actionType:'יצירה',affects:'מנהל',note:'POST /api/logistics/customers — customer_type=business',steps:['לחץ "+ לקוח חדש"','הזן שם עסק','בחר סוג: עסקי','לחץ "שמור"'],expected:'לקוח נוצר עם תגית "עסקי" (סגולה)'},
+'LOG-100':{path:'ממשק עסק ← מזמינים ← "+ לקוח חדש" ← לקוח מנוי',env:'BIZ',user:'מנהל',actionType:'יצירה',affects:'מנהל',note:'POST /api/logistics/customers — customer_type=subscription',steps:['לחץ "+ לקוח חדש"','בחר סוג: מנוי','שמור'],expected:'תגית "מנוי" (ירוקה) מוצגת'},
+'LOG-101':{path:'ממשק עסק ← מזמינים ← "+ לקוח חדש" ← חיוב שוטף',env:'BIZ',user:'מנהל',actionType:'יצירה',affects:'מנהל',note:'POST /api/logistics/customers — customer_type=monthly_billing',steps:['לחץ "+ לקוח חדש"','בחר סוג: חיוב שוטף','שמור'],expected:'תגית "חיוב שוטף" (כתומה) מוצגת'},
+'LOG-102':{path:'ממשק עסק ← מזמינים ← לקוח ← הגדרת % הנחה',env:'BIZ',user:'מנהל',actionType:'עריכה',affects:'מנהל',note:'discount_pct > 0 → מוצג badge ירוק',steps:['עריכת לקוח קיים','הזן הנחה: 10%','שמור'],expected:'badge ירוק "10% הנחה" מוצג על כרטיסיית הלקוח'},
+'LOG-103':{path:'ממשק עסק ← מזמינים ← לקוח ← הוראות מסירה',env:'BIZ',user:'מנהל',actionType:'עריכה',affects:'מנהל, נהג',note:'delivery_instructions → מוצג בכרטיסיה בצהוב',steps:['עריכת לקוח','הזן הוראות: "להשאיר אצל השכנה"','שמור'],expected:'הוראות מוצגות בקופסה כתומה על הכרטיסייה'},
+'LOG-104':{path:'ממשק עסק ← מזמינים ← לקוח ← "✏️ עריכה"',env:'BIZ',user:'מנהל',actionType:'עריכה',affects:'מנהל',note:'PATCH /api/logistics/customers/:id — שדות מעודכנים, updated_at=NOW()',steps:['לחץ "✏️ עריכה" על לקוח קיים','שנה שם/טלפון','שמור'],expected:'הנתונים מתעדכנים, modal נסגר, הרשימה מתרעננת'},
+'LOG-105':{path:'ממשק עסק ← מזמינים ← לקוח ← "🗑️ מחיקה"',env:'BIZ',user:'מנהל',actionType:'מחיקה',affects:'מנהל',note:'DELETE /api/logistics/customers/:id → is_active=false (soft delete)',steps:['לחץ 🗑️','אשר בדיאלוג'],expected:'לקוח נעלם מהרשימה (is_active=false), לא נמחק פיזית מה-DB'},
+'LOG-106':{path:'ממשק עסק ← מזמינים ← לקוח ← "📞 התקשר"',env:'BIZ',user:'מנהל',actionType:'ניווט',affects:'מנהל',note:'כפתור מוצג רק אם phone מוגדר — href="tel:{phone}"',steps:['לחץ "📞 התקשר" על לקוח עם טלפון'],expected:'מכשיר פותח חיוג לטלפון הלקוח'},
+'LOG-107':{path:'ממשק עסק ← מזמינים ← לקוח ← כתובת ברירת מחדל',env:'BIZ',user:'מנהל',actionType:'יצירה',affects:'מנהל',note:'default_address מוצגת עם אייקון 📍',steps:['צור לקוח עם כתובת: "רח\' הרצל 1, תל אביב"'],expected:'כתובת מוצגת מתחת לשם עם 📍'},
+'LOG-108':{path:'ממשק עסק ← מזמינים ← מצב ריק (אין לקוחות)',env:'BIZ',user:'מנהל',actionType:'UI',affects:'מנהל',note:'customers.length === 0 → empty state',steps:['כנס לטאב בלי לקוחות'],expected:'מסך ריק עם 🤝 ואמירה "אין לקוחות עדיין — הוסף מזמינים ונמענים חוזרים"'},
+
+// LOG חשבוניות (LOG-109 עד LOG-120)
+'LOG-109':{path:'ממשק עסק ← לוגיסטיקה ← "חשבוניות 🧾"',env:'BIZ',user:'מנהל',actionType:'ניווט',affects:'מנהל',note:'switchTab("logistics_invoices") → loadLogisticsInvoices() → GET /api/logistics/invoices/:groupId',steps:['לחץ על לשונית "חשבוניות 🧾"'],expected:'טאב נטען, מוצג header עם סיכום הכנסות גבויות + ספירת ממתינות'},
+'LOG-110':{path:'ממשק עסק ← קנבן הזמנות ← שינוי סטטוס → "נמסר" ← חשבונית אוטומטית',env:'BIZ',user:'מנהל/נהג',actionType:'אוטומציה',affects:'מנהל',note:'PATCH /api/logistics/orders/:id/status {status:"delivered"} → INSERT INTO logistics_invoices ... ON CONFLICT DO NOTHING',steps:['עדכן הזמנה לסטטוס "נמסר"','עבור לטאב חשבוניות'],expected:'חשבונית חדשה נוצרה אוטומטית עם status=pending'},
+'LOG-111':{path:'ממשק עסק ← חשבוניות ← מספור אוטומטי',env:'BIZ',user:'מנהל',actionType:'אוטומציה',affects:'מנהל',note:'invoice_number = "INV-{group_id}-{Date.now()}" — ייחודי',steps:['צפה בחשבונית שנוצרה'],expected:'מספר חשבונית בפורמט INV-X-XXXXXXXXXX מוצג'},
+'LOG-112':{path:'ממשק עסק ← חשבוניות ← חישוב מע"מ 17%',env:'BIZ',user:'מנהל',actionType:'חישוב',affects:'מנהל',note:'amount=delivery_fee; vat_amount=round(amount*0.17*100)/100; total=amount+vat',steps:['הזמנה עם delivery_fee=100 ← סמן נמסר','בדוק חשבונית'],expected:'amount=₪100, vat=₪17, total=₪117'},
+'LOG-113':{path:'ממשק עסק ← חשבוניות ← "📤 סמן כנשלח"',env:'BIZ',user:'מנהל',actionType:'עדכון',affects:'מנהל',note:'PATCH /api/logistics/invoices/:id/status {status:"sent"} → sent_at=NOW()',steps:['חשבונית בסטטוס pending','לחץ "📤 סמן כנשלח"'],expected:'תגית עוברת לכחולה "נשלח"'},
+'LOG-114':{path:'ממשק עסק ← חשבוניות ← "✅ סמן כשולם" (מ-sent)',env:'BIZ',user:'מנהל',actionType:'עדכון',affects:'מנהל',note:'PATCH status=paid → paid_at=NOW()',steps:['חשבונית בסטטוס sent','לחץ "✅ סמן כשולם"'],expected:'תגית עוברת לירוקה "שולם", הכנסה מצטרפת לסיכום'},
+'LOG-115':{path:'ממשק עסק ← חשבוניות ← "✅ סמן כשולם" ישיר (מ-pending)',env:'BIZ',user:'מנהל',actionType:'עדכון',affects:'מנהל',note:'ניתן לדלג שלב sent ולעדכן ישר ל-paid',steps:['חשבונית בסטטוס pending','לחץ "✅ סמן כשולם"'],expected:'תגית עוברת לירוקה "שולם" ישירות'},
+'LOG-116':{path:'ממשק עסק ← חשבוניות ← "🗑️ מחיקה"',env:'BIZ',user:'מנהל',actionType:'מחיקה',affects:'מנהל',note:'DELETE /api/logistics/invoices/:id — hard delete',steps:['לחץ 🗑️ על חשבונית','אשר'],expected:'חשבונית נמחקת מהרשימה'},
+'LOG-117':{path:'ממשק עסק ← חשבוניות ← סיכום הכנסות גבויות',env:'BIZ',user:'מנהל',actionType:'UI',affects:'מנהל',note:'totalRevenue = invoices.filter(paid).reduce(total_amount)',steps:['קיים לפחות לקוח שילם','בדוק header'],expected:'סיכום "גבוי ₪XXX" מוצג בירוק בפינת ה-header'},
+'LOG-118':{path:'ממשק עסק ← חשבוניות ← ספירת ממתינות',env:'BIZ',user:'מנהל',actionType:'UI',affects:'מנהל',note:'pendingCount = invoices.filter(status==="pending").length',steps:['קיים לפחות חשבונית pending','בדוק header'],expected:'ספירת "X ממתינות" מוצגת בכתום'},
+'LOG-119':{path:'ממשק עסק ← חשבוניות ← כפל מניעה (ON CONFLICT DO NOTHING)',env:'BIZ',user:'מנהל',actionType:'אוטומציה',affects:'מנהל',note:'INSERT ... ON CONFLICT DO NOTHING — אם חשבונית כבר קיימת להזמנה לא תיווצר שנייה',steps:['הזמנה שכבר יש לה חשבונית','עדכן שוב לסטטוס delivered (למשל דרך API)'],expected:'לא נוצרת חשבונית כפולה — רק אחת בטבלה'},
+'LOG-120':{path:'ממשק עסק ← חשבוניות ← מצב ריק (אין חשבוניות)',env:'BIZ',user:'מנהל',actionType:'UI',affects:'מנהל',note:'invoices.length === 0 → empty state',steps:['כנס לטאב בעסק חדש ללא הזמנות שנמסרו'],expected:'מסך ריק עם 🧾 ואמירה "חשבוניות נוצרות אוטומטית כשמשלוח מסומן כ\'נמסר\'"'},
+
 }; // סיום GUIDE_BOOK
 
 const ENV_MAP = {
@@ -1939,7 +1967,13 @@ const ENV_MAP = {
   'LOG-81':['biz'],'LOG-82':['biz'],
   'LOG-83':['biz'],'LOG-84':['biz'],'LOG-85':['biz'],'LOG-86':['biz'],'LOG-87':['biz'],
   'LOG-88':['biz'],'LOG-89':['biz'],'LOG-90':['biz'],'LOG-91':['biz'],'LOG-92':['biz'],
-  'LOG-93':['biz'],'LOG-94':['biz'],'LOG-95':['biz'],'LOG-96':['biz']
+  'LOG-93':['biz'],'LOG-94':['biz'],'LOG-95':['biz'],'LOG-96':['biz'],
+  'LOG-97':['biz'],'LOG-98':['biz'],'LOG-99':['biz'],'LOG-100':['biz'],
+  'LOG-101':['biz'],'LOG-102':['biz'],'LOG-103':['biz'],'LOG-104':['biz'],
+  'LOG-105':['biz'],'LOG-106':['biz'],'LOG-107':['biz'],'LOG-108':['biz'],
+  'LOG-109':['biz'],'LOG-110':['biz'],'LOG-111':['biz'],'LOG-112':['biz'],
+  'LOG-113':['biz'],'LOG-114':['biz'],'LOG-115':['biz'],'LOG-116':['biz'],
+  'LOG-117':['biz'],'LOG-118':['biz'],'LOG-119':['biz'],'LOG-120':['biz']
 };
 
 // ============================================================

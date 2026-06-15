@@ -163,6 +163,12 @@ const ENV_MAP = {
   'LOG-83':['biz'],'LOG-84':['biz'],'LOG-85':['biz'],'LOG-86':['biz'],'LOG-87':['biz'],
   'LOG-88':['biz'],'LOG-89':['biz'],'LOG-90':['biz'],'LOG-91':['biz'],'LOG-92':['biz'],
   'LOG-93':['biz'],'LOG-94':['biz'],'LOG-95':['biz'],'LOG-96':['biz'],
+  'LOG-97':['biz'],'LOG-98':['biz'],'LOG-99':['biz'],'LOG-100':['biz'],
+  'LOG-101':['biz'],'LOG-102':['biz'],'LOG-103':['biz'],'LOG-104':['biz'],
+  'LOG-105':['biz'],'LOG-106':['biz'],'LOG-107':['biz'],'LOG-108':['biz'],
+  'LOG-109':['biz'],'LOG-110':['biz'],'LOG-111':['biz'],'LOG-112':['biz'],
+  'LOG-113':['biz'],'LOG-114':['biz'],'LOG-115':['biz'],'LOG-116':['biz'],
+  'LOG-117':['biz'],'LOG-118':['biz'],'LOG-119':['biz'],'LOG-120':['biz']
 };
 
 // Fallback: derive env from prefix when not in ENV_MAP
