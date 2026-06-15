@@ -5661,6 +5661,36 @@ app.post('/api/biz/chat-assistant', async (req, res) => {
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
+        // Detect business type for specialised guidance
+        let bizType = 'general';
+        try { bizType = JSON.parse(context).business_type || 'general'; } catch(e) {}
+
+        const sportSection = bizType === 'sport' ? `
+
+== ניתוח מועדון ספורט/כושר ==
+• **Retention rate** = active_members / total_members × 100 — מטרה: >75%
+• **חברים בסיכון נטישה** (churn_risk.top_at_risk): כל חבר שלא ביקר 14+ ימים — פנה אליהם בדחיפות
+• **חיזוי הכנסה בסיכון**: expiring_members × ערך מנוי ממוצע = הכנסה שעלולה לאבוד
+• **מגמת הכנסה**: trend_pct — אם שלילי → בחן מה גרם לירידה (עונתיות? תחרות? שירות?)
+• **תפוסת שיעורים**: fill_pct — מתחת ל-50% = שיעור לא כדאי; מעל 90% = פתח כיתה נוספת
+• **חיזוי חידושים**: חברים עם days_left ≤7 ← יש לצלצל היום; ≤14 ← שלח תזכורת
+• **ניתוח קפואים**: frozen_members ← הצע תוכנית החזרה (חודש מתנה, מחיר מוזל)
+• **ממוצע כניסות לחבר**: checkins_week / active_members — מטרה: >2 פעמים בשבוע
+
+== פקודות ACTION לספורט ==
+• לייצא רשימת חברים → [ACTION:EXPORT_EXCEL|sport-members]
+• לייצא היסטוריית כניסות → [ACTION:EXPORT_EXCEL|sport-checkins]
+• לייצא דוח הכנסות → [ACTION:EXPORT_EXCEL|sport-revenue]
+• לייצא לוח שיעורים → [ACTION:EXPORT_EXCEL|sport-classes]
+• לעבור לחברים → [ACTION:OPEN_TAB|sport-members]
+• לעבור ללוח שיעורים → [ACTION:OPEN_TAB|sport-schedule]
+• לעבור להתראות → [ACTION:OPEN_TAB|sport-alerts]
+• לעבור לתשלומים → [ACTION:OPEN_TAB|sport-payments]` : `
+
+== עקרונות food cost (מסעדות ישראל) ==
+• <28%: מצוין | 28-33%: טוב | 33-40%: גבוה | >40%: בעייתי
+• ממוצע ענף ישראלי: 28-35%`;
+
         const systemPrompt = `אתה "FamliAI" — עוזרת עסקית בינה מלאכותית ברמת Expert, מוטמעת במערכת ONEFLOW BUSINESS.
 אתה מנתח נתוני עסק בזמן אמת ומספק תובנות, ניתוחים, חיזויים והמלצות ברמה הגבוהה ביותר.
 
@@ -5692,11 +5722,7 @@ ${context}
 • מלאי: פריטים נגמרים, המלצת הזמנה, קצב צריכה
 • תזרים: הכנסות מול הוצאות, יתרה נטו, ניתוח קטגוריות
 • צוות: כמות עובדים, יתרות תקציב
-• חיזוי: על בסיס נתוני החודשים האחרונים, חזה מה צפוי החודש/שבוע הבא
-
-== עקרונות food cost (מסעדות ישראל) ==
-• <28%: מצוין | 28-33%: טוב | 33-40%: גבוה | >40%: בעייתי
-• ממוצע ענף ישראלי: 28-35%`;
+• חיזוי: על בסיס נתוני החודשים האחרונים, חזה מה צפוי החודש/שבוע הבא${sportSection}`;
 
         const result = await model.generateContent(systemPrompt);
         res.json({ success: true, answer: result.response.text().trim() });
@@ -5748,6 +5774,28 @@ app.get('/api/biz/export-report', async (req, res) => {
                 const fcPct = price>0&&totalCost>0 ? ((totalCost/price)*100).toFixed(1) : '';
                 csvData += [`"${(item.name||'').replace(/"/g,'""')}"`,`"${(item.category||'').replace(/"/g,'""')}"`,price,totalCost.toFixed(2),fcPct,(price-totalCost).toFixed(2)].join(',')+'\n';
             });
+        } else if (type === 'sport-members') {
+            const r = await pool.query(`SELECT sm.id, sm.member_name, sm.member_phone, sm.member_email, mt.name as membership_type, sm.start_date, sm.end_date, sm.status, sm.frozen_reason, sm.notes, sm.created_at FROM sport_memberships sm LEFT JOIN sport_membership_types mt ON sm.membership_type_id=mt.id WHERE sm.group_id=$1 ORDER BY sm.status,sm.member_name`, [groupId]);
+            filename = `חברים_ספורט_${new Date().toISOString().split('T')[0]}.csv`;
+            const smMap = {active:'פעיל',expired:'פג תוקף',frozen:'קפוא',cancelled:'בוטל'};
+            csvData = 'מספר,שם,טלפון,אימייל,סוג מנוי,תחילה,סיום,סטטוס,סיבת הקפאה,הערות,תאריך הצטרפות\n';
+            r.rows.forEach(m => { csvData += [m.id,`"${(m.member_name||'').replace(/"/g,'""')}"`,m.member_phone||'',m.member_email||'',`"${(m.membership_type||'').replace(/"/g,'""')}"`,m.start_date?new Date(m.start_date).toLocaleDateString('he-IL'):'',m.end_date?new Date(m.end_date).toLocaleDateString('he-IL'):'',smMap[m.status]||m.status||'',`"${(m.frozen_reason||'').replace(/"/g,'""')}"`,`"${(m.notes||'').replace(/"/g,'""')}"`,new Date(m.created_at).toLocaleDateString('he-IL')].join(',')+'\n'; });
+        } else if (type === 'sport-checkins') {
+            const r = await pool.query(`SELECT sc.id, sm.member_name, sm.member_phone, sc.checkin_time, sc.notes FROM sport_checkins sc LEFT JOIN sport_memberships sm ON sc.membership_id=sm.id WHERE sc.group_id=$1 ORDER BY sc.checkin_time DESC LIMIT 5000`, [groupId]);
+            filename = `כניסות_ספורט_${new Date().toISOString().split('T')[0]}.csv`;
+            csvData = 'מספר,שם חבר,טלפון,זמן כניסה,הערות\n';
+            r.rows.forEach(c => { csvData += [c.id,`"${(c.member_name||'').replace(/"/g,'""')}"`,c.member_phone||'',c.checkin_time?new Date(c.checkin_time).toLocaleString('he-IL'):'',`"${(c.notes||'').replace(/"/g,'""')}"`].join(',')+'\n'; });
+        } else if (type === 'sport-revenue') {
+            const r = await pool.query(`SELECT sp.id, sm.member_name, sm.member_phone, sp.amount, sp.payment_type, sp.payment_date, mt.name as membership_type, sp.notes FROM sport_payments sp LEFT JOIN sport_memberships sm ON sp.membership_id=sm.id LEFT JOIN sport_membership_types mt ON sm.membership_type_id=mt.id WHERE sp.group_id=$1 ORDER BY sp.payment_date DESC LIMIT 5000`, [groupId]);
+            filename = `הכנסות_ספורט_${new Date().toISOString().split('T')[0]}.csv`;
+            const ptMap = {cash:'מזומן',credit:'אשראי',transfer:'העברה',check:'המחאה'};
+            csvData = 'מספר,שם חבר,טלפון,סכום,אמצעי תשלום,תאריך תשלום,סוג מנוי,הערות\n';
+            r.rows.forEach(p => { csvData += [p.id,`"${(p.member_name||'').replace(/"/g,'""')}"`,p.member_phone||'',p.amount||0,ptMap[p.payment_type]||p.payment_type||'',p.payment_date?new Date(p.payment_date).toLocaleDateString('he-IL'):'',`"${(p.membership_type||'').replace(/"/g,'""')}"`,`"${(p.notes||'').replace(/"/g,'""')}"`].join(',')+'\n'; });
+        } else if (type === 'sport-classes') {
+            const r = await pool.query(`SELECT sc.id, ct.name as class_name, sc.start_time, sc.end_time, COALESCE(t.nickname,t.name) as trainer_name, sc.max_participants, COUNT(scr.id) as registrations FROM sport_classes sc LEFT JOIN sport_class_types ct ON sc.class_type_id=ct.id LEFT JOIN users t ON sc.trainer_id=t.id LEFT JOIN sport_class_registrations scr ON scr.class_id=sc.id AND scr.status!='cancelled' WHERE sc.group_id=$1 GROUP BY sc.id,ct.name,sc.start_time,sc.end_time,t.nickname,t.name,sc.max_participants ORDER BY sc.start_time DESC LIMIT 2000`, [groupId]);
+            filename = `שיעורים_ספורט_${new Date().toISOString().split('T')[0]}.csv`;
+            csvData = 'מספר,שם שיעור,תחילה,סיום,מאמן,רשומים,קיבולת,אחוז מילוי\n';
+            r.rows.forEach(c => { const fill=c.max_participants>0?((c.registrations/c.max_participants)*100).toFixed(0):''; csvData += [c.id,`"${(c.class_name||'').replace(/"/g,'""')}"`,c.start_time?new Date(c.start_time).toLocaleString('he-IL'):'',c.end_time?new Date(c.end_time).toLocaleString('he-IL'):'',`"${(c.trainer_name||'').replace(/"/g,'""')}"`,c.registrations||0,c.max_participants||0,fill].join(',')+'\n'; });
         } else {
             return res.status(400).json({ error: 'סוג דוח לא ידוע' });
         }

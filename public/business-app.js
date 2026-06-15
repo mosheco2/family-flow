@@ -12152,7 +12152,7 @@ window.downloadBizReport = async function(type) {
         const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = blobUrl;
-        const labels = { orders:'הזמנות', customers:'לקוחות', cashflow:'תזרים', pantry:'מלאי', staff:'צוות', 'food-cost':'food_cost' };
+        const labels = { orders:'הזמנות', customers:'לקוחות', cashflow:'תזרים', pantry:'מלאי', staff:'צוות', 'food-cost':'food_cost', 'sport-members':'חברים_ספורט', 'sport-checkins':'כניסות_ספורט', 'sport-revenue':'הכנסות_ספורט', 'sport-classes':'שיעורים_ספורט' };
         a.download = `${labels[type]||type}_${new Date().toISOString().split('T')[0]}.csv`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(blobUrl);
@@ -30822,28 +30822,144 @@ window._sportLoadReports = async function(period) {
     };
 })();
 
-// ─── FamliAI sport context hook ───────────────────────────────────────────────
+// ─── FamliAI sport AI — full implementation ──────────────────────────────────
 (function(){
     const origSubmit = window.submitGlobalAI;
-    if (origSubmit) {
-        window.submitGlobalAI = async function() {
-            if (currentGroup?.business_type === 'sport') {
-                try {
-                    const [sr,ar] = await Promise.all([
-                        fetch(`${API}/sport/dashboard/${currentGroup.id}`).then(r=>r.json()),
-                        fetch(`${API}/sport/alerts/${currentGroup.id}`).then(r=>r.json())
-                    ]);
-                    window._sportContextForAI = {
-                        sport_kpis: sr.stats||{},
-                        expiring_soon: (ar.expiring||[]).map(m=>({name:m.member_name,phone:m.member_phone,days_left:Math.ceil((new Date(m.end_date)-new Date())/86400000)})),
-                        at_risk: (ar.atRisk||[]).map(m=>({name:m.member_name,last_visit:m.last_checkin})),
-                        frozen: (ar.frozen||[]).map(m=>({name:m.member_name,reason:m.frozen_reason}))
-                    };
-                } catch(e) {}
-            }
-            return origSubmit.apply(this, arguments);
-        };
-    }
+    window.submitGlobalAI = async function() {
+        if (currentGroup?.business_type !== 'sport') {
+            return origSubmit ? origSubmit.apply(this, arguments) : undefined;
+        }
+        const inputEl = getEl('global-ai-input');
+        const query = inputEl ? inputEl.value.trim() : '';
+        if (!query) return;
+        const chatBox = getEl('global-ai-chat');
+        if (chatBox) chatBox.innerHTML += `<div class="bg-indigo-600 text-white p-3 rounded-xl rounded-tl-none shadow-sm text-sm self-end max-w-[85%] fade-in">${safeStr(query)}</div>`;
+        if (inputEl) inputEl.value = '';
+        const btn = getEl('btn-global-ai-submit');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>'; }
+
+        try {
+            // Fetch rich sport data in parallel
+            const [dashR, alertR, classR, payR] = await Promise.allSettled([
+                fetch(`${API}/sport/dashboard/${currentGroup.id}`).then(r=>r.json()).catch(()=>({})),
+                fetch(`${API}/sport/alerts/${currentGroup.id}`).then(r=>r.json()).catch(()=>({})),
+                fetch(`${API}/sport/classes/${currentGroup.id}`).then(r=>r.json()).catch(()=>({})),
+                fetch(`${API}/sport/payments/${currentGroup.id}`).then(r=>r.json()).catch(()=>({}))
+            ]);
+            const dash    = dashR.status==='fulfilled'    ? dashR.value    : {};
+            const alerts  = alertR.status==='fulfilled'   ? alertR.value   : {};
+            const clsData = classR.status==='fulfilled'   ? classR.value   : {};
+            const payData = payR.status==='fulfilled'     ? payR.value     : {};
+
+            const stats    = dash.stats || {};
+            const classes  = clsData.classes || (Array.isArray(clsData) ? clsData : []);
+            const payments = payData.payments || (Array.isArray(payData) ? payData : []);
+            const now = new Date();
+
+            // Revenue trend: current vs previous month
+            const thisM = now.getMonth(), thisY = now.getFullYear();
+            const prevMDate = new Date(thisY, thisM - 1, 1);
+            const monthRevenue = payments.filter(p=>{ const d=new Date(p.payment_date||p.created_at); return d.getMonth()===thisM&&d.getFullYear()===thisY; }).reduce((s,p)=>s+(parseFloat(p.amount)||0),0);
+            const prevRevenue  = payments.filter(p=>{ const d=new Date(p.payment_date||p.created_at); return d.getMonth()===prevMDate.getMonth()&&d.getFullYear()===prevMDate.getFullYear(); }).reduce((s,p)=>s+(parseFloat(p.amount)||0),0);
+
+            // Churn risk: inactive 14+ days
+            const atRisk = (alerts.atRisk||[]).map(m=>({
+                name: m.member_name, phone: m.member_phone,
+                days_inactive: m.last_checkin ? Math.floor((now-new Date(m.last_checkin))/86400000) : 99,
+                last_visit: m.last_checkin
+            })).sort((a,b)=>b.days_inactive-a.days_inactive);
+
+            // Expiring soon with churn risk score
+            const expiring = (alerts.expiring||[]).map(m=>({
+                name: m.member_name, phone: m.member_phone,
+                days_left: Math.ceil((new Date(m.end_date)-now)/86400000),
+                type: m.membership_type
+            })).sort((a,b)=>a.days_left-b.days_left);
+
+            // Class occupancy analysis
+            const upcoming = classes.filter(c=>new Date(c.start_time)>now).slice(0,10)
+                .map(c=>({name:c.class_name||c.name,time:c.start_time,trainer:c.trainer_name,registered:c.registration_count||0,capacity:c.max_participants||0,fill_pct:c.max_participants>0?Math.round(((c.registration_count||0)/c.max_participants)*100):0}));
+            const recentCls = classes.filter(c=>new Date(c.start_time)<=now).slice(0,5)
+                .map(c=>({name:c.class_name||c.name,time:c.start_time,registered:c.registration_count||0,capacity:c.max_participants||0}));
+
+            const sportContext = {
+                business_type: 'sport',
+                business_name: currentGroup.name,
+                date_today: now.toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),
+                kpis: {
+                    total_members:    stats.total_members    || 0,
+                    active_members:   stats.active_members   || 0,
+                    frozen_members:   stats.frozen_members   || 0,
+                    expiring_week:    stats.expiring_soon    || 0,
+                    checkins_today:   stats.checkins_today   || 0,
+                    checkins_week:    stats.checkins_week    || 0,
+                    retention_pct:    stats.total_members>0 ? Math.round((stats.active_members/stats.total_members)*100) : 0
+                },
+                revenue: {
+                    month_revenue:     monthRevenue,
+                    prev_month_revenue: prevRevenue,
+                    trend_pct:         prevRevenue>0 ? (((monthRevenue-prevRevenue)/prevRevenue)*100).toFixed(1) : null,
+                    recent_payments:   payments.slice(0,8).map(p=>({name:p.member_name,amount:p.amount,type:p.payment_type,date:p.payment_date||p.created_at}))
+                },
+                churn_risk: {
+                    at_risk_count:   atRisk.length,
+                    top_at_risk:     atRisk.slice(0,8),
+                    frozen_count:    (alerts.frozen||[]).length,
+                    frozen_members:  (alerts.frozen||[]).slice(0,5).map(m=>({name:m.member_name,reason:m.frozen_reason}))
+                },
+                renewals: {
+                    expiring_count:   expiring.length,
+                    expiring_members: expiring.slice(0,10)
+                },
+                classes: {
+                    upcoming_classes: upcoming,
+                    recent_classes:   recentCls
+                },
+                open_tasks: (allTasks||[]).filter(t=>t.status==='pending').slice(0,5).map(t=>({title:t.title,assignee:t.assignee_name}))
+            };
+
+            const res = await fetch(`${API}/biz/chat-assistant`, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ query, context: JSON.stringify(sportContext), groupId: currentGroup.id })
+            });
+            const data = await res.json();
+            if (!handleAIResponseCheck(data)) { getEl('global-ai-modal')?.classList.add('hidden'); return; }
+
+            if (data.success && data.answer) {
+                let answerText = data.answer;
+                let actionHtml = '';
+
+                // Excel exports (sport + generic)
+                const excelMatch = answerText.match(/\[ACTION:EXPORT_EXCEL\|(.*?)\]/);
+                if (excelMatch) {
+                    const exportType = excelMatch[1].trim();
+                    answerText = answerText.replace(excelMatch[0], '');
+                    const exportLabels = {'sport-members':'חברים','sport-checkins':'כניסות','sport-revenue':'הכנסות','sport-classes':'שיעורים',orders:'הזמנות',cashflow:'תזרים',staff:'צוות'};
+                    actionHtml += `<button onclick="window.downloadBizReport('${exportType}')" class="mt-3 w-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-file-excel"></i> הורד דוח ${exportLabels[exportType]||exportType} (Excel)</button>`;
+                }
+                // Task creation
+                const taskMatch = answerText.match(/\[ACTION:ADD_TASK\|(.*?)\]/);
+                if (taskMatch) {
+                    const taskTitle = taskMatch[1].trim();
+                    answerText = answerText.replace(taskMatch[0], '');
+                    actionHtml += `<button onclick="document.getElementById('global-ai-modal').classList.add('hidden'); openTaskModal(); setTimeout(()=>document.getElementById('task-title').value='${safeStr(taskTitle)}',300);" class="mt-3 w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-list-check"></i> פתיחת משימה: ${safeStr(taskTitle)}</button>`;
+                }
+                // Tab navigation
+                const tabMatch = answerText.match(/\[ACTION:OPEN_TAB\|(.*?)\]/);
+                if (tabMatch) {
+                    const tabId = tabMatch[1].trim();
+                    answerText = answerText.replace(tabMatch[0], '');
+                    const tabLabels = {'sport-members':'חברים','sport-schedule':'לוח שיעורים','sport-alerts':'התראות','sport-payments':'תשלומים','sport-trainers':'מאמנים'};
+                    actionHtml += `<button onclick="document.getElementById('global-ai-modal').classList.add('hidden'); switchTab('${tabId}')" class="mt-3 w-full bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-arrow-left"></i> עבור ל${tabLabels[tabId]||tabId}</button>`;
+                }
+
+                answerText = answerText.trim().replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+                if (chatBox) { chatBox.innerHTML += `<div class="bg-white p-3.5 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%] fade-in leading-relaxed">${answerText}${actionHtml}</div>`; chatBox.scrollTop = chatBox.scrollHeight; }
+            } else { showToast('error', 'שגיאה בתשובת ה-AI'); }
+        } catch(e) { showToast('error', 'תקלת רשת מול מנוע ה-AI'); }
+        finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>'; } }
+    };
 })();
 
 // ===== END SPORT PHASE 2+ =====
