@@ -21002,6 +21002,8 @@ window._internalRenderPOSCatalog = function(cat = 'all') {
         const clickHandler = isComp ? `window.addPOSComplimentary(${p.id})` : `window.addPOSItem(${p.id})`;
         const compBadge = isComp ? `<span class="absolute top-3 left-3 bg-amber-400 text-white text-[9px] font-black px-2 py-1 rounded-lg shadow-sm z-20">🎁 חינם</span>` : '';
         const cardBorder = isComp ? 'border-amber-200 hover:border-amber-400' : 'border-slate-200 hover:border-indigo-400';
+        const isRestCtx = ['restaurant','cafe'].includes(currentGroup?.business_type);
+        const outOfStockBtn = (isRestCtx && !isComp) ? `<button type="button" onclick="event.stopPropagation();window.pos86Item(${p.id})" title="סמן כאזל" class="absolute bottom-2 left-2 z-30 bg-slate-100 hover:bg-red-100 text-slate-400 hover:text-red-600 text-[9px] font-black px-1.5 py-1 rounded-lg border border-slate-200 opacity-0 group-hover:opacity-100 transition" style="touch-action:manipulation;">86</button>` : '';
         return `
         <div onclick="${clickHandler}" class="bg-white rounded-3xl border ${cardBorder} shadow-sm cursor-pointer hover:shadow-lg transition-all flex flex-col relative overflow-hidden group h-full" style="touch-action:manipulation;">
             ${badgesHtml}
@@ -21014,6 +21016,7 @@ window._internalRenderPOSCatalog = function(cat = 'all') {
                 <h4 class="font-bold text-slate-800 text-sm leading-tight mb-2 line-clamp-2">${safeStr(p.name)}</h4>
                 ${isComp ? `<span class="text-xs font-black text-amber-600">ללא חיוב → בחר שולחן</span>` : priceHtml}
             </div>
+            ${outOfStockBtn}
         </div>`;
     }).join('');
 };
@@ -22529,6 +22532,87 @@ window.updatePOSQty = (idx, d) => { if(window.posCart[idx]) { window.posCart[idx
 window.posRemoveItem = (idx) => { window.posCart.splice(idx,1); window.renderPOSCart(); };
 window.clearPOSCart = () => { if(confirm('לרוקן את הסל?')) { window.posCart = []; window.renderPOSCart(); document.getElementById('pos-customer-phone').value = ''; window.checkPOSCustomer(); } };
 
+// ─── 86 Item (Out of Stock quick toggle) ─────────────────────────────────────
+window.pos86Item = async function(itemId) {
+    const item = (storeCatalogCache || []).find(p => p.id === itemId);
+    if (!item) return;
+    const newAvail = !item.is_available;
+    try {
+        await fetch(`${API}/store/catalog/toggle`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ itemId, isAvailable: newAvail }) });
+        item.is_available = newAvail;
+        showToast(newAvail ? 'success' : 'info', newAvail ? `✅ "${item.name}" זמין שוב` : `🚫 "${item.name}" סומן כאזל`);
+        window.renderPOSCatalog();
+    } catch(e) { showToast('error', 'שגיאה בעדכון מוצר'); }
+};
+
+// ─── Daily Close Report ───────────────────────────────────────────────────────
+window.openDailyCloseReport = function() {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const orders = (storeOrdersCache || []).filter(o => {
+        const d = new Date(o.created_at);
+        return d.toISOString().split('T')[0] === todayStr && !['cancelled','quote'].includes(o.status);
+    });
+
+    let totalRevenue = 0, totalTips = 0, totalDiscounts = 0;
+    const byMethod = {};
+    const itemCounts = {};
+
+    orders.forEach(o => {
+        const amt = parseFloat(o.total_amount || o.total || 0);
+        totalRevenue += amt;
+        let meta = {};
+        try { meta = JSON.parse(o.notes || '{}'); } catch(e) {}
+        totalTips += parseFloat(meta.tip || 0);
+        totalDiscounts += parseFloat(meta.promoDiscount || 0) + parseFloat(meta.manualDiscount || 0);
+        const payments = meta.payments || [];
+        if (payments.length > 0) {
+            payments.forEach(p => { byMethod[p.name] = (byMethod[p.name] || 0) + parseFloat(p.amount || 0); });
+        } else {
+            const m = o.payment_method || 'מזומן';
+            byMethod[m] = (byMethod[m] || 0) + amt;
+        }
+        let items = [];
+        try { items = JSON.parse(o.items || '[]'); } catch(e) {}
+        items.forEach(it => {
+            if (!it.is_quote_metadata && it.item_name) {
+                itemCounts[it.item_name] = (itemCounts[it.item_name] || 0) + (parseFloat(it.quantity) || 1);
+            }
+        });
+    });
+
+    const topItems = Object.entries(itemCounts).sort((a,b) => b[1]-a[1]).slice(0,5);
+    const methodRows = Object.entries(byMethod).map(([m,v]) => `<div class="flex justify-between py-2 border-b border-slate-100 last:border-0"><span class="text-sm font-bold text-slate-600">${safeStr(m)}</span><span class="font-black text-slate-800 dir-ltr">₪${v.toFixed(2)}</span></div>`).join('') || '<div class="text-slate-400 text-sm text-center py-2">אין נתונים</div>';
+    const itemRows = topItems.map(([n,c],i) => `<div class="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0"><span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-black flex items-center justify-center shrink-0">${i+1}</span><span class="text-sm text-slate-700 flex-1 truncate">${safeStr(n)}</span><span class="text-xs font-bold text-slate-500">${c} יח'</span></div>`).join('') || '<div class="text-slate-400 text-sm text-center py-2">אין נתונים</div>';
+
+    const existing = document.getElementById('daily-close-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'daily-close-modal';
+    modal.className = 'fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60';
+    modal.innerHTML = `<div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden" style="max-height:90vh;overflow-y:auto;">
+        <div class="bg-gradient-to-r from-slate-800 to-slate-900 p-5 flex items-center justify-between">
+            <div><h3 class="font-black text-white text-lg">📊 דוח סגירת יום</h3><p class="text-slate-400 text-xs">${today.toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'})}</p></div>
+            <button onclick="document.getElementById('daily-close-modal').remove()" class="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition">✕</button>
+        </div>
+        <div class="p-5 space-y-4">
+            <div class="grid grid-cols-3 gap-3">
+                <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-center"><div class="text-[10px] font-bold text-emerald-600">הכנסות</div><div class="text-xl font-black text-emerald-700 dir-ltr">₪${totalRevenue.toFixed(0)}</div></div>
+                <div class="bg-blue-50 border border-blue-100 rounded-2xl p-3 text-center"><div class="text-[10px] font-bold text-blue-600">הזמנות</div><div class="text-xl font-black text-blue-700">${orders.length}</div></div>
+                <div class="bg-amber-50 border border-amber-100 rounded-2xl p-3 text-center"><div class="text-[10px] font-bold text-amber-600">ממוצע</div><div class="text-xl font-black text-amber-700 dir-ltr">₪${orders.length > 0 ? (totalRevenue/orders.length).toFixed(0) : 0}</div></div>
+            </div>
+            ${totalTips > 0 || totalDiscounts > 0 ? `<div class="flex gap-3">${totalTips > 0 ? `<div class="flex-1 bg-purple-50 border border-purple-100 rounded-xl p-3 text-center"><div class="text-[10px] font-bold text-purple-600">טיפים</div><div class="font-black text-purple-700 dir-ltr">₪${totalTips.toFixed(2)}</div></div>` : ''}${totalDiscounts > 0 ? `<div class="flex-1 bg-rose-50 border border-rose-100 rounded-xl p-3 text-center"><div class="text-[10px] font-bold text-rose-600">הנחות</div><div class="font-black text-rose-700 dir-ltr">₪${totalDiscounts.toFixed(2)}</div></div>` : ''}</div>` : ''}
+            <div class="bg-slate-50 rounded-2xl p-4"><h4 class="font-black text-slate-700 text-sm mb-3">💳 פירוט לפי אמצעי תשלום</h4>${methodRows}</div>
+            ${topItems.length > 0 ? `<div class="bg-slate-50 rounded-2xl p-4"><h4 class="font-black text-slate-700 text-sm mb-3">🏆 מנות מובילות היום</h4>${itemRows}</div>` : ''}
+        </div>
+        <div class="p-4 border-t border-slate-100">
+            <button onclick="window.downloadBizReport && window.downloadBizReport('orders'); document.getElementById('daily-close-modal').remove();" class="w-full bg-slate-800 text-white py-3 rounded-2xl font-bold text-sm">📥 ייצא דוח יומי לאקסל</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
 // הפעלה כפויה של מבצעים בעת טעינת האפליקציה או מעבר טאב
 setInterval(() => {
     const posContainer = document.getElementById('content-pos');
@@ -23765,6 +23849,13 @@ function renderQuickTiles() {
     { fa:'fa-hand-holding-dollar',label:'עמלות',         badge: null,            tab:'beauty_commissions', bg:'#fffbeb', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
     { fa:'fa-cash-register',     label:'קופה',           badge: storeOrderCount, tab:'pos',                bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
     { fa:'fa-clock-rotate-left', label:'נוכחות',         badge: null,            tab:'timeclock',          bg:'#f8fafc', grad:'linear-gradient(135deg,#64748b,#334155)', badge_bg:'#475569' },
+  ] : (['restaurant','cafe'].includes(currentGroup?.business_type) ? [
+    { fa:'fa-cash-register',     label:'קופה',           badge: null,            tab:'pos',       bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
+    { fa:'fa-utensils',          label:'KDS מטבח',       badge: null,            tab:'kds',       bg:'#faf5ff', grad:'linear-gradient(135deg,#a78bfa,#7c3aed)', badge_bg:'#6d28d9' },
+    { fa:'fa-box',               label:'מלאי',           badge: null,            tab:'pantry',    bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0f766e)', badge_bg:'#0d9488' },
+    { fa:'fa-bag-shopping',      label:'הזמנות',         badge: storeOrderCount, tab:'sales',     bg:'#fffbeb', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
+    { fa:'fa-chart-bar',         label:'דוח יום',        badge: null,            tab:'__daily_close__', bg:'#f0fdf4', grad:'linear-gradient(135deg,#22c55e,#15803d)', badge_bg:'#166534' },
+    { fa:'fa-clock-rotate-left', label:'נוכחות',        badge: null,            tab:'timeclock', bg:'#f8fafc', grad:'linear-gradient(135deg,#64748b,#334155)', badge_bg:'#475569' },
   ] : [
     { fa:'fa-clock-rotate-left', label:'נוכחות',        badge: null,            tab:'timeclock', bg:'#f8fafc', grad:'linear-gradient(135deg,#64748b,#334155)', badge_bg:'#475569' },
     { fa:'fa-calendar-days',     label:'משמרות',         badge: null,            tab:'shifts',    bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
@@ -23772,9 +23863,10 @@ function renderQuickTiles() {
     { fa:'fa-bag-shopping',      label:'מכירות וחנות',   badge: storeOrderCount, tab:'sales',     bg:'#fffbeb', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
     { fa:'fa-cart-arrow-down',   label:'רכש',           badge: null,            tab:'shop',      bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0f766e)', badge_bg:'#0d9488' },
     { fa:'fa-chart-line',        label:'כספים',          badge: null,            tab:'bank',      bg:'#fff1f2', grad:'linear-gradient(135deg,#f43f5e,#be123c)', badge_bg:'#9f1239' },
-  ];
-  container.innerHTML = tiles.map(t => `
-    <button onclick="switchTab('${t.tab}')"
+  ]);
+  container.innerHTML = tiles.map(t => {
+    const clickAction = t.tab === '__daily_close__' ? "window.openDailyCloseReport()" : `switchTab('${t.tab}')`;
+    return `<button onclick="${clickAction}"
       style="background:${t.bg};border:1.5px solid rgba(0,0,0,0.06)"
       class="relative rounded-2xl p-3.5 flex flex-col items-center gap-2 shadow-sm hover:shadow-lg hover:scale-[1.04] active:scale-95 transition-all duration-200 cursor-pointer">
       <div style="background:${t.grad}" class="w-11 h-11 rounded-xl flex items-center justify-center shadow-md mb-0.5">
@@ -23782,8 +23874,8 @@ function renderQuickTiles() {
       </div>
       <span class="text-[11px] font-bold text-slate-600 text-center leading-tight">${t.label}</span>
       ${t.badge !== null && t.badge > 0 ? `<span style="background:${t.badge_bg}" class="absolute -top-1.5 -right-1.5 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-md">${t.badge}</span>` : ''}
-    </button>
-  `).join('');
+    </button>`;
+  }).join('');
 }
 
 // במקום DOMContentLoaded אנו ממתינים שכל ה-HTML כולל ההזרקות הדינמיות יסיים, ורק אז שולפים את נתוני המיתוג
