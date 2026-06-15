@@ -5531,7 +5531,7 @@ app.get('/api/store/customers/:groupId', async (req, res) => {
 
 app.post('/api/store/customers', async (req, res) => {
     try {
-        const { groupId, name, companyName, phone, email, businessId, notes, familyGroupId } = req.body;
+        const { groupId, name, companyName, phone, email, businessId, notes, familyGroupId, adminName } = req.body;
         const result = await pool.query(
             `INSERT INTO store_customers (group_id, name, company_name, phone, email, business_id, notes, family_group_id, created_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP) RETURNING id`,
@@ -5539,10 +5539,12 @@ app.post('/api/store/customers', async (req, res) => {
         );
         if (familyGroupId && groupId) {
             await pool.query(
-                `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_at, is_active, status)
-                 VALUES ($1, $2, (SELECT business_type FROM family_groups WHERE id=$2 LIMIT 1), NOW(), true, 'active')
-                 ON CONFLICT (member_group_id, business_group_id) DO NOTHING`,
-                [familyGroupId, groupId]
+                `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_by_admin_name, linked_at, is_active, status)
+                 VALUES ($1, $2, (SELECT business_type FROM family_groups WHERE id=$2 LIMIT 1), $3, NOW(), true, 'pending')
+                 ON CONFLICT (member_group_id, business_group_id) DO UPDATE
+                   SET is_active=true, linked_at=NOW(), linked_by_admin_name=$3,
+                       status=CASE WHEN member_business_links.status='active' THEN 'active' ELSE 'pending' END`,
+                [familyGroupId, groupId, adminName || null]
             ).catch(() => {});
         }
         res.json({ success: true, customerId: result.rows[0].id });
@@ -5551,17 +5553,19 @@ app.post('/api/store/customers', async (req, res) => {
 
 app.put('/api/store/customers/:id', async (req, res) => {
     try {
-        const { name, companyName, phone, email, businessId, notes, familyGroupId, groupId } = req.body;
+        const { name, companyName, phone, email, businessId, notes, familyGroupId, groupId, adminName } = req.body;
         await pool.query(
             `UPDATE store_customers SET name=$1, company_name=$2, phone=$3, email=$4, business_id=$5, notes=$6, family_group_id=$7 WHERE id=$8`,
             [name, companyName||null, phone || '', email || '', businessId || '', notes || '', familyGroupId||null, req.params.id]
         );
         if (familyGroupId && groupId) {
             await pool.query(
-                `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_at, is_active, status)
-                 VALUES ($1, $2, (SELECT business_type FROM family_groups WHERE id=$2 LIMIT 1), NOW(), true, 'active')
-                 ON CONFLICT (member_group_id, business_group_id) DO NOTHING`,
-                [familyGroupId, groupId]
+                `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_by_admin_name, linked_at, is_active, status)
+                 VALUES ($1, $2, (SELECT business_type FROM family_groups WHERE id=$2 LIMIT 1), $3, NOW(), true, 'pending')
+                 ON CONFLICT (member_group_id, business_group_id) DO UPDATE
+                   SET is_active=true, linked_at=NOW(), linked_by_admin_name=$3,
+                       status=CASE WHEN member_business_links.status='active' THEN 'active' ELSE 'pending' END`,
+                [familyGroupId, groupId, adminName || null]
             ).catch(() => {});
         }
         res.json({ success: true });
@@ -13131,9 +13135,9 @@ app.get('/api/family/linked-businesses/:groupId', async (req, res) => {
         );
         // member_business_links (sport, restaurant, repair, etc.)
         const memberR = await pool.query(
-            `SELECT DISTINCT ON (mbl.business_group_id) mbl.business_group_id,
+            `SELECT DISTINCT ON (mbl.business_group_id) mbl.id AS link_id, mbl.business_group_id,
                     fg.name AS business_name, fg.business_type, fg.group_code, fg.community_id, fg.licensed_features,
-                    'member' AS link_type, mbl.linked_at, mbl.status
+                    'member' AS link_type, mbl.linked_at, mbl.status, mbl.linked_by_admin_name
              FROM member_business_links mbl
              JOIN family_groups fg ON fg.id = mbl.business_group_id
              WHERE mbl.member_group_id = $1 AND mbl.is_active = true

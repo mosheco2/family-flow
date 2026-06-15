@@ -8691,7 +8691,7 @@ window.submitNewCustomer = async function() {
         const url = id ? `${API}/store/customers/${id}` : `${API}/store/customers`;
         const method = id ? 'PUT' : 'POST';
         
-        const payload = { groupId: currentGroup.id, name, companyName, phone, email, businessId, notes, familyGroupId };
+        const payload = { groupId: currentGroup.id, name, companyName, phone, email, businessId, notes, familyGroupId, adminName: currentGroup.name || null };
         
         const res = await fetch(url, {
             method: method, headers: {'Content-Type': 'application/json'},

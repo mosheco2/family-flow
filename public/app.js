@@ -8972,17 +8972,45 @@ async function loadMyActivities() {
     el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
     try {
         const d = await fetch(`${API}/family/linked-businesses/${currentGroup.id}`).then(r => r.json());
-        _activityAllBiz = d.businesses || [];
+        const all = d.businesses || [];
+        const pending = all.filter(b => b.status === 'pending');
+        _activityAllBiz = all.filter(b => b.status === 'active' || b.link_type === 'beauty');
 
-        const hasAny = _activityAllBiz.length > 0;
+        let pendingHtml = '';
+        if (pending.length) {
+            pendingHtml = `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 mb-4">
+                <p class="text-xs font-black text-amber-800 mb-2.5">⏳ בקשות קישור ממתינות לאישורך</p>
+                ${pending.map(b => {
+                    const cat = _ACTIVITY_CAT[b.business_type] || { icon: '🏢', label: b.business_type };
+                    return `<div class="flex items-center gap-2.5 py-2 border-b border-amber-100 last:border-0">
+                        <span class="text-xl">${cat.icon}</span>
+                        <div class="flex-1 min-w-0 text-right">
+                            <p class="text-xs font-bold text-slate-800">${safeStr(b.business_name)}</p>
+                            <p class="text-[10px] text-amber-700">${cat.label}${b.linked_by_admin_name ? ' · ע"י ' + safeStr(b.linked_by_admin_name) : ''}</p>
+                        </div>
+                        <div class="flex gap-1.5 shrink-0">
+                            <button onclick="window._actRespond(${b.link_id},'approve')" class="bg-emerald-500 text-white rounded-lg px-2.5 py-1.5 text-[10px] font-bold">✅ אשר</button>
+                            <button onclick="window._actRespond(${b.link_id},'reject')" class="bg-white text-red-500 border border-red-200 rounded-lg px-2.5 py-1.5 text-[10px] font-bold">✕ דחה</button>
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>`;
+        }
 
-        if (!hasAny) {
+        const hasActive = _activityAllBiz.length > 0;
+
+        if (!hasActive && !pending.length) {
             el.innerHTML = `
                 <div class="text-center py-10 text-slate-400">
                     <div class="text-3xl mb-2">🏢</div>
                     <p class="text-sm font-bold text-slate-500">עדיין אין פעילות</p>
                     <p class="text-xs mt-1">כאשר עסק יוסיף אותך כלקוח, הוא יופיע כאן</p>
                 </div>`;
+            return;
+        }
+
+        if (!hasActive) {
+            el.innerHTML = pendingHtml;
             return;
         }
 
@@ -8995,7 +9023,7 @@ async function loadMyActivities() {
             </button>`;
         }).join('');
 
-        el.innerHTML = `
+        el.innerHTML = pendingHtml + `
             <div class="mb-3 space-y-2">
                 <div class="relative">
                     <input id="act-search" type="search" placeholder="חפש עסק..." oninput="window._actSearch(this.value)"
@@ -9011,6 +9039,20 @@ async function loadMyActivities() {
         el.innerHTML = '<p class="text-xs text-red-500 text-center py-6">שגיאה בטעינת הנתונים</p>';
     }
 }
+
+window._actRespond = async function(linkId, decision) {
+    try {
+        const res = await fetch(`${API}/member/link/${linkId}/respond`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ decision })
+        });
+        const d = await res.json();
+        if (d.success) {
+            showToast('success', decision === 'approve' ? 'הקישור אושר!' : 'הקישור נדחה');
+            loadMyActivities();
+        } else showToast('error', 'שגיאה בעדכון');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
 
 window._actFilter = function(btn) {
     document.querySelectorAll('.act-filter-pill').forEach(b => {
