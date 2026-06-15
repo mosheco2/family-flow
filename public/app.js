@@ -1214,6 +1214,23 @@ async function fetchData() {
             if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
             // עדכון המזהה למקרה שהקהילה השתנתה
             currentGroup.community_id = data.group.community_id;
+            // עדכון member_type ו-family_nickname מהשרת
+            const prevMemberType = currentGroup.member_type;
+            if (data.group.member_type !== undefined) currentGroup.member_type = data.group.member_type;
+            if (data.group.family_nickname !== undefined) currentGroup.family_nickname = data.group.family_nickname;
+            // זיהוי שדרוג מחבר למשפחה
+            if (prevMemberType === 'member' && data.group.member_type === 'family') {
+                // הסר נעילות חבר
+                try { if(typeof applyMemberLocks === 'function') applyMemberLocks(); } catch(e) {}
+                // עדכן session
+                try { localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); } catch(e) {}
+                // הצג מודל שדרוג (רק פעם אחת)
+                const upgradeKey = `ofl_upgrade_shown_${currentGroup.id}`;
+                if (!localStorage.getItem(upgradeKey)) {
+                    localStorage.setItem(upgradeKey, '1');
+                    setTimeout(() => showFamilyUpgradeModal(), 1200);
+                }
+            }
         }
 
         if (currentUser.role === 'ADMIN') {
@@ -5000,7 +5017,7 @@ window.renderGroupInfo = function() {
     const nameEl = document.getElementById('dash-group-name');
     if (nameEl) {
         const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
-        nameEl.innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`;
+        nameEl.innerHTML = `${safeStr(currentGroup.family_nickname || currentGroup.name)} ${codeBadge}`;
     }
 
     const logo = currentGroup.logo || currentGroup.logo_url || currentGroup.image_url;
@@ -5021,6 +5038,66 @@ window.renderGroupInfo = function() {
         if (mgmtPreview) mgmtPreview.classList.add('hidden');
         if (mgmtIcon) mgmtIcon.classList.remove('hidden');
     }
+};
+
+// ===== מודל שדרוג משפחה (חבר → משפחה) =====
+window._upgradePhotoBase64 = null;
+
+window.showFamilyUpgradeModal = function() {
+    const modal = document.getElementById('family-upgrade-modal'); if (!modal) return;
+    const nickInput = document.getElementById('upgrade-family-nickname');
+    if (nickInput) nickInput.value = currentGroup?.family_nickname || '';
+    const prev = document.getElementById('upgrade-photo-preview-wrap');
+    if (prev) prev.classList.add('hidden');
+    window._upgradePhotoBase64 = null;
+    modal.classList.remove('hidden');
+    try { confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } }); } catch(e) {}
+};
+
+window.closeUpgradeModal = function() {
+    const modal = document.getElementById('family-upgrade-modal'); if (modal) modal.classList.add('hidden');
+};
+
+window.onUpgradePhotoSelected = function(event) {
+    const file = event.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const max = 512; let w = img.width, h = img.height;
+            if (w > h) { if (w > max) { h = h * max / w; w = max; } } else { if (h > max) { w = w * max / h; h = max; } }
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            window._upgradePhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+            const prev = document.getElementById('upgrade-photo-preview');
+            const wrap = document.getElementById('upgrade-photo-preview-wrap');
+            if (prev) prev.src = window._upgradePhotoBase64;
+            if (wrap) wrap.classList.remove('hidden');
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+window.saveUpgradeModal = async function() {
+    const btn = document.getElementById('btn-save-upgrade'); if (btn) { btn.disabled = true; btn.textContent = 'שומר...'; }
+    try {
+        const nickname = (document.getElementById('upgrade-family-nickname')?.value || '').trim();
+        const updates = [];
+        if (nickname || window._upgradePhotoBase64) {
+            if (nickname) updates.push(fetch(`${API}/groups/${currentGroup.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: currentGroup.name, adminEmail: currentGroup.admin_email, familyNickname: nickname }) }));
+            if (window._upgradePhotoBase64) updates.push(fetch(`${API}/groups/${currentGroup.id}/logo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ logo: window._upgradePhotoBase64 }) }));
+            await Promise.all(updates);
+            if (nickname) currentGroup.family_nickname = nickname;
+            if (window._upgradePhotoBase64) currentGroup.logo = window._upgradePhotoBase64;
+            localStorage.setItem('ofl_session', JSON.stringify({ user: currentUser, group: currentGroup }));
+            try { window.renderGroupInfo(); } catch(e) {}
+        }
+        closeUpgradeModal();
+        showToast('success', '🎉 ברוכים הבאים למשפחה מלאה!');
+    } catch(e) { showToast('error', 'שגיאה בשמירה, נסה שוב'); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = 'שמור והמשך'; } }
 };
 
 window.openTicketsModal = function() {
