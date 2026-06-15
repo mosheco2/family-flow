@@ -9485,6 +9485,21 @@ app.put('/api/users/:userId/phone', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.get('/api/users/:userId/email', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT email FROM users WHERE id=$1', [req.params.userId]);
+        res.json({ success: true, email: r.rows[0]?.email || '' });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/users/:userId/email', async (req, res) => {
+    try {
+        const { email } = req.body;
+        await pool.query('UPDATE users SET email=$1 WHERE id=$2', [email || null, req.params.userId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ─── SURVEYS API ────────────────────────────────────────────────
 
 const _surveyCode = () => {

@@ -3069,6 +3069,12 @@ async function openProfileModal() {
         const d = await r.json();
         if (d.success && getEl('user-phone-input')) getEl('user-phone-input').value = d.phone || '';
     } catch(e) {}
+    // Load email
+    try {
+        const r = await fetch(`${API}/users/${currentUser.id}/email`);
+        const d = await r.json();
+        if (d.success && getEl('user-email-input')) getEl('user-email-input').value = d.email || '';
+    } catch(e) {}
 }
 
 async function saveUserPhone() {
@@ -3080,6 +3086,19 @@ async function saveUserPhone() {
         });
         const data = await res.json();
         if (data.success) showToast('success', 'מספר הטלפון נשמר!');
+        else showToast('error', 'שגיאה בשמירה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function saveUserEmail() {
+    const email = (getEl('user-email-input')?.value || '').trim();
+    try {
+        const res = await fetch(`${API}/users/${currentUser.id}/email`, {
+            method: 'PUT', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'כתובת המייל נשמרה!'); if (currentUser) currentUser.email = email; }
         else showToast('error', 'שגיאה בשמירה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
