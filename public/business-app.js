@@ -17381,9 +17381,9 @@ window.renderCalendarRequests = function() {
             <div class="absolute top-0 right-0 left-0 h-1 bg-orange-400"></div>
             <div class="flex justify-between items-start mb-2 mt-1">
                 <div>
-                    <h4 class="font-bold text-slate-800 text-sm">בקשה מלקוח: ${safeStr(e.title)}</h4>
-                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar text-orange-500 mr-1"></i> ${eDate} בשעה ${e.start_time.substring(0,5)}</p>
-                    <p class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full inline-block mt-1">${safeStr(svcName)}</p>
+                    <h4 class="font-bold text-slate-800 text-sm">${e.call_type === 'table_reservation' ? '🍽️ הזמנת שולחן' : 'בקשה מלקוח'}: ${safeStr(e.title)}</h4>
+                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar text-orange-500 mr-1"></i> ${eDate} בשעה ${e.start_time.substring(0,5)}${e.num_guests ? ` · ${e.num_guests} סועדים` : ''}</p>
+                    <p class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full inline-block mt-1">${e.call_type === 'table_reservation' ? '🍽️ שולחן' : safeStr(svcName)}</p>
                 </div>
                 <div class="text-left">
                     <p class="text-[10px] text-slate-400 font-bold mb-1">טלפון לקוח:</p>
@@ -17393,9 +17393,12 @@ window.renderCalendarRequests = function() {
             ${e.notes ? `<div class="bg-orange-50/50 p-2 rounded-lg border border-orange-100 text-[10px] text-orange-800 mb-3"><strong>הערת לקוח:</strong> ${safeStr(e.notes)}</div>` : ''}
             
             <div class="flex gap-2 mt-2 pt-3 border-t border-slate-100">
-                <button onclick="approveCalendarEvent(${e.id})" class="flex-1 bg-green-500 text-white py-2 rounded-lg text-xs font-bold shadow hover:bg-green-600 transition"><i class="fa-solid fa-check"></i> אשר ושבץ</button>
-                <button onclick="convertEventToQuote(${e.id})" class="flex-[1.5] bg-indigo-600 text-white py-2 rounded-lg text-xs font-bold shadow hover:bg-indigo-700 transition flex justify-center items-center gap-1.5"><i class="fa-solid fa-file-invoice"></i> הפוך להצעת מחיר</button>
-                <button onclick="deleteCalendarEvent(${e.id}, true)" class="w-10 bg-red-50 text-red-500 py-2 rounded-lg hover:bg-red-100 transition border border-red-100 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                <button onclick="approveCalendarEvent(${e.id})" class="flex-1 bg-green-500 text-white py-2 rounded-lg text-xs font-bold shadow hover:bg-green-600 transition"><i class="fa-solid fa-check"></i> אשר</button>
+                ${e.call_type === 'table_reservation'
+                    ? `<button onclick="rejectTableReservation(${e.id})" class="flex-[1.5] bg-red-50 text-red-600 py-2 rounded-lg text-xs font-bold shadow hover:bg-red-100 transition border border-red-200 flex justify-center items-center gap-1.5"><i class="fa-solid fa-calendar-xmark"></i> דחה + חלופות</button>`
+                    : `<button onclick="convertEventToQuote(${e.id})" class="flex-[1.5] bg-indigo-600 text-white py-2 rounded-lg text-xs font-bold shadow hover:bg-indigo-700 transition flex justify-center items-center gap-1.5"><i class="fa-solid fa-file-invoice"></i> הפוך להצעת מחיר</button>`
+                }
+                <button onclick="deleteCalendarEvent(${e.id}, true)" class="w-10 bg-slate-100 text-slate-500 py-2 rounded-lg hover:bg-slate-200 transition flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             </div>
         </div>`;
     }).join('');
@@ -17557,6 +17560,18 @@ window.deleteCalendarEvent = async function(id, isReject = false) {
         fetchCalendarData();
     } catch(e) {}
 };
+window.rejectTableReservation = async function(id) {
+    if (!confirm('לדחות את הבקשה ולשלוח 3 חלופות ללקוח?')) return;
+    try {
+        const r = await fetch(`${API}/calendar/events/${id}/reject-with-alts`, { method: 'POST', headers: {'Content-Type':'application/json'} });
+        const d = await r.json();
+        if (d.success) {
+            showToast('info', `הבקשה נדחתה. נשלחו ${d.alternatives?.length||0} חלופות ללקוח`);
+            fetchCalendarData();
+        } else { showToast('error', d.error || 'שגיאה'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
 window.convertEventToQuote = function(eventId) {
     const ev = calEventsCache.find(e => e.id === eventId);
     if (!ev) return;
@@ -27667,7 +27682,11 @@ async function renderShiftManagerDashboard(el) {
             <div class="h-2 bg-slate-100"><div class="h-2 bg-indigo-500" style="width:${total?Math.round(present/total*100):0}%"></div></div>
             <div class="px-4 py-1">${memberRows || '<p class="text-center text-slate-400 text-sm py-5">אין נתוני נוכחות</p>'}</div>
         </div>
-        ${roleQuickActions([
+        ${roleQuickActions(isRestaurant ? [
+            {icon:'⏱️', label:'נוכחות', tab:'timeclock'},
+            {icon:'📅', label:'הזמנות שולחן', tab:'calendar'},
+            {icon:'💰', label:'מכירות', tab:'cashflow'}
+        ] : [
             {icon:'⏱️', label:'נוכחות', tab:'timeclock'},
             {icon:'🗓️', label:'משמרות', tab:'shifts'},
             {icon:'💰', label:'מכירות', tab:'cashflow'}

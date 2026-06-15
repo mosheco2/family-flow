@@ -9341,19 +9341,30 @@ window._tableReservationModal = function(bizGroupId, bizName) {
 };
 
 window._submitTableReservation = async function(bizGroupId, bizName, btn) {
-    const date  = document.getElementById('tres-date')?.value;
-    const time  = document.getElementById('tres-time')?.value;
+    const date   = document.getElementById('tres-date')?.value;
+    const time   = document.getElementById('tres-time')?.value;
     const guests = document.getElementById('tres-guests')?.value || '2';
-    const notes = document.getElementById('tres-notes')?.value?.trim() || '';
-    const errEl = document.getElementById('tres-err');
+    const notes  = document.getElementById('tres-notes')?.value?.trim() || '';
+    const errEl  = document.getElementById('tres-err');
     if (!date || !time) { if(errEl){errEl.textContent='נא לבחור תאריך ושעה';errEl.style.display='block';} return; }
     if (btn) { btn.disabled = true; btn.textContent = '⏳ שולח...'; }
     const dateHe = new Date(date).toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
-    const content = `בקשת הזמנת שולחן 🍽️\nתאריך: ${dateHe}\nשעה: ${time}\nמספר סועדים: ${guests}${notes ? '\nהערות: ' + notes : ''}`;
+    const title = `${currentUser?.nickname || 'לקוח'} — ${guests} סועדים`;
     try {
-        const r = await fetch(`${API}/inbox/customer`, {
+        const r = await fetch(`${API}/calendar/events`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ groupId: bizGroupId, name: currentUser?.nickname || 'לקוח', contact: currentUser?.phone || '', subject: `הזמנת שולחן — ${dateHe} ${time}`, content, customerGroupId: currentGroup?.id || null })
+            body: JSON.stringify({
+                groupId: bizGroupId,
+                title,
+                customerPhone: currentUser?.phone || '',
+                notes: notes || null,
+                eventDate: date,
+                startTime: time,
+                status: 'pending',
+                customerGroupId: currentGroup?.id || null,
+                numGuests: parseInt(guests) || 2,
+                callType: 'table_reservation'
+            })
         }).then(r => r.json());
         if (r.success) {
             document.getElementById('table-res-modal')?.remove();
@@ -9612,6 +9623,7 @@ function _renderBizAccordion(el, data, bizType) {
     } else if (bizType === 'restaurant' || bizType === 'services') {
         const orders = act.orders || [];
         const quotes = act.quotes || [];
+        const tableRes = (act.tableReservations || []);
         const _ref = id => id ? `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>` : '';
         const _ordStatus = { new:'חדש 🔴', confirmed:'אושר', processing:'בהכנה 🍳', ready:'מוכן לאיסוף ✅', shipped:'בדרך אליך 🚚', done:'הושלם ✅', completed:'סופק ✅', cancelled:'בוטל ❌', pending:'ממתין' };
         const _ordStatusColor = s => s==='done'||s==='completed'?'bg-green-100 text-green-700':s==='cancelled'?'bg-red-100 text-red-600':s==='ready'?'bg-orange-100 text-orange-700':s==='shipped'?'bg-purple-100 text-purple-700':s==='processing'||s==='confirmed'?'bg-blue-100 text-blue-700':'bg-slate-100 text-slate-600';
@@ -9639,7 +9651,9 @@ function _renderBizAccordion(el, data, bizType) {
             </div>`;
         listRenderers.orders = renderOrd;
         listRenderers.quotes = renderQuote;
-        tabs.push({ id:'all', label:'הכל' }, { id:'orders', label:`הזמנות (${orders.length})` }, { id:'quotes', label:`הצעות (${quotes.length})` });
+        const pendingRes = tableRes.filter(r => r.status === 'pending');
+        const resLabel = pendingRes.length > 0 ? `שולחנות (${tableRes.length}) 🔔` : `שולחנות (${tableRes.length})`;
+        tabs.push({ id:'all', label:'הכל' }, { id:'reservations', label: resLabel }, { id:'orders', label:`הזמנות (${orders.length})` }, { id:'quotes', label:`הצעות (${quotes.length})` });
         const ordSortControls = `<div class="flex gap-1.5 mb-2">
             <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-indigo-600 text-white border-indigo-600 transition" data-dir="desc" data-list="biz-ord-list" data-key="orders" data-date="created_at" onclick="window._bizSortList(this)">חדש ראשון</button>
             <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-white text-slate-500 border-slate-200 transition" data-dir="asc" data-list="biz-ord-list" data-key="orders" data-date="created_at" onclick="window._bizSortList(this)">ישן ראשון</button>
@@ -9650,9 +9664,30 @@ function _renderBizAccordion(el, data, bizType) {
         const qHtml = quotes.length
             ? `<div class="biz-quote-list">${quotes.map(renderQuote).join('')}</div>`
             : '<p class="text-xs text-slate-400 text-center py-3">אין הצעות</p>';
+        const _resStatusColor = s => s==='approved'?'bg-green-100 text-green-700':s==='pending'?'bg-amber-100 text-amber-700':'bg-slate-100 text-slate-500';
+        const _resStatusLabel = s => ({approved:'אושר ✅', pending:'ממתין לאישור ⏳', cancelled:'בוטל', rejected:'נדחה'}[s]||s||'');
+        const renderRes = r => {
+            const dt = r.event_date ? new Date(String(r.event_date).split('T')[0]).toLocaleDateString('he-IL', {weekday:'short',day:'numeric',month:'numeric'}) : '';
+            const tm = r.start_time ? String(r.start_time).slice(0,5) : '';
+            const tableInfo = r.reserved_table_number ? ` · שולחן ${r.reserved_table_number}` : '';
+            return `<div class="py-2 border-b border-slate-50 last:border-0">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-sm shrink-0">🍽️</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold text-slate-700">${dt} ${tm}${tableInfo}${_ref(r.id)}</p>
+                        <p class="text-[10px] text-slate-400">${r.num_guests ? r.num_guests + ' סועדים' : ''}${r.notes ? ' · ' + r.notes : ''}</p>
+                    </div>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${_resStatusColor(r.status)}">${_resStatusLabel(r.status)}</span>
+                </div>
+            </div>`;
+        };
+        const resHtml = tableRes.length
+            ? `<div>${tableRes.map(renderRes).join('')}</div>`
+            : '<p class="text-xs text-slate-400 text-center py-3">אין הזמנות שולחן</p>';
+        sections.reservations = resHtml;
         sections.orders = ordHtml;
         sections.quotes = qHtml;
-        sections.all = (orders.length + quotes.length === 0) ? '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>' : ordHtml + qHtml;
+        sections.all = (orders.length + quotes.length + tableRes.length === 0) ? '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>' : resHtml + ordHtml + qHtml;
 
     } else if (bizType === 'maintenance_repair') {
         const calls = act.serviceCalls || [];
@@ -9747,8 +9782,8 @@ function _renderBizAccordion(el, data, bizType) {
         </div>`;
     }
 
-    // If there are pending items → show "בקשות תור" as default tab
-    const defaultTabId = tabs.find(t => t.id === 'cal_evts') ? 'cal_evts' : tabs[0]?.id;
+    // If there are pending items → prefer pending tab
+    const defaultTabId = tabs.find(t => t.id === 'cal_evts') ? 'cal_evts' : (tabs.find(t => t.id === 'reservations' && pendingRes?.length > 0) ? 'reservations' : tabs[0]?.id);
     const tabPills = tabs.map(t => {
         const isDefault = t.id === defaultTabId;
         const isPendingTab = t.id === 'cal_evts';

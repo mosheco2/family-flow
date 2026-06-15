@@ -649,6 +649,9 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       // Drop FK on service_id so beauty_service_catalog IDs can be stored without constraint violation
       try { await client.query(`ALTER TABLE calendar_events DROP CONSTRAINT IF EXISTS calendar_events_service_id_fkey`); } catch(e) {}
       try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS preferred_practitioner_id INT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS num_guests INT DEFAULT 1`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS call_type VARCHAR(30) DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS reserved_table_number INT DEFAULT NULL`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_assignees (
           id SERIAL PRIMARY KEY,
           work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
@@ -8118,11 +8121,11 @@ app.delete('/api/calendar/services/:id', async (req, res) => {
 // הוספת אירוע/תור
 app.post('/api/calendar/events', async (req, res) => {
     try {
-        const { groupId, serviceId, title, customerPhone, notes, eventDate, startTime, status, customerGroupId, preferredPractitionerId } = req.body;
+        const { groupId, serviceId, title, customerPhone, notes, eventDate, startTime, status, customerGroupId, preferredPractitionerId, numGuests, callType } = req.body;
         const r = await pool.query(
-            `INSERT INTO calendar_events (group_id, service_id, title, customer_phone, notes, event_date, start_time, status, customer_group_id, preferred_practitioner_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-            [groupId, serviceId || null, title, customerPhone || '', notes || '', eventDate, startTime, status || 'pending', customerGroupId || null, preferredPractitionerId || null]
+            `INSERT INTO calendar_events (group_id, service_id, title, customer_phone, notes, event_date, start_time, status, customer_group_id, preferred_practitioner_id, num_guests, call_type)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+            [groupId, serviceId || null, title, customerPhone || '', notes || '', eventDate, startTime, status || 'pending', customerGroupId || null, preferredPractitionerId || null, parseInt(numGuests)||1, callType || null]
         );
 
         // קשר client_family_id ב-beauty_client_records אם הלקוח מחובר
@@ -8159,11 +8162,42 @@ app.put('/api/calendar/events/:id/status', async (req, res) => {
         const { status } = req.body;
         await pool.query('UPDATE calendar_events SET status=$1 WHERE id=$2', [status, req.params.id]);
 
-        // אישור תור מהחנות הציבורית עבור עסק יופי → יוצר beauty_appointment
+        // אישור תור — לוגיקה לפי סוג עסק
         if (status === 'approved') {
             const evtR = await pool.query('SELECT * FROM calendar_events WHERE id=$1', [req.params.id]);
             const evt = evtR.rows[0];
-            if (evt) {
+            if (evt && evt.call_type === 'table_reservation') {
+                // הזמנת שולחן: תפוס שולחן אוטומטי + התראה ללקוח
+                const dateStr = String(evt.event_date).split('T')[0];
+                const guests = evt.num_guests || 1;
+                const timeStr = String(evt.start_time || '18:00').slice(0,5);
+                const conflR = await pool.query(
+                    `SELECT reserved_table_number FROM calendar_events
+                     WHERE group_id=$1 AND event_date=$2 AND status='approved'
+                       AND call_type='table_reservation'
+                       AND ABS(EXTRACT(EPOCH FROM (start_time - $3::time))/3600) < 2
+                       AND reserved_table_number IS NOT NULL`,
+                    [evt.group_id, dateStr, timeStr]
+                ).catch(() => ({ rows: [] }));
+                const takenTables = new Set(conflR.rows.map(r => r.reserved_table_number));
+                const grpR = await pool.query('SELECT table_count FROM family_groups WHERE id=$1', [evt.group_id]);
+                const tableCount = parseInt(grpR.rows[0]?.table_count || 8);
+                let assignedTable = null;
+                for (let t = 1; t <= tableCount; t++) {
+                    if (!takenTables.has(t)) { assignedTable = t; break; }
+                }
+                if (assignedTable) {
+                    await pool.query('UPDATE calendar_events SET reserved_table_number=$1 WHERE id=$2', [assignedTable, req.params.id]);
+                }
+                if (evt.customer_group_id) {
+                    const dayHe = new Date(dateStr).toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
+                    const tableNote = assignedTable ? `\nשולחן: ${assignedTable}` : '';
+                    await pool.query(
+                        `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content, customer_group_id, direction) VALUES ($1,'business','המסעדה','הזמנת שולחן אושרה ✅',$2,$3,'outbound')`,
+                        [evt.group_id, `הזמנת השולחן אושרה! 🎉\nתאריך: ${dayHe}\nשעה: ${timeStr}\nסועדים: ${guests}${tableNote}\nנתראה! 🍽️`, evt.customer_group_id]
+                    ).catch(()=>{});
+                }
+            } else if (evt) {
                 const bizR = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [evt.group_id]);
                 if (bizR.rows[0]?.business_type === 'beauty') {
                     const dateStr = evt.event_date instanceof Date
@@ -8196,6 +8230,54 @@ app.put('/api/calendar/events/:id/status', async (req, res) => {
         }
 
         res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// דחיית הזמנת שולחן + שליחת 3 חלופות ללקוח
+app.post('/api/calendar/events/:id/reject-with-alts', async (req, res) => {
+    try {
+        const evtR = await pool.query('SELECT * FROM calendar_events WHERE id=$1', [req.params.id]);
+        const evt = evtR.rows[0];
+        if (!evt) return res.status(404).json({ error: 'אירוע לא נמצא' });
+
+        // מצא 3 חלופות באותו יום שלא מתנגשות עם הזמנות קיימות (approved)
+        const dateStr = String(evt.event_date).split('T')[0];
+        const existingR = await pool.query(
+            `SELECT start_time FROM calendar_events WHERE group_id=$1 AND event_date=$2 AND status='approved' AND call_type='table_reservation'`,
+            [evt.group_id, dateStr]
+        );
+        const existingTimes = new Set(existingR.rows.map(r => String(r.start_time).slice(0,5)));
+
+        // שעות אפשריות: 12:00 - 22:00 כל שעה
+        const slots = [];
+        for (let h = 12; h <= 22 && slots.length < 3; h++) {
+            const t = `${String(h).padStart(2,'0')}:00`;
+            if (!existingTimes.has(t) && t !== String(evt.start_time).slice(0,5)) {
+                slots.push(t);
+            }
+        }
+        // אם אין 3 — גם שעות חצי
+        if (slots.length < 3) {
+            for (let h = 12; h <= 21 && slots.length < 3; h++) {
+                const t = `${String(h).padStart(2,'0')}:30`;
+                if (!existingTimes.has(t) && !slots.includes(t)) slots.push(t);
+            }
+        }
+
+        // שלח הודעה ללקוח עם החלופות
+        if (evt.customer_group_id) {
+            const dayHe = new Date(dateStr).toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
+            const slotsList = slots.map((t,i) => `${i+1}. ${t}`).join('\n');
+            const altContent = `בקשת הזמנת השולחן שלך ל${dayHe} בשעה ${String(evt.start_time).slice(0,5)} לא ניתנת לאישור.\n\nשעות פנויות חלופיות לאותו יום:\n${slotsList}\n\nנשמח לאשר אחת מהחלופות — צרו איתנו קשר.`;
+            await pool.query(
+                `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content, customer_group_id, direction) VALUES ($1,'business','המסעדה','הזמנת שולחן — חלופות',$2,$3,'outbound')`,
+                [evt.group_id, altContent, evt.customer_group_id]
+            ).catch(()=>{});
+        }
+
+        // מחק/דחה את הבקשה המקורית
+        await pool.query('DELETE FROM calendar_events WHERE id=$1', [req.params.id]);
+        res.json({ success: true, alternatives: slots });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -13257,7 +13339,15 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
                               AND status = 'quote'
                             ORDER BY created_at DESC LIMIT 10`,
                 [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
-            result.activity = { orders: ordR.rows, quotes: quoteR.rows };
+            const tableResR = await pool.query(
+                `SELECT id, title, event_date, start_time, status, notes, num_guests, reserved_table_number, call_type
+                 FROM calendar_events
+                 WHERE group_id=$1 AND call_type='table_reservation'
+                   AND (customer_phone=$2 OR customer_group_id=$3)
+                 ORDER BY event_date DESC, start_time DESC LIMIT 10`,
+                [bizGroupId, familyPhone, familyGroupId]
+            ).catch(() => ({ rows: [] }));
+            result.activity = { orders: ordR.rows, quotes: quoteR.rows, tableReservations: tableResR.rows };
 
         } else if (bizType === 'maintenance_repair') {
             const scR = await pool.query(`SELECT id, status, issue_description, title, created_at
