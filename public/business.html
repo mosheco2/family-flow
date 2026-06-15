@@ -1208,13 +1208,23 @@
                             </div>
                             <div id="pos-cart-list" class="flex-1 overflow-y-auto modal-scroll p-4 space-y-3 bg-slate-50/50"></div>
                             <div class="p-5 bg-white border-t border-slate-200 shadow-[0_-4px_10px_rgba(0,0,0,0.03)] shrink-0">
-                                <div class="flex justify-between items-end mb-4">
+                                <div class="flex justify-between items-end mb-3">
                                     <span class="text-sm font-bold text-slate-400" id="pos-items-count">0 פריטים</span>
                                     <span class="text-4xl font-black text-indigo-600 dir-ltr" id="pos-total-display">₪0.00</span>
                                 </div>
-                                <button id="btn-submit-pos" onclick="window.openPOSTender()" class="w-full bg-emerald-500 text-white py-4 rounded-2xl font-black text-xl shadow-lg hover:bg-emerald-600 transition flex justify-center items-center gap-3">
-                                    תשלום <i class="fa-solid fa-credit-card"></i>
-                                </button>
+                                <div id="pos-manual-discount-row" class="hidden flex justify-between items-center text-xs mb-2 px-1">
+                                    <span class="text-rose-500 font-bold">הנחה ידנית:</span>
+                                    <span id="pos-manual-discount-display" class="text-rose-600 font-black dir-ltr"></span>
+                                    <button onclick="window.clearPOSManualDiscount()" class="text-slate-400 hover:text-red-500 text-[10px] transition">✕ בטל</button>
+                                </div>
+                                <div class="flex gap-2 mb-2">
+                                    <button onclick="window.openPOSDiscountModal()" class="flex-1 bg-rose-50 text-rose-600 border border-rose-200 py-2.5 rounded-xl font-bold text-sm hover:bg-rose-100 transition flex items-center justify-center gap-1.5">
+                                        <i class="fa-solid fa-tag text-xs"></i> הנחה
+                                    </button>
+                                    <button onclick="window.openPOSTender()" id="btn-submit-pos" class="flex-[3] bg-emerald-500 text-white py-2.5 rounded-xl font-black text-lg shadow-lg hover:bg-emerald-600 transition flex justify-center items-center gap-2">
+                                        תשלום <i class="fa-solid fa-credit-card"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -3348,6 +3358,18 @@
                             <span class="text-xs font-bold text-slate-600 group-hover:text-slate-800 transition">שלח סיכום קנייה ל-WhatsApp</span>
                          </label>
                     </div>
+                    <div id="tender-tip-row" class="bg-amber-50 border border-amber-100 p-4 rounded-2xl hidden">
+                        <label class="text-[10px] font-black text-amber-600 block mb-2">🌟 טיפ (לרצון הלקוח):</label>
+                        <div class="flex gap-2 items-center">
+                            <div class="flex gap-1.5">
+                                <button onclick="window.setTenderTip(10)" class="tip-pct-btn bg-white border border-amber-200 text-amber-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-amber-100 transition">10%</button>
+                                <button onclick="window.setTenderTip(15)" class="tip-pct-btn bg-white border border-amber-200 text-amber-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-amber-100 transition">15%</button>
+                                <button onclick="window.setTenderTip(20)" class="tip-pct-btn bg-white border border-amber-200 text-amber-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-amber-100 transition">20%</button>
+                                <button onclick="window.setTenderTip(0)" class="tip-pct-btn bg-white border border-slate-200 text-slate-500 text-[10px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition">ללא</button>
+                            </div>
+                            <input type="number" id="tender-tip-amount" min="0" placeholder="₪ סכום" oninput="window.updateTenderTip()" class="flex-1 text-center bg-white border border-amber-200 rounded-lg py-1.5 px-2 text-sm font-bold dir-ltr focus:ring-2 focus:ring-amber-200 outline-none">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="p-6 bg-slate-50 border-t border-slate-100 shrink-0">
@@ -3517,7 +3539,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=114" defer></script>
+    <script src="business-app.js?v=115" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;

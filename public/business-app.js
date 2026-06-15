@@ -21643,9 +21643,10 @@ window.renderPOSCart = function() {
         promo = window.calcPOSPromotions(netTotal, window.posCart);
     }
     
-    let grandTotal = netTotal - promo.amount;
+    const manualDisc = window.currentPOSManualDiscount || 0;
+    let grandTotal = netTotal - promo.amount - manualDisc;
     if (grandTotal < 0) grandTotal = 0;
-    window.currentPOSDiscount = promo.amount; 
+    window.currentPOSDiscount = promo.amount;
     
     if (promoDisplay) {
         if (promo.amount > 0) {
@@ -21740,15 +21741,108 @@ window.handlePosTenderClick = function() {
     window.openPOSTender(true);
 };
 
+// ─── Manual Discount & Tip ───────────────────────────────────────────────────
+window.currentPOSManualDiscount = 0;
+
+window.openPOSDiscountModal = function() {
+    const existing = document.getElementById('pos-discount-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'pos-discount-modal';
+    modal.className = 'fixed inset-0 z-[99999] flex items-center justify-center bg-black/60';
+    modal.innerHTML = `<div class="bg-white w-80 rounded-3xl p-6 shadow-2xl text-right">
+        <h3 class="font-black text-slate-800 text-lg mb-4">🏷️ הנחה ידנית</h3>
+        <div class="flex gap-2 mb-3">
+            <button onclick="window._setPOSDiscountType('pct')" id="disc-type-pct" class="flex-1 py-2 rounded-xl font-bold text-sm border-2 border-rose-400 bg-rose-50 text-rose-700">אחוז %</button>
+            <button onclick="window._setPOSDiscountType('fixed')" id="disc-type-fixed" class="flex-1 py-2 rounded-xl font-bold text-sm border-2 border-slate-200 bg-white text-slate-600">סכום ₪</button>
+        </div>
+        <input type="number" id="pos-discount-input" min="0" placeholder="0" class="w-full text-center bg-slate-100 rounded-2xl py-4 text-2xl font-black text-slate-800 border-none outline-none focus:ring-4 focus:ring-rose-100 dir-ltr mb-4">
+        <div class="flex gap-2">
+            <button onclick="document.getElementById('pos-discount-modal').remove()" class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold text-sm">ביטול</button>
+            <button onclick="window.applyPOSManualDiscount()" class="flex-[2] bg-rose-500 text-white py-3 rounded-xl font-bold text-sm shadow-md">החל הנחה</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    window._posDiscountType = 'pct';
+    document.getElementById('pos-discount-input').focus();
+};
+
+window._setPOSDiscountType = function(type) {
+    window._posDiscountType = type;
+    document.getElementById('disc-type-pct').className = `flex-1 py-2 rounded-xl font-bold text-sm border-2 ${type==='pct'?'border-rose-400 bg-rose-50 text-rose-700':'border-slate-200 bg-white text-slate-600'}`;
+    document.getElementById('disc-type-fixed').className = `flex-1 py-2 rounded-xl font-bold text-sm border-2 ${type==='fixed'?'border-rose-400 bg-rose-50 text-rose-700':'border-slate-200 bg-white text-slate-600'}`;
+};
+
+window.applyPOSManualDiscount = function() {
+    const val = parseFloat(document.getElementById('pos-discount-input')?.value) || 0;
+    if (!val) { document.getElementById('pos-discount-modal')?.remove(); return; }
+    let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
+    const promo = window.currentPOSDiscount || 0;
+    const baseTotal = netTotal - promo;
+    let discountAmount = 0;
+    if (window._posDiscountType === 'pct') { discountAmount = Math.min(baseTotal, baseTotal * (val / 100)); }
+    else { discountAmount = Math.min(baseTotal, val); }
+    window.currentPOSManualDiscount = discountAmount;
+    document.getElementById('pos-discount-modal')?.remove();
+    const row = document.getElementById('pos-manual-discount-row');
+    const disp = document.getElementById('pos-manual-discount-display');
+    if (row && disp) {
+        row.classList.remove('hidden');
+        disp.textContent = `₪${discountAmount.toFixed(2)}`;
+    }
+    // update cart total display
+    const totalEl = document.getElementById('pos-total-display');
+    if (totalEl) {
+        const newTotal = Math.max(0, netTotal - promo - discountAmount);
+        totalEl.textContent = `₪${newTotal.toFixed(2)}`;
+    }
+    showToast('success', `הנחה של ₪${discountAmount.toFixed(2)} הוגדרה`);
+};
+
+window.clearPOSManualDiscount = function() {
+    window.currentPOSManualDiscount = 0;
+    const row = document.getElementById('pos-manual-discount-row');
+    if (row) row.classList.add('hidden');
+    window.renderPOSCart();
+};
+
+window.currentTipAmount = 0;
+
+window.setTenderTip = function(pct) {
+    const baseEl = document.getElementById('tender-total-due');
+    const base = parseFloat(baseEl?.textContent?.replace(/[₪,]/g,'')) || 0;
+    const tip = pct > 0 ? Math.round(base * pct / 100 * 100) / 100 : 0;
+    window.currentTipAmount = tip;
+    const inputEl = document.getElementById('tender-tip-amount');
+    if (inputEl) inputEl.value = tip > 0 ? tip.toFixed(2) : '';
+    window.updateTenderTip();
+};
+
+window.updateTenderTip = function() {
+    const val = parseFloat(document.getElementById('tender-tip-amount')?.value) || 0;
+    window.currentTipAmount = val;
+};
+
 window.openPOSTender = function(skipCheck = false) {
     window.posSplitPayments = []; window.tenderMethod = 'cash';
+    window.currentTipAmount = 0;
+    const tipInput = document.getElementById('tender-tip-amount');
+    if (tipInput) tipInput.value = '';
     let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
     const isDebtPayment = window.posCart.length === 1 && window.posCart[0].real_id === null && window.posCart[0].name.includes('חוב');
     
-    let promoAmount = window.currentPOSDiscount || 0;
+    let promoAmount = (window.currentPOSDiscount || 0) + (window.currentPOSManualDiscount || 0);
     let grandTotal = netTotal - promoAmount;
     if (grandTotal < 0) grandTotal = 0;
-    
+
+    // show tip row for restaurant/cafe
+    const tipRow = document.getElementById('tender-tip-row');
+    if (tipRow) {
+        const isRest = ['restaurant','cafe'].includes(currentGroup?.business_type);
+        tipRow.classList.toggle('hidden', !isRest || isDebtPayment);
+    }
+
     let tenderVatDisplay = document.getElementById('tender-vat-display');
     if (!tenderVatDisplay) {
         const tenderDueEl = document.getElementById('tender-total-due');
@@ -21821,8 +21915,9 @@ window.addPaymentToSplit = function() {
 window.updateTenderDisplay = function() {
     const list = document.getElementById('tender-payments-list');
     let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
-    let promoAmount = window.currentPOSDiscount || 0;
-    let grandTotal = netTotal - promoAmount;
+    let promoAmount = (window.currentPOSDiscount || 0) + (window.currentPOSManualDiscount || 0);
+    const tipAmt = parseFloat(document.getElementById('tender-tip-amount')?.value) || window.currentTipAmount || 0;
+    let grandTotal = netTotal - promoAmount + tipAmt;
     if (grandTotal < 0) grandTotal = 0;
     
     let paid = 0; window.posSplitPayments.forEach(p => paid += p.amount);
@@ -22201,10 +22296,11 @@ window.finalizePOSOrder = async function() {
     
     const isDebtPayment = window.posCart.length === 1 && window.posCart[0].real_id === null && window.posCart[0].name.includes('חוב');
     let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
-    let promoAmount = window.currentPOSDiscount || 0;
-    let grandTotal = netTotal - promoAmount;
+    let promoAmount = (window.currentPOSDiscount || 0) + (window.currentPOSManualDiscount || 0);
+    const tipAmount = parseFloat(document.getElementById('tender-tip-amount')?.value) || window.currentTipAmount || 0;
+    let grandTotal = netTotal - promoAmount + tipAmount;
     if (grandTotal < 0) grandTotal = 0;
-    
+
     const phone = document.getElementById('pos-customer-phone').value;
     const customerName = window.posCurrentCustomer ? window.posCurrentCustomer.name : 'לקוח קופה';
     const items = window.posCart.map(i => ({ catalogId: i.real_id, name: i.name, quantity: i.qty, price: i.price, note: i.modifiers ? i.modifiers.map(m => m.name).join(', ') : '', kitchenStation: i.kitchenStation || 'other' }));
@@ -22218,7 +22314,7 @@ window.finalizePOSOrder = async function() {
         vatDetails = { enabled: true, rate: rate, subtotal: totalBeforeVat, vatAmount: vatAmount };
     }
     
-    const metaData = { payments: window.posSplitPayments, vat: vatDetails, is_debt_recovery: isDebtPayment, promoDiscount: promoAmount, tableNumber: window.posSelectedTable || null };
+    const metaData = { payments: window.posSplitPayments, vat: vatDetails, is_debt_recovery: isDebtPayment, promoDiscount: promoAmount, manualDiscount: window.currentPOSManualDiscount || 0, tip: tipAmount || 0, tableNumber: window.posSelectedTable || null };
     items.push({ catalogId: null, is_quote_metadata: true, data: JSON.stringify(metaData) });
 
     const modal = document.getElementById('pos-tender-modal');
@@ -22256,6 +22352,9 @@ window.finalizePOSOrder = async function() {
             setTimeout(() => { try { if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); } catch(e){} }, 2000);
 
             window.posCart = []; window.renderPOSCart();
+            window.currentPOSManualDiscount = 0; window.currentTipAmount = 0;
+            const discRow = document.getElementById('pos-manual-discount-row');
+            if (discRow) discRow.classList.add('hidden');
             // עדכן שולחן ל-"ממתין לתשלום" אחרי סגירת הזמנה
             if (window.posSelectedTable) { try { window.setTableAwaitingPayment(window.posSelectedTable); } catch(e){} }
             const phoneInput = document.getElementById('pos-customer-phone');
