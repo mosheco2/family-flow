@@ -33,6 +33,7 @@ const ID_TO_CAT = {
   SA:    'SuperAdmin',
   SAF:   'SuperAdmin — sa.html ו-sa-app.js',
   REST:  'מסעדה — מסלולי בדיקה',
+  SPT:   'ספורט / כושר — מסלולי בדיקה',
   SMK:   'SuperAdmin — שיווק וניוזלטר',
   PWA:   'PWA, ביצועים ואבטחה',
 };

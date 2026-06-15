@@ -428,6 +428,7 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
   <div class="sb-section">
     <div class="sb-section-title">סוגי עסקים</div>
     <div class="sb-link" onclick="filterBook('rest')"><i class="fa-solid fa-utensils"></i> מסעדה (REST)</div>
+    <div class="sb-link" onclick="filterBook('spt')"><i class="fa-solid fa-dumbbell"></i> ספורט (SPT)</div>
   </div>
   <div class="sb-section">
     <div class="sb-section-title">הרשאות לפי תפקיד</div>
@@ -716,6 +717,7 @@ async function loadTestsFromServer() {
                 'הרשאות — סביבת עסק (4 תפקידים)': { id: 'perm_biz', icon: 'fa-user-tie', color: '#f59e0b' },
                 'SuperAdmin — sa.html ו-sa-app.js': { id: 'sa_full', icon: 'fa-shield-halved', color: '#6366f1' },
                 'מסעדה — מסלולי בדיקה': { id: 'rest', icon: 'fa-utensils', color: '#ef4444' },
+                'ספורט / כושר — מסלולי בדיקה': { id: 'spt', icon: 'fa-dumbbell', color: '#6366f1' },
                 'כללי': { id: 'general', icon: 'fa-inbox', color: '#f43f5e' }
             };
 
@@ -1218,6 +1220,92 @@ window.seedDatabase = async function(legacyData) {
 'SAF-28':{path:'sa.html ← "Stats"',steps:['כנס ל"Stats"'],expected:'גרפים, מגמות, נתוני שימוש יומי/חודשי מוצגים'},
 
 // ============================================================
+// SPT — ספורט / כושר (SPT-01 עד SPT-82)
+// ============================================================
+'SPT-01':{path:'ממשק עסק ← ויזארד הקמה ← "סוג עסק" ← ספורט / כושר',env:'BIZ',user:'מנהל',actionType:'הקמה',affects:'כל המשתמשים',note:'businessType=sport, modules: feed,calendar,pos,sales,customers,members,timeclock,cashflow,tasks,equipment,shifts',steps:['פתח /business.html ← ויזארד הקמה','בחר "ספורט / כושר" (🏋️)','השלם שאר שלבי הויזארד','לחץ "סיים"'],expected:'עסק נפתח עם דשבורד ספורט, 8 פעולות מהירות (צ\'ק-אין, חברים, שיעורים, מאמנים, לידים, התראות, הצהרות, דוחות)'},
+'SPT-02':{path:'ממשק עסק ← מכירות ← "הגדרות מועדון" ← "מדיניות ביטול"',env:'BIZ',user:'מנהל',actionType:'הגדרה',affects:'מנהל, לקוח',note:'sport-cancellation-policy — textarea, נשמר ב-/api/sport/store-settings',steps:['כנס להגדרות מועדון','מצא שדה "מדיניות ביטול מנוי"','הזן טקסט מדיניות','לחץ "שמור הגדרות"'],expected:'מדיניות ביטול נשמרת, מוצגת ללקוחות בחנות הציבורית'},
+'SPT-03':{path:'ממשק עסק ← מכירות ← "הגדרות מועדון" ← "מדיניות הקפאה"',env:'BIZ',user:'מנהל',actionType:'הגדרה',affects:'מנהל, לקוח',note:'sport-freeze-policy — textarea',steps:['כנס להגדרות מועדון','מצא שדה "מדיניות הקפאה"','הזן טקסט','שמור'],expected:'מדיניות הקפאה נשמרת'},
+'SPT-04':{path:'ממשק עסק ← מכירות ← "הגדרות מועדון" ← "הצהרת בריאות"',env:'BIZ',user:'מנהל',actionType:'הגדרה',affects:'מנהל, לקוח',note:'sport-waiver-text — textarea, מוצגת לחבר בעת רישום',steps:['כנס להגדרות מועדון','מצא שדה "הצהרת בריאות / waiver"','הזן טקסט הצהרה','שמור'],expected:'הצהרה נשמרת, תוצג לחבר בעת הצטרפות'},
+'SPT-05':{path:'ממשק עסק ← מכירות ← "הגדרות מועדון" ← "גיל מינימום" ו-"מנוי ניסיון"',env:'BIZ',user:'מנהל',actionType:'הגדרה',affects:'מנהל, לקוח',note:'sport-min-age (number input), sport-trial-enabled (checkbox)',steps:['הגדר גיל מינימום (לדוג׳ 16)','סמן "אפשר מנוי ניסיון"','שמור'],expected:'גיל מינימום נאכף בהרשמה, אפשרות מנוי ניסיון מופיעה בחנות הציבורית'},
+'SPT-06':{path:'ממשק עסק ← דשבורד ← KPI "מנויים פעילים" ← לחיצה',env:'BIZ',user:'מנהל',actionType:'דשבורד',affects:'מנהל',note:'stats.active_members — לחיצה פותחת showSportMembers(\'active\')',steps:['כנס לדשבורד','לחץ על כרטיס KPI "מנויים פעילים"'],expected:'נפתח מסך חברים מסונן לחברים פעילים בלבד'},
+'SPT-07':{path:'ממשק עסק ← דשבורד ← KPI "פג תוקף בקרוב" ← לחיצה',env:'BIZ',user:'מנהל',actionType:'דשבורד',affects:'מנהל',note:'stats.expiring_soon — לחיצה פותחת showSportAlerts()',steps:['לחץ על KPI "פג תוקף בקרוב"'],expected:'נפתח מסך התראות עם מנויים שפגים בקרוב'},
+'SPT-08':{path:'ממשק עסק ← דשבורד ← KPI "כניסות היום" ← לחיצה',env:'BIZ',user:'מנהל',actionType:'דשבורד',affects:'מנהל',note:'stats.checkins_today — לחיצה פותחת showSportCheckIn()',steps:['לחץ על KPI "כניסות היום"'],expected:'נפתח מסך צ\'ק-אין עם רשימת כניסות של היום'},
+'SPT-09':{path:'ממשק עסק ← דשבורד ← KPI "בפנים כרגע" ← לחיצה',env:'BIZ',user:'מנהל',actionType:'דשבורד',affects:'מנהל',note:'stats.currently_in — צ\'ק-אין בלי צ\'ק-אאוט',steps:['לחץ על KPI "בפנים כרגע"'],expected:'נפתח מסך צ\'ק-אין המציג חברים שנכנסו ולא יצאו'},
+'SPT-10':{path:'ממשק עסק ← דשבורד ← KPI "לא אימנו 30 יום" ← לחיצה',env:'BIZ',user:'מנהל',actionType:'דשבורד',affects:'מנהל',note:'stats.at_risk — לחיצה פותחת showSportAlerts()',steps:['לחץ על KPI "לא אימנו 30 יום"'],expected:'נפתח מסך התראות עם חברים בסיכון (at_risk)'},
+'SPT-11':{path:'ממשק עסק ← דשבורד ← KPI "הכנסה החודש" ← לחיצה',env:'BIZ',user:'מנהל',actionType:'דשבורד',affects:'מנהל',note:'stats.revenue_month — לחיצה פותחת showSportReports()',steps:['לחץ על KPI "הכנסה החודש"'],expected:'נפתח מסך דוחות הכנסות'},
+'SPT-12':{path:'ממשק עסק ← דשבורד ← באנר כתום "מנויים פגים"',env:'BIZ',user:'מנהל',actionType:'דשבורד',affects:'מנהל',note:'באנר מופיע רק כשיש מנויים שפגים תוך 7 ימים',steps:['הוסף חבר עם מנוי שיפוג תוך 3 ימים','כנס לדשבורד'],expected:'באנר כתום מופיע בחלק העליון עם שמות החברים, לחיצה עליו פותחת מסך התראות'},
+'SPT-13':{path:'ממשק עסק ← דשבורד ← "צ\'ק-אין 🚪"',env:'BIZ',user:'מנהל, מאמן',actionType:'פעולה מהירה',affects:'מנהל, מאמן, חבר',note:'action: sport-checkin → showSportCheckIn()',steps:['לחץ "צ\'ק-אין 🚪" בפעולות המהירות'],expected:'נפתח מסך צ\'ק-אין עם שדה חיפוש ורשימת כניסות היום'},
+'SPT-14':{path:'ממשק עסק ← דשבורד ← "חברים 👥"',env:'BIZ',user:'מנהל',actionType:'פעולה מהירה',affects:'מנהל',note:'action: sport-members → showSportMembers()',steps:['לחץ "חברים 👥" בפעולות המהירות'],expected:'נפתח מסך ניהול חברים עם סינונים ורשימה'},
+'SPT-15':{path:'ממשק עסק ← דשבורד ← "שיעורים 🗓️"',env:'BIZ',user:'מנהל, מאמן',actionType:'פעולה מהירה',affects:'מנהל, מאמן, חבר',note:'action: sport-schedule → showSportClassTypes()',steps:['לחץ "שיעורים 🗓️" בפעולות המהירות'],expected:'נפתח מסך סוגי שיעורים / לוח שיעורים'},
+'SPT-16':{path:'ממשק עסק ← דשבורד ← "מאמנים 👨‍🏫"',env:'BIZ',user:'מנהל',actionType:'פעולה מהירה',affects:'מנהל, מאמן',note:'action: sport-trainers',steps:['לחץ "מאמנים 👨‍🏫" בפעולות המהירות'],expected:'נפתח מסך ניהול מאמנים'},
+'SPT-17':{path:'ממשק עסק ← דשבורד ← "לידים 🎯"',env:'BIZ',user:'מנהל',actionType:'פעולה מהירה',affects:'מנהל',note:'action: sport-leads',steps:['לחץ "לידים 🎯" בפעולות המהירות'],expected:'נפתח מסך ניהול לידים'},
+'SPT-18':{path:'ממשק עסק ← דשבורד ← "התראות 🔔"',env:'BIZ',user:'מנהל',actionType:'פעולה מהירה',affects:'מנהל',note:'action: sport-alerts → showSportAlerts()',steps:['לחץ "התראות 🔔" בפעולות המהירות'],expected:'נפתח מסך התראות: פגים, בסיכון, מוקפאים, המתנה'},
+'SPT-19':{path:'ממשק עסק ← דשבורד ← "הצהרות 📋"',env:'BIZ',user:'מנהל',actionType:'פעולה מהירה',affects:'מנהל, חבר',note:'action: sport-waivers → showSportWaiverSettings()',steps:['לחץ "הצהרות 📋" בפעולות המהירות'],expected:'נפתח מסך ניהול הצהרות בריאות'},
+'SPT-20':{path:'ממשק עסק ← דשבורד ← "דוחות 📊"',env:'BIZ',user:'מנהל',actionType:'פעולה מהירה',affects:'מנהל',note:'action: sport-reports → showSportReports()',steps:['לחץ "דוחות 📊" בפעולות המהירות'],expected:'נפתח מסך דוחות הכנסות ופעילות'},
+'SPT-21':{path:'ממשק עסק ← דשבורד ← "חברים" ← "סוגי מנויים" ← "+ הוסף"',env:'BIZ',user:'מנהל',actionType:'סוגי מנויים',affects:'מנהל, חבר',note:'showSportMembershipTypes() ← _sportAddMembershipType()',steps:['פתח מסך חברים','לחץ "סוגי מנויים"','לחץ "הוסף ➕"','הזן: שם, סוג (monthly/yearly/sessions/daily), מחיר, מספר כניסות (אם כרטיסייה)','שמור'],expected:'סוג מנוי חדש מופיע ברשימה'},
+'SPT-22':{path:'ממשק עסק ← סוגי מנויים ← "+ הוסף" ← type: monthly',env:'BIZ',user:'מנהל',actionType:'סוגי מנויים',affects:'מנהל, חבר',note:'type=monthly — מנוי חודשי, מחיר לחודש',steps:['הוסף סוג מנוי חדש','בחר "חודשי"','הגדר מחיר'],expected:'סוג מנוי חודשי נוצר, מוצג בחנות הציבורית אם is_public=true'},
+'SPT-23':{path:'ממשק עסק ← סוגי מנויים ← "+ הוסף" ← type: yearly',env:'BIZ',user:'מנהל',actionType:'סוגי מנויים',affects:'מנהל, חבר',note:'type=yearly — מנוי שנתי',steps:['הוסף סוג מנוי','בחר "שנתי"','הגדר מחיר'],expected:'סוג מנוי שנתי נוצר'},
+'SPT-24':{path:'ממשק עסק ← סוגי מנויים ← "+ הוסף" ← type: sessions',env:'BIZ',user:'מנהל',actionType:'סוגי מנויים',affects:'מנהל, חבר',note:'type=sessions — כרטיסייה עם מספר כניסות מוגדר',steps:['הוסף סוג מנוי','בחר "כרטיסייה"','הגדר מחיר ומספר כניסות (לדוג׳ 10)'],expected:'כרטיסייה נוצרת, בכל צ\'ק-אין מנוכה כניסה אחת'},
+'SPT-25':{path:'ממשק עסק ← סוגי מנויים ← "+ הוסף" ← type: daily',env:'BIZ',user:'מנהל',actionType:'סוגי מנויים',affects:'מנהל, חבר',note:'type=daily — כניסה חד-פעמית יומית',steps:['הוסף סוג מנוי','בחר "כניסה יומית"','הגדר מחיר'],expected:'כניסה יומית נוצרת כסוג מנוי'},
+'SPT-26':{path:'ממשק עסק ← סוגי מנויים ← ✏️ עריכה',env:'BIZ',user:'מנהל',actionType:'סוגי מנויים',affects:'מנהל, חבר',note:'_sportEditType(id, name, type, price, sessions)',steps:['לחץ ✏️ על סוג מנוי','שנה שם ו/או מחיר','שמור ✅'],expected:'סוג המנוי מתעדכן ברשימה'},
+'SPT-27':{path:'ממשק עסק ← סוגי מנויים ← 🗑️ מחיקה',env:'BIZ',user:'מנהל',actionType:'סוגי מנויים',affects:'מנהל',note:'_sportDeleteType(id)',steps:['לחץ 🗑️ על סוג מנוי','אשר מחיקה'],expected:'סוג המנוי נמחק מהרשימה'},
+'SPT-28':{path:'ממשק עסק ← "חברים" ← "+ חדש"',env:'BIZ',user:'מנהל',actionType:'ניהול חברים',affects:'מנהל, חבר',note:'showSportAddMember() → _sportSubmitNewMember()',steps:['לחץ "חברים"','לחץ "+ חדש"','מלא: שם, טלפון, מייל, תאריך לידה, סוג מנוי, תאריך התחלה','לחץ "שמור מנוי ✅"'],expected:'חבר חדש מתווסף לרשימה עם המנוי שנבחר'},
+'SPT-29':{path:'ממשק עסק ← "חברים" ← סינון "הכל"',env:'BIZ',user:'מנהל',actionType:'ניהול חברים',affects:'מנהל',note:'_sportLoadMembers(\'all\')',steps:['כנס למסך חברים','בחר "הכל" בסרגל הסינון'],expected:'מוצגים כל החברים ללא קשר לסטטוס'},
+'SPT-30':{path:'ממשק עסק ← "חברים" ← סינון "פעילים"',env:'BIZ',user:'מנהל',actionType:'ניהול חברים',affects:'מנהל',note:'_sportLoadMembers(\'active\') — status=active',steps:['כנס למסך חברים','לחץ "פעילים"'],expected:'מוצגים רק חברים עם מנוי פעיל'},
+'SPT-31':{path:'ממשק עסק ← "חברים" ← סינון "פגו"',env:'BIZ',user:'מנהל',actionType:'ניהול חברים',affects:'מנהל',note:'status=expired',steps:['כנס למסך חברים','לחץ "פגו"'],expected:'מוצגים רק חברים שמנויים פגו'},
+'SPT-32':{path:'ממשק עסק ← "חברים" ← סינון "מוקפאים"',env:'BIZ',user:'מנהל',actionType:'ניהול חברים',affects:'מנהל',note:'status=frozen',steps:['כנס למסך חברים','לחץ "מוקפאים"'],expected:'מוצגים רק חברים עם מנוי מוקפא'},
+'SPT-33':{path:'ממשק עסק ← "חברים" ← חיפוש שם / טלפון',env:'BIZ',user:'מנהל',actionType:'ניהול חברים',affects:'מנהל',note:'sport-members-search — oninput → _sportLoadMembers(filter, q)',steps:['כנס למסך חברים','הקלד שם או טלפון בשדה החיפוש'],expected:'הרשימה מצטמצמת בזמן אמת לתוצאות המתאימות'},
+'SPT-34':{path:'ממשק עסק ← "חברים" ← לחיצה על כרטיס חבר',env:'BIZ',user:'מנהל',actionType:'ניהול חברים',affects:'מנהל, חבר',note:'showSportMemberDetail(memberId) — פרופיל מלא',steps:['כנס למסך חברים','לחץ על כרטיס חבר'],expected:'מוצג פרופיל מלא: שם, סוג מנוי, תאריכי תוקף, כניסות, כפתורי פעולה (חדש/הקפא/תשלום)'},
+'SPT-35':{path:'ממשק עסק ← פרופיל חבר ← "הקפא ❄️"',env:'BIZ',user:'מנהל',actionType:'הקפאת מנוי',affects:'מנהל, חבר',note:'showSportFreeze(memberId, memberName) → _sportConfirmFreeze(memberId)',steps:['כנס לפרופיל חבר פעיל','לחץ "הקפא ❄️"','הזן סיבה ומספר ימי הקפאה','לחץ "הקפא מנוי ❄️"'],expected:'מנוי הוקפא, סטטוס חבר עובר ל-frozen (כחול), תאריך חידוש אוטומטי מחושב'},
+'SPT-36':{path:'ממשק עסק ← רשימת חברים / פרופיל ← "הפשר ☀️"',env:'BIZ',user:'מנהל',actionType:'הקפאת מנוי',affects:'מנהל, חבר',note:'sportUnfreeze(memberId)',steps:['כנס לחבר מוקפא','לחץ "הפשר ☀️"'],expected:'מנוי מופשר, סטטוס חוזר ל-active, תאריך סיום מוארך בהתאם לימי ההקפאה'},
+'SPT-37':{path:'ממשק עסק ← פרופיל חבר ← "חדש 🔄"',env:'BIZ',user:'מנהל',actionType:'חידוש מנוי',affects:'מנהל, חבר',note:'showSportRenewMember(memberId, memberName, currentTypeId)',steps:['כנס לפרופיל חבר פגוי/מתקרב לפקיעה','לחץ "חדש 🔄"','בחר סוג מנוי, תאריך התחלה, שיטת תשלום, סכום','לחץ "חדש מנוי"'],expected:'מנוי מחודש, תאריך סיום חדש מחושב, תשלום נרשם'},
+'SPT-38':{path:'ממשק עסק ← פרופיל חבר ← "תשלום 💰"',env:'BIZ',user:'מנהל',actionType:'תשלום',affects:'מנהל, חבר',note:'_sportAddPayment(memberId, memberName, suggestedAmount)',steps:['כנס לפרופיל חבר','לחץ "תשלום 💰"','הזן סכום ושיטת תשלום','אשר'],expected:'תשלום נרשם, מוצג בהיסטוריית התשלומים של החבר'},
+'SPT-39':{path:'ממשק עסק ← "צ\'ק-אין 🚪" ← חיפוש חבר',env:'BIZ',user:'מנהל, מאמן',actionType:'צ\'ק-אין',affects:'מנהל, מאמן, חבר',note:'sport-checkin-search — oninput → _sportSearchCheckin(q)',steps:['לחץ "צ\'ק-אין 🚪"','הקלד שם / טלפון בשדה החיפוש'],expected:'מוצגים חברים תואמים בזמן אמת עם: שם, סוג מנוי, כניסות שנותרו, תאריך סיום'},
+'SPT-40':{path:'ממשק עסק ← "צ\'ק-אין" ← לחץ "✅ כניסה" על חבר פעיל',env:'BIZ',user:'מנהל, מאמן',actionType:'צ\'ק-אין',affects:'מנהל, מאמן, חבר',note:'_sportDoCheckin(memberId, memberName, \'active\')',steps:['חפש חבר פעיל','לחץ "✅ כניסה"'],expected:'כניסה נרשמת עם תאריך+שעה, KPI "כניסות היום" מתעדכן'},
+'SPT-41':{path:'ממשק עסק ← "צ\'ק-אין" ← כניסה לחבר כרטיסייה',env:'BIZ',user:'מנהל, מאמן',actionType:'צ\'ק-אין',affects:'מנהל, מאמן, חבר',note:'type=sessions — כל כניסה מנכה 1 מהכרטיסייה',steps:['חפש חבר עם מנוי כרטיסייה','לחץ "✅ כניסה"'],expected:'כניסה נרשמת וכניסה אחת מנוכה מהכרטיסייה, מוצג מספר כניסות שנותרו'},
+'SPT-42':{path:'ממשק עסק ← "צ\'ק-אין" ← כניסה לחבר שמנויו פג',env:'BIZ',user:'מנהל, מאמן',actionType:'צ\'ק-אין',affects:'מנהל, מאמן, חבר',note:'status=expired — _sportDoCheckin מציג אזהרה',steps:['חפש חבר שמנויו פג','לחץ "✅ כניסה"'],expected:'מוצגת אזהרה "מנוי פג", כניסה עדיין מתאפשרת (override) אבל מוצגת התרעה'},
+'SPT-43':{path:'ממשק עסק ← "צ\'ק-אין" ← כניסה לחבר מוקפא',env:'BIZ',user:'מנהל, מאמן',actionType:'צ\'ק-אין',affects:'מנהל, מאמן, חבר',note:'status=frozen — מציג אזהרה על הקפאה',steps:['חפש חבר מוקפא','נסה לבצע כניסה'],expected:'מוצגת אזהרה "מנוי מוקפא", מוצג תאריך חידוש מתוכנן'},
+'SPT-44':{path:'ממשק עסק ← "צ\'ק-אין" ← כניסות של היום',env:'BIZ',user:'מנהל, מאמן',actionType:'צ\'ק-אין',affects:'מנהל, מאמן',note:'sport-checkin-today — _sportLoadCheckinToday()',steps:['פתח מסך צ\'ק-אין','צפה ברשימת כניסות היום בתחתית המסך'],expected:'מוצגת רשימה: שם חבר, שעת כניסה, סוג מנוי — מעודכנת בזמן אמת'},
+'SPT-45':{path:'חנות ציבורית ← "כרטיס כניסה 📱" ← צ\'ק-אין עצמי',env:'BIZ',user:'חבר',actionType:'צ\'ק-אין',affects:'חבר, מנהל',note:'צ\'ק-אין עצמי מהחנות הציבורית',steps:['חבר פותח את חנות הספורט הציבורית','עובר ל"כרטיס כניסה 📱"','מציג QR אישי או קוד','מנהל/מאמן סורק'],expected:'כניסה נרשמת אוטומטית'},
+'SPT-46':{path:'ממשק עסק ← "שיעורים" ← "סוגי שיעורים" ← "הוסף"',env:'BIZ',user:'מנהל',actionType:'סוגי שיעורים',affects:'מנהל, מאמן, חבר',note:'showSportClassTypes() → _sportAddMembershipType()',steps:['פתח "שיעורים"','לחץ "סוגי שיעורים"','לחץ "הוסף"','הזן: שם שיעור, קיבולת מקסימלית, ימי פתיחת הרשמה','שמור'],expected:'סוג שיעור חדש מופיע ברשימה'},
+'SPT-47':{path:'ממשק עסק ← "סוגי שיעורים" ← ✏️ עריכה',env:'BIZ',user:'מנהל',actionType:'סוגי שיעורים',affects:'מנהל, מאמן, חבר',note:'עריכת שם, קיבולת, allowed_membership_type_ids',steps:['לחץ ✏️ על סוג שיעור','שנה שם / קיבולת','שמור'],expected:'סוג השיעור מתעדכן'},
+'SPT-48':{path:'ממשק עסק ← "סוגי שיעורים" ← 🗑️ מחיקה',env:'BIZ',user:'מנהל',actionType:'סוגי שיעורים',affects:'מנהל, מאמן',note:'מחיקת סוג שיעור',steps:['לחץ 🗑️ על סוג שיעור','אשר מחיקה'],expected:'סוג השיעור נמחק'},
+'SPT-49':{path:'ממשק עסק ← "סוגי שיעורים" ← קיבולת מקסימלית',env:'BIZ',user:'מנהל',actionType:'סוגי שיעורים',affects:'מנהל, חבר',note:'max_per_session — מגביל רישום לשיעור',steps:['ערוך סוג שיעור','הגדר קיבולת מקסימלית (לדוג׳ 15)','שמור'],expected:'שיעורים מהסוג הזה לא מקבלים יותר מ-15 נרשמים'},
+'SPT-50':{path:'ממשק עסק ← "סוגי שיעורים" ← ימי פתיחת הרשמה',env:'BIZ',user:'מנהל',actionType:'סוגי שיעורים',affects:'מנהל, חבר',note:'booking_open_days — כמה ימים מראש ניתן להירשם',steps:['ערוך סוג שיעור','הגדר ימי פתיחת הרשמה (לדוג׳ 7)','שמור'],expected:'הרשמה לשיעורים מהסוג מתאפשרת עד 7 ימים מראש בלבד'},
+'SPT-51':{path:'ממשק עסק ← "שיעורים" ← לוח שיעורים ← "+ שיעור"',env:'BIZ',user:'מנהל',actionType:'לוח שיעורים',affects:'מנהל, מאמן, חבר',note:'POST /api/sport/classes — שיעור חד-פעמי',steps:['פתח לוח שיעורים','לחץ "+ שיעור"','הזן: סוג שיעור, תאריך, שעה, מאמן','שמור'],expected:'שיעור מופיע בלוח בתאריך שנקבע'},
+'SPT-52':{path:'ממשק עסק ← "שיעורים" ← "+ שיעור חוזר"',env:'BIZ',user:'מנהל',actionType:'לוח שיעורים',affects:'מנהל, מאמן, חבר',note:'POST /api/sport/classes/recurring — שיעור שחוזר שבועית',steps:['לחץ "+ שיעור חוזר"','הגדר: ימי שבוע, שעה, סיום החזרה','שמור'],expected:'שיעורים חוזרים נוצרים אוטומטית ללוח לפי ההגדרה'},
+'SPT-53':{path:'ממשק עסק ← "שיעורים" ← בחר שיעור ← "רשום חבר"',env:'BIZ',user:'מנהל, מאמן, חבר',actionType:'רישום לשיעור',affects:'מנהל, מאמן, חבר',note:'POST /api/sport/classes/:id/register',steps:['לחץ על שיעור בלוח','לחץ "רשום חבר"','חפש ובחר חבר','אשר'],expected:'חבר נרשם לשיעור, מוצג ברשימת הנרשמים'},
+'SPT-54':{path:'ממשק עסק ← "שיעורים" ← בחר שיעור ← ביטול רישום חבר',env:'BIZ',user:'מנהל, מאמן, חבר',actionType:'רישום לשיעור',affects:'מנהל, מאמן, חבר',note:'cancelled_at, cancel_type — ביטול רישום',steps:['פתח שיעור','מצא חבר ברשימת נרשמים','לחץ "בטל רישום"','אשר'],expected:'רישום מבוטל, המקום משוחרר, אם יש רשימת המתנה — הבא בתור מועלה'},
+'SPT-55':{path:'ממשק עסק ← "שיעורים" ← שיעור מלא ← ניסיון רישום',env:'BIZ',user:'מנהל, חבר',actionType:'רשימת המתנה',affects:'מנהל, חבר',note:'POST /api/sport/classes/:id/waitlist — נוסף כשהשיעור מלא',steps:['נסה לרשום חבר לשיעור מלא'],expected:'חבר נכנס לרשימת המתנה (waitlist), מקבל עדמה על מעמדו'},
+'SPT-56':{path:'ממשק עסק ← "שיעורים" ← שיעור ← רשימת המתנה ← קידום אוטומטי',env:'BIZ',user:'מנהל',actionType:'רשימת המתנה',affects:'מנהל, חבר',note:'POST /api/sport/classes/:id/waitlist/:membershipId/confirm — קידום אוטומטי עם ביטול',steps:['בטל רישום של חבר משיעור שיש לו waitlist','בדוק שהראשון ברשימת ההמתנה קיבל הודעה'],expected:'הבא ברשימת ההמתנה מועלה אוטומטית, קבלת הודעה בתוך promoted_at'},
+'SPT-57':{path:'ממשק עסק ← "שיעורים" ← בחר שיעור ← "נוכחות"',env:'BIZ',user:'מנהל, מאמן',actionType:'נוכחות',affects:'מנהל, מאמן, חבר',note:'showSportClassDetail(classId) → POST /api/sport/classes/:id/attendance',steps:['לחץ על שיעור','לחץ "נוכחות"','סמן נוכחות לכל נרשם'],expected:'נוכחות נרשמת, חברים סומנו כ"השתתפו"'},
+'SPT-58':{path:'ממשק עסק ← "שיעורים" ← בחר שיעור ← רשימת נרשמים',env:'BIZ',user:'מנהל, מאמן',actionType:'לוח שיעורים',affects:'מנהל, מאמן',note:'GET /api/sport/classes/:id/registrations',steps:['לחץ על שיעור','צפה ברשימת הנרשמים'],expected:'מוצגים: שם חבר, סוג מנוי, סטטוס נוכחות, כפתור ביטול'},
+'SPT-59':{path:'ממשק עסק ← "שיעורים" ← לוח שיעורים ← תצוגת שבוע',env:'BIZ',user:'מנהל, מאמן',actionType:'לוח שיעורים',affects:'מנהל, מאמן, חבר',note:'תצוגת לוח שבועי',steps:['פתח לוח שיעורים','בחר תצוגת "שבוע"'],expected:'לוח שבועי מוצג עם כל השיעורים לפי יום ושעה'},
+'SPT-60':{path:'ממשק עסק ← "שיעורים" ← סינון לפי סוג שיעור',env:'BIZ',user:'מנהל, מאמן',actionType:'לוח שיעורים',affects:'מנהל, מאמן',note:'סינון לוח לפי class_type',steps:['בחר סוג שיעור ספציפי מהסינון'],expected:'הלוח מציג רק שיעורים מהסוג שנבחר'},
+'SPT-61':{path:'ממשק עסק ← "מאמנים 👨‍🏫" ← "+ הוסף מאמן"',env:'BIZ',user:'מנהל',actionType:'מאמנים',affects:'מנהל, מאמן',note:'POST /api/sport/trainers — הוספת מאמן',steps:['לחץ "מאמנים"','לחץ "+ הוסף מאמן"','הזן: שם, מייל, טלפון, התמחויות','שמור'],expected:'מאמן חדש מופיע ברשימה, ניתן לשיוך לשיעורים'},
+'SPT-62':{path:'ממשק עסק ← "שיעורים" ← עריכת שיעור ← בחר מאמן',env:'BIZ',user:'מנהל',actionType:'מאמנים',affects:'מנהל, מאמן, חבר',note:'שיוך מאמן לשיעור ספציפי',steps:['ערוך שיעור בלוח','בחר מאמן מהרשימה','שמור'],expected:'מאמן משויך לשיעור, מוצג בלוח ובפרטי השיעור'},
+'SPT-63':{path:'ממשק עסק ← "מאמנים" ← לחיצה על מאמן ← לוח שיבוצים',env:'BIZ',user:'מנהל',actionType:'מאמנים',affects:'מנהל, מאמן',note:'לוח שיבוצים של מאמן — sport_trainer_sessions',steps:['לחץ על מאמן ברשימה'],expected:'מוצגים שיעורי המאמן לפי לוח שבועי'},
+'SPT-64':{path:'ממשק עסק ← "מאמנים" ← 🗑️ מחיקת מאמן',env:'BIZ',user:'מנהל',actionType:'מאמנים',affects:'מנהל',note:'מחיקת מאמן מהמערכת',steps:['לחץ 🗑️ על מאמן','אשר מחיקה'],expected:'מאמן נמחק, שיעורים שלו מוצגים ללא מאמן שמוי'},
+'SPT-65':{path:'ממשק עסק ← "התראות 🔔" ← מנויים פגים / קרובים לפוג',env:'BIZ',user:'מנהל',actionType:'התראות',affects:'מנהל, חבר',note:'showSportAlerts() → GET /api/sport/alerts/:groupId — מנויים שפגים ב-7 ימים הקרובים',steps:['לחץ "התראות"','צפה בסקציית "פגים / קרובים לפוג"'],expected:'מוצגים: שם חבר, סוג מנוי, ימים לפקיעה, כפתור "חדש"'},
+'SPT-66':{path:'ממשק עסק ← "התראות" ← חברים בסיכון (לא אימנו 30+ יום)',env:'BIZ',user:'מנהל',actionType:'התראות',affects:'מנהל, חבר',note:'at_risk — at_risk flag מה-API',steps:['לחץ "התראות"','צפה בסקציית "לא אימנו 30 יום"'],expected:'מוצגים חברים שלא ביצעו צ\'ק-אין ב-30+ ימים'},
+'SPT-67':{path:'ממשק עסק ← "התראות" ← מנויים מוקפאים',env:'BIZ',user:'מנהל',actionType:'התראות',affects:'מנהל, חבר',note:'status=frozen — כפתור "הפשר"',steps:['לחץ "התראות"','צפה בסקציית "מוקפאים"'],expected:'מוצגים חברים מוקפאים עם תאריך חידוש, כפתור "הפשר"'},
+'SPT-68':{path:'ממשק עסק ← "התראות" ← רשימת המתנה לאישור',env:'BIZ',user:'מנהל',actionType:'התראות',affects:'מנהל, חבר',note:'showSportWaitlistPending() — חברים שממתינים לאישור ממנהל',steps:['לחץ "התראות"','צפה בבאנר "ממתינים לאישור" (אם קיים)','לחץ עליו'],expected:'נפתח מסך רשימת ממתינים לאישור עם כפתור "אשר"'},
+'SPT-69':{path:'ממשק עסק ← מכירות ← "הגדרות מועדון" ← שמירת מדיניות ביטול',env:'BIZ',user:'מנהל',actionType:'הגדרות',affects:'מנהל, לקוח',note:'cancellation_policy נשמרת ב-sport_cancel_policy',steps:['הזן מדיניות ביטול','לחץ "שמור הגדרות"'],expected:'מדיניות נשמרת, מוצגת ללקוחות בחנות הציבורית'},
+'SPT-70':{path:'ממשק עסק ← מכירות ← "הגדרות מועדון" ← שמירת מדיניות הקפאה',env:'BIZ',user:'מנהל',actionType:'הגדרות',affects:'מנהל, חבר',note:'freeze_policy נשמרת',steps:['הזן מדיניות הקפאה','שמור'],expected:'מדיניות הקפאה נשמרת ומוצגת לחברים'},
+'SPT-71':{path:'ממשק עסק ← מכירות ← "הגדרות מועדון" ← שמירת הצהרת בריאות',env:'BIZ',user:'מנהל',actionType:'הגדרות',affects:'מנהל, חבר',note:'POST /api/sport/waiver-template/:groupId',steps:['הזן טקסט הצהרת בריאות','שמור'],expected:'הצהרה נשמרת כ-template, תוצג לחברים בהצטרפות'},
+'SPT-72':{path:'ממשק עסק ← "הגדרות מועדון" ← גיל מינימום',env:'BIZ',user:'מנהל',actionType:'הגדרות',affects:'מנהל, לקוח',note:'sport-min-age — נאכף ב-/api/sport/public-membership-purchase',steps:['הגדר גיל מינימום 16','נסה לרשום חבר מתחת לגיל 16 מהחנות הציבורית'],expected:'המערכת חוסמת רישום מתחת לגיל המינימום'},
+'SPT-73':{path:'ממשק עסק ← "הגדרות מועדון" ← "אפשר מנוי ניסיון"',env:'BIZ',user:'מנהל',actionType:'הגדרות',affects:'מנהל, לקוח',note:'sport-trial-enabled checkbox → trial_enabled=true',steps:['סמן "אפשר מנוי ניסיון"','שמור','פתח חנות ציבורית'],expected:'אפשרות מנוי ניסיון מוצגת בחנות הציבורית, is_trial=true בנרשמים'},
+'SPT-74':{path:'ממשק עסק ← "הצהרות 📋" ← רשימת הצהרות שנחתמו',env:'BIZ',user:'מנהל',actionType:'הצהרות',affects:'מנהל',note:'showSportWaiverSettings() → GET /api/sport/declarations/:groupId',steps:['לחץ "הצהרות"','צפה ברשימת הצהרות שנחתמו'],expected:'מוצגים: שם חבר, תאריך חתימה, תוקף הצהרה (waiver_valid_until)'},
+'SPT-75':{path:'חנות ציבורית ← רכישת מנוי ← חתימה על הצהרת בריאות',env:'BIZ',user:'לקוח / חבר',actionType:'הצהרות',affects:'מנהל, לקוח',note:'waiver_signed_at נשמר ב-sport_memberships',steps:['פתח חנות ספורט ציבורית','בחר מנוי','גלול לטופס','קרא וסמן "אני מסכים להצהרת הבריאות"','השלם רישום'],expected:'מנוי נרשם, waiver_signed_at מוגדר, הצהרה מופיעה בניהול'},
+'SPT-76':{path:'חנות ציבורית ← "מדיניות ביטול"',env:'BIZ',user:'לקוח / חבר',actionType:'הצהרות',affects:'לקוח',note:'GET /api/sport/cancel-policy/:groupId',steps:['פתח חנות ציבורית','חפש "מדיניות ביטול"'],expected:'טקסט מדיניות הביטול שהמנהל הגדיר מוצג בבירור'},
+'SPT-77':{path:'ממשק עסק ← "דוחות 📊" ← הכנסות חודשיות',env:'BIZ',user:'מנהל',actionType:'דוחות',affects:'מנהל',note:'showSportReports() → GET /api/sport/reports/:groupId',steps:['לחץ "דוחות"','צפה בגרף הכנסות חודשי'],expected:'מוצגים: הכנסה החודש, ממוצע חודשי, גרף מגמה לפי חודשים'},
+'SPT-78':{path:'ממשק עסק ← "דוחות" ← פעילות כניסות',env:'BIZ',user:'מנהל',actionType:'דוחות',affects:'מנהל',note:'כניסות לפי חברים ותאריכים',steps:['כנס ל"דוחות"','עבור ל"פעילות כניסות"'],expected:'מוצגים: כניסות לפי יום, שעות עומס, חברים הפעילים ביותר'},
+'SPT-79':{path:'ממשק עסק ← "דוחות" ← ייצוא דוח',env:'BIZ',user:'מנהל',actionType:'דוחות',affects:'מנהל',note:'ייצוא ל-CSV',steps:['כנס לדוח','לחץ "ייצא"'],expected:'קובץ CSV מורד עם נתוני הדוח'},
+'SPT-80':{path:'חנות ציבורית ← מועדון ספורט ← צפייה בסוגי מנויים',env:'BIZ',user:'לקוח',actionType:'חנות ציבורית',affects:'לקוח, מנהל',note:'GET /api/sport/public-types/:groupId — is_public=true בלבד',steps:['פתח חנות ציבורית של מועדון ספורט','צפה בסוגי המנויים המוצגים'],expected:'מוצגים רק סוגי מנויים שis_public=true, עם שמות ומחירים'},
+'SPT-81':{path:'חנות ציבורית ← בחר מנוי ← "הצטרף" ← מלא פרטים ← תשלום',env:'BIZ',user:'לקוח',actionType:'חנות ציבורית',affects:'לקוח, מנהל',note:'POST /api/sport/public-membership-purchase',steps:['בחר מנוי','לחץ "הצטרף"','מלא: שם, מייל, טלפון, תאריך לידה','חתום על הצהרת בריאות (אם מוגדרת)','לחץ "שלם"'],expected:'חבר חדש נוצר במערכת, מנוי פעיל, אישור נשלח'},
+'SPT-82':{path:'חנות ציבורית ← "לוח שיעורים" ← בחר שיעור ← "הירשם"',env:'BIZ',user:'חבר',actionType:'חנות ציבורית',affects:'חבר, מנהל, מאמן',note:'POST /api/sport/public-class-register — /api/sport/public-schedule/:groupId',steps:['פתח חנות ציבורית','עבור ל"לוח שיעורים"','בחר שיעור','לחץ "הירשם"'],expected:'חבר נרשם לשיעור, מופיע ברשימת הנרשמים, מקבל אישור'},
+
+// ============================================================
 // REST — מסעדה (REST-01 עד REST-82)
 // ============================================================
 'REST-01':{path:'ממשק עסק ← ויזארד הקמה ← "סוג עסק" ← מסעדה',env:'BIZ',user:'מנהל',actionType:'הקמה',affects:'כל המשתמשים',note:'businessType=restaurant, מודולים: pos,kds,tables,foodcost,deliveries',steps:['פתח /business.html ← ויזארד הקמה ראשוני','בחר "מסעדה" מרשימת סוגי העסקים','השלם את שאר שלבי הויזארד','לחץ "סיים"'],expected:'עסק נפתח עם לשוניות: קופה, KDS, שולחנות, עלות מנה, משלוחים'},
@@ -1687,7 +1775,24 @@ const ENV_MAP = {
   'REST-66':['biz'],'REST-67':['biz'],'REST-68':['biz'],'REST-69':['biz'],'REST-70':['biz'],
   'REST-71':['biz'],'REST-72':['biz'],'REST-73':['biz'],'REST-74':['biz'],'REST-75':['biz'],
   'REST-76':['biz'],'REST-77':['biz'],'REST-78':['biz'],'REST-79':['biz'],'REST-80':['biz'],
-  'REST-81':['biz'],'REST-82':['biz']
+  'REST-81':['biz'],'REST-82':['biz'],
+  'SPT-01':['biz'],'SPT-02':['biz'],'SPT-03':['biz'],'SPT-04':['biz'],'SPT-05':['biz'],
+  'SPT-06':['biz'],'SPT-07':['biz'],'SPT-08':['biz'],'SPT-09':['biz'],'SPT-10':['biz'],
+  'SPT-11':['biz'],'SPT-12':['biz'],'SPT-13':['biz'],'SPT-14':['biz'],'SPT-15':['biz'],
+  'SPT-16':['biz'],'SPT-17':['biz'],'SPT-18':['biz'],'SPT-19':['biz'],'SPT-20':['biz'],
+  'SPT-21':['biz'],'SPT-22':['biz'],'SPT-23':['biz'],'SPT-24':['biz'],'SPT-25':['biz'],
+  'SPT-26':['biz'],'SPT-27':['biz'],'SPT-28':['biz'],'SPT-29':['biz'],'SPT-30':['biz'],
+  'SPT-31':['biz'],'SPT-32':['biz'],'SPT-33':['biz'],'SPT-34':['biz'],'SPT-35':['biz'],
+  'SPT-36':['biz'],'SPT-37':['biz'],'SPT-38':['biz'],'SPT-39':['biz'],'SPT-40':['biz'],
+  'SPT-41':['biz'],'SPT-42':['biz'],'SPT-43':['biz'],'SPT-44':['biz'],'SPT-45':['biz'],
+  'SPT-46':['biz'],'SPT-47':['biz'],'SPT-48':['biz'],'SPT-49':['biz'],'SPT-50':['biz'],
+  'SPT-51':['biz'],'SPT-52':['biz'],'SPT-53':['biz'],'SPT-54':['biz'],'SPT-55':['biz'],
+  'SPT-56':['biz'],'SPT-57':['biz'],'SPT-58':['biz'],'SPT-59':['biz'],'SPT-60':['biz'],
+  'SPT-61':['biz'],'SPT-62':['biz'],'SPT-63':['biz'],'SPT-64':['biz'],'SPT-65':['biz'],
+  'SPT-66':['biz'],'SPT-67':['biz'],'SPT-68':['biz'],'SPT-69':['biz'],'SPT-70':['biz'],
+  'SPT-71':['biz'],'SPT-72':['biz'],'SPT-73':['biz'],'SPT-74':['biz'],'SPT-75':['biz'],
+  'SPT-76':['biz'],'SPT-77':['biz'],'SPT-78':['biz'],'SPT-79':['biz'],'SPT-80':['biz'],
+  'SPT-81':['biz'],'SPT-82':['biz']
 };
 
 // ============================================================
@@ -1722,7 +1827,8 @@ window.restoreFromGuideBook = async function() {
     'PFAM':'הרשאות — סביבת משפחה (הורה vs ילד)',
     'PBIZ':'הרשאות — סביבת עסק (4 תפקידים)',
     'SAF':'SuperAdmin — sa.html ו-sa-app.js',
-    'REST':'מסעדה — מסלולי בדיקה'
+    'REST':'מסעדה — מסלולי בדיקה',
+    'SPT':'ספורט / כושר — מסלולי בדיקה'
   };
   const prefixToPrio = {
     'AUTH':'critical','ONBD':'high','FAM':'medium','BIZ':'medium',
@@ -1731,7 +1837,8 @@ window.restoreFromGuideBook = async function() {
     'TSK':'medium','ACAD':'low','COM':'low','NOT':'medium',
     'SA':'high','SMK':'low','PWA':'medium',
     'PFAM':'critical','PBIZ':'critical','SAF':'critical',
-    'REST':'critical'
+    'REST':'critical',
+    'SPT':'critical'
   };
 
   const tests = Object.entries(GUIDE_BOOK).map(([id, g]) => {

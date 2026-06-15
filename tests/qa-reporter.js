@@ -123,6 +123,23 @@ const ENV_MAP = {
   'REST-71':['biz'],'REST-72':['biz'],'REST-73':['biz'],'REST-74':['biz'],'REST-75':['biz'],
   'REST-76':['biz'],'REST-77':['biz'],'REST-78':['biz'],'REST-79':['biz'],'REST-80':['biz'],
   'REST-81':['biz'],'REST-82':['biz'],
+  'SPT-01':['biz'],'SPT-02':['biz'],'SPT-03':['biz'],'SPT-04':['biz'],'SPT-05':['biz'],
+  'SPT-06':['biz'],'SPT-07':['biz'],'SPT-08':['biz'],'SPT-09':['biz'],'SPT-10':['biz'],
+  'SPT-11':['biz'],'SPT-12':['biz'],'SPT-13':['biz'],'SPT-14':['biz'],'SPT-15':['biz'],
+  'SPT-16':['biz'],'SPT-17':['biz'],'SPT-18':['biz'],'SPT-19':['biz'],'SPT-20':['biz'],
+  'SPT-21':['biz'],'SPT-22':['biz'],'SPT-23':['biz'],'SPT-24':['biz'],'SPT-25':['biz'],
+  'SPT-26':['biz'],'SPT-27':['biz'],'SPT-28':['biz'],'SPT-29':['biz'],'SPT-30':['biz'],
+  'SPT-31':['biz'],'SPT-32':['biz'],'SPT-33':['biz'],'SPT-34':['biz'],'SPT-35':['biz'],
+  'SPT-36':['biz'],'SPT-37':['biz'],'SPT-38':['biz'],'SPT-39':['biz'],'SPT-40':['biz'],
+  'SPT-41':['biz'],'SPT-42':['biz'],'SPT-43':['biz'],'SPT-44':['biz'],'SPT-45':['biz'],
+  'SPT-46':['biz'],'SPT-47':['biz'],'SPT-48':['biz'],'SPT-49':['biz'],'SPT-50':['biz'],
+  'SPT-51':['biz'],'SPT-52':['biz'],'SPT-53':['biz'],'SPT-54':['biz'],'SPT-55':['biz'],
+  'SPT-56':['biz'],'SPT-57':['biz'],'SPT-58':['biz'],'SPT-59':['biz'],'SPT-60':['biz'],
+  'SPT-61':['biz'],'SPT-62':['biz'],'SPT-63':['biz'],'SPT-64':['biz'],'SPT-65':['biz'],
+  'SPT-66':['biz'],'SPT-67':['biz'],'SPT-68':['biz'],'SPT-69':['biz'],'SPT-70':['biz'],
+  'SPT-71':['biz'],'SPT-72':['biz'],'SPT-73':['biz'],'SPT-74':['biz'],'SPT-75':['biz'],
+  'SPT-76':['biz'],'SPT-77':['biz'],'SPT-78':['biz'],'SPT-79':['biz'],'SPT-80':['biz'],
+  'SPT-81':['biz'],'SPT-82':['biz'],
 };
 
 // Fallback: derive env from prefix when not in ENV_MAP
@@ -138,6 +155,7 @@ const PREFIX_ENV = {
   PWA: ['family','biz'],
   PFAM: ['family'], PBIZ: ['biz'],
   REST: ['biz'],
+  SPT: ['biz'],
 };
 
 function getEnvs(testId) {
