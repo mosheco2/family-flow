@@ -9224,6 +9224,76 @@ window._sendBizMessage = async function(bizGroupId) {
     } catch(e) { if(errEl){ errEl.textContent='שגיאת תקשורת'; errEl.style.display='block'; } if(btn){ btn.disabled=false; btn.textContent='שלח הודעה ✉️'; } }
 };
 
+window._orderRatingModal = function(orderId, bizGroupId) {
+    document.getElementById('order-rating-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'order-rating-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:20px;direction:rtl;';
+    modal.innerHTML = `<div style="background:white;border-radius:24px;padding:24px;width:100%;max-width:380px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <button onclick="document.getElementById('order-rating-modal')?.remove()" style="background:#f1f5f9;border:none;border-radius:12px;width:32px;height:32px;cursor:pointer;font-size:16px;color:#64748b;">✕</button>
+            <div style="text-align:right;">
+                <p style="font-weight:900;font-size:15px;color:#1e293b;">⭐ דרג את ההזמנה</p>
+                <p style="font-size:11px;color:#94a3b8;">הזמנה #${orderId}</p>
+            </div>
+        </div>
+        <div style="text-align:center;margin-bottom:16px;">
+            <p style="font-size:13px;color:#475569;font-weight:700;margin-bottom:10px;">בחר דירוג:</p>
+            <div id="rating-stars" style="display:flex;justify-content:center;gap:8px;font-size:32px;">
+                ${[1,2,3,4,5].map(n=>`<span onclick="window._setRatingStar(${n})" data-val="${n}" style="cursor:pointer;opacity:0.3;transition:opacity 0.1s;">⭐</span>`).join('')}
+            </div>
+            <p id="rating-label" style="font-size:11px;color:#94a3b8;margin-top:6px;height:16px;"></p>
+        </div>
+        <textarea id="rating-notes" rows="3" placeholder="הערות (אופציונלי)..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px;font-size:13px;resize:none;box-sizing:border-box;outline:none;margin-bottom:12px;"></textarea>
+        <div id="rating-err" style="display:none;color:#dc2626;font-size:12px;margin-bottom:8px;"></div>
+        <div style="display:flex;gap:8px;">
+            <button onclick="document.getElementById('order-rating-modal')?.remove()" style="flex:1;padding:12px;background:#f1f5f9;border:none;border-radius:14px;font-weight:700;font-size:13px;color:#64748b;cursor:pointer;">ביטול</button>
+            <button id="rating-submit-btn" onclick="window._submitOrderRating(${orderId},'${bizGroupId}')" style="flex:2;padding:12px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;border:none;border-radius:14px;font-weight:900;font-size:13px;cursor:pointer;">שלח דירוג ⭐</button>
+        </div>
+    </div>`;
+    modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+};
+window._setRatingStar = function(val) {
+    const labels = ['','גרוע 😞','לא טוב 😕','בסדר 😐','טוב 😊','מצוין! 🤩'];
+    document.querySelectorAll('#rating-stars span').forEach((s,i) => { s.style.opacity = (i < val) ? '1' : '0.3'; });
+    const lbl = document.getElementById('rating-label');
+    if (lbl) lbl.textContent = labels[val] || '';
+    document.getElementById('rating-stars').dataset.rating = val;
+};
+window._submitOrderRating = async function(orderId, bizGroupId) {
+    const rating = parseInt(document.getElementById('rating-stars')?.dataset?.rating || 0);
+    const notes = document.getElementById('rating-notes')?.value?.trim();
+    const errEl = document.getElementById('rating-err');
+    if (!rating) { if(errEl){errEl.textContent='בחר דירוג'; errEl.style.display='block';} return; }
+    const btn = document.getElementById('rating-submit-btn');
+    if(btn){btn.disabled=true; btn.textContent='שולח...';}
+    try {
+        const r = await fetch(`${API}/store/orders/${orderId}/customer-feedback`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ rating, notes, familyGroupId: currentGroup?.id })
+        }).then(r=>r.json());
+        if(r.success){
+            document.getElementById('order-rating-modal')?.remove();
+            showToast('success','תודה על הדירוג! ⭐');
+            // Refresh the accordion if open
+            if(bizGroupId && currentGroup){
+                const wrapper = document.querySelector(`[data-biz-id="${bizGroupId}"]`);
+                const accordion = wrapper?.querySelector('.biz-accordion');
+                if(accordion){
+                    delete accordion.dataset.loaded;
+                    accordion.innerHTML='<p class="p-4 text-xs text-slate-400 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
+                    const res = await fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`).then(r=>r.json());
+                    _renderBizAccordion(accordion, res, 'restaurant');
+                }
+            }
+        } else {
+            if(errEl){errEl.textContent=r.error||'שגיאה';errEl.style.display='block';}
+            if(btn){btn.disabled=false;btn.textContent='שלח דירוג ⭐';}
+        }
+    } catch(e){ if(errEl){errEl.textContent='שגיאת תקשורת';errEl.style.display='block';} if(btn){btn.disabled=false;} }
+};
+
 window._tableReservationModal = function(bizGroupId, bizName) {
     const today = new Date().toISOString().split('T')[0];
     const modal = document.createElement('div');
@@ -9543,18 +9613,21 @@ function _renderBizAccordion(el, data, bizType) {
         const orders = act.orders || [];
         const quotes = act.quotes || [];
         const _ref = id => id ? `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>` : '';
-        const _ordStatus = { new:'חדש', confirmed:'אושר', processing:'בהכנה', ready:'מוכן', done:'הושלם', cancelled:'בוטל', pending:'ממתין' };
-        const _ordStatusColor = s => s==='done'||s==='ready'?'bg-green-100 text-green-700':s==='cancelled'?'bg-red-100 text-red-600':s==='processing'||s==='confirmed'?'bg-blue-100 text-blue-700':'bg-orange-100 text-orange-700';
+        const _ordStatus = { new:'חדש 🔴', confirmed:'אושר', processing:'בהכנה 🍳', ready:'מוכן לאיסוף ✅', shipped:'בדרך אליך 🚚', done:'הושלם ✅', completed:'סופק ✅', cancelled:'בוטל ❌', pending:'ממתין' };
+        const _ordStatusColor = s => s==='done'||s==='completed'?'bg-green-100 text-green-700':s==='cancelled'?'bg-red-100 text-red-600':s==='ready'?'bg-orange-100 text-orange-700':s==='shipped'?'bg-purple-100 text-purple-700':s==='processing'||s==='confirmed'?'bg-blue-100 text-blue-700':'bg-slate-100 text-slate-600';
+        const canRate = o => !o.customer_rating && (o.status === 'completed' || o.status === 'shipped');
+        const ratingStars = o => o.customer_rating ? '⭐'.repeat(o.customer_rating) : '';
         const renderOrd = o => `<div class="py-2 border-b border-slate-50 last:border-0">
                 <div class="flex items-center gap-2">
                     <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-sm shrink-0">🛒</div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-xs font-bold text-slate-700">הזמנה${_ref(o.id)}</p>
+                        <p class="text-xs font-bold text-slate-700">הזמנה${_ref(o.id)}${ratingStars(o)?` <span class="text-yellow-500">${ratingStars(o)}</span>`:''}</p>
                         <p class="text-[10px] text-slate-400">${fmtDate(o.created_at)}${parseFloat(o.total_price||0)>0?' · ₪'+parseFloat(o.total_price).toFixed(0):''}</p>
                     </div>
                     <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${_ordStatusColor(o.status)}">${_ordStatus[o.status]||o.status||''}</span>
                 </div>
                 ${o.notes ? `<p class="text-[10px] text-slate-500 mt-1 pr-10 truncate">📝 ${o.notes}</p>` : ''}
+                ${canRate(o) ? `<div class="mt-1.5 pr-10"><button onclick="window._orderRatingModal(${o.id},'${el.closest('[data-biz-id]')?.dataset?.bizId||''}')" class="text-[10px] font-black bg-yellow-50 border border-yellow-200 text-yellow-700 px-2.5 py-1 rounded-lg hover:bg-yellow-100 transition">⭐ דרג את ההזמנה</button></div>` : ''}
             </div>`;
         const renderQuote = q => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
                 <div class="w-8 h-8 rounded-lg bg-yellow-50 flex items-center justify-center text-sm shrink-0">📋</div>

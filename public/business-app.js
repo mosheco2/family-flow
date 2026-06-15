@@ -11804,6 +11804,7 @@ window.renderStoreOrders = function() {
         const meta = getDeliveryMeta(o);
         const isDelivery = (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true' || meta);
         const deliveryTag = isDelivery ? '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg border border-slate-200 ml-1"><i class="fa-solid fa-motorcycle"></i> משלוח</span>' : '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg border border-slate-200 ml-1"><i class="fa-solid fa-person-walking"></i> איסוף</span>';
+        const srcTag = o.order_source === 'table' ? '<span class="text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded-lg border border-violet-200 ml-1">🍽️ שולחן</span>' : '<span class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-lg border border-blue-200 ml-1">🌐 אתר</span>';
         
         let deliveryData = {};
         if (meta && meta.delivery_details) deliveryData = meta.delivery_details;
@@ -11900,8 +11901,8 @@ window.renderStoreOrders = function() {
                         <span class="font-black text-indigo-600 text-2xl dir-ltr tracking-tight">₪${parseFloat(o.total_amount).toFixed(2)}</span>
                     </div>
 
-                    <div class="flex items-center justify-end gap-2 text-[11px] text-slate-400 font-mono mt-1">
-                        ${receivedTimeStr} | ${receivedDateStr} ${deliveryTag} ${isQuoteOrigin}
+                    <div class="flex items-center justify-end gap-2 text-[11px] text-slate-400 font-mono mt-1 flex-wrap">
+                        ${receivedTimeStr} | ${receivedDateStr} ${deliveryTag} ${srcTag} ${isQuoteOrigin}
                     </div>
                 </div>
             </div>
@@ -11999,6 +12000,15 @@ window.openStoreOrderModal = function(orderId) {
          itemsHtml += `<div class="flex justify-between items-center bg-indigo-50 p-3 rounded-xl border border-indigo-100 mb-2 shadow-sm"><span class="font-bold text-indigo-800 text-sm"><i class="fa-solid fa-motorcycle ml-1"></i> דמי משלוח עיר</span><span class="font-bold text-indigo-800 text-sm">₪${meta.delivery_fee}</span></div>`;
     }
 
+    // Show customer rating if available
+    if (order.customer_rating) {
+        const stars = '⭐'.repeat(order.customer_rating) + '☆'.repeat(5 - order.customer_rating);
+        const ratingHtml = `<div class="mt-3 bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+            <p class="text-xs font-black text-yellow-800 mb-1">⭐ דירוג לקוח: ${stars}</p>
+            ${order.customer_rating_notes ? `<p class="text-xs text-yellow-700">${safeStr(order.customer_rating_notes)}</p>` : ''}
+        </div>`;
+        itemsHtml += ratingHtml;
+    }
     document.getElementById('so-modal-items').innerHTML = itemsHtml;
     document.getElementById('store-order-modal').classList.remove('hidden');
 };
@@ -21253,13 +21263,12 @@ window.markItemServed = function(orderId, idx) {
     if (dashEl) renderWaiterDashboard(dashEl);
 };
 
-window.markReadyDelivered = function(orderId) {
-    // Mark order as completed on server
+window.markReadyDelivered = function(orderId, newStatus) {
+    const finalStatus = newStatus || 'completed';
     fetch('/api/store/orders/status', {
         method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ orderId, status: 'completed' })
+        body: JSON.stringify({ orderId, status: finalStatus })
     }).catch(() => {});
-    // Sync delivered state into table_bills so waiter POS shows ✓
     try {
         const bills = getTableBills();
         let changed = false;
@@ -21274,9 +21283,7 @@ window.markReadyDelivered = function(orderId) {
         });
         if (changed) saveTableBills(bills);
     } catch(e) {}
-    // Refresh waiter POS cart if open
     if (document.getElementById('waiter-pos-modal')) window.waiterRenderCart();
-    // Re-render role dashboard (removes the order from the ready list)
     const dashEl = document.getElementById('content-role-dashboard');
     if (dashEl) {
         const rt = currentUser?.employee_role_type;
@@ -27642,7 +27649,7 @@ async function renderShiftManagerDashboard(el) {
                 return `<div class="flex items-start gap-2 py-2 border-b border-slate-50 last:border-0">
                     <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0 mt-0.5">${tbl}</span>
                     <span class="text-xs text-slate-700 flex-1">${safeStr(dishList) || `הזמנה #${r.orderId}`}</span>
-                    <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId});" onclick="markReadyDelivered(${r.orderId})" class="bg-green-600 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">סופק ✓</button>
+                    ${r.isDelivery ? `<div class="flex flex-col gap-1 shrink-0"><button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'shipped');" onclick="markReadyDelivered(${r.orderId},'shipped')" class="bg-purple-600 text-white text-[10px] font-black px-2 py-1 rounded-lg" style="touch-action:manipulation;">🚚 משלוח</button><button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-[10px] font-black px-2 py-1 rounded-lg" style="touch-action:manipulation;">✅ נמסר</button></div>` : `<button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">✅ נאסף</button>`}
                 </div>`;
             }).join('')}</div>
         </div>` : '';
@@ -28151,10 +28158,10 @@ window.kdsUpdateBonProgress = function(txId) {
 window.cookDoneOrder = function(txId, row) {
     const key = `kds_done_${currentGroup.id}`;
     try { const d = JSON.parse(localStorage.getItem(key)||'[]'); d.push(String(txId)); localStorage.setItem(key, JSON.stringify(d)); } catch(e) {}
-    // Mark order as completed on server — full bon close = auto-delivered to waiter
+    // Mark order as ready — cook done → waiter picks up
     fetch('/api/store/orders/status', {
         method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ orderId: txId, status: 'completed' })
+        body: JSON.stringify({ orderId: txId, status: 'ready' })
     }).catch(() => {});
     // Clear per-item ready list (all items now done)
     fetch(`/api/store/orders/${txId}/item-ready`, {
@@ -28187,23 +28194,14 @@ async function renderWaiterDashboard(el) {
         const or = await fetch(`/api/store/orders/${currentGroup.id}`);
         const od = await or.json();
         if (Array.isArray(od)) {
-            // Full-order ready (cook closed the full bon — now marked 'completed', auto-deliver)
-            // Auto-mark completed orders as delivered in local table_bills
-            const completedIds = new Set(od.filter(o => o.status === 'completed').map(o => String(o.id)));
-            if (completedIds.size > 0) {
-                try {
-                    const bills = getTableBills();
-                    let changed = false;
-                    Object.values(bills).forEach(bill => {
-                        (bill.submitted||[]).forEach(item => {
-                            if (item.orderId && completedIds.has(String(item.orderId)) && !item.delivered) {
-                                item.delivered = true; item.deliveredAt = new Date().toISOString(); changed = true;
-                            }
-                        });
-                    });
-                    if (changed) { saveTableBills(bills); if (document.getElementById('waiter-pos-modal')) window.waiterRenderCart(); }
-                } catch(e2) {}
-            }
+            // Full-order ready (cook marked ready — waiter picks up)
+            od.filter(o => o.status === 'ready').forEach(o => {
+                let tableNum = null;
+                try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
+                let items = [];
+                try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata); } catch(e3) {}
+                pendingReady.push({ orderId: o.id, tableNum, items, isDelivery: !!(o.is_delivery), orderSource: o.order_source || 'website' });
+            });
             // Per-item ready (cook checked individual dishes, order not yet closed)
             od.filter(o => ['new','processing'].includes(o.status) && Array.isArray(o.items_ready) && o.items_ready.length > 0)
               .forEach(o => {
@@ -28262,13 +28260,20 @@ async function renderWaiterDashboard(el) {
                     const qty = (i.quantity||i.qty||1);
                     return nm ? (qty > 1 ? `${nm} ×${qty}` : nm) : null;
                 }).filter(Boolean).join(', ');
+                const srcBadge = r.orderSource === 'table' ? '<span class="text-[9px] font-black text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-full ml-1">🍽️ שולחן</span>' : '<span class="text-[9px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full ml-1">🌐 אתר</span>';
+                const actionBtns = r.isDelivery
+                    ? `<div class="flex flex-col gap-1 shrink-0">
+                        <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'shipped');" onclick="markReadyDelivered(${r.orderId},'shipped')" class="bg-purple-600 text-white text-[10px] font-black px-2 py-1 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">🚚 למשלוח</button>
+                        <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-[10px] font-black px-2 py-1 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">✅ נמסר</button>
+                       </div>`
+                    : `<button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">✅ נאסף</button>`;
                 return `<div class="flex items-start gap-2 py-2 border-b border-slate-50 last:border-0">
                     <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0 mt-0.5">${tbl}</span>
                     <div class="flex-1 min-w-0">
-                        <div class="text-xs font-bold text-slate-700 leading-tight">${safeStr(dishList) || tStr}</div>
+                        <div class="text-xs font-bold text-slate-700 leading-tight">${safeStr(dishList) || tStr}${srcBadge}</div>
                         ${dishList && tStr ? `<div class="text-[9px] text-slate-400">${tStr}</div>` : ''}
                     </div>
-                    <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId});" onclick="markReadyDelivered(${r.orderId})" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">סופק ✓</button>
+                    ${actionBtns}
                 </div>`;
             }).join('')}</div>
         </div>` : '';
@@ -28348,7 +28353,7 @@ window.openAdminTablesPanel = async function() {
                 try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
                 let items = [];
                 try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata); } catch(e3) {}
-                pendingReady.push({ orderId: o.id, tableNum, items });
+                pendingReady.push({ orderId: o.id, tableNum, items, isDelivery: !!(o.is_delivery), orderSource: o.order_source || 'website' });
             });
             od.filter(o => ['new','processing'].includes(o.status) && Array.isArray(o.items_ready) && o.items_ready.length > 0).forEach(o => {
                 let tableNum = null;
@@ -28479,7 +28484,7 @@ window.openAdminTablesPanel = async function() {
                 return `<div class="flex items-start gap-2 py-2 border-b border-slate-50 last:border-0">
                     <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0 mt-0.5">${tbl}</span>
                     <div class="flex-1 min-w-0"><div class="text-xs font-bold text-slate-700 leading-tight">${safeStr(dishList) || '—'}</div></div>
-                    <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId});" onclick="markReadyDelivered(${r.orderId})" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">סופק ✓</button>
+                    ${r.isDelivery ? `<div class="flex flex-col gap-1 shrink-0"><button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'shipped');" onclick="markReadyDelivered(${r.orderId},'shipped')" class="bg-purple-600 text-white text-[10px] font-black px-2 py-1 rounded-lg" style="touch-action:manipulation;">🚚 משלוח</button><button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-[10px] font-black px-2 py-1 rounded-lg" style="touch-action:manipulation;">✅ נמסר</button></div>` : `<button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">✅ נאסף</button>`}
                 </div>`;
             }).join('')}</div>
         </div>` : '';
@@ -28621,10 +28626,12 @@ async function renderCookDashboard(el) {
 
         const ticketTable = (() => { try { const m = JSON.parse(t.notes||'{}'); return m.tableNumber||null; } catch(e){return null;} })();
         const tableLabel = ticketTable ? `<span class="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">שולחן ${ticketTable}</span>` : '';
+        const srcLabel = t.order_source === 'table' ? `<span class="text-[10px] font-black text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">🍽️ שולחן</span>` : `<span class="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">🌐 אתר</span>`;
         return `<div class="kds-ticket bg-white border-2 border-orange-200 rounded-2xl p-3 relative" id="kds-ticket-${t.id}" data-table-num="${ticketTable||''}">
-            <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
                 <span class="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">#${t.id}</span>
                 ${tableLabel}
+                ${srcLabel}
                 <span class="text-[10px] text-slate-400">${timeStr}</span>
                 <span class="text-sm font-black text-slate-700">₪${parseFloat(t.total_amount||0).toFixed(0)}</span>
             </div>

@@ -633,6 +633,10 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
 
       // ===== WORK ORDERS MODULE =====
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS call_type VARCHAR(30) DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS order_source VARCHAR(20) DEFAULT 'website'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_rating SMALLINT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_rating_notes TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_rated_at TIMESTAMP`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS wo_notes TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS wo_notes_updated_at TIMESTAMP`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS wo_notes_updated_by VARCHAR(100)`); } catch(e) {}
@@ -5137,8 +5141,8 @@ app.post('/api/store/orders', async (req, res) => {
         const finalStatus = status || 'new';
         
         const oRes = await dbClient.query(
-            'INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_fee, delivery_details, family_group_id, quote_status, notes) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, $8, $9, NULL, $10) RETURNING id', 
-            [groupId, customerName, customerPhone, parseFloat(totalAmount)||0, finalStatus, isDeliv, actualDeliveryFee, deliveryDetailsStr, familyGroupId, notes || null]
+            'INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_fee, delivery_details, family_group_id, quote_status, notes, order_source) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, $8, $9, NULL, $10, $11) RETURNING id',
+            [groupId, customerName, customerPhone, parseFloat(totalAmount)||0, finalStatus, isDeliv, actualDeliveryFee, deliveryDetailsStr, familyGroupId, notes || null, req.body.orderSource || 'website']
         );
         const orderId = oRes.rows[0].id;
         
@@ -5231,6 +5235,25 @@ app.post('/api/store/orders/status', async (req, res) => {
                 }
             }
         } catch(e) {}
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/orders/:id/customer-feedback', async (req, res) => {
+    try {
+        const { rating, notes, familyGroupId } = req.body;
+        const orderId = parseInt(req.params.id);
+        const chk = await pool.query(
+            `SELECT id, group_id, status FROM store_orders WHERE id=$1 AND (family_group_id=$2 OR customer_phone=(SELECT phone FROM family_groups WHERE id=$2 LIMIT 1))`,
+            [orderId, familyGroupId]
+        );
+        if (!chk.rows.length) return res.status(403).json({ error: 'הזמנה לא נמצאה' });
+        const ord = chk.rows[0];
+        const newStatus = ord.status === 'shipped' ? 'completed' : ord.status;
+        await pool.query(
+            `UPDATE store_orders SET customer_rating=$1, customer_rating_notes=$2, customer_rated_at=NOW(), status=$3 WHERE id=$4`,
+            [rating || null, notes || null, newStatus, orderId]
+        );
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -13222,7 +13245,7 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
             result.activity = { memberships: memR.rows, checkins: checkR.rows };
 
         } else if (bizType === 'restaurant' || bizType === 'services') {
-            const ordR = await pool.query(`SELECT id, status, total_amount AS total_price, notes, created_at
+            const ordR = await pool.query(`SELECT id, status, total_amount AS total_price, notes, created_at, is_delivery, order_source, customer_rating, customer_rating_notes
                             FROM store_orders
                             WHERE group_id=$1 AND (customer_phone=$2 OR family_group_id=$3)
                               AND (status IS NULL OR status != 'quote')
