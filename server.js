@@ -871,6 +871,14 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       )`); } catch(e) {}
       // ===== END SPORT / FITNESS MODULE =====
 
+      // Fix FK constraints that were created without ON DELETE SET NULL
+      try {
+          await client.query(`ALTER TABLE inbox_messages    DROP CONSTRAINT IF EXISTS inbox_messages_customer_group_id_fkey`);
+          await client.query(`ALTER TABLE inbox_messages    ADD  CONSTRAINT inbox_messages_customer_group_id_fkey    FOREIGN KEY (customer_group_id)  REFERENCES family_groups(id) ON DELETE SET NULL`);
+          await client.query(`ALTER TABLE calendar_events   DROP CONSTRAINT IF EXISTS calendar_events_customer_group_id_fkey`);
+          await client.query(`ALTER TABLE calendar_events   ADD  CONSTRAINT calendar_events_customer_group_id_fkey   FOREIGN KEY (customer_group_id)  REFERENCES family_groups(id) ON DELETE SET NULL`);
+      } catch(e) { console.error('[FK-MIGRATION]', e.message); }
+
       // ===== ONEFLOWLIFE MEMBER FEATURE =====
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS member_type VARCHAR(20) DEFAULT 'family'`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS member_business_links (
@@ -2480,7 +2488,23 @@ app.get('/api/superadmin/group-360/:id', verifySA, async (req, res) => {
 });
 
 app.delete('/api/superadmin/groups/:id', verifySA, async (req, res) => {
-    try { await pool.query('DELETE FROM family_groups WHERE id=$1', [req.params.id]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
+    const gid = req.params.id;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        // NULL-ify FK refs that lack ON DELETE CASCADE/SET NULL
+        await client.query('UPDATE inbox_messages    SET customer_group_id = NULL WHERE customer_group_id = $1', [gid]);
+        await client.query('UPDATE calendar_events   SET customer_group_id = NULL WHERE customer_group_id = $1', [gid]);
+        await client.query('DELETE FROM family_groups WHERE id = $1', [gid]);
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch(e) {
+        await client.query('ROLLBACK');
+        console.error('[DELETE GROUP]', e.message);
+        res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
 });
 
 app.delete('/api/superadmin/users/:id', verifySA, async (req, res) => {
