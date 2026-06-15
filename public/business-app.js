@@ -21830,6 +21830,9 @@ window.updateTenderTip = function() {
 window.openPOSTender = function(skipCheck = false) {
     window.posSplitPayments = []; window.tenderMethod = 'cash';
     window.currentTipAmount = 0;
+    window.posItemSplitParts = []; window.posItemSplitAssignments = {};
+    const splitEl = document.getElementById('tender-item-split-summary');
+    if (splitEl) splitEl.remove();
     const tipInput = document.getElementById('tender-tip-amount');
     if (tipInput) tipInput.value = '';
     let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
@@ -21907,6 +21910,163 @@ window.setTenderMethod = function(m) {
 };
 
 window.addTenderShortcut = (a) => document.getElementById('tender-input-amount').value = a;
+
+// ===== פיצול חשבון לפי מנות =====
+window.posItemSplitAssignments = {};
+window.posItemSplitCount = 2;
+window.posItemSplitParts = [];
+
+const _SPLIT_COLORS = [
+    { light: 'bg-indigo-50', border: 'border-indigo-300', text: 'text-indigo-700', badge: 'bg-indigo-500 text-white' },
+    { light: 'bg-emerald-50', border: 'border-emerald-300', text: 'text-emerald-700', badge: 'bg-emerald-500 text-white' },
+    { light: 'bg-amber-50', border: 'border-amber-300', text: 'text-amber-700', badge: 'bg-amber-500 text-white' },
+    { light: 'bg-rose-50', border: 'border-rose-300', text: 'text-rose-700', badge: 'bg-rose-500 text-white' },
+    { light: 'bg-purple-50', border: 'border-purple-300', text: 'text-purple-700', badge: 'bg-purple-500 text-white' },
+    { light: 'bg-teal-50', border: 'border-teal-300', text: 'text-teal-700', badge: 'bg-teal-500 text-white' },
+];
+const _SPLIT_LABELS = ['חלק א', 'חלק ב', 'חלק ג', 'חלק ד', 'חלק ה', 'חלק ו'];
+
+window._renderSplitItemsList = function() {
+    return window.posCart.map(item => {
+        const assigned = window.posItemSplitAssignments[item.id];
+        const itemTotal = (item.price * item.qty).toFixed(2);
+        const modStr = item.modifiers ? item.modifiers.map(m => m.name).join(', ') : '';
+        const c = assigned ? _SPLIT_COLORS[assigned - 1] : null;
+        const rowBg = c ? `${c.light} ${c.border}` : 'bg-slate-50 border-slate-200';
+        const partBtns = Array.from({ length: window.posItemSplitCount }, (_, i) => {
+            const bc = _SPLIT_COLORS[i];
+            const isActive = assigned === (i + 1);
+            return `<button onclick="window._itemSplitAssign('${item.id}',${i+1})" class="w-8 h-8 rounded-full font-black text-xs transition border-2 ${isActive ? bc.badge+' border-transparent' : 'bg-white border-slate-200 text-slate-500'}">${i+1}</button>`;
+        }).join('');
+        return `<div class="flex items-center gap-3 p-3 rounded-2xl border-2 ${rowBg} transition">
+            <div class="flex-1 min-w-0">
+                <div class="font-black text-slate-800 text-sm truncate">${safeStr(item.name)}</div>
+                ${modStr ? `<div class="text-[10px] text-slate-400 truncate">${safeStr(modStr)}</div>` : ''}
+                <div class="text-[11px] font-bold text-slate-500 mt-0.5">×${item.qty} · ₪${itemTotal}</div>
+            </div>
+            <div class="flex gap-1.5 shrink-0">${partBtns}</div>
+        </div>`;
+    }).join('');
+};
+
+window._renderSplitTotals = function() {
+    const parts = {};
+    for (let i = 1; i <= window.posItemSplitCount; i++) parts[i] = 0;
+    window.posCart.forEach(item => {
+        const p = window.posItemSplitAssignments[item.id];
+        if (p) parts[p] += item.price * item.qty;
+    });
+    const unassigned = window.posCart.reduce((s, item) => !window.posItemSplitAssignments[item.id] ? s + item.price * item.qty : s, 0);
+    return Object.entries(parts).map(([p, total]) => {
+        const c = _SPLIT_COLORS[p - 1];
+        return `<div class="flex justify-between text-xs font-bold ${c.text}"><span>${_SPLIT_LABELS[p-1]}:</span><span class="dir-ltr">₪${total.toFixed(2)}</span></div>`;
+    }).join('') + (unassigned > 0.005 ? `<div class="flex justify-between text-xs font-bold text-slate-400 border-t border-slate-100 pt-1.5 mt-1"><span>לא שויך:</span><span class="dir-ltr">₪${unassigned.toFixed(2)}</span></div>` : '');
+};
+
+window._itemSplitRender = function() {
+    const list = document.getElementById('split-items-list');
+    if (list) list.innerHTML = window._renderSplitItemsList();
+    const totals = document.getElementById('split-parts-totals');
+    if (totals) totals.innerHTML = window._renderSplitTotals();
+};
+
+window._itemSplitAssign = function(itemId, partNum) {
+    window.posItemSplitAssignments[itemId] = partNum;
+    window._itemSplitRender();
+};
+
+window._itemSplitSetParts = function(n) {
+    n = Math.max(2, Math.min(6, n));
+    window.posItemSplitCount = n;
+    Object.keys(window.posItemSplitAssignments).forEach(k => { if (window.posItemSplitAssignments[k] > n) delete window.posItemSplitAssignments[k]; });
+    const countEl = document.getElementById('split-parts-count');
+    if (countEl) countEl.textContent = n;
+    window._itemSplitRender();
+};
+
+window.openItemSplitModal = function() {
+    if (!window.posCart || window.posCart.length === 0) { showToast('error', 'העגלה ריקה!'); return; }
+    window.posItemSplitAssignments = {};
+    window.posItemSplitCount = 2;
+    let old = document.getElementById('pos-item-split-modal');
+    if (old) old.remove();
+    const html = `<div id="pos-item-split-modal" style="z-index:9999999999 !important;" class="fixed inset-0 bg-slate-900/85 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 fade-in">
+        <div class="bg-white w-full max-w-lg rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl flex flex-col max-h-[92vh]">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center shrink-0">
+                <div><h3 class="text-lg font-black text-slate-800">✂️ פיצול לפי מנות</h3><p class="text-[11px] text-slate-400 font-bold mt-0.5">בחר אילו מנות שייכות לכל חלק</p></div>
+                <button onclick="document.getElementById('pos-item-split-modal').remove()" class="w-9 h-9 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="px-5 py-3 border-b border-slate-100 shrink-0 flex items-center justify-between">
+                <span class="text-xs font-black text-slate-600">מספר חלקים:</span>
+                <div class="flex items-center gap-3">
+                    <button onclick="window._itemSplitSetParts(window.posItemSplitCount-1)" class="w-8 h-8 rounded-full bg-slate-100 font-bold text-slate-700 hover:bg-slate-200 flex items-center justify-center text-lg">−</button>
+                    <span id="split-parts-count" class="text-xl font-black text-indigo-700 min-w-[24px] text-center">2</span>
+                    <button onclick="window._itemSplitSetParts(window.posItemSplitCount+1)" class="w-8 h-8 rounded-full bg-slate-100 font-bold text-slate-700 hover:bg-slate-200 flex items-center justify-center text-lg">+</button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-scroll p-5 space-y-2" id="split-items-list">${window._renderSplitItemsList()}</div>
+            <div id="split-parts-totals" class="px-5 py-3 border-t border-slate-100 shrink-0 space-y-1.5">${window._renderSplitTotals()}</div>
+            <div class="p-5 border-t border-slate-100 shrink-0">
+                <button onclick="window.confirmItemSplit()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-base shadow-lg hover:bg-indigo-700 transition">אשר פיצול <i class="fa-solid fa-check mr-1"></i></button>
+            </div>
+        </div>
+    </div>`;
+    (document.fullscreenElement || document.body).insertAdjacentHTML('beforeend', html);
+};
+
+window.confirmItemSplit = function() {
+    const unassigned = window.posCart.filter(item => !window.posItemSplitAssignments[item.id]);
+    if (unassigned.length > 0) {
+        if (!confirm(`${unassigned.length} מנות לא שויכו. הן יתווספו לחלק א. להמשיך?`)) return;
+        unassigned.forEach(item => { window.posItemSplitAssignments[item.id] = 1; });
+    }
+    const parts = {};
+    for (let i = 1; i <= window.posItemSplitCount; i++) parts[i] = { partNum: i, total: 0 };
+    window.posCart.forEach(item => {
+        const p = window.posItemSplitAssignments[item.id] || 1;
+        parts[p].total += item.price * item.qty;
+    });
+    window.posItemSplitParts = Object.values(parts).filter(p => p.total > 0.005);
+    const modal = document.getElementById('pos-item-split-modal');
+    if (modal) modal.remove();
+    window._showItemSplitInTender();
+    showToast('success', `פיצול נוצר — ${window.posItemSplitParts.length} חלקים`);
+};
+
+window._showItemSplitInTender = function() {
+    let el = document.getElementById('tender-item-split-summary');
+    if (!el) {
+        const listEl = document.getElementById('tender-payments-list');
+        if (!listEl) return;
+        listEl.parentNode.insertAdjacentHTML('afterbegin', `<div id="tender-item-split-summary" class="mb-3"></div>`);
+        el = document.getElementById('tender-item-split-summary');
+    }
+    el.innerHTML = `<h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">פיצול לפי מנות:</h4>
+        ${window.posItemSplitParts.map(part => {
+            const c = _SPLIT_COLORS[part.partNum - 1];
+            return `<div class="flex items-center justify-between p-2.5 rounded-xl border mb-1.5 ${c.light} ${c.border} ${c.text}">
+                <span class="text-xs font-black">${_SPLIT_LABELS[part.partNum - 1]}:</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-black dir-ltr">₪${part.total.toFixed(2)}</span>
+                    <button onclick="window._fillSplitPartAmount(${part.total})" class="text-[9px] font-black bg-white border ${c.border} px-2 py-1 rounded-lg hover:opacity-75 transition">הכנס ▶</button>
+                </div>
+            </div>`;
+        }).join('')}
+        <button onclick="window._clearItemSplit()" class="text-[9px] text-slate-400 hover:text-slate-600 transition underline">ביטול פיצול</button>
+        <div class="border-t border-slate-200 mt-2 mb-1"></div>`;
+};
+
+window._fillSplitPartAmount = function(amount) {
+    const input = document.getElementById('tender-input-amount');
+    if (input) { input.value = amount.toFixed(2); input.focus(); }
+};
+
+window._clearItemSplit = function() {
+    window.posItemSplitParts = [];
+    window.posItemSplitAssignments = {};
+    const el = document.getElementById('tender-item-split-summary');
+    if (el) el.remove();
+};
 
 window.applyFullDiscount = function() {
     if (!confirm('לאשר שי / ביטול חיוב מלא?')) return;
