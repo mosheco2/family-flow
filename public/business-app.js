@@ -8710,6 +8710,117 @@ window.submitNewCustomer = async function() {
     finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור לקוח'; } }
 };
 
+// ──────────────────────────────────────────────────────────────────────────
+// ONEFLOW lookup for the general customer modal (restaurant, logistics, etc.)
+// ──────────────────────────────────────────────────────────────────────────
+window._custCheckOneflow = async function() {
+    const phone = document.getElementById('cust-phone')?.value?.trim();
+    const name  = document.getElementById('cust-name')?.value?.trim();
+    const resEl = document.getElementById('cust-oneflow-result'); if (!resEl) return;
+    if (!phone && !name) { resEl.innerHTML = '<p class="text-xs text-amber-600 p-1">הכנס טלפון או שם לפני הבדיקה</p>'; resEl.classList.remove('hidden'); return; }
+    resEl.innerHTML = '<p class="text-xs text-slate-400 p-1">בודק...</p>'; resEl.classList.remove('hidden');
+    try {
+        const params = new URLSearchParams(); if (phone) params.set('phone', phone); if (name && !phone) params.set('name', name);
+        const d = await fetch(`${API}/store/check-oneflow?${params}`).then(r=>r.json());
+        if (d.found && d.matches?.length) {
+            window._custOneflowMatches = d.matches;
+            if (d.matches.length === 1) { window._custLinkOneflow(d.matches[0].family_id, 0); return; }
+            resEl.innerHTML = d.matches.map((m, idx) => {
+                const displayName = (m.first_name && m.last_name) ? `${m.first_name} ${m.last_name}` : (m.first_name || m.nickname || m.family_name);
+                const groupLabel  = m.group_last_name || m.family_nickname || m.family_name;
+                return `<div class="bg-indigo-50 border border-indigo-200 rounded-xl p-2.5 flex items-center justify-between gap-2 mb-1">
+                    <div>
+                        <p class="text-xs font-black text-indigo-800">${safeStr(displayName)}</p>
+                        <p class="text-[10px] text-indigo-500">${safeStr(groupLabel)} · ${m.phone || 'ללא טלפון'}</p>
+                    </div>
+                    <button onclick="window._custLinkOneflow(${m.family_id}, ${idx})" class="text-[10px] font-bold bg-indigo-600 text-white px-2 py-1 rounded-lg">קשר</button>
+                </div>`;
+            }).join('');
+        } else {
+            resEl.innerHTML = `
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                    <p class="text-xs text-amber-700 font-bold">לא נמצא לקוח ONEFLOW LIFE עם הפרטים האלה</p>
+                    <p class="text-[10px] text-amber-600">ניתן ליצור חשבון חבר חדש ישירות — המערכת תיצור חשבון ותשלח פרטי כניסה ב-WhatsApp</p>
+                    <button onclick="window._custCreateMemberAccount()" class="flex items-center gap-2 w-full bg-violet-600 hover:bg-violet-700 text-white rounded-xl px-3 py-2 text-xs font-bold transition">
+                        <i class="fa-solid fa-user-plus text-sm"></i>
+                        צור חשבון ONEFLOW וקשר ללקוח
+                    </button>
+                    <p class="text-[10px] text-slate-400 text-center">או המשך להוסיף ללא קישור ONEFLOW</p>
+                </div>`;
+        }
+    } catch(e) { resEl.innerHTML = '<p class="text-xs text-red-500 p-1">שגיאת תקשורת</p>'; }
+};
+
+window._custLinkOneflow = function(familyId, matchIdx) {
+    const m = (window._custOneflowMatches || [])[matchIdx] || {};
+    const fullName   = (m.first_name && m.last_name) ? `${m.first_name} ${m.last_name}` : (m.first_name || m.nickname || m.family_name || '');
+    const groupLabel = m.group_last_name || m.family_nickname || m.family_name || '';
+    const setField = (id, val) => { const el = document.getElementById(id); if (el && val && !el.value) el.value = val; };
+    setField('cust-name', fullName);
+    setField('cust-email', m.email || '');
+    setField('cust-company-name', groupLabel);
+    if (document.getElementById('cust-family-group-id')) document.getElementById('cust-family-group-id').value = familyId || '';
+    const resEl = document.getElementById('cust-oneflow-result');
+    if (resEl) resEl.innerHTML = `
+        <div class="bg-green-50 border border-green-200 rounded-xl p-2.5 flex items-center gap-2">
+            <i class="fa-solid fa-link text-green-600 text-sm"></i>
+            <div><p class="text-xs font-black text-green-800">${safeStr(fullName)} · ${safeStr(groupLabel)}</p>
+            <p class="text-[10px] text-green-600">השדות מולאו אוטומטית — ניתן לעדכן לפי הצורך</p></div>
+        </div>`;
+};
+
+window._custCreateMemberAccount = async function() {
+    const name  = document.getElementById('cust-name')?.value?.trim();
+    const phone = document.getElementById('cust-phone')?.value?.trim();
+    const resEl = document.getElementById('cust-oneflow-result');
+    if (!phone) { if(resEl) resEl.innerHTML = '<p class="text-xs text-red-500 p-2 text-center">לא נמצא מספר טלפון</p>'; return; }
+    if (!name) {
+        const nameEl = document.getElementById('cust-name');
+        if (nameEl) { nameEl.focus(); nameEl.style.borderColor = '#ef4444'; setTimeout(() => { if(nameEl) nameEl.style.borderColor = ''; }, 3000); }
+        if(resEl) resEl.innerHTML = `
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                <p class="text-xs text-red-600 font-bold">⚠️ יש למלא שם מלא לפני יצירת החשבון</p>
+                <button onclick="window._custCreateMemberAccount()" class="flex items-center gap-2 w-full bg-violet-600 hover:bg-violet-700 text-white rounded-xl px-3 py-2 text-xs font-bold transition">
+                    <i class="fa-solid fa-user-plus text-sm"></i> צור חשבון ONEFLOW וקשר ללקוח
+                </button>
+            </div>`;
+        return;
+    }
+    if(resEl) resEl.innerHTML = '<p class="text-xs text-slate-400 p-2 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> יוצר חשבון...</p>';
+    try {
+        const r = await fetch(`${API}/member/create-for-business`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ business_group_id: currentGroup?.id, name, phone, member_ref_id: null, admin_name: currentGroup?.name || '' })
+        }).then(res => res.json());
+        if (!r.success) { if(resEl) resEl.innerHTML = `<p class="text-xs text-red-500 p-2">${r.error||'שגיאה ביצירת החשבון'}</p>`; return; }
+        if (document.getElementById('cust-family-group-id')) document.getElementById('cust-family-group-id').value = r.member_group_id || '';
+        const bizName = currentGroup?.name || 'העסק שלנו';
+        const waPhone = phone.replace(/^0/, '972').replace(/\D/g, '');
+        if (r.is_new) {
+            const waText = encodeURIComponent(`שלום ${name} 👋\n\n${bizName} שמחים לצרף אותך אלינו!\n\nנוצר עבורך חשבון אישי ב-ONEFLOW LIFE — מעכשיו תוכל לנהל הכל ממקום אחד.\n\nפרטי כניסה שלך:\n🔑 קוד: ${r.group_code}\n👤 שם: ${name}\n🔒 סיסמה: ${r.password}\n\n👉 כניסה: ${window.location.origin}\n\nנשמח לראות אותך! 🌟`);
+            if(resEl) resEl.innerHTML = `
+                <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 space-y-2">
+                    <div class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-violet-600"></i><p class="text-xs font-black text-violet-800">חשבון ONEFLOW נוצר וקושר ✅</p></div>
+                    <div class="bg-white rounded-lg px-2 py-1.5 border border-violet-100 font-mono text-xs space-y-0.5">
+                        <div>קוד: <b>${r.group_code}</b></div><div>שם: <b>${safeStr(name)}</b></div><div>סיסמה: <b>${r.password}</b></div>
+                    </div>
+                    <a href="https://wa.me/${waPhone}?text=${waText}" target="_blank" rel="noopener" class="flex items-center gap-2 w-full bg-[#25D366] text-white rounded-xl px-3 py-2 text-xs font-bold">
+                        <i class="fa-brands fa-whatsapp"></i> שלח פרטי כניסה ב-WhatsApp
+                    </a>
+                </div>`;
+        } else {
+            const waText = encodeURIComponent(`שלום ${name} 👋\n\n${bizName} שמחים שאתה חלק ממשפחת ONEFLOW LIFE!\n\n👉 כנס: ${window.location.origin}\nעם קוד: ${r.group_code}\n\nנשמח לראות אותך! 🌟`);
+            if(resEl) resEl.innerHTML = `
+                <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 space-y-2">
+                    <p class="text-xs font-black text-violet-800">קושר לחשבון קיים ✅</p>
+                    <a href="https://wa.me/${waPhone}?text=${waText}" target="_blank" rel="noopener" class="flex items-center gap-2 w-full bg-[#25D366] text-white rounded-xl px-3 py-2 text-xs font-bold">
+                        <i class="fa-brands fa-whatsapp"></i> שלח עדכון ב-WhatsApp
+                    </a>
+                </div>`;
+        }
+    } catch(e) { if(resEl) resEl.innerHTML = '<p class="text-xs text-red-500 p-2">שגיאת תקשורת</p>'; }
+};
+
 window.getCustomerDebt = function(customerPhone) {
     if (!customerPhone || !storeOrdersCache) return 0;
     let debt = 0;
@@ -8857,7 +8968,13 @@ window.openCustomerModal = function(id = null, tab = 'details') {
                             <input type="hidden" id="cust-family-group-id">
                         </div>
                     </div>
-                    <div><label class="text-xs font-bold text-slate-500">טלפון (מזהה ראשי להקפות):</label><input type="tel" id="cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left" oninput="if(!document.getElementById('cust-view-history').classList.contains('hidden')) window.renderCustomerHistory(false, 'modal')"></div>
+                    <div><label class="text-xs font-bold text-slate-500">טלפון (מזהה ראשי להקפות):</label>
+                        <div class="flex gap-2">
+                            <input type="tel" id="cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left flex-1" oninput="if(!document.getElementById('cust-view-history').classList.contains('hidden')) window.renderCustomerHistory(false, 'modal')">
+                            <button onclick="window._custCheckOneflow()" class="shrink-0 bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200 rounded-xl px-3 font-black text-sm flex items-center gap-1 transition" title="חפש ב-ONEFLOW LIFE"><i class="fa-solid fa-user-check text-xs"></i></button>
+                        </div>
+                        <div id="cust-oneflow-result" class="mt-1 hidden"></div>
+                    </div>
                     <div><label class="text-xs font-bold text-slate-500">אימייל:</label><input type="email" id="cust-email" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
                     <div><label class="text-xs font-bold text-slate-500">ח.פ / ע.מ:</label><input type="text" id="cust-business-id" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
                     <div><label class="text-xs font-bold text-slate-500">הערות:</label><textarea id="cust-notes" class="modern-input py-2 text-sm bg-white h-20"></textarea></div>
@@ -8913,6 +9030,9 @@ window.openCustomerModal = function(id = null, tab = 'details') {
         document.getElementById('cust-notes').value = '';
         if(document.getElementById('cust-company-name')) document.getElementById('cust-company-name').value = '';
         if(document.getElementById('cust-family-group-id')) document.getElementById('cust-family-group-id').value = '';
+        const resElReset = document.getElementById('cust-oneflow-result');
+        if (resElReset) { resElReset.innerHTML = ''; resElReset.classList.add('hidden'); }
+        window._custOneflowMatches = [];
         document.getElementById('btn-cust-tab-history').classList.add('hidden');
         tab = 'details';
     }

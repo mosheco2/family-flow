@@ -13065,6 +13065,24 @@ app.get('/api/beauty/:bizId/check-oneflow', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// Generic ONEFLOW lookup — used by restaurant, logistics, repair and any other business type
+app.get('/api/store/check-oneflow', async (req, res) => {
+    try {
+        const { phone, name } = req.query;
+        if (!phone && !name) return res.json({ found: false });
+        let query = `SELECT u.id, u.nickname, u.first_name, u.last_name, u.phone, u.email, u.birth_year, u.id_number,
+                            fg.id AS family_id, fg.name AS family_name, fg.group_code, fg.family_nickname, fg.last_name AS group_last_name
+                     FROM users u JOIN family_groups fg ON fg.id = u.group_id
+                     WHERE fg.type='FAMILY'`;
+        const vals = [];
+        if (phone) { vals.push(phone.replace(/\D/g,'')); query += ` AND REGEXP_REPLACE(u.phone,'[^0-9]','','g')=$${vals.length}`; }
+        if (name && !phone) { vals.push(`%${name}%`); query += ` AND (u.nickname ILIKE $${vals.length} OR u.first_name ILIKE $${vals.length} OR u.last_name ILIKE $${vals.length})`; }
+        query += ' LIMIT 5';
+        const r = await pool.query(query, vals);
+        res.json({ found: r.rows.length > 0, matches: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // Returns all businesses that have linked this family group as a client (beauty, future types, etc.)
 app.get('/api/family/linked-businesses/:groupId', async (req, res) => {
     try {
