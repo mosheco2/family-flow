@@ -21427,6 +21427,8 @@ function getTableBills() {
 }
 function saveTableBills(bills) {
     localStorage.setItem(`table_bills_${currentGroup.id}`, JSON.stringify(bills));
+    _tableBillsLastServerJson = null; // force next poll to detect change
+    syncTableBillsToServer(bills);
 }
 
 // Save current pending items before switching table
@@ -27911,14 +27913,75 @@ async function loadTableReservationsForGrid() {
 function startTablePolling() {
     if (_tablePollingInterval) clearInterval(_tablePollingInterval);
     syncTableStatesFromServer(); // immediate first fetch
+    syncTableBillsFromServer();
     _tablePollingInterval = setInterval(() => {
-        if (!document.querySelector('.table-grid-card')) { clearInterval(_tablePollingInterval); _tablePollingInterval = null; return; }
         syncTableStatesFromServer();
+        syncTableBillsFromServer();
     }, 4000);
 }
 
 function stopTablePolling() {
     if (_tablePollingInterval) { clearInterval(_tablePollingInterval); _tablePollingInterval = null; }
+}
+
+let _tableBillsLastServerJson = null;
+function syncTableBillsToServer(bills) {
+    if (!currentGroup?.id) return;
+    fetch(`/api/tables/${currentGroup.id}/bills`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bills })
+    }).catch(() => {});
+}
+async function syncTableBillsFromServer() {
+    if (!currentGroup?.id) return;
+    try {
+        const d = await fetch(`/api/tables/${currentGroup.id}/bills`).then(r => r.json());
+        const serverJson = JSON.stringify(d.bills || {});
+        if (serverJson === _tableBillsLastServerJson) return;
+        _tableBillsLastServerJson = serverJson;
+        const serverBills = d.bills || {};
+        if (!Object.keys(serverBills).length) return;
+        // Merge: server wins for submitted items; keep local pending for active table
+        const local = getTableBills();
+        const activeTid = window.waiterSelectedTable;
+        const merged = Object.assign({}, local);
+        Object.keys(serverBills).forEach(tid => {
+            const srv = serverBills[tid];
+            if (!merged[tid]) { merged[tid] = srv; return; }
+            // Keep local pending for the table the waiter is currently editing
+            const keepLocalPending = activeTid && parseInt(tid) === activeTid;
+            merged[tid] = {
+                openedAt: srv.openedAt || merged[tid].openedAt,
+                submitted: srv.submitted || merged[tid].submitted || [],
+                pending: keepLocalPending ? (merged[tid].pending || []) : (srv.pending || merged[tid].pending || [])
+            };
+        });
+        // Remove tables cleared on server
+        Object.keys(local).forEach(tid => { if (!serverBills[tid]) delete merged[tid]; });
+        saveTableBills(merged);
+        // Update waiter cart view if open
+        if (document.getElementById('waiter-pos-modal') && typeof window.waiterRenderCart === 'function') {
+            window.waiterRenderCart();
+        }
+        // Refresh table chips in waiter view
+        if (document.getElementById('waiter-table-chips')) {
+            const count = parseInt(currentGroup.table_count || 8);
+            const bills2 = getTableBills();
+            document.querySelectorAll('.waiter-table-chip').forEach((btn, i) => {
+                const tid = i + 1;
+                if (tid > count) return;
+                const b = bills2[tid];
+                const subC = b ? (b.submitted||[]).length : 0;
+                const penC = b ? (b.pending||[]).length : 0;
+                const hasBill = subC > 0 || penC > 0;
+                const isSel = tid === activeTid;
+                if (!isSel) {
+                    const baseClass = hasBill ? 'bg-indigo-100 text-indigo-800 border border-indigo-300' : 'bg-slate-100 text-slate-600 border border-slate-200';
+                    btn.className = btn.className.replace(/bg-\w+-\d+ text-\w+-\d+( border border-\w+-\d+)?( shadow)?/g, baseClass);
+                }
+            });
+        }
+    } catch(e) {}
 }
 
 // מחזור סטטוסי שולחן: free → occupied → awaiting_payment → free
@@ -28249,7 +28312,16 @@ window.showTableQR = function(tableId) {
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 };
 
-window.openTableSettingsModal = function() {
+window.openTableSettingsModal = async function() {
+    if (!currentGroup?.table_count) {
+        try {
+            const sd = await fetch(`/api/groups/${currentGroup.id}/settings`).then(r => r.json());
+            if (sd?.table_count) {
+                currentGroup.table_count = parseInt(sd.table_count);
+                if (sd.auto_approve_max_guests !== undefined) currentGroup.auto_approve_max_guests = sd.auto_approve_max_guests;
+            }
+        } catch(e) {}
+    }
     const count = parseInt(currentGroup?.table_count || 8);
     const caps = getTableCapacities();
     const merges = getTableMerges();
