@@ -8972,34 +8972,9 @@ async function loadMyActivities() {
     el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
     try {
         const d = await fetch(`${API}/family/linked-businesses/${currentGroup.id}`).then(r => r.json());
-        const all = d.businesses || [];
-        const pending = all.filter(b => b.status === 'pending');
-        _activityAllBiz = all.filter(b => b.status === 'active' || b.link_type === 'beauty');
+        _activityAllBiz = d.businesses || [];
 
-        let pendingHtml = '';
-        if (pending.length) {
-            pendingHtml = `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 mb-4">
-                <p class="text-xs font-black text-amber-800 mb-2.5">⏳ בקשות קישור ממתינות לאישורך</p>
-                ${pending.map(b => {
-                    const cat = _ACTIVITY_CAT[b.business_type] || { icon: '🏢', label: b.business_type };
-                    return `<div class="flex items-center gap-2.5 py-2 border-b border-amber-100 last:border-0">
-                        <span class="text-xl">${cat.icon}</span>
-                        <div class="flex-1 min-w-0 text-right">
-                            <p class="text-xs font-bold text-slate-800">${safeStr(b.business_name)}</p>
-                            <p class="text-[10px] text-amber-700">${cat.label}${b.linked_by_admin_name ? ' · ע"י ' + safeStr(b.linked_by_admin_name) : ''}</p>
-                        </div>
-                        <div class="flex gap-1.5 shrink-0">
-                            <button onclick="window._actRespond(${b.link_id},'approve')" class="bg-emerald-500 text-white rounded-lg px-2.5 py-1.5 text-[10px] font-bold">✅ אשר</button>
-                            <button onclick="window._actRespond(${b.link_id},'reject')" class="bg-white text-red-500 border border-red-200 rounded-lg px-2.5 py-1.5 text-[10px] font-bold">✕ דחה</button>
-                        </div>
-                    </div>`;
-                }).join('')}
-            </div>`;
-        }
-
-        const hasActive = _activityAllBiz.length > 0;
-
-        if (!hasActive && !pending.length) {
+        if (!_activityAllBiz.length) {
             el.innerHTML = `
                 <div class="text-center py-10 text-slate-400">
                     <div class="text-3xl mb-2">🏢</div>
@@ -9009,12 +8984,7 @@ async function loadMyActivities() {
             return;
         }
 
-        if (!hasActive) {
-            el.innerHTML = pendingHtml;
-            return;
-        }
-
-        // Build search + filter controls
+        // Build search + filter controls (only non-pending types)
         const types = [...new Set(_activityAllBiz.map(b => b.business_type || 'other'))];
         const filterPills = ['all', ...types].map(t => {
             const cat = _ACTIVITY_CAT[t] || { icon: '🏢', label: t };
@@ -9023,7 +8993,7 @@ async function loadMyActivities() {
             </button>`;
         }).join('');
 
-        el.innerHTML = pendingHtml + `
+        el.innerHTML = `
             <div class="mb-3 space-y-2">
                 <div class="relative">
                     <input id="act-search" type="search" placeholder="חפש עסק..." oninput="window._actSearch(this.value)"
@@ -9106,16 +9076,36 @@ function _actRender(filterType, searchQ) {
         for (const b of realBizs) {
             const storeLink = b.group_code ? `${window.location.origin}/storefront.html?store=${b.group_code}${b.community_id ? '&communityId=' + b.community_id : ''}` : '';
             const linkedDate = b.linked_at ? new Date(b.linked_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
-            const pendingBadge = b.status === 'pending' ? '<span class="text-[9px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">ממתין לאישור</span>' : '';
             const bizId = b.business_group_id;
             const bizType = b.business_type || 'other';
+            const isPending = b.status === 'pending';
+
+            if (isPending) {
+                html += `<div class="biz-act-wrapper rounded-2xl overflow-hidden shadow-sm border border-amber-200 bg-amber-50" data-biz-id="${bizId}">
+                    <div class="flex items-center gap-3 p-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-xl flex-shrink-0">${cat.icon}</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <p class="font-black text-slate-800 text-sm truncate">${safeStr(b.business_name)}</p>
+                                <span class="text-[9px] font-black bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full">⏳ ממתין לאישורך</span>
+                            </div>
+                            <p class="text-[10px] text-amber-700 mt-0.5">${b.linked_by_admin_name ? 'בקשה מ' + safeStr(b.linked_by_admin_name) : cat.label}${linkedDate ? ' · ' + linkedDate : ''}</p>
+                        </div>
+                        <div class="flex flex-col gap-1.5 shrink-0">
+                            <button onclick="window._actRespond(${b.link_id},'approve')" class="bg-emerald-500 text-white rounded-lg px-3 py-1.5 text-[11px] font-bold whitespace-nowrap">✅ אשר</button>
+                            <button onclick="window._actRespond(${b.link_id},'reject')" class="bg-white text-red-500 border border-red-200 rounded-lg px-3 py-1.5 text-[11px] font-bold whitespace-nowrap">✕ דחה</button>
+                        </div>
+                    </div>
+                </div>`;
+                continue;
+            }
+
             html += `<div class="biz-act-wrapper rounded-2xl overflow-hidden shadow-sm border border-slate-200 bg-white" data-biz-id="${bizId}">
                 <div class="flex items-center gap-3 p-3">
                     <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 flex items-center justify-center text-xl flex-shrink-0">${cat.icon}</div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-1.5 flex-wrap">
                             <p class="font-black text-slate-800 text-sm truncate">${safeStr(b.business_name)}</p>
-                            ${pendingBadge}
                             <span id="biz-appt-pending-badge-${bizId}" class="hidden text-[9px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded-full">⏳ ממתין לאישורך</span>
                         </div>
                         <p class="text-[10px] text-slate-400 mt-0.5">${cat.label}${linkedDate ? ' · מ-' + linkedDate : ''}</p>
