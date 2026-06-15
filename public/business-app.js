@@ -11791,7 +11791,8 @@ window.renderStoreOrders = function() {
         filteredOrders = filteredOrders.filter(o => String(o.id).includes(s) || (o.customer_phone && String(o.customer_phone).includes(s)) || (o.customer_name && String(o.customer_name).toLowerCase().includes(s)));
     }
     
-    if (statusFilter !== 'all') filteredOrders = filteredOrders.filter(o => o.status === statusFilter);
+    if (statusFilter === 'rated') filteredOrders = filteredOrders.filter(o => o.customer_rating > 0);
+    else if (statusFilter !== 'all') filteredOrders = filteredOrders.filter(o => o.status === statusFilter);
     if (typeFilter === 'from_store') filteredOrders = filteredOrders.filter(o => !o.quote_status || o.quote_status === 'draft');
     if (typeFilter === 'from_quote') filteredOrders = filteredOrders.filter(o => o.quote_status === 'approved');
     
@@ -11903,7 +11904,7 @@ window.renderStoreOrders = function() {
                 <div class="flex flex-col text-left pr-2 w-full">
                     <div class="flex items-center justify-end mb-2">
                         ${targetDisplay}
-                        <h4 class="font-black text-slate-800 text-lg">הזמנה #${o.id}</h4>
+                        <h4 class="font-black text-slate-800 text-lg">הזמנה #${o.id}${o.customer_rating > 0 ? ` <span class="text-sm font-black text-yellow-500">${'⭐'.repeat(o.customer_rating)}</span>` : ''}</h4>
                     </div>
                     
                     <div class="flex items-center justify-end mb-2">
