@@ -873,6 +873,17 @@ window.injectBusinessUI = function() {
                                 </div>
 
                             </div>
+                            <!-- אזורי משלוח -->
+                            <div id="delivery-zones-section" class="mt-6 hidden">
+                                <div class="flex justify-between items-center mb-3">
+                                    <h4 class="font-black text-slate-800 text-sm">🛵 אזורי משלוח</h4>
+                                    <button onclick="window.openDeliveryZoneModal()" class="text-[11px] font-bold bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus ml-1"></i>הוסף אזור</button>
+                                </div>
+                                <div id="delivery-zones-list" class="space-y-2 mb-2">
+                                    <p class="text-xs text-slate-400 text-center py-3">לא הוגדרו אזורי משלוח</p>
+                                </div>
+                                <p class="text-[10px] text-slate-400">כל אזור מגדיר עלות משלוח ומינימום הזמנה. בעת הזמנת משלוח בקופה — יוצג בורר אזור.</p>
+                            </div>
                             <button id="btn-save-store-settings" onclick="window.saveStoreSettings()" class="w-full mt-6 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm">שמור הגדרות חנות</button>
                         </div>
                     </div>
@@ -22244,7 +22255,9 @@ window.finalizePOSOrder = async function() {
             try { triggerConfetti(); } catch(e){}
             setTimeout(() => { try { if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); } catch(e){} }, 2000);
 
-            window.posCart = []; window.renderPOSCart(); 
+            window.posCart = []; window.renderPOSCart();
+            // עדכן שולחן ל-"ממתין לתשלום" אחרי סגירת הזמנה
+            if (window.posSelectedTable) { try { window.setTableAwaitingPayment(window.posSelectedTable); } catch(e){} }
             const phoneInput = document.getElementById('pos-customer-phone');
             if(phoneInput) phoneInput.value = '';
             try { window.checkPOSCustomer(); } catch(e){}
@@ -27218,23 +27231,43 @@ function getTableStates() {
     try { return JSON.parse(localStorage.getItem(`tables_${currentGroup.id}`) || '{}'); } catch(e) { return {}; }
 }
 
+// מחזור סטטוסי שולחן: free → occupied → awaiting_payment → free
+const TABLE_STATE_CYCLE = { free: 'occupied', occupied: 'awaiting_payment', awaiting_payment: 'free' };
+const TABLE_STATE_STYLES = {
+    free:             'bg-green-50 border-green-300 text-green-700',
+    occupied:         'bg-red-100 border-red-400 text-red-700',
+    awaiting_payment: 'bg-orange-100 border-orange-400 text-orange-700',
+    disabled:         'bg-slate-100 border-slate-300 text-slate-400'
+};
+const TABLE_STATE_LABELS = { free: 'פנוי', occupied: 'תפוס', awaiting_payment: 'ממתין לתשלום', disabled: 'מושבת' };
+
 window.toggleTable = function(id, btn) {
     const states = getTableStates();
-    const next = (states[id] || 'free') === 'free' ? 'occupied' : 'free';
+    const cur = states[id] || 'free';
+    if (cur === 'disabled') return; // שולחן מושבת לא ניתן לשנות ע"י לחיצה
+    const next = TABLE_STATE_CYCLE[cur] || 'free';
     states[id] = next;
     localStorage.setItem(`tables_${currentGroup.id}`, JSON.stringify(states));
-    const isFree = next === 'free';
-    btn.className = `table-btn ${isFree?'bg-green-50 border-green-300 text-green-700':'bg-red-100 border-red-400 text-red-700'} border-2 rounded-xl p-2 text-center flex flex-col items-center gap-0.5`;
+    btn.className = `table-btn ${TABLE_STATE_STYLES[next]} border-2 rounded-xl p-2 text-center flex flex-col items-center gap-0.5`;
     btn.style.cssText = 'touch-action:manipulation;cursor:pointer;';
-    btn.querySelector('.tsLabel').textContent = isFree ? 'פנוי' : 'תפוס';
-    // update summary row
+    btn.querySelector('.tsLabel').textContent = TABLE_STATE_LABELS[next] || next;
+    // עדכון שורת סיכום
     const summary = btn.closest('.table-grid-card')?.querySelector('.table-summary');
     if (summary) {
         const count = parseInt(currentGroup.table_count || 8);
         const st = getTableStates();
-        const occ = Array.from({length:count},(_,i)=>st[i+1]==='occupied').filter(Boolean).length;
-        summary.innerHTML = `<span class="text-green-600 font-bold">${count-occ} פנויים</span> <span class="text-slate-300">·</span> <span class="text-red-600 font-bold">${occ} תפוסים</span>`;
+        const occ = Array.from({length:count},(_,i)=>st[i+1]==='occupied'||st[i+1]==='awaiting_payment').filter(Boolean).length;
+        const waiting = Array.from({length:count},(_,i)=>st[i+1]==='awaiting_payment').filter(Boolean).length;
+        summary.innerHTML = `<span class="text-green-600 font-bold">${count-occ} פנויים</span> · <span class="text-red-600 font-bold">${occ-waiting} תפוסים</span>${waiting?` · <span class="text-orange-600 font-bold">${waiting} ממתינים</span>`:''}`;
     }
+};
+
+// מגדיר שולחן כ"ממתין לתשלום" אחרי סגירת הזמנה (נקרא מ-finalizePOSOrder)
+window.setTableAwaitingPayment = function(tableId) {
+    if (!tableId) return;
+    const states = getTableStates();
+    states[tableId] = 'awaiting_payment';
+    localStorage.setItem(`tables_${currentGroup.id}`, JSON.stringify(states));
 };
 
 function getTableAssignments() {
@@ -27254,27 +27287,39 @@ function renderTableGrid() {
     const count = parseInt(currentGroup.table_count || 8);
     const states = getTableStates();
     const assigns = getTableAssignments();
-    const occupied = Array.from({length:count},(_,i)=>states[i+1]==='occupied').filter(Boolean).length;
+    const totalOcc = Array.from({length:count},(_,i)=>['occupied','awaiting_payment'].includes(states[i+1])).filter(Boolean).length;
+    const waiting  = Array.from({length:count},(_,i)=>states[i+1]==='awaiting_payment').filter(Boolean).length;
     const rows = Array.from({length:count},(_,i) => {
-        const id = i+1, isFree = (states[id]||'free') === 'free';
-        const waiter = assigns[id] ? `<span class="text-[7px] text-slate-500 leading-none truncate w-full text-center block">${safeStr(assigns[id])}</span>` : '';
+        const id = i+1, st = states[id] || 'free';
+        const stStyle = TABLE_STATE_STYLES?.[st] || TABLE_STATE_STYLES['free'];
+        const stLabel = TABLE_STATE_LABELS?.[st] || 'פנוי';
+        const waiter = assigns[id] ? `<span class="text-[7px] leading-none truncate w-full text-center block opacity-70">${safeStr(assigns[id])}</span>` : '';
         return `<button type="button"
             ontouchend="event.preventDefault();event.stopPropagation();toggleTable(${id},this);"
             onclick="toggleTable(${id},this)"
-            class="table-btn ${isFree?'bg-green-50 border-green-300 text-green-700':'bg-red-100 border-red-400 text-red-700'} border-2 rounded-xl p-2 text-center flex flex-col items-center gap-0.5"
+            class="table-btn ${stStyle} border-2 rounded-xl p-2 text-center flex flex-col items-center gap-0.5"
             style="touch-action:manipulation;cursor:pointer;">
             <span class="font-black text-sm">${id}</span>
             ${waiter}
-            <span class="tsLabel text-[9px] font-bold">${isFree?'פנוי':'תפוס'}</span>
+            <span class="tsLabel text-[9px] font-bold">${stLabel}</span>
         </button>`;
     }).join('');
+    const summaryFree = count - totalOcc;
+    const summaryOccOnly = totalOcc - waiting;
+    let summaryHtml = `<span class="text-green-600 font-bold">${summaryFree} פנויים</span> · <span class="text-red-600 font-bold">${summaryOccOnly} תפוסים</span>`;
+    if (waiting) summaryHtml += ` · <span class="text-orange-600 font-bold">${waiting} ממתינים לתשלום</span>`;
     return `<div class="table-grid-card bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
-        <div class="px-4 py-3 border-b border-slate-50 flex items-center justify-between">
+        <div class="px-4 py-3 border-b border-slate-50 flex items-center justify-between flex-wrap gap-1">
             <h3 class="font-black text-slate-800 text-sm">🍽️ מצב שולחנות</h3>
-            <span class="table-summary text-[10px]"><span class="text-green-600 font-bold">${count-occupied} פנויים</span> <span class="text-slate-300">·</span> <span class="text-red-600 font-bold">${occupied} תפוסים</span></span>
+            <span class="table-summary text-[10px]">${summaryHtml}</span>
         </div>
         <div class="p-3 grid grid-cols-4 gap-2">${rows}</div>
-        <div class="px-4 pb-3 text-[10px] text-slate-400 text-center">לחץ על שולחן לשינוי סטטוס</div>
+        <div class="px-4 pb-3 flex items-center gap-3 text-[9px] text-slate-400 flex-wrap">
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span>פנוי</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span>תפוס</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block"></span>ממתין לתשלום</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block"></span>מושבת</span>
+        </div>
     </div>`;
 }
 
@@ -29393,6 +29438,115 @@ window._loadSportStoreSettings = async function() {
         if (minAgeEl) minAgeEl.value = sp.min_age || '';
         if (noticeDaysEl) noticeDaysEl.value = sp.cancel_notice_days || '';
     } catch(e) {}
+};
+
+// ============================================================
+// --- DELIVERY ZONES ---
+// ============================================================
+let deliveryZonesCache = [];
+
+window.loadDeliveryZones = async function() {
+    if (!currentGroup?.id) return;
+    const isDeliveryBiz = ['restaurant','cafe','logistics','retail','services'].includes(currentGroup?.business_type);
+    const section = document.getElementById('delivery-zones-section');
+    if (section) section.classList.toggle('hidden', !isDeliveryBiz);
+    if (!isDeliveryBiz) return;
+    try {
+        const res = await fetch(`${API}/store/delivery-zones/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) { deliveryZonesCache = data.zones; window.renderDeliveryZonesList(); }
+    } catch(e) {}
+};
+
+window.renderDeliveryZonesList = function() {
+    const list = document.getElementById('delivery-zones-list');
+    if (!list) return;
+    if (!deliveryZonesCache.length) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">לא הוגדרו אזורי משלוח</p>';
+        return;
+    }
+    list.innerHTML = deliveryZonesCache.map(z => `
+        <div class="flex justify-between items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+            <div>
+                <span class="text-sm font-bold text-slate-700">${safeStr(z.name)}</span>
+                <span class="text-[11px] text-slate-400 mr-2">מינימום ₪${z.min_order||0} · משלוח ₪${z.delivery_fee||0}</span>
+            </div>
+            <button onclick="window.deleteDeliveryZone(${z.id})" class="text-red-400 hover:text-red-600 w-7 h-7 flex items-center justify-center rounded-full hover:bg-red-50 transition"><i class="fa-solid fa-trash text-xs"></i></button>
+        </div>
+    `).join('');
+};
+
+window.openDeliveryZoneModal = function() {
+    const existing = document.getElementById('delivery-zone-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'delivery-zone-modal';
+    modal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-[2rem] w-full max-w-sm p-6 shadow-2xl">
+            <h3 class="font-black text-slate-800 text-lg mb-4">🛵 אזור משלוח חדש</h3>
+            <div class="space-y-3">
+                <input type="text" id="dz-name" placeholder="שם האזור (למשל: תל אביב, אזור מרכז)" class="modern-input py-2.5 text-sm w-full">
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">מינימום הזמנה ₪</label><input type="number" id="dz-min" value="0" min="0" class="modern-input py-2 text-sm w-full"></div>
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">עלות משלוח ₪</label><input type="number" id="dz-fee" value="0" min="0" class="modern-input py-2 text-sm w-full"></div>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-5">
+                <button onclick="document.getElementById('delivery-zone-modal').remove()" class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition text-sm">ביטול</button>
+                <button onclick="window.saveDeliveryZone()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition text-sm">שמור אזור</button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('dz-name').focus();
+};
+
+window.saveDeliveryZone = async function() {
+    const name = document.getElementById('dz-name')?.value.trim();
+    if (!name) { showToast('error', 'נדרש שם אזור'); return; }
+    const min_order = parseFloat(document.getElementById('dz-min')?.value) || 0;
+    const delivery_fee = parseFloat(document.getElementById('dz-fee')?.value) || 0;
+    try {
+        const res = await fetch(`${API}/store/delivery-zones`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, name, min_order, delivery_fee }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'אזור משלוח נשמר!'); document.getElementById('delivery-zone-modal')?.remove(); await window.loadDeliveryZones(); }
+        else showToast('error', data.error||'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
+
+window.deleteDeliveryZone = async function(id) {
+    if (!confirm('למחוק אזור משלוח?')) return;
+    try {
+        const res = await fetch(`${API}/store/delivery-zones/${id}`, { method:'DELETE' });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'אזור נמחק'); await window.loadDeliveryZones(); }
+    } catch(e) {}
+};
+
+// הצגת בורר אזור משלוח בקופה בעת בחירת "משלוח"
+window.showPOSDeliveryZoneSelector = async function(container) {
+    if (!deliveryZonesCache.length) { try { await window.loadDeliveryZones(); } catch(e) {} }
+    if (!deliveryZonesCache.length || !container) return;
+    const existing = container.querySelector('.pos-zone-selector');
+    if (existing) existing.remove();
+    const div = document.createElement('div');
+    div.className = 'pos-zone-selector mt-2';
+    div.innerHTML = `<label class="text-[10px] font-bold text-slate-500 block mb-1">אזור משלוח:</label>
+        <select id="pos-delivery-zone" onchange="window.applyDeliveryZoneFee(this.value)" class="modern-input py-2 text-xs w-full">
+            <option value="">— בחר אזור —</option>
+            ${deliveryZonesCache.map(z=>`<option value="${z.id}" data-fee="${z.delivery_fee}" data-min="${z.min_order}">${safeStr(z.name)} (₪${z.delivery_fee} משלוח, מינימום ₪${z.min_order})</option>`).join('')}
+        </select>`;
+    container.appendChild(div);
+};
+
+window.applyDeliveryZoneFee = function(zoneId) {
+    const sel = document.getElementById('pos-delivery-zone');
+    const opt = sel?.options[sel?.selectedIndex];
+    if (!opt || !zoneId) return;
+    const fee = parseFloat(opt.dataset.fee) || 0;
+    const feeInput = document.getElementById('pos-delivery-fee-input');
+    if (feeInput) feeInput.value = fee;
+    window.posDeliveryFee = fee;
 };
 
 // Hook into saveStoreSettings to also persist sport fields

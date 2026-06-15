@@ -427,6 +427,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
     
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_order_items (id SERIAL PRIMARY KEY, order_id INT REFERENCES store_orders(id) ON DELETE CASCADE, catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL, item_name VARCHAR(100), quantity DECIMAL(10,2), price_at_order DECIMAL(10,2))`); } catch(e) {}
      try { await client.query(`CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS delivery_zones (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, min_order DECIMAL(10,2) DEFAULT 0, delivery_fee DECIMAL(10,2) DEFAULT 0, sort_order INT DEFAULT 0, created_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
 
       // טבלאות מערכת היומן והתורים
       try { 
@@ -4876,6 +4877,34 @@ app.put('/api/store/popups/:id', async (req, res) => {
 
 app.delete('/api/store/popups/:id', async (req, res) => {
     try { await pool.query('DELETE FROM store_popups WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Delivery Zones ──
+app.get('/api/store/delivery-zones/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            'SELECT id, name, min_order, delivery_fee, sort_order FROM delivery_zones WHERE group_id=$1 ORDER BY sort_order, id',
+            [req.params.groupId]
+        );
+        res.json({ success: true, zones: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/delivery-zones', async (req, res) => {
+    try {
+        const { groupId, name, minOrder, deliveryFee, sortOrder } = req.body;
+        if (!groupId || !name) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        const r = await pool.query(
+            'INSERT INTO delivery_zones (group_id, name, min_order, delivery_fee, sort_order) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+            [groupId, name, parseFloat(minOrder)||0, parseFloat(deliveryFee)||0, parseInt(sortOrder)||0]
+        );
+        res.json({ success: true, zone: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/store/delivery-zones/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM delivery_zones WHERE id=$1', [req.params.id]); res.json({ success: true }); }
     catch(e) { res.status(500).json({ error: e.message }); }
 });
 
