@@ -4254,6 +4254,16 @@ window.renderDashboard = async function(forceRefresh = false) {
                     return d.getMonth() === thisMonth && d.getFullYear() === thisYear && !['cancelled','quote'].includes(o.status);
                 });
                 const avgPerOrder = monthOrders.length > 0 ? Math.round(revenueMonth / monthOrders.length) : 0;
+                // ממוצע דירוג לקוחות
+                const ratedOrders = (storeOrdersCache || []).filter(o => o.customer_rating > 0);
+                const avgRating = ratedOrders.length > 0
+                    ? (ratedOrders.reduce((sum, o) => sum + parseFloat(o.customer_rating), 0) / ratedOrders.length).toFixed(1)
+                    : '—';
+                s('kpi-avg-rating', avgRating !== '—' ? avgRating + ' ⭐' : '—');
+                // הזמנות שולחן ממתינות
+                const pendingRes = (calEventsCache || []).filter(e => e.call_type === 'table_reservation' && e.status === 'pending').length;
+                s('kpi-pending-reservations', pendingRes);
+                window._pendingCalCount = pendingRes;
                 s('kpi-avg-per-order', `₪${avgPerOrder.toLocaleString('he-IL')}`);
                 // מלאי נמוך (כמות)
                 s('kpi-low-stock-count', lowStock.length);
@@ -24273,11 +24283,11 @@ function renderQuickTiles() {
     { fa:'fa-clock-rotate-left', label:'נוכחות',         badge: null,            tab:'timeclock',          bg:'#f8fafc', grad:'linear-gradient(135deg,#64748b,#334155)', badge_bg:'#475569' },
   ] : (['restaurant','cafe'].includes(currentGroup?.business_type) ? [
     { fa:'fa-table-cells-large', label:'שולחנות 🍽️',    badge: null,            tab:'__tables__', bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
+    { fa:'fa-calendar-check',    label:'יומן הזמנות',    badge: window._pendingCalCount||0, tab:'calendar', bg:'#fff7ed', grad:'linear-gradient(135deg,#fb923c,#ea580c)', badge_bg:'#c2410c' },
     { fa:'fa-utensils',          label:'KDS מטבח',       badge: null,            tab:'kds',       bg:'#faf5ff', grad:'linear-gradient(135deg,#a78bfa,#7c3aed)', badge_bg:'#6d28d9' },
     { fa:'fa-box',               label:'מלאי',           badge: null,            tab:'pantry',    bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0f766e)', badge_bg:'#0d9488' },
     { fa:'fa-bag-shopping',      label:'הזמנות',         badge: storeOrderCount, tab:'sales',     bg:'#fffbeb', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
     { fa:'fa-chart-bar',         label:'דוח יום',        badge: null,            tab:'__daily_close__', bg:'#f0fdf4', grad:'linear-gradient(135deg,#22c55e,#15803d)', badge_bg:'#166534' },
-    { fa:'fa-clock-rotate-left', label:'נוכחות',        badge: null,            tab:'timeclock', bg:'#f8fafc', grad:'linear-gradient(135deg,#64748b,#334155)', badge_bg:'#475569' },
   ] : [
     { fa:'fa-clock-rotate-left', label:'נוכחות',        badge: null,            tab:'timeclock', bg:'#f8fafc', grad:'linear-gradient(135deg,#64748b,#334155)', badge_bg:'#475569' },
     { fa:'fa-calendar-days',     label:'משמרות',         badge: null,            tab:'shifts',    bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
@@ -26501,10 +26511,13 @@ function rdBtn(tab, action, cls, content) {
 
 function roleQuickActions(actions) {
     return `<div class="grid grid-cols-${Math.min(actions.length,3)} gap-3 mb-4">
-        ${actions.map(a => rdBtn(a.tab||'', a.action||'',
-            'bg-white rounded-2xl p-3 shadow-sm border border-slate-100 flex flex-col items-center gap-1.5',
-            `<span class="text-2xl">${a.icon}</span><span class="text-[11px] font-bold text-slate-700 text-center leading-tight">${a.label}</span>`
-        )).join('')}
+        ${actions.map(a => {
+            const badge = a.badge > 0 ? `<span class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow">${a.badge > 99 ? '99+' : a.badge}</span>` : '';
+            return rdBtn(a.tab||'', a.action||'',
+                'relative bg-white rounded-2xl p-3 shadow-sm border border-slate-100 flex flex-col items-center gap-1.5',
+                `<span class="text-2xl">${a.icon}</span><span class="text-[11px] font-bold text-slate-700 text-center leading-tight">${a.label}</span>${badge}`
+            );
+        }).join('')}
     </div>`;
 }
 

@@ -9670,18 +9670,32 @@ function _renderBizAccordion(el, data, bizType) {
         const _ordStatusColor = s => s==='done'||s==='completed'?'bg-green-100 text-green-700':s==='cancelled'?'bg-red-100 text-red-600':s==='ready'?'bg-orange-100 text-orange-700':s==='shipped'?'bg-purple-100 text-purple-700':s==='processing'||s==='confirmed'?'bg-blue-100 text-blue-700':'bg-slate-100 text-slate-600';
         const canRate = o => !o.customer_rating && (o.status === 'completed' || o.status === 'shipped');
         const ratingStars = o => o.customer_rating ? '⭐'.repeat(o.customer_rating) : '';
-        const renderOrd = o => `<div class="py-2 border-b border-slate-50 last:border-0">
-                <div class="flex items-center gap-2">
+        const renderOrd = o => {
+            const detId = `biz-ord-det-${o.id}`;
+            let itemsArr = [];
+            try { itemsArr = Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]'); } catch(e) {}
+            itemsArr = (itemsArr||[]).filter(i => i && (i.name||i.item_name));
+            const itemsHtml = itemsArr.length
+                ? itemsArr.map(i => `<div class="flex justify-between items-center py-0.5"><span class="text-slate-600">${safeStr(i.name||i.item_name)}</span><span class="text-slate-400 dir-ltr">×${i.qty||i.quantity||1}${parseFloat(i.price||0)>0?' ₪'+(parseFloat(i.price)*(parseFloat(i.qty||i.quantity||1))).toFixed(0):''}</span></div>`).join('')
+                : '';
+            const hasDetail = !!(itemsHtml || o.notes);
+            return `<div class="border-b border-slate-50 last:border-0">
+                <div class="flex items-center gap-2 py-2 ${hasDetail?'cursor-pointer':''}" ${hasDetail?`onclick="const d=document.getElementById('${detId}');if(d){d.classList.toggle('hidden');}"`:''}>
                     <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-sm shrink-0">🛒</div>
                     <div class="flex-1 min-w-0">
                         <p class="text-xs font-bold text-slate-700">הזמנה${_ref(o.id)}${ratingStars(o)?` <span class="text-yellow-500">${ratingStars(o)}</span>`:''}</p>
-                        <p class="text-[10px] text-slate-400">${fmtDate(o.created_at)}${parseFloat(o.total_price||0)>0?' · ₪'+parseFloat(o.total_price).toFixed(0):''}</p>
+                        <p class="text-[10px] text-slate-400">${fmtDate(o.created_at)}${parseFloat(o.total_price||0)>0?' · ₪'+parseFloat(o.total_price).toFixed(0):''}${itemsArr.length?' · '+itemsArr.length+' פריטים':''}</p>
                     </div>
                     <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${_ordStatusColor(o.status)}">${_ordStatus[o.status]||o.status||''}</span>
+                    ${hasDetail?'<span class="text-slate-300 text-[10px]">▼</span>':''}
                 </div>
-                ${o.notes ? `<p class="text-[10px] text-slate-500 mt-1 pr-10 truncate">📝 ${o.notes}</p>` : ''}
-                ${canRate(o) ? `<div class="mt-1.5 pr-10"><button onclick="window._orderRatingModal(${o.id},'${el.closest('[data-biz-id]')?.dataset?.bizId||''}')" class="text-[10px] font-black bg-yellow-50 border border-yellow-200 text-yellow-700 px-2.5 py-1 rounded-lg hover:bg-yellow-100 transition">⭐ דרג את ההזמנה</button></div>` : ''}
+                ${hasDetail?`<div id="${detId}" class="hidden pb-2 pr-2">
+                    ${itemsHtml?`<div class="bg-slate-50 rounded-lg p-2 text-[10px] mb-1.5">${itemsHtml}</div>`:''}
+                    ${o.notes?`<p class="text-[10px] text-slate-500 truncate">📝 ${safeStr(o.notes)}</p>`:''}
+                    ${canRate(o)?`<div class="mt-1.5"><button onclick="event.stopPropagation();window._orderRatingModal(${o.id},'${el.closest('[data-biz-id]')?.dataset?.bizId||''}')" class="text-[10px] font-black bg-yellow-50 border border-yellow-200 text-yellow-700 px-2.5 py-1 rounded-lg hover:bg-yellow-100 transition">⭐ דרג את ההזמנה</button></div>`:''}
+                </div>`:''}
             </div>`;
+        };
         const renderQuote = q => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
                 <div class="w-8 h-8 rounded-lg bg-yellow-50 flex items-center justify-center text-sm shrink-0">📋</div>
                 <div class="flex-1 min-w-0">

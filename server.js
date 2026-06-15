@@ -447,6 +447,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           await client.query(`CREATE TABLE IF NOT EXISTS inbox_messages (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, sender_type VARCHAR(50), sender_name VARCHAR(100), sender_contact VARCHAR(100), subject VARCHAR(200), content TEXT, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
           await client.query(`ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS customer_group_id INT REFERENCES family_groups(id)`);
           await client.query(`ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS direction VARCHAR(20) DEFAULT 'inbound'`);
+          await client.query(`ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS customer_phone VARCHAR(50)`);
       } catch(e) { console.error('Error creating inbox_messages table:', e.message); }
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_qa_test_results (id SERIAL PRIMARY KEY, test_id VARCHAR(50) NOT NULL, env VARCHAR(20) NOT NULL, status VARCHAR(10), note TEXT DEFAULT '', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(test_id, env))`); } catch(e) {}
@@ -13387,11 +13388,13 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
             result.activity = { memberships: memR.rows, checkins: checkR.rows };
 
         } else if (bizType === 'restaurant' || bizType === 'services') {
-            const ordR = await pool.query(`SELECT id, status, total_amount AS total_price, notes, created_at, is_delivery, order_source, customer_rating, customer_rating_notes
-                            FROM store_orders
-                            WHERE group_id=$1 AND (customer_phone=$2 OR family_group_id=$3)
-                              AND (status IS NULL OR status != 'quote')
-                            ORDER BY created_at DESC LIMIT 20`,
+            const ordR = await pool.query(`SELECT so.id, so.status, so.total_amount AS total_price, so.notes, so.created_at, so.is_delivery, so.order_source, so.customer_rating, so.customer_rating_notes,
+                                (SELECT json_agg(json_build_object('name',soi.item_name,'qty',soi.quantity,'price',soi.price_at_order) ORDER BY soi.id)
+                                 FROM store_order_items soi WHERE soi.order_id=so.id) AS items
+                            FROM store_orders so
+                            WHERE so.group_id=$1 AND (so.customer_phone=$2 OR so.family_group_id=$3)
+                              AND (so.status IS NULL OR so.status != 'quote')
+                            ORDER BY so.created_at DESC LIMIT 20`,
                 [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
             const quoteR = await pool.query(`SELECT id, quote_status AS status, total_amount AS total_price, created_at
                             FROM store_orders
