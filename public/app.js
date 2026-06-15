@@ -9371,7 +9371,6 @@ window._submitTableReservation = async function(bizGroupId, bizName, btn) {
             const origEventId = modal?.dataset?.origEventId;
             modal?.remove();
             if (origEventId) {
-                // סמן האירוע הישן (rejected) כ-cancelled
                 fetch(`${API}/calendar/events/${origEventId}/status`, {
                     method: 'PUT', headers: {'Content-Type':'application/json'},
                     body: JSON.stringify({ status: 'cancelled' })
@@ -9379,6 +9378,17 @@ window._submitTableReservation = async function(bizGroupId, bizName, btn) {
                 showToast('success', 'הבקשה החדשה נשלחה וממתינה לאישור המסעדה ✅');
             } else {
                 showToast('success', 'בקשת ההזמנה נשלחה! המסעדה תאשר בקרוב ✅');
+            }
+            // רענן accordion כדי שההזמנה תופיע מיד בצד הלקוח
+            const wrapper = document.querySelector(`[data-biz-id="${bizGroupId}"]`);
+            const accordion = wrapper?.querySelector('.biz-accordion');
+            if (accordion && currentGroup) {
+                delete accordion.dataset.loaded;
+                accordion.innerHTML = '<p class="p-4 text-xs text-slate-400 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
+                fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`)
+                    .then(r => r.json())
+                    .then(res => _renderBizAccordion(accordion, res, res.type || 'restaurant'))
+                    .catch(() => {});
             }
         } else { if(errEl){errEl.textContent=r.error||'שגיאה בשליחה';errEl.style.display='block';} if(btn){btn.disabled=false;btn.textContent='🍽️ שלח בקשת הזמנה';} }
     } catch(e) { if(errEl){errEl.textContent='שגיאת תקשורת';errEl.style.display='block';} if(btn){btn.disabled=false;btn.textContent='🍽️ שלח בקשת הזמנה';} }
