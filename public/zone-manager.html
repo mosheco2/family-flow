@@ -209,6 +209,7 @@
         <!-- Tabs -->
         <div class="flex gap-1.5 overflow-x-auto pb-1" style="-webkit-overflow-scrolling:touch;scrollbar-width:none">
             <button class="tab-btn active" onclick="zmSwitchTab('zones')" id="zmtab-zones" style="white-space:nowrap;min-width:fit-content">אזורים</button>
+            <button class="tab-btn" onclick="zmSwitchTab('biz-requests')" id="zmtab-biz-requests" style="white-space:nowrap;min-width:fit-content">בקשות עסקים <span id="zm-pending-biz-badge" class="hidden bg-orange-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full" style="vertical-align:middle"></span></button>
             <button class="tab-btn" onclick="zmSwitchTab('marketing')" id="zmtab-marketing" style="white-space:nowrap;min-width:fit-content">שיווק</button>
             <button class="tab-btn" onclick="zmSwitchTab('leads')" id="zmtab-leads" style="white-space:nowrap;min-width:fit-content">לידים</button>
             <button class="tab-btn" onclick="zmSwitchTab('inbox')" id="zmtab-inbox" style="white-space:nowrap;min-width:fit-content">אינבוקס <span id="zm-inbox-badge" class="hidden bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full" style="vertical-align:middle"></span></button>
@@ -219,6 +220,20 @@
         <div id="zmview-zones" class="space-y-4">
             <div id="zm-zones-container" class="space-y-4">
                 <div class="text-center text-slate-400 py-8">טוען...</div>
+            </div>
+        </div>
+
+        <!-- Business Requests Tab -->
+        <div id="zmview-biz-requests" class="hidden space-y-4">
+            <div class="card p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-black text-slate-800 text-base"><i class="fa-solid fa-store text-orange-500 mr-2"></i>בקשות עסקים להצטרפות לקהילות</h3>
+                    <button onclick="zmLoadPendingBiz()" class="text-xs text-slate-500 hover:text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg font-bold transition"><i class="fa-solid fa-rotate-right mr-1"></i>רענן</button>
+                </div>
+                <p class="text-xs text-slate-500 mb-4">אלו בקשות שאושרו על ידי הסופר אדמין וממתינות לאישורך הסופי</p>
+                <div id="zm-pending-biz-list" class="space-y-3">
+                    <div class="text-center text-slate-400 py-6">טוען...</div>
+                </div>
             </div>
         </div>
 
@@ -568,6 +583,7 @@
     </div>
 </div>
 
-<script src="zone-manager-app.js?v=5"></script>
+<div id="zm-toast" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 px-5 py-3 rounded-2xl text-white text-sm font-bold shadow-xl z-[9999]"></div>
+<script src="zone-manager-app.js?v=6"></script>
 </body>
 </html>

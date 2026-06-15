@@ -155,20 +155,105 @@ async function loadDashboard() {
         document.getElementById('zm-paid-month-pct').textContent = monthPct + '%';
 
         renderZones(data);
+
+        // טען badge של בקשות עסקים ממתינות
+        try {
+            const pbRes = await fetch(`${API}/zone-manager/pending-businesses`, { headers: { 'Authorization': zmToken } });
+            const pbData = await pbRes.json();
+            const badge = document.getElementById('zm-pending-biz-badge');
+            if (badge && pbData.success && pbData.pending?.length > 0) {
+                badge.textContent = pbData.pending.length;
+                badge.classList.remove('hidden');
+            }
+        } catch(e) {}
     } catch(e) { console.error('Dashboard load error', e); }
 }
 
 function zmSwitchTab(tab) {
-    ['zones','marketing','leads','inbox','commissions'].forEach(t => {
-        document.getElementById(`zmview-${t}`).classList.add('hidden');
-        document.getElementById(`zmtab-${t}`).classList.remove('active');
+    ['zones','biz-requests','marketing','leads','inbox','commissions'].forEach(t => {
+        const view = document.getElementById(`zmview-${t}`);
+        const btn = document.getElementById(`zmtab-${t}`);
+        if (view) view.classList.add('hidden');
+        if (btn) btn.classList.remove('active');
     });
-    document.getElementById(`zmview-${tab}`).classList.remove('hidden');
-    document.getElementById(`zmtab-${tab}`).classList.add('active');
+    const activeView = document.getElementById(`zmview-${tab}`);
+    const activeBtn = document.getElementById(`zmtab-${tab}`);
+    if (activeView) activeView.classList.remove('hidden');
+    if (activeBtn) activeBtn.classList.add('active');
     if (tab === 'commissions') loadCommissions();
     if (tab === 'marketing') { loadCampaigns(); loadTemplates(); }
     if (tab === 'leads') loadLeadsTab();
     if (tab === 'inbox') loadInbox();
+    if (tab === 'biz-requests') zmLoadPendingBiz();
+}
+
+async function zmLoadPendingBiz() {
+    const list = document.getElementById('zm-pending-biz-list');
+    const badge = document.getElementById('zm-pending-biz-badge');
+    if (!list) return;
+    list.innerHTML = '<div class="text-center text-slate-400 py-6"><i class="fa-solid fa-spinner fa-spin mr-2"></i>טוען...</div>';
+    try {
+        const res = await fetch(`${API}/zone-manager/pending-businesses`, { headers: { 'Authorization': zmToken } });
+        const data = await res.json();
+        if (!data.success) { list.innerHTML = '<div class="text-center text-red-400 py-6">שגיאה בטעינת נתונים</div>'; return; }
+        const pending = data.pending || [];
+        if (badge) {
+            if (pending.length > 0) { badge.textContent = pending.length; badge.classList.remove('hidden'); }
+            else { badge.classList.add('hidden'); }
+        }
+        if (pending.length === 0) {
+            list.innerHTML = '<div class="text-center text-slate-400 py-8"><i class="fa-solid fa-circle-check text-4xl text-slate-200 mb-3 block"></i>אין בקשות ממתינות לאישור</div>';
+            return;
+        }
+        list.innerHTML = pending.map(p => `
+            <div class="bg-white border border-orange-100 rounded-2xl p-4 shadow-sm flex justify-between items-center gap-4">
+                <div class="flex-1">
+                    <p class="font-bold text-slate-800 text-sm">עסק: ${p.biz_name}</p>
+                    <p class="text-xs text-slate-500 mt-0.5">מבקש להצטרף לקהילה: <strong>${p.comm_name}</strong></p>
+                    <p class="text-[11px] mt-1.5 bg-green-50 text-green-700 font-bold px-2 py-0.5 rounded-full inline-block border border-green-200">מוכן לתת ${p.discount_pct}% הנחה לחברי הקהילה</p>
+                </div>
+                <div class="flex flex-col gap-2 shrink-0">
+                    <button onclick="zmApproveBiz(${p.community_id},${p.business_id})" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-700 transition"><i class="fa-solid fa-check mr-1"></i>אשר</button>
+                    <button onclick="zmRejectBiz(${p.community_id},${p.business_id})" class="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-xs font-bold border border-red-100 hover:bg-red-100 transition"><i class="fa-solid fa-xmark mr-1"></i>דחה</button>
+                </div>
+            </div>
+        `).join('');
+    } catch(e) { list.innerHTML = '<div class="text-center text-red-400 py-6">שגיאת תקשורת</div>'; }
+}
+
+async function zmApproveBiz(communityId, businessId) {
+    if (!confirm('לאשר את הצטרפות העסק לקהילה?')) return;
+    try {
+        const res = await fetch(`${API}/zone-manager/community-business/approve`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ communityId, businessId })
+        });
+        const data = await res.json();
+        if (data.success) { zmShowToast('success', 'העסק אושר והצטרף לקהילה!'); zmLoadPendingBiz(); }
+        else zmShowToast('error', data.error || 'שגיאה');
+    } catch(e) { zmShowToast('error', 'שגיאת תקשורת'); }
+}
+
+async function zmRejectBiz(communityId, businessId) {
+    if (!confirm('לדחות את הבקשה ולהסיר אותה?')) return;
+    try {
+        const res = await fetch(`${API}/zone-manager/community-business/reject`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ communityId, businessId })
+        });
+        const data = await res.json();
+        if (data.success) { zmShowToast('info', 'הבקשה נדחתה'); zmLoadPendingBiz(); }
+        else zmShowToast('error', data.error || 'שגיאה');
+    } catch(e) { zmShowToast('error', 'שגיאת תקשורת'); }
+}
+
+function zmShowToast(type, msg) {
+    const toast = document.getElementById('zm-toast');
+    if (!toast) { alert(msg); return; }
+    toast.textContent = msg;
+    toast.className = `fixed bottom-4 left-1/2 -translate-x-1/2 px-5 py-3 rounded-2xl text-white text-sm font-bold shadow-xl z-[9999] transition ${type === 'success' ? 'bg-emerald-500' : type === 'info' ? 'bg-blue-500' : 'bg-red-500'}`;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 3000);
 }
 
 // ============================================================

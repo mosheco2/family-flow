@@ -6592,11 +6592,13 @@ app.get('/api/sa/communities/:id/details', async (req, res) => {
 app.get('/api/sa/communities/pending-businesses', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT cb.community_id, cb.business_id, cb.discount_pct, c.name as comm_name, b.name as biz_name 
+            SELECT cb.community_id, cb.business_id, cb.discount_pct, cb.status,
+                   c.name as comm_name, b.name as biz_name
             FROM community_businesses cb
             JOIN communities c ON cb.community_id = c.id
             JOIN family_groups b ON cb.business_id = b.id
-            WHERE cb.status = 'pending'
+            WHERE cb.status IN ('pending', 'zm_pending')
+            ORDER BY cb.community_id, cb.business_id
         `);
         res.json({ success: true, pending: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -6635,8 +6637,22 @@ app.delete('/api/sa/community-business/:commId/:bizId', async (req, res) => {
 app.post('/api/sa/community-business/approve', async (req, res) => {
     try {
         const { communityId, businessId } = req.body;
-        await pool.query('UPDATE community_businesses SET status=$1, created_at=CURRENT_TIMESTAMP WHERE community_id=$2 AND business_id=$3', ['approved', communityId, businessId]);
-        res.json({ success: true });
+        // בדוק אם לקהילה יש מנהל אזור
+        const zoneRes = await pool.query(`
+            SELECT zm.id as zm_id FROM communities c
+            JOIN manager_zones mz ON c.zone_id = mz.id
+            JOIN zone_managers zm ON mz.manager_id = zm.id AND zm.status = 'active'
+            WHERE c.id = $1
+        `, [communityId]);
+        if (zoneRes.rows.length > 0) {
+            // יש מנהל אזור → העבר לאישורו
+            await pool.query('UPDATE community_businesses SET status=$1 WHERE community_id=$2 AND business_id=$3', ['zm_pending', communityId, businessId]);
+            res.json({ success: true, forwarded_to_zm: true });
+        } else {
+            // אין מנהל אזור → אישור סופי מיידי
+            await pool.query('UPDATE community_businesses SET status=$1 WHERE community_id=$2 AND business_id=$3', ['approved', communityId, businessId]);
+            res.json({ success: true, forwarded_to_zm: false });
+        }
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -7203,6 +7219,59 @@ app.get('/api/zone-manager/commissions', verifyZoneManager, async (req, res) => 
             LEFT JOIN communities c ON zmc.community_id=c.id
             WHERE zmc.manager_id=$1 ORDER BY zmc.created_at DESC LIMIT 100`, [req.zmSession.managerId]);
         res.json({ success: true, commissions: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ZM — בקשות עסקים הממתינות לאישורו (zm_pending)
+app.get('/api/zone-manager/pending-businesses', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        const result = await pool.query(`
+            SELECT cb.community_id, cb.business_id, cb.discount_pct,
+                   c.name as comm_name, b.name as biz_name
+            FROM community_businesses cb
+            JOIN communities c ON cb.community_id = c.id
+            JOIN family_groups b ON cb.business_id = b.id
+            JOIN manager_zones mz ON c.zone_id = mz.id
+            JOIN zone_managers zm ON mz.manager_id = zm.id
+            WHERE cb.status = 'zm_pending' AND zm.id = $1
+        `, [managerId]);
+        res.json({ success: true, pending: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ZM — אישור בקשת עסק
+app.post('/api/zone-manager/community-business/approve', verifyZoneManager, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        const { managerId } = req.zmSession;
+        // וודא שהקהילה שייכת לאזור של ה-ZM הזה
+        const check = await pool.query(`
+            SELECT 1 FROM communities c
+            JOIN manager_zones mz ON c.zone_id = mz.id
+            WHERE c.id = $1 AND mz.manager_id = $2
+        `, [communityId, managerId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'Unauthorized' });
+        await pool.query('UPDATE community_businesses SET status=$1 WHERE community_id=$2 AND business_id=$3 AND status=$4',
+            ['approved', communityId, businessId, 'zm_pending']);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ZM — דחיית בקשת עסק
+app.post('/api/zone-manager/community-business/reject', verifyZoneManager, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        const { managerId } = req.zmSession;
+        const check = await pool.query(`
+            SELECT 1 FROM communities c
+            JOIN manager_zones mz ON c.zone_id = mz.id
+            WHERE c.id = $1 AND mz.manager_id = $2
+        `, [communityId, managerId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'Unauthorized' });
+        await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status=$3',
+            [communityId, businessId, 'zm_pending']);
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
