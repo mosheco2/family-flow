@@ -95,8 +95,12 @@
     <a class="nav-link" href="#setup-wizard">ויזארד הקמה</a>
     <div class="nav-category">תפעול שוטף</div>
     <a class="nav-link" href="#dashboard">דשבורד מנהל</a>
+    <a class="nav-link" href="#dailyclose">📊 דוח סגירת יום</a>
     <a class="nav-link" href="#pos">קופה (POS)</a>
     <a class="nav-link" href="#tables">ניהול שולחנות</a>
+    <a class="nav-link" href="#table-reservations">📅 הזמנות שולחן מרחוק</a>
+    <a class="nav-link" href="#waitlist">⏳ תור המתנה</a>
+    <a class="nav-link" href="#ratings">⭐ דירוגי לקוחות</a>
     <a class="nav-link" href="#menu">תפריט וקטלוג</a>
     <a class="nav-link" href="#kitchen">מטבח ו-KDS</a>
     <a class="nav-link" href="#deliveries">משלוחים</a>
@@ -107,6 +111,8 @@
     <a class="nav-link" href="#suppliers">ספקים והזמנות</a>
     <div class="nav-category">לקוחות ושיווק</div>
     <a class="nav-link" href="#customers">ניהול לקוחות</a>
+    <a class="nav-link" href="#ratings">⭐ דירוגי לקוחות</a>
+    <a class="nav-link" href="#waitlist">⏳ תור המתנה</a>
     <a class="nav-link" href="#cashflow">תזרים וכספים</a>
     <a class="nav-link" href="#alerts">התראות ומעקב</a>
     <div class="nav-category">ONEFLOW ו-AI</div>
@@ -124,6 +130,8 @@
   <span class="chip" onclick="scrollTo('#quick-start')">🚀 התחלה</span>
   <span class="chip" onclick="scrollTo('#pos')">💳 קופה</span>
   <span class="chip" onclick="scrollTo('#tables')">🪑 שולחנות</span>
+  <span class="chip" onclick="scrollTo('#table-reservations')">📅 הזמנות</span>
+  <span class="chip" onclick="scrollTo('#waitlist')">⏳ תור</span>
   <span class="chip" onclick="scrollTo('#menu')">📋 תפריט</span>
   <span class="chip" onclick="scrollTo('#kitchen')">👨‍🍳 מטבח</span>
   <span class="chip" onclick="scrollTo('#deliveries')">🛵 משלוחים</span>
@@ -143,10 +151,11 @@
     <h1 style="font-size:2rem;font-weight:900;margin-bottom:0.5rem;">🍕 מדריך מסעדה / בית קפה</h1>
     <p style="opacity:0.9;max-width:600px;line-height:1.6;">מדריך מקיף לניהול מסעדה, בית קפה, מזנון, או כל עסק מזון — כולל קופה, שולחנות, מטבח, משלוחים, מלאי, food cost, צוות, ONEFLOW ו-AI.</p>
     <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">15 מודולים</span>
+      <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">18 מודולים</span>
       <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">4 סוגי משתמשים</span>
       <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">ONEFLOW מחובר</span>
       <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">AI מובנה</span>
+      <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">אישור אוטומטי</span>
     </div>
   </div>
 </section>
@@ -209,6 +218,9 @@
       <div class="module-item">💬 הודעות</div>
       <div class="module-item">🔗 ONEFLOW</div>
       <div class="module-item">🤖 AI</div>
+      <div class="module-item">📅 הזמנות שולחן</div>
+      <div class="module-item">⏳ תור המתנה</div>
+      <div class="module-item">⭐ דירוגי לקוחות</div>
     </div>
   </div>
 </section>
@@ -315,6 +327,7 @@
         <tr><td>👥 נוכחות עובדים</td><td>כמה עובדים מחוברים/בשמרה</td><td>בזמן-אמת</td></tr>
         <tr><td>⚠️ מלאי נמוך</td><td>חומרי גלם מתחת לרף</td><td>בזמן-אמת</td></tr>
         <tr><td>⭐ ביקורות</td><td>ממוצע דירוגי לקוחות</td><td>יומי</td></tr>
+        <tr><td>📅 הזמנות ממתינות</td><td>הזמנות שולחן מרחוק שממתינות לאישור</td><td>בזמן-אמת</td></tr>
       </table>
     </div>
     <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">פעולות מהירות מהדשבורד</h3>
@@ -382,23 +395,194 @@
     <h2>ניהול שולחנות</h2>
   </div>
   <div class="section-body">
-    <div class="img-placeholder"><i class="fa-solid fa-table"></i>📸 כאן תופיע תמונת מסך של מפת השולחנות</div>
-    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">מפת שולחנות</h3>
-    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.75rem;">המפה מציגה את כל השולחנות בצבעים:</p>
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">צבעי סטטוס שולחן</h3>
+    <div class="table-wrap">
+      <table>
+        <tr><th>צבע</th><th>מצב</th><th>מה עושים?</th></tr>
+        <tr><td><span style="background:#dcfce7;border:2px solid #86efac;border-radius:8px;padding:2px 10px;font-weight:700;color:#15803d;">ירוק</span></td><td>פנוי</td><td>לחיצה → שולחן נהיה תפוס (הושב לקוח)</td></tr>
+        <tr><td><span style="background:#fee2e2;border:2px solid #f87171;border-radius:8px;padding:2px 10px;font-weight:700;color:#dc2626;">אדום</span></td><td>תפוס</td><td>לחיצה → פופאפ עם אפשרויות</td></tr>
+        <tr><td><span style="background:#ffedd5;border:2px solid #fb923c;border-radius:8px;padding:2px 10px;font-weight:700;color:#c2410c;">כתום</span></td><td>ממתין לתשלום</td><td>לחיצה → סמן "שולם" → שולחן מתפנה</td></tr>
+        <tr><td><span style="background:#dbeafe;border:2px solid #60a5fa;border-radius:8px;padding:2px 10px;font-weight:700;color:#1d4ed8;">כחול</span></td><td>הוזמן מראש</td><td>לחיצה → מציג פרטי ההזמנה</td></tr>
+        <tr><td><span style="background:#f1f5f9;border:2px solid #cbd5e1;border-radius:8px;padding:2px 10px;font-weight:700;color:#64748b;">אפור</span></td><td>מושבת</td><td>לא בשימוש — לא ניתן ללחוץ</td></tr>
+      </table>
+    </div>
+
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">⏱️ שעון ישיבה (Border Timer)</h3>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.5rem;">על כל שולחן תפוס מוצגת פס צבעוני קטן בתחתית + מספר דקות שעברו מאז ההושבה:</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>צבע הפס</th><th>משמעות</th></tr>
+        <tr><td><span style="color:#15803d;font-weight:700;">■ ירוק</span></td><td>עד 60 דקות — הכל תקין</td></tr>
+        <tr><td><span style="color:#d97706;font-weight:700;">■ ענבר</span></td><td>60-80 דקות — שולחן מתחיל להיות עמוס</td></tr>
+        <tr><td><span style="color:#c2410c;font-weight:700;">■ כתום</span></td><td>80-90 דקות — כדאי לבדוק</td></tr>
+        <tr><td><span style="color:#dc2626;font-weight:700;">■ אדום</span></td><td>מעל 90 דקות — ישיבה ארוכה במיוחד</td></tr>
+      </table>
+    </div>
+    <div class="tip-box"><strong>💡 דוגמה:</strong> שולחן 3 מציג פס ירוק ו-"25′" = הלקוח ישב 25 דקות. שולחן 7 מציג פס אדום ו-"1ש30′" = ישב שעה וחצי.</div>
+    <div class="info-box"><strong>📌 אוטומטי לגמרי:</strong> הטיימר מתחיל כשמסמנים שולחן כ"תפוס" ומתאפס אוטומטית כשמשחררים אותו. בהעברת שולחן (↔️) — הטיימר עובר עם הלקוחות.</div>
+
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">מחזור חיי שולחן — תהליך מלא</h3>
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content"><strong>שולחן פנוי (ירוק)</strong><span>לחץ → השולחן הופך תפוס (אדום) + הטיימר מתחיל</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>שולחן תפוס (אדום)</strong><span>לחץ → פופאפ. בחר: "ממתין לתשלום" → שולחן הופך כתום</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-content"><strong>ממתין לתשלום (כתום)</strong><span>לחץ → פופאפ. לחץ "שולם — שחרר לפנוי" → שולחן חוזר לירוק + הטיימר מתאפס</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num" style="background:#1d4ed8;">📅</div>
+      <div class="step-content"><strong>שולחן הוזמן מראש (כחול)</strong><span>נקבע אוטומטית כשמנהל מאשר הזמנת שולחן מרחוק. לחץ → רואה פרטי ההזמנה + אפשרות להושיב / לשחרר</span></div>
+    </div>
+
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">↔️ העברת שולחן</h3>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.5rem;">לקוחות ביקשו להחליף שולחן? קל:</p>
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content"><strong>לחץ על כפתור ↔️</strong><span>מופיע על שולחן תפוס/ממתין, בתוך כרטיס השולחן</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>בחר שולחן יעד</strong><span>רשימת כל השולחנות הזמינים מוצגת לבחירה</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-content"><strong>הסטטוס עובר</strong><span>השולחן הישן חוזר לפנוי, השולחן החדש מקבל את הסטטוס — כולל הטיימר והמלצר המשויך</span></div>
+    </div>
+
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">⚙️ הגדרות שולחנות</h3>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.5rem;">לחץ על כפתור ⚙️ בפינה הימנית של גריד השולחנות:</p>
     <ul class="check-list">
-      <li><span style="color:#16a34a;font-weight:600;">ירוק</span> — פנוי, ניתן לפתוח הזמנה</li>
-      <li><span style="color:#dc2626;font-weight:600;">אדום</span> — תפוס, הזמנה פעילה</li>
-      <li><span style="color:#f97316;font-weight:600;">כתום</span> — ממתין לתשלום</li>
-      <li><span style="color:#6b7280;font-weight:600;">אפור</span> — מושבת / לא בשימוש</li>
+      <li><strong>קיבולת שולחן</strong> — קבע מספר מושבים לכל שולחן (מוצג כ-👥 על הכרטיס)</li>
+      <li><strong>מיזוג שולחנות</strong> — חבר שולחן 3 + 4 → הם יופיעו כשולחן אחד גדול</li>
+      <li><strong>ביטול מיזוג</strong> — לחץ "בטל" ליד השולחן המוזג</li>
+      <li><strong>אישור אוטומטי להזמנות</strong> — ראה פירוט מלא בסעיף "הזמנות שולחן מרחוק"</li>
     </ul>
-    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">פעולות שולחן</h3>
+
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">📱 QR לשולחן</h3>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.5rem;">לחץ 📱 על כל שולחן → מופיע QR קוד ייחודי. לקוח שסורק אותו מגיע ישירות לתפריט של המסעדה עם מספר שולחנו.</p>
+  </div>
+</section>
+
+<!-- ========== 6b. TABLE RESERVATIONS ========== -->
+<section class="section-card" id="table-reservations">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">📅</span>
+    <h2>הזמנות שולחן מרחוק</h2>
+  </div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">לקוחות יכולים לשלוח בקשת הזמנת שולחן מהממשק שלהם (ONEFLOW) — וצוות המסעדה מאשר בלחיצה.</p>
+
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">מצד הלקוח — שליחת הזמנה</h3>
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content"><strong>לקוח נכנס לדף המסעדה ב-ONEFLOW</strong><span>לוחץ "הזמן שולחן" → ממלא תאריך, שעה, מספר סועדים, הערות (אלרגיות, אירוע מיוחד וכו')</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>שולח את הבקשה</strong><span>הבקשה מגיעה לצוות המסעדה + נרשמת אוטומטית גם ביומן וגם בהודעות הנכנסות (Inbox)</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-content"><strong>מקבל אישור</strong><span>לאחר שהמסעדה מאשרת — הלקוח מקבל הודעה ב-ONEFLOW שלו עם פרטי ההזמנה ומספר השולחן</span></div>
+    </div>
+
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">מצד המסעדה — קבלת ואישור הזמנה</h3>
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content"><strong>הודעה חדשה ב-Inbox וביומן</strong><span>הזמנה ממתינה מסומנת עם badge אדום בקוביית "הזמנות שולחן" של מנהל המשמרת ומנהל הסניף</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>כניסה ליומן → אישור</strong><span>לחץ על ההזמנה → "אשר הזמנה" → המערכת שואלת איזה שולחן להקצות (מציגה שולחנות פנויים לאותה שעה)</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-content"><strong>שולחן הופך כחול</strong><span>גריד השולחנות מציג את השולחן שנבחר בכחול עם שעת ההגעה ומספר הסועדים. הלקוח מקבל הודעת אישור</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">4</div>
+      <div class="step-content"><strong>בעת הגעת הלקוח</strong><span>לחץ על השולחן הכחול → "הושב לקוח — סמן תפוס". השולחן הופך אדום והטיימר מתחיל</span></div>
+    </div>
+    <div class="warn-box"><strong>⚠️ ביטול:</strong> לחץ על ההזמנה ביומן → "בטל הזמנה". השולחן חוזר לירוק/פנוי.</div>
+
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">✅ אישור אוטומטי — הגדרה חד-פעמית</h3>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.75rem;">אפשר למסעדה לאשר הזמנות קטנות באופן מיידי ולחסוך אישור ידני:</p>
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content"><strong>לחץ ⚙️ בגריד השולחנות</strong><span>פתח "הגדרות שולחנות"</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>קטע "אישור אוטומטי"</strong><span>הזן מספר סועדים מקסימלי — לדוגמה "4"</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-content"><strong>לחץ "שמור"</strong><span>מעכשיו: הזמנות עד 4 סועדים מאושרות מיידית + מוקצה להן שולחן</span></div>
+    </div>
+    <div class="info-box" style="margin-top:0.75rem;">
+      <strong>מה קורה בפועל:</strong><br>
+      • לקוח שולח הזמנה ל-2 אנשים → מקבל מיידית: <em>"ההזמנה אושרה! שולחן 5 מחכה לך 🍽️"</em><br>
+      • לקוח שולח הזמנה ל-8 אנשים → עובר לאישור ידני רגיל<br>
+      • אם אין שולחן פנוי לאותה שעה → עובר גם הוא לאישור ידני
+    </div>
+    <div class="tip-box"><strong>💡 ביטול אישור אוטומטי:</strong> חזור ל-⚙️ → מחק את המספר → "שמור". מעכשיו כל הזמנה תחכה לאישור ידני.</div>
+
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">צפייה בהזמנות על שולחן כחול</h3>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.5rem;">לחיצה על שולחן כחול (הוזמן מראש) מציגה:</p>
     <ul class="check-list">
-      <li><strong>לחץ על שולחן</strong> → מחזור סטטוס: פנוי ← תפוס ← ממתין לתשלום</li>
-      <li><strong>↔️ (כפתור העברה)</strong> — מוצג על שולחן תפוס/ממתין. לחץ → בחר שולחן יעד → הסטטוס עובר + איש המכירות עובר</li>
-      <li>QR code לכל שולחן — לקוח יכול לסרוק ולראות תפריט</li>
-      <li>לאחר סגירת הזמנה בקופה — השולחן עובר אוטומטית לסטטוס "ממתין לתשלום"</li>
+      <li>הזמנות <strong>היום</strong> לאותו שולחן — שם, שעה, מספר סועדים, טלפון</li>
+      <li>הזמנות <strong>7 ימים קרובים</strong> לאותו שולחן</li>
+      <li>כפתור "הושב לקוח" — מסמן תפוס ומתחיל טיימר</li>
+      <li>כפתור "שחרר שולחן" — מחזיר לפנוי אם הלקוח לא הגיע</li>
+      <li>כפתור 📞 ישיר להתקשרות עם הלקוח</li>
     </ul>
-    <div class="tip-box"><strong>💡 העברת שולחן:</strong> שולחן תפוס מציג כפתור ↔️ בתוך הכרטיס. לחיצה עליו פותחת חלון בחירת שולחן יעד — הסטטוס והמלצר עוברים לשולחן החדש, השולחן הישן מתאפס לפנוי.</div>
+  </div>
+</section>
+
+<!-- ========== 6c. WAITLIST ========== -->
+<section class="section-card" id="waitlist">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">⏳</span>
+    <h2>תור המתנה (Waitlist)</h2>
+  </div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">כשכל השולחנות תפוסים ומגיעים לקוחות נוספים — ניהול תור המתנה מתחת לגריד השולחנות.</p>
+
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">הוספת לקוח לתור</h3>
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content"><strong>לחץ "+ הוסף" בסקשן "תור המתנה"</strong><span>מתחת לגריד השולחנות</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>מלא פרטים</strong><span>שם הלקוח (חובה), מספר סועדים, הערות (אופציונלי — "ילד קטן", "כסא גלגלים" וכו')</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-content"><strong>לחץ "+ הוסף לתור"</strong><span>הלקוח מופיע ברשימה עם שמו, מספר הסועדים וכמה זמן כבר ממתין</span></div>
+    </div>
+    <div class="tip-box"><strong>💡 חיווי זמן:</strong> הטקסט הופך <span style="color:#d97706;font-weight:600;">כתום</span> אחרי 30 דקות המתנה — תזכורת שהלקוח ממתין הרבה זמן.</div>
+
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">הושבת לקוח מהתור</h3>
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content"><strong>לחץ "🪑 הושב" ליד שם הלקוח</strong><span>המערכת מחפשת אוטומטית את השולחן הפנוי הראשון</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>שולחן נסגר ומתחיל טיימר</strong><span>השולחן הפנוי נהיה תפוס (אדום) והטיימר מתחיל. הלקוח נמחק מהתור אוטומטית</span></div>
+    </div>
+    <div class="warn-box"><strong>⚠️ אין שולחן פנוי?</strong> תופיע הודעה "אין שולחן פנוי כרגע". יש להמתין עד שמתפנה שולחן ואז ללחוץ שוב.</div>
+
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">ביטול מהתור</h3>
+    <p style="font-size:0.9rem;color:#475569;">לחץ ✕ ליד שם הלקוח → מוסר מהתור (הלקוח בחר לא להמתין יותר).</p>
+
+    <div class="info-box"><strong>📌 היכן מוצג:</strong> תור המתנה מוצג במסך כל מי שיש לו גישה לגריד השולחנות — מנהל, מנהל משמרת, ומלצר.</div>
   </div>
 </section>
 
@@ -643,6 +827,43 @@
       <li>דוח לקוחות VIP — מבקרים הכי פעילים</li>
     </ul>
     <div class="tip-box"><strong>💡 חיפוש מהיר:</strong> בקופה — לחץ על שדה חיפוש לקוח, הקלד טלפון → כרטיס לקוח מתמלא אוטומטית.</div>
+  </div>
+</section>
+
+<!-- ========== 14b. RATINGS ========== -->
+<section class="section-card" id="ratings">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">⭐</span>
+    <h2>דירוגי לקוחות</h2>
+  </div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">לקוחות ONEFLOW יכולים לדרג הזמנה שקיבלו. המסעדה רואה את הדירוגים ויכולה לנתח את שביעות הרצון.</p>
+
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">איפה רואים דירוגים?</h3>
+    <div class="table-wrap">
+      <table>
+        <tr><th>מיקום</th><th>מה רואים</th></tr>
+        <tr><td>דשבורד מנהל → KPI ⭐</td><td>ממוצע הדירוגים של כל הזמנות — לחיצה עליו מנווטת לרשימת הזמנות מדורגות</td></tr>
+        <tr><td>מכירות → רשימת הזמנות</td><td>⭐⭐⭐ מוצגות ישירות על כרטיס כל הזמנה שדורגה</td></tr>
+        <tr><td>מסנן "⭐ מדורגות"</td><td>סינון הזמנות שקיבלו דירוג בלבד</td></tr>
+        <tr><td>פרטי הזמנה</td><td>הדירוג + הערת הלקוח (אם הוסיף)</td></tr>
+      </table>
+    </div>
+
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">איך מסנן הזמנות מדורגות?</h3>
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content"><strong>כנס ל"מכירות"</strong><span>לחץ על לשונית "מכירות" בניווט העסק</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>בחר במסנן "⭐ מדורגות"</strong><span>מהתפריט הנפתח של סינון הזמנות</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-content"><strong>רשימת כל ההזמנות שדורגו</strong><span>עם הדירוג בכוכביות ופרטי הלקוח — ניתן לפנות ללקוח שדירג נמוך</span></div>
+    </div>
+    <div class="tip-box"><strong>💡 קיצור דרך:</strong> לחץ על KPI הדירוג בדשבורד הראשי → המערכת מנווטת אוטומטית למסנן "מדורגות".</div>
   </div>
 </section>
 
@@ -908,13 +1129,29 @@
       <div class="faq-q" onclick="toggleFaq(this)"><span>איך ONEFLOW עוזר לשיווק המסעדה?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
       <div class="faq-a">לקוחות שנרשמו ב-ONEFLOW LIFE וביקרו במסעדה מזוהים אוטומטית. שלח להם הודעות ממוקדות (מבצעים, מנה חדשה, יום הולדת) ישירות ל-ONEFLOW שלהם — בלי SMS, בלי עלות.</div>
     </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>מה ההבדל בין שולחן כחול לשולחן אדום?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">כחול = <strong>הוזמן מראש</strong> — לקוח הזמין מרחוק וההזמנה אושרה, אבל הלקוח עדיין לא הגיע. אדום = <strong>תפוס</strong> — לקוח בפועל יושב עכשיו. לחיצה על כחול מציגה פרטי ההזמנה + אפשרות להושיב.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>איך מגדירים שהזמנות קטנות יאושרו לבד?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">בגריד השולחנות לחץ על ⚙️ (הגדרות שולחנות) → קטע "אישור אוטומטי" → הזן מספר סועדים מקסימלי (למשל 4) → לחץ "שמור". מעכשיו הזמנות עד 4 אנשים יאושרו מיידית ויוקצה להן שולחן — הלקוח מקבל אישור מיידי.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>לקוח ממתין הרבה זמן — איך יודעים?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">בסקשן "תור המתנה" מתחת לגריד השולחנות — שם הלקוח הופך לכתום אחרי 30 דקות המתנה, ומוצג הזמן המדויק שממתין. כשמתפנה שולחן — לחץ "🪑 הושב" ליד שמו.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>הפס האדום על שולחן — מה עושים?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">הפס האדום על שולחן תפוס מציין שהלקוח יושב מעל 90 דקות. זו התראה ויזואלית שכדאי לבדוק אם הלקוח מוכן לחשבון. אין פעולה אוטומטית — תאמד בעצמך מתי לגשת.</div>
+    </div>
   </div>
 </section>
 
 <!-- Footer -->
 <div style="text-align:center;padding:2rem 0;color:#94a3b8;font-size:0.8rem;border-top:1px solid #e2e8f0;margin-top:1rem;">
   <div style="font-weight:600;color:#dc2626;font-size:1rem;margin-bottom:0.25rem;">🍕 ONEFLOW BUSINESS — מדריך מסעדה</div>
-  <div>עדכון אחרון: יוני 2026 | v1.0</div>
+  <div>עדכון אחרון: יוני 2026 | v2.0</div>
   <div style="margin-top:0.5rem;"><a href="/biz-guide.html" style="color:#dc2626;">מדריך כללי לעסקים</a> · <a href="/sport-guide.html" style="color:#dc2626;">מדריך ספורט</a> · <a href="/guide.html" style="color:#dc2626;">מדריך ONEFLOW</a></div>
 </div>
 
