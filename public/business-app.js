@@ -27810,7 +27810,7 @@ async function renderShiftManagerDashboard(el) {
             ${rdBtn('members','','bg-blue-50 rounded-2xl p-4 shadow-sm border border-blue-100 flex items-center gap-3 active:scale-95 transition','<span class="text-2xl">👥</span><div class="text-right"><div class="text-xs font-black text-blue-800">הצוות</div><div class="text-[10px] text-blue-500">כל העובדים</div></div>')}
         </div>
         ${roleFullMenuBtn()}`;
-    if (isRestaurant) startTablePolling();
+    if (isRestaurant) { startTablePolling(); loadTableReservationsForGrid(); }
 }
 
 // --- 9. Branch Manager Dashboard ---
@@ -27896,6 +27896,17 @@ async function syncTableStatesFromServer() {
     } catch(e) {}
 }
 
+// טוען הזמנות לתצוגת tiles ומרנדר מחדש
+async function loadTableReservationsForGrid() {
+    if (!currentGroup?.id) return;
+    try {
+        const d = await fetch(`${API}/tables/${currentGroup.id}/reservations-upcoming`).then(r => r.json());
+        _tableReservationsCache = d.reservations || [];
+        const gridCard = document.querySelector('.table-grid-card');
+        if (gridCard) gridCard.outerHTML = renderTableGrid();
+    } catch(e) {}
+}
+
 function startTablePolling() {
     if (_tablePollingInterval) clearInterval(_tablePollingInterval);
     syncTableStatesFromServer(); // immediate first fetch
@@ -27910,7 +27921,9 @@ function stopTablePolling() {
 }
 
 // מחזור סטטוסי שולחן: free → occupied → awaiting_payment → free
-const TABLE_STATE_CYCLE = { free: 'reserved', reserved: 'occupied', occupied: 'awaiting_payment', awaiting_payment: 'free' };
+// הערה: 'reserved' נקבע רק מאישור הזמנת לקוח ביומן, לא ממחזור ידני
+const TABLE_STATE_CYCLE = { free: 'occupied', occupied: 'awaiting_payment', awaiting_payment: 'free' };
+let _tableReservationsCache = []; // cache הזמנות לתצוגת tiles
 const TABLE_STATE_STYLES = {
     free:             'bg-green-50 border-green-300 text-green-700',
     reserved:         'bg-blue-50 border-blue-400 text-blue-700',
@@ -27924,17 +27937,11 @@ window.toggleTable = function(id, btn) {
     const states = getTableStates();
     const cur = states[id] || 'free';
     if (cur === 'disabled') return;
-    // שולחן מוזמן מראש — פתח modal עם פרטי ההזמנה
-    if (cur === 'reserved') {
-        window.openReservedTableModal(id);
-        return;
-    }
-    // שולחן תפוס/ממתין — פתח modal אפשרויות
-    if (cur === 'occupied' || cur === 'awaiting_payment') {
-        window.openOccupiedTableModal(id, btn);
-        return;
-    }
-    _applyTableState(id, btn, TABLE_STATE_CYCLE[cur] || 'free');
+    if (cur === 'reserved') { window.openReservedTableModal(id); return; }
+    if (cur === 'occupied' || cur === 'awaiting_payment') { window.openOccupiedTableModal(id, btn); return; }
+    // שולחן פנוי — הושב לקוח ישירות (reserved נקבע רק מאישור ביומן)
+    _applyTableState(id, btn, 'occupied');
+    showToast('success', `שולחן ${id} — תפוס 🪑`);
 };
 
 function _applyTableState(id, btn, next) {
@@ -27960,35 +27967,64 @@ function _applyTableState(id, btn, next) {
 }
 
 window.openReservedTableModal = async function(id) {
-    // טען הזמנות פעילות של היום
-    let reservation = null;
-    try {
-        const d = await fetch(`${API}/tables/${currentGroup.id}/reservations-today`).then(r => r.json());
-        reservation = (d.reservations || []).find(r => r.reserved_table_number === id || r.reserved_table_number === String(id));
-    } catch(e) {}
     const existing = document.getElementById('table-info-modal');
     if (existing) existing.remove();
+    // הצג skeleton בזמן טעינה
     const modal = document.createElement('div');
     modal.id = 'table-info-modal';
     modal.className = 'fixed inset-0 z-[9999] flex items-end justify-center bg-black/50';
-    const info = reservation
-        ? `<p class="text-sm font-bold text-slate-800 mb-1">${reservation.title || 'לקוח'}</p>
-           <p class="text-xs text-slate-500">${reservation.start_time?.slice(0,5) || ''} · ${reservation.num_guests || '?'} סועדים${reservation.notes ? ' · ' + reservation.notes : ''}</p>
-           ${reservation.customer_phone ? `<a href="tel:${reservation.customer_phone}" class="mt-2 inline-flex items-center gap-1 text-xs text-emerald-700 font-bold bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">📞 ${reservation.customer_phone}</a>` : ''}`
-        : `<p class="text-xs text-slate-400">לא נמצאה הזמנה פעילה לשולחן זה</p>`;
     modal.innerHTML = `<div class="bg-white w-full max-w-sm rounded-t-3xl p-5 pb-8 shadow-2xl">
         <div class="flex items-center justify-between mb-4">
-            <h3 class="font-black text-slate-800">🍽️ שולחן ${id} — הוזמן מראש</h3>
+            <h3 class="font-black text-slate-800">📅 שולחן ${id} — הזמנות</h3>
             <button onclick="document.getElementById('table-info-modal').remove()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-lg">✕</button>
         </div>
-        <div class="bg-blue-50 rounded-2xl p-4 border border-blue-100 mb-4">${info}</div>
-        <div class="flex flex-col gap-2">
-            <button onclick="window._tableAction(${id},'occupied')" class="w-full bg-red-500 text-white font-black py-3 rounded-2xl text-sm shadow hover:bg-red-600 transition">🪑 הושב לקוח — סמן תפוס</button>
-            <button onclick="window._tableAction(${id},'free')" class="w-full bg-slate-100 text-slate-700 font-bold py-2.5 rounded-2xl text-sm hover:bg-slate-200 transition">🔓 שחרר שולחן — החזר לפנוי</button>
+        <div id="tres-modal-body" class="text-center py-6 text-slate-400 text-sm"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</div>
+        <div class="flex flex-col gap-2 mt-4">
+            <button onclick="window._tableAction(${id},'occupied')" class="w-full bg-red-500 text-white font-black py-3 rounded-2xl text-sm shadow">🪑 הושב לקוח — סמן תפוס</button>
+            <button onclick="window._tableAction(${id},'free')" class="w-full bg-slate-100 text-slate-700 font-bold py-2.5 rounded-2xl text-sm">🔓 שחרר שולחן — החזר לפנוי</button>
         </div>
     </div>`;
     document.body.appendChild(modal);
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+    // טען הזמנות היום + 7 ימים קדימה במקביל
+    let todayRes = [], upcomingRes = [];
+    try {
+        const [d1, d2] = await Promise.all([
+            fetch(`${API}/tables/${currentGroup.id}/reservations-today`).then(r => r.json()),
+            fetch(`${API}/tables/${currentGroup.id}/reservations-upcoming`).then(r => r.json())
+        ]);
+        todayRes = (d1.reservations || []).filter(r => r.reserved_table_number == id);
+        upcomingRes = (d2.reservations || []).filter(r => r.reserved_table_number == id);
+    } catch(e) {}
+
+    const fmtDate = d => d ? new Date(String(d).split('T')[0]+'T12:00:00').toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'numeric'}) : '';
+    const resRow = r => `<div class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
+        <div class="w-10 text-center">
+            <div class="text-sm font-black text-blue-700">${String(r.start_time||'').slice(0,5)}</div>
+            <div class="text-[9px] text-slate-400">${fmtDate(r.event_date)}</div>
+        </div>
+        <div class="flex-1 min-w-0">
+            <div class="text-xs font-bold text-slate-800 truncate">${r.title||'לקוח'}</div>
+            <div class="text-[10px] text-slate-500">${r.num_guests||'?'} סועדים${r.notes?' · '+r.notes:''}</div>
+        </div>
+        ${r.customer_phone?`<a href="tel:${r.customer_phone}" class="text-emerald-600 font-bold text-[11px] bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-xl shrink-0">📞</a>`:''}
+    </div>`;
+
+    const body = document.getElementById('tres-modal-body');
+    if (!body) return;
+    if (todayRes.length === 0 && upcomingRes.filter(r=>!todayRes.find(t=>t.id===r.id)).length === 0) {
+        body.innerHTML = '<p class="text-xs text-slate-400 py-2">אין הזמנות לשולחן זה</p>';
+    } else {
+        const todayHtml = todayRes.length
+            ? `<div class="mb-3"><div class="text-[10px] font-black text-blue-700 mb-1">📅 היום</div>${todayRes.map(resRow).join('')}</div>`
+            : '';
+        const futureOnly = upcomingRes.filter(r => !todayRes.find(t => t.id === r.id));
+        const upcomingHtml = futureOnly.length
+            ? `<div><div class="text-[10px] font-black text-slate-500 mb-1">📆 7 ימים הקרובים</div>${futureOnly.map(resRow).join('')}</div>`
+            : '';
+        body.innerHTML = todayHtml + upcomingHtml || '<p class="text-xs text-slate-400 py-2">אין הזמנות לשולחן זה</p>';
+    }
 };
 
 window.openOccupiedTableModal = function(id, btn) {
@@ -28117,9 +28153,13 @@ function renderTableGrid() {
         const stLabel = TABLE_STATE_LABELS?.[st] || 'פנוי';
         const waiter = assigns[id] ? `<span class="text-[7px] leading-none truncate w-full text-center block opacity-70">${safeStr(assigns[id])}</span>` : '';
         const cap = capacities[id] ? `<span class="text-[7px] text-slate-400 opacity-60">👥${capacities[id]}</span>` : '';
-        const isActive = ['occupied','awaiting_payment','reserved'].includes(st);
         const transferBtn = ['occupied','awaiting_payment'].includes(st) ? `<span onclick="event.stopPropagation();window.openTableTransferModal(${id});" title="העבר שולחן" style="font-size:9px;line-height:1;cursor:pointer;opacity:0.7;" class="mt-0.5">↔️</span>` : '';
         const qrBtn = `<span onclick="event.stopPropagation();window.showTableQR(${id});" title="QR לשולחן" style="font-size:9px;line-height:1;cursor:pointer;opacity:0.5;" class="mt-0.5">📱</span>`;
+        // חיווי שעת הזמנה לשולחנות שהוזמנו מראש
+        const resForTable = st === 'reserved' ? _tableReservationsCache.filter(r => r.reserved_table_number == id) : [];
+        const resTimeHtml = resForTable.length
+            ? resForTable.slice(0,2).map(r => `<span class="text-[8px] font-black text-blue-600 leading-none">${String(r.start_time||'').slice(0,5)} · ${r.num_guests||'?'}👥</span>`).join('')
+            : '';
         return `<button type="button"
             ontouchend="event.preventDefault();event.stopPropagation();toggleTable(${id},this);"
             onclick="toggleTable(${id},this)"
@@ -28129,6 +28169,7 @@ function renderTableGrid() {
             ${cap}
             ${waiter}
             <span class="tsLabel text-[9px] font-bold">${stLabel}</span>
+            ${resTimeHtml}
             <div class="flex gap-1 justify-center">${transferBtn}${qrBtn}</div>
         </button>`;
     }).join('');
@@ -28565,6 +28606,7 @@ async function renderWaiterDashboard(el) {
         ${readyHtml}
         ${serviceReqHtml}`;
     startTablePolling();
+    loadTableReservationsForGrid();
     const _pendingCalBadge = (calEventsCache||[]).filter(e=>e.call_type==='table_reservation'&&e.status==='pending').length;
     const _readyBadge = pendingReady.length + itemReadyList.length;
     const _taskBadge = myTasks.length;
@@ -28787,6 +28829,7 @@ window.openAdminTablesPanel = async function() {
         ${serviceReqHtml}
         ${assignHtml}`;
     startTablePolling();
+    loadTableReservationsForGrid();
 };
 
 window.openAdminKDSPanel = async function() {

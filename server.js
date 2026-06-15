@@ -8332,10 +8332,26 @@ app.get('/api/tables/:groupId/reservations-today', async (req, res) => {
     try {
         const today = new Date().toISOString().split('T')[0];
         const r = await pool.query(
-            `SELECT id, title, start_time, num_guests, notes, reserved_table_number, customer_phone, status
+            `SELECT id, title, start_time, num_guests, notes, reserved_table_number, customer_phone, status, event_date
              FROM calendar_events
              WHERE group_id=$1 AND call_type='table_reservation' AND status IN ('approved','pending')
              AND event_date::date = $2::date`,
+            [req.params.groupId, today]
+        );
+        res.json({ reservations: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הזמנות שולחן קרובות — 7 ימים קדימה
+app.get('/api/tables/:groupId/reservations-upcoming', async (req, res) => {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const r = await pool.query(
+            `SELECT id, title, start_time, num_guests, notes, reserved_table_number, customer_phone, status, event_date
+             FROM calendar_events
+             WHERE group_id=$1 AND call_type='table_reservation' AND status IN ('approved','pending')
+             AND event_date::date >= $2::date AND event_date::date <= ($2::date + interval '7 days')
+             ORDER BY event_date ASC, start_time ASC LIMIT 50`,
             [req.params.groupId, today]
         );
         res.json({ reservations: r.rows });
