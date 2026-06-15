@@ -4646,6 +4646,83 @@ window.translatePermission = function(p) {
     return map[p] || p;
 };
 
+window.openAddTeamModal = function() {
+    let modal = getEl('sa-team-modal');
+    if (!modal) {
+        const PERM_OPTIONS = [
+            { v:'support',   l:'תמיכה וקריאות' },
+            { v:'devops',    l:'פיתוח ומוצר (QA)' },
+            { v:'marketing', l:'שיווק והשקות' },
+            { v:'stats',     l:'דוחות ופיננסים' },
+            { v:'biz',       l:'ניהול עסקים' },
+            { v:'comm',      l:'ניהול קהילות' },
+            { v:'users',     l:'ניהול משתמשים/RBAC' },
+            { v:'content',   l:'מיתוג ובאנרים' },
+        ];
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="sa-team-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
+                <div class="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl relative border border-slate-200" style="direction:rtl;">
+                    <button onclick="getEl('sa-team-modal').classList.add('hidden')" class="absolute top-6 left-6 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+                    <h3 class="text-2xl font-black mb-6 text-slate-800">הקמת צוות חדש</h3>
+                    <div class="space-y-5 mb-8">
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 mb-1.5 block">שם הצוות:</label>
+                            <input type="text" id="sa-team-name" class="modern-input py-2.5 bg-slate-50" placeholder="לדוגמה: צוות תמיכה">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 mb-2 block">הרשאות גישה:</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                ${PERM_OPTIONS.map(p => `
+                                <label class="flex items-center gap-2 cursor-pointer bg-slate-50 p-2.5 rounded-xl border border-slate-200 hover:bg-indigo-50 hover:border-indigo-200 transition">
+                                    <input type="checkbox" value="${p.v}" class="sa-team-perm-cb w-4 h-4 accent-indigo-600">
+                                    <span class="text-xs font-bold text-slate-700">${p.l}</span>
+                                </label>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="saveSATeam()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl text-lg font-bold shadow-lg hover:bg-indigo-700 transition">הקם צוות</button>
+                </div>
+            </div>
+        `);
+        modal = getEl('sa-team-modal');
+    }
+    // clear fields
+    const nameEl = getEl('sa-team-name');
+    if (nameEl) nameEl.value = '';
+    modal.querySelectorAll('.sa-team-perm-cb').forEach(cb => cb.checked = false);
+    modal.classList.remove('hidden');
+};
+
+window.saveSATeam = async function() {
+    const name = (getEl('sa-team-name')?.value || '').trim();
+    if (!name) return showToast('error', 'יש להזין שם לצוות');
+    const perms = [...document.querySelectorAll('.sa-team-perm-cb:checked')].map(cb => cb.value);
+    try {
+        const r = await fetch(`${API}/sa/teams`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ name, permissions: perms })
+        }).then(r => r.json());
+        if (r.success) {
+            showToast('success', 'הצוות נוצר בהצלחה ✅');
+            getEl('sa-team-modal').classList.add('hidden');
+            loadSAHRData();
+        } else { showToast('error', r.error || 'שגיאה'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.deleteSATeam = async function(id) {
+    if (!confirm('למחוק צוות זה? הנציגים המשויכים יישארו ללא שיוך.')) return;
+    try {
+        const r = await fetch(`${API}/sa/teams/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': saToken }
+        }).then(r => r.json());
+        if (r.success) { showToast('success', 'הצוות נמחק'); loadSAHRData(); }
+        else showToast('error', r.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
 window.renderSAStaff = function() {
     const list = getEl('sa-staff-list');
     if (!list) return;

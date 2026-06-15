@@ -2371,6 +2371,18 @@ app.post('/api/sa/chat', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/sa/teams', verifySA, async (req, res) => {
+    try {
+        const { name, permissions } = req.body;
+        if (!name?.trim()) return res.status(400).json({ error: 'שם צוות נדרש' });
+        const result = await pool.query(
+            'INSERT INTO sa_teams (name, permissions) VALUES ($1, $2) RETURNING *',
+            [name.trim(), JSON.stringify(permissions || [])]
+        );
+        res.json({ success: true, team: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.put('/api/sa/teams/:id', verifySA, async (req, res) => {
     try {
         const { name, permissions } = req.body;
