@@ -9149,7 +9149,7 @@ const _BIZ_ACTIONS_MAP = {
     beauty:             [{ icon:'📅', label:'קבע תור', action:'beauty_book' }, { icon:'💌', label:'ייעוץ מקדים', action:'beauty_rfq' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
     sport:              [{ icon:'💳', label:'רכוש מנוי', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
     gym:                [{ icon:'💳', label:'רכוש מנוי', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
-    restaurant:         [{ icon:'🛒', label:'בצע הזמנה', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
+    restaurant:         [{ icon:'🛒', label:'בצע הזמנה', action:'storefront' }, { icon:'🍽️', label:'הזמן שולחן', action:'table_reservation' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
     maintenance_repair: [{ icon:'🔧', label:'פתח קריאת שירות', action:'service_call' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
     logistics:          [{ icon:'📦', label:'בקש הצעת מחיר', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
 };
@@ -9158,7 +9158,7 @@ window._bizQuickActions = function(bizGroupId, bizType, bizName, groupCode) {
     const biz = _activityAllBiz.find(b => b.business_group_id == bizGroupId) || {};
     const lf = biz.licensed_features || null;
     const defaultActions = _BIZ_ACTIONS_MAP[bizType] || [{ icon:'🌐', label:'בקר בחנות', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }];
-    const actionKeyMap = { storefront:'ss_storefront', beauty_rfq:'ss_rfq', service_call:'ss_service_call', message:'ss_message' };
+    const actionKeyMap = { storefront:'ss_storefront', beauty_rfq:'ss_rfq', service_call:'ss_service_call', message:'ss_message', table_reservation:'ss_table_reservation' };
     const actions = lf ? defaultActions.filter(a => { const k = actionKeyMap[a.action]; return !k || lf[k] !== false; }) : defaultActions;
     const storeUrl = groupCode ? `${window.location.origin}/storefront.html?store=${groupCode}` : null;
     const btns = actions.map(a => {
@@ -9167,6 +9167,7 @@ window._bizQuickActions = function(bizGroupId, bizType, bizName, groupCode) {
         else if (a.action === 'beauty_book' && storeUrl) handler = `window.open('${storeUrl}&action=book&familyGroupId=${currentGroup?.id||''}','_blank');document.getElementById('biz-qs-sheet')?.remove()`;
         else if (a.action === 'beauty_rfq') handler = `document.getElementById('biz-qs-sheet')?.remove();window._familyNewRfqModal&&window._familyNewRfqModal(${bizGroupId},'${bizName.replace(/'/g,"\\'")}',null)`;
         else if (a.action === 'service_call') handler = `document.getElementById('biz-qs-sheet')?.remove();window._openServiceCallForm&&window._openServiceCallForm(${bizGroupId},'${bizName.replace(/'/g,"\\'")}')`;
+        else if (a.action === 'table_reservation') handler = `document.getElementById('biz-qs-sheet')?.remove();window._tableReservationModal(${bizGroupId},'${bizName.replace(/'/g,"\\'")}')`;
         else if (a.action === 'message') handler = `document.getElementById('biz-qs-sheet')?.remove();window._bizMessageModal(${bizGroupId},'${bizName.replace(/'/g,"\\'")}')`;
         else handler = `document.getElementById('biz-qs-sheet')?.remove()`;
         return `<button onclick="${handler}" class="flex items-center gap-3 w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 transition">
@@ -9221,6 +9222,74 @@ window._sendBizMessage = async function(bizGroupId) {
             showToast('success', 'ההודעה נשלחה ✅');
         } else { if(errEl) { errEl.textContent = r.error || 'שגיאה בשליחה'; errEl.style.display = 'block'; } if(btn){ btn.disabled=false; btn.textContent='שלח הודעה ✉️'; } }
     } catch(e) { if(errEl){ errEl.textContent='שגיאת תקשורת'; errEl.style.display='block'; } if(btn){ btn.disabled=false; btn.textContent='שלח הודעה ✉️'; } }
+};
+
+window._tableReservationModal = function(bizGroupId, bizName) {
+    const today = new Date().toISOString().split('T')[0];
+    const modal = document.createElement('div');
+    modal.id = 'table-res-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;padding:20px;direction:rtl;';
+    modal.innerHTML = `<div style="background:white;border-radius:24px;padding:24px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <button onclick="document.getElementById('table-res-modal')?.remove()" style="background:#f1f5f9;border:none;border-radius:12px;width:32px;height:32px;cursor:pointer;font-size:16px;color:#64748b;">✕</button>
+            <div style="text-align:right;">
+                <p style="font-weight:900;font-size:15px;color:#1e293b;">🍽️ הזמנת שולחן</p>
+                <p style="font-size:11px;color:#94a3b8;">${safeStr(bizName)}</p>
+            </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <div>
+                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;text-align:right;">📅 תאריך</label>
+                <input type="date" id="tres-date" min="${today}" value="${today}"
+                    style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 14px;font-size:14px;box-sizing:border-box;direction:ltr;text-align:left;">
+            </div>
+            <div>
+                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;text-align:right;">🕐 שעה</label>
+                <input type="time" id="tres-time" value="19:00"
+                    style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 14px;font-size:14px;box-sizing:border-box;direction:ltr;text-align:left;">
+            </div>
+            <div>
+                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;text-align:right;">👥 מספר סועדים</label>
+                <input type="number" id="tres-guests" min="1" max="30" value="2"
+                    style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 14px;font-size:14px;box-sizing:border-box;text-align:center;">
+            </div>
+            <div>
+                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;text-align:right;">📝 הערות (אופציונלי)</label>
+                <textarea id="tres-notes" rows="2" placeholder="אלרגיות, אירוע מיוחד, העדפת ישיבה..."
+                    style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 14px;font-size:13px;resize:none;box-sizing:border-box;direction:rtl;"></textarea>
+            </div>
+            <div id="tres-err" style="display:none;color:#dc2626;font-size:12px;text-align:center;"></div>
+            <button onclick="window._submitTableReservation(${bizGroupId},'${bizName.replace(/'/g,"\\'")}',this)"
+                style="width:100%;padding:14px;background:linear-gradient(135deg,#f97316,#ea580c);color:white;border:none;border-radius:16px;font-weight:900;font-size:14px;cursor:pointer;">
+                🍽️ שלח בקשת הזמנה
+            </button>
+        </div>
+    </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+    document.getElementById('tres-date')?.focus();
+};
+
+window._submitTableReservation = async function(bizGroupId, bizName, btn) {
+    const date  = document.getElementById('tres-date')?.value;
+    const time  = document.getElementById('tres-time')?.value;
+    const guests = document.getElementById('tres-guests')?.value || '2';
+    const notes = document.getElementById('tres-notes')?.value?.trim() || '';
+    const errEl = document.getElementById('tres-err');
+    if (!date || !time) { if(errEl){errEl.textContent='נא לבחור תאריך ושעה';errEl.style.display='block';} return; }
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ שולח...'; }
+    const dateHe = new Date(date).toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
+    const content = `בקשת הזמנת שולחן 🍽️\nתאריך: ${dateHe}\nשעה: ${time}\nמספר סועדים: ${guests}${notes ? '\nהערות: ' + notes : ''}`;
+    try {
+        const r = await fetch(`${API}/inbox/customer`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: bizGroupId, name: currentUser?.nickname || 'לקוח', contact: currentUser?.phone || '', subject: `הזמנת שולחן — ${dateHe} ${time}`, content, customerGroupId: currentGroup?.id || null })
+        }).then(r => r.json());
+        if (r.success) {
+            document.getElementById('table-res-modal')?.remove();
+            showToast('success', 'בקשת ההזמנה נשלחה! המסעדה תאשר בקרוב ✅');
+        } else { if(errEl){errEl.textContent=r.error||'שגיאה בשליחה';errEl.style.display='block';} if(btn){btn.disabled=false;btn.textContent='🍽️ שלח בקשת הזמנה';} }
+    } catch(e) { if(errEl){errEl.textContent='שגיאת תקשורת';errEl.style.display='block';} if(btn){btn.disabled=false;btn.textContent='🍽️ שלח בקשת הזמנה';} }
 };
 
 window._clientConfirmBeautyAppt = async function(apptId, action, btn) {

@@ -28711,8 +28711,9 @@ const _SS_ACTIONS_DEF = {
         { key:'ss_message',    icon:'✉️', label:'הודעה לאינבוקס', desc:'לקוח יכול לשלוח הודעה חופשית' },
     ],
     restaurant: [
-        { key:'ss_storefront', icon:'🛒', label:'הזמנה מהחנות', desc:'לקוח יכול להזמין דרך החנות' },
-        { key:'ss_message',    icon:'✉️', label:'הודעה לאינבוקס', desc:'לקוח יכול לשלוח הודעה חופשית' },
+        { key:'ss_storefront',        icon:'🛒', label:'הזמנה מהחנות',   desc:'לקוח יכול להזמין דרך החנות' },
+        { key:'ss_table_reservation', icon:'🍽️', label:'הזמנת שולחן',   desc:'לקוח יכול לבקש שולחן דרך האפליקציה שלהם' },
+        { key:'ss_message',           icon:'✉️', label:'הודעה לאינבוקס', desc:'לקוח יכול לשלוח הודעה חופשית' },
     ],
     maintenance_repair: [
         { key:'ss_service_call', icon:'🔧', label:'פתיחת קריאת שירות', desc:'לקוח יכול לפתוח קריאה ישירות' },
