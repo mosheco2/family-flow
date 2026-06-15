@@ -3324,10 +3324,14 @@
                         <button onclick="window.setTenderMethod('bit')" id="btn-tender-bit" class="p-4 rounded-2xl border-2 border-slate-100 flex flex-col items-center gap-2 hover:border-indigo-200 transition bg-white"><i class="fa-brands fa-whatsapp text-2xl text-green-500"></i><span class="text-xs font-black text-slate-700">ביט</span></button>
                         <button onclick="window.setTenderMethod('paybox')" id="btn-tender-paybox" class="p-4 rounded-2xl border-2 border-slate-100 flex flex-col items-center gap-2 hover:border-indigo-200 transition bg-white"><i class="fa-solid fa-mobile-screen-button text-2xl text-purple-500"></i><span class="text-xs font-black text-slate-700">פייבוקס</span></button>
                     </div>
-                    <div id="tender-on-account-container">
-                        <button onclick="window.setTenderMethod('on_account')" id="btn-tender-account" class="w-full p-4 rounded-2xl border-2 border-slate-100 flex items-center justify-center gap-3 hover:border-indigo-200 transition bg-white">
+                    <div id="tender-on-account-container" class="flex gap-2">
+                        <button onclick="window.setTenderMethod('on_account')" id="btn-tender-account" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 flex items-center justify-center gap-3 hover:border-indigo-200 transition bg-white">
                             <i class="fa-solid fa-user-clock text-xl text-amber-500"></i>
-                            <span class="text-xs font-black text-slate-700">רישום "הקפה" (על החשבון)</span>
+                            <span class="text-xs font-black text-slate-700">הקפה</span>
+                        </button>
+                        <button onclick="window.applyFullDiscount()" id="btn-tender-gift" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 flex items-center justify-center gap-3 hover:border-pink-200 transition bg-white">
+                            <i class="fa-solid fa-gift text-xl text-pink-500"></i>
+                            <span class="text-xs font-black text-slate-700">שי / חינם</span>
                         </button>
                     </div>
                     <div class="relative">

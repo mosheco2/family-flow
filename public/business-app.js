@@ -15182,7 +15182,7 @@ function renderFoodCostList() {
         } else if (fc > 40) {
             fcColor = 'text-red-600 bg-red-50 border-red-200';
             statusIcon = '<i class="fa-solid fa-arrow-trend-down"></i> הפסדי';
-        } else if (fc > 30) {
+        } else if (fc > 35) {
             fcColor = 'text-orange-600 bg-orange-50 border-orange-200';
             statusIcon = '<i class="fa-solid fa-scale-balanced"></i> גבולי';
         } else {
@@ -15467,7 +15467,7 @@ window.refreshRBUI = function() {
     const bar = document.getElementById('rb-fc-bar');
     bar.style.width = `${Math.min(100, fcPct)}%`;
     if (fcPct > 40) bar.className = 'h-3 transition-all duration-500 bg-red-500';
-    else if (fcPct > 30) bar.className = 'h-3 transition-all duration-500 bg-orange-400';
+    else if (fcPct > 35) bar.className = 'h-3 transition-all duration-500 bg-orange-400';
     else bar.className = 'h-3 transition-all duration-500 bg-emerald-500';
 };
 
@@ -21908,9 +21908,22 @@ window.setTenderMethod = function(m) {
 
 window.addTenderShortcut = (a) => document.getElementById('tender-input-amount').value = a;
 
+window.applyFullDiscount = function() {
+    if (!confirm('לאשר שי / ביטול חיוב מלא?')) return;
+    // מסמן את כל ההזמנה כ"שי" — מוסיף תשלום בסכום המלא עם שיטה gift
+    let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
+    const promoAmount = (window.currentPOSDiscount || 0) + (window.currentPOSManualDiscount || 0);
+    const grandTotal = Math.max(0, netTotal - promoAmount);
+    window.posSplitPayments = [{ method: 'gift', name: 'שי / חינם', amount: grandTotal }];
+    window.updateTenderDisplay();
+    const giftBtn = document.getElementById('btn-tender-gift');
+    if (giftBtn) { giftBtn.classList.add('border-pink-500','bg-pink-50/50'); }
+    showToast('success', 'הוגדר כשי — ניתן לסיים העסקה');
+};
+
 window.addPaymentToSplit = function() {
     const amt = parseFloat(document.getElementById('tender-input-amount').value) || 0; if(amt <= 0) return;
-    const names = { 'cash': 'מזומן', 'credit': 'כרטיס אשראי', 'bit': 'ביט', 'paybox': 'פייבוקס', 'on_account': 'הקפה' };
+    const names = { 'cash': 'מזומן', 'credit': 'כרטיס אשראי', 'bit': 'ביט', 'paybox': 'פייבוקס', 'on_account': 'הקפה', 'gift': 'שי / חינם' };
     window.posSplitPayments.push({ method: window.tenderMethod, name: names[window.tenderMethod] || window.tenderMethod, amount: amt });
     window.updateTenderDisplay();
 };
@@ -25797,7 +25810,7 @@ const ROLE_TYPE_TABS = {
 };
 
 const BUSINESS_TYPES = [
-    { id: 'restaurant',         name: 'מסעדה / בית קפה',      icon: '🍕', modules: ['feed','pos','sales','pantry','shop','customers','shifts','timeclock','tasks','cashflow','budget','members','calendar','deliveries','foodcost'] },
+    { id: 'restaurant',         name: 'מסעדה / בית קפה',      icon: '🍕', modules: ['feed','pos','sales','pantry','shop','customers','shifts','timeclock','tasks','cashflow','budget','members','calendar','deliveries','foodcost','kds'] },
     { id: 'retail',             name: 'חנות קמעונאית',         icon: '🛍️', modules: ['feed','pos','sales','pantry','shop','customers','cashflow','budget','members','timeclock','tasks','bank'] },
     { id: 'services',           name: 'שירותים מקצועיים',      icon: '💼', modules: ['feed','calendar','tasks','customers','cashflow','budget','members','timeclock','bank','pos','sales'] },
     { id: 'construction',       name: 'בנייה / קבלנות',        icon: '🏗️', modules: ['feed','equipment','tasks','shifts','timeclock','members','cashflow','customers','bank','shop','pantry','budget'] },
@@ -27423,14 +27436,15 @@ function getTableStates() {
 }
 
 // מחזור סטטוסי שולחן: free → occupied → awaiting_payment → free
-const TABLE_STATE_CYCLE = { free: 'occupied', occupied: 'awaiting_payment', awaiting_payment: 'free' };
+const TABLE_STATE_CYCLE = { free: 'reserved', reserved: 'occupied', occupied: 'awaiting_payment', awaiting_payment: 'free' };
 const TABLE_STATE_STYLES = {
     free:             'bg-green-50 border-green-300 text-green-700',
+    reserved:         'bg-blue-50 border-blue-400 text-blue-700',
     occupied:         'bg-red-100 border-red-400 text-red-700',
     awaiting_payment: 'bg-orange-100 border-orange-400 text-orange-700',
     disabled:         'bg-slate-100 border-slate-300 text-slate-400'
 };
-const TABLE_STATE_LABELS = { free: 'פנוי', occupied: 'תפוס', awaiting_payment: 'ממתין לתשלום', disabled: 'מושבת' };
+const TABLE_STATE_LABELS = { free: 'פנוי', reserved: 'הוזמן מראש', occupied: 'תפוס', awaiting_payment: 'ממתין לתשלום', disabled: 'מושבת' };
 
 window.toggleTable = function(id, btn) {
     const states = getTableStates();
@@ -27534,42 +27548,171 @@ function renderTableGrid() {
     const assigns = getTableAssignments();
     const totalOcc = Array.from({length:count},(_,i)=>['occupied','awaiting_payment'].includes(states[i+1])).filter(Boolean).length;
     const waiting  = Array.from({length:count},(_,i)=>states[i+1]==='awaiting_payment').filter(Boolean).length;
+    const capacities = getTableCapacities();
+    const merges = getTableMerges();
     const rows = Array.from({length:count},(_,i) => {
         const id = i+1, st = states[id] || 'free';
+        if (merges[id] && merges[id] !== id) return ''; // שולחן ממוזג — לא מציג נפרד
         const stStyle = TABLE_STATE_STYLES?.[st] || TABLE_STATE_STYLES['free'];
         const stLabel = TABLE_STATE_LABELS?.[st] || 'פנוי';
         const waiter = assigns[id] ? `<span class="text-[7px] leading-none truncate w-full text-center block opacity-70">${safeStr(assigns[id])}</span>` : '';
-        const isActive = ['occupied','awaiting_payment'].includes(st);
-        const transferBtn = isActive ? `<span onclick="event.stopPropagation();window.openTableTransferModal(${id});" title="העבר שולחן" style="font-size:9px;line-height:1;cursor:pointer;opacity:0.7;" class="mt-0.5">↔️</span>` : '';
+        const cap = capacities[id] ? `<span class="text-[7px] text-slate-400 opacity-60">👥${capacities[id]}</span>` : '';
+        const isActive = ['occupied','awaiting_payment','reserved'].includes(st);
+        const transferBtn = ['occupied','awaiting_payment'].includes(st) ? `<span onclick="event.stopPropagation();window.openTableTransferModal(${id});" title="העבר שולחן" style="font-size:9px;line-height:1;cursor:pointer;opacity:0.7;" class="mt-0.5">↔️</span>` : '';
+        const qrBtn = `<span onclick="event.stopPropagation();window.showTableQR(${id});" title="QR לשולחן" style="font-size:9px;line-height:1;cursor:pointer;opacity:0.5;" class="mt-0.5">📱</span>`;
         return `<button type="button"
             ontouchend="event.preventDefault();event.stopPropagation();toggleTable(${id},this);"
             onclick="toggleTable(${id},this)"
             class="table-btn ${stStyle} border-2 rounded-xl p-2 text-center flex flex-col items-center gap-0.5"
             style="touch-action:manipulation;cursor:pointer;">
             <span class="font-black text-sm">${id}</span>
+            ${cap}
             ${waiter}
             <span class="tsLabel text-[9px] font-bold">${stLabel}</span>
-            ${transferBtn}
+            <div class="flex gap-1 justify-center">${transferBtn}${qrBtn}</div>
         </button>`;
     }).join('');
-    const summaryFree = count - totalOcc;
+    const reserved = Array.from({length:count},(_,i)=>states[i+1]==='reserved').filter(Boolean).length;
+    const summaryFree = count - totalOcc - reserved;
     const summaryOccOnly = totalOcc - waiting;
     let summaryHtml = `<span class="text-green-600 font-bold">${summaryFree} פנויים</span> · <span class="text-red-600 font-bold">${summaryOccOnly} תפוסים</span>`;
+    if (reserved) summaryHtml += ` · <span class="text-blue-600 font-bold">${reserved} הוזמן מראש</span>`;
     if (waiting) summaryHtml += ` · <span class="text-orange-600 font-bold">${waiting} ממתינים לתשלום</span>`;
     return `<div class="table-grid-card bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
         <div class="px-4 py-3 border-b border-slate-50 flex items-center justify-between flex-wrap gap-1">
             <h3 class="font-black text-slate-800 text-sm">🍽️ מצב שולחנות</h3>
-            <span class="table-summary text-[10px]">${summaryHtml}</span>
+            <div class="flex items-center gap-2">
+                <span class="table-summary text-[10px]">${summaryHtml}</span>
+                <button onclick="window.openTableSettingsModal()" class="text-[9px] text-slate-400 hover:text-slate-600 transition px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200" title="הגדרות שולחנות">⚙️</button>
+            </div>
         </div>
         <div class="p-3 grid grid-cols-4 gap-2">${rows}</div>
         <div class="px-4 pb-3 flex items-center gap-3 text-[9px] text-slate-400 flex-wrap">
             <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span>פנוי</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block"></span>הוזמן מראש</span>
             <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span>תפוס</span>
             <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block"></span>ממתין לתשלום</span>
             <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block"></span>מושבת</span>
         </div>
     </div>`;
 }
+
+// ─── Table Capacity & Merge & QR ─────────────────────────────────────────────
+function getTableCapacities() {
+    try { return JSON.parse(localStorage.getItem(`table_cap_${currentGroup.id}`) || '{}'); } catch(e) { return {}; }
+}
+function getTableMerges() {
+    try { return JSON.parse(localStorage.getItem(`table_merge_${currentGroup.id}`) || '{}'); } catch(e) { return {}; }
+}
+
+window.showTableQR = function(tableId) {
+    const alias = currentGroup?.store_alias || currentGroup?.id;
+    const url = `${location.origin}/store/${alias}?table=${tableId}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}&format=png&qzone=1`;
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/60';
+    modal.innerHTML = `<div class="bg-white rounded-3xl p-6 shadow-2xl text-center w-72">
+        <h3 class="font-black text-slate-800 text-lg mb-1">📱 QR — שולחן ${tableId}</h3>
+        <p class="text-[10px] text-slate-400 mb-4">לקוח סורק → תפריט דיגיטלי</p>
+        <img src="${qrUrl}" alt="QR שולחן ${tableId}" class="w-48 h-48 mx-auto rounded-xl shadow mb-4 border border-slate-100">
+        <p class="text-[9px] text-slate-400 break-all mb-4 dir-ltr">${url}</p>
+        <button onclick="this.closest('.fixed').remove()" class="w-full bg-slate-100 text-slate-700 font-bold py-2.5 rounded-xl text-sm">סגור</button>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+window.openTableSettingsModal = function() {
+    const count = parseInt(currentGroup?.table_count || 8);
+    const caps = getTableCapacities();
+    const merges = getTableMerges();
+    const rows = Array.from({length: count}, (_, i) => {
+        const id = i + 1;
+        const cap = caps[id] || '';
+        const mergedWith = merges[id] ? ` (ממוזג עם ${merges[id]})` : '';
+        return `<tr>
+            <td class="py-1 pr-2 text-sm font-bold text-slate-700">שולחן ${id}${mergedWith}</td>
+            <td class="py-1 px-2">
+                <input type="number" min="1" max="20" value="${cap}" placeholder="—"
+                    onchange="window._setTableCap(${id},this.value)"
+                    class="w-16 text-center border border-slate-200 rounded-lg py-1 px-2 text-xs">
+            </td>
+            <td class="py-1 pl-2">
+                <button onclick="window.openTableMergeModal(${id})" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold">מיזוג</button>
+                ${merges[id] ? `<button onclick="window.unmergeTable(${id})" class="text-[10px] text-red-400 hover:text-red-600 font-bold mr-2">בטל</button>` : ''}
+            </td>
+        </tr>`;
+    }).join('');
+    const existing = document.getElementById('table-settings-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'table-settings-modal';
+    modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/60';
+    modal.innerHTML = `<div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm" style="max-height:80vh;overflow-y:auto;">
+        <div class="p-5 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
+            <h3 class="font-black text-slate-800">⚙️ הגדרות שולחנות</h3>
+            <button onclick="document.getElementById('table-settings-modal').remove()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500">✕</button>
+        </div>
+        <div class="p-5">
+            <p class="text-[10px] text-slate-400 mb-3">הגדר קיבולת (מספר אנשים) לכל שולחן ומיזוג שולחנות סמוכים.</p>
+            <table class="w-full text-right">
+                <thead><tr><th class="text-[10px] text-slate-400 pb-2">שולחן</th><th class="text-[10px] text-slate-400 pb-2">קיבולת</th><th class="text-[10px] text-slate-400 pb-2">מיזוג</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+window._setTableCap = function(tableId, val) {
+    const caps = getTableCapacities();
+    if (val && parseInt(val) > 0) caps[tableId] = parseInt(val);
+    else delete caps[tableId];
+    localStorage.setItem(`table_cap_${currentGroup.id}`, JSON.stringify(caps));
+    showToast('success', `קיבולת שולחן ${tableId} עודכנה`);
+};
+
+window.openTableMergeModal = function(fromId) {
+    const count = parseInt(currentGroup?.table_count || 8);
+    const merges = getTableMerges();
+    const options = Array.from({length:count},(_,i)=>i+1).filter(id => id !== fromId && !merges[id])
+        .map(id => `<button onclick="window.mergeTable(${fromId},${id});document.querySelector('.merge-modal')?.remove();"
+            class="flex-1 min-w-[52px] bg-white border border-slate-200 rounded-xl py-2 font-bold text-sm hover:border-indigo-400 hover:bg-indigo-50 transition">
+            ${id}
+        </button>`).join('');
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 merge-modal';
+    modal.innerHTML = `<div class="bg-white rounded-3xl p-5 shadow-2xl w-72">
+        <h3 class="font-black text-slate-800 mb-3">מזג שולחן ${fromId} עם:</h3>
+        <div class="flex flex-wrap gap-2">${options}</div>
+        <button onclick="this.closest('.merge-modal').remove()" class="w-full mt-4 bg-slate-100 text-slate-600 font-bold py-2 rounded-xl text-sm">ביטול</button>
+    </div>`;
+    document.body.appendChild(modal);
+};
+
+window.mergeTable = function(tableA, tableB) {
+    const merges = getTableMerges();
+    merges[tableB] = tableA; // tableB מוסתר, נספר כחלק מ-A
+    localStorage.setItem(`table_merge_${currentGroup.id}`, JSON.stringify(merges));
+    const caps = getTableCapacities();
+    caps[tableA] = (caps[tableA] || 0) + (caps[tableB] || 0) || undefined;
+    localStorage.setItem(`table_cap_${currentGroup.id}`, JSON.stringify(caps));
+    showToast('success', `שולחן ${tableA} + ${tableB} מוזגו`);
+    document.getElementById('table-settings-modal')?.remove();
+    const gridCard = document.querySelector('.table-grid-card');
+    if (gridCard) gridCard.outerHTML = renderTableGrid();
+};
+
+window.unmergeTable = function(tableId) {
+    const merges = getTableMerges();
+    delete merges[tableId];
+    localStorage.setItem(`table_merge_${currentGroup.id}`, JSON.stringify(merges));
+    showToast('success', `מיזוג שולחן ${tableId} בוטל`);
+    document.getElementById('table-settings-modal')?.remove();
+    const gridCard = document.querySelector('.table-grid-card');
+    if (gridCard) gridCard.outerHTML = renderTableGrid();
+};
 
 // ─── KDS HELPERS ────────────────────────────────────────────────────────────
 window.kdsItemCheck = function(txId, itemIdx, checkbox, totalItems) {
