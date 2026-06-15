@@ -1295,6 +1295,41 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       )`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_logistics_tracking ON logistics_orders(tracking_token) WHERE tracking_token IS NOT NULL`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_logistics_routes_date ON logistics_routes(group_id, route_date)`); } catch(e) {}
+      // ── logistics_customers ────────────────────────────────────────────────
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_customers (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          name VARCHAR(200) NOT NULL,
+          phone VARCHAR(30),
+          email VARCHAR(200),
+          default_address TEXT,
+          oneflow_user_id INT,
+          customer_type VARCHAR(30) DEFAULT 'private',
+          discount_pct DECIMAL(5,2) DEFAULT 0,
+          delivery_instructions TEXT,
+          notes TEXT,
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      // ── logistics_invoices ─────────────────────────────────────────────────
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_invoices (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          order_id INT REFERENCES logistics_orders(id),
+          invoice_number VARCHAR(50) UNIQUE,
+          customer_name VARCHAR(200),
+          customer_email VARCHAR(200),
+          amount DECIMAL(10,2) DEFAULT 0,
+          vat_amount DECIMAL(10,2) DEFAULT 0,
+          total_amount DECIMAL(10,2) DEFAULT 0,
+          status VARCHAR(30) DEFAULT 'pending',
+          invoice_type VARCHAR(30) DEFAULT 'single',
+          notes TEXT,
+          sent_at TIMESTAMP,
+          paid_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
       // ===== END LOGISTICS MODULE =====
 
       client.release();
@@ -5667,24 +5702,38 @@ app.post('/api/biz/chat-assistant', async (req, res) => {
 
         const logisticsSection = bizType === 'logistics' ? `
 
-== ניתוח חברת לוגיסטיקה / הפצה ==
-• **שיעור הצלחה** = delivered / (total - cancelled) × 100 — מטרה: >90%
-• **failed_attempt** = נהג הגיע אך לא ענה/לא יכול למסור → דורש טיפול מיידי (התקשר ללקוח)
-• **COD ממתין**: סכום שנגבה בשטח אך לא הועבר למשרד → סכנה כספית אם גבוה
-• **vehicle_alerts**: רכב עם ביטוח/טסט פגה → אסור לצאת לדרך! טפל מיד
-• **מגמת הכנסה**: trend_pct — אם שלילי → בחן אם ירדו הזמנות או ירד delivery_fee
-• **ניתוח נהגים**: top_failed_drivers — נהג עם >3 כישלונות ביום → אימון/בדיקה
-• **pending_pickup**: הזמנות שעדיין לא אסופו → תעדוף לנהגים זמינים
+## ניתוח עסקי לוגיסטיקה — כללי ברזל:
+- שיעור הצלחה < 85% → התראה קריטית, פרט סיבות וצעדי תיקון מיידיים
+- COD ממתין > 3 ימים → סיכון גבוה, המלץ על פרוצדורת גבייה
+- נהג עם > 3 failed_attempts ביום → בעיה אופרציונלית, בדוק עומסי עבודה
+- רכב עם ביטוח/טסט שפג → עצור שיוך לנהגים, תזכיר חיוני
+- COD לא הופקד > 2 ימים → שלח התראה למנהל
+- SLA < 80% → ניתוח לפי שעה/אזור, המלץ שינוי מסלולים
+- לקוחות חוזרים עם discount_pct=0 → הזדמנות לשיפור נאמנות
+- חשבוניות ב-status='pending' > 7 ימים → גבייה נדרשת
 
-== פקודות ACTION ללוגיסטיקה ==
-• לייצא הזמנות → [ACTION:EXPORT_EXCEL|logistics-orders]
-• לייצא נהגים → [ACTION:EXPORT_EXCEL|logistics-drivers]
-• לייצא הכנסות → [ACTION:EXPORT_EXCEL|logistics-revenue]
-• לייצא צי רכבים → [ACTION:EXPORT_EXCEL|logistics-vehicles]
-• לעבור לקנבן → [ACTION:OPEN_TAB|logistics_orders]
-• לעבור לנהגים → [ACTION:OPEN_TAB|logistics_drivers]
-• לעבור ל-COD → [ACTION:OPEN_TAB|logistics_cod]
-• לעבור להצעות מחיר → [ACTION:OPEN_TAB|logistics_rfq]` : '';
+## פעולות מהירות שהעוזרת יכולה להפעיל:
+[ACTION:OPEN_TAB|logistics_orders] — פתח קנבן משלוחים
+[ACTION:OPEN_TAB|logistics_drivers] — פתח ניהול נהגים
+[ACTION:OPEN_TAB|logistics_vehicles] — פתח ניהול צי
+[ACTION:OPEN_TAB|logistics_cod] — פתח גבייה COD
+[ACTION:OPEN_TAB|logistics_rfq] — פתח הצעות מחיר
+[ACTION:OPEN_TAB|logistics_routes] — פתח מסלולי חלוקה
+[ACTION:OPEN_TAB|logistics_customers] — פתח מזמינים ונמענים
+[ACTION:OPEN_TAB|logistics_invoices] — פתח חשבוניות
+[ACTION:EXPORT_EXCEL|logistics-orders] — יצא Excel הזמנות
+[ACTION:EXPORT_EXCEL|logistics-drivers] — יצא Excel ביצועי נהגים
+[ACTION:EXPORT_EXCEL|logistics-revenue] — יצא Excel הכנסות
+[ACTION:EXPORT_EXCEL|logistics-vehicles] — יצא Excel צי רכבים
+
+## מה לנתח מהקונטקסט שמתקבל:
+- מה שיעור ההצלחה (delivered/total) וכיצד משפר אותו
+- אלו נהגים מתפקדים הכי טוב/גרוע ולמה
+- איפה ה-COD הכי גבוה ואיך מנהלים אותו
+- אלו אזורים/לקוחות הכי רווחיים
+- חריגים: failed_attempts, הזמנות עדיין פתוחות מאתמול
+- חשבוניות שממתינות לתשלום
+` : '';
 
         const sportSection = bizType === 'sport' ? `
 
@@ -13810,6 +13859,21 @@ app.patch('/api/logistics/orders/:id/status', async (req, res) => {
         await pool.query(`INSERT INTO logistics_order_events (order_id, group_id, event_type, old_status, new_status, actor_name, notes) VALUES ($1,$2,'status_change',$3,$4,$5,$6)`,
             [req.params.id, old.rows[0].group_id, oldStatus, status, actor_name||null, notes||null]);
         res.json({ success: true });
+        // Auto-invoice when delivered
+        if (status === 'delivered') {
+            try {
+                const ord = await pool.query('SELECT * FROM logistics_orders WHERE id=$1', [req.params.id]);
+                const o = ord.rows[0];
+                if (o) {
+                    const invNum = `INV-${o.group_id}-${Date.now()}`;
+                    const amt = parseFloat(o.delivery_fee) || 0;
+                    const vat = Math.round(amt * 0.17 * 100) / 100;
+                    await pool.query(`INSERT INTO logistics_invoices (group_id, order_id, invoice_number, customer_name, customer_email, amount, vat_amount, total_amount, status)
+                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending') ON CONFLICT DO NOTHING`,
+                        [o.group_id, o.id, invNum, o.customer_name, o.customer_email||null, amt, vat, amt+vat]);
+                }
+            } catch(ignoreErr) {}
+        }
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -14265,6 +14329,70 @@ app.patch('/api/logistics/rate-cards/:id', async (req, res) => {
 app.delete('/api/logistics/rate-cards/:id', async (req, res) => {
     try {
         await pool.query('UPDATE logistics_rate_cards SET is_active=false WHERE id=$1', [req.params.id]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics: Customers ─────────────────────────────────────────────────────
+app.get('/api/logistics/customers/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT * FROM logistics_customers WHERE group_id=$1 AND is_active=true ORDER BY name`, [req.params.groupId]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/customers', async (req, res) => {
+    try {
+        const { group_id, name, phone, email, default_address, customer_type, discount_pct, delivery_instructions, notes } = req.body;
+        const r = await pool.query(`INSERT INTO logistics_customers (group_id, name, phone, email, default_address, customer_type, discount_pct, delivery_instructions, notes)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [group_id, name, phone||null, email||null, default_address||null, customer_type||'private', discount_pct||0, delivery_instructions||null, notes||null]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/customers/:id', async (req, res) => {
+    try {
+        const fields = ['name','phone','email','default_address','customer_type','discount_pct','delivery_instructions','notes'];
+        const sets = []; const params = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { params.push(req.body[f]); sets.push(`${f}=$${params.length}`); } });
+        if (!sets.length) return res.json({ ok: true });
+        params.push(req.params.id);
+        await pool.query(`UPDATE logistics_customers SET ${sets.join(',')}, updated_at=NOW() WHERE id=$${params.length}`, params);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/logistics/customers/:id', async (req, res) => {
+    try {
+        await pool.query('UPDATE logistics_customers SET is_active=false WHERE id=$1', [req.params.id]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics: Invoices ──────────────────────────────────────────────────────
+app.get('/api/logistics/invoices/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT li.*, lo.order_number, lo.delivery_address
+            FROM logistics_invoices li
+            LEFT JOIN logistics_orders lo ON lo.id=li.order_id
+            WHERE li.group_id=$1 ORDER BY li.created_at DESC LIMIT 200`, [req.params.groupId]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/invoices/:id/status', async (req, res) => {
+    try {
+        const { status } = req.body;
+        const extra = status === 'paid' ? ', paid_at=NOW()' : (status === 'sent' ? ', sent_at=NOW()' : '');
+        await pool.query(`UPDATE logistics_invoices SET status=$1${extra} WHERE id=$2`, [status, req.params.id]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/logistics/invoices/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM logistics_invoices WHERE id=$1', [req.params.id]);
         res.json({ ok: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

@@ -1749,7 +1749,7 @@ function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: directi
 function switchTab(t) {
     // עסקי יופי: הפנה מ-customers ל-beauty_clients
     if (t === 'customers' && currentGroup?.business_type === 'beauty') t = 'beauty_clients';
-    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports'].forEach(x => {
+    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices'].forEach(x => {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden');
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active');
     });
@@ -1816,6 +1816,8 @@ function switchTab(t) {
     if (t === 'logistics_routes')   try { loadLogisticsRoutes(); } catch(e) {}
     if (t === 'logistics_tracking') try { loadLogisticsTracking(); } catch(e) {}
     if (t === 'logistics_reports')  try { loadLogisticsReports(); } catch(e) {}
+    if (t === 'logistics_customers') try { loadLogisticsCustomers(); } catch(e) {}
+    if (t === 'logistics_invoices')  try { loadLogisticsInvoices(); } catch(e) {}
 }
 
 function updateBatteryUI() {
@@ -2561,7 +2563,9 @@ const ALL_TABS = [
     { id: 'logistics_rfq',      name: 'הצעות מחיר 📋' },
     { id: 'logistics_routes',   name: 'מסלולי חלוקה 🗺️' },
     { id: 'logistics_tracking', name: 'לינקי מעקב 🔗' },
-    { id: 'logistics_reports',  name: 'דוחות לוגיסטיקה 📊' }
+    { id: 'logistics_reports',  name: 'דוחות לוגיסטיקה 📊' },
+    { id: 'logistics_customers', name: 'מזמינים ונמענים 🤝' },
+    { id: 'logistics_invoices',  name: 'חשבוניות 🧾' }
 ];
 
 const ROLE_DEFAULTS = {
@@ -25975,7 +25979,7 @@ const BUSINESS_TYPES = [
     { id: 'services',           name: 'שירותים מקצועיים',      icon: '💼', modules: ['feed','calendar','tasks','customers','cashflow','budget','members','timeclock','bank','pos','sales'] },
     { id: 'construction',       name: 'בנייה / קבלנות',        icon: '🏗️', modules: ['feed','equipment','tasks','shifts','timeclock','members','cashflow','customers','bank','shop','pantry','budget'] },
     { id: 'maintenance_repair', name: 'תחזוקה ותיקונים',       icon: '🔧', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','pantry','shop'] },
-    { id: 'logistics',          name: 'לוגיסטיקה / הפצה',     icon: '🚚', modules: ['feed','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','members','timeclock','cashflow','tasks'] },
+    { id: 'logistics',          name: 'לוגיסטיקה / הפצה',     icon: '🚚', modules: ['feed','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','members','timeclock','cashflow','tasks'] },
     { id: 'healthcare',         name: 'בריאות / קליניקה',      icon: '🏥', modules: ['feed','calendar','customers','tasks','members','timeclock','cashflow','bank','pos','pantry'] },
     { id: 'beauty',             name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','beauty_calendar','beauty_practitioners','beauty_services','beauty_subscriptions','pos','beauty_clients','beauty_inventory','beauty_commissions','beauty_rfq','timeclock','cashflow','tasks','shop'] },
     { id: 'education',          name: 'חינוך / הדרכה',         icon: '🎓', modules: ['feed','calendar','academy','tasks','members','timeclock','cashflow','customers','pos'] },
@@ -36695,6 +36699,266 @@ if (_origRenderDashboard_v2) {
     // We don't replace the whole renderDashboard — instead we extend the EMPLOYEE branch
 }
 
+
+// ─── Logistics Customers Module ───────────────────────────────────────────────
+async function loadLogisticsCustomers() {
+    const el = document.getElementById('content-logistics_customers'); if (!el) return;
+    el.innerHTML = `<div class="flex items-center justify-center h-40"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500"></div></div>`;
+    try {
+        const r = await fetch(`/api/logistics/customers/${currentGroup.id}`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const customers = await r.json();
+        renderLogisticsCustomers(customers);
+    } catch(e) {
+        el.innerHTML = `<div class="text-red-500 p-4">שגיאה בטעינה: ${e.message}</div>`;
+    }
+}
+
+function renderLogisticsCustomers(customers) {
+    const el = document.getElementById('content-logistics_customers'); if (!el) return;
+    const typeLabels = { private:'פרטי', business:'עסקי', subscription:'מנוי', monthly_billing:'חיוב שוטף' };
+    const typeColors = { private:'blue', business:'purple', subscription:'green', monthly_billing:'orange' };
+    el.innerHTML = `
+    <div class="p-4 space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-black text-gray-800">🤝 מזמינים ונמענים</h2>
+          <p class="text-sm text-gray-500">${customers.length} לקוחות פעילים</p>
+        </div>
+        <button onclick="openAddLogisticsCustomer()" class="bg-cyan-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-cyan-700 transition">+ לקוח חדש</button>
+      </div>
+
+      <div class="grid gap-3">
+        ${customers.length === 0 ? `
+          <div class="text-center py-16 text-gray-400">
+            <div class="text-5xl mb-3">🤝</div>
+            <div class="text-lg font-bold">אין לקוחות עדיין</div>
+            <div class="text-sm mt-1">הוסף מזמינים ונמענים חוזרים לחיסכון בזמן</div>
+          </div>
+        ` : customers.map(c => `
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+            <div class="flex items-start justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-cyan-100 flex items-center justify-center text-2xl font-black text-cyan-700">
+                  ${c.name.charAt(0)}
+                </div>
+                <div>
+                  <div class="font-black text-gray-900">${c.name}</div>
+                  <div class="text-sm text-gray-500">${c.phone || ''} ${c.email ? '· '+c.email : ''}</div>
+                  ${c.default_address ? `<div class="text-xs text-gray-400 mt-0.5">📍 ${c.default_address}</div>` : ''}
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-1 rounded-full text-xs font-bold bg-${typeColors[c.customer_type]||'gray'}-100 text-${typeColors[c.customer_type]||'gray'}-700">${typeLabels[c.customer_type]||c.customer_type}</span>
+                ${c.discount_pct > 0 ? `<span class="px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">${c.discount_pct}% הנחה</span>` : ''}
+              </div>
+            </div>
+            ${c.delivery_instructions ? `<div class="mt-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-1.5">💬 ${c.delivery_instructions}</div>` : ''}
+            <div class="flex gap-2 mt-3">
+              <button onclick="editLogisticsCustomer(${JSON.stringify(c).replace(/"/g,'&quot;')})" class="flex-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-1.5 rounded-lg transition">✏️ עריכה</button>
+              ${c.phone ? `<a href="tel:${c.phone}" class="flex-1 text-center text-xs bg-green-100 hover:bg-green-200 text-green-700 font-bold py-1.5 rounded-lg transition">📞 התקשר</a>` : ''}
+              <button onclick="deleteLogisticsCustomer(${c.id})" class="text-xs bg-red-50 hover:bg-red-100 text-red-600 font-bold py-1.5 px-3 rounded-lg transition">🗑️</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div id="modal-logistics-customer" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-black" id="customer-modal-title">לקוח חדש</h3>
+          <button onclick="closeLogisticsCustomerModal()" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+        </div>
+        <form id="form-logistics-customer" onsubmit="saveLogisticsCustomer(event)" class="space-y-3">
+          <input type="hidden" id="edit-customer-id" value="">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="col-span-2">
+              <label class="text-xs font-bold text-gray-600">שם מלא / שם עסק *</label>
+              <input id="cust-name" required class="w-full border rounded-xl px-3 py-2 text-sm mt-1" placeholder="ישראל ישראלי">
+            </div>
+            <div>
+              <label class="text-xs font-bold text-gray-600">טלפון</label>
+              <input id="cust-phone" class="w-full border rounded-xl px-3 py-2 text-sm mt-1" placeholder="050-0000000">
+            </div>
+            <div>
+              <label class="text-xs font-bold text-gray-600">מייל</label>
+              <input id="cust-email" type="email" class="w-full border rounded-xl px-3 py-2 text-sm mt-1" placeholder="mail@example.com">
+            </div>
+            <div class="col-span-2">
+              <label class="text-xs font-bold text-gray-600">כתובת ברירת מחדל</label>
+              <input id="cust-address" class="w-full border rounded-xl px-3 py-2 text-sm mt-1" placeholder="רח' הרצל 1, תל אביב">
+            </div>
+            <div>
+              <label class="text-xs font-bold text-gray-600">סוג לקוח</label>
+              <select id="cust-type" class="w-full border rounded-xl px-3 py-2 text-sm mt-1">
+                <option value="private">פרטי</option>
+                <option value="business">עסקי</option>
+                <option value="subscription">מנוי</option>
+                <option value="monthly_billing">חיוב שוטף</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-bold text-gray-600">% הנחה</label>
+              <input id="cust-discount" type="number" min="0" max="100" step="0.5" class="w-full border rounded-xl px-3 py-2 text-sm mt-1" placeholder="0">
+            </div>
+            <div class="col-span-2">
+              <label class="text-xs font-bold text-gray-600">הוראות מסירה</label>
+              <textarea id="cust-instructions" rows="2" class="w-full border rounded-xl px-3 py-2 text-sm mt-1" placeholder='למשל: "להשאיר אצל השכנה בקומה 2"'></textarea>
+            </div>
+          </div>
+          <div class="flex gap-3 pt-2">
+            <button type="submit" class="flex-1 bg-cyan-600 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-cyan-700">שמור</button>
+            <button type="button" onclick="closeLogisticsCustomerModal()" class="px-4 py-2.5 border rounded-xl text-sm font-bold text-gray-600">ביטול</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+}
+
+function openAddLogisticsCustomer() {
+    document.getElementById('customer-modal-title').textContent = 'לקוח חדש';
+    document.getElementById('edit-customer-id').value = '';
+    ['name','phone','email','address','instructions'].forEach(f => { const el = document.getElementById(`cust-${f}`); if(el) el.value=''; });
+    document.getElementById('cust-type').value = 'private';
+    document.getElementById('cust-discount').value = '0';
+    document.getElementById('modal-logistics-customer').classList.remove('hidden');
+}
+
+function editLogisticsCustomer(c) {
+    document.getElementById('customer-modal-title').textContent = 'עריכת לקוח';
+    document.getElementById('edit-customer-id').value = c.id;
+    document.getElementById('cust-name').value = c.name || '';
+    document.getElementById('cust-phone').value = c.phone || '';
+    document.getElementById('cust-email').value = c.email || '';
+    document.getElementById('cust-address').value = c.default_address || '';
+    document.getElementById('cust-type').value = c.customer_type || 'private';
+    document.getElementById('cust-discount').value = c.discount_pct || 0;
+    document.getElementById('cust-instructions').value = c.delivery_instructions || '';
+    document.getElementById('modal-logistics-customer').classList.remove('hidden');
+}
+
+function closeLogisticsCustomerModal() {
+    document.getElementById('modal-logistics-customer').classList.add('hidden');
+}
+
+async function saveLogisticsCustomer(e) {
+    e.preventDefault();
+    const id = document.getElementById('edit-customer-id').value;
+    const body = {
+        group_id: currentGroup.id,
+        name: document.getElementById('cust-name').value.trim(),
+        phone: document.getElementById('cust-phone').value.trim(),
+        email: document.getElementById('cust-email').value.trim(),
+        default_address: document.getElementById('cust-address').value.trim(),
+        customer_type: document.getElementById('cust-type').value,
+        discount_pct: parseFloat(document.getElementById('cust-discount').value)||0,
+        delivery_instructions: document.getElementById('cust-instructions').value.trim()
+    };
+    const url = id ? `/api/logistics/customers/${id}` : '/api/logistics/customers';
+    const method = id ? 'PATCH' : 'POST';
+    try {
+        const r = await fetch(url, { method, headers: { 'Content-Type':'application/json', Authorization:`Bearer ${currentUser?.token}` }, body: JSON.stringify(body) });
+        if (!r.ok) throw new Error(await r.text());
+        closeLogisticsCustomerModal();
+        loadLogisticsCustomers();
+    } catch(err) { alert('שגיאה: ' + err.message); }
+}
+
+async function deleteLogisticsCustomer(id) {
+    if (!confirm('למחוק לקוח זה?')) return;
+    await fetch(`/api/logistics/customers/${id}`, { method:'DELETE', headers:{ Authorization:`Bearer ${currentUser?.token}` } });
+    loadLogisticsCustomers();
+}
+
+// ─── Logistics Invoices Module ────────────────────────────────────────────────
+async function loadLogisticsInvoices() {
+    const el = document.getElementById('content-logistics_invoices'); if (!el) return;
+    el.innerHTML = `<div class="flex items-center justify-center h-40"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-500"></div></div>`;
+    try {
+        const r = await fetch(`/api/logistics/invoices/${currentGroup.id}`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const invoices = await r.json();
+        renderLogisticsInvoices(invoices);
+    } catch(e) {
+        el.innerHTML = `<div class="text-red-500 p-4">שגיאה: ${e.message}</div>`;
+    }
+}
+
+function renderLogisticsInvoices(invoices) {
+    const el = document.getElementById('content-logistics_invoices'); if (!el) return;
+    const statusLabel = { pending:'ממתין', sent:'נשלח', paid:'שולם', cancelled:'בוטל' };
+    const statusColor = { pending:'amber', sent:'blue', paid:'green', cancelled:'red' };
+    const totalRevenue = invoices.filter(i=>i.status==='paid').reduce((s,i)=>s+parseFloat(i.total_amount||0),0);
+    const pendingCount = invoices.filter(i=>i.status==='pending').length;
+    el.innerHTML = `
+    <div class="p-4 space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-black text-gray-800">🧾 חשבוניות</h2>
+          <p class="text-sm text-gray-500">${invoices.length} חשבוניות</p>
+        </div>
+        <div class="flex gap-2">
+          <div class="text-center bg-green-50 rounded-xl px-3 py-1.5">
+            <div class="text-sm font-black text-green-700">₪${totalRevenue.toLocaleString('he-IL',{maximumFractionDigits:0})}</div>
+            <div class="text-xs text-gray-500">גבוי</div>
+          </div>
+          <div class="text-center bg-amber-50 rounded-xl px-3 py-1.5">
+            <div class="text-sm font-black text-amber-700">${pendingCount}</div>
+            <div class="text-xs text-gray-500">ממתינות</div>
+          </div>
+        </div>
+      </div>
+
+      ${invoices.length === 0 ? `
+        <div class="text-center py-16 text-gray-400">
+          <div class="text-5xl mb-3">🧾</div>
+          <div class="text-lg font-bold">אין חשבוניות עדיין</div>
+          <div class="text-sm mt-1">חשבוניות נוצרות אוטומטית כשמשלוח מסומן כ"נמסר"</div>
+        </div>
+      ` : `
+        <div class="space-y-2">
+          ${invoices.map(inv => `
+            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center text-lg">🧾</div>
+                  <div>
+                    <div class="font-black text-gray-800 text-sm">${inv.invoice_number}</div>
+                    <div class="text-xs text-gray-500">${inv.customer_name} ${inv.order_number ? '· הזמנה #'+inv.order_number : ''}</div>
+                    <div class="text-xs text-gray-400">${new Date(inv.created_at).toLocaleDateString('he-IL')}</div>
+                  </div>
+                </div>
+                <div class="text-left">
+                  <div class="font-black text-gray-800">₪${parseFloat(inv.total_amount||0).toLocaleString('he-IL',{maximumFractionDigits:0})}</div>
+                  <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-${statusColor[inv.status]||'gray'}-100 text-${statusColor[inv.status]||'gray'}-700">${statusLabel[inv.status]||inv.status}</span>
+                </div>
+              </div>
+              <div class="flex gap-2 mt-2">
+                ${inv.status === 'pending' ? `
+                  <button onclick="updateInvoiceStatus(${inv.id},'sent')" class="flex-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-1.5 rounded-lg transition">📤 סמן כנשלח</button>
+                  <button onclick="updateInvoiceStatus(${inv.id},'paid')" class="flex-1 text-xs bg-green-100 hover:bg-green-200 text-green-700 font-bold py-1.5 rounded-lg transition">✅ סמן כשולם</button>
+                ` : inv.status === 'sent' ? `
+                  <button onclick="updateInvoiceStatus(${inv.id},'paid')" class="flex-1 text-xs bg-green-100 hover:bg-green-200 text-green-700 font-bold py-1.5 rounded-lg transition">✅ סמן כשולם</button>
+                ` : ''}
+                <button onclick="deleteLogisticsInvoice(${inv.id})" class="text-xs bg-red-50 hover:bg-red-100 text-red-600 font-bold py-1.5 px-3 rounded-lg transition">🗑️</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `}
+    </div>`;
+}
+
+async function updateInvoiceStatus(id, status) {
+    await fetch(`/api/logistics/invoices/${id}/status`, { method:'PATCH', headers:{'Content-Type':'application/json', Authorization:`Bearer ${currentUser?.token}`}, body: JSON.stringify({status}) });
+    loadLogisticsInvoices();
+}
+
+async function deleteLogisticsInvoice(id) {
+    if (!confirm('למחוק חשבונית זו?')) return;
+    await fetch(`/api/logistics/invoices/${id}`, { method:'DELETE', headers:{ Authorization:`Bearer ${currentUser?.token}` } });
+    loadLogisticsInvoices();
+}
+
 // ===== END LOGISTICS MODULE UI v2 =====
 
 // ─── FamliAI logistics AI — full implementation ──────────────────────────────
@@ -36714,10 +36978,12 @@ if (_origRenderDashboard_v2) {
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>'; }
 
         try {
-            const [dashR, ordersR, codR] = await Promise.allSettled([
+            const [dashR, ordersR, codR, custR, invR] = await Promise.allSettled([
                 fetch(`${API}/logistics/dashboard/${currentGroup.id}`).then(r=>r.json()).catch(()=>({})),
                 fetch(`${API}/logistics/orders/${currentGroup.id}?limit=200`).then(r=>r.json()).catch(()=>([])),
-                fetch(`${API}/logistics/cod/${currentGroup.id}`).then(r=>r.json()).catch(()=>({}))
+                fetch(`${API}/logistics/cod/${currentGroup.id}`).then(r=>r.json()).catch(()=>({})),
+                fetch(`/api/logistics/customers/${currentGroup.id}`, { headers:{Authorization:`Bearer ${currentUser?.token}`} }).then(r=>r.json()),
+                fetch(`/api/logistics/invoices/${currentGroup.id}`, { headers:{Authorization:`Bearer ${currentUser?.token}`} }).then(r=>r.json()),
             ]);
             const dash   = dashR.status==='fulfilled'   ? dashR.value   : {};
             const orders = ordersR.status==='fulfilled' ? (ordersR.value.orders || ordersR.value || []) : [];
@@ -36794,6 +37060,19 @@ if (_origRenderDashboard_v2) {
                 },
                 driver_performance: {
                     top_failed_drivers: topFailed
+                },
+                customers_summary: {
+                    total: (custR.value||[]).length,
+                    business_clients: (custR.value||[]).filter(c=>c.customer_type==='business').length,
+                    monthly_billing: (custR.value||[]).filter(c=>c.customer_type==='monthly_billing').length,
+                    with_discount: (custR.value||[]).filter(c=>parseFloat(c.discount_pct)>0).length
+                },
+                invoices_summary: {
+                    total: (invR.value||[]).length,
+                    pending: (invR.value||[]).filter(i=>i.status==='pending').length,
+                    sent: (invR.value||[]).filter(i=>i.status==='sent').length,
+                    paid: (invR.value||[]).filter(i=>i.status==='paid').length,
+                    total_revenue: (invR.value||[]).filter(i=>i.status==='paid').reduce((s,i)=>s+parseFloat(i.total_amount||0),0)
                 },
                 open_tasks: (allTasks||[]).filter(t=>t.status==='pending').slice(0,5).map(t=>({title:t.title,assignee:t.assignee_name}))
             };
