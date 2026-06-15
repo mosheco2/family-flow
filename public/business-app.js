@@ -26387,6 +26387,7 @@ window.rdAction = function(tab, action) {
     if (action === 'inbox') { if(typeof openInboxModal === 'function') openInboxModal(); else switchTab('team'); return; }
     if (action === 'show-all-sc') { if(typeof showAllServiceCalls === 'function') showAllServiceCalls(); return; }
     if (action === 'show-reports') { if(typeof showMaintenanceReports === 'function') showMaintenanceReports(); return; }
+    if (action === 'waiter-pos') { if(typeof window.showWaiterPOS === 'function') window.showWaiterPOS(); return; }
     if (action === 'nav-work-orders') { switchTab('sales'); setTimeout(() => { if(typeof window.switchSalesTab === 'function') window.switchSalesTab('work-orders'); }, 150); return; }
     if (action === 'nav-quotes') { switchTab('sales'); setTimeout(() => { if(typeof window.switchSalesTab === 'function') window.switchSalesTab('quotes'); }, 150); return; }
     if (tab) { switchTab(tab); return; }
@@ -27795,8 +27796,8 @@ async function renderShiftManagerDashboard(el) {
             <div class="px-4 py-1">${memberRows || '<p class="text-center text-slate-400 text-sm py-5">אין נתוני נוכחות</p>'}</div>
         </div>
         ${roleQuickActions(isRestaurant ? [
-            {icon:'⏱️', label:'נוכחות', tab:'timeclock'},
-            {icon:'📅', label:'הזמנות שולחן', tab:'calendar'},
+            {icon:'⏱️', label:'נוכחות', tab:'timeclock', badge: smPendingReady.length || null},
+            {icon:'📅', label:'הזמנות שולחן', tab:'calendar', badge: (calEventsCache||[]).filter(e=>e.call_type==='table_reservation'&&e.status==='pending').length || null},
             {icon:'💰', label:'מכירות', tab:'cashflow'}
         ] : [
             {icon:'⏱️', label:'נוכחות', tab:'timeclock'},
@@ -28563,11 +28564,16 @@ async function renderWaiterDashboard(el) {
         ${readyHtml}
         ${serviceReqHtml}`;
     startTablePolling();
+    const _pendingCalBadge = (calEventsCache||[]).filter(e=>e.call_type==='table_reservation'&&e.status==='pending').length;
+    const _readyBadge = pendingReady.length + itemReadyList.length;
+    const _taskBadge = myTasks.length;
+    const _svcBadge = pendingReqs.length;
     el.insertAdjacentHTML('beforeend', `
-        <div class="grid grid-cols-2 gap-3 mb-4">
-            <button type="button" ontouchend="event.preventDefault();window.showWaiterPOS();" onclick="window.showWaiterPOS()" class="bg-amber-500 text-white rounded-2xl p-4 shadow flex items-center gap-3 active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;"><span class="text-2xl">🍽️</span><div class="text-right"><div class="text-sm font-black">הזמנה לשולחן</div><div class="text-[10px] opacity-80">פתח הזמנה</div></div></button>
-            ${rdBtn('tasks','','bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3 active:scale-95 transition','<span class="text-2xl">✅</span><div class="text-right"><div class="text-xs font-black text-orange-800">משימות</div><div class="text-[10px] text-orange-500">משמרת</div></div>')}
-        </div>
+        ${roleQuickActions([
+            {icon:'🍽️', label:'הזמנה לשולחן', action:'waiter-pos', badge: _readyBadge||null},
+            {icon:'📅', label:'הזמנות שולחן', tab:'calendar', badge: _pendingCalBadge||null},
+            {icon:'✅', label:'משימות', tab:'tasks', badge: _taskBadge||null}
+        ])}
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
             <div class="px-4 py-3 border-b border-slate-50"><h3 class="font-black text-slate-800 text-sm">🕐 המשמרת שלי היום</h3></div>
             <div class="px-4 py-1">${shiftHtml}</div>
@@ -28580,7 +28586,6 @@ async function renderWaiterDashboard(el) {
             <div class="px-4 py-1">${tasksHtml}</div>
         </div>
         <div class="grid grid-cols-2 gap-3 mb-2">
-            ${rdBtn('calendar','','bg-amber-50 rounded-2xl p-4 shadow-sm border border-amber-100 flex items-center gap-3','<span class="text-2xl">📅</span><div class="text-right"><div class="text-xs font-black text-amber-800">הזמנות שולחנות</div><div class="text-[10px] text-amber-500">יומן</div></div>')}
             ${rdBtn('members','','bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3','<span class="text-2xl">👥</span><div class="text-right"><div class="text-xs font-black text-orange-800">הצוות</div><div class="text-[10px] text-orange-500">צוות משמרת</div></div>')}
         </div>
         ${roleFullMenuBtn()}`);
@@ -28923,9 +28928,9 @@ async function renderCookDashboard(el) {
     el.innerHTML = `
         ${roleDashboardHeader('👨‍🍳','ממשק טבח/ית','KDS, מלאי ומשימות מטבח','from-red-600','to-orange-700')}
         ${roleQuickActions([
-            {icon:'📦', label:'מלאי', tab:'pantry'},
-            {icon:'✅', label:'משימות', tab:'tasks'},
-            {icon:'🗓️', label:'משמרות', tab:'shifts'}
+            {icon:'📦', label:'מלאי', tab:'pantry', badge: lowStock.length || null},
+            {icon:'🍳', label:'KDS', tab:'kds', badge: kdsTickets.length || null},
+            {icon:'✅', label:'משימות', tab:'tasks', badge: myTasks.length || null}
         ])}
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
             <div class="px-4 py-3 border-b border-orange-50 bg-orange-50/70 flex items-center justify-between">
