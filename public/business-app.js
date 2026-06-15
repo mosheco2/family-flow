@@ -21704,6 +21704,8 @@ window.waiterRenderCart = function() {
         submitBtn.disabled = !window.waiterPOSCart.length;
         submitBtn.className = `w-full rounded-xl py-3 font-black text-sm active:scale-95 transition shadow ${window.waiterPOSCart.length ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`;
     }
+    // סנכרן פריטים ממתינים לשרת בזמן אמת (כך המנהל רואה מה המלצר מכין)
+    if (window.waiterSelectedTable) waiterSavePendingForCurrentTable();
 };
 
 window.waiterSubmitOrder = async function() {
@@ -28043,7 +28045,7 @@ window.openReservedTableModal = async function(id) {
     // הצג skeleton בזמן טעינה
     const modal = document.createElement('div');
     modal.id = 'table-info-modal';
-    modal.className = 'fixed inset-0 z-[9999] flex items-end justify-center bg-black/50';
+    modal.className = 'fixed inset-0 z-[99999] flex items-end justify-center bg-black/50';
     modal.innerHTML = `<div class="bg-white w-full max-w-sm rounded-t-3xl p-5 pb-8 shadow-2xl">
         <div class="flex items-center justify-between mb-4">
             <h3 class="font-black text-slate-800">📅 שולחן ${id} — הזמנות</h3>
@@ -28106,7 +28108,7 @@ window.openOccupiedTableModal = function(id, btn) {
     const stLabel = TABLE_STATE_LABELS[cur] || cur;
     const modal = document.createElement('div');
     modal.id = 'table-info-modal';
-    modal.className = 'fixed inset-0 z-[9999] flex items-end justify-center bg-black/50';
+    modal.className = 'fixed inset-0 z-[99999] flex items-end justify-center bg-black/50';
     modal.innerHTML = `<div class="bg-white w-full max-w-sm rounded-t-3xl p-5 pb-8 shadow-2xl">
         <div class="flex items-center justify-between mb-4">
             <h3 class="font-black text-slate-800">שולחן ${id} — ${stLabel}</h3>
@@ -28162,7 +28164,7 @@ window.openTableTransferModal = function(fromId) {
 
     const modal = document.createElement('div');
     modal.id = 'table-transfer-modal';
-    modal.className = 'fixed inset-0 z-[9999] flex items-end justify-center bg-black/50';
+    modal.className = 'fixed inset-0 z-[99999] flex items-end justify-center bg-black/50';
     modal.innerHTML = `<div class="bg-white w-full max-w-sm rounded-t-3xl p-5 pb-8 shadow-2xl" style="max-height:80vh;overflow-y:auto;">
         <div class="flex items-center justify-between mb-4">
             <h3 class="font-black text-slate-800">↔️ העבר שולחן ${fromId} לשולחן:</h3>
@@ -28300,7 +28302,7 @@ window.showTableQR = function(tableId) {
     const url = `${location.origin}/store/${alias}?table=${tableId}`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}&format=png&qzone=1`;
     const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/60';
+    modal.className = 'fixed inset-0 z-[99999] flex items-center justify-center bg-black/60';
     modal.innerHTML = `<div class="bg-white rounded-3xl p-6 shadow-2xl text-center w-72">
         <h3 class="font-black text-slate-800 text-lg mb-1">📱 QR — שולחן ${tableId}</h3>
         <p class="text-[10px] text-slate-400 mb-4">לקוח סורק → תפריט דיגיטלי</p>
@@ -28347,7 +28349,7 @@ window.openTableSettingsModal = async function() {
     if (existing) existing.remove();
     const modal = document.createElement('div');
     modal.id = 'table-settings-modal';
-    modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/60';
+    modal.className = 'fixed inset-0 z-[99999] flex items-center justify-center bg-black/60';
     modal.innerHTML = `<div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm" style="max-height:80vh;overflow-y:auto;">
         <div class="p-5 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
             <h3 class="font-black text-slate-800">⚙️ הגדרות שולחנות</h3>
@@ -28478,7 +28480,7 @@ window.openAddWaitlistModal = function() {
     document.getElementById('waitlist-add-modal')?.remove();
     const modal = document.createElement('div');
     modal.id = 'waitlist-add-modal';
-    modal.className = 'fixed inset-0 z-[9999] flex items-end justify-center bg-black/50';
+    modal.className = 'fixed inset-0 z-[99999] flex items-end justify-center bg-black/50';
     modal.innerHTML = `<div class="bg-white w-full max-w-sm rounded-t-3xl p-5 pb-8 shadow-2xl">
         <div class="flex items-center justify-between mb-4">
             <h3 class="font-black text-slate-800">⏳ הוסף לתור המתנה</h3>
