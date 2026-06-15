@@ -28317,18 +28317,200 @@ async function renderWaiterDashboard(el) {
         ${roleFullMenuBtn()}`;
 }
 
-window.openAdminTablesPanel = function() {
+window.openAdminTablesPanel = async function() {
     document.getElementById('admin-tables-panel')?.remove();
     const panel = document.createElement('div');
     panel.id = 'admin-tables-panel';
     panel.style.cssText = 'position:fixed;inset:0;z-index:99998;background:#f1f5f9;overflow-y:auto;font-family:Rubik,sans-serif;direction:rtl';
-    panel.innerHTML = `<div style="position:sticky;top:0;z-index:1;background:#1e293b;padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #334155">
-      <button onclick="document.getElementById('admin-tables-panel')?.remove()" style="background:#334155;color:#e2e8f0;border:none;border-radius:10px;padding:8px 16px;font-size:14px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer">← חזרה</button>
-      <span style="color:white;font-size:16px;font-weight:800">🍽️ מצב שולחנות</span>
-      <button onclick="switchTab('pos');document.getElementById('admin-tables-panel')?.remove()" style="background:#3b82f6;color:white;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer;margin-right:auto">🖥️ פתח קופה</button>
-    </div>
-    <div style="padding:12px" id="admin-tables-inner">${renderTableGrid()}</div>`;
+    panel.innerHTML = `
+      <div style="position:sticky;top:0;z-index:10;background:#1e293b;padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #334155">
+        <button onclick="document.getElementById('admin-tables-panel')?.remove()" style="background:#334155;color:#e2e8f0;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer">← חזרה</button>
+        <span style="color:white;font-size:15px;font-weight:800">🍽️ ניהול שולחנות</span>
+        <div style="margin-right:auto;display:flex;gap:8px">
+          <button onclick="window.showWaiterPOS();document.getElementById('admin-tables-panel')?.remove()" style="background:#f59e0b;color:white;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer">🍽️ הזמנה לשולחן</button>
+          <button onclick="switchTab('pos');document.getElementById('admin-tables-panel')?.remove()" style="background:#3b82f6;color:white;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer">🖥️ קופה</button>
+        </div>
+      </div>
+      <div style="padding:12px" id="admin-tables-inner"><p style="text-align:center;color:#94a3b8;padding:32px;font-size:13px">טוען נתונים...</p></div>`;
     document.body.appendChild(panel);
+
+    // ── fetch live data ────────────────────────────────────────────────────────
+    let pendingReady = [], itemReadyList = [];
+    try {
+        const or = await fetch(`${API}/store/orders/${currentGroup.id}`);
+        const od = await or.json();
+        if (Array.isArray(od)) {
+            od.filter(o => o.status === 'ready').forEach(o => {
+                let tableNum = null;
+                try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
+                let items = [];
+                try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata); } catch(e3) {}
+                pendingReady.push({ orderId: o.id, tableNum, items });
+            });
+            od.filter(o => ['new','processing'].includes(o.status) && Array.isArray(o.items_ready) && o.items_ready.length > 0).forEach(o => {
+                let tableNum = null;
+                try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
+                (o.items_ready||[]).forEach(ir => itemReadyList.push({ orderId: o.id, tableNum: ir.tableNum||tableNum, name: ir.name, idx: ir.idx, time: ir.time }));
+            });
+        }
+    } catch(e) {}
+
+    const count     = parseInt(currentGroup.table_count || 8);
+    const assigns   = getTableAssignments();
+    const bills     = getTableBills();
+    const states    = getTableStates();
+    const members_  = (typeof members !== 'undefined' ? members : []) || [];
+    let serviceReqs = [];
+    try { serviceReqs = JSON.parse(localStorage.getItem(`service_req_${currentGroup.id}`)||'[]'); } catch(e) {}
+    const pendingReqs = serviceReqs.filter(r => !r.done);
+
+    // ── KPI row ───────────────────────────────────────────────────────────────
+    const totalOcc  = Array.from({length:count},(_,i) => ['occupied','awaiting_payment'].includes(states[i+1])).filter(Boolean).length;
+    const waiting   = Array.from({length:count},(_,i) => states[i+1]==='awaiting_payment').filter(Boolean).length;
+    const free      = count - totalOcc;
+    const kpiHtml = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:10px 6px;text-align:center">
+            <div style="font-size:18px;font-weight:900;color:#16a34a">${free}</div>
+            <div style="font-size:9px;color:#15803d;font-weight:700">פנויים</div>
+        </div>
+        <div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;padding:10px 6px;text-align:center">
+            <div style="font-size:18px;font-weight:900;color:#dc2626">${totalOcc - waiting}</div>
+            <div style="font-size:9px;color:#b91c1c;font-weight:700">תפוסים</div>
+        </div>
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:10px 6px;text-align:center">
+            <div style="font-size:18px;font-weight:900;color:#ea580c">${waiting}</div>
+            <div style="font-size:9px;color:#c2410c;font-weight:700">לתשלום</div>
+        </div>
+        <div style="background:#fdf4ff;border:1px solid #e9d5ff;border-radius:12px;padding:10px 6px;text-align:center">
+            <div style="font-size:18px;font-weight:900;color:#9333ea">${pendingReqs.length}</div>
+            <div style="font-size:9px;color:#7e22ce;font-weight:700">בקשות</div>
+        </div>
+    </div>`;
+
+    // ── Waiter overview ───────────────────────────────────────────────────────
+    const waiters_ = members_.filter(m => m.employee_role_type === 'waiter' || !m.employee_role_type);
+    const waiterNames = [...new Set(Object.values(assigns))].filter(Boolean);
+    const waiterOpts  = `<option value="">ללא</option>` + waiters_.map(m => `<option value="${safeStr(m.nickname)}">${safeStr(m.nickname)}</option>`).join('');
+
+    // build per-waiter summary (tables, open bill total)
+    const waiterSummary = {};
+    waiterNames.forEach(w => { waiterSummary[w] = { tables: [], total: 0, awaitingPay: 0 }; });
+    Array.from({length:count},(_,i) => i+1).forEach(tid => {
+        const w = assigns[tid]; if (!w) return;
+        if (!waiterSummary[w]) waiterSummary[w] = { tables: [], total: 0, awaitingPay: 0 };
+        waiterSummary[w].tables.push(tid);
+        const bill = bills[tid];
+        if (bill) {
+            (bill.submitted||[]).forEach(it => { waiterSummary[w].total += (it.price||0)*(it.qty||it.quantity||1); });
+            if (states[tid] === 'awaiting_payment') waiterSummary[w].awaitingPay++;
+        }
+    });
+
+    const waiterOverviewHtml = waiterNames.length ? `
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+            <div class="px-4 py-3 border-b border-slate-50 flex items-center justify-between">
+                <h3 class="font-black text-slate-800 text-sm">👥 תמונת-על מלצרים</h3>
+            </div>
+            <div class="px-4 py-1">
+            ${waiterNames.map(w => {
+                const ws = waiterSummary[w];
+                const tableChips = ws.tables.map(tid => {
+                    const st = states[tid];
+                    const color = st === 'awaiting_payment' ? '#ea580c' : st === 'occupied' ? '#dc2626' : '#16a34a';
+                    return `<span style="background:${color}20;color:${color};border-radius:6px;padding:1px 6px;font-size:10px;font-weight:800">${tid}</span>`;
+                }).join(' ');
+                return `<div class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
+                    <span class="text-sm font-black text-slate-800 w-20 shrink-0">${safeStr(w)}</span>
+                    <div class="flex flex-wrap gap-1 flex-1">${tableChips || '<span class="text-[10px] text-slate-400">ללא שולחנות</span>'}</div>
+                    ${ws.total > 0 ? `<span class="text-xs font-black text-indigo-700 shrink-0">₪${ws.total.toFixed(0)}</span>` : ''}
+                    ${ws.awaitingPay > 0 ? `<span class="text-[9px] font-bold text-orange-600 shrink-0">${ws.awaitingPay} לתשלום</span>` : ''}
+                </div>`;
+            }).join('')}
+            </div>
+        </div>` : '';
+
+    // ── Waiter assignment ─────────────────────────────────────────────────────
+    const assignRows = Array.from({length:count}, (_,i) => {
+        const tid = i+1; const assigned = assigns[tid] || '';
+        return `<div class="flex items-center gap-2 py-1.5 border-b border-slate-50 last:border-0">
+            <span class="font-black text-slate-700 text-sm w-6 text-center">${tid}</span>
+            <select onchange="window.assignTableWaiter(${tid},this.value)" class="flex-1 text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white" style="touch-action:manipulation;">
+                ${waiterOpts.replace(`value="${assigned}"`, `value="${assigned}" selected`)}
+            </select>
+        </div>`;
+    }).join('');
+    const assignHtml = `<div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+        <div class="px-4 py-3 border-b border-amber-50 bg-amber-50/60 flex items-center justify-between">
+            <h3 class="font-black text-amber-800 text-sm">🍽️ שיוך מלצרים לשולחנות</h3>
+            <span class="text-[10px] text-amber-600">משמרת נוכחית</span>
+        </div>
+        <div class="px-4 py-1 max-h-48 overflow-y-auto modal-scroll">${assignRows}</div>
+    </div>`;
+
+    // ── Service requests ──────────────────────────────────────────────────────
+    const serviceReqHtml = pendingReqs.length ? `
+        <div class="bg-white rounded-2xl shadow-sm border border-amber-200 mb-4">
+            <div class="px-4 py-3 border-b border-amber-100 bg-amber-50/60">
+                <h3 class="font-black text-amber-700 text-sm">🎁 בקשות שירות (${pendingReqs.length})</h3>
+            </div>
+            <div class="px-4 py-1">${pendingReqs.slice(0,10).map(r=>`
+                <div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                    <span class="bg-amber-100 text-amber-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0">שולחן ${r.tableNumber}</span>
+                    <span class="text-xs text-slate-700 flex-1">${safeStr(r.name)}</span>
+                    <button ontouchend="event.preventDefault();markServiceReqDone(${r.id});" onclick="markServiceReqDone(${r.id})" class="bg-green-100 text-green-700 text-xs font-black px-2 py-1 rounded-lg" style="touch-action:manipulation;">סופק ✓</button>
+                </div>`).join('')}</div>
+        </div>` : '';
+
+    // ── Ready orders ──────────────────────────────────────────────────────────
+    const readyHtml = pendingReady.length ? `
+        <div class="bg-white rounded-2xl shadow-sm border border-green-200 mb-4">
+            <div class="px-4 py-3 border-b border-green-100 bg-green-50/60">
+                <h3 class="font-black text-green-700 text-sm">✅ מוכן לאיסוף (${pendingReady.length})</h3>
+            </div>
+            <div class="px-4 py-1">${pendingReady.slice(0,8).map(r => {
+                const tbl = r.tableNum ? `שולחן ${r.tableNum}` : `הזמנה #${r.orderId}`;
+                const dishList = (r.items||[]).map(i => {
+                    const nm = i.name || (storeCatalogCache||[]).find(c=>String(c.id)===String(i.catalogId))?.name || '';
+                    const qty = (i.quantity||i.qty||1);
+                    return nm ? (qty > 1 ? `${nm} ×${qty}` : nm) : null;
+                }).filter(Boolean).join(', ');
+                return `<div class="flex items-start gap-2 py-2 border-b border-slate-50 last:border-0">
+                    <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0 mt-0.5">${tbl}</span>
+                    <div class="flex-1 min-w-0"><div class="text-xs font-bold text-slate-700 leading-tight">${safeStr(dishList) || '—'}</div></div>
+                    <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId});" onclick="markReadyDelivered(${r.orderId})" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">סופק ✓</button>
+                </div>`;
+            }).join('')}</div>
+        </div>` : '';
+
+    // ── Per-item ready ────────────────────────────────────────────────────────
+    const itemReadyHtml = itemReadyList.length ? `
+        <div class="bg-white rounded-2xl shadow-sm border border-orange-200 mb-4">
+            <div class="px-4 py-3 border-b border-orange-100 bg-orange-50/60">
+                <h3 class="font-black text-orange-700 text-sm">🍽️ מנות מוכנות (${itemReadyList.length})</h3>
+            </div>
+            <div class="px-4 py-1">${itemReadyList.slice(0,12).map(ir => {
+                const tbl = ir.tableNum ? `שולחן ${ir.tableNum}` : `הזמנה #${ir.orderId}`;
+                const tStr = ir.time ? new Date(ir.time).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+                return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                    <span class="bg-orange-100 text-orange-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0">${tbl}</span>
+                    <span class="text-xs font-bold text-slate-700 flex-1">${safeStr(ir.name)}</span>
+                    <span class="text-[9px] text-slate-400 shrink-0">${tStr}</span>
+                    <button ontouchend="event.preventDefault();markItemServed(${ir.orderId},${ir.idx});" onclick="markItemServed(${ir.orderId},${ir.idx})" class="bg-orange-500 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">הוגש ✓</button>
+                </div>`;
+            }).join('')}</div>
+        </div>` : '';
+
+    // ── render ────────────────────────────────────────────────────────────────
+    const inner = document.getElementById('admin-tables-inner');
+    if (!inner) return;
+    inner.innerHTML = `
+        ${kpiHtml}
+        ${renderTableGrid()}
+        ${waiterOverviewHtml}
+        ${itemReadyHtml}
+        ${readyHtml}
+        ${serviceReqHtml}
+        ${assignHtml}`;
 };
 
 window.openAdminKDSPanel = async function() {
