@@ -21386,6 +21386,14 @@ window.markItemServed = function(orderId, idx) {
     }).then(() => refreshWaiterReadySection()).catch(() => {});
 };
 
+window.collectAndBill = function(orderId, tableNum) {
+    window.markReadyDelivered(orderId, 'completed');
+    if (tableNum) {
+        window.waiterSelectedTable = parseInt(tableNum);
+        setTimeout(() => window.waiterCloseBill(), 150);
+    }
+};
+
 window.markReadyDelivered = function(orderId, newStatus) {
     const finalStatus = newStatus || 'completed';
     fetch('/api/store/orders/status', {
@@ -21407,12 +21415,7 @@ window.markReadyDelivered = function(orderId, newStatus) {
         if (changed) saveTableBills(bills);
     } catch(e) {}
     if (document.getElementById('waiter-pos-modal')) window.waiterRenderCart();
-    const dashEl = document.getElementById('content-role-dashboard');
-    if (dashEl) {
-        const rt = currentUser?.employee_role_type;
-        if (rt === 'waiter') renderWaiterDashboard(dashEl);
-        else if (rt === 'shift_manager') renderShiftManagerDashboard(dashEl);
-    }
+    refreshWaiterReadySection();
 };
 
 // ─── WAITER POS (מסך הזמנה מותאם מלצר) ────────────────────────────────────
@@ -21835,7 +21838,10 @@ window.waiterConfirmCloseBill = function(table) {
     saveTableBills(bills);
     const states = getTableStates();
     states[table] = 'free';
+    delete states[`_t${table}`];
     localStorage.setItem(`tables_${currentGroup.id}`, JSON.stringify(states));
+    _tableLastServerJson = null;
+    syncTableStatesToServer(states);
     window.waiterPOSCart = [];
     window.waiterSelectedTable = null;
     document.getElementById('waiter-close-bill-modal')?.remove();
@@ -27993,9 +27999,11 @@ async function refreshWaiterReadySection() {
                 <div class="px-4 py-1">${pendingReady.map(r => {
                     const tbl = r.tableNum ? `שולחן ${r.tableNum}` : `הזמנה #${r.orderId}`;
                     const names = r.items.slice(0,3).map(i => safeStr(i.name||'')).filter(Boolean).join(', ');
+                    const payBtn = r.tableNum ? `<button ontouchend="event.preventDefault();collectAndBill(${r.orderId},${r.tableNum});" onclick="collectAndBill(${r.orderId},${r.tableNum})" class="bg-indigo-600 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">💳 נאסף+תשלום</button>` : '';
                     return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
                         <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0">${tbl}</span>
                         <span class="text-xs text-slate-600 flex-1 truncate">${names}</span>
+                        ${payBtn}
                         <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">✅ נאסף</button>
                     </div>`;
                 }).join('')}</div>
@@ -28758,7 +28766,17 @@ window.kdsUpdateBonProgress = function(txId) {
 
 window.cookDoneOrder = function(txId, row) {
     const key = `kds_done_${currentGroup.id}`;
-    try { const d = JSON.parse(localStorage.getItem(key)||'[]'); d.push(String(txId)); localStorage.setItem(key, JSON.stringify(d)); } catch(e) {}
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        // שמור גם תאריך עם כל id כדי לנקות ערכים ישנים
+        let raw = JSON.parse(localStorage.getItem(key)||'[]');
+        // נרמול: מחרוזות ישנות → אובייקטים עם תאריך
+        const d = raw.map(x => typeof x === 'object' ? x : {id: String(x), date: today});
+        d.push({id: String(txId), date: today});
+        // נקה ערכים ישנים (לא של היום)
+        const cleaned = d.filter(x => x.date === today);
+        localStorage.setItem(key, JSON.stringify(cleaned));
+    } catch(e) {}
     // Mark order as ready — cook done → waiter picks up
     fetch('/api/store/orders/status', {
         method: 'POST', headers: {'Content-Type':'application/json'},
@@ -29162,10 +29180,13 @@ async function renderCookDashboard(el) {
         const r = await fetch(`/api/store/orders/${currentGroup.id}`);
         const orders = await r.json();
         const doneKey = `kds_done_${currentGroup.id}`;
-        let done = [];
-        try { done = JSON.parse(localStorage.getItem(doneKey)||'[]'); } catch(e2) {}
+        let doneIds = [];
+        try {
+            const raw = JSON.parse(localStorage.getItem(doneKey)||'[]');
+            doneIds = raw.map(x => typeof x === 'object' ? x.id : String(x)).filter(Boolean);
+        } catch(e2) {}
         kdsTickets = (Array.isArray(orders) ? orders : [])
-            .filter(t => t.created_at?.startsWith(today) && ['new','processing','ready'].includes(t.status) && !done.includes(String(t.id)))
+            .filter(t => t.created_at?.startsWith(today) && ['new','processing','ready'].includes(t.status) && !doneIds.includes(String(t.id)))
             .slice(0,15);
     } catch(e) {}
 
