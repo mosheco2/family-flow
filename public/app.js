@@ -9474,13 +9474,18 @@ function _renderBizAccordion(el, data, bizType) {
         const orders = act.orders || [];
         const quotes = act.quotes || [];
         const _ref = id => id ? `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>` : '';
-        const renderOrd = o => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
-                <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-sm shrink-0">🛒</div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-xs font-bold text-slate-700">הזמנה${_ref(o.id)}</p>
-                    <p class="text-[10px] text-slate-400">${fmtDate(o.created_at)} · ₪${parseFloat(o.total_price||o.total||0).toFixed(0)}</p>
+        const _ordStatus = { new:'חדש', confirmed:'אושר', processing:'בהכנה', ready:'מוכן', done:'הושלם', cancelled:'בוטל', pending:'ממתין' };
+        const _ordStatusColor = s => s==='done'||s==='ready'?'bg-green-100 text-green-700':s==='cancelled'?'bg-red-100 text-red-600':s==='processing'||s==='confirmed'?'bg-blue-100 text-blue-700':'bg-orange-100 text-orange-700';
+        const renderOrd = o => `<div class="py-2 border-b border-slate-50 last:border-0">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-sm shrink-0">🛒</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold text-slate-700">הזמנה${_ref(o.id)}</p>
+                        <p class="text-[10px] text-slate-400">${fmtDate(o.created_at)}${parseFloat(o.total_price||0)>0?' · ₪'+parseFloat(o.total_price).toFixed(0):''}</p>
+                    </div>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${_ordStatusColor(o.status)}">${_ordStatus[o.status]||o.status||''}</span>
                 </div>
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">${o.status||''}</span>
+                ${o.notes ? `<p class="text-[10px] text-slate-500 mt-1 pr-10 truncate">📝 ${o.notes}</p>` : ''}
             </div>`;
         const renderQuote = q => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
                 <div class="w-8 h-8 rounded-lg bg-yellow-50 flex items-center justify-center text-sm shrink-0">📋</div>

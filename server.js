@@ -13222,15 +13222,16 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
             result.activity = { memberships: memR.rows, checkins: checkR.rows };
 
         } else if (bizType === 'restaurant' || bizType === 'services') {
-            const ordR = await pool.query(`SELECT id, status, total_price, total, created_at
+            const ordR = await pool.query(`SELECT id, status, total_amount AS total_price, notes, created_at
                             FROM store_orders
                             WHERE group_id=$1 AND (customer_phone=$2 OR family_group_id=$3)
+                              AND (status IS NULL OR status != 'quote')
                             ORDER BY created_at DESC LIMIT 20`,
                 [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
-            const quoteR = await pool.query(`SELECT id, quote_status AS status, created_at
+            const quoteR = await pool.query(`SELECT id, quote_status AS status, total_amount AS total_price, created_at
                             FROM store_orders
                             WHERE group_id=$1 AND (customer_phone=$2 OR family_group_id=$3)
-                              AND order_type='quote'
+                              AND status = 'quote'
                             ORDER BY created_at DESC LIMIT 10`,
                 [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
             result.activity = { orders: ordR.rows, quotes: quoteR.rows };
