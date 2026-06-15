@@ -21383,9 +21383,7 @@ window.markItemServed = function(orderId, idx) {
     fetch(`/api/store/orders/${orderId}/item-ready`, {
         method: 'PATCH', headers: {'Content-Type':'application/json'},
         body: JSON.stringify({idx, ready: false})
-    }).catch(() => {});
-    const dashEl = document.getElementById('content-role-dashboard');
-    if (dashEl) renderWaiterDashboard(dashEl);
+    }).then(() => refreshWaiterReadySection()).catch(() => {});
 };
 
 window.markReadyDelivered = function(orderId, newStatus) {
@@ -27943,6 +27941,69 @@ function stopTablePolling() {
     if (_tablePollingInterval) { clearInterval(_tablePollingInterval); _tablePollingInterval = null; }
 }
 
+let _waiterReadyPollingInterval = null;
+function startWaiterReadyPolling() {
+    if (_waiterReadyPollingInterval) clearInterval(_waiterReadyPollingInterval);
+    _waiterReadyPollingInterval = setInterval(refreshWaiterReadySection, 5000);
+}
+function stopWaiterReadyPolling() {
+    if (_waiterReadyPollingInterval) { clearInterval(_waiterReadyPollingInterval); _waiterReadyPollingInterval = null; }
+}
+async function refreshWaiterReadySection() {
+    const container = document.getElementById('waiter-ready-container');
+    if (!container || !currentGroup?.id) return;
+    try {
+        const od = await fetch(`${API}/store/orders/${currentGroup.id}`).then(r => r.json());
+        if (!Array.isArray(od)) return;
+        const today = new Date().toISOString().split('T')[0];
+        let pendingReady = [], itemReadyList = [];
+        od.filter(o => o.status === 'ready').forEach(o => {
+            let tableNum = null;
+            try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
+            let items = [];
+            try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata); } catch(e3) {}
+            pendingReady.push({ orderId: o.id, tableNum, items, isDelivery: !!(o.is_delivery) });
+        });
+        od.filter(o => ['new','processing'].includes(o.status) && Array.isArray(o.items_ready) && o.items_ready.length > 0).forEach(o => {
+            let tableNum = null;
+            try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
+            (o.items_ready||[]).forEach(ir => itemReadyList.push({ orderId: o.id, tableNum: ir.tableNum||tableNum, name: ir.name, idx: ir.idx, time: ir.time }));
+        });
+        const itemReadyHtml = itemReadyList.length ? `
+            <div class="bg-white rounded-2xl shadow-sm border border-orange-200 mb-4">
+                <div class="px-4 py-3 border-b border-orange-100 bg-orange-50/60 flex items-center justify-between">
+                    <h3 class="font-black text-orange-700 text-sm">🍽️ מנות מוכנות (${itemReadyList.length})</h3>
+                </div>
+                <div class="px-4 py-1">${itemReadyList.slice(0,12).map(ir => {
+                    const tbl = ir.tableNum ? `שולחן ${ir.tableNum}` : `הזמנה #${ir.orderId}`;
+                    const tStr = ir.time ? new Date(ir.time).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+                    return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                        <span class="bg-orange-100 text-orange-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0">${tbl}</span>
+                        <span class="text-xs font-bold text-slate-700 flex-1">${safeStr(ir.name)}</span>
+                        <span class="text-[9px] text-slate-400 shrink-0">${tStr}</span>
+                        <button ontouchend="event.preventDefault();markItemServed(${ir.orderId},${ir.idx});" onclick="markItemServed(${ir.orderId},${ir.idx})" class="bg-orange-500 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">הוגש ✓</button>
+                    </div>`;
+                }).join('')}</div>
+            </div>` : '';
+        const readyHtml = pendingReady.length ? `
+            <div class="bg-white rounded-2xl shadow-sm border border-green-200 mb-4">
+                <div class="px-4 py-3 border-b border-green-100 bg-green-50/60">
+                    <h3 class="font-black text-green-700 text-sm">✅ הזמנות מוכנות לאיסוף (${pendingReady.length})</h3>
+                </div>
+                <div class="px-4 py-1">${pendingReady.map(r => {
+                    const tbl = r.tableNum ? `שולחן ${r.tableNum}` : `הזמנה #${r.orderId}`;
+                    const names = r.items.slice(0,3).map(i => safeStr(i.name||'')).filter(Boolean).join(', ');
+                    return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                        <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0">${tbl}</span>
+                        <span class="text-xs text-slate-600 flex-1 truncate">${names}</span>
+                        <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">✅ נאסף</button>
+                    </div>`;
+                }).join('')}</div>
+            </div>` : '';
+        container.innerHTML = itemReadyHtml + readyHtml;
+    } catch(e) {}
+}
+
 let _tableBillsLastServerJson = null;
 function syncTableBillsToServer(bills) {
     if (!currentGroup?.id) return;
@@ -28840,10 +28901,13 @@ async function renderWaiterDashboard(el) {
     el.innerHTML = `
         ${roleDashboardHeader('🍽️','ממשק מלצר/ית','שולחנות, תפריט ומשימות משמרת','from-amber-500','to-orange-600')}
         ${renderTableGrid()}
+        <div id="waiter-ready-container">
         ${itemReadyHtml}
         ${readyHtml}
+        </div>
         ${serviceReqHtml}`;
     startTablePolling();
+    startWaiterReadyPolling();
     loadTableReservationsForGrid();
     const _pendingCalBadge = (calEventsCache||[]).filter(e=>e.call_type==='table_reservation'&&e.status==='pending').length;
     const _readyBadge = pendingReady.length + itemReadyList.length;
