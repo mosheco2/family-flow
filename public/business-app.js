@@ -21636,6 +21636,20 @@ window.waiterMarkDelivered = function(tableId, subIdx) {
     }
 };
 
+window.waiterRemoveSubmitted = function(tableId, subIdx) {
+    const bills = getTableBills();
+    if (!bills[tableId]?.submitted?.[subIdx]) return;
+    const item = bills[tableId].submitted[subIdx];
+    if (!confirm(`להסיר "${item.name}" מחשבון שולחן ${tableId}?`)) return;
+    bills[tableId].submitted.splice(subIdx, 1);
+    if (!bills[tableId].submitted.length && !bills[tableId].pending?.length) {
+        delete bills[tableId];
+    }
+    saveTableBills(bills);
+    window.waiterRenderCart();
+    showToast('success', `"${item.name}" הוסר מהחשבון`);
+};
+
 window.waiterRenderCart = function() {
     const list = document.getElementById('waiter-cart-list');
     const totalEl = document.getElementById('waiter-cart-total');
@@ -21660,10 +21674,13 @@ window.waiterRenderCart = function() {
                     ${noteStr}
                     <div class="text-[9px] text-slate-400">₪${((i.price||0)*i.qty).toFixed(0)}</div>
                 </div>
+                <div class="flex items-center gap-1 shrink-0">
                 ${isDelivered
                     ? `<span class="text-green-500 text-base">✓</span>`
                     : `<button ontouchend="event.preventDefault();waiterMarkDelivered(${table},${idx});" onclick="waiterMarkDelivered(${table},${idx})" class="bg-green-100 text-green-700 text-[9px] font-black px-1.5 py-1 rounded" style="touch-action:manipulation;">סופק</button>`
                 }
+                <button ontouchend="event.preventDefault();waiterRemoveSubmitted(${table},${idx});" onclick="waiterRemoveSubmitted(${table},${idx})" class="w-5 h-5 bg-red-100 text-red-500 rounded-full text-xs font-black flex items-center justify-center" style="touch-action:manipulation;" title="הסר מהחשבון">×</button>
+                </div>
             </div>`;
         }).join('');
         if (html) html += `<div class="border-t border-slate-100 my-1"></div>`;
