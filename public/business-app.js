@@ -1582,10 +1582,12 @@ function _getGuideUrl(bizType) {
 function _getTourSlides() {
     const bizType = currentGroup?.business_type || '';
     const role = ['ADMIN','MANAGER'].includes(currentUser?.role) ? currentUser.role : 'EMPLOYEE';
-    return (_TOUR_DEFAULTS[bizType] || _TOUR_DEFAULTS.sport)[role] || _TOUR_DEFAULTS.sport.EMPLOYEE;
+    return (_TOUR_DEFAULTS[bizType] || {})[role] || (_TOUR_DEFAULTS.sport[role] || _TOUR_DEFAULTS.sport.EMPLOYEE);
 }
 
 function checkAndShowTour() {
+    // אל תציג סיור לעסק שטרם השלים אונבורדינג — הסיור הספורט יופיע לפני בחירת סוג עסק
+    if (currentGroup?.is_onboarded === false) return;
     setTimeout(async () => {
         try {
             const today = new Date().toISOString().slice(0, 10);
