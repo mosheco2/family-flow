@@ -27270,6 +27270,60 @@ window.setTableAwaitingPayment = function(tableId) {
     localStorage.setItem(`tables_${currentGroup.id}`, JSON.stringify(states));
 };
 
+// ─── Table Transfer ──────────────────────────────────────────────────────────
+window.openTableTransferModal = function(fromId) {
+    const count = parseInt(currentGroup?.table_count || 8);
+    const states = getTableStates();
+    const fromState = states[fromId] || 'free';
+    const options = Array.from({length: count}, (_, i) => i + 1)
+        .filter(id => id !== fromId && (states[id] || 'free') !== 'disabled')
+        .map(id => {
+            const s = states[id] || 'free';
+            const label = TABLE_STATE_LABELS[s] || s;
+            const color = s === 'free' ? 'text-green-700' : s === 'occupied' ? 'text-red-600' : 'text-orange-600';
+            return `<button onclick="window.executeTableTransfer(${fromId},${id})" class="flex items-center justify-between w-full px-4 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-right">
+                <span class="font-bold text-slate-800">שולחן ${id}</span>
+                <span class="${color} text-xs font-bold">${label}</span>
+            </button>`;
+        }).join('');
+
+    const existing = document.getElementById('table-transfer-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'table-transfer-modal';
+    modal.className = 'fixed inset-0 z-[9999] flex items-end justify-center bg-black/50';
+    modal.innerHTML = `<div class="bg-white w-full max-w-sm rounded-t-3xl p-5 pb-8 shadow-2xl" style="max-height:80vh;overflow-y:auto;">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-black text-slate-800">↔️ העבר שולחן ${fromId} לשולחן:</h3>
+            <button onclick="document.getElementById('table-transfer-modal').remove()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-lg">✕</button>
+        </div>
+        <div class="flex flex-col gap-2">${options || '<p class="text-slate-400 text-sm text-center py-4">אין שולחנות פנויים/זמינים</p>'}</div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+window.executeTableTransfer = function(fromId, toId) {
+    const states = getTableStates();
+    const fromState = states[fromId] || 'free';
+    states[toId] = fromState;
+    states[fromId] = 'free';
+    localStorage.setItem(`tables_${currentGroup.id}`, JSON.stringify(states));
+    // transfer waiter assignment too
+    const today = new Date().toISOString().split('T')[0];
+    const key = `table_assign_${currentGroup.id}_${today}`;
+    let assigns = {};
+    try { assigns = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
+    if (assigns[fromId]) { assigns[toId] = assigns[fromId]; delete assigns[fromId]; }
+    localStorage.setItem(key, JSON.stringify(assigns));
+    document.getElementById('table-transfer-modal')?.remove();
+    showToast('success', `שולחן ${fromId} הועבר לשולחן ${toId}`);
+    // re-render table grid if visible
+    const gridCard = document.querySelector('.table-grid-card');
+    if (gridCard) { gridCard.outerHTML = renderTableGrid(); }
+};
+
 function getTableAssignments() {
     const today = new Date().toISOString().split('T')[0];
     try { return JSON.parse(localStorage.getItem(`table_assign_${currentGroup.id}_${today}`) || '{}'); } catch(e) { return {}; }
@@ -27294,6 +27348,8 @@ function renderTableGrid() {
         const stStyle = TABLE_STATE_STYLES?.[st] || TABLE_STATE_STYLES['free'];
         const stLabel = TABLE_STATE_LABELS?.[st] || 'פנוי';
         const waiter = assigns[id] ? `<span class="text-[7px] leading-none truncate w-full text-center block opacity-70">${safeStr(assigns[id])}</span>` : '';
+        const isActive = ['occupied','awaiting_payment'].includes(st);
+        const transferBtn = isActive ? `<span onclick="event.stopPropagation();window.openTableTransferModal(${id});" title="העבר שולחן" style="font-size:9px;line-height:1;cursor:pointer;opacity:0.7;" class="mt-0.5">↔️</span>` : '';
         return `<button type="button"
             ontouchend="event.preventDefault();event.stopPropagation();toggleTable(${id},this);"
             onclick="toggleTable(${id},this)"
@@ -27302,6 +27358,7 @@ function renderTableGrid() {
             <span class="font-black text-sm">${id}</span>
             ${waiter}
             <span class="tsLabel text-[9px] font-bold">${stLabel}</span>
+            ${transferBtn}
         </button>`;
     }).join('');
     const summaryFree = count - totalOcc;
