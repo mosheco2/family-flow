@@ -5537,17 +5537,33 @@ app.post('/api/store/customers', async (req, res) => {
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP) RETURNING id`,
             [groupId, name, companyName||null, phone || '', email || '', businessId || '', notes || '', familyGroupId||null]
         );
+        if (familyGroupId && groupId) {
+            await pool.query(
+                `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_at, is_active, status)
+                 VALUES ($1, $2, (SELECT business_type FROM family_groups WHERE id=$2 LIMIT 1), NOW(), true, 'active')
+                 ON CONFLICT (member_group_id, business_group_id) DO NOTHING`,
+                [familyGroupId, groupId]
+            ).catch(() => {});
+        }
         res.json({ success: true, customerId: result.rows[0].id });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/store/customers/:id', async (req, res) => {
     try {
-        const { name, companyName, phone, email, businessId, notes, familyGroupId } = req.body;
+        const { name, companyName, phone, email, businessId, notes, familyGroupId, groupId } = req.body;
         await pool.query(
             `UPDATE store_customers SET name=$1, company_name=$2, phone=$3, email=$4, business_id=$5, notes=$6, family_group_id=$7 WHERE id=$8`,
             [name, companyName||null, phone || '', email || '', businessId || '', notes || '', familyGroupId||null, req.params.id]
         );
+        if (familyGroupId && groupId) {
+            await pool.query(
+                `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_at, is_active, status)
+                 VALUES ($1, $2, (SELECT business_type FROM family_groups WHERE id=$2 LIMIT 1), NOW(), true, 'active')
+                 ON CONFLICT (member_group_id, business_group_id) DO NOTHING`,
+                [familyGroupId, groupId]
+            ).catch(() => {});
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -13204,12 +13220,12 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
         } else if (bizType === 'restaurant' || bizType === 'services') {
             const ordR = await pool.query(`SELECT id, status, total_price, total, created_at
                             FROM store_orders
-                            WHERE business_group_id=$1 AND (customer_phone=$2 OR customer_group_id=$3)
+                            WHERE group_id=$1 AND (customer_phone=$2 OR family_group_id=$3)
                             ORDER BY created_at DESC LIMIT 20`,
                 [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
             const quoteR = await pool.query(`SELECT id, quote_status AS status, created_at
                             FROM store_orders
-                            WHERE business_group_id=$1 AND (customer_phone=$2 OR customer_group_id=$3)
+                            WHERE group_id=$1 AND (customer_phone=$2 OR family_group_id=$3)
                               AND order_type='quote'
                             ORDER BY created_at DESC LIMIT 10`,
                 [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
