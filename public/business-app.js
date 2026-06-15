@@ -8757,8 +8757,10 @@ window._custLinkOneflow = function(familyId, matchIdx) {
     const groupLabel = m.group_last_name || m.family_nickname || m.family_name || '';
     const setField = (id, val) => { const el = document.getElementById(id); if (el && val && !el.value) el.value = val; };
     setField('cust-name', fullName);
-    setField('cust-email', m.email || '');
     setField('cust-company-name', groupLabel);
+    // מייל ממולא תמיד מנתוני ONEFLOW (אם קיים), ללא תנאי !el.value
+    const emailEl = document.getElementById('cust-email');
+    if (emailEl && m.email) emailEl.value = m.email;
     if (document.getElementById('cust-family-group-id')) document.getElementById('cust-family-group-id').value = familyId || '';
     const resEl = document.getElementById('cust-oneflow-result');
     if (resEl) resEl.innerHTML = `
@@ -8971,7 +8973,7 @@ window.openCustomerModal = function(id = null, tab = 'details') {
                     <div><label class="text-xs font-bold text-slate-500">טלפון (מזהה ראשי להקפות):</label>
                         <div class="flex gap-2">
                             <input type="tel" id="cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left flex-1" oninput="if(!document.getElementById('cust-view-history').classList.contains('hidden')) window.renderCustomerHistory(false, 'modal')">
-                            <button onclick="window._custCheckOneflow()" class="shrink-0 bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200 rounded-xl px-3 font-black text-sm flex items-center gap-1 transition" title="חפש ב-ONEFLOW LIFE"><i class="fa-solid fa-user-check text-xs"></i></button>
+                            <button onclick="window._custCheckOneflow()" class="shrink-0 bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200 rounded-xl px-2.5 py-2 font-black text-[11px] flex items-center gap-1.5 transition" title="איתור לקוח ב-ONEFLOW LIFE"><i class="fa-solid fa-user-check text-xs"></i><span>איתור ONEFLOW</span></button>
                         </div>
                         <div id="cust-oneflow-result" class="mt-1 hidden"></div>
                     </div>
