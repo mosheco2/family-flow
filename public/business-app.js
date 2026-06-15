@@ -21600,6 +21600,7 @@ window.waiterAddItem = function(id) {
     if (existing) existing.qty++;
     else window.waiterPOSCart.push({ id: p.id, name: p.name, price: parseFloat(p.price)||0, qty: 1, kitchenStation: p.kitchen_station || 'other', note: '', category: p.category||'' });
     window.waiterRenderCart();
+    if (window.waiterSelectedTable) waiterSavePendingForCurrentTable();
 };
 
 window.waiterAddComplimentary = function(id) {
@@ -21611,6 +21612,7 @@ window.waiterChangeQty = function(idx, delta) {
     window.waiterPOSCart[idx].qty += delta;
     if (window.waiterPOSCart[idx].qty <= 0) window.waiterPOSCart.splice(idx, 1);
     window.waiterRenderCart();
+    if (window.waiterSelectedTable) waiterSavePendingForCurrentTable();
 };
 
 window.waiterSetNote = function(idx, val) {
@@ -21722,8 +21724,6 @@ window.waiterRenderCart = function() {
         submitBtn.disabled = !window.waiterPOSCart.length;
         submitBtn.className = `w-full rounded-xl py-3 font-black text-sm active:scale-95 transition shadow ${window.waiterPOSCart.length ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`;
     }
-    // סנכרן פריטים ממתינים לשרת בזמן אמת (כך המנהל רואה מה המלצר מכין)
-    if (window.waiterSelectedTable) waiterSavePendingForCurrentTable();
 };
 
 window.waiterSubmitOrder = async function() {
@@ -28015,9 +28015,11 @@ async function refreshWaiterReadySection() {
 let _tableBillsLastServerJson = null;
 function syncTableBillsToServer(bills) {
     if (!currentGroup?.id) return;
+    const json = JSON.stringify(bills);
+    _tableBillsLastServerJson = json; // עדכון אופטימיסטי — מונע הורדה מיותרת בפולינג הבא
     fetch(`/api/tables/${currentGroup.id}/bills`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bills })
+        body: json
     }).catch(() => {});
 }
 async function syncTableBillsFromServer() {
@@ -28025,18 +28027,17 @@ async function syncTableBillsFromServer() {
     try {
         const d = await fetch(`/api/tables/${currentGroup.id}/bills`).then(r => r.json());
         const serverJson = JSON.stringify(d.bills || {});
-        if (serverJson === _tableBillsLastServerJson) return;
+        if (serverJson === _tableBillsLastServerJson) return; // אין שינוי — דלג
         _tableBillsLastServerJson = serverJson;
         const serverBills = d.bills || {};
         if (!Object.keys(serverBills).length) return;
-        // Merge: server wins for submitted items; keep local pending for active table
+        // מיזוג: שרת גובר על submitted; local pending נשמר לשולחן הפעיל
         const local = getTableBills();
         const activeTid = window.waiterSelectedTable;
         const merged = Object.assign({}, local);
         Object.keys(serverBills).forEach(tid => {
             const srv = serverBills[tid];
             if (!merged[tid]) { merged[tid] = srv; return; }
-            // Keep local pending for the table the waiter is currently editing
             const keepLocalPending = activeTid && parseInt(tid) === activeTid;
             merged[tid] = {
                 openedAt: srv.openedAt || merged[tid].openedAt,
@@ -28044,14 +28045,15 @@ async function syncTableBillsFromServer() {
                 pending: keepLocalPending ? (merged[tid].pending || []) : (srv.pending || merged[tid].pending || [])
             };
         });
-        // Remove tables cleared on server
+        // הסר שולחנות שנמחקו בשרת
         Object.keys(local).forEach(tid => { if (!serverBills[tid]) delete merged[tid]; });
-        saveTableBills(merged);
-        // Update waiter cart view if open
+        // שמירה ישירה ל-localStorage בלי לקרוא syncTableBillsToServer (מניעת לולאה!)
+        localStorage.setItem(`table_bills_${currentGroup.id}`, JSON.stringify(merged));
+        // עדכן תצוגת עגלה אם פתוחה
         if (document.getElementById('waiter-pos-modal') && typeof window.waiterRenderCart === 'function') {
             window.waiterRenderCart();
         }
-        // Refresh table chips in waiter view
+        // עדכן צ'יפים
         if (document.getElementById('waiter-table-chips')) {
             const count = parseInt(currentGroup.table_count || 8);
             const bills2 = getTableBills();
