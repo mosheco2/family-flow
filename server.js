@@ -5631,28 +5631,105 @@ app.post('/api/biz/chat-assistant', async (req, res) => {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        
-        // בניית פרומפט חזק שמכניס את ה-AI לתפקיד עוזרת עסקית מקיפה
-        const prompt = `You are 'FamliAI', the intelligent and friendly AI assistant for a business manager using the 'Oneflowlife Pro' management system. 
-        Your job is to answer questions, analyze data, and guide the user on how to use the system.
-        
-        Here is the live data from the system (Orders, Employees, Inventory, Tasks, Finance):
-        ${context}
-        
-        User's Request/Question: "${query}"
-        
-        Instructions for your response:
-        1. Respond directly in Hebrew.
-        2. Be professional, concise, but highly insightful.
-        3. If the user asks about system data (like "how many open orders do I have" or "what is our budget status"), calculate or infer the answer using the JSON context provided above.
-        4. If the user asks how to perform an action in the system (e.g., "how do I add a product"), guide them briefly based on standard UI knowledge (e.g., "Go to the Shop tab -> click Product Catalog -> Add Product").
-        5. Do not invent data that is not in the context. If you don't know, say you don't have that specific data right now.
-        6. Use emojis occasionally to maintain a friendly tone, but don't overdo it.
-        7. Use Markdown ONLY for bolding (**text**) or simple lists. No complex tables or code blocks unless requested.`;
-        
-        const result = await model.generateContent(prompt);
+
+        const systemPrompt = `אתה "FamliAI" — עוזרת עסקית בינה מלאכותית ברמת Expert, מוטמעת במערכת ONEFLOW BUSINESS.
+אתה מנתח נתוני עסק בזמן אמת ומספק תובנות, ניתוחים, חיזויים והמלצות ברמה הגבוהה ביותר.
+
+== נתוני העסק בזמן אמת ==
+להלן JSON מפורט עם כל נתוני העסק:
+${context}
+
+== שאלת המנהל ==
+"${query}"
+
+== כללי תגובה קבועים ==
+1. ענה תמיד בעברית. קצר, ישיר, מקצועי.
+2. חשב מספרים ישירות מה-JSON — לעולם אל תגיד "אין לי גישה" — הנתונים שלפניך הם מקור האמת.
+3. תן תובנות פרואקטיביות: "שים לב ש...", "מגמה:", "המלצה:".
+4. אם מבקשים ניתוח/דוח — תן סיכום מספרי + רשימה מסודרת.
+5. השתמש ב-**bold** לסכומים ומספרים חשובים.
+6. אם ביצועים ירדו — ציין כמה אחוז ומתי.
+
+== פקודות מיוחדות (ACTION) ==
+אם המשתמש מבקש:
+• ליצור משימה → הוסף [ACTION:ADD_TASK|כותרת המשימה] בסוף תשובתך
+• להוסיף לרכש → הוסף [ACTION:ADD_SHOP|שם הפריט] בסוף תשובתך
+• לייצא לאקסל/CSV → הוסף [ACTION:EXPORT_EXCEL|orders] או customers/cashflow/pantry/staff/food-cost בסוף
+• לעבור לטאב → הוסף [ACTION:OPEN_TAB|tabId] בסוף (tabIds: pos/sales/customers/pantry/foodcost/cashflow/shifts/members/calendar/deliveries/tasks)
+
+== יכולות ניתוח ==
+• סיכום מכירות: יומי/שבועי/חודשי, ממוצע להזמנה, מגמות
+• food cost: ממוצע (ירוק<30%, כתום 30-40%, אדום>40%); מנות הכי רווחיות; מנות בעייתיות
+• מלאי: פריטים נגמרים, המלצת הזמנה, קצב צריכה
+• תזרים: הכנסות מול הוצאות, יתרה נטו, ניתוח קטגוריות
+• צוות: כמות עובדים, יתרות תקציב
+• חיזוי: על בסיס נתוני החודשים האחרונים, חזה מה צפוי החודש/שבוע הבא
+
+== עקרונות food cost (מסעדות ישראל) ==
+• <28%: מצוין | 28-33%: טוב | 33-40%: גבוה | >40%: בעייתי
+• ממוצע ענף ישראלי: 28-35%`;
+
+        const result = await model.generateContent(systemPrompt);
         res.json({ success: true, answer: result.response.text().trim() });
     } catch(e) { handleAIError(e, res, 'שגיאה במערכת העוזרת'); }
+});
+
+// ייצוא דוחות CSV (פתיחה ב-Excel)
+app.get('/api/biz/export-report', async (req, res) => {
+    try {
+        const { groupId, type } = req.query;
+        if (!groupId) return res.status(400).json({ error: 'groupId required' });
+        let csvData = '', filename = `report_${new Date().toISOString().split('T')[0]}.csv`;
+
+        if (type === 'orders') {
+            const r = await pool.query(`SELECT id,status,customer_name,customer_phone,total_amount,total,is_delivery,delivery_fee,notes,created_at FROM store_orders WHERE group_id=$1 ORDER BY created_at DESC LIMIT 2000`, [groupId]);
+            filename = `הזמנות_${new Date().toISOString().split('T')[0]}.csv`;
+            const sm = {new:'חדשה',processing:'בעבודה',completed:'הושלם',shipped:'בדרך',cancelled:'בוטל',quote:'הצעת מחיר',ready:'מוכן'};
+            csvData = 'מספר,סטטוס,שם לקוח,טלפון,סכום,משלוח,דמי משלוח,הערות,תאריך\n';
+            r.rows.forEach(o => { csvData += [o.id,sm[o.status]||o.status,`"${(o.customer_name||'').replace(/"/g,'""')}"`,o.customer_phone||'',o.total_amount||o.total||0,o.is_delivery?'כן':'לא',o.delivery_fee||0,`"${(o.notes||'').replace(/"/g,'""')}"`,new Date(o.created_at).toLocaleDateString('he-IL')].join(',')+'\n'; });
+        } else if (type === 'customers') {
+            const r = await pool.query(`SELECT id,name,phone,email,business_id,notes,created_at FROM store_customers WHERE group_id=$1 ORDER BY created_at DESC`, [groupId]);
+            filename = `לקוחות_${new Date().toISOString().split('T')[0]}.csv`;
+            csvData = 'מספר,שם,טלפון,אימייל,מספר עסקי,הערות,תאריך הצטרפות\n';
+            r.rows.forEach(c => { csvData += [c.id,`"${(c.name||'').replace(/"/g,'""')}"`,c.phone||'',c.email||'',c.business_id||'',`"${(c.notes||'').replace(/"/g,'""')}"`,new Date(c.created_at).toLocaleDateString('he-IL')].join(',')+'\n'; });
+        } else if (type === 'cashflow') {
+            const r = await pool.query(`SELECT t.id,t.type,t.category,t.description,t.amount,t.date,u.nickname as user_name FROM transactions t LEFT JOIN users u ON t.user_id=u.id WHERE t.group_id=$1 ORDER BY t.date DESC LIMIT 2000`, [groupId]);
+            filename = `תזרים_${new Date().toISOString().split('T')[0]}.csv`;
+            csvData = 'מספר,סוג,קטגוריה,תיאור,סכום,עובד,תאריך\n';
+            r.rows.forEach(t => { csvData += [t.id,t.type==='income'?'הכנסה':'הוצאה',`"${(t.category||'').replace(/"/g,'""')}"`,`"${(t.description||'').replace(/"/g,'""')}"`,t.amount||0,t.user_name||'',new Date(t.date).toLocaleDateString('he-IL')].join(',')+'\n'; });
+        } else if (type === 'pantry') {
+            const r = await pool.query(`SELECT id,item_name,quantity,unit,category,min_quantity,expiry_date,last_updated FROM pantry WHERE group_id=$1 ORDER BY category,item_name`, [groupId]);
+            filename = `מלאי_${new Date().toISOString().split('T')[0]}.csv`;
+            csvData = 'מספר,פריט,כמות,יחידה,קטגוריה,מינימום,תפוגה,עדכון אחרון\n';
+            r.rows.forEach(p => { csvData += [p.id,`"${(p.item_name||'').replace(/"/g,'""')}"`,p.quantity||0,p.unit||'',`"${(p.category||'').replace(/"/g,'""')}"`,p.min_quantity||0,p.expiry_date?new Date(p.expiry_date).toLocaleDateString('he-IL'):'',p.last_updated?new Date(p.last_updated).toLocaleDateString('he-IL'):''].join(',')+'\n'; });
+        } else if (type === 'staff') {
+            const r = await pool.query(`SELECT id,name,nickname,role,email,created_at FROM users WHERE group_id=$1 ORDER BY role,name`, [groupId]);
+            filename = `צוות_${new Date().toISOString().split('T')[0]}.csv`;
+            csvData = 'מספר,שם,כינוי,תפקיד,אימייל,תאריך הצטרפות\n';
+            r.rows.forEach(u => { csvData += [u.id,`"${(u.name||'').replace(/"/g,'""')}"`,`"${(u.nickname||'').replace(/"/g,'""')}"`,u.role||'',u.email||'',new Date(u.created_at).toLocaleDateString('he-IL')].join(',')+'\n'; });
+        } else if (type === 'food-cost') {
+            const catR = await pool.query(`SELECT id,name,price,category FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY category,name`, [groupId]);
+            const ingR = await pool.query(`SELECT pi.*,sti.price_per_unit FROM product_ingredients pi LEFT JOIN (SELECT DISTINCT ON(item_name) item_name,price_per_unit FROM shopping_trip_items sti2 JOIN shopping_trips st2 ON sti2.trip_id=st2.id WHERE st2.group_id=$1 ORDER BY item_name,st2.trip_date DESC) sti ON lower(pi.ingredient_name)=lower(sti.item_name) WHERE pi.catalog_id IN (SELECT id FROM store_catalog WHERE group_id=$1)`, [groupId,groupId]);
+            filename = `food_cost_${new Date().toISOString().split('T')[0]}.csv`;
+            csvData = 'מנה,קטגוריה,מחיר מכירה,עלות גלם,אחוז Food Cost,רווח\n';
+            catR.rows.forEach(item => {
+                const ings = ingR.rows.filter(i=>i.catalog_id===item.id);
+                const totalCost = ings.reduce((s,i)=>s+(parseFloat(i.price_per_unit)||0)*(parseFloat(i.quantity)||0),0);
+                const price = parseFloat(item.price)||0;
+                const fcPct = price>0&&totalCost>0 ? ((totalCost/price)*100).toFixed(1) : '';
+                csvData += [`"${(item.name||'').replace(/"/g,'""')}"`,`"${(item.category||'').replace(/"/g,'""')}"`,price,totalCost.toFixed(2),fcPct,(price-totalCost).toFixed(2)].join(',')+'\n';
+            });
+        } else {
+            return res.status(400).json({ error: 'סוג דוח לא ידוע' });
+        }
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+        res.send('﻿' + csvData);
+    } catch(e) {
+        console.error('[EXPORT-REPORT]', e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // ============================================================

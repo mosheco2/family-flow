@@ -4222,6 +4222,39 @@ window.renderDashboard = async function(forceRefresh = false) {
         s('kpi-open-tasks',    openTasks);
         s('kpi-revenue-month', `₪${revenueMonth.toLocaleString('he-IL', {maximumFractionDigits:0})}`);
 
+        // === KPIs ייחודיים למסעדה/בית קפה ===
+        const restKpiDiv = document.getElementById('restaurant-kpi-cards');
+        if (restKpiDiv) {
+            const isRest = ['restaurant','cafe'].includes(currentGroup?.business_type);
+            restKpiDiv.classList.toggle('hidden', !isRest);
+            if (isRest) {
+                // משלוחים בדרך
+                const inTransit = (storeOrdersCache || []).filter(o => o.status === 'shipped').length;
+                s('kpi-deliveries-transit', inTransit);
+                // ממוצע להזמנה (החודש)
+                const monthOrders = (storeOrdersCache || []).filter(o => {
+                    const d = new Date(o.created_at);
+                    return d.getMonth() === thisMonth && d.getFullYear() === thisYear && !['cancelled','quote'].includes(o.status);
+                });
+                const avgPerOrder = monthOrders.length > 0 ? Math.round(revenueMonth / monthOrders.length) : 0;
+                s('kpi-avg-per-order', `₪${avgPerOrder.toLocaleString('he-IL')}`);
+                // מלאי נמוך (כמות)
+                s('kpi-low-stock-count', lowStock.length);
+                // Food Cost % מתוך foodCostData אם טעון
+                const fcEl = document.getElementById('kpi-food-cost-pct');
+                if (fcEl) {
+                    if (typeof foodCostData !== 'undefined' && foodCostData?.length > 0) {
+                        const withCost = foodCostData.filter(i => i.costs?.foodCostPct > 0);
+                        if (withCost.length > 0) {
+                            const avgFC = withCost.reduce((a, i) => a + i.costs.foodCostPct, 0) / withCost.length;
+                            fcEl.textContent = `${avgFC.toFixed(1)}%`;
+                            fcEl.className = `text-2xl font-black ${avgFC < 30 ? 'text-white' : avgFC < 40 ? 'text-yellow-200' : 'text-red-200'}`;
+                        } else { fcEl.textContent = 'לא מחושב'; }
+                    } else { fcEl.textContent = '—'; }
+                }
+            }
+        }
+
         // Balance banner — keep white text on blue card; add subtle indicator via prefix
         const balEl = document.getElementById('user-balance');
         if (balEl) {
@@ -11990,22 +12023,62 @@ async function submitGlobalAI() {
         try { await window.fetchWorkOrders(); } catch(e) {}
     }
 
-    // הזרקת קונטקסט עשיר והוראות הפעלה לעוזרת הווירטואלית האקטיבית
+    // קונטקסט עשיר ומקיף לעוזרת העסקית
+    const now_ai = new Date();
+    const thisM = now_ai.getMonth(), thisY = now_ai.getFullYear();
+    const allOrd = storeOrdersCache || [];
+    const ordMonth = allOrd.filter(o => { const d=new Date(o.created_at); return d.getMonth()===thisM && d.getFullYear()===thisY && o.status!=='cancelled'; });
+    const ordToday = allOrd.filter(o => { const d=new Date(o.created_at); return d.toDateString()===now_ai.toDateString() && o.status!=='cancelled'; });
+    const revenueM = ordMonth.filter(o=>['completed','shipped'].includes(o.status)).reduce((s,o)=>s+(parseFloat(o.total_amount)||parseFloat(o.total)||0),0);
+    const revenueToday = ordToday.filter(o=>['completed','shipped'].includes(o.status)).reduce((s,o)=>s+(parseFloat(o.total_amount)||parseFloat(o.total)||0),0);
+    const statusCounts = {};
+    allOrd.forEach(o => { statusCounts[o.status] = (statusCounts[o.status]||0)+1; });
+    const lowStockItems = (pantryCache||[]).filter(p=>parseFloat(p.quantity)<=2);
+    const totalInc = (allTransactions||[]).filter(t=>t.type==='income').reduce((s,t)=>s+(parseFloat(t.amount)||0),0);
+    const totalExp = (allTransactions||[]).filter(t=>t.type==='expense').reduce((s,t)=>s+(parseFloat(t.amount)||0),0);
+    // Food cost summary
+    let fcSummary = null;
+    if (typeof foodCostData !== 'undefined' && foodCostData?.length > 0) {
+        const withCost = foodCostData.filter(i=>i.costs?.foodCostPct>0);
+        fcSummary = {
+            total_items: foodCostData.length,
+            items_with_recipe: withCost.length,
+            avg_food_cost_pct: withCost.length>0 ? (withCost.reduce((a,i)=>a+i.costs.foodCostPct,0)/withCost.length).toFixed(1) : null,
+            top_profitable: foodCostData.filter(i=>i.costs?.profit>0).sort((a,b)=>b.costs.profit-a.costs.profit).slice(0,3).map(i=>({name:i.name,profit:i.costs.profit?.toFixed(2),fc_pct:i.costs.foodCostPct?.toFixed(1)})),
+            problematic: foodCostData.filter(i=>i.costs?.foodCostPct>40).map(i=>({name:i.name,fc_pct:i.costs.foodCostPct?.toFixed(1)}))
+        };
+    }
     const systemContext = {
-        active_orders: storeOrdersCache.filter(o => o.status !== 'completed'),
-        work_orders: workOrdersCache.map(wo => ({
-            id: wo.id,
-            quote_number: wo.quote_number,
-            customer_name: wo.customer_name,
-            status: wo.status,
-            total_amount: wo.total_amount,
-            created_at: wo.created_at,
-            assignee_count: wo.assignee_count
-        })),
-        employees: membersCache.map(m => ({name: m.nickname, role: m.role, budget: m.balance})),
-        pantry_inventory: pantryCache.map(p => ({item: p.item_name, qty: p.quantity})),
-        recent_expenses: allTransactions.filter(t => t.type === 'expense').slice(0, 10).map(t => ({desc: t.description, amount: t.amount})),
-        instructions: "You are the business AI assistant. You have full access to the business data. Work order statuses: processing=בתהליך, scheduled=מתוזמן, completed=הושלם, cancelled=בוטל, new=חדש. If the user asks to create a task for an employee or a project, output exactly [ACTION:ADD_TASK|Task Title] at the very end of your answer. If they ask to buy, order or add an item to the procurement/shopping list, output exactly [ACTION:ADD_SHOP|Item Name] at the very end. Keep your answers brief and in Hebrew."
+        business_type: currentGroup?.business_type,
+        business_name: currentGroup?.name,
+        date_today: now_ai.toLocaleDateString('he-IL', {weekday:'long',day:'numeric',month:'long',year:'numeric'}),
+        orders_summary: {
+            total: allOrd.length,
+            by_status: statusCounts,
+            today_count: ordToday.length,
+            today_revenue: revenueToday,
+            month_count: ordMonth.length,
+            month_revenue: revenueM,
+            avg_per_order_month: ordMonth.length>0 ? Math.round(revenueM/ordMonth.length) : 0,
+            deliveries_in_transit: allOrd.filter(o=>o.status==='shipped').length,
+            recent_10: allOrd.slice(0,10).map(o=>({id:o.id,status:o.status,customer:o.customer_name,amount:o.total_amount||o.total,date:o.created_at,is_delivery:o.is_delivery}))
+        },
+        work_orders: workOrdersCache.slice(0,20).map(wo=>({id:wo.id,customer:wo.customer_name,status:wo.status,amount:wo.total_amount,date:wo.created_at})),
+        employees: membersCache.map(m=>({name:m.nickname||m.name,role:m.role,balance:m.balance})),
+        pantry: {
+            total_items: (pantryCache||[]).length,
+            low_stock: lowStockItems.map(p=>({item:p.item_name,qty:p.quantity,unit:p.unit})),
+            all: (pantryCache||[]).slice(0,30).map(p=>({item:p.item_name,qty:p.quantity,unit:p.unit,category:p.category}))
+        },
+        cashflow: {
+            total_income: totalInc,
+            total_expense: totalExp,
+            net_balance: totalInc-totalExp,
+            recent_income: (allTransactions||[]).filter(t=>t.type==='income').slice(0,5).map(t=>({desc:t.description,amount:t.amount,date:t.date})),
+            recent_expense: (allTransactions||[]).filter(t=>t.type==='expense').slice(0,5).map(t=>({desc:t.description,amount:t.amount,date:t.date}))
+        },
+        food_cost: fcSummary,
+        open_tasks: (allTasks||[]).filter(t=>t.status==='pending').slice(0,10).map(t=>({title:t.title,assignee:t.assignee_name}))
     };
     
     try {
@@ -12016,29 +12089,65 @@ async function submitGlobalAI() {
             let answerText = data.answer;
             let actionHtml = '';
             
-            // AI Action Parser - זיהוי בקשה לפתיחת טיקט/משימה
+            // AI Action Parser — משימה
             const taskMatch = answerText.match(/\[ACTION:ADD_TASK\|(.*?)\]/);
             if (taskMatch) {
                 const taskTitle = taskMatch[1].trim();
                 answerText = answerText.replace(taskMatch[0], '');
                 actionHtml += `<button onclick="document.getElementById('global-ai-modal').classList.add('hidden'); openTaskModal(); setTimeout(() => document.getElementById('task-title').value='${safeStr(taskTitle)}', 300);" class="mt-3 w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-list-check"></i> פתיחת משימה: ${safeStr(taskTitle)}</button>`;
             }
-            
-            // AI Action Parser - זיהוי בקשה להוספת ציוד לרכש
+            // AI Action Parser — רכש
             const shopMatch = answerText.match(/\[ACTION:ADD_SHOP\|(.*?)\]/);
             if (shopMatch) {
                 const shopItem = shopMatch[1].trim();
                 answerText = answerText.replace(shopMatch[0], '');
                 actionHtml += `<button onclick="document.getElementById('global-ai-modal').classList.add('hidden'); openShopModal(); setTimeout(() => document.getElementById('shop-item').value='${safeStr(shopItem)}', 300);" class="mt-3 w-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-cart-shopping"></i> הוסף לרכש: ${safeStr(shopItem)}</button>`;
             }
-            
-            chatBox.innerHTML += `<div class="bg-white p-3.5 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%] fade-in leading-relaxed">${answerText.trim().replace(/\n/g, '<br>')}${actionHtml}</div>`; 
+            // AI Action Parser — ייצוא Excel/CSV
+            const excelMatch = answerText.match(/\[ACTION:EXPORT_EXCEL\|(.*?)\]/);
+            if (excelMatch) {
+                const exportType = excelMatch[1].trim();
+                answerText = answerText.replace(excelMatch[0], '');
+                const exportLabels = { orders: 'הזמנות', customers: 'לקוחות', cashflow: 'תזרים', pantry: 'מלאי', staff: 'צוות', 'food-cost': 'Food Cost' };
+                const label = exportLabels[exportType] || exportType;
+                actionHtml += `<button onclick="window.downloadBizReport('${exportType}')" class="mt-3 w-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-file-excel"></i> הורד דוח ${label} (Excel)</button>`;
+            }
+            // AI Action Parser — מעבר לטאב
+            const tabMatch = answerText.match(/\[ACTION:OPEN_TAB\|(.*?)\]/);
+            if (tabMatch) {
+                const tabId = tabMatch[1].trim();
+                answerText = answerText.replace(tabMatch[0], '');
+                actionHtml += `<button onclick="document.getElementById('global-ai-modal').classList.add('hidden'); switchTab('${tabId}')" class="mt-3 w-full bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-arrow-left"></i> עבור ל${tabId}</button>`;
+            }
+            // Markdown bold → <strong>
+            answerText = answerText.trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+            chatBox.innerHTML += `<div class="bg-white p-3.5 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%] fade-in leading-relaxed">${answerText}${actionHtml}</div>`; 
             chatBox.scrollTop = chatBox.scrollHeight; 
         } else { 
             showToast('error', 'שגיאה בתשובת ה-AI'); 
         }
     } catch(e) { showToast('error', 'תקלת רשת מול מנוע ה-AI'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>'; }
 }
+
+// ייצוא דוח CSV מהעוזרת העסקית
+window.downloadBizReport = async function(type) {
+    if (!currentGroup?.id) return;
+    showToast('info', 'מכין קובץ ייצוא...');
+    try {
+        const url = `${API}/biz/export-report?groupId=${currentGroup.id}&type=${type}`;
+        const res = await fetch(url);
+        if (!res.ok) { showToast('error', 'שגיאה בהפקת דוח'); return; }
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        const labels = { orders:'הזמנות', customers:'לקוחות', cashflow:'תזרים', pantry:'מלאי', staff:'צוות', 'food-cost':'food_cost' };
+        a.download = `${labels[type]||type}_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+        showToast('success', 'הקובץ הורד בהצלחה!');
+    } catch(e) { showToast('error', 'שגיאת הורדה'); }
+};
 
 // ============================================================
 // --- BIZ COMMUNITY & SA MANAGEMENT ---

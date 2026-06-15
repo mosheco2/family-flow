@@ -883,6 +883,30 @@
                           </div>
                         </div>
 
+                        <!-- Restaurant-specific KPI cards (מוצגים רק למסעדה/בית קפה) -->
+                        <div id="restaurant-kpi-cards" class="grid grid-cols-2 gap-3 px-2 mb-4 hidden">
+                          <div class="bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl p-3.5 text-white shadow-md shadow-orange-200 overflow-hidden relative">
+                            <div class="text-orange-200 text-[10px] font-semibold mb-1">🍽️ עלות מזון ממוצעת</div>
+                            <div class="text-2xl font-black" id="kpi-food-cost-pct">—</div>
+                            <div class="text-orange-200 text-[10px] mt-1">Food Cost %</div>
+                          </div>
+                          <div class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm overflow-hidden relative">
+                            <div class="text-slate-400 text-[10px] font-semibold mb-1">🛵 משלוחים בדרך</div>
+                            <div class="text-2xl font-black text-indigo-500" id="kpi-deliveries-transit">0</div>
+                            <div class="text-slate-400 text-[10px] mt-1">ממתינים למסירה</div>
+                          </div>
+                          <div class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm overflow-hidden relative">
+                            <div class="text-slate-400 text-[10px] font-semibold mb-1">📈 ממוצע להזמנה</div>
+                            <div class="text-2xl font-black text-emerald-600" id="kpi-avg-per-order">₪0</div>
+                            <div class="text-slate-400 text-[10px] mt-1">החודש</div>
+                          </div>
+                          <div class="bg-amber-50 rounded-2xl p-3.5 border border-amber-200 shadow-sm overflow-hidden relative">
+                            <div class="text-amber-600 text-[10px] font-semibold mb-1">⚠️ מלאי נמוך</div>
+                            <div class="text-2xl font-black text-amber-600" id="kpi-low-stock-count">0</div>
+                            <div class="text-amber-500 text-[10px] mt-1">פריטים מתחת לרף</div>
+                          </div>
+                        </div>
+
                         <!-- Alerts (low stock only, compact) -->
                         <div id="dashboard-alerts" class="px-2 mb-4 hidden">
                           <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3.5">
@@ -3491,7 +3515,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=111" defer></script>
+    <script src="business-app.js?v=112" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
@@ -4229,14 +4253,22 @@
                         <p class="text-xs font-bold text-indigo-600 mt-1">העוזרת האישית שלך</p>
                     </div>
                     
-                    <div id="global-ai-chat" class="flex-1 bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100 space-y-3 flex flex-col overflow-y-auto modal-scroll min-h-0">
-                        <div class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%]">
-                            היי! אני העוזרת הווירטואלית שלכם. איך אוכל לעזור היום?
+                    <div id="global-ai-chat" class="flex-1 bg-slate-50 rounded-xl p-3 mb-3 border border-slate-100 space-y-3 flex flex-col overflow-y-auto modal-scroll min-h-0">
+                        <div class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[90%]">
+                            שלום! אני <strong>FamliAI</strong> — עוזרת עסקית חכמה. אני מכירה את כל נתוני העסק שלך בזמן אמת: הזמנות, מלאי, תזרים, food cost, צוות ועוד. מה תרצה לדעת?
                         </div>
                     </div>
-
+                    <!-- שאלות מהירות -->
+                    <div id="ai-quick-questions" class="flex gap-1.5 flex-wrap mb-2 shrink-0">
+                        <button onclick="document.getElementById('global-ai-input').value='סכם את המכירות של היום'; submitGlobalAI()" class="text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-full px-2.5 py-1 hover:bg-indigo-100 transition">📊 מכירות היום</button>
+                        <button onclick="document.getElementById('global-ai-input').value='אילו מנות הכי רווחיות ואילו בעייתיות מבחינת food cost?'; submitGlobalAI()" class="text-[10px] font-bold bg-orange-50 text-orange-600 border border-orange-100 rounded-full px-2.5 py-1 hover:bg-orange-100 transition">🍽️ Food Cost</button>
+                        <button onclick="document.getElementById('global-ai-input').value='אילו פריטים במלאי עומדים להיגמר?'; submitGlobalAI()" class="text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-100 rounded-full px-2.5 py-1 hover:bg-amber-100 transition">📦 מלאי נמוך</button>
+                        <button onclick="document.getElementById('global-ai-input').value='ייצא את כל ההזמנות לאקסל'; submitGlobalAI()" class="text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full px-2.5 py-1 hover:bg-emerald-100 transition">📥 ייצוא Excel</button>
+                        <button onclick="document.getElementById('global-ai-input').value='מה המצב הפיננסי של העסק? כמה הכנסות מול הוצאות?'; submitGlobalAI()" class="text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100 rounded-full px-2.5 py-1 hover:bg-blue-100 transition">💰 תזרים</button>
+                        <button onclick="document.getElementById('global-ai-input').value='חזה את הכנסות החודש הבא לפי מגמה'; submitGlobalAI()" class="text-[10px] font-bold bg-purple-50 text-purple-600 border border-purple-100 rounded-full px-2.5 py-1 hover:bg-purple-100 transition">🔮 חיזוי</button>
+                    </div>
                     <div class="relative shrink-0">
-                        <input type="text" id="global-ai-input" placeholder="שאלו אותי על נתונים, מלאי או הזמנות..." class="modern-input py-3 pr-4 pl-12 text-sm border-indigo-200 focus:border-indigo-500 shadow-sm" onkeypress="if(event.key === 'Enter' && typeof submitGlobalAI === 'function') submitGlobalAI()">
+                        <input type="text" id="global-ai-input" placeholder="שאל/י אותי כל שאלה עסקית..." class="modern-input py-3 pr-4 pl-12 text-sm border-indigo-200 focus:border-indigo-500 shadow-sm" onkeypress="if(event.key === 'Enter' && typeof submitGlobalAI === 'function') submitGlobalAI()">
                         <button onclick="if(typeof submitGlobalAI === 'function') submitGlobalAI()" id="btn-global-ai-submit" class="absolute left-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center hover:bg-indigo-700 transition shadow-md"><i class="fa-solid fa-arrow-up"></i></button>
                     </div>
                 </div>
