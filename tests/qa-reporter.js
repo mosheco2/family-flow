@@ -140,6 +140,9 @@ const ENV_MAP = {
   'SPT-71':['biz'],'SPT-72':['biz'],'SPT-73':['biz'],'SPT-74':['biz'],'SPT-75':['biz'],
   'SPT-76':['biz'],'SPT-77':['biz'],'SPT-78':['biz'],'SPT-79':['biz'],'SPT-80':['biz'],
   'SPT-81':['biz'],'SPT-82':['biz'],
+  'SPT-83':['biz'],'SPT-84':['biz'],'SPT-85':['biz'],'SPT-86':['biz'],'SPT-87':['biz'],
+  'SPT-88':['biz'],'SPT-89':['biz'],'SPT-90':['biz'],'SPT-91':['biz'],'SPT-92':['biz'],
+  'SPT-93':['biz'],'SPT-94':['biz'],'SPT-95':['biz'],'SPT-96':['biz'],
 };
 
 // Fallback: derive env from prefix when not in ENV_MAP
