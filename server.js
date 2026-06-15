@@ -5665,6 +5665,27 @@ app.post('/api/biz/chat-assistant', async (req, res) => {
         let bizType = 'general';
         try { bizType = JSON.parse(context).business_type || 'general'; } catch(e) {}
 
+        const logisticsSection = bizType === 'logistics' ? `
+
+== ניתוח חברת לוגיסטיקה / הפצה ==
+• **שיעור הצלחה** = delivered / (total - cancelled) × 100 — מטרה: >90%
+• **failed_attempt** = נהג הגיע אך לא ענה/לא יכול למסור → דורש טיפול מיידי (התקשר ללקוח)
+• **COD ממתין**: סכום שנגבה בשטח אך לא הועבר למשרד → סכנה כספית אם גבוה
+• **vehicle_alerts**: רכב עם ביטוח/טסט פגה → אסור לצאת לדרך! טפל מיד
+• **מגמת הכנסה**: trend_pct — אם שלילי → בחן אם ירדו הזמנות או ירד delivery_fee
+• **ניתוח נהגים**: top_failed_drivers — נהג עם >3 כישלונות ביום → אימון/בדיקה
+• **pending_pickup**: הזמנות שעדיין לא אסופו → תעדוף לנהגים זמינים
+
+== פקודות ACTION ללוגיסטיקה ==
+• לייצא הזמנות → [ACTION:EXPORT_EXCEL|logistics-orders]
+• לייצא נהגים → [ACTION:EXPORT_EXCEL|logistics-drivers]
+• לייצא הכנסות → [ACTION:EXPORT_EXCEL|logistics-revenue]
+• לייצא צי רכבים → [ACTION:EXPORT_EXCEL|logistics-vehicles]
+• לעבור לקנבן → [ACTION:OPEN_TAB|logistics_orders]
+• לעבור לנהגים → [ACTION:OPEN_TAB|logistics_drivers]
+• לעבור ל-COD → [ACTION:OPEN_TAB|logistics_cod]
+• לעבור להצעות מחיר → [ACTION:OPEN_TAB|logistics_rfq]` : '';
+
         const sportSection = bizType === 'sport' ? `
 
 == ניתוח מועדון ספורט/כושר ==
@@ -5722,7 +5743,7 @@ ${context}
 • מלאי: פריטים נגמרים, המלצת הזמנה, קצב צריכה
 • תזרים: הכנסות מול הוצאות, יתרה נטו, ניתוח קטגוריות
 • צוות: כמות עובדים, יתרות תקציב
-• חיזוי: על בסיס נתוני החודשים האחרונים, חזה מה צפוי החודש/שבוע הבא${sportSection}`;
+• חיזוי: על בסיס נתוני החודשים האחרונים, חזה מה צפוי החודש/שבוע הבא${logisticsSection}${sportSection}`;
 
         const result = await model.generateContent(systemPrompt);
         res.json({ success: true, answer: result.response.text().trim() });
@@ -5774,6 +5795,30 @@ app.get('/api/biz/export-report', async (req, res) => {
                 const fcPct = price>0&&totalCost>0 ? ((totalCost/price)*100).toFixed(1) : '';
                 csvData += [`"${(item.name||'').replace(/"/g,'""')}"`,`"${(item.category||'').replace(/"/g,'""')}"`,price,totalCost.toFixed(2),fcPct,(price-totalCost).toFixed(2)].join(',')+'\n';
             });
+        } else if (type === 'logistics-orders') {
+            const r = await pool.query(`SELECT lo.id, lo.order_number, lo.customer_name, lo.customer_phone, lo.pickup_address, lo.delivery_address, lo.scheduled_date, lo.status, COALESCE(d.name,d.nickname) as driver_name, v.name as vehicle_name, lo.delivery_fee, lo.cod_amount, lo.cod_collected, lo.failed_attempts_count, lo.delivered_at, lo.created_at FROM logistics_orders lo LEFT JOIN logistics_drivers ld ON lo.driver_id=ld.id LEFT JOIN users d ON ld.user_id=d.id LEFT JOIN logistics_vehicles v ON lo.vehicle_id=v.id WHERE lo.group_id=$1 ORDER BY lo.created_at DESC LIMIT 5000`, [groupId]);
+            filename = `הזמנות_לוגיסטיקה_${new Date().toISOString().split('T')[0]}.csv`;
+            const stMap = {new:'חדש',pending_quote:'ממתין להצעה',quote_sent:'הצעה נשלחה',confirmed:'אושר',assigned:'שויך',picked_up:'נאסף',in_transit:'בדרך',arrived:'הגיע',delivered:'נמסר',partial:'חלקי',failed_attempt:'לא ענה',returned:'הוחזר',cancelled:'בוטל'};
+            csvData = 'מספר,מספר הזמנה,שם לקוח,טלפון,כתובת איסוף,כתובת מסירה,תאריך משלוח,סטטוס,נהג,רכב,דמי משלוח,COD נדרש,COD נגבה,כישלונות,תאריך מסירה,תאריך יצירה\n';
+            r.rows.forEach(o => { csvData += [o.id,o.order_number||'',`"${(o.customer_name||'').replace(/"/g,'""')}"`,o.customer_phone||'',`"${(o.pickup_address||'').replace(/"/g,'""')}"`,`"${(o.delivery_address||'').replace(/"/g,'""')}"`,o.scheduled_date?new Date(o.scheduled_date).toLocaleDateString('he-IL'):'',stMap[o.status]||o.status||'',`"${(o.driver_name||'').replace(/"/g,'""')}"`,`"${(o.vehicle_name||'').replace(/"/g,'""')}"`,o.delivery_fee||0,o.cod_amount||0,o.cod_collected||0,o.failed_attempts_count||0,o.delivered_at?new Date(o.delivered_at).toLocaleString('he-IL'):'',new Date(o.created_at).toLocaleDateString('he-IL')].join(',')+'\n'; });
+        } else if (type === 'logistics-drivers') {
+            const r = await pool.query(`SELECT ld.id, u.name, u.nickname, u.phone, u.email, ld.status, v.name as vehicle_name, ld.is_active, ld.notes, ld.location_updated_at FROM logistics_drivers ld LEFT JOIN users u ON ld.user_id=u.id LEFT JOIN logistics_vehicles v ON ld.vehicle_id=v.id WHERE ld.group_id=$1 ORDER BY ld.is_active DESC, u.name`, [groupId]);
+            filename = `נהגים_לוגיסטיקה_${new Date().toISOString().split('T')[0]}.csv`;
+            const dstMap = {active:'פעיל',on_route:'בדרך',break:'הפסקה',offline:'לא מחובר'};
+            csvData = 'מספר,שם,כינוי,טלפון,אימייל,סטטוס,רכב משויך,פעיל,הערות,עדכון מיקום אחרון\n';
+            r.rows.forEach(d => { csvData += [d.id,`"${(d.name||'').replace(/"/g,'""')}"`,`"${(d.nickname||'').replace(/"/g,'""')}"`,d.phone||'',d.email||'',dstMap[d.status]||d.status||'',`"${(d.vehicle_name||'').replace(/"/g,'""')}"`,d.is_active?'כן':'לא',`"${(d.notes||'').replace(/"/g,'""')}"`,d.location_updated_at?new Date(d.location_updated_at).toLocaleString('he-IL'):''].join(',')+'\n'; });
+        } else if (type === 'logistics-revenue') {
+            const r = await pool.query(`SELECT lo.id, lo.order_number, lo.customer_name, lo.customer_phone, COALESCE(d.name,d.nickname) as driver_name, lo.delivery_fee, lo.cod_amount, lo.cod_collected, lo.cod_method, lo.delivered_at, lo.created_at FROM logistics_orders lo LEFT JOIN logistics_drivers ld ON lo.driver_id=ld.id LEFT JOIN users d ON ld.user_id=d.id WHERE lo.group_id=$1 AND lo.status IN ('delivered','partial') ORDER BY lo.delivered_at DESC NULLS LAST LIMIT 5000`, [groupId]);
+            filename = `הכנסות_לוגיסטיקה_${new Date().toISOString().split('T')[0]}.csv`;
+            const cmMap = {cash:'מזומן',credit:'אשראי',transfer:'העברה'};
+            csvData = 'מספר,מספר הזמנה,שם לקוח,טלפון,נהג,דמי משלוח,COD נדרש,COD נגבה,אמצעי תשלום COD,תאריך מסירה\n';
+            r.rows.forEach(o => { csvData += [o.id,o.order_number||'',`"${(o.customer_name||'').replace(/"/g,'""')}"`,o.customer_phone||'',`"${(o.driver_name||'').replace(/"/g,'""')}"`,o.delivery_fee||0,o.cod_amount||0,o.cod_collected||0,cmMap[o.cod_method]||o.cod_method||'',o.delivered_at?new Date(o.delivered_at).toLocaleDateString('he-IL'):''].join(',')+'\n'; });
+        } else if (type === 'logistics-vehicles') {
+            const r = await pool.query(`SELECT id, name, type, plate_number, capacity_kg, insurance_expires_at, inspection_expires_at, is_active, notes FROM logistics_vehicles WHERE group_id=$1 ORDER BY is_active DESC, name`, [groupId]);
+            filename = `צי_לוגיסטיקה_${new Date().toISOString().split('T')[0]}.csv`;
+            const vtMap = {van:'ון',motorcycle:'קטנוע',truck:'משאית',bicycle:'אופניים',electric:'חשמלי'};
+            csvData = 'מספר,שם,סוג,לוחית,קיבולת ק"ג,תוקף ביטוח,טסט הבא,פעיל,הערות\n';
+            r.rows.forEach(v => { csvData += [v.id,`"${(v.name||'').replace(/"/g,'""')}"`,vtMap[v.type]||v.type||'',v.plate_number||'',v.capacity_kg||0,v.insurance_expires_at?new Date(v.insurance_expires_at).toLocaleDateString('he-IL'):'',v.inspection_expires_at?new Date(v.inspection_expires_at).toLocaleDateString('he-IL'):'',v.is_active?'כן':'לא',`"${(v.notes||'').replace(/"/g,'""')}"`].join(',')+'\n'; });
         } else if (type === 'sport-members') {
             const r = await pool.query(`SELECT sm.id, sm.member_name, sm.member_phone, sm.member_email, mt.name as membership_type, sm.start_date, sm.end_date, sm.status, sm.frozen_reason, sm.notes, sm.created_at FROM sport_memberships sm LEFT JOIN sport_membership_types mt ON sm.membership_type_id=mt.id WHERE sm.group_id=$1 ORDER BY sm.status,sm.member_name`, [groupId]);
             filename = `חברים_ספורט_${new Date().toISOString().split('T')[0]}.csv`;

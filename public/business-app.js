@@ -12152,7 +12152,7 @@ window.downloadBizReport = async function(type) {
         const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = blobUrl;
-        const labels = { orders:'הזמנות', customers:'לקוחות', cashflow:'תזרים', pantry:'מלאי', staff:'צוות', 'food-cost':'food_cost', 'sport-members':'חברים_ספורט', 'sport-checkins':'כניסות_ספורט', 'sport-revenue':'הכנסות_ספורט', 'sport-classes':'שיעורים_ספורט' };
+        const labels = { orders:'הזמנות', customers:'לקוחות', cashflow:'תזרים', pantry:'מלאי', staff:'צוות', 'food-cost':'food_cost', 'sport-members':'חברים_ספורט', 'sport-checkins':'כניסות_ספורט', 'sport-revenue':'הכנסות_ספורט', 'sport-classes':'שיעורים_ספורט', 'logistics-orders':'הזמנות_לוגיסטיקה', 'logistics-drivers':'נהגים_לוגיסטיקה', 'logistics-revenue':'הכנסות_לוגיסטיקה', 'logistics-vehicles':'צי_לוגיסטיקה' };
         a.download = `${labels[type]||type}_${new Date().toISOString().split('T')[0]}.csv`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(blobUrl);
@@ -36696,6 +36696,151 @@ if (_origRenderDashboard_v2) {
 }
 
 // ===== END LOGISTICS MODULE UI v2 =====
+
+// ─── FamliAI logistics AI — full implementation ──────────────────────────────
+(function(){
+    const origSubmit = window.submitGlobalAI;
+    window.submitGlobalAI = async function() {
+        if (currentGroup?.business_type !== 'logistics') {
+            return origSubmit ? origSubmit.apply(this, arguments) : undefined;
+        }
+        const inputEl = getEl('global-ai-input');
+        const query = inputEl ? inputEl.value.trim() : '';
+        if (!query) return;
+        const chatBox = getEl('global-ai-chat');
+        if (chatBox) chatBox.innerHTML += `<div class="bg-indigo-600 text-white p-3 rounded-xl rounded-tl-none shadow-sm text-sm self-end max-w-[85%] fade-in">${safeStr(query)}</div>`;
+        if (inputEl) inputEl.value = '';
+        const btn = getEl('btn-global-ai-submit');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>'; }
+
+        try {
+            const [dashR, ordersR, codR] = await Promise.allSettled([
+                fetch(`${API}/logistics/dashboard/${currentGroup.id}`).then(r=>r.json()).catch(()=>({})),
+                fetch(`${API}/logistics/orders/${currentGroup.id}?limit=200`).then(r=>r.json()).catch(()=>([])),
+                fetch(`${API}/logistics/cod/${currentGroup.id}`).then(r=>r.json()).catch(()=>({}))
+            ]);
+            const dash   = dashR.status==='fulfilled'   ? dashR.value   : {};
+            const orders = ordersR.status==='fulfilled' ? (ordersR.value.orders || ordersR.value || []) : [];
+            const cod    = codR.status==='fulfilled'    ? codR.value    : {};
+
+            const stats = dash.stats || dash || {};
+            const now   = new Date();
+            const thisM = now.getMonth(), thisY = now.getFullYear();
+            const prevMDate = new Date(thisY, thisM - 1, 1);
+
+            // Orders by status
+            const ordersByStatus = {};
+            orders.forEach(o => { ordersByStatus[o.status] = (ordersByStatus[o.status]||0)+1; });
+
+            // Revenue analysis
+            const deliveredOrders = orders.filter(o => ['delivered','partial'].includes(o.status));
+            const monthOrders = deliveredOrders.filter(o => { const d=new Date(o.delivered_at||o.updated_at||o.created_at); return d.getMonth()===thisM&&d.getFullYear()===thisY; });
+            const prevMonthOrders = deliveredOrders.filter(o => { const d=new Date(o.delivered_at||o.updated_at||o.created_at); return d.getMonth()===prevMDate.getMonth()&&d.getFullYear()===prevMDate.getFullYear(); });
+            const monthRevenue = monthOrders.reduce((s,o)=>s+(parseFloat(o.delivery_fee)||0),0);
+            const prevRevenue  = prevMonthOrders.reduce((s,o)=>s+(parseFloat(o.delivery_fee)||0),0);
+
+            // Success rate
+            const totalOrders = orders.filter(o=>o.status!=='cancelled').length;
+            const successRate = totalOrders>0 ? Math.round((deliveredOrders.length/totalOrders)*100) : 0;
+            const failedOrders = orders.filter(o=>o.status==='failed_attempt').length;
+
+            // Driver performance (top failed)
+            const driverFails = {};
+            orders.filter(o=>o.status==='failed_attempt'&&o.driver_name).forEach(o=>{
+                driverFails[o.driver_name] = (driverFails[o.driver_name]||0)+1;
+            });
+            const topFailed = Object.entries(driverFails).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name,count])=>({name,failed_count:count}));
+
+            // COD summary
+            const codPending = (cod.orders||[]).filter(o=>!o.cod_collected&&o.cod_amount>0);
+            const totalCodPending = codPending.reduce((s,o)=>s+(parseFloat(o.cod_amount)||0),0);
+
+            // Pending (not yet picked)
+            const pendingPickup = orders.filter(o=>['new','confirmed','assigned'].includes(o.status)).length;
+
+            const logisticsContext = {
+                business_type: 'logistics',
+                business_name: currentGroup.name,
+                date_today: now.toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),
+                kpis: {
+                    new_orders:      stats.new_orders      || 0,
+                    assigned_orders: stats.assigned_orders || 0,
+                    in_transit:      stats.in_transit      || 0,
+                    delivered_today: stats.delivered_today || 0,
+                    no_answer:       stats.no_answer       || 0,
+                    active_drivers:  stats.active_drivers  || 0,
+                    vehicle_alerts:  stats.vehicle_alerts  || 0,
+                    cod_pending_amount: stats.cod_pending  || totalCodPending
+                },
+                orders_by_status: ordersByStatus,
+                performance: {
+                    total_orders:   totalOrders,
+                    delivered:      deliveredOrders.length,
+                    failed_attempt: failedOrders,
+                    success_rate_pct: successRate,
+                    pending_pickup:  pendingPickup,
+                    recent_orders:   orders.slice(0,8).map(o=>({id:o.id,customer:o.customer_name,status:o.status,driver:o.driver_name,fee:o.delivery_fee,date:o.created_at}))
+                },
+                revenue: {
+                    month_revenue:      monthRevenue,
+                    prev_month_revenue: prevRevenue,
+                    trend_pct:          prevRevenue>0 ? (((monthRevenue-prevRevenue)/prevRevenue)*100).toFixed(1) : null,
+                    revenue_today:      stats.revenue_today || 0
+                },
+                cod_summary: {
+                    total_pending: totalCodPending,
+                    pending_orders_count: codPending.length,
+                    sample: codPending.slice(0,5).map(o=>({customer:o.customer_name,driver:o.driver_name,amount:o.cod_amount}))
+                },
+                driver_performance: {
+                    top_failed_drivers: topFailed
+                },
+                open_tasks: (allTasks||[]).filter(t=>t.status==='pending').slice(0,5).map(t=>({title:t.title,assignee:t.assignee_name}))
+            };
+
+            const res = await fetch(`${API}/biz/chat-assistant`, {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ query, context: JSON.stringify(logisticsContext), groupId: currentGroup.id })
+            });
+            const data = await res.json();
+            if (!handleAIResponseCheck(data)) { getEl('global-ai-modal')?.classList.add('hidden'); return; }
+
+            if (data.success && data.answer) {
+                let answerText = data.answer;
+                let actionHtml = '';
+
+                // Excel exports (logistics + generic)
+                const excelMatch = answerText.match(/\[ACTION:EXPORT_EXCEL\|(.*?)\]/);
+                if (excelMatch) {
+                    const exportType = excelMatch[1].trim();
+                    answerText = answerText.replace(excelMatch[0], '');
+                    const exportLabels = {'logistics-orders':'הזמנות לוגיסטיקה','logistics-drivers':'נהגים','logistics-revenue':'הכנסות לוגיסטיקה','logistics-vehicles':'צי רכבים',orders:'הזמנות',cashflow:'תזרים',staff:'צוות'};
+                    actionHtml += `<button onclick="window.downloadBizReport('${exportType}')" class="mt-3 w-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-file-excel"></i> הורד דוח ${exportLabels[exportType]||exportType} (Excel)</button>`;
+                }
+                // Task creation
+                const taskMatch = answerText.match(/\[ACTION:ADD_TASK\|(.*?)\]/);
+                if (taskMatch) {
+                    const taskTitle = taskMatch[1].trim();
+                    answerText = answerText.replace(taskMatch[0], '');
+                    actionHtml += `<button onclick="document.getElementById('global-ai-modal').classList.add('hidden'); openTaskModal(); setTimeout(()=>document.getElementById('task-title').value='${safeStr(taskTitle)}',300);" class="mt-3 w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-list-check"></i> פתיחת משימה: ${safeStr(taskTitle)}</button>`;
+                }
+                // Tab navigation
+                const tabMatch = answerText.match(/\[ACTION:OPEN_TAB\|(.*?)\]/);
+                if (tabMatch) {
+                    const tabId = tabMatch[1].trim();
+                    answerText = answerText.replace(tabMatch[0], '');
+                    const tabLabels = {'logistics_orders':'קנבן הזמנות','logistics_drivers':'נהגים','logistics_vehicles':'צי רכבים','logistics_cod':'גבייה COD','logistics_rfq':'הצעות מחיר','logistics_routes':'מסלולים'};
+                    actionHtml += `<button onclick="document.getElementById('global-ai-modal').classList.add('hidden'); switchTab('${tabId}')" class="mt-3 w-full bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-arrow-left"></i> עבור ל${tabLabels[tabId]||tabId}</button>`;
+                }
+
+                answerText = answerText.trim().replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+                if (chatBox) { chatBox.innerHTML += `<div class="bg-white p-3.5 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%] fade-in leading-relaxed">${answerText}${actionHtml}</div>`; chatBox.scrollTop = chatBox.scrollHeight; }
+            } else { showToast('error', 'שגיאה בתשובת ה-AI'); }
+        } catch(e) { showToast('error', 'תקלת רשת מול מנוע ה-AI'); }
+        finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>'; } }
+    };
+})();
 
 // Patch beauty_clients header to expose the forms builder button
 // (We monkey-patch _renderBeautyClients to inject the extra button)
