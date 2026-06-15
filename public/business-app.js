@@ -24029,7 +24029,7 @@ function renderQuickTiles() {
     { fa:'fa-cash-register',     label:'קופה',           badge: storeOrderCount, tab:'pos',                bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
     { fa:'fa-clock-rotate-left', label:'נוכחות',         badge: null,            tab:'timeclock',          bg:'#f8fafc', grad:'linear-gradient(135deg,#64748b,#334155)', badge_bg:'#475569' },
   ] : (['restaurant','cafe'].includes(currentGroup?.business_type) ? [
-    { fa:'fa-cash-register',     label:'קופה',           badge: null,            tab:'pos',       bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
+    { fa:'fa-table-cells-large', label:'שולחנות 🍽️',    badge: null,            tab:'__tables__', bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
     { fa:'fa-utensils',          label:'KDS מטבח',       badge: null,            tab:'kds',       bg:'#faf5ff', grad:'linear-gradient(135deg,#a78bfa,#7c3aed)', badge_bg:'#6d28d9' },
     { fa:'fa-box',               label:'מלאי',           badge: null,            tab:'pantry',    bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0f766e)', badge_bg:'#0d9488' },
     { fa:'fa-bag-shopping',      label:'הזמנות',         badge: storeOrderCount, tab:'sales',     bg:'#fffbeb', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
@@ -24045,7 +24045,8 @@ function renderQuickTiles() {
   ]);
   container.innerHTML = tiles.map(t => {
     const clickAction = t.tab === '__daily_close__' ? "window.openDailyCloseReport()" :
-                        t.tab === 'kds' ? "window.openAdminKDSPanel()" :
+                        t.tab === 'kds'       ? "window.openAdminKDSPanel()" :
+                        t.tab === '__tables__' ? "window.openAdminTablesPanel()" :
                         `switchTab('${t.tab}')`;
     return `<button onclick="${clickAction}"
       style="background:${t.bg};border:1.5px solid rgba(0,0,0,0.06)"
@@ -28195,6 +28196,20 @@ async function renderWaiterDashboard(el) {
         </div>
         ${roleFullMenuBtn()}`;
 }
+
+window.openAdminTablesPanel = function() {
+    document.getElementById('admin-tables-panel')?.remove();
+    const panel = document.createElement('div');
+    panel.id = 'admin-tables-panel';
+    panel.style.cssText = 'position:fixed;inset:0;z-index:99998;background:#f1f5f9;overflow-y:auto;font-family:Rubik,sans-serif;direction:rtl';
+    panel.innerHTML = `<div style="position:sticky;top:0;z-index:1;background:#1e293b;padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #334155">
+      <button onclick="document.getElementById('admin-tables-panel')?.remove()" style="background:#334155;color:#e2e8f0;border:none;border-radius:10px;padding:8px 16px;font-size:14px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer">← חזרה</button>
+      <span style="color:white;font-size:16px;font-weight:800">🍽️ מצב שולחנות</span>
+      <button onclick="switchTab('pos');document.getElementById('admin-tables-panel')?.remove()" style="background:#3b82f6;color:white;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer;margin-right:auto">🖥️ פתח קופה</button>
+    </div>
+    <div style="padding:12px" id="admin-tables-inner">${renderTableGrid()}</div>`;
+    document.body.appendChild(panel);
+};
 
 window.openAdminKDSPanel = async function() {
     document.getElementById('admin-kds-panel')?.remove();
