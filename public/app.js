@@ -9729,17 +9729,28 @@ function _renderBizAccordion(el, data, bizType) {
                     </div>`;
                 }
             }
-            return `<div class="py-2 border-b border-slate-50 last:border-0">
-                <div class="flex items-center gap-2">
+            const hasDetails = !!altsHtml || !!r.notes;
+            const detailId = `res-detail-${r.id}`;
+            const chevron = hasDetails ? `<span class="text-slate-300 text-[10px] transition-transform" id="res-chev-${r.id}">▼</span>` : '';
+            return `<div class="border-b border-slate-50 last:border-0">
+                <div class="flex items-center gap-2 py-2 cursor-pointer" onclick="window._toggleResDetail('${detailId}','res-chev-${r.id}')">
                     <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-sm shrink-0">🍽️</div>
                     <div class="flex-1 min-w-0">
                         <p class="text-xs font-bold text-slate-700">${dt} ${tm}${tableInfo}${_ref(r.id)}</p>
                         <p class="text-[10px] text-slate-400">${r.num_guests ? r.num_guests + ' סועדים' : ''}${r.notes ? ' · ' + r.notes : ''}</p>
                     </div>
                     <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${_resStatusColor(r.status)}">${_resStatusLabel(r.status)}</span>
+                    ${chevron}
                 </div>
-                ${altsHtml}
+                ${altsHtml ? `<div id="${detailId}" class="hidden pb-2">${altsHtml}</div>` : ''}
             </div>`;
+        };
+        window._toggleResDetail = function(detailId, chevId) {
+            const det = document.getElementById(detailId);
+            const chev = document.getElementById(chevId);
+            if (!det) return;
+            det.classList.toggle('hidden');
+            if (chev) chev.style.transform = det.classList.contains('hidden') ? '' : 'rotate(180deg)';
         };
         const resHtml = tableRes.length
             ? `<div>${tableRes.map(renderRes).join('')}</div>`

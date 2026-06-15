@@ -8326,6 +8326,21 @@ app.post('/api/calendar/events/:id/reject-with-alts', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// הזמנות שולחן פעילות של היום
+app.get('/api/tables/:groupId/reservations-today', async (req, res) => {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const r = await pool.query(
+            `SELECT id, title, start_time, num_guests, notes, reserved_table_number, customer_phone, status
+             FROM calendar_events
+             WHERE group_id=$1 AND call_type='table_reservation' AND status IN ('approved','pending')
+             AND event_date::date = $2::date`,
+            [req.params.groupId, today]
+        );
+        res.json({ reservations: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.delete('/api/calendar/events/:id', async (req, res) => {
     try { await pool.query('DELETE FROM calendar_events WHERE id=$1', [req.params.id]); res.json({ success: true }); } 
     catch(e) { res.status(500).json({ error: e.message }); }
