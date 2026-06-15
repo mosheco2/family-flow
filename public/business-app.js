@@ -21788,18 +21788,13 @@ window.setTenderMethod = function(m) {
         return;
     }
     window.tenderMethod = m;
-    const btnCash = document.getElementById('btn-tender-cash');
-    const btnCredit = document.getElementById('btn-tender-credit');
-    const btnAccount = document.getElementById('btn-tender-account');
-    
-    if(btnCash) btnCash.classList.remove('border-indigo-600', 'bg-indigo-50/50');
-    if(btnCredit) btnCredit.classList.remove('border-indigo-600', 'bg-indigo-50/50');
-    if(btnAccount) btnAccount.classList.remove('border-indigo-600', 'bg-indigo-50/50');
-    
-    let activeBtn;
-    if(m === 'cash') activeBtn = btnCash;
-    if(m === 'credit') activeBtn = btnCredit;
-    if(m === 'on_account') activeBtn = btnAccount;
+    const tenderBtnIds = ['btn-tender-cash','btn-tender-credit','btn-tender-bit','btn-tender-paybox','btn-tender-account'];
+    tenderBtnIds.forEach(id => {
+        const b = document.getElementById(id);
+        if(b) { b.classList.remove('border-indigo-600', 'bg-indigo-50/50'); }
+    });
+    const methodBtnMap = { cash:'btn-tender-cash', credit:'btn-tender-credit', bit:'btn-tender-bit', paybox:'btn-tender-paybox', on_account:'btn-tender-account' };
+    const activeBtn = document.getElementById(methodBtnMap[m]);
     if(activeBtn) activeBtn.classList.add('border-indigo-600', 'bg-indigo-50/50');
 };
 
@@ -21807,8 +21802,8 @@ window.addTenderShortcut = (a) => document.getElementById('tender-input-amount')
 
 window.addPaymentToSplit = function() {
     const amt = parseFloat(document.getElementById('tender-input-amount').value) || 0; if(amt <= 0) return;
-    const names = { 'cash': 'מזומן', 'credit': 'אשראי', 'on_account': 'הקפה' };
-    window.posSplitPayments.push({ method: window.tenderMethod, name: names[window.tenderMethod], amount: amt });
+    const names = { 'cash': 'מזומן', 'credit': 'כרטיס אשראי', 'bit': 'ביט', 'paybox': 'פייבוקס', 'on_account': 'הקפה' };
+    window.posSplitPayments.push({ method: window.tenderMethod, name: names[window.tenderMethod] || window.tenderMethod, amount: amt });
     window.updateTenderDisplay();
 };
 
