@@ -28434,7 +28434,7 @@ async function renderWaiterDashboard(el) {
             ${rdBtn('calendar','','bg-amber-50 rounded-2xl p-4 shadow-sm border border-amber-100 flex items-center gap-3','<span class="text-2xl">📅</span><div class="text-right"><div class="text-xs font-black text-amber-800">הזמנות שולחנות</div><div class="text-[10px] text-amber-500">יומן</div></div>')}
             ${rdBtn('members','','bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3','<span class="text-2xl">👥</span><div class="text-right"><div class="text-xs font-black text-orange-800">הצוות</div><div class="text-[10px] text-orange-500">צוות משמרת</div></div>')}
         </div>
-        ${roleFullMenuBtn()}`;
+        ${roleFullMenuBtn()}`);
 }
 
 window.openAdminTablesPanel = async function() {
