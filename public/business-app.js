@@ -17562,19 +17562,20 @@ window.deleteCalendarEvent = async function(id, isReject = false) {
 };
 window.rejectTableReservation = async function(id) {
     // שלב 1: טען הצעות שעות
-    let event_, suggestions;
+    let event_, suggestions, takenTimes;
     try {
         const r = await fetch(`${API}/calendar/events/${id}/suggest-alts`).then(r => r.json());
         if (!r.event) return showToast('error', r.error || 'שגיאה בטעינת חלופות');
         event_ = r.event;
         suggestions = r.suggestions || [];
+        takenTimes = r.takenTimes || [];
     } catch(e) { return showToast('error', 'שגיאת תקשורת'); }
 
     // שלב 2: פתח מודל בחירת 3 שעות חלופיות
     document.getElementById('rej-alts-modal')?.remove();
     const m = document.createElement('div');
     m.id = 'rej-alts-modal';
-    m.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px;font-family:Rubik,sans-serif;direction:rtl';
+    m.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px;font-family:Rubik,sans-serif;direction:rtl;overflow-y:auto';
     const dateHe = event_.event_date ? new Date(event_.event_date).toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'}) : '';
     const slotInputs = [0,1,2].map(i => {
         const val = suggestions[i] || '';
@@ -17583,10 +17584,26 @@ window.rejectTableReservation = async function(id) {
             <input type="time" id="rej-alt-${i}" value="${val}" class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-400" />
         </div>`;
     }).join('');
+    // תצוגת שעות היומן באותו יום
+    const allHours = [];
+    for (let h = 12; h <= 22; h++) { allHours.push(`${String(h).padStart(2,'0')}:00`); allHours.push(`${String(h).padStart(2,'0')}:30`); }
+    const reqTime = String(event_.start_time).slice(0,5);
+    const calendarView = allHours.map(t => {
+        const isTaken = takenTimes.includes(t);
+        const isReq = t === reqTime;
+        const bg = isReq ? 'bg-orange-100 border-orange-300 text-orange-700' : isTaken ? 'bg-red-50 border-red-200 text-red-500' : 'bg-green-50 border-green-200 text-green-700';
+        const icon = isReq ? '⚠️' : isTaken ? '🔴' : '🟢';
+        return `<span class="inline-flex items-center gap-0.5 text-[10px] font-bold border px-1.5 py-0.5 rounded-full ${bg} cursor-pointer" onclick="window._setRejAltFromCal('${t}')">${icon} ${t}</span>`;
+    }).join('');
     m.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5">
         <h3 class="font-black text-slate-800 text-base mb-1">📅 דחייה עם חלופות</h3>
-        <p class="text-xs text-slate-500 mb-4">בקשה של <strong>${safeStr(event_.title)}</strong><br>${dateHe} · ${event_.start_time} · ${event_.num_guests} סועדים</p>
-        <p class="text-xs font-bold text-slate-700 mb-2">בחר 3 שעות חלופיות לאותו יום:</p>
+        <p class="text-xs text-slate-500 mb-3">בקשה של <strong>${safeStr(event_.title)}</strong><br>${dateHe} · ${event_.start_time} · ${event_.num_guests} סועדים</p>
+        <div class="bg-slate-50 rounded-xl p-3 mb-3 border border-slate-200">
+            <p class="text-[10px] font-bold text-slate-600 mb-1.5">יומן באותו יום — לחץ על שעה פנויה להוספה:</p>
+            <div class="flex flex-wrap gap-1">${calendarView}</div>
+            <div class="flex items-center gap-3 mt-2 text-[9px] text-slate-500"><span>🟢 פנוי</span><span>🔴 תפוס</span><span>⚠️ הבקשה הנוכחית</span></div>
+        </div>
+        <p class="text-xs font-bold text-slate-700 mb-2">3 שעות חלופיות לשליחה ללקוח:</p>
         ${slotInputs}
         <p class="text-[10px] text-slate-400 mb-4">ישלח ללקוח הודעה עם האפשרויות לבחירה</p>
         <div class="flex gap-2">
@@ -17595,6 +17612,17 @@ window.rejectTableReservation = async function(id) {
         </div>
     </div>`;
     document.body.appendChild(m);
+};
+
+// לחיצה על שעה בתצוגת היומן — ממלאת לתוך ה-input הפנוי הבא
+window._setRejAltFromCal = function(time) {
+    for (let i = 0; i < 3; i++) {
+        const el = document.getElementById(`rej-alt-${i}`);
+        if (el && !el.value) { el.value = time; return; }
+    }
+    // כולם מלאים — מחליף את האחרון
+    const el = document.getElementById('rej-alt-2');
+    if (el) el.value = time;
 };
 
 window._confirmRejectWithAlts = async function(id) {

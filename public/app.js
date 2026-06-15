@@ -9367,8 +9367,19 @@ window._submitTableReservation = async function(bizGroupId, bizName, btn) {
             })
         }).then(r => r.json());
         if (r.success) {
-            document.getElementById('table-res-modal')?.remove();
-            showToast('success', 'בקשת ההזמנה נשלחה! המסעדה תאשר בקרוב ✅');
+            const modal = document.getElementById('table-res-modal');
+            const origEventId = modal?.dataset?.origEventId;
+            modal?.remove();
+            if (origEventId) {
+                // סמן האירוע הישן (rejected) כ-cancelled
+                fetch(`${API}/calendar/events/${origEventId}/status`, {
+                    method: 'PUT', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ status: 'cancelled' })
+                }).catch(() => {});
+                showToast('success', 'הבקשה החדשה נשלחה וממתינה לאישור המסעדה ✅');
+            } else {
+                showToast('success', 'בקשת ההזמנה נשלחה! המסעדה תאשר בקרוב ✅');
+            }
         } else { if(errEl){errEl.textContent=r.error||'שגיאה בשליחה';errEl.style.display='block';} if(btn){btn.disabled=false;btn.textContent='🍽️ שלח בקשת הזמנה';} }
     } catch(e) { if(errEl){errEl.textContent='שגיאת תקשורת';errEl.style.display='block';} if(btn){btn.disabled=false;btn.textContent='🍽️ שלח בקשת הזמנה';} }
 };
@@ -9401,15 +9412,16 @@ window._clientRejectAp  = (id, btn) => window._clientConfirmBeautyAppt(id, 'decl
 
 // לקוח בחר שעה חלופית מתוך הזמנת שולחן שנדחתה
 window._acceptTableAlt = function(bizGroupId, bizName, dateStr, time, origEventId) {
-    // מחק את האירוע הישן (rejected) ופתח מודל הזמנה חדשה עם תאריך+שעה מולאים
     document.getElementById('table-res-modal')?.remove();
     window._tableReservationModal(parseInt(bizGroupId), bizName);
-    // מלא תאריך ושעה
     setTimeout(() => {
         const dateEl = document.getElementById('tres-date');
         const timeEl = document.getElementById('tres-time');
         if (dateEl) dateEl.value = dateStr;
         if (timeEl) timeEl.value = time;
+        // סמן ה-modal כבקשה חלופית כדי לבטל האירוע הישן אחרי submit
+        const modal = document.getElementById('table-res-modal');
+        if (modal && origEventId) modal.dataset.origEventId = origEventId;
     }, 100);
 };
 

@@ -5267,7 +5267,7 @@ app.post('/api/store/orders/:id/customer-feedback', async (req, res) => {
         const { rating, notes, familyGroupId } = req.body;
         const orderId = parseInt(req.params.id);
         const chk = await pool.query(
-            `SELECT id, group_id, status FROM store_orders WHERE id=$1 AND (family_group_id=$2 OR customer_phone=(SELECT phone FROM family_groups WHERE id=$2 LIMIT 1))`,
+            `SELECT id, group_id, status FROM store_orders WHERE id=$1 AND (family_group_id=$2 OR customer_phone=(SELECT phone FROM users WHERE group_id=$2 AND phone IS NOT NULL LIMIT 1))`,
             [orderId, familyGroupId]
         );
         if (!chk.rows.length) return res.status(403).json({ error: 'הזמנה לא נמצאה' });
@@ -8289,7 +8289,7 @@ app.get('/api/calendar/events/:id/suggest-alts', async (req, res) => {
                 if (!existingTimes.has(t) && !slots.includes(t)) slots.push(t);
             }
         }
-        res.json({ event: { id: evt.id, event_date: dateStr, start_time: reqTime, num_guests: evt.num_guests || 2, title: evt.title }, suggestions: slots });
+        res.json({ event: { id: evt.id, event_date: dateStr, start_time: reqTime, num_guests: evt.num_guests || 2, title: evt.title }, suggestions: slots, takenTimes: [...existingTimes] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
