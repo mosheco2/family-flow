@@ -640,6 +640,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_rating SMALLINT`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_rating_notes TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_rated_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS auto_approve_max_guests INT DEFAULT NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS wo_notes TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS wo_notes_updated_at TIMESTAMP`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS wo_notes_updated_by VARCHAR(100)`); } catch(e) {}
@@ -8144,10 +8145,38 @@ app.delete('/api/calendar/services/:id', async (req, res) => {
 app.post('/api/calendar/events', async (req, res) => {
     try {
         const { groupId, serviceId, title, customerPhone, notes, eventDate, startTime, status, customerGroupId, preferredPractitionerId, numGuests, callType } = req.body;
+
+        // אישור אוטומטי להזמנות שולחן קטנות
+        let finalStatus = status || 'pending';
+        let autoAssignedTable = null;
+        if (callType === 'table_reservation') {
+            const grpR = await pool.query('SELECT table_count, auto_approve_max_guests FROM family_groups WHERE id=$1', [groupId]);
+            const grp = grpR.rows[0] || {};
+            const maxAutoGuests = grp.auto_approve_max_guests;
+            const guestCount = parseInt(numGuests) || 1;
+            if (maxAutoGuests && guestCount <= parseInt(maxAutoGuests)) {
+                const timeStr = String(startTime || '18:00').slice(0, 5);
+                const conflR = await pool.query(
+                    `SELECT reserved_table_number FROM calendar_events
+                     WHERE group_id=$1 AND event_date=$2 AND status='approved'
+                       AND call_type='table_reservation'
+                       AND ABS(EXTRACT(EPOCH FROM (start_time - $3::time))/3600) < 2
+                       AND reserved_table_number IS NOT NULL`,
+                    [groupId, eventDate, timeStr]
+                ).catch(() => ({ rows: [] }));
+                const takenTables = new Set(conflR.rows.map(r => r.reserved_table_number));
+                const tableCount = parseInt(grp.table_count || 8);
+                for (let t = 1; t <= tableCount; t++) {
+                    if (!takenTables.has(t)) { autoAssignedTable = t; break; }
+                }
+                if (autoAssignedTable) finalStatus = 'approved';
+            }
+        }
+
         const r = await pool.query(
-            `INSERT INTO calendar_events (group_id, service_id, title, customer_phone, notes, event_date, start_time, status, customer_group_id, preferred_practitioner_id, num_guests, call_type)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
-            [groupId, serviceId || null, title, customerPhone || '', notes || '', eventDate, startTime, status || 'pending', customerGroupId || null, preferredPractitionerId || null, parseInt(numGuests)||1, callType || null]
+            `INSERT INTO calendar_events (group_id, service_id, title, customer_phone, notes, event_date, start_time, status, customer_group_id, preferred_practitioner_id, num_guests, call_type, reserved_table_number)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+            [groupId, serviceId || null, title, customerPhone || '', notes || '', eventDate, startTime, finalStatus, customerGroupId || null, preferredPractitionerId || null, parseInt(numGuests)||1, callType || null, autoAssignedTable]
         );
 
         // קשר client_family_id ב-beauty_client_records אם הלקוח מחובר
@@ -8174,17 +8203,26 @@ app.post('/api/calendar/events', async (req, res) => {
             }).catch(() => {});
         }
 
-        res.json({ success: true, eventId: r.rows[0].id });
+        res.json({ success: true, eventId: r.rows[0].id, status: finalStatus, assignedTable: autoAssignedTable });
 
-        // הזמנת שולחן — שלח גם הודעת inbox לעסק כדי שיקבל notification
+        // הזמנת שולחן — שלח הודעת inbox לעסק
         if (callType === 'table_reservation') {
             const dateHe = eventDate ? new Date(eventDate + 'T12:00:00').toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' }) : (eventDate || '');
-            const msgContent = `הזמנת שולחן 🍽️\nתאריך: ${dateHe}\nשעה: ${startTime}\nסועדים: ${numGuests || 1}${notes ? '\nהערות: ' + notes : ''}`;
+            const autoNote = finalStatus === 'approved' ? ` (אושר אוטומטית, שולחן ${autoAssignedTable})` : '';
+            const msgContent = `הזמנת שולחן 🍽️\nתאריך: ${dateHe}\nשעה: ${startTime}\nסועדים: ${numGuests || 1}${notes ? '\nהערות: ' + notes : ''}${autoNote}`;
             pool.query(
                 `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content, customer_group_id, direction, customer_phone)
                  VALUES ($1,'customer',$2,$3,$4,$5,'inbound',$6)`,
                 [groupId, title || 'לקוח', `הזמנת שולחן — ${dateHe} ${startTime}`, msgContent, customerGroupId || null, customerPhone || null]
             ).catch(() => {});
+            // אם אושר אוטומטית — שלח אישור ללקוח
+            if (finalStatus === 'approved' && customerGroupId) {
+                const tableNote = autoAssignedTable ? `\nשולחן: ${autoAssignedTable}` : '';
+                pool.query(
+                    `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content, customer_group_id, direction) VALUES ($1,'business','המסעדה','הזמנת שולחן אושרה ✅',$2,$3,'outbound')`,
+                    [groupId, `הזמנת השולחן אושרה! 🎉\nתאריך: ${dateHe}\nשעה: ${startTime}\nסועדים: ${numGuests || 1}${tableNote}\nנתראה! 🍽️`, customerGroupId]
+                ).catch(() => {});
+            }
         }
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -10996,8 +11034,19 @@ app.patch('/api/store/orders/:id/item-ready', async (req, res) => {
 
 app.get('/api/groups/:id/settings', async (req, res) => {
     try {
-        const r = await pool.query('SELECT table_count, business_type, send_order_email FROM family_groups WHERE id=$1', [req.params.id]);
+        const r = await pool.query('SELECT table_count, business_type, send_order_email, auto_approve_max_guests FROM family_groups WHERE id=$1', [req.params.id]);
         res.json(r.rows[0] || {});
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/groups/:id/table-settings', async (req, res) => {
+    try {
+        const { auto_approve_max_guests } = req.body;
+        const aag = auto_approve_max_guests !== undefined && auto_approve_max_guests !== null && auto_approve_max_guests !== ''
+            ? (parseInt(auto_approve_max_guests) > 0 ? parseInt(auto_approve_max_guests) : null)
+            : null;
+        await pool.query('UPDATE family_groups SET auto_approve_max_guests=$1 WHERE id=$2', [aag, req.params.id]);
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

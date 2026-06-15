@@ -9375,9 +9375,9 @@ window._submitTableReservation = async function(bizGroupId, bizName, btn) {
                     method: 'PUT', headers: {'Content-Type':'application/json'},
                     body: JSON.stringify({ status: 'cancelled' })
                 }).catch(() => {});
-                showToast('success', 'הבקשה החדשה נשלחה וממתינה לאישור המסעדה ✅');
+                showToast('success', r.status === 'approved' ? `ההזמנה אושרה! שולחן ${r.assignedTable} מחכה לך 🍽️✅` : 'הבקשה החדשה נשלחה וממתינה לאישור המסעדה ✅');
             } else {
-                showToast('success', 'בקשת ההזמנה נשלחה! המסעדה תאשר בקרוב ✅');
+                showToast('success', r.status === 'approved' ? `ההזמנה אושרה! שולחן ${r.assignedTable} מחכה לך 🍽️✅` : 'בקשת ההזמנה נשלחה! המסעדה תאשר בקרוב ✅');
             }
             // רענן accordion כדי שההזמנה תופיע מיד בצד הלקוח
             const wrapper = document.querySelector(`[data-biz-id="${bizGroupId}"]`);

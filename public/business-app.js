@@ -27663,6 +27663,7 @@ async function renderShiftManagerDashboard(el) {
         const sd = await sr.json();
         if (sd && sd.table_count) {
             currentGroup.table_count = parseInt(sd.table_count);
+            if (sd.auto_approve_max_guests !== undefined) currentGroup.auto_approve_max_guests = sd.auto_approve_max_guests;
             localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
         }
     } catch(e) {}
@@ -27946,7 +27947,14 @@ window.toggleTable = function(id, btn) {
 
 function _applyTableState(id, btn, next) {
     const states = getTableStates();
+    const prev = states[id] || 'free';
     states[id] = next;
+    // Border timer: שמור timestamp כשהשולחן נכבש, מחק כשמשוחרר
+    if (next === 'occupied' && prev !== 'occupied') {
+        states[`_t${id}`] = Date.now();
+    } else if (next !== 'occupied') {
+        delete states[`_t${id}`];
+    }
     localStorage.setItem(`tables_${currentGroup.id}`, JSON.stringify(states));
     _tableLastServerJson = null;
     syncTableStatesToServer(states);
@@ -28108,6 +28116,9 @@ window.executeTableTransfer = function(fromId, toId) {
     const fromState = states[fromId] || 'free';
     states[toId] = fromState;
     states[fromId] = 'free';
+    // העבר גם timer timestamp
+    if (states[`_t${fromId}`]) { states[`_t${toId}`] = states[`_t${fromId}`]; }
+    delete states[`_t${fromId}`];
     localStorage.setItem(`tables_${currentGroup.id}`, JSON.stringify(states));
     _tableLastServerJson = null;
     syncTableStatesToServer(states);
@@ -28160,7 +28171,18 @@ function renderTableGrid() {
         const resTimeHtml = resForTable.length
             ? resForTable.slice(0,2).map(r => `<span class="text-[8px] font-black text-blue-600 leading-none">${String(r.start_time||'').slice(0,5)} · ${r.num_guests||'?'}👥</span>`).join('')
             : '';
+        // Border timer: חיווי זמן ישיבה על שולחנות תפוסים
+        const _seatedAt = states[`_t${id}`] ? parseInt(states[`_t${id}`]) : null;
+        const _elapsedMins = _seatedAt ? Math.floor((Date.now() - _seatedAt) / 60000) : 0;
+        let timerHtml = '';
+        if ((st === 'occupied' || st === 'awaiting_payment') && _seatedAt) {
+            const _pct = Math.min(100, Math.round(_elapsedMins / 90 * 100));
+            const _barColor = _pct < 60 ? 'bg-green-400' : _pct < 80 ? 'bg-amber-400' : _pct < 100 ? 'bg-orange-500' : 'bg-red-500';
+            const _minsStr = _elapsedMins >= 60 ? `${Math.floor(_elapsedMins/60)}ש${_elapsedMins%60?`${_elapsedMins%60}′`:''}` : `${_elapsedMins}′`;
+            timerHtml = `<div class="w-full rounded-full bg-white/60 overflow-hidden" style="height:3px;"><div class="${_barColor} h-full" style="width:${_pct}%"></div></div><span class="${_pct>=100?'text-red-600 font-black':'text-slate-400'} text-[7px] leading-none">${_minsStr}</span>`;
+        }
         return `<button type="button"
+            data-id="${id}"
             ontouchend="event.preventDefault();event.stopPropagation();toggleTable(${id},this);"
             onclick="toggleTable(${id},this)"
             class="table-btn ${stStyle} border-2 rounded-xl p-2 text-center flex flex-col items-center gap-0.5"
@@ -28170,6 +28192,7 @@ function renderTableGrid() {
             ${waiter}
             <span class="tsLabel text-[9px] font-bold">${stLabel}</span>
             ${resTimeHtml}
+            ${timerHtml}
             <div class="flex gap-1 justify-center">${transferBtn}${qrBtn}</div>
         </button>`;
     }).join('');
@@ -28179,22 +28202,25 @@ function renderTableGrid() {
     let summaryHtml = `<span class="text-green-600 font-bold">${summaryFree} פנויים</span> · <span class="text-red-600 font-bold">${summaryOccOnly} תפוסים</span>`;
     if (reserved) summaryHtml += ` · <span class="text-blue-600 font-bold">${reserved} הוזמן מראש</span>`;
     if (waiting) summaryHtml += ` · <span class="text-orange-600 font-bold">${waiting} ממתינים לתשלום</span>`;
-    return `<div class="table-grid-card bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
-        <div class="px-4 py-3 border-b border-slate-50 flex items-center justify-between flex-wrap gap-1">
-            <h3 class="font-black text-slate-800 text-sm">🍽️ מצב שולחנות</h3>
-            <div class="flex items-center gap-2">
-                <span class="table-summary text-[10px]">${summaryHtml}</span>
-                <button onclick="window.openTableSettingsModal()" class="text-[9px] text-slate-400 hover:text-slate-600 transition px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200" title="הגדרות שולחנות">⚙️</button>
+    return `<div class="table-grid-card mb-4 flex flex-col gap-3">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
+            <div class="px-4 py-3 border-b border-slate-50 flex items-center justify-between flex-wrap gap-1">
+                <h3 class="font-black text-slate-800 text-sm">🍽️ מצב שולחנות</h3>
+                <div class="flex items-center gap-2">
+                    <span class="table-summary text-[10px]">${summaryHtml}</span>
+                    <button onclick="window.openTableSettingsModal()" class="text-[9px] text-slate-400 hover:text-slate-600 transition px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200" title="הגדרות שולחנות">⚙️</button>
+                </div>
+            </div>
+            <div class="p-3 grid grid-cols-4 gap-2">${rows}</div>
+            <div class="px-4 pb-3 flex items-center gap-3 text-[9px] text-slate-400 flex-wrap">
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span>פנוי</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block"></span>הוזמן מראש</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span>תפוס</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block"></span>ממתין לתשלום</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block"></span>מושבת</span>
             </div>
         </div>
-        <div class="p-3 grid grid-cols-4 gap-2">${rows}</div>
-        <div class="px-4 pb-3 flex items-center gap-3 text-[9px] text-slate-400 flex-wrap">
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span>פנוי</span>
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block"></span>הוזמן מראש</span>
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span>תפוס</span>
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block"></span>ממתין לתשלום</span>
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block"></span>מושבת</span>
-        </div>
+        ${_renderWaitlistSection()}
     </div>`;
 }
 
@@ -28227,6 +28253,7 @@ window.openTableSettingsModal = function() {
     const count = parseInt(currentGroup?.table_count || 8);
     const caps = getTableCapacities();
     const merges = getTableMerges();
+    const autoApproveVal = currentGroup?.auto_approve_max_guests || '';
     const rows = Array.from({length: count}, (_, i) => {
         const id = i + 1;
         const cap = caps[id] || '';
@@ -28255,6 +28282,18 @@ window.openTableSettingsModal = function() {
             <button onclick="document.getElementById('table-settings-modal').remove()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500">✕</button>
         </div>
         <div class="p-5">
+            <div class="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                <div class="text-xs font-black text-emerald-800 mb-1.5">✅ אישור אוטומטי להזמנות שולחן</div>
+                <div class="text-[10px] text-emerald-600 mb-2">הזמנות עם עד מספר סועדים מוגדר יאושרו ויוקצה להן שולחן באופן מיידי</div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <label class="text-xs text-slate-600 shrink-0">אשר אוטומטית עד</label>
+                    <input type="number" min="0" max="30" id="auto-approve-guests" value="${autoApproveVal}" placeholder="—"
+                        class="w-14 text-center border border-slate-200 rounded-lg py-1 px-2 text-xs">
+                    <span class="text-xs text-slate-500">סועדים</span>
+                    <button onclick="window.saveAutoApproveSettings()" class="text-[10px] bg-emerald-500 text-white font-black px-2.5 py-1 rounded-xl active:scale-95 transition">שמור</button>
+                </div>
+                <div class="text-[9px] text-slate-400 mt-1.5">השאר ריק לביטול האישור האוטומטי</div>
+            </div>
             <p class="text-[10px] text-slate-400 mb-3">הגדר קיבולת (מספר אנשים) לכל שולחן ומיזוג שולחנות סמוכים.</p>
             <table class="w-full text-right">
                 <thead><tr><th class="text-[10px] text-slate-400 pb-2">שולחן</th><th class="text-[10px] text-slate-400 pb-2">קיבולת</th><th class="text-[10px] text-slate-400 pb-2">מיזוג</th></tr></thead>
@@ -28264,6 +28303,20 @@ window.openTableSettingsModal = function() {
     </div>`;
     document.body.appendChild(modal);
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+window.saveAutoApproveSettings = async function() {
+    const val = document.getElementById('auto-approve-guests')?.value;
+    const aag = val !== '' && parseInt(val) > 0 ? parseInt(val) : null;
+    try {
+        await fetch(`${API}/groups/${currentGroup.id}/table-settings`, {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ auto_approve_max_guests: aag })
+        });
+        if (currentGroup) currentGroup.auto_approve_max_guests = aag;
+        showToast('success', aag ? `✅ אישור אוטומטי פעיל עד ${aag} סועדים` : 'אישור אוטומטי בוטל');
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
 };
 
 window._setTableCap = function(tableId, val) {
@@ -28311,6 +28364,99 @@ window.unmergeTable = function(tableId) {
     localStorage.setItem(`table_merge_${currentGroup.id}`, JSON.stringify(merges));
     showToast('success', `מיזוג שולחן ${tableId} בוטל`);
     document.getElementById('table-settings-modal')?.remove();
+    const gridCard = document.querySelector('.table-grid-card');
+    if (gridCard) gridCard.outerHTML = renderTableGrid();
+};
+
+// ─── Waitlist (תור המתנה) ─────────────────────────────────────────────────────
+function getWaitlist() {
+    if (!currentGroup?.id) return [];
+    try { return JSON.parse(localStorage.getItem(`waitlist_${currentGroup.id}`) || '[]'); } catch(e) { return []; }
+}
+function saveWaitlist(list) {
+    if (!currentGroup?.id) return;
+    localStorage.setItem(`waitlist_${currentGroup.id}`, JSON.stringify(list));
+}
+function _renderWaitlistSection() {
+    const list = getWaitlist();
+    const rows = list.map(w => {
+        const wait = Math.floor((Date.now() - w.addedAt) / 60000);
+        const waitStr = wait >= 60 ? `${Math.floor(wait/60)}ש${wait%60?`${wait%60}′`:''}` : `${wait}′`;
+        const warnClass = wait >= 30 ? 'text-orange-600 font-bold' : 'text-slate-500';
+        return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+            <div class="flex-1 min-w-0">
+                <div class="text-xs font-bold text-slate-800 truncate">${safeStr(w.name)}</div>
+                <div class="text-[10px] ${warnClass}">${w.guests} סועדים${w.notes ? ' · ' + safeStr(w.notes) : ''} · ממתין ${waitStr}</div>
+            </div>
+            <button onclick="window.seatFromWaitlist('${w.id}')" class="text-[10px] bg-green-500 text-white font-black px-2 py-1 rounded-lg shrink-0 active:scale-95">🪑 הושב</button>
+            <button onclick="window.removeFromWaitlist('${w.id}')" class="text-[10px] text-red-400 hover:text-red-600 font-bold px-1.5 py-1 rounded-lg shrink-0">✕</button>
+        </div>`;
+    }).join('');
+    const badge = list.length ? ` <span class="bg-amber-500 text-white text-[9px] font-black rounded-full px-1.5 py-0.5">${list.length}</span>` : '';
+    return `<div class="bg-white rounded-2xl shadow-sm border border-slate-100">
+        <div class="px-4 py-3 border-b border-slate-50 flex items-center justify-between">
+            <h3 class="font-black text-slate-800 text-sm">⏳ תור המתנה${badge}</h3>
+            <button onclick="window.openAddWaitlistModal()" class="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 font-black px-2.5 py-1 rounded-xl active:scale-95 transition">+ הוסף</button>
+        </div>
+        ${list.length > 0 ? `<div class="px-4 py-1">${rows}</div>` : '<p class="text-[10px] text-slate-400 text-center py-3">אין ממתינים כרגע</p>'}
+    </div>`;
+}
+
+window.openAddWaitlistModal = function() {
+    document.getElementById('waitlist-add-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'waitlist-add-modal';
+    modal.className = 'fixed inset-0 z-[9999] flex items-end justify-center bg-black/50';
+    modal.innerHTML = `<div class="bg-white w-full max-w-sm rounded-t-3xl p-5 pb-8 shadow-2xl">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-black text-slate-800">⏳ הוסף לתור המתנה</h3>
+            <button onclick="document.getElementById('waitlist-add-modal').remove()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center">✕</button>
+        </div>
+        <div class="flex flex-col gap-3">
+            <input id="wl-name" type="text" placeholder="שם הלקוח *" class="border border-slate-200 rounded-xl px-3 py-2.5 text-sm w-full" autocomplete="off">
+            <div class="flex gap-2">
+                <input id="wl-guests" type="number" min="1" max="30" value="2" placeholder="סועדים" class="border border-slate-200 rounded-xl px-3 py-2.5 text-sm w-full">
+                <input id="wl-notes" type="text" placeholder="הערות" class="border border-slate-200 rounded-xl px-3 py-2.5 text-sm w-full">
+            </div>
+            <button onclick="window._submitAddWaitlist()" class="w-full bg-amber-500 text-white font-black py-3 rounded-2xl text-sm shadow active:scale-95 transition">+ הוסף לתור</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    setTimeout(() => document.getElementById('wl-name')?.focus(), 80);
+};
+
+window._submitAddWaitlist = function() {
+    const name = (document.getElementById('wl-name')?.value || '').trim();
+    const guests = parseInt(document.getElementById('wl-guests')?.value) || 2;
+    const notes = (document.getElementById('wl-notes')?.value || '').trim();
+    if (!name) { showToast('error', 'נא להזין שם לקוח'); return; }
+    const list = getWaitlist();
+    list.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name, guests, notes, addedAt: Date.now() });
+    saveWaitlist(list);
+    document.getElementById('waitlist-add-modal')?.remove();
+    const gridCard = document.querySelector('.table-grid-card');
+    if (gridCard) gridCard.outerHTML = renderTableGrid();
+    showToast('success', `${name} נוסף לתור ⏳`);
+};
+
+window.seatFromWaitlist = function(wId) {
+    const list = getWaitlist();
+    const entry = list.find(w => w.id === wId);
+    if (!entry) return;
+    const states = getTableStates();
+    const count = parseInt(currentGroup?.table_count || 8);
+    const freeTable = Array.from({length: count}, (_, i) => i + 1).find(id => (states[id] || 'free') === 'free');
+    if (!freeTable) { showToast('error', 'אין שולחן פנוי כרגע'); return; }
+    saveWaitlist(list.filter(w => w.id !== wId));
+    _applyTableState(freeTable, null, 'occupied');
+    const gridCard = document.querySelector('.table-grid-card');
+    if (gridCard) gridCard.outerHTML = renderTableGrid();
+    showToast('success', `${entry.name} הושב בשולחן ${freeTable} 🪑`);
+};
+
+window.removeFromWaitlist = function(wId) {
+    saveWaitlist(getWaitlist().filter(w => w.id !== wId));
     const gridCard = document.querySelector('.table-grid-card');
     if (gridCard) gridCard.outerHTML = renderTableGrid();
 };
@@ -28487,6 +28633,7 @@ async function renderWaiterDashboard(el) {
         const sd = await sr.json();
         if (sd && sd.table_count) {
             currentGroup.table_count = parseInt(sd.table_count);
+            if (sd.auto_approve_max_guests !== undefined) currentGroup.auto_approve_max_guests = sd.auto_approve_max_guests;
             localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
         }
     } catch(e) {}
