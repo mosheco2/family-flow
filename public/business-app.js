@@ -28337,7 +28337,8 @@ window.openAdminTablesPanel = async function() {
     document.body.appendChild(panel);
 
     // ── fetch live data ────────────────────────────────────────────────────────
-    let pendingReady = [], itemReadyList = [];
+    let pendingReady = [], itemReadyList = [], members_ = [];
+    try { const mr = await fetch(`${API}/members/${currentGroup.id}`); const md = await mr.json(); members_ = (md.members||[]).filter(m => m.role !== 'ADMIN'); } catch(e) {}
     try {
         const or = await fetch(`${API}/store/orders/${currentGroup.id}`);
         const od = await or.json();
@@ -28361,7 +28362,6 @@ window.openAdminTablesPanel = async function() {
     const assigns   = getTableAssignments();
     const bills     = getTableBills();
     const states    = getTableStates();
-    const members_  = (typeof members !== 'undefined' ? members : []) || [];
     let serviceReqs = [];
     try { serviceReqs = JSON.parse(localStorage.getItem(`service_req_${currentGroup.id}`)||'[]'); } catch(e) {}
     const pendingReqs = serviceReqs.filter(r => !r.done);
