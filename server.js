@@ -8174,6 +8174,17 @@ app.post('/api/calendar/events', async (req, res) => {
         }
 
         res.json({ success: true, eventId: r.rows[0].id });
+
+        // הזמנת שולחן — שלח גם הודעת inbox לעסק כדי שיקבל notification
+        if (callType === 'table_reservation') {
+            const dateHe = eventDate ? new Date(eventDate + 'T12:00:00').toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' }) : (eventDate || '');
+            const msgContent = `הזמנת שולחן 🍽️\nתאריך: ${dateHe}\nשעה: ${startTime}\nסועדים: ${numGuests || 1}${notes ? '\nהערות: ' + notes : ''}`;
+            pool.query(
+                `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content, customer_group_id, direction, customer_phone)
+                 VALUES ($1,'customer',$2,$3,$4,$5,'inbound',$6)`,
+                [groupId, title || 'לקוח', `הזמנת שולחן — ${dateHe} ${startTime}`, msgContent, customerGroupId || null, customerPhone || null]
+            ).catch(() => {});
+        }
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -8211,7 +8222,7 @@ app.put('/api/calendar/events/:id/status', async (req, res) => {
                     await pool.query('UPDATE calendar_events SET reserved_table_number=$1 WHERE id=$2', [assignedTable, req.params.id]);
                 }
                 if (evt.customer_group_id) {
-                    const dayHe = new Date(dateStr).toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
+                    const dayHe = new Date(dateStr + 'T12:00:00').toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
                     const tableNote = assignedTable ? `\nשולחן: ${assignedTable}` : '';
                     await pool.query(
                         `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content, customer_group_id, direction) VALUES ($1,'business','המסעדה','הזמנת שולחן אושרה ✅',$2,$3,'outbound')`,
@@ -8301,7 +8312,7 @@ app.post('/api/calendar/events/:id/reject-with-alts', async (req, res) => {
 
         // שלח הודעה ללקוח עם החלופות
         if (evt.customer_group_id && chosenSlots.length) {
-            const dayHe = new Date(dateStr).toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
+            const dayHe = new Date(dateStr + 'T12:00:00').toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
             const origTime = String(evt.start_time).slice(0,5);
             const slotsList = chosenSlots.map((t,i) => `${i+1}. ${t}`).join('\n');
             const altContent = `בקשת הזמנת השולחן שלך ל${dayHe} בשעה ${origTime} לא ניתנת לאישור.\n\nשעות פנויות חלופיות לאותו יום:\n${slotsList}\n\nניתן לבחור מועד חלופי באפליקציה — לחץ על ההזמנה ובחר שעה.`;
