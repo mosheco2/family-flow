@@ -27696,6 +27696,7 @@ async function renderShiftManagerDashboard(el) {
             ${rdBtn('members','','bg-blue-50 rounded-2xl p-4 shadow-sm border border-blue-100 flex items-center gap-3 active:scale-95 transition','<span class="text-2xl">👥</span><div class="text-right"><div class="text-xs font-black text-blue-800">הצוות</div><div class="text-[10px] text-blue-500">כל העובדים</div></div>')}
         </div>
         ${roleFullMenuBtn()}`;
+    if (isRestaurant) startTablePolling();
 }
 
 // --- 9. Branch Manager Dashboard ---
@@ -27752,6 +27753,48 @@ function getTableStates() {
     try { return JSON.parse(localStorage.getItem(`tables_${currentGroup.id}`) || '{}'); } catch(e) { return {}; }
 }
 
+// ─── Table state server sync ─────────────────────────────────────────────────
+let _tablePollingInterval = null;
+let _tableLastServerJson = null;
+
+function syncTableStatesToServer(states) {
+    if (!currentGroup?.id) return;
+    fetch(`/api/tables/${currentGroup.id}/states`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ states })
+    }).catch(() => {});
+}
+
+async function syncTableStatesFromServer() {
+    if (!currentGroup?.id) return;
+    try {
+        const d = await fetch(`/api/tables/${currentGroup.id}/states`).then(r => r.json());
+        const serverJson = JSON.stringify(d.states || {});
+        if (serverJson === _tableLastServerJson) return; // no change
+        _tableLastServerJson = serverJson;
+        // merge: server wins (it reflects all devices)
+        const local = getTableStates();
+        const merged = Object.assign({}, local, d.states || {});
+        localStorage.setItem(`tables_${currentGroup.id}`, JSON.stringify(merged));
+        // re-render grid if visible
+        const gridCard = document.querySelector('.table-grid-card');
+        if (gridCard) gridCard.outerHTML = renderTableGrid();
+    } catch(e) {}
+}
+
+function startTablePolling() {
+    if (_tablePollingInterval) clearInterval(_tablePollingInterval);
+    syncTableStatesFromServer(); // immediate first fetch
+    _tablePollingInterval = setInterval(() => {
+        if (!document.querySelector('.table-grid-card')) { clearInterval(_tablePollingInterval); _tablePollingInterval = null; return; }
+        syncTableStatesFromServer();
+    }, 4000);
+}
+
+function stopTablePolling() {
+    if (_tablePollingInterval) { clearInterval(_tablePollingInterval); _tablePollingInterval = null; }
+}
+
 // מחזור סטטוסי שולחן: free → occupied → awaiting_payment → free
 const TABLE_STATE_CYCLE = { free: 'reserved', reserved: 'occupied', occupied: 'awaiting_payment', awaiting_payment: 'free' };
 const TABLE_STATE_STYLES = {
@@ -27770,6 +27813,8 @@ window.toggleTable = function(id, btn) {
     const next = TABLE_STATE_CYCLE[cur] || 'free';
     states[id] = next;
     localStorage.setItem(`tables_${currentGroup.id}`, JSON.stringify(states));
+    _tableLastServerJson = null; // force re-apply on next poll
+    syncTableStatesToServer(states);
     btn.className = `table-btn ${TABLE_STATE_STYLES[next]} border-2 rounded-xl p-2 text-center flex flex-col items-center gap-0.5`;
     btn.style.cssText = 'touch-action:manipulation;cursor:pointer;';
     btn.querySelector('.tsLabel').textContent = TABLE_STATE_LABELS[next] || next;
@@ -27790,6 +27835,8 @@ window.setTableAwaitingPayment = function(tableId) {
     const states = getTableStates();
     states[tableId] = 'awaiting_payment';
     localStorage.setItem(`tables_${currentGroup.id}`, JSON.stringify(states));
+    _tableLastServerJson = null;
+    syncTableStatesToServer(states);
 };
 
 // ─── Table Transfer ──────────────────────────────────────────────────────────
@@ -27832,6 +27879,8 @@ window.executeTableTransfer = function(fromId, toId) {
     states[toId] = fromState;
     states[fromId] = 'free';
     localStorage.setItem(`tables_${currentGroup.id}`, JSON.stringify(states));
+    _tableLastServerJson = null;
+    syncTableStatesToServer(states);
     // transfer waiter assignment too
     const today = new Date().toISOString().split('T')[0];
     const key = `table_assign_${currentGroup.id}_${today}`;
@@ -28320,7 +28369,9 @@ async function renderWaiterDashboard(el) {
         ${renderTableGrid()}
         ${itemReadyHtml}
         ${readyHtml}
-        ${serviceReqHtml}
+        ${serviceReqHtml}`;
+    startTablePolling();
+    el.insertAdjacentHTML('beforeend', `
         <div class="grid grid-cols-2 gap-3 mb-4">
             <button type="button" ontouchend="event.preventDefault();window.showWaiterPOS();" onclick="window.showWaiterPOS()" class="bg-amber-500 text-white rounded-2xl p-4 shadow flex items-center gap-3 active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;"><span class="text-2xl">🍽️</span><div class="text-right"><div class="text-sm font-black">הזמנה לשולחן</div><div class="text-[10px] opacity-80">פתח הזמנה</div></div></button>
             ${rdBtn('tasks','','bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3 active:scale-95 transition','<span class="text-2xl">✅</span><div class="text-right"><div class="text-xs font-black text-orange-800">משימות</div><div class="text-[10px] text-orange-500">משמרת</div></div>')}
@@ -28537,6 +28588,7 @@ window.openAdminTablesPanel = async function() {
         ${readyHtml}
         ${serviceReqHtml}
         ${assignHtml}`;
+    startTablePolling();
 };
 
 window.openAdminKDSPanel = async function() {

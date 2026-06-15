@@ -632,6 +632,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       // ===== END BUSINESS TYPES & ROLE DASHBOARDS =====
 
       // ===== WORK ORDERS MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS restaurant_table_states (group_id INT PRIMARY KEY, states JSONB DEFAULT '{}', updated_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS call_type VARCHAR(30) DEFAULT NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS order_source VARCHAR(20) DEFAULT 'website'`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_rating SMALLINT`); } catch(e) {}
@@ -5070,6 +5071,25 @@ app.get('/api/store/commission-summary/:groupId', async (req, res) => {
                 COALESCE(SUM(CASE WHEN DATE_TRUNC('month', collected_at) = DATE_TRUNC('month', NOW()) THEN amount ELSE 0 END), 0) as month_collected
             FROM business_platform_collections WHERE business_id = $1`, [groupId]);
         res.json({ success: true, summary: { ...duesRes.rows[0], ...collRes.rows[0] } });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Restaurant table states sync ───────────────────────────────────────────
+app.get('/api/tables/:groupId/states', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT states, updated_at FROM restaurant_table_states WHERE group_id=$1', [req.params.groupId]);
+        res.json({ states: r.rows[0]?.states || {}, updatedAt: r.rows[0]?.updated_at || null });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.put('/api/tables/:groupId/states', async (req, res) => {
+    try {
+        const { states } = req.body;
+        await pool.query(
+            `INSERT INTO restaurant_table_states (group_id, states, updated_at) VALUES ($1,$2,NOW())
+             ON CONFLICT (group_id) DO UPDATE SET states=$2, updated_at=NOW()`,
+            [req.params.groupId, JSON.stringify(states || {})]
+        );
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
