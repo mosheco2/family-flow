@@ -17593,7 +17593,8 @@ window.rejectTableReservation = async function(id) {
         const isReq = t === reqTime;
         const bg = isReq ? 'bg-orange-100 border-orange-300 text-orange-700' : isTaken ? 'bg-red-50 border-red-200 text-red-500' : 'bg-green-50 border-green-200 text-green-700';
         const icon = isReq ? '⚠️' : isTaken ? '🔴' : '🟢';
-        return `<span class="inline-flex items-center gap-0.5 text-[10px] font-bold border px-1.5 py-0.5 rounded-full ${bg} cursor-pointer" onclick="window._setRejAltFromCal('${t}')">${icon} ${t}</span>`;
+        const clickable = isReq || isTaken ? '' : `onclick="window._setRejAltFromCal('${t}')"`;
+        return `<span data-cal-slot="${t}" data-taken="${isTaken?'1':'0'}" data-req="${isReq?'1':'0'}" class="inline-flex items-center gap-0.5 text-[10px] font-bold border px-1.5 py-0.5 rounded-full ${bg} cursor-pointer" ${clickable}>${icon} ${t}</span>`;
     }).join('');
     m.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5">
         <h3 class="font-black text-slate-800 text-base mb-1">📅 דחייה עם חלופות</h3>
@@ -17616,14 +17617,37 @@ window.rejectTableReservation = async function(id) {
 
 // לחיצה על שעה בתצוגת היומן — ממלאת לתוך ה-input הפנוי הבא
 window._setRejAltFromCal = function(time) {
+    // toggle: אם השעה כבר קיימת ב-input — מסיר אותה
     for (let i = 0; i < 3; i++) {
         const el = document.getElementById(`rej-alt-${i}`);
-        if (el && !el.value) { el.value = time; return; }
+        if (el && el.value === time) { el.value = ''; _updateRejCalHighlights(); return; }
+    }
+    // ממלא ה-input הפנוי הבא
+    for (let i = 0; i < 3; i++) {
+        const el = document.getElementById(`rej-alt-${i}`);
+        if (el && !el.value) { el.value = time; _updateRejCalHighlights(); return; }
     }
     // כולם מלאים — מחליף את האחרון
     const el = document.getElementById('rej-alt-2');
-    if (el) el.value = time;
+    if (el) { el.value = time; _updateRejCalHighlights(); }
 };
+
+function _updateRejCalHighlights() {
+    const chosen = new Set([0,1,2].map(i => document.getElementById(`rej-alt-${i}`)?.value).filter(Boolean));
+    document.querySelectorAll('#rej-alts-modal [data-cal-slot]').forEach(span => {
+        const t = span.dataset.calSlot;
+        const isTaken = span.dataset.taken === '1';
+        const isReq = span.dataset.req === '1';
+        if (isReq) return; // לא משנים ⚠️
+        if (chosen.has(t)) {
+            span.className = 'inline-flex items-center gap-0.5 text-[10px] font-bold border px-1.5 py-0.5 rounded-full bg-orange-200 border-orange-500 text-orange-800 cursor-pointer ring-2 ring-orange-400 scale-110 transition-all';
+        } else if (isTaken) {
+            span.className = 'inline-flex items-center gap-0.5 text-[10px] font-bold border px-1.5 py-0.5 rounded-full bg-red-50 border-red-200 text-red-500 cursor-pointer';
+        } else {
+            span.className = 'inline-flex items-center gap-0.5 text-[10px] font-bold border px-1.5 py-0.5 rounded-full bg-green-50 border-green-200 text-green-700 cursor-pointer hover:bg-green-100 transition-all';
+        }
+    });
+}
 
 window._confirmRejectWithAlts = async function(id) {
     const slots = [0,1,2].map(i => document.getElementById(`rej-alt-${i}`)?.value || '').filter(Boolean);
@@ -20503,6 +20527,10 @@ window.fetchInboxMessages = async function() {
         if (data.success) {
             window.inboxMessagesCache = data.messages || [];
             window.updateInboxBadge();
+            // אם ה-modal פתוח — רנדר מחדש את הרשימה
+            if (!document.getElementById('inbox-modal')?.classList.contains('hidden')) {
+                window.renderInboxList();
+            }
         }
     } catch(e) { console.error('Error fetching inbox', e); }
 };
@@ -27880,24 +27908,104 @@ const TABLE_STATE_LABELS = { free: 'פנוי', reserved: 'הוזמן מראש', 
 window.toggleTable = function(id, btn) {
     const states = getTableStates();
     const cur = states[id] || 'free';
-    if (cur === 'disabled') return; // שולחן מושבת לא ניתן לשנות ע"י לחיצה
-    const next = TABLE_STATE_CYCLE[cur] || 'free';
+    if (cur === 'disabled') return;
+    // שולחן מוזמן מראש — פתח modal עם פרטי ההזמנה
+    if (cur === 'reserved') {
+        window.openReservedTableModal(id);
+        return;
+    }
+    // שולחן תפוס/ממתין — פתח modal אפשרויות
+    if (cur === 'occupied' || cur === 'awaiting_payment') {
+        window.openOccupiedTableModal(id, btn);
+        return;
+    }
+    _applyTableState(id, btn, TABLE_STATE_CYCLE[cur] || 'free');
+};
+
+function _applyTableState(id, btn, next) {
+    const states = getTableStates();
     states[id] = next;
     localStorage.setItem(`tables_${currentGroup.id}`, JSON.stringify(states));
-    _tableLastServerJson = null; // force re-apply on next poll
+    _tableLastServerJson = null;
     syncTableStatesToServer(states);
-    btn.className = `table-btn ${TABLE_STATE_STYLES[next]} border-2 rounded-xl p-2 text-center flex flex-col items-center gap-0.5`;
-    btn.style.cssText = 'touch-action:manipulation;cursor:pointer;';
-    btn.querySelector('.tsLabel').textContent = TABLE_STATE_LABELS[next] || next;
-    // עדכון שורת סיכום
-    const summary = btn.closest('.table-grid-card')?.querySelector('.table-summary');
+    if (btn) {
+        btn.className = `table-btn ${TABLE_STATE_STYLES[next]} border-2 rounded-xl p-2 text-center flex flex-col items-center gap-0.5`;
+        btn.style.cssText = 'touch-action:manipulation;cursor:pointer;';
+        btn.querySelector('.tsLabel').textContent = TABLE_STATE_LABELS[next] || next;
+    }
+    const summary = document.querySelector('.table-grid-card .table-summary');
     if (summary) {
         const count = parseInt(currentGroup.table_count || 8);
         const st = getTableStates();
         const occ = Array.from({length:count},(_,i)=>st[i+1]==='occupied'||st[i+1]==='awaiting_payment').filter(Boolean).length;
         const waiting = Array.from({length:count},(_,i)=>st[i+1]==='awaiting_payment').filter(Boolean).length;
-        summary.innerHTML = `<span class="text-green-600 font-bold">${count-occ} פנויים</span> · <span class="text-red-600 font-bold">${occ-waiting} תפוסים</span>${waiting?` · <span class="text-orange-600 font-bold">${waiting} ממתינים</span>`:''}`;
+        const res = Array.from({length:count},(_,i)=>st[i+1]==='reserved').filter(Boolean).length;
+        summary.innerHTML = `<span class="text-green-600 font-bold">${count-occ-res} פנויים</span> · <span class="text-red-600 font-bold">${occ-waiting} תפוסים</span>${res?` · <span class="text-blue-600 font-bold">${res} הוזמן</span>`:''}${waiting?` · <span class="text-orange-600 font-bold">${waiting} ממתין</span>`:''}`;
     }
+}
+
+window.openReservedTableModal = async function(id) {
+    // טען הזמנות פעילות של היום
+    let reservation = null;
+    try {
+        const d = await fetch(`${API}/tables/${currentGroup.id}/reservations-today`).then(r => r.json());
+        reservation = (d.reservations || []).find(r => r.reserved_table_number === id || r.reserved_table_number === String(id));
+    } catch(e) {}
+    const existing = document.getElementById('table-info-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'table-info-modal';
+    modal.className = 'fixed inset-0 z-[9999] flex items-end justify-center bg-black/50';
+    const info = reservation
+        ? `<p class="text-sm font-bold text-slate-800 mb-1">${reservation.title || 'לקוח'}</p>
+           <p class="text-xs text-slate-500">${reservation.start_time?.slice(0,5) || ''} · ${reservation.num_guests || '?'} סועדים${reservation.notes ? ' · ' + reservation.notes : ''}</p>
+           ${reservation.customer_phone ? `<a href="tel:${reservation.customer_phone}" class="mt-2 inline-flex items-center gap-1 text-xs text-emerald-700 font-bold bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">📞 ${reservation.customer_phone}</a>` : ''}`
+        : `<p class="text-xs text-slate-400">לא נמצאה הזמנה פעילה לשולחן זה</p>`;
+    modal.innerHTML = `<div class="bg-white w-full max-w-sm rounded-t-3xl p-5 pb-8 shadow-2xl">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-black text-slate-800">🍽️ שולחן ${id} — הוזמן מראש</h3>
+            <button onclick="document.getElementById('table-info-modal').remove()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-lg">✕</button>
+        </div>
+        <div class="bg-blue-50 rounded-2xl p-4 border border-blue-100 mb-4">${info}</div>
+        <div class="flex flex-col gap-2">
+            <button onclick="window._tableAction(${id},'occupied')" class="w-full bg-red-500 text-white font-black py-3 rounded-2xl text-sm shadow hover:bg-red-600 transition">🪑 הושב לקוח — סמן תפוס</button>
+            <button onclick="window._tableAction(${id},'free')" class="w-full bg-slate-100 text-slate-700 font-bold py-2.5 rounded-2xl text-sm hover:bg-slate-200 transition">🔓 שחרר שולחן — החזר לפנוי</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+window.openOccupiedTableModal = function(id, btn) {
+    const existing = document.getElementById('table-info-modal');
+    if (existing) existing.remove();
+    const states = getTableStates();
+    const cur = states[id] || 'free';
+    const stLabel = TABLE_STATE_LABELS[cur] || cur;
+    const modal = document.createElement('div');
+    modal.id = 'table-info-modal';
+    modal.className = 'fixed inset-0 z-[9999] flex items-end justify-center bg-black/50';
+    modal.innerHTML = `<div class="bg-white w-full max-w-sm rounded-t-3xl p-5 pb-8 shadow-2xl">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-black text-slate-800">שולחן ${id} — ${stLabel}</h3>
+            <button onclick="document.getElementById('table-info-modal').remove()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-lg">✕</button>
+        </div>
+        <div class="flex flex-col gap-2">
+            ${cur === 'occupied' ? `<button onclick="window._tableAction(${id},'awaiting_payment')" class="w-full bg-orange-500 text-white font-black py-3 rounded-2xl text-sm shadow hover:bg-orange-600 transition">💳 ממתין לתשלום</button>` : ''}
+            ${cur === 'awaiting_payment' ? `<button onclick="window._tableAction(${id},'free')" class="w-full bg-green-500 text-white font-black py-3 rounded-2xl text-sm shadow hover:bg-green-600 transition">✅ שולם — שחרר לפנוי</button>` : ''}
+            <button onclick="window._tableAction(${id},'free')" class="w-full bg-slate-100 text-slate-700 font-bold py-2.5 rounded-2xl text-sm hover:bg-slate-200 transition">🔓 שחרר שולחן — החזר לפנוי</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+window._tableAction = function(id, next) {
+    document.getElementById('table-info-modal')?.remove();
+    const gridCard = document.querySelector('.table-grid-card');
+    _applyTableState(id, null, next);
+    if (gridCard) gridCard.outerHTML = renderTableGrid();
+    showToast('success', `שולחן ${id} → ${TABLE_STATE_LABELS[next] || next}`);
 };
 
 // מגדיר שולחן כ"ממתין לתשלום" אחרי סגירת הזמנה (נקרא מ-finalizePOSOrder)
