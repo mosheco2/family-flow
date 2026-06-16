@@ -28166,10 +28166,11 @@ window.toggleTable = function(id, btn) {
     const cur = states[id] || 'free';
     if (cur === 'disabled') return;
     if (cur === 'reserved') { window.openReservedTableModal(id); return; }
-    if (cur === 'occupied' || cur === 'awaiting_payment') { window.openOccupiedTableModal(id, btn); return; }
-    // שולחן פנוי — הושב לקוח ישירות (reserved נקבע רק מאישור ביומן)
-    _applyTableState(id, btn, 'occupied');
-    showToast('success', `שולחן ${id} — תפוס 🪑`);
+    // מחזור ישיר: פנוי → תפוס → ממתין לתשלום → פנוי
+    const next = TABLE_STATE_CYCLE[cur] || 'occupied';
+    _applyTableState(id, btn, next);
+    const toastMsg = { occupied: `שולחן ${id} — תפוס 🪑`, awaiting_payment: `שולחן ${id} — ממתין לתשלום 💳`, free: `שולחן ${id} — פנוי ✅` };
+    showToast('success', toastMsg[next] || `שולחן ${id} → ${TABLE_STATE_LABELS[next]}`);
 };
 
 function _applyTableState(id, btn, next) {
@@ -28277,9 +28278,12 @@ window.openOccupiedTableModal = function(id, btn) {
             <button onclick="document.getElementById('table-info-modal').remove()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-lg">✕</button>
         </div>
         <div class="flex flex-col gap-2">
+            ${cur === 'free' ? `<button onclick="window._tableAction(${id},'occupied')" class="w-full bg-red-500 text-white font-black py-3 rounded-2xl text-sm shadow hover:bg-red-600 transition">🪑 סמן תפוס</button>` : ''}
+            ${cur === 'free' ? `<button onclick="window._tableAction(${id},'awaiting_payment')" class="w-full bg-orange-500 text-white font-black py-3 rounded-2xl text-sm shadow hover:bg-orange-600 transition">💳 ממתין לתשלום</button>` : ''}
             ${cur === 'occupied' ? `<button onclick="window._tableAction(${id},'awaiting_payment')" class="w-full bg-orange-500 text-white font-black py-3 rounded-2xl text-sm shadow hover:bg-orange-600 transition">💳 ממתין לתשלום</button>` : ''}
+            ${cur === 'awaiting_payment' ? `<button onclick="window._tableAction(${id},'occupied')" class="w-full bg-red-400 text-white font-bold py-2.5 rounded-2xl text-sm shadow hover:bg-red-500 transition">🪑 חזור לתפוס</button>` : ''}
             ${cur === 'awaiting_payment' ? `<button onclick="window._tableAction(${id},'free')" class="w-full bg-green-500 text-white font-black py-3 rounded-2xl text-sm shadow hover:bg-green-600 transition">✅ שולם — שחרר לפנוי</button>` : ''}
-            <button onclick="window._tableAction(${id},'free')" class="w-full bg-slate-100 text-slate-700 font-bold py-2.5 rounded-2xl text-sm hover:bg-slate-200 transition">🔓 שחרר שולחן — החזר לפנוי</button>
+            ${cur !== 'free' ? `<button onclick="window._tableAction(${id},'free')" class="w-full bg-slate-100 text-slate-700 font-bold py-2.5 rounded-2xl text-sm hover:bg-slate-200 transition">🔓 שחרר שולחן — החזר לפנוי</button>` : ''}
         </div>
     </div>`;
     document.body.appendChild(modal);
@@ -28391,8 +28395,9 @@ function renderTableGrid() {
         const stLabel = TABLE_STATE_LABELS?.[st] || 'פנוי';
         const waiter = assigns[id] ? `<span class="text-[7px] leading-none truncate w-full text-center block opacity-70">${safeStr(assigns[id])}</span>` : '';
         const cap = capacities[id] ? `<span class="text-[7px] text-slate-400 opacity-60">👥${capacities[id]}</span>` : '';
-        const transferBtn = ['occupied','awaiting_payment'].includes(st) ? `<span onclick="event.stopPropagation();window.openTableTransferModal(${id});" title="העבר שולחן" style="font-size:9px;line-height:1;cursor:pointer;opacity:0.7;" class="mt-0.5">↔️</span>` : '';
-        const qrBtn = `<span onclick="event.stopPropagation();window.showTableQR(${id});" title="QR לשולחן" style="font-size:9px;line-height:1;cursor:pointer;opacity:0.5;" class="mt-0.5">📱</span>`;
+        const transferBtn = ['occupied','awaiting_payment'].includes(st) ? `<span ontouchend="event.stopPropagation();event.preventDefault();window.openTableTransferModal(${id});" onclick="event.stopPropagation();window.openTableTransferModal(${id});" title="העבר שולחן" style="font-size:9px;line-height:1;cursor:pointer;opacity:0.7;touch-action:manipulation;" class="mt-0.5">↔️</span>` : '';
+        const qrBtn = `<span ontouchend="event.stopPropagation();event.preventDefault();window.showTableQR(${id});" onclick="event.stopPropagation();window.showTableQR(${id});" title="QR לשולחן" style="font-size:9px;line-height:1;cursor:pointer;opacity:0.5;touch-action:manipulation;" class="mt-0.5">📱</span>`;
+        const infoBtn = (st !== 'free' && st !== 'disabled') ? `<span ontouchend="event.stopPropagation();event.preventDefault();window.openOccupiedTableModal(${id},null);" onclick="event.stopPropagation();window.openOccupiedTableModal(${id},null);" title="אפשרויות שולחן" style="font-size:9px;line-height:1;cursor:pointer;opacity:0.6;touch-action:manipulation;" class="mt-0.5">⚙️</span>` : '';
         // חיווי שעת הזמנה לשולחנות שהוזמנו מראש
         const resForTable = st === 'reserved' ? _tableReservationsCache.filter(r => r.reserved_table_number == id) : [];
         const resTimeHtml = resForTable.length
@@ -28420,7 +28425,7 @@ function renderTableGrid() {
             <span class="tsLabel text-[9px] font-bold">${stLabel}</span>
             ${resTimeHtml}
             ${timerHtml}
-            <div class="flex gap-1 justify-center">${transferBtn}${qrBtn}</div>
+            <div class="flex gap-1 justify-center">${transferBtn}${infoBtn}${qrBtn}</div>
         </button>`;
     }).join('');
     const reserved = Array.from({length:count},(_,i)=>states[i+1]==='reserved').filter(Boolean).length;
