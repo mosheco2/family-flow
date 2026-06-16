@@ -542,10 +542,12 @@ function renderMyOrders() {
     filtered.filter(o => o.status !== 'quote' && (!o.quote_status || o.quote_status === 'approved')).forEach(o => {
         let statusColor = '', statusText = '', statusIcon = '';
         switch(o.status) {
+            case 'pending_approval': statusColor='border-yellow-200 bg-yellow-50'; statusText='ממתין לאישור עסק'; statusIcon='fa-hourglass-half'; break;
             case 'new':        statusColor='border-blue-200 bg-blue-50'; statusText='התקבל בעסק'; statusIcon='fa-clock'; break;
             case 'processing': statusColor='border-orange-200 bg-orange-50'; statusText='באריזה / הכנה'; statusIcon='fa-box'; break;
             case 'ready':      statusColor='border-purple-200 bg-purple-50'; statusText='מוכן לאיסוף'; statusIcon='fa-bag-shopping'; break;
             case 'shipped':    statusColor='border-indigo-200 bg-indigo-50'; statusText=o.is_delivery?'בדרך אליך! 🛵':'בדרך אלייך!'; statusIcon=o.is_delivery?'fa-motorcycle':'fa-truck-fast'; break;
+            case 'delivering': statusColor='border-indigo-200 bg-indigo-50'; statusText='השליח בדרך אליך 🛵'; statusIcon='fa-motorcycle'; break;
             case 'completed':  statusColor='border-green-200 bg-green-50'; statusText='הושלם ונמסר'; statusIcon='fa-check-double'; break;
             default:           statusColor='border-slate-200 bg-slate-50'; statusText='בטיפול'; statusIcon='fa-hourglass-half';
         }
@@ -575,10 +577,54 @@ function renderMyOrders() {
                     ${_renderOrderItems(o.items)}
                     ${(o.notes && !o.quote_status) ? `<p class="mt-2 pt-2 border-t border-slate-200 text-[11px]"><strong>הערות:</strong> ${safeStr(o.notes)}</p>` : ''}
                 </div>
-            </div>
+                ${(o.status === 'completed' && (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true')) ? (
+                    o.customer_rating
+                    ? `<div class="mt-2 bg-green-50 border border-green-200 rounded-xl p-2 text-center text-xs font-bold text-green-700">✅ קיבלת ודירגת — תודה!</div>`
+                    : `<div class="mt-2 bg-slate-50 border border-slate-200 rounded-xl p-2">
+                        <p class="text-[11px] font-bold text-slate-600 text-center mb-2">קיבלת את ההזמנה?</p>
+                        <div class="flex gap-2">
+                            <button onclick="confirmOrderReceipt(${o.id}, true)" class="flex-1 py-2 bg-green-500 text-white text-xs font-black rounded-xl">✅ כן, קיבלתי</button>
+                            <button onclick="confirmOrderReceipt(${o.id}, false)" class="flex-1 py-2 bg-red-500 text-white text-xs font-black rounded-xl">❌ לא קיבלתי</button>
+                        </div>
+                    </div>`
+                ) : ''}
         </div>`;
     });
     list.innerHTML = html;
+}
+
+async function confirmOrderReceipt(orderId, received) {
+    if (!received) {
+        const el = document.getElementById(`order-details-${orderId}`);
+        if (el) {
+            el.querySelector('.bg-slate-50.border')?.insertAdjacentHTML('afterend',
+                `<div class="mt-2 bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700">
+                    <p class="font-bold mb-1">😟 מצטערים לשמוע!</p>
+                    <p>אנא צרו קשר עם העסק ישירות — הם יסדרו את זה עבורכם.</p>
+                </div>`
+            );
+            el.querySelector('.flex.gap-2')?.remove();
+        }
+        return;
+    }
+    const rating = prompt('כמה כוכבים תתנו להזמנה? (1-5)');
+    const stars = parseInt(rating);
+    if (!stars || stars < 1 || stars > 5) return;
+    try {
+        const res = await fetch(`${API}/store/orders/${orderId}/customer-feedback`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rating: stars, familyGroupId: currentGroup?.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            const el = document.getElementById(`order-details-${orderId}`);
+            if (el) el.querySelector('.bg-slate-50.border')?.replaceWith(
+                Object.assign(document.createElement('div'),
+                { className: 'mt-2 bg-green-50 border border-green-200 rounded-xl p-2 text-center text-xs font-bold text-green-700',
+                  textContent: `✅ תודה! דירגת ${stars} כוכבים` })
+            );
+        }
+    } catch(e) { alert('שגיאה בשמירת הדירוג'); }
 }
 
 function setOrdersSearch(val) {
