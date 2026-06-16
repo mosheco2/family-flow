@@ -10405,6 +10405,16 @@ app.put('/api/groups/:id/address', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// עדכון כינוי משפחה (family_nickname) — נקרא ממודל שדרוג חבר→משפחה
+app.patch('/api/groups/:id/nickname', async (req, res) => {
+    try {
+        const { familyNickname } = req.body;
+        await pool.query('UPDATE family_groups SET family_nickname=$1 WHERE id=$2',
+            [familyNickname ? familyNickname.trim() : null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // Members by groupId path param (used by role dashboards for tech assignment)
 app.get('/api/members/:groupId', async (req, res) => {
     try {

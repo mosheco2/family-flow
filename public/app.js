@@ -5086,7 +5086,7 @@ window.saveUpgradeModal = async function() {
         const nickname = (document.getElementById('upgrade-family-nickname')?.value || '').trim();
         const updates = [];
         if (nickname || window._upgradePhotoBase64) {
-            if (nickname) updates.push(fetch(`${API}/groups/${currentGroup.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: currentGroup.name, adminEmail: currentGroup.admin_email, familyNickname: nickname }) }));
+            if (nickname) updates.push(fetch(`${API}/groups/${currentGroup.id}/nickname`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ familyNickname: nickname }) }));
             if (window._upgradePhotoBase64) updates.push(fetch(`${API}/groups/${currentGroup.id}/logo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ logo: window._upgradePhotoBase64 }) }));
             await Promise.all(updates);
             if (nickname) currentGroup.family_nickname = nickname;
