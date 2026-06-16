@@ -1751,7 +1751,7 @@ function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: directi
 function switchTab(t) {
     // עסקי יופי: הפנה מ-customers ל-beauty_clients
     if (t === 'customers' && currentGroup?.business_type === 'beauty') t = 'beauty_clients';
-    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices'].forEach(x => {
+    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','reviews'].forEach(x => {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden');
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active');
     });
@@ -1821,6 +1821,7 @@ function switchTab(t) {
     if (t === 'logistics_reports')  try { loadLogisticsReports(); } catch(e) {}
     if (t === 'logistics_customers') try { loadLogisticsCustomers(); } catch(e) {}
     if (t === 'logistics_invoices')  try { loadLogisticsInvoices(); } catch(e) {}
+    if (t === 'reviews')               try { loadReviews(); } catch(e) {}
 }
 
 function updateBatteryUI() {
@@ -2539,6 +2540,7 @@ const ALL_TABS = [
     { id: 'pos', name: 'קופה (POS) 💰' },
     { id: 'customers', name: 'לקוחות 🤝' },
     { id: 'deliveries', name: 'שליחויות 🛵' },
+    { id: 'reviews', name: 'דירוגים וביקורות ⭐' },
     { id: 'foodcost', name: 'תמחור ורווחיות 🍽️' },
     { id: 'bank', name: 'כספים 💳' },
     { id: 'cashflow', name: 'תזרים מזומנים 💸' },
@@ -3814,7 +3816,7 @@ window.changeFeedPage = function(direction) {
 // ============================================================
 const GNAV_GROUPS = {
     team:      ['timeclock','shifts','calendar','tasks','academy','members','beauty_calendar','beauty_practitioners'],
-    sales:     ['pos','sales','customers','deliveries','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
+    sales:     ['pos','sales','customers','deliveries','reviews','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
     inventory: ['shop','pantry','equipment','foodcost','beauty_inventory'],
     finance:   ['bank','cashflow','budget','forecast','beauty_commissions'],
     more:      ['community','surveys']
@@ -39032,4 +39034,99 @@ window._beautyPractToggle = async function(id, isActive) {
         showToast('success', isActive ? 'המטפלת הושבתה' : 'המטפלת הופעלה');
         loadBeautyPractitioners();
     } catch(e) { showToast('error', 'שגיאה בעדכון'); }
+};
+
+// ─── REVIEWS MODULE ───────────────────────────────────────────────────────────
+window.loadReviews = async function() {
+    const root = document.getElementById('reviews-root');
+    if (!root || !currentGroup?.id) return;
+    root.innerHTML = '<div class="py-12 text-center text-slate-400 text-sm">טוען דירוגים...</div>';
+    try {
+        const res = await fetch(`${API}/store/orders/${currentGroup.id}`);
+        const all = await res.json();
+        if (!Array.isArray(all)) { root.innerHTML = '<p class="text-center text-slate-400 py-8">שגיאה בטעינה</p>'; return; }
+
+        const rated = all.filter(o => o.customer_rating > 0)
+                         .sort((a,b) => new Date(b.customer_rated_at||b.created_at) - new Date(a.customer_rated_at||a.created_at));
+
+        const total = rated.length;
+        const avg = total ? (rated.reduce((s,o) => s + parseFloat(o.customer_rating), 0) / total).toFixed(1) : 0;
+        const dist = [5,4,3,2,1].map(n => ({ n, cnt: rated.filter(o => o.customer_rating === n).length }));
+
+        const kpiHtml = `
+        <div class="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-[2rem] p-5 text-white shadow-xl mb-4 relative overflow-hidden">
+            <i class="fa-solid fa-star absolute -left-4 -bottom-4 text-8xl text-white opacity-10"></i>
+            <h3 class="text-lg font-black mb-1">⭐ דירוגים וביקורות לקוח</h3>
+            <p class="text-yellow-100 text-xs mb-3">כל הדירוגים שהתקבלו מלקוחות</p>
+            <div class="flex items-center gap-6">
+                <div class="text-center">
+                    <div class="text-4xl font-black">${avg}</div>
+                    <div class="text-[10px] text-yellow-100">ממוצע</div>
+                </div>
+                <div class="flex-1">
+                    ${dist.map(d => {
+                        const pct = total ? Math.round(d.cnt / total * 100) : 0;
+                        return `<div class="flex items-center gap-1.5 mb-0.5">
+                            <span class="text-[10px] text-yellow-100 w-3">${d.n}</span>
+                            <div class="flex-1 bg-white/20 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-white h-full rounded-full" style="width:${pct}%"></div>
+                            </div>
+                            <span class="text-[10px] text-yellow-100 w-4 text-left">${d.cnt}</span>
+                        </div>`;
+                    }).join('')}
+                </div>
+                <div class="text-center">
+                    <div class="text-3xl font-black">${total}</div>
+                    <div class="text-[10px] text-yellow-100">דירוגים</div>
+                </div>
+            </div>
+        </div>`;
+
+        if (total === 0) {
+            root.innerHTML = kpiHtml + '<div class="py-12 text-center text-slate-400"><p class="text-4xl mb-2">⭐</p><p class="text-sm font-bold">עדיין אין דירוגים</p><p class="text-xs text-slate-400 mt-1">הדירוגים יופיעו כאן לאחר שלקוחות ידרגו הזמנות</p></div>';
+            return;
+        }
+
+        const listHtml = `<div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="font-black text-slate-800 text-sm">📋 כל הדירוגים (${total})</h3>
+            </div>
+            <div class="divide-y divide-slate-50">
+            ${rated.map(o => {
+                const stars = '⭐'.repeat(o.customer_rating) + '☆'.repeat(5 - o.customer_rating);
+                const dateStr = o.customer_rated_at
+                    ? new Date(o.customer_rated_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',year:'numeric'})
+                    : (o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL',{day:'numeric',month:'short'}) : '');
+                const ratingColor = o.customer_rating >= 4 ? 'text-green-600' : o.customer_rating === 3 ? 'text-yellow-600' : 'text-red-500';
+                const deliveryBadge = o.is_delivery ? '<span class="text-[9px] bg-purple-50 text-purple-600 border border-purple-200 px-1.5 py-0.5 rounded-full font-bold">🚚 משלוח</span>' : '';
+                const srcBadge = o.order_source === 'table' ? '<span class="text-[9px] bg-violet-50 text-violet-600 border border-violet-200 px-1.5 py-0.5 rounded-full font-bold">🍽️ שולחן</span>' : '<span class="text-[9px] bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded-full font-bold">🌐 אתר</span>';
+                return `<div class="px-4 py-3 hover:bg-slate-50 transition">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-yellow-50 border border-yellow-200 flex items-center justify-center shrink-0">
+                            <span class="text-lg font-black ${ratingColor}">${o.customer_rating}</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-sm font-black text-slate-800">${safeStr(o.customer_name||'לקוח אנונימי')}</span>
+                                <span class="text-[10px] text-slate-400">#${o.id}</span>
+                                ${deliveryBadge}${srcBadge}
+                            </div>
+                            <div class="text-sm text-yellow-500 my-0.5">${stars}</div>
+                            ${o.customer_rating_notes ? `<p class="text-xs text-slate-600 leading-relaxed">"${safeStr(o.customer_rating_notes)}"</p>` : ''}
+                            <div class="flex items-center gap-3 mt-1">
+                                <span class="text-[10px] text-slate-400">${dateStr}</span>
+                                ${o.customer_phone ? `<a href="tel:${safeStr(o.customer_phone)}" class="text-[10px] text-blue-500 font-bold">${safeStr(o.customer_phone)}</a>` : ''}
+                                <button onclick="window.openStoreOrderModal(${o.id})" class="text-[10px] text-indigo-500 font-bold hover:underline">הצג הזמנה</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('')}
+            </div>
+        </div>`;
+
+        root.innerHTML = kpiHtml + listHtml;
+    } catch(e) {
+        root.innerHTML = '<p class="text-center text-red-400 py-8">שגיאה בטעינת דירוגים</p>';
+    }
 };
