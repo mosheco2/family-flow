@@ -692,60 +692,56 @@
     </ul>
 
     <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">זרימת משלוח מלאה — שלב אחר שלב</h3>
-    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.75rem;">תהליך המשלוח עובר בין שלושה גורמים: <strong>המטבח → המלצר → השליח</strong>. כל אחד רואה בדיוק מה שצריך לעשות.</p>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.75rem;">תהליך המשלוח עובר בין ארבעה שלבים: <strong>אישור מנהל → מטבח → מלצר → שליח</strong>. כל שלב מוצג בממשק הנכון.</p>
 
     <div class="step-box">
       <div class="step-num">1</div>
       <div class="step-content">
-        <strong>הזמנת משלוח מגיעה</strong>
-        <span>מגיעה מהחנות הציבורית, מ-ONEFLOW, או נפתחת ידנית בקופה עם כתובת לקוח. ניתן גם לשנות הזמנת שולחן רגילה לסטטוס "משלוח" — היא תעבור לאותו מסלול.</span>
+        <strong>הזמנת משלוח מגיעה — ממתינה לאישור 📋</strong>
+        <span>ההזמנה מגיעה מהחנות הציבורית בסטטוס <strong>"ממתין לאישור"</strong>. היא מוצגת בסקשן כתום <strong>"📋 ממתין לאישור — הזמנות משלוח חדשות"</strong> במסך המלצר ובמסך המנהל. עד שמנהל/ית לא מאשרים — ההזמנה לא עוברת למטבח.</span>
       </div>
     </div>
     <div class="step-box">
       <div class="step-num">2</div>
       <div class="step-content">
-        <strong>הכנה במטבח</strong>
-        <span>ההזמנה מגיעה ל-KDS במטבח ומוצגת כרגיל. הטבח מסמן את המנות <strong>"מוכן"</strong> כשהן מוכנות.</span>
+        <strong>מנהל/מלצר לוחץ "✅ אשר לטבח"</strong>
+        <span>בלחיצה על הכפתור הכתום — ההזמנה עוברת לסטטוס <strong>"חדשה"</strong> ומופיעה ב-KDS במטבח. הטבח מסמן את המנות כשמוכנות, וההזמנה עוברת לסטטוס <strong>"מוכן"</strong>.</span>
       </div>
     </div>
     <div class="step-box">
       <div class="step-num">3</div>
       <div class="step-content">
         <strong>מלצר רואה "מוכן לאיסוף/הגשה" — שלב קריטי 🔔</strong>
-        <span>כשהמטבח סיים, ההזמנה מופיעה בסקשן <strong>"מוכן לאיסוף/הגשה"</strong> במסך המלצר (ובמסך המנהל). ליד כרטיס ההזמנה מופיע כפתור סגול <strong>"📦 ממתין לשליח"</strong>.</span>
+        <span>כשהמטבח סיים, ההזמנה מופיעה בסקשן <strong>"מוכן לאיסוף"</strong> במסך המלצר (ובמסך המנהל) עם תג 🛵 משלוח. ליד כרטיס ההזמנה מופיעים <strong>שני כפתורים</strong>: <strong>"📦 ממתין לשליח"</strong> ו-<strong>"✅ נמסר"</strong>.</span>
       </div>
     </div>
     <div class="step-box">
       <div class="step-num">4</div>
       <div class="step-content">
         <strong>מלצר לוחץ "📦 ממתין לשליח"</strong>
-        <span>בלחיצה על הכפתור הסגול — ההזמנה עוברת לסטטוס "בדרך לשליח". הכפתור <strong>מתחלף לאינדיקטור כתום</strong> שכתוב עליו <strong>"⏳ ממתין לשליח"</strong>. ההזמנה <strong>נשארת מוצגת</strong> במסך המלצר עד שהשליח אוסף.</span>
+        <span>בלחיצה על הכפתור הסגול — ההזמנה עוברת לסטטוס <strong>"shipped"</strong> ומופיעה אצל השליח בלשונית <strong>"ממתין 📦"</strong>.</span>
       </div>
     </div>
     <div class="step-box">
       <div class="step-num">5</div>
       <div class="step-content">
-        <strong>שליח רואה בלשונית "ממתין לאיסוף 📦"</strong>
-        <span>ממשק השליח (לשונית "שליחויות 🛵" בניווט) מציג את ההזמנה בסעיף <strong>"ממתין לאיסוף 📦"</strong> עם פרטי הלקוח, כתובת, ופירוט המנות. השליח הגיע למסעדה ואוסף את ההזמנה.</span>
+        <strong>שליח רואה בלשונית "ממתין 📦"</strong>
+        <span>ממשק השליח (לשונית "שליחויות 🛵" בניווט) מציג את ההזמנה בסעיף <strong>"ממתין 📦"</strong> עם פרטי הלקוח, כתובת, ופירוט המנות. השליח אוסף את ההזמנה ויוצא לדרך.</span>
       </div>
     </div>
     <div class="step-box">
       <div class="step-num">6</div>
       <div class="step-content">
-        <strong>שליח מסמן את התוצאה</strong>
-        <span>לאחר מסירה ללקוח — השליח לוחץ אחד מהכפתורים:</span>
-        <div style="margin-top:0.5rem;display:flex;flex-direction:column;gap:0.35rem;">
-          <div style="display:flex;align-items:center;gap:0.5rem;"><span style="background:#dcfce7;color:#16a34a;border-radius:6px;padding:2px 8px;font-size:0.8rem;font-weight:700;">✅ נמסר</span><span style="font-size:0.85rem;color:#475569;">ההזמנה עברה ל"היסטוריה" כ"נמסר ✅". לקוח מקבל בקשת דירוג ב-ONEFLOW.</span></div>
-          <div style="display:flex;align-items:center;gap:0.5rem;"><span style="background:#fee2e2;color:#dc2626;border-radius:6px;padding:2px 8px;font-size:0.8rem;font-weight:700;">❌ בוטל</span><span style="font-size:0.85rem;color:#475569;">ההזמנה מסומנת בוטלה ועוברת להיסטוריה. נרשמת בדוח הביטולים.</span></div>
-        </div>
+        <strong>שליח מאשר מסירה</strong>
+        <span>לאחר מסירה ללקוח — השליח לוחץ <strong>"אישור מסירה"</strong> בממשק השליח. ההזמנה עוברת ל"היסטוריה" כ"נמסר ✅". לקוח מקבל בקשת דירוג ב-ONEFLOW.</span>
       </div>
     </div>
 
     <div class="info-box"><strong>📌 סיכום מצבי הזמנת משלוח:</strong><br>
-      <span style="background:#f0fdf4;border:1px solid #86efac;border-radius:4px;padding:1px 6px;font-size:0.78rem;font-weight:600;">ממתין לאישור</span> →
-      <span style="background:#fef3c7;border:1px solid #fcd34d;border-radius:4px;padding:1px 6px;font-size:0.78rem;font-weight:600;">בהכנה (KDS)</span> →
+      <span style="background:#fff7ed;border:1px solid #fb923c;border-radius:4px;padding:1px 6px;font-size:0.78rem;font-weight:600;">ממתין לאישור</span> →
+      <span style="background:#fef3c7;border:1px solid #fcd34d;border-radius:4px;padding:1px 6px;font-size:0.78rem;font-weight:600;">חדשה (KDS)</span> →
       <span style="background:#e0e7ff;border:1px solid #a5b4fc;border-radius:4px;padding:1px 6px;font-size:0.78rem;font-weight:600;">מוכן (מלצר לוחץ ממתין לשליח)</span> →
-      <span style="background:#ffedd5;border:1px solid #fb923c;border-radius:4px;padding:1px 6px;font-size:0.78rem;font-weight:600;">ממתין לאיסוף (שליח)</span> →
+      <span style="background:#ffedd5;border:1px solid #fb923c;border-radius:4px;padding:1px 6px;font-size:0.78rem;font-weight:600;">ממתין 📦 (שליח)</span> →
       <span style="background:#dcfce7;border:1px solid #86efac;border-radius:4px;padding:1px 6px;font-size:0.78rem;font-weight:600;">נמסר ✅</span>
     </div>
 
@@ -753,14 +749,14 @@
     <div class="table-wrap">
       <table>
         <tr><th>לשונית</th><th>מה מוצג</th><th>פעולות</th></tr>
-        <tr><td>📦 ממתין לאיסוף</td><td>הזמנות שמלצר לחץ עליהן "ממתין לשליח" — מוכנות לאיסוף</td><td>✅ נמסר · ❌ בוטל</td></tr>
-        <tr><td>🍳 בהכנה</td><td>הזמנות משלוח שעדיין בהכנה במטבח (מידע בלבד)</td><td>—</td></tr>
-        <tr><td>📋 היסטוריה</td><td>הזמנות שנמסרו או בוטלו — עם תג ✅/❌ ירוק/אדום</td><td>צפייה בלבד</td></tr>
+        <tr><td>📦 ממתין</td><td>הזמנות שמלצר לחץ עליהן "ממתין לשליח" — מוכנות לאיסוף</td><td>אישור מסירה</td></tr>
+        <tr><td>🛵 במשלוח</td><td>הזמנות משלוח שעדיין בהכנה במטבח (מידע בלבד)</td><td>—</td></tr>
+        <tr><td>📋 היסטוריה</td><td>הזמנות שנמסרו — עם תג ✅ ירוק</td><td>צפייה בלבד</td></tr>
       </table>
     </div>
 
-    <div class="tip-box"><strong>💡 פלטפורמות חיצוניות:</strong> הזמנות מ-Wolt/10bis נרשמות ידנית בקופה עם סימון "פלטפורמה חיצונית" — עוברות אותו תהליך בדיוק.</div>
-    <div class="warn-box"><strong>⚠️ שימו לב:</strong> ההזמנה <strong>לא נעלמת</strong> ממסך המלצר אחרי שהוא לחץ "ממתין לשליח" — היא נשארת עם אינדיקטור כתום עד שהשליח מאשר איסוף. זה מכוון, כדי שהמלצר יוכל לעקוב.</div>
+    <div class="tip-box"><strong>💡 אישור כפול:</strong> הזמנות משלוח מהאתר ממתינות לאישור מנהל לפני שעוברות למטבח. כך ניתן לוודא שהכתובת תקינה ושיש יכולת משלוח לפני שמתחילים להכין.</div>
+    <div class="warn-box"><strong>⚠️ שימו לב:</strong> הזמנת משלוח שלא אושרה — <strong>לא תגיע למטבח</strong>. ודאו שמנהל/מלצר בודקים ומאשרים הזמנות חדשות בתחילת כל משמרת.</div>
   </div>
 </section>
 
