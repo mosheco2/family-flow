@@ -21405,6 +21405,14 @@ window.markItemServed = function(orderId, idx) {
     }).then(() => refreshWaiterReadySection()).catch(() => {});
 };
 
+window.waiterOpenOrderDetails = async function(orderId) {
+    const numId = parseInt(orderId);
+    if (!storeOrdersCache || !storeOrdersCache.find(o => o.id === numId)) {
+        try { await window.fetchStoreOrders(); } catch(e) {}
+    }
+    window.openStoreOrderModal(numId);
+};
+
 window.collectAndBill = function(orderId, tableNum) {
     window.markReadyDelivered(orderId, 'completed');
     if (tableNum) {
@@ -27825,7 +27833,7 @@ async function renderShiftManagerDashboard(el) {
                     try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata); } catch(e3) {}
                     return { orderId: o.id, tableNum, items };
                 });
-                smNewOrders = od.filter(o => o.status === 'new' || o.status === 'pending').map(o => {
+                smNewOrders = od.filter(o => ['new','pending','processing'].includes(o.status)).map(o => {
                     let items = [];
                     try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata && !i.is_delivery_metadata && !(i.name&&i.name.startsWith('DELIVERY_META|'))); } catch(e3) {}
                     const dishList = items.slice(0,3).map(i => i.name||'').filter(Boolean).join(', ');
@@ -27858,7 +27866,7 @@ async function renderShiftManagerDashboard(el) {
     const smNewOrdersHtml = smNewOrders.length ? `
         <div class="bg-white rounded-2xl shadow-sm border border-amber-300 mb-4">
             <div class="px-4 py-3 border-b border-amber-200 bg-amber-50/60 flex items-center justify-between">
-                <h3 class="font-black text-amber-700 text-sm">🔔 הזמנות חדשות (${smNewOrders.length})</h3>
+                <h3 class="font-black text-amber-700 text-sm">🔔 הזמנות פעילות (${smNewOrders.length})</h3>
                 <button ontouchend="event.preventDefault();switchTab('sales');" onclick="switchTab('sales')" class="text-amber-600 text-[10px] font-bold underline" style="touch-action:manipulation;">לכל ההזמנות</button>
             </div>
             <div class="px-4 py-1">${smNewOrders.slice(0,6).map(r=>`
@@ -27866,7 +27874,7 @@ async function renderShiftManagerDashboard(el) {
                     <span class="bg-amber-100 text-amber-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0">#${r.orderId}</span>
                     <span class="text-xs text-slate-700 flex-1 truncate">${safeStr(r.dishList || r.customer)}</span>
                     <span class="text-[9px] text-slate-400 shrink-0">${r.createdStr}</span>
-                    <button ontouchend="event.preventDefault();openStoreOrderModal(${r.orderId});" onclick="openStoreOrderModal(${r.orderId})" class="bg-amber-500 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">פתח</button>
+                    <button ontouchend="event.preventDefault();window.waiterOpenOrderDetails(${r.orderId});" onclick="window.waiterOpenOrderDetails(${r.orderId})" class="bg-amber-500 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">פתח</button>
                 </div>`).join('')}</div>
         </div>` : '';
 
@@ -28954,7 +28962,7 @@ async function renderWaiterDashboard(el) {
                         <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-[10px] font-black px-2 py-1 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">✅ נמסר</button>
                        </div>`
                     : `<button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">✅ נאסף</button>`;
-                const detailsBtn = !r.tableNum ? `<button ontouchend="event.preventDefault();openStoreOrderModal(${r.orderId});" onclick="openStoreOrderModal(${r.orderId})" class="bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">📋</button>` : '';
+                const detailsBtn = !r.tableNum ? `<button ontouchend="event.preventDefault();window.waiterOpenOrderDetails(${r.orderId});" onclick="window.waiterOpenOrderDetails(${r.orderId})" class="bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">📋</button>` : '';
                 return `<div class="flex items-start gap-2 py-2 border-b border-slate-50 last:border-0">
                     <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0 mt-0.5">${tbl}</span>
                     <div class="flex-1 min-w-0">

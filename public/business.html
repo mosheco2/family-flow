@@ -857,30 +857,30 @@
 
                         <!-- KPI cards (BELOW tiles) -->
                         <div id="admin-kpi-cards" class="grid grid-cols-2 gap-3 px-2 mb-4">
-                          <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-3.5 text-white shadow-md shadow-indigo-200 overflow-hidden relative">
+                          <button type="button" onclick="switchTab('cashflow')" class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-3.5 text-white shadow-md shadow-indigo-200 overflow-hidden relative text-right active:scale-95 transition" style="touch-action:manipulation;">
                             <div class="text-indigo-200 text-[10px] font-semibold mb-1">מכירות היום</div>
                             <div class="text-2xl font-black" id="kpi-sales-today">₪0</div>
                             <div class="text-indigo-200 text-[10px] mt-1" id="kpi-orders-today">0 הזמנות</div>
                             <div id="spark-sales" class="absolute bottom-0 left-0 right-0 opacity-40"></div>
-                          </div>
-                          <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-3.5 text-white shadow-md shadow-emerald-200 overflow-hidden relative">
+                          </button>
+                          <button type="button" onclick="switchTab('timeclock')" class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-3.5 text-white shadow-md shadow-emerald-200 overflow-hidden relative text-right active:scale-95 transition" style="touch-action:manipulation;">
                             <div class="text-emerald-200 text-[10px] font-semibold mb-1">עובדים פעילים</div>
                             <div class="text-2xl font-black" id="kpi-active-staff">0</div>
                             <div class="text-emerald-200 text-[10px] mt-1">בצוות</div>
                             <div id="spark-staff" class="absolute bottom-0 left-0 right-0 opacity-40"></div>
-                          </div>
-                          <div class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm overflow-hidden relative">
+                          </button>
+                          <button type="button" onclick="switchTab('sales')" class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm overflow-hidden relative text-right active:scale-95 transition cursor-pointer" style="touch-action:manipulation;">
                             <div class="text-slate-400 text-[10px] font-semibold mb-1">הזמנות פתוחות</div>
                             <div class="text-2xl font-black text-amber-500" id="kpi-open-orders">0</div>
                             <div class="text-slate-400 text-[10px] mt-1">ממתינות לטיפול</div>
                             <div id="spark-orders" class="absolute bottom-0 left-0 right-0 opacity-30"></div>
-                          </div>
-                          <div class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm overflow-hidden relative">
+                          </button>
+                          <button type="button" onclick="switchTab('tasks')" class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm overflow-hidden relative text-right active:scale-95 transition cursor-pointer" style="touch-action:manipulation;">
                             <div class="text-slate-400 text-[10px] font-semibold mb-1">משימות פתוחות</div>
                             <div class="text-2xl font-black text-rose-500" id="kpi-open-tasks">0</div>
                             <div class="text-slate-400 text-[10px] mt-1">לא הושלמו</div>
                             <div id="spark-tasks" class="absolute bottom-0 left-0 right-0 opacity-30"></div>
-                          </div>
+                          </button>
                         </div>
 
                         <!-- Restaurant-specific KPI cards (מוצגים רק למסעדה/בית קפה) -->
@@ -890,21 +890,21 @@
                             <div class="text-2xl font-black" id="kpi-food-cost-pct">—</div>
                             <div class="text-orange-200 text-[10px] mt-1">Food Cost %</div>
                           </div>
-                          <div class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm overflow-hidden relative">
+                          <button type="button" onclick="switchTab('deliveries')" class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm overflow-hidden relative text-right active:scale-95 transition cursor-pointer" style="touch-action:manipulation;">
                             <div class="text-slate-400 text-[10px] font-semibold mb-1">🛵 משלוחים בדרך</div>
                             <div class="text-2xl font-black text-indigo-500" id="kpi-deliveries-transit">0</div>
                             <div class="text-slate-400 text-[10px] mt-1">ממתינים למסירה</div>
-                          </div>
-                          <div class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm overflow-hidden relative">
+                          </button>
+                          <button type="button" onclick="switchTab('cashflow')" class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm overflow-hidden relative text-right active:scale-95 transition cursor-pointer" style="touch-action:manipulation;">
                             <div class="text-slate-400 text-[10px] font-semibold mb-1">📈 ממוצע להזמנה</div>
                             <div class="text-2xl font-black text-emerald-600" id="kpi-avg-per-order">₪0</div>
                             <div class="text-slate-400 text-[10px] mt-1">החודש</div>
-                          </div>
-                          <div class="bg-amber-50 rounded-2xl p-3.5 border border-amber-200 shadow-sm overflow-hidden relative">
+                          </button>
+                          <button type="button" onclick="switchTab('pantry')" class="bg-amber-50 rounded-2xl p-3.5 border border-amber-200 shadow-sm overflow-hidden relative text-right active:scale-95 transition cursor-pointer" style="touch-action:manipulation;">
                             <div class="text-amber-600 text-[10px] font-semibold mb-1">⚠️ מלאי נמוך</div>
                             <div class="text-2xl font-black text-amber-600" id="kpi-low-stock-count">0</div>
                             <div class="text-amber-500 text-[10px] mt-1">פריטים מתחת לרף</div>
-                          </div>
+                          </button>
                           <div class="bg-yellow-50 rounded-2xl p-3.5 border border-yellow-200 shadow-sm overflow-hidden relative cursor-pointer" onclick="switchTab('sales');setTimeout(()=>{const f=document.getElementById('store-orders-filter');if(f){f.value='rated';window.renderStoreOrders&&window.renderStoreOrders();}},200)">
                             <div class="text-yellow-700 text-[10px] font-semibold mb-1">⭐ דירוג לקוחות</div>
                             <div class="text-2xl font-black text-yellow-600" id="kpi-avg-rating">—</div>
@@ -3555,7 +3555,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=125" defer></script>
+    <script src="business-app.js?v=126" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
