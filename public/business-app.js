@@ -28039,7 +28039,8 @@ async function refreshWaiterReadySection() {
             try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
             let items = [];
             try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata); } catch(e3) {}
-            pendingReady.push({ orderId: o.id, tableNum, items, isDelivery: !!(o.is_delivery) });
+            const hasDeliveryMeta = items.some(i => i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|')));
+            pendingReady.push({ orderId: o.id, tableNum, items, isDelivery: !!(o.is_delivery) || hasDeliveryMeta, orderSource: o.order_source || 'website' });
         });
         od.filter(o => ['new','processing'].includes(o.status) && Array.isArray(o.items_ready) && o.items_ready.length > 0).forEach(o => {
             let tableNum = null;
@@ -28065,20 +28066,32 @@ async function refreshWaiterReadySection() {
             </div>` : '';
         const readyHtml = pendingReady.length ? `
             <div class="bg-white rounded-2xl shadow-sm border border-green-200 mb-4">
-                <div class="px-4 py-3 border-b border-green-100 bg-green-50/60">
-                    <h3 class="font-black text-green-700 text-sm">✅ הזמנות מוכנות לאיסוף (${pendingReady.length})</h3>
+                <div class="px-4 py-3 border-b border-green-100 bg-green-50/60 flex items-center justify-between">
+                    <h3 class="font-black text-green-700 text-sm">✅ מוכן לאיסוף (${pendingReady.length})</h3>
                 </div>
-                <div class="px-4 py-1">${pendingReady.map(r => {
+                <div class="px-4 py-1">${pendingReady.slice(0,8).map(r => {
                     const tbl = r.tableNum ? `שולחן ${r.tableNum}` : `הזמנה #${r.orderId}`;
-                    const names = r.items.slice(0,3).map(i => safeStr(i.name||'')).filter(Boolean).join(', ');
-                    const payBtn = r.tableNum ? `<button ontouchend="event.preventDefault();collectAndBill(${r.orderId},${r.tableNum});" onclick="collectAndBill(${r.orderId},${r.tableNum})" class="bg-indigo-600 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">💳 נאסף+תשלום</button>` : '';
+                    const dishList = (r.items||[]).map(i => {
+                        const nm = i.name || (storeCatalogCache||[]).find(c=>String(c.id)===String(i.catalogId))?.name || '';
+                        const qty = (i.quantity||i.qty||1);
+                        return nm ? (qty > 1 ? `${nm} ×${qty}` : nm) : null;
+                    }).filter(Boolean).join(', ');
+                    const srcBadge = r.orderSource === 'table' ? '<span class="text-[9px] font-black text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-full ml-1">🍽️ שולחן</span>' : '<span class="text-[9px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full ml-1">🌐 אתר</span>';
                     const detailsBtn = !r.tableNum ? `<button ontouchend="event.preventDefault();window.waiterOpenOrderDetails(${r.orderId});" onclick="window.waiterOpenOrderDetails(${r.orderId})" class="bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">📋</button>` : '';
-                    return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
-                        <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0">${tbl}</span>
-                        <span class="text-xs text-slate-600 flex-1 truncate">${names}</span>
+                    const payBtn = r.tableNum ? `<button ontouchend="event.preventDefault();collectAndBill(${r.orderId},${r.tableNum});" onclick="collectAndBill(${r.orderId},${r.tableNum})" class="bg-indigo-600 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">💳 נאסף+תשלום</button>` : '';
+                    const actionBtns = r.isDelivery
+                        ? `<div class="flex flex-col gap-1 shrink-0">
+                            <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'shipped');" onclick="markReadyDelivered(${r.orderId},'shipped')" class="bg-purple-600 text-white text-[10px] font-black px-2 py-1 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">🚚 למשלוח</button>
+                            <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-[10px] font-black px-2 py-1 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">✅ נמסר</button>
+                           </div>`
+                        : (payBtn || `<button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">✅ נאסף</button>`);
+                    return `<div class="flex items-start gap-2 py-2 border-b border-slate-50 last:border-0">
+                        <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0 mt-0.5">${tbl}</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs font-bold text-slate-700 leading-tight">${safeStr(dishList) || '—'}${srcBadge}</div>
+                        </div>
                         ${detailsBtn}
-                        ${payBtn}
-                        <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">✅ נאסף</button>
+                        ${actionBtns}
                     </div>`;
                 }).join('')}</div>
             </div>` : '';
