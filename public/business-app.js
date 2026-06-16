@@ -29194,9 +29194,10 @@ window.refreshAdminTablesData = async function() {
                     const qty = (i.quantity||i.qty||1);
                     return nm ? (qty > 1 ? `${nm} ×${qty}` : nm) : null;
                 }).filter(Boolean).join(', ');
+                const srcBadge = r.orderSource === 'table' ? '<span class="text-[9px] font-black text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-full ml-1">🍽️ שולחן</span>' : '<span class="text-[9px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full ml-1">🌐 אתר</span>';
                 return `<div class="flex items-start gap-2 py-2 border-b border-slate-50 last:border-0">
                     <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0 mt-0.5">${tbl}</span>
-                    <div class="flex-1 min-w-0"><div class="text-xs font-bold text-slate-700 leading-tight">${safeStr(dishList) || '—'}</div></div>
+                    <div class="flex-1 min-w-0"><div class="text-xs font-bold text-slate-700 leading-tight">${safeStr(dishList) || '—'}${srcBadge}</div></div>
                     ${r.isDelivery ? `<div class="flex flex-col gap-1 shrink-0"><button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'shipped');" onclick="markReadyDelivered(${r.orderId},'shipped')" class="bg-purple-600 text-white text-[10px] font-black px-2 py-1 rounded-lg" style="touch-action:manipulation;">🚚 משלוח</button><button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-[10px] font-black px-2 py-1 rounded-lg" style="touch-action:manipulation;">✅ נמסר</button></div>` : `<button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">✅ נאסף</button>`}
                 </div>`;
             }).join('')}</div>
