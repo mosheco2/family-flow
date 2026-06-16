@@ -11764,7 +11764,9 @@ window.fetchStoreOrders = async function() {
         
         window.renderStoreOrders(); 
         if (typeof updateSalesDashboardStats === 'function') updateSalesDashboardStats();
-    } catch(e) { console.error('Error fetching orders:', e); } 
+        try { renderQuickTiles(); } catch(e) {}
+        try { updateGroupNavBadges(); } catch(e) {}
+    } catch(e) { console.error('Error fetching orders:', e); }
 };
 
 window.renderStoreOrders = function() {
@@ -21396,9 +21398,11 @@ window.collectAndBill = function(orderId, tableNum) {
 
 window.markReadyDelivered = function(orderId, newStatus) {
     const finalStatus = newStatus || 'completed';
+    const body = { orderId, status: finalStatus };
+    if (finalStatus === 'shipped') body.setDelivery = true;
     fetch('/api/store/orders/status', {
         method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ orderId, status: finalStatus })
+        body: JSON.stringify(body)
     }).catch(() => {});
     try {
         const bills = getTableBills();
@@ -24313,6 +24317,10 @@ function renderQuickTiles() {
   const container = document.getElementById('quick-tiles');
   if (!container) return;
   const storeOrderCount = (storeOrdersCache || []).filter(o => o.status === 'pending' || o.status === 'new').length;
+  const isRestTile = ['restaurant','cafe'].includes(currentGroup?.business_type);
+  const kdsCount = isRestTile ? (storeOrdersCache || []).filter(o => ['new','processing'].includes(o.status)).length : 0;
+  const tableStates = isRestTile ? getTableStates() : {};
+  const occupiedCount = isRestTile ? Object.values(tableStates).filter(s => s === 'occupied' || s === 'awaiting_payment').length : 0;
   const isBeauty = currentGroup?.business_type === 'beauty';
   const tiles = isBeauty ? [
     { fa:'fa-calendar-check',    label:'יומן תורים',     badge: null,            tab:'beauty_calendar',    bg:'#fdf2f8', grad:'linear-gradient(135deg,#f472b6,#db2777)', badge_bg:'#be185d' },
@@ -24322,9 +24330,9 @@ function renderQuickTiles() {
     { fa:'fa-cash-register',     label:'קופה',           badge: storeOrderCount, tab:'pos',                bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
     { fa:'fa-clock-rotate-left', label:'נוכחות',         badge: null,            tab:'timeclock',          bg:'#f8fafc', grad:'linear-gradient(135deg,#64748b,#334155)', badge_bg:'#475569' },
   ] : (['restaurant','cafe'].includes(currentGroup?.business_type) ? [
-    { fa:'fa-table-cells-large', label:'שולחנות 🍽️',    badge: null,            tab:'__tables__', bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
+    { fa:'fa-table-cells-large', label:'שולחנות 🍽️',    badge: occupiedCount||null, tab:'__tables__', bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
     { fa:'fa-calendar-check',    label:'יומן הזמנות',    badge: window._pendingCalCount||0, tab:'calendar', bg:'#fff7ed', grad:'linear-gradient(135deg,#fb923c,#ea580c)', badge_bg:'#c2410c' },
-    { fa:'fa-utensils',          label:'KDS מטבח',       badge: null,            tab:'kds',       bg:'#faf5ff', grad:'linear-gradient(135deg,#a78bfa,#7c3aed)', badge_bg:'#6d28d9' },
+    { fa:'fa-utensils',          label:'KDS מטבח',       badge: kdsCount||null,  tab:'kds',       bg:'#faf5ff', grad:'linear-gradient(135deg,#a78bfa,#7c3aed)', badge_bg:'#6d28d9' },
     { fa:'fa-box',               label:'מלאי',           badge: null,            tab:'pantry',    bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0f766e)', badge_bg:'#0d9488' },
     { fa:'fa-bag-shopping',      label:'הזמנות',         badge: storeOrderCount, tab:'sales',     bg:'#fffbeb', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
     { fa:'fa-chart-bar',         label:'דוח יום',        badge: null,            tab:'__daily_close__', bg:'#f0fdf4', grad:'linear-gradient(135deg,#22c55e,#15803d)', badge_bg:'#166534' },
@@ -27754,18 +27762,18 @@ async function renderShiftManagerDashboard(el) {
 
     const restaurantKpiHtml = isRestaurant ? `
         <div class="grid grid-cols-3 gap-2 mb-4">
-            <div class="bg-emerald-50 rounded-2xl p-3 text-center border border-emerald-100">
+            <button type="button" ontouchend="event.preventDefault();switchTab('cashflow');" onclick="switchTab('cashflow')" class="bg-emerald-50 rounded-2xl p-3 text-center border border-emerald-100 active:scale-95 transition" style="touch-action:manipulation;">
                 <div class="text-lg font-black text-emerald-600">${fmt(todaySales)}</div>
                 <div class="text-[9px] text-emerald-500 font-bold">מכירות היום</div>
-            </div>
-            <div class="bg-blue-50 rounded-2xl p-3 text-center border border-blue-100">
+            </button>
+            <button type="button" ontouchend="event.preventDefault();switchTab('sales');" onclick="switchTab('sales')" class="bg-blue-50 rounded-2xl p-3 text-center border border-blue-100 active:scale-95 transition" style="touch-action:manipulation;">
                 <div class="text-lg font-black text-blue-600">${txCount}</div>
                 <div class="text-[9px] text-blue-500 font-bold">הזמנות</div>
-            </div>
-            <div class="bg-indigo-50 rounded-2xl p-3 text-center border border-indigo-100">
+            </button>
+            <button type="button" ontouchend="event.preventDefault();switchTab('timeclock');" onclick="switchTab('timeclock')" class="bg-indigo-50 rounded-2xl p-3 text-center border border-indigo-100 active:scale-95 transition" style="touch-action:manipulation;">
                 <div class="text-lg font-black text-indigo-600">${present}/${total}</div>
                 <div class="text-[9px] text-indigo-500 font-bold">נוכחות</div>
-            </div>
+            </button>
         </div>
         ${tableAssignHtml}
         ${renderTableGrid()}` : '';
@@ -27787,7 +27795,7 @@ async function renderShiftManagerDashboard(el) {
                 </div>`).join('')}</div>
         </div>` : '';
 
-    let smPendingReady = [];
+    let smPendingReady = [], smNewOrders = [];
     if (isRestaurant) {
         try {
             const or = await fetch(`/api/store/orders/${currentGroup.id}`);
@@ -27799,6 +27807,13 @@ async function renderShiftManagerDashboard(el) {
                     let items = [];
                     try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata); } catch(e3) {}
                     return { orderId: o.id, tableNum, items };
+                });
+                smNewOrders = od.filter(o => o.status === 'new' || o.status === 'pending').map(o => {
+                    let items = [];
+                    try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata && !i.is_delivery_metadata && !(i.name&&i.name.startsWith('DELIVERY_META|'))); } catch(e3) {}
+                    const dishList = items.slice(0,3).map(i => i.name||'').filter(Boolean).join(', ');
+                    const createdStr = o.created_at ? new Date(o.created_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+                    return { orderId: o.id, dishList, createdStr, customer: o.customer_name || '' };
                 });
             }
         } catch(e) {}
@@ -27823,9 +27838,25 @@ async function renderShiftManagerDashboard(el) {
             }).join('')}</div>
         </div>` : '';
 
+    const smNewOrdersHtml = smNewOrders.length ? `
+        <div class="bg-white rounded-2xl shadow-sm border border-amber-300 mb-4">
+            <div class="px-4 py-3 border-b border-amber-200 bg-amber-50/60 flex items-center justify-between">
+                <h3 class="font-black text-amber-700 text-sm">🔔 הזמנות חדשות (${smNewOrders.length})</h3>
+                <button ontouchend="event.preventDefault();switchTab('sales');" onclick="switchTab('sales')" class="text-amber-600 text-[10px] font-bold underline" style="touch-action:manipulation;">לכל ההזמנות</button>
+            </div>
+            <div class="px-4 py-1">${smNewOrders.slice(0,6).map(r=>`
+                <div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                    <span class="bg-amber-100 text-amber-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0">#${r.orderId}</span>
+                    <span class="text-xs text-slate-700 flex-1 truncate">${safeStr(r.dishList || r.customer)}</span>
+                    <span class="text-[9px] text-slate-400 shrink-0">${r.createdStr}</span>
+                    <button ontouchend="event.preventDefault();openStoreOrderModal(${r.orderId});" onclick="openStoreOrderModal(${r.orderId})" class="bg-amber-500 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">פתח</button>
+                </div>`).join('')}</div>
+        </div>` : '';
+
     el.innerHTML = `
         ${roleDashboardHeader('📋','ממשק מנהל משמרת','נוכחות צוות ואירועים בזמן אמת','from-indigo-600','to-blue-700')}
         ${restaurantKpiHtml}
+        ${smNewOrdersHtml}
         ${smReadyHtml}
         ${smServiceHtml}
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4 overflow-hidden">
@@ -28838,7 +28869,8 @@ async function renderWaiterDashboard(el) {
                 try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
                 let items = [];
                 try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata); } catch(e3) {}
-                pendingReady.push({ orderId: o.id, tableNum, items, isDelivery: !!(o.is_delivery), orderSource: o.order_source || 'website' });
+                const hasDeliveryMeta = items.some(i => i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|')));
+                pendingReady.push({ orderId: o.id, tableNum, items, isDelivery: !!(o.is_delivery) || hasDeliveryMeta, orderSource: o.order_source || 'website' });
             });
             // Per-item ready (cook checked individual dishes, order not yet closed)
             od.filter(o => ['new','processing'].includes(o.status) && Array.isArray(o.items_ready) && o.items_ready.length > 0)
@@ -28905,12 +28937,14 @@ async function renderWaiterDashboard(el) {
                         <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-[10px] font-black px-2 py-1 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">✅ נמסר</button>
                        </div>`
                     : `<button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">✅ נאסף</button>`;
+                const detailsBtn = !r.tableNum ? `<button ontouchend="event.preventDefault();openStoreOrderModal(${r.orderId});" onclick="openStoreOrderModal(${r.orderId})" class="bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">📋</button>` : '';
                 return `<div class="flex items-start gap-2 py-2 border-b border-slate-50 last:border-0">
                     <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0 mt-0.5">${tbl}</span>
                     <div class="flex-1 min-w-0">
                         <div class="text-xs font-bold text-slate-700 leading-tight">${safeStr(dishList) || tStr}${srcBadge}</div>
                         ${dishList && tStr ? `<div class="text-[9px] text-slate-400">${tStr}</div>` : ''}
                     </div>
+                    ${detailsBtn}
                     ${actionBtns}
                 </div>`;
             }).join('')}</div>
@@ -28946,7 +28980,7 @@ async function renderWaiterDashboard(el) {
     startWaiterReadyPolling();
     loadTableReservationsForGrid();
     const _pendingCalBadge = (calEventsCache||[]).filter(e=>e.call_type==='table_reservation'&&e.status==='pending').length;
-    const _readyBadge = pendingReady.length + itemReadyList.length;
+    const _readyBadge = pendingReady.filter(r => r.tableNum).length + itemReadyList.filter(ir => ir.tableNum).length;
     const _taskBadge = myTasks.length;
     const _svcBadge = pendingReqs.length;
     el.insertAdjacentHTML('beforeend', `

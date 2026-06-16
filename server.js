@@ -5260,8 +5260,12 @@ app.post('/api/store/orders', async (req, res) => {
 
 app.post('/api/store/orders/status', async (req, res) => {
     try {
-        const { orderId, status } = req.body;
-        await pool.query('UPDATE store_orders SET status=$1, status_changed_at=CURRENT_TIMESTAMP WHERE id=$2', [status, orderId]);
+        const { orderId, status, setDelivery } = req.body;
+        if (setDelivery) {
+            await pool.query('UPDATE store_orders SET status=$1, status_changed_at=CURRENT_TIMESTAMP, is_delivery=true WHERE id=$2', [status, orderId]);
+        } else {
+            await pool.query('UPDATE store_orders SET status=$1, status_changed_at=CURRENT_TIMESTAMP WHERE id=$2', [status, orderId]);
+        }
         res.json({ success: true });
         if (status === 'delivered' || status === 'completed') triggerCashbackForOrder(orderId);
         try {
