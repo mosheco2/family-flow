@@ -15175,20 +15175,21 @@ window.loadCourierData = async function() {
                 );
             }
 
-            const active = filtered.filter(o => o.status === 'ready');
-            const transit = filtered.filter(o => o.status === 'shipped');
-            
-            // הורדנו את סינון ה"היום" כדי להראות את כל ההיסטוריה
-            const history = filtered.filter(o => o.status === 'completed');
+            // Tab 1 "ממתין לאיסוף": ALL shipped orders (including manual, regardless of is_delivery flag)
+            const active = ordersArray.filter(o => o.status === 'shipped');
+            // Tab 2 "בהכנה": delivery orders that are ready but waiter hasn't marked yet (informational)
+            const transit = filtered.filter(o => o.status === 'ready');
+            // Tab 3 "היסטוריה": completed + cancelled
+            const history = ordersArray.filter(o => o.status === 'completed' || o.status === 'cancelled');
             history.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
 
-            renderCourierList('active', active, 'ready');
-            renderCourierList('transit', transit, 'shipped');
-            renderCourierList('history', history, 'completed');
+            renderCourierList('active', active, 'shipped');
+            renderCourierList('transit', transit, 'ready');
+            renderCourierList('history', history, 'history');
         } else {
-            renderCourierList('active', [], 'ready');
-            renderCourierList('transit', [], 'shipped');
-            renderCourierList('history', [], 'completed');
+            renderCourierList('active', [], 'shipped');
+            renderCourierList('transit', [], 'ready');
+            renderCourierList('history', [], 'history');
         }
     } catch(e) { console.error('Courier Load Error', e); }
 };
@@ -15214,11 +15215,16 @@ window.renderCourierList = function(type, orders, statusType) {
         const waMsg = encodeURIComponent(`היי ${safeStr(o.customer_name)}, השליח בדרך אליך! 🛵`);
         const waLink = `https://wa.me/${waPhone}?text=${waMsg}`;
 
+        const statusBadge = o.status === 'cancelled'
+            ? '<span class="text-[10px] font-black text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">❌ בוטלה</span>'
+            : '<span class="text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✅ נמסר</span>';
         let actionBtn = '';
-        if (statusType === 'ready') {
-            actionBtn = `<button onclick="updateStoreOrderStatusCourier(${o.id}, 'shipped')" class="w-full mt-4 py-3 bg-indigo-600 text-white font-black rounded-2xl shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-motorcycle"></i> יציאה למשלוח</button>`;
-        } else if (statusType === 'shipped') {
-            actionBtn = `<button onclick="updateStoreOrderStatusCourier(${o.id}, 'completed')" class="w-full mt-4 py-3 bg-emerald-600 text-white font-black rounded-2xl shadow-lg hover:bg-emerald-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-check-double"></i> אישור מסירה</button>`;
+        if (statusType === 'shipped') {
+            actionBtn = `
+                <button onclick="updateStoreOrderStatusCourier(${o.id}, 'completed')" class="w-full mt-3 py-3 bg-emerald-600 text-white font-black rounded-2xl shadow-lg hover:bg-emerald-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-check-double"></i> ✅ נמסר</button>
+                <button onclick="updateStoreOrderStatusCourier(${o.id}, 'cancelled')" class="w-full mt-2 py-2 bg-red-100 text-red-700 font-black rounded-2xl hover:bg-red-200 transition flex items-center justify-center gap-2 text-sm">❌ הזמנה בוטלה</button>`;
+        } else if (statusType === 'ready') {
+            actionBtn = `<div class="w-full mt-3 py-2 bg-slate-100 text-slate-500 font-bold rounded-2xl text-center text-xs">⏳ ממתינה לאישור מלצר</div>`;
         }
 
         return `
@@ -15229,6 +15235,7 @@ window.renderCourierList = function(type, orders, statusType) {
                     <div class="flex items-center gap-2 mb-1">
                         <span class="bg-slate-900 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">#${o.id}</span>
                         <span class="text-[10px] text-slate-400 font-mono">${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'})}</span>
+                        ${statusType === 'history' ? statusBadge : ''}
                     </div>
                     <h4 class="font-black text-slate-800 text-sm mb-0.5 truncate pr-1">${safeStr(deliveryData.street || 'כתובת')} ${safeStr(deliveryData.house || '')}</h4>
                 </div>
@@ -15266,11 +15273,12 @@ window.updateStoreOrderStatusCourier = async function(orderId, status) {
     try {
         const res = await fetch(`${API}/store/orders/status`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ orderId, status }) });
         const data = await res.json();
-        if(data.success) { 
+        if(data.success) {
             try { if(status === 'completed') triggerConfetti(); } catch(e){}
-            showToast('success', status === 'completed' ? 'המשלוח נמסר!' : 'נאסף! נסיעה טובה'); 
-            if (typeof window.loadCourierData === 'function') window.loadCourierData(); 
-            if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); 
+            showToast('success', status === 'completed' ? '✅ המשלוח נמסר בהצלחה!' : status === 'cancelled' ? '❌ ההזמנה סומנה כבוטלה' : 'עודכן');
+            if (typeof window.loadCourierData === 'function') window.loadCourierData();
+            if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
+            if (typeof refreshWaiterReadySection === 'function') try { refreshWaiterReadySection(); } catch(e) {}
         } else { showToast('error', data.error || 'שגיאה בעדכון'); }
     } catch(e) { 
         console.error('Update status error:', e);
@@ -28038,9 +28046,16 @@ async function refreshWaiterReadySection() {
             let tableNum = null;
             try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
             let items = [];
-            try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata); } catch(e3) {}
+            try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))); } catch(e3) {}
             const hasDeliveryMeta = items.some(i => i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|')));
-            pendingReady.push({ orderId: o.id, tableNum, items, isDelivery: !!(o.is_delivery) || hasDeliveryMeta, orderSource: o.order_source || 'website' });
+            pendingReady.push({ orderId: o.id, tableNum, items, isDelivery: !!(o.is_delivery) || hasDeliveryMeta, orderSource: o.order_source || 'website', orderStatus: 'ready' });
+        });
+        od.filter(o => o.status === 'shipped' && (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true')).forEach(o => {
+            let tableNum = null;
+            try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
+            let items = [];
+            try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))); } catch(e3) {}
+            pendingReady.push({ orderId: o.id, tableNum, items, isDelivery: true, orderSource: o.order_source || 'website', orderStatus: 'shipped' });
         });
         od.filter(o => ['new','processing'].includes(o.status) && Array.isArray(o.items_ready) && o.items_ready.length > 0).forEach(o => {
             let tableNum = null;
@@ -28078,13 +28093,13 @@ async function refreshWaiterReadySection() {
                     }).filter(Boolean).join(', ');
                     const srcBadge = r.orderSource === 'table' ? '<span class="text-[9px] font-black text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-full ml-1">🍽️ שולחן</span>' : '<span class="text-[9px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full ml-1">🌐 אתר</span>';
                     const detailsBtn = !r.tableNum ? `<button ontouchend="event.preventDefault();window.waiterOpenOrderDetails(${r.orderId});" onclick="window.waiterOpenOrderDetails(${r.orderId})" class="bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">📋</button>` : '';
-                    const payBtn = r.tableNum ? `<button ontouchend="event.preventDefault();collectAndBill(${r.orderId},${r.tableNum});" onclick="collectAndBill(${r.orderId},${r.tableNum})" class="bg-indigo-600 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">💳 נאסף+תשלום</button>` : '';
-                    const actionBtns = r.isDelivery
-                        ? `<div class="flex flex-col gap-1 shrink-0">
-                            <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'shipped');" onclick="markReadyDelivered(${r.orderId},'shipped')" class="bg-purple-600 text-white text-[10px] font-black px-2 py-1 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">🚚 למשלוח</button>
-                            <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-[10px] font-black px-2 py-1 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">✅ נמסר</button>
-                           </div>`
-                        : (payBtn || `<button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">✅ נאסף</button>`);
+                    const actionBtns = r.orderStatus === 'shipped'
+                        ? `<span class="bg-orange-100 text-orange-700 text-[10px] font-black px-2 py-1 rounded-lg shrink-0">⏳ ממתין לשליח</span>`
+                        : r.isDelivery
+                            ? `<button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'shipped');" onclick="markReadyDelivered(${r.orderId},'shipped')" class="bg-purple-600 text-white text-[10px] font-black px-2 py-1 rounded-lg shrink-0 whitespace-nowrap" style="touch-action:manipulation;">📦 ממתין לשליח</button>`
+                            : (r.tableNum
+                                ? `<button ontouchend="event.preventDefault();collectAndBill(${r.orderId},${r.tableNum});" onclick="collectAndBill(${r.orderId},${r.tableNum})" class="bg-indigo-600 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">💳 נאסף+תשלום</button>`
+                                : `<button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">✅ נאסף</button>`);
                     return `<div class="flex items-start gap-2 py-2 border-b border-slate-50 last:border-0">
                         <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0 mt-0.5">${tbl}</span>
                         <div class="flex-1 min-w-0">
@@ -28913,9 +28928,16 @@ async function renderWaiterDashboard(el) {
                 let tableNum = null;
                 try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
                 let items = [];
-                try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata); } catch(e3) {}
+                try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))); } catch(e3) {}
                 const hasDeliveryMeta = items.some(i => i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|')));
-                pendingReady.push({ orderId: o.id, tableNum, items, isDelivery: !!(o.is_delivery) || hasDeliveryMeta, orderSource: o.order_source || 'website' });
+                pendingReady.push({ orderId: o.id, tableNum, items, isDelivery: !!(o.is_delivery) || hasDeliveryMeta, orderSource: o.order_source || 'website', orderStatus: 'ready' });
+            });
+            od.filter(o => o.status === 'shipped' && (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true')).forEach(o => {
+                let tableNum = null;
+                try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
+                let items = [];
+                try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))); } catch(e3) {}
+                pendingReady.push({ orderId: o.id, tableNum, items, isDelivery: true, orderSource: o.order_source || 'website', orderStatus: 'shipped' });
             });
             // Per-item ready (cook checked individual dishes, order not yet closed)
             od.filter(o => ['new','processing'].includes(o.status) && Array.isArray(o.items_ready) && o.items_ready.length > 0)
@@ -28976,13 +28998,14 @@ async function renderWaiterDashboard(el) {
                     return nm ? (qty > 1 ? `${nm} ×${qty}` : nm) : null;
                 }).filter(Boolean).join(', ');
                 const srcBadge = r.orderSource === 'table' ? '<span class="text-[9px] font-black text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-full ml-1">🍽️ שולחן</span>' : '<span class="text-[9px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full ml-1">🌐 אתר</span>';
-                const actionBtns = r.isDelivery
-                    ? `<div class="flex flex-col gap-1 shrink-0">
-                        <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'shipped');" onclick="markReadyDelivered(${r.orderId},'shipped')" class="bg-purple-600 text-white text-[10px] font-black px-2 py-1 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">🚚 למשלוח</button>
-                        <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-[10px] font-black px-2 py-1 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">✅ נמסר</button>
-                       </div>`
-                    : `<button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">✅ נאסף</button>`;
                 const detailsBtn = !r.tableNum ? `<button ontouchend="event.preventDefault();window.waiterOpenOrderDetails(${r.orderId});" onclick="window.waiterOpenOrderDetails(${r.orderId})" class="bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">📋</button>` : '';
+                const actionBtns = r.orderStatus === 'shipped'
+                    ? `<span class="bg-orange-100 text-orange-700 text-[10px] font-black px-2 py-1 rounded-lg shrink-0">⏳ ממתין לשליח</span>`
+                    : r.isDelivery
+                        ? `<button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'shipped');" onclick="markReadyDelivered(${r.orderId},'shipped')" class="bg-purple-600 text-white text-[10px] font-black px-2 py-1 rounded-lg shrink-0 whitespace-nowrap" style="touch-action:manipulation;">📦 ממתין לשליח</button>`
+                        : (r.tableNum
+                            ? `<button ontouchend="event.preventDefault();collectAndBill(${r.orderId},${r.tableNum});" onclick="collectAndBill(${r.orderId},${r.tableNum})" class="bg-indigo-600 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">💳 נאסף+תשלום</button>`
+                            : `<button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">✅ נאסף</button>`);
                 return `<div class="flex items-start gap-2 py-2 border-b border-slate-50 last:border-0">
                     <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0 mt-0.5">${tbl}</span>
                     <div class="flex-1 min-w-0">
@@ -29065,8 +29088,15 @@ window.refreshAdminTablesData = async function() {
                 let tableNum = null;
                 try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
                 let items = [];
-                try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata); } catch(e3) {}
-                pendingReady.push({ orderId: o.id, tableNum, items, isDelivery: !!(o.is_delivery), orderSource: o.order_source || 'website' });
+                try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))); } catch(e3) {}
+                pendingReady.push({ orderId: o.id, tableNum, items, isDelivery: !!(o.is_delivery), orderSource: o.order_source || 'website', orderStatus: 'ready' });
+            });
+            od.filter(o => o.status === 'shipped' && (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true')).forEach(o => {
+                let tableNum = null;
+                try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
+                let items = [];
+                try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))); } catch(e3) {}
+                pendingReady.push({ orderId: o.id, tableNum, items, isDelivery: true, orderSource: o.order_source || 'website', orderStatus: 'shipped' });
             });
             od.filter(o => ['new','processing'].includes(o.status) && Array.isArray(o.items_ready) && o.items_ready.length > 0).forEach(o => {
                 let tableNum = null;
@@ -29195,10 +29225,19 @@ window.refreshAdminTablesData = async function() {
                     return nm ? (qty > 1 ? `${nm} ×${qty}` : nm) : null;
                 }).filter(Boolean).join(', ');
                 const srcBadge = r.orderSource === 'table' ? '<span class="text-[9px] font-black text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-full ml-1">🍽️ שולחן</span>' : '<span class="text-[9px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full ml-1">🌐 אתר</span>';
+                const detailsBtn3 = !r.tableNum ? `<button ontouchend="event.preventDefault();window.waiterOpenOrderDetails(${r.orderId});" onclick="window.waiterOpenOrderDetails(${r.orderId})" class="bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">📋</button>` : '';
+                const actionBtns3 = r.orderStatus === 'shipped'
+                    ? `<span class="bg-orange-100 text-orange-700 text-[10px] font-black px-2 py-1 rounded-lg shrink-0">⏳ ממתין לשליח</span>`
+                    : r.isDelivery
+                        ? `<button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'shipped');" onclick="markReadyDelivered(${r.orderId},'shipped')" class="bg-purple-600 text-white text-[10px] font-black px-2 py-1 rounded-lg shrink-0 whitespace-nowrap" style="touch-action:manipulation;">📦 ממתין לשליח</button>`
+                        : (r.tableNum
+                            ? `<button ontouchend="event.preventDefault();collectAndBill(${r.orderId},${r.tableNum});" onclick="collectAndBill(${r.orderId},${r.tableNum})" class="bg-indigo-600 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">💳 נאסף+תשלום</button>`
+                            : `<button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">✅ נאסף</button>`);
                 return `<div class="flex items-start gap-2 py-2 border-b border-slate-50 last:border-0">
                     <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0 mt-0.5">${tbl}</span>
                     <div class="flex-1 min-w-0"><div class="text-xs font-bold text-slate-700 leading-tight">${safeStr(dishList) || '—'}${srcBadge}</div></div>
-                    ${r.isDelivery ? `<div class="flex flex-col gap-1 shrink-0"><button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'shipped');" onclick="markReadyDelivered(${r.orderId},'shipped')" class="bg-purple-600 text-white text-[10px] font-black px-2 py-1 rounded-lg" style="touch-action:manipulation;">🚚 משלוח</button><button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-[10px] font-black px-2 py-1 rounded-lg" style="touch-action:manipulation;">✅ נמסר</button></div>` : `<button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">✅ נאסף</button>`}
+                    ${detailsBtn3}
+                    ${actionBtns3}
                 </div>`;
             }).join('')}</div>
         </div>` : '';
