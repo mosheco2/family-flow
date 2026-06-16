@@ -28072,9 +28072,11 @@ async function refreshWaiterReadySection() {
                     const tbl = r.tableNum ? `שולחן ${r.tableNum}` : `הזמנה #${r.orderId}`;
                     const names = r.items.slice(0,3).map(i => safeStr(i.name||'')).filter(Boolean).join(', ');
                     const payBtn = r.tableNum ? `<button ontouchend="event.preventDefault();collectAndBill(${r.orderId},${r.tableNum});" onclick="collectAndBill(${r.orderId},${r.tableNum})" class="bg-indigo-600 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">💳 נאסף+תשלום</button>` : '';
+                    const detailsBtn = !r.tableNum ? `<button ontouchend="event.preventDefault();window.waiterOpenOrderDetails(${r.orderId});" onclick="window.waiterOpenOrderDetails(${r.orderId})" class="bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">📋</button>` : '';
                     return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
                         <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0">${tbl}</span>
                         <span class="text-xs text-slate-600 flex-1 truncate">${names}</span>
+                        ${detailsBtn}
                         ${payBtn}
                         <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId},'completed');" onclick="markReadyDelivered(${r.orderId},'completed')" class="bg-green-600 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">✅ נאסף</button>
                     </div>`;
