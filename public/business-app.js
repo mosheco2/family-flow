@@ -15177,20 +15177,20 @@ window.loadCourierData = async function() {
                 );
             }
 
-            // Tab 1 "ממתין": shipped orders (waiter marked as ready for courier)
+            // Tab 1 "ממתין": shipped orders (waiter marked ready for courier pickup)
             const active = filtered.filter(o => o.status === 'shipped');
-            // Tab 2 "במשלוח": ready orders (informational — still in kitchen/waiting)
-            const transit = filtered.filter(o => o.status === 'ready');
+            // Tab 2 "במשלוח": delivering orders (courier picked up, en route)
+            const transit = filtered.filter(o => o.status === 'delivering');
             // Tab 3 "היסטוריה": completed + cancelled
             const history = filtered.filter(o => o.status === 'completed' || o.status === 'cancelled');
             history.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
 
             renderCourierList('active', active, 'shipped');
-            renderCourierList('transit', transit, 'ready');
+            renderCourierList('transit', transit, 'delivering');
             renderCourierList('history', history, 'history');
         } else {
             renderCourierList('active', [], 'shipped');
-            renderCourierList('transit', [], 'ready');
+            renderCourierList('transit', [], 'delivering');
             renderCourierList('history', [], 'history');
         }
     } catch(e) { console.error('Courier Load Error', e); }
@@ -15222,14 +15222,14 @@ window.renderCourierList = function(type, orders, statusType) {
             : '<span class="text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✅ נמסר</span>';
         let actionBtn = '';
         if (statusType === 'shipped') {
-            actionBtn = `<button onclick="updateStoreOrderStatusCourier(${o.id}, 'completed')" class="w-full mt-4 py-3 bg-emerald-600 text-white font-black rounded-2xl shadow-lg hover:bg-emerald-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-check-double"></i> אישור מסירה</button>`;
-        } else if (statusType === 'ready') {
-            actionBtn = `<div class="w-full mt-4 py-3 bg-gray-100 text-gray-500 font-black rounded-2xl text-center text-sm">⏳ ממתין לאישור מנהל</div>`;
+            actionBtn = `<button onclick="updateStoreOrderStatusCourier(${o.id}, 'delivering')" class="w-full mt-4 py-3 bg-blue-600 text-white font-black rounded-2xl shadow-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-box-open"></i> נאסף — יצאתי לדרך 🛵</button>`;
+        } else if (statusType === 'delivering') {
+            actionBtn = `<button onclick="updateStoreOrderStatusCourier(${o.id}, 'completed')" class="w-full mt-4 py-3 bg-emerald-600 text-white font-black rounded-2xl shadow-lg hover:bg-emerald-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-check-double"></i> אישור מסירה ללקוח ✅</button>`;
         }
 
         return `
         <div class="bg-white p-4 rounded-[2rem] border border-slate-200 shadow-sm mb-4 relative overflow-hidden fade-in">
-            ${statusType === 'shipped' ? '<div class="absolute top-0 right-0 left-0 h-1 bg-blue-500 animate-pulse"></div>' : ''}
+            ${(statusType === 'shipped' || statusType === 'delivering') ? '<div class="absolute top-0 right-0 left-0 h-1 bg-blue-500 animate-pulse"></div>' : ''}
             <div class="flex justify-between items-center cursor-pointer select-none" onclick="toggleCardCollapse('cour-${o.id}')">
                 <div class="flex-1 pr-1">
                     <div class="flex items-center gap-2 mb-1">
@@ -15275,7 +15275,7 @@ window.updateStoreOrderStatusCourier = async function(orderId, status) {
         const data = await res.json();
         if(data.success) {
             try { if(status === 'completed') triggerConfetti(); } catch(e){}
-            showToast('success', status === 'completed' ? '🎉 המשלוח נמסר!' : 'עודכן');
+            showToast('success', status === 'completed' ? '🎉 המשלוח נמסר!' : status === 'delivering' ? '🛵 יצאת לדרך!' : 'עודכן');
             if (typeof window.loadCourierData === 'function') window.loadCourierData();
             if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
         } else { showToast('error', data.error || 'שגיאה בעדכון'); }
