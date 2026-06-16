@@ -26330,7 +26330,7 @@ const ROLE_TYPE_TABS = {
 };
 
 const BUSINESS_TYPES = [
-    { id: 'restaurant',         name: 'מסעדה / בית קפה',      icon: '🍕', modules: ['feed','pos','sales','pantry','shop','customers','shifts','timeclock','tasks','cashflow','budget','members','calendar','deliveries','foodcost','kds'] },
+    { id: 'restaurant',         name: 'מסעדה / בית קפה',      icon: '🍕', modules: ['feed','pos','sales','pantry','shop','customers','shifts','timeclock','tasks','cashflow','budget','members','calendar','deliveries','foodcost','kds','reviews'] },
     { id: 'retail',             name: 'חנות קמעונאית',         icon: '🛍️', modules: ['feed','pos','sales','pantry','shop','customers','cashflow','budget','members','timeclock','tasks','bank'] },
     { id: 'services',           name: 'שירותים מקצועיים',      icon: '💼', modules: ['feed','calendar','tasks','customers','cashflow','budget','members','timeclock','bank','pos','sales'] },
     { id: 'construction',       name: 'בנייה / קבלנות',        icon: '🏗️', modules: ['feed','equipment','tasks','shifts','timeclock','members','cashflow','customers','bank','shop','pantry','budget'] },
@@ -28957,13 +28957,12 @@ async function renderWaiterDashboard(el) {
     } catch(e) {}
 
     // Fetch orders for ready lists (full-order ready + per-item ready + auto-deliver completed)
-    let pendingReady = [], itemReadyList = [];
+    let pendingReady = [], itemReadyList = [], pendingApproval = [];
     try {
         const or = await fetch(`/api/store/orders/${currentGroup.id}`);
         const od = await or.json();
         if (Array.isArray(od)) {
             // Pending approval: new delivery orders needing manager approval
-            let pendingApproval = [];
             od.filter(o => o.status === 'pending_approval' && (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true')).forEach(o => {
                 let items = [];
                 try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))); } catch(e3) {}
