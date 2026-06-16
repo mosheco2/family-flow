@@ -1765,6 +1765,7 @@ function switchTab(t) {
     }
     window._suppressRoleDash = false;
     window._currentBizSubTab = null;
+    if (t !== 'deliveries') try { stopCourierPolling(); } catch(e) {}
 
     // עדכון group nav
     try { updateGroupNavActiveState(t); closeNavDropdowns(); syncGnavAlertBadge(); updateGroupNavBadges(); } catch(e) {}
@@ -15113,6 +15114,15 @@ async function analyzeFoodCostAI() {
     });
 }
 // --- מסופון שליחים משופר (Dropdown UI) ---
+let _courierPollingInterval = null;
+function startCourierPolling() {
+    if (_courierPollingInterval) clearInterval(_courierPollingInterval);
+    _courierPollingInterval = setInterval(() => { try { loadCourierData(); } catch(e) {} }, 8000);
+}
+function stopCourierPolling() {
+    if (_courierPollingInterval) { clearInterval(_courierPollingInterval); _courierPollingInterval = null; }
+}
+
 window.switchDeliveryTab = function(tab) {
     window._currentBizSubTab = 'deliveries.' + tab;
     const views = ['active', 'transit', 'history'];
@@ -15127,8 +15137,9 @@ window.switchDeliveryTab = function(tab) {
     const targetBtn = getEl(`btn-del-${tab}`);
     if(targetView) targetView.classList.remove('hidden');
     if(targetBtn) targetBtn.className = 'flex-1 py-2 px-3 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition border border-slate-200';
-    
+
     loadCourierData();
+    startCourierPolling();
 };
 
 window.loadCourierData = async function() {
@@ -15146,13 +15157,19 @@ window.loadCourierData = async function() {
         else if (data.data) ordersArray = data.data;
         
         if (ordersArray.length > 0) {
-            const checkIsDelivery = (o) => (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true' || getDeliveryMeta(o) !== null);
+            const hasDeliveryItems = (o) => {
+                try {
+                    const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
+                    return items.some(i => i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|')));
+                } catch(e) { return false; }
+            };
+            const checkIsDelivery = (o) => (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true' || getDeliveryMeta(o) !== null || hasDeliveryItems(o));
 
             let filtered = ordersArray.filter(checkIsDelivery);
             if (searchId) {
                 const s = searchId.toLowerCase();
-                filtered = filtered.filter(o => 
-                    String(o.id).includes(s) || 
+                filtered = filtered.filter(o =>
+                    String(o.id).includes(s) ||
                     (o.customer_phone && String(o.customer_phone).includes(s)) ||
                     (o.customer_name && String(o.customer_name).toLowerCase().includes(s))
                 );
@@ -21738,7 +21755,7 @@ window.waiterRenderCart = function() {
         } else {
             submitBtn.disabled = !hasPending;
             submitBtn.textContent = 'שלח למטבח ✓';
-            submitBtn.onclick = null;
+            submitBtn.onclick = () => window.waiterSubmitOrder();
             submitBtn.className = `w-full rounded-xl py-3 font-black text-sm active:scale-95 transition shadow ${hasPending ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`;
         }
     }
