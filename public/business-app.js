@@ -6,7 +6,7 @@ const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/ap
 
 const getEl = id => document.getElementById(id);
 const val = id => getEl(id) ? getEl(id).value : '';
-const safeStr = str => (str || '').toString().replace(/'/g, "\\'").replace(/"/g, "&quot;");
+const safeStr = str => (str || '').toString().replace(/'/g, "&#39;").replace(/"/g, "&quot;");
 
 let currentUser = null; let currentGroup = null; let pollInterval = null; let saToken = null; let saAllGroups = []; let saAllUsers = [];
 let membersCache = []; let shoppingListCache = []; let wisdomCache = {};
@@ -21670,8 +21670,10 @@ window.waiterRenderCart = function() {
         html += `<div class="text-[9px] font-black text-slate-400 uppercase px-1 pt-1 pb-0.5">הוזמן</div>`;
         html += submitted.map((i, idx) => {
             const isDelivered = !!i.delivered;
+            const isBON = !isDelivered && (window._waiterItemReadyList||[]).some(ir => ir.orderId == i.orderId && ir.name === i.name);
             const noteStr = i.note ? `<div class="text-[9px] text-slate-400 truncate">${safeStr(i.note)}</div>` : '';
-            return `<div class="rounded-lg p-2 flex items-center gap-1.5 ${isDelivered ? 'bg-green-50 opacity-60' : 'bg-slate-50'}">
+            const bonBadge = isBON ? `<span class="text-[9px] font-black text-orange-600 bg-orange-50 border border-orange-200 px-1 py-0.5 rounded leading-none">🍽️ מוכן</span>` : '';
+            return `<div class="rounded-lg p-2 flex items-center gap-1.5 ${isDelivered ? 'bg-green-50 opacity-60' : isBON ? 'bg-orange-50 border border-orange-100' : 'bg-slate-50'}">
                 <div class="flex-1 min-w-0">
                     <div class="text-xs font-bold text-slate-700 truncate">${safeStr(i.name)} ${i.qty>1?`×${i.qty}`:''}</div>
                     ${noteStr}
@@ -21680,7 +21682,7 @@ window.waiterRenderCart = function() {
                 <div class="flex items-center gap-1 shrink-0">
                 ${isDelivered
                     ? `<span class="text-green-500 text-base">✓</span>`
-                    : `<button ontouchend="event.preventDefault();waiterMarkDelivered(${table},${idx});" onclick="waiterMarkDelivered(${table},${idx})" class="bg-green-100 text-green-700 text-[9px] font-black px-1.5 py-1 rounded" style="touch-action:manipulation;">סופק</button>`
+                    : `${bonBadge}<button ontouchend="event.preventDefault();waiterMarkDelivered(${table},${idx});" onclick="waiterMarkDelivered(${table},${idx})" class="bg-green-100 text-green-700 text-[9px] font-black px-1.5 py-1 rounded" style="touch-action:manipulation;">סופק</button>`
                 }
                 <button ontouchend="event.preventDefault();waiterRemoveSubmitted(${table},${idx});" onclick="waiterRemoveSubmitted(${table},${idx})" class="w-5 h-5 bg-red-100 text-red-500 rounded-full text-xs font-black flex items-center justify-center" style="touch-action:manipulation;" title="הסר מהחשבון">×</button>
                 </div>
@@ -21721,8 +21723,20 @@ window.waiterRenderCart = function() {
 
     const submitBtn = document.getElementById('waiter-submit-btn');
     if (submitBtn) {
-        submitBtn.disabled = !window.waiterPOSCart.length;
-        submitBtn.className = `w-full rounded-xl py-3 font-black text-sm active:scale-95 transition shadow ${window.waiterPOSCart.length ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`;
+        const hasPending = window.waiterPOSCart.length > 0;
+        const allDelivered = submitted.length > 0 && submitted.every(i => !!i.delivered);
+        const canClose = !hasPending && allDelivered && table;
+        if (canClose) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '💳 סגור חשבון';
+            submitBtn.className = 'w-full rounded-xl py-3 font-black text-sm active:scale-95 transition shadow bg-blue-600 text-white';
+            submitBtn.onclick = () => window.waiterCloseBill();
+        } else {
+            submitBtn.disabled = !hasPending;
+            submitBtn.textContent = 'שלח למטבח ✓';
+            submitBtn.onclick = null;
+            submitBtn.className = `w-full rounded-xl py-3 font-black text-sm active:scale-95 transition shadow ${hasPending ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`;
+        }
     }
 };
 
@@ -27952,6 +27966,7 @@ function startWaiterReadyPolling() {
     if (_waiterReadyPollingInterval) clearInterval(_waiterReadyPollingInterval);
     _waiterReadyPollingInterval = setInterval(refreshWaiterReadySection, 5000);
 }
+let _adminTablesPollingInterval = null;
 function stopWaiterReadyPolling() {
     if (_waiterReadyPollingInterval) { clearInterval(_waiterReadyPollingInterval); _waiterReadyPollingInterval = null; }
 }
@@ -27975,6 +27990,7 @@ async function refreshWaiterReadySection() {
             try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
             (o.items_ready||[]).forEach(ir => itemReadyList.push({ orderId: o.id, tableNum: ir.tableNum||tableNum, name: ir.name, idx: ir.idx, time: ir.time }));
         });
+        window._waiterItemReadyList = itemReadyList;
         const itemReadyHtml = itemReadyList.length ? `
             <div class="bg-white rounded-2xl shadow-sm border border-orange-200 mb-4">
                 <div class="px-4 py-3 border-b border-orange-100 bg-orange-50/60 flex items-center justify-between">
@@ -28956,22 +28972,8 @@ async function renderWaiterDashboard(el) {
         ${roleFullMenuBtn()}`);
 }
 
-window.openAdminTablesPanel = async function() {
-    document.getElementById('admin-tables-panel')?.remove();
-    const panel = document.createElement('div');
-    panel.id = 'admin-tables-panel';
-    panel.style.cssText = 'position:fixed;inset:0;z-index:99998;background:#f1f5f9;overflow-y:auto;font-family:Rubik,sans-serif;direction:rtl';
-    panel.innerHTML = `
-      <div style="position:sticky;top:0;z-index:10;background:#1e293b;padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #334155">
-        <button onclick="document.getElementById('admin-tables-panel')?.remove()" style="background:#334155;color:#e2e8f0;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer">← חזרה</button>
-        <span style="color:white;font-size:15px;font-weight:800">🍽️ ניהול שולחנות</span>
-        <div style="margin-right:auto;display:flex;gap:8px">
-          <button onclick="window.showWaiterPOS();document.getElementById('admin-tables-panel')?.remove()" style="background:#f59e0b;color:white;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer">🍽️ הזמנה לשולחן</button>
-          <button onclick="switchTab('pos');document.getElementById('admin-tables-panel')?.remove()" style="background:#3b82f6;color:white;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer">🖥️ קופה</button>
-        </div>
-      </div>
-      <div style="padding:12px" id="admin-tables-inner"><p style="text-align:center;color:#94a3b8;padding:32px;font-size:13px">טוען נתונים...</p></div>`;
-    document.body.appendChild(panel);
+window.refreshAdminTablesData = async function() {
+    if (!currentGroup?.id) return;
 
     // ── fetch live data ────────────────────────────────────────────────────────
     let pendingReady = [], itemReadyList = [], members_ = [];
@@ -29152,6 +29154,28 @@ window.openAdminTablesPanel = async function() {
         ${assignHtml}`;
     startTablePolling();
     loadTableReservationsForGrid();
+};
+
+window.openAdminTablesPanel = function() {
+    if (_adminTablesPollingInterval) { clearInterval(_adminTablesPollingInterval); _adminTablesPollingInterval = null; }
+    document.getElementById('admin-tables-panel')?.remove();
+    const panel = document.createElement('div');
+    panel.id = 'admin-tables-panel';
+    panel.style.cssText = 'position:fixed;inset:0;z-index:99998;background:#f1f5f9;overflow-y:auto;font-family:Rubik,sans-serif;direction:rtl';
+    panel.innerHTML = `
+      <div style="position:sticky;top:0;z-index:10;background:#1e293b;padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #334155">
+        <button onclick="if(window._adminTablesPollingInterval){clearInterval(window._adminTablesPollingInterval);window._adminTablesPollingInterval=null;}document.getElementById('admin-tables-panel')?.remove()" style="background:#334155;color:#e2e8f0;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer">← חזרה</button>
+        <span style="color:white;font-size:15px;font-weight:800">🍽️ ניהול שולחנות</span>
+        <div style="margin-right:auto;display:flex;gap:8px">
+          <button onclick="window.refreshAdminTablesData()" style="background:#475569;color:white;border:none;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer" title="רענן נתונים">🔄</button>
+          <button onclick="window.showWaiterPOS();if(window._adminTablesPollingInterval){clearInterval(window._adminTablesPollingInterval);window._adminTablesPollingInterval=null;}document.getElementById('admin-tables-panel')?.remove()" style="background:#f59e0b;color:white;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer">🍽️ הזמנה לשולחן</button>
+          <button onclick="switchTab('pos');if(window._adminTablesPollingInterval){clearInterval(window._adminTablesPollingInterval);window._adminTablesPollingInterval=null;}document.getElementById('admin-tables-panel')?.remove()" style="background:#3b82f6;color:white;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer">🖥️ קופה</button>
+        </div>
+      </div>
+      <div style="padding:12px" id="admin-tables-inner"><p style="text-align:center;color:#94a3b8;padding:32px;font-size:13px">טוען נתונים...</p></div>`;
+    document.body.appendChild(panel);
+    window.refreshAdminTablesData();
+    _adminTablesPollingInterval = setInterval(window.refreshAdminTablesData, 10000);
 };
 
 window.openAdminKDSPanel = async function() {
