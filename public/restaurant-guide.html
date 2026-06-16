@@ -111,8 +111,7 @@
     <a class="nav-link" href="#suppliers">ספקים והזמנות</a>
     <div class="nav-category">לקוחות ושיווק</div>
     <a class="nav-link" href="#customers">ניהול לקוחות</a>
-    <a class="nav-link" href="#ratings">⭐ דירוגי לקוחות</a>
-    <a class="nav-link" href="#waitlist">⏳ תור המתנה</a>
+    <a class="nav-link" href="#ratings">⭐ דירוגים וביקורות</a>
     <a class="nav-link" href="#cashflow">תזרים וכספים</a>
     <a class="nav-link" href="#alerts">התראות ומעקב</a>
     <div class="nav-category">ONEFLOW ו-AI</div>
@@ -421,23 +420,47 @@
     <div class="tip-box"><strong>💡 דוגמה:</strong> שולחן 3 מציג פס ירוק ו-"25′" = הלקוח ישב 25 דקות. שולחן 7 מציג פס אדום ו-"1ש30′" = ישב שעה וחצי.</div>
     <div class="info-box"><strong>📌 אוטומטי לגמרי:</strong> הטיימר מתחיל כשמסמנים שולחן כ"תפוס" ומתאפס אוטומטית כשמשחררים אותו. בהעברת שולחן (↔️) — הטיימר עובר עם הלקוחות.</div>
 
-    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">מחזור חיי שולחן — תהליך מלא</h3>
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">מחזור חיי שולחן — לחיצה אחת מקדמת</h3>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.75rem;">כל לחיצה על שולחן <strong>מקדמת אותו שלב אחד קדימה</strong> במחזור. אין צורך לפתוח תפריטים — פשוט לחץ:</p>
     <div class="step-box">
       <div class="step-num">1</div>
-      <div class="step-content"><strong>שולחן פנוי (ירוק)</strong><span>לחץ → השולחן הופך תפוס (אדום) + הטיימר מתחיל</span></div>
+      <div class="step-content">
+        <strong>שולחן פנוי (ירוק) → לחץ → תפוס (אדום) 🪑</strong>
+        <span>לקוח הגיע ונישב? לחץ על השולחן הירוק פעם אחת. השולחן הופך <strong>אדום</strong>, הטיימר מתחיל לרוץ, ומוצגת הודעה "שולחן X — תפוס 🪑".</span>
+      </div>
     </div>
     <div class="step-box">
       <div class="step-num">2</div>
-      <div class="step-content"><strong>שולחן תפוס (אדום)</strong><span>לחץ → פופאפ. בחר: "ממתין לתשלום" → שולחן הופך כתום</span></div>
+      <div class="step-content">
+        <strong>שולחן תפוס (אדום) → לחץ → ממתין לתשלום (כתום) 💳</strong>
+        <span>הלקוח ביקש חשבון? לחץ שוב על השולחן האדום. השולחן הופך <strong>כתום</strong> — סימן שהם מחכים לתשלום. מוצגת הודעה "שולחן X — ממתין לתשלום 💳".</span>
+      </div>
     </div>
     <div class="step-box">
       <div class="step-num">3</div>
-      <div class="step-content"><strong>ממתין לתשלום (כתום)</strong><span>לחץ → פופאפ. לחץ "שולם — שחרר לפנוי" → שולחן חוזר לירוק + הטיימר מתאפס</span></div>
+      <div class="step-content">
+        <strong>ממתין לתשלום (כתום) → לחץ → פנוי (ירוק) ✅</strong>
+        <span>הלקוח שילם ועזב? לחץ שוב על השולחן הכתום. השולחן חוזר ל<strong>ירוק</strong> ומוכן ללקוח הבא. הטיימר מתאפס.</span>
+      </div>
     </div>
     <div class="step-box">
       <div class="step-num" style="background:#1d4ed8;">📅</div>
-      <div class="step-content"><strong>שולחן הוזמן מראש (כחול)</strong><span>נקבע אוטומטית כשמנהל מאשר הזמנת שולחן מרחוק. לחץ → רואה פרטי ההזמנה + אפשרות להושיב / לשחרר</span></div>
+      <div class="step-content">
+        <strong>שולחן הוזמן מראש (כחול) — מיוחד</strong>
+        <span>נקבע אוטומטית כשמנהל מאשר הזמנת שולחן מרחוק. לחיצה על שולחן כחול <strong>לא מחזירה במחזור הרגיל</strong> — היא פותחת חלון עם פרטי ההזמנה ואפשרות להושיב / לשחרר.</span>
+      </div>
     </div>
+
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">⚙️ כפתור אפשרויות ידניות — למקרים מיוחדים</h3>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.5rem;">כשהשולחן <strong>תפוס</strong> או <strong>ממתין לתשלום</strong>, מופיע כפתור קטן ⚙️ בתחתית כרטיס השולחן. לחיצה עליו פותחת חלון עם <strong>כל</strong> האפשרויות:</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>מצב נוכחי</th><th>אפשרויות בחלון ⚙️</th></tr>
+        <tr><td>תפוס 🪑</td><td>💳 ממתין לתשלום · 🔓 שחרר שולחן · ↔️ העבר שולחן</td></tr>
+        <tr><td>ממתין לתשלום 💳</td><td>🪑 חזור לתפוס · ✅ שולם — שחרר לפנוי · 🔓 שחרר שולחן · ↔️ העבר שולחן</td></tr>
+      </table>
+    </div>
+    <div class="tip-box"><strong>💡 מתי להשתמש ב-⚙️?</strong> כשרוצים לדלג שלב — למשל לשחרר שולחן ישירות מ"תפוס" לפנוי בלי לעבור ב"ממתין לתשלום", או לחזור מ"ממתין לתשלום" ל"תפוס" אם הלקוח הזמין עוד.</div>
 
     <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">↔️ העברת שולחן</h3>
     <p style="font-size:0.9rem;color:#475569;margin-bottom:0.5rem;">לקוחות ביקשו להחליף שולחן? קל:</p>
@@ -659,31 +682,85 @@
   </div>
   <div class="section-body">
     <div class="img-placeholder"><i class="fa-solid fa-motorcycle"></i>📸 כאן תופיע תמונת מסך של ניהול משלוחים</div>
-    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">הגדרת מודול משלוחים</h3>
+
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">הגדרת מודול משלוחים (חד-פעמי)</h3>
     <ul class="check-list">
       <li>הפעל/בטל משלוחים מהגדרות עסק</li>
       <li>הגדר אזורי משלוח (ידנית או רדיוס קילומטרים)</li>
       <li>מינימום הזמנה, עלות משלוח לפי אזור</li>
-      <li>שעות משלוח (שונות משעות המסעדה)</li>
+      <li>שעות משלוח (יכולות להיות שונות משעות המסעדה)</li>
     </ul>
-    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">תהליך משלוח</h3>
+
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">זרימת משלוח מלאה — שלב אחר שלב</h3>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.75rem;">תהליך המשלוח עובר בין שלושה גורמים: <strong>המטבח → המלצר → השליח</strong>. כל אחד רואה בדיוק מה שצריך לעשות.</p>
+
     <div class="step-box">
       <div class="step-num">1</div>
-      <div class="step-content"><strong>הזמנה מגיעה</strong><span>מחנות ציבורית, טלפון, או פתיחה ידנית מהקופה. מסומנת "משלוח" עם כתובת.</span></div>
+      <div class="step-content">
+        <strong>הזמנת משלוח מגיעה</strong>
+        <span>מגיעה מהחנות הציבורית, מ-ONEFLOW, או נפתחת ידנית בקופה עם כתובת לקוח. ניתן גם לשנות הזמנת שולחן רגילה לסטטוס "משלוח" — היא תעבור לאותו מסלול.</span>
+      </div>
     </div>
     <div class="step-box">
       <div class="step-num">2</div>
-      <div class="step-content"><strong>הכנה במטבח</strong><span>הזמנה עוברת ל-KDS כרגיל. כשמוכנה — מסומנת "מוכן לאיסוף".</span></div>
+      <div class="step-content">
+        <strong>הכנה במטבח</strong>
+        <span>ההזמנה מגיעה ל-KDS במטבח ומוצגת כרגיל. הטבח מסמן את המנות <strong>"מוכן"</strong> כשהן מוכנות.</span>
+      </div>
     </div>
     <div class="step-box">
       <div class="step-num">3</div>
-      <div class="step-content"><strong>הקצאת שליח</strong><span>מנהל מקצה לשליח → שליח מקבל התראה על הנייד עם כתובת וניווט.</span></div>
+      <div class="step-content">
+        <strong>מלצר רואה "מוכן לאיסוף/הגשה" — שלב קריטי 🔔</strong>
+        <span>כשהמטבח סיים, ההזמנה מופיעה בסקשן <strong>"מוכן לאיסוף/הגשה"</strong> במסך המלצר (ובמסך המנהל). ליד כרטיס ההזמנה מופיע כפתור סגול <strong>"📦 ממתין לשליח"</strong>.</span>
+      </div>
     </div>
     <div class="step-box">
       <div class="step-num">4</div>
-      <div class="step-content"><strong>מסירה ואישור</strong><span>שליח מאשר מסירה → הזמנה נסגרת, תשלום נרשם. ניתן לקבל תשלום בדלת.</span></div>
+      <div class="step-content">
+        <strong>מלצר לוחץ "📦 ממתין לשליח"</strong>
+        <span>בלחיצה על הכפתור הסגול — ההזמנה עוברת לסטטוס "בדרך לשליח". הכפתור <strong>מתחלף לאינדיקטור כתום</strong> שכתוב עליו <strong>"⏳ ממתין לשליח"</strong>. ההזמנה <strong>נשארת מוצגת</strong> במסך המלצר עד שהשליח אוסף.</span>
+      </div>
     </div>
-    <div class="tip-box"><strong>💡 פלטפורמות חיצוניות:</strong> הזמנות מ-Wolt/10bis נרשמות ידנית בקופה עם סימון "פלטפורמה חיצונית".</div>
+    <div class="step-box">
+      <div class="step-num">5</div>
+      <div class="step-content">
+        <strong>שליח רואה בלשונית "ממתין לאיסוף 📦"</strong>
+        <span>ממשק השליח (לשונית "שליחויות 🛵" בניווט) מציג את ההזמנה בסעיף <strong>"ממתין לאיסוף 📦"</strong> עם פרטי הלקוח, כתובת, ופירוט המנות. השליח הגיע למסעדה ואוסף את ההזמנה.</span>
+      </div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">6</div>
+      <div class="step-content">
+        <strong>שליח מסמן את התוצאה</strong>
+        <span>לאחר מסירה ללקוח — השליח לוחץ אחד מהכפתורים:</span>
+        <div style="margin-top:0.5rem;display:flex;flex-direction:column;gap:0.35rem;">
+          <div style="display:flex;align-items:center;gap:0.5rem;"><span style="background:#dcfce7;color:#16a34a;border-radius:6px;padding:2px 8px;font-size:0.8rem;font-weight:700;">✅ נמסר</span><span style="font-size:0.85rem;color:#475569;">ההזמנה עברה ל"היסטוריה" כ"נמסר ✅". לקוח מקבל בקשת דירוג ב-ONEFLOW.</span></div>
+          <div style="display:flex;align-items:center;gap:0.5rem;"><span style="background:#fee2e2;color:#dc2626;border-radius:6px;padding:2px 8px;font-size:0.8rem;font-weight:700;">❌ בוטל</span><span style="font-size:0.85rem;color:#475569;">ההזמנה מסומנת בוטלה ועוברת להיסטוריה. נרשמת בדוח הביטולים.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-box"><strong>📌 סיכום מצבי הזמנת משלוח:</strong><br>
+      <span style="background:#f0fdf4;border:1px solid #86efac;border-radius:4px;padding:1px 6px;font-size:0.78rem;font-weight:600;">ממתין לאישור</span> →
+      <span style="background:#fef3c7;border:1px solid #fcd34d;border-radius:4px;padding:1px 6px;font-size:0.78rem;font-weight:600;">בהכנה (KDS)</span> →
+      <span style="background:#e0e7ff;border:1px solid #a5b4fc;border-radius:4px;padding:1px 6px;font-size:0.78rem;font-weight:600;">מוכן (מלצר לוחץ ממתין לשליח)</span> →
+      <span style="background:#ffedd5;border:1px solid #fb923c;border-radius:4px;padding:1px 6px;font-size:0.78rem;font-weight:600;">ממתין לאיסוף (שליח)</span> →
+      <span style="background:#dcfce7;border:1px solid #86efac;border-radius:4px;padding:1px 6px;font-size:0.78rem;font-weight:600;">נמסר ✅</span>
+    </div>
+
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">ממשק השליח — מה הוא רואה?</h3>
+    <div class="table-wrap">
+      <table>
+        <tr><th>לשונית</th><th>מה מוצג</th><th>פעולות</th></tr>
+        <tr><td>📦 ממתין לאיסוף</td><td>הזמנות שמלצר לחץ עליהן "ממתין לשליח" — מוכנות לאיסוף</td><td>✅ נמסר · ❌ בוטל</td></tr>
+        <tr><td>🍳 בהכנה</td><td>הזמנות משלוח שעדיין בהכנה במטבח (מידע בלבד)</td><td>—</td></tr>
+        <tr><td>📋 היסטוריה</td><td>הזמנות שנמסרו או בוטלו — עם תג ✅/❌ ירוק/אדום</td><td>צפייה בלבד</td></tr>
+      </table>
+    </div>
+
+    <div class="tip-box"><strong>💡 פלטפורמות חיצוניות:</strong> הזמנות מ-Wolt/10bis נרשמות ידנית בקופה עם סימון "פלטפורמה חיצונית" — עוברות אותו תהליך בדיוק.</div>
+    <div class="warn-box"><strong>⚠️ שימו לב:</strong> ההזמנה <strong>לא נעלמת</strong> ממסך המלצר אחרי שהוא לחץ "ממתין לשליח" — היא נשארת עם אינדיקטור כתום עד שהשליח מאשר איסוף. זה מכוון, כדי שהמלצר יוכל לעקוב.</div>
   </div>
 </section>
 
@@ -834,36 +911,75 @@
 <section class="section-card" id="ratings">
   <div class="section-header">
     <span style="font-size:1.5rem;">⭐</span>
-    <h2>דירוגי לקוחות</h2>
+    <h2>דירוגים וביקורות לקוח</h2>
   </div>
   <div class="section-body">
-    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">לקוחות ONEFLOW יכולים לדרג הזמנה שקיבלו. המסעדה רואה את הדירוגים ויכולה לנתח את שביעות הרצון.</p>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">לאחר כל משלוח שנמסר, לקוחות ONEFLOW מקבלים בקשה לדרג את החוויה — עם כוכבים ותגובה חופשית. כל הדירוגים מתכנסים למודול ייעודי שנמצא בניווט הראשי של העסק.</p>
 
-    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">איפה רואים דירוגים?</h3>
-    <div class="table-wrap">
-      <table>
-        <tr><th>מיקום</th><th>מה רואים</th></tr>
-        <tr><td>דשבורד מנהל → KPI ⭐</td><td>ממוצע הדירוגים של כל הזמנות — לחיצה עליו מנווטת לרשימת הזמנות מדורגות</td></tr>
-        <tr><td>מכירות → רשימת הזמנות</td><td>⭐⭐⭐ מוצגות ישירות על כרטיס כל הזמנה שדורגה</td></tr>
-        <tr><td>מסנן "⭐ מדורגות"</td><td>סינון הזמנות שקיבלו דירוג בלבד</td></tr>
-        <tr><td>פרטי הזמנה</td><td>הדירוג + הערת הלקוח (אם הוסיף)</td></tr>
-      </table>
-    </div>
-
-    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">איך מסנן הזמנות מדורגות?</h3>
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">איך פותחים את מודול הדירוגים?</h3>
     <div class="step-box">
       <div class="step-num">1</div>
-      <div class="step-content"><strong>כנס ל"מכירות"</strong><span>לחץ על לשונית "מכירות" בניווט העסק</span></div>
+      <div class="step-content">
+        <strong>לחץ על "מכירות" בסרגל הניווט</strong>
+        <span>בחלק העליון של ממשק הניהול — לחץ על האזור "מכירות" (תחת קבוצת הניווט הראשית).</span>
+      </div>
     </div>
     <div class="step-box">
       <div class="step-num">2</div>
-      <div class="step-content"><strong>בחר במסנן "⭐ מדורגות"</strong><span>מהתפריט הנפתח של סינון הזמנות</span></div>
+      <div class="step-content">
+        <strong>בחר "דירוגים וביקורות ⭐"</strong>
+        <span>מהלשוניות שנפתחות — לחץ על <strong>"דירוגים וביקורות ⭐"</strong>. הלשונית תיטען עם כל הדירוגים שהתקבלו.</span>
+      </div>
+    </div>
+
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">מה רואים במודול הדירוגים?</h3>
+
+    <div class="role-card">
+      <h4>📊 סיכום ראש הדף (KPI Banner)</h4>
+      <p style="font-size:0.875rem;color:#475569;">ריצוי מספרים כללי שמראה את התמונה הגדולה:</p>
+      <ul class="check-list">
+        <li><strong>ממוצע דירוג</strong> — למשל 4.3 ⭐ — ממוצע כל הדירוגים שהתקבלו</li>
+        <li><strong>פילוח לפי כוכבים</strong> — כמה ביקורות של 1⭐ / 2⭐ / 3⭐ / 4⭐ / 5⭐</li>
+        <li><strong>סה"כ ביקורות</strong> — מספר כולל של לקוחות שדירגו</li>
+      </ul>
+    </div>
+
+    <div class="role-card">
+      <h4>📋 רשימת ביקורות (מהאחרונה לראשונה)</h4>
+      <p style="font-size:0.875rem;color:#475569;">כל ביקורת מציגה:</p>
+      <div class="table-wrap">
+        <table>
+          <tr><th>שדה</th><th>מה רואים</th></tr>
+          <tr><td>שם לקוח</td><td>השם כפי שהוא ב-ONEFLOW</td></tr>
+          <tr><td>מספר הזמנה</td><td>מזהה ההזמנה שדורגה</td></tr>
+          <tr><td>סוג</td><td>תג "🛵 משלוח" או "🏪 טייק אוויי" / "🌐 אתר"</td></tr>
+          <tr><td>דירוג</td><td>⭐⭐⭐⭐⭐ — כמות הכוכבים שהלקוח נתן</td></tr>
+          <tr><td>הערת לקוח</td><td>הטקסט החופשי שהלקוח כתב (אם כתב)</td></tr>
+          <tr><td>תאריך</td><td>מתי נתן את הדירוג</td></tr>
+          <tr><td>טלפון</td><td>כפתור 📞 ישיר לחיוג ללקוח</td></tr>
+          <tr><td>צפייה בהזמנה</td><td>כפתור "הצג הזמנה" — פותח את פרטי ההזמנה המלאים</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">איך מגיע דירוג לקוח?</h3>
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content"><strong>שליח מסמן "✅ נמסר"</strong><span>ברגע שהשליח לוחץ "נמסר" — המערכת יוזמת בקשת דירוג.</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>לקוח מקבל בקשה ב-ONEFLOW שלו</strong><span>בממשק ONEFLOW של הלקוח מופיעה הודעה "איך הייתה ההזמנה שלך? 🌟" עם כפתורי כוכבים.</span></div>
     </div>
     <div class="step-box">
       <div class="step-num">3</div>
-      <div class="step-content"><strong>רשימת כל ההזמנות שדורגו</strong><span>עם הדירוג בכוכביות ופרטי הלקוח — ניתן לפנות ללקוח שדירג נמוך</span></div>
+      <div class="step-content"><strong>לקוח מדרג (אופציונלי)</strong><span>הלקוח בוחר 1–5 כוכבים ויכול להוסיף הסבר קצר. לאחר שליחה — הדירוג מופיע אצלכם במודול מיד.</span></div>
     </div>
-    <div class="tip-box"><strong>💡 קיצור דרך:</strong> לחץ על KPI הדירוג בדשבורד הראשי → המערכת מנווטת אוטומטית למסנן "מדורגות".</div>
+
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">טיפים לשימוש נכון בדירוגים</h3>
+    <div class="tip-box"><strong>💡 דירוג נמוך?</strong> לחץ על 📞 ליד שם הלקוח — ניתן להתקשר ולהסביר / להתנצל / לשפר. שיחה כזו לרוב הופכת לקוח מתוסכל ללקוח נאמן.</div>
+    <div class="tip-box"><strong>💡 מעקב שבועי:</strong> בדוק את ממוצע הדירוג פעם בשבוע — ירידה ממוצע יכולה לאותת על בעיה בשירות, בשליח, או באיכות המזון.</div>
+    <div class="info-box"><strong>📌 הערה:</strong> רק לקוחות ONEFLOW שקיבלו משלוח יכולים לדרג כרגע. בעתיד יתווספו אפשרויות פילוח, תגובות ללקוח, וסינון מתקדם.</div>
   </div>
 </section>
 
@@ -1145,13 +1261,29 @@
       <div class="faq-q" onclick="toggleFaq(this)"><span>הפס האדום על שולחן — מה עושים?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
       <div class="faq-a">הפס האדום על שולחן תפוס מציין שהלקוח יושב מעל 90 דקות. זו התראה ויזואלית שכדאי לבדוק אם הלקוח מוכן לחשבון. אין פעולה אוטומטית — תאמד בעצמך מתי לגשת.</div>
     </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>לחצתי על שולחן בטעות — איך מחזירים?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">לחץ על הכפתור ⚙️ שמופיע בתחתית כרטיס השולחן (רק כשהוא תפוס או ממתין לתשלום). בחלון שייפתח — לחץ <strong>"🔓 שחרר שולחן"</strong> כדי לחזור לפנוי ישירות, בלי לעבור דרך כל שלבי המחזור.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>לחצתי "📦 ממתין לשליח" — ואין שליח זמין. מה עושים?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">אין בעיה — ההזמנה תשאר מוצגת במסך המלצר עם האינדיקטור הכתום "⏳ ממתין לשליח". ברגע שהשליח יכנס למערכת, ההזמנה תהיה מוצגת אצלו בלשונית "ממתין לאיסוף 📦". ניתן לסמן גם מסך הניהול.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>לקוח שאל למה לא קיבל בקשת דירוג — מה לבדוק?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">בקשת הדירוג נשלחת ב-ONEFLOW רק כאשר: (1) השליח לחץ "✅ נמסר" במערכת, (2) הלקוח מחובר ל-ONEFLOW עם אותו מספר טלפון שנרשם בהזמנה. בדוק שהשליח אכן סגר את ההזמנה ושהלקוח רשום ב-ONEFLOW.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>איך לקוח מדרג ומה הוא בדיוק רואה?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">לאחר שהשליח לחץ "נמסר", הלקוח מקבל הודעה ב-ONEFLOW שלו: "איך הייתה ההזמנה מ[שם המסעדה]? 🌟". הוא לוחץ על 1–5 כוכבים ויכול להוסיף תגובה חופשית. הדירוג מגיע אצלכם בטאב "דירוגים וביקורות ⭐" במכירות.</div>
+    </div>
   </div>
 </section>
 
 <!-- Footer -->
 <div style="text-align:center;padding:2rem 0;color:#94a3b8;font-size:0.8rem;border-top:1px solid #e2e8f0;margin-top:1rem;">
   <div style="font-weight:600;color:#dc2626;font-size:1rem;margin-bottom:0.25rem;">🍕 ONEFLOW BUSINESS — מדריך מסעדה</div>
-  <div>עדכון אחרון: יוני 2026 | v2.0</div>
+  <div>עדכון אחרון: יוני 2026 | v2.3</div>
   <div style="margin-top:0.5rem;"><a href="/biz-guide.html" style="color:#dc2626;">מדריך כללי לעסקים</a> · <a href="/sport-guide.html" style="color:#dc2626;">מדריך ספורט</a> · <a href="/guide.html" style="color:#dc2626;">מדריך ONEFLOW</a></div>
 </div>
 
