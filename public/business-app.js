@@ -28136,17 +28136,17 @@ async function refreshWaiterReadySection() {
                     const dishList = (r.items||[]).map(i => {
                         const nm = i.name || '';
                         const qty = (i.quantity||i.qty||1);
-                        return nm ? (qty > 1 ? \`\${nm} ×\${qty}\` : nm) : null;
+                        return nm ? (qty > 1 ? `${nm} ×${qty}` : nm) : null;
                     }).filter(Boolean).join(', ');
-                    return \`<div class="flex items-start gap-2 py-3 border-b border-slate-50 last:border-0">
-                        <span class="bg-orange-100 text-orange-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0 mt-0.5">🛵 #\${r.orderId}</span>
+                    return `<div class="flex items-start gap-2 py-3 border-b border-slate-50 last:border-0">
+                        <span class="bg-orange-100 text-orange-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0 mt-0.5">🛵 #${r.orderId}</span>
                         <div class="flex-1 min-w-0">
-                            <div class="text-xs font-bold text-slate-800">\${safeStr(r.customerName || '')}</div>
-                            <div class="text-[10px] text-slate-500">\${safeStr(dishList) || '—'}</div>
-                            \${addr ? \`<div class="text-[10px] text-indigo-600">\${safeStr(addr)}</div>\` : ''}
+                            <div class="text-xs font-bold text-slate-800">${safeStr(r.customerName || '')}</div>
+                            <div class="text-[10px] text-slate-500">${safeStr(dishList) || '—'}</div>
+                            ${addr ? `<div class="text-[10px] text-indigo-600">${safeStr(addr)}</div>` : ''}
                         </div>
-                        <button ontouchend="event.preventDefault();approveDeliveryToKitchen(\${r.orderId});" onclick="approveDeliveryToKitchen(\${r.orderId})" class="bg-orange-500 text-white text-[10px] font-black px-2 py-1.5 rounded-lg shrink-0 whitespace-nowrap" style="touch-action:manipulation;">✅ אשר לטבח</button>
-                    </div>\`;
+                        <button ontouchend="event.preventDefault();approveDeliveryToKitchen(${r.orderId});" onclick="approveDeliveryToKitchen(${r.orderId})" class="bg-orange-500 text-white text-[10px] font-black px-2 py-1.5 rounded-lg shrink-0 whitespace-nowrap" style="touch-action:manipulation;">✅ אשר לטבח</button>
+                    </div>`;
                 }).join('')}</div>
             </div>` : '';
         container.innerHTML = itemReadyHtml + pendingApprovalHtml + readyHtml;
