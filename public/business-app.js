@@ -1772,7 +1772,7 @@ function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: directi
 function switchTab(t) {
     // עסקי יופי: הפנה מ-customers ל-beauty_clients
     if (t === 'customers' && currentGroup?.business_type === 'beauty') t = 'beauty_clients';
-    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','reviews'].forEach(x => {
+    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','settings','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','reviews'].forEach(x => {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden');
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active');
     });
@@ -1843,6 +1843,7 @@ function switchTab(t) {
     if (t === 'logistics_customers') try { loadLogisticsCustomers(); } catch(e) {}
     if (t === 'logistics_invoices')  try { loadLogisticsInvoices(); } catch(e) {}
     if (t === 'reviews')               try { loadReviews(); } catch(e) {}
+    if (t === 'settings')              try { renderSettingsHub(); } catch(e) {}
 }
 
 function updateBatteryUI() {
@@ -1992,7 +1993,7 @@ async function loadDashboard() {
         const isAdmin = currentUser.role === 'ADMIN';
         const isManager = currentUser.role === 'MANAGER';
         if(isAdmin) {
-            ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools', 'timeclock-admin-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
+            ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools', 'timeclock-admin-view', 'gnav-btn-settings'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
             const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> בקשות רכש לאישור';
             const profileUp = getEl('profile-upgrade-section');
             if (profileUp && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-slate-800 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> מנוי PRO פעיל</p>'; }
@@ -2580,6 +2581,7 @@ const ALL_TABS = [
     { id: 'beauty_subscriptions', name: 'מנויים וחבילות 🎁' },
     { id: 'beauty_commissions', name: 'עמלות ושכר 💰' },
     { id: 'beauty_rfq',        name: 'ייעוץ ובקשות 💬' },
+    { id: 'settings',          name: 'הגדרות ⚙️' },
     { id: 'beauty_practitioners', name: 'מטפלות 💆' },
     { id: 'logistics_orders',   name: 'קנבן משלוחים 📦' },
     { id: 'logistics_drivers',  name: 'נהגים 🚗' },
@@ -29882,6 +29884,195 @@ const _SS_ACTIONS_DEF = {
         { key:'ss_message',    icon:'✉️', label:'הודעה לאינבוקס', desc:'לקוח יכול לשלוח הודעה חופשית' },
     ],
 };
+
+// ─── Settings Hub ────────────────────────────────────────────────────────────
+function renderSettingsHub() {
+    const el = document.getElementById('content-settings');
+    if (!el) return;
+
+    const isAdmin = currentUser?.role === 'ADMIN';
+    const isBizType = (t) => currentGroup?.business_type === t || currentGroup?.business_type === t;
+    const isRestaurant = ['restaurant','cafe'].includes(currentGroup?.business_type);
+
+    // ─ Quick-access cards (ADMIN only) ──────────────────────────────────────
+    const quickCards = isAdmin ? `
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+            <i class="fa-solid fa-grid-2 text-indigo-500 text-sm"></i>
+            <h3 class="font-black text-slate-700 text-sm">גישה מהירה להגדרות</h3>
+        </div>
+        <div class="grid grid-cols-2 gap-0 divide-x divide-y divide-slate-100 rtl:divide-x-reverse">
+            <button onclick="switchTab('sales');window.switchSalesTab('settings')" class="flex flex-col items-center gap-2 p-4 hover:bg-slate-50 transition text-center">
+                <span class="text-2xl">🛍️</span>
+                <div>
+                    <div class="text-xs font-bold text-slate-700">הגדרות חנות</div>
+                    <div class="text-[10px] text-slate-400">לוגו, שעות, טלפון, banner</div>
+                </div>
+            </button>
+            <button onclick="switchTab('calendar');if(typeof switchCalendarTab==='function')switchCalendarTab('settings')" class="flex flex-col items-center gap-2 p-4 hover:bg-slate-50 transition text-center">
+                <span class="text-2xl">📅</span>
+                <div>
+                    <div class="text-xs font-bold text-slate-700">הגדרות יומן</div>
+                    <div class="text-[10px] text-slate-400">שירותים, זמינות, שדות</div>
+                </div>
+            </button>
+            <button onclick="switchTab('members')" class="flex flex-col items-center gap-2 p-4 hover:bg-slate-50 transition text-center">
+                <span class="text-2xl">👥</span>
+                <div>
+                    <div class="text-xs font-bold text-slate-700">ניהול צוות</div>
+                    <div class="text-[10px] text-slate-400">עובדים, תפקידים, הרשאות</div>
+                </div>
+            </button>
+            ${isRestaurant ? `<button onclick="openBusinessSettingsModal()" class="flex flex-col items-center gap-2 p-4 hover:bg-slate-50 transition text-center">
+                <span class="text-2xl">🍽️</span>
+                <div>
+                    <div class="text-xs font-bold text-slate-700">שולחנות ורישיון</div>
+                    <div class="text-[10px] text-slate-400">מספר שולחנות, ממשקי תפקיד</div>
+                </div>
+            </button>` : `<button onclick="openBusinessSettingsModal()" class="flex flex-col items-center gap-2 p-4 hover:bg-slate-50 transition text-center">
+                <span class="text-2xl">⚙️</span>
+                <div>
+                    <div class="text-xs font-bold text-slate-700">הגדרות עסק</div>
+                    <div class="text-[10px] text-slate-400">רישיון, תפקידים, לקוחות</div>
+                </div>
+            </button>`}
+        </div>
+    </div>` : '';
+
+    // ─ Business info card ────────────────────────────────────────────────────
+    const bizCard = isAdmin ? `
+    <div class="bg-gradient-to-br from-indigo-50 to-slate-50 rounded-2xl border border-indigo-100 shadow-sm p-4">
+        <div class="flex items-center justify-between mb-3">
+            <button onclick="openBusinessSettingsModal()" class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+                עריכה מתקדמת <i class="fa-solid fa-arrow-left text-[9px]"></i>
+            </button>
+            <h3 class="font-black text-slate-700 text-sm flex items-center gap-2">
+                <i class="fa-solid fa-building text-indigo-500"></i> פרטי העסק
+            </h3>
+        </div>
+        <div class="flex items-center gap-3 bg-white px-4 py-3 rounded-xl border border-indigo-100 mb-3">
+            <span class="text-2xl">${(BUSINESS_TYPES.find(b=>b.id===currentGroup?.business_type)||{}).icon||'🏢'}</span>
+            <div>
+                <div class="text-sm font-bold text-slate-700">${currentGroup?.name||''}</div>
+                <div class="text-[10px] text-slate-400">${(BUSINESS_TYPES.find(b=>b.id===currentGroup?.business_type)||{}).name||'עסק'} · קוד: <span class="font-mono">${currentGroup?.code||''}</span></div>
+            </div>
+        </div>
+        ${isRestaurant ? `<div class="bg-amber-50 px-4 py-3 rounded-xl border border-amber-100 flex items-center justify-between">
+            <div class="text-xs text-amber-700 font-bold">🍽️ שולחנות: <span class="text-amber-900">${currentGroup?.table_count||8}</span></div>
+            <button onclick="openBusinessSettingsModal()" class="text-[10px] text-amber-600 font-bold hover:underline">שנה ←</button>
+        </div>` : ''}
+    </div>` : '';
+
+    // ─ Profile section ───────────────────────────────────────────────────────
+    const profileSection = `
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+            <i class="fa-solid fa-user text-pink-500 text-sm"></i>
+            <h3 class="font-black text-slate-700 text-sm">פרופיל אישי</h3>
+        </div>
+        <div class="p-4 space-y-3">
+            <div>
+                <label class="text-[10px] font-bold text-slate-500 block mb-1.5">שם תצוגה</label>
+                <div class="flex gap-2">
+                    <button onclick="window.saveProfileNickname()" class="shrink-0 bg-pink-500 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-pink-600 transition">שמור</button>
+                    <input type="text" id="profile-nickname" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:border-pink-400 focus:outline-none" placeholder="שם מלא" value="${safeStr(currentUser?.nickname||'')}"/>
+                </div>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-slate-500 block mb-1.5">שינוי סיסמה</label>
+                <form onsubmit="window.submitChangePassword(event)" class="flex flex-col gap-2">
+                    <input type="password" id="old-password" class="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none" placeholder="סיסמה נוכחית" required>
+                    <input type="password" id="new-password" class="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none" placeholder="סיסמה חדשה" required>
+                    <button type="submit" class="bg-slate-800 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-slate-700 transition">עדכון סיסמה</button>
+                </form>
+            </div>
+        </div>
+    </div>`;
+
+    // ─ Doc settings (ADMIN only) ─────────────────────────────────────────────
+    const docSection = isAdmin ? `
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+            <i class="fa-solid fa-file-invoice text-indigo-500 text-sm"></i>
+            <h3 class="font-black text-slate-700 text-sm">פרטים להזמנות ומסמכים</h3>
+        </div>
+        <div class="p-4 space-y-3">
+            <div>
+                <label class="text-[10px] font-bold text-slate-500 block mb-1.5">ח.פ / עוסק מורשה</label>
+                <input type="text" id="doc-vat-number" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white dir-ltr text-left focus:outline-none" placeholder="123456789" value="${safeStr(currentGroup?.vat_number||'')}">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-slate-500 block mb-1.5">שם איש קשר לרכש</label>
+                <input type="text" id="doc-contact-name" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none" placeholder="שם מלא" value="${safeStr(currentGroup?.contact_name||'')}">
+            </div>
+            <button onclick="window.saveDocSettings()" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-indigo-700 transition">שמור פרטים</button>
+        </div>
+    </div>` : '';
+
+    // ─ Support & resources ───────────────────────────────────────────────────
+    const supportSection = `
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+            <i class="fa-solid fa-circle-question text-blue-500 text-sm"></i>
+            <h3 class="font-black text-slate-700 text-sm">עזרה ותמיכה</h3>
+        </div>
+        <div class="divide-y divide-slate-100">
+            <a href="${_getGuideUrl(currentGroup?.business_type)}" target="_blank" class="flex items-center justify-between px-4 py-3.5 hover:bg-blue-50 transition cursor-pointer">
+                <i class="fa-solid fa-book text-blue-500"></i>
+                <div class="flex-1 text-right mx-3">
+                    <div class="text-sm font-bold text-slate-700">מדריך למערכת</div>
+                    <div class="text-[10px] text-slate-400">תיעוד מלא לסוג העסק שלך</div>
+                </div>
+            </a>
+            <button onclick="window.triggerManualTour()" class="w-full flex items-center justify-between px-4 py-3.5 hover:bg-blue-50 transition text-right">
+                <i class="fa-solid fa-route text-blue-500"></i>
+                <div class="flex-1 text-right mx-3">
+                    <div class="text-sm font-bold text-slate-700">הדרכה וסיור</div>
+                    <div class="text-[10px] text-slate-400">סיור אינטראקטיבי במערכת</div>
+                </div>
+            </button>
+            <button onclick="window.openSupportTicketModal()" class="w-full flex items-center justify-between px-4 py-3.5 hover:bg-indigo-50 transition text-right">
+                <i class="fa-solid fa-headset text-indigo-500"></i>
+                <div class="flex-1 text-right mx-3">
+                    <div class="text-sm font-bold text-slate-700">פתיחת קריאת שירות</div>
+                    <div class="text-[10px] text-slate-400">תמיכה טכנית ישירה</div>
+                </div>
+            </button>
+            ${isAdmin && currentGroup && !currentGroup.is_premium ? `<button onclick="window.upgradeToPremium()" class="w-full flex items-center justify-between px-4 py-3.5 hover:bg-amber-50 transition text-right">
+                <i class="fa-solid fa-crown text-amber-500"></i>
+                <div class="flex-1 text-right mx-3">
+                    <div class="text-sm font-bold text-slate-700">שדרוג למסלול PRO</div>
+                    <div class="text-[10px] text-slate-400">אנליטיקות מתקדמות ועוד</div>
+                </div>
+            </button>` : isAdmin && currentGroup?.is_premium ? `<div class="flex items-center gap-3 px-4 py-3.5 text-right">
+                <i class="fa-solid fa-check-circle text-green-500"></i>
+                <div class="text-sm font-bold text-green-700">מנוי PRO פעיל ✅</div>
+            </div>` : ''}
+        </div>
+    </div>`;
+
+    // ─ Danger zone (ADMIN only) ──────────────────────────────────────────────
+    const logoutSection = `
+    <div class="rounded-2xl border border-red-100 overflow-hidden">
+        <button onclick="logout()" class="w-full flex items-center justify-center gap-2 px-4 py-4 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-sm transition">
+            <i class="fa-solid fa-power-off"></i> התנתקות מהמערכת
+        </button>
+    </div>`;
+
+    el.innerHTML = `
+        <div class="flex items-center gap-2 px-1 mb-1">
+            <i class="fa-solid fa-gear text-slate-500"></i>
+            <h2 class="font-black text-slate-800 text-base">הגדרות</h2>
+            <span class="text-[10px] text-slate-400 font-medium">${isAdmin ? 'מנהל ראשי' : (currentUser?.nickname||'')}</span>
+        </div>
+        ${quickCards}
+        ${bizCard}
+        ${profileSection}
+        ${docSection}
+        ${supportSection}
+        ${logoutSection}
+    `;
+}
 
 function openBusinessSettingsModal() {
     const current = currentGroup.business_type || 'other';
