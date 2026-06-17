@@ -265,7 +265,12 @@
         <div id="zmview-leads" class="hidden">
             <div class="card p-5">
                 <div class="flex justify-between items-center mb-4">
-                    <div id="zm-leads-campaign-select-wrap"></div>
+                    <div class="flex items-center gap-2">
+                        <div id="zm-leads-campaign-select-wrap"></div>
+                        <button id="zm-leads-refresh-btn" onclick="zmRefreshLeads()" class="hidden text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 px-2.5 py-1.5 rounded-lg transition text-sm" title="רענן לידים">
+                            <i class="fa-solid fa-arrow-rotate-right"></i>
+                        </button>
+                    </div>
                     <h3 class="font-black text-slate-800 text-base"><i class="fa-solid fa-users text-emerald-500 mr-2"></i>לידים</h3>
                 </div>
                 <div id="zm-leads-list" class="space-y-2">

@@ -618,6 +618,11 @@ async function deleteCampaign(id) {
     if (!confirm('למחוק את הקמפיין? כל הלידים שלו יימחקו גם כן.')) return;
     await fetch(`${API}/zone-manager/campaigns/${id}`, { method: 'DELETE', headers: { 'Authorization': zmToken } });
     loadCampaigns();
+    zmCurrentCampIdForLeads = null;
+    const refreshBtn = document.getElementById('zm-leads-refresh-btn');
+    if (refreshBtn) refreshBtn.classList.add('hidden');
+    const list = document.getElementById('zm-leads-list');
+    if (list) list.innerHTML = '<div class="text-center text-slate-400 py-6">בחר קמפיין לצפייה בלידים</div>';
 }
 
 // ============================================================
@@ -627,12 +632,14 @@ async function deleteCampaign(id) {
 async function loadLeadsTab() {
     const wrap = document.getElementById('zm-leads-campaign-select-wrap');
     const list = document.getElementById('zm-leads-list');
+    const refreshBtn = document.getElementById('zm-leads-refresh-btn');
     try {
         const res = await fetch(`${API}/zone-manager/campaigns`, { headers: { 'Authorization': zmToken } });
         const data = await res.json();
         zmCampaigns = data.campaigns || [];
         if (!zmCampaigns.length) {
             wrap.innerHTML = '';
+            if (refreshBtn) refreshBtn.classList.add('hidden');
             list.innerHTML = '<div class="text-center text-slate-400 py-8">אין קמפיינים. צור קמפיין תחילה.</div>';
             return;
         }
@@ -648,12 +655,15 @@ async function viewCampaignLeads(campId, campTitle) {
     if (!campId) return;
     zmCurrentCampIdForLeads = campId;
     const list = document.getElementById('zm-leads-list');
+    const refreshBtn = document.getElementById('zm-leads-refresh-btn');
+    if (refreshBtn) refreshBtn.classList.remove('hidden');
     list.innerHTML = '<div class="text-center text-slate-400 py-4">טוען לידים...</div>';
     try {
         const res = await fetch(`${API}/zone-manager/campaigns/${campId}/leads`, { headers: { 'Authorization': zmToken } });
         const data = await res.json();
         if (!data.success || !data.leads.length) {
             list.innerHTML = `<div class="text-center text-slate-400 py-8"><i class="fa-solid fa-user-slash text-3xl text-slate-200 mb-3 block"></i>אין לידים עדיין לקמפיין זה</div>`;
+            if (refreshBtn) refreshBtn.classList.add('hidden');
             return;
         }
         const hasUnanalyzed = data.leads.some(l => l.ai_score === null || l.ai_score === undefined);
@@ -666,6 +676,39 @@ async function viewCampaignLeads(campId, campTitle) {
                 ${renderLeads(data.leads)}
             </div>`;
     } catch(e) { list.innerHTML = '<div class="text-center text-red-400 py-4">שגיאה</div>'; }
+}
+
+async function zmRefreshLeads() {
+    if (!zmCurrentCampIdForLeads) return;
+    const refreshBtn = document.getElementById('zm-leads-refresh-btn');
+    const list = document.getElementById('zm-leads-list');
+    if (refreshBtn) {
+        refreshBtn.classList.add('opacity-50', 'pointer-events-none');
+        refreshBtn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i>';
+    }
+    try {
+        const res = await fetch(`${API}/zone-manager/campaigns/${zmCurrentCampIdForLeads}/leads`, { headers: { 'Authorization': zmToken } });
+        const data = await res.json();
+        if (!data.success || !data.leads.length) {
+            list.innerHTML = `<div class="text-center text-slate-400 py-8"><i class="fa-solid fa-user-slash text-3xl text-slate-200 mb-3 block"></i>אין לידים עדיין לקמפיין זה</div>`;
+        } else {
+            const hasUnanalyzed = data.leads.some(l => l.ai_score === null || l.ai_score === undefined);
+            list.innerHTML = `
+                <div class="flex justify-between items-center mb-3">
+                    ${hasUnanalyzed ? `<button onclick="analyzeLeads(${zmCurrentCampIdForLeads})" class="text-xs font-bold bg-purple-50 text-purple-600 px-3 py-1.5 rounded-xl hover:bg-purple-100 transition" id="zm-analyze-btn"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>נתח עם AI</button>` : '<span class="text-xs text-emerald-600 font-bold"><i class="fa-solid fa-check-circle mr-1"></i>כל הלידים נותחו</span>'}
+                    <span class="text-sm font-bold text-slate-600">${data.leads.length} לידים</span>
+                </div>
+                <div class="space-y-2" id="zm-leads-inner">
+                    ${renderLeads(data.leads)}
+                </div>`;
+        }
+    } catch(e) { list.innerHTML = '<div class="text-center text-red-400 py-4">שגיאה ברענון</div>'; }
+    finally {
+        if (refreshBtn) {
+            refreshBtn.classList.remove('opacity-50', 'pointer-events-none');
+            refreshBtn.innerHTML = '<i class="fa-solid fa-arrow-rotate-right"></i>';
+        }
+    }
 }
 
 const LEAD_TYPE_LABELS = { business:'🏪 עסק', family:'👨‍👩‍👧 משפחה', unknown:'❓ לא ידוע' };
