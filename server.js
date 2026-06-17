@@ -8,6 +8,41 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { GoogleGenAI } = require('@google/genai');
 const nodemailer = require('nodemailer');
 
+// ─── SMS Service (Generic - Replace with Twilio/Mada/etc) ──────────────────────
+const smsService = {
+    send: async (phone, message, code) => {
+        // בדיקות קוד בהרצה:
+        // TODO: החלף בשירות SMS אמיתי:
+        // - Twilio: const client = require('twilio')(accountSid, authToken);
+        // - Mada SMS: fetch('https://api.madasms.com/send', {...})
+        // - פופ"ש: fetch('https://mms.mobiv.com/...', {...})
+
+        const smsRecord = {
+            timestamp: new Date().toISOString(),
+            phone,
+            message,
+            code,
+            testMode: process.env.SMS_SERVICE === 'test' || !process.env.SMS_SERVICE
+        };
+
+        if (process.env.SMS_SERVICE === 'test' || !process.env.SMS_SERVICE) {
+            // מצב בדיקה - הדפס ללוג בלבד
+            console.log(`[SMS_TEST] ${JSON.stringify(smsRecord)}`);
+            return { success: true, testMode: true };
+        }
+
+        // החלף את זה בקוד האמיתי שלך:
+        // switch(process.env.SMS_SERVICE) {
+        //     case 'twilio':
+        //         return await sendViaTwilio(phone, message, code);
+        //     case 'mada':
+        //         return await sendViaMada(phone, message, code);
+        //     default:
+        //         console.log(`[SMS] Unknown SMS service: ${process.env.SMS_SERVICE}`);
+        // }
+    }
+};
+
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -14906,9 +14941,8 @@ app.post('/api/public/restaurants/:groupId/book-table', async (req, res) => {
 
         const tempId = result.rows[0].id;
 
-        // שליחת SMS (ממלא מקום - צריך להחליף ב-Twilio או שירות SMS אחר)
-        // TODO: החלף ב-Twilio API
-        console.log(`[SMS] לטלפון ${phone}: קוד האישור שלך: ${smsCode}`);
+        // שליחת SMS דרך השירות
+        await smsService.send(phone, `קוד האישור שלך: ${smsCode}`, smsCode);
 
         res.json({
             success: true,
