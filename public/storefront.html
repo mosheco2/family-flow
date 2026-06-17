@@ -2181,9 +2181,18 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
 
             slotsContainer.innerHTML = '<p class="col-span-3 text-xs text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin mr-1"></i> טוען זמינות...</p>';
 
+            const startTime = performance.now();
             try {
+                console.log(`[AVAILABILITY] Fetching availability for date: ${dateStr}, groupId: ${storeData.groupId}`);
+                const fetchStart = performance.now();
                 const res = await fetch(`${API}/public/restaurants/${storeData.groupId}/availability/${dateStr}`);
+                const fetchTime = performance.now() - fetchStart;
+                console.log(`[AVAILABILITY] Fetch request took ${fetchTime.toFixed(2)}ms`);
+
+                const jsonStart = performance.now();
                 const data = await res.json();
+                const jsonTime = performance.now() - jsonStart;
+                console.log(`[AVAILABILITY] JSON parsing took ${jsonTime.toFixed(2)}ms`);
 
                 if (!data.success || !data.slots || data.slots.length === 0) {
                     slotsContainer.innerHTML = '<p class="col-span-3 text-xs text-red-500 text-center py-4">אין זמינות בתאריך זה</p>';
@@ -2191,6 +2200,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 }
 
                 // צור כפתורי שעות
+                const renderStart = performance.now();
                 const slotsHtml = data.slots.map(slot => `
                     <button type="button" onclick="window.selectTableTime('${slot.time}')"
                         class="py-2 px-3 rounded-lg text-xs font-bold transition ${
@@ -2205,6 +2215,11 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 `).join('');
 
                 slotsContainer.innerHTML = slotsHtml;
+                const renderTime = performance.now() - renderStart;
+                console.log(`[AVAILABILITY] Rendering took ${renderTime.toFixed(2)}ms`);
+
+                const totalTime = performance.now() - startTime;
+                console.log(`[AVAILABILITY] Total time: ${totalTime.toFixed(2)}ms`);
             } catch(e) {
                 console.error('Error loading availability:', e);
                 slotsContainer.innerHTML = '<p class="col-span-3 text-xs text-red-500 text-center py-4">שגיאה בטעינת זמינות</p>';

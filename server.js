@@ -1323,6 +1323,9 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       )`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_logistics_tracking ON logistics_orders(tracking_token) WHERE tracking_token IS NOT NULL`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_logistics_routes_date ON logistics_routes(group_id, route_date)`); } catch(e) {}
+      // ── calendar_events indexes for availability queries ────────────────────────
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_calendar_events_availability ON calendar_events(group_id, event_date, call_type, status) WHERE call_type='table_reservation' AND status IN ('pending', 'approved')`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_calendar_events_group_date ON calendar_events(group_id, event_date)`); } catch(e) {}
       // ── logistics_customers ────────────────────────────────────────────────
       try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_customers (
           id SERIAL PRIMARY KEY,
@@ -14818,22 +14821,25 @@ app.delete('/api/logistics/invoices/:id', async (req, res) => {
 app.get('/api/public/restaurants/:groupId/availability/:date', async (req, res) => {
     try {
         const { groupId, date } = req.params;
+        const startTime = Date.now();
 
         // שליפת הגדרות העסק
-        const groupRes = await pool.query('SELECT * FROM family_groups WHERE id=$1', [groupId]);
+        const groupRes = await pool.query('SELECT table_count FROM family_groups WHERE id=$1', [groupId]);
         if (!groupRes.rows.length) return res.status(404).json({ success: false, error: 'עסק לא נמצא' });
 
-        const group = groupRes.rows[0];
-        const tableCount = parseInt(group.table_count) || 8;
+        const tableCount = parseInt(groupRes.rows[0].table_count) || 8;
+        console.log(`[AVAILABILITY] groupId=${groupId}, date=${date}, tableCount=${tableCount}`);
 
-        // שליפת הזמנות קיימות ביום זה
+        // שליפת הזמנות קיימות ביום זה - בחירה ספציפית של עמודות
+        const queryStart = Date.now();
         const reservations = await pool.query(
-            `SELECT * FROM calendar_events
+            `SELECT start_time, num_guests FROM calendar_events
              WHERE group_id=$1 AND event_date=$2 AND call_type='table_reservation'
-             AND status IN ('pending', 'approved')
-             ORDER BY start_time`,
+             AND status IN ('pending', 'approved')`,
             [groupId, date]
         );
+        const queryTime = Date.now() - queryStart;
+        console.log(`[AVAILABILITY] DB query took ${queryTime}ms, found ${reservations.rows.length} reservations`);
 
         // בנית זמינות לפי שעות
         const slots = [];
@@ -14855,6 +14861,8 @@ app.get('/api/public/restaurants/:groupId/availability/:date', async (req, res) 
             });
         }
 
+        const totalTime = Date.now() - startTime;
+        console.log(`[AVAILABILITY] Total endpoint time: ${totalTime}ms`);
         res.json({ success: true, slots });
     } catch(e) {
         console.error('Error loading availability:', e);
