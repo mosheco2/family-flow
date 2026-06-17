@@ -4255,6 +4255,9 @@ window.renderDashboard = async function(forceRefresh = false) {
         s('kpi-open-tasks',    openTasks);
         s('kpi-revenue-month', `₪${revenueMonth.toLocaleString('he-IL', {maximumFractionDigits:0})}`);
 
+        // Alerts: low stock (qty ≤ 2)
+        const lowStock = (pantryCache || []).filter(p => parseFloat(p.quantity) <= 2);
+
         // === KPIs ייחודיים למסעדה/בית קפה ===
         const restKpiDiv = document.getElementById('restaurant-kpi-cards');
         if (restKpiDiv) {
@@ -4308,7 +4311,6 @@ window.renderDashboard = async function(forceRefresh = false) {
         }
 
         // Alerts: low stock (qty ≤ 2)
-        const lowStock   = (pantryCache || []).filter(p => parseFloat(p.quantity) <= 2);
         const alertsBox  = document.getElementById('dashboard-alerts');
         const alertsList = document.getElementById('dashboard-alerts-list');
         if (alertsBox && alertsList) {
@@ -29410,13 +29412,12 @@ window.refreshAdminTablesData = async function() {
     if (!currentGroup?.id) return;
 
     // ── fetch live data ────────────────────────────────────────────────────────
-    let pendingReady = [], itemReadyList = [], members_ = [];
+    let pendingReady = [], itemReadyList = [], members_ = [], pendingApprovalAdmin = [];
     try { const mr = await fetch(`${API}/members/${currentGroup.id}`); const md = await mr.json(); members_ = (md.members||[]).filter(m => m.role !== 'ADMIN'); } catch(e) {}
     try {
         const or = await fetch(`${API}/store/orders/${currentGroup.id}`);
         const od = await or.json();
         if (Array.isArray(od)) {
-            let pendingApprovalAdmin = [];
             od.filter(o => o.status === 'pending_approval' && (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true')).forEach(o => {
                 let items = [];
                 try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))); } catch(e3) {}
