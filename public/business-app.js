@@ -648,10 +648,23 @@ window.injectBusinessUI = function() {
                         </div>
                         <div id="pos-cart-list" class="flex-1 overflow-y-auto modal-scroll p-4 space-y-3 bg-slate-50/50"></div>
                         <div class="p-5 bg-white border-t border-slate-200 shadow-[0_-4px_10px_rgba(0,0,0,0.03)] shrink-0 relative">
-                            <div class="flex justify-between items-end mb-1">
+                            <div class="flex justify-between items-end mb-2">
                                 <span class="text-sm font-bold text-slate-400" id="pos-items-count">0 פריטים</span>
                                 <span class="text-4xl font-black text-indigo-600 dir-ltr" id="pos-total-display">₪0.00</span>
                             </div>
+                            <!-- 🎁 הנחה ידנית -->
+                            <div id="pos-manual-discount-row" class="hidden mb-3 flex items-center gap-2 bg-orange-50 p-2 rounded-xl border border-orange-100">
+                                <button onclick="window.setPOSDiscount(null)" class="flex-1 bg-white text-orange-600 px-2 py-2 rounded-lg text-xs font-bold hover:bg-orange-50 transition border border-orange-200">% הנחה</button>
+                                <input type="number" id="pos-discount-percent" min="0" max="100" placeholder="%" oninput="window.calcPOSDiscountFromPercent()" class="w-16 px-2 py-2 rounded-lg border border-orange-200 text-center text-xs font-bold outline-none focus:border-orange-400">
+                                <button onclick="window.setPOSDiscount('fixed')" class="flex-1 bg-white text-orange-600 px-2 py-2 rounded-lg text-xs font-bold hover:bg-orange-50 transition border border-orange-200">₪ סכום</button>
+                                <input type="number" id="pos-discount-fixed" min="0" placeholder="₪" oninput="window.calcPOSDiscountFromFixed()" class="w-16 px-2 py-2 rounded-lg border border-orange-200 text-center text-xs font-bold dir-ltr outline-none focus:border-orange-400">
+                                <button onclick="window.clearPOSDiscount()" class="bg-red-50 text-red-600 px-2 py-2 rounded-lg text-xs font-bold hover:bg-red-100 transition border border-red-200">✕</button>
+                            </div>
+                            <div id="pos-discount-display" class="hidden text-sm text-orange-600 font-bold mb-2 text-center">הנחה: -₪<span id="pos-discount-amount">0.00</span></div>
+                            <!-- כפתור הנחה בקיצור -->
+                            <button id="btn-pos-discount" onclick="window.togglePOSDiscountPanel()" class="w-full mb-3 bg-orange-100 text-orange-700 py-2 rounded-xl font-bold text-xs hover:bg-orange-200 transition border border-orange-200 flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-percent"></i> הנחה ידנית
+                            </button>
                             <div id="pos-vat-display" class="text-left text-[11px] text-indigo-400 font-bold mb-4 hidden">כולל מע"מ: ₪<span id="pos-vat-val">0.00</span></div>
                             <button id="btn-submit-pos" onclick="window.handlePosTenderClick()" class="w-full bg-emerald-500 text-white py-4 rounded-2xl font-black text-xl shadow-lg hover:bg-emerald-600 transition flex justify-center items-center gap-3">
                                 תשלום <i class="fa-solid fa-credit-card"></i>
@@ -22819,6 +22832,69 @@ window.submitPOSBundle = function() {
     window.renderPOSCart();
 };
 
+// 🎁 פונקציות הנחה ידנית בקופה
+window.togglePOSDiscountPanel = function() {
+    const panel = document.getElementById('pos-manual-discount-row');
+    if (panel) panel.classList.toggle('hidden');
+};
+
+window.calcPOSDiscountFromPercent = function() {
+    const percent = parseFloat(document.getElementById('pos-discount-percent').value) || 0;
+    let netTotal = 0;
+    window.posCart.forEach(i => netTotal += (i.price * i.qty));
+    const discount = (netTotal * percent / 100);
+    window.currentPOSManualDiscount = Math.min(discount, netTotal);
+    document.getElementById('pos-discount-fixed').value = '';
+    window.renderPOSCart();
+    window.showDiscountDisplay();
+};
+
+window.calcPOSDiscountFromFixed = function() {
+    const fixed = parseFloat(document.getElementById('pos-discount-fixed').value) || 0;
+    let netTotal = 0;
+    window.posCart.forEach(i => netTotal += (i.price * i.qty));
+    window.currentPOSManualDiscount = Math.min(fixed, netTotal);
+    document.getElementById('pos-discount-percent').value = '';
+    window.renderPOSCart();
+    window.showDiscountDisplay();
+};
+
+window.clearPOSDiscount = function() {
+    window.currentPOSManualDiscount = 0;
+    document.getElementById('pos-discount-percent').value = '';
+    document.getElementById('pos-discount-fixed').value = '';
+    const panel = document.getElementById('pos-manual-discount-row');
+    if (panel) panel.classList.add('hidden');
+    const display = document.getElementById('pos-discount-display');
+    if (display) display.classList.add('hidden');
+    window.renderPOSCart();
+};
+
+window.setPOSDiscount = function(type) {
+    // סמן את הכפתור הנבחר
+    if (type === null) {
+        document.getElementById('pos-discount-fixed').value = '';
+        document.getElementById('pos-discount-fixed').focus();
+    } else if (type === 'fixed') {
+        document.getElementById('pos-discount-percent').value = '';
+        document.getElementById('pos-discount-fixed').focus();
+    }
+};
+
+window.showDiscountDisplay = function() {
+    const disc = window.currentPOSManualDiscount || 0;
+    const display = document.getElementById('pos-discount-display');
+    const amount = document.getElementById('pos-discount-amount');
+    if (display && amount) {
+        if (disc > 0) {
+            amount.innerText = disc.toFixed(2);
+            display.classList.remove('hidden');
+        } else {
+            display.classList.add('hidden');
+        }
+    }
+};
+
 window.finalizePOSOrder = async function() {
     const btn = document.getElementById('btn-finalize-pos'); 
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> סולק ומדפיס...';
@@ -28470,15 +28546,29 @@ function renderTableGrid() {
         const resTimeHtml = resForTable.length
             ? resForTable.slice(0,2).map(r => `<span class="text-[8px] font-black text-blue-600 leading-none">${String(r.start_time||'').slice(0,5)} · ${r.num_guests||'?'}👥</span>`).join('')
             : '';
-        // Border timer: חיווי זמן ישיבה על שולחנות תפוסים
+        // Border timer: חיווי זמן ישיבה על שולחנות תפוסים — שיפור UI
         const _seatedAt = states[`_t${id}`] ? parseInt(states[`_t${id}`]) : null;
         const _elapsedMins = _seatedAt ? Math.floor((Date.now() - _seatedAt) / 60000) : 0;
         let timerHtml = '';
         if ((st === 'occupied' || st === 'awaiting_payment') && _seatedAt) {
-            const _pct = Math.min(100, Math.round(_elapsedMins / 90 * 100));
-            const _barColor = _pct < 60 ? 'bg-green-400' : _pct < 80 ? 'bg-amber-400' : _pct < 100 ? 'bg-orange-500' : 'bg-red-500';
+            // טיימר צבעוני: ירוק (0-60) → ענבר (60-80) → כתום (80-90) → אדום (90+)
+            let _barColor, _alertClass;
+            if (_elapsedMins <= 60) {
+                _barColor = 'bg-green-500';
+                _alertClass = 'text-green-600';
+            } else if (_elapsedMins <= 80) {
+                _barColor = 'bg-amber-400';
+                _alertClass = 'text-amber-600';
+            } else if (_elapsedMins <= 90) {
+                _barColor = 'bg-orange-500';
+                _alertClass = 'text-orange-600 font-bold';
+            } else {
+                _barColor = 'bg-red-600';
+                _alertClass = 'text-red-600 font-black';
+            }
+            const _pct = Math.min(100, Math.round(_elapsedMins / 120 * 100)); // 120 דקות = 100%
             const _minsStr = _elapsedMins >= 60 ? `${Math.floor(_elapsedMins/60)}ש${_elapsedMins%60?`${_elapsedMins%60}′`:''}` : `${_elapsedMins}′`;
-            timerHtml = `<div class="w-full rounded-full bg-white/60 overflow-hidden" style="height:3px;"><div class="${_barColor} h-full" style="width:${_pct}%"></div></div><span class="${_pct>=100?'text-red-600 font-black':'text-slate-400'} text-[7px] leading-none">${_minsStr}</span>`;
+            timerHtml = `<div class="w-full rounded-full bg-slate-200 overflow-hidden" style="height:2.5px;"><div class="${_barColor} h-full transition-all" style="width:${_pct}%"></div></div><span class="${_alertClass} text-[7px] leading-none">${_minsStr}</span>`;
         }
         return `<button type="button"
             data-id="${id}"
