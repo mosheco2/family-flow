@@ -195,8 +195,8 @@
         img[src="/undefined"], img[src="/null"], img[src="/"], img:not([src]) { display: none !important; }
 
         /* התאמת באנרים לתצוגה מלאה ללא חיתוך */
-        #app-banner-top, #app-banner-bottom { display: flex !important; align-items: center; justify-content: center; background-color: transparent !important; padding: 0 !important; }
-        #app-banner-top img, #app-banner-bottom img { object-fit: contain !important; width: 100% !important; height: auto !important; max-height: 120px !important; margin: 0 auto; display: block; }
+        #app-banner-top:not(.hidden), #app-banner-bottom:not(.hidden) { display: flex !important; align-items: center; justify-content: center; background-color: transparent !important; padding: 0 !important; }
+        #app-banner-top:not(.hidden) img, #app-banner-bottom:not(.hidden) img { object-fit: contain !important; width: 100% !important; height: auto !important; max-height: 120px !important; margin: 0 auto; display: block; }
     </style>
     <link rel="manifest" href="/manifest-business.json">
     <meta name="theme-color" content="#1e1b4b">
