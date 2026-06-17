@@ -685,6 +685,7 @@ window.injectBusinessUI = function() {
                         <button id="btn-sales-catalog" onclick="window.switchSalesTab('catalog')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-book-open text-sm"></i>קטלוג</button>
                         <button id="btn-sales-complex" onclick="window.switchSalesTab('complex')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-utensils text-sm"></i>תפריטים ופרויקטים</button>
                         <button id="btn-sales-marketing" onclick="window.switchSalesTab('marketing')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-bullhorn text-sm"></i>שיווק</button>
+                        <button id="btn-sales-reviews" onclick="window.switchSalesTab('reviews')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-star text-sm"></i>דירוגים ⭐</button>
                         <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-gear text-sm"></i>הגדרות</button>
                         <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="hidden flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-chart-bar text-sm"></i>אנליטיקה</button>
                     </div>
@@ -1086,6 +1087,13 @@ window.injectBusinessUI = function() {
                             </div>
                             <p id="analytics-orders-count-label" class="text-center text-[10px] text-slate-400 mt-3"></p>
                         </div>
+                    </div>
+
+                    <div id="sales-view-reviews" class="hidden space-y-4">
+                        <div class="flex justify-between items-center mb-4 px-1">
+                            <h4 class="font-bold text-slate-700 text-sm">דירוגים וביקורות לקוחות</h4>
+                        </div>
+                        <div id="reviews-root" class="space-y-4 pb-8"></div>
                     </div>
                 </div>
             </div>`);
@@ -16619,7 +16627,7 @@ setInterval(() => {
 
 window.switchSalesTab = function(subTab) {
     window._currentBizSubTab = 'sales.' + subTab;
-    ['pos', 'orders', 'catalog', 'complex', 'marketing', 'settings', 'quotes', 'analytics', 'work-orders'].forEach(t => {
+    ['pos', 'orders', 'catalog', 'complex', 'marketing', 'settings', 'quotes', 'analytics', 'reviews', 'work-orders'].forEach(t => {
         const view = document.getElementById(`sales-view-${t}`); if(view) view.classList.add('hidden');
         const btn = document.getElementById(`btn-sales-${t}`); if(btn) btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
     });
@@ -16692,6 +16700,11 @@ window.switchSalesTab = function(subTab) {
             if (list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא הוגדרו מבצעים פעילים לחנות.</p>';
             if(typeof window.fetchStoreCoupons === 'function') window.fetchStoreCoupons();
         }
+    }
+    if(subTab === 'reviews') {
+        const root = document.getElementById('reviews-root');
+        if(root) root.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען דירוגים...</p>';
+        if (typeof window.loadReviews === 'function') window.loadReviews();
     }
     if(subTab === 'work-orders') { if (typeof window.fetchWorkOrders === 'function') window.fetchWorkOrders(); }
 };
