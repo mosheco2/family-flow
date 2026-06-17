@@ -1843,7 +1843,7 @@ function switchTab(t) {
     if (t === 'logistics_customers') try { loadLogisticsCustomers(); } catch(e) {}
     if (t === 'logistics_invoices')  try { loadLogisticsInvoices(); } catch(e) {}
     if (t === 'reviews')               try { loadReviews(); } catch(e) {}
-    if (t === 'settings')              try { renderSettingsHub(); } catch(e) {}
+    if (t === 'settings')              { try { renderSettingsHub(); } catch(e) {} window.scrollTo({ top: 0, behavior: 'instant' }); }
 }
 
 function updateBatteryUI() {
@@ -3842,7 +3842,7 @@ const GNAV_GROUPS = {
     sales:     ['pos','sales','customers','deliveries','reviews','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
     inventory: ['shop','pantry','equipment','foodcost','beauty_inventory'],
     finance:   ['bank','cashflow','budget','forecast','beauty_commissions'],
-    more:      ['community','surveys']
+    more:      ['community','surveys','settings']
 };
 
 // שמירת האב המקורי של כל dropdown לצורך החזרה
