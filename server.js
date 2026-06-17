@@ -657,6 +657,22 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS num_guests INT DEFAULT 1`); } catch(e) {}
       try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS call_type VARCHAR(30) DEFAULT NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS reserved_table_number INT DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS temp_table_reservations (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          customer_name VARCHAR(200) NOT NULL,
+          customer_phone VARCHAR(50) NOT NULL,
+          reservation_date DATE NOT NULL,
+          reservation_time TIME NOT NULL,
+          num_guests INT DEFAULT 2,
+          notes TEXT,
+          sms_code VARCHAR(4),
+          sms_sent_at TIMESTAMP,
+          verified_at TIMESTAMP,
+          status VARCHAR(20) DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT NOW(),
+          expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '30 minutes'
+      )`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_assignees (
           id SERIAL PRIMARY KEY,
           work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
@@ -14796,6 +14812,181 @@ app.delete('/api/logistics/invoices/:id', async (req, res) => {
 });
 
 // ===== END LOGISTICS API =====
+
+// ─── Public Table Reservations (Storefront) ──────────────────────────────────
+// GET זמינות שולחנות ליום מסוים
+app.get('/api/public/restaurants/:groupId/availability/:date', async (req, res) => {
+    try {
+        const { groupId, date } = req.params;
+
+        // שליפת הגדרות העסק
+        const groupRes = await pool.query('SELECT * FROM family_groups WHERE id=$1', [groupId]);
+        if (!groupRes.rows.length) return res.status(404).json({ success: false, error: 'עסק לא נמצא' });
+
+        const group = groupRes.rows[0];
+        const tableCount = parseInt(group.table_count) || 8;
+
+        // שליפת הזמנות קיימות ביום זה
+        const reservations = await pool.query(
+            `SELECT * FROM calendar_events
+             WHERE group_id=$1 AND event_date=$2 AND call_type='table_reservation'
+             AND status IN ('pending', 'approved')
+             ORDER BY start_time`,
+            [groupId, date]
+        );
+
+        // בנית זמינות לפי שעות
+        const slots = [];
+        for (let hour = 10; hour <= 23; hour++) {
+            const timeStr = String(hour).padStart(2, '0') + ':00';
+
+            // ספרו כמה שולחנות תפוסים בשעה זו ±1 שעה
+            const occupied = reservations.rows.filter(r => {
+                const [rHour] = r.start_time.split(':');
+                const diff = Math.abs(parseInt(rHour) - hour);
+                return diff <= 1;
+            }).reduce((sum, r) => sum + (r.num_guests || 1), 0);
+
+            const available = tableCount - Math.ceil(occupied / 2);
+            slots.push({
+                time: timeStr,
+                available: available > 0,
+                tables: Math.max(0, available)
+            });
+        }
+
+        res.json({ success: true, slots });
+    } catch(e) {
+        console.error('Error loading availability:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// POST הזמנת שולחן (יצירת record זמני + שליחת SMS)
+app.post('/api/public/restaurants/:groupId/book-table', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const { name, phone, date, time, numGuests, notes } = req.body;
+
+        if (!name || !phone || !date || !time || !numGuests) {
+            return res.status(400).json({ success: false, error: 'חסרים פרטים חובה' });
+        }
+
+        // בדיקת זמינות בשנית (לוודא שלא תפוסה כבר)
+        const check = await pool.query(
+            `SELECT COUNT(*) as cnt FROM calendar_events
+             WHERE group_id=$1 AND event_date=$2 AND call_type='table_reservation'
+             AND status IN ('pending', 'approved')`,
+            [groupId, date]
+        );
+
+        if (parseInt(check.rows[0].cnt) >= parseInt((await pool.query('SELECT table_count FROM family_groups WHERE id=$1', [groupId])).rows[0].table_count || 8)) {
+            return res.status(400).json({ success: false, error: 'אין זמינות בשעה זו' });
+        }
+
+        // יצירת code אישור 4 ספרות
+        const smsCode = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+
+        // שמירת בקשה זמנית
+        const result = await pool.query(
+            `INSERT INTO temp_table_reservations
+             (group_id, customer_name, customer_phone, reservation_date, reservation_time, num_guests, notes, sms_code, sms_sent_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+             RETURNING id`,
+            [groupId, name, phone, date, time, numGuests, notes, smsCode]
+        );
+
+        const tempId = result.rows[0].id;
+
+        // שליחת SMS (ממלא מקום - צריך להחליף ב-Twilio או שירות SMS אחר)
+        // TODO: החלף ב-Twilio API
+        console.log(`[SMS] לטלפון ${phone}: קוד האישור שלך: ${smsCode}`);
+
+        res.json({
+            success: true,
+            tempId: tempId,
+            message: 'בקשה שלחה. בדוק את ה-SMS שלך לקוד אישור.'
+        });
+    } catch(e) {
+        console.error('Error booking table:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// POST אימות SMS והשלמת הזמנה
+app.post('/api/public/restaurants/:groupId/verify-table-sms', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const { tempId, code } = req.body;
+
+        if (!code || code.length !== 4) {
+            return res.status(400).json({ success: false, error: 'קוד שגוי' });
+        }
+
+        // שליפת ההזמנה הזמנית
+        const tempRes = await pool.query(
+            `SELECT * FROM temp_table_reservations
+             WHERE id=$1 AND group_id=$2 AND status='pending'`,
+            [tempId, groupId]
+        );
+
+        if (!tempRes.rows.length) {
+            return res.status(404).json({ success: false, error: 'הזמנה לא נמצאה' });
+        }
+
+        const temp = tempRes.rows[0];
+
+        // בדיקת קוד SMS
+        if (temp.sms_code !== code) {
+            return res.status(400).json({ success: false, error: 'קוד שגוי' });
+        }
+
+        // בדיקת תוקף (30 דקות)
+        const now = new Date();
+        const sentAt = new Date(temp.sms_sent_at);
+        if ((now - sentAt) / 1000 / 60 > 30) {
+            return res.status(400).json({ success: false, error: 'קוד פג תוקף' });
+        }
+
+        // מצא שולחן פנוי והוסף הזמנה כחוקית
+        const eventRes = await pool.query(
+            `INSERT INTO calendar_events
+             (group_id, title, customer_phone, customer_name, notes, event_date, start_time, status, num_guests, call_type, customer_group_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', $8, 'table_reservation', NULL)
+             RETURNING id`,
+            [
+                groupId,
+                `${temp.customer_name} — ${temp.num_guests} סועדים`,
+                temp.customer_phone,
+                temp.customer_name,
+                temp.notes || '',
+                temp.reservation_date,
+                temp.reservation_time,
+                temp.num_guests
+            ]
+        );
+
+        // עדכון ההזמנה הזמנית
+        await pool.query(
+            `UPDATE temp_table_reservations SET status='verified', verified_at=NOW() WHERE id=$1`,
+            [tempId]
+        );
+
+        // שליחת SMS אישור סופי
+        console.log(`[SMS] לטלפון ${temp.customer_phone}: ההזמנה שלך אושרה בהצלחה!`);
+
+        res.json({
+            success: true,
+            eventId: eventRes.rows[0].id,
+            message: 'ההזמנה אושרה בהצלחה!'
+        });
+    } catch(e) {
+        console.error('Error verifying SMS:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// ===== END PUBLIC RESERVATIONS API =====
 
 // הפעלת השרת
 app.listen(port, () => {

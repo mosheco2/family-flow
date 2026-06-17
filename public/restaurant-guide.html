@@ -99,6 +99,7 @@
     <a class="nav-link" href="#pos">קופה (POS)</a>
     <a class="nav-link" href="#tables">ניהול שולחנות</a>
     <a class="nav-link" href="#table-reservations">📅 הזמנות שולחן מרחוק</a>
+    <a class="nav-link" href="#sms-verification">📱 אימות SMS</a>
     <a class="nav-link" href="#waitlist">⏳ תור המתנה</a>
     <a class="nav-link" href="#ratings">⭐ דירוגי לקוחות</a>
     <a class="nav-link" href="#menu">תפריט וקטלוג</a>
@@ -489,7 +490,32 @@
     <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">📱 QR לשולחן</h3>
     <p style="font-size:0.9rem;color:#475569;margin-bottom:0.5rem;">לחץ 📱 על כל שולחן → מופיע QR קוד ייחודי. לקוח שסורק אותו מגיע ישירות לתפריט של המסעדה עם מספר שולחנו.</p>
 
-    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">📅 חלונות הושבה — תצוגת זמינות יומית</h3>
+    <h3 style="font-weight:700;margin:1.25rem 0 0.5rem;color:#991b1b;">🌐 הזמנת שולחן דרך החנות הציבורית — ללקוחות חדשים</h3>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.75rem;">אנשים שאינם ב-ONEFLOW LIFE יכולים להזמין שולחן ישירות דרך החנות הציבורית של המסעדה — בדיקת זמינות בסנכרון מלא ואישור דרך SMS.</p>
+
+    <h4 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">מצד הלקוח החדש — הזמנה דרך החנות הציבורית</h4>
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content"><strong>כניסה לחנות הציבורית</strong><span>לקוח חיצוני נכנס לקישור החנות של המסעדה (כל עסק מוקבץ ברנדר וקרא URL שנראה כמו "https://oneflowlife.co.il/...?group=123")</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>לחץ "🍽️ הזמן שולחן"</strong><span>בגזרת המידע בחלק העליון של החנות, יופיע כפתור כתום "הזמן שולחן" (מוצג רק עבור עסקי מסעדה)</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-content"><strong>ממלא בקשה</strong><span>שם מלא, טלפון, בחירת תאריך ושעה (מציגה רק שעות פנויות), מספר סועדים (1-12), והערות אופציונליות</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">4</div>
+      <div class="step-content"><strong>שליחה ואישור SMS</strong><span>לחץ "שליחת בקשה" → קוד 4 ספרות נשלח בSMS → הלקוח מזין את הקוד במודל אישור → ההזמנה אושרה!</span></div>
+    </div>
+
+    <div class="tip-box"><strong>💡 זמינות בסנכרון:</strong> בעת בחירת תאריך, המערכת בודקת בריאל-טיים את כל ההזמנות הקיימות של המסעדה וכל שעה מוצגת עם מספר שולחנות פנויים בשעה זו ± 1 שעה.</div>
+    <div class="tip-box"><strong>📱 אישור בSMS:</strong> בשביל הוכחת מספר הטלפון, נשלח קוד 4 ספרות. הלקוח מזין אותו בחלון הצץ → ההזמנה הופכת לאמיתית בsystem של המסעדה ומדומת מיד ב-יומן.</div>
+    <div class="info-box"><strong>👤 בצד העסק:</strong> ההזמנה מגיעה כ-"בקשה משולחנת" בטאב "הזמנות שולחן" (בדיוק כמו בקשות של ONEFLOW) — עם שם, טלפון, תאריך, שעה, מספר סועדים, והערות. מנהל יכול לאשר/לדחות כרגיל.</div>
+
+    <h3 style="font-weight:700;margin:1.5rem 0 0.5rem;color:#991b1b;">📅 חלונות הושבה — תצוגת זמינות יומית למנהל</h3>
     <p style="font-size:0.9rem;color:#475569;margin-bottom:0.75rem;">תצוגה המאפשרת לראות בבת אחת את כל ההזמנות המאושרות לכל שולחן לאורך היום — כך ניתן לדעת מיד אילו "חלונות" פנויים להושבה נוספת.</p>
     <div class="step-box">
       <div class="step-num">1</div>
@@ -505,6 +531,39 @@
     </div>
     <div class="info-box"><strong>📌 KPI בראש:</strong> בחלון מוצגים סה"כ הזמנות, סה"כ סועדים, וכמה ממתינות לאישור — לתמונה מיידית של העומס הצפוי.</div>
     <div class="info-box"><strong>👥 מי יכול לגשת?</strong> ניהול (ADMIN), מנהל (MANAGER), מנהל משמרת ומנהל סניף — וגם מלצר/ית (דרך גריד השולחנות בדשבורד שלהם).</div>
+  </div>
+</section>
+
+<!-- ========== SMS Verification ========== -->
+<section class="section-card" id="sms-verification">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">📱</span>
+    <h2>אימות בSMS — הזמנות שולחן מציבור</h2>
+  </div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">כדי להעלות את הביטחון בהזמנות משולחנות, לקוחות חדשים אישרים את מספר הטלפון שלהם דרך קוד ייחודי בSMS.</p>
+
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">איך עובד ה-flow?</h3>
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content"><strong>המערכת יוצרת קוד 4 ספרות</strong><span>כאשר הלקוח שולח בקשה להזמנת שולחן דרך החנות, הקוד מתחולל אקראית (0000-9999)</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>קוד נשלח בSMS</strong><span>ההודעה שלחה ל-משתמש עם הקוד, לדוגמה: "קוד האישור שלך: 1234"</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-content"><strong>לקוח מזין קוד במודל אישור</strong><span>4 שדות נפרדים בחלון הצץ (טוב לUX בטלפון) — כל שדה מקבל ספרה אחת</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">4</div>
+      <div class="step-content"><strong>המערכת בודקת אימות</strong><span>אם הקוד נכון וטרם פג (30 דקות) — ההזמנה אושרת סופית והופכת לpending בסיסטם של המסעדה</span></div>
+    </div>
+
+    <div class="info-box"><strong>⏱️ זמן תוקף:</strong> הקוד תקף ל-30 דקות מרגע שליחת ה-SMS. אם פג הזמן, הלקוח צריך לנסות הזמנה מחדש.</div>
+    <div class="tip-box"><strong>💡 שדות אוטומטיים:</strong> כשהלקוח מזין ספרה בשדה הראשון, הfocus עובר לשדה הבא. כשהוא מוחק, חוזר לשדה הקודם — חווית משתמש חלקה.</div>
+    <div class="warn-box"><strong>⚠️ ממלא מקום בקוד:</strong> כרגע ה-SMS יוצא לקונסול של השרת. אתם צריכים לחבר שירות SMS כמו Twilio או Mada SMS כדי לשלוח SMSים בפועל.</div>
   </div>
 </section>
 
