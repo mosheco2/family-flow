@@ -9434,12 +9434,18 @@ window._tableReservationModal = function(bizGroupId, bizName) {
             <div>
                 <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;text-align:right;">📅 תאריך</label>
                 <input type="date" id="tres-date" min="${today}" value="${today}"
+                    onchange="window._loadTableAvailabilityForModal(${bizGroupId}, this.value)"
                     style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 14px;font-size:14px;box-sizing:border-box;direction:ltr;text-align:left;">
             </div>
             <div>
-                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;text-align:right;">🕐 שעה</label>
-                <input type="time" id="tres-time" value="19:00"
-                    style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 14px;font-size:14px;box-sizing:border-box;direction:ltr;text-align:left;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                    <span id="tres-slots-label" style="font-size:11px;color:#94a3b8;"></span>
+                    <label style="font-size:11px;font-weight:700;color:#64748b;text-align:right;">🕐 בחר שעה</label>
+                </div>
+                <input type="hidden" id="tres-time">
+                <div id="tres-time-slots" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                    <p style="grid-column:1/-1;font-size:11px;color:#94a3b8;text-align:center;padding:12px 0;"><i class="fa-solid fa-spinner fa-spin"></i> טוען זמינות...</p>
+                </div>
             </div>
             <div>
                 <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;text-align:right;">👥 מספר סועדים</label>
@@ -9460,7 +9466,66 @@ window._tableReservationModal = function(bizGroupId, bizName) {
     </div>`;
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
     document.body.appendChild(modal);
-    document.getElementById('tres-date')?.focus();
+    // טעינת זמינות לתאריך היום מיד עם פתיחת ה-modal
+    window._loadTableAvailabilityForModal(bizGroupId, today);
+};
+
+window._loadTableAvailabilityForModal = async function(bizGroupId, dateStr, preSelectedTime) {
+    if (!dateStr) return;
+    const slotsEl = document.getElementById('tres-time-slots');
+    const labelEl = document.getElementById('tres-slots-label');
+    if (!slotsEl) return;
+
+    slotsEl.innerHTML = '<p style="grid-column:1/-1;font-size:11px;color:#94a3b8;text-align:center;padding:12px 0;"><i class="fa-solid fa-spinner fa-spin"></i> טוען זמינות...</p>';
+    if (labelEl) labelEl.textContent = '';
+
+    try {
+        const res = await fetch(`${API}/public/restaurants/${bizGroupId}/availability/${dateStr}`);
+        const data = await res.json();
+
+        if (!data.success || !data.slots?.length) {
+            slotsEl.innerHTML = '<p style="grid-column:1/-1;font-size:11px;color:#ef4444;text-align:center;padding:12px 0;">אין זמינות בתאריך זה</p>';
+            return;
+        }
+
+        slotsEl.innerHTML = data.slots.map(slot => {
+            const isDisabled = !slot.available;
+            const label = isDisabled ? 'תפוס' : `${slot.tables} שולחנות`;
+            const baseStyle = 'border:none;border-radius:10px;padding:8px 4px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s;line-height:1.4;';
+            const style = isDisabled
+                ? baseStyle + 'background:#f1f5f9;color:#94a3b8;cursor:not-allowed;opacity:0.7;'
+                : baseStyle + 'background:white;color:#374151;border:1.5px solid #e2e8f0;';
+            return `<button type="button" ${isDisabled ? 'disabled' : ''} data-slot="${slot.time}"
+                onclick="document.getElementById('tres-time').value='${slot.time}';window._highlightSelectedTimeModal('${slot.time}')"
+                style="${style}">
+                ${slot.time}<br><span style="font-size:9px;font-weight:500;color:${isDisabled?'#94a3b8':'#6b7280'};">${label}</span>
+            </button>`;
+        }).join('');
+
+        // אם יש שעה שנבחרה מראש (למשל ב-_acceptTableAlt) — מסמנים אותה
+        if (preSelectedTime) {
+            document.getElementById('tres-time').value = preSelectedTime;
+            window._highlightSelectedTimeModal(preSelectedTime);
+        }
+    } catch(e) {
+        slotsEl.innerHTML = '<p style="grid-column:1/-1;font-size:11px;color:#ef4444;text-align:center;padding:12px 0;">שגיאה בטעינת זמינות</p>';
+    }
+};
+
+window._highlightSelectedTimeModal = function(selectedTime) {
+    document.querySelectorAll('#tres-time-slots button').forEach(btn => {
+        if (btn.dataset.slot === selectedTime) {
+            btn.style.background = '#eff6ff';
+            btn.style.border = '2px solid #3b82f6';
+            btn.style.color = '#1d4ed8';
+        } else if (!btn.disabled) {
+            btn.style.background = 'white';
+            btn.style.border = '1.5px solid #e2e8f0';
+            btn.style.color = '#374151';
+        }
+    });
+    const labelEl = document.getElementById('tres-slots-label');
+    if (labelEl) labelEl.textContent = selectedTime ? `נבחרה: ${selectedTime}` : '';
 };
 
 window._submitTableReservation = async function(bizGroupId, bizName, btn) {
@@ -9549,13 +9614,13 @@ window._acceptTableAlt = function(bizGroupId, bizName, dateStr, time, origEventI
     window._tableReservationModal(parseInt(bizGroupId), bizName);
     setTimeout(() => {
         const dateEl = document.getElementById('tres-date');
-        const timeEl = document.getElementById('tres-time');
         if (dateEl) dateEl.value = dateStr;
-        if (timeEl) timeEl.value = time;
-        // סמן ה-modal כבקשה חלופית כדי לבטל האירוע הישן אחרי submit
+        // מסמן ה-modal כבקשה חלופית כדי לבטל האירוע הישן אחרי submit
         const modal = document.getElementById('table-res-modal');
         if (modal && origEventId) modal.dataset.origEventId = origEventId;
-    }, 100);
+        // טוען זמינות לתאריך החלופי + מסמן את השעה המוצעת
+        window._loadTableAvailabilityForModal(parseInt(bizGroupId), dateStr, time);
+    }, 150);
 };
 
 // לקוח דחה את כל החלופות — מסמן האירוע כ-cancelled
