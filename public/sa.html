@@ -1131,6 +1131,27 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                 <span id="sms-login-toggle-dot" class="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-1"></span>
                             </button>
                         </div>
+
+                        <!-- קוד SMS גנרי לבדיקות -->
+                        <div class="mt-4 bg-amber-50 rounded-xl px-5 py-4 border border-amber-200">
+                            <div class="flex items-start justify-between gap-4">
+                                <div class="flex-1">
+                                    <div class="font-bold text-amber-800 text-sm flex items-center gap-2">
+                                        <i class="fa-solid fa-flask text-amber-500"></i>
+                                        קוד SMS קבוע לבדיקות (Test Mode)
+                                    </div>
+                                    <div class="text-xs text-amber-700 mt-1">כאשר מוגדר — כל הזמנות שולחן יאומתו עם קוד זה במקום קוד אקראי.<br>השאר ריק לקוד אקראי (מצב רגיל).</div>
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <input type="text" id="sa-sms-debug-code" maxlength="4"
+                                        placeholder="0000"
+                                        class="w-20 text-center text-lg font-mono font-bold border-2 border-amber-300 rounded-xl px-2 py-1.5 bg-white focus:outline-none focus:border-amber-500 tracking-[0.3em]"
+                                        oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+                                    <button onclick="saveSmsDebugCode()" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm">שמור</button>
+                                </div>
+                            </div>
+                            <div id="sa-sms-debug-status" class="text-xs mt-2 hidden"></div>
+                        </div>
                     </div>
 
                     <div class="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 shadow-sm">

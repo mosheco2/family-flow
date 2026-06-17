@@ -1204,6 +1204,10 @@ async function loadSAData() {
         // עדכון toggle מצב SMS
         window._smsLoginEnabled = data.smsLoginEnabled !== false;
         updateSmsLoginToggleUI();
+        // קוד בדיקה SMS
+        if (document.getElementById('sa-sms-debug-code')) {
+            document.getElementById('sa-sms-debug-code').value = data.smsDebugCode || '';
+        }
         
         setVal('sa-banner-top-text', data.adBannerTextTop);
         setVal('sa-banner-top-link', data.adBannerLinkTop);
@@ -5099,6 +5103,33 @@ window.toggleSmsLogin = async function() {
         window._smsLoginEnabled = !window._smsLoginEnabled; // rollback
         updateSmsLoginToggleUI();
         showToast('error', 'שגיאה בשמירה');
+    }
+};
+
+window.saveSmsDebugCode = async function() {
+    const input = document.getElementById('sa-sms-debug-code');
+    const statusEl = document.getElementById('sa-sms-debug-status');
+    const code = (input.value || '').replace(/\D/g, '').slice(0, 4);
+
+    try {
+        const res = await fetch(`${API}/superadmin/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ smsDebugCode: code })
+        });
+        const data = await res.json();
+        if (data.success) {
+            input.value = code;
+            if (statusEl) {
+                statusEl.className = 'text-xs mt-2';
+                statusEl.textContent = code
+                    ? `✅ קוד בדיקה פעיל: ${code} — כל הזמנה תדרוש קוד זה`
+                    : '✅ קוד הוסר — ישלח קוד אקראי';
+            }
+            showToast('success', code ? `קוד בדיקה נשמר: ${code}` : 'קוד הבדיקה הוסר');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאה בשמירת הקוד');
     }
 };
 

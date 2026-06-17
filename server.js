@@ -2650,6 +2650,10 @@ app.post('/api/superadmin/settings', verifySA, async (req, res) => {
         if (req.body.welcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.welcomeMsg]);
         if (req.body.businessWelcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('business_welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.businessWelcomeMsg]);
         if (req.body.smsLoginEnabled !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('sms_login_enabled', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [String(req.body.smsLoginEnabled)]);
+        if (req.body.smsDebugCode !== undefined) {
+            const debugCode = String(req.body.smsDebugCode).replace(/\D/g, '').slice(0, 4);
+            await pool.query("INSERT INTO system_settings (key, value) VALUES ('sms_debug_code', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [debugCode || '']);
+        }
         res.json({success:true});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -2756,6 +2760,7 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
             saEmail: getSet('sa_email'), saUsername: getSet('sa_username') || 'admin',
             welcomeMsg: getSet('welcome_msg'), businessWelcomeMsg: getSet('business_welcome_msg'),
             globalAiLogo: getSet('global_ai_logo'), loginSlides: loginSlides, smsLoginEnabled: getSet('sms_login_enabled') !== 'false',
+            smsDebugCode: getSet('sms_debug_code') || '',
             adBannerTextTop: getSet('ad_banner_text_top'), adBannerLinkTop: getSet('ad_banner_link_top'), adBannerImgTop: getSet('ad_banner_img_top'),
             adBannerTextBottom: getSet('ad_banner_text_bottom'), adBannerLinkBottom: getSet('ad_banner_link_bottom'), adBannerImgBottom: getSet('ad_banner_img_bottom'),
             bizBannerTextTop: getSet('business_ad_banner_text_top'), bizBannerLinkTop: getSet('business_ad_banner_link_top'), bizBannerImgTop: getSet('business_ad_banner_img_top'),
@@ -14941,8 +14946,16 @@ app.post('/api/public/restaurants/:groupId/book-table', async (req, res) => {
 
         const tempId = result.rows[0].id;
 
+        // אם יש קוד debug קבוע בהגדרות — משתמשים בו (לבדיקות)
+        const debugCodeRes = await pool.query("SELECT value FROM system_settings WHERE key='sms_debug_code'");
+        const debugCode = debugCodeRes.rows[0]?.value || '';
+        const finalCode = debugCode.length === 4 ? debugCode : smsCode;
+        if (debugCode.length === 4) {
+            await pool.query('UPDATE temp_table_reservations SET sms_code=$1 WHERE id=$2', [finalCode, tempId]);
+        }
+
         // שליחת SMS דרך השירות
-        await smsService.send(phone, `קוד האישור שלך: ${smsCode}`, smsCode);
+        await smsService.send(phone, `קוד האישור שלך: ${finalCode}`, finalCode);
 
         res.json({
             success: true,
