@@ -606,6 +606,16 @@
                     }
                 } catch(e) { console.warn('Calendar module not active'); }
 
+                // הצג כפתור "הזמן שולחן" עבור עסקי מסעדה — מחוץ לblock של calendar
+                const _bizType = data.businessType || data.business_type || '';
+                const _isRest = ['restaurant', 'cafe'].includes(_bizType);
+                const _tableBtn = getEl('btn-book-table');
+                if (_tableBtn && _isRest) {
+                    _tableBtn.classList.remove('hidden');
+                    const contactInfo = getEl('store-contact-info');
+                    if (contactInfo) contactInfo.classList.remove('hidden');
+                }
+
                 if (data.communityData) {
                     const comm = data.communityData;
                     const discount = parseFloat(comm.discount_pct) || 0;
