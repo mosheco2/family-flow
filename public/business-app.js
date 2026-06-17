@@ -28597,6 +28597,7 @@ function renderTableGrid() {
                 <h3 class="font-black text-slate-800 text-sm">🍽️ מצב שולחנות</h3>
                 <div class="flex items-center gap-2">
                     <span class="table-summary text-[10px]">${summaryHtml}</span>
+                    <button onclick="window.openSeatingWindowsModal()" class="text-[9px] text-blue-600 hover:text-blue-800 transition px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 font-bold" title="חלונות הושבה">📅 חלונות</button>
                     <button onclick="window.openTableSettingsModal()" class="text-[9px] text-slate-400 hover:text-slate-600 transition px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200" title="הגדרות שולחנות">⚙️</button>
                 </div>
             </div>
@@ -28636,6 +28637,185 @@ window.showTableQR = function(tableId) {
     </div>`;
     document.body.appendChild(modal);
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+// ─── חלונות הושבה — תצוגת זמינות שולחנות ליום נבחר ──────────────────────────
+window.openSeatingWindowsModal = async function(dateStr) {
+    const today = new Date();
+    const defaultDate = dateStr || today.toISOString().split('T')[0];
+    const count = parseInt(currentGroup?.table_count || 8);
+
+    const existing = document.getElementById('seating-windows-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'seating-windows-modal';
+    modal.className = 'fixed inset-0 z-[99999] flex items-end sm:items-center justify-center bg-black/60';
+    modal.innerHTML = `<div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden" style="max-height:92vh;display:flex;flex-direction:column;">
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 p-5 flex items-center justify-between shrink-0">
+            <div>
+                <h3 class="font-black text-white text-lg">📅 חלונות הושבה</h3>
+                <p class="text-blue-200 text-xs">הזמנות שולחן לפי יום</p>
+            </div>
+            <button onclick="document.getElementById('seating-windows-modal').remove()" class="w-9 h-9 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30 transition text-lg">✕</button>
+        </div>
+        <!-- בחירת תאריך -->
+        <div class="px-5 py-3 border-b border-slate-100 bg-slate-50 shrink-0 flex items-center gap-3">
+            <label class="text-xs font-bold text-slate-600">תאריך:</label>
+            <input type="date" id="sw-date-picker" value="${defaultDate}"
+                onchange="window._renderSeatingWindows(this.value)"
+                class="border border-slate-200 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-700 outline-none focus:border-blue-400 bg-white dir-ltr">
+            <button onclick="window._renderSeatingWindows(new Date().toISOString().split('T')[0]);document.getElementById('sw-date-picker').value=new Date().toISOString().split('T')[0]"
+                class="text-[11px] font-bold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-1.5 rounded-lg hover:bg-blue-100 transition">היום</button>
+            <button onclick="window._renderSeatingWindows((()=>{const d=new Date();d.setDate(d.getDate()+1);const s=d.toISOString().split('T')[0];document.getElementById('sw-date-picker').value=s;return s;})())"
+                class="text-[11px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-1.5 rounded-lg hover:bg-slate-200 transition">מחר</button>
+        </div>
+        <div id="sw-body" class="flex-1 overflow-y-auto p-4">
+            <div class="text-center text-slate-400 text-sm py-8">טוען...</div>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    window._renderSeatingWindows(defaultDate);
+};
+
+window._renderSeatingWindows = async function(dateStr) {
+    const body = document.getElementById('sw-body');
+    if (!body || !currentGroup?.id) return;
+    body.innerHTML = '<div class="text-center text-slate-400 text-sm py-8"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען הזמנות...</div>';
+
+    const count = parseInt(currentGroup?.table_count || 8);
+    let reservations = [];
+    try {
+        const [d1, d2] = await Promise.all([
+            fetch(`${API}/tables/${currentGroup.id}/reservations-today`).then(r=>r.json()).catch(()=>({reservations:[]})),
+            fetch(`${API}/tables/${currentGroup.id}/reservations-upcoming`).then(r=>r.json()).catch(()=>({reservations:[]}))
+        ]);
+        const all = [...(d1.reservations||[]), ...(d2.reservations||[])];
+        // הסר כפילויות
+        const seen = new Set();
+        all.forEach(r => { if (!seen.has(r.id)) { seen.add(r.id); reservations.push(r); }});
+        // סנן לפי יום נבחר
+        reservations = reservations.filter(r => (r.event_date||'').slice(0,10) === dateStr);
+    } catch(e) {}
+
+    // ממיין לפי שעה
+    reservations.sort((a,b) => (a.start_time||'').localeCompare(b.start_time||''));
+
+    // שעות הפעלה: 10:00–23:00
+    const HOUR_START = 10, HOUR_END = 23;
+    const totalMins = (HOUR_END - HOUR_START) * 60;
+
+    const timeToX = (timeStr) => {
+        if (!timeStr) return 0;
+        const [h,m] = timeStr.split(':').map(Number);
+        return Math.max(0, Math.min(100, ((h - HOUR_START) * 60 + (m||0)) / totalMins * 100));
+    };
+
+    // קו שעות עליון
+    const hoursBar = Array.from({length: HOUR_END - HOUR_START + 1}, (_,i) => {
+        const h = HOUR_START + i;
+        const pct = (i / (HOUR_END - HOUR_START)) * 100;
+        return `<div class="absolute text-[8px] text-slate-400 font-bold -translate-x-1/2" style="left:${pct}%">${h < 10 ? '0'+h : h}:00</div>`;
+    }).join('');
+
+    // שורה לכל שולחן
+    const tableRows = Array.from({length: count}, (_,i) => {
+        const tNum = i + 1;
+        const tRes = reservations.filter(r => r.reserved_table_number == tNum || (!r.reserved_table_number && tNum === 1));
+
+        const blocks = tRes.map(r => {
+            const x1 = timeToX(r.start_time);
+            // אם אין end_time — מניחים 1.5 שעות
+            const endTime = r.end_time || (r.start_time ? (() => {
+                const [h,m] = (r.start_time||'12:00').split(':').map(Number);
+                const total = h*60 + (m||0) + 90;
+                return `${Math.floor(total/60).toString().padStart(2,'0')}:${(total%60).toString().padStart(2,'0')}`;
+            })() : null);
+            const x2 = timeToX(endTime);
+            const width = Math.max(2, x2 - x1);
+            const isApproved = r.status === 'approved';
+            const color = isApproved ? 'bg-blue-500' : 'bg-amber-400';
+            const label = `${r.title||'הזמנה'} · ${r.num_guests||'?'}👥`;
+            return `<div class="absolute top-0 bottom-0 rounded flex items-center overflow-hidden ${color} text-white text-[9px] font-bold px-1 cursor-pointer"
+                style="left:${x1}%;width:${width}%;"
+                title="${label} · ${String(r.start_time||'').slice(0,5)}–${String(endTime||'').slice(0,5)}"
+                onclick="window.openReservedTableModal(${tNum})">
+                <span class="truncate">${width > 8 ? label : ''}</span>
+            </div>`;
+        }).join('');
+
+        const hasRes = tRes.length > 0;
+        return `<div class="flex items-center gap-3 mb-1.5">
+            <div class="w-16 shrink-0 text-right">
+                <span class="text-xs font-black text-slate-700">שולחן ${tNum}</span>
+                ${hasRes ? `<span class="block text-[9px] text-blue-600 font-bold">${tRes.length} הזמנה</span>` : '<span class="block text-[9px] text-green-500 font-bold">פנוי</span>'}
+            </div>
+            <div class="flex-1 relative bg-slate-100 rounded-lg overflow-hidden" style="height:28px;">
+                <!-- רקע ירוק = חופשי -->
+                <div class="absolute inset-0 bg-green-50"></div>
+                ${blocks}
+            </div>
+        </div>`;
+    }).join('');
+
+    const totalRes = reservations.length;
+    const totalGuests = reservations.reduce((s,r) => s + parseInt(r.num_guests||0), 0);
+    const pending = reservations.filter(r => r.status === 'pending').length;
+
+    const summaryHtml = `<div class="grid grid-cols-3 gap-2 mb-4">
+        <div class="bg-blue-50 border border-blue-100 rounded-xl p-2.5 text-center">
+            <div class="text-lg font-black text-blue-700">${totalRes}</div>
+            <div class="text-[9px] font-bold text-blue-500">הזמנות</div>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-2.5 text-center">
+            <div class="text-lg font-black text-emerald-700">${totalGuests}</div>
+            <div class="text-[9px] font-bold text-emerald-500">סועדים</div>
+        </div>
+        <div class="bg-amber-50 border border-amber-100 rounded-xl p-2.5 text-center">
+            <div class="text-lg font-black text-amber-700">${pending}</div>
+            <div class="text-[9px] font-bold text-amber-500">ממתינות</div>
+        </div>
+    </div>`;
+
+    const legendHtml = `<div class="flex items-center gap-3 text-[9px] text-slate-500 mb-3 flex-wrap">
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-blue-500 inline-block"></span>מאושרת</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-400 inline-block"></span>ממתינה לאישור</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-green-200 inline-block border border-green-300"></span>פנוי</span>
+    </div>`;
+
+    const hoursHeader = `<div class="relative h-5 mb-1 mr-[76px]">${hoursBar}</div>`;
+
+    if (totalRes === 0) {
+        body.innerHTML = summaryHtml + `<div class="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
+            <div class="text-3xl mb-2">✅</div>
+            <p class="font-black text-green-700 text-sm">כל השולחנות פנויים</p>
+            <p class="text-xs text-green-500 mt-1">אין הזמנות מראש ליום זה</p>
+        </div>`;
+        return;
+    }
+
+    body.innerHTML = summaryHtml + legendHtml + hoursHeader + `<div class="space-y-0">${tableRows}</div>` +
+        `<div class="mt-4 border-t border-slate-100 pt-3">
+            <h4 class="font-black text-slate-700 text-xs mb-2">📋 רשימת הזמנות ליום זה</h4>
+            ${reservations.map(r => {
+                const isApproved = r.status === 'approved';
+                return `<div class="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+                    <div class="w-10 h-10 rounded-xl ${isApproved?'bg-blue-100':'bg-amber-100'} flex flex-col items-center justify-center shrink-0">
+                        <span class="text-[10px] font-black ${isApproved?'text-blue-700':'text-amber-700'}">${String(r.start_time||'').slice(0,5)}</span>
+                        <span class="text-[9px] text-slate-500">${r.reserved_table_number?'שולחן '+r.reserved_table_number:'?'}</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs font-black text-slate-800 truncate">${safeStr(r.title||'הזמנה')}</div>
+                        <div class="text-[10px] text-slate-500">${r.num_guests||'?'} סועדים${r.notes?' · '+safeStr(r.notes):''}</div>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <span class="text-[9px] font-bold px-2 py-0.5 rounded-full ${isApproved?'bg-blue-100 text-blue-700':'bg-amber-100 text-amber-700'}">${isApproved?'מאושר':'ממתין'}</span>
+                        ${r.customer_phone?`<a href="tel:${safeStr(r.customer_phone)}" class="text-emerald-600 bg-emerald-50 border border-emerald-200 text-[11px] font-bold px-2 py-1 rounded-xl">📞</a>`:''}
+                    </div>
+                </div>`;
+            }).join('')}
+        </div>`;
 };
 
 window.openTableSettingsModal = async function() {
@@ -39226,6 +39406,21 @@ window.loadReviews = async function() {
         const avg = total ? (rated.reduce((s,o) => s + parseFloat(o.customer_rating), 0) / total).toFixed(1) : 0;
         const dist = [5,4,3,2,1].map(n => ({ n, cnt: rated.filter(o => o.customer_rating === n).length }));
 
+        // ── טרנד שבועי ──
+        const now = Date.now();
+        const DAY = 86400000;
+        const last7  = rated.filter(o => now - new Date(o.customer_rated_at||o.created_at) < 7*DAY);
+        const prev7  = rated.filter(o => { const age = now - new Date(o.customer_rated_at||o.created_at); return age >= 7*DAY && age < 14*DAY; });
+        const avg7   = last7.length  ? (last7.reduce((s,o)=>s+parseFloat(o.customer_rating),0)/last7.length).toFixed(1)  : null;
+        const avgP7  = prev7.length  ? (prev7.reduce((s,o)=>s+parseFloat(o.customer_rating),0)/prev7.length).toFixed(1)  : null;
+        let trendHtml = '';
+        if (avg7 !== null && avgP7 !== null) {
+            const diff = parseFloat(avg7) - parseFloat(avgP7);
+            const trendIcon  = diff > 0.1 ? '↗️' : diff < -0.1 ? '↘️' : '→';
+            const trendColor = diff > 0.1 ? 'text-green-300' : diff < -0.1 ? 'text-red-300' : 'text-yellow-100';
+            trendHtml = `<div class="mt-2 text-[10px] ${trendColor} font-bold">${trendIcon} שבוע אחרון: ${avg7} (${diff>=0?'+':''}${diff.toFixed(1)} לעומת שבוע קודם)</div>`;
+        }
+
         const kpiHtml = `
         <div class="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-[2rem] p-5 text-white shadow-xl mb-4 relative overflow-hidden">
             <i class="fa-solid fa-star absolute -left-4 -bottom-4 text-8xl text-white opacity-10"></i>
@@ -39253,12 +39448,34 @@ window.loadReviews = async function() {
                     <div class="text-[10px] text-yellow-100">דירוגים</div>
                 </div>
             </div>
+            ${trendHtml}
         </div>`;
 
         if (total === 0) {
             root.innerHTML = kpiHtml + '<div class="py-12 text-center text-slate-400"><p class="text-4xl mb-2">⭐</p><p class="text-sm font-bold">עדיין אין דירוגים</p><p class="text-xs text-slate-400 mt-1">הדירוגים יופיעו כאן לאחר שלקוחות ידרגו הזמנות</p></div>';
             return;
         }
+
+        // ── דירוגים שליליים — מחייבים תגובה ──
+        const negative = rated.filter(o => o.customer_rating <= 2);
+        const negativeHtml = negative.length ? `
+        <div class="bg-red-50 border border-red-200 rounded-2xl p-4 mb-4">
+            <div class="flex items-center gap-2 mb-3">
+                <span class="text-red-500 text-lg">🚨</span>
+                <h4 class="font-black text-red-700 text-sm">דירוגים שליליים — נדרשת פעולה (${negative.length})</h4>
+            </div>
+            ${negative.map(o => `
+            <div class="bg-white border border-red-100 rounded-xl p-3 mb-2 last:mb-0">
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                    <div>
+                        <span class="font-bold text-slate-800 text-sm">${safeStr(o.customer_name||'לקוח')}</span>
+                        <span class="text-red-500 font-black ml-2">${'⭐'.repeat(o.customer_rating)}${'☆'.repeat(5-o.customer_rating)}</span>
+                    </div>
+                    ${o.customer_phone ? `<a href="tel:${safeStr(o.customer_phone)}" class="bg-red-500 text-white text-[11px] font-black px-3 py-1.5 rounded-xl flex items-center gap-1 shrink-0">📞 התקשר</a>` : ''}
+                </div>
+                ${o.customer_rating_notes ? `<p class="text-xs text-slate-600 mt-1 leading-relaxed">"${safeStr(o.customer_rating_notes)}"</p>` : ''}
+            </div>`).join('')}
+        </div>` : '';
 
         const listHtml = `<div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
@@ -39271,11 +39488,12 @@ window.loadReviews = async function() {
                     ? new Date(o.customer_rated_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',year:'numeric'})
                     : (o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL',{day:'numeric',month:'short'}) : '');
                 const ratingColor = o.customer_rating >= 4 ? 'text-green-600' : o.customer_rating === 3 ? 'text-yellow-600' : 'text-red-500';
+                const isNeg = o.customer_rating <= 2;
                 const deliveryBadge = o.is_delivery ? '<span class="text-[9px] bg-purple-50 text-purple-600 border border-purple-200 px-1.5 py-0.5 rounded-full font-bold">🚚 משלוח</span>' : '';
                 const srcBadge = o.order_source === 'table' ? '<span class="text-[9px] bg-violet-50 text-violet-600 border border-violet-200 px-1.5 py-0.5 rounded-full font-bold">🍽️ שולחן</span>' : '<span class="text-[9px] bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded-full font-bold">🌐 אתר</span>';
-                return `<div class="px-4 py-3 hover:bg-slate-50 transition">
+                return `<div class="px-4 py-3 hover:bg-slate-50 transition${isNeg?' bg-red-50/40':''}">
                     <div class="flex items-start gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-yellow-50 border border-yellow-200 flex items-center justify-center shrink-0">
+                        <div class="w-10 h-10 rounded-xl ${isNeg?'bg-red-100 border-red-300':'bg-yellow-50 border-yellow-200'} border flex items-center justify-center shrink-0">
                             <span class="text-lg font-black ${ratingColor}">${o.customer_rating}</span>
                         </div>
                         <div class="flex-1 min-w-0">
@@ -39283,6 +39501,7 @@ window.loadReviews = async function() {
                                 <span class="text-sm font-black text-slate-800">${safeStr(o.customer_name||'לקוח אנונימי')}</span>
                                 <span class="text-[10px] text-slate-400">#${o.id}</span>
                                 ${deliveryBadge}${srcBadge}
+                                ${isNeg ? '<span class="text-[9px] bg-red-100 text-red-600 border border-red-200 px-1.5 py-0.5 rounded-full font-bold">⚠️ שלילי</span>' : ''}
                             </div>
                             <div class="text-sm text-yellow-500 my-0.5">${stars}</div>
                             ${o.customer_rating_notes ? `<p class="text-xs text-slate-600 leading-relaxed">"${safeStr(o.customer_rating_notes)}"</p>` : ''}
@@ -39298,7 +39517,7 @@ window.loadReviews = async function() {
             </div>
         </div>`;
 
-        root.innerHTML = kpiHtml + listHtml;
+        root.innerHTML = kpiHtml + negativeHtml + listHtml;
     } catch(e) {
         root.innerHTML = '<p class="text-center text-red-400 py-8">שגיאה בטעינת דירוגים</p>';
     }
