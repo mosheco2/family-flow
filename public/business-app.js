@@ -26399,8 +26399,8 @@ const ROLE_TYPE_TABS = {
     cleaner:        ['tasks','timeclock','shifts'],
     support:        ['customers','tasks','calendar','timeclock'],
     cashier:        ['pos','sales','tasks','timeclock','shifts'],
-    shift_manager:  ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow'],
-    branch_manager: ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow','budget','pantry'],
+    shift_manager:  ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow','reviews'],
+    branch_manager: ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow','budget','pantry','reviews'],
     waiter:         ['pos','sales','tasks','calendar','members','shifts','timeclock'],
     cook:           ['pantry','tasks','shifts','foodcost','timeclock'],
 };
