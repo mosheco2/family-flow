@@ -395,7 +395,7 @@
 
                 <!-- שעה בחירה עם זמינות -->
                 <div>
-                    <label class="text-xs font-bold text-slate-600 block mb-2">שעה <span class="text-gray-400">(טוען זמינות...)</span></label>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">שעה <span id="table-res-time-label" class="text-gray-400"></span></label>
                     <div class="grid grid-cols-3 gap-2" id="table-res-time-slots">
                         <p class="col-span-3 text-xs text-slate-400 text-center py-4">בחרו תאריך קודם</p>
                     </div>
@@ -2180,6 +2180,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             if (!slotsContainer) return;
 
             slotsContainer.innerHTML = '<p class="col-span-3 text-xs text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin mr-1"></i> טוען זמינות...</p>';
+            const timeLabel = document.getElementById('table-res-time-label');
+            if (timeLabel) timeLabel.textContent = '(טוען זמינות...)';
 
             const startTime = performance.now();
             try {
@@ -2195,6 +2197,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 console.log(`[AVAILABILITY] JSON parsing took ${jsonTime.toFixed(2)}ms`);
 
                 if (!data.success || !data.slots || data.slots.length === 0) {
+                    if (timeLabel) timeLabel.textContent = '';
                     slotsContainer.innerHTML = '<p class="col-span-3 text-xs text-red-500 text-center py-4">אין זמינות בתאריך זה</p>';
                     return;
                 }
@@ -2215,6 +2218,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 `).join('');
 
                 slotsContainer.innerHTML = slotsHtml;
+                if (timeLabel) timeLabel.textContent = '';
                 const renderTime = performance.now() - renderStart;
                 console.log(`[AVAILABILITY] Rendering took ${renderTime.toFixed(2)}ms`);
 
@@ -2222,6 +2226,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 console.log(`[AVAILABILITY] Total time: ${totalTime.toFixed(2)}ms`);
             } catch(e) {
                 console.error('Error loading availability:', e);
+                if (timeLabel) timeLabel.textContent = '';
                 slotsContainer.innerHTML = '<p class="col-span-3 text-xs text-red-500 text-center py-4">שגיאה בטעינת זמינות</p>';
             }
         };
