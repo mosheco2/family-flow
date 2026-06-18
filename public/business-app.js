@@ -1844,7 +1844,7 @@ function switchTab(t) {
     if (t === 'logistics_customers') try { loadLogisticsCustomers(); } catch(e) {}
     if (t === 'logistics_invoices')  try { loadLogisticsInvoices(); } catch(e) {}
     if (t === 'reviews')               try { loadReviews(); } catch(e) {}
-    if (t === 'settings')              { try { renderSettingsHub(); } catch(e) {} window.scrollTo({ top: 0, behavior: 'instant' }); }
+    if (t === 'settings')              { try { renderSettingsHub(); } catch(e) {} try { const _w = document.getElementById('biz-main-content-wrap'); if(_w) _w.scrollTop = 0; } catch(e) {} document.documentElement.scrollTop = 0; document.body.scrollTop = 0; window.scrollTo({ top: 0, behavior: 'instant' }); }
 }
 
 function updateBatteryUI() {
@@ -30257,7 +30257,7 @@ function renderSettingsHub() {
     </div>`;
 
     el.innerHTML = `
-        <div class="flex flex-col gap-4 px-1 pt-2 pb-4">
+        <div class="flex flex-col gap-4 px-1 pt-2 pb-24">
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-gear text-slate-500"></i>
                 <h2 class="font-black text-slate-800 text-base">הגדרות</h2>
