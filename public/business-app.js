@@ -4261,7 +4261,7 @@ window.renderDashboard = async function(forceRefresh = false) {
                 const todayPunches = tcData.filter(p => p.punch_in && new Date(p.punch_in).toDateString() === todayStr2);
                 const punchedIds = new Set(todayPunches.map(p => p.user_id));
                 const allNonAdminMembers = (membersCache || []).filter(m => m.role !== 'ADMIN');
-                activeStaff = Array.from(punchedIds).filter(id => allNonAdminMembers.some(m => m.id === id)).length;
+                activeStaff = allNonAdminMembers.filter(m => punchedIds.has(m.id)).length;
                 missingStaff = allNonAdminMembers.filter(m => !punchedIds.has(m.id));
             }
         } catch(e) {
