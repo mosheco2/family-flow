@@ -5271,7 +5271,7 @@ app.post('/api/store/orders', async (req, res) => {
         const isDeliv = isDelivery === true || isDelivery === 'true';
         
         const familyGroupId = req.body.familyGroupId ? parseInt(req.body.familyGroupId) : null;
-        const finalStatus = status || (isDeliv ? 'pending_approval' : 'new');
+        const finalStatus = status || 'pending_approval';
         
         const oRes = await dbClient.query(
             'INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_fee, delivery_details, family_group_id, quote_status, notes, order_source) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, $8, $9, NULL, $10, $11) RETURNING id',
