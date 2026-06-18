@@ -4369,6 +4369,11 @@ window.renderDashboard = async function(forceRefresh = false) {
         // ★ Urgent items panel
         renderUrgentItems();
 
+        // ★ pending store orders for restaurant/cafe admin (same view as waiter)
+        if (['restaurant','cafe'].includes(currentGroup?.business_type)) {
+            try { await renderRestaurantPendingOrders(); } catch(e) {}
+        }
+
         // ★ קריאות שירות ממשפחות (maintenance_repair + שירותים)
         try { renderFamilyServiceCallsSection(); } catch(e) {}
 
@@ -4418,6 +4423,72 @@ async function renderFamilyServiceCallsSection() {
         </div>`;
     } catch(e) { section.innerHTML = ''; }
 }
+
+// ── pending orders for restaurant/cafe admin main dashboard ────────────────
+window.renderRestaurantPendingOrders = async function() {
+    const bizType = currentGroup?.business_type;
+    if (!['restaurant','cafe'].includes(bizType)) return;
+
+    const containerId = 'admin-pending-orders-section';
+    let section = document.getElementById(containerId);
+    if (!section) {
+        const urgentSection = document.getElementById('urgent-items-section');
+        if (!urgentSection) return;
+        section = document.createElement('div');
+        section.id = containerId;
+        section.className = 'mb-4 px-2';
+        urgentSection.parentNode.insertBefore(section, urgentSection);
+    }
+
+    let pendingOrders = [];
+    try {
+        const or = await fetch(`${API}/store/orders/${currentGroup.id}`);
+        const od = await or.json();
+        if (Array.isArray(od)) {
+            od.filter(o => o.status === 'pending_approval').forEach(o => {
+                let items = [];
+                try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))); } catch(e) {}
+                const isDeliv = o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true';
+                pendingOrders.push({ orderId: o.id, items, customerName: o.customer_name, customerPhone: o.customer_phone, deliveryDetails: o.delivery_details, isDelivery: isDeliv, totalAmount: o.total_amount });
+            });
+        }
+    } catch(e) {}
+
+    if (!pendingOrders.length) { section.innerHTML = ''; return; }
+
+    section.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-orange-300 overflow-hidden">
+        <div class="px-4 py-3 border-b border-orange-200 bg-orange-50/80 flex items-center gap-2">
+            <h3 class="font-black text-orange-700 text-sm flex-1">📋 ממתין לאישורך — הזמנות חדשות</h3>
+            <span class="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">${pendingOrders.length}</span>
+        </div>
+        <div class="divide-y divide-slate-50">${pendingOrders.map(r => {
+            let dd = {};
+            try { dd = typeof r.deliveryDetails === 'string' ? JSON.parse(r.deliveryDetails) : (r.deliveryDetails || {}); } catch(e) {}
+            const addr = [dd.street, dd.house, dd.city].filter(Boolean).join(' ');
+            const dishList = (r.items||[]).map(i => {
+                const nm = i.name || '';
+                const qty = (i.quantity||i.qty||1);
+                return nm ? (qty > 1 ? `${nm} ×${qty}` : nm) : null;
+            }).filter(Boolean).join(', ');
+            const typeBadge = r.isDelivery
+                ? '<span class="text-[9px] font-black text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full ml-1">🛵 משלוח</span>'
+                : '<span class="text-[9px] font-black text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full ml-1">🚗 איסוף</span>';
+            const totalStr = r.totalAmount ? `<span class="text-[10px] font-black text-green-700 ml-1">₪${parseFloat(r.totalAmount).toFixed(0)}</span>` : '';
+            return `<div class="flex items-start gap-2 px-4 py-3">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1 mb-0.5">${typeBadge}<span class="text-xs font-black text-slate-800">${safeStr(r.customerName || '')} ${totalStr}</span></div>
+                    ${r.customerPhone ? `<div class="text-[10px] text-slate-500 mb-0.5">📞 ${safeStr(r.customerPhone)}</div>` : ''}
+                    <div class="text-[10px] text-slate-500">${safeStr(dishList) || '—'}</div>
+                    ${addr ? `<div class="text-[10px] text-indigo-600">📍 ${safeStr(addr)}</div>` : ''}
+                </div>
+                <div class="flex flex-col gap-1 shrink-0">
+                    <button ontouchend="event.preventDefault();approveDeliveryToKitchen(${r.orderId});" onclick="approveDeliveryToKitchen(${r.orderId})" class="bg-green-600 text-white text-[10px] font-black px-2 py-1.5 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">✅ אשר לטבח</button>
+                    <button ontouchend="event.preventDefault();rejectStoreOrder(${r.orderId});" onclick="rejectStoreOrder(${r.orderId})" class="bg-red-100 text-red-700 text-[10px] font-black px-2 py-1.5 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">❌ דחה</button>
+                </div>
+            </div>`;
+        }).join('')}</div>
+    </div>`;
+};
 
 // ── URGENT ITEMS — "מה מחכה לך עכשיו" ─────────────────────────
 async function renderUrgentItems() {
@@ -15351,6 +15422,7 @@ window.approveDeliveryToKitchen = async function(orderId) {
             showToast('success', '✅ ההזמנה אושרה ונשלחה למטבח');
             if (typeof refreshWaiterReadySection === 'function') try { refreshWaiterReadySection(); } catch(e) {}
             if (typeof window.refreshAdminTablesData === 'function') try { window.refreshAdminTablesData(); } catch(e) {}
+            if (typeof window.renderRestaurantPendingOrders === 'function') try { window.renderRestaurantPendingOrders(); } catch(e) {}
             if (typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
         } else {
             showToast('error', data.error || 'שגיאה');
@@ -15369,6 +15441,8 @@ window.rejectStoreOrder = async function(orderId) {
         if (data.success) {
             showToast('info', '❌ ההזמנה נדחתה');
             if (typeof refreshWaiterReadySection === 'function') try { refreshWaiterReadySection(); } catch(e) {}
+            if (typeof window.refreshAdminTablesData === 'function') try { window.refreshAdminTablesData(); } catch(e) {}
+            if (typeof window.renderRestaurantPendingOrders === 'function') try { window.renderRestaurantPendingOrders(); } catch(e) {}
             if (typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
         } else {
             showToast('error', data.error || 'שגיאה');
