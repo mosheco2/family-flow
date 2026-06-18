@@ -15328,6 +15328,24 @@ window.approveDeliveryToKitchen = async function(orderId) {
         }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 };
+window.rejectStoreOrder = async function(orderId) {
+    if (!confirm('לדחות את ההזמנה?')) return;
+    try {
+        const res = await fetch(`${API}/store/orders/status`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ orderId, status: 'cancelled' })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('info', '❌ ההזמנה נדחתה');
+            if (typeof refreshWaiterReadySection === 'function') try { refreshWaiterReadySection(); } catch(e) {}
+            if (typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
+        } else {
+            showToast('error', data.error || 'שגיאה');
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
 window.updateCustomTabsByRoles = function() {
     // אוסף את התפקידים שנבחרו
     const checkboxes = document.querySelectorAll('.role-cb:checked');
@@ -28252,10 +28270,11 @@ async function refreshWaiterReadySection() {
         const today = new Date().toISOString().split('T')[0];
         let pendingReady = [], itemReadyList = [];
         let pendingApproval = [];
-        od.filter(o => o.status === 'pending_approval' && (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true')).forEach(o => {
+        od.filter(o => o.status === 'pending_approval').forEach(o => {
             let items = [];
             try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))); } catch(e3) {}
-            pendingApproval.push({ orderId: o.id, items, customerName: o.customer_name, customerPhone: o.customer_phone, deliveryDetails: o.delivery_details });
+            const isDeliv = o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true';
+            pendingApproval.push({ orderId: o.id, items, customerName: o.customer_name, customerPhone: o.customer_phone, deliveryDetails: o.delivery_details, isDelivery: isDeliv, totalAmount: o.total_amount });
         });
         od.filter(o => o.status === 'ready').forEach(o => {
             let tableNum = null;
@@ -28319,7 +28338,7 @@ async function refreshWaiterReadySection() {
         const pendingApprovalHtml = pendingApproval.length ? `
             <div class="bg-white rounded-2xl shadow-sm border border-orange-300 mb-4">
                 <div class="px-4 py-3 border-b border-orange-200 bg-orange-50/80 flex items-center justify-between">
-                    <h3 class="font-black text-orange-700 text-sm">📋 ממתין לאישור — הזמנות משלוח חדשות (${pendingApproval.length})</h3>
+                    <h3 class="font-black text-orange-700 text-sm">📋 ממתין לאישור — הזמנות חדשות (${pendingApproval.length})</h3>
                 </div>
                 <div class="px-4 py-1">${pendingApproval.map(r => {
                     let deliveryData = {};
@@ -28330,14 +28349,21 @@ async function refreshWaiterReadySection() {
                         const qty = (i.quantity||i.qty||1);
                         return nm ? (qty > 1 ? `${nm} ×${qty}` : nm) : null;
                     }).filter(Boolean).join(', ');
+                    const typeBadge = r.isDelivery
+                        ? '<span class="text-[9px] font-black text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full ml-1">🛵 משלוח</span>'
+                        : '<span class="text-[9px] font-black text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full ml-1">🚗 איסוף</span>';
+                    const totalStr = r.totalAmount ? `<span class="text-[10px] font-black text-green-700 ml-1">₪${parseFloat(r.totalAmount).toFixed(0)}</span>` : '';
                     return `<div class="flex items-start gap-2 py-3 border-b border-slate-50 last:border-0">
-                        <span class="bg-orange-100 text-orange-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0 mt-0.5">🛵 #${r.orderId}</span>
                         <div class="flex-1 min-w-0">
-                            <div class="text-xs font-bold text-slate-800">${safeStr(r.customerName || '')}</div>
+                            <div class="flex items-center gap-1 mb-0.5">${typeBadge}<span class="text-xs font-black text-slate-800">${safeStr(r.customerName || '')} ${totalStr}</span></div>
+                            ${r.customerPhone ? `<div class="text-[10px] text-slate-500 mb-0.5">📞 ${safeStr(r.customerPhone)}</div>` : ''}
                             <div class="text-[10px] text-slate-500">${safeStr(dishList) || '—'}</div>
-                            ${addr ? `<div class="text-[10px] text-indigo-600">${safeStr(addr)}</div>` : ''}
+                            ${addr ? `<div class="text-[10px] text-indigo-600">📍 ${safeStr(addr)}</div>` : ''}
                         </div>
-                        <button ontouchend="event.preventDefault();approveDeliveryToKitchen(${r.orderId});" onclick="approveDeliveryToKitchen(${r.orderId})" class="bg-orange-500 text-white text-[10px] font-black px-2 py-1.5 rounded-lg shrink-0 whitespace-nowrap" style="touch-action:manipulation;">✅ אשר לטבח</button>
+                        <div class="flex flex-col gap-1 shrink-0">
+                            <button ontouchend="event.preventDefault();approveDeliveryToKitchen(${r.orderId});" onclick="approveDeliveryToKitchen(${r.orderId})" class="bg-green-600 text-white text-[10px] font-black px-2 py-1.5 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">✅ אשר לטבח</button>
+                            <button ontouchend="event.preventDefault();rejectStoreOrder(${r.orderId});" onclick="rejectStoreOrder(${r.orderId})" class="bg-red-100 text-red-700 text-[10px] font-black px-2 py-1.5 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">❌ דחה</button>
+                        </div>
                     </div>`;
                 }).join('')}</div>
             </div>` : '';
@@ -29393,11 +29419,12 @@ async function renderWaiterDashboard(el) {
         const or = await fetch(`/api/store/orders/${currentGroup.id}`);
         const od = await or.json();
         if (Array.isArray(od)) {
-            // Pending approval: new delivery orders needing manager approval
-            od.filter(o => o.status === 'pending_approval' && (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true')).forEach(o => {
+            // Pending approval: all new orders (pickup or delivery) needing waiter/manager approval
+            od.filter(o => o.status === 'pending_approval').forEach(o => {
                 let items = [];
                 try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))); } catch(e3) {}
-                pendingApproval.push({ orderId: o.id, items, customerName: o.customer_name, customerPhone: o.customer_phone, deliveryDetails: o.delivery_details });
+                const isDeliv = o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true';
+                pendingApproval.push({ orderId: o.id, items, customerName: o.customer_name, customerPhone: o.customer_phone, deliveryDetails: o.delivery_details, isDelivery: isDeliv, totalAmount: o.total_amount });
             });
             // Full-order ready (cook marked ready — waiter picks up)
             od.filter(o => o.status === 'ready').forEach(o => {
@@ -29506,7 +29533,7 @@ async function renderWaiterDashboard(el) {
     const pendingApprovalHtml2 = pendingApproval.length ? `
         <div class="bg-white rounded-2xl shadow-sm border border-orange-300 mb-4">
             <div class="px-4 py-3 border-b border-orange-200 bg-orange-50/80 flex items-center justify-between">
-                <h3 class="font-black text-orange-700 text-sm">📋 ממתין לאישור — הזמנות משלוח חדשות (${pendingApproval.length})</h3>
+                <h3 class="font-black text-orange-700 text-sm">📋 ממתין לאישור — הזמנות חדשות (${pendingApproval.length})</h3>
             </div>
             <div class="px-4 py-1">${pendingApproval.map(r => {
                 let deliveryData2 = {};
@@ -29517,14 +29544,21 @@ async function renderWaiterDashboard(el) {
                     const qty = (i.quantity||i.qty||1);
                     return nm ? (qty > 1 ? `${nm} ×${qty}` : nm) : null;
                 }).filter(Boolean).join(', ');
+                const typeBadge2 = r.isDelivery
+                    ? '<span class="text-[9px] font-black text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full ml-1">🛵 משלוח</span>'
+                    : '<span class="text-[9px] font-black text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full ml-1">🚗 איסוף</span>';
+                const totalStr2 = r.totalAmount ? `<span class="text-[10px] font-black text-green-700 ml-1">₪${parseFloat(r.totalAmount).toFixed(0)}</span>` : '';
                 return `<div class="flex items-start gap-2 py-3 border-b border-slate-50 last:border-0">
-                    <span class="bg-orange-100 text-orange-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0 mt-0.5">🛵 #${r.orderId}</span>
                     <div class="flex-1 min-w-0">
-                        <div class="text-xs font-bold text-slate-800">${safeStr(r.customerName || '')}</div>
+                        <div class="flex items-center gap-1 mb-0.5">${typeBadge2}<span class="text-xs font-black text-slate-800">${safeStr(r.customerName || '')} ${totalStr2}</span></div>
+                        ${r.customerPhone ? `<div class="text-[10px] text-slate-500 mb-0.5">📞 ${safeStr(r.customerPhone)}</div>` : ''}
                         <div class="text-[10px] text-slate-500">${safeStr(dishList2) || '—'}</div>
-                        ${addr2 ? `<div class="text-[10px] text-indigo-600">${safeStr(addr2)}</div>` : ''}
+                        ${addr2 ? `<div class="text-[10px] text-indigo-600">📍 ${safeStr(addr2)}</div>` : ''}
                     </div>
-                    <button ontouchend="event.preventDefault();approveDeliveryToKitchen(${r.orderId});" onclick="approveDeliveryToKitchen(${r.orderId})" class="bg-orange-500 text-white text-[10px] font-black px-2 py-1.5 rounded-lg shrink-0 whitespace-nowrap" style="touch-action:manipulation;">✅ אשר לטבח</button>
+                    <div class="flex flex-col gap-1 shrink-0">
+                        <button ontouchend="event.preventDefault();approveDeliveryToKitchen(${r.orderId});" onclick="approveDeliveryToKitchen(${r.orderId})" class="bg-green-600 text-white text-[10px] font-black px-2 py-1.5 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">✅ אשר לטבח</button>
+                        <button ontouchend="event.preventDefault();rejectStoreOrder(${r.orderId});" onclick="rejectStoreOrder(${r.orderId})" class="bg-red-100 text-red-700 text-[10px] font-black px-2 py-1.5 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">❌ דחה</button>
+                    </div>
                 </div>`;
             }).join('')}</div>
         </div>` : '';
