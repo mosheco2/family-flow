@@ -1787,6 +1787,7 @@ function switchTab(t) {
     window._suppressRoleDash = false;
     window._currentBizSubTab = null;
     if (t !== 'deliveries') try { stopCourierPolling(); } catch(e) {}
+    try { stopTableGridPolling(); } catch(e) {}
 
     // עדכון group nav
     try { updateGroupNavActiveState(t); closeNavDropdowns(); syncGnavAlertBadge(); updateGroupNavBadges(); } catch(e) {}
@@ -28120,7 +28121,7 @@ async function renderShiftManagerDashboard(el) {
             ${rdBtn('members','','bg-blue-50 rounded-2xl p-4 shadow-sm border border-blue-100 flex items-center gap-3 active:scale-95 transition','<span class="text-2xl">👥</span><div class="text-right"><div class="text-xs font-black text-blue-800">הצוות</div><div class="text-[10px] text-blue-500">כל העובדים</div></div>')}
         </div>
         ${roleFullMenuBtn()}`;
-    if (isRestaurant) { startTablePolling(); loadTableReservationsForGrid(); }
+    if (isRestaurant) { startTableGridPolling(); startTablePolling(); loadTableReservationsForGrid(); }
 }
 
 // --- 9. Branch Manager Dashboard ---
@@ -28640,6 +28641,31 @@ function renderTableGrid() {
     const count = parseInt(currentGroup.table_count || 8);
     const states = getTableStates();
     const assigns = getTableAssignments();
+    // ... rest of function
+}
+
+// Auto-refresh table grid for restaurant home view (updates waiter assignments every 5 seconds)
+function startTableGridPolling() {
+    if (window._tableGridPollingInterval) return; // Already running
+
+    window._tableGridPollingInterval = setInterval(() => {
+        const gridCard = document.querySelector('.table-grid-card');
+        if (gridCard && !document.getElementById('waiter-pos-modal')) { // Don't update while waiter POS is open
+            const newHtml = renderTableGrid();
+            gridCard.outerHTML = newHtml;
+        } else if (!gridCard && window._tableGridPollingInterval) {
+            clearInterval(window._tableGridPollingInterval);
+            window._tableGridPollingInterval = null;
+        }
+    }, 5000);
+}
+
+function stopTableGridPolling() {
+    if (window._tableGridPollingInterval) {
+        clearInterval(window._tableGridPollingInterval);
+        window._tableGridPollingInterval = null;
+    }
+}
     const totalOcc = Array.from({length:count},(_,i)=>['occupied','awaiting_payment'].includes(states[i+1])).filter(Boolean).length;
     const waiting  = Array.from({length:count},(_,i)=>states[i+1]==='awaiting_payment').filter(Boolean).length;
     const capacities = getTableCapacities();
@@ -29491,6 +29517,7 @@ async function renderWaiterDashboard(el) {
         ${serviceReqHtml}`;
     startTablePolling();
     startWaiterReadyPolling();
+    startTableGridPolling();
     loadTableReservationsForGrid();
     const _pendingCalBadge = (calEventsCache||[]).filter(e=>e.call_type==='table_reservation'&&e.status==='pending').length;
     const _readyBadge = pendingReady.filter(r => r.tableNum).length + itemReadyList.filter(ir => ir.tableNum).length;
@@ -29739,6 +29766,7 @@ window.refreshAdminTablesData = async function() {
         ${serviceReqHtml}
         ${assignHtml}`;
     startTablePolling();
+    startTableGridPolling();
     loadTableReservationsForGrid();
 };
 
