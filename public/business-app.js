@@ -28689,6 +28689,31 @@ function renderTableGrid() {
     const count = parseInt(currentGroup.table_count || 8);
     const states = getTableStates();
     const assigns = getTableAssignments();
+    // ... rest of function
+}
+
+// Auto-refresh table grid for restaurant home view (updates waiter assignments every 5 seconds)
+function startTableGridPolling() {
+    if (window._tableGridPollingInterval) return; // Already running
+
+    window._tableGridPollingInterval = setInterval(() => {
+        const gridCard = document.querySelector('.table-grid-card');
+        if (gridCard && !document.getElementById('waiter-pos-modal')) { // Don't update while waiter POS is open
+            const newHtml = renderTableGrid();
+            gridCard.outerHTML = newHtml;
+        } else if (!gridCard && window._tableGridPollingInterval) {
+            clearInterval(window._tableGridPollingInterval);
+            window._tableGridPollingInterval = null;
+        }
+    }, 5000);
+}
+
+function stopTableGridPolling() {
+    if (window._tableGridPollingInterval) {
+        clearInterval(window._tableGridPollingInterval);
+        window._tableGridPollingInterval = null;
+    }
+}
     const totalOcc = Array.from({length:count},(_,i)=>['occupied','awaiting_payment'].includes(states[i+1])).filter(Boolean).length;
     const waiting  = Array.from({length:count},(_,i)=>states[i+1]==='awaiting_payment').filter(Boolean).length;
     const capacities = getTableCapacities();
