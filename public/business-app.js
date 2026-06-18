@@ -28685,22 +28685,23 @@ function renderTableGrid() {
         const _elapsedMins = _seatedAt ? Math.floor((Date.now() - _seatedAt) / 60000) : 0;
         let timerHtml = '';
         if ((st === 'occupied' || st === 'awaiting_payment') && _seatedAt) {
-            // טיימר צבעוני: ירוק (0-60) → ענבר (60-80) → כתום (80-90) → אדום (90+)
+            let _tt = { amber: 60, orange: 80, red: 90, maxBar: 120 };
+            try { _tt = { ..._tt, ...JSON.parse(localStorage.getItem(`table_timer_thresholds_${currentGroup?.id}`) || '{}') }; } catch(e) {}
             let _barColor, _alertClass;
-            if (_elapsedMins <= 60) {
+            if (_elapsedMins <= _tt.amber) {
                 _barColor = 'bg-green-500';
                 _alertClass = 'text-green-600';
-            } else if (_elapsedMins <= 80) {
+            } else if (_elapsedMins <= _tt.orange) {
                 _barColor = 'bg-amber-400';
                 _alertClass = 'text-amber-600';
-            } else if (_elapsedMins <= 90) {
+            } else if (_elapsedMins <= _tt.red) {
                 _barColor = 'bg-orange-500';
                 _alertClass = 'text-orange-600 font-bold';
             } else {
                 _barColor = 'bg-red-600';
                 _alertClass = 'text-red-600 font-black';
             }
-            const _pct = Math.min(100, Math.round(_elapsedMins / 120 * 100)); // 120 דקות = 100%
+            const _pct = Math.min(100, Math.round(_elapsedMins / _tt.maxBar * 100));
             const _minsStr = _elapsedMins >= 60 ? `${Math.floor(_elapsedMins/60)}ש${_elapsedMins%60?`${_elapsedMins%60}′`:''}` : `${_elapsedMins}′`;
             timerHtml = `<div class="w-full rounded-full bg-slate-200 overflow-hidden" style="height:2.5px;"><div class="${_barColor} h-full transition-all" style="width:${_pct}%"></div></div><span class="${_alertClass} text-[7px] leading-none">${_minsStr}</span>`;
         }
@@ -30154,6 +30155,57 @@ function renderSettingsHub() {
         </div>
     </div>` : '';
 
+    // ─ Timer thresholds (restaurant/cafe, ADMIN only) ────────────────────────
+    const timerKey = `table_timer_thresholds_${currentGroup?.id}`;
+    let timerThresh = { amber: 60, orange: 80, red: 90, maxBar: 120 };
+    try { timerThresh = { ...timerThresh, ...JSON.parse(localStorage.getItem(timerKey) || '{}') }; } catch(e) {}
+
+    const timerSection = (isAdmin && isRestaurant) ? `
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+            <i class="fa-solid fa-hourglass-half text-orange-500 text-sm"></i>
+            <h3 class="font-black text-slate-700 text-sm">⏱️ ספי זמן ישיבה</h3>
+        </div>
+        <div class="p-4 space-y-3">
+            <p class="text-[11px] text-slate-400 mb-3">הגדר כמה דקות עד שהצבע משתנה בקוביית השולחן</p>
+            <div class="grid grid-cols-2 gap-3">
+                <label class="block">
+                    <div class="flex items-center gap-1.5 mb-1"><span class="w-3 h-3 rounded-full bg-amber-400 inline-block"></span><span class="text-xs font-bold text-slate-600">ענבר (אזהרה)</span></div>
+                    <div class="flex items-center gap-1">
+                        <input type="number" id="timer-amber" value="${timerThresh.amber}" min="10" max="240"
+                            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-center">
+                        <span class="text-xs text-slate-400 shrink-0">דק׳</span>
+                    </div>
+                </label>
+                <label class="block">
+                    <div class="flex items-center gap-1.5 mb-1"><span class="w-3 h-3 rounded-full bg-orange-500 inline-block"></span><span class="text-xs font-bold text-slate-600">כתום</span></div>
+                    <div class="flex items-center gap-1">
+                        <input type="number" id="timer-orange" value="${timerThresh.orange}" min="10" max="240"
+                            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-center">
+                        <span class="text-xs text-slate-400 shrink-0">דק׳</span>
+                    </div>
+                </label>
+                <label class="block">
+                    <div class="flex items-center gap-1.5 mb-1"><span class="w-3 h-3 rounded-full bg-red-600 inline-block"></span><span class="text-xs font-bold text-slate-600">אדום (דחוף)</span></div>
+                    <div class="flex items-center gap-1">
+                        <input type="number" id="timer-red" value="${timerThresh.red}" min="10" max="240"
+                            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-center">
+                        <span class="text-xs text-slate-400 shrink-0">דק׳</span>
+                    </div>
+                </label>
+                <label class="block">
+                    <div class="flex items-center gap-1.5 mb-1"><span class="w-3 h-3 rounded-full bg-slate-300 inline-block"></span><span class="text-xs font-bold text-slate-600">סרגל מלא</span></div>
+                    <div class="flex items-center gap-1">
+                        <input type="number" id="timer-max" value="${timerThresh.maxBar}" min="30" max="480"
+                            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-center">
+                        <span class="text-xs text-slate-400 shrink-0">דק׳</span>
+                    </div>
+                </label>
+            </div>
+            <button onclick="window.saveTimerThresholds()" class="w-full bg-orange-500 text-white py-2.5 rounded-xl font-bold text-sm active:opacity-80 transition" style="touch-action:manipulation;">שמור ספי זמן</button>
+        </div>
+    </div>` : '';
+
     // ─ Support & resources ───────────────────────────────────────────────────
     const supportSection = `
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -30214,10 +30266,25 @@ function renderSettingsHub() {
         ${bizCard}
         ${profileSection}
         ${docSection}
+        ${timerSection}
         ${supportSection}
         ${logoutSection}
     `;
 }
+
+window.saveTimerThresholds = function() {
+    const amber  = parseInt(document.getElementById('timer-amber')?.value)  || 60;
+    const orange = parseInt(document.getElementById('timer-orange')?.value) || 80;
+    const red    = parseInt(document.getElementById('timer-red')?.value)    || 90;
+    const maxBar = parseInt(document.getElementById('timer-max')?.value)    || 120;
+    if (amber >= orange || orange >= red) {
+        showToast('error', 'הסדר חייב להיות: ענבר < כתום < אדום');
+        return;
+    }
+    const key = `table_timer_thresholds_${currentGroup?.id}`;
+    localStorage.setItem(key, JSON.stringify({ amber, orange, red, maxBar }));
+    showToast('success', 'ספי זמן נשמרו ✓');
+};
 
 function openBusinessSettingsModal() {
     const current = currentGroup.business_type || 'other';
