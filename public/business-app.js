@@ -30257,18 +30257,22 @@ function renderSettingsHub() {
     </div>`;
 
     el.innerHTML = `
-        <div class="flex items-center gap-2 px-1 mb-1">
-            <i class="fa-solid fa-gear text-slate-500"></i>
-            <h2 class="font-black text-slate-800 text-base">הגדרות</h2>
-            <span class="text-[10px] text-slate-400 font-medium">${isAdmin ? 'מנהל ראשי' : (currentUser?.nickname||'')}</span>
+        <div class="flex flex-col gap-4 px-1 pt-2 pb-4">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-gear text-slate-500"></i>
+                <h2 class="font-black text-slate-800 text-base">הגדרות</h2>
+                <span class="text-[10px] text-slate-400 font-medium">${isAdmin ? 'מנהל ראשי' : (currentUser?.nickname||'')}</span>
+            </div>
+            <div class="space-y-4">
+                ${quickCards}
+                ${bizCard}
+                ${profileSection}
+                ${docSection}
+                ${timerSection}
+                ${supportSection}
+                ${logoutSection}
+            </div>
         </div>
-        ${quickCards}
-        ${bizCard}
-        ${profileSection}
-        ${docSection}
-        ${timerSection}
-        ${supportSection}
-        ${logoutSection}
     `;
 }
 
