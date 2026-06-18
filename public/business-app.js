@@ -4249,7 +4249,24 @@ window.renderDashboard = async function(forceRefresh = false) {
             if (!done) openOrders++;
         });
         const openTasks   = (allTasks || []).filter(t => t.status === 'pending').length;
-        const activeStaff = (membersCache || []).filter(m => m.role !== 'ADMIN').length;
+
+        // Count only employees who checked in today
+        let activeStaff = 0;
+        let missingStaff = [];
+        try {
+            const tcRes = await fetch(`${API}/timeclock/report?groupId=${currentGroup.id}&userId=all`);
+            if (tcRes.ok) {
+                const tcData = await tcRes.json();
+                const todayStr2 = now.toDateString();
+                const todayPunches = tcData.filter(p => p.punch_in && new Date(p.punch_in).toDateString() === todayStr2);
+                const punchedIds = new Set(todayPunches.map(p => p.user_id));
+                const allNonAdminMembers = (membersCache || []).filter(m => m.role !== 'ADMIN');
+                activeStaff = Array.from(punchedIds).filter(id => allNonAdminMembers.some(m => m.id === id)).length;
+                missingStaff = allNonAdminMembers.filter(m => !punchedIds.has(m.id));
+            }
+        } catch(e) {
+            activeStaff = (membersCache || []).filter(m => m.role !== 'ADMIN').length;
+        }
 
         // Balance: sum all cashflow transactions
         let totalIncome = 0, totalExpense = 0;
@@ -4263,6 +4280,16 @@ window.renderDashboard = async function(forceRefresh = false) {
         s('kpi-sales-today',   `₪${salesToday.toLocaleString('he-IL', {maximumFractionDigits:0})}`);
         s('kpi-orders-today',  `${ordersToday} הזמנות היום`);
         s('kpi-active-staff',  activeStaff);
+
+        const staffStatusEl = document.getElementById('kpi-staff-status');
+        if (staffStatusEl) {
+            if (missingStaff.length > 0) {
+                staffStatusEl.textContent = `${activeStaff} בצוות, ${missingStaff.length} לא החתימו`;
+            } else {
+                staffStatusEl.textContent = `${activeStaff} בצוות`;
+            }
+        }
+
         s('kpi-open-orders',   openOrders);
         s('kpi-open-tasks',    openTasks);
         s('kpi-revenue-month', `₪${revenueMonth.toLocaleString('he-IL', {maximumFractionDigits:0})}`);
