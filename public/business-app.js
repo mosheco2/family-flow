@@ -21628,7 +21628,8 @@ window.showWaiterPOS = async function() {
 
     // Auto-refresh table assignments every 5 seconds (in case manager assigns new tables)
     if (window._waiterTablePollingInterval) clearInterval(window._waiterTablePollingInterval);
-    window._waiterTablePollingInterval = setInterval(() => {
+    window._waiterTablePollingInterval = setInterval(async () => {
+        await syncTableAssignmentsFromServer(); // Pull latest from server first
         const assigns = getTableAssignments() || {};
         const count = parseInt(currentGroup?.table_count || 8);
         const bills = getTableBills();
@@ -21708,6 +21709,7 @@ window.waiterRefreshTables = async function(btn) {
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     }
     try {
+        await syncTableAssignmentsFromServer(); // Pull latest from server
         // Rebuild table chips with refreshed assignments
         const count = parseInt(currentGroup.table_count || 8);
         const bills = getTableBills();
@@ -28629,12 +28631,30 @@ function getTableAssignments() {
     try { return JSON.parse(localStorage.getItem(`table_assign_${currentGroup.id}_${today}`) || '{}'); } catch(e) { return {}; }
 }
 
+async function syncTableAssignmentsFromServer() {
+    if (!currentGroup?.id) return;
+    try {
+        const r = await fetch(`${API}/tables/${currentGroup.id}/assignments`);
+        const d = await r.json();
+        const today = new Date().toISOString().split('T')[0];
+        if (d.assignments) {
+            localStorage.setItem(`table_assign_${currentGroup.id}_${today}`, JSON.stringify(d.assignments));
+        }
+    } catch(e) {}
+}
+
 window.assignTableWaiter = function(tableId, waiterName) {
     const today = new Date().toISOString().split('T')[0];
     const key = `table_assign_${currentGroup.id}_${today}`;
     let a = getTableAssignments();
     if (waiterName) a[tableId] = waiterName; else delete a[tableId];
     localStorage.setItem(key, JSON.stringify(a));
+    // Sync to server so other devices can see the assignment
+    fetch(`${API}/tables/${currentGroup.id}/assignments`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignments: a })
+    }).catch(() => {});
 };
 
 function renderTableGrid() {
@@ -28648,9 +28668,10 @@ function renderTableGrid() {
 function startTableGridPolling() {
     if (window._tableGridPollingInterval) return; // Already running
 
-    window._tableGridPollingInterval = setInterval(() => {
+    window._tableGridPollingInterval = setInterval(async () => {
         const gridCard = document.querySelector('.table-grid-card');
         if (gridCard && !document.getElementById('waiter-pos-modal')) { // Don't update while waiter POS is open
+            await syncTableAssignmentsFromServer(); // Pull latest from server
             const newHtml = renderTableGrid();
             gridCard.outerHTML = newHtml;
         } else if (!gridCard && window._tableGridPollingInterval) {
@@ -29364,6 +29385,9 @@ async function renderWaiterDashboard(el) {
             localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
         }
     } catch(e) {}
+
+    // Sync waiter assignments from server (so cross-device updates are visible)
+    await syncTableAssignmentsFromServer();
 
     // Fetch orders for ready lists (full-order ready + per-item ready + auto-deliver completed)
     let pendingReady = [], itemReadyList = [], pendingApproval = [];

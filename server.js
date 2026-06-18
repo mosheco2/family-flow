@@ -670,6 +670,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       // ===== WORK ORDERS MODULE =====
       try { await client.query(`CREATE TABLE IF NOT EXISTS restaurant_table_states (group_id INT PRIMARY KEY, states JSONB DEFAULT '{}', updated_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS restaurant_table_bills (group_id INT PRIMARY KEY, bills JSONB DEFAULT '{}', updated_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS restaurant_table_assignments (group_id INT PRIMARY KEY, assignments JSONB DEFAULT '{}', shift_date DATE DEFAULT CURRENT_DATE, updated_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
       try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS alternatives_json JSONB DEFAULT NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS call_type VARCHAR(30) DEFAULT NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS order_source VARCHAR(20) DEFAULT 'website'`); } catch(e) {}
@@ -5151,6 +5152,33 @@ app.put('/api/tables/:groupId/states', async (req, res) => {
             `INSERT INTO restaurant_table_states (group_id, states, updated_at) VALUES ($1,$2,NOW())
              ON CONFLICT (group_id) DO UPDATE SET states=$2, updated_at=NOW()`,
             [req.params.groupId, JSON.stringify(states || {})]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Restaurant table assignments sync ───────────────────────────────────────
+app.get('/api/tables/:groupId/assignments', async (req, res) => {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const r = await pool.query('SELECT assignments, shift_date, updated_at FROM restaurant_table_assignments WHERE group_id=$1', [req.params.groupId]);
+        const row = r.rows[0];
+        // Reset assignments if it's a new day
+        if (row && row.shift_date && row.shift_date.toISOString().split('T')[0] !== today) {
+            res.json({ assignments: {}, updatedAt: null });
+        } else {
+            res.json({ assignments: row?.assignments || {}, updatedAt: row?.updated_at || null });
+        }
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.put('/api/tables/:groupId/assignments', async (req, res) => {
+    try {
+        const { assignments } = req.body;
+        const today = new Date().toISOString().split('T')[0];
+        await pool.query(
+            `INSERT INTO restaurant_table_assignments (group_id, assignments, shift_date, updated_at) VALUES ($1,$2,$3,NOW())
+             ON CONFLICT (group_id) DO UPDATE SET assignments=$2, shift_date=$3, updated_at=NOW()`,
+            [req.params.groupId, JSON.stringify(assignments || {}), today]
         );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
