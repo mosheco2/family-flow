@@ -21624,7 +21624,52 @@ window.showWaiterPOS = async function() {
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
     window.waiterRenderCart();
+
+    // Auto-refresh table assignments every 5 seconds (in case manager assigns new tables)
+    if (window._waiterTablePollingInterval) clearInterval(window._waiterTablePollingInterval);
+    window._waiterTablePollingInterval = setInterval(() => {
+        const assigns = getTableAssignments() || {};
+        const count = parseInt(currentGroup?.table_count || 8);
+        const bills = getTableBills();
+        let changed = false;
+
+        // Check if any assignments changed
+        Array.from({length:count}, (_, i) => i+1).forEach(tid => {
+            const btn = document.querySelector(`.waiter-table-chip:nth-child(${tid})`);
+            if (btn) {
+                const currentAssign = assigns[tid] || 'פנוי';
+                const bill = bills[tid];
+                const subCount = bill ? (bill.submitted||[]).length : 0;
+                const pendCount = bill ? (bill.pending||[]).length : 0;
+                const hasBill = subCount > 0 || pendCount > 0;
+                const expectedSub = hasBill ? `<span class="text-[8px] block font-normal opacity-80">${subCount} הוזמן${pendCount?` +${pendCount} חדש`:''}</span>` : `<span class="text-[8px] block opacity-50">${currentAssign}</span>`;
+                if (btn.innerHTML !== expectedSub && !hasBill) changed = true;
+            }
+        });
+
+        // If changes detected, show notification
+        if (changed && !window._waiterJustShown) {
+            const chipsContainer = document.getElementById('waiter-table-chips');
+            if (chipsContainer) {
+                const tableBtns = Array.from({length:count}, (_, i) => {
+                    const tid = i+1;
+                    const bill = bills[tid];
+                    const subCount = bill ? (bill.submitted||[]).length : 0;
+                    const pendCount = bill ? (bill.pending||[]).length : 0;
+                    const hasBill = subCount > 0 || pendCount > 0;
+                    const selected = window.waiterSelectedTable === tid;
+                    const chipClass = selected ? 'bg-amber-500 text-white shadow' : hasBill ? 'bg-indigo-100 text-indigo-800 border border-indigo-300' : 'bg-slate-100 text-slate-600 border border-slate-200';
+                    const sub = hasBill ? `<span class="text-[8px] block font-normal opacity-80">${subCount} הוזמן${pendCount?` +${pendCount} חדש`:''}</span>` : `<span class="text-[8px] block opacity-50">${assigns[tid]||'פנוי'}</span>`;
+                    return `<button type="button" ontouchend="event.preventDefault();waiterSelectTable(${tid},this);" onclick="waiterSelectTable(${tid},this)"
+                        class="waiter-table-chip shrink-0 rounded-xl px-3 py-2 font-black text-sm transition min-w-[52px] text-center ${chipClass}" style="touch-action:manipulation;cursor:pointer;">
+                        ${tid}${sub}</button>`;
+                }).join('');
+                chipsContainer.innerHTML = tableBtns;
+            }
+        }
+    }, 5000);
 };
+
 
 window.waiterReloadCatalog = async function(btn) {
     if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
@@ -21694,6 +21739,10 @@ window.waiterRefreshTables = async function(btn) {
 
 window.waiterCloseModal = function() {
     waiterSavePendingForCurrentTable();
+    if (window._waiterTablePollingInterval) {
+        clearInterval(window._waiterTablePollingInterval);
+        window._waiterTablePollingInterval = null;
+    }
     document.getElementById('waiter-pos-modal')?.remove();
 };
 
