@@ -4369,9 +4369,10 @@ window.renderDashboard = async function(forceRefresh = false) {
         // ★ Urgent items panel
         renderUrgentItems();
 
-        // ★ pending store orders for restaurant/cafe admin (same view as waiter)
+        // ★ pending store orders for restaurant/cafe admin (same view as waiter, auto-polled)
         if (['restaurant','cafe'].includes(currentGroup?.business_type)) {
             try { await renderRestaurantPendingOrders(); } catch(e) {}
+            startAdminPendingOrdersPolling();
         }
 
         // ★ קריאות שירות ממשפחות (maintenance_repair + שירותים)
@@ -28361,6 +28362,22 @@ function startWaiterReadyPolling() {
     _waiterReadyPollingInterval = setInterval(refreshWaiterReadySection, 5000);
 }
 let _adminTablesPollingInterval = null;
+let _adminPendingOrdersPollingInterval = null;
+function startAdminPendingOrdersPolling() {
+    if (_adminPendingOrdersPollingInterval) return;
+    _adminPendingOrdersPollingInterval = setInterval(() => {
+        const section = document.getElementById('admin-pending-orders-section');
+        if (section !== null && typeof window.renderRestaurantPendingOrders === 'function') {
+            window.renderRestaurantPendingOrders();
+        } else if (section === null) {
+            clearInterval(_adminPendingOrdersPollingInterval);
+            _adminPendingOrdersPollingInterval = null;
+        }
+    }, 5000);
+}
+function stopAdminPendingOrdersPolling() {
+    if (_adminPendingOrdersPollingInterval) { clearInterval(_adminPendingOrdersPollingInterval); _adminPendingOrdersPollingInterval = null; }
+}
 function stopWaiterReadyPolling() {
     if (_waiterReadyPollingInterval) { clearInterval(_waiterReadyPollingInterval); _waiterReadyPollingInterval = null; }
 }
