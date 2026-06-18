@@ -28984,6 +28984,7 @@ window._renderSeatingWindows = async function(dateStr) {
             <h4 class="font-black text-slate-700 text-xs mb-2">📋 רשימת הזמנות ליום זה</h4>
             ${reservations.map(r => {
                 const isApproved = r.status === 'approved';
+                const sourceLabel = r.order_source === 'website' ? '🌐 אתר' : r.order_source === 'internal' ? '👤 עובד' : r.order_source === 'table' ? '🍽️ שולחן' : '';
                 return `<div class="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
                     <div class="w-10 h-10 rounded-xl ${isApproved?'bg-blue-100':'bg-amber-100'} flex flex-col items-center justify-center shrink-0">
                         <span class="text-[10px] font-black ${isApproved?'text-blue-700':'text-amber-700'}">${String(r.start_time||'').slice(0,5)}</span>
@@ -28992,10 +28993,12 @@ window._renderSeatingWindows = async function(dateStr) {
                     <div class="flex-1 min-w-0">
                         <div class="text-xs font-black text-slate-800 truncate">${safeStr(r.title||'הזמנה')}</div>
                         <div class="text-[10px] text-slate-500">${r.num_guests||'?'} סועדים${r.notes?' · '+safeStr(r.notes):''}</div>
+                        ${sourceLabel ? `<div class="text-[9px] text-slate-500 mt-0.5">${sourceLabel}</div>` : ''}
+                        ${r.customer_phone ? `<div class="text-[9px] text-slate-500">📞 ${safeStr(r.customer_phone)}</div>` : ''}
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
                         <span class="text-[9px] font-bold px-2 py-0.5 rounded-full ${isApproved?'bg-blue-100 text-blue-700':'bg-amber-100 text-amber-700'}">${isApproved?'מאושר':'ממתין'}</span>
-                        ${r.customer_phone?`<a href="tel:${safeStr(r.customer_phone)}" class="text-emerald-600 bg-emerald-50 border border-emerald-200 text-[11px] font-bold px-2 py-1 rounded-xl">📞</a>`:''}
+                        ${r.customer_phone?`<a href="tel:${safeStr(r.customer_phone)}" class="text-emerald-600 bg-emerald-50 border border-emerald-200 text-[11px] font-bold px-2 py-1 rounded-xl" style="touch-action:manipulation;">📞</a>`:''}
                     </div>
                 </div>`;
             }).join('')}
