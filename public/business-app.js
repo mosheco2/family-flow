@@ -21529,6 +21529,16 @@ function waiterSavePendingForCurrentTable() {
 window.showWaiterPOS = async function() {
     document.getElementById('waiter-pos-modal')?.remove();
 
+    // Listen for table assignment changes from manager
+    if (!window._waiterStorageListenerAdded) {
+        window._waiterStorageListenerAdded = true;
+        window.addEventListener('storage', (e) => {
+            if (e.key?.startsWith('table_assign_') && e.newValue !== e.oldValue) {
+                showToast('info', '📊 שולחנות עודכנו — לחץ רענן');
+            }
+        });
+    }
+
     // Ensure catalog is loaded (fix: products not showing)
     if (!storeCatalogCache || !storeCatalogCache.length) {
         try {
@@ -21581,6 +21591,7 @@ window.showWaiterPOS = async function() {
             <button ontouchend="event.preventDefault();waiterCloseModal();" onclick="waiterCloseModal()" class="text-white text-xl" style="touch-action:manipulation;"><i class="fa-solid fa-xmark"></i></button>
             <h2 class="font-black text-base flex-1">🍽️ הזמנה לשולחן</h2>
             <button id="waiter-reload-catalog-btn" ontouchend="event.preventDefault();waiterReloadCatalog(this);" onclick="waiterReloadCatalog(this)" class="text-[11px] font-bold bg-white/20 hover:bg-white/30 px-2 py-1 rounded-lg transition" style="touch-action:manipulation;" title="טען מוצרים"><i class="fa-solid fa-rotate"></i> טען</button>
+            <button id="waiter-refresh-tables-btn" ontouchend="event.preventDefault();waiterRefreshTables(this);" onclick="waiterRefreshTables(this)" class="text-[11px] font-bold bg-white/20 hover:bg-white/30 px-2 py-1 rounded-lg transition" style="touch-action:manipulation;" title="רענן שולחנות"><i class="fa-solid fa-arrows-rotate"></i></button>
             <span id="waiter-pos-table-label" class="text-sm font-black bg-white/20 px-3 py-1 rounded-lg">${window.waiterSelectedTable ? `שולחן ${window.waiterSelectedTable}` : 'בחר שולחן'}</span>
         </div>
         <div class="bg-amber-50 border-b border-amber-200 px-3 py-2 shrink-0">
@@ -21642,6 +21653,42 @@ window.waiterReloadCatalog = async function(btn) {
         showToast('error', 'שגיאה בטעינת מוצרים');
     } finally {
         if (btn) btn.innerHTML = '<i class="fa-solid fa-rotate"></i> טען';
+    }
+};
+
+window.waiterRefreshTables = async function(btn) {
+    if (btn) {
+        btn.classList.add('opacity-50', 'pointer-events-none');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    }
+    try {
+        // Rebuild table chips with refreshed assignments
+        const count = parseInt(currentGroup.table_count || 8);
+        const bills = getTableBills();
+        const assigns = getTableAssignments() || {};
+        const tableBtns = Array.from({length:count}, (_, i) => {
+            const tid = i+1;
+            const bill = bills[tid];
+            const subCount = bill ? (bill.submitted||[]).length : 0;
+            const pendCount = bill ? (bill.pending||[]).length : 0;
+            const hasBill = subCount > 0 || pendCount > 0;
+            const selected = window.waiterSelectedTable === tid;
+            const chipClass = selected ? 'bg-amber-500 text-white shadow' : hasBill ? 'bg-indigo-100 text-indigo-800 border border-indigo-300' : 'bg-slate-100 text-slate-600 border border-slate-200';
+            const sub = hasBill ? `<span class="text-[8px] block font-normal opacity-80">${subCount} הוזמן${pendCount?` +${pendCount} חדש`:''}</span>` : `<span class="text-[8px] block opacity-50">${assigns[tid]||'פנוי'}</span>`;
+            return `<button type="button" ontouchend="event.preventDefault();waiterSelectTable(${tid},this);" onclick="waiterSelectTable(${tid},this)"
+                class="waiter-table-chip shrink-0 rounded-xl px-3 py-2 font-black text-sm transition min-w-[52px] text-center ${chipClass}" style="touch-action:manipulation;cursor:pointer;">
+                ${tid}${sub}</button>`;
+        }).join('');
+        const chipsContainer = document.getElementById('waiter-table-chips');
+        if (chipsContainer) chipsContainer.innerHTML = tableBtns;
+        showToast('success', 'שולחנות עודכנו');
+    } catch(e) {
+        showToast('error', 'שגיאה בעדכון שולחנות');
+    } finally {
+        if (btn) {
+            btn.classList.remove('opacity-50', 'pointer-events-none');
+            btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i>';
+        }
     }
 };
 
