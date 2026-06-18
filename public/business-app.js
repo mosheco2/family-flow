@@ -697,6 +697,7 @@ window.injectBusinessUI = function() {
                                 <button onclick="window.openCustomerStatusScreen()" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-indigo-100 shadow-sm"><i class="fa-solid fa-tv"></i> תור לייב</button>
                                 <select id="store-orders-filter" onchange="window.renderStoreOrders()" class="modern-input py-1.5 px-3 text-xs font-bold bg-slate-50 border-slate-200 text-slate-700 rounded-xl w-full sm:w-auto outline-none focus:border-indigo-400">
                                     <option value="all">כל ההזמנות</option>
+                                    <option value="pending_approval">ממתין לאישור</option>
                                     <option value="new">חדשות</option>
                                     <option value="processing">בהכנה</option>
                                     <option value="ready">מוכנות</option>
@@ -11830,10 +11831,11 @@ window.renderStoreOrders = function() {
     if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>'; return; }
     
     let html = '';
-    const statusMap = { 
-        'new': { text: 'חדשה 🚨', color: 'bg-red-100 text-red-700 border-red-200' }, 
-        'processing': { text: 'בהכנה 📦', color: 'bg-blue-100 text-blue-700 border-blue-200' }, 
-        'ready': { text: 'מוכן 🛍️', color: 'bg-orange-100 text-orange-700 border-orange-200' }, 
+    const statusMap = {
+        'pending_approval': { text: 'ממתין לאישור ⏳', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+        'new': { text: 'חדשה 🚨', color: 'bg-red-100 text-red-700 border-red-200' },
+        'processing': { text: 'בהכנה 📦', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+        'ready': { text: 'מוכן 🛍️', color: 'bg-orange-100 text-orange-700 border-orange-200' },
         'shipped': { text: 'במשלוח 🚚', color: 'bg-purple-100 text-purple-700 border-purple-200' },
         'completed': { text: 'סופק ✅', color: 'bg-green-100 text-green-700 border-green-200 opacity-60' },
         'cancelled': { text: 'בוטל ❌', color: 'bg-slate-100 text-slate-500 border-slate-200 opacity-60' }

@@ -9864,8 +9864,8 @@ function _renderBizAccordion(el, data, bizType) {
         const quotes = act.quotes || [];
         const tableRes = (act.tableReservations || []);
         const _ref = id => id ? `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>` : '';
-        const _ordStatus = { new:'חדש 🔴', confirmed:'אושר', processing:'בהכנה 🍳', ready:'מוכן לאיסוף ✅', shipped:'בדרך אליך 🚚', done:'הושלם ✅', completed:'סופק ✅', cancelled:'בוטל ❌', pending:'ממתין' };
-        const _ordStatusColor = s => s==='done'||s==='completed'?'bg-green-100 text-green-700':s==='cancelled'?'bg-red-100 text-red-600':s==='ready'?'bg-orange-100 text-orange-700':s==='shipped'?'bg-purple-100 text-purple-700':s==='processing'||s==='confirmed'?'bg-blue-100 text-blue-700':'bg-slate-100 text-slate-600';
+        const _ordStatus = { pending_approval:'ממתין לאישור ⏳', new:'חדש 🔴', confirmed:'אושר', processing:'בהכנה 🍳', ready:'מוכן לאיסוף ✅', shipped:'בדרך אליך 🚚', done:'הושלם ✅', completed:'סופק ✅', cancelled:'בוטל ❌', pending:'ממתין' };
+        const _ordStatusColor = s => s==='done'||s==='completed'?'bg-green-100 text-green-700':s==='cancelled'?'bg-red-100 text-red-600':s==='ready'?'bg-orange-100 text-orange-700':s==='shipped'?'bg-purple-100 text-purple-700':s==='processing'||s==='confirmed'?'bg-blue-100 text-blue-700':s==='pending_approval'?'bg-yellow-100 text-yellow-700':'bg-slate-100 text-slate-600';
         const canRate = o => !o.customer_rating && (o.status === 'completed' || o.status === 'shipped');
         const ratingStars = o => o.customer_rating ? '⭐'.repeat(o.customer_rating) : '';
         const renderOrd = o => {
