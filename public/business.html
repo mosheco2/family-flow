@@ -194,6 +194,30 @@
         /* Hide broken banner images */
         img[src="/undefined"], img[src="/null"], img[src="/"], img:not([src]) { display: none !important; }
 
+        /* אייקוני פעולה בתוך קוביית שולחן — אזור מגע נוח לאצבע */
+        .table-icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            min-height: 32px;
+            font-size: 14px;
+            line-height: 1;
+            border-radius: 8px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            opacity: 0.7;
+            transition: opacity 0.15s, background 0.15s, transform 0.1s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .table-icon-btn:active {
+            opacity: 1;
+            transform: scale(0.9);
+            background: rgba(0,0,0,0.08);
+        }
+
         /* התאמת באנרים לתצוגה מלאה ללא חיתוך */
         #app-banner-top:not(.hidden), #app-banner-bottom:not(.hidden) { display: flex !important; align-items: center; justify-content: center; background-color: transparent !important; padding: 0 !important; }
         #app-banner-top:not(.hidden) img, #app-banner-bottom:not(.hidden) img { object-fit: contain !important; width: 100% !important; height: auto !important; max-height: 120px !important; margin: 0 auto; display: block; }
