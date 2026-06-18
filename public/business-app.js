@@ -28708,15 +28708,15 @@ function renderTableGrid() {
             data-id="${id}"
             ontouchend="event.preventDefault();event.stopPropagation();toggleTable(${id},this);"
             onclick="toggleTable(${id},this)"
-            class="table-btn ${stStyle} border-2 rounded-xl p-2 text-center flex flex-col items-center gap-0.5"
-            style="touch-action:manipulation;cursor:pointer;">
-            <span class="font-black text-sm">${id}</span>
+            class="table-btn ${stStyle} border-2 rounded-lg md:rounded-xl p-2.5 md:p-3 text-center flex flex-col items-center gap-1 transition-all active:scale-95"
+            style="touch-action:manipulation;cursor:pointer;min-height:70px;">
+            <span class="font-black text-base md:text-sm">${id}</span>
             ${cap}
             ${waiter}
-            <span class="tsLabel text-[9px] font-bold">${stLabel}</span>
+            <span class="tsLabel text-[8px] md:text-[9px] font-bold">${stLabel}</span>
             ${resTimeHtml}
             ${timerHtml}
-            <div class="flex gap-1 justify-center">${transferBtn}${infoBtn}${qrBtn}</div>
+            <div class="flex gap-0.5 md:gap-1 justify-center text-xs">${transferBtn}${infoBtn}${qrBtn}</div>
         </button>`;
     }).join('');
     const reserved = Array.from({length:count},(_,i)=>states[i+1]==='reserved').filter(Boolean).length;
@@ -28727,21 +28727,21 @@ function renderTableGrid() {
     if (waiting) summaryHtml += ` · <span class="text-orange-600 font-bold">${waiting} ממתינים לתשלום</span>`;
     return `<div class="table-grid-card mb-4 flex flex-col gap-3">
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
-            <div class="px-4 py-3 border-b border-slate-50 flex items-center justify-between flex-wrap gap-1">
-                <h3 class="font-black text-slate-800 text-sm">🍽️ מצב שולחנות</h3>
-                <div class="flex items-center gap-2">
-                    <span class="table-summary text-[10px]">${summaryHtml}</span>
-                    <button onclick="window.openSeatingWindowsModal()" class="text-[9px] text-blue-600 hover:text-blue-800 transition px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 font-bold" title="חלונות הושבה">📅 חלונות</button>
-                    <button onclick="window.openTableSettingsModal()" class="text-[9px] text-slate-400 hover:text-slate-600 transition px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200" title="הגדרות שולחנות">⚙️</button>
+            <div class="px-3 md:px-4 py-2 md:py-3 border-b border-slate-50 flex items-center justify-between flex-wrap gap-2">
+                <h3 class="font-black text-slate-800 text-sm md:text-base">🍽️ מצב שולחנות</h3>
+                <div class="flex items-center gap-1.5 md:gap-2 flex-wrap">
+                    <span class="table-summary text-[8px] md:text-[10px]">${summaryHtml}</span>
+                    <button ontouchend="event.preventDefault();window.openSeatingWindowsModal();" onclick="window.openSeatingWindowsModal()" class="text-[9px] md:text-[10px] text-blue-600 hover:text-blue-800 active:scale-95 transition px-2 md:px-2.5 py-1 md:py-1.5 rounded bg-blue-50 border border-blue-200 font-bold whitespace-nowrap" title="חלונות הושבה">📅 חלונות</button>
+                    <button ontouchend="event.preventDefault();window.openTableSettingsModal();" onclick="window.openTableSettingsModal()" class="text-sm md:text-base text-slate-400 hover:text-slate-600 active:scale-95 transition px-2 md:px-2.5 py-1 md:py-1.5 rounded bg-slate-50 border border-slate-200" title="הגדרות שולחנות">⚙️</button>
                 </div>
             </div>
-            <div class="p-3 grid grid-cols-4 gap-2">${rows}</div>
-            <div class="px-4 pb-3 flex items-center gap-3 text-[9px] text-slate-400 flex-wrap">
-                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span>פנוי</span>
-                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block"></span>הוזמן מראש</span>
-                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span>תפוס</span>
-                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block"></span>ממתין לתשלום</span>
-                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block"></span>מושבת</span>
+            <div class="p-2 md:p-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 md:gap-2">${rows}</div>
+            <div class="px-4 pb-3 flex items-center gap-2 text-[9px] md:text-[10px] text-slate-500 flex-wrap">
+                <span class="flex items-center gap-1.5 shrink-0"><span class="w-3 h-3 rounded-full bg-green-400 inline-block flex-shrink-0"></span><span class="whitespace-nowrap">פנוי</span></span>
+                <span class="flex items-center gap-1.5 shrink-0"><span class="w-3 h-3 rounded-full bg-blue-400 inline-block flex-shrink-0"></span><span class="whitespace-nowrap">הוזמן מראש</span></span>
+                <span class="flex items-center gap-1.5 shrink-0"><span class="w-3 h-3 rounded-full bg-red-400 inline-block flex-shrink-0"></span><span class="whitespace-nowrap">תפוס</span></span>
+                <span class="flex items-center gap-1.5 shrink-0"><span class="w-3 h-3 rounded-full bg-orange-400 inline-block flex-shrink-0"></span><span class="whitespace-nowrap">ממתין</span></span>
+                <span class="flex items-center gap-1.5 shrink-0"><span class="w-3 h-3 rounded-full bg-slate-300 inline-block flex-shrink-0"></span><span class="whitespace-nowrap">מושבת</span></span>
             </div>
         </div>
         ${_renderWaitlistSection()}
