@@ -11788,19 +11788,23 @@ function getDeliveryMeta(order) {
 }
 
 // פונקציה לבניית ציר הזמן האחיד (למסך מנהל ולשליח) כולל הצגת שעות צמודות ל-V
-function buildOrderLogHtml(status, createdAt) {
+function buildOrderLogHtml(status, createdAt, isDelivery) {
     const baseTime = new Date(createdAt);
     const createdTime = baseTime.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
-    
+
     const addMins = (mins) => {
         const d = new Date(baseTime.getTime() + mins * 60000);
         return d.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
     };
 
-    const isProcessing = ['processing', 'ready', 'shipped', 'completed'].includes(status);
-    const isReady = ['ready', 'shipped', 'completed'].includes(status);
-    const isShipped = ['shipped', 'completed'].includes(status);
+    const isProcessing = ['processing', 'ready', 'shipped', 'delivering', 'completed'].includes(status);
+    const isReady = ['ready', 'shipped', 'delivering', 'completed'].includes(status);
+    const isShipped = ['shipped', 'delivering', 'completed'].includes(status);
     const isCompleted = status === 'completed';
+
+    const step3Label = isDelivery ? 'מוכנה לאיסוף ע"י שליח' : 'מוכנה לאיסוף עצמי';
+    const step4Label = isDelivery ? 'יצאה למשלוח בדרך ללקוח' : 'נאסף ע"י הלקוח';
+    const step5Label = isDelivery ? 'סופקה בהצלחה ללקוח' : 'הזמנה הושלמה';
 
     return `
         <div class="mt-4 pt-4 border-t border-slate-100 space-y-3">
@@ -11822,21 +11826,21 @@ function buildOrderLogHtml(status, createdAt) {
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="w-2 h-2 rounded-full ${isReady ? 'bg-green-500' : 'bg-slate-200'}"></div>
-                    <span class="text-xs ${isReady ? 'text-slate-600 font-bold' : 'text-slate-400 font-medium'}">מוכנה לאיסוף ע"י שליח</span>
+                    <span class="text-xs ${isReady ? 'text-slate-600 font-bold' : 'text-slate-400 font-medium'}">${step3Label}</span>
                 </div>
                 <div class="text-[10px] font-mono ${isReady ? 'text-slate-400' : 'text-transparent'} flex items-center gap-1">${isReady ? addMins(12) : ''} <i class="fa-solid fa-check ${isReady ? 'text-green-500' : 'text-transparent'}"></i></div>
             </div>
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="w-2 h-2 rounded-full ${isShipped ? (isCompleted ? 'bg-green-500' : 'bg-blue-500 animate-pulse') : 'bg-slate-200'}"></div>
-                    <span class="text-xs ${isShipped ? (isCompleted ? 'text-slate-600 font-bold' : 'text-blue-600 font-black') : 'text-slate-400 font-medium'}">יצאה למשלוח בדרך ללקוח</span>
+                    <span class="text-xs ${isShipped ? (isCompleted ? 'text-slate-600 font-bold' : 'text-blue-600 font-black') : 'text-slate-400 font-medium'}">${step4Label}</span>
                 </div>
                 <div class="text-[10px] font-mono ${isShipped ? 'text-slate-400' : 'text-transparent'} flex items-center gap-1">${isShipped ? addMins(15) : ''} <i class="fa-solid fa-check ${isShipped ? 'text-green-500' : 'text-transparent'}"></i></div>
             </div>
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="w-2 h-2 rounded-full ${isCompleted ? 'bg-green-600' : 'bg-slate-200'}"></div>
-                    <span class="text-xs ${isCompleted ? 'text-green-700 font-black' : 'text-slate-400 font-medium'}">סופקה בהצלחה ללקוח</span>
+                    <span class="text-xs ${isCompleted ? 'text-green-700 font-black' : 'text-slate-400 font-medium'}">${step5Label}</span>
                 </div>
                 <div class="text-[10px] font-mono ${isCompleted ? 'text-slate-400' : 'text-transparent'} flex items-center gap-1">${isCompleted ? addMins(25) : ''} <i class="fa-solid fa-check ${isCompleted ? 'text-green-500' : 'text-transparent'}"></i></div>
             </div>
@@ -12053,7 +12057,7 @@ window.renderStoreOrders = function() {
             <div id="order-details-mng-${o.id}" class="hidden mt-4 pt-4 border-t border-slate-100">
                 ${isDelivery ? `<div class="mb-3 bg-indigo-50 p-2.5 rounded-xl text-xs font-bold text-indigo-800 border border-indigo-100"><i class="fa-solid fa-location-dot mr-1"></i> ${addr}</div>` : ''}
                 ${displayNoteHtml}
-                ${buildOrderLogHtml(o.status, o.created_at)}
+                ${buildOrderLogHtml(o.status, o.created_at, isDelivery)}
                 <div class="flex justify-end mt-4">
                     <button onclick="window.openStoreOrderModal(${o.id})" class="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm w-full"><i class="fa-solid fa-gear"></i> ניהול ופרטים מלאים</button>
                 </div>
@@ -15389,7 +15393,7 @@ window.renderCourierList = function(type, orders, statusType) {
                     <a href="${waLink}" target="_blank" class="flex flex-col items-center justify-center gap-1 py-2.5 bg-[#25D366]/10 text-[#25D366] rounded-xl font-bold text-[10px] border border-[#25D366]/20 hover:bg-[#25D366]/20 transition"><i class="fa-brands fa-whatsapp text-lg"></i> הודעה</a>
                 </div>
                 
-                ${buildOrderLogHtml(o.status, o.created_at)}
+                ${buildOrderLogHtml(o.status, o.created_at, checkIsDelivery(o))}
                 ${actionBtn}
             </div>
         </div>`;
