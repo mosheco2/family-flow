@@ -11800,6 +11800,13 @@ function getDeliveryMeta(order) {
     } catch(e) { return null; }
 }
 
+function hasDeliveryItems(order) {
+    try {
+        const items = typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || []);
+        return items.some(i => i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|')));
+    } catch(e) { return false; }
+}
+
 // פונקציה לבניית ציר הזמן האחיד (למסך מנהל ולשליח) כולל הצגת שעות צמודות ל-V
 function buildOrderLogHtml(status, createdAt, isDelivery) {
     const baseTime = new Date(createdAt);
@@ -15316,12 +15323,6 @@ window.loadCourierData = async function() {
         else if (data.data) ordersArray = data.data;
         
         if (ordersArray.length > 0) {
-            const hasDeliveryItems = (o) => {
-                try {
-                    const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
-                    return items.some(i => i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|')));
-                } catch(e) { return false; }
-            };
             const checkIsDelivery = (o) => (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true' || getDeliveryMeta(o) !== null || hasDeliveryItems(o));
 
             let filtered = ordersArray.filter(checkIsDelivery);
@@ -15419,7 +15420,7 @@ window.renderCourierList = function(type, orders, statusType) {
                     <a href="${waLink}" target="_blank" class="flex flex-col items-center justify-center gap-1 py-2.5 bg-[#25D366]/10 text-[#25D366] rounded-xl font-bold text-[10px] border border-[#25D366]/20 hover:bg-[#25D366]/20 transition"><i class="fa-brands fa-whatsapp text-lg"></i> הודעה</a>
                 </div>
                 
-                ${buildOrderLogHtml(o.status, o.created_at, !!(o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true'))}
+                ${buildOrderLogHtml(o.status, o.created_at, !!(o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true' || getDeliveryMeta(o) !== null || hasDeliveryItems(o)))}
                 ${actionBtn}
             </div>
         </div>`;
