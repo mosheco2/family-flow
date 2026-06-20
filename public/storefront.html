@@ -1125,10 +1125,21 @@ window.renderCatalog = function() {
 
                 let actionHtml = `<button onclick="${onclickAction}" class="bg-slate-100 text-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold transition w-full border border-slate-200 shadow-sm">${btnText}</button>`;
 
-                // הוסף כפתור "הוסף לסל בחטף" עבור מוצרים רגילים שלא דורשים בחירות
+                // כפתור הוספה מהירה עם בקר כמות למוצרים רגילים
                 const canQuickAdd = pType !== 'pizza_builder' && pType !== 'complex_builder' && pType !== 'service';
                 if (canQuickAdd) {
-                    actionHtml += `<button onclick="window.quickAddToCart(${item.id}, '${safeStr(item.name).replace(/'/g, "\\'")}', ${item.price}); event.stopPropagation();" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition w-full border border-emerald-600 shadow-sm mt-2">🛒 הוסף בחטף</button>`;
+                    const cartKey = `item_${item.id}`;
+                    const qtyInCart = cart[cartKey]?.qty || 0;
+                    const escapedName = safeStr(item.name).replace(/'/g, "\\'");
+                    if (qtyInCart > 0) {
+                        actionHtml += `<div class="flex items-center justify-between mt-2 bg-emerald-50 border border-emerald-200 rounded-lg overflow-hidden">
+                            <button onclick="window.updateCart('${cartKey}', -1, '${escapedName}', ${item.price}, ${item.id}); event.stopPropagation();" class="w-9 h-8 flex items-center justify-center text-emerald-700 font-black text-lg hover:bg-emerald-100 transition shrink-0" style="touch-action:manipulation;">−</button>
+                            <span class="font-black text-emerald-700 text-sm">${qtyInCart}</span>
+                            <button onclick="window.updateCart('${cartKey}', 1, '${escapedName}', ${item.price}, ${item.id}); event.stopPropagation();" class="w-9 h-8 flex items-center justify-center text-emerald-700 font-black text-lg hover:bg-emerald-100 transition shrink-0" style="touch-action:manipulation;">+</button>
+                        </div>`;
+                    } else {
+                        actionHtml += `<button onclick="window.updateCart('item_${item.id}', 1, '${escapedName}', ${item.price}, ${item.id}); event.stopPropagation();" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition w-full border border-emerald-600 shadow-sm mt-2" style="touch-action:manipulation;">הוסף</button>`;
+                    }
                 }
 
                 if (catalogViewMode === 'grid') {
@@ -1470,12 +1481,6 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                     window.openCheckoutModal(true); // קריאה עם דגל skipToggle כדי למנוע לופ
                 }
             }
-        };
-
-        window.quickAddToCart = function(itemId, itemName, itemPrice) {
-            const cartKey = `item_${itemId}`;
-            window.updateCart(cartKey, 1, itemName, itemPrice, itemId);
-            window.showToast('success', `✅ ${itemName} הוסף לסל`);
         };
 
         window.calculateCartDetails = function() {
