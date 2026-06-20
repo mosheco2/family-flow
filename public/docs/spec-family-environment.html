@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>אפיון סביבת משפחה — OneFlow Life FAMILY</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Heebo', sans-serif; }
+  code, pre { font-family: 'Fira Code', monospace; direction: ltr; }
+  pre { direction: ltr; text-align: left; }
+  table { border-collapse: collapse; width: 100%; }
+  h2 { scroll-margin-top: 80px; }
+  h3 { scroll-margin-top: 80px; }
+  @media print {
+    .no-print { display: none !important; }
+    body { font-size: 11pt; }
+    .page-break { page-break-before: always; }
+    pre, code { font-size: 9pt; }
+  }
+  .toc-link { transition: all .15s; }
+  .toc-link:hover { color: #6d28d9; padding-right: 4px; }
+  .badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; }
+  .badge-indigo { background: #eef2ff; color: #4338ca; }
+  .badge-purple { background: #f5f3ff; color: #6d28d9; }
+  .badge-green { background: #f0fdf4; color: #15803d; }
+  .badge-amber { background: #fffbeb; color: #b45309; }
+  .badge-red { background: #fef2f2; color: #dc2626; }
+  .badge-blue { background: #eff6ff; color: #1d4ed8; }
+  .badge-slate { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
+  .flow-box { border: 2px solid #c4b5fd; background: #f5f3ff; border-radius: 12px; padding: 10px 16px; text-align: center; font-size: 13px; font-weight: 700; color: #5b21b6; }
+  .flow-arrow { text-align: center; color: #8b5cf6; font-size: 18px; font-weight: 900; line-height: 1; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+<!-- Header -->
+<div class="no-print sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+  <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-700 flex items-center justify-center">
+        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      </div>
+      <div>
+        <h1 class="font-black text-slate-800 text-sm leading-none">אפיון סביבת משפחה</h1>
+        <p class="text-[10px] text-slate-400 mt-0.5">OneFlow Life FAMILY · גרסה 2026-06-20</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="/docs/spec-family-environment.md" download class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        Markdown
+      </a>
+      <button onclick="window.print()" class="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-700 hover:from-indigo-700 hover:to-violet-800 text-white rounded-lg text-xs font-bold transition">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+        שמור PDF
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="max-w-5xl mx-auto px-4 py-8 flex gap-8">
+
+  <!-- TOC sidebar -->
+  <aside class="no-print w-56 flex-shrink-0 hidden lg:block">
+    <div class="sticky top-20 bg-white rounded-2xl border border-slate-200 p-4 text-sm">
+      <p class="font-black text-slate-700 mb-3 text-xs uppercase tracking-wider">תוכן עניינים</p>
+      <nav class="space-y-1">
+        <a href="#s1" class="toc-link block text-slate-500 text-xs py-0.5">1. ארכיטקטורה וכניסה</a>
+        <a href="#s2" class="toc-link block text-slate-500 text-xs py-0.5">2. ניווט וטאבים</a>
+        <a href="#s3" class="toc-link block text-slate-500 text-xs py-0.5">3. Dashboard / Feed</a>
+        <a href="#s4" class="toc-link block text-slate-500 text-xs py-0.5">4. בנק משפחתי</a>
+        <a href="#s5" class="toc-link block text-slate-500 text-xs py-0.5">5. תזרים ותקציב</a>
+        <a href="#s6" class="toc-link block text-slate-500 text-xs py-0.5">6. תשקיף</a>
+        <a href="#s7" class="toc-link block text-slate-500 text-xs py-0.5">7. סופר חכם</a>
+        <a href="#s8" class="toc-link block text-slate-500 text-xs py-0.5">8. מזווה</a>
+        <a href="#s9" class="toc-link block text-slate-500 text-xs py-0.5">9. שף AI</a>
+        <a href="#s10" class="toc-link block text-slate-500 text-xs py-0.5">10. הזמנות שלי</a>
+        <a href="#s11" class="toc-link block text-slate-500 text-xs py-0.5">11. משימות</a>
+        <a href="#s12" class="toc-link block text-slate-500 text-xs py-0.5">12. אקדמיה</a>
+        <a href="#s13" class="toc-link block text-slate-500 text-xs py-0.5">13. קהילה</a>
+        <a href="#s14" class="toc-link block text-slate-500 text-xs py-0.5">14. ניהול הבית</a>
+        <a href="#s15" class="toc-link block text-slate-500 text-xs py-0.5">15. ניהול משפחה</a>
+        <a href="#s16" class="toc-link block text-slate-500 text-xs py-0.5">16. AI — familAI</a>
+        <a href="#s17" class="toc-link block text-slate-500 text-xs py-0.5">17. API Endpoints</a>
+        <a href="#s18" class="toc-link block text-slate-500 text-xs py-0.5">18. לוגיקות מיוחדות</a>
+      </nav>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="flex-1 min-w-0 space-y-10">
+
+    <!-- Title block -->
+    <div class="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-8 text-white">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-2xl">🏠</div>
+        <div>
+          <h1 class="text-2xl font-black">אפיון סביבת FAMILY</h1>
+          <p class="text-indigo-200 text-sm mt-0.5">Oneflow Life — מסמך אפיון מלא לסביבת המשפחה</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
+        <div class="bg-white/15 rounded-xl p-3">
+          <p class="text-indigo-200 text-xs font-bold">URL</p>
+          <p class="font-black text-sm mt-0.5 font-mono">/ (root)</p>
+        </div>
+        <div class="bg-white/15 rounded-xl p-3">
+          <p class="text-indigo-200 text-xs font-bold">Frontend</p>
+          <p class="font-black text-sm mt-0.5">Vanilla JS + Tailwind</p>
+        </div>
+        <div class="bg-white/15 rounded-xl p-3">
+          <p class="text-indigo-200 text-xs font-bold">Backend</p>
+          <p class="font-black text-sm mt-0.5">Node.js + PostgreSQL</p>
+        </div>
+        <div class="bg-white/15 rounded-xl p-3">
+          <p class="text-indigo-200 text-xs font-bold">AI Engine</p>
+          <p class="font-black text-sm mt-0.5">Gemini 1.5/2.5 Flash</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- S1: ארכיטקטורה וכניסה -->
+    <section id="s1">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">1</span>
+        ארכיטקטורה וכניסה
+      </h2>
+
+      <!-- סביבות -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4">
+        <h3 class="font-black text-slate-700 mb-3 text-sm">4 סביבות במערכת</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div class="bg-indigo-50 border-2 border-indigo-300 rounded-xl p-3 text-center">
+            <div class="text-xl mb-1">🏠</div>
+            <p class="font-black text-indigo-700 text-sm">FAMILY</p>
+            <p class="text-[10px] text-indigo-500 font-mono mt-0.5">/</p>
+            <span class="badge badge-indigo mt-1">מסמך זה</span>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center opacity-70">
+            <div class="text-xl mb-1">🏢</div>
+            <p class="font-black text-slate-700 text-sm">BUSINESS</p>
+            <p class="text-[10px] text-slate-400 font-mono mt-0.5">/business.html</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center opacity-70">
+            <div class="text-xl mb-1">⚙️</div>
+            <p class="font-black text-slate-700 text-sm">SUPER-ADMIN</p>
+            <p class="text-[10px] text-slate-400 font-mono mt-0.5">/admin.html</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center opacity-70">
+            <div class="text-xl mb-1">🗺️</div>
+            <p class="font-black text-slate-700 text-sm">ZONE-MANAGER</p>
+            <p class="text-[10px] text-slate-400 font-mono mt-0.5">/zone.html</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Login Flow -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4">
+        <h3 class="font-black text-slate-700 mb-4 text-sm">תהליך כניסה (Login Flow)</h3>
+        <div class="space-y-2">
+          <div class="flow-box">Preloader — לוגו + "מכינה את הנתונים..." (timeout: 7 שניות)</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-box">בדיקת <code class="text-purple-700 bg-purple-50 px-1 rounded">localStorage.ofl_session</code></div>
+          <div class="flow-arrow">↓ קיים</div>
+          <div class="flow-box">loadDashboard() — FAMILY dashboard</div>
+          <div class="flow-arrow">↓ לא קיים</div>
+          <div class="flow-box">Auth Container — 3 views: Login / Create / Join</div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 mt-5">
+          <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
+            <p class="font-black text-indigo-700 text-xs mb-2">📥 view-login</p>
+            <ul class="text-xs text-slate-600 space-y-1">
+              <li>• קוד סביבה (6 תווים, UPPERCASE)</li>
+              <li>• כינוי משתמש</li>
+              <li>• סיסמה</li>
+            </ul>
+          </div>
+          <div class="bg-violet-50 border border-violet-100 rounded-xl p-3">
+            <p class="font-black text-violet-700 text-xs mb-2">➕ view-create</p>
+            <ul class="text-xs text-slate-600 space-y-1">
+              <li>• סוג: FAMILY / BUSINESS</li>
+              <li>• שם משפחה + מנהל</li>
+              <li>• מייל + שנת לידה</li>
+              <li>• טלפון (חובה ≥ 10 שנים)</li>
+              <li>• תקנון ✓</li>
+            </ul>
+          </div>
+          <div class="bg-purple-50 border border-purple-100 rounded-xl p-3">
+            <p class="font-black text-purple-700 text-xs mb-2">🔗 view-join</p>
+            <ul class="text-xs text-slate-600 space-y-1">
+              <li>• קוד סביבה</li>
+              <li>• שם + שנת לידה</li>
+              <li>• טלפון (חובה ≥ 10)</li>
+              <li>• → ממתין לאישור ADMIN</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- currentUser / currentGroup -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4">
+        <h3 class="font-black text-slate-700 mb-3 text-sm">מבנה currentUser ו-currentGroup</h3>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-xs font-black text-slate-500 mb-2 uppercase tracking-wide">currentUser</p>
+            <pre class="bg-slate-900 text-green-400 p-3 rounded-xl text-[11px] overflow-x-auto">{
+  id: INT,
+  nickname: STRING,
+  first_name: STRING,
+  birth_year: INT,
+  role: 'ADMIN' | 'MEMBER',
+  balance: DECIMAL,
+  allowance_amount: DECIMAL,
+  interest_rate: DECIMAL,
+  permissions: { tabs: [...] },
+  email: STRING,
+  must_change_password: BOOL
+}</pre>
+          </div>
+          <div>
+            <p class="text-xs font-black text-slate-500 mb-2 uppercase tracking-wide">currentGroup</p>
+            <pre class="bg-slate-900 text-cyan-400 p-3 rounded-xl text-[11px] overflow-x-auto">{
+  id: INT,
+  name: STRING,
+  family_nickname: STRING,
+  group_code: STRING,      // 6 תווים
+  type: 'FAMILY',
+  ai_tokens: INT,          // 0-10
+  is_premium: BOOLEAN,
+  community_id: INT | null,
+  member_type: 'family'|'member',
+  unlocked_modules: ARRAY
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- תפקידים -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <h3 class="font-black text-slate-700 mb-3 text-sm">הרשאות לפי תפקיד</h3>
+        <div class="overflow-x-auto">
+          <table class="text-xs">
+            <thead>
+              <tr class="bg-indigo-50">
+                <th class="text-right p-2 border border-indigo-100 font-black text-indigo-700">יכולת</th>
+                <th class="text-center p-2 border border-indigo-100 font-black text-indigo-700">ADMIN</th>
+                <th class="text-center p-2 border border-indigo-100 font-black text-indigo-700">CHILD / MEMBER</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="p-2 border border-slate-100">ניהול חשבונות ילדים</td><td class="text-center p-2 border border-slate-100 text-green-600 font-black">✅</td><td class="text-center p-2 border border-slate-100 text-red-400">❌</td></tr>
+              <tr class="bg-slate-50"><td class="p-2 border border-slate-100">PayDay — חלוקת דמי כיס</td><td class="text-center p-2 border border-slate-100 text-green-600 font-black">✅</td><td class="text-center p-2 border border-slate-100 text-red-400">❌</td></tr>
+              <tr><td class="p-2 border border-slate-100">יצירת משימות לילדים</td><td class="text-center p-2 border border-slate-100 text-green-600 font-black">✅</td><td class="text-center p-2 border border-slate-100 text-red-400">❌</td></tr>
+              <tr class="bg-slate-50"><td class="p-2 border border-slate-100">אישור בקשות הצטרפות</td><td class="text-center p-2 border border-slate-100 text-green-600 font-black">✅</td><td class="text-center p-2 border border-slate-100 text-red-400">❌</td></tr>
+              <tr><td class="p-2 border border-slate-100">עריכת/מחיקת עסקאות</td><td class="text-center p-2 border border-slate-100 text-green-600 font-black">✅</td><td class="text-center p-2 border border-slate-100 text-red-400">❌</td></tr>
+              <tr class="bg-slate-50"><td class="p-2 border border-slate-100">סריקת קבלה / ברקוד</td><td class="text-center p-2 border border-slate-100 text-green-600 font-black">✅</td><td class="text-center p-2 border border-slate-100 text-red-400">❌</td></tr>
+              <tr><td class="p-2 border border-slate-100">בקשת הלוואה</td><td class="text-center p-2 border border-slate-100 text-red-400">❌</td><td class="text-center p-2 border border-slate-100 text-green-600 font-black">✅</td></tr>
+              <tr class="bg-slate-50"><td class="p-2 border border-slate-100">פתיחת יעד חיסכון</td><td class="text-center p-2 border border-slate-100 text-red-400">❌</td><td class="text-center p-2 border border-slate-100 text-green-600 font-black">✅</td></tr>
+              <tr><td class="p-2 border border-slate-100">"מעשה טוב" (self-task)</td><td class="text-center p-2 border border-slate-100 text-red-400">❌</td><td class="text-center p-2 border border-slate-100 text-green-600 font-black">✅</td></tr>
+              <tr class="bg-slate-50"><td class="p-2 border border-slate-100">הוספת פריטים לקניות</td><td class="text-center p-2 border border-slate-100 text-green-600 font-black">✅</td><td class="text-center p-2 border border-slate-100 text-green-600 font-black">✅</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- S2: ניווט -->
+    <section id="s2">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">2</span>
+        ניווט Family Group NAV
+      </h2>
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4">
+        <div class="bg-slate-900 rounded-xl p-3 mb-4">
+          <div class="flex gap-1.5 flex-wrap">
+            <span class="bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-xs font-black">🏠 ראשי</span>
+            <span class="bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-bold">🛒 בית ▾</span>
+            <span class="bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-bold">₪ כסף ▾</span>
+            <span class="bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-bold">👥 משפחה ▾</span>
+            <span class="mr-auto bg-slate-700 text-slate-400 px-2 py-1.5 rounded-xl text-xs">🔔</span>
+            <span class="bg-slate-700 text-slate-400 px-2 py-1.5 rounded-xl text-xs">❓</span>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="bg-amber-50 border border-amber-100 rounded-xl p-3">
+            <p class="font-black text-amber-700 text-xs mb-2">🛒 קבוצת בית</p>
+            <ul class="text-xs text-slate-600 space-y-1">
+              <li>🛒 קניות (shop)</li>
+              <li>🛍️ הזמנות שלי (myorders)</li>
+              <li>📦 מזווה (pantry)</li>
+              <li>👨‍🍳 שף AI (recipes)</li>
+              <li>🔧 ניהול הבית (home-maintenance)</li>
+            </ul>
+          </div>
+          <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+            <p class="font-black text-emerald-700 text-xs mb-2">₪ קבוצת כסף</p>
+            <ul class="text-xs text-slate-600 space-y-1">
+              <li>🏦 בנק (bank)</li>
+              <li>💸 תזרים (cashflow)</li>
+              <li>📊 תקציב (budget)</li>
+              <li>📅 תשקיף (forecast)</li>
+            </ul>
+          </div>
+          <div class="bg-violet-50 border border-violet-100 rounded-xl p-3">
+            <p class="font-black text-violet-700 text-xs mb-2">👥 קבוצת משפחה</p>
+            <ul class="text-xs text-slate-600 space-y-1">
+              <li>✅ משימות (tasks)</li>
+              <li>🎓 אקדמיה (academy)</li>
+              <li>🏘️ קהילה (community)</li>
+              <li>👥 ניהול (members)</li>
+            </ul>
+          </div>
+        </div>
+        <div class="mt-4 bg-slate-50 rounded-xl p-3 text-xs text-slate-600">
+          <strong>Badges בניווט:</strong>
+          <span class="badge badge-amber mr-2">fgnav-badge-home</span> פריטי קניות ממתינים
+          <span class="badge badge-red mr-2 mr-4">fgnav-badge-family</span> משימות/בקשות ממתינות
+          <span class="badge badge-red mr-2">fgnav-bell-badge</span> התראות
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <h3 class="font-black text-slate-700 mb-3 text-sm">switchTab(t) — לוגיקה</h3>
+        <pre class="bg-slate-900 text-green-300 p-4 rounded-xl text-[11px] overflow-x-auto">switchTab(t) {
+  // מסתיר כל content-* divs
+  // מציג content-{t} + animation 'tab-anim'
+  // לוגיקה לפי tab:
+  shop          → renderShopList()
+  pantry        → renderPantry()
+  recipes       → renderRecipePantrySelection()
+  forecast      → renderForecast()
+  cashflow      → renderCashflow()
+  community     → fetchCommunityData()
+  myorders      → switchMyOrdersTab + fetchMyOrders + loadFamilyServiceCalls
+  home-maintenance → loadHomeMaintenance()
+}</pre>
+        <p class="text-xs text-slate-500 mt-2"><strong>כל הטאבים:</strong> feed · tasks · shop · myorders · bank · cashflow · community · academy · members · budget · pantry · recipes · forecast · home-maintenance</p>
+      </div>
+    </section>
+
+    <!-- S3: Dashboard -->
+    <section id="s3">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">3</span>
+        Dashboard / Feed ראשי
+      </h2>
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="bg-white rounded-2xl border border-slate-200 p-4">
+          <p class="font-black text-slate-700 text-xs mb-2">📊 תצוגת ADMIN</p>
+          <ul class="text-xs text-slate-600 space-y-1.5">
+            <li>⚡ "מה מחכה לך עכשיו" — urgent items</li>
+            <li>💳 כרטיס יתרה כוללת (admin_total_balance)</li>
+            <li>🗂️ 6 Quick Tiles (קישורים מהירים)</li>
+            <li>📜 פיד פעילות משפחתי מאוחד</li>
+          </ul>
+        </div>
+        <div class="bg-violet-50 rounded-2xl border border-violet-100 p-4">
+          <p class="font-black text-violet-700 text-xs mb-2">🌟 תצוגת CHILD</p>
+          <ul class="text-xs text-slate-600 space-y-1.5">
+            <li>💜 כרטיס יתרה אישית (violet gradient)</li>
+            <li>🛒 כפתורי: "בקשת קנייה" + "אתגר אקדמיה"</li>
+            <li>🎯 "לביצוע" — משימות + חידונים ממתינים</li>
+            <li>🔗 Quick links: חיסכון, היסטוריה, קהילה</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <h3 class="font-black text-slate-700 mb-3 text-sm">פיד מאוחד — buildAndRenderFeed()</h3>
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
+            <span class="badge badge-slate">1</span>
+            <span class="text-xs">הודעת פתיחת סביבה (system event)</span>
+          </div>
+          <div class="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
+            <span class="badge badge-blue">2</span>
+            <span class="text-xs">תנועות פיננסיות (transactions)</span>
+          </div>
+          <div class="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
+            <span class="badge badge-green">3</span>
+            <span class="text-xs">משימות מאושרות (status: approved)</span>
+          </div>
+          <div class="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
+            <span class="badge badge-purple">4</span>
+            <span class="text-xs">חידוני אקדמיה</span>
+          </div>
+          <div class="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
+            <span class="badge badge-amber">5</span>
+            <span class="text-xs">עדכוני קהילה (communityUpdatesCache)</span>
+          </div>
+        </div>
+        <p class="text-xs text-slate-500 mt-3">פילטרים: לפי משתמש (ADMIN) / לפי תאריך (הכל / חודש / 3 חודשים)</p>
+      </div>
+    </section>
+
+    <!-- S4: בנק -->
+    <section id="s4">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">4</span>
+        בנק משפחתי
+      </h2>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+          <p class="font-black text-emerald-700 mb-3 text-sm">💰 תצוגת ADMIN</p>
+          <ul class="text-xs text-slate-600 space-y-2">
+            <li class="flex gap-2"><span class="badge badge-green shrink-0">PayDay</span> חלוקת דמי כיס + ריבית לכולם בלחיצה אחת</li>
+            <li class="flex gap-2"><span class="badge badge-blue shrink-0">חשבונות</span> רשימת חשבונות ילדים + יתרות</li>
+            <li class="flex gap-2"><span class="badge badge-amber shrink-0">הלוואות</span> בקשות ממתינות לאישור</li>
+            <li class="flex gap-2"><span class="badge badge-purple shrink-0">יעדים</span> יעדי חיסכון + radial progress + AI טיפ</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+          <p class="font-black text-indigo-700 mb-3 text-sm">💳 תצוגת CHILD</p>
+          <div class="bg-slate-900 rounded-xl p-3 text-white text-xs mb-3">
+            <p class="text-slate-400 text-[10px]">FAMILY CARD</p>
+            <p class="text-xl font-black mt-1">₪<span class="text-green-400">250</span></p>
+            <div class="flex gap-4 mt-2 text-[10px]">
+              <div><span class="block font-bold">₪50</span><span class="text-slate-400">דמי כיס</span></div>
+              <div><span class="block font-bold text-green-400">3%</span><span class="text-slate-400">ריבית</span></div>
+            </div>
+          </div>
+          <ul class="text-xs text-slate-600 space-y-1">
+            <li>• בקש הלוואה → openLoanModal()</li>
+            <li>• יעד חיסכון → openGoalModal()</li>
+            <li>• היסטוריה הלוואות</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 mt-4">
+        <h3 class="font-black text-slate-700 mb-3 text-sm">API — בנק</h3>
+        <div class="overflow-x-auto">
+          <table class="text-xs">
+            <thead><tr class="bg-indigo-50"><th class="p-2 border border-indigo-100 text-right">Method</th><th class="p-2 border border-indigo-100 text-right font-mono">Path</th><th class="p-2 border border-indigo-100 text-right">תיאור</th></tr></thead>
+            <tbody>
+              <tr><td class="p-2 border border-slate-100"><span class="badge badge-green">POST</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/admin/payday</td><td class="p-2 border border-slate-100">PayDay — חלוקת דמי כיס</td></tr>
+              <tr class="bg-slate-50"><td class="p-2 border border-slate-100"><span class="badge badge-green">POST</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/loans/request</td><td class="p-2 border border-slate-100">בקשת הלוואה</td></tr>
+              <tr><td class="p-2 border border-slate-100"><span class="badge badge-green">POST</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/loans/approve</td><td class="p-2 border border-slate-100">אישור הלוואה</td></tr>
+              <tr class="bg-slate-50"><td class="p-2 border border-slate-100"><span class="badge badge-green">POST</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/goals</td><td class="p-2 border border-slate-100">יצירת יעד חיסכון</td></tr>
+              <tr><td class="p-2 border border-slate-100"><span class="badge badge-green">POST</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/goals/deposit</td><td class="p-2 border border-slate-100">הפקדה ליעד</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- S5: תזרים ותקציב -->
+    <section id="s5">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">5</span>
+        תזרים ותקציב
+      </h2>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+          <p class="font-black text-slate-700 mb-3 text-sm">💸 תזרים (cashflow)</p>
+          <p class="text-xs text-slate-500 mb-3">צפייה ועריכה של כל הפעולות הפיננסיות. פילטר לפי משתמש (ADMIN) ולפי תאריך.</p>
+          <p class="text-[11px] font-bold text-slate-600 mb-1">קטגוריות הכנסה:</p>
+          <div class="flex flex-wrap gap-1 mb-3">
+            <span class="badge badge-green">משכורת</span><span class="badge badge-green">דמי כיס</span><span class="badge badge-green">בונוס</span><span class="badge badge-green">מתנה</span><span class="badge badge-green">עסק</span>
+          </div>
+          <p class="text-[11px] font-bold text-slate-600 mb-1">קטגוריות הוצאה:</p>
+          <div class="flex flex-wrap gap-1">
+            <span class="badge badge-red">מסעדות</span><span class="badge badge-red">סופר</span><span class="badge badge-red">תחבורה</span><span class="badge badge-red">דיור</span><span class="badge badge-red">חשבונות</span><span class="badge badge-red">פנאי</span><span class="badge badge-red">ביגוד</span><span class="badge badge-red">בריאות</span>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+          <p class="font-black text-slate-700 mb-3 text-sm">📊 תקציב (budget)</p>
+          <p class="text-xs text-slate-500 mb-3">הגדרת מגבלות הוצאה לפי קטגוריה + progress bars + תובנות AI.</p>
+          <div class="bg-purple-50 border border-purple-100 rounded-xl p-3">
+            <p class="text-xs font-black text-purple-700 mb-1">קטגוריות תקציב מיוחדות:</p>
+            <div class="flex flex-wrap gap-1">
+              <span class="badge badge-purple">דמי כיס לילדים</span>
+              <span class="badge badge-purple">תגמול משימות</span>
+              <span class="badge badge-purple">אתגרי אקדמיה</span>
+              <span class="badge badge-purple">הפקדות חיסכון</span>
+            </div>
+          </div>
+          <div class="mt-3 bg-indigo-50 border border-indigo-100 rounded-lg p-2 text-xs text-indigo-700">
+            <strong>ADMIN בלבד:</strong> כפתור "תובנות familAI" — AI מנתח הוצאות ומציע חיסכון
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- S6: תשקיף -->
+    <section id="s6">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">6</span>
+        תשקיף תזרים
+      </h2>
+      <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <p class="font-black text-slate-700 text-xs mb-2">תצוגות</p>
+            <div class="space-y-1 text-xs text-slate-600">
+              <div class="bg-indigo-50 rounded-lg p-2 font-bold text-indigo-700">חודשי</div>
+              <div class="bg-slate-50 rounded-lg p-2 text-slate-500">שנתי</div>
+            </div>
+          </div>
+          <div>
+            <p class="font-black text-slate-700 text-xs mb-2">Summary</p>
+            <div class="bg-slate-50 rounded-xl p-2 text-xs">
+              <p class="text-slate-500">יתרה צפויה לסוף התקופה</p>
+              <p class="text-xl font-black text-slate-800">₪12,450</p>
+              <p class="text-slate-500 text-[10px] mt-1">שינוי נטו: <span class="text-green-600 font-bold">+₪1,200</span></p>
+            </div>
+          </div>
+          <div>
+            <p class="font-black text-slate-700 text-xs mb-2">גרף Chart.js</p>
+            <div class="bg-slate-50 rounded-xl p-3 text-center">
+              <div class="w-16 h-16 mx-auto rounded-full border-8 border-indigo-300 border-r-violet-500 border-b-purple-400"></div>
+              <p class="text-[10px] text-slate-500 mt-1">הכנסות מול הוצאות</p>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-xs text-indigo-700">
+          תומך ב-<strong>פעולות קבועות</strong> (is_recurring=true, end_month) — הכנסות/הוצאות חוזרות.
+        </div>
+      </div>
+    </section>
+
+    <!-- S7: סופר -->
+    <section id="s7">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">7</span>
+        סופר חכם — רשימת קניות
+      </h2>
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4">
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <p class="font-black text-slate-700 text-xs mb-2">כלים ראשיים</p>
+            <ul class="text-xs text-slate-600 space-y-1">
+              <li>📸 סריקת קבלה (ADMIN) → AI מחלץ פריטים</li>
+              <li>📷 סריקת ברקוד → זיהוי מוצר בתמונה</li>
+              <li>📋 הדבק רשימה — paste text</li>
+              <li>📲 שתף בוואטסאפ</li>
+            </ul>
+          </div>
+          <div>
+            <p class="font-black text-slate-700 text-xs mb-2">מצבי פריט</p>
+            <div class="space-y-1">
+              <div class="bg-white border border-slate-200 rounded-lg p-2 text-xs">⬜ pending — רגיל</div>
+              <div class="bg-green-50 border border-green-200 rounded-lg p-2 text-xs">✅ in-cart — בעגלה</div>
+              <div class="bg-orange-50 border border-orange-100 rounded-lg p-2 text-xs line-through opacity-70">חסר — missing</div>
+            </div>
+          </div>
+        </div>
+        <div class="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl p-3 text-white text-center">
+          <p class="font-black text-sm">🛒 "אני בסופר!" — Supermarket Mode</p>
+          <p class="text-emerald-100 text-xs mt-0.5">מצב קניות מודרך עם cart footer סטיקי</p>
+        </div>
+        <div class="mt-3 bg-orange-50 border border-orange-100 rounded-xl p-3 text-xs text-orange-700">
+          <strong>בקשות ילדים:</strong> CHILD יכול לבקש הוספת מוצרים — מוצג ב-<code>#shop-requests-container</code> לאישור ADMIN
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <h3 class="font-black text-slate-700 mb-3 text-sm">API — קניות</h3>
+        <div class="overflow-x-auto">
+          <table class="text-xs">
+            <thead><tr class="bg-indigo-50"><th class="p-2 border border-indigo-100 text-right">Method</th><th class="p-2 border border-indigo-100 text-right font-mono">Path</th><th class="p-2 border border-indigo-100 text-right">תיאור</th></tr></thead>
+            <tbody>
+              <tr><td class="p-2 border border-slate-100"><span class="badge badge-green">POST</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/shopping/add</td><td class="p-2 border border-slate-100">הוספת פריט</td></tr>
+              <tr class="bg-slate-50"><td class="p-2 border border-slate-100"><span class="badge badge-amber">DELETE</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/shopping/clear/:groupId</td><td class="p-2 border border-slate-100">ניקוי כל העגלה</td></tr>
+              <tr><td class="p-2 border border-slate-100"><span class="badge badge-green">POST</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/shopping/checkout</td><td class="p-2 border border-slate-100">סיום קנייה + עדכון מלאי</td></tr>
+              <tr class="bg-slate-50"><td class="p-2 border border-slate-100"><span class="badge badge-green">POST</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/shopping/scan-receipt</td><td class="p-2 border border-slate-100">AI — חילוץ פריטים מקבלה</td></tr>
+              <tr><td class="p-2 border border-slate-100"><span class="badge badge-green">POST</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/shopping/identify-product</td><td class="p-2 border border-slate-100">AI — זיהוי מוצר מתמונה</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- S8: מזווה -->
+    <section id="s8">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">8</span>
+        מזווה / מלאי ביתי
+      </h2>
+      <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <p class="font-black text-slate-700 text-xs mb-2">כרטיס מוצר — שדות</p>
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+              <div class="flex justify-between items-center mb-2">
+                <div>
+                  <p class="font-black text-slate-800 text-sm">קוטג' 5%</p>
+                  <p class="text-[10px] text-slate-400">עודכן: 20/6/2026 | מארז: 4 יח'</p>
+                </div>
+                <div class="flex items-center gap-1 bg-white border rounded-xl p-1">
+                  <button class="w-6 h-6 bg-white rounded-lg border text-slate-400 text-xs">−</button>
+                  <div class="px-2 text-center">
+                    <span class="font-black text-lg text-slate-800">3</span>
+                    <p class="text-[9px] text-slate-400">יח'</p>
+                    <span class="text-[9px] bg-orange-50 text-orange-600 px-1 rounded">12 יחידות</span>
+                  </div>
+                  <button class="w-6 h-6 bg-white rounded-lg border text-slate-400 text-xs">+</button>
+                </div>
+              </div>
+              <div class="flex gap-1 pt-2 border-t border-slate-100">
+                <button class="flex-1 bg-orange-50 text-orange-600 py-1 rounded-lg text-[10px] font-bold">🍳 השתמשתי</button>
+                <button class="flex-1 bg-pink-50 text-pink-600 py-1 rounded-lg text-[10px] font-bold">🛒 חסר</button>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p class="font-black text-slate-700 text-xs mb-2">לוגיקת כמויות</p>
+            <div class="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 space-y-2">
+              <div><code class="bg-white border px-1 rounded">quantity</code> = כמות מארזים</div>
+              <div><code class="bg-white border px-1 rounded">units_per_package (upp)</code> = יחידות במארז</div>
+              <div><code class="bg-white border px-1 rounded">totalSubUnits = qty × upp</code></div>
+              <div class="bg-amber-50 border border-amber-100 rounded-lg p-2">
+                לחיצת −/+ משנה ב-<code>1/upp</code> (שברי מארז)
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="text-xs text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg p-2">
+          <strong>חסר → לקניות:</strong> כפתור "חסר" מוחק מהמזווה ומוסיף לרשימת הקניות אוטומטית
+        </p>
+      </div>
+    </section>
+
+    <!-- S9: שף AI -->
+    <section id="s9">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">9</span>
+        שף AI — מתכונים
+      </h2>
+      <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <div class="bg-gradient-to-r from-orange-400 to-red-500 rounded-2xl p-4 text-white mb-4">
+          <h3 class="font-black text-lg">👨‍🍳 השף הפרטי שלכם</h3>
+          <p class="text-orange-50 text-xs">familAI תרכיב לכם מתכון מושלם מהמוצרים שיש בבית!</p>
+        </div>
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <div class="bg-slate-50 rounded-xl p-3 text-center">
+            <p class="text-xs font-black text-slate-600 mb-1">סוג ארוחה</p>
+            <div class="space-y-1 text-[10px] text-slate-500">
+              <div>ארוחת צהריים</div>
+              <div>ארוחת ערב</div>
+              <div>ארוחת בוקר</div>
+              <div>קינוח</div>
+              <div>נשנוש בריא</div>
+            </div>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3 text-center">
+            <p class="text-xs font-black text-slate-600 mb-1">מקור מצרכים</p>
+            <div class="space-y-2 text-[10px]">
+              <div class="bg-white border rounded-lg p-1.5 font-bold text-orange-600">מהמזווה (checkboxes)</div>
+              <div class="text-slate-400">— או —</div>
+              <div class="bg-white border rounded-lg p-1.5 text-slate-500">הקלדה ידנית</div>
+            </div>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3 text-center">
+            <p class="text-xs font-black text-slate-600 mb-2">סועדים</p>
+            <div class="bg-white border-2 border-orange-300 rounded-xl w-12 h-12 flex items-center justify-center mx-auto text-2xl font-black text-slate-800">4</div>
+          </div>
+        </div>
+        <div class="bg-orange-50 border border-orange-100 rounded-lg p-2 text-xs text-orange-700 text-center">
+          <code>POST /api/recipes/generate</code> → מתכון Markdown מפורמט → HTML
+        </div>
+      </div>
+    </section>
+
+    <!-- S10: הזמנות שלי -->
+    <section id="s10" class="page-break">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">10</span>
+        הזמנות שלי — myorders
+      </h2>
+
+      <!-- 4 תת-טאבים -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4">
+        <h3 class="font-black text-slate-700 mb-3 text-sm">4 תת-טאבים</h3>
+        <div class="grid grid-cols-4 gap-2 mb-4">
+          <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-2 text-center">
+            <div class="text-lg">📦</div>
+            <p class="font-black text-indigo-700 text-[11px]">הזמנות</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center">
+            <div class="text-lg">🏢</div>
+            <p class="font-bold text-slate-600 text-[11px]">הפעילות שלי</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center">
+            <div class="text-lg">🔧</div>
+            <p class="font-bold text-slate-600 text-[11px]">קריאות שירות</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center">
+            <div class="text-lg">📋</div>
+            <p class="font-bold text-slate-600 text-[11px]">הצעות מחיר</p>
+          </div>
+        </div>
+
+        <!-- סטטוסי הזמנה -->
+        <h3 class="font-black text-slate-700 mb-3 text-sm">סטטוסי הזמנה</h3>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="border border-yellow-200 bg-yellow-50 rounded-xl p-2 text-xs flex items-center gap-2">
+            <span class="text-yellow-500 font-black">⌛</span>
+            <div><code class="text-[10px]">pending_approval</code><p class="text-yellow-700 font-bold">ממתין לאישור עסק</p></div>
+          </div>
+          <div class="border border-blue-200 bg-blue-50 rounded-xl p-2 text-xs flex items-center gap-2">
+            <span class="text-blue-500 font-black">🕐</span>
+            <div><code class="text-[10px]">new</code><p class="text-blue-700 font-bold">התקבל בעסק</p></div>
+          </div>
+          <div class="border border-orange-200 bg-orange-50 rounded-xl p-2 text-xs flex items-center gap-2">
+            <span class="text-orange-500 font-black">📦</span>
+            <div><code class="text-[10px]">processing</code><p class="text-orange-700 font-bold">באריזה / הכנה</p></div>
+          </div>
+          <div class="border border-purple-200 bg-purple-50 rounded-xl p-2 text-xs flex items-center gap-2">
+            <span class="text-purple-500 font-black">🛍️</span>
+            <div><code class="text-[10px]">ready</code><p class="text-purple-700 font-bold">מוכן לאיסוף</p></div>
+          </div>
+          <div class="border border-indigo-200 bg-indigo-50 rounded-xl p-2 text-xs flex items-center gap-2">
+            <span class="text-indigo-500 font-black">🛵</span>
+            <div><code class="text-[10px]">shipped / delivering</code><p class="text-indigo-700 font-bold">בדרך אליך!</p></div>
+          </div>
+          <div class="border border-green-200 bg-green-50 rounded-xl p-2 text-xs flex items-center gap-2">
+            <span class="text-green-500 font-black">✅</span>
+            <div><code class="text-[10px]">completed</code><p class="text-green-700 font-bold">הושלם ונמסר</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4">
+        <h3 class="font-black text-slate-700 mb-3 text-sm">Pagination — 15 הזמנות לעמוד</h3>
+        <pre class="bg-slate-900 text-cyan-300 p-4 rounded-xl text-[11px] overflow-x-auto">const PAGE_SIZE = 15;
+const totalPages = Math.ceil(allFiltered.length / PAGE_SIZE);
+const page = window._myOrdersPageNum;
+const pageOrders = allFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+// Pagination bar: "X–Y מתוך Z" + כפתורי הקודם/הבא</pre>
+      </div>
+
+      <!-- כרטיס הזמנה -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4">
+        <h3 class="font-black text-slate-700 mb-3 text-sm">כרטיס הזמנה — שדות מלאים</h3>
+        <div class="border border-blue-200 rounded-2xl overflow-hidden">
+          <div class="p-3 flex justify-between items-center">
+            <div>
+              <div class="flex items-center gap-1"><span class="text-slate-400 text-[10px]">🏪</span><p class="font-bold text-slate-800 text-sm">מרכול כהן</p></div>
+              <p class="text-[10px] text-slate-500 mt-0.5">🕐 התקבל בעסק · 20/06 14:32</p>
+            </div>
+            <div class="text-left">
+              <span class="font-black text-slate-800 dir-ltr text-sm">₪187</span>
+              <p class="text-[9px] text-slate-400 font-mono">#4521</p>
+            </div>
+          </div>
+          <div class="border-t border-slate-100 bg-slate-50 p-3 text-xs">
+            <div class="bg-white border rounded-xl p-2 space-y-1">
+              <div class="flex justify-between border-b pb-1"><span>לחם מלא</span><span class="text-slate-400">×2 · ₪18</span></div>
+              <div class="flex justify-between border-b pb-1"><span>חלב 3%</span><span class="text-slate-400">×3 · ₪21</span></div>
+              <div class="flex justify-between"><span>ביצים L</span><span class="text-slate-400">×1 · ₪32</span></div>
+            </div>
+            <div class="mt-2 bg-green-50 border border-green-200 rounded-xl p-2 text-center">
+              <p class="text-[11px] font-bold text-green-700">קיבלת את ההזמנה?</p>
+              <div class="flex gap-2 mt-1">
+                <button class="flex-1 py-1 bg-green-500 text-white text-[10px] font-black rounded-lg">✅ כן, קיבלתי</button>
+                <button class="flex-1 py-1 bg-red-500 text-white text-[10px] font-black rounded-lg">❌ לא קיבלתי</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Auto-refresh -->
+      <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-xs text-indigo-700">
+        <strong>Auto-refresh:</strong> <code>startMyOrdersAutoRefresh()</code> — כל <strong>20 שניות</strong>, פעיל רק כשב-myorders tab. גם רענן הצעות מחיר אם tab הצעות פתוח.
+      </div>
+    </section>
+
+    <!-- S11: משימות -->
+    <section id="s11">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">11</span>
+        משימות משפחתיות
+      </h2>
+      <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <div class="bg-white border border-slate-200 rounded-xl p-3">
+            <p class="font-black text-slate-700 text-xs mb-1">⏳ pending</p>
+            <p class="text-[10px] text-slate-500 mb-2">ADMIN: "ממתין לילד" · CHILD: כפתור "סיימתי" + 📷</p>
+          </div>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+            <p class="font-black text-yellow-700 text-xs mb-1">🔍 done</p>
+            <p class="text-[10px] text-slate-500 mb-2">ADMIN: "אשר ושלם" · CHILD: "בבדיקה"</p>
+          </div>
+          <div class="bg-green-50 border border-green-200 rounded-xl p-3">
+            <p class="font-black text-green-700 text-xs mb-1">✅ approved</p>
+            <p class="text-[10px] text-slate-500 mb-2">תגמול הועבר לארנק + קונפטי!</p>
+          </div>
+        </div>
+
+        <!-- Vision Verify Flow -->
+        <div class="bg-slate-50 rounded-xl p-4">
+          <p class="font-black text-slate-700 text-xs mb-3">Flow אימות AI (Vision Verify)</p>
+          <div class="flex items-center gap-2 flex-wrap text-[10px]">
+            <div class="flow-box">CHILD לוחץ "סיימתי"</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box">מצלמה נפתחת</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box">executeWithAIWarning</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box">POST /api/tasks/vision-verify</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box">תגמול + קונפטי 🎉</div>
+          </div>
+        </div>
+
+        <div class="mt-3 bg-violet-50 border border-violet-100 rounded-xl p-3 text-xs text-violet-700">
+          <strong>"מעשה טוב"</strong> — CHILD יכול לדווח על מעשה טוב מיוזמתו. status=done ישירות. ממתין לאישור ADMIN.
+        </div>
+      </div>
+    </section>
+
+    <!-- S12: אקדמיה -->
+    <section id="s12">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">12</span>
+        אקדמיה פיננסית
+      </h2>
+      <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <div class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-4 text-white mb-4">
+          <h3 class="font-black">🎓 האקדמיה הפיננסית</h3>
+          <p class="text-purple-100 text-xs mt-1">תלמד, תענה נכון — ותרוויח כסף!</p>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="font-black text-slate-700 text-xs mb-2">תצוגת ADMIN</p>
+            <ul class="text-xs text-slate-600 space-y-1">
+              <li>✨ "יצירת אתגר" — familAI יוצר שאלות</li>
+              <li>📋 "הקצאה" — לילד ספציפי</li>
+              <li>⏳ בקשות לאישור</li>
+              <li>📊 רשימת הקצאות</li>
+            </ul>
+          </div>
+          <div>
+            <p class="font-black text-slate-700 text-xs mb-2">תצוגת CHILD</p>
+            <ul class="text-xs text-slate-600 space-y-1">
+              <li>🎲 "הגרל אתגר מהיר"</li>
+              <li>📝 מטלות להשלמה</li>
+              <li>📖 ספריית מבחנים (לפי גיל/נושא)</li>
+              <li>💬 "familAI, איפה טעיתי?" — tutor</li>
+            </ul>
+          </div>
+        </div>
+        <div class="mt-3 grid grid-cols-2 gap-2">
+          <div class="bg-slate-50 rounded-xl p-2 text-center">
+            <p class="text-[10px] font-black text-slate-600 mb-1">פילטר גיל</p>
+            <div class="flex flex-wrap gap-1 justify-center">
+              <span class="badge badge-purple">6-8</span><span class="badge badge-purple">8-10</span><span class="badge badge-purple">10-13</span><span class="badge badge-purple">13-15</span><span class="badge badge-purple">15-18</span><span class="badge badge-purple">18+</span>
+            </div>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-2 text-center">
+            <p class="text-[10px] font-black text-slate-600 mb-1">פילטר נושא</p>
+            <div class="flex flex-wrap gap-1 justify-center">
+              <span class="badge badge-blue">חשבון</span><span class="badge badge-blue">אנגלית</span><span class="badge badge-blue">קריאה</span><span class="badge badge-blue">פיננסי</span>
+            </div>
+          </div>
+        </div>
+        <div class="mt-3 bg-indigo-50 border border-indigo-100 rounded-lg p-2 text-xs text-indigo-700">
+          threshold אחוז הצלחה: 85% (ניתן להגדרה ב-bundle). תגמול מועבר לארנק אוטומטית.
+        </div>
+      </div>
+    </section>
+
+    <!-- S13: קהילה -->
+    <section id="s13">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">13</span>
+        קהילה / שכונה
+      </h2>
+      <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <div class="grid grid-cols-3 gap-3">
+          <div class="bg-orange-50 border border-orange-200 rounded-xl p-3">
+            <p class="font-black text-orange-700 text-sm mb-2">🔗 חיבור</p>
+            <p class="text-xs text-slate-600 mb-2">קוד קהילה 6 תווים → שיוך ל-community_id</p>
+            <div class="bg-white border rounded-xl p-2 text-center font-mono text-sm font-black text-orange-600">TEL001</div>
+          </div>
+          <div class="bg-green-50 border border-green-200 rounded-xl p-3">
+            <p class="font-black text-green-700 text-sm mb-2">🏷️ הטבות</p>
+            <p class="text-xs text-slate-600">עסקים מקומיים + הנחות בלעדיות לחברי הקהילה</p>
+            <div class="mt-2 bg-white border border-green-200 rounded-xl p-2 text-center text-xs font-bold text-green-700">10% הנחה בפיצרייה</div>
+          </div>
+          <div class="bg-slate-50 border border-dashed border-slate-300 rounded-xl p-3 text-center">
+            <div class="text-2xl mb-1">📰</div>
+            <p class="font-black text-slate-500 text-sm">חדשות</p>
+            <p class="text-[10px] text-slate-400 mt-1">Coming Soon</p>
+          </div>
+        </div>
+        <div class="mt-4 bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-xs text-indigo-700">
+          עסקים מהקהילה נטענים ב-<code>fetchData()</code> → <code>communityBusinessesCache</code> → <code>renderFamilyCommunities()</code><br>
+          לחיצה על עסק → <code>/api/storefront/:code</code> — חנות הוירטואלית של העסק
+        </div>
+      </div>
+    </section>
+
+    <!-- S14: ניהול הבית -->
+    <section id="s14">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">14</span>
+        ניהול הבית
+      </h2>
+      <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <div class="bg-gradient-to-r from-slate-700 to-slate-900 rounded-2xl p-4 text-white mb-4">
+          <h3 class="font-black">🔧 ניהול הבית</h3>
+          <p class="text-slate-300 text-xs mt-1">ציוד הבית, לוח התחזוקה וספר התקלות</p>
+        </div>
+        <div class="grid grid-cols-4 gap-2">
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+            <div class="text-xl">🔧</div>
+            <p class="font-black text-slate-700 text-xs mt-1">ציוד</p>
+            <p class="text-[10px] text-slate-400">מכשירי בית</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+            <div class="text-xl">📋</div>
+            <p class="font-black text-slate-700 text-xs mt-1">תחזוקה</p>
+            <p class="text-[10px] text-slate-400">ממתין / פג תוקף / בוצע</p>
+          </div>
+          <div class="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
+            <div class="text-xl">⚠️</div>
+            <p class="font-black text-red-700 text-xs mt-1">תקלות</p>
+            <p class="text-[10px] text-slate-400">פתוח / בטיפול / טופל</p>
+          </div>
+          <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-center">
+            <div class="text-xl">👤</div>
+            <p class="font-black text-indigo-700 text-xs mt-1">אנשי קשר</p>
+            <p class="text-[10px] text-slate-400">חיפוש OneFlow</p>
+          </div>
+        </div>
+        <div class="mt-3 text-xs text-slate-600 bg-slate-50 rounded-xl p-3">
+          <strong>חיבור לעסקים:</strong> "חיפוש OneFlow" מחפש בעסקי OneFlow המחוברים לאפשרות שירות בית
+        </div>
+      </div>
+    </section>
+
+    <!-- S15: ניהול משפחה -->
+    <section id="s15">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">15</span>
+        ניהול משפחה (members)
+      </h2>
+      <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="font-black text-slate-700 text-xs mb-2">רכיבים</p>
+            <ul class="text-xs text-slate-600 space-y-1.5">
+              <li>📸 העלאת תמונת מיתוג משפחה</li>
+              <li>👥 רשימת בני המשפחה</li>
+              <li>📊 דוח 360 — snapshot מלא</li>
+              <li>📲 הזמנה בוואטסאפ (ADMIN/MEMBER)</li>
+              <li>📧 שליחת פרטי גישה למייל</li>
+            </ul>
+          </div>
+          <div>
+            <p class="font-black text-slate-700 text-xs mb-2">ניהול ADMIN</p>
+            <ul class="text-xs text-slate-600 space-y-1.5">
+              <li>✅ אישור/דחיית בקשות הצטרפות</li>
+              <li>🔑 שינוי סיסמה לחבר</li>
+              <li>🗑️ הסרת חבר</li>
+              <li>🔒 עדכון הרשאות (permissions.tabs)</li>
+            </ul>
+          </div>
+        </div>
+        <div class="mt-3 bg-green-50 border border-green-100 rounded-xl p-3 text-xs text-green-700">
+          <strong>URL invite:</strong> <code>/?code=XXXXX&role=MEMBER</code> → מלא אוטומטית את טופס ה-Join
+        </div>
+      </div>
+    </section>
+
+    <!-- S16: AI -->
+    <section id="s16">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">16</span>
+        AI — familAI System
+      </h2>
+
+      <!-- Battery -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4">
+        <h3 class="font-black text-slate-700 mb-3 text-sm">⚡ AI Battery — מכסה יומי</h3>
+        <div class="grid grid-cols-4 gap-3 mb-4">
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+            <p class="text-2xl font-black text-slate-800">10</p>
+            <p class="text-[10px] text-slate-500 font-bold">פעולות יומיות</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+            <p class="text-lg font-black text-slate-400">0:00</p>
+            <p class="text-[10px] text-slate-500 font-bold">איפוס בחצות</p>
+          </div>
+          <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-center">
+            <p class="text-sm font-black text-indigo-700">∞</p>
+            <p class="text-[10px] text-indigo-500 font-bold">Pro — ללא מגבלה</p>
+          </div>
+          <div class="bg-slate-900 rounded-xl p-3 text-center">
+            <p class="text-xs font-black text-white">⚡ 7/10</p>
+            <p class="text-[10px] text-slate-400 mt-1">indicator בכותרת</p>
+          </div>
+        </div>
+
+        <!-- צבעי battery -->
+        <div class="flex gap-2 mb-4">
+          <div class="flex-1 bg-slate-100 rounded-lg p-2 text-center text-xs"><span class="font-black text-slate-600">> 3</span><br><span class="text-slate-500">slate</span></div>
+          <div class="flex-1 bg-orange-100 rounded-lg p-2 text-center text-xs"><span class="font-black text-orange-600">1-3</span><br><span class="text-orange-500">כתום</span></div>
+          <div class="flex-1 bg-red-100 rounded-lg p-2 text-center text-xs"><span class="font-black text-red-600">0</span><br><span class="text-red-500">אדום</span></div>
+        </div>
+
+        <!-- כל פעולות AI -->
+        <h3 class="font-black text-slate-700 mb-3 text-sm">כל פעולות AI</h3>
+        <div class="overflow-x-auto">
+          <table class="text-xs">
+            <thead><tr class="bg-violet-50"><th class="p-2 border border-violet-100 text-right">פעולה</th><th class="p-2 border border-violet-100 text-right font-mono">Endpoint</th><th class="p-2 border border-violet-100 text-right">צרכן</th></tr></thead>
+            <tbody>
+              <tr><td class="p-2 border border-slate-100">יצירת מתכון</td><td class="p-2 border border-slate-100 font-mono text-[10px]">POST /api/recipes/generate</td><td class="p-2 border border-slate-100"><span class="badge badge-amber">token</span></td></tr>
+              <tr class="bg-slate-50"><td class="p-2 border border-slate-100">יצירת אתגר אקדמיה</td><td class="p-2 border border-slate-100 font-mono text-[10px]">POST /api/academy/ai-generate</td><td class="p-2 border border-slate-100"><span class="badge badge-amber">token</span></td></tr>
+              <tr><td class="p-2 border border-slate-100">ייעוץ ליעד חיסכון</td><td class="p-2 border border-slate-100 font-mono text-[10px]">POST /api/goals/familai-advice</td><td class="p-2 border border-slate-100"><span class="badge badge-amber">token</span></td></tr>
+              <tr class="bg-slate-50"><td class="p-2 border border-slate-100">תובנות תקציב</td><td class="p-2 border border-slate-100 font-mono text-[10px]">POST /api/budget/familai-insight</td><td class="p-2 border border-slate-100"><span class="badge badge-amber">token</span></td></tr>
+              <tr><td class="p-2 border border-slate-100">דוח מלאי מזווה</td><td class="p-2 border border-slate-100 font-mono text-[10px]">POST /api/pantry/familai-insight</td><td class="p-2 border border-slate-100"><span class="badge badge-amber">token</span></td></tr>
+              <tr class="bg-slate-50"><td class="p-2 border border-slate-100">תובנות תשקיף</td><td class="p-2 border border-slate-100 font-mono text-[10px]">POST /api/forecast/familai-insight</td><td class="p-2 border border-slate-100"><span class="badge badge-amber">token</span></td></tr>
+              <tr><td class="p-2 border border-slate-100">אימות משימה בתמונה</td><td class="p-2 border border-slate-100 font-mono text-[10px]">POST /api/tasks/vision-verify</td><td class="p-2 border border-slate-100"><span class="badge badge-amber">token</span></td></tr>
+              <tr class="bg-slate-50"><td class="p-2 border border-slate-100">סריקת קבלה</td><td class="p-2 border border-slate-100 font-mono text-[10px]">POST /api/shopping/scan-receipt</td><td class="p-2 border border-slate-100"><span class="badge badge-amber">token</span></td></tr>
+              <tr><td class="p-2 border border-slate-100">זיהוי מוצר מתמונה</td><td class="p-2 border border-slate-100 font-mono text-[10px]">POST /api/shopping/identify-product</td><td class="p-2 border border-slate-100"><span class="badge badge-amber">token</span></td></tr>
+              <tr class="bg-slate-50"><td class="p-2 border border-slate-100">הסבר שגיאה (Tutor)</td><td class="p-2 border border-slate-100 font-mono text-[10px]">POST /api/academy/tutor</td><td class="p-2 border border-slate-100"><span class="badge badge-amber">token</span></td></tr>
+              <tr><td class="p-2 border border-slate-100">יצירת משימות AI</td><td class="p-2 border border-slate-100 font-mono text-[10px]">POST /api/tasks/ai-generate</td><td class="p-2 border border-slate-100"><span class="badge badge-amber">token</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- executeWithAIWarning -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <h3 class="font-black text-slate-700 mb-3 text-sm">executeWithAIWarning()</h3>
+        <pre class="bg-slate-900 text-green-300 p-4 rounded-xl text-[11px] overflow-x-auto">executeWithAIWarning(actionFn) {
+  if (is_premium) → actionFn() // Pro — עוקף הכל
+  if (tokens <= 0) → ai-battery-modal
+  if (ofl_hide_ai_warning === today) → actionFn()
+  else → ai-warning-modal ("ממשיך בפעולה")
+}
+
+// ai-warning-modal: "הבנתי, אל תציג שוב היום"
+// → localStorage.ofl_ai_skip_{date} = '1'</pre>
+      </div>
+    </section>
+
+    <!-- S17: API -->
+    <section id="s17" class="page-break">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">17</span>
+        API Endpoints — Family
+      </h2>
+
+      <div class="space-y-4">
+        <!-- Auth -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+          <h3 class="font-black text-slate-700 mb-3 text-sm">Auth</h3>
+          <div class="overflow-x-auto">
+            <table class="text-xs">
+              <thead><tr class="bg-indigo-50"><th class="p-2 border border-indigo-100 text-right w-16">Method</th><th class="p-2 border border-indigo-100 text-right font-mono">Path</th><th class="p-2 border border-indigo-100 text-right">תיאור</th></tr></thead>
+              <tbody>
+                <tr><td class="p-2 border border-slate-100"><span class="badge badge-green">POST</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/login</td><td class="p-2 border border-slate-100">כניסה</td></tr>
+                <tr class="bg-slate-50"><td class="p-2 border border-slate-100"><span class="badge badge-green">POST</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/groups</td><td class="p-2 border border-slate-100">יצירת קבוצה חדשה</td></tr>
+                <tr><td class="p-2 border border-slate-100"><span class="badge badge-green">POST</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/join</td><td class="p-2 border border-slate-100">הצטרפות לקבוצה</td></tr>
+                <tr class="bg-slate-50"><td class="p-2 border border-slate-100"><span class="badge badge-green">POST</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/forgot-code</td><td class="p-2 border border-slate-100">שחזור קוד</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Data & Finance -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+          <h3 class="font-black text-slate-700 mb-3 text-sm">Data & Finance</h3>
+          <div class="overflow-x-auto">
+            <table class="text-xs">
+              <thead><tr class="bg-indigo-50"><th class="p-2 border border-indigo-100 text-right w-16">Method</th><th class="p-2 border border-indigo-100 text-right font-mono">Path</th><th class="p-2 border border-indigo-100 text-right">תיאור</th></tr></thead>
+              <tbody>
+                <tr><td class="p-2 border border-slate-100"><span class="badge badge-blue">GET</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/data/:userId</td><td class="p-2 border border-slate-100 font-bold text-indigo-700">Main call — כל הנתונים</td></tr>
+                <tr class="bg-slate-50"><td class="p-2 border border-slate-100"><span class="badge badge-blue">GET</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/transactions</td><td class="p-2 border border-slate-100">תנועות כספיות</td></tr>
+                <tr><td class="p-2 border border-slate-100"><span class="badge badge-green">POST</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/transaction</td><td class="p-2 border border-slate-100">הוספת תנועה</td></tr>
+                <tr class="bg-slate-50"><td class="p-2 border border-slate-100"><span class="badge badge-indigo">PUT</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/transaction/:id</td><td class="p-2 border border-slate-100">עריכה</td></tr>
+                <tr><td class="p-2 border border-slate-100"><span class="badge badge-red">DELETE</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/transaction/:id</td><td class="p-2 border border-slate-100">מחיקה</td></tr>
+                <tr class="bg-slate-50"><td class="p-2 border border-slate-100"><span class="badge badge-green">POST</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/admin/payday</td><td class="p-2 border border-slate-100">PayDay</td></tr>
+                <tr><td class="p-2 border border-slate-100"><span class="badge badge-blue">GET</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/budget/filter</td><td class="p-2 border border-slate-100">תקציב</td></tr>
+                <tr class="bg-slate-50"><td class="p-2 border border-slate-100"><span class="badge badge-green">POST</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/loans/request</td><td class="p-2 border border-slate-100">בקשת הלוואה</td></tr>
+                <tr><td class="p-2 border border-slate-100"><span class="badge badge-green">POST</span></td><td class="p-2 border border-slate-100 font-mono text-[10px]">/api/goals</td><td class="p-2 border border-slate-100">יצירת יעד חיסכון</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- S18: לוגיקות מיוחדות -->
+    <section id="s18">
+      <h2 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">18</span>
+        לוגיקות מיוחדות
+      </h2>
+
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <!-- Polling -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+          <h3 class="font-black text-slate-700 mb-3 text-sm">⏱️ Polling Intervals</h3>
+          <div class="space-y-2">
+            <div class="bg-slate-50 rounded-xl p-3 flex justify-between items-center">
+              <div>
+                <p class="text-xs font-bold text-slate-700">fetchData + fetchLoans</p>
+                <p class="text-[10px] text-slate-400">+ fetchPendingUsers (ADMIN)</p>
+              </div>
+              <span class="badge badge-indigo">30 שנ'</span>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-3 flex justify-between items-center">
+              <div>
+                <p class="text-xs font-bold text-slate-700">refreshBellBadge</p>
+              </div>
+              <span class="badge badge-indigo">30 שנ'</span>
+            </div>
+            <div class="bg-amber-50 rounded-xl p-3 flex justify-between items-center">
+              <div>
+                <p class="text-xs font-bold text-amber-700">myorders auto-refresh</p>
+                <p class="text-[10px] text-amber-600">רק כשב-myorders tab</p>
+              </div>
+              <span class="badge badge-amber">20 שנ'</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- localStorage -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+          <h3 class="font-black text-slate-700 mb-3 text-sm">💾 localStorage Keys</h3>
+          <div class="space-y-1 text-[11px]">
+            <div class="flex gap-2"><code class="bg-slate-100 px-1 rounded font-mono text-[10px]">ofl_session</code><span class="text-slate-500">{user, group} JSON</span></div>
+            <div class="flex gap-2"><code class="bg-slate-100 px-1 rounded font-mono text-[10px]">ofl_banners</code><span class="text-slate-500">cache של באנרים</span></div>
+            <div class="flex gap-2"><code class="bg-slate-100 px-1 rounded font-mono text-[10px]">ofl_ai_skip_{date}</code><span class="text-slate-500">השתקת אזהרת AI</span></div>
+            <div class="flex gap-2"><code class="bg-slate-100 px-1 rounded font-mono text-[10px]">tour_done_{userId}</code><span class="text-slate-500">Tour הושלם</span></div>
+            <div class="flex gap-2"><code class="bg-slate-100 px-1 rounded font-mono text-[10px]">ofl_welcome_*</code><span class="text-slate-500">welcome נצפתה</span></div>
+            <div class="flex gap-2"><code class="bg-slate-100 px-1 rounded font-mono text-[10px]">ofl_sa_token</code><span class="text-slate-500">Super Admin token</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tour -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4">
+        <h3 class="font-black text-slate-700 mb-3 text-sm">🎯 Tour System (Intro.js)</h3>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-blue-50 border border-blue-100 rounded-xl p-3">
+            <p class="font-black text-blue-700 text-xs mb-2">Tour ADMIN (14 שלבים)</p>
+            <p class="text-[10px] text-slate-600">header → AI battery → יתרה → FAB → shop → pantry → bank → tasks → academy → budget → forecast → recipes → members</p>
+          </div>
+          <div class="bg-violet-50 border border-violet-100 rounded-xl p-3">
+            <p class="font-black text-violet-700 text-xs mb-2">Tour CHILD (11 שלבים)</p>
+            <p class="text-[10px] text-slate-600">ברכה → AI battery → ארנק → shop → pantry → bank → tasks → academy → budget → forecast → recipes</p>
+          </div>
+        </div>
+        <div class="mt-3 bg-slate-50 rounded-lg p-2 text-xs text-slate-600">
+          <code>checkAndStartTour(force)</code> → בודק <code>localStorage.tour_done_{userId}</code><br>
+          <code>window.triggerManualTour()</code> → ניתן לקריאה ידנית מכפתור עזרה
+        </div>
+      </div>
+
+      <!-- PWA -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4">
+        <h3 class="font-black text-slate-700 mb-3 text-sm">📱 PWA</h3>
+        <div class="grid grid-cols-3 gap-3 text-xs text-center">
+          <div class="bg-indigo-50 rounded-xl p-3">
+            <div class="text-xl">📋</div>
+            <p class="font-black text-indigo-700 mt-1">manifest.json</p>
+            <p class="text-slate-500 text-[10px]">theme: #4f46e5</p>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3">
+            <div class="text-xl">🍎</div>
+            <p class="font-black text-slate-700 mt-1">iOS</p>
+            <p class="text-slate-500 text-[10px]">הוראות ידניות</p>
+          </div>
+          <div class="bg-green-50 rounded-xl p-3">
+            <div class="text-xl">🤖</div>
+            <p class="font-black text-green-700 mt-1">Android</p>
+            <p class="text-slate-500 text-[10px]">deferredPrompt.prompt()</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Floating Pill -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <h3 class="font-black text-slate-700 mb-3 text-sm">💊 Floating Pill (תחתית מסך)</h3>
+        <div class="flex items-center justify-center gap-0.5 bg-white/85 rounded-full shadow-lg w-fit mx-auto p-1.5 border border-slate-200">
+          <div class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-lg">🤖</div>
+          <div class="w-px h-5 bg-slate-200"></div>
+          <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-lg relative">
+            💬
+            <span class="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full text-white text-[7px] flex items-center justify-center">3</span>
+          </div>
+          <div class="w-px h-5 bg-slate-200"></div>
+          <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-lg">♿</div>
+        </div>
+        <p class="text-[10px] text-slate-500 text-center mt-2">עוזרת AI · מפריד · צ'אט · מפריד · נגישות (תמיד גלוי)</p>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <div class="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-6 text-white text-center no-print">
+      <h3 class="font-black text-lg mb-1">Oneflow Life — Family Environment</h3>
+      <p class="text-indigo-200 text-sm">מסמך אפיון מלא · גרסה 2026-06-20</p>
+      <button onclick="window.print()" class="mt-4 bg-white text-indigo-700 px-6 py-2.5 rounded-xl font-black text-sm hover:bg-indigo-50 transition">
+        🖨️ שמור כ-PDF
+      </button>
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>
