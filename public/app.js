@@ -180,6 +180,11 @@ function checkAndStartTour(force) {
     else if (currentUser.role === 'CHILD') { try { startChildTour(); } catch(e) {} }
 }
 
+window.triggerManualTour = function() {
+    if (currentUser?.role === 'ADMIN') { try { startAdminTour(); } catch(e) {} }
+    else if (currentUser?.role === 'CHILD') { try { startChildTour(); } catch(e) {} }
+};
+
 function startAdminTour() {
     switchTab('feed'); const intro = introJs();
     intro.setOptions({
@@ -575,7 +580,7 @@ function renderMyOrders() {
                 <span class="text-[10px] font-bold text-indigo-700">הומרה מהצעת מחיר ${o.quote_number}</span>
                </div>`
             : '';
-        html += `<div class="bg-white rounded-2xl border ${borderCls} border-r-4 mb-2 cursor-pointer active:scale-[0.99] transition overflow-hidden" onclick="document.getElementById('order-details-${o.id}').classList.toggle('hidden')" style="touch-action:manipulation;">
+        html += `<div class="bg-white rounded-2xl border ${borderCls} border-r-4 mb-3 cursor-pointer active:scale-[0.99] transition overflow-hidden" onclick="document.getElementById('order-details-${o.id}').classList.toggle('hidden')" style="touch-action:manipulation;">
             <div class="p-3 flex justify-between items-center gap-2">
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-1.5"><i class="fa-solid fa-store text-slate-400 text-[10px] shrink-0"></i><h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(o.store_name || 'עסק מקומי')}</h4></div>
