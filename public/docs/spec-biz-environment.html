@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>אפיון סביבת עסקים — OneFlow Life BIZ</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Heebo', sans-serif; }
+  code, pre { font-family: 'Fira Code', monospace; direction: ltr; }
+  pre { direction: ltr; text-align: left; }
+  table { border-collapse: collapse; width: 100%; }
+  h2 { scroll-margin-top: 80px; }
+  h3 { scroll-margin-top: 80px; }
+  @media print {
+    .no-print { display: none !important; }
+    body { font-size: 11pt; }
+    .page-break { page-break-before: always; }
+    pre, code { font-size: 9pt; }
+  }
+  .toc-link { transition: all .15s; }
+  .toc-link:hover { color: #6366f1; padding-right: 4px; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+<!-- Header -->
+<div class="no-print sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+  <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+      </div>
+      <div>
+        <h1 class="font-black text-slate-800 text-sm leading-none">אפיון סביבת עסקים</h1>
+        <p class="text-[10px] text-slate-400 mt-0.5">OneFlow Life BIZ · גרסה 2026-06-20</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="spec-biz-environment.md" download class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        Markdown
+      </a>
+      <button onclick="window.print()" class="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+        שמור PDF
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="max-w-5xl mx-auto px-4 py-8 flex gap-8">
+
+  <!-- TOC sidebar -->
+  <aside class="no-print w-56 flex-shrink-0 hidden lg:block">
+    <div class="sticky top-20 bg-white rounded-2xl border border-slate-200 p-4 text-sm">
+      <p class="font-black text-slate-700 mb-3 text-xs uppercase tracking-wider">תוכן עניינים</p>
+      <nav class="space-y-1">
+        <a href="#s1" class="toc-link block text-slate-500 text-xs py-0.5">1. ארכיטקטורה וכניסה</a>
+        <a href="#s2" class="toc-link block text-slate-500 text-xs py-0.5">2. ניווט GNAV</a>
+        <a href="#s3" class="toc-link block text-slate-500 text-xs py-0.5">3. Dashboard</a>
+        <a href="#s4" class="toc-link block text-slate-500 text-xs py-0.5">4. סוגי עסקים</a>
+        <a href="#s5" class="toc-link block text-slate-500 text-xs py-0.5">5. משתמשים ותפקידים</a>
+        <a href="#s6" class="toc-link block text-slate-500 text-xs py-0.5">6. מודולים</a>
+        <a href="#s7" class="toc-link block text-slate-500 text-xs py-0.5">7. מודולי יופי</a>
+        <a href="#s8" class="toc-link block text-slate-500 text-xs py-0.5">8. מודולי לוגיסטיקה</a>
+        <a href="#s9" class="toc-link block text-slate-500 text-xs py-0.5">9. API Endpoints</a>
+        <a href="#s10" class="toc-link block text-slate-500 text-xs py-0.5">10. לוגיקות מיוחדות</a>
+      </nav>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="flex-1 min-w-0 space-y-10">
+
+    <!-- Title block -->
+    <div class="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-8 text-white">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-2xl">🏢</div>
+        <div>
+          <h1 class="text-2xl font-black">מפרט טכני מקיף — סביבת BIZ</h1>
+          <p class="text-blue-200 text-sm mt-1">OneFlow Life · Business Environment</p>
+        </div>
+      </div>
+      <p class="text-blue-100 text-sm leading-relaxed">מסמך זה מתאר את מלוא הפונקציונליות של סביבת BIZ במערכת Oneflow Life. נכתב לשימוש כמקור ידע ב-NotebookLM ולצרכי פיתוח.</p>
+      <div class="flex flex-wrap gap-2 mt-4">
+        <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-bold">43 טאבים</span>
+        <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-bold">13 סוגי עסק</span>
+        <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-bold">130+ API endpoints</span>
+        <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-bold">16 תפקידי עובד</span>
+        <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-bold">גרסה 2026-06-20</span>
+      </div>
+    </div>
+
+    <!-- Section 1 -->
+    <section id="s1" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-black">1</span>
+        ארכיטקטורה וכניסה
+      </h2>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">1.1 מיקום וקבצים</h3>
+      <div class="overflow-x-auto mb-6">
+        <table class="text-sm">
+          <thead><tr class="bg-slate-50"><th class="text-right p-3 border border-slate-200 font-bold text-slate-600">רכיב</th><th class="text-right p-3 border border-slate-200 font-bold text-slate-600">פרטים</th></tr></thead>
+          <tbody>
+            <tr><td class="p-3 border border-slate-100 font-mono text-xs text-blue-700">URL</td><td class="p-3 border border-slate-100">/business.html</td></tr>
+            <tr class="bg-slate-50"><td class="p-3 border border-slate-100 font-mono text-xs text-blue-700">HTML</td><td class="p-3 border border-slate-100">public/business.html (~500KB)</td></tr>
+            <tr><td class="p-3 border border-slate-100 font-mono text-xs text-blue-700">JS</td><td class="p-3 border border-slate-100">public/business-app.js (~2.6MB)</td></tr>
+            <tr class="bg-slate-50"><td class="p-3 border border-slate-100 font-mono text-xs text-blue-700">Backend</td><td class="p-3 border border-slate-100">server1.js · Node.js / Express</td></tr>
+            <tr><td class="p-3 border border-slate-100 font-mono text-xs text-blue-700">DB</td><td class="p-3 border border-slate-100">PostgreSQL (Render.com)</td></tr>
+            <tr class="bg-slate-50"><td class="p-3 border border-slate-100 font-mono text-xs text-blue-700">Frontend</td><td class="p-3 border border-slate-100">Vanilla JS + TailwindCSS</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="bg-slate-50 rounded-2xl p-4 mb-6">
+        <p class="text-xs font-bold text-slate-500 mb-2">4 סביבות מופרדות:</p>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-white rounded-xl p-3 border border-slate-100 text-xs"><span class="font-black text-indigo-600">FAMILY</span><br><span class="text-slate-400">/index.html</span></div>
+          <div class="bg-blue-50 rounded-xl p-3 border border-blue-100 text-xs"><span class="font-black text-blue-600">BIZ ←</span><br><span class="text-slate-400">/business.html</span></div>
+          <div class="bg-white rounded-xl p-3 border border-slate-100 text-xs"><span class="font-black text-slate-600">SUPER-ADMIN</span><br><span class="text-slate-400">/sa.html</span></div>
+          <div class="bg-white rounded-xl p-3 border border-slate-100 text-xs"><span class="font-black text-violet-600">ZONE-MANAGER</span><br><span class="text-slate-400">/zone-manager.html</span></div>
+        </div>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">1.2 API Base URL</h3>
+      <pre class="bg-slate-900 text-green-400 rounded-xl p-4 text-xs mb-6 overflow-x-auto">const API = window.location.hostname === 'localhost'
+  ? 'http://localhost:3000/api'
+  : '/api';</pre>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">1.3 זרימת Login</h3>
+      <div class="space-y-2 mb-6">
+        <div class="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+          <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center flex-shrink-0 font-black">1</span>
+          <div><p class="text-sm font-bold">טעינת דף</p><p class="text-xs text-slate-500">window.onload → preloader מונפש</p></div>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+          <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center flex-shrink-0 font-black">2</span>
+          <div><p class="text-sm font-bold">בדיקת Impersonation</p><p class="text-xs text-slate-500">checkImpersonationMode() — Super Admin בהשתלטות → פס אדום</p></div>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+          <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center flex-shrink-0 font-black">3</span>
+          <div><p class="text-sm font-bold">בדיקת SA Token</p><p class="text-xs text-slate-500">ofl_sa_token ב-localStorage → עובר לדשבורד SA</p></div>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+          <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center flex-shrink-0 font-black">4</span>
+          <div><p class="text-sm font-bold">בדיקת Session קיים</p><p class="text-xs text-slate-500">ofl_session עם user+group מסוג BUSINESS → loadDashboard()</p></div>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+          <span class="w-6 h-6 rounded-full bg-slate-400 text-white text-xs flex items-center justify-center flex-shrink-0 font-black">5</span>
+          <div><p class="text-sm font-bold">אין session → מסך Login</p><p class="text-xs text-slate-500">URL עם ?code=XXX → ממלא קוד הצטרפות אוטומטית</p></div>
+        </div>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">1.4 מבנה currentUser</h3>
+      <div class="overflow-x-auto mb-6">
+        <table class="text-sm"><thead><tr class="bg-slate-50"><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">שדה</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">תיאור</th></tr></thead><tbody>
+          <tr><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">id</td><td class="p-2.5 border border-slate-100 text-xs">מזהה ייחודי</td></tr>
+          <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">nickname</td><td class="p-2.5 border border-slate-100 text-xs">שם תצוגה</td></tr>
+          <tr><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">role</td><td class="p-2.5 border border-slate-100 text-xs">ADMIN / MANAGER / SENIOR / MEMBER</td></tr>
+          <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">permissions</td><td class="p-2.5 border border-slate-100 text-xs">JSON עם tabs:[...] — רשימת טאבים מורשים</td></tr>
+          <tr><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">employee_role_type</td><td class="p-2.5 border border-slate-100 text-xs">תפקיד מיוחד: waiter / delivery / field_tech / ...</td></tr>
+          <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">balance</td><td class="p-2.5 border border-slate-100 text-xs">יתרה אישית</td></tr>
+          <tr><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">allowance_amount</td><td class="p-2.5 border border-slate-100 text-xs">תקרת הוצאה שבועית</td></tr>
+          <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">status</td><td class="p-2.5 border border-slate-100 text-xs">active / pending / inactive</td></tr>
+        </tbody></table>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">1.5 מבנה currentGroup</h3>
+      <div class="overflow-x-auto">
+        <table class="text-sm"><thead><tr class="bg-slate-50"><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">שדה</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">תיאור</th></tr></thead><tbody>
+          <tr><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">id / name</td><td class="p-2.5 border border-slate-100 text-xs">מזהה ושם העסק</td></tr>
+          <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">group_code</td><td class="p-2.5 border border-slate-100 text-xs">קוד ארגון לשיתוף</td></tr>
+          <tr><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">business_type</td><td class="p-2.5 border border-slate-100 text-xs">restaurant / retail / beauty / logistics / ...</td></tr>
+          <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">is_premium</td><td class="p-2.5 border border-slate-100 text-xs">מנוי PRO פעיל</td></tr>
+          <tr><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">ai_tokens</td><td class="p-2.5 border border-slate-100 text-xs">10 לחינמי / ∞ לPRO</td></tr>
+          <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">features</td><td class="p-2.5 border border-slate-100 text-xs">JSON feature flags (store, b2b, academy, ...)</td></tr>
+          <tr><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">is_onboarded</td><td class="p-2.5 border border-slate-100 text-xs">עבר אשף הקמה</td></tr>
+          <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">location_lat/lng</td><td class="p-2.5 border border-slate-100 text-xs">מיקום GPS לנוכחות</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+
+    <!-- Section 2 -->
+    <section id="s2" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black">2</span>
+        ניווט — Group Navigation (GNAV)
+      </h2>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">2.1 GNAV_GROUPS — 5 קבוצות</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+        <div class="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+          <p class="font-black text-blue-800 text-sm mb-2">👥 צוות (team)</p>
+          <p class="text-xs text-blue-700 leading-relaxed">timeclock, shifts, calendar, tasks, academy, members, beauty_calendar, beauty_practitioners</p>
+        </div>
+        <div class="bg-green-50 rounded-2xl p-4 border border-green-100">
+          <p class="font-black text-green-800 text-sm mb-2">🛍️ מכירות (sales)</p>
+          <p class="text-xs text-green-700 leading-relaxed">pos, sales, customers, deliveries, reviews, beauty_services, beauty_subscriptions, beauty_clients, beauty_rfq</p>
+        </div>
+        <div class="bg-orange-50 rounded-2xl p-4 border border-orange-100">
+          <p class="font-black text-orange-800 text-sm mb-2">📦 מלאי (inventory)</p>
+          <p class="text-xs text-orange-700 leading-relaxed">shop, pantry, equipment, foodcost, beauty_inventory</p>
+        </div>
+        <div class="bg-amber-50 rounded-2xl p-4 border border-amber-100">
+          <p class="font-black text-amber-800 text-sm mb-2">💰 כספים (finance)</p>
+          <p class="text-xs text-amber-700 leading-relaxed">bank, cashflow, budget, forecast, beauty_commissions</p>
+        </div>
+        <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+          <p class="font-black text-slate-700 text-sm mb-2">⚙️ עוד (more)</p>
+          <p class="text-xs text-slate-500 leading-relaxed">community, surveys, settings</p>
+        </div>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">2.2 ALL_TABS — 43 טאבים</h3>
+      <div class="overflow-x-auto mb-6">
+        <table class="text-xs w-full">
+          <thead><tr class="bg-slate-50"><th class="text-right p-2 border border-slate-200 font-bold">מזהה</th><th class="text-right p-2 border border-slate-200 font-bold">שם עברי</th><th class="text-right p-2 border border-slate-200 font-bold">קבוצה</th></tr></thead>
+          <tbody>
+            <tr><td class="p-2 border border-slate-100 font-mono text-blue-700">feed</td><td class="p-2 border border-slate-100">ראשי 🏠</td><td class="p-2 border border-slate-100">—</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-blue-700">timeclock</td><td class="p-2 border border-slate-100">נוכחות ⏱️</td><td class="p-2 border border-slate-100">team</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-blue-700">shifts</td><td class="p-2 border border-slate-100">משמרות 🗓️</td><td class="p-2 border border-slate-100">team</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-blue-700">calendar</td><td class="p-2 border border-slate-100">יומן ציבורי 🌐</td><td class="p-2 border border-slate-100">team</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-blue-700">tasks</td><td class="p-2 border border-slate-100">פרויקטים ומשימות ✅</td><td class="p-2 border border-slate-100">team</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-blue-700">academy</td><td class="p-2 border border-slate-100">מרכז הכשרות 🎓</td><td class="p-2 border border-slate-100">team</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-blue-700">members</td><td class="p-2 border border-slate-100">ניהול צוות 👥</td><td class="p-2 border border-slate-100">team</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-blue-700">pos</td><td class="p-2 border border-slate-100">קופה (POS) 💰</td><td class="p-2 border border-slate-100">sales</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-blue-700">sales</td><td class="p-2 border border-slate-100">מכירות / חנות 🛍️</td><td class="p-2 border border-slate-100">sales</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-blue-700">customers</td><td class="p-2 border border-slate-100">לקוחות 🤝</td><td class="p-2 border border-slate-100">sales</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-blue-700">deliveries</td><td class="p-2 border border-slate-100">שליחויות 🛵</td><td class="p-2 border border-slate-100">sales</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-blue-700">reviews</td><td class="p-2 border border-slate-100">דירוגים ⭐</td><td class="p-2 border border-slate-100">sales</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-blue-700">shop</td><td class="p-2 border border-slate-100">רכש ארגוני 🛒</td><td class="p-2 border border-slate-100">inventory</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-blue-700">pantry</td><td class="p-2 border border-slate-100">ניהול מלאי 📦</td><td class="p-2 border border-slate-100">inventory</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-blue-700">equipment</td><td class="p-2 border border-slate-100">תחזוקת ציוד 🔧</td><td class="p-2 border border-slate-100">inventory</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-blue-700">foodcost</td><td class="p-2 border border-slate-100">תמחור ורווחיות 🍽️</td><td class="p-2 border border-slate-100">inventory</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-blue-700">bank</td><td class="p-2 border border-slate-100">כספים 💳</td><td class="p-2 border border-slate-100">finance</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-blue-700">cashflow</td><td class="p-2 border border-slate-100">תזרים מזומנים 💸</td><td class="p-2 border border-slate-100">finance</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-blue-700">budget</td><td class="p-2 border border-slate-100">תקציבים 📊</td><td class="p-2 border border-slate-100">finance</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-blue-700">forecast</td><td class="p-2 border border-slate-100">תשקיף 📅</td><td class="p-2 border border-slate-100">finance</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-blue-700">community</td><td class="p-2 border border-slate-100">קהילות 🏘️</td><td class="p-2 border border-slate-100">more</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-blue-700">surveys</td><td class="p-2 border border-slate-100">תקשורת 📣</td><td class="p-2 border border-slate-100">more</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-blue-700">settings</td><td class="p-2 border border-slate-100">הגדרות ⚙️</td><td class="p-2 border border-slate-100">more</td></tr>
+            <tr class="bg-pink-50"><td class="p-2 border border-pink-100 font-mono text-pink-700">beauty_calendar</td><td class="p-2 border border-pink-100">יומן מטפלות 💆</td><td class="p-2 border border-pink-100">beauty</td></tr>
+            <tr class="bg-pink-50"><td class="p-2 border border-pink-100 font-mono text-pink-700">beauty_clients</td><td class="p-2 border border-pink-100">תיקי לקוחות 📋</td><td class="p-2 border border-pink-100">beauty</td></tr>
+            <tr class="bg-pink-50"><td class="p-2 border border-pink-100 font-mono text-pink-700">beauty_inventory</td><td class="p-2 border border-pink-100">מלאי מקצועי 🧴</td><td class="p-2 border border-pink-100">beauty</td></tr>
+            <tr class="bg-pink-50"><td class="p-2 border border-pink-100 font-mono text-pink-700">beauty_services</td><td class="p-2 border border-pink-100">שירותים וטיפולים 💎</td><td class="p-2 border border-pink-100">beauty</td></tr>
+            <tr class="bg-pink-50"><td class="p-2 border border-pink-100 font-mono text-pink-700">beauty_subscriptions</td><td class="p-2 border border-pink-100">מנויים וחבילות 🎁</td><td class="p-2 border border-pink-100">beauty</td></tr>
+            <tr class="bg-pink-50"><td class="p-2 border border-pink-100 font-mono text-pink-700">beauty_commissions</td><td class="p-2 border border-pink-100">עמלות ושכר 💰</td><td class="p-2 border border-pink-100">beauty</td></tr>
+            <tr class="bg-pink-50"><td class="p-2 border border-pink-100 font-mono text-pink-700">beauty_rfq</td><td class="p-2 border border-pink-100">ייעוץ ובקשות 💬</td><td class="p-2 border border-pink-100">beauty</td></tr>
+            <tr class="bg-pink-50"><td class="p-2 border border-pink-100 font-mono text-pink-700">beauty_practitioners</td><td class="p-2 border border-pink-100">מטפלות 💆</td><td class="p-2 border border-pink-100">beauty</td></tr>
+            <tr class="bg-orange-50"><td class="p-2 border border-orange-100 font-mono text-orange-700">logistics_orders</td><td class="p-2 border border-orange-100">קנבן משלוחים 📦</td><td class="p-2 border border-orange-100">logistics</td></tr>
+            <tr class="bg-orange-50"><td class="p-2 border border-orange-100 font-mono text-orange-700">logistics_drivers</td><td class="p-2 border border-orange-100">נהגים 🚗</td><td class="p-2 border border-orange-100">logistics</td></tr>
+            <tr class="bg-orange-50"><td class="p-2 border border-orange-100 font-mono text-orange-700">logistics_vehicles</td><td class="p-2 border border-orange-100">צי רכבים 🚚</td><td class="p-2 border border-orange-100">logistics</td></tr>
+            <tr class="bg-orange-50"><td class="p-2 border border-orange-100 font-mono text-orange-700">logistics_pricing</td><td class="p-2 border border-orange-100">מחירון 💰</td><td class="p-2 border border-orange-100">logistics</td></tr>
+            <tr class="bg-orange-50"><td class="p-2 border border-orange-100 font-mono text-orange-700">logistics_cod</td><td class="p-2 border border-orange-100">גבייה COD 💵</td><td class="p-2 border border-orange-100">logistics</td></tr>
+            <tr class="bg-orange-50"><td class="p-2 border border-orange-100 font-mono text-orange-700">logistics_rfq</td><td class="p-2 border border-orange-100">הצעות מחיר 📋</td><td class="p-2 border border-orange-100">logistics</td></tr>
+            <tr class="bg-orange-50"><td class="p-2 border border-orange-100 font-mono text-orange-700">logistics_routes</td><td class="p-2 border border-orange-100">מסלולי חלוקה 🗺️</td><td class="p-2 border border-orange-100">logistics</td></tr>
+            <tr class="bg-orange-50"><td class="p-2 border border-orange-100 font-mono text-orange-700">logistics_tracking</td><td class="p-2 border border-orange-100">לינקי מעקב 🔗</td><td class="p-2 border border-orange-100">logistics</td></tr>
+            <tr class="bg-orange-50"><td class="p-2 border border-orange-100 font-mono text-orange-700">logistics_reports</td><td class="p-2 border border-orange-100">דוחות 📊</td><td class="p-2 border border-orange-100">logistics</td></tr>
+            <tr class="bg-orange-50"><td class="p-2 border border-orange-100 font-mono text-orange-700">logistics_customers</td><td class="p-2 border border-orange-100">מזמינים ונמענים 🤝</td><td class="p-2 border border-orange-100">logistics</td></tr>
+            <tr class="bg-orange-50"><td class="p-2 border border-orange-100 font-mono text-orange-700">logistics_invoices</td><td class="p-2 border border-orange-100">חשבוניות 🧾</td><td class="p-2 border border-orange-100">logistics</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">2.3 Polling ועדכונים</h3>
+      <div class="bg-slate-50 rounded-xl p-4 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-white rounded-lg p-3 border border-slate-100"><p class="font-bold">fetchData</p><p class="text-slate-400">כל 30 שניות</p></div>
+          <div class="bg-white rounded-lg p-3 border border-slate-100"><p class="font-bold">Bell badge</p><p class="text-slate-400">כל 30 שניות</p></div>
+          <div class="bg-white rounded-lg p-3 border border-slate-100"><p class="font-bold">דשבורד מיוחד</p><p class="text-slate-400">כל 30 שניות</p></div>
+          <div class="bg-white rounded-lg p-3 border border-slate-100"><p class="font-bold">נהג לוגיסטיקה</p><p class="text-slate-400">כל 60 שניות</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3 -->
+    <section id="s3" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-green-100 text-green-700 flex items-center justify-center text-sm font-black">3</span>
+        Dashboard — לוח בקרה
+      </h2>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">3.1 KPI Cards — מנהל</h3>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+        <div class="bg-green-50 rounded-xl p-3 border border-green-100 text-xs"><p class="font-black text-green-800">kpi-sales-today</p><p class="text-green-600">מכירות יום זה (₪)</p></div>
+        <div class="bg-blue-50 rounded-xl p-3 border border-blue-100 text-xs"><p class="font-black text-blue-800">kpi-orders-today</p><p class="text-blue-600">הזמנות היום</p></div>
+        <div class="bg-purple-50 rounded-xl p-3 border border-purple-100 text-xs"><p class="font-black text-purple-800">kpi-active-staff</p><p class="text-purple-600">עובדים שהחתימו</p></div>
+        <div class="bg-amber-50 rounded-xl p-3 border border-amber-100 text-xs"><p class="font-black text-amber-800">kpi-open-orders</p><p class="text-amber-600">הזמנות פתוחות</p></div>
+        <div class="bg-red-50 rounded-xl p-3 border border-red-100 text-xs"><p class="font-black text-red-800">kpi-open-tasks</p><p class="text-red-600">משימות pending</p></div>
+        <div class="bg-teal-50 rounded-xl p-3 border border-teal-100 text-xs"><p class="font-black text-teal-800">kpi-revenue-month</p><p class="text-teal-600">הכנסות החודש</p></div>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">3.2 KPIs ייחודיים למסעדה</h3>
+      <div class="bg-orange-50 rounded-2xl p-4 mb-6 grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+        <div class="bg-white rounded-lg p-2 border border-orange-100"><p class="font-bold text-orange-800">kpi-deliveries-transit</p><p class="text-orange-600">משלוחים בדרך</p></div>
+        <div class="bg-white rounded-lg p-2 border border-orange-100"><p class="font-bold text-orange-800">kpi-avg-per-order</p><p class="text-orange-600">ממוצע הזמנה</p></div>
+        <div class="bg-white rounded-lg p-2 border border-orange-100"><p class="font-bold text-orange-800">kpi-avg-rating</p><p class="text-orange-600">ממוצע דירוג</p></div>
+        <div class="bg-white rounded-lg p-2 border border-orange-100"><p class="font-bold text-orange-800">kpi-low-stock-count</p><p class="text-orange-600">מלאי נמוך</p></div>
+        <div class="bg-white rounded-lg p-2 border border-orange-100"><p class="font-bold text-orange-800">kpi-food-cost-pct</p><p class="text-orange-600">Food Cost %</p></div>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">3.3 דשבורדים ייחודיים לסוג עסק</h3>
+      <div class="overflow-x-auto">
+        <table class="text-sm"><thead><tr class="bg-slate-50"><th class="text-right p-2.5 border border-slate-200 text-xs font-bold">סוג עסק</th><th class="text-right p-2.5 border border-slate-200 text-xs font-bold">פונקציה</th></tr></thead><tbody>
+          <tr><td class="p-2.5 border border-slate-100 text-xs">beauty</td><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">renderBeautyAdminDashboard()</td></tr>
+          <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs">logistics</td><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">renderLogisticsAdminDashboard()</td></tr>
+          <tr><td class="p-2.5 border border-slate-100 text-xs">logistics (נהג)</td><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">renderLogisticsDriverDashboard()</td></tr>
+          <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs">sport</td><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">renderSportDashboard()</td></tr>
+          <tr><td class="p-2.5 border border-slate-100 text-xs">maintenance_repair</td><td class="p-2.5 border border-slate-100 font-mono text-xs text-blue-700">renderBranchManagerMaintenanceDashboard()</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+
+    <!-- Section 4 -->
+    <section id="s4" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-sm font-black">4</span>
+        סוגי עסקים — BUSINESS_TYPES
+      </h2>
+      <div class="overflow-x-auto mb-6">
+        <table class="text-xs"><thead><tr class="bg-slate-50"><th class="text-right p-2.5 border border-slate-200 font-bold">id</th><th class="text-right p-2.5 border border-slate-200 font-bold">שם</th><th class="text-right p-2.5 border border-slate-200 font-bold">מודולים עיקריים</th></tr></thead><tbody>
+          <tr><td class="p-2 border border-slate-100 font-mono text-amber-700">restaurant</td><td class="p-2 border border-slate-100 font-bold">🍕 מסעדה</td><td class="p-2 border border-slate-100 text-slate-500">pos, sales, pantry, shop, customers, shifts, timeclock, tasks, cashflow, budget, members, calendar, deliveries, foodcost, reviews</td></tr>
+          <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-amber-700">retail</td><td class="p-2 border border-slate-100 font-bold">🛍️ קמעונאות</td><td class="p-2 border border-slate-100 text-slate-500">pos, sales, pantry, shop, customers, cashflow, budget, members, timeclock, tasks, bank</td></tr>
+          <tr><td class="p-2 border border-slate-100 font-mono text-amber-700">services</td><td class="p-2 border border-slate-100 font-bold">💼 שירותים</td><td class="p-2 border border-slate-100 text-slate-500">calendar, tasks, customers, cashflow, budget, members, timeclock, bank, pos, sales</td></tr>
+          <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-amber-700">construction</td><td class="p-2 border border-slate-100 font-bold">🏗️ בנייה</td><td class="p-2 border border-slate-100 text-slate-500">equipment, tasks, shifts, timeclock, members, cashflow, customers, bank, shop, pantry, budget</td></tr>
+          <tr><td class="p-2 border border-slate-100 font-mono text-amber-700">maintenance_repair</td><td class="p-2 border border-slate-100 font-bold">🔧 תיקונים</td><td class="p-2 border border-slate-100 text-slate-500">calendar, tasks, customers, members, timeclock, cashflow, pantry, shop</td></tr>
+          <tr class="bg-orange-50"><td class="p-2 border border-orange-100 font-mono text-orange-700">logistics</td><td class="p-2 border border-orange-100 font-bold">🚚 לוגיסטיקה</td><td class="p-2 border border-orange-100 text-slate-500">logistics_orders, logistics_drivers, logistics_vehicles, logistics_pricing, logistics_cod, + members, timeclock</td></tr>
+          <tr><td class="p-2 border border-slate-100 font-mono text-amber-700">healthcare</td><td class="p-2 border border-slate-100 font-bold">🏥 בריאות</td><td class="p-2 border border-slate-100 text-slate-500">calendar, customers, tasks, members, timeclock, cashflow, bank, pos, pantry</td></tr>
+          <tr class="bg-pink-50"><td class="p-2 border border-pink-100 font-mono text-pink-700">beauty</td><td class="p-2 border border-pink-100 font-bold">💅 יופי</td><td class="p-2 border border-pink-100 text-slate-500">beauty_calendar, beauty_practitioners, beauty_services, beauty_subscriptions, pos, beauty_clients, beauty_inventory, beauty_commissions, beauty_rfq, timeclock, cashflow, tasks, shop</td></tr>
+          <tr><td class="p-2 border border-slate-100 font-mono text-amber-700">education</td><td class="p-2 border border-slate-100 font-bold">🎓 חינוך</td><td class="p-2 border border-slate-100 text-slate-500">calendar, academy, tasks, members, timeclock, cashflow, customers, pos</td></tr>
+          <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-amber-700">sport</td><td class="p-2 border border-slate-100 font-bold">🏋️ ספורט</td><td class="p-2 border border-slate-100 text-slate-500">calendar, pos, sales, customers, members, timeclock, cashflow, tasks, equipment, shifts</td></tr>
+          <tr><td class="p-2 border border-slate-100 font-mono text-amber-700">events</td><td class="p-2 border border-slate-100 font-bold">🎉 אירועים</td><td class="p-2 border border-slate-100 text-slate-500">calendar, tasks, customers, members, timeclock, cashflow, budget, equipment, shifts, shop</td></tr>
+          <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-amber-700">food_production</td><td class="p-2 border border-slate-100 font-bold">🏭 ייצור מזון</td><td class="p-2 border border-slate-100 text-slate-500">pantry, shop, sales, customers, tasks, members, shifts, timeclock, cashflow, equipment, deliveries, foodcost</td></tr>
+          <tr><td class="p-2 border border-slate-100 font-mono text-amber-700">other</td><td class="p-2 border border-slate-100 font-bold">🏢 כללי</td><td class="p-2 border border-slate-100 text-slate-500">כל הטאבים (modules: null)</td></tr>
+        </tbody></table>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">4.2 מינוח מותאם לסוג עסק</h3>
+      <div class="overflow-x-auto">
+        <table class="text-xs"><thead><tr class="bg-slate-50"><th class="text-right p-2 border border-slate-200 font-bold">סוג</th><th class="text-right p-2 border border-slate-200 font-bold">customer</th><th class="text-right p-2 border border-slate-200 font-bold">product</th><th class="text-right p-2 border border-slate-200 font-bold">appointment</th><th class="text-right p-2 border border-slate-200 font-bold">order</th></tr></thead><tbody>
+          <tr><td class="p-2 border border-slate-100">restaurant</td><td class="p-2 border border-slate-100">אורח</td><td class="p-2 border border-slate-100">מנה</td><td class="p-2 border border-slate-100">שולחן</td><td class="p-2 border border-slate-100">הזמנה</td></tr>
+          <tr class="bg-slate-50"><td class="p-2 border border-slate-100">retail</td><td class="p-2 border border-slate-100">לקוח</td><td class="p-2 border border-slate-100">מוצר</td><td class="p-2 border border-slate-100">ביקור</td><td class="p-2 border border-slate-100">הזמנה</td></tr>
+          <tr><td class="p-2 border border-slate-100">services</td><td class="p-2 border border-slate-100">לקוח</td><td class="p-2 border border-slate-100">שירות</td><td class="p-2 border border-slate-100">פגישה</td><td class="p-2 border border-slate-100">פרויקט</td></tr>
+          <tr class="bg-slate-50"><td class="p-2 border border-slate-100">healthcare</td><td class="p-2 border border-slate-100">מטופל</td><td class="p-2 border border-slate-100">טיפול</td><td class="p-2 border border-slate-100">תור</td><td class="p-2 border border-slate-100">הפניה</td></tr>
+          <tr><td class="p-2 border border-slate-100">beauty</td><td class="p-2 border border-slate-100">לקוחה</td><td class="p-2 border border-slate-100">טיפול/מוצר</td><td class="p-2 border border-slate-100">תור</td><td class="p-2 border border-slate-100">הזמנה</td></tr>
+          <tr class="bg-slate-50"><td class="p-2 border border-slate-100">construction</td><td class="p-2 border border-slate-100">מזמין</td><td class="p-2 border border-slate-100">חומר</td><td class="p-2 border border-slate-100">פגישת אתר</td><td class="p-2 border border-slate-100">פרויקט</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+
+    <!-- Section 5 -->
+    <section id="s5" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center text-sm font-black">5</span>
+        משתמשים ותפקידים
+      </h2>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">5.1 תפקידים ראשיים (Role)</h3>
+      <div class="grid grid-cols-2 gap-3 mb-6">
+        <div class="bg-red-50 rounded-2xl p-4 border border-red-100"><p class="font-black text-red-700">ADMIN</p><p class="text-xs text-slate-500 mt-1">גישה מלאה. כלי ניהול. דשבורד מנהל.</p></div>
+        <div class="bg-orange-50 rounded-2xl p-4 border border-orange-100"><p class="font-black text-orange-700">MANAGER</p><p class="text-xs text-slate-500 mt-1">feed, timeclock, shifts, calendar, shop, pantry, equipment, tasks, academy, sales, pos, customers</p></div>
+        <div class="bg-blue-50 rounded-2xl p-4 border border-blue-100"><p class="font-black text-blue-700">SENIOR</p><p class="text-xs text-slate-500 mt-1">feed, timeclock, shifts, pantry, tasks, academy, pos</p></div>
+        <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200"><p class="font-black text-slate-600">MEMBER</p><p class="text-xs text-slate-500 mt-1">feed, timeclock, shifts, tasks, academy</p></div>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">5.2 תפקידי עובד מיוחדים (EMPLOYEE_ROLE_TYPES)</h3>
+      <div class="overflow-x-auto">
+        <table class="text-xs"><thead><tr class="bg-slate-50"><th class="text-right p-2 border border-slate-200 font-bold">תפקיד</th><th class="text-right p-2 border border-slate-200 font-bold">מודולים אוטומטיים</th><th class="text-right p-2 border border-slate-200 font-bold">סוגי עסק</th></tr></thead><tbody>
+          <tr><td class="p-2 border border-slate-100 font-bold">salesperson — איש מכירות</td><td class="p-2 border border-slate-100 font-mono text-[10px] text-blue-700">pos, sales, customers, tasks, calendar, timeclock, shifts</td><td class="p-2 border border-slate-100 text-slate-400">retail, services</td></tr>
+          <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-bold">field_tech — טכנאי שטח</td><td class="p-2 border border-slate-100 font-mono text-[10px] text-blue-700">tasks, equipment, calendar, timeclock, shifts</td><td class="p-2 border border-slate-100 text-slate-400">maintenance_repair, construction</td></tr>
+          <tr><td class="p-2 border border-slate-100 font-bold">delivery — שליח/נהג</td><td class="p-2 border border-slate-100 font-mono text-[10px] text-blue-700">deliveries, tasks, timeclock, shifts</td><td class="p-2 border border-slate-100 text-slate-400">restaurant, retail, logistics</td></tr>
+          <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-bold">warehouse — מחסנאי</td><td class="p-2 border border-slate-100 font-mono text-[10px] text-blue-700">pantry, shop, tasks, timeclock, shifts</td><td class="p-2 border border-slate-100 text-slate-400">restaurant, retail, logistics</td></tr>
+          <tr><td class="p-2 border border-slate-100 font-bold">cashier — קופאי</td><td class="p-2 border border-slate-100 font-mono text-[10px] text-blue-700">pos, sales, tasks, timeclock, shifts</td><td class="p-2 border border-slate-100 text-slate-400">restaurant, retail, beauty</td></tr>
+          <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-bold">shift_manager — מנהל משמרת</td><td class="p-2 border border-slate-100 font-mono text-[10px] text-blue-700">pos, sales, tasks, members, timeclock, shifts, customers, cashflow, reviews</td><td class="p-2 border border-slate-100 text-slate-400">restaurant, retail</td></tr>
+          <tr><td class="p-2 border border-slate-100 font-bold">waiter — מלצר/ית</td><td class="p-2 border border-slate-100 font-mono text-[10px] text-blue-700">pos, sales, tasks, calendar, members, shifts, timeclock</td><td class="p-2 border border-slate-100 text-slate-400">restaurant</td></tr>
+          <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-bold">cook — טבח/ית</td><td class="p-2 border border-slate-100 font-mono text-[10px] text-blue-700">pantry, tasks, shifts, foodcost, timeclock</td><td class="p-2 border border-slate-100 text-slate-400">restaurant, food_production</td></tr>
+          <tr><td class="p-2 border border-slate-100 font-bold">therapist/senior/nail/makeup/reception</td><td class="p-2 border border-slate-100 font-mono text-[10px] text-pink-700">beauty_calendar, beauty_clients, beauty_services, beauty_commissions, ...</td><td class="p-2 border border-slate-100 text-slate-400">beauty</td></tr>
+          <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-bold">support — נציג שירות</td><td class="p-2 border border-slate-100 font-mono text-[10px] text-blue-700">customers, tasks, calendar, timeclock</td><td class="p-2 border border-slate-100 text-slate-400">services, healthcare, sport</td></tr>
+          <tr><td class="p-2 border border-slate-100 font-bold">cleaner — מנקה</td><td class="p-2 border border-slate-100 font-mono text-[10px] text-blue-700">tasks, timeclock, shifts</td><td class="p-2 border border-slate-100 text-slate-400">restaurant, retail, beauty, sport</td></tr>
+          <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-bold">branch_manager</td><td class="p-2 border border-slate-100 font-mono text-[10px] text-blue-700">pos, sales, tasks, members, timeclock, shifts, customers, cashflow, budget, pantry, reviews</td><td class="p-2 border border-slate-100 text-slate-400">כל הסוגים</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+
+    <!-- Section 6 -->
+    <section id="s6" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center text-sm font-black">6</span>
+        מודולים — תיאור מלא
+      </h2>
+
+      <!-- Orders flow -->
+      <h3 class="font-black text-slate-700 mb-3 text-sm">6.1 הזמנות — Order Status Flow</h3>
+      <div class="flex items-center gap-1 flex-wrap mb-4 text-xs font-bold">
+        <span class="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full">new</span>
+        <span class="text-slate-300">→</span>
+        <span class="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full">processing</span>
+        <span class="text-slate-300">→</span>
+        <span class="bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-full">ready</span>
+        <span class="text-slate-300">→</span>
+        <span class="bg-purple-100 text-purple-700 px-3 py-1.5 rounded-full">shipped</span>
+        <span class="text-slate-300">→</span>
+        <span class="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full">delivering</span>
+        <span class="text-slate-300">→</span>
+        <span class="bg-green-100 text-green-700 px-3 py-1.5 rounded-full">completed</span>
+        <span class="text-slate-300">|</span>
+        <span class="bg-red-100 text-red-700 px-3 py-1.5 rounded-full">cancelled</span>
+      </div>
+      <div class="bg-slate-50 rounded-2xl p-4 mb-6 text-xs">
+        <p class="font-bold mb-2">ציר זמן (5 תחנות):</p>
+        <ol class="space-y-1 list-decimal list-inside text-slate-600">
+          <li>הזמנה התקבלה במערכת</li>
+          <li>בטיפול / בהכנה</li>
+          <li>מוכנה לאיסוף (עצמי / שליח)</li>
+          <li>יצאה למשלוח / נאספה</li>
+          <li>סופקה ללקוח / הושלמה</li>
+        </ol>
+      </div>
+
+      <!-- Sub-tabs of sales -->
+      <h3 class="font-black text-slate-700 mb-3 text-sm">6.2 תת-טאבים של sales</h3>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mb-6 text-xs">
+        <div class="bg-slate-50 rounded-xl p-3 border border-slate-100"><p class="font-bold">orders</p><p class="text-slate-400">הזמנות חנות</p></div>
+        <div class="bg-slate-50 rounded-xl p-3 border border-slate-100"><p class="font-bold">quotes</p><p class="text-slate-400">הצעות מחיר</p></div>
+        <div class="bg-slate-50 rounded-xl p-3 border border-slate-100"><p class="font-bold">catalog</p><p class="text-slate-400">קטלוג מוצרים</p></div>
+        <div class="bg-slate-50 rounded-xl p-3 border border-slate-100"><p class="font-bold">work-orders</p><p class="text-slate-400">פקודות עבודה</p></div>
+        <div class="bg-slate-50 rounded-xl p-3 border border-slate-100"><p class="font-bold">analytics</p><p class="text-slate-400">אנליטיקס</p></div>
+      </div>
+
+      <!-- Key modules summary -->
+      <h3 class="font-black text-slate-700 mb-3 text-sm">6.3 סיכום מודולים מרכזיים</h3>
+      <div class="space-y-3">
+        <div class="border border-slate-100 rounded-2xl p-4">
+          <div class="flex items-center gap-2 mb-2"><span class="text-lg">💰</span><p class="font-black text-sm">קופה (POS)</p></div>
+          <p class="text-xs text-slate-500">קטגוריות מוצרים + חיפוש, סל קנייה, Modifiers, זיהוי לקוח לפי טלפון, הנחה %, %, מסך מלא, סריקת ברקוד, תשלום: מזומן/אשראי/ספליט</p>
+        </div>
+        <div class="border border-slate-100 rounded-2xl p-4">
+          <div class="flex items-center gap-2 mb-2"><span class="text-lg">⏱️</span><p class="font-black text-sm">נוכחות (timeclock)</p></div>
+          <p class="text-xs text-slate-500">החתמה GPS (150מ'), דוח חודשי, ייצוא PDF, דיווח ידני, שעות מצטברות. API: punch, status, report, manual, set-location</p>
+        </div>
+        <div class="border border-slate-100 rounded-2xl p-4">
+          <div class="flex items-center gap-2 mb-2"><span class="text-lg">✅</span><p class="font-black text-sm">משימות (tasks)</p></div>
+          <p class="text-xs text-slate-500">סטטוסים: pending/done/approved/cancelled. AI generate, Vision verify. עובד ← מנהל, self-task, הוכחה צילום</p>
+        </div>
+        <div class="border border-slate-100 rounded-2xl p-4">
+          <div class="flex items-center gap-2 mb-2"><span class="text-lg">🎓</span><p class="font-black text-sm">הכשרות (academy)</p></div>
+          <p class="text-xs text-slate-500">חבילות לימוד + חידונים, שיוך לעובד, AI generate bundle, מורה AI (tutor), ציוני עובדים</p>
+        </div>
+        <div class="border border-slate-100 rounded-2xl p-4">
+          <div class="flex items-center gap-2 mb-2"><span class="text-lg">🔧</span><p class="font-black text-sm">ציוד (equipment)</p></div>
+          <p class="text-xs text-slate-500">פריטים + תחזוקה + תקלות + טכנאים. תאריך אחריות עם התראה, badge count על טאב, תכניות תחזוקה תקופתיות</p>
+        </div>
+        <div class="border border-slate-100 rounded-2xl p-4">
+          <div class="flex items-center gap-2 mb-2"><span class="text-lg">💳</span><p class="font-black text-sm">כספים (bank)</p></div>
+          <p class="text-xs text-slate-500">הכנסות/הוצאות, קטגוריות, הלוואות (request/approve/reject), יעדים, AI insight</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 7 -->
+    <section id="s7" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-pink-100 text-pink-700 flex items-center justify-center text-sm font-black">7</span>
+        מודולי יופי (Beauty Modules)
+      </h2>
+      <div class="bg-pink-50 rounded-2xl p-4 mb-4 text-xs text-pink-800 font-bold border border-pink-100">⚠️ מופעלים אך ורק לסוג עסק <code class="bg-pink-100 px-1.5 py-0.5 rounded">beauty</code></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="border border-pink-100 rounded-2xl p-4 bg-pink-50/30">
+          <p class="font-black text-pink-800 text-sm mb-1">💆 beauty_calendar — יומן מטפלות</p>
+          <p class="text-xs text-slate-500">יומי/שבועי/חודשי, עמודה לכל מטפלת, תורים צבעוניים לפי שירות, בקשות ממתינות, הוספה ידנית</p>
+        </div>
+        <div class="border border-pink-100 rounded-2xl p-4 bg-pink-50/30">
+          <p class="font-black text-pink-800 text-sm mb-1">📋 beauty_clients — תיקי לקוחות</p>
+          <p class="text-xs text-slate-500">כרטיס לקוחה מפורט, היסטוריית טיפולים, Patch Test, העדפות ואלרגיות</p>
+        </div>
+        <div class="border border-pink-100 rounded-2xl p-4 bg-pink-50/30">
+          <p class="font-black text-pink-800 text-sm mb-1">💎 beauty_services — שירותים</p>
+          <p class="text-xs text-slate-500">קטגוריות צבעוניות, מחיר + משך + מטפלת, דגל requires_patch_test</p>
+        </div>
+        <div class="border border-pink-100 rounded-2xl p-4 bg-pink-50/30">
+          <p class="font-black text-pink-800 text-sm mb-1">🎁 beauty_subscriptions — מנויים</p>
+          <p class="text-xs text-slate-500">חבילות (X טיפולים), מעקב ניצול, חידוש מנוי</p>
+        </div>
+        <div class="border border-pink-100 rounded-2xl p-4 bg-pink-50/30">
+          <p class="font-black text-pink-800 text-sm mb-1">💰 beauty_commissions — עמלות</p>
+          <p class="text-xs text-slate-500">חישוב עמלות מטפלת לפי שירות, דוח שכר חודשי</p>
+        </div>
+        <div class="border border-pink-100 rounded-2xl p-4 bg-pink-50/30">
+          <p class="font-black text-pink-800 text-sm mb-1">💬 beauty_rfq — ייעוץ</p>
+          <p class="text-xs text-slate-500">בקשות ייעוץ מלקוחות, צ'אט + תמונות לייעוץ מרחוק</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 8 -->
+    <section id="s8" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-orange-100 text-orange-700 flex items-center justify-center text-sm font-black">8</span>
+        מודולי לוגיסטיקה
+      </h2>
+      <div class="bg-orange-50 rounded-2xl p-4 mb-4 text-xs text-orange-800 font-bold border border-orange-100">⚠️ מופעלים אך ורק לסוג עסק <code class="bg-orange-100 px-1.5 py-0.5 rounded">logistics</code></div>
+      <h3 class="font-black text-slate-700 mb-3 text-sm">8.1 logistics_orders — 13 סטטוסי קנבן</h3>
+      <div class="flex flex-wrap gap-2 mb-4">
+        <span class="bg-slate-100 text-slate-700 text-xs px-2.5 py-1 rounded-full font-bold">new</span>
+        <span class="bg-yellow-100 text-yellow-700 text-xs px-2.5 py-1 rounded-full font-bold">pending_quote</span>
+        <span class="bg-blue-100 text-blue-700 text-xs px-2.5 py-1 rounded-full font-bold">quote_sent</span>
+        <span class="bg-green-100 text-green-700 text-xs px-2.5 py-1 rounded-full font-bold">confirmed</span>
+        <span class="bg-indigo-100 text-indigo-700 text-xs px-2.5 py-1 rounded-full font-bold">assigned</span>
+        <span class="bg-purple-100 text-purple-700 text-xs px-2.5 py-1 rounded-full font-bold">picked_up</span>
+        <span class="bg-teal-100 text-teal-700 text-xs px-2.5 py-1 rounded-full font-bold">in_transit</span>
+        <span class="bg-cyan-100 text-cyan-700 text-xs px-2.5 py-1 rounded-full font-bold">arrived</span>
+        <span class="bg-emerald-100 text-emerald-700 text-xs px-2.5 py-1 rounded-full font-bold">delivered</span>
+        <span class="bg-amber-100 text-amber-700 text-xs px-2.5 py-1 rounded-full font-bold">partial</span>
+        <span class="bg-orange-100 text-orange-700 text-xs px-2.5 py-1 rounded-full font-bold">failed_attempt</span>
+        <span class="bg-rose-100 text-rose-700 text-xs px-2.5 py-1 rounded-full font-bold">returned</span>
+        <span class="bg-red-100 text-red-700 text-xs px-2.5 py-1 rounded-full font-bold">cancelled</span>
+      </div>
+      <p class="text-xs text-slate-500">תצוגת Kanban board, פילטר נהג/תאריך, כרטיס משלוח עם ניווט Waze, מצב "פעיל בלבד" / "הכל"</p>
+    </section>
+
+    <!-- Section 9 -->
+    <section id="s9" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center text-sm font-black">9</span>
+        API Endpoints — 130+
+      </h2>
+
+      <div class="space-y-4">
+        <details class="border border-slate-100 rounded-2xl overflow-hidden">
+          <summary class="bg-slate-50 p-4 font-black text-sm cursor-pointer hover:bg-slate-100">🔐 Authentication & Groups</summary>
+          <div class="overflow-x-auto p-4"><table class="text-xs w-full"><thead><tr class="bg-slate-50"><th class="text-right p-2 border border-slate-100 font-bold">Method</th><th class="text-right p-2 border border-slate-100 font-bold">Endpoint</th><th class="text-right p-2 border border-slate-100 font-bold">תיאור</th></tr></thead><tbody>
+            <tr><td class="p-2 border border-slate-100 font-mono text-green-700">POST</td><td class="p-2 border border-slate-100 font-mono">/api/login</td><td class="p-2 border border-slate-100">כניסה</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-green-700">POST</td><td class="p-2 border border-slate-100 font-mono">/api/join</td><td class="p-2 border border-slate-100">הצטרפות עם קוד</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-green-700">POST</td><td class="p-2 border border-slate-100 font-mono">/api/groups</td><td class="p-2 border border-slate-100">יצירת עסק חדש</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-green-700">POST</td><td class="p-2 border border-slate-100 font-mono">/api/groups/onboard</td><td class="p-2 border border-slate-100">סיום onboarding</td></tr>
+          </tbody></table></div>
+        </details>
+
+        <details class="border border-slate-100 rounded-2xl overflow-hidden">
+          <summary class="bg-slate-50 p-4 font-black text-sm cursor-pointer hover:bg-slate-100">🛍️ Store / Orders</summary>
+          <div class="overflow-x-auto p-4"><table class="text-xs w-full"><thead><tr class="bg-slate-50"><th class="text-right p-2 border border-slate-100 font-bold">Method</th><th class="text-right p-2 border border-slate-100 font-bold">Endpoint</th><th class="text-right p-2 border border-slate-100 font-bold">תיאור</th></tr></thead><tbody>
+            <tr><td class="p-2 border border-slate-100 font-mono text-blue-700">GET</td><td class="p-2 border border-slate-100 font-mono">/api/store/orders/:groupId</td><td class="p-2 border border-slate-100">כל ההזמנות</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-green-700">POST</td><td class="p-2 border border-slate-100 font-mono">/api/store/orders</td><td class="p-2 border border-slate-100">יצירת הזמנה</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-green-700">POST</td><td class="p-2 border border-slate-100 font-mono">/api/store/orders/status</td><td class="p-2 border border-slate-100">עדכון סטטוס</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-blue-700">GET</td><td class="p-2 border border-slate-100 font-mono">/api/store/catalog/:groupId</td><td class="p-2 border border-slate-100">קטלוג</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-green-700">POST</td><td class="p-2 border border-slate-100 font-mono">/api/store/catalog</td><td class="p-2 border border-slate-100">הוספת מוצר</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-amber-700">PUT</td><td class="p-2 border border-slate-100 font-mono">/api/store/catalog/:id</td><td class="p-2 border border-slate-100">עדכון מוצר</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-blue-700">GET</td><td class="p-2 border border-slate-100 font-mono">/api/store/customers/:groupId</td><td class="p-2 border border-slate-100">לקוחות</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-blue-700">GET</td><td class="p-2 border border-slate-100 font-mono">/api/store/quotes/:groupId</td><td class="p-2 border border-slate-100">הצעות מחיר</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-green-700">POST</td><td class="p-2 border border-slate-100 font-mono">/api/store/quotes/:id/approve</td><td class="p-2 border border-slate-100">אישור → הזמנה</td></tr>
+          </tbody></table></div>
+        </details>
+
+        <details class="border border-slate-100 rounded-2xl overflow-hidden">
+          <summary class="bg-slate-50 p-4 font-black text-sm cursor-pointer hover:bg-slate-100">🤖 AI Endpoints</summary>
+          <div class="overflow-x-auto p-4"><table class="text-xs w-full"><thead><tr class="bg-slate-50"><th class="text-right p-2 border border-slate-100 font-bold">Endpoint</th><th class="text-right p-2 border border-slate-100 font-bold">תיאור</th></tr></thead><tbody>
+            <tr><td class="p-2 border border-slate-100 font-mono text-purple-700">/api/biz/chat-assistant</td><td class="p-2 border border-slate-100">עוזר AI עסקי (FamlAI)</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-purple-700">/api/store/ai-desc</td><td class="p-2 border border-slate-100">תיאור מוצר</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-purple-700">/api/ai/generate-catalog</td><td class="p-2 border border-slate-100">קטלוג שלם</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-purple-700">/api/tasks/ai-generate</td><td class="p-2 border border-slate-100">משימות</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-purple-700">/api/academy/ai-generate</td><td class="p-2 border border-slate-100">חבילת לימוד</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-purple-700">/api/tasks/vision-verify</td><td class="p-2 border border-slate-100">בדיקת תמונת הוכחה</td></tr>
+            <tr><td class="p-2 border border-slate-100 font-mono text-purple-700">/api/shopping/scan-receipt</td><td class="p-2 border border-slate-100">סריקת קבלה</td></tr>
+            <tr class="bg-slate-50"><td class="p-2 border border-slate-100 font-mono text-purple-700">/api/budget/familai-insight</td><td class="p-2 border border-slate-100">תקציב insight</td></tr>
+          </tbody></table></div>
+        </details>
+      </div>
+    </section>
+
+    <!-- Section 10 -->
+    <section id="s10" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center text-sm font-black">10</span>
+        לוגיקות מיוחדות
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-amber-50 rounded-2xl p-4 border border-amber-100">
+          <p class="font-black text-amber-800 text-sm mb-2">🔋 AI Battery System</p>
+          <ul class="text-xs text-slate-600 space-y-1">
+            <li>• חינמי: 10 tokens לחיים</li>
+            <li>• PRO: ∞ tokens</li>
+            <li>• UI: ai-battery-indicator</li>
+            <li>• modal ai-battery-modal כשנגמר</li>
+          </ul>
+        </div>
+        <div class="bg-red-50 rounded-2xl p-4 border border-red-100">
+          <p class="font-black text-red-800 text-sm mb-2">🚨 Impersonation Mode</p>
+          <ul class="text-xs text-slate-600 space-y-1">
+            <li>• Super Admin נכנס כעסק</li>
+            <li>• פס אדום בראש המסך</li>
+            <li>• isImpersonating: true בsession</li>
+          </ul>
+        </div>
+        <div class="bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
+          <p class="font-black text-indigo-800 text-sm mb-2">📱 PWA Support</p>
+          <ul class="text-xs text-slate-600 space-y-1">
+            <li>• manifest-business.json ייחודי</li>
+            <li>• Service Worker (/sw.js)</li>
+            <li>• תמיכה iOS + Android</li>
+          </ul>
+        </div>
+        <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+          <p class="font-black text-slate-700 text-sm mb-2">♿ Accessibility</p>
+          <ul class="text-xs text-slate-600 space-y-1">
+            <li>• טקסט גדול (110%)</li>
+            <li>• גווני אפור / ניגודיות גבוהה</li>
+            <li>• פונט קריא (Arial)</li>
+            <li>• הדגשת קישורים</li>
+          </ul>
+        </div>
+        <div class="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
+          <p class="font-black text-emerald-800 text-sm mb-2">🗺️ Tour System</p>
+          <ul class="text-xs text-slate-600 space-y-1">
+            <li>• intro.js בכניסה ראשונה</li>
+            <li>• מותאם לפי business_type + role</li>
+            <li>• פעם אחת ביום (localStorage)</li>
+            <li>• מדריכים ייחודיים לסוג עסק</li>
+          </ul>
+        </div>
+        <div class="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+          <p class="font-black text-blue-800 text-sm mb-2">📢 Banners</p>
+          <ul class="text-xs text-slate-600 space-y-1">
+            <li>• Super Admin מגדיר עליון + תחתון</li>
+            <li>• ייחודי לBIZ (נפרד מFAMILY)</li>
+            <li>• GET /api/banners?type=BUSINESS</li>
+            <li>• קאש ב-localStorage</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <div class="bg-slate-800 rounded-3xl p-6 text-center text-slate-400 text-sm">
+      <p class="font-black text-white mb-1">OneFlow Life BIZ — מפרט טכני מקיף</p>
+      <p class="text-xs">נוצר אוטומטית מקוד המקור · גרסה 2026-06-20</p>
+      <button onclick="window.print()" class="no-print mt-4 px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition">
+        🖨️ שמור כ-PDF
+      </button>
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>
