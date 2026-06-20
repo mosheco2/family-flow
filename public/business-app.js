@@ -8486,6 +8486,19 @@ window.openStoreOrderModal = function(orderId) {
     document.getElementById('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
     const targetEl = document.getElementById('so-modal-target');
     if (targetEl) targetEl.innerText = order.target_datetime ? new Date(order.target_datetime).toLocaleString('he-IL') : 'לא נקבע';
+
+    // הצגת כתובת משלוח אם קיימת
+    const addressEl = document.getElementById('so-modal-address');
+    if (addressEl) {
+        const meta = getDeliveryMeta(order);
+        if (meta && meta.street) {
+            const fullAddr = `${meta.street || ''} ${meta.house || ''}, ${meta.city || ''}`.trim();
+            addressEl.querySelector('span').innerText = fullAddr;
+            addressEl.style.display = 'block';
+        } else {
+            addressEl.style.display = 'none';
+        }
+    }
     
     // חילוץ והצגת הערות הלקוח (או הערה פנימית במקרה של הצעה שהומרה)
         let userNotes = '';
@@ -12079,6 +12092,19 @@ window.openStoreOrderModal = function(orderId) {
     document.getElementById('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
     const targetEl = document.getElementById('so-modal-target');
     if (targetEl) targetEl.innerText = order.target_datetime ? new Date(order.target_datetime).toLocaleString('he-IL') : 'לא נקבע';
+
+    // הצגת כתובת משלוח אם קיימת
+    const addressEl = document.getElementById('so-modal-address');
+    if (addressEl) {
+        const meta = getDeliveryMeta(order);
+        if (meta && meta.street) {
+            const fullAddr = `${meta.street || ''} ${meta.house || ''}, ${meta.city || ''}`.trim();
+            addressEl.querySelector('span').innerText = fullAddr;
+            addressEl.style.display = 'block';
+        } else {
+            addressEl.style.display = 'none';
+        }
+    }
     
     let displayNote = '';
     try {
