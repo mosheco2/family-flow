@@ -608,6 +608,7 @@ function renderMyOrders() {
                         </div>
                     </div>`
                 ) : ''}
+        </div>
         </div>`;
     });
 
