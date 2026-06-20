@@ -526,9 +526,10 @@ function renderMyOrders() {
         if (sortBtn) sortBtn.innerHTML = f.sort === 'asc' ? '<i class="fa-solid fa-arrow-up-short-wide ml-1"></i>ישן→חדש' : '<i class="fa-solid fa-arrow-down-wide-short ml-1"></i>חדש→ישן';
     }
 
-    const filtered = applyOrdersFilter(myOrdersCache);
+    const allFiltered = applyOrdersFilter(myOrdersCache)
+        .filter(o => o.status !== 'quote' && (!o.quote_status || o.quote_status === 'approved'));
 
-    if (!filtered.length) {
+    if (!allFiltered.length) {
         list.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center shadow-sm">
             <i class="fa-solid fa-basket-shopping text-4xl text-slate-300 mb-3"></i>
             <p class="text-sm font-bold text-slate-500">${myOrdersCache.length ? 'אין הזמנות התואמות את הסינון.' : 'אין לכם הזמנות מעסקים מקומיים.'}</p>
@@ -537,9 +538,15 @@ function renderMyOrders() {
         return;
     }
 
+    const PAGE_SIZE = 15;
+    if (!window._myOrdersPageNum) window._myOrdersPageNum = 0;
+    const totalPages = Math.ceil(allFiltered.length / PAGE_SIZE);
+    if (window._myOrdersPageNum >= totalPages) window._myOrdersPageNum = 0;
+    const page = window._myOrdersPageNum;
+    const pageOrders = allFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
     let html = '';
-    // הצעות מחיר אינן מוצגות כאן — status='quote' או quote_status פעיל (לא approved)
-    filtered.filter(o => o.status !== 'quote' && (!o.quote_status || o.quote_status === 'approved')).forEach(o => {
+    pageOrders.forEach(o => {
         let statusColor = '', statusText = '', statusIcon = '';
         switch(o.status) {
             case 'pending_approval': statusColor='border-yellow-200 bg-yellow-50'; statusText='ממתין לאישור עסק'; statusIcon='fa-hourglass-half'; break;
@@ -553,7 +560,6 @@ function renderMyOrders() {
         }
         const dateStr = new Date(o.created_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
         const borderCls = statusColor.split(' ')[0];
-        // כאשר ההזמנה הומרה מהצעת מחיר — badge בולט עם קישור למקור
         const fromQuote = o.quote_status === 'approved' && o.quote_number
             ? `<div class="flex items-center gap-1.5 mt-1 bg-indigo-50 border border-indigo-200 rounded-lg px-2 py-1 w-fit">
                 <i class="fa-solid fa-file-invoice text-indigo-500 text-[10px]"></i>
@@ -590,6 +596,22 @@ function renderMyOrders() {
                 ) : ''}
         </div>`;
     });
+
+    // pagination bar
+    if (totalPages > 1) {
+        const from = page * PAGE_SIZE + 1;
+        const to = Math.min((page + 1) * PAGE_SIZE, allFiltered.length);
+        html += `<div class="flex items-center justify-between mt-3 px-1">
+            <button onclick="window._myOrdersPageNum=Math.max(0,window._myOrdersPageNum-1);renderMyOrders();" ${page===0?'disabled':''} class="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition ${page===0?'text-slate-300 bg-slate-50':'text-slate-600 bg-white border border-slate-200 active:scale-95'}" style="touch-action:manipulation;">
+                <i class="fa-solid fa-chevron-right text-[10px]"></i> הקודם
+            </button>
+            <span class="text-[11px] text-slate-400 font-bold">${from}–${to} מתוך ${allFiltered.length}</span>
+            <button onclick="window._myOrdersPageNum=Math.min(${totalPages-1},window._myOrdersPageNum+1);renderMyOrders();" ${page===totalPages-1?'disabled':''} class="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition ${page===totalPages-1?'text-slate-300 bg-slate-50':'text-slate-600 bg-white border border-slate-200 active:scale-95'}" style="touch-action:manipulation;">
+                הבא <i class="fa-solid fa-chevron-left text-[10px]"></i>
+            </button>
+        </div>`;
+    }
+
     list.innerHTML = html;
 }
 
@@ -629,14 +651,17 @@ async function confirmOrderReceipt(orderId, received) {
 
 function setOrdersSearch(val) {
     window._ordersFilter.search = val;
+    window._myOrdersPageNum = 0;
     renderMyOrders();
 }
 function setOrdersPeriod(p) {
     window._ordersFilter.period = p;
+    window._myOrdersPageNum = 0;
     renderMyOrders();
 }
 function toggleOrdersSort() {
     window._ordersFilter.sort = window._ordersFilter.sort === 'desc' ? 'asc' : 'desc';
+    window._myOrdersPageNum = 0;
     renderMyOrders();
 }
 function setScTypeFilter(t) {
