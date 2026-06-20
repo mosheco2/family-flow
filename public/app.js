@@ -171,6 +171,15 @@ async function fetchBanners() {
 
 // פונקציות העריכה
 
+function checkAndStartTour(force) {
+    if (!currentUser) return;
+    const key = `tour_done_${currentUser.id}`;
+    if (!force && localStorage.getItem(key)) return;
+    localStorage.setItem(key, '1');
+    if (currentUser.role === 'ADMIN') { try { startAdminTour(); } catch(e) {} }
+    else if (currentUser.role === 'CHILD') { try { startChildTour(); } catch(e) {} }
+}
+
 function startAdminTour() {
     switchTab('feed'); const intro = introJs();
     intro.setOptions({
