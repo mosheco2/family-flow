@@ -15419,7 +15419,7 @@ window.renderCourierList = function(type, orders, statusType) {
                     <a href="${waLink}" target="_blank" class="flex flex-col items-center justify-center gap-1 py-2.5 bg-[#25D366]/10 text-[#25D366] rounded-xl font-bold text-[10px] border border-[#25D366]/20 hover:bg-[#25D366]/20 transition"><i class="fa-brands fa-whatsapp text-lg"></i> הודעה</a>
                 </div>
                 
-                ${buildOrderLogHtml(o.status, o.created_at, checkIsDelivery(o))}
+                ${buildOrderLogHtml(o.status, o.created_at, !!(o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true'))}
                 ${actionBtn}
             </div>
         </div>`;
