@@ -946,11 +946,13 @@ function renderFamilyQuotesTab() {
             <div class="border-t border-slate-100 px-3 pb-3 pt-2">
                 ${isCancelled
                     ? `<div class="w-full bg-red-50 border border-red-200 text-red-400 text-xs font-bold rounded-xl py-2.5 text-center"><i class="fa-solid fa-ban ml-1"></i>הצעה בוטלה</div>`
-                    : customerWaiting
-                        ? `<button onclick="window.openFamilyQuoteView(${q.id})" class="w-full bg-slate-100 text-slate-600 text-xs font-bold rounded-xl py-2.5 transition hover:bg-slate-200"><i class="fa-solid fa-eye ml-1"></i>צפה בהצעה</button>`
-                        : `<button onclick="window.openFamilyQuoteView(${q.id})" class="w-full ${canRespond ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'} text-xs font-bold rounded-xl py-2.5 transition">
-                            ${canRespond ? '<i class="fa-solid fa-reply ml-1"></i>פתח הצעה ↙ נדרשת תגובה' : '<i class="fa-solid fa-eye ml-1"></i>צפה בהצעה'}
-                        </button>`
+                    : isConverted
+                        ? `<button onclick="window.openFamilyQuoteView(${q.id})" class="w-full bg-green-50 text-green-700 border border-green-200 text-xs font-bold rounded-xl py-2.5 transition hover:bg-green-100"><i class="fa-solid fa-hammer ml-1"></i>פרטי האירוע</button>`
+                        : customerWaiting
+                            ? `<button onclick="window.openFamilyQuoteView(${q.id})" class="w-full bg-slate-100 text-slate-600 text-xs font-bold rounded-xl py-2.5 transition hover:bg-slate-200"><i class="fa-solid fa-eye ml-1"></i>צפה בהצעה</button>`
+                            : `<button onclick="window.openFamilyQuoteView(${q.id})" class="w-full ${canRespond ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'} text-xs font-bold rounded-xl py-2.5 transition">
+                                ${canRespond ? '<i class="fa-solid fa-reply ml-1"></i>פתח הצעה ↙ נדרשת תגובה' : '<i class="fa-solid fa-eye ml-1"></i>צפה בהצעה'}
+                            </button>`
                 }
             </div>
         </div>`;

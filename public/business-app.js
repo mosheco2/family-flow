@@ -31124,6 +31124,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
     <button onclick="window.switchWoTab('notes')" id="wo-tab-notes" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">הערות</button>
     <button onclick="window.switchWoTab('timeline')" id="wo-tab-timeline" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">ציר זמן</button>
     <button onclick="window.switchWoTab('calendar')" id="wo-tab-calendar" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">יומן</button>
+    <button onclick="window.switchWoTab('purchase')" id="wo-tab-purchase" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">רכש</button>
   </div>
   <div class="flex-1 overflow-y-auto p-4" id="wo-modal-body">
     <div id="wo-view-overview">
@@ -31178,7 +31179,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
         <select id="wo-inventory-item-select" class="modern-input w-full py-2 px-3 text-sm mb-2 rounded-xl border border-slate-200 outline-none focus:border-indigo-400"></select>
         <input type="number" id="wo-inventory-qty" min="1" step="1" value="1" placeholder="כמות" class="modern-input w-full py-2 px-3 text-sm mb-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
         <div class="flex gap-2">
-          <button onclick="window.addInventoryReservation()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">שרן ציוד</button>
+          <button onclick="window.addInventoryReservationOrPurchase()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">שרן ציוד</button>
           <button onclick="document.getElementById('wo-add-inventory-panel').classList.add('hidden')" class="flex-1 bg-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-300 transition">ביטול</button>
         </div>
       </div>
@@ -31218,6 +31219,30 @@ async function saToggleLicense(groupId, featureKey, isActive) {
         <button onclick="window.createWoCalendarEvent()" class="w-full bg-indigo-600 text-white py-3 rounded-2xl text-sm font-bold hover:bg-indigo-700 transition shadow-md"><i class="fa-solid fa-calendar-plus mr-2"></i> צור זימון ביומן</button>
       </div>
     </div>
+    <div id="wo-view-purchase" class="hidden">
+      <div class="flex justify-between items-center mb-3">
+        <h4 class="font-bold text-slate-700 text-sm">הזמנות רכש</h4>
+        <button onclick="window.openAddPurchasePanel()" class="bg-orange-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-orange-700 transition"><i class="fa-solid fa-cart-plus mr-1"></i> הזמנת רכש</button>
+      </div>
+      <div id="wo-purchase-list" class="space-y-2 mb-4"></div>
+      <div id="wo-add-purchase-panel" class="hidden bg-orange-50 rounded-2xl p-4 border border-orange-200">
+        <p class="text-xs font-bold text-orange-700 mb-3">הזמנת רכש חדשה לאירוע זה</p>
+        <input type="text" id="wo-po-supplier" placeholder="שם ספק" class="w-full modern-input py-2 px-3 text-sm mb-2 rounded-xl border border-slate-200 outline-none focus:border-orange-400">
+        <div id="wo-po-items" class="space-y-2 mb-2">
+          <div class="wo-po-item-row flex gap-2">
+            <input type="text" placeholder="שם פריט" class="flex-1 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-name">
+            <input type="number" min="1" value="1" placeholder="כמות" class="w-16 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-qty">
+            <input type="number" min="0" step="0.01" value="0" placeholder="₪ מחיר" class="w-20 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-price">
+          </div>
+        </div>
+        <button onclick="window.addPurchaseItemRow()" class="text-xs text-orange-600 font-bold mb-3 hover:underline"><i class="fa-solid fa-plus mr-1"></i> הוסף שורה</button>
+        <input type="text" id="wo-po-notes" placeholder="הערות לספק (אופציונלי)" class="w-full modern-input py-2 px-3 text-sm mb-3 rounded-xl border border-slate-200 outline-none focus:border-orange-400">
+        <div class="flex gap-2">
+          <button onclick="window.submitWoPurchaseOrder()" class="flex-1 bg-orange-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-orange-700 transition"><i class="fa-solid fa-paper-plane mr-1"></i> שלח הזמנת רכש</button>
+          <button onclick="document.getElementById('wo-add-purchase-panel').classList.add('hidden')" class="flex-1 bg-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-300 transition">ביטול</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>`;
         document.body.appendChild(modal);
@@ -31228,7 +31253,7 @@ window._currentWoId = null;
 window._currentWoData = null;
 
 window.switchWoTab = function(tab) {
-    ['overview','team','inventory','chat','notes','timeline','calendar'].forEach(t => {
+    ['overview','team','inventory','chat','notes','timeline','calendar','purchase'].forEach(t => {
         const v = document.getElementById(`wo-view-${t}`); if(v) v.classList.add('hidden');
         const b = document.getElementById(`wo-tab-${t}`);
         if(b) b.className = 'wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700';
@@ -31238,6 +31263,7 @@ window.switchWoTab = function(tab) {
     if(b) b.className = 'wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50';
     if(tab === 'chat') setTimeout(() => { const msgs = document.getElementById('wo-messages-list'); if(msgs) msgs.scrollTop = msgs.scrollHeight; }, 100);
     if(tab === 'timeline') window.loadWoTimeline();
+    if(tab === 'purchase') window.loadWoPurchaseOrders();
 };
 
 window.convertToWorkOrder = async function(quoteId) {
@@ -31713,6 +31739,136 @@ window.createWoCalendarEvent = async function() {
         window.loadWoTimeline();
         window.switchWoTab('timeline');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// --- Purchase Orders for Work Orders ---
+window.loadWoPurchaseOrders = async function() {
+    if (!window._currentWoId) return;
+    const list = document.getElementById('wo-purchase-list');
+    if (!list) return;
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> טוען...</p>';
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/purchase-orders`);
+        const data = await res.json();
+        const pos = data.purchaseOrders || [];
+        if (!pos.length) {
+            list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">אין הזמנות רכש לאירוע זה</p>';
+            return;
+        }
+        const statusLabels = { pending: { label: 'ממתין', cls: 'bg-amber-100 text-amber-700' }, approved: { label: 'אושר', cls: 'bg-blue-100 text-blue-700' }, delivered: { label: 'התקבל', cls: 'bg-green-100 text-green-700' }, cancelled: { label: 'בוטל', cls: 'bg-red-100 text-red-700' } };
+        list.innerHTML = pos.map(po => {
+            const st = statusLabels[po.status] || statusLabels.pending;
+            const items = typeof po.items === 'string' ? JSON.parse(po.items || '[]') : (po.items || []);
+            const itemsSummary = items.map(i => `${safeStr(i.item_name)} (${i.quantity})`).join(', ');
+            const dateStr = po.created_at ? new Date(po.created_at).toLocaleDateString('he-IL') : '';
+            return `<div class="bg-white rounded-2xl border border-slate-200 p-3 shadow-sm">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <span class="font-bold text-sm text-slate-800">הזמנה #${po.id}</span>
+                        ${po.supplier_name ? `<span class="text-xs text-slate-500 mr-2">• ${safeStr(po.supplier_name)}</span>` : ''}
+                    </div>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${st.cls}">${st.label}</span>
+                </div>
+                <p class="text-xs text-slate-600 mb-2 leading-relaxed">${safeStr(itemsSummary)}</p>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-slate-400">${dateStr} • ₪${parseFloat(po.total_amount||0).toFixed(2)}</span>
+                    <div class="flex gap-1.5">
+                        ${po.status === 'pending' ? `<button onclick="window.updateWoPo(${po.id},'approved')" class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded-lg hover:bg-blue-200 transition">אשר</button>` : ''}
+                        ${po.status === 'approved' ? `<button onclick="window.updateWoPo(${po.id},'delivered')" class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-lg hover:bg-green-200 transition">סמן כהתקבל</button>` : ''}
+                        ${po.status !== 'cancelled' && po.status !== 'delivered' ? `<button onclick="window.updateWoPo(${po.id},'cancelled')" class="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-1 rounded-lg hover:bg-red-100 transition">בטל</button>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) { if(list) list.innerHTML = '<p class="text-xs text-red-400 text-center py-4">שגיאה בטעינה</p>'; }
+};
+
+window.openAddPurchasePanel = function() {
+    document.getElementById('wo-add-purchase-panel').classList.remove('hidden');
+    document.getElementById('wo-po-supplier').value = '';
+    document.getElementById('wo-po-notes').value = '';
+    const itemsContainer = document.getElementById('wo-po-items');
+    itemsContainer.innerHTML = `<div class="wo-po-item-row flex gap-2">
+        <input type="text" placeholder="שם פריט" class="flex-1 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-name">
+        <input type="number" min="1" value="1" placeholder="כמות" class="w-16 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-qty">
+        <input type="number" min="0" step="0.01" value="0" placeholder="₪ מחיר" class="w-20 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-price">
+    </div>`;
+};
+
+window.addPurchaseItemRow = function() {
+    const container = document.getElementById('wo-po-items');
+    const row = document.createElement('div');
+    row.className = 'wo-po-item-row flex gap-2';
+    row.innerHTML = `<input type="text" placeholder="שם פריט" class="flex-1 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-name">
+        <input type="number" min="1" value="1" placeholder="כמות" class="w-16 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-qty">
+        <input type="number" min="0" step="0.01" value="0" placeholder="₪ מחיר" class="w-20 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-price">`;
+    container.appendChild(row);
+};
+
+window.submitWoPurchaseOrder = async function() {
+    if (!window._currentWoId) return;
+    const supplier = document.getElementById('wo-po-supplier').value.trim();
+    const notes = document.getElementById('wo-po-notes').value.trim();
+    const rows = document.querySelectorAll('#wo-po-items .wo-po-item-row');
+    const items = [];
+    rows.forEach(row => {
+        const name = row.querySelector('.wo-po-item-name')?.value?.trim();
+        const qty = parseFloat(row.querySelector('.wo-po-item-qty')?.value || 1);
+        const price = parseFloat(row.querySelector('.wo-po-item-price')?.value || 0);
+        if (name) items.push({ item_name: name, quantity: qty, unit_price: price });
+    });
+    if (!items.length) return showToast('error', 'נא להוסיף לפחות פריט אחד');
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/purchase-orders`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, supplierName: supplier || null, items, notes: notes || null, userName: currentUser?.nickname || 'מנהל' })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        showToast('success', 'הזמנת הרכש נשלחה בהצלחה!');
+        document.getElementById('wo-add-purchase-panel').classList.add('hidden');
+        window.loadWoPurchaseOrders();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.updateWoPo = async function(poId, status) {
+    if (!window._currentWoId) return;
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/purchase-orders/${poId}/status`, {
+            method: 'PATCH', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ status, userName: currentUser?.nickname || 'מנהל' })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        const labels = { approved: 'אושרה', delivered: 'סומנה כהתקבלה', cancelled: 'בוטלה' };
+        showToast('success', `הזמנת הרכש ${labels[status] || 'עודכנה'}`);
+        window.loadWoPurchaseOrders();
+        if (status === 'delivered') window.loadWoTimeline();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// כשאין מלאי — הצע הזמנת רכש
+window.addInventoryReservationOrPurchase = async function() {
+    const sel = document.getElementById('wo-inventory-item-select');
+    const qty = parseFloat(document.getElementById('wo-inventory-qty')?.value || 1);
+    if (!sel || !sel.value) return showToast('error', 'נא לבחור פריט');
+    const selectedOpt = sel.options[sel.selectedIndex];
+    const avail = parseFloat(selectedOpt.getAttribute('data-avail') || 0);
+    if (avail < qty) {
+        const shortage = qty - avail;
+        if (confirm(`מלאי זמין: ${avail} יח׳ בלבד. חסרות ${shortage} יח׳.\n\nלפתוח הזמנת רכש עבור הכמות החסרה?`)) {
+            window.switchWoTab('purchase');
+            window.openAddPurchasePanel();
+            setTimeout(() => {
+                const firstNameEl = document.querySelector('#wo-po-items .wo-po-item-name');
+                const firstQtyEl = document.querySelector('#wo-po-items .wo-po-item-qty');
+                if (firstNameEl) firstNameEl.value = selectedOpt.getAttribute('data-name') || '';
+                if (firstQtyEl) firstQtyEl.value = shortage;
+            }, 100);
+        }
+        return;
+    }
+    window.addInventoryReservation();
 };
 
 // ===== END WORK ORDERS MODULE =====

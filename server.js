@@ -5645,20 +5645,17 @@ app.post('/api/store/quotes/:id/to-work-order', async (req, res) => {
             }
         } catch(e) {}
         if (!title) title = `פקודת עבודה — ${quote.customer_name || quote.quote_number || `#${quoteId}`}`;
-        // צור service call עם call_type='work_order'
-        const wo = await pool.query(`INSERT INTO service_calls
-            (business_group_id, family_group_id, title, description, customer_name, customer_phone, address, status, priority, price_quote, call_type, source_quote_id, created_at)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,'new','normal',$8,'work_order',$9,NOW()) RETURNING id`,
-            [quote.group_id, quote.family_group_id, title,
-             `הצעה ${quote.quote_number||'#'+quoteId}${notes ? '\n'+notes : ''}`,
-             quote.customer_name, quote.customer_phone, null,
-             parseFloat(quote.total_amount||0), quoteId]);
-        const workOrderId = wo.rows[0].id;
-        // עדכן הצעת מחיר כ-approved + קישור + היסטוריה
+        // עדכן הצעת מחיר: approved + call_type=work_order + היסטוריה
         const woHistEvent = JSON.stringify({ type: 'converted_to_work_order', actor: 'business', ts: new Date().toISOString() });
-        await pool.query(`UPDATE store_orders SET quote_status='approved', status='new',
+        await pool.query(`UPDATE store_orders SET quote_status='approved', status='processing', call_type='work_order', quote_title=$3,
             quote_history = COALESCE(quote_history, '[]'::jsonb) || $2::jsonb
-            WHERE id=$1`, [quoteId, `[${woHistEvent}]`]);
+            WHERE id=$1`, [quoteId, `[${woHistEvent}]`, title]);
+        // הוסף רשומת ציר זמן לפקודת העבודה
+        try {
+            await pool.query(`INSERT INTO work_order_timeline (work_order_id, event_type, description, actor, created_at)
+                VALUES ($1,'created','פקודת עבודה נוצרה מהצעת מחיר','מנהל',NOW())`, [quoteId]);
+        } catch(e) {}
+        const workOrderId = quoteId;
         // שלח התראה ללקוח אם יש family_group_id
         if (quote.family_group_id) {
             try {
@@ -11529,6 +11526,78 @@ app.post('/api/work-orders/:id/calendar', async (req, res) => {
         );
         await addWorkOrderTimeline(req.params.id, 'calendar_event', `זימון נקבע ל-${eventDate} ${startTime}`, 'מנהל');
         res.json({ success: true, eventId: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Work Order: Purchase Orders (הזמנות רכש) ---
+app.get('/api/work-orders/:id/purchase-orders', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT po.*, s.name as supplier_name
+             FROM purchase_orders po
+             LEFT JOIN suppliers s ON po.supplier_id=s.id
+             WHERE po.service_call_id=$1 ORDER BY po.created_at DESC`,
+            [req.params.id]
+        );
+        res.json({ success: true, purchaseOrders: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/work-orders/:id/purchase-orders', async (req, res) => {
+    try {
+        const { groupId, supplierId, supplierName, items, notes, userName } = req.body;
+        if (!items || !items.length) return res.status(400).json({ error: 'נדרשים פריטים להזמנה' });
+        const totalAmount = items.reduce((s, i) => s + (parseFloat(i.unit_price || 0) * parseFloat(i.quantity || 1)), 0);
+        const itemsJson = JSON.stringify(items);
+        let finalSupplierId = supplierId || null;
+        // צור ספק אד-הוק אם רק שם ספק סופק
+        if (!finalSupplierId && supplierName) {
+            try {
+                const sRes = await pool.query(
+                    `INSERT INTO suppliers (group_id, name, created_at) VALUES ($1,$2,NOW()) ON CONFLICT DO NOTHING RETURNING id`,
+                    [groupId, supplierName]
+                );
+                if (sRes.rows.length) finalSupplierId = sRes.rows[0].id;
+                else {
+                    const ex = await pool.query(`SELECT id FROM suppliers WHERE group_id=$1 AND name=$2 LIMIT 1`, [groupId, supplierName]);
+                    if (ex.rows.length) finalSupplierId = ex.rows[0].id;
+                }
+            } catch(e) {}
+        }
+        const r = await pool.query(
+            `INSERT INTO purchase_orders (group_id, supplier_id, items, total_amount, status, notes, service_call_id, created_at)
+             VALUES ($1,$2,$3::jsonb,$4,'pending',$5,$6,NOW()) RETURNING id`,
+            [groupId, finalSupplierId, itemsJson, totalAmount, notes || null, req.params.id]
+        );
+        const poId = r.rows[0].id;
+        const itemsSummary = items.map(i => `${i.item_name} (${i.quantity})`).join(', ');
+        await addWorkOrderTimeline(req.params.id, 'purchase_order_created', `נוצרה הזמנת רכש #${poId}: ${itemsSummary}`, userName || 'מנהל');
+        res.json({ success: true, purchaseOrderId: poId });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/work-orders/:id/purchase-orders/:poId/status', async (req, res) => {
+    try {
+        const { status, userName } = req.body;
+        await pool.query(`UPDATE purchase_orders SET status=$1 WHERE id=$2 AND service_call_id=$3`, [status, req.params.poId, req.params.id]);
+        const labels = { pending: 'ממתין', approved: 'אושר', delivered: 'התקבל', cancelled: 'בוטל' };
+        await addWorkOrderTimeline(req.params.id, 'purchase_order_updated', `הזמנת רכש #${req.params.poId} עודכנה ל: ${labels[status] || status}`, userName || 'מנהל');
+        // כשמוצרים התקבלו — הוסף למלאי אם catalog_id קיים בפריטים
+        if (status === 'delivered') {
+            try {
+                const poRes = await pool.query('SELECT items FROM purchase_orders WHERE id=$1', [req.params.poId]);
+                const poItems = typeof poRes.rows[0]?.items === 'string' ? JSON.parse(poRes.rows[0].items) : (poRes.rows[0]?.items || []);
+                for (const item of poItems) {
+                    if (item.catalog_id) {
+                        await pool.query(
+                            `UPDATE store_catalog SET stock_quantity = COALESCE(stock_quantity,0) + $1 WHERE id=$2`,
+                            [parseFloat(item.quantity || 1), item.catalog_id]
+                        );
+                    }
+                }
+            } catch(e) {}
+        }
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
