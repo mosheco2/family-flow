@@ -372,7 +372,6 @@ let _myordersRefreshInterval = null;
 function startMyOrdersAutoRefresh() {
     if (_myordersRefreshInterval) return;
     _myordersRefreshInterval = setInterval(async () => {
-        if (window._currentFamilyTab !== 'myorders') return;
         try {
             const res = await fetch(`${API}/store/orders/my/${currentUser.id}`);
             const d = await res.json();
@@ -399,7 +398,10 @@ function startMyOrdersAutoRefresh() {
                 }
                 window._previousOrdersCache = newOrders;
                 myOrdersCache = newOrders;
-                renderMyOrders();
+                // עדכן UI רק כשבטאב myorders
+                if (window._currentFamilyTab === 'myorders') {
+                    renderMyOrders();
+                }
             }
         } catch(e) {}
         const quotesSection = getEl('myorders-section-quotes');
@@ -411,7 +413,7 @@ function startMyOrdersAutoRefresh() {
                 if (d.success) { familyQuotesCache = d.quotes || []; renderFamilyQuotesTab(); }
             } catch(e) {}
         }
-    }, 5000);
+    }, 3000);
 }
 
 async function fetchMyOrders() {
