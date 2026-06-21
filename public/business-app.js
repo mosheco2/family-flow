@@ -9952,26 +9952,96 @@ window._buildQuotePDFHeader = function(biz, quoteTitle, ref, date, validity, cus
 };
 
 window.printQuotePDF = function() {
-    const q = window.cqGetQuoteData();
-    const lines = q.lines.filter(l => l.desc || l.total > 0);
-    const biz = window._getQuoteBizInfo();
-    const linesHtml = lines.map(l => `<tr>
-        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:right;">${l.desc}</td>
-        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;">${l.qty}</td>
-        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;direction:ltr;">₪${l.price.toFixed(2)}</td>
-        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:bold;direction:ltr;">₪${l.total.toFixed(2)}</td>
-    </tr>`).join('');
-    const headerHtml = window._buildQuotePDFHeader(biz, q.title, q.ref, q.date, q.validity, q.customerName, q.customerPhone, q.companyId);
-    const bizName = (currentGroup?.name || '').replace(/[/\\?%*:|"<>]/g, '').trim();
-    const custName = (q.customerName || '').replace(/[/\\?%*:|"<>]/g, '').trim();
-    const quoteRef = q.editId ? String(q.editId).padStart(4, '0') : (q.ref || 'חדשה');
-    const pdfFileName = [bizName, custName, quoteRef].filter(Boolean).join('_');
-    const win = window.open('', '_blank', 'width=820,height=950');
-    if (!win) {
-        showToast('error', 'חוסם הקופצים (Popup Blocker) מונע פתיחת PDF. אנא אפשר חלונות קופצים לאתר זה בדפדפן.');
+    if (typeof html2pdf === 'undefined') {
+        showToast('error', 'ספריית PDF טרם טעונה. נסה שנית בעוד רגע.');
         return;
     }
-    win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>${pdfFileName}</title>
+
+    const q = window.cqGetQuoteData();
+    if (!q.customerName) {
+        showToast('error', 'נא להשלים את פרטי הלקוח');
+        return;
+    }
+
+    const lines = q.lines.filter(l => l.desc || l.total > 0);
+    const biz = window._getQuoteBizInfo();
+
+    // Build table HTML
+    const linesHtml = lines.map(l => `
+        <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:8px;text-align:right;">${safeStr(l.desc)}</td>
+            <td style="padding:8px;text-align:center;">${l.qty}</td>
+            <td style="padding:8px;text-align:center;direction:ltr;">₪${l.price.toFixed(2)}</td>
+            <td style="padding:8px;text-align:center;font-weight:bold;direction:ltr;">₪${l.total.toFixed(2)}</td>
+        </tr>
+    `).join('');
+
+    const headerHtml = window._buildQuotePDFHeader(biz, q.title, q.ref, q.date, q.validity, q.customerName, q.customerPhone, q.companyId);
+    const _cleanFN = s => (s || '').replace(/[/\\?%*:|"<>]/g, '').trim();
+    const quoteRef = q.editId ? String(q.editId).padStart(4, '0') : (q.ref || 'חדשה');
+    const pdfFileName = `${_cleanFN(currentGroup?.name || 'הצעה')}_${_cleanFN(q.customerName)}_${quoteRef}`;
+
+    // Build complete HTML for PDF
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; direction: rtl; color: #0f172a; margin: 0; padding: 20px; }
+                @page { size: A4 portrait; margin: 15mm 20mm; }
+                table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+                th { background: #fef3c7; padding: 9px; text-align: center; font-size: 12px; border-bottom: 2px solid #f59e0b; color: #92400e; }
+                td { font-size: 13px; padding: 8px; }
+                .total-row { font-size: 16px; font-weight: 900; color: #b45309; }
+                .footer { margin-top: 28px; padding-top: 12px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 10px; text-align: center; }
+                .intro { margin-bottom: 16px; padding: 12px 16px; background: #f8fafc; border-radius: 10px; font-size: 13px; color: #334155; border-right: 4px solid #f59e0b; white-space: pre-line; }
+                .notes { margin-top: 18px; background: #fffbeb; padding: 14px; border-radius: 10px; font-size: 12px; color: #78350f; border: 1px solid #fde68a; white-space: pre-line; }
+            </style>
+        </head>
+        <body>
+            <button onclick="window.print()" style="background:#f59e0b;color:white;border:none;padding:9px 22px;border-radius:8px;font-weight:bold;cursor:pointer;margin-bottom:20px;font-size:14px;">🖨️ הדפס / שמור PDF</button>
+            ${headerHtml}
+            ${q.introText ? `<div class="intro">${q.introText}</div>` : ''}
+            <table>
+                <thead><tr>
+                    <th style="text-align:right;">תיאור</th><th>כמות</th><th>מחיר יחידה</th><th>סה"כ</th>
+                </tr></thead>
+                <tbody>${linesHtml}</tbody>
+            </table>
+            <div style="text-align:left;margin-top:10px;padding-left:8px;border-top:1px solid #e2e8f0;padding-top:10px;">
+                <div style="font-size:12px;color:#64748b;">סכום ביניים: ₪${q.subtotal.toFixed(2)}</div>
+                ${q.discount > 0 ? `<div style="font-size:12px;color:#64748b;">הנחה (${q.discount}%): -₪${(q.discountAmount || 0).toFixed(2)}</div><div style="font-size:12px;color:#64748b;">לפני מע"מ: ₪${(q.beforeVat || q.subtotal).toFixed(2)}</div>` : ''}
+                ${!q.noVat && q.vatRate > 0 ? `<div style="font-size:12px;color:#64748b;">מע"מ (${q.vatRate}%): ₪${(q.vatAmount || 0).toFixed(2)}</div>` : ''}
+                <div class="total-row" style="margin-top:6px;">סה"כ לתשלום: ₪${q.total.toFixed(2)}</div>
+            </div>
+            ${q.notes ? `<div class="notes"><strong>הערות ותנאי תשלום:</strong><br>${q.notes}</div>` : ''}
+            <div class="footer">מסמך זה הופק ע"י מערכת OneFlow · ${new Date().toLocaleDateString('he-IL')}</div>
+        </body>
+        </html>
+    `;
+
+    // Use html2pdf to generate and download PDF
+    const element = document.createElement('div');
+    element.innerHTML = htmlContent;
+
+    const options = {
+        margin: [15, 20],
+        filename: `${pdfFileName}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
+    };
+
+    try {
+        html2pdf().set(options).from(element).save();
+        showToast('success', 'הקובץ הורד בהצלחה!');
+    } catch(e) {
+        console.error('PDF generation error:', e);
+        showToast('error', 'שגיאה ביצירת PDF. נסה להדפיס דרך דפדפן.');
+    }
+};
+
     <style>*{box-sizing:border-box;}body{font-family:Arial,sans-serif;direction:rtl;padding:28px;color:#1e293b;max-width:720px;margin:0 auto;}
     table{width:100%;border-collapse:collapse;margin:12px 0;}
     th{background:#fef3c7;padding:9px;text-align:center;font-size:12px;border-bottom:2px solid #f59e0b;color:#92400e;}
