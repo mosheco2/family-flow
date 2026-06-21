@@ -9497,16 +9497,18 @@ window._submitOrderRating = async function(orderId, bizGroupId) {
             if (confirmContainer) {
                 confirmContainer.innerHTML = `<div style="background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:6px 10px;font-size:11px;font-weight:700;color:#15803d;text-align:center;">✅ קיבלת ודירגת — תודה!</div>`;
             }
-            // Refresh the accordion if open
+            // Refresh the accordion if open (with delay so user sees success message)
             if(bizGroupId && currentGroup){
-                const wrapper = document.querySelector(`[data-biz-id="${bizGroupId}"]`);
-                const accordion = wrapper?.querySelector('.biz-accordion');
-                if(accordion){
-                    delete accordion.dataset.loaded;
-                    accordion.innerHTML='<p class="p-4 text-xs text-slate-400 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
-                    const res = await fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`).then(r=>r.json());
-                    _renderBizAccordion(accordion, res, 'restaurant');
-                }
+                setTimeout(async () => {
+                    const wrapper = document.querySelector(`[data-biz-id="${bizGroupId}"]`);
+                    const accordion = wrapper?.querySelector('.biz-accordion');
+                    if(accordion){
+                        delete accordion.dataset.loaded;
+                        accordion.innerHTML='<p class="p-4 text-xs text-slate-400 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
+                        const res = await fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`).then(r=>r.json());
+                        _renderBizAccordion(accordion, res, 'restaurant');
+                    }
+                }, 1500);
             }
         } else {
             if(errEl){errEl.textContent=r.error||'שגיאה';errEl.style.display='block';}
