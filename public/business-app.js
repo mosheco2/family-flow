@@ -4250,7 +4250,7 @@ window.renderDashboard = async function(forceRefresh = false) {
         });
         const openTasks   = (allTasks || []).filter(t => t.status === 'pending').length;
 
-        // Count only employees who checked in today
+        // Count only employees scheduled for today who checked in
         let activeStaff = 0;
         let missingStaff = [];
         try {
@@ -4260,12 +4260,29 @@ window.renderDashboard = async function(forceRefresh = false) {
                 const todayStr2 = now.toDateString();
                 const todayPunches = tcData.filter(p => p.punch_in && new Date(p.punch_in).toDateString() === todayStr2);
                 const punchedIds = new Set(todayPunches.map(p => p.user_id));
-                const allNonAdminMembers = (membersCache || []).filter(m => m.role !== 'ADMIN');
-                activeStaff = allNonAdminMembers.filter(m => punchedIds.has(m.id)).length;
-                missingStaff = allNonAdminMembers.filter(m => !punchedIds.has(m.id));
+
+                // Get today's scheduled shifts from tasks with "SHIFT|" prefix
+                const todayDateStr = now.toISOString().split('T')[0];
+                const todayShifts = (allTasks || []).filter(t =>
+                    t.title && t.title.startsWith('SHIFT|') &&
+                    t.title.includes(todayDateStr) &&
+                    (t.status === 'approved' || t.status === 'completed' || t.status === 'pending')
+                );
+                const scheduledEmployeeIds = new Set(todayShifts.map(s => s.assigned_to));
+
+                // Count active staff only among scheduled employees
+                activeStaff = Array.from(scheduledEmployeeIds).filter(id => punchedIds.has(id)).length;
+                // Missing staff: scheduled but didn't punch in
+                missingStaff = Array.from(scheduledEmployeeIds).filter(id => !punchedIds.has(id));
+                // Convert IDs to member names for display
+                missingStaff = missingStaff.map(id =>
+                    (membersCache || []).find(m => m.id === id) || { id, nickname: '?' }
+                );
             }
         } catch(e) {
-            activeStaff = (membersCache || []).filter(m => m.role !== 'ADMIN').length;
+            // Fallback: if fetching shifts fails, don't show warning
+            activeStaff = 0;
+            missingStaff = [];
         }
 
         // Balance: sum all cashflow transactions
@@ -4520,16 +4537,30 @@ async function renderUrgentItems() {
                 tab:'sales', actionLabel:'טפל' });
         }
 
-        // ─ עובדים ללא החתמת כניסה — fetch lightweight ─
+        // ─ עובדים מתוזמנים ללא החתמת כניסה — fetch lightweight ─
         try {
             const tcRes = await fetch(`${API}/timeclock/report?groupId=${currentGroup.id}&userId=all`);
             const tcData = await tcRes.json();
             const todayPunches = tcData.filter(p => new Date(p.punch_in).toDateString() === todayStr);
             const punchedIds = new Set(todayPunches.map(p => p.user_id));
-            const missing = (membersCache || []).filter(m => m.role !== 'ADMIN' && !punchedIds.has(m.id));
+
+            // Get today's scheduled shifts from tasks with "SHIFT|" prefix
+            const todayDateStr = now.toISOString().split('T')[0];
+            const todayShifts = (allTasks || []).filter(t =>
+                t.title && t.title.startsWith('SHIFT|') &&
+                t.title.includes(todayDateStr) &&
+                (t.status === 'approved' || t.status === 'completed' || t.status === 'pending')
+            );
+            const scheduledEmployeeIds = new Set(todayShifts.map(s => s.assigned_to));
+
+            // Only count missing staff among scheduled employees
+            const missing = Array.from(scheduledEmployeeIds)
+                .filter(id => !punchedIds.has(id))
+                .map(id => (membersCache || []).find(m => m.id === id) || { id, nickname: '?' });
+
             if (missing.length > 0) {
                 items.push({ icon:'👤', urgency:'medium',
-                    title:`${missing.length} עובדים לא החתימו כניסה היום`,
+                    title:`${missing.length} עובדים מתוזמנים לא החתימו כניסה היום`,
                     sub: missing.slice(0,3).map(m => m.nickname || m.name).join(', '),
                     tab:'timeclock', actionLabel:'צפה' });
             }
