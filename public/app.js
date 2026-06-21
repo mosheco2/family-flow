@@ -393,6 +393,10 @@ function startMyOrdersAutoRefresh() {
                                 badge.style.animation = 'pulse 0.5s';
                                 setTimeout(() => badge.style.animation = '', 500);
                             }
+                            // הצג toast notification עם הסטטוס החדש
+                            const statusMap = { pending_approval:'ממתין לאישור', new:'התקבל בעסק', processing:'באריזה', ready:'מוכן לאיסוף', shipped:'בדרך אליך', delivering:'בדרך אליך 🛵', completed:'הושלם ונמסר', cancelled:'בוטל' };
+                            const msg = `ההזמנה #${newOrder.id} עודכנה: ${statusMap[newOrder.status] || newOrder.status}`;
+                            showToast('info', msg);
                         }
                     });
                 }
