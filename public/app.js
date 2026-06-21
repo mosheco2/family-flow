@@ -893,10 +893,14 @@ function renderFamilyQuotesTab() {
 
         // באנר "עברה להזמנות"
         const convertedEvent = history.find(e => e.type === 'converted_to_work_order');
-        const convertedBanner = convertedEvent ? `
+        const isConverted = !!(convertedEvent || q.quote_status === 'approved');
+        const convertedDateStr = convertedEvent
+            ? new Date(convertedEvent.ts).toLocaleDateString('he-IL')
+            : (q.updated_at ? new Date(q.updated_at).toLocaleDateString('he-IL') : '');
+        const convertedBanner = isConverted ? `
             <div class="mx-3 mb-2 px-3 py-2 bg-green-50 border border-green-200 rounded-xl text-[11px] font-bold text-green-700 flex items-center gap-2">
                 <i class="fa-solid fa-check-circle text-green-500"></i>
-                עברה להזמנות • ${new Date(convertedEvent.ts).toLocaleDateString('he-IL')}
+                עברה להזמנות${convertedDateStr ? ' • ' + convertedDateStr : ''}
             </div>` : '';
 
         // תגובה קודמת שנשלחה (אם יש ועדיין רלוונטית)
