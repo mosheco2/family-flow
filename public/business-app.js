@@ -4389,6 +4389,7 @@ window.renderDashboard = async function(forceRefresh = false) {
         // ★ pending store orders for restaurant/cafe admin (same view as waiter, auto-polled)
         if (['restaurant','cafe'].includes(currentGroup?.business_type)) {
             try { await renderRestaurantPendingOrders(); } catch(e) {}
+            try { window.renderPendingTableReservations(); } catch(e) {}
             startAdminPendingOrdersPolling();
         }
 
@@ -4502,6 +4503,54 @@ window.renderRestaurantPendingOrders = async function() {
                 <div class="flex flex-col gap-1 shrink-0">
                     <button ontouchend="event.preventDefault();approveDeliveryToKitchen(${r.orderId});" onclick="approveDeliveryToKitchen(${r.orderId})" class="bg-green-600 text-white text-[10px] font-black px-2 py-1.5 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">✅ אשר לטבח</button>
                     <button ontouchend="event.preventDefault();rejectStoreOrder(${r.orderId});" onclick="rejectStoreOrder(${r.orderId})" class="bg-red-100 text-red-700 text-[10px] font-black px-2 py-1.5 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">❌ דחה</button>
+                </div>
+            </div>`;
+        }).join('')}</div>
+    </div>`;
+};
+
+// ── הזמנות שולחן ממתינות לאישור — מוצג בדשבורד הראשי ────────────────
+window.renderPendingTableReservations = function() {
+    const bizType = currentGroup?.business_type;
+    if (!['restaurant','cafe'].includes(bizType)) return;
+
+    const containerId = 'dashboard-pending-table-res';
+    let section = document.getElementById(containerId);
+    if (!section) {
+        const urgentSection = document.getElementById('urgent-items-section');
+        if (!urgentSection) return;
+        section = document.createElement('div');
+        section.id = containerId;
+        section.className = 'mb-4 px-2';
+        urgentSection.parentNode.insertBefore(section, urgentSection);
+    }
+
+    const pending = (calEventsCache || []).filter(e => e.call_type === 'table_reservation' && e.status === 'pending');
+    if (!pending.length) { section.innerHTML = ''; return; }
+
+    const fmtDate = d => {
+        if (!d) return '';
+        const dt = new Date(String(d).split('T')[0] + 'T12:00:00');
+        return dt.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'numeric' });
+    };
+
+    section.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-blue-300 overflow-hidden">
+        <div class="px-4 py-3 border-b border-blue-200 bg-blue-50/80 flex items-center gap-2">
+            <h3 class="font-black text-blue-700 text-sm flex-1">📅 הזמנות שולחן ממתינות לאישור</h3>
+            <span class="bg-blue-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">${pending.length}</span>
+        </div>
+        <div class="divide-y divide-slate-50">${pending.map(e => {
+            const dateStr = `${fmtDate(e.event_date)} · ${String(e.start_time||'').slice(0,5)}`;
+            return `<div class="flex items-center gap-3 px-4 py-3">
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs font-black text-slate-800 truncate">${safeStr(e.title||'הזמנת שולחן')}</div>
+                    <div class="text-[10px] text-slate-500">${dateStr}${e.num_guests ? ` · ${e.num_guests} סועדים` : ''}</div>
+                    ${e.customer_phone ? `<div class="text-[10px] text-slate-400">📞 ${safeStr(e.customer_phone)}</div>` : ''}
+                    ${e.notes ? `<div class="text-[10px] text-indigo-600 truncate">💬 ${safeStr(e.notes)}</div>` : ''}
+                </div>
+                <div class="flex flex-col gap-1 shrink-0">
+                    <button ontouchend="event.preventDefault();approveCalendarEvent(${e.id});" onclick="approveCalendarEvent(${e.id})" class="bg-green-600 text-white text-[10px] font-black px-2 py-1.5 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">✅ אשר</button>
+                    <button ontouchend="event.preventDefault();switchTab('calendar');setTimeout(()=>typeof switchCalendarTab==='function'&&switchCalendarTab('requests'),200);" onclick="switchTab('calendar');setTimeout(()=>typeof switchCalendarTab==='function'&&switchCalendarTab('requests'),200)" class="bg-slate-100 text-slate-600 text-[10px] font-black px-2 py-1.5 rounded-lg whitespace-nowrap" style="touch-action:manipulation;">פרטים</button>
                 </div>
             </div>`;
         }).join('')}</div>
@@ -17155,6 +17204,8 @@ window.fetchCalendarData = async function() {
             renderCalendar();
             renderCalendarRequests();
             renderCalendarServices();
+            // עדכן גם את הסקשן בדשבורד הראשי (אם קיים)
+            try { if (typeof window.renderPendingTableReservations === 'function') window.renderPendingTableReservations(); } catch(e2) {}
         }
     } catch(e) { console.error('Error fetching calendar data', e); }
     // Merge scheduled service calls into calendar
