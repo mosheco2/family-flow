@@ -5377,7 +5377,7 @@ app.post('/api/store/orders/status', async (req, res) => {
 
 app.post('/api/store/orders/:id/customer-feedback', async (req, res) => {
     try {
-        const { rating, notes, familyGroupId } = req.body;
+        const { rating, notes, familyGroupId, received } = req.body;
         const orderId = parseInt(req.params.id);
         const chk = await pool.query(
             `SELECT id, group_id, status FROM store_orders WHERE id=$1 AND (family_group_id=$2 OR customer_phone=(SELECT phone FROM users WHERE group_id=$2 AND phone IS NOT NULL LIMIT 1))`,
@@ -5386,8 +5386,19 @@ app.post('/api/store/orders/:id/customer-feedback', async (req, res) => {
         if (!chk.rows.length) return res.status(403).json({ error: 'הזמנה לא נמצאה' });
         const ord = chk.rows[0];
         const newStatus = ord.status === 'shipped' ? 'completed' : ord.status;
+
+        // If customer didn't receive order
+        if (received === false) {
+            await pool.query(
+                `UPDATE store_orders SET customer_received_at=NULL, delivery_issue_reported_at=NOW() WHERE id=$1`,
+                [orderId]
+            );
+            return res.json({ success: true });
+        }
+
+        // Customer received and rated
         await pool.query(
-            `UPDATE store_orders SET customer_rating=$1, customer_rating_notes=$2, customer_rated_at=NOW(), status=$3 WHERE id=$4`,
+            `UPDATE store_orders SET customer_rating=$1, customer_rating_notes=$2, customer_rated_at=NOW(), customer_received_at=COALESCE(customer_received_at, NOW()), status=$3 WHERE id=$4`,
             [rating || null, notes || null, newStatus, orderId]
         );
         res.json({ success: true });

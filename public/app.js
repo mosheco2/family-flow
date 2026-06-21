@@ -657,7 +657,15 @@ function renderMyOrders() {
 async function confirmOrderReceipt(orderId, received) {
     const container = document.getElementById(`order-confirm-${orderId}`);
     if (!received) {
-        if (container) container.innerHTML = `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:8px 12px;font-size:11px;color:#dc2626;font-weight:700;text-align:center;">😟 מצטערים! אנא צרו קשר עם העסק ישירות.</div>`;
+        try {
+            await fetch(`${API}/store/orders/${orderId}/customer-feedback`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ received: false, familyGroupId: currentGroup?.id })
+            });
+            if (container) container.innerHTML = `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:8px 12px;font-size:11px;color:#dc2626;font-weight:700;text-align:center;">😟 דיווח נשמר. צוות העסק יצור קשר עם ה</div>`;
+        } catch(e) {
+            showToast('error', 'שגיאה בשמירת הדיווח');
+        }
         return;
     }
     window._orderRatingModal(orderId);
@@ -9478,7 +9486,7 @@ window._submitOrderRating = async function(orderId, bizGroupId) {
     try {
         const r = await fetch(`${API}/store/orders/${orderId}/customer-feedback`, {
             method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ rating, notes, familyGroupId: currentGroup?.id })
+            body: JSON.stringify({ rating, notes, received: true, familyGroupId: currentGroup?.id })
         }).then(r=>r.json());
         if(r.success){
             document.getElementById('order-rating-modal')?.remove();
