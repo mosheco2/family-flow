@@ -8552,32 +8552,54 @@ window.openQuotePreview = function(quoteId) {
         </html>
     `;
 
-    if (typeof html2pdf === 'undefined') {
-        showToast('error', 'ספריית PDF טרם טעונה. נסה שנית בעוד רגע.');
-        return;
-    }
+    // פתח מודל תצוגה מקדימה עם כפתור הורדה
+    const existingPreview = document.getElementById('_quote-preview-modal');
+    if (existingPreview) existingPreview.remove();
 
-    const options = {
-        margin: 0,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    const previewModal = document.createElement('div');
+    previewModal.id = '_quote-preview-modal';
+    previewModal.style.cssText = 'position:fixed; inset:0; z-index:9999; display:flex; flex-direction:column; background:rgba(0,0,0,0.9);';
+    previewModal.innerHTML = `
+        <div style="background:#1e293b; color:#fff; display:flex; align-items:center; justify-content:space-between; padding:10px 16px; gap:12px; flex-shrink:0;">
+            <div style="font-size:13px; font-weight:bold; color:#94a3b8; direction:rtl; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${printDocTitle}</div>
+            <div style="display:flex; gap:8px; flex-shrink:0;">
+                <button id="_quote-dl-btn" style="background:#4f46e5; color:#fff; border:none; border-radius:8px; padding:8px 16px; font-size:13px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                    <i class="fa-solid fa-download"></i> הורד PDF
+                </button>
+                <button onclick="document.getElementById('_quote-preview-modal').remove()" style="background:#475569; color:#fff; border:none; border-radius:8px; padding:8px 14px; font-size:13px; font-weight:bold; cursor:pointer;">✕ סגור</button>
+            </div>
+        </div>
+        <iframe id="_quote-preview-iframe" style="flex:1; width:100%; border:none; background:#fff;"></iframe>
+    `;
+    document.body.appendChild(previewModal);
+
+    const iframe = document.getElementById('_quote-preview-iframe');
+    const ifrDoc = iframe.contentWindow.document;
+    ifrDoc.open(); ifrDoc.write(receiptHtml); ifrDoc.close();
+
+    document.getElementById('_quote-dl-btn').onclick = function() {
+        if (typeof html2pdf === 'undefined') { showToast('error', 'ספריית PDF טרם טעונה'); return; }
+        this.disabled = true;
+        this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מייצר...';
+        const btn = this;
+        html2pdf().set({
+            margin: 0,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        }).from(receiptHtml).outputPdf('blob').then(blob => {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url; link.download = `${printDocTitle}.pdf`;
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+            showToast('success', 'הקובץ הורד בהצלחה!');
+            btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-download"></i> הורד PDF';
+        }).catch(() => {
+            showToast('error', 'שגיאה ביצירת PDF. נסה שנית.');
+            btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-download"></i> הורד PDF';
+        });
     };
-
-    html2pdf().set(options).from(receiptHtml).outputPdf('blob').then(blob => {
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${printDocTitle}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => URL.revokeObjectURL(url), 100);
-        showToast('success', 'הקובץ הורד בהצלחה!');
-    }).catch(err => {
-        showToast('error', 'שגיאה ביצירת PDF. נסה שנית.');
-        console.error('html2pdf error:', err);
-    });
 };
 
 window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {

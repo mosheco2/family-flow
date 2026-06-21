@@ -10684,6 +10684,7 @@ window._openQuoteFromActivity = async function(quoteId) {
         let itemsHtml = '';
         const items = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items||'[]') : []);
         let metaData = null;
+        let subtotal = 0;
 
         items.forEach(i => {
             if (i.is_quote_metadata || i.catalogId === 999999) {
@@ -10692,11 +10693,14 @@ window._openQuoteFromActivity = async function(quoteId) {
                 }
                 return;
             }
-            const lineTotal = parseFloat(i.price_at_order||0) * parseFloat(i.quantity||1);
+            const price = parseFloat(i.price_at_order || i.price || i.unit_price || 0);
+            const qty = parseFloat(i.quantity || 1);
+            const lineTotal = price * qty;
+            subtotal += lineTotal;
             itemsHtml += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:13px; direction:rtl;">
                 <span style="flex:1; text-align:right;">${safeStr(i.item_name || i.name || '')}</span>
-                <span style="width:40px; text-align:center; color:#64748b;">x${i.quantity}</span>
-                <span style="width:70px; text-align:left; direction:ltr;">₪${parseFloat(i.price_at_order||0).toFixed(2)}</span>
+                <span style="width:40px; text-align:center; color:#64748b;">x${qty}</span>
+                <span style="width:70px; text-align:left; direction:ltr; color:#64748b;">₪${price.toFixed(2)}</span>
                 <span style="width:80px; text-align:left; direction:ltr; font-weight:bold;">₪${lineTotal.toFixed(2)}</span>
             </div>`;
         });
@@ -10721,6 +10725,44 @@ window._openQuoteFromActivity = async function(quoteId) {
             try { metaData = JSON.parse(quote.notes); } catch(e) {}
         }
 
+        // Price breakdown
+        const discountPct = parseFloat(metaData?.discount || 0);
+        const noVat = !!(metaData?.noVat);
+        const vatRate = parseFloat(metaData?.vatRate ?? 18);
+        const afterDiscount = discountPct > 0 ? subtotal * (1 - discountPct / 100) : subtotal;
+        const vatAmount = noVat ? 0 : afterDiscount * (vatRate / 100);
+        const calcTotal = afterDiscount + vatAmount;
+        const totalToShow = parseFloat(quote.total_amount || calcTotal || 0);
+
+        let priceBreakdownHtml = '';
+        if (subtotal > 0) {
+            priceBreakdownHtml = `<div class="border-t border-slate-100 pt-3 space-y-1.5 text-sm">`;
+            if (discountPct > 0) {
+                priceBreakdownHtml += `
+                    <div class="flex justify-between text-slate-500"><span>סכום לפני הנחה:</span><span dir="ltr">₪${subtotal.toFixed(2)}</span></div>
+                    <div class="flex justify-between text-red-500"><span>הנחה (${discountPct}%):</span><span dir="ltr">-₪${(subtotal - afterDiscount).toFixed(2)}</span></div>
+                    <div class="flex justify-between text-slate-600"><span>נטו לפני מע"מ:</span><span dir="ltr">₪${afterDiscount.toFixed(2)}</span></div>`;
+            } else {
+                priceBreakdownHtml += `<div class="flex justify-between text-slate-500"><span>נטו לפני מע"מ:</span><span dir="ltr">₪${subtotal.toFixed(2)}</span></div>`;
+            }
+            if (!noVat && vatRate > 0) {
+                priceBreakdownHtml += `<div class="flex justify-between text-slate-500"><span>מע"מ (${vatRate}%):</span><span dir="ltr">₪${vatAmount.toFixed(2)}</span></div>`;
+            }
+            priceBreakdownHtml += `
+                <div class="flex justify-between font-black text-base border-t border-slate-200 pt-2 mt-1">
+                    <span dir="ltr" class="text-indigo-700">₪${totalToShow.toFixed(2)}</span>
+                    <span class="text-slate-700">סה"כ לתשלום:</span>
+                </div>
+            </div>`;
+        } else {
+            priceBreakdownHtml = `<div class="border-t border-slate-100 pt-3">
+                <div class="flex justify-between font-black text-base">
+                    <span dir="ltr" class="text-indigo-700">₪${totalToShow.toFixed(2)}</span>
+                    <span class="text-slate-700">סה"כ לתשלום:</span>
+                </div>
+            </div>`;
+        }
+
         const modal = document.createElement('div');
         modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
         modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" dir="rtl">
@@ -10737,16 +10779,13 @@ window._openQuoteFromActivity = async function(quoteId) {
                 </div>
 
                 ${itemsHtml ? `<div class="border-t border-slate-100 pt-3">
-                    <h3 class="text-xs font-bold text-slate-500 mb-2">פרטי הצעה</h3>
+                    <div class="grid grid-cols-4 text-[10px] font-bold text-slate-400 pb-1 border-b border-slate-100 mb-1">
+                        <span class="col-span-2 text-right">פריט</span><span class="text-center">כמות</span><span class="text-left">מחיר</span><span class="text-left">סה"כ</span>
+                    </div>
                     ${itemsHtml}
                 </div>` : '<p class="text-xs text-slate-400 text-center py-2">אין פירוט פריטים</p>'}
 
-                <div class="border-t border-slate-100 pt-3 text-left">
-                    <div class="flex justify-between items-center text-sm font-bold">
-                        <span dir="ltr" class="text-indigo-700">₪${parseFloat(quote.total_amount||0).toFixed(2)}</span>
-                        <span class="text-slate-600">סה"כ לתשלום:</span>
-                    </div>
-                </div>
+                ${priceBreakdownHtml}
 
                 ${metaData && metaData.introText ? `<div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-900">
                     <p class="font-bold text-xs text-blue-500 mb-1">הקדמה מהעסק:</p>
