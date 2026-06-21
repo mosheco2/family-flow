@@ -10136,6 +10136,13 @@ function _renderBizAccordion(el, data, bizType) {
             const tm = r.start_time ? String(r.start_time).slice(0,5) : '';
             const tableInfo = r.reserved_table_number ? ` · שולחן ${r.reserved_table_number}` : '';
             const dateStr = r.event_date ? String(r.event_date).split('T')[0] : '';
+            const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+            const isToday = dateStr === todayStr;
+            const wrapperCls = isToday
+                ? 'border-b border-orange-100 last:border-0 bg-orange-50 rounded-xl mx-0.5 mb-1'
+                : 'border-b border-slate-50 last:border-0';
+            const iconCls = isToday ? 'bg-orange-100' : 'bg-amber-50';
+            const todayBadge = isToday ? '<span class="text-[9px] font-black text-white bg-orange-500 px-1.5 py-0.5 rounded-full mr-1">היום!</span>' : '';
             // חלופות: כשנדחה והמסעדה שלחה אפשרויות אחרות
             let altsHtml = '';
             if (r.status === 'rejected') {
@@ -10156,17 +10163,17 @@ function _renderBizAccordion(el, data, bizType) {
             const hasDetails = !!altsHtml || !!r.notes;
             const detailId = `res-detail-${r.id}`;
             const chevron = hasDetails ? `<span class="text-slate-300 text-[10px] transition-transform" id="res-chev-${r.id}">▼</span>` : '';
-            return `<div class="border-b border-slate-50 last:border-0">
-                <div class="flex items-center gap-2 py-2 cursor-pointer" onclick="window._toggleResDetail('${detailId}','res-chev-${r.id}')">
-                    <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-sm shrink-0">🍽️</div>
+            return `<div class="${wrapperCls}">
+                <div class="flex items-center gap-2 py-2 ${isToday ? 'px-2' : ''} cursor-pointer" onclick="window._toggleResDetail('${detailId}','res-chev-${r.id}')">
+                    <div class="w-8 h-8 rounded-lg ${iconCls} flex items-center justify-center text-sm shrink-0">${isToday ? '🗓️' : '🍽️'}</div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-xs font-bold text-slate-700">${dt} ${tm}${tableInfo}${_ref(r.id)}</p>
-                        <p class="text-[10px] text-slate-400">${r.num_guests ? r.num_guests + ' סועדים' : ''}${r.notes ? ' · ' + r.notes : ''}</p>
+                        <p class="text-xs font-bold ${isToday ? 'text-orange-700' : 'text-slate-700'}">${todayBadge}${dt} ${tm}${tableInfo}${_ref(r.id)}</p>
+                        <p class="text-[10px] ${isToday ? 'text-orange-500' : 'text-slate-400'}">${r.num_guests ? r.num_guests + ' סועדים' : ''}${r.notes ? ' · ' + r.notes : ''}</p>
                     </div>
                     <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${_resStatusColor(r.status)}">${_resStatusLabel(r.status)}</span>
                     ${chevron}
                 </div>
-                ${altsHtml ? `<div id="${detailId}" class="hidden pb-2">${altsHtml}</div>` : ''}
+                ${altsHtml ? `<div id="${detailId}" class="hidden pb-2 ${isToday ? 'px-2' : ''}">${altsHtml}</div>` : ''}
             </div>`;
         };
         window._toggleResDetail = function(detailId, chevId) {
