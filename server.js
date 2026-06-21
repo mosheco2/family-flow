@@ -5115,10 +5115,25 @@ app.get('/api/store/quotes/:groupId', async (req, res) => {
 app.put('/api/store/quotes/:id', async (req, res) => {
     try {
         const { customerName, customerPhone, items, totalAmount, notes } = req.body;
+        const orderId = req.params.id;
+        const catRes = await pool.query('SELECT id FROM store_catalog WHERE group_id=(SELECT group_id FROM store_orders WHERE id=$1)', [orderId]);
+        const catMap = {};
+        catRes.rows.forEach(p => { catMap[p.id] = p; });
+
+        // Update JSONB items
         await pool.query(
             `UPDATE store_orders SET customer_name=$1, customer_phone=$2, total_amount=$3, notes=$4, items=$5 WHERE id=$6`,
-            [customerName, customerPhone, totalAmount, notes, JSON.stringify(items), req.params.id]
+            [customerName, customerPhone, totalAmount, notes, JSON.stringify(items), orderId]
         );
+
+        // Delete old store_order_items and insert new ones
+        await pool.query('DELETE FROM store_order_items WHERE order_id=$1', [orderId]);
+        for (let item of (items || [])) {
+            if (item.is_quote_metadata || !item.catalogId || item.catalogId === 0 || item.catalogId === 999999) continue;
+            await pool.query('INSERT INTO store_order_items (order_id, catalog_id, item_name, quantity, price_at_order) VALUES ($1, $2, $3, $4, $5)',
+                [orderId, item.catalogId, item.name, item.quantity, item.price]);
+        }
+
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
