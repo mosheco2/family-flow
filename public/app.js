@@ -624,7 +624,7 @@ function renderMyOrders() {
                 ${(o.status === 'completed' && (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true')) ? (
                     o.customer_rating
                     ? `<div class="mt-2 bg-green-50 border border-green-200 rounded-xl p-2 text-center text-xs font-bold text-green-700">✅ קיבלת ודירגת — תודה!</div>`
-                    : `<div class="mt-2 bg-slate-50 border border-slate-200 rounded-xl p-2">
+                    : `<div id="order-confirm-${o.id}" class="mt-2 bg-slate-50 border border-slate-200 rounded-xl p-2">
                         <p class="text-[11px] font-bold text-slate-600 text-center mb-2">קיבלת את ההזמנה?</p>
                         <div class="flex gap-2">
                             <button onclick="confirmOrderReceipt(${o.id}, true)" class="flex-1 py-2 bg-green-500 text-white text-xs font-black rounded-xl">✅ כן, קיבלתי</button>
@@ -655,20 +655,11 @@ function renderMyOrders() {
 }
 
 async function confirmOrderReceipt(orderId, received) {
+    const container = document.getElementById(`order-confirm-${orderId}`);
     if (!received) {
-        const el = document.getElementById(`order-details-${orderId}`);
-        if (el) {
-            el.querySelector('.bg-slate-50.border')?.insertAdjacentHTML('afterend',
-                `<div class="mt-2 bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700">
-                    <p class="font-bold mb-1">😟 מצטערים לשמוע!</p>
-                    <p>אנא צרו קשר עם העסק ישירות — הם יסדרו את זה עבורכם.</p>
-                </div>`
-            );
-            el.querySelector('.flex.gap-2')?.remove();
-        }
+        if (container) container.innerHTML = `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:8px 12px;font-size:11px;color:#dc2626;font-weight:700;text-align:center;">😟 מצטערים! אנא צרו קשר עם העסק ישירות.</div>`;
         return;
     }
-    // Show the styled rating modal instead of prompt
     window._orderRatingModal(orderId);
 }
 
@@ -9492,6 +9483,11 @@ window._submitOrderRating = async function(orderId, bizGroupId) {
         if(r.success){
             document.getElementById('order-rating-modal')?.remove();
             showToast('success','תודה על הדירוג! ⭐');
+            // Update confirmation container in both tabs
+            const confirmContainer = document.getElementById(`order-confirm-${orderId}`);
+            if (confirmContainer) {
+                confirmContainer.innerHTML = `<div style="background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:6px 10px;font-size:11px;font-weight:700;color:#15803d;text-align:center;">✅ קיבלת ודירגת — תודה!</div>`;
+            }
             // Refresh the accordion if open
             if(bizGroupId && currentGroup){
                 const wrapper = document.querySelector(`[data-biz-id="${bizGroupId}"]`);
@@ -9959,7 +9955,9 @@ function _renderBizAccordion(el, data, bizType) {
         const _ref = id => id ? `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>` : '';
         const _ordStatus = { pending_approval:'ממתין לאישור ⏳', new:'חדש 🔴', confirmed:'אושר', processing:'בהכנה 🍳', ready:'מוכן לאיסוף ✅', shipped:'בדרך אליך 🚚', done:'הושלם ✅', completed:'סופק ✅', cancelled:'בוטל ❌', pending:'ממתין' };
         const _ordStatusColor = s => s==='done'||s==='completed'?'bg-green-100 text-green-700':s==='cancelled'?'bg-red-100 text-red-600':s==='ready'?'bg-orange-100 text-orange-700':s==='shipped'?'bg-purple-100 text-purple-700':s==='processing'||s==='confirmed'?'bg-blue-100 text-blue-700':s==='pending_approval'?'bg-yellow-100 text-yellow-700':'bg-slate-100 text-slate-600';
-        const canRate = o => !o.customer_rating && (o.status === 'completed' || o.status === 'shipped');
+        const isDelivery = o => !!(o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true');
+        const isConfirmable = o => !o.customer_rating && (o.status === 'completed' || o.status === 'shipped') && isDelivery(o);
+        const canRateNonDelivery = o => !o.customer_rating && (o.status === 'completed' || o.status === 'shipped') && !isDelivery(o);
         const ratingStars = o => o.customer_rating ? '⭐'.repeat(o.customer_rating) : '';
         const renderOrd = o => {
             const detId = `biz-ord-det-${o.id}`;
@@ -9969,7 +9967,21 @@ function _renderBizAccordion(el, data, bizType) {
             const itemsHtml = itemsArr.length
                 ? itemsArr.map(i => `<div class="flex justify-between items-center py-0.5"><span class="text-slate-600">${safeStr(i.name||i.item_name)}</span><span class="text-slate-400 dir-ltr">×${i.qty||i.quantity||1}${parseFloat(i.price||0)>0?' ₪'+(parseFloat(i.price)*(parseFloat(i.qty||i.quantity||1))).toFixed(0):''}</span></div>`).join('')
                 : '';
-            const hasDetail = !!(itemsHtml || o.notes);
+            const bizId = el.closest('[data-biz-id]')?.dataset?.bizId||'';
+            const hasDetail = !!(itemsHtml || o.notes || isConfirmable(o) || canRateNonDelivery(o));
+            const confirmUI = isConfirmable(o)
+                ? `<div id="order-confirm-${o.id}" class="mt-1.5 bg-slate-50 border border-slate-200 rounded-lg p-2">
+                    <p class="text-[10px] font-bold text-slate-600 text-center mb-1.5">קיבלת את ההזמנה?</p>
+                    <div class="flex gap-1.5">
+                        <button onclick="event.stopPropagation();confirmOrderReceipt(${o.id},false)" style="flex:1;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:5px 4px;font-size:10px;font-weight:800;cursor:pointer;">❌ לא קיבלתי</button>
+                        <button onclick="event.stopPropagation();confirmOrderReceipt(${o.id},true)" style="flex:1;background:#dcfce7;color:#15803d;border:none;border-radius:8px;padding:5px 4px;font-size:10px;font-weight:800;cursor:pointer;">✅ כן, קיבלתי</button>
+                    </div>
+                  </div>`
+                : (o.customer_rating
+                    ? `<div class="mt-1.5 text-center text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 rounded-lg p-1.5">✅ קיבלת ודירגת — תודה!</div>`
+                    : (canRateNonDelivery(o)
+                        ? `<div class="mt-1.5"><button onclick="event.stopPropagation();window._orderRatingModal(${o.id},'${bizId}')" class="text-[10px] font-black bg-yellow-50 border border-yellow-200 text-yellow-700 px-2.5 py-1 rounded-lg hover:bg-yellow-100 transition">⭐ דרג את ההזמנה</button></div>`
+                        : ''));
             return `<div class="border-b border-slate-50 last:border-0">
                 <div class="flex items-center gap-2 py-2 ${hasDetail?'cursor-pointer':''}" ${hasDetail?`onclick="const d=document.getElementById('${detId}');if(d){d.classList.toggle('hidden');}"`:''}>
                     <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-sm shrink-0">🛒</div>
@@ -9983,7 +9995,7 @@ function _renderBizAccordion(el, data, bizType) {
                 ${hasDetail?`<div id="${detId}" class="hidden pb-2 pr-2">
                     ${itemsHtml?`<div class="bg-slate-50 rounded-lg p-2 text-[10px] mb-1.5">${itemsHtml}</div>`:''}
                     ${o.notes?`<p class="text-[10px] text-slate-500 truncate">📝 ${safeStr(o.notes)}</p>`:''}
-                    ${canRate(o)?`<div class="mt-1.5"><button onclick="event.stopPropagation();window._orderRatingModal(${o.id},'${el.closest('[data-biz-id]')?.dataset?.bizId||''}')" class="text-[10px] font-black bg-yellow-50 border border-yellow-200 text-yellow-700 px-2.5 py-1 rounded-lg hover:bg-yellow-100 transition">⭐ דרג את ההזמנה</button></div>`:''}
+                    ${confirmUI}
                 </div>`:''}
             </div>`;
         };
