@@ -850,10 +850,12 @@ function renderFamilyQuotesTab() {
     familyQuotesCache.forEach(q => {
         const qs = q.quote_status || 'draft';
         const isCancelled = qs === 'cancelled';
+        const history = typeof q.quote_history === 'string' ? JSON.parse(q.quote_history||'[]') : (q.quote_history || []);
+        const hasBusinessMessage = history.some(e => e.type === 'business_message');
         // כדור אצל העסק — לקוח כבר הגיב אך ממתין לעדכון
         const customerWaiting = qs === 'waiting_customer' && q.customer_response_type &&
             ['discount_request','items_request','message'].includes(q.customer_response_type);
-        const effectiveStatus = isCancelled ? 'cancelled' : customerWaiting ? 'waiting_business' : qs;
+        const effectiveStatus = isCancelled ? 'cancelled' : (customerWaiting && !hasBusinessMessage) ? 'waiting_business' : qs;
         const st = statusMap[effectiveStatus] || {label:qs, color:'bg-slate-100 text-slate-600'};
         const canRespond = qs === 'waiting_customer' && !customerWaiting;
 
@@ -966,6 +968,19 @@ window.openFamilyQuoteView = function(quoteId) {
     // כפתורי תגובה
     const responseMap = { approved:'✅ אישרת', rejected:'❌ סירבת', discount_request:'💬 ביקשת הנחה', items_request:'📋 ביקשת שינויים', message:'💬 שלחת הודעה' };
     const responseLabel = alreadyResponded ? (responseMap[q.customer_response_type]||q.customer_response_type) : '';
+
+    // תגובות של העסק מה-quote_history
+    const history = typeof q.quote_history === 'string' ? JSON.parse(q.quote_history||'[]') : (q.quote_history || []);
+    const businessMessages = history.filter(e => e.type === 'business_message').sort((a,b) => new Date(a.ts)-new Date(b.ts));
+    const businessMessagesHtml = businessMessages.length > 0 ? businessMessages.map(msg => {
+        const dateStr = new Date(msg.ts).toLocaleDateString('he-IL', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+        return `<div class="bg-purple-50 border border-purple-200 rounded-xl p-3 text-sm text-purple-900">
+            <p class="font-bold text-xs text-purple-500 mb-1"><i class="fa-solid fa-comment ml-1"></i> הודעה מהעסק:</p>
+            <p class="text-xs leading-relaxed whitespace-pre-line">${safeStr(msg.text || '')}</p>
+            <p class="text-[10px] text-purple-400 mt-2 text-left">${dateStr}</p>
+        </div>`;
+    }).join('') : '';
+
     let actionHtml = '';
     if (canRespond) {
         const prevResponseHtml = alreadyResponded
@@ -998,6 +1013,7 @@ window.openFamilyQuoteView = function(quoteId) {
                 <button onclick="document.getElementById('fqv-modal').remove()" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="flex-1 overflow-y-auto p-4 space-y-3">
+                ${businessMessagesHtml}
                 ${introText ? `<div class="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 whitespace-pre-line border border-slate-200">${safeStr(introText)}</div>` : ''}
                 <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
                     <div class="bg-slate-50 px-3 py-2 text-[10px] font-bold text-slate-500 border-b border-slate-200 grid grid-cols-12 gap-1">
