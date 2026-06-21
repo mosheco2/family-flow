@@ -403,6 +403,7 @@ function startMyOrdersAutoRefresh() {
                     newOrders.forEach(newOrder => {
                         const oldOrder = oldMap.get(newOrder.id);
                         if (oldOrder && oldOrder.status !== newOrder.status) {
+                            console.log('[polling] Status changed:', { orderId: newOrder.id, oldStatus: oldOrder.status, newStatus: newOrder.status });
                             hasChanges = true;
                             // Order status changed - add bell badge notification
                             const badge = getEl('bell-badge');
@@ -10065,6 +10066,7 @@ function _renderBizAccordion(el, data, bizType) {
         const canRateNonDelivery = o => !o.customer_rating && (o.status === 'completed' || o.status === 'shipped') && !isDelivery(o);
         const ratingStars = o => o.customer_rating ? '⭐'.repeat(o.customer_rating) : '';
         const renderOrd = o => {
+            console.log('[activities accordion] Rendering order:', { id: o.id, status: o.status });
             const detId = `biz-ord-det-${o.id}`;
             let itemsArr = [];
             try { itemsArr = Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]'); } catch(e) {}
