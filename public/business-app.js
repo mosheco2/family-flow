@@ -2047,6 +2047,22 @@ async function loadDashboard() {
         try { const hasWelcome = await checkGlobalWelcome(); if (!hasWelcome) checkAndShowTour(); } catch(e) { checkAndShowTour(); }
         setTimeout(() => { try { window.checkEmployeePopups && window.checkEmployeePopups(); } catch(e) {} }, 2000);
 
+        // פתיחת הצעת מחיר לעריכה אם הועברה מאפליקציית המשפחה
+        const _pendingEditQuoteId = localStorage.getItem('_pendingEditQuoteId');
+        if (_pendingEditQuoteId) {
+            localStorage.removeItem('_pendingEditQuoteId');
+            setTimeout(async () => {
+                try {
+                    if (typeof fetchStoreQuotes === 'function') await fetchStoreQuotes();
+                    switchTab('sales');
+                    if (typeof switchSalesTab === 'function') switchSalesTab('quotes');
+                    setTimeout(() => {
+                        if (typeof openEditQuoteModal === 'function') openEditQuoteModal(_pendingEditQuoteId);
+                    }, 400);
+                } catch(e) { console.error('Error opening pending quote:', e); }
+            }, 1200);
+        }
+
         // הפעלת אשף ההקמה (Onboarding) למנהלים בכניסה הראשונה
         if (currentUser.role === 'ADMIN' && currentGroup.is_onboarded === false) {
             // אם מהות העסק לא הוגדרה — פתח wizard בחירת מהות לפני ה-onboarding
@@ -8534,22 +8550,44 @@ window.openQuotePreview = function(quoteId) {
         </html>
     `;
 
-    let iframe = document.getElementById('receipt-printer-frame');
-    if(!iframe) {
-        iframe = document.createElement('iframe');
-        iframe.id = 'receipt-printer-frame';
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
+    if (typeof html2pdf === 'undefined') {
+        showToast('error', 'ספריית PDF טרם טעונה. נסה שנית בעוד רגע.');
+        return;
     }
-    iframe.contentWindow.document.open();
-    iframe.contentWindow.document.write(receiptHtml);
-    iframe.contentWindow.document.close();
-    
-    setTimeout(() => {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-        showToast('info', 'הצעת המחיר נפתחה להדפסה/שמירה כ-PDF!');
-    }, 500);
+
+    const parser = new DOMParser();
+    const parsedDoc = parser.parseFromString(receiptHtml, 'text/html');
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'font-family:sans-serif; font-size:14px; max-width:800px; background:#fff; color:#0f172a; direction:rtl; position:absolute; left:-9999px; top:0;';
+    wrapper.innerHTML = parsedDoc.body.innerHTML;
+    document.body.appendChild(wrapper);
+
+    const options = {
+        margin: [15, 20, 35, 20],
+        filename: `${printDocTitle}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(options).from(wrapper).outputPdf().then(pdf => {
+        try { document.body.removeChild(wrapper); } catch(e) {}
+        const blob = new Blob([pdf], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${printDocTitle}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        showToast('success', 'הקובץ הורד בהצלחה!');
+    }).catch(err => {
+        try { document.body.removeChild(wrapper); } catch(e) {}
+        showToast('error', 'שגיאה ביצירת PDF. נסה שנית.');
+        console.error('html2pdf error:', err);
+    });
 };
 
 window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
