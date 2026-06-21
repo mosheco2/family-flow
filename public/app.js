@@ -375,7 +375,31 @@ function startMyOrdersAutoRefresh() {
         try {
             const res = await fetch(`${API}/store/orders/my/${currentUser.id}`);
             const d = await res.json();
-            if (d.success) { myOrdersCache = d.orders || []; renderMyOrders(); }
+            if (d.success) {
+                const newOrders = d.orders || [];
+                // Check for status changes and add notifications
+                if (window._previousOrdersCache) {
+                    const oldMap = new Map((window._previousOrdersCache || []).map(o => [o.id, o]));
+                    newOrders.forEach(newOrder => {
+                        const oldOrder = oldMap.get(newOrder.id);
+                        if (oldOrder && oldOrder.status !== newOrder.status) {
+                            // Order status changed - add bell badge notification
+                            const badge = getEl('bell-badge');
+                            if (badge) {
+                                const count = parseInt(badge.textContent || '0') + 1;
+                                badge.textContent = count;
+                                badge.classList.remove('hidden');
+                                // Visual pulse effect
+                                badge.style.animation = 'pulse 0.5s';
+                                setTimeout(() => badge.style.animation = '', 500);
+                            }
+                        }
+                    });
+                }
+                window._previousOrdersCache = newOrders;
+                myOrdersCache = newOrders;
+                renderMyOrders();
+            }
         } catch(e) {}
         const quotesSection = getEl('myorders-section-quotes');
         if (quotesSection && !quotesSection.classList.contains('hidden') && currentGroup) {
@@ -644,24 +668,8 @@ async function confirmOrderReceipt(orderId, received) {
         }
         return;
     }
-    const rating = prompt('כמה כוכבים תתנו להזמנה? (1-5)');
-    const stars = parseInt(rating);
-    if (!stars || stars < 1 || stars > 5) return;
-    try {
-        const res = await fetch(`${API}/store/orders/${orderId}/customer-feedback`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rating: stars, familyGroupId: currentGroup?.id })
-        });
-        const data = await res.json();
-        if (data.success) {
-            const el = document.getElementById(`order-details-${orderId}`);
-            if (el) el.querySelector('.bg-slate-50.border')?.replaceWith(
-                Object.assign(document.createElement('div'),
-                { className: 'mt-2 bg-green-50 border border-green-200 rounded-xl p-2 text-center text-xs font-bold text-green-700',
-                  textContent: `✅ תודה! דירגת ${stars} כוכבים` })
-            );
-        }
-    } catch(e) { alert('שגיאה בשמירת הדירוג'); }
+    // Show the styled rating modal instead of prompt
+    window._orderRatingModal(orderId);
 }
 
 function setOrdersSearch(val) {
@@ -8458,7 +8466,25 @@ window.fetchMemberFeedOrders = async function() {
         const res = await fetch(`${API}/store/orders/my/${currentUser.id}`);
         const data = await res.json();
         if (data.success) {
-            window._mfOrdersCache = data.orders || [];
+            const newOrders = data.orders || [];
+            // Check for status changes and add notifications
+            if (window._previousMfOrdersCache) {
+                const oldMap = new Map((window._previousMfOrdersCache || []).map(o => [o.id, o]));
+                newOrders.forEach(newOrder => {
+                    const oldOrder = oldMap.get(newOrder.id);
+                    if (oldOrder && oldOrder.status !== newOrder.status) {
+                        // Order status changed - add bell badge notification
+                        const badge = getEl('bell-badge');
+                        if (badge) {
+                            const count = parseInt(badge.textContent || '0') + 1;
+                            badge.textContent = count;
+                            badge.classList.remove('hidden');
+                        }
+                    }
+                });
+            }
+            window._previousMfOrdersCache = newOrders;
+            window._mfOrdersCache = newOrders;
             renderMemberFeedOrders();
         } else {
             list.innerHTML = `<p style="font-size:11px;color:#ef4444;text-align:center;padding:20px;">${data.error || 'שגיאה בטעינה'}</p>`;
@@ -8860,11 +8886,19 @@ async function _memberLoadOrders(bizGroupId, bizType) {
                 const statusColor = REST_COLOR[o.status] || '#94a3b8';
                 const date = o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL') : '';
                 const deliveryTag = o.is_delivery ? ' · 🛵 משלוח' : ' · 🥡 איסוף';
+                const isDelivered = o.status === 'delivered' && (o.is_delivery === 1 || o.is_delivery === true || o.is_delivery === 'true');
+                const hasRated = o.customer_rating;
                 let itemsSummary = '';
                 try {
                     const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
                     if (items.length) itemsSummary = items.slice(0,3).map(it => safeStr(it.name||it.title||'')).filter(Boolean).join(', ');
                 } catch(e2) {}
+                const confirmationUI = isDelivered ? (hasRated ?
+                    `<div style="margin-top:6px;background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:6px 8px;text-align:center;font-size:10px;font-weight:700;color:#15803d;">✅ קיבלת ודירגת — תודה!</div>` :
+                    `<div style="margin-top:6px;display:flex;gap:4px;">
+                        <button onclick="window.confirmOrderReceipt(${o.id}, false)" style="flex:1;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:6px;font-size:10px;font-weight:700;cursor:pointer;">❌ לא קיבלתי</button>
+                        <button onclick="window.confirmOrderReceipt(${o.id}, true)" style="flex:1;background:#dcfce7;color:#15803d;border:none;border-radius:8px;padding:6px;font-size:10px;font-weight:700;cursor:pointer;">✅ כן, קיבלתי</button>
+                    </div>`) : '';
                 return `<div style="background:#f8fafc;border-radius:12px;padding:10px 12px;margin-bottom:8px;text-align:right;">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
                         <span style="font-size:10px;font-weight:700;background:${statusColor}20;color:${statusColor};padding:2px 8px;border-radius:20px;">${statusLabel}</span>
@@ -8872,6 +8906,7 @@ async function _memberLoadOrders(bizGroupId, bizType) {
                     </div>
                     <div style="font-size:10px;color:#94a3b8;">${date}${deliveryTag}${o.total_amount?' · ₪'+parseFloat(o.total_amount).toFixed(0):''}</div>
                     ${itemsSummary ? `<div style="font-size:10px;color:#64748b;margin-top:2px;">${itemsSummary}</div>` : ''}
+                    ${confirmationUI}
                 </div>`;
             } else {
                 const date = o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL') : '';
