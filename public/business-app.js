@@ -29485,6 +29485,14 @@ window.kdsItemCheck = function(txId, itemIdx, checkbox, totalItems) {
             method: 'PATCH', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({idx: itemIdx, name: itemName, tableNum, ready: checkbox.checked})
         }).catch(() => {});
+        // כשמסמנים את הפריט הראשון והסטטוס הוא 'new' — עדכן ל-'processing' כדי שהלקוח יראה "בהכנה"
+        const currentStatus = ticket?.dataset?.status || '';
+        if (checkbox.checked && done.length === 1 && currentStatus === 'new') {
+            fetch('/api/store/orders/status', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ orderId: txId, status: 'processing' })
+            }).then(() => { if (ticket) ticket.dataset.status = 'processing'; }).catch(() => {});
+        }
     } catch(e2) {}
 };
 
@@ -30191,7 +30199,7 @@ async function renderCookDashboard(el) {
         const ticketTable = (() => { try { const m = JSON.parse(t.notes||'{}'); return m.tableNumber||null; } catch(e){return null;} })();
         const tableLabel = ticketTable ? `<span class="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">שולחן ${ticketTable}</span>` : '';
         const srcLabel = t.order_source === 'table' ? `<span class="text-[10px] font-black text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">🍽️ שולחן</span>` : `<span class="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">🌐 אתר</span>`;
-        return `<div class="kds-ticket bg-white border-2 border-orange-200 rounded-2xl p-3 relative" id="kds-ticket-${t.id}" data-table-num="${ticketTable||''}">
+        return `<div class="kds-ticket bg-white border-2 border-orange-200 rounded-2xl p-3 relative" id="kds-ticket-${t.id}" data-table-num="${ticketTable||''}" data-status="${t.status||'new'}">
             <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
                 <span class="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">#${t.id}</span>
                 ${tableLabel}
