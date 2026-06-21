@@ -4494,7 +4494,7 @@ window.renderRestaurantPendingOrders = async function() {
             const totalStr = r.totalAmount ? `<span class="text-[10px] font-black text-green-700 ml-1">₪${parseFloat(r.totalAmount).toFixed(0)}</span>` : '';
             return `<div class="flex items-start gap-2 px-4 py-3">
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-1 mb-0.5">${typeBadge}<span class="text-xs font-black text-slate-800">${safeStr(r.customerName || '')} ${totalStr}</span></div>
+                    <div class="flex items-center gap-1 mb-0.5"><span class="text-xs font-black text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full">#${r.orderId}</span>${typeBadge}<span class="text-xs font-black text-slate-800">${safeStr(r.customerName || '')} ${totalStr}</span></div>
                     ${r.customerPhone ? `<div class="text-[10px] text-slate-500 mb-0.5">📞 ${safeStr(r.customerPhone)}</div>` : ''}
                     <div class="text-[10px] text-slate-500">${safeStr(dishList) || '—'}</div>
                     ${addr ? `<div class="text-[10px] text-indigo-600">📍 ${safeStr(addr)}</div>` : ''}
@@ -29760,7 +29760,7 @@ async function renderWaiterDashboard(el) {
                 const totalStr2 = r.totalAmount ? `<span class="text-[10px] font-black text-green-700 ml-1">₪${parseFloat(r.totalAmount).toFixed(0)}</span>` : '';
                 return `<div class="flex items-start gap-2 py-3 border-b border-slate-50 last:border-0">
                     <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-1 mb-0.5">${typeBadge2}<span class="text-xs font-black text-slate-800">${safeStr(r.customerName || '')} ${totalStr2}</span></div>
+                        <div class="flex items-center gap-1 mb-0.5"><span class="text-xs font-black text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full">#${r.orderId}</span>${typeBadge2}<span class="text-xs font-black text-slate-800">${safeStr(r.customerName || '')} ${totalStr2}</span></div>
                         ${r.customerPhone ? `<div class="text-[10px] text-slate-500 mb-0.5">📞 ${safeStr(r.customerPhone)}</div>` : ''}
                         <div class="text-[10px] text-slate-500">${safeStr(dishList2) || '—'}</div>
                         ${addr2 ? `<div class="text-[10px] text-indigo-600">📍 ${safeStr(addr2)}</div>` : ''}
@@ -30018,7 +30018,7 @@ window.refreshAdminTablesData = async function() {
                 const totalStrA = r.totalAmount ? `<span class="text-[10px] font-black text-green-700 ml-1">₪${parseFloat(r.totalAmount).toFixed(0)}</span>` : '';
                 return `<div class="flex items-start gap-2 py-3 border-b border-slate-50 last:border-0">
                     <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-1 mb-0.5">${typeBadgeA}<span class="text-xs font-black text-slate-800">${safeStr(r.customerName || '')} ${totalStrA}</span></div>
+                        <div class="flex items-center gap-1 mb-0.5"><span class="text-xs font-black text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full">#${r.orderId}</span>${typeBadgeA}<span class="text-xs font-black text-slate-800">${safeStr(r.customerName || '')} ${totalStrA}</span></div>
                         ${r.customerPhone ? `<div class="text-[10px] text-slate-500 mb-0.5">📞 ${safeStr(r.customerPhone)}</div>` : ''}
                         <div class="text-[10px] text-slate-500">${safeStr(dishListA) || '—'}</div>
                         ${addrA ? `<div class="text-[10px] text-indigo-600">📍 ${safeStr(addrA)}</div>` : ''}
