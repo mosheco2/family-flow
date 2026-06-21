@@ -359,6 +359,7 @@ function switchTab(t) { 
             switchMyOrdersTab(lastSubTab);
             fetchMyOrders();
             loadFamilyServiceCalls();
+            startMyOrdersAutoRefresh();
         } catch(e) {}
     }
     if (t === 'home-maintenance') try { loadHomeMaintenance(); } catch(e) {}
@@ -410,7 +411,7 @@ function startMyOrdersAutoRefresh() {
                 if (d.success) { familyQuotesCache = d.quotes || []; renderFamilyQuotesTab(); }
             } catch(e) {}
         }
-    }, 20000);
+    }, 5000);
 }
 
 async function fetchMyOrders() {
