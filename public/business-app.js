@@ -7436,27 +7436,20 @@ window.submitTargetDatetime = async function() {
     try {
         if (window.currentActionType === 'quote') {
             const q = window.storeQuotesCache.find(x => String(x.id) === String(window.currentActionTargetId));
-            
+
             let approvalSuccess = false;
 
-            // נעדכן את הסטטוס הראשי של ההזמנה בשרת כדי שתעבור למסך ההזמנות הפעילות
+            // המרת ההצעה לפקודת עבודה - זה יוצר את אירוע converted_to_work_order בהיסטוריה
             try {
-                const res = await fetch(`${API}/store/orders/status`, {
+                const res = await fetch(`${API}/store/quotes/${window.currentActionTargetId}/to-work-order`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ orderId: window.currentActionTargetId, status: 'processing' })
+                    body: JSON.stringify({})
                 });
                 const data = await res.json();
                 if (data.success) approvalSuccess = true;
-            } catch(e) {}
-
-            // במקביל, נעדכן ספציפית את סטטוס ההצעה ל"אושרה"
-            try {
-                await fetch(`${API}/store/quotes/${window.currentActionTargetId}/status`, {
-                    method: 'PATCH', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ quoteStatus: 'approved' })
-                });
-                approvalSuccess = true;
-            } catch(e) {}
+            } catch(e) {
+                console.error('שגיאה בהמרה ל-work order:', e);
+            }
 
             if (!approvalSuccess) {
                 throw new Error('שגיאה באישור ההצעה מול השרת.');
@@ -7492,7 +7485,12 @@ window.submitTargetDatetime = async function() {
             if (q) {
                 q.status = 'processing';
                 q.quote_status = 'approved';
-                
+
+                // הוסף את אירוע converted_to_work_order להיסטוריה
+                const history = typeof q.quote_history === 'string' ? JSON.parse(q.quote_history || '[]') : (q.quote_history || []);
+                history.push({ type: 'converted_to_work_order', actor: 'business', ts: new Date().toISOString() });
+                q.quote_history = JSON.stringify(history);
+
                 // נוודא שהיא נכנסת למטמון ההזמנות
                 if (window.storeOrdersCache) {
                     const existingOrder = window.storeOrdersCache.find(o => String(o.id) === String(q.id));
@@ -7501,6 +7499,7 @@ window.submitTargetDatetime = async function() {
                     } else {
                         existingOrder.status = 'processing';
                         existingOrder.quote_status = 'approved';
+                        existingOrder.quote_history = q.quote_history;
                     }
                 }
             }
