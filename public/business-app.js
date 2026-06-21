@@ -10042,32 +10042,6 @@ window.printQuotePDF = function() {
     }
 };
 
-    <style>*{box-sizing:border-box;}body{font-family:Arial,sans-serif;direction:rtl;padding:28px;color:#1e293b;max-width:720px;margin:0 auto;}
-    table{width:100%;border-collapse:collapse;margin:12px 0;}
-    th{background:#fef3c7;padding:9px;text-align:center;font-size:12px;border-bottom:2px solid #f59e0b;color:#92400e;}
-    td{font-size:13px;}
-    .total-row{font-size:16px;font-weight:900;color:#b45309;}
-    .footer{margin-top:28px;padding-top:12px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:10px;text-align:center;}
-    @media print{.no-print{display:none}}</style></head>
-    <body>
-    <button class="no-print" onclick="window.print()" style="background:#f59e0b;color:white;border:none;padding:9px 22px;border-radius:8px;font-weight:bold;cursor:pointer;margin-bottom:20px;font-size:14px;">🖨️ הדפס / שמור PDF</button>
-    ${headerHtml}
-    ${q.introText ? `<div style="margin-bottom:16px;padding:12px 16px;background:#f8fafc;border-radius:10px;font-size:13px;color:#334155;white-space:pre-line;border-right:4px solid #f59e0b;">${q.introText}</div>` : ''}
-    <table><thead><tr>
-        <th style="text-align:right;">תיאור</th><th>כמות</th><th>מחיר יחידה</th><th>סה"כ</th>
-    </tr></thead><tbody>${linesHtml}</tbody></table>
-    <div style="text-align:left;margin-top:10px;padding-left:8px;border-top:1px solid #e2e8f0;padding-top:10px;">
-        <div style="font-size:12px;color:#64748b;">סכום ביניים: ₪${q.subtotal.toFixed(2)}</div>
-        ${q.discount > 0 ? `<div style="font-size:12px;color:#64748b;">הנחה (${q.discount}%): -₪${(q.discountAmount||0).toFixed(2)}</div><div style="font-size:12px;color:#64748b;">לפני מע"מ: ₪${(q.beforeVat||q.subtotal).toFixed(2)}</div>` : ''}
-        ${!q.noVat && q.vatRate > 0 ? `<div style="font-size:12px;color:#64748b;">מע"מ (${q.vatRate}%): ₪${(q.vatAmount||0).toFixed(2)}</div>` : ''}
-        <div class="total-row" style="margin-top:6px;">סה"כ לתשלום: ₪${q.total.toFixed(2)}</div>
-    </div>
-    ${q.notes ? `<div style="margin-top:18px;background:#fffbeb;padding:14px;border-radius:10px;font-size:12px;color:#78350f;border:1px solid #fde68a;"><strong>הערות ותנאי תשלום:</strong><br><div style="white-space:pre-line;margin-top:4px;">${q.notes}</div></div>` : ''}
-    <div class="footer">מסמך זה הופק ע"י מערכת OneFlow · ${new Date().toLocaleDateString('he-IL')}</div>
-    </body></html>`);
-    win.document.close();
-};
-
 // ---- ניהול תבניות טקסט להצעות מחיר ----
 window.cqApplyTemplate = function(type, targetId, idx) {
     const saved = JSON.parse(localStorage.getItem('ofl_quote_tpl_' + type) || '[]');
