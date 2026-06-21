@@ -117,18 +117,22 @@ window.exitImpersonation = function() {
 
 
 function showToast(t,m) { const el=getEl('toast'); const icon = getEl('toast-icon'); el.classList.remove('hidden'); getEl('toast-message').innerText=m; icon.className=t==='success'?'fa-solid fa-check text-green-400':t==='info'?'fa-solid fa-circle-info text-blue-400':'fa-solid fa-xmark text-red-400'; setTimeout(()=>el.classList.add('hidden'),3500); }
-function showOrderStatusToast(orderId, storeName, statusText) {
+function showOrderStatusToast(orderId, storeName, statusText, isDelivery) {
     let n = document.getElementById('order-status-notif');
     if (!n) { n = document.createElement('div'); n.id = 'order-status-notif'; document.body.appendChild(n); }
     n.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:999999;min-width:260px;max-width:88vw;direction:rtl;';
-    n.innerHTML = `<div style="background:#fff;border:1.5px solid #6366f1;border-radius:18px;box-shadow:0 8px 32px rgba(99,102,241,0.18);padding:12px 16px;display:flex;align-items:center;gap:12px;animation:slideUpIn 0.3s ease;">
-        <div style="width:40px;height:40px;border-radius:12px;background:#eef2ff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🛵</div>
+    const icon = isDelivery ? '🛵' : '🏃';
+    const borderColor = isDelivery ? '#6366f1' : '#10b981';
+    const textColor = isDelivery ? '#6366f1' : '#059669';
+    const bgColor = isDelivery ? '#eef2ff' : '#ecfdf5';
+    n.innerHTML = `<div style="background:#fff;border:1.5px solid ${borderColor};border-radius:18px;box-shadow:0 8px 32px rgba(0,0,0,0.12);padding:12px 16px;display:flex;align-items:center;gap:12px;animation:slideUpIn 0.3s ease;">
+        <div style="width:40px;height:40px;border-radius:12px;background:${bgColor};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${icon}</div>
         <div style="flex:1;min-width:0;">
             <div style="font-size:12px;font-weight:800;color:#1e293b;">עדכון הזמנה #${orderId}</div>
             <div style="font-size:11px;color:#64748b;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${storeName}</div>
-            <div style="font-size:13px;font-weight:700;color:#6366f1;margin-top:3px;">${statusText}</div>
+            <div style="font-size:13px;font-weight:700;color:${textColor};margin-top:3px;">${statusText}</div>
         </div>
-        <button onclick="this.closest('#order-status-notif').remove()" style="font-size:16px;color:#94a3b8;background:none;border:none;cursor:pointer;padding:4px;flex-shrink:0;">✕</button>
+        <button onclick="document.getElementById('order-status-notif').remove()" style="font-size:16px;color:#94a3b8;background:none;border:none;cursor:pointer;padding:4px;flex-shrink:0;">✕</button>
     </div>`;
     if (n._hideTimer) clearTimeout(n._hideTimer);
     n._hideTimer = setTimeout(() => n.remove(), 6000);
@@ -410,9 +414,19 @@ function startMyOrdersAutoRefresh() {
                                 badge.style.animation = 'pulse 0.5s';
                                 setTimeout(() => badge.style.animation = '', 500);
                             }
-                            // Toast מעוצב עם פרטי ההזמנה
-                            const statusMap = { pending_approval:'ממתין לאישור', new:'התקבל בעסק ✅', processing:'בהכנה 🍳', ready:'מוכן לאיסוף ✅', shipped:'בדרך אליך 🛵', delivering:'בדרך אליך 🛵', completed:'הושלם ונמסר ✅', cancelled:'בוטל ❌' };
-                            showOrderStatusToast(newOrder.id, newOrder.store_name || 'העסק', statusMap[newOrder.status] || newOrder.status);
+                            // Toast מעוצב עם פרטי ההזמנה — מותאם לסוג (משלוח / איסוף עצמי)
+                            const isDeliv = !!(newOrder.is_delivery == 1 || newOrder.is_delivery === true || newOrder.is_delivery === 'true');
+                            const statusMap = {
+                                pending_approval: 'ממתין לאישור',
+                                new:              'התקבל בעסק ✅',
+                                processing:       'בהכנה 🍳',
+                                ready:            isDeliv ? 'מוכן לשליחה 📦' : 'מוכן לאיסוף — אפשר לבוא 🏃',
+                                shipped:          isDeliv ? 'בדרך אליך 🛵' : 'מוכן לאיסוף ✅',
+                                delivering:       isDeliv ? 'בדרך אליך 🛵' : 'מוכן לאיסוף ✅',
+                                completed:        'הושלם ✅',
+                                cancelled:        'בוטל ❌'
+                            };
+                            showOrderStatusToast(newOrder.id, newOrder.store_name || 'העסק', statusMap[newOrder.status] || newOrder.status, isDeliv);
                         }
                     });
                     // רענן accordions פתוחים אם יש שינוי סטטוס
