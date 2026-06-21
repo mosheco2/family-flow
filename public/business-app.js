@@ -7660,6 +7660,99 @@ window.generateQuoteAI = async function(type, btnElement) {
     }
 };
 
+window.cqGenerateIntroAI = async function() {
+    const custName = val('cq-customer-name') || 'לקוח יקר';
+    const query = `כתוב 2 משפטי פתיחה רשמיים, מכובדים ומקצועיים להצעת מחיר עבור הלקוח: ${custName}. העסק השולח: ${currentGroup.name}. חובה: ללא אימוג'ים או אייקונים כלל. החזר אך ורק את המשפטים ללא שום מילת הקדמה מצידך.`;
+    const targetId = 'cq-intro-text';
+    const btnEl = event?.target;
+    const originalHtml = btnEl ? btnEl.innerHTML : '';
+    if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    }
+
+    showToast('info', 'ה-AI מעבד בקשה, המתן מספר שניות...');
+
+    try {
+        const res = await fetch(`${API}/biz/chat-assistant`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                query: query,
+                context: JSON.stringify({ role: "מומחה לכתיבת מסמכים עסקיים ומשפטיים. אתה מנסח טקסטים בצורה רשמית, מפורטת ומקצועית בלבד, ללא אימוג'ים וללא שום טקסט מקדים או מסכם." }),
+                groupId: currentGroup.id
+            })
+        });
+        const data = await res.json();
+
+        if (data.error === 'BATTERY_EMPTY') {
+            handleAIResponseCheck(data);
+            return;
+        }
+
+        if (data.success && data.answer) {
+            let finalOutput = data.answer.replace(/["*]/g, '').trim();
+            finalOutput = finalOutput.replace(/^(להלן|הנה|אלו|מצאתי|מצורפים|לבקשתך|הסעיפים).*?:?\n/i, '').trim();
+            getEl(targetId).value = finalOutput;
+            showToast('success', 'הטקסט הושלם בהצלחה!');
+        } else {
+            showToast('error', data.error || 'אירעה שגיאת AI, נסה שנית');
+        }
+    } catch(e) {
+        showToast('error', 'תקלת רשת מול שרת ה-AI');
+    } finally {
+        if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.innerHTML = originalHtml;
+        }
+    }
+};
+
+window.cqGenerateNotesAI = async function() {
+    const query = `כתוב 3 סעיפים מפורטים, רשמיים ומקצועיים של תנאי תשלום והערות משפטיות להצעת מחיר (למשל: תוקף ההצעה 14 יום, המחיר אינו כולל מע"מ) עבור העסק: ${currentGroup.name}. חובה: ללא אימוג'ים או אייקונים כלל. החזר אך ורק את הסעיפים, ללא מילות פתיחה וללא סיכום.`;
+    const targetId = 'cq-notes';
+    const btnEl = event?.target;
+    const originalHtml = btnEl ? btnEl.innerHTML : '';
+    if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    }
+
+    showToast('info', 'ה-AI מעבד בקשה, המתן מספר שניות...');
+
+    try {
+        const res = await fetch(`${API}/biz/chat-assistant`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                query: query,
+                context: JSON.stringify({ role: "מומחה לכתיבת מסמכים עסקיים ומשפטיים. אתה מנסח טקסטים בצורה רשמית, מפורטת ומקצועית בלבד, ללא אימוג'ים וללא שום טקסט מקדים או מסכם." }),
+                groupId: currentGroup.id
+            })
+        });
+        const data = await res.json();
+
+        if (data.error === 'BATTERY_EMPTY') {
+            handleAIResponseCheck(data);
+            return;
+        }
+
+        if (data.success && data.answer) {
+            let finalOutput = data.answer.replace(/["*]/g, '').trim();
+            finalOutput = finalOutput.replace(/^(להלן|הנה|אלו|מצאתי|מצורפים|לבקשתך|הסעיפים).*?:?\n/i, '').trim();
+            getEl(targetId).value = finalOutput;
+            showToast('success', 'הטקסט הושלם בהצלחה!');
+        } else {
+            showToast('error', data.error || 'אירעה שגיאת AI, נסה שנית');
+        }
+    } catch(e) {
+        showToast('error', 'תקלת רשת מול שרת ה-AI');
+    } finally {
+        if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.innerHTML = originalHtml;
+        }
+    }
+};
+
 window.ensureQuoteHeaders = function(forceRefresh = false) {
     const introPresets = window.getQuotePresets('intro').map((p,i) => `<option value="${i}">תבנית ${i+1}</option>`).join('');
     const notesPresets = window.getQuotePresets('notes').map((p,i) => `<option value="${i}">תבנית ${i+1}</option>`).join('');
@@ -9421,7 +9514,10 @@ window.showCustomerQuoteModal = function(customerId, options = {}) {
                 <div>
                     <div class="flex justify-between items-center mb-1">
                         <label class="text-[10px] font-bold text-slate-500">טקסט פתיחה (יופיע בראש המסמך)</label>
-                        <button type="button" onclick="window.cqShowTemplateMenu('intro','cq-intro-text',this)" class="text-[9px] text-indigo-500 hover:underline font-bold">📁 תבניות</button>
+                        <div class="flex gap-1">
+                            <button type="button" onclick="window.cqGenerateIntroAI()" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+                            <button type="button" onclick="window.cqShowTemplateMenu('intro','cq-intro-text',this)" class="text-[9px] text-indigo-500 hover:underline font-bold">📁 תבניות</button>
+                        </div>
                     </div>
                     <textarea id="cq-intro-text" rows="2" placeholder="לכבוד הלקוח הנכבד, אנו שמחים להציע לכם..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs"></textarea>
                 </div>
@@ -9465,7 +9561,10 @@ window.showCustomerQuoteModal = function(customerId, options = {}) {
                 <div>
                     <div class="flex justify-between items-center mb-1">
                         <label class="text-[10px] font-bold text-slate-500">הערות ותנאי תשלום (יופיעו בתחתית ה-PDF)</label>
-                        <button type="button" onclick="window.cqShowTemplateMenu('notes','cq-notes',this)" class="text-[9px] text-indigo-500 hover:underline font-bold">📁 תבניות</button>
+                        <div class="flex gap-1">
+                            <button type="button" onclick="window.cqGenerateNotesAI()" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+                            <button type="button" onclick="window.cqShowTemplateMenu('notes','cq-notes',this)" class="text-[9px] text-indigo-500 hover:underline font-bold">📁 תבניות</button>
+                        </div>
                     </div>
                     <textarea id="cq-notes" rows="2" placeholder="תשלום תוך 30 יום. האומדן אינו כולל חלקי חילוף..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs"></textarea>
                 </div>
@@ -9862,8 +9961,12 @@ window.printQuotePDF = function() {
         <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:bold;direction:ltr;">₪${l.total.toFixed(2)}</td>
     </tr>`).join('');
     const headerHtml = window._buildQuotePDFHeader(biz, q.title, q.ref, q.date, q.validity, q.customerName, q.customerPhone, q.companyId);
+    const bizName = (currentGroup?.name||'').replace(/[^א-ת0-9\s]/g,'').trim();
+    const custName = (q.customerName||'').replace(/[^א-ת0-9\s]/g,'').trim();
+    const quoteNum = String(q.id||'').padStart(4,'0');
+    const pdfFileName = `${bizName}_${custName}_${quoteNum}`;
     const win = window.open('', '_blank', 'width=820,height=950');
-    win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>הצעת מחיר ${q.ref}</title>
+    win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>${pdfFileName}</title>
     <style>*{box-sizing:border-box;}body{font-family:Arial,sans-serif;direction:rtl;padding:28px;color:#1e293b;max-width:720px;margin:0 auto;}
     table{width:100%;border-collapse:collapse;margin:12px 0;}
     th{background:#fef3c7;padding:9px;text-align:center;font-size:12px;border-bottom:2px solid #f59e0b;color:#92400e;}

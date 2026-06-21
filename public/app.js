@@ -10106,14 +10106,37 @@ function _renderBizAccordion(el, data, bizType) {
                 </div>`:''}
             </div>`;
         };
-        const renderQuote = q => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+        const _quoteStatusMap = {
+            'waiting_customer': 'בהמתנה ללקוח',
+            'waiting_approval': 'בהמתנה לאישור',
+            'rejected': 'נדחה',
+            'approved': 'אושרה',
+            'converted_to_order': 'הומרה להזמנה',
+            'cancelled': 'בוטלה',
+            'accepted': 'התקבלה',
+            'quote': 'טיוטה'
+        };
+        const _quoteStatusColor = s => {
+            const status = (s || '').toLowerCase();
+            if (status.includes('waiting_customer') || status.includes('בהמתנה')) return 'bg-blue-100 text-blue-700';
+            if (status.includes('rejected') || status.includes('נדחה')) return 'bg-red-100 text-red-700';
+            if (status.includes('approved') || status.includes('אושרה')) return 'bg-green-100 text-green-700';
+            if (status.includes('converted') || status.includes('הומרה')) return 'bg-purple-100 text-purple-700';
+            return 'bg-yellow-100 text-yellow-700';
+        };
+        const renderQuote = q => {
+            const statusVal = q.quote_status || q.status || 'quote';
+            const displayStatus = _quoteStatusMap[statusVal] || statusVal;
+            const colorClass = _quoteStatusColor(statusVal);
+            return `<div onclick="window._openQuoteFromActivity(${q.id})" class="flex items-center gap-2 py-2 px-2 border-b border-slate-50 last:border-0 hover:bg-yellow-50 cursor-pointer rounded transition">
                 <div class="w-8 h-8 rounded-lg bg-yellow-50 flex items-center justify-center text-sm shrink-0">📋</div>
                 <div class="flex-1 min-w-0">
                     <p class="text-xs font-bold text-slate-700">הצעה${_ref(q.id)}</p>
                     <p class="text-[10px] text-slate-400">${fmtDate(q.created_at)}</p>
                 </div>
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">${q.quote_status||q.status||''}</span>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${colorClass}">${displayStatus}</span>
             </div>`;
+        };
         listRenderers.orders = renderOrd;
         listRenderers.quotes = renderQuote;
         const pendingRes = tableRes.filter(r => r.status === 'pending');
@@ -10633,5 +10656,108 @@ window._sendRfqMsg = async function(rfqId) {
             loadFamilyBeautyRfqInline().then(() => window._openFamilyRfq(rfqId));
         }
     } catch(e) {}
+};
+
+window._openQuoteFromActivity = async function(quoteId) {
+    const orders = window.customerOrders || [];
+    const quote = orders.find(o => o.id === quoteId && (o.status === 'quote' || o.quote_status));
+    if (!quote) {
+        showToast('error', 'לא נמצאה הצעת מחיר');
+        return;
+    }
+
+    let itemsHtml = '';
+    const items = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items||'[]') : []);
+    let metaData = null;
+
+    items.forEach(i => {
+        if (i.is_quote_metadata || i.catalogId === 999999) {
+            if (i.is_quote_metadata) {
+                try { metaData = JSON.parse(i.data||'{}'); } catch(e) {}
+            }
+            return;
+        }
+        const line = `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #e2e8f0; font-size:13px;">
+            <span style="flex:1; text-align:right;">${safeStr(i.item_name || i.name || '')}</span>
+            <span style="width:50px; text-align:center;">${i.quantity}</span>
+            <span style="width:60px; text-align:left; direction:ltr;">₪${parseFloat(i.price_at_order||0).toFixed(2)}</span>
+            <span style="width:80px; text-align:left; direction:ltr; font-weight:bold;">₪${(parseFloat(i.price_at_order||0) * parseFloat(i.quantity||1)).toFixed(2)}</span>
+        </div>`;
+        itemsHtml += line;
+    });
+
+    const statusMap = {
+        'waiting_customer': 'בהמתנה ללקוח',
+        'waiting_approval': 'בהמתנה לאישור',
+        'rejected': 'נדחה',
+        'approved': 'אושרה',
+        'converted_to_order': 'הומרה להזמנה',
+        'cancelled': 'בוטלה',
+        'quote': 'טיוטה'
+    };
+    const displayStatus = statusMap[quote.quote_status||quote.status||'quote'] || (quote.quote_status||quote.status||'טיוטה');
+    const createdDate = new Date(quote.created_at).toLocaleDateString('he-IL');
+
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between p-5 border-b border-slate-200 bg-gradient-to-r from-yellow-50 to-amber-50 sticky top-0">
+            <h2 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                <span>📋 הצעת מחיר #${String(quoteId).padStart(4,'0')}</span>
+            </h2>
+            <button onclick="this.closest('.fixed').remove()" class="w-8 h-8 rounded-full bg-white hover:bg-slate-100 flex items-center justify-center text-slate-600">✕</button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <p class="text-xs font-bold text-slate-500 mb-1">תאריך</p>
+                    <p class="text-slate-800 font-semibold">${createdDate}</p>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-500 mb-1">סטטוס</p>
+                    <p class="text-amber-700 font-semibold">${displayStatus}</p>
+                </div>
+                ${quote.customer_name ? `<div class="col-span-2">
+                    <p class="text-xs font-bold text-slate-500 mb-1">שם לקוח</p>
+                    <p class="text-slate-800 font-semibold">${safeStr(quote.customer_name)}</p>
+                </div>` : ''}
+            </div>
+
+            <div class="border-t border-slate-200 pt-4">
+                <h3 class="text-sm font-bold text-slate-700 mb-3">פרטי הצעה</h3>
+                <div style="border-bottom:2px solid #e2e8f0; padding-bottom:8px; margin-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; font-weight:bold; text-xs; color:#64748b; text-align:right;">
+                        <span style="width:80px; text-align:left;">סה"כ</span>
+                        <span style="width:60px; text-align:left;">מחיר</span>
+                        <span style="width:50px; text-align:center;">כמות</span>
+                        <span style="flex:1;">תיאור</span>
+                    </div>
+                </div>
+                ${itemsHtml}
+            </div>
+
+            <div class="border-t border-slate-200 pt-4 text-right">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; font-size:14px; color:#475569;">
+                    <span style="direction:ltr;">₪${parseFloat(quote.total_amount||0).toFixed(2)}</span>
+                    <span>סה"כ לתשלום:</span>
+                </div>
+            </div>
+
+            ${metaData && metaData.introText ? `<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-900">
+                <p class="font-bold text-xs text-blue-600 mb-2">הערה מהעסק:</p>
+                <p style="white-space:pre-line;">${safeStr(metaData.introText)}</p>
+            </div>` : ''}
+
+            ${metaData && metaData.notes ? `<div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900">
+                <p class="font-bold text-xs text-amber-600 mb-2">תנאים וזימנים:</p>
+                <p style="white-space:pre-line;">${safeStr(metaData.notes)}</p>
+            </div>` : ''}
+        </div>
+    </div>`;
+
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
 };
 
