@@ -2047,17 +2047,19 @@ async function loadDashboard() {
         try { const hasWelcome = await checkGlobalWelcome(); if (!hasWelcome) checkAndShowTour(); } catch(e) { checkAndShowTour(); }
         setTimeout(() => { try { window.checkEmployeePopups && window.checkEmployeePopups(); } catch(e) {} }, 2000);
 
-        // פתיחת הצעת מחיר לעריכה אם הועברה מאפליקציית המשפחה
-        const _pendingEditQuoteId = localStorage.getItem('_pendingEditQuoteId');
-        if (_pendingEditQuoteId) {
-            localStorage.removeItem('_pendingEditQuoteId');
+        // פתיחת הצעת מחיר לעריכה אם הועברה מאפליקציית המשפחה (דרך query parameter)
+        const urlParams = new URLSearchParams(window.location.search);
+        const editQuoteId = urlParams.get('editQuoteId');
+        if (editQuoteId) {
+            // הסר את query parameter מ-URL כדי לא לשחזר אותו בעוד הטעונה
+            window.history.replaceState({}, document.title, '/business.html');
             setTimeout(async () => {
                 try {
                     if (typeof fetchStoreQuotes === 'function') await fetchStoreQuotes();
                     switchTab('sales');
                     if (typeof switchSalesTab === 'function') switchSalesTab('quotes');
                     setTimeout(() => {
-                        if (typeof openEditQuoteModal === 'function') openEditQuoteModal(_pendingEditQuoteId);
+                        if (typeof openEditQuoteModal === 'function') openEditQuoteModal(editQuoteId);
                     }, 400);
                 } catch(e) { console.error('Error opening pending quote:', e); }
             }, 1200);
@@ -8565,13 +8567,20 @@ window.openQuotePreview = function(quoteId) {
 
     const options = {
         margin: [15, 20, 35, 20],
-        filename: `${printDocTitle}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, letterRendering: true },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    html2pdf().set(options).from(wrapper).save().then(() => {
+    html2pdf().set(options).from(wrapper).output('blob').then(blob => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${printDocTitle}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
         try { document.body.removeChild(wrapper); } catch(e) {}
         showToast('success', 'הקובץ הורד בהצלחה!');
     }).catch(err => {
@@ -10058,13 +10067,20 @@ window.printQuotePDF = function() {
 
     const options = {
         margin: [15, 20],
-        filename: `${pdfFileName}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
     };
 
-    html2pdf().set(options).from(element).save().then(() => {
+    html2pdf().set(options).from(element).output('blob').then(blob => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${pdfFileName}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
         try { document.body.removeChild(element); } catch(e) {}
         showToast('success', 'הקובץ הורד בהצלחה!');
     }).catch(err => {

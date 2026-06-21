@@ -10659,8 +10659,7 @@ window._sendRfqMsg = async function(rfqId) {
 };
 
 window._editQuoteFromActivity = function(quoteId) {
-    localStorage.setItem('_pendingEditQuoteId', String(quoteId));
-    window.location.href = '/business.html';
+    window.open(`/business.html?editQuoteId=${quoteId}`, '_blank');
 };
 
 window._openQuoteFromActivity = async function(quoteId) {
