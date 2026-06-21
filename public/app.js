@@ -10658,6 +10658,51 @@ window._sendRfqMsg = async function(rfqId) {
     } catch(e) {}
 };
 
+window._editQuoteFromActivity = async function(quoteId) {
+    // Switch to business tab and load the quote for editing
+    if (typeof window.switchTab === 'function') window.switchTab('sales');
+    if (typeof window.switchSalesTab === 'function') window.switchSalesTab('quotes');
+
+    // Fetch the quote and add it to the business quotes cache
+    const loader = document.createElement('div');
+    loader.className = 'fixed inset-0 bg-black/30 flex items-center justify-center z-50';
+    loader.innerHTML = '<div class="bg-white rounded-xl px-5 py-3 text-sm font-bold text-slate-700 shadow-lg">טוען הצעה...</div>';
+    document.body.appendChild(loader);
+
+    try {
+        const userId = window.currentUser?.id || '';
+        const res = await fetch(`${API}/store/quotes/family/${currentGroup.id}?userId=${userId}`);
+        const data = await res.json();
+
+        if (data.success && data.quotes) {
+            // Add quote to business quotes cache
+            if (!window.storeQuotesCache) window.storeQuotesCache = [];
+            const existingIdx = window.storeQuotesCache.findIndex(q => String(q.id) === String(quoteId));
+            const fullQuote = data.quotes.find(q => String(q.id) === String(quoteId));
+
+            if (fullQuote) {
+                if (existingIdx >= 0) {
+                    window.storeQuotesCache[existingIdx] = fullQuote;
+                } else {
+                    window.storeQuotesCache.push(fullQuote);
+                }
+            }
+        }
+
+        loader.remove();
+
+        // Now open the edit modal
+        setTimeout(() => {
+            if (typeof window.openEditQuoteModal === 'function') {
+                window.openEditQuoteModal(quoteId);
+            }
+        }, 200);
+    } catch(e) {
+        loader.remove();
+        showToast('error', 'שגיאה בטעינת ההצעה');
+    }
+};
+
 window._openQuoteFromActivity = async function(quoteId) {
     // Show loading state
     const loader = document.createElement('div');
@@ -10756,7 +10801,7 @@ window._openQuoteFromActivity = async function(quoteId) {
 
                 <div class="border-t border-slate-100 pt-4 flex gap-2">
                     <button onclick="this.closest('.fixed').remove()" class="flex-1 bg-slate-100 text-slate-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition">סגור</button>
-                    <button onclick="this.closest('.fixed').remove(); if(typeof window.switchTab==='function') window.switchTab('sales'); if(typeof window.switchSalesTab==='function') window.switchSalesTab('quotes'); setTimeout(()=>window.openEditQuoteModal ? window.openEditQuoteModal(${quoteId}) : null, 200);" class="flex-1 bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition">✏️ עריכה</button>
+                    <button onclick="window._editQuoteFromActivity(${quoteId})" class="flex-1 bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition">✏️ עריכה</button>
                 </div>
             </div>
         </div>`;
