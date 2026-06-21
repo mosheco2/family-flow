@@ -662,7 +662,7 @@ async function confirmOrderReceipt(orderId, received) {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ received: false, familyGroupId: currentGroup?.id })
             });
-            if (container) container.innerHTML = `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:8px 12px;font-size:11px;color:#dc2626;font-weight:700;text-align:center;">😟 דיווח נשמר. צוות העסק יצור קשר עם ה</div>`;
+            if (container) container.innerHTML = `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:8px 12px;font-size:11px;color:#dc2626;font-weight:700;text-align:center;">😟 דיווח נשמר. צוות העסק יצור קשר איתך.</div>`;
         } catch(e) {
             showToast('error', 'שגיאה בשמירת הדיווח');
         }
