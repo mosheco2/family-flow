@@ -15515,12 +15515,15 @@ window.updateStoreOrderStatusCourier = async function(orderId, status) {
 };
 window.approveDeliveryToKitchen = async function(orderId) {
     try {
+        const payload = { orderId, status: 'processing' };
+        console.log('[approveDeliveryToKitchen] Sending:', payload);
         const res = await fetch(`${API}/store/orders/status`, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ orderId, status: 'processing' })
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
+        console.log('[approveDeliveryToKitchen] Response:', data);
         if (data.success) {
             showToast('success', '✅ ההזמנה אושרה ונשלחה למטבח');
             if (typeof refreshWaiterReadySection === 'function') try { refreshWaiterReadySection(); } catch(e) {}
@@ -15530,7 +15533,7 @@ window.approveDeliveryToKitchen = async function(orderId) {
         } else {
             showToast('error', data.error || 'שגיאה');
         }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); console.error('[approveDeliveryToKitchen] Error:', e); }
 };
 window.rejectStoreOrder = async function(orderId) {
     if (!confirm('לדחות את ההזמנה?')) return;
