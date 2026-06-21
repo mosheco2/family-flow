@@ -429,26 +429,33 @@ function startMyOrdersAutoRefresh() {
                             showOrderStatusToast(newOrder.id, newOrder.store_name || 'העסק', statusMap[newOrder.status] || newOrder.status, isDeliv);
                         }
                     });
-                    // רענן accordions פתוחים אם יש שינוי סטטוס
+                    // רענן accordions אם יש שינוי סטטוס
                     if (hasChanges) {
-                        document.querySelectorAll('.biz-accordion:not(.hidden)').forEach(accordion => {
+                        document.querySelectorAll('.biz-accordion').forEach(accordion => {
                             const wrapper = accordion.closest('[data-biz-id]');
                             const bizGroupId = wrapper?.dataset?.bizId;
                             if (bizGroupId && currentGroup) {
+                                // מחק ה-cache כדי שהaccordion יטען נתונים חדשים בפתיחה הבאה
                                 delete accordion.dataset.loaded;
-                                fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`)
-                                    .then(r => r.json())
-                                    .then(res => _renderBizAccordion(accordion, res, res.type || 'restaurant'))
-                                    .catch(() => {});
+                                // אם accordion פתוח, רענן אוטומטית
+                                if (!accordion.classList.contains('hidden')) {
+                                    fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`)
+                                        .then(r => r.json())
+                                        .then(res => _renderBizAccordion(accordion, res, res.type || 'restaurant'))
+                                        .catch(() => {});
+                                }
                             }
                         });
                     }
                 }
                 window._previousOrdersCache = newOrders;
                 myOrdersCache = newOrders;
-                // עדכן UI רק כשבטאב myorders
+                // עדכן UI כשבטאב myorders
                 if (window._currentFamilyTab === 'myorders') {
-                    renderMyOrders();
+                    const currentSubTab = sessionStorage.getItem('myorders_sub_tab') || 'orders';
+                    if (currentSubTab === 'orders') {
+                        renderMyOrders();
+                    }
                 }
             }
         } catch(e) {}
@@ -9440,7 +9447,21 @@ window._bizQuickActions = function(bizGroupId, bizType, bizName, groupCode) {
     const storeUrl = groupCode ? `${window.location.origin}/storefront.html?store=${groupCode}` : null;
     const btns = actions.map(a => {
         let handler = '';
-        if (a.action === 'storefront' && storeUrl) handler = `window.open('${storeUrl}&familyGroupId=${currentGroup?.id||''}','_blank');document.getElementById('biz-qs-sheet')?.remove()`;
+        if (a.action === 'storefront' && storeUrl) handler = `
+            const newWindow = window.open('${storeUrl}&familyGroupId=${currentGroup?.id||''}','_blank');
+            const checkFocus = setInterval(() => {
+                if (newWindow?.closed) {
+                    clearInterval(checkFocus);
+                    if (window._currentFamilyTab === 'myorders') {
+                        setTimeout(() => {
+                            const subTab = sessionStorage.getItem('myorders_sub_tab') || 'orders';
+                            if (subTab === 'orders') fetchMyOrders();
+                        }, 500);
+                    }
+                }
+            }, 500);
+            document.getElementById('biz-qs-sheet')?.remove();
+        `;
         else if (a.action === 'beauty_book' && storeUrl) handler = `window.open('${storeUrl}&action=book&familyGroupId=${currentGroup?.id||''}','_blank');document.getElementById('biz-qs-sheet')?.remove()`;
         else if (a.action === 'beauty_rfq') handler = `document.getElementById('biz-qs-sheet')?.remove();window._familyNewRfqModal&&window._familyNewRfqModal(${bizGroupId},'${bizName.replace(/'/g,"\\'")}',null)`;
         else if (a.action === 'service_call') handler = `document.getElementById('biz-qs-sheet')?.remove();window._openServiceCallForm&&window._openServiceCallForm(${bizGroupId},'${bizName.replace(/'/g,"\\'")}')`;
