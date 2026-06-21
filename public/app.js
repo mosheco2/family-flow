@@ -135,7 +135,6 @@ function showOrderStatusToast(orderId, storeName, statusText, isDelivery) {
         <button onclick="document.getElementById('order-status-notif').remove()" style="font-size:16px;color:#94a3b8;background:none;border:none;cursor:pointer;padding:4px;flex-shrink:0;">✕</button>
     </div>`;
     if (n._hideTimer) clearTimeout(n._hideTimer);
-    n._hideTimer = setTimeout(() => n.remove(), 6000);
 }
 function toggleLoader(a,s) { const txt = getEl(`btn-${a}-text`); const ldr = getEl(`btn-${a}-loader`); if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); } }
 function triggerConfetti() { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
