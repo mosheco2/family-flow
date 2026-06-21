@@ -461,16 +461,12 @@ function startMyOrdersAutoRefresh() {
         const activitiesSection = getEl('myorders-section-activities');
         if (activitiesSection && !activitiesSection.classList.contains('hidden') && currentGroup) {
             try {
-                // רענן accordions פתוחים בטאב הפעילויות בלי לעדכן את רשימת העסקים
-                document.querySelectorAll('#myorders-section-activities .biz-accordion:not(.hidden)').forEach(accordion => {
+                // עדכן cache של accordions בטאב הפעילויות בלי לרענן את ה-DOM
+                // כשהמשתמש יפתח accordion, הוא יטען נתונים חדשים
+                document.querySelectorAll('#myorders-section-activities .biz-accordion').forEach(accordion => {
                     const wrapper = accordion.closest('[data-biz-id]');
-                    const bizGroupId = wrapper?.dataset?.bizId;
-                    if (bizGroupId && currentGroup) {
+                    if (wrapper?.dataset?.bizId && currentGroup) {
                         delete accordion.dataset.loaded;
-                        fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`)
-                            .then(r => r.json())
-                            .then(res => _renderBizAccordion(accordion, res, res.type || 'restaurant'))
-                            .catch(() => {});
                     }
                 });
             } catch(e) {}
