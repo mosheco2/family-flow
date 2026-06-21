@@ -891,6 +891,14 @@ function renderFamilyQuotesTab() {
                 <i class="fa-solid fa-ban"></i> הצעה זו בוטלה
             </div>` : '';
 
+        // באנר "עברה להזמנות"
+        const convertedEvent = history.find(e => e.type === 'converted_to_work_order');
+        const convertedBanner = convertedEvent ? `
+            <div class="mx-3 mb-2 px-3 py-2 bg-green-50 border border-green-200 rounded-xl text-[11px] font-bold text-green-700 flex items-center gap-2">
+                <i class="fa-solid fa-check-circle text-green-500"></i>
+                עברה להזמנות • ${new Date(convertedEvent.ts).toLocaleDateString('he-IL')}
+            </div>` : '';
+
         // תגובה קודמת שנשלחה (אם יש ועדיין רלוונטית)
         const prevRespHtml = q.customer_response && customerWaiting
             ? `<div class="mt-1.5 text-[11px] bg-blue-50 rounded-xl p-2 border border-blue-100"><i class="fa-solid fa-reply text-blue-400 ml-1"></i><span class="font-bold text-blue-700">תגובתך: </span>${safeStr(q.customer_response)}</div>`
@@ -923,7 +931,7 @@ function renderFamilyQuotesTab() {
                     <p class="text-[9px] text-slate-400 font-mono mt-0.5">#${q.id}</p>
                 </div>
             </div>
-            ${cancelledBanner}${waitingBizBanner}
+            ${cancelledBanner}${convertedBanner}${waitingBizBanner}
             <div class="border-t border-slate-100 bg-slate-50/50 p-3 text-xs text-slate-600">
                 <div class="space-y-1 mb-2">${_renderOrderItems(q.items)}</div>
                 ${metaNotes && !isCancelled ? `<p class="text-[10px] text-slate-500 pt-2 border-t border-slate-100"><i class="fa-solid fa-note-sticky ml-1"></i>${safeStr(metaNotes)}</p>` : ''}
