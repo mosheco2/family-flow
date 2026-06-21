@@ -896,6 +896,15 @@ function renderFamilyQuotesTab() {
             ? `<div class="mt-1.5 text-[11px] bg-blue-50 rounded-xl p-2 border border-blue-100"><i class="fa-solid fa-reply text-blue-400 ml-1"></i><span class="font-bold text-blue-700">תגובתך: </span>${safeStr(q.customer_response)}</div>`
             : '';
 
+        // הודעה אחרונה מהעסק — מוצגת בגוף הכרטיס
+        const lastBizMsg = [...history].filter(e => e.type === 'business_message').sort((a,b) => new Date(b.ts)-new Date(a.ts))[0];
+        const bizMsgHtml = lastBizMsg
+            ? `<div class="mt-1.5 text-[11px] bg-purple-50 rounded-xl p-2 border border-purple-200 flex items-start gap-1.5">
+                <i class="fa-solid fa-comment text-purple-400 mt-0.5 shrink-0"></i>
+                <div><span class="font-bold text-purple-700">עסק: </span><span class="text-purple-800">${safeStr(lastBizMsg.text||'')}</span></div>
+               </div>`
+            : '';
+
         const timelineHtml = _renderQuoteTimeline(q.quote_history);
 
         html += `<div class="rounded-2xl border ${cardStyle} overflow-hidden mb-3">
@@ -919,6 +928,7 @@ function renderFamilyQuotesTab() {
                 <div class="space-y-1 mb-2">${_renderOrderItems(q.items)}</div>
                 ${metaNotes && !isCancelled ? `<p class="text-[10px] text-slate-500 pt-2 border-t border-slate-100"><i class="fa-solid fa-note-sticky ml-1"></i>${safeStr(metaNotes)}</p>` : ''}
                 ${prevRespHtml}
+                ${bizMsgHtml}
                 ${timelineHtml}
             </div>
             <div class="border-t border-slate-100 px-3 pb-3 pt-2">
