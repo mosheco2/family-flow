@@ -8571,17 +8571,8 @@ window.openQuotePreview = function(quoteId) {
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    html2pdf().set(options).from(wrapper).outputPdf().then(pdf => {
+    html2pdf().set(options).from(wrapper).save().then(() => {
         try { document.body.removeChild(wrapper); } catch(e) {}
-        const blob = new Blob([pdf], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${printDocTitle}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
         showToast('success', 'הקובץ הורד בהצלחה!');
     }).catch(err => {
         try { document.body.removeChild(wrapper); } catch(e) {}
@@ -10061,36 +10052,26 @@ window.printQuotePDF = function() {
 
     // Use html2pdf to generate and download PDF
     const element = document.createElement('div');
+    element.style.cssText = 'position:absolute; left:-9999px; top:0; background:#fff; font-family:sans-serif; direction:rtl;';
     element.innerHTML = htmlContent;
+    document.body.appendChild(element);
 
     const options = {
         margin: [15, 20],
+        filename: `${pdfFileName}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
+        html2canvas: { scale: 2, useCORS: true },
         jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
     };
 
-    try {
-        html2pdf().set(options).from(element).outputPdf().then(pdf => {
-            // Create blob from PDF and trigger download
-            const blob = new Blob([pdf], { type: 'application/pdf' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `${pdfFileName}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            showToast('success', 'הקובץ הורד בהצלחה!');
-        }).catch(e => {
-            console.error('PDF generation error:', e);
-            showToast('error', 'שגיאה ביצירת PDF. נסה שנית.');
-        });
-    } catch(e) {
-        console.error('PDF error:', e);
-        showToast('error', 'שגיאה ביצירת PDF. נסה להדפיס דרך דפדפן.');
-    }
+    html2pdf().set(options).from(element).save().then(() => {
+        try { document.body.removeChild(element); } catch(e) {}
+        showToast('success', 'הקובץ הורד בהצלחה!');
+    }).catch(err => {
+        try { document.body.removeChild(element); } catch(e) {}
+        showToast('error', 'שגיאה ביצירת PDF. נסה שנית.');
+        console.error('PDF error:', err);
+    });
 };
 
 // ---- ניהול תבניות טקסט להצעות מחיר ----
