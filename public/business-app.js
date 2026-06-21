@@ -8516,7 +8516,32 @@ window.openStoreOrderModal = function(orderId) {
 
     const rawItems = Array.isArray(order.items) ? order.items.filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))) : [];
     let itemsHtml = '';
-    
+
+    // אישור קבלה / דיווח בעיה מלקוח
+    if (order.customer_received_at) {
+        const recDate = new Date(order.customer_received_at).toLocaleString('he-IL');
+        const ratingStr = order.customer_rating ? ` · ${'⭐'.repeat(parseInt(order.customer_rating))}` : '';
+        const notesStr = order.customer_rating_notes ? `<div class="text-[10px] text-green-700 mt-1">💬 "${safeStr(order.customer_rating_notes)}"</div>` : '';
+        itemsHtml += `<div class="flex items-start gap-2 bg-green-50 border border-green-200 rounded-xl p-2.5 mb-3">
+            <span class="text-base mt-0.5">✅</span>
+            <div>
+                <p class="text-xs font-bold text-green-800">הלקוח אישר קבלה${ratingStr}</p>
+                <p class="text-[10px] text-green-600">${recDate}</p>
+                ${notesStr}
+            </div>
+        </div>`;
+    } else if (order.delivery_issue_reported_at) {
+        const issDate = new Date(order.delivery_issue_reported_at).toLocaleString('he-IL');
+        itemsHtml += `<div class="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-2.5 mb-3">
+            <span class="text-base mt-0.5">⚠️</span>
+            <div>
+                <p class="text-xs font-bold text-red-700">לקוח דיווח שלא קיבל את ההזמנה</p>
+                <p class="text-[10px] text-red-500">${issDate}</p>
+                <p class="text-[10px] text-red-600 mt-0.5 font-semibold">יש לבדוק מול השליח וליצור קשר עם הלקוח</p>
+            </div>
+        </div>`;
+    }
+
     if (userNotes) {
          itemsHtml += `<div class="flex justify-between items-center bg-amber-50 p-3 rounded-xl border border-amber-200 mb-4 shadow-sm"><span class="font-bold text-amber-800 text-sm"><i class="fa-regular fa-comment-dots ml-1"></i> הערות מהלקוח: ${safeStr(userNotes)}</span></div>`;
     }
