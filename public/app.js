@@ -461,7 +461,18 @@ function startMyOrdersAutoRefresh() {
         const activitiesSection = getEl('myorders-section-activities');
         if (activitiesSection && !activitiesSection.classList.contains('hidden') && currentGroup) {
             try {
-                await loadMyActivities();
+                // רענן accordions פתוחים בטאב הפעילויות בלי לעדכן את רשימת העסקים
+                document.querySelectorAll('#myorders-section-activities .biz-accordion:not(.hidden)').forEach(accordion => {
+                    const wrapper = accordion.closest('[data-biz-id]');
+                    const bizGroupId = wrapper?.dataset?.bizId;
+                    if (bizGroupId && currentGroup) {
+                        delete accordion.dataset.loaded;
+                        fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`)
+                            .then(r => r.json())
+                            .then(res => _renderBizAccordion(accordion, res, res.type || 'restaurant'))
+                            .catch(() => {});
+                    }
+                });
             } catch(e) {}
         }
         const quotesSection = getEl('myorders-section-quotes');
