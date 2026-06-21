@@ -8509,8 +8509,8 @@ window.renderMemberFeedOrders = function() {
         list.innerHTML = '<p style="font-size:12px;color:#94a3b8;text-align:center;padding:32px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">אין הזמנות להצגה</p>';
         return;
     }
-    const statusColor = { pending:'#f59e0b', confirmed:'#3b82f6', delivered:'#10b981', cancelled:'#ef4444', processing:'#8b5cf6' };
-    const statusLabel = { pending:'ממתין', confirmed:'אושר', delivered:'נמסר', cancelled:'בוטל', processing:'בהכנה' };
+    const statusColor = { pending:'#f59e0b', confirmed:'#3b82f6', delivered:'#10b981', cancelled:'#ef4444', processing:'#8b5cf6', new:'#ef4444', shipped:'#8b5cf6', delivering:'#8b5cf6', completed:'#10b981', ready:'#f59e0b', done:'#10b981' };
+    const statusLabel = { pending:'ממתין', confirmed:'אושר', delivered:'נמסר', cancelled:'בוטל', processing:'בהכנה', new:'חדש', shipped:'בדרך אליך', delivering:'בדרך אליך', completed:'סופק', ready:'מוכן', done:'הושלם' };
     list.innerHTML = items.map(o => {
         const sc = statusColor[o.status] || '#64748b';
         const sl = statusLabel[o.status] || o.status;
