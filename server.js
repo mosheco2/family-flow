@@ -459,6 +459,11 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_details TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS family_group_id INT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_received_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_issue_reported_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_rating INT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_rating_notes TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_rated_at TIMESTAMP`); } catch(e) {}
     
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_order_items (id SERIAL PRIMARY KEY, order_id INT REFERENCES store_orders(id) ON DELETE CASCADE, catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL, item_name VARCHAR(100), quantity DECIMAL(10,2), price_at_order DECIMAL(10,2))`); } catch(e) {}
      try { await client.query(`CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)`); } catch(e) {}
