@@ -1315,8 +1315,9 @@ window.renderCatalog = function() {
                 }
                 
                 const finalName = selections.length > 0 ? `${item.name} (${selections.join(', ')})` : item.name;
-                window.updateCart(`${item.id}_${selections.join('-')}`, currentModalQty, finalName, totalPrice, item.id);
-                window.closeProductModal(); 
+                const cartKey = selections.length > 0 ? `${item.id}_${selections.join('-')}` : `item_${item.id}`;
+                window.updateCart(cartKey, currentModalQty, finalName, totalPrice, item.id);
+                window.closeProductModal();
                 showToast('success', 'התווסף לסל! 🛒');
             };
             
