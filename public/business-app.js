@@ -15475,7 +15475,22 @@ window.renderCourierList = function(type, orders, statusType) {
                     <a href="tel:${o.customer_phone}" class="flex flex-col items-center justify-center gap-1 py-2.5 bg-slate-50 text-slate-700 rounded-xl font-bold text-[10px] border border-slate-100 hover:bg-slate-100 transition"><i class="fa-solid fa-phone text-lg"></i> חייג</a>
                     <a href="${waLink}" target="_blank" class="flex flex-col items-center justify-center gap-1 py-2.5 bg-[#25D366]/10 text-[#25D366] rounded-xl font-bold text-[10px] border border-[#25D366]/20 hover:bg-[#25D366]/20 transition"><i class="fa-brands fa-whatsapp text-lg"></i> הודעה</a>
                 </div>
-                
+
+                ${(() => {
+                    let items = [];
+                    try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata); } catch(e) {}
+                    if (items.length === 0) return '';
+                    const itemsHtml = items.map(i => {
+                        const qty = parseInt(i.quantity||i.qty||1);
+                        const name = i.name || '?';
+                        return `<div class="flex items-center justify-between text-[11px] py-1 px-2 bg-slate-50 rounded"><span>${safeStr(name)}</span><span class="font-bold text-slate-600">×${qty}</span></div>`;
+                    }).join('');
+                    return `<div class="mt-3 bg-amber-50 rounded-xl border border-amber-200 p-2 text-xs font-bold text-amber-800">
+                        <div class="mb-1.5">📦 תכולת ההזמנה:</div>
+                        ${itemsHtml}
+                    </div>`;
+                })()}
+
                 ${buildOrderLogHtml(o.status, o.created_at, !!(o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true' || getDeliveryMeta(o) !== null || hasDeliveryItems(o)))}
                 ${actionBtn}
             </div>
