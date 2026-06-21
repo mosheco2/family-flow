@@ -10659,105 +10659,109 @@ window._sendRfqMsg = async function(rfqId) {
 };
 
 window._openQuoteFromActivity = async function(quoteId) {
-    const orders = window.customerOrders || [];
-    const quote = orders.find(o => o.id === quoteId && (o.status === 'quote' || o.quote_status));
-    if (!quote) {
-        showToast('error', 'לא נמצאה הצעת מחיר');
-        return;
-    }
+    // Show loading state
+    const loader = document.createElement('div');
+    loader.className = 'fixed inset-0 bg-black/30 flex items-center justify-center z-50';
+    loader.innerHTML = '<div class="bg-white rounded-xl px-5 py-3 text-sm font-bold text-slate-700 shadow-lg">טוען הצעה...</div>';
+    document.body.appendChild(loader);
 
-    let itemsHtml = '';
-    const items = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items||'[]') : []);
-    let metaData = null;
+    try {
+        // Fetch full quote data from family quotes API
+        const userId = window.currentUser?.id || '';
+        const res = await fetch(`${API}/store/quotes/family/${currentGroup.id}?userId=${userId}`);
+        const data = await res.json();
+        loader.remove();
 
-    items.forEach(i => {
-        if (i.is_quote_metadata || i.catalogId === 999999) {
-            if (i.is_quote_metadata) {
-                try { metaData = JSON.parse(i.data||'{}'); } catch(e) {}
+        if (!data.success) { showToast('error', 'שגיאה בטעינת הנתונים'); return; }
+
+        const quote = (data.quotes || []).find(q => String(q.id) === String(quoteId));
+        if (!quote) { showToast('error', 'לא נמצאה הצעת מחיר'); return; }
+
+        let itemsHtml = '';
+        const items = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items||'[]') : []);
+        let metaData = null;
+
+        items.forEach(i => {
+            if (i.is_quote_metadata || i.catalogId === 999999) {
+                if (i.is_quote_metadata) {
+                    try { metaData = JSON.parse(i.data||'{}'); } catch(e) {}
+                }
+                return;
             }
-            return;
+            const lineTotal = parseFloat(i.price_at_order||0) * parseFloat(i.quantity||1);
+            itemsHtml += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:13px; direction:rtl;">
+                <span style="flex:1; text-align:right;">${safeStr(i.item_name || i.name || '')}</span>
+                <span style="width:40px; text-align:center; color:#64748b;">x${i.quantity}</span>
+                <span style="width:70px; text-align:left; direction:ltr;">₪${parseFloat(i.price_at_order||0).toFixed(2)}</span>
+                <span style="width:80px; text-align:left; direction:ltr; font-weight:bold;">₪${lineTotal.toFixed(2)}</span>
+            </div>`;
+        });
+
+        const statusMap = {
+            'waiting_customer': 'בהמתנה ללקוח',
+            'waiting_approval': 'בהמתנה לאישור',
+            'rejected': 'נדחה',
+            'approved': 'אושרה',
+            'converted_to_order': 'הומרה להזמנה',
+            'cancelled': 'בוטלה',
+            'quote': 'טיוטה'
+        };
+        const statusVal = quote.quote_status || quote.status || 'quote';
+        const displayStatus = statusMap[statusVal] || statusVal;
+        const createdDate = new Date(quote.created_at).toLocaleDateString('he-IL');
+        const bizName = quote.business_name || '';
+        const quoteNum = String(quoteId).padStart(4,'0');
+
+        // Build notes from metaData or raw notes field
+        if (!metaData && quote.notes) {
+            try { metaData = JSON.parse(quote.notes); } catch(e) {}
         }
-        const line = `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #e2e8f0; font-size:13px;">
-            <span style="flex:1; text-align:right;">${safeStr(i.item_name || i.name || '')}</span>
-            <span style="width:50px; text-align:center;">${i.quantity}</span>
-            <span style="width:60px; text-align:left; direction:ltr;">₪${parseFloat(i.price_at_order||0).toFixed(2)}</span>
-            <span style="width:80px; text-align:left; direction:ltr; font-weight:bold;">₪${(parseFloat(i.price_at_order||0) * parseFloat(i.quantity||1)).toFixed(2)}</span>
-        </div>`;
-        itemsHtml += line;
-    });
 
-    const statusMap = {
-        'waiting_customer': 'בהמתנה ללקוח',
-        'waiting_approval': 'בהמתנה לאישור',
-        'rejected': 'נדחה',
-        'approved': 'אושרה',
-        'converted_to_order': 'הומרה להזמנה',
-        'cancelled': 'בוטלה',
-        'quote': 'טיוטה'
-    };
-    const displayStatus = statusMap[quote.quote_status||quote.status||'quote'] || (quote.quote_status||quote.status||'טיוטה');
-    const createdDate = new Date(quote.created_at).toLocaleDateString('he-IL');
-
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
-    modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between p-5 border-b border-slate-200 bg-gradient-to-r from-yellow-50 to-amber-50 sticky top-0">
-            <h2 class="text-lg font-black text-slate-800 flex items-center gap-2">
-                <span>📋 הצעת מחיר #${String(quoteId).padStart(4,'0')}</span>
-            </h2>
-            <button onclick="this.closest('.fixed').remove()" class="w-8 h-8 rounded-full bg-white hover:bg-slate-100 flex items-center justify-center text-slate-600">✕</button>
-        </div>
-        <div class="p-6 space-y-4">
-            <div class="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                    <p class="text-xs font-bold text-slate-500 mb-1">תאריך</p>
-                    <p class="text-slate-800 font-semibold">${createdDate}</p>
-                </div>
-                <div>
-                    <p class="text-xs font-bold text-slate-500 mb-1">סטטוס</p>
-                    <p class="text-amber-700 font-semibold">${displayStatus}</p>
-                </div>
-                ${quote.customer_name ? `<div class="col-span-2">
-                    <p class="text-xs font-bold text-slate-500 mb-1">שם לקוח</p>
-                    <p class="text-slate-800 font-semibold">${safeStr(quote.customer_name)}</p>
-                </div>` : ''}
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+        modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" dir="rtl">
+            <div class="flex items-center justify-between p-5 border-b border-slate-200 bg-gradient-to-r from-yellow-50 to-amber-50 sticky top-0 rounded-t-2xl">
+                <h2 class="text-base font-black text-slate-800">📋 הצעת מחיר #${quoteNum}</h2>
+                <button onclick="this.closest('.fixed').remove()" class="w-8 h-8 rounded-full bg-white hover:bg-slate-100 flex items-center justify-center text-slate-600 text-lg">✕</button>
             </div>
+            <div class="p-5 space-y-4">
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div><p class="text-[10px] font-bold text-slate-400 mb-0.5">תאריך</p><p class="font-semibold text-slate-800">${createdDate}</p></div>
+                    <div><p class="text-[10px] font-bold text-slate-400 mb-0.5">סטטוס</p><span class="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">${displayStatus}</span></div>
+                    ${bizName ? `<div class="col-span-2"><p class="text-[10px] font-bold text-slate-400 mb-0.5">עסק</p><p class="font-semibold text-slate-800">${safeStr(bizName)}</p></div>` : ''}
+                    ${quote.customer_name ? `<div class="col-span-2"><p class="text-[10px] font-bold text-slate-400 mb-0.5">לקוח</p><p class="font-semibold text-slate-800">${safeStr(quote.customer_name)}</p></div>` : ''}
+                </div>
 
-            <div class="border-t border-slate-200 pt-4">
-                <h3 class="text-sm font-bold text-slate-700 mb-3">פרטי הצעה</h3>
-                <div style="border-bottom:2px solid #e2e8f0; padding-bottom:8px; margin-bottom:12px;">
-                    <div style="display:flex; justify-content:space-between; font-weight:bold; text-xs; color:#64748b; text-align:right;">
-                        <span style="width:80px; text-align:left;">סה"כ</span>
-                        <span style="width:60px; text-align:left;">מחיר</span>
-                        <span style="width:50px; text-align:center;">כמות</span>
-                        <span style="flex:1;">תיאור</span>
+                ${itemsHtml ? `<div class="border-t border-slate-100 pt-3">
+                    <h3 class="text-xs font-bold text-slate-500 mb-2">פרטי הצעה</h3>
+                    ${itemsHtml}
+                </div>` : '<p class="text-xs text-slate-400 text-center py-2">אין פירוט פריטים</p>'}
+
+                <div class="border-t border-slate-100 pt-3 text-left">
+                    <div class="flex justify-between items-center text-sm font-bold">
+                        <span dir="ltr" class="text-indigo-700">₪${parseFloat(quote.total_amount||0).toFixed(2)}</span>
+                        <span class="text-slate-600">סה"כ לתשלום:</span>
                     </div>
                 </div>
-                ${itemsHtml}
+
+                ${metaData && metaData.introText ? `<div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-900">
+                    <p class="font-bold text-xs text-blue-500 mb-1">הקדמה מהעסק:</p>
+                    <p class="text-xs leading-relaxed" style="white-space:pre-line;">${safeStr(metaData.introText)}</p>
+                </div>` : ''}
+
+                ${metaData && metaData.notes ? `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <p class="font-bold text-xs text-amber-600 mb-1">תנאים והערות:</p>
+                    <p class="text-xs text-amber-900 leading-relaxed" style="white-space:pre-line;">${safeStr(metaData.notes)}</p>
+                </div>` : ''}
             </div>
+        </div>`;
 
-            <div class="border-t border-slate-200 pt-4 text-right">
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; font-size:14px; color:#475569;">
-                    <span style="direction:ltr;">₪${parseFloat(quote.total_amount||0).toFixed(2)}</span>
-                    <span>סה"כ לתשלום:</span>
-                </div>
-            </div>
+        document.body.appendChild(modal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 
-            ${metaData && metaData.introText ? `<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-900">
-                <p class="font-bold text-xs text-blue-600 mb-2">הערה מהעסק:</p>
-                <p style="white-space:pre-line;">${safeStr(metaData.introText)}</p>
-            </div>` : ''}
-
-            ${metaData && metaData.notes ? `<div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900">
-                <p class="font-bold text-xs text-amber-600 mb-2">תנאים וזימנים:</p>
-                <p style="white-space:pre-line;">${safeStr(metaData.notes)}</p>
-            </div>` : ''}
-        </div>
-    </div>`;
-
-    document.body.appendChild(modal);
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.remove();
-    });
+    } catch(e) {
+        loader.remove();
+        showToast('error', 'שגיאה בטעינת ההצעה');
+    }
 };
 

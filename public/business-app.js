@@ -8467,9 +8467,10 @@ window.openQuotePreview = function(quoteId) {
         `;
     }
     
-    const quoteLabel = q.quote_number || `#${q.id}`;
-    const printDocTitle = `${safeStr(q.customer_name || 'לקוח')} - ${safeStr(currentGroup.name)} - הצעת מחיר ${quoteLabel} - ${dateStr.replace(/\./g, '-')}`;
-    
+    const quoteLabel = q.quote_number || String(q.id).padStart(4,'0');
+    const _cleanFN = s => (s||'').replace(/[/\\?%*:|"<>]/g,'').trim();
+    const printDocTitle = `${_cleanFN(currentGroup.name)}_${_cleanFN(q.customer_name || 'לקוח')}_${quoteLabel}`;
+
     const receiptHtml = `
         <!DOCTYPE html>
         <html dir="rtl">
@@ -9961,11 +9962,15 @@ window.printQuotePDF = function() {
         <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:bold;direction:ltr;">₪${l.total.toFixed(2)}</td>
     </tr>`).join('');
     const headerHtml = window._buildQuotePDFHeader(biz, q.title, q.ref, q.date, q.validity, q.customerName, q.customerPhone, q.companyId);
-    const bizName = (currentGroup?.name||'').replace(/[^א-ת0-9\s]/g,'').trim();
-    const custName = (q.customerName||'').replace(/[^א-ת0-9\s]/g,'').trim();
-    const quoteNum = String(q.id||'').padStart(4,'0');
-    const pdfFileName = `${bizName}_${custName}_${quoteNum}`;
+    const bizName = (currentGroup?.name || '').replace(/[/\\?%*:|"<>]/g, '').trim();
+    const custName = (q.customerName || '').replace(/[/\\?%*:|"<>]/g, '').trim();
+    const quoteRef = q.editId ? String(q.editId).padStart(4, '0') : (q.ref || 'חדשה');
+    const pdfFileName = [bizName, custName, quoteRef].filter(Boolean).join('_');
     const win = window.open('', '_blank', 'width=820,height=950');
+    if (!win) {
+        showToast('error', 'חוסם הקופצים (Popup Blocker) מונע פתיחת PDF. אנא אפשר חלונות קופצים לאתר זה בדפדפן.');
+        return;
+    }
     win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>${pdfFileName}</title>
     <style>*{box-sizing:border-box;}body{font-family:Arial,sans-serif;direction:rtl;padding:28px;color:#1e293b;max-width:720px;margin:0 auto;}
     table{width:100%;border-collapse:collapse;margin:12px 0;}
