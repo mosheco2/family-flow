@@ -602,12 +602,14 @@ function renderMyOrders() {
             case 'processing': statusColor='border-orange-200 bg-orange-50'; statusText='באריזה / הכנה'; statusIcon='fa-box'; break;
             case 'ready':      statusColor='border-purple-200 bg-purple-50'; statusText='מוכן לאיסוף'; statusIcon='fa-bag-shopping'; break;
             case 'shipped':    statusColor='border-indigo-200 bg-indigo-50'; statusText=o.is_delivery?'בדרך אליך! 🛵':'בדרך אלייך!'; statusIcon=o.is_delivery?'fa-motorcycle':'fa-truck-fast'; break;
-            case 'delivering': statusColor='border-indigo-200 bg-indigo-50'; statusText='השליח בדרך אליך 🛵'; statusIcon='fa-motorcycle'; break;
+            case 'delivering': statusColor='border-indigo-200 bg-indigo-50'; statusText='בדרך אליך 🛵'; statusIcon='fa-motorcycle'; break;
             case 'completed':  statusColor='border-green-200 bg-green-50'; statusText='הושלם ונמסר'; statusIcon='fa-check-double'; break;
             default:           statusColor='border-slate-200 bg-slate-50'; statusText='בטיפול'; statusIcon='fa-hourglass-half';
         }
         const dateStr = new Date(o.created_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
         const borderCls = statusColor.split(' ')[0];
+        const isDeliv = !!(o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true');
+        const orderTypeBadge = `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${isDeliv ? 'bg-indigo-50 text-indigo-600' : 'bg-green-50 text-green-700'}">${isDeliv ? '🛵 משלוח' : '🏃 איסוף עצמי'}</span>`;
         const fromQuote = o.quote_status === 'approved' && o.quote_number
             ? `<div class="flex items-center gap-1.5 mt-1 bg-indigo-50 border border-indigo-200 rounded-lg px-2 py-1 w-fit">
                 <i class="fa-solid fa-file-invoice text-indigo-500 text-[10px]"></i>
@@ -617,7 +619,7 @@ function renderMyOrders() {
         html += `<div class="bg-white rounded-2xl border ${borderCls} border-r-4 mb-3 cursor-pointer active:scale-[0.99] transition overflow-hidden" onclick="document.getElementById('order-details-${o.id}').classList.toggle('hidden')" style="touch-action:manipulation;">
             <div class="p-3 flex justify-between items-center gap-2">
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-1.5"><i class="fa-solid fa-store text-slate-400 text-[10px] shrink-0"></i><h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(o.store_name || 'עסק מקומי')}</h4></div>
+                    <div class="flex items-center gap-1.5"><i class="fa-solid fa-store text-slate-400 text-[10px] shrink-0"></i><h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(o.store_name || 'עסק מקומי')}</h4>${orderTypeBadge}</div>
                     <p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid ${statusIcon} ml-1"></i> ${statusText} · ${dateStr}</p>
                     ${fromQuote}
                 </div>
@@ -9973,7 +9975,7 @@ function _renderBizAccordion(el, data, bizType) {
         const quotes = act.quotes || [];
         const tableRes = (act.tableReservations || []);
         const _ref = id => id ? `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>` : '';
-        const _ordStatus = { pending_approval:'ממתין לאישור ⏳', new:'חדש 🔴', confirmed:'אושר', processing:'בהכנה 🍳', ready:'מוכן לאיסוף ✅', shipped:'בדרך אליך 🚚', done:'הושלם ✅', completed:'סופק ✅', cancelled:'בוטל ❌', pending:'ממתין' };
+        const _ordStatus = { pending_approval:'ממתין לאישור ⏳', new:'חדש 🔴', confirmed:'אושר', processing:'בהכנה 🍳', ready:'מוכן לאיסוף ✅', shipped:'בדרך אליך 🛵', delivering:'בדרך אליך 🛵', done:'הושלם ✅', completed:'סופק ✅', cancelled:'בוטל ❌', pending:'ממתין' };
         const _ordStatusColor = s => s==='done'||s==='completed'?'bg-green-100 text-green-700':s==='cancelled'?'bg-red-100 text-red-600':s==='ready'?'bg-orange-100 text-orange-700':s==='shipped'?'bg-purple-100 text-purple-700':s==='processing'||s==='confirmed'?'bg-blue-100 text-blue-700':s==='pending_approval'?'bg-yellow-100 text-yellow-700':'bg-slate-100 text-slate-600';
         const isDelivery = o => !!(o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true');
         const isConfirmable = o => !o.customer_rating && (o.status === 'completed' || o.status === 'shipped') && isDelivery(o);
@@ -10006,7 +10008,7 @@ function _renderBizAccordion(el, data, bizType) {
                 <div class="flex items-center gap-2 py-2 ${hasDetail?'cursor-pointer':''}" ${hasDetail?`onclick="const d=document.getElementById('${detId}');if(d){d.classList.toggle('hidden');}"`:''}>
                     <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-sm shrink-0">🛒</div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-xs font-bold text-slate-700">הזמנה${_ref(o.id)}${ratingStars(o)?` <span class="text-yellow-500">${ratingStars(o)}</span>`:''}</p>
+                        <p class="text-xs font-bold text-slate-700">הזמנה${_ref(o.id)} <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${isDelivery(o)?'bg-indigo-50 text-indigo-600':'bg-green-50 text-green-700'}">${isDelivery(o)?'🛵 משלוח':'🏃 איסוף עצמי'}</span>${ratingStars(o)?` <span class="text-yellow-500">${ratingStars(o)}</span>`:''}</p>
                         <p class="text-[10px] text-slate-400">${fmtDate(o.created_at)}${parseFloat(o.total_price||0)>0?' · ₪'+parseFloat(o.total_price).toFixed(0):''}${itemsArr.length?' · '+itemsArr.length+' פריטים':''}</p>
                     </div>
                     <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${_ordStatusColor(o.status)}">${_ordStatus[o.status]||o.status||''}</span>
