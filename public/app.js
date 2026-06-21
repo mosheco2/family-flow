@@ -477,7 +477,16 @@ function applyOrdersFilter(orders) {
     if (f.period !== 'all') {
         const now = Date.now();
         const ms = { week: 7*864e5, month: 30*864e5, quarter: 90*864e5 }[f.period] || 0;
-        if (ms) result = result.filter(o => now - new Date(o.created_at).getTime() <= ms);
+        if (ms) {
+            result = result.filter(o => {
+                const createdMs = now - new Date(o.created_at).getTime();
+                // הצג אם נוצרה בתקופה
+                if (createdMs <= ms) return true;
+                // הצג גם אם עדיין בעיבוד (לא סיימה/בוטלה) — אנחנו סוקדים שהסטטוס עדכן לאחרונה
+                const inProgress = !['completed', 'cancelled', 'done'].includes(o.status);
+                return inProgress;
+            });
+        }
     }
     if (f.sort === 'asc') result.sort((a,b) => new Date(a.created_at)-new Date(b.created_at));
     else result.sort((a,b) => new Date(b.created_at)-new Date(a.created_at));
