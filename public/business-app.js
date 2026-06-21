@@ -8557,17 +8557,14 @@ window.openQuotePreview = function(quoteId) {
         return;
     }
 
-    const parser = new DOMParser();
-    const bodyHtml = parser.parseFromString(receiptHtml, 'text/html').body.innerHTML;
-
     const options = {
-        margin: [15, 20, 35, 20],
+        margin: 0,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, letterRendering: true },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    html2pdf().set(options).from(bodyHtml).outputPdf('blob').then(blob => {
+    html2pdf().set(options).from(receiptHtml).outputPdf('blob').then(blob => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -10054,7 +10051,7 @@ window.printQuotePDF = function() {
 
     // Use html2pdf to generate and download PDF
     const options = {
-        margin: [15, 20],
+        margin: 10,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
