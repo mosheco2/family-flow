@@ -10760,7 +10760,7 @@ window._openQuoteFromActivity = async function(quoteId) {
 
                 <div class="border-t border-slate-100 pt-4 flex gap-2">
                     <button onclick="this.closest('.fixed').remove()" class="flex-1 bg-slate-100 text-slate-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition">סגור</button>
-                    <button onclick="window._editQuoteFromActivity(${quoteId})" class="flex-1 bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition">✏️ עריכה</button>
+                    <button onclick="this.closest('.fixed').remove(); switchTab('myorders'); switchMyOrdersTab('quotes'); loadFamilyQuotes();" class="flex-1 bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition">📋 פתח בהצעות שלי</button>
                 </div>
             </div>
         </div>`;

@@ -8558,12 +8558,7 @@ window.openQuotePreview = function(quoteId) {
     }
 
     const parser = new DOMParser();
-    const parsedDoc = parser.parseFromString(receiptHtml, 'text/html');
-
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'font-family:sans-serif; font-size:14px; max-width:800px; background:#fff; color:#0f172a; direction:rtl; position:absolute; left:-9999px; top:0;';
-    wrapper.innerHTML = parsedDoc.body.innerHTML;
-    document.body.appendChild(wrapper);
+    const bodyHtml = parser.parseFromString(receiptHtml, 'text/html').body.innerHTML;
 
     const options = {
         margin: [15, 20, 35, 20],
@@ -8572,7 +8567,7 @@ window.openQuotePreview = function(quoteId) {
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    html2pdf().set(options).from(wrapper).output('blob').then(blob => {
+    html2pdf().set(options).from(bodyHtml).outputPdf('blob').then(blob => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -8581,10 +8576,8 @@ window.openQuotePreview = function(quoteId) {
         link.click();
         document.body.removeChild(link);
         setTimeout(() => URL.revokeObjectURL(url), 100);
-        try { document.body.removeChild(wrapper); } catch(e) {}
         showToast('success', 'הקובץ הורד בהצלחה!');
     }).catch(err => {
-        try { document.body.removeChild(wrapper); } catch(e) {}
         showToast('error', 'שגיאה ביצירת PDF. נסה שנית.');
         console.error('html2pdf error:', err);
     });
@@ -10060,11 +10053,6 @@ window.printQuotePDF = function() {
     `;
 
     // Use html2pdf to generate and download PDF
-    const element = document.createElement('div');
-    element.style.cssText = 'position:absolute; left:-9999px; top:0; background:#fff; font-family:sans-serif; direction:rtl;';
-    element.innerHTML = htmlContent;
-    document.body.appendChild(element);
-
     const options = {
         margin: [15, 20],
         image: { type: 'jpeg', quality: 0.98 },
@@ -10072,7 +10060,7 @@ window.printQuotePDF = function() {
         jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
     };
 
-    html2pdf().set(options).from(element).output('blob').then(blob => {
+    html2pdf().set(options).from(htmlContent).outputPdf('blob').then(blob => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -10081,10 +10069,8 @@ window.printQuotePDF = function() {
         link.click();
         document.body.removeChild(link);
         setTimeout(() => URL.revokeObjectURL(url), 100);
-        try { document.body.removeChild(element); } catch(e) {}
         showToast('success', 'הקובץ הורד בהצלחה!');
     }).catch(err => {
-        try { document.body.removeChild(element); } catch(e) {}
         showToast('error', 'שגיאה ביצירת PDF. נסה שנית.');
         console.error('PDF error:', err);
     });
