@@ -5092,6 +5092,8 @@ app.get('/api/store/quotes/family/:familyGroupId', async (req, res) => {
               OR (so.status NOT IN ('new','processing','ready','shipped','completed','cancelled')
                   AND so.quote_status IN ('waiting_customer','customer_approved')
                   AND so.family_group_id IS NOT NULL)
+              OR (so.quote_status = 'approved' AND so.family_group_id IS NOT NULL
+                  AND so.created_at > NOW() - INTERVAL '90 days')
             )
             AND (so.family_group_id=$1
                 OR ($2::text IS NOT NULL AND $2::text <> '' AND so.customer_phone = $2::text)
