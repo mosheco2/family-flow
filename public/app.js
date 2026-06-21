@@ -458,6 +458,12 @@ function startMyOrdersAutoRefresh() {
                 }
             }
         } catch(e) {}
+        const activitiesSection = getEl('myorders-section-activities');
+        if (activitiesSection && !activitiesSection.classList.contains('hidden') && currentGroup) {
+            try {
+                await loadMyActivities();
+            } catch(e) {}
+        }
         const quotesSection = getEl('myorders-section-quotes');
         if (quotesSection && !quotesSection.classList.contains('hidden') && currentGroup) {
             try {
