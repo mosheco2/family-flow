@@ -1086,7 +1086,7 @@ async function loadDashboard() {
     }
     // -----------------------------------------------------------
 
-    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
+    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">${currentGroup.group_code}</span>` : '';
     const _groupDisplayName = currentGroup.family_nickname || currentGroup.name;
     getEl('dash-group-name').innerHTML = `${safeStr(_groupDisplayName)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.first_name || currentUser.nickname;
 
@@ -3138,6 +3138,8 @@ async function openProfileModal() {
         const d = await r.json();
         if (d.success && getEl('user-email-input')) getEl('user-email-input').value = d.email || '';
     } catch(e) {}
+    // Load family nickname
+    if (getEl('profile-family-nickname')) getEl('profile-family-nickname').value = currentGroup?.family_nickname || '';
 }
 
 async function saveUserPhone() {
@@ -3193,6 +3195,22 @@ function loadFamilyAddress() {
     if (getEl('family-city-input')) getEl('family-city-input').value = currentGroup.city || '';
     if (getEl('family-address-input')) getEl('family-address-input').value = currentGroup.street_address || '';
 }
+
+async function saveFamilyNickname() {
+    const nickname = (getEl('profile-family-nickname')?.value || '').trim();
+    try {
+        const res = await fetch(`/api/groups/${currentGroup.id}/nickname`, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ familyNickname: nickname })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'כינוי המשפחה נשמר!');
+            if (currentGroup) currentGroup.family_nickname = nickname;
+        } else showToast('error', 'שגיאה בשמירה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
 async function submitChangePassword(e) { e.preventDefault(); const oldP = val('old-password'); const newP = val('new-password'); const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.innerText = 'מעדכן...'; try { const res = await fetch(`${API}/users/${currentUser.id}/password`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) }); const data = await res.json(); if(data.success) { showToast('success', 'הסיסמה שונתה בהצלחה!'); getEl('profile-modal').classList.add('hidden'); } else { showToast('error', data.error || 'שגיאה בשינוי סיסמה'); } } catch(err) { showToast('error', 'שגיאה בתקשורת'); } finally { btn.disabled = false; btn.innerText = 'עדכון סיסמת גישה'; } }
 async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שברצונך למחוק את המשתמש לצמיתות?`)) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
 
@@ -5062,7 +5080,7 @@ window.renderGroupInfo = function() {
     
     const nameEl = document.getElementById('dash-group-name');
     if (nameEl) {
-        const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
+        const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">${currentGroup.group_code}</span>` : '';
         nameEl.innerHTML = `${safeStr(currentGroup.family_nickname || currentGroup.name)} ${codeBadge}`;
     }
 
