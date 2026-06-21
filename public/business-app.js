@@ -15518,7 +15518,7 @@ window.approveDeliveryToKitchen = async function(orderId) {
         const res = await fetch(`${API}/store/orders/status`, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ orderId, status: 'new' })
+            body: JSON.stringify({ orderId, status: 'processing' })
         });
         const data = await res.json();
         if (data.success) {
