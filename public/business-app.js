@@ -6674,14 +6674,20 @@ function renderPantry() {
                 <span class="text-2xl font-black text-slate-800 leading-none">${packQty.toFixed(2)}</span>
                 <span class="text-[10px] font-bold text-slate-400 mt-1">${u}</span>
                 <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full mt-1.5 w-max shadow-sm tracking-tight">${totalSubUnits} יחידות</span>
-                ${showAvailable ? `<span class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full mt-1 w-max">זמין: ${availableSubUnits} יח'</span>` : ''}
+                ${showAvailable ? `<div class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-100 px-2 py-1 rounded-full mt-1 w-max text-center">
+                    <div>זמין לפקודות: ${availableSubUnits} יח'</div>
+                    <div class="text-[9px] opacity-90">לשימוש שוטף: ${bufferQty.toFixed(2)} ${u}</div>
+                </div>` : ''}
             </div>`;
         } else {
             qtyDisplay = `
             <div class="flex flex-col items-center px-3 min-w-[75px]">
                 <span class="text-2xl font-black text-slate-800 leading-none">${packQty}</span>
                 <span class="text-xs font-bold text-slate-400 mt-1">${u}</span>
-                ${showAvailable ? `<span class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full mt-1 w-max">זמין: ${available}</span>` : ''}
+                ${showAvailable ? `<div class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-100 px-2 py-1 rounded-full mt-1 w-max text-center">
+                    <div>זמין לפקודות: ${available}</div>
+                    <div class="text-[9px] opacity-90">לשימוש שוטף: ${bufferQty.toFixed(2)}</div>
+                </div>` : ''}
             </div>`;
         }
 
