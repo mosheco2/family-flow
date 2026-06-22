@@ -10093,12 +10093,85 @@ window.cqUpdateOneflowBtn = function(found, name) {
 window.cqInviteToOneflow = function() {
     const phone = (document.getElementById('cq-customer-phone')?.value || '').trim();
     const name = (document.getElementById('cq-customer-name')?.value || '').trim();
-    const origin = window.location.origin;
-    const bizName = currentGroup?.name || 'העסק שלנו';
-    const text = `שלום${name ? ' ' + name : ''}! 👋\n\n${bizName} שלח/ה לך הצעת מחיר ומזמין אותך להצטרף ל-OneFlow Life 🏠\n\nבאפליקציה תוכל/י:\n✅ לצפות ולאשר הצעות מחיר\n✅ לנהל קריאות שירות\n✅ לתקשר ישירות עם העסק\n\n📲 להצטרפות חינמית:\n${origin}/\n\nבחר/י "משפחה חדשה" כדי להצטרף ולהתחבר עם ${bizName}.`;
-    const waPhone = phone.replace(/\D/g, '');
-    const url = waPhone ? `https://wa.me/972${waPhone.replace(/^0/, '')}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
+    document.getElementById('cq-oneflow-modal')?.remove();
+    const html = `<div id="cq-oneflow-modal" class="fixed inset-0 bg-slate-900/60 z-[99999] flex items-center justify-center p-4" style="direction:rtl;">
+        <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-5">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-black text-slate-800 text-sm">🔗 קשר ל-OneFlow Life</h3>
+                <button onclick="document.getElementById('cq-oneflow-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark text-slate-500 text-xs"></i></button>
+            </div>
+            <p class="text-[11px] text-slate-500 bg-blue-50 rounded-xl px-3 py-2 mb-3 leading-snug">חפש לקוח קיים ב-OneFlow Life, או צור עבורו חשבון חדש. ההצעה תישלח אליו ישירות באפליקציה.</p>
+            <input id="cq-ofl-search" type="text" value="${safeStr(phone)}" placeholder="חיפוש לפי טלפון, שם או מייל..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm mb-1 outline-none dir-ltr text-left">
+            <button onclick="window._cqOflSearch()" class="w-full mb-2 bg-slate-800 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2"><i class="fa-solid fa-magnifying-glass"></i> חפש</button>
+            <div id="cq-ofl-results"></div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    document.getElementById('cq-ofl-search').addEventListener('keydown', e => { if (e.key === 'Enter') window._cqOflSearch(); });
+    if (phone) window._cqOflSearch();
+};
+
+window._cqOflSearch = async function() {
+    const q = (document.getElementById('cq-ofl-search')?.value || '').trim();
+    const resEl = document.getElementById('cq-ofl-results');
+    if (!resEl) return;
+    if (!q || q.length < 2) { resEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">הקלד לחיפוש...</p>'; return; }
+    resEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-2"><i class="fa-solid fa-spinner fa-spin ml-1"></i></p>';
+    try {
+        const r = await fetch(`/api/groups/search-all?q=${encodeURIComponent(q)}`);
+        const d = await r.json();
+        const groups = (d.groups || []).slice(0, 6);
+        if (groups.length) {
+            resEl.innerHTML = groups.map(g => `<button type="button" onclick="window._cqOflLink(${g.id},'${safeStr(g.name||'').replace(/'/g,"\\'")}',this)" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-100 font-medium text-slate-700 flex items-center gap-2 mb-1"><span>👤</span><div class="flex-1 truncate">${safeStr(g.name||'')}${g.admin_nickname?' · '+safeStr(g.admin_nickname):''}</div></button>`).join('');
+        } else {
+            const name = (document.getElementById('cq-customer-name')?.value || '').trim();
+            resEl.innerHTML = `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                <p class="text-xs text-amber-700 font-bold">לא נמצא לקוח OneFlow עם הפרטים האלה</p>
+                <p class="text-[10px] text-amber-600">ניתן ליצור חשבון חבר חדש — המערכת תיצור חשבון ותשלח פרטי כניסה ב-WhatsApp</p>
+                <button onclick="window._cqCreateMemberAccount()" class="flex items-center gap-2 w-full bg-violet-600 hover:bg-violet-700 text-white rounded-xl px-3 py-2 text-xs font-bold transition">
+                    <i class="fa-solid fa-user-plus text-sm"></i> צור חשבון OneFlow וקשר ללקוח
+                </button>
+            </div>`;
+        }
+    } catch(e) { resEl.innerHTML = '<p class="text-xs text-red-500 p-1">שגיאת תקשורת</p>'; }
+};
+
+window._cqOflLink = function(familyGroupId, familyName) {
+    const modal = document.getElementById('cq-modal');
+    if (modal) modal.dataset.familyGroupId = familyGroupId;
+    window.cqUpdateOneflowBtn(true, familyName);
+    document.getElementById('cq-oneflow-modal')?.remove();
+    showToast('success', `קושר ל-${familyName} ✅`);
+};
+
+window._cqCreateMemberAccount = async function() {
+    const phone = (document.getElementById('cq-customer-phone')?.value || '').trim();
+    const name = (document.getElementById('cq-customer-name')?.value || '').trim();
+    const resEl = document.getElementById('cq-ofl-results');
+    if (!phone) { if(resEl) resEl.innerHTML = '<p class="text-xs text-red-500 p-2 text-center">יש למלא מספר טלפון בהצעה</p>'; return; }
+    if (!name) { if(resEl) resEl.innerHTML = '<p class="text-xs text-red-500 p-2 text-center">יש למלא שם לקוח בהצעה</p>'; return; }
+    if(resEl) resEl.innerHTML = '<p class="text-xs text-slate-400 p-2 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> יוצר חשבון...</p>';
+    try {
+        const r = await fetch(`${API}/member/create-for-business`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ business_group_id: currentGroup?.id, name, phone, member_ref_id: null, admin_name: currentGroup?.name || '' })
+        }).then(res => res.json());
+        if (!r.success) { if(resEl) resEl.innerHTML = `<p class="text-xs text-red-500 p-2">${r.error||'שגיאה ביצירת החשבון'}</p>`; return; }
+        const modal = document.getElementById('cq-modal');
+        if (modal) modal.dataset.familyGroupId = r.member_group_id;
+        window.cqUpdateOneflowBtn(true, name);
+        const waPhone = phone.replace(/^0/, '972').replace(/\D/g, '');
+        const bizName = currentGroup?.name || 'העסק שלנו';
+        const waText = encodeURIComponent(`שלום ${name} 👋\n\n${bizName} שמחים לצרף אותך!\n\nנוצר עבורך חשבון אישי ב-ONEFLOW LIFE:\n🔑 קוד: ${r.group_code}\n👤 שם: ${name}\n🔒 סיסמה: ${r.password}\n\n👉 כניסה: ${window.location.origin}\n\nנשמח לראות אותך! 🌟`);
+        if(resEl) resEl.innerHTML = `<div class="bg-violet-50 border border-violet-200 rounded-xl p-3 space-y-2">
+            <div class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-violet-600"></i><p class="text-xs font-black text-violet-800">חשבון OneFlow נוצר וקושר ✅</p></div>
+            <div class="bg-white rounded-lg px-2 py-1.5 border border-violet-100 font-mono text-xs space-y-0.5"><div>קוד: <b>${r.group_code}</b></div><div>שם: <b>${safeStr(name)}</b></div><div>סיסמה: <b>${r.password}</b></div></div>
+            <a href="https://wa.me/${waPhone}?text=${waText}" target="_blank" rel="noopener" class="flex items-center gap-2 w-full bg-[#25D366] text-white rounded-xl px-3 py-2 text-xs font-bold">
+                <i class="fa-brands fa-whatsapp"></i> שלח פרטי כניסה ב-WhatsApp
+            </a>
+            <button onclick="document.getElementById('cq-oneflow-modal').remove()" class="w-full bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold">המשך לשליחת ההצעה ב-OneFlow</button>
+        </div>`;
+    } catch(e) { if(resEl) resEl.innerHTML = '<p class="text-xs text-red-500 p-2">שגיאת תקשורת</p>'; }
 };
 
 window.cqLookupOneflow = async function() {
