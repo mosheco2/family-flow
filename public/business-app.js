@@ -31862,9 +31862,11 @@ window.renderWoInventory = function(inventory) {
         const reservedQty = parseFloat(item.reserved_qty || 0);
         const shortage = Math.max(0, neededQty - reservedQty);
         const lineTotal = parseFloat(item.unit_price || 0) * reservedQty;
-        const catalogTotal = parseFloat(item.total_stock || 0);
-        const catalogReserved = parseFloat(item.catalog_reserved || 0);
-        const catalogAvailable = Math.max(0, catalogTotal - catalogReserved);
+        // pantry item
+        const pantryTotal = item.pantry_id ? parseFloat(item.pantry_total || 0) : parseFloat(item.total_stock || 0);
+        const pantryReserved = item.pantry_id ? parseFloat(item.pantry_reserved || 0) : parseFloat(item.catalog_reserved || 0);
+        const pantryAvailable = Math.max(0, pantryTotal - pantryReserved);
+        const pantryUnit = item.pantry_unit || "יח'";
 
         const qtyLine = neededQty > reservedQty
             ? `<div class="flex gap-2 text-xs mb-2 flex-wrap">
@@ -31879,11 +31881,10 @@ window.renderWoInventory = function(inventory) {
         const poAlert = shortage > 0 && item.status === 'reserved'
             ? `<div class="bg-red-50 border border-red-200 rounded-lg p-2 mb-2 text-[10px] text-red-700 font-bold">⚠️ חסרים ${shortage} יח' — יש לפתוח הזמנת רכש</div>` : '';
 
-        const stockInfo = item.catalog_id ? `<div class="bg-blue-50 rounded-lg p-2 mb-2 border border-blue-200 text-[10px]">
-            <div class="flex justify-between mb-1"><span class="text-slate-600">מלאי כולל:</span><span class="font-bold text-blue-700">${catalogTotal.toFixed(0)} יח'</span></div>
-            <div class="flex justify-between mb-1"><span class="text-slate-600">משוריין (כל הפקודות):</span><span class="font-bold text-amber-600">${catalogReserved.toFixed(0)} יח'</span></div>
-            <div class="flex justify-between mb-1"><span class="text-slate-600">זמין לשימוש:</span><span class="font-bold text-green-600">${catalogAvailable.toFixed(0)} יח'</span></div>
-            <button onclick="window.showCatalogWoReservations(${item.catalog_id}, '${safeStr(item.item_name).replace(/'/g, "\\'")}'); event.stopPropagation();" class="w-full mt-2 bg-blue-600 text-white py-1 rounded-lg text-[9px] font-bold hover:bg-blue-700 transition">ראה פקודות עבודה אחרות</button>
+        const stockInfo = (item.pantry_id || item.catalog_id) ? `<div class="bg-blue-50 rounded-lg p-2 mb-2 border border-blue-200 text-[10px]">
+            <div class="flex justify-between mb-1"><span class="text-slate-600">מלאי כולל:</span><span class="font-bold text-blue-700">${pantryTotal} ${pantryUnit}</span></div>
+            <div class="flex justify-between mb-1"><span class="text-slate-600">משוריין (כל פקודות עבודה):</span><span class="font-bold text-amber-600">${pantryReserved} ${pantryUnit}</span></div>
+            <div class="flex justify-between mb-1"><span class="text-slate-600">זמין:</span><span class="font-bold text-green-600">${pantryAvailable} ${pantryUnit}</span></div>
         </div>` : '';
 
         return `<div class="bg-slate-50 rounded-xl p-3 border ${shortage > 0 && item.status === 'reserved' ? 'border-red-200' : 'border-slate-100'}">
@@ -32097,23 +32098,24 @@ window.loadInventoryBySupplier = async function() {
     if (!sel || !currentGroup) return;
     sel.innerHTML = '<option value="">טוען...</option>';
     try {
-        const res = await fetch(`${API}/store/catalog/${currentGroup.id}`);
+        const res = await fetch(`${API}/pantry/${currentGroup.id}`);
         const catData = await res.json();
-        const allItems = (Array.isArray(catData) ? catData : catData.items || [])
-            .filter(c => c.is_available !== false && c.stock_quantity !== null && c.stock_quantity !== undefined)
-            .sort((a, b) => (b.stock_quantity || 0) - (a.stock_quantity || 0));
+        const allItems = (catData.items || [])
+            .sort((a, b) => (b.quantity || 0) - (a.quantity || 0));
         if (!allItems.length) {
-            sel.innerHTML = '<option value="">אין פריטי מלאי — הוסף ציוד לקטלוג תחת "מלאי"</option>';
+            sel.innerHTML = '<option value="">אין פריטים במלאי — הוסף פריטים בטאב "מלאי"</option>';
             return;
         }
         sel.innerHTML = '<option value="">— בחר פריט ממלאי —</option>' +
             allItems.map(c => {
-                const stock = parseFloat(c.stock_quantity || 0);
+                const stock = parseFloat(c.quantity || 0);
                 const reserved = parseFloat(c.reserved_qty || 0);
                 const available = Math.max(0, stock - reserved);
+                const upp = parseInt(c.units_per_package) || 1;
+                const unit = c.unit || "יח'";
                 const noStock = stock === 0;
-                const stockLabel = noStock ? '[אין במלאי ⚠️]' : `[מלאי: ${stock.toFixed(0)} • זמין: ${available.toFixed(0)}]`;
-                return `<option value="${c.id}" data-name="${safeStr(c.name)}" data-price="${c.price || 0}" data-units="1" data-unit-type="יח'" data-stock="${stock}" data-available="${available}">${safeStr(c.name)} ${stockLabel}</option>`;
+                const stockLabel = noStock ? '[אין במלאי ⚠️]' : `[מלאי: ${stock} ${unit} • זמין: ${available}]`;
+                return `<option value="${c.id}" data-name="${safeStr(c.item_name)}" data-price="0" data-units="${upp}" data-unit-type="${unit}" data-stock="${stock}" data-available="${available}">${safeStr(c.item_name)} ${stockLabel}</option>`;
             }).join('');
         sel.onchange = function() {
             const opt = sel.options[sel.selectedIndex];
@@ -32147,14 +32149,14 @@ window.addInventoryReservation = async function() {
     const opt = sel.options[sel.selectedIndex];
     let itemName = opt?.dataset?.name || '';
     if (!itemName || itemName === 'null') itemName = opt?.text?.split(' [')[0] || '';
-    const catalogId = parseInt(sel.value);
+    const pantryId = parseInt(sel.value);
     const neededQty = parseFloat(qtyInput?.value) || 1;
     const unitPrice = parseFloat(priceInput?.value) || 0;
 
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/inventory`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ catalogId, itemName, neededQty, qty: neededQty, unitPrice, reservedBy: currentUser?.nickname || 'מנהל' })
+            body: JSON.stringify({ pantryId, itemName, neededQty, qty: neededQty, unitPrice, reservedBy: currentUser?.nickname || 'מנהל' })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error);

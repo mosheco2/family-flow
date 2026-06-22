@@ -742,7 +742,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE supplier_products ADD COLUMN IF NOT EXISTS catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE work_order_inventory ADD COLUMN IF NOT EXISTS needed_qty DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS min_stock_buffer_pct DECIMAL(5,2) DEFAULT 0`); } catch(e) {}
-      try { await client.query(`CREATE TABLE IF NOT EXISTS supplier_product_catalog_links (
+      try { await client.query(`ALTER TABLE pantry ADD COLUMN IF NOT EXISTS reserved_qty DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE work_order_inventory ADD COLUMN IF NOT EXISTS pantry_id INT REFERENCES pantry(id) ON DELETE SET NULL`); } catch(e) {}      try { await client.query(`CREATE TABLE IF NOT EXISTS supplier_product_catalog_links (
           id SERIAL PRIMARY KEY,
           supplier_product_id INT REFERENCES supplier_products(id) ON DELETE CASCADE,
           catalog_id INT REFERENCES store_catalog(id) ON DELETE CASCADE,
@@ -3451,6 +3452,18 @@ app.delete('/api/shopping/saved/:id', async (req, res) => {
 // ============================================================
 // --- PANTRY ENDPOINTS ---
 // ============================================================
+
+app.get('/api/pantry/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT id, item_name, COALESCE(quantity,0) as quantity, COALESCE(reserved_qty,0) as reserved_qty,
+                    unit, units_per_package, category
+             FROM pantry WHERE group_id=$1 ORDER BY item_name`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, items: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
 app.post('/api/pantry/add', async (req, res) => {
     try {
@@ -11502,8 +11515,11 @@ app.get('/api/work-orders/detail/:id', async (req, res) => {
         const [woRes, assigneesRes, inventoryRes, messagesRes, timelineRes, calendarRes] = await Promise.all([
             pool.query(`SELECT * FROM store_orders WHERE id=$1 AND call_type='work_order'`, [id]),
             pool.query('SELECT * FROM work_order_assignees WHERE work_order_id=$1 ORDER BY assigned_at', [id]),
-            pool.query(`SELECT wi.*, sc.stock_quantity as total_stock, COALESCE(sc.reserved_qty,0) as catalog_reserved
+            pool.query(`SELECT wi.*,
+                        p.quantity as pantry_total, COALESCE(p.reserved_qty,0) as pantry_reserved, p.unit as pantry_unit,
+                        sc.stock_quantity as total_stock, COALESCE(sc.reserved_qty,0) as catalog_reserved
                         FROM work_order_inventory wi
+                        LEFT JOIN pantry p ON wi.pantry_id=p.id
                         LEFT JOIN store_catalog sc ON wi.catalog_id=sc.id
                         WHERE wi.work_order_id=$1 ORDER BY wi.reserved_at`, [id]),
             pool.query('SELECT * FROM work_order_messages WHERE work_order_id=$1 ORDER BY created_at', [id]),
@@ -11590,20 +11606,39 @@ app.get('/api/store/catalog/:itemId/wo-reservations', async (req, res) => {
 
 app.post('/api/work-orders/:id/inventory', async (req, res) => {
     try {
-        const { catalogId, itemName, neededQty, qty, reservedBy, unitPrice } = req.body;
+        const { pantryId, catalogId, itemName, neededQty, qty, reservedBy, unitPrice } = req.body;
         const needed = parseFloat(neededQty || qty || 1);
         let actualReserved = needed;
         let shortage = 0;
 
-        if (catalogId) {
+        if (pantryId) {
+            const pRes = await pool.query(
+                `SELECT p.quantity, COALESCE(p.reserved_qty,0) as reserved_qty,
+                        COALESCE(fg.min_stock_buffer_pct,0) as buffer_pct
+                 FROM pantry p
+                 LEFT JOIN store_orders so ON so.id=$2
+                 LEFT JOIN family_groups fg ON fg.id=so.group_id
+                 WHERE p.id=$1`,
+                [pantryId, req.params.id]
+            );
+            if (!pRes.rows.length) return res.status(404).json({ error: 'פריט לא נמצא במלאי' });
+            const { quantity, reserved_qty, buffer_pct } = pRes.rows[0];
+            const totalStock = parseFloat(quantity || 0);
+            const alreadyReserved = parseFloat(reserved_qty || 0);
+            const bufferQty = totalStock * (parseFloat(buffer_pct || 0) / 100);
+            const available = Math.max(0, totalStock - alreadyReserved - bufferQty);
+            actualReserved = Math.min(needed, available);
+            shortage = parseFloat((needed - actualReserved).toFixed(4));
+            if (actualReserved > 0) {
+                await pool.query('UPDATE pantry SET reserved_qty = COALESCE(reserved_qty,0) + $1 WHERE id=$2', [actualReserved, pantryId]);
+            }
+        } else if (catalogId) {
             const woRes = await pool.query('SELECT group_id FROM store_orders WHERE id=$1', [req.params.id]);
             const groupId = woRes.rows[0]?.group_id;
             const catRes = await pool.query(
                 `SELECT sc.stock_quantity, COALESCE(sc.reserved_qty,0) as reserved_qty,
                         COALESCE(fg.min_stock_buffer_pct,0) as buffer_pct
-                 FROM store_catalog sc
-                 LEFT JOIN family_groups fg ON fg.id=$2
-                 WHERE sc.id=$1`,
+                 FROM store_catalog sc LEFT JOIN family_groups fg ON fg.id=$2 WHERE sc.id=$1`,
                 [catalogId, groupId]
             );
             if (!catRes.rows.length) return res.status(404).json({ error: 'פריט לא נמצא' });
@@ -11620,8 +11655,8 @@ app.post('/api/work-orders/:id/inventory', async (req, res) => {
         }
 
         const r = await pool.query(
-            'INSERT INTO work_order_inventory (work_order_id, catalog_id, item_name, needed_qty, reserved_qty, unit_price, reserved_by) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
-            [req.params.id, catalogId || null, itemName, needed, actualReserved, unitPrice || 0, reservedBy]
+            'INSERT INTO work_order_inventory (work_order_id, pantry_id, catalog_id, item_name, needed_qty, reserved_qty, unit_price, reserved_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id',
+            [req.params.id, pantryId || null, catalogId || null, itemName, needed, actualReserved, unitPrice || 0, reservedBy]
         );
         const timelineMsg = shortage > 0
             ? `שורין ציוד: ${itemName} (${actualReserved}/${needed} יח' — חסר ${shortage})`
@@ -11639,7 +11674,11 @@ app.post('/api/work-orders/:id/inventory/:resId/use', async (req, res) => {
         const item = resRes.rows[0];
         const actualUsed = Math.min(parseFloat(usedQty) || item.reserved_qty, item.reserved_qty);
         await pool.query(`UPDATE work_order_inventory SET status='used', used_qty=$1, used_at=NOW() WHERE id=$2`, [actualUsed, item.id]);
-        await pool.query('UPDATE store_catalog SET stock_quantity = GREATEST(0, COALESCE(stock_quantity,0) - $1), reserved_qty = GREATEST(0, COALESCE(reserved_qty,0) - $2) WHERE id=$3', [actualUsed, item.reserved_qty, item.catalog_id]);
+        if (item.pantry_id) {
+            await pool.query('UPDATE pantry SET quantity = GREATEST(0, COALESCE(quantity,0) - $1), reserved_qty = GREATEST(0, COALESCE(reserved_qty,0) - $2) WHERE id=$3', [actualUsed, item.reserved_qty, item.pantry_id]);
+        } else if (item.catalog_id) {
+            await pool.query('UPDATE store_catalog SET stock_quantity = GREATEST(0, COALESCE(stock_quantity,0) - $1), reserved_qty = GREATEST(0, COALESCE(reserved_qty,0) - $2) WHERE id=$3', [actualUsed, item.reserved_qty, item.catalog_id]);
+        }
         await addWorkOrderTimeline(req.params.id, 'inventory_used', `אושר שימוש בציוד: ${item.item_name} (${actualUsed} יח')`, userName);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -11651,7 +11690,11 @@ app.delete('/api/work-orders/:id/inventory/:resId', async (req, res) => {
         if (!resRes.rows.length) return res.status(404).json({ error: 'שריון לא נמצא או כבר בשימוש' });
         const item = resRes.rows[0];
         await pool.query(`UPDATE work_order_inventory SET status='released' WHERE id=$1`, [item.id]);
-        await pool.query('UPDATE store_catalog SET reserved_qty = GREATEST(0, COALESCE(reserved_qty,0) - $1) WHERE id=$2', [item.reserved_qty, item.catalog_id]);
+        if (item.pantry_id) {
+            await pool.query('UPDATE pantry SET reserved_qty = GREATEST(0, COALESCE(reserved_qty,0) - $1) WHERE id=$2', [item.reserved_qty, item.pantry_id]);
+        } else if (item.catalog_id) {
+            await pool.query('UPDATE store_catalog SET reserved_qty = GREATEST(0, COALESCE(reserved_qty,0) - $1) WHERE id=$2', [item.reserved_qty, item.catalog_id]);
+        }
         await addWorkOrderTimeline(req.params.id, 'inventory_released', `שריון שוחרר: ${item.item_name}`, 'מנהל');
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
