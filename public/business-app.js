@@ -32071,7 +32071,7 @@ window.renderWoInventoryCatalogResults = function() {
     const resultsEl = document.getElementById('wo-inv-cat-results');
     if (!resultsEl || !window.storeCatalogCache) return;
     const search = (document.getElementById('wo-inv-cat-search')?.value || '').toLowerCase();
-    let items = window.storeCatalogCache.filter(p => p.is_available !== false);
+    let items = window.storeCatalogCache.filter(p => p.is_available !== false && p.stock_quantity !== null && p.stock_quantity !== undefined);
     if (search) items = items.filter(p => (p.name||'').toLowerCase().includes(search) || (p.description||'').toLowerCase().includes(search));
     if (!items.length) { resultsEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 col-span-full">לא נמצאו פריטים.</p>'; return; }
     resultsEl.innerHTML = items.map(p => `<button type="button" onclick="document.getElementById('wo-inv-cat-search').value=''; window.renderWoInventoryCatalogResults(); const sel=document.getElementById('wo-inventory-item-select'); sel.value='${p.id}'; document.getElementById('wo-inventory-catalog-picker').remove();" class="text-right text-xs p-3 rounded-lg bg-slate-50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-300 font-medium text-slate-700 transition flex flex-col gap-2">
@@ -32100,10 +32100,10 @@ window.loadInventoryBySupplier = async function() {
         const res = await fetch(`${API}/store/catalog/${currentGroup.id}`);
         const catData = await res.json();
         const allItems = (Array.isArray(catData) ? catData : catData.items || [])
-            .filter(c => c.is_available !== false)
+            .filter(c => c.is_available !== false && c.stock_quantity !== null && c.stock_quantity !== undefined)
             .sort((a, b) => (b.stock_quantity || 0) - (a.stock_quantity || 0));
         if (!allItems.length) {
-            sel.innerHTML = '<option value="">אין מוצרים — הוסף מוצרים לקטלוג תחת "מלאי"</option>';
+            sel.innerHTML = '<option value="">אין פריטי מלאי — הוסף ציוד לקטלוג תחת "מלאי"</option>';
             return;
         }
         sel.innerHTML = '<option value="">— בחר פריט ממלאי —</option>' +
