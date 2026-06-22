@@ -5660,12 +5660,12 @@ app.get('/api/store/lookup-oneflow', async (req, res) => {
     try {
         const { phone, email, groupId } = req.query;
         if (!phone && !email) return res.json({ found: false });
-        let familyGroupId = null, familyName = null, familyType = null, customerName = null, customerPhone = null;
+        let familyGroupId = null, familyName = null, familyType = null, customerName = null, customerPhone = null, customerEmail = null;
         if (phone) {
             const digits = phone.replace(/\D/g, '');
             const alt = digits.startsWith('972') ? '0' + digits.substring(3) : digits.startsWith('0') ? '972' + digits.substring(1) : digits;
             const ur = await pool.query(
-                `SELECT u.group_id, fg.name, fg.type, u.phone as user_phone,
+                `SELECT u.group_id, fg.name, fg.type, u.phone as user_phone, fg.admin_email,
                         COALESCE(NULLIF(TRIM(u.nickname),''), NULLIF(TRIM(u.first_name),''), fg.name) as customer_name
                  FROM users u JOIN family_groups fg ON fg.id=u.group_id
                  WHERE (u.phone=$1 OR u.phone=$2 OR u.phone=$3) AND fg.type IN ('FAMILY','BUSINESS') AND fg.id != $4 LIMIT 1`,
@@ -5676,6 +5676,7 @@ app.get('/api/store/lookup-oneflow', async (req, res) => {
                 familyType = ur.rows[0].type;
                 customerName = ur.rows[0].customer_name;
                 customerPhone = ur.rows[0].user_phone || phone;
+                customerEmail = ur.rows[0].admin_email || null;
             }
         }
         if (!familyGroupId && email) {
@@ -5692,9 +5693,10 @@ app.get('/api/store/lookup-oneflow', async (req, res) => {
                 familyType = er.rows[0].type;
                 customerName = er.rows[0].customer_name;
                 customerPhone = phone || null;
+                customerEmail = er.rows[0].admin_email || null;
             }
         }
-        res.json(familyGroupId ? { found: true, familyGroupId, familyName, familyType, customerName, customerPhone } : { found: false });
+        res.json(familyGroupId ? { found: true, familyGroupId, familyName, familyType, customerName, customerPhone, customerEmail } : { found: false });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -10881,6 +10883,7 @@ app.get('/api/groups/search-all', async (req, res) => {
         const result = await pool.query(
             `SELECT DISTINCT ON (fg.id) fg.id, fg.name, fg.type, fg.business_type,
                     COALESCE(mu.phone, au.phone) as phone,
+                    fg.admin_email,
                     fg.street_address, fg.city, fg.contact_name, fg.family_nickname, fg.last_name as group_last_name,
                     au.nickname as admin_nickname,
                     mu.nickname as matched_user_name,

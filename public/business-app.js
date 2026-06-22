@@ -10170,7 +10170,8 @@ window._cqOflSearch = async function() {
                 const subName = g.admin_nickname ? g.name : '';
                 const safeDisplayName = safeStr(displayName).replace(/'/g,"\\'");
                 const safePhone = safeStr(g.phone||'').replace(/'/g,"\\'");
-                return `<button type="button" onclick="window._cqOflLink(${g.id},'${safeStr(g.name||'').replace(/'/g,"\\'")}','${safeDisplayName}','${safePhone}')" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-100 font-medium text-slate-700 flex items-center gap-2 mb-1"><span>👤</span><div class="flex-1 truncate">${safeStr(displayName)}${subName ? ' · ' + safeStr(subName) : ''}</div></button>`;
+                const safeEmail = safeStr(g.admin_email||'').replace(/'/g,"\\'");
+                return `<button type="button" onclick="window._cqOflLink(${g.id},'${safeStr(g.name||'').replace(/'/g,"\\'")}','${safeDisplayName}','${safePhone}','${safeEmail}')" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-100 font-medium text-slate-700 flex items-center gap-2 mb-1"><span>👤</span><div class="flex-1 truncate">${safeStr(displayName)}${subName ? ' · ' + safeStr(subName) : ''}</div></button>`;
             }).join('');
         } else {
             const name = (document.getElementById('cq-customer-name')?.value || '').trim();
@@ -10185,7 +10186,7 @@ window._cqOflSearch = async function() {
     } catch(e) { resEl.innerHTML = '<p class="text-xs text-red-500 p-1">שגיאת תקשורת</p>'; }
 };
 
-window._cqOflLink = function(familyGroupId, familyName, customerDisplayName, customerPhone) {
+window._cqOflLink = function(familyGroupId, familyName, customerDisplayName, customerPhone, customerEmail) {
     const modal = document.getElementById('cq-modal');
     if (modal) modal.dataset.familyGroupId = familyGroupId;
     // מלא שם לקוח אם השדה ריק
@@ -10197,6 +10198,11 @@ window._cqOflLink = function(familyGroupId, familyName, customerDisplayName, cus
     const phoneEl = document.getElementById('cq-customer-phone');
     if (phoneEl && !(phoneEl.value || '').trim() && customerPhone) {
         phoneEl.value = customerPhone;
+    }
+    // מלא מייל אם השדה ריק
+    const emailEl = document.getElementById('cq-customer-email');
+    if (emailEl && !(emailEl.value || '').trim() && customerEmail) {
+        emailEl.value = customerEmail;
     }
     window.cqUpdateOneflowBtn(true, customerDisplayName || familyName);
     document.getElementById('cq-oneflow-modal')?.remove();
@@ -10258,6 +10264,11 @@ window.cqLookupOneflow = async function() {
             const phoneDigits = phone.replace(/\D/g,'');
             if (nameEl && (!currentName || currentName === phone || currentName === phoneDigits)) {
                 nameEl.value = d.customerName || d.familyName || '';
+            }
+            // מלא מייל אוטומטית אם השדה ריק
+            const emailEl = document.getElementById('cq-customer-email');
+            if (emailEl && !(emailEl.value || '').trim() && d.customerEmail) {
+                emailEl.value = d.customerEmail;
             }
             window.cqUpdateOneflowBtn(true, d.customerName || d.familyName);
         } else {
