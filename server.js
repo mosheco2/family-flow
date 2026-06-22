@@ -14135,7 +14135,7 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
         } else if (bizType === 'maintenance_repair') {
             const scR = await pool.query(`SELECT id, status, issue_description, title, created_at
                             FROM service_calls
-                            WHERE business_group_id=$1 AND (customer_phone=$2 OR customer_group_id=$3)
+                            WHERE business_group_id=$1 AND (customer_phone=$2 OR family_group_id=$3)
                             ORDER BY created_at DESC LIMIT 20`,
                 [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
             result.activity = { serviceCalls: scR.rows };
