@@ -31459,10 +31459,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
       </div>
       <div id="wo-inventory-list" class="space-y-2"></div>
       <div id="wo-add-inventory-panel" class="hidden mt-4 bg-slate-50 rounded-2xl p-4 border border-slate-200">
-        <p class="text-xs font-bold text-slate-600 mb-2">בחר ספק וציוד מהקטלוג:</p>
-        <select id="wo-inv-supplier-filter" class="modern-input w-full py-2 px-3 text-sm mb-2 rounded-xl border border-slate-200 outline-none focus:border-indigo-400 bg-white" onchange="window.loadInventoryBySupplier()">
-          <option value="">— כל הספקים —</option>
-        </select>
+        <p class="text-xs font-bold text-slate-600 mb-2">בחר ציוד ממלאי העסק:</p>
         <select id="wo-inventory-item-select" class="modern-input w-full py-2 px-3 text-sm mb-2 rounded-xl border border-slate-200 outline-none focus:border-indigo-400"></select>
         <div id="wo-inv-unit-info" class="hidden text-[10px] text-indigo-600 bg-indigo-50 rounded-lg px-2 py-1 mb-2"></div>
         <div class="grid grid-cols-2 gap-2 mb-3">
@@ -32070,58 +32067,31 @@ window.openAddInventoryPanel = async function() {
     const panel = document.getElementById('wo-add-inventory-panel');
     if (!panel) return;
     panel.classList.remove('hidden');
-    const supplierFilter = document.getElementById('wo-inv-supplier-filter');
-    if (supplierFilter && currentGroup && supplierFilter.options.length <= 1) {
-        try {
-            const res = await fetch(`${API}/suppliers/${currentGroup.id}`);
-            const data = await res.json();
-            const suppliers = data.suppliers || [];
-            supplierFilter.innerHTML = '<option value="">— כל הספקים —</option>' +
-                suppliers.map(s => `<option value="${s.id}" data-name="${safeStr(s.name)}">${safeStr(s.name)}</option>`).join('');
-        } catch(e) {}
-    }
     await window.loadInventoryBySupplier();
 };
 
 window.loadInventoryBySupplier = async function() {
-    const supplierFilter = document.getElementById('wo-inv-supplier-filter');
     const sel = document.getElementById('wo-inventory-item-select');
     const priceInput = document.getElementById('wo-inventory-unit-price');
     if (!sel || !currentGroup) return;
-    const supplierId = supplierFilter?.value;
     sel.innerHTML = '<option value="">טוען...</option>';
     try {
-        let products = [];
-        if (supplierId) {
-            const res = await fetch(`${API}/suppliers/${supplierId}/products`);
-            const d = await res.json();
-            products = (d.products || []).map(p => ({ ...p, _type: 'supplier' }));
-        } else {
-            const [supRes, catRes] = await Promise.all([
-                fetch(`${API}/suppliers/group/${currentGroup.id}/all-products`),
-                fetch(`${API}/store/catalog/${currentGroup.id}`)
-            ]);
-            const supData = await supRes.json();
-            const catData = await catRes.json();
-            products = [
-                ...(supData.products || []).map(p => ({ ...p, _type: 'supplier' })),
-                ...(Array.isArray(catData) ? catData : catData.items || []).filter(c => c.is_available || c.is_available === undefined).map(c => ({
-                    id: c.id, name: c.name, price: c.price || 0, unit_type: "יח'", units_per_package: 1,
-                    supplier_name: '[ מלאי עסק ]', _type: 'catalog', stock_quantity: c.stock_quantity || 0
-                }))
-            ];
-        }
-        if (!products.length) {
-            sel.innerHTML = '<option value="">אין מוצרים — הגדר ספקים ומוצריהם תחת "ספקים"</option>';
+        const res = await fetch(`${API}/store/catalog/${currentGroup.id}`);
+        const catData = await res.json();
+        const items = (Array.isArray(catData) ? catData : catData.items || [])
+            .filter(c => c.is_available !== false)
+            .sort((a, b) => (b.stock_quantity || 0) - (a.stock_quantity || 0));
+        if (!items.length) {
+            sel.innerHTML = '<option value="">אין מוצרים במלאי — הוסף מוצרים לקטלוג תחת "מלאי"</option>';
             return;
         }
-        sel.innerHTML = '<option value="">— בחר פריט —</option>' +
-            products.map(p => {
-                const upp = parseInt(p.units_per_package) || 1;
-                const unitType = p.unit_type || "יח'";
-                const unitLabel = upp > 1 ? `${unitType} (${upp} יח')` : unitType;
-                const stockLabel = p._type === 'catalog' ? ` [מלאי: ${parseFloat(p.stock_quantity||0).toFixed(0)}]` : '';
-                return `<option value="${p.id}" data-name="${safeStr(p.name)}" data-price="${p.price || 0}" data-units="${upp}" data-unit-type="${safeStr(unitType)}" data-supplier="${safeStr(p.supplier_name || '')}" data-is-catalog="${p._type === 'catalog' ? '1' : ''}">${safeStr(p.name)}${p.supplier_name ? ' · ' + safeStr(p.supplier_name) : ''} — ₪${parseFloat(p.price||0).toFixed(2)}/${unitLabel}${stockLabel}</option>`;
+        sel.innerHTML = '<option value="">— בחר פריט ממלאי —</option>' +
+            items.map(c => {
+                const stock = parseFloat(c.stock_quantity || 0);
+                const reserved = parseFloat(c.reserved_qty || 0);
+                const available = Math.max(0, stock - reserved);
+                const stockLabel = `[מלאי: ${stock.toFixed(0)} • זמין: ${available.toFixed(0)}]`;
+                return `<option value="${c.id}" data-name="${safeStr(c.name)}" data-price="${c.price || 0}" data-units="1" data-unit-type="יח'" data-stock="${stock}" data-available="${available}">${safeStr(c.name)} ${stockLabel}</option>`;
             }).join('');
         sel.onchange = function() {
             const opt = sel.options[sel.selectedIndex];
@@ -32153,16 +32123,21 @@ window.addInventoryReservation = async function() {
     const priceInput = document.getElementById('wo-inventory-unit-price');
     if (!sel || !sel.value) return showToast('error', 'נא לבחור פריט');
     const opt = sel.options[sel.selectedIndex];
-    let itemName = opt?.dataset?.name || opt?.text?.split(' · ')[0] || '';
-    if (!itemName || itemName === 'null') itemName = opt?.text || '';
-    if (itemName.includes('·')) itemName = itemName.split('·')[0].trim();
-    const isCatalogItem = opt?.dataset?.isCatalog === '1';
-    const catalogId = isCatalogItem ? parseInt(sel.value) : null;
+    const itemName = opt?.dataset?.name || '';
+    const catalogId = parseInt(sel.value);
     const qty = parseFloat(qtyInput?.value) || 1;
+    const available = parseFloat(opt?.dataset?.available || 0);
     const unitPrice = parseFloat(priceInput?.value) || 0;
-    const unitType = opt?.dataset?.unitType || "יח'";
-    const unitsPerPackage = parseInt(opt?.dataset?.units) || 1;
-    const displayName = unitsPerPackage > 1 ? `${itemName} (${qty} ${unitType} × ${unitsPerPackage} יח')` : itemName;
+
+    if (qty > available) {
+        const shortage = qty - available;
+        const msg = `רק ${available} יח' זמינות. חסרים ${shortage} יח'. האם לפתוח בקשת רכש?`;
+        if (!confirm(msg)) return;
+        // TODO: open PO request for shortage
+        return showToast('info', 'פיצ\'ר הזמנה אוטומטית קרוב...');
+    }
+
+    const displayName = itemName;
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/inventory`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -32173,7 +32148,7 @@ window.addInventoryReservation = async function() {
         document.getElementById('wo-add-inventory-panel').classList.add('hidden');
         if (qtyInput) qtyInput.value = 1;
         if (priceInput) priceInput.value = 0;
-        showToast('success', 'ציוד שורין בהצלחה');
+        showToast('success', `ציוד שורין בהצלחה (${qty} יח')`);
         const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
         const dData = await dRes.json();
         if (dData.success) { window._currentWoData = dData; window.renderWoInventory(dData.inventory || []); window.renderWoOverview(dData); }
