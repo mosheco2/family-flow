@@ -5710,6 +5710,17 @@ app.post('/api/store/quotes/:id/send-to-oneflow', async (req, res) => {
                 VALUES ($1, 'quote_received', $4, $2, $3, 'quote', NOW())`,
                 [familyGroupId, notifMsg, quoteId, notifTitle]);
         } catch(e) { console.error('notification err:', e.message); }
+        // צור/עדכן בקשת שיוך ממתינה (pending) כדי שהעסק יופיע בפעילויות המשפחה
+        try {
+            await pool.query(
+                `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_by_admin_name, linked_at, is_active, status)
+                 VALUES ($1, $2, (SELECT business_type FROM family_groups WHERE id=$2 LIMIT 1), $3, NOW(), true, 'pending')
+                 ON CONFLICT (member_group_id, business_group_id) DO UPDATE
+                 SET is_active=true, linked_at=NOW(),
+                 status=CASE WHEN member_business_links.status='active' THEN 'active' ELSE 'pending' END`,
+                [familyGroupId, quote.group_id, quote.customer_name || null]
+            );
+        } catch(le) {}
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -10877,13 +10888,52 @@ app.post('/api/service-calls', async (req, res) => {
                     const { business_type, name: bizName } = bizTypeR.rows[0];
                     await pool.query(
                         `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_by_admin_name, linked_at, is_active, status)
-                         VALUES ($1, $2, $3, $4, NOW(), true, 'active')
-                         ON CONFLICT (member_group_id, business_group_id) DO UPDATE SET is_active=true, status='active'`,
+                         VALUES ($1, $2, $3, $4, NOW(), true, 'pending')
+                         ON CONFLICT (member_group_id, business_group_id) DO UPDATE
+                         SET is_active=true, linked_at=NOW(),
+                         status=CASE WHEN member_business_links.status='active' THEN 'active' ELSE 'pending' END`,
                         [resolvedFamilyGroupId, resolvedBusinessGroupId, business_type || 'maintenance_repair', bizName || 'עסק']
                     );
                 }
             } catch(linkErr) { /* non-blocking */ }
         }
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- קישור קריאת שירות קיימת ללקוח ONEFLOW ---
+app.patch('/api/service-calls/:id/link-oneflow', async (req, res) => {
+    try {
+        const { familyGroupId } = req.body;
+        const callId = parseInt(req.params.id);
+        if (!familyGroupId || !callId) return res.status(400).json({ error: 'חסרים שדות' });
+        const callR = await pool.query('SELECT * FROM service_calls WHERE id=$1', [callId]);
+        if (!callR.rows.length) return res.status(404).json({ error: 'קריאה לא נמצאה' });
+        const call = callR.rows[0];
+        // עדכן family_group_id בקריאה
+        await pool.query('UPDATE service_calls SET family_group_id=$1 WHERE id=$2', [familyGroupId, callId]);
+        // צור/עדכן בקשת שיוך ממתינה
+        const bizTypeR = await pool.query('SELECT business_type, name FROM family_groups WHERE id=$1', [call.business_group_id]);
+        if (bizTypeR.rows.length) {
+            const { business_type, name: bizName } = bizTypeR.rows[0];
+            await pool.query(
+                `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_by_admin_name, linked_at, is_active, status)
+                 VALUES ($1, $2, $3, $4, NOW(), true, 'pending')
+                 ON CONFLICT (member_group_id, business_group_id) DO UPDATE
+                 SET is_active=true, linked_at=NOW(),
+                 status=CASE WHEN member_business_links.status='active' THEN 'active' ELSE 'pending' END`,
+                [familyGroupId, call.business_group_id, business_type || 'maintenance_repair', bizName || 'עסק']
+            );
+            // שלח התראה ללקוח
+            try {
+                await pool.query(
+                    `INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
+                     VALUES ($1, 'sc_received', 'קריאת שירות חדשה', $2, $3, 'service_call', NOW())
+                     ON CONFLICT DO NOTHING`,
+                    [familyGroupId, `${bizName} פתח עבורך קריאת שירות — ממתין לאישורך`, callId]
+                );
+            } catch(ne) {}
+        }
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

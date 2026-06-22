@@ -28323,7 +28323,7 @@ window.showServiceCallModal = async function(callId) {
                     <a href="tel:${safeStr(phone)}" class="text-[10px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg border border-emerald-200" style="touch-action:manipulation;"><i class="fa-solid fa-phone"></i> התקשר</a>
                     <a href="https://wa.me/${phone.replace(/\D/g,'')}" target="_blank" class="text-[10px] font-black bg-green-100 text-green-700 px-2 py-1 rounded-lg border border-green-200" style="touch-action:manipulation;"><i class="fa-brands fa-whatsapp"></i> וואצאפ</a>
                 </div>
-                ${!call.family_group_id ? `<button onclick="scInviteToOneflow('${phone}','${safeStr(contactName||familyLabel||'')}')" class="w-full mt-1 text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-1.5 rounded-lg border border-indigo-200 flex items-center justify-center gap-1.5 active:scale-95 transition" style="touch-action:manipulation;"><i class="fa-brands fa-whatsapp text-[#25D366]"></i> 📲 הזמן ל-ONEFLOW LIFE</button>` : ''}` : ''}
+                ${!call.family_group_id ? `<button onclick="scInviteToOneflow(${call.id},'${phone}','${safeStr(contactName||familyLabel||'')}')" class="w-full mt-1 text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-1.5 rounded-lg border border-indigo-200 flex items-center justify-center gap-1.5 active:scale-95 transition" style="touch-action:manipulation;"><i class="fa-solid fa-link"></i> 🔗 קשר ל-ONEFLOW LIFE</button>` : ''}` : ''}
                 <div class="flex gap-2 flex-wrap">
                     <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${SC_PRIORITY_COLORS[call.priority]||''}">${SC_PRIORITY_LABELS[call.priority]||''}</span>
                     <span class="text-[10px] text-slate-400">${new Date(call.created_at).toLocaleDateString('he-IL')}</span>
@@ -28571,13 +28571,99 @@ window.showNewServiceCallModal = function() {
     }
 };
 
-window.scInviteToOneflow = function(phone, customerName) {
-    const origin = window.location.origin;
-    const bizName = currentGroup?.name || 'העסק שלנו';
-    const text = `שלום${customerName ? ' ' + customerName : ''}! 👋\n\n${bizName} מזמין אותך להצטרף ל-ONEFLOW LIFE 🏠\n\nבאפליקציה תוכל/י:\n✅ לעקוב אחר קריאות השירות שלך\n✅ לאשר הצעות מחיר\n✅ לתקשר עם הצוות שלנו\n\n📲 להצטרפות חינמית:\n${origin}/\n\nבלחיצה על "משפחה חדשה" צור/י חשבון ותעבור/י לחיבור עם העסק שלנו.`;
-    const waPhone = (phone || '').replace(/\D/g, '');
-    const url = waPhone ? `https://wa.me/972${waPhone.replace(/^0/, '')}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
+window.scInviteToOneflow = function(callId, phone, customerName) {
+    document.getElementById('sc-ofl-modal')?.remove();
+    const html = `<div id="sc-ofl-modal" class="fixed inset-0 bg-slate-900/60 z-[99999] flex items-center justify-center p-4" style="direction:rtl;">
+        <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-5">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-black text-slate-800 text-sm">🔗 קשר ל-OneFlow Life</h3>
+                <button onclick="document.getElementById('sc-ofl-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark text-slate-500 text-xs"></i></button>
+            </div>
+            <p class="text-[11px] text-slate-500 bg-blue-50 rounded-xl px-3 py-2 mb-3 leading-snug">חפש לקוח קיים ב-OneFlow Life, או צור עבורו חשבון חדש. קריאת השירות תשויך אליו ותופיע בפעילויות שלו לאחר אישורו.</p>
+            <div class="space-y-2 mb-2">
+                <input id="sc-ofl-name" type="text" value="${safeStr(customerName)}" placeholder="שם לקוח..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none">
+                <input id="sc-ofl-phone" type="text" value="${safeStr(phone)}" placeholder="חיפוש לפי טלפון, שם או מייל..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none dir-ltr text-left">
+            </div>
+            <button onclick="window._scOflSearch(${callId})" class="w-full mb-2 bg-slate-800 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2"><i class="fa-solid fa-magnifying-glass"></i> חפש ב-OneFlow Life</button>
+            <div id="sc-ofl-results"></div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    document.getElementById('sc-ofl-modal')?.addEventListener('click', e => { if (e.target.id === 'sc-ofl-modal') e.target.remove(); });
+};
+
+window._scOflSearch = async function(callId) {
+    const q = document.getElementById('sc-ofl-phone')?.value?.trim();
+    const name = document.getElementById('sc-ofl-name')?.value?.trim();
+    const resEl = document.getElementById('sc-ofl-results');
+    if (!resEl) return;
+    if (!q) { resEl.innerHTML = '<p class="text-xs text-slate-400 p-2">הכנס טלפון או שם לחיפוש</p>'; return; }
+    resEl.innerHTML = '<p class="text-xs text-slate-400 p-2 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> מחפש...</p>';
+    try {
+        const d = await fetch(`/api/groups/search-all?q=${encodeURIComponent(q)}&exclude=${currentGroup?.id || ''}`).then(r => r.json());
+        const results = d.results || [];
+        const createBtn = `<button onclick="window._scCreateMemberForCall(${callId})" class="w-full mt-2 bg-violet-50 text-violet-700 border border-violet-200 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-violet-100 transition"><i class="fa-solid fa-user-plus"></i> צור חשבון OneFlow חדש ל-${safeStr(name||q)}</button>`;
+        if (!results.length) {
+            resEl.innerHTML = `<p class="text-xs text-slate-400 mb-2 text-center">לא נמצא ב-OneFlow Life</p>${createBtn}`;
+            return;
+        }
+        resEl.innerHTML = `<div class="space-y-1.5 max-h-48 overflow-y-auto">
+            ${results.map(r => `<button onclick="window._scOflLink(${callId},${r.id},'${safeStr(r.name)}')" class="w-full text-right flex items-center gap-2.5 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-xl px-3 py-2.5 transition">
+                <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-sm shrink-0">👤</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-800 truncate">${safeStr(r.name)}</p>
+                    <p class="text-[10px] text-slate-400">${r.phone||r.email||''}</p>
+                </div>
+                <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">קשר</span>
+            </button>`).join('')}
+        </div>${createBtn}`;
+    } catch(e) { resEl.innerHTML = '<p class="text-xs text-red-400 p-2">שגיאה בחיפוש</p>'; }
+};
+
+window._scOflLink = async function(callId, familyGroupId, familyName) {
+    const resEl = document.getElementById('sc-ofl-results');
+    if (resEl) resEl.innerHTML = '<p class="text-xs text-slate-400 p-2 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> מקשר...</p>';
+    try {
+        const r = await fetch(`/api/service-calls/${callId}/link-oneflow`, {
+            method: 'PATCH', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ familyGroupId })
+        }).then(res => res.json());
+        if (r.success) {
+            document.getElementById('sc-ofl-modal')?.remove();
+            showToast('success', `קריאה קושרה ל-${familyName} ✅ — בקשת שיוך נשלחה`);
+            showServiceCallModal(callId);
+        } else {
+            if (resEl) resEl.innerHTML = `<p class="text-xs text-red-500 p-2">${r.error||'שגיאה'}</p>`;
+        }
+    } catch(e) { if (resEl) resEl.innerHTML = '<p class="text-xs text-red-400 p-2">שגיאת תקשורת</p>'; }
+};
+
+window._scCreateMemberForCall = async function(callId) {
+    const phone = document.getElementById('sc-ofl-phone')?.value?.trim();
+    const name = document.getElementById('sc-ofl-name')?.value?.trim();
+    const resEl = document.getElementById('sc-ofl-results');
+    if (!phone || !name) { if (resEl) resEl.innerHTML = '<p class="text-xs text-red-500 p-2">נא להזין שם וטלפון</p>'; return; }
+    if (resEl) resEl.innerHTML = '<p class="text-xs text-slate-400 p-2 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> יוצר חשבון...</p>';
+    try {
+        const r = await fetch('/api/member/create-for-business', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ business_group_id: currentGroup?.id, name, phone, admin_name: currentGroup?.name || '' })
+        }).then(res => res.json());
+        if (!r.success) { if(resEl) resEl.innerHTML = `<p class="text-xs text-red-500 p-2">${r.error||'שגיאה ביצירת החשבון'}</p>`; return; }
+        await fetch(`/api/service-calls/${callId}/link-oneflow`, {
+            method: 'PATCH', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ familyGroupId: r.member_group_id })
+        });
+        const waPhone = phone.replace(/^0/, '972').replace(/\D/g, '');
+        const bizName = currentGroup?.name || 'העסק שלנו';
+        const waText = encodeURIComponent(`שלום ${name} 👋\n\n${bizName} פתחו עבורך קריאת שירות.\n\nלמעקב ואישור כניסה ל-ONEFLOW LIFE:\n🔑 קוד: ${r.group_code}\n👤 שם: ${name}\n🔒 סיסמה: ${r.password}\n\n👉 כניסה: ${window.location.origin}\n\nלאחר הכניסה תראה/י את בקשת השיוך מ${bizName} ואת קריאת השירות 🔧`);
+        if (resEl) resEl.innerHTML = `<div class="bg-violet-50 border border-violet-200 rounded-xl p-3 space-y-2">
+            <div class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-violet-600"></i><p class="text-xs font-black text-violet-800">חשבון OneFlow נוצר וקריאה קושרה ✅</p></div>
+            <div class="bg-white rounded-lg px-2 py-1.5 border border-violet-100 font-mono text-xs space-y-0.5"><div>קוד: <b>${r.group_code}</b></div><div>שם: <b>${safeStr(name)}</b></div><div>סיסמה: <b>${r.password}</b></div></div>
+            <a href="https://wa.me/${waPhone}?text=${waText}" target="_blank" rel="noopener" class="flex items-center gap-2 w-full bg-[#25D366] text-white rounded-xl px-3 py-2 text-xs font-bold"><i class="fa-brands fa-whatsapp"></i> שלח פרטי כניסה ב-WhatsApp</a>
+            <button onclick="document.getElementById('sc-ofl-modal').remove();showServiceCallModal(${callId})" class="w-full bg-slate-100 text-slate-700 py-2 rounded-xl text-xs font-bold">סגור</button>
+        </div>`;
+    } catch(e) { if(resEl) resEl.innerHTML = '<p class="text-xs text-red-500 p-2">שגיאת תקשורת</p>'; }
 };
 
 window.scSearchCustomerInOneFlow = async function() {
