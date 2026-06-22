@@ -7722,7 +7722,7 @@ window.generateQuoteAI = async function(type, btnElement) {
 };
 
 window.cqGenerateIntroAI = async function() {
-    const custName = val('cq-customer-name') || 'לקוח יקר';
+    const custName = val('cq-recipient-name') || val('cq-customer-name') || 'לקוח יקר';
     const bizType = BUSINESS_TYPES.find(b => b.id === (currentGroup?.business_type || 'other'));
     const bizTypeName = bizType?.name || 'עסק';
     const bizCfg = BUSINESS_CONFIG[currentGroup?.business_type] || BUSINESS_CONFIG.other;
@@ -10270,12 +10270,12 @@ window.renderCqCatalogGrid = function() {
     grid.innerHTML = items.map(p => {
         const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-full h-20 object-cover rounded-t-xl">` : `<div class="w-full h-20 bg-slate-100 flex items-center justify-center rounded-t-xl"><i class="fa-solid fa-image text-2xl text-slate-300"></i></div>`;
         const catBadge = showCatBadge ? `<span class="block text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-full mb-1 truncate">${safeStr(p.category||'כללי')}</span>` : '';
-        return `<div onclick="window.cqAddCatalogLine('${p.id}')" class="bg-white rounded-xl border border-slate-200 shadow-sm hover:border-amber-400 hover:shadow-md transition cursor-pointer overflow-hidden group">
+        return `<div onclick="window.cqAddCatalogLine('${p.id}')" class="bg-white rounded-xl border border-slate-200 shadow-sm hover:border-amber-400 hover:shadow-md transition cursor-pointer overflow-hidden group flex flex-col">
             ${imgHtml}
-            <div class="p-2 border-t border-slate-100">
+            <div class="p-3 border-t border-slate-100 flex-1 flex flex-col justify-between">
                 ${catBadge}
-                <div class="font-bold text-slate-700 text-xs leading-tight mb-1 line-clamp-2">${safeStr(p.name)}</div>
-                <div class="flex justify-between items-center mt-1">
+                <div class="font-bold text-slate-700 text-xs leading-tight mb-2 line-clamp-2">${safeStr(p.name)}</div>
+                <div class="flex justify-between items-center mt-auto">
                     <span class="text-amber-600 font-black text-sm dir-ltr">&#8362;${parseFloat(p.price||0).toFixed(2)}</span>
                     <span class="bg-amber-50 group-hover:bg-amber-500 group-hover:text-white text-amber-600 w-5 h-5 rounded flex items-center justify-center transition"><i class="fa-solid fa-plus text-[10px]"></i></span>
                 </div>
@@ -31732,12 +31732,16 @@ window.removeWoAssignee = async function(userId) {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
-window.openWoInventoryCatalog = function() {
+window.openWoInventoryCatalog = async function() {
     document.getElementById('wo-inventory-catalog-picker')?.remove();
+    // טען קטלוג אם חסר
+    if (!window.storeCatalogCache || !window.storeCatalogCache.length) {
+        try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); window.storeCatalogCache = await res.json(); } catch(e) {}
+    }
     const html = `<div id="wo-inventory-catalog-picker" class="fixed inset-0 bg-slate-900/60 z-[9998] flex items-center justify-center p-4" style="direction:rtl;">
         <div class="bg-white w-full max-w-3xl rounded-3xl shadow-2xl p-5 flex flex-col max-h-[90vh] overflow-hidden">
             <div class="flex items-center justify-between mb-3">
-                <h3 class="font-black text-slate-800">📦 בחר פריט מהקטלוג</h3>
+                <h3 class="font-black text-slate-800">📦 בחר פריט מהקטלוג (במלאי בלבד)</h3>
                 <button onclick="document.getElementById('wo-inventory-catalog-picker').remove()" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark text-slate-500"></i></button>
             </div>
             <input type="text" id="wo-inv-cat-search" placeholder="חפש פריט..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-3 outline-none focus:border-indigo-400" oninput="window.renderWoInventoryCatalogResults()">
@@ -31747,7 +31751,7 @@ window.openWoInventoryCatalog = function() {
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
-    setTimeout(() => window.renderWoInventoryCatalogResults(), 100);
+    setTimeout(() => window.renderWoInventoryCatalogResults(), 50);
 };
 window.renderWoInventoryCatalogResults = function() {
     const resultsEl = document.getElementById('wo-inv-cat-results');
@@ -31982,13 +31986,17 @@ window.renderWoPoCatalogResults = function() {
     let filtered = items;
     if (search) filtered = items.filter(p => (p.name||'').toLowerCase().includes(search) || (p.description||'').toLowerCase().includes(search));
     if (!filtered.length) { resultsEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">לא נמצאו מוצרים בקטלוג הספק.</p>'; return; }
-    resultsEl.innerHTML = filtered.map(p => `<button type="button" onclick="window.addPurchaseItemRow(null, ${JSON.stringify({name: p.name, price: p.price, unit: p.unit})}); document.getElementById('wo-po-catalog-picker').remove();" class="w-full text-right text-xs p-2.5 rounded-lg bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-300 font-medium text-slate-700 transition flex items-center gap-2">
+    resultsEl.innerHTML = filtered.map((p, idx) => {
+        window._woPoCatalogItems = window._woPoCatalogItems || {};
+        window._woPoCatalogItems[idx] = p;
+        return `<button type="button" onclick="window.addPurchaseItemRow(null, window._woPoCatalogItems[${idx}]); document.getElementById('wo-po-catalog-picker').remove();" class="w-full text-right text-xs p-2.5 rounded-lg bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-300 font-medium text-slate-700 transition flex items-center gap-2">
         ${p.image_url ? `<img src="${p.image_url}" class="w-8 h-8 object-cover rounded">` : '<div class="w-8 h-8 bg-slate-200 flex items-center justify-center rounded"><i class="fa-solid fa-image text-xs text-slate-400"></i></div>'}
         <div class="flex-1 text-right">
             <div class="font-bold">${safeStr(p.name)}</div>
-            <div class="text-[10px] text-slate-500">₪${parseFloat(p.price||0).toFixed(2)}${p.unit ? ' / ' + safeStr(p.unit) : ''}</div>
+            <div class="text-[10px] text-slate-500">₪${parseFloat(p.price||0).toFixed(2)}${p.unit_type ? ' / ' + safeStr(p.unit_type) : ''}</div>
         </div>
-    </button>`).join('');
+    </button>`;
+    }).join('');
 };
 
 window.openAddPurchasePanel = async function() {
