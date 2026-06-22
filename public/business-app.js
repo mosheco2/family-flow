@@ -28510,7 +28510,7 @@ window.scSelectCustomer = function(groupId, name, address, phone, contactName, a
     const phoneInput = document.getElementById('scn-phone');
     if (phoneInput && phone && !phoneInput.value) phoneInput.value = phone;
     const hiddenId = document.getElementById('scn-family-group-id');
-    if (hiddenId) hiddenId.value = groupId;
+    if (hiddenId) hiddenId.value = groupId || '';
     const resultsEl = document.getElementById('scn-customer-results');
     if (resultsEl) resultsEl.innerHTML = `<p class="text-xs text-green-600 font-bold py-1">✅ ${safeStr(customerLabel)} נבחר${phone ? ' · ' + safeStr(phone) : ''}${address ? ' · ' + safeStr(address) : ''}</p>`;
 };

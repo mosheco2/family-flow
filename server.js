@@ -10830,16 +10830,20 @@ app.get('/api/groups/search-all', async (req, res) => {
 app.post('/api/service-calls', async (req, res) => {
     try {
         const { familyGroupId, businessGroupId, technicianContactId, title, description, address, customerPhone, customerName, priority, createdByUserId, assignedMemberId, needsTriage, familyName, scheduledAt, requestedDate } = req.body;
-        if (!familyGroupId || !title) return res.status(400).json({ error: 'שדות חסרים' });
+        if (!title) return res.status(400).json({ error: 'שדות חסרים' });
 
         // Validate businessGroupId exists if provided
         let resolvedBusinessGroupId = businessGroupId || null;
         if (resolvedBusinessGroupId) {
             const bgCheck = await pool.query('SELECT id FROM family_groups WHERE id=$1', [resolvedBusinessGroupId]);
-            if (!bgCheck.rows.length) {
-                // If business_group_id doesn't exist, set to NULL (will use familyGroupId as business context)
-                resolvedBusinessGroupId = null;
-            }
+            if (!bgCheck.rows.length) resolvedBusinessGroupId = null;
+        }
+
+        // Validate familyGroupId exists if provided (external customers have null)
+        let resolvedFamilyGroupId = familyGroupId || null;
+        if (resolvedFamilyGroupId) {
+            const fgCheck = await pool.query('SELECT id FROM family_groups WHERE id=$1', [resolvedFamilyGroupId]);
+            if (!fgCheck.rows.length) resolvedFamilyGroupId = null;
         }
 
         const fullDesc = description || null;
@@ -10849,13 +10853,13 @@ app.post('/api/service-calls', async (req, res) => {
             result = await pool.query(
                 `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, customer_phone, customer_name, priority, created_by_user_id, assigned_member_id, scheduled_at, requested_date, needs_triage)
                  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
-                [familyGroupId, resolvedBusinessGroupId, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, customerName||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null, requestedDate||null, needsTriage ? true : false]);
+                [resolvedFamilyGroupId, resolvedBusinessGroupId, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, customerName||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null, requestedDate||null, needsTriage ? true : false]);
         } catch(colErr) {
             // Fallback: insert without needs_triage if column doesn't exist yet
             result = await pool.query(
                 `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, customer_phone, customer_name, priority, created_by_user_id, assigned_member_id, scheduled_at, requested_date)
                  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-                [familyGroupId, resolvedBusinessGroupId, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, customerName||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null, requestedDate||null]);
+                [resolvedFamilyGroupId, resolvedBusinessGroupId, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, customerName||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null, requestedDate||null]);
         }
         res.json({ success: true, call: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
