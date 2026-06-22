@@ -31540,6 +31540,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
           <button onclick="document.getElementById('wo-add-purchase-panel').classList.add('hidden')" class="flex-1 bg-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-300 transition">ביטול</button>
         </div>
       </div>
+    </div>
     <div id="wo-view-costs" class="hidden">
       <h4 class="font-bold text-slate-700 text-sm mb-4">סיכום עלויות</h4>
       <div id="wo-costs-summary" class="space-y-3"></div>
