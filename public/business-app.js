@@ -10165,7 +10165,13 @@ window._cqOflSearch = async function() {
         const d = await r.json();
         const groups = (d.groups || []).slice(0, 6);
         if (groups.length) {
-            resEl.innerHTML = groups.map(g => `<button type="button" onclick="window._cqOflLink(${g.id},'${safeStr(g.name||'').replace(/'/g,"\\'")}',this)" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-100 font-medium text-slate-700 flex items-center gap-2 mb-1"><span>👤</span><div class="flex-1 truncate">${safeStr(g.name||'')}${g.admin_nickname?' · '+safeStr(g.admin_nickname):''}</div></button>`).join('');
+            resEl.innerHTML = groups.map(g => {
+                const displayName = g.admin_nickname || g.name || '';
+                const subName = g.admin_nickname ? g.name : '';
+                const safeDisplayName = safeStr(displayName).replace(/'/g,"\\'");
+                const safePhone = safeStr(g.phone||'').replace(/'/g,"\\'");
+                return `<button type="button" onclick="window._cqOflLink(${g.id},'${safeStr(g.name||'').replace(/'/g,"\\'")}','${safeDisplayName}','${safePhone}')" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-100 font-medium text-slate-700 flex items-center gap-2 mb-1"><span>👤</span><div class="flex-1 truncate">${safeStr(displayName)}${subName ? ' · ' + safeStr(subName) : ''}</div></button>`;
+            }).join('');
         } else {
             const name = (document.getElementById('cq-customer-name')?.value || '').trim();
             resEl.innerHTML = `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
@@ -10179,12 +10185,22 @@ window._cqOflSearch = async function() {
     } catch(e) { resEl.innerHTML = '<p class="text-xs text-red-500 p-1">שגיאת תקשורת</p>'; }
 };
 
-window._cqOflLink = function(familyGroupId, familyName) {
+window._cqOflLink = function(familyGroupId, familyName, customerDisplayName, customerPhone) {
     const modal = document.getElementById('cq-modal');
     if (modal) modal.dataset.familyGroupId = familyGroupId;
-    window.cqUpdateOneflowBtn(true, familyName);
+    // מלא שם לקוח אם השדה ריק
+    const nameEl = document.getElementById('cq-customer-name');
+    if (nameEl && !(nameEl.value || '').trim()) {
+        nameEl.value = customerDisplayName || familyName || '';
+    }
+    // מלא טלפון אם השדה ריק
+    const phoneEl = document.getElementById('cq-customer-phone');
+    if (phoneEl && !(phoneEl.value || '').trim() && customerPhone) {
+        phoneEl.value = customerPhone;
+    }
+    window.cqUpdateOneflowBtn(true, customerDisplayName || familyName);
     document.getElementById('cq-oneflow-modal')?.remove();
-    showToast('success', `קושר ל-${familyName} ✅`);
+    showToast('success', `קושר ל-${customerDisplayName || familyName} ✅`);
 };
 
 window._cqCreateMemberAccount = async function() {
@@ -10236,7 +10252,14 @@ window.cqLookupOneflow = async function() {
         const d = await r.json();
         if (d.found) {
             modal.dataset.familyGroupId = d.familyGroupId;
-            window.cqUpdateOneflowBtn(true, d.familyName);
+            // מלא שם לקוח אוטומטית אם השדה ריק או מכיל רק את הטלפון
+            const nameEl = document.getElementById('cq-customer-name');
+            const currentName = (nameEl?.value || '').trim();
+            const phoneDigits = phone.replace(/\D/g,'');
+            if (nameEl && (!currentName || currentName === phone || currentName === phoneDigits)) {
+                nameEl.value = d.customerName || d.familyName || '';
+            }
+            window.cqUpdateOneflowBtn(true, d.customerName || d.familyName);
         } else {
             modal.dataset.familyGroupId = '';
             window.cqUpdateOneflowBtn(false);

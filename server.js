@@ -5660,31 +5660,41 @@ app.get('/api/store/lookup-oneflow', async (req, res) => {
     try {
         const { phone, email, groupId } = req.query;
         if (!phone && !email) return res.json({ found: false });
-        let familyGroupId = null, familyName = null, familyType = null;
+        let familyGroupId = null, familyName = null, familyType = null, customerName = null, customerPhone = null;
         if (phone) {
             const digits = phone.replace(/\D/g, '');
             const alt = digits.startsWith('972') ? '0' + digits.substring(3) : digits.startsWith('0') ? '972' + digits.substring(1) : digits;
             const ur = await pool.query(
-                `SELECT u.group_id, fg.name, fg.type FROM users u JOIN family_groups fg ON fg.id=u.group_id
+                `SELECT u.group_id, fg.name, fg.type, u.phone as user_phone,
+                        COALESCE(NULLIF(TRIM(u.nickname),''), NULLIF(TRIM(u.first_name),''), fg.name) as customer_name
+                 FROM users u JOIN family_groups fg ON fg.id=u.group_id
                  WHERE (u.phone=$1 OR u.phone=$2 OR u.phone=$3) AND fg.type IN ('FAMILY','BUSINESS') AND fg.id != $4 LIMIT 1`,
                 [digits, alt, phone, groupId || 0]);
             if (ur.rows.length) {
                 familyGroupId = ur.rows[0].group_id;
                 familyName = ur.rows[0].name;
                 familyType = ur.rows[0].type;
+                customerName = ur.rows[0].customer_name;
+                customerPhone = ur.rows[0].user_phone || phone;
             }
         }
         if (!familyGroupId && email) {
             const er = await pool.query(
-                `SELECT id, name, type FROM family_groups WHERE LOWER(admin_email)=LOWER($1) AND type IN ('FAMILY','BUSINESS') AND id != $2 LIMIT 1`,
+                `SELECT fg.id, fg.name, fg.type, fg.admin_email,
+                        COALESCE(NULLIF(TRIM(u.nickname),''), NULLIF(TRIM(u.first_name),''), fg.name) as customer_name
+                 FROM family_groups fg
+                 LEFT JOIN users u ON u.group_id=fg.id AND u.role='ADMIN'
+                 WHERE LOWER(fg.admin_email)=LOWER($1) AND fg.type IN ('FAMILY','BUSINESS') AND fg.id != $2 LIMIT 1`,
                 [email, groupId || 0]);
             if (er.rows.length) {
                 familyGroupId = er.rows[0].id;
                 familyName = er.rows[0].name;
                 familyType = er.rows[0].type;
+                customerName = er.rows[0].customer_name;
+                customerPhone = phone || null;
             }
         }
-        res.json(familyGroupId ? { found: true, familyGroupId, familyName, familyType } : { found: false });
+        res.json(familyGroupId ? { found: true, familyGroupId, familyName, familyType, customerName, customerPhone } : { found: false });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
