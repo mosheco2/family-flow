@@ -32094,11 +32094,21 @@ window.loadInventoryBySupplier = async function() {
         if (supplierId) {
             const res = await fetch(`${API}/suppliers/${supplierId}/products`);
             const d = await res.json();
-            products = d.products || [];
+            products = (d.products || []).map(p => ({ ...p, _type: 'supplier' }));
         } else {
-            const res = await fetch(`${API}/suppliers/group/${currentGroup.id}/all-products`);
-            const d = await res.json();
-            products = d.products || [];
+            const [supRes, catRes] = await Promise.all([
+                fetch(`${API}/suppliers/group/${currentGroup.id}/all-products`),
+                fetch(`${API}/store/catalog/${currentGroup.id}`)
+            ]);
+            const supData = await supRes.json();
+            const catData = await catRes.json();
+            products = [
+                ...(supData.products || []).map(p => ({ ...p, _type: 'supplier' })),
+                ...(Array.isArray(catData) ? catData : catData.items || []).filter(c => c.is_available || c.is_available === undefined).map(c => ({
+                    id: c.id, name: c.name, price: c.price || 0, unit_type: "יח'", units_per_package: 1,
+                    supplier_name: '[ מלאי עסק ]', _type: 'catalog', stock_quantity: c.stock_quantity || 0
+                }))
+            ];
         }
         if (!products.length) {
             sel.innerHTML = '<option value="">אין מוצרים — הגדר ספקים ומוצריהם תחת "ספקים"</option>';
@@ -32109,7 +32119,8 @@ window.loadInventoryBySupplier = async function() {
                 const upp = parseInt(p.units_per_package) || 1;
                 const unitType = p.unit_type || "יח'";
                 const unitLabel = upp > 1 ? `${unitType} (${upp} יח')` : unitType;
-                return `<option value="${p.id}" data-name="${safeStr(p.name)}" data-price="${p.price || 0}" data-units="${upp}" data-unit-type="${safeStr(unitType)}" data-supplier="${safeStr(p.supplier_name || '')}">${safeStr(p.name)}${p.supplier_name ? ' · ' + safeStr(p.supplier_name) : ''} — ₪${parseFloat(p.price||0).toFixed(2)}/${unitLabel}</option>`;
+                const stockLabel = p._type === 'catalog' ? ` [מלאי: ${parseFloat(p.stock_quantity||0).toFixed(0)}]` : '';
+                return `<option value="${p.id}" data-name="${safeStr(p.name)}" data-price="${p.price || 0}" data-units="${upp}" data-unit-type="${safeStr(unitType)}" data-supplier="${safeStr(p.supplier_name || '')}" data-is-catalog="${p._type === 'catalog' ? '1' : ''}">${safeStr(p.name)}${p.supplier_name ? ' · ' + safeStr(p.supplier_name) : ''} — ₪${parseFloat(p.price||0).toFixed(2)}/${unitLabel}${stockLabel}</option>`;
             }).join('');
         sel.onchange = function() {
             const opt = sel.options[sel.selectedIndex];
@@ -32141,8 +32152,11 @@ window.addInventoryReservation = async function() {
     const priceInput = document.getElementById('wo-inventory-unit-price');
     if (!sel || !sel.value) return showToast('error', 'נא לבחור פריט');
     const opt = sel.options[sel.selectedIndex];
-    const itemName = opt?.dataset?.name || opt?.text?.split(' · ')[0] || '';
-    const catalogId = parseInt(sel.value);
+    let itemName = opt?.dataset?.name || opt?.text?.split(' · ')[0] || '';
+    if (!itemName || itemName === 'null') itemName = opt?.text || '';
+    if (itemName.includes('·')) itemName = itemName.split('·')[0].trim();
+    const isCatalogItem = opt?.dataset?.isCatalog === '1';
+    const catalogId = isCatalogItem ? parseInt(sel.value) : null;
     const qty = parseFloat(qtyInput?.value) || 1;
     const unitPrice = parseFloat(priceInput?.value) || 0;
     const unitType = opt?.dataset?.unitType || "יח'";
