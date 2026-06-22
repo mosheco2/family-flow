@@ -32095,10 +32095,15 @@ window.openAddInventoryPanel = async function() {
 window.loadInventoryBySupplier = async function() {
     const sel = document.getElementById('wo-inventory-item-select');
     const priceInput = document.getElementById('wo-inventory-unit-price');
-    if (!sel || !currentGroup) return;
+    if (!sel) return;
+    const groupId = window._currentWoData?.workOrder?.group_id || currentGroup?.id;
+    if (!groupId) {
+        sel.innerHTML = '<option value="">שגיאה: לא ניתן לטעון מלאי</option>';
+        return;
+    }
     sel.innerHTML = '<option value="">טוען...</option>';
     try {
-        const res = await fetch(`${API}/pantry/${currentGroup.id}`);
+        const res = await fetch(`${API}/pantry/${groupId}`);
         const catData = await res.json();
         const allItems = (catData.items || [])
             .sort((a, b) => (b.quantity || 0) - (a.quantity || 0));
