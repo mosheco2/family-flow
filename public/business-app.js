@@ -6626,17 +6626,45 @@ function download360PDF() {
 // === פונקציות ניהול יחידות למזווה ===
 // פונקציות המזווה הותאמו לתמוך בשברים ויחידות בודדות
 
+window.savePantryBuffer = async function() {
+    const pct = parseFloat(document.getElementById('pantry-buffer-input')?.value || 0);
+    if (pct < 0 || pct > 100) return showToast('error', 'יש להזין ערך בין 0 ל-100');
+    try {
+        const res = await fetch(`${API}/groups/${currentGroup.id}/inventory-settings`, {
+            method: 'PUT', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ min_stock_buffer_pct: pct })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        currentGroup.min_stock_buffer_pct = pct;
+        showToast('success', `מאגר שוטף עודכן ל-${pct}%`);
+        renderPantry();
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+};
+
 function renderPantry() {
     const list = getEl('pantry-list'); if(!list) return; list.innerHTML = '';
+    // init buffer bar
+    const bufferInput = document.getElementById('pantry-buffer-input');
+    const bufferDesc = document.getElementById('pantry-buffer-desc');
+    const pct = parseFloat(currentGroup?.min_stock_buffer_pct || 0);
+    if (bufferInput) bufferInput.value = pct;
+    if (bufferDesc) bufferDesc.textContent = pct > 0 ? `${pct}% מכל מוצר שמור לשימוש שוטף ולא ניתן לשריון` : '0% — כל המלאי זמין לשריון';
     if(pantryCache.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-8">המלאי ריק. קלטו ציוד וחומרי גלם כדי לעקוב אחרי המלאי בעסק!</p>'; return; }
+    const bufferPct = parseFloat(currentGroup?.min_stock_buffer_pct || 0);
     pantryCache.forEach(p => {
         const n = safeStr(p.item_name); const u = safeStr(p.unit || "יח'");
         const packQty = parseFloat(p.quantity); const upp = parseInt(p.units_per_package) || 1;
         const reserved = parseFloat(p.reserved_qty || 0);
+        const bufferQty = packQty * (bufferPct / 100);
+        const available = Math.max(0, packQty - reserved - bufferQty);
         const totalSubUnits = Math.round(packQty * upp);
+        const availableSubUnits = Math.round(available * upp);
+        const showAvailable = available < packQty;
+
         const reservedDisplay = reserved > 0 ? `<div class="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-2 text-[10px] flex items-center justify-between">
             <span class="text-amber-700 font-bold">⚠️ משוריין לפקודות עבודה: ${reserved} ${u}</span>
-            <button onclick="window.showPantryWoReservations(${p.id}, '${safeStr(p.item_name).replace(/'/g,"\\'")}'); event.stopPropagation();" class="bg-amber-600 text-white px-2 py-1 rounded-lg text-[9px] font-bold hover:bg-amber-700 transition">ראה פקודות</button>
+            <button onclick="window.showPantryWoReservations(${p.id}, '${safeStr(p.item_name).replace(/'/g,"\'")}'); event.stopPropagation();" class="bg-amber-600 text-white px-2 py-1 rounded-lg text-[9px] font-bold hover:bg-amber-700 transition">ראה פקודות</button>
         </div>` : '';
 
         let qtyDisplay = '';
@@ -6646,12 +6674,14 @@ function renderPantry() {
                 <span class="text-2xl font-black text-slate-800 leading-none">${packQty.toFixed(2)}</span>
                 <span class="text-[10px] font-bold text-slate-400 mt-1">${u}</span>
                 <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full mt-1.5 w-max shadow-sm tracking-tight">${totalSubUnits} יחידות</span>
+                ${showAvailable ? `<span class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full mt-1 w-max">זמין: ${availableSubUnits} יח'</span>` : ''}
             </div>`;
         } else {
             qtyDisplay = `
             <div class="flex flex-col items-center px-3 min-w-[75px]">
                 <span class="text-2xl font-black text-slate-800 leading-none">${packQty}</span>
                 <span class="text-xs font-bold text-slate-400 mt-1">${u}</span>
+                ${showAvailable ? `<span class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full mt-1 w-max">זמין: ${available}</span>` : ''}
             </div>`;
         }
 
@@ -6666,14 +6696,14 @@ function renderPantry() {
                     <p class="text-[10px] text-slate-400 mt-1">עודכן: ${new Date(p.updated_at).toLocaleDateString('he-IL')} | מארז: ${upp} יח'</p>
                 </div>
                 <div class="flex items-center bg-slate-50 px-2 py-2 rounded-xl border border-slate-100 shadow-inner">
-                    <button onclick="updatePantryQty(${p.id}, ${minusAmount})" class="text-slate-400 hover:text-red-500 w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm border border-slate-200 transition"><i class="fa-solid fa-minus text-sm"></i></button>
+                    <button onclick="updatePantryQty(${p.id}, ${minusAmount}, ${reserved}, ${bufferPct})" class="text-slate-400 hover:text-red-500 w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm border border-slate-200 transition"><i class="fa-solid fa-minus text-sm"></i></button>
                     ${qtyDisplay}
-                    <button onclick="updatePantryQty(${p.id}, ${plusAmount})" class="text-slate-400 hover:text-green-500 w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm border border-slate-200 transition"><i class="fa-solid fa-plus text-sm"></i></button>
+                    <button onclick="updatePantryQty(${p.id}, ${plusAmount}, ${reserved}, ${bufferPct})" class="text-slate-400 hover:text-green-500 w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm border border-slate-200 transition"><i class="fa-solid fa-plus text-sm"></i></button>
                 </div>
             </div>
             ${reservedDisplay}
             <div class="flex gap-2 mt-1 border-t border-slate-100 pt-3">
-                <button onclick="openPantryUseModal('${n}', '${u}', ${packQty}, ${upp})" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-dolly text-slate-500"></i> דיווח שימוש</button>
+                <button onclick="openPantryUseModal('${n}', '${u}', ${packQty}, ${upp}, ${reserved}, ${bufferPct})" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-dolly text-slate-500"></i> דיווח שימוש</button>
                 <button onclick="movePantryToCart(${p.id}, '${n}', '${u}')" class="flex-1 bg-slate-800 text-white py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-700 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-cart-arrow-down text-slate-300"></i> העבר לרכש</button>
             </div>
         </div>`;
@@ -6777,13 +6807,33 @@ window.submitPantryItem = async function() {
     }
 };
 
-async function updatePantryQty(id, newQty) {
+async function updatePantryQty(id, newQty, reservedQty, bufferPct) {
+    const reserved = parseFloat(reservedQty || 0);
+    const buffer = parseFloat(bufferPct || 0);
+    // currentQty before change — find from pantryCache
+    const item = pantryCache.find(p => p.id === id);
+    const currentQty = parseFloat(item?.quantity || 0);
+    const bufferQty = currentQty * (buffer / 100);
+    const minAllowed = reserved + bufferQty;
+    if (newQty < minAllowed) {
+        showToast('warning', `לא ניתן לרדת מתחת ל-${minAllowed.toFixed(2)} (שריון + מאגר). כדי לשחרר פריטים — שחרר שריונות בפקודות העבודה.`);
+        return;
+    }
     if(newQty <= 0) { if(!confirm('המוצר אזל מהמלאי. האם למחוק את הרישום? (ניתן להעביר לרכש במקום)')) return; await fetch(`${API}/pantry/delete/${id}`, { method:'DELETE' }); } 
     else { await fetch(`${API}/pantry/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, quantity: newQty}) }); } fetchData();
 }
 
-function openPantryUseModal(name, unit, qty, upp) { 
+function openPantryUseModal(name, unit, qty, upp, reservedQty, bufferPct) { 
     const totalSubUnits = Math.round(parseFloat(qty) * parseInt(upp || 1));
+    const reserved = parseFloat(reservedQty || 0);
+    const buffer = parseFloat(bufferPct || 0);
+    const bufferQty = parseFloat(qty) * (buffer / 100);
+    const available = Math.max(0, parseFloat(qty) - reserved - bufferQty);
+    const availableSubUnits = Math.round(available * parseInt(upp || 1));
+    // store available for submitPantryUse validation
+    window._pantryUseAvailable = available;
+    window._pantryUseUnit = unit;
+
     getEl('use-pantry-title').innerText = `גריעה מהמלאי: ${name}`; 
     getEl('use-pantry-name').value = name; 
     
@@ -6802,18 +6852,18 @@ function openPantryUseModal(name, unit, qty, upp) {
         dynContainer.innerHTML = `
             <div class="text-center mb-4 bg-indigo-50 text-indigo-700 py-2.5 rounded-xl border border-indigo-100 shadow-sm flex flex-col gap-1">
                 <span class="font-bold text-sm">יתרה: ${parseFloat(qty).toFixed(2)} ${unit}</span>
-                <span class="text-xs font-medium opacity-80">(סה"כ ${totalSubUnits} יחידות לשימוש)</span>
+                ${available < parseFloat(qty) ? `<span class="text-xs font-bold text-green-700">זמין לשימוש: ${available.toFixed(2)} ${unit} (${availableSubUnits} יח')</span>` : `<span class="text-xs font-medium opacity-80">(סה"כ ${totalSubUnits} יחידות לשימוש)</span>`}
             </div>
             
             <div class="space-y-3">
                 <div class="relative">
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1">גריעה ביחידות בודדות</label>
-                    <input type="number" id="use-pantry-units-dyn" placeholder="כמה יחידות לקחת?" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none font-black text-slate-800 text-center shadow-sm focus:border-indigo-500 transition">
+                    <label class="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1">גריעה ביחידות בודדות (מקסימום: ${availableSubUnits})</label>
+                    <input type="number" id="use-pantry-units-dyn" max="${availableSubUnits}" placeholder="כמה יחידות לקחת?" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none font-black text-slate-800 text-center shadow-sm focus:border-indigo-500 transition">
                 </div>
                 
                 <div class="relative">
-                    <label class="block text-[10px] font-bold text-slate-400 mb-1.5 ml-1">או: גריעה לפי מארז / משקל שלם</label>
-                    <input type="number" step="0.1" id="use-pantry-qty-dyn" placeholder="כמה ${unit} לקחת?" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-500 text-center text-sm focus:border-slate-400 transition">
+                    <label class="block text-[10px] font-bold text-slate-400 mb-1.5 ml-1">או: גריעה לפי מארז / משקל שלם (מקסימום: ${available.toFixed(2)})</label>
+                    <input type="number" step="0.1" max="${available}" id="use-pantry-qty-dyn" placeholder="כמה ${unit} לקחת?" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-500 text-center text-sm focus:border-slate-400 transition">
                 </div>
             </div>
         `;

@@ -1964,6 +1964,15 @@
                                 <button onclick="openPantryModal()" class="flex-1 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוספה ידנית</button>
                             </div>
                         </div>
+                        <div id="pantry-buffer-bar" class="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-3 flex items-center gap-3">
+                            <div class="flex-1">
+                                <p class="text-[10px] font-bold text-slate-600">🛡️ אחוז מינימום לשימוש שוטף (לא ניתן לשריון)</p>
+                                <p class="text-[9px] text-slate-400 mt-0.5" id="pantry-buffer-desc">0% — כל המלאי זמין לשריון</p>
+                            </div>
+                            <input type="number" id="pantry-buffer-input" min="0" max="100" step="1" value="0" class="w-16 text-center border border-slate-200 rounded-xl py-1.5 text-sm font-black text-slate-700 outline-none focus:border-indigo-400">
+                            <span class="text-xs text-slate-500 font-bold">%</span>
+                            <button onclick="window.savePantryBuffer()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold hover:bg-indigo-700 transition">שמור</button>
+                        </div>
                         <div id="pantry-list" class="space-y-3 pb-20"></div>
                     </div>
 

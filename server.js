@@ -2972,6 +2972,14 @@ app.post('/api/groups', async (req, res) => {
         else { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
     } finally { if (dbClient) dbClient.release(); }
 });
+app.put('/api/groups/:id/inventory-settings', async (req, res) => {
+    try {
+        const { min_stock_buffer_pct } = req.body;
+        await pool.query('UPDATE family_groups SET min_stock_buffer_pct=$1 WHERE id=$2', [parseFloat(min_stock_buffer_pct) || 0, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.put('/api/groups/:id/doc-settings', async (req, res) => {
     try {
         const { vat_number, contact_name } = req.body;
