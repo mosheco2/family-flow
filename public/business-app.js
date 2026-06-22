@@ -12736,7 +12736,6 @@ window.generateProductImage = async function() {
     const category = (getEl('sp-category') || document.getElementById('sp-category'))?.value?.trim();
 
     if (!productName || !description) {
-        // חלונית מעוצבת במקום toast
         document.getElementById('sp-ai-image-alert')?.remove();
         const alertEl = document.createElement('div');
         alertEl.id = 'sp-ai-image-alert';
@@ -12775,16 +12774,38 @@ window.generateProductImage = async function() {
         const placeholder = getEl('sp-image-placeholder') || document.getElementById('sp-image-placeholder');
         const base64El = getEl('sp-image-base64') || document.getElementById('sp-image-base64');
 
-        if (preview) { preview.src = data.imageUrl; preview.classList.remove('hidden'); }
+        if (preview) { preview.src = data.imageUrl; preview.classList.remove('hidden'); preview.style.cursor = 'pointer'; preview.onclick = () => window.showProductImagePreview(data.imageUrl); }
         if (placeholder) placeholder.classList.add('hidden');
         if (base64El) base64El.value = data.imageUrl;
 
-        showToast('success', 'תמונה נוצרה בהצלחה! 🎨');
+        showToast('success', 'תמונה נוצרה! לחץ עליה לתצוגה מלאה או צור מחדש');
     } catch(e) {
         showToast('error', 'שגיאת תקשורת');
     } finally {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles text-2xl text-purple-500 mb-1"></i><p class="text-[10px] font-bold text-purple-700 text-center leading-tight">צור עם AI</p>'; }
     }
+};
+
+window.showProductImagePreview = function(imageUrl) {
+    document.getElementById('sp-image-preview-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'sp-image-preview-modal';
+    modal.className = 'fixed inset-0 bg-slate-900/80 z-[10000] flex items-center justify-center p-4';
+    modal.style.direction = 'rtl';
+    modal.innerHTML = `<div class="max-w-2xl w-full max-h-[90vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+        <div class="flex justify-between items-center p-4 border-b border-slate-200">
+            <h3 class="font-bold text-slate-800">תצוגה מקדמת התמונה</h3>
+            <button onclick="document.getElementById('sp-image-preview-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="flex-1 overflow-y-auto flex items-center justify-center bg-slate-50 p-4">
+            <img src="${imageUrl}" class="max-w-full max-h-full object-contain rounded-xl shadow-lg">
+        </div>
+        <div class="p-4 border-t border-slate-200 flex gap-2">
+            <button onclick="document.getElementById('sp-image-preview-modal').remove()" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-xl font-bold hover:bg-slate-200 transition">סגור</button>
+            <button onclick="document.getElementById('sp-image-preview-modal').remove(); window.generateProductImage();" class="flex-1 bg-purple-600 text-white py-2 rounded-xl font-bold hover:bg-purple-700 transition"><i class="fa-solid fa-rotate-right mr-1"></i> צור מחדש</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
 };
 
 window.clearProductImage = function() {
@@ -31256,7 +31277,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
         if (document.getElementById('work-order-modal')) return;
         const modal = document.createElement('div');
         modal.id = 'work-order-modal';
-        modal.className = 'fixed inset-0 z-50 hidden bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4';
+        modal.className = 'fixed inset-0 z-50 hidden bg-black/60 flex items-center justify-center p-0 sm:p-4 overflow-y-auto';
         modal.innerHTML = `
 <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-2xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
   <div class="flex items-center justify-between px-5 pt-5 pb-3 border-b border-slate-100 shrink-0">
@@ -31283,6 +31304,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
     <button onclick="window.switchWoTab('timeline')" id="wo-tab-timeline" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">ציר זמן</button>
     <button onclick="window.switchWoTab('calendar')" id="wo-tab-calendar" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">ניהול יומן</button>
     <button onclick="window.switchWoTab('purchase')" id="wo-tab-purchase" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">רכש</button>
+    <button onclick="window.switchWoTab('costs')" id="wo-tab-costs" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">עלויות</button>
   </div>
   <div class="flex-1 overflow-y-auto p-4" id="wo-modal-body">
     <div id="wo-view-overview">
@@ -31349,7 +31371,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
           </div>
         </div>
         <div class="flex gap-2">
-          <button onclick="window.addInventoryReservation()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">שרן ציוד</button>
+          <button onclick="window.addInventoryReservation()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">שייך ציוד</button>
           <button onclick="document.getElementById('wo-add-inventory-panel').classList.add('hidden')" class="flex-1 bg-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-300 transition">ביטול</button>
         </div>
       </div>
@@ -31413,6 +31435,9 @@ async function saToggleLicense(groupId, featureKey, isActive) {
           <button onclick="document.getElementById('wo-add-purchase-panel').classList.add('hidden')" class="flex-1 bg-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-300 transition">ביטול</button>
         </div>
       </div>
+    <div id="wo-view-costs" class="hidden">
+      <h4 class="font-bold text-slate-700 text-sm mb-4">סיכום עלויות</h4>
+      <div id="wo-costs-summary" class="space-y-3"></div>
     </div>
   </div>
 </div>`;
@@ -31424,7 +31449,7 @@ window._currentWoId = null;
 window._currentWoData = null;
 
 window.switchWoTab = function(tab) {
-    ['overview','team','inventory','chat','notes','timeline','calendar','purchase'].forEach(t => {
+    ['overview','team','inventory','chat','notes','timeline','calendar','purchase','costs'].forEach(t => {
         const v = document.getElementById(`wo-view-${t}`); if(v) v.classList.add('hidden');
         const b = document.getElementById(`wo-tab-${t}`);
         if(b) b.className = 'wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700';
@@ -31521,6 +31546,7 @@ window.openWorkOrderModal = async function(woId) {
         window.renderWoOverview(data);
         window.renderWoTeam(data.assignees || []);
         window.renderWoInventory(data.inventory || []);
+        window.renderWoCosts(data);
         window.renderWoMessages(data.messages || []);
         window.renderWoTimeline(data.timeline || []);
         const wo = data.workOrder;
@@ -31731,6 +31757,62 @@ window.renderWoInventory = function(inventory) {
             </div>` : ''}
         </div>`;
     }).join('') + (total > 0 ? `<div class="mt-2 bg-indigo-50 rounded-xl p-3 border border-indigo-100 flex justify-between items-center"><span class="text-xs font-bold text-slate-600">סה"כ עלות ציוד</span><span class="font-black text-indigo-700">₪${total.toFixed(2)}</span></div>` : '');
+};
+
+window.renderWoCosts = function(data) {
+    const summary = document.getElementById('wo-costs-summary');
+    if (!summary) return;
+    const assignees = data.assignees || [];
+    const inventory = data.inventory || [];
+    const teamCost = assignees.reduce((s, a) => s + (parseFloat(a.hourly_rate || 0) * parseFloat(a.hours_worked || 0)), 0);
+    const inventoryCost = inventory.filter(i => i.status !== 'released').reduce((s, i) => s + (parseFloat(i.unit_price || 0) * parseFloat(i.reserved_qty || 0)), 0);
+    const totalCost = teamCost + inventoryCost;
+
+    let html = `
+        <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-sm font-bold text-slate-700">עלות צוות</span>
+                <span class="text-sm font-black text-slate-700">₪${teamCost.toFixed(2)}</span>
+            </div>
+            <div class="text-xs text-slate-500 space-y-1 ml-2">
+    `;
+    if (assignees.length > 0) {
+        html += assignees.map(a => {
+            const cost = parseFloat(a.hourly_rate || 0) * parseFloat(a.hours_worked || 0);
+            return cost > 0 ? `<div class="flex justify-between"><span>${safeStr(a.user_name)}</span><span>₪${cost.toFixed(2)}</span></div>` : '';
+        }).join('');
+    } else {
+        html += '<p>אין עובדים משויכים</p>';
+    }
+    html += `
+            </div>
+        </div>
+        <div class="bg-amber-50 rounded-2xl p-4 border border-amber-100">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-sm font-bold text-slate-700">עלות ציוד וחומרים</span>
+                <span class="text-sm font-black text-slate-700">₪${inventoryCost.toFixed(2)}</span>
+            </div>
+            <div class="text-xs text-slate-500 space-y-1 ml-2">
+    `;
+    if (inventory.length > 0) {
+        html += inventory.filter(i => i.status !== 'released').map(i => {
+            const cost = parseFloat(i.unit_price || 0) * parseFloat(i.reserved_qty || 0);
+            return cost > 0 ? `<div class="flex justify-between"><span>${safeStr(i.item_name)} (${i.reserved_qty})</span><span>₪${cost.toFixed(2)}</span></div>` : '';
+        }).join('');
+    } else {
+        html += '<p>אין ציוד משויך</p>';
+    }
+    html += `
+            </div>
+        </div>
+        <div class="bg-indigo-100 rounded-2xl p-4 border border-indigo-200">
+            <div class="flex justify-between items-center">
+                <span class="text-sm font-bold text-indigo-700">סה"כ עלויות</span>
+                <span class="text-lg font-black text-indigo-700">₪${totalCost.toFixed(2)}</span>
+            </div>
+        </div>
+    `;
+    summary.innerHTML = html;
 };
 
 window.renderWoMessages = function(messages) {

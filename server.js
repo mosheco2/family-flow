@@ -4769,16 +4769,17 @@ app.delete('/api/store/catalog/:id', async (req, res) => {
 app.post('/api/store/catalog/generate-image', async (req, res) => {
     try {
         const { groupId, productName, description, category } = req.body;
-        if (!groupId || !productName) return res.status(400).json({ error: 'שם מוצר נדרש' });
+        if (!groupId || !productName || !description) return res.status(400).json({ error: 'שם מוצר ותיאור נדרשים' });
 
         const hfToken = process.env.HF_TOKEN;
         if (!hfToken) return res.json({ success: false, error: 'HF_TOKEN חסר בהגדרות השרת' });
 
-        // בנה prompt ספציפי לפי שם, תיאור וקטגוריה
-        let finalPrompt = `high quality commercial product photo of "${productName}"`;
-        if (category) finalPrompt += `, ${category} product`;
-        if (description) finalPrompt += `, ${description}`;
-        finalPrompt += `, professional studio lighting, clean white background, sharp focus, photorealistic, 8k`;
+        // בנה prompt ממוקד ספציפי מאוד - צריך להיות שונה בכל פעם
+        let finalPrompt = `product photography, studio photo`;
+        finalPrompt += ` of "${productName}"`;
+        finalPrompt += `. Description: ${description}`;
+        if (category) finalPrompt += `. Type: ${category}`;
+        finalPrompt += `. Requirements: professional studio lighting, bright natural light, clean white background, product centered and focused, high quality commercial photo, photorealistic, 8k resolution, sharp details`;
 
         const hfEndpoint = `https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell`;
         let hfRes;
