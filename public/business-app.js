@@ -17179,12 +17179,10 @@ window.switchSalesTab = function(subTab) {
         const btn = document.getElementById(`btn-sales-${t}`); if(btn) btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
     });
 
-    // show work-orders button only for relevant business types
+    // show work-orders button for all business types
     const woBtn = document.getElementById('btn-sales-work-orders');
     if (woBtn) {
-        const isWoBizType = ['services','construction','maintenance_repair','events','healthcare'].includes(currentGroup?.business_type);
-        if (isWoBizType) { woBtn.classList.remove('hidden'); woBtn.classList.add('flex'); }
-        else { woBtn.classList.add('hidden'); woBtn.classList.remove('flex'); }
+        woBtn.classList.remove('hidden'); woBtn.classList.add('flex');
     }
 
     // Sport business: adapt tab bar and views
@@ -31187,7 +31185,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
     <button onclick="window.switchWoTab('chat')" id="wo-tab-chat" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">שיח</button>
     <button onclick="window.switchWoTab('notes')" id="wo-tab-notes" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">הערות</button>
     <button onclick="window.switchWoTab('timeline')" id="wo-tab-timeline" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">ציר זמן</button>
-    <button onclick="window.switchWoTab('calendar')" id="wo-tab-calendar" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">יומן</button>
+    <button onclick="window.switchWoTab('calendar')" id="wo-tab-calendar" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">ניהול יומן</button>
     <button onclick="window.switchWoTab('purchase')" id="wo-tab-purchase" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">רכש</button>
   </div>
   <div class="flex-1 overflow-y-auto p-4" id="wo-modal-body">
@@ -31239,7 +31237,10 @@ async function saToggleLicense(groupId, featureKey, isActive) {
       </div>
       <div id="wo-inventory-list" class="space-y-2"></div>
       <div id="wo-add-inventory-panel" class="hidden mt-4 bg-slate-50 rounded-2xl p-4 border border-slate-200">
-        <p class="text-xs font-bold text-slate-600 mb-2">בחר פריט ממלאי:</p>
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs font-bold text-slate-600">בחר פריט ממלאי:</p>
+          <button onclick="window.openWoInventoryCatalog()" class="text-[10px] text-indigo-600 hover:underline font-bold">🛍️ ראה קטלוג</button>
+        </div>
         <select id="wo-inventory-item-select" class="modern-input w-full py-2 px-3 text-sm mb-2 rounded-xl border border-slate-200 outline-none focus:border-indigo-400"></select>
         <input type="number" id="wo-inventory-qty" min="1" step="1" value="1" placeholder="כמות" class="modern-input w-full py-2 px-3 text-sm mb-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
         <div class="flex gap-2">
@@ -31300,7 +31301,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
             <input type="number" min="0" step="0.01" value="0" placeholder="₪ מחיר" class="w-20 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-price">
           </div>
         </div>
-        <button onclick="window.addPurchaseItemRow()" class="text-xs text-orange-600 font-bold mb-3 hover:underline"><i class="fa-solid fa-plus mr-1"></i> הוסף שורה</button>
+        <button onclick="window.openWoPoCatalogPicker()" class="text-xs text-orange-600 font-bold mb-3 hover:underline"><i class="fa-solid fa-plus mr-1"></i> הוסף שורה</button>
         <input type="text" id="wo-po-notes" placeholder="הערות לספק (אופציונלי)" class="w-full modern-input py-2 px-3 text-sm mb-3 rounded-xl border border-slate-200 outline-none focus:border-orange-400">
         <div class="flex gap-2">
           <button onclick="window.submitWoPurchaseOrder()" class="flex-1 bg-orange-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-orange-700 transition"><i class="fa-solid fa-paper-plane mr-1"></i> שלח הזמנת רכש</button>
@@ -31680,7 +31681,49 @@ window.removeWoAssignee = async function(userId) {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
-window.openAddInventoryPanel = function() {
+window.openWoInventoryCatalog = function() {
+    document.getElementById('wo-inventory-catalog-picker')?.remove();
+    const html = `<div id="wo-inventory-catalog-picker" class="fixed inset-0 bg-slate-900/60 z-[9998] flex items-center justify-center p-4" style="direction:rtl;">
+        <div class="bg-white w-full max-w-3xl rounded-3xl shadow-2xl p-5 flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-black text-slate-800">📦 בחר פריט מהקטלוג</h3>
+                <button onclick="document.getElementById('wo-inventory-catalog-picker').remove()" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark text-slate-500"></i></button>
+            </div>
+            <input type="text" id="wo-inv-cat-search" placeholder="חפש פריט..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-3 outline-none focus:border-indigo-400" oninput="window.renderWoInventoryCatalogResults()">
+            <div id="wo-inv-cat-results" class="flex-1 overflow-y-auto pr-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <p class="text-xs text-slate-400 text-center py-4 col-span-full">טעינה...</p>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    setTimeout(() => window.renderWoInventoryCatalogResults(), 100);
+};
+window.renderWoInventoryCatalogResults = function() {
+    const resultsEl = document.getElementById('wo-inv-cat-results');
+    if (!resultsEl || !window.storeCatalogCache) return;
+    const search = (document.getElementById('wo-inv-cat-search')?.value || '').toLowerCase();
+    let items = window.storeCatalogCache.filter(p => p.is_available && (p.stock_quantity || 0) > 0);
+    if (search) items = items.filter(p => (p.name||'').toLowerCase().includes(search) || (p.description||'').toLowerCase().includes(search));
+    if (!items.length) { resultsEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 col-span-full">לא נמצאו פריטים.</p>'; return; }
+    resultsEl.innerHTML = items.map(p => `<button type="button" onclick="document.getElementById('wo-inv-cat-search').value=''; window.renderWoInventoryCatalogResults(); const sel=document.getElementById('wo-inventory-item-select'); sel.value='${p.id}'; document.getElementById('wo-inventory-catalog-picker').remove();" class="text-right text-xs p-3 rounded-lg bg-slate-50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-300 font-medium text-slate-700 transition flex flex-col gap-2">
+        ${p.image_url ? `<img src="${p.image_url}" class="w-full h-20 object-cover rounded">` : '<div class="w-full h-20 bg-slate-200 flex items-center justify-center rounded"><i class="fa-solid fa-image text-lg text-slate-400"></i></div>'}
+        <div class="text-left">
+            <div class="font-bold text-sm">${safeStr(p.name)}</div>
+            <div class="text-[10px] text-slate-500 mt-1">מחיר: ₪${parseFloat(p.price||0).toFixed(2)} | במלאי: ${p.stock_quantity || 0} יח׳</div>
+        </div>
+    </button>`).join('');
+};
+
+window.openAddInventoryPanel = async function() {
+    // טען קטלוג אם חסר
+    if (!window.storeCatalogCache || !window.storeCatalogCache.length) {
+        try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); window.storeCatalogCache = await res.json(); } catch(e) {}
+    }
+    const sel = document.getElementById('wo-inventory-item-select');
+    if (sel) {
+        const items = window.storeCatalogCache ? window.storeCatalogCache.filter(p => p.is_available).map(p => `<option value="${p.id}" data-name="${safeStr(p.name)}" data-avail="${p.stock_quantity || 0}">${safeStr(p.name)} (₪${parseFloat(p.price||0).toFixed(2)}) — במלאי: ${p.stock_quantity || 0}</option>`).join('') : '';
+        sel.innerHTML = '<option value="">— בחר מוצר —</option>' + items;
+    }
     document.getElementById('wo-add-inventory-panel').classList.remove('hidden');
 };
 
@@ -31848,7 +31891,45 @@ window.loadWoPurchaseOrders = async function() {
     } catch(e) { if(list) list.innerHTML = '<p class="text-xs text-red-400 text-center py-4">שגיאה בטעינה</p>'; }
 };
 
+window.openWoPoCatalogPicker = function() {
+    document.getElementById('wo-po-catalog-picker')?.remove();
+    const html = `<div id="wo-po-catalog-picker" class="fixed inset-0 bg-slate-900/60 z-[9998] flex items-center justify-center p-4" style="direction:rtl;">
+        <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-5 flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-black text-slate-800">🛍️ בחר מוצר מהקטלוג</h3>
+                <button onclick="document.getElementById('wo-po-catalog-picker').remove()" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark text-slate-500"></i></button>
+            </div>
+            <input type="text" id="wo-po-catalog-search" placeholder="חפש מוצר לפי שם..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-3 outline-none focus:border-orange-400" oninput="window.renderWoPoCatalogResults()">
+            <div id="wo-po-catalog-results" class="flex-1 overflow-y-auto pr-2 space-y-2">
+                <p class="text-xs text-slate-400 text-center py-4">טעינה...</p>
+            </div>
+            <button onclick="window.addPurchaseItemRow()" class="mt-3 bg-slate-100 text-slate-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition">+ הוסף שורה (טקסט חופשי)</button>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    setTimeout(() => window.renderWoPoCatalogResults(), 100);
+};
+window.renderWoPoCatalogResults = function() {
+    const resultsEl = document.getElementById('wo-po-catalog-results');
+    if (!resultsEl || !window.storeCatalogCache) return;
+    const search = (document.getElementById('wo-po-catalog-search')?.value || '').toLowerCase();
+    let items = window.storeCatalogCache.filter(p => p.is_available);
+    if (search) items = items.filter(p => (p.name||'').toLowerCase().includes(search) || (p.description||'').toLowerCase().includes(search));
+    if (!items.length) { resultsEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">לא נמצאו מוצרים.</p>'; return; }
+    resultsEl.innerHTML = items.map(p => `<button type="button" onclick="window.addPurchaseItemRow('${p.id}'); document.getElementById('wo-po-catalog-picker').remove();" class="w-full text-right text-xs p-2.5 rounded-lg bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-300 font-medium text-slate-700 transition flex items-center gap-2">
+        ${p.image_url ? `<img src="${p.image_url}" class="w-8 h-8 object-cover rounded">` : '<div class="w-8 h-8 bg-slate-200 flex items-center justify-center rounded"><i class="fa-solid fa-image text-xs text-slate-400"></i></div>'}
+        <div class="flex-1 text-right">
+            <div class="font-bold">${safeStr(p.name)}</div>
+            <div class="text-[10px] text-slate-500">₪${parseFloat(p.price||0).toFixed(2)}</div>
+        </div>
+    </button>`).join('');
+};
+
 window.openAddPurchasePanel = async function() {
+    // טען קטלוג אם חסר
+    if (!window.storeCatalogCache || !window.storeCatalogCache.length) {
+        try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); window.storeCatalogCache = await res.json(); } catch(e) {}
+    }
     document.getElementById('wo-add-purchase-panel').classList.remove('hidden');
     document.getElementById('wo-po-notes').value = '';
     const itemsContainer = document.getElementById('wo-po-items');
@@ -31856,6 +31937,7 @@ window.openAddPurchasePanel = async function() {
         <input type="text" placeholder="שם פריט" class="flex-1 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-name">
         <input type="number" min="1" value="1" placeholder="כמות" class="w-16 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-qty">
         <input type="number" min="0" step="0.01" value="0" placeholder="₪ מחיר" class="w-20 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-price">
+        <button onclick="this.parentNode.remove()" class="text-slate-300 hover:text-red-400 transition text-xs px-1"><i class="fa-solid fa-xmark"></i></button>
     </div>`;
     // טען ספקים קיימים
     const supplierSel = document.getElementById('wo-po-supplier-select');
@@ -31884,13 +31966,19 @@ window.openAddPurchasePanel = async function() {
     }
 };
 
-window.addPurchaseItemRow = function() {
+window.addPurchaseItemRow = function(productId) {
     const container = document.getElementById('wo-po-items');
     const row = document.createElement('div');
     row.className = 'wo-po-item-row flex gap-2';
-    row.innerHTML = `<input type="text" placeholder="שם פריט" class="flex-1 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-name">
+    let itemName = '', itemPrice = 0;
+    if (productId && window.storeCatalogCache) {
+        const product = window.storeCatalogCache.find(p => p.id === parseInt(productId));
+        if (product) { itemName = product.name; itemPrice = parseFloat(product.price) || 0; }
+    }
+    row.innerHTML = `<input type="text" value="${safeStr(itemName)}" placeholder="שם פריט" class="flex-1 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-name" data-catalog-id="${productId || ''}">
         <input type="number" min="1" value="1" placeholder="כמות" class="w-16 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-qty">
-        <input type="number" min="0" step="0.01" value="0" placeholder="₪ מחיר" class="w-20 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-price">`;
+        <input type="number" min="0" step="0.01" value="${itemPrice}" placeholder="₪ מחיר" class="w-20 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-price">
+        <button onclick="this.parentNode.remove()" class="text-slate-300 hover:text-red-400 transition text-xs px-1"><i class="fa-solid fa-xmark"></i></button>`;
     container.appendChild(row);
 };
 
