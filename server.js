@@ -738,6 +738,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE work_order_inventory ADD COLUMN IF NOT EXISTS unit_price DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
       try { await client.query(`ALTER TABLE work_order_assignees ADD COLUMN IF NOT EXISTS hourly_rate DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
       try { await client.query(`ALTER TABLE work_order_assignees ADD COLUMN IF NOT EXISTS hours_worked DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS work_order_id INT REFERENCES store_orders(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_messages (
           id SERIAL PRIMARY KEY,
           work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
@@ -6560,10 +6561,12 @@ app.get('/api/b2b/catalog/:groupId', async (req, res) => {
 app.get('/api/b2b/orders/:groupId', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT po.*, s.name as supplier_name, s.email as supplier_email, s.phone as supplier_phone, u.nickname as creator_name
+            SELECT po.*, s.name as supplier_name, s.email as supplier_email, s.phone as supplier_phone,
+                   u.nickname as creator_name, so.customer_name as wo_customer_name
             FROM purchase_orders po
-            JOIN suppliers s ON po.supplier_id = s.id
+            LEFT JOIN suppliers s ON po.supplier_id = s.id
             LEFT JOIN users u ON po.created_by = u.id
+            LEFT JOIN store_orders so ON po.work_order_id = so.id
             WHERE po.group_id = $1
             ORDER BY po.created_at DESC
         `, [req.params.groupId]);
@@ -11622,7 +11625,7 @@ app.get('/api/work-orders/:id/purchase-orders', async (req, res) => {
             `SELECT po.*, s.name as supplier_name
              FROM purchase_orders po
              LEFT JOIN suppliers s ON po.supplier_id=s.id
-             WHERE po.service_call_id=$1 ORDER BY po.created_at DESC`,
+             WHERE po.work_order_id=$1 ORDER BY po.created_at DESC`,
             [req.params.id]
         );
         res.json({ success: true, purchaseOrders: r.rows });
@@ -11636,7 +11639,6 @@ app.post('/api/work-orders/:id/purchase-orders', async (req, res) => {
         const totalAmount = items.reduce((s, i) => s + (parseFloat(i.unit_price || 0) * parseFloat(i.quantity || 1)), 0);
         const itemsJson = JSON.stringify(items);
         let finalSupplierId = supplierId || null;
-        // צור ספק אד-הוק אם רק שם ספק סופק
         if (!finalSupplierId && supplierName) {
             try {
                 const sRes = await pool.query(
@@ -11651,7 +11653,7 @@ app.post('/api/work-orders/:id/purchase-orders', async (req, res) => {
             } catch(e) {}
         }
         const r = await pool.query(
-            `INSERT INTO purchase_orders (group_id, supplier_id, items, total_amount, status, notes, service_call_id, created_at)
+            `INSERT INTO purchase_orders (group_id, supplier_id, items, total_amount, status, notes, work_order_id, created_at)
              VALUES ($1,$2,$3::jsonb,$4,'pending',$5,$6,NOW()) RETURNING id`,
             [groupId, finalSupplierId, itemsJson, totalAmount, notes || null, req.params.id]
         );
@@ -11665,14 +11667,15 @@ app.post('/api/work-orders/:id/purchase-orders', async (req, res) => {
 app.patch('/api/work-orders/:id/purchase-orders/:poId/status', async (req, res) => {
     try {
         const { status, userName } = req.body;
-        await pool.query(`UPDATE purchase_orders SET status=$1 WHERE id=$2 AND service_call_id=$3`, [status, req.params.poId, req.params.id]);
+        await pool.query(`UPDATE purchase_orders SET status=$1 WHERE id=$2 AND work_order_id=$3`, [status, req.params.poId, req.params.id]);
         const labels = { pending: 'ממתין', approved: 'אושר', delivered: 'התקבל', cancelled: 'בוטל' };
         await addWorkOrderTimeline(req.params.id, 'purchase_order_updated', `הזמנת רכש #${req.params.poId} עודכנה ל: ${labels[status] || status}`, userName || 'מנהל');
-        // כשמוצרים התקבלו — הוסף למלאי אם catalog_id קיים בפריטים
+        // כשמוצרים התקבלו — הוסף למלאי וגם שייך לפקודת העבודה
         if (status === 'delivered') {
             try {
-                const poRes = await pool.query('SELECT items FROM purchase_orders WHERE id=$1', [req.params.poId]);
+                const poRes = await pool.query('SELECT items, work_order_id FROM purchase_orders WHERE id=$1', [req.params.poId]);
                 const poItems = typeof poRes.rows[0]?.items === 'string' ? JSON.parse(poRes.rows[0].items) : (poRes.rows[0]?.items || []);
+                const woId = poRes.rows[0]?.work_order_id || req.params.id;
                 for (const item of poItems) {
                     if (item.catalog_id) {
                         await pool.query(
@@ -11680,10 +11683,37 @@ app.patch('/api/work-orders/:id/purchase-orders/:poId/status', async (req, res) 
                             [parseFloat(item.quantity || 1), item.catalog_id]
                         );
                     }
+                    // שייך את הפריט לציוד פקודת העבודה
+                    if (woId) {
+                        await pool.query(
+                            `INSERT INTO work_order_inventory (work_order_id, catalog_id, item_name, reserved_qty, unit_price, status, reserved_by)
+                             VALUES ($1, $2, $3, $4, $5, 'reserved', $6)`,
+                            [woId, item.catalog_id || null, item.item_name, parseFloat(item.quantity || 1), parseFloat(item.unit_price || 0), userName || 'מנהל']
+                        );
+                    }
                 }
-            } catch(e) {}
+                if (woId) {
+                    await addWorkOrderTimeline(woId, 'inventory_reserved', `ציוד מהזמנת רכש #${req.params.poId} הגיע ושויך לפקודה`, userName || 'מנהל');
+                }
+            } catch(e) { console.error('delivered inventory link error:', e.message); }
         }
         res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הזמנות רכש של פקודות עבודה — תצוגה באזור הרכש הכללי
+app.get('/api/work-orders/purchase-orders/group/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT po.*, s.name as supplier_name, so.customer_name as wo_customer_name
+             FROM purchase_orders po
+             LEFT JOIN suppliers s ON po.supplier_id=s.id
+             LEFT JOIN store_orders so ON po.work_order_id=so.id
+             WHERE po.work_order_id IS NOT NULL AND po.group_id=$1
+             ORDER BY po.created_at DESC`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, purchaseOrders: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

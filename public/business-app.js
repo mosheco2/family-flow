@@ -14158,7 +14158,7 @@ function renderB2BOrders() {
             <div id="b2b-orders-filters-bar" class="flex flex-wrap gap-2 mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100 shadow-sm">
                 <select id="filter-order-sup" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">${supOpts}</select>
                 <select id="filter-order-status" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">
-                    <option value="all">כל הסטטוסים</option><option value="draft">טיוטות (ממתין לשידור)</option><option value="sent">נשלח</option><option value="processing">בטיפול</option><option value="shipped">במשלוח</option><option value="delivered">סופק</option><option value="cancelled">בוטל</option>
+                    <option value="all">כל הסטטוסים</option><option value="pending">ממתין לאישור</option><option value="draft">טיוטות (ממתין לשידור)</option><option value="approved">אושר</option><option value="sent">נשלח</option><option value="processing">בטיפול</option><option value="shipped">במשלוח</option><option value="delivered">סופק</option><option value="cancelled">בוטל</option>
                 </select>
                 <select id="filter-order-date" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">
                     <option value="all">כל הזמן</option><option value="30">30 יום אחרונים</option><option value="90">3 חודשים אחרונים</option>
@@ -14190,13 +14190,15 @@ function renderB2BOrders() {
     }
     
     let html = '';
-    const statusMap = { 
+    const statusMap = {
+        'pending': { t: 'ממתין לאישור', c: 'bg-amber-100 text-amber-700 border-amber-200' },
         'draft': { t: 'טיוטה / ממתין לשידור', c: 'bg-slate-100 text-slate-700 border-slate-200' },
-        'sent': { t: 'נשלח לספק', c: 'bg-blue-100 text-blue-700 border-blue-200' }, 
-        'processing': { t: 'בטיפול אצל הספק', c: 'bg-orange-100 text-orange-700 border-orange-200' }, 
-        'shipped': { t: 'בדרך אלינו', c: 'bg-purple-100 text-purple-700 border-purple-200' }, 
-        'delivered': { t: 'סופק במלואו', c: 'bg-green-100 text-green-700 opacity-80 border-green-200' }, 
-        'cancelled': { t: 'בוטל', c: 'bg-red-100 text-red-700 border-red-200' } 
+        'approved': { t: 'אושר', c: 'bg-teal-100 text-teal-700 border-teal-200' },
+        'sent': { t: 'נשלח לספק', c: 'bg-blue-100 text-blue-700 border-blue-200' },
+        'processing': { t: 'בטיפול אצל הספק', c: 'bg-orange-100 text-orange-700 border-orange-200' },
+        'shipped': { t: 'בדרך אלינו', c: 'bg-purple-100 text-purple-700 border-purple-200' },
+        'delivered': { t: 'סופק במלואו', c: 'bg-green-100 text-green-700 opacity-80 border-green-200' },
+        'cancelled': { t: 'בוטל', c: 'bg-red-100 text-red-700 border-red-200' }
     };
 
     filteredOrders.forEach(o => {
@@ -14224,7 +14226,9 @@ function renderB2BOrders() {
         let statusSelectHtml = '';
         if (currentUser.role === 'ADMIN') {
             const statuses = [
-                {val: 'draft', label: 'טיוטה (ממתין)'},
+                {val: 'pending', label: 'ממתין לאישור'},
+                {val: 'draft', label: 'טיוטה (ממתין לשידור)'},
+                {val: 'approved', label: 'אושר'},
                 {val: 'sent', label: 'נשלח לספק'},
                 {val: 'processing', label: 'בטיפול אצל הספק'},
                 {val: 'shipped', label: 'בדרך אלינו'},
@@ -14235,7 +14239,7 @@ function renderB2BOrders() {
             statusSelectHtml = `<select onchange="updateB2BOrderStatus(${o.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold bg-white border border-slate-200 mt-2 w-full text-center outline-none focus:border-indigo-400 rounded-lg shadow-sm">${opts}</select>`;
         }
 
-        const canReceive = o.status !== 'delivered' && o.status !== 'cancelled' && o.status !== 'draft';
+        const canReceive = o.status !== 'delivered' && o.status !== 'cancelled' && o.status !== 'draft' && o.status !== 'pending';
         let actionsHtml = `<div class="space-y-2 mt-3 pt-3 border-t border-slate-100">`;
 
         // התמיכה בטיוטה לעריכת חוסרים
@@ -14259,8 +14263,9 @@ function renderB2BOrders() {
         html += `<div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4 hover:shadow-md transition">
             <div class="flex justify-between items-start mb-2">
                 <div class="flex-1 pr-2">
-                    <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-file-invoice text-indigo-400"></i> ${safeStr(o.supplier_name)} <span class="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-100">#${o.id}</span></h4>
+                    <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-file-invoice text-indigo-400"></i> ${safeStr(o.supplier_name || o.supplier_name_text || 'ללא ספק')} <span class="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-100">#${o.id}</span></h4>
                     <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${dateStr}</p>
+                    ${o.work_order_id ? `<button onclick="window.openWorkOrderModal(${o.work_order_id})" class="inline-flex items-center gap-1 mt-1 bg-teal-50 text-teal-700 border border-teal-200 rounded-full px-2 py-0.5 text-[10px] font-bold hover:bg-teal-100 transition"><i class="fa-solid fa-hammer text-xs"></i> מפקודת עבודה${o.wo_customer_name ? ': '+safeStr(o.wo_customer_name) : ''}</button>` : ''}
                     ${o.supplier_confirmed_at ? `<span class="inline-flex items-center gap-1 mt-1 bg-green-100 text-green-700 border border-green-300 rounded-full px-2.5 py-0.5 text-[10px] font-bold"><i class="fa-solid fa-circle-check text-xs"></i> התקבל אצל הספק • ${new Date(o.supplier_confirmed_at).toLocaleDateString('he-IL')} • ${new Date(o.supplier_confirmed_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span>` : ''}
                 </div>
                 <div class="flex flex-col items-end gap-1 w-[140px] shrink-0">
@@ -31292,7 +31297,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
         <option value="completed">הושלם</option>
         <option value="cancelled">בוטל</option>
       </select>
-      <button onclick="document.getElementById('work-order-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition text-sm font-black">✕</button>
+      <button onclick="window.closeWorkOrderModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition text-sm font-black">✕</button>
     </div>
   </div>
   <div class="flex gap-1 px-4 pt-3 pb-0 border-b border-slate-100 overflow-x-auto shrink-0" id="wo-tabs-bar">
@@ -31460,6 +31465,7 @@ window.switchWoTab = function(tab) {
     if(tab === 'chat') setTimeout(() => { const msgs = document.getElementById('wo-messages-list'); if(msgs) msgs.scrollTop = msgs.scrollHeight; }, 100);
     if(tab === 'timeline') window.loadWoTimeline();
     if(tab === 'purchase') window.loadWoPurchaseOrders();
+    if(tab === 'costs') { if(window._currentWoData) window.renderWoCosts(window._currentWoData); }
 };
 
 window.convertToWorkOrder = async function(quoteId) {
@@ -31532,10 +31538,20 @@ window.renderWorkOrdersList = function(workOrders) {
     }).join('');
 };
 
+window.closeWorkOrderModal = function() {
+    const modal = document.getElementById('work-order-modal');
+    if (modal) modal.classList.add('hidden');
+    const fab = document.getElementById('fab-container');
+    if (fab) fab.classList.remove('hidden');
+};
+
 window.openWorkOrderModal = async function(woId) {
     const modal = document.getElementById('work-order-modal');
     if (!modal) return;
     modal.classList.remove('hidden');
+    // הסתר FAB כדי שלא יחסום את המודל
+    const fab = document.getElementById('fab-container');
+    if (fab) fab.classList.add('hidden');
     window._currentWoId = woId;
     document.getElementById('wo-modal-title').textContent = 'טוען...';
     try {
