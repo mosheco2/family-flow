@@ -10709,9 +10709,43 @@ function renderStoreCatalog() {
         const imgHtml = p.image_url ? `<div class="relative shrink-0">${badgeHtml}<img src="${p.image_url}" class="w-14 h-14 rounded-xl object-cover border border-slate-100 shadow-sm"></div>` : `<div class="relative shrink-0">${badgeHtml}<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center border border-slate-200 shadow-sm"><i class="fa-solid fa-box text-xl"></i></div></div>`;
         const activeColor = p.is_available ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
         
-        html += `<div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2"><div class="flex items-center gap-3 min-w-0 flex-1">${imgHtml}<div class="min-w-0 flex-1"><h4 class="font-bold text-slate-800 text-sm truncate pr-1">${safeStr(p.name)}${p.sku ? `<span class="bg-slate-100 text-slate-500 text-[9px] px-1.5 py-0.5 rounded font-bold dir-ltr inline-block ml-1">${safeStr(p.sku)}</span>` : ''}</h4><p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">(${safeStr(p.category || 'כללי')})</span></p></div></div><div class="flex items-center gap-2 self-start sm:self-auto shrink-0 bg-slate-50 p-1 rounded-xl border border-slate-100"><button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_available ? 'זמין' : 'מוסתר'}</button><button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button></div></div>`;
+        const stock = parseFloat(p.stock_quantity || 0);
+        const reserved = parseFloat(p.reserved_qty || 0);
+        const available = Math.max(0, stock - reserved);
+        const stockHtml = stock > 0 ? `<div class="flex items-center gap-2 mt-1 flex-wrap">
+            <span class="text-[10px] text-slate-500">מלאי: <strong class="text-slate-700">${stock}</strong></span>
+            ${reserved > 0 ? `<span class="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full font-bold cursor-pointer hover:bg-amber-100 transition" onclick="window.showCatalogWoReservations(${p.id}, '${safeStr(p.name)}')">🔒 ${reserved} משוריין לפ"ע</span>` : ''}
+            ${reserved > 0 ? `<span class="text-[10px] text-green-600">פנוי: <strong>${available}</strong></span>` : ''}
+        </div>` : '';
+        html += `<div class="bg-white p-3 rounded-2xl border ${reserved > 0 ? 'border-amber-200' : 'border-slate-200'} shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2"><div class="flex items-center gap-3 min-w-0 flex-1">${imgHtml}<div class="min-w-0 flex-1"><h4 class="font-bold text-slate-800 text-sm truncate pr-1">${safeStr(p.name)}${p.sku ? `<span class="bg-slate-100 text-slate-500 text-[9px] px-1.5 py-0.5 rounded font-bold dir-ltr inline-block ml-1">${safeStr(p.sku)}</span>` : ''}</h4><p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">(${safeStr(p.category || 'כללי')})</span></p>${stockHtml}</div></div><div class="flex items-center gap-2 self-start sm:self-auto shrink-0 bg-slate-50 p-1 rounded-xl border border-slate-100"><button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_available ? 'זמין' : 'מוסתר'}</button><button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button></div></div>`;
     }); list.innerHTML = html;
 }
+window.showCatalogWoReservations = async function(catalogId, itemName) {
+    try {
+        const res = await fetch(`${API}/store/catalog/${catalogId}/wo-reservations`);
+        const data = await res.json();
+        const reservations = data.reservations || [];
+        let html = `<div id="wo-reservations-modal" class="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4" style="direction:rtl;">
+            <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-black text-slate-800 text-sm">🔒 שריון "${safeStr(itemName)}" לפקודות עבודה</h3>
+                    <button onclick="document.getElementById('wo-reservations-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark text-slate-500"></i></button>
+                </div>
+                ${!reservations.length ? '<p class="text-xs text-slate-400 text-center py-4">אין שריונות פעילים למוצר זה</p>' :
+                `<div class="space-y-2">` +
+                reservations.map(r => `<div class="flex items-center justify-between bg-slate-50 rounded-xl p-3 border border-slate-100 cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition" onclick="document.getElementById('wo-reservations-modal').remove(); window.openWorkOrderModal(${r.wo_id})">
+                    <div>
+                        <p class="text-sm font-bold text-slate-700">${safeStr(r.customer_name || 'ללא שם')}</p>
+                        <p class="text-[10px] text-slate-400">פ"ע #${r.wo_id} • ${r.wo_status || ''}</p>
+                    </div>
+                    <span class="font-black text-indigo-700 text-sm">${r.reserved_qty} יח'</span>
+                </div>`).join('') + '</div>'}
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    } catch(e) { showToast('error', 'שגיאה בטעינת פירוט השריונות'); }
+};
+
 // ============================================================
 // --- ספירת מלאי (Inventory Count) ---
 // ============================================================
@@ -31338,7 +31372,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
       <div id="wo-assignees-preview" class="mb-3"></div>
       <div id="wo-inventory-preview" class="mb-3"></div>
     </div>
-    <div id="wo-view-team" class="hidden">
+    <div id="wo-view-team" class="hidden pb-20">
       <div class="flex justify-between items-center mb-3">
         <h4 class="font-bold text-slate-700 text-sm">צוות משויך</h4>
         <button onclick="window.openAddAssigneePanel()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שייך עובד</button>
@@ -31365,9 +31399,10 @@ async function saToggleLicense(groupId, featureKey, isActive) {
           <option value="">— כל הספקים —</option>
         </select>
         <select id="wo-inventory-item-select" class="modern-input w-full py-2 px-3 text-sm mb-2 rounded-xl border border-slate-200 outline-none focus:border-indigo-400"></select>
+        <div id="wo-inv-unit-info" class="hidden text-[10px] text-indigo-600 bg-indigo-50 rounded-lg px-2 py-1 mb-2"></div>
         <div class="grid grid-cols-2 gap-2 mb-3">
           <div>
-            <label class="text-[10px] text-slate-400 block mb-0.5">כמות</label>
+            <label id="wo-inventory-qty-label" class="text-[10px] text-slate-400 block mb-0.5">כמות</label>
             <input type="number" id="wo-inventory-qty" min="1" step="0.01" value="1" placeholder="כמות" class="modern-input w-full py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
           </div>
           <div>
@@ -31995,10 +32030,32 @@ window.loadInventoryBySupplier = async function() {
             return;
         }
         sel.innerHTML = '<option value="">— בחר פריט —</option>' +
-            products.map(p => `<option value="${p.id}" data-name="${safeStr(p.name)}" data-price="${p.price || 0}" data-supplier="${safeStr(p.supplier_name || '')}">${safeStr(p.name)}${p.supplier_name ? ' · ' + safeStr(p.supplier_name) : ''} — ₪${parseFloat(p.price||0).toFixed(2)}</option>`).join('');
+            products.map(p => {
+                const upp = parseInt(p.units_per_package) || 1;
+                const unitType = p.unit_type || "יח'";
+                const unitLabel = upp > 1 ? `${unitType} (${upp} יח')` : unitType;
+                return `<option value="${p.id}" data-name="${safeStr(p.name)}" data-price="${p.price || 0}" data-units="${upp}" data-unit-type="${safeStr(unitType)}" data-supplier="${safeStr(p.supplier_name || '')}">${safeStr(p.name)}${p.supplier_name ? ' · ' + safeStr(p.supplier_name) : ''} — ₪${parseFloat(p.price||0).toFixed(2)}/${unitLabel}</option>`;
+            }).join('');
         sel.onchange = function() {
             const opt = sel.options[sel.selectedIndex];
-            if (priceInput && opt?.dataset?.price !== undefined) priceInput.value = opt.dataset.price;
+            if (!opt || !opt.value) {
+                document.getElementById('wo-inv-unit-info')?.classList.add('hidden');
+                return;
+            }
+            if (priceInput && opt.dataset.price !== undefined) priceInput.value = opt.dataset.price;
+            const upp = parseInt(opt.dataset.units) || 1;
+            const unitType = opt.dataset.unitType || "יח'";
+            const qtyLabel = document.getElementById('wo-inventory-qty-label');
+            const unitInfo = document.getElementById('wo-inv-unit-info');
+            if (qtyLabel) qtyLabel.textContent = `כמות (ב${unitType})`;
+            if (unitInfo) {
+                if (upp > 1) {
+                    unitInfo.textContent = `⚠️ יחידת הקמה: ${unitType} = ${upp} יח'. מחיר ל${unitType}: ₪${parseFloat(opt.dataset.price||0).toFixed(2)}`;
+                    unitInfo.classList.remove('hidden');
+                } else {
+                    unitInfo.classList.add('hidden');
+                }
+            }
         };
     } catch(e) { sel.innerHTML = '<option value="">שגיאה בטעינה</option>'; }
 };
@@ -32008,13 +32065,17 @@ window.addInventoryReservation = async function() {
     const qtyInput = document.getElementById('wo-inventory-qty');
     const priceInput = document.getElementById('wo-inventory-unit-price');
     if (!sel || !sel.value) return showToast('error', 'נא לבחור פריט');
-    const itemName = sel.options[sel.selectedIndex]?.dataset?.name || sel.options[sel.selectedIndex]?.text?.split(' · ')[0] || '';
+    const opt = sel.options[sel.selectedIndex];
+    const itemName = opt?.dataset?.name || opt?.text?.split(' · ')[0] || '';
     const qty = parseFloat(qtyInput?.value) || 1;
     const unitPrice = parseFloat(priceInput?.value) || 0;
+    const unitType = opt?.dataset?.unitType || "יח'";
+    const unitsPerPackage = parseInt(opt?.dataset?.units) || 1;
+    const displayName = unitsPerPackage > 1 ? `${itemName} (${qty} ${unitType} × ${unitsPerPackage} יח')` : itemName;
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/inventory`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ catalogId: null, itemName, qty, unitPrice, reservedBy: currentUser?.nickname || 'מנהל' })
+            body: JSON.stringify({ catalogId: null, itemName: displayName, qty, unitPrice, reservedBy: currentUser?.nickname || 'מנהל' })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error);
@@ -32157,8 +32218,9 @@ window.loadWoPurchaseOrders = async function() {
                 <div class="flex items-center justify-between">
                     <span class="text-xs text-slate-400">${dateStr} • ₪${parseFloat(po.total_amount||0).toFixed(2)}</span>
                     <div class="flex gap-1.5">
-                        ${po.status === 'pending' ? `<button onclick="window.updateWoPo(${po.id},'approved')" class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded-lg hover:bg-blue-200 transition">אשר</button>` : ''}
-                        ${po.status === 'approved' ? `<button onclick="window.updateWoPo(${po.id},'delivered')" class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-lg hover:bg-green-200 transition">סמן כהתקבל</button>` : ''}
+                        ${po.status === 'pending' ? `<button onclick="window.updateWoPo(${po.id},'approved')" class="bg-blue-600 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-blue-700 transition"><i class="fa-solid fa-check mr-1"></i>אשר הזמנה</button>` : ''}
+                        ${po.status === 'approved' ? `<button onclick="window.confirmWoPoReceive(${po.id})" class="bg-green-600 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-green-700 transition"><i class="fa-solid fa-box-open mr-1"></i>קבלת סחורה ועדכון ציוד</button>` : ''}
+                        ${po.status === 'delivered' ? `<span class="text-[10px] text-green-700 font-bold"><i class="fa-solid fa-circle-check mr-1"></i>סחורה התקבלה — ציוד עודכן</span>` : ''}
                         ${po.status !== 'cancelled' && po.status !== 'delivered' ? `<button onclick="window.updateWoPo(${po.id},'cancelled')" class="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-1 rounded-lg hover:bg-red-100 transition">בטל</button>` : ''}
                     </div>
                 </div>
@@ -32264,19 +32326,27 @@ window.openAddPurchasePanel = async function() {
 window.addPurchaseItemRow = function(productId, supplierProduct) {
     const container = document.getElementById('wo-po-items');
     const row = document.createElement('div');
-    row.className = 'wo-po-item-row flex gap-2';
-    let itemName = '', itemPrice = 0;
+    row.className = 'wo-po-item-row space-y-1 mb-2 pb-2 border-b border-slate-100 last:border-0';
+    let itemName = '', itemPrice = 0, unitType = "יח'", unitsPerPkg = 1;
     if (supplierProduct) {
         itemName = supplierProduct.name || '';
         itemPrice = parseFloat(supplierProduct.price) || 0;
+        unitType = supplierProduct.unit_type || "יח'";
+        unitsPerPkg = parseInt(supplierProduct.units_per_package) || 1;
     } else if (productId && window.storeCatalogCache) {
         const product = window.storeCatalogCache.find(p => p.id === parseInt(productId));
         if (product) { itemName = product.name; itemPrice = parseFloat(product.price) || 0; }
     }
-    row.innerHTML = `<input type="text" value="${safeStr(itemName)}" placeholder="שם פריט" class="flex-1 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-name" data-catalog-id="${productId || ''}">
-        <input type="number" min="1" value="1" placeholder="כמות" class="w-16 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-qty">
-        <input type="number" min="0" step="0.01" value="${itemPrice}" placeholder="₪ מחיר" class="w-20 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-price">
-        <button onclick="this.parentNode.remove()" class="text-slate-300 hover:text-red-400 transition text-xs px-1"><i class="fa-solid fa-xmark"></i></button>`;
+    const unitLabel = unitsPerPkg > 1 ? `${unitType} (${unitsPerPkg} יח')` : unitType;
+    const unitHint = unitsPerPkg > 1 ? `<span class="text-[10px] text-indigo-500 font-bold">⚠️ יחידת הקמה: ${unitLabel} | מחיר: ₪${itemPrice.toFixed(2)}/${unitType}</span>` : '';
+    row.innerHTML = `
+        <div class="flex gap-2 items-center">
+            <input type="text" value="${safeStr(itemName)}" placeholder="שם פריט" class="flex-1 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-name" data-catalog-id="${productId || ''}" data-unit-type="${safeStr(unitType)}" data-units-per-pkg="${unitsPerPkg}">
+            <input type="number" min="1" value="1" placeholder="כמות" title="כמות ב${unitLabel}" class="w-16 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-qty">
+            <input type="number" min="0" step="0.01" value="${itemPrice}" placeholder="₪ מחיר" title="מחיר ל${unitLabel}" class="w-20 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-price">
+            <button onclick="this.closest('.wo-po-item-row').remove()" class="text-slate-300 hover:text-red-400 transition text-xs px-1"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        ${unitHint}`;
     container.appendChild(row);
 };
 
@@ -32292,10 +32362,13 @@ window.submitWoPurchaseOrder = async function() {
     const rows = document.querySelectorAll('#wo-po-items .wo-po-item-row');
     const items = [];
     rows.forEach(row => {
-        const name = row.querySelector('.wo-po-item-name')?.value?.trim();
+        const nameEl = row.querySelector('.wo-po-item-name');
+        const name = nameEl?.value?.trim();
         const qty = parseFloat(row.querySelector('.wo-po-item-qty')?.value || 1);
         const price = parseFloat(row.querySelector('.wo-po-item-price')?.value || 0);
-        if (name) items.push({ item_name: name, quantity: qty, unit_price: price });
+        const unitType = nameEl?.dataset?.unitType || "יח'";
+        const unitsPerPkg = parseInt(nameEl?.dataset?.unitsPerPkg) || 1;
+        if (name) items.push({ item_name: name, quantity: qty, unit_price: price, unit_type: unitType, units_per_package: unitsPerPkg });
     });
     if (!items.length) return showToast('error', 'נא להוסיף לפחות פריט אחד');
     try {
@@ -32309,6 +32382,15 @@ window.submitWoPurchaseOrder = async function() {
         document.getElementById('wo-add-purchase-panel').classList.add('hidden');
         window.loadWoPurchaseOrders();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.confirmWoPoReceive = async function(poId) {
+    if (!confirm('לאשר קבלת הסחורה?\nהפריטים יתווספו אוטומטית לציוד פקודת העבודה.')) return;
+    await window.updateWoPo(poId, 'delivered');
+    // רענן גם את טאב הציוד
+    const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
+    const dData = await dRes.json();
+    if (dData.success) { window._currentWoData = dData; window.renderWoInventory(dData.inventory || []); window.renderWoCosts(dData); }
 };
 
 window.updateWoPo = async function(poId, status) {

@@ -11524,6 +11524,22 @@ app.get('/api/work-orders/catalog/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// פירוט כמויות משוריינות למוצר מקטלוג לפי פקודות עבודה
+app.get('/api/store/catalog/:itemId/wo-reservations', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT woi.id, woi.reserved_qty, woi.status, woi.unit_price,
+                    so.id as wo_id, so.customer_name, so.status as wo_status, so.created_at as wo_created_at
+             FROM work_order_inventory woi
+             JOIN store_orders so ON woi.work_order_id = so.id
+             WHERE woi.catalog_id = $1 AND woi.status IN ('reserved','used')
+             ORDER BY so.created_at DESC`,
+            [req.params.itemId]
+        );
+        res.json({ success: true, reservations: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/work-orders/:id/inventory', async (req, res) => {
     try {
         const { catalogId, itemName, qty, reservedBy, unitPrice } = req.body;
