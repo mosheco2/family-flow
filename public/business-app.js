@@ -7144,7 +7144,7 @@ window.renderStoreQuotes = function() {
             const hasFamilyLink = !!q.family_group_id;
             const sendOneflowBtn = hasFamilyLink
                 ? `<button onclick="window.sendQuoteToOneflow(${q.id})" class="flex-[1.5] bg-indigo-600 text-white hover:bg-indigo-700 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-solid fa-paper-plane text-xs"></i> שלח ב-OneFlow</button>`
-                : `<button onclick="window.pickOneFlowCustomerForQuote(${q.id})" class="flex-[1.5] bg-indigo-600 text-white hover:bg-indigo-700 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-solid fa-paper-plane text-xs"></i> שלח ב-OneFlow</button>`;
+                : `<button onclick="window.pickOneFlowCustomerForQuote(${q.id},'${safeStr(q.customer_phone||'')}')" class="flex-[1.5] bg-indigo-600 text-white hover:bg-indigo-700 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-solid fa-paper-plane text-xs"></i> שלח ב-OneFlow</button>`;
 
             const timelineHtml = _renderBizQuoteTimeline(q.quote_history);
             html += `
@@ -7255,20 +7255,24 @@ window.sendQuoteToOneflow = async function(id) {
 };
 
 // בחר לקוח OneFlow לפני שליחה
-window.pickOneFlowCustomerForQuote = function(quoteId) {
+window.pickOneFlowCustomerForQuote = function(quoteId, customerPhone) {
     document.getElementById('ofl-pick-modal')?.remove();
+    const safePhone = safeStr(customerPhone || '');
     const html = `<div id="ofl-pick-modal" class="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4" style="direction:rtl;">
         <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-5">
             <div class="flex items-center justify-between mb-3">
                 <h3 class="font-black text-slate-800">🔗 בחר לקוח OneFlow</h3>
                 <button onclick="document.getElementById('ofl-pick-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark text-slate-500"></i></button>
             </div>
-            <input id="ofl-pick-search" type="text" placeholder="חפש לקוח..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm mb-3 outline-none" oninput="window.oflPickSearch(${quoteId}, this.value)">
+            <p class="text-[11px] text-slate-500 bg-blue-50 rounded-xl px-3 py-2 mb-3 leading-snug">לחץ על לחפש כדי לאשר שהלקוח משתמש ב-OneFlow Life. במידה ולא נמצא — תוכל להזין איש קשר אחר שכן.</p>
+            <input id="ofl-pick-search" type="text" value="${safePhone}" placeholder="חיפוש לפי מספר טלפון..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm mb-1 outline-none dir-ltr text-left" oninput="window.oflPickSearch(${quoteId}, this.value)">
+            <p class="text-[9px] text-slate-400 mb-2">ניתן לחפש לפי מספר טלפון, שם או מייל</p>
             <div id="ofl-pick-results" class="space-y-1.5 max-h-64 overflow-y-auto"></div>
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
-    window.oflPickSearch(quoteId, '');
+    if (customerPhone) window.oflPickSearch(quoteId, customerPhone);
+    else window.oflPickSearch(quoteId, '');
 };
 window.oflPickSearch = async function(quoteId, q) {
     const resultsEl = document.getElementById('ofl-pick-results');
@@ -7587,6 +7591,7 @@ window.openEditQuoteModal = async function(quoteId) {
     set('cq-internal-note', meta.internalNote || '');
     set('cq-discount', meta.discount !== undefined ? meta.discount : 0);
     set('cq-customer-email', meta.customerEmail || '');
+    set('cq-recipient-name', meta.recipientName || q.customer_name || '');
     if (meta.vatRate !== undefined) set('cq-vat-rate', meta.vatRate);
     if (meta.noVat) { const el = document.getElementById('cq-no-vat'); if (el) el.checked = true; }
 
@@ -7597,7 +7602,8 @@ window.openEditQuoteModal = async function(quoteId) {
             desc: i.item_name || i.name || '',
             qty: parseFloat(i.quantity) || 1,
             price: parseFloat(i.price_at_order || i.price) || 0,
-            catalogId: (i.catalogId && i.catalogId !== 0) ? i.catalogId : null
+            catalogId: (i.catalogId && i.catalogId !== 0) ? i.catalogId : null,
+            note: i.note || ''
         });
     });
 
@@ -7679,7 +7685,7 @@ window.generateQuoteAI = async function(type, btnElement) {
 
 window.cqGenerateIntroAI = async function() {
     const custName = val('cq-customer-name') || 'לקוח יקר';
-    const query = `כתוב 2 משפטי פתיחה רשמיים, מכובדים ומקצועיים להצעת מחיר עבור הלקוח: ${custName}. העסק השולח: ${currentGroup.name}. חובה: ללא אימוג'ים או אייקונים כלל. החזר אך ורק את המשפטים ללא שום מילת הקדמה מצידך.`;
+    const query = `כתוב בדיוק 2 משפטים בלבד כפתיחה רשמית ומקצועית להצעת מחיר. שורה ראשונה: פנייה אישית ומכובדת לשם הלקוח "${custName}". שורה שנייה: הצגת העסק "${currentGroup.name}" ומטרת ההצעה. חובה: ללא אימוג'ים, ללא כוכביות, ללא מספרים, ללא נקודות בפתיחה, ללא כל מילת פתיחה מצידך. רק 2 שורות טקסט צמוד אחת לשנייה.`;
     const targetId = 'cq-intro-text';
     const btnEl = event?.target;
     const originalHtml = btnEl ? btnEl.innerHTML : '';
@@ -8437,8 +8443,9 @@ window.openQuotePreview = function(quoteId) {
     });
 
     let userNotes = ''; let introText = ''; let validity = ''; let companyId = ''; let myCompanyId = ''; let discountVal = 0; let quoteTitle = '';
+    let recipientName = '';
     if (metaData) {
-        quoteTitle = metaData.title || ''; userNotes = metaData.notes || ''; introText = metaData.introText || ''; validity = metaData.validity || ''; companyId = metaData.companyId || ''; myCompanyId = metaData.myCompanyId || ''; discountVal = metaData.discount || 0;
+        quoteTitle = metaData.title || ''; userNotes = metaData.notes || ''; introText = metaData.introText || ''; validity = metaData.validity || ''; companyId = metaData.companyId || ''; myCompanyId = metaData.myCompanyId || ''; discountVal = metaData.discount || 0; recipientName = metaData.recipientName || '';
     } else {
         try { const parsedNotes = JSON.parse(q.notes); quoteTitle = parsedNotes.title || ''; userNotes = parsedNotes.notes || ''; introText = parsedNotes.introText || ''; validity = parsedNotes.validity || ''; companyId = parsedNotes.companyId || localStorage.getItem('ofl_company_id') || ''; myCompanyId = parsedNotes.myCompanyId || localStorage.getItem('ofl_my_company_id') || ''; } catch(e) { userNotes = q.notes || ''; }
     }
@@ -8519,7 +8526,7 @@ window.openQuotePreview = function(quoteId) {
             <div class="avoid-break" style="background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; direction:rtl;">
                 <div style="text-align:right;">
                     <div style="font-size:12px; color:#64748b; margin-bottom:4px;">לכבוד:</div>
-                    <div style="font-size:18px; font-weight:bold; color:#1e293b;">${safeStr(q.customer_name)}</div>
+                    <div style="font-size:18px; font-weight:bold; color:#1e293b;">${safeStr(recipientName || q.customer_name)}</div>
                     ${companyId ? `<div style="font-size:12px; color:#475569; margin-top:2px;"><b>ח.פ/ע.מ לקוח:</b> ${safeStr(companyId)}</div>` : ''}
                 </div>
                 <div style="text-align:left;">
@@ -9536,7 +9543,12 @@ window.showCustomerQuoteModal = function(customerId, options = {}) {
                         <input id="cq-customer-name" type="text" value="${c ? safeStr(c.company_name||c.name||'') : ''}" placeholder="שם הלקוח" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm">
                         <button type="button" onclick="cqSearchCustomer()" class="shrink-0 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl" style="touch-action:manipulation;">🔍 חיפוש</button>
                     </div>
+                    <p class="text-[9px] text-slate-400 mt-1">חיפוש לפי שם, טלפון, מייל</p>
                     <div id="cq-customer-results" class="space-y-1 max-h-32 overflow-y-auto mt-1"></div>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">לכבוד (יופיע בהצעה)</label>
+                    <input id="cq-recipient-name" type="text" value="${c ? safeStr(c.company_name||c.name||'') : ''}" placeholder="למשל: מר כהן יוסי / משפחת כהן" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <div><label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון</label>
@@ -9697,9 +9709,11 @@ window.cqSelectCustomer = function(name, phone, companyId) {
     const nameEl = document.getElementById('cq-customer-name');
     const phoneEl = document.getElementById('cq-customer-phone');
     const cidEl = document.getElementById('cq-company-id');
+    const recipEl = document.getElementById('cq-recipient-name');
     if (nameEl) nameEl.value = name;
     if (phoneEl && phone && !phoneEl.value) phoneEl.value = phone;
     if (cidEl && companyId) cidEl.value = companyId;
+    if (recipEl && !recipEl.value) recipEl.value = name;
     const resultsEl = document.getElementById('cq-customer-results');
     if (resultsEl) resultsEl.innerHTML = `<p class="text-xs text-green-600 font-bold py-1">✅ ${safeStr(name)} נבחר</p>`;
 };
@@ -9708,12 +9722,13 @@ window._cqBuildSavePayload = function() {
     const q = window.cqGetQuoteData();
     const lines = q.lines.filter(l => l.desc || l.total > 0);
     if (q.myCompanyId) localStorage.setItem('ofl_my_company_id', q.myCompanyId);
-    const items = lines.map(l => ({ name: l.desc, quantity: l.qty, price: l.price, catalogId: l.catalogId || null }));
+    const items = lines.map(l => ({ name: l.desc, quantity: l.qty, price: l.price, catalogId: l.catalogId || null, note: l.note || undefined }));
     items.push({ is_quote_metadata: true, data: JSON.stringify({
         title: q.title, companyId: q.companyId, myCompanyId: q.myCompanyId,
         validity: q.validity, notes: q.notes, internalNote: q.internalNote,
         discount: q.discount, introText: q.introText, ref: q.ref,
-        vatRate: q.vatRate, noVat: q.noVat, customerEmail: q.customerEmail
+        vatRate: q.vatRate, noVat: q.noVat, customerEmail: q.customerEmail,
+        recipientName: q.recipientName
     }) });
     return { q, lines, payload: { groupId: currentGroup.id, customerName: q.customerName, customerPhone: q.customerPhone, items, totalAmount: q.total, notes: q.internalNote } };
 };
@@ -9770,14 +9785,17 @@ window.cqAddLine = function(prefill = {}) {
     const container = document.getElementById('cq-lines');
     if (!container) return;
     const div = document.createElement('div');
-    div.className = 'grid grid-cols-12 gap-1 items-center';
+    div.className = 'space-y-0.5 border-b border-slate-100 pb-1.5 mb-1';
     div.dataset.catalogId = prefill.catalogId || '';
     div.innerHTML = `
-        <input type="text" value="${safeStr(prefill.desc||'')}" placeholder="תיאור עבודה..." class="col-span-5 border border-slate-200 rounded-lg px-2 py-1.5 text-xs cq-desc">
-        <input type="number" value="${prefill.qty||1}" min="0" oninput="window.cqCalcTotal()" class="col-span-2 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center cq-qty">
-        <input type="number" value="${prefill.price||0}" min="0" step="0.01" oninput="window.cqCalcTotal()" class="col-span-2 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center dir-ltr cq-price">
-        <span class="col-span-2 text-xs font-bold text-slate-700 text-center cq-line-total">₪${((prefill.qty||1)*(prefill.price||0)).toFixed(0)}</span>
-        <button onclick="this.parentNode.remove();window.cqCalcTotal()" class="col-span-1 text-slate-300 hover:text-red-400 text-center text-xs"><i class="fa-solid fa-xmark"></i></button>`;
+        <div class="grid grid-cols-12 gap-1 items-center">
+            <input type="text" value="${safeStr(prefill.desc||'')}" placeholder="תיאור עבודה..." class="col-span-5 border border-slate-200 rounded-lg px-2 py-1.5 text-xs cq-desc">
+            <input type="number" value="${prefill.qty||1}" min="0" oninput="window.cqCalcTotal()" class="col-span-2 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center cq-qty">
+            <input type="number" value="${prefill.price||0}" min="0" step="0.01" oninput="window.cqCalcTotal()" class="col-span-2 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center dir-ltr cq-price">
+            <span class="col-span-2 text-xs font-bold text-slate-700 text-center cq-line-total">₪${((prefill.qty||1)*(prefill.price||0)).toFixed(0)}</span>
+            <button onclick="this.closest('.space-y-0\\.5').remove();window.cqCalcTotal()" class="col-span-1 text-slate-300 hover:text-red-400 text-center text-xs"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <input type="text" value="${safeStr(prefill.note||'')}" placeholder="הערה לשורה (לא חובה)..." class="w-full border border-slate-100 bg-slate-50 rounded-lg px-2 py-1 text-[10px] text-slate-500 placeholder-slate-300 cq-line-note">`;
     container.appendChild(div);
     window.cqCalcTotal();
 };
@@ -9819,7 +9837,8 @@ window.cqGetQuoteData = function() {
         const desc = line.querySelector('.cq-desc')?.value?.trim();
         const qty = parseFloat(line.querySelector('.cq-qty')?.value || 0);
         const price = parseFloat(line.querySelector('.cq-price')?.value || 0);
-        if (desc || qty || price) lines.push({ desc: desc||'', qty, price, total: qty*price, catalogId: line.dataset?.catalogId || null });
+        const note = line.querySelector('.cq-line-note')?.value?.trim() || '';
+        if (desc || qty || price) lines.push({ desc: desc||'', qty, price, total: qty*price, catalogId: line.dataset?.catalogId || null, note: note || undefined });
     });
     const { subtotal, discount, discountAmount, beforeVat, vatRate, vatAmount, total } = window.cqCalcTotal();
     return {
@@ -9828,6 +9847,7 @@ window.cqGetQuoteData = function() {
         customerName: document.getElementById('cq-customer-name')?.value || '',
         customerPhone: document.getElementById('cq-customer-phone')?.value || '',
         customerEmail: document.getElementById('cq-customer-email')?.value || '',
+        recipientName: document.getElementById('cq-recipient-name')?.value || '',
         companyId: document.getElementById('cq-company-id')?.value || '',
         myCompanyId: document.getElementById('cq-my-company-id')?.value || '',
         date: document.getElementById('cq-date')?.value || '',
@@ -10201,11 +10221,14 @@ window.renderCqCatalogGrid = function() {
     if (search) items = items.filter(p => (p.name||'').toLowerCase().includes(search) || (p.description||'').toLowerCase().includes(search));
     else if (cat !== 'all') items = items.filter(p => (p.category||'כללי') === cat);
     if (!items.length) { grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400 text-xs">לא נמצאו מוצרים.</div>'; return; }
+    const showCatBadge = cat === 'all' || !!search;
     grid.innerHTML = items.map(p => {
         const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-full h-20 object-cover rounded-t-xl border-b border-slate-100 shrink-0">` : `<div class="w-full h-20 bg-slate-100 flex items-center justify-center rounded-t-xl border-b border-slate-100 shrink-0"><i class="fa-solid fa-image text-2xl text-slate-300"></i></div>`;
+        const catBadge = showCatBadge ? `<span class="inline-block text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full mb-1 truncate max-w-full">${safeStr(p.category||'כללי')}</span>` : '';
         return `<div onclick="window.cqAddCatalogLine('${p.id}')" class="bg-white rounded-xl border border-slate-200 shadow-sm hover:border-amber-400 hover:shadow-md transition cursor-pointer flex flex-col overflow-hidden group">
             ${imgHtml}
             <div class="p-2 flex-1 flex flex-col justify-between">
+                ${catBadge}
                 <h5 class="font-bold text-slate-700 text-xs leading-tight mb-1 line-clamp-2">${safeStr(p.name)}</h5>
                 <div class="flex justify-between items-center">
                     <span class="text-amber-600 font-black text-sm dir-ltr">&#8362;${parseFloat(p.price||0).toFixed(2)}</span>
