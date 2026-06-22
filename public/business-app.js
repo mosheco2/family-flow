@@ -13591,7 +13591,8 @@ function resetCatalogForm() {
     const priceEl = getEl('cat-prod-price'); if(priceEl) priceEl.value = ''; 
     const unitEl = getEl('cat-prod-unit'); if(unitEl) unitEl.value = "יח'"; 
     const uppEl = getEl('cat-prod-upp'); if(uppEl) uppEl.value = 1; 
-    const descEl = getEl('cat-prod-desc'); if(descEl) descEl.value = ''; 
+    const descEl = getEl('cat-prod-desc'); if(descEl) descEl.value = '';
+    const catSelEl = getEl('cat-prod-catalog-id'); if(catSelEl) catSelEl.value = '';
     const titleEl = getEl('catalog-form-title'); if(titleEl) titleEl.innerText = 'הוספת מוצר לקטלוג'; 
     const btnEl = getEl('btn-submit-cat-prod'); if(btnEl) btnEl.innerText = 'הוסף מוצר'; 
 }
@@ -13660,12 +13661,20 @@ function openSupplierCatalog(supplierId, supplierName) {
     // טען קטלוג עסק ל-dropdown קישור מלאי
     const catSel = getEl('cat-prod-catalog-id');
     if (catSel && currentGroup) {
+        catSel.innerHTML = '<option value="">— טוען קטלוג... —</option>';
         fetch(`${API}/store/catalog/${currentGroup.id}`)
             .then(r => r.json()).then(items => {
-                const arr = Array.isArray(items) ? items : (items.items || []);
+                const arr = Array.isArray(items) ? items : (items.items || items || []);
+                if (!arr || arr.length === 0) {
+                    catSel.innerHTML = '<option value="">— אין פריטים בקטלוג —</option>';
+                    return;
+                }
                 catSel.innerHTML = '<option value="">— ללא קישור —</option>' +
                     arr.map(i => `<option value="${i.id}">${safeStr(i.name)}${i.stock_quantity > 0 ? ` (מלאי: ${i.stock_quantity})` : ''}</option>`).join('');
-            }).catch(() => {});
+            }).catch(e => {
+                console.error('Error loading catalog:', e);
+                catSel.innerHTML = '<option value="">— שגיאה בטעינה —</option>';
+            });
     }
     fetch(`${API}/suppliers/${supplierId}/products`)
         .then(res => res.json())
