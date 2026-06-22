@@ -9831,7 +9831,7 @@ window.showCustomerQuoteModal = function(customerId, options = {}) {
             </div>
             <div class="px-4 py-3 border-t border-slate-100 shrink-0 space-y-2">
                 <button id="cq-save-btn" onclick="window.saveQuickQuote()" class="w-full bg-slate-800 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> ${isEdit ? 'עדכן הצעה' : 'שמור הצעה במערכת'}</button>
-                <button id="cq-oneflow-btn" onclick="window.sendQuoteInternal()" ${hasFamilyGroup ? '' : 'disabled title="הלקוח לא מקושר ל-OneFlow Life"'} class="w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition ${hasFamilyGroup ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}"><i class="fa-solid fa-paper-plane"></i> שלח ב-OneFlow Life${hasFamilyGroup ? '' : ' <span class="text-[10px] font-normal">(לקוח לא מקושר)</span>'}</button>
+                <button id="cq-oneflow-btn" onclick="window.sendQuoteInternal()" ${hasFamilyGroup ? '' : 'disabled'} class="w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition ${hasFamilyGroup ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}"><i class="fa-solid fa-paper-plane"></i> שלח ב-OneFlow Life${hasFamilyGroup ? '' : ' <span class="text-[10px] font-normal opacity-60"><i class="fa-solid fa-spinner fa-spin text-[9px]"></i></span>'}</button>
                 <div class="grid grid-cols-2 gap-2">
                     <button onclick="window.sendQuoteWhatsApp()" class="bg-green-500 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
                     <button onclick="window.printQuotePDF()" class="bg-slate-700 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5"><i class="fa-solid fa-print"></i> PDF / הדפסה</button>
@@ -9878,7 +9878,22 @@ window.cqSearchCustomer = function() {
             ${isOneflow ? '<span class="text-[8px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded font-bold shrink-0">OneFlow</span>' : ''}
         </button>`;
     }).join('');
-    resultsEl.innerHTML = bizHtml || `<p class="text-xs text-slate-400 py-1 text-center">לא נמצאו לקוחות תואמים</p>`;
+    if (!bizHtml) {
+        resultsEl.innerHTML = `<p class="text-xs text-slate-400 py-1 text-center">לא נמצאו לקוחות תואמים</p>`;
+        // If query looks like a phone number, copy to phone field and trigger OneFlow lookup
+        const digitsOnly = q.replace(/\D/g, '');
+        if (digitsOnly.length >= 9) {
+            const phoneEl = document.getElementById('cq-customer-phone');
+            if (phoneEl && !phoneEl.value) {
+                phoneEl.value = q;
+                window.cqOnPhoneEmailChange(true);
+            } else if (phoneEl && phoneEl.value) {
+                window.cqLookupOneflow();
+            }
+        }
+    } else {
+        resultsEl.innerHTML = bizHtml;
+    }
 };
 window.cqSelectCustomerObj = function(custId) {
     const c = (window.storeCustomersCache || []).find(x => String(x.id) === String(custId));
@@ -10067,20 +10082,25 @@ window.cqUpdateOneflowBtn = function(found, name) {
     const btn = document.getElementById('cq-oneflow-btn');
     const status = document.getElementById('cq-oneflow-status');
     if (btn) {
-        if (found) {
+        if (found === true) {
             btn.disabled = false;
             btn.className = 'w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition bg-indigo-600 text-white hover:bg-indigo-700';
             btn.setAttribute('onclick', 'window.sendQuoteInternal()');
             btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שלח ב-OneFlow Life';
-        } else {
+        } else if (found === false) {
             btn.disabled = false;
             btn.className = 'w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100';
             btn.setAttribute('onclick', 'window.cqInviteToOneflow()');
             btn.innerHTML = '<i class="fa-brands fa-whatsapp text-[#25D366]"></i> 📲 הזמן ל-OneFlow Life';
+        } else {
+            btn.disabled = true;
+            btn.className = 'w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition bg-slate-200 text-slate-400 cursor-not-allowed';
+            btn.removeAttribute('onclick');
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שלח ב-OneFlow Life';
         }
     }
     if (status) {
-        if (found) {
+        if (found === true) {
             status.innerHTML = `<span class="text-green-600 font-bold">✅ נמצא ב-OneFlow Life: ${safeStr(name)}</span>`;
         } else if (found === false) {
             status.innerHTML = `<span class="text-amber-600 text-xs">לא נמצא ב-OneFlow Life — לחץ להזמין</span>`;
