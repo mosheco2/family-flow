@@ -31858,25 +31858,45 @@ window.renderWoInventory = function(inventory) {
     const total = activeItems.reduce((s, i) => s + (parseFloat(i.unit_price || 0) * parseFloat(i.reserved_qty || 0)), 0);
     list.innerHTML = inventory.map(item => {
         const st = statusInfo[item.status] || statusInfo.reserved;
-        const lineTotal = parseFloat(item.unit_price || 0) * parseFloat(item.reserved_qty || 0);
+        const neededQty = parseFloat(item.needed_qty || item.reserved_qty || 0);
+        const reservedQty = parseFloat(item.reserved_qty || 0);
+        const shortage = Math.max(0, neededQty - reservedQty);
+        const lineTotal = parseFloat(item.unit_price || 0) * reservedQty;
         const catalogTotal = parseFloat(item.total_stock || 0);
         const catalogReserved = parseFloat(item.catalog_reserved || 0);
-        const catalogAvailable = catalogTotal - catalogReserved;
+        const catalogAvailable = Math.max(0, catalogTotal - catalogReserved);
+
+        const qtyLine = neededQty > reservedQty
+            ? `<div class="flex gap-2 text-xs mb-2 flex-wrap">
+                <span class="text-slate-500">נדרש: <b class="text-slate-700">${neededQty}</b> יח'</span>
+                <span class="text-slate-400">|</span>
+                <span class="text-slate-500">שויך: <b class="text-green-700">${reservedQty}</b> יח'</span>
+                <span class="text-slate-400">|</span>
+                <span class="text-red-600 font-bold">חסר: ${shortage} יח' ⚠️</span>
+               </div>`
+            : `<p class="text-xs text-slate-500 mb-2">כמות: ${reservedQty} יח'${item.unit_price > 0 ? ` | ₪${parseFloat(item.unit_price).toFixed(2)} ליח'` : ''}</p>`;
+
+        const poAlert = shortage > 0 && item.status === 'reserved'
+            ? `<div class="bg-red-50 border border-red-200 rounded-lg p-2 mb-2 text-[10px] text-red-700 font-bold">⚠️ חסרים ${shortage} יח' — יש לפתוח הזמנת רכש</div>` : '';
+
         const stockInfo = item.catalog_id ? `<div class="bg-blue-50 rounded-lg p-2 mb-2 border border-blue-200 text-[10px]">
-            <div class="flex justify-between mb-1"><span class="text-slate-600">מלאי קטלוג:</span><span class="font-bold text-blue-700">${catalogTotal.toFixed(0)} יח'</span></div>
-            <div class="flex justify-between mb-1"><span class="text-slate-600">משוריין בסך הכל:</span><span class="font-bold text-amber-600">${catalogReserved.toFixed(0)} יח'</span></div>
-            <div class="flex justify-between mb-1"><span class="text-slate-600">זמין לשימוש:</span><span class="font-bold text-green-600">${Math.max(0, catalogAvailable).toFixed(0)} יח'</span></div>
+            <div class="flex justify-between mb-1"><span class="text-slate-600">מלאי כולל:</span><span class="font-bold text-blue-700">${catalogTotal.toFixed(0)} יח'</span></div>
+            <div class="flex justify-between mb-1"><span class="text-slate-600">משוריין (כל הפקודות):</span><span class="font-bold text-amber-600">${catalogReserved.toFixed(0)} יח'</span></div>
+            <div class="flex justify-between mb-1"><span class="text-slate-600">זמין לשימוש:</span><span class="font-bold text-green-600">${catalogAvailable.toFixed(0)} יח'</span></div>
             <button onclick="window.showCatalogWoReservations(${item.catalog_id}, '${safeStr(item.item_name).replace(/'/g, "\\'")}'); event.stopPropagation();" class="w-full mt-2 bg-blue-600 text-white py-1 rounded-lg text-[9px] font-bold hover:bg-blue-700 transition">ראה פקודות עבודה אחרות</button>
         </div>` : '';
-        return `<div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+
+        return `<div class="bg-slate-50 rounded-xl p-3 border ${shortage > 0 && item.status === 'reserved' ? 'border-red-200' : 'border-slate-100'}">
             <div class="flex justify-between items-center mb-1">
                 <span class="font-bold text-slate-700 text-sm">${safeStr(item.item_name)}</span>
                 <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${st.cls}">${st.label}</span>
             </div>
-            <p class="text-xs text-slate-500 mb-2">כמות: ${item.reserved_qty} יח'${item.unit_price > 0 ? ` | ₪${parseFloat(item.unit_price).toFixed(2)} ליח' | סה"כ: ₪${lineTotal.toFixed(2)}` : ''}</p>
+            ${qtyLine}
+            ${poAlert}
             ${stockInfo}
+            ${item.unit_price > 0 && neededQty <= reservedQty ? `<p class="text-[10px] text-slate-400 mb-2">סה"כ: ₪${lineTotal.toFixed(2)}</p>` : ''}
             ${item.status === 'reserved' ? `<div class="flex gap-2">
-                <button onclick="window.confirmInventoryUse(${item.id}, ${item.reserved_qty})" class="flex-1 bg-green-600 text-white py-1.5 rounded-lg text-[10px] font-bold hover:bg-green-700 transition">✓ אשר שימוש</button>
+                <button onclick="window.confirmInventoryUse(${item.id}, ${reservedQty})" class="flex-1 bg-green-600 text-white py-1.5 rounded-lg text-[10px] font-bold hover:bg-green-700 transition">✓ אשר שימוש</button>
                 <button onclick="window.releaseInventory(${item.id})" class="flex-1 bg-slate-200 text-slate-600 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-300 transition">שחרר</button>
             </div>` : ''}
         </div>`;
@@ -32051,7 +32071,7 @@ window.renderWoInventoryCatalogResults = function() {
     const resultsEl = document.getElementById('wo-inv-cat-results');
     if (!resultsEl || !window.storeCatalogCache) return;
     const search = (document.getElementById('wo-inv-cat-search')?.value || '').toLowerCase();
-    let items = window.storeCatalogCache.filter(p => p.is_available && (p.stock_quantity || 0) > 0);
+    let items = window.storeCatalogCache.filter(p => p.is_available !== false);
     if (search) items = items.filter(p => (p.name||'').toLowerCase().includes(search) || (p.description||'').toLowerCase().includes(search));
     if (!items.length) { resultsEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 col-span-full">לא נמצאו פריטים.</p>'; return; }
     resultsEl.innerHTML = items.map(p => `<button type="button" onclick="document.getElementById('wo-inv-cat-search').value=''; window.renderWoInventoryCatalogResults(); const sel=document.getElementById('wo-inventory-item-select'); sel.value='${p.id}'; document.getElementById('wo-inventory-catalog-picker').remove();" class="text-right text-xs p-3 rounded-lg bg-slate-50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-300 font-medium text-slate-700 transition flex flex-col gap-2">
@@ -32067,6 +32087,7 @@ window.openAddInventoryPanel = async function() {
     const panel = document.getElementById('wo-add-inventory-panel');
     if (!panel) return;
     panel.classList.remove('hidden');
+    setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
     await window.loadInventoryBySupplier();
 };
 
@@ -32078,19 +32099,20 @@ window.loadInventoryBySupplier = async function() {
     try {
         const res = await fetch(`${API}/store/catalog/${currentGroup.id}`);
         const catData = await res.json();
-        const items = (Array.isArray(catData) ? catData : catData.items || [])
+        const allItems = (Array.isArray(catData) ? catData : catData.items || [])
             .filter(c => c.is_available !== false)
             .sort((a, b) => (b.stock_quantity || 0) - (a.stock_quantity || 0));
-        if (!items.length) {
-            sel.innerHTML = '<option value="">אין מוצרים במלאי — הוסף מוצרים לקטלוג תחת "מלאי"</option>';
+        if (!allItems.length) {
+            sel.innerHTML = '<option value="">אין מוצרים — הוסף מוצרים לקטלוג תחת "מלאי"</option>';
             return;
         }
         sel.innerHTML = '<option value="">— בחר פריט ממלאי —</option>' +
-            items.map(c => {
+            allItems.map(c => {
                 const stock = parseFloat(c.stock_quantity || 0);
                 const reserved = parseFloat(c.reserved_qty || 0);
                 const available = Math.max(0, stock - reserved);
-                const stockLabel = `[מלאי: ${stock.toFixed(0)} • זמין: ${available.toFixed(0)}]`;
+                const noStock = stock === 0;
+                const stockLabel = noStock ? '[אין במלאי ⚠️]' : `[מלאי: ${stock.toFixed(0)} • זמין: ${available.toFixed(0)}]`;
                 return `<option value="${c.id}" data-name="${safeStr(c.name)}" data-price="${c.price || 0}" data-units="1" data-unit-type="יח'" data-stock="${stock}" data-available="${available}">${safeStr(c.name)} ${stockLabel}</option>`;
             }).join('');
         sel.onchange = function() {
@@ -32123,32 +32145,27 @@ window.addInventoryReservation = async function() {
     const priceInput = document.getElementById('wo-inventory-unit-price');
     if (!sel || !sel.value) return showToast('error', 'נא לבחור פריט');
     const opt = sel.options[sel.selectedIndex];
-    const itemName = opt?.dataset?.name || '';
+    let itemName = opt?.dataset?.name || '';
+    if (!itemName || itemName === 'null') itemName = opt?.text?.split(' [')[0] || '';
     const catalogId = parseInt(sel.value);
-    const qty = parseFloat(qtyInput?.value) || 1;
-    const available = parseFloat(opt?.dataset?.available || 0);
+    const neededQty = parseFloat(qtyInput?.value) || 1;
     const unitPrice = parseFloat(priceInput?.value) || 0;
 
-    if (qty > available) {
-        const shortage = qty - available;
-        const msg = `רק ${available} יח' זמינות. חסרים ${shortage} יח'. האם לפתוח בקשת רכש?`;
-        if (!confirm(msg)) return;
-        // TODO: open PO request for shortage
-        return showToast('info', 'פיצ\'ר הזמנה אוטומטית קרוב...');
-    }
-
-    const displayName = itemName;
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/inventory`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ catalogId, itemName: displayName, qty, unitPrice, reservedBy: currentUser?.nickname || 'מנהל' })
+            body: JSON.stringify({ catalogId, itemName, neededQty, qty: neededQty, unitPrice, reservedBy: currentUser?.nickname || 'מנהל' })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error);
         document.getElementById('wo-add-inventory-panel').classList.add('hidden');
         if (qtyInput) qtyInput.value = 1;
         if (priceInput) priceInput.value = 0;
-        showToast('success', `ציוד שורין בהצלחה (${qty} יח')`);
+        if (data.shortage > 0) {
+            showToast('warning', `שויך ${data.actualReserved} מתוך ${data.neededQty} נדרשים — חסרים ${data.shortage} יח'. יש לבצע הזמנת רכש!`);
+        } else {
+            showToast('success', `ציוד שורין בהצלחה (${data.actualReserved} יח')`);
+        }
         const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
         const dData = await dRes.json();
         if (dData.success) { window._currentWoData = dData; window.renderWoInventory(dData.inventory || []); window.renderWoOverview(dData); }

@@ -740,6 +740,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE work_order_assignees ADD COLUMN IF NOT EXISTS hours_worked DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
       try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS work_order_id INT REFERENCES store_orders(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE supplier_products ADD COLUMN IF NOT EXISTS catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE work_order_inventory ADD COLUMN IF NOT EXISTS needed_qty DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS min_stock_buffer_pct DECIMAL(5,2) DEFAULT 0`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS supplier_product_catalog_links (
           id SERIAL PRIMARY KEY,
           supplier_product_id INT REFERENCES supplier_products(id) ON DELETE CASCADE,
@@ -11588,21 +11590,44 @@ app.get('/api/store/catalog/:itemId/wo-reservations', async (req, res) => {
 
 app.post('/api/work-orders/:id/inventory', async (req, res) => {
     try {
-        const { catalogId, itemName, qty, reservedBy, unitPrice } = req.body;
+        const { catalogId, itemName, neededQty, qty, reservedBy, unitPrice } = req.body;
+        const needed = parseFloat(neededQty || qty || 1);
+        let actualReserved = needed;
+        let shortage = 0;
+
         if (catalogId) {
-            const catRes = await pool.query('SELECT stock_quantity, COALESCE(reserved_qty,0) as reserved_qty FROM store_catalog WHERE id=$1', [catalogId]);
+            const woRes = await pool.query('SELECT group_id FROM store_orders WHERE id=$1', [req.params.id]);
+            const groupId = woRes.rows[0]?.group_id;
+            const catRes = await pool.query(
+                `SELECT sc.stock_quantity, COALESCE(sc.reserved_qty,0) as reserved_qty,
+                        COALESCE(fg.min_stock_buffer_pct,0) as buffer_pct
+                 FROM store_catalog sc
+                 LEFT JOIN family_groups fg ON fg.id=$2
+                 WHERE sc.id=$1`,
+                [catalogId, groupId]
+            );
             if (!catRes.rows.length) return res.status(404).json({ error: 'פריט לא נמצא' });
-            const { stock_quantity, reserved_qty } = catRes.rows[0];
-            const available = (stock_quantity || 0) - (reserved_qty || 0);
-            if (available < qty) return res.status(400).json({ error: `רק ${available} יחידות זמינות` });
-            await pool.query('UPDATE store_catalog SET reserved_qty = COALESCE(reserved_qty,0) + $1 WHERE id=$2', [qty, catalogId]);
+            const { stock_quantity, reserved_qty, buffer_pct } = catRes.rows[0];
+            const totalStock = parseFloat(stock_quantity || 0);
+            const alreadyReserved = parseFloat(reserved_qty || 0);
+            const bufferQty = totalStock * (parseFloat(buffer_pct || 0) / 100);
+            const available = Math.max(0, totalStock - alreadyReserved - bufferQty);
+            actualReserved = Math.min(needed, available);
+            shortage = parseFloat((needed - actualReserved).toFixed(4));
+            if (actualReserved > 0) {
+                await pool.query('UPDATE store_catalog SET reserved_qty = COALESCE(reserved_qty,0) + $1 WHERE id=$2', [actualReserved, catalogId]);
+            }
         }
+
         const r = await pool.query(
-            'INSERT INTO work_order_inventory (work_order_id, catalog_id, item_name, reserved_qty, unit_price, reserved_by) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
-            [req.params.id, catalogId || null, itemName, qty, unitPrice || 0, reservedBy]
+            'INSERT INTO work_order_inventory (work_order_id, catalog_id, item_name, needed_qty, reserved_qty, unit_price, reserved_by) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
+            [req.params.id, catalogId || null, itemName, needed, actualReserved, unitPrice || 0, reservedBy]
         );
-        await addWorkOrderTimeline(req.params.id, 'inventory_reserved', `שורין ציוד: ${itemName} (${qty} יח')`, reservedBy);
-        res.json({ success: true, reservationId: r.rows[0].id });
+        const timelineMsg = shortage > 0
+            ? `שורין ציוד: ${itemName} (${actualReserved}/${needed} יח' — חסר ${shortage})`
+            : `שורין ציוד: ${itemName} (${actualReserved} יח')`;
+        await addWorkOrderTimeline(req.params.id, 'inventory_reserved', timelineMsg, reservedBy);
+        res.json({ success: true, reservationId: r.rows[0].id, neededQty: needed, actualReserved, shortage });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
