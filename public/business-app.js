@@ -28208,7 +28208,8 @@ window.showServiceCallModal = async function(callId) {
                     <span class="text-xs text-slate-600 flex-1">${safeStr(phone)}</span>
                     <a href="tel:${safeStr(phone)}" class="text-[10px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg border border-emerald-200" style="touch-action:manipulation;"><i class="fa-solid fa-phone"></i> התקשר</a>
                     <a href="https://wa.me/${phone.replace(/\D/g,'')}" target="_blank" class="text-[10px] font-black bg-green-100 text-green-700 px-2 py-1 rounded-lg border border-green-200" style="touch-action:manipulation;"><i class="fa-brands fa-whatsapp"></i> וואצאפ</a>
-                </div>` : ''}
+                </div>
+                ${!call.family_group_id ? `<button onclick="scInviteToOneflow('${phone}','${safeStr(contactName||familyLabel||'')}')" class="w-full mt-1 text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-1.5 rounded-lg border border-indigo-200 flex items-center justify-center gap-1.5 active:scale-95 transition" style="touch-action:manipulation;"><i class="fa-brands fa-whatsapp text-[#25D366]"></i> 📲 הזמן ל-ONEFLOW LIFE</button>` : ''}` : ''}
                 <div class="flex gap-2 flex-wrap">
                     <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${SC_PRIORITY_COLORS[call.priority]||''}">${SC_PRIORITY_LABELS[call.priority]||''}</span>
                     <span class="text-[10px] text-slate-400">${new Date(call.created_at).toLocaleDateString('he-IL')}</span>
@@ -28456,6 +28457,15 @@ window.showNewServiceCallModal = function() {
     }
 };
 
+window.scInviteToOneflow = function(phone, customerName) {
+    const origin = window.location.origin;
+    const bizName = currentGroup?.name || 'העסק שלנו';
+    const text = `שלום${customerName ? ' ' + customerName : ''}! 👋\n\n${bizName} מזמין אותך להצטרף ל-ONEFLOW LIFE 🏠\n\nבאפליקציה תוכל/י:\n✅ לעקוב אחר קריאות השירות שלך\n✅ לאשר הצעות מחיר\n✅ לתקשר עם הצוות שלנו\n\n📲 להצטרפות חינמית:\n${origin}/\n\nבלחיצה על "משפחה חדשה" צור/י חשבון ותעבור/י לחיבור עם העסק שלנו.`;
+    const waPhone = (phone || '').replace(/\D/g, '');
+    const url = waPhone ? `https://wa.me/972${waPhone.replace(/^0/, '')}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+};
+
 window.scSearchCustomerInOneFlow = async function() {
     const q = document.getElementById('scn-family')?.value?.trim();
     if (!q) { showToast('info', 'הקלד שם או מספר טלפון לחיפוש'); return; }
@@ -28529,7 +28539,7 @@ window.submitNewServiceCall = async function() {
     try {
         const r = await fetch('/api/service-calls', { method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({
-                familyGroupId: familyGroupIdOverride || currentGroup.id,
+                familyGroupId: familyGroupIdOverride || null,
                 businessGroupId: currentGroup.id,
                 title,
                 description: (familyName ? `לקוח: ${familyName}\n` : '') + (desc||''),
@@ -28544,9 +28554,13 @@ window.submitNewServiceCall = async function() {
         if (!r.ok) { showToast('error', d.error || 'שגיאה ביצירת הקריאה'); return; }
         showToast('success', 'קריאה נפתחה!');
         document.getElementById('sc-new-modal')?.remove();
-        const roleToRefresh = window._currentShowingRole || currentUser?.employee_role_type;
-        if (roleToRefresh) setTimeout(() => showRoleDashboard(roleToRefresh), 100);
-        else if (currentUser?.role === 'ADMIN') setTimeout(() => renderDashboard(), 100);
+        if (document.getElementById('sc-all-modal')) {
+            setTimeout(() => showAllServiceCalls(), 150);
+        } else {
+            const roleToRefresh = window._currentShowingRole || currentUser?.employee_role_type;
+            if (roleToRefresh) setTimeout(() => showRoleDashboard(roleToRefresh), 100);
+            else if (currentUser?.role === 'ADMIN') setTimeout(() => renderDashboard(), 100);
+        }
     } catch(e) { showToast('error', 'שגיאה ביצירת הקריאה'); }
 };
 
