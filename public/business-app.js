@@ -10594,8 +10594,9 @@ window.openCqCatalogPicker = async function() {
     if (!window.storeCatalogCache || !window.storeCatalogCache.length) {
         try {
             const res = await fetch(`${API}/store/catalog/${currentGroup.id}`);
-            window.storeCatalogCache = await res.json();
-        } catch(e) {}
+            const data = await res.json();
+            window.storeCatalogCache = Array.isArray(data) ? data : (data.items || []);
+        } catch(e) { console.error('catalog load error:', e); }
     }
     document.body.insertAdjacentHTML('beforeend', `
     <div id="cq-catalog-picker" class="fixed inset-0 bg-slate-900/80 z-[10000] flex items-end sm:items-center justify-center p-0 sm:p-4" style="direction:rtl;">
@@ -10630,7 +10631,11 @@ window.openCqCatalogPicker = async function() {
 
 window.renderCqCatalogGrid = function() {
     const grid = document.getElementById('cq-catalog-grid');
-    if (!grid || !window.storeCatalogCache) return;
+    if (!grid) return;
+    if (!window.storeCatalogCache || !window.storeCatalogCache.length) {
+        grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400 text-xs">טוען קטלוג...</div>';
+        return;
+    }
     const search = (document.getElementById('cq-picker-search')?.value || '').toLowerCase();
     const cat = document.getElementById('cq-picker-cat')?.value || 'all';
     let items = window.storeCatalogCache.filter(p => p.is_available);
@@ -10661,6 +10666,7 @@ window.cqAddCatalogLine = function(catalogId) {
     if (!p) return;
     window.cqAddLine({ desc: p.name, price: parseFloat(p.price||0), qty: 1, catalogId: p.id });
     showToast('success', `${p.name} נוסף`);
+    document.getElementById('cq-catalog-picker')?.remove();
 };
 
 window.generateStoreAliasLink = function() {
