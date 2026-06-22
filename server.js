@@ -740,6 +740,18 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE work_order_assignees ADD COLUMN IF NOT EXISTS hours_worked DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
       try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS work_order_id INT REFERENCES store_orders(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE supplier_products ADD COLUMN IF NOT EXISTS catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS supplier_product_catalog_links (
+          id SERIAL PRIMARY KEY,
+          supplier_product_id INT REFERENCES supplier_products(id) ON DELETE CASCADE,
+          catalog_id INT REFERENCES store_catalog(id) ON DELETE CASCADE,
+          qty_per_unit DECIMAL(10,3) DEFAULT 1,
+          UNIQUE(supplier_product_id, catalog_id)
+      )`); } catch(e) {}
+      try { await client.query(`
+          INSERT INTO supplier_product_catalog_links (supplier_product_id, catalog_id, qty_per_unit)
+          SELECT id, catalog_id, 1 FROM supplier_products WHERE catalog_id IS NOT NULL
+          ON CONFLICT DO NOTHING
+      `); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_messages (
           id SERIAL PRIMARY KEY,
           work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
@@ -6491,7 +6503,22 @@ app.delete('/api/suppliers/:id', async (req, res) => {
 app.get('/api/suppliers/:supplierId/products', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM supplier_products WHERE supplier_id = $1 ORDER BY name ASC', [req.params.supplierId]);
-        res.json({ success: true, products: result.rows });
+        const productIds = result.rows.map(p => p.id);
+        let catalogLinks = [];
+        if (productIds.length > 0) {
+            const linksRes = await pool.query(
+                `SELECT spcl.*, sc.name as catalog_name FROM supplier_product_catalog_links spcl
+                 JOIN store_catalog sc ON spcl.catalog_id = sc.id
+                 WHERE spcl.supplier_product_id = ANY($1)`,
+                [productIds]
+            );
+            catalogLinks = linksRes.rows;
+        }
+        const products = result.rows.map(p => ({
+            ...p,
+            catalog_links: catalogLinks.filter(l => l.supplier_product_id === p.id)
+        }));
+        res.json({ success: true, products });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -6522,21 +6549,38 @@ app.put('/api/work-orders/:woId/assignees/:userId/cost', async (req, res) => {
 
 app.post('/api/suppliers/products', async (req, res) => {
     try {
-        const { id, groupId, supplierId, name, description, price, unitType, unitsPerPackage, properties, catalogId } = req.body;
-        const catId = catalogId ? parseInt(catalogId) : null;
+        const { id, groupId, supplierId, name, description, price, unitType, unitsPerPackage, properties, catalogLinks } = req.body;
         let result;
         if (id) {
             result = await pool.query(
-                'UPDATE supplier_products SET name=$1, description=$2, price=$3, unit_type=$4, units_per_package=$5, properties=$6, catalog_id=$7 WHERE id=$8 RETURNING *',
-                [name, description||'', price, unitType||"יח'", unitsPerPackage||1, JSON.stringify(properties||{}), catId, id]
+                'UPDATE supplier_products SET name=$1, description=$2, price=$3, unit_type=$4, units_per_package=$5, properties=$6 WHERE id=$7 RETURNING *',
+                [name, description||'', price, unitType||"יח'", unitsPerPackage||1, JSON.stringify(properties||{}), id]
             );
         } else {
             result = await pool.query(
-                'INSERT INTO supplier_products (group_id, supplier_id, name, description, price, unit_type, units_per_package, properties, catalog_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
-                [groupId, supplierId, name, description||'', price, unitType||"יח'", unitsPerPackage||1, JSON.stringify(properties||{}), catId]
+                'INSERT INTO supplier_products (group_id, supplier_id, name, description, price, unit_type, units_per_package, properties) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+                [groupId, supplierId, name, description||'', price, unitType||"יח'", unitsPerPackage||1, JSON.stringify(properties||{})]
             );
         }
-        res.json({ success: true, product: result.rows[0] });
+        const productId = result.rows[0].id;
+        if (Array.isArray(catalogLinks)) {
+            await pool.query('DELETE FROM supplier_product_catalog_links WHERE supplier_product_id=$1', [productId]);
+            for (const link of catalogLinks) {
+                if (link.catalogId) {
+                    await pool.query(
+                        'INSERT INTO supplier_product_catalog_links (supplier_product_id, catalog_id, qty_per_unit) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
+                        [productId, parseInt(link.catalogId), parseFloat(link.qtyPerUnit)||1]
+                    );
+                }
+            }
+        }
+        const linksRes = await pool.query(
+            `SELECT spcl.*, sc.name as catalog_name FROM supplier_product_catalog_links spcl
+             JOIN store_catalog sc ON spcl.catalog_id = sc.id
+             WHERE spcl.supplier_product_id = $1`,
+            [productId]
+        );
+        res.json({ success: true, product: { ...result.rows[0], catalog_links: linksRes.rows } });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

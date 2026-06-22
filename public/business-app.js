@@ -13593,8 +13593,11 @@ function resetCatalogForm() {
     const uppEl = getEl('cat-prod-upp'); if(uppEl) uppEl.value = 1; 
     const descEl = getEl('cat-prod-desc'); if(descEl) descEl.value = '';
     const catSelEl = getEl('cat-prod-catalog-id'); if(catSelEl) catSelEl.value = '';
-    const titleEl = getEl('catalog-form-title'); if(titleEl) titleEl.innerText = 'הוספת מוצר לקטלוג'; 
-    const btnEl = getEl('btn-submit-cat-prod'); if(btnEl) btnEl.innerText = 'הוסף מוצר'; 
+    const catQtyEl = getEl('cat-prod-catalog-qty'); if(catQtyEl) catQtyEl.value = 1;
+    pendingCatalogLinks = [];
+    renderPendingCatalogLinks();
+    const titleEl = getEl('catalog-form-title'); if(titleEl) titleEl.innerText = 'הוספת מוצר לקטלוג';
+    const btnEl = getEl('btn-submit-cat-prod'); if(btnEl) btnEl.innerText = 'הוסף מוצר';
 }
 
 function renderSupplierProducts() {
@@ -13608,9 +13611,47 @@ function renderSupplierProducts() {
         const uppStr = p.units_per_package > 1 ? `<span class="bg-indigo-50 text-indigo-600 text-[9px] px-1.5 rounded font-bold ml-1">${p.units_per_package} יח' במארז</span>` : '';
         const skuStr = sku ? `<span class="bg-slate-100 text-slate-500 text-[9px] px-1.5 rounded font-bold ml-1 dir-ltr inline-block">${sku}</span>` : '';
         const descStr = p.description ? `<p class="text-[10px] text-slate-500 mt-0.5 truncate">${safeStr(p.description)}</p>` : '';
-        const linkedStr = p.catalog_id ? `<span class="bg-green-50 text-green-700 text-[9px] px-1.5 py-0.5 rounded font-bold border border-green-200 ml-1"><i class="fa-solid fa-link text-[8px] mr-0.5"></i>מקושר למלאי</span>` : '';
+        const linksCount = (p.catalog_links || []).length;
+        const linkedStr = linksCount > 0 ? `<span class="bg-green-50 text-green-700 text-[9px] px-1.5 py-0.5 rounded font-bold border border-green-200 ml-1"><i class="fa-solid fa-link text-[8px] mr-0.5"></i>מקושר ל-${linksCount} פריט${linksCount>1?'ים':''}</span>` : '';
         html += `<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center hover:border-indigo-300 transition group"><div class="flex-1 pr-2 overflow-hidden"><h5 class="font-bold text-slate-800 text-sm truncate">${safeStr(p.name)} ${uppStr} ${skuStr} ${linkedStr}</h5>${descStr}<div class="text-xs font-black text-slate-700 mt-1">₪${p.price} <span class="font-normal text-[10px] text-slate-400">ל-${safeStr(p.unit_type)}</span></div></div><div class="flex flex-col gap-2 shrink-0"><button onclick="editSupplierProduct(${p.id})" class="text-slate-400 hover:text-blue-600 w-7 h-7 bg-slate-50 rounded flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-[10px]"></i></button><button onclick="deleteSupplierProduct(${p.id})" class="text-slate-400 hover:text-red-600 w-7 h-7 bg-slate-50 rounded flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash-can text-[10px]"></i></button></div></div>`;
     }); list.innerHTML = html;
+}
+
+let pendingCatalogLinks = [];
+
+function renderPendingCatalogLinks() {
+    const container = getEl('cat-prod-catalog-links');
+    if (!container) return;
+    if (!pendingCatalogLinks.length) {
+        container.innerHTML = '<p class="text-[10px] text-slate-400 italic">אין קישורים עדיין</p>';
+        return;
+    }
+    container.innerHTML = pendingCatalogLinks.map(l => `
+        <div class="flex items-center justify-between bg-green-50 rounded-lg px-2 py-1 border border-green-200">
+            <div>
+                <span class="text-xs font-bold text-green-800">${safeStr(l.catalogName)}</span>
+                <span class="text-[10px] text-green-600 mr-1">× ${l.qtyPerUnit}</span>
+            </div>
+            <button onclick="removeCatalogLink(${l.catalogId})" type="button" class="text-red-400 hover:text-red-600 text-xs mr-1"><i class="fa-solid fa-xmark"></i></button>
+        </div>`).join('');
+}
+
+function addCatalogLink() {
+    const sel = getEl('cat-prod-catalog-id');
+    const qty = parseFloat(getEl('cat-prod-catalog-qty')?.value) || 1;
+    const catalogId = parseInt(sel?.value);
+    if (!catalogId) return showToast('error', 'בחר פריט מהרשימה');
+    if (pendingCatalogLinks.find(l => l.catalogId === catalogId)) return showToast('error', 'פריט זה כבר מקושר');
+    const catalogName = sel.options[sel.selectedIndex]?.text || '';
+    pendingCatalogLinks.push({ catalogId, catalogName, qtyPerUnit: qty });
+    if (sel) sel.value = '';
+    if (getEl('cat-prod-catalog-qty')) getEl('cat-prod-catalog-qty').value = 1;
+    renderPendingCatalogLinks();
+}
+
+function removeCatalogLink(catalogId) {
+    pendingCatalogLinks = pendingCatalogLinks.filter(l => l.catalogId !== catalogId);
+    renderPendingCatalogLinks();
 }
 
 function openSupplierCatalog(supplierId, supplierName) {
@@ -13637,7 +13678,7 @@ function openSupplierCatalog(supplierId, supplierName) {
                             </div>
                             <div><label class="text-[10px] font-bold text-slate-500">כמות במארז:</label><input type="number" id="cat-prod-upp" value="1" class="modern-input py-2 text-sm bg-white text-center w-full"></div>
                             <div><label class="text-[10px] font-bold text-slate-500">תיאור (אופציונלי):</label><textarea id="cat-prod-desc" class="modern-input py-2 text-sm bg-white h-16 w-full"></textarea></div>
-                            <div><label class="text-[10px] font-bold text-slate-500">קישור לפריט במלאי העסק:</label><select id="cat-prod-catalog-id" class="modern-input py-2 text-sm bg-white w-full"><option value="">— ללא קישור —</option></select><p class="text-[9px] text-slate-400 mt-0.5">כשסחורה מגיעה — יתעדכן מלאי הפריט אוטומטית</p></div>
+                            <div><label class="text-[10px] font-bold text-slate-500 block mb-1">קישורים לפריטים במלאי העסק:</label><div id="cat-prod-catalog-links" class="space-y-1 mb-2 min-h-[1.5rem]"><p class="text-[10px] text-slate-400 italic">אין קישורים עדיין</p></div><div class="flex gap-1.5 items-center"><select id="cat-prod-catalog-id" class="modern-input py-1.5 text-xs bg-white flex-1"><option value="">בחר פריט...</option></select><input type="number" id="cat-prod-catalog-qty" value="1" min="0.01" step="0.01" class="modern-input py-1.5 text-xs bg-white w-14 text-center" placeholder="כמות"><button onclick="addCatalogLink()" type="button" class="bg-indigo-600 text-white px-2.5 py-1.5 rounded-xl text-xs font-bold hover:bg-indigo-700 transition whitespace-nowrap shrink-0">+ הוסף</button></div><p class="text-[9px] text-slate-400 mt-0.5">כשסחורה מגיעה — יתעדכן מלאי כל הפריטים המקושרים</p></div>
                             <button id="btn-submit-cat-prod" onclick="submitSupplierProduct()" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-bold shadow hover:bg-indigo-700 transition mt-2">הוסף לקטלוג</button>
                             <button onclick="resetCatalogForm()" class="w-full bg-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-300 transition mt-2">נקה טופס</button>
                         </div>
@@ -13669,7 +13710,7 @@ function openSupplierCatalog(supplierId, supplierName) {
                     catSel.innerHTML = '<option value="">— אין פריטים בקטלוג —</option>';
                     return;
                 }
-                catSel.innerHTML = '<option value="">— ללא קישור —</option>' +
+                catSel.innerHTML = '<option value="">בחר פריט...</option>' +
                     arr.map(i => `<option value="${i.id}">${safeStr(i.name)}${i.stock_quantity > 0 ? ` (מלאי: ${i.stock_quantity})` : ''}</option>`).join('');
             }).catch(e => {
                 console.error('Error loading catalog:', e);
@@ -13692,8 +13733,12 @@ function editSupplierProduct(id) {
     getEl('cat-prod-unit').value = p.unit_type;
     getEl('cat-prod-upp').value = p.units_per_package || 1;
     getEl('cat-prod-desc').value = p.description || '';
-    const catSel = getEl('cat-prod-catalog-id');
-    if (catSel && p.catalog_id) catSel.value = p.catalog_id;
+    pendingCatalogLinks = (p.catalog_links || []).map(l => ({
+        catalogId: l.catalog_id,
+        catalogName: l.catalog_name,
+        qtyPerUnit: parseFloat(l.qty_per_unit) || 1
+    }));
+    renderPendingCatalogLinks();
     let sku = '';
     try { if(p.properties) { const props = typeof p.properties === 'string' ? JSON.parse(p.properties) : p.properties; sku = props.sku || ''; } } catch(e){}
     const skuEl = getEl('cat-prod-sku'); if(skuEl) skuEl.value = sku;
@@ -13708,8 +13753,7 @@ async function submitSupplierProduct() {
     if(!name || !price) return showToast('error', 'שם מוצר ומחיר הם חובה');
     const btn = getEl('btn-submit-cat-prod'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
     try {
-        const catalogId = val('cat-prod-catalog-id') || null;
-        const payload = { id: id || null, groupId: currentGroup.id, supplierId: supplierId, name: name, price: parseFloat(price) || 0, unitType: val('cat-prod-unit'), unitsPerPackage: parseInt(val('cat-prod-upp')) || 1, description: val('cat-prod-desc'), properties: { sku: sku }, catalogId };
+        const payload = { id: id || null, groupId: currentGroup.id, supplierId: supplierId, name: name, price: parseFloat(price) || 0, unitType: val('cat-prod-unit'), unitsPerPackage: parseInt(val('cat-prod-upp')) || 1, description: val('cat-prod-desc'), properties: { sku: sku }, catalogLinks: pendingCatalogLinks };
         const res = await fetch(`${API}/suppliers/products`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }); const data = await res.json();
         if (data.success) { showToast('success', id ? 'מוצר עודכן' : 'מוצר נוסף'); resetCatalogForm(); openSupplierCatalog(supplierId, getEl('catalog-supplier-name').innerText); } else { showToast('error', data.error); }
     } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerText = 'שמור מוצר'; }
