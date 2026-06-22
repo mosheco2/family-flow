@@ -6684,7 +6684,6 @@ function renderPantry() {
     if (warningInput) warningInput.value = warningPct;
     if (warningDesc) warningDesc.textContent = warningPct > 0 ? `התראה כשמלאי ≤ ${criticalLevel}%` : '0% — ללא התראות';
     if(pantryCache.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-8">המלאי ריק. קלטו ציוד וחומרי גלם כדי לעקוב אחרי המלאי בעסק!</p>'; return; }
-    const bufferPct = parseFloat(currentGroup?.min_stock_buffer_pct || 0);
     pantryCache.forEach(p => {
         const n = safeStr(p.item_name); const u = safeStr(p.unit || "יח'");
         const packQty = parseFloat(p.quantity); const upp = parseInt(p.units_per_package) || 1;
@@ -6749,24 +6748,43 @@ function renderPantry() {
     });
 
     // Check for critical stock levels and warn
-    const criticalLevel = bufferPct + warningPct;
-    if (criticalLevel > 0 && !window._pantryWarningSent) {
-        // Critical level calculation: if item has less than (buffer + warning) % of its "normal" amount, warn
-        // Use a baseline: consider 100 units as "normal" for percentage calc
+    if (warningPct > 0 && !window._pantryWarningSent) {
         const criticalItems = pantryCache.filter(p => {
             const qty = parseFloat(p.quantity || 0);
-            const thresholdQty = 100 * (criticalLevel / 100); // e.g. 35 units = 35%
-            return qty > 0 && qty <= thresholdQty;
+            if (qty <= 0) return false;
+            const res = parseFloat(p.reserved_qty || 0);
+            const bufQty = qty * (bufferPct / 100);
+            const avail = Math.max(0, qty - res - bufQty);
+            return avail <= qty * (warningPct / 100);
         });
         if (criticalItems.length > 0) {
             window._pantryWarningSent = true;
-            const names = criticalItems.slice(0, 2).map(i => `${i.item_name} (${parseFloat(i.quantity).toFixed(1)} ${i.unit})`).join(', ');
+            const names = criticalItems.slice(0, 2).map(i => `${i.item_name} (${parseFloat(i.quantity).toFixed(1)} ${i.unit||''})`).join(', ');
             const msg = criticalItems.length > 2
-                ? `⚠️ ${names}, ועוד ${criticalItems.length - 2} פריטים קרובים למינימום`
-                : `⚠️ ${names} קרובים למינימום`;
-            setTimeout(() => showToast('warning', msg), 500);
+                ? `${names}, ועוד ${criticalItems.length - 2} פריטים קרובים למינימום`
+                : `${names} קרוב/ים למינימום`;
+            setTimeout(() => showToast('warning', '⚠️ מלאי נמוך: ' + msg), 500);
+            try {
+                const refKey = `low_stock_${currentGroup.id}_${new Date().toISOString().split('T')[0]}`;
+                fetch(`${API}/alerts/notifications`, {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ groupId: currentGroup.id, triggerType: 'low_stock', message: `⚠️ מלאי נמוך: ${msg}`, referenceKey: refKey })
+                }).then(() => updateAlertBadge()).catch(() => {});
+            } catch(e) {}
         }
     }
+    window._pantryLowStockCount = (() => {
+        if (!warningPct) return 0;
+        return pantryCache.filter(p => {
+            const qty = parseFloat(p.quantity || 0);
+            if (qty <= 0) return false;
+            const res = parseFloat(p.reserved_qty || 0);
+            const bufQty = qty * (bufferPct / 100);
+            const avail = Math.max(0, qty - res - bufQty);
+            return avail <= qty * (warningPct / 100);
+        }).length;
+    })();
+    renderQuickTiles();
 }
 
 window.openPantryModal = function() {
@@ -25490,7 +25508,7 @@ function renderQuickTiles() {
     { fa:'fa-table-cells-large', label:'שולחנות 🍽️',    badge: occupiedCount||null, tab:'__tables__', bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
     { fa:'fa-calendar-check',    label:'יומן הזמנות',    badge: window._pendingCalCount||0, tab:'calendar', bg:'#fff7ed', grad:'linear-gradient(135deg,#fb923c,#ea580c)', badge_bg:'#c2410c' },
     { fa:'fa-utensils',          label:'KDS מטבח',       badge: kdsCount||null,  tab:'kds',       bg:'#faf5ff', grad:'linear-gradient(135deg,#a78bfa,#7c3aed)', badge_bg:'#6d28d9' },
-    { fa:'fa-box',               label:'מלאי',           badge: null,            tab:'pantry',    bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0f766e)', badge_bg:'#0d9488' },
+    { fa:'fa-box',               label:'מלאי',           badge: window._pantryLowStockCount||null, tab:'pantry', bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0f766e)', badge_bg:'#dc2626' },
     { fa:'fa-bag-shopping',      label:'הזמנות',         badge: storeOrderCount, tab:'sales',     bg:'#fffbeb', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
     { fa:'fa-chart-bar',         label:'דוח יום',        badge: null,            tab:'__daily_close__', bg:'#f0fdf4', grad:'linear-gradient(135deg,#22c55e,#15803d)', badge_bg:'#166534' },
   ] : [

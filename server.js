@@ -3333,6 +3333,21 @@ app.post('/api/alerts/notifications/read-all', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/alerts/notifications', async (req, res) => {
+    try {
+        const { groupId, triggerType, message, referenceKey } = req.body;
+        if (referenceKey) {
+            const exists = await pool.query('SELECT id FROM alert_notifications WHERE group_id=$1 AND reference_key=$2', [groupId, referenceKey]);
+            if (exists.rows.length > 0) return res.json({ success: true, skipped: true });
+        }
+        const r = await pool.query(
+            'INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key) VALUES ($1,$2,$3,$4) RETURNING id',
+            [groupId, triggerType || 'low_stock', message, referenceKey || null]
+        );
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── SLA CRUD ──────────────────────────────────────────────────────
 app.get('/api/sla', async (req, res) => {
     try {
