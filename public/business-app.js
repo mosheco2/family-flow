@@ -31861,12 +31861,22 @@ window.renderWoInventory = function(inventory) {
     list.innerHTML = inventory.map(item => {
         const st = statusInfo[item.status] || statusInfo.reserved;
         const lineTotal = parseFloat(item.unit_price || 0) * parseFloat(item.reserved_qty || 0);
+        const catalogTotal = parseFloat(item.total_stock || 0);
+        const catalogReserved = parseFloat(item.catalog_reserved || 0);
+        const catalogAvailable = catalogTotal - catalogReserved;
+        const stockInfo = item.catalog_id ? `<div class="bg-blue-50 rounded-lg p-2 mb-2 border border-blue-200 text-[10px]">
+            <div class="flex justify-between mb-1"><span class="text-slate-600">מלאי קטלוג:</span><span class="font-bold text-blue-700">${catalogTotal.toFixed(0)} יח'</span></div>
+            <div class="flex justify-between mb-1"><span class="text-slate-600">משוריין בסך הכל:</span><span class="font-bold text-amber-600">${catalogReserved.toFixed(0)} יח'</span></div>
+            <div class="flex justify-between mb-1"><span class="text-slate-600">זמין לשימוש:</span><span class="font-bold text-green-600">${Math.max(0, catalogAvailable).toFixed(0)} יח'</span></div>
+            <button onclick="window.showCatalogWoReservations(${item.catalog_id}, '${safeStr(item.item_name).replace(/'/g, "\\'")}'); event.stopPropagation();" class="w-full mt-2 bg-blue-600 text-white py-1 rounded-lg text-[9px] font-bold hover:bg-blue-700 transition">ראה פקודות עבודה אחרות</button>
+        </div>` : '';
         return `<div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
             <div class="flex justify-between items-center mb-1">
                 <span class="font-bold text-slate-700 text-sm">${safeStr(item.item_name)}</span>
                 <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${st.cls}">${st.label}</span>
             </div>
             <p class="text-xs text-slate-500 mb-2">כמות: ${item.reserved_qty} יח'${item.unit_price > 0 ? ` | ₪${parseFloat(item.unit_price).toFixed(2)} ליח' | סה"כ: ₪${lineTotal.toFixed(2)}` : ''}</p>
+            ${stockInfo}
             ${item.status === 'reserved' ? `<div class="flex gap-2">
                 <button onclick="window.confirmInventoryUse(${item.id}, ${item.reserved_qty})" class="flex-1 bg-green-600 text-white py-1.5 rounded-lg text-[10px] font-bold hover:bg-green-700 transition">✓ אשר שימוש</button>
                 <button onclick="window.releaseInventory(${item.id})" class="flex-1 bg-slate-200 text-slate-600 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-300 transition">שחרר</button>
@@ -32132,6 +32142,7 @@ window.addInventoryReservation = async function() {
     if (!sel || !sel.value) return showToast('error', 'נא לבחור פריט');
     const opt = sel.options[sel.selectedIndex];
     const itemName = opt?.dataset?.name || opt?.text?.split(' · ')[0] || '';
+    const catalogId = parseInt(sel.value);
     const qty = parseFloat(qtyInput?.value) || 1;
     const unitPrice = parseFloat(priceInput?.value) || 0;
     const unitType = opt?.dataset?.unitType || "יח'";
@@ -32140,7 +32151,7 @@ window.addInventoryReservation = async function() {
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/inventory`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ catalogId: null, itemName: displayName, qty, unitPrice, reservedBy: currentUser?.nickname || 'מנהל' })
+            body: JSON.stringify({ catalogId, itemName: displayName, qty, unitPrice, reservedBy: currentUser?.nickname || 'מנהל' })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error);
