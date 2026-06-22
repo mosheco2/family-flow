@@ -137,6 +137,7 @@ pool.connect()
       try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS supplier_confirmed_at TIMESTAMP`); } catch(e) {}
 
       // ============ COMMUNITY CASHBACK SYSTEM ============
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS owner_user_id INT REFERENCES users(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_communities ADD COLUMN IF NOT EXISTS is_community_manager BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS community_wallets (
           community_id INT PRIMARY KEY REFERENCES communities(id) ON DELETE CASCADE,
@@ -2937,6 +2938,11 @@ app.post('/api/groups', async (req, res) => {
         const uRes = await dbClient.query(
             `INSERT INTO users (group_id, nickname, first_name, last_name, birth_year, password_hash, role, status, phone) VALUES ($1, $2, $3, $4, $5, $6, 'ADMIN', 'active', $7) RETURNING *`,
             [group.id, adminNickname, firstName, lastName || null, birthYear, req.body.password, phone]
+        );
+
+        await dbClient.query(
+            `UPDATE family_groups SET owner_user_id = $1 WHERE id = $2`,
+            [uRes.rows[0].id, group.id]
         );
 
         const welcomeText = req.body.type === 'BUSINESS' ? 'סביבת עבודה נפתחה בהצלחה! 🎉' : 'הבנק המשפחתי נפתח בהצלחה! 🎉';

@@ -2665,11 +2665,14 @@ const ROLE_DEFAULTS = {
 function enforcePermissions() {
     if (!currentUser || !currentGroup) return;
     const isAdmin = currentUser.role === 'ADMIN';
+    const isAccountOwner = currentUser.id === currentGroup.owner_user_id;
     let userTabs = [];
     try {
         const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
         userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
     } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
+
+    if (isAccountOwner && !userTabs.includes('members')) { userTabs.push('members'); }
 
     // הרחב הרשאות אוטומטית לפי תפקיד עובד — מונע חסימת כפתורים בדשבורד התפקיד
     if (currentUser.employee_role_type && ROLE_TYPE_TABS[currentUser.employee_role_type]) {
@@ -2684,7 +2687,7 @@ function enforcePermissions() {
 
     // 1. נעילה ויזואלית לפי תפקיד (Role) - טאבים ללא הרשאה מוצגים נעולים ולא לחיצים
     ALL_TABS.forEach(tab => {
-        const allowed = userTabs.includes(tab.id) || isAdmin;
+        const allowed = userTabs.includes(tab.id) || isAdmin || (tab.id === 'members' && isAccountOwner);
 
         // Old hidden tab bar (kept for JS compatibility)
         const btn = getEl(`tab-${tab.id}`);
