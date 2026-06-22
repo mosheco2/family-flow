@@ -6634,7 +6634,10 @@ function renderPantry() {
         const packQty = parseFloat(p.quantity); const upp = parseInt(p.units_per_package) || 1;
         const reserved = parseFloat(p.reserved_qty || 0);
         const totalSubUnits = Math.round(packQty * upp);
-        const reservedDisplay = reserved > 0 ? `<div class="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-2 text-[10px]"><span class="text-amber-700 font-bold">⚠️ משוריין לפקודות עבודה: ${reserved} ${u}</span></div>` : '';
+        const reservedDisplay = reserved > 0 ? `<div class="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-2 text-[10px] flex items-center justify-between">
+            <span class="text-amber-700 font-bold">⚠️ משוריין לפקודות עבודה: ${reserved} ${u}</span>
+            <button onclick="window.showPantryWoReservations(${p.id}, '${safeStr(p.item_name).replace(/'/g,"\\'")}'); event.stopPropagation();" class="bg-amber-600 text-white px-2 py-1 rounded-lg text-[9px] font-bold hover:bg-amber-700 transition">ראה פקודות</button>
+        </div>` : '';
 
         let qtyDisplay = '';
         if (upp > 1) {
@@ -10723,6 +10726,41 @@ function renderStoreCatalog() {
         html += `<div class="bg-white p-3 rounded-2xl border ${reserved > 0 ? 'border-amber-200' : 'border-slate-200'} shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2"><div class="flex items-center gap-3 min-w-0 flex-1">${imgHtml}<div class="min-w-0 flex-1"><h4 class="font-bold text-slate-800 text-sm truncate pr-1">${safeStr(p.name)}${p.sku ? `<span class="bg-slate-100 text-slate-500 text-[9px] px-1.5 py-0.5 rounded font-bold dir-ltr inline-block ml-1">${safeStr(p.sku)}</span>` : ''}</h4><p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">(${safeStr(p.category || 'כללי')})</span></p>${stockHtml}</div></div><div class="flex items-center gap-2 self-start sm:self-auto shrink-0 bg-slate-50 p-1 rounded-xl border border-slate-100"><button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_available ? 'זמין' : 'מוסתר'}</button><button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button></div></div>`;
     }); list.innerHTML = html;
 }
+window.showPantryWoReservations = async function(pantryId, itemName) {
+    try {
+        const res = await fetch(`${API}/pantry/${pantryId}/wo-reservations`);
+        const data = await res.json();
+        const reservations = data.reservations || [];
+        const statusLabels = { processing: 'בתהליך', new: 'חדש', scheduled: 'מתוזמן', completed: 'הושלם', cancelled: 'בוטל' };
+        let html = `<div id="wo-reservations-modal" class="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4" style="direction:rtl;">
+            <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-black text-slate-800 text-sm">🔒 שריון "${safeStr(itemName)}" לפקודות עבודה</h3>
+                    <button onclick="document.getElementById('wo-reservations-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark text-slate-500"></i></button>
+                </div>
+                ${!reservations.length ? '<p class="text-xs text-slate-400 text-center py-4">אין שריונות פעילים לפריט זה</p>' :
+                `<div class="space-y-2">` +
+                reservations.map(r => {
+                    const needed = parseFloat(r.needed_qty || r.reserved_qty);
+                    const shortage = Math.max(0, needed - parseFloat(r.reserved_qty));
+                    return `<div class="flex items-center justify-between bg-slate-50 rounded-xl p-3 border border-slate-100 cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition" onclick="document.getElementById('wo-reservations-modal').remove(); window.openWorkOrderModal(${r.wo_id})">
+                    <div>
+                        <p class="text-sm font-bold text-slate-700">${safeStr(r.customer_name || 'ללא שם')}</p>
+                        <p class="text-[10px] text-slate-400">פ"ע #${r.wo_id} • ${statusLabels[r.wo_status] || r.wo_status}</p>
+                        ${shortage > 0 ? `<p class="text-[10px] text-red-500 font-bold">חסר: ${shortage} יח'</p>` : ''}
+                    </div>
+                    <div class="text-left">
+                        <span class="font-black text-indigo-700 text-sm block">${r.reserved_qty} יח'</span>
+                        ${needed > r.reserved_qty ? `<span class="text-[9px] text-slate-400">מתוך ${needed} נדרש</span>` : ''}
+                    </div>
+                </div>`;}).join('') + '</div>'}
+            </div>
+        </div>`;
+        document.getElementById('wo-reservations-modal')?.remove();
+        document.body.insertAdjacentHTML('beforeend', html);
+    } catch(e) { showToast('error', 'שגיאה בטעינת פירוט השריונות'); }
+};
+
 window.showCatalogWoReservations = async function(catalogId, itemName) {
     try {
         const res = await fetch(`${API}/store/catalog/${catalogId}/wo-reservations`);
