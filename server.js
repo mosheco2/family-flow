@@ -4762,6 +4762,60 @@ app.delete('/api/store/catalog/:id', async (req, res) => {
     try { await pool.query('DELETE FROM store_catalog WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// --- Generate AI Product Image ---
+app.post('/api/store/catalog/generate-image', async (req, res) => {
+    try {
+        const { groupId, productName, description } = req.body;
+        if (!groupId || !productName) return res.status(400).json({ error: 'שם מוצר נדרש' });
+
+        const hfToken = process.env.HF_TOKEN;
+        if (!hfToken) return res.json({ success: false, error: 'HF_TOKEN חסר בהגדרות השרת' });
+
+        // בנה prompt של תמונת מוצר מעולה
+        let finalPrompt = `product photograph of a ${productName}`;
+        if (description) finalPrompt += `, ${description}`;
+        finalPrompt += `, professional studio lighting, high quality, realistic, clean background, product photography`;
+
+        const hfEndpoint = `https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell`;
+        let hfRes;
+        try {
+            hfRes = await fetch(hfEndpoint, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json', 'x-wait-for-model': 'true' },
+                body: JSON.stringify({ inputs: finalPrompt, parameters: { width: 512, height: 512 } }),
+                signal: AbortSignal.timeout(28000)
+            });
+        } catch (fetchErr) {
+            console.log('Router failed, trying legacy endpoint:', fetchErr.message);
+            hfRes = await fetch('https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json', 'x-wait-for-model': 'true' },
+                body: JSON.stringify({ inputs: finalPrompt, parameters: { width: 512, height: 512 } }),
+                signal: AbortSignal.timeout(28000)
+            });
+        }
+
+        if (hfRes.status === 503) {
+            const errData = await hfRes.json().catch(() => ({}));
+            const eta = errData.estimated_time ? `בעוד כ-${Math.ceil(errData.estimated_time)} שניות` : 'בעוד כדקה';
+            return res.json({ success: false, error: `מודל AI בטעינה, נסה שוב ${eta}` });
+        }
+        if (!hfRes.ok) {
+            const errText = await hfRes.text().catch(() => '');
+            console.error('HF error:', hfRes.status, errText);
+            return res.json({ success: false, error: `שגיאת שירות AI (${hfRes.status}): ${errText.slice(0,100)}` });
+        }
+
+        const buffer = await hfRes.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
+        const contentType = hfRes.headers.get('content-type') || 'image/jpeg';
+        res.json({ success: true, imageUrl: `data:${contentType};base64,${base64}` });
+    } catch(e) {
+        console.error('Product Image Gen Error:', e.message);
+        res.json({ success: false, error: 'שגיאה ביצירת תמונה: ' + (e.message || 'נסה שוב.') });
+    }
+});
+
 // --- ספירת מלאי ---
 app.post('/api/store/inventory-count', async (req, res) => {
     try {

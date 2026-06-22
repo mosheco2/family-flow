@@ -11747,14 +11747,20 @@ window.openStoreProductModal = function(id = null) {
                 
                 <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                     <label class="text-xs font-bold text-slate-600 block mb-2">תמונת הפריט:</label>
-                    <div class="flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-4 cursor-pointer hover:bg-slate-100 transition shadow-sm" onclick="document.getElementById('sp-image-upload').click()">
-                        <div id="sp-image-placeholder" class="text-center py-2">
-                            <i class="fa-solid fa-cloud-arrow-up text-4xl text-indigo-400 mb-2 drop-shadow-sm"></i>
-                            <p class="text-sm font-bold text-slate-600">לחץ להעלאת תמונה</p>
+                    <div class="flex gap-2 mb-3">
+                        <div class="flex-1 flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-4 cursor-pointer hover:bg-slate-100 transition shadow-sm" onclick="document.getElementById('sp-image-upload').click()">
+                            <div id="sp-image-placeholder" class="text-center py-2">
+                                <i class="fa-solid fa-cloud-arrow-up text-4xl text-indigo-400 mb-2 drop-shadow-sm"></i>
+                                <p class="text-sm font-bold text-slate-600">לחץ להעלאת תמונה</p>
+                            </div>
+                            <img id="sp-image-preview" class="hidden h-32 w-full object-cover rounded-xl shadow-sm">
+                            <input type="file" id="sp-image-upload" accept="image/*" class="hidden" onchange="handleProductImageBase64(event)">
+                            <input type="hidden" id="sp-image-base64">
                         </div>
-                        <img id="sp-image-preview" class="hidden h-32 w-full object-cover rounded-xl shadow-sm">
-                        <input type="file" id="sp-image-upload" accept="image/*" class="hidden" onchange="handleProductImageBase64(event)">
-                        <input type="hidden" id="sp-image-base64">
+                        <button type="button" onclick="window.generateProductImage()" class="flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-dashed border-purple-300 rounded-2xl p-4 hover:bg-purple-100 transition shadow-sm w-32 shrink-0">
+                            <i class="fa-solid fa-wand-magic-sparkles text-3xl text-purple-500 mb-1"></i>
+                            <p class="text-[10px] font-bold text-purple-700 text-center leading-tight">צור עם AI</p>
+                        </button>
                     </div>
                 </div>
 
@@ -12648,6 +12654,41 @@ function handleProductImageBase64(event) {
     const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונת מוצר...');
     compressImage(file, 600, 600, 0.8, (compressedDataUrl) => { getEl('sp-image-preview').src = compressedDataUrl; getEl('sp-image-preview').classList.remove('hidden'); getEl('sp-image-placeholder').classList.add('hidden'); getEl('sp-image-base64').value = compressedDataUrl; showToast('success', 'התמונה הועלתה ומוכנה לשמירה!'); });
 }
+
+window.generateProductImage = async function() {
+    if (!currentGroup) return showToast('error', 'בחר עסק');
+    const productName = getEl('sp-name')?.value?.trim();
+    const description = getEl('sp-description')?.value?.trim();
+    if (!productName) return showToast('error', 'הכנס שם מוצר');
+
+    const btn = document.querySelector('button[onclick="window.generateProductImage()"]');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+
+    try {
+        const res = await fetch(`${API}/store/catalog/generate-image`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, productName, description })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה ביצירת תמונה');
+
+        const preview = getEl('sp-image-preview');
+        const placeholder = getEl('sp-image-placeholder');
+        const base64El = getEl('sp-image-base64');
+
+        preview.src = data.imageUrl;
+        preview.classList.remove('hidden');
+        placeholder.classList.add('hidden');
+        base64El.value = data.imageUrl;
+
+        showToast('success', 'תמונה נוצרה בהצלחה! 🎨');
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles text-3xl text-purple-500 mb-1"></i><p class="text-[10px] font-bold text-purple-700 text-center leading-tight">צור עם AI</p>'; }
+    }
+};
 
 function openGlobalAIAssistant() { getEl('global-ai-input').value = ''; getEl('global-ai-modal').classList.remove('hidden'); }
 
