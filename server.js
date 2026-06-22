@@ -735,6 +735,9 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           used_at TIMESTAMP,
           reserved_by VARCHAR(100)
       )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE work_order_inventory ADD COLUMN IF NOT EXISTS unit_price DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE work_order_assignees ADD COLUMN IF NOT EXISTS hourly_rate DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE work_order_assignees ADD COLUMN IF NOT EXISTS hours_worked DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_messages (
           id SERIAL PRIMARY KEY,
           work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
@@ -4765,16 +4768,17 @@ app.delete('/api/store/catalog/:id', async (req, res) => {
 // --- Generate AI Product Image ---
 app.post('/api/store/catalog/generate-image', async (req, res) => {
     try {
-        const { groupId, productName, description } = req.body;
+        const { groupId, productName, description, category } = req.body;
         if (!groupId || !productName) return res.status(400).json({ error: 'שם מוצר נדרש' });
 
         const hfToken = process.env.HF_TOKEN;
         if (!hfToken) return res.json({ success: false, error: 'HF_TOKEN חסר בהגדרות השרת' });
 
-        // בנה prompt של תמונת מוצר מעולה
-        let finalPrompt = `product photograph of a ${productName}`;
+        // בנה prompt ספציפי לפי שם, תיאור וקטגוריה
+        let finalPrompt = `high quality commercial product photo of "${productName}"`;
+        if (category) finalPrompt += `, ${category} product`;
         if (description) finalPrompt += `, ${description}`;
-        finalPrompt += `, professional studio lighting, high quality, realistic, clean background, product photography`;
+        finalPrompt += `, professional studio lighting, clean white background, sharp focus, photorealistic, 8k`;
 
         const hfEndpoint = `https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell`;
         let hfRes;
@@ -6485,6 +6489,31 @@ app.get('/api/suppliers/:supplierId/products', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM supplier_products WHERE supplier_id = $1 ORDER BY name ASC', [req.params.supplierId]);
         res.json({ success: true, products: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/suppliers/group/:groupId/all-products', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT sp.*, s.name as supplier_name, s.id as supplier_id
+             FROM supplier_products sp
+             JOIN suppliers s ON sp.supplier_id = s.id
+             WHERE s.group_id = $1
+             ORDER BY s.name, sp.name ASC`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, products: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/work-orders/:woId/assignees/:userId/cost', async (req, res) => {
+    try {
+        const { hourlyRate, hoursWorked } = req.body;
+        await pool.query(
+            'UPDATE work_order_assignees SET hourly_rate=$1, hours_worked=$2 WHERE work_order_id=$3 AND user_id=$4',
+            [hourlyRate || 0, hoursWorked || 0, req.params.woId, req.params.userId]
+        );
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -11493,17 +11522,19 @@ app.get('/api/work-orders/catalog/:groupId', async (req, res) => {
 
 app.post('/api/work-orders/:id/inventory', async (req, res) => {
     try {
-        const { catalogId, itemName, qty, reservedBy } = req.body;
-        const catRes = await pool.query('SELECT stock_quantity, COALESCE(reserved_qty,0) as reserved_qty FROM store_catalog WHERE id=$1', [catalogId]);
-        if (!catRes.rows.length) return res.status(404).json({ error: 'פריט לא נמצא' });
-        const { stock_quantity, reserved_qty } = catRes.rows[0];
-        const available = (stock_quantity || 0) - (reserved_qty || 0);
-        if (available < qty) return res.status(400).json({ error: `רק ${available} יחידות זמינות` });
+        const { catalogId, itemName, qty, reservedBy, unitPrice } = req.body;
+        if (catalogId) {
+            const catRes = await pool.query('SELECT stock_quantity, COALESCE(reserved_qty,0) as reserved_qty FROM store_catalog WHERE id=$1', [catalogId]);
+            if (!catRes.rows.length) return res.status(404).json({ error: 'פריט לא נמצא' });
+            const { stock_quantity, reserved_qty } = catRes.rows[0];
+            const available = (stock_quantity || 0) - (reserved_qty || 0);
+            if (available < qty) return res.status(400).json({ error: `רק ${available} יחידות זמינות` });
+            await pool.query('UPDATE store_catalog SET reserved_qty = COALESCE(reserved_qty,0) + $1 WHERE id=$2', [qty, catalogId]);
+        }
         const r = await pool.query(
-            'INSERT INTO work_order_inventory (work_order_id, catalog_id, item_name, reserved_qty, reserved_by) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-            [req.params.id, catalogId, itemName, qty, reservedBy]
+            'INSERT INTO work_order_inventory (work_order_id, catalog_id, item_name, reserved_qty, unit_price, reserved_by) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+            [req.params.id, catalogId || null, itemName, qty, unitPrice || 0, reservedBy]
         );
-        await pool.query('UPDATE store_catalog SET reserved_qty = COALESCE(reserved_qty,0) + $1 WHERE id=$2', [qty, catalogId]);
         await addWorkOrderTimeline(req.params.id, 'inventory_reserved', `שורין ציוד: ${itemName} (${qty} יח')`, reservedBy);
         res.json({ success: true, reservationId: r.rows[0].id });
     } catch(e) { res.status(500).json({ error: e.message }); }

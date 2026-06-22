@@ -11825,10 +11825,16 @@ window.openStoreProductModal = function(id = null) {
                             <input type="file" id="sp-image-upload" accept="image/*" class="hidden" onchange="handleProductImageBase64(event)">
                             <input type="hidden" id="sp-image-base64">
                         </div>
-                        <button type="button" onclick="window.generateProductImage()" class="flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-dashed border-purple-300 rounded-2xl p-4 hover:bg-purple-100 transition shadow-sm w-32 shrink-0">
-                            <i class="fa-solid fa-wand-magic-sparkles text-3xl text-purple-500 mb-1"></i>
-                            <p class="text-[10px] font-bold text-purple-700 text-center leading-tight">צור עם AI</p>
-                        </button>
+                        <div class="flex flex-col gap-2 w-32 shrink-0">
+                            <button type="button" onclick="window.generateProductImage()" class="flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-dashed border-purple-300 rounded-2xl p-3 hover:bg-purple-100 transition shadow-sm flex-1">
+                                <i class="fa-solid fa-wand-magic-sparkles text-2xl text-purple-500 mb-1"></i>
+                                <p class="text-[10px] font-bold text-purple-700 text-center leading-tight">צור עם AI</p>
+                            </button>
+                            <button type="button" onclick="window.clearProductImage()" class="flex flex-col items-center justify-center bg-red-50 border-2 border-dashed border-red-200 rounded-2xl p-2 hover:bg-red-100 transition shadow-sm">
+                                <i class="fa-solid fa-trash text-red-400 mb-0.5"></i>
+                                <p class="text-[9px] font-bold text-red-400 text-center">מחק תמונה</p>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -12725,37 +12731,70 @@ function handleProductImageBase64(event) {
 
 window.generateProductImage = async function() {
     if (!currentGroup) return showToast('error', 'בחר עסק');
-    const productName = getEl('sp-name')?.value?.trim();
-    const description = getEl('sp-description')?.value?.trim();
-    if (!productName) return showToast('error', 'הכנס שם מוצר');
+    const productName = (getEl('sp-name') || document.getElementById('sp-name'))?.value?.trim();
+    const description = (getEl('sp-desc') || document.getElementById('sp-desc') || getEl('sp-description') || document.getElementById('sp-description'))?.value?.trim();
+    const category = (getEl('sp-category') || document.getElementById('sp-category'))?.value?.trim();
+
+    if (!productName || !description) {
+        // חלונית מעוצבת במקום toast
+        document.getElementById('sp-ai-image-alert')?.remove();
+        const alertEl = document.createElement('div');
+        alertEl.id = 'sp-ai-image-alert';
+        alertEl.className = 'fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4';
+        alertEl.style.direction = 'rtl';
+        alertEl.innerHTML = `<div class="bg-white rounded-3xl shadow-2xl p-6 max-w-xs w-full text-center">
+            <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fa-solid fa-wand-magic-sparkles text-3xl text-purple-500"></i>
+            </div>
+            <h3 class="font-black text-slate-800 text-lg mb-2">לפני שיוצרים תמונה</h3>
+            <p class="text-slate-500 text-sm mb-4 leading-relaxed">כדי לקבל תמונה מדויקת ורלוונטית, יש למלא:<br>
+                ${!productName ? '<span class="font-bold text-red-500">• שם המוצר / השירות</span><br>' : ''}
+                ${!description ? '<span class="font-bold text-red-500">• תיאור קצר של המוצר</span>' : ''}
+            </p>
+            <button onclick="document.getElementById('sp-ai-image-alert').remove()" class="w-full bg-purple-600 text-white py-3 rounded-2xl font-bold text-sm hover:bg-purple-700 transition">הבנתי, אמלא פרטים</button>
+        </div>`;
+        document.body.appendChild(alertEl);
+        return;
+    }
 
     const btn = document.querySelector('button[onclick="window.generateProductImage()"]');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-purple-500"></i><p class="text-[10px] font-bold text-purple-700 text-center mt-1">יוצר...</p>'; }
+
+    showToast('info', 'מייצר תמונה... עשוי לקחת כ-20 שניות');
 
     try {
         const res = await fetch(`${API}/store/catalog/generate-image`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, productName, description })
+            body: JSON.stringify({ groupId: currentGroup.id, productName, description, category })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error || 'שגיאה ביצירת תמונה');
 
-        const preview = getEl('sp-image-preview');
-        const placeholder = getEl('sp-image-placeholder');
-        const base64El = getEl('sp-image-base64');
+        const preview = getEl('sp-image-preview') || document.getElementById('sp-image-preview');
+        const placeholder = getEl('sp-image-placeholder') || document.getElementById('sp-image-placeholder');
+        const base64El = getEl('sp-image-base64') || document.getElementById('sp-image-base64');
 
-        preview.src = data.imageUrl;
-        preview.classList.remove('hidden');
-        placeholder.classList.add('hidden');
-        base64El.value = data.imageUrl;
+        if (preview) { preview.src = data.imageUrl; preview.classList.remove('hidden'); }
+        if (placeholder) placeholder.classList.add('hidden');
+        if (base64El) base64El.value = data.imageUrl;
 
         showToast('success', 'תמונה נוצרה בהצלחה! 🎨');
     } catch(e) {
         showToast('error', 'שגיאת תקשורת');
     } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles text-3xl text-purple-500 mb-1"></i><p class="text-[10px] font-bold text-purple-700 text-center leading-tight">צור עם AI</p>'; }
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles text-2xl text-purple-500 mb-1"></i><p class="text-[10px] font-bold text-purple-700 text-center leading-tight">צור עם AI</p>'; }
     }
+};
+
+window.clearProductImage = function() {
+    const preview = getEl('sp-image-preview') || document.getElementById('sp-image-preview');
+    const placeholder = getEl('sp-image-placeholder') || document.getElementById('sp-image-placeholder');
+    const base64El = getEl('sp-image-base64') || document.getElementById('sp-image-base64');
+    if (preview) { preview.src = ''; preview.classList.add('hidden'); }
+    if (placeholder) placeholder.classList.remove('hidden');
+    if (base64El) base64El.value = '';
+    showToast('info', 'התמונה הוסרה');
 };
 
 function openGlobalAIAssistant() { getEl('global-ai-input').value = ''; getEl('global-ai-modal').classList.remove('hidden'); }
@@ -18871,10 +18910,16 @@ window.openStoreProductModal = function(id = null) {
                             <input type="file" id="sp-image-upload" accept="image/*" class="hidden" onchange="if(typeof handleProductImageBase64 === 'function') handleProductImageBase64(event)">
                             <input type="hidden" id="sp-image-base64">
                         </div>
-                        <button type="button" onclick="window.generateProductImage()" class="flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-dashed border-purple-300 rounded-2xl p-4 hover:bg-purple-100 transition shadow-sm w-32 shrink-0">
-                            <i class="fa-solid fa-wand-magic-sparkles text-3xl text-purple-500 mb-1"></i>
-                            <p class="text-[10px] font-bold text-purple-700 text-center leading-tight">צור עם AI</p>
-                        </button>
+                        <div class="flex flex-col gap-2 w-32 shrink-0">
+                            <button type="button" onclick="window.generateProductImage()" class="flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-dashed border-purple-300 rounded-2xl p-3 hover:bg-purple-100 transition shadow-sm flex-1">
+                                <i class="fa-solid fa-wand-magic-sparkles text-2xl text-purple-500 mb-1"></i>
+                                <p class="text-[10px] font-bold text-purple-700 text-center leading-tight">צור עם AI</p>
+                            </button>
+                            <button type="button" onclick="window.clearProductImage()" class="flex flex-col items-center justify-center bg-red-50 border-2 border-dashed border-red-200 rounded-2xl p-2 hover:bg-red-100 transition shadow-sm">
+                                <i class="fa-solid fa-trash text-red-400 mb-0.5"></i>
+                                <p class="text-[9px] font-bold text-red-400 text-center">מחק תמונה</p>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -31283,19 +31328,28 @@ async function saToggleLicense(groupId, featureKey, isActive) {
     </div>
     <div id="wo-view-inventory" class="hidden">
       <div class="flex justify-between items-center mb-3">
-        <h4 class="font-bold text-slate-700 text-sm">ציוד ומלאי</h4>
+        <h4 class="font-bold text-slate-700 text-sm">חומרי גלם וציוד</h4>
         <button onclick="window.openAddInventoryPanel()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> הוסף ציוד</button>
       </div>
       <div id="wo-inventory-list" class="space-y-2"></div>
       <div id="wo-add-inventory-panel" class="hidden mt-4 bg-slate-50 rounded-2xl p-4 border border-slate-200">
-        <div class="flex items-center justify-between mb-3">
-          <p class="text-xs font-bold text-slate-600">בחר פריט ממלאי:</p>
-          <button onclick="window.openWoInventoryCatalog()" class="text-[10px] text-indigo-600 hover:underline font-bold">🛍️ ראה קטלוג</button>
-        </div>
+        <p class="text-xs font-bold text-slate-600 mb-2">בחר ספק וציוד מהקטלוג:</p>
+        <select id="wo-inv-supplier-filter" class="modern-input w-full py-2 px-3 text-sm mb-2 rounded-xl border border-slate-200 outline-none focus:border-indigo-400 bg-white" onchange="window.loadInventoryBySupplier()">
+          <option value="">— כל הספקים —</option>
+        </select>
         <select id="wo-inventory-item-select" class="modern-input w-full py-2 px-3 text-sm mb-2 rounded-xl border border-slate-200 outline-none focus:border-indigo-400"></select>
-        <input type="number" id="wo-inventory-qty" min="1" step="1" value="1" placeholder="כמות" class="modern-input w-full py-2 px-3 text-sm mb-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <div>
+            <label class="text-[10px] text-slate-400 block mb-0.5">כמות</label>
+            <input type="number" id="wo-inventory-qty" min="1" step="0.01" value="1" placeholder="כמות" class="modern-input w-full py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
+          </div>
+          <div>
+            <label class="text-[10px] text-slate-400 block mb-0.5">₪ מחיר ליחידה</label>
+            <input type="number" id="wo-inventory-unit-price" min="0" step="0.01" value="0" placeholder="מחיר" class="modern-input w-full py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
+          </div>
+        </div>
         <div class="flex gap-2">
-          <button onclick="window.addInventoryReservationOrPurchase()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">שרן ציוד</button>
+          <button onclick="window.addInventoryReservation()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">שרן ציוד</button>
           <button onclick="document.getElementById('wo-add-inventory-panel').classList.add('hidden')" class="flex-1 bg-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-300 transition">ביטול</button>
         </div>
       </div>
@@ -31614,13 +31668,45 @@ window.renderWoTeam = function(assignees) {
     const list = document.getElementById('wo-assignees-list');
     if (!list) return;
     if (!assignees.length) { list.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">טרם שויכו עובדים לפקודה זו</p>'; return; }
-    list.innerHTML = assignees.map(a => `<div class="flex items-center justify-between bg-slate-50 rounded-xl p-3 border border-slate-100">
-        <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">${(a.user_name || '?')[0]}</div>
-            <span class="font-bold text-slate-700 text-sm">${safeStr(a.user_name)}</span>
+    const total = assignees.reduce((s, a) => s + (parseFloat(a.hourly_rate || 0) * parseFloat(a.hours_worked || 0)), 0);
+    list.innerHTML = assignees.map(a => {
+        const cost = parseFloat(a.hourly_rate || 0) * parseFloat(a.hours_worked || 0);
+        return `<div class="bg-slate-50 rounded-xl p-3 border border-slate-100 mb-2">
+        <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">${(a.user_name || '?')[0]}</div>
+                <span class="font-bold text-slate-700 text-sm">${safeStr(a.user_name)}</span>
+            </div>
+            <button onclick="window.removeWoAssignee(${a.user_id})" class="text-red-400 hover:text-red-600 text-xs p-1"><i class="fa-solid fa-times"></i></button>
         </div>
-        <button onclick="window.removeWoAssignee(${a.user_id})" class="text-red-400 hover:text-red-600 text-xs p-1"><i class="fa-solid fa-times"></i></button>
-    </div>`).join('');
+        <div class="grid grid-cols-2 gap-2">
+            <div>
+                <label class="text-[9px] text-slate-400 block mb-0.5">שעות עבודה</label>
+                <input type="number" min="0" step="0.5" value="${a.hours_worked || 0}" class="modern-input py-1 px-2 text-xs rounded-lg border border-slate-200 w-full outline-none focus:border-indigo-400" onchange="window.updateAssigneeCost(${a.user_id}, null, this.value)">
+            </div>
+            <div>
+                <label class="text-[9px] text-slate-400 block mb-0.5">₪ לשעה</label>
+                <input type="number" min="0" step="1" value="${a.hourly_rate || 0}" class="modern-input py-1 px-2 text-xs rounded-lg border border-slate-200 w-full outline-none focus:border-indigo-400" onchange="window.updateAssigneeCost(${a.user_id}, this.value, null)">
+            </div>
+        </div>
+        ${cost > 0 ? `<p class="text-[10px] text-indigo-600 font-bold mt-1.5">עלות: ₪${cost.toFixed(2)}</p>` : ''}
+    </div>`;
+    }).join('') + (total > 0 ? `<div class="mt-1 bg-indigo-50 rounded-xl p-3 border border-indigo-100 flex justify-between items-center"><span class="text-xs font-bold text-slate-600">סה"כ עלות צוות</span><span class="font-black text-indigo-700">₪${total.toFixed(2)}</span></div>` : '');
+};
+
+window.updateAssigneeCost = async function(userId, hourlyRate, hoursWorked) {
+    if (!window._currentWoId || !window._currentWoData) return;
+    const assignee = window._currentWoData.assignees?.find(a => a.user_id === userId);
+    if (!assignee) return;
+    if (hourlyRate !== null) assignee.hourly_rate = parseFloat(hourlyRate) || 0;
+    if (hoursWorked !== null) assignee.hours_worked = parseFloat(hoursWorked) || 0;
+    try {
+        await fetch(`${API}/work-orders/${window._currentWoId}/assignees/${userId}/cost`, {
+            method: 'PUT', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ hourlyRate: assignee.hourly_rate, hoursWorked: assignee.hours_worked })
+        });
+        window.renderWoTeam(window._currentWoData.assignees || []);
+    } catch(e) {}
 };
 
 window.renderWoInventory = function(inventory) {
@@ -31628,21 +31714,23 @@ window.renderWoInventory = function(inventory) {
     if (!list) return;
     if (!inventory.length) { list.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">לא שורין ציוד לפקודה זו</p>'; return; }
     const statusInfo = { reserved: { cls: 'bg-amber-100 text-amber-700 border-amber-200', label: 'משורין' }, used: { cls: 'bg-green-100 text-green-700 border-green-200', label: 'נוצל' }, released: { cls: 'bg-slate-100 text-slate-500 border-slate-200', label: 'שוחרר' } };
+    const activeItems = inventory.filter(i => i.status !== 'released');
+    const total = activeItems.reduce((s, i) => s + (parseFloat(i.unit_price || 0) * parseFloat(i.reserved_qty || 0)), 0);
     list.innerHTML = inventory.map(item => {
         const st = statusInfo[item.status] || statusInfo.reserved;
-        const usedQtyVal = item.used_qty || item.reserved_qty;
+        const lineTotal = parseFloat(item.unit_price || 0) * parseFloat(item.reserved_qty || 0);
         return `<div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
-            <div class="flex justify-between items-center mb-2">
+            <div class="flex justify-between items-center mb-1">
                 <span class="font-bold text-slate-700 text-sm">${safeStr(item.item_name)}</span>
                 <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${st.cls}">${st.label}</span>
             </div>
-            <p class="text-xs text-slate-500 mb-2">כמות: ${item.reserved_qty} יח' | זמין במלאי: ${item.available_qty ?? (item.total_stock - item.catalog_reserved)}</p>
+            <p class="text-xs text-slate-500 mb-2">כמות: ${item.reserved_qty} יח'${item.unit_price > 0 ? ` | ₪${parseFloat(item.unit_price).toFixed(2)} ליח' | סה"כ: ₪${lineTotal.toFixed(2)}` : ''}</p>
             ${item.status === 'reserved' ? `<div class="flex gap-2">
-                <button onclick="window.confirmInventoryUse(${item.id}, ${usedQtyVal})" class="flex-1 bg-green-600 text-white py-1.5 rounded-lg text-[10px] font-bold hover:bg-green-700 transition">✓ אשר שימוש</button>
+                <button onclick="window.confirmInventoryUse(${item.id}, ${item.reserved_qty})" class="flex-1 bg-green-600 text-white py-1.5 rounded-lg text-[10px] font-bold hover:bg-green-700 transition">✓ אשר שימוש</button>
                 <button onclick="window.releaseInventory(${item.id})" class="flex-1 bg-slate-200 text-slate-600 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-300 transition">שחרר</button>
             </div>` : ''}
         </div>`;
-    }).join('');
+    }).join('') + (total > 0 ? `<div class="mt-2 bg-indigo-50 rounded-xl p-3 border border-indigo-100 flex justify-between items-center"><span class="text-xs font-bold text-slate-600">סה"כ עלות ציוד</span><span class="font-black text-indigo-700">₪${total.toFixed(2)}</span></div>` : '');
 };
 
 window.renderWoMessages = function(messages) {
@@ -31770,36 +31858,71 @@ window.renderWoInventoryCatalogResults = function() {
 };
 
 window.openAddInventoryPanel = async function() {
-    // טען קטלוג אם חסר
-    if (!window.storeCatalogCache || !window.storeCatalogCache.length) {
-        try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); window.storeCatalogCache = await res.json(); } catch(e) {}
+    const panel = document.getElementById('wo-add-inventory-panel');
+    if (!panel) return;
+    panel.classList.remove('hidden');
+    const supplierFilter = document.getElementById('wo-inv-supplier-filter');
+    if (supplierFilter && currentGroup && supplierFilter.options.length <= 1) {
+        try {
+            const res = await fetch(`${API}/suppliers/${currentGroup.id}`);
+            const data = await res.json();
+            const suppliers = data.suppliers || [];
+            supplierFilter.innerHTML = '<option value="">— כל הספקים —</option>' +
+                suppliers.map(s => `<option value="${s.id}" data-name="${safeStr(s.name)}">${safeStr(s.name)}</option>`).join('');
+        } catch(e) {}
     }
+    await window.loadInventoryBySupplier();
+};
+
+window.loadInventoryBySupplier = async function() {
+    const supplierFilter = document.getElementById('wo-inv-supplier-filter');
     const sel = document.getElementById('wo-inventory-item-select');
-    if (sel) {
-        const items = window.storeCatalogCache ? window.storeCatalogCache.filter(p => p.is_available && (p.stock_quantity || 0) > 0).map(p => `<option value="${p.id}" data-name="${safeStr(p.name)}" data-avail="${p.stock_quantity || 0}">${safeStr(p.name)} (₪${parseFloat(p.price||0).toFixed(2)}) — במלאי: ${p.stock_quantity || 0}</option>`).join('') : '';
-        sel.innerHTML = '<option value="">— בחר מוצר —</option>' + items;
-    }
-    document.getElementById('wo-add-inventory-panel').classList.remove('hidden');
+    const priceInput = document.getElementById('wo-inventory-unit-price');
+    if (!sel || !currentGroup) return;
+    const supplierId = supplierFilter?.value;
+    sel.innerHTML = '<option value="">טוען...</option>';
+    try {
+        let products = [];
+        if (supplierId) {
+            const res = await fetch(`${API}/suppliers/${supplierId}/products`);
+            const d = await res.json();
+            products = d.products || [];
+        } else {
+            const res = await fetch(`${API}/suppliers/group/${currentGroup.id}/all-products`);
+            const d = await res.json();
+            products = d.products || [];
+        }
+        if (!products.length) {
+            sel.innerHTML = '<option value="">אין מוצרים — הגדר ספקים ומוצריהם תחת "ספקים"</option>';
+            return;
+        }
+        sel.innerHTML = '<option value="">— בחר פריט —</option>' +
+            products.map(p => `<option value="${p.id}" data-name="${safeStr(p.name)}" data-price="${p.price || 0}" data-supplier="${safeStr(p.supplier_name || '')}">${safeStr(p.name)}${p.supplier_name ? ' · ' + safeStr(p.supplier_name) : ''} — ₪${parseFloat(p.price||0).toFixed(2)}</option>`).join('');
+        sel.onchange = function() {
+            const opt = sel.options[sel.selectedIndex];
+            if (priceInput && opt?.dataset?.price !== undefined) priceInput.value = opt.dataset.price;
+        };
+    } catch(e) { sel.innerHTML = '<option value="">שגיאה בטעינה</option>'; }
 };
 
 window.addInventoryReservation = async function() {
     const sel = document.getElementById('wo-inventory-item-select');
     const qtyInput = document.getElementById('wo-inventory-qty');
-    if (!sel || !sel.value) return showToast('error', 'בחר פריט');
-    const catalogId = sel.value;
-    const itemName = sel.options[sel.selectedIndex]?.dataset?.name || '';
+    const priceInput = document.getElementById('wo-inventory-unit-price');
+    if (!sel || !sel.value) return showToast('error', 'נא לבחור פריט');
+    const itemName = sel.options[sel.selectedIndex]?.dataset?.name || sel.options[sel.selectedIndex]?.text?.split(' · ')[0] || '';
     const qty = parseFloat(qtyInput?.value) || 1;
-    const available = parseFloat(sel.options[sel.selectedIndex]?.dataset?.avail) || 0;
-    if (qty > available) return showToast('error', `רק ${available} יחידות זמינות`);
+    const unitPrice = parseFloat(priceInput?.value) || 0;
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/inventory`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ catalogId, itemName, qty, reservedBy: currentUser?.nickname || 'מנהל' })
+            body: JSON.stringify({ catalogId: null, itemName, qty, unitPrice, reservedBy: currentUser?.nickname || 'מנהל' })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error);
         document.getElementById('wo-add-inventory-panel').classList.add('hidden');
         if (qtyInput) qtyInput.value = 1;
+        if (priceInput) priceInput.value = 0;
         showToast('success', 'ציוד שורין בהצלחה');
         const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
         const dData = await dRes.json();
