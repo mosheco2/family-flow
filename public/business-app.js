@@ -32096,16 +32096,11 @@ window.loadInventoryBySupplier = async function() {
     const sel = document.getElementById('wo-inventory-item-select');
     const priceInput = document.getElementById('wo-inventory-unit-price');
     if (!sel) return;
-    const groupId = window._currentWoData?.workOrder?.group_id || currentGroup?.id;
-    if (!groupId) {
-        sel.innerHTML = '<option value="">שגיאה: לא ניתן לטעון מלאי</option>';
-        return;
-    }
     sel.innerHTML = '<option value="">טוען...</option>';
     try {
-        const res = await fetch(`${API}/pantry/${groupId}`);
-        const catData = await res.json();
-        const allItems = (catData.items || [])
+        // pantryCache נטען כחלק מנתוני הקבוצה — אין צורך ב-API נוסף
+        const allItems = (pantryCache || [])
+            .slice()
             .sort((a, b) => (b.quantity || 0) - (a.quantity || 0));
         if (!allItems.length) {
             sel.innerHTML = '<option value="">אין פריטים במלאי — הוסף פריטים בטאב "מלאי"</option>';
