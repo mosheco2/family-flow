@@ -25492,6 +25492,7 @@ function renderQuickTiles() {
   const container = document.getElementById('quick-tiles');
   if (!container) return;
   const storeOrderCount = (storeOrdersCache || []).filter(o => o.status === 'pending' || o.status === 'new').length;
+  const openWoCount = (workOrdersCache || []).filter(wo => !['completed','cancelled'].includes(wo.status)).length;
   const isRestTile = ['restaurant','cafe'].includes(currentGroup?.business_type);
   const kdsCount = isRestTile ? (storeOrdersCache || []).filter(o => ['new','processing'].includes(o.status)).length : 0;
   const tableStates = isRestTile ? getTableStates() : {};
@@ -25512,17 +25513,18 @@ function renderQuickTiles() {
     { fa:'fa-bag-shopping',      label:'הזמנות',         badge: storeOrderCount, tab:'sales',     bg:'#fffbeb', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
     { fa:'fa-chart-bar',         label:'דוח יום',        badge: null,            tab:'__daily_close__', bg:'#f0fdf4', grad:'linear-gradient(135deg,#22c55e,#15803d)', badge_bg:'#166534' },
   ] : [
-    { fa:'fa-clock-rotate-left', label:'נוכחות',        badge: null,            tab:'timeclock', bg:'#f8fafc', grad:'linear-gradient(135deg,#64748b,#334155)', badge_bg:'#475569' },
-    { fa:'fa-calendar-days',     label:'משמרות',         badge: null,            tab:'shifts',    bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
-    { fa:'fa-calendar-check',    label:'יומן ציבורי',    badge: null,            tab:'calendar',  bg:'#faf5ff', grad:'linear-gradient(135deg,#a78bfa,#7c3aed)', badge_bg:'#6d28d9' },
-    { fa:'fa-bag-shopping',      label:'מכירות וחנות',   badge: storeOrderCount, tab:'sales',     bg:'#fffbeb', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
-    { fa:'fa-cart-arrow-down',   label:'רכש',           badge: null,            tab:'shop',      bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0f766e)', badge_bg:'#0d9488' },
-    { fa:'fa-chart-line',        label:'כספים',          badge: null,            tab:'bank',      bg:'#fff1f2', grad:'linear-gradient(135deg,#f43f5e,#be123c)', badge_bg:'#9f1239' },
+    { fa:'fa-clock-rotate-left',      label:'נוכחות',         badge: null,            tab:'timeclock',          bg:'#f8fafc', grad:'linear-gradient(135deg,#64748b,#334155)', badge_bg:'#475569' },
+    { fa:'fa-calendar-days',           label:'משמרות',          badge: null,            tab:'shifts',             bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
+    { fa:'fa-calendar-check',          label:'יומן ציבורי',     badge: null,            tab:'calendar',           bg:'#faf5ff', grad:'linear-gradient(135deg,#a78bfa,#7c3aed)', badge_bg:'#6d28d9' },
+    { fa:'fa-bag-shopping',            label:'מכירות וחנות',    badge: storeOrderCount, tab:'sales',              bg:'#fffbeb', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
+    { fa:'fa-screwdriver-wrench',      label:'פקודות עבודה',    badge: openWoCount||null, tab:'__work_orders__',  bg:'#eef2ff', grad:'linear-gradient(135deg,#818cf8,#4f46e5)', badge_bg:'#4338ca' },
+    { fa:'fa-chart-line',              label:'כספים',           badge: null,            tab:'bank',               bg:'#fff1f2', grad:'linear-gradient(135deg,#f43f5e,#be123c)', badge_bg:'#9f1239' },
   ]);
   container.innerHTML = tiles.map(t => {
-    const clickAction = t.tab === '__daily_close__' ? "window.openDailyCloseReport()" :
-                        t.tab === 'kds'       ? "window.openAdminKDSPanel()" :
-                        t.tab === '__tables__' ? "window.openAdminTablesPanel()" :
+    const clickAction = t.tab === '__daily_close__'  ? "window.openDailyCloseReport()" :
+                        t.tab === 'kds'             ? "window.openAdminKDSPanel()" :
+                        t.tab === '__tables__'      ? "window.openAdminTablesPanel()" :
+                        t.tab === '__work_orders__' ? "switchTab('sales');setTimeout(()=>{if(typeof window.switchSalesTab==='function')window.switchSalesTab('work-orders');},150)" :
                         `switchTab('${t.tab}')`;
     return `<button onclick="${clickAction}"
       style="background:${t.bg};border:1.5px solid rgba(0,0,0,0.06)"
@@ -32021,6 +32023,7 @@ window.renderWoInventory = function(inventory) {
     const list = document.getElementById('wo-inventory-list');
     if (!list) return;
     if (!inventory.length) { list.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">לא שורין ציוד לפקודה זו</p>'; return; }
+    const fmtN = n => { const v = parseFloat(parseFloat(n || 0).toFixed(2)); return String(v); };
     const statusInfo = { reserved: { cls: 'bg-amber-100 text-amber-700 border-amber-200', label: 'משורין' }, used: { cls: 'bg-green-100 text-green-700 border-green-200', label: 'נוצל' }, released: { cls: 'bg-slate-100 text-slate-500 border-slate-200', label: 'שוחרר' } };
     const activeItems = inventory.filter(i => i.status !== 'released');
     const total = activeItems.reduce((s, i) => s + (parseFloat(i.unit_price || 0) * parseFloat(i.reserved_qty || 0)), 0);
@@ -32028,31 +32031,31 @@ window.renderWoInventory = function(inventory) {
         const st = statusInfo[item.status] || statusInfo.reserved;
         const neededQty = parseFloat(item.needed_qty || item.reserved_qty || 0);
         const reservedQty = parseFloat(item.reserved_qty || 0);
-        const shortage = Math.max(0, neededQty - reservedQty);
+        const shortage = parseFloat(Math.max(0, neededQty - reservedQty).toFixed(2));
         const lineTotal = parseFloat(item.unit_price || 0) * reservedQty;
         // pantry item
         const pantryTotal = item.pantry_id ? parseFloat(item.pantry_total || 0) : parseFloat(item.total_stock || 0);
         const pantryReserved = item.pantry_id ? parseFloat(item.pantry_reserved || 0) : parseFloat(item.catalog_reserved || 0);
-        const pantryAvailable = Math.max(0, pantryTotal - pantryReserved);
+        const pantryAvailable = parseFloat(Math.max(0, pantryTotal - pantryReserved).toFixed(2));
         const pantryUnit = item.pantry_unit || "יח'";
 
         const qtyLine = neededQty > reservedQty
             ? `<div class="flex gap-2 text-xs mb-2 flex-wrap">
-                <span class="text-slate-500">נדרש: <b class="text-slate-700">${neededQty}</b> יח'</span>
+                <span class="text-slate-500">נדרש: <b class="text-slate-700">${fmtN(neededQty)}</b> יח'</span>
                 <span class="text-slate-400">|</span>
-                <span class="text-slate-500">שויך: <b class="text-green-700">${reservedQty}</b> יח'</span>
+                <span class="text-slate-500">שויך: <b class="text-green-700">${fmtN(reservedQty)}</b> יח'</span>
                 <span class="text-slate-400">|</span>
-                <span class="text-red-600 font-bold">חסר: ${shortage} יח' ⚠️</span>
+                <span class="text-red-600 font-bold">חסר: ${fmtN(shortage)} יח' ⚠️</span>
                </div>`
-            : `<p class="text-xs text-slate-500 mb-2">כמות: ${reservedQty} יח'${item.unit_price > 0 ? ` | ₪${parseFloat(item.unit_price).toFixed(2)} ליח'` : ''}</p>`;
+            : `<p class="text-xs text-slate-500 mb-2">כמות: ${fmtN(reservedQty)} יח'${item.unit_price > 0 ? ` | ₪${parseFloat(item.unit_price).toFixed(2)} ליח'` : ''}</p>`;
 
         const poAlert = shortage > 0 && item.status === 'reserved'
-            ? `<div class="bg-red-50 border border-red-200 rounded-lg p-2 mb-2 text-[10px] text-red-700 font-bold">⚠️ חסרים ${shortage} יח' — יש לפתוח הזמנת רכש</div>` : '';
+            ? `<div class="bg-red-50 border border-red-200 rounded-lg p-2 mb-2 text-[10px] text-red-700 font-bold">⚠️ חסרים ${fmtN(shortage)} יח' — יש לפתוח הזמנת רכש</div>` : '';
 
         const stockInfo = (item.pantry_id || item.catalog_id) ? `<div class="bg-blue-50 rounded-lg p-2 mb-2 border border-blue-200 text-[10px]">
-            <div class="flex justify-between mb-1"><span class="text-slate-600">מלאי כולל:</span><span class="font-bold text-blue-700">${pantryTotal} ${pantryUnit}</span></div>
-            <div class="flex justify-between mb-1"><span class="text-slate-600">משוריין (כל פקודות עבודה):</span><span class="font-bold text-amber-600">${pantryReserved} ${pantryUnit}</span></div>
-            <div class="flex justify-between mb-1"><span class="text-slate-600">זמין:</span><span class="font-bold text-green-600">${pantryAvailable} ${pantryUnit}</span></div>
+            ${parseFloat(pantryTotal) > 0 ? `<div class="flex justify-between mb-1"><span class="text-slate-600">מלאי כולל:</span><span class="font-bold text-blue-700">${fmtN(pantryTotal)} ${pantryUnit}</span></div>` : ''}
+            ${parseFloat(pantryReserved) > 0 ? `<div class="flex justify-between mb-1"><span class="text-slate-600">משוריין (כל פקודות עבודה):</span><span class="font-bold text-amber-600">${fmtN(pantryReserved)} ${pantryUnit}</span></div>` : ''}
+            <div class="flex justify-between mb-1"><span class="text-slate-600">זמין:</span><span class="font-bold text-green-600">${fmtN(pantryAvailable)} ${pantryUnit}</span></div>
         </div>` : '';
 
         return `<div class="bg-slate-50 rounded-xl p-3 border ${shortage > 0 && item.status === 'reserved' ? 'border-red-200' : 'border-slate-100'}">
@@ -32080,6 +32083,9 @@ window.renderWoCosts = function(data) {
     const teamCost = assignees.reduce((s, a) => s + (parseFloat(a.hourly_rate || 0) * parseFloat(a.hours_worked || 0)), 0);
     const inventoryCost = inventory.filter(i => i.status !== 'released').reduce((s, i) => s + (parseFloat(i.unit_price || 0) * parseFloat(i.reserved_qty || 0)), 0);
     const totalCost = teamCost + inventoryCost;
+    const quoteAmount = parseFloat(data.workOrder?.total_amount || 0);
+    const profit = quoteAmount - totalCost;
+    const fmtM = n => { const v = parseFloat(parseFloat(n).toFixed(2)); return v === 0 ? '0' : v.toLocaleString('he-IL', {minimumFractionDigits: 0, maximumFractionDigits: 2}); };
 
     let html = `
         <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
@@ -32121,10 +32127,29 @@ window.renderWoCosts = function(data) {
         <div class="bg-indigo-100 rounded-2xl p-4 border border-indigo-200">
             <div class="flex justify-between items-center">
                 <span class="text-sm font-bold text-indigo-700">סה"כ עלויות</span>
-                <span class="text-lg font-black text-indigo-700">₪${totalCost.toFixed(2)}</span>
+                <span class="text-lg font-black text-indigo-700">₪${fmtM(totalCost)}</span>
             </div>
         </div>
     `;
+    if (quoteAmount > 0) {
+        const profitCls = profit >= 0
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+            : 'bg-red-50 border-red-200 text-red-700';
+        html += `
+        <div class="bg-green-50 rounded-2xl p-4 border border-green-200">
+            <div class="flex justify-between items-center">
+                <span class="text-sm font-bold text-green-700">שווי ההצעה (הכנסה)</span>
+                <span class="text-sm font-black text-green-700">₪${fmtM(quoteAmount)}</span>
+            </div>
+        </div>
+        <div class="rounded-2xl p-4 border ${profitCls}">
+            <div class="flex justify-between items-center">
+                <span class="text-sm font-bold">רווחיות צפויה</span>
+                <span class="text-lg font-black">${profit >= 0 ? '+' : ''}₪${fmtM(profit)}</span>
+            </div>
+            ${quoteAmount > 0 && totalCost > 0 ? `<p class="text-[10px] mt-1 opacity-70">${Math.round((profit / quoteAmount) * 100)}% מההכנסה</p>` : ''}
+        </div>`;
+    }
     summary.innerHTML = html;
 };
 
