@@ -18861,14 +18861,20 @@ window.openStoreProductModal = function(id = null) {
                 
                 <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                     <label class="text-xs font-bold text-slate-600 block mb-2">תמונת הפריט:</label>
-                    <div class="flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-4 cursor-pointer hover:bg-slate-100 transition shadow-sm" onclick="document.getElementById('sp-image-upload').click()">
-                        <div id="sp-image-placeholder" class="text-center py-2">
-                            <i class="fa-solid fa-cloud-arrow-up text-4xl text-indigo-400 mb-2 drop-shadow-sm"></i>
-                            <p class="text-sm font-bold text-slate-600">לחץ להעלאת תמונה</p>
+                    <div class="flex gap-2 mb-3">
+                        <div class="flex-1 flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-4 cursor-pointer hover:bg-slate-100 transition shadow-sm" onclick="document.getElementById('sp-image-upload').click()">
+                            <div id="sp-image-placeholder" class="text-center py-2">
+                                <i class="fa-solid fa-cloud-arrow-up text-4xl text-indigo-400 mb-2 drop-shadow-sm"></i>
+                                <p class="text-sm font-bold text-slate-600">לחץ להעלאת תמונה</p>
+                            </div>
+                            <img id="sp-image-preview" class="hidden h-32 w-full object-cover rounded-xl shadow-sm">
+                            <input type="file" id="sp-image-upload" accept="image/*" class="hidden" onchange="if(typeof handleProductImageBase64 === 'function') handleProductImageBase64(event)">
+                            <input type="hidden" id="sp-image-base64">
                         </div>
-                        <img id="sp-image-preview" class="hidden h-32 w-full object-cover rounded-xl shadow-sm">
-                        <input type="file" id="sp-image-upload" accept="image/*" class="hidden" onchange="if(typeof handleProductImageBase64 === 'function') handleProductImageBase64(event)">
-                        <input type="hidden" id="sp-image-base64">
+                        <button type="button" onclick="window.generateProductImage()" class="flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-dashed border-purple-300 rounded-2xl p-4 hover:bg-purple-100 transition shadow-sm w-32 shrink-0">
+                            <i class="fa-solid fa-wand-magic-sparkles text-3xl text-purple-500 mb-1"></i>
+                            <p class="text-[10px] font-bold text-purple-700 text-center leading-tight">צור עם AI</p>
+                        </button>
                     </div>
                 </div>
 
