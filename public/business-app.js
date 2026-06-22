@@ -7173,6 +7173,7 @@ window.renderStoreQuotes = function() {
                     <button onclick="window.openEditQuoteModal(${q.id})" class="flex-1 bg-white text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200"><i class="fa-solid fa-pen"></i> ערוך</button>
                     ${sendOneflowBtn}
                     <button onclick="window.sendQuoteToCustomer(${q.id})" class="flex-1 bg-[#25D366] text-white hover:bg-[#1ebd58] py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-brands fa-whatsapp text-xs"></i> WA</button>
+                    <button onclick="window.duplicateQuote(${q.id})" class="flex-[0.5] bg-white text-slate-600 hover:text-purple-600 hover:bg-purple-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200" title="שכפל הצעה ללקוח אחר"><i class="fa-solid fa-copy"></i></button>
                     <button onclick="window.openQuotePreview(${q.id})" class="flex-[0.5] bg-white text-slate-600 hover:text-red-600 hover:bg-red-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200" title="מסמך PDF"><i class="fa-solid fa-file-pdf"></i></button>
                 </div>
             </div>`;
@@ -7180,6 +7181,43 @@ window.renderStoreQuotes = function() {
     });
     
     list.innerHTML = html;
+};
+
+window.duplicateQuote = async function(quoteId) {
+    const q = window.storeQuotesCache.find(x => String(x.id) === String(quoteId));
+    if (!q) return;
+    const rawItems = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items||'[]') : []);
+    // טען קטלוג אם חסר
+    if (!window.storeCatalogCache || !window.storeCatalogCache.length) {
+        try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); window.storeCatalogCache = await res.json(); } catch(e) {}
+    }
+    // פתח מודל חדש (ריק מלקוח)
+    window.showCustomerQuoteModal(null, {});
+    await new Promise(r => setTimeout(r, 100));
+    // מלא metadata מהמקור
+    const metaItem = rawItems.find(i => i.is_quote_metadata);
+    let meta = {};
+    if (metaItem) { try { meta = JSON.parse(metaItem.data||'{}'); } catch(e) {} }
+    const set = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined && val !== null) el.value = val; };
+    set('cq-title', (q.quote_title || meta.title || '') + ' (עותק)');
+    set('cq-validity', meta.validity || '30');
+    set('cq-company-id', '');
+    set('cq-my-company-id', meta.myCompanyId || localStorage.getItem('ofl_my_company_id') || '');
+    set('cq-intro-text', meta.introText || '');
+    set('cq-notes', (meta.notes || '').replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').trim());
+    set('cq-internal-note', meta.internalNote || '');
+    set('cq-discount', meta.discount || 0);
+    if (meta.vatRate !== undefined) set('cq-vat-rate', meta.vatRate);
+    if (meta.noVat) { const el = document.getElementById('cq-no-vat'); if (el) el.checked = true; }
+    // הסר שורות ברירת מחדל ומלא שורות מהמקור
+    const container = document.getElementById('cq-lines');
+    if (container) container.innerHTML = '';
+    rawItems.forEach(i => {
+        if (i.is_quote_metadata || i.is_delivery_metadata || i.catalogId === 999999 || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
+        window.cqAddLine({ desc: i.item_name || i.name || '', qty: parseFloat(i.quantity)||1, price: parseFloat(i.price_at_order||i.price)||0, catalogId: (i.catalogId && i.catalogId !== 0) ? i.catalogId : null, note: i.note||'' });
+    });
+    window.cqCalcTotal();
+    showToast('success', 'ההצעה שוכפלה — מלא פרטי לקוח חדש');
 };
 
 window.updateQuoteStatus = async function(id, status) {
@@ -7685,7 +7723,14 @@ window.generateQuoteAI = async function(type, btnElement) {
 
 window.cqGenerateIntroAI = async function() {
     const custName = val('cq-customer-name') || 'לקוח יקר';
-    const query = `כתוב בדיוק 2 משפטים בלבד כפתיחה רשמית ומקצועית להצעת מחיר. שורה ראשונה: פנייה אישית ומכובדת לשם הלקוח "${custName}". שורה שנייה: הצגת העסק "${currentGroup.name}" ומטרת ההצעה. חובה: ללא אימוג'ים, ללא כוכביות, ללא מספרים, ללא נקודות בפתיחה, ללא כל מילת פתיחה מצידך. רק 2 שורות טקסט צמוד אחת לשנייה.`;
+    const bizType = BUSINESS_TYPES.find(b => b.id === (currentGroup?.business_type || 'other'));
+    const bizTypeName = bizType?.name || 'עסק';
+    const bizCfg = BUSINESS_CONFIG[currentGroup?.business_type] || BUSINESS_CONFIG.other;
+    const serviceWord = bizCfg.product || 'שירות';
+    const orderWord = bizCfg.order || 'הצעה';
+    const quoteTitle = val('cq-title') || '';
+    const titleCtx = quoteTitle ? ` בנושא: "${quoteTitle}"` : '';
+    const query = `כתוב בדיוק 3 משפטים כפתיחה רשמית ומקצועית להצעת מחיר${titleCtx}. שורה ראשונה: פנייה אישית ומכובדת אל "${custName}". שורה שנייה: הצגת העסק "${currentGroup.name}" (תחום: ${bizTypeName}) ותיאור קצר של עיקר ${serviceWord} שמוצע. שורה שלישית: הבעת תודה על ההזדמנות ו${orderWord}. חובה: ללא אימוג'ים, ללא כוכביות, ללא מספרים, ללא נקודות מתחת לכותרת, ללא כל מילת פתיחה מצידך. רק 3 שורות טקסט, כל שורה בפני עצמה.`;
     const targetId = 'cq-intro-text';
     const btnEl = event?.target;
     const originalHtml = btnEl ? btnEl.innerHTML : '';
@@ -10223,14 +10268,14 @@ window.renderCqCatalogGrid = function() {
     if (!items.length) { grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400 text-xs">לא נמצאו מוצרים.</div>'; return; }
     const showCatBadge = cat === 'all' || !!search;
     grid.innerHTML = items.map(p => {
-        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-full h-20 object-cover rounded-t-xl border-b border-slate-100 shrink-0">` : `<div class="w-full h-20 bg-slate-100 flex items-center justify-center rounded-t-xl border-b border-slate-100 shrink-0"><i class="fa-solid fa-image text-2xl text-slate-300"></i></div>`;
-        const catBadge = showCatBadge ? `<span class="inline-block text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full mb-1 truncate max-w-full">${safeStr(p.category||'כללי')}</span>` : '';
-        return `<div onclick="window.cqAddCatalogLine('${p.id}')" class="bg-white rounded-xl border border-slate-200 shadow-sm hover:border-amber-400 hover:shadow-md transition cursor-pointer flex flex-col overflow-hidden group">
+        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-full h-20 object-cover rounded-t-xl">` : `<div class="w-full h-20 bg-slate-100 flex items-center justify-center rounded-t-xl"><i class="fa-solid fa-image text-2xl text-slate-300"></i></div>`;
+        const catBadge = showCatBadge ? `<span class="block text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-full mb-1 truncate">${safeStr(p.category||'כללי')}</span>` : '';
+        return `<div onclick="window.cqAddCatalogLine('${p.id}')" class="bg-white rounded-xl border border-slate-200 shadow-sm hover:border-amber-400 hover:shadow-md transition cursor-pointer overflow-hidden group">
             ${imgHtml}
-            <div class="p-2 flex-1 flex flex-col justify-between">
+            <div class="p-2 border-t border-slate-100">
                 ${catBadge}
-                <h5 class="font-bold text-slate-700 text-xs leading-tight mb-1 line-clamp-2">${safeStr(p.name)}</h5>
-                <div class="flex justify-between items-center">
+                <div class="font-bold text-slate-700 text-xs leading-tight mb-1 line-clamp-2">${safeStr(p.name)}</div>
+                <div class="flex justify-between items-center mt-1">
                     <span class="text-amber-600 font-black text-sm dir-ltr">&#8362;${parseFloat(p.price||0).toFixed(2)}</span>
                     <span class="bg-amber-50 group-hover:bg-amber-500 group-hover:text-white text-amber-600 w-5 h-5 rounded flex items-center justify-center transition"><i class="fa-solid fa-plus text-[10px]"></i></span>
                 </div>
