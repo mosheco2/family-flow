@@ -742,8 +742,10 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE supplier_products ADD COLUMN IF NOT EXISTS catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE work_order_inventory ADD COLUMN IF NOT EXISTS needed_qty DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS min_stock_buffer_pct DECIMAL(5,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS min_stock_warning_pct DECIMAL(5,2) DEFAULT 0`); } catch(e) {}
       try { await client.query(`ALTER TABLE pantry ADD COLUMN IF NOT EXISTS reserved_qty DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
-      try { await client.query(`ALTER TABLE work_order_inventory ADD COLUMN IF NOT EXISTS pantry_id INT REFERENCES pantry(id) ON DELETE SET NULL`); } catch(e) {}      try { await client.query(`CREATE TABLE IF NOT EXISTS supplier_product_catalog_links (
+      try { await client.query(`ALTER TABLE work_order_inventory ADD COLUMN IF NOT EXISTS pantry_id INT REFERENCES pantry(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS supplier_product_catalog_links (
           id SERIAL PRIMARY KEY,
           supplier_product_id INT REFERENCES supplier_products(id) ON DELETE CASCADE,
           catalog_id INT REFERENCES store_catalog(id) ON DELETE CASCADE,
@@ -2974,8 +2976,9 @@ app.post('/api/groups', async (req, res) => {
 });
 app.put('/api/groups/:id/inventory-settings', async (req, res) => {
     try {
-        const { min_stock_buffer_pct } = req.body;
-        await pool.query('UPDATE family_groups SET min_stock_buffer_pct=$1 WHERE id=$2', [parseFloat(min_stock_buffer_pct) || 0, req.params.id]);
+        const { min_stock_buffer_pct, min_stock_warning_pct } = req.body;
+        await pool.query('UPDATE family_groups SET min_stock_buffer_pct=$1, min_stock_warning_pct=$2 WHERE id=$3',
+            [parseFloat(min_stock_buffer_pct) || 0, parseFloat(min_stock_warning_pct) || 0, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

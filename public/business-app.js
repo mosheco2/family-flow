@@ -6649,29 +6649,40 @@ function download360PDF() {
 // פונקציות המזווה הותאמו לתמוך בשברים ויחידות בודדות
 
 window.savePantryBuffer = async function() {
-    const pct = parseFloat(document.getElementById('pantry-buffer-input')?.value || 0);
-    if (pct < 0 || pct > 100) return showToast('error', 'יש להזין ערך בין 0 ל-100');
+    const bufferPct = parseFloat(document.getElementById('pantry-buffer-input')?.value || 0);
+    const warningPct = parseFloat(document.getElementById('pantry-warning-input')?.value || 0);
+    if (bufferPct < 0 || bufferPct > 100 || warningPct < 0 || warningPct > 100) {
+        return showToast('error', 'יש להזין ערכים בין 0 ל-100');
+    }
     try {
         const res = await fetch(`${API}/groups/${currentGroup.id}/inventory-settings`, {
             method: 'PUT', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ min_stock_buffer_pct: pct })
+            body: JSON.stringify({ min_stock_buffer_pct: bufferPct, min_stock_warning_pct: warningPct })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error);
-        currentGroup.min_stock_buffer_pct = pct;
-        showToast('success', `מאגר שוטף עודכן ל-${pct}%`);
+        currentGroup.min_stock_buffer_pct = bufferPct;
+        currentGroup.min_stock_warning_pct = warningPct;
+        const criticalLevel = bufferPct + warningPct;
+        showToast('success', `הגדרות מלאי עודכנו — רמה קריטית ב-${criticalLevel}%`);
         renderPantry();
     } catch(e) { showToast('error', 'שגיאה בשמירה'); }
 };
 
 function renderPantry() {
     const list = getEl('pantry-list'); if(!list) return; list.innerHTML = '';
-    // init buffer bar
+    // init buffer & warning bars
     const bufferInput = document.getElementById('pantry-buffer-input');
     const bufferDesc = document.getElementById('pantry-buffer-desc');
-    const pct = parseFloat(currentGroup?.min_stock_buffer_pct || 0);
-    if (bufferInput) bufferInput.value = pct;
-    if (bufferDesc) bufferDesc.textContent = pct > 0 ? `${pct}% מכל מוצר שמור לשימוש שוטף ולא ניתן לשריון` : '0% — כל המלאי זמין לשריון';
+    const warningInput = document.getElementById('pantry-warning-input');
+    const warningDesc = document.getElementById('pantry-warning-desc');
+    const bufferPct = parseFloat(currentGroup?.min_stock_buffer_pct || 0);
+    const warningPct = parseFloat(currentGroup?.min_stock_warning_pct || 0);
+    const criticalLevel = bufferPct + warningPct;
+    if (bufferInput) bufferInput.value = bufferPct;
+    if (bufferDesc) bufferDesc.textContent = bufferPct > 0 ? `${bufferPct}% מכל מוצר שמור לשימוש שוטף ולא ניתן לשריון` : '0% — כל המלאי זמין לשריון';
+    if (warningInput) warningInput.value = warningPct;
+    if (warningDesc) warningDesc.textContent = warningPct > 0 ? `התראה כשמלאי ≤ ${criticalLevel}%` : '0% — ללא התראות';
     if(pantryCache.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-8">המלאי ריק. קלטו ציוד וחומרי גלם כדי לעקוב אחרי המלאי בעסק!</p>'; return; }
     const bufferPct = parseFloat(currentGroup?.min_stock_buffer_pct || 0);
     pantryCache.forEach(p => {
@@ -6736,6 +6747,26 @@ function renderPantry() {
             </div>
         </div>`;
     });
+
+    // Check for critical stock levels and warn
+    const criticalLevel = bufferPct + warningPct;
+    if (criticalLevel > 0 && !window._pantryWarningSent) {
+        // Critical level calculation: if item has less than (buffer + warning) % of its "normal" amount, warn
+        // Use a baseline: consider 100 units as "normal" for percentage calc
+        const criticalItems = pantryCache.filter(p => {
+            const qty = parseFloat(p.quantity || 0);
+            const thresholdQty = 100 * (criticalLevel / 100); // e.g. 35 units = 35%
+            return qty > 0 && qty <= thresholdQty;
+        });
+        if (criticalItems.length > 0) {
+            window._pantryWarningSent = true;
+            const names = criticalItems.slice(0, 2).map(i => `${i.item_name} (${parseFloat(i.quantity).toFixed(1)} ${i.unit})`).join(', ');
+            const msg = criticalItems.length > 2
+                ? `⚠️ ${names}, ועוד ${criticalItems.length - 2} פריטים קרובים למינימום`
+                : `⚠️ ${names} קרובים למינימום`;
+            setTimeout(() => showToast('warning', msg), 500);
+        }
+    }
 }
 
 window.openPantryModal = function() {

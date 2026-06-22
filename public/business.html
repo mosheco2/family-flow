@@ -1970,14 +1970,24 @@
                                 <button onclick="openPantryModal()" class="flex-1 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוספה ידנית</button>
                             </div>
                         </div>
-                        <div id="pantry-buffer-bar" class="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-3 flex items-center gap-3">
-                            <div class="flex-1">
-                                <p class="text-[10px] font-bold text-slate-600">🛡️ אחוז מינימום לשימוש שוטף (לא ניתן לשריון)</p>
-                                <p class="text-[9px] text-slate-400 mt-0.5" id="pantry-buffer-desc">0% — כל המלאי זמין לשריון</p>
+                        <div id="pantry-buffer-bar" class="space-y-2 mb-3">
+                            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center gap-3">
+                                <div class="flex-1">
+                                    <p class="text-[10px] font-bold text-slate-600">🛡️ אחוז מינימום לשימוש שוטף</p>
+                                    <p class="text-[9px] text-slate-400 mt-0.5" id="pantry-buffer-desc">0% — כל המלאי זמין לשריון</p>
+                                </div>
+                                <input type="number" id="pantry-buffer-input" min="0" max="100" step="1" value="0" class="w-16 text-center border border-slate-200 rounded-xl py-1.5 text-sm font-black text-slate-700 outline-none focus:border-indigo-400">
+                                <span class="text-xs text-slate-500 font-bold">%</span>
                             </div>
-                            <input type="number" id="pantry-buffer-input" min="0" max="100" step="1" value="0" class="w-16 text-center border border-slate-200 rounded-xl py-1.5 text-sm font-black text-slate-700 outline-none focus:border-indigo-400">
-                            <span class="text-xs text-slate-500 font-bold">%</span>
-                            <button onclick="window.savePantryBuffer()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold hover:bg-indigo-700 transition">שמור</button>
+                            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex items-center gap-3">
+                                <div class="flex-1">
+                                    <p class="text-[10px] font-bold text-amber-700">⚠️ אחוז התראה על קרבה למינימום</p>
+                                    <p class="text-[9px] text-amber-600 mt-0.5" id="pantry-warning-desc">0% — ללא התראות</p>
+                                </div>
+                                <input type="number" id="pantry-warning-input" min="0" max="100" step="1" value="0" class="w-16 text-center border border-amber-200 rounded-xl py-1.5 text-sm font-black text-amber-700 outline-none focus:border-amber-400">
+                                <span class="text-xs text-amber-600 font-bold">%</span>
+                            </div>
+                            <button onclick="window.savePantryBuffer()" class="w-full bg-indigo-600 text-white px-4 py-2.5 rounded-2xl text-xs font-bold hover:bg-indigo-700 transition">שמור הגדרות מלאי</button>
                         </div>
                         <div id="pantry-list" class="space-y-3 pb-20"></div>
                     </div>
