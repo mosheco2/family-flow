@@ -27239,7 +27239,7 @@ function applyBusinessTypeFilter() {
     const bizType = currentGroup?.business_type;
     if (bizType && bizType !== 'other') {
         const TAB_RENAME = {
-            restaurant:     { customers: 'אורחים 🤝', calendar: 'הזמנות שולחנות 📅' },
+            restaurant:     { customers: 'אורחים 🤝', calendar: 'ניהול יומן 📅' },
             healthcare:     { customers: 'מטופלים 🤝', calendar: 'יומן תורים 📅', members: 'צוות רפואי 👥' },
             beauty:         { customers: 'לקוחות 🤝', calendar: 'יומן תורים 📅' },
             sport:          { customers: 'חברים 🤝', members: 'חברי מועדון 👥', calendar: 'לוח אימונים 📅' },
@@ -31766,7 +31766,7 @@ window.openAddInventoryPanel = async function() {
     }
     const sel = document.getElementById('wo-inventory-item-select');
     if (sel) {
-        const items = window.storeCatalogCache ? window.storeCatalogCache.filter(p => p.is_available).map(p => `<option value="${p.id}" data-name="${safeStr(p.name)}" data-avail="${p.stock_quantity || 0}">${safeStr(p.name)} (₪${parseFloat(p.price||0).toFixed(2)}) — במלאי: ${p.stock_quantity || 0}</option>`).join('') : '';
+        const items = window.storeCatalogCache ? window.storeCatalogCache.filter(p => p.is_available && (p.stock_quantity || 0) > 0).map(p => `<option value="${p.id}" data-name="${safeStr(p.name)}" data-avail="${p.stock_quantity || 0}">${safeStr(p.name)} (₪${parseFloat(p.price||0).toFixed(2)}) — במלאי: ${p.stock_quantity || 0}</option>`).join('') : '';
         sel.innerHTML = '<option value="">— בחר מוצר —</option>' + items;
     }
     document.getElementById('wo-add-inventory-panel').classList.remove('hidden');
@@ -31936,36 +31936,51 @@ window.loadWoPurchaseOrders = async function() {
     } catch(e) { if(list) list.innerHTML = '<p class="text-xs text-red-400 text-center py-4">שגיאה בטעינה</p>'; }
 };
 
-window.openWoPoCatalogPicker = function() {
+window.openWoPoCatalogPicker = async function() {
     document.getElementById('wo-po-catalog-picker')?.remove();
+    const supplierSel = document.getElementById('wo-po-supplier-select');
+    const supplierId = supplierSel?.value;
+    const supplierName = supplierId ? (supplierSel.options[supplierSel.selectedIndex]?.dataset?.name || 'הספק') : null;
+    let supplierProducts = [];
+    let loadError = false;
+    if (supplierId) {
+        try {
+            const res = await fetch(`${API}/suppliers/${supplierId}/products`);
+            const d = await res.json();
+            supplierProducts = d.products || [];
+        } catch(e) { loadError = true; }
+    }
+    const headerText = supplierName ? `🛍️ קטלוג ${safeStr(supplierName)}` : '🛍️ בחר ספק תחילה';
     const html = `<div id="wo-po-catalog-picker" class="fixed inset-0 bg-slate-900/60 z-[9998] flex items-center justify-center p-4" style="direction:rtl;">
         <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-5 flex flex-col max-h-[90vh] overflow-hidden">
             <div class="flex items-center justify-between mb-3">
-                <h3 class="font-black text-slate-800">🛍️ בחר מוצר מהקטלוג</h3>
+                <h3 class="font-black text-slate-800">${headerText}</h3>
                 <button onclick="document.getElementById('wo-po-catalog-picker').remove()" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark text-slate-500"></i></button>
             </div>
-            <input type="text" id="wo-po-catalog-search" placeholder="חפש מוצר לפי שם..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-3 outline-none focus:border-orange-400" oninput="window.renderWoPoCatalogResults()">
+            ${supplierId ? `<input type="text" id="wo-po-catalog-search" placeholder="חפש מוצר לפי שם..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-3 outline-none focus:border-orange-400" oninput="window.renderWoPoCatalogResults()">` : '<p class="text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2 mb-3">יש לבחור ספק לפני בחירת מוצרים מהקטלוג שלו.</p>'}
             <div id="wo-po-catalog-results" class="flex-1 overflow-y-auto pr-2 space-y-2">
-                <p class="text-xs text-slate-400 text-center py-4">טעינה...</p>
+                <p class="text-xs text-slate-400 text-center py-4">${loadError ? 'שגיאה בטעינת קטלוג הספק' : 'טעינה...'}</p>
             </div>
-            <button onclick="window.addPurchaseItemRow()" class="mt-3 bg-slate-100 text-slate-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition">+ הוסף שורה (טקסט חופשי)</button>
+            <button onclick="window.addPurchaseItemRow(); document.getElementById('wo-po-catalog-picker').remove();" class="mt-3 bg-slate-100 text-slate-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition">+ הוסף שורה (טקסט חופשי)</button>
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
-    setTimeout(() => window.renderWoPoCatalogResults(), 100);
+    window._woPoCatalogSupplierProducts = supplierProducts;
+    if (supplierId && !loadError) setTimeout(() => window.renderWoPoCatalogResults(), 50);
 };
 window.renderWoPoCatalogResults = function() {
     const resultsEl = document.getElementById('wo-po-catalog-results');
-    if (!resultsEl || !window.storeCatalogCache) return;
+    if (!resultsEl) return;
+    const items = window._woPoCatalogSupplierProducts || [];
     const search = (document.getElementById('wo-po-catalog-search')?.value || '').toLowerCase();
-    let items = window.storeCatalogCache.filter(p => p.is_available);
-    if (search) items = items.filter(p => (p.name||'').toLowerCase().includes(search) || (p.description||'').toLowerCase().includes(search));
-    if (!items.length) { resultsEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">לא נמצאו מוצרים.</p>'; return; }
-    resultsEl.innerHTML = items.map(p => `<button type="button" onclick="window.addPurchaseItemRow('${p.id}'); document.getElementById('wo-po-catalog-picker').remove();" class="w-full text-right text-xs p-2.5 rounded-lg bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-300 font-medium text-slate-700 transition flex items-center gap-2">
+    let filtered = items;
+    if (search) filtered = items.filter(p => (p.name||'').toLowerCase().includes(search) || (p.description||'').toLowerCase().includes(search));
+    if (!filtered.length) { resultsEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">לא נמצאו מוצרים בקטלוג הספק.</p>'; return; }
+    resultsEl.innerHTML = filtered.map(p => `<button type="button" onclick="window.addPurchaseItemRow(null, ${JSON.stringify({name: p.name, price: p.price, unit: p.unit})}); document.getElementById('wo-po-catalog-picker').remove();" class="w-full text-right text-xs p-2.5 rounded-lg bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-300 font-medium text-slate-700 transition flex items-center gap-2">
         ${p.image_url ? `<img src="${p.image_url}" class="w-8 h-8 object-cover rounded">` : '<div class="w-8 h-8 bg-slate-200 flex items-center justify-center rounded"><i class="fa-solid fa-image text-xs text-slate-400"></i></div>'}
         <div class="flex-1 text-right">
             <div class="font-bold">${safeStr(p.name)}</div>
-            <div class="text-[10px] text-slate-500">₪${parseFloat(p.price||0).toFixed(2)}</div>
+            <div class="text-[10px] text-slate-500">₪${parseFloat(p.price||0).toFixed(2)}${p.unit ? ' / ' + safeStr(p.unit) : ''}</div>
         </div>
     </button>`).join('');
 };
@@ -32011,12 +32026,15 @@ window.openAddPurchasePanel = async function() {
     }
 };
 
-window.addPurchaseItemRow = function(productId) {
+window.addPurchaseItemRow = function(productId, supplierProduct) {
     const container = document.getElementById('wo-po-items');
     const row = document.createElement('div');
     row.className = 'wo-po-item-row flex gap-2';
     let itemName = '', itemPrice = 0;
-    if (productId && window.storeCatalogCache) {
+    if (supplierProduct) {
+        itemName = supplierProduct.name || '';
+        itemPrice = parseFloat(supplierProduct.price) || 0;
+    } else if (productId && window.storeCatalogCache) {
         const product = window.storeCatalogCache.find(p => p.id === parseInt(productId));
         if (product) { itemName = product.name; itemPrice = parseFloat(product.price) || 0; }
     }
