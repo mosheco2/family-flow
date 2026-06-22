@@ -256,8 +256,14 @@
     <input type="file" id="task-proof-upload" accept="image/*" capture="environment" class="hidden" onchange="handleTaskProofUpload(event)">
     <input type="file" id="receipt-scan-upload" accept="image/*" capture="environment" class="hidden" onchange="handleReceiptUpload(event)">
 
-    <div id="toast" class="fixed left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-[999999] flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]" style="top: max(1.5rem, env(safe-area-inset-top, 1.5rem))">
-        <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
+    <div id="toast" class="fixed left-1/2 -translate-x-1/2 hidden z-[999999] w-[92vw] max-w-sm" style="top: max(1rem, env(safe-area-inset-top, 1rem)); direction:rtl;">
+        <div id="toast-inner" class="flex items-start gap-3 px-4 py-3 rounded-2xl shadow-2xl border">
+            <i id="toast-icon" class="text-xl mt-0.5 shrink-0"></i>
+            <span id="toast-message" class="font-semibold text-sm leading-snug flex-1"></span>
+            <button onclick="document.getElementById('toast').classList.add('hidden'); clearTimeout(window._toastTimer);" class="shrink-0 w-6 h-6 flex items-center justify-center rounded-full opacity-60 hover:opacity-100 transition" id="toast-close">
+                <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+        </div>
     </div>
 
     <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">

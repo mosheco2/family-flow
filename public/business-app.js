@@ -186,7 +186,29 @@ window.onload = async () => {
     clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
 };
 
-function showToast(t,m) { const el=getEl('toast'); const icon = getEl('toast-icon'); el.classList.remove('hidden'); getEl('toast-message').innerText=m; icon.className=t==='success'?'fa-solid fa-check text-green-400':'fa-solid fa-xmark text-red-400'; setTimeout(()=>el.classList.add('hidden'),3000); }
+function showToast(t, m) {
+    const el = getEl('toast');
+    const inner = getEl('toast-inner');
+    const icon = getEl('toast-icon');
+    const msg = getEl('toast-message');
+    if (!el || !inner || !icon || !msg) return;
+    const types = {
+        success: { bg: 'bg-green-50',  border: 'border-green-200', text: 'text-green-800',  iconCls: 'fa-solid fa-circle-check text-green-500' },
+        error:   { bg: 'bg-red-50',    border: 'border-red-200',   text: 'text-red-800',    iconCls: 'fa-solid fa-circle-xmark text-red-500' },
+        warning: { bg: 'bg-amber-50',  border: 'border-amber-200', text: 'text-amber-800',  iconCls: 'fa-solid fa-triangle-exclamation text-amber-500' },
+        info:    { bg: 'bg-blue-50',   border: 'border-blue-200',  text: 'text-blue-800',   iconCls: 'fa-solid fa-circle-info text-blue-500' },
+    };
+    const cfg = types[t] || types.info;
+    inner.className = `flex items-start gap-3 px-4 py-3 rounded-2xl shadow-2xl border ${cfg.bg} ${cfg.border}`;
+    icon.className = `${cfg.iconCls} text-xl mt-0.5 shrink-0`;
+    msg.className = `font-semibold text-sm leading-snug flex-1 ${cfg.text}`;
+    const closeBtn = getEl('toast-close');
+    if (closeBtn) closeBtn.className = `shrink-0 w-6 h-6 flex items-center justify-center rounded-full ${cfg.text} opacity-50 hover:opacity-100 transition`;
+    msg.innerText = m;
+    el.classList.remove('hidden');
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => el.classList.add('hidden'), 5000);
+}
 function toggleLoader(a,s) { const txt = getEl(`btn-${a}-text`); const ldr = getEl(`btn-${a}-loader`); if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); } }
 function triggerConfetti() { 
     const typeEl = document.getElementById('store-type');
