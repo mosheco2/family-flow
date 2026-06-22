@@ -754,6 +754,20 @@ window.injectBusinessUI = function() {
                                 <option value="cancelled">בוטלו</option>
                             </select>
                         </div>
+                        <div id="wo-profit-summary" class="hidden grid grid-cols-3 gap-2 mb-2">
+                            <div class="bg-green-50 border border-green-200 rounded-2xl p-3 text-center">
+                                <p class="text-[10px] text-green-700 font-bold mb-0.5">הכנסות</p>
+                                <p class="text-base font-black text-green-700" id="wop-revenue">₪0</p>
+                            </div>
+                            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-center">
+                                <p class="text-[10px] text-slate-600 font-bold mb-0.5">עלויות</p>
+                                <p class="text-base font-black text-slate-700" id="wop-costs">₪0</p>
+                            </div>
+                            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 text-center">
+                                <p class="text-[10px] text-indigo-700 font-bold mb-0.5">רווח נקי</p>
+                                <p class="text-base font-black text-indigo-700" id="wop-profit">₪0</p>
+                            </div>
+                        </div>
                         <div id="work-orders-list" class="space-y-3 pb-8">
                             <p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא נמצאו פקודות עבודה</p>
                         </div>
@@ -7169,7 +7183,7 @@ window.renderStoreQuotes = function() {
             if (currentStatus === 'waiting_customer') currentStatus = 'sent';
             
             const isApproved = currentStatus === 'approved';
-            const isWoBusinessType = ['services','construction','maintenance_repair','events','healthcare'].includes(currentGroup?.business_type);
+            const isWoBusinessType = ['services','construction','maintenance_repair','events','healthcare','restaurant','cafe'].includes(currentGroup?.business_type);
             const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
 
             const totalAmount = q.total_amount ? parseFloat(q.total_amount).toFixed(2) : "0.00";
@@ -31754,14 +31768,35 @@ window.convertToWorkOrder = async function(quoteId) {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
+window._woProfCache = {};
 window.fetchWorkOrders = async function() {
     if (!currentGroup) return;
     const filter = document.getElementById('wo-list-filter')?.value || 'all';
     try {
-        // always fetch all for the cache, then render with filter
-        const allRes = await fetch(`${API}/work-orders/list/${currentGroup.id}`);
+        const [allRes, profRes] = await Promise.all([
+            fetch(`${API}/work-orders/list/${currentGroup.id}`),
+            fetch(`${API}/work-orders/profitability/${currentGroup.id}`)
+        ]);
         const allData = await allRes.json();
         workOrdersCache = allData.workOrders || [];
+        try {
+            const profData = await profRes.json();
+            window._woProfCache = {};
+            (profData.items || []).forEach(p => { window._woProfCache[p.id] = p; });
+            // update summary bar
+            const items = profData.items || [];
+            const revenue = items.reduce((s, i) => s + parseFloat(i.revenue || 0), 0);
+            const costs = items.reduce((s, i) => s + parseFloat(i.total_cost || 0), 0);
+            const profit = revenue - costs;
+            const fmt = n => '₪' + parseFloat(n.toFixed(2)).toLocaleString('he-IL', {maximumFractionDigits:2});
+            const bar = document.getElementById('wo-profit-summary');
+            if (bar && items.length > 0) {
+                bar.classList.remove('hidden');
+                const rev = document.getElementById('wop-revenue'); if (rev) rev.textContent = fmt(revenue);
+                const cos = document.getElementById('wop-costs');   if (cos) cos.textContent = fmt(costs);
+                const pro = document.getElementById('wop-profit');  if (pro) { pro.textContent = fmt(profit); pro.className = `text-base font-black ${profit >= 0 ? 'text-indigo-700' : 'text-red-600'}`; }
+            } else if (bar) bar.classList.add('hidden');
+        } catch(e) {}
         const toRender = filter !== 'all' ? workOrdersCache.filter(wo => wo.status === filter) : workOrdersCache;
         window.renderWorkOrdersList(toRender);
     } catch(e) { console.error('fetchWorkOrders', e); }
@@ -31775,9 +31810,10 @@ window.renderWorkOrdersList = function(workOrders) {
         return;
     }
     const statusLabels = { processing: { label: 'בתהליך', cls: 'bg-blue-100 text-blue-700 border-blue-200' }, scheduled: { label: 'מתוזמן', cls: 'bg-purple-100 text-purple-700 border-purple-200' }, completed: { label: 'הושלם', cls: 'bg-green-100 text-green-700 border-green-200' }, cancelled: { label: 'בוטל', cls: 'bg-red-100 text-red-700 border-red-200' }, new: { label: 'חדש', cls: 'bg-slate-100 text-slate-600 border-slate-200' } };
+    const fmtM = n => parseFloat(parseFloat(n || 0).toFixed(2));
     list.innerHTML = workOrders.map(wo => {
         const st = statusLabels[wo.status] || statusLabels.new;
-        const amount = wo.total_amount ? parseFloat(wo.total_amount).toFixed(2) : '0.00';
+        const revenue = parseFloat(wo.total_amount || 0);
         const dateStr = wo.created_at ? new Date(wo.created_at).toLocaleDateString('he-IL') : '';
         const assignCount = parseInt(wo.assignee_count) || 0;
         const invCount = parseInt(wo.inventory_count) || 0;
@@ -31788,12 +31824,28 @@ window.renderWorkOrdersList = function(workOrders) {
                 serviceTitle = items.slice(0, 2).map(i => i.name || i.item_name || '').filter(Boolean).join(' • ');
             } catch(e) {}
         }
+        const prof = (window._woProfCache || {})[wo.id];
+        const totalCost = prof ? fmtM(prof.total_cost) : null;
+        const profit = prof ? fmtM(revenue - prof.total_cost) : null;
+        const profitBar = prof && revenue > 0 ? (() => {
+            const pct = Math.min(100, Math.max(0, Math.round(((revenue - prof.total_cost) / revenue) * 100)));
+            const isPos = profit >= 0;
+            return `<div class="mt-2 flex items-center gap-2 border-t border-slate-100 pt-2">
+                <div class="flex-1 flex flex-col gap-0.5">
+                    <div class="flex justify-between text-[9px] text-slate-500 mb-0.5">
+                        <span>עלויות ₪${totalCost}</span>
+                        <span class="${isPos ? 'text-emerald-600' : 'text-red-500'} font-bold">${isPos ? '+' : ''}₪${profit} (${isPos ? '+' : ''}${pct}%)</span>
+                    </div>
+                    <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div style="width:${pct}%" class="h-full ${isPos ? 'bg-emerald-400' : 'bg-red-400'} rounded-full"></div></div>
+                </div>
+            </div>`;
+        })() : '';
         return `<div class="p-4 rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition cursor-pointer" onclick="window.openWorkOrderModal(${wo.id})">
             <div class="flex justify-between items-start mb-2">
                 <div class="flex-1 min-w-0">
                     <h4 class="font-bold text-slate-800 text-sm truncate">${wo.quote_number || `פקודה #${wo.id}`} — ${safeStr(wo.customer_name || 'לקוח')}</h4>
                     ${serviceTitle ? `<p class="text-[11px] text-indigo-700 font-bold mt-0.5 truncate">${safeStr(serviceTitle)}</p>` : ''}
-                    <p class="text-lg font-black text-indigo-600 mt-0.5">₪${amount}</p>
+                    <p class="text-lg font-black text-indigo-600 mt-0.5">₪${revenue > 0 ? fmtM(revenue) : '—'}</p>
                     <p class="text-[10px] text-slate-500 mt-1">${dateStr} | ${safeStr(wo.customer_phone || 'ללא טלפון')}</p>
                 </div>
                 <span class="text-[10px] font-bold px-2 py-1 rounded-full border ${st.cls}">${st.label}</span>
@@ -31803,6 +31855,7 @@ window.renderWorkOrdersList = function(workOrders) {
                 ${invCount ? `<span class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200"><i class="fa-solid fa-boxes-stacked mr-1"></i>${invCount} פריטי ציוד</span>` : ''}
                 <span class="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full border border-indigo-100 mr-auto"><i class="fa-solid fa-arrow-left mr-1"></i>פתח</span>
             </div>
+            ${profitBar}
         </div>`;
     }).join('');
 };

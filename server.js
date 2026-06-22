@@ -11535,6 +11535,25 @@ app.get('/api/work-orders/list/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.get('/api/work-orders/profitability/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT so.id, so.quote_number, so.customer_name, so.status, so.created_at, so.quote_title,
+                COALESCE(so.total_amount, 0)::float as revenue,
+                COALESCE((SELECT SUM(hourly_rate * hours_worked) FROM work_order_assignees WHERE work_order_id=so.id), 0)::float as team_cost,
+                COALESCE((SELECT SUM(unit_price * reserved_qty) FROM work_order_inventory WHERE work_order_id=so.id AND status!='released'), 0)::float as inventory_cost
+            FROM store_orders so
+            WHERE so.group_id=$1 AND so.call_type='work_order'
+            ORDER BY so.created_at DESC`, [req.params.groupId]);
+        const items = r.rows.map(row => ({
+            ...row,
+            total_cost: parseFloat(row.team_cost) + parseFloat(row.inventory_cost),
+            profit: parseFloat(row.revenue) - parseFloat(row.team_cost) - parseFloat(row.inventory_cost)
+        }));
+        res.json({ success: true, items });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/work-orders/detail/:id', async (req, res) => {
     try {
         const id = req.params.id;
