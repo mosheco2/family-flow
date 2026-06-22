@@ -13607,7 +13607,8 @@ function renderSupplierProducts() {
         const uppStr = p.units_per_package > 1 ? `<span class="bg-indigo-50 text-indigo-600 text-[9px] px-1.5 rounded font-bold ml-1">${p.units_per_package} יח' במארז</span>` : '';
         const skuStr = sku ? `<span class="bg-slate-100 text-slate-500 text-[9px] px-1.5 rounded font-bold ml-1 dir-ltr inline-block">${sku}</span>` : '';
         const descStr = p.description ? `<p class="text-[10px] text-slate-500 mt-0.5 truncate">${safeStr(p.description)}</p>` : '';
-        html += `<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center hover:border-indigo-300 transition group"><div class="flex-1 pr-2 overflow-hidden"><h5 class="font-bold text-slate-800 text-sm truncate">${safeStr(p.name)} ${uppStr} ${skuStr}</h5>${descStr}<div class="text-xs font-black text-slate-700 mt-1">₪${p.price} <span class="font-normal text-[10px] text-slate-400">ל-${safeStr(p.unit_type)}</span></div></div><div class="flex flex-col gap-2 shrink-0"><button onclick="editSupplierProduct(${p.id})" class="text-slate-400 hover:text-blue-600 w-7 h-7 bg-slate-50 rounded flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-[10px]"></i></button><button onclick="deleteSupplierProduct(${p.id})" class="text-slate-400 hover:text-red-600 w-7 h-7 bg-slate-50 rounded flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash-can text-[10px]"></i></button></div></div>`;
+        const linkedStr = p.catalog_id ? `<span class="bg-green-50 text-green-700 text-[9px] px-1.5 py-0.5 rounded font-bold border border-green-200 ml-1"><i class="fa-solid fa-link text-[8px] mr-0.5"></i>מקושר למלאי</span>` : '';
+        html += `<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center hover:border-indigo-300 transition group"><div class="flex-1 pr-2 overflow-hidden"><h5 class="font-bold text-slate-800 text-sm truncate">${safeStr(p.name)} ${uppStr} ${skuStr} ${linkedStr}</h5>${descStr}<div class="text-xs font-black text-slate-700 mt-1">₪${p.price} <span class="font-normal text-[10px] text-slate-400">ל-${safeStr(p.unit_type)}</span></div></div><div class="flex flex-col gap-2 shrink-0"><button onclick="editSupplierProduct(${p.id})" class="text-slate-400 hover:text-blue-600 w-7 h-7 bg-slate-50 rounded flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-[10px]"></i></button><button onclick="deleteSupplierProduct(${p.id})" class="text-slate-400 hover:text-red-600 w-7 h-7 bg-slate-50 rounded flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash-can text-[10px]"></i></button></div></div>`;
     }); list.innerHTML = html;
 }
 
@@ -13635,6 +13636,7 @@ function openSupplierCatalog(supplierId, supplierName) {
                             </div>
                             <div><label class="text-[10px] font-bold text-slate-500">כמות במארז:</label><input type="number" id="cat-prod-upp" value="1" class="modern-input py-2 text-sm bg-white text-center w-full"></div>
                             <div><label class="text-[10px] font-bold text-slate-500">תיאור (אופציונלי):</label><textarea id="cat-prod-desc" class="modern-input py-2 text-sm bg-white h-16 w-full"></textarea></div>
+                            <div><label class="text-[10px] font-bold text-slate-500">קישור לפריט במלאי העסק:</label><select id="cat-prod-catalog-id" class="modern-input py-2 text-sm bg-white w-full"><option value="">— ללא קישור —</option></select><p class="text-[9px] text-slate-400 mt-0.5">כשסחורה מגיעה — יתעדכן מלאי הפריט אוטומטית</p></div>
                             <button id="btn-submit-cat-prod" onclick="submitSupplierProduct()" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-bold shadow hover:bg-indigo-700 transition mt-2">הוסף לקטלוג</button>
                             <button onclick="resetCatalogForm()" class="w-full bg-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-300 transition mt-2">נקה טופס</button>
                         </div>
@@ -13650,12 +13652,21 @@ function openSupplierCatalog(supplierId, supplierName) {
         </div>`);
     }
     
-    getEl('catalog-supplier-id').value = supplierId; 
-    getEl('catalog-supplier-name').innerText = supplierName; 
-    resetCatalogForm(); 
+    getEl('catalog-supplier-id').value = supplierId;
+    getEl('catalog-supplier-name').innerText = supplierName;
+    resetCatalogForm();
     getEl('supplier-catalog-modal').classList.remove('hidden');
     getEl('supplier-products-list').innerHTML = '<div class="flex justify-center py-10"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-indigo-500"></i></div>';
-    
+    // טען קטלוג עסק ל-dropdown קישור מלאי
+    const catSel = getEl('cat-prod-catalog-id');
+    if (catSel && currentGroup) {
+        fetch(`${API}/store/catalog/${currentGroup.id}`)
+            .then(r => r.json()).then(items => {
+                const arr = Array.isArray(items) ? items : (items.items || []);
+                catSel.innerHTML = '<option value="">— ללא קישור —</option>' +
+                    arr.map(i => `<option value="${i.id}">${safeStr(i.name)}${i.stock_quantity > 0 ? ` (מלאי: ${i.stock_quantity})` : ''}</option>`).join('');
+            }).catch(() => {});
+    }
     fetch(`${API}/suppliers/${supplierId}/products`)
         .then(res => res.json())
         .then(data => {
@@ -13664,19 +13675,19 @@ function openSupplierCatalog(supplierId, supplierName) {
         .catch(e => showToast('error', 'שגיאה בטעינת קטלוג'));
 }
 
-function editSupplierProduct(id) { 
-    const p = currentSupplierProducts.find(x => x.id === id); if (!p) return; 
-    getEl('catalog-product-id').value = p.id; 
-    getEl('cat-prod-name').value = p.name; 
-    getEl('cat-prod-price').value = p.price; 
-    getEl('cat-prod-unit').value = p.unit_type; 
-    getEl('cat-prod-upp').value = p.units_per_package || 1; 
-    getEl('cat-prod-desc').value = p.description || ''; 
-    
+function editSupplierProduct(id) {
+    const p = currentSupplierProducts.find(x => x.id === id); if (!p) return;
+    getEl('catalog-product-id').value = p.id;
+    getEl('cat-prod-name').value = p.name;
+    getEl('cat-prod-price').value = p.price;
+    getEl('cat-prod-unit').value = p.unit_type;
+    getEl('cat-prod-upp').value = p.units_per_package || 1;
+    getEl('cat-prod-desc').value = p.description || '';
+    const catSel = getEl('cat-prod-catalog-id');
+    if (catSel && p.catalog_id) catSel.value = p.catalog_id;
     let sku = '';
     try { if(p.properties) { const props = typeof p.properties === 'string' ? JSON.parse(p.properties) : p.properties; sku = props.sku || ''; } } catch(e){}
     const skuEl = getEl('cat-prod-sku'); if(skuEl) skuEl.value = sku;
-    
     getEl('catalog-form-title').innerText = 'עריכת מוצר';
     getEl('btn-submit-cat-prod').innerText = 'שמור שינויים';
     const formTitleEl = getEl('catalog-form-title');
@@ -13688,7 +13699,8 @@ async function submitSupplierProduct() {
     if(!name || !price) return showToast('error', 'שם מוצר ומחיר הם חובה');
     const btn = getEl('btn-submit-cat-prod'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
     try {
-        const payload = { id: id || null, groupId: currentGroup.id, supplierId: supplierId, name: name, price: parseFloat(price) || 0, unitType: val('cat-prod-unit'), unitsPerPackage: parseInt(val('cat-prod-upp')) || 1, description: val('cat-prod-desc'), properties: { sku: sku } };
+        const catalogId = val('cat-prod-catalog-id') || null;
+        const payload = { id: id || null, groupId: currentGroup.id, supplierId: supplierId, name: name, price: parseFloat(price) || 0, unitType: val('cat-prod-unit'), unitsPerPackage: parseInt(val('cat-prod-upp')) || 1, description: val('cat-prod-desc'), properties: { sku: sku }, catalogId };
         const res = await fetch(`${API}/suppliers/products`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }); const data = await res.json();
         if (data.success) { showToast('success', id ? 'מוצר עודכן' : 'מוצר נוסף'); resetCatalogForm(); openSupplierCatalog(supplierId, getEl('catalog-supplier-name').innerText); } else { showToast('error', data.error); }
     } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerText = 'שמור מוצר'; }
@@ -32339,9 +32351,11 @@ window.addPurchaseItemRow = function(productId, supplierProduct) {
     }
     const unitLabel = unitsPerPkg > 1 ? `${unitType} (${unitsPerPkg} יח')` : unitType;
     const unitHint = unitsPerPkg > 1 ? `<span class="text-[10px] text-indigo-500 font-bold">⚠️ יחידת הקמה: ${unitLabel} | מחיר: ₪${itemPrice.toFixed(2)}/${unitType}</span>` : '';
+    const spId = supplierProduct?.id || '';
+    const catId = supplierProduct?.catalog_id || productId || '';
     row.innerHTML = `
         <div class="flex gap-2 items-center">
-            <input type="text" value="${safeStr(itemName)}" placeholder="שם פריט" class="flex-1 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-name" data-catalog-id="${productId || ''}" data-unit-type="${safeStr(unitType)}" data-units-per-pkg="${unitsPerPkg}">
+            <input type="text" value="${safeStr(itemName)}" placeholder="שם פריט" class="flex-1 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-name" data-catalog-id="${catId}" data-supplier-product-id="${spId}" data-unit-type="${safeStr(unitType)}" data-units-per-pkg="${unitsPerPkg}">
             <input type="number" min="1" value="1" placeholder="כמות" title="כמות ב${unitLabel}" class="w-16 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-qty">
             <input type="number" min="0" step="0.01" value="${itemPrice}" placeholder="₪ מחיר" title="מחיר ל${unitLabel}" class="w-20 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-price">
             <button onclick="this.closest('.wo-po-item-row').remove()" class="text-slate-300 hover:text-red-400 transition text-xs px-1"><i class="fa-solid fa-xmark"></i></button>
@@ -32368,7 +32382,9 @@ window.submitWoPurchaseOrder = async function() {
         const price = parseFloat(row.querySelector('.wo-po-item-price')?.value || 0);
         const unitType = nameEl?.dataset?.unitType || "יח'";
         const unitsPerPkg = parseInt(nameEl?.dataset?.unitsPerPkg) || 1;
-        if (name) items.push({ item_name: name, quantity: qty, unit_price: price, unit_type: unitType, units_per_package: unitsPerPkg });
+        const catalogId = nameEl?.dataset?.catalogId ? parseInt(nameEl.dataset.catalogId) : null;
+        const supplierProductId = nameEl?.dataset?.supplierProductId ? parseInt(nameEl.dataset.supplierProductId) : null;
+        if (name) items.push({ item_name: name, quantity: qty, unit_price: price, unit_type: unitType, units_per_package: unitsPerPkg, catalog_id: catalogId || null, supplier_product_id: supplierProductId || null });
     });
     if (!items.length) return showToast('error', 'נא להוסיף לפחות פריט אחד');
     try {

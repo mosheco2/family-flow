@@ -739,6 +739,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE work_order_assignees ADD COLUMN IF NOT EXISTS hourly_rate DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
       try { await client.query(`ALTER TABLE work_order_assignees ADD COLUMN IF NOT EXISTS hours_worked DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
       try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS work_order_id INT REFERENCES store_orders(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE supplier_products ADD COLUMN IF NOT EXISTS catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_messages (
           id SERIAL PRIMARY KEY,
           work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
@@ -6521,17 +6522,18 @@ app.put('/api/work-orders/:woId/assignees/:userId/cost', async (req, res) => {
 
 app.post('/api/suppliers/products', async (req, res) => {
     try {
-        const { id, groupId, supplierId, name, description, price, unitType, unitsPerPackage, properties } = req.body;
+        const { id, groupId, supplierId, name, description, price, unitType, unitsPerPackage, properties, catalogId } = req.body;
+        const catId = catalogId ? parseInt(catalogId) : null;
         let result;
         if (id) {
             result = await pool.query(
-                'UPDATE supplier_products SET name=$1, description=$2, price=$3, unit_type=$4, units_per_package=$5, properties=$6 WHERE id=$7 RETURNING *',
-                [name, description||'', price, unitType||"יח'", unitsPerPackage||1, JSON.stringify(properties||{}), id]
+                'UPDATE supplier_products SET name=$1, description=$2, price=$3, unit_type=$4, units_per_package=$5, properties=$6, catalog_id=$7 WHERE id=$8 RETURNING *',
+                [name, description||'', price, unitType||"יח'", unitsPerPackage||1, JSON.stringify(properties||{}), catId, id]
             );
         } else {
             result = await pool.query(
-                'INSERT INTO supplier_products (group_id, supplier_id, name, description, price, unit_type, units_per_package, properties) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-                [groupId, supplierId, name, description||'', price, unitType||"יח'", unitsPerPackage||1, JSON.stringify(properties||{})]
+                'INSERT INTO supplier_products (group_id, supplier_id, name, description, price, unit_type, units_per_package, properties, catalog_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+                [groupId, supplierId, name, description||'', price, unitType||"יח'", unitsPerPackage||1, JSON.stringify(properties||{}), catId]
             );
         }
         res.json({ success: true, product: result.rows[0] });
@@ -11686,17 +11688,26 @@ app.patch('/api/work-orders/:id/purchase-orders/:poId/status', async (req, res) 
         await pool.query(`UPDATE purchase_orders SET status=$1 WHERE id=$2 AND work_order_id=$3`, [status, req.params.poId, req.params.id]);
         const labels = { pending: 'ממתין', approved: 'אושר', delivered: 'התקבל', cancelled: 'בוטל' };
         await addWorkOrderTimeline(req.params.id, 'purchase_order_updated', `הזמנת רכש #${req.params.poId} עודכנה ל: ${labels[status] || status}`, userName || 'מנהל');
-        // כשמוצרים התקבלו — הוסף למלאי וגם שייך לפקודת העבודה
+        // כשמוצרים התקבלו — הוסף למלאי ושייך לפקודת העבודה עם catalog_id ממוצר הספק
         if (status === 'delivered') {
             try {
                 const poRes = await pool.query('SELECT items, work_order_id FROM purchase_orders WHERE id=$1', [req.params.poId]);
                 const poItems = typeof poRes.rows[0]?.items === 'string' ? JSON.parse(poRes.rows[0].items) : (poRes.rows[0]?.items || []);
                 const woId = poRes.rows[0]?.work_order_id || req.params.id;
                 for (const item of poItems) {
-                    if (item.catalog_id) {
+                    // אם יש supplier_product_id — בדוק אם יש catalog_id מקושר
+                    let finalCatalogId = item.catalog_id || null;
+                    if (!finalCatalogId && item.supplier_product_id) {
+                        const spRes = await pool.query('SELECT catalog_id FROM supplier_products WHERE id=$1', [item.supplier_product_id]);
+                        if (spRes.rows[0]?.catalog_id) finalCatalogId = spRes.rows[0].catalog_id;
+                    }
+                    const qty = parseFloat(item.quantity || 1);
+                    const totalUnits = qty * (parseInt(item.units_per_package) || 1);
+                    if (finalCatalogId) {
+                        // הוסף למלאי הכללי
                         await pool.query(
                             `UPDATE store_catalog SET stock_quantity = COALESCE(stock_quantity,0) + $1 WHERE id=$2`,
-                            [parseFloat(item.quantity || 1), item.catalog_id]
+                            [totalUnits, finalCatalogId]
                         );
                     }
                     // שייך את הפריט לציוד פקודת העבודה
@@ -11704,8 +11715,15 @@ app.patch('/api/work-orders/:id/purchase-orders/:poId/status', async (req, res) 
                         await pool.query(
                             `INSERT INTO work_order_inventory (work_order_id, catalog_id, item_name, reserved_qty, unit_price, status, reserved_by)
                              VALUES ($1, $2, $3, $4, $5, 'reserved', $6)`,
-                            [woId, item.catalog_id || null, item.item_name, parseFloat(item.quantity || 1), parseFloat(item.unit_price || 0), userName || 'מנהל']
+                            [woId, finalCatalogId, item.item_name, totalUnits, parseFloat(item.unit_price || 0), userName || 'מנהל']
                         );
+                        // עדכן reserved_qty בקטלוג
+                        if (finalCatalogId) {
+                            await pool.query(
+                                `UPDATE store_catalog SET reserved_qty = COALESCE(reserved_qty,0) + $1 WHERE id=$2`,
+                                [totalUnits, finalCatalogId]
+                            );
+                        }
                     }
                 }
                 if (woId) {
