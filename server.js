@@ -10868,6 +10868,22 @@ app.post('/api/service-calls', async (req, res) => {
                 [resolvedFamilyGroupId, resolvedBusinessGroupId, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, customerName||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null, requestedDate||null]);
         }
         res.json({ success: true, call: result.rows[0] });
+
+        // אם קיים family_group_id אמיתי — צור קישור אוטומטי ל"הפעילויות שלי" של המשפחה
+        if (resolvedFamilyGroupId && resolvedBusinessGroupId && resolvedFamilyGroupId !== resolvedBusinessGroupId) {
+            try {
+                const bizTypeR = await pool.query('SELECT business_type, name FROM family_groups WHERE id=$1', [resolvedBusinessGroupId]);
+                if (bizTypeR.rows.length) {
+                    const { business_type, name: bizName } = bizTypeR.rows[0];
+                    await pool.query(
+                        `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_by_admin_name, linked_at, is_active, status)
+                         VALUES ($1, $2, $3, $4, NOW(), true, 'active')
+                         ON CONFLICT (member_group_id, business_group_id) DO UPDATE SET is_active=true, status='active'`,
+                        [resolvedFamilyGroupId, resolvedBusinessGroupId, business_type || 'maintenance_repair', bizName || 'עסק']
+                    );
+                }
+            } catch(linkErr) { /* non-blocking */ }
+        }
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

@@ -10070,22 +10070,35 @@ window.cqUpdateOneflowBtn = function(found, name) {
         if (found) {
             btn.disabled = false;
             btn.className = 'w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition bg-indigo-600 text-white hover:bg-indigo-700';
+            btn.setAttribute('onclick', 'window.sendQuoteInternal()');
             btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שלח ב-OneFlow Life';
         } else {
-            btn.disabled = true;
-            btn.className = 'w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition bg-slate-200 text-slate-400 cursor-not-allowed';
-            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שלח ב-OneFlow Life <span class="text-[10px] font-normal">(לקוח לא מקושר)</span>';
+            btn.disabled = false;
+            btn.className = 'w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100';
+            btn.setAttribute('onclick', 'window.cqInviteToOneflow()');
+            btn.innerHTML = '<i class="fa-brands fa-whatsapp text-[#25D366]"></i> 📲 הזמן ל-OneFlow Life';
         }
     }
     if (status) {
         if (found) {
             status.innerHTML = `<span class="text-green-600 font-bold">✅ נמצא ב-OneFlow Life: ${safeStr(name)}</span>`;
         } else if (found === false) {
-            status.innerHTML = `<span class="text-slate-400">לא נמצא ב-OneFlow Life</span>`;
+            status.innerHTML = `<span class="text-amber-600 text-xs">לא נמצא ב-OneFlow Life — לחץ להזמין</span>`;
         } else {
             status.innerHTML = '';
         }
     }
+};
+
+window.cqInviteToOneflow = function() {
+    const phone = (document.getElementById('cq-customer-phone')?.value || '').trim();
+    const name = (document.getElementById('cq-customer-name')?.value || '').trim();
+    const origin = window.location.origin;
+    const bizName = currentGroup?.name || 'העסק שלנו';
+    const text = `שלום${name ? ' ' + name : ''}! 👋\n\n${bizName} שלח/ה לך הצעת מחיר ומזמין אותך להצטרף ל-OneFlow Life 🏠\n\nבאפליקציה תוכל/י:\n✅ לצפות ולאשר הצעות מחיר\n✅ לנהל קריאות שירות\n✅ לתקשר ישירות עם העסק\n\n📲 להצטרפות חינמית:\n${origin}/\n\nבחר/י "משפחה חדשה" כדי להצטרף ולהתחבר עם ${bizName}.`;
+    const waPhone = phone.replace(/\D/g, '');
+    const url = waPhone ? `https://wa.me/972${waPhone.replace(/^0/, '')}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
 };
 
 window.cqLookupOneflow = async function() {
@@ -18449,18 +18462,22 @@ window.renderCalendarServices = function() {
 };
 
 window.syncServiceCallsToCalendar = async function() {
-    if (!currentGroup) return;
+    if (!currentGroup || window._syncingScCal) return;
+    window._syncingScCal = true;
     // Remove previous sc_ events from cache
-    calEventsCache = calEventsCache.filter(e => !String(e.id).startsWith('sc_'));
+    calEventsCache = (calEventsCache || []).filter(e => !String(e.id).startsWith('sc_'));
     try {
         const r = await fetch(`/api/service-calls/business/${currentGroup.id}`);
         const d = await r.json();
         const scheduled = (d.calls||[]).filter(c => c.scheduled_at && !['done','cancelled'].includes(c.status));
+        const existingIds = new Set(calEventsCache.map(e => String(e.id)));
         scheduled.forEach(c => {
+            const scKey = 'sc_' + c.id;
+            if (existingIds.has(scKey)) return;
             const dt = new Date(c.scheduled_at);
             const contactName = c.customer_name || c.creator_nickname || c.creator_full_name || c.family_name || '';
             calEventsCache.push({
-                id: 'sc_' + c.id,
+                id: scKey,
                 _scId: c.id,
                 title: '🔧 ' + c.title + (contactName ? ' — ' + contactName : ''),
                 event_date: dt.toISOString().split('T')[0],
@@ -18472,6 +18489,7 @@ window.syncServiceCallsToCalendar = async function() {
             });
         });
     } catch(e) {}
+    window._syncingScCal = false;
     renderCalendar();
 };
 
