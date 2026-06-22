@@ -5721,7 +5721,7 @@ app.post('/api/store/quotes/:id/send-to-oneflow', async (req, res) => {
                 [familyGroupId, quote.group_id, quote.customer_name || null]
             );
         } catch(le) {}
-        res.json({ success: true });
+        res.json({ success: true, linkCreated: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -10830,9 +10830,10 @@ app.get('/api/groups/search-all', async (req, res) => {
                     TRIM(CONCAT(COALESCE(fg.street_address,''), ' ', COALESCE(fg.city,''))) as address
              FROM family_groups fg
              LEFT JOIN users au ON au.group_id = fg.id AND au.role = 'ADMIN'
-             LEFT JOIN users mu ON mu.group_id = fg.id AND LENGTH($2) >= 7 AND mu.phone LIKE $3
+             LEFT JOIN users mu ON mu.group_id = fg.id
              WHERE (LOWER(fg.name) LIKE LOWER($1)
-                OR (LENGTH($2) >= 7 AND (au.phone LIKE $3 OR mu.phone LIKE $3))
+                OR (LENGTH($2) >= 7 AND (REGEXP_REPLACE(COALESCE(au.phone,''),'[^0-9]','','g') LIKE $3
+                                      OR REGEXP_REPLACE(COALESCE(mu.phone,''),'[^0-9]','','g') LIKE $3))
                 OR LOWER(COALESCE(fg.city,'')) LIKE LOWER($1)
                 OR LOWER(COALESCE(fg.street_address,'')) LIKE LOWER($1)
                 OR LOWER(COALESCE(fg.contact_name,'')) LIKE LOWER($1))
