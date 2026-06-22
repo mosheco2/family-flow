@@ -6632,8 +6632,10 @@ function renderPantry() {
     pantryCache.forEach(p => {
         const n = safeStr(p.item_name); const u = safeStr(p.unit || "יח'");
         const packQty = parseFloat(p.quantity); const upp = parseInt(p.units_per_package) || 1;
+        const reserved = parseFloat(p.reserved_qty || 0);
         const totalSubUnits = Math.round(packQty * upp);
-        
+        const reservedDisplay = reserved > 0 ? `<div class="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-2 text-[10px]"><span class="text-amber-700 font-bold">⚠️ משוריין לפקודות עבודה: ${reserved} ${u}</span></div>` : '';
+
         let qtyDisplay = '';
         if (upp > 1) {
             qtyDisplay = `
@@ -6666,6 +6668,7 @@ function renderPantry() {
                     <button onclick="updatePantryQty(${p.id}, ${plusAmount})" class="text-slate-400 hover:text-green-500 w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm border border-slate-200 transition"><i class="fa-solid fa-plus text-sm"></i></button>
                 </div>
             </div>
+            ${reservedDisplay}
             <div class="flex gap-2 mt-1 border-t border-slate-100 pt-3">
                 <button onclick="openPantryUseModal('${n}', '${u}', ${packQty}, ${upp})" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-dolly text-slate-500"></i> דיווח שימוש</button>
                 <button onclick="movePantryToCart(${p.id}, '${n}', '${u}')" class="flex-1 bg-slate-800 text-white py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-700 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-cart-arrow-down text-slate-300"></i> העבר לרכש</button>
