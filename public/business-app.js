@@ -31227,6 +31227,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
       <div id="wo-purchase-list" class="space-y-2 mb-4"></div>
       <div id="wo-add-purchase-panel" class="hidden bg-orange-50 rounded-2xl p-4 border border-orange-200">
         <p class="text-xs font-bold text-orange-700 mb-3">הזמנת רכש חדשה לאירוע זה</p>
+        <select id="wo-po-supplier-select" class="hidden w-full modern-input py-2 px-3 text-sm mb-2 rounded-xl border border-slate-200 outline-none focus:border-orange-400 bg-white"></select>
         <input type="text" id="wo-po-supplier" placeholder="שם ספק" class="w-full modern-input py-2 px-3 text-sm mb-2 rounded-xl border border-slate-200 outline-none focus:border-orange-400">
         <div id="wo-po-items" class="space-y-2 mb-2">
           <div class="wo-po-item-row flex gap-2">
@@ -31783,9 +31784,8 @@ window.loadWoPurchaseOrders = async function() {
     } catch(e) { if(list) list.innerHTML = '<p class="text-xs text-red-400 text-center py-4">שגיאה בטעינה</p>'; }
 };
 
-window.openAddPurchasePanel = function() {
+window.openAddPurchasePanel = async function() {
     document.getElementById('wo-add-purchase-panel').classList.remove('hidden');
-    document.getElementById('wo-po-supplier').value = '';
     document.getElementById('wo-po-notes').value = '';
     const itemsContainer = document.getElementById('wo-po-items');
     itemsContainer.innerHTML = `<div class="wo-po-item-row flex gap-2">
@@ -31793,6 +31793,31 @@ window.openAddPurchasePanel = function() {
         <input type="number" min="1" value="1" placeholder="כמות" class="w-16 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-qty">
         <input type="number" min="0" step="0.01" value="0" placeholder="₪ מחיר" class="w-20 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-price">
     </div>`;
+    // טען ספקים קיימים
+    const supplierSel = document.getElementById('wo-po-supplier-select');
+    const supplierTxt = document.getElementById('wo-po-supplier');
+    if (supplierSel && currentGroup) {
+        supplierSel.innerHTML = '<option value="">טוען ספקים...</option>';
+        try {
+            const res = await fetch(`${API}/suppliers/${currentGroup.id}`);
+            const data = await res.json();
+            const suppliers = data.suppliers || [];
+            if (suppliers.length) {
+                supplierSel.innerHTML = '<option value="">— בחר ספק קיים —</option>' +
+                    suppliers.map(s => `<option value="${s.id}" data-name="${safeStr(s.name)}">${safeStr(s.name)}${s.phone ? ' · ' + s.phone : ''}</option>`).join('');
+                supplierSel.classList.remove('hidden');
+                if (supplierTxt) supplierTxt.placeholder = 'או הכנס שם ספק חדש';
+                supplierSel.onchange = function() {
+                    if (this.value && supplierTxt) supplierTxt.value = '';
+                };
+            } else {
+                supplierSel.classList.add('hidden');
+                if (supplierTxt) supplierTxt.placeholder = 'שם ספק';
+            }
+        } catch(e) {
+            supplierSel.classList.add('hidden');
+        }
+    }
 };
 
 window.addPurchaseItemRow = function() {
@@ -31807,7 +31832,12 @@ window.addPurchaseItemRow = function() {
 
 window.submitWoPurchaseOrder = async function() {
     if (!window._currentWoId) return;
-    const supplier = document.getElementById('wo-po-supplier').value.trim();
+    const supplierSel = document.getElementById('wo-po-supplier-select');
+    const supplierTxt = document.getElementById('wo-po-supplier').value.trim();
+    const supplierId = supplierSel && supplierSel.value ? supplierSel.value : null;
+    const supplierName = supplierId
+        ? (supplierSel.options[supplierSel.selectedIndex]?.getAttribute('data-name') || null)
+        : (supplierTxt || null);
     const notes = document.getElementById('wo-po-notes').value.trim();
     const rows = document.querySelectorAll('#wo-po-items .wo-po-item-row');
     const items = [];
@@ -31821,7 +31851,7 @@ window.submitWoPurchaseOrder = async function() {
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/purchase-orders`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, supplierName: supplier || null, items, notes: notes || null, userName: currentUser?.nickname || 'מנהל' })
+            body: JSON.stringify({ groupId: currentGroup.id, supplierId: supplierId ? parseInt(supplierId) : null, supplierName, items, notes: notes || null, userName: currentUser?.nickname || 'מנהל' })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error);
