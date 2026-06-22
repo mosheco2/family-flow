@@ -5226,9 +5226,13 @@ app.get('/api/store/quotes/family/:familyGroupId', async (req, res) => {
 app.get('/api/store/quotes/:groupId', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT * FROM store_orders 
-             WHERE group_id = $1 AND (status = 'quote' OR quote_status IS NOT NULL)
-             ORDER BY created_at DESC`, 
+            `SELECT so.*, mbl.status AS link_status
+             FROM store_orders so
+             LEFT JOIN member_business_links mbl
+                 ON mbl.member_group_id = so.family_group_id
+                 AND mbl.business_group_id = so.group_id
+             WHERE so.group_id = $1 AND (so.status = 'quote' OR so.quote_status IS NOT NULL)
+             ORDER BY so.created_at DESC`,
             [req.params.groupId]
         );
         res.json({ success: true, quotes: result.rows });
@@ -5722,6 +5726,51 @@ app.post('/api/store/quotes/:id/send-to-oneflow', async (req, res) => {
             );
         } catch(le) {}
         res.json({ success: true, linkCreated: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- קישור הצעת מחיר ל-OneFlow ללא שליחה (שלב 1 — בקשת שיוך בלבד) ---
+app.post('/api/store/quotes/:id/link-only', async (req, res) => {
+    try {
+        const { familyGroupId } = req.body;
+        const quoteId = req.params.id;
+        if (!familyGroupId) return res.status(400).json({ error: 'familyGroupId נדרש' });
+        const q = await pool.query('SELECT * FROM store_orders WHERE id=$1', [quoteId]);
+        if (!q.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        const quote = q.rows[0];
+        // עדכן family_group_id על ההצעה (ללא שינוי quote_status)
+        await pool.query(`UPDATE store_orders SET family_group_id=$1 WHERE id=$2 AND (family_group_id IS NULL OR family_group_id=$1)`,
+            [familyGroupId, quoteId]);
+        // בדוק אם כבר קיים קשר פעיל
+        const existingLink = await pool.query(
+            `SELECT id, status FROM member_business_links WHERE member_group_id=$1 AND business_group_id=$2 LIMIT 1`,
+            [familyGroupId, quote.group_id]
+        );
+        let linkStatus = 'pending';
+        if (existingLink.rows.length && existingLink.rows[0].status === 'active') {
+            linkStatus = 'active';
+        } else {
+            // צור/עדכן בקשת שיוך ממתינה
+            const bizNameRow = await pool.query('SELECT name FROM family_groups WHERE id=$1', [quote.group_id]);
+            const bizName = bizNameRow.rows[0]?.name || 'עסק';
+            await pool.query(
+                `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_by_admin_name, linked_at, is_active, status)
+                 VALUES ($1, $2, (SELECT business_type FROM family_groups WHERE id=$2 LIMIT 1), $3, NOW(), true, 'pending')
+                 ON CONFLICT (member_group_id, business_group_id) DO UPDATE
+                 SET is_active=true, linked_at=NOW(),
+                 status=CASE WHEN member_business_links.status='active' THEN 'active' ELSE 'pending' END`,
+                [familyGroupId, quote.group_id, quote.customer_name || null]
+            );
+            // שלח התראה ללקוח
+            try {
+                const bizNameRow2 = await pool.query('SELECT name FROM family_groups WHERE id=$1', [quote.group_id]);
+                const bName = bizNameRow2.rows[0]?.name || 'עסק';
+                await pool.query(`INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
+                    VALUES ($1, 'link_request', 'בקשת שיוך חדשה', $2, $3, 'quote', NOW())`,
+                    [familyGroupId, `${bName} מבקש להתחבר אליך ומוכן לשלוח הצעת מחיר — נא לאשר`, quoteId]);
+            } catch(ne) { console.error('link-only notification err:', ne.message); }
+        }
+        res.json({ success: true, linkStatus });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -13430,8 +13479,19 @@ app.post('/api/member/link/:linkId/respond', async (req, res) => {
     const { linkId } = req.params;
     if (!['approve','reject'].includes(decision)) return res.status(400).json({ error: 'decision must be approve or reject' });
     try {
+        const linkRow = await pool.query(`SELECT * FROM member_business_links WHERE id=$1`, [linkId]);
+        if (!linkRow.rows.length) return res.status(404).json({ error: 'קישור לא נמצא' });
+        const link = linkRow.rows[0];
         if (decision === 'approve') {
             await pool.query(`UPDATE member_business_links SET status='active', is_active=true WHERE id=$1`, [linkId]);
+            // שלח התראה לעסק — הלקוח אישר שיוך
+            try {
+                const memberNameRow = await pool.query('SELECT name FROM family_groups WHERE id=$1', [link.member_group_id]);
+                const memberName = memberNameRow.rows[0]?.name || 'לקוח';
+                await pool.query(`INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
+                    VALUES ($1, 'link_approved', 'שיוך אושר ✅', $2, NULL, 'link', NOW())`,
+                    [link.business_group_id, `${memberName} אישר את בקשת השיוך — ניתן לשלוח הצעת מחיר`]);
+            } catch(ne) { console.error('link approve notification err:', ne.message); }
         } else {
             await pool.query(`UPDATE member_business_links SET status='rejected', is_active=false WHERE id=$1`, [linkId]);
         }

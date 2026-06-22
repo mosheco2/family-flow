@@ -7247,6 +7247,8 @@ window.renderStoreQuotes = function() {
             const isAlreadyWorkOrder = q.call_type === 'work_order';
             // כדור אצלנו — לקוח ביקש שינויים ומחכה לעדכון
             const needsBusinessAction = crType && ['discount_request','items_request','message'].includes(crType) && currentStatus === 'sent';
+            const qLinkStatus = q.link_status; // 'pending' | 'active' | null
+            const alreadySent = q.quote_status === 'waiting_customer' || q.quote_status === 'customer_approved' || q.quote_status === 'cancelled';
 
             let approveBtnHtml = '';
             let cardStyle = 'border-slate-200 shadow-sm bg-white hover:shadow-md hover:border-indigo-300';
@@ -7274,6 +7276,8 @@ window.renderStoreQuotes = function() {
                  if (isWoBusinessType) {
                      approveBtnHtml += `<button onclick="window.convertToWorkOrder(${q.id})" class="bg-teal-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-teal-700 transition flex items-center gap-1.5 w-full justify-center mt-1"><i class="fa-solid fa-hammer"></i> 🔨 המר לפקודת עבודה</button>`;
                  }
+            } else if (qLinkStatus === 'pending') {
+                 cardStyle = 'border-2 border-amber-400 bg-amber-50/30 shadow-sm';
             } else if (!isApproved) {
                  if (isWoBusinessType) {
                      approveBtnHtml = `<button onclick="window.convertToWorkOrder(${q.id})" class="bg-teal-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-teal-700 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-hammer"></i> 🔨 המר לפקודת עבודה</button><button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-300 transition flex items-center gap-1.5 w-full justify-center mt-1"><i class="fa-solid fa-check"></i> אישור והעברה להזמנות</button>`;
@@ -7290,11 +7294,29 @@ window.renderStoreQuotes = function() {
                    </div>`
                 : '';
 
-            // כפתור שלח ב-OneFlow
-            const hasFamilyLink = !!q.family_group_id;
-            const sendOneflowBtn = hasFamilyLink
-                ? `<button onclick="window.sendQuoteToOneflow(${q.id})" class="flex-[1.5] bg-indigo-600 text-white hover:bg-indigo-700 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-solid fa-paper-plane text-xs"></i> שלח ב-OneFlow</button>`
-                : `<button onclick="window.pickOneFlowCustomerForQuote(${q.id},'${safeStr(q.customer_phone||'')}')" class="flex-[1.5] bg-indigo-600 text-white hover:bg-indigo-700 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-solid fa-paper-plane text-xs"></i> שלח ב-OneFlow</button>`;
+            // כפתור שלח ב-OneFlow — 3 מצבים לפי link_status
+            let sendOneflowBtn = '';
+            let linkBadge = '';
+            if (!q.family_group_id) {
+                // לא קושר — כפתור לקישור
+                sendOneflowBtn = `<button onclick="window.pickOneFlowCustomerForQuote(${q.id},'${safeStr(q.customer_phone||'')}')" class="flex-[1.5] bg-indigo-600 text-white hover:bg-indigo-700 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-solid fa-link text-xs"></i> קשר ל-OneFlow</button>`;
+            } else if (qLinkStatus === 'pending') {
+                // ממתין לאישור לקוח
+                sendOneflowBtn = `<span class="flex-[1.5] bg-amber-50 text-amber-700 border border-amber-200 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-default">⏳ ממתין לאישור שיוך</span>`;
+                linkBadge = `<span class="inline-flex items-center gap-1 mt-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2.5 py-0.5 text-[10px] font-bold"><i class="fa-solid fa-clock text-xs"></i> ממתין לאישור שיוך</span>`;
+            } else if (qLinkStatus === 'active' && alreadySent) {
+                // נשלחה כבר
+                sendOneflowBtn = `<span class="flex-[1.5] bg-slate-50 text-slate-400 border border-slate-200 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-default"><i class="fa-solid fa-check text-xs"></i> נשלחה ✅</span>`;
+            } else if (qLinkStatus === 'active') {
+                // מקושר ומאושר — ניתן לשלוח
+                sendOneflowBtn = `<button onclick="window.sendQuoteToOneflow(${q.id})" class="flex-[1.5] bg-indigo-600 text-white hover:bg-indigo-700 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-solid fa-paper-plane text-xs"></i> שלח הצעה</button>`;
+                linkBadge = `<span class="inline-flex items-center gap-1 mt-1.5 bg-green-50 text-green-700 border border-green-200 rounded-full px-2.5 py-0.5 text-[10px] font-bold"><i class="fa-solid fa-circle-check text-xs"></i> שיוך אושר — מוכן לשליחה</span>`;
+            } else {
+                // family_group_id קיים אך אין link_status — כנראה נשלח ישנה (ללא pending flow)
+                sendOneflowBtn = alreadySent
+                    ? `<span class="flex-[1.5] bg-slate-50 text-slate-400 border border-slate-200 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-default"><i class="fa-solid fa-check text-xs"></i> נשלחה ✅</span>`
+                    : `<button onclick="window.sendQuoteToOneflow(${q.id})" class="flex-[1.5] bg-indigo-600 text-white hover:bg-indigo-700 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-solid fa-paper-plane text-xs"></i> שלח ב-OneFlow</button>`;
+            }
 
             const timelineHtml = _renderBizQuoteTimeline(q.quote_history);
             html += `
@@ -7308,6 +7330,7 @@ window.renderStoreQuotes = function() {
                         ${q.customer_confirmed_at ? `<span class="inline-flex items-center gap-1 mt-1.5 bg-green-100 text-green-700 border border-green-300 rounded-full px-2.5 py-0.5 text-[10px] font-bold"><i class="fa-solid fa-circle-check text-xs"></i> התקבל אצל הלקוח • ${new Date(q.customer_confirmed_at).toLocaleDateString('he-IL')}</span>` : ''}
                         ${crHtml}
                         ${(isCustomerApproved && !crType) ? `<span class="inline-flex items-center gap-1 mt-1 bg-blue-100 text-blue-700 border border-blue-300 rounded-full px-2.5 py-0.5 text-[10px] font-bold"><i class="fa-solid fa-user-check text-xs"></i> ממתין לפעולת העסק</span>` : ''}
+                        ${linkBadge}
                         ${displayNote}
                         ${timelineHtml}
                         ${bizReplyHtml}
@@ -10085,8 +10108,8 @@ window.cqUpdateOneflowBtn = function(found, name) {
         if (found === true) {
             btn.disabled = false;
             btn.className = 'w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition bg-indigo-600 text-white hover:bg-indigo-700';
-            btn.setAttribute('onclick', 'window.sendQuoteInternal()');
-            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שלח ב-OneFlow Life';
+            btn.setAttribute('onclick', 'window.saveQuoteAndRequestLink()');
+            btn.innerHTML = '<i class="fa-solid fa-link"></i> שמור ושלח בקשת שיוך';
         } else if (found === false) {
             btn.disabled = false;
             btn.className = 'w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100';
@@ -10096,7 +10119,7 @@ window.cqUpdateOneflowBtn = function(found, name) {
             btn.disabled = true;
             btn.className = 'w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition bg-slate-200 text-slate-400 cursor-not-allowed';
             btn.removeAttribute('onclick');
-            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שלח ב-OneFlow Life';
+            btn.innerHTML = '<i class="fa-solid fa-link"></i> שמור ושלח בקשת שיוך';
         }
     }
     if (status) {
@@ -10264,6 +10287,64 @@ window.sendQuoteInternal = async function() {
             showToast('error', d.error || 'שגיאה בשליחה');
             if (btn) { btn.disabled = false; window.cqUpdateOneflowBtn(true, ''); }
         }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת');
+        if (btn) { btn.disabled = false; window.cqUpdateOneflowBtn(true, ''); }
+    }
+};
+
+window.saveQuoteAndRequestLink = async function() {
+    const modal = document.getElementById('cq-modal');
+    if (!modal) return;
+    const familyGroupId = modal.dataset.familyGroupId;
+    if (!familyGroupId) {
+        await window.cqLookupOneflow();
+        const refreshedId = document.getElementById('cq-modal')?.dataset?.familyGroupId;
+        if (!refreshedId) { showToast('error', 'לא נמצאה משפחה/עסק מקושר ב-OneFlow Life'); return; }
+    }
+    const q = window.cqGetQuoteData();
+    const lines = q.lines.filter(l => l.desc || l.total > 0);
+    if (!q.customerName) { showToast('error', 'נא להזין שם לקוח'); return; }
+    if (!lines.length) { showToast('error', 'יש להוסיף לפחות שורה אחת'); return; }
+
+    const btn = document.getElementById('cq-oneflow-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...'; }
+
+    try {
+        let quoteId = q.editId;
+        if (!quoteId) {
+            const saved = await window.saveQuickQuoteAndGetId();
+            if (!saved) { if (btn) { btn.disabled = false; window.cqUpdateOneflowBtn(true, ''); } return; }
+            quoteId = saved;
+        }
+        const finalFamilyGroupId = document.getElementById('cq-modal')?.dataset?.familyGroupId;
+        if (!finalFamilyGroupId) { showToast('error', 'לא נמצאה משפחה מקושרת'); if (btn) { btn.disabled = false; window.cqUpdateOneflowBtn(true, ''); } return; }
+
+        const r = await fetch(`/api/store/quotes/${quoteId}/link-only`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ familyGroupId: finalFamilyGroupId })
+        });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה בשליחת בקשת שיוך'); if (btn) { btn.disabled = false; window.cqUpdateOneflowBtn(true, ''); } return; }
+
+        if (d.linkStatus === 'active') {
+            // הלקוח כבר מקושר — שלח הצעה ישירות
+            const r2 = await fetch(`/api/store/quotes/${quoteId}/send-to-oneflow`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ familyGroupId: finalFamilyGroupId })
+            });
+            const d2 = await r2.json();
+            if (d2.success) {
+                showToast('success', 'הצעת המחיר נשלחה ב-OneFlow Life! ✅');
+            } else {
+                showToast('error', d2.error || 'שגיאה בשליחת ההצעה');
+            }
+        } else {
+            showToast('success', 'בקשת שיוך נשלחה — ההצעה תישלח לאחר אישור הלקוח ⏳');
+        }
+        document.getElementById('cq-modal')?.remove();
+        document.getElementById('cq-catalog-picker')?.remove();
+        if (typeof loadQuotesTab === 'function') loadQuotesTab();
     } catch(e) {
         showToast('error', 'שגיאת תקשורת');
         if (btn) { btn.disabled = false; window.cqUpdateOneflowBtn(true, ''); }
