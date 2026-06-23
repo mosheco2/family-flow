@@ -10256,8 +10256,9 @@ function _renderBizAccordion(el, data, bizType) {
 
     } else if (bizType === 'maintenance_repair') {
         const calls = act.serviceCalls || [];
+        const workOrders = act.workOrders || [];
         const _ref = id => id ? `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>` : '';
-        const _callStatusMap = {new:'חדש',scheduled:'נקבע',processing:'בטיפול',done:'הושלם',cancelled:'בוטל',quote:'הצעה'};
+        const _callStatusMap = {new:'חדש',scheduled:'נקבע',processing:'בטיפול',done:'הושלם',cancelled:'בוטל',quote:'הצעה',pending_payment:'ממתין תשלום'};
         const renderCall = c => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
                 <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-sm shrink-0">🔧</div>
                 <div class="flex-1 min-w-0">
@@ -10266,8 +10267,50 @@ function _renderBizAccordion(el, data, bizType) {
                 </div>
                 <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${c.status==='done'?'bg-green-100 text-green-700':c.status==='cancelled'?'bg-red-100 text-red-600':'bg-blue-100 text-blue-700'}">${_callStatusMap[c.status]||c.status||''}</span>
             </div>`;
+        const renderWorkOrder = wo => {
+            const payments = Array.isArray(wo.payments) ? wo.payments : [];
+            const totalCharged = parseFloat(wo.total_amount || 0);
+            const totalReceived = payments.reduce((s, p) => s + parseFloat(p.received_amount || (p.status === 'received' ? p.amount : 0) || 0), 0);
+            const woStatusMap = {processing:'בטיפול',done:'הושלם',cancelled:'בוטל',pending_payment:'ממתין תשלום'};
+            const woStatusLabel = woStatusMap[wo.payment_status] || woStatusMap[wo.status] || wo.status || '';
+            const woStatusColor = wo.payment_status === 'paid' || wo.status === 'done' ? 'bg-green-100 text-green-700' : wo.payment_status === 'pending_payment' || wo.payment_status === 'partial' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700';
+            const paymentStatusLabel = wo.payment_status === 'paid' ? 'שולם במלואו' : wo.payment_status === 'partial' ? 'שולם חלקית' : wo.payment_status === 'pending_payment' ? 'ממתין לתשלום' : '';
+            let milestoneRows = '';
+            if (payments.length > 0) {
+                milestoneRows = payments.map(p => {
+                    const isPaid = p.status === 'received';
+                    const dueStr = p.due_date ? new Date(p.due_date).toLocaleDateString('he-IL', {day:'2-digit',month:'2-digit'}) : '';
+                    return `<div class="flex items-center gap-1 py-0.5">
+                        <span class="text-[10px] ${isPaid ? 'text-green-600' : 'text-slate-500'}">${isPaid ? '✅' : '⏳'}</span>
+                        <span class="text-[10px] text-slate-600 flex-1">${p.milestone_name||'תחנת תשלום'}</span>
+                        <span class="text-[10px] font-bold ${isPaid ? 'text-green-700' : 'text-slate-700'}">₪${parseFloat(p.amount||0).toLocaleString('he-IL',{maximumFractionDigits:0})}</span>
+                        ${dueStr ? `<span class="text-[9px] text-slate-400 mr-1">${dueStr}</span>` : ''}
+                    </div>`;
+                }).join('');
+            }
+            return `<div class="py-2 border-b border-slate-50 last:border-0">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-sm shrink-0">📋</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold text-slate-700 truncate">${wo.quote_title||'פקודת עבודה'}${_ref(wo.id)}</p>
+                        <p class="text-[10px] text-slate-400">${fmtDate(wo.created_at)}</p>
+                    </div>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${woStatusColor}">${woStatusLabel}</span>
+                </div>
+                ${totalCharged > 0 ? `<div class="mr-10 mt-1">
+                    <div class="flex items-center gap-3 text-[10px] text-slate-500 mb-1">
+                        <span>סה"כ: <b class="text-slate-700">₪${totalCharged.toLocaleString('he-IL',{maximumFractionDigits:0})}</b></span>
+                        <span>שולם: <b class="text-green-700">₪${totalReceived.toLocaleString('he-IL',{maximumFractionDigits:0})}</b></span>
+                        ${paymentStatusLabel ? `<span class="text-amber-600 font-bold">${paymentStatusLabel}</span>` : ''}
+                    </div>
+                    ${milestoneRows ? `<div class="bg-slate-50 rounded-lg px-2 py-1 space-y-0">${milestoneRows}</div>` : ''}
+                </div>` : ''}
+            </div>`;
+        };
         listRenderers.serviceCalls = renderCall;
+        listRenderers.workOrders = renderWorkOrder;
         tabs.push({ id:'all', label:'הכל' }, { id:'calls', label:`קריאות (${calls.length})` });
+        if (workOrders.length) tabs.push({ id:'workorders', label:`פקודות עבודה (${workOrders.length})` });
         const callSortControls = `<div class="flex gap-1.5 mb-2">
             <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-indigo-600 text-white border-indigo-600 transition" data-dir="desc" data-list="biz-calls-list" data-key="serviceCalls" data-date="created_at" onclick="window._bizSortList(this)">חדש ראשון</button>
             <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-white text-slate-500 border-slate-200 transition" data-dir="asc" data-list="biz-calls-list" data-key="serviceCalls" data-date="created_at" onclick="window._bizSortList(this)">ישן ראשון</button>
@@ -10275,8 +10318,15 @@ function _renderBizAccordion(el, data, bizType) {
         const callsHtml = calls.length
             ? callSortControls + `<div class="biz-calls-list">${calls.map(renderCall).join('')}</div>`
             : '<p class="text-xs text-slate-400 text-center py-3">אין קריאות שירות</p>';
+        const woHtml = workOrders.length
+            ? `<div class="biz-workorders-list">${workOrders.map(renderWorkOrder).join('')}</div>`
+            : '<p class="text-xs text-slate-400 text-center py-3">אין פקודות עבודה</p>';
         sections.calls = callsHtml;
-        sections.all   = calls.length ? callsHtml : '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>';
+        sections.workorders = woHtml;
+        const allCombined = (calls.length === 0 && workOrders.length === 0)
+            ? '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>'
+            : (calls.length ? callsHtml : '') + (workOrders.length ? `<div class="mt-2">${woHtml}</div>` : '');
+        sections.all = allCombined;
 
     } else if (bizType === 'logistics') {
         const orders = act.logisticsOrders || [];

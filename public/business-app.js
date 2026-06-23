@@ -1842,7 +1842,7 @@ function switchTab(t) {
     
     // הפעלת לוגיקה ספציפית לכל טאב
     if (t === 'feed') try { renderDashboard(); } catch(e) {}
-    if (t === 'cashflow') { try { renderCashflow(); } catch(e) {} try { fetchCommissionSummary(); } catch(e) {} } 
+    if (t === 'cashflow') { try { renderCashflow(); } catch(e) {} try { fetchCommissionSummary(); } catch(e) {} try { window.switchCfSubTab('cashflow'); } catch(e) {} }
     if (t === 'community') try { loadBizCommunities(); } catch(e) {}
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
     if (t === 'forecast') try { renderForecast(); } catch(e) {}
@@ -4630,6 +4630,20 @@ async function renderUrgentItems() {
     const items     = [];
 
     if (isAdmin || isManager) {
+        // ─ התראות גביה — תחנות שמועד פירעונן הגיע ─
+        try {
+            const colRes = await fetch(`${API}/work-orders/collection-alerts/${currentGroup.id}`);
+            const colData = await colRes.json();
+            if (colData.success && colData.alerts?.length > 0) {
+                const al = colData.alerts;
+                const totalDue = al.reduce((s, a) => s + parseFloat(a.amount || 0), 0);
+                items.push({ icon:'💳', urgency:'high',
+                    title:`${al.length} תחנות גביה ממתינות לטיפול`,
+                    sub:`סה"כ לגביה: ₪${totalDue.toLocaleString('he-IL', {maximumFractionDigits:0})}`,
+                    tab:'cashflow', actionLabel:'לגביה' });
+            }
+        } catch(e) {}
+
         // ─ הזמנות ממתינות מעל שעתיים ─
         const oldOrders = (storeOrdersCache || []).filter(o => {
             if (o.status !== 'new') return false;
@@ -5108,6 +5122,99 @@ async function fetchCommissionSummary() {
             cube('fa-file-invoice-dollar', 'indigo', 'עמלה החודש', fmt(s.month_commission), fmt(s.month_collected), 'שולם', monthPct, 'rgb(99,102,241)', 'חודש שוטף');
     } catch(e) { if(container) container.innerHTML = '<div class="col-span-2 text-center text-xs text-slate-400 py-2">אין נתוני עמלות עדיין</div>'; }
 }
+
+window.switchCfSubTab = function(tab) {
+    ['cashflow','collection'].forEach(t => {
+        const v = document.getElementById(`cf-sub-view-${t}`);
+        const b = document.getElementById(`cf-sub-tab-${t}`);
+        if (v) v.classList.toggle('hidden', t !== tab);
+        if (b) {
+            if (t === tab) {
+                b.className = 'px-4 py-2 text-xs font-bold border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50 rounded-t-lg transition';
+            } else {
+                b.className = 'px-4 py-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700 rounded-t-lg transition';
+            }
+        }
+    });
+    if (tab === 'collection') window.renderCollectionTab();
+};
+
+window.renderCollectionTab = async function() {
+    const list = document.getElementById('collection-list');
+    const summaryBar = document.getElementById('collection-summary-bar');
+    if (!list || !currentGroup) return;
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
+    try {
+        const r = await fetch(`${API}/work-orders/collection/${currentGroup.id}`);
+        const d = await r.json();
+        const items = d.items || [];
+        if (!items.length) {
+            list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">אין תחנות גביה עדיין</p>';
+            if (summaryBar) summaryBar.classList.add('hidden');
+            return;
+        }
+        const METHODS = { cash:'מזומן', card:'כרטיס', transfer:'העברה', check:'שיק', bit:'ביט' };
+        let sumPending = 0, sumReceived = 0, sumTotal = 0;
+        const today = new Date(); today.setHours(0,0,0,0);
+
+        list.innerHTML = items.map(p => {
+            const isPaid = p.status === 'received';
+            const amt = parseFloat(p.amount);
+            const recAmt = parseFloat(p.received_amount || 0);
+            sumTotal += amt;
+            if (isPaid) sumReceived += recAmt;
+            else sumPending += amt;
+            const dueDateStr = p.due_date ? new Date(p.due_date).toLocaleDateString('he-IL') : '—';
+            const isOverdue = !isPaid && p.due_date && new Date(p.due_date) < today;
+            const woLabel = p.wo_number || `#${p.work_order_id}`;
+            const milestoneLabel = p.total_milestones > 1
+                ? `תשלום ${p.received_milestones}/${p.total_milestones}`
+                : '';
+            return `<div class="p-3 rounded-xl border ${isPaid ? 'border-green-200 bg-green-50' : isOverdue ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'} flex items-start gap-3">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-0.5">
+                        <span class="text-xs font-black text-slate-800">${safeStr(p.customer_name || 'לקוח')}</span>
+                        <span class="text-[9px] text-slate-400 border border-slate-200 rounded-full px-1.5 py-0.5">${woLabel}</span>
+                        ${milestoneLabel ? `<span class="text-[9px] text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-1.5 py-0.5">${milestoneLabel}</span>` : ''}
+                        ${isPaid ? '<span class="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">התקבל ✅</span>' : isOverdue ? '<span class="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">באיחור ⚠️</span>' : '<span class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">ממתין</span>'}
+                    </div>
+                    <div class="text-[10px] text-slate-500 mt-0.5">
+                        ${safeStr(p.milestone_name || 'תשלום')} ·
+                        <b class="text-slate-700 dir-ltr">₪${amt.toFixed(0)}</b> מתוך <b class="dir-ltr">₪${parseFloat(p.wo_total||amt).toFixed(0)}</b>
+                        ${p.payment_method ? ' · ' + (METHODS[p.payment_method] || p.payment_method) : ''}
+                        · יעד: <b>${dueDateStr}</b>
+                        ${isPaid ? ` · התקבל: <b class="text-green-600">₪${recAmt.toFixed(0)}</b>` : ''}
+                    </div>
+                </div>
+                ${!isPaid ? `<button onclick="window._colMarkReceived(${p.id})" class="shrink-0 text-[9px] bg-green-600 text-white px-2.5 py-1.5 rounded-lg font-bold hover:bg-green-700 transition">גבה ✓</button>` : ''}
+            </div>`;
+        }).join('');
+
+        if (summaryBar) {
+            summaryBar.classList.remove('hidden');
+            const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = '₪' + v.toLocaleString('he-IL', {maximumFractionDigits:0}); };
+            setText('col-sum-pending', sumPending);
+            setText('col-sum-received', sumReceived);
+            setText('col-sum-total', sumTotal);
+        }
+    } catch(e) { list.innerHTML = '<p class="text-xs text-red-400 text-center py-2">שגיאת טעינה</p>'; }
+};
+
+window._colMarkReceived = async function(paymentId) {
+    const recAmt = prompt('סכום שהתקבל (ריק = סכום מלא):');
+    if (recAmt === null) return;
+    try {
+        const r = await fetch(`/api/work-orders/payments/${paymentId}/receive`, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ receivedAmount: recAmt || null, userName: currentUser?.nickname || 'מנהל' })
+        });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('success', 'תשלום נרשם כהתקבל ✅');
+        window.renderCollectionTab();
+        renderUrgentItems();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
 
 function renderCashflow() {
     const list = getEl('cashflow-list'); if (!list) return;
@@ -31913,6 +32020,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
       <select id="wo-status-select" onchange="window.updateWorkOrderStatus(this.value)" class="modern-input py-1 px-2 text-xs font-bold bg-slate-50 border-slate-200 rounded-lg outline-none focus:border-indigo-400">
         <option value="processing">בתהליך</option>
         <option value="scheduled">מתוזמן</option>
+        <option value="pending_payment">בוצע — ממתין לתשלום</option>
         <option value="completed">הושלם</option>
         <option value="cancelled">בוטל</option>
       </select>
@@ -31929,6 +32037,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
     <button onclick="window.switchWoTab('calendar')" id="wo-tab-calendar" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">ניהול יומן</button>
     <button onclick="window.switchWoTab('purchase')" id="wo-tab-purchase" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">רכש</button>
     <button onclick="window.switchWoTab('costs')" id="wo-tab-costs" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">עלויות</button>
+    <button onclick="window.switchWoTab('payments')" id="wo-tab-payments" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">💳 תשלום</button>
   </div>
   <div class="flex-1 overflow-y-auto p-4" id="wo-modal-body">
     <div id="wo-view-overview">
@@ -32062,6 +32171,44 @@ async function saToggleLicense(groupId, featureKey, isActive) {
       <h4 class="font-bold text-slate-700 text-sm mb-4">סיכום עלויות</h4>
       <div id="wo-costs-summary" class="space-y-3"></div>
     </div>
+    <div id="wo-view-payments" class="hidden pb-20">
+      <div class="flex justify-between items-center mb-3">
+        <h4 class="font-bold text-slate-700 text-sm">תחנות תשלום</h4>
+        <button onclick="window.openAddPaymentMilestone()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> הוסף תחנה</button>
+      </div>
+      <div id="wo-payments-list" class="space-y-2 mb-4"></div>
+      <div id="wo-add-payment-panel" class="hidden bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2">
+        <p class="text-xs font-bold text-slate-600 mb-1">תחנת תשלום חדשה</p>
+        <input id="wo-pay-name" type="text" placeholder="שם התחנה (למשל: מקדמה, תשלום סיום...)" class="w-full modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
+        <div class="grid grid-cols-2 gap-2">
+          <input id="wo-pay-amount" type="number" min="0" step="0.01" placeholder="סכום ₪" class="modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
+          <input id="wo-pay-date" type="date" class="modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
+        </div>
+        <select id="wo-pay-method" class="w-full modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
+          <option value="">אופן תשלום (לא חובה)</option>
+          <option value="cash">מזומן</option>
+          <option value="card">כרטיס אשראי</option>
+          <option value="transfer">העברה בנקאית</option>
+          <option value="check">שיק</option>
+          <option value="bit">ביט / פייבוקס</option>
+        </select>
+        <div class="flex gap-2 mt-1">
+          <button onclick="window.savePaymentMilestone()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">שמור תחנה</button>
+          <button onclick="document.getElementById('wo-add-payment-panel').classList.add('hidden')" class="flex-1 bg-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-300 transition">ביטול</button>
+        </div>
+      </div>
+      <div id="wo-payment-summary" class="mt-3 bg-indigo-50 rounded-2xl p-3 border border-indigo-100 hidden">
+        <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
+          <span>סה"כ חויב</span><span id="wo-pay-total-charged" class="text-indigo-700 dir-ltr"></span>
+        </div>
+        <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
+          <span>סה"כ התקבל</span><span id="wo-pay-total-received" class="text-green-600 dir-ltr"></span>
+        </div>
+        <div class="flex justify-between text-xs font-bold text-slate-700">
+          <span>יתרה לגביה</span><span id="wo-pay-total-pending" class="text-amber-600 dir-ltr"></span>
+        </div>
+      </div>
+    </div>
   </div>
 </div>`;
         document.body.appendChild(modal);
@@ -32072,7 +32219,7 @@ window._currentWoId = null;
 window._currentWoData = null;
 
 window.switchWoTab = function(tab) {
-    ['overview','team','inventory','chat','notes','timeline','calendar','purchase','costs'].forEach(t => {
+    ['overview','team','inventory','chat','notes','timeline','calendar','purchase','costs','payments'].forEach(t => {
         const v = document.getElementById(`wo-view-${t}`); if(v) v.classList.add('hidden');
         const b = document.getElementById(`wo-tab-${t}`);
         if(b) b.className = 'wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700';
@@ -32083,6 +32230,7 @@ window.switchWoTab = function(tab) {
     if(tab === 'chat') setTimeout(() => { const msgs = document.getElementById('wo-messages-list'); if(msgs) msgs.scrollTop = msgs.scrollHeight; }, 100);
     if(tab === 'timeline') window.loadWoTimeline();
     if(tab === 'purchase') window.loadWoPurchaseOrders();
+    if(tab === 'payments') window.loadWoPayments();
     if(tab === 'costs') { if(window._currentWoData) window.renderWoCosts(window._currentWoData); }
 };
 
@@ -32850,6 +32998,123 @@ window.createWoCalendarEvent = async function() {
         document.getElementById('wo-cal-notes').value = '';
         window.loadWoTimeline();
         window.switchWoTab('timeline');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// --- Payment Milestones for Work Orders ---
+window.loadWoPayments = async function() {
+    if (!window._currentWoId) return;
+    const list = document.getElementById('wo-payments-list');
+    const summary = document.getElementById('wo-payment-summary');
+    if (!list) return;
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-3"><i class="fa-solid fa-spinner fa-spin ml-1"></i></p>';
+    try {
+        const r = await fetch(`/api/work-orders/${window._currentWoId}/payments`);
+        const d = await r.json();
+        const payments = d.payments || [];
+        if (!payments.length) {
+            list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">אין תחנות תשלום — לחץ "הוסף תחנה"</p>';
+            if (summary) summary.classList.add('hidden');
+            return;
+        }
+        const METHODS = { cash:'מזומן', card:'כרטיס', transfer:'העברה', check:'שיק', bit:'ביט' };
+        let totalCharged = 0, totalReceived = 0;
+        list.innerHTML = payments.map(p => {
+            const isPaid = p.status === 'received';
+            const amt = parseFloat(p.amount);
+            const recAmt = parseFloat(p.received_amount || 0);
+            totalCharged += amt;
+            if (isPaid) totalReceived += recAmt;
+            const dueDateStr = p.due_date ? new Date(p.due_date).toLocaleDateString('he-IL') : '—';
+            const receivedDateStr = p.received_at ? new Date(p.received_at).toLocaleDateString('he-IL') : '';
+            const today = new Date(); today.setHours(0,0,0,0);
+            const isOverdue = !isPaid && p.due_date && new Date(p.due_date) < today;
+            return `<div class="p-3 rounded-xl border ${isPaid ? 'border-green-200 bg-green-50' : isOverdue ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'} flex items-start gap-3">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-0.5">
+                        <span class="text-xs font-black text-slate-800">${safeStr(p.milestone_name || 'תשלום')}</span>
+                        ${isPaid ? '<span class="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">התקבל ✅</span>' : isOverdue ? '<span class="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">באיחור ⚠️</span>' : '<span class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">ממתין</span>'}
+                    </div>
+                    <div class="text-[10px] text-slate-500">
+                        סכום: <b class="text-slate-700 dir-ltr">₪${amt.toFixed(2)}</b>
+                        ${p.payment_method ? ' · ' + (METHODS[p.payment_method] || p.payment_method) : ''}
+                        · יעד: <b>${dueDateStr}</b>
+                        ${isPaid ? ` · התקבל: <b class="text-green-600">₪${recAmt.toFixed(2)}</b> (${receivedDateStr})` : ''}
+                    </div>
+                </div>
+                <div class="flex gap-1 shrink-0">
+                    ${!isPaid ? `<button onclick="window.markPaymentReceived(${p.id})" class="text-[9px] bg-green-600 text-white px-2 py-1 rounded-lg font-bold hover:bg-green-700 transition">גבה ✓</button>` : ''}
+                    <button onclick="window.deletePaymentMilestone(${p.id})" class="text-[9px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg font-bold hover:bg-red-50 hover:text-red-500 transition">מחק</button>
+                </div>
+            </div>`;
+        }).join('');
+        const pending = totalCharged - totalReceived;
+        if (summary) {
+            summary.classList.remove('hidden');
+            const setT = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = '₪' + v.toFixed(2); };
+            setT('wo-pay-total-charged', totalCharged);
+            setT('wo-pay-total-received', totalReceived);
+            setT('wo-pay-total-pending', pending);
+        }
+    } catch(e) { list.innerHTML = '<p class="text-xs text-red-400 text-center py-2">שגיאת טעינה</p>'; }
+};
+
+window.openAddPaymentMilestone = function() {
+    const panel = document.getElementById('wo-add-payment-panel');
+    if (!panel) return;
+    panel.classList.remove('hidden');
+    // ממלא תאריך ברירת מחדל — היום
+    const dateEl = document.getElementById('wo-pay-date');
+    if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().split('T')[0];
+};
+
+window.savePaymentMilestone = async function() {
+    const name = (document.getElementById('wo-pay-name')?.value || '').trim();
+    const amount = parseFloat(document.getElementById('wo-pay-amount')?.value || 0);
+    const dueDate = document.getElementById('wo-pay-date')?.value || null;
+    const method = document.getElementById('wo-pay-method')?.value || null;
+    if (!amount || amount <= 0) { showToast('error', 'נא להזין סכום'); return; }
+    try {
+        const r = await fetch(`/api/work-orders/${window._currentWoId}/payments`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ milestoneName: name || 'תשלום', amount, dueDate, paymentMethod: method })
+        });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        document.getElementById('wo-add-payment-panel').classList.add('hidden');
+        document.getElementById('wo-pay-name').value = '';
+        document.getElementById('wo-pay-amount').value = '';
+        document.getElementById('wo-pay-date').value = '';
+        document.getElementById('wo-pay-method').value = '';
+        showToast('success', 'תחנת תשלום נוספה');
+        window.loadWoPayments();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.markPaymentReceived = async function(paymentId) {
+    const recAmt = prompt('סכום שהתקבל (ריק = סכום מלא):');
+    if (recAmt === null) return; // ביטול
+    try {
+        const r = await fetch(`/api/work-orders/payments/${paymentId}/receive`, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ receivedAmount: recAmt || null, userName: currentUser?.nickname || 'מנהל' })
+        });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('success', 'תשלום נרשם כהתקבל ✅');
+        window.loadWoPayments();
+        renderUrgentItems(); // עדכן התראות דשבורד
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.deletePaymentMilestone = async function(paymentId) {
+    if (!confirm('למחוק תחנת תשלום זו?')) return;
+    try {
+        const r = await fetch(`/api/work-orders/payments/${paymentId}`, { method: 'DELETE' });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('success', 'תחנה נמחקה');
+        window.loadWoPayments();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
