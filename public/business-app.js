@@ -9572,6 +9572,7 @@ window._custLinkOneflow = function(familyId, matchIdx) {
             <div><p class="text-xs font-black text-green-800">${safeStr(fullName)} · ${safeStr(groupLabel)}</p>
             <p class="text-[10px] text-green-600">השדות מולאו אוטומטית — ניתן לעדכן לפי הצורך</p></div>
         </div>`;
+    setTimeout(() => window._custAutoSave(), 300);
 };
 
 window._custCreateMemberAccount = async function() {
@@ -9761,6 +9762,7 @@ window.openCustomerModal = function(id = null, tab = 'details') {
                 <button id="btn-cust-tab-details" onclick="window.switchCustomerTab('details')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים ומאזן</button>
                 <button id="btn-cust-tab-history" onclick="window.switchCustomerTab('history')" class="hidden flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריית הזמנות</button>
                 ${currentGroup?.business_type === 'maintenance_repair' ? `<button id="btn-cust-tab-calls" onclick="window.switchCustomerTab('calls')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">🔧 קריאות</button>` : ''}
+                <button id="btn-cust-tab-collection" onclick="window.switchCustomerTab('collection')" class="hidden flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">💰 גביה</button>
             </div>
             
             <div id="cust-view-details" class="flex-1 overflow-y-auto modal-scroll pr-1">
@@ -9820,6 +9822,10 @@ window.openCustomerModal = function(id = null, tab = 'details') {
                 <div id="cust-calls-list" class="space-y-2 py-2"><p class="text-center text-slate-400 text-xs py-4">טוען...</p></div>
             </div>` : ''}
 
+            <div id="cust-view-collection" class="hidden flex-1 overflow-y-auto modal-scroll pr-1">
+                <div id="cust-collection-list" class="space-y-2 py-2"><p class="text-center text-slate-400 text-xs py-4">טוען...</p></div>
+            </div>
+
             <div class="space-y-2 mt-4 pt-4 border-t border-slate-100 shrink-0">
                 <div class="flex gap-3">
                     <button id="btn-cancel-customer" onclick="document.getElementById('customer-modal').classList.add('hidden')" class="w-1/3 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
@@ -9843,6 +9849,8 @@ window.openCustomerModal = function(id = null, tab = 'details') {
         if(document.getElementById('cust-company-name')) document.getElementById('cust-company-name').value = c.company_name || '';
         if(document.getElementById('cust-family-group-id')) document.getElementById('cust-family-group-id').value = c.family_group_id || '';
         document.getElementById('btn-cust-tab-history').classList.remove('hidden');
+        document.getElementById('btn-cust-tab-collection')?.classList.remove('hidden');
+        tab = 'details';
     } else {
         if(document.getElementById('cust-id')) document.getElementById('cust-id').value = '';
         document.getElementById('cust-name').value = '';
@@ -9920,45 +9928,117 @@ window.loadClientFinancialSummary = async function(name, phone) {
 };
 
 window.switchCustomerTab = function(tab) {
-    const btnDetails = document.getElementById('btn-cust-tab-details');
-    const btnHistory = document.getElementById('btn-cust-tab-history');
-    const btnCalls = document.getElementById('btn-cust-tab-calls');
-    const viewDetails = document.getElementById('cust-view-details');
-    const viewHistory = document.getElementById('cust-view-history');
-    const viewCalls = document.getElementById('cust-view-calls');
+    const btnDetails    = document.getElementById('btn-cust-tab-details');
+    const btnHistory    = document.getElementById('btn-cust-tab-history');
+    const btnCalls      = document.getElementById('btn-cust-tab-calls');
+    const btnCollection = document.getElementById('btn-cust-tab-collection');
+    const viewDetails    = document.getElementById('cust-view-details');
+    const viewHistory    = document.getElementById('cust-view-history');
+    const viewCalls      = document.getElementById('cust-view-calls');
+    const viewCollection = document.getElementById('cust-view-collection');
 
     if (!viewDetails || !viewHistory) return;
 
-    const activeClass = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
+    const activeClass   = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
     const inactiveClass = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+
+    [btnDetails, btnHistory, btnCalls, btnCollection].forEach(b => { if(b) b.className = inactiveClass; });
+    [viewDetails, viewHistory, viewCalls, viewCollection].forEach(v => { if(v) v.classList.add('hidden'); });
 
     if (tab === 'details') {
         if(btnDetails) btnDetails.className = activeClass;
-        if(btnHistory) btnHistory.className = inactiveClass;
-        if(btnCalls) btnCalls.className = inactiveClass;
         viewDetails.classList.remove('hidden');
-        viewHistory.classList.add('hidden');
-        if(viewCalls) viewCalls.classList.add('hidden');
     } else if (tab === 'calls') {
         if(btnCalls) btnCalls.className = activeClass;
-        if(btnDetails) btnDetails.className = inactiveClass;
-        if(btnHistory) btnHistory.className = inactiveClass;
-        viewDetails.classList.add('hidden');
-        viewHistory.classList.add('hidden');
         if(viewCalls) viewCalls.classList.remove('hidden');
         const custName = document.getElementById('cust-name')?.value?.trim();
         window.loadCustomerServiceCalls(custName);
+    } else if (tab === 'collection') {
+        if(btnCollection) btnCollection.className = activeClass;
+        if(viewCollection) viewCollection.classList.remove('hidden');
+        const name  = document.getElementById('cust-name')?.value?.trim();
+        const phone = document.getElementById('cust-phone')?.value?.trim();
+        window.loadCustomerCollection(name, phone);
     } else {
         if(btnHistory) btnHistory.className = activeClass;
-        if(btnDetails) btnDetails.className = inactiveClass;
-        if(btnCalls) btnCalls.className = inactiveClass;
-        viewDetails.classList.add('hidden');
         viewHistory.classList.remove('hidden');
-        if(viewCalls) viewCalls.classList.add('hidden');
-        if (typeof window.renderCustomerHistory === 'function') {
-            window.renderCustomerHistory(false, 'modal');
-        }
+        if (typeof window.renderCustomerHistory === 'function') window.renderCustomerHistory(false, 'modal');
     }
+};
+
+window.loadCustomerCollection = async function(name, phone) {
+    const listEl = document.getElementById('cust-collection-list');
+    if (!listEl) return;
+    listEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-4"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
+    try {
+        const params = new URLSearchParams();
+        if (name) params.set('name', name);
+        if (phone) params.set('phone', phone);
+        const d = await fetch(`/api/clients/financial-summary/${currentGroup.id}?${params}`).then(r => r.json());
+        if (!d.success) throw new Error(d.error);
+        const all = d.payments || [];
+        if (!all.length) { listEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-8">אין רשומות גבייה ללקוח זה</p>'; return; }
+        const pending  = all.filter(p => p.status === 'pending');
+        const received = all.filter(p => p.status !== 'pending');
+        const METHODS = { cash:'מזומן', card:'כרטיס', transfer:'העברה', check:'שיק', bit:'ביט' };
+        const today = new Date(); today.setHours(0,0,0,0);
+        const renderRow = p => {
+            const isPaid = p.status !== 'pending';
+            const isOverdue = !isPaid && p.due_date && new Date(p.due_date) < today;
+            const dateStr = p.due_date ? new Date(p.due_date).toLocaleDateString('he-IL') : '—';
+            const isWo = p.source_type === 'work_order';
+            const onClick = `document.getElementById('customer-modal').classList.add('hidden'); window.${isWo ? 'openWorkOrderModal' : 'showServiceCallModal'}(${p.source_id})`;
+            const amtColor = isPaid ? 'text-green-700' : isOverdue ? 'text-red-600' : 'text-amber-700';
+            const borderCls = isPaid ? 'border-green-100 bg-green-50/40' : isOverdue ? 'border-red-200 bg-red-50' : 'border-amber-100 bg-white';
+            return `<div class="flex items-center justify-between rounded-xl border ${borderCls} px-3 py-2 gap-2 cursor-pointer hover:shadow-sm transition" onclick="${onClick}">
+                <div class="flex-1 min-w-0">
+                    <div class="text-[11px] font-bold text-slate-700 truncate">${safeStr(p.source_title)}</div>
+                    <div class="text-[10px] text-slate-400">${safeStr(p.milestone_name||'תחנת תשלום')}${p.payment_method ? ' · '+(METHODS[p.payment_method]||p.payment_method) : ''} · ${isPaid ? 'שולם' : 'יעד'}: ${dateStr}</div>
+                </div>
+                <div class="text-right shrink-0">
+                    <div class="text-sm font-black ${amtColor} dir-ltr">₪${parseFloat(p.amount).toFixed(2)}</div>
+                    ${isOverdue ? '<div class="text-[9px] text-red-500 font-bold">באיחור ⚠️</div>' : ''}
+                    ${isPaid ? '<div class="text-[9px] text-green-600 font-bold">שולם ✓</div>' : ''}
+                </div>
+                <i class="fa-solid fa-chevron-left text-slate-300 text-xs shrink-0"></i>
+            </div>`;
+        };
+        let html = '';
+        if (pending.length) {
+            html += `<p class="text-[10px] font-bold text-amber-600 mb-1.5"><i class="fa-solid fa-clock ml-1"></i>ממתינות לגבייה (${pending.length})</p>`;
+            html += pending.map(renderRow).join('');
+        }
+        if (received.length) {
+            html += `<p class="text-[10px] font-bold text-green-600 mt-3 mb-1.5"><i class="fa-solid fa-circle-check ml-1"></i>התקבלו (${received.length})</p>`;
+            html += received.map(renderRow).join('');
+        }
+        listEl.innerHTML = `<div class="space-y-1.5">${html}</div>`;
+    } catch(e) { listEl.innerHTML = '<p class="text-center text-red-400 text-xs py-4">שגיאה בטעינה</p>'; }
+};
+
+window._custAutoSave = async function() {
+    const id    = document.getElementById('cust-id')?.value;
+    const name  = document.getElementById('cust-name')?.value?.trim();
+    const phone = document.getElementById('cust-phone')?.value?.trim();
+    if (!name) return;
+    const email        = document.getElementById('cust-email')?.value?.trim() || '';
+    const businessId   = document.getElementById('cust-business-id')?.value?.trim() || '';
+    const notes        = document.getElementById('cust-notes')?.value?.trim() || '';
+    const companyName  = document.getElementById('cust-company-name')?.value?.trim() || '';
+    const familyGroupId = document.getElementById('cust-family-group-id')?.value ? parseInt(document.getElementById('cust-family-group-id').value) : null;
+    try {
+        const url    = id ? `${API}/store/customers/${id}` : `${API}/store/customers`;
+        const method = id ? 'PUT' : 'POST';
+        const d = await fetch(url, {
+            method, headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, name, companyName, phone, email, businessId, notes, familyGroupId, adminName: currentGroup.name || null })
+        }).then(r => r.json());
+        if (d.success) {
+            if (!id && d.customerId) { const el = document.getElementById('cust-id'); if (el) el.value = d.customerId; }
+            showToast('success', 'פרטי הלקוח נשמרו');
+            if (typeof window.fetchStoreCustomers === 'function') window.fetchStoreCustomers();
+        }
+    } catch(e) { /* silent */ }
 };
 
 window.loadCustomerServiceCalls = async function(customerName) {
