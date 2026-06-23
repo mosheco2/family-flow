@@ -9287,11 +9287,11 @@ window.renderStoreCustomers = function() {
                     </div>
                 </div>
             </div>
-            <div class="flex items-center gap-2">
-                ${c.notes ? `<div class="text-[10px] text-slate-400 max-w-[150px] truncate bg-slate-50 p-2 rounded-lg border border-slate-100" title="${safeStr(c.notes)}">${safeStr(c.notes)}</div>` : ''}
-                <button onclick="event.stopPropagation(); if(typeof window.openCustomerModal === 'function') window.openCustomerModal(${c.id}, 'details')" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm z-50 relative" title="עריכת פרטים"><i class="fa-solid fa-pen text-xs"></i></button>
-                <button onclick="event.stopPropagation(); window.deleteStoreCustomer(${c.id}, '${safeStr(c.name)}')" class="text-slate-400 hover:text-red-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm z-50 relative" title="מחיקת לקוח"><i class="fa-solid fa-trash text-xs"></i></button>
-                <button onclick="event.stopPropagation(); window.showAddToOneflow('${safeStr(c.name).replace(/'/g,"\\'")}','${safeStr(c.phone||'').replace(/'/g,"\\'")}',null)" class="text-violet-500 hover:text-violet-700 bg-violet-50 px-2 h-8 rounded-lg flex items-center justify-center transition border border-violet-100 shadow-sm z-50 relative text-[10px] font-bold" title="הוסף ל-ONEFLOW">🔗 ONEFLOW</button>
+            <div class="flex flex-wrap items-center justify-end gap-2">
+                ${c.notes ? `<div class="text-[10px] text-slate-400 max-w-[120px] truncate bg-slate-50 px-2 py-0.5 rounded border border-slate-100 hidden sm:block" title="${safeStr(c.notes)}">${safeStr(c.notes)}</div>` : ''}
+                <button onclick="event.stopPropagation(); if(typeof window.openCustomerModal === 'function') window.openCustomerModal(${c.id}, 'details')" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="עריכת פרטים"><i class="fa-solid fa-pen text-xs"></i></button>
+                <button onclick="event.stopPropagation(); window.deleteStoreCustomer(${c.id}, '${safeStr(c.name)}')" class="text-slate-400 hover:text-red-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="מחיקת לקוח"><i class="fa-solid fa-trash text-xs"></i></button>
+                <button onclick="event.stopPropagation(); window.showAddToOneflow('${safeStr(c.name).replace(/'/g,"\\'")}','${safeStr(c.phone||'').replace(/'/g,"\\'")}',null)" class="text-violet-500 hover:text-violet-700 bg-violet-50 px-2 h-8 rounded-lg flex items-center justify-center transition border border-violet-100 shadow-sm text-[10px] font-bold whitespace-nowrap" title="הוסף ל-ONEFLOW">🔗 ONEFLOW</button>
             </div>
         </div>
         `;
