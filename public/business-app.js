@@ -9446,8 +9446,9 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
                 o.call_type === 'work_order' &&
                 (o.customer_name === q.customer_name || (q.customer_phone && o.customer_phone === q.customer_phone))
             );
+            const closeCust = `document.getElementById('customer-modal').classList.add('hidden');`;
             historyHtml += `
-            <div onclick="if(typeof window.openQuotePreview === 'function') window.openQuotePreview(${q.id})" class="bg-white p-3 rounded-xl border border-orange-100 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-orange-50 hover:border-orange-200 transition">
+            <div onclick="${closeCust} if(typeof window.openQuotePreview === 'function') window.openQuotePreview(${q.id})" class="bg-white p-3 rounded-xl border border-orange-100 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-orange-50 hover:border-orange-200 transition">
                 <div class="flex-1 min-w-0">
                     <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-file-invoice text-orange-400 text-[10px]"></i> ${q.quote_number || `הצעה #${q.id}`}</span>
                     ${quoteItemTitle ? `<p class="text-[11px] text-indigo-700 font-semibold truncate">${safeStr(quoteItemTitle)}</p>` : ''}
@@ -9455,22 +9456,23 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                     <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(q.total_amount || 0).toFixed(2)}</span>
-                    <button onclick="event.stopPropagation(); if(typeof window.openQuotePreview === 'function') window.openQuotePreview(${q.id})" class="text-slate-400 hover:text-orange-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="פתח הצעה"><i class="fa-solid fa-eye text-xs"></i></button>
-                    ${relatedWO ? `<button onclick="event.stopPropagation(); if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${relatedWO.id})" class="text-blue-500 hover:text-blue-700 bg-blue-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-blue-100 shadow-sm" title="פתח פקודת עבודה קשורה"><i class="fa-solid fa-screwdriver-wrench text-xs"></i></button>` : ''}
+                    <button onclick="event.stopPropagation(); ${closeCust} if(typeof window.openQuotePreview === 'function') window.openQuotePreview(${q.id})" class="text-slate-400 hover:text-orange-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="פתח הצעה"><i class="fa-solid fa-eye text-xs"></i></button>
+                    ${relatedWO ? `<button onclick="event.stopPropagation(); ${closeCust} if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${relatedWO.id})" class="text-blue-500 hover:text-blue-700 bg-blue-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-blue-100 shadow-sm" title="פתח פקודת עבודה קשורה"><i class="fa-solid fa-screwdriver-wrench text-xs"></i></button>` : ''}
                 </div>
             </div>`;
         });
         workOrders.forEach(o => {
             const woTitle = o.quote_title || (o.quote_number ? `פקודת עבודה #${o.quote_number}` : `פקודת עבודה #${o.id}`);
+            const closeCust = `document.getElementById('customer-modal').classList.add('hidden');`;
             historyHtml += `
-            <div onclick="if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${o.id})" class="bg-white p-3 rounded-xl border border-blue-100 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
+            <div onclick="${closeCust} if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${o.id})" class="bg-white p-3 rounded-xl border border-blue-100 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
                 <div class="flex-1 min-w-0">
                     <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-screwdriver-wrench text-blue-500 text-[10px]"></i> ${safeStr(woTitle)}</span>
                     <span class="text-[10px] text-slate-500 block mt-0.5">${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleDateString('he-IL')}</span>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                     <span class="font-bold text-blue-700 dir-ltr">₪${parseFloat(o.total_amount || 0).toFixed(2)}</span>
-                    <button onclick="event.stopPropagation(); if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${o.id})" class="text-slate-400 hover:text-blue-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="פתח פקודת עבודה"><i class="fa-solid fa-eye text-xs"></i></button>
+                    <button onclick="event.stopPropagation(); ${closeCust} if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${o.id})" class="text-slate-400 hover:text-blue-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="פתח פקודת עבודה"><i class="fa-solid fa-eye text-xs"></i></button>
                 </div>
             </div>`;
         });
