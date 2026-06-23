@@ -33324,9 +33324,10 @@ window.loadWoPayments = async function() {
             return;
         }
         const METHODS = { cash:'מזומן', card:'כרטיס', transfer:'העברה', check:'שיק', bit:'ביט' };
+        const woTotal = parseFloat(window._currentWoData?.workOrder?.total_amount || 0);
         const originalAmount = parseFloat(payments[0].original_amount || 0);
         const totalChargedPre = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
-        const dealTotal = originalAmount > 0 ? originalAmount : totalChargedPre;
+        const dealTotal = woTotal > 0 ? woTotal : (originalAmount > 0 ? originalAmount : totalChargedPre);
         let totalCharged = 0, totalReceived = 0, cumulativePaid = 0;
         list.innerHTML = payments.map((p, idx) => {
             const isPaid = p.status === 'received';
