@@ -28684,7 +28684,7 @@ window.showServiceCallModal = async function(callId) {
                     <p class="text-[10px] text-slate-400 text-center py-2"><i class="fa-solid fa-spinner fa-spin ml-1"></i></p>
                 </div>
                 <div id="sc-payment-summary-${callId}" class="hidden flex gap-3 text-[10px] text-slate-500 border-t border-slate-200 pt-2 mt-1">
-                    <span>חויב: <b id="sc-pay-charged-${callId}" class="text-slate-700">₪0</b></span>
+                    <span>עסקה: <b id="sc-pay-charged-${callId}" class="text-slate-700">₪0</b></span>
                     <span>שולם: <b id="sc-pay-received-${callId}" class="text-green-700">₪0</b></span>
                     <span>נותר: <b id="sc-pay-pending-${callId}" class="text-amber-700">₪0</b></span>
                 </div>
@@ -32316,7 +32316,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
       </div>
       <div id="wo-payment-summary" class="mt-3 bg-indigo-50 rounded-2xl p-3 border border-indigo-100 hidden">
         <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
-          <span>סה"כ חויב</span><span id="wo-pay-total-charged" class="text-indigo-700 dir-ltr"></span>
+          <span>עסקה כוללת</span><span id="wo-pay-total-charged" class="text-indigo-700 dir-ltr"></span>
         </div>
         <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
           <span>סה"כ התקבל</span><span id="wo-pay-total-received" class="text-green-600 dir-ltr"></span>
@@ -33170,11 +33170,12 @@ window.loadWoPayments = async function() {
                 </div>
             </div>`;
         }).join('');
-        const pending = totalCharged - totalReceived;
+        const dealTotal = originalAmount > 0 ? originalAmount : totalCharged;
+        const pending = Math.max(0, dealTotal - totalReceived);
         if (summary) {
             summary.classList.remove('hidden');
             const setT = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = '₪' + v.toFixed(2); };
-            setT('wo-pay-total-charged', totalCharged);
+            setT('wo-pay-total-charged', dealTotal);
             setT('wo-pay-total-received', totalReceived);
             setT('wo-pay-total-pending', pending);
         }
@@ -33312,12 +33313,13 @@ window.loadScPayments = async function(callId) {
                 </div>
             </div>`;
         }).join('');
+        const dealTotal = originalAmount > 0 ? originalAmount : totalCharged;
         if (summary) {
             summary.classList.remove('hidden');
             const setT = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = '₪' + v.toFixed(2); };
-            setT(`sc-pay-charged-${callId}`, totalCharged);
+            setT(`sc-pay-charged-${callId}`, dealTotal);
             setT(`sc-pay-received-${callId}`, totalReceived);
-            setT(`sc-pay-pending-${callId}`, totalCharged - totalReceived);
+            setT(`sc-pay-pending-${callId}`, Math.max(0, dealTotal - totalReceived));
         }
     } catch(e) { list.innerHTML = '<p class="text-[10px] text-red-400 text-center py-2">שגיאת טעינה</p>'; }
 };
