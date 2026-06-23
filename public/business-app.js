@@ -33135,8 +33135,10 @@ window.loadWoPayments = async function() {
             return;
         }
         const METHODS = { cash:'מזומן', card:'כרטיס', transfer:'העברה', check:'שיק', bit:'ביט' };
-        let totalCharged = 0, totalReceived = 0, cumulativePaid = 0;
         const originalAmount = parseFloat(payments[0].original_amount || 0);
+        const totalChargedPre = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+        const dealTotal = originalAmount > 0 ? originalAmount : totalChargedPre;
+        let totalCharged = 0, totalReceived = 0, cumulativePaid = 0;
         list.innerHTML = payments.map((p, idx) => {
             const isPaid = p.status === 'received';
             const amt = parseFloat(p.amount);
@@ -33146,27 +33148,37 @@ window.loadWoPayments = async function() {
                 totalReceived += recAmt;
                 cumulativePaid += recAmt;
             }
-            const remaining = Math.max(0, originalAmount - cumulativePaid);
+            const remaining = Math.max(0, dealTotal - cumulativePaid);
             const dueDateStr = p.due_date ? new Date(p.due_date).toLocaleDateString('he-IL') : '—';
             const receivedDateStr = p.received_at ? new Date(p.received_at).toLocaleDateString('he-IL') : '';
             const today = new Date(); today.setHours(0,0,0,0);
             const isOverdue = !isPaid && p.due_date && new Date(p.due_date) < today;
-            return `<div class="p-3 rounded-xl border ${isPaid ? 'border-green-200 bg-green-50' : isOverdue ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'} flex items-start gap-3">
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-0.5">
-                        <span class="text-xs font-black text-slate-800">${safeStr(p.milestone_name || 'תשלום')}</span>
-                        ${isPaid ? '<span class="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">התקבל ✅</span>' : isOverdue ? '<span class="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">באיחור ⚠️</span>' : '<span class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">ממתין</span>'}
+            const borderColor = isPaid ? 'border-green-200' : isOverdue ? 'border-red-200' : 'border-slate-200';
+            const bgColor = isPaid ? 'bg-green-50' : isOverdue ? 'bg-red-50' : 'bg-white';
+            const stripBg = isPaid ? 'bg-green-100/60' : isOverdue ? 'bg-red-50' : 'bg-slate-50';
+            return `<div class="rounded-xl border ${borderColor} overflow-hidden">
+                <div class="${bgColor} p-3 flex items-start gap-3">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-0.5">
+                            <span class="text-xs font-black text-slate-800">${safeStr(p.milestone_name || 'תשלום')}</span>
+                            ${isPaid ? '<span class="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">התקבל ✅</span>' : isOverdue ? '<span class="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">באיחור ⚠️</span>' : '<span class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">ממתין</span>'}
+                        </div>
+                        <div class="text-[10px] text-slate-500">
+                            סכום תחנה: <b class="text-slate-700 dir-ltr">₪${amt.toFixed(2)}</b>
+                            ${p.payment_method ? ' · ' + (METHODS[p.payment_method] || p.payment_method) : ''}
+                            · יעד: <b>${dueDateStr}</b>
+                            ${isPaid ? ` · התקבל: <b class="text-green-600">₪${recAmt.toFixed(2)}</b> (${receivedDateStr})` : ''}
+                        </div>
                     </div>
-                    <div class="text-[10px] text-slate-500">
-                        ${originalAmount ? `עסקה: <b class="text-slate-700 dir-ltr">₪${originalAmount.toFixed(2)}</b> · שולם: <b class="text-slate-700 dir-ltr">₪${cumulativePaid.toFixed(2)}</b> · נותר: <b class="text-slate-700 dir-ltr">₪${remaining.toFixed(2)}</b>` : `סכום: <b class="text-slate-700 dir-ltr">₪${amt.toFixed(2)}</b>`}
-                        ${p.payment_method ? ' · ' + (METHODS[p.payment_method] || p.payment_method) : ''}
-                        · יעד: <b>${dueDateStr}</b>
-                        ${isPaid ? ` · התקבל: <b class="text-green-600">₪${recAmt.toFixed(2)}</b> (${receivedDateStr})` : ''}
+                    <div class="flex gap-1 shrink-0">
+                        ${!isPaid ? `<button onclick="window.markPaymentReceived(${p.id})" class="text-[9px] bg-green-600 text-white px-2 py-1 rounded-lg font-bold hover:bg-green-700 transition">גבה ✓</button>` : ''}
+                        <button onclick="window.deletePaymentMilestone(${p.id})" class="text-[9px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg font-bold hover:bg-red-50 hover:text-red-500 transition">מחק</button>
                     </div>
                 </div>
-                <div class="flex gap-1 shrink-0">
-                    ${!isPaid ? `<button onclick="window.markPaymentReceived(${p.id})" class="text-[9px] bg-green-600 text-white px-2 py-1 rounded-lg font-bold hover:bg-green-700 transition">גבה ✓</button>` : ''}
-                    <button onclick="window.deletePaymentMilestone(${p.id})" class="text-[9px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg font-bold hover:bg-red-50 hover:text-red-500 transition">מחק</button>
+                <div class="${stripBg} flex gap-4 px-3 py-1.5 border-t ${borderColor} text-[10px] font-bold">
+                    <span class="text-slate-500">עסקה: <b class="text-slate-700 dir-ltr">₪${dealTotal.toFixed(2)}</b></span>
+                    <span class="text-green-700">שולם: <b class="dir-ltr">₪${cumulativePaid.toFixed(2)}</b></span>
+                    <span class="${remaining > 0 ? 'text-amber-700' : 'text-green-700'}">נותר: <b class="dir-ltr">₪${remaining.toFixed(2)}</b></span>
                 </div>
             </div>`;
         }).join('');
@@ -33280,8 +33292,10 @@ window.loadScPayments = async function(callId) {
             return;
         }
         const METHODS = { cash:'מזומן', card:'כרטיס', transfer:'העברה', check:'שיק', bit:'ביט' };
-        let totalCharged = 0, totalReceived = 0, cumulativePaid = 0;
         const originalAmount = parseFloat(payments[0].original_amount || 0);
+        const totalChargedPre = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+        const dealTotal = originalAmount > 0 ? originalAmount : totalChargedPre;
+        let totalCharged = 0, totalReceived = 0, cumulativePaid = 0;
         const today = new Date(); today.setHours(0,0,0,0);
         list.innerHTML = payments.map(p => {
             const isPaid = p.status === 'received';
@@ -33292,24 +33306,34 @@ window.loadScPayments = async function(callId) {
                 totalReceived += recAmt;
                 cumulativePaid += recAmt;
             }
-            const remaining = Math.max(0, originalAmount - cumulativePaid);
+            const remaining = Math.max(0, dealTotal - cumulativePaid);
             const dueDateStr = p.due_date ? new Date(p.due_date).toLocaleDateString('he-IL') : '—';
             const isOverdue = !isPaid && p.due_date && new Date(p.due_date) < today;
-            return `<div class="p-2.5 rounded-xl border ${isPaid ? 'border-green-200 bg-green-50' : isOverdue ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'} flex items-start gap-2">
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-1.5 mb-0.5">
-                        <span class="text-[11px] font-black text-slate-800">${safeStr(p.milestone_name || 'תשלום')}</span>
-                        ${isPaid ? '<span class="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">התקבל ✅</span>' : isOverdue ? '<span class="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">באיחור ⚠️</span>' : '<span class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">ממתין</span>'}
+            const borderColor = isPaid ? 'border-green-200' : isOverdue ? 'border-red-200' : 'border-slate-200';
+            const bgColor = isPaid ? 'bg-green-50' : isOverdue ? 'bg-red-50' : 'bg-white';
+            const stripBg = isPaid ? 'bg-green-100/60' : isOverdue ? 'bg-red-50' : 'bg-slate-50';
+            return `<div class="rounded-xl border ${borderColor} overflow-hidden">
+                <div class="${bgColor} p-2.5 flex items-start gap-2">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1.5 mb-0.5">
+                            <span class="text-[11px] font-black text-slate-800">${safeStr(p.milestone_name || 'תשלום')}</span>
+                            ${isPaid ? '<span class="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">התקבל ✅</span>' : isOverdue ? '<span class="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">באיחור ⚠️</span>' : '<span class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">ממתין</span>'}
+                        </div>
+                        <div class="text-[10px] text-slate-500">
+                            סכום תחנה: <b class="text-slate-700 dir-ltr">₪${amt.toFixed(2)}</b>
+                            ${p.payment_method ? ' · ' + (METHODS[p.payment_method] || p.payment_method) : ''} · יעד: <b>${dueDateStr}</b>
+                            ${isPaid ? ` · התקבל: <b class="text-green-600">₪${recAmt.toFixed(2)}</b>` : ''}
+                        </div>
                     </div>
-                    <div class="text-[10px] text-slate-500">
-                        ${originalAmount ? `עסקה: <b class="text-slate-700 dir-ltr">₪${originalAmount.toFixed(2)}</b> · שולם: <b class="text-slate-700 dir-ltr">₪${cumulativePaid.toFixed(2)}</b> · נותר: <b class="text-slate-700 dir-ltr">₪${remaining.toFixed(2)}</b>` : `סכום: <b class="text-slate-700 dir-ltr">₪${amt.toFixed(2)}</b>`}
-                        ${p.payment_method ? ' · ' + (METHODS[p.payment_method] || p.payment_method) : ''} · יעד: <b>${dueDateStr}</b>
-                        ${isPaid ? ` · התקבל: <b class="text-green-600">₪${recAmt.toFixed(2)}</b>` : ''}
+                    <div class="flex gap-1 shrink-0">
+                        ${!isPaid ? `<button onclick="window.markScPaymentReceived(${p.id},${callId})" class="text-[9px] bg-green-600 text-white px-2 py-1 rounded-lg font-bold" style="touch-action:manipulation;">גבה ✓</button>` : ''}
+                        <button onclick="window.deleteScPaymentMilestone(${p.id},${callId})" class="text-[9px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg font-bold" style="touch-action:manipulation;">מחק</button>
                     </div>
                 </div>
-                <div class="flex gap-1 shrink-0">
-                    ${!isPaid ? `<button onclick="window.markScPaymentReceived(${p.id},${callId})" class="text-[9px] bg-green-600 text-white px-2 py-1 rounded-lg font-bold" style="touch-action:manipulation;">גבה ✓</button>` : ''}
-                    <button onclick="window.deleteScPaymentMilestone(${p.id},${callId})" class="text-[9px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg font-bold" style="touch-action:manipulation;">מחק</button>
+                <div class="${stripBg} flex gap-4 px-3 py-1.5 border-t ${borderColor} text-[10px] font-bold">
+                    <span class="text-slate-500">עסקה: <b class="text-slate-700 dir-ltr">₪${dealTotal.toFixed(2)}</b></span>
+                    <span class="text-green-700">שולם: <b class="dir-ltr">₪${cumulativePaid.toFixed(2)}</b></span>
+                    <span class="${remaining > 0 ? 'text-amber-700' : 'text-green-700'}">נותר: <b class="dir-ltr">₪${remaining.toFixed(2)}</b></span>
                 </div>
             </div>`;
         }).join('');
