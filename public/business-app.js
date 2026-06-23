@@ -9442,6 +9442,10 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
                 const qMeta = qItems.find(i => i.is_quote_metadata);
                 if (qMeta) { const qm = JSON.parse(qMeta.data||'{}'); if(qm.title) quoteItemTitle = qm.title; }
             } catch(e) {}
+            const relatedWO = (storeOrdersCache || []).find(o =>
+                o.status === 'work_order' &&
+                (o.customer_name === q.customer_name || (q.customer_phone && o.customer_phone === q.customer_phone))
+            );
             historyHtml += `
             <div onclick="if(typeof window.openQuotePreview === 'function') window.openQuotePreview(${q.id})" class="bg-white p-3 rounded-xl border border-orange-100 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-orange-50 hover:border-orange-200 transition">
                 <div class="flex-1 min-w-0">
@@ -9452,6 +9456,7 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
                 <div class="flex items-center gap-2 shrink-0">
                     <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(q.total_amount || 0).toFixed(2)}</span>
                     <button onclick="event.stopPropagation(); if(typeof window.openQuotePreview === 'function') window.openQuotePreview(${q.id})" class="text-slate-400 hover:text-orange-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="פתח הצעה"><i class="fa-solid fa-eye text-xs"></i></button>
+                    ${relatedWO ? `<button onclick="event.stopPropagation(); if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${relatedWO.id})" class="text-blue-500 hover:text-blue-700 bg-blue-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-blue-100 shadow-sm" title="פתח פקודת עבודה קשורה"><i class="fa-solid fa-screwdriver-wrench text-xs"></i></button>` : ''}
                 </div>
             </div>`;
         });
