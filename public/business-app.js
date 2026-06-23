@@ -32479,25 +32479,28 @@ async function saToggleLicense(groupId, featureKey, isActive) {
         <button onclick="window.openAddPaymentMilestone()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> הוסף תחנה</button>
       </div>
       <div id="wo-payments-list" class="space-y-2 mb-4"></div>
-      <div id="wo-add-payment-panel" class="hidden bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2">
-        <p class="text-xs font-bold text-slate-600 mb-1">תחנת תשלום חדשה</p>
-        <input id="wo-pay-name" type="text" placeholder="שם התחנה (למשל: מקדמה, תשלום סיום...)" class="w-full modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
+      <div id="wo-add-payment-panel" class="hidden mt-2 bg-white rounded-xl p-3 border border-indigo-100 space-y-2">
         <div class="grid grid-cols-2 gap-2">
-          <input id="wo-pay-amount" type="number" min="0" step="0.01" placeholder="סכום ₪" class="modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
-          <input id="wo-pay-date" type="date" class="modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
+          <div><label class="text-[9px] font-bold text-slate-400 mb-0.5 block">שם התחנה</label>
+            <input id="wo-pay-name" type="text" placeholder="מקדמה / יתרה..." class="w-full border border-slate-200 rounded-xl px-2 py-1.5 text-xs"></div>
+          <div><label class="text-[9px] font-bold text-slate-400 mb-0.5 block">סכום ₪</label>
+            <input id="wo-pay-amount" type="number" placeholder="0" min="0" step="0.01" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 text-xs"></div>
         </div>
-        <input id="wo-pay-original-amount" type="number" min="0" step="0.01" placeholder="סכום עסקה כוללת ₪ (יורש מהתחנה הקודמת)" class="w-full modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
-        <select id="wo-pay-method" class="w-full modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
-          <option value="">אופן תשלום (לא חובה)</option>
-          <option value="cash">מזומן</option>
-          <option value="card">כרטיס אשראי</option>
-          <option value="transfer">העברה בנקאית</option>
-          <option value="check">שיק</option>
-          <option value="bit">ביט / פייבוקס</option>
-        </select>
-        <div class="flex gap-2 mt-1">
-          <button onclick="window.savePaymentMilestone()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">שמור תחנה</button>
-          <button onclick="document.getElementById('wo-add-payment-panel').classList.add('hidden')" class="flex-1 bg-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-300 transition">ביטול</button>
+        <div class="grid grid-cols-2 gap-2">
+          <div><label class="text-[9px] font-bold text-slate-400 mb-0.5 block">תאריך יעד</label>
+            <input id="wo-pay-date" type="date" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 text-xs"></div>
+          <div><label class="text-[9px] font-bold text-slate-400 mb-0.5 block">אמצעי תשלום</label>
+            <select id="wo-pay-method" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 text-xs">
+              <option value="">לא נקבע</option>
+              <option value="cash">מזומן</option><option value="card">כרטיס</option>
+              <option value="transfer">העברה</option><option value="check">שיק</option><option value="bit">ביט</option>
+            </select></div>
+        </div>
+        <div><label class="text-[9px] font-bold text-slate-400 mb-0.5 block">סכום עסקה כוללת ₪</label>
+          <input id="wo-pay-original-amount" type="number" placeholder="יורש מהתחנה הקודמת" min="0" step="0.01" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 text-xs"></div>
+        <div class="flex gap-2">
+          <button onclick="window.savePaymentMilestone()" class="flex-1 bg-indigo-600 text-white py-1.5 rounded-xl text-xs font-bold active:scale-95 transition" style="touch-action:manipulation;">שמור תחנה</button>
+          <button onclick="document.getElementById('wo-add-payment-panel').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-600 py-1.5 rounded-xl text-xs font-bold active:scale-95 transition" style="touch-action:manipulation;">ביטול</button>
         </div>
       </div>
       <div id="wo-payment-summary" class="mt-3 bg-indigo-50 rounded-2xl p-3 border border-indigo-100 hidden">
