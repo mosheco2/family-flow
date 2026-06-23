@@ -209,6 +209,77 @@ function showToast(t, m) {
     clearTimeout(window._toastTimer);
     window._toastTimer = setTimeout(() => el.classList.add('hidden'), 5000);
 }
+
+// ─── חלוניות UI מותאמות (במקום prompt/confirm/alert הגולמיים) ────────────────
+window._uiConfirm = function(message, opts = {}) {
+    return new Promise(resolve => {
+        document.getElementById('_ui-dialog')?.remove();
+        const el = document.createElement('div');
+        el.id = '_ui-dialog';
+        el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,0.55);backdrop-filter:blur(2px);direction:rtl;';
+        el.innerHTML = `<div style="background:white;border-radius:20px;padding:28px 24px 20px;width:min(90vw,400px);box-shadow:0 20px 60px rgba(0,0,0,0.25);text-align:center;">
+            <div style="font-size:28px;margin-bottom:12px;">${opts.icon||'⚠️'}</div>
+            <p style="font-size:14px;font-weight:700;color:#1e293b;line-height:1.6;margin-bottom:20px;">${message}</p>
+            <div style="display:flex;gap:10px;justify-content:center;">
+                <button id="_ui-confirm-ok" style="flex:1;background:${opts.danger?'#dc2626':'#4f46e5'};color:white;border:none;border-radius:12px;padding:11px 20px;font-size:13px;font-weight:800;cursor:pointer;">${opts.okLabel||'אישור'}</button>
+                <button id="_ui-confirm-cancel" style="flex:1;background:#f1f5f9;color:#475569;border:none;border-radius:12px;padding:11px 20px;font-size:13px;font-weight:700;cursor:pointer;">${opts.cancelLabel||'ביטול'}</button>
+            </div>
+        </div>`;
+        document.body.appendChild(el);
+        const done = v => { el.remove(); resolve(v); };
+        el.querySelector('#_ui-confirm-ok').onclick = () => done(true);
+        el.querySelector('#_ui-confirm-cancel').onclick = () => done(false);
+        el.addEventListener('click', e => { if (e.target === el) done(false); });
+        el.querySelector('#_ui-confirm-ok').focus();
+    });
+};
+
+window._uiPrompt = function(message, opts = {}) {
+    return new Promise(resolve => {
+        document.getElementById('_ui-dialog')?.remove();
+        const el = document.createElement('div');
+        el.id = '_ui-dialog';
+        el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,0.55);backdrop-filter:blur(2px);direction:rtl;';
+        el.innerHTML = `<div style="background:white;border-radius:20px;padding:28px 24px 20px;width:min(90vw,400px);box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+            <p style="font-size:14px;font-weight:700;color:#1e293b;line-height:1.6;margin-bottom:14px;text-align:center;">${message}</p>
+            <input id="_ui-prompt-input" type="${opts.type||'text'}" placeholder="${opts.placeholder||''}" value="${opts.defaultValue||''}"
+                style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:11px 14px;font-size:14px;direction:rtl;outline:none;box-sizing:border-box;margin-bottom:16px;"
+                ${opts.type==='number'?'min="0" step="0.01"':''}>
+            <div style="display:flex;gap:10px;">
+                <button id="_ui-prompt-ok" style="flex:1;background:#4f46e5;color:white;border:none;border-radius:12px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">אישור</button>
+                <button id="_ui-prompt-cancel" style="flex:1;background:#f1f5f9;color:#475569;border:none;border-radius:12px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;">ביטול</button>
+            </div>
+        </div>`;
+        document.body.appendChild(el);
+        const input = el.querySelector('#_ui-prompt-input');
+        const done = v => { el.remove(); resolve(v); };
+        el.querySelector('#_ui-prompt-ok').onclick = () => done(input.value);
+        el.querySelector('#_ui-prompt-cancel').onclick = () => done(null);
+        el.addEventListener('click', e => { if (e.target === el) done(null); });
+        input.focus(); input.select();
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') done(input.value); if (e.key === 'Escape') done(null); });
+    });
+};
+
+window._uiAlert = function(message, opts = {}) {
+    return new Promise(resolve => {
+        document.getElementById('_ui-dialog')?.remove();
+        const el = document.createElement('div');
+        el.id = '_ui-dialog';
+        el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,0.55);backdrop-filter:blur(2px);direction:rtl;';
+        el.innerHTML = `<div style="background:white;border-radius:20px;padding:28px 24px 20px;width:min(90vw,400px);box-shadow:0 20px 60px rgba(0,0,0,0.25);text-align:center;">
+            <div style="font-size:28px;margin-bottom:12px;">${opts.icon||'ℹ️'}</div>
+            <p style="font-size:14px;font-weight:700;color:#1e293b;line-height:1.6;margin-bottom:20px;">${message}</p>
+            <button id="_ui-alert-ok" style="background:#4f46e5;color:white;border:none;border-radius:12px;padding:11px 40px;font-size:13px;font-weight:800;cursor:pointer;">הבנתי</button>
+        </div>`;
+        document.body.appendChild(el);
+        const done = () => { el.remove(); resolve(); };
+        el.querySelector('#_ui-alert-ok').onclick = done;
+        el.addEventListener('click', e => { if (e.target === el) done(); });
+        el.querySelector('#_ui-alert-ok').focus();
+    });
+};
+// ─────────────────────────────────────────────────────────────────────────────
 function toggleLoader(a,s) { const txt = getEl(`btn-${a}-text`); const ldr = getEl(`btn-${a}-loader`); if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); } }
 function triggerConfetti() { 
     const typeEl = document.getElementById('store-type');
@@ -260,7 +331,7 @@ function logoutSA() { saToken = null; localStorage.removeItem('ofl_sa_token'); g
 async function updateSACredentials() {
     const newUsername = val('sa-new-username'); const newPassword = val('sa-new-password');
     if(!newUsername || !newPassword) return showToast('error', 'יש להזין שם משתמש וסיסמה חדשים');
-    if(!confirm('האם אתה בטוח שברצונך לשנות את פרטי הגישה של המנהל הראשי?')) return;
+    if(!await window._uiConfirm('האם אתה בטוח שברצונך לשנות את פרטי הגישה של המנהל הראשי?')) return;
     try {
         const res = await fetch(`${API}/superadmin/credentials`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ newUsername, newPassword }) }); const data = await res.json();
         if(data.success) { showToast('success', 'פרטי ההתחברות שונו בהצלחה!'); getEl('sa-new-username').value = ''; getEl('sa-new-password').value = ''; } else { showToast('error', data.error || 'שגיאה בעדכון פרטים'); }
@@ -425,7 +496,7 @@ function renderSAGroups() {
 }
 
 function filterSAGroups() { renderSAGroups(); }
-async function saDeleteUser(id) { if(!confirm('למחוק משתמש זה מהמערכת כליל?')) return; await fetch(`${API}/superadmin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'משתמש נמחק'); loadSAData(); }
+async function saDeleteUser(id) { if(!await window._uiConfirm('למחוק משתמש זה מהמערכת כליל?', {danger:true, okLabel:'מחק'})) return; await fetch(`${API}/superadmin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'משתמש נמחק'); loadSAData(); }
 
 function saEditUserModal(userId) {
     const u = saAllUsers.find(u => u.id === userId);
@@ -541,7 +612,7 @@ async function saSubmitEditUser(userId) {
         } else showToast('error', data.error || 'שגיאה בשמירה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
-async function saDeleteGroup(id) { if(!confirm('האם למחוק סביבה זו לצמיתות?')) return; await fetch(`${API}/superadmin/groups/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'הסביבה נמחקה לחלוטין'); loadSAData(); }
+async function saDeleteGroup(id) { if(!await window._uiConfirm('האם למחוק סביבה זו לצמיתות?', {danger:true, okLabel:'מחק'})) return; await fetch(`${API}/superadmin/groups/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'הסביבה נמחקה לחלוטין'); loadSAData(); }
 
 async function saveWelcomeMsg(type = 'FAMILY') {
     const body = type === 'BUSINESS' ? { businessWelcomeMsg: val('sa-biz-welcome-msg') } : { welcomeMsg: val('sa-welcome-msg') };
@@ -2128,7 +2199,7 @@ async function setBusinessLocation() {
     if (!navigator.geolocation) { 
         return showToast('error', 'הדפדפן או הטאבלט שלך אינם תומכים ב-GPS');
     }
-    if (!confirm('האם להגדיר את המיקום הנוכחי שלך ב-GPS כמיקום העסק? עובדים יוכלו לדווח נוכחות רק ברדיוס של 150 מטר ממיקום זה.')) return;
+    if (!await window._uiConfirm('האם להגדיר את המיקום הנוכחי שלך ב-GPS כמיקום העסק? עובדים יוכלו לדווח נוכחות רק ברדיוס של 150 מטר ממיקום זה.')) return;
     
     showToast('info', 'מאתר מיקום... נא לאשר גישה למיקום בטאבלט.');
     
@@ -3126,7 +3197,7 @@ async function fetchMembers() {
     } catch(e) {}
 }
 async function sendCredentialsEmail() {
-    if(!confirm('האם לשלוח את כל שמות המשתמשים והסיסמאות של העובדים למייל שלך?')) return;
+    if(!await window._uiConfirm('האם לשלוח את כל שמות המשתמשים והסיסמאות של העובדים למייל שלך?')) return;
     const btn = document.querySelector('#admin-members-tools button'); if(!btn) return;
     const originalText = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעבד ושולח...';
     try {
@@ -3663,10 +3734,10 @@ function renderShiftTemplatesMgr() {
     </div>`;
 }
 
-function openAddTemplateModal() {
-    const name  = prompt('שם המשמרת (למשל: בוקר, ערב, לילה):'); if(!name) return;
-    const start = prompt('שעת התחלה (HH:MM):'); if(!start) return;
-    const end   = prompt('שעת סיום (HH:MM):');   if(!end) return;
+async function openAddTemplateModal() {
+    const name  = await window._uiPrompt('שם המשמרת (למשל: בוקר, ערב, לילה):'); if(!name) return;
+    const start = await window._uiPrompt('שעת התחלה (HH:MM):'); if(!start) return;
+    const end   = await window._uiPrompt('שעת סיום (HH:MM):');   if(!end) return;
     const tpls  = getShiftTemplates();
     tpls.push({ id: Date.now(), name: name.trim(), start, end });
     saveShiftTemplates(tpls);
@@ -3675,8 +3746,8 @@ function openAddTemplateModal() {
     const wrap = getEl('shift-tpl-buttons'); if(wrap) renderTemplateBtns(wrap);
 }
 
-function deleteShiftTemplate(id) {
-    if(!confirm('למחוק תבנית זו?')) return;
+async function deleteShiftTemplate(id) {
+    if(!await window._uiConfirm('למחוק תבנית זו?', {danger:true, okLabel:'מחק'})) return;
     const tpls = getShiftTemplates().filter(t => t.id !== id);
     saveShiftTemplates(tpls);
     renderShiftTemplatesMgr();
@@ -3883,7 +3954,7 @@ async function updateTask(id, s) {
     fetchData();
     try { const d = await res.json(); if (d.triggeredPopup) setTimeout(() => showEmpTriggeredPopup(d.triggeredPopup), 800); } catch(e) {}
 }
-async function deleteTask(id) { if(!confirm('האם למחוק/לסרב לבקשה?')) return; await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:'deleted'})}); fetchData(); } 
+async function deleteTask(id) { if(!await window._uiConfirm('האם למחוק/לסרב לבקשה?', {danger:true, okLabel:'מחק'})) return; await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:'deleted'})}); fetchData(); } 
 
 window.currentFeedPage = 1;
 
@@ -5201,7 +5272,7 @@ window.renderCollectionTab = async function() {
 };
 
 window._colMarkReceived = async function(paymentId) {
-    const recAmt = prompt('סכום שהתקבל (ריק = סכום מלא):');
+    const recAmt = await window._uiPrompt('סכום שהתקבל (ריק = סכום מלא):', {type:'number', placeholder:'השאר ריק לסכום מלא'});
     if (recAmt === null) return;
     try {
         const r = await fetch(`/api/work-orders/payments/${paymentId}/receive`, {
@@ -5255,7 +5326,7 @@ async function submitEditTransaction() {
 }
 
 async function deleteTransaction() {
-    const id = val('edit-trans-id'); if(!confirm('האם אתה בטוח שברצונך למחוק פעולה זו לחלוטין? היתרה תתעדכן בהתאם.')) return;
+    const id = val('edit-trans-id'); if(!await window._uiConfirm('האם אתה בטוח שברצונך למחוק פעולה זו לחלוטין? היתרה תתעדכן בהתאם.', {danger:true, okLabel:'מחק'})) return;
     try {
         const res = await fetch(`${API}/transaction/${id}?requesterId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json();
         if(data.success) { showToast('success', 'הפעולה נמחקה!'); getEl('edit-transaction-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); }
@@ -5730,10 +5801,10 @@ async function submitShopItem() {
     } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); } finally { if (btn) { btn.disabled = false; btn.innerText = 'הוסף'; } } 
 }
 
-async function deleteItem(id) { if(!confirm('למחוק פריט דרישה זה?')) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק בהצלחה'); fetchData(); }
+async function deleteItem(id) { if(!await window._uiConfirm('למחוק פריט דרישה זה?', {danger:true, okLabel:'מחק'})) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק בהצלחה'); fetchData(); }
 
 async function clearEntireCart() {
-    if(!confirm('האם אתה בטוח שברצונך למחוק את כל בקשות הרכש? פעולה זו אינה הפיכה.')) return;
+    if(!await window._uiConfirm('האם אתה בטוח שברצונך למחוק את כל בקשות הרכש? פעולה זו אינה הפיכה.', {danger:true, okLabel:'מחק הכל'})) return;
     try { const res = await fetch(`${API}/shopping/clear/${currentGroup.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'הרשימה אופסה בהצלחה!'); fetchData(); } else { showToast('error', data.error || 'שגיאה בריקון הרשימה'); } } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
 }
 
@@ -5896,7 +5967,7 @@ window.submitAssignSupplier = async function() {
     }
 };
 
-async function copyList(tripId) { if(!confirm('האם לייבא את דרישת הרכש מחדש?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); getEl('history-modal').classList.add('hidden'); showToast('success', 'הדרישה הועתקה!'); fetchData(); }
+async function copyList(tripId) { if(!await window._uiConfirm('האם לייבא את דרישת הרכש מחדש?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); getEl('history-modal').classList.add('hidden'); showToast('success', 'הדרישה הועתקה!'); fetchData(); }
 
 function openInviteModal() { const codeSpan = getEl('display-group-code'); if (currentGroup && currentGroup.group_code) { codeSpan.innerText = currentGroup.group_code; } else { codeSpan.innerText = 'שגיאה: חסר קוד'; } getEl('invite-modal').classList.remove('hidden'); }
 function sendWhatsAppInvite(role) { 
@@ -5968,7 +6039,7 @@ window.submitBankSettings = async function() {
         if(btn) { btn.disabled = false; btn.innerText = 'שמור הגדרות עובד'; }
     }
 };
-async function triggerPayday() { if(!confirm('האם לאשר איפוס חודשי ותשלום בונוסים לעובדים?')) return; toggleLoader('payday', true); try { const res = await fetch(`${API}/admin/payday`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { showToast('success', `חולקו ${data.totalDistributed} ש"ח לעובדים!`); fetchData(); if(typeof fetchMembers === 'function') fetchMembers(); } else { showToast('error', data.error); } } catch(e) { showToast('error', 'שגיאה בשרת'); } }
+async function triggerPayday() { if(!await window._uiConfirm('האם לאשר איפוס חודשי ותשלום בונוסים לעובדים?')) return; toggleLoader('payday', true); try { const res = await fetch(`${API}/admin/payday`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { showToast('success', `חולקו ${data.totalDistributed} ש"ח לעובדים!`); fetchData(); if(typeof fetchMembers === 'function') fetchMembers(); } else { showToast('error', data.error); } } catch(e) { showToast('error', 'שגיאה בשרת'); } }
 function openGoalModal() { if(currentUser.role === 'ADMIN') { getEl('goal-user-select-container').classList.remove('hidden'); } getEl('goal-title').value = ''; getEl('goal-target').value = ''; getEl('goal-modal').classList.remove('hidden'); }
 function openDepositModal(id, title) { getEl('deposit-goal-id').value = id; getEl('deposit-goal-title').innerText = title; getEl('goal-deposit-modal').classList.remove('hidden'); }
 async function submitGoal() { const title = val('goal-title'); const target = parseFloat(val('goal-target')) || 0; const select = getEl('goal-target-user'); const targetUserId = (currentUser.role === 'ADMIN' && getEl('goal-user-select-container').style.display !== 'none') ? select.value : null; const res = await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target, groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { getEl('goal-modal').classList.add('hidden'); fetchData(); showToast('success', 'יעד הוגדר בהצלחה'); } else showToast('error', data.error); }
@@ -6020,7 +6091,7 @@ async function submitEditTransaction() {
 }
 
 async function deleteTransaction() {
-    const id = val('edit-trans-id'); if(!confirm('האם אתה בטוח שברצונך למחוק פעולה זו לחלוטין? היתרה תתעדכן בהתאם.')) return;
+    const id = val('edit-trans-id'); if(!await window._uiConfirm('האם אתה בטוח שברצונך למחוק פעולה זו לחלוטין? היתרה תתעדכן בהתאם.', {danger:true, okLabel:'מחק'})) return;
     try {
         const res = await fetch(`${API}/transaction/${id}?requesterId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json();
         if(data.success) { showToast('success', 'הפעולה נמחקה!'); getEl('edit-transaction-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); }
@@ -6066,12 +6137,12 @@ async function fetchLoans() {
 }
 
 window.approveLoan = async function(loanId, userId, amount) {
-    if(!confirm(`האם לאשר העברה ע"ס ₪${amount}?`)) return;
+    if(!await window._uiConfirm(`האם לאשר העברה ע"ס ₪${amount}?`)) return;
     try { await fetch(`${API}/loans/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId, userId, amount, adminId: currentUser.id }) }); showToast('success', 'בקשה אושרה'); fetchLoans(); fetchData(); fetchMembers(); } catch(e) { showToast('error', 'שגיאה באיתור בקשה'); }
 };
 
 window.rejectLoan = async function(loanId) {
-    if(!confirm('האם לדחות את הבקשה?')) return;
+    if(!await window._uiConfirm('האם לדחות את הבקשה?')) return;
     try { await fetch(`${API}/loans/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId }) }); showToast('info', 'בקשה נדחתה'); fetchLoans(); } catch(e) { showToast('error', 'שגיאה בדחיית בקשה'); }
 };
 
@@ -6693,7 +6764,7 @@ window.submitChangePassword = async function(e) { 
         btn.disabled = false; btn.innerText = 'עדכון סיסמת גישה'; 
     } 
 };
-async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שברצונך למחוק את העובד לצמיתות?`)) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
+async function deleteUser(id, name) { if(!await window._uiConfirm(`האם אתה בטוח שברצונך למחוק את העובד לצמיתות?`, {danger:true, okLabel:'מחק'})) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
 
 async function open360Report(groupId) {
     showToast('info', 'מפיק דוח תמונת מצב, אנא המתן...');
@@ -7020,7 +7091,7 @@ async function updatePantryQty(id, newQty, reservedQty, bufferPct) {
         showToast('warning', `לא ניתן לרדת מתחת ל-${minAllowed.toFixed(2)} (שריון + מאגר). כדי לשחרר פריטים — שחרר שריונות בפקודות העבודה.`);
         return;
     }
-    if(newQty <= 0) { if(!confirm('המוצר אזל מהמלאי. האם למחוק את הרישום? (ניתן להעביר לרכש במקום)')) return; await fetch(`${API}/pantry/delete/${id}`, { method:'DELETE' }); } 
+    if(newQty <= 0) { if(!await window._uiConfirm('המוצר אזל מהמלאי. האם למחוק את הרישום? (ניתן להעביר לרכש במקום)')) return; await fetch(`${API}/pantry/delete/${id}`, { method:'DELETE' }); } 
     else { await fetch(`${API}/pantry/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, quantity: newQty}) }); } fetchData();
 }
 
@@ -7620,7 +7691,7 @@ window.assignAndSendQuote = async function(quoteId, familyGroupId, familyName) {
 
 // המרה לפקודת עבודה
 window.convertQuoteToWorkOrder = async function(quoteId) {
-    if (!confirm('להמיר הצעת מחיר זו לפקודת עבודה?')) return;
+    if (!await window._uiConfirm('להמיר הצעת מחיר זו לפקודת עבודה?')) return;
     try {
         const r = await fetch(`${API}/store/quotes/${quoteId}/to-work-order`, { method:'POST', headers:{'Content-Type':'application/json'} });
         const d = await r.json();
@@ -7749,7 +7820,7 @@ window.editOrderTargetDate = async function(orderId, currentDate) {
 window.submitTargetDatetime = async function() {
     const targetDate = document.getElementById('target-datetime-input').value;
     if (!targetDate && window.currentActionType === 'quote') {
-        if (!confirm('לא הוזן תאריך יעד לאירוע/לאספקה. האם להמשיך ללא שיבוץ ביומן?')) return;
+        if (!await window._uiConfirm('לא הוזן תאריך יעד לאירוע/לאספקה. האם להמשיך ללא שיבוץ ביומן?')) return;
     }
 
     const btn = document.getElementById('btn-submit-target-date');
@@ -9228,7 +9299,7 @@ window.renderStoreCustomers = function() {
 };
 
 window.deleteStoreCustomer = async function(customerId, customerName) {
-    if (!confirm(`למחוק את הלקוח "${customerName}"?\nפעולה זו אינה ניתנת לביטול.`)) return;
+    if (!await window._uiConfirm(`למחוק את הלקוח "${customerName}"?\nפעולה זו אינה ניתנת לביטול.`, {danger:true, okLabel:'מחק'})) return;
     try {
         const r = await fetch(`/api/store/customers/${customerId}`, { method: 'DELETE' });
         const data = await r.json();
@@ -11491,7 +11562,7 @@ async function _loadNewslettersInline() {
 }
 
 window.deleteNewsletter = async function(id) {
-    if (!confirm('למחוק ניוזלטר זה מההיסטוריה?')) return;
+    if (!await window._uiConfirm('למחוק ניוזלטר זה מההיסטוריה?', {danger:true, okLabel:'מחק'})) return;
     try {
         const res = await fetch(`${API}/store/newsletters/${id}`, { method: 'DELETE' });
         const data = await res.json();
@@ -11660,7 +11731,7 @@ window.broadcastNewsletter = async function() {
     const audience = getEl('nl-target-audience')?.value || 'oneflow_customers';
     const communityId = getEl('nl-comm-select')?.value || '';
 
-    if (!confirm('לשגר את הניוזלטר לנמענים שנבחרו?')) return;
+    if (!await window._uiConfirm('לשגר את הניוזלטר לנמענים שנבחרו?')) return;
 
     const btn = getEl('nl-btn-broadcast');
     btn.disabled = true;
@@ -12726,7 +12797,7 @@ async function submitStoreProduct() {
 
 async function toggleStoreProduct(id, isAvailable) { await fetch(`${API}/store/catalog/toggle`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ itemId: id, isAvailable }) }); fetchStoreCatalog(); }
 
-async function deleteStoreProduct(id) { if(!confirm('למחוק מוצר זה לחלוטין?')) return; await fetch(`${API}/store/catalog/${id}`, { method: 'DELETE' }); showToast('info', 'המוצר נמחק מהחנות'); fetchStoreCatalog(); }
+async function deleteStoreProduct(id) { if(!await window._uiConfirm('למחוק מוצר זה לחלוטין?', {danger:true, okLabel:'מחק'})) return; await fetch(`${API}/store/catalog/${id}`, { method: 'DELETE' }); showToast('info', 'המוצר נמחק מהחנות'); fetchStoreCatalog(); }
 
 // פונקציית חילוץ מידע נסתר (Meta) ממשלוחים
 function getDeliveryMeta(order) {
@@ -13573,7 +13644,7 @@ async function loadSAPendingRequests() {
 }
 
 async function approveSABizRequest(communityId, businessId) {
-    if(!confirm('האם לאשר את הצטרפות העסק לקהילה? הלקוחות יראו אותו מיד.')) return;
+    if(!await window._uiConfirm('האם לאשר את הצטרפות העסק לקהילה? הלקוחות יראו אותו מיד.')) return;
     try {
         const res = await fetch(`${API}/sa/community-business/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
         if((await res.json()).success) { showToast('success', 'העסק אושר וצורף לקהילה!'); loadSACommunityData(); }
@@ -13581,7 +13652,7 @@ async function approveSABizRequest(communityId, businessId) {
 }
 
 async function rejectSABizRequest(communityId, businessId) {
-    if(!confirm('האם לדחות ולהסיר את הבקשה של העסק?')) return;
+    if(!await window._uiConfirm('האם לדחות ולהסיר את הבקשה של העסק?')) return;
     try {
         const res = await fetch(`${API}/sa/community-business/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
         if((await res.json()).success) { showToast('info', 'הבקשה נדחתה והוסרה מהרשימה.'); loadSACommunityData(); }
@@ -13710,13 +13781,13 @@ async function loadCommunityBusinesses() {
 }
 
 async function removeBizFromCommunity(commId, bizId) {
-    if(!confirm('להסיר את העסק?')) return;
+    if(!await window._uiConfirm('להסיר את העסק?', {danger:true, okLabel:'הסר'})) return;
     await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
     loadCommunityBusinesses(); loadSACommunityData();
 }
 
 async function deleteSACommunity(id) {
-    if(!confirm('למחוק את הקהילה לצמיתות?')) return;
+    if(!await window._uiConfirm('למחוק את הקהילה לצמיתות?', {danger:true, okLabel:'מחק'})) return;
     await fetch(`${API}/sa/communities/${id}`, { method: 'DELETE' });
     loadSACommunityData();
 }
@@ -13901,7 +13972,7 @@ async function submitBizCommunityJoin() {
 }
 
 async function leaveBizCommunity(commId) {
-    if(!confirm('האם אתה בטוח שברצונך להתנתק מקהילה זו? לקוחות הקהילה לא יוכלו ליהנות יותר מההטבות בחנות שלך.')) return;
+    if(!await window._uiConfirm('האם אתה בטוח שברצונך להתנתק מקהילה זו? לקוחות הקהילה לא יוכלו ליהנות יותר מההטבות בחנות שלך.')) return;
     
     try {
         const res = await fetch(`${API}/biz/communities/leave/${commId}/${currentGroup.id}`, { method: 'DELETE' });
@@ -14096,7 +14167,7 @@ async function submitSupplier() {
 }
 
 async function deleteSupplier(id) {
-    if(!confirm('האם למחוק ספק זה? יימחקו גם כל המוצרים בקטלוג שלו! לא ניתן לבטל.')) return;
+    if(!await window._uiConfirm('האם למחוק ספק זה? יימחקו גם כל המוצרים בקטלוג שלו! לא ניתן לבטל.', {danger:true, okLabel:'מחק'})) return;
     try { await fetch(`${API}/suppliers/${id}`, { method: 'DELETE' }); showToast('success', 'הספק והקטלוג שלו נמחקו בהצלחה'); fetchSuppliers(); } catch(e) {}
 }
 
@@ -14278,7 +14349,7 @@ async function submitSupplierProduct() {
     } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerText = 'שמור מוצר'; }
 }
 
-async function deleteSupplierProduct(id) { if(!confirm('למחוק מוצר מהקטלוג?')) return; try { await fetch(`${API}/suppliers/products/${id}`, { method: 'DELETE' }); showToast('success', 'המוצר הוסר'); openSupplierCatalog(getEl('catalog-supplier-id').value, getEl('catalog-supplier-name').innerText); } catch(e) {} }
+async function deleteSupplierProduct(id) { if(!await window._uiConfirm('למחוק מוצר מהקטלוג?', {danger:true, okLabel:'מחק'})) return; try { await fetch(`${API}/suppliers/products/${id}`, { method: 'DELETE' }); showToast('success', 'המוצר הוסר'); openSupplierCatalog(getEl('catalog-supplier-id').value, getEl('catalog-supplier-name').innerText); } catch(e) {} }
 
 function handleAICatalogUpload(event) { showToast('info', 'הסריקה החכמה תהיה זמינה בקרוב!'); event.target.value = ''; }
 
@@ -14911,7 +14982,7 @@ function renderB2BOrders() {
 
 // פונקציה למשיכת טיוטת חוסרים חזרה לעגלה
 async function editDraftOrder(orderId) {
-    if (!confirm('למחוק הזמנה זו לצמיתות?')) return;
+    if (!await window._uiConfirm('למחוק הזמנה זו לצמיתות?', {danger:true, okLabel:'מחק'})) return;
     const order = b2bOrdersHistory.find(o => String(o.id) === String(orderId));
     if (!order) return;
     try {
@@ -15606,7 +15677,7 @@ window.openStoreImageModal = function(src) {
 };
 
 window.saTogglePremium = async function(id, enable) {
-    if(!confirm(`האם אתה בטוח שברצונך ${enable ? 'להפעיל' : 'לבטל'} את מנוי ה-PRO לסביבה זו?`)) return;
+    if(!await window._uiConfirm(`האם אתה בטוח שברצונך ${enable ? 'להפעיל' : 'לבטל'} את מנוי ה-PRO לסביבה זו?`)) return;
     try {
         const res = await fetch(`${API}/superadmin/groups/${id}/premium`, {
             method: 'POST',
@@ -16273,11 +16344,11 @@ function populateFCPantrySelect() {
     select.innerHTML = html;
 }
 
-function addFCIngredient() {
+async function addFCIngredient() {
     const select = getEl('fc-ingredient-select');
     const qtyInput = getEl('fc-ingredient-qty');
     const qty = parseFloat(qtyInput.value);
-    
+
     if (select.value === '') return showToast('error', 'יש לבחור מוצר מהמלאי');
     if (!qty || qty <= 0) return showToast('error', 'יש להזין כמות תקינה (למשל: 1, 0.5)');
 
@@ -16286,9 +16357,9 @@ function addFCIngredient() {
     let costPerUnit = parseFloat(option.getAttribute('data-cost')) || 0;
 
     if (select.value === 'custom') {
-        name = prompt('שם חומר הגלם:');
+        name = await window._uiPrompt('שם חומר הגלם:');
         if (!name) return;
-        const costInput = prompt(`מהי העלות ליחידה אחת של ${name}? (₪)`);
+        const costInput = await window._uiPrompt(`מהי העלות ליחידה אחת של ${name}? (₪)`, {type:'number'});
         costPerUnit = parseFloat(costInput) || 0;
     }
 
@@ -16581,7 +16652,7 @@ window.approveDeliveryToKitchen = async function(orderId) {
     } catch(e) { showToast('error', 'שגיאת רשת'); console.error('[approveDeliveryToKitchen] Error:', e); }
 };
 window.rejectStoreOrder = async function(orderId) {
-    if (!confirm('לדחות את ההזמנה?')) return;
+    if (!await window._uiConfirm('לדחות את ההזמנה?')) return;
     try {
         const res = await fetch(`${API}/store/orders/status`, {
             method: 'POST',
@@ -18705,7 +18776,7 @@ window.submitCalendarEvent = async function() {
 window.deleteCurrentEvent = async function() {
     const id = val('cal-event-id');
     if (!id) return;
-    if(!confirm('האם לבטל ולמחוק אירוע זה מהיומן לחלוטין?')) return;
+    if(!await window._uiConfirm('האם לבטל ולמחוק אירוע זה מהיומן לחלוטין?', {danger:true, okLabel:'מחק'})) return;
     try {
         await fetch(`${API}/calendar/events/${id}`, { method: 'DELETE' });
         showToast('info', 'האירוע נמחק מהיומן.');
@@ -18893,14 +18964,14 @@ window.approveCalendarEvent = async function(id) {
 
 window.deleteCalendarEvent = async function(id, isReject = false) {
     if (String(id).startsWith('quote_')) {
-        if(!confirm(isReject ? 'האם לדחות ולבטל את בקשת האירוע מלקוח זה?' : 'האם למחוק בקשת אירוע זו?')) return;
+        if(!await window._uiConfirm(isReject ? 'האם לדחות ולבטל את בקשת האירוע מלקוח זה?' : 'האם למחוק בקשת אירוע זו?')) return;
         const qId = String(id).split('_')[1];
         window.updateQuoteStatus(qId, 'cancelled');
         window.calEventsCache = window.calEventsCache.filter(e => String(e.id) !== String(id));
         if(typeof window.renderCalendarRequests === 'function') window.renderCalendarRequests();
         return;
     }
-    if(!confirm(isReject ? 'האם לדחות את הבקשה של הלקוח?' : 'האם לבטל אירוע/תור זה?')) return;
+    if(!await window._uiConfirm(isReject ? 'האם לדחות את הבקשה של הלקוח?' : 'האם לבטל אירוע/תור זה?')) return;
     try {
         await fetch(`${API}/calendar/events/${id}`, { method: 'DELETE' });
         showToast('info', isReject ? 'הבקשה נדחתה' : 'התור בוטל');
@@ -18909,14 +18980,14 @@ window.deleteCalendarEvent = async function(id, isReject = false) {
 };
 window.deleteCalendarEvent = async function(id, isReject = false) {
     if (String(id).startsWith('quote_')) {
-        if(!confirm(isReject ? 'האם לדחות ולבטל את בקשת האירוע מלקוח זה?' : 'האם למחוק בקשת אירוע זו?')) return;
+        if(!await window._uiConfirm(isReject ? 'האם לדחות ולבטל את בקשת האירוע מלקוח זה?' : 'האם למחוק בקשת אירוע זו?')) return;
         const qId = String(id).split('_')[1];
         window.updateQuoteStatus(qId, 'cancelled');
         window.calEventsCache = window.calEventsCache.filter(e => String(e.id) !== String(id));
         if(typeof window.renderCalendarRequests === 'function') window.renderCalendarRequests();
         return;
     }
-    if(!confirm(isReject ? 'האם לדחות את הבקשה של הלקוח?' : 'האם לבטל אירוע/תור זה?')) return;
+    if(!await window._uiConfirm(isReject ? 'האם לדחות את הבקשה של הלקוח?' : 'האם לבטל אירוע/תור זה?')) return;
     try {
         await fetch(`${API}/calendar/events/${id}`, { method: 'DELETE' });
         showToast('info', isReject ? 'הבקשה נדחתה' : 'התור בוטל');
@@ -19071,7 +19142,7 @@ window.submitCalendarService = async function() {
 };
 
 window.deleteCalendarService = async function(id) {
-    if(!confirm('האם להסיר שירות זה? (לא ישפיע על תורים שכבר נקבעו)')) return;
+    if(!await window._uiConfirm('האם להסיר שירות זה? (לא ישפיע על תורים שכבר נקבעו)')) return;
     try { await fetch(`${API}/calendar/services/${id}`, { method: 'DELETE' }); fetchCalendarData(); } catch(e) {}
 };
 
@@ -19983,7 +20054,7 @@ window.togglePromotionStatus = async function(id, nextStatus) {
     }
 };
 window.deletePromotion = async function(id) {
-    if(!confirm('למחוק מבצע זה לחלוטין?')) return;
+    if(!await window._uiConfirm('למחוק מבצע זה לחלוטין?', {danger:true, okLabel:'מחק'})) return;
     try {
         const res = await fetch(`${API}/store/promotions/${id}`, { method: 'DELETE' });
         const data = await res.json();
@@ -20178,7 +20249,7 @@ window.createStoreCoupon = async function() {
 };
 
 window.deleteCoupon = async function(id) {
-    if(!confirm('האם למחוק את הקופון?')) return;
+    if(!await window._uiConfirm('האם למחוק את הקופון?', {danger:true, okLabel:'מחק'})) return;
     try {
         await fetch(`${API}/store/coupons/${id}`, { method: 'DELETE' });
         window.fetchStoreCoupons();
@@ -22064,7 +22135,7 @@ window.sendInboxReply = async function(msgId, customerGroupId) {
 };
 
 window.deleteInboxMessage = async function(id) {
-    if(!confirm('האם למחוק את ההודעה?')) return;
+    if(!await window._uiConfirm('האם למחוק את ההודעה?', {danger:true, okLabel:'מחק'})) return;
     try {
         await fetch(`${API}/inbox/${id}`, { method: 'DELETE' });
         window.inboxMessagesCache = window.inboxMessagesCache.filter(m => m.id !== id);
@@ -23111,11 +23182,11 @@ window.waiterMarkDelivered = function(tableId, subIdx) {
     }
 };
 
-window.waiterRemoveSubmitted = function(tableId, subIdx) {
+window.waiterRemoveSubmitted = async function(tableId, subIdx) {
     const bills = getTableBills();
     if (!bills[tableId]?.submitted?.[subIdx]) return;
     const item = bills[tableId].submitted[subIdx];
-    if (!confirm(`להסיר "${item.name}" מחשבון שולחן ${tableId}?`)) return;
+    if (!await window._uiConfirm(`להסיר "${item.name}" מחשבון שולחן ${tableId}?`)) return;
     bills[tableId].submitted.splice(subIdx, 1);
     if (!bills[tableId].submitted.length && !bills[tableId].pending?.length) {
         delete bills[tableId];
@@ -23458,7 +23529,7 @@ window.renderPOSCart = function() {
 
 window.updatePOSQty = (idx, d) => { if(window.posCart[idx]) { window.posCart[idx].qty += d; if(window.posCart[idx].qty <= 0) window.posCart.splice(idx,1); window.renderPOSCart(); } };
 window.posRemoveItem = (idx) => { window.posCart.splice(idx,1); window.renderPOSCart(); };
-window.clearPOSCart = () => { if(confirm('לרוקן את הסל?')) { window.posCart = []; window.renderPOSCart(); document.getElementById('pos-customer-phone').value = ''; window.checkPOSCustomer(); } };
+window.clearPOSCart = async () => { if(await window._uiConfirm('לרוקן את הסל?')) { window.posCart = []; window.renderPOSCart(); document.getElementById('pos-customer-phone').value = ''; window.checkPOSCustomer(); } };
 
 window.checkPOSCustomer = function() {
     const phone = document.getElementById('pos-customer-phone').value;
@@ -23785,10 +23856,10 @@ window.openItemSplitModal = function() {
     (document.fullscreenElement || document.body).insertAdjacentHTML('beforeend', html);
 };
 
-window.confirmItemSplit = function() {
+window.confirmItemSplit = async function() {
     const unassigned = window.posCart.filter(item => !window.posItemSplitAssignments[item.id]);
     if (unassigned.length > 0) {
-        if (!confirm(`${unassigned.length} מנות לא שויכו. הן יתווספו לחלק א. להמשיך?`)) return;
+        if (!await window._uiConfirm(`${unassigned.length} מנות לא שויכו. הן יתווספו לחלק א. להמשיך?`)) return;
         unassigned.forEach(item => { window.posItemSplitAssignments[item.id] = 1; });
     }
     const parts = {};
@@ -23839,8 +23910,8 @@ window._clearItemSplit = function() {
     if (el) el.remove();
 };
 
-window.applyFullDiscount = function() {
-    if (!confirm('לאשר שי / ביטול חיוב מלא?')) return;
+window.applyFullDiscount = async function() {
+    if (!await window._uiConfirm('לאשר שי / ביטול חיוב מלא?')) return;
     // מסמן את כל ההזמנה כ"שי" — מוסיף תשלום בסכום המלא עם שיטה gift
     let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
     const promoAmount = (window.currentPOSDiscount || 0) + (window.currentPOSManualDiscount || 0);
@@ -24537,7 +24608,7 @@ setInterval(() => {
 
 window.updatePOSQty = (idx, d) => { if(window.posCart[idx]) { window.posCart[idx].qty += d; if(window.posCart[idx].qty <= 0) window.posCart.splice(idx,1); window.renderPOSCart(); } };
 window.posRemoveItem = (idx) => { window.posCart.splice(idx,1); window.renderPOSCart(); };
-window.clearPOSCart = () => { if(confirm('לרוקן את הסל?')) { window.posCart = []; window.renderPOSCart(); document.getElementById('pos-customer-phone').value = ''; window.checkPOSCustomer(); } };
+window.clearPOSCart = async () => { if(await window._uiConfirm('לרוקן את הסל?')) { window.posCart = []; window.renderPOSCart(); document.getElementById('pos-customer-phone').value = ''; window.checkPOSCustomer(); } };
 
 // ─── 86 Item (Out of Stock quick toggle) ─────────────────────────────────────
 window.pos86Item = async function(itemId) {
@@ -24734,8 +24805,8 @@ window.addComplexStep = function() {
     window.renderComplexStepsUI();
 };
 
-window.removeComplexStep = function(idx) {
-    if(!confirm('למחוק שלב זה על כל אפשרויותיו?')) return;
+window.removeComplexStep = async function(idx) {
+    if(!await window._uiConfirm('למחוק שלב זה על כל אפשרויותיו?', {danger:true, okLabel:'מחק'})) return;
     window.currentComplexStepsUI.splice(idx, 1);
     window.renderComplexStepsUI();
 };
@@ -25701,7 +25772,7 @@ async function toggleAlertRule(id, newState) {
 }
 
 async function deleteAlertRule(id) {
-  if (!confirm('למחוק חוק זה?')) return;
+  if (!await window._uiConfirm('למחוק חוק זה?', {danger:true, okLabel:'מחק'})) return;
   await fetch(`${API}/alerts/rules/${id}`, { method:'DELETE' });
   loadAlertRules();
 }
@@ -27326,7 +27397,7 @@ async function submitEquipmentItem() {
 }
 
 async function deleteEquipmentItem(id) {
-    if (!confirm('למחוק ציוד זה? כל נתוני התחזוקה והתקלות שלו יימחקו.')) return;
+    if (!await window._uiConfirm('למחוק ציוד זה? כל נתוני התחזוקה והתקלות שלו יימחקו.', {danger:true, okLabel:'מחק'})) return;
     try {
         await fetch(`${API}/equipment/items/${id}`, { method: 'DELETE' });
         showToast('info', 'ציוד נמחק');
@@ -27487,7 +27558,7 @@ async function completeMaintenanceRecord(id) {
 }
 
 async function deleteMaintenanceRecord(id) {
-    if (!confirm('למחוק רשומת תחזוקה זו?')) return;
+    if (!await window._uiConfirm('למחוק רשומת תחזוקה זו?', {danger:true, okLabel:'מחק'})) return;
     try { await fetch(`${API}/equipment/maintenance/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchEquipmentMaintenance(); } catch(e) {}
 }
 
@@ -27595,7 +27666,7 @@ async function submitFault() {
 }
 
 async function deleteFault(id) {
-    if (!confirm('למחוק תקלה זו?')) return;
+    if (!await window._uiConfirm('למחוק תקלה זו?', {danger:true, okLabel:'מחק'})) return;
     try { await fetch(`${API}/equipment/faults/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchEquipmentFaults(); } catch(e) {}
 }
 
@@ -27765,7 +27836,7 @@ async function submitTechnician() {
 }
 
 async function deleteTechnician(id) {
-    if (!confirm('למחוק טכנאי זה?')) return;
+    if (!await window._uiConfirm('למחוק טכנאי זה?', {danger:true, okLabel:'מחק'})) return;
     try { await fetch(`${API}/equipment/technicians/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchEquipmentTechnicians(); renderEquipmentTechnicians(); } catch(e) {}
 }
 
@@ -29319,19 +29390,19 @@ async function renderCashierDashboard(el) {
     const fmt = v => `₪${v.toLocaleString('he-IL',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
     const expectedCash = openFloat + cashIn;
 
-    window.cashierOpenRegister = function() {
-        const floatVal = parseFloat(prompt('סכום פתיחה בקופה (מזומן):', '0') || '0') || 0;
+    window.cashierOpenRegister = async function() {
+        const floatVal = parseFloat(await window._uiPrompt('סכום פתיחה בקופה (מזומן):', {defaultValue:'0', type:'number'}) || '0') || 0;
         const state = { openedAt: new Date().toISOString(), openFloat: floatVal };
         localStorage.setItem(regKey, JSON.stringify(state));
         renderCashierDashboard(el);
     };
-    window.cashierCloseRegister = function() {
-        const actualCash = parseFloat(prompt(`סכום מזומן בקופה לספירה (צפוי: ${fmt(expectedCash)}):`, String(expectedCash)) || String(expectedCash));
+    window.cashierCloseRegister = async function() {
+        const actualCash = parseFloat(await window._uiPrompt(`סכום מזומן בקופה לספירה (צפוי: ${fmt(expectedCash)}):`, {defaultValue:String(expectedCash), type:'number'}) || String(expectedCash));
         const diff = actualCash - expectedCash;
         const state = { ...regState, closedAt: new Date().toISOString(), actualCash, diff };
         localStorage.setItem(regKey, JSON.stringify(state));
         const msg = diff === 0 ? 'הקופה מאוזנת ✅' : diff > 0 ? `עודף ${fmt(Math.abs(diff))} 📈` : `חסר ${fmt(Math.abs(diff))} ⚠️`;
-        alert(`סגירת קופה — ${msg}`);
+        await window._uiAlert(`סגירת קופה — ${msg}`);
         renderCashierDashboard(el);
     };
 
@@ -32278,7 +32349,7 @@ window.switchWoTab = function(tab) {
 };
 
 window.convertToWorkOrder = async function(quoteId) {
-    if (!confirm('להמיר את הצעת המחיר לפקודת עבודה? ניתן לנהל ממנה צוות, ציוד, יומן ושיח פנימי.')) return;
+    if (!await window._uiConfirm('להמיר את הצעת המחיר לפקודת עבודה? ניתן לנהל ממנה צוות, ציוד, יומן ושיח פנימי.')) return;
     try {
         const res = await fetch(`${API}/work-orders/convert/${quoteId}`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -32808,7 +32879,7 @@ window.addAssigneeToWo = async function() {
 };
 
 window.removeWoAssignee = async function(userId) {
-    if (!confirm('להסיר עובד זה מהפקודה?')) return;
+    if (!await window._uiConfirm('להסיר עובד זה מהפקודה?')) return;
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/assignees/${userId}`, { method: 'DELETE' });
         const data = await res.json();
@@ -32948,7 +33019,7 @@ window.addInventoryReservation = async function() {
 };
 
 window.confirmInventoryUse = async function(resId, suggestedQty) {
-    const usedQty = parseFloat(prompt(`כמה יחידות נוצלו בפועל?`, suggestedQty));
+    const usedQty = parseFloat(await window._uiPrompt(`כמה יחידות נוצלו בפועל?`, {defaultValue:String(suggestedQty), type:'number'}));
     if (isNaN(usedQty) || usedQty <= 0) return;
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/inventory/${resId}/use`, {
@@ -32965,7 +33036,7 @@ window.confirmInventoryUse = async function(resId, suggestedQty) {
 };
 
 window.releaseInventory = async function(resId) {
-    if (!confirm('לשחרר את השריון ולהחזיר הכמות למלאי?')) return;
+    if (!await window._uiConfirm('לשחרר את השריון ולהחזיר הכמות למלאי?')) return;
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/inventory/${resId}`, { method: 'DELETE' });
         const data = await res.json();
@@ -33135,7 +33206,7 @@ window.savePaymentMilestone = async function() {
 };
 
 window.markPaymentReceived = async function(paymentId) {
-    const recAmt = prompt('סכום שהתקבל (ריק = סכום מלא):');
+    const recAmt = await window._uiPrompt('סכום שהתקבל (ריק = סכום מלא):', {type:'number', placeholder:'השאר ריק לסכום מלא'});
     if (recAmt === null) return; // ביטול
     try {
         const r = await fetch(`/api/work-orders/payments/${paymentId}/receive`, {
@@ -33151,7 +33222,7 @@ window.markPaymentReceived = async function(paymentId) {
 };
 
 window.deletePaymentMilestone = async function(paymentId) {
-    if (!confirm('למחוק תחנת תשלום זו?')) return;
+    if (!await window._uiConfirm('למחוק תחנת תשלום זו?', {danger:true, okLabel:'מחק'})) return;
     try {
         const r = await fetch(`/api/work-orders/payments/${paymentId}`, { method: 'DELETE' });
         const d = await r.json();
@@ -33245,7 +33316,7 @@ window.saveScPaymentMilestone = async function(callId) {
 };
 
 window.markScPaymentReceived = async function(paymentId, callId) {
-    const recAmt = prompt('סכום שהתקבל (ריק = סכום מלא):');
+    const recAmt = await window._uiPrompt('סכום שהתקבל (ריק = סכום מלא):', {type:'number', placeholder:'השאר ריק לסכום מלא'});
     if (recAmt === null) return;
     try {
         const r = await fetch(`/api/work-orders/payments/${paymentId}/receive`, {
@@ -33261,7 +33332,7 @@ window.markScPaymentReceived = async function(paymentId, callId) {
 };
 
 window.deleteScPaymentMilestone = async function(paymentId, callId) {
-    if (!confirm('למחוק תחנת תשלום זו?')) return;
+    if (!await window._uiConfirm('למחוק תחנת תשלום זו?', {danger:true, okLabel:'מחק'})) return;
     try {
         const r = await fetch(`/api/work-orders/payments/${paymentId}`, { method: 'DELETE' });
         const d = await r.json();
@@ -33474,7 +33545,7 @@ window.submitWoPurchaseOrder = async function() {
 };
 
 window.confirmWoPoReceive = async function(poId) {
-    if (!confirm('לאשר קבלת הסחורה?\nהפריטים יתווספו אוטומטית לציוד פקודת העבודה.')) return;
+    if (!await window._uiConfirm('לאשר קבלת הסחורה?\nהפריטים יתווספו אוטומטית לציוד פקודת העבודה.')) return;
     await window.updateWoPo(poId, 'delivered');
     // רענן גם את טאב הציוד
     const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
@@ -33507,7 +33578,7 @@ window.addInventoryReservationOrPurchase = async function() {
     const avail = parseFloat(selectedOpt.getAttribute('data-avail') || 0);
     if (avail < qty) {
         const shortage = qty - avail;
-        if (confirm(`מלאי זמין: ${avail} יח׳ בלבד. חסרות ${shortage} יח׳.\n\nלפתוח הזמנת רכש עבור הכמות החסרה?`)) {
+        if (await window._uiConfirm(`מלאי זמין: ${avail} יח׳ בלבד. חסרות ${shortage} יח׳.\n\nלפתוח הזמנת רכש עבור הכמות החסרה?`)) {
             window.switchWoTab('purchase');
             window.openAddPurchasePanel();
             setTimeout(() => {
@@ -33955,7 +34026,7 @@ window._sportAddMembershipType = async function() {
 };
 
 window._sportDeleteType = async function(typeId) {
-    if (!confirm('למחוק סוג מנוי זה?')) return;
+    if (!await window._uiConfirm('למחוק סוג מנוי זה?', {danger:true, okLabel:'מחק'})) return;
     try {
         await fetch(`${API}/sport/membership-types/${typeId}`, { method: 'DELETE' });
         showToast('success', 'נמחק ✅');
@@ -34180,7 +34251,7 @@ window._sportSaveInlineType = async function() {
 };
 
 window._sportDeleteTypeInline = async function(typeId) {
-    if (!confirm('למחוק סוג מנוי זה?')) return;
+    if (!await window._uiConfirm('למחוק סוג מנוי זה?', {danger:true, okLabel:'מחק'})) return;
     try {
         await fetch(`${API}/sport/membership-types/${typeId}`, { method: 'DELETE' });
         showToast('success', 'נמחק ✅');
@@ -34311,7 +34382,7 @@ window.saveDeliveryZone = async function() {
 };
 
 window.deleteDeliveryZone = async function(id) {
-    if (!confirm('למחוק אזור משלוח?')) return;
+    if (!await window._uiConfirm('למחוק אזור משלוח?', {danger:true, okLabel:'מחק'})) return;
     try {
         const res = await fetch(`${API}/store/delivery-zones/${id}`, { method:'DELETE' });
         const data = await res.json();
@@ -34930,7 +35001,7 @@ window._sportSubmitClass = async function() {
 };
 
 window._sportDeleteClass = async function(classId) {
-    if(!confirm('למחוק שיעור זה?'))return;
+    if(!await window._uiConfirm('למחוק שיעור זה?', {danger:true, okLabel:'מחק'}))return;
     try{await fetch(`${API}/sport/classes/${classId}`,{method:'DELETE'});showToast('success','נמחק');window.showSportSchedule();}
     catch(e){showToast('error','שגיאת תקשורת');}
 };
@@ -34979,7 +35050,7 @@ window._sportSaveAttendance = async function(classId, memberIds) {
 };
 
 window._sportRegisterToClass = async function(classId) {
-    const q=prompt('שם חבר לרישום:');
+    const q=await window._uiPrompt('שם חבר לרישום:');
     if(!q)return;
     try{
         const members=(await fetch(`${API}/sport/members/${currentGroup.id}?q=${encodeURIComponent(q)}`).then(r=>r.json())).members||[];
@@ -35333,7 +35404,7 @@ window._sportAddClassType = async function() {
 };
 
 window._sportDeleteClassType = async function(id) {
-    if (!confirm('למחוק סוג שיעור זה?')) return;
+    if (!await window._uiConfirm('למחוק סוג שיעור זה?', {danger:true, okLabel:'מחק'})) return;
     try {
         await fetch(`${API}/sport/class-types/${id}`, {method:'DELETE'});
         showToast('success','נמחק');
@@ -35592,7 +35663,7 @@ window._sportClassTab = async function(tab, classId) {
 };
 
 window._sportRemoveRegistration = async function(classId, membershipId) {
-    if (!confirm('להסיר נרשם זה? אם יש ממתינים, הראשון יועלה אוטומטית.')) return;
+    if (!await window._uiConfirm('להסיר נרשם זה? אם יש ממתינים, הראשון יועלה אוטומטית.')) return;
     try {
         const d = await fetch(`${API}/sport/classes/${classId}/registrations/${membershipId}`, {method:'DELETE'}).then(r=>r.json());
         if (!d.success) { showToast('error', d.error||'שגיאה'); return; }
@@ -35602,7 +35673,7 @@ window._sportRemoveRegistration = async function(classId, membershipId) {
 };
 
 window._sportAddToWaitlist = async function(classId) {
-    const q = prompt('שם חבר להוספה לרשימת המתנה:');
+    const q = await window._uiPrompt('שם חבר להוספה לרשימת המתנה:');
     if (!q) return;
     try {
         const members = (await fetch(`${API}/sport/members/${currentGroup.id}?q=${encodeURIComponent(q)}`).then(r=>r.json())).members||[];
@@ -35976,7 +36047,7 @@ window._sportSaveCancelPolicy = async function() {
 
 // ─── Modified Remove Registration with policy enforcement ─────────────────────
 window._sportRemoveRegistration = async function(classId, membershipId) {
-    if (!confirm('להסיר נרשם זה?')) return;
+    if (!await window._uiConfirm('להסיר נרשם זה?')) return;
     try {
         const url = `${API}/sport/classes/${classId}/registrations/${membershipId}?groupId=${currentGroup.id}`;
         const d = await fetch(url, {method:'DELETE'}).then(r=>r.json());
@@ -36491,7 +36562,7 @@ window._sportLoadPayroll = async function(month) {
 };
 
 window._sportMarkTrainerPaid = async function(trainerId, trainerName, amount) {
-    if (!confirm(`לסמן תשלום של ₪${Number(amount).toLocaleString()} ל${trainerName}?`)) return;
+    if (!await window._uiConfirm(`לסמן תשלום של ₪${Number(amount).toLocaleString()} ל${trainerName}?`)) return;
     try {
         // get unpaid session ids for trainer
         const r = await fetch(`${API}/sport/trainers/${trainerId}/detail`).then(r=>r.json());
@@ -36564,7 +36635,7 @@ window._sportTrainerForm = function(trainer) {
                 <textarea id="tf-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300">${t.notes||''}</textarea>
             </div>
             <button onclick="window._sportSaveTrainer(${isEdit?t.id:'null'})" class="w-full bg-indigo-600 text-white font-black py-3.5 rounded-2xl text-sm">שמור ✅</button>
-            ${isEdit?`<button onclick="if(confirm('למחוק מאמן זה?'))window._sportDeleteTrainer(${t.id})" class="w-full bg-red-50 text-red-500 font-bold py-3 rounded-2xl text-sm">מחק מאמן 🗑️</button>`:''}
+            ${isEdit?`<button onclick="(async()=>{if(await window._uiConfirm('למחוק מאמן זה?',{danger:true,okLabel:'מחק'}))window._sportDeleteTrainer(${t.id})})()" class="w-full bg-red-50 text-red-500 font-bold py-3 rounded-2xl text-sm">מחק מאמן 🗑️</button>`:''}
         </div>
     </div>`;
     modal.classList.remove('hidden');
@@ -37451,7 +37522,7 @@ window._sportInboxOpen = async function(msgId) {
 };
 
 window._sportInboxDelete = async function(msgId) {
-    if (!confirm('למחוק הודעה זו?')) return;
+    if (!await window._uiConfirm('למחוק הודעה זו?', {danger:true, okLabel:'מחק'})) return;
     try {
         await fetch(`${API}/inbox/${msgId}`, { method: 'DELETE' });
         window.showSportInbox();
@@ -39826,7 +39897,7 @@ window._logisticsCODCollect = async function(orderId, method) {
 };
 
 window._logisticsCancelOrder = async function(orderId) {
-    if (!confirm('לבטל הזמנה זו?')) return;
+    if (!await window._uiConfirm('לבטל הזמנה זו?')) return;
     try {
         await fetch(`${API}/logistics/orders/${orderId}`, { method:'DELETE' });
         showToast('success','בוטל');
@@ -40008,7 +40079,7 @@ window._logisticsSaveDriver = async function(driverId) {
 };
 
 window._logisticsDeactivateDriver = async function(driverId) {
-    if (!confirm('להסיר נהג זה?')) return;
+    if (!await window._uiConfirm('להסיר נהג זה?')) return;
     try {
         await fetch(`${API}/logistics/drivers/${driverId}`, { method:'DELETE' });
         showToast('success','הוסר');
@@ -40126,7 +40197,7 @@ window._logisticsSaveVehicle = async function(vehicleId) {
 };
 
 window._logisticsDeactivateVehicle = async function(id) {
-    if (!confirm('להסיר רכב זה?')) return;
+    if (!await window._uiConfirm('להסיר רכב זה?')) return;
     try { await fetch(`${API}/logistics/vehicles/${id}`, { method:'DELETE' }); showToast('success','הוסר'); document.getElementById('log-vehicle-modal')?.remove(); loadLogisticsVehicles(); } catch(e) { showToast('error','שגיאה'); }
 };
 
@@ -40223,7 +40294,7 @@ window._logisticsSavePricing = async function(zoneId) {
 };
 
 window._logisticsDeletePricing = async function(id) {
-    if (!confirm('למחוק אזור זה?')) return;
+    if (!await window._uiConfirm('למחוק אזור זה?', {danger:true, okLabel:'מחק'})) return;
     try { await fetch(`${API}/logistics/pricing/${id}`, { method:'DELETE' }); showToast('success','נמחק'); document.getElementById('log-pricing-modal')?.remove(); loadLogisticsPricing(); } catch(e) { showToast('error','שגיאה'); }
 };
 
@@ -40274,7 +40345,7 @@ function _renderLogisticsCOD(data) {
 }
 
 window._logisticsCloseCOD = async function(driverId, date) {
-    const deposited = prompt('סכום שהופקד ₪:','0');
+    const deposited = await window._uiPrompt('סכום שהופקד ₪:', {defaultValue:'0', type:'number'});
     if (deposited === null) return;
     try {
         await fetch(`${API}/logistics/cod/close`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ driver_id: driverId, date, total_deposited: parseFloat(deposited)||0, group_id: currentGroup.id }) });
@@ -40362,15 +40433,15 @@ window._logisticsRFQDetail = async function(rfqId) {
 };
 
 window._logisticsSendRFQMsg = async function(rfqId) {
-    const text = prompt('הודעה:');
+    const text = await window._uiPrompt('הודעה:');
     if (!text) return;
     try { await fetch(`${API}/logistics/rfq/${rfqId}/message`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ from:'biz', text }) }); document.getElementById('log-rfq-modal')?.remove(); window._logisticsRFQDetail(rfqId); } catch(e) { showToast('error','שגיאה'); }
 };
 
 window._logisticsSetRFQQuote = async function(rfqId) {
-    const amount = prompt('הצעת מחיר ₪:');
+    const amount = await window._uiPrompt('הצעת מחיר ₪:', {type:'number'});
     if (!amount) return;
-    const deposit = prompt('מקדמה ₪ (0 אם אין):', '0');
+    const deposit = await window._uiPrompt('מקדמה ₪ (0 אם אין):', {defaultValue:'0', type:'number'});
     try { await fetch(`${API}/logistics/rfq/${rfqId}/quote`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ quote_amount: parseFloat(amount), deposit_amount: parseFloat(deposit)||0 }) }); showToast('success','הצעה נשלחה!'); document.getElementById('log-rfq-modal')?.remove(); loadLogisticsRFQ(); } catch(e) { showToast('error','שגיאה'); }
 };
 
@@ -40561,7 +40632,7 @@ window._logisticsRouteStatus = async function(routeId, status) {
 };
 
 window._logisticsDeleteRoute = async function(routeId) {
-    if (!confirm('למחוק את המסלול?')) return;
+    if (!await window._uiConfirm('למחוק את המסלול?', {danger:true, okLabel:'מחק'})) return;
     try {
         await fetch(`${API}/logistics/routes/${routeId}`, { method:'DELETE' });
         showToast('success','נמחק');
@@ -40787,7 +40858,7 @@ window._logisticsOrderDetail = async function(orderId) {
 };
 
 window._logisticsFailedAttempt = async function(orderId) {
-    const notes = prompt('הערות לניסיון כושל (אופציונלי):') || '';
+    const notes = await window._uiPrompt('הערות לניסיון כושל (אופציונלי):') || '';
     try {
         const r = await fetch(`${API}/logistics/orders/${orderId}/failed-attempt`, {
             method:'POST', headers:{'Content-Type':'application/json'},
@@ -41102,11 +41173,11 @@ async function saveLogisticsCustomer(e) {
         if (!r.ok) throw new Error(await r.text());
         closeLogisticsCustomerModal();
         loadLogisticsCustomers();
-    } catch(err) { alert('שגיאה: ' + err.message); }
+    } catch(err) { await window._uiAlert('שגיאה: ' + err.message); }
 }
 
 async function deleteLogisticsCustomer(id) {
-    if (!confirm('למחוק לקוח זה?')) return;
+    if (!await window._uiConfirm('למחוק לקוח זה?', {danger:true, okLabel:'מחק'})) return;
     await fetch(`/api/logistics/customers/${id}`, { method:'DELETE', headers:{ Authorization:`Bearer ${currentUser?.token}` } });
     loadLogisticsCustomers();
 }
@@ -41195,7 +41266,7 @@ async function updateInvoiceStatus(id, status) {
 }
 
 async function deleteLogisticsInvoice(id) {
-    if (!confirm('למחוק חשבונית זו?')) return;
+    if (!await window._uiConfirm('למחוק חשבונית זו?', {danger:true, okLabel:'מחק'})) return;
     await fetch(`/api/logistics/invoices/${id}`, { method:'DELETE', headers:{ Authorization:`Bearer ${currentUser?.token}` } });
     loadLogisticsInvoices();
 }
@@ -41604,7 +41675,7 @@ window._beautySubmitService = async function(id, btn) {
 };
 
 window._beautyDeactivateService = async function(id, btn) {
-    if (!confirm('להסיר שירות זה מהרשימה?')) return;
+    if (!await window._uiConfirm('להסיר שירות זה מהרשימה?')) return;
     const biz = _beautyBizId(); if (!biz) return;
     btn.disabled = true;
     try {
@@ -41769,7 +41840,7 @@ window._beautySubmitSubType = async function(id, btn) {
 };
 
 window._beautyDeactivateSubType = async function(id, btn) {
-    if (!confirm('להסיר חבילה זו?')) return;
+    if (!await window._uiConfirm('להסיר חבילה זו?')) return;
     const biz = _beautyBizId(); if (!biz) return;
     btn.disabled = true;
     try {
@@ -41907,8 +41978,7 @@ function _beautyRfqCard(rfq) {
 }
 
 window._beautyRfqSendQuestionnaire = async function(rfqId) {
-    const questions = prompt('הכנס שאלות לשאלון (מופרדות בפסיק):',
-        'האם יש אלרגיות?,האם בוצע Patch Test בעבר?,תאר את מצב העור/שיער הנוכחי');
+    const questions = await window._uiPrompt('הכנס שאלות לשאלון (מופרדות בפסיק):', {defaultValue:'האם יש אלרגיות?,האם בוצע Patch Test בעבר?,תאר את מצב העור/שיער הנוכחי'});
     if (!questions) return;
     const biz = _beautyBizId(); if (!biz) return;
     try {
@@ -41987,7 +42057,7 @@ window._beautyRfqSubmitPlan = async function(rfqId, btn) {
 
 window._beautyRfqChat = async function(rfqId) {
     const biz = _beautyBizId(); if (!biz) return;
-    const text = prompt('הכנס הודעה ללקוחה:');
+    const text = await window._uiPrompt('הכנס הודעה ללקוחה:');
     if (!text) return;
     try {
         await fetch(`${API}/beauty/rfq/${rfqId}/message`, {
@@ -42139,7 +42209,7 @@ window._beautyPractSave = async function(id) {
 
 window._beautyPractToggle = async function(id, isActive) {
     const biz = currentGroup?.id; if (!biz) return;
-    if (!confirm(isActive ? 'להשבית מטפלת זו?' : 'להפעיל מטפלת זו מחדש?')) return;
+    if (!await window._uiConfirm(isActive ? 'להשבית מטפלת זו?' : 'להפעיל מטפלת זו מחדש?')) return;
     try {
         await fetch(`${API}/beauty/${biz}/practitioners/${id}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
