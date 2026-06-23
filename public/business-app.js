@@ -33386,29 +33386,23 @@ window.openAddPaymentMilestone = async function() {
     const panel = document.getElementById('wo-add-payment-panel');
     if (!panel) return;
     panel.classList.remove('hidden');
-    // ממלא תאריך ברירת מחדל — היום
     const dateEl = document.getElementById('wo-pay-date');
     if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().split('T')[0];
 
-    // ממלא סכום עסקה כוללת — הסכום הקודם או סכום הפקודה
+    // סכום עסקה כוללת — תמיד מהסקירה (total_amount של הפקודה)
     const totalAmtEl = document.getElementById('wo-pay-original-amount');
-    if (totalAmtEl && !totalAmtEl.value) {
-        try {
-            const r = await fetch(`/api/work-orders/${window._currentWoId}/payments`);
-            const d = await r.json();
-            const payments = d.payments || [];
-            if (payments.length > 0) {
-                const lastPayment = payments[payments.length - 1];
-                totalAmtEl.value = lastPayment.original_amount || lastPayment.amount || '';
-            } else {
-                // אם אין תחנות קודמות, טעון את סכום הפקודה
-                const woRes = await fetch(`/api/work-orders/${window._currentWoId}`);
-                const woData = await woRes.json();
-                if (woData.success && woData.workOrder) {
-                    totalAmtEl.value = woData.workOrder.total_amount || '';
-                }
-            }
-        } catch(e) {}
+    if (totalAmtEl) {
+        const woTotal = window._currentWoData?.workOrder?.total_amount;
+        if (woTotal) {
+            totalAmtEl.value = woTotal;
+        } else {
+            // fallback: נסה לקבל מהתחנה הקודמת
+            try {
+                const d = await fetch(`/api/work-orders/${window._currentWoId}/payments`).then(r => r.json());
+                const payments = d.payments || [];
+                if (payments.length > 0) totalAmtEl.value = payments[payments.length - 1].original_amount || '';
+            } catch(e) {}
+        }
     }
 };
 
