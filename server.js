@@ -12385,13 +12385,32 @@ app.get('/api/clients/financial-summary/:groupId', async (req, res) => {
         const storeTotal = parseFloat(storeQ.rows[0]?.store_total || 0);
         const storeCount = storeQ.rows[0]?.order_count || 0;
 
+        // פקודות עבודה מסכם (אחת לכל פקודה — כולל כאלה ללא תחנות תשלום)
+        const woSummaryQ = await pool.query(
+            `SELECT so.id,
+                    COALESCE(so.quote_title, CONCAT('פקודת עבודה #', so.quote_number), CONCAT('פקודת עבודה #', so.id)) AS title,
+                    so.quote_number,
+                    COALESCE(SUM(wop.amount), so.total_amount, 0)::numeric AS total_invoiced,
+                    COALESCE(SUM(wop.received_amount), 0)::numeric AS total_paid,
+                    so.total_amount::numeric AS order_total
+             FROM store_orders so
+             LEFT JOIN work_order_payments wop ON wop.work_order_id = so.id
+             WHERE so.group_id=$1 AND so.status='work_order'
+               AND (($2::text IS NOT NULL AND LOWER(so.customer_name) LIKE LOWER($2))
+                    OR ($3::text IS NOT NULL AND so.customer_phone=$3))
+             GROUP BY so.id, so.quote_title, so.quote_number, so.total_amount`,
+            [groupId, nameLike, phoneParam]
+        );
+
         res.json({
             success: true,
             totalInvoiced: totalInvoiced + storeTotal,
             totalPaid: totalPaid + storeTotal,
             totalPending: Math.max(0, totalInvoiced - totalPaid),
             storeTotal, storeOrderCount: storeCount,
-            pendingPayments
+            pendingPayments,
+            payments: allPayments,
+            workOrders: woSummaryQ.rows
         });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });

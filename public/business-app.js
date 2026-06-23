@@ -9427,12 +9427,11 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
         historyHtml += '<p class="text-[10px] text-slate-400 mb-4 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא נמצאו הזמנות.</p>'; 
     }
 
-    historyHtml += '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-4 border-t border-slate-100 pt-4">הצעות מחיר (פתוחות ואושרו):</h4>';
-    
-    const pendingQuotes = (storeQuotesCache || []).filter(match); 
-    const approvedQuotes = (storeOrdersCache || []).filter(o => match(o) && o.quote_status === 'approved'); 
-    
-    if (pendingQuotes.length > 0 || approvedQuotes.length > 0) {
+    historyHtml += '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-4 border-t border-slate-100 pt-4">הצעות מחיר (פתוחות):</h4>';
+
+    const pendingQuotes = (storeQuotesCache || []).filter(match);
+
+    if (pendingQuotes.length > 0) {
         pendingQuotes.forEach(q => {
             const sMap = { 'draft': 'טיוטה', 'sent': 'נשלחה', 'waiting_customer': 'ממתינה', 'frozen': 'הוקפאה', 'cancelled': 'בוטלה' };
             const sTxt = sMap[q.quote_status] || 'ממתינה';
@@ -9455,21 +9454,25 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
                 </div>
             </div>`;
         });
-        approvedQuotes.forEach(o => {
+    } else {
+        historyHtml += '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא הופקו הצעות מחיר פתוחות.</p>';
+    }
+
+    // פקודות עבודה (הצעות שהומרו + פקודות ישירות)
+    const workOrders = (storeOrdersCache || []).filter(o => match(o) && o.status === 'work_order');
+    if (workOrders.length > 0) {
+        historyHtml += '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-4 border-t border-slate-100 pt-4">פקודות עבודה:</h4>';
+        workOrders.forEach(o => {
+            const woTitle = o.quote_title || (o.quote_number ? `פקודת עבודה #${o.quote_number}` : `פקודת עבודה #${o.id}`);
             historyHtml += `
-            <div onclick="if(typeof openStoreOrderModal === 'function') openStoreOrderModal(${o.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-green-50 hover:border-green-200 transition">
+            <div onclick="if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${o.id})" class="bg-white p-3 rounded-xl border border-blue-100 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
                 <div>
-                    <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-check-double text-green-500 text-[10px]"></i> הצעה #${o.id}</span>
-                    <span class="text-[10px] text-slate-500 block mt-0.5"><span class="bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 ml-1 font-bold">אושרה -> הזמנה</span> ${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleDateString('he-IL')}</span>
+                    <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-screwdriver-wrench text-blue-500 text-[10px]"></i> ${safeStr(woTitle)}</span>
+                    <span class="text-[10px] text-slate-500 block mt-0.5">${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleDateString('he-IL')}</span>
                 </div>
-                <div class="flex items-center gap-3">
-                    <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(o.total_amount || 0).toFixed(2)}</span>
-                    <button onclick="event.stopPropagation(); if(typeof window.printPOSReceipt === 'function') window.printPOSReceipt(${o.id})" class="text-slate-400 hover:text-green-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="הדפס/שחזר קבלה"><i class="fa-solid fa-print text-xs"></i></button>
-                </div>
+                <span class="font-bold text-blue-700 dir-ltr">₪${parseFloat(o.total_amount || 0).toFixed(2)}</span>
             </div>`;
         });
-    } else { 
-        historyHtml += '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא הופקו הצעות מחיר.</p>'; 
     }
 
     listContainer.innerHTML = historyHtml;
@@ -9978,7 +9981,8 @@ window.loadCustomerCollection = async function(name, phone) {
         const d = await fetch(`/api/clients/financial-summary/${currentGroup.id}?${params}`).then(r => r.json());
         if (!d.success) throw new Error(d.error);
         const all = d.payments || [];
-        if (!all.length) { listEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-8">אין רשומות גבייה ללקוח זה</p>'; return; }
+        const wos = d.workOrders || [];
+        if (!all.length && !wos.length) { listEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-8">אין רשומות גבייה ללקוח זה</p>'; return; }
         const pending  = all.filter(p => p.status === 'pending');
         const received = all.filter(p => p.status !== 'pending');
         const METHODS = { cash:'מזומן', card:'כרטיס', transfer:'העברה', check:'שיק', bit:'ביט' };
@@ -10005,8 +10009,31 @@ window.loadCustomerCollection = async function(name, phone) {
             </div>`;
         };
         let html = '';
+        // פקודות עבודה — סיכום לכל פקודה
+        if (wos.length) {
+            html += `<p class="text-[10px] font-bold text-blue-600 mb-1.5"><i class="fa-solid fa-screwdriver-wrench ml-1"></i>פקודות עבודה (${wos.length})</p>`;
+            html += wos.map(wo => {
+                const inv = parseFloat(wo.total_invoiced || wo.order_total || 0);
+                const paid = parseFloat(wo.total_paid || 0);
+                const rem = Math.max(0, inv - paid);
+                const isSettled = rem === 0;
+                const borderCls = isSettled ? 'border-green-100 bg-green-50/30' : 'border-blue-100 bg-white';
+                return `<div class="flex items-center justify-between rounded-xl border ${borderCls} px-3 py-2 gap-2 cursor-pointer hover:shadow-sm transition" onclick="document.getElementById('customer-modal').classList.add('hidden'); window.openWorkOrderModal(${wo.id})">
+                    <div class="flex-1 min-w-0">
+                        <div class="text-[11px] font-bold text-slate-700 truncate">${safeStr(wo.title)}</div>
+                        <div class="text-[10px] text-slate-400 flex gap-2">
+                            <span>סה"כ: <b class="dir-ltr">₪${inv.toFixed(2)}</b></span>
+                            <span class="text-green-600">שולם: <b class="dir-ltr">₪${paid.toFixed(2)}</b></span>
+                            ${rem > 0 ? `<span class="text-amber-600">נותר: <b class="dir-ltr">₪${rem.toFixed(2)}</b></span>` : ''}
+                        </div>
+                    </div>
+                    ${isSettled ? '<span class="text-[9px] text-green-600 font-bold shrink-0">סגור ✓</span>' : `<span class="text-sm font-black text-amber-700 dir-ltr shrink-0">₪${rem.toFixed(2)}</span>`}
+                    <i class="fa-solid fa-chevron-left text-slate-300 text-xs shrink-0"></i>
+                </div>`;
+            }).join('');
+        }
         if (pending.length) {
-            html += `<p class="text-[10px] font-bold text-amber-600 mb-1.5"><i class="fa-solid fa-clock ml-1"></i>ממתינות לגבייה (${pending.length})</p>`;
+            html += `<p class="text-[10px] font-bold text-amber-600 ${wos.length ? 'mt-3 ' : ''}mb-1.5"><i class="fa-solid fa-clock ml-1"></i>ממתינות לגבייה (${pending.length})</p>`;
             html += pending.map(renderRow).join('');
         }
         if (received.length) {
