@@ -9427,11 +9427,12 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
         historyHtml += '<p class="text-[10px] text-slate-400 mb-4 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא נמצאו הזמנות.</p>'; 
     }
 
-    historyHtml += '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-4 border-t border-slate-100 pt-4">הצעות מחיר (פתוחות):</h4>';
+    historyHtml += '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-4 border-t border-slate-100 pt-4">הצעות מחיר ופקודות עבודה פתוחות:</h4>';
 
     const pendingQuotes = (storeQuotesCache || []).filter(match);
+    const workOrders    = (storeOrdersCache || []).filter(o => match(o) && o.status === 'work_order');
 
-    if (pendingQuotes.length > 0) {
+    if (pendingQuotes.length > 0 || workOrders.length > 0) {
         pendingQuotes.forEach(q => {
             const sMap = { 'draft': 'טיוטה', 'sent': 'נשלחה', 'waiting_customer': 'ממתינה', 'frozen': 'הוקפאה', 'cancelled': 'בוטלה' };
             const sTxt = sMap[q.quote_status] || 'ממתינה';
@@ -9442,37 +9443,34 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
                 if (qMeta) { const qm = JSON.parse(qMeta.data||'{}'); if(qm.title) quoteItemTitle = qm.title; }
             } catch(e) {}
             historyHtml += `
-            <div onclick="if(typeof window.openQuotePreview === 'function') window.openQuotePreview(${q.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-orange-50 hover:border-orange-200 transition">
-                <div>
+            <div onclick="if(typeof window.openQuotePreview === 'function') window.openQuotePreview(${q.id})" class="bg-white p-3 rounded-xl border border-orange-100 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-orange-50 hover:border-orange-200 transition">
+                <div class="flex-1 min-w-0">
                     <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-file-invoice text-orange-400 text-[10px]"></i> ${q.quote_number || `הצעה #${q.id}`}</span>
                     ${quoteItemTitle ? `<p class="text-[11px] text-indigo-700 font-semibold truncate">${safeStr(quoteItemTitle)}</p>` : ''}
                     <span class="text-[10px] text-slate-500 block mt-0.5"><span class="bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded border border-orange-100 ml-1 font-bold">${sTxt}</span> ${safeStr(q.customer_name)} | ${new Date(q.created_at).toLocaleDateString('he-IL')}</span>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 shrink-0">
                     <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(q.total_amount || 0).toFixed(2)}</span>
-                    <button onclick="event.stopPropagation(); window.openEditQuoteModal(${q.id})" class="text-slate-400 hover:text-orange-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="ערוך הצעה"><i class="fa-solid fa-pen text-xs"></i></button>
+                    <button onclick="event.stopPropagation(); if(typeof window.openQuotePreview === 'function') window.openQuotePreview(${q.id})" class="text-slate-400 hover:text-orange-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="פתח הצעה"><i class="fa-solid fa-eye text-xs"></i></button>
                 </div>
             </div>`;
         });
-    } else {
-        historyHtml += '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא הופקו הצעות מחיר פתוחות.</p>';
-    }
-
-    // פקודות עבודה (הצעות שהומרו + פקודות ישירות)
-    const workOrders = (storeOrdersCache || []).filter(o => match(o) && o.status === 'work_order');
-    if (workOrders.length > 0) {
-        historyHtml += '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-4 border-t border-slate-100 pt-4">פקודות עבודה:</h4>';
         workOrders.forEach(o => {
             const woTitle = o.quote_title || (o.quote_number ? `פקודת עבודה #${o.quote_number}` : `פקודת עבודה #${o.id}`);
             historyHtml += `
             <div onclick="if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${o.id})" class="bg-white p-3 rounded-xl border border-blue-100 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
-                <div>
+                <div class="flex-1 min-w-0">
                     <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-screwdriver-wrench text-blue-500 text-[10px]"></i> ${safeStr(woTitle)}</span>
                     <span class="text-[10px] text-slate-500 block mt-0.5">${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleDateString('he-IL')}</span>
                 </div>
-                <span class="font-bold text-blue-700 dir-ltr">₪${parseFloat(o.total_amount || 0).toFixed(2)}</span>
+                <div class="flex items-center gap-2 shrink-0">
+                    <span class="font-bold text-blue-700 dir-ltr">₪${parseFloat(o.total_amount || 0).toFixed(2)}</span>
+                    <button onclick="event.stopPropagation(); if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${o.id})" class="text-slate-400 hover:text-blue-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="פתח פקודת עבודה"><i class="fa-solid fa-eye text-xs"></i></button>
+                </div>
             </div>`;
         });
+    } else {
+        historyHtml += '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא נמצאו הצעות מחיר או פקודות עבודה פתוחות.</p>';
     }
 
     listContainer.innerHTML = historyHtml;
