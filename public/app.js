@@ -10258,15 +10258,44 @@ function _renderBizAccordion(el, data, bizType) {
         const calls = act.serviceCalls || [];
         const workOrders = act.workOrders || [];
         const _ref = id => id ? `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>` : '';
-        const _callStatusMap = {new:'חדש',scheduled:'נקבע',processing:'בטיפול',done:'הושלם',cancelled:'בוטל',quote:'הצעה',pending_payment:'ממתין תשלום'};
-        const renderCall = c => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
-                <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-sm shrink-0">🔧</div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-xs font-bold text-slate-700 truncate">${c.issue_description||c.title||'קריאת שירות'}${_ref(c.id)}</p>
-                    <p class="text-[10px] text-slate-400">${fmtDate(c.created_at)}</p>
+        const _callStatusMap = {new:'חדש',scheduled:'נקבע',processing:'בטיפול',in_progress:'בטיפול',done:'הושלם',cancelled:'בוטל',quote:'הצעה',pending_payment:'ממתין תשלום',pending_parts:'ממתין חלקים'};
+        const renderCall = c => {
+            const payments = Array.isArray(c.payments) ? c.payments : [];
+            const totalCharged = payments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+            const totalReceived = payments.reduce((s, p) => s + parseFloat(p.received_amount || (p.status === 'received' ? p.amount : 0) || 0), 0);
+            const statusColor = c.status==='done' ? 'bg-green-100 text-green-700' : c.status==='cancelled' ? 'bg-red-100 text-red-600' : c.payment_status==='pending_payment'||c.payment_status==='partial' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700';
+            const statusLabel = c.payment_status === 'paid' ? 'שולם' : c.payment_status === 'partial' ? 'שולם חלקית' : c.payment_status === 'pending_payment' ? 'ממתין תשלום' : _callStatusMap[c.status]||c.status||'';
+            let milestoneRows = '';
+            if (payments.length > 0) {
+                milestoneRows = `<div class="bg-slate-50 rounded-lg px-2 py-1 mt-1 space-y-0">${payments.map(p => {
+                    const isPaid = p.status === 'received';
+                    const dueStr = p.due_date ? new Date(p.due_date).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'}) : '';
+                    return `<div class="flex items-center gap-1 py-0.5">
+                        <span class="text-[10px] ${isPaid?'text-green-600':'text-slate-400'}">${isPaid?'✅':'⏳'}</span>
+                        <span class="text-[10px] text-slate-600 flex-1">${p.milestone_name||'תחנת תשלום'}</span>
+                        <span class="text-[10px] font-bold ${isPaid?'text-green-700':'text-slate-700'}">₪${parseFloat(p.amount||0).toLocaleString('he-IL',{maximumFractionDigits:0})}</span>
+                        ${dueStr?`<span class="text-[9px] text-slate-400 mr-1">${dueStr}</span>`:''}
+                    </div>`;
+                }).join('')}</div>`;
+            }
+            return `<div class="py-2 border-b border-slate-50 last:border-0">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-sm shrink-0">🔧</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold text-slate-700 truncate">${c.issue_description||c.title||'קריאת שירות'}${_ref(c.id)}</p>
+                        <p class="text-[10px] text-slate-400">${fmtDate(c.created_at)}</p>
+                    </div>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statusColor}">${statusLabel}</span>
                 </div>
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${c.status==='done'?'bg-green-100 text-green-700':c.status==='cancelled'?'bg-red-100 text-red-600':'bg-blue-100 text-blue-700'}">${_callStatusMap[c.status]||c.status||''}</span>
+                ${totalCharged > 0 ? `<div class="mr-10 mt-0.5">
+                    <div class="flex items-center gap-3 text-[10px] text-slate-500">
+                        <span>חויב: <b class="text-slate-700">₪${totalCharged.toLocaleString('he-IL',{maximumFractionDigits:0})}</b></span>
+                        <span>שולם: <b class="text-green-700">₪${totalReceived.toLocaleString('he-IL',{maximumFractionDigits:0})}</b></span>
+                    </div>
+                    ${milestoneRows}
+                </div>` : ''}
             </div>`;
+        };
         const renderWorkOrder = wo => {
             const payments = Array.isArray(wo.payments) ? wo.payments : [];
             const totalCharged = parseFloat(wo.total_amount || 0);

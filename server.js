@@ -798,6 +798,9 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(30) DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE work_order_payments ALTER COLUMN work_order_id DROP NOT NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE work_order_payments ADD COLUMN IF NOT EXISTS service_call_id INT REFERENCES service_calls(id) ON DELETE CASCADE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS payment_status VARCHAR(30) DEFAULT NULL`); } catch(e) {}
       // ===== END WORK ORDER PAYMENTS MODULE =====
 
       // ===== SPORT / FITNESS MODULE =====
@@ -12122,7 +12125,7 @@ app.post('/api/work-orders/:id/payments', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// סימון תחנת תשלום כהתקבל
+// סימון תחנת תשלום כהתקבל (עובד גם לפקודת עבודה וגם לקריאת שירות)
 app.patch('/api/work-orders/payments/:paymentId/receive', async (req, res) => {
     try {
         const { receivedAmount, receivedAt, userName } = req.body;
@@ -12134,80 +12137,159 @@ app.patch('/api/work-orders/payments/:paymentId/receive', async (req, res) => {
             `UPDATE work_order_payments SET status='received', received_amount=$1, received_at=$2 WHERE id=$3`,
             [recAmt, receivedAt ? new Date(receivedAt) : new Date(), req.params.paymentId]
         );
-        // הוסף לתזרים כהכנסה
-        const woR = await pool.query('SELECT so.*, fg.name as biz_name FROM store_orders so JOIN family_groups fg ON fg.id=so.group_id WHERE so.id=$1', [p.work_order_id]);
-        if (woR.rows.length) {
-            const wo = woR.rows[0];
-            const adminU = await pool.query('SELECT id FROM users WHERE group_id=$1 AND role=\'ADMIN\' LIMIT 1', [wo.group_id]);
-            const adminId = adminU.rows[0]?.id || null;
-            await pool.query(
-                `INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_manual)
-                 VALUES ($1, $2, $3, $4, 'sales', 'income', $5, FALSE)`,
-                [adminId, wo.group_id, recAmt,
-                 `גביה פקודת עבודה${wo.customer_name ? ' — ' + wo.customer_name : ''}${p.milestone_name && p.milestone_name !== 'תשלום' ? ' (' + p.milestone_name + ')' : ''}`,
-                 receivedAt ? new Date(receivedAt) : new Date()]
-            );
+        let newPayStatus = 'paid';
+        if (p.work_order_id) {
+            // הוסף לתזרים כהכנסה מפקודת עבודה
+            const woR = await pool.query('SELECT so.*, fg.name as biz_name FROM store_orders so JOIN family_groups fg ON fg.id=so.group_id WHERE so.id=$1', [p.work_order_id]);
+            if (woR.rows.length) {
+                const wo = woR.rows[0];
+                const adminU = await pool.query(`SELECT id FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1`, [wo.group_id]);
+                await pool.query(
+                    `INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_manual)
+                     VALUES ($1, $2, $3, $4, 'sales', 'income', $5, FALSE)`,
+                    [adminU.rows[0]?.id || null, wo.group_id, recAmt,
+                     `גביה פקודת עבודה${wo.customer_name ? ' — ' + wo.customer_name : ''}${p.milestone_name && p.milestone_name !== 'תשלום' ? ' (' + p.milestone_name + ')' : ''}`,
+                     receivedAt ? new Date(receivedAt) : new Date()]
+                );
+            }
+            const remaining = await pool.query(
+                `SELECT COUNT(*) as cnt FROM work_order_payments WHERE work_order_id=$1 AND status='pending'`, [p.work_order_id]);
+            newPayStatus = parseInt(remaining.rows[0].cnt) === 0 ? 'paid' : 'partial';
+            await pool.query(`UPDATE store_orders SET payment_status=$1 WHERE id=$2`, [newPayStatus, p.work_order_id]);
+        } else if (p.service_call_id) {
+            // הוסף לתזרים כהכנסה מקריאת שירות
+            const scR = await pool.query('SELECT sc.*, fg.id as biz_group_id FROM service_calls sc JOIN family_groups fg ON fg.id=sc.business_group_id WHERE sc.id=$1', [p.service_call_id]);
+            if (scR.rows.length) {
+                const sc = scR.rows[0];
+                const adminU = await pool.query(`SELECT id FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1`, [sc.biz_group_id]);
+                await pool.query(
+                    `INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_manual)
+                     VALUES ($1, $2, $3, $4, 'sales', 'income', $5, FALSE)`,
+                    [adminU.rows[0]?.id || null, sc.biz_group_id, recAmt,
+                     `גביה קריאת שירות${sc.customer_name ? ' — ' + sc.customer_name : ''}${p.milestone_name && p.milestone_name !== 'תשלום' ? ' (' + p.milestone_name + ')' : ''}`,
+                     receivedAt ? new Date(receivedAt) : new Date()]
+                );
+            }
+            const remaining = await pool.query(
+                `SELECT COUNT(*) as cnt FROM work_order_payments WHERE service_call_id=$1 AND status='pending'`, [p.service_call_id]);
+            newPayStatus = parseInt(remaining.rows[0].cnt) === 0 ? 'paid' : 'partial';
+            await pool.query(`UPDATE service_calls SET payment_status=$1 WHERE id=$2`, [newPayStatus, p.service_call_id]);
         }
-        // בדוק אם כל התחנות שולמו → עדכן payment_status=paid
-        const remaining = await pool.query(
-            `SELECT COUNT(*) as cnt FROM work_order_payments WHERE work_order_id=$1 AND status='pending'`,
-            [p.work_order_id]
-        );
-        const newPayStatus = parseInt(remaining.rows[0].cnt) === 0 ? 'paid' : 'partial';
-        await pool.query(`UPDATE store_orders SET payment_status=$1 WHERE id=$2`, [newPayStatus, p.work_order_id]);
         res.json({ success: true, paymentStatus: newPayStatus });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// מחיקת תחנת תשלום
+// מחיקת תחנת תשלום (עובד גם לפקודת עבודה וגם לקריאת שירות)
 app.delete('/api/work-orders/payments/:paymentId', async (req, res) => {
     try {
-        const pr = await pool.query('SELECT work_order_id FROM work_order_payments WHERE id=$1', [req.params.paymentId]);
+        const pr = await pool.query('SELECT work_order_id, service_call_id FROM work_order_payments WHERE id=$1', [req.params.paymentId]);
         if (!pr.rows.length) return res.status(404).json({ error: 'לא נמצא' });
-        const woId = pr.rows[0].work_order_id;
+        const { work_order_id: woId, service_call_id: scId } = pr.rows[0];
         await pool.query('DELETE FROM work_order_payments WHERE id=$1', [req.params.paymentId]);
-        // עדכן payment_status בהתאם
-        const remaining = await pool.query('SELECT COUNT(*) as cnt FROM work_order_payments WHERE work_order_id=$1', [woId]);
-        if (parseInt(remaining.rows[0].cnt) === 0) {
-            await pool.query(`UPDATE store_orders SET payment_status=NULL WHERE id=$1`, [woId]);
-        } else {
-            const pending = await pool.query(`SELECT COUNT(*) as cnt FROM work_order_payments WHERE work_order_id=$1 AND status='pending'`, [woId]);
-            const newSt = parseInt(pending.rows[0].cnt) === 0 ? 'paid' : 'pending_payment';
-            await pool.query(`UPDATE store_orders SET payment_status=$1 WHERE id=$2`, [newSt, woId]);
+        if (woId) {
+            const remaining = await pool.query('SELECT COUNT(*) as cnt FROM work_order_payments WHERE work_order_id=$1', [woId]);
+            if (parseInt(remaining.rows[0].cnt) === 0) {
+                await pool.query(`UPDATE store_orders SET payment_status=NULL WHERE id=$1`, [woId]);
+            } else {
+                const pending = await pool.query(`SELECT COUNT(*) as cnt FROM work_order_payments WHERE work_order_id=$1 AND status='pending'`, [woId]);
+                const newSt = parseInt(pending.rows[0].cnt) === 0 ? 'paid' : 'pending_payment';
+                await pool.query(`UPDATE store_orders SET payment_status=$1 WHERE id=$2`, [newSt, woId]);
+            }
+        } else if (scId) {
+            const remaining = await pool.query('SELECT COUNT(*) as cnt FROM work_order_payments WHERE service_call_id=$1', [scId]);
+            if (parseInt(remaining.rows[0].cnt) === 0) {
+                await pool.query(`UPDATE service_calls SET payment_status=NULL WHERE id=$1`, [scId]);
+            } else {
+                const pending = await pool.query(`SELECT COUNT(*) as cnt FROM work_order_payments WHERE service_call_id=$1 AND status='pending'`, [scId]);
+                const newSt = parseInt(pending.rows[0].cnt) === 0 ? 'paid' : 'pending_payment';
+                await pool.query(`UPDATE service_calls SET payment_status=$1 WHERE id=$2`, [newSt, scId]);
+            }
         }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// טאב גביה — כל תחנות הגביה של העסק
+// קבלת תחנות תשלום לקריאת שירות
+app.get('/api/service-calls/:id/payments', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT * FROM work_order_payments WHERE service_call_id=$1 ORDER BY due_date ASC NULLS LAST, created_at ASC`,
+            [req.params.id]);
+        res.json({ success: true, payments: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הוספת תחנת תשלום לקריאת שירות
+app.post('/api/service-calls/:id/payments', async (req, res) => {
+    try {
+        const { milestoneName, amount, dueDate, paymentMethod } = req.body;
+        if (!amount || parseFloat(amount) <= 0) return res.status(400).json({ error: 'סכום נדרש' });
+        const r = await pool.query(
+            `INSERT INTO work_order_payments (service_call_id, milestone_name, amount, due_date, payment_method)
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            [req.params.id, milestoneName || 'תשלום', parseFloat(amount), dueDate || null, paymentMethod || null]
+        );
+        await pool.query(
+            `UPDATE service_calls SET payment_status=COALESCE(payment_status,'pending_payment') WHERE id=$1`,
+            [req.params.id]
+        );
+        res.json({ success: true, payment: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// טאב גביה — כל תחנות הגביה של העסק (פקודות עבודה + קריאות שירות)
 app.get('/api/work-orders/collection/:groupId', async (req, res) => {
     try {
         const r = await pool.query(
-            `SELECT wop.*, so.customer_name, so.customer_phone, so.total_amount as wo_total,
+            `SELECT wop.id, wop.milestone_name, wop.amount, wop.due_date, wop.payment_method,
+                    wop.status, wop.received_amount, wop.received_at, wop.created_at,
+                    wop.work_order_id, wop.service_call_id,
+                    so.customer_name, so.customer_phone, so.total_amount as wo_total,
                     so.quote_title as wo_title, so.quote_number as wo_number,
-                    (SELECT COALESCE(SUM(received_amount),0) FROM work_order_payments
-                     WHERE work_order_id=wop.work_order_id AND status='received') as total_received,
+                    (SELECT COALESCE(SUM(received_amount),0) FROM work_order_payments WHERE work_order_id=wop.work_order_id AND status='received') as total_received,
                     (SELECT COUNT(*) FROM work_order_payments WHERE work_order_id=wop.work_order_id) as total_milestones,
                     (SELECT COUNT(*) FROM work_order_payments WHERE work_order_id=wop.work_order_id AND status='received') as received_milestones
              FROM work_order_payments wop
              JOIN store_orders so ON so.id=wop.work_order_id
-             WHERE so.group_id=$1
-             ORDER BY wop.due_date ASC NULLS LAST, wop.created_at DESC`,
+             WHERE so.group_id=$1 AND wop.work_order_id IS NOT NULL
+             UNION ALL
+             SELECT wop.id, wop.milestone_name, wop.amount, wop.due_date, wop.payment_method,
+                    wop.status, wop.received_amount, wop.received_at, wop.created_at,
+                    wop.work_order_id, wop.service_call_id,
+                    sc.customer_name, sc.customer_phone,
+                    (SELECT COALESCE(SUM(amount),0) FROM work_order_payments WHERE service_call_id=wop.service_call_id) as wo_total,
+                    sc.title as wo_title, ('SC-' || sc.id::text) as wo_number,
+                    (SELECT COALESCE(SUM(received_amount),0) FROM work_order_payments WHERE service_call_id=wop.service_call_id AND status='received') as total_received,
+                    (SELECT COUNT(*) FROM work_order_payments WHERE service_call_id=wop.service_call_id) as total_milestones,
+                    (SELECT COUNT(*) FROM work_order_payments WHERE service_call_id=wop.service_call_id AND status='received') as received_milestones
+             FROM work_order_payments wop
+             JOIN service_calls sc ON sc.id=wop.service_call_id
+             WHERE sc.business_group_id=$1 AND wop.service_call_id IS NOT NULL
+             ORDER BY due_date ASC NULLS LAST, created_at DESC`,
             [req.params.groupId]
         );
         res.json({ success: true, items: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// התראות גביה לדשבורד — תחנות שמועד פירעונן הגיע ועדיין ממתינות
+// התראות גביה לדשבורד — תחנות שמועד פירעונן הגיע ועדיין ממתינות (פקודות עבודה + קריאות שירות)
 app.get('/api/work-orders/collection-alerts/:groupId', async (req, res) => {
     try {
         const r = await pool.query(
-            `SELECT wop.*, so.customer_name, so.quote_title as wo_title, so.quote_number as wo_number
+            `SELECT wop.id, wop.milestone_name, wop.amount, wop.due_date, wop.work_order_id, wop.service_call_id,
+                    so.customer_name, so.quote_title as wo_title, so.quote_number as wo_number
              FROM work_order_payments wop
              JOIN store_orders so ON so.id=wop.work_order_id
-             WHERE so.group_id=$1 AND wop.status='pending' AND wop.due_date IS NOT NULL AND wop.due_date <= CURRENT_DATE
-             ORDER BY wop.due_date ASC`,
+             WHERE so.group_id=$1 AND wop.work_order_id IS NOT NULL AND wop.status='pending'
+               AND wop.due_date IS NOT NULL AND wop.due_date <= CURRENT_DATE
+             UNION ALL
+             SELECT wop.id, wop.milestone_name, wop.amount, wop.due_date, wop.work_order_id, wop.service_call_id,
+                    sc.customer_name, sc.title as wo_title, ('SC-' || sc.id::text) as wo_number
+             FROM work_order_payments wop
+             JOIN service_calls sc ON sc.id=wop.service_call_id
+             WHERE sc.business_group_id=$1 AND wop.service_call_id IS NOT NULL AND wop.status='pending'
+               AND wop.due_date IS NOT NULL AND wop.due_date <= CURRENT_DATE
+             ORDER BY due_date ASC`,
             [req.params.groupId]
         );
         res.json({ success: true, alerts: r.rows });
@@ -14399,10 +14481,13 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
 
         } else if (bizType === 'maintenance_repair') {
             const [scR, woR] = await Promise.all([
-                pool.query(`SELECT id, status, issue_description, title, created_at
-                            FROM service_calls
-                            WHERE business_group_id=$1 AND (customer_phone=$2 OR family_group_id=$3)
-                            ORDER BY created_at DESC LIMIT 20`,
+                pool.query(`SELECT sc.id, sc.status, sc.payment_status, sc.issue_description, sc.title, sc.created_at,
+                                   COALESCE(json_agg(json_build_object('id',wop.id,'milestone_name',wop.milestone_name,'amount',wop.amount,'due_date',wop.due_date,'status',wop.status,'received_amount',wop.received_amount) ORDER BY wop.due_date ASC NULLS LAST) FILTER (WHERE wop.id IS NOT NULL), '[]'::json) AS payments
+                            FROM service_calls sc
+                            LEFT JOIN work_order_payments wop ON wop.service_call_id = sc.id
+                            WHERE sc.business_group_id=$1 AND (sc.customer_phone=$2 OR sc.family_group_id=$3)
+                            GROUP BY sc.id
+                            ORDER BY sc.created_at DESC LIMIT 20`,
                     [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] })),
                 pool.query(`SELECT so.id, so.status, so.payment_status, so.total_amount, so.quote_title, so.created_at,
                                    COALESCE(json_agg(json_build_object('id',wop.id,'milestone_name',wop.milestone_name,'amount',wop.amount,'due_date',wop.due_date,'status',wop.status,'received_amount',wop.received_amount) ORDER BY wop.due_date ASC NULLS LAST) FILTER (WHERE wop.id IS NOT NULL), '[]'::json) AS payments

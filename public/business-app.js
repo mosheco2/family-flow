@@ -28219,10 +28219,10 @@ async function renderFieldTechDashboard(el) {
 }
 
 // ─── MAINTENANCE_REPAIR: Field Tech Dashboard ───────────────────────────────
-const SC_STATUS_LABELS = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
+const SC_STATUS_LABELS = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', pending_payment:'ממתין לתשלום', done:'הושלם', cancelled:'בוטל' };
+const SC_STATUS_COLORS = { new:'bg-blue-100 text-blue-700', seen:'bg-indigo-100 text-indigo-700', in_progress:'bg-amber-100 text-amber-700', pending_parts:'bg-purple-100 text-purple-700', pending_payment:'bg-orange-100 text-orange-700', done:'bg-green-100 text-green-700', cancelled:'bg-slate-100 text-slate-400' };
 const SC_PRIORITY_COLORS = { urgent:'bg-red-100 text-red-700', high:'bg-orange-100 text-orange-700', normal:'bg-slate-100 text-slate-600', low:'bg-green-100 text-green-700' };
 const SC_PRIORITY_LABELS = { urgent:'דחוף', high:'גבוה', normal:'רגיל', low:'נמוך' };
-const SC_STATUS_COLORS = { new:'bg-blue-100 text-blue-700', seen:'bg-indigo-100 text-indigo-700', in_progress:'bg-amber-100 text-amber-700', pending_parts:'bg-purple-100 text-purple-700', done:'bg-green-100 text-green-700', cancelled:'bg-slate-100 text-slate-400' };
 
 async function renderFieldTechMaintenanceDashboard(el) {
     let calls = [];
@@ -28603,11 +28603,51 @@ window.showServiceCallModal = async function(callId) {
                 ${linkedPoItemsHtml}
                 ${!call.parts_status ? `<button onclick="openProcurementForSC(${callId})" class="w-full bg-purple-600 text-white rounded-xl py-2 text-xs font-black active:scale-95 transition" style="touch-action:manipulation;">🛒 פתח הזמנת רכש</button>` : ''}
             </div>` : ''}
+
+            <div class="bg-slate-50 rounded-2xl p-3 border border-slate-100" id="sc-payments-section-${callId}">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-[10px] font-bold text-slate-600">💳 תחנות תשלום</div>
+                    <button onclick="window.openAddScPaymentMilestone(${callId})" class="text-[10px] bg-indigo-600 text-white px-2.5 py-1 rounded-lg font-bold active:scale-95 transition" style="touch-action:manipulation;">+ הוסף תחנה</button>
+                </div>
+                <div id="sc-payments-list-${callId}" class="space-y-2 mb-2">
+                    <p class="text-[10px] text-slate-400 text-center py-2"><i class="fa-solid fa-spinner fa-spin ml-1"></i></p>
+                </div>
+                <div id="sc-payment-summary-${callId}" class="hidden flex gap-3 text-[10px] text-slate-500 border-t border-slate-200 pt-2 mt-1">
+                    <span>חויב: <b id="sc-pay-charged-${callId}" class="text-slate-700">₪0</b></span>
+                    <span>שולם: <b id="sc-pay-received-${callId}" class="text-green-700">₪0</b></span>
+                    <span>נותר: <b id="sc-pay-pending-${callId}" class="text-amber-700">₪0</b></span>
+                </div>
+                <div id="sc-add-payment-panel-${callId}" class="hidden mt-2 bg-white rounded-xl p-3 border border-indigo-100 space-y-2">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div><label class="text-[9px] font-bold text-slate-400 mb-0.5 block">שם התחנה</label>
+                            <input type="text" id="sc-pay-name-${callId}" placeholder="מקדמה / יתרה..." class="w-full border border-slate-200 rounded-xl px-2 py-1.5 text-xs"></div>
+                        <div><label class="text-[9px] font-bold text-slate-400 mb-0.5 block">סכום ₪</label>
+                            <input type="number" id="sc-pay-amount-${callId}" placeholder="0" min="0" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 text-xs"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div><label class="text-[9px] font-bold text-slate-400 mb-0.5 block">תאריך יעד</label>
+                            <input type="date" id="sc-pay-date-${callId}" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 text-xs"></div>
+                        <div><label class="text-[9px] font-bold text-slate-400 mb-0.5 block">אמצעי תשלום</label>
+                            <select id="sc-pay-method-${callId}" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 text-xs">
+                                <option value="">לא נקבע</option>
+                                <option value="cash">מזומן</option><option value="card">כרטיס</option>
+                                <option value="transfer">העברה</option><option value="check">שיק</option><option value="bit">ביט</option>
+                            </select></div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="window.saveScPaymentMilestone(${callId})" class="flex-1 bg-indigo-600 text-white py-1.5 rounded-xl text-xs font-bold active:scale-95 transition" style="touch-action:manipulation;">שמור תחנה</button>
+                        <button onclick="document.getElementById('sc-add-payment-panel-${callId}').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-600 py-1.5 rounded-xl text-xs font-bold active:scale-95 transition" style="touch-action:manipulation;">ביטול</button>
+                    </div>
+                </div>
+            </div>
+
             <button onclick="markServiceCallDone(${callId})" class="w-full bg-green-600 text-white rounded-2xl py-3 font-black text-sm active:scale-95 transition shadow">✅ סמן כהושלם</button>
             <button onclick="createCustomerFromCall(${callId})" class="w-full bg-slate-100 text-slate-700 rounded-2xl py-2.5 font-bold text-sm active:scale-95 transition mt-1">💾 שמור כלקוח</button>
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
+    window._currentScModalCallId = callId;
+    window.loadScPayments(callId);
 
     if (window._scChatInterval) clearInterval(window._scChatInterval);
     window._scChatInterval = setInterval(async () => {
@@ -33115,6 +33155,116 @@ window.deletePaymentMilestone = async function(paymentId) {
         if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
         showToast('success', 'תחנה נמחקה');
         window.loadWoPayments();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// --- פונקציות תחנות תשלום לקריאות שירות ---
+window.loadScPayments = async function(callId) {
+    const list = document.getElementById(`sc-payments-list-${callId}`);
+    const summary = document.getElementById(`sc-payment-summary-${callId}`);
+    if (!list) return;
+    list.innerHTML = '<p class="text-[10px] text-slate-400 text-center py-2"><i class="fa-solid fa-spinner fa-spin ml-1"></i></p>';
+    try {
+        const r = await fetch(`/api/service-calls/${callId}/payments`);
+        const d = await r.json();
+        const payments = d.payments || [];
+        if (!payments.length) {
+            list.innerHTML = '<p class="text-[10px] text-slate-400 text-center py-2">אין תחנות — לחץ "הוסף תחנה"</p>';
+            if (summary) summary.classList.add('hidden');
+            return;
+        }
+        const METHODS = { cash:'מזומן', card:'כרטיס', transfer:'העברה', check:'שיק', bit:'ביט' };
+        let totalCharged = 0, totalReceived = 0;
+        const today = new Date(); today.setHours(0,0,0,0);
+        list.innerHTML = payments.map(p => {
+            const isPaid = p.status === 'received';
+            const amt = parseFloat(p.amount);
+            const recAmt = parseFloat(p.received_amount || 0);
+            totalCharged += amt;
+            if (isPaid) totalReceived += recAmt;
+            const dueDateStr = p.due_date ? new Date(p.due_date).toLocaleDateString('he-IL') : '—';
+            const isOverdue = !isPaid && p.due_date && new Date(p.due_date) < today;
+            return `<div class="p-2.5 rounded-xl border ${isPaid ? 'border-green-200 bg-green-50' : isOverdue ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'} flex items-start gap-2">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5 mb-0.5">
+                        <span class="text-[11px] font-black text-slate-800">${safeStr(p.milestone_name || 'תשלום')}</span>
+                        ${isPaid ? '<span class="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">התקבל ✅</span>' : isOverdue ? '<span class="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">באיחור ⚠️</span>' : '<span class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">ממתין</span>'}
+                    </div>
+                    <div class="text-[10px] text-slate-500">
+                        ₪${amt.toFixed(2)}${p.payment_method ? ' · ' + (METHODS[p.payment_method] || p.payment_method) : ''} · יעד: <b>${dueDateStr}</b>
+                        ${isPaid ? ` · התקבל: <b class="text-green-600">₪${recAmt.toFixed(2)}</b>` : ''}
+                    </div>
+                </div>
+                <div class="flex gap-1 shrink-0">
+                    ${!isPaid ? `<button onclick="window.markScPaymentReceived(${p.id},${callId})" class="text-[9px] bg-green-600 text-white px-2 py-1 rounded-lg font-bold" style="touch-action:manipulation;">גבה ✓</button>` : ''}
+                    <button onclick="window.deleteScPaymentMilestone(${p.id},${callId})" class="text-[9px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg font-bold" style="touch-action:manipulation;">מחק</button>
+                </div>
+            </div>`;
+        }).join('');
+        if (summary) {
+            summary.classList.remove('hidden');
+            const setT = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = '₪' + v.toFixed(2); };
+            setT(`sc-pay-charged-${callId}`, totalCharged);
+            setT(`sc-pay-received-${callId}`, totalReceived);
+            setT(`sc-pay-pending-${callId}`, totalCharged - totalReceived);
+        }
+    } catch(e) { list.innerHTML = '<p class="text-[10px] text-red-400 text-center py-2">שגיאת טעינה</p>'; }
+};
+
+window.openAddScPaymentMilestone = function(callId) {
+    const panel = document.getElementById(`sc-add-payment-panel-${callId}`);
+    if (!panel) return;
+    panel.classList.remove('hidden');
+    const dateEl = document.getElementById(`sc-pay-date-${callId}`);
+    if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().split('T')[0];
+};
+
+window.saveScPaymentMilestone = async function(callId) {
+    const name = (document.getElementById(`sc-pay-name-${callId}`)?.value || '').trim();
+    const amount = parseFloat(document.getElementById(`sc-pay-amount-${callId}`)?.value || 0);
+    const dueDate = document.getElementById(`sc-pay-date-${callId}`)?.value || null;
+    const method = document.getElementById(`sc-pay-method-${callId}`)?.value || null;
+    if (!amount || amount <= 0) { showToast('error', 'נא להזין סכום'); return; }
+    try {
+        const r = await fetch(`/api/service-calls/${callId}/payments`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ milestoneName: name || 'תשלום', amount, dueDate, paymentMethod: method })
+        });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        document.getElementById(`sc-add-payment-panel-${callId}`).classList.add('hidden');
+        ['name','amount','date','method'].forEach(f => {
+            const el = document.getElementById(`sc-pay-${f}-${callId}`); if (el) el.value = '';
+        });
+        showToast('success', 'תחנת תשלום נוספה');
+        window.loadScPayments(callId);
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.markScPaymentReceived = async function(paymentId, callId) {
+    const recAmt = prompt('סכום שהתקבל (ריק = סכום מלא):');
+    if (recAmt === null) return;
+    try {
+        const r = await fetch(`/api/work-orders/payments/${paymentId}/receive`, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ receivedAmount: recAmt || null, userName: currentUser?.nickname || 'מנהל' })
+        });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('success', 'תשלום נרשם כהתקבל ✅');
+        window.loadScPayments(callId);
+        renderUrgentItems();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.deleteScPaymentMilestone = async function(paymentId, callId) {
+    if (!confirm('למחוק תחנת תשלום זו?')) return;
+    try {
+        const r = await fetch(`/api/work-orders/payments/${paymentId}`, { method: 'DELETE' });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('success', 'תחנה נמחקה');
+        window.loadScPayments(callId);
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
