@@ -33182,7 +33182,6 @@ window.loadWoPayments = async function() {
                 </div>
             </div>`;
         }).join('');
-        const dealTotal = originalAmount > 0 ? originalAmount : totalCharged;
         const pending = Math.max(0, dealTotal - totalReceived);
         if (summary) {
             summary.classList.remove('hidden');
@@ -33337,7 +33336,6 @@ window.loadScPayments = async function(callId) {
                 </div>
             </div>`;
         }).join('');
-        const dealTotal = originalAmount > 0 ? originalAmount : totalCharged;
         if (summary) {
             summary.classList.remove('hidden');
             const setT = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = '₪' + v.toFixed(2); };
