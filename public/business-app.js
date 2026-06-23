@@ -29062,6 +29062,9 @@ window.openProcurementForSC = function(callId) {
 window.showAllServiceCalls = async function(filterStatus) {
     let allCalls = [];
     try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`); const d = await r.json(); allCalls = d.calls||[]; } catch(e) {}
+    // טכנאי שטח — רואה רק קריאות המשויכות אליו (מנהל רואה הכל)
+    const isFieldTech = currentUser?.employee_role_type === 'field_tech';
+    if (isFieldTech) allCalls = allCalls.filter(c => c.assigned_member_id == currentUser.id);
     let calls = filterStatus ? allCalls.filter(c => filterStatus === 'urgent' ? c.priority === 'urgent' : c.status === filterStatus) : allCalls;
 
     document.getElementById('sc-all-modal')?.remove();

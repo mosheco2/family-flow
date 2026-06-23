@@ -10946,13 +10946,15 @@ app.post('/api/service-calls', async (req, res) => {
         }
 
         const fullDesc = description || null;
-        const resolvedMemberId = needsTriage ? null : (assignedMemberId || null);
+        // קריאה שנפתחה ע"י לקוח (familyGroupId קיים, ללא שיוך לטכנאי) → ממתינה לסיווג מנהל
+        const autoNeedsTriage = needsTriage !== undefined ? !!needsTriage : !!(resolvedFamilyGroupId && !assignedMemberId);
+        const resolvedMemberId = autoNeedsTriage ? null : (assignedMemberId || null);
         let result;
         try {
             result = await pool.query(
                 `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, customer_phone, customer_name, priority, created_by_user_id, assigned_member_id, scheduled_at, requested_date, needs_triage)
                  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
-                [resolvedFamilyGroupId, resolvedBusinessGroupId, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, customerName||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null, requestedDate||null, needsTriage ? true : false]);
+                [resolvedFamilyGroupId, resolvedBusinessGroupId, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, customerName||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null, requestedDate||null, autoNeedsTriage]);
         } catch(colErr) {
             // Fallback: insert without needs_triage if column doesn't exist yet
             result = await pool.query(
