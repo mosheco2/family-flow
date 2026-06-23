@@ -9558,10 +9558,11 @@ window._custLinkOneflow = function(familyId, matchIdx) {
     const m = (window._custOneflowMatches || [])[matchIdx] || {};
     const fullName   = (m.first_name && m.last_name) ? `${m.first_name} ${m.last_name}` : (m.first_name || m.nickname || m.family_name || '');
     const groupLabel = m.group_last_name || m.family_nickname || m.family_name || '';
-    const setField = (id, val) => { const el = document.getElementById(id); if (el && val && !el.value) el.value = val; };
-    setField('cust-name', fullName);
-    setField('cust-company-name', groupLabel);
-    // מייל ממולא תמיד מנתוני ONEFLOW (אם קיים), ללא תנאי !el.value
+    // שדות מ-ONEFLOW תמיד מחליפים את הקיים
+    const nameEl = document.getElementById('cust-name');
+    if (nameEl && fullName) nameEl.value = fullName;
+    const companyEl = document.getElementById('cust-company-name');
+    if (companyEl && groupLabel) companyEl.value = groupLabel;
     const emailEl = document.getElementById('cust-email');
     if (emailEl && m.email) emailEl.value = m.email;
     if (document.getElementById('cust-family-group-id')) document.getElementById('cust-family-group-id').value = familyId || '';
