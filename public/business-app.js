@@ -9430,7 +9430,7 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
     historyHtml += '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-4 border-t border-slate-100 pt-4">הצעות מחיר ופקודות עבודה פתוחות:</h4>';
 
     const pendingQuotes = (storeQuotesCache || []).filter(match);
-    const workOrders    = (storeOrdersCache || []).filter(o => match(o) && o.status === 'work_order');
+    const workOrders    = (storeOrdersCache || []).filter(o => match(o) && o.call_type === 'work_order');
 
     if (pendingQuotes.length > 0 || workOrders.length > 0) {
         pendingQuotes.forEach(q => {
@@ -9443,7 +9443,7 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
                 if (qMeta) { const qm = JSON.parse(qMeta.data||'{}'); if(qm.title) quoteItemTitle = qm.title; }
             } catch(e) {}
             const relatedWO = (storeOrdersCache || []).find(o =>
-                o.status === 'work_order' &&
+                o.call_type === 'work_order' &&
                 (o.customer_name === q.customer_name || (q.customer_phone && o.customer_phone === q.customer_phone))
             );
             historyHtml += `

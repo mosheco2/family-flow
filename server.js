@@ -12341,7 +12341,7 @@ app.get('/api/clients/financial-summary/:groupId', async (req, res) => {
                     'work_order' AS source_type
              FROM work_order_payments wop
              JOIN store_orders so ON wop.work_order_id = so.id
-             WHERE so.group_id=$1 AND so.status='work_order'
+             WHERE so.group_id=$1 AND so.call_type='work_order'
                AND (($2::text IS NOT NULL AND LOWER(so.customer_name) LIKE LOWER($2))
                     OR ($3::text IS NOT NULL AND so.customer_phone=$3))`,
             [groupId, nameLike, phoneParam]
@@ -12395,7 +12395,7 @@ app.get('/api/clients/financial-summary/:groupId', async (req, res) => {
                     so.total_amount::numeric AS order_total
              FROM store_orders so
              LEFT JOIN work_order_payments wop ON wop.work_order_id = so.id
-             WHERE so.group_id=$1 AND so.status='work_order'
+             WHERE so.group_id=$1 AND so.call_type='work_order'
                AND (($2::text IS NOT NULL AND LOWER(so.customer_name) LIKE LOWER($2))
                     OR ($3::text IS NOT NULL AND so.customer_phone=$3))
              GROUP BY so.id, so.quote_title, so.quote_number, so.total_amount`,
