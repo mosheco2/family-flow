@@ -12321,6 +12321,81 @@ app.get('/api/work-orders/collection-alerts/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// סיכום פיננסי לקוח — סה"כ עסקאות, הכנסות, חבות פתוחה + תחנות ממתינות
+app.get('/api/clients/financial-summary/:groupId', async (req, res) => {
+    const { groupId } = req.params;
+    const { name, phone } = req.query;
+    if (!name && !phone) return res.json({ success: true, totalInvoiced: 0, totalPaid: 0, totalPending: 0, storeTotal: 0, pendingPayments: [] });
+    try {
+        const nameLike = name ? `%${name}%` : null;
+        const phoneParam = phone || null;
+
+        // תחנות תשלום — פקודות עבודה
+        const woQ = await pool.query(
+            `SELECT wop.id, wop.milestone_name, wop.amount::numeric,
+                    COALESCE(wop.received_amount,0)::numeric AS received_amount,
+                    wop.status, wop.due_date, wop.payment_method,
+                    so.id AS source_id,
+                    COALESCE(so.quote_title, CONCAT('פקודת עבודה #', so.quote_number), 'פקודת עבודה') AS source_title,
+                    so.quote_number AS source_number,
+                    'work_order' AS source_type
+             FROM work_order_payments wop
+             JOIN store_orders so ON wop.work_order_id = so.id
+             WHERE so.group_id=$1 AND so.status='work_order'
+               AND (($2::text IS NOT NULL AND LOWER(so.customer_name) LIKE LOWER($2))
+                    OR ($3::text IS NOT NULL AND so.customer_phone=$3))`,
+            [groupId, nameLike, phoneParam]
+        );
+
+        // תחנות תשלום — קריאות שירות
+        const scQ = await pool.query(
+            `SELECT wop.id, wop.milestone_name, wop.amount::numeric,
+                    COALESCE(wop.received_amount,0)::numeric AS received_amount,
+                    wop.status, wop.due_date, wop.payment_method,
+                    sc.id AS source_id,
+                    COALESCE(sc.title, CONCAT('קריאת שירות #', sc.id::text)) AS source_title,
+                    CONCAT('SC-', sc.id::text) AS source_number,
+                    'service_call' AS source_type
+             FROM work_order_payments wop
+             JOIN service_calls sc ON wop.service_call_id = sc.id
+             WHERE sc.business_group_id=$1
+               AND ($2::text IS NOT NULL AND LOWER(sc.customer_name) LIKE LOWER($2))`,
+            [groupId, nameLike]
+        );
+
+        // הזמנות חנות ישירות (לא פקודות עבודה / הצעות מחיר)
+        const storeQ = await pool.query(
+            `SELECT COALESCE(SUM(total_amount),0)::numeric AS store_total, COUNT(*)::int AS order_count
+             FROM store_orders
+             WHERE group_id=$1
+               AND status NOT IN ('work_order','quote','cancelled','draft')
+               AND (($2::text IS NOT NULL AND LOWER(customer_name) LIKE LOWER($2))
+                    OR ($3::text IS NOT NULL AND customer_phone=$3))`,
+            [groupId, nameLike, phoneParam]
+        );
+
+        const allPayments = [...woQ.rows, ...scQ.rows];
+        let totalInvoiced = 0, totalPaid = 0;
+        const pendingPayments = [];
+        for (const p of allPayments) {
+            totalInvoiced += parseFloat(p.amount);
+            totalPaid += parseFloat(p.received_amount);
+            if (p.status === 'pending') pendingPayments.push(p);
+        }
+        const storeTotal = parseFloat(storeQ.rows[0]?.store_total || 0);
+        const storeCount = storeQ.rows[0]?.order_count || 0;
+
+        res.json({
+            success: true,
+            totalInvoiced: totalInvoiced + storeTotal,
+            totalPaid: totalPaid + storeTotal,
+            totalPending: Math.max(0, totalInvoiced - totalPaid),
+            storeTotal, storeOrderCount: storeCount,
+            pendingPayments
+        });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 // ===== END WORK ORDER PAYMENTS API =====
 
 // ===== SPORT / FITNESS API =====

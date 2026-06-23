@@ -9764,6 +9764,23 @@ window.openCustomerModal = function(id = null, tab = 'details') {
             </div>
             
             <div id="cust-view-details" class="flex-1 overflow-y-auto modal-scroll pr-1">
+                ${id ? `<div id="cust-financial-section" class="mb-4">
+                    <div class="grid grid-cols-3 gap-2 mb-3">
+                        <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-200 text-center">
+                            <div class="text-[9px] font-bold text-slate-500 mb-1">סה"כ עסקאות</div>
+                            <div id="cust-fin-invoiced" class="text-sm font-black text-slate-800 dir-ltr">—</div>
+                        </div>
+                        <div class="bg-green-50 rounded-xl p-2.5 border border-green-200 text-center">
+                            <div class="text-[9px] font-bold text-green-600 mb-1">סה"כ הכנסות</div>
+                            <div id="cust-fin-paid" class="text-sm font-black text-green-700 dir-ltr">—</div>
+                        </div>
+                        <div class="bg-amber-50 rounded-xl p-2.5 border border-amber-200 text-center">
+                            <div class="text-[9px] font-bold text-amber-600 mb-1">חבות פתוחה</div>
+                            <div id="cust-fin-pending" class="text-sm font-black text-amber-700 dir-ltr">—</div>
+                        </div>
+                    </div>
+                    <div id="cust-fin-pending-list"></div>
+                </div>` : ''}
                 ${debtHtml}
                 <div class="space-y-3 pb-2">
                     <div><label class="text-xs font-bold text-slate-500">שם איש קשר / מנהל (חובה):</label><input type="text" id="cust-name" class="modern-input py-2 text-sm bg-white" oninput="if(!document.getElementById('cust-view-history').classList.contains('hidden')) window.renderCustomerHistory(false, 'modal')"></div>
@@ -9844,6 +9861,62 @@ window.openCustomerModal = function(id = null, tab = 'details') {
     
     window.switchCustomerTab(tab);
     modal.classList.remove('hidden');
+    if (id && c) window.loadClientFinancialSummary(c.name, c.phone);
+};
+
+window.loadClientFinancialSummary = async function(name, phone) {
+    const invoicedEl = document.getElementById('cust-fin-invoiced');
+    const paidEl = document.getElementById('cust-fin-paid');
+    const pendingEl = document.getElementById('cust-fin-pending');
+    const listEl = document.getElementById('cust-fin-pending-list');
+    if (!invoicedEl) return;
+    invoicedEl.textContent = paidEl.textContent = pendingEl.textContent = '...';
+    try {
+        const params = new URLSearchParams();
+        if (name) params.set('name', name);
+        if (phone) params.set('phone', phone);
+        const r = await fetch(`/api/clients/financial-summary/${currentGroup.id}?${params}`);
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error);
+        invoicedEl.textContent = '₪' + parseFloat(d.totalInvoiced || 0).toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2});
+        paidEl.textContent   = '₪' + parseFloat(d.totalPaid    || 0).toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2});
+        const pending = parseFloat(d.totalPending || 0);
+        pendingEl.textContent = '₪' + pending.toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2});
+        pendingEl.parentElement.className = pending > 0
+            ? 'bg-amber-50 rounded-xl p-2.5 border border-amber-200 text-center'
+            : 'bg-green-50 rounded-xl p-2.5 border border-green-200 text-center';
+        pendingEl.className = pending > 0 ? 'text-sm font-black text-amber-700 dir-ltr' : 'text-sm font-black text-green-700 dir-ltr';
+
+        if (listEl) {
+            const items = d.pendingPayments || [];
+            if (!items.length) { listEl.innerHTML = ''; return; }
+            const METHODS = { cash:'מזומן', card:'כרטיס', transfer:'העברה', check:'שיק', bit:'ביט' };
+            const today = new Date(); today.setHours(0,0,0,0);
+            listEl.innerHTML = `<p class="text-[10px] font-bold text-slate-500 mb-1.5"><i class="fa-solid fa-clock text-amber-500 ml-1"></i>ממתין לגבייה (${items.length})</p>` +
+            items.map(p => {
+                const isOverdue = p.due_date && new Date(p.due_date) < today;
+                const dateStr = p.due_date ? new Date(p.due_date).toLocaleDateString('he-IL') : '—';
+                const onClick = p.source_type === 'work_order'
+                    ? `document.getElementById('customer-modal').classList.add('hidden'); window.openWorkOrderModal(${p.source_id})`
+                    : `document.getElementById('customer-modal').classList.add('hidden'); window.showServiceCallModal(${p.source_id})`;
+                return `<div class="flex items-center justify-between bg-white rounded-xl border ${isOverdue ? 'border-red-200 bg-red-50' : 'border-amber-100'} px-3 py-2 gap-2 cursor-pointer hover:shadow-sm transition" onclick="${onClick}">
+                    <div class="flex-1 min-w-0">
+                        <div class="text-[11px] font-bold text-slate-700 truncate">${safeStr(p.source_title)}</div>
+                        <div class="text-[10px] text-slate-400">${safeStr(p.milestone_name || 'תחנת תשלום')}${p.payment_method ? ' · ' + (METHODS[p.payment_method] || p.payment_method) : ''} · יעד: ${dateStr}</div>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <div class="text-sm font-black ${isOverdue ? 'text-red-600' : 'text-amber-700'} dir-ltr">₪${parseFloat(p.amount).toFixed(2)}</div>
+                        ${isOverdue ? '<div class="text-[9px] text-red-500 font-bold">באיחור ⚠️</div>' : ''}
+                    </div>
+                    <i class="fa-solid fa-chevron-left text-slate-300 text-xs shrink-0"></i>
+                </div>`;
+            }).join('');
+        }
+    } catch(e) {
+        if (invoicedEl) invoicedEl.textContent = '—';
+        if (paidEl) paidEl.textContent = '—';
+        if (pendingEl) pendingEl.textContent = '—';
+    }
 };
 
 window.switchCustomerTab = function(tab) {
