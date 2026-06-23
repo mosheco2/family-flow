@@ -10023,7 +10023,7 @@ window.loadCustomerCollection = async function(name, phone) {
                 const rem = Math.max(0, inv - paid);
                 const isSettled = rem === 0;
                 const borderCls = isSettled ? 'border-green-100 bg-green-50/30' : 'border-blue-100 bg-white';
-                return `<div class="flex items-center justify-between rounded-xl border ${borderCls} px-3 py-2 gap-2 cursor-pointer hover:shadow-sm transition" onclick="document.getElementById('customer-modal').classList.add('hidden'); window.openWorkOrderModal(${wo.id})">
+                return `<div class="flex items-center justify-between rounded-xl border ${borderCls} px-3 py-2 gap-2 cursor-pointer hover:shadow-sm transition" onclick="document.getElementById('customer-modal').classList.add('hidden'); window.openWorkOrderModal(${wo.id}).then(()=>window.switchWoTab('payments'))">
                     <div class="flex-1 min-w-0">
                         <div class="text-[11px] font-bold text-slate-700 truncate">${safeStr(wo.title)}</div>
                         <div class="text-[10px] text-slate-400 flex gap-2">
