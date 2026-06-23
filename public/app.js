@@ -9517,7 +9517,7 @@ window._bizQuickActions = function(bizGroupId, bizType, bizName, groupCode) {
         `;
         else if (a.action === 'beauty_book' && storeUrl) handler = `window.open('${storeUrl}&action=book&familyGroupId=${currentGroup?.id||''}','_blank');document.getElementById('biz-qs-sheet')?.remove()`;
         else if (a.action === 'beauty_rfq') handler = `document.getElementById('biz-qs-sheet')?.remove();window._familyNewRfqModal&&window._familyNewRfqModal(${bizGroupId},'${bizName.replace(/'/g,"\\'")}',null)`;
-        else if (a.action === 'service_call') handler = `document.getElementById('biz-qs-sheet')?.remove();window._openServiceCallForm&&window._openServiceCallForm(${bizGroupId},'${bizName.replace(/'/g,"\\'")}')`;
+        else if (a.action === 'service_call') handler = `document.getElementById('biz-qs-sheet')?.remove();window._memberNewServiceCall(${bizGroupId},'${bizName.replace(/'/g,"\\'")}')`;
         else if (a.action === 'table_reservation') handler = `document.getElementById('biz-qs-sheet')?.remove();window._tableReservationModal(${bizGroupId},'${bizName.replace(/'/g,"\\'")}')`;
         else if (a.action === 'message') handler = `document.getElementById('biz-qs-sheet')?.remove();window._bizMessageModal(${bizGroupId},'${bizName.replace(/'/g,"\\'")}')`;
         else handler = `document.getElementById('biz-qs-sheet')?.remove()`;
