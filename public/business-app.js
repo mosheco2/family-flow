@@ -28706,7 +28706,7 @@ window.showServiceCallModal = async function(callId) {
                             </select></div>
                     </div>
                     <div><label class="text-[9px] font-bold text-slate-400 mb-0.5 block">סכום עסקה כוללת ₪</label>
-                        <input type="number" id="sc-pay-total-amount-${callId}" placeholder="ברירת מחדל = הסכום הקודם" min="0" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 text-xs"></div>
+                        <input type="number" id="sc-pay-original-amount-${callId}" placeholder="יורש מהתחנה הקודמת" min="0" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 text-xs"></div>
                     <div class="flex gap-2">
                         <button onclick="window.saveScPaymentMilestone(${callId})" class="flex-1 bg-indigo-600 text-white py-1.5 rounded-xl text-xs font-bold active:scale-95 transition" style="touch-action:manipulation;">שמור תחנה</button>
                         <button onclick="document.getElementById('sc-add-payment-panel-${callId}').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-600 py-1.5 rounded-xl text-xs font-bold active:scale-95 transition" style="touch-action:manipulation;">ביטול</button>
@@ -32300,7 +32300,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
           <input id="wo-pay-amount" type="number" min="0" step="0.01" placeholder="סכום ₪" class="modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
           <input id="wo-pay-date" type="date" class="modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
         </div>
-        <input id="wo-pay-total-amount" type="number" min="0" step="0.01" placeholder="סכום עסקה כוללת ₪ (ברירת מחדל = הסכום הקודם)" class="w-full modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
+        <input id="wo-pay-original-amount" type="number" min="0" step="0.01" placeholder="סכום עסקה כוללת ₪ (יורש מהתחנה הקודמת)" class="w-full modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
         <select id="wo-pay-method" class="w-full modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
           <option value="">אופן תשלום (לא חובה)</option>
           <option value="cash">מזומן</option>
@@ -33135,13 +33135,18 @@ window.loadWoPayments = async function() {
             return;
         }
         const METHODS = { cash:'מזומן', card:'כרטיס', transfer:'העברה', check:'שיק', bit:'ביט' };
-        let totalCharged = 0, totalReceived = 0;
-        list.innerHTML = payments.map(p => {
+        let totalCharged = 0, totalReceived = 0, cumulativePaid = 0;
+        const originalAmount = parseFloat(payments[0].original_amount || 0);
+        list.innerHTML = payments.map((p, idx) => {
             const isPaid = p.status === 'received';
             const amt = parseFloat(p.amount);
             const recAmt = parseFloat(p.received_amount || 0);
             totalCharged += amt;
-            if (isPaid) totalReceived += recAmt;
+            if (isPaid) {
+                totalReceived += recAmt;
+                cumulativePaid += recAmt;
+            }
+            const remaining = Math.max(0, originalAmount - cumulativePaid);
             const dueDateStr = p.due_date ? new Date(p.due_date).toLocaleDateString('he-IL') : '—';
             const receivedDateStr = p.received_at ? new Date(p.received_at).toLocaleDateString('he-IL') : '';
             const today = new Date(); today.setHours(0,0,0,0);
@@ -33153,8 +33158,7 @@ window.loadWoPayments = async function() {
                         ${isPaid ? '<span class="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">התקבל ✅</span>' : isOverdue ? '<span class="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">באיחור ⚠️</span>' : '<span class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">ממתין</span>'}
                     </div>
                     <div class="text-[10px] text-slate-500">
-                        סכום: <b class="text-slate-700 dir-ltr">₪${amt.toFixed(2)}</b>
-                        ${p.total_amount ? ` · עסקה כוללת: <b class="text-slate-700 dir-ltr">₪${parseFloat(p.total_amount).toFixed(2)}</b>` : ''}
+                        ${originalAmount ? `עסקה: <b class="text-slate-700 dir-ltr">₪${originalAmount.toFixed(2)}</b> · שולם: <b class="text-slate-700 dir-ltr">₪${cumulativePaid.toFixed(2)}</b> · נותר: <b class="text-slate-700 dir-ltr">₪${remaining.toFixed(2)}</b>` : `סכום: <b class="text-slate-700 dir-ltr">₪${amt.toFixed(2)}</b>`}
                         ${p.payment_method ? ' · ' + (METHODS[p.payment_method] || p.payment_method) : ''}
                         · יעד: <b>${dueDateStr}</b>
                         ${isPaid ? ` · התקבל: <b class="text-green-600">₪${recAmt.toFixed(2)}</b> (${receivedDateStr})` : ''}
@@ -33186,7 +33190,7 @@ window.openAddPaymentMilestone = async function() {
     if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().split('T')[0];
 
     // ממלא סכום עסקה כוללת — הסכום הקודם או סכום הפקודה
-    const totalAmtEl = document.getElementById('wo-pay-total-amount');
+    const totalAmtEl = document.getElementById('wo-pay-original-amount');
     if (totalAmtEl && !totalAmtEl.value) {
         try {
             const r = await fetch(`/api/work-orders/${window._currentWoId}/payments`);
@@ -33194,7 +33198,7 @@ window.openAddPaymentMilestone = async function() {
             const payments = d.payments || [];
             if (payments.length > 0) {
                 const lastPayment = payments[payments.length - 1];
-                totalAmtEl.value = lastPayment.total_amount || lastPayment.amount || '';
+                totalAmtEl.value = lastPayment.original_amount || lastPayment.amount || '';
             } else {
                 // אם אין תחנות קודמות, טעון את סכום הפקודה
                 const woRes = await fetch(`/api/work-orders/${window._currentWoId}`);
@@ -33212,7 +33216,7 @@ window.savePaymentMilestone = async function() {
     const amount = parseFloat(document.getElementById('wo-pay-amount')?.value || 0);
     const dueDate = document.getElementById('wo-pay-date')?.value || null;
     const method = document.getElementById('wo-pay-method')?.value || null;
-    const totalAmount = parseFloat(document.getElementById('wo-pay-total-amount')?.value || 0) || null;
+    const totalAmount = parseFloat(document.getElementById('wo-pay-original-amount')?.value || 0) || null;
     if (!amount || amount <= 0) { showToast('error', 'נא להזין סכום'); return; }
     try {
         const r = await fetch(`/api/work-orders/${window._currentWoId}/payments`, {
@@ -33226,7 +33230,7 @@ window.savePaymentMilestone = async function() {
         document.getElementById('wo-pay-amount').value = '';
         document.getElementById('wo-pay-date').value = '';
         document.getElementById('wo-pay-method').value = '';
-        document.getElementById('wo-pay-total-amount').value = '';
+        document.getElementById('wo-pay-original-amount').value = '';
         showToast('success', 'תחנת תשלום נוספה');
         window.loadWoPayments();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
@@ -33275,14 +33279,19 @@ window.loadScPayments = async function(callId) {
             return;
         }
         const METHODS = { cash:'מזומן', card:'כרטיס', transfer:'העברה', check:'שיק', bit:'ביט' };
-        let totalCharged = 0, totalReceived = 0;
+        let totalCharged = 0, totalReceived = 0, cumulativePaid = 0;
+        const originalAmount = parseFloat(payments[0].original_amount || 0);
         const today = new Date(); today.setHours(0,0,0,0);
         list.innerHTML = payments.map(p => {
             const isPaid = p.status === 'received';
             const amt = parseFloat(p.amount);
             const recAmt = parseFloat(p.received_amount || 0);
             totalCharged += amt;
-            if (isPaid) totalReceived += recAmt;
+            if (isPaid) {
+                totalReceived += recAmt;
+                cumulativePaid += recAmt;
+            }
+            const remaining = Math.max(0, originalAmount - cumulativePaid);
             const dueDateStr = p.due_date ? new Date(p.due_date).toLocaleDateString('he-IL') : '—';
             const isOverdue = !isPaid && p.due_date && new Date(p.due_date) < today;
             return `<div class="p-2.5 rounded-xl border ${isPaid ? 'border-green-200 bg-green-50' : isOverdue ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'} flex items-start gap-2">
@@ -33292,7 +33301,8 @@ window.loadScPayments = async function(callId) {
                         ${isPaid ? '<span class="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">התקבל ✅</span>' : isOverdue ? '<span class="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">באיחור ⚠️</span>' : '<span class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">ממתין</span>'}
                     </div>
                     <div class="text-[10px] text-slate-500">
-                        ₪${amt.toFixed(2)}${p.total_amount ? ` · עסקה: ₪${parseFloat(p.total_amount).toFixed(2)}` : ''}${p.payment_method ? ' · ' + (METHODS[p.payment_method] || p.payment_method) : ''} · יעד: <b>${dueDateStr}</b>
+                        ${originalAmount ? `עסקה: <b class="text-slate-700 dir-ltr">₪${originalAmount.toFixed(2)}</b> · שולם: <b class="text-slate-700 dir-ltr">₪${cumulativePaid.toFixed(2)}</b> · נותר: <b class="text-slate-700 dir-ltr">₪${remaining.toFixed(2)}</b>` : `סכום: <b class="text-slate-700 dir-ltr">₪${amt.toFixed(2)}</b>`}
+                        ${p.payment_method ? ' · ' + (METHODS[p.payment_method] || p.payment_method) : ''} · יעד: <b>${dueDateStr}</b>
                         ${isPaid ? ` · התקבל: <b class="text-green-600">₪${recAmt.toFixed(2)}</b>` : ''}
                     </div>
                 </div>
@@ -33320,7 +33330,7 @@ window.openAddScPaymentMilestone = async function(callId) {
     if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().split('T')[0];
 
     // ממלא סכום עסקה כוללת — הסכום הקודם
-    const totalAmtEl = document.getElementById(`sc-pay-total-amount-${callId}`);
+    const totalAmtEl = document.getElementById(`sc-pay-original-amount-${callId}`);
     if (totalAmtEl && !totalAmtEl.value) {
         try {
             const r = await fetch(`/api/service-calls/${callId}/payments`);
@@ -33328,7 +33338,7 @@ window.openAddScPaymentMilestone = async function(callId) {
             const payments = d.payments || [];
             if (payments.length > 0) {
                 const lastPayment = payments[payments.length - 1];
-                totalAmtEl.value = lastPayment.total_amount || lastPayment.amount || '';
+                totalAmtEl.value = lastPayment.original_amount || lastPayment.amount || '';
             }
         } catch(e) {}
     }
@@ -33339,7 +33349,7 @@ window.saveScPaymentMilestone = async function(callId) {
     const amount = parseFloat(document.getElementById(`sc-pay-amount-${callId}`)?.value || 0);
     const dueDate = document.getElementById(`sc-pay-date-${callId}`)?.value || null;
     const method = document.getElementById(`sc-pay-method-${callId}`)?.value || null;
-    const totalAmount = parseFloat(document.getElementById(`sc-pay-total-amount-${callId}`)?.value || 0) || null;
+    const totalAmount = parseFloat(document.getElementById(`sc-pay-original-amount-${callId}`)?.value || 0) || null;
     if (!amount || amount <= 0) { showToast('error', 'נא להזין סכום'); return; }
     try {
         const r = await fetch(`/api/service-calls/${callId}/payments`, {
