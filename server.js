@@ -800,6 +800,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(30) DEFAULT NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE work_order_payments ALTER COLUMN work_order_id DROP NOT NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE work_order_payments ADD COLUMN IF NOT EXISTS service_call_id INT REFERENCES service_calls(id) ON DELETE CASCADE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE work_order_payments ADD COLUMN IF NOT EXISTS total_amount DECIMAL(10,2)`); } catch(e) {}
       try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS payment_status VARCHAR(30) DEFAULT NULL`); } catch(e) {}
       // ===== END WORK ORDER PAYMENTS MODULE =====
 
@@ -12111,12 +12112,20 @@ app.get('/api/work-orders/:id/payments', async (req, res) => {
 // הוספת תחנת תשלום
 app.post('/api/work-orders/:id/payments', async (req, res) => {
     try {
-        const { milestoneName, amount, dueDate, paymentMethod } = req.body;
+        const { milestoneName, amount, dueDate, paymentMethod, totalAmount } = req.body;
         if (!amount || parseFloat(amount) <= 0) return res.status(400).json({ error: 'סכום נדרש' });
+
+        // קבע סכום עסקה כוללת — ברירת מחדל = סכום הפקודה או התחנה הקודמת
+        let finalTotalAmount = parseFloat(totalAmount);
+        if (!finalTotalAmount || finalTotalAmount <= 0) {
+            const woR = await pool.query('SELECT total_amount FROM store_orders WHERE id=$1', [req.params.id]);
+            finalTotalAmount = woR.rows[0]?.total_amount ? parseFloat(woR.rows[0].total_amount) : parseFloat(amount);
+        }
+
         const r = await pool.query(
-            `INSERT INTO work_order_payments (work_order_id, milestone_name, amount, due_date, payment_method)
-             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-            [req.params.id, milestoneName || 'תשלום', parseFloat(amount), dueDate || null, paymentMethod || null]
+            `INSERT INTO work_order_payments (work_order_id, milestone_name, amount, due_date, payment_method, total_amount)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [req.params.id, milestoneName || 'תשלום', parseFloat(amount), dueDate || null, paymentMethod || null, finalTotalAmount]
         );
         // עדכן payment_status ל-pending_payment אם לא קיים עדיין
         await pool.query(
@@ -12224,12 +12233,26 @@ app.get('/api/service-calls/:id/payments', async (req, res) => {
 // הוספת תחנת תשלום לקריאת שירות
 app.post('/api/service-calls/:id/payments', async (req, res) => {
     try {
-        const { milestoneName, amount, dueDate, paymentMethod } = req.body;
+        const { milestoneName, amount, dueDate, paymentMethod, totalAmount } = req.body;
         if (!amount || parseFloat(amount) <= 0) return res.status(400).json({ error: 'סכום נדרש' });
+
+        // קבע סכום עסקה כוללת — ברירת מחדל = סכום המילסטון הקודם או הנוכחי
+        let finalTotalAmount = parseFloat(totalAmount);
+        if (!finalTotalAmount || finalTotalAmount <= 0) {
+            const lastPaymentR = await pool.query(
+                'SELECT total_amount FROM work_order_payments WHERE service_call_id=$1 ORDER BY created_at DESC LIMIT 1',
+                [req.params.id]);
+            if (lastPaymentR.rows.length && lastPaymentR.rows[0].total_amount) {
+                finalTotalAmount = parseFloat(lastPaymentR.rows[0].total_amount);
+            } else {
+                finalTotalAmount = parseFloat(amount);
+            }
+        }
+
         const r = await pool.query(
-            `INSERT INTO work_order_payments (service_call_id, milestone_name, amount, due_date, payment_method)
-             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-            [req.params.id, milestoneName || 'תשלום', parseFloat(amount), dueDate || null, paymentMethod || null]
+            `INSERT INTO work_order_payments (service_call_id, milestone_name, amount, due_date, payment_method, total_amount)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [req.params.id, milestoneName || 'תשלום', parseFloat(amount), dueDate || null, paymentMethod || null, finalTotalAmount]
         );
         await pool.query(
             `UPDATE service_calls SET payment_status=COALESCE(payment_status,'pending_payment') WHERE id=$1`,
