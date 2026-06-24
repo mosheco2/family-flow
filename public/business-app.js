@@ -43611,9 +43611,12 @@ window.aiWriteExpertiseDesc = async function(btn) {
     const titleEn = document.getElementById('edit-exp-title-en')?.value?.trim();
     const bizName = currentGroup?.name || 'העסק';
     if (!titleHe && !titleEn) { showToast('error','הזן שם תחום קודם'); return; }
-    const prompt = `אתה כותב תיאור קצר לתחום עיסוק לאתר תדמית של עסק מקצועי בשם "${bizName}".
+    const prompt = `אתה כותב תיאור לתחום עיסוק לאתר תדמית של עסק מקצועי בשם "${bizName}".
 תחום: ${titleHe || titleEn}
-כתוב 2-3 משפטים המסבירים את השירות ומה הלקוח מקבל. שפה ישירה ומקצועית.
+
+המטרה: להסביר ללקוח מה זה התחום הזה, במה הוא עוסק, ומה הוא מקבל מהעסק בתחום זה.
+כתוב 2-3 משפטים שמתחילים בהסבר מהו התחום (לאנשים שלא בהכרח מכירים את המונח המקצועי), ואז מה העסק מציע בו.
+שפה נגישה, ישירה, ומניעה לפעולה.
 החזר JSON בלבד: {"description_he":"...","description_en":"..."}`;
     const answer = await window._profContentAI(prompt, btn);
     if (!answer) return;
