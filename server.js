@@ -10817,6 +10817,41 @@ app.put('/api/sa/legal/:key', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ success: false }); }
 });
 
+// ─── BIZ TYPE VISIBILITY MANAGEMENT ─────────────────────────────────────────
+pool.query(`CREATE TABLE IF NOT EXISTS biz_type_visibility (
+    business_type VARCHAR(50) NOT NULL,
+    element_key   VARCHAR(200) NOT NULL,
+    PRIMARY KEY (business_type, element_key)
+)`).catch(e => console.error('biz_type_visibility table:', e.message));
+
+app.get('/api/sa/biz-visibility/:type', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query('SELECT element_key FROM biz_type_visibility WHERE business_type=$1', [req.params.type]);
+        res.json({ hiddenKeys: r.rows.map(row => row.element_key) });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/biz-visibility/:type/toggle', verifySA, async (req, res) => {
+    try {
+        const { key, hidden } = req.body;
+        if (!key) return res.status(400).json({ error: 'key required' });
+        if (hidden) {
+            await pool.query('INSERT INTO biz_type_visibility (business_type,element_key) VALUES ($1,$2) ON CONFLICT DO NOTHING', [req.params.type, key]);
+        } else {
+            await pool.query('DELETE FROM biz_type_visibility WHERE business_type=$1 AND element_key=$2', [req.params.type, key]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Public endpoint — used by business-app.js at runtime
+app.get('/api/biz-visibility/:type', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT element_key FROM biz_type_visibility WHERE business_type=$1', [req.params.type]);
+        res.json({ hiddenKeys: r.rows.map(row => row.element_key) });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // OG preview route for campaign WhatsApp sharing
 app.get('/c/camp/:token', async (req, res) => {
     try {
