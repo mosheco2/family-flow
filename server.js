@@ -6275,6 +6275,31 @@ app.post('/api/biz/chat-assistant', async (req, res) => {
 - חשבוניות שממתינות לתשלום
 ` : '';
 
+        const beautySection = bizType === 'beauty' ? `
+
+== ניתוח סלון יופי / קוסמטיקה ==
+• **תפוסת היום**: beauty_appointments_today — ספור תורים לפי status (scheduled/confirmed/completed/no_show)
+• **הכנסה יומית**: סכום total_price של תורים completed היום
+• **no_show rate**: no_show / (completed + no_show) × 100 — מטרה: <10%; >15% = בעיה אופרציונלית
+• **מטפלות עמוסות**: קבץ תורים לפי practitioner, מי שמעל 6 תורים ביום = עומס גבוה
+• **ביקוש שירותים**: service הנפוץ ביותר = שקול לפתוח שעה נוספת; נדיר = שקול הסרה
+
+== יופי — פקודות פעולה ==
+כשמבקשים לאשר תור → [ACTION:UPDATE_APPT_STATUS|appt_id|confirmed|שם לקוחה]
+כשמבקשים לבטל תור → [ACTION:UPDATE_APPT_STATUS|appt_id|cancelled|שם לקוחה]
+כשמבקשים לסמן תור שהושלם → [ACTION:COMPLETE_APPT|appt_id|שם לקוחה]
+  appt_id נלקח מ-beauty_appointments_today[].id
+כשמבקשים לסמן "לא הגיע" → [ACTION:NO_SHOW_APPT|appt_id|שם לקוחה]
+  appt_id נלקח מ-beauty_appointments_today[].id
+כשמבקשים להוסיף לקוחה → [ACTION:ADD_BEAUTY_CLIENT|שם|טלפון|הערות]
+  הערות יכולות להיות ריק אם לא צוין
+• לפתוח יומן תורים → [ACTION:OPEN_TAB|beauty_calendar]
+• לפתוח לקוחות → [ACTION:OPEN_TAB|beauty_clients]
+• לפתוח מטפלות → [ACTION:OPEN_TAB|beauty_practitioners]
+• לפתוח שירותים → [ACTION:OPEN_TAB|beauty_services]
+• לפתוח עמלות → [ACTION:OPEN_TAB|beauty_commissions]
+• לפתוח קופה → [ACTION:OPEN_TAB|pos]` : '';
+
         const sportSection = bizType === 'sport' ? `
 
 == ניתוח מועדון ספורט/כושר ==
@@ -6365,7 +6390,7 @@ ${context}
 • מלאי: פריטים נגמרים, המלצת הזמנה, קצב צריכה
 • תזרים: הכנסות מול הוצאות, יתרה נטו, ניתוח קטגוריות
 • צוות: כמות עובדים, יתרות תקציב
-• חיזוי: על בסיס נתוני החודשים האחרונים, חזה מה צפוי החודש/שבוע הבא${logisticsSection}${sportSection}`;
+• חיזוי: על בסיס נתוני החודשים האחרונים, חזה מה צפוי החודש/שבוע הבא${logisticsSection}${beautySection}${sportSection}`;
 
         const result = await model.generateContent(systemPrompt);
         res.json({ success: true, answer: result.response.text().trim() });

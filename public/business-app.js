@@ -13806,9 +13806,12 @@ async function submitGlobalAI() {
             : undefined,
         table_reservations_today: (currentGroup?.business_type==='restaurant'||currentGroup?.business_type==='cafe')
             ? (window._tableReservationsCache||[]).filter(r=>{try{const d=new Date(r.event_date||r.created_at);return d.toDateString()===now_ai.toDateString();}catch(e){return false;}}).slice(0,20).map(r=>({id:r.id,name:r.title||r.customer_name,phone:r.customer_phone,time:r.start_time,guests:r.num_guests,status:r.status,table:r.reserved_table_number}))
+            : undefined,
+        beauty_appointments_today: currentGroup?.business_type==='beauty'
+            ? (window._beautyState?.appointments||[]).filter(a=>{try{const seg=a.segments?.[0];const ts=seg?.start_time||a.start_time;return ts&&new Date(ts).toDateString()===now_ai.toDateString();}catch(e){return false;}}).slice(0,30).map(a=>{const seg=a.segments?.[0]||{};return{id:a.id,client:a.client_name,phone:a.client_phone,service:seg.service_name||a.service_name,practitioner:seg.practitioner_name||a.practitioner_name,time:seg.start_time||a.start_time,status:a.status,price:a.total_price};})
             : undefined
     };
-    
+
     try {
         const res = await fetch(`${API}/biz/chat-assistant`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ query: query, context: JSON.stringify(systemContext), groupId: currentGroup.id }) }); const data = await res.json();
         if (!handleAIResponseCheck(data)) { getEl('global-ai-modal').classList.add('hidden'); btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>'; return; }
@@ -13875,6 +13878,35 @@ async function submitGlobalAI() {
                 const upId = updatePriceMatch[1], upPrice = updatePriceMatch[2];
                 answerText = answerText.replace(updatePriceMatch[0], '');
                 actionHtml += `<button onclick="window._aiUpdateCatalogPrice(${upId},${upPrice},this)" class="mt-3 w-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-tag"></i> עדכן מחיר → ₪${upPrice}</button>`;
+            }
+            // AI Action Parser — עדכון סטטוס תור (יופי)
+            const beautyApptMatch = answerText.match(/\[ACTION:UPDATE_APPT_STATUS\|(\d+)\|([\w_]+)\|([^\]]*)\]/);
+            if (beautyApptMatch) {
+                const baId = beautyApptMatch[1], baStatus = beautyApptMatch[2], baName = beautyApptMatch[3];
+                answerText = answerText.replace(beautyApptMatch[0], '');
+                const baLabels = {confirmed:'אושר',cancelled:'בוטל',completed:'הושלם',no_show:'לא הגיע',scheduled:'מתוזמן'};
+                actionHtml += `<button onclick="window._aiUpdateApptStatus(${baId},'${baStatus}','${safeStr(baName)}',this)" class="mt-3 w-full bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-calendar-check"></i> עדכן תור ${safeStr(baName)} → ${baLabels[baStatus]||baStatus}</button>`;
+            }
+            // AI Action Parser — השלמת תור (יופי)
+            const beautyCompleteMatch = answerText.match(/\[ACTION:COMPLETE_APPT\|(\d+)\|([^\]]*)\]/);
+            if (beautyCompleteMatch) {
+                const bcId = beautyCompleteMatch[1], bcName = beautyCompleteMatch[2];
+                answerText = answerText.replace(beautyCompleteMatch[0], '');
+                actionHtml += `<button onclick="window._aiCompleteAppt(${bcId},'${safeStr(bcName)}',this)" class="mt-3 w-full bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-circle-check"></i> סיים טיפול: ${safeStr(bcName)}</button>`;
+            }
+            // AI Action Parser — אי-הגעה (יופי)
+            const beautyNoShowMatch = answerText.match(/\[ACTION:NO_SHOW_APPT\|(\d+)\|([^\]]*)\]/);
+            if (beautyNoShowMatch) {
+                const bnId = beautyNoShowMatch[1], bnName = beautyNoShowMatch[2];
+                answerText = answerText.replace(beautyNoShowMatch[0], '');
+                actionHtml += `<button onclick="window._aiNoShowAppt(${bnId},'${safeStr(bnName)}',this)" class="mt-3 w-full bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-user-xmark"></i> סמן "לא הגיע": ${safeStr(bnName)}</button>`;
+            }
+            // AI Action Parser — הוספת לקוחה (יופי)
+            const beautyAddClientMatch = answerText.match(/\[ACTION:ADD_BEAUTY_CLIENT\|([^|^\]]*)\|([^|^\]]*)\|([^\]]*)\]/);
+            if (beautyAddClientMatch) {
+                const bacName = beautyAddClientMatch[1], bacPhone = beautyAddClientMatch[2], bacNotes = beautyAddClientMatch[3];
+                answerText = answerText.replace(beautyAddClientMatch[0], '');
+                actionHtml += `<button onclick="window._aiAddBeautyClient('${safeStr(bacName)}','${safeStr(bacPhone)}','${safeStr(bacNotes)}',this)" class="mt-3 w-full bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-user-plus"></i> הוסף לקוחה: ${safeStr(bacName)}</button>`;
             }
             // Markdown bold → <strong>
             answerText = answerText.trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
@@ -44623,4 +44655,67 @@ window._aiRegisterClass = async function(classId, membershipId, memberName, btn)
             if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> נרשם!'; btn.className = btn.className.replace(/bg-violet-\d+/g,'bg-green-50').replace(/text-violet-\d+/g,'text-green-700').replace(/border-violet-\d+/g,'border-green-200'); }
         } else { throw new Error(data.error||'error'); }
     } catch(e) { showToast('error', 'שגיאה ברישום לשיעור'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-calendar-plus"></i> נסה שוב'; } }
+};
+
+// === AI ACTION HANDLERS — BEAUTY ===
+window._aiUpdateApptStatus = async function(apptId, status, clientName, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
+    try {
+        const biz = currentGroup?.id; if (!biz) throw new Error('no biz');
+        const res = await fetch(API + '/beauty/' + biz + '/appointments/' + apptId, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ status })
+        });
+        const data = await res.json();
+        if (data.success) {
+            const labels = {confirmed:'אושר',cancelled:'בוטל',completed:'הושלם',no_show:'לא הגיע',scheduled:'מתוזמן'};
+            showToast('success', 'תור ' + clientName + ' ' + (labels[status]||status) + ' ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> עודכן!'; btn.className = btn.className.replace(/bg-pink-\d+/g,'bg-green-50').replace(/text-pink-\d+/g,'text-green-700').replace(/border-pink-\d+/g,'border-green-200'); }
+            if (typeof loadBeautyCalendar === 'function') loadBeautyCalendar();
+        } else { throw new Error(data.error||'error'); }
+    } catch(e) { showToast('error', 'שגיאה בעדכון תור'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-calendar-check"></i> נסה שוב'; } }
+};
+
+window._aiCompleteAppt = async function(apptId, clientName, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מסיים...'; }
+    try {
+        const biz = currentGroup?.id; if (!biz) throw new Error('no biz');
+        const res = await fetch(API + '/beauty/' + biz + '/appointments/' + apptId + '/complete', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'טיפול ' + clientName + ' הושלם! עמלות ומלאי עודכנו ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> הושלם!'; btn.className = btn.className.replace(/bg-green-\d+/g,'bg-green-50').replace(/text-green-\d+/g,'text-green-700'); }
+            if (typeof loadBeautyCalendar === 'function') loadBeautyCalendar();
+        } else { throw new Error(data.error||'error'); }
+    } catch(e) { showToast('error', 'שגיאה בסיום טיפול'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> נסה שוב'; } }
+};
+
+window._aiNoShowAppt = async function(apptId, clientName, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מסמן...'; }
+    try {
+        const biz = currentGroup?.id; if (!biz) throw new Error('no biz');
+        const res = await fetch(API + '/beauty/' + biz + '/appointments/' + apptId + '/no-show', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            showToast('info', clientName + ' סומן כ"לא הגיע" ');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> סומן!'; btn.className = btn.className.replace(/bg-orange-\d+/g,'bg-slate-50').replace(/text-orange-\d+/g,'text-slate-600').replace(/border-orange-\d+/g,'border-slate-200'); }
+            if (typeof loadBeautyCalendar === 'function') loadBeautyCalendar();
+        } else { throw new Error(data.error||'error'); }
+    } catch(e) { showToast('error', 'שגיאה בסימון אי-הגעה'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-user-xmark"></i> נסה שוב'; } }
+};
+
+window._aiAddBeautyClient = async function(name, phone, notes, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מוסיף...'; }
+    try {
+        const biz = currentGroup?.id; if (!biz) throw new Error('no biz');
+        const res = await fetch(API + '/beauty/' + biz + '/clients', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ name, phone, notes })
+        });
+        const data = await res.json();
+        if (data.success || data.client) {
+            showToast('success', 'לקוחה ' + name + ' נוספה ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> נוספה!'; btn.className = btn.className.replace(/bg-purple-\d+/g,'bg-green-50').replace(/text-purple-\d+/g,'text-green-700').replace(/border-purple-\d+/g,'border-green-200'); }
+        } else { throw new Error(data.error||'error'); }
+    } catch(e) { showToast('error', 'שגיאה בהוספת לקוחה'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> נסה שוב'; } }
 };
