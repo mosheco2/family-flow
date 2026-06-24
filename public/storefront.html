@@ -2410,15 +2410,16 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 tableResCurrentData = {};
                 document.getElementById('table-res-name').value = '';
                 document.getElementById('table-res-phone').value = '';
-                document.getElementById('table-res-date').value = '';
                 document.getElementById('table-res-guests').value = '2';
                 document.getElementById('table-res-notes').value = '';
-                document.getElementById('table-res-time-slots').innerHTML = '<p class="col-span-3 text-xs text-slate-400 text-center py-4">בחרו תאריך קודם</p>';
                 modal.classList.remove('hidden');
 
-                // הגדר min date להיום
+                // הגדר min date להיום וטען זמינות מיידית
                 const today = new Date().toISOString().split('T')[0];
-                document.getElementById('table-res-date').min = today;
+                const dateEl = document.getElementById('table-res-date');
+                dateEl.min = today;
+                dateEl.value = today;
+                window.loadTableAvailability(today);
             }
         };
 
@@ -2463,18 +2464,17 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
 
                 // צור כפתורי שעות
                 const renderStart = performance.now();
-                const slotsHtml = data.slots.map(slot => `
-                    <button type="button" onclick="window.selectTableTime('${slot.time}')"
-                        class="py-2 px-3 rounded-lg text-xs font-bold transition ${
-                            slot.available
-                            ? 'bg-white border-2 border-slate-200 text-slate-700 hover:border-orange-500 hover:bg-orange-50'
-                            : 'bg-slate-100 border-2 border-slate-200 text-slate-400 cursor-not-allowed'
-                        }"
+                const slotsHtml = data.slots.map(slot => {
+                    const cls = slot.available
+                        ? 'bg-white border-2 border-slate-200 text-slate-700 hover:border-orange-500 hover:bg-orange-50 cursor-pointer'
+                        : 'bg-slate-100 border-2 border-slate-200 text-slate-300 cursor-not-allowed';
+                    return `<button type="button" data-time="${slot.time}" onclick="window.selectTableTime('${slot.time}')"
+                        class="py-2.5 px-3 rounded-xl text-xs font-bold transition ${cls}"
                         ${!slot.available ? 'disabled' : ''}>
                         ${slot.time}
-                        <span class="text-[10px] block text-slate-500">${slot.tables} שולחנות</span>
-                    </button>
-                `).join('');
+                        <span class="block mt-0.5" style="font-size:9px;color:${slot.available?'#6b7280':'#d1d5db'}">${slot.tables} שולחנות</span>
+                    </button>`;
+                }).join('');
 
                 slotsContainer.innerHTML = slotsHtml;
                 if (timeLabel) timeLabel.textContent = '';
@@ -2492,15 +2492,12 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
 
         window.selectTableTime = function(time) {
             tableResCurrentData.time = time;
-            // סמן את ה-time שנבחר
             document.querySelectorAll('#table-res-time-slots button').forEach(btn => {
-                if (btn.textContent.includes(time)) {
-                    btn.classList.remove('border-slate-200', 'hover:border-orange-500', 'hover:bg-orange-50');
-                    btn.classList.add('border-orange-500', 'bg-orange-50', 'border-2');
-                } else {
-                    btn.classList.add('border-slate-200');
-                    btn.classList.remove('border-orange-500', 'bg-orange-50');
-                }
+                const isSelected = btn.getAttribute('data-time') === time;
+                btn.classList.toggle('border-orange-500', isSelected);
+                btn.classList.toggle('bg-orange-50', isSelected);
+                btn.classList.toggle('text-orange-700', isSelected);
+                btn.classList.toggle('border-slate-200', !isSelected);
             });
         };
 
