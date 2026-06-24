@@ -43166,7 +43166,10 @@ window.renderTimelogTab = async function() {
             <!-- Entries List -->
             <div class="flex items-center justify-between mb-3 px-1">
                 <p class="text-sm font-bold text-slate-700">רשומות אחרונות</p>
-                ${totalUnbilledVal>0?`<button onclick="window.createInvoiceFromTimelog()" class="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-xl hover:bg-indigo-100 transition">💳 צור חשבונית מהשעות</button>`:''}
+                <div class="flex gap-2 flex-wrap justify-end">
+                    ${entries.length>0?`<button onclick="window.exportTimelogCSV()" class="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition">📥 ייצא CSV</button>`:''}
+                    ${totalUnbilledVal>0?`<button onclick="window.createInvoiceFromTimelog()" class="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-xl hover:bg-indigo-100 transition">💳 צור חשבונית מהשעות</button>`:''}
+                </div>
             </div>
             <div id="timelog-entries-list">
                 ${entries.length===0?`<div class="text-center py-10 text-slate-400"><i class="fa-solid fa-clock text-4xl mb-3 text-slate-200"></i><p class="font-medium">אין רשומות שעות</p></div>`:
@@ -43276,6 +43279,34 @@ window.deleteTimelogEntry = async function(id) {
         showToast('success','רשומה נמחקה');
         renderTimelogTab();
     } catch(e) { showToast('error','שגיאה במחיקה'); }
+};
+
+window.exportTimelogCSV = async function() {
+    try {
+        const res = await fetch(`${API}/timelog/${currentGroup.id}`);
+        const data = await res.json();
+        const entries = data.entries || [];
+        if (!entries.length) { showToast('info', 'אין רשומות לייצוא'); return; }
+        const headers = ['תאריך','שם לקוח','תיק #','תיאור','דקות','שעות','תעריף ₪/שעה','סכום ₪','חויב'];
+        const rows = entries.map(e => {
+            const mins = parseInt(e.minutes||0);
+            const hrs = (mins/60).toFixed(2);
+            const amount = ((mins/60)*parseFloat(e.hourly_rate||0)).toFixed(2);
+            const date = e.logged_date ? new Date(e.logged_date).toLocaleDateString('he-IL') : '';
+            return [date, e.customer_name||'', e.wo_id||'', e.description||'', mins, hrs, e.hourly_rate||0, amount, e.is_billed?'כן':'לא']
+                .map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+        });
+        const csv = '﻿' + [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const now = new Date();
+        a.download = `דוח_שעות_${now.getFullYear()}_${String(now.getMonth()+1).padStart(2,'0')}.csv`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('success', `ייוצאו ${entries.length} רשומות`);
+    } catch(e) { showToast('error', 'שגיאה בייצוא'); }
 };
 
 window.createInvoiceFromTimelog = async function() {
