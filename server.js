@@ -1,0 +1,16337 @@
+require('dotenv').config();
+const express = require('express');
+const { Pool } = require('pg');
+const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai');
+const nodemailer = require('nodemailer');
+
+// ─── SMS Service (Generic - Replace with Twilio/Mada/etc) ──────────────────────
+const smsService = {
+    send: async (phone, message, code) => {
+        // בדיקות קוד בהרצה:
+        // TODO: החלף בשירות SMS אמיתי:
+        // - Twilio: const client = require('twilio')(accountSid, authToken);
+        // - Mada SMS: fetch('https://api.madasms.com/send', {...})
+        // - פופ"ש: fetch('https://mms.mobiv.com/...', {...})
+
+        const smsRecord = {
+            timestamp: new Date().toISOString(),
+            phone,
+            message,
+            code,
+            testMode: process.env.SMS_SERVICE === 'test' || !process.env.SMS_SERVICE
+        };
+
+        if (process.env.SMS_SERVICE === 'test' || !process.env.SMS_SERVICE) {
+            // מצב בדיקה - הדפס ללוג בלבד
+            console.log(`[SMS_TEST] ${JSON.stringify(smsRecord)}`);
+            return { success: true, testMode: true };
+        }
+
+        // החלף את זה בקוד האמיתי שלך:
+        // switch(process.env.SMS_SERVICE) {
+        //     case 'twilio':
+        //         return await sendViaTwilio(phone, message, code);
+        //     case 'mada':
+        //         return await sendViaMada(phone, message, code);
+        //     default:
+        //         console.log(`[SMS] Unknown SMS service: ${process.env.SMS_SERVICE}`);
+        // }
+    }
+};
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json({limit: '50mb'}));
+app.use(express.urlencoded({limit: '50mb', extended: true}));
+// Serve WebP automatically when browser supports it and WebP version exists
+app.use((req, res, next) => {
+    if (/\.(png|jpe?g)$/i.test(req.path) && (req.headers.accept || '').includes('image/webp')) {
+        const webpPath = path.join(__dirname, 'public', req.path.replace(/\.(png|jpe?g)$/i, '.webp'));
+        if (fs.existsSync(webpPath)) {
+            res.set('Content-Type', 'image/webp');
+            return res.sendFile(webpPath);
+        }
+    }
+    next();
+});
+
+app.use(express.static('public', {
+    maxAge: '7d',
+    setHeaders: (res, filePath) => {
+        if (/\.(webp|png|jpe?g|gif|svg|ico)$/i.test(filePath)) {
+            res.set('Cache-Control', 'public, max-age=604800, immutable');
+        } else if (/\.(js|css|html)$/i.test(filePath)) {
+            res.set('Cache-Control', 'no-cache, must-revalidate');
+        }
+    }
+}));
+
+const apiKey = process.env.GEMINI_API_KEY || "";
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+const genAIv2 = apiKey ? new GoogleGenAI({ apiKey }) : null;
+
+// ============================================================
+// TWILIO SMS OTP CONFIGURATION & LOGIC
+// ============================================================
+const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
+
+const otpCache = new Map();
+
+async function sendSMSviaTwilio(to, body) {
+    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
+        throw new Error('הגדרות Twilio (SID, Token או מספר טלפון) חסרות במשתני הסביבה של השרת');
+    }
+    
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
+    const basicAuth = Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64');
+    
+    const params = new URLSearchParams();
+    params.append('To', to);
+    params.append('From', TWILIO_PHONE_NUMBER);
+    params.append('Body', body);
+    
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Basic ${basicAuth}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: params
+    });
+    
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.message || 'שגיאה פנימית בתקשורת מול שרת ה-SMS של Twilio');
+    }
+    return data;
+}
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+});
+
+pool.connect()
+  .then(async (client) => {
+      console.log('✅ Connected to DB (Pool)');
+      
+      try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
+      try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS target_datetime VARCHAR(50)'); } catch(e) {}
+      try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'); } catch(e) {}
+      try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS quote_status VARCHAR(50) DEFAULT \'draft\''); } catch(e) {}
+      try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS quote_number VARCHAR(20)'); } catch(e) {}
+      try { await client.query(`UPDATE store_orders SET quote_number = 'QT-' || LPAD(id::text, 6, '0') WHERE status = 'quote' AND quote_number IS NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS confirm_token VARCHAR(64)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_confirmed_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS confirm_token VARCHAR(64)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS supplier_confirmed_at TIMESTAMP`); } catch(e) {}
+
+      // ============ COMMUNITY CASHBACK SYSTEM ============
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS owner_user_id INT REFERENCES users(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_communities ADD COLUMN IF NOT EXISTS is_community_manager BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS community_wallets (
+          community_id INT PRIMARY KEY REFERENCES communities(id) ON DELETE CASCADE,
+          balance NUMERIC(12,2) DEFAULT 0,
+          total_earned NUMERIC(12,2) DEFAULT 0,
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS community_wallet_transactions (
+          id SERIAL PRIMARY KEY,
+          community_id INT REFERENCES communities(id) ON DELETE CASCADE,
+          amount NUMERIC(12,2) NOT NULL,
+          type VARCHAR(20) NOT NULL DEFAULT 'cashback',
+          reference_id INT,
+          description TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS business_platform_dues (
+          id SERIAL PRIMARY KEY,
+          business_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          order_id INT,
+          order_amount NUMERIC(12,2),
+          commission_pct NUMERIC(5,2),
+          commission_amount NUMERIC(12,2),
+          cashback_pct NUMERIC(5,2),
+          cashback_amount NUMERIC(12,2),
+          community_id INT,
+          status VARCHAR(20) DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS business_platform_collections (
+          id SERIAL PRIMARY KEY,
+          business_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          amount NUMERIC(12,2) NOT NULL,
+          collected_at DATE NOT NULL DEFAULT CURRENT_DATE,
+          notes TEXT,
+          created_by VARCHAR(100),
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      // ===== ZONE MANAGER SYSTEM =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zone_managers (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          email VARCHAR(255) UNIQUE NOT NULL,
+          phone VARCHAR(50),
+          password_hash VARCHAR(255) NOT NULL,
+          status VARCHAR(20) DEFAULT 'active',
+          commission_pct NUMERIC(5,2) DEFAULT 5.00,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS manager_zones (
+          id SERIAL PRIMARY KEY,
+          manager_id INT REFERENCES zone_managers(id) ON DELETE CASCADE,
+          name VARCHAR(100) NOT NULL,
+          status VARCHAR(20) DEFAULT 'active',
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE communities ADD COLUMN IF NOT EXISTS zone_id INT REFERENCES manager_zones(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zone_manager_commissions (
+          id SERIAL PRIMARY KEY,
+          manager_id INT REFERENCES zone_managers(id) ON DELETE CASCADE,
+          community_id INT REFERENCES communities(id) ON DELETE CASCADE,
+          order_id INT,
+          amount NUMERIC(12,2) NOT NULL,
+          commission_pct NUMERIC(5,2),
+          description TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zone_manager_payments (
+          id SERIAL PRIMARY KEY,
+          manager_id INT REFERENCES zone_managers(id) ON DELETE CASCADE,
+          amount NUMERIC(12,2) NOT NULL,
+          payment_method VARCHAR(100),
+          notes TEXT,
+          paid_at TIMESTAMP DEFAULT NOW(),
+          recorded_by VARCHAR(100),
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      // ===== END ZONE MANAGER SYSTEM =====
+
+      // ===== ZONE MANAGER MARKETING & INBOX =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zm_campaigns (
+          id SERIAL PRIMARY KEY,
+          zone_manager_id INT REFERENCES zone_managers(id) ON DELETE CASCADE,
+          title VARCHAR(200) NOT NULL,
+          subtitle VARCHAR(300),
+          text_content TEXT,
+          fields_config JSONB DEFAULT '[]'::jsonb,
+          token VARCHAR(80) UNIQUE NOT NULL,
+          status VARCHAR(20) DEFAULT 'active',
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zm_campaign_leads (
+          id SERIAL PRIMARY KEY,
+          campaign_id INT REFERENCES zm_campaigns(id) ON DELETE CASCADE,
+          data JSONB NOT NULL DEFAULT '{}'::jsonb,
+          ai_score INT,
+          ai_notes TEXT,
+          status VARCHAR(30) DEFAULT 'new',
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zm_inbox_threads (
+          id SERIAL PRIMARY KEY,
+          zone_manager_id INT REFERENCES zone_managers(id) ON DELETE CASCADE,
+          community_id INT REFERENCES communities(id) ON DELETE CASCADE,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          subject VARCHAR(200),
+          last_message_at TIMESTAMP DEFAULT NOW(),
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zm_inbox_messages (
+          id SERIAL PRIMARY KEY,
+          thread_id INT REFERENCES zm_inbox_threads(id) ON DELETE CASCADE,
+          sender_type VARCHAR(20) NOT NULL,
+          sender_id INT NOT NULL,
+          content TEXT NOT NULL,
+          is_read BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zm_message_templates (
+          id SERIAL PRIMARY KEY,
+          zone_manager_id INT REFERENCES zone_managers(id) ON DELETE CASCADE,
+          name VARCHAR(100) NOT NULL,
+          subject VARCHAR(200),
+          content TEXT NOT NULL,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE zm_campaigns ADD COLUMN IF NOT EXISTS image_url TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE zm_campaigns ADD COLUMN IF NOT EXISTS campaign_type VARCHAR(30) DEFAULT 'general'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE zm_campaign_leads ADD COLUMN IF NOT EXISTS lead_type VARCHAR(20) DEFAULT 'unknown'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE zm_campaign_leads ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'new'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE zm_campaign_leads ADD COLUMN IF NOT EXISTS crm_notes TEXT`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zm_lead_actions (
+          id SERIAL PRIMARY KEY,
+          lead_id INT REFERENCES zm_campaign_leads(id) ON DELETE CASCADE,
+          action_type VARCHAR(50) NOT NULL,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      // ===== END ZONE MANAGER MARKETING & INBOX =====
+      // ===================================================
+
+      await client.query(`CREATE TABLE IF NOT EXISTS saved_shopping_lists (
+          id SERIAL PRIMARY KEY,
+          group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE,
+          name VARCHAR(255) NOT NULL,
+          items JSONB NOT NULL DEFAULT '[]',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+      
+      await client.query(`CREATE TABLE IF NOT EXISTS store_customers (
+          id SERIAL PRIMARY KEY,
+          group_id INTEGER,
+          name VARCHAR(255),
+          phone VARCHAR(50),
+          email VARCHAR(255),
+          business_id VARCHAR(100),
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+      try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS end_month VARCHAR(10)'); } catch(e) {}
+      try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_manual BOOLEAN DEFAULT TRUE'); } catch(e) {}
+      try { await client.query('ALTER TABLE budget_allocations ADD COLUMN IF NOT EXISTS target_user_id INT REFERENCES users(id) ON DELETE CASCADE'); } catch(e) {}
+      try { await client.query('ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
+      try { await client.query('ALTER TABLE shopping_trip_items ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
+      try { await client.query('ALTER TABLE pantry ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
+      try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{"tabs":["feed"]}'::jsonb`); } catch(e) {}
+      try { await client.query('ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS customer_number VARCHAR(50)'); } catch(e) {}
+      try { await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)'); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS kiosk_password VARCHAR(100) DEFAULT '1234'`); } catch(e) {}
+      try { await client.query('ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS stock_quantity INT DEFAULT NULL'); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_popups (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          title VARCHAR(200) NOT NULL,
+          content TEXT NOT NULL,
+          button_text VARCHAR(100),
+          button_url TEXT,
+          image_url TEXT,
+          scheduled_at TIMESTAMP,
+          expires_at TIMESTAMP,
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_popups ADD COLUMN IF NOT EXISTS popup_type VARCHAR(20) DEFAULT 'store'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_popups ADD COLUMN IF NOT EXISTS image_base64 TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_popups ADD COLUMN IF NOT EXISTS trigger_type VARCHAR(20) DEFAULT 'none'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_popups ADD COLUMN IF NOT EXISTS trigger_ref TEXT`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sent_newsletters (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, subject VARCHAR(200), content_html TEXT, audience VARCHAR(50), recipient_count INT DEFAULT 0, sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS product_category_map (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE, normalized_name TEXT NOT NULL, category TEXT NOT NULL, UNIQUE(group_id, normalized_name))`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS alert_rules (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(200) NOT NULL, trigger_type VARCHAR(50) NOT NULL, trigger_config JSONB DEFAULT '{}', recipients JSONB DEFAULT '["ADMIN"]', channels JSONB DEFAULT '["in_app"]', cooldown_minutes INTEGER DEFAULT 60, is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS alert_notifications (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE, rule_id INTEGER REFERENCES alert_rules(id) ON DELETE SET NULL, trigger_type VARCHAR(50), message TEXT NOT NULL, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sla_configs (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE, module VARCHAR(30) NOT NULL, status VARCHAR(50) NOT NULL, status_label VARCHAR(100), max_hours DECIMAL(6,2) NOT NULL DEFAULT 24, is_active BOOLEAN DEFAULT TRUE, UNIQUE(group_id, module, status))`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sla_configs ADD COLUMN IF NOT EXISTS channels JSONB DEFAULT '["in_app"]'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_response TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_response_type VARCHAR(30)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_response_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS quote_title TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS quote_history JSONB DEFAULT '[]'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS call_type VARCHAR(20) DEFAULT 'service'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS source_quote_id INT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE alert_notifications ADD COLUMN IF NOT EXISTS reference_key VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`DELETE FROM alert_notifications WHERE trigger_type='equipment_maintenance' AND message LIKE '%"undefined"%'`); } catch(e) {}
+
+     try {
+          await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
+          await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_email_type_key CASCADE');
+          await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_type_key CASCADE');
+      } catch(e) { console.log('Email constraint removal error:', e.message); }
+
+      try {
+          await client.query(`CREATE TABLE IF NOT EXISTS time_clock (
+              id SERIAL PRIMARY KEY,
+              group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+              user_id INT REFERENCES users(id) ON DELETE CASCADE,
+              punch_in TIMESTAMP NOT NULL,
+              punch_out TIMESTAMP,
+              total_minutes INT DEFAULT 0
+          )`);
+      } catch(e) {}
+      
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION'); } catch(e) {}
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION'); } catch(e) {}
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_onboarded BOOLEAN DEFAULT FALSE'); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS vat_number VARCHAR(50) DEFAULT ''`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS contact_name VARCHAR(100) DEFAULT ''`); } catch(e) {}
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE'); } catch(e) {}
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS ai_tokens INT DEFAULT 10'); } catch(e) {}
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS last_token_reset DATE DEFAULT CURRENT_DATE'); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS features JSONB DEFAULT '{"store":true,"b2b":true,"academy":true,"calendar":true,"finance":true,"inventory":true,"crm":true,"deliveries":true,"foodcost":true,"ai":true}'::jsonb`); } catch(e) {}
+      // מרכז משאבי אנוש והרשאות לסופר אדמין (RBAC)
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_teams (id SERIAL PRIMARY KEY, name VARCHAR(100), permissions JSONB DEFAULT '[]'::jsonb, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_users (id SERIAL PRIMARY KEY, team_id INT REFERENCES sa_teams(id) ON DELETE SET NULL, name VARCHAR(100), email VARCHAR(255) UNIQUE, password_hash VARCHAR(255), status VARCHAR(20) DEFAULT 'active', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sa_users ADD COLUMN IF NOT EXISTS working_hours VARCHAR(50) DEFAULT '09:00-17:00'`); } catch(e) {}
+
+      // מערכת קריאות שירות (מלאה עם דחיפות וסוג SLA)
+      try { await client.query(`CREATE TABLE IF NOT EXISTS support_tickets (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, subject VARCHAR(255), description TEXT, status VARCHAR(20) DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS log JSONB DEFAULT '[]'::jsonb`); } catch(e) {}
+      try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS assigned_to INT REFERENCES sa_users(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS assigned_team INT REFERENCES sa_teams(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'normal'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS ticket_type VARCHAR(50) DEFAULT 'general'`); } catch(e) {}
+
+    // צ'אט פנימי מערכתי (Internal Whispers) - ספרינט 3
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_internal_chat (id SERIAL PRIMARY KEY, room VARCHAR(50) DEFAULT 'general', sender_name VARCHAR(100), sender_id INT, message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      
+     // מרכז פיתוח, מוצר ו-QA (סופר אדמין)
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_product_matrix (id SERIAL PRIMARY KEY, environment VARCHAR(50), module_name VARCHAR(100), scenario_name TEXT, expected_result TEXT, status VARCHAR(20) DEFAULT 'untested', last_tested_at TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_dev_tasks (id SERIAL PRIMARY KEY, title VARCHAR(255), type VARCHAR(50), priority VARCHAR(50), status VARCHAR(50) DEFAULT 'backlog', description TEXT, environment VARCHAR(50), module_name VARCHAR(100), original_ticket_id INT, target_version VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      
+      // הרחבת טבלת המשימות לשיוך הנדסי מלא (ALM) וחיבור מערכת התראות
+      try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS description TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS version_id INT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS assigned_developer VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS owner_id INT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS original_ticket_id INT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS group_id INT`); } catch(e) {}
+      
+      // ניהול גרסאות, ספר מוצר ו-QA (ספרינט 4 - ALM)
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_versions (id SERIAL PRIMARY KEY, name VARCHAR(100), target_date DATE, status VARCHAR(20) DEFAULT 'planning', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sa_product_book ADD COLUMN IF NOT EXISTS original_ticket_id INT`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_qa_runs (id SERIAL PRIMARY KEY, version_id INT REFERENCES sa_versions(id) ON DELETE SET NULL, tester_name VARCHAR(100), results JSONB, status VARCHAR(20) DEFAULT 'completed', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}  
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_qa_test_results (id SERIAL PRIMARY KEY, test_id VARCHAR(50) NOT NULL, env VARCHAR(20) NOT NULL, status VARCHAR(10), note TEXT DEFAULT '', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(test_id, env))`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS qa_task_assignments (task_id VARCHAR(50) PRIMARY KEY, data JSONB NOT NULL DEFAULT '{}', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      // טבלת תתי-משימות פיתוח לרזולוציית ביצוע (ALM)
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_dev_sub_tasks (id SERIAL PRIMARY KEY, task_id INT REFERENCES sa_dev_tasks(id) ON DELETE CASCADE, title VARCHAR(255) NOT NULL, is_done BOOLEAN DEFAULT FALSE, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}  
+    // טבלת צ'אט צוות פנימי
+    try {
+          await client.query(`CREATE TABLE IF NOT EXISTS team_chat (
+              id SERIAL PRIMARY KEY,
+              group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+              user_id INT REFERENCES users(id) ON DELETE CASCADE,
+              message TEXT NOT NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )`);
+      } catch(e) { console.error('Error creating team_chat table:', e.message); }
+
+      // טבלאות החנות הוירטואלית (E-commerce)
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_settings (group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE, is_active BOOLEAN DEFAULT FALSE, welcome_message TEXT, phone VARCHAR(50), min_order DECIMAL(10,2) DEFAULT 0)`); } catch(e) {}
+      // עדכון שדות חדשים למסד נתונים קיים
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS slogan VARCHAR(255)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS store_type VARCHAR(20) DEFAULT 'retail'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS logo_url TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS modifier_presets TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS banner_url TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS include_vat BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_catalog (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, description TEXT, price DECIMAL(10,2) NOT NULL, category VARCHAR(50), is_available BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS image_url TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS options_text TEXT`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_text VARCHAR(50)`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_color VARCHAR(20) DEFAULT 'red'`); } catch(err){}
+try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS product_type VARCHAR(50) DEFAULT 'retail'`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS long_description TEXT`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS gallery TEXT`); } catch(err){}
+      
+      // --- תוספות פוד-קוסט לחנות ---
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS overhead_details JSONB DEFAULT '[]'::jsonb`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS sku VARCHAR(100)`); } catch(err){}
+      try { await client.query(`
+          CREATE TABLE IF NOT EXISTS product_ingredients (
+              id SERIAL PRIMARY KEY,
+              catalog_id INT REFERENCES store_catalog(id) ON DELETE CASCADE,
+              ingredient_name VARCHAR(100),
+              quantity DECIMAL(10,3),
+              unit VARCHAR(20)
+          )
+      `); } catch(err){}
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS items JSONB`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS is_delivery BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_details TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS family_group_id INT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_received_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_issue_reported_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_rating INT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_rating_notes TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_rated_at TIMESTAMP`); } catch(e) {}
+    
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_order_items (id SERIAL PRIMARY KEY, order_id INT REFERENCES store_orders(id) ON DELETE CASCADE, catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL, item_name VARCHAR(100), quantity DECIMAL(10,2), price_at_order DECIMAL(10,2))`); } catch(e) {}
+     try { await client.query(`CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS delivery_zones (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, min_order DECIMAL(10,2) DEFAULT 0, delivery_fee DECIMAL(10,2) DEFAULT 0, sort_order INT DEFAULT 0, created_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
+
+      // טבלאות מערכת היומן והתורים
+      try { 
+          await client.query(`CREATE TABLE IF NOT EXISTS calendar_settings (group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE, is_active BOOLEAN DEFAULT FALSE, open_time VARCHAR(10) DEFAULT '09:00', close_time VARCHAR(10) DEFAULT '18:00', interval_mins INT DEFAULT 30, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); 
+      } catch(e) {}
+      
+      try { 
+          await client.query(`CREATE TABLE IF NOT EXISTS calendar_services (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(150) NOT NULL, duration_mins INT DEFAULT 30, price DECIMAL(10,2) DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); 
+      } catch(e) {}
+      
+     try { 
+          await client.query(`CREATE TABLE IF NOT EXISTS calendar_events (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, service_id INT REFERENCES calendar_services(id) ON DELETE SET NULL, title VARCHAR(200) NOT NULL, customer_phone VARCHAR(50), notes TEXT, event_date DATE NOT NULL, start_time TIME NOT NULL, status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); 
+      } catch(e) {}
+
+      // טבלת מערכת ההודעות החדשה (Inbox)
+      try {
+          await client.query(`CREATE TABLE IF NOT EXISTS inbox_messages (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, sender_type VARCHAR(50), sender_name VARCHAR(100), sender_contact VARCHAR(100), subject VARCHAR(200), content TEXT, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+          await client.query(`ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS customer_group_id INT REFERENCES family_groups(id)`);
+          await client.query(`ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS direction VARCHAR(20) DEFAULT 'inbound'`);
+          await client.query(`ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS customer_phone VARCHAR(50)`);
+      } catch(e) { console.error('Error creating inbox_messages table:', e.message); }
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_qa_test_results (id SERIAL PRIMARY KEY, test_id VARCHAR(50) NOT NULL, env VARCHAR(20) NOT NULL, status VARCHAR(10), note TEXT DEFAULT '', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(test_id, env))`); } catch(e) {}
+
+      // טבלת לוג פעילות (Bell Activity Feed)
+      try { await client.query(`CREATE TABLE IF NOT EXISTS activity_log (
+        id SERIAL PRIMARY KEY,
+        group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        user_id INT REFERENCES users(id) ON DELETE SET NULL,
+        user_name VARCHAR(100),
+        action_type VARCHAR(50),
+        action_key VARCHAR(100),
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_activity_log_group ON activity_log(group_id, created_at DESC)`); } catch(e) {}
+
+      // טבלאות מחולל סקרים
+      try { await client.query(`CREATE TABLE IF NOT EXISTS surveys (
+        id SERIAL PRIMARY KEY,
+        group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        title VARCHAR(255) NOT NULL,
+        description TEXT DEFAULT '',
+        status VARCHAR(20) DEFAULT 'draft',
+        unique_code VARCHAR(12) UNIQUE NOT NULL,
+        required_fields JSONB DEFAULT '[]',
+        anonymous BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        closed_at TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS survey_questions (
+        id SERIAL PRIMARY KEY,
+        survey_id INT REFERENCES surveys(id) ON DELETE CASCADE,
+        order_index INT DEFAULT 0,
+        type VARCHAR(30) NOT NULL,
+        question_text TEXT NOT NULL,
+        options JSONB DEFAULT '[]',
+        required BOOLEAN DEFAULT TRUE
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS survey_responses (
+        id SERIAL PRIMARY KEY,
+        survey_id INT REFERENCES surveys(id) ON DELETE CASCADE,
+        respondent_data JSONB DEFAULT '{}',
+        answers JSONB DEFAULT '[]',
+        comment TEXT DEFAULT '',
+        submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+
+      // ===== EQUIPMENT MAINTENANCE MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS equipment_technicians (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          name VARCHAR(100) NOT NULL,
+          company_name VARCHAR(100),
+          phone VARCHAR(20),
+          email VARCHAR(100),
+          specialty VARCHAR(100),
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE equipment_items ADD COLUMN IF NOT EXISTS technician_id INT REFERENCES equipment_technicians(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE equipment_maintenance ADD COLUMN IF NOT EXISTS interval_days INT DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS equipment_items (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          name VARCHAR(100) NOT NULL,
+          category VARCHAR(50) DEFAULT 'כללי',
+          serial_number VARCHAR(100),
+          purchase_date DATE,
+          warranty_expiry DATE,
+          status VARCHAR(20) DEFAULT 'active',
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS equipment_maintenance (
+          id SERIAL PRIMARY KEY,
+          equipment_id INT REFERENCES equipment_items(id) ON DELETE CASCADE,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          maintenance_type VARCHAR(50) DEFAULT 'periodic',
+          description TEXT,
+          scheduled_date DATE,
+          completed_date DATE,
+          status VARCHAR(20) DEFAULT 'pending',
+          cost DECIMAL(10,2),
+          technician_name VARCHAR(100),
+          technician_phone VARCHAR(20),
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS equipment_faults (
+          id SERIAL PRIMARY KEY,
+          equipment_id INT REFERENCES equipment_items(id) ON DELETE CASCADE,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          title VARCHAR(200) NOT NULL,
+          description TEXT,
+          image_url TEXT,
+          severity VARCHAR(20) DEFAULT 'medium',
+          status VARCHAR(20) DEFAULT 'open',
+          resolved_date DATE,
+          resolution_notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS equipment_fault_notes (
+          id SERIAL PRIMARY KEY,
+          fault_id INT REFERENCES equipment_faults(id) ON DELETE CASCADE,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          note TEXT NOT NULL,
+          status_from VARCHAR(20),
+          status_to VARCHAR(20),
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+
+      // ===== BUSINESS TYPES & ROLE DASHBOARDS =====
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS business_type VARCHAR(50) DEFAULT 'other'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS licensed_features JSONB DEFAULT '{}'::jsonb`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS table_count INT DEFAULT 8`); } catch(e) {}
+      try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS employee_role_type VARCHAR(50)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS id_number VARCHAR(20)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS kitchen_station VARCHAR(30) DEFAULT 'other'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS is_complimentary BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS send_order_email BOOLEAN DEFAULT true`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS items_ready JSONB DEFAULT '[]'::jsonb`); } catch(e) {}
+      // ===== SERVICE CALLS (קריאות שירות מצד משפחה) =====
+      try { await client.query(`ALTER TABLE equipment_faults ADD COLUMN IF NOT EXISTS technician_id INT REFERENCES equipment_technicians(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE equipment_faults ADD COLUMN IF NOT EXISTS scheduled_date TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE equipment_technicians ADD COLUMN IF NOT EXISTS business_group_id INT REFERENCES family_groups(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS group_licenses (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          feature_key VARCHAR(100) NOT NULL,
+          is_active BOOLEAN DEFAULT TRUE,
+          price_monthly DECIMAL(10,2) DEFAULT 0,
+          activated_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(group_id, feature_key)
+      )`); } catch(e) {}
+      // ===== SERVICE CALLS (maintenance_repair ↔ family integration) =====
+      try { await client.query(`ALTER TABLE equipment_technicians ADD COLUMN IF NOT EXISTS business_group_id INT REFERENCES family_groups(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE equipment_technicians ADD COLUMN IF NOT EXISTS oneflow_verified BOOLEAN DEFAULT false`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS service_calls (
+          id SERIAL PRIMARY KEY,
+          family_group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          business_group_id INT REFERENCES family_groups(id) ON DELETE SET NULL,
+          technician_contact_id INT REFERENCES equipment_technicians(id) ON DELETE SET NULL,
+          title VARCHAR(200) NOT NULL,
+          description TEXT,
+          address VARCHAR(300),
+          photos JSONB DEFAULT '[]',
+          status VARCHAR(30) DEFAULT 'new',
+          priority VARCHAR(20) DEFAULT 'normal',
+          assigned_member_id INT,
+          scheduled_at TIMESTAMP,
+          price_quote DECIMAL(10,2),
+          discount_pct INT DEFAULT 0,
+          community_discount BOOLEAN DEFAULT false,
+          created_by_user_id INT,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS service_call_messages (
+          id SERIAL PRIMARY KEY,
+          call_id INT REFERENCES service_calls(id) ON DELETE CASCADE,
+          sender_type VARCHAR(20) NOT NULL,
+          sender_name VARCHAR(100),
+          message TEXT NOT NULL,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS customer_phone VARCHAR(50)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS service_call_notes (id SERIAL PRIMARY KEY, call_id INT REFERENCES service_calls(id) ON DELETE CASCADE, author_name VARCHAR(100), note TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS requested_date TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS customer_name VARCHAR(150)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS street_address VARCHAR(255)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS city VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS needs_triage BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS parts_status VARCHAR(30)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS rating SMALLINT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS service_call_id INT REFERENCES service_calls(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS contact_name VARCHAR(150)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_customers ADD COLUMN IF NOT EXISTS company_name VARCHAR(255)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_customers ADD COLUMN IF NOT EXISTS family_group_id INTEGER`); } catch(e) {}
+      // ===== END BUSINESS TYPES & ROLE DASHBOARDS =====
+
+      // ===== WORK ORDERS MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS restaurant_table_states (group_id INT PRIMARY KEY, states JSONB DEFAULT '{}', updated_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS restaurant_table_bills (group_id INT PRIMARY KEY, bills JSONB DEFAULT '{}', updated_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS restaurant_table_assignments (group_id INT PRIMARY KEY, assignments JSONB DEFAULT '{}', shift_date DATE DEFAULT CURRENT_DATE, updated_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS alternatives_json JSONB DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS call_type VARCHAR(30) DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS order_source VARCHAR(20) DEFAULT 'website'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_rating SMALLINT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_rating_notes TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_rated_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS auto_approve_max_guests INT DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS wo_notes TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS wo_notes_updated_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS wo_notes_updated_by VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS reserved_qty DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS work_order_id INT REFERENCES store_orders(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS address TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS attendees_user_ids JSONB DEFAULT '[]'::jsonb`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS customer_name VARCHAR(200)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS customer_group_id INT REFERENCES family_groups(id)`); } catch(e) {}
+      // Drop FK on service_id so beauty_service_catalog IDs can be stored without constraint violation
+      try { await client.query(`ALTER TABLE calendar_events DROP CONSTRAINT IF EXISTS calendar_events_service_id_fkey`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS preferred_practitioner_id INT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS num_guests INT DEFAULT 1`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS call_type VARCHAR(30) DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS reserved_table_number INT DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS temp_table_reservations (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          customer_name VARCHAR(200) NOT NULL,
+          customer_phone VARCHAR(50) NOT NULL,
+          reservation_date DATE NOT NULL,
+          reservation_time TIME NOT NULL,
+          num_guests INT DEFAULT 2,
+          notes TEXT,
+          sms_code VARCHAR(4),
+          sms_sent_at TIMESTAMP,
+          verified_at TIMESTAMP,
+          status VARCHAR(20) DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT NOW(),
+          expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '30 minutes'
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_assignees (
+          id SERIAL PRIMARY KEY,
+          work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
+          user_id INT REFERENCES users(id) ON DELETE CASCADE,
+          user_name VARCHAR(100),
+          assigned_at TIMESTAMP DEFAULT NOW(),
+          assigned_by VARCHAR(100),
+          UNIQUE(work_order_id, user_id)
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_inventory (
+          id SERIAL PRIMARY KEY,
+          work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
+          catalog_id INT REFERENCES store_catalog(id) ON DELETE CASCADE,
+          item_name VARCHAR(200),
+          reserved_qty DECIMAL(10,2) NOT NULL,
+          used_qty DECIMAL(10,2) DEFAULT 0,
+          status VARCHAR(20) DEFAULT 'reserved',
+          reserved_at TIMESTAMP DEFAULT NOW(),
+          used_at TIMESTAMP,
+          reserved_by VARCHAR(100)
+      )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE work_order_inventory ADD COLUMN IF NOT EXISTS unit_price DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE work_order_assignees ADD COLUMN IF NOT EXISTS hourly_rate DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE work_order_assignees ADD COLUMN IF NOT EXISTS hours_worked DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS work_order_id INT REFERENCES store_orders(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE supplier_products ADD COLUMN IF NOT EXISTS catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE work_order_inventory ADD COLUMN IF NOT EXISTS needed_qty DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS min_stock_buffer_pct DECIMAL(5,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS min_stock_warning_pct DECIMAL(5,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE pantry ADD COLUMN IF NOT EXISTS reserved_qty DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE work_order_inventory ADD COLUMN IF NOT EXISTS pantry_id INT REFERENCES pantry(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS supplier_product_catalog_links (
+          id SERIAL PRIMARY KEY,
+          supplier_product_id INT REFERENCES supplier_products(id) ON DELETE CASCADE,
+          catalog_id INT REFERENCES store_catalog(id) ON DELETE CASCADE,
+          qty_per_unit DECIMAL(10,3) DEFAULT 1,
+          UNIQUE(supplier_product_id, catalog_id)
+      )`); } catch(e) {}
+      try { await client.query(`
+          INSERT INTO supplier_product_catalog_links (supplier_product_id, catalog_id, qty_per_unit)
+          SELECT id, catalog_id, 1 FROM supplier_products WHERE catalog_id IS NOT NULL
+          ON CONFLICT DO NOTHING
+      `); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_messages (
+          id SERIAL PRIMARY KEY,
+          work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
+          user_id INT,
+          user_name VARCHAR(100),
+          message_text TEXT NOT NULL,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_timeline (
+          id SERIAL PRIMARY KEY,
+          work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
+          event_type VARCHAR(50) NOT NULL,
+          description TEXT,
+          user_name VARCHAR(100),
+          created_at TIMESTAMP DEFAULT NOW(),
+          metadata JSONB DEFAULT '{}'
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_notes_history (
+          id SERIAL PRIMARY KEY,
+          work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
+          note_text TEXT,
+          created_by VARCHAR(100),
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      // ===== END WORK ORDERS MODULE =====
+
+      // ===== WORK ORDER PAYMENTS MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_payments (
+          id SERIAL PRIMARY KEY,
+          work_order_id INT NOT NULL REFERENCES store_orders(id) ON DELETE CASCADE,
+          milestone_name VARCHAR(200),
+          amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+          due_date DATE,
+          payment_method VARCHAR(50),
+          status VARCHAR(30) DEFAULT 'pending',
+          received_amount DECIMAL(10,2),
+          received_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(30) DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE work_order_payments ALTER COLUMN work_order_id DROP NOT NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE work_order_payments ADD COLUMN IF NOT EXISTS service_call_id INT REFERENCES service_calls(id) ON DELETE CASCADE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE work_order_payments ADD COLUMN IF NOT EXISTS total_amount DECIMAL(10,2)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS payment_status VARCHAR(30) DEFAULT NULL`); } catch(e) {}
+      // ===== END WORK ORDER PAYMENTS MODULE =====
+
+      // ===== PROFESSIONAL / TIMELOG MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS time_logs (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          user_id INT,
+          customer_name VARCHAR(200),
+          wo_id INT REFERENCES store_orders(id) ON DELETE SET NULL,
+          description TEXT,
+          minutes INT NOT NULL DEFAULT 0,
+          hourly_rate DECIMAL(10,2) DEFAULT 0,
+          logged_date DATE DEFAULT CURRENT_DATE,
+          is_billed BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      // ===== END PROFESSIONAL / TIMELOG MODULE =====
+
+      // ===== PROFESSIONAL WEBSITE CONTENT MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS professional_content (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL UNIQUE,
+          hero_title_he TEXT, hero_title_en TEXT,
+          hero_subtitle_he TEXT, hero_subtitle_en TEXT,
+          cta_text_he VARCHAR(200) DEFAULT 'צור קשר לייעוץ',
+          cta_text_en VARCHAR(200) DEFAULT 'Contact Us',
+          about_text_he TEXT, about_text_en TEXT,
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS professional_expertise (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          icon VARCHAR(10) DEFAULT '⚖️',
+          title_he VARCHAR(200), title_en VARCHAR(200),
+          description_he TEXT, description_en TEXT,
+          sort_order INT DEFAULT 0,
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS professional_articles (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          title_he VARCHAR(500), title_en VARCHAR(500),
+          content_he TEXT, content_en TEXT,
+          tags VARCHAR(500),
+          is_published BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS professional_leads (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          name VARCHAR(200),
+          phone VARCHAR(50),
+          email VARCHAR(200),
+          subject VARCHAR(300),
+          message TEXT,
+          status VARCHAR(30) DEFAULT 'new',
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      // ===== PROFESSIONAL DOCUMENTS MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS professional_documents (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          customer_name VARCHAR(200),
+          customer_phone VARCHAR(50),
+          title VARCHAR(300) NOT NULL,
+          content TEXT,
+          doc_type VARCHAR(30) DEFAULT 'document',
+          status VARCHAR(30) DEFAULT 'draft',
+          is_template BOOLEAN DEFAULT FALSE,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      // ===== END PROFESSIONAL WEBSITE CONTENT MODULE =====
+
+      // ===== SPORT / FITNESS MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_membership_types (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          name VARCHAR(100),
+          type VARCHAR(30) DEFAULT 'monthly',
+          price DECIMAL(10,2) DEFAULT 0,
+          duration_days INT,
+          sessions INT,
+          color VARCHAR(20) DEFAULT 'indigo',
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_memberships (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          member_name VARCHAR(100),
+          member_phone VARCHAR(30),
+          member_email VARCHAR(100),
+          member_photo TEXT,
+          membership_type_id INT REFERENCES sport_membership_types(id) ON DELETE SET NULL,
+          status VARCHAR(20) DEFAULT 'active',
+          start_date DATE,
+          end_date DATE,
+          sessions_total INT,
+          sessions_used INT DEFAULT 0,
+          frozen_at DATE,
+          frozen_reason VARCHAR(200),
+          frozen_days_banked INT DEFAULT 0,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_checkins (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          membership_id INT REFERENCES sport_memberships(id) ON DELETE SET NULL,
+          member_name VARCHAR(100),
+          checked_in_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          checked_out_at TIMESTAMP
+      )`); } catch(e) {}
+      // Sport Phase 2 — Group Classes
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_class_types (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL,
+          name VARCHAR(100) NOT NULL, color VARCHAR(20) DEFAULT 'indigo',
+          default_duration_min INT DEFAULT 60, is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_classes (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL,
+          class_type_id INT REFERENCES sport_class_types(id) ON DELETE SET NULL,
+          class_name VARCHAR(100), trainer_name VARCHAR(100),
+          class_date DATE NOT NULL, start_time TIME, end_time TIME,
+          capacity INT DEFAULT 20, status VARCHAR(20) DEFAULT 'scheduled',
+          notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_class_registrations (
+          id SERIAL PRIMARY KEY, class_id INT REFERENCES sport_classes(id) ON DELETE CASCADE,
+          membership_id INT REFERENCES sport_memberships(id) ON DELETE CASCADE,
+          member_name VARCHAR(100), attended BOOLEAN DEFAULT false,
+          registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(class_id, membership_id)
+      )`); } catch(e) {}
+      // Sport Phase 3 — Payments
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_payments (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL,
+          membership_id INT REFERENCES sport_memberships(id) ON DELETE SET NULL,
+          member_name VARCHAR(100), amount DECIMAL(10,2) NOT NULL,
+          payment_method VARCHAR(30) DEFAULT 'cash', notes TEXT,
+          paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      // Sport extended fields
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS emergency_contact VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS emergency_phone VARCHAR(30)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS health_notes TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS is_trial BOOLEAN DEFAULT false`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS qr_token VARCHAR(64)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_membership_types ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT true`); } catch(e) {}
+      try { await client.query(`UPDATE sport_membership_types SET is_active=true WHERE is_active IS NULL`); } catch(e) {}
+      try { await client.query(`UPDATE sport_membership_types SET is_public=true WHERE is_public IS NULL`); } catch(e) {}
+      // Sport Waitlist
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_class_waitlist (
+          id SERIAL PRIMARY KEY, class_id INT REFERENCES sport_classes(id) ON DELETE CASCADE,
+          group_id INT NOT NULL, membership_id INT REFERENCES sport_memberships(id) ON DELETE CASCADE,
+          member_name VARCHAR(100), position INT NOT NULL,
+          added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(class_id, membership_id)
+      )`); } catch(e) {}
+      // Sport Cancel Policy
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_cancel_policy (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL UNIQUE,
+          enabled BOOLEAN DEFAULT true,
+          cancel_window_hours INT DEFAULT 8,
+          late_cancel_action VARCHAR(20) DEFAULT 'deduct_session',
+          late_cancel_fee DECIMAL(10,2) DEFAULT 0,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      // Waitlist confirmation timer
+      try { await client.query(`ALTER TABLE sport_class_waitlist ADD COLUMN IF NOT EXISTS promoted_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_class_waitlist ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_class_waitlist ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'waiting'`); } catch(e) {}
+      // Registration cancel tracking
+      try { await client.query(`ALTER TABLE sport_class_registrations ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_class_registrations ADD COLUMN IF NOT EXISTS cancel_type VARCHAR(20)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_class_types ADD COLUMN IF NOT EXISTS allowed_membership_type_ids JSONB DEFAULT '[]'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_class_types ADD COLUMN IF NOT EXISTS booking_open_days INT DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_class_types ADD COLUMN IF NOT EXISTS booking_close_hours INT DEFAULT 1`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_class_types ADD COLUMN IF NOT EXISTS max_per_session INT DEFAULT NULL`); } catch(e) {}
+      // Health Declarations / Waivers
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_health_declarations (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL,
+          membership_id INT REFERENCES sport_memberships(id) ON DELETE CASCADE,
+          member_name VARCHAR(100), member_phone VARCHAR(30),
+          declaration_text TEXT,
+          signed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          valid_until DATE,
+          guardian_name VARCHAR(100),
+          guardian_phone VARCHAR(30),
+          is_minor BOOLEAN DEFAULT false,
+          ip_address VARCHAR(45),
+          signature_data TEXT
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_waiver_templates (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL,
+          title VARCHAR(200) NOT NULL,
+          content TEXT NOT NULL,
+          require_for_registration BOOLEAN DEFAULT true,
+          validity_months INT DEFAULT 12,
+          require_guardian_for_minors BOOLEAN DEFAULT true,
+          minor_age_threshold INT DEFAULT 18,
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS waiver_signed_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS waiver_valid_until DATE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS date_of_birth DATE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS id_number VARCHAR(20)`); } catch(e) {}
+      // Trainers / Staff
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_trainers (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL,
+          name VARCHAR(100) NOT NULL, phone VARCHAR(30), email VARCHAR(100),
+          specialties TEXT,
+          pay_type VARCHAR(20) DEFAULT 'per_class',
+          hourly_rate DECIMAL(10,2) DEFAULT 0,
+          per_class_rate DECIMAL(10,2) DEFAULT 0,
+          revenue_percent DECIMAL(5,2) DEFAULT 0,
+          bonus_base_trainees INT DEFAULT 10,
+          bonus_per_trainee DECIMAL(10,2) DEFAULT 0,
+          is_active BOOLEAN DEFAULT true,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_trainer_sessions (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL,
+          trainer_id INT REFERENCES sport_trainers(id) ON DELETE CASCADE,
+          class_id INT REFERENCES sport_classes(id) ON DELETE SET NULL,
+          session_date DATE NOT NULL,
+          hours_worked DECIMAL(4,2) DEFAULT 1,
+          trainees_count INT DEFAULT 0,
+          pay_amount DECIMAL(10,2) DEFAULT 0,
+          is_substitute BOOLEAN DEFAULT false,
+          original_trainer_id INT REFERENCES sport_trainers(id) ON DELETE SET NULL,
+          notes TEXT,
+          paid_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_classes ADD COLUMN IF NOT EXISTS trainer_id INT REFERENCES sport_trainers(id) ON DELETE SET NULL`); } catch(e) {}
+      // Sport Leads / CRM
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_leads (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL,
+          member_name VARCHAR(100), member_phone VARCHAR(30), member_email VARCHAR(100),
+          source VARCHAR(50) DEFAULT 'drop-in',
+          status VARCHAR(20) DEFAULT 'new',
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      // ===== END SPORT / FITNESS MODULE =====
+
+      // Fix FK constraints that were created without ON DELETE SET NULL
+      try {
+          await client.query(`ALTER TABLE inbox_messages    DROP CONSTRAINT IF EXISTS inbox_messages_customer_group_id_fkey`);
+          await client.query(`ALTER TABLE inbox_messages    ADD  CONSTRAINT inbox_messages_customer_group_id_fkey    FOREIGN KEY (customer_group_id)  REFERENCES family_groups(id) ON DELETE SET NULL`);
+          await client.query(`ALTER TABLE calendar_events   DROP CONSTRAINT IF EXISTS calendar_events_customer_group_id_fkey`);
+          await client.query(`ALTER TABLE calendar_events   ADD  CONSTRAINT calendar_events_customer_group_id_fkey   FOREIGN KEY (customer_group_id)  REFERENCES family_groups(id) ON DELETE SET NULL`);
+      } catch(e) { console.error('[FK-MIGRATION]', e.message); }
+
+      // ===== ONEFLOWLIFE MEMBER FEATURE =====
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS member_type VARCHAR(20) DEFAULT 'family'`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS member_business_links (
+          id SERIAL PRIMARY KEY,
+          member_group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          business_group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          business_type VARCHAR(30) NOT NULL,
+          linked_member_ref_id INT,
+          linked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          linked_by_admin_name VARCHAR(100),
+          is_active BOOLEAN DEFAULT true,
+          status VARCHAR(20) DEFAULT 'active',
+          UNIQUE(member_group_id, business_group_id)
+      )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE member_business_links ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS unlocked_modules JSONB DEFAULT '[]'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS module_requests JSONB DEFAULT '[]'`); } catch(e) {}
+      // ===== END ONEFLOWLIFE MEMBER FEATURE =====
+
+      // ===== BEAUTY & COSMETICS MODULE =====
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_practitioners (
+        id                     SERIAL PRIMARY KEY,
+        business_group_id      INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        user_id                INT,
+        display_name           VARCHAR(100) NOT NULL,
+        tier                   VARCHAR(20) DEFAULT 'standard',
+        color_hex              VARCHAR(7) DEFAULT '#6366f1',
+        specializations        JSONB DEFAULT '[]',
+        schedule_override      JSONB DEFAULT NULL,
+        commission_rate_svc    DECIMAL(5,2) DEFAULT 30.00,
+        commission_rate_retail DECIMAL(5,2) DEFAULT 10.00,
+        is_active              BOOLEAN DEFAULT TRUE,
+        created_at             TIMESTAMP DEFAULT NOW()
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_resources (
+        id                  SERIAL PRIMARY KEY,
+        business_group_id   INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        name                VARCHAR(100) NOT NULL,
+        resource_type       VARCHAR(20) DEFAULT 'room',
+        color_hex           VARCHAR(7) DEFAULT '#94a3b8',
+        is_active           BOOLEAN DEFAULT TRUE,
+        created_at          TIMESTAMP DEFAULT NOW()
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_appointments (
+        id                  SERIAL PRIMARY KEY,
+        business_group_id   INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        client_family_id    INT REFERENCES family_groups(id) ON DELETE SET NULL,
+        client_name         VARCHAR(150),
+        client_phone        VARCHAR(30),
+        client_email        VARCHAR(150),
+        client_type         VARCHAR(20) DEFAULT 'external',
+        booking_source      VARCHAR(30) DEFAULT 'biz',
+        status              VARCHAR(30) DEFAULT 'confirmed',
+        deposit_amount      DECIMAL(10,2) DEFAULT 0,
+        deposit_paid        BOOLEAN DEFAULT FALSE,
+        deposit_wallet_txn  INT,
+        total_price         DECIMAL(10,2),
+        notes               TEXT,
+        internal_notes      TEXT,
+        rfq_id              INT,
+        group_booking_ref   VARCHAR(50),
+        reminder_sent_at    TIMESTAMP,
+        followup_sent_at    TIMESTAMP,
+        created_at          TIMESTAMP DEFAULT NOW(),
+        updated_at          TIMESTAMP DEFAULT NOW()
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_appointment_segments (
+        id                  SERIAL PRIMARY KEY,
+        appointment_id      INT REFERENCES beauty_appointments(id) ON DELETE CASCADE,
+        segment_order       SMALLINT NOT NULL,
+        segment_type        VARCHAR(20) NOT NULL,
+        service_name        VARCHAR(150),
+        service_catalog_id  INT,
+        practitioner_id     INT REFERENCES beauty_practitioners(id) ON DELETE SET NULL,
+        resource_id         INT REFERENCES beauty_resources(id) ON DELETE SET NULL,
+        start_time          TIMESTAMP NOT NULL,
+        end_time            TIMESTAMP NOT NULL,
+        duration_minutes    INT NOT NULL,
+        price               DECIMAL(10,2) DEFAULT 0,
+        gap_notes           TEXT,
+        backbar_items       JSONB DEFAULT '[]'
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_client_records (
+        id                       SERIAL PRIMARY KEY,
+        business_group_id        INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        client_family_id         INT REFERENCES family_groups(id) ON DELETE SET NULL,
+        client_name              VARCHAR(150),
+        client_phone             VARCHAR(30),
+        client_email             VARCHAR(150),
+        date_of_birth            DATE,
+        medical_notes            TEXT,
+        patch_test_status        VARCHAR(20) DEFAULT 'none',
+        patch_test_date          TIMESTAMP,
+        patch_test_expires_at    TIMESTAMP,
+        skin_type                VARCHAR(30),
+        hair_type                VARCHAR(30),
+        loyalty_points           INT DEFAULT 0,
+        visit_count              INT DEFAULT 0,
+        last_visit_at            TIMESTAMP,
+        avg_visit_interval_days  DECIMAL(5,1),
+        total_spent              DECIMAL(10,2) DEFAULT 0,
+        preferred_practitioner_id INT REFERENCES beauty_practitioners(id) ON DELETE SET NULL,
+        created_at               TIMESTAMP DEFAULT NOW(),
+        updated_at               TIMESTAMP DEFAULT NOW()
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_formulas (
+        id                  SERIAL PRIMARY KEY,
+        client_record_id    INT REFERENCES beauty_client_records(id) ON DELETE CASCADE,
+        appointment_id      INT REFERENCES beauty_appointments(id) ON DELETE SET NULL,
+        practitioner_id     INT REFERENCES beauty_practitioners(id) ON DELETE SET NULL,
+        treatment_type      VARCHAR(50),
+        formula_data        JSONB NOT NULL DEFAULT '{}',
+        application_notes   TEXT,
+        result_notes        TEXT,
+        processing_time_min INT,
+        created_at          TIMESTAMP DEFAULT NOW()
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_client_photos (
+        id                  SERIAL PRIMARY KEY,
+        client_record_id    INT REFERENCES beauty_client_records(id) ON DELETE CASCADE,
+        appointment_id      INT REFERENCES beauty_appointments(id) ON DELETE SET NULL,
+        photo_type          VARCHAR(10) NOT NULL,
+        image_url           TEXT NOT NULL,
+        thumbnail_url       TEXT,
+        treatment_area      VARCHAR(50),
+        notes               TEXT,
+        taken_by            INT,
+        is_consent_given    BOOLEAN DEFAULT FALSE,
+        created_at          TIMESTAMP DEFAULT NOW()
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_inventory (
+        id                  SERIAL PRIMARY KEY,
+        business_group_id   INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        product_name        VARCHAR(150) NOT NULL,
+        brand               VARCHAR(100),
+        sku                 VARCHAR(50),
+        inventory_type      VARCHAR(20) NOT NULL DEFAULT 'retail',
+        category            VARCHAR(50),
+        unit                VARCHAR(20) DEFAULT 'unit',
+        unit_size           DECIMAL(8,2),
+        stock_qty           DECIMAL(10,3) DEFAULT 0,
+        reorder_threshold   DECIMAL(10,3) DEFAULT 5,
+        cost_price          DECIMAL(10,2) DEFAULT 0,
+        retail_price        DECIMAL(10,2) DEFAULT 0,
+        image_url           TEXT,
+        supplier_name       VARCHAR(150),
+        is_active           BOOLEAN DEFAULT TRUE,
+        created_at          TIMESTAMP DEFAULT NOW(),
+        updated_at          TIMESTAMP DEFAULT NOW()
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_commissions (
+        id                  SERIAL PRIMARY KEY,
+        business_group_id   INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        practitioner_id     INT REFERENCES beauty_practitioners(id) ON DELETE CASCADE,
+        appointment_id      INT REFERENCES beauty_appointments(id) ON DELETE SET NULL,
+        commission_type     VARCHAR(20) NOT NULL DEFAULT 'service',
+        gross_amount        DECIMAL(10,2) NOT NULL,
+        commission_rate     DECIMAL(5,2) NOT NULL,
+        commission_amount   DECIMAL(10,2) NOT NULL,
+        is_paid             BOOLEAN DEFAULT FALSE,
+        paid_at             TIMESTAMP,
+        period_start        DATE,
+        period_end          DATE,
+        created_at          TIMESTAMP DEFAULT NOW()
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_rfq (
+        id                         SERIAL PRIMARY KEY,
+        business_group_id          INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        client_family_id           INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        status                     VARCHAR(30) DEFAULT 'new',
+        service_description        TEXT NOT NULL,
+        questionnaire_data         JSONB DEFAULT NULL,
+        client_photos              JSONB DEFAULT '[]',
+        treatment_plan             JSONB DEFAULT NULL,
+        plan_accepted_at           TIMESTAMP,
+        resulting_appointment_ids  JSONB DEFAULT '[]',
+        messages                   JSONB DEFAULT '[]',
+        created_at                 TIMESTAMP DEFAULT NOW(),
+        updated_at                 TIMESTAMP DEFAULT NOW()
+      )`);
+
+      // Indexes for beauty tables
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_appts_biz ON beauty_appointments(business_group_id, status)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_segs_appt ON beauty_appointment_segments(appointment_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_segs_time ON beauty_appointment_segments(practitioner_id, start_time, end_time)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_segs_resource ON beauty_appointment_segments(resource_id, start_time, end_time)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_clients_biz ON beauty_client_records(business_group_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_inv_biz ON beauty_inventory(business_group_id, inventory_type)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_rfq_biz ON beauty_rfq(business_group_id, status)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE beauty_client_records ADD COLUMN IF NOT EXISTS id_number VARCHAR(20)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS family_nickname VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS last_name VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT false`); } catch(e) {}
+
+      // ── Beauty service catalog ──────────────────────────────────────────
+      try { await client.query(`CREATE TABLE IF NOT EXISTS beauty_service_catalog (
+        id                  SERIAL PRIMARY KEY,
+        business_group_id   INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        name                VARCHAR(150) NOT NULL,
+        category            VARCHAR(50) DEFAULT 'general',
+        duration_minutes    INT NOT NULL DEFAULT 60,
+        price               DECIMAL(10,2) NOT NULL DEFAULT 0,
+        description         TEXT,
+        color_hex           VARCHAR(7) DEFAULT '#6366f1',
+        requires_patch_test BOOLEAN DEFAULT FALSE,
+        is_active           BOOLEAN DEFAULT TRUE,
+        created_at          TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_svc_biz ON beauty_service_catalog(business_group_id, is_active)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE beauty_service_catalog ADD COLUMN IF NOT EXISTS commission_pct DECIMAL(5,2)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE beauty_service_catalog ADD COLUMN IF NOT EXISTS allowed_practitioner_ids INT[] DEFAULT '{}'`); } catch(e) {}
+
+      // ── Beauty subscription types (packages) ───────────────────────────
+      try { await client.query(`CREATE TABLE IF NOT EXISTS beauty_subscription_types (
+        id                  SERIAL PRIMARY KEY,
+        business_group_id   INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        name                VARCHAR(150) NOT NULL,
+        description         TEXT,
+        sessions_count      INT NOT NULL DEFAULT 5,
+        price               DECIMAL(10,2) NOT NULL DEFAULT 0,
+        validity_days       INT DEFAULT 365,
+        service_ids         JSONB DEFAULT '[]',
+        is_active           BOOLEAN DEFAULT TRUE,
+        created_at          TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+
+      // ── Client purchased subscriptions ─────────────────────────────────
+      try { await client.query(`CREATE TABLE IF NOT EXISTS beauty_client_subscriptions (
+        id                      SERIAL PRIMARY KEY,
+        business_group_id       INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        client_record_id        INT REFERENCES beauty_client_records(id) ON DELETE CASCADE,
+        subscription_type_id    INT REFERENCES beauty_subscription_types(id) ON DELETE SET NULL,
+        subscription_name       VARCHAR(150),
+        sessions_total          INT NOT NULL DEFAULT 5,
+        sessions_used           INT DEFAULT 0,
+        purchase_date           DATE DEFAULT CURRENT_DATE,
+        expires_at              DATE,
+        is_active               BOOLEAN DEFAULT TRUE,
+        created_at              TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_sub_client ON beauty_client_subscriptions(client_record_id, is_active)`); } catch(e) {}
+      // ===== END BEAUTY & COSMETICS MODULE =====
+
+      // ===== LOGISTICS / DISTRIBUTION / DELIVERY MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_pricing_zones (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          zone_name VARCHAR(100) NOT NULL,
+          base_price DECIMAL(10,2) DEFAULT 0,
+          price_per_km DECIMAL(8,2) DEFAULT 0,
+          price_per_kg DECIMAL(8,2) DEFAULT 0,
+          min_fee DECIMAL(10,2) DEFAULT 0,
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_vehicles (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          name VARCHAR(100),
+          type VARCHAR(30) DEFAULT 'van',
+          plate_number VARCHAR(20),
+          capacity_kg DECIMAL(8,2),
+          insurance_expires_at DATE,
+          inspection_expires_at DATE,
+          is_active BOOLEAN DEFAULT true,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_drivers (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          user_id INT REFERENCES users(id) ON DELETE SET NULL,
+          name VARCHAR(100) NOT NULL,
+          phone VARCHAR(30),
+          email VARCHAR(100),
+          vehicle_id INT,
+          status VARCHAR(20) DEFAULT 'active',
+          is_active BOOLEAN DEFAULT true,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_orders (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          order_number VARCHAR(30),
+          customer_name VARCHAR(100),
+          customer_phone VARCHAR(30),
+          customer_email VARCHAR(100),
+          pickup_address TEXT,
+          delivery_address TEXT,
+          status VARCHAR(30) DEFAULT 'new',
+          driver_id INT,
+          vehicle_id INT,
+          scheduled_date DATE,
+          scheduled_time_window VARCHAR(50),
+          weight_kg DECIMAL(8,2),
+          package_count INT DEFAULT 1,
+          cod_amount DECIMAL(10,2) DEFAULT 0,
+          cod_collected BOOLEAN DEFAULT false,
+          cod_method VARCHAR(20),
+          delivery_fee DECIMAL(10,2) DEFAULT 0,
+          pricing_zone_id INT,
+          pod_photo_url TEXT,
+          pod_signature_url TEXT,
+          pod_barcode VARCHAR(100),
+          delivery_notes TEXT,
+          internal_notes TEXT,
+          delivered_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_cod_sessions (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          driver_id INT,
+          session_date DATE DEFAULT CURRENT_DATE,
+          total_collected DECIMAL(10,2) DEFAULT 0,
+          total_deposited DECIMAL(10,2) DEFAULT 0,
+          status VARCHAR(20) DEFAULT 'open',
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_rfq (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          client_name VARCHAR(100),
+          client_phone VARCHAR(30),
+          description TEXT,
+          photos JSONB DEFAULT '[]',
+          messages JSONB DEFAULT '[]',
+          status VARCHAR(20) DEFAULT 'new',
+          quote_amount DECIMAL(10,2),
+          deposit_amount DECIMAL(10,2) DEFAULT 0,
+          deposit_paid BOOLEAN DEFAULT false,
+          pickup_address TEXT,
+          delivery_address TEXT,
+          preferred_date DATE,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_order_events (
+          id SERIAL PRIMARY KEY,
+          order_id INT,
+          group_id INT,
+          event_type VARCHAR(50),
+          old_status VARCHAR(30),
+          new_status VARCHAR(30),
+          actor_name VARCHAR(100),
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_logistics_orders_group ON logistics_orders(group_id, status)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_logistics_orders_driver ON logistics_orders(driver_id, scheduled_date)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_logistics_rfq_group ON logistics_rfq(group_id, status)`); } catch(e) {}
+      // ── Logistics v2: new columns ──────────────────────────────────────────
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS tracking_token VARCHAR(64) UNIQUE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS failed_attempts_count INT DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS failed_attempt_gps TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS failed_attempt_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS leave_at_door BOOLEAN DEFAULT false`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS tracking_last_seen TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS express_surcharge DECIMAL(8,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS floor_surcharge DECIMAL(8,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS floor_number INT DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_drivers ADD COLUMN IF NOT EXISTS current_lat DECIMAL(10,7)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_drivers ADD COLUMN IF NOT EXISTS current_lng DECIMAL(10,7)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_drivers ADD COLUMN IF NOT EXISTS location_updated_at TIMESTAMP`); } catch(e) {}
+      // ── logistics_routes ──────────────────────────────────────────────────
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_routes (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          driver_id INT REFERENCES logistics_drivers(id) ON DELETE SET NULL,
+          vehicle_id INT REFERENCES logistics_vehicles(id) ON DELETE SET NULL,
+          route_date DATE DEFAULT CURRENT_DATE,
+          name VARCHAR(100),
+          status VARCHAR(20) DEFAULT 'planned',
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_route_stops (
+          id SERIAL PRIMARY KEY,
+          route_id INT REFERENCES logistics_routes(id) ON DELETE CASCADE,
+          order_id INT REFERENCES logistics_orders(id) ON DELETE SET NULL,
+          stop_order INT DEFAULT 0,
+          status VARCHAR(20) DEFAULT 'pending',
+          eta VARCHAR(20),
+          notes TEXT
+      )`); } catch(e) {}
+      // ── logistics_rate_cards (advanced pricing rules) ─────────────────────
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_rate_cards (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          name VARCHAR(100) NOT NULL,
+          rule_type VARCHAR(30) NOT NULL,
+          condition_key VARCHAR(50),
+          condition_value TEXT,
+          surcharge_amount DECIMAL(10,2) DEFAULT 0,
+          surcharge_pct DECIMAL(5,2) DEFAULT 0,
+          is_active BOOLEAN DEFAULT true,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_logistics_tracking ON logistics_orders(tracking_token) WHERE tracking_token IS NOT NULL`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_logistics_routes_date ON logistics_routes(group_id, route_date)`); } catch(e) {}
+      // ── calendar_events indexes for availability queries ────────────────────────
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_calendar_events_availability ON calendar_events(group_id, event_date, call_type, status) WHERE call_type='table_reservation' AND status IN ('pending', 'approved')`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_calendar_events_group_date ON calendar_events(group_id, event_date)`); } catch(e) {}
+      // ── logistics_customers ────────────────────────────────────────────────
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_customers (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          name VARCHAR(200) NOT NULL,
+          phone VARCHAR(30),
+          email VARCHAR(200),
+          default_address TEXT,
+          oneflow_user_id INT,
+          customer_type VARCHAR(30) DEFAULT 'private',
+          discount_pct DECIMAL(5,2) DEFAULT 0,
+          delivery_instructions TEXT,
+          notes TEXT,
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      // ── logistics_invoices ─────────────────────────────────────────────────
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_invoices (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          order_id INT REFERENCES logistics_orders(id),
+          invoice_number VARCHAR(50) UNIQUE,
+          customer_name VARCHAR(200),
+          customer_email VARCHAR(200),
+          amount DECIMAL(10,2) DEFAULT 0,
+          vat_amount DECIMAL(10,2) DEFAULT 0,
+          total_amount DECIMAL(10,2) DEFAULT 0,
+          status VARCHAR(30) DEFAULT 'pending',
+          invoice_type VARCHAR(30) DEFAULT 'single',
+          notes TEXT,
+          sent_at TIMESTAMP,
+          paid_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      // ===== END LOGISTICS MODULE =====
+
+      client.release();
+  })
+  .catch(err => console.error('Connection Error', err.stack));
+
+// ── ACTIVITY LOG HELPER ─────────────────────────────────────────
+async function logActivity(groupId, userId, userName, actionType, actionKey, description) {
+  try {
+    await pool.query(
+      'INSERT INTO activity_log (group_id, user_id, user_name, action_type, action_key, description) VALUES ($1,$2,$3,$4,$5,$6)',
+      [groupId, userId || null, userName || 'מערכת', actionType, actionKey, description]
+    );
+  } catch(e) { /* non-blocking */ }
+}
+
+const calculateAge = (birthYear) => new Date().getFullYear() - (birthYear || new Date().getFullYear());
+const getAgeGroup = (age) => { if(age<8) return '6-8'; if(age<10) return '8-10'; if(age<13) return '10-13'; if(age<15) return '13-15'; if(age<18) return '15-18'; return '18+'; };
+
+const generateGroupCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+    return code;
+};
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3;
+    const φ1 = lat1 * Math.PI/180;
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+async function handleAITokens(groupId) {
+    try {
+        await pool.query(`UPDATE family_groups SET ai_tokens = 10, last_token_reset = CURRENT_DATE WHERE id = $1 AND (last_token_reset IS NULL OR last_token_reset < CURRENT_DATE)`, [groupId]);
+        const res = await pool.query('SELECT ai_tokens, is_premium FROM family_groups WHERE id = $1', [groupId]);
+        if(res.rows.length === 0) return false;
+        const group = res.rows[0];
+        if(group.is_premium) return true;
+        if(group.ai_tokens > 0) {
+            await pool.query('UPDATE family_groups SET ai_tokens = ai_tokens - 1 WHERE id = $1', [groupId]);
+            return true;
+        }
+        return false;
+    } catch (e) {
+        return false;
+    }
+}
+
+const handleAIError = (e, res, defaultMsg) => {
+    console.error('AI Error:', e);
+    if (e.message && e.message.includes('429')) return res.status(429).json({ success: false, error: 'מערכת ה-AI עמוסה כרגע. אנא המתינו כדקה ונסו שוב.' });
+    if (e.message && e.message.includes('GEMINI_API_KEY')) return res.status(500).json({ success: false, error: 'מפתח AI חסר בשרת' });
+    res.status(500).json({ success: false, error: defaultMsg || 'שגיאה בתקשורת עם ה-AI', detail: e.message });
+};
+
+// =========================================================
+// פונקציית איתור לקוחות OneFlow לפי מספרי הזמנה + טלפון + מייל
+// =========================================================
+async function resolveOneFlowGroupIds(pool, businessGroupId, customers) {
+    const result = new Set();
+    // שיטה 1: חיפוש לפי family_group_id בהזמנות (הכי אמין)
+    const ordersRes = await pool.query(
+        `SELECT DISTINCT family_group_id FROM store_orders
+         WHERE group_id=$1 AND family_group_id IS NOT NULL AND family_group_id != $1`,
+        [businessGroupId]
+    );
+    ordersRes.rows.forEach(r => result.add(r.family_group_id));
+
+    // שיטה 2+3: התאמה לפי פרטי לקוחות (טלפון/מייל)
+    for (const c of customers) {
+        if (result.size > 0 && !c.phone && !c.email) continue;
+        let gid = null;
+        if (c.phone) {
+            const digits = (c.phone || '').replace(/\D/g, '');
+            const alt = digits.startsWith('972') ? '0' + digits.substring(3) : digits.startsWith('0') ? '972' + digits.substring(1) : digits;
+            // שיטה 2a: חיפוש בעמודת phone של users
+            const ur = await pool.query('SELECT group_id FROM users WHERE phone=$1 OR phone=$2 OR phone=$3 LIMIT 1', [digits, alt, c.phone]);
+            if (ur.rows.length) gid = ur.rows[0].group_id;
+            // שיטה 2b: חיפוש לפי customer_phone בהזמנות
+            if (!gid) {
+                const or2 = await pool.query(
+                    `SELECT DISTINCT family_group_id FROM store_orders
+                     WHERE group_id=$1 AND family_group_id IS NOT NULL
+                       AND (REGEXP_REPLACE(customer_phone,'\\D','','g')=$2 OR REGEXP_REPLACE(customer_phone,'\\D','','g')=$3)
+                     LIMIT 1`,
+                    [businessGroupId, digits, alt]
+                );
+                if (or2.rows.length) gid = or2.rows[0].family_group_id;
+            }
+        }
+        if (!gid && c.email) {
+            const er = await pool.query("SELECT id FROM family_groups WHERE LOWER(admin_email)=LOWER($1) AND type='FAMILY' LIMIT 1", [c.email]);
+            if (er.rows.length) gid = er.rows[0].id;
+        }
+        if (gid && gid !== parseInt(businessGroupId)) result.add(gid);
+    }
+    return result;
+}
+
+// =========================================================
+// פונקציית מערכת המיילים המרכזית (מאובטחת)
+// =========================================================
+async function sendSystemEmail(to, subject, htmlContent) {
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+
+    if (!user || !pass) {
+        console.error('⚠️ לא הוגדרו משתני סביבה SMTP_USER ו-SMTP_PASS ב-Render. המייל לא נשלח.');
+        return false;
+    }
+
+    console.log(`📧 מנסה לשלוח מייל אל: ${to}...`);
+    try {
+        const transporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true, // משתמש בפורט מאובטח 465
+            auth: { user: user, pass: pass }
+        });
+        
+        await transporter.sendMail({
+            from: `"Oneflow System" <${user}>`,
+            to: to,
+            subject: subject,
+            html: htmlContent
+        });
+        
+        console.log(`✅ המייל נשלח בהצלחה אל: ${to}`);
+        return true;
+    } catch (e) {
+        console.error('❌ שגיאה בשליחת המייל דרך Gmail:', e.message);
+        return false;
+    }
+}
+
+async function sendAlertEmail(groupId, subject, message) {
+    try {
+        const gr = await pool.query('SELECT admin_email, business_name FROM family_groups WHERE id=$1', [groupId]);
+        if (!gr.rows.length || !gr.rows[0].admin_email) return;
+        const { admin_email, business_name } = gr.rows[0];
+        const html = `
+            <div dir="rtl" style="font-family:Arial,sans-serif;max-width:540px;margin:auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+              <div style="background:#4f46e5;padding:20px 24px;">
+                <h2 style="color:#fff;margin:0;font-size:18px;">⚡ התראה מ-OneFlow</h2>
+                <p style="color:#c7d2fe;margin:4px 0 0;font-size:13px;">${business_name || 'OneFlow Life'}</p>
+              </div>
+              <div style="padding:24px;">
+                <p style="font-size:15px;color:#1e293b;margin:0 0 16px;">${message}</p>
+                <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
+                <p style="font-size:11px;color:#94a3b8;margin:0;">OneFlow Life · מערכת ניהול עסקי</p>
+              </div>
+            </div>`;
+        await sendSystemEmail(admin_email, subject, html);
+    } catch(e) { console.error('sendAlertEmail error:', e.message); }
+}
+
+app.post('/api/support/ticket', async (req, res) => {
+    try {
+        const { groupId, groupName, userId, userName, userEmail, subject, description } = req.body;
+        if (!description || description.length < 5) return res.status(400).json({ success: false, error: 'תיאור קצר מדי.' });
+
+        const initialLog = [{ date: new Date().toISOString(), sender: userName, isStaff: false, message: description }];
+
+        // שמירה למסד הנתונים
+        const tRes = await pool.query('INSERT INTO support_tickets (group_id, user_id, subject, description, status, log) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', [groupId, userId, subject, description, 'open', JSON.stringify(initialLog)]);
+        const newTicketId = tRes.rows[0].id;
+
+        // התראה במייל לסופר אדמין
+        const supportEmail = 'mcgames1978@gmail.com'; 
+        const ticketHtml = `
+            <div dir="rtl" style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+                <h2 style="color: #4f46e5; border-bottom: 2px solid #eef2ff; padding-bottom: 10px;">קריאת שירות חדשה #${newTicketId}</h2>
+                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
+                    <p style="margin: 5px 0;"><strong>נושא:</strong> ${subject}</p>
+                    <p style="margin: 5px 0;"><strong>לקוח:</strong> ${userName} (${groupName})</p>
+                    <p style="margin: 5px 0;"><strong>מייל:</strong> ${userEmail}</p>
+                </div>
+                <h3 style="color: #1e293b;">הפנייה:</h3>
+                <div style="background: #ffffff; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1; white-space: pre-wrap;">${description}</div>
+            </div>
+        `;
+        sendSystemEmail(supportEmail, `קריאה #${newTicketId}: ${subject}`, ticketHtml).catch(e => console.log('Mail error:', e));
+        
+        res.json({ success: true, ticketId: newTicketId });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// הוספת תגובה לקריאה קיימת (גם ללקוח וגם לאדמין)
+app.post('/api/support/tickets/:id/reply', async (req, res) => {
+    try {
+        const { message, userName, isStaff, newStatus } = req.body;
+        const ticketId = req.params.id;
+        
+        const tRes = await pool.query('SELECT log, status FROM support_tickets WHERE id = $1', [ticketId]);
+        if (tRes.rows.length === 0) return res.status(404).json({error: 'Ticket not found'});
+        
+        let currentLog = tRes.rows[0].log || [];
+        if (typeof currentLog === 'string') currentLog = JSON.parse(currentLog);
+        
+        currentLog.push({ date: new Date().toISOString(), sender: userName, isStaff: isStaff, message: message });
+        
+        // אם מוגדר סטטוס חדש נשתמש בו, אחרת נשנה אוטומטית לפי מי שענה (לקוח -> פתוח, צוות -> בטיפול)
+        let statusToUpdate = newStatus || (isStaff ? 'in_progress' : 'open');
+        if (!newStatus && tRes.rows[0].status === 'resolved' && !isStaff) {
+            statusToUpdate = 'open'; // הלקוח פתח מחדש
+        }
+        
+        await pool.query('UPDATE support_tickets SET log = $1, status = $2 WHERE id = $3', [JSON.stringify(currentLog), statusToUpdate, ticketId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+// ראוט עוזרת AI למנהל המערכת (Super Admin) - חיבור מעודכן למנוע Gemini 2.5 Flash
+app.post('/api/ai/chat', verifySA, async (req, res) => {
+    try {
+        const { message } = req.body;
+        
+        if (!genAI) {
+            return res.status(500).json({ success: false, error: 'מפתח Gemini אינו מוגדר בשרת.' });
+        }
+
+        // פונקציה לווידוא תקינות טבלאות בעליית השרת
+async function initDB() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS internal_messages (
+                id SERIAL PRIMARY KEY,
+                title TEXT,
+                content TEXT,
+                target_type VARCHAR(50),
+                target_id INTEGER,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS message_acknowledgments (
+                message_id INTEGER,
+                employee_id INTEGER,
+                status VARCHAR(20),
+                responded_at TIMESTAMP DEFAULT NOW(),
+                PRIMARY KEY (message_id, employee_id)
+            );
+        `);
+        console.log('Database tables initialized successfully.');
+    } catch (e) { console.error('DB Init Error:', e); }
+}
+initDB();
+        // יישור קו עם שאר המערכת: שימוש במודל 2.5 המעודכן שעובד על המפתח שלך
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        
+        const systemInstruction = `אתה עוזר AI ביצועי ואנליטי ברמת Expert למנהל העל (Super Admin) של מערכת Oneflow Life.
+בכל בקשה תקבל בלוק נתונים עדכני בפורמט JSON בשם "מידע פנימי בזמן אמת". הנתונים האלו הם אמת מוחלטת והם משקפים את מסד הנתונים כרגע.
+ההנחיות שלך:
+1. ענה ישירות, קצר ולעניין על סמך הנתונים שסופקו לך. אל תתן תשובות תיאורטיות, אל תחנך את המנהל, ואל תכתוב "אין לי גישה" - כי הגישה סופקה לך בבלוק הנתונים.
+2. נתח את הנתונים הקיימים, תן סיכומים מספריים (כמה פתוחים, כמה סגורים וכו') ותן חיזוי קצר אם נדרש.
+3. אם המנהל מבקש לבצע פעולה ממשית (למשל "מחק את קריאה 5" או "הוסף קהילה"), ספק לו את שאילתת ה-SQL המדויקת או פקודת ה-API שעליו להריץ, ללא הסברים מיותרים.`;
+
+        const prompt = `${systemInstruction}\n\nבקשת המנהל אליך: ${message}`;
+        
+        const result = await model.generateContent(prompt);
+        const reply = result.response.text();
+        
+        res.json({ success: true, reply });
+    } catch(e) { 
+        console.error('AI Chat Error:', e.message);
+        res.status(500).json({ success: false, error: `תקלת תקשורת מול גוגל: ${e.message}` }); 
+    }
+});
+// הוספת קריאת שירות יזומה על ידי מנהל המערכת (סופר אדמין)
+async function postToInternalChat(message, senderName) {
+    try {
+        await pool.query(
+            'INSERT INTO sa_internal_chat (room, sender_name, sender_id, message) VALUES ($1, $2, $3, $4)',
+            ['general', senderName || 'מערכת', null, message]
+        );
+    } catch(_) {}
+}
+
+app.post('/api/superadmin/tickets', verifySA, async (req, res) => {
+    try {
+        const { subject, description, group_id } = req.body;
+        const staffSender = req.saUser ? req.saUser.name : 'צוות מערכת';
+        const initialLog = [{ date: new Date().toISOString(), sender: staffSender + ' (יזום)', isStaff: true, isInternal: false, message: description }];
+
+        if (group_id) {
+            initialLog.push({ date: new Date().toISOString(), sender: 'מערכת', isStaff: true, isInternal: false, message: `📋 קריאת שירות נפתחה עבורך על ידי צוות התמיכה בנושא: "${subject}". נחזור אליך בהקדם.` });
+            initialLog.push({ date: new Date().toISOString(), sender: 'מערכת', isStaff: true, isInternal: true, message: `[SYSTEM_AUDIT] קריאה יזומה נפתחה ושויכה ללקוח (group_id: ${group_id})` });
+        }
+
+        const result = await pool.query(
+            'INSERT INTO support_tickets (group_id, user_id, subject, description, status, log) VALUES ($1, NULL, $2, $3, $4, $5) RETURNING id',
+            [group_id || null, subject, description, 'open', JSON.stringify(initialLog)]
+        );
+        const ticketId = result.rows[0].id;
+
+        if (group_id) {
+            await postToInternalChat(`🎫 קריאה יזומה #${ticketId} נפתחה: "${subject}" — שויכה ללקוח. טיפול נדרש.`, staffSender);
+        }
+
+        res.json({ success: true, ticketId });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+// שליפת הקריאות עבור פאנל ה-Super Admin (כולל צוותים משויכים וזמני SLA)
+app.get('/api/superadmin/tickets', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT t.*, f.name as group_name, f.admin_email as group_email, f.group_code,
+                   u.nickname as user_name,
+                   sa_u.name as assigned_user_name, sa_t.name as assigned_team_name
+            FROM support_tickets t
+            LEFT JOIN family_groups f ON t.group_id = f.id
+            LEFT JOIN users u ON t.user_id = u.id
+            LEFT JOIN sa_users sa_u ON t.assigned_to = sa_u.id
+            LEFT JOIN sa_teams sa_t ON t.assigned_team = sa_t.id
+            ORDER BY t.created_at DESC
+        `);
+        res.json({ success: true, tickets: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליפת קריאות שירות ללקוח (לפי מזהה קבוצה/עסק)
+app.get('/api/support/tickets/my/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM support_tickets WHERE group_id = $1 ORDER BY created_at DESC', [req.params.groupId]);
+        const tickets = result.rows.map(t => {
+            if (Array.isArray(t.log)) {
+                t.log = t.log.filter(entry => !entry.isInternal);
+            } else if (typeof t.log === 'string') {
+                try {
+                    const parsed = JSON.parse(t.log);
+                    t.log = JSON.stringify(parsed.filter(entry => !entry.isInternal));
+                } catch(_) {}
+            }
+            return t;
+        });
+        res.json({ success: true, tickets });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עדכון סטטוס הקריאה ע"י ה-Super Admin ועדכון חותמת זמן ל-SLA
+app.put('/api/superadmin/tickets/:id/status', verifySA, async (req, res) => {
+    try {
+        await pool.query('UPDATE support_tickets SET status = $1, status_updated_at = CURRENT_TIMESTAMP WHERE id = $2', [req.body.status, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מחיקת קריאת שירות מהסופר אדמין
+app.delete('/api/superadmin/tickets/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM support_tickets WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הראוט החדש: ניהול סיווגים והעברות טיפול, כולל שמירת המקרא של SLA
+app.get('/api/sa/sla-matrix', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query("SELECT value FROM system_settings WHERE key = 'sla_matrix_config'");
+        const sla = result.rows.length > 0 ? JSON.parse(result.rows[0].value) : [];
+        res.json({ success: true, sla });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/sla-matrix', verifySA, async (req, res) => {
+    try {
+        const { sla } = req.body;
+        const exists = await pool.query("SELECT key FROM system_settings WHERE key = 'sla_matrix_config'");
+        if (exists.rows.length > 0) {
+            await pool.query("UPDATE system_settings SET value = $1 WHERE key = 'sla_matrix_config'", [JSON.stringify(sla)]);
+        } else {
+            await pool.query("INSERT INTO system_settings (key, value) VALUES ('sla_matrix_config', $1)", [JSON.stringify(sla)]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/superadmin/tickets/:id/assign_and_classify', verifySA, async (req, res) => {
+    let dbClient;
+    try {
+        const { assignedTeam, priority, ticketType, actionBy, auditNote } = req.body;
+        const ticketId = req.params.id;
+        
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+        
+        const tRes = await dbClient.query('SELECT log FROM support_tickets WHERE id = $1', [ticketId]);
+        if (tRes.rows.length === 0) throw new Error('Ticket not found');
+        
+        let currentLog = tRes.rows[0].log || [];
+        if (typeof currentLog === 'string') currentLog = JSON.parse(currentLog);
+        
+        // יצירת הודעת ביקורת (Audit) אוטומטית רק אם סופק פתק מהלקוח/מערכת
+        if (auditNote) {
+            currentLog.push({ date: new Date().toISOString(), sender: actionBy || 'מערכת', isStaff: true, isInternal: true, message: `[SYSTEM_AUDIT] ${auditNote}` });
+        }
+        
+        await dbClient.query(
+            'UPDATE support_tickets SET assigned_team = $1, priority = $2, ticket_type = $3, log = $4 WHERE id = $5', 
+            [assignedTeam || null, priority || 'normal', ticketType || 'general', JSON.stringify(currentLog), ticketId]
+        );
+        
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch(e) { 
+        if (dbClient) await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message }); 
+    } finally {
+        if (dbClient) dbClient.release();
+    }
+});
+
+// ==========================================
+// --- FAMILAI OPERATIONS (SPRINT 2 - REST OVERRIDE) ---
+// ==========================================
+
+// פונקציית עזר לביצוע קריאה ישירה ל-API של גוגל (עקיפת SDK ישן)
+async function callGeminiDirect(prompt) {
+    if (!apiKey) throw new Error('Gemini API Key is missing in server environment');
+    
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{
+                parts: [{ text: prompt }]
+            }]
+        })
+    });
+
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    if (!data.candidates || !data.candidates[0].content) throw new Error('AI returned an empty response');
+    
+    return data.candidates[0].content.parts[0].text;
+}
+
+// Triage - סיווג חכם של קריאות שירות ע"י AI
+app.post('/api/superadmin/tickets/:id/ai-triage', verifySA, async (req, res) => {
+    let dbClient;
+    try {
+        const ticketId = req.params.id;
+        dbClient = await pool.connect();
+        
+        const tRes = await dbClient.query('SELECT subject, description, log FROM support_tickets WHERE id = $1', [ticketId]);
+        if (tRes.rows.length === 0) throw new Error('Ticket not found');
+        
+        const ticket = tRes.rows[0];
+        
+        const prompt = `
+        You are an expert AI Triage Support Agent for a SaaS system called 'Oneflow Life'. 
+        Read the following support ticket submitted by a user and classify it.
+        
+        Ticket Subject: "${ticket.subject}"
+        Ticket Description: "${ticket.description}"
+        
+        Analyze the text and return ONLY a valid JSON object with these exact keys:
+        {
+            "sentiment": "angry" or "neutral" or "happy",
+            "priority": "low" or "normal" or "high" or "critical",
+            "ticketType": "general" or "technical" or "billing",
+            "reason": "Short 1-sentence explanation in Hebrew of why you classified it this way"
+        }`;
+        
+        let responseText = await callGeminiDirect(prompt);
+        responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const aiData = JSON.parse(responseText);
+        
+        let currentLog = ticket.log || [];
+        if (typeof currentLog === 'string') currentLog = JSON.parse(currentLog);
+        
+        let sentimentTag = aiData.sentiment === 'angry' ? '🔥 סנטימנט לקוח: כועס/מתוסכל' : (aiData.sentiment === 'happy' ? '✨ סנטימנט לקוח: מרוצה/חיובי' : 'סנטימנט לקוח: רגיל');
+        const auditNote = `FamilAI סיווג את הפנייה אוטומטית. ${sentimentTag}. סיבה: ${aiData.reason}`;
+        
+        currentLog.push({ date: new Date().toISOString(), sender: 'FamilAI', isStaff: true, isInternal: true, message: `[SYSTEM_AUDIT] ${auditNote}` });
+        
+        await dbClient.query(
+            'UPDATE support_tickets SET priority = $1, ticket_type = $2, log = $3 WHERE id = $4', 
+            [aiData.priority, aiData.ticketType, JSON.stringify(currentLog), ticketId]
+        );
+        
+        res.json({ success: true, classification: aiData });
+    } catch(e) {
+        console.error('AI Triage Error:', e);
+        res.status(500).json({ error: e.message });
+    } finally {
+        if (dbClient) dbClient.release();
+    }
+});
+
+// ==========================================
+// --- הוספת תגובה לקריאת שירות ---
+// ==========================================
+app.post('/api/superadmin/tickets/:id/reply', verifySA, async (req, res) => {
+    let dbClient;
+    try {
+        dbClient = await pool.connect();
+        const ticketId = req.params.id;
+        const { message, status, isInternal, senderName, auditNote } = req.body;
+
+        // שליפת הטיקט הקיים מהמסד
+        const tRes = await dbClient.query('SELECT status, log FROM support_tickets WHERE id = $1', [ticketId]);
+        if (tRes.rows.length === 0) throw new Error('Ticket not found');
+
+        const ticket = tRes.rows[0];
+        let currentLog = ticket.log || [];
+        if (typeof currentLog === 'string') currentLog = JSON.parse(currentLog);
+
+        // הוספת ההודעה החדשה ללוג רק אם יש תוכן
+        if (message && message.trim()) {
+            currentLog.push({
+                date: new Date().toISOString(),
+                sender: senderName || 'צוות מערכת',
+                isStaff: true,
+                isInternal: !!isInternal,
+                message: message
+            });
+        }
+
+        // audit log בשינוי סטטוס
+        const statusLabelsTicket = { open: 'פתוחה', in_progress: 'בטיפול פעיל', resolved: 'נסגרה', closed: 'נסגרה' };
+        if (status && status !== ticket.status) {
+            const label = statusLabelsTicket[status] || status;
+            currentLog.push({ date: new Date().toISOString(), sender: 'מערכת', isStaff: true, isInternal: true, message: `[SYSTEM_AUDIT] סטטוס הקריאה עודכן: ${label}` });
+        }
+        // audit note (e.g. sent to ALM/QA)
+        if (auditNote) {
+            currentLog.push({ date: new Date().toISOString(), sender: senderName || 'מערכת', isStaff: true, isInternal: true, message: `[SYSTEM_AUDIT] ${auditNote}` });
+        }
+
+        // עדכון סטטוס אם הועבר סטטוס חדש, אחרת נשאר הסטטוס הקיים
+        const newStatus = status || ticket.status;
+        
+        // שמירה חזרה למסד הנתונים
+        await dbClient.query(
+            "UPDATE support_tickets SET status = $1, status_updated_at = CURRENT_TIMESTAMP, log = $2 WHERE id = $3",
+            [newStatus, JSON.stringify(currentLog), ticketId]
+        );
+
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Ticket Reply Error:', e);
+        res.status(500).json({ error: e.message });
+    } finally {
+        if (dbClient) dbClient.release();
+    }
+});
+
+// Deduplication - מניעת כפילויות חכמה מול בנק המשימות
+app.post('/api/sa/dev/check-duplicates', verifySA, async (req, res) => {
+    try {
+        const { description } = req.body;
+        const tasksRes = await pool.query("SELECT id, title, description FROM sa_dev_tasks WHERE status IN ('backlog', 'in_progress', 'qa')");
+        const activeTasks = tasksRes.rows;
+        
+        if (activeTasks.length === 0) return res.json({ success: true, isDuplicate: false });
+        
+        const prompt = `
+        Check if this ticket is a duplicate of active tasks. Respond ONLY with JSON:
+        Ticket: "${description}"
+        Tasks: ${JSON.stringify(activeTasks)}
+        JSON: {"isDuplicate": bool, "matchedTaskId": id, "confidence": 0-100, "explanation": "Hebrew sentence"}`;
+        
+        let responseText = await callGeminiDirect(prompt);
+        responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const aiData = JSON.parse(responseText);
+        
+        res.json({ success: true, ...aiData });
+    } catch(e) {
+        console.error('Deduplication AI Error:', e.message);
+        res.status(500).json({ error: 'שגיאת AI: ' + e.message });
+    }
+});
+
+// ==========================================
+// --- FEEDBACK LOOP (SPRINT 3) ---
+// ==========================================
+// סגירת מעגל: עדכון טיקט תמיכה אוטומטית כשהפיתוח מסתיים
+app.post('/api/sa/tickets/:id/feedback-loop', verifySA, async (req, res) => {
+    let dbClient;
+    try {
+        dbClient = await pool.connect();
+        const ticketId = req.params.id;
+        const { taskTitle, version } = req.body;
+
+        const tRes = await dbClient.query('SELECT log FROM support_tickets WHERE id = $1', [ticketId]);
+        if (tRes.rows.length === 0) throw new Error('Ticket not found');
+
+        let currentLog = tRes.rows[0].log || [];
+        if (typeof currentLog === 'string') currentLog = JSON.parse(currentLog);
+
+        const verText = version ? ` (גרסה ${version})` : '';
+        const msg = `🎉 צוות הפיתוח עדכן שהמשימה "${taskTitle}" הושלמה בהצלחה${verText}! התקלה תוקנה והקריאה נסגרת אוטומטית. תודה על הדיווח!`;
+
+        currentLog.push({
+            date: new Date().toISOString(),
+            sender: 'מערכת (Feedback Loop)',
+            isStaff: true,
+            isInternal: false,
+            message: msg
+        });
+
+        await dbClient.query(
+            "UPDATE support_tickets SET status = 'resolved', status_updated_at = CURRENT_TIMESTAMP, log = $1 WHERE id = $2",
+            [JSON.stringify(currentLog), ticketId]
+        );
+
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Feedback Loop Error:', e);
+        res.status(500).json({ error: e.message });
+    } finally {
+        if (dbClient) dbClient.release();
+    }
+});
+
+// ==========================================
+// --- FAMILAI OPERATIONS (SPRINT 2 - REST STABLE OVERRIDE) ---
+// ==========================================
+
+// פונקציית המעקף - גילוי אוטומטי (Auto-Discovery) של מודלים נתמכים
+async function callGeminiDirect(prompt) {
+    if (!apiKey) throw new Error('Gemini API Key is missing in environment');
+
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const isOverload = msg => msg && (msg.includes('high demand') || msg.includes('overloaded') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota') || msg.includes('503') || msg.includes('429'));
+
+    try {
+        const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+        const listRes = await fetch(listUrl);
+        const listData = await listRes.json();
+
+        if (!listData.models) {
+            throw new Error('לא הצלחנו למשוך את רשימת המודלים מגוגל. בדוק את תקינות ה-API KEY.');
+        }
+
+        const validModels = listData.models.filter(m =>
+            m.supportedGenerationMethods &&
+            m.supportedGenerationMethods.includes('generateContent') &&
+            m.name.includes('gemini')
+        );
+
+        if (validModels.length === 0) {
+            throw new Error('לא נמצאו מודלים נתמכים של ג\'מיני עבור מפתח ה-API הזה.');
+        }
+
+        // מיון עדיפות: flash-lite קודם (קל יותר לעומס), אחר-כך flash, אחר-כך שאר
+        const flashLite = validModels.filter(m => m.name.includes('flash-lite') || m.name.includes('flash-8b'));
+        const flash = validModels.filter(m => m.name.includes('flash') && !m.name.includes('lite') && !m.name.includes('8b'));
+        const rest = validModels.filter(m => !m.name.includes('flash'));
+        const orderedModels = [...flashLite, ...flash, ...rest];
+
+        let lastErr = null;
+        for (const model of orderedModels.slice(0, 4)) {
+            const generateUrl = `https://generativelanguage.googleapis.com/v1beta/${model.name}:generateContent?key=${apiKey}`;
+            // 3 ניסיונות עם backoff לכל מודל
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    console.log(`🤖 Gemini attempt ${attempt}/3 with ${model.name}`);
+                    const response = await fetch(generateUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.error) {
+                        const errMsg = data.error.message || '';
+                        if (isOverload(errMsg) && attempt < 3) {
+                            await sleep(attempt * 2000);
+                            continue;
+                        }
+                        throw new Error(errMsg);
+                    }
+
+                    if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content) {
+                        throw new Error('AI returned an empty response.');
+                    }
+
+                    console.log(`✅ Gemini success with ${model.name}`);
+                    return data.candidates[0].content.parts[0].text;
+                } catch (attemptErr) {
+                    lastErr = attemptErr;
+                    if (isOverload(attemptErr.message) && attempt < 3) {
+                        await sleep(attempt * 2000);
+                    } else if (!isOverload(attemptErr.message)) {
+                        throw attemptErr; // שגיאה שאינה עומס — אין טעם לנסות שוב
+                    }
+                }
+            }
+            // המודל הזה עמוס — עוברים לבא בתור
+            console.warn(`⚠️ Model ${model.name} overloaded, trying next...`);
+        }
+
+        throw lastErr || new Error('כל המודלים עמוסים כרגע. נסה שוב בעוד דקה.');
+
+    } catch (err) {
+        console.error('Gemini Error:', err.message);
+        throw new Error(`תקלת תקשורת מול גוגל: ${err.message}`);
+    }
+}
+// AI Generator (Unlimited PRO) - REST Override
+// ==========================================
+// --- SUPER ADMIN: AI Generator (REST OVERRIDE) ---
+// ==========================================
+app.post('/api/sa/ai-generate', async (req, res) => {
+    try {
+        const token = req.headers['authorization'];
+        if (!token) return res.json({ success: false, error: 'חסרה הרשאת סופר-אדמין' });
+        
+        const { context, query } = req.body;
+        const prompt = `${context}\n\nבקשה: ${query}`;
+        
+        const responseText = await callGeminiDirect(prompt);
+        res.json({ success: true, answer: responseText });
+    } catch(e) {
+        console.error('AI Gen Error:', e.message);
+        res.json({ success: false, error: 'שגיאה במנוע ה-AI: ' + e.message });
+    }
+});
+app.get('/api/test-email', async (req, res) => {
+    try {
+        const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : null;
+        const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s/g, '') : null;
+
+        if (!user || !pass) {
+            return res.send('<h1 style="color:red; text-align:center; direction:rtl; margin-top:50px;">❌ שגיאה: משתני הסביבה (SMTP_USER או SMTP_PASS) לא מוגדרים ב-Render!</h1>');
+        }
+
+        const transporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com', 
+            port: 465, 
+            secure: true,
+            auth: { user, pass }
+        });
+
+        await transporter.sendMail({
+            from: `"Oneflow System Test" <${user}>`,
+            to: user,
+            subject: '✅ בדיקת מערכת המיילים - Oneflow',
+            html: '<div style="direction:rtl; font-family:Arial;"><h2>הצלחה! 🎉</h2><p>המערכת הצליחה לעקוף את החסימה, להתחבר לשרתי גוגל דרך פורט 465 ולשלוח מייל בהצלחה.</p></div>'
+        });
+
+        res.send('<h1 style="color:green; text-align:center; direction:rtl; margin-top:50px;">✅ המייל נשלח בהצלחה לתיבה שלך!</h1>');
+    } catch (error) {
+        res.send(`<h1 style="color:red; text-align:center; direction:rtl; margin-top:50px;">❌ שגיאה:</h1><div style="background:#f4f4f4; padding:20px; font-family:monospace; max-width:800px; margin:20px auto; border: 1px solid #ccc;">${error.message}</div>`);
+    }
+});
+
+
+// --- FORCE DATABASE UPGRADE ---
+app.get('/api/force-upgrade', async (req, res) => {
+    let client;
+    try {
+        client = await pool.connect();
+        const results = [];
+        const queries = [
+            'ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE',
+            'ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_email_type_key CASCADE',
+            'ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_type_key CASCADE',
+            'ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE',
+            'ALTER TABLE transactions ADD COLUMN IF NOT EXISTS end_month VARCHAR(10)',
+            'ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_manual BOOLEAN DEFAULT TRUE',
+            'ALTER TABLE budget_allocations ADD COLUMN IF NOT EXISTS target_user_id INT REFERENCES users(id) ON DELETE CASCADE',
+            'ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1',
+            'ALTER TABLE shopping_trip_items ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1',
+            'ALTER TABLE pantry ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1',
+            'ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION',
+            'ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION',
+            'ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT \'{"tabs":["feed"]}\'::jsonb',
+            'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_text VARCHAR(50)',
+            'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_color VARCHAR(20) DEFAULT \'red\'',
+            'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS product_type VARCHAR(50) DEFAULT \'retail\'',
+            'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS long_description TEXT',
+            'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS gallery TEXT',
+            'CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)',
+            'CREATE TABLE IF NOT EXISTS inbox_messages (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, sender_type VARCHAR(50), sender_name VARCHAR(100), sender_contact VARCHAR(100), subject VARCHAR(200), content TEXT, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'
+        ];
+        
+        for (let q of queries) {
+            try { await client.query(q); results.push({ query: q, status: 'success' }); } catch (err) { results.push({ query: q, status: 'error', error: err.message }); }
+        }
+        
+        try {
+            await client.query(`CREATE TABLE IF NOT EXISTS time_clock (
+                id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                punch_in TIMESTAMP NOT NULL, punch_out TIMESTAMP, total_minutes INT DEFAULT 0
+            )`);
+            results.push({ query: 'time_clock table', status: 'success' });
+        } catch(err) { results.push({ query: 'time_clock table', status: 'error', error: err.message }); }
+
+        res.json({ success: true, message: 'Database upgrade process finished.', details: results });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    } finally { if(client) client.release(); }
+});
+
+// --- SYSTEM SETUP ---
+app.get('/setup-db', async (req, res) => {
+    try {
+        await pool.query(`
+            DROP TABLE IF EXISTS user_assignments CASCADE; DROP TABLE IF EXISTS quiz_questions CASCADE; DROP TABLE IF EXISTS quiz_bundles CASCADE;
+            DROP TABLE IF EXISTS budget_allocations CASCADE; DROP TABLE IF EXISTS goals CASCADE; DROP TABLE IF EXISTS loans CASCADE;
+            DROP TABLE IF EXISTS tasks CASCADE; DROP TABLE IF EXISTS transactions CASCADE; DROP TABLE IF EXISTS shopping_list CASCADE;
+            DROP TABLE IF EXISTS shopping_trips CASCADE; DROP TABLE IF EXISTS shopping_trip_items CASCADE; DROP TABLE IF EXISTS pantry CASCADE;
+            DROP TABLE IF EXISTS time_clock CASCADE; DROP TABLE IF EXISTS users CASCADE; DROP TABLE IF EXISTS family_groups CASCADE;
+            DROP TABLE IF EXISTS system_settings CASCADE; DROP TABLE IF EXISTS global_products CASCADE;
+            DROP TABLE IF EXISTS communities CASCADE; DROP TABLE IF EXISTS community_businesses CASCADE; DROP TABLE IF EXISTS store_coupons CASCADE;
+            DROP TABLE IF EXISTS store_customers CASCADE; DROP TABLE IF EXISTS store_orders CASCADE; DROP TABLE IF EXISTS store_order_items CASCADE;
+            DROP TABLE IF EXISTS inbox_messages CASCADE;
+            
+            CREATE TABLE system_settings (key VARCHAR(50) PRIMARY KEY, value TEXT);
+            CREATE TABLE family_groups (
+                id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100), group_code VARCHAR(10) UNIQUE, 
+                ai_tokens INT DEFAULT 10, last_token_reset DATE DEFAULT CURRENT_DATE, is_premium BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+                location_lat DOUBLE PRECISION, location_lng DOUBLE PRECISION, community_id INT, UNIQUE(admin_email, type)
+            );
+            CREATE TABLE communities (
+                id SERIAL PRIMARY KEY, name VARCHAR(100), city VARCHAR(100), code VARCHAR(50) UNIQUE, manager_email VARCHAR(100), manager_password VARCHAR(100), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE community_businesses (
+                community_id INT, business_id INT, discount_pct DECIMAL DEFAULT 0, status VARCHAR(20) DEFAULT 'approved', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(community_id, business_id)
+            );
+            CREATE TABLE store_coupons (
+                id SERIAL PRIMARY KEY, group_id INT, code VARCHAR(50), discount_pct DECIMAL DEFAULT 0, valid_until DATE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE users (
+                id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, 
+                password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, 
+                allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00, permissions JSONB DEFAULT '{"tabs":["feed"]}'::jsonb
+            );
+            CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE, is_recurring BOOLEAN DEFAULT FALSE, end_month VARCHAR(10));
+            CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE budget_allocations (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, category VARCHAR(50), target_user_id INT REFERENCES users(id) ON DELETE CASCADE, amount_limit DECIMAL(10,2) DEFAULT 0.00, UNIQUE(group_id, category, target_user_id));
+            CREATE TABLE goals (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, target_user_id INT REFERENCES users(id) ON DELETE SET NULL, title VARCHAR(255), target_amount DECIMAL(10,2), current_amount DECIMAL(10,2) DEFAULT 0.00, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, original_amount DECIMAL(10,2), remaining_amount DECIMAL(10,2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE shopping_list (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, requester_id INT REFERENCES users(id), item_name VARCHAR(100), normalized_name VARCHAR(100), quantity DECIMAL(10,2) DEFAULT 1, unit VARCHAR(20) DEFAULT 'יח''', estimated_price DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, units_per_package INT DEFAULT 1);
+            CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, buyer_id INT REFERENCES users(id), store_name VARCHAR(100), branch_name VARCHAR(100), total_amount DECIMAL(10,2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INT REFERENCES shopping_trips(id) ON DELETE CASCADE, item_name VARCHAR(100), normalized_name VARCHAR(100), quantity DECIMAL(10,2), unit VARCHAR(20) DEFAULT 'יח''', price_per_unit DECIMAL(10,2), units_per_package INT DEFAULT 1);
+            CREATE TABLE pantry (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, item_name VARCHAR(100), quantity DECIMAL(10,2) DEFAULT 1, unit VARCHAR(20) DEFAULT 'יח''', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, units_per_package INT DEFAULT 1);
+            CREATE TABLE time_clock (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, punch_in TIMESTAMP NOT NULL, punch_out TIMESTAMP, total_minutes INT DEFAULT 0);
+            CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, type VARCHAR(20), age_group VARCHAR(10), title VARCHAR(255), text_content TEXT, threshold INT DEFAULT 85, reward DECIMAL(10,2) DEFAULT 10.00, created_by VARCHAR(50) DEFAULT 'SYSTEM', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
+            CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE global_products (barcode VARCHAR(50) PRIMARY KEY, name VARCHAR(100), category VARCHAR(50) DEFAULT 'כללי', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE inbox_messages (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, sender_type VARCHAR(50), sender_name VARCHAR(100), sender_contact VARCHAR(100), subject VARCHAR(200), content TEXT, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        `);
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated!</p><a href="/">Go to App</a>');
+    } catch (e) { res.status(500).send(e.message); }
+});
+
+// --- SUPER ADMIN ENDPOINTS ---
+
+// Zone Manager sessions: token → { managerId, name, email }
+const zoneManagerSessions = new Map();
+const zmPasswordResets = new Map(); // token -> { managerId, name, email, expires }
+
+async function verifyZoneManager(req, res, next) {
+    const token = (req.headers.authorization || '').replace('Bearer ', '');
+    if (!token) return res.status(403).json({ error: 'Unauthorized zone manager' });
+    // בדיקה ב-cache תחילה
+    if (zoneManagerSessions.has(token)) {
+        req.zmSession = zoneManagerSessions.get(token);
+        return next();
+    }
+    // אם השרת הופעל מחדש — חלץ manager ID מהטוקן ובדוק ב-DB
+    if (token.startsWith('ZM_')) {
+        const parts = token.split('_');
+        if (parts.length >= 3) {
+            const managerId = parseInt(parts[1]);
+            if (!isNaN(managerId)) {
+                try {
+                    const r = await pool.query("SELECT id,name,email FROM zone_managers WHERE id=$1 AND status='active'", [managerId]);
+                    if (r.rows.length) {
+                        const mgr = r.rows[0];
+                        const session = { managerId: mgr.id, name: mgr.name, email: mgr.email };
+                        zoneManagerSessions.set(token, session);
+                        req.zmSession = session;
+                        return next();
+                    }
+                } catch(e) {}
+            }
+        }
+    }
+    return res.status(403).json({ error: 'Unauthorized zone manager' });
+}
+
+function verifySA(req, res, next) {
+    const authHeader = req.headers.authorization || '';
+    
+    // חילוץ אקטיבי של הטוקן במידה והוא נשלח עם תחילית Bearer מהדפדפן
+    const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
+    
+    if (token !== 'SA_SECRET_TOKEN_2026') {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    next();
+}
+
+// ============================================================
+// --- SMS OTP LOGIN (SUPER ADMIN MASTER) ---
+// ============================================================
+
+app.post('/api/superadmin/send-otp', async (req, res) => {
+    try {
+        const { phone } = req.body;
+        
+        // אבטחה: הגדר ב-Render משתנה סביבה בשם SUPERADMIN_PHONE עם המספר שלך (למשל: +972501234567)
+        const allowedPhone = process.env.SUPERADMIN_PHONE;
+        
+        if (!allowedPhone || phone !== allowedPhone) {
+            // לא נגיד "חסר מספר" להאקרים, נחזיר שגיאה כללית או שהמספר לא מורשה
+            return res.json({ success: false, error: 'מספר הטלפון שהוזן אינו מורשה גישה לחשבון מנהל העל.' });
+        }
+        
+        const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = Date.now() + 5 * 60 * 1000; // 5 דקות
+        
+        otpCache.set(phone, { code: generatedCode, expiresAt });
+        
+        const smsText = `קוד הגישה שלך למערכת Oneflow הוא: ${generatedCode}. הקוד בתוקף ל-5 דקות.`;
+        await sendSMSviaTwilio(phone, smsText);
+        
+        res.json({ success: true, message: 'קוד אימות נשלח בהצלחה' });
+    } catch (e) {
+        console.error('OTP Send Error:', e);
+        res.json({ success: false, error: 'שגיאה בשליחת ה-SMS: ' + e.message });
+    }
+});
+
+app.post('/api/superadmin/verify-otp', async (req, res) => {
+    try {
+        const { phone, code } = req.body;
+        
+        const cachedData = otpCache.get(phone);
+        if (!cachedData) return res.json({ success: false, error: 'לא נמצאה בקשת התחברות פעילה למספר זה' });
+        
+        if (Date.now() > cachedData.expiresAt) {
+            otpCache.delete(phone);
+            return res.json({ success: false, error: 'פג תוקפו של הקוד (חלפו 5 דקות). נסה שנית.' });
+        }
+        
+        if (cachedData.code !== code) return res.json({ success: false, error: 'הקוד שהוקלד אינו תקין' });
+        
+        // אימות עבר בהצלחה
+        otpCache.delete(phone);
+        
+        const saUserRes = await pool.query("SELECT value FROM system_settings WHERE key = 'sa_username'");
+        const currentCode = saUserRes.rows.length > 0 ? saUserRes.rows[0].value : 'admin';
+        
+        res.json({ 
+            success: true, 
+            token: 'SA_SECRET_TOKEN_2026',
+            user: { id: 1, name: 'Super Admin Master', role: 'master', email: currentCode, team: 'Management', permissions: ['all'] }
+        });
+    } catch (e) {
+        console.error('OTP Verify Error:', e);
+        res.json({ success: false, error: 'שגיאה באימות הקוד' });
+    }
+});
+app.post('/api/superadmin/login', async (req, res) => {
+    try {
+        const { code, password } = req.body;
+        
+        // 1. קודם כל בודקים אם קיים משתמש צוות (RBAC) עם המייל והסיסמה האלו
+        const userRes = await pool.query(`
+            SELECT u.id, u.name, u.email, u.status, t.name as team_name, t.permissions 
+            FROM sa_users u 
+            LEFT JOIN sa_teams t ON u.team_id = t.id 
+            WHERE u.email = $1 AND u.password_hash = $2
+        `, [code, password]);
+        
+        if (userRes.rows.length > 0) {
+            const user = userRes.rows[0];
+            if (user.status !== 'active') return res.status(403).json({ error: 'החשבון שלך נחסם. פנה למנהל המערכת.' });
+            
+            return res.json({ 
+                success: true, 
+                token: 'SA_SECRET_TOKEN_2026', 
+                user: { id: user.id, name: user.name, email: user.email, team: user.team_name, permissions: user.permissions || [] } 
+            });
+        }
+
+        // 2. אם לא מצאנו משתמש צוות, נבדוק פרטי מנהל-על מ-system_settings
+        const [saUserRes, saPassRes, saEmailRes] = await Promise.all([
+            pool.query("SELECT value FROM system_settings WHERE key = 'sa_username'"),
+            pool.query("SELECT value FROM system_settings WHERE key = 'sa_password'"),
+            pool.query("SELECT value FROM system_settings WHERE key = 'sa_email'"),
+        ]);
+        const currentUsername = saUserRes.rows.length > 0 ? saUserRes.rows[0].value : 'admin';
+        const currentPass = saPassRes.rows.length > 0 ? saPassRes.rows[0].value : '123456';
+        const currentEmail = saEmailRes.rows.length > 0 ? saEmailRes.rows[0].value : '';
+
+        // מאפשר כניסה עם שם משתמש או מייל ארגוני
+        const codeMatchesMaster = (code === currentUsername) || (currentEmail && code === currentEmail);
+        if (codeMatchesMaster && password === currentPass) {
+            res.json({
+                success: true,
+                token: 'SA_SECRET_TOKEN_2026',
+                user: { id: 0, name: 'מנהל על (Master)', email: currentEmail || currentUsername, team: 'Management', permissions: ['all'] }
+            });
+        } else {
+            res.status(401).json({ error: 'פרטי גישה שגויים לניהול מערכת' });
+        }
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// עדכון פרטי כניסה של מנהל-על ראשי (username, password, org email)
+app.post('/api/superadmin/credentials', verifySA, async (req, res) => {
+    try {
+        const { newUsername, newPassword, newEmail } = req.body;
+        if (!newUsername && !newPassword && !newEmail) {
+            return res.status(400).json({ error: 'יש לספק לפחות שדה אחד לעדכון' });
+        }
+        const updates = [];
+        if (newUsername) updates.push(pool.query(
+            "INSERT INTO system_settings (key, value) VALUES ('sa_username', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newUsername]
+        ));
+        if (newPassword) updates.push(pool.query(
+            "INSERT INTO system_settings (key, value) VALUES ('sa_password', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newPassword]
+        ));
+        if (newEmail !== undefined) updates.push(pool.query(
+            "INSERT INTO system_settings (key, value) VALUES ('sa_email', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newEmail]
+        ));
+        await Promise.all(updates);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==========================================
+// --- SUPER ADMIN: HR & RBAC (TEAMS & USERS) ---
+// ==========================================
+
+app.get('/api/sa/teams', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM sa_teams ORDER BY name ASC');
+        res.json({ success: true, teams: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sa/staff', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT u.*, t.name as team_name FROM sa_users u LEFT JOIN sa_teams t ON u.team_id = t.id ORDER BY u.name ASC');
+        res.json({ success: true, staff: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==========================================
+// --- INTERNAL CHAT (WHISPERS) ---
+// ==========================================
+
+// משיכת הודעות לפי חדר
+app.get('/api/sa/chat/:room', verifySA, async (req, res) => {
+    try {
+        const room = req.params.room || 'general';
+        // מושך את ה-50 הודעות האחרונות בחדר
+        const result = await pool.query('SELECT * FROM sa_internal_chat WHERE room = $1 ORDER BY created_at ASC LIMIT 50', [room]);
+        res.json({ success: true, messages: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליחת הודעה חדשה לחדר
+app.post('/api/sa/chat', verifySA, async (req, res) => {
+    try {
+        const { room, message, senderName, senderId } = req.body;
+        if (!message || !message.trim()) return res.json({ success: false, error: 'Empty message' });
+        
+        await pool.query(
+            'INSERT INTO sa_internal_chat (room, sender_name, sender_id, message) VALUES ($1, $2, $3, $4)', 
+            [room || 'general', senderName || 'Unknown', senderId || null, message.trim()]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/teams', verifySA, async (req, res) => {
+    try {
+        const { name, permissions } = req.body;
+        if (!name?.trim()) return res.status(400).json({ error: 'שם צוות נדרש' });
+        const result = await pool.query(
+            'INSERT INTO sa_teams (name, permissions) VALUES ($1, $2) RETURNING *',
+            [name.trim(), JSON.stringify(permissions || [])]
+        );
+        res.json({ success: true, team: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/teams/:id', verifySA, async (req, res) => {
+    try {
+        const { name, permissions } = req.body;
+        await pool.query('UPDATE sa_teams SET name=$1, permissions=$2 WHERE id=$3', [name, JSON.stringify(permissions || []), req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/teams/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sa_teams WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sa/staff', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT u.id, u.name, u.email, u.status, u.created_at, t.name as team_name, t.id as team_id 
+            FROM sa_users u 
+            LEFT JOIN sa_teams t ON u.team_id = t.id 
+            ORDER BY u.created_at DESC
+        `);
+        res.json({ success: true, staff: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/staff', verifySA, async (req, res) => {
+    try {
+        const { name, email, password, teamId } = req.body;
+        const result = await pool.query(
+            'INSERT INTO sa_users (name, email, password_hash, team_id) VALUES ($1, $2, $3, $4) RETURNING id, name, email, status', 
+            [name, email, password, teamId || null]
+        );
+        res.json({ success: true, user: result.rows[0] });
+    } catch(e) { 
+        if (e.code === '23505') return res.status(400).json({ error: 'כתובת המייל הזו כבר קיימת במערכת' });
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+app.put('/api/sa/staff/:id', verifySA, async (req, res) => {
+    try {
+        const { name, email, password, teamId, status } = req.body;
+        if (password && password.trim() !== '') {
+            await pool.query(
+                'UPDATE sa_users SET name=$1, email=$2, password_hash=$3, team_id=$4, status=$5 WHERE id=$6', 
+                [name, email, password, teamId || null, status, req.params.id]
+            );
+        } else {
+            await pool.query(
+                'UPDATE sa_users SET name=$1, email=$2, team_id=$3, status=$4 WHERE id=$5', 
+                [name, email, teamId || null, status, req.params.id]
+            );
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/staff/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sa_users WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+// --- עריכת שם סביבה (משפחה/עסק) והאימייל שלה מהאדמין כולל הרשאות מודולים ---
+app.put('/api/sa/groups/:id', async (req, res) => {
+    try {
+        const { name, adminEmail, features, city, streetAddress, adminPhone, lastName, familyNickname, bizType, contactName } = req.body;
+        const vals = [name, adminEmail ? adminEmail.toLowerCase().trim() : null];
+        const sets = ['name=$1', 'admin_email=$2'];
+        if (features !== undefined) { vals.push(JSON.stringify(features)); sets.push(`features=$${vals.length}`); }
+        if (city !== undefined) { vals.push(city || null); sets.push(`city=$${vals.length}`); }
+        if (streetAddress !== undefined) { vals.push(streetAddress || null); sets.push(`street_address=$${vals.length}`); }
+        if (lastName !== undefined) { vals.push(lastName || null); sets.push(`last_name=$${vals.length}`); }
+        if (familyNickname !== undefined) { vals.push(familyNickname || null); sets.push(`family_nickname=$${vals.length}`); }
+        if (bizType !== undefined && bizType) { vals.push(bizType); sets.push(`business_type=$${vals.length}`); }
+        if (contactName !== undefined) { vals.push(contactName || null); sets.push(`contact_name=$${vals.length}`); }
+        vals.push(req.params.id);
+        await pool.query(`UPDATE family_groups SET ${sets.join(', ')} WHERE id=$${vals.length}`, vals);
+        // עדכון טלפון מנהל בטבלת users
+        if (adminPhone !== undefined) {
+            await pool.query(`UPDATE users SET phone=$1 WHERE group_id=$2 AND role='ADMIN'`, [adminPhone || null, req.params.id]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- עריכת שם משתמש וסיסמה מהאדמין ---
+app.put('/api/sa/users/:id', async (req, res) => {
+    try {
+        const { nickname, password } = req.body;
+        if (password && password.trim() !== '') {
+            await pool.query('UPDATE users SET nickname=$1, password_hash=$2 WHERE id=$3', [nickname, password, req.params.id]);
+        } else {
+            await pool.query('UPDATE users SET nickname=$1 WHERE id=$2', [nickname, req.params.id]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/superadmin/group-360/:id', verifySA, async (req, res) => {
+    try {
+        const groupId = req.params.id;
+        const gRes = await pool.query('SELECT * FROM family_groups WHERE id = $1', [groupId]);
+        if(gRes.rows.length === 0) return res.status(404).json({error: 'הקבוצה לא נמצאה'});
+        const group = gRes.rows[0];
+
+        const uRes = await pool.query('SELECT nickname, role, balance, allowance_amount FROM users WHERE group_id = $1 ORDER BY role, nickname', [groupId]);
+        const tRes = await pool.query(`SELECT t.amount, t.type, t.category, t.description, t.date, u.nickname as user_name FROM transactions t LEFT JOIN users u ON t.user_id = u.id WHERE t.group_id = $1 AND t.date >= CURRENT_DATE - INTERVAL '30 days' ORDER BY t.date DESC`, [groupId]);
+        const tasksRes = await pool.query('SELECT status, count(*) FROM tasks WHERE group_id = $1 GROUP BY status', [groupId]);
+
+        res.json({ success: true, group, users: uRes.rows, transactions: tRes.rows, tasksSummary: tasksRes.rows });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.delete('/api/superadmin/groups/:id', verifySA, async (req, res) => {
+    const gid = req.params.id;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        // NULL-ify FK refs that lack ON DELETE CASCADE/SET NULL
+        await client.query('UPDATE inbox_messages    SET customer_group_id = NULL WHERE customer_group_id = $1', [gid]);
+        await client.query('UPDATE calendar_events   SET customer_group_id = NULL WHERE customer_group_id = $1', [gid]);
+        await client.query('DELETE FROM family_groups WHERE id = $1', [gid]);
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch(e) {
+        await client.query('ROLLBACK');
+        console.error('[DELETE GROUP]', e.message);
+        res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+app.delete('/api/superadmin/users/:id', verifySA, async (req, res) => {
+    try { await pool.query('DELETE FROM users WHERE id=$1', [req.params.id]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.patch('/api/superadmin/users/:id', verifySA, async (req, res) => {
+    try {
+        const { nickname, phone, birth_year, id_number, email, role, status, new_password } = req.body;
+        const sets = []; const vals = [];
+        if (nickname !== undefined) { vals.push(nickname); sets.push(`nickname=$${vals.length}`); }
+        if (phone !== undefined)    { vals.push(phone || null); sets.push(`phone=$${vals.length}`); }
+        if (birth_year !== undefined) { vals.push(birth_year || null); sets.push(`birth_year=$${vals.length}`); }
+        if (id_number !== undefined) { vals.push(id_number || null); sets.push(`id_number=$${vals.length}`); }
+        if (email !== undefined)    { vals.push(email || null); sets.push(`email=$${vals.length}`); }
+        if (role !== undefined)     { vals.push(role); sets.push(`role=$${vals.length}`); }
+        if (status !== undefined)   { vals.push(status); sets.push(`status=$${vals.length}`); }
+        if (new_password && new_password.trim()) { vals.push(new_password.trim()); sets.push(`password_hash=$${vals.length}`); }
+        if (sets.length === 0) return res.status(400).json({ error: 'no fields to update' });
+        vals.push(req.params.id);
+        await pool.query(`UPDATE users SET ${sets.join(',')} WHERE id=$${vals.length}`, vals);
+        const updated = await pool.query('SELECT id, nickname, phone, birth_year, id_number, email, role, status, balance, group_id FROM users WHERE id=$1', [req.params.id]);
+        res.json({ success: true, user: updated.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/superadmin/settings', verifySA, async (req, res) => {
+    try {
+        if (req.body.welcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.welcomeMsg]);
+        if (req.body.businessWelcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('business_welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.businessWelcomeMsg]);
+        if (req.body.smsLoginEnabled !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('sms_login_enabled', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [String(req.body.smsLoginEnabled)]);
+        if (req.body.smsDebugCode !== undefined) {
+            const debugCode = String(req.body.smsDebugCode).replace(/\D/g, '').slice(0, 4);
+            await pool.query("INSERT INTO system_settings (key, value) VALUES ('sms_debug_code', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [debugCode || '']);
+        }
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/superadmin/groups/:id/premium', verifySA, async (req, res) => {
+    try {
+        const enable = req.body.enable === true || req.body.enable === 'true';
+        await pool.query('UPDATE family_groups SET is_premium = $1 WHERE id = $2', [enable, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/settings/tour', async (req, res) => {
+    try {
+        const r = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('tour_slides','tour_enabled')");
+        const map = {}; r.rows.forEach(row => map[row.key] = row.value);
+        res.json({ slides: map.tour_slides ? JSON.parse(map.tour_slides) : null, enabled: map.tour_enabled !== 'false' });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/settings/tour', async (req, res) => {
+    try {
+        const saRes = await pool.query("SELECT value FROM system_settings WHERE key='sa_password'");
+        const token = (req.headers.authorization || '').replace('Bearer ', '');
+        if (!saRes.rows.length || token !== saRes.rows[0].value) return res.status(403).json({ error: 'Unauthorized' });
+        const { slides, enabled } = req.body;
+        if (slides !== undefined) await pool.query("INSERT INTO system_settings (key,value) VALUES ('tour_slides',$1) ON CONFLICT (key) DO UPDATE SET value=$1", [JSON.stringify(slides)]);
+        if (enabled !== undefined) await pool.query("INSERT INTO system_settings (key,value) VALUES ('tour_enabled',$1) ON CONFLICT (key) DO UPDATE SET value=$1", [String(enabled)]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/settings/welcome', async (req, res) => {
+    try {
+        const key = req.query.type === 'BUSINESS' ? 'business_welcome_msg' : 'welcome_msg';
+        const s = await pool.query("SELECT value FROM system_settings WHERE key = $1", [key]);
+        res.json({ message: s.rows.length > 0 ? s.rows[0].value : '' });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.get('/api/banners', async (req, res) => {
+    try {
+        const isBiz = req.query.type === 'BUSINESS';
+        const keys = isBiz ? 
+            "('business_ad_banner_text_top', 'business_ad_banner_link_top', 'business_ad_banner_img_top', 'business_ad_banner_text_bottom', 'business_ad_banner_link_bottom', 'business_ad_banner_img_bottom')" :
+            "('ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_img_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_img_bottom')";
+            
+        const result = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ${keys}`);
+        const banners = {};
+        result.rows.forEach(r => { let k = r.key.replace('business_ad_banner_', 'banner_').replace('ad_banner_', 'banner_'); banners[k] = r.value; });
+        
+        // כאן אנחנו מחזירים את התמונות בדיוק כפי שהן ללא שינוי, כדי לתמוך ב-Base64
+        res.json({ success: true, banners: { 
+            banner_top_text: banners['banner_text_top'] || '', 
+            banner_top_link: banners['banner_link_top'] || '', 
+            banner_top_img: banners['banner_img_top'] || '', 
+            banner_bottom_text: banners['banner_text_bottom'] || '', 
+            banner_bottom_link: banners['banner_link_bottom'] || '', 
+            banner_bottom_img: banners['banner_img_bottom'] || ''
+        } });
+    } catch(e) { res.json({ success: false, error: e.message, banners: {} }); }
+});
+app.get('/api/superadmin/data', verifySA, async (req, res) => {
+    try {
+        await pool.query(`UPDATE family_groups SET ai_tokens = 10, last_token_reset = CURRENT_DATE WHERE last_token_reset IS NULL OR last_token_reset < CURRENT_DATE`);
+        
+        const groups = await pool.query('SELECT * FROM family_groups ORDER BY created_at DESC');
+        const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
+        const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
+        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'business_welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_img_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_img_bottom', 'business_ad_banner_text_top', 'business_ad_banner_link_top', 'business_ad_banner_img_top', 'business_ad_banner_text_bottom', 'business_ad_banner_link_bottom', 'business_ad_banner_img_bottom', 'sa_email', 'sa_username', 'global_ai_logo', 'login_slides', 'sms_login_enabled', 'member_welcome_enabled', 'member_welcome_text', 'member_welcome_img', 'member_module_settings')");
+        
+        let unifiedActivity = [];
+        activity.rows.forEach(a => { unifiedActivity.push({ date: a.date, group_name: a.group_name, user_name: a.user_name, description: a.description, amount: a.amount, is_financial: true }); });
+        
+        groups.rows.forEach(g => {
+            const hasActivity = unifiedActivity.some(act => act.group_name === g.name);
+            if (!hasActivity) {
+                 const adminUser = users.rows.find(u => u.group_id === g.id && u.role === 'ADMIN');
+                 unifiedActivity.push({ date: g.created_at, group_name: g.name, user_name: adminUser ? adminUser.nickname : 'מנהל', description: '🎉 פתח/ה סביבה חדשה', amount: 0, is_financial: false });
+            }
+        });
+        
+        unifiedActivity.sort((a, b) => new Date(b.date) - new Date(a.date));
+        const getSet = (k) => settings.rows.find(r => r.key === k)?.value || '';
+
+        const connectionsRes = await pool.query("SELECT COUNT(*) FROM community_businesses WHERE status = 'approved'");
+        const totalConnections = parseInt(connectionsRes.rows[0].count) || 0;
+
+        const stats = {
+            families: groups.rows.filter(g => g.type === 'FAMILY' && g.member_type !== 'member').length,
+            members: groups.rows.filter(g => g.member_type === 'member').length,
+            businesses: groups.rows.filter(g => g.type === 'BUSINESS').length,
+            familyUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'FAMILY'; }).length,
+            businessUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'BUSINESS'; }).length,
+            activeConnections: totalConnections
+        };
+        
+        let loginSlidesRaw = getSet('login_slides');
+        let loginSlides = [];
+        try { if(loginSlidesRaw) loginSlides = JSON.parse(loginSlidesRaw); } catch(e){}
+
+        res.json({
+            groups: groups.rows, users: users.rows, activity: unifiedActivity.slice(0, 50), stats: stats,
+            saEmail: getSet('sa_email'), saUsername: getSet('sa_username') || 'admin',
+            welcomeMsg: getSet('welcome_msg'), businessWelcomeMsg: getSet('business_welcome_msg'),
+            globalAiLogo: getSet('global_ai_logo'), loginSlides: loginSlides, smsLoginEnabled: getSet('sms_login_enabled') !== 'false',
+            smsDebugCode: getSet('sms_debug_code') || '',
+            adBannerTextTop: getSet('ad_banner_text_top'), adBannerLinkTop: getSet('ad_banner_link_top'), adBannerImgTop: getSet('ad_banner_img_top'),
+            adBannerTextBottom: getSet('ad_banner_text_bottom'), adBannerLinkBottom: getSet('ad_banner_link_bottom'), adBannerImgBottom: getSet('ad_banner_img_bottom'),
+            bizBannerTextTop: getSet('business_ad_banner_text_top'), bizBannerLinkTop: getSet('business_ad_banner_link_top'), bizBannerImgTop: getSet('business_ad_banner_img_top'),
+            bizBannerTextBottom: getSet('business_ad_banner_text_bottom'), bizBannerLinkBottom: getSet('business_ad_banner_link_bottom'), bizBannerImgBottom: getSet('business_ad_banner_img_bottom'),
+            memberWelcomeEnabled: getSet('member_welcome_enabled') !== 'false',
+            memberWelcomeText: getSet('member_welcome_text'),
+            memberWelcomeImg: getSet('member_welcome_img'),
+            memberModuleSettings: (() => { try { return JSON.parse(getSet('member_module_settings') || '{}'); } catch(e){ return {}; } })()
+        });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/superadmin/banners', verifySA, async (req, res) => {
+    const { topText, topLink, topImg, bottomText, bottomLink, bottomImg, bizTopText, bizTopLink, bizTopImg, bizBottomText, bizBottomLink, bizBottomImg, globalAiLogo, loginSlides } = req.body;
+    const items = [ 
+        { k: 'ad_banner_text_top', v: topText || '' }, { k: 'ad_banner_link_top', v: topLink || '' }, { k: 'ad_banner_img_top', v: topImg || '' },
+        { k: 'ad_banner_text_bottom', v: bottomText || '' }, { k: 'ad_banner_link_bottom', v: bottomLink || '' }, { k: 'ad_banner_img_bottom', v: bottomImg || '' },
+        { k: 'business_ad_banner_text_top', v: bizTopText || '' }, { k: 'business_ad_banner_link_top', v: bizTopLink || '' }, { k: 'business_ad_banner_img_top', v: bizTopImg || '' },
+        { k: 'business_ad_banner_text_bottom', v: bizBottomText || '' }, { k: 'business_ad_banner_link_bottom', v: bizBottomLink || '' }, { k: 'business_ad_banner_img_bottom', v: bizBottomImg || '' }
+    ];
+    
+    if (globalAiLogo !== undefined) items.push({ k: 'global_ai_logo', v: globalAiLogo || '' });
+    if (loginSlides !== undefined) items.push({ k: 'login_slides', v: JSON.stringify(loginSlides || []) });
+    const { memberWelcomeEnabled, memberWelcomeText, memberWelcomeImg, memberModuleSettings } = req.body;
+    if (memberWelcomeEnabled !== undefined) items.push({ k: 'member_welcome_enabled', v: String(memberWelcomeEnabled) });
+    if (memberWelcomeText !== undefined) items.push({ k: 'member_welcome_text', v: memberWelcomeText || '' });
+    if (memberWelcomeImg !== undefined) items.push({ k: 'member_welcome_img', v: memberWelcomeImg || '' });
+    if (memberModuleSettings !== undefined) items.push({ k: 'member_module_settings', v: JSON.stringify(memberModuleSettings || {}) });
+
+    try {
+        await pool.query('BEGIN');
+        for (let item of items) await pool.query(`INSERT INTO system_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2`, [item.k, item.v]);
+        await pool.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) { await pool.query('ROLLBACK'); res.status(500).json({ error: 'שגיאה בשמירת נתוני המערכת' }); }
+});
+
+app.get('/api/settings/member-content', async (req, res) => {
+    try {
+        const result = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('member_welcome_enabled', 'member_welcome_text', 'member_welcome_img', 'member_module_settings')");
+        const getSet = (k) => result.rows.find(r => r.key === k)?.value || '';
+        res.json({
+            memberWelcomeEnabled: getSet('member_welcome_enabled') !== 'false',
+            memberWelcomeText: getSet('member_welcome_text'),
+            memberWelcomeImg: getSet('member_welcome_img'),
+            memberModuleSettings: (() => { try { return JSON.parse(getSet('member_module_settings') || '{}'); } catch(e){ return {}; } })()
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/settings/login-mode', async (req, res) => {
+    try {
+        const result = await pool.query("SELECT value FROM system_settings WHERE key = 'sms_login_enabled'");
+        const raw = result.rows[0]?.value;
+        // ברירת מחדל: true (פעיל) אם הערך לא קיים
+        const smsEnabled = raw === null || raw === undefined ? true : raw !== 'false';
+        res.json({ success: true, smsEnabled });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/system/public-config', async (req, res) => {
+    try {
+        const result = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('global_ai_logo', 'login_slides')");
+        const getSet = (k) => result.rows.find(r => r.key === k)?.value || '';
+        
+        let loginSlides = [];
+        try { 
+            const rawSlides = getSet('login_slides');
+            if(rawSlides) loginSlides = JSON.parse(rawSlides); 
+        } catch(e){}
+        
+        res.json({ 
+            success: true, 
+            globalAiLogo: getSet('global_ai_logo'),
+            loginSlides: loginSlides.filter(s => s.active !== false)
+        });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// =========================================================
+// פונקציות יצירת סביבות ושליחת מיילים
+// =========================================================
+
+app.post('/api/groups', async (req, res) => {
+    let dbClient;
+    try {
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+
+        const reqEmail = (req.body.adminEmail || '').toLowerCase().trim();
+
+        // 1. משיכת המייל של הסופר אדמין כדי לאפשר לו לפתוח סביבות ללא הגבלה
+        const saEmailRes = await dbClient.query("SELECT value FROM system_settings WHERE key = 'sa_email'");
+        const saEmail = saEmailRes.rows.length > 0 ? saEmailRes.rows[0].value.toLowerCase().trim() : '';
+
+        // 2. אכיפת מגבלת 2 סביבות ללקוח רגיל (שאינו הסופר אדמין)
+        if (reqEmail !== saEmail && saEmail !== '') {
+            const countRes = await dbClient.query('SELECT COUNT(*) FROM family_groups WHERE LOWER(admin_email) = $1', [reqEmail]);
+            if (parseInt(countRes.rows[0].count) >= 2) {
+                await dbClient.query('ROLLBACK');
+                return res.status(400).json({ error: 'ניתן לפתוח עד 2 סביבות (משפחות או עסקים) תחת אותה כתובת מייל.' });
+            }
+        }
+        
+        let code = generateGroupCode();
+        
+        // איתור קהילה אם הוזן קוד הפניה (Referral)
+        let commId = null;
+        if (req.body.inviteCommunityCode) {
+            const cRes = await dbClient.query('SELECT id FROM communities WHERE code = $1', [req.body.inviteCommunityCode.toUpperCase().trim()]);
+            if (cRes.rows.length > 0) commId = cRes.rows[0].id;
+        }
+        
+        const firstName = (req.body.firstName || req.body.adminNickname || '').trim();
+        const lastName = (req.body.lastName || '').trim();
+        const familyNickname = (req.body.familyNickname || '').trim() || null;
+        const groupLastName = lastName || familyNickname || null;
+        const adminNickname = lastName ? `${firstName} ${lastName}`.trim() : firstName;
+
+        const gRes = await dbClient.query(
+            `INSERT INTO family_groups (type, name, admin_email, group_code, community_id, family_nickname, last_name) VALUES ($1, $2, LOWER($3), $4, $5, $6, $7) RETURNING *`, 
+            [req.body.type, req.body.groupName, reqEmail, code, commId, familyNickname, groupLastName]
+        );
+        const group = gRes.rows[0];
+        const birthYear = parseInt(req.body.birthYear) || null;
+        const phone = (req.body.phone || '').trim() || null;
+
+        // phone required for age >= 10
+        if (birthYear && (new Date().getFullYear() - birthYear) >= 10 && !phone) {
+            await dbClient.query('ROLLBACK');
+            return res.status(400).json({ error: 'מספר טלפון הוא שדה חובה מגיל 10' });
+        }
+
+        // בדיקת ייחודיות טלפון: אותו טלפון לא יכול להרשם בשתי משפחות שונות
+        if (phone && req.body.type === 'FAMILY') {
+            const phoneCheck = await dbClient.query(
+                `SELECT u.id FROM users u JOIN family_groups fg ON fg.id = u.group_id WHERE u.phone = $1 AND fg.type = 'FAMILY' LIMIT 1`,
+                [phone]
+            );
+            if (phoneCheck.rows.length > 0) {
+                await dbClient.query('ROLLBACK');
+                return res.status(400).json({ error: 'מספר טלפון זה כבר משויך לסביבה משפחתית אחרת. ניתן להשתמש באותו טלפון רק בסביבה משפחתית אחת.' });
+            }
+        }
+
+        const uRes = await dbClient.query(
+            `INSERT INTO users (group_id, nickname, first_name, last_name, birth_year, password_hash, role, status, phone) VALUES ($1, $2, $3, $4, $5, $6, 'ADMIN', 'active', $7) RETURNING *`,
+            [group.id, adminNickname, firstName, lastName || null, birthYear, req.body.password, phone]
+        );
+
+        await dbClient.query(
+            `UPDATE family_groups SET owner_user_id = $1 WHERE id = $2`,
+            [uRes.rows[0].id, group.id]
+        );
+
+        const welcomeText = req.body.type === 'BUSINESS' ? 'סביבת עבודה נפתחה בהצלחה! 🎉' : 'הבנק המשפחתי נפתח בהצלחה! 🎉';
+        await dbClient.query(
+            `INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, 0, $3, 'system', 'income', FALSE)`, 
+            [uRes.rows[0].id, group.id, welcomeText]
+        );
+        
+        await dbClient.query('COMMIT');
+
+        // מנגנון הבשלת קהילה אוטומטי (30 משפחות מפעילות את הקהילה)
+        if (commId && req.body.type === 'FAMILY') {
+            const famCount = await pool.query(`SELECT COUNT(*) FROM family_groups WHERE community_id = $1 AND type = 'FAMILY'`, [commId]);
+            if (parseInt(famCount.rows[0].count) >= 30) {
+                await pool.query(`UPDATE communities SET status = 'active' WHERE id = $1 AND status = 'pending'`, [commId]);
+            }
+        }
+        
+        // --- מערכת שליחת המיילים ---
+        const sysType = req.body.type === 'BUSINESS' ? 'Oneflow Life BIZ (לעסקים)' : 'Oneflow Life (למשפחות)';
+        
+        const adminAlertHtml = `<div dir="rtl" style="font-family:Arial;"><h2>🎉 סביבה חדשה הוקמה!</h2><p>סוג: ${sysType}</p><p>שם: ${req.body.groupName}</p><p>מייל: ${req.body.adminEmail}</p><p>קוד: <b>${code}</b></p></div>`;
+                // שליחת מיילים ברקע - לא חוסמת את התגובה
+        sendSystemEmail('mcgames1978@gmail.com', 'Oneflow | הצטרפות חדשה למערכת!', adminAlertHtml).catch(e => console.error('Email error:', e));
+
+        if (req.body.adminEmail) {
+            const userThanksHtml = `<div dir="rtl" style="font-family:Arial;"><h2>ברוכים הבאים ל-${sysType}! 🚀</h2><p>שלום ${req.body.adminNickname},</p><p>הסביבה שלכם מוגדרת ומוכנה לפעולה.</p><br><p>פרטי הגישה שלכם:</p><p>קוד סביבה: <strong style="color: #2563eb;">${code}</strong></p><p>משתמש: <strong>${req.body.adminNickname}</strong></p><p>סיסמה: <strong>${req.body.password}</strong></p></div>`;
+            sendSystemEmail(req.body.adminEmail, `הסביבה שלכם ב-${sysType} מוכנה!`, userThanksHtml).catch(e => console.error('Email error:', e));
+        }
+
+        res.json({ success: true, user: uRes.rows[0], group: group });
+    } catch (e) { 
+        if (dbClient) { try { await dbClient.query('ROLLBACK'); } catch(rbErr) {} }
+        if (e.message && e.message.includes('unique constraint')) { res.status(400).json({ error: 'כתובת המייל הזו כבר רשומה במערכת.' }); } 
+        else { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
+    } finally { if (dbClient) dbClient.release(); }
+});
+app.put('/api/groups/:id/inventory-settings', async (req, res) => {
+    try {
+        const { min_stock_buffer_pct, min_stock_warning_pct } = req.body;
+        await pool.query('UPDATE family_groups SET min_stock_buffer_pct=$1, min_stock_warning_pct=$2 WHERE id=$3',
+            [parseFloat(min_stock_buffer_pct) || 0, parseFloat(min_stock_warning_pct) || 0, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/groups/:id/doc-settings', async (req, res) => {
+    try {
+        const { vat_number, contact_name } = req.body;
+        await pool.query('UPDATE family_groups SET vat_number=$1, contact_name=$2 WHERE id=$3', [vat_number || '', contact_name || '', req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/groups/onboard', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        await pool.query('UPDATE family_groups SET is_onboarded = TRUE WHERE id = $1', [groupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/forgot-code', async (req, res) => {
+try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ error: 'אנא הזן כתובת מייל' });
+
+        const gRes = await pool.query(`
+            SELECT f.name, f.group_code, f.type, u.password_hash, u.nickname 
+            FROM family_groups f 
+            JOIN users u ON f.id = u.group_id 
+            WHERE LOWER(f.admin_email) = LOWER($1) AND u.role = 'ADMIN'
+        `, [email]);
+        
+        if (gRes.rows.length === 0) return res.json({ success: true });
+
+        const group = gRes.rows[0];
+        const sysType = group.type === 'BUSINESS' ? 'Oneflow Life BIZ' : 'Oneflow Life';
+
+        const recoveryHtml = `
+            <div style="direction: rtl; font-family: Arial, sans-serif;">
+                <h2>שחזור פרטי גישה - ${sysType}</h2>
+                <p>שלום ${group.nickname},</p>
+                <p>התקבלה בקשה לשחזור פרטי הגישה עבור הסביבה שלכם: "<strong>${group.name}</strong>".</p>
+                <div style="background-color: #f8fafc; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0;">
+                    <p style="font-size: 16px; margin: 8px 0;"><strong>קוד הסביבה שלכם הוא:</strong> <span style="font-size: 20px; color: #3b82f6; font-weight: bold;">${group.group_code}</span></p>
+                    <p style="font-size: 16px; margin: 8px 0;"><strong>שם משתמש מנהל:</strong> <span style="font-size: 18px; color: #3b82f6;">${group.nickname}</span></p>
+                    <p style="font-size: 16px; margin: 8px 0;"><strong>סיסמת מנהל:</strong> <span style="font-size: 18px; color: #3b82f6;">${group.password_hash}</span></p>
+                </div>
+                <p>אם לא ביקשתם שחזור פרטים, ניתן להתעלם מהודעה זו בביטחה.</p>
+                <p>בברכה,<br>צוות Oneflow</p>
+            </div>`;
+            
+        sendSystemEmail(email, 'Oneflow | שחזור קוד וסיסמה לסביבה שלך', recoveryHtml);
+        res.json({ success: true });
+    } catch (e) { 
+        console.error(e);
+        res.status(500).json({ error: 'אירעה שגיאה. נסה שוב מאוחר יותר.' }); 
+    }
+});
+
+app.post('/api/admin/send-credentials', async (req, res) => {
+    try {
+        const { groupId, adminId } = req.body;
+        const adminCheck = await pool.query("SELECT role FROM users WHERE id = $1 AND group_id = $2", [adminId, groupId]);
+        if(adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') return res.status(403).json({error: "רק מנהל מורשה לבצע פעולה זו"});
+
+        const groupRes = await pool.query("SELECT admin_email, name, type FROM family_groups WHERE id = $1", [groupId]);
+        if(groupRes.rows.length === 0 || !groupRes.rows[0].admin_email) return res.status(400).json({error: "לא נמצאה כתובת מייל מוגדרת בהרשמה."});
+        
+        const adminEmail = groupRes.rows[0].admin_email; const groupName = groupRes.rows[0].name; const groupType = groupRes.rows[0].type;
+        const usersRes = await pool.query("SELECT nickname, password_hash, role FROM users WHERE group_id = $1 ORDER BY role, nickname", [groupId]);
+        
+        let emailContent = `<div style="direction: rtl; font-family: Arial, sans-serif;"><h2>פרטי הגישה של משתמשי הסביבה: ${groupName}</h2><ul>`;
+        usersRes.rows.forEach(u => {
+            let roleStr = groupType === 'BUSINESS' ? (u.role === 'ADMIN' ? 'מנהל' : 'עובד') : (u.role === 'ADMIN' ? 'הורה' : 'ילד');
+            emailContent += `<li><strong>שם:</strong> ${u.nickname} | <strong>סיסמה:</strong> ${u.password_hash} | <strong>תפקיד:</strong> ${roleStr}</li>`;
+        });
+        emailContent += `</ul><p>בברכה,<br>צוות Oneflow</p></div>`;
+
+        sendSystemEmail(adminEmail, 'Oneflow - פרטי גישה של משתמשי הסביבה', emailContent);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/join', async (req, res) => {
+    try {
+        const { groupCode, nickname, birthYear, password, role } = req.body;
+        if (!groupCode || !nickname || !password) return res.status(400).json({ error: 'חסרים נתונים חובה' });
+        
+        const gRes = await pool.query('SELECT id FROM family_groups WHERE group_code = $1', [groupCode.toUpperCase()]);
+        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד ארגון/משפחה לא חוקי' });
+        
+        const group = gRes.rows[0];
+        const reqRole = role === 'ADMIN' ? 'ADMIN' : 'MEMBER';
+        const bYear = parseInt(birthYear) || null;
+        const joinPhone = (req.body.phone || '').trim() || null;
+
+        // phone required for age >= 10
+        if (bYear && (new Date().getFullYear() - bYear) >= 10 && !joinPhone) {
+            return res.status(400).json({ error: 'מספר טלפון הוא שדה חובה מגיל 10' });
+        }
+
+        await pool.query(
+            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status, phone) VALUES ($1, $2, $3, $4, $5, 'pending', $6)`,
+            [group.id, nickname, bYear, password, reqRole, joinPhone]
+        );
+        res.json({ success: true });
+    } catch (e) { 
+        console.error("Join Error:", e);
+        res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); 
+    }
+});
+
+app.post('/api/login', async (req, res) => {
+    try {
+        if (!req.body.groupCode || !req.body.nickname || !req.body.password) {
+            return res.status(400).json({ error: 'חסרים פרטי התחברות' });
+        }
+        
+        const cleanCode = req.body.groupCode.toUpperCase().trim();
+        const gRes = await pool.query('SELECT * FROM family_groups WHERE group_code = $1', [cleanCode]);
+        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד שגוי. ודאו שאין רווחים מיותרים בסוף הקוד.' });
+        
+        const group = gRes.rows[0];
+        const uRes = await pool.query('SELECT * FROM users WHERE group_id = $1 AND nickname = $2 AND password_hash = $3', [group.id, req.body.nickname, req.body.password]);
+        
+        if (uRes.rows.length === 0) return res.status(401).json({ error: 'כינוי או סיסמה שגויים' });
+        if (uRes.rows[0].status !== 'active') return res.status(403).json({ error: 'חשבון ממתין לאישור מנהל' });
+        
+        res.json({ success: true, user: uRes.rows[0], group: group });
+    } catch (e) { 
+        console.error("Login Error:", e);
+        res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); 
+    }
+});
+
+// ============================================================
+// --- CORE DATA ENDPOINTS ---
+// ============================================================
+
+app.get('/api/data/:userId', async (req, res) => {
+    try {
+        const userRes = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.userId]);
+        if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+        const user = userRes.rows[0];
+        
+        // עדכון מכסת ה-AI היומית למשתמש בזמן הטעינה (מתאפס ל-10 בחצות)
+        await pool.query(`UPDATE family_groups SET ai_tokens = 10, last_token_reset = CURRENT_DATE WHERE id = $1 AND (last_token_reset IS NULL OR last_token_reset < CURRENT_DATE)`, [user.group_id]);
+        
+        const groupRes = await pool.query('SELECT * FROM family_groups WHERE id = $1', [user.group_id]);
+        const group = groupRes.rows[0];
+
+        const adminBalRes = await pool.query("SELECT COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id = $1 AND u.role = 'ADMIN'", [group.id]);
+        group.admin_total_balance = adminBalRes.rows[0].total;
+
+        const tasks = await pool.query('SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1 ORDER BY t.created_at DESC', [group.id]);
+        const pantry = await pool.query('SELECT * FROM pantry WHERE group_id = $1 ORDER BY updated_at DESC', [group.id]);
+        const shoppingList = await pool.query('SELECT sl.*, u.nickname as requester_name FROM shopping_list sl LEFT JOIN users u ON sl.requester_id = u.id WHERE sl.group_id = $1 ORDER BY sl.added_at DESC', [group.id]);
+        
+        for (let item of shoppingList.rows) {
+            const _norm = item.normalized_name || item.item_name;
+            const _words = _norm.split(' ').filter(w => w.length > 2);
+            const _kw = _words.length > 0 ? _words[0] : '';
+            const bestPriceRes = await pool.query(
+                `SELECT sti.price_per_unit, st.store_name, st.branch_name, st.trip_date, st.group_id
+                 FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id
+                 WHERE (sti.item_name = $1 OR sti.normalized_name = $2
+                        OR ($3 != '' AND (sti.normalized_name ILIKE $4 OR sti.item_name ILIKE $4)))
+                 AND sti.price_per_unit > 0
+                 ORDER BY sti.price_per_unit ASC LIMIT 1`,
+                [item.item_name, _norm, _kw, '%' + _kw + '%']
+            );
+            if (bestPriceRes.rows.length > 0) { const bp = bestPriceRes.rows[0]; item.best_price = { price_per_unit: bp.price_per_unit, store_name: bp.store_name || 'ספק לא ידוע', branch_name: bp.branch_name || '', trip_date: bp.trip_date, is_local: bp.group_id === group.id }; }
+        }
+
+        const goals = await pool.query('SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id = $1 OR g.target_user_id = $1', [user.id]);
+        const allBundles = await pool.query(`SELECT * FROM quiz_bundles WHERE created_by = $1 OR created_by = 'SYSTEM' ORDER BY created_at DESC`, [String(user.group_id)]);
+        const userBundles = await pool.query(`SELECT ua.*, qb.title, qb.type, qb.age_group, qb.threshold, qb.text_content, qb.reward as default_reward, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id LEFT JOIN users u ON ua.user_id = u.id WHERE ua.user_id = $1 OR $2 = 'ADMIN'`, [user.id, user.role]);
+
+        for (let b of userBundles.rows) { const qRes = await pool.query('SELECT * FROM quiz_questions WHERE bundle_id = $1', [b.bundle_id]); b.questions = qRes.rows; }
+
+        let weeklyStats = null;
+        if (user.role !== 'ADMIN') {
+            const startOfWeek = new Date(); startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+            const spentRes = await pool.query("SELECT COALESCE(SUM(amount), 0) as spent FROM transactions WHERE user_id = $1 AND type = 'expense' AND date >= $2", [user.id, startOfWeek]);
+            weeklyStats = { spent: spentRes.rows[0].spent, limit: user.allowance_amount };
+        }
+        
+        let community_updates = [];
+        let community_businesses = [];
+        
+        if (group.community_id) {
+            const commBizRes = await pool.query(`
+                SELECT cb.discount_pct, cb.created_at, b.name as business_name, b.id as business_id, b.group_code, c.name as comm_name
+                FROM community_businesses cb
+                JOIN family_groups b ON cb.business_id = b.id
+                JOIN communities c ON cb.community_id = c.id
+                WHERE cb.community_id = $1 AND cb.status = 'approved'
+            `, [group.community_id]);
+            
+            community_businesses = commBizRes.rows; 
+            
+            if (group.type === 'FAMILY') {
+                commBizRes.rows.forEach(biz => {
+                    community_updates.push({
+                        type: 'system',
+                        category: 'community',
+                        id: `biz_${biz.business_name}`,
+                        user_id: 0,
+                        user_name: 'קהילה',
+                        description: `הטבה חדשה בקהילת ${biz.comm_name}: ${biz.business_name} (הנחה: ${biz.discount_pct}%) 🛍️`,
+                        amount: 0,
+                        date: biz.created_at ? new Date(biz.created_at) : new Date()
+                    });
+                });
+            }
+        }
+
+        res.json({ 
+            user, group, tasks: tasks.rows, pantry: pantry.rows, shopping_list: shoppingList.rows, 
+            goals: goals.rows, quiz_bundles: userBundles.rows, all_bundles: allBundles.rows, 
+            weekly_stats: weeklyStats, community_updates: community_updates, community_businesses: community_businesses 
+        });
+    } catch (e) { 
+        console.error('Error in /api/data/:userId:', e);
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+// ============================================================
+// --- SHOPPING LIST ENDPOINTS ---
+// ============================================================
+
+app.post('/api/shopping/add', async (req, res) => {
+    try {
+        const { itemName, quantity, unit, estimatedPrice, userId, groupId, unitsPerPackage } = req.body;
+        let actualGroupId = parseInt(groupId);
+        let userRole = 'ADMIN';
+        if (userId) {
+            const uRes = await pool.query('SELECT group_id, role FROM users WHERE id=$1', [userId]);
+            if (uRes.rows.length > 0) { if (isNaN(actualGroupId)) actualGroupId = uRes.rows[0].group_id; userRole = uRes.rows[0].role; }
+        }
+        if (!actualGroupId) return res.status(400).json({ success: false, error: 'Group ID is missing' });
+        const itemStatus = userRole === 'ADMIN' ? 'pending' : 'requested';
+        await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, units_per_package, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, [actualGroupId, userId || null, itemName, parseFloat(quantity) || 1, unit || 'יח\'', parseFloat(estimatedPrice) || 0, parseInt(unitsPerPackage) || 1, itemStatus]);
+        await logActivity(actualGroupId, userId || null, null, 'shopping', 'item_added', `${itemName} נוסף לרשימת הקניות`);
+        res.json({ success: true, status: itemStatus });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.post('/api/shopping/update', async (req, res) => {
+    try {
+        const { itemId, status, estimatedPrice, itemName, quantity, unit } = req.body;
+        if (status !== undefined) await pool.query('UPDATE shopping_list SET status=$1 WHERE id=$2', [status, itemId]);
+        if (estimatedPrice !== undefined) await pool.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [parseFloat(estimatedPrice) || 0, itemId]);
+        if (itemName !== undefined) await pool.query('UPDATE shopping_list SET item_name=$1, normalized_name=$1 WHERE id=$2', [itemName, itemId]);
+        if (quantity !== undefined) await pool.query('UPDATE shopping_list SET quantity=$1 WHERE id=$2', [parseFloat(quantity) || 1, itemId]);
+        if (unit !== undefined) await pool.query('UPDATE shopping_list SET unit=$1 WHERE id=$2', [unit, itemId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/shopping/delete/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM shopping_list WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/shopping/clear/:groupId', async (req, res) => {
+    try { await pool.query('DELETE FROM shopping_list WHERE group_id=$1', [req.params.groupId]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/shopping/category-map', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const result = await pool.query('SELECT normalized_name, category FROM product_category_map WHERE group_id=$1', [groupId]);
+        res.json(result.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/shopping/category-map', async (req, res) => {
+    try {
+        const { groupId, normalizedName, category } = req.body;
+        await pool.query('INSERT INTO product_category_map (group_id, normalized_name, category) VALUES ($1, $2, $3) ON CONFLICT (group_id, normalized_name) DO UPDATE SET category=$3', [groupId, normalizedName, category]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ALERT RULES CRUD ────────────────────────────────────────────
+app.get('/api/alerts/rules', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const result = await pool.query('SELECT * FROM alert_rules WHERE group_id=$1 ORDER BY created_at DESC', [groupId]);
+        res.json(result.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/alerts/rules', async (req, res) => {
+    try {
+        const { groupId, name, triggerType, triggerConfig, cooldownMinutes, channels } = req.body;
+        const channelsJson = JSON.stringify(Array.isArray(channels) ? channels : ['in_app']);
+        await pool.query('INSERT INTO alert_rules (group_id, name, trigger_type, trigger_config, cooldown_minutes, channels) VALUES ($1, $2, $3, $4, $5, $6)',
+            [groupId, name, triggerType, JSON.stringify(triggerConfig || {}), cooldownMinutes || 60, channelsJson]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/alerts/rules/:id', async (req, res) => {
+    try {
+        const { isActive, name, triggerConfig, cooldownMinutes } = req.body;
+        if (isActive !== undefined) await pool.query('UPDATE alert_rules SET is_active=$1 WHERE id=$2', [isActive, req.params.id]);
+        if (name !== undefined) await pool.query('UPDATE alert_rules SET name=$1 WHERE id=$2', [name, req.params.id]);
+        if (triggerConfig !== undefined) await pool.query('UPDATE alert_rules SET trigger_config=$1 WHERE id=$2', [JSON.stringify(triggerConfig), req.params.id]);
+        if (cooldownMinutes !== undefined) await pool.query('UPDATE alert_rules SET cooldown_minutes=$1 WHERE id=$2', [cooldownMinutes, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/alerts/rules/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM alert_rules WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/alerts/notifications', async (req, res) => {
+    try {
+        const { groupId, limit } = req.query;
+        const result = await pool.query('SELECT * FROM alert_notifications WHERE group_id=$1 ORDER BY created_at DESC LIMIT $2',
+            [groupId, parseInt(limit) || 50]);
+        res.json(result.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/alerts/unread-count', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const result = await pool.query('SELECT COUNT(*) as count FROM alert_notifications WHERE group_id=$1 AND is_read=FALSE', [groupId]);
+        res.json({ count: parseInt(result.rows[0].count) });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/alerts/notifications/:id/read', async (req, res) => {
+    try {
+        await pool.query('UPDATE alert_notifications SET is_read=TRUE WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/alerts/notifications/read-all', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        await pool.query('UPDATE alert_notifications SET is_read=TRUE WHERE group_id=$1', [groupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/alerts/notifications', async (req, res) => {
+    try {
+        const { groupId, triggerType, message, referenceKey } = req.body;
+        if (referenceKey) {
+            const exists = await pool.query('SELECT id FROM alert_notifications WHERE group_id=$1 AND reference_key=$2', [groupId, referenceKey]);
+            if (exists.rows.length > 0) return res.json({ success: true, skipped: true });
+        }
+        const r = await pool.query(
+            'INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key) VALUES ($1,$2,$3,$4) RETURNING id',
+            [groupId, triggerType || 'low_stock', message, referenceKey || null]
+        );
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── SLA CRUD ──────────────────────────────────────────────────────
+app.get('/api/sla', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const result = await pool.query('SELECT * FROM sla_configs WHERE group_id=$1 ORDER BY module, id', [groupId]);
+        res.json(result.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sla', async (req, res) => {
+    try {
+        const { groupId, module, status, statusLabel, maxHours, isActive, channels } = req.body;
+        const channelsJson = JSON.stringify(Array.isArray(channels) ? channels : ['in_app']);
+        await pool.query(
+            `INSERT INTO sla_configs (group_id, module, status, status_label, max_hours, is_active, channels) VALUES ($1,$2,$3,$4,$5,$6,$7)
+             ON CONFLICT (group_id, module, status) DO UPDATE SET status_label=$4, max_hours=$5, is_active=$6, channels=$7`,
+            [groupId, module, status, statusLabel, parseFloat(maxHours)||24, isActive !== false, channelsJson]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sla/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sla_configs WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+
+app.post('/api/shopping/checkout', async (req, res) => {
+    try {
+        const { totalAmount, userId, storeName, branchName, boughtItems, missingItems } = req.body;
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+        const groupId = uRes.rows[0].group_id;
+        
+        await pool.query('BEGIN');
+        const tripRes = await pool.query(`INSERT INTO shopping_trips (group_id, buyer_id, store_name, branch_name, total_amount) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [groupId, userId, storeName, branchName, totalAmount]);
+        const tripId = tripRes.rows[0].id;
+        
+        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'groceries', 'expense')`, [userId, groupId, totalAmount, `רכש מלאי/סופר: ${storeName}`]);
+        
+        for (let item of boughtItems) {
+            const originalItemRes = await pool.query('SELECT unit, units_per_package FROM shopping_list WHERE id=$1', [item.id]);
+            let itemUnit = "יח'"; let itemUpp = 1;
+            if (originalItemRes.rows.length > 0) { itemUnit = originalItemRes.rows[0].unit || "יח'"; itemUpp = originalItemRes.rows[0].units_per_package || 1; }
+
+            await pool.query(`INSERT INTO shopping_trip_items (trip_id, item_name, quantity, price_per_unit, units_per_package, unit) VALUES ($1, $2, $3, $4, $5, $6)`, [tripId, item.name, item.quantity, item.price / (item.quantity||1), itemUpp, itemUnit]);
+            
+            const pRes = await pool.query(`SELECT id, quantity FROM pantry WHERE group_id=$1 AND item_name=$2`, [groupId, item.name]);
+            if (pRes.rows.length > 0) {
+                await pool.query(`UPDATE pantry SET quantity = quantity + $1, updated_at = CURRENT_TIMESTAMP, units_per_package = $2, unit = $3 WHERE id=$4`, [item.quantity, itemUpp, itemUnit, pRes.rows[0].id]);
+            } else {
+                await pool.query(`INSERT INTO pantry (group_id, item_name, quantity, unit, units_per_package) VALUES ($1, $2, $3, $4, $5)`, [groupId, item.name, item.quantity, itemUnit, itemUpp]);
+            }
+            await pool.query(`DELETE FROM shopping_list WHERE id=$1`, [item.id]);
+        }
+        
+        for (let item of missingItems) { await pool.query(`UPDATE shopping_list SET status='pending' WHERE id=$1`, [item.id]); }
+        await pool.query('COMMIT');
+        await logActivity(groupId, userId, null, 'shopping', 'checkout', `קניה הושלמה ב-${storeName} — ₪${parseFloat(totalAmount).toFixed(2)}`);
+        res.json({ success: true });
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/shopping/history', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const trips = await pool.query('SELECT st.*, u.nickname FROM shopping_trips st LEFT JOIN users u ON st.buyer_id = u.id WHERE st.group_id=$1 ORDER BY st.trip_date DESC', [groupId]);
+        for (let t of trips.rows) { const items = await pool.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [t.id]); t.items = items.rows; }
+        res.json(trips.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/shopping/copy', async (req, res) => {
+    try {
+        const { tripId, userId } = req.body;
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+        const groupId = uRes.rows[0].group_id;
+        const items = await pool.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [tripId]);
+        for(let i of items.rows) {
+            await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, status, unit, units_per_package) VALUES ($1, $2, $3, $4, 'pending', $5, $6)`, [groupId, userId, i.item_name, i.quantity, i.unit, i.units_per_package]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- SAVED SHOPPING LISTS ENDPOINTS ---
+// ============================================================
+
+app.get('/api/shopping/saved', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const result = await pool.query('SELECT * FROM saved_shopping_lists WHERE group_id=$1 ORDER BY created_at DESC', [groupId]);
+        res.json(result.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/shopping/save', async (req, res) => {
+    try {
+        const { groupId, name, items } = req.body;
+        if (!name || !items || items.length === 0) return res.status(400).json({ error: 'Missing name or items' });
+        const result = await pool.query('INSERT INTO saved_shopping_lists (group_id, name, items) VALUES ($1, $2, $3) RETURNING id', [groupId, name, JSON.stringify(items)]);
+        res.json({ success: true, id: result.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/shopping/load-saved', async (req, res) => {
+    try {
+        const { listId, userId } = req.body;
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+        const groupId = uRes.rows[0].group_id;
+        const listRes = await pool.query('SELECT * FROM saved_shopping_lists WHERE id=$1 AND group_id=$2', [listId, groupId]);
+        if (listRes.rows.length === 0) return res.status(404).json({ error: 'List not found' });
+        const items = listRes.rows[0].items;
+        for (let item of items) {
+            await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, units_per_package, status) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`, [groupId, userId, item.item_name, item.quantity || 1, item.unit || "יח'", item.estimated_price || 0, item.units_per_package || 1]);
+        }
+        res.json({ success: true, count: items.length });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/shopping/saved/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM saved_shopping_lists WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- PANTRY ENDPOINTS ---
+// ============================================================
+
+app.get('/api/pantry/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT id, item_name, COALESCE(quantity,0) as quantity, COALESCE(reserved_qty,0) as reserved_qty,
+                    unit, units_per_package, category
+             FROM pantry WHERE group_id=$1 ORDER BY item_name`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, items: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/pantry/add', async (req, res) => {
+    try {
+        const { groupId, itemName, quantity, unit, unitsPerPackage } = req.body;
+        const actualGroupId = parseInt(groupId);
+        if (!actualGroupId) return res.status(400).json({ success: false, error: 'Group ID is missing' });
+
+        const existing = await pool.query('SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2', [actualGroupId, itemName]);
+        if (existing.rows.length > 0) {
+            await pool.query('UPDATE pantry SET quantity = quantity + $1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [parseFloat(quantity) || 1, existing.rows[0].id]);
+        } else {
+            await pool.query('INSERT INTO pantry (group_id, item_name, quantity, unit, units_per_package) VALUES ($1, $2, $3, $4, $5)', [actualGroupId, itemName, parseFloat(quantity) || 1, unit || 'יח\'', parseInt(unitsPerPackage) || 1]);
+        }
+        await logActivity(actualGroupId, null, null, 'pantry', 'pantry_add', `${itemName} נוסף למזווה`);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.post('/api/pantry/update', async (req, res) => {
+    try {
+        const { itemId, quantity } = req.body;
+        await pool.query('UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [parseFloat(quantity) || 0, itemId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/pantry/use', async (req, res) => {
+    try {
+        const { groupId, itemName, usedQuantity, usedUnits } = req.body;
+        const pRes = await pool.query('SELECT * FROM pantry WHERE group_id=$1 AND item_name=$2', [groupId, itemName]);
+        if(pRes.rows.length === 0) return res.status(404).json({ error: 'Item not found' });
+        
+        const item = pRes.rows[0];
+        let deductAmount = (usedUnits > 0 && item.units_per_package > 0) ? (usedUnits / item.units_per_package) : usedQuantity;
+        const newQty = Math.max(0, item.quantity - deductAmount);
+        
+        if (newQty <= 0) { await pool.query('DELETE FROM pantry WHERE id=$1', [item.id]); } 
+        else { await pool.query('UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [newQty, item.id]); }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/pantry/delete/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM pantry WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/pantry/bulk-update', async (req, res) => {
+    try {
+        const { groupId, items, sendEmail, pdfBase64 } = req.body;
+        if (!groupId || !Array.isArray(items)) return res.status(400).json({ error: 'נתונים חסרים' });
+        for (const item of items) {
+            if (item.id && item.quantity !== undefined && item.quantity !== '') {
+                await pool.query(
+                    'UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2 AND group_id=$3',
+                    [parseFloat(item.quantity) || 0, item.id, groupId]
+                );
+            }
+        }
+        if (sendEmail) {
+            const grpRes = await pool.query('SELECT name, admin_email FROM family_groups WHERE id=$1', [groupId]);
+            const grp = grpRes.rows[0];
+            if (grp && grp.admin_email) {
+                const dateStr = new Date().toLocaleDateString('he-IL');
+                const rows = items.filter(i => i.quantity !== '').map(i =>
+                    `<tr><td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right">${(i.item_name||i.name||'').replace(/[<>]/g,'')}</td>
+                     <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:center;color:#64748b">${(i.unit||"יח'").replace(/[<>]/g,'')}</td>
+                     <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:center;font-weight:bold">${i.quantity}</td></tr>`
+                ).join('');
+                const html = `<div dir="rtl" style="font-family:Arial,Helvetica,sans-serif;padding:24px">
+                    <h2 style="color:#4338ca">ספירת מלאי מחסן — ${(grp.name||'').replace(/[<>]/g,'')}</h2>
+                    <p style="color:#64748b">תאריך: ${dateStr}</p>
+                    <table style="width:100%;border-collapse:collapse;margin-top:12px">
+                        <thead><tr>
+                            <th style="background:#f1f5f9;padding:8px 12px;text-align:right">פריט</th>
+                            <th style="background:#f1f5f9;padding:8px 12px;text-align:center">יחידה</th>
+                            <th style="background:#f1f5f9;padding:8px 12px;text-align:center">כמות בפועל</th>
+                        </tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                    <p style="margin-top:20px;font-size:11px;color:#94a3b8">OneFlow Life — ${dateStr}</p>
+                </div>`;
+                const user = process.env.SMTP_USER;
+                const pass = process.env.SMTP_PASS;
+                if (user && pass) {
+                    const nodemailer = require('nodemailer');
+                    const transporter = nodemailer.createTransport({ host:'smtp.gmail.com', port:465, secure:true, auth:{user,pass} });
+                    const mailOpts = {
+                        from: `"Oneflow System" <${user}>`,
+                        to: grp.admin_email,
+                        subject: `ספירת מלאי מחסן — ${grp.name} — ${dateStr}`,
+                        html
+                    };
+                    if (pdfBase64) {
+                        mailOpts.attachments = [{
+                            filename: `ספירת_מלאי_${dateStr.replace(/\//g,'-')}.pdf`,
+                            content: Buffer.from(pdfBase64, 'base64'),
+                            contentType: 'application/pdf'
+                        }];
+                    }
+                    await transporter.sendMail(mailOpts);
+                }
+            }
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- BUDGET ENDPOINTS ---
+// ============================================================
+
+app.get('/api/budget/filter', async (req, res) => {
+    try {
+        const { groupId, targetUserId } = req.query;
+        let params = [groupId]; let targetFilterA = ''; let targetFilterE = '';
+        if (targetUserId && targetUserId !== 'all' && targetUserId !== 'undefined') { params.push(targetUserId); targetFilterA = `AND (target_user_id = $2 OR target_user_id IS NULL)`; targetFilterE = `AND user_id = $2`; }
+
+        const query = `
+            WITH Allocations AS ( SELECT category, amount_limit FROM budget_allocations WHERE group_id = $1 ${targetFilterA} ),
+            Expenses AS ( SELECT category, SUM(amount) as spent FROM transactions WHERE group_id = $1 AND type = 'expense' AND date >= date_trunc('month', CURRENT_DATE) ${targetFilterE} GROUP BY category )
+            SELECT COALESCE(a.category, e.category) as category, COALESCE(MAX(a.amount_limit), 0) as limit, COALESCE(MAX(e.spent), 0) as spent
+            FROM Allocations a FULL OUTER JOIN Expenses e ON a.category = e.category GROUP BY COALESCE(a.category, e.category)
+        `;
+        const result = await pool.query(query, params); res.json(result.rows || []);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/budget/update', async (req, res) => {
+    try {
+        const { groupId, category, limit, targetUserId } = req.body;
+        const finalUserId = targetUserId === 'all' ? null : targetUserId;
+        await pool.query(`INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) VALUES ($1, $2, $3, $4) ON CONFLICT (group_id, category, target_user_id) DO UPDATE SET amount_limit = $4`, [groupId, category, finalUserId, parseFloat(limit) || 0]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- TRANSACTIONS ENDPOINTS ---
+// ============================================================
+
+app.get('/api/transactions', async (req, res) => {
+    try {
+        const { groupId, userId, limit } = req.query;
+        let q = `SELECT t.*, u.nickname as user_name FROM transactions t LEFT JOIN users u ON t.user_id = u.id WHERE t.group_id = $1`;
+        let p = [groupId];
+        if(userId !== 'all') { q += ` AND t.user_id = $2`; p.push(userId); }
+        q += ` ORDER BY t.date DESC LIMIT $${p.length + 1}`; p.push(limit || 200);
+        const result = await pool.query(q, p); res.json(result.rows);
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/transaction', async (req, res) => {
+    try {
+        const { userId, amount, description, category, type, date, isRecurring, endMonth, groupId } = req.body;
+        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_recurring, end_month, is_manual) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE)`, [userId, groupId, parseFloat(amount)||0, description, category, type, date || new Date(), isRecurring, endMonth]);
+        if (type === 'expense') await pool.query(`UPDATE users SET balance = balance - $1 WHERE id=$2`, [parseFloat(amount)||0, userId]);
+        else await pool.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [parseFloat(amount)||0, userId]);
+        await logActivity(groupId, userId || null, null, 'finance', 'transaction', `${type === 'income' ? 'הכנסה' : 'הוצאה'}: ₪${amount} — ${description}`);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.put('/api/transaction/:id', async (req, res) => {
+    try {
+        const { amount, description, category, requesterId, groupId } = req.body;
+        const oldTx = await pool.query('SELECT amount, type, user_id FROM transactions WHERE id=$1', [req.params.id]);
+        if(oldTx.rows.length===0) return res.status(404).json({error:'Not found'});
+        const tx = oldTx.rows[0]; const diff = parseFloat(amount) - parseFloat(tx.amount);
+        await pool.query('UPDATE transactions SET amount=$1, description=$2, category=$3 WHERE id=$4', [parseFloat(amount)||0, description, category, req.params.id]);
+        if (diff !== 0) {
+            if(tx.type === 'expense') await pool.query('UPDATE users SET balance = balance - $1 WHERE id=$2', [diff, tx.user_id]);
+            else await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [diff, tx.user_id]);
+        }
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.delete('/api/transaction/:id', async (req, res) => {
+    try {
+        const txRes = await pool.query('SELECT * FROM transactions WHERE id=$1', [req.params.id]);
+        if(txRes.rows.length===0) return res.status(404).json({error:'Not found'});
+        const tx = txRes.rows[0];
+        await pool.query('DELETE FROM transactions WHERE id=$1', [req.params.id]);
+        if(tx.type === 'expense') await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [tx.amount, tx.user_id]);
+        else await pool.query('UPDATE users SET balance = balance - $1 WHERE id=$2', [tx.amount, tx.user_id]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// ============================================================
+// --- LOANS ENDPOINTS ---
+// ============================================================
+
+app.get('/api/loans', async (req, res) => {
+    try {
+        const loans = await pool.query('SELECT l.*, u.nickname FROM loans l JOIN users u ON l.user_id = u.id WHERE l.group_id=$1 ORDER BY l.created_at DESC', [req.query.groupId]);
+        res.json(loans.rows);
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/loans/request', async (req, res) => {
+    try {
+        const { userId, amount, reason, groupId } = req.body;
+        await pool.query('INSERT INTO loans (user_id, group_id, original_amount, remaining_amount, reason) VALUES ($1, $2, $3, $4, $5)', [userId, groupId, parseFloat(amount)||0, parseFloat(amount)||0, reason]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/loans/approve', async (req, res) => {
+    try {
+        const { loanId, userId, amount, adminId } = req.body;
+        const l = await pool.query('SELECT group_id FROM loans WHERE id=$1', [loanId]);
+        await pool.query('UPDATE loans SET status=$1 WHERE id=$2', ['approved', loanId]);
+        await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [parseFloat(amount)||0, userId]);
+        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'הלוואה / מקדמה אושרה', 'other', 'income')`, [userId, l.rows[0].group_id, parseFloat(amount)||0]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/loans/reject', async (req, res) => {
+    try { await pool.query('UPDATE loans SET status=$1 WHERE id=$2', ['rejected', req.body.loanId]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// ============================================================
+// --- GOALS ENDPOINTS ---
+// ============================================================
+
+app.post('/api/goals', async (req, res) => {
+    try {
+        const { userId, targetUserId, title, target, groupId } = req.body;
+        await pool.query('INSERT INTO goals (user_id, target_user_id, title, target_amount) VALUES ($1, $2, $3, $4)', [userId, targetUserId || null, title, parseFloat(target)||0]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/goals/deposit', async (req, res) => {
+    try {
+        const { userId, goalId, amount, groupId } = req.body;
+        await pool.query('BEGIN');
+        await pool.query('UPDATE users SET balance = balance - $1 WHERE id=$2', [parseFloat(amount)||0, userId]);
+        const g = await pool.query('UPDATE goals SET current_amount = current_amount + $1 WHERE id=$2 RETURNING title', [parseFloat(amount)||0, goalId]);
+        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'savings', 'expense')`, [userId, groupId, parseFloat(amount)||0, 'הפקדה ליעד: ' + g.rows[0].title]);
+        await pool.query('COMMIT'); res.json({success:true});
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
+});
+
+// ============================================================
+// --- MEMBERS & ADMIN TOOLS ---
+// ============================================================
+
+app.get('/api/group/members', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        let users;
+        try {
+            users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year, permissions, employee_role_type FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
+        } catch(err) {
+            users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year, employee_role_type FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
+        }
+        res.json(users.rows);
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.put('/api/users/:id/permissions', async (req, res) => {
+    try {
+        const { tabs, role } = req.body;
+        if (!tabs.includes('feed')) tabs.push('feed');
+        
+        if (role) {
+            await pool.query('UPDATE users SET permissions = $1, role = $2 WHERE id = $3', [JSON.stringify({ tabs }), role, req.params.id]);
+        } else {
+            await pool.query('UPDATE users SET permissions = $1 WHERE id = $2', [JSON.stringify({ tabs }), req.params.id]);
+        }
+        res.json({ success: true });
+    } catch(e) { 
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+app.get('/api/admin/pending-users', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const users = await pool.query('SELECT id, nickname, role, birth_year FROM users WHERE group_id=$1 AND status=$2', [groupId, 'pending']);
+        res.json(users.rows);
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/admin/approve-user', async (req, res) => {
+    try { await pool.query('UPDATE users SET status=$1 WHERE id=$2', ['active', req.body.userId]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.delete('/api/users/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM users WHERE id=$1', [req.params.id]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/users/:id/password', async (req, res) => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+        const u = await pool.query('SELECT password_hash FROM users WHERE id=$1', [req.params.id]);
+        if(u.rows[0].password_hash !== oldPassword) return res.status(401).json({error: 'סיסמה נוכחית שגויה'});
+        await pool.query('UPDATE users SET password_hash=$1 WHERE id=$2', [newPassword, req.params.id]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// First-login password set (for member accounts created by business — no old password required)
+app.post('/api/users/:id/set-first-password', async (req, res) => {
+    try {
+        const { newPassword, id_number, email, birth_year } = req.body;
+        if (!newPassword || newPassword.length < 4) return res.status(400).json({ error: 'סיסמה חייבת להכיל לפחות 4 תווים' });
+        const u = await pool.query('SELECT must_change_password FROM users WHERE id=$1', [req.params.id]);
+        if (!u.rows.length) return res.status(404).json({ error: 'משתמש לא נמצא' });
+        if (!u.rows[0].must_change_password) return res.status(403).json({ error: 'לא ניתן לאפס סיסמה בשלב זה' });
+        const sets = ['password_hash=$1', 'must_change_password=false'];
+        const vals = [newPassword];
+        if (id_number !== undefined && String(id_number).trim() !== '') { vals.push(String(id_number).trim()); sets.push(`id_number=$${vals.length}`); }
+        if (email !== undefined && String(email).trim() !== '') { vals.push(String(email).trim().toLowerCase()); sets.push(`email=$${vals.length}`); }
+        const by = parseInt(birth_year);
+        if (!isNaN(by) && by >= 1920 && by <= 2020) { vals.push(by); sets.push(`birth_year=$${vals.length}`); }
+        vals.push(req.params.id);
+        await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/admin/adjust-balance', async (req, res) => {
+    try {
+        const { adminId, groupId, childId, type, amount, reason } = req.body;
+        const actAmount = type === 'deduct' ? -(parseFloat(amount)||0) : (parseFloat(amount)||0);
+        await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [actAmount, childId]);
+        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'other', $5)`, [childId, groupId, parseFloat(amount)||0, reason, type === 'deduct' ? 'expense' : 'income']);
+        await logActivity(groupId, childId || null, null, 'finance', 'balance_adjust', `הפרשת דמי כיס: ₪${amount} — ${reason || ''}`);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/admin/update-settings', async (req, res) => {
+    try { const { userId, allowance, interest } = req.body; await pool.query('UPDATE users SET allowance_amount=$1, interest_rate=$2 WHERE id=$3', [parseFloat(allowance)||0, parseFloat(interest)||0, userId]); res.json({success:true}); } 
+    catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/admin/payday', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        const users = await pool.query(`SELECT id, allowance_amount, interest_rate, balance FROM users WHERE group_id=$1 AND status='active' AND role != 'ADMIN'`, [groupId]);
+        let totalDistributed = 0;
+        await pool.query('BEGIN');
+        for(let u of users.rows) {
+            let toAdd = parseFloat(u.allowance_amount) || 0; let bal = parseFloat(u.balance) || 0;
+            if(bal > 0 && parseFloat(u.interest_rate) > 0) { toAdd += bal * (parseFloat(u.interest_rate) / 100); }
+            if(toAdd > 0) {
+                await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [toAdd, u.id]);
+                await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'שכר / חלוקת קצבה ותמריצים', 'allowance', 'income')`, [u.id, groupId, toAdd]);
+                totalDistributed += toAdd;
+            }
+        }
+        await pool.query('COMMIT'); res.json({success:true, totalDistributed});
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
+});
+
+// ============================================================
+// --- TASKS ENDPOINTS ---
+// ============================================================
+
+app.post('/api/tasks', async (req, res) => {
+    try {
+        const { title, reward, assignedTo, days, status, groupId, requireAiCheck } = req.body;
+        const deadline = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
+        const aiCheck = requireAiCheck !== undefined ? requireAiCheck : true;
+        await pool.query('INSERT INTO tasks (group_id, title, reward, assigned_to, deadline, status, require_ai_check) VALUES ($1, $2, $3, $4, $5, $6, $7)', [groupId, title, parseFloat(reward)||0, assignedTo, deadline, status, aiCheck]);
+        await logActivity(groupId, assignedTo || null, null, 'task', 'task_created', `משימה חדשה: ${title}`);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/tasks/update', async (req, res) => {
+    try {
+        const { taskId, status, finalReward } = req.body;
+        const tRes = await pool.query('SELECT * FROM tasks WHERE id=$1', [taskId]);
+        const t = tRes.rows[0]; const rew = finalReward !== undefined ? (parseFloat(finalReward)||0) : (parseFloat(t.reward)||0);
+        await pool.query('BEGIN');
+        await pool.query('UPDATE tasks SET status=$1, reward=$2 WHERE id=$3', [status, rew, taskId]);
+        if (status === 'approved') {
+            await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [rew, t.assigned_to]);
+            await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'tasks', 'income')`, [t.assigned_to, t.group_id, rew, 'תגמול משימה: ' + t.title]);
+        }
+        await pool.query('COMMIT');
+        if (status === 'done') await logActivity(t.group_id, t.assigned_to, null, 'task', 'task_done', `משימה הושלמה: ${t.title}`);
+        if (status === 'approved') await logActivity(t.group_id, t.assigned_to, null, 'task', 'task_approved', `משימה אושרה: ${t.title}`);
+        let triggeredPopup = null;
+        if (status === 'done') {
+            try {
+                const pRes = await pool.query(
+                    `SELECT id, title, content, image_base64 FROM store_popups
+                     WHERE group_id=$1 AND is_active=TRUE AND popup_type='employee'
+                       AND trigger_type='task' AND trigger_ref=$2
+                       AND (expires_at IS NULL OR expires_at > NOW()) LIMIT 1`,
+                    [t.group_id, String(taskId)]
+                );
+                if (pRes.rows.length > 0) triggeredPopup = pRes.rows[0];
+            } catch(e2) {}
+        }
+        res.json({success:true, triggeredPopup});
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
+});
+
+// ============================================================
+// --- ACADEMY ENDPOINTS ---
+// ============================================================
+
+app.post('/api/academy/assign', async (req, res) => {
+    try {
+        const { userId, bundleId, reward, days, groupId } = req.body;
+        const deadline = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
+        await pool.query('INSERT INTO user_assignments (user_id, bundle_id, custom_reward, deadline) VALUES ($1, $2, $3, $4)', [userId, bundleId, reward || null, deadline]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/academy/submit', async (req, res) => {
+    try {
+        const { userId, bundleId, score, groupId } = req.body;
+        const b = await pool.query('SELECT threshold, reward as default_reward FROM quiz_bundles WHERE id=$1', [bundleId]);
+        const ua = await pool.query(`SELECT id, custom_reward FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status='assigned' ORDER BY id DESC LIMIT 1`, [userId, bundleId]);
+        const passed = score >= b.rows[0].threshold; const status = passed ? 'completed' : 'failed';
+        await pool.query('BEGIN');
+        if (ua.rows.length > 0) {
+            await pool.query('UPDATE user_assignments SET status=$1, score=$2 WHERE id=$3', [status, score, ua.rows[0].id]);
+            if (passed) {
+                const rew = parseFloat(ua.rows[0].custom_reward) || parseFloat(b.rows[0].default_reward) || 0;
+                await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [rew, userId]);
+                await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'בונוס למידה מ-AI', 'academy', 'income')`, [userId, groupId, rew]);
+            }
+        }
+        await pool.query('COMMIT'); res.json({success:true});
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
+});
+
+// יצירת הכשרה / חפיפה ידנית ושמירה למאגר
+app.post('/api/academy/bundles', async (req, res) => {
+    let dbClient;
+    try {
+        const { groupId, title, ageGroup, reward, textContent, questions, type } = req.body;
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+
+        const bundleType = type || 'professional';
+        
+        const bundleRes = await dbClient.query(
+            `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) VALUES ($1, $2, $3, $4, 80, $5, $6) RETURNING id`, 
+            [bundleType, ageGroup || 'כללי', title, textContent || '', parseFloat(reward)||0, String(groupId)]
+        );
+        
+        const newBundleId = bundleRes.rows[0].id;
+        
+        if (questions && Array.isArray(questions)) {
+            for (const q of questions) {
+                await dbClient.query(
+                    `INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, 
+                    [newBundleId, q.q, JSON.stringify(q.options), q.correct]
+                );
+            }
+        }
+        
+        await dbClient.query('COMMIT');
+        res.json({ success: true, bundleId: newBundleId });
+    } catch (e) { 
+        if(dbClient) await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message }); 
+    } finally {
+        if(dbClient) dbClient.release();
+    }
+});
+// ============================================================
+// --- AI ENDPOINTS (ADAPTED FOR FAMILY / BUSINESS) ---
+// ============================================================
+
+app.post('/api/recipes/generate', async (req, res) => {
+    try {
+        const { groupId, mealType, diners, ignorePantry, customIngredients, pantryItems } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) return res.status(500).json({ error: 'מפתח API חסר בשרת' });
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        let prompt = `You are a professional family chef. Create a delicious recipe in Hebrew for ${diners} people. Meal type: ${mealType}.\n`;
+        if (ignorePantry) prompt += `The user wants to cook using ONLY these specific ingredients: ${customIngredients}.\n`;
+        else prompt += `The user wants to cook using these specific items they have selected from their pantry: ${pantryItems}.\nTry to prioritize using these items. You can assume basic staples (salt, pepper, oil, water) are available.\n`;
+        prompt += `Provide a catchy title, a short warm description, prep time, a clear list of exact ingredients with amounts, and clear numbered instructions. Format the response nicely using simple Markdown. Make it fun and engaging! Make sure to output simple Markdown TEXT, do not output JSON.`;
+
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, recipe: result.response.text() });
+    } catch (error) { handleAIError(error, res, 'שגיאה ביצירת המתכון מול ה-AI.'); }
+});
+
+app.post('/api/academy/ai-generate', async (req, res) => {
+    try {
+        const { ageGroup, topic, groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
+        const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
+        
+        let prompt = "";
+        if (gType === 'BUSINESS') {
+            prompt = `Create a professional 5-question multiple-choice training/onboarding quiz in Hebrew about "${topic}" for employees.
+            Requirements: 1. Language MUST be Hebrew. 2. Output strictly as JSON matching this schema:
+            { "title": "A clear title for the training", "text_content": "A short professional text before the questions.", "questions": [ { "q": "The question text", "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], "correct": 0 } ] }`;
+        } else {
+            prompt = `Create a fun and educational 5-question multiple-choice quiz in Hebrew about "${topic}" for children aged ${ageGroup}.
+            Requirements: 1. Language MUST be Hebrew. 2. Output strictly as JSON matching this schema:
+            { "title": "A catchy title for the quiz", "text_content": "A short educational text before the questions. Make it engaging.", "questions": [ { "q": "The question text", "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], "correct": 0 } ] }`;
+        }
+
+        const result = await model.generateContent(prompt);
+        let rawText = result.response.text().trim();
+        
+        // תיקון חילוץ JSON בטוח ממבנה Markdown אם נוצר בטעות על ידי ה-AI
+        const jsonStart = rawText.indexOf('{');
+        const jsonEnd = rawText.lastIndexOf('}');
+        if (jsonStart === -1 || jsonEnd === -1) throw new Error('תגובת ה-AI לא הכילה מבנה תקין');
+        const quizData = JSON.parse(rawText.substring(jsonStart, jsonEnd + 1));
+
+        const bundleType = gType === 'BUSINESS' ? 'professional' : 'financial';
+        const bundleRes = await pool.query(`INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) VALUES ($1, $2, $3, $4, 80, $5, $6) RETURNING id`, [bundleType, ageGroup, quizData.title, quizData.text_content || '', 10.0, String(groupId)]);
+        const newBundleId = bundleRes.rows[0].id;
+        for (const q of quizData.questions) await pool.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, [newBundleId, q.q, JSON.stringify(q.options), q.correct]);
+        res.json({ success: true, bundleId: newBundleId });
+    } catch (e) { handleAIError(e, res, 'שגיאה ביצירת הלומדה - נסה שנית'); }
+});
+
+// --- נתיבים לניהול ועריכת הכשרות ---
+app.post('/api/academy/bundles', async (req, res) => {
+    let dbClient;
+    try {
+        const { groupId, title, ageGroup, reward, textContent, questions, type } = req.body;
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+
+        const bundleType = type || 'professional';
+        const bundleRes = await dbClient.query(
+            `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) VALUES ($1, $2, $3, $4, 80, $5, $6) RETURNING id`, 
+            [bundleType, ageGroup || 'כללי', title, textContent || '', parseFloat(reward)||0, String(groupId)]
+        );
+        const newBundleId = bundleRes.rows[0].id;
+        
+        if (questions && Array.isArray(questions)) {
+            for (const q of questions) {
+                await dbClient.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, [newBundleId, q.q, JSON.stringify(q.options), q.correct]);
+            }
+        }
+        await dbClient.query('COMMIT');
+        res.json({ success: true, bundleId: newBundleId });
+    } catch (e) { 
+        if(dbClient) await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message }); 
+    } finally { if(dbClient) dbClient.release(); }
+});
+
+app.get('/api/academy/bundles/:id', async (req, res) => {
+    try {
+        const bRes = await pool.query('SELECT * FROM quiz_bundles WHERE id = $1', [req.params.id]);
+        if (bRes.rows.length === 0) return res.status(404).json({ error: 'לא נמצאה הכשרה' });
+        const qRes = await pool.query('SELECT * FROM quiz_questions WHERE bundle_id = $1 ORDER BY id ASC', [req.params.id]);
+        res.json({ success: true, bundle: { ...bRes.rows[0], questions: qRes.rows } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/academy/bundles/:id', async (req, res) => {
+    let dbClient;
+    try {
+        const { title, ageGroup, reward, textContent, questions } = req.body;
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+
+        await dbClient.query(`UPDATE quiz_bundles SET title=$1, age_group=$2, reward=$3, text_content=$4 WHERE id=$5`, [title, ageGroup || 'כללי', parseFloat(reward)||0, textContent || '', req.params.id]);
+        await dbClient.query('DELETE FROM quiz_questions WHERE bundle_id = $1', [req.params.id]);
+        
+        if (questions && Array.isArray(questions)) {
+            for (const q of questions) {
+                await dbClient.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, [req.params.id, q.q, JSON.stringify(q.options), q.correct]);
+            }
+        }
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) { 
+        if(dbClient) await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message }); 
+    } finally { if(dbClient) dbClient.release(); }
+});
+
+// --- נתיבים לניהול ועריכת הכשרות ---
+app.post('/api/academy/bundles', async (req, res) => {
+    let dbClient;
+    try {
+        const { groupId, title, ageGroup, reward, textContent, questions, type } = req.body;
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+
+        const bundleType = type || 'professional';
+        const bundleRes = await dbClient.query(
+            `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) VALUES ($1, $2, $3, $4, 80, $5, $6) RETURNING id`, 
+            [bundleType, ageGroup || 'כללי', title, textContent || '', parseFloat(reward)||0, String(groupId)]
+        );
+        const newBundleId = bundleRes.rows[0].id;
+        
+        if (questions && Array.isArray(questions)) {
+            for (const q of questions) {
+                await dbClient.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, [newBundleId, q.q, JSON.stringify(q.options), q.correct]);
+            }
+        }
+        await dbClient.query('COMMIT');
+        res.json({ success: true, bundleId: newBundleId });
+    } catch (e) { 
+        if(dbClient) await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message }); 
+    } finally { if(dbClient) dbClient.release(); }
+});
+
+app.get('/api/academy/bundles/:id', async (req, res) => {
+    try {
+        const bRes = await pool.query('SELECT * FROM quiz_bundles WHERE id = $1', [req.params.id]);
+        if (bRes.rows.length === 0) return res.status(404).json({ error: 'לא נמצאה הכשרה' });
+        const qRes = await pool.query('SELECT * FROM quiz_questions WHERE bundle_id = $1 ORDER BY id ASC', [req.params.id]);
+        res.json({ success: true, bundle: { ...bRes.rows[0], questions: qRes.rows } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/academy/bundles/:id', async (req, res) => {
+    let dbClient;
+    try {
+        const { title, ageGroup, reward, textContent, questions } = req.body;
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+
+        await dbClient.query(`UPDATE quiz_bundles SET title=$1, age_group=$2, reward=$3, text_content=$4 WHERE id=$5`, [title, ageGroup || 'כללי', parseFloat(reward)||0, textContent || '', req.params.id]);
+        await dbClient.query('DELETE FROM quiz_questions WHERE bundle_id = $1', [req.params.id]);
+        
+        if (questions && Array.isArray(questions)) {
+            for (const q of questions) {
+                await dbClient.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, [req.params.id, q.q, JSON.stringify(q.options), q.correct]);
+            }
+        }
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) { 
+        if(dbClient) await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message }); 
+    } finally { if(dbClient) dbClient.release(); }
+});
+
+app.post('/api/tasks/ai-generate', async (req, res) => {
+    try {
+        const { age, topic, groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
+        const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
+        
+        let prompt = "";
+        if (gType === 'BUSINESS') {
+            prompt = `You are an expert organizational manager. Suggest 3 professional tasks, project milestones, or office duties related to the topic: "${topic}". For each task, suggest a fair bonus reward in ILS (integer between 50 and 500).
+            Output STRICTLY as a JSON array of objects without any markdown blocks. Example: [{"title": "task 1", "reward": 100}, {"title": "task 2", "reward": 200}]`;
+        } else {
+            prompt = `You are an expert in parenting. Suggest 3 age-appropriate household chores or educational tasks for a child aged ${age} related to the topic: "${topic}". For each task, suggest a fair monetary reward in ILS (integer between 5 and 50).
+            Output STRICTLY as a JSON array of objects without any markdown blocks. Example: [{"title": "task 1", "reward": 10}, {"title": "task 2", "reward": 20}]`;
+        }
+
+        const result = await model.generateContent(prompt);
+        let textResult = result.response.text();
+        let parsedTasks;
+        try {
+            parsedTasks = JSON.parse(textResult);
+            if (!Array.isArray(parsedTasks)) {
+                if (parsedTasks.tasks && Array.isArray(parsedTasks.tasks)) parsedTasks = parsedTasks.tasks;
+                else parsedTasks = Object.values(parsedTasks).find(val => Array.isArray(val)) || [];
+            }
+        } catch (parseError) { throw new Error("AI returned invalid JSON format"); }
+        res.json({ success: true, tasks: parsedTasks });
+    } catch (e) { handleAIError(e, res, 'שגיאה בפירוק המשימות'); }
+});
+// --- יצירת תמונות (לוגו ובאנר) באמצעות AI  ---
+app.post('/api/ai/generate-image', async (req, res) => {
+    try {
+        const { groupId, type, prompt: businessName } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+
+        // Use Gemini to build a contextual English prompt from the business name
+        let finalPrompt;
+        if (type === 'banner' && businessName && genAI) {
+            try {
+                const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+                const geminiResult = await geminiModel.generateContent(
+                    `You are a professional image prompt engineer. Based on the business name "${businessName}", write a short English image generation prompt (max 30 words) for a wide banner background photo. Requirements: realistic photography style, relevant to the business type, vibrant colors, no text, no logos, no people faces. Return ONLY the prompt text.`
+                );
+                finalPrompt = geminiResult.response.text().trim().replace(/^["']|["']$/g, '');
+                console.log('Generated banner prompt:', finalPrompt);
+            } catch(e) {
+                console.error('Gemini prompt gen failed, using default:', e.message);
+            }
+        }
+        if (!finalPrompt) {
+            finalPrompt = type === 'banner'
+                ? 'professional business store banner background, realistic photography, vibrant colors, no text, no logos, wide panoramic'
+                : 'professional business logo icon, clean modern design, colorful, high quality';
+        }
+
+        const hfToken = process.env.HF_TOKEN;
+        if (!hfToken) return res.json({ success: false, error: 'HF_TOKEN חסר בהגדרות השרת' });
+
+        const hfWidth  = type === 'banner' ? 1024 : 512;
+        const hfHeight = type === 'banner' ? 576  : 512;
+
+        // Use HF router endpoint (newer, more reliable)
+        const hfEndpoint = `https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell`;
+        let hfRes;
+        try {
+            hfRes = await fetch(hfEndpoint, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json', 'x-wait-for-model': 'true' },
+                body: JSON.stringify({ inputs: finalPrompt, parameters: { width: hfWidth, height: hfHeight } }),
+                signal: AbortSignal.timeout(28000)
+            });
+        } catch (fetchErr) {
+            // Router failed - fallback to legacy endpoint
+            console.log('Router failed, trying legacy endpoint:', fetchErr.message);
+            hfRes = await fetch('https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json', 'x-wait-for-model': 'true' },
+                body: JSON.stringify({ inputs: finalPrompt, parameters: { width: hfWidth, height: hfHeight } }),
+                signal: AbortSignal.timeout(28000)
+            });
+        }
+
+        if (hfRes.status === 503) {
+            const errData = await hfRes.json().catch(() => ({}));
+            const eta = errData.estimated_time ? `בעוד כ-${Math.ceil(errData.estimated_time)} שניות` : 'בעוד כדקה';
+            return res.json({ success: false, error: `מודל AI בטעינה, נסה שוב ${eta}` });
+        }
+        if (!hfRes.ok) {
+            const errText = await hfRes.text().catch(() => '');
+            console.error('HF error:', hfRes.status, errText);
+            return res.json({ success: false, error: `שגיאת שירות AI (${hfRes.status}): ${errText.slice(0,100)}` });
+        }
+
+        const buffer = await hfRes.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
+        const contentType = hfRes.headers.get('content-type') || 'image/jpeg';
+        res.json({ success: true, imageUrl: `data:${contentType};base64,${base64}` });
+    } catch(e) {
+        console.error('Image Gen Error:', e.message);
+        res.json({ success: false, error: 'שגיאה ביצירת תמונה: ' + (e.message || 'נסה שוב.') });
+    }
+});
+app.post('/api/goals/familai-advice', async (req, res) => {
+    try {
+        const { userId, goalId, groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
+        const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
+
+        const userRes = await pool.query('SELECT nickname, birth_year, balance, allowance_amount FROM users WHERE id=$1', [userId]);
+        const goalRes = await pool.query('SELECT title, target_amount, current_amount FROM goals WHERE id=$1', [goalId]);
+        if (userRes.rows.length === 0 || goalRes.rows.length === 0) throw new Error('Data not found');
+        const user = userRes.rows[0]; const goal = goalRes.rows[0]; const age = calculateAge(user.birth_year);
+        
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        
+        let prompt = "";
+        if (gType === 'BUSINESS') {
+            prompt = `You are a smart business advisor. The department/employee ${user.nickname} is tracking a budget/goal called "${goal.title}". Target: ${goal.target_amount} ILS. Current: ${goal.current_amount} ILS. Write a short, professional, and encouraging message directly to them in Hebrew. Give a practical 2-step plan to achieve this goal efficiently. Keep it under 4 sentences. Use appropriate emojis.`;
+        } else {
+            prompt = `You are 'familAI', a friendly digital character in a family app. A child named ${user.nickname} (age ${age}) is saving money for a goal called "${goal.title}". Target: ${goal.target_amount} ILS. Current: ${goal.current_amount} ILS. Wallet balance: ${user.balance} ILS. Weekly allowance: ${user.allowance_amount} ILS. Write a short, fun, encouraging message directly to ${user.nickname} in Hebrew. Give a practical 2-step plan to reach their goal faster. Keep it under 4 sentences. Introduce yourself as 'familAI' at the start. Use emojis.`;
+        }
+
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, advice: result.response.text().trim() });
+    } catch (e) { handleAIError(e, res, 'שגיאה ביצירת עצה'); }
+});
+
+app.post('/api/budget/familai-insight', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
+        const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
+
+        const txsRes = await pool.query(`SELECT t.amount, t.category, t.type, u.nickname FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id=$1 AND t.date >= date_trunc('month', CURRENT_DATE)`, [groupId]);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        
+        let prompt = "";
+        if (gType === 'BUSINESS') {
+            prompt = `You are an intelligent business financial analyst. Analyze these operational expenses from this month: ${JSON.stringify(txsRes.rows)}. Write a short "Executive Summary" for the management in Hebrew. Mention where most budget went, point out anomalies, and give one smart tip to optimize costs next month. Format as clear, professional text with emojis. Max 4-5 sentences. Start with "שלום הנהלה, מצורף סיכום ביצועי התקציב:"`;
+        } else {
+            prompt = `You are 'familAI', the intelligent financial advisor for a family. Analyze these family transactions from this month: ${JSON.stringify(txsRes.rows)}. Write a short "Executive Summary" for the parents in Hebrew. Mention where most expenses went, point out if kids are earning/saving well, and give one smart tip to save money next month. Format as clear, encouraging text with emojis. Max 4-5 sentences. Start with "היי הורים, כאן familAI עם סיכום התקציב שלכם!"`;
+        }
+
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, insight: result.response.text().trim() });
+    } catch (e) { handleAIError(e, res, 'שגיאה בניתוח התקציב'); }
+});
+
+app.post('/api/pantry/familai-insight', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
+        const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
+
+        const pantryRes = await pool.query('SELECT item_name, quantity, unit, updated_at FROM pantry WHERE group_id=$1', [groupId]);
+        const historyRes = await pool.query(`SELECT sti.item_name, sti.quantity, sti.unit, sti.price_per_unit, st.trip_date FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id WHERE st.group_id=$1 AND st.trip_date >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month')`, [groupId]);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        
+        let prompt = "";
+        if (gType === 'BUSINESS') {
+            prompt = `You are a smart office inventory and procurement manager. Here is the current inventory: ${JSON.stringify(pantryRes.rows)}. Here is the procurement history from the last month: ${JSON.stringify(historyRes.rows)}. Analyze this data in Hebrew. Write a short, smart summary (3-4 sentences) speaking directly to the operations/office manager. Compare what they have to what they usually order, and warn them if they might run out of a critical item soon. Give one smart procurement tip. Use emojis. Do not use Markdown formatting. Start with "דוח מלאי ורכש תקופתי:"`;
+        } else {
+            prompt = `You are 'familAI', a smart home inventory and grocery manager. Here is the family's current pantry inventory: ${JSON.stringify(pantryRes.rows)}. Here is their shopping history from the last month: ${JSON.stringify(historyRes.rows)}. Analyze this data in Hebrew. Write a short, smart summary (3-4 sentences) speaking directly to the parents. Compare what they have to what they usually buy, and gently warn them if they might run out of a frequently bought item soon. Give one smart shopping tip or savings recommendation. Start with "היי! כאן familAI מנהלת המזווה שלכם 📦" and use emojis. Do not use Markdown formatting.`;
+        }
+
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, insight: result.response.text().trim() });
+    } catch (e) { handleAIError(e, res, 'שגיאה בניתוח המלאי'); }
+});
+
+app.post('/api/forecast/familai-insight', async (req, res) => {
+    try {
+        const { groupId, period, mode, targetUserId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        
+        const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
+        const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
+
+        let txsRes;
+        if(targetUserId === 'all') {
+            txsRes = await pool.query(`SELECT amount, category, type, is_recurring, description FROM transactions WHERE group_id=$1 AND is_recurring = TRUE`, [groupId]);
+        } else {
+            txsRes = await pool.query(`SELECT amount, category, type, is_recurring, description FROM transactions WHERE user_id=$1 AND is_recurring = TRUE`, [targetUserId]);
+        }
+        
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        
+        let prompt = "";
+        if (gType === 'BUSINESS') {
+            prompt = `You are a corporate financial advisor. Based on these recurring operational transactions expected for the upcoming ${mode === 'monthly' ? 'month' : 'year'}: ${JSON.stringify(txsRes.rows)}, give a short 2-3 sentence advice in Hebrew on how to prepare and balance the organization's cashflow. Use emojis. Do not use Markdown format.`;
+        } else {
+            prompt = `You are 'familAI', a financial advisor. Based on these recurring transactions expected for the upcoming ${mode === 'monthly' ? 'month' : 'year'}: ${JSON.stringify(txsRes.rows)}, give a short 2-3 sentence advice in Hebrew on how to prepare and balance their cashflow. Use emojis. Do not use Markdown format.`;
+        }
+
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, insight: result.response.text().trim() });
+    } catch (e) { handleAIError(e, res, 'שגיאה בניתוח התשקיף'); }
+});
+
+app.post('/api/tasks/vision-verify', async (req, res) => {
+    try {
+        const { taskId, title, imageBase64, mimeType, groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
+        const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
+        
+        let prompt = "";
+        if (gType === 'BUSINESS') {
+            prompt = `You are an AI QA manager. An employee claims they completed the task/ticket: "${title}". Look at the attached image proof. Is the task reasonably completed? Return JSON strictly matching this schema: { "verified": true/false, "message": "Short feedback in Hebrew speaking directly to the employee. If verified, acknowledge it professionally. If not, clarify what is missing." }`;
+        } else {
+            prompt = `You are 'familAI'. A child claims they completed the task: "${title}". Look at the attached image. Is the task reasonably done? Be forgiving but honest. Return JSON strictly matching this schema: { "verified": true/false, "message": "Short feedback in Hebrew speaking directly to the child. If verified, praise them. If not, nicely tell them what is missing." }`;
+        }
+
+        const result = await model.generateContent([ prompt, { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } ]);
+        const feedback = JSON.parse(result.response.text());
+        if(feedback.verified) {
+            const t = (await pool.query('SELECT * FROM tasks WHERE id=$1', [taskId])).rows[0];
+            const baseReward = parseFloat(t.reward) || 0;
+            let bonus = 0;
+            if(baseReward > 0) {
+                bonus = Math.max(1, Math.round(baseReward * 0.1)); 
+            }
+            const total = baseReward + bonus;
+
+            await pool.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [total, t.assigned_to]);
+            await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'tasks', 'income', FALSE)`, [t.assigned_to, t.group_id, total, `תגמול משימה (אושר ע"י AI) + בונוס: ${t.title}`]);
+            await pool.query('UPDATE tasks SET status = $1, reward = $2 WHERE id = $3', ['approved', total, taskId]);
+            
+            if(bonus > 0) feedback.message += ` (איזה יופי! קיבלת גם בונוס AI של ₪${bonus}!)`;
+        }
+        res.json({ success: true, verified: feedback.verified, message: feedback.message });
+    } catch (e) { handleAIError(e, res, 'שגיאה בניתוח התמונה'); }
+});
+
+app.post('/api/shopping/scan-receipt', async (req, res) => {
+    try {
+        const { imageBase64, mimeType, userId } = req.body;
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+        const groupId = uRes.rows[0].group_id;
+
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash", generationConfig: { responseMimeType: "application/json" } });
+        const prompt = `You are 'familAI', an expert Israeli supermarket receipt parser.
+
+## HOW ISRAELI RECEIPTS ARE STRUCTURED
+
+Each purchased item appears as a BLOCK of 2-4 lines:
+  LINE 1: Hebrew product name  (e.g. "שמן זית כתית מ")
+  LINE 2: Barcode number — IGNORE (e.g. "7290117263389")
+  LINE 3: quantity × unit_price = total  (e.g. "4 יחידה x 29.70    118.80")
+  LINE 4 (optional): DISCOUNT LINE — starts with a NEGATIVE number (e.g. "-19.80  שמן זית 750 מל רמי לוי ב19.80")
+           ↑ This line BELONGS to the item above it. The text after the negative amount is a PROMOTIONAL DESCRIPTION, NOT a new product.
+           ↑ Patterns like "13ב2", "2ב1", "3ב10" mean "X items for ₪Y" — these are promo codes, NOT product names.
+
+After the discount line (if any), the NEXT product block begins immediately.
+
+## CRITICAL RULES
+
+1. A line starting with a NEGATIVE number (e.g. -19.80, -5.60) is ALWAYS a discount line for the item above it — NEVER a new item.
+2. The text on a discount line (e.g. "שמן קנולה 1 ליטר 13ב2") is promotional description — do NOT create a new item from it.
+3. Barcode lines (long digit strings like "7290121043366") — IGNORE completely.
+4. Items like "מארז X קופסאות", "כוסות", "שקית" etc. ARE real products — do not skip them.
+5. Extract the STORE NAME from the receipt header.
+
+## EXAMPLE (from actual Rami Levy receipt)
+
+Receipt lines:
+  שמן קנולה הולנ              ← product name
+  7290119673124               ← barcode → IGNORE
+  71.20   8 יחידה x 8.90     ← qty=8, unit_price=8.90, total=71.20
+  -19.20  שמן קנולה 1 ליטר 13ב2  ← discount=-19.20, promo text → add to item above
+  מארז 4 קופסאות               ← NEW product name
+  7290121043366               ← barcode → IGNORE
+  29.90                       ← price (qty=1, no line discount)
+  כוסות נתיה קרה               ← NEW product name
+  8698585273257               ← barcode → IGNORE
+  15.60   4 יחידה x 3.90     ← qty=4, unit_price=3.90
+  -5.60   כוסות               ← discount=-5.60 → add to כוסות item above
+
+Result for these lines:
+  { name: "שמן קנולה הולנ", qty: 8, unit_price: 8.90, discount: 19.20, net_unit_price: 6.50 }
+  { name: "מארז 4 קופסאות", qty: 1, unit_price: 29.90, discount: 0, net_unit_price: 29.90 }
+  { name: "כוסות נתיה קרה", qty: 4, unit_price: 3.90, discount: 5.60, net_unit_price: 2.50 }
+
+## FIELDS TO EXTRACT PER ITEM
+
+- name: Hebrew product name as on receipt
+- normalized_name: generic brand-less name ("שמן זית כתית תנובה" → "שמן זית", "חלב תנובה 3%" → "חלב 3%")
+- qty: number of units (default 1)
+- unit: "יח" for pieces, 'ק"ג' for kg, "ל" for liters, "ג" for grams, 'מ"ל' for ml
+- unit_price: price per unit BEFORE discount
+- discount: total discount for all units (positive number, 0 if none)
+- net_unit_price: (unit_price × qty − discount) / qty
+
+## IGNORE ENTIRELY
+
+Receipt header, store address, phone, barcodes, order number, total lines, VAT, loyalty club paragraphs, dividers.
+
+Return ONLY valid JSON: { "store_name": "...", "items": [...] }`;
+
+        let result, lastErr;
+        for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+                result = await model.generateContent([ prompt, { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } ]);
+                break;
+            } catch(e) {
+                lastErr = e;
+                if (attempt === 0 && !String(e.message).includes('429')) {
+                    await new Promise(r => setTimeout(r, 3000));
+                } else { throw e; }
+            }
+        }
+        if (!result) throw lastErr;
+        let rawText = result.response.text().trim();
+        // Strip markdown code fences if Gemini wraps the JSON
+        if (rawText.startsWith('```')) {
+            rawText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        }
+        let parsed;
+        try {
+            parsed = JSON.parse(rawText);
+        } catch(parseErr) {
+            console.error('[scan-receipt] JSON parse error:', parseErr.message, '| raw:', rawText.substring(0, 300));
+            return res.status(500).json({ success: false, error: 'parse_error', details: parseErr.message });
+        }
+        const items = Array.isArray(parsed) ? parsed : (parsed.items || []);
+        const storeName = (!Array.isArray(parsed) && parsed.store_name) ? parsed.store_name : '';
+
+        // Return items for preview — do NOT save yet
+        res.json({ success: true, items, storeName });
+    } catch (e) { handleAIError(e, res, 'שגיאה בקריאת החשבונית'); }
+});
+
+app.post('/api/shopping/scan-receipt/save', async (req, res) => {
+    try {
+        const { items, userId } = req.body;
+        if (!Array.isArray(items) || !userId) return res.status(400).json({ error: 'missing fields' });
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+        const groupId = uRes.rows[0].group_id;
+        for (const item of items) {
+            const netPrice = parseFloat(item.net_unit_price) || parseFloat(item.unit_price) || 0;
+            await pool.query(
+                `INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, unit, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`,
+                [groupId, userId, item.name, item.normalized_name || item.name, parseFloat(item.qty) || 1, item.unit || 'יח', netPrice]
+            );
+        }
+        res.json({ success: true, count: items.length });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/academy/tutor', async (req, res) => {
+    try {
+        const { question, wrongAnswer, correctAnswer, groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
+        const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        
+        let prompt = "";
+        if (gType === 'BUSINESS') {
+            prompt = `You are a professional corporate trainer. An employee answered a training question incorrectly. Question: "${question}" They answered: "${wrongAnswer}" The correct answer is: "${correctAnswer}". Explain briefly and professionally in Hebrew (2-3 sentences max) why the correct answer is right. Be constructive.`;
+        } else {
+            prompt = `You are 'familAI', a friendly tutor. A child answered a question incorrectly. Question: "${question}" They answered: "${wrongAnswer}" The correct answer is: "${correctAnswer}". Explain briefly in Hebrew (2-3 sentences max) why the correct answer is right and why their answer was a mistake. Be super encouraging! Start with "היי! כאן familAI...".`;
+        }
+
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, explanation: result.response.text().trim() });
+    } catch (e) { handleAIError(e, res, 'שגיאה בהבאת ההסבר'); }
+});
+
+app.post('/api/guide/chat', async (req, res) => {
+    try {
+        const { question, guideType } = req.body;
+        if (!genAI) return res.status(500).json({ success: false, error: 'מפתח API חסר בשרת' });
+
+        let guideText = "";
+        let fileName = guideType === 'BIZ' ? 'biz-guide.html' : 'guide.html';
+        
+        try {
+            guideText = fs.readFileSync(path.join(__dirname, 'public', fileName), 'utf-8');
+        } catch(e) {
+            guideText = guideType === 'BIZ' ? "Oneflow Life BIZ is a business management app." : "Oneflow Life is a family management app.";
+        }
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        
+        let prompt = "";
+        if (guideType === 'BIZ') {
+            prompt = `You are 'FamliAI', the professional business AI assistant for the 'Oneflow Life BIZ' app. 
+            A user is reading the business user guide and asked a question to understand the system better.
+            Here is the full content of the business guide HTML:
+            ${guideText}
+            
+            User's question: "${question}"
+            
+            Answer directly in Hebrew based ONLY on the guide content above. 
+            Be concise (3-4 sentences max), professional yet friendly, use emojis, and address the user directly. Do not use complex markdown, just basic bolding.`;
+        } else {
+            prompt = `You are 'familAI', the friendly AI assistant for the 'Oneflow Life' family app. 
+            A user is reading the user guide and asked a question to understand the system better.
+            Here is the full content of the guide HTML:
+            ${guideText}
+            
+            User's question: "${question}"
+            
+            Answer directly in Hebrew based ONLY on the guide content above. 
+            Be concise (3-4 sentences max), friendly, use emojis, and address the user directly. Do not use complex markdown, just basic bolding.`;
+        }
+
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, answer: result.response.text().trim() });
+    } catch (e) {
+        console.error('Guide Chat Error:', e);
+        res.status(500).json({ success: false, error: 'מצטערת, לא הצלחתי לייצר תשובה כרגע.' });
+    }
+});
+
+// --- TIME CLOCK ENDPOINTS WITH GPS ---
+
+app.post('/api/timeclock/set-location', async (req, res) => {
+    try {
+        const { groupId, adminId, lat, lng } = req.body;
+        const uRes = await pool.query('SELECT role FROM users WHERE id=$1 AND group_id=$2', [adminId, groupId]);
+        if (uRes.rows.length === 0 || uRes.rows[0].role !== 'ADMIN') return res.status(403).json({error: 'רק מנהל רשאי להגדיר את מיקום העסק'});
+        
+        await pool.query('UPDATE family_groups SET location_lat=$1, location_lng=$2 WHERE id=$3', [lat, lng, groupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.get('/api/timeclock/status', async (req, res) => {
+    try {
+        const { userId } = req.query;
+        const openPunch = await pool.query('SELECT punch_in FROM time_clock WHERE user_id=$1 AND punch_out IS NULL', [userId]);
+        res.json({ isPunchedIn: openPunch.rows.length > 0, punchInTime: openPunch.rows.length > 0 ? openPunch.rows[0].punch_in : null });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/timeclock/punch', async (req, res) => {
+    try {
+        const { userId, groupId, lat, lng } = req.body;
+        
+        if (!lat || !lng) {
+            return res.status(400).json({ error: 'לא התקבל מיקום. חובה לאשר גישה למיקום (GPS) כדי לדווח.' });
+        }
+
+        const gRes = await pool.query('SELECT location_lat, location_lng FROM family_groups WHERE id=$1', [groupId]);
+        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
+        
+        const bizLat = gRes.rows[0].location_lat;
+        const bizLng = gRes.rows[0].location_lng;
+        
+        if (!bizLat || !bizLng) {
+            return res.status(400).json({ error: 'המנהל טרם הגדיר את מיקום העסק במערכת. פנה להנהלה.' });
+        }
+        
+        const distance = calculateDistance(lat, lng, bizLat, bizLng);
+        const MAX_ALLOWED_DISTANCE = 150; 
+        
+        if (distance > MAX_ALLOWED_DISTANCE) {
+            return res.status(403).json({ error: `אינך נמצא בקרבת העסק. מרחק נוכחי: ${Math.round(distance)} מטר. מותר עד ${MAX_ALLOWED_DISTANCE} מטר.` });
+        }
+
+        const openPunch = await pool.query('SELECT id, punch_in FROM time_clock WHERE user_id=$1 AND punch_out IS NULL', [userId]);
+        if (openPunch.rows.length > 0) {
+            const punchId = openPunch.rows[0].id;
+            const punchIn = new Date(openPunch.rows[0].punch_in);
+            const punchOut = new Date();
+            const diffMins = Math.max(0, Math.round((punchOut - punchIn) / 60000));
+            await pool.query('UPDATE time_clock SET punch_out=$1, total_minutes=$2 WHERE id=$3', [punchOut, diffMins, punchId]);
+            res.json({ success: true, status: 'out' });
+        } else {
+            await pool.query('INSERT INTO time_clock (user_id, group_id, punch_in) VALUES ($1, $2, CURRENT_TIMESTAMP)', [userId, groupId]);
+            let triggeredPopup = null;
+            try {
+                const pRes = await pool.query(
+                    `SELECT id, title, content, image_base64 FROM store_popups
+                     WHERE group_id=$1 AND is_active=TRUE AND popup_type='employee'
+                       AND trigger_type='shift'
+                       AND (expires_at IS NULL OR expires_at > NOW()) LIMIT 1`,
+                    [groupId]
+                );
+                if (pRes.rows.length > 0) triggeredPopup = pRes.rows[0];
+            } catch(e2) {}
+            res.json({ success: true, status: 'in', triggeredPopup });
+        }
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/timeclock/report', async (req, res) => {
+    try {
+        const { groupId, userId } = req.query;
+        let query, params;
+        if (userId === 'all') {
+            query = `SELECT tc.*, u.nickname FROM time_clock tc JOIN users u ON tc.user_id = u.id WHERE tc.group_id=$1 ORDER BY tc.punch_in DESC`;
+            params = [groupId];
+        } else {
+            query = `SELECT tc.*, u.nickname FROM time_clock tc JOIN users u ON tc.user_id = u.id WHERE tc.user_id=$1 ORDER BY tc.punch_in DESC`;
+            params = [userId];
+        }
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/timeclock/manual', async (req, res) => {
+    try {
+        const { groupId, userId, punchIn, punchOut, totalMins } = req.body;
+        await pool.query('INSERT INTO time_clock (user_id, group_id, punch_in, punch_out, total_minutes) VALUES ($1, $2, $3, $4, $5)', [userId, groupId, punchIn, punchOut, totalMins]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- STORE / E-COMMERCE ENDPOINTS (B2B/B2C) ---
+// ============================================================
+
+app.get('/api/store/settings/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM store_settings WHERE group_id=$1', [req.params.groupId]);
+        if (result.rows.length > 0) res.json({ success: true, settings: result.rows[0] });
+        else res.json({ success: true, settings: { is_active: false, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '' } });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/settings', async (req, res) => {
+    try {
+        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee, includeVat, storeAlias } = req.body;
+        
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS banner_url TEXT`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS include_vat BOOLEAN DEFAULT FALSE`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS store_alias VARCHAR(50) UNIQUE`); } catch(e) {}
+
+        const isVat = (includeVat === true || String(includeVat) === 'true');
+        const aliasVal = storeAlias && storeAlias.trim() !== '' ? storeAlias.trim().toLowerCase() : null;
+
+        if (aliasVal) {
+            const aliasCheck = await pool.query('SELECT group_id FROM store_settings WHERE store_alias = $1 AND group_id != $2', [aliasVal, groupId]);
+            if (aliasCheck.rows.length > 0) return res.status(400).json({ error: 'הכינוי הזה כבר תפוס ע"י חנות אחרת, אנא בחרו כינוי אחר.' });
+        }
+        
+        await pool.query(`
+            INSERT INTO store_settings (
+                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat, store_alias
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, 
+                NULLIF($8, 'DELETE'), 
+                NULLIF($9, 'DELETE'), 
+                $10, $11, $12, $13, $14, $15) 
+            ON CONFLICT (group_id) DO UPDATE SET 
+                is_active = EXCLUDED.is_active, 
+                welcome_message = EXCLUDED.welcome_message, 
+                phone = EXCLUDED.phone, 
+                min_order = EXCLUDED.min_order, 
+                slogan = EXCLUDED.slogan, 
+                store_type = EXCLUDED.store_type, 
+                logo_url = CASE 
+                    WHEN $8 = 'DELETE' THEN NULL 
+                    WHEN $8 IS NOT NULL AND $8 != '' THEN $8 
+                    ELSE store_settings.logo_url 
+                END,
+                banner_url = CASE 
+                    WHEN $9 = 'DELETE' THEN NULL 
+                    WHEN $9 IS NOT NULL AND $9 != '' THEN $9 
+                    ELSE store_settings.banner_url 
+                END,
+                open_time = EXCLUDED.open_time, 
+                close_time = EXCLUDED.close_time, 
+                whatsapp_number = EXCLUDED.whatsapp_number, 
+                delivery_fee = EXCLUDED.delivery_fee, 
+                include_vat = EXCLUDED.include_vat,
+                store_alias = EXCLUDED.store_alias
+        `, [
+            groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType, 
+            logoUrl || null, bannerUrl || null, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat, aliasVal
+        ]);
+        
+        res.json({ success: true });
+    } catch(e) { 
+        console.error("Error saving store settings:", e);
+        res.status(500).json({ error: e.message }); 
+    }
+});
+app.post('/api/store/settings/presets', async (req, res) => {
+    try {
+        const { groupId, presets } = req.body;
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS modifier_presets TEXT`); } catch(e) {}
+        await pool.query(`UPDATE store_settings SET modifier_presets=$1 WHERE group_id=$2`, [presets, groupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/store/catalog/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM store_catalog WHERE group_id=$1 ORDER BY category, name', [req.params.groupId]);
+        res.json(result.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/catalog', async (req, res) => {
+    try {
+        const { groupId, name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription, kitchenStation, isComplimentary } = req.body;
+
+        const countRes = await pool.query('SELECT COUNT(*) FROM store_catalog WHERE group_id=$1', [groupId]);
+        if (parseInt(countRes.rows[0].count) >= 50) {
+            return res.status(400).json({ error: 'הגעת למגבלת 50 המוצרים במסלול החינמי! שדרג למסלול PRO.' });
+        }
+
+        const result = await pool.query(
+            'INSERT INTO store_catalog (group_id, name, description, price, category, image_url, options_text, badge_text, badge_color, product_type, long_description, sku, kitchen_station, is_complimentary) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *',
+            [groupId, name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '', kitchenStation || 'other', isComplimentary ? true : false]
+        );
+        res.json({ success: true, item: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/store/catalog/:id', async (req, res) => {
+    try {
+        const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription, kitchenStation, isComplimentary } = req.body;
+
+        const result = await pool.query(
+            'UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6, badge_text=$7, badge_color=$8, product_type=$9, long_description=$10, sku=$11, kitchen_station=$12, is_complimentary=$13 WHERE id=$14 RETURNING *',
+            [name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '', kitchenStation || 'other', isComplimentary ? true : false, req.params.id]
+        );
+        res.json({ success: true, item: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/catalog/toggle', async (req, res) => {
+    try {
+        const { itemId, isAvailable } = req.body;
+        await pool.query('UPDATE store_catalog SET is_available=$1 WHERE id=$2', [isAvailable, itemId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/store/catalog/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM store_catalog WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Generate AI Product Image ---
+app.post('/api/store/catalog/generate-image', async (req, res) => {
+    try {
+        const { groupId, productName, description, category } = req.body;
+        if (!groupId || !productName || !description) return res.status(400).json({ error: 'שם מוצר ותיאור נדרשים' });
+
+        const hfToken = process.env.HF_TOKEN;
+        if (!hfToken) return res.json({ success: false, error: 'HF_TOKEN חסר בהגדרות השרת' });
+
+        // בנה prompt ממוקד ספציפי מאוד - צריך להיות שונה בכל פעם
+        let finalPrompt = `product photography, studio photo`;
+        finalPrompt += ` of "${productName}"`;
+        finalPrompt += `. Description: ${description}`;
+        if (category) finalPrompt += `. Type: ${category}`;
+        finalPrompt += `. Requirements: professional studio lighting, bright natural light, clean white background, product centered and focused, high quality commercial photo, photorealistic, 8k resolution, sharp details`;
+
+        const hfEndpoint = `https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell`;
+        let hfRes;
+        try {
+            hfRes = await fetch(hfEndpoint, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json', 'x-wait-for-model': 'true' },
+                body: JSON.stringify({ inputs: finalPrompt, parameters: { width: 512, height: 512 } }),
+                signal: AbortSignal.timeout(28000)
+            });
+        } catch (fetchErr) {
+            console.log('Router failed, trying legacy endpoint:', fetchErr.message);
+            hfRes = await fetch('https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json', 'x-wait-for-model': 'true' },
+                body: JSON.stringify({ inputs: finalPrompt, parameters: { width: 512, height: 512 } }),
+                signal: AbortSignal.timeout(28000)
+            });
+        }
+
+        if (hfRes.status === 503) {
+            const errData = await hfRes.json().catch(() => ({}));
+            const eta = errData.estimated_time ? `בעוד כ-${Math.ceil(errData.estimated_time)} שניות` : 'בעוד כדקה';
+            return res.json({ success: false, error: `מודל AI בטעינה, נסה שוב ${eta}` });
+        }
+        if (!hfRes.ok) {
+            const errText = await hfRes.text().catch(() => '');
+            console.error('HF error:', hfRes.status, errText);
+            return res.json({ success: false, error: `שגיאת שירות AI (${hfRes.status}): ${errText.slice(0,100)}` });
+        }
+
+        const buffer = await hfRes.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
+        const contentType = hfRes.headers.get('content-type') || 'image/jpeg';
+        res.json({ success: true, imageUrl: `data:${contentType};base64,${base64}` });
+    } catch(e) {
+        console.error('Product Image Gen Error:', e.message);
+        res.json({ success: false, error: 'שגיאה ביצירת תמונה: ' + (e.message || 'נסה שוב.') });
+    }
+});
+
+// --- ספירת מלאי ---
+app.post('/api/store/inventory-count', async (req, res) => {
+    try {
+        const { groupId, items, sendEmail } = req.body;
+        if (!groupId || !items || !Array.isArray(items)) return res.status(400).json({ error: 'נתונים חסרים' });
+
+        for (const item of items) {
+            if (item.id && item.stock_quantity !== undefined && item.stock_quantity !== '') {
+                await pool.query(
+                    'UPDATE store_catalog SET stock_quantity=$1 WHERE id=$2 AND group_id=$3',
+                    [parseInt(item.stock_quantity) || 0, item.id, groupId]
+                );
+            }
+        }
+
+        if (sendEmail) {
+            const grpRes = await pool.query('SELECT name, admin_email FROM family_groups WHERE id=$1', [groupId]);
+            const grp = grpRes.rows[0];
+            if (grp && grp.admin_email) {
+                const dateStr = new Date().toLocaleDateString('he-IL');
+                const rows = items.filter(i => i.stock_quantity !== '').map(i =>
+                    `<tr><td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right">${(i.name||'').replace(/[<>]/g,'')}</td>
+                     <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:center;font-weight:bold">${i.stock_quantity}</td></tr>`
+                ).join('');
+                const html = `<div dir="rtl" style="font-family:Arial,Helvetica,sans-serif;padding:24px">
+                    <h2 style="color:#4338ca">ספירת מלאי — ${(grp.name||'').replace(/[<>]/g,'')}</h2>
+                    <p style="color:#64748b">תאריך: ${dateStr}</p>
+                    <table style="width:100%;border-collapse:collapse;margin-top:12px">
+                        <thead><tr>
+                            <th style="background:#f1f5f9;padding:8px 12px;text-align:right">מוצר</th>
+                            <th style="background:#f1f5f9;padding:8px 12px;text-align:center">כמות במלאי</th>
+                        </tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                    <p style="margin-top:20px;font-size:11px;color:#94a3b8">OneFlow Life — ${dateStr}</p>
+                </div>`;
+                await sendSystemEmail(grp.admin_email, `ספירת מלאי — ${grp.name} — ${dateStr}`, html);
+            }
+        }
+
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- הודעות OneFlow: התאמת לקוחות + שליחה לאינבוקס ---
+app.get('/api/store/oneflow-customers/:groupId', async (req, res) => {
+    try {
+        const groupId = parseInt(req.params.groupId);
+        const custRes = await pool.query('SELECT id, name, phone, email FROM store_customers WHERE group_id=$1', [groupId]);
+        const matchedGids = await resolveOneFlowGroupIds(pool, groupId, custRes.rows);
+        // מציג ללקוח רשימה של customers שנמצאו ב-OneFlow
+        const matched = custRes.rows.filter(c => {
+            if (!c.phone && !c.email) return false;
+            // נבדוק אם customer הזה היה חלק מה-matching (אם יש הזמנות נחזיר הכל)
+            return true;
+        });
+        const commRes = await pool.query(
+            `SELECT c.id, c.name, COUNT(fg.id)::int AS family_count
+             FROM community_businesses cb
+             JOIN communities c ON c.id = cb.community_id
+             LEFT JOIN family_groups fg ON fg.community_id = c.id AND fg.type='FAMILY'
+             WHERE cb.business_id=$1 AND cb.status='approved'
+             GROUP BY c.id, c.name`, [groupId]);
+        res.json({ success: true, matched, matchedCount: matchedGids.size, communities: commRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/oneflow-message', async (req, res) => {
+    try {
+        const { groupId, subject, content, targetType, communityId } = req.body;
+        if (!groupId || !subject || !content) return res.status(400).json({ error: 'נתונים חסרים' });
+
+        const grpRes = await pool.query('SELECT name FROM family_groups WHERE id=$1', [groupId]);
+        const senderName = grpRes.rows[0]?.name || 'עסק';
+        let targetGroupIds = new Set();
+
+        if (targetType === 'community' && communityId) {
+            const fgRes = await pool.query("SELECT id FROM family_groups WHERE community_id=$1 AND type='FAMILY'", [communityId]);
+            fgRes.rows.forEach(r => targetGroupIds.add(r.id));
+        } else {
+            const custRes = await pool.query('SELECT phone, email FROM store_customers WHERE group_id=$1', [groupId]);
+            targetGroupIds = await resolveOneFlowGroupIds(pool, groupId, custRes.rows);
+        }
+
+        if (targetGroupIds.size === 0) return res.json({ success: false, error: 'לא נמצאו נמענים OneFlow. ודא שלקוחותיך הזמינו מהחנות דרך OneFlow Life.' });
+
+        await pool.query('BEGIN');
+        for (const gid of targetGroupIds) {
+            await pool.query(
+                'INSERT INTO inbox_messages (group_id, sender_type, sender_name, sender_contact, subject, content) VALUES ($1,$2,$3,$4,$5,$6)',
+                [gid, 'business', senderName, '', subject, content]
+            );
+        }
+        await pool.query('COMMIT');
+        res.json({ success: true, count: targetGroupIds.size });
+    } catch(e) {
+        await pool.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// --- AI ניסוח לעסקים ---
+app.post('/api/ai/generate', async (req, res) => {
+    try {
+        const { context, query } = req.body;
+        if (!context && !query) return res.status(400).json({ success: false, error: 'נתונים חסרים' });
+        const prompt = context ? `${context}\n\nבקשה: ${query}` : query;
+        const responseText = await callGeminiDirect(prompt);
+        res.json({ success: true, answer: responseText });
+    } catch(e) {
+        console.error('AI Gen Error:', e.message);
+        res.json({ success: false, error: 'שגיאה במנוע ה-AI: ' + e.message });
+    }
+});
+
+// --- שיגור ניוזלטר עסקי ---
+app.post('/api/store/newsletter/broadcast', async (req, res) => {
+    try {
+        const { groupId, subject, content, audience, communityId } = req.body;
+        if (!groupId || !subject || !content) return res.status(400).json({ error: 'נתונים חסרים' });
+
+        const grpRes = await pool.query('SELECT name FROM family_groups WHERE id=$1', [groupId]);
+        const senderName = grpRes.rows[0]?.name || 'עסק';
+        const targetGroupIds = new Set();
+
+        if (audience === 'community' && communityId) {
+            const fgRes = await pool.query("SELECT id FROM family_groups WHERE community_id=$1 AND type='FAMILY'", [communityId]);
+            fgRes.rows.forEach(r => targetGroupIds.add(r.id));
+        }
+
+        if (audience === 'oneflow_customers' || audience === 'both') {
+            const custRes = await pool.query('SELECT phone, email FROM store_customers WHERE group_id=$1', [groupId]);
+            const oneflowGids = await resolveOneFlowGroupIds(pool, groupId, custRes.rows);
+            oneflowGids.forEach(gid => targetGroupIds.add(gid));
+        }
+
+        if (audience === 'employees' || audience === 'both') {
+            targetGroupIds.add(parseInt(groupId));
+        }
+
+        if (targetGroupIds.size === 0) {
+            const errMsg = (audience === 'oneflow_customers' || audience === 'both')
+                ? 'לא נמצאו נמענים OneFlow. ודא שלקוחות הזמינו מהחנות דרך OneFlow Life.'
+                : 'לא נמצאו נמענים';
+            return res.json({ success: false, error: errMsg });
+        }
+
+        await pool.query('BEGIN');
+        for (const gid of targetGroupIds) {
+            await pool.query(
+                'INSERT INTO inbox_messages (group_id, sender_type, sender_name, sender_contact, subject, content) VALUES ($1,$2,$3,$4,$5,$6)',
+                [gid, 'business', senderName, '', subject, content]
+            );
+        }
+        // שמירת הניוזלטר בהיסטוריה
+        await pool.query(
+            'INSERT INTO sent_newsletters (group_id, subject, content_html, audience, recipient_count) VALUES ($1,$2,$3,$4,$5)',
+            [groupId, subject, content, audience || 'unknown', targetGroupIds.size]
+        );
+        await pool.query('COMMIT');
+        res.json({ success: true, count: targetGroupIds.size });
+    } catch(e) {
+        await pool.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/store/newsletters/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            'SELECT id, subject, content_html, audience, recipient_count, sent_at FROM sent_newsletters WHERE group_id=$1 ORDER BY sent_at DESC LIMIT 30',
+            [req.params.groupId]
+        );
+        res.json({ success: true, newsletters: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/store/newsletters/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM sent_newsletters WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- פופאפים לחנות הציבורית ---
+app.get('/api/store/popups/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM store_popups WHERE group_id=$1 ORDER BY created_at DESC', [req.params.groupId]);
+        res.json({ success: true, popups: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/popups', async (req, res) => {
+    try {
+        const { groupId, title, content, imageBase64, scheduledAt, expiresAt, popupType, triggerType, triggerRef } = req.body;
+        if (!groupId || !title || !content) return res.status(400).json({ error: 'נתונים חסרים' });
+        const r = await pool.query(
+            `INSERT INTO store_popups (group_id, title, content, image_base64, scheduled_at, expires_at, popup_type, trigger_type, trigger_ref)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [groupId, title, content, imageBase64||null, scheduledAt||null, expiresAt||null, popupType||'store', triggerType||'none', triggerRef||null]
+        );
+        res.json({ success: true, popup: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/store/popups/:id', async (req, res) => {
+    try {
+        const { isActive, expiresAt, clearImage, title, content, imageBase64, scheduledAt, triggerType, triggerRef } = req.body;
+        const fields = [];
+        const vals = [];
+        let i = 1;
+        if (isActive !== undefined) { fields.push(`is_active=$${i++}`); vals.push(isActive); }
+        if (expiresAt !== undefined) { fields.push(`expires_at=$${i++}`); vals.push(expiresAt || null); }
+        if (clearImage) { fields.push(`image_base64=$${i++}`); vals.push(null); }
+        if (title !== undefined) { fields.push(`title=$${i++}`); vals.push(title); }
+        if (content !== undefined) { fields.push(`content=$${i++}`); vals.push(content); }
+        if (imageBase64 !== undefined && !clearImage) { fields.push(`image_base64=$${i++}`); vals.push(imageBase64 || null); }
+        if (scheduledAt !== undefined) { fields.push(`scheduled_at=$${i++}`); vals.push(scheduledAt || null); }
+        if (triggerType !== undefined) { fields.push(`trigger_type=$${i++}`); vals.push(triggerType); }
+        if (triggerRef !== undefined) { fields.push(`trigger_ref=$${i++}`); vals.push(triggerRef || null); }
+        if (fields.length === 0) return res.json({ success: true });
+        vals.push(req.params.id);
+        await pool.query(`UPDATE store_popups SET ${fields.join(',')} WHERE id=$${i}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/store/popups/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM store_popups WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Delivery Zones ──
+app.get('/api/store/delivery-zones/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            'SELECT id, name, min_order, delivery_fee, sort_order FROM delivery_zones WHERE group_id=$1 ORDER BY sort_order, id',
+            [req.params.groupId]
+        );
+        res.json({ success: true, zones: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/delivery-zones', async (req, res) => {
+    try {
+        const { groupId, name, minOrder, deliveryFee, sortOrder } = req.body;
+        if (!groupId || !name) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        const r = await pool.query(
+            'INSERT INTO delivery_zones (group_id, name, min_order, delivery_fee, sort_order) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+            [groupId, name, parseFloat(minOrder)||0, parseFloat(deliveryFee)||0, parseInt(sortOrder)||0]
+        );
+        res.json({ success: true, zone: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/store/delivery-zones/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM delivery_zones WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/public/store-popups/:groupId', async (req, res) => {
+    try {
+        await pool.query(`UPDATE store_popups SET image_base64=NULL WHERE group_id=$1 AND expires_at IS NOT NULL AND expires_at < NOW() AND image_base64 IS NOT NULL`, [req.params.groupId]);
+        const r = await pool.query(
+            `SELECT id, title, content, image_base64, scheduled_at, expires_at
+             FROM store_popups
+             WHERE group_id=$1 AND is_active=TRUE AND popup_type='store'
+               AND (scheduled_at IS NULL OR scheduled_at <= NOW())
+               AND (expires_at IS NULL OR expires_at > NOW())
+             ORDER BY scheduled_at DESC NULLS LAST
+             LIMIT 5`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, popups: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/store/employee-popups/:groupId', async (req, res) => {
+    try {
+        await pool.query(`UPDATE store_popups SET image_base64=NULL WHERE group_id=$1 AND expires_at IS NOT NULL AND expires_at < NOW() AND image_base64 IS NOT NULL`, [req.params.groupId]);
+        const r = await pool.query(
+            `SELECT id, title, content, image_base64, scheduled_at, expires_at
+             FROM store_popups
+             WHERE group_id=$1 AND is_active=TRUE AND popup_type='employee'
+               AND trigger_type='none'
+               AND (scheduled_at IS NULL OR scheduled_at <= NOW())
+               AND (expires_at IS NULL OR expires_at > NOW())
+             ORDER BY scheduled_at DESC NULLS LAST
+             LIMIT 3`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, popups: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- הצעות מחיר (Quotes) ---
+app.post('/api/store/quotes', async (req, res) => {
+    try {
+        const { groupId, customerName, customerPhone, items, totalAmount, notes } = req.body;
+        const result = await pool.query(
+            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, notes, items, created_at)
+             VALUES ($1, $2, $3, $4, 'quote', $5, $6, CURRENT_TIMESTAMP) RETURNING id`,
+            [groupId, customerName, customerPhone, totalAmount, notes, JSON.stringify(items)]
+        );
+        const quoteId = result.rows[0].id;
+        const quoteNumber = `QT-${String(quoteId).padStart(6, '0')}`;
+        await pool.query('UPDATE store_orders SET quote_number=$1 WHERE id=$2', [quoteNumber, quoteId]);
+        res.json({ success: true, quoteId, quoteNumber });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- שליפת הצעות מחיר לצד משפחה ---
+app.get('/api/store/quotes/family/:familyGroupId', async (req, res) => {
+    try {
+        const familyGroupId = req.params.familyGroupId;
+        const userId = req.query.userId;
+        // שליפת טלפון המשתמש לצורך matching ישיר (כמו ב-orders/my)
+        let userPhone = null;
+        if (userId) {
+            const uRow = await pool.query('SELECT phone FROM users WHERE id=$1', [userId]);
+            if (uRow.rows.length) userPhone = uRow.rows[0].phone || null;
+        }
+        // מחפש הצעות מחיר אמיתיות בלבד:
+        // 1. status='quote' (הצעה רגילה) — כולל טיוטות שנשלחו לפי family_group_id/phone
+        // 2. status NOT IN הזמנות-רגילות + quote_status פעיל + קשורות ל-family (לא draft בלבד)
+        const r = await pool.query(`SELECT DISTINCT so.*, fg.name as business_name
+            FROM store_orders so JOIN family_groups fg ON so.group_id=fg.id
+            WHERE (
+              so.status='quote'
+              OR (so.status NOT IN ('new','processing','ready','shipped','completed','cancelled')
+                  AND so.quote_status IN ('waiting_customer','customer_approved')
+                  AND so.family_group_id IS NOT NULL)
+              OR (so.quote_status = 'approved' AND so.family_group_id IS NOT NULL
+                  AND so.created_at > NOW() - INTERVAL '90 days')
+            )
+            AND (so.family_group_id=$1
+                OR ($2::text IS NOT NULL AND $2::text <> '' AND so.customer_phone = $2::text)
+                OR so.customer_phone IN (SELECT phone FROM users WHERE group_id=$1 AND phone IS NOT NULL AND phone <> ''))
+            ORDER BY so.created_at DESC`, [familyGroupId, userPhone || null]);
+        res.json({ success: true, quotes: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/store/quotes/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT so.*, mbl.status AS link_status
+             FROM store_orders so
+             LEFT JOIN member_business_links mbl
+                 ON mbl.member_group_id = so.family_group_id
+                 AND mbl.business_group_id = so.group_id
+             WHERE so.group_id = $1 AND (so.status = 'quote' OR so.quote_status IS NOT NULL)
+             ORDER BY so.created_at DESC`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, quotes: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.put('/api/store/quotes/:id', async (req, res) => {
+    try {
+        const { customerName, customerPhone, items, totalAmount, notes } = req.body;
+        const orderId = req.params.id;
+        const catRes = await pool.query('SELECT id FROM store_catalog WHERE group_id=(SELECT group_id FROM store_orders WHERE id=$1)', [orderId]);
+        const catMap = {};
+        catRes.rows.forEach(p => { catMap[p.id] = p; });
+
+        // Update JSONB items
+        await pool.query(
+            `UPDATE store_orders SET customer_name=$1, customer_phone=$2, total_amount=$3, notes=$4, items=$5 WHERE id=$6`,
+            [customerName, customerPhone, totalAmount, notes, JSON.stringify(items), orderId]
+        );
+
+        // Delete old store_order_items and insert new ones
+        await pool.query('DELETE FROM store_order_items WHERE order_id=$1', [orderId]);
+        for (let item of (items || [])) {
+            if (item.is_quote_metadata || !item.catalogId || item.catalogId === 0 || item.catalogId === 999999) continue;
+            await pool.query('INSERT INTO store_order_items (order_id, catalog_id, item_name, quantity, price_at_order) VALUES ($1, $2, $3, $4, $5)',
+                [orderId, item.catalogId, item.name, item.quantity, item.price]);
+        }
+
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// סיכום עמלות וגביות לעסק (תצוגה עצמית)
+app.get('/api/store/commission-summary/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const duesRes = await pool.query(`
+            SELECT
+                COALESCE(SUM(d.commission_amount), 0) as total_commission,
+                COALESCE(SUM(d.order_amount), 0) as total_sales,
+                COALESCE(SUM(CASE WHEN DATE_TRUNC('month', d.created_at) = DATE_TRUNC('month', NOW()) THEN d.commission_amount ELSE 0 END), 0) as month_commission,
+                COALESCE(SUM(CASE WHEN DATE_TRUNC('month', d.created_at) = DATE_TRUNC('month', NOW()) THEN d.order_amount ELSE 0 END), 0) as month_sales
+            FROM business_platform_dues d WHERE d.business_id = $1`, [groupId]);
+        const collRes = await pool.query(`
+            SELECT
+                COALESCE(SUM(amount), 0) as total_collected,
+                COALESCE(SUM(CASE WHEN DATE_TRUNC('month', collected_at) = DATE_TRUNC('month', NOW()) THEN amount ELSE 0 END), 0) as month_collected
+            FROM business_platform_collections WHERE business_id = $1`, [groupId]);
+        res.json({ success: true, summary: { ...duesRes.rows[0], ...collRes.rows[0] } });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Restaurant table states sync ───────────────────────────────────────────
+app.get('/api/tables/:groupId/states', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT states, updated_at FROM restaurant_table_states WHERE group_id=$1', [req.params.groupId]);
+        res.json({ states: r.rows[0]?.states || {}, updatedAt: r.rows[0]?.updated_at || null });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.put('/api/tables/:groupId/states', async (req, res) => {
+    try {
+        const { states } = req.body;
+        await pool.query(
+            `INSERT INTO restaurant_table_states (group_id, states, updated_at) VALUES ($1,$2,NOW())
+             ON CONFLICT (group_id) DO UPDATE SET states=$2, updated_at=NOW()`,
+            [req.params.groupId, JSON.stringify(states || {})]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Restaurant table assignments sync ───────────────────────────────────────
+app.get('/api/tables/:groupId/assignments', async (req, res) => {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const r = await pool.query('SELECT assignments, shift_date, updated_at FROM restaurant_table_assignments WHERE group_id=$1', [req.params.groupId]);
+        const row = r.rows[0];
+        // Reset assignments if it's a new day
+        if (row && row.shift_date && row.shift_date.toISOString().split('T')[0] !== today) {
+            res.json({ assignments: {}, updatedAt: null });
+        } else {
+            res.json({ assignments: row?.assignments || {}, updatedAt: row?.updated_at || null });
+        }
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.put('/api/tables/:groupId/assignments', async (req, res) => {
+    try {
+        const { assignments } = req.body;
+        const today = new Date().toISOString().split('T')[0];
+        await pool.query(
+            `INSERT INTO restaurant_table_assignments (group_id, assignments, shift_date, updated_at) VALUES ($1,$2,$3,NOW())
+             ON CONFLICT (group_id) DO UPDATE SET assignments=$2, shift_date=$3, updated_at=NOW()`,
+            [req.params.groupId, JSON.stringify(assignments || {}), today]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Restaurant table bills sync ─────────────────────────────────────────────
+app.get('/api/tables/:groupId/bills', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT bills, updated_at FROM restaurant_table_bills WHERE group_id=$1', [req.params.groupId]);
+        res.json({ bills: r.rows[0]?.bills || {}, updatedAt: r.rows[0]?.updated_at || null });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.put('/api/tables/:groupId/bills', async (req, res) => {
+    try {
+        const { bills } = req.body;
+        await pool.query(
+            `INSERT INTO restaurant_table_bills (group_id, bills, updated_at) VALUES ($1,$2,NOW())
+             ON CONFLICT (group_id) DO UPDATE SET bills=$2, updated_at=NOW()`,
+            [req.params.groupId, JSON.stringify(bills || {})]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/store/orders/:groupId', async (req, res) => {
+    try {
+        const orders = await pool.query("SELECT * FROM store_orders WHERE group_id=$1 AND status != 'quote' ORDER BY created_at DESC", [req.params.groupId]);
+        // Enrich items: prefer JSONB items (have name/catalogId), fall back to store_order_items rows
+        const catRes = await pool.query('SELECT id, name, kitchen_station FROM store_catalog WHERE group_id=$1', [req.params.groupId]);
+        const catMap = {};
+        catRes.rows.forEach(p => { catMap[p.id] = p; });
+
+        for (let o of orders.rows) {
+            let jsonbItems = [];
+            try { jsonbItems = Array.isArray(o.items) ? o.items : JSON.parse(o.items || '[]'); } catch(e) {}
+            const hasNames = jsonbItems.filter(i => !i.is_quote_metadata).some(i => i.name);
+
+            if (!hasNames) {
+                // Try store_order_items (use normalized field names)
+                const rows = await pool.query('SELECT * FROM store_order_items WHERE order_id=$1', [o.id]);
+                if (rows.rows.length > 0) {
+                    const sqlItems = rows.rows.map(r => ({
+                        catalogId: r.catalog_id,
+                        name: r.item_name || catMap[r.catalog_id]?.name || '',
+                        quantity: parseFloat(r.quantity) || 1,
+                        qty: parseFloat(r.quantity) || 1,
+                        price: parseFloat(r.price_at_order) || 0,
+                        kitchenStation: catMap[r.catalog_id]?.kitchen_station || 'other',
+                        note: ''
+                    }));
+                    // Keep metadata items from JSONB
+                    const meta = jsonbItems.filter(i => i.is_quote_metadata);
+                    o.items = [...sqlItems, ...meta];
+                } else {
+                    // No store_order_items — enrich JSONB items from catalog
+                    o.items = jsonbItems.map(i => {
+                        if (i.is_quote_metadata) return i;
+                        const cat = i.catalogId ? catMap[i.catalogId] : null;
+                        return { ...i, name: i.name || cat?.name || '', kitchenStation: i.kitchenStation || cat?.kitchen_station || 'other' };
+                    });
+                }
+            } else {
+                // JSONB has names — still enrich station if missing
+                o.items = jsonbItems.map(i => {
+                    if (i.is_quote_metadata) return i;
+                    const cat = i.catalogId ? catMap[i.catalogId] : null;
+                    return { ...i, kitchenStation: i.kitchenStation || cat?.kitchen_station || 'other' };
+                });
+            }
+        }
+        res.json(orders.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הוספת הזמנה לחנות
+app.post('/api/store/orders', async (req, res) => {
+    let dbClient;
+    try {
+        const { groupId, customerName, customerPhone, items, totalAmount, isDelivery, deliveryFee, deliveryDetails, notes, status } = req.body;
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+        
+        try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS is_delivery BOOLEAN DEFAULT FALSE`); } catch(e){}
+        try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e){}
+        try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_details TEXT`); } catch(e){}
+        try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e){}
+        
+        const deliveryDetailsStr = deliveryDetails ? JSON.stringify(deliveryDetails) : null;
+        const actualDeliveryFee = parseFloat(deliveryFee) || 0;
+        const isDeliv = isDelivery === true || isDelivery === 'true';
+        
+        const familyGroupId = req.body.familyGroupId ? parseInt(req.body.familyGroupId) : null;
+        const finalStatus = status || 'pending_approval';
+        
+        const oRes = await dbClient.query(
+            'INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_fee, delivery_details, family_group_id, quote_status, notes, order_source) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, $8, $9, NULL, $10, $11) RETURNING id',
+            [groupId, customerName, customerPhone, parseFloat(totalAmount)||0, finalStatus, isDeliv, actualDeliveryFee, deliveryDetailsStr, familyGroupId, notes || null, req.body.orderSource || 'website']
+        );
+        const orderId = oRes.rows[0].id;
+        
+        let itemsHtmlList = '';
+        await dbClient.query('UPDATE store_orders SET items = $1 WHERE id = $2', [JSON.stringify(items), orderId]);
+        
+        for (let item of items) {
+            // דילוג על מטא-דאטה או תשלום חוב כדי לא לקרוס על Foreign Key
+            if (item.is_quote_metadata || !item.catalogId || item.catalogId === 0 || item.catalogId === 999999) continue; 
+            
+            await dbClient.query('INSERT INTO store_order_items (order_id, catalog_id, item_name, quantity, price_at_order) VALUES ($1, $2, $3, $4, $5)', [orderId, item.catalogId, item.name, item.quantity, item.price]);
+            itemsHtmlList += `<li>${item.name} - כמות: ${item.quantity} - ₪${item.price}</li>`;
+        }
+        
+        if (isDeliv && actualDeliveryFee > 0) {
+            itemsHtmlList += `<li><strong>דמי משלוח</strong> - ₪${actualDeliveryFee}</li>`;
+        }
+        
+        await dbClient.query('COMMIT');
+
+        setTimeout(async () => {
+            try {
+                if (!customerName || customerName === 'לקוח קופה' || customerName === 'לקוח מזדמן') return;
+                let custExist;
+                if (customerPhone) {
+                     custExist = await pool.query('SELECT id FROM store_customers WHERE group_id = $1 AND (phone = $2 OR name = $3)', [groupId, customerPhone, customerName]);
+                } else {
+                     custExist = await pool.query('SELECT id FROM store_customers WHERE group_id = $1 AND name = $2', [groupId, customerName]);
+                }
+
+                if (custExist.rows.length === 0) {
+                    await pool.query(
+                        `INSERT INTO store_customers (group_id, name, phone, email, business_id, notes, created_at) 
+                         VALUES ($1, $2, $3, '', '', $4, CURRENT_TIMESTAMP)`,
+                        [groupId, customerName, customerPhone || '', `נוצר אוטומטית מהזמנה בחנות #${orderId}`]
+                    );
+                } else {
+                    if (customerPhone) {
+                        const custId = custExist.rows[0].id;
+                        await pool.query('UPDATE store_customers SET phone = $1 WHERE id = $2 AND (phone IS NULL OR phone = \'\')', [customerPhone, custId]);
+                    }
+                }
+            } catch(e) {}
+        }, 100);
+        
+        const gRes = await pool.query('SELECT admin_email, name, send_order_email FROM family_groups WHERE id=$1', [groupId]);
+        if(gRes.rows.length > 0 && gRes.rows[0].admin_email && gRes.rows[0].send_order_email !== false) {
+            const deliveryHtml = isDeliv ? `<p style="margin-top: 10px; padding: 10px; background: #e0e7ff; border-radius: 8px;"><strong>כתובת למשלוח:</strong> ${deliveryDetails?.street || ''} ${deliveryDetails?.house || ''}, ${deliveryDetails?.city || ''}</p>` : '';
+            const emailHtml = `<div style="direction:rtl; font-family:Arial; background:#f8fafc; padding:20px; border-radius:10px;">
+                <h2 style="color:#0f172a;">הזמנה חדשה בחנות שלך! 🛍️</h2>
+                <p>התקבלה הזמנה חדשה מאת: <strong>${customerName}</strong> (טלפון: ${customerPhone})</p>
+                <p style="font-size:18px;">סה"כ לתשלום: <strong style="color:#16a34a;">₪${totalAmount}</strong></p>
+                ${deliveryHtml}
+                <div style="background:white; padding:15px; border-radius:8px; margin-top:15px;">
+                    <h3 style="margin-top:0; border-b:1px solid #eee; padding-bottom:5px;">פירוט הפריטים:</h3>
+                    <ul>${itemsHtmlList}</ul>
+                </div>
+            </div>`;
+            sendSystemEmail(gRes.rows[0].admin_email, `הזמנה חדשה מ-${customerName} - ₪${totalAmount}`, emailHtml);
+        }
+        
+        res.json({ success: true, orderId });
+    } catch(e) { 
+        if(dbClient) await dbClient.query('ROLLBACK');
+        console.error("Order API Error:", e);
+        res.status(500).json({ error: e.message }); 
+    } finally { if(dbClient) dbClient.release(); }
+});
+
+app.post('/api/store/orders/status', async (req, res) => {
+    try {
+        const { orderId, status, setDelivery } = req.body;
+        console.log('[store/orders/status] Received:', { orderId, status, setDelivery });
+        if (setDelivery) {
+            await pool.query('UPDATE store_orders SET status=$1, status_changed_at=CURRENT_TIMESTAMP, is_delivery=true WHERE id=$2', [status, orderId]);
+        } else {
+            await pool.query('UPDATE store_orders SET status=$1, status_changed_at=CURRENT_TIMESTAMP WHERE id=$2', [status, orderId]);
+        }
+        // Verify the update
+        const verify = await pool.query('SELECT id, status FROM store_orders WHERE id=$1', [orderId]);
+        console.log('[store/orders/status] After update, order status is:', verify.rows[0]?.status);
+        res.json({ success: true });
+        if (status === 'delivered' || status === 'completed') triggerCashbackForOrder(orderId);
+        try {
+            const orderR = await pool.query('SELECT family_group_id, group_id FROM store_orders WHERE id=$1', [orderId]);
+            if (orderR.rows.length && orderR.rows[0].family_group_id) {
+                const ord = orderR.rows[0];
+                const linkR = await pool.query(
+                    `SELECT mbl.member_group_id, fg.name AS biz_name FROM member_business_links mbl
+                     JOIN family_groups fg ON fg.id = mbl.business_group_id
+                     WHERE mbl.member_group_id=$1 AND mbl.business_group_id=$2 AND mbl.status='active' AND mbl.is_active=true LIMIT 1`,
+                    [ord.family_group_id, ord.group_id]
+                );
+                if (linkR.rows.length) {
+                    const lbl = { new:'חדשה', processing:'בטיפול', ready:'מוכנה לאיסוף', delivering:'בדרך', delivered:'נמסרה', completed:'הושלמה', cancelled:'בוטלה' }[status] || status;
+                    await _sendMemberBizNotif(linkR.rows[0].member_group_id, linkR.rows[0].biz_name,
+                        `ההזמנה שלך ב${linkR.rows[0].biz_name} עודכנה: ${lbl}`, `mbiz_order_${orderId}_${status}`);
+                }
+            }
+        } catch(e) {}
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/orders/:id/customer-feedback', async (req, res) => {
+    try {
+        const { rating, notes, familyGroupId, received } = req.body;
+        const orderId = parseInt(req.params.id);
+        const chk = await pool.query(
+            `SELECT id, group_id, status FROM store_orders WHERE id=$1 AND (family_group_id=$2 OR customer_phone=(SELECT phone FROM users WHERE group_id=$2 AND phone IS NOT NULL LIMIT 1))`,
+            [orderId, familyGroupId]
+        );
+        if (!chk.rows.length) return res.status(403).json({ error: 'הזמנה לא נמצאה' });
+        const ord = chk.rows[0];
+        const newStatus = ord.status === 'shipped' ? 'completed' : ord.status;
+
+        // If customer didn't receive order
+        if (received === false) {
+            await pool.query(
+                `UPDATE store_orders SET customer_received_at=NULL, delivery_issue_reported_at=NOW() WHERE id=$1`,
+                [orderId]
+            );
+            return res.json({ success: true });
+        }
+
+        // Customer received and rated
+        await pool.query(
+            `UPDATE store_orders SET customer_rating=$1, customer_rating_notes=$2, customer_rated_at=NOW(), customer_received_at=COALESCE(customer_received_at, NOW()), status=$3 WHERE id=$4`,
+            [rating || null, notes || null, newStatus, orderId]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/store/orders/:id/target-date', async (req, res) => {
+    try {
+        const { targetDatetime } = req.body;
+        await pool.query('UPDATE store_orders SET target_datetime=$1 WHERE id=$2', [targetDatetime || null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/store/quotes/:id/status', async (req, res) => {
+    try {
+        const { quoteStatus } = req.body;
+        await pool.query(`UPDATE store_orders SET quote_status=$1 WHERE id=$2 AND status='quote'`, [quoteStatus, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+// --- שליפת הזמנות ללקוח קצה (משפחה) ---
+app.get('/api/store/orders/my/:userId', async (req, res) => {
+    try {
+        const uRes = await pool.query('SELECT group_id, phone FROM users WHERE id=$1', [req.params.userId]);
+        if (uRes.rows.length === 0) return res.status(404).json({ error: 'משתמש לא נמצא' });
+        const { group_id: familyGroupId, phone: userPhone } = uRes.rows[0];
+
+        // שולפים הזמנות — לא כולל הצעות מחיר (status='quote' או quote_status פעיל)
+        const orders = await pool.query(`
+            SELECT so.*, fg.name as store_name
+            FROM store_orders so
+            JOIN family_groups fg ON so.group_id = fg.id
+            WHERE so.status != 'quote'
+              AND (so.quote_status IS NULL OR so.quote_status = 'approved')
+              AND (so.family_group_id = $1
+               OR ($2::text IS NOT NULL AND $2::text <> '' AND so.customer_phone = $2::text))
+            ORDER BY so.created_at DESC
+        `, [familyGroupId, userPhone || null]);
+
+        res.json({ success: true, orders: orders.rows });
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+// --- אישור הצעת מחיר והפיכתה להזמנה במקום ---
+app.post('/api/store/quotes/:id/prepare-send', async (req, res) => {
+    try {
+        const token = require('crypto').randomBytes(24).toString('hex');
+        const r = await pool.query('UPDATE store_orders SET confirm_token=$1 WHERE id=$2 RETURNING id', [token, req.params.id]);
+        if (!r.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
+        res.json({ confirmUrl: `${baseUrl}/c/q/${req.params.id}/${token}` });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/quotes/:id/approve', async (req, res) => {
+    try {
+        const { targetDatetime } = req.body;
+        const quoteId = req.params.id;
+        
+        // הופך את הצעת המחיר להזמנה במקום לייצר שורה כפולה!
+        const updateRes = await pool.query(
+            `UPDATE store_orders 
+             SET status = 'new', quote_status = 'approved', target_datetime = $1, created_at = CURRENT_TIMESTAMP 
+             WHERE id = $2 AND status = 'quote' RETURNING *`,
+            [targetDatetime || null, quoteId]
+        );
+
+        if (updateRes.rows.length === 0) return res.status(404).json({ error: 'ההצעה לא נמצאה או שכבר אושרה' });
+        const quote = updateRes.rows[0];
+
+        // יצירת לקוח ברקע
+        setTimeout(async () => {
+            try {
+                if (!quote.customer_name) return;
+                const custExist = await pool.query('SELECT id FROM store_customers WHERE group_id = $1 AND name = $2', [quote.group_id, quote.customer_name]);
+                if (custExist.rows.length === 0) {
+                    let businessId = '';
+                    try {
+                        const itemsArr = typeof quote.items === 'string' ? JSON.parse(quote.items) : quote.items;
+                        const meta = itemsArr.find(i => i.is_quote_metadata);
+                        if (meta) { businessId = JSON.parse(meta.data).companyId || ''; }
+                    } catch(e) {}
+                    await pool.query(
+                        `INSERT INTO store_customers (group_id, name, phone, email, business_id, notes, created_at) 
+                         VALUES ($1, $2, $3, '', $4, $5, CURRENT_TIMESTAMP)`,
+                        [quote.group_id, quote.customer_name, quote.customer_phone || '', businessId, `לקוח הוקם מאישור הצעה #${quoteId}`]
+                    );
+                }
+            } catch(e) { console.error('Customer Creation Error:', e.message); }
+        }, 100);
+
+        // התראה ללקוח OneFlow אם הצעה קשורה למשפחה
+        if (quote.family_group_id) {
+            try {
+                const bizName = quote.group_id ? (await pool.query('SELECT name FROM family_groups WHERE id=$1', [quote.group_id])).rows[0]?.name || 'עסק' : 'עסק';
+                await pool.query(`INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
+                    VALUES ($1,'quote_approved','הצעת מחיר אושרה',$2,$3,'quote',NOW())`,
+                    [quote.family_group_id, `${bizName} אישר את הצעת המחיר שלך — היא עברה לתור ההזמנות`, quoteId]);
+            } catch(e) {}
+        }
+        res.json({ success: true, orderId: quote.id });
+    } catch(e) { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
+});
+
+// --- חיפוש משפחה/עסק ב-OneFlow Life לפי טלפון/אימייל ---
+app.get('/api/store/lookup-oneflow', async (req, res) => {
+    try {
+        const { phone, email, groupId } = req.query;
+        if (!phone && !email) return res.json({ found: false });
+        let familyGroupId = null, familyName = null, familyType = null, customerName = null, customerPhone = null, customerEmail = null;
+        if (phone) {
+            const digits = phone.replace(/\D/g, '');
+            const alt = digits.startsWith('972') ? '0' + digits.substring(3) : digits.startsWith('0') ? '972' + digits.substring(1) : digits;
+            const ur = await pool.query(
+                `SELECT u.group_id, fg.name, fg.type, u.phone as user_phone, fg.admin_email,
+                        COALESCE(NULLIF(TRIM(u.nickname),''), NULLIF(TRIM(u.first_name),''), fg.name) as customer_name
+                 FROM users u JOIN family_groups fg ON fg.id=u.group_id
+                 WHERE (u.phone=$1 OR u.phone=$2 OR u.phone=$3) AND fg.type IN ('FAMILY','BUSINESS') AND fg.id != $4 LIMIT 1`,
+                [digits, alt, phone, groupId || 0]);
+            if (ur.rows.length) {
+                familyGroupId = ur.rows[0].group_id;
+                familyName = ur.rows[0].name;
+                familyType = ur.rows[0].type;
+                customerName = ur.rows[0].customer_name;
+                customerPhone = ur.rows[0].user_phone || phone;
+                customerEmail = ur.rows[0].admin_email || null;
+            }
+        }
+        if (!familyGroupId && email) {
+            const er = await pool.query(
+                `SELECT fg.id, fg.name, fg.type, fg.admin_email,
+                        COALESCE(NULLIF(TRIM(u.nickname),''), NULLIF(TRIM(u.first_name),''), fg.name) as customer_name
+                 FROM family_groups fg
+                 LEFT JOIN users u ON u.group_id=fg.id AND u.role='ADMIN'
+                 WHERE LOWER(fg.admin_email)=LOWER($1) AND fg.type IN ('FAMILY','BUSINESS') AND fg.id != $2 LIMIT 1`,
+                [email, groupId || 0]);
+            if (er.rows.length) {
+                familyGroupId = er.rows[0].id;
+                familyName = er.rows[0].name;
+                familyType = er.rows[0].type;
+                customerName = er.rows[0].customer_name;
+                customerPhone = phone || null;
+                customerEmail = er.rows[0].admin_email || null;
+            }
+        }
+        res.json(familyGroupId ? { found: true, familyGroupId, familyName, familyType, customerName, customerPhone, customerEmail } : { found: false });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- שליחת הצעת מחיר ב-OneFlow ללקוח משפחה ---
+app.post('/api/store/quotes/:id/send-to-oneflow', async (req, res) => {
+    try {
+        const { familyGroupId } = req.body;
+        const quoteId = req.params.id;
+        const q = await pool.query('SELECT * FROM store_orders WHERE id=$1', [quoteId]);
+        if (!q.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        const quote = q.rows[0];
+        // קשר ל-family_group_id, עדכון סטטוס, אפס תגובת לקוח קיימת (שליחה מחדש), הוסף אירוע היסטוריה
+        const isResend = !!(quote.customer_response_type);
+        const histEvent = JSON.stringify({ type: isResend ? 'resent_updated' : 'sent_to_customer', actor: 'business', ts: new Date().toISOString() });
+        await pool.query(`UPDATE store_orders SET family_group_id=$1, quote_status='waiting_customer',
+            customer_response_type=NULL, customer_response=NULL, customer_response_at=NULL,
+            quote_history = COALESCE(quote_history, '[]'::jsonb) || $3::jsonb
+            WHERE id=$2`, [familyGroupId, quoteId, `[${histEvent}]`]);
+        // שלח התראה ללקוח (כותרת שונה לשליחה מחדש)
+        try {
+            const bizName = quote.group_id ? (await pool.query('SELECT name FROM family_groups WHERE id=$1',[quote.group_id])).rows[0]?.name || 'עסק' : 'עסק';
+            const notifTitle = isResend ? 'הצעת מחיר עודכנה' : 'הצעת מחיר חדשה';
+            const notifMsg = isResend
+                ? `${bizName} עדכן את הצעת המחיר עבורך — נא לבדוק ולאשר`
+                : `קיבלת הצעת מחיר מ-${bizName}: ${quote.customer_name || ''}`;
+            await pool.query(`INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
+                VALUES ($1, 'quote_received', $4, $2, $3, 'quote', NOW())`,
+                [familyGroupId, notifMsg, quoteId, notifTitle]);
+        } catch(e) { console.error('notification err:', e.message); }
+        // צור/עדכן בקשת שיוך ממתינה (pending) כדי שהעסק יופיע בפעילויות המשפחה
+        try {
+            await pool.query(
+                `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_by_admin_name, linked_at, is_active, status)
+                 VALUES ($1, $2, (SELECT business_type FROM family_groups WHERE id=$2 LIMIT 1), $3, NOW(), true, 'pending')
+                 ON CONFLICT (member_group_id, business_group_id) DO UPDATE
+                 SET is_active=true, linked_at=NOW(),
+                 status=CASE WHEN member_business_links.status='active' THEN 'active' ELSE 'pending' END`,
+                [familyGroupId, quote.group_id, quote.customer_name || null]
+            );
+        } catch(le) {}
+        res.json({ success: true, linkCreated: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- קישור הצעת מחיר ל-OneFlow ללא שליחה (שלב 1 — בקשת שיוך בלבד) ---
+app.post('/api/store/quotes/:id/link-only', async (req, res) => {
+    try {
+        const { familyGroupId } = req.body;
+        const quoteId = req.params.id;
+        if (!familyGroupId) return res.status(400).json({ error: 'familyGroupId נדרש' });
+        const q = await pool.query('SELECT * FROM store_orders WHERE id=$1', [quoteId]);
+        if (!q.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        const quote = q.rows[0];
+        // עדכן family_group_id על ההצעה (ללא שינוי quote_status)
+        await pool.query(`UPDATE store_orders SET family_group_id=$1 WHERE id=$2 AND (family_group_id IS NULL OR family_group_id=$1)`,
+            [familyGroupId, quoteId]);
+        // בדוק אם כבר קיים קשר פעיל
+        const existingLink = await pool.query(
+            `SELECT id, status FROM member_business_links WHERE member_group_id=$1 AND business_group_id=$2 LIMIT 1`,
+            [familyGroupId, quote.group_id]
+        );
+        let linkStatus = 'pending';
+        if (existingLink.rows.length && existingLink.rows[0].status === 'active') {
+            linkStatus = 'active';
+        } else {
+            // צור/עדכן בקשת שיוך ממתינה
+            const bizNameRow = await pool.query('SELECT name FROM family_groups WHERE id=$1', [quote.group_id]);
+            const bizName = bizNameRow.rows[0]?.name || 'עסק';
+            await pool.query(
+                `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_by_admin_name, linked_at, is_active, status)
+                 VALUES ($1, $2, (SELECT business_type FROM family_groups WHERE id=$2 LIMIT 1), $3, NOW(), true, 'pending')
+                 ON CONFLICT (member_group_id, business_group_id) DO UPDATE
+                 SET is_active=true, linked_at=NOW(),
+                 status=CASE WHEN member_business_links.status='active' THEN 'active' ELSE 'pending' END`,
+                [familyGroupId, quote.group_id, quote.customer_name || null]
+            );
+            // שלח התראה ללקוח
+            try {
+                const bizNameRow2 = await pool.query('SELECT name FROM family_groups WHERE id=$1', [quote.group_id]);
+                const bName = bizNameRow2.rows[0]?.name || 'עסק';
+                await pool.query(`INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
+                    VALUES ($1, 'link_request', 'בקשת שיוך חדשה', $2, $3, 'quote', NOW())`,
+                    [familyGroupId, `${bName} מבקש להתחבר אליך ומוכן לשלוח הצעת מחיר — נא לאשר`, quoteId]);
+            } catch(ne) { console.error('link-only notification err:', ne.message); }
+        }
+        res.json({ success: true, linkStatus });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- תגובת לקוח להצעת מחיר ---
+app.patch('/api/store/quotes/:id/customer-response', async (req, res) => {
+    try {
+        const { responseType, responseText, familyGroupId } = req.body;
+        const quoteId = req.params.id;
+        // וידוא שהקריאה מגיעה מה-family_group_id הנכון
+        const q = await pool.query('SELECT * FROM store_orders WHERE id=$1', [quoteId]);
+        if (!q.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        const quote = q.rows[0];
+        if (familyGroupId && String(quote.family_group_id) !== String(familyGroupId))
+            return res.status(403).json({ error: 'אין הרשאה' });
+
+        const newStatus = responseType === 'approved' ? 'customer_approved'
+            : responseType === 'rejected' ? 'cancelled'
+            : 'waiting_customer';
+        const custHistEvent = JSON.stringify({ type: 'customer_response', actor: 'customer', ts: new Date().toISOString(), responseType, text: responseText || null });
+        await pool.query(`UPDATE store_orders SET customer_response=$1, customer_response_type=$2, customer_response_at=NOW(), quote_status=$3,
+            quote_history = COALESCE(quote_history, '[]'::jsonb) || $5::jsonb
+            WHERE id=$4`,
+            [responseText || null, responseType, newStatus, quoteId, `[${custHistEvent}]`]);
+        // התראה לעסק
+        try {
+            const typeLabel = {approved:'✅ אישר את ההצעה', rejected:'❌ סירב להצעה', discount_request:'💬 ביקש הנחה', items_request:'📋 ביקש שינויים', message:'💬 שלח הודעה'}[responseType] || responseType;
+            await pool.query(`INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
+                VALUES ($1, 'quote_response', 'תגובת לקוח להצעה', $2, $3, 'quote', NOW())`,
+                [quote.group_id, `${quote.customer_name || 'לקוח'} ${typeLabel}${responseText ? ': ' + responseText : ''}`, quoteId]);
+        } catch(e) {}
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- המרת הצעת מחיר לפקודת עבודה ---
+app.post('/api/store/quotes/:id/to-work-order', async (req, res) => {
+    try {
+        const quoteId = req.params.id;
+        const q = await pool.query('SELECT * FROM store_orders WHERE id=$1', [quoteId]);
+        if (!q.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        const quote = q.rows[0];
+        // חלץ כותרת מ-metaData אם יש
+        let title = quote.quote_title || '';
+        let notes = '';
+        try {
+            const items = typeof quote.items === 'string' ? JSON.parse(quote.items || '[]') : (quote.items || []);
+            const meta = items.find(i => i.is_quote_metadata);
+            if (meta) {
+                const m = JSON.parse(meta.data);
+                if (!title && m.title) title = m.title;
+                if (m.notes) notes = m.notes;
+            }
+        } catch(e) {}
+        if (!title) title = `פקודת עבודה — ${quote.customer_name || quote.quote_number || `#${quoteId}`}`;
+        // עדכן הצעת מחיר: approved + call_type=work_order + היסטוריה
+        const woHistEvent = JSON.stringify({ type: 'converted_to_work_order', actor: 'business', ts: new Date().toISOString() });
+        await pool.query(`UPDATE store_orders SET quote_status='approved', status='processing', call_type='work_order', quote_title=$3,
+            quote_history = COALESCE(quote_history, '[]'::jsonb) || $2::jsonb
+            WHERE id=$1`, [quoteId, `[${woHistEvent}]`, title]);
+        // הוסף רשומת ציר זמן לפקודת העבודה
+        try {
+            await pool.query(`INSERT INTO work_order_timeline (work_order_id, event_type, description, actor, created_at)
+                VALUES ($1,'created','פקודת עבודה נוצרה מהצעת מחיר','מנהל',NOW())`, [quoteId]);
+        } catch(e) {}
+        const workOrderId = quoteId;
+        // שלח התראה ללקוח אם יש family_group_id
+        if (quote.family_group_id) {
+            try {
+                await pool.query(`INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
+                    VALUES ($1, 'work_order_created', 'הצעת מחיר אושרה', $2, $3, 'service_call', NOW())`,
+                    [quote.family_group_id, `ההצעה אושרה ונפתחה פקודת עבודה: ${title}`, workOrderId]);
+            } catch(e) {}
+        }
+        res.json({ success: true, workOrderId });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- הודעת עסק ללקוח בהצעת מחיר ---
+app.post('/api/store/quotes/:id/business-message', async (req, res) => {
+    try {
+        const { text } = req.body;
+        if (!text || !text.trim()) return res.status(400).json({ error: 'הודעה ריקה' });
+        const histEvent = JSON.stringify({ type: 'business_message', actor: 'business', ts: new Date().toISOString(), text: text.trim() });
+        const r = await pool.query(
+            `UPDATE store_orders SET quote_history = COALESCE(quote_history, '[]'::jsonb) || $2::jsonb WHERE id=$1 RETURNING id`,
+            [req.params.id, `[${histEvent}]`]
+        );
+        if (!r.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        // התראה ללקוח
+        const q = await pool.query('SELECT family_group_id, customer_name, group_id FROM store_orders WHERE id=$1', [req.params.id]);
+        if (q.rows.length && q.rows[0].family_group_id) {
+            try {
+                const bizName = (await pool.query('SELECT name FROM family_groups WHERE id=$1', [q.rows[0].group_id])).rows[0]?.name || 'עסק';
+                await pool.query(`INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
+                    VALUES ($1,'quote_business_message','הודעה מהעסק',$2,$3,'quote',NOW())`,
+                    [q.rows[0].family_group_id, `${bizName} שלח הודעה על הצעת מחיר: ${text.trim().substring(0,80)}`, req.params.id]);
+            } catch(e) {}
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- שליפת פקודות עבודה לעסק ---
+app.get('/api/work-orders/:businessGroupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT sc.*, fg.name as family_name
+            FROM service_calls sc LEFT JOIN family_groups fg ON sc.family_group_id=fg.id
+            WHERE sc.business_group_id=$1 AND sc.call_type='work_order'
+            ORDER BY sc.created_at DESC`, [req.params.businessGroupId]);
+        res.json({ success: true, workOrders: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// --- מועדון לקוחות (שליפה, הוספה, ועריכה) ---
+app.get('/api/store/customers/:groupId', async (req, res) => {
+    try {
+        const { type } = req.query;
+        let result;
+        if(type === 'order') {
+            // לקוחות חנות: הזמנות שלא הגיעו מהצעת מחיר (quote_status='draft')
+            result = await pool.query(`SELECT DISTINCT sc.* FROM store_customers sc JOIN store_orders so ON so.group_id=sc.group_id AND (so.customer_phone=sc.phone OR so.customer_name=sc.name) WHERE sc.group_id=$1 AND so.status='new' AND (so.quote_status IS NULL OR so.quote_status='draft') ORDER BY sc.name ASC`, [req.params.groupId]);
+        } else if(type === 'quote') {
+            // לקוחות הצעת מחיר: יש להם הצעה ממתינה או מאושרת
+            result = await pool.query(`SELECT DISTINCT sc.* FROM store_customers sc JOIN store_orders so ON so.group_id=sc.group_id AND (so.customer_phone=sc.phone OR so.customer_name=sc.name) WHERE sc.group_id=$1 AND (so.status='quote' OR so.quote_status='approved') ORDER BY sc.name ASC`, [req.params.groupId]);
+        } else {
+            result = await pool.query('SELECT * FROM store_customers WHERE group_id=$1 ORDER BY name ASC', [req.params.groupId]);
+        }
+        res.json({ success: true, customers: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/customers', async (req, res) => {
+    try {
+        const { groupId, name, companyName, phone, email, businessId, notes, familyGroupId, adminName } = req.body;
+        const result = await pool.query(
+            `INSERT INTO store_customers (group_id, name, company_name, phone, email, business_id, notes, family_group_id, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP) RETURNING id`,
+            [groupId, name, companyName||null, phone || '', email || '', businessId || '', notes || '', familyGroupId||null]
+        );
+        if (familyGroupId && groupId) {
+            await pool.query(
+                `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_by_admin_name, linked_at, is_active, status)
+                 VALUES ($1, $2, (SELECT business_type FROM family_groups WHERE id=$2 LIMIT 1), $3, NOW(), true, 'pending')
+                 ON CONFLICT (member_group_id, business_group_id) DO UPDATE
+                   SET is_active=true, linked_at=NOW(), linked_by_admin_name=$3,
+                       status=CASE WHEN member_business_links.status='active' THEN 'active' ELSE 'pending' END`,
+                [familyGroupId, groupId, adminName || null]
+            ).catch(() => {});
+        }
+        res.json({ success: true, customerId: result.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/store/customers/:id', async (req, res) => {
+    try {
+        const { name, companyName, phone, email, businessId, notes, familyGroupId, groupId, adminName } = req.body;
+        await pool.query(
+            `UPDATE store_customers SET name=$1, company_name=$2, phone=$3, email=$4, business_id=$5, notes=$6, family_group_id=$7 WHERE id=$8`,
+            [name, companyName||null, phone || '', email || '', businessId || '', notes || '', familyGroupId||null, req.params.id]
+        );
+        if (familyGroupId && groupId) {
+            await pool.query(
+                `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_by_admin_name, linked_at, is_active, status)
+                 VALUES ($1, $2, (SELECT business_type FROM family_groups WHERE id=$2 LIMIT 1), $3, NOW(), true, 'pending')
+                 ON CONFLICT (member_group_id, business_group_id) DO UPDATE
+                   SET is_active=true, linked_at=NOW(), linked_by_admin_name=$3,
+                       status=CASE WHEN member_business_links.status='active' THEN 'active' ELSE 'pending' END`,
+                [familyGroupId, groupId, adminName || null]
+            ).catch(() => {});
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/store/customers/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM store_customers WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Send price quote internally via OneFlow service call message
+app.post('/api/store/customers/:id/send-quote', async (req, res) => {
+    try {
+        const { quoteHtml, quoteText, businessGroupId, quoteRef } = req.body;
+        const custRes = await pool.query('SELECT * FROM store_customers WHERE id=$1', [req.params.id]);
+        if (!custRes.rows.length) return res.status(404).json({ error: 'לקוח לא נמצא' });
+        const customer = custRes.rows[0];
+        if (!customer.family_group_id) return res.status(400).json({ error: 'לקוח לא מקושר למשפחת OneFlow' });
+        // Find the most recent open service call between this business and family
+        const scRes = await pool.query(
+            `SELECT id FROM service_calls WHERE business_group_id=$1 AND family_group_id=$2 AND status NOT IN ('done','cancelled') ORDER BY created_at DESC LIMIT 1`,
+            [businessGroupId, customer.family_group_id]);
+        if (scRes.rows.length) {
+            const callId = scRes.rows[0].id;
+            await pool.query(
+                `INSERT INTO service_call_messages (call_id, sender_type, sender_name, message, created_at) VALUES ($1,'business',$2,$3,NOW())`,
+                [callId, 'הצעת מחיר', quoteText]);
+        } else {
+            // Create a new service call for the quote
+            const newCall = await pool.query(
+                `INSERT INTO service_calls (business_group_id, family_group_id, title, description, status, priority, created_at)
+                 VALUES ($1,$2,$3,$4,'new','normal',NOW()) RETURNING id`,
+                [businessGroupId, customer.family_group_id, `הצעת מחיר ${quoteRef||''}`, quoteText]);
+            const callId = newCall.rows[0].id;
+            await pool.query(
+                `INSERT INTO service_call_messages (call_id, sender_type, sender_name, message, created_at) VALUES ($1,'business',$2,$3,NOW())`,
+                [callId, 'הצעת מחיר', quoteText]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/store/customers/:id', async (req, res) => {
+    try {
+        const { name, phone, email, businessId, notes } = req.body;
+        await pool.query(
+            `UPDATE store_customers SET name=$1, phone=$2, email=$3, business_id=$4, notes=$5 WHERE id=$6`,
+            [name, phone, email, businessId, notes, req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/storefront/:code', async (req, res) => {
+    try {
+        const codeOrAlias = req.params.code;
+        
+        const gRes = await pool.query(`
+            SELECT f.id, f.name, f.business_type
+            FROM family_groups f
+            LEFT JOIN store_settings s ON f.id = s.group_id
+            WHERE f.group_code = $1 OR LOWER(s.store_alias) = LOWER($2)
+        `, [codeOrAlias.toUpperCase(), codeOrAlias.toLowerCase()]);
+        
+        if (gRes.rows.length === 0) return res.status(404).json({ error: 'חנות לא נמצאה' });
+        
+        const groupId = gRes.rows[0].id;
+        const groupName = gRes.rows[0].name;
+        const businessType = gRes.rows[0].business_type || 'other';
+
+        const sRes = await pool.query('SELECT * FROM store_settings WHERE group_id=$1', [groupId]);
+        const settings = sRes.rows.length > 0 ? sRes.rows[0] : { is_active: false, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '' };
+
+        const cRes = await pool.query('SELECT * FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY category, name', [groupId]);
+
+        let communityData = null;
+        if (req.query.communityId) {
+            const commRes = await pool.query(`
+                SELECT c.name, cb.discount_pct, c.min_families,
+                       (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count
+                FROM community_businesses cb
+                JOIN communities c ON cb.community_id = c.id
+                WHERE cb.business_id = $1 AND cb.community_id = $2 AND cb.status = 'approved'
+            `, [groupId, req.query.communityId]);
+
+            if (commRes.rows.length > 0) {
+                const row = commRes.rows[0];
+                const minFamilies = parseInt(row.min_families) || 0;
+                const familyCount = parseInt(row.family_count) || 0;
+                communityData = {
+                    name: row.name,
+                    discount_pct: row.discount_pct,
+                    min_families: minFamilies,
+                    family_count: familyCount,
+                    discount_active: familyCount >= minFamilies
+                };
+            }
+        }
+
+        res.json({ success: true, groupId, groupName, businessType, settings, catalog: cRes.rows, communityData });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/ai-desc', async (req, res) => {
+    try {
+        const { productName, groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const prompt = `כתוב לי פסקה קצרה ושיווקית מאוד (עד 2-3 משפטים) בעברית שתתאר את המוצר/מנה הבאה למכירה בחנות/מסעדה שלי: "${productName}". השתמש באימוג'ים ואל תשתמש במרכאות.`;
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, description: result.response.text().trim() });
+    } catch(e) { handleAIError(e, res, 'שגיאה בניסוח'); }
+});
+
+app.post('/api/store/ai-long-desc', async (req, res) => {
+    try {
+        const { productName, shortDesc, groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const shortDescHint = shortDesc ? ` (התיאור הקצר הקיים: "${shortDesc}")` : '';
+        const prompt = `כתוב תיאור מורחב ומפורט בעברית עבור המוצר/מנה: "${productName}"${shortDescHint}.
+התיאור המורחב מיועד לדף המוצר בחנות/מסעדה ועליו לכלול:
+- תיאור מפורט של המוצר (מרכיבים, טעמים, מרקם, אפשרויות הגשה)
+- יתרונות ונקודות חוזקה
+- טיפ או המלצה לצרכן
+- שפה שיווקית, חמה ומזמינה
+אל תחזור על אותו תוכן שבתיאור הקצר. כתוב 3-5 משפטים. אין להשתמש במרכאות.`;
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, description: result.response.text().trim() });
+    } catch(e) { handleAIError(e, res, 'שגיאה בניסוח'); }
+});
+
+app.post('/api/biz/chat-assistant', async (req, res) => {
+    try {
+        const { query, context, groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        // Detect business type for specialised guidance
+        let bizType = 'general';
+        try { bizType = JSON.parse(context).business_type || 'general'; } catch(e) {}
+
+        const logisticsSection = bizType === 'logistics' ? `
+
+## ניתוח עסקי לוגיסטיקה — כללי ברזל:
+- שיעור הצלחה < 85% → התראה קריטית, פרט סיבות וצעדי תיקון מיידיים
+- COD ממתין > 3 ימים → סיכון גבוה, המלץ על פרוצדורת גבייה
+- נהג עם > 3 failed_attempts ביום → בעיה אופרציונלית, בדוק עומסי עבודה
+- רכב עם ביטוח/טסט שפג → עצור שיוך לנהגים, תזכיר חיוני
+- COD לא הופקד > 2 ימים → שלח התראה למנהל
+- SLA < 80% → ניתוח לפי שעה/אזור, המלץ שינוי מסלולים
+- לקוחות חוזרים עם discount_pct=0 → הזדמנות לשיפור נאמנות
+- חשבוניות ב-status='pending' > 7 ימים → גבייה נדרשת
+
+## פעולות מהירות שהעוזרת יכולה להפעיל:
+[ACTION:OPEN_TAB|logistics_orders] — פתח קנבן משלוחים
+[ACTION:OPEN_TAB|logistics_drivers] — פתח ניהול נהגים
+[ACTION:OPEN_TAB|logistics_vehicles] — פתח ניהול צי
+[ACTION:OPEN_TAB|logistics_cod] — פתח גבייה COD
+[ACTION:OPEN_TAB|logistics_rfq] — פתח הצעות מחיר
+[ACTION:OPEN_TAB|logistics_routes] — פתח מסלולי חלוקה
+[ACTION:OPEN_TAB|logistics_customers] — פתח מזמינים ונמענים
+[ACTION:OPEN_TAB|logistics_invoices] — פתח חשבוניות
+[ACTION:EXPORT_EXCEL|logistics-orders] — יצא Excel הזמנות
+[ACTION:EXPORT_EXCEL|logistics-drivers] — יצא Excel ביצועי נהגים
+[ACTION:EXPORT_EXCEL|logistics-revenue] — יצא Excel הכנסות
+[ACTION:EXPORT_EXCEL|logistics-vehicles] — יצא Excel צי רכבים
+
+## מה לנתח מהקונטקסט שמתקבל:
+- מה שיעור ההצלחה (delivered/total) וכיצד משפר אותו
+- אלו נהגים מתפקדים הכי טוב/גרוע ולמה
+- איפה ה-COD הכי גבוה ואיך מנהלים אותו
+- אלו אזורים/לקוחות הכי רווחיים
+- חריגים: failed_attempts, הזמנות עדיין פתוחות מאתמול
+- חשבוניות שממתינות לתשלום
+` : '';
+
+        const sportSection = bizType === 'sport' ? `
+
+== ניתוח מועדון ספורט/כושר ==
+• **Retention rate** = active_members / total_members × 100 — מטרה: >75%
+• **חברים בסיכון נטישה** (churn_risk.top_at_risk): כל חבר שלא ביקר 14+ ימים — פנה אליהם בדחיפות
+• **חיזוי הכנסה בסיכון**: expiring_members × ערך מנוי ממוצע = הכנסה שעלולה לאבוד
+• **מגמת הכנסה**: trend_pct — אם שלילי → בחן מה גרם לירידה (עונתיות? תחרות? שירות?)
+• **תפוסת שיעורים**: fill_pct — מתחת ל-50% = שיעור לא כדאי; מעל 90% = פתח כיתה נוספת
+• **חיזוי חידושים**: חברים עם days_left ≤7 ← יש לצלצל היום; ≤14 ← שלח תזכורת
+• **ניתוח קפואים**: frozen_members ← הצע תוכנית החזרה (חודש מתנה, מחיר מוזל)
+• **ממוצע כניסות לחבר**: checkins_week / active_members — מטרה: >2 פעמים בשבוע
+
+== פקודות ACTION לספורט ==
+• לייצא רשימת חברים → [ACTION:EXPORT_EXCEL|sport-members]
+• לייצא היסטוריית כניסות → [ACTION:EXPORT_EXCEL|sport-checkins]
+• לייצא דוח הכנסות → [ACTION:EXPORT_EXCEL|sport-revenue]
+• לייצא לוח שיעורים → [ACTION:EXPORT_EXCEL|sport-classes]
+• לעבור לחברים → [ACTION:OPEN_TAB|sport-members]
+• לעבור ללוח שיעורים → [ACTION:OPEN_TAB|sport-schedule]
+• לעבור להתראות → [ACTION:OPEN_TAB|sport-alerts]
+• לעבור לתשלומים → [ACTION:OPEN_TAB|sport-payments]` : `
+
+== עקרונות food cost (מסעדות ישראל) ==
+• <28%: מצוין | 28-33%: טוב | 33-40%: גבוה | >40%: בעייתי
+• ממוצע ענף ישראלי: 28-35%`;
+
+        const systemPrompt = `אתה "FamliAI" — עוזרת עסקית בינה מלאכותית ברמת Expert, מוטמעת במערכת ONEFLOW BUSINESS.
+אתה מנתח נתוני עסק בזמן אמת ומספק תובנות, ניתוחים, חיזויים והמלצות ברמה הגבוהה ביותר.
+
+== נתוני העסק בזמן אמת ==
+להלן JSON מפורט עם כל נתוני העסק:
+${context}
+
+== שאלת המנהל ==
+"${query}"
+
+== כללי תגובה קבועים ==
+1. ענה תמיד בעברית. קצר, ישיר, מקצועי.
+2. חשב מספרים ישירות מה-JSON — לעולם אל תגיד "אין לי גישה" — הנתונים שלפניך הם מקור האמת.
+3. תן תובנות פרואקטיביות: "שים לב ש...", "מגמה:", "המלצה:".
+4. אם מבקשים ניתוח/דוח — תן סיכום מספרי + רשימה מסודרת.
+5. השתמש ב-**bold** לסכומים ומספרים חשובים.
+6. אם ביצועים ירדו — ציין כמה אחוז ומתי.
+
+== פקודות מיוחדות (ACTION) ==
+אם המשתמש מבקש:
+• ליצור משימה → הוסף [ACTION:ADD_TASK|כותרת המשימה] בסוף תשובתך
+• להוסיף לרכש → הוסף [ACTION:ADD_SHOP|שם הפריט] בסוף תשובתך
+• לייצא לאקסל/CSV → הוסף [ACTION:EXPORT_EXCEL|orders] או customers/cashflow/pantry/staff/food-cost בסוף
+• לעבור לטאב → הוסף [ACTION:OPEN_TAB|tabId] בסוף (tabIds: pos/sales/customers/pantry/foodcost/cashflow/shifts/members/calendar/deliveries/tasks)
+
+== יכולות ניתוח ==
+• סיכום מכירות: יומי/שבועי/חודשי, ממוצע להזמנה, מגמות
+• food cost: ממוצע (ירוק<30%, כתום 30-40%, אדום>40%); מנות הכי רווחיות; מנות בעייתיות
+• מלאי: פריטים נגמרים, המלצת הזמנה, קצב צריכה
+• תזרים: הכנסות מול הוצאות, יתרה נטו, ניתוח קטגוריות
+• צוות: כמות עובדים, יתרות תקציב
+• חיזוי: על בסיס נתוני החודשים האחרונים, חזה מה צפוי החודש/שבוע הבא${logisticsSection}${sportSection}`;
+
+        const result = await model.generateContent(systemPrompt);
+        res.json({ success: true, answer: result.response.text().trim() });
+    } catch(e) { handleAIError(e, res, 'שגיאה במערכת העוזרת'); }
+});
+
+// ייצוא דוחות CSV (פתיחה ב-Excel)
+app.get('/api/biz/export-report', async (req, res) => {
+    try {
+        const { groupId, type } = req.query;
+        if (!groupId) return res.status(400).json({ error: 'groupId required' });
+        let csvData = '', filename = `report_${new Date().toISOString().split('T')[0]}.csv`;
+
+        if (type === 'orders') {
+            const r = await pool.query(`SELECT id,status,customer_name,customer_phone,total_amount,total,is_delivery,delivery_fee,notes,created_at FROM store_orders WHERE group_id=$1 ORDER BY created_at DESC LIMIT 2000`, [groupId]);
+            filename = `הזמנות_${new Date().toISOString().split('T')[0]}.csv`;
+            const sm = {new:'חדשה',processing:'בעבודה',completed:'הושלם',shipped:'בדרך',cancelled:'בוטל',quote:'הצעת מחיר',ready:'מוכן'};
+            csvData = 'מספר,סטטוס,שם לקוח,טלפון,סכום,משלוח,דמי משלוח,הערות,תאריך\n';
+            r.rows.forEach(o => { csvData += [o.id,sm[o.status]||o.status,`"${(o.customer_name||'').replace(/"/g,'""')}"`,o.customer_phone||'',o.total_amount||o.total||0,o.is_delivery?'כן':'לא',o.delivery_fee||0,`"${(o.notes||'').replace(/"/g,'""')}"`,new Date(o.created_at).toLocaleDateString('he-IL')].join(',')+'\n'; });
+        } else if (type === 'customers') {
+            const r = await pool.query(`SELECT id,name,phone,email,business_id,notes,created_at FROM store_customers WHERE group_id=$1 ORDER BY created_at DESC`, [groupId]);
+            filename = `לקוחות_${new Date().toISOString().split('T')[0]}.csv`;
+            csvData = 'מספר,שם,טלפון,אימייל,מספר עסקי,הערות,תאריך הצטרפות\n';
+            r.rows.forEach(c => { csvData += [c.id,`"${(c.name||'').replace(/"/g,'""')}"`,c.phone||'',c.email||'',c.business_id||'',`"${(c.notes||'').replace(/"/g,'""')}"`,new Date(c.created_at).toLocaleDateString('he-IL')].join(',')+'\n'; });
+        } else if (type === 'cashflow') {
+            const r = await pool.query(`SELECT t.id,t.type,t.category,t.description,t.amount,t.date,u.nickname as user_name FROM transactions t LEFT JOIN users u ON t.user_id=u.id WHERE t.group_id=$1 ORDER BY t.date DESC LIMIT 2000`, [groupId]);
+            filename = `תזרים_${new Date().toISOString().split('T')[0]}.csv`;
+            csvData = 'מספר,סוג,קטגוריה,תיאור,סכום,עובד,תאריך\n';
+            r.rows.forEach(t => { csvData += [t.id,t.type==='income'?'הכנסה':'הוצאה',`"${(t.category||'').replace(/"/g,'""')}"`,`"${(t.description||'').replace(/"/g,'""')}"`,t.amount||0,t.user_name||'',new Date(t.date).toLocaleDateString('he-IL')].join(',')+'\n'; });
+        } else if (type === 'pantry') {
+            const r = await pool.query(`SELECT id,item_name,quantity,unit,category,min_quantity,expiry_date,last_updated FROM pantry WHERE group_id=$1 ORDER BY category,item_name`, [groupId]);
+            filename = `מלאי_${new Date().toISOString().split('T')[0]}.csv`;
+            csvData = 'מספר,פריט,כמות,יחידה,קטגוריה,מינימום,תפוגה,עדכון אחרון\n';
+            r.rows.forEach(p => { csvData += [p.id,`"${(p.item_name||'').replace(/"/g,'""')}"`,p.quantity||0,p.unit||'',`"${(p.category||'').replace(/"/g,'""')}"`,p.min_quantity||0,p.expiry_date?new Date(p.expiry_date).toLocaleDateString('he-IL'):'',p.last_updated?new Date(p.last_updated).toLocaleDateString('he-IL'):''].join(',')+'\n'; });
+        } else if (type === 'staff') {
+            const r = await pool.query(`SELECT id,name,nickname,role,email,created_at FROM users WHERE group_id=$1 ORDER BY role,name`, [groupId]);
+            filename = `צוות_${new Date().toISOString().split('T')[0]}.csv`;
+            csvData = 'מספר,שם,כינוי,תפקיד,אימייל,תאריך הצטרפות\n';
+            r.rows.forEach(u => { csvData += [u.id,`"${(u.name||'').replace(/"/g,'""')}"`,`"${(u.nickname||'').replace(/"/g,'""')}"`,u.role||'',u.email||'',new Date(u.created_at).toLocaleDateString('he-IL')].join(',')+'\n'; });
+        } else if (type === 'food-cost') {
+            const catR = await pool.query(`SELECT id,name,price,category FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY category,name`, [groupId]);
+            const ingR = await pool.query(`SELECT pi.*,sti.price_per_unit FROM product_ingredients pi LEFT JOIN (SELECT DISTINCT ON(item_name) item_name,price_per_unit FROM shopping_trip_items sti2 JOIN shopping_trips st2 ON sti2.trip_id=st2.id WHERE st2.group_id=$1 ORDER BY item_name,st2.trip_date DESC) sti ON lower(pi.ingredient_name)=lower(sti.item_name) WHERE pi.catalog_id IN (SELECT id FROM store_catalog WHERE group_id=$1)`, [groupId,groupId]);
+            filename = `food_cost_${new Date().toISOString().split('T')[0]}.csv`;
+            csvData = 'מנה,קטגוריה,מחיר מכירה,עלות גלם,אחוז Food Cost,רווח\n';
+            catR.rows.forEach(item => {
+                const ings = ingR.rows.filter(i=>i.catalog_id===item.id);
+                const totalCost = ings.reduce((s,i)=>s+(parseFloat(i.price_per_unit)||0)*(parseFloat(i.quantity)||0),0);
+                const price = parseFloat(item.price)||0;
+                const fcPct = price>0&&totalCost>0 ? ((totalCost/price)*100).toFixed(1) : '';
+                csvData += [`"${(item.name||'').replace(/"/g,'""')}"`,`"${(item.category||'').replace(/"/g,'""')}"`,price,totalCost.toFixed(2),fcPct,(price-totalCost).toFixed(2)].join(',')+'\n';
+            });
+        } else if (type === 'logistics-orders') {
+            const r = await pool.query(`SELECT lo.id, lo.order_number, lo.customer_name, lo.customer_phone, lo.pickup_address, lo.delivery_address, lo.scheduled_date, lo.status, COALESCE(d.name,d.nickname) as driver_name, v.name as vehicle_name, lo.delivery_fee, lo.cod_amount, lo.cod_collected, lo.failed_attempts_count, lo.delivered_at, lo.created_at FROM logistics_orders lo LEFT JOIN logistics_drivers ld ON lo.driver_id=ld.id LEFT JOIN users d ON ld.user_id=d.id LEFT JOIN logistics_vehicles v ON lo.vehicle_id=v.id WHERE lo.group_id=$1 ORDER BY lo.created_at DESC LIMIT 5000`, [groupId]);
+            filename = `הזמנות_לוגיסטיקה_${new Date().toISOString().split('T')[0]}.csv`;
+            const stMap = {new:'חדש',pending_quote:'ממתין להצעה',quote_sent:'הצעה נשלחה',confirmed:'אושר',assigned:'שויך',picked_up:'נאסף',in_transit:'בדרך',arrived:'הגיע',delivered:'נמסר',partial:'חלקי',failed_attempt:'לא ענה',returned:'הוחזר',cancelled:'בוטל'};
+            csvData = 'מספר,מספר הזמנה,שם לקוח,טלפון,כתובת איסוף,כתובת מסירה,תאריך משלוח,סטטוס,נהג,רכב,דמי משלוח,COD נדרש,COD נגבה,כישלונות,תאריך מסירה,תאריך יצירה\n';
+            r.rows.forEach(o => { csvData += [o.id,o.order_number||'',`"${(o.customer_name||'').replace(/"/g,'""')}"`,o.customer_phone||'',`"${(o.pickup_address||'').replace(/"/g,'""')}"`,`"${(o.delivery_address||'').replace(/"/g,'""')}"`,o.scheduled_date?new Date(o.scheduled_date).toLocaleDateString('he-IL'):'',stMap[o.status]||o.status||'',`"${(o.driver_name||'').replace(/"/g,'""')}"`,`"${(o.vehicle_name||'').replace(/"/g,'""')}"`,o.delivery_fee||0,o.cod_amount||0,o.cod_collected||0,o.failed_attempts_count||0,o.delivered_at?new Date(o.delivered_at).toLocaleString('he-IL'):'',new Date(o.created_at).toLocaleDateString('he-IL')].join(',')+'\n'; });
+        } else if (type === 'logistics-drivers') {
+            const r = await pool.query(`SELECT ld.id, u.name, u.nickname, u.phone, u.email, ld.status, v.name as vehicle_name, ld.is_active, ld.notes, ld.location_updated_at FROM logistics_drivers ld LEFT JOIN users u ON ld.user_id=u.id LEFT JOIN logistics_vehicles v ON ld.vehicle_id=v.id WHERE ld.group_id=$1 ORDER BY ld.is_active DESC, u.name`, [groupId]);
+            filename = `נהגים_לוגיסטיקה_${new Date().toISOString().split('T')[0]}.csv`;
+            const dstMap = {active:'פעיל',on_route:'בדרך',break:'הפסקה',offline:'לא מחובר'};
+            csvData = 'מספר,שם,כינוי,טלפון,אימייל,סטטוס,רכב משויך,פעיל,הערות,עדכון מיקום אחרון\n';
+            r.rows.forEach(d => { csvData += [d.id,`"${(d.name||'').replace(/"/g,'""')}"`,`"${(d.nickname||'').replace(/"/g,'""')}"`,d.phone||'',d.email||'',dstMap[d.status]||d.status||'',`"${(d.vehicle_name||'').replace(/"/g,'""')}"`,d.is_active?'כן':'לא',`"${(d.notes||'').replace(/"/g,'""')}"`,d.location_updated_at?new Date(d.location_updated_at).toLocaleString('he-IL'):''].join(',')+'\n'; });
+        } else if (type === 'logistics-revenue') {
+            const r = await pool.query(`SELECT lo.id, lo.order_number, lo.customer_name, lo.customer_phone, COALESCE(d.name,d.nickname) as driver_name, lo.delivery_fee, lo.cod_amount, lo.cod_collected, lo.cod_method, lo.delivered_at, lo.created_at FROM logistics_orders lo LEFT JOIN logistics_drivers ld ON lo.driver_id=ld.id LEFT JOIN users d ON ld.user_id=d.id WHERE lo.group_id=$1 AND lo.status IN ('delivered','partial') ORDER BY lo.delivered_at DESC NULLS LAST LIMIT 5000`, [groupId]);
+            filename = `הכנסות_לוגיסטיקה_${new Date().toISOString().split('T')[0]}.csv`;
+            const cmMap = {cash:'מזומן',credit:'אשראי',transfer:'העברה'};
+            csvData = 'מספר,מספר הזמנה,שם לקוח,טלפון,נהג,דמי משלוח,COD נדרש,COD נגבה,אמצעי תשלום COD,תאריך מסירה\n';
+            r.rows.forEach(o => { csvData += [o.id,o.order_number||'',`"${(o.customer_name||'').replace(/"/g,'""')}"`,o.customer_phone||'',`"${(o.driver_name||'').replace(/"/g,'""')}"`,o.delivery_fee||0,o.cod_amount||0,o.cod_collected||0,cmMap[o.cod_method]||o.cod_method||'',o.delivered_at?new Date(o.delivered_at).toLocaleDateString('he-IL'):''].join(',')+'\n'; });
+        } else if (type === 'logistics-vehicles') {
+            const r = await pool.query(`SELECT id, name, type, plate_number, capacity_kg, insurance_expires_at, inspection_expires_at, is_active, notes FROM logistics_vehicles WHERE group_id=$1 ORDER BY is_active DESC, name`, [groupId]);
+            filename = `צי_לוגיסטיקה_${new Date().toISOString().split('T')[0]}.csv`;
+            const vtMap = {van:'ון',motorcycle:'קטנוע',truck:'משאית',bicycle:'אופניים',electric:'חשמלי'};
+            csvData = 'מספר,שם,סוג,לוחית,קיבולת ק"ג,תוקף ביטוח,טסט הבא,פעיל,הערות\n';
+            r.rows.forEach(v => { csvData += [v.id,`"${(v.name||'').replace(/"/g,'""')}"`,vtMap[v.type]||v.type||'',v.plate_number||'',v.capacity_kg||0,v.insurance_expires_at?new Date(v.insurance_expires_at).toLocaleDateString('he-IL'):'',v.inspection_expires_at?new Date(v.inspection_expires_at).toLocaleDateString('he-IL'):'',v.is_active?'כן':'לא',`"${(v.notes||'').replace(/"/g,'""')}"`].join(',')+'\n'; });
+        } else if (type === 'sport-members') {
+            const r = await pool.query(`SELECT sm.id, sm.member_name, sm.member_phone, sm.member_email, mt.name as membership_type, sm.start_date, sm.end_date, sm.status, sm.frozen_reason, sm.notes, sm.created_at FROM sport_memberships sm LEFT JOIN sport_membership_types mt ON sm.membership_type_id=mt.id WHERE sm.group_id=$1 ORDER BY sm.status,sm.member_name`, [groupId]);
+            filename = `חברים_ספורט_${new Date().toISOString().split('T')[0]}.csv`;
+            const smMap = {active:'פעיל',expired:'פג תוקף',frozen:'קפוא',cancelled:'בוטל'};
+            csvData = 'מספר,שם,טלפון,אימייל,סוג מנוי,תחילה,סיום,סטטוס,סיבת הקפאה,הערות,תאריך הצטרפות\n';
+            r.rows.forEach(m => { csvData += [m.id,`"${(m.member_name||'').replace(/"/g,'""')}"`,m.member_phone||'',m.member_email||'',`"${(m.membership_type||'').replace(/"/g,'""')}"`,m.start_date?new Date(m.start_date).toLocaleDateString('he-IL'):'',m.end_date?new Date(m.end_date).toLocaleDateString('he-IL'):'',smMap[m.status]||m.status||'',`"${(m.frozen_reason||'').replace(/"/g,'""')}"`,`"${(m.notes||'').replace(/"/g,'""')}"`,new Date(m.created_at).toLocaleDateString('he-IL')].join(',')+'\n'; });
+        } else if (type === 'sport-checkins') {
+            const r = await pool.query(`SELECT sc.id, sm.member_name, sm.member_phone, sc.checkin_time, sc.notes FROM sport_checkins sc LEFT JOIN sport_memberships sm ON sc.membership_id=sm.id WHERE sc.group_id=$1 ORDER BY sc.checkin_time DESC LIMIT 5000`, [groupId]);
+            filename = `כניסות_ספורט_${new Date().toISOString().split('T')[0]}.csv`;
+            csvData = 'מספר,שם חבר,טלפון,זמן כניסה,הערות\n';
+            r.rows.forEach(c => { csvData += [c.id,`"${(c.member_name||'').replace(/"/g,'""')}"`,c.member_phone||'',c.checkin_time?new Date(c.checkin_time).toLocaleString('he-IL'):'',`"${(c.notes||'').replace(/"/g,'""')}"`].join(',')+'\n'; });
+        } else if (type === 'sport-revenue') {
+            const r = await pool.query(`SELECT sp.id, sm.member_name, sm.member_phone, sp.amount, sp.payment_type, sp.payment_date, mt.name as membership_type, sp.notes FROM sport_payments sp LEFT JOIN sport_memberships sm ON sp.membership_id=sm.id LEFT JOIN sport_membership_types mt ON sm.membership_type_id=mt.id WHERE sp.group_id=$1 ORDER BY sp.payment_date DESC LIMIT 5000`, [groupId]);
+            filename = `הכנסות_ספורט_${new Date().toISOString().split('T')[0]}.csv`;
+            const ptMap = {cash:'מזומן',credit:'אשראי',transfer:'העברה',check:'המחאה'};
+            csvData = 'מספר,שם חבר,טלפון,סכום,אמצעי תשלום,תאריך תשלום,סוג מנוי,הערות\n';
+            r.rows.forEach(p => { csvData += [p.id,`"${(p.member_name||'').replace(/"/g,'""')}"`,p.member_phone||'',p.amount||0,ptMap[p.payment_type]||p.payment_type||'',p.payment_date?new Date(p.payment_date).toLocaleDateString('he-IL'):'',`"${(p.membership_type||'').replace(/"/g,'""')}"`,`"${(p.notes||'').replace(/"/g,'""')}"`].join(',')+'\n'; });
+        } else if (type === 'sport-classes') {
+            const r = await pool.query(`SELECT sc.id, ct.name as class_name, sc.start_time, sc.end_time, COALESCE(t.nickname,t.name) as trainer_name, sc.max_participants, COUNT(scr.id) as registrations FROM sport_classes sc LEFT JOIN sport_class_types ct ON sc.class_type_id=ct.id LEFT JOIN users t ON sc.trainer_id=t.id LEFT JOIN sport_class_registrations scr ON scr.class_id=sc.id AND scr.status!='cancelled' WHERE sc.group_id=$1 GROUP BY sc.id,ct.name,sc.start_time,sc.end_time,t.nickname,t.name,sc.max_participants ORDER BY sc.start_time DESC LIMIT 2000`, [groupId]);
+            filename = `שיעורים_ספורט_${new Date().toISOString().split('T')[0]}.csv`;
+            csvData = 'מספר,שם שיעור,תחילה,סיום,מאמן,רשומים,קיבולת,אחוז מילוי\n';
+            r.rows.forEach(c => { const fill=c.max_participants>0?((c.registrations/c.max_participants)*100).toFixed(0):''; csvData += [c.id,`"${(c.class_name||'').replace(/"/g,'""')}"`,c.start_time?new Date(c.start_time).toLocaleString('he-IL'):'',c.end_time?new Date(c.end_time).toLocaleString('he-IL'):'',`"${(c.trainer_name||'').replace(/"/g,'""')}"`,c.registrations||0,c.max_participants||0,fill].join(',')+'\n'; });
+        } else {
+            return res.status(400).json({ error: 'סוג דוח לא ידוע' });
+        }
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+        res.send('﻿' + csvData);
+    } catch(e) {
+        console.error('[EXPORT-REPORT]', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ============================================================
+// --- COMMUNITIES & COUPONS ENDPOINTS ---
+// ============================================================
+
+async function initCommunityTables() {
+    const queries = [
+        `CREATE TABLE IF NOT EXISTS communities (id SERIAL PRIMARY KEY, name VARCHAR(100), code VARCHAR(50) UNIQUE, manager_email VARCHAR(100), manager_password VARCHAR(100), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+        `CREATE TABLE IF NOT EXISTS community_businesses (community_id INT, business_id INT, discount_pct DECIMAL DEFAULT 0, PRIMARY KEY(community_id, business_id))`,
+        `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'approved'`,
+        `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+        `CREATE TABLE IF NOT EXISTS store_coupons (id SERIAL PRIMARY KEY, group_id INT, code VARCHAR(50), discount_pct DECIMAL DEFAULT 0, valid_until DATE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+        `ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`,
+        `ALTER TABLE communities ADD COLUMN IF NOT EXISTS city VARCHAR(100)`,
+        `ALTER TABLE communities ADD COLUMN IF NOT EXISTS image_url TEXT`,
+        `ALTER TABLE communities ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`,
+        `ALTER TABLE communities ADD COLUMN IF NOT EXISTS created_by_group_id INT`,
+        `ALTER TABLE communities ADD COLUMN IF NOT EXISTS min_families INT DEFAULT 30`
+    ];
+
+    for (let q of queries) {
+        try { await pool.query(q); } catch(e) { console.error("DB Init Warning on query:", q, e.message); }
+    }
+
+    // Migration: add existing community founders to family_communities if not already there
+    try {
+        await pool.query(`
+            INSERT INTO family_communities (group_id, community_id)
+            SELECT created_by_group_id, id FROM communities
+            WHERE created_by_group_id IS NOT NULL
+            ON CONFLICT DO NOTHING
+        `);
+    } catch(e) { console.error("Community founder migration warning:", e.message); }
+
+    // Migration: SA-created communities (no created_by_group_id) have no family threshold
+    try {
+        await pool.query(`UPDATE communities SET min_families = 0 WHERE created_by_group_id IS NULL`);
+    } catch(e) { console.error("Community min_families migration warning:", e.message); }
+}
+initCommunityTables();
+
+// --- API ליזמות קהילתית (User-led Communities) ---
+app.post('/api/community/user-create', async (req, res) => {
+    try {
+        const { name, city, groupId } = req.body;
+        const code = 'C-' + generateGroupCode();
+        const result = await pool.query(
+            `INSERT INTO communities (name, city, code, created_by_group_id, status, min_families) VALUES ($1, $2, $3, $4, 'pending', 30) RETURNING *`,
+            [name, city, code, groupId]
+        );
+        const commId = result.rows[0].id;
+        // Auto-join creator to their own community so they can see businesses in it
+        await pool.query(
+            'INSERT INTO family_communities (group_id, community_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [groupId, commId]
+        );
+        res.json({ success: true, community: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/community/my-initiatives/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT c.*, 
+            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type='FAMILY') as family_count 
+            FROM communities c WHERE created_by_group_id = $1 ORDER BY created_at DESC
+        `, [req.params.groupId]);
+        res.json({ success: true, initiatives: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- BIZ APP: COMMUNITY ENDPOINTS (צד העסק) ---
+// ============================================================
+
+app.get('/api/biz/communities/my/:bizId', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT c.id, c.name, c.city, c.image_url, cb.discount_pct, cb.status,
+            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type = 'FAMILY') as families_count,
+            (SELECT COUNT(u.id) FROM users u JOIN family_groups f ON u.group_id = f.id WHERE f.community_id = c.id AND f.type = 'FAMILY') as users_count
+            FROM community_businesses cb
+            JOIN communities c ON cb.community_id = c.id
+            WHERE cb.business_id = $1
+        `, [req.params.bizId]);
+        res.json({ success: true, communities: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/biz/communities/available/:bizId', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT c.id, c.name, c.city, c.image_url,
+            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type = 'FAMILY') as families_count,
+            (SELECT COUNT(u.id) FROM users u JOIN family_groups f ON u.group_id = f.id WHERE f.community_id = c.id AND f.type = 'FAMILY') as users_count
+            FROM communities c
+            WHERE c.id NOT IN (SELECT community_id FROM community_businesses WHERE business_id = $1)
+        `, [req.params.bizId]);
+        res.json({ success: true, communities: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/biz/communities/join', async (req, res) => {
+    try {
+        const { communityId, businessId, discountPct } = req.body;
+        await pool.query(
+            'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4', 
+            [communityId, businessId, parseFloat(discountPct)||0, 'pending']
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/biz/communities/leave/:communityId/:bizId', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [req.params.communityId, req.params.bizId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/store/coupons/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM store_coupons WHERE group_id=$1 ORDER BY created_at DESC', [req.params.groupId]);
+        res.json({ success: true, coupons: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/coupons', async (req, res) => {
+    try {
+        const { groupId, code, discountPct, validUntil } = req.body;
+        if (!code || !discountPct) return res.status(400).json({ error: 'חסרים נתונים חובה' });
+        
+        await pool.query('INSERT INTO store_coupons (group_id, code, discount_pct, valid_until) VALUES ($1, $2, $3, $4)', [groupId, code.toUpperCase().trim(), parseFloat(discountPct), validUntil || null]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/store/coupons/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM store_coupons WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==========================================
+// --- מערכת מבצעים (Promotions) ---
+// ==========================================
+
+app.get('/api/init-promotions', async (req, res) => {
+    try {
+        await pool.query(`DROP TABLE IF EXISTS store_promotions`);
+        await pool.query(`
+            CREATE TABLE store_promotions (
+                id SERIAL PRIMARY KEY,
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                title VARCHAR(100) NOT NULL,
+                promo_type VARCHAR(50) NOT NULL,
+                promo_value DECIMAL(10,2),
+                target_type VARCHAR(50) DEFAULT 'all',
+                target_ids JSONB,
+                start_date TIMESTAMP,
+                end_date TIMESTAMP,
+                is_active BOOLEAN DEFAULT TRUE,
+                show_in_banner BOOLEAN DEFAULT TRUE,
+                show_in_tab BOOLEAN DEFAULT TRUE,
+                bg_color VARCHAR(20) DEFAULT 'pink',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        res.send('Promotions table recreated successfully with new display settings! You can close this tab.');
+    } catch(e) { res.status(500).send('Error creating table: ' + e.message); }
+});
+
+app.get('/api/store/promotions/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM store_promotions WHERE group_id = $1 ORDER BY id DESC', [req.params.groupId]);
+        res.json({ success: true, promotions: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/promotions', async (req, res) => {
+    try {
+        const { groupId, title, promoType, promoValue, targetType, targetIds, startDate, endDate, showInBanner, showInTab, bgColor } = req.body;
+        const result = await pool.query(
+            'INSERT INTO store_promotions (group_id, title, promo_type, promo_value, target_type, target_ids, start_date, end_date, show_in_banner, show_in_tab, bg_color) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
+            [groupId, title, promoType, promoValue || 0, targetType, JSON.stringify(targetIds || []), startDate || null, endDate || null, showInBanner, showInTab, bgColor]
+        );
+        res.json({ success: true, promotion: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/store/promotions/:id', async (req, res) => {
+    try {
+        const { title, promoType, promoValue, targetType, targetIds, startDate, endDate, showInBanner, showInTab, bgColor } = req.body;
+        const result = await pool.query(
+            'UPDATE store_promotions SET title=$1, promo_type=$2, promo_value=$3, target_type=$4, target_ids=$5, start_date=$6, end_date=$7, show_in_banner=$8, show_in_tab=$9, bg_color=$10 WHERE id=$11 RETURNING *',
+            [title, promoType, promoValue || 0, targetType, JSON.stringify(targetIds || []), startDate || null, endDate || null, showInBanner, showInTab, bgColor, req.params.id]
+        );
+        res.json({ success: true, promotion: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/store/promotions/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM store_promotions WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/store/promotions/toggle/:id', async (req, res) => {
+    try {
+        const { isActive } = req.body;
+        await pool.query('UPDATE store_promotions SET is_active = $1 WHERE id = $2', [isActive, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==========================================
+// --- מערכת רכש B2B, קטלוגים וספקים ---
+// ==========================================
+
+app.get('/api/init-procurement', async (req, res) => {
+    try {
+        await pool.query(`DROP TABLE IF EXISTS purchase_orders CASCADE`);
+        await pool.query(`DROP TABLE IF EXISTS purchase_requests CASCADE`);
+        await pool.query(`DROP TABLE IF EXISTS supplier_products CASCADE`);
+        await pool.query(`DROP TABLE IF EXISTS suppliers CASCADE`);
+
+        await pool.query(`
+            CREATE TABLE suppliers (
+                id SERIAL PRIMARY KEY,
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                name VARCHAR(100) NOT NULL,
+                contact_person VARCHAR(100),
+                phone VARCHAR(50),
+                email VARCHAR(100),
+                category VARCHAR(50),
+                min_order DECIMAL(10,2) DEFAULT 0,
+                delivery_days JSONB DEFAULT '[]',
+                cutoff_time TIME DEFAULT '12:00:00',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await pool.query(`
+            CREATE TABLE supplier_products (
+                id SERIAL PRIMARY KEY,
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                supplier_id INT REFERENCES suppliers(id) ON DELETE CASCADE,
+                name VARCHAR(150) NOT NULL,
+                description TEXT,
+                price DECIMAL(10,2) NOT NULL,
+                unit_type VARCHAR(50) DEFAULT 'יח''',
+                units_per_package INT DEFAULT 1,
+                properties JSONB,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        
+        await pool.query(`
+            CREATE TABLE purchase_orders (
+                id SERIAL PRIMARY KEY,
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                created_by INT REFERENCES users(id) ON DELETE SET NULL,
+                supplier_id INT REFERENCES suppliers(id) ON DELETE RESTRICT,
+                items JSONB NOT NULL,
+                total_amount DECIMAL(10,2) NOT NULL,
+                status VARCHAR(50) DEFAULT 'pending',
+                expected_delivery DATE,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        res.send('B2B Procurement Engine (Suppliers, Catalogs, Orders) created successfully! You can close this tab.');
+    } catch(e) { res.status(500).send('Error creating B2B tables: ' + e.message); }
+});
+
+app.get('/api/suppliers/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM suppliers WHERE group_id = $1 ORDER BY name ASC', [req.params.groupId]);
+        res.json({ success: true, suppliers: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/suppliers', async (req, res) => {
+    try {
+        const { id, groupId, name, contactPerson, phone, email, category, minOrder, deliveryDays, cutoffTime, customerNumber } = req.body;
+        let result;
+        if (id) {
+            result = await pool.query(
+                'UPDATE suppliers SET name=$1, contact_person=$2, phone=$3, email=$4, category=$5, min_order=$6, delivery_days=$7, cutoff_time=$8, customer_number=$9 WHERE id=$10 AND group_id=$11 RETURNING *',
+                [name, contactPerson||'', phone||'', email||'', category||'', minOrder||0, JSON.stringify(deliveryDays||[]), cutoffTime||'12:00:00', customerNumber||'', id, groupId]
+            );
+        } else {
+            result = await pool.query(
+                'INSERT INTO suppliers (group_id, name, contact_person, phone, email, category, min_order, delivery_days, cutoff_time, customer_number) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
+                [groupId, name, contactPerson||'', phone||'', email||'', category||'', minOrder||0, JSON.stringify(deliveryDays||[]), cutoffTime||'12:00:00', customerNumber||'']
+            );
+        }
+        res.json({ success: true, supplier: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/suppliers/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM suppliers WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/suppliers/:supplierId/products', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM supplier_products WHERE supplier_id = $1 ORDER BY name ASC', [req.params.supplierId]);
+        const productIds = result.rows.map(p => p.id);
+        let catalogLinks = [];
+        if (productIds.length > 0) {
+            const linksRes = await pool.query(
+                `SELECT spcl.*, sc.name as catalog_name FROM supplier_product_catalog_links spcl
+                 JOIN store_catalog sc ON spcl.catalog_id = sc.id
+                 WHERE spcl.supplier_product_id = ANY($1)`,
+                [productIds]
+            );
+            catalogLinks = linksRes.rows;
+        }
+        const products = result.rows.map(p => ({
+            ...p,
+            catalog_links: catalogLinks.filter(l => l.supplier_product_id === p.id)
+        }));
+        res.json({ success: true, products });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/suppliers/group/:groupId/all-products', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT sp.*, s.name as supplier_name, s.id as supplier_id
+             FROM supplier_products sp
+             JOIN suppliers s ON sp.supplier_id = s.id
+             WHERE s.group_id = $1
+             ORDER BY s.name, sp.name ASC`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, products: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/work-orders/:woId/assignees/:userId/cost', async (req, res) => {
+    try {
+        const { hourlyRate, hoursWorked } = req.body;
+        await pool.query(
+            'UPDATE work_order_assignees SET hourly_rate=$1, hours_worked=$2 WHERE work_order_id=$3 AND user_id=$4',
+            [hourlyRate || 0, hoursWorked || 0, req.params.woId, req.params.userId]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/suppliers/products', async (req, res) => {
+    try {
+        const { id, groupId, supplierId, name, description, price, unitType, unitsPerPackage, properties, catalogLinks } = req.body;
+        let result;
+        if (id) {
+            result = await pool.query(
+                'UPDATE supplier_products SET name=$1, description=$2, price=$3, unit_type=$4, units_per_package=$5, properties=$6 WHERE id=$7 RETURNING *',
+                [name, description||'', price, unitType||"יח'", unitsPerPackage||1, JSON.stringify(properties||{}), id]
+            );
+        } else {
+            result = await pool.query(
+                'INSERT INTO supplier_products (group_id, supplier_id, name, description, price, unit_type, units_per_package, properties) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+                [groupId, supplierId, name, description||'', price, unitType||"יח'", unitsPerPackage||1, JSON.stringify(properties||{})]
+            );
+        }
+        const productId = result.rows[0].id;
+        if (Array.isArray(catalogLinks)) {
+            await pool.query('DELETE FROM supplier_product_catalog_links WHERE supplier_product_id=$1', [productId]);
+            for (const link of catalogLinks) {
+                if (link.catalogId) {
+                    await pool.query(
+                        'INSERT INTO supplier_product_catalog_links (supplier_product_id, catalog_id, qty_per_unit) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
+                        [productId, parseInt(link.catalogId), parseFloat(link.qtyPerUnit)||1]
+                    );
+                }
+            }
+        }
+        const linksRes = await pool.query(
+            `SELECT spcl.*, sc.name as catalog_name FROM supplier_product_catalog_links spcl
+             JOIN store_catalog sc ON spcl.catalog_id = sc.id
+             WHERE spcl.supplier_product_id = $1`,
+            [productId]
+        );
+        res.json({ success: true, product: { ...result.rows[0], catalog_links: linksRes.rows } });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/suppliers/products/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM supplier_products WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/b2b/catalog/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT sp.*, s.name as supplier_name, s.min_order, s.delivery_days, s.cutoff_time
+            FROM supplier_products sp
+            JOIN suppliers s ON sp.supplier_id = s.id
+            WHERE sp.group_id = $1 AND sp.is_active = TRUE
+            ORDER BY s.name ASC, sp.name ASC
+        `, [req.params.groupId]);
+        res.json({ success: true, catalog: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/b2b/orders/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT po.*, s.name as supplier_name, s.email as supplier_email, s.phone as supplier_phone,
+                   u.nickname as creator_name, so.customer_name as wo_customer_name
+            FROM purchase_orders po
+            LEFT JOIN suppliers s ON po.supplier_id = s.id
+            LEFT JOIN users u ON po.created_by = u.id
+            LEFT JOIN store_orders so ON po.work_order_id = so.id
+            WHERE po.group_id = $1
+            ORDER BY po.created_at DESC
+        `, [req.params.groupId]);
+        res.json({ success: true, orders: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/b2b/orders/:id/status', async (req, res) => {
+    try {
+        const { status } = req.body;
+        await pool.query('UPDATE purchase_orders SET status = $1 WHERE id = $2', [status, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// קבלת סחורה: עדכון מלאי ויצירת הזמנת חוסרים אוטומטית לספק כטיוטה
+app.post('/api/b2b/orders/receive', async (req, res) => {
+    let dbClient;
+    try {
+        const { orderId, groupId, userId, receivedItems, missingItems } = req.body;
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+
+        // עדכון סטטוס הזמנה לסופק
+        await dbClient.query("UPDATE purchase_orders SET status = 'delivered' WHERE id = $1", [orderId]);
+
+        // עדכון קריאת שירות מקושרת — חלקים מוכנים
+        try {
+            const scLink = await dbClient.query('SELECT service_call_id FROM purchase_orders WHERE id=$1', [orderId]);
+            if (scLink.rows[0]?.service_call_id) {
+                await dbClient.query("UPDATE service_calls SET parts_status='parts_ready', updated_at=NOW() WHERE id=$1", [scLink.rows[0].service_call_id]);
+                await dbClient.query(`INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key)
+                    SELECT business_group_id, 'sc_parts_ready', CONCAT('✅ חלקים הגיעו לקריאה: "', title, '" — מוכן לאיסוף'), CONCAT('sc_parts_ready_', id, '_', TO_CHAR(NOW(),'YYYY-MM-DD'))
+                    FROM service_calls WHERE id=$1`, [scLink.rows[0].service_call_id]);
+            }
+        } catch(scErr) { console.warn('SC parts_ready update skipped:', scErr.message); }
+
+        // 1. הוספת מה שהתקבל למלאי (Pantry)
+        for (let item of receivedItems) {
+            const pRes = await dbClient.query(`SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2`, [groupId, item.name]);
+            if (pRes.rows.length > 0) {
+                await dbClient.query(`UPDATE pantry SET quantity = quantity + $1, updated_at = CURRENT_TIMESTAMP WHERE id=$2`, [parseFloat(item.qty) || 0, pRes.rows[0].id]);
+            } else {
+                await dbClient.query(`INSERT INTO pantry (group_id, item_name, quantity, unit) VALUES ($1, $2, $3, $4)`, [groupId, item.name, parseFloat(item.qty) || 0, item.unit || "יח'"]);
+            }
+        }
+
+        // 2. יצירת הזמנת רכש חדשה עבור החוסרים בסטטוס 'טיוטה' (draft)
+        if (missingItems && missingItems.length > 0) {
+            const origOrderRes = await dbClient.query('SELECT supplier_id FROM purchase_orders WHERE id = $1', [orderId]);
+            if (origOrderRes.rows.length > 0) {
+                const supplierId = origOrderRes.rows[0].supplier_id;
+                let missingTotal = 0;
+                
+                const mappedMissingItems = missingItems.map(item => {
+                    const price = parseFloat(item.price) || 0;
+                    const qty = parseFloat(item.qty) || 0;
+                    const rowTotal = price * qty;
+                    missingTotal += rowTotal;
+                    return { 
+                        id: item.id, // שומר על המזהה המקורי כדי שנוכל להחזיר לעגלה!
+                        sku: item.sku || '',
+                        name: item.name, 
+                        quantity: qty, 
+                        unit: item.unit || "יח'", 
+                        price_per_unit: price, 
+                        row_total: rowTotal 
+                    };
+                });
+
+                // הכנסה כטיוטה - draft
+                await dbClient.query(`
+                    INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status, notes)
+                    VALUES ($1, $2, $3, $4, $5, 'draft', $6)
+                `, [groupId, userId, supplierId, JSON.stringify(mappedMissingItems), missingTotal, `הזמנת השלמת חוסרים שנוצרה אוטומטית (הזמנה #${orderId})`]);
+            }
+        }
+
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch(e) { 
+        if(dbClient) await dbClient.query('ROLLBACK');
+        console.error("Receive Order Error:", e);
+        res.status(500).json({ error: e.message }); 
+    } finally {
+        if(dbClient) dbClient.release();
+    }
+});
+
+// תיקון קריטי לשגיאת הרשת: נתיב עדכון סטטוס B2B
+app.post('/api/b2b/orders/status', async (req, res) => {
+    try {
+        const { orderId, status } = req.body;
+        await pool.query('UPDATE purchase_orders SET status=$1 WHERE id=$2', [status, orderId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// תיקון: נתיב למחיקת הזמנת טיוטה כשהמשתמש "מושך" אותה בחזרה לעגלה
+app.delete('/api/b2b/orders/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM purchase_orders WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// קבלת סחורה: עדכון מלאי ויצירת הזמנת חוסרים אוטומטית לספק
+app.post('/api/b2b/orders/receive', async (req, res) => {
+    let dbClient;
+    try {
+        const { orderId, groupId, userId, receivedItems, missingItems } = req.body;
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+
+        // עדכון סטטוס הזמנה לסופק
+        await dbClient.query("UPDATE purchase_orders SET status = 'delivered' WHERE id = $1", [orderId]);
+
+        // 1. הוספת מה שהתקבל למלאי (Pantry)
+        for (let item of receivedItems) {
+            const pRes = await dbClient.query(`SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2`, [groupId, item.name]);
+            if (pRes.rows.length > 0) {
+                await dbClient.query(`UPDATE pantry SET quantity = quantity + $1, updated_at = CURRENT_TIMESTAMP WHERE id=$2`, [parseFloat(item.qty) || 0, pRes.rows[0].id]);
+            } else {
+                await dbClient.query(`INSERT INTO pantry (group_id, item_name, quantity, unit) VALUES ($1, $2, $3, $4)`, [groupId, item.name, parseFloat(item.qty) || 0, item.unit || "יח'"]);
+            }
+        }
+
+        // 2. יצירת הזמנת רכש חדשה עבור החוסרים מול אותו ספק!
+        if (missingItems && missingItems.length > 0) {
+            const origOrderRes = await dbClient.query('SELECT supplier_id FROM purchase_orders WHERE id = $1', [orderId]);
+            if (origOrderRes.rows.length > 0) {
+                const supplierId = origOrderRes.rows[0].supplier_id;
+                let missingTotal = 0;
+                
+                const mappedMissingItems = missingItems.map(item => {
+                    const price = parseFloat(item.price) || 0;
+                    const qty = parseFloat(item.qty) || 0;
+                    const rowTotal = price * qty;
+                    missingTotal += rowTotal;
+                    return { 
+                        id: `missing_${Date.now()}`, 
+                        name: item.name, 
+                        quantity: qty, 
+                        unit: item.unit || "יח'", 
+                        price_per_unit: price, 
+                        row_total: rowTotal 
+                    };
+                });
+
+                await dbClient.query(`
+                    INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status, notes)
+                    VALUES ($1, $2, $3, $4, $5, 'processing', $6)
+                `, [groupId, userId, supplierId, JSON.stringify(mappedMissingItems), missingTotal, `הזמנת השלמת חוסרים אוטומטית שנוצרה בעקבות חוסר מהזמנה #${orderId}`]);
+            }
+        }
+
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch(e) { 
+        if(dbClient) await dbClient.query('ROLLBACK');
+        console.error("Receive Order Error:", e);
+        res.status(500).json({ error: e.message }); 
+    } finally {
+        if(dbClient) dbClient.release();
+    }
+});
+
+app.get('/api/sa/communities', async (req, res) => {
+    try {
+        try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`); } catch(err) {}
+
+        const result = await pool.query(`
+            SELECT c.*, 
+                (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type='FAMILY') as family_count,
+                (SELECT COUNT(u.id) FROM users u JOIN family_groups f ON u.group_id = f.id WHERE f.community_id = c.id AND f.type='FAMILY') as users_count,
+                (SELECT COUNT(*) FROM community_businesses WHERE community_id = c.id AND status='approved') as business_count
+            FROM communities c
+            ORDER BY c.created_at DESC
+        `);
+        res.json({ success: true, communities: result.rows });
+    } catch(e) { 
+        console.error("Error in /api/sa/communities:", e);
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+app.post('/api/sa/communities', async (req, res) => {
+    try {
+        const { name, city, code, managerEmail, managerPassword, imageUrl } = req.body;
+        
+        let finalEmail = managerEmail || 'system@oneflowlife.com';
+        let finalPass = managerPassword || '';
+
+        if (!name || !code || !city) {
+            return res.status(400).json({ success: false, error: 'שם, עיר וקוד קהילה הם שדות חובה' });
+        }
+
+        await pool.query(
+            'INSERT INTO communities (name, city, code, manager_email, manager_password, image_url) VALUES ($1, $2, $3, $4, $5, $6)', 
+            [name, city, code.toUpperCase().trim(), finalEmail, finalPass, imageUrl || null]
+        );
+        res.json({ success: true });
+    } catch(e) { 
+        console.error('Error creating community:', e);
+        if (e.code === '23505') { 
+            return res.status(400).json({ success: false, error: 'קוד הקהילה שבחרת כבר קיים במערכת. אנא בחר קוד אחר.' });
+        }
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+app.put('/api/sa/communities/:id', async (req, res) => {
+    try {
+        const { name, city, code, managerEmail, managerPassword, imageUrl } = req.body;
+        await pool.query('UPDATE communities SET name=$1, city=$2, code=$3, manager_email=$4, manager_password=$5, image_url=$6 WHERE id=$7', 
+        [name, city, code.toUpperCase().trim(), managerEmail, managerPassword, imageUrl || null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/communities/:id', async (req, res) => {
+    try {
+        await pool.query('UPDATE family_groups SET community_id = NULL WHERE community_id = $1', [req.params.id]);
+        await pool.query('DELETE FROM community_businesses WHERE community_id = $1', [req.params.id]);
+        await pool.query('DELETE FROM communities WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sa/communities/:id/details', async (req, res) => {
+    try {
+        const familiesRes = await pool.query(`
+            SELECT f.id, f.name, f.admin_email, f.group_code, fc.is_community_manager
+            FROM family_communities fc
+            JOIN family_groups f ON fc.group_id = f.id
+            WHERE fc.community_id = $1 AND f.type = 'FAMILY'
+        `, [req.params.id]);
+        const families = familiesRes.rows;
+
+        if (families.length > 0) {
+            const familyIds = families.map(f => f.id);
+            const usersRes = await pool.query('SELECT id, group_id, nickname, role FROM users WHERE group_id = ANY($1)', [familyIds]);
+            families.forEach(f => {
+                f.users = usersRes.rows.filter(u => u.group_id === f.id);
+                f.is_community_manager = f.is_community_manager === true; // normalize null → false
+            });
+        }
+
+        const businessesRes = await pool.query('SELECT b.id, b.name, b.group_code, cb.discount_pct, cb.status FROM community_businesses cb JOIN family_groups b ON cb.business_id = b.id WHERE cb.community_id = $1', [req.params.id]);
+
+        res.json({ success: true, families: families, businesses: businessesRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sa/communities/pending-businesses', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT cb.community_id, cb.business_id, cb.discount_pct, cb.status,
+                   c.name as comm_name, b.name as biz_name
+            FROM community_businesses cb
+            JOIN communities c ON cb.community_id = c.id
+            JOIN family_groups b ON cb.business_id = b.id
+            WHERE cb.status IN ('pending', 'zm_pending')
+            ORDER BY cb.community_id, cb.business_id
+        `);
+        res.json({ success: true, pending: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/community-business', async (req, res) => {
+    try {
+        const { communityId, businessId, discountPct } = req.body;
+        await pool.query(
+            'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4', 
+            [communityId, businessId, parseFloat(discountPct)||0, 'approved']
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sa/community-business/:commId', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT cb.community_id, cb.business_id, cb.discount_pct, cb.status, b.name as business_name 
+            FROM community_businesses cb
+            JOIN family_groups b ON cb.business_id = b.id
+            WHERE cb.community_id = $1
+        `, [req.params.commId]);
+        res.json({ success: true, connections: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/community-business/:commId/:bizId', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [req.params.commId, req.params.bizId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/community-business/approve', async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        // בדוק אם לקהילה יש מנהל אזור
+        const zoneRes = await pool.query(`
+            SELECT zm.id as zm_id FROM communities c
+            JOIN manager_zones mz ON c.zone_id = mz.id
+            JOIN zone_managers zm ON mz.manager_id = zm.id AND zm.status = 'active'
+            WHERE c.id = $1
+        `, [communityId]);
+        if (zoneRes.rows.length > 0) {
+            // יש מנהל אזור → העבר לאישורו
+            await pool.query('UPDATE community_businesses SET status=$1 WHERE community_id=$2 AND business_id=$3', ['zm_pending', communityId, businessId]);
+            res.json({ success: true, forwarded_to_zm: true });
+        } else {
+            // אין מנהל אזור → אישור סופי מיידי
+            await pool.query('UPDATE community_businesses SET status=$1 WHERE community_id=$2 AND business_id=$3', ['approved', communityId, businessId]);
+            res.json({ success: true, forwarded_to_zm: false });
+        }
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/community-business/reject', async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [communityId, businessId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sa/businesses', async (req, res) => {
+    try {
+        const result = await pool.query("SELECT id, name, group_code FROM family_groups WHERE type='BUSINESS' ORDER BY name");
+        res.json({ success: true, businesses: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// =========================================================
+// פונקציית מערכת המיילים לספקים (B2B Orders) - מאובטחת ועמידה!
+// =========================================================
+app.post('/api/b2b/orders', async (req, res) => {
+    let dbClient;
+    try {
+        const { groupId, userId, orders } = req.body;
+        
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+        
+        const user = process.env.SMTP_USER;
+        const pass = process.env.SMTP_PASS;
+        
+        let transporter = null;
+        if (user && pass) {
+            transporter = nodemailer.createTransport({
+                host: 'smtp.gmail.com',
+                port: 465,
+                secure: true,
+                auth: { user: user, pass: pass }
+            });
+        }
+        
+        for (let order of orders) {
+            // 1. שמירה במסד הנתונים — INSERT ראשי ללא תלות בעמודות אופציונליות
+            const result = await dbClient.query(`
+                INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status)
+                VALUES ($1, $2, $3, $4, $5, 'sent') RETURNING id
+            `, [groupId, userId, order.supplierId, JSON.stringify(order.items), order.totalAmount]);
+
+            const newOrderId = result.rows[0].id;
+
+            // קישור לקריאת שירות אם סופקה
+            if (order.serviceCallId) {
+                try {
+                    await dbClient.query('UPDATE purchase_orders SET service_call_id=$1 WHERE id=$2', [order.serviceCallId, newOrderId]);
+                    await dbClient.query("UPDATE service_calls SET parts_status='waiting_delivery', updated_at=NOW() WHERE id=$1", [order.serviceCallId]);
+                } catch(linkErr) { console.warn('SC-PO link skipped:', linkErr.message); }
+            }
+
+            // 1b. אסימון אישור — UPDATE נפרד כדי שכשל כאן לא יפיל את ההזמנה
+            let poConfirmUrl = '';
+            try {
+                const poToken = require('crypto').randomBytes(24).toString('hex');
+                await dbClient.query('UPDATE purchase_orders SET confirm_token=$1 WHERE id=$2', [poToken, newOrderId]);
+                const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
+                poConfirmUrl = `${baseUrl}/c/po/${newOrderId}/${poToken}`;
+            } catch(tokenErr) { console.warn('confirm_token update skipped:', tokenErr.message); }
+
+            const supplierRes = await dbClient.query('SELECT name, email FROM suppliers WHERE id = $1', [order.supplierId]);
+            const supplier = supplierRes.rows[0];
+
+            // 2. שילוח מייל (גם אם ה-PDF חסר!)
+            if (supplier && supplier.email && transporter) {
+                
+                // מייצרים רשימת פריטים שתוצג בתוך גוף המייל
+                const itemsHtmlList = order.items.map(i => `<li>${i.name} - כמות: ${i.quantity}</li>`).join('');
+
+                const mailOptions = {
+                    from: `"מערכת רכש Oneflow" <${user}>`, 
+                    to: supplier.email,
+                    subject: `הזמנת רכש חדשה מ-Oneflow (הזמנה #${newOrderId})`,
+                    html: `
+                        <div dir="rtl" style="font-family: Arial, sans-serif; color: #333;">
+                            <h2>שלום רב לצוות ${supplier.name},</h2>
+                            <p>מצ"ב הזמנת רכש חדשה שהופקה עבורכם דרך מערכת Oneflow.</p>
+                            
+                            <div style="background: #f8fafc; padding: 15px; border-radius: 10px; margin: 15px 0; border: 1px solid #e2e8f0;">
+                                <h3 style="margin-top:0;">תקציר ההזמנה:</h3>
+                                <ul>${itemsHtmlList}</ul>
+                            </div>
+                            
+                            <p>אנא עברו על ההזמנה ואשרו לנו את קבלתה ומועד האספקה המשוער.</p>
+                            <div style="margin: 20px 0; text-align: center;">
+                                <a href="${poConfirmUrl}" style="display:inline-block;background:#22c55e;color:#fff;padding:14px 32px;border-radius:12px;font-weight:bold;font-size:15px;text-decoration:none;">✅ אשר קבלת הזמנה</a>
+                                <p style="font-size:11px;color:#94a3b8;margin-top:8px;">לחיצה תסמן אוטומטית שהמסמך התקבל אצלכם</p>
+                            </div>
+                            <br>
+                            <p>בברכה,</p>
+                            <p><b>לקוח Oneflow BIZ</b></p>
+                        </div>
+                    `,
+                    attachments: []
+                };
+
+                // מוסיפים את קובץ ה-PDF רק אם הוא עבר בהצלחה
+                if (order.pdfBase64) {
+                    mailOptions.attachments.push({ 
+                        filename: `Purchase_Order_${newOrderId}.pdf`, 
+                        content: order.pdfBase64.replace(/^data:application\/pdf;base64,/, ""), 
+                        encoding: 'base64' 
+                    });
+                }
+
+                try {
+                    await transporter.sendMail(mailOptions);
+                    console.log(`✅ Email sent successfully to ${supplier.email}`);
+                } catch (mailErr) {
+                    console.error(`❌ Failed to send email to ${supplier.email}:`, mailErr);
+                }
+            }
+        }
+        
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch(e) { 
+        if (dbClient) await dbClient.query('ROLLBACK');
+        console.error("Order Submit Error:", e);
+        res.status(500).json({ error: e.message }); 
+    } finally {
+        if (dbClient) dbClient.release();
+    }
+});
+// --- AI CATALOG / PANTRY GENERATOR (WIZARD) ---
+app.post('/api/ai/generate-catalog', async (req, res) => {
+    try {
+        const { promptText, type, groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        // Note: no responseMimeType — extract JSON manually for compatibility
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        let sysPrompt = "";
+
+        if (type === 'BUSINESS') {
+            sysPrompt = `You are a business consultant. The user has a business described as "${promptText}". Generate a realistic starter catalog/menu with 6-10 common products or services for this business type in Hebrew.
+Output ONLY a valid JSON array (no markdown, no code fences, no extra text) in this exact format:
+[{"name": "שם המוצר", "category": "קטגוריה", "price": 15.5, "description": "תיאור קצר"}]
+Make prices realistic in ILS (Israeli Shekels).`;
+        } else {
+            sysPrompt = `You are a home management expert. The user wants to populate their pantry/shopping list. Family type: "${promptText}". Generate a realistic starter pantry list with 8-12 common grocery/household items in Hebrew.
+Output ONLY a valid JSON array (no markdown, no code fences, no extra text) in this exact format:
+[{"name": "שם הפריט", "category": "קטגוריה", "price": 0, "description": ""}]`;
+        }
+
+        const result = await model.generateContent(sysPrompt);
+        let rawText = result.response.text().trim();
+        // Strip markdown code fences if present
+        rawText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+        const jsonStart = rawText.indexOf('[');
+        const jsonEnd = rawText.lastIndexOf(']');
+        if (jsonStart === -1 || jsonEnd === -1) throw new Error('תגובת ה-AI לא הכילה רשימת פריטים תקינה');
+        const items = JSON.parse(rawText.substring(jsonStart, jsonEnd + 1));
+        if (!Array.isArray(items) || items.length === 0) throw new Error('הרשימה שנוצרה ריקה');
+        res.json({ success: true, items });
+    } catch (e) { handleAIError(e, res, 'שגיאה ביצירת הקטלוג האוטומטי'); }
+});
+// START SERVER
+// =========================================================
+// --- MULTI-COMMUNITY SUPPORT (FAMILIES UP TO 5) ---
+// =========================================================
+
+// 1. יצירת טבלת החיבורים מרובי הקהילות
+pool.query(`
+    CREATE TABLE IF NOT EXISTS family_communities (
+        group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, 
+        community_id INT REFERENCES communities(id) ON DELETE CASCADE, 
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+        PRIMARY KEY (group_id, community_id)
+    )
+`).catch(e => console.log(e));
+
+// 2. נתיב חכם למשיכת נתוני כל הקהילות שהמשפחה מחוברת אליהן והעסקים שלהן
+app.get('/api/community/info/:groupId', async (req, res) => {
+    try {
+        const commsRes = await pool.query(`
+            SELECT DISTINCT c.id, c.name, c.city, c.image_url, c.code, c.min_families,
+                   (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count
+            FROM communities c
+            WHERE c.id IN (
+                SELECT community_id FROM family_communities WHERE group_id = $1
+                UNION
+                SELECT id FROM communities WHERE created_by_group_id = $1
+            )
+        `, [req.params.groupId]);
+
+        if(commsRes.rows.length === 0) return res.json({ success: true, communities: [], businesses: [] });
+
+        const commIds = commsRes.rows.map(c => c.id);
+        const bizRes = await pool.query(`
+            SELECT cb.community_id, cb.discount_pct, b.name as business_name, b.group_code, c.name as comm_name,
+                   c.min_families, (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count
+            FROM community_businesses cb
+            JOIN family_groups b ON cb.business_id = b.id
+            JOIN communities c ON cb.community_id = c.id
+            WHERE cb.community_id = ANY($1) AND cb.status = 'approved'
+        `, [commIds]);
+
+        res.json({ success: true, communities: commsRes.rows, businesses: bizRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// 3. הצטרפות לקהילה (בדיקת מגבלת 5 קהילות)
+app.post('/api/community/join', async (req, res) => {
+    try {
+        const { groupId, code } = req.body;
+        const commRes = await pool.query("SELECT id, name FROM communities WHERE code = $1 AND status = 'active'", [code.toUpperCase().trim()]);
+        if(commRes.rows.length === 0) return res.status(404).json({error: 'קוד קהילה שגוי או שהקהילה טרם הופעלה על ידי היזם.'});
+        
+        const commId = commRes.rows[0].id;
+        
+        // בדיקת המגבלה
+        const countRes = await pool.query('SELECT COUNT(*) FROM family_communities WHERE group_id = $1', [groupId]);
+        if (parseInt(countRes.rows[0].count) >= 5) return res.status(400).json({error: 'ניתן להצטרף לעד 5 קהילות במקביל.'});
+        
+        await pool.query('INSERT INTO family_communities (group_id, community_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [groupId, commId]);
+        res.json({success: true, community: commRes.rows[0]});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// 4. ניתוק מקהילה ספציפית
+app.delete('/api/community/leave/:groupId/:communityId', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM family_communities WHERE group_id = $1 AND community_id = $2', [req.params.groupId, req.params.communityId]);
+        res.json({success: true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// 5. דריסת השאילתות של הסופר-אדמין לספירת משפחות מתוך הטבלה החדשה
+app.get('/api/sa/communities', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT c.*, 
+                (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count,
+                (SELECT COUNT(u.id) FROM users u JOIN family_communities fc ON u.group_id = fc.group_id WHERE fc.community_id = c.id) as users_count,
+                (SELECT COUNT(*) FROM community_businesses WHERE community_id = c.id AND status='approved') as business_count
+            FROM communities c
+            ORDER BY c.created_at DESC
+        `);
+        res.json({ success: true, communities: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// duplicate removed — see /api/sa/communities/:id/details above
+// ============================================================
+// --- COMMUNITY CASHBACK SYSTEM ENDPOINTS ---
+// ============================================================
+
+// פונקציה פנימית: טריגר קאשבק כאשר הזמנה מסומנת כ-delivered
+async function triggerCashbackForOrder(orderId) {
+    try {
+        // מצא את הקהילה המשותפת: המשפחה שהזמינה (family_communities) + העסק שמכר (community_businesses)
+        const orderRes = await pool.query(
+            `SELECT so.group_id, so.family_group_id, so.total_amount,
+                    fc.community_id
+             FROM store_orders so
+             JOIN family_communities fc ON fc.group_id = so.family_group_id
+             JOIN community_businesses cb ON cb.community_id = fc.community_id
+                  AND cb.business_id = so.group_id AND cb.status = 'approved'
+             WHERE so.id = $1 AND so.status IN ('delivered','completed')
+             LIMIT 1`, [orderId]);
+
+        if (!orderRes.rows.length) {
+            console.log(`Cashback: no matching community for order ${orderId} (family not in same community as business, or order not delivered)`);
+            return;
+        }
+        const order = orderRes.rows[0];
+
+        // בדיקה שלא כבר טופל
+        const existing = await pool.query('SELECT id FROM business_platform_dues WHERE order_id=$1', [orderId]);
+        if (existing.rows.length) return;
+
+        const commPct = parseFloat((await pool.query("SELECT value FROM system_settings WHERE key='platform_commission_pct'")).rows[0]?.value || 3);
+        const cashbackPct = parseFloat((await pool.query("SELECT value FROM system_settings WHERE key='community_cashback_pct'")).rows[0]?.value || 30);
+        const amount = parseFloat(order.total_amount || 0);
+        const commAmount = parseFloat((amount * commPct / 100).toFixed(2));
+        const cashbackAmount = parseFloat((commAmount * cashbackPct / 100).toFixed(2));
+
+        await pool.query(`INSERT INTO business_platform_dues
+            (business_id, order_id, order_amount, commission_pct, commission_amount, cashback_pct, cashback_amount, community_id, status)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending')`,
+            [order.group_id, orderId, amount, commPct, commAmount, cashbackPct, cashbackAmount, order.community_id]);
+
+        if (cashbackAmount > 0) {
+            await pool.query(`INSERT INTO community_wallets (community_id, balance, total_earned, updated_at)
+                VALUES ($1,$2,$2,NOW())
+                ON CONFLICT (community_id) DO UPDATE SET
+                balance = community_wallets.balance + $2,
+                total_earned = community_wallets.total_earned + $2,
+                updated_at = NOW()`, [order.community_id, cashbackAmount]);
+            await pool.query(`INSERT INTO community_wallet_transactions (community_id, amount, type, reference_id, description)
+                VALUES ($1,$2,'cashback',$3,$4)`,
+                [order.community_id, cashbackAmount, orderId, `קאשבק מהזמנה #${orderId} על סך ₪${amount}`]);
+        }
+        // עמלת מנהל אזור: אם הקהילה שייכת לאזור, הפרש % מהעמלה
+        try {
+            const zoneRes = await pool.query(`
+                SELECT mz.id as zone_id, zm.id as manager_id, zm.commission_pct
+                FROM communities c
+                JOIN manager_zones mz ON c.zone_id=mz.id
+                JOIN zone_managers zm ON mz.manager_id=zm.id AND zm.status='active'
+                WHERE c.id=$1`, [order.community_id]);
+            if (zoneRes.rows.length) {
+                const zm = zoneRes.rows[0];
+                const zmCommPct = parseFloat(zm.commission_pct || (await pool.query("SELECT value FROM system_settings WHERE key='zone_manager_commission_pct'")).rows[0]?.value || 5);
+                const zmAmount = parseFloat((commAmount * zmCommPct / 100).toFixed(2));
+                if (zmAmount > 0) {
+                    await pool.query(`INSERT INTO zone_manager_commissions (manager_id, community_id, order_id, amount, commission_pct, description) VALUES ($1,$2,$3,$4,$5,$6)`,
+                        [zm.manager_id, order.community_id, orderId, zmAmount, zmCommPct, `עמלה מהזמנה #${orderId} בקהילה`]);
+                }
+            }
+        } catch(zmErr) { console.error('Zone manager commission error:', zmErr.message); }
+
+        console.log(`Cashback triggered: order ${orderId}, community ${order.community_id}, cashback ₪${cashbackAmount}`);
+    } catch(e) { console.error('Cashback trigger error:', e.message); }
+}
+
+// הגדרת אחוזי עמלה וקאשבק (סופר אדמין)
+app.get('/api/sa/settings/rates', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('platform_commission_pct','community_cashback_pct')");
+        const rates = {};
+        result.rows.forEach(r => { rates[r.key] = parseFloat(r.value); });
+        res.json({ success: true, platform_commission_pct: rates.platform_commission_pct || 3, community_cashback_pct: rates.community_cashback_pct || 30 });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/settings/rates', verifySA, async (req, res) => {
+    try {
+        const { platform_commission_pct, community_cashback_pct } = req.body;
+        if (platform_commission_pct !== undefined) {
+            await pool.query("INSERT INTO system_settings (key,value) VALUES ('platform_commission_pct',$1) ON CONFLICT (key) DO UPDATE SET value=$1", [String(platform_commission_pct)]);
+        }
+        if (community_cashback_pct !== undefined) {
+            await pool.query("INSERT INTO system_settings (key,value) VALUES ('community_cashback_pct',$1) ON CONFLICT (key) DO UPDATE SET value=$1", [String(community_cashback_pct)]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הגדרת מנהל קהילה (סופר אדמין)
+app.put('/api/sa/communities/:commId/set-manager', verifySA, async (req, res) => {
+    try {
+        const { groupId, isManager } = req.body;
+        const { commId } = req.params;
+        await pool.query(
+            `UPDATE family_communities SET is_community_manager=$1 WHERE group_id=$2 AND community_id=$3`,
+            [!!isManager, groupId, commId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// סיכום פיננסי גלובלי (סופר אדמין)
+app.get('/api/sa/finance-summary', verifySA, async (req, res) => {
+    try {
+        const duesRes = await pool.query(`
+            SELECT
+                COALESCE(SUM(commission_amount), 0) as total_commission,
+                COALESCE(SUM(cashback_amount), 0) as total_cashback,
+                COALESCE(SUM(CASE WHEN DATE_TRUNC('month', created_at) = DATE_TRUNC('month', NOW()) THEN commission_amount ELSE 0 END), 0) as month_commission,
+                COALESCE(SUM(CASE WHEN DATE_TRUNC('month', created_at) = DATE_TRUNC('month', NOW()) THEN cashback_amount ELSE 0 END), 0) as month_cashback
+            FROM business_platform_dues
+        `);
+        const collRes = await pool.query(`
+            SELECT
+                COALESCE(SUM(amount), 0) as total_collected,
+                COALESCE(SUM(CASE WHEN DATE_TRUNC('month', collected_at) = DATE_TRUNC('month', NOW()) THEN amount ELSE 0 END), 0) as month_collected
+            FROM business_platform_collections
+        `);
+        res.json({ success: true, summary: { ...duesRes.rows[0], ...collRes.rows[0] } });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// חובות עסקים לפלטפורמה (סופר אדמין)
+app.get('/api/sa/business-dues', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT fg.id as business_id, fg.name as business_name, fg.group_code,
+                COUNT(d.id) as order_count,
+                SUM(d.order_amount) as total_sales,
+                SUM(d.commission_amount) as total_commission,
+                SUM(d.cashback_amount) as total_cashback,
+                SUM(CASE WHEN d.status='pending' THEN d.commission_amount ELSE 0 END) as pending_commission,
+                COALESCE((SELECT SUM(c.amount) FROM business_platform_collections c WHERE c.business_id=fg.id), 0) as total_collected
+            FROM business_platform_dues d
+            JOIN family_groups fg ON d.business_id = fg.id
+            GROUP BY fg.id, fg.name, fg.group_code
+            ORDER BY total_commission DESC
+        `);
+        res.json({ success: true, dues: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// רישום גביה מעסק
+app.post('/api/sa/business-collections', verifySA, async (req, res) => {
+    try {
+        const { business_id, amount, collected_at, notes } = req.body;
+        if (!business_id || !amount) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        await pool.query(
+            `INSERT INTO business_platform_collections (business_id, amount, collected_at, notes, created_by) VALUES ($1,$2,$3,$4,$5)`,
+            [business_id, parseFloat(amount), collected_at || new Date().toISOString().split('T')[0], notes || null, req.saUser?.name || 'SA']
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// היסטוריית גביות לעסק
+app.get('/api/sa/business-collections/:businessId', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT bpc.*, fg.name as business_name FROM business_platform_collections bpc
+             JOIN family_groups fg ON bpc.business_id=fg.id
+             WHERE bpc.business_id=$1 ORDER BY bpc.collected_at DESC`,
+            [req.params.businessId]
+        );
+        res.json({ success: true, collections: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// יתרות ארנקי קהילות (סופר אדמין)
+app.get('/api/sa/community-wallets', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT c.id, c.name, c.city,
+                COALESCE(w.balance, 0) as balance,
+                COALESCE(w.total_earned, 0) as total_earned,
+                w.updated_at,
+                (SELECT COUNT(*) FROM family_communities WHERE community_id=c.id) as family_count
+            FROM communities c
+            LEFT JOIN community_wallets w ON w.community_id = c.id
+            ORDER BY COALESCE(w.total_earned,0) DESC
+        `);
+        res.json({ success: true, wallets: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- ZONE MANAGER SYSTEM ---
+// ============================================================
+
+// לוגין מנהל אזור
+// הרשמה למנהל אזור (ממתין לאישור SA)
+app.post('/api/zone-manager/register', async (req, res) => {
+    try {
+        const { name, email, password, phone } = req.body;
+        if (!name || !email || !password) return res.status(400).json({ error: 'שם, אימייל וסיסמה הם שדות חובה' });
+        const existing = await pool.query('SELECT id,status FROM zone_managers WHERE email=$1', [email]);
+        if (existing.rows.length) {
+            const s = existing.rows[0].status;
+            if (s === 'pending') return res.status(400).json({ error: 'בקשת הרשמה כבר קיימת ומחכה לאישור' });
+            if (s === 'active') return res.status(400).json({ error: 'כתובת מייל זו כבר רשומה ופעילה במערכת' });
+            return res.status(400).json({ error: 'כתובת מייל זו כבר רשומה' });
+        }
+        await pool.query(`INSERT INTO zone_managers (name, email, phone, password_hash, status, commission_pct) VALUES ($1,$2,$3,$4,'pending',5)`, [name, email, phone || null, password]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שכחתי סיסמה — שליחת לינק לאימייל
+app.post('/api/zone-manager/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ error: 'נדרשת כתובת מייל' });
+        const result = await pool.query("SELECT id, name, email FROM zone_managers WHERE LOWER(email)=LOWER($1) AND status='active'", [email]);
+        // לא חושפים אם המייל קיים
+        if (result.rows.length) {
+            const mgr = result.rows[0];
+            const token = `ZMR_${mgr.id}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+            zmPasswordResets.set(token, { managerId: mgr.id, email: mgr.email, expires: Date.now() + 60 * 60 * 1000 });
+            const host = req.get('host');
+            const proto = req.headers['x-forwarded-proto'] || req.protocol;
+            const resetUrl = `${proto}://${host}/zone-manager.html?reset=${token}`;
+            const html = `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#f8fafc;border-radius:16px">
+                <h2 style="color:#4f46e5;margin-bottom:8px">איפוס סיסמה — OneFlow</h2>
+                <p style="color:#334155">שלום <strong>${mgr.name}</strong>,</p>
+                <p style="color:#334155">קיבלנו בקשה לאיפוס הסיסמה לחשבון מנהל האזור שלך.</p>
+                <p style="margin:24px 0"><a href="${resetUrl}" style="background:#4f46e5;color:white;padding:13px 28px;border-radius:10px;text-decoration:none;font-weight:bold;display:inline-block">לאיפוס הסיסמה — לחץ כאן</a></p>
+                <p style="color:#94a3b8;font-size:12px">הקישור תקף לשעה אחת. אם לא ביקשת איפוס סיסמה, ניתן להתעלם ממייל זה.</p>
+            </div>`;
+            await sendSystemEmail(mgr.email, 'איפוס סיסמה — OneFlow Zone Manager', html);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// איפוס סיסמה — ולידציה ועדכון
+app.post('/api/zone-manager/reset-password', async (req, res) => {
+    try {
+        const { token, password } = req.body;
+        if (!token || !password || password.length < 6) return res.status(400).json({ error: 'טוקן או סיסמה לא תקינים' });
+        const reset = zmPasswordResets.get(token);
+        if (!reset || reset.expires < Date.now()) return res.status(400).json({ error: 'הקישור לא תקף או שפג תוקפו — בקש קישור חדש' });
+        await pool.query("UPDATE zone_managers SET password_hash=$1 WHERE id=$2", [password, reset.managerId]);
+        zmPasswordResets.delete(token);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/zone-manager/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const result = await pool.query('SELECT * FROM zone_managers WHERE email=$1 AND password_hash=$2 AND status=$3', [email, password, 'active']);
+        if (!result.rows.length) return res.status(401).json({ error: 'פרטי גישה שגויים' });
+        const mgr = result.rows[0];
+        const token = `ZM_${mgr.id}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        zoneManagerSessions.set(token, { managerId: mgr.id, name: mgr.name, email: mgr.email });
+        res.json({ success: true, token, manager: { id: mgr.id, name: mgr.name, email: mgr.email, commission_pct: mgr.commission_pct } });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// דשבורד מנהל אזור
+app.get('/api/zone-manager/dashboard', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        // אזורים + קהילות
+        const zonesRes = await pool.query(`
+            SELECT mz.id, mz.name, mz.status,
+                COUNT(c.id) as community_count,
+                COALESCE(SUM((SELECT COUNT(*) FROM family_communities WHERE community_id=c.id)),0) as family_count,
+                COALESCE(SUM((SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='approved')),0) as business_count
+            FROM manager_zones mz
+            LEFT JOIN communities c ON c.zone_id = mz.id
+            WHERE mz.manager_id=$1
+            GROUP BY mz.id, mz.name, mz.status
+            ORDER BY mz.created_at`, [managerId]);
+
+        const commRes = await pool.query(`
+            SELECT c.id, c.name, c.city, c.zone_id, mz.name as zone_name,
+                (SELECT COUNT(*) FROM family_communities WHERE community_id=c.id) as family_count,
+                (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='approved') as business_count,
+                (SELECT fc2.is_community_manager FROM family_communities fc2 WHERE fc2.community_id=c.id AND fc2.is_community_manager=TRUE LIMIT 1) as has_local_manager
+            FROM communities c
+            JOIN manager_zones mz ON c.zone_id = mz.id
+            WHERE mz.manager_id=$1
+            ORDER BY mz.id, c.name`, [managerId]);
+
+        // עמלות
+        const settings = await pool.query("SELECT key,value FROM system_settings WHERE key IN ('zone_min_communities','zone_max_zones_per_manager','community_min_families','community_min_businesses')");
+        const s = {}; settings.rows.forEach(r => { s[r.key] = parseFloat(r.value); });
+
+        const [commissionsRes, paidRes] = await Promise.all([
+            pool.query(`SELECT COALESCE(SUM(amount),0) as total, COALESCE(SUM(CASE WHEN DATE_TRUNC('month',created_at)=DATE_TRUNC('month',NOW()) THEN amount ELSE 0 END),0) as month FROM zone_manager_commissions WHERE manager_id=$1`, [managerId]),
+            pool.query(`SELECT COALESCE(SUM(amount),0) as total_paid, COALESCE(SUM(CASE WHEN DATE_TRUNC('month',paid_at)=DATE_TRUNC('month',NOW()) THEN amount ELSE 0 END),0) as month_paid FROM zone_manager_payments WHERE manager_id=$1`, [managerId])
+        ]);
+        res.json({ success: true, zones: zonesRes.rows, communities: commRes.rows, commissions: { ...commissionsRes.rows[0], ...paidRes.rows[0] }, settings: s });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// היסטוריית עמלות מנהל אזור
+app.get('/api/zone-manager/commissions', verifyZoneManager, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT zmc.*, c.name as community_name FROM zone_manager_commissions zmc
+            LEFT JOIN communities c ON zmc.community_id=c.id
+            WHERE zmc.manager_id=$1 ORDER BY zmc.created_at DESC LIMIT 100`, [req.zmSession.managerId]);
+        res.json({ success: true, commissions: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ZM — בקשות עסקים הממתינות לאישורו (zm_pending)
+app.get('/api/zone-manager/pending-businesses', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        const result = await pool.query(`
+            SELECT cb.community_id, cb.business_id, cb.discount_pct,
+                   c.name as comm_name, b.name as biz_name
+            FROM community_businesses cb
+            JOIN communities c ON cb.community_id = c.id
+            JOIN family_groups b ON cb.business_id = b.id
+            JOIN manager_zones mz ON c.zone_id = mz.id
+            JOIN zone_managers zm ON mz.manager_id = zm.id
+            WHERE cb.status = 'zm_pending' AND zm.id = $1
+        `, [managerId]);
+        res.json({ success: true, pending: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ZM — אישור בקשת עסק
+app.post('/api/zone-manager/community-business/approve', verifyZoneManager, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        const { managerId } = req.zmSession;
+        // וודא שהקהילה שייכת לאזור של ה-ZM הזה
+        const check = await pool.query(`
+            SELECT 1 FROM communities c
+            JOIN manager_zones mz ON c.zone_id = mz.id
+            WHERE c.id = $1 AND mz.manager_id = $2
+        `, [communityId, managerId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'Unauthorized' });
+        await pool.query('UPDATE community_businesses SET status=$1 WHERE community_id=$2 AND business_id=$3 AND status=$4',
+            ['approved', communityId, businessId, 'zm_pending']);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ZM — דחיית בקשת עסק
+app.post('/api/zone-manager/community-business/reject', verifyZoneManager, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        const { managerId } = req.zmSession;
+        const check = await pool.query(`
+            SELECT 1 FROM communities c
+            JOIN manager_zones mz ON c.zone_id = mz.id
+            WHERE c.id = $1 AND mz.manager_id = $2
+        `, [communityId, managerId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'Unauthorized' });
+        await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status=$3',
+            [communityId, businessId, 'zm_pending']);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — רשימת מנהלי אזורים (פעילים ומושהים)
+app.get('/api/sa/zone-managers', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT zm.*,
+                (SELECT COUNT(*) FROM manager_zones WHERE manager_id=zm.id) as zone_count,
+                (SELECT COUNT(*) FROM manager_zones mz JOIN communities c ON c.zone_id=mz.id WHERE mz.manager_id=zm.id) as community_count,
+                (SELECT COALESCE(SUM(amount),0) FROM zone_manager_commissions WHERE manager_id=zm.id) as total_commissions,
+                (SELECT COALESCE(SUM(amount),0) FROM zone_manager_payments WHERE manager_id=zm.id) as total_paid,
+                (SELECT COALESCE(SUM(amount),0) FROM zone_manager_payments WHERE manager_id=zm.id AND DATE_TRUNC('month',paid_at)=DATE_TRUNC('month',NOW())) as month_paid
+            FROM zone_managers zm WHERE zm.status != 'pending' ORDER BY zm.created_at DESC`);
+        res.json({ success: true, managers: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — סיכום פיננסי של מנהלי אזורים (עמלות + תשלומים)
+app.get('/api/sa/zone-managers/finance-summary', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT
+                COALESCE(SUM(c.amount), 0)                                                                          AS total_earned,
+                COALESCE(SUM(CASE WHEN DATE_TRUNC('month', c.created_at) = DATE_TRUNC('month', NOW()) THEN c.amount ELSE 0 END), 0) AS month_earned,
+                COALESCE((SELECT SUM(amount) FROM zone_manager_payments), 0)                                        AS total_paid,
+                COALESCE((SELECT SUM(amount) FROM zone_manager_payments WHERE DATE_TRUNC('month', paid_at) = DATE_TRUNC('month', NOW())), 0) AS month_paid
+            FROM zone_manager_commissions c
+        `);
+        const s = r.rows[0];
+        const totalDebt = parseFloat(s.total_earned) - parseFloat(s.total_paid);
+        const monthDebt = parseFloat(s.month_earned) - parseFloat(s.month_paid);
+        res.json({ success: true, summary: {
+            total_earned:  parseFloat(s.total_earned),
+            month_earned:  parseFloat(s.month_earned),
+            total_paid:    parseFloat(s.total_paid),
+            month_paid:    parseFloat(s.month_paid),
+            total_debt:    Math.max(0, totalDebt),
+            month_debt:    Math.max(0, monthDebt)
+        }});
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — סטטיסטיקות קמפיינים
+app.get('/api/sa/campaigns/stats', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT COUNT(*) FILTER (WHERE status='active') as active_campaigns, COUNT(*) as total_campaigns FROM zm_campaigns`);
+        res.json({ success: true, active_campaigns: parseInt(r.rows[0].active_campaigns)||0, total_campaigns: parseInt(r.rows[0].total_campaigns)||0 });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — סטטיסטיקות לידים
+app.get('/api/sa/leads/stats', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT COUNT(*) as total_leads FROM zm_campaign_leads`);
+        res.json({ success: true, total_leads: parseInt(r.rows[0].total_leads)||0 });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — רשימת בקשות הרשמה ממתינות
+app.get('/api/sa/zone-managers/pending', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query("SELECT id,name,email,phone,created_at FROM zone_managers WHERE status='pending' ORDER BY created_at DESC");
+        res.json({ success: true, pending: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — רשימת כל האזורים (לטרנספר)
+app.get('/api/sa/all-zones', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`SELECT mz.id, mz.name, zm.name as manager_name, zm.id as manager_id FROM manager_zones mz JOIN zone_managers zm ON mz.manager_id=zm.id WHERE zm.status='active' ORDER BY zm.name, mz.name`);
+        res.json({ success: true, zones: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — תשלום עמלה למנהל אזור
+app.post('/api/sa/zone-manager-payments', verifySA, async (req, res) => {
+    try {
+        const { manager_id, amount, payment_method, notes, paid_at } = req.body;
+        if (!manager_id || !amount) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        await pool.query(`INSERT INTO zone_manager_payments (manager_id, amount, payment_method, notes, paid_at, recorded_by) VALUES ($1,$2,$3,$4,$5,$6)`,
+            [manager_id, amount, payment_method || null, notes || null, paid_at || new Date(), req.saUser?.name || 'SA']);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — היסטוריית תשלומים למנהל
+app.get('/api/sa/zone-manager-payments/:id', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM zone_manager_payments WHERE manager_id=$1 ORDER BY paid_at DESC', [req.params.id]);
+        res.json({ success: true, payments: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — יצירת מנהל אזור
+app.post('/api/sa/zone-managers', verifySA, async (req, res) => {
+    try {
+        const { name, email, phone, password, commission_pct, notes } = req.body;
+        if (!name || !email || !password) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        const result = await pool.query(
+            `INSERT INTO zone_managers (name, email, phone, password_hash, commission_pct, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+            [name, email, phone || null, password, commission_pct || 5, notes || null]);
+        res.json({ success: true, id: result.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — עדכון מנהל אזור
+app.put('/api/sa/zone-managers/:id', verifySA, async (req, res) => {
+    try {
+        const { name, email, phone, password, commission_pct, notes, status } = req.body;
+        const sets = [], vals = [];
+        const add = (col, v) => { sets.push(`${col}=$${sets.length+1}`); vals.push(v); };
+        if (name !== undefined) add('name', name);
+        if (email !== undefined) add('email', email);
+        if (phone !== undefined) add('phone', phone);
+        if (commission_pct !== undefined) add('commission_pct', commission_pct);
+        if (notes !== undefined) add('notes', notes);
+        if (status !== undefined) add('status', status);
+        if (password) add('password_hash', password);
+        if (!sets.length) return res.json({ success: true });
+        vals.push(req.params.id);
+        await pool.query(`UPDATE zone_managers SET ${sets.join(',')} WHERE id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — מחיקת מנהל אזור
+app.delete('/api/sa/zone-managers/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM zone_managers WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — יצירת אזור למנהל
+app.post('/api/sa/zone-managers/:id/zones', verifySA, async (req, res) => {
+    try {
+        const { name } = req.body;
+        const maxZones = parseFloat((await pool.query("SELECT value FROM system_settings WHERE key='zone_max_zones_per_manager'")).rows[0]?.value || 4);
+        const existing = await pool.query('SELECT COUNT(*) FROM manager_zones WHERE manager_id=$1', [req.params.id]);
+        if (parseInt(existing.rows[0].count) >= maxZones) return res.status(400).json({ error: `מנהל יכול להחזיק עד ${maxZones} אזורים` });
+        const result = await pool.query('INSERT INTO manager_zones (manager_id, name) VALUES ($1,$2) RETURNING id', [req.params.id, name]);
+        res.json({ success: true, id: result.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — שיוך קהילה לאזור
+app.put('/api/sa/communities/:id/assign-zone', verifySA, async (req, res) => {
+    try {
+        const { zone_id } = req.body;
+        await pool.query('UPDATE communities SET zone_id=$1 WHERE id=$2', [zone_id || null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — הגדרות פרמטרי סף
+app.get('/api/sa/zone-settings', verifySA, async (req, res) => {
+    try {
+        const keys = ['zone_min_communities','zone_max_zones_per_manager','zone_manager_commission_pct','community_min_families','community_min_businesses'];
+        const result = await pool.query("SELECT key,value FROM system_settings WHERE key=ANY($1)", [keys]);
+        const defaults = { zone_min_communities: 5, zone_max_zones_per_manager: 4, zone_manager_commission_pct: 5, community_min_families: 30, community_min_businesses: 15 };
+        const s = { ...defaults };
+        result.rows.forEach(r => { s[r.key] = parseFloat(r.value); });
+        res.json({ success: true, settings: s });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/zone-settings', verifySA, async (req, res) => {
+    try {
+        const keys = ['zone_min_communities','zone_max_zones_per_manager','zone_manager_commission_pct','community_min_families','community_min_businesses'];
+        for (const key of keys) {
+            if (req.body[key] !== undefined) {
+                await pool.query("INSERT INTO system_settings (key,value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2", [key, String(req.body[key])]);
+            }
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — אזורים וקהילות של מנהל ספציפי
+app.get('/api/sa/zone-managers/:id/details', verifySA, async (req, res) => {
+    try {
+        const [mgrRes, zonesRes, commRes, commissionsRes] = await Promise.all([
+            pool.query('SELECT id,name,email,phone,commission_pct,status,created_at FROM zone_managers WHERE id=$1', [req.params.id]),
+            pool.query(`SELECT mz.*, COUNT(c.id) as community_count FROM manager_zones mz LEFT JOIN communities c ON c.zone_id=mz.id WHERE mz.manager_id=$1 GROUP BY mz.id ORDER BY mz.created_at`, [req.params.id]),
+            pool.query(`SELECT c.id, c.name, c.city, c.zone_id, mz.name as zone_name,
+                (SELECT COUNT(*) FROM family_communities WHERE community_id=c.id) as family_count,
+                (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='approved') as business_count
+                FROM communities c JOIN manager_zones mz ON c.zone_id=mz.id WHERE mz.manager_id=$1`, [req.params.id]),
+            pool.query(`SELECT zmc.*, c.name as community_name FROM zone_manager_commissions zmc LEFT JOIN communities c ON zmc.community_id=c.id WHERE zmc.manager_id=$1 ORDER BY zmc.created_at DESC LIMIT 50`, [req.params.id])
+        ]);
+        if (!mgrRes.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        res.json({ success: true, manager: mgrRes.rows[0], zones: zonesRes.rows, communities: commRes.rows, commissions: commissionsRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- ZONE MANAGER: MARKETING, CAMPAIGNS, LEADS, INBOX, TEMPLATES ---
+// ============================================================
+
+// חיפוש קהילות + משפחות לצורך מינוי מנהל קהילה (ע"י מנהל אזור)
+app.get('/api/zone-manager/communities-members', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        const { communityId, q } = req.query;
+        if (!communityId) return res.status(400).json({ error: 'חסר communityId' });
+        const zoneCheck = await pool.query(
+            `SELECT c.id FROM communities c JOIN manager_zones mz ON c.zone_id=mz.id WHERE c.id=$1 AND mz.manager_id=$2`,
+            [communityId, managerId]);
+        if (!zoneCheck.rows.length) return res.status(403).json({ error: 'קהילה לא שייכת לאזור שלך' });
+        const search = q ? `%${q}%` : '%';
+        const result = await pool.query(
+            `SELECT fc.group_id, fg.name, fg.admin_email, fc.is_community_manager
+             FROM family_communities fc
+             JOIN family_groups fg ON fg.id=fc.group_id
+             WHERE fc.community_id=$1 AND (fg.name ILIKE $2 OR fg.admin_email ILIKE $2)
+             ORDER BY fc.is_community_manager DESC, fg.name LIMIT 30`,
+            [communityId, search]);
+        res.json({ success: true, members: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מינוי/הסרת מנהל קהילה ע"י מנהל אזור (משפיע על אותו שדה ש-SA משתמש בו)
+app.post('/api/zone-manager/set-community-manager', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        const { groupId, communityId, isManager } = req.body;
+        if (!groupId || !communityId) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        const zoneCheck = await pool.query(
+            `SELECT c.id FROM communities c JOIN manager_zones mz ON c.zone_id=mz.id WHERE c.id=$1 AND mz.manager_id=$2`,
+            [communityId, managerId]);
+        if (!zoneCheck.rows.length) return res.status(403).json({ error: 'קהילה לא שייכת לאזור שלך' });
+        await pool.query(
+            `UPDATE family_communities SET is_community_manager=$1 WHERE group_id=$2 AND community_id=$3`,
+            [!!isManager, groupId, communityId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- CAMPAIGNS ---
+app.get('/api/zone-manager/campaigns', verifyZoneManager, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT c.*, (SELECT COUNT(*) FROM zm_campaign_leads WHERE campaign_id=c.id) as lead_count
+             FROM zm_campaigns c WHERE zone_manager_id=$1 ORDER BY created_at DESC`,
+            [req.zmSession.managerId]);
+        res.json({ success: true, campaigns: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/zone-manager/campaigns', verifyZoneManager, async (req, res) => {
+    try {
+        const { title, subtitle, text_content, fields_config, campaign_type, image_url } = req.body;
+        if (!title) return res.status(400).json({ error: 'כותרת הקמפיין חובה' });
+        const token = `CAMP_${req.zmSession.managerId}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+        const result = await pool.query(
+            `INSERT INTO zm_campaigns (zone_manager_id, title, subtitle, text_content, fields_config, token, campaign_type, image_url)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [req.zmSession.managerId, title, subtitle || null, text_content || null,
+             JSON.stringify(fields_config || []), token, campaign_type || 'general', image_url || null]);
+        res.json({ success: true, campaign: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/zone-manager/campaigns/:id', verifyZoneManager, async (req, res) => {
+    try {
+        const { title, subtitle, text_content, fields_config, status, campaign_type, image_url } = req.body;
+        const sets = [], vals = [];
+        const add = (col, v) => { sets.push(`${col}=$${sets.length+1}`); vals.push(v); };
+        if (title !== undefined) add('title', title);
+        if (subtitle !== undefined) add('subtitle', subtitle);
+        if (text_content !== undefined) add('text_content', text_content);
+        if (fields_config !== undefined) add('fields_config', JSON.stringify(fields_config));
+        if (status !== undefined) add('status', status);
+        if (campaign_type !== undefined) add('campaign_type', campaign_type);
+        if (image_url !== undefined) add('image_url', image_url);
+        if (!sets.length) return res.json({ success: true });
+        add('updated_at', new Date());
+        vals.push(req.params.id, req.zmSession.managerId);
+        await pool.query(`UPDATE zm_campaigns SET ${sets.join(',')} WHERE id=$${vals.length-1} AND zone_manager_id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/zone-manager/campaigns/:id', verifyZoneManager, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM zm_campaigns WHERE id=$1 AND zone_manager_id=$2', [req.params.id, req.zmSession.managerId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/zone-manager/campaigns/:id/leads', verifyZoneManager, async (req, res) => {
+    try {
+        const camp = await pool.query('SELECT id FROM zm_campaigns WHERE id=$1 AND zone_manager_id=$2', [req.params.id, req.zmSession.managerId]);
+        if (!camp.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא' });
+        const result = await pool.query('SELECT * FROM zm_campaign_leads WHERE campaign_id=$1 ORDER BY created_at DESC', [req.params.id]);
+        res.json({ success: true, leads: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// דף נחיתה ציבורי — קבלת הגדרות קמפיין
+app.get('/api/public/campaign/:token', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT c.id, c.title, c.subtitle, c.text_content, c.fields_config, c.image_url, zm.name as manager_name
+             FROM zm_campaigns c JOIN zone_managers zm ON zm.id=c.zone_manager_id
+             WHERE c.token=$1 AND c.status='active'`, [req.params.token]);
+        if (!result.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא או לא פעיל' });
+        res.json({ success: true, campaign: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הגשת טופס לינק ציבורי
+app.post('/api/public/campaign/:token/submit', async (req, res) => {
+    try {
+        const campRes = await pool.query('SELECT id, campaign_type FROM zm_campaigns WHERE token=$1 AND status=$2', [req.params.token, 'active']);
+        if (!campRes.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא' });
+        const body = req.body || {};
+        const leadType = body.lead_type || 'unknown';
+        delete body.lead_type;
+        const campType = campRes.rows[0].campaign_type;
+        const inferredType = leadType !== 'unknown' ? leadType : (campType === 'business' ? 'business' : campType === 'family' ? 'family' : 'unknown');
+        await pool.query('INSERT INTO zm_campaign_leads (campaign_id, data, lead_type) VALUES ($1,$2,$3)', [campRes.rows[0].id, JSON.stringify(body), inferredType]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- LEAD CRM: עדכון סטטוס/נוטות ---
+app.put('/api/zone-manager/leads/:id', verifyZoneManager, async (req, res) => {
+    try {
+        const { status, crm_notes, lead_type } = req.body;
+        const sets = [], vals = [];
+        const add = (col, v) => { sets.push(`${col}=$${sets.length+1}`); vals.push(v); };
+        if (status !== undefined) add('status', status);
+        if (crm_notes !== undefined) add('crm_notes', crm_notes);
+        if (lead_type !== undefined) add('lead_type', lead_type);
+        if (!sets.length) return res.json({ success: true });
+        vals.push(req.params.id);
+        await pool.query(`UPDATE zm_campaign_leads SET ${sets.join(',')} WHERE id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- LEAD CRM: פעולות / לוג ---
+app.get('/api/zone-manager/leads/:id/actions', verifyZoneManager, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM zm_lead_actions WHERE lead_id=$1 ORDER BY created_at DESC', [req.params.id]);
+        res.json({ success: true, actions: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/zone-manager/leads/:id/actions', verifyZoneManager, async (req, res) => {
+    try {
+        const { action_type, notes } = req.body;
+        if (!action_type) return res.status(400).json({ error: 'סוג פעולה חובה' });
+        await pool.query('INSERT INTO zm_lead_actions (lead_id, action_type, notes) VALUES ($1,$2,$3)', [req.params.id, action_type, notes || null]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- AI: יצירת באנר (SVG via text model — works with any Gemini API key) ---
+app.post('/api/zone-manager/ai/generate-banner', verifyZoneManager, async (req, res) => {
+    try {
+        if (!genAI) return res.status(503).json({ error: 'AI לא זמין' });
+        const { title, campaignType } = req.body;
+        const palette = campaignType === 'business'
+            ? { c1: '#1e3a8a', c2: '#2563eb', c3: '#0ea5e9', accent: '#38bdf8' }
+            : campaignType === 'family'
+            ? { c1: '#4f46e5', c2: '#7c3aed', c3: '#db2777', accent: '#f472b6' }
+            : { c1: '#064e3b', c2: '#059669', c3: '#10b981', accent: '#34d399' };
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const prompt = `Generate a beautiful SVG marketing banner. Output ONLY valid SVG code, nothing else.
+Dimensions: width="1600" height="900". No text, no letters, no numbers.
+Use colors: ${palette.c1}, ${palette.c2}, ${palette.c3}, ${palette.accent}.
+Include: a gradient background (linearGradient from ${palette.c1} to ${palette.c2}),
+8-12 semi-transparent decorative shapes (circles, ellipses, rectangles, polygons) with opacity between 0.08 and 0.35,
+abstract modern geometric design, layered depth effect.
+Start the response with: <svg width="1600" height="900" xmlns="http://www.w3.org/2000/svg">
+End with: </svg>`;
+        let result;
+        try {
+            result = await model.generateContent(prompt);
+        } catch(e) {
+            const fallback = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+            result = await fallback.generateContent(prompt);
+        }
+        const raw = result.response.text().trim();
+        const match = raw.match(/<svg[\s\S]*?<\/svg>/i);
+        if (!match) throw new Error('SVG לא נוצר');
+        const svgData = match[0];
+        const b64 = Buffer.from(svgData).toString('base64');
+        res.json({ success: true, imageUrl: `data:image/svg+xml;base64,${b64}` });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- AI: ניסוח טקסט קמפיין ---
+app.post('/api/zone-manager/ai/draft-campaign', verifyZoneManager, async (req, res) => {
+    try {
+        if (!genAI) return res.status(503).json({ error: 'AI לא זמין' });
+        const { goal, audience, tone, campaignType, modules } = req.body;
+        const modelName = 'gemini-2.5-flash';
+        const fallbackModelName = 'gemini-1.5-flash';
+        let model = genAI.getGenerativeModel({ model: modelName });
+        const typeContexts = {
+            business: `מנהל אזור משווק לבעלי עסקים מקומיים את פלטפורמת OneFlow כמערכת ניהול עסקי.
+OneFlow מציעה לעסק: מערכת קופה (POS), ניהול מלאי, חשבוניות, ניהול לקוחות (CRM), כלי שיווק, ניהול נוכחות ומשמרות, ניהול משלוחים, תזרים ותקציב — הכל במקום אחד.
+המטרה: לשכנע את בעל העסק להירשם ולנסות את המערכת. אין קשר לקהילה — זהו גיוס לקוח לשימוש במוצר עסקי.`,
+            family: `מנהל אזור מגייס משפחות וצרכנים פרטיים לפלטפורמת OneFlow.
+OneFlow מציעה למשפחה: הבנק המשפחתי, ניהול תקציב ביתי, תשקיף כלכלי, רשימת סופר חכמה, ניהול מזווה, שף פרטי עם AI, משלוחים מעסקים מקומיים, משימות הבית, לומדות ואקדמיה לילדים, חיבור לקהילה מקומית.
+המטרה: גיוס אנשים שישאירו פרטים ונציג ייצור איתם קשר (לא הורדת אפליקציה).`,
+            community_join: `מנהל אזור מזמין משפחות ועסקים להצטרף לקהילה מקומית ספציפית בתוך פלטפורמת OneFlow.
+הקהילה מציעה: רשת שכנים ועסקים, הנחות מקומיות, קאשבק משותף, פורום שכונתי ואירועים.
+המטרה: חיזוק הקהילה המקומית הספציפית ויצירת רשת תמיכה שכונתית.`,
+        };
+        const context = typeContexts[campaignType] || typeContexts.family;
+        const modulesLine = (modules && modules.length)
+            ? `\nמודולים שיש לדגש במיוחד במסר: ${modules.join(', ')}.`
+            : '';
+        const prompt = `כתוב טקסט שיווקי בעברית עבור קמפיין גיוס.
+הקשר: ${context}${modulesLine}
+${goal ? `פרטים נוספים שסיפק מנהל האזור: ${goal}` : ''}
+קהל יעד: ${audience || 'לקוחות פוטנציאליים'}
+טון: ${tone || 'חם, ידידותי, מקצועי ומשכנע'}
+הפלט יכלול:
+- title: כותרת ראשית מושכת (עד 8 מילים)
+- subtitle: כותרת משנה מסכמת (עד 20 מילים)
+- text_content: גוף הטקסט בלבד (3-4 משפטים) — חשוב: אל תחזור על הכותרת או כותרת המשנה. התחל ישירות בתוכן המרחיב, הפניות לערך, הטבות ספציפיות, וקריאה לפעולה להשארת פרטים (לא הורדת אפליקציה).
+החזר JSON בפורמט: {"title": "...", "subtitle": "...", "text_content": "..."}`;
+        let result;
+        try {
+            result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json' } });
+        } catch(primaryErr) {
+            if (primaryErr.message && (primaryErr.message.includes('503') || primaryErr.message.includes('overloaded') || primaryErr.message.includes('high demand'))) {
+                model = genAI.getGenerativeModel({ model: fallbackModelName });
+                result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json' } });
+            } else { throw primaryErr; }
+        }
+        const txt = result.response.text().trim();
+        const parsed = JSON.parse(txt);
+        res.json({ success: true, ...parsed });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- AI: ניתוח לידים ---
+app.post('/api/zone-manager/ai/analyze-leads', verifyZoneManager, async (req, res) => {
+    try {
+        if (!genAI) return res.status(503).json({ error: 'AI לא זמין' });
+        const { campaignId } = req.body;
+        const camp = await pool.query('SELECT id FROM zm_campaigns WHERE id=$1 AND zone_manager_id=$2', [campaignId, req.zmSession.managerId]);
+        if (!camp.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא' });
+        const leadsRes = await pool.query('SELECT id, data FROM zm_campaign_leads WHERE campaign_id=$1 AND ai_score IS NULL LIMIT 50', [campaignId]);
+        if (!leadsRes.rows.length) return res.json({ success: true, analyzed: 0 });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { responseMimeType: 'application/json' } });
+        const leadsText = leadsRes.rows.map((l,i) => `${i+1}. ${JSON.stringify(l.data)}`).join('\n');
+        const prompt = `נתח את הלידים הבאים שנכנסו דרך קמפיין לגיוס חברים לקהילה. לכל ליד תן ציון 1-10 (10=חם מאוד) וקצר הערה.
+לידים:
+${leadsText}
+החזר JSON: {"results": [{"id": <מספר שורה>, "score": <1-10>, "notes": "<הערה קצרה>"}]}`;
+        const result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: prompt }] }] });
+        const parsed = JSON.parse(result.response.text().trim());
+        for (const r of (parsed.results || [])) {
+            const lead = leadsRes.rows[r.id - 1];
+            if (lead) await pool.query('UPDATE zm_campaign_leads SET ai_score=$1, ai_notes=$2 WHERE id=$3', [r.score, r.notes, lead.id]);
+        }
+        const updated = await pool.query('SELECT * FROM zm_campaign_leads WHERE campaign_id=$1 ORDER BY created_at DESC', [campaignId]);
+        res.json({ success: true, analyzed: leadsRes.rows.length, leads: updated.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- AI: הצעת תשובה לשיחה ---
+app.post('/api/zone-manager/ai/suggest-reply', verifyZoneManager, async (req, res) => {
+    try {
+        if (!genAI) return res.status(503).json({ error: 'AI לא זמין' });
+        const { threadId } = req.body;
+        const thread = await pool.query('SELECT * FROM zm_inbox_threads WHERE id=$1 AND zone_manager_id=$2', [threadId, req.zmSession.managerId]);
+        if (!thread.rows.length) return res.status(404).json({ error: 'שיחה לא נמצאה' });
+        const messages = await pool.query('SELECT * FROM zm_inbox_messages WHERE thread_id=$1 ORDER BY created_at DESC LIMIT 6', [threadId]);
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const history = messages.rows.reverse().map(m => `${m.sender_type === 'manager' ? 'מנהל אזור' : 'מנהל קהילה'}: ${m.content}`).join('\n');
+        const prompt = `הינך מנהל אזור בפלטפורמת OneFlow. השיחה הבאה היא בינך לבין מנהל קהילה:\n\n${history}\n\nהצע תשובה מקצועית, קצרה וחמה בעברית. החזר רק את טקסט התשובה.`;
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, suggestion: result.response.text().trim() });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- INBOX ---
+app.get('/api/zone-manager/inbox', verifyZoneManager, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT t.*, c.name as community_name, fg.name as group_name,
+                (SELECT COUNT(*) FROM zm_inbox_messages WHERE thread_id=t.id AND sender_type='community' AND is_read=FALSE) as unread_count,
+                (SELECT content FROM zm_inbox_messages WHERE thread_id=t.id ORDER BY created_at DESC LIMIT 1) as last_message
+             FROM zm_inbox_threads t
+             LEFT JOIN communities c ON c.id=t.community_id
+             LEFT JOIN family_groups fg ON fg.id=t.group_id
+             WHERE t.zone_manager_id=$1
+             ORDER BY t.last_message_at DESC`, [req.zmSession.managerId]);
+        res.json({ success: true, threads: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/zone-manager/inbox/new', verifyZoneManager, async (req, res) => {
+    try {
+        const { communityId, groupId, subject, content } = req.body;
+        if (!communityId || !groupId || !content) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        const thread = await pool.query(
+            `INSERT INTO zm_inbox_threads (zone_manager_id, community_id, group_id, subject)
+             VALUES ($1,$2,$3,$4) RETURNING id`,
+            [req.zmSession.managerId, communityId, groupId, subject || 'שיחה חדשה']);
+        await pool.query(
+            `INSERT INTO zm_inbox_messages (thread_id, sender_type, sender_id, content)
+             VALUES ($1,'manager',$2,$3)`,
+            [thread.rows[0].id, req.zmSession.managerId, content]);
+        await pool.query(
+            `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content)
+             VALUES ($1,'zone_manager',$2,$3,$4)`,
+            [groupId, req.zmSession.name, subject || 'הודעה ממנהל האזור', content]);
+        res.json({ success: true, threadId: thread.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שידור להודעה לכל/לנבחרים
+app.post('/api/zone-manager/inbox/broadcast', verifyZoneManager, async (req, res) => {
+    try {
+        const { subject, content, targetGroupIds } = req.body;
+        if (!content) return res.status(400).json({ error: 'תוכן הודעה חובה' });
+        const { managerId } = req.zmSession;
+        let targets;
+        if (targetGroupIds && targetGroupIds.length) {
+            const r = await pool.query(
+                `SELECT DISTINCT fc.group_id, fc.community_id FROM family_communities fc
+                 JOIN communities c ON c.id=fc.community_id
+                 JOIN manager_zones mz ON mz.id=c.zone_id
+                 WHERE fc.is_community_manager=TRUE AND mz.manager_id=$1 AND fc.group_id=ANY($2)`,
+                [managerId, targetGroupIds]);
+            targets = r.rows;
+        } else {
+            const r = await pool.query(
+                `SELECT DISTINCT fc.group_id, fc.community_id FROM family_communities fc
+                 JOIN communities c ON c.id=fc.community_id
+                 JOIN manager_zones mz ON mz.id=c.zone_id
+                 WHERE fc.is_community_manager=TRUE AND mz.manager_id=$1`, [managerId]);
+            targets = r.rows;
+        }
+        let sent = 0;
+        for (const t of targets) {
+            const thread = await pool.query(
+                `INSERT INTO zm_inbox_threads (zone_manager_id, community_id, group_id, subject)
+                 VALUES ($1,$2,$3,$4) RETURNING id`,
+                [managerId, t.community_id, t.group_id, subject || 'הודעה ממנהל האזור']);
+            await pool.query(
+                `INSERT INTO zm_inbox_messages (thread_id, sender_type, sender_id, content) VALUES ($1,'manager',$2,$3)`,
+                [thread.rows[0].id, managerId, content]);
+            await pool.query(
+                `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content)
+                 VALUES ($1,'zone_manager',$2,$3,$4)`,
+                [t.group_id, req.zmSession.name, subject || 'הודעה ממנהל האזור', content]);
+            sent++;
+        }
+        res.json({ success: true, sent });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/zone-manager/inbox/:threadId', verifyZoneManager, async (req, res) => {
+    try {
+        const thread = await pool.query(
+            `SELECT t.*, c.name as community_name, fg.name as group_name
+             FROM zm_inbox_threads t LEFT JOIN communities c ON c.id=t.community_id
+             LEFT JOIN family_groups fg ON fg.id=t.group_id
+             WHERE t.id=$1 AND t.zone_manager_id=$2`, [req.params.threadId, req.zmSession.managerId]);
+        if (!thread.rows.length) return res.status(404).json({ error: 'שיחה לא נמצאה' });
+        const messages = await pool.query('SELECT * FROM zm_inbox_messages WHERE thread_id=$1 ORDER BY created_at ASC', [req.params.threadId]);
+        await pool.query(`UPDATE zm_inbox_messages SET is_read=TRUE WHERE thread_id=$1 AND sender_type='community'`, [req.params.threadId]);
+        res.json({ success: true, thread: thread.rows[0], messages: messages.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/zone-manager/inbox/:threadId/reply', verifyZoneManager, async (req, res) => {
+    try {
+        const { content } = req.body;
+        if (!content) return res.status(400).json({ error: 'תוכן חובה' });
+        const thread = await pool.query('SELECT id, group_id, subject FROM zm_inbox_threads WHERE id=$1 AND zone_manager_id=$2', [req.params.threadId, req.zmSession.managerId]);
+        if (!thread.rows.length) return res.status(404).json({ error: 'שיחה לא נמצאה' });
+        await pool.query(`INSERT INTO zm_inbox_messages (thread_id, sender_type, sender_id, content) VALUES ($1,'manager',$2,$3)`, [req.params.threadId, req.zmSession.managerId, content]);
+        await pool.query('UPDATE zm_inbox_threads SET last_message_at=NOW() WHERE id=$1', [req.params.threadId]);
+        await pool.query(
+            `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content)
+             VALUES ($1,'zone_manager',$2,$3,$4)`,
+            [thread.rows[0].group_id, req.zmSession.name, 'תגובה: ' + (thread.rows[0].subject || 'הודעה ממנהל האזור'), content]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- TEMPLATES ---
+app.get('/api/zone-manager/templates', verifyZoneManager, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM zm_message_templates WHERE zone_manager_id=$1 ORDER BY created_at DESC', [req.zmSession.managerId]);
+        res.json({ success: true, templates: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/zone-manager/templates', verifyZoneManager, async (req, res) => {
+    try {
+        const { name, subject, content } = req.body;
+        if (!name || !content) return res.status(400).json({ error: 'שם ותוכן חובה' });
+        const result = await pool.query(
+            'INSERT INTO zm_message_templates (zone_manager_id, name, subject, content) VALUES ($1,$2,$3,$4) RETURNING *',
+            [req.zmSession.managerId, name, subject || null, content]);
+        res.json({ success: true, template: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/zone-manager/templates/:id', verifyZoneManager, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM zm_message_templates WHERE id=$1 AND zone_manager_id=$2', [req.params.id, req.zmSession.managerId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- COMMUNITY MANAGER INBOX (in main app) ---
+// מנהל קהילה — קבלת שיחות
+app.get('/api/community/inbox/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const result = await pool.query(
+            `SELECT t.*, zm.name as zone_manager_name, c.name as community_name,
+                (SELECT COUNT(*) FROM zm_inbox_messages WHERE thread_id=t.id AND sender_type='manager' AND is_read=FALSE) as unread_count,
+                (SELECT content FROM zm_inbox_messages WHERE thread_id=t.id ORDER BY created_at DESC LIMIT 1) as last_message
+             FROM zm_inbox_threads t
+             LEFT JOIN zone_managers zm ON zm.id=t.zone_manager_id
+             LEFT JOIN communities c ON c.id=t.community_id
+             WHERE t.group_id=$1
+             ORDER BY t.last_message_at DESC`, [groupId]);
+        res.json({ success: true, threads: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מנהל קהילה — פתיחת שיחה חדשה עם מנהל האזור
+app.post('/api/community/inbox/new', async (req, res) => {
+    try {
+        const { groupId, communityId, subject, content } = req.body;
+        if (!groupId || !communityId || !content) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        const managerCheck = await pool.query(
+            `SELECT mz.manager_id FROM communities c JOIN manager_zones mz ON mz.id=c.zone_id WHERE c.id=$1`, [communityId]);
+        if (!managerCheck.rows.length) return res.status(404).json({ error: 'לא נמצא מנהל אזור לקהילה זו' });
+        const zoneManagerId = managerCheck.rows[0].manager_id;
+        const thread = await pool.query(
+            `INSERT INTO zm_inbox_threads (zone_manager_id, community_id, group_id, subject) VALUES ($1,$2,$3,$4) RETURNING id`,
+            [zoneManagerId, communityId, groupId, subject || 'פנייה ממנהל קהילה']);
+        await pool.query(
+            `INSERT INTO zm_inbox_messages (thread_id, sender_type, sender_id, content) VALUES ($1,'community',$2,$3)`,
+            [thread.rows[0].id, groupId, content]);
+        res.json({ success: true, threadId: thread.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מנהל קהילה — קריאת שיחה + סימון כנקרא
+app.get('/api/community/inbox/thread/:threadId/:groupId', async (req, res) => {
+    try {
+        const { threadId, groupId } = req.params;
+        const thread = await pool.query(
+            `SELECT t.*, zm.name as zone_manager_name, c.name as community_name
+             FROM zm_inbox_threads t
+             LEFT JOIN zone_managers zm ON zm.id=t.zone_manager_id
+             LEFT JOIN communities c ON c.id=t.community_id
+             WHERE t.id=$1 AND t.group_id=$2`, [threadId, groupId]);
+        if (!thread.rows.length) return res.status(404).json({ error: 'שיחה לא נמצאה' });
+        const messages = await pool.query('SELECT * FROM zm_inbox_messages WHERE thread_id=$1 ORDER BY created_at ASC', [threadId]);
+        await pool.query(`UPDATE zm_inbox_messages SET is_read=TRUE WHERE thread_id=$1 AND sender_type='manager'`, [threadId]);
+        res.json({ success: true, thread: thread.rows[0], messages: messages.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מנהל קהילה — מענה לשיחה
+app.post('/api/community/inbox/thread/:threadId/reply', async (req, res) => {
+    try {
+        const { groupId, content } = req.body;
+        if (!content || !groupId) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        const thread = await pool.query('SELECT id FROM zm_inbox_threads WHERE id=$1 AND group_id=$2', [req.params.threadId, groupId]);
+        if (!thread.rows.length) return res.status(404).json({ error: 'שיחה לא נמצאה' });
+        await pool.query(`INSERT INTO zm_inbox_messages (thread_id, sender_type, sender_id, content) VALUES ($1,'community',$2,$3)`, [req.params.threadId, groupId, content]);
+        await pool.query('UPDATE zm_inbox_threads SET last_message_at=NOW() WHERE id=$1', [req.params.threadId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+
+// מידע ארנק לחבר קהילה / מנהל קהילה
+app.get('/api/community/cashback-info/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const commsRes = await pool.query(`
+            SELECT fc.community_id, fc.is_community_manager, c.name as community_name,
+                COALESCE(w.balance, 0) as balance,
+                COALESCE(w.total_earned, 0) as total_earned
+            FROM family_communities fc
+            JOIN communities c ON c.id = fc.community_id
+            LEFT JOIN community_wallets w ON w.community_id = fc.community_id
+            WHERE fc.group_id = $1
+        `, [groupId]);
+        res.json({ success: true, communities: commsRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ניהול ארנק קהילה למנהל קהילה: רשימת עסקים + תנועות
+app.get('/api/community/manager-data/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        // מצא את הקהילות שהמשפחה מנהלת
+        const mgrRes = await pool.query(
+            `SELECT fc.community_id, c.name as community_name FROM family_communities fc
+             JOIN communities c ON c.id=fc.community_id
+             WHERE fc.group_id=$1 AND fc.is_community_manager=TRUE`, [groupId]);
+        if (!mgrRes.rows.length) return res.json({ success: true, managed_communities: [] });
+        const commIds = mgrRes.rows.map(r => r.community_id);
+
+        // עסקים ממתינים לאישור
+        const pendingRes = await pool.query(
+            `SELECT cb.community_id, cb.business_id, fg.name as business_name, cb.discount_pct, cb.status, cb.created_at
+             FROM community_businesses cb JOIN family_groups fg ON cb.business_id=fg.id
+             WHERE cb.community_id=ANY($1)`, [commIds]);
+
+        // ארנקים
+        const walletsRes = await pool.query(
+            `SELECT cw.*, c.name as community_name FROM community_wallets cw
+             JOIN communities c ON c.id=cw.community_id WHERE cw.community_id=ANY($1)`, [commIds]);
+
+        // תנועות אחרונות
+        const txRes = await pool.query(
+            `SELECT cwt.*, c.name as community_name FROM community_wallet_transactions cwt
+             JOIN communities c ON c.id=cwt.community_id
+             WHERE cwt.community_id=ANY($1) ORDER BY cwt.created_at DESC LIMIT 50`, [commIds]);
+
+        res.json({
+            success: true,
+            managed_communities: mgrRes.rows,
+            pending_businesses: pendingRes.rows,
+            wallets: walletsRes.rows,
+            transactions: txRes.rows
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- FOOD COST & RECIPE ENDPOINTS ---
+// ============================================================
+
+app.get('/api/food-cost/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        // 1. נשלוף את כל המוצרים בקטלוג
+        const catalogRes = await pool.query('SELECT id, name, price, category, overhead_details FROM store_catalog WHERE group_id = $1 AND is_available = TRUE ORDER BY category, name', [groupId]);
+        
+        // 2. נשלוף את כל המרכיבים ששויכו למוצרים אלו
+        const ingredientsRes = await pool.query('SELECT pi.* FROM product_ingredients pi JOIN store_catalog sc ON pi.catalog_id = sc.id WHERE sc.group_id = $1', [groupId]);
+        
+        // 3. נשלוף מחירי רכש עדכניים כדי לחשב עלות בזמן אמת (נמשוך מהיסטוריית הקניות של העסק את המחיר האחרון לכל פריט)
+        const pricesRes = await pool.query(`
+            SELECT DISTINCT ON (item_name) item_name, price_per_unit, unit 
+            FROM shopping_trip_items sti 
+            JOIN shopping_trips st ON sti.trip_id = st.id 
+            WHERE st.group_id = $1 
+            ORDER BY item_name, st.trip_date DESC
+        `, [groupId]);
+        
+        const priceMap = {};
+        pricesRes.rows.forEach(p => {
+            priceMap[p.item_name] = { price: parseFloat(p.price_per_unit), unit: p.unit };
+        });
+
+        // חיבור הנתונים
+        const catalog = catalogRes.rows.map(item => {
+            const itemIngredients = ingredientsRes.rows.filter(i => i.catalog_id === item.id);
+            let totalIngredientsCost = 0;
+            
+            const enrichedIngredients = itemIngredients.map(ing => {
+                const knownPrice = priceMap[ing.ingredient_name];
+                let cost = 0;
+                // חישוב פשוט (בהנחה שהיחידות זהות. בשדרוג עתידי ניתן לבצע המרת יחידות)
+                if (knownPrice) cost = knownPrice.price * parseFloat(ing.quantity);
+                totalIngredientsCost += cost;
+                return { ...ing, calculated_cost: cost, known_price: knownPrice ? knownPrice.price : 0 };
+            });
+
+            let overheadTotal = 0;
+            let overheads = [];
+            try {
+                overheads = typeof item.overhead_details === 'string' ? JSON.parse(item.overhead_details) : (item.overhead_details || []);
+                overheads.forEach(o => overheadTotal += parseFloat(o.cost) || 0);
+            } catch(e) {}
+
+            const finalCost = totalIngredientsCost + overheadTotal;
+            const salePrice = parseFloat(item.price) || 0;
+            const foodCostPct = salePrice > 0 ? (finalCost / salePrice) * 100 : 0;
+            const profit = salePrice - finalCost;
+
+            return {
+                ...item,
+                ingredients: enrichedIngredients,
+                overheads: overheads,
+                costs: {
+                    ingredients: totalIngredientsCost,
+                    overhead: overheadTotal,
+                    total: finalCost,
+                    foodCostPct: foodCostPct,
+                    profit: profit
+                }
+            };
+        });
+
+        res.json({ success: true, catalog, priceMap });
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/food-cost/recipe/:catalogId', async (req, res) => {
+    let dbClient;
+    try {
+        const { catalogId } = req.params;
+        const { ingredients, overheads } = req.body;
+        
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+        
+        // עדכון הוצאות עקיפות בקטלוג
+        await dbClient.query('UPDATE store_catalog SET overhead_details = $1 WHERE id = $2', [JSON.stringify(overheads || []), catalogId]);
+        
+        // מחיקת עץ מוצר ישן והכנסת החדש
+        await dbClient.query('DELETE FROM product_ingredients WHERE catalog_id = $1', [catalogId]);
+        
+        for (let ing of ingredients) {
+            await dbClient.query(
+                'INSERT INTO product_ingredients (catalog_id, ingredient_name, quantity, unit) VALUES ($1, $2, $3, $4)',
+                [catalogId, ing.name, parseFloat(ing.quantity) || 0, ing.unit || "יח'"]
+            );
+        }
+        
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch(e) {
+        if(dbClient) await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    } finally {
+        if(dbClient) dbClient.release();
+    }
+});
+
+// ============================================================
+// --- CALENDAR & BOOKING ENDPOINTS ---
+// ============================================================
+
+// שליפת הגדרות היומן, השירותים והאירועים
+app.get('/api/calendar/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const [setRes, bizTypeRes] = await Promise.all([
+            pool.query('SELECT * FROM calendar_settings WHERE group_id=$1', [groupId]),
+            pool.query('SELECT business_type FROM family_groups WHERE id=$1', [groupId])
+        ]);
+        const bizType = bizTypeRes.rows[0]?.business_type;
+        let srvRes;
+        if (bizType === 'beauty') {
+            // עסקי יופי — beauty_service_catalog הוא מקור האמת היחיד
+            srvRes = await pool.query(
+                `SELECT id, name, duration_minutes AS duration_mins, COALESCE(price,0) AS price FROM beauty_service_catalog WHERE business_group_id=$1 AND is_active=true ORDER BY name`,
+                [groupId]
+            ).catch(() => ({ rows: [] }));
+        } else {
+            srvRes = await pool.query('SELECT * FROM calendar_services WHERE group_id=$1 ORDER BY created_at DESC', [groupId]);
+        }
+        const evtRes = await pool.query('SELECT * FROM calendar_events WHERE group_id=$1 ORDER BY event_date ASC, start_time ASC', [groupId]);
+        let settings = setRes.rows.length > 0 ? setRes.rows[0] : { is_active: false, open_time: '09:00', close_time: '18:00', interval_mins: 30 };
+
+        // עבור עסקי יופי — הוסף beauty_appointments פנימיים כ-events חסומים
+        let allEvents = evtRes.rows;
+        if (bizType === 'beauty') {
+            const bapR = await pool.query(
+                `SELECT ba.id, ba.client_name, bs.service_name,
+                    TO_CHAR(bs.start_time, 'YYYY-MM-DD') AS event_date,
+                    TO_CHAR(bs.start_time, 'HH24:MI') AS start_time_str
+                 FROM beauty_appointments ba
+                 JOIN beauty_appointment_segments bs ON bs.appointment_id = ba.id AND bs.segment_order = 1
+                 WHERE ba.business_group_id=$1 AND ba.status IN ('confirmed','pending_client')`,
+                [groupId]
+            ).catch(() => ({ rows: [] }));
+            const syntheticEvents = bapR.rows.map(row => ({
+                id: `bap-${row.id}`,
+                group_id: parseInt(groupId),
+                title: row.service_name || row.client_name,
+                event_date: row.event_date,
+                start_time: row.start_time_str,
+                status: 'approved',
+                is_beauty_internal: true
+            }));
+            allEvents = [...evtRes.rows, ...syntheticEvents];
+        }
+
+        res.json({ success: true, settings, services: srvRes.rows, events: allEvents });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שמירת הגדרות יומן
+app.post('/api/calendar/settings', async (req, res) => {
+    try {
+        const { groupId, isActive, openTime, closeTime, intervalMins } = req.body;
+        await pool.query(`
+            INSERT INTO calendar_settings (group_id, is_active, open_time, close_time, interval_mins) 
+            VALUES ($1, $2, $3, $4, $5) 
+            ON CONFLICT (group_id) DO UPDATE SET is_active=$2, open_time=$3, close_time=$4, interval_mins=$5, updated_at=CURRENT_TIMESTAMP
+        `, [groupId, isActive, openTime || '09:00', closeTime || '18:00', parseInt(intervalMins) || 30]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הוספת סוג שירות ליומן
+app.post('/api/calendar/services', async (req, res) => {
+    try {
+        const { groupId, name, durationMins, price } = req.body;
+        const btRes = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [groupId]);
+        if (btRes.rows[0]?.business_type === 'beauty') {
+            await pool.query(
+                'INSERT INTO beauty_service_catalog (business_group_id, name, duration_minutes, price) VALUES ($1,$2,$3,$4)',
+                [groupId, name, parseInt(durationMins)||30, parseFloat(price)||0]
+            );
+        } else {
+            await pool.query('INSERT INTO calendar_services (group_id, name, duration_mins, price) VALUES ($1, $2, $3, $4)', [groupId, name, parseInt(durationMins)||30, parseFloat(price)||0]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/calendar/services/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM calendar_services WHERE id=$1', [req.params.id]); res.json({ success: true }); } 
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הוספת אירוע/תור
+app.post('/api/calendar/events', async (req, res) => {
+    try {
+        const { groupId, serviceId, title, customerPhone, notes, eventDate, startTime, status, customerGroupId, preferredPractitionerId, numGuests, callType } = req.body;
+
+        // אישור אוטומטי להזמנות שולחן קטנות
+        let finalStatus = status || 'pending';
+        let autoAssignedTable = null;
+        if (callType === 'table_reservation') {
+            const grpR = await pool.query('SELECT table_count, auto_approve_max_guests FROM family_groups WHERE id=$1', [groupId]);
+            const grp = grpR.rows[0] || {};
+            const maxAutoGuests = grp.auto_approve_max_guests;
+            const guestCount = parseInt(numGuests) || 1;
+            if (maxAutoGuests && guestCount <= parseInt(maxAutoGuests)) {
+                const timeStr = String(startTime || '18:00').slice(0, 5);
+                const conflR = await pool.query(
+                    `SELECT reserved_table_number FROM calendar_events
+                     WHERE group_id=$1 AND event_date=$2 AND status='approved'
+                       AND call_type='table_reservation'
+                       AND ABS(EXTRACT(EPOCH FROM (start_time - $3::time))/3600) < 2
+                       AND reserved_table_number IS NOT NULL`,
+                    [groupId, eventDate, timeStr]
+                ).catch(() => ({ rows: [] }));
+                const takenTables = new Set(conflR.rows.map(r => r.reserved_table_number));
+                const tableCount = parseInt(grp.table_count || 8);
+                for (let t = 1; t <= tableCount; t++) {
+                    if (!takenTables.has(t)) { autoAssignedTable = t; break; }
+                }
+                if (autoAssignedTable) finalStatus = 'approved';
+            }
+        }
+
+        const r = await pool.query(
+            `INSERT INTO calendar_events (group_id, service_id, title, customer_phone, notes, event_date, start_time, status, customer_group_id, preferred_practitioner_id, num_guests, call_type, reserved_table_number)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+            [groupId, serviceId || null, title, customerPhone || '', notes || '', eventDate, startTime, finalStatus, customerGroupId || null, preferredPractitionerId || null, parseInt(numGuests)||1, callType || null, autoAssignedTable]
+        );
+
+        // קשר client_family_id ב-beauty_client_records אם הלקוח מחובר
+        if (customerGroupId && customerPhone) {
+            pool.query('SELECT business_type FROM family_groups WHERE id=$1', [groupId]).then(btR => {
+                if (btR.rows[0]?.business_type === 'beauty') {
+                    pool.query(
+                        `SELECT id, client_family_id FROM beauty_client_records WHERE business_group_id=$1 AND client_phone=$2 LIMIT 1`,
+                        [groupId, customerPhone]
+                    ).then(exR => {
+                        if (exR.rows[0] && !exR.rows[0].client_family_id) {
+                            pool.query(
+                                'UPDATE beauty_client_records SET client_family_id=$1, updated_at=NOW() WHERE id=$2',
+                                [customerGroupId, exR.rows[0].id]
+                            ).catch(() => {});
+                        } else if (!exR.rows[0]) {
+                            pool.query(
+                                `INSERT INTO beauty_client_records (business_group_id, client_name, client_phone, client_family_id) VALUES ($1,$2,$3,$4)`,
+                                [groupId, title || '', customerPhone, customerGroupId]
+                            ).catch(() => {});
+                        }
+                    }).catch(() => {});
+                }
+            }).catch(() => {});
+        }
+
+        res.json({ success: true, eventId: r.rows[0].id, status: finalStatus, assignedTable: autoAssignedTable });
+
+        // הזמנת שולחן — שלח הודעת inbox לעסק
+        if (callType === 'table_reservation') {
+            const dateHe = eventDate ? new Date(eventDate + 'T12:00:00').toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' }) : (eventDate || '');
+            const autoNote = finalStatus === 'approved' ? ` (אושר אוטומטית, שולחן ${autoAssignedTable})` : '';
+            const msgContent = `הזמנת שולחן 🍽️\nתאריך: ${dateHe}\nשעה: ${startTime}\nסועדים: ${numGuests || 1}${notes ? '\nהערות: ' + notes : ''}${autoNote}`;
+            pool.query(
+                `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content, customer_group_id, direction, customer_phone)
+                 VALUES ($1,'customer',$2,$3,$4,$5,'inbound',$6)`,
+                [groupId, title || 'לקוח', `הזמנת שולחן — ${dateHe} ${startTime}`, msgContent, customerGroupId || null, customerPhone || null]
+            ).catch(() => {});
+            // אם אושר אוטומטית — שלח אישור ללקוח
+            if (finalStatus === 'approved' && customerGroupId) {
+                const tableNote = autoAssignedTable ? `\nשולחן: ${autoAssignedTable}` : '';
+                pool.query(
+                    `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content, customer_group_id, direction) VALUES ($1,'business','המסעדה','הזמנת שולחן אושרה ✅',$2,$3,'outbound')`,
+                    [groupId, `הזמנת השולחן אושרה! 🎉\nתאריך: ${dateHe}\nשעה: ${startTime}\nסועדים: ${numGuests || 1}${tableNote}\nנתראה! 🍽️`, customerGroupId]
+                ).catch(() => {});
+            }
+        }
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עדכון סטטוס לאירוע (אישור/ביטול)
+app.put('/api/calendar/events/:id/status', async (req, res) => {
+    try {
+        const { status } = req.body;
+        await pool.query('UPDATE calendar_events SET status=$1 WHERE id=$2', [status, req.params.id]);
+
+        // אישור תור — לוגיקה לפי סוג עסק
+        if (status === 'approved') {
+            const evtR = await pool.query('SELECT * FROM calendar_events WHERE id=$1', [req.params.id]);
+            const evt = evtR.rows[0];
+            if (evt && evt.call_type === 'table_reservation') {
+                // הזמנת שולחן: תפוס שולחן אוטומטי + התראה ללקוח
+                const dateStr = evt.event_date instanceof Date ? evt.event_date.toISOString().split('T')[0] : String(evt.event_date).split('T')[0];
+                const guests = evt.num_guests || 1;
+                const timeStr = String(evt.start_time || '18:00').slice(0,5);
+                const conflR = await pool.query(
+                    `SELECT reserved_table_number FROM calendar_events
+                     WHERE group_id=$1 AND event_date=$2 AND status='approved'
+                       AND call_type='table_reservation'
+                       AND ABS(EXTRACT(EPOCH FROM (start_time - $3::time))/3600) < 2
+                       AND reserved_table_number IS NOT NULL`,
+                    [evt.group_id, dateStr, timeStr]
+                ).catch(() => ({ rows: [] }));
+                const takenTables = new Set(conflR.rows.map(r => r.reserved_table_number));
+                const grpR = await pool.query('SELECT table_count FROM family_groups WHERE id=$1', [evt.group_id]);
+                const tableCount = parseInt(grpR.rows[0]?.table_count || 8);
+                let assignedTable = null;
+                for (let t = 1; t <= tableCount; t++) {
+                    if (!takenTables.has(t)) { assignedTable = t; break; }
+                }
+                if (assignedTable) {
+                    await pool.query('UPDATE calendar_events SET reserved_table_number=$1 WHERE id=$2', [assignedTable, req.params.id]);
+                }
+                if (evt.customer_group_id) {
+                    const dayHe = new Date(dateStr + 'T12:00:00').toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
+                    const tableNote = assignedTable ? `\nשולחן: ${assignedTable}` : '';
+                    await pool.query(
+                        `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content, customer_group_id, direction) VALUES ($1,'business','המסעדה','הזמנת שולחן אושרה ✅',$2,$3,'outbound')`,
+                        [evt.group_id, `הזמנת השולחן אושרה! 🎉\nתאריך: ${dayHe}\nשעה: ${timeStr}\nסועדים: ${guests}${tableNote}\nנתראה! 🍽️`, evt.customer_group_id]
+                    ).catch(()=>{});
+                }
+            } else if (evt) {
+                const bizR = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [evt.group_id]);
+                if (bizR.rows[0]?.business_type === 'beauty') {
+                    const dateStr = evt.event_date instanceof Date
+                        ? evt.event_date.toISOString().split('T')[0]
+                        : String(evt.event_date).split('T')[0];
+                    const timeStr = String(evt.start_time || '10:00').slice(0, 5); // HH:MM only
+                    const startISO = `${dateStr}T${timeStr}:00`;
+                    let dur = 60, serviceName = evt.title || 'תור';
+                    if (evt.service_id) {
+                        const sR = await pool.query('SELECT name, duration_minutes FROM beauty_service_catalog WHERE id=$1', [evt.service_id]).catch(() => ({ rows: [] }));
+                        if (sR.rows[0]) { serviceName = sR.rows[0].name; dur = sR.rows[0].duration_minutes || 60; }
+                    }
+                    const endDt = new Date(startISO); endDt.setMinutes(endDt.getMinutes() + dur);
+                    const endISO = endDt.toISOString().slice(0, 19);
+                    const apR = await pool.query(
+                        `INSERT INTO beauty_appointments (business_group_id, client_family_id, client_name, client_phone, booking_source, status, notes, total_price)
+                         VALUES ($1,$2,$3,$4,'storefront','confirmed',$5,0) RETURNING id`,
+                        [evt.group_id, evt.customer_group_id || null, evt.title || 'לקוח', evt.customer_phone || '', evt.notes || '']
+                    ).catch(() => ({ rows: [] }));
+                    if (apR.rows[0]) {
+                        const pracId = evt.preferred_practitioner_id || null;
+                        await pool.query(
+                            `INSERT INTO beauty_appointment_segments (appointment_id, segment_order, segment_type, service_name, start_time, end_time, duration_minutes, price, practitioner_id)
+                             VALUES ($1,1,'active',$2,$3,$4,$5,0,$6)`,
+                            [apR.rows[0].id, serviceName, startISO, endISO, dur, pracId]
+                        ).catch(() => {});
+                    }
+                }
+            }
+        }
+
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הצעת 3 שעות חלופיות (preview בלבד — לא משנה DB)
+app.get('/api/calendar/events/:id/suggest-alts', async (req, res) => {
+    try {
+        const evtR = await pool.query('SELECT * FROM calendar_events WHERE id=$1', [req.params.id]);
+        const evt = evtR.rows[0];
+        if (!evt) return res.status(404).json({ error: 'אירוע לא נמצא' });
+        const dateStr = evt.event_date instanceof Date ? evt.event_date.toISOString().split('T')[0] : String(evt.event_date).split('T')[0];
+        const existingR = await pool.query(
+            `SELECT start_time FROM calendar_events WHERE group_id=$1 AND event_date=$2 AND status='approved' AND call_type='table_reservation'`,
+            [evt.group_id, dateStr]
+        ).catch(() => ({ rows: [] }));
+        const existingTimes = new Set(existingR.rows.map(r => String(r.start_time).slice(0,5)));
+        const reqTime = String(evt.start_time).slice(0,5);
+        const slots = [];
+        for (let h = 12; h <= 22 && slots.length < 3; h++) {
+            const t = `${String(h).padStart(2,'0')}:00`;
+            if (!existingTimes.has(t) && t !== reqTime) slots.push(t);
+        }
+        if (slots.length < 3) {
+            for (let h = 12; h <= 21 && slots.length < 3; h++) {
+                const t = `${String(h).padStart(2,'0')}:30`;
+                if (!existingTimes.has(t) && !slots.includes(t)) slots.push(t);
+            }
+        }
+        res.json({ event: { id: evt.id, event_date: dateStr, start_time: reqTime, num_guests: evt.num_guests || 2, title: evt.title }, suggestions: slots, takenTimes: [...existingTimes] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// דחיית הזמנת שולחן + שמירת חלופות + הודעה ללקוח
+app.post('/api/calendar/events/:id/reject-with-alts', async (req, res) => {
+    try {
+        const { slots } = req.body; // מערך שעות שנבחרו ע"י המנהל
+        const evtR = await pool.query('SELECT * FROM calendar_events WHERE id=$1', [req.params.id]);
+        const evt = evtR.rows[0];
+        if (!evt) return res.status(404).json({ error: 'אירוע לא נמצא' });
+
+        const dateStr = evt.event_date instanceof Date ? evt.event_date.toISOString().split('T')[0] : String(evt.event_date).split('T')[0];
+        const chosenSlots = Array.isArray(slots) && slots.length ? slots : [];
+
+        // עדכן האירוע: status='rejected', שמור חלופות ב-alternatives_json
+        await pool.query(
+            `UPDATE calendar_events SET status='rejected', alternatives_json=$1 WHERE id=$2`,
+            [JSON.stringify(chosenSlots), req.params.id]
+        );
+
+        // שלח הודעה ללקוח עם החלופות
+        if (evt.customer_group_id && chosenSlots.length) {
+            const dayHe = new Date(dateStr + 'T12:00:00').toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
+            const origTime = String(evt.start_time).slice(0,5);
+            const slotsList = chosenSlots.map((t,i) => `${i+1}. ${t}`).join('\n');
+            const altContent = `בקשת הזמנת השולחן שלך ל${dayHe} בשעה ${origTime} לא ניתנת לאישור.\n\nשעות פנויות חלופיות לאותו יום:\n${slotsList}\n\nניתן לבחור מועד חלופי באפליקציה — לחץ על ההזמנה ובחר שעה.`;
+            await pool.query(
+                `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content, customer_group_id, direction) VALUES ($1,'business','המסעדה','הזמנת שולחן — חלופות זמינות',$2,$3,'outbound')`,
+                [evt.group_id, altContent, evt.customer_group_id]
+            ).catch(()=>{});
+        }
+
+        res.json({ success: true, alternatives: chosenSlots });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הזמנות שולחן פעילות של היום
+app.get('/api/tables/:groupId/reservations-today', async (req, res) => {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const r = await pool.query(
+            `SELECT id, title, start_time, num_guests, notes, reserved_table_number, customer_phone, status, event_date
+             FROM calendar_events
+             WHERE group_id=$1 AND call_type='table_reservation' AND status IN ('approved','pending')
+             AND event_date::date = $2::date`,
+            [req.params.groupId, today]
+        );
+        res.json({ reservations: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הזמנות שולחן קרובות — 7 ימים קדימה
+app.get('/api/tables/:groupId/reservations-upcoming', async (req, res) => {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const r = await pool.query(
+            `SELECT id, title, start_time, num_guests, notes, reserved_table_number, customer_phone, status, event_date
+             FROM calendar_events
+             WHERE group_id=$1 AND call_type='table_reservation' AND status IN ('approved','pending')
+             AND event_date::date >= $2::date AND event_date::date <= ($2::date + interval '7 days')
+             ORDER BY event_date ASC, start_time ASC LIMIT 50`,
+            [req.params.groupId, today]
+        );
+        res.json({ reservations: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/calendar/events/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM calendar_events WHERE id=$1', [req.params.id]); res.json({ success: true }); } 
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- INBOX & MESSAGING ENDPOINTS ---
+// ============================================================
+
+// הבאת הודעות של עסק מסוים
+app.get('/api/inbox/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM inbox_messages WHERE group_id = $1 ORDER BY created_at DESC', [req.params.groupId]);
+        res.json({ success: true, messages: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// סימון כנקרא/לא נקרא
+app.put('/api/inbox/:id/read', async (req, res) => {
+    try {
+        const { isRead } = req.body;
+        await pool.query('UPDATE inbox_messages SET is_read = $1 WHERE id = $2', [isRead, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מחיקת הודעה
+app.delete('/api/inbox/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM inbox_messages WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליחת הודעה מהחנות (לקוח -> עסק)
+app.post('/api/inbox/customer', async (req, res) => {
+    try {
+        const { groupId, name, contact, subject, content, customerGroupId } = req.body;
+        if (!groupId || !content) return res.status(400).json({ error: 'חסרים נתונים' });
+        await pool.query(
+            'INSERT INTO inbox_messages (group_id, sender_type, sender_name, sender_contact, subject, content, customer_group_id, direction) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+            [groupId, 'customer', name || 'לקוח אנונימי', contact || '', subject || 'פנייה מלקוח ONEFLOW', content, customerGroupId || null, 'inbound']
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// תגובה של עסק ללקוח מקושר
+app.post('/api/inbox/:bizGroupId/reply/:customerGroupId', async (req, res) => {
+    try {
+        const bizGroupId = parseInt(req.params.bizGroupId);
+        const customerGroupId = parseInt(req.params.customerGroupId);
+        const { content } = req.body;
+        if (!content?.trim()) return res.status(400).json({ error: 'תוכן ריק' });
+        const bizR = await pool.query('SELECT name FROM family_groups WHERE id=$1', [bizGroupId]);
+        const bizName = bizR.rows[0]?.name || 'העסק';
+        await pool.query(
+            'INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content, customer_group_id, direction) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+            [bizGroupId, 'business', bizName, 'תגובה מהעסק', content.trim(), customerGroupId, 'outbound']
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שרשור הודעות בין עסק ללקוח ספציפי
+app.get('/api/inbox/:bizGroupId/thread/:customerGroupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT id, sender_type, sender_name, subject, content, direction, created_at, is_read
+             FROM inbox_messages
+             WHERE group_id=$1 AND customer_group_id=$2
+             ORDER BY created_at ASC LIMIT 50`,
+            [req.params.bizGroupId, req.params.customerGroupId]
+        );
+        res.json({ messages: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליחת הודעת תפוצה מהסופר-אדמין לכלל המערכת (עסקים + משפחות)
+
+// שליחת הודעת תפוצה מהסופר-אדמין לכלל המערכת (עסקים + משפחות)
+app.post('/api/sa/inbox/broadcast', verifySA, async (req, res) => {
+    try {
+        const { targetType, targetValue, subject, content } = req.body;
+        if (!subject || !content) return res.status(400).json({ error: 'חובה למלא נושא ותוכן' });
+
+        let groupIds = [];
+        let queryStr = "";
+        
+        if (targetType === 'all') {
+            queryStr = "SELECT id FROM family_groups WHERE type='BUSINESS'";
+        } else if (targetType === 'pro') {
+            queryStr = "SELECT id FROM family_groups WHERE type='BUSINESS' AND is_premium=TRUE";
+        } else if (targetType === 'free') {
+            queryStr = "SELECT id FROM family_groups WHERE type='BUSINESS' AND is_premium=FALSE";
+        } else if (targetType === 'all_families') {
+            queryStr = "SELECT id FROM family_groups WHERE type='FAMILY'";
+        } else if (targetType === 'pro_families') {
+            queryStr = "SELECT id FROM family_groups WHERE type='FAMILY' AND is_premium=TRUE";
+        } else if (targetType === 'free_families') {
+            queryStr = "SELECT id FROM family_groups WHERE type='FAMILY' AND is_premium=FALSE";
+        } else if (targetType === 'specific') {
+            groupIds = [parseInt(targetValue)];
+        }
+
+        if (queryStr) {
+            const gRes = await pool.query(queryStr);
+            groupIds = gRes.rows.map(g => g.id);
+        }
+
+        if (groupIds.length === 0) return res.status(404).json({ error: 'לא נמצאו נמענים מתאימים לסינון' });
+
+        // פתיחת טרנזקציה להכנסת כל ההודעות
+        await pool.query('BEGIN');
+        for (let gid of groupIds) {
+            await pool.query(
+                'INSERT INTO inbox_messages (group_id, sender_type, sender_name, sender_contact, subject, content) VALUES ($1, $2, $3, $4, $5, $6)',
+                [gid, 'superadmin', 'מערכת', 'admin@oneflowlife.com', subject, content]
+            );
+        }
+        await pool.query('COMMIT');
+        
+        res.json({ success: true, count: groupIds.length });
+    } catch(e) { 
+        await pool.query('ROLLBACK');
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+// ============================================================
+// --- TEAM CHAT ENDPOINTS ---
+// ============================================================
+
+// שליפת היסטוריית הצ'אט של הקבוצה + ניקוי אוטומטי מעל 3 חודשים
+app.get('/api/chat/:groupId', async (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        // ביצוע ניקוי הודעות ישנות משלושה חודשים בכל פתיחת צ'אט
+        await pool.query(`DELETE FROM team_chat WHERE group_id = $1 AND created_at < NOW() - INTERVAL '3 months'`, [groupId]);
+
+        const result = await pool.query(`
+            SELECT c.*, u.nickname as user_name 
+            FROM team_chat c
+            JOIN users u ON c.user_id = u.id
+            WHERE c.group_id = $1 
+            ORDER BY c.created_at ASC
+            LIMIT 500
+        `, [groupId]);
+        
+        res.json({ success: true, messages: result.rows });
+    } catch(e) { 
+        console.error('Chat fetch error:', e);
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+// שליחת הודעת צ'אט חדשה
+app.post('/api/chat', async (req, res) => {
+    try {
+        const { groupId, userId, message } = req.body;
+        if (!message || message.trim() === '') return res.status(400).json({ error: 'הודעה ריקה' });
+        
+        await pool.query(
+            'INSERT INTO team_chat (group_id, user_id, message) VALUES ($1, $2, $3)',
+            [groupId, userId, message]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- ראוט דינמי לכתובות חנות מקוצרות (Alias) ---
+app.get('/:alias', (req, res, next) => {
+    const alias = req.params.alias;
+    
+    // התעלם מנתיבים של ה-API, בקשות המכילות נקודה (כמו תמונות, קבצי JS/CSS) או סקריפטים של המערכת
+    if (alias.startsWith('api') || alias.includes('.') || alias === 'setup-db') {
+        return next();
+    }
+
+    // הלקוח גלש לכתובת מקוצרת - נגיש לו את ה-HTML של החנות (הכתובת למעלה תישאר נקייה)
+    res.sendFile(path.join(__dirname, 'public', 'storefront.html'));
+});
+// יצירת קריאת שירות חדשה ממשפחה (מחובר לטבלת הליבה support_tickets של הסופר אדמין)
+app.post('/api/tickets', async (req, res) => {
+    try {
+        const groupId = req.body.groupId || req.body.group_id;
+        const userId = req.body.userId || req.body.user_id;
+        const { subject, content } = req.body;
+        
+        if (!groupId || !subject || !content) {
+            return res.status(400).json({ error: 'חסרים נתונים ליצירת קריאה' });
+        }
+
+        // חילוץ שם הלקוח לטובת הלוג של הסופר אדמין
+        const uRes = await pool.query('SELECT nickname FROM users WHERE id = $1', [userId]);
+        const userName = uRes.rows.length > 0 ? uRes.rows[0].nickname : 'לקוח';
+        
+        // יצירת הלוג הראשוני שנדרש למערכת המרכזית
+        const initialLog = [{ date: new Date().toISOString(), sender: userName, isStaff: false, message: content }];
+        
+        await pool.query(
+            'INSERT INTO support_tickets (group_id, user_id, subject, description, status, log) VALUES ($1, $2, $3, $4, $5, $6)',
+            [groupId, userId, subject, content, 'open', JSON.stringify(initialLog)]
+        );
+        
+        res.json({ success: true });
+    } catch(e) { 
+        console.error('Error creating ticket:', e);
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+// שליפת רשימת הקריאות עבור המשפחה (משיכה מטבלת הליבה והתאמה לתצוגת הלקוח)
+app.get('/api/tickets/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM support_tickets WHERE group_id = $1 ORDER BY created_at DESC', 
+            [req.params.groupId]
+        );
+        
+        // התאמת השדות כדי שהלקוח (app.js) יוכל להציג אותם כפי שהוא מכיר
+        const mappedTickets = result.rows.map(t => {
+            let admin_reply = '';
+            if (t.log) {
+                try {
+                    const logs = typeof t.log === 'string' ? JSON.parse(t.log) : t.log;
+                    // מחפשים את התגובה האחרונה שנכתבה על ידי איש צוות מתוך הלוגים
+                    const lastStaffReply = logs.slice().reverse().find(l => l.isStaff === true);
+                    if (lastStaffReply) admin_reply = lastStaffReply.message;
+                } catch(err) {}
+            }
+            return {
+                id: t.id,
+                subject: t.subject,
+                content: t.description,
+                status: t.status,
+                admin_reply: admin_reply,
+                created_at: t.created_at
+            };
+        });
+        
+        res.json({ success: true, tickets: mappedTickets });
+    } catch(e) { 
+        console.error('Error fetching tickets:', e);
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+// ראוט צ'אט עוזרת אישית למשפחות (FamilAI) - סוכנת חכמה ופעילה
+app.post('/api/family/chat-assistant', async (req, res) => {
+    try {
+        const { query, context, groupId, userId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        // אילוץ תשובה מובנית בפורמט JSON בלבד כדי שהשרת יוכל לקרוא פקודות
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-2.5-flash", 
+            generationConfig: { responseMimeType: "application/json" } 
+        });
+        
+        const prompt = `You are 'FamilAI', the highly intelligent, proactive AI assistant for a family using the 'Oneflow Life' app. 
+        You can deeply analyze data to provide forecasts (e.g., when to buy groceries based on habits, budget predictions) AND you can EXECUTE actions on behalf of the user.
+        
+        Family Data Context (Current State):
+        ${context}
+        
+        User's Request: "${query}"
+        
+        Instructions:
+        1. Respond in Hebrew. Be friendly, warm, and highly efficient. Use emojis.
+        2. If the user asks for a forecast, analysis, or prediction, calculate it smartly using the 'recent_transactions', 'pantry', and 'tasks' data.
+        3. Output STRICTLY as a valid JSON object matching this schema:
+        {
+           "answer": "Your full text response to the user in Hebrew. Use Markdown bolding (**text**) for emphasis.",
+           "action_type": "NONE", // Change to "CREATE_TASK" or "ADD_GROCERY" ONLY if the user explicitly asks you to perform an action!
+           "action_data": {} // If CREATE_TASK: {"title": "Task name", "reward": 10, "assignee_name": "Name of child/member or null"}. If ADD_GROCERY: {"item": "Item name", "qty": 1}
+        }
+        `;
+        
+        const result = await model.generateContent(prompt);
+        const aiResponse = JSON.parse(result.response.text());
+        
+        let finalAnswer = aiResponse.answer;
+
+        // --- מנוע ביצוע הפעולות (Execution Engine) ---
+        if (aiResponse.action_type === 'CREATE_TASK' && aiResponse.action_data) {
+            let assignedToId = null;
+            // חיפוש חכם של הילד במסד הנתונים אם ה-AI זיהה שם
+            if (aiResponse.action_data.assignee_name) {
+                const uRes = await pool.query('SELECT id FROM users WHERE group_id = $1 AND nickname ILIKE $2', [groupId, `%${aiResponse.action_data.assignee_name}%`]);
+                if (uRes.rows.length > 0) assignedToId = uRes.rows[0].id;
+            }
+            const reward = parseFloat(aiResponse.action_data.reward) || 0;
+            const title = aiResponse.action_data.title || 'משימה חדשה';
+            
+            await pool.query('INSERT INTO tasks (group_id, created_by, assigned_to, title, reward, status) VALUES ($1, $2, $3, $4, $5, $6)', [groupId, userId, assignedToId, title, reward, 'pending']);
+            finalAnswer += `\n\n✅ **פקודה בוצעה:** פתחתי את המשימה "${title}" במערכת.`;
+        } 
+        else if (aiResponse.action_type === 'ADD_GROCERY' && aiResponse.action_data) {
+            const item = aiResponse.action_data.item || 'מוצר';
+            const qty = parseFloat(aiResponse.action_data.qty) || 1;
+            
+            await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, status) VALUES ($1, $2, $3, $4, 'pending')`, [groupId, userId, item, qty]);
+            finalAnswer += `\n\n🛒 **פקודה בוצעה:** הוספתי "${item}" (כמות: ${qty}) לרשימת הקניות.`;
+        }
+        
+        res.json({ success: true, answer: finalAnswer });
+    } catch(e) { handleAIError(e, res, 'שגיאה במערכת העוזרת FamilAI'); }
+});
+
+// ראוט לעדכון תמונת/לוגו משפחה או עסק
+app.post('/api/groups/:id/logo', async (req, res) => {
+    try {
+        const { logo } = req.body;
+        if (!logo) return res.status(400).json({ error: 'No logo provided' });
+        
+        try { await pool.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS image_url TEXT'); } catch(err) {}
+        
+        const result = await pool.query(
+            'UPDATE family_groups SET image_url = $1 WHERE id = $2 RETURNING image_url', 
+            [logo, req.params.id]
+        );
+        
+        res.json({ success: true, image_url: result.rows[0].image_url });
+    } catch(e) {
+        console.error('Logo update error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// --- KANBAN TASKS (ALM UPGRADED) ---
+app.get('/api/sa/dev/tasks', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM sa_dev_tasks ORDER BY priority DESC, created_at DESC');
+        res.json({ success: true, tasks: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+async function appendTicketAuditLog(ticketId, message, sender) {
+    if (!ticketId) return;
+    try {
+        const tRes = await pool.query('SELECT log FROM support_tickets WHERE id=$1', [ticketId]);
+        if (!tRes.rows.length) return;
+        const log = tRes.rows[0].log || [];
+        log.push({ date: new Date().toISOString(), sender: sender || 'מערכת', isStaff: true, isInternal: true, message: `[SYSTEM_AUDIT] ${message}` });
+        await pool.query('UPDATE support_tickets SET log=$1 WHERE id=$2', [JSON.stringify(log), ticketId]);
+    } catch(_) {}
+}
+
+app.post('/api/sa/dev/tasks', verifySA, async (req, res) => {
+    try {
+        const { title, type, priority, status, description, environment, moduleName, targetVersion, versionId, assignedDeveloper, owner_id, original_ticket_id } = req.body;
+        let groupId = null;
+        if (original_ticket_id) {
+            const tRow = await pool.query('SELECT group_id FROM support_tickets WHERE id=$1', [original_ticket_id]);
+            if (tRow.rows.length) groupId = tRow.rows[0].group_id;
+        }
+        const result = await pool.query(
+            `INSERT INTO sa_dev_tasks (title, type, priority, status, description, environment, module_name, original_ticket_id, owner_id, target_version, version_id, assigned_developer, group_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+            [title, type || 'feature', priority || 'normal', status || 'backlog', description || '', environment || '', moduleName || '', original_ticket_id || null, owner_id || null, targetVersion || '', versionId || null, assignedDeveloper || '', groupId]
+        );
+        if (original_ticket_id) {
+            await appendTicketAuditLog(original_ticket_id, `הקריאה הומרה למשימת טיפול (${title}) ונפתחה במסלול פיתוח`);
+        }
+        res.json({ success: true, task: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/dev/tasks/:id', verifySA, async (req, res) => {
+    try {
+        // Updated to process owner_id and original_ticket_id on updates
+        const { title, type, priority, status, description, targetVersion, versionId, environment, moduleName, assignedDeveloper, owner_id, original_ticket_id } = req.body;
+        await pool.query(
+            `UPDATE sa_dev_tasks 
+             SET title=$1, type=$2, priority=$3, status=$4, description=$5, target_version=$6, version_id=$7, environment=$8, module_name=$9, assigned_developer=$10, owner_id=$11, original_ticket_id=$12, updated_at=CURRENT_TIMESTAMP 
+             WHERE id=$13`,
+            [title, type, priority, status, description, targetVersion, versionId || null, environment || '', moduleName || '', assignedDeveloper || '', owner_id || null, original_ticket_id || null, req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/dev/tasks/:id', verifySA, async (req, res) => {
+    try {
+        const { title, type, priority, status, description, targetVersion, versionId, environment, moduleName, assignedDeveloper } = req.body;
+        await pool.query(
+            `UPDATE sa_dev_tasks SET title=$1, type=$2, priority=$3, status=$4, description=$5, target_version=$6, version_id=$7, environment=$8, module_name=$9, assigned_developer=$10, updated_at=CURRENT_TIMESTAMP WHERE id=$11`,
+            [title, type, priority, status, description, targetVersion, versionId || null, environment || '', moduleName || '', assignedDeveloper || '', req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/dev/tasks/:id/status', verifySA, async (req, res) => {
+    try {
+        const { status, systemOverride } = req.body;
+        const statusLabels = {
+            backlog:     'הועבר לבנק משימות',
+            in_progress: '🔧 הקריאה נכנסה לפיתוח פעיל',
+            qa:          '🔬 הקריאה הועברה לבדיקות QA',
+            done:        '✅ הפיתוח הושלם — שוחרר לאוויר'
+        };
+
+        if (status === 'done' && !systemOverride) {
+            return res.status(403).json({ error: 'חסימת מערכת: לא ניתן להעביר משימה לסטטוס "בוצע" ידנית. המשימה תיסגר אוטומטית ברגע שכל תתי-המשימות יסתיימו וריצת ה-QA בספר המוצר תעבור בהצלחה.' });
+        }
+
+        await pool.query('UPDATE sa_dev_tasks SET status=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [status, req.params.id]);
+
+        const taskRes = await pool.query('SELECT * FROM sa_dev_tasks WHERE id=$1', [req.params.id]);
+        if (taskRes.rows.length > 0) {
+            const t = taskRes.rows[0];
+
+            if (t.original_ticket_id) {
+                const label = statusLabels[status] || status;
+                await appendTicketAuditLog(t.original_ticket_id, `סטטוס משימת הטיפול עודכן: ${label}`);
+                await postToInternalChat(`🔄 קריאה #${t.original_ticket_id} — "${t.title}": ${label}`, 'מערכת');
+            }
+
+            if (status === 'done') {
+                const bookId = `DEV-${t.id}`;
+                await pool.query(`
+                    INSERT INTO sa_product_book (id, category, name, description, priority, original_ticket_id)
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                    ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, description=EXCLUDED.description, original_ticket_id=EXCLUDED.original_ticket_id
+                `, [bookId, t.module_name || t.environment || 'general', t.title, t.description || '', t.priority || 'medium', t.original_ticket_id || null]);
+            }
+        }
+
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/dev/tasks/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sa_dev_tasks WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- DEV SUB-TASKS (ALM) ---
+app.get('/api/sa/dev/subtasks', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM sa_dev_sub_tasks ORDER BY id ASC');
+        res.json({ success: true, subtasks: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/dev/subtasks', verifySA, async (req, res) => {
+    try {
+        const { taskId, title } = req.body;
+        const result = await pool.query(`INSERT INTO sa_dev_sub_tasks (task_id, title) VALUES ($1, $2) RETURNING *`, [taskId, title]);
+        res.json({ success: true, subtask: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/dev/subtasks/:id/toggle', verifySA, async (req, res) => {
+    try {
+        const { isDone } = req.body;
+        const result = await pool.query(`UPDATE sa_dev_sub_tasks SET is_done=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2 RETURNING *`, [isDone, req.params.id]);
+        res.json({ success: true, subtask: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/dev/subtasks/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sa_dev_sub_tasks WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- VERSIONS MANAGEMENT EXTENSION ---
+app.put('/api/sa/versions/:id', verifySA, async (req, res) => {
+    try {
+        const { name, targetDate, status } = req.body;
+        await pool.query('UPDATE sa_versions SET name=$1, target_date=$2, status=$3 WHERE id=$4', [name, targetDate || null, status, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/versions/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('UPDATE sa_qa_runs SET version_id = NULL WHERE version_id = $1', [req.params.id]);
+        await pool.query('UPDATE sa_dev_tasks SET version_id = NULL WHERE version_id = $1', [req.params.id]);
+        await pool.query('DELETE FROM sa_versions WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- PRODUCT MATRIX (QA) ---
+app.get('/api/sa/matrix', verifySA, async (req, res) => {
+    try {
+        const matrixResult = await pool.query(
+            'SELECT id::text, environment, module_name, scenario_name, expected_result, status, last_tested_at, \'matrix\' as source FROM sa_product_matrix ORDER BY environment, module_name, id'
+        );
+        // ספר המוצר מספר QA — כל הפריטים, סטטוס לפי תוצאות QA
+        const bookResult = await pool.query(`
+            SELECT
+                pb.id::text                                    AS id,
+                'book'                                         AS environment,
+                pb.category                                    AS module_name,
+                pb.name                                        AS scenario_name,
+                pb.description                                 AS expected_result,
+                COALESCE((
+                    SELECT CASE
+                        WHEN COUNT(*) FILTER (WHERE qr.status = 'ok')   > 0 THEN 'passed'
+                        WHEN COUNT(*) FILTER (WHERE qr.status = 'fail') > 0 THEN 'failed'
+                        ELSE 'untested'
+                    END
+                    FROM sa_qa_test_results qr WHERE qr.test_id = pb.id
+                ), 'untested')                                 AS status,
+                NULL                                           AS last_tested_at,
+                'book'                                         AS source
+            FROM sa_product_book pb
+            ORDER BY pb.category, pb.id
+        `);
+        res.json({ success: true, matrix: [...matrixResult.rows, ...bookResult.rows] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/matrix', verifySA, async (req, res) => {
+    try {
+        const { environment, moduleName, scenarioName, expectedResult } = req.body;
+        const result = await pool.query(
+            `INSERT INTO sa_product_matrix (environment, module_name, scenario_name, expected_result) 
+             VALUES ($1, $2, $3, $4) RETURNING *`,
+            [environment, moduleName, scenarioName, expectedResult]
+        );
+        res.json({ success: true, item: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/matrix/:id/status', verifySA, async (req, res) => {
+    try {
+        const { status } = req.body;
+        await pool.query('UPDATE sa_product_matrix SET status=$1, last_tested_at=CURRENT_TIMESTAMP WHERE id=$2', [status, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/matrix/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sa_product_matrix WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==========================================
+// --- QA, PRODUCT BOOK & VERSIONS (SPRINT 4) ---
+// ==========================================
+
+// משיכת כל הגרסאות הקיימות
+app.get('/api/sa/versions', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM sa_versions ORDER BY id DESC');
+        res.json({ success: true, versions: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// פתיחת גרסה חדשה
+app.post('/api/sa/versions', verifySA, async (req, res) => {
+    try {
+        const { name, targetDate } = req.body;
+        await pool.query('INSERT INTO sa_versions (name, target_date) VALUES ($1, $2)', [name, targetDate || null]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// משיכת ספר המוצר (כל הבדיקות מהמסד)
+app.get('/api/sa/qa/tests', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT *, original_ticket_id FROM sa_product_book ORDER BY category ASC, id ASC');
+        res.json({ success: true, tests: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הוספה/עדכון ידני של בדיקה (גיבוי להזנה ידנית / אישור לאחר AI)
+app.post('/api/sa/qa/tests', verifySA, async (req, res) => {
+    try {
+        const { id, category, name, description, priority } = req.body;
+        // מנגנון Upsert: מעדכן אם קיים, מוסיף אם חדש
+        await pool.query(`
+            INSERT INTO sa_product_book (id, category, name, description, priority) 
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (id) DO UPDATE 
+            SET category = EXCLUDED.category, name = EXCLUDED.name, description = EXCLUDED.description, priority = EXCLUDED.priority
+        `, [id, category, name, description, priority || 'medium']);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ייבוא מסיבי (Seed) - משוריין לכל גרסאות ה-DB
+app.post('/api/sa/qa/tests/bulk', verifySA, async (req, res) => {
+    try {
+        // נוודא שהטבלה אכן קיימת לפני שמתחילים להזריק נתונים
+        await pool.query(`CREATE TABLE IF NOT EXISTS sa_product_book (id VARCHAR(50) PRIMARY KEY, category VARCHAR(100), name VARCHAR(200), description TEXT, priority VARCHAR(20) DEFAULT 'medium', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+
+        const { tests } = req.body; 
+        if (!tests || !tests.length) return res.json({ success: false, error: 'לא נשלחו נתונים' });
+        
+        let inserted = 0;
+        for (let t of tests) {
+            try {
+                await pool.query(`
+                    INSERT INTO sa_product_book (id, category, name, description, priority) 
+                    VALUES ($1, $2, $3, $4, $5)
+                `, [t.id, t.cat || t.category, t.name, t.desc || t.description, t.prio || t.priority || 'medium']);
+                inserted++;
+            } catch(err) {
+                // התעלמות משגיאת כפילות (Unique Violation 23505) - עובד בכל גרסאות Postgres
+                if (err.code !== '23505') throw err;
+            }
+        }
+        res.json({ success: true, inserted });
+    } catch(e) { 
+        console.error('Bulk Insert Error:', e);
+        // מחזיר JSON תקין תמיד, גם במקרה של קריסת שרת פנימית
+        res.status(500).json({ success: false, error: 'שגיאת שרת פנימית: ' + e.message }); 
+    }
+});
+
+// שמירת פלט ריצת ה-QA וסגירת מעגל
+app.post('/api/sa/qa/runs', verifySA, async (req, res) => {
+    try {
+        const { versionId, testerName, results } = req.body;
+        await pool.query(
+            'INSERT INTO sa_qa_runs (version_id, tester_name, results) VALUES ($1, $2, $3)',
+            [versionId || null, testerName, JSON.stringify(results)]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מחולל בדיקות QA אוטומטי מבוסס AI (מחזיר טיוטה לממשק ללא שמירה)
+app.post('/api/sa/ai/generate-qa', verifySA, async (req, res) => {
+    try {
+        const { taskTitle, taskDesc, module } = req.body;
+        if (!genAI) return res.json({ success: false, error: 'לא הוגדר מפתח API של Gemini בשרת' });
+
+        const aiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const prompt = `
+            You are a Senior QA Engineer for a SaaS platform called Oneflow Life.
+            Based on the following software development task, generate a single, comprehensive QA test case in Hebrew.
+            Return ONLY a valid JSON object with the following structure (no markdown formatting, no extra text, just raw JSON):
+            {
+                "id": "Generate a unique 6-character ID starting with AUTO-, e.g., AUTO-102",
+                "category": "The most relevant module/category in Hebrew (e.g., 'קופה', 'לקוחות', 'משפחה', 'אקדמיה', 'כללי')",
+                "name": "Test name in Hebrew",
+                "description": "Step-by-step description of what to test, and the expected result in Hebrew",
+                "priority": "high", "medium", or "low"
+            }
+
+            Task Title: ${taskTitle}
+            Task Description: ${taskDesc || 'No description provided'}
+            Suggested Module: ${module || 'General'}
+        `;
+
+        const result = await aiModel.generateContent(prompt);
+        let responseText = result.response.text().trim();
+        
+        if (responseText.startsWith('```json')) responseText = responseText.replace(/^```json/, '').replace(/```$/, '').trim();
+        else if (responseText.startsWith('```')) responseText = responseText.replace(/^```/, '').replace(/```$/, '').trim();
+        
+        const qaData = JSON.parse(responseText);
+
+        // אנחנו כבר לא שומרים למסד כאן! מחזירים את זה לממשק כדי שהמשתמש יאשר ויערוך ידנית.
+        res.json({ success: true, test: qaData });
+    } catch(e) {
+        console.error('QA Generation Error:', e);
+        res.json({ success: false, error: e.message });
+    }
+});
+
+// ראוט למשיכת הגדרות ציבוריות למסך התחברות
+app.get('/api/system/public-config', async (req, res) => {
+    try {
+        const mockConfig = {
+            success: true,
+            globalAiLogo: '/logo.png', 
+            loginSlides: [
+                { image: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80&w=1000&auto=format&fit=crop' }, 
+                { image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?q=80&w=1000&auto=format&fit=crop' },  
+                { image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=1000&auto=format&fit=crop' }   
+            ]
+        };
+        res.json(mockConfig);
+    } catch(e) {
+        res.status(500).json({ error: 'Failed to fetch config' });
+    }
+});
+
+// ============================================================
+// QA TEST RESULTS — שמירת תוצאות בדיקה per test per env
+// ============================================================
+
+// שליפת כל תוצאות הסשן הנוכחי
+app.get('/api/sa/qa/results', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT test_id, env, status, note, updated_at FROM sa_qa_test_results ORDER BY updated_at DESC'
+        );
+        res.json({ success: true, results: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שמירה/עדכון batch של תוצאות (מהקליינט, debounced 1.5s)
+app.post('/api/sa/qa/results/bulk', verifySA, async (req, res) => {
+    try {
+        const { results } = req.body;
+        if(!results || !results.length) return res.json({ success: true, saved: 0 });
+        let saved = 0;
+        for(const r of results) {
+            if(!r.testId || !r.env) continue;
+            await pool.query(
+                `INSERT INTO sa_qa_test_results (test_id, env, status, note)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (test_id, env) DO UPDATE
+                 SET status = EXCLUDED.status, note = EXCLUDED.note, updated_at = CURRENT_TIMESTAMP`,
+                [r.testId, r.env, r.status || null, r.note || '']
+            );
+            saved++;
+        }
+        res.json({ success: true, saved });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// איפוס כל תוצאות הסשן (לפני ריצה חדשה)
+app.delete('/api/sa/qa/results', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sa_qa_test_results');
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+// ============================================================
+// QA TEST RESULTS — שמירת תוצאות בדיקה per test per env
+// ============================================================
+
+app.get('/api/sa/qa/results', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT test_id, env, status, note, updated_at FROM sa_qa_test_results ORDER BY updated_at DESC'
+        );
+        res.json({ success: true, results: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/qa/results/bulk', verifySA, async (req, res) => {
+    try {
+        const { results } = req.body;
+        if(!results || !results.length) return res.json({ success: true, saved: 0 });
+        let saved = 0;
+        for(const r of results) {
+            if(!r.testId || !r.env) continue;
+            await pool.query(
+                `INSERT INTO sa_qa_test_results (test_id, env, status, note)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (test_id, env) DO UPDATE
+                 SET status = EXCLUDED.status, note = EXCLUDED.note, updated_at = CURRENT_TIMESTAMP`,
+                [r.testId, r.env, r.status || null, r.note || '']
+            );
+            saved++;
+        }
+        res.json({ success: true, saved });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/qa/results', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sa_qa_test_results');
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/versions/name/:name', verifySA, async (req, res) => {
+    try {
+        const { targetDate } = req.body;
+        await pool.query(
+            'UPDATE sa_versions SET target_date=$1 WHERE name=$2',
+            [targetDate || null, req.params.name]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── SA QA MODULE ────────────────────────────────────────────────────────────
+
+// Create tables if not exist
+(async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS sa_product_book (
+        id TEXT PRIMARY KEY,
+        section_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        envs TEXT[] DEFAULT ARRAY['family'],
+        icon TEXT,
+        color TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS sa_qa_test_results (
+        test_id TEXT NOT NULL,
+        env TEXT NOT NULL,
+        status TEXT,
+        note TEXT,
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        PRIMARY KEY (test_id, env)
+      );
+      CREATE TABLE IF NOT EXISTS sa_versions (
+        id SERIAL PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL,
+        notes TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS sa_dev_tasks (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        module TEXT,
+        status TEXT DEFAULT 'pending',
+        version_id INTEGER REFERENCES sa_versions(id),
+        env TEXT DEFAULT 'family',
+        qa_passed BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    console.log('SA QA tables ready');
+  } catch(e) {
+    console.error('SA QA table init error:', e.message);
+  }
+})();
+
+// ── Product Book ──────────────────────────────────────────────────────────────
+
+app.get('/api/sa/qa/tests', verifySA, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM sa_product_book ORDER BY section_id, id');
+    res.json({ tests: rows });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/sa/qa/tests', verifySA, async (req, res) => {
+  try {
+    const { id, section_id, title, description, envs, icon, color } = req.body;
+    const { rows } = await pool.query(
+      `INSERT INTO sa_product_book (id, section_id, title, description, envs, icon, color)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (id) DO UPDATE SET
+         section_id=EXCLUDED.section_id, title=EXCLUDED.title,
+         description=EXCLUDED.description, envs=EXCLUDED.envs,
+         icon=EXCLUDED.icon, color=EXCLUDED.color
+       RETURNING *`,
+      [id, section_id, title, description || '', envs || ['family'], icon || '', color || '']
+    );
+    res.json({ test: rows[0] });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/sa/qa/tests', verifySA, async (req, res) => {
+  try {
+    await pool.query('TRUNCATE TABLE sa_product_book');
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/sa/qa/tests/:id', verifySA, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM sa_product_book WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── QA Results ────────────────────────────────────────────────────────────────
+
+app.get('/api/sa/qa/results', verifySA, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM sa_qa_test_results');
+    res.json({ results: rows });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/sa/qa/results/bulk', verifySA, async (req, res) => {
+  try {
+    const { results } = req.body; // [{testId, env, status, note}]
+    if (!Array.isArray(results) || !results.length) return res.json({ ok: true });
+    const values = results.map((r, i) => {
+      const base = i * 4;
+      return `($${base+1},$${base+2},$${base+3},$${base+4},NOW())`;
+    }).join(',');
+    const flat = results.flatMap(r => [r.testId, r.env, r.status || null, r.note || '']);
+    await pool.query(
+      `INSERT INTO sa_qa_test_results (test_id, env, status, note, updated_at)
+       VALUES ${values}
+       ON CONFLICT (test_id, env) DO UPDATE SET
+         status=EXCLUDED.status, note=EXCLUDED.note, updated_at=NOW()`,
+      flat
+    );
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/sa/qa/results', verifySA, async (req, res) => {
+  try {
+    await pool.query('TRUNCATE TABLE sa_qa_test_results');
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Versions ──────────────────────────────────────────────────────────────────
+
+app.get('/api/sa/versions', verifySA, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM sa_versions ORDER BY created_at DESC');
+    res.json({ versions: rows });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/sa/versions', verifySA, async (req, res) => {
+  try {
+    const { name, notes } = req.body;
+    const { rows } = await pool.query(
+      `INSERT INTO sa_versions (name, notes) VALUES ($1,$2)
+       ON CONFLICT (name) DO UPDATE SET notes=EXCLUDED.notes
+       RETURNING *`,
+      [name, notes || '']
+    );
+    res.json({ version: rows[0] });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/sa/versions/name/:name', verifySA, async (req, res) => {
+  try {
+    const { notes } = req.body;
+    await pool.query('UPDATE sa_versions SET notes=$1 WHERE name=$2', [notes || '', req.params.name]);
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/sa/versions/name/:name', verifySA, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM sa_versions WHERE name=$1', [req.params.name]);
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Dev Tasks (skip if already defined above) ─────────────────────────────────
+
+app.get('/api/sa/dev/tasks', verifySA, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM sa_dev_tasks ORDER BY created_at DESC');
+    res.json({ tasks: rows });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/sa/dev/tasks', verifySA, async (req, res) => {
+  try {
+    const { id, title, module, status, version_id, env } = req.body;
+    const { rows } = await pool.query(
+      `INSERT INTO sa_dev_tasks (id, title, module, status, version_id, env)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (id) DO UPDATE SET
+         title=EXCLUDED.title, module=EXCLUDED.module,
+         status=EXCLUDED.status, version_id=EXCLUDED.version_id, env=EXCLUDED.env
+       RETURNING *`,
+      [id, title, module || '', status || 'pending', version_id || null, env || 'family']
+    );
+    res.json({ task: rows[0] });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/sa/dev/tasks/:id/status', verifySA, async (req, res) => {
+  try {
+    const { status, qa_passed } = req.body;
+    await pool.query(
+      'UPDATE sa_dev_tasks SET status=$1, qa_passed=$2 WHERE id=$3',
+      [status || 'pending', qa_passed === true, req.params.id]
+    );
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/sa/dev/tasks/:id', verifySA, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM sa_dev_tasks WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// --- ראוטים למערכת הודעות פנימיות ---
+
+app.get('/api/messages/broadcast', verifySA, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM internal_messages ORDER BY created_at DESC');
+    res.json({ success: true, messages: rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/messages/broadcast', verifySA, async (req, res) => {
+  const { title, content, targetType, targetId } = req.body;
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO internal_messages (title, content, target_type, target_id) VALUES ($1, $2, $3, $4) RETURNING id',
+      [title, content, targetType, targetId]
+    );
+    res.json({ success: true, messageId: rows[0].id });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/messages/acknowledge', async (req, res) => {
+  const { messageId, employeeId, status } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO message_acknowledgments (message_id, employee_id, status) VALUES ($1, $2, $3) ON CONFLICT (message_id, employee_id) DO UPDATE SET status=$3, responded_at=NOW()',
+      [messageId, employeeId, status]
+    );
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/messages/:id/stats', verifySA, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT e.name, ma.status, ma.responded_at FROM message_acknowledgments ma JOIN employees e ON ma.employee_id = e.id WHERE ma.message_id = $1',
+      [req.params.id]
+    );
+    res.json({ success: true, stats: rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ראוט דשבורד מרכזי - דופק מערכת (Pulse) - גרסה חסינת קריסות
+app.get('/api/superadmin/pulse', verifySA, async (req, res) => {
+    try {
+        const [users, tickets, tasks, groups] = await Promise.all([
+            pool.query('SELECT COUNT(*) as total FROM users'),
+            pool.query('SELECT status, priority FROM support_tickets'),
+            pool.query('SELECT status FROM sa_dev_tasks'),
+            pool.query('SELECT COUNT(*) as total FROM family_groups')
+        ]);
+
+        const openTicketsCount = tickets.rows.filter(t => t.status === 'open' || t.status === 'Open' || t.status === 'in_progress').length;
+        const pendingTasksCount = tasks.rows.filter(t => t.status === 'pending' || t.status === 'backlog').length;
+        const totalTicketsCount = tickets.rows.length;
+        const resolvedCount = tickets.rows.filter(t => t.status === 'resolved' || t.status === 'Resolved').length;
+        const qaPercentage = totalTicketsCount > 0 ? Math.round((resolvedCount / totalTicketsCount) * 100) : 100;
+
+        res.json({
+            success: true,
+            snapshot: {
+                totalUsers: parseInt(users.rows[0].total || 0),
+                activeEnvironments: parseInt(groups.rows[0].total || 0),
+                openTickets: openTicketsCount,
+                pendingTasks: pendingTasksCount,
+                systemErrors: 0
+            },
+            stats: {
+                totalTickets: totalTicketsCount,
+                qaPercentage: qaPercentage
+            }
+        });
+    } catch(e) { 
+        console.error('Pulse API Resilient Error Handled:', e);
+        // החזרת מבנה נתונים ריק תקין כדי למנוע קריסת קליינט
+        res.json({
+            success: false,
+            snapshot: { totalUsers: 0, activeEnvironments: 0, openTickets: 0, pendingTasks: 0, systemErrors: 1 },
+            stats: { totalTickets: 0, qaPercentage: 100 }
+        });
+    }
+});
+
+// ============================================================
+// /api/qa/update — Playwright CI reporter (no auth required)
+// ============================================================
+app.post('/api/qa/update', async (req, res) => {
+    try {
+        const { testId, status, env = 'family', note } = req.body;
+        if (!testId) return res.status(400).json({ error: 'testId required' });
+        const timestamp = new Date().toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' });
+        const autoNote = note || `🤖 Playwright: ${status === 'ok' ? '✅ עבר' : '❌ נכשל'} — ${timestamp}`;
+        await pool.query(
+            `INSERT INTO sa_qa_test_results (test_id, env, status, note)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (test_id, env) DO UPDATE
+             SET status = EXCLUDED.status, note = EXCLUDED.note, updated_at = CURRENT_TIMESTAMP`,
+            [testId, env, status, autoNote]
+        );
+        res.json({ success: true, testId, status });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// QA Task Assignments — shared state across all QA computers
+// ============================================================
+app.get('/api/qa/assignments', async (req, res) => {
+    try {
+        const { rows } = await pool.query('SELECT task_id, data, updated_at FROM qa_task_assignments ORDER BY updated_at DESC');
+        res.json({ success: true, assignments: rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/qa/assignments/:taskId', async (req, res) => {
+    try {
+        const { taskId } = req.params;
+        const { data } = req.body;
+        if (!data) return res.status(400).json({ error: 'data required' });
+        await pool.query(
+            `INSERT INTO qa_task_assignments (task_id, data, updated_at)
+             VALUES ($1, $2, CURRENT_TIMESTAMP)
+             ON CONFLICT (task_id) DO UPDATE SET data = $2, updated_at = CURRENT_TIMESTAMP`,
+            [taskId, JSON.stringify(data)]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/qa/assignments', async (req, res) => {
+    try {
+        const { assignments } = req.body;
+        if (!Array.isArray(assignments) || assignments.length === 0) return res.json({ success: true, count: 0 });
+        for (const { taskId, data } of assignments) {
+            if (!taskId || !data) continue;
+            await pool.query(
+                `INSERT INTO qa_task_assignments (task_id, data, updated_at)
+                 VALUES ($1, $2, CURRENT_TIMESTAMP)
+                 ON CONFLICT (task_id) DO UPDATE SET data = $2, updated_at = CURRENT_TIMESTAMP`,
+                [taskId, JSON.stringify(data)]
+            );
+        }
+        res.json({ success: true, count: assignments.length });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ACTIVITY FEED ENDPOINT ─────────────────────────────────────
+app.get('/api/activity', async (req, res) => {
+  try {
+    const { userId, groupId, actionType, days = 30, limit = 50 } = req.query;
+    const uRes = await pool.query('SELECT role, group_id FROM users WHERE id=$1', [userId]);
+    if (!uRes.rows.length) return res.status(403).json({ error: 'Unauthorized' });
+    const user = uRes.rows[0];
+    const gId = user.group_id;
+    const since = new Date(Date.now() - parseInt(days) * 86400000);
+
+    let query = 'SELECT al.*, u.nickname FROM activity_log al LEFT JOIN users u ON al.user_id = u.id WHERE al.group_id=$1 AND al.created_at >= $2';
+    const params = [gId, since];
+
+    // Non-admins see only their own
+    if (user.role !== 'ADMIN') {
+      query += ' AND al.user_id=$3';
+      params.push(userId);
+    }
+    if (actionType && actionType !== 'all') {
+      query += ` AND al.action_type=$${params.length+1}`;
+      params.push(actionType);
+    }
+    query += ' ORDER BY al.created_at DESC LIMIT $' + (params.length+1);
+    params.push(parseInt(limit));
+
+    const result = await pool.query(query, params);
+
+    // Count unread (last 24h)
+    const unreadRes = await pool.query(
+      'SELECT COUNT(*) FROM activity_log WHERE group_id=$1 AND created_at > NOW() - INTERVAL \'1 day\'' + (user.role !== 'ADMIN' ? ' AND user_id=$2' : ''),
+      user.role !== 'ADMIN' ? [gId, userId] : [gId]
+    );
+
+    res.json({ success: true, activities: result.rows, unreadCount: parseInt(unreadRes.rows[0].count) });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── KIOSK ENDPOINTS ──────────────────────────────────────────────
+
+// GET store settings + catalog for kiosk (public, by groupId)
+app.get('/api/store/kiosk-settings/:groupId', async (req, res) => {
+    try {
+        const gId = req.params.groupId;
+        const [settingsRes, catalogRes, groupRes] = await Promise.all([
+            pool.query('SELECT * FROM store_settings WHERE group_id=$1', [gId]),
+            pool.query(`SELECT id,name,description,price,category,image_url,is_available,
+                               badge_text,badge_color,options_text,product_type
+                        FROM store_catalog WHERE group_id=$1 AND is_available=TRUE AND (is_complimentary IS NULL OR is_complimentary=FALSE) ORDER BY category,name`, [gId]),
+            pool.query('SELECT name FROM family_groups WHERE id=$1', [gId])
+        ]);
+        res.json({
+            success: true,
+            settings: settingsRes.rows[0] || {},
+            catalog: catalogRes.rows,
+            storeName: groupRes.rows[0]?.name || ''
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST lookup/create customer by phone for kiosk
+app.post('/api/store/kiosk-lookup', async (req, res) => {
+    try {
+        const { groupId, phone, name } = req.body;
+        if (!groupId || !phone) return res.status(400).json({ error: 'חסר groupId או phone' });
+        // normalize: digits only, try both with and without leading 0
+        const digits = phone.replace(/\D/g,'');
+        const altPhone = digits.startsWith('0') ? digits.substring(1) : '0' + digits;
+        const existing = await pool.query(
+            `SELECT * FROM store_customers WHERE group_id=$1 AND (phone=$2 OR phone=$3 OR REPLACE(phone,'-','')=$2 OR REPLACE(phone,'-','')=$3) LIMIT 1`,
+            [groupId, digits, altPhone]);
+        if (existing.rows.length > 0) {
+            const cust = existing.rows[0];
+            // count previous orders
+            const ordersRes = await pool.query(
+                `SELECT COUNT(*) FROM store_orders WHERE group_id=$1 AND customer_phone IN ($2,$3)`,
+                [groupId, digits, altPhone]);
+            const orderCount = parseInt(ordersRes.rows[0].count) || 0;
+            return res.json({ success: true, customer: cust, isNew: false, orderCount });
+        }
+        // create only if name provided
+        if (!name || name === 'לקוח') return res.json({ success: true, customer: null, isNew: true });
+        const created = await pool.query(
+            'INSERT INTO store_customers (group_id, name, phone) VALUES ($1,$2,$3) RETURNING *',
+            [groupId, name, digits]);
+        res.json({ success: true, customer: created.rows[0], isNew: true, orderCount: 0 });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST submit kiosk order
+app.post('/api/store/kiosk-order', async (req, res) => {
+    try {
+        const { groupId, customerName, customerPhone, items, notes, total } = req.body;
+        if (!groupId || !items?.length) return res.status(400).json({ error: 'נתונים חסרים' });
+        const digits = (customerPhone || '').replace(/\D/g,'');
+        const altPhone = digits.startsWith('0') ? digits.substring(1) : '0' + digits;
+
+        const orderRes = await pool.query(
+            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, items, notes, quote_status, created_at)
+             VALUES ($1,$2,$3,$4,'new',$5,$6,NULL,CURRENT_TIMESTAMP) RETURNING id`,
+            [groupId, customerName || 'לקוח קיוסק', digits || '', total || 0,
+             JSON.stringify(items), notes ? `[קיוסק] ${notes}` : '[קיוסק]']
+        );
+        const orderId = orderRes.rows[0].id;
+
+        // Update/create customer record so purchase is tracked in CRM
+        if (digits) {
+            const custRes = await pool.query(
+                `SELECT id FROM store_customers WHERE group_id=$1 AND (phone=$2 OR phone=$3 OR REPLACE(phone,'-','')=$2) LIMIT 1`,
+                [groupId, digits, altPhone]);
+            if (custRes.rows.length > 0) {
+                // update existing customer notes with last visit
+                await pool.query(
+                    `UPDATE store_customers SET notes = COALESCE(notes,'') || $1 WHERE id=$2`,
+                    [`\nקנייה בקיוסק #${orderId} — ₪${total} (${new Date().toLocaleDateString('he-IL')})`, custRes.rows[0].id]
+                );
+            } else if (customerName && customerName !== 'לקוח') {
+                await pool.query(
+                    `INSERT INTO store_customers (group_id, name, phone, notes) VALUES ($1,$2,$3,$4)`,
+                    [groupId, customerName, digits, `קנייה בקיוסק #${orderId} — ₪${total} (${new Date().toLocaleDateString('he-IL')})`]);
+            }
+        }
+
+        await logActivity(groupId, null, customerName || 'לקוח קיוסק', 'sale', 'kiosk_order', `הזמנת קיוסק #${orderId} — ₪${total}`);
+        res.json({ success: true, orderId });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET kiosk password for a group
+app.get('/api/store/kiosk-password/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT kiosk_password FROM store_settings WHERE group_id=$1', [req.params.groupId]);
+        res.json({ success: true, password: r.rows[0]?.kiosk_password || '1234' });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// PUT set kiosk password (admin)
+app.put('/api/store/kiosk-password', async (req, res) => {
+    try {
+        const { groupId, password } = req.body;
+        if (!groupId || !password) return res.status(400).json({ error: 'נתונים חסרים' });
+        await pool.query(
+            `INSERT INTO store_settings (group_id, kiosk_password) VALUES ($1,$2)
+             ON CONFLICT (group_id) DO UPDATE SET kiosk_password=$2`,
+            [groupId, password]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET/PUT user phone
+app.get('/api/users/:userId/phone', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT phone FROM users WHERE id=$1', [req.params.userId]);
+        res.json({ success: true, phone: r.rows[0]?.phone || '' });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/users/:userId/phone', async (req, res) => {
+    try {
+        const { phone } = req.body;
+        await pool.query('UPDATE users SET phone=$1 WHERE id=$2', [phone, req.params.userId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/users/:userId/email', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT email FROM users WHERE id=$1', [req.params.userId]);
+        res.json({ success: true, email: r.rows[0]?.email || '' });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/users/:userId/email', async (req, res) => {
+    try {
+        const { email } = req.body;
+        await pool.query('UPDATE users SET email=$1 WHERE id=$2', [email || null, req.params.userId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── SURVEYS API ────────────────────────────────────────────────
+
+const _surveyCode = () => {
+    const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let s = '';
+    for (let i = 0; i < 8; i++) s += c[Math.floor(Math.random() * c.length)];
+    return s;
+};
+
+// רשימת סקרים לעסק
+app.get('/api/surveys', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
+        const r = await pool.query(
+            `SELECT s.*,
+             (SELECT COUNT(*) FROM survey_responses WHERE survey_id=s.id)::int AS response_count,
+             (SELECT COUNT(*) FROM survey_questions WHERE survey_id=s.id)::int AS question_count
+             FROM surveys s WHERE s.group_id=$1 ORDER BY s.created_at DESC`,
+            [groupId]);
+        res.json({ success: true, surveys: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// יצירת סקר חדש
+app.post('/api/surveys', async (req, res) => {
+    try {
+        const { groupId, title, description, requiredFields, anonymous, questions } = req.body;
+        if (!groupId || !title) return res.status(400).json({ error: 'חסרים נתונים' });
+        const code = _surveyCode();
+        const sv = await pool.query(
+            `INSERT INTO surveys (group_id,title,description,required_fields,anonymous,unique_code)
+             VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [groupId, title, description||'', JSON.stringify(requiredFields||[]), !!anonymous, code]);
+        const id = sv.rows[0].id;
+        if (questions?.length) {
+            for (let i = 0; i < questions.length; i++) {
+                const q = questions[i];
+                await pool.query(
+                    `INSERT INTO survey_questions (survey_id,order_index,type,question_text,options,required)
+                     VALUES ($1,$2,$3,$4,$5,$6)`,
+                    [id, i, q.type, q.text, JSON.stringify(q.options||[]), q.required!==false]);
+            }
+        }
+        res.json({ success: true, survey: sv.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עדכון סקר (טיוטה בלבד)
+app.put('/api/surveys/:id', async (req, res) => {
+    try {
+        const { title, description, requiredFields, anonymous, questions } = req.body;
+        const ex = await pool.query('SELECT status FROM surveys WHERE id=$1', [req.params.id]);
+        if (!ex.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        if (ex.rows[0].status !== 'draft') return res.status(400).json({ error: 'ניתן לערוך רק טיוטות' });
+        await pool.query(
+            `UPDATE surveys SET title=$1,description=$2,required_fields=$3,anonymous=$4 WHERE id=$5`,
+            [title, description||'', JSON.stringify(requiredFields||[]), !!anonymous, req.params.id]);
+        if (questions) {
+            await pool.query('DELETE FROM survey_questions WHERE survey_id=$1', [req.params.id]);
+            for (let i = 0; i < questions.length; i++) {
+                const q = questions[i];
+                await pool.query(
+                    `INSERT INTO survey_questions (survey_id,order_index,type,question_text,options,required)
+                     VALUES ($1,$2,$3,$4,$5,$6)`,
+                    [req.params.id, i, q.type, q.text, JSON.stringify(q.options||[]), q.required!==false]);
+            }
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הפעלת סקר
+app.post('/api/surveys/:id/activate', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        const cnt = await pool.query(
+            `SELECT COUNT(*) FROM surveys WHERE group_id=$1 AND status='active'`, [groupId]);
+        if (parseInt(cnt.rows[0].count) >= 3)
+            return res.status(400).json({ error: 'הגעת למקסימום 3 סקרים פעילים' });
+        const r = await pool.query(
+            `UPDATE surveys SET status='active' WHERE id=$1 RETURNING *`, [req.params.id]);
+        res.json({ success: true, survey: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// סגירת סקר
+app.post('/api/surveys/:id/close', async (req, res) => {
+    try {
+        await pool.query(`UPDATE surveys SET status='closed',closed_at=NOW() WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מחיקת סקר
+app.delete('/api/surveys/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM surveys WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// תוצאות סקר (למנהל)
+app.get('/api/surveys/:id/results', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const [sv, qs, rs] = await Promise.all([
+            pool.query('SELECT * FROM surveys WHERE id=$1', [id]),
+            pool.query('SELECT * FROM survey_questions WHERE survey_id=$1 ORDER BY order_index', [id]),
+            pool.query('SELECT * FROM survey_responses WHERE survey_id=$1 ORDER BY submitted_at DESC', [id])
+        ]);
+        res.json({ success: true, survey: sv.rows[0], questions: qs.rows, responses: rs.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ציבורי: קבלת מידע סקר (ללא אוטנטיקציה)
+app.get('/api/public/survey/:code', async (req, res) => {
+    try {
+        const sv = await pool.query('SELECT * FROM surveys WHERE unique_code=$1', [req.params.code]);
+        if (!sv.rows.length) return res.status(404).json({ error: 'סקר לא נמצא' });
+        const s = sv.rows[0];
+        if (s.status !== 'active') return res.status(403).json({ error: 'הסקר אינו פעיל כרגע' });
+        const [qs, grp, stg] = await Promise.all([
+            pool.query('SELECT * FROM survey_questions WHERE survey_id=$1 ORDER BY order_index', [s.id]),
+            pool.query('SELECT name FROM family_groups WHERE id=$1', [s.group_id]),
+            pool.query('SELECT logo_url, slogan FROM store_settings WHERE group_id=$1', [s.group_id])
+        ]);
+        res.json({ success: true,
+            survey: { id: s.id, title: s.title, description: s.description,
+                      required_fields: s.required_fields, anonymous: s.anonymous,
+                      business_name: grp.rows[0]?.name || '',
+                      logo_url: stg.rows[0]?.logo_url || null,
+                      slogan: stg.rows[0]?.slogan || '' },
+            questions: qs.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ציבורי: שליחת תשובה
+app.post('/api/public/survey/:code/submit', async (req, res) => {
+    try {
+        const { respondentData, answers, comment } = req.body;
+        const sv = await pool.query(
+            `SELECT id FROM surveys WHERE unique_code=$1 AND status='active'`, [req.params.code]);
+        if (!sv.rows.length) return res.status(403).json({ error: 'הסקר אינו פעיל' });
+        await pool.query(
+            `INSERT INTO survey_responses (survey_id,respondent_data,answers,comment)
+             VALUES ($1,$2,$3,$4)`,
+            [sv.rows[0].id, JSON.stringify(respondentData||{}), JSON.stringify(answers||[]), comment||'']);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ALERT ENGINE ──────────────────────────────────────────────────────────
+async function checkRuleTrigger(rule) {
+    const config = rule.trigger_config || {};
+    const messages = [];
+    try {
+        switch(rule.trigger_type) {
+            case 'timeclock_no_punch_in': {
+                const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+                const users = await pool.query(
+                    `SELECT u.nickname FROM users u WHERE u.group_id=$1 AND u.role != 'ADMIN'
+                     AND NOT EXISTS (SELECT 1 FROM time_clock tc WHERE tc.user_id=u.id AND tc.punch_in >= $2)`,
+                    [rule.group_id, todayStart]
+                );
+                if (users.rows.length > 0) messages.push(`עובדים שלא החתימו כניסה היום: ${users.rows.map(u=>u.nickname).join(', ')}`);
+                break;
+            }
+            case 'timeclock_no_punch_out': {
+                const maxHours = config.max_hours || 10;
+                const punches = await pool.query(
+                    `SELECT u.nickname FROM time_clock tc JOIN users u ON tc.user_id=u.id
+                     WHERE u.group_id=$1 AND tc.punch_out IS NULL AND tc.punch_in < NOW() - ($2 * INTERVAL '1 hour')`,
+                    [rule.group_id, maxHours]
+                );
+                punches.rows.forEach(p => messages.push(`${p.nickname} החתים כניסה לפני ${maxHours}+ שעות ולא יצא`));
+                break;
+            }
+            case 'inventory_low': {
+                const minQty = config.min_quantity !== undefined ? config.min_quantity : 1;
+                const items = await pool.query(
+                    'SELECT item_name, quantity FROM pantry WHERE group_id=$1 AND quantity <= $2 ORDER BY quantity',
+                    [rule.group_id, minQty]
+                );
+                if (items.rows.length > 0) {
+                    const names = items.rows.map(i=>`${i.item_name}(${i.quantity})`).join(', ');
+                    messages.push(`מוצרים מתחת לרף מינימום: ${names}`);
+                }
+                break;
+            }
+            case 'task_overdue': {
+                const tasks = await pool.query(
+                    `SELECT t.title, u.nickname FROM tasks t LEFT JOIN users u ON t.assigned_to=u.id
+                     WHERE t.group_id=$1 AND t.status NOT IN ('approved','cancelled')
+                     AND t.deadline IS NOT NULL AND t.deadline < NOW()`,
+                    [rule.group_id]
+                );
+                tasks.rows.forEach(t => messages.push(`משימה באיחור: "${t.title}"${t.nickname ? ` (${t.nickname})` : ''}`));
+                break;
+            }
+            case 'shopping_pending': {
+                const hours = config.pending_hours || 24;
+                const items = await pool.query(
+                    `SELECT item_name FROM shopping_list WHERE group_id=$1 AND status='requested' AND added_at < NOW() - ($2 * INTERVAL '1 hour')`,
+                    [rule.group_id, hours]
+                );
+                if (items.rows.length > 0) messages.push(`בקשות רכש ממתינות מעל ${hours}ש': ${items.rows.map(i=>i.item_name).join(', ')}`);
+                break;
+            }
+            case 'balance_low': {
+                const minBalance = config.min_balance || 500;
+                const result = await pool.query(
+                    `SELECT COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE -amount END),0) as balance FROM transactions WHERE group_id=$1`,
+                    [rule.group_id]
+                );
+                const balance = parseFloat(result.rows[0]?.balance || 0);
+                if (balance < minBalance) messages.push(`יתרה נמוכה: ₪${balance.toFixed(2)} (מתחת ל-₪${minBalance})`);
+                break;
+            }
+            case 'order_unhandled': {
+                const hours = config.pending_hours || 2;
+                const orders = await pool.query(
+                    `SELECT id, customer_name FROM store_orders WHERE group_id=$1 AND status='new' AND created_at < NOW() - ($2 * INTERVAL '1 hour')`,
+                    [rule.group_id, hours]
+                );
+                if (orders.rows.length > 0) {
+                    const names = orders.rows.map(o => o.customer_name || `#${o.id}`).join(', ');
+                    messages.push(`${orders.rows.length} הזמנות ממתינות לטיפול מעל ${hours}ש': ${names}`);
+                }
+                break;
+            }
+            case 'quote_not_converted': {
+                const days = config.pending_days || 3;
+                const quotes = await pool.query(
+                    `SELECT id, customer_name FROM store_orders WHERE group_id=$1 AND status='quote' AND quote_status NOT IN ('approved','rejected') AND created_at < NOW() - ($2 * INTERVAL '1 day')`,
+                    [rule.group_id, days]
+                );
+                if (quotes.rows.length > 0) {
+                    const names = quotes.rows.map(q => q.customer_name || `#${q.id}`).join(', ');
+                    messages.push(`${quotes.rows.length} הצעות מחיר לא הומרו להזמנה מעל ${days} ימים: ${names}`);
+                }
+                break;
+            }
+            case 'ticket_open': {
+                const hours = config.pending_hours || 24;
+                const tickets = await pool.query(
+                    `SELECT id, subject FROM support_tickets WHERE group_id=$1 AND status='open' AND created_at < NOW() - ($2 * INTERVAL '1 hour')`,
+                    [rule.group_id, hours]
+                );
+                if (tickets.rows.length > 0) {
+                    const subjects = tickets.rows.map(t => t.subject || `#${t.id}`).join(', ');
+                    messages.push(`${tickets.rows.length} קריאות שירות פתוחות מעל ${hours}ש': ${subjects}`);
+                }
+                break;
+            }
+        }
+        const channels = rule.channels || ['in_app'];
+        for (const message of messages) {
+            await pool.query('INSERT INTO alert_notifications (group_id, rule_id, trigger_type, message) VALUES ($1, $2, $3, $4)',
+                [rule.group_id, rule.id, rule.trigger_type, message]);
+            if (channels.includes('email')) {
+                await sendAlertEmail(rule.group_id, `⚡ התראה: ${rule.name}`, message);
+            }
+        }
+    } catch(e) { console.error(`Alert trigger error (${rule.trigger_type}):`, e.message); }
+}
+
+async function runAlertEngine() {
+    try {
+        const rulesRes = await pool.query('SELECT * FROM alert_rules WHERE is_active=TRUE');
+        for (const rule of rulesRes.rows) {
+            const lastFired = await pool.query(
+                'SELECT created_at FROM alert_notifications WHERE rule_id=$1 ORDER BY created_at DESC LIMIT 1',
+                [rule.id]
+            );
+            if (lastFired.rows.length > 0) {
+                const elapsedMins = (Date.now() - new Date(lastFired.rows[0].created_at).getTime()) / 60000;
+                if (elapsedMins < (rule.cooldown_minutes || 60)) continue;
+            }
+            await checkRuleTrigger(rule);
+        }
+    } catch(e) { console.error('Alert engine error:', e.message); }
+}
+
+async function checkSLABreaches() {
+    try {
+        const configs = await pool.query('SELECT * FROM sla_configs WHERE is_active=TRUE');
+        for (const cfg of configs.rows) {
+            // cooldown: don't re-fire same module+status breach within 60 min
+            const lastFired = await pool.query(
+                `SELECT created_at FROM alert_notifications WHERE group_id=$1 AND trigger_type='sla_breach' AND message LIKE $2 ORDER BY created_at DESC LIMIT 1`,
+                [cfg.group_id, `%[${cfg.module}:${cfg.status}]%`]
+            );
+            if (lastFired.rows.length > 0) {
+                const elapsedMins = (Date.now() - new Date(lastFired.rows[0].created_at).getTime()) / 60000;
+                if (elapsedMins < 60) continue;
+            }
+            let breachingRows = [];
+            if (cfg.module === 'orders') {
+                const res = await pool.query(
+                    `SELECT id, customer_name, COALESCE(status_changed_at, created_at) as since FROM store_orders
+                     WHERE group_id=$1 AND status=$2 AND COALESCE(status_changed_at, created_at) < NOW() - ($3 * INTERVAL '1 hour')`,
+                    [cfg.group_id, cfg.status, cfg.max_hours]
+                );
+                breachingRows = res.rows;
+            } else if (cfg.module === 'quotes') {
+                const statusFilter = cfg.status === 'draft' ? `quote_status='draft' OR quote_status IS NULL` : `quote_status=$2`;
+                const params = cfg.status === 'draft'
+                    ? [cfg.group_id, cfg.max_hours]
+                    : [cfg.group_id, cfg.status, cfg.max_hours];
+                const qParam = cfg.status === 'draft' ? `$2` : `$3`;
+                const res = await pool.query(
+                    `SELECT id, customer_name, COALESCE(status_changed_at, created_at) as since FROM store_orders
+                     WHERE group_id=$1 AND status='quote' AND (${statusFilter}) AND COALESCE(status_changed_at, created_at) < NOW() - (${qParam} * INTERVAL '1 hour')`,
+                    params
+                );
+                breachingRows = res.rows;
+            }
+            if (breachingRows.length > 0) {
+                const label = cfg.status_label || cfg.status;
+                const names = breachingRows.map(r => r.customer_name || `#${r.id}`).join(', ');
+                const msg = `[${cfg.module}:${cfg.status}] חריגת SLA בשלב "${label}" (מעל ${cfg.max_hours}ש'): ${names}`;
+                await pool.query('INSERT INTO alert_notifications (group_id, trigger_type, message) VALUES ($1,$2,$3)',
+                    [cfg.group_id, 'sla_breach', msg]);
+                const channels = cfg.channels || ['in_app'];
+                if (channels.includes('email')) {
+                    await sendAlertEmail(cfg.group_id, `⏱️ חריגת SLA: ${label}`, msg);
+                }
+            }
+        }
+    } catch(e) { console.error('SLA engine error:', e.message); }
+}
+
+setTimeout(runAlertEngine, 30000);
+setInterval(runAlertEngine, 5 * 60 * 1000);
+setTimeout(checkSLABreaches, 45000);
+setInterval(checkSLABreaches, 5 * 60 * 1000);
+
+// =========================================================
+// עמודי אישור קבלה ציבוריים (ללא auth)
+// =========================================================
+function confirmationPage(title, subtitle, alreadyDone) {
+    const color = alreadyDone ? '#64748b' : '#22c55e';
+    const icon = alreadyDone ? '✅' : '🎉';
+    return `<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>אישור קבלה</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#f0fdf4;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}.card{background:#fff;border-radius:24px;padding:40px 32px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.12);max-width:380px;width:100%}.icon{font-size:64px;margin-bottom:20px}.title{font-size:22px;font-weight:900;color:#1e293b;margin-bottom:10px}.sub{font-size:14px;color:#64748b;line-height:1.6}.badge{display:inline-block;background:${color}20;color:${color};border:1px solid ${color}40;border-radius:100px;padding:6px 18px;font-size:13px;font-weight:700;margin-top:20px}</style></head>
+<body><div class="card"><div class="icon">${icon}</div><h1 class="title">${title}</h1><p class="sub">${subtitle}</p><span class="badge">${alreadyDone ? 'כבר אושר בעבר' : 'המערכת עודכנה ✓'}</span></div></body></html>`;
+}
+
+app.get('/c/q/:id/:token', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM store_orders WHERE id=$1 AND confirm_token=$2', [req.params.id, req.params.token]);
+        if (!r.rows.length) return res.status(404).send('<h2 style="text-align:center;font-family:Arial;margin-top:20vh">קישור לא תקף או פג תוקפו</h2>');
+        const order = r.rows[0];
+        const alreadyDone = !!order.customer_confirmed_at;
+        if (!alreadyDone) {
+            await pool.query('UPDATE store_orders SET customer_confirmed_at=NOW() WHERE id=$1', [req.params.id]);
+        }
+        const name = order.customer_name || 'לקוח';
+        const num = order.quote_number || `#${order.id}`;
+        res.send(confirmationPage(
+            `תודה ${name}!`,
+            `קבלת הצעת מחיר ${num} על סך ₪${parseFloat(order.total_amount||0).toFixed(2)} אושרה.\nנציג ייצור איתך קשר בהקדם.`,
+            alreadyDone
+        ));
+    } catch(e) { res.status(500).send('שגיאה: ' + e.message); }
+});
+
+app.get('/c/po/:id/:token', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT po.*, s.name as supplier_name FROM purchase_orders po LEFT JOIN suppliers s ON po.supplier_id=s.id WHERE po.id=$1 AND po.confirm_token=$2', [req.params.id, req.params.token]);
+        if (!r.rows.length) return res.status(404).send('<h2 style="text-align:center;font-family:Arial;margin-top:20vh">קישור לא תקף או פג תוקפו</h2>');
+        const order = r.rows[0];
+        const alreadyDone = !!order.supplier_confirmed_at;
+        if (alreadyDone) {
+            return res.send(confirmationPage(`הזמנה #${order.id} אושרה!`, `תודה ${order.supplier_name || 'ספק'} — ההזמנה כבר אושרה בעבר.`, true));
+        }
+        // Show a confirmation page with a button — do NOT auto-confirm on GET
+        // (WhatsApp link-preview bots do GET requests, auto-confirming on GET is a bug)
+        res.send(`<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>אישור הזמנת רכש #${order.id}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#f0fdf4;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}.card{background:#fff;border-radius:24px;padding:40px 32px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.12);max-width:380px;width:100%}.icon{font-size:56px;margin-bottom:16px}.title{font-size:20px;font-weight:900;color:#1e293b;margin-bottom:8px}.sub{font-size:14px;color:#64748b;line-height:1.6;margin-bottom:24px}button{background:#22c55e;color:#fff;border:none;padding:14px 36px;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;width:100%}button:active{opacity:.85}</style></head>
+<body><div class="card">
+<div class="icon">📦</div>
+<h1 class="title">הזמנת רכש #${order.id}</h1>
+<p class="sub">מ: ${(order.supplier_name||'').replace(/[<>]/g,'')} קיבלתם הזמנת רכש חדשה.<br>לחצו לאישור הקבלה:</p>
+<form method="POST" action="/c/po/${order.id}/${req.params.token}">
+<button type="submit">✅ אישור קבלת ההזמנה</button>
+</form>
+</div></body></html>`);
+    } catch(e) { res.status(500).send('שגיאה: ' + e.message); }
+});
+
+app.post('/c/po/:id/:token', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT po.*, s.name as supplier_name FROM purchase_orders po LEFT JOIN suppliers s ON po.supplier_id=s.id WHERE po.id=$1 AND po.confirm_token=$2', [req.params.id, req.params.token]);
+        if (!r.rows.length) return res.status(404).send('<h2 style="text-align:center;font-family:Arial;margin-top:20vh">קישור לא תקף</h2>');
+        const order = r.rows[0];
+        const alreadyDone = !!order.supplier_confirmed_at;
+        if (!alreadyDone) {
+            await pool.query('UPDATE purchase_orders SET supplier_confirmed_at=NOW() WHERE id=$1', [req.params.id]);
+        }
+        res.send(confirmationPage(`הזמנה #${order.id} התקבלה!`, `תודה ${order.supplier_name || 'ספק'} על אישור קבלת הזמנת הרכש.\nנפנה אליכם בכל שאלה.`, alreadyDone));
+    } catch(e) { res.status(500).send('שגיאה: ' + e.message); }
+});
+
+// Public logo endpoint — returns global_ai_logo as binary image (for OG meta tags)
+app.get('/api/public/logo', async (req, res) => {
+    try {
+        const logoRes = await pool.query("SELECT value FROM system_settings WHERE key='global_ai_logo'");
+        const logoData = logoRes.rows[0]?.value || '';
+        if (!logoData || !logoData.startsWith('data:')) {
+            return res.redirect('/social-logo.jpg');
+        }
+        const [header, base64] = logoData.split(',');
+        const mimeType = header.match(/data:([^;]+)/)?.[1] || 'image/png';
+        res.set('Content-Type', mimeType);
+        res.set('Cache-Control', 'public, max-age=3600');
+        res.send(Buffer.from(base64, 'base64'));
+    } catch(e) { res.redirect('/social-logo.jpg'); }
+});
+
+// Serve campaign banner image as binary (og:image must be a real URL, not data:)
+app.get('/api/public/campaign-image/:token', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT image_url FROM zm_campaigns WHERE token=$1 AND status=$2', [req.params.token, 'active']);
+        const imageUrl = r.rows[0]?.image_url || '';
+        if (!imageUrl || !imageUrl.startsWith('data:')) return res.status(404).send('');
+        const [header, base64] = imageUrl.split(',');
+        const mimeType = header.match(/data:([^;]+)/)?.[1] || 'image/jpeg';
+        res.set('Content-Type', mimeType);
+        res.set('Cache-Control', 'public, max-age=3600');
+        res.send(Buffer.from(base64, 'base64'));
+    } catch(e) { res.status(500).send(''); }
+});
+
+// Public system banner (top banner from superadmin settings)
+app.get('/api/public/system-banner', async (req, res) => {
+    try {
+        const r = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('ad_banner_img_top','ad_banner_link_top','global_ai_logo')");
+        const map = {};
+        r.rows.forEach(row => { map[row.key] = row.value; });
+        const logoVal = map['global_ai_logo'] || '';
+        res.json({
+            bannerImg: map['ad_banner_img_top'] || '',
+            bannerLink: map['ad_banner_link_top'] || '',
+            logoData: !!(logoVal && logoVal.startsWith('data:')),
+            logoSrc: logoVal.startsWith('data:') ? logoVal : ''
+        });
+    } catch(e) { res.status(500).json({ bannerImg: '', bannerLink: '', logoData: false, logoSrc: '' }); }
+});
+
+// Legal documents - public read
+const LEGAL_DEFAULTS = {
+    legal_tos_family: `<p><strong>1. מבוא:</strong> ברוכים הבאים למערכת Oneflow. השימוש באפליקציה מהווה הסכמה מלאה לתנאים המפורטים מטה.</p>
+<p><strong>2. מהות השירות:</strong> המערכת מספקת כלים וירטואליים לניהול התקציב. ה"כסף" המוצג במערכת אינו כסף פיזי, אינו מקושר לחשבון בנק אמיתי, אלא מהווה רישום פנימי (וירטואלי) לצורך ניהול פנימי בלבד.</p>
+<p><strong>3. שימוש בבינה מלאכותית (AI):</strong> חלק מתכונות המערכת מבוססות על מודלי שפה וראייה ממוחשבת (AI). התובנות, המשימות, החידונים, פיענוח הקבלות ואישור התמונות נוצרים אוטומטית על ידי אלגוריתם. ייתכנו שגיאות או אי-דיוקים ביצירת התוכן. המנהל נושא באחריות המלאה לבקר ולאשר את המידע.</p>
+<p><strong>4. פרטיות המידע:</strong> אנו מתחייבים לשמור על פרטיות המידע שהוזן למערכת ולא לשתפו עם צדדים שלישיים למטרות פרסום ללא הסכמתכם. במקרה של חשבונות לקטינים, האחריות על המידע חלה על ההורה המנהל.</p>
+<p><strong>5. עדכונים ותקשורת:</strong> נהיה רשאים לשלוח אליכם התראות ועדכונים במידה ואישרתם קבלת דיוור. תוכלו לבקש את הסרתכם מרשימת התפוצה בכל עת.</p>`,
+    legal_tos_business: `<p><strong>1. מבוא:</strong> ברוכים הבאים לפלטפורמת Oneflow לעסקים. השימוש מהווה הסכמה לתנאים המפורטים מטה.</p>
+<p><strong>2. מהות השירות:</strong> הפלטפורמה מספקת כלים לניהול עסק, לקוחות, הזמנות ושיווק. האחריות על הנתונים, ההזמנות וניהול הלקוחות חלה על בעל העסק בלבד.</p>
+<p><strong>3. תשלומים:</strong> כל עסקה כספית מתבצעת ישירות בין העסק ללקוח. Oneflow אינה צד בעסקה ואינה נושאת באחריות לכשלים בתשלום.</p>
+<p><strong>4. פרטיות:</strong> הנתונים שנאספים משמשים לתפעול השירות בלבד ולא יועברו לצדדים שלישיים ללא הסכמה.</p>
+<p><strong>5. הפסקת שירות:</strong> שמורה לנו הזכות להשעות חשבון שנמצאת בו הפרה של התנאים.</p>`,
+    legal_privacy: `<p><strong>מדיניות פרטיות — OneFlow</strong></p>
+<p>אנו מחויבים להגנה על פרטיות המשתמשים. מסמך זה מפרט אילו נתונים נאספים, כיצד הם נשמרים ולאילו מטרות.</p>
+<p><strong>נתונים הנאספים:</strong> שם, דוא"ל, מספר טלפון, תמונות שהועלו למערכת, ונתוני שימוש.</p>
+<p><strong>שימוש בנתונים:</strong> הנתונים משמשים אך ורק לתפעול השירות ושיפורו.</p>
+<p><strong>אחסון:</strong> הנתונים מאוחסנים בשרתים מאובטחים ומוגנים בהצפנה.</p>
+<p><strong>זכויות משתמש:</strong> ניתן לבקש מחיקת הנתונים בכל עת על ידי פנייה לתמיכה.</p>`,
+    legal_accessibility: `<p><strong>הצהרת נגישות — OneFlow</strong></p>
+<p>OneFlow פועלת לאפשר גישה שוויונית לשירות עבור אנשים עם מוגבלויות.</p>
+<p><strong>תכונות נגישות:</strong> הגדלת טקסט, ניגודיות גבוהה, גווני אפור, פונט קריא והדגשת קישורים.</p>
+<p><strong>רמת תאימות:</strong> אנו שואפים לעמוד בדרישות WCAG 2.1 ברמה AA.</p>
+<p><strong>פנייה לנגישות:</strong> לדיווח על בעיות נגישות או בקשת סיוע, אנא פנה לצוות התמיכה.</p>`
+};
+
+app.get('/api/public/legal/:key', async (req, res) => {
+    const allowed = ['legal_tos_family', 'legal_tos_business', 'legal_privacy', 'legal_accessibility'];
+    const { key } = req.params;
+    if (!allowed.includes(key)) return res.status(404).json({ success: false });
+    try {
+        const r = await pool.query("SELECT value FROM system_settings WHERE key = $1", [key]);
+        const content = r.rows[0]?.value || LEGAL_DEFAULTS[key] || '';
+        res.json({ success: true, content });
+    } catch(e) { res.status(500).json({ success: false, content: LEGAL_DEFAULTS[key] || '' }); }
+});
+
+// Legal documents - SA read all
+app.get('/api/sa/legal', verifySA, async (req, res) => {
+    try {
+        const keys = ['legal_tos_family', 'legal_tos_business', 'legal_privacy', 'legal_accessibility'];
+        const r = await pool.query(`SELECT key, value FROM system_settings WHERE key = ANY($1)`, [keys]);
+        const map = {};
+        keys.forEach(k => { map[k] = LEGAL_DEFAULTS[k] || ''; });
+        r.rows.forEach(row => { map[row.key] = row.value; });
+        res.json({ success: true, docs: map });
+    } catch(e) { res.status(500).json({ success: false }); }
+});
+
+// Legal documents - SA update
+app.put('/api/sa/legal/:key', verifySA, async (req, res) => {
+    const allowed = ['legal_tos_family', 'legal_tos_business', 'legal_privacy', 'legal_accessibility'];
+    const { key } = req.params;
+    if (!allowed.includes(key)) return res.status(400).json({ success: false, error: 'Invalid key' });
+    const { content } = req.body;
+    if (typeof content !== 'string') return res.status(400).json({ success: false, error: 'Missing content' });
+    try {
+        await pool.query("INSERT INTO system_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", [key, content]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false }); }
+});
+
+// OG preview route for campaign WhatsApp sharing
+app.get('/c/camp/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        const campRes = await pool.query(
+            `SELECT c.title, c.subtitle, c.text_content, c.image_url
+             FROM zm_campaigns c WHERE c.token=$1 AND c.status='active'`, [token]);
+        const campaign = campRes.rows[0];
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        // og:image must be an absolute HTTP URL returning JPEG/PNG (not data: or SVG)
+        let ogImage = '';
+        const isSvg = (url) => url && (url.startsWith('data:image/svg') || url.endsWith('.svg'));
+        if (campaign?.image_url && campaign.image_url.startsWith('data:') && !isSvg(campaign.image_url)) {
+            ogImage = `${baseUrl}/api/public/campaign-image/${token}`;
+        }
+        if (!ogImage) {
+            const logoRes = await pool.query("SELECT value FROM system_settings WHERE key='global_ai_logo'");
+            const logoVal = logoRes.rows[0]?.value || '';
+            if (logoVal && logoVal.startsWith('data:') && logoVal.includes(',') && !isSvg(logoVal)) {
+                ogImage = `${baseUrl}/api/public/logo`;
+            }
+        }
+        // Final fallback: static logo.png (always JPEG/PNG, always works for WhatsApp)
+        if (!ogImage) {
+            ogImage = `${baseUrl}/logo.png`;
+        }
+        const title = (campaign?.title || 'OneFlow').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        const desc = (campaign?.subtitle || campaign?.text_content || 'הצטרפו לפלטפורמת OneFlow').slice(0, 200).replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        const campaignUrl = `${baseUrl}/campaign.html?t=${token}`;
+        const hasCampaignImage = campaign?.image_url && campaign.image_url.startsWith('data:') && !isSvg(campaign.image_url);
+        const ogW = hasCampaignImage ? '1200' : '512';
+        const ogH = hasCampaignImage ? '630' : '512';
+        res.set('Cache-Control', 'no-cache');
+        res.send(`<!DOCTYPE html><html lang="he" dir="rtl"><head>
+<meta charset="UTF-8">
+<meta property="og:title" content="${title}">
+<meta property="og:description" content="${desc}">
+${ogImage ? `<meta property="og:image" content="${ogImage}">` : ''}
+<meta property="og:url" content="${campaignUrl}">
+<meta property="og:type" content="website">
+<meta property="og:image:width" content="${ogW}">
+<meta property="og:image:height" content="${ogH}">
+<meta property="og:site_name" content="OneFlow">
+<meta name="twitter:card" content="${hasCampaignImage ? 'summary_large_image' : 'summary'}">
+<meta http-equiv="refresh" content="0; url=${campaignUrl}">
+<title>${title}</title>
+</head><body dir="rtl" style="font-family:sans-serif;text-align:center;padding:2rem;color:#334155">
+<h2>${title}</h2><p>${desc}</p>
+<a href="${campaignUrl}" style="color:#4f46e5;font-weight:bold">לחץ כאן להמשך &rarr;</a>
+</body></html>`);
+    } catch(e) { res.redirect('/campaign.html?t=' + req.params.token); }
+});
+
+// Save family/group address
+app.put('/api/groups/:id/address', async (req, res) => {
+    try {
+        const { streetAddress, city } = req.body;
+        await pool.query('UPDATE family_groups SET street_address=$1, city=$2 WHERE id=$3',
+            [streetAddress || null, city || null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עדכון כינוי משפחה (family_nickname) — נקרא ממודל שדרוג חבר→משפחה
+app.patch('/api/groups/:id/nickname', async (req, res) => {
+    try {
+        const { familyNickname } = req.body;
+        await pool.query('UPDATE family_groups SET family_nickname=$1 WHERE id=$2',
+            [familyNickname ? familyNickname.trim() : null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Members by groupId path param (used by role dashboards for tech assignment)
+app.get('/api/members/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, nickname, role, employee_role_type, phone, status
+             FROM users WHERE group_id=$1 AND status='active' ORDER BY employee_role_type, nickname`,
+            [req.params.groupId]);
+        res.json({ members: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- EQUIPMENT MAINTENANCE MODULE ---
+// ============================================================
+
+// טכנאים
+app.get('/api/equipment/technicians/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM equipment_technicians WHERE group_id=$1 ORDER BY name ASC', [req.params.groupId]);
+        res.json({ success: true, technicians: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/equipment/technicians', async (req, res) => {
+    try {
+        const { id, groupId, name, companyName, phone, email, specialty, notes, businessGroupId } = req.body;
+        if (!groupId || !name) return res.status(400).json({ error: 'שם חובה' });
+        let result;
+        if (id) {
+            result = await pool.query(
+                `UPDATE equipment_technicians SET name=$1, company_name=$2, phone=$3, email=$4, specialty=$5, notes=$6, business_group_id=$7, oneflow_verified=($7 IS NOT NULL) WHERE id=$8 AND group_id=$9 RETURNING *`,
+                [name, companyName||null, phone||null, email||null, specialty||null, notes||null, businessGroupId||null, id, groupId]);
+        } else {
+            result = await pool.query(
+                `INSERT INTO equipment_technicians (group_id, name, company_name, phone, email, specialty, notes, business_group_id, oneflow_verified) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+                [groupId, name, companyName||null, phone||null, email||null, specialty||null, notes||null, businessGroupId||null, !!businessGroupId]);
+        }
+        res.json({ success: true, technician: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/equipment/technicians/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM equipment_technicians WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Link a technician contact to a OneFlow business group
+app.post('/api/equipment/technicians/:id/link-business', async (req, res) => {
+    try {
+        const { businessGroupId } = req.body;
+        const result = await pool.query(
+            'UPDATE equipment_technicians SET business_group_id=$1, oneflow_verified=true WHERE id=$2 RETURNING *',
+            [businessGroupId || null, req.params.id]);
+        if (!result.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        res.json({ success: true, technician: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Search for a business group by name OR phone (for linking from family side)
+app.get('/api/groups/search-business', async (req, res) => {
+    try {
+        const { q, type } = req.query;
+        if (!q || q.length < 2) return res.json({ groups: [] });
+        const phoneQ = q.replace(/\D/g,'');
+        const typeFilter = type ? ` AND fg.business_type = $4` : '';
+        const params = [`%${q}%`, phoneQ, `%${phoneQ}%`];
+        if (type) params.push(type);
+        const result = await pool.query(
+            `SELECT DISTINCT fg.id, fg.name, fg.business_type, u.phone
+             FROM family_groups fg
+             LEFT JOIN users u ON u.group_id = fg.id AND u.role = 'ADMIN'
+             WHERE fg.type='BUSINESS'
+               AND (LOWER(fg.name) LIKE LOWER($1) OR (LENGTH($2) >= 7 AND u.phone LIKE $3))
+               ${typeFilter}
+             LIMIT 10`,
+            params);
+        res.json({ groups: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Search all groups (businesses + families) for service call customer linking
+app.get('/api/groups/search-all', async (req, res) => {
+    try {
+        const { q } = req.query;
+        if (!q || q.length < 2) return res.json({ groups: [] });
+        const phoneQ = q.replace(/\D/g,'');
+        const result = await pool.query(
+            `SELECT DISTINCT ON (fg.id) fg.id, fg.name, fg.type, fg.business_type,
+                    COALESCE(mu.phone, au.phone) as phone,
+                    fg.admin_email,
+                    fg.street_address, fg.city, fg.contact_name, fg.family_nickname, fg.last_name as group_last_name,
+                    au.nickname as admin_nickname,
+                    mu.nickname as matched_user_name,
+                    mu.first_name as matched_first_name,
+                    mu.last_name as matched_last_name,
+                    TRIM(CONCAT(COALESCE(fg.street_address,''), ' ', COALESCE(fg.city,''))) as address
+             FROM family_groups fg
+             LEFT JOIN users au ON au.group_id = fg.id AND au.role = 'ADMIN'
+             LEFT JOIN users mu ON mu.group_id = fg.id
+             WHERE (LOWER(fg.name) LIKE LOWER($1)
+                OR (LENGTH($2) >= 7 AND (REGEXP_REPLACE(COALESCE(au.phone,''),'[^0-9]','','g') LIKE $3
+                                      OR REGEXP_REPLACE(COALESCE(mu.phone,''),'[^0-9]','','g') LIKE $3))
+                OR LOWER(COALESCE(fg.city,'')) LIKE LOWER($1)
+                OR LOWER(COALESCE(fg.street_address,'')) LIKE LOWER($1)
+                OR LOWER(COALESCE(fg.contact_name,'')) LIKE LOWER($1))
+             LIMIT 15`,
+            [`%${q}%`, phoneQ, `%${phoneQ}%`]);
+        res.json({ groups: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── SERVICE CALLS ─────────────────────────────────────────────────────────
+
+app.post('/api/service-calls', async (req, res) => {
+    try {
+        const { familyGroupId, businessGroupId, technicianContactId, title, description, address, customerPhone, customerName, priority, createdByUserId, assignedMemberId, needsTriage, familyName, scheduledAt, requestedDate } = req.body;
+        if (!title) return res.status(400).json({ error: 'שדות חסרים' });
+
+        // Validate businessGroupId exists if provided
+        let resolvedBusinessGroupId = businessGroupId || null;
+        if (resolvedBusinessGroupId) {
+            const bgCheck = await pool.query('SELECT id FROM family_groups WHERE id=$1', [resolvedBusinessGroupId]);
+            if (!bgCheck.rows.length) resolvedBusinessGroupId = null;
+        }
+
+        // Validate familyGroupId exists if provided (external customers have null)
+        let resolvedFamilyGroupId = familyGroupId || null;
+        if (resolvedFamilyGroupId) {
+            const fgCheck = await pool.query('SELECT id FROM family_groups WHERE id=$1', [resolvedFamilyGroupId]);
+            if (!fgCheck.rows.length) resolvedFamilyGroupId = null;
+        }
+
+        const fullDesc = description || null;
+        // קריאה שנפתחה ע"י לקוח (familyGroupId קיים, ללא שיוך לטכנאי) → ממתינה לסיווג מנהל
+        const autoNeedsTriage = needsTriage !== undefined ? !!needsTriage : !!(resolvedFamilyGroupId && !assignedMemberId);
+        const resolvedMemberId = autoNeedsTriage ? null : (assignedMemberId || null);
+        let result;
+        try {
+            result = await pool.query(
+                `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, customer_phone, customer_name, priority, created_by_user_id, assigned_member_id, scheduled_at, requested_date, needs_triage)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+                [resolvedFamilyGroupId, resolvedBusinessGroupId, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, customerName||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null, requestedDate||null, autoNeedsTriage]);
+        } catch(colErr) {
+            // Fallback: insert without needs_triage if column doesn't exist yet
+            result = await pool.query(
+                `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, customer_phone, customer_name, priority, created_by_user_id, assigned_member_id, scheduled_at, requested_date)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+                [resolvedFamilyGroupId, resolvedBusinessGroupId, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, customerName||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null, requestedDate||null]);
+        }
+        res.json({ success: true, call: result.rows[0] });
+
+        // אם קיים family_group_id אמיתי — צור קישור אוטומטי ל"הפעילויות שלי" של המשפחה
+        if (resolvedFamilyGroupId && resolvedBusinessGroupId && resolvedFamilyGroupId !== resolvedBusinessGroupId) {
+            try {
+                const bizTypeR = await pool.query('SELECT business_type, name FROM family_groups WHERE id=$1', [resolvedBusinessGroupId]);
+                if (bizTypeR.rows.length) {
+                    const { business_type, name: bizName } = bizTypeR.rows[0];
+                    await pool.query(
+                        `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_by_admin_name, linked_at, is_active, status)
+                         VALUES ($1, $2, $3, $4, NOW(), true, 'pending')
+                         ON CONFLICT (member_group_id, business_group_id) DO UPDATE
+                         SET is_active=true, linked_at=NOW(),
+                         status=CASE WHEN member_business_links.status='active' THEN 'active' ELSE 'pending' END`,
+                        [resolvedFamilyGroupId, resolvedBusinessGroupId, business_type || 'maintenance_repair', bizName || 'עסק']
+                    );
+                }
+            } catch(linkErr) { /* non-blocking */ }
+        }
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- קישור קריאת שירות קיימת ללקוח ONEFLOW ---
+app.patch('/api/service-calls/:id/link-oneflow', async (req, res) => {
+    try {
+        const { familyGroupId } = req.body;
+        const callId = parseInt(req.params.id);
+        if (!familyGroupId || !callId) return res.status(400).json({ error: 'חסרים שדות' });
+        const callR = await pool.query('SELECT * FROM service_calls WHERE id=$1', [callId]);
+        if (!callR.rows.length) return res.status(404).json({ error: 'קריאה לא נמצאה' });
+        const call = callR.rows[0];
+        // עדכן family_group_id בקריאה
+        await pool.query('UPDATE service_calls SET family_group_id=$1 WHERE id=$2', [familyGroupId, callId]);
+        // צור/עדכן בקשת שיוך ממתינה
+        const bizTypeR = await pool.query('SELECT business_type, name FROM family_groups WHERE id=$1', [call.business_group_id]);
+        if (bizTypeR.rows.length) {
+            const { business_type, name: bizName } = bizTypeR.rows[0];
+            await pool.query(
+                `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_by_admin_name, linked_at, is_active, status)
+                 VALUES ($1, $2, $3, $4, NOW(), true, 'pending')
+                 ON CONFLICT (member_group_id, business_group_id) DO UPDATE
+                 SET is_active=true, linked_at=NOW(),
+                 status=CASE WHEN member_business_links.status='active' THEN 'active' ELSE 'pending' END`,
+                [familyGroupId, call.business_group_id, business_type || 'maintenance_repair', bizName || 'עסק']
+            );
+            // שלח התראה ללקוח
+            try {
+                await pool.query(
+                    `INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
+                     VALUES ($1, 'sc_received', 'קריאת שירות חדשה', $2, $3, 'service_call', NOW())
+                     ON CONFLICT DO NOTHING`,
+                    [familyGroupId, `${bizName} פתח עבורך קריאת שירות — ממתין לאישורך`, callId]
+                );
+            } catch(ne) {}
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/service-calls/family/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT sc.*, fg.name as business_name
+             FROM service_calls sc
+             LEFT JOIN family_groups fg ON fg.id = sc.business_group_id
+             WHERE sc.family_group_id=$1
+             ORDER BY sc.created_at DESC`,
+            [req.params.groupId]);
+        res.json({ success: true, calls: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/service-calls/business/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT sc.*, fg.name as family_name, u.nickname as assigned_member_name,
+             creator.nickname as creator_nickname
+             FROM service_calls sc
+             LEFT JOIN family_groups fg ON fg.id = sc.family_group_id
+             LEFT JOIN users u ON u.id = sc.assigned_member_id
+             LEFT JOIN users creator ON creator.id = sc.created_by_user_id
+             WHERE sc.business_group_id=$1
+             ORDER BY sc.created_at DESC`,
+            [req.params.groupId]);
+        res.json({ success: true, calls: result.rows });
+    } catch(e) { console.error('SC business query error:', e.message); res.status(500).json({ error: e.message }); }
+});
+
+// התראות תזמון קריאות שירות — יום לפני ועבר מועד
+app.post('/api/service-calls/check-schedule-notifications/:groupId', async (req, res) => {
+    try {
+        const groupId = parseInt(req.params.groupId);
+        const now = new Date();
+        const today = new Date(); today.setHours(0,0,0,0);
+        const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+        const dayAfterTomorrow = new Date(today); dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+        const todayStr = today.toISOString().slice(0,10);
+
+        const [dueTomorrow, overdue] = await Promise.all([
+            pool.query(`SELECT id, title FROM service_calls WHERE business_group_id=$1 AND scheduled_at >= $2 AND scheduled_at < $3 AND status NOT IN ('done','cancelled')`, [groupId, tomorrow, dayAfterTomorrow]),
+            pool.query(`SELECT id, title FROM service_calls WHERE business_group_id=$1 AND scheduled_at < $2 AND status NOT IN ('done','cancelled')`, [groupId, today])
+        ]);
+
+        for (const call of dueTomorrow.rows) {
+            const refKey = `sc_due_tomorrow_${call.id}_${todayStr}`;
+            const exists = await pool.query('SELECT id FROM alert_notifications WHERE group_id=$1 AND reference_key=$2', [groupId, refKey]);
+            if (!exists.rows.length) {
+                await pool.query('INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key) VALUES ($1,$2,$3,$4)',
+                    [groupId, 'sc_due_soon', `⏰ קריאת שירות מתוכננת למחר: "${call.title}"`, refKey]);
+            }
+        }
+        for (const call of overdue.rows) {
+            const refKey = `sc_overdue_${call.id}_${todayStr}`;
+            const exists = await pool.query('SELECT id FROM alert_notifications WHERE group_id=$1 AND reference_key=$2', [groupId, refKey]);
+            if (!exists.rows.length) {
+                await pool.query('INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key) VALUES ($1,$2,$3,$4)',
+                    [groupId, 'sc_overdue', `🚨 קריאת שירות עברה את מועד הביצוע: "${call.title}"`, refKey]);
+            }
+        }
+        res.json({ success: true, checked: dueTomorrow.rows.length + overdue.rows.length });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Diagnostic endpoint - remove after debugging
+app.get('/api/debug/sc-columns', async (req, res) => {
+    try {
+        const cols = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name='service_calls' ORDER BY ordinal_position`);
+        const count = await pool.query(`SELECT COUNT(*) FROM service_calls`);
+        const sample = await pool.query(`SELECT * FROM service_calls LIMIT 1`);
+        res.json({ columns: cols.rows.map(r=>r.column_name), total: count.rows[0].count, sample: sample.rows[0] || null });
+    } catch(e) { res.json({ error: e.message }); }
+});
+app.get('/api/debug/sc-business-test/:gid', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT sc.*, fg.name as family_name, u.nickname as assigned_member_name,
+             creator.nickname as creator_nickname
+             FROM service_calls sc
+             LEFT JOIN family_groups fg ON fg.id = sc.family_group_id
+             LEFT JOIN users u ON u.id = sc.assigned_member_id
+             LEFT JOIN users creator ON creator.id = sc.created_by_user_id
+             WHERE sc.business_group_id=$1
+             ORDER BY sc.created_at DESC`,
+            [req.params.gid]);
+        res.json({ success: true, count: result.rows.length, first: result.rows[0] || null });
+    } catch(e) { res.json({ error: e.message, stack: e.stack }); }
+});
+
+// Get calls for a specific customer (by family_group_id or name match)
+app.get('/api/service-calls/customer/:businessGroupId/:familyGroupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT sc.*, fg.name as family_name, u.nickname as assigned_member_name
+             FROM service_calls sc
+             LEFT JOIN family_groups fg ON fg.id = sc.family_group_id
+             LEFT JOIN users u ON u.id = sc.assigned_member_id
+             WHERE sc.business_group_id=$1 AND sc.family_group_id=$2
+             ORDER BY sc.created_at DESC`,
+            [req.params.businessGroupId, req.params.familyGroupId]);
+        res.json({ success: true, calls: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/service-calls/:id', async (req, res) => {
+    try {
+        const { status, assignedMemberId, scheduledAt, priceQuote, discountPct, communityDiscount } = req.body;
+        const sets = [], vals = [];
+        let i = 1;
+        if (status !== undefined)           { sets.push(`status=$${i++}`);             vals.push(status); }
+        if (assignedMemberId !== undefined)  { sets.push(`assigned_member_id=$${i++}`); vals.push(assignedMemberId||null); }
+        if (scheduledAt !== undefined)       { sets.push(`scheduled_at=$${i++}`);       vals.push(scheduledAt||null); }
+        if (priceQuote !== undefined)        { sets.push(`price_quote=$${i++}`);         vals.push(priceQuote||null); }
+        if (discountPct !== undefined)       { sets.push(`discount_pct=$${i++}`);        vals.push(discountPct||0); }
+        if (communityDiscount !== undefined) { sets.push(`community_discount=$${i++}`);  vals.push(!!communityDiscount); }
+        if (req.body.partsStatus !== undefined)  { sets.push(`parts_status=$${i++}`);        vals.push(req.body.partsStatus||null); }
+        if (req.body.rating !== undefined)        { sets.push(`rating=$${i++}`);              vals.push(req.body.rating||null); }
+        if (!sets.length) return res.status(400).json({ error: 'אין שדות לעדכון' });
+        sets.push(`updated_at=NOW()`);
+        vals.push(req.params.id);
+        const result = await pool.query(`UPDATE service_calls SET ${sets.join(',')} WHERE id=$${i} RETURNING *`, vals);
+        if (!result.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const sc = result.rows[0];
+        res.json({ success: true, call: sc });
+        if (status !== undefined && sc.family_group_id && sc.business_group_id) {
+            try {
+                const linkR = await pool.query(
+                    `SELECT mbl.member_group_id, fg.name AS biz_name FROM member_business_links mbl
+                     JOIN family_groups fg ON fg.id = mbl.business_group_id
+                     WHERE mbl.member_group_id=$1 AND mbl.business_group_id=$2 AND mbl.status='active' AND mbl.is_active=true LIMIT 1`,
+                    [sc.family_group_id, sc.business_group_id]
+                );
+                if (linkR.rows.length) {
+                    const lbl = { new:'חדש', scheduled:'נקבע תור', processing:'בטיפול', done:'הושלם', cancelled:'בוטל', quote:'הצעת מחיר', waiting_parts:'ממתין לחלקים' }[status] || status;
+                    await _sendMemberBizNotif(linkR.rows[0].member_group_id, linkR.rows[0].biz_name,
+                        `קריאת השירות שלך ב${linkR.rows[0].biz_name} עודכנה: ${lbl}`, `mbiz_sc_${req.params.id}_${status}`);
+                }
+            } catch(e) {}
+        }
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/service-calls/:id', async (req, res) => {
+    try {
+        await pool.query('UPDATE service_calls SET status=$1, updated_at=NOW() WHERE id=$2', ['cancelled', req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/service-calls/:id/messages', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM service_call_messages WHERE call_id=$1 ORDER BY created_at ASC', [req.params.id]);
+        res.json({ success: true, messages: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/service-calls/:id/messages', async (req, res) => {
+    try {
+        const { senderType, senderName, message } = req.body;
+        if (!senderType || !message) return res.status(400).json({ error: 'שדות חסרים' });
+        if (senderType === 'family') {
+            await pool.query(`UPDATE service_calls SET updated_at=NOW() WHERE id=$1`, [req.params.id]);
+        }
+        const result = await pool.query(
+            'INSERT INTO service_call_messages (call_id, sender_type, sender_name, message) VALUES ($1,$2,$3,$4) RETURNING *',
+            [req.params.id, senderType, senderName||null, message]);
+        res.json({ success: true, message: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/service-calls/:id/notes', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM service_call_notes WHERE call_id=$1 ORDER BY created_at ASC', [req.params.id]);
+        res.json({ success: true, notes: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/service-calls/:id/notes', async (req, res) => {
+    try {
+        const { authorName, note } = req.body;
+        if (!note) return res.status(400).json({ error: 'הערה ריקה' });
+        const result = await pool.query(
+            'INSERT INTO service_call_notes (call_id, author_name, note) VALUES ($1,$2,$3) RETURNING *',
+            [req.params.id, authorName || 'טכנאי', note]);
+        res.json({ success: true, note: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Service calls by customer name (for customer history tab)
+app.get('/api/service-calls/by-customer/:businessGroupId', async (req, res) => {
+    try {
+        const { name } = req.query;
+        if (!name) return res.json({ success: true, calls: [] });
+        const result = await pool.query(
+            `SELECT sc.*, fg.name as family_name, u.nickname as assigned_member_name
+             FROM service_calls sc
+             LEFT JOIN family_groups fg ON fg.id = sc.family_group_id
+             LEFT JOIN users u ON u.id = sc.assigned_member_id
+             WHERE sc.business_group_id=$1
+               AND (LOWER(fg.name) LIKE LOWER($2) OR LOWER(sc.description) LIKE LOWER($2))
+             ORDER BY sc.created_at DESC LIMIT 20`,
+            [req.params.businessGroupId, `%${name}%`]);
+        res.json({ success: true, calls: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Service calls analytics for reports page
+app.get('/api/service-calls/analytics/:businessGroupId', async (req, res) => {
+    try {
+        const gid = req.params.businessGroupId;
+        const memberFilter = req.query.memberId ? `AND assigned_member_id=$2` : '';
+        const params = req.query.memberId ? [gid, req.query.memberId] : [gid];
+
+        // Main aggregation
+        const agg = await pool.query(`
+            SELECT
+              COUNT(*) as total_calls,
+              COUNT(*) FILTER (WHERE status NOT IN ('done','cancelled')) as open_calls,
+              COUNT(*) FILTER (WHERE status='done') as done_calls,
+              COUNT(*) FILTER (WHERE status='cancelled') as cancelled_calls,
+              COUNT(*) FILTER (WHERE priority='urgent' AND status NOT IN ('done','cancelled')) as urgent_open,
+              COUNT(*) FILTER (WHERE status='done' AND DATE(updated_at)=CURRENT_DATE) as completed_today,
+              COUNT(*) FILTER (WHERE status='done' AND updated_at >= CURRENT_DATE - INTERVAL '7 days') as completed_week,
+              COUNT(*) FILTER (WHERE status='done' AND updated_at >= DATE_TRUNC('month', CURRENT_DATE)) as completed_month,
+              COUNT(*) FILTER (WHERE created_at >= DATE_TRUNC('month', CURRENT_DATE)) as created_this_month,
+              ROUND(AVG(EXTRACT(EPOCH FROM (updated_at - created_at))/3600) FILTER (WHERE status='done'), 1) as avg_completion_hours,
+              COALESCE(SUM(price_quote) FILTER (WHERE status='done'), 0) as total_revenue,
+              COALESCE(SUM(price_quote) FILTER (WHERE status='done' AND updated_at >= DATE_TRUNC('month', CURRENT_DATE)), 0) as revenue_this_month
+            FROM service_calls WHERE business_group_id=$1 ${memberFilter}`, params);
+
+        // By status
+        const byStatus = await pool.query(`
+            SELECT status, COUNT(*) as count FROM service_calls
+            WHERE business_group_id=$1 ${memberFilter} GROUP BY status`, params);
+
+        // By priority (open only)
+        const byPriority = await pool.query(`
+            SELECT priority, COUNT(*) as count FROM service_calls
+            WHERE business_group_id=$1 AND status NOT IN ('done','cancelled') ${memberFilter} GROUP BY priority`, params);
+
+        // By technician
+        const byTech = await pool.query(`
+            SELECT u.nickname as name, u.id as member_id,
+              COUNT(*) as total,
+              COUNT(*) FILTER (WHERE sc.status NOT IN ('done','cancelled')) as open_c,
+              COUNT(*) FILTER (WHERE sc.status='done') as done_c,
+              COALESCE(SUM(sc.price_quote) FILTER (WHERE sc.status='done'), 0) as revenue
+            FROM service_calls sc
+            JOIN users u ON u.id = sc.assigned_member_id
+            WHERE sc.business_group_id=$1 AND sc.assigned_member_id IS NOT NULL
+            GROUP BY u.id, u.nickname ORDER BY done_c DESC LIMIT 10`, [gid]);
+
+        // Last 7 days trend
+        const trend = await pool.query(`
+            SELECT DATE(created_at) as day, COUNT(*) as created,
+              COUNT(*) FILTER (WHERE status='done') as done_c
+            FROM service_calls
+            WHERE business_group_id=$1 AND created_at >= CURRENT_DATE - INTERVAL '6 days'
+            GROUP BY DATE(created_at) ORDER BY day ASC`, [gid]);
+
+        res.json({
+            success: true,
+            stats: agg.rows[0],
+            byStatus: byStatus.rows,
+            byPriority: byPriority.rows,
+            byTech: byTech.rows,
+            trend: trend.rows
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/equipment/items/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT ei.*, et.name as technician_name, et.phone as technician_phone, et.email as technician_email
+             FROM equipment_items ei
+             LEFT JOIN equipment_technicians et ON et.id=ei.technician_id
+             WHERE ei.group_id=$1 ORDER BY ei.name ASC`,
+            [req.params.groupId]);
+        res.json({ success: true, items: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/equipment/items', async (req, res) => {
+    try {
+        const { id, groupId, name, category, serialNumber, purchaseDate, warrantyExpiry, status, notes, technicianId } = req.body;
+        if (!groupId || !name) return res.status(400).json({ error: 'שם וקבוצה חובה' });
+        let result;
+        if (id) {
+            result = await pool.query(
+                `UPDATE equipment_items SET name=$1, category=$2, serial_number=$3, purchase_date=$4, warranty_expiry=$5, status=$6, notes=$7, technician_id=$8 WHERE id=$9 AND group_id=$10 RETURNING *`,
+                [name, category||'כללי', serialNumber||null, purchaseDate||null, warrantyExpiry||null, status||'active', notes||null, technicianId||null, id, groupId]);
+        } else {
+            result = await pool.query(
+                `INSERT INTO equipment_items (group_id, name, category, serial_number, purchase_date, warranty_expiry, status, notes, technician_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+                [groupId, name, category||'כללי', serialNumber||null, purchaseDate||null, warrantyExpiry||null, status||'active', notes||null, technicianId||null]);
+        }
+        res.json({ success: true, item: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/equipment/items/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM equipment_items WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/equipment/maintenance/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT m.*, e.name as equipment_name, e.category as equipment_category
+             FROM equipment_maintenance m JOIN equipment_items e ON e.id=m.equipment_id
+             WHERE m.group_id=$1 ORDER BY m.scheduled_date ASC NULLS LAST, m.created_at DESC`,
+            [req.params.groupId]);
+        res.json({ success: true, records: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/equipment/maintenance', async (req, res) => {
+    try {
+        const { id, groupId, equipmentId, maintenanceType, description, scheduledDate, cost, technicianName, technicianPhone, notes, intervalDays } = req.body;
+        if (!groupId || !equipmentId) return res.status(400).json({ error: 'ציוד וקבוצה חובה' });
+        let result;
+        if (id) {
+            result = await pool.query(
+                `UPDATE equipment_maintenance SET equipment_id=$1, maintenance_type=$2, description=$3, scheduled_date=$4, cost=$5, technician_name=$6, technician_phone=$7, notes=$8, interval_days=$9 WHERE id=$10 AND group_id=$11 RETURNING *`,
+                [equipmentId, maintenanceType||'periodic', description||null, scheduledDate||null, cost||null, technicianName||null, technicianPhone||null, notes||null, intervalDays||null, id, groupId]);
+        } else {
+            result = await pool.query(
+                `INSERT INTO equipment_maintenance (equipment_id, group_id, maintenance_type, description, scheduled_date, cost, technician_name, technician_phone, notes, interval_days) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+                [equipmentId, groupId, maintenanceType||'periodic', description||null, scheduledDate||null, cost||null, technicianName||null, technicianPhone||null, notes||null, intervalDays||null]);
+        }
+        res.json({ success: true, record: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/equipment/maintenance/:id/complete', async (req, res) => {
+    try {
+        const { cost, technicianName, notes } = req.body;
+        const updated = await pool.query(
+            `UPDATE equipment_maintenance SET status='completed', completed_date=CURRENT_DATE, cost=COALESCE($1,cost), technician_name=COALESCE($2,technician_name), notes=COALESCE($3,notes) WHERE id=$4 RETURNING *`,
+            [cost||null, technicianName||null, notes||null, req.params.id]);
+        const rec = updated.rows[0];
+        // תזמון אוטומטי — אם הוגדר interval_days, צור רשומה הבאה
+        if (rec && rec.interval_days) {
+            const nextDate = new Date(rec.completed_date || new Date());
+            nextDate.setDate(nextDate.getDate() + rec.interval_days);
+            await pool.query(
+                `INSERT INTO equipment_maintenance (equipment_id, group_id, maintenance_type, description, scheduled_date, technician_name, technician_phone, notes, interval_days)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+                [rec.equipment_id, rec.group_id, rec.maintenance_type, rec.description, nextDate.toISOString().split('T')[0], rec.technician_name, rec.technician_phone, rec.notes, rec.interval_days]);
+        }
+        res.json({ success: true, nextScheduled: rec?.interval_days ? true : false });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/equipment/maintenance/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM equipment_maintenance WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/equipment/faults/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT f.*, e.name as equipment_name, e.category as equipment_category,
+             (SELECT COUNT(*) FROM equipment_fault_notes fn WHERE fn.fault_id=f.id) as notes_count,
+             et.name as fault_tech_name, et.phone as fault_tech_phone, et.email as fault_tech_email,
+             et.company_name as fault_tech_company
+             FROM equipment_faults f JOIN equipment_items e ON e.id=f.equipment_id
+             LEFT JOIN equipment_technicians et ON et.id=f.technician_id
+             WHERE f.group_id=$1 ORDER BY f.created_at DESC`,
+            [req.params.groupId]);
+        res.json({ success: true, faults: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/service-calls/family/:businessGroupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT f.*, e.name as equipment_name, fg.name as family_name,
+             et.name as tech_name, et.phone as tech_phone
+             FROM equipment_faults f
+             JOIN equipment_items e ON e.id=f.equipment_id
+             JOIN equipment_technicians et ON et.id=f.technician_id
+             JOIN family_groups fg ON fg.id=f.group_id
+             WHERE et.business_group_id=$1 AND f.status != 'resolved'
+             ORDER BY f.created_at DESC`,
+            [req.params.businessGroupId]);
+        res.json({ success: true, calls: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/equipment/faults/:id/notes', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT * FROM equipment_fault_notes WHERE fault_id=$1 ORDER BY created_at ASC`,
+            [req.params.id]);
+        res.json({ success: true, notes: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/equipment/faults/:id/notes', async (req, res) => {
+    try {
+        const { note, statusFrom, statusTo, groupId } = req.body;
+        if (!note || !groupId) return res.status(400).json({ error: 'חסרים שדות' });
+        const result = await pool.query(
+            `INSERT INTO equipment_fault_notes (fault_id, group_id, note, status_from, status_to) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+            [req.params.id, groupId, note, statusFrom||null, statusTo||null]);
+        res.json({ success: true, note: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/equipment/faults', async (req, res) => {
+    try {
+        const { id, groupId, equipmentId, title, description, imageUrl, severity, status, resolutionNotes, resolvedDate, technicianId, scheduledDate } = req.body;
+        if (!groupId || !equipmentId || !title) return res.status(400).json({ error: 'ציוד וכותרת חובה' });
+        let result;
+        if (id) {
+            result = await pool.query(
+                `UPDATE equipment_faults SET equipment_id=$1, title=$2, description=$3, image_url=$4, severity=$5, status=$6, resolution_notes=$7, resolved_date=$8, technician_id=$9, scheduled_date=$10
+                 WHERE id=$11 AND group_id=$12 RETURNING *`,
+                [equipmentId, title, description||null, imageUrl||null, severity||'medium', status||'open', resolutionNotes||null, resolvedDate||null, technicianId||null, scheduledDate||null, id, groupId]);
+        } else {
+            result = await pool.query(
+                `INSERT INTO equipment_faults (equipment_id, group_id, title, description, image_url, severity, status, technician_id, scheduled_date) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+                [equipmentId, groupId, title, description||null, imageUrl||null, severity||'medium', status||'open', technicianId||null, scheduledDate||null]);
+        }
+        res.json({ success: true, fault: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/equipment/faults/:id/status', async (req, res) => {
+    try {
+        const { status, note, groupId } = req.body;
+        if (!status || !groupId) return res.status(400).json({ error: 'חסרים שדות' });
+        const existing = await pool.query('SELECT * FROM equipment_faults WHERE id=$1 AND group_id=$2', [req.params.id, groupId]);
+        if (!existing.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const fault = existing.rows[0];
+        const resolvedDate = status === 'resolved' ? (fault.resolved_date || new Date().toISOString().split('T')[0]) : null;
+        const result = await pool.query(
+            `UPDATE equipment_faults SET status=$1, resolved_date=$2 WHERE id=$3 AND group_id=$4 RETURNING *`,
+            [status, resolvedDate, req.params.id, groupId]);
+        if (note && note.trim()) {
+            const statusLabels = { open: 'פתוח', in_progress: 'בטיפול', resolved: 'טופל' };
+            const label = statusLabels[status] || status;
+            await pool.query(
+                `INSERT INTO equipment_fault_notes (fault_id, group_id, note, status_from, status_to) VALUES ($1,$2,$3,$4,$5)`,
+                [req.params.id, groupId, `סטטוס שונה ל"${label}": ${note.trim()}`, fault.status, status]);
+        } else {
+            const statusLabels = { open: 'פתוח', in_progress: 'בטיפול', resolved: 'טופל' };
+            const fromLabel = statusLabels[fault.status] || fault.status;
+            const toLabel = statusLabels[status] || status;
+            await pool.query(
+                `INSERT INTO equipment_fault_notes (fault_id, group_id, note, status_from, status_to) VALUES ($1,$2,$3,$4,$5)`,
+                [req.params.id, groupId, `סטטוס שונה מ"${fromLabel}" ל"${toLabel}"`, fault.status, status]);
+        }
+        res.json({ success: true, fault: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/equipment/faults/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM equipment_faults WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/equipment/items/:id/history', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
+        const maintenance = await pool.query(
+            `SELECT id, 'maintenance' as type,
+             COALESCE(description, maintenance_type) as title,
+             description, status,
+             COALESCE(completed_date::text, scheduled_date::text) as event_date,
+             scheduled_date, completed_date, maintenance_type, technician_name, cost
+             FROM equipment_maintenance WHERE equipment_id=$1 AND group_id=$2`,
+            [req.params.id, groupId]);
+        const faults = await pool.query(
+            `SELECT id, 'fault' as type, title, description, status, created_at::text as event_date,
+             severity, resolution_notes, resolved_date
+             FROM equipment_faults WHERE equipment_id=$1 AND group_id=$2`,
+            [req.params.id, groupId]);
+        const combined = [...maintenance.rows, ...faults.rows]
+            .sort((a, b) => new Date(b.event_date || 0) - new Date(a.event_date || 0));
+        res.json({ success: true, history: combined });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/equipment/notifications/check/:groupId', async (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        const today = new Date(); today.setHours(0,0,0,0);
+        const in7 = new Date(today); in7.setDate(today.getDate() + 7);
+        const upcoming = await pool.query(
+            `SELECT m.*, e.name as equipment_name
+             FROM equipment_maintenance m JOIN equipment_items e ON e.id=m.equipment_id
+             WHERE m.group_id=$1 AND m.status='pending' AND m.scheduled_date IS NOT NULL
+             AND m.scheduled_date >= $2 AND m.scheduled_date <= $3`,
+            [groupId, today.toISOString().split('T')[0], in7.toISOString().split('T')[0]]);
+        let created = 0;
+        for (const m of upcoming.rows) {
+            const sDate = new Date(m.scheduled_date); sDate.setHours(0,0,0,0);
+            const diffDays = Math.round((sDate - today) / 86400000);
+            const dateStr = sDate.toLocaleDateString('he-IL');
+            const notifications = [];
+            const maintLabel = m.description || m.maintenance_type || 'תחזוקה';
+            if (diffDays >= 2 && diffDays <= 7) {
+                notifications.push({ refKey: `eq_maint_${m.id}_7d_${m.scheduled_date}`, message: `🔧 תחזוקה בעוד ${diffDays} ימים: "${maintLabel}" — ${m.equipment_name} (${dateStr})` });
+            }
+            if (diffDays <= 1) {
+                const whenStr = diffDays === 0 ? 'היום' : 'מחר';
+                notifications.push({ refKey: `eq_maint_${m.id}_1d_${m.scheduled_date}`, message: `🔧 תחזוקה ${whenStr}: "${maintLabel}" — ${m.equipment_name} (${dateStr})` });
+            }
+            for (const n of notifications) {
+                const exists = await pool.query('SELECT id FROM alert_notifications WHERE group_id=$1 AND reference_key=$2', [groupId, n.refKey]);
+                if (exists.rows.length > 0) continue;
+                await pool.query('INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key) VALUES ($1,$2,$3,$4)',
+                    [groupId, 'equipment_maintenance', n.message, n.refKey]);
+                created++;
+            }
+        }
+        // Also check service calls scheduled for tomorrow
+        const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+        const scheduledCalls = await pool.query(
+            `SELECT id, title FROM service_calls
+             WHERE family_group_id IN (SELECT id FROM family_groups WHERE community_id IN (SELECT community_id FROM family_groups WHERE id=$1))
+                OR business_group_id=$1
+             AND scheduled_at IS NOT NULL AND DATE(scheduled_at)=$2 AND status NOT IN ('done','cancelled')`,
+            [groupId, tomorrow.toISOString().split('T')[0]]);
+        for (const sc of scheduledCalls.rows) {
+            const refKey = `sc_scheduled_${sc.id}_${tomorrow.toISOString().split('T')[0]}`;
+            const exists2 = await pool.query('SELECT id FROM alert_notifications WHERE group_id=$1 AND reference_key=$2', [groupId, refKey]);
+            if (exists2.rows.length > 0) continue;
+            await pool.query('INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key) VALUES ($1,$2,$3,$4)',
+                [groupId, 'service_call_scheduled', `📅 קריאת שירות מחר: "${sc.title}"`, refKey]);
+            created++;
+        }
+        res.json({ success: true, created });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== BUSINESS TYPE & LICENSING ENDPOINTS =====
+
+app.patch('/api/groups/:id/business-settings', async (req, res) => {
+    try {
+        const { business_type, licensed_features, table_count, send_order_email } = req.body;
+        await pool.query(
+            'UPDATE family_groups SET business_type=$1, licensed_features=$2, table_count=$3, send_order_email=$4 WHERE id=$5',
+            [business_type || 'other', JSON.stringify(licensed_features || {}), parseInt(table_count) || 8, send_order_email !== false, req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/store/orders/:id/item-ready', async (req, res) => {
+    try {
+        const { idx, name, tableNum, ready, clearAll } = req.body;
+        if (clearAll) {
+            await pool.query("UPDATE store_orders SET items_ready='[]'::jsonb WHERE id=$1", [req.params.id]);
+            return res.json({success: true});
+        }
+        const r = await pool.query('SELECT items_ready FROM store_orders WHERE id=$1', [req.params.id]);
+        if (!r.rows.length) return res.status(404).json({error:'not found'});
+        let itemsReady = [];
+        try { itemsReady = Array.isArray(r.rows[0].items_ready) ? r.rows[0].items_ready : JSON.parse(r.rows[0].items_ready||'[]'); } catch(e2) {}
+        if (ready) {
+            if (!itemsReady.find(i => i.idx === idx)) itemsReady.push({idx, name: name||'', tableNum: tableNum||null, time: new Date().toISOString()});
+        } else {
+            itemsReady = itemsReady.filter(i => i.idx !== idx);
+        }
+        await pool.query('UPDATE store_orders SET items_ready=$1 WHERE id=$2', [JSON.stringify(itemsReady), req.params.id]);
+        res.json({success: true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.get('/api/groups/:id/settings', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT table_count, business_type, send_order_email, auto_approve_max_guests FROM family_groups WHERE id=$1', [req.params.id]);
+        res.json(r.rows[0] || {});
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/groups/:id/table-settings', async (req, res) => {
+    try {
+        const { auto_approve_max_guests } = req.body;
+        const aag = auto_approve_max_guests !== undefined && auto_approve_max_guests !== null && auto_approve_max_guests !== ''
+            ? (parseInt(auto_approve_max_guests) > 0 ? parseInt(auto_approve_max_guests) : null)
+            : null;
+        await pool.query('UPDATE family_groups SET auto_approve_max_guests=$1 WHERE id=$2', [aag, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/users/:id/profile', async (req, res) => {
+    try {
+        const { nickname } = req.body;
+        if (!nickname || !nickname.trim()) return res.status(400).json({ error: 'nickname required' });
+        await pool.query('UPDATE users SET nickname=$1 WHERE id=$2', [nickname.trim(), req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/users/:id/role-type', async (req, res) => {
+    try {
+        const { employee_role_type } = req.body;
+        await pool.query('UPDATE users SET employee_role_type=$1 WHERE id=$2',
+            [employee_role_type || null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/groups/:id/licenses', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM group_licenses WHERE group_id=$1 ORDER BY feature_key', [req.params.id]);
+        res.json({ success: true, licenses: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/groups/:id/licenses', async (req, res) => {
+    try {
+        const { feature_key, is_active, price_monthly } = req.body;
+        await pool.query(
+            `INSERT INTO group_licenses (group_id, feature_key, is_active, price_monthly)
+             VALUES ($1,$2,$3,$4)
+             ON CONFLICT (group_id, feature_key) DO UPDATE SET is_active=$3, price_monthly=$4`,
+            [req.params.id, feature_key, is_active !== false, price_monthly || 0]
+        );
+        // Sync licensed_features JSONB on family_groups for fast client reads
+        const lic = await pool.query('SELECT feature_key, is_active FROM group_licenses WHERE group_id=$1', [req.params.id]);
+        const lf = {};
+        lic.rows.forEach(l => { lf[l.feature_key] = l.is_active; });
+        await pool.query('UPDATE family_groups SET licensed_features=$1 WHERE id=$2', [JSON.stringify(lf), req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== END BUSINESS TYPE & LICENSING =====
+
+// ===== WORK ORDERS API =====
+
+async function addWorkOrderTimeline(workOrderId, eventType, description, userName, metadata) {
+    try {
+        await pool.query(
+            'INSERT INTO work_order_timeline (work_order_id, event_type, description, user_name, metadata) VALUES ($1,$2,$3,$4,$5)',
+            [workOrderId, eventType, description, userName || 'מערכת', JSON.stringify(metadata || {})]
+        );
+    } catch(e) {}
+}
+
+app.post('/api/work-orders/convert/:quoteId', async (req, res) => {
+    try {
+        const { userName } = req.body;
+        const quoteId = req.params.quoteId;
+        const r = await pool.query(
+            `UPDATE store_orders SET call_type='work_order', status='processing', quote_status='approved'
+             WHERE id=$1 AND (call_type IS NULL OR call_type <> 'work_order') RETURNING *`,
+            [quoteId]
+        );
+        if (!r.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        await addWorkOrderTimeline(quoteId, 'created', 'פקודת עבודה נוצרה מהצעת מחיר', userName || 'מנהל');
+        res.json({ success: true, workOrderId: quoteId });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/work-orders/list/:groupId', async (req, res) => {
+    try {
+        const { status } = req.query;
+        let q = `SELECT so.*,
+            (SELECT COUNT(*) FROM work_order_assignees WHERE work_order_id=so.id) as assignee_count,
+            (SELECT COUNT(*) FROM work_order_inventory WHERE work_order_id=so.id AND status='reserved') as inventory_count
+            FROM store_orders so
+            WHERE so.group_id=$1 AND so.call_type='work_order'`;
+        const params = [req.params.groupId];
+        if (status && status !== 'all') { q += ` AND so.status=$2`; params.push(status); }
+        q += ' ORDER BY so.created_at DESC';
+        const r = await pool.query(q, params);
+        res.json({ success: true, workOrders: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/work-orders/profitability/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT so.id, so.quote_number, so.customer_name, so.status, so.created_at, so.quote_title,
+                COALESCE(so.total_amount, 0)::float as revenue,
+                COALESCE((SELECT SUM(hourly_rate * hours_worked) FROM work_order_assignees WHERE work_order_id=so.id), 0)::float as team_cost,
+                COALESCE((SELECT SUM(unit_price * reserved_qty) FROM work_order_inventory WHERE work_order_id=so.id AND status!='released'), 0)::float as inventory_cost
+            FROM store_orders so
+            WHERE so.group_id=$1 AND so.call_type='work_order'
+            ORDER BY so.created_at DESC`, [req.params.groupId]);
+        const items = r.rows.map(row => ({
+            ...row,
+            total_cost: parseFloat(row.team_cost) + parseFloat(row.inventory_cost),
+            profit: parseFloat(row.revenue) - parseFloat(row.team_cost) - parseFloat(row.inventory_cost)
+        }));
+        res.json({ success: true, items });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/work-orders/new/:groupId', async (req, res) => {
+    try {
+        const { customer_name, customer_phone, title, notes } = req.body;
+        const r = await pool.query(
+            `INSERT INTO store_orders (group_id, customer_name, customer_phone, status, call_type, notes, items, total_amount, created_at)
+             VALUES ($1,$2,$3,'open','work_order',$4,'[]',0,NOW()) RETURNING id`,
+            [req.params.groupId, customer_name||null, customer_phone||null, (title ? title + (notes?'\n'+notes:'') : notes)||null]);
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/work-orders/detail/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const [woRes, assigneesRes, inventoryRes, messagesRes, timelineRes, calendarRes] = await Promise.all([
+            pool.query(`SELECT * FROM store_orders WHERE id=$1 AND call_type='work_order'`, [id]),
+            pool.query('SELECT * FROM work_order_assignees WHERE work_order_id=$1 ORDER BY assigned_at', [id]),
+            pool.query(`SELECT wi.*,
+                        p.quantity as pantry_total, COALESCE(p.reserved_qty,0) as pantry_reserved, p.unit as pantry_unit,
+                        sc.stock_quantity as total_stock, COALESCE(sc.reserved_qty,0) as catalog_reserved
+                        FROM work_order_inventory wi
+                        LEFT JOIN pantry p ON wi.pantry_id=p.id
+                        LEFT JOIN store_catalog sc ON wi.catalog_id=sc.id
+                        WHERE wi.work_order_id=$1 ORDER BY wi.reserved_at`, [id]),
+            pool.query('SELECT * FROM work_order_messages WHERE work_order_id=$1 ORDER BY created_at', [id]),
+            pool.query('SELECT * FROM work_order_timeline WHERE work_order_id=$1 ORDER BY created_at DESC', [id]),
+            pool.query('SELECT * FROM calendar_events WHERE work_order_id=$1 ORDER BY event_date ASC, start_time ASC', [id])
+        ]);
+        if (!woRes.rows.length) return res.status(404).json({ error: 'פקודה לא נמצאה' });
+        res.json({ success: true, workOrder: woRes.rows[0], assignees: assigneesRes.rows, inventory: inventoryRes.rows, messages: messagesRes.rows, timeline: timelineRes.rows, calendarEvents: calendarRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/work-orders/:id/status', async (req, res) => {
+    try {
+        const { status, userName } = req.body;
+        await pool.query(`UPDATE store_orders SET status=$1 WHERE id=$2 AND call_type='work_order'`, [status, req.params.id]);
+        const statusLabels = { processing: 'בתהליך', new: 'חדש', scheduled: 'מתוזמן', completed: 'הושלם', cancelled: 'בוטל' };
+        await addWorkOrderTimeline(req.params.id, 'status_change', `סטטוס שונה ל: ${statusLabels[status] || status}`, userName);
+        if (status === 'cancelled') {
+            const resItems = await pool.query(`SELECT * FROM work_order_inventory WHERE work_order_id=$1 AND status='reserved'`, [req.params.id]);
+            for (const item of resItems.rows) {
+                await pool.query('UPDATE store_catalog SET reserved_qty = GREATEST(0, COALESCE(reserved_qty,0) - $1) WHERE id=$2', [item.reserved_qty, item.catalog_id]);
+                await pool.query(`UPDATE work_order_inventory SET status='released' WHERE id=$1`, [item.id]);
+            }
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/work-orders/users/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT id, nickname as name, employee_role_type, role FROM users WHERE group_id=$1 ORDER BY nickname`, [req.params.groupId]);
+        res.json({ success: true, users: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/work-orders/:id/assignees', async (req, res) => {
+    try {
+        const { userId, userName, assignedBy } = req.body;
+        await pool.query(
+            'INSERT INTO work_order_assignees (work_order_id, user_id, user_name, assigned_by) VALUES ($1,$2,$3,$4) ON CONFLICT (work_order_id, user_id) DO NOTHING',
+            [req.params.id, userId, userName, assignedBy]
+        );
+        await addWorkOrderTimeline(req.params.id, 'assignee_added', `שויך עובד: ${userName}`, assignedBy);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/work-orders/:id/assignees/:userId', async (req, res) => {
+    try {
+        const aRes = await pool.query('SELECT user_name FROM work_order_assignees WHERE work_order_id=$1 AND user_id=$2', [req.params.id, req.params.userId]);
+        await pool.query('DELETE FROM work_order_assignees WHERE work_order_id=$1 AND user_id=$2', [req.params.id, req.params.userId]);
+        if (aRes.rows.length) await addWorkOrderTimeline(req.params.id, 'assignee_removed', `הוסר עובד: ${aRes.rows[0].user_name}`, 'מנהל');
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/work-orders/catalog/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT id, name, COALESCE(stock_quantity,0) as stock_quantity, COALESCE(reserved_qty,0) as reserved_qty,
+             GREATEST(0, COALESCE(stock_quantity,0) - COALESCE(reserved_qty,0)) as available_qty
+             FROM store_catalog WHERE group_id=$1 AND COALESCE(stock_quantity,0) > 0 ORDER BY name`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, items: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// פירוט כמויות משוריינות למוצר מקטלוג לפי פקודות עבודה
+app.get('/api/store/catalog/:itemId/wo-reservations', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT woi.id, woi.reserved_qty, woi.needed_qty, woi.status, woi.unit_price,
+                    so.id as wo_id, so.customer_name, so.status as wo_status, so.created_at as wo_created_at
+             FROM work_order_inventory woi
+             JOIN store_orders so ON woi.work_order_id = so.id
+             WHERE woi.catalog_id = $1 AND woi.status IN ('reserved','used')
+             ORDER BY so.created_at DESC`,
+            [req.params.itemId]
+        );
+        res.json({ success: true, reservations: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/pantry/:itemId/wo-reservations', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT woi.id, woi.reserved_qty, woi.needed_qty, woi.status, woi.unit_price,
+                    so.id as wo_id, so.customer_name, so.status as wo_status, so.created_at as wo_created_at
+             FROM work_order_inventory woi
+             JOIN store_orders so ON woi.work_order_id = so.id
+             WHERE woi.pantry_id = $1 AND woi.status IN ('reserved','used')
+             ORDER BY so.created_at DESC`,
+            [req.params.itemId]
+        );
+        res.json({ success: true, reservations: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/work-orders/:id/inventory', async (req, res) => {
+    try {
+        const { pantryId, catalogId, itemName, neededQty, qty, reservedBy, unitPrice } = req.body;
+        const needed = parseFloat(neededQty || qty || 1);
+        let actualReserved = needed;
+        let shortage = 0;
+
+        if (pantryId) {
+            const pRes = await pool.query(
+                `SELECT p.quantity, COALESCE(p.reserved_qty,0) as reserved_qty,
+                        COALESCE(fg.min_stock_buffer_pct,0) as buffer_pct
+                 FROM pantry p
+                 LEFT JOIN store_orders so ON so.id=$2
+                 LEFT JOIN family_groups fg ON fg.id=so.group_id
+                 WHERE p.id=$1`,
+                [pantryId, req.params.id]
+            );
+            if (!pRes.rows.length) return res.status(404).json({ error: 'פריט לא נמצא במלאי' });
+            const { quantity, reserved_qty, buffer_pct } = pRes.rows[0];
+            const totalStock = parseFloat(quantity || 0);
+            const alreadyReserved = parseFloat(reserved_qty || 0);
+            const bufferQty = totalStock * (parseFloat(buffer_pct || 0) / 100);
+            const available = Math.max(0, totalStock - alreadyReserved - bufferQty);
+            actualReserved = Math.min(needed, available);
+            shortage = parseFloat((needed - actualReserved).toFixed(4));
+            if (actualReserved > 0) {
+                await pool.query('UPDATE pantry SET reserved_qty = COALESCE(reserved_qty,0) + $1 WHERE id=$2', [actualReserved, pantryId]);
+            }
+        } else if (catalogId) {
+            const woRes = await pool.query('SELECT group_id FROM store_orders WHERE id=$1', [req.params.id]);
+            const groupId = woRes.rows[0]?.group_id;
+            const catRes = await pool.query(
+                `SELECT sc.stock_quantity, COALESCE(sc.reserved_qty,0) as reserved_qty,
+                        COALESCE(fg.min_stock_buffer_pct,0) as buffer_pct
+                 FROM store_catalog sc LEFT JOIN family_groups fg ON fg.id=$2 WHERE sc.id=$1`,
+                [catalogId, groupId]
+            );
+            if (!catRes.rows.length) return res.status(404).json({ error: 'פריט לא נמצא' });
+            const { stock_quantity, reserved_qty, buffer_pct } = catRes.rows[0];
+            const totalStock = parseFloat(stock_quantity || 0);
+            const alreadyReserved = parseFloat(reserved_qty || 0);
+            const bufferQty = totalStock * (parseFloat(buffer_pct || 0) / 100);
+            const available = Math.max(0, totalStock - alreadyReserved - bufferQty);
+            actualReserved = Math.min(needed, available);
+            shortage = parseFloat((needed - actualReserved).toFixed(4));
+            if (actualReserved > 0) {
+                await pool.query('UPDATE store_catalog SET reserved_qty = COALESCE(reserved_qty,0) + $1 WHERE id=$2', [actualReserved, catalogId]);
+            }
+        }
+
+        const r = await pool.query(
+            'INSERT INTO work_order_inventory (work_order_id, pantry_id, catalog_id, item_name, needed_qty, reserved_qty, unit_price, reserved_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id',
+            [req.params.id, pantryId || null, catalogId || null, itemName, needed, actualReserved, unitPrice || 0, reservedBy]
+        );
+        const timelineMsg = shortage > 0
+            ? `שורין ציוד: ${itemName} (${actualReserved}/${needed} יח' — חסר ${shortage})`
+            : `שורין ציוד: ${itemName} (${actualReserved} יח')`;
+        await addWorkOrderTimeline(req.params.id, 'inventory_reserved', timelineMsg, reservedBy);
+        res.json({ success: true, reservationId: r.rows[0].id, neededQty: needed, actualReserved, shortage });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/work-orders/:id/inventory/:resId/use', async (req, res) => {
+    try {
+        const { usedQty, userName } = req.body;
+        const resRes = await pool.query('SELECT * FROM work_order_inventory WHERE id=$1 AND work_order_id=$2', [req.params.resId, req.params.id]);
+        if (!resRes.rows.length) return res.status(404).json({ error: 'שריון לא נמצא' });
+        const item = resRes.rows[0];
+        const actualUsed = Math.min(parseFloat(usedQty) || item.reserved_qty, item.reserved_qty);
+        await pool.query(`UPDATE work_order_inventory SET status='used', used_qty=$1, used_at=NOW() WHERE id=$2`, [actualUsed, item.id]);
+        if (item.pantry_id) {
+            await pool.query('UPDATE pantry SET quantity = GREATEST(0, COALESCE(quantity,0) - $1), reserved_qty = GREATEST(0, COALESCE(reserved_qty,0) - $2) WHERE id=$3', [actualUsed, item.reserved_qty, item.pantry_id]);
+        } else if (item.catalog_id) {
+            await pool.query('UPDATE store_catalog SET stock_quantity = GREATEST(0, COALESCE(stock_quantity,0) - $1), reserved_qty = GREATEST(0, COALESCE(reserved_qty,0) - $2) WHERE id=$3', [actualUsed, item.reserved_qty, item.catalog_id]);
+        }
+        await addWorkOrderTimeline(req.params.id, 'inventory_used', `אושר שימוש בציוד: ${item.item_name} (${actualUsed} יח')`, userName);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/work-orders/:id/inventory/:resId', async (req, res) => {
+    try {
+        const resRes = await pool.query(`SELECT * FROM work_order_inventory WHERE id=$1 AND work_order_id=$2 AND status='reserved'`, [req.params.resId, req.params.id]);
+        if (!resRes.rows.length) return res.status(404).json({ error: 'שריון לא נמצא או כבר בשימוש' });
+        const item = resRes.rows[0];
+        await pool.query(`UPDATE work_order_inventory SET status='released' WHERE id=$1`, [item.id]);
+        if (item.pantry_id) {
+            await pool.query('UPDATE pantry SET reserved_qty = GREATEST(0, COALESCE(reserved_qty,0) - $1) WHERE id=$2', [item.reserved_qty, item.pantry_id]);
+        } else if (item.catalog_id) {
+            await pool.query('UPDATE store_catalog SET reserved_qty = GREATEST(0, COALESCE(reserved_qty,0) - $1) WHERE id=$2', [item.reserved_qty, item.catalog_id]);
+        }
+        await addWorkOrderTimeline(req.params.id, 'inventory_released', `שריון שוחרר: ${item.item_name}`, 'מנהל');
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/work-orders/:id/messages', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM work_order_messages WHERE work_order_id=$1 ORDER BY created_at', [req.params.id]);
+        res.json({ success: true, messages: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/work-orders/:id/messages', async (req, res) => {
+    try {
+        const { userId, userName, message } = req.body;
+        const r = await pool.query(
+            'INSERT INTO work_order_messages (work_order_id, user_id, user_name, message_text) VALUES ($1,$2,$3,$4) RETURNING *',
+            [req.params.id, userId || null, userName, message]
+        );
+        res.json({ success: true, msg: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/work-orders/:id/notes', async (req, res) => {
+    try {
+        const { notes, updatedBy } = req.body;
+        await pool.query('UPDATE store_orders SET wo_notes=$1, wo_notes_updated_at=NOW(), wo_notes_updated_by=$2 WHERE id=$3', [notes, updatedBy, req.params.id]);
+        await pool.query('INSERT INTO work_order_notes_history (work_order_id, note_text, created_by) VALUES ($1,$2,$3)', [req.params.id, notes, updatedBy]);
+        await addWorkOrderTimeline(req.params.id, 'notes_updated', 'הערות הפקודה עודכנו', updatedBy);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/work-orders/:id/timeline', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM work_order_timeline WHERE work_order_id=$1 ORDER BY created_at DESC', [req.params.id]);
+        res.json({ success: true, timeline: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/work-orders/:id/calendar', async (req, res) => {
+    try {
+        const { groupId, title, eventDate, startTime, customerName, address, assigneeIds, notes } = req.body;
+        const r = await pool.query(
+            `INSERT INTO calendar_events (group_id, title, event_date, start_time, customer_phone, customer_name, notes, status, work_order_id, address, attendees_user_ids)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,'approved',$8,$9,$10) RETURNING id`,
+            [groupId, title, eventDate, startTime, customerName || '', customerName || '', notes || '', req.params.id, address || '', JSON.stringify(assigneeIds || [])]
+        );
+        await addWorkOrderTimeline(req.params.id, 'calendar_event', `זימון נקבע ל-${eventDate} ${startTime}`, 'מנהל');
+        res.json({ success: true, eventId: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Work Order: Purchase Orders (הזמנות רכש) ---
+app.get('/api/work-orders/:id/purchase-orders', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT po.*, s.name as supplier_name
+             FROM purchase_orders po
+             LEFT JOIN suppliers s ON po.supplier_id=s.id
+             WHERE po.work_order_id=$1 ORDER BY po.created_at DESC`,
+            [req.params.id]
+        );
+        res.json({ success: true, purchaseOrders: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/work-orders/:id/purchase-orders', async (req, res) => {
+    try {
+        const { groupId, supplierId, supplierName, items, notes, userName } = req.body;
+        if (!items || !items.length) return res.status(400).json({ error: 'נדרשים פריטים להזמנה' });
+        const totalAmount = items.reduce((s, i) => s + (parseFloat(i.unit_price || 0) * parseFloat(i.quantity || 1)), 0);
+        const itemsJson = JSON.stringify(items);
+        let finalSupplierId = supplierId || null;
+        if (!finalSupplierId && supplierName) {
+            try {
+                const sRes = await pool.query(
+                    `INSERT INTO suppliers (group_id, name, created_at) VALUES ($1,$2,NOW()) ON CONFLICT DO NOTHING RETURNING id`,
+                    [groupId, supplierName]
+                );
+                if (sRes.rows.length) finalSupplierId = sRes.rows[0].id;
+                else {
+                    const ex = await pool.query(`SELECT id FROM suppliers WHERE group_id=$1 AND name=$2 LIMIT 1`, [groupId, supplierName]);
+                    if (ex.rows.length) finalSupplierId = ex.rows[0].id;
+                }
+            } catch(e) {}
+        }
+        const r = await pool.query(
+            `INSERT INTO purchase_orders (group_id, supplier_id, items, total_amount, status, notes, work_order_id, created_at)
+             VALUES ($1,$2,$3::jsonb,$4,'pending',$5,$6,NOW()) RETURNING id`,
+            [groupId, finalSupplierId, itemsJson, totalAmount, notes || null, req.params.id]
+        );
+        const poId = r.rows[0].id;
+        const itemsSummary = items.map(i => `${i.item_name} (${i.quantity})`).join(', ');
+        await addWorkOrderTimeline(req.params.id, 'purchase_order_created', `נוצרה הזמנת רכש #${poId}: ${itemsSummary}`, userName || 'מנהל');
+        res.json({ success: true, purchaseOrderId: poId });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/work-orders/:id/purchase-orders/:poId/status', async (req, res) => {
+    try {
+        const { status, userName } = req.body;
+        await pool.query(`UPDATE purchase_orders SET status=$1 WHERE id=$2 AND work_order_id=$3`, [status, req.params.poId, req.params.id]);
+        const labels = { pending: 'ממתין', approved: 'אושר', delivered: 'התקבל', cancelled: 'בוטל' };
+        await addWorkOrderTimeline(req.params.id, 'purchase_order_updated', `הזמנת רכש #${req.params.poId} עודכנה ל: ${labels[status] || status}`, userName || 'מנהל');
+        // כשמוצרים התקבלו — הוסף למלאי ושייך לפקודת העבודה עם catalog_id ממוצר הספק
+        if (status === 'delivered') {
+            try {
+                const poRes = await pool.query('SELECT items, work_order_id FROM purchase_orders WHERE id=$1', [req.params.poId]);
+                const poItems = typeof poRes.rows[0]?.items === 'string' ? JSON.parse(poRes.rows[0].items) : (poRes.rows[0]?.items || []);
+                const woId = poRes.rows[0]?.work_order_id || req.params.id;
+                for (const item of poItems) {
+                    // אם יש supplier_product_id — בדוק אם יש catalog_id מקושר
+                    let finalCatalogId = item.catalog_id || null;
+                    if (!finalCatalogId && item.supplier_product_id) {
+                        const spRes = await pool.query('SELECT catalog_id FROM supplier_products WHERE id=$1', [item.supplier_product_id]);
+                        if (spRes.rows[0]?.catalog_id) finalCatalogId = spRes.rows[0].catalog_id;
+                    }
+                    const qty = parseFloat(item.quantity || 1);
+                    const totalUnits = qty * (parseInt(item.units_per_package) || 1);
+                    if (finalCatalogId) {
+                        // הוסף למלאי הכללי
+                        await pool.query(
+                            `UPDATE store_catalog SET stock_quantity = COALESCE(stock_quantity,0) + $1 WHERE id=$2`,
+                            [totalUnits, finalCatalogId]
+                        );
+                    }
+                    // שייך את הפריט לציוד פקודת העבודה
+                    if (woId) {
+                        await pool.query(
+                            `INSERT INTO work_order_inventory (work_order_id, catalog_id, item_name, reserved_qty, unit_price, status, reserved_by)
+                             VALUES ($1, $2, $3, $4, $5, 'reserved', $6)`,
+                            [woId, finalCatalogId, item.item_name, totalUnits, parseFloat(item.unit_price || 0), userName || 'מנהל']
+                        );
+                        // עדכן reserved_qty בקטלוג
+                        if (finalCatalogId) {
+                            await pool.query(
+                                `UPDATE store_catalog SET reserved_qty = COALESCE(reserved_qty,0) + $1 WHERE id=$2`,
+                                [totalUnits, finalCatalogId]
+                            );
+                        }
+                    }
+                }
+                if (woId) {
+                    await addWorkOrderTimeline(woId, 'inventory_reserved', `ציוד מהזמנת רכש #${req.params.poId} הגיע ושויך לפקודה`, userName || 'מנהל');
+                }
+            } catch(e) { console.error('delivered inventory link error:', e.message); }
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הזמנות רכש של פקודות עבודה — תצוגה באזור הרכש הכללי
+app.get('/api/work-orders/purchase-orders/group/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT po.*, s.name as supplier_name, so.customer_name as wo_customer_name
+             FROM purchase_orders po
+             LEFT JOIN suppliers s ON po.supplier_id=s.id
+             LEFT JOIN store_orders so ON po.work_order_id=so.id
+             WHERE po.work_order_id IS NOT NULL AND po.group_id=$1
+             ORDER BY po.created_at DESC`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, purchaseOrders: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== END WORK ORDERS API =====
+
+// ===== WORK ORDER PAYMENTS API =====
+
+// קבלת תחנות תשלום לפקודה
+app.get('/api/work-orders/:id/payments', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT * FROM work_order_payments WHERE work_order_id=$1 ORDER BY due_date ASC NULLS LAST, created_at ASC`,
+            [req.params.id]);
+        res.json({ success: true, payments: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הוספת תחנת תשלום
+app.post('/api/work-orders/:id/payments', async (req, res) => {
+    try {
+        const { milestoneName, amount, dueDate, paymentMethod, totalAmount } = req.body;
+        if (!amount || parseFloat(amount) <= 0) return res.status(400).json({ error: 'סכום נדרש' });
+
+        // קבע סכום עסקה כוללת — ברירת מחדל = סכום הפקודה או התחנה הקודמת
+        let finalTotalAmount = parseFloat(totalAmount);
+        if (!finalTotalAmount || finalTotalAmount <= 0) {
+            const woR = await pool.query('SELECT total_amount FROM store_orders WHERE id=$1', [req.params.id]);
+            finalTotalAmount = woR.rows[0]?.total_amount ? parseFloat(woR.rows[0].total_amount) : parseFloat(amount);
+        }
+
+        const r = await pool.query(
+            `INSERT INTO work_order_payments (work_order_id, milestone_name, amount, due_date, payment_method, total_amount)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [req.params.id, milestoneName || 'תשלום', parseFloat(amount), dueDate || null, paymentMethod || null, finalTotalAmount]
+        );
+        // עדכן payment_status ל-pending_payment אם לא קיים עדיין
+        await pool.query(
+            `UPDATE store_orders SET payment_status=COALESCE(payment_status,'pending_payment') WHERE id=$1`,
+            [req.params.id]
+        );
+        res.json({ success: true, payment: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// סימון תחנת תשלום כהתקבל (עובד גם לפקודת עבודה וגם לקריאת שירות)
+app.patch('/api/work-orders/payments/:paymentId/receive', async (req, res) => {
+    try {
+        const { receivedAmount, receivedAt, userName } = req.body;
+        const pr = await pool.query('SELECT * FROM work_order_payments WHERE id=$1', [req.params.paymentId]);
+        if (!pr.rows.length) return res.status(404).json({ error: 'תחנת תשלום לא נמצאה' });
+        const p = pr.rows[0];
+        const recAmt = parseFloat(receivedAmount) || parseFloat(p.amount);
+        await pool.query(
+            `UPDATE work_order_payments SET status='received', received_amount=$1, received_at=$2 WHERE id=$3`,
+            [recAmt, receivedAt ? new Date(receivedAt) : new Date(), req.params.paymentId]
+        );
+        let newPayStatus = 'paid';
+        if (p.work_order_id) {
+            // הוסף לתזרים כהכנסה מפקודת עבודה
+            const woR = await pool.query('SELECT so.*, fg.name as biz_name FROM store_orders so JOIN family_groups fg ON fg.id=so.group_id WHERE so.id=$1', [p.work_order_id]);
+            if (woR.rows.length) {
+                const wo = woR.rows[0];
+                const adminU = await pool.query(`SELECT id FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1`, [wo.group_id]);
+                await pool.query(
+                    `INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_manual)
+                     VALUES ($1, $2, $3, $4, 'sales', 'income', $5, FALSE)`,
+                    [adminU.rows[0]?.id || null, wo.group_id, recAmt,
+                     `גביה פקודת עבודה${wo.customer_name ? ' — ' + wo.customer_name : ''}${p.milestone_name && p.milestone_name !== 'תשלום' ? ' (' + p.milestone_name + ')' : ''}`,
+                     receivedAt ? new Date(receivedAt) : new Date()]
+                );
+            }
+            const remaining = await pool.query(
+                `SELECT COUNT(*) as cnt FROM work_order_payments WHERE work_order_id=$1 AND status='pending'`, [p.work_order_id]);
+            newPayStatus = parseInt(remaining.rows[0].cnt) === 0 ? 'paid' : 'partial';
+            await pool.query(`UPDATE store_orders SET payment_status=$1 WHERE id=$2`, [newPayStatus, p.work_order_id]);
+        } else if (p.service_call_id) {
+            // הוסף לתזרים כהכנסה מקריאת שירות
+            const scR = await pool.query('SELECT sc.*, fg.id as biz_group_id FROM service_calls sc JOIN family_groups fg ON fg.id=sc.business_group_id WHERE sc.id=$1', [p.service_call_id]);
+            if (scR.rows.length) {
+                const sc = scR.rows[0];
+                const adminU = await pool.query(`SELECT id FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1`, [sc.biz_group_id]);
+                await pool.query(
+                    `INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_manual)
+                     VALUES ($1, $2, $3, $4, 'sales', 'income', $5, FALSE)`,
+                    [adminU.rows[0]?.id || null, sc.biz_group_id, recAmt,
+                     `גביה קריאת שירות${sc.customer_name ? ' — ' + sc.customer_name : ''}${p.milestone_name && p.milestone_name !== 'תשלום' ? ' (' + p.milestone_name + ')' : ''}`,
+                     receivedAt ? new Date(receivedAt) : new Date()]
+                );
+            }
+            const remaining = await pool.query(
+                `SELECT COUNT(*) as cnt FROM work_order_payments WHERE service_call_id=$1 AND status='pending'`, [p.service_call_id]);
+            newPayStatus = parseInt(remaining.rows[0].cnt) === 0 ? 'paid' : 'partial';
+            await pool.query(`UPDATE service_calls SET payment_status=$1 WHERE id=$2`, [newPayStatus, p.service_call_id]);
+        }
+        res.json({ success: true, paymentStatus: newPayStatus });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מחיקת תחנת תשלום (עובד גם לפקודת עבודה וגם לקריאת שירות)
+app.delete('/api/work-orders/payments/:paymentId', async (req, res) => {
+    try {
+        const pr = await pool.query('SELECT work_order_id, service_call_id FROM work_order_payments WHERE id=$1', [req.params.paymentId]);
+        if (!pr.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const { work_order_id: woId, service_call_id: scId } = pr.rows[0];
+        await pool.query('DELETE FROM work_order_payments WHERE id=$1', [req.params.paymentId]);
+        if (woId) {
+            const remaining = await pool.query('SELECT COUNT(*) as cnt FROM work_order_payments WHERE work_order_id=$1', [woId]);
+            if (parseInt(remaining.rows[0].cnt) === 0) {
+                await pool.query(`UPDATE store_orders SET payment_status=NULL WHERE id=$1`, [woId]);
+            } else {
+                const pending = await pool.query(`SELECT COUNT(*) as cnt FROM work_order_payments WHERE work_order_id=$1 AND status='pending'`, [woId]);
+                const newSt = parseInt(pending.rows[0].cnt) === 0 ? 'paid' : 'pending_payment';
+                await pool.query(`UPDATE store_orders SET payment_status=$1 WHERE id=$2`, [newSt, woId]);
+            }
+        } else if (scId) {
+            const remaining = await pool.query('SELECT COUNT(*) as cnt FROM work_order_payments WHERE service_call_id=$1', [scId]);
+            if (parseInt(remaining.rows[0].cnt) === 0) {
+                await pool.query(`UPDATE service_calls SET payment_status=NULL WHERE id=$1`, [scId]);
+            } else {
+                const pending = await pool.query(`SELECT COUNT(*) as cnt FROM work_order_payments WHERE service_call_id=$1 AND status='pending'`, [scId]);
+                const newSt = parseInt(pending.rows[0].cnt) === 0 ? 'paid' : 'pending_payment';
+                await pool.query(`UPDATE service_calls SET payment_status=$1 WHERE id=$2`, [newSt, scId]);
+            }
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== TIMELOG API =====
+app.get('/api/timelog/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT * FROM time_logs WHERE group_id=$1 ORDER BY logged_date DESC, created_at DESC LIMIT 200`,
+            [req.params.groupId]
+        );
+        res.json({ entries: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/timelog/:groupId', async (req, res) => {
+    try {
+        const { description, minutes, hourly_rate, customer_name, logged_date, wo_id, user_id } = req.body;
+        if (!minutes || minutes < 1) return res.status(400).json({ error: 'minutes required' });
+        const r = await pool.query(
+            `INSERT INTO time_logs (group_id, user_id, customer_name, wo_id, description, minutes, hourly_rate, logged_date)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [req.params.groupId, user_id||null, customer_name||null, wo_id||null, description||null, minutes, hourly_rate||0, logged_date||null]
+        );
+        res.json({ entry: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/timelog/entry/:id/bill', async (req, res) => {
+    try {
+        await pool.query('UPDATE time_logs SET is_billed=TRUE WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/timelog/entry/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM time_logs WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+// ===== END TIMELOG API =====
+
+// ===== PROFESSIONAL WEBSITE CONTENT API =====
+// Content (hero, about)
+app.get('/api/professional-content/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM professional_content WHERE group_id=$1', [req.params.groupId]);
+        res.json({ content: r.rows[0] || {} });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/professional-content/:groupId', async (req, res) => {
+    try {
+        const fields = ['hero_title_he','hero_title_en','hero_subtitle_he','hero_subtitle_en','cta_text_he','cta_text_en','about_text_he','about_text_en'];
+        const vals = fields.map(f => req.body[f] ?? null);
+        await pool.query(
+            `INSERT INTO professional_content (group_id,${fields.join(',')},updated_at) VALUES ($1,${fields.map((_,i)=>`$${i+2}`)},NOW())
+             ON CONFLICT (group_id) DO UPDATE SET ${fields.map((f,i)=>`${f}=COALESCE($${i+2},professional_content.${f})`).join(',')},updated_at=NOW()`,
+            [req.params.groupId, ...vals]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Expertise areas
+app.get('/api/professional-expertise/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM professional_expertise WHERE group_id=$1 AND is_active=TRUE ORDER BY sort_order,id', [req.params.groupId]);
+        res.json({ items: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/professional-expertise/:groupId', async (req, res) => {
+    try {
+        const { icon, title_he, title_en, description_he, description_en } = req.body;
+        const r = await pool.query(
+            `INSERT INTO professional_expertise (group_id,icon,title_he,title_en,description_he,description_en) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [req.params.groupId, icon||'⚖️', title_he||null, title_en||null, description_he||null, description_en||null]
+        );
+        res.json({ item: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.patch('/api/professional-expertise/:id', async (req, res) => {
+    try {
+        const { icon, title_he, title_en, description_he, description_en } = req.body;
+        await pool.query(
+            `UPDATE professional_expertise SET icon=COALESCE($1,icon), title_he=COALESCE($2,title_he), title_en=COALESCE($3,title_en), description_he=COALESCE($4,description_he), description_en=COALESCE($5,description_en) WHERE id=$6`,
+            [icon||null, title_he||null, title_en||null, description_he||null, description_en||null, req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/professional-expertise/:id', async (req, res) => {
+    try { await pool.query('UPDATE professional_expertise SET is_active=FALSE WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Articles
+app.get('/api/professional-articles/:groupId', async (req, res) => {
+    try {
+        const onlyPublished = req.query.published === '1';
+        const r = await pool.query(
+            `SELECT * FROM professional_articles WHERE group_id=$1 ${onlyPublished?'AND is_published=TRUE':''} ORDER BY created_at DESC`,
+            [req.params.groupId]
+        );
+        res.json({ articles: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/professional-articles/:groupId', async (req, res) => {
+    try {
+        const { title_he, title_en, content_he, content_en, tags, is_published } = req.body;
+        const r = await pool.query(
+            `INSERT INTO professional_articles (group_id,title_he,title_en,content_he,content_en,tags,is_published) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+            [req.params.groupId, title_he||null, title_en||null, content_he||null, content_en||null, tags||null, is_published||false]
+        );
+        res.json({ article: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.patch('/api/professional-articles/:id', async (req, res) => {
+    try {
+        const { is_published } = req.body;
+        await pool.query('UPDATE professional_articles SET is_published=$1 WHERE id=$2', [is_published, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/professional-articles/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM professional_articles WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Leads (contact form submissions)
+app.get('/api/professional-leads/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM professional_leads WHERE group_id=$1 ORDER BY created_at DESC LIMIT 200', [req.params.groupId]);
+        res.json({ leads: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/professional-leads/:groupId', async (req, res) => {
+    try {
+        const { name, phone, email, subject, message } = req.body;
+        if (!name && !phone && !email) return res.status(400).json({ error: 'פרטים חסרים' });
+        const r = await pool.query(
+            `INSERT INTO professional_leads (group_id,name,phone,email,subject,message) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [req.params.groupId, name||null, phone||null, email||null, subject||null, message||null]
+        );
+        res.json({ lead: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.patch('/api/professional-leads/:id', async (req, res) => {
+    try {
+        const { status } = req.body;
+        await pool.query('UPDATE professional_leads SET status=$1 WHERE id=$2', [status, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+// ===== END PROFESSIONAL WEBSITE CONTENT API =====
+
+// ===== PROFESSIONAL DOCUMENTS API =====
+app.get('/api/professional-documents/:groupId', async (req, res) => {
+    try {
+        const { is_template, customer_name, customer_phone } = req.query;
+        let q = 'SELECT * FROM professional_documents WHERE group_id=$1';
+        const params = [req.params.groupId];
+        if (is_template !== undefined) { params.push(is_template === 'true'); q += ` AND is_template=$${params.length}`; }
+        if (customer_name) { params.push(`%${customer_name}%`); q += ` AND customer_name ILIKE $${params.length}`; }
+        if (customer_phone) { params.push(customer_phone); q += ` AND customer_phone=$${params.length}`; }
+        q += ' ORDER BY updated_at DESC LIMIT 500';
+        const r = await pool.query(q, params);
+        res.json({ success: true, documents: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/professional-documents/:groupId', async (req, res) => {
+    try {
+        const { customer_name, customer_phone, title, content, doc_type, status, is_template, notes } = req.body;
+        const r = await pool.query(
+            `INSERT INTO professional_documents (group_id,customer_name,customer_phone,title,content,doc_type,status,is_template,notes)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [req.params.groupId, customer_name||null, customer_phone||null, title, content||'', doc_type||'document', status||'draft', !!is_template, notes||null]);
+        res.json({ success: true, document: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/professional-documents/:id', async (req, res) => {
+    try {
+        const { title, content, doc_type, status, notes, customer_name, customer_phone } = req.body;
+        await pool.query(
+            `UPDATE professional_documents SET title=COALESCE($1,title), content=COALESCE($2,content),
+             doc_type=COALESCE($3,doc_type), status=COALESCE($4,status), notes=COALESCE($5,notes),
+             customer_name=COALESCE($6,customer_name), customer_phone=COALESCE($7,customer_phone),
+             updated_at=NOW() WHERE id=$8`,
+            [title||null, content||null, doc_type||null, status||null, notes||null, customer_name||null, customer_phone||null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/professional-documents/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM professional_documents WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+// ===== PROFESSIONAL DASHBOARD API =====
+app.get('/api/professional/dashboard/:groupId', async (req, res) => {
+    try {
+        const gid = req.params.groupId;
+        const [casesR, hoursR, leadsR, revenueR, apptR, pendingQuotesR] = await Promise.all([
+            pool.query(`SELECT status, COUNT(*) cnt FROM store_orders WHERE group_id=$1 AND call_type='work_order' GROUP BY status`, [gid]),
+            pool.query(`SELECT COUNT(*) cnt, COALESCE(SUM(minutes),0) total_min, COALESCE(SUM(CASE WHEN NOT is_billed THEN minutes ELSE 0 END),0) unbilled_min FROM time_logs WHERE group_id=$1`, [gid]),
+            pool.query(`SELECT COUNT(*) total, COUNT(CASE WHEN status='new' THEN 1 END) new_leads FROM professional_leads WHERE group_id=$1`, [gid]),
+            pool.query(`SELECT COALESCE(SUM(amount),0) month_revenue FROM cashflow_entries WHERE group_id=$1 AND type='income' AND date >= date_trunc('month', CURRENT_DATE)`, [gid]),
+            pool.query(`SELECT id, title, start_time, end_time FROM calendar_events WHERE group_id=$1 AND DATE(start_time)=CURRENT_DATE ORDER BY start_time LIMIT 5`, [gid]),
+            pool.query(`SELECT COUNT(*) cnt FROM store_orders WHERE group_id=$1 AND status='quote' AND quote_status='waiting_customer'`, [gid])
+        ]);
+        const casesByStatus = {};
+        casesR.rows.forEach(r => { casesByStatus[r.status] = parseInt(r.cnt); });
+        const activeCases = (casesByStatus['open']||0) + (casesByStatus['in_progress']||0) + (casesByStatus['pending']||0);
+        const hrs = hoursR.rows[0];
+        res.json({
+            active_cases: activeCases,
+            completed_cases: casesByStatus['done'] || 0,
+            unbilled_hours: Math.round(parseInt(hrs.unbilled_min) / 60 * 10) / 10,
+            total_hours: Math.round(parseInt(hrs.total_min) / 60 * 10) / 10,
+            new_leads: parseInt(leadsR.rows[0].new_leads),
+            total_leads: parseInt(leadsR.rows[0].total),
+            month_revenue: parseFloat(revenueR.rows[0].month_revenue),
+            today_appointments: apptR.rows,
+            pending_quotes: parseInt(pendingQuotesR.rows[0].cnt)
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+// ===== END PROFESSIONAL DASHBOARD API =====
+
+// קבלת תחנות תשלום לקריאת שירות
+app.get('/api/service-calls/:id/payments', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT * FROM work_order_payments WHERE service_call_id=$1 ORDER BY due_date ASC NULLS LAST, created_at ASC`,
+            [req.params.id]);
+        res.json({ success: true, payments: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הוספת תחנת תשלום לקריאת שירות
+app.post('/api/service-calls/:id/payments', async (req, res) => {
+    try {
+        const { milestoneName, amount, dueDate, paymentMethod, totalAmount } = req.body;
+        if (!amount || parseFloat(amount) <= 0) return res.status(400).json({ error: 'סכום נדרש' });
+
+        // קבע סכום עסקה כוללת — ברירת מחדל = סכום המילסטון הקודם או הנוכחי
+        let finalTotalAmount = parseFloat(totalAmount);
+        if (!finalTotalAmount || finalTotalAmount <= 0) {
+            const lastPaymentR = await pool.query(
+                'SELECT total_amount FROM work_order_payments WHERE service_call_id=$1 ORDER BY created_at DESC LIMIT 1',
+                [req.params.id]);
+            if (lastPaymentR.rows.length && lastPaymentR.rows[0].total_amount) {
+                finalTotalAmount = parseFloat(lastPaymentR.rows[0].total_amount);
+            } else {
+                finalTotalAmount = parseFloat(amount);
+            }
+        }
+
+        const r = await pool.query(
+            `INSERT INTO work_order_payments (service_call_id, milestone_name, amount, due_date, payment_method, total_amount)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [req.params.id, milestoneName || 'תשלום', parseFloat(amount), dueDate || null, paymentMethod || null, finalTotalAmount]
+        );
+        await pool.query(
+            `UPDATE service_calls SET payment_status=COALESCE(payment_status,'pending_payment') WHERE id=$1`,
+            [req.params.id]
+        );
+        res.json({ success: true, payment: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// טאב גביה — כל תחנות הגביה של העסק (פקודות עבודה + קריאות שירות)
+app.get('/api/work-orders/collection/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT wop.id, wop.milestone_name, wop.amount, wop.due_date, wop.payment_method,
+                    wop.status, wop.received_amount, wop.received_at, wop.created_at,
+                    wop.work_order_id, wop.service_call_id,
+                    so.customer_name, so.customer_phone, so.total_amount as wo_total,
+                    so.quote_title as wo_title, so.quote_number as wo_number,
+                    (SELECT COALESCE(SUM(received_amount),0) FROM work_order_payments WHERE work_order_id=wop.work_order_id AND status='received') as total_received,
+                    (SELECT COUNT(*) FROM work_order_payments WHERE work_order_id=wop.work_order_id) as total_milestones,
+                    (SELECT COUNT(*) FROM work_order_payments WHERE work_order_id=wop.work_order_id AND status='received') as received_milestones
+             FROM work_order_payments wop
+             JOIN store_orders so ON so.id=wop.work_order_id
+             WHERE so.group_id=$1 AND wop.work_order_id IS NOT NULL
+             UNION ALL
+             SELECT wop.id, wop.milestone_name, wop.amount, wop.due_date, wop.payment_method,
+                    wop.status, wop.received_amount, wop.received_at, wop.created_at,
+                    wop.work_order_id, wop.service_call_id,
+                    sc.customer_name, sc.customer_phone,
+                    (SELECT COALESCE(SUM(amount),0) FROM work_order_payments WHERE service_call_id=wop.service_call_id) as wo_total,
+                    sc.title as wo_title, ('SC-' || sc.id::text) as wo_number,
+                    (SELECT COALESCE(SUM(received_amount),0) FROM work_order_payments WHERE service_call_id=wop.service_call_id AND status='received') as total_received,
+                    (SELECT COUNT(*) FROM work_order_payments WHERE service_call_id=wop.service_call_id) as total_milestones,
+                    (SELECT COUNT(*) FROM work_order_payments WHERE service_call_id=wop.service_call_id AND status='received') as received_milestones
+             FROM work_order_payments wop
+             JOIN service_calls sc ON sc.id=wop.service_call_id
+             WHERE sc.business_group_id=$1 AND wop.service_call_id IS NOT NULL
+             ORDER BY due_date ASC NULLS LAST, created_at DESC`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, items: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// התראות גביה לדשבורד — תחנות שמועד פירעונן הגיע ועדיין ממתינות (פקודות עבודה + קריאות שירות)
+app.get('/api/work-orders/collection-alerts/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT wop.id, wop.milestone_name, wop.amount, wop.due_date, wop.work_order_id, wop.service_call_id,
+                    so.customer_name, so.quote_title as wo_title, so.quote_number as wo_number
+             FROM work_order_payments wop
+             JOIN store_orders so ON so.id=wop.work_order_id
+             WHERE so.group_id=$1 AND wop.work_order_id IS NOT NULL AND wop.status='pending'
+               AND wop.due_date IS NOT NULL AND wop.due_date <= CURRENT_DATE
+             UNION ALL
+             SELECT wop.id, wop.milestone_name, wop.amount, wop.due_date, wop.work_order_id, wop.service_call_id,
+                    sc.customer_name, sc.title as wo_title, ('SC-' || sc.id::text) as wo_number
+             FROM work_order_payments wop
+             JOIN service_calls sc ON sc.id=wop.service_call_id
+             WHERE sc.business_group_id=$1 AND wop.service_call_id IS NOT NULL AND wop.status='pending'
+               AND wop.due_date IS NOT NULL AND wop.due_date <= CURRENT_DATE
+             ORDER BY due_date ASC`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, alerts: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// סיכום פיננסי לקוח — סה"כ עסקאות, הכנסות, חבות פתוחה + תחנות ממתינות
+app.get('/api/clients/financial-summary/:groupId', async (req, res) => {
+    const { groupId } = req.params;
+    const { name, phone } = req.query;
+    if (!name && !phone) return res.json({ success: true, totalInvoiced: 0, totalPaid: 0, totalPending: 0, storeTotal: 0, pendingPayments: [] });
+    try {
+        const nameLike = name ? `%${name}%` : null;
+        const phoneParam = phone || null;
+
+        // תחנות תשלום — פקודות עבודה
+        const woQ = await pool.query(
+            `SELECT wop.id, wop.milestone_name, wop.amount::numeric,
+                    COALESCE(wop.received_amount,0)::numeric AS received_amount,
+                    wop.status, wop.due_date, wop.payment_method,
+                    so.id AS source_id,
+                    COALESCE(so.quote_title, CONCAT('פקודת עבודה #', so.quote_number), 'פקודת עבודה') AS source_title,
+                    so.quote_number AS source_number,
+                    'work_order' AS source_type
+             FROM work_order_payments wop
+             JOIN store_orders so ON wop.work_order_id = so.id
+             WHERE so.group_id=$1 AND so.call_type='work_order'
+               AND (($2::text IS NOT NULL AND LOWER(so.customer_name) LIKE LOWER($2))
+                    OR ($3::text IS NOT NULL AND so.customer_phone=$3))`,
+            [groupId, nameLike, phoneParam]
+        );
+
+        // תחנות תשלום — קריאות שירות
+        const scQ = await pool.query(
+            `SELECT wop.id, wop.milestone_name, wop.amount::numeric,
+                    COALESCE(wop.received_amount,0)::numeric AS received_amount,
+                    wop.status, wop.due_date, wop.payment_method,
+                    sc.id AS source_id,
+                    COALESCE(sc.title, CONCAT('קריאת שירות #', sc.id::text)) AS source_title,
+                    CONCAT('SC-', sc.id::text) AS source_number,
+                    'service_call' AS source_type
+             FROM work_order_payments wop
+             JOIN service_calls sc ON wop.service_call_id = sc.id
+             WHERE sc.business_group_id=$1
+               AND ($2::text IS NOT NULL AND LOWER(sc.customer_name) LIKE LOWER($2))`,
+            [groupId, nameLike]
+        );
+
+        // הזמנות חנות ישירות (לא פקודות עבודה / הצעות מחיר)
+        const storeQ = await pool.query(
+            `SELECT COALESCE(SUM(total_amount),0)::numeric AS store_total, COUNT(*)::int AS order_count
+             FROM store_orders
+             WHERE group_id=$1
+               AND status NOT IN ('work_order','quote','cancelled','draft')
+               AND (($2::text IS NOT NULL AND LOWER(customer_name) LIKE LOWER($2))
+                    OR ($3::text IS NOT NULL AND customer_phone=$3))`,
+            [groupId, nameLike, phoneParam]
+        );
+
+        const allPayments = [...woQ.rows, ...scQ.rows];
+        let totalInvoiced = 0, totalPaid = 0;
+        const pendingPayments = [];
+        for (const p of allPayments) {
+            totalInvoiced += parseFloat(p.amount);
+            totalPaid += parseFloat(p.received_amount);
+            if (p.status === 'pending') pendingPayments.push(p);
+        }
+        const storeTotal = parseFloat(storeQ.rows[0]?.store_total || 0);
+        const storeCount = storeQ.rows[0]?.order_count || 0;
+
+        // פקודות עבודה מסכם (אחת לכל פקודה — כולל כאלה ללא תחנות תשלום)
+        const woSummaryQ = await pool.query(
+            `SELECT so.id,
+                    COALESCE(so.quote_title, CONCAT('פקודת עבודה #', so.quote_number), CONCAT('פקודת עבודה #', so.id)) AS title,
+                    so.quote_number,
+                    COALESCE(SUM(wop.amount), so.total_amount, 0)::numeric AS total_invoiced,
+                    COALESCE(SUM(wop.received_amount), 0)::numeric AS total_paid,
+                    so.total_amount::numeric AS order_total
+             FROM store_orders so
+             LEFT JOIN work_order_payments wop ON wop.work_order_id = so.id
+             WHERE so.group_id=$1 AND so.call_type='work_order'
+               AND (($2::text IS NOT NULL AND LOWER(so.customer_name) LIKE LOWER($2))
+                    OR ($3::text IS NOT NULL AND so.customer_phone=$3))
+             GROUP BY so.id, so.quote_title, so.quote_number, so.total_amount`,
+            [groupId, nameLike, phoneParam]
+        );
+
+        res.json({
+            success: true,
+            totalInvoiced: totalInvoiced + storeTotal,
+            totalPaid: totalPaid + storeTotal,
+            totalPending: Math.max(0, totalInvoiced - totalPaid),
+            storeTotal, storeOrderCount: storeCount,
+            pendingPayments,
+            payments: allPayments,
+            workOrders: woSummaryQ.rows
+        });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// ===== END WORK ORDER PAYMENTS API =====
+
+// ===== SPORT / FITNESS API =====
+
+// Dashboard stats
+app.get('/api/sport/dashboard/:groupId', async (req, res) => {
+    try {
+        const gid = req.params.groupId;
+        const today = new Date().toISOString().split('T')[0];
+        const [activeRes, expiringRes, checkinsTodayRes, currentlyInRes, atRiskRes] = await Promise.all([
+            pool.query(`SELECT COUNT(*) FROM sport_memberships WHERE group_id=$1 AND status='active'`, [gid]),
+            pool.query(`SELECT COUNT(*) FROM sport_memberships WHERE group_id=$1 AND status='active' AND end_date IS NOT NULL AND end_date BETWEEN CURRENT_DATE AND CURRENT_DATE+30`, [gid]),
+            pool.query(`SELECT COUNT(*) FROM sport_checkins WHERE group_id=$1 AND DATE(checked_in_at)=$2`, [gid, today]),
+            pool.query(`SELECT COUNT(*) FROM sport_checkins WHERE group_id=$1 AND DATE(checked_in_at)=$2 AND checked_out_at IS NULL`, [gid, today]),
+            pool.query(`SELECT COUNT(*) FROM sport_memberships WHERE group_id=$1 AND status='active' AND id NOT IN (SELECT DISTINCT membership_id FROM sport_checkins WHERE group_id=$1 AND checked_in_at >= CURRENT_DATE - 30 AND membership_id IS NOT NULL)`, [gid])
+        ]);
+        const revenueRes = await pool.query(
+            `SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE group_id=$1 AND type='income' AND date >= DATE_TRUNC('month',CURRENT_DATE)`,
+            [gid]
+        );
+        res.json({ success: true, stats: {
+            active_members: parseInt(activeRes.rows[0].count),
+            expiring_soon: parseInt(expiringRes.rows[0].count),
+            checkins_today: parseInt(checkinsTodayRes.rows[0].count),
+            currently_in: parseInt(currentlyInRes.rows[0].count),
+            at_risk: parseInt(atRiskRes.rows[0].count),
+            revenue_month: parseFloat(revenueRes.rows[0].total) || 0
+        }});
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Membership types
+app.get('/api/sport/membership-types/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM sport_membership_types WHERE group_id=$1 ORDER BY price ASC', [req.params.groupId]);
+        res.json({ success: true, types: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/membership-types', async (req, res) => {
+    try {
+        const { groupId, name, type, price, durationDays, sessions, color } = req.body;
+        const r = await pool.query(
+            `INSERT INTO sport_membership_types (group_id,name,type,price,duration_days,sessions,color,is_active,is_public) VALUES ($1,$2,$3,$4,$5,$6,$7,true,true) RETURNING *`,
+            [groupId, name, type||'monthly', parseFloat(price)||0, durationDays||null, sessions||null, color||'indigo']
+        );
+        res.json({ success: true, type: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sport/membership-types/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sport_membership_types WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sport/membership-types/:id', async (req, res) => {
+    try {
+        const { name, type, price, sessions } = req.body;
+        const durationMap = { monthly:30, yearly:365, punch_card:null, day_pass:1, pt_sessions:null };
+        await pool.query(
+            `UPDATE sport_membership_types SET name=$1, type=$2, price=$3, duration_days=$4, sessions=$5, updated_at=NOW() WHERE id=$6`,
+            [name, type, parseFloat(price)||0, durationMap[type]||null, parseInt(sessions)||null, req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Sport store settings (trial, cancellation policy, freeze policy, waiver)
+app.post('/api/sport/store-settings', async (req, res) => {
+    try {
+        const { groupId, sportSettings } = req.body;
+        if (!groupId) return res.status(400).json({ error: 'Missing groupId' });
+        await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS sport_settings JSONB`);
+        await pool.query(
+            `INSERT INTO store_settings (group_id, sport_settings)
+             VALUES ($1, $2)
+             ON CONFLICT (group_id) DO UPDATE SET sport_settings = EXCLUDED.sport_settings`,
+            [groupId, JSON.stringify(sportSettings || {})]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Members
+app.get('/api/sport/members/:groupId', async (req, res) => {
+    try {
+        const { search, status } = req.query;
+        let q = `SELECT sm.*, smt.name as type_name, smt.color as type_color, smt.type as type_kind
+                 FROM sport_memberships sm LEFT JOIN sport_membership_types smt ON sm.membership_type_id=smt.id
+                 WHERE sm.group_id=$1`;
+        const params = [req.params.groupId];
+        if (status && status !== 'all') { q += ` AND sm.status=$${params.length+1}`; params.push(status); }
+        if (search) { q += ` AND (sm.member_name ILIKE $${params.length+1} OR sm.member_phone ILIKE $${params.length+1})`; params.push(`%${search}%`); }
+        q += ' ORDER BY sm.created_at DESC';
+        const r = await pool.query(q, params);
+        // auto-expire memberships past end_date
+        const toExpire = r.rows.filter(m => m.status === 'active' && m.end_date && new Date(m.end_date) < new Date());
+        for (const m of toExpire) { await pool.query(`UPDATE sport_memberships SET status='expired' WHERE id=$1`, [m.id]); m.status = 'expired'; }
+        res.json({ success: true, members: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/members', async (req, res) => {
+    try {
+        const { groupId, name, memberName, phone, memberPhone, email, memberEmail, membershipTypeId, startDate, notes, dateOfBirth, gender, idNumber } = req.body;
+        const mName = name || memberName;
+        const mPhone = phone || memberPhone || '';
+        const mEmail = email || memberEmail || '';
+        const typeRes = await pool.query('SELECT * FROM sport_membership_types WHERE id=$1', [membershipTypeId]);
+        const mtype = typeRes.rows[0];
+        let endDate = null, sessionsTotal = null;
+        if (mtype) {
+            if (mtype.duration_days) endDate = new Date(new Date(startDate||Date.now()).getTime() + mtype.duration_days * 86400000).toISOString().split('T')[0];
+            if (mtype.sessions) sessionsTotal = mtype.sessions;
+        }
+        const r = await pool.query(
+            `INSERT INTO sport_memberships (group_id,member_name,member_phone,member_email,membership_type_id,start_date,end_date,sessions_total,notes,date_of_birth,gender,id_number) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+            [groupId, mName, mPhone, mEmail, membershipTypeId||null, startDate||new Date().toISOString().split('T')[0], endDate, sessionsTotal, notes||'', dateOfBirth||null, gender||null, idNumber||null]
+        );
+        res.json({ success: true, member: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sport/members/:id', async (req, res) => {
+    try {
+        const { name, phone, email, notes, status } = req.body;
+        const smR = await pool.query('SELECT group_id FROM sport_memberships WHERE id=$1', [req.params.id]);
+        await pool.query(`UPDATE sport_memberships SET member_name=$1,member_phone=$2,member_email=$3,notes=$4,status=COALESCE($5,status),updated_at=NOW() WHERE id=$6`,
+            [name, phone||'', email||'', notes||'', status||null, req.params.id]);
+        res.json({ success: true });
+        if (status && smR.rows.length) {
+            try {
+                const linkR = await pool.query(
+                    `SELECT mbl.member_group_id, fg.name AS biz_name FROM member_business_links mbl
+                     JOIN family_groups fg ON fg.id = mbl.business_group_id
+                     WHERE mbl.linked_member_ref_id=$1 AND mbl.status='active' AND mbl.is_active=true LIMIT 1`,
+                    [parseInt(req.params.id)]
+                );
+                if (linkR.rows.length) {
+                    const lbl = { active:'פעיל', frozen:'מוקפא', expired:'פג תוקף', cancelled:'בוטל' }[status] || status;
+                    await _sendMemberBizNotif(linkR.rows[0].member_group_id, linkR.rows[0].biz_name,
+                        `המנוי שלך ב${linkR.rows[0].biz_name} עודכן: ${lbl}`, `mbiz_sport_${req.params.id}_${status}`);
+                }
+            } catch(e) {}
+        }
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/members/:id/freeze', async (req, res) => {
+    try {
+        const { reason } = req.body;
+        await pool.query(`UPDATE sport_memberships SET status='frozen', frozen_at=CURRENT_DATE, frozen_reason=$1, updated_at=NOW() WHERE id=$2`, [reason||'', req.params.id]);
+        res.json({ success: true });
+        try {
+            const linkR = await pool.query(
+                `SELECT mbl.member_group_id, fg.name AS biz_name FROM member_business_links mbl
+                 JOIN family_groups fg ON fg.id = mbl.business_group_id
+                 WHERE mbl.linked_member_ref_id=$1 AND mbl.status='active' AND mbl.is_active=true LIMIT 1`,
+                [parseInt(req.params.id)]
+            );
+            if (linkR.rows.length) {
+                await _sendMemberBizNotif(linkR.rows[0].member_group_id, linkR.rows[0].biz_name,
+                    `המנוי שלך ב${linkR.rows[0].biz_name} הוקפא`, `mbiz_sport_${req.params.id}_frozen`);
+            }
+        } catch(e) {}
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/members/:id/unfreeze', async (req, res) => {
+    try {
+        const m = await pool.query('SELECT * FROM sport_memberships WHERE id=$1', [req.params.id]);
+        if (!m.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const mem = m.rows[0];
+        let newEndDate = mem.end_date;
+        if (mem.frozen_at && mem.end_date) {
+            const frozenDays = Math.floor((Date.now() - new Date(mem.frozen_at).getTime()) / 86400000);
+            const current = new Date(mem.end_date);
+            current.setDate(current.getDate() + frozenDays);
+            newEndDate = current.toISOString().split('T')[0];
+        }
+        await pool.query(`UPDATE sport_memberships SET status='active', frozen_at=NULL, frozen_reason=NULL, end_date=$1, updated_at=NOW() WHERE id=$2`, [newEndDate, req.params.id]);
+        res.json({ success: true });
+        try {
+            const linkR = await pool.query(
+                `SELECT mbl.member_group_id, fg.name AS biz_name FROM member_business_links mbl
+                 JOIN family_groups fg ON fg.id = mbl.business_group_id
+                 WHERE mbl.linked_member_ref_id=$1 AND mbl.status='active' AND mbl.is_active=true LIMIT 1`,
+                [parseInt(req.params.id)]
+            );
+            if (linkR.rows.length) {
+                const ts = Date.now();
+                await _sendMemberBizNotif(linkR.rows[0].member_group_id, linkR.rows[0].biz_name,
+                    `המנוי שלך ב${linkR.rows[0].biz_name} הופשר ✅`, `mbiz_sport_${req.params.id}_unfreeze_${ts}`);
+            }
+        } catch(e) {}
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Check-in
+app.post('/api/sport/checkin', async (req, res) => {
+    try {
+        const { groupId, membershipId, memberName } = req.body;
+        // validate active membership
+        const mem = await pool.query('SELECT * FROM sport_memberships WHERE id=$1', [membershipId]);
+        if (!mem.rows.length) return res.status(404).json({ error: 'חבר לא נמצא' });
+        const m = mem.rows[0];
+        if (m.status === 'expired') return res.status(400).json({ error: 'המנוי פג תוקף', status: 'expired' });
+        if (m.status === 'frozen') return res.status(400).json({ error: 'המנוי מוקפא', status: 'frozen' });
+        if (m.status === 'cancelled') return res.status(400).json({ error: 'המנוי בוטל', status: 'cancelled' });
+        if (m.sessions_total !== null && m.sessions_used >= m.sessions_total) return res.status(400).json({ error: 'כרטיסייה מנוצלת עד תום', status: 'no_sessions' });
+        await pool.query('INSERT INTO sport_checkins (group_id,membership_id,member_name) VALUES ($1,$2,$3)', [groupId, membershipId, memberName || m.member_name]);
+        if (m.sessions_total !== null) await pool.query('UPDATE sport_memberships SET sessions_used=sessions_used+1, updated_at=NOW() WHERE id=$1', [membershipId]);
+        res.json({ success: true, member: m });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sport/checkins/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT sc.*, sm.member_phone FROM sport_checkins sc LEFT JOIN sport_memberships sm ON sc.membership_id=sm.id WHERE sc.group_id=$1 AND DATE(sc.checked_in_at)=CURRENT_DATE ORDER BY sc.checked_in_at DESC`, [req.params.groupId]);
+        res.json({ success: true, checkins: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Sport Alerts ────────────────────────────────────────────────────────────
+app.get('/api/sport/alerts/:groupId', async (req, res) => {
+    const gid = req.params.groupId;
+    try {
+        const [expiring, atRisk, frozen] = await Promise.all([
+            pool.query(`SELECT id,member_name,member_phone,end_date,membership_type_id,
+                (SELECT name FROM sport_membership_types WHERE id=sm.membership_type_id) as type_name
+                FROM sport_memberships sm WHERE group_id=$1 AND status='active'
+                AND end_date IS NOT NULL AND end_date BETWEEN CURRENT_DATE AND CURRENT_DATE+14
+                ORDER BY end_date ASC`, [gid]),
+            pool.query(`SELECT id,member_name,member_phone,end_date,
+                (SELECT name FROM sport_membership_types WHERE id=sm.membership_type_id) as type_name,
+                (SELECT MAX(checked_in_at) FROM sport_checkins WHERE membership_id=sm.id) as last_checkin
+                FROM sport_memberships sm WHERE group_id=$1 AND status='active'
+                AND id NOT IN (SELECT DISTINCT membership_id FROM sport_checkins WHERE group_id=$1 AND checked_in_at >= CURRENT_DATE-30 AND membership_id IS NOT NULL)
+                ORDER BY member_name`, [gid]),
+            pool.query(`SELECT id,member_name,member_phone,frozen_at,frozen_reason,
+                (SELECT name FROM sport_membership_types WHERE id=sm.membership_type_id) as type_name
+                FROM sport_memberships sm WHERE group_id=$1 AND status='frozen' ORDER BY frozen_at DESC`, [gid])
+        ]);
+        res.json({ expiring: expiring.rows, atRisk: atRisk.rows, frozen: frozen.rows });
+    } catch(e) { res.json({ expiring:[], atRisk:[], frozen:[] }); }
+});
+
+// ─── Sport Reports ────────────────────────────────────────────────────────────
+app.get('/api/sport/reports/:groupId', async (req, res) => {
+    const gid = req.params.groupId;
+    const { period } = req.query; // month, year
+    const dateFilter = period === 'year' ? `paid_at >= date_trunc('year', CURRENT_DATE)` : `paid_at >= date_trunc('month', CURRENT_DATE)`;
+    try {
+        const [revenueByType, revenueByMonth, checkinsByDay, membersByStatus, classStats] = await Promise.all([
+            pool.query(`SELECT smt.name as type_name, COUNT(*) as count, SUM(sp.amount) as total
+                FROM sport_payments sp LEFT JOIN sport_memberships sm ON sp.membership_id=sm.id
+                LEFT JOIN sport_membership_types smt ON sm.membership_type_id=smt.id
+                WHERE sp.group_id=$1 AND ${dateFilter}
+                GROUP BY smt.name ORDER BY total DESC`, [gid]),
+            pool.query(`SELECT TO_CHAR(paid_at,'YYYY-MM') as month, SUM(amount) as total, COUNT(*) as count
+                FROM sport_payments WHERE group_id=$1 AND paid_at >= CURRENT_DATE - INTERVAL '6 months'
+                GROUP BY month ORDER BY month`, [gid]),
+            pool.query(`SELECT TO_CHAR(checked_in_at,'YYYY-MM-DD') as day, COUNT(*) as count
+                FROM sport_checkins WHERE group_id=$1 AND checked_in_at >= CURRENT_DATE - 30
+                GROUP BY day ORDER BY day`, [gid]),
+            pool.query(`SELECT status, COUNT(*) as count FROM sport_memberships WHERE group_id=$1 GROUP BY status`, [gid]),
+            pool.query(`SELECT sc2.class_name, sc2.class_date, sc2.trainer_name, COUNT(scr.id) as registered, sc2.capacity
+                FROM sport_classes sc2 LEFT JOIN sport_class_registrations scr ON sc2.id=scr.class_id
+                WHERE sc2.group_id=$1 AND sc2.class_date >= CURRENT_DATE-30
+                GROUP BY sc2.id ORDER BY sc2.class_date DESC LIMIT 20`, [gid])
+        ]);
+        res.json({
+            revenueByType: revenueByType.rows, revenueByMonth: revenueByMonth.rows,
+            checkinsByDay: checkinsByDay.rows, membersByStatus: membersByStatus.rows,
+            classStats: classStats.rows
+        });
+    } catch(e) { res.json({ revenueByType:[], revenueByMonth:[], checkinsByDay:[], membersByStatus:[], classStats:[] }); }
+});
+
+// ─── Sport Member Detail & Renewal ───────────────────────────────────────────
+app.get('/api/sport/member-detail/:id', async (req, res) => {
+    try {
+        const [mem, checkins, classes, payments] = await Promise.all([
+            pool.query(`SELECT sm.*, smt.name as type_name, smt.type as type_kind, smt.price as type_price
+                FROM sport_memberships sm LEFT JOIN sport_membership_types smt ON sm.membership_type_id=smt.id
+                WHERE sm.id=$1`, [req.params.id]),
+            pool.query(`SELECT * FROM sport_checkins WHERE membership_id=$1 ORDER BY checked_in_at DESC LIMIT 30`, [req.params.id]),
+            pool.query(`SELECT sc2.class_name, sc2.class_date, sc2.trainer_name, scr.attended
+                FROM sport_class_registrations scr JOIN sport_classes sc2 ON scr.class_id=sc2.id
+                WHERE scr.membership_id=$1 ORDER BY sc2.class_date DESC LIMIT 20`, [req.params.id]),
+            pool.query(`SELECT * FROM sport_payments WHERE membership_id=$1 ORDER BY paid_at DESC LIMIT 10`, [req.params.id])
+        ]);
+        if (!mem.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        res.json({ member: mem.rows[0], checkins: checkins.rows, classes: classes.rows, payments: payments.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/members/:id/renew', async (req, res) => {
+    const { membershipTypeId, startDate, paymentAmount, paymentMethod, notes } = req.body;
+    try {
+        const typeRes = await pool.query('SELECT * FROM sport_membership_types WHERE id=$1', [membershipTypeId]);
+        if (!typeRes.rows.length) return res.status(404).json({ error: 'סוג מנוי לא נמצא' });
+        const t = typeRes.rows[0];
+        const sd = startDate || new Date().toISOString().split('T')[0];
+        let endDate = null;
+        if (t.duration_days) { const d = new Date(sd); d.setDate(d.getDate() + t.duration_days); endDate = d.toISOString().split('T')[0]; }
+        const memRes = await pool.query(`UPDATE sport_memberships
+            SET membership_type_id=$1, start_date=$2, end_date=$3,
+            sessions_total=$4, sessions_used=0, status='active', frozen_at=NULL, frozen_reason=NULL, updated_at=NOW()
+            WHERE id=$5 RETURNING *`, [membershipTypeId, sd, endDate, t.sessions || null, req.params.id]);
+        if (!memRes.rows.length) return res.status(404).json({ error: 'חבר לא נמצא' });
+        const m = memRes.rows[0];
+        if (paymentAmount && parseFloat(paymentAmount) > 0) {
+            await pool.query(`INSERT INTO sport_payments (group_id,membership_id,member_name,amount,payment_method,notes) VALUES ($1,$2,$3,$4,$5,$6)`,
+                [m.group_id, m.id, m.member_name, paymentAmount, paymentMethod || 'cash', notes || '']);
+        }
+        res.json({ success: true, member: m });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Sport Payments ───────────────────────────────────────────────────────────
+app.post('/api/sport/payments', async (req, res) => {
+    const { groupId, membershipId, memberName, amount, paymentMethod, notes } = req.body;
+    try {
+        const r = await pool.query(`INSERT INTO sport_payments (group_id,membership_id,member_name,amount,payment_method,notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [groupId, membershipId, memberName, amount, paymentMethod || 'cash', notes || '']);
+        res.json({ success: true, payment: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Sport Class Types ────────────────────────────────────────────────────────
+app.get('/api/sport/class-types/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM sport_class_types WHERE group_id=$1 AND is_active=true ORDER BY name', [req.params.groupId]);
+        res.json({ types: r.rows });
+    } catch(e) { res.json({ types: [] }); }
+});
+
+app.post('/api/sport/class-types', async (req, res) => {
+    const { groupId, name, color, defaultDurationMin, allowedMembershipTypeIds, bookingOpenDays, bookingCloseHours, maxPerSession } = req.body;
+    try {
+        const r = await pool.query(
+            `INSERT INTO sport_class_types (group_id,name,color,default_duration_min,allowed_membership_type_ids,booking_open_days,booking_close_hours,max_per_session)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [groupId, name, color || 'indigo', defaultDurationMin || 60,
+             JSON.stringify(allowedMembershipTypeIds || []),
+             bookingOpenDays || null, bookingCloseHours ?? 1, maxPerSession || null]
+        );
+        res.json({ success: true, type: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sport/class-types/:id', async (req, res) => {
+    const { name, color, defaultDurationMin, allowedMembershipTypeIds, bookingOpenDays, bookingCloseHours, maxPerSession } = req.body;
+    try {
+        const r = await pool.query(
+            `UPDATE sport_class_types SET name=$1,color=$2,default_duration_min=$3,
+             allowed_membership_type_ids=$4,booking_open_days=$5,booking_close_hours=$6,max_per_session=$7
+             WHERE id=$8 RETURNING *`,
+            [name, color || 'indigo', defaultDurationMin || 60,
+             JSON.stringify(allowedMembershipTypeIds || []),
+             bookingOpenDays || null, bookingCloseHours ?? 1, maxPerSession || null, req.params.id]
+        );
+        res.json({ success: true, type: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sport/class-types/:id', async (req, res) => {
+    try { await pool.query('UPDATE sport_class_types SET is_active=false WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Sport Classes (Schedule) ─────────────────────────────────────────────────
+app.get('/api/sport/classes/:groupId', async (req, res) => {
+    const { from, to } = req.query;
+    const fromDate = from || new Date().toISOString().split('T')[0];
+    const toDate = to || (() => { const d = new Date(); d.setDate(d.getDate()+14); return d.toISOString().split('T')[0]; })();
+    try {
+        const r = await pool.query(`SELECT sc2.*, sct.name as type_name, sct.color,
+            (SELECT COUNT(*) FROM sport_class_registrations WHERE class_id=sc2.id) as registered_count
+            FROM sport_classes sc2 LEFT JOIN sport_class_types sct ON sc2.class_type_id=sct.id
+            WHERE sc2.group_id=$1 AND sc2.class_date BETWEEN $2 AND $3 ORDER BY sc2.class_date, sc2.start_time`, [req.params.groupId, fromDate, toDate]);
+        res.json({ classes: r.rows });
+    } catch(e) { res.json({ classes: [] }); }
+});
+
+app.post('/api/sport/classes', async (req, res) => {
+    const { groupId, classTypeId, className, trainerName, classDate, startTime, endTime, capacity, notes } = req.body;
+    try {
+        const r = await pool.query(`INSERT INTO sport_classes (group_id,class_type_id,class_name,trainer_name,class_date,start_time,end_time,capacity,notes)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [groupId, classTypeId || null, className, trainerName || '', classDate, startTime || null, endTime || null, capacity || 20, notes || '']);
+        res.json({ success: true, class: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sport/classes/:id', async (req, res) => {
+    const { className, trainerName, classDate, startTime, endTime, capacity, status, notes } = req.body;
+    try {
+        await pool.query(`UPDATE sport_classes SET class_name=$1,trainer_name=$2,class_date=$3,start_time=$4,end_time=$5,capacity=$6,status=$7,notes=$8 WHERE id=$9`,
+            [className, trainerName || '', classDate, startTime || null, endTime || null, capacity || 20, status || 'scheduled', notes || '', req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sport/classes/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM sport_classes WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sport/classes/:id/registrations', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT scr.*, sm.member_phone FROM sport_class_registrations scr
+            LEFT JOIN sport_memberships sm ON scr.membership_id=sm.id WHERE scr.class_id=$1 ORDER BY scr.registered_at`, [req.params.id]);
+        res.json({ registrations: r.rows });
+    } catch(e) { res.json({ registrations: [] }); }
+});
+
+app.post('/api/sport/classes/:id/register', async (req, res) => {
+    const { membershipId, memberName } = req.body;
+    try {
+        const cls = await pool.query('SELECT * FROM sport_classes WHERE id=$1', [req.params.id]);
+        if (!cls.rows.length) return res.status(404).json({ error: 'שיעור לא נמצא' });
+        const c = cls.rows[0];
+        const count = await pool.query('SELECT COUNT(*) FROM sport_class_registrations WHERE class_id=$1', [req.params.id]);
+        if (parseInt(count.rows[0].count) >= (c.capacity || 20)) return res.status(400).json({ error: 'השיעור מלא' });
+        await pool.query(`INSERT INTO sport_class_registrations (class_id,membership_id,member_name) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
+            [req.params.id, membershipId, memberName]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/classes/:id/attendance', async (req, res) => {
+    const { presentIds } = req.body; // array of membership ids that attended
+    try {
+        await pool.query('UPDATE sport_class_registrations SET attended=false WHERE class_id=$1', [req.params.id]);
+        if (presentIds?.length) {
+            await pool.query(`UPDATE sport_class_registrations SET attended=true WHERE class_id=$1 AND membership_id=ANY($2)`,
+                [req.params.id, presentIds]);
+        }
+        await pool.query(`UPDATE sport_classes SET status='completed' WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Waitlist ────────────────────────────────────────────────────────────────
+app.get('/api/sport/classes/:id/waitlist', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT w.*, sm.member_phone FROM sport_class_waitlist w
+            LEFT JOIN sport_memberships sm ON w.membership_id=sm.id
+            WHERE w.class_id=$1 ORDER BY w.position`, [req.params.id]);
+        res.json({ waitlist: r.rows });
+    } catch(e) { res.json({ waitlist: [] }); }
+});
+
+app.post('/api/sport/classes/:id/waitlist', async (req, res) => {
+    const { membershipId, memberName, groupId } = req.body;
+    try {
+        const pos = await pool.query('SELECT COALESCE(MAX(position),0)+1 as next FROM sport_class_waitlist WHERE class_id=$1', [req.params.id]);
+        await pool.query(`INSERT INTO sport_class_waitlist (class_id,group_id,membership_id,member_name,position) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,
+            [req.params.id, groupId, membershipId, memberName, pos.rows[0].next]);
+        res.json({ success: true, position: pos.rows[0].next });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sport/classes/:id/waitlist/:membershipId', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sport_class_waitlist WHERE class_id=$1 AND membership_id=$2', [req.params.id, req.params.membershipId]);
+        // reorder remaining
+        const remaining = await pool.query('SELECT id FROM sport_class_waitlist WHERE class_id=$1 ORDER BY position', [req.params.id]);
+        for (let i = 0; i < remaining.rows.length; i++) {
+            await pool.query('UPDATE sport_class_waitlist SET position=$1 WHERE id=$2', [i+1, remaining.rows[i].id]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Cancellation Policy ──────────────────────────────────────────────────────
+app.get('/api/sport/cancel-policy/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM sport_cancel_policy WHERE group_id=$1', [req.params.groupId]);
+        if (r.rows.length) return res.json({ policy: r.rows[0] });
+        res.json({ policy: { enabled: true, cancel_window_hours: 8, late_cancel_action: 'deduct_session', late_cancel_fee: 0 } });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/cancel-policy/:groupId', async (req, res) => {
+    const { enabled, cancelWindowHours, lateCancelAction, lateCancelFee } = req.body;
+    try {
+        await pool.query(`INSERT INTO sport_cancel_policy (group_id,enabled,cancel_window_hours,late_cancel_action,late_cancel_fee)
+            VALUES ($1,$2,$3,$4,$5) ON CONFLICT (group_id) DO UPDATE
+            SET enabled=$2,cancel_window_hours=$3,late_cancel_action=$4,late_cancel_fee=$5,updated_at=NOW()`,
+            [req.params.groupId, enabled, cancelWindowHours||8, lateCancelAction||'deduct_session', lateCancelFee||0]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Pending waitlist confirmations for a group
+app.get('/api/sport/waitlist-pending/:groupId', async (req, res) => {
+    try {
+        // expire timed-out pending slots and promote next
+        const expired = await pool.query(`SELECT w.* FROM sport_class_waitlist w
+            WHERE w.group_id=$1 AND w.status='pending' AND w.expires_at < NOW()`, [req.params.groupId]);
+        for (const ex of expired.rows) {
+            await pool.query('UPDATE sport_class_waitlist SET status=\'expired\' WHERE id=$1', [ex.id]);
+            // promote next waiting
+            const next = await pool.query(`SELECT * FROM sport_class_waitlist WHERE class_id=$1 AND status='waiting' ORDER BY position LIMIT 1`, [ex.class_id]);
+            if (next.rows.length) {
+                const nw = next.rows[0];
+                await pool.query(`UPDATE sport_class_waitlist SET status='pending',promoted_at=NOW(),expires_at=NOW()+INTERVAL '30 minutes' WHERE id=$1`, [nw.id]);
+            }
+        }
+        const r = await pool.query(`SELECT w.*, sc.class_name, sc.class_date, sc.start_time FROM sport_class_waitlist w
+            JOIN sport_classes sc ON w.class_id=sc.id
+            WHERE w.group_id=$1 AND w.status='pending' ORDER BY w.expires_at`, [req.params.groupId]);
+        res.json({ pending: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Confirm waitlist spot
+app.post('/api/sport/classes/:id/waitlist/:membershipId/confirm', async (req, res) => {
+    try {
+        const w = await pool.query(`SELECT * FROM sport_class_waitlist WHERE class_id=$1 AND membership_id=$2 AND status='pending'`, [req.params.id, req.params.membershipId]);
+        if (!w.rows.length) return res.status(400).json({ error: 'אין מקום פנוי לאישור או שפג תוקף' });
+        if (new Date(w.rows[0].expires_at) < new Date()) return res.status(400).json({ error: 'פג תוקף האישור (30 דקות)' });
+        await pool.query(`INSERT INTO sport_class_registrations (class_id,membership_id,member_name) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, [req.params.id, req.params.membershipId, w.rows[0].member_name]);
+        await pool.query('DELETE FROM sport_class_waitlist WHERE id=$1', [w.rows[0].id]);
+        await pool.query('UPDATE sport_class_waitlist SET position=position-1 WHERE class_id=$1 AND status=\'waiting\'', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// cancel registration with policy enforcement
+app.delete('/api/sport/classes/:id/registrations/:membershipId', async (req, res) => {
+    const { groupId, force } = req.query;
+    try {
+        let lateCancelApplied = false;
+        // Check cancellation policy
+        if (groupId && !force) {
+            const cls = await pool.query('SELECT * FROM sport_classes WHERE id=$1', [req.params.id]);
+            const policy = await pool.query('SELECT * FROM sport_cancel_policy WHERE group_id=$1', [groupId]);
+            if (cls.rows.length && policy.rows.length && policy.rows[0].enabled) {
+                const p = policy.rows[0];
+                const classDateTime = new Date(`${cls.rows[0].class_date}T${cls.rows[0].start_time || '00:00'}:00`);
+                const hoursUntilClass = (classDateTime - new Date()) / 3600000;
+                if (hoursUntilClass < p.cancel_window_hours && hoursUntilClass > 0) {
+                    // Late cancel — apply policy
+                    if (p.late_cancel_action === 'deduct_session') {
+                        await pool.query(`UPDATE sport_memberships SET sessions_used=sessions_used+1 WHERE id=$1 AND sessions_total IS NOT NULL`, [req.params.membershipId]);
+                        lateCancelApplied = true;
+                    } else if (p.late_cancel_action === 'block') {
+                        return res.status(400).json({ error: `ביטול מאוחר — פחות מ-${p.cancel_window_hours} שעות לשיעור`, lateCancellation: true, windowHours: p.cancel_window_hours });
+                    }
+                }
+            }
+        }
+        await pool.query('UPDATE sport_class_registrations SET cancelled_at=NOW(),cancel_type=$1 WHERE class_id=$2 AND membership_id=$3', [lateCancelApplied?'late':'on_time', req.params.id, req.params.membershipId]);
+        await pool.query('DELETE FROM sport_class_registrations WHERE class_id=$1 AND membership_id=$2', [req.params.id, req.params.membershipId]);
+        // promote next — set pending with 30 min timer
+        const first = await pool.query(`SELECT * FROM sport_class_waitlist WHERE class_id=$1 AND status='waiting' ORDER BY position LIMIT 1`, [req.params.id]);
+        let promoted = null;
+        if (first.rows.length) {
+            const w = first.rows[0];
+            await pool.query(`UPDATE sport_class_waitlist SET status='pending',promoted_at=NOW(),expires_at=NOW()+INTERVAL '30 minutes' WHERE id=$1`, [w.id]);
+            promoted = { memberName: w.member_name, membershipId: w.membership_id };
+        }
+        res.json({ success: true, lateCancelApplied, promoted });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Recurring Classes ────────────────────────────────────────────────────────
+// Creates multiple class instances from a weekly template
+app.post('/api/sport/classes/recurring', async (req, res) => {
+    const { groupId, classTypeId, className, trainerName, startTime, endTime, capacity, notes, weekDays, fromDate, toDate } = req.body;
+    // weekDays: array of 0-6 (0=Sun)
+    if (!weekDays?.length || !fromDate || !toDate) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const created = [];
+        const from = new Date(fromDate);
+        const to = new Date(toDate);
+        const cur = new Date(from);
+        while (cur <= to) {
+            if (weekDays.includes(cur.getDay())) {
+                const dateStr = cur.toISOString().split('T')[0];
+                const r = await pool.query(`INSERT INTO sport_classes (group_id,class_type_id,class_name,trainer_name,class_date,start_time,end_time,capacity,notes)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+                    [groupId, classTypeId||null, className, trainerName||'', dateStr, startTime||null, endTime||null, capacity||20, notes||'']);
+                created.push(r.rows[0].id);
+            }
+            cur.setDate(cur.getDate()+1);
+        }
+        res.json({ success: true, count: created.length, classIds: created });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Sport Public API (External Customers via Storefront) ────────────────────
+
+// Public membership types
+app.get('/api/sport/public-types/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT id,name,type,price,duration_days,sessions,color,is_active
+            FROM sport_membership_types WHERE group_id=$1
+            AND COALESCE(is_active,true)=true AND COALESCE(is_public,true)=true ORDER BY price ASC`, [req.params.groupId]);
+        res.json({ types: r.rows });
+    } catch(e) { res.json({ types: [] }); }
+});
+
+// Public class schedule
+app.get('/api/sport/public-schedule/:groupId', async (req, res) => {
+    const { from, to } = req.query;
+    const fromDate = from || new Date().toISOString().split('T')[0];
+    const toDate = to || (() => { const d = new Date(); d.setDate(d.getDate()+14); return d.toISOString().split('T')[0]; })();
+    try {
+        const r = await pool.query(`SELECT sc.id, sc.class_name, sc.trainer_name, sc.class_date, sc.start_time, sc.end_time,
+    sc.capacity, sc.status, sct.name as type_name, sct.color,
+    sct.allowed_membership_type_ids, sct.booking_open_days, sct.booking_close_hours, sct.max_per_session,
+    (SELECT COUNT(*) FROM sport_class_registrations WHERE class_id=sc.id AND cancelled_at IS NULL) as registered_count
+    FROM sport_classes sc LEFT JOIN sport_class_types sct ON sc.class_type_id=sct.id
+    WHERE sc.group_id=$1 AND sc.class_date BETWEEN $2 AND $3 AND sc.status != 'cancelled'
+    ORDER BY sc.class_date, sc.start_time`, [req.params.groupId, fromDate, toDate]);
+        res.json({ classes: r.rows });
+    } catch(e) { res.json({ classes: [] }); }
+});
+
+// External customer purchases membership (creates pending member)
+app.post('/api/sport/public-membership-purchase', async (req, res) => {
+    const { groupId, memberName, memberPhone, memberEmail, membershipTypeId, startDate, healthNotes, emergencyContact, emergencyPhone } = req.body;
+    if (!groupId || !memberName || !membershipTypeId) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const typeRes = await pool.query('SELECT * FROM sport_membership_types WHERE id=$1 AND group_id=$2', [membershipTypeId, groupId]);
+        if (!typeRes.rows.length) return res.status(404).json({ error: 'סוג מנוי לא נמצא' });
+        const t = typeRes.rows[0];
+        const sd = startDate || new Date().toISOString().split('T')[0];
+        let endDate = null;
+        if (t.duration_days) { const d = new Date(sd); d.setDate(d.getDate()+t.duration_days); endDate = d.toISOString().split('T')[0]; }
+        const crypto = require('crypto');
+        const qrToken = crypto.randomBytes(16).toString('hex');
+        const r = await pool.query(`INSERT INTO sport_memberships
+            (group_id,member_name,member_phone,member_email,membership_type_id,start_date,end_date,sessions_total,health_notes,emergency_contact,emergency_phone,qr_token,status)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'active') RETURNING id,member_name,qr_token`,
+            [groupId, memberName, memberPhone||'', memberEmail||'', membershipTypeId, sd, endDate, t.sessions||null, healthNotes||'', emergencyContact||'', emergencyPhone||'', qrToken]);
+        res.json({ success: true, memberId: r.rows[0].id, memberName: r.rows[0].member_name, qrToken, membershipType: t.name, endDate, price: t.price });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// External class registration (requires phone for identity)
+app.post('/api/sport/public-class-register', async (req, res) => {
+    const { groupId, classId, memberPhone, memberName } = req.body;
+    if (!groupId || !classId || !memberPhone) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const cls = await pool.query(`SELECT sc.*, sct.allowed_membership_type_ids, sct.booking_open_days, sct.booking_close_hours, sct.max_per_session
+            FROM sport_classes sc LEFT JOIN sport_class_types sct ON sc.class_type_id=sct.id
+            WHERE sc.id=$1 AND sc.group_id=$2`, [classId, groupId]);
+        if (!cls.rows.length) return res.status(404).json({ error: 'שיעור לא נמצא' });
+        const c = cls.rows[0];
+
+        // Booking window validation
+        const classDateTime = new Date(`${c.class_date.toISOString().split('T')[0]}T${c.start_time || '00:00'}:00`);
+        const now = new Date();
+
+        // Too early check
+        if (c.booking_open_days != null) {
+            const openDate = new Date(classDateTime);
+            openDate.setDate(openDate.getDate() - c.booking_open_days);
+            if (now < openDate) {
+                return res.json({ success: false, error: `ההרשמה תיפתח ב-${openDate.toLocaleDateString('he-IL')}` });
+            }
+        }
+
+        // Too late check
+        const closeHours = c.booking_close_hours ?? 1;
+        const closeTime = new Date(classDateTime.getTime() - closeHours * 60 * 60 * 1000);
+        if (now > closeTime) {
+            return res.json({ success: false, error: 'ההרשמה לשיעור זה נסגרה' });
+        }
+
+        // Membership check
+        const allowedIds = c.allowed_membership_type_ids;
+        if (Array.isArray(allowedIds) && allowedIds.length > 0 && memberPhone) {
+            const memRes = await pool.query(
+                `SELECT sm.membership_type_id FROM sport_memberships sm
+                 WHERE sm.group_id=$1 AND sm.member_phone=$2 AND sm.status='active'
+                 AND sm.membership_type_id = ANY($3::int[]) LIMIT 1`,
+                [groupId, memberPhone, allowedIds]
+            );
+            if (!memRes.rows.length) {
+                return res.json({ success: false, error: 'שיעור זה מצריך סוג מנוי ספציפי', requiresMembership: true, allowedTypeIds: allowedIds });
+            }
+        }
+
+        // Find member by phone
+        const mem = await pool.query(`SELECT * FROM sport_memberships WHERE group_id=$1 AND member_phone=$2 AND status='active' LIMIT 1`, [groupId, memberPhone]);
+        const count = await pool.query('SELECT COUNT(*) FROM sport_class_registrations WHERE class_id=$1', [classId]);
+        const registered = parseInt(count.rows[0].count);
+        if (mem.rows.length) {
+            const m = mem.rows[0];
+            if (registered < (c.capacity||20)) {
+                await pool.query(`INSERT INTO sport_class_registrations (class_id,membership_id,member_name) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, [classId, m.id, m.member_name]);
+                res.json({ success: true, status: 'registered', memberName: m.member_name });
+            } else {
+                const pos = await pool.query('SELECT COALESCE(MAX(position),0)+1 as next FROM sport_class_waitlist WHERE class_id=$1', [classId]);
+                await pool.query(`INSERT INTO sport_class_waitlist (class_id,group_id,membership_id,member_name,position) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`, [classId, groupId, m.id, m.member_name, pos.rows[0].next]);
+                res.json({ success: true, status: 'waitlisted', position: pos.rows[0].next, memberName: m.member_name });
+            }
+        } else {
+            // No active membership — capture as lead + allow drop-in if space
+            try {
+                const existingLead = await pool.query('SELECT id FROM sport_leads WHERE group_id=$1 AND member_phone=$2 LIMIT 1', [groupId, memberPhone]);
+                if (!existingLead.rows.length) {
+                    await pool.query(`INSERT INTO sport_leads (group_id,member_name,member_phone,source,notes) VALUES ($1,$2,$3,'drop-in',$4)`,
+                        [groupId, memberName||memberPhone, memberPhone, `שיעור #${classId}`]);
+                }
+            } catch(e2) {}
+            if (registered < (c.capacity||20)) {
+                await pool.query(`INSERT INTO sport_class_registrations (class_id,membership_id,member_name) VALUES ($1,NULL,$2) ON CONFLICT DO NOTHING`, [classId, memberName||memberPhone]);
+                res.json({ success: true, status: 'registered', memberName: memberName||memberPhone, warning: 'no_active_membership' });
+            } else {
+                res.json({ success: false, status: 'full', error: 'השיעור מלא ואין לך מנוי פעיל' });
+            }
+        }
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Public cancel class registration
+app.delete('/api/sport/public-class-register', async (req, res) => {
+    const { classId, memberPhone, groupId } = req.body;
+    if (!classId || !memberPhone) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const mem = await pool.query(`SELECT * FROM sport_memberships WHERE group_id=$1 AND member_phone=$2 LIMIT 1`, [groupId, memberPhone]);
+        if (!mem.rows.length) return res.status(404).json({ error: 'לא נמצא מנוי לטלפון זה' });
+        const m = mem.rows[0];
+        let lateCancelApplied = false;
+        // Check cancellation policy
+        const policy = await pool.query('SELECT * FROM sport_cancel_policy WHERE group_id=$1', [groupId]);
+        if (policy.rows.length && policy.rows[0].enabled) {
+            const p = policy.rows[0];
+            const cls = await pool.query('SELECT * FROM sport_classes WHERE id=$1', [classId]);
+            if (cls.rows.length) {
+                const classDateTime = new Date(`${cls.rows[0].class_date}T${cls.rows[0].start_time || '00:00'}:00`);
+                const hoursUntilClass = (classDateTime - new Date()) / 3600000;
+                if (hoursUntilClass < p.cancel_window_hours && hoursUntilClass > 0) {
+                    if (p.late_cancel_action === 'block') {
+                        return res.status(400).json({ error: `ביטול מאוחר — פחות מ-${p.cancel_window_hours} שעות לשיעור` });
+                    } else if (p.late_cancel_action === 'deduct_session') {
+                        await pool.query(`UPDATE sport_memberships SET sessions_used=sessions_used+1 WHERE id=$1 AND sessions_total IS NOT NULL`, [m.id]);
+                        lateCancelApplied = true;
+                    }
+                }
+            }
+        }
+        await pool.query('DELETE FROM sport_class_registrations WHERE class_id=$1 AND membership_id=$2', [classId, m.id]);
+        // promote next from waitlist
+        const first = await pool.query(`SELECT * FROM sport_class_waitlist WHERE class_id=$1 AND status='waiting' ORDER BY position LIMIT 1`, [classId]);
+        if (first.rows.length) {
+            await pool.query(`UPDATE sport_class_waitlist SET status='pending',promoted_at=NOW(),expires_at=NOW()+INTERVAL '30 minutes' WHERE id=$1`, [first.rows[0].id]);
+        }
+        res.json({ success: true, lateCancelApplied });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Health Declaration / Waiver ─────────────────────────────────────────────
+
+// Get waiver template for group
+app.get('/api/sport/waiver-template/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM sport_waiver_templates WHERE group_id=$1 AND is_active=true ORDER BY created_at DESC LIMIT 1', [req.params.groupId]);
+        res.json({ template: r.rows[0] || null });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Create/update waiver template
+app.post('/api/sport/waiver-template/:groupId', async (req, res) => {
+    const { title, content, requireForRegistration, validityMonths, requireGuardianForMinors, minorAgeThreshold } = req.body;
+    if (!title || !content) return res.status(400).json({ error: 'כותרת ותוכן חובה' });
+    try {
+        // deactivate previous
+        await pool.query('UPDATE sport_waiver_templates SET is_active=false WHERE group_id=$1', [req.params.groupId]);
+        const r = await pool.query(`INSERT INTO sport_waiver_templates (group_id,title,content,require_for_registration,validity_months,require_guardian_for_minors,minor_age_threshold)
+            VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+            [req.params.groupId, title, content, requireForRegistration!==false, validityMonths||12, requireGuardianForMinors!==false, minorAgeThreshold||18]);
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get declarations for a group (admin view)
+app.get('/api/sport/declarations/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT d.*, sm.status as member_status FROM sport_health_declarations d
+            LEFT JOIN sport_memberships sm ON d.membership_id=sm.id
+            WHERE d.group_id=$1 ORDER BY d.signed_at DESC`, [req.params.groupId]);
+        res.json({ declarations: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get declaration status for a member
+app.get('/api/sport/declaration-status/:membershipId', async (req, res) => {
+    try {
+        const m = await pool.query('SELECT * FROM sport_memberships WHERE id=$1', [req.params.membershipId]);
+        if (!m.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const mem = m.rows[0];
+        const decl = await pool.query(`SELECT * FROM sport_health_declarations WHERE membership_id=$1 ORDER BY signed_at DESC LIMIT 1`, [req.params.membershipId]);
+        const hasSigned = decl.rows.length > 0;
+        const isValid = hasSigned && mem.waiver_valid_until && new Date(mem.waiver_valid_until) > new Date();
+        const daysUntilExpiry = mem.waiver_valid_until ? Math.ceil((new Date(mem.waiver_valid_until) - new Date()) / 86400000) : null;
+        res.json({ hasSigned, isValid, daysUntilExpiry, lastSigned: decl.rows[0] || null, member: mem });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Submit health declaration / waiver signature
+app.post('/api/sport/sign-declaration', async (req, res) => {
+    const { groupId, membershipId, memberName, memberPhone, declarationText, guardianName, guardianPhone, isMinor, ipAddress, signatureData } = req.body;
+    if (!groupId || !membershipId) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const tmpl = await pool.query('SELECT * FROM sport_waiver_templates WHERE group_id=$1 AND is_active=true LIMIT 1', [groupId]);
+        const validityMonths = tmpl.rows[0]?.validity_months || 12;
+        const validUntil = new Date();
+        validUntil.setMonth(validUntil.getMonth() + validityMonths);
+        const validUntilDate = validUntil.toISOString().split('T')[0];
+        await pool.query(`INSERT INTO sport_health_declarations (group_id,membership_id,member_name,member_phone,declaration_text,valid_until,guardian_name,guardian_phone,is_minor,ip_address,signature_data)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+            [groupId, membershipId, memberName, memberPhone, declarationText || tmpl.rows[0]?.content || '', validUntilDate, guardianName||null, guardianPhone||null, isMinor||false, ipAddress||null, signatureData||null]);
+        await pool.query('UPDATE sport_memberships SET waiver_signed_at=NOW(), waiver_valid_until=$1 WHERE id=$2', [validUntilDate, membershipId]);
+        res.json({ success: true, validUntil: validUntilDate });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Public sign declaration (external customer)
+app.post('/api/sport/public-sign-declaration', async (req, res) => {
+    const { groupId, memberPhone, guardianName, guardianPhone, signatureData } = req.body;
+    if (!groupId || !memberPhone) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const mem = await pool.query('SELECT * FROM sport_memberships WHERE group_id=$1 AND member_phone=$2 ORDER BY id DESC LIMIT 1', [groupId, memberPhone]);
+        if (!mem.rows.length) return res.status(404).json({ error: 'לא נמצא מנוי' });
+        const m = mem.rows[0];
+        const tmpl = await pool.query('SELECT * FROM sport_waiver_templates WHERE group_id=$1 AND is_active=true LIMIT 1', [groupId]);
+        const validityMonths = tmpl.rows[0]?.validity_months || 12;
+        const validUntil = new Date();
+        validUntil.setMonth(validUntil.getMonth() + validityMonths);
+        const validUntilDate = validUntil.toISOString().split('T')[0];
+        await pool.query(`INSERT INTO sport_health_declarations (group_id,membership_id,member_name,member_phone,declaration_text,valid_until,guardian_name,guardian_phone,signature_data)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+            [groupId, m.id, m.member_name, memberPhone, tmpl.rows[0]?.content||'', validUntilDate, guardianName||null, guardianPhone||null, signatureData||null]);
+        await pool.query('UPDATE sport_memberships SET waiver_signed_at=NOW(), waiver_valid_until=$1 WHERE id=$2', [validUntilDate, m.id]);
+        res.json({ success: true, validUntil: validUntilDate, memberName: m.member_name });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get members with expiring waivers (within 14 days or already expired)
+app.get('/api/sport/waiver-alerts/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT id, member_name, member_phone, waiver_valid_until, waiver_signed_at,
+            CEIL((waiver_valid_until::date - CURRENT_DATE)) as days_until_expiry
+            FROM sport_memberships
+            WHERE group_id=$1 AND status='active'
+            AND (waiver_valid_until IS NULL OR waiver_valid_until < CURRENT_DATE + INTERVAL '14 days')
+            ORDER BY waiver_valid_until NULLS FIRST`, [req.params.groupId]);
+        res.json({ members: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── ONEFLOW LIFE Integration ────────────────────────────────────────────────
+
+// Identify internal ONEFLOW LIFE user by phone (for storefront 1-click)
+app.get('/api/sport/oneflow-identify', async (req, res) => {
+    const { phone, groupId } = req.query;
+    if (!phone) return res.status(400).json({ error: 'טלפון חובה' });
+    try {
+        // Find user in ONEFLOW system
+        const uRes = await pool.query(
+            `SELECT u.id, u.nickname, u.group_id, fg.name as family_name
+             FROM users u JOIN family_groups fg ON u.group_id=fg.id
+             WHERE u.phone=$1 OR u.nickname=$1 LIMIT 1`, [phone]);
+        if (!uRes.rows.length) return res.json({ found: false });
+
+        const user = uRes.rows[0];
+        // Check if they already have a sport membership at this business
+        const memRes = await pool.query(
+            `SELECT sm.*, smt.name as type_name FROM sport_memberships sm
+             LEFT JOIN sport_membership_types smt ON sm.membership_type_id=smt.id
+             WHERE sm.group_id=$1 AND sm.member_phone=$2 AND sm.status IN ('active','frozen')
+             ORDER BY sm.created_at DESC LIMIT 1`, [groupId, phone]);
+
+        // Get upcoming registrations
+        const regsRes = await pool.query(
+            `SELECT scr.*, sc.class_name, sc.class_date, sc.start_time FROM sport_class_registrations scr
+             JOIN sport_classes sc ON scr.class_id=sc.id
+             JOIN sport_memberships sm ON scr.membership_id=sm.id
+             WHERE sm.group_id=$1 AND sm.member_phone=$2 AND sc.class_date >= CURRENT_DATE
+             ORDER BY sc.class_date LIMIT 5`, [groupId, phone]);
+
+        res.json({
+            found: true,
+            userId: user.id,
+            familyGroupId: user.group_id,
+            name: user.nickname,
+            familyName: user.family_name,
+            membership: memRes.rows[0] || null,
+            upcomingClasses: regsRes.rows
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Sync sport class registration to ONEFLOW calendar
+app.post('/api/sport/oneflow-sync-calendar', async (req, res) => {
+    const { userId, familyGroupId, classId, memberPhone } = req.body;
+    if (!familyGroupId || !classId) return res.status(400).json({ error: 'חסרים שדות' });
+    try {
+        const cls = await pool.query('SELECT * FROM sport_classes WHERE id=$1', [classId]);
+        if (!cls.rows.length) return res.status(404).json({ error: 'שיעור לא נמצא' });
+        const c = cls.rows[0];
+        const title = `🏋️ ${c.class_name || 'שיעור'}${c.trainer_name ? ' — ' + c.trainer_name : ''}`;
+        // Add to ONEFLOW calendar_events for the family group
+        await pool.query(
+            `INSERT INTO calendar_events (group_id, title, customer_phone, notes, event_date, start_time, status)
+             VALUES ($1,$2,$3,$4,$5,$6,'confirmed')`,
+            [familyGroupId, title, memberPhone || '', `נרשמת לשיעור: ${c.class_name}`, c.class_date, c.start_time]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// RFQ — Personal Training Plan inquiry (creates a quote/RFQ in the existing quote system)
+app.post('/api/sport/oneflow-rfq', async (req, res) => {
+    const { groupId, familyGroupId, customerName, customerPhone, fitnessGoal, currentFitness, healthNotes, availableDays, budget } = req.body;
+    if (!groupId || !customerPhone) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const rfqText = [
+            `🎯 מטרת כושר: ${fitnessGoal || 'לא צוין'}`,
+            `💪 רמה נוכחית: ${currentFitness || 'לא צוין'}`,
+            `📅 ימים זמינים: ${availableDays || 'לא צוין'}`,
+            `💰 תקציב: ${budget ? '₪' + budget : 'לא צוין'}`,
+            `🏥 הערות בריאות: ${healthNotes || 'אין'}`
+        ].join('\n');
+
+        const r = await pool.query(
+            `INSERT INTO store_orders (group_id, family_group_id, customer_name, customer_phone, status, quote_status, notes, total_amount, items, created_at)
+             VALUES ($1, $2, $3, $4, 'quote', 'waiting_business', $5, 0, $6, NOW()) RETURNING id`,
+            [groupId, familyGroupId || null, customerName || customerPhone, customerPhone,
+             rfqText, JSON.stringify([{ name: 'תוכנית ליווי אישית', qty: 1, price: 0, is_quote_metadata: true }])]);
+        const rfqId = r.rows[0].id;
+        const rfqNumber = `RFQ-${String(rfqId).padStart(6, '0')}`;
+        await pool.query('UPDATE store_orders SET quote_number=$1 WHERE id=$2', [rfqNumber, rfqId]);
+        res.json({ success: true, rfqId, rfqNumber });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get ONEFLOW user's sport activity summary (for internal app)
+app.get('/api/sport/oneflow-member-summary', async (req, res) => {
+    const { phone, groupId } = req.query;
+    if (!phone || !groupId) return res.status(400).json({ error: 'חסרים שדות' });
+    try {
+        const mem = await pool.query(
+            `SELECT sm.*, smt.name as type_name FROM sport_memberships sm
+             LEFT JOIN sport_membership_types smt ON sm.membership_type_id=smt.id
+             WHERE sm.group_id=$1 AND sm.member_phone=$2 ORDER BY sm.created_at DESC LIMIT 1`, [groupId, phone]);
+        const upcoming = await pool.query(
+            `SELECT sc.class_name, sc.class_date, sc.start_time, sc.trainer_name FROM sport_class_registrations scr
+             JOIN sport_classes sc ON scr.class_id=sc.id
+             JOIN sport_memberships sm ON scr.membership_id=sm.id
+             WHERE sm.group_id=$1 AND sm.member_phone=$2 AND sc.class_date >= CURRENT_DATE ORDER BY sc.class_date LIMIT 3`, [groupId, phone]);
+        res.json({ membership: mem.rows[0] || null, upcomingClasses: upcoming.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Leads / CRM ─────────────────────────────────────────────────────────────
+app.get('/api/sport/leads/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM sport_leads WHERE group_id=$1 ORDER BY created_at DESC', [req.params.groupId]);
+        res.json({ leads: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/leads', async (req, res) => {
+    const { groupId, memberName, memberPhone, memberEmail, source, notes } = req.body;
+    if (!groupId) return res.status(400).json({ error: 'groupId חובה' });
+    try {
+        const r = await pool.query(`INSERT INTO sport_leads (group_id,member_name,member_phone,member_email,source,notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+            [groupId, memberName||null, memberPhone||null, memberEmail||null, source||'drop-in', notes||null]);
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sport/leads/:id', async (req, res) => {
+    const { status, notes } = req.body;
+    try {
+        await pool.query('UPDATE sport_leads SET status=COALESCE($1,status), notes=COALESCE($2,notes), updated_at=NOW() WHERE id=$3', [status||null, notes||null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Auto-capture drop-in visitor from storefront as lead
+app.post('/api/sport/public-dropin-capture', async (req, res) => {
+    const { groupId, memberName, memberPhone, memberEmail, classId } = req.body;
+    if (!groupId) return res.status(400).json({ error: 'groupId חובה' });
+    try {
+        // Check if already a member
+        const existing = await pool.query('SELECT id FROM sport_memberships WHERE group_id=$1 AND member_phone=$2 LIMIT 1', [groupId, memberPhone]);
+        if (existing.rows.length) return res.json({ success: true, type: 'existing_member' });
+        // Check if already a lead
+        const existingLead = await pool.query('SELECT id FROM sport_leads WHERE group_id=$1 AND member_phone=$2 LIMIT 1', [groupId, memberPhone]);
+        if (existingLead.rows.length) {
+            await pool.query('UPDATE sport_leads SET updated_at=NOW() WHERE id=$1', [existingLead.rows[0].id]);
+            return res.json({ success: true, type: 'existing_lead' });
+        }
+        const r = await pool.query(`INSERT INTO sport_leads (group_id,member_name,member_phone,member_email,source,notes) VALUES ($1,$2,$3,$4,'drop-in',$5) RETURNING id`,
+            [groupId, memberName||memberPhone, memberPhone||null, memberEmail||null, classId ? `שיעור #${classId}` : null]);
+        res.json({ success: true, type: 'new_lead', id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Trainers ─────────────────────────────────────────────────────────────────
+app.get('/api/sport/trainers/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT t.*,
+            (SELECT COUNT(*) FROM sport_trainer_sessions WHERE trainer_id=t.id) as total_sessions,
+            (SELECT COALESCE(SUM(pay_amount),0) FROM sport_trainer_sessions WHERE trainer_id=t.id AND paid_at IS NULL) as unpaid_amount
+            FROM sport_trainers t WHERE t.group_id=$1 ORDER BY t.name`, [req.params.groupId]);
+        res.json({ trainers: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/trainers', async (req, res) => {
+    const { groupId, name, phone, email, specialties, payType, hourlyRate, perClassRate, revenuePercent, bonusBaseTrainees, bonusPerTrainee, notes } = req.body;
+    if (!groupId || !name) return res.status(400).json({ error: 'שם חובה' });
+    try {
+        const r = await pool.query(`INSERT INTO sport_trainers (group_id,name,phone,email,specialties,pay_type,hourly_rate,per_class_rate,revenue_percent,bonus_base_trainees,bonus_per_trainee,notes)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+            [groupId, name, phone||null, email||null, specialties||null, payType||'per_class', hourlyRate||0, perClassRate||0, revenuePercent||0, bonusBaseTrainees||10, bonusPerTrainee||0, notes||null]);
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sport/trainers/:id', async (req, res) => {
+    const { name, phone, email, specialties, payType, hourlyRate, perClassRate, revenuePercent, bonusBaseTrainees, bonusPerTrainee, notes, isActive } = req.body;
+    try {
+        await pool.query(`UPDATE sport_trainers SET name=$1,phone=$2,email=$3,specialties=$4,pay_type=$5,hourly_rate=$6,per_class_rate=$7,revenue_percent=$8,bonus_base_trainees=$9,bonus_per_trainee=$10,notes=$11,is_active=$12 WHERE id=$13`,
+            [name, phone||null, email||null, specialties||null, payType||'per_class', hourlyRate||0, perClassRate||0, revenuePercent||0, bonusBaseTrainees||10, bonusPerTrainee||0, notes||null, isActive!==false, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sport/trainers/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM sport_trainers WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Trainer detail + sessions
+app.get('/api/sport/trainers/:id/detail', async (req, res) => {
+    try {
+        const t = await pool.query('SELECT * FROM sport_trainers WHERE id=$1', [req.params.id]);
+        if (!t.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const sessions = await pool.query(`SELECT ts.*, sc.class_name, sc.class_date FROM sport_trainer_sessions ts
+            LEFT JOIN sport_classes sc ON ts.class_id=sc.id WHERE ts.trainer_id=$1 ORDER BY ts.session_date DESC LIMIT 50`, [req.params.id]);
+        const totals = await pool.query(`SELECT COALESCE(SUM(pay_amount),0) as total_earned,
+            COALESCE(SUM(CASE WHEN paid_at IS NULL THEN pay_amount ELSE 0 END),0) as unpaid,
+            COALESCE(SUM(CASE WHEN paid_at IS NOT NULL THEN pay_amount ELSE 0 END),0) as paid,
+            COUNT(*) as session_count FROM sport_trainer_sessions WHERE trainer_id=$1`, [req.params.id]);
+        res.json({ trainer: t.rows[0], sessions: sessions.rows, totals: totals.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Calculate pay for a session based on trainer rate
+function calcTrainerPay(trainer, hoursWorked, traineesCount, classRevenue) {
+    const t = trainer;
+    let pay = 0;
+    if (t.pay_type === 'hourly') {
+        pay = (t.hourly_rate || 0) * (hoursWorked || 1);
+    } else if (t.pay_type === 'per_class') {
+        pay = t.per_class_rate || 0;
+    } else if (t.pay_type === 'revenue_percent') {
+        pay = ((classRevenue || 0) * (t.revenue_percent || 0)) / 100;
+    } else if (t.pay_type === 'bonus') {
+        pay = t.per_class_rate || 0;
+        const extra = Math.max(0, (traineesCount || 0) - (t.bonus_base_trainees || 10));
+        pay += extra * (t.bonus_per_trainee || 0);
+    }
+    return Math.round(pay * 100) / 100;
+}
+
+// Log a trainer session
+app.post('/api/sport/trainer-sessions', async (req, res) => {
+    const { groupId, trainerId, classId, sessionDate, hoursWorked, traineesCount, classRevenue, isSubstitute, originalTrainerId, notes } = req.body;
+    if (!groupId || !trainerId || !sessionDate) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const t = await pool.query('SELECT * FROM sport_trainers WHERE id=$1', [trainerId]);
+        if (!t.rows.length) return res.status(404).json({ error: 'מאמן לא נמצא' });
+        const payAmount = calcTrainerPay(t.rows[0], hoursWorked, traineesCount, classRevenue);
+        const r = await pool.query(`INSERT INTO sport_trainer_sessions (group_id,trainer_id,class_id,session_date,hours_worked,trainees_count,pay_amount,is_substitute,original_trainer_id,notes)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+            [groupId, trainerId, classId||null, sessionDate, hoursWorked||1, traineesCount||0, payAmount, isSubstitute||false, originalTrainerId||null, notes||null]);
+        res.json({ success: true, id: r.rows[0].id, payAmount });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Mark sessions as paid
+app.post('/api/sport/trainer-sessions/mark-paid', async (req, res) => {
+    const { sessionIds } = req.body;
+    if (!sessionIds?.length) return res.status(400).json({ error: 'לא נבחרו sessions' });
+    try {
+        await pool.query('UPDATE sport_trainer_sessions SET paid_at=NOW() WHERE id=ANY($1)', [sessionIds]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Trainer salary report for a month
+app.get('/api/sport/trainer-payroll/:groupId', async (req, res) => {
+    const { month } = req.query; // YYYY-MM
+    try {
+        const r = await pool.query(`SELECT t.id, t.name, t.pay_type,
+            COUNT(ts.id) as session_count,
+            COALESCE(SUM(ts.trainees_count),0) as total_trainees,
+            COALESCE(SUM(ts.pay_amount),0) as total_pay,
+            COALESCE(SUM(CASE WHEN ts.paid_at IS NULL THEN ts.pay_amount ELSE 0 END),0) as unpaid,
+            COALESCE(SUM(CASE WHEN ts.paid_at IS NOT NULL THEN ts.pay_amount ELSE 0 END),0) as paid
+            FROM sport_trainers t
+            LEFT JOIN sport_trainer_sessions ts ON ts.trainer_id=t.id
+                ${month ? `AND TO_CHAR(ts.session_date,'YYYY-MM')=$2` : ''}
+            WHERE t.group_id=$1 AND t.is_active=true
+            GROUP BY t.id, t.name, t.pay_type ORDER BY t.name`,
+            month ? [req.params.groupId, month] : [req.params.groupId]);
+        res.json({ payroll: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Substitution request
+app.post('/api/sport/trainer-substitution', async (req, res) => {
+    const { groupId, classId, originalTrainerId, substituteTrainerId, reason, sessionDate } = req.body;
+    if (!classId || !substituteTrainerId) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        // Update class trainer
+        await pool.query('UPDATE sport_classes SET trainer_id=$1, trainer_name=(SELECT name FROM sport_trainers WHERE id=$1) WHERE id=$2', [substituteTrainerId, classId]);
+        // Log session for substitute
+        const sub = await pool.query('SELECT * FROM sport_trainers WHERE id=$1', [substituteTrainerId]);
+        if (sub.rows.length) {
+            const cls = await pool.query('SELECT * FROM sport_classes WHERE id=$1', [classId]);
+            const count = cls.rows.length ? (await pool.query('SELECT COUNT(*) FROM sport_class_registrations WHERE class_id=$1', [classId])).rows[0].count : 0;
+            const payAmount = calcTrainerPay(sub.rows[0], 1, parseInt(count), 0);
+            await pool.query(`INSERT INTO sport_trainer_sessions (group_id,trainer_id,class_id,session_date,trainees_count,pay_amount,is_substitute,original_trainer_id,notes)
+                VALUES ($1,$2,$3,$4,$5,$6,true,$7,$8)`,
+                [groupId, substituteTrainerId, classId, sessionDate||cls.rows[0]?.class_date, parseInt(count), payAmount, originalTrainerId||null, reason||'החלפה']);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// QR Check-in endpoint (public — used from member's QR code)
+app.post('/api/sport/qr-checkin', async (req, res) => {
+    const { qrToken, groupId } = req.body;
+    if (!qrToken) return res.status(400).json({ error: 'לא תקין' });
+    try {
+        const mem = await pool.query('SELECT * FROM sport_memberships WHERE qr_token=$1', [qrToken]);
+        if (!mem.rows.length) return res.status(404).json({ error: 'כרטיס לא נמצא' });
+        const m = mem.rows[0];
+        if (m.status !== 'active') return res.status(400).json({ error: `מנוי ${m.status === 'frozen' ? 'מוקפא' : 'לא פעיל'}`, memberName: m.member_name });
+        await pool.query('INSERT INTO sport_checkins (group_id,membership_id,member_name) VALUES ($1,$2,$3)', [m.group_id, m.id, m.member_name]);
+        if (m.sessions_total !== null) await pool.query('UPDATE sport_memberships SET sessions_used=sessions_used+1, updated_at=NOW() WHERE id=$1', [m.id]);
+        const remaining = m.sessions_total !== null ? m.sessions_total - (m.sessions_used + 1) : null;
+        res.json({ success: true, memberName: m.member_name, remaining, endDate: m.end_date });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Generate / get QR token for a member
+app.get('/api/sport/member-qr/:id', async (req, res) => {
+    try {
+        let mem = await pool.query('SELECT id,member_name,qr_token FROM sport_memberships WHERE id=$1', [req.params.id]);
+        if (!mem.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        let token = mem.rows[0].qr_token;
+        if (!token) {
+            const crypto = require('crypto');
+            token = crypto.randomBytes(16).toString('hex');
+            await pool.query('UPDATE sport_memberships SET qr_token=$1 WHERE id=$2', [token, req.params.id]);
+        }
+        res.json({ success: true, qrToken: token, memberName: mem.rows[0].member_name });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Update member with extended fields
+app.put('/api/sport/members/:id/extended', async (req, res) => {
+    const { emergencyContact, emergencyPhone, healthNotes, isTrial } = req.body;
+    try {
+        await pool.query(`UPDATE sport_memberships SET emergency_contact=$1, emergency_phone=$2, health_notes=$3, is_trial=$4, updated_at=NOW() WHERE id=$5`,
+            [emergencyContact||'', emergencyPhone||'', healthNotes||'', isTrial||false, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== SPORT PHASE 9 — ONEFLOW CONNECTIVITY + INBOX + AI =====
+
+// ─── Discover ONEFLOW-connected sport members ──────────────────────────────────
+app.get('/api/sport/oneflow-members/:groupId', async (req, res) => {
+    const { groupId } = req.params;
+    try {
+        const r = await pool.query(`
+            SELECT DISTINCT ON (sm.id)
+                sm.id, sm.member_name, sm.member_phone, sm.member_email,
+                sm.status, sm.end_date, smt.name as type_name,
+                u.id as oneflow_user_id, u.nickname as oneflow_nickname,
+                u.group_id as family_group_id, fg.name as family_name
+            FROM sport_memberships sm
+            LEFT JOIN sport_membership_types smt ON sm.membership_type_id = smt.id
+            JOIN users u ON (
+                u.phone = sm.member_phone
+                OR REPLACE(u.phone, '+972', '0') = sm.member_phone
+                OR (sm.member_phone LIKE '0%' AND u.phone = CONCAT('+972', SUBSTRING(sm.member_phone FROM 2)))
+            )
+            JOIN family_groups fg ON u.group_id = fg.id
+            WHERE sm.group_id = $1 AND sm.status IN ('active','frozen','expired')
+            ORDER BY sm.id, sm.status`, [groupId]);
+        res.json({ success: true, members: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Broadcast inbox message to all ONEFLOW sport members ─────────────────────
+app.post('/api/sport/oneflow-broadcast', async (req, res) => {
+    const { groupId, subject, content, senderName } = req.body;
+    if (!groupId || !content) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const r = await pool.query(`
+            SELECT DISTINCT u.group_id as family_group_id
+            FROM sport_memberships sm
+            JOIN users u ON (
+                u.phone = sm.member_phone
+                OR REPLACE(u.phone, '+972', '0') = sm.member_phone
+                OR (sm.member_phone LIKE '0%' AND u.phone = CONCAT('+972', SUBSTRING(sm.member_phone FROM 2)))
+            )
+            WHERE sm.group_id = $1 AND sm.status IN ('active','frozen')`, [groupId]);
+        const biz = await pool.query('SELECT name FROM family_groups WHERE id=$1', [groupId]);
+        const bizName = senderName || biz.rows[0]?.name || 'מועדון ספורט';
+        let count = 0;
+        for (const row of r.rows) {
+            await pool.query(
+                `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content)
+                 VALUES ($1,'business',$2,$3,$4)`,
+                [row.family_group_id, bizName, subject || 'הודעה מהמועדון', content]);
+            count++;
+        }
+        res.json({ success: true, count });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Send inbox message to a single ONEFLOW sport member ──────────────────────
+app.post('/api/sport/oneflow-member-message', async (req, res) => {
+    const { familyGroupId, subject, content, businessGroupId } = req.body;
+    if (!familyGroupId || !content) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const biz = await pool.query('SELECT name FROM family_groups WHERE id=$1', [businessGroupId]);
+        const bizName = biz.rows[0]?.name || 'מועדון ספורט';
+        await pool.query(
+            `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content)
+             VALUES ($1,'business',$2,$3,$4)`,
+            [familyGroupId, bizName, subject || 'הודעה מהמועדון', content]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Member sends message to gym (from storefront) ────────────────────────────
+app.post('/api/sport/inbox-member-message', async (req, res) => {
+    const { businessGroupId, memberName, memberPhone, subject, content } = req.body;
+    if (!businessGroupId || !content) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        await pool.query(
+            `INSERT INTO inbox_messages (group_id, sender_type, sender_name, sender_contact, subject, content)
+             VALUES ($1,'customer',$2,$3,$4,$5)`,
+            [businessGroupId, memberName || 'חבר', memberPhone || '', subject || 'הודעה מחבר', content]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── AI: Generate personalised training plan ──────────────────────────────────
+app.post('/api/ai/sport/training-plan', async (req, res) => {
+    if (!genAI) return res.status(500).json({ error: 'מפתח Gemini חסר' });
+    const { memberName, memberPhone, fitnessGoal, currentFitness, availableDays, healthNotes, membershipType, groupId } = req.body;
+    if (!groupId) return res.status(400).json({ error: 'groupId חובה' });
+    try {
+        let checkinCount = 0;
+        if (memberPhone) {
+            const cr = await pool.query(`
+                SELECT COUNT(*) as count FROM sport_checkins sc
+                JOIN sport_memberships sm ON sc.membership_id = sm.id
+                WHERE sm.group_id=$1 AND sm.member_phone=$2`, [groupId, memberPhone]);
+            checkinCount = parseInt(cr.rows[0]?.count || 0);
+        }
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const jsonSchema = '{"summary":"תקציר","weeks":[{"weekNum":1,"goal":"מטרה","days":[{"day":"ראשון","focus":"קבוצת שרירים","exercises":[{"name":"שם","sets":3,"reps":"12","notes":""}],"duration":45}]}],"nutrition":["המלצה"],"safetyNotes":["הערה"]}';
+        const prompt = `אתה מאמן כושר מקצועי. צור תוכנית אימונים שבועית מפורטת בעברית.
+פרטי המתאמן:
+שם: ${memberName || 'חבר/ה'}
+מטרה: ${fitnessGoal || 'כושר כללי'}
+רמה: ${currentFitness || 'מתחיל'}
+ימי אימון בשבוע: ${availableDays || '3'}
+סוג מנוי: ${membershipType || 'רגיל'}
+כניסות עד כה: ${checkinCount}
+הערות בריאות: ${healthNotes || 'אין'}
+
+החזר JSON בלבד ללא סימני backtick:
+${jsonSchema}`;
+        const result = await model.generateContent(prompt);
+        let rawText = result.response.text();
+        rawText = rawText.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/i,'').trim();
+        let plan;
+        try { plan = JSON.parse(rawText); }
+        catch(e2) { plan = { summary: rawText, weeks: [], nutrition: [], safetyNotes: [] }; }
+        res.json({ success: true, plan });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== END SPORT / FITNESS API =====
+
+// ===== ONEFLOWLIFE MEMBER API =====
+
+// Lookup member by phone OR ONEFLOW code (M123456)
+async function _findMemberByIdentifier(identifier) {
+    if (!identifier) return null;
+    const clean = identifier.trim();
+    // Try group_code first (format M + digits)
+    if (/^M\d+$/i.test(clean)) {
+        const r = await pool.query(
+            `SELECT fg.id AS group_id, u.id AS user_id, u.nickname, u.phone, fg.group_code
+             FROM family_groups fg
+             JOIN users u ON u.group_id = fg.id AND u.role = 'ADMIN'
+             WHERE fg.member_type = 'member' AND UPPER(fg.group_code) = $1 LIMIT 1`,
+            [clean.toUpperCase()]
+        );
+        if (r.rows.length) return r.rows[0];
+    }
+    // Fallback: phone lookup
+    const r = await pool.query(
+        `SELECT fg.id AS group_id, u.id AS user_id, u.nickname, u.phone, fg.group_code
+         FROM family_groups fg
+         JOIN users u ON u.group_id = fg.id AND u.role = 'ADMIN'
+         WHERE fg.member_type = 'member' AND u.phone = $1 LIMIT 1`,
+        [clean]
+    );
+    return r.rows[0] || null;
+}
+
+async function _sendMemberBizNotif(memberGroupId, bizName, message, refKey) {
+    try {
+        const exists = await pool.query('SELECT id FROM alert_notifications WHERE group_id=$1 AND reference_key=$2', [memberGroupId, refKey]);
+        if (!exists.rows.length) {
+            await pool.query(
+                `INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key, created_at) VALUES ($1,'business_update',$2,$3,NOW())`,
+                [memberGroupId, message, refKey]
+            );
+        }
+    } catch(e) {}
+}
+
+// Create member account and link to business
+app.post('/api/member/create-for-business', async (req, res) => {
+    const { business_group_id, name, phone, member_ref_id, admin_name } = req.body;
+    if (!business_group_id || !name || !phone) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const bizR = await client.query('SELECT name, business_type FROM family_groups WHERE id = $1', [business_group_id]);
+        if (!bizR.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'עסק לא נמצא' }); }
+        const biz = bizR.rows[0];
+
+        // Check if identifier resolves to an existing member (by code or phone)
+        const existing = await _findMemberByIdentifier(phone);
+        let memberGroupId, userId, rawPassword, isNew = false, linkStatus;
+
+        if (existing) {
+            memberGroupId = existing.group_id;
+            userId = existing.user_id;
+            rawPassword = null;
+            linkStatus = 'pending'; // existing account → needs member approval
+        } else {
+            isNew = true;
+            linkStatus = 'pending'; // new account still needs member approval on first login
+            const groupName = `${name} - ONEFLOW`;
+            const groupCode = 'M' + Date.now().toString().slice(-6);
+            const groupR = await client.query(
+                `INSERT INTO family_groups (name, group_code, type, member_type, created_at)
+                 VALUES ($1, $2, 'FAMILY', 'member', NOW()) RETURNING id`,
+                [groupName, groupCode]
+            );
+            memberGroupId = groupR.rows[0].id;
+            rawPassword = Math.random().toString(36).slice(-8);
+            const userR = await client.query(
+                `INSERT INTO users (group_id, nickname, phone, password_hash, role, status, permissions, must_change_password)
+                 VALUES ($1, $2, $3, $4, 'ADMIN', 'active', '{"tabs":["feed","members","bank","tasks"]}', true)
+                 RETURNING id`,
+                [memberGroupId, name, phone, rawPassword]
+            );
+            userId = userR.rows[0].id;
+        }
+
+        // Upsert link with appropriate status
+        await client.query(
+            `INSERT INTO member_business_links
+                 (member_group_id, business_group_id, business_type, linked_member_ref_id, linked_by_admin_name, status, is_active)
+             VALUES ($1, $2, $3, $4, $5, $6, true)
+             ON CONFLICT (member_group_id, business_group_id)
+             DO UPDATE SET is_active = true, linked_at = NOW(),
+                 status = CASE WHEN member_business_links.status = 'active' THEN 'active' ELSE $6 END`,
+            [memberGroupId, business_group_id, biz.business_type || 'other', member_ref_id || null, admin_name || null, linkStatus]
+        );
+
+        await client.query('COMMIT');
+        const gcRow = isNew ? (await pool.query('SELECT group_code FROM family_groups WHERE id=$1', [memberGroupId])).rows[0] : null;
+        res.json({
+            success: true, member_group_id: memberGroupId, user_id: userId,
+            password: rawPassword, is_new: isNew, link_status: linkStatus,
+            group_code: gcRow?.group_code || existing?.group_code || null
+        });
+    } catch(e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    } finally { client.release(); }
+});
+
+// Member approves or rejects a pending business link
+app.post('/api/member/link/:linkId/respond', async (req, res) => {
+    const { decision } = req.body; // 'approve' | 'reject'
+    const { linkId } = req.params;
+    if (!['approve','reject'].includes(decision)) return res.status(400).json({ error: 'decision must be approve or reject' });
+    try {
+        const linkRow = await pool.query(`SELECT * FROM member_business_links WHERE id=$1`, [linkId]);
+        if (!linkRow.rows.length) return res.status(404).json({ error: 'קישור לא נמצא' });
+        const link = linkRow.rows[0];
+        if (decision === 'approve') {
+            await pool.query(`UPDATE member_business_links SET status='active', is_active=true WHERE id=$1`, [linkId]);
+            // שלח התראה לעסק — הלקוח אישר שיוך
+            try {
+                const memberNameRow = await pool.query('SELECT name FROM family_groups WHERE id=$1', [link.member_group_id]);
+                const memberName = memberNameRow.rows[0]?.name || 'לקוח';
+                await pool.query(`INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
+                    VALUES ($1, 'link_approved', 'שיוך אושר ✅', $2, NULL, 'link', NOW())`,
+                    [link.business_group_id, `${memberName} אישר את בקשת השיוך — ניתן לשלוח הצעת מחיר`]);
+            } catch(ne) { console.error('link approve notification err:', ne.message); }
+        } else {
+            await pool.query(`UPDATE member_business_links SET status='rejected', is_active=false WHERE id=$1`, [linkId]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Member: request module unlock (sent to SA)
+app.post('/api/member/request-module', async (req, res) => {
+    const { groupId, moduleKey, moduleName } = req.body;
+    if (!groupId || !moduleKey) return res.status(400).json({ error: 'missing fields' });
+    try {
+        // Add to module_requests array (avoid duplicates)
+        await pool.query(
+            `UPDATE family_groups
+             SET module_requests = (
+                 SELECT jsonb_agg(DISTINCT x) FROM (
+                     SELECT jsonb_array_elements(COALESCE(module_requests,'[]'::jsonb)) AS x
+                     UNION SELECT $2::jsonb
+                 ) sub
+             )
+             WHERE id = $1`,
+            [groupId, JSON.stringify({ key: moduleKey, name: moduleName, requested_at: new Date().toISOString() })]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA: שדרוג חבר למשפחה או החזרה לחבר
+app.patch('/api/sa/groups/:id/upgrade-member', async (req, res) => {
+    const { memberType } = req.body;
+    if (!['family','member'].includes(memberType)) return res.status(400).json({ error: 'invalid' });
+    try {
+        await pool.query('UPDATE family_groups SET member_type=$1 WHERE id=$2', [memberType, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA: עדכון מודולים פתוחים לחשבון חבר (also clears matching requests)
+app.patch('/api/sa/groups/:id/modules', async (req, res) => {
+    const { modules } = req.body; // array of strings
+    if (!Array.isArray(modules)) return res.status(400).json({ error: 'modules must be array' });
+    try {
+        // Clear requests for newly unlocked modules
+        const clearSql = `
+            UPDATE family_groups
+            SET unlocked_modules = $1,
+                module_requests = COALESCE(
+                    (SELECT jsonb_agg(r) FROM jsonb_array_elements(COALESCE(module_requests,'[]'::jsonb)) r
+                     WHERE NOT ($1::jsonb @> jsonb_build_array(r->>'key'))),
+                    '[]'::jsonb
+                )
+            WHERE id = $2`;
+        await pool.query(clearSql, [JSON.stringify(modules), req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA: unlock a single module for a member group (quick unlock from SA row)
+app.patch('/api/sa/groups/:id/unlock-module', async (req, res) => {
+    const { moduleKey } = req.body;
+    if (!moduleKey) return res.status(400).json({ error: 'missing moduleKey' });
+    try {
+        await pool.query(
+            `UPDATE family_groups
+             SET unlocked_modules = CASE
+                 WHEN unlocked_modules @> $1::jsonb THEN unlocked_modules
+                 ELSE unlocked_modules || $1::jsonb
+             END,
+             module_requests = COALESCE(
+                 (SELECT jsonb_agg(r) FROM jsonb_array_elements(COALESCE(module_requests,'[]'::jsonb)) r
+                  WHERE r->>'key' != $2),
+                 '[]'::jsonb
+             )
+             WHERE id = $3`,
+            [JSON.stringify([moduleKey]), moduleKey, req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get all businesses linked to a member group (active + pending)
+app.get('/api/member/my-businesses/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT mbl.id, mbl.business_group_id, mbl.business_type, mbl.linked_at,
+                    mbl.status, mbl.linked_by_admin_name,
+                    fg.name AS business_name
+             FROM member_business_links mbl
+             JOIN family_groups fg ON fg.id = mbl.business_group_id
+             WHERE mbl.member_group_id = $1 AND mbl.is_active = true
+             ORDER BY mbl.linked_at DESC`,
+            [req.params.groupId]
+        );
+        const mgR = await pool.query('SELECT unlocked_modules FROM family_groups WHERE id=$1', [req.params.groupId]);
+        const unlocked_modules = mgR.rows[0]?.unlocked_modules || [];
+        res.json({ businesses: r.rows, unlocked_modules });
+    } catch(e) { res.json({ businesses: [], unlocked_modules: [] }); }
+});
+
+// Get member's orders/memberships at a specific business (active links only)
+app.get('/api/member/my-orders/:businessGroupId/:memberGroupId', async (req, res) => {
+    const { businessGroupId, memberGroupId } = req.params;
+    try {
+        // Only serve data for active (approved) links
+        const linkR = await pool.query(
+            'SELECT linked_member_ref_id, status FROM member_business_links WHERE member_group_id=$1 AND business_group_id=$2 AND is_active=true LIMIT 1',
+            [memberGroupId, businessGroupId]
+        );
+        if (!linkR.rows.length || linkR.rows[0].status !== 'active') {
+            return res.json({ orders: [], type: 'pending', pending: true });
+        }
+        const refId = linkR.rows[0].linked_member_ref_id;
+
+        const userR = await pool.query('SELECT phone, nickname FROM users WHERE group_id=$1 AND role=$2 LIMIT 1', [memberGroupId, 'ADMIN']);
+        if (!userR.rows.length) return res.json({ orders: [], type: 'unknown' });
+        const { phone, nickname } = userR.rows[0];
+
+        const bizR = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [businessGroupId]);
+        const bizType = bizR.rows[0]?.business_type || 'other';
+
+        let orders = [];
+        if (bizType === 'sport') {
+            const r = refId
+                ? await pool.query(
+                    `SELECT sm.id, sm.member_name, sm.status, sm.start_date, sm.end_date,
+                            sm.sessions_total, sm.sessions_used, smt.name AS type_name, smt.price
+                     FROM sport_memberships sm
+                     LEFT JOIN sport_membership_types smt ON smt.id = sm.membership_type_id
+                     WHERE sm.group_id=$1 AND (sm.id=$2 OR sm.member_phone=$3)
+                     ORDER BY sm.created_at DESC`, [businessGroupId, refId, phone])
+                : await pool.query(
+                    `SELECT sm.id, sm.member_name, sm.status, sm.start_date, sm.end_date,
+                            sm.sessions_total, sm.sessions_used, smt.name AS type_name, smt.price
+                     FROM sport_memberships sm
+                     LEFT JOIN sport_membership_types smt ON smt.id = sm.membership_type_id
+                     WHERE sm.group_id=$1 AND sm.member_phone=$2
+                     ORDER BY sm.created_at DESC`, [businessGroupId, phone]);
+            orders = r.rows.map(o => ({ ...o, category: 'מנוי' }));
+        } else if (bizType === 'maintenance_repair') {
+            const r = await pool.query(
+                `SELECT id, title, status, priority, price_quote, scheduled_at, created_at, description, rating, discount_pct
+                 FROM service_calls
+                 WHERE business_group_id=$1 AND (family_group_id=$4 OR customer_phone=$2 OR customer_name=$3)
+                 ORDER BY created_at DESC LIMIT 50`,
+                [businessGroupId, phone, nickname, memberGroupId]
+            );
+            orders = r.rows.map(o => ({ ...o, category: 'קריאת שירות' }));
+        } else if (bizType === 'restaurant') {
+            const r = await pool.query(
+                `SELECT o.id, o.customer_name, o.status, o.total_amount, o.created_at,
+                        o.items, o.is_delivery, o.delivery_details
+                 FROM store_orders o
+                 WHERE o.group_id=$1 AND (o.customer_phone=$2 OR o.customer_name=$3)
+                 ORDER BY o.created_at DESC LIMIT 50`,
+                [businessGroupId, phone, nickname]
+            );
+            orders = r.rows.map(o => ({ ...o, order_number: `#${o.id}`, category: 'הזמנה' }));
+        } else {
+            const r = await pool.query(
+                `SELECT o.id, o.customer_name, o.status, o.total_amount, o.created_at
+                 FROM store_orders o
+                 WHERE o.group_id=$1 AND (o.customer_phone=$2 OR o.customer_name=$3)
+                 ORDER BY o.created_at DESC LIMIT 50`,
+                [businessGroupId, phone, nickname]
+            );
+            orders = r.rows.map(o => ({ ...o, order_number: `#${o.id}`, category: 'הזמנה' }));
+        }
+        res.json({ orders, type: bizType, phone, name: nickname });
+    } catch(e) { res.json({ orders: [], error: e.message }); }
+});
+
+// ===== END ONEFLOWLIFE MEMBER API =====
+
+// ===== BEAUTY & COSMETICS API =====
+
+// --- Practitioners ---
+app.get('/api/beauty/:bizId/practitioners', async (req, res) => {
+    try {
+        const r = await pool.query(
+            'SELECT * FROM beauty_practitioners WHERE business_group_id=$1 AND is_active=TRUE ORDER BY display_name',
+            [req.params.bizId]
+        );
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/practitioners', async (req, res) => {
+    try {
+        const { display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail } = req.body;
+        const r = await pool.query(
+            `INSERT INTO beauty_practitioners (business_group_id, display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [req.params.bizId, display_name, tier||'standard', color_hex||'#6366f1',
+             JSON.stringify(specializations||[]), schedule_override ? JSON.stringify(schedule_override) : null,
+             commission_rate_svc||30, commission_rate_retail||10]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/beauty/:bizId/practitioners/:id', async (req, res) => {
+    try {
+        const fields = ['display_name','tier','color_hex','specializations','schedule_override','commission_rate_svc','commission_rate_retail','is_active'];
+        const sets = []; const vals = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { vals.push(typeof req.body[f] === 'object' ? JSON.stringify(req.body[f]) : req.body[f]); sets.push(`${f}=$${vals.length}`); }});
+        if (!sets.length) return res.json({ success: true });
+        vals.push(req.params.id, req.params.bizId);
+        await pool.query(`UPDATE beauty_practitioners SET ${sets.join(',')} WHERE id=$${vals.length-1} AND business_group_id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Resources ---
+app.get('/api/beauty/:bizId/resources', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM beauty_resources WHERE business_group_id=$1 AND is_active=TRUE ORDER BY name', [req.params.bizId]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/resources', async (req, res) => {
+    try {
+        const { name, resource_type, color_hex } = req.body;
+        const r = await pool.query(
+            'INSERT INTO beauty_resources (business_group_id, name, resource_type, color_hex) VALUES ($1,$2,$3,$4) RETURNING *',
+            [req.params.bizId, name, resource_type||'room', color_hex||'#94a3b8']
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/beauty/:bizId/resources/:id', async (req, res) => {
+    try {
+        const { name, resource_type, color_hex, is_active } = req.body;
+        await pool.query(
+            'UPDATE beauty_resources SET name=COALESCE($1,name), resource_type=COALESCE($2,resource_type), color_hex=COALESCE($3,color_hex), is_active=COALESCE($4,is_active) WHERE id=$5 AND business_group_id=$6',
+            [name, resource_type, color_hex, is_active, req.params.id, req.params.bizId]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Appointments ---
+app.get('/api/beauty/:bizId/appointments', async (req, res) => {
+    try {
+        const { from, to, practitioner_id, resource_id, status } = req.query;
+        let where = 'ba.business_group_id=$1';
+        const vals = [req.params.bizId];
+        if (from) { vals.push(from); where += ` AND bas.start_time >= $${vals.length}::date`; }
+        if (to)   { vals.push(to);   where += ` AND bas.start_time < $${vals.length}::date + interval '1 day'`; }
+        if (practitioner_id) { vals.push(practitioner_id); where += ` AND bas.practitioner_id=$${vals.length}`; }
+        if (resource_id) { vals.push(resource_id); where += ` AND bas.resource_id=$${vals.length}`; }
+        if (status) { vals.push(status); where += ` AND ba.status=$${vals.length}`; }
+        const r = await pool.query(
+            `SELECT ba.*, json_agg(bas ORDER BY bas.segment_order) AS segments
+             FROM beauty_appointments ba
+             JOIN beauty_appointment_segments bas ON bas.appointment_id = ba.id
+             WHERE ${where}
+             GROUP BY ba.id ORDER BY MIN(bas.start_time)`,
+            vals
+        );
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/appointments', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const { client_family_id, client_name, client_phone, client_email, client_type, booking_source,
+                deposit_amount, notes, internal_notes, rfq_id, group_booking_ref, segments } = req.body;
+
+        // Validate resource conflicts
+        for (const seg of (segments||[])) {
+            if (seg.resource_id) {
+                const conflict = await client.query(
+                    `SELECT id FROM beauty_appointment_segments
+                     WHERE resource_id=$1 AND NOT (end_time<=$2 OR start_time>=$3)`,
+                    [seg.resource_id, seg.start_time, seg.end_time]
+                );
+                if (conflict.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(409).json({ error: 'RESOURCE_CONFLICT', resource_id: seg.resource_id }); }
+            }
+            if (seg.practitioner_id && seg.segment_type === 'active') {
+                const conflict = await client.query(
+                    `SELECT id FROM beauty_appointment_segments
+                     WHERE practitioner_id=$1 AND segment_type='active' AND NOT (end_time<=$2 OR start_time>=$3)`,
+                    [seg.practitioner_id, seg.start_time, seg.end_time]
+                );
+                if (conflict.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(409).json({ error: 'PRACTITIONER_CONFLICT', practitioner_id: seg.practitioner_id }); }
+            }
+        }
+
+        // Validate patch test if needed
+        if (client_family_id) {
+            const patchBlock = req.body.requires_patch_test;
+            if (patchBlock) {
+                const cr = await client.query(
+                    `SELECT patch_test_status, patch_test_expires_at FROM beauty_client_records
+                     WHERE client_family_id=$1 AND business_group_id=$2`,
+                    [client_family_id, req.params.bizId]
+                );
+                const rec = cr.rows[0];
+                if (!rec || rec.patch_test_status !== 'passed' || (rec.patch_test_expires_at && new Date(rec.patch_test_expires_at) < new Date())) {
+                    await client.query('ROLLBACK'); client.release();
+                    return res.status(400).json({ error: 'PATCH_TEST_REQUIRED' });
+                }
+            }
+        }
+
+        const totalPrice = (segments||[]).reduce((s, seg) => s + parseFloat(seg.price||0), 0);
+        const src = booking_source || 'biz';
+
+        // אם לא הועבר client_family_id, ננסה לזהות לפי טלפון (עם נרמול ספרות בלבד)
+        let resolvedFamilyId = client_family_id || null;
+        if (!resolvedFamilyId && client_phone && src === 'biz') {
+            const digits = (client_phone || '').replace(/\D/g, '');
+            const alt = digits.startsWith('972') ? '0' + digits.substring(3) : digits.startsWith('0') ? '972' + digits.substring(1) : digits;
+            const ur = await client.query(
+                `SELECT u.group_id FROM users u JOIN family_groups fg ON fg.id = u.group_id
+                 WHERE (REGEXP_REPLACE(u.phone,'[^0-9]','','g')=$1 OR REGEXP_REPLACE(u.phone,'[^0-9]','','g')=$2)
+                   AND fg.type='FAMILY' LIMIT 1`,
+                [digits, alt]
+            ).catch(() => ({ rows: [] }));
+            if (ur.rows[0]) resolvedFamilyId = ur.rows[0].group_id;
+            // fallback: חפש client_family_id ב-beauty_client_records לפי טלפון (הלקוח אולי הזמין בעבר דרך החנות)
+            if (!resolvedFamilyId) {
+                const bcrR = await client.query(
+                    `SELECT client_family_id FROM beauty_client_records
+                     WHERE business_group_id=$1 AND client_family_id IS NOT NULL
+                       AND (REGEXP_REPLACE(client_phone,'[^0-9]','','g')=$2 OR REGEXP_REPLACE(client_phone,'[^0-9]','','g')=$3)
+                     LIMIT 1`,
+                    [req.params.bizId, digits, alt]
+                ).catch(() => ({ rows: [] }));
+                if (bcrR.rows[0]?.client_family_id) resolvedFamilyId = bcrR.rows[0].client_family_id;
+            }
+        }
+
+        // When business creates appointment for a connected client → pending client approval
+        const defaultStatus = (resolvedFamilyId && src === 'biz') ? 'pending_client' : 'confirmed';
+        const appt = await client.query(
+            `INSERT INTO beauty_appointments (business_group_id, client_family_id, client_name, client_phone, client_email,
+             client_type, booking_source, status, deposit_amount, total_price, notes, internal_notes, rfq_id, group_booking_ref)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+            [req.params.bizId, resolvedFamilyId||null, client_name||null, client_phone||null, client_email||null,
+             client_type||'external', src, defaultStatus, deposit_amount||0, totalPrice,
+             notes||null, internal_notes||null, rfq_id||null, group_booking_ref||null]
+        );
+        const apptId = appt.rows[0].id;
+
+        for (const seg of (segments||[])) {
+            await client.query(
+                `INSERT INTO beauty_appointment_segments (appointment_id, segment_order, segment_type, service_name,
+                 service_catalog_id, practitioner_id, resource_id, start_time, end_time, duration_minutes, price, gap_notes, backbar_items)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+                [apptId, seg.segment_order, seg.segment_type, seg.service_name||null,
+                 seg.service_catalog_id||null, seg.practitioner_id||null, seg.resource_id||null,
+                 seg.start_time, seg.end_time, seg.duration_minutes, seg.price||0,
+                 seg.gap_notes||null, JSON.stringify(seg.backbar_items||[])]
+            );
+        }
+
+        await client.query('COMMIT');
+        client.release();
+
+        // עדכון beauty_client_records (מחוץ לטרנזקציה — כישלון לא יבטל את התור)
+        if (resolvedFamilyId && client_phone) {
+            const bizId = appt.rows[0].business_group_id;
+            pool.query(
+                `SELECT id, client_family_id FROM beauty_client_records WHERE business_group_id=$1 AND REGEXP_REPLACE(client_phone,'[^0-9]','','g')=REGEXP_REPLACE($2,'[^0-9]','','g') LIMIT 1`,
+                [bizId, client_phone]
+            ).then(existR => {
+                if (existR.rows[0]) {
+                    if (!existR.rows[0].client_family_id) {
+                        pool.query(
+                            `UPDATE beauty_client_records SET client_family_id=$1, updated_at=NOW() WHERE id=$2`,
+                            [resolvedFamilyId, existR.rows[0].id]
+                        ).catch(() => {});
+                    }
+                } else if (client_name) {
+                    pool.query(
+                        `INSERT INTO beauty_client_records (business_group_id, client_name, client_phone, client_family_id) VALUES ($1,$2,$3,$4)`,
+                        [bizId, client_name, client_phone, resolvedFamilyId]
+                    ).catch(() => {});
+                }
+            }).catch(() => {});
+        }
+
+        res.json(appt.rows[0]);
+    } catch(e) { await client.query('ROLLBACK').catch(()=>{}); client.release(); res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/beauty/:bizId/appointments/:id', async (req, res) => {
+    try {
+        const { status, notes, internal_notes, deposit_paid, date, time, duration_minutes, service_name } = req.body;
+        const hasPracKey = Object.prototype.hasOwnProperty.call(req.body, 'practitioner_id');
+        const practitioner_id = hasPracKey ? (req.body.practitioner_id || null) : undefined;
+
+        await pool.query(
+            `UPDATE beauty_appointments SET
+             status=COALESCE($1,status), notes=COALESCE($2,notes),
+             internal_notes=COALESCE($3,internal_notes), deposit_paid=COALESCE($4,deposit_paid),
+             updated_at=NOW()
+             WHERE id=$5 AND business_group_id=$6`,
+            [status, notes, internal_notes, deposit_paid, req.params.id, req.params.bizId]
+        );
+
+        // Update segment timing/practitioner/service_name if provided
+        if (date || time || duration_minutes || hasPracKey || service_name !== undefined) {
+            const segR = await pool.query(
+                `SELECT * FROM beauty_appointment_segments WHERE appointment_id=$1 ORDER BY segment_order LIMIT 1`,
+                [req.params.id]
+            );
+            if (segR.rows[0]) {
+                const seg = segR.rows[0];
+                const curStart = new Date(seg.start_time);
+                const newDateStr = date || curStart.toISOString().split('T')[0];
+                const newTimeStr = time || (curStart.getHours().toString().padStart(2,'0') + ':' + curStart.getMinutes().toString().padStart(2,'0'));
+                const newStart = `${newDateStr}T${newTimeStr}:00`;
+                const dur = parseInt(duration_minutes) || seg.duration_minutes || 60;
+                const endDt = new Date(newStart);
+                endDt.setMinutes(endDt.getMinutes() + dur);
+                const newEnd = endDt.toISOString().slice(0,19);
+                if (hasPracKey) {
+                    await pool.query(
+                        `UPDATE beauty_appointment_segments SET
+                         start_time=$1, end_time=$2, duration_minutes=$3, practitioner_id=$4,
+                         service_name=COALESCE($5,service_name)
+                         WHERE appointment_id=$6 AND segment_order=1`,
+                        [newStart, newEnd, dur, practitioner_id, service_name||null, req.params.id]
+                    );
+                } else {
+                    await pool.query(
+                        `UPDATE beauty_appointment_segments SET
+                         start_time=$1, end_time=$2, duration_minutes=$3,
+                         service_name=COALESCE($4,service_name)
+                         WHERE appointment_id=$5 AND segment_order=1`,
+                        [newStart, newEnd, dur, service_name||null, req.params.id]
+                    );
+                }
+            }
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Complete appointment → back-bar sync + commissions + follow-up task
+app.post('/api/beauty/:bizId/appointments/:id/complete', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        await client.query(
+            'UPDATE beauty_appointments SET status=$1, updated_at=NOW() WHERE id=$2 AND business_group_id=$3',
+            ['completed', req.params.id, req.params.bizId]
+        );
+
+        const appt = await client.query('SELECT * FROM beauty_appointments WHERE id=$1', [req.params.id]);
+        if (!appt.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Not found' }); }
+        const { total_price, client_family_id } = appt.rows[0];
+
+        // Back-bar inventory depletion
+        const segs = await client.query(
+            'SELECT * FROM beauty_appointment_segments WHERE appointment_id=$1',
+            [req.params.id]
+        );
+        for (const seg of segs.rows) {
+            for (const item of (seg.backbar_items||[])) {
+                await client.query(
+                    'UPDATE beauty_inventory SET stock_qty=stock_qty-$1, updated_at=NOW() WHERE id=$2 AND business_group_id=$3 AND stock_qty>=$1',
+                    [item.qty_used, item.inventory_id, req.params.bizId]
+                );
+            }
+            // Commission for active segments with a practitioner
+            if (seg.segment_type === 'active' && seg.practitioner_id && parseFloat(seg.price||0) > 0) {
+                const pr = await client.query('SELECT commission_rate_svc FROM beauty_practitioners WHERE id=$1', [seg.practitioner_id]);
+                if (pr.rows[0]) {
+                    const rate = parseFloat(pr.rows[0].commission_rate_svc);
+                    const gross = parseFloat(seg.price);
+                    await client.query(
+                        `INSERT INTO beauty_commissions (business_group_id, practitioner_id, appointment_id, commission_type, gross_amount, commission_rate, commission_amount)
+                         VALUES ($1,$2,$3,'service',$4,$5,$6)`,
+                        [req.params.bizId, seg.practitioner_id, req.params.id, gross, rate, +(gross * rate / 100).toFixed(2)]
+                    );
+                }
+            }
+        }
+
+        // Update client record visit stats
+        if (client_family_id) {
+            await client.query(
+                `UPDATE beauty_client_records SET
+                 visit_count=visit_count+1, last_visit_at=NOW(), total_spent=total_spent+$1,
+                 updated_at=NOW()
+                 WHERE client_family_id=$2 AND business_group_id=$3`,
+                [total_price||0, client_family_id, req.params.bizId]
+            );
+            // Recalculate avg visit interval
+            await client.query(
+                `UPDATE beauty_client_records SET
+                 avg_visit_interval_days = (
+                   SELECT ROUND(AVG(diff)::NUMERIC, 1) FROM (
+                     SELECT EXTRACT(EPOCH FROM (ba2.created_at - ba1.created_at))/86400 AS diff
+                     FROM beauty_appointments ba1
+                     JOIN beauty_appointments ba2 ON ba2.id > ba1.id
+                       AND ba2.client_family_id = ba1.client_family_id
+                       AND ba2.business_group_id = ba1.business_group_id
+                     WHERE ba1.client_family_id=$1 AND ba1.business_group_id=$2 AND ba1.status='completed'
+                     ORDER BY ba1.created_at LIMIT 10
+                   ) t
+                 )
+                 WHERE client_family_id=$1 AND business_group_id=$2`,
+                [client_family_id, req.params.bizId]
+            );
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch(e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
+    finally { client.release(); }
+});
+
+app.post('/api/beauty/:bizId/appointments/:id/no-show', async (req, res) => {
+    try {
+        await pool.query(
+            'UPDATE beauty_appointments SET status=$1, updated_at=NOW() WHERE id=$2 AND business_group_id=$3',
+            ['no_show', req.params.id, req.params.bizId]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Availability check
+app.get('/api/beauty/:bizId/availability', async (req, res) => {
+    try {
+        const { practitioner_id, resource_id, from, duration } = req.query;
+        const to = new Date(new Date(from).getTime() + parseInt(duration||60)*60000).toISOString();
+        const result = { practitioner_available: true, resource_available: true };
+        if (practitioner_id) {
+            const c = await pool.query(
+                `SELECT id FROM beauty_appointment_segments WHERE practitioner_id=$1 AND segment_type='active' AND NOT (end_time<=$2 OR start_time>=$3)`,
+                [practitioner_id, from, to]
+            );
+            result.practitioner_available = c.rows.length === 0;
+        }
+        if (resource_id) {
+            const c = await pool.query(
+                `SELECT id FROM beauty_appointment_segments WHERE resource_id=$1 AND NOT (end_time<=$2 OR start_time>=$3)`,
+                [resource_id, from, to]
+            );
+            result.resource_available = c.rows.length === 0;
+        }
+        res.json(result);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Client Records ---
+app.get('/api/beauty/:bizId/clients', async (req, res) => {
+    try {
+        const { q } = req.query;
+        let query = 'SELECT * FROM beauty_client_records WHERE business_group_id=$1';
+        const vals = [req.params.bizId];
+        if (q) { vals.push(`%${q}%`); query += ` AND (client_name ILIKE $${vals.length} OR client_phone ILIKE $${vals.length} OR client_email ILIKE $${vals.length})`; }
+        query += ' ORDER BY last_visit_at DESC NULLS LAST LIMIT 100';
+        const r = await pool.query(query, vals);
+        res.json({ clients: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/beauty/:bizId/clients/:id', async (req, res) => {
+    try {
+        const [rec, formulas, photos, appts] = await Promise.all([
+            pool.query('SELECT * FROM beauty_client_records WHERE id=$1 AND business_group_id=$2', [req.params.id, req.params.bizId]),
+            pool.query('SELECT * FROM beauty_formulas WHERE client_record_id=$1 ORDER BY created_at DESC LIMIT 20', [req.params.id]),
+            pool.query('SELECT * FROM beauty_client_photos WHERE client_record_id=$1 ORDER BY created_at DESC', [req.params.id]),
+            pool.query(`SELECT ba.id, ba.status, ba.created_at, ba.total_price,
+                        json_agg(bas ORDER BY bas.segment_order) AS segments
+                        FROM beauty_appointments ba
+                        JOIN beauty_appointment_segments bas ON bas.appointment_id = ba.id
+                        WHERE ba.client_family_id=(SELECT client_family_id FROM beauty_client_records WHERE id=$1)
+                          AND ba.business_group_id=$2
+                        GROUP BY ba.id ORDER BY ba.created_at DESC LIMIT 20`, [req.params.id, req.params.bizId])
+        ]);
+        if (!rec.rows[0]) return res.status(404).json({ error: 'Not found' });
+        res.json({ ...rec.rows[0], formulas: formulas.rows, photos: photos.rows, appointments: appts.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/beauty/:bizId/check-oneflow', async (req, res) => {
+    try {
+        const { phone, name } = req.query;
+        if (!phone && !name) return res.json({ found: false });
+        let query = `SELECT u.id, u.nickname, u.first_name, u.last_name, u.phone, u.email, u.birth_year, u.id_number,
+                            fg.id AS family_id, fg.name AS family_name, fg.group_code, fg.family_nickname, fg.last_name AS group_last_name
+                     FROM users u JOIN family_groups fg ON fg.id = u.group_id
+                     WHERE fg.type='FAMILY'`;
+        const vals = [];
+        if (phone) { vals.push(phone.replace(/\D/g,'')); query += ` AND REGEXP_REPLACE(u.phone,'[^0-9]','','g')=$${vals.length}`; }
+        if (name && !phone) { vals.push(`%${name}%`); query += ` AND u.nickname ILIKE $${vals.length}`; }
+        query += ' LIMIT 5';
+        const r = await pool.query(query, vals);
+        res.json({ found: r.rows.length > 0, matches: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Generic ONEFLOW lookup — used by restaurant, logistics, repair and any other business type
+app.get('/api/store/check-oneflow', async (req, res) => {
+    try {
+        const { phone, name } = req.query;
+        if (!phone && !name) return res.json({ found: false });
+        let query = `SELECT u.id, u.nickname, u.first_name, u.last_name, u.phone, u.email, u.birth_year, u.id_number,
+                            fg.id AS family_id, fg.name AS family_name, fg.group_code, fg.family_nickname, fg.last_name AS group_last_name
+                     FROM users u JOIN family_groups fg ON fg.id = u.group_id
+                     WHERE fg.type='FAMILY'`;
+        const vals = [];
+        if (phone) { vals.push(phone.replace(/\D/g,'')); query += ` AND REGEXP_REPLACE(u.phone,'[^0-9]','','g')=$${vals.length}`; }
+        if (name && !phone) { vals.push(`%${name}%`); query += ` AND (u.nickname ILIKE $${vals.length} OR u.first_name ILIKE $${vals.length} OR u.last_name ILIKE $${vals.length})`; }
+        query += ' LIMIT 5';
+        const r = await pool.query(query, vals);
+        res.json({ found: r.rows.length > 0, matches: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Returns all businesses that have linked this family group as a client (beauty, future types, etc.)
+app.get('/api/family/linked-businesses/:groupId', async (req, res) => {
+    try {
+        const groupId = parseInt(req.params.groupId);
+        // beauty client links
+        const beautyR = await pool.query(
+            `SELECT DISTINCT ON (bcr.business_group_id) bcr.business_group_id, fg.name AS business_name,
+                    fg.business_type, fg.group_code, fg.community_id, fg.licensed_features, 'beauty' AS link_type,
+                    bcr.created_at AS linked_at, 'active' AS status
+             FROM beauty_client_records bcr
+             JOIN family_groups fg ON fg.id = bcr.business_group_id
+             WHERE bcr.client_family_id = $1
+             ORDER BY bcr.business_group_id, bcr.created_at DESC`,
+            [groupId]
+        );
+        // member_business_links (sport, restaurant, repair, etc.)
+        const memberR = await pool.query(
+            `SELECT DISTINCT ON (mbl.business_group_id) mbl.id AS link_id, mbl.business_group_id,
+                    fg.name AS business_name, fg.business_type, fg.group_code, fg.community_id, fg.licensed_features,
+                    'member' AS link_type, mbl.linked_at, mbl.status, mbl.linked_by_admin_name
+             FROM member_business_links mbl
+             JOIN family_groups fg ON fg.id = mbl.business_group_id
+             WHERE mbl.member_group_id = $1 AND mbl.is_active = true
+             ORDER BY mbl.business_group_id, mbl.linked_at DESC`,
+            [groupId]
+        );
+        // merge — beauty entries take precedence, skip duplicates
+        const beautyIds = new Set(beautyR.rows.map(r => r.business_group_id));
+        const merged = [
+            ...beautyR.rows,
+            ...memberR.rows.filter(r => !beautyIds.has(r.business_group_id))
+        ].sort((a, b) => new Date(b.linked_at) - new Date(a.linked_at));
+        res.json({ businesses: merged });
+    } catch(e) { res.status(500).json({ error: e.message, businesses: [] }); }
+});
+
+app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, res) => {
+    try {
+        const familyGroupId = parseInt(req.params.familyGroupId);
+        const bizGroupId = parseInt(req.params.bizGroupId);
+        const [bizR, phoneR] = await Promise.all([
+            pool.query('SELECT business_type FROM family_groups WHERE id=$1', [bizGroupId]),
+            // מחפשים טלפון של כל חבר משפחה (לא רק ADMIN) — כדי לאפשר התאמת טלפון גם ללא מנהל
+            pool.query("SELECT phone FROM users WHERE group_id=$1 AND phone IS NOT NULL LIMIT 1", [familyGroupId])
+        ]);
+        if (!bizR.rows.length) return res.status(404).json({ error: 'עסק לא נמצא' });
+        const bizType = bizR.rows[0].business_type;
+        const familyPhone = phoneR.rows[0]?.phone || null;
+        const result = { type: bizType, activity: {} };
+
+        if (bizType === 'beauty') {
+            const [apptR, rfqR, calR] = await Promise.all([
+                pool.query(`SELECT ba.id, ba.status, ba.total_price, ba.created_at, ba.client_name, ba.booking_source,
+                                   MIN(bas.start_time) AS start_time,
+                                   json_agg(json_build_object('service_name',bas.service_name,'start_time',bas.start_time)) AS segments
+                            FROM beauty_appointments ba
+                            JOIN beauty_appointment_segments bas ON bas.appointment_id = ba.id
+                            WHERE ba.business_group_id=$1
+                              AND (
+                                ($2::text IS NOT NULL AND ba.client_phone=$2::text)
+                                OR ba.client_family_id=$3::integer
+                                OR EXISTS (
+                                  SELECT 1 FROM beauty_client_records bcr2
+                                  WHERE bcr2.business_group_id=$1 AND bcr2.client_family_id=$3::integer
+                                    AND ba.client_phone IS NOT NULL AND ba.client_phone=bcr2.client_phone
+                                )
+                                OR EXISTS (
+                                  SELECT 1 FROM users u2
+                                  WHERE u2.group_id=$3::integer
+                                    AND ba.client_phone IS NOT NULL AND ba.client_phone=u2.phone
+                                )
+                              )
+                            GROUP BY ba.id ORDER BY MIN(bas.start_time) DESC LIMIT 30`,
+                    [bizGroupId, familyPhone, familyGroupId]).catch(e => { console.error('[APPT-QUERY]', e.message); return { rows: [] }; }),
+                pool.query(`SELECT id, status, service_description, preferred_date, created_at
+                            FROM beauty_rfq WHERE business_group_id=$1
+                              AND (client_phone=$2 OR client_family_id=$3)
+                            ORDER BY created_at DESC LIMIT 20`,
+                    [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] })),
+                pool.query(`SELECT id, title, event_date, start_time, status, notes
+                            FROM calendar_events WHERE group_id=$1
+                              AND (customer_phone=$2 OR customer_group_id=$3)
+                              AND status NOT IN ('cancelled','done')
+                            ORDER BY event_date DESC, start_time DESC LIMIT 20`,
+                    [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }))
+            ]);
+            result.activity = { appointments: apptR.rows, rfqs: rfqR.rows, calendarEvents: calR.rows };
+
+        } else if (bizType === 'sport' || bizType === 'gym') {
+            const [memR, checkR] = await Promise.all([
+                pool.query(`SELECT sm.id, sm.status, sm.start_date, sm.end_date, mpt.name AS type_name
+                            FROM sport_memberships sm
+                            LEFT JOIN membership_plan_types mpt ON mpt.id = sm.plan_type_id
+                            WHERE sm.business_group_id=$1 AND sm.member_group_id=$2
+                            ORDER BY sm.start_date DESC LIMIT 10`,
+                    [bizGroupId, familyGroupId]).catch(() => ({ rows: [] })),
+                pool.query(`SELECT id, checked_in_at FROM sport_checkins
+                            WHERE business_group_id=$1 AND member_group_id=$2
+                            ORDER BY checked_in_at DESC LIMIT 30`,
+                    [bizGroupId, familyGroupId]).catch(() => ({ rows: [] }))
+            ]);
+            result.activity = { memberships: memR.rows, checkins: checkR.rows };
+
+        } else if (bizType === 'restaurant' || bizType === 'services') {
+            const ordR = await pool.query(`SELECT so.id, so.status, so.total_amount AS total_price, so.notes, so.created_at, so.is_delivery, so.order_source, so.customer_rating, so.customer_rating_notes,
+                                (SELECT json_agg(json_build_object('name',soi.item_name,'qty',soi.quantity,'price',soi.price_at_order) ORDER BY soi.id)
+                                 FROM store_order_items soi WHERE soi.order_id=so.id) AS items
+                            FROM store_orders so
+                            WHERE so.group_id=$1 AND (so.customer_phone=$2 OR so.family_group_id=$3)
+                              AND (so.status IS NULL OR so.status != 'quote')
+                            ORDER BY so.created_at DESC LIMIT 20`,
+                [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
+            const quoteR = await pool.query(`SELECT id, quote_status AS status, total_amount AS total_price, created_at
+                            FROM store_orders
+                            WHERE group_id=$1 AND (customer_phone=$2 OR family_group_id=$3)
+                              AND status = 'quote'
+                            ORDER BY created_at DESC LIMIT 10`,
+                [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
+            const tableResR = await pool.query(
+                `SELECT id, title, event_date, start_time, status, notes, num_guests, reserved_table_number, call_type, alternatives_json
+                 FROM calendar_events
+                 WHERE group_id=$1 AND call_type='table_reservation'
+                   AND (customer_phone=$2 OR customer_group_id=$3)
+                 ORDER BY event_date DESC, start_time DESC LIMIT 10`,
+                [bizGroupId, familyPhone, familyGroupId]
+            ).catch(() => ({ rows: [] }));
+            result.activity = { orders: ordR.rows, quotes: quoteR.rows, tableReservations: tableResR.rows };
+
+        } else if (bizType === 'maintenance_repair') {
+            const [scR, woR] = await Promise.all([
+                pool.query(`SELECT sc.id, sc.status, sc.payment_status, sc.issue_description, sc.title, sc.created_at,
+                                   COALESCE(json_agg(json_build_object('id',wop.id,'milestone_name',wop.milestone_name,'amount',wop.amount,'due_date',wop.due_date,'status',wop.status,'received_amount',wop.received_amount) ORDER BY wop.due_date ASC NULLS LAST) FILTER (WHERE wop.id IS NOT NULL), '[]'::json) AS payments
+                            FROM service_calls sc
+                            LEFT JOIN work_order_payments wop ON wop.service_call_id = sc.id
+                            WHERE sc.business_group_id=$1 AND (sc.customer_phone=$2 OR sc.family_group_id=$3)
+                            GROUP BY sc.id
+                            ORDER BY sc.created_at DESC LIMIT 20`,
+                    [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] })),
+                pool.query(`SELECT so.id, so.status, so.payment_status, so.total_amount, so.quote_title, so.created_at,
+                                   COALESCE(json_agg(json_build_object('id',wop.id,'milestone_name',wop.milestone_name,'amount',wop.amount,'due_date',wop.due_date,'status',wop.status,'received_amount',wop.received_amount) ORDER BY wop.due_date ASC NULLS LAST) FILTER (WHERE wop.id IS NOT NULL), '[]'::json) AS payments
+                            FROM store_orders so
+                            LEFT JOIN work_order_payments wop ON wop.work_order_id = so.id
+                            WHERE so.group_id=$1 AND (so.customer_phone=$2 OR so.family_group_id=$3)
+                              AND so.call_type='work_order'
+                            GROUP BY so.id
+                            ORDER BY so.created_at DESC LIMIT 20`,
+                    [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }))
+            ]);
+            result.activity = { serviceCalls: scR.rows, workOrders: woR.rows };
+
+        } else if (bizType === 'logistics') {
+            const loR = await pool.query(`SELECT id, order_number, status, delivery_address, created_at
+                            FROM logistics_orders
+                            WHERE business_group_id=$1 AND (customer_phone=$2 OR sender_group_id=$3)
+                            ORDER BY created_at DESC LIMIT 20`,
+                [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
+            result.activity = { logisticsOrders: loR.rows };
+        }
+
+        // הודעות (inbox) — כל סוגי עסקים
+        const msgsR = await pool.query(
+            `SELECT id, sender_type, sender_name, content,
+                    COALESCE(direction,'inbound') AS direction, created_at
+             FROM inbox_messages
+             WHERE group_id=$1 AND customer_group_id=$2
+             ORDER BY created_at ASC LIMIT 30`,
+            [bizGroupId, familyGroupId]
+        ).catch(() => ({ rows: [] }));
+        result.activity.messages = msgsR.rows;
+
+        // calendar_events — תורים שנקבעו דרך החנות הציבורית (כל סוגי עסקים)
+        const calR = await pool.query(
+            `SELECT ce.id, ce.title, ce.event_date, ce.start_time, ce.status, ce.notes, ce.created_at,
+                    COALESCE(cs.name, bsc.name) AS service_name,
+                    COALESCE(cs.duration_mins, bsc.duration_minutes) AS duration_mins
+             FROM calendar_events ce
+             LEFT JOIN calendar_services cs ON cs.id = ce.service_id
+             LEFT JOIN beauty_service_catalog bsc ON bsc.id = ce.service_id
+             WHERE ce.group_id=$1 AND (ce.customer_group_id=$2 OR ce.customer_phone=$3)
+             ORDER BY ce.event_date DESC, ce.start_time DESC LIMIT 20`,
+            [bizGroupId, familyGroupId, familyPhone || '']
+        ).catch(() => ({ rows: [] }));
+        result.activity.calendarEvents = calR.rows;
+
+        // ציר זמן מאוחד (log) — ללא הודעות (מתועדות בטאב הודעות)
+        const logItems = [];
+        (calR.rows || []).forEach(e => {
+            const dateStr = e.event_date ? String(e.event_date).split('T')[0] : null;
+            const timeVal = dateStr && e.start_time ? dateStr + 'T' + e.start_time : (e.created_at || new Date().toISOString());
+            logItems.push({ type: 'appointment', time: timeVal, status: e.status, label: e.service_name || e.title, id: e.id });
+        });
+        // הוסף גם beauty_appointments, store_orders, service_calls לציר הזמן
+        if (result.activity.appointments) result.activity.appointments.forEach(a => {
+            logItems.push({ type: 'beauty_appt', time: a.start_time || a.created_at, status: a.status, label: a.segments?.[0]?.service_name || 'תור' });
+        });
+        if (result.activity.orders) result.activity.orders.forEach(o => {
+            logItems.push({ type: 'order', time: o.created_at, status: o.status, label: `הזמנה #${o.id}` });
+        });
+        if (result.activity.serviceCalls) result.activity.serviceCalls.forEach(c => {
+            logItems.push({ type: 'service_call', time: c.created_at, status: c.status, label: c.issue_description?.slice(0,50) || 'קריאת שירות' });
+        });
+        logItems.sort((a, b) => new Date(b.time) - new Date(a.time));
+        result.activity.log = logItems.slice(0, 50);
+
+        res.json(result);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Client confirms or declines a pending_client beauty appointment
+app.put('/api/family/:familyGroupId/beauty/appointments/:id/client-confirm', async (req, res) => {
+    try {
+        const { action } = req.body; // 'confirm' or 'decline'
+        const newStatus = action === 'confirm' ? 'confirmed' : 'cancelled';
+        const r = await pool.query(
+            `UPDATE beauty_appointments SET status=$1, updated_at=NOW()
+             WHERE id=$2 AND client_family_id=$3 AND status='pending_client'
+             RETURNING id`,
+            [newStatus, req.params.id, req.params.familyGroupId]
+        );
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצא או שהסטטוס שונה כבר' });
+        res.json({ success: true, newStatus });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/clients', async (req, res) => {
+    try {
+        const { client_family_id, client_name, client_phone, client_email, date_of_birth, medical_notes, skin_type, hair_type, id_number } = req.body;
+        if (!id_number || !id_number.trim()) return res.status(400).json({ error: 'מספר ת.ז הוא שדה חובה' });
+        const r = await pool.query(
+            `INSERT INTO beauty_client_records (business_group_id, client_family_id, client_name, client_phone, client_email, date_of_birth, medical_notes, skin_type, hair_type, id_number)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+            [req.params.bizId, client_family_id||null, client_name||null, client_phone||null, client_email||null,
+             date_of_birth||null, medical_notes||null, skin_type||null, hair_type||null, id_number.trim()]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/beauty/:bizId/clients/:id', async (req, res) => {
+    try {
+        const f = req.body;
+        const fields = ['client_name','client_phone','client_email','medical_notes','patch_test_status','patch_test_date','patch_test_expires_at','skin_type','hair_type','preferred_practitioner_id','id_number'];
+        const sets = []; const vals = [];
+        fields.forEach(k => { if (f[k] !== undefined) { vals.push(f[k]); sets.push(`${k}=$${vals.length}`); }});
+        if (!sets.length) return res.json({ success: true });
+        vals.push(req.params.id, req.params.bizId);
+        await pool.query(`UPDATE beauty_client_records SET ${sets.join(',')},updated_at=NOW() WHERE id=$${vals.length-1} AND business_group_id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Formulas
+app.post('/api/beauty/:bizId/clients/:id/formulas', async (req, res) => {
+    try {
+        const { appointment_id, practitioner_id, treatment_type, formula_data, application_notes, result_notes, processing_time_min } = req.body;
+        const r = await pool.query(
+            `INSERT INTO beauty_formulas (client_record_id, appointment_id, practitioner_id, treatment_type, formula_data, application_notes, result_notes, processing_time_min)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [req.params.id, appointment_id||null, practitioner_id||null, treatment_type||null,
+             JSON.stringify(formula_data||{}), application_notes||null, result_notes||null, processing_time_min||null]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/beauty/:bizId/clients/:id/formulas', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM beauty_formulas WHERE client_record_id=$1 ORDER BY created_at DESC', [req.params.id]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Photos
+app.post('/api/beauty/:bizId/clients/:id/photos', async (req, res) => {
+    try {
+        const { appointment_id, photo_type, image_url, thumbnail_url, treatment_area, notes, taken_by, is_consent_given } = req.body;
+        const r = await pool.query(
+            `INSERT INTO beauty_client_photos (client_record_id, appointment_id, photo_type, image_url, thumbnail_url, treatment_area, notes, taken_by, is_consent_given)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [req.params.id, appointment_id||null, photo_type, image_url, thumbnail_url||null,
+             treatment_area||null, notes||null, taken_by||null, is_consent_given||false]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/beauty/:bizId/clients/:id/photos', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM beauty_client_photos WHERE client_record_id=$1 ORDER BY created_at DESC', [req.params.id]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Inventory ---
+app.get('/api/beauty/:bizId/inventory', async (req, res) => {
+    try {
+        const { type } = req.query;
+        let q = 'SELECT * FROM beauty_inventory WHERE business_group_id=$1 AND is_active=TRUE';
+        const vals = [req.params.bizId];
+        if (type) { vals.push(type); q += ` AND inventory_type=$${vals.length}`; }
+        q += ' ORDER BY inventory_type, product_name';
+        const r = await pool.query(q, vals);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/inventory', async (req, res) => {
+    try {
+        const { product_name, brand, sku, inventory_type, category, unit, unit_size, stock_qty, reorder_threshold, cost_price, retail_price, supplier_name } = req.body;
+        const r = await pool.query(
+            `INSERT INTO beauty_inventory (business_group_id, product_name, brand, sku, inventory_type, category, unit, unit_size, stock_qty, reorder_threshold, cost_price, retail_price, supplier_name)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+            [req.params.bizId, product_name, brand||null, sku||null, inventory_type||'retail', category||null,
+             unit||'unit', unit_size||null, stock_qty||0, reorder_threshold||5, cost_price||0, retail_price||0, supplier_name||null]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/beauty/:bizId/inventory/:id', async (req, res) => {
+    try {
+        const fields = ['product_name','brand','sku','category','unit','unit_size','stock_qty','reorder_threshold','cost_price','retail_price','supplier_name','is_active'];
+        const sets = []; const vals = [];
+        fields.forEach(k => { if (req.body[k] !== undefined) { vals.push(req.body[k]); sets.push(`${k}=$${vals.length}`); }});
+        if (!sets.length) return res.json({ success: true });
+        vals.push(req.params.id, req.params.bizId);
+        await pool.query(`UPDATE beauty_inventory SET ${sets.join(',')},updated_at=NOW() WHERE id=$${vals.length-1} AND business_group_id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/inventory/:id/adjust', async (req, res) => {
+    try {
+        const { delta, reason } = req.body;
+        await pool.query(
+            'UPDATE beauty_inventory SET stock_qty=stock_qty+$1, updated_at=NOW() WHERE id=$2 AND business_group_id=$3',
+            [delta, req.params.id, req.params.bizId]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/beauty/:bizId/dashboard', async (req, res) => {
+    try {
+        const bizId = req.params.bizId;
+        const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+        const todayEnd   = new Date(); todayEnd.setHours(23,59,59,999);
+        const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
+
+        const [apptToday, apptPending, revenueToday, revenueMonth, unpaidComm, lowInv, noShow, totalClients] = await Promise.all([
+            pool.query(
+                `SELECT COUNT(*) FROM beauty_appointments ba
+                 JOIN beauty_appointment_segments bas ON bas.appointment_id=ba.id AND bas.segment_order=1
+                 WHERE ba.business_group_id=$1 AND bas.start_time BETWEEN $2 AND $3 AND ba.status NOT IN ('cancelled','no_show')`,
+                [bizId, todayStart, todayEnd]
+            ),
+            pool.query(
+                `SELECT COUNT(*) FROM beauty_appointments ba
+                 JOIN beauty_appointment_segments bas ON bas.appointment_id=ba.id AND bas.segment_order=1
+                 WHERE ba.business_group_id=$1 AND bas.start_time > NOW() AND ba.status='scheduled'`,
+                [bizId]
+            ),
+            pool.query(
+                `SELECT COALESCE(SUM(ba.total_price),0) AS sum FROM beauty_appointments ba
+                 JOIN beauty_appointment_segments bas ON bas.appointment_id=ba.id AND bas.segment_order=1
+                 WHERE ba.business_group_id=$1 AND bas.start_time BETWEEN $2 AND $3 AND ba.status='completed'`,
+                [bizId, todayStart, todayEnd]
+            ),
+            pool.query(
+                `SELECT COALESCE(SUM(ba.total_price),0) AS sum FROM beauty_appointments ba
+                 JOIN beauty_appointment_segments bas ON bas.appointment_id=ba.id AND bas.segment_order=1
+                 WHERE ba.business_group_id=$1 AND bas.start_time >= $2 AND ba.status='completed'`,
+                [bizId, monthStart]
+            ),
+            pool.query(
+                `SELECT COALESCE(SUM(bc.commission_amount),0) AS sum, COUNT(*) AS cnt
+                 FROM beauty_commissions bc WHERE bc.business_group_id=$1 AND bc.is_paid=FALSE`,
+                [bizId]
+            ),
+            pool.query(
+                `SELECT COUNT(*) FROM beauty_inventory WHERE business_group_id=$1 AND is_active=TRUE AND stock_qty<=reorder_threshold`,
+                [bizId]
+            ),
+            pool.query(
+                `SELECT COUNT(*) FROM beauty_appointments ba
+                 JOIN beauty_appointment_segments bas ON bas.appointment_id=ba.id AND bas.segment_order=1
+                 WHERE ba.business_group_id=$1 AND bas.start_time BETWEEN $2 AND $3 AND ba.status='no_show'`,
+                [bizId, todayStart, todayEnd]
+            ),
+            pool.query(
+                `SELECT COUNT(DISTINCT client_family_id) AS cnt FROM beauty_appointments WHERE business_group_id=$1 AND client_family_id IS NOT NULL`,
+                [bizId]
+            )
+        ]);
+
+        res.json({
+            appt_today:     parseInt(apptToday.rows[0].count),
+            appt_pending:   parseInt(apptPending.rows[0].count),
+            revenue_today:  parseFloat(revenueToday.rows[0].sum),
+            revenue_month:  parseFloat(revenueMonth.rows[0].sum),
+            unpaid_comm_sum: parseFloat(unpaidComm.rows[0].sum),
+            unpaid_comm_cnt: parseInt(unpaidComm.rows[0].cnt),
+            low_inventory:  parseInt(lowInv.rows[0].count),
+            no_show_today:  parseInt(noShow.rows[0].count),
+            total_clients:  parseInt(totalClients.rows[0].cnt)
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/beauty/:bizId/inventory/alerts', async (req, res) => {
+    try {
+        const r = await pool.query(
+            'SELECT * FROM beauty_inventory WHERE business_group_id=$1 AND is_active=TRUE AND stock_qty<=reorder_threshold ORDER BY stock_qty ASC',
+            [req.params.bizId]
+        );
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Commissions ---
+app.get('/api/beauty/:bizId/commissions', async (req, res) => {
+    try {
+        const { practitioner_id, is_paid, from, to } = req.query;
+        let where = 'bc.business_group_id=$1'; const vals = [req.params.bizId];
+        if (practitioner_id) { vals.push(practitioner_id); where += ` AND bc.practitioner_id=$${vals.length}`; }
+        if (is_paid !== undefined) { vals.push(is_paid === 'true'); where += ` AND bc.is_paid=$${vals.length}`; }
+        if (from) { vals.push(from); where += ` AND bc.created_at>=$${vals.length}`; }
+        if (to)   { vals.push(to);   where += ` AND bc.created_at<=$${vals.length}`; }
+        const r = await pool.query(
+            `SELECT bc.*, bp.display_name AS practitioner_name
+             FROM beauty_commissions bc
+             JOIN beauty_practitioners bp ON bp.id = bc.practitioner_id
+             WHERE ${where} ORDER BY bc.created_at DESC`,
+            vals
+        );
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/commissions/pay', async (req, res) => {
+    try {
+        const { commission_ids } = req.body;
+        await pool.query(
+            `UPDATE beauty_commissions SET is_paid=TRUE, paid_at=NOW() WHERE id=ANY($1) AND business_group_id=$2`,
+            [commission_ids, req.params.bizId]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- RFQ (Consultation Requests) ---
+app.get('/api/beauty/:bizId/rfq', async (req, res) => {
+    try {
+        const { status } = req.query;
+        let q = 'SELECT br.*, fg.name AS client_name_family FROM beauty_rfq br LEFT JOIN family_groups fg ON fg.id=br.client_family_id WHERE br.business_group_id=$1';
+        const vals = [req.params.bizId];
+        if (status) { vals.push(status); q += ` AND br.status=$${vals.length}`; }
+        q += ' ORDER BY br.updated_at DESC';
+        const r = await pool.query(q, vals);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/rfq', async (req, res) => {
+    try {
+        const { business_group_id, client_family_id, service_description } = req.body;
+        const r = await pool.query(
+            'INSERT INTO beauty_rfq (business_group_id, client_family_id, service_description) VALUES ($1,$2,$3) RETURNING *',
+            [business_group_id, client_family_id, service_description]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/beauty/rfq/:id/questionnaire', async (req, res) => {
+    try {
+        const { questions } = req.body;
+        await pool.query(
+            "UPDATE beauty_rfq SET questionnaire_data=$1, status='questionnaire_sent', updated_at=NOW() WHERE id=$2",
+            [JSON.stringify({ questions, sent_at: new Date().toISOString() }), req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/rfq/:id/client-response', async (req, res) => {
+    try {
+        const { answers, photos } = req.body;
+        const existing = await pool.query('SELECT questionnaire_data FROM beauty_rfq WHERE id=$1', [req.params.id]);
+        const qData = existing.rows[0]?.questionnaire_data || {};
+        await pool.query(
+            "UPDATE beauty_rfq SET questionnaire_data=$1, client_photos=$2, status='client_responded', updated_at=NOW() WHERE id=$3",
+            [JSON.stringify({ ...qData, answers, answered_at: new Date().toISOString() }),
+             JSON.stringify(photos||[]), req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/rfq/:id/plan', async (req, res) => {
+    try {
+        const { sessions, total_price, payment_link, title } = req.body;
+        await pool.query(
+            "UPDATE beauty_rfq SET treatment_plan=$1, status='plan_sent', updated_at=NOW() WHERE id=$2",
+            [JSON.stringify({ title, sessions, total_price, payment_link, sent_at: new Date().toISOString() }), req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/rfq/:id/accept', async (req, res) => {
+    try {
+        await pool.query(
+            "UPDATE beauty_rfq SET status='accepted', plan_accepted_at=NOW(), updated_at=NOW() WHERE id=$1",
+            [req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/rfq/:id/message', async (req, res) => {
+    try {
+        const { from, text } = req.body;
+        const existing = await pool.query('SELECT messages FROM beauty_rfq WHERE id=$1', [req.params.id]);
+        const msgs = existing.rows[0]?.messages || [];
+        msgs.push({ from, text, ts: new Date().toISOString() });
+        await pool.query('UPDATE beauty_rfq SET messages=$1, updated_at=NOW() WHERE id=$2', [JSON.stringify(msgs), req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// family: list beauty businesses
+app.get('/api/beauty/businesses', async (req, res) => {
+    try {
+        const r = await pool.query(
+            "SELECT id, name, description, city FROM family_groups WHERE type='BUSINESS' AND business_type='beauty' ORDER BY name"
+        );
+        res.json({ businesses: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// family: get own RFQs
+app.get('/api/beauty/rfq/family/:familyId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT br.*, fg.name AS business_name FROM beauty_rfq br
+             LEFT JOIN family_groups fg ON fg.id=br.business_group_id
+             WHERE br.client_family_id=$1 ORDER BY br.updated_at DESC`,
+            [req.params.familyId]
+        );
+        res.json({ rfqs: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== BEAUTY SERVICE CATALOG =====
+app.get('/api/beauty/:bizId/services', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT * FROM beauty_service_catalog WHERE business_group_id=$1 AND is_active=TRUE ORDER BY category, name`,
+            [req.params.bizId]
+        );
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/services', async (req, res) => {
+    try {
+        const { name, category, duration_minutes, price, description, color_hex, requires_patch_test, commission_pct, allowed_practitioner_ids } = req.body;
+        if (!name || !duration_minutes) return res.status(400).json({ error: 'name and duration required' });
+        const r = await pool.query(
+            `INSERT INTO beauty_service_catalog (business_group_id, name, category, duration_minutes, price, description, color_hex, requires_patch_test, commission_pct, allowed_practitioner_ids)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+            [req.params.bizId, name, category||'general', duration_minutes, price||0,
+             description||null, color_hex||'#6366f1', requires_patch_test||false,
+             commission_pct != null ? commission_pct : null,
+             allowed_practitioner_ids && allowed_practitioner_ids.length > 0 ? allowed_practitioner_ids : []]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/beauty/:bizId/services/:id', async (req, res) => {
+    try {
+        const fields = ['name','category','duration_minutes','price','description','color_hex','requires_patch_test','is_active','commission_pct','allowed_practitioner_ids'];
+        const sets = []; const vals = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { vals.push(req.body[f]); sets.push(`${f}=$${vals.length}`); } });
+        if (!sets.length) return res.json({ success: true });
+        vals.push(req.params.id); vals.push(req.params.bizId);
+        await pool.query(`UPDATE beauty_service_catalog SET ${sets.join(',')} WHERE id=$${vals.length-1} AND business_group_id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== BEAUTY SUBSCRIPTION TYPES =====
+app.get('/api/beauty/:bizId/subscription-types', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT * FROM beauty_subscription_types WHERE business_group_id=$1 AND is_active=TRUE ORDER BY price`,
+            [req.params.bizId]
+        );
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/subscription-types', async (req, res) => {
+    try {
+        const { name, description, sessions_count, price, validity_days, service_ids } = req.body;
+        if (!name || !sessions_count) return res.status(400).json({ error: 'name and sessions_count required' });
+        const r = await pool.query(
+            `INSERT INTO beauty_subscription_types (business_group_id, name, description, sessions_count, price, validity_days, service_ids)
+             VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+            [req.params.bizId, name, description||null, sessions_count, price||0,
+             validity_days||365, JSON.stringify(service_ids||[])]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/beauty/:bizId/subscription-types/:id', async (req, res) => {
+    try {
+        const fields = ['name','description','sessions_count','price','validity_days','service_ids','is_active'];
+        const sets = []; const vals = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { vals.push(f === 'service_ids' ? JSON.stringify(req.body[f]) : req.body[f]); sets.push(`${f}=$${vals.length}`); } });
+        if (!sets.length) return res.json({ success: true });
+        vals.push(req.params.id); vals.push(req.params.bizId);
+        await pool.query(`UPDATE beauty_subscription_types SET ${sets.join(',')} WHERE id=$${vals.length-1} AND business_group_id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== BEAUTY CLIENT SUBSCRIPTIONS =====
+app.get('/api/beauty/:bizId/client-subscriptions/:clientId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT bcs.*, bst.name AS type_name
+             FROM beauty_client_subscriptions bcs
+             LEFT JOIN beauty_subscription_types bst ON bst.id = bcs.subscription_type_id
+             WHERE bcs.client_record_id=$1 AND bcs.business_group_id=$2
+             ORDER BY bcs.is_active DESC, bcs.created_at DESC`,
+            [req.params.clientId, req.params.bizId]
+        );
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/client-subscriptions', async (req, res) => {
+    try {
+        const { client_record_id, subscription_type_id, sessions_total, subscription_name, validity_days } = req.body;
+        if (!client_record_id || !sessions_total) return res.status(400).json({ error: 'client_record_id and sessions_total required' });
+        const expires = validity_days
+            ? new Date(Date.now() + validity_days * 86400000).toISOString().slice(0,10)
+            : new Date(Date.now() + 365 * 86400000).toISOString().slice(0,10);
+        const r = await pool.query(
+            `INSERT INTO beauty_client_subscriptions (business_group_id, client_record_id, subscription_type_id, subscription_name, sessions_total, expires_at)
+             VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [req.params.bizId, client_record_id, subscription_type_id||null, subscription_name||null, sessions_total, expires]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/beauty/:bizId/client-subscriptions/:id/use', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `UPDATE beauty_client_subscriptions
+             SET sessions_used = sessions_used + 1,
+                 is_active = CASE WHEN sessions_used + 1 >= sessions_total THEN FALSE ELSE TRUE END
+             WHERE id=$1 AND business_group_id=$2 AND is_active=TRUE
+             RETURNING *`,
+            [req.params.id, req.params.bizId]
+        );
+        if (!r.rows[0]) return res.status(404).json({ error: 'subscription not found or depleted' });
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== RETENTION CRON (P5) =====
+// Run daily — find clients overdue for a visit and append to business feed
+const CRON_INTERVAL_MS = 24 * 60 * 60 * 1000;
+async function runRetentionCron() {
+    try {
+        // find clients whose expected next visit is today or in the past (and no appointment scheduled)
+        const overdueClients = await pool.query(`
+            SELECT bcr.id, bcr.client_name, bcr.client_phone, bcr.avg_visit_interval_days,
+                   bcr.last_visit_at, bcr.business_group_id,
+                   (bcr.last_visit_at + (bcr.avg_visit_interval_days || ' days')::INTERVAL) AS expected_next
+            FROM beauty_client_records bcr
+            WHERE bcr.avg_visit_interval_days IS NOT NULL
+              AND bcr.avg_visit_interval_days > 0
+              AND bcr.last_visit_at IS NOT NULL
+              AND (bcr.last_visit_at + (bcr.avg_visit_interval_days || ' days')::INTERVAL) <= NOW()
+              AND NOT EXISTS (
+                  SELECT 1 FROM beauty_appointments ba
+                  WHERE ba.business_group_id = bcr.business_group_id
+                    AND ba.client_phone = bcr.client_phone
+                    AND ba.status IN ('scheduled','confirmed')
+                    AND ba.start_time > NOW()
+              )
+        `);
+        for (const client of overdueClients.rows) {
+            // insert a retention notification into group_notifications if table exists
+            try {
+                await pool.query(
+                    `INSERT INTO group_notifications (group_id, type, title, body, metadata, created_at)
+                     VALUES ($1, 'beauty_retention', $2, $3, $4, NOW())
+                     ON CONFLICT DO NOTHING`,
+                    [
+                        client.business_group_id,
+                        `לקוח/ה ${client.client_name} לא ביקר/ה זמן מה`,
+                        `ממוצע ביקור כל ${Math.round(client.avg_visit_interval_days)} יום — כדאי ליצור קשר`,
+                        JSON.stringify({ client_id: client.id, client_name: client.client_name, client_phone: client.client_phone, expected_next: client.expected_next })
+                    ]
+                );
+            } catch(e) { /* table may not exist, skip silently */ }
+        }
+        if (overdueClients.rows.length > 0) {
+            console.log(`[Retention Cron] ${overdueClients.rows.length} overdue beauty clients flagged`);
+        }
+    } catch(e) {
+        console.error('[Retention Cron] error:', e.message);
+    }
+}
+// start cron after 1 min to let DB settle, then every 24h
+setTimeout(() => { runRetentionCron(); setInterval(runRetentionCron, CRON_INTERVAL_MS); }, 60000);
+
+// ===== END BEAUTY & COSMETICS API =====
+
+// ===== LOGISTICS / DISTRIBUTION / DELIVERY API =====
+
+app.get('/api/logistics/dashboard/:groupId', async (req, res) => {
+    try {
+        const gid = parseInt(req.params.groupId);
+        const [ordersStats, driversCount, codStats, vehicleAlerts] = await Promise.all([
+            pool.query(`SELECT
+                COUNT(*) FILTER (WHERE status IN ('new','pending_quote','quote_sent')) AS new_orders,
+                COUNT(*) FILTER (WHERE status IN ('confirmed','assigned')) AS assigned_orders,
+                COUNT(*) FILTER (WHERE status IN ('picked_up','in_transit','arrived')) AS in_transit,
+                COUNT(*) FILTER (WHERE status='delivered' AND DATE(delivered_at)=CURRENT_DATE) AS delivered_today,
+                COUNT(*) FILTER (WHERE status='failed_attempt') AS no_answer,
+                COALESCE(SUM(delivery_fee) FILTER (WHERE status='delivered' AND DATE(delivered_at)=CURRENT_DATE), 0) AS revenue_today,
+                COALESCE(SUM(delivery_fee) FILTER (WHERE status='delivered' AND DATE_TRUNC('month',delivered_at)=DATE_TRUNC('month',NOW())), 0) AS revenue_month,
+                COALESCE(SUM(cod_amount) FILTER (WHERE cod_collected=true AND DATE(delivered_at)=CURRENT_DATE), 0) AS cod_today
+                FROM logistics_orders WHERE group_id=$1`, [gid]),
+            pool.query(`SELECT COUNT(*) FROM logistics_drivers WHERE group_id=$1 AND is_active=true`, [gid]),
+            pool.query(`SELECT COALESCE(SUM(cod_amount),0) AS total_cod_pending FROM logistics_orders WHERE group_id=$1 AND cod_amount>0 AND cod_collected=false AND status='delivered'`, [gid]),
+            pool.query(`SELECT COUNT(*) AS cnt FROM logistics_vehicles WHERE group_id=$1 AND is_active=true AND (insurance_expires_at<=CURRENT_DATE+14 OR inspection_expires_at<=CURRENT_DATE+14)`, [gid])
+        ]);
+        const s = ordersStats.rows[0];
+        res.json({
+            new_orders: parseInt(s.new_orders)||0,
+            assigned_orders: parseInt(s.assigned_orders)||0,
+            in_transit: parseInt(s.in_transit)||0,
+            delivered_today: parseInt(s.delivered_today)||0,
+            no_answer: parseInt(s.no_answer)||0,
+            revenue_today: parseFloat(s.revenue_today)||0,
+            revenue_month: parseFloat(s.revenue_month)||0,
+            cod_today: parseFloat(s.cod_today)||0,
+            cod_pending: parseFloat(codStats.rows[0].total_cod_pending)||0,
+            active_drivers: parseInt(driversCount.rows[0].count)||0,
+            vehicle_alerts: parseInt(vehicleAlerts.rows[0].cnt)||0
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/logistics/orders/:groupId', async (req, res) => {
+    try {
+        const gid = parseInt(req.params.groupId);
+        const { status, driver_id, date, search } = req.query;
+        let q = `SELECT lo.*, ld.name AS driver_name, lv.name AS vehicle_name
+                 FROM logistics_orders lo
+                 LEFT JOIN logistics_drivers ld ON ld.id=lo.driver_id
+                 LEFT JOIN logistics_vehicles lv ON lv.id=lo.vehicle_id
+                 WHERE lo.group_id=$1`;
+        const params = [gid]; let idx = 2;
+        if (status && status !== 'all') { q += ` AND lo.status=$${idx++}`; params.push(status); }
+        if (driver_id) { q += ` AND lo.driver_id=$${idx++}`; params.push(driver_id); }
+        if (date) { q += ` AND lo.scheduled_date=$${idx++}`; params.push(date); }
+        if (search) { q += ` AND (lo.customer_name ILIKE $${idx} OR lo.customer_phone ILIKE $${idx} OR lo.delivery_address ILIKE $${idx} OR lo.order_number ILIKE $${idx})`; params.push(`%${search}%`); idx++; }
+        q += ` ORDER BY lo.created_at DESC LIMIT 300`;
+        const r = await pool.query(q, params);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/orders', async (req, res) => {
+    try {
+        const { group_id, customer_name, customer_phone, customer_email, pickup_address, delivery_address,
+                scheduled_date, scheduled_time_window, weight_kg, package_count, cod_amount,
+                delivery_fee, pricing_zone_id, delivery_notes, internal_notes, driver_id } = req.body;
+        const orderNumber = 'LOG-' + Date.now().toString().slice(-6);
+        const r = await pool.query(
+            `INSERT INTO logistics_orders (group_id, order_number, customer_name, customer_phone, customer_email,
+             pickup_address, delivery_address, scheduled_date, scheduled_time_window, weight_kg, package_count,
+             cod_amount, delivery_fee, pricing_zone_id, delivery_notes, internal_notes, driver_id, status)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+            [group_id, orderNumber, customer_name, customer_phone||null, customer_email||null,
+             pickup_address||null, delivery_address||null, scheduled_date||null, scheduled_time_window||null,
+             weight_kg||null, package_count||1, cod_amount||0, delivery_fee||0, pricing_zone_id||null,
+             delivery_notes||null, internal_notes||null, driver_id||null, driver_id ? 'assigned' : 'new']
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/orders/:id/status', async (req, res) => {
+    try {
+        const { status, actor_name, notes } = req.body;
+        const old = await pool.query('SELECT status, group_id FROM logistics_orders WHERE id=$1', [req.params.id]);
+        if (!old.rows.length) return res.status(404).json({ error: 'not found' });
+        const oldStatus = old.rows[0].status;
+        let q = 'UPDATE logistics_orders SET status=$1, updated_at=NOW()';
+        const params = [status];
+        if (status === 'delivered') q += ', delivered_at=NOW()';
+        q += ` WHERE id=$${params.length+1}`;
+        params.push(req.params.id);
+        await pool.query(q, params);
+        await pool.query(`INSERT INTO logistics_order_events (order_id, group_id, event_type, old_status, new_status, actor_name, notes) VALUES ($1,$2,'status_change',$3,$4,$5,$6)`,
+            [req.params.id, old.rows[0].group_id, oldStatus, status, actor_name||null, notes||null]);
+        res.json({ success: true });
+        // Auto-invoice when delivered
+        if (status === 'delivered') {
+            try {
+                const ord = await pool.query('SELECT * FROM logistics_orders WHERE id=$1', [req.params.id]);
+                const o = ord.rows[0];
+                if (o) {
+                    const invNum = `INV-${o.group_id}-${Date.now()}`;
+                    const amt = parseFloat(o.delivery_fee) || 0;
+                    const vat = Math.round(amt * 0.17 * 100) / 100;
+                    await pool.query(`INSERT INTO logistics_invoices (group_id, order_id, invoice_number, customer_name, customer_email, amount, vat_amount, total_amount, status)
+                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending') ON CONFLICT DO NOTHING`,
+                        [o.group_id, o.id, invNum, o.customer_name, o.customer_email||null, amt, vat, amt+vat]);
+                }
+            } catch(ignoreErr) {}
+        }
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/orders/:id/assign', async (req, res) => {
+    try {
+        const { driver_id, vehicle_id } = req.body;
+        await pool.query(`UPDATE logistics_orders SET driver_id=$1, vehicle_id=$2, status='assigned', updated_at=NOW() WHERE id=$3`,
+            [driver_id, vehicle_id||null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/orders/:id/pod', async (req, res) => {
+    try {
+        const { pod_photo_url, pod_signature_url, pod_barcode } = req.body;
+        await pool.query(`UPDATE logistics_orders SET pod_photo_url=$1, pod_signature_url=$2, pod_barcode=$3, status='delivered', delivered_at=NOW(), updated_at=NOW() WHERE id=$4`,
+            [pod_photo_url||null, pod_signature_url||null, pod_barcode||null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/orders/:id/cod', async (req, res) => {
+    try {
+        const { cod_method } = req.body;
+        await pool.query(`UPDATE logistics_orders SET cod_collected=true, cod_method=$1, updated_at=NOW() WHERE id=$2`,
+            [cod_method, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/orders/:id', async (req, res) => {
+    try {
+        const fields = ['customer_name','customer_phone','customer_email','pickup_address','delivery_address',
+                        'scheduled_date','scheduled_time_window','weight_kg','package_count','cod_amount',
+                        'delivery_fee','delivery_notes','internal_notes'];
+        const sets = [], params = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { params.push(req.body[f]); sets.push(`${f}=$${params.length}`); } });
+        if (!sets.length) return res.json({ success: true });
+        params.push(req.params.id);
+        await pool.query(`UPDATE logistics_orders SET ${sets.join(',')}, updated_at=NOW() WHERE id=$${params.length}`, params);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/logistics/orders/:id', async (req, res) => {
+    try {
+        await pool.query(`UPDATE logistics_orders SET status='cancelled', updated_at=NOW() WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/logistics/drivers/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT ld.*, lv.name AS vehicle_name, lv.type AS vehicle_type,
+            (SELECT COUNT(*) FROM logistics_orders lo WHERE lo.driver_id=ld.id AND lo.status IN ('assigned','picked_up','in_transit')) AS active_orders
+            FROM logistics_drivers ld LEFT JOIN logistics_vehicles lv ON lv.id=ld.vehicle_id
+            WHERE ld.group_id=$1 ORDER BY ld.name`, [req.params.groupId]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/drivers', async (req, res) => {
+    try {
+        const { group_id, name, phone, email, vehicle_id, notes } = req.body;
+        const r = await pool.query(`INSERT INTO logistics_drivers (group_id, name, phone, email, vehicle_id, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [group_id, name, phone||null, email||null, vehicle_id||null, notes||null]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/drivers/:id', async (req, res) => {
+    try {
+        const fields = ['name','phone','email','vehicle_id','status','is_active','notes'];
+        const sets = [], params = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { params.push(req.body[f]); sets.push(`${f}=$${params.length}`); } });
+        if (!sets.length) return res.json({ success: true });
+        params.push(req.params.id);
+        await pool.query(`UPDATE logistics_drivers SET ${sets.join(',')} WHERE id=$${params.length}`, params);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/logistics/drivers/:id', async (req, res) => {
+    try {
+        await pool.query(`UPDATE logistics_drivers SET is_active=false WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/logistics/vehicles/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT * FROM logistics_vehicles WHERE group_id=$1 ORDER BY name`, [req.params.groupId]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/vehicles', async (req, res) => {
+    try {
+        const { group_id, name, type, plate_number, capacity_kg, insurance_expires_at, inspection_expires_at, notes } = req.body;
+        const r = await pool.query(`INSERT INTO logistics_vehicles (group_id, name, type, plate_number, capacity_kg, insurance_expires_at, inspection_expires_at, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [group_id, name, type||'van', plate_number||null, capacity_kg||null, insurance_expires_at||null, inspection_expires_at||null, notes||null]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/vehicles/:id', async (req, res) => {
+    try {
+        const fields = ['name','type','plate_number','capacity_kg','insurance_expires_at','inspection_expires_at','is_active','notes'];
+        const sets = [], params = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { params.push(req.body[f]); sets.push(`${f}=$${params.length}`); } });
+        if (!sets.length) return res.json({ success: true });
+        params.push(req.params.id);
+        await pool.query(`UPDATE logistics_vehicles SET ${sets.join(',')} WHERE id=$${params.length}`, params);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/logistics/vehicles/:id', async (req, res) => {
+    try {
+        await pool.query(`UPDATE logistics_vehicles SET is_active=false WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/logistics/pricing/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT * FROM logistics_pricing_zones WHERE group_id=$1 ORDER BY zone_name`, [req.params.groupId]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/pricing', async (req, res) => {
+    try {
+        const { group_id, zone_name, base_price, price_per_km, price_per_kg, min_fee } = req.body;
+        const r = await pool.query(`INSERT INTO logistics_pricing_zones (group_id, zone_name, base_price, price_per_km, price_per_kg, min_fee) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [group_id, zone_name, base_price||0, price_per_km||0, price_per_kg||0, min_fee||0]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/pricing/:id', async (req, res) => {
+    try {
+        const fields = ['zone_name','base_price','price_per_km','price_per_kg','min_fee','is_active'];
+        const sets = [], params = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { params.push(req.body[f]); sets.push(`${f}=$${params.length}`); } });
+        if (!sets.length) return res.json({ success: true });
+        params.push(req.params.id);
+        await pool.query(`UPDATE logistics_pricing_zones SET ${sets.join(',')} WHERE id=$${params.length}`, params);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/logistics/pricing/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM logistics_pricing_zones WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/logistics/cod/:groupId', async (req, res) => {
+    try {
+        const gid = parseInt(req.params.groupId);
+        const date = req.query.date || new Date().toISOString().split('T')[0];
+        const r = await pool.query(`SELECT ld.id AS driver_id, ld.name AS driver_name,
+            COUNT(lo.id) FILTER (WHERE lo.cod_amount > 0) AS total_orders,
+            COALESCE(SUM(lo.cod_amount) FILTER (WHERE lo.cod_amount > 0), 0) AS total_due,
+            COALESCE(SUM(lo.cod_amount) FILTER (WHERE lo.cod_collected=true), 0) AS total_collected,
+            COALESCE(SUM(lo.cod_amount) FILTER (WHERE lo.cod_amount > 0 AND lo.cod_collected=false AND lo.status='delivered'), 0) AS pending_deposit
+            FROM logistics_drivers ld
+            LEFT JOIN logistics_orders lo ON lo.driver_id=ld.id AND lo.scheduled_date=$2
+            WHERE ld.group_id=$1 AND ld.is_active=true
+            GROUP BY ld.id, ld.name ORDER BY ld.name`, [gid, date]);
+        res.json({ date, drivers: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/cod/close', async (req, res) => {
+    try {
+        const { driver_id, date, total_deposited, notes, group_id } = req.body;
+        const collected = await pool.query(`SELECT COALESCE(SUM(cod_amount),0) AS total FROM logistics_orders WHERE driver_id=$1 AND scheduled_date=$2 AND cod_collected=true`, [driver_id, date]);
+        await pool.query(`INSERT INTO logistics_cod_sessions (group_id, driver_id, session_date, total_deposited, total_collected, status, notes)
+            VALUES ($1,$2,$3,$4,$5,'closed',$6) ON CONFLICT DO NOTHING`,
+            [group_id, driver_id, date, total_deposited||0, parseFloat(collected.rows[0].total)||0, notes||null]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/logistics/rfq/:groupId', async (req, res) => {
+    try {
+        const { status } = req.query;
+        let q = 'SELECT * FROM logistics_rfq WHERE group_id=$1';
+        const params = [req.params.groupId];
+        if (status && status !== 'all') { q += ' AND status=$2'; params.push(status); }
+        q += ' ORDER BY created_at DESC LIMIT 100';
+        const r = await pool.query(q, params);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/rfq', async (req, res) => {
+    try {
+        const { group_id, client_name, client_phone, description, pickup_address, delivery_address, preferred_date } = req.body;
+        const r = await pool.query(`INSERT INTO logistics_rfq (group_id, client_name, client_phone, description, pickup_address, delivery_address, preferred_date) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+            [group_id, client_name, client_phone||null, description||null, pickup_address||null, delivery_address||null, preferred_date||null]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/rfq/:id/message', async (req, res) => {
+    try {
+        const { from, text } = req.body;
+        const existing = await pool.query('SELECT messages FROM logistics_rfq WHERE id=$1', [req.params.id]);
+        if (!existing.rows.length) return res.status(404).json({ error: 'not found' });
+        const msgs = existing.rows[0].messages || [];
+        msgs.push({ from, text, at: new Date().toISOString() });
+        await pool.query('UPDATE logistics_rfq SET messages=$1, updated_at=NOW() WHERE id=$2', [JSON.stringify(msgs), req.params.id]);
+        res.json({ success: true, messages: msgs });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/rfq/:id/quote', async (req, res) => {
+    try {
+        const { quote_amount, deposit_amount } = req.body;
+        await pool.query(`UPDATE logistics_rfq SET quote_amount=$1, deposit_amount=$2, status='quoted', updated_at=NOW() WHERE id=$3`,
+            [quote_amount, deposit_amount||0, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/rfq/:id/status', async (req, res) => {
+    try {
+        const { status } = req.body;
+        await pool.query(`UPDATE logistics_rfq SET status=$1, updated_at=NOW() WHERE id=$2`, [status, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/logistics/reports/:groupId', async (req, res) => {
+    try {
+        const gid = parseInt(req.params.groupId);
+        const period = req.query.period || 'week';
+        const dateFilter = period === 'month' ? `DATE_TRUNC('month', NOW())` : `CURRENT_DATE - INTERVAL '7 days'`;
+        const [delivery, byDriver, cod] = await Promise.all([
+            pool.query(`SELECT COUNT(*) AS total,
+                COUNT(*) FILTER (WHERE status='delivered') AS delivered,
+                COUNT(*) FILTER (WHERE status='no_answer') AS no_answer,
+                COUNT(*) FILTER (WHERE status='cancelled') AS cancelled,
+                COALESCE(SUM(delivery_fee) FILTER (WHERE status='delivered'), 0) AS revenue,
+                COALESCE(AVG(EXTRACT(EPOCH FROM (delivered_at - created_at))/3600) FILTER (WHERE status='delivered'), 0) AS avg_hours
+                FROM logistics_orders WHERE group_id=$1 AND created_at >= ${dateFilter}`, [gid]),
+            pool.query(`SELECT ld.name,
+                COUNT(lo.id) AS total,
+                COUNT(lo.id) FILTER (WHERE lo.status='delivered') AS delivered,
+                COALESCE(SUM(lo.delivery_fee) FILTER (WHERE lo.status='delivered'), 0) AS revenue
+                FROM logistics_drivers ld
+                LEFT JOIN logistics_orders lo ON lo.driver_id=ld.id AND lo.created_at >= ${dateFilter}
+                WHERE ld.group_id=$1 AND ld.is_active=true
+                GROUP BY ld.id, ld.name ORDER BY delivered DESC NULLS LAST`, [gid]),
+            pool.query(`SELECT COALESCE(SUM(cod_amount) FILTER (WHERE cod_collected=true), 0) AS collected,
+                COALESCE(SUM(cod_amount) FILTER (WHERE cod_amount>0 AND cod_collected=false AND status='delivered'), 0) AS pending
+                FROM logistics_orders WHERE group_id=$1 AND created_at >= ${dateFilter}`, [gid])
+        ]);
+        res.json({ period, delivery: delivery.rows[0], by_driver: byDriver.rows, cod: cod.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics v2: Tracking token generation ──────────────────────────────────
+app.post('/api/logistics/orders/:id/tracking-token', async (req, res) => {
+    try {
+        const existing = await pool.query('SELECT tracking_token FROM logistics_orders WHERE id=$1', [req.params.id]);
+        if (existing.rows[0]?.tracking_token) return res.json({ token: existing.rows[0].tracking_token });
+        const crypto = require('crypto');
+        const token = crypto.randomBytes(24).toString('hex');
+        await pool.query('UPDATE logistics_orders SET tracking_token=$1 WHERE id=$2', [token, req.params.id]);
+        res.json({ token });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Public tracking page (no auth) ──────────────────────────────────────────
+app.get('/track/:token', (req, res) => {
+    res.sendFile(require('path').join(__dirname, 'public', 'track.html'));
+});
+
+app.get('/api/logistics/track/:token', async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT lo.id, lo.order_number, lo.status, lo.customer_name,
+                   lo.pickup_address, lo.delivery_address,
+                   lo.scheduled_date, lo.scheduled_time_window,
+                   lo.delivered_at, lo.failed_attempts_count,
+                   lo.leave_at_door, lo.tracking_last_seen,
+                   ld.name AS driver_name, ld.phone AS driver_phone,
+                   ld.current_lat, ld.current_lng
+            FROM logistics_orders lo
+            LEFT JOIN logistics_drivers ld ON ld.id = lo.driver_id
+            WHERE lo.tracking_token=$1`, [req.params.token]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        // Update tracking_last_seen
+        await pool.query('UPDATE logistics_orders SET tracking_last_seen=NOW() WHERE tracking_token=$1', [req.params.token]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics v2: Failed attempt ─────────────────────────────────────────────
+app.post('/api/logistics/orders/:id/failed-attempt', async (req, res) => {
+    try {
+        const { gps, notes, actor_name } = req.body;
+        const cur = await pool.query('SELECT failed_attempts_count, group_id FROM logistics_orders WHERE id=$1', [req.params.id]);
+        const cnt = (parseInt(cur.rows[0]?.failed_attempts_count)||0) + 1;
+        await pool.query(`UPDATE logistics_orders SET
+            status='failed_attempt', failed_attempts_count=$1,
+            failed_attempt_gps=$2, failed_attempt_at=NOW(), updated_at=NOW()
+            WHERE id=$3`, [cnt, gps||null, req.params.id]);
+        await pool.query(`INSERT INTO logistics_order_events (order_id, group_id, event_type, old_status, new_status, actor_name, notes)
+            VALUES ($1,$2,'failed_attempt','in_transit','failed_attempt',$3,$4)`,
+            [req.params.id, cur.rows[0].group_id, actor_name||'מערכת', notes||null]);
+        res.json({ ok: true, attempts: cnt });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics v2: Order events timeline ──────────────────────────────────────
+app.get('/api/logistics/orders/:id/events', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT * FROM logistics_order_events WHERE order_id=$1 ORDER BY created_at DESC`, [req.params.id]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics v2: Driver location update ─────────────────────────────────────
+app.patch('/api/logistics/drivers/:id/location', async (req, res) => {
+    try {
+        const { lat, lng } = req.body;
+        await pool.query('UPDATE logistics_drivers SET current_lat=$1, current_lng=$2, location_updated_at=NOW() WHERE id=$3', [lat, lng, req.params.id]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics v2: Driver companion — orders for today ────────────────────────
+app.get('/api/logistics/driver-orders/:groupId/:driverId', async (req, res) => {
+    try {
+        const { date } = req.query;
+        const d = date || new Date().toISOString().split('T')[0];
+        const r = await pool.query(`SELECT lo.*, lv.name AS vehicle_name
+            FROM logistics_orders lo
+            LEFT JOIN logistics_vehicles lv ON lv.id=lo.vehicle_id
+            WHERE lo.group_id=$1 AND lo.driver_id=$2 AND (lo.scheduled_date=$3 OR lo.status IN ('assigned','picked_up','in_transit','failed_attempt'))
+            ORDER BY lo.scheduled_time_window, lo.id`, [req.params.groupId, req.params.driverId, d]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics v2: Routes ─────────────────────────────────────────────────────
+app.get('/api/logistics/routes/:groupId', async (req, res) => {
+    try {
+        const { date } = req.query;
+        const d = date || new Date().toISOString().split('T')[0];
+        const routes = await pool.query(`
+            SELECT lr.*, ld.name AS driver_name, lv.name AS vehicle_name,
+                   COUNT(lrs.id) AS stop_count
+            FROM logistics_routes lr
+            LEFT JOIN logistics_drivers ld ON ld.id=lr.driver_id
+            LEFT JOIN logistics_vehicles lv ON lv.id=lr.vehicle_id
+            LEFT JOIN logistics_route_stops lrs ON lrs.route_id=lr.id
+            WHERE lr.group_id=$1 AND lr.route_date=$2
+            GROUP BY lr.id, ld.name, lv.name
+            ORDER BY lr.created_at DESC`, [req.params.groupId, d]);
+        res.json(routes.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/logistics/routes/:groupId/:routeId/stops', async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT lrs.*, lo.customer_name, lo.delivery_address, lo.status AS order_status,
+                   lo.cod_amount, lo.package_count, lo.customer_phone
+            FROM logistics_route_stops lrs
+            LEFT JOIN logistics_orders lo ON lo.id=lrs.order_id
+            WHERE lrs.route_id=$1
+            ORDER BY lrs.stop_order`, [req.params.routeId]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/routes', async (req, res) => {
+    try {
+        const { group_id, driver_id, vehicle_id, route_date, name, notes } = req.body;
+        const r = await pool.query(`INSERT INTO logistics_routes (group_id, driver_id, vehicle_id, route_date, name, notes)
+            VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`, [group_id, driver_id||null, vehicle_id||null, route_date, name, notes||null]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/routes/:routeId/stops', async (req, res) => {
+    try {
+        const { order_id, stop_order, eta } = req.body;
+        const r = await pool.query(`INSERT INTO logistics_route_stops (route_id, order_id, stop_order, eta)
+            VALUES ($1,$2,$3,$4) RETURNING *`, [req.params.routeId, order_id, stop_order||0, eta||null]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/routes/:id/status', async (req, res) => {
+    try {
+        await pool.query('UPDATE logistics_routes SET status=$1 WHERE id=$2', [req.body.status, req.params.id]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/logistics/routes/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM logistics_routes WHERE id=$1', [req.params.id]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics v2: Leave-at-door approval (from tracking page) ───────────────
+app.post('/api/logistics/track/:token/leave-at-door', async (req, res) => {
+    try {
+        await pool.query(`UPDATE logistics_orders SET leave_at_door=true, updated_at=NOW() WHERE tracking_token=$1`, [req.params.token]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics v2: Rate cards (advanced pricing rules) ────────────────────────
+app.get('/api/logistics/rate-cards/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM logistics_rate_cards WHERE group_id=$1 AND is_active=true ORDER BY name', [req.params.groupId]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/rate-cards', async (req, res) => {
+    try {
+        const { group_id, name, rule_type, condition_key, condition_value, surcharge_amount, surcharge_pct, notes } = req.body;
+        const r = await pool.query(`INSERT INTO logistics_rate_cards (group_id, name, rule_type, condition_key, condition_value, surcharge_amount, surcharge_pct, notes)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [group_id, name, rule_type, condition_key||null, condition_value||null, surcharge_amount||0, surcharge_pct||0, notes||null]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/rate-cards/:id', async (req, res) => {
+    try {
+        const fields = ['name','rule_type','condition_key','condition_value','surcharge_amount','surcharge_pct','notes','is_active'];
+        const sets = []; const params = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { params.push(req.body[f]); sets.push(`${f}=$${params.length}`); } });
+        params.push(req.params.id);
+        await pool.query(`UPDATE logistics_rate_cards SET ${sets.join(',')} WHERE id=$${params.length}`, params);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/logistics/rate-cards/:id', async (req, res) => {
+    try {
+        await pool.query('UPDATE logistics_rate_cards SET is_active=false WHERE id=$1', [req.params.id]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics: Customers ─────────────────────────────────────────────────────
+app.get('/api/logistics/customers/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT * FROM logistics_customers WHERE group_id=$1 AND is_active=true ORDER BY name`, [req.params.groupId]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/customers', async (req, res) => {
+    try {
+        const { group_id, name, phone, email, default_address, customer_type, discount_pct, delivery_instructions, notes } = req.body;
+        const r = await pool.query(`INSERT INTO logistics_customers (group_id, name, phone, email, default_address, customer_type, discount_pct, delivery_instructions, notes)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [group_id, name, phone||null, email||null, default_address||null, customer_type||'private', discount_pct||0, delivery_instructions||null, notes||null]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/customers/:id', async (req, res) => {
+    try {
+        const fields = ['name','phone','email','default_address','customer_type','discount_pct','delivery_instructions','notes'];
+        const sets = []; const params = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { params.push(req.body[f]); sets.push(`${f}=$${params.length}`); } });
+        if (!sets.length) return res.json({ ok: true });
+        params.push(req.params.id);
+        await pool.query(`UPDATE logistics_customers SET ${sets.join(',')}, updated_at=NOW() WHERE id=$${params.length}`, params);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/logistics/customers/:id', async (req, res) => {
+    try {
+        await pool.query('UPDATE logistics_customers SET is_active=false WHERE id=$1', [req.params.id]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics: Invoices ──────────────────────────────────────────────────────
+app.get('/api/logistics/invoices/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT li.*, lo.order_number, lo.delivery_address
+            FROM logistics_invoices li
+            LEFT JOIN logistics_orders lo ON lo.id=li.order_id
+            WHERE li.group_id=$1 ORDER BY li.created_at DESC LIMIT 200`, [req.params.groupId]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/invoices/:id/status', async (req, res) => {
+    try {
+        const { status } = req.body;
+        const extra = status === 'paid' ? ', paid_at=NOW()' : (status === 'sent' ? ', sent_at=NOW()' : '');
+        await pool.query(`UPDATE logistics_invoices SET status=$1${extra} WHERE id=$2`, [status, req.params.id]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/logistics/invoices/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM logistics_invoices WHERE id=$1', [req.params.id]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== END LOGISTICS API =====
+
+// ─── Public Table Reservations (Storefront) ──────────────────────────────────
+// GET זמינות שולחנות ליום מסוים
+app.get('/api/public/restaurants/:groupId/availability/:date', async (req, res) => {
+    try {
+        const { groupId, date } = req.params;
+        const startTime = Date.now();
+
+        // שליפת הגדרות העסק
+        const groupRes = await pool.query('SELECT table_count FROM family_groups WHERE id=$1', [groupId]);
+        if (!groupRes.rows.length) return res.status(404).json({ success: false, error: 'עסק לא נמצא' });
+
+        const tableCount = parseInt(groupRes.rows[0].table_count) || 8;
+        console.log(`[AVAILABILITY] groupId=${groupId}, date=${date}, tableCount=${tableCount}`);
+
+        // שליפת הזמנות קיימות ביום זה - בחירה ספציפית של עמודות
+        const queryStart = Date.now();
+        const reservations = await pool.query(
+            `SELECT start_time, num_guests FROM calendar_events
+             WHERE group_id=$1 AND event_date=$2 AND call_type='table_reservation'
+             AND status IN ('pending', 'approved')`,
+            [groupId, date]
+        );
+        const queryTime = Date.now() - queryStart;
+        console.log(`[AVAILABILITY] DB query took ${queryTime}ms, found ${reservations.rows.length} reservations`);
+
+        // בנית זמינות לפי שעות
+        const slots = [];
+        for (let hour = 10; hour <= 23; hour++) {
+            const timeStr = String(hour).padStart(2, '0') + ':00';
+
+            // ספרו כמה שולחנות תפוסים בשעה זו ±1 שעה
+            const occupied = reservations.rows.filter(r => {
+                const [rHour] = r.start_time.split(':');
+                const diff = Math.abs(parseInt(rHour) - hour);
+                return diff <= 1;
+            }).reduce((sum, r) => sum + (r.num_guests || 1), 0);
+
+            const available = tableCount - Math.ceil(occupied / 2);
+            slots.push({
+                time: timeStr,
+                available: available > 0,
+                tables: Math.max(0, available)
+            });
+        }
+
+        const totalTime = Date.now() - startTime;
+        console.log(`[AVAILABILITY] Total endpoint time: ${totalTime}ms`);
+        res.json({ success: true, slots });
+    } catch(e) {
+        console.error('Error loading availability:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// POST הזמנת שולחן (יצירת record זמני + שליחת SMS)
+app.post('/api/public/restaurants/:groupId/book-table', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const { name, phone, date, time, numGuests, notes } = req.body;
+
+        if (!name || !phone || !date || !time || !numGuests) {
+            return res.status(400).json({ success: false, error: 'חסרים פרטים חובה' });
+        }
+
+        // בדיקת זמינות בשנית (לוודא שלא תפוסה כבר)
+        const check = await pool.query(
+            `SELECT COUNT(*) as cnt FROM calendar_events
+             WHERE group_id=$1 AND event_date=$2 AND call_type='table_reservation'
+             AND status IN ('pending', 'approved')`,
+            [groupId, date]
+        );
+
+        if (parseInt(check.rows[0].cnt) >= parseInt((await pool.query('SELECT table_count FROM family_groups WHERE id=$1', [groupId])).rows[0].table_count || 8)) {
+            return res.status(400).json({ success: false, error: 'אין זמינות בשעה זו' });
+        }
+
+        // יצירת code אישור 4 ספרות
+        const smsCode = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+
+        // שמירת בקשה זמנית
+        const result = await pool.query(
+            `INSERT INTO temp_table_reservations
+             (group_id, customer_name, customer_phone, reservation_date, reservation_time, num_guests, notes, sms_code, sms_sent_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+             RETURNING id`,
+            [groupId, name, phone, date, time, numGuests, notes, smsCode]
+        );
+
+        const tempId = result.rows[0].id;
+
+        // אם יש קוד debug קבוע בהגדרות — משתמשים בו (לבדיקות)
+        const debugCodeRes = await pool.query("SELECT value FROM system_settings WHERE key='sms_debug_code'");
+        const debugCode = debugCodeRes.rows[0]?.value || '';
+        const finalCode = debugCode.length === 4 ? debugCode : smsCode;
+        if (debugCode.length === 4) {
+            await pool.query('UPDATE temp_table_reservations SET sms_code=$1 WHERE id=$2', [finalCode, tempId]);
+        }
+
+        // שליחת SMS דרך השירות
+        await smsService.send(phone, `קוד האישור שלך: ${finalCode}`, finalCode);
+
+        res.json({
+            success: true,
+            tempId: tempId,
+            message: 'בקשה שלחה. בדוק את ה-SMS שלך לקוד אישור.'
+        });
+    } catch(e) {
+        console.error('Error booking table:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// POST אימות SMS והשלמת הזמנה
+app.post('/api/public/restaurants/:groupId/verify-table-sms', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const { tempId, code } = req.body;
+
+        if (!code || code.length !== 4) {
+            return res.status(400).json({ success: false, error: 'קוד שגוי' });
+        }
+
+        // שליפת ההזמנה הזמנית
+        const tempRes = await pool.query(
+            `SELECT * FROM temp_table_reservations
+             WHERE id=$1 AND group_id=$2 AND status='pending'`,
+            [tempId, groupId]
+        );
+
+        if (!tempRes.rows.length) {
+            return res.status(404).json({ success: false, error: 'הזמנה לא נמצאה' });
+        }
+
+        const temp = tempRes.rows[0];
+
+        // בדיקת קוד SMS
+        if (temp.sms_code !== code) {
+            return res.status(400).json({ success: false, error: 'קוד שגוי' });
+        }
+
+        // בדיקת תוקף (30 דקות)
+        const now = new Date();
+        const sentAt = new Date(temp.sms_sent_at);
+        if ((now - sentAt) / 1000 / 60 > 30) {
+            return res.status(400).json({ success: false, error: 'קוד פג תוקף' });
+        }
+
+        // מצא שולחן פנוי והוסף הזמנה כחוקית
+        const eventRes = await pool.query(
+            `INSERT INTO calendar_events
+             (group_id, title, customer_phone, customer_name, notes, event_date, start_time, status, num_guests, call_type, customer_group_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', $8, 'table_reservation', NULL)
+             RETURNING id`,
+            [
+                groupId,
+                `${temp.customer_name} — ${temp.num_guests} סועדים`,
+                temp.customer_phone,
+                temp.customer_name,
+                temp.notes || '',
+                temp.reservation_date,
+                temp.reservation_time,
+                temp.num_guests
+            ]
+        );
+
+        // עדכון ההזמנה הזמנית
+        await pool.query(
+            `UPDATE temp_table_reservations SET status='verified', verified_at=NOW() WHERE id=$1`,
+            [tempId]
+        );
+
+        // שליחת SMS אישור סופי
+        console.log(`[SMS] לטלפון ${temp.customer_phone}: ההזמנה שלך אושרה בהצלחה!`);
+
+        res.json({
+            success: true,
+            eventId: eventRes.rows[0].id,
+            message: 'ההזמנה אושרה בהצלחה!'
+        });
+    } catch(e) {
+        console.error('Error verifying SMS:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// ===== END PUBLIC RESERVATIONS API =====
+
+// הפעלת השרת
+app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+});
