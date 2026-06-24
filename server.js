@@ -6275,6 +6275,26 @@ app.post('/api/biz/chat-assistant', async (req, res) => {
 - חשבוניות שממתינות לתשלום
 ` : '';
 
+        const maintenanceSection = bizType === 'maintenance_repair' ? `
+
+== ניתוח עסק תיקונים / שירות ==
+• **קריאות פתוחות** (service_calls_open): כמות וסוגים — מעל 20 פתוחות = בדוק קיבולת טכנאים
+• **דחופות**: priority=urgent — כל קריאה דחופה ללא תאריך מתוזמן = בעיה מיידית
+• **waiting_parts**: קריאות בstate=waiting_parts — מעל 3 ימים = בעיה ספקים
+• **ללא תאריך**: קריאות ב-status=new ללא scheduled_at — פיגור שירות
+• **זמן טיפול ממוצע**: ניתוח לפי מספר קריאות ביום vs. קיבולת טכנאים
+
+== תיקונים — פקודות פעולה ==
+כשמבקשים לעדכן סטטוס קריאת שירות → [ACTION:UPDATE_SC_STATUS|sc_id|status|כותרת קריאה]
+  (סטטוסים: scheduled/processing/done/cancelled/waiting_parts)
+  sc_id נלקח מ-service_calls_open[].id
+• לפתוח יומן → [ACTION:OPEN_TAB|calendar]
+• לפתוח לקוחות → [ACTION:OPEN_TAB|customers]
+• לפתוח הזמנות/פקודות עבודה → [ACTION:OPEN_TAB|sales]
+• לפתוח צוות → [ACTION:OPEN_TAB|members]
+• לייצא הזמנות → [ACTION:EXPORT_EXCEL|orders]
+• לייצא תזרים → [ACTION:EXPORT_EXCEL|cashflow]` : '';
+
         const professionalSection = bizType === 'professional' ? `
 
 == ניתוח עסק מקצועי / ייעוץ ==
@@ -6414,7 +6434,7 @@ ${context}
 • מלאי: פריטים נגמרים, המלצת הזמנה, קצב צריכה
 • תזרים: הכנסות מול הוצאות, יתרה נטו, ניתוח קטגוריות
 • צוות: כמות עובדים, יתרות תקציב
-• חיזוי: על בסיס נתוני החודשים האחרונים, חזה מה צפוי החודש/שבוע הבא${logisticsSection}${professionalSection}${beautySection}${sportSection}`;
+• חיזוי: על בסיס נתוני החודשים האחרונים, חזה מה צפוי החודש/שבוע הבא${logisticsSection}${maintenanceSection}${professionalSection}${beautySection}${sportSection}`;
 
         const result = await model.generateContent(systemPrompt);
         res.json({ success: true, answer: result.response.text().trim() });

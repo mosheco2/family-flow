@@ -13812,6 +13812,9 @@ async function submitGlobalAI() {
             : undefined,
         professional_leads_recent: currentGroup?.business_type==='professional'
             ? (window._professionalLeadsCache||[]).slice(0,20).map(l=>({id:l.id,name:l.name,phone:l.phone,email:l.email,subject:l.subject,status:l.status,date:l.created_at}))
+            : undefined,
+        service_calls_open: currentGroup?.business_type==='maintenance_repair'
+            ? (window._serviceCallsCache||[]).filter(c=>!['done','cancelled'].includes(c.status)).slice(0,20).map(c=>({id:c.id,title:c.title,customer:c.customer_name||c.family_name,status:c.status,priority:c.priority,scheduled:c.scheduled_at,parts_status:c.parts_status}))
             : undefined
     };
 
@@ -13926,6 +13929,14 @@ async function submitGlobalAI() {
                 answerText = answerText.replace(caseStatusMatch[0], '');
                 const csLabels = {processing:'בתהליך',scheduled:'מתוזמן',completed:'הושלם',cancelled:'בוטל',new:'חדש'};
                 actionHtml += `<button onclick="window._aiUpdateCaseStatus(${csId},'${csStatus}','${safeStr(csDesc)}',this)" class="mt-3 w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-folder-open"></i> עדכן תיק ${safeStr(csDesc)} → ${csLabels[csStatus]||csStatus}</button>`;
+            }
+            // AI Action Parser — עדכון סטטוס קריאת שירות (תיקונים)
+            const scStatusMatch = answerText.match(/\[ACTION:UPDATE_SC_STATUS\|(\d+)\|([\w_]+)\|([^\]]*)\]/);
+            if (scStatusMatch) {
+                const scId = scStatusMatch[1], scStatus = scStatusMatch[2], scTitle = scStatusMatch[3];
+                answerText = answerText.replace(scStatusMatch[0], '');
+                const scLabels = {new:'חדש',scheduled:'נקבע תור',processing:'בטיפול',done:'הושלם',cancelled:'בוטל',waiting_parts:'ממתין לחלקים'};
+                actionHtml += `<button onclick="window._aiUpdateSCStatus(${scId},'${scStatus}','${safeStr(scTitle)}',this)" class="mt-3 w-full bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-wrench"></i> עדכן קריאה: ${safeStr(scTitle)} → ${scLabels[scStatus]||scStatus}</button>`;
             }
             // Markdown bold → <strong>
             answerText = answerText.trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
@@ -28745,9 +28756,10 @@ async function renderFieldTechMaintenanceDashboard(el) {
 }
 
 // ─── MAINTENANCE_REPAIR: Branch Manager Dashboard ───────────────────────────
+window._serviceCallsCache = [];
 async function renderBranchManagerMaintenanceDashboard(el) {
     let calls = [], members = [];
-    try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`); const d = await r.json(); calls = d.calls||[]; } catch(e) {}
+    try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`); const d = await r.json(); calls = d.calls||[]; window._serviceCallsCache = calls; } catch(e) {}
     try { const r = await fetch(`/api/members/${currentGroup.id}`); const d = await r.json(); members = (d.members||[]).filter(m => m.role !== 'ADMIN' && m.employee_role_type === 'field_tech'); } catch(e) {}
     // בדיקת התראות תאריכים (אחרי טעינה, לא חוסם)
     fetch(`/api/service-calls/check-schedule-notifications/${currentGroup.id}`, {method:'POST'}).catch(()=>{});
@@ -44773,4 +44785,22 @@ window._aiUpdateCaseStatus = async function(caseId, status, caseDesc, btn) {
             if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> עודכן!'; btn.className = btn.className.replace(/bg-indigo-\d+/g,'bg-green-50').replace(/text-indigo-\d+/g,'text-green-700').replace(/border-indigo-\d+/g,'border-green-200'); }
         } else { throw new Error(data.error||'error'); }
     } catch(e) { showToast('error', 'שגיאה בעדכון תיק'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-folder-open"></i> נסה שוב'; } }
+};
+
+// === AI ACTION HANDLERS — MAINTENANCE/REPAIR ===
+window._aiUpdateSCStatus = async function(scId, status, scTitle, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
+    try {
+        const res = await fetch(API + '/service-calls/' + scId, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ status })
+        });
+        const data = await res.json();
+        if (data.success) {
+            const labels = {new:'חדש',scheduled:'נקבע תור',processing:'בטיפול',done:'הושלם',cancelled:'בוטל',waiting_parts:'ממתין לחלקים'};
+            showToast('success', scTitle + ' עודכן → ' + (labels[status]||status) + ' ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> עודכן!'; btn.className = btn.className.replace(/bg-slate-\d+/g,'bg-green-50').replace(/text-slate-\d+/g,'text-green-700').replace(/border-slate-\d+/g,'border-green-200'); }
+            window._serviceCallsCache = window._serviceCallsCache.map(c => c.id == scId ? {...c, status} : c);
+        } else { throw new Error(data.error||'error'); }
+    } catch(e) { showToast('error', 'שגיאה בעדכון קריאה'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wrench"></i> נסה שוב'; } }
 };
