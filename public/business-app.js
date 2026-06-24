@@ -13800,7 +13800,13 @@ async function submitGlobalAI() {
             recent_expense: (allTransactions||[]).filter(t=>t.type==='expense').slice(0,5).map(t=>({desc:t.description,amount:t.amount,date:t.date}))
         },
         food_cost: fcSummary,
-        open_tasks: (allTasks||[]).filter(t=>t.status==='pending').slice(0,10).map(t=>({title:t.title,assignee:t.assignee_name}))
+        open_tasks: (allTasks||[]).filter(t=>t.status==='pending').slice(0,10).map(t=>({title:t.title,assignee:t.assignee_name})),
+        catalog: (currentGroup?.business_type==='restaurant'||currentGroup?.business_type==='cafe')
+            ? (window.storeCatalogCache||[]).slice(0,60).map(p=>({id:p.id,name:p.name,price:p.price,available:p.is_available,category:p.category}))
+            : undefined,
+        table_reservations_today: (currentGroup?.business_type==='restaurant'||currentGroup?.business_type==='cafe')
+            ? (window._tableReservationsCache||[]).filter(r=>{try{const d=new Date(r.event_date||r.created_at);return d.toDateString()===now_ai.toDateString();}catch(e){return false;}}).slice(0,20).map(r=>({id:r.id,name:r.title||r.customer_name,phone:r.customer_phone,time:r.start_time,guests:r.num_guests,status:r.status,table:r.reserved_table_number}))
+            : undefined
     };
     
     try {
@@ -13841,12 +13847,41 @@ async function submitGlobalAI() {
                 answerText = answerText.replace(tabMatch[0], '');
                 actionHtml += `<button onclick="document.getElementById('global-ai-modal').classList.add('hidden'); switchTab('${tabId}')" class="mt-3 w-full bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-arrow-left"></i> עבור ל${tabId}</button>`;
             }
+            // AI Action Parser — יצירת הזמנת שולחן (מסעדה)
+            const tableResMatch = answerText.match(/\[ACTION:CREATE_TABLE_RES\|([^|\]]*)\|([^|\]]*)\|([^|\]]*)\|([^|\]]*)(?:\|([^|\]]*))?(?:\|([^\]]*))?\]/);
+            if (tableResMatch) {
+                const [, trName, trPhone, trDate, trTime, trGuests, trNotes] = tableResMatch;
+                answerText = answerText.replace(tableResMatch[0], '');
+                actionHtml += `<button onclick="window._aiCreateTableRes('${safeStr(trName)}','${safeStr(trPhone)}','${safeStr(trDate)}','${safeStr(trTime)}','${safeStr(trGuests||'2')}','${safeStr(trNotes||'')}',this)" class="mt-3 w-full bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-utensils"></i> שמור הזמנת שולחן: ${safeStr(trName)} | ${safeStr(trDate)} ${safeStr(trTime)} | ${safeStr(trGuests||'2')} סועדים</button>`;
+            }
+            // AI Action Parser — עדכון סטטוס הזמנה
+            const updateOrderMatch = answerText.match(/\[ACTION:UPDATE_ORDER_STATUS\|(\d+)\|([\w]+)\]/);
+            if (updateOrderMatch) {
+                const aoId = updateOrderMatch[1], aoStatus = updateOrderMatch[2];
+                answerText = answerText.replace(updateOrderMatch[0], '');
+                const aoLabels = {processing:'בעבודה',completed:'הושלם',cancelled:'בוטל',ready:'מוכן',shipped:'בדרך'};
+                actionHtml += `<button onclick="window._aiUpdateOrderStatus(${aoId},'${aoStatus}',this)" class="mt-3 w-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-rotate"></i> עדכן הזמנה #${aoId} → ${aoLabels[aoStatus]||aoStatus}</button>`;
+            }
+            // AI Action Parser — הפעלה/השבתה מנה
+            const toggleCatalogMatch = answerText.match(/\[ACTION:TOGGLE_CATALOG_ITEM\|(\d+)\|(true|false)\]/);
+            if (toggleCatalogMatch) {
+                const tcId = toggleCatalogMatch[1], tcAvail = toggleCatalogMatch[2] === 'true';
+                answerText = answerText.replace(toggleCatalogMatch[0], '');
+                actionHtml += `<button onclick="window._aiToggleCatalogItem(${tcId},${tcAvail},this)" class="mt-3 w-full bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-toggle-${tcAvail?'on':'off'}"></i> ${tcAvail?'הפעל':'הסתר'} מנה מהתפריט</button>`;
+            }
+            // AI Action Parser — עדכון מחיר מנה
+            const updatePriceMatch = answerText.match(/\[ACTION:UPDATE_CATALOG_PRICE\|(\d+)\|([\d.]+)\]/);
+            if (updatePriceMatch) {
+                const upId = updatePriceMatch[1], upPrice = updatePriceMatch[2];
+                answerText = answerText.replace(updatePriceMatch[0], '');
+                actionHtml += `<button onclick="window._aiUpdateCatalogPrice(${upId},${upPrice},this)" class="mt-3 w-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-tag"></i> עדכן מחיר → ₪${upPrice}</button>`;
+            }
             // Markdown bold → <strong>
             answerText = answerText.trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
-            chatBox.innerHTML += `<div class="bg-white p-3.5 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%] fade-in leading-relaxed">${answerText}${actionHtml}</div>`; 
-            chatBox.scrollTop = chatBox.scrollHeight; 
-        } else { 
-            showToast('error', 'שגיאה בתשובת ה-AI'); 
+            chatBox.innerHTML += `<div class="bg-white p-3.5 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%] fade-in leading-relaxed">${answerText}${actionHtml}</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        } else {
+            showToast('error', 'שגיאה בתשובת ה-AI');
         }
     } catch(e) { showToast('error', 'תקלת רשת מול מנוע ה-AI'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>'; }
 }
@@ -44437,3 +44472,66 @@ window._applyBizVisibility = async function() {
 };
 // ─────────────────────────────────────────────────────────────────────────────
 // ============================================================
+
+// === AI ACTION HANDLERS — RESTAURANT ===
+window._aiCreateTableRes = async function(name, phone, date, time, guests, notes, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...'; }
+    try {
+        const res = await fetch(API + '/calendar/events', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, title: name, customerPhone: phone, eventDate: date, startTime: time, numGuests: parseInt(guests)||2, notes: notes||'', callType: 'table_reservation', status: 'approved' })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הזמנת שולחן נוצרה ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> נשמר!'; btn.className = btn.className.replace(/bg-orange-\d+/g,'bg-green-50').replace(/text-orange-\d+/g,'text-green-700').replace(/border-orange-\d+/g,'border-green-200'); }
+        } else { throw new Error(data.error||'error'); }
+    } catch(e) { showToast('error', 'שגיאה ביצירת הזמנת שולחן'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-utensils"></i> נסה שוב'; } }
+};
+
+window._aiUpdateOrderStatus = async function(orderId, status, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
+    try {
+        const res = await fetch(API + '/store/orders/status', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ orderId, status, groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            const labels = {processing:'בעבודה',completed:'הושלם',cancelled:'בוטל',ready:'מוכן',shipped:'בדרך'};
+            showToast('success', 'הזמנה #' + orderId + ' → ' + (labels[status]||status));
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> עודכן!'; btn.className = btn.className.replace(/bg-blue-\d+/g,'bg-green-50').replace(/text-blue-\d+/g,'text-green-700').replace(/border-blue-\d+/g,'border-green-200'); }
+            if (window.loadOrders) window.loadOrders().catch(function(){});
+        } else { throw new Error(); }
+    } catch(e) { showToast('error', 'שגיאה בעדכון הזמנה'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate"></i> נסה שוב'; } }
+};
+
+window._aiToggleCatalogItem = async function(itemId, available, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
+    try {
+        const res = await fetch(API + '/ai/actions', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ action: 'TOGGLE_CATALOG_ITEM', params: { itemId, available }, groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'מנה ' + (available ? 'הופעלה' : 'הוסתרה') + ' ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> עודכן!'; btn.className = btn.className.replace(/bg-purple-\d+/g,'bg-green-50').replace(/text-purple-\d+/g,'text-green-700').replace(/border-purple-\d+/g,'border-green-200'); }
+        } else { throw new Error(); }
+    } catch(e) { showToast('error', 'שגיאה בעדכון מנה'); if (btn) { btn.disabled = false; } }
+};
+
+window._aiUpdateCatalogPrice = async function(itemId, price, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
+    try {
+        const res = await fetch(API + '/ai/actions', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ action: 'UPDATE_CATALOG_PRICE', params: { itemId, price }, groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'מחיר עודכן ל-₪' + price + ' ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> עודכן!'; btn.className = btn.className.replace(/bg-emerald-\d+/g,'bg-green-50').replace(/text-emerald-\d+/g,'text-green-700').replace(/border-emerald-\d+/g,'border-green-200'); }
+        } else { throw new Error(); }
+    } catch(e) { showToast('error', 'שגיאה בעדכון מחיר'); if (btn) { btn.disabled = false; } }
+};
