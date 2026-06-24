@@ -7101,7 +7101,7 @@ function openPantryUseModal(name, unit, qty, upp, reservedQty, bufferPct) {
     const buffer = parseFloat(bufferPct || 0);
     const bufferQty = parseFloat(qty) * (buffer / 100);
     const available = Math.max(0, parseFloat(qty) - reserved - bufferQty);
-    const availableSubUnits = Math.round(available * parseInt(upp || 1));
+    const availableSubUnits = Math.ceil(available * parseInt(upp || 1));
     // store available for submitPantryUse validation
     window._pantryUseAvailable = available;
     window._pantryUseUnit = unit;
@@ -11482,11 +11482,11 @@ window.showPantryWoReservations = async function(pantryId, itemName) {
                     <div>
                         <p class="text-sm font-bold text-slate-700">${safeStr(r.customer_name || 'ללא שם')}</p>
                         <p class="text-[10px] text-slate-400">פ"ע #${r.wo_id} • ${statusLabels[r.wo_status] || r.wo_status}</p>
-                        ${shortage > 0 ? `<p class="text-[10px] text-red-500 font-bold">חסר: ${shortage} יח'</p>` : ''}
+                        ${shortage > 0 ? `<p class="text-[10px] text-red-500 font-bold">חסר: ${Math.ceil(shortage)} יח'</p>` : ''}
                     </div>
                     <div class="text-left">
-                        <span class="font-black text-indigo-700 text-sm block">${r.reserved_qty} יח'</span>
-                        ${needed > r.reserved_qty ? `<span class="text-[9px] text-slate-400">מתוך ${needed} נדרש</span>` : ''}
+                        <span class="font-black text-indigo-700 text-sm block">${Math.ceil(parseFloat(r.reserved_qty))} יח'</span>
+                        ${needed > r.reserved_qty ? `<span class="text-[9px] text-slate-400">מתוך ${Math.ceil(needed)} נדרש</span>` : ''}
                     </div>
                 </div>`;}).join('') + '</div>'}
             </div>
@@ -11514,7 +11514,7 @@ window.showCatalogWoReservations = async function(catalogId, itemName) {
                         <p class="text-sm font-bold text-slate-700">${safeStr(r.customer_name || 'ללא שם')}</p>
                         <p class="text-[10px] text-slate-400">פ"ע #${r.wo_id} • ${r.wo_status || ''}</p>
                     </div>
-                    <span class="font-black text-indigo-700 text-sm">${r.reserved_qty} יח'</span>
+                    <span class="font-black text-indigo-700 text-sm">${Math.ceil(parseFloat(r.reserved_qty))} יח'</span>
                 </div>`).join('') + '</div>'}
             </div>
         </div>`;
