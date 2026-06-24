@@ -6275,6 +6275,30 @@ app.post('/api/biz/chat-assistant', async (req, res) => {
 - חשבוניות שממתינות לתשלום
 ` : '';
 
+        const professionalSection = bizType === 'professional' ? `
+
+== ניתוח עסק מקצועי / ייעוץ ==
+• **תיקים פעילים** (work_orders): status=processing/scheduled/pending — ריבוי תיקים פתוחים = בדוק קיבולת
+• **פניות נכנסות** (professional_leads_recent): status=new = דחוף — כל ליד חדש מעל 24 שעות = ירידת המרה
+• **שעות לא מחויבות**: unbilled_hours — מעל 8 שעות = צ'ק חיוב דחוף
+• **הצעות ממתינות**: pending_quotes — ממתין לאישור לקוח — המלץ follow-up
+• **חיזוי הכנסה**: new_leads × שיעור המרה ממוצע (30%) × ערך עסקה = הכנסה פוטנציאלית
+
+== מומחים — פקודות פעולה ==
+כשמבקשים לעדכן סטטוס פנייה → [ACTION:UPDATE_LEAD_STATUS|lead_id|status|שם]
+  (סטטוסים: contacted/converted/closed)
+  lead_id נלקח מ-professional_leads_recent[].id
+כשמבקשים לעדכן סטטוס תיק/פרויקט → [ACTION:UPDATE_CASE_STATUS|case_id|status|שם לקוח]
+  (סטטוסים: processing/scheduled/completed/cancelled)
+  case_id נלקח מ-work_orders[].id
+• לפתוח פניות → [ACTION:OPEN_TAB|leads]
+• לפתוח תיקים → [ACTION:OPEN_TAB|cases]
+• לפתוח מסמכים/הצעות → [ACTION:OPEN_TAB|documents]
+• לפתוח יומן → [ACTION:OPEN_TAB|calendar]
+• לפתוח שעות עבודה → [ACTION:OPEN_TAB|timelog]
+• לייצא לקוחות → [ACTION:EXPORT_EXCEL|customers]
+• לייצא תזרים → [ACTION:EXPORT_EXCEL|cashflow]` : '';
+
         const beautySection = bizType === 'beauty' ? `
 
 == ניתוח סלון יופי / קוסמטיקה ==
@@ -6390,7 +6414,7 @@ ${context}
 • מלאי: פריטים נגמרים, המלצת הזמנה, קצב צריכה
 • תזרים: הכנסות מול הוצאות, יתרה נטו, ניתוח קטגוריות
 • צוות: כמות עובדים, יתרות תקציב
-• חיזוי: על בסיס נתוני החודשים האחרונים, חזה מה צפוי החודש/שבוע הבא${logisticsSection}${beautySection}${sportSection}`;
+• חיזוי: על בסיס נתוני החודשים האחרונים, חזה מה צפוי החודש/שבוע הבא${logisticsSection}${professionalSection}${beautySection}${sportSection}`;
 
         const result = await model.generateContent(systemPrompt);
         res.json({ success: true, answer: result.response.text().trim() });

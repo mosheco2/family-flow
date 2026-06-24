@@ -13809,6 +13809,9 @@ async function submitGlobalAI() {
             : undefined,
         beauty_appointments_today: currentGroup?.business_type==='beauty'
             ? (window._beautyState?.appointments||[]).filter(a=>{try{const seg=a.segments?.[0];const ts=seg?.start_time||a.start_time;return ts&&new Date(ts).toDateString()===now_ai.toDateString();}catch(e){return false;}}).slice(0,30).map(a=>{const seg=a.segments?.[0]||{};return{id:a.id,client:a.client_name,phone:a.client_phone,service:seg.service_name||a.service_name,practitioner:seg.practitioner_name||a.practitioner_name,time:seg.start_time||a.start_time,status:a.status,price:a.total_price};})
+            : undefined,
+        professional_leads_recent: currentGroup?.business_type==='professional'
+            ? (window._professionalLeadsCache||[]).slice(0,20).map(l=>({id:l.id,name:l.name,phone:l.phone,email:l.email,subject:l.subject,status:l.status,date:l.created_at}))
             : undefined
     };
 
@@ -13907,6 +13910,22 @@ async function submitGlobalAI() {
                 const bacName = beautyAddClientMatch[1], bacPhone = beautyAddClientMatch[2], bacNotes = beautyAddClientMatch[3];
                 answerText = answerText.replace(beautyAddClientMatch[0], '');
                 actionHtml += `<button onclick="window._aiAddBeautyClient('${safeStr(bacName)}','${safeStr(bacPhone)}','${safeStr(bacNotes)}',this)" class="mt-3 w-full bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-user-plus"></i> הוסף לקוחה: ${safeStr(bacName)}</button>`;
+            }
+            // AI Action Parser — עדכון סטטוס פנייה (מומחים)
+            const leadStatusMatch = answerText.match(/\[ACTION:UPDATE_LEAD_STATUS\|(\d+)\|([\w]+)\|([^\]]*)\]/);
+            if (leadStatusMatch) {
+                const lsId = leadStatusMatch[1], lsStatus = leadStatusMatch[2], lsName = leadStatusMatch[3];
+                answerText = answerText.replace(leadStatusMatch[0], '');
+                const lsLabels = {new:'חדש',contacted:'נוצר קשר',converted:'הפך לקוח',closed:'נסגר'};
+                actionHtml += `<button onclick="window._aiUpdateLeadStatus(${lsId},'${lsStatus}','${safeStr(lsName)}',this)" class="mt-3 w-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-user-tag"></i> עדכן פנייה ${safeStr(lsName)} → ${lsLabels[lsStatus]||lsStatus}</button>`;
+            }
+            // AI Action Parser — עדכון סטטוס תיק (מומחים)
+            const caseStatusMatch = answerText.match(/\[ACTION:UPDATE_CASE_STATUS\|(\d+)\|([\w]+)\|([^\]]*)\]/);
+            if (caseStatusMatch) {
+                const csId = caseStatusMatch[1], csStatus = caseStatusMatch[2], csDesc = caseStatusMatch[3];
+                answerText = answerText.replace(caseStatusMatch[0], '');
+                const csLabels = {processing:'בתהליך',scheduled:'מתוזמן',completed:'הושלם',cancelled:'בוטל',new:'חדש'};
+                actionHtml += `<button onclick="window._aiUpdateCaseStatus(${csId},'${csStatus}','${safeStr(csDesc)}',this)" class="mt-3 w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-folder-open"></i> עדכן תיק ${safeStr(csDesc)} → ${csLabels[csStatus]||csStatus}</button>`;
             }
             // Markdown bold → <strong>
             answerText = answerText.trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
@@ -44024,6 +44043,7 @@ window.openArticleShare = function(encodedUrl, encodedTitle) {
 };
 
 // ─── פניות נכנסות (Leads) ────────────────────────────────────
+window._professionalLeadsCache = [];
 window.renderProfessionalLeadsTab = async function() {
     const el = document.getElementById('content-leads');
     if (!el) return;
@@ -44032,6 +44052,7 @@ window.renderProfessionalLeadsTab = async function() {
         const res = await fetch(`${API}/professional-leads/${currentGroup.id}`);
         const data = await res.json();
         const leads = data.leads || [];
+        window._professionalLeadsCache = leads;
         const statusLabel = { new:'חדש', contacted:'נוצר קשר', converted:'הפך לקוח', closed:'נסגר' };
         const statusColor = { new:'bg-blue-100 text-blue-700', contacted:'bg-amber-100 text-amber-700', converted:'bg-green-100 text-green-700', closed:'bg-slate-100 text-slate-500' };
         el.innerHTML = `
@@ -44718,4 +44739,38 @@ window._aiAddBeautyClient = async function(name, phone, notes, btn) {
             if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> נוספה!'; btn.className = btn.className.replace(/bg-purple-\d+/g,'bg-green-50').replace(/text-purple-\d+/g,'text-green-700').replace(/border-purple-\d+/g,'border-green-200'); }
         } else { throw new Error(data.error||'error'); }
     } catch(e) { showToast('error', 'שגיאה בהוספת לקוחה'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> נסה שוב'; } }
+};
+
+// === AI ACTION HANDLERS — PROFESSIONAL ===
+window._aiUpdateLeadStatus = async function(leadId, status, leadName, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
+    try {
+        const res = await fetch(API + '/professional-leads/' + leadId, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ status })
+        });
+        const data = await res.json();
+        if (data.success) {
+            const labels = {new:'חדש',contacted:'נוצר קשר',converted:'הפך לקוח',closed:'נסגר'};
+            showToast('success', 'פנייה ' + leadName + ' עודכנה → ' + (labels[status]||status) + ' ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> עודכן!'; btn.className = btn.className.replace(/bg-blue-\d+/g,'bg-green-50').replace(/text-blue-\d+/g,'text-green-700').replace(/border-blue-\d+/g,'border-green-200'); }
+            if (typeof renderProfessionalLeadsTab === 'function') renderProfessionalLeadsTab();
+        } else { throw new Error(data.error||'error'); }
+    } catch(e) { showToast('error', 'שגיאה בעדכון פנייה'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-user-tag"></i> נסה שוב'; } }
+};
+
+window._aiUpdateCaseStatus = async function(caseId, status, caseDesc, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
+    try {
+        const res = await fetch(API + '/work-orders/' + caseId + '/status', {
+            method: 'PUT', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ status, userName: 'AI Assistant' })
+        });
+        const data = await res.json();
+        if (data.success) {
+            const labels = {processing:'בתהליך',scheduled:'מתוזמן',completed:'הושלם',cancelled:'בוטל',new:'חדש'};
+            showToast('success', 'תיק עודכן → ' + (labels[status]||status) + ' ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> עודכן!'; btn.className = btn.className.replace(/bg-indigo-\d+/g,'bg-green-50').replace(/text-indigo-\d+/g,'text-green-700').replace(/border-indigo-\d+/g,'border-green-200'); }
+        } else { throw new Error(data.error||'error'); }
+    } catch(e) { showToast('error', 'שגיאה בעדכון תיק'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-folder-open"></i> נסה שוב'; } }
 };
