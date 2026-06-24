@@ -12386,6 +12386,16 @@ app.post('/api/professional-expertise/:groupId', async (req, res) => {
         res.json({ item: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+app.patch('/api/professional-expertise/:id', async (req, res) => {
+    try {
+        const { icon, title_he, title_en, description_he, description_en } = req.body;
+        await pool.query(
+            `UPDATE professional_expertise SET icon=COALESCE($1,icon), title_he=COALESCE($2,title_he), title_en=COALESCE($3,title_en), description_he=COALESCE($4,description_he), description_en=COALESCE($5,description_en) WHERE id=$6`,
+            [icon||null, title_he||null, title_en||null, description_he||null, description_en||null, req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 app.delete('/api/professional-expertise/:id', async (req, res) => {
     try { await pool.query('UPDATE professional_expertise SET is_active=FALSE WHERE id=$1', [req.params.id]); res.json({ success: true }); }
     catch(e) { res.status(500).json({ error: e.message }); }

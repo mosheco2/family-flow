@@ -43293,12 +43293,15 @@ window.renderProfessionalContentTab = async function() {
                     ${expertise.length===0?'<p class="text-center text-slate-400 text-sm py-6">אין תחומי עיסוק — הוסף את הראשון</p>':
                     expertise.map(x=>`
                     <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-3.5 mb-2 flex items-center justify-between">
-                        <div>
+                        <div class="flex-1 min-w-0 cursor-pointer" onclick="window.openEditExpertise(${JSON.stringify(JSON.stringify(x))})">
                             <p class="font-bold text-slate-800 text-sm">${x.icon||'⚖️'} ${safeStr(x.title_he||'')}</p>
                             ${x.title_en?`<p class="text-xs text-slate-400">${safeStr(x.title_en)}</p>`:''}
-                            ${x.description_he?`<p class="text-xs text-slate-500 mt-0.5">${safeStr(x.description_he)}</p>`:''}
+                            ${x.description_he?`<p class="text-xs text-slate-500 mt-0.5 truncate">${safeStr(x.description_he)}</p>`:'<p class="text-xs text-indigo-400 mt-0.5">+ הוסף תיאור</p>'}
                         </div>
-                        <button onclick="window.deleteExpertise(${x.id})" class="text-red-400 hover:text-red-600 mr-2 shrink-0"><i class="fa-solid fa-trash text-sm"></i></button>
+                        <div class="flex gap-2 mr-2 shrink-0">
+                            <button onclick="window.openEditExpertise(${JSON.stringify(JSON.stringify(x))})" class="text-indigo-400 hover:text-indigo-600"><i class="fa-solid fa-pen text-sm"></i></button>
+                            <button onclick="window.deleteExpertise(${x.id})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash text-sm"></i></button>
+                        </div>
                     </div>`).join('')}
                 </div>
             </div>
@@ -43558,6 +43561,58 @@ window.saveExpertise = async function() {
         if (!res.ok) throw new Error();
         document.getElementById('add-expertise-modal')?.remove();
         showToast('success','תחום עיסוק נוסף');
+        renderProfessionalContentTab();
+    } catch(e) { showToast('error','שגיאה בשמירה'); }
+};
+
+window.openEditExpertise = function(jsonStr) {
+    const x = JSON.parse(jsonStr);
+    const icons = ['⚖️','💼','📊','🏛️','🔍','📋','💡','🤝','📝','🏆','🎯','🔑','🎓','🛡️','💎','🔧'];
+    const html = `<div id="edit-expertise-modal" class="fixed inset-0 bg-slate-900/60 z-[9999] flex items-end justify-center" style="direction:rtl;">
+        <div class="bg-white w-full max-w-md rounded-t-3xl shadow-2xl p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-black text-slate-800 text-base">עריכת תחום עיסוק</h3>
+                <button onclick="document.getElementById('edit-expertise-modal').remove()" class="text-slate-400 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <p class="text-xs font-bold text-slate-500 mb-1">אייקון</p>
+                    <div class="flex flex-wrap gap-2">${icons.map(ic=>`<button onclick="document.getElementById('edit-exp-icon').value='${ic}'; this.closest('.flex').querySelectorAll('button').forEach(b=>b.classList.remove('bg-indigo-100','border-indigo-400')); this.classList.add('bg-indigo-100','border-indigo-400')" class="w-8 h-8 border border-slate-200 rounded-lg text-lg flex items-center justify-center hover:bg-indigo-50 transition ${(x.icon||'⚖️')===ic?'bg-indigo-100 border-indigo-400':''}">${ic}</button>`).join('')}
+                    <input id="edit-exp-icon" type="hidden" value="${x.icon||'⚖️'}"></div>
+                </div>
+                <input id="edit-exp-title-he" type="text" value="${safeStr(x.title_he||'')}" placeholder="שם התחום (עברית)" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                <input id="edit-exp-title-en" type="text" value="${safeStr(x.title_en||'')}" placeholder="Field name (English)" dir="ltr" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                <div>
+                    <p class="text-xs font-bold text-slate-500 mb-1">תיאור (עברית)</p>
+                    <textarea id="edit-exp-desc-he" rows="3" placeholder="תאר את השירות בקצרה..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 resize-none">${safeStr(x.description_he||'')}</textarea>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-500 mb-1">תיאור (English)</p>
+                    <textarea id="edit-exp-desc-en" rows="2" dir="ltr" placeholder="Brief description in English..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 resize-none">${safeStr(x.description_en||'')}</textarea>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="document.getElementById('edit-expertise-modal').remove()" class="flex-1 border border-slate-200 text-slate-600 rounded-xl py-2.5 font-bold text-sm">ביטול</button>
+                    <button onclick="window.saveEditExpertise(${x.id})" class="flex-1 bg-indigo-600 text-white rounded-xl py-2.5 font-bold text-sm hover:bg-indigo-700 transition">שמור</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.saveEditExpertise = async function(id) {
+    const body = {
+        icon: document.getElementById('edit-exp-icon')?.value,
+        title_he: document.getElementById('edit-exp-title-he')?.value?.trim(),
+        title_en: document.getElementById('edit-exp-title-en')?.value?.trim(),
+        description_he: document.getElementById('edit-exp-desc-he')?.value?.trim(),
+        description_en: document.getElementById('edit-exp-desc-en')?.value?.trim()
+    };
+    if (!body.title_he) { showToast('error','הזן שם תחום'); return; }
+    try {
+        await fetch(`${API}/professional-expertise/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        document.getElementById('edit-expertise-modal')?.remove();
+        showToast('success','תחום עיסוק עודכן');
         renderProfessionalContentTab();
     } catch(e) { showToast('error','שגיאה בשמירה'); }
 };

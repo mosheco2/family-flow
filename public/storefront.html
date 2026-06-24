@@ -744,12 +744,31 @@
                     <h2 class="text-2xl font-black text-slate-800 mb-2 text-center">${isEn?'Areas of Expertise':'תחומי עיסוק'}</h2>
                     <div class="w-12 h-1 rounded-full mx-auto mb-8" style="background:${primaryColor}"></div>
                     <div class="grid grid-cols-2 gap-3">
-                        ${expertise.map(x=>`
-                        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 hover:shadow-md transition">
-                            <div class="text-3xl mb-2">${x.icon||'⚖️'}</div>
-                            <h3 class="font-bold text-slate-800 text-sm">${isEn?(x.title_en||x.title_he||''):(x.title_he||'')}</h3>
-                            ${(isEn?x.description_en:x.description_he)?`<p class="text-xs text-slate-500 mt-1 leading-relaxed">${isEn?(x.description_en||''):(x.description_he||'')}</p>`:''}
-                        </div>`).join('')}
+                        ${expertise.map(x=>{
+                            const title = isEn?(x.title_en||x.title_he||''):(x.title_he||'');
+                            const desc = isEn?(x.description_en||x.description_he||''):(x.description_he||x.description_en||'');
+                            const hasDesc = desc && desc.trim();
+                            return `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 transition ${hasDesc?'cursor-pointer hover:shadow-md active:scale-95':'hover:shadow-md'}" ${hasDesc?`onclick="window._showExpertiseDetail('${x.icon||'⚖️'}','${title.replace(/'/g,"\\'")}','${desc.replace(/'/g,"\\'")}')"`:''}>
+                                <div class="text-3xl mb-2">${x.icon||'⚖️'}</div>
+                                <h3 class="font-bold text-slate-800 text-sm leading-snug">${title}</h3>
+                                ${hasDesc?`<p class="text-xs text-slate-400 mt-1.5 leading-relaxed line-clamp-2">${desc}</p>`:''}
+                                ${hasDesc?`<p class="text-xs font-bold mt-2" style="color:${primaryColor}">${isEn?'Learn more →':'פרטים נוספים ←'}</p>`:''}
+                            </div>`;
+                        }).join('')}
+                    </div>
+                    <!-- Expertise detail popup -->
+                    <div id="expertise-detail-overlay" class="fixed inset-0 bg-black/50 z-50 hidden items-end justify-center" onclick="if(event.target===this)window._closeExpertiseDetail()" style="display:none">
+                        <div id="expertise-detail-modal" class="bg-white rounded-t-3xl w-full max-w-md p-6 shadow-2xl">
+                            <div class="flex items-start gap-3 mb-3">
+                                <span id="exp-detail-icon" class="text-4xl"></span>
+                                <div class="flex-1">
+                                    <h3 id="exp-detail-title" class="font-black text-slate-800 text-lg leading-tight"></h3>
+                                </div>
+                                <button onclick="window._closeExpertiseDetail()" class="text-slate-400 text-xl shrink-0"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <p id="exp-detail-desc" class="text-sm text-slate-600 leading-relaxed mb-5"></p>
+                            <a href="#contact" onclick="window._closeExpertiseDetail()" class="block text-center text-white font-black py-3 rounded-2xl shadow-md hover:opacity-90 transition" style="background:${primaryColor}">${isEn?'Contact Us':'צור קשר לייעוץ'}</a>
+                        </div>
                     </div>
                 </div>
             </section>`;
@@ -873,6 +892,18 @@
 
             document.body.innerHTML = html;
         }
+
+        window._showExpertiseDetail = function(icon, title, desc) {
+            document.getElementById('exp-detail-icon').textContent = icon;
+            document.getElementById('exp-detail-title').textContent = title;
+            document.getElementById('exp-detail-desc').textContent = desc;
+            const overlay = document.getElementById('expertise-detail-overlay');
+            if (overlay) { overlay.style.display = 'flex'; }
+        };
+        window._closeExpertiseDetail = function() {
+            const overlay = document.getElementById('expertise-detail-overlay');
+            if (overlay) { overlay.style.display = 'none'; }
+        };
 
         async function submitProfContact(groupId, lang) {
             const isEn = lang === 'en';
