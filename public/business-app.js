@@ -43449,7 +43449,10 @@ window.renderProfessionalContentTab = async function() {
                 </button>
                 <div id="pc-articles-list">
                     ${articles.length===0?'<p class="text-center text-slate-400 text-sm py-6">אין מאמרים עדיין</p>':
-                    articles.map(a=>`
+                    articles.map(a=>{
+                        const storeUrl = encodeURIComponent(`${location.origin}/storefront.html?store=${currentGroup.group_code}#articles`);
+                        const shareTitle = encodeURIComponent(a.title_he||'');
+                        return `
                     <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-3.5 mb-2">
                         <div class="flex items-start justify-between">
                             <div class="flex-1 pr-2">
@@ -43457,12 +43460,13 @@ window.renderProfessionalContentTab = async function() {
                                 ${a.title_en?`<p class="text-xs text-slate-400">${safeStr(a.title_en)}</p>`:''}
                                 <p class="text-[10px] text-slate-400 mt-1">${new Date(a.created_at).toLocaleDateString('he-IL')} • ${a.is_published?'<span class="text-green-600 font-bold">פורסם</span>':'<span class="text-amber-600 font-bold">טיוטה</span>'}</p>
                             </div>
-                            <div class="flex gap-2">
+                            <div class="flex gap-2 shrink-0">
+                                ${a.is_published?`<button onclick="window.openArticleShare('${storeUrl}','${shareTitle}')" class="text-xs font-bold px-2 py-1 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition"><i class="fa-solid fa-share-nodes text-[10px]"></i> שתף</button>`:''}
                                 <button onclick="window.toggleArticlePublish(${a.id},${!a.is_published})" class="text-xs font-bold px-2 py-1 rounded-lg border ${a.is_published?'border-amber-200 text-amber-600':'border-green-200 text-green-600'}">${a.is_published?'הסתר':'פרסם'}</button>
                                 <button onclick="window.deleteArticle(${a.id})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash text-sm"></i></button>
                             </div>
                         </div>
-                    </div>`).join('')}
+                    </div>`;}).join('')
                 </div>
             </div>
 
@@ -43879,6 +43883,38 @@ window.toggleArticlePublish = async function(id, publish) {
 window.deleteArticle = async function(id) {
     if (!await window._uiConfirm('למחוק מאמר זה?')) return;
     try { await fetch(`${API}/professional-articles/${id}`, { method:'DELETE' }); showToast('success','נמחק'); renderProfessionalContentTab(); } catch(e) { showToast('error','שגיאה'); }
+};
+
+window.openArticleShare = function(encodedUrl, encodedTitle) {
+    const url = decodeURIComponent(encodedUrl);
+    const title = decodeURIComponent(encodedTitle);
+    document.getElementById('article-share-modal')?.remove();
+    const liUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(title + '\n' + url)}`;
+    const html = `<div id="article-share-modal" class="fixed inset-0 bg-slate-900/60 z-[9999] flex items-end justify-center" style="direction:rtl;">
+        <div class="bg-white w-full max-w-md rounded-t-3xl shadow-2xl p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-black text-slate-800 text-base">שתף מאמר 🔗</h3>
+                <button onclick="document.getElementById('article-share-modal').remove()" class="text-slate-400 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="text-xs text-slate-500 mb-4 bg-slate-50 px-3 py-2 rounded-xl truncate" dir="ltr">${url}</p>
+            <div class="space-y-2">
+                <a href="${liUrl}" target="_blank" onclick="document.getElementById('article-share-modal').remove()" class="flex items-center gap-3 bg-blue-600 text-white rounded-xl px-4 py-3 font-bold text-sm hover:bg-blue-700 transition">
+                    <i class="fa-brands fa-linkedin text-xl"></i> שתף בלינקדאין
+                </a>
+                <a href="${waUrl}" target="_blank" onclick="document.getElementById('article-share-modal').remove()" class="flex items-center gap-3 bg-green-500 text-white rounded-xl px-4 py-3 font-bold text-sm hover:bg-green-600 transition">
+                    <i class="fa-brands fa-whatsapp text-xl"></i> שתף בוואטסאפ
+                </a>
+                <button onclick="navigator.clipboard.writeText('${url.replace(/'/g,"\\'")}').then(()=>{showToast('success','הלינק הועתק — עבור לאינסטגרם ושתף בסטורי או בביו'); document.getElementById('article-share-modal').remove();})" class="w-full flex items-center gap-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl px-4 py-3 font-bold text-sm hover:opacity-90 transition">
+                    <i class="fa-brands fa-instagram text-xl"></i> העתק לינק לאינסטגרם
+                </button>
+                <button onclick="navigator.clipboard.writeText('${url.replace(/'/g,"\\'")}').then(()=>{showToast('success','הלינק הועתק'); document.getElementById('article-share-modal').remove();})" class="w-full flex items-center gap-3 bg-slate-100 text-slate-700 rounded-xl px-4 py-3 font-bold text-sm hover:bg-slate-200 transition">
+                    <i class="fa-solid fa-copy"></i> העתק לינק
+                </button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
 };
 
 // ─── פניות נכנסות (Leads) ────────────────────────────────────
