@@ -807,22 +807,26 @@
                 </div>
 
                 <!-- Header -->
-                <header class="text-white px-5 pt-10 pb-8 text-center relative overflow-hidden" style="${bannerUrl ? `background:url('${bannerUrl}') center/cover no-repeat` : `background:linear-gradient(135deg,${primaryColor} 0%,#0f172a 100%)`}">
-                    ${bannerUrl ? `<div class="absolute inset-0" style="background:linear-gradient(135deg,${primaryColor}cc 0%,#0f172acc 100%)"></div>` : `<div class="absolute inset-0 opacity-10" style="background:repeating-linear-gradient(45deg,transparent,transparent 20px,rgba(255,255,255,.05) 20px,rgba(255,255,255,.05) 40px)"></div>`}
-                    ${logoUrl?`<img src="${logoUrl}" class="w-16 h-16 rounded-2xl object-cover mx-auto mb-4 shadow-lg border-2 border-white/20" onerror="this.style.display='none'">`:''}
-                    <h1 class="text-2xl font-black mb-2 leading-tight">${heroTitle}</h1>
-                    ${heroSub?`<p class="text-sm opacity-80 leading-relaxed mb-4">${heroSub}</p>`:''}
-                    <div class="flex flex-wrap gap-2 justify-center mt-4">
-                        <a href="#contact" class="bg-white font-black text-sm px-6 py-3 rounded-2xl shadow-lg hover:opacity-90 transition" style="color:${primaryColor}">${ctaText}</a>
-                        ${phone?`<a href="tel:${phone}" class="bg-white/20 text-white font-bold text-sm px-5 py-3 rounded-2xl border border-white/30 hover:bg-white/30 transition"><i class="fa-solid fa-phone mr-1"></i>${phone}</a>`:''}
-                    </div>
-                    <!-- Nav anchors -->
-                    <div class="flex flex-wrap justify-center gap-3 mt-6 text-xs opacity-70">
-                        ${expertise.length?`<a href="#expertise" class="hover:opacity-100">${isEn?'Expertise':'תחומים'}</a>`:''}
-                        ${articles.length?`<a href="#articles" class="hover:opacity-100">${isEn?'Articles':'מאמרים'}</a>`:''}
-                        ${aboutText?`<a href="#about" class="hover:opacity-100">${isEn?'About':'אודות'}</a>`:''}
-                        ${hasProducts?`<a href="#services" class="hover:opacity-100">${isEn?'Services':'שירותים'}</a>`:''}
-                        <a href="#contact" class="hover:opacity-100">${isEn?'Contact':'יצירת קשר'}</a>
+                <header class="text-white text-center relative overflow-hidden" style="min-height:280px; ${bannerUrl ? `background:url('${bannerUrl}') center/cover no-repeat` : `background:linear-gradient(135deg,${primaryColor} 0%,#0f172a 100%)`}">
+                    <!-- Overlay -->
+                    <div class="absolute inset-0" style="background:${bannerUrl ? `linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.45) 100%)` : `rgba(0,0,0,0.15)`}; z-index:1"></div>
+                    <!-- Content above overlay -->
+                    <div class="relative px-5 pt-10 pb-8" style="z-index:2">
+                        ${logoUrl?`<img src="${logoUrl}" class="w-16 h-16 rounded-2xl object-cover mx-auto mb-4 shadow-xl border-2 border-white/40" style="filter:drop-shadow(0 2px 8px rgba(0,0,0,0.4))" onerror="this.style.display='none'">`:''}
+                        <h1 class="text-2xl font-black mb-2 leading-tight" style="text-shadow:0 2px 8px rgba(0,0,0,0.6)">${heroTitle}</h1>
+                        ${heroSub?`<p class="text-sm leading-relaxed mb-4" style="opacity:0.92; text-shadow:0 1px 4px rgba(0,0,0,0.5)">${heroSub}</p>`:''}
+                        <div class="flex flex-wrap gap-2 justify-center mt-4">
+                            <a href="#contact" class="bg-white font-black text-sm px-6 py-3 rounded-2xl shadow-lg hover:opacity-90 transition" style="color:${primaryColor}">${ctaText}</a>
+                            ${phone?`<a href="tel:${phone}" class="bg-white/20 text-white font-bold text-sm px-5 py-3 rounded-2xl border border-white/40 hover:bg-white/30 transition backdrop-blur-sm"><i class="fa-solid fa-phone mr-1"></i>${phone}</a>`:''}
+                        </div>
+                        <!-- Nav anchors -->
+                        <div class="flex flex-wrap justify-center gap-3 mt-6 text-xs" style="opacity:0.85">
+                            ${expertise.length?`<a href="#expertise" class="hover:opacity-100">${isEn?'Expertise':'תחומים'}</a>`:''}
+                            ${articles.length?`<a href="#articles" class="hover:opacity-100">${isEn?'Articles':'מאמרים'}</a>`:''}
+                            ${aboutText?`<a href="#about" class="hover:opacity-100">${isEn?'About':'אודות'}</a>`:''}
+                            ${hasProducts?`<a href="#services" class="hover:opacity-100">${isEn?'Services':'שירותים'}</a>`:''}
+                            <a href="#contact" class="hover:opacity-100">${isEn?'Contact':'יצירת קשר'}</a>
+                        </div>
                     </div>
                 </header>
 
