@@ -6886,7 +6886,7 @@ function renderPantry() {
         const bufferQty = packQty * (bufferPct / 100);
         const available = Math.max(0, packQty - reserved - bufferQty);
         const totalSubUnits = Math.round(packQty * upp);
-        const availableSubUnits = Math.round(available * upp);
+        const availableSubUnits = Math.ceil(available * upp);
         const showAvailable = available < packQty;
 
         const reservedDisplay = reserved > 0 ? `<div class="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-2 text-[10px] flex items-center justify-between">
@@ -6912,7 +6912,7 @@ function renderPantry() {
                 <span class="text-2xl font-black text-slate-800 leading-none">${packQty}</span>
                 <span class="text-xs font-bold text-slate-400 mt-1">${u}</span>
                 ${showAvailable ? `<div class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-100 px-2 py-1 rounded-full mt-1 w-max text-center">
-                    <div>זמין לפקודות: ${available}</div>
+                    <div>זמין לפקודות: ${Math.ceil(available)}</div>
                     <div class="text-[9px] opacity-90">לשימוש שוטף: ${bufferQty.toFixed(2)}</div>
                 </div>` : ''}
             </div>`;
