@@ -861,6 +861,21 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           status VARCHAR(30) DEFAULT 'new',
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
+      // ===== PROFESSIONAL DOCUMENTS MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS professional_documents (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          customer_name VARCHAR(200),
+          customer_phone VARCHAR(50),
+          title VARCHAR(300) NOT NULL,
+          content TEXT,
+          doc_type VARCHAR(30) DEFAULT 'document',
+          status VARCHAR(30) DEFAULT 'draft',
+          is_template BOOLEAN DEFAULT FALSE,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
       // ===== END PROFESSIONAL WEBSITE CONTENT MODULE =====
 
       // ===== SPORT / FITNESS MODULE =====
@@ -12420,6 +12435,51 @@ app.patch('/api/professional-leads/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 // ===== END PROFESSIONAL WEBSITE CONTENT API =====
+
+// ===== PROFESSIONAL DOCUMENTS API =====
+app.get('/api/professional-documents/:groupId', async (req, res) => {
+    try {
+        const { is_template, customer_name, customer_phone } = req.query;
+        let q = 'SELECT * FROM professional_documents WHERE group_id=$1';
+        const params = [req.params.groupId];
+        if (is_template !== undefined) { params.push(is_template === 'true'); q += ` AND is_template=$${params.length}`; }
+        if (customer_name) { params.push(`%${customer_name}%`); q += ` AND customer_name ILIKE $${params.length}`; }
+        if (customer_phone) { params.push(customer_phone); q += ` AND customer_phone=$${params.length}`; }
+        q += ' ORDER BY updated_at DESC LIMIT 500';
+        const r = await pool.query(q, params);
+        res.json({ success: true, documents: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/professional-documents/:groupId', async (req, res) => {
+    try {
+        const { customer_name, customer_phone, title, content, doc_type, status, is_template, notes } = req.body;
+        const r = await pool.query(
+            `INSERT INTO professional_documents (group_id,customer_name,customer_phone,title,content,doc_type,status,is_template,notes)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [req.params.groupId, customer_name||null, customer_phone||null, title, content||'', doc_type||'document', status||'draft', !!is_template, notes||null]);
+        res.json({ success: true, document: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/professional-documents/:id', async (req, res) => {
+    try {
+        const { title, content, doc_type, status, notes, customer_name, customer_phone } = req.body;
+        await pool.query(
+            `UPDATE professional_documents SET title=COALESCE($1,title), content=COALESCE($2,content),
+             doc_type=COALESCE($3,doc_type), status=COALESCE($4,status), notes=COALESCE($5,notes),
+             customer_name=COALESCE($6,customer_name), customer_phone=COALESCE($7,customer_phone),
+             updated_at=NOW() WHERE id=$8`,
+            [title||null, content||null, doc_type||null, status||null, notes||null, customer_name||null, customer_phone||null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/professional-documents/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM professional_documents WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+// ===== END PROFESSIONAL DOCUMENTS API =====
 
 // קבלת תחנות תשלום לקריאת שירות
 app.get('/api/service-calls/:id/payments', async (req, res) => {

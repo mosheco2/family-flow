@@ -1954,7 +1954,8 @@ function switchTab(t) {
     if (t === 'cases')   try { renderCasesTab(); } catch(e) {}
     if (t === 'timelog') try { renderTimelogTab(); } catch(e) {}
     if (t === 'content') try { renderProfessionalContentTab(); } catch(e) {}
-    if (t === 'leads')   try { renderProfessionalLeadsTab(); } catch(e) {}
+    if (t === 'leads')     try { renderProfessionalLeadsTab(); } catch(e) {}
+    if (t === 'documents') try { renderDocumentsTab(); } catch(e) {}
     if (t === 'reviews')               try { loadReviews(); } catch(e) {}
     if (t === 'settings')              { try { renderSettingsHub(); } catch(e) {} try { const _w = document.getElementById('biz-main-content-wrap'); if(_w) _w.scrollTop = 0; } catch(e) {} document.documentElement.scrollTop = 0; document.body.scrollTop = 0; window.scrollTo({ top: 0, behavior: 'instant' }); }
 }
@@ -2725,10 +2726,11 @@ const ALL_TABS = [
     { id: 'logistics_reports',  name: 'דוחות לוגיסטיקה 📊' },
     { id: 'logistics_customers', name: 'מזמינים ונמענים 🤝' },
     { id: 'logistics_invoices',  name: 'חשבוניות 🧾' },
-    { id: 'cases',   name: 'תיקים 📁' },
-    { id: 'timelog', name: 'שעות עבודה ⏱️' },
-    { id: 'content', name: 'תוכן האתר 🌐' },
-    { id: 'leads',   name: 'פניות נכנסות 📥' }
+    { id: 'cases',     name: 'תיקים 📁' },
+    { id: 'timelog',   name: 'שעות עבודה ⏱️' },
+    { id: 'content',   name: 'תוכן האתר 🌐' },
+    { id: 'leads',     name: 'פניות נכנסות 📥' },
+    { id: 'documents', name: 'מסמכים 📄' }
 ];
 
 const ROLE_DEFAULTS = {
@@ -3980,7 +3982,7 @@ const GNAV_GROUPS = {
     sales:     ['pos','sales','customers','cases','leads','deliveries','reviews','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
     inventory: ['shop','pantry','equipment','foodcost','beauty_inventory'],
     finance:   ['bank','cashflow','budget','timelog','forecast','beauty_commissions'],
-    more:      ['community','surveys','content','settings']
+    more:      ['community','surveys','content','documents','settings']
 };
 
 // שמירת האב המקורי של כל dropdown לצורך החזרה
@@ -9779,6 +9781,7 @@ window.openCustomerModal = function(id = null, tab = 'details') {
                 <button id="btn-cust-tab-details" onclick="window.switchCustomerTab('details')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים ומאזן</button>
                 <button id="btn-cust-tab-history" onclick="window.switchCustomerTab('history')" class="hidden flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריית הזמנות</button>
                 ${currentGroup?.business_type === 'maintenance_repair' ? `<button id="btn-cust-tab-calls" onclick="window.switchCustomerTab('calls')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">🔧 קריאות</button>` : ''}
+                ${currentGroup?.business_type === 'professional' ? `<button id="btn-cust-tab-documents" onclick="window.switchCustomerTab('documents')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">📄 מסמכים</button>` : ''}
                 <button id="btn-cust-tab-collection" onclick="window.switchCustomerTab('collection')" class="hidden flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">💰 גביה</button>
             </div>
             
@@ -9842,6 +9845,11 @@ window.openCustomerModal = function(id = null, tab = 'details') {
             <div id="cust-view-collection" class="hidden flex-1 overflow-y-auto modal-scroll pr-1">
                 <div id="cust-collection-list" class="space-y-2 py-2"><p class="text-center text-slate-400 text-xs py-4">טוען...</p></div>
             </div>
+
+            ${currentGroup?.business_type === 'professional' ? `
+            <div id="cust-view-documents" class="hidden flex-1 overflow-y-auto modal-scroll pr-1">
+                <div id="cust-documents-list" class="space-y-2 py-2"><p class="text-center text-slate-400 text-xs py-4">טוען...</p></div>
+            </div>` : ''}
 
             <div class="space-y-2 mt-4 pt-4 border-t border-slate-100 shrink-0">
                 <div class="flex gap-3">
@@ -9949,18 +9957,20 @@ window.switchCustomerTab = function(tab) {
     const btnHistory    = document.getElementById('btn-cust-tab-history');
     const btnCalls      = document.getElementById('btn-cust-tab-calls');
     const btnCollection = document.getElementById('btn-cust-tab-collection');
+    const btnDocuments  = document.getElementById('btn-cust-tab-documents');
     const viewDetails    = document.getElementById('cust-view-details');
     const viewHistory    = document.getElementById('cust-view-history');
     const viewCalls      = document.getElementById('cust-view-calls');
     const viewCollection = document.getElementById('cust-view-collection');
+    const viewDocuments  = document.getElementById('cust-view-documents');
 
     if (!viewDetails || !viewHistory) return;
 
     const activeClass   = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
     const inactiveClass = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
 
-    [btnDetails, btnHistory, btnCalls, btnCollection].forEach(b => { if(b) b.className = inactiveClass; });
-    [viewDetails, viewHistory, viewCalls, viewCollection].forEach(v => { if(v) v.classList.add('hidden'); });
+    [btnDetails, btnHistory, btnCalls, btnCollection, btnDocuments].forEach(b => { if(b) b.className = inactiveClass; });
+    [viewDetails, viewHistory, viewCalls, viewCollection, viewDocuments].forEach(v => { if(v) v.classList.add('hidden'); });
 
     if (tab === 'details') {
         if(btnDetails) btnDetails.className = activeClass;
@@ -9976,6 +9986,12 @@ window.switchCustomerTab = function(tab) {
         const name  = document.getElementById('cust-name')?.value?.trim();
         const phone = document.getElementById('cust-phone')?.value?.trim();
         window.loadCustomerCollection(name, phone);
+    } else if (tab === 'documents') {
+        if(btnDocuments) btnDocuments.className = activeClass;
+        if(viewDocuments) viewDocuments.classList.remove('hidden');
+        const name  = document.getElementById('cust-name')?.value?.trim();
+        const phone = document.getElementById('cust-phone')?.value?.trim();
+        window.loadCustomerDocuments(name, phone);
     } else {
         if(btnHistory) btnHistory.className = activeClass;
         viewHistory.classList.remove('hidden');
@@ -28091,7 +28107,7 @@ const BUSINESS_TYPES = [
     { id: 'sport',              name: 'ספורט / כושר',           icon: '🏋️', modules: ['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts'] },
     { id: 'events',             name: 'אירועים / הפקות',       icon: '🎉', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','budget','equipment','shifts','shop'] },
     { id: 'food_production',    name: 'ייצור מזון',             icon: '🏭', modules: ['feed','pantry','shop','sales','customers','tasks','members','shifts','timeclock','cashflow','equipment','deliveries','foodcost'] },
-    { id: 'professional',       name: 'מקצועי / ייעוץ',         icon: '👔', modules: ['feed','sales','customers','cases','leads','timelog','calendar','tasks','cashflow','budget','members','timeclock','bank','shop','content'] },
+    { id: 'professional',       name: 'מקצועי / ייעוץ',         icon: '👔', modules: ['feed','sales','customers','cases','leads','timelog','documents','calendar','tasks','cashflow','budget','members','timeclock','bank','shop','content'] },
     { id: 'other',              name: 'אחר / כללי',             icon: '🏢', modules: null }
 ];
 
@@ -28216,7 +28232,7 @@ function applyBusinessTypeFilter() {
             logistics:      { customers: 'לקוחות 🤝' },
             construction:   { customers: 'לקוחות 🤝', calendar: 'לוח פרויקטים 📅' },
             events:         { customers: 'לקוחות 🤝', calendar: 'יומן אירועים 📅', sales: 'מכירות אירועים 🛍️' },
-            professional:   { customers: 'לקוחות 🤝', calendar: 'יומן פגישות 📅', sales: 'לידים ומכירות 📊', cases: 'תיקים 📁', timelog: 'שעות עבודה ⏱️', content: 'אתר תדמית 🌐', leads: 'פניות נכנסות 📥' },
+            professional:   { customers: 'לקוחות 🤝', calendar: 'יומן פגישות 📅', sales: 'לידים ומכירות 📊', cases: 'תיקים 📁', timelog: 'שעות עבודה ⏱️', content: 'אתר תדמית 🌐', leads: 'פניות נכנסות 📥', documents: 'מסמכים 📄' },
         };
         const renames = TAB_RENAME[bizType] || {};
         Object.entries(renames).forEach(([tabId, label]) => {
@@ -43197,4 +43213,341 @@ window.updateLeadStatus = async function(id, status) {
 
 // ============================================================
 // ===== END PROFESSIONAL CONTENT & LEADS MODULES =====
+// ============================================================
+
+// ============================================================
+// ===== PROFESSIONAL DOCUMENTS MODULE =====
+// ============================================================
+
+const DOC_TYPE_LABELS = { document:'מסמך', contract:'חוזה', quote:'הצעת מחיר', letter:'מכתב', report:'דוח' };
+const DOC_STATUS_LABELS = { draft:'טיוטה', sent:'נשלח', signed:'חתום', approved:'מאושר', cancelled:'בוטל' };
+const DOC_STATUS_COLORS = {
+    draft:'bg-slate-100 text-slate-600 border-slate-200',
+    sent:'bg-blue-100 text-blue-700 border-blue-200',
+    signed:'bg-green-100 text-green-700 border-green-200',
+    approved:'bg-indigo-100 text-indigo-700 border-indigo-200',
+    cancelled:'bg-red-100 text-red-500 border-red-200'
+};
+
+window.renderDocumentsTab = async function() {
+    const el = document.getElementById('content-documents');
+    if (!el) return;
+    el.innerHTML = '<p class="text-center text-slate-400 py-10"><i class="fa-solid fa-spinner fa-spin ml-2"></i>טוען מסמכים...</p>';
+    try {
+        const [docsRes, templatesRes] = await Promise.all([
+            fetch(`${API}/professional-documents/${currentGroup.id}?is_template=false`).then(r => r.json()),
+            fetch(`${API}/professional-documents/${currentGroup.id}?is_template=true`).then(r => r.json())
+        ]);
+        const docs = docsRes.documents || [];
+        const templates = templatesRes.documents || [];
+
+        el.innerHTML = `
+        <div class="space-y-4 pb-4">
+            <!-- כותרת + כפתור יצירה -->
+            <div class="flex items-center justify-between pt-1">
+                <h2 class="text-lg font-black text-slate-800">מסמכים 📄</h2>
+                <button onclick="window.openNewDocModal()" class="bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow hover:bg-indigo-700 transition">
+                    <i class="fa-solid fa-plus"></i> מסמך חדש
+                </button>
+            </div>
+
+            <!-- תבניות -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-black text-slate-700 text-sm">📋 ספריית תבניות (${templates.length})</h3>
+                    <button onclick="window.openNewDocModal(true)" class="text-xs text-indigo-600 font-bold bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1 rounded-lg transition">
+                        + תבנית חדשה
+                    </button>
+                </div>
+                ${templates.length === 0
+                    ? '<p class="text-center text-slate-400 text-xs py-4">אין תבניות עדיין. צור תבנית לשימוש חוזר.</p>'
+                    : `<div class="space-y-2">${templates.map(t => `
+                    <div class="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100 group">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="text-lg">${t.doc_type==='contract'?'📝':t.doc_type==='quote'?'💰':t.doc_type==='letter'?'✉️':t.doc_type==='report'?'📊':'📄'}</span>
+                            <div class="min-w-0">
+                                <p class="font-bold text-slate-800 text-xs truncate">${safeStr(t.title)}</p>
+                                <p class="text-[10px] text-slate-400">${DOC_TYPE_LABELS[t.doc_type]||'מסמך'}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0 mr-2">
+                            <button onclick="window.openDocFromTemplate(${t.id})" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-1 rounded-lg transition">צור מסמך</button>
+                            <button onclick="window.editDocModal(${t.id}, true)" class="text-[10px] text-slate-400 hover:text-slate-600 px-1.5 py-1"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="window.deleteDoc(${t.id})" class="text-[10px] text-red-400 hover:text-red-600 px-1.5 py-1"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>`).join('')}</div>`
+                }
+            </div>
+
+            <!-- מסמכים ללקוחות -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-black text-slate-700 text-sm">📂 מסמכי לקוחות (${docs.length})</h3>
+                    <div class="relative">
+                        <i class="fa-solid fa-magnifying-glass absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]"></i>
+                        <input type="text" id="doc-search-input" oninput="window.filterDocsList()" placeholder="חיפוש לקוח..." class="text-xs border border-slate-200 rounded-lg pr-7 pl-2 py-1.5 outline-none focus:border-indigo-400 w-32">
+                    </div>
+                </div>
+                <div id="docs-client-list">
+                    ${renderDocsClientList(docs)}
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: עריכה/יצירת מסמך -->
+        <div id="doc-edit-modal" class="fixed inset-0 z-[300] hidden flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[90vh] flex flex-col">
+                <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+                    <h3 id="doc-modal-title" class="text-base font-black text-slate-800">מסמך חדש</h3>
+                    <button onclick="document.getElementById('doc-edit-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark text-sm"></i></button>
+                </div>
+                <div class="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+                    <input type="hidden" id="doc-modal-id">
+                    <input type="hidden" id="doc-modal-is-template">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">כותרת המסמך *</label>
+                        <input type="text" id="doc-modal-title-input" class="modern-input py-2 text-sm bg-white" placeholder="שם המסמך">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">סוג</label>
+                            <select id="doc-modal-type" class="modern-input py-2 text-sm bg-white">
+                                ${Object.entries(DOC_TYPE_LABELS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div id="doc-modal-status-wrap">
+                            <label class="text-xs font-bold text-slate-500 block mb-1">סטטוס</label>
+                            <select id="doc-modal-status" class="modern-input py-2 text-sm bg-white">
+                                ${Object.entries(DOC_STATUS_LABELS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    <div id="doc-modal-customer-wrap">
+                        <label class="text-xs font-bold text-slate-500 block mb-1">לקוח</label>
+                        <input type="text" id="doc-modal-customer" class="modern-input py-2 text-sm bg-white" placeholder="שם הלקוח">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">תוכן המסמך</label>
+                        <textarea id="doc-modal-content" class="modern-input py-2 text-sm bg-white h-40" placeholder="תוכן, תנאים, פרטים..."></textarea>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">הערות פנימיות</label>
+                        <input type="text" id="doc-modal-notes" class="modern-input py-2 text-sm bg-white" placeholder="הערות לשימוש פנימי">
+                    </div>
+                </div>
+                <div class="px-5 pb-5 pt-3 border-t border-slate-100 shrink-0 flex gap-3">
+                    <button onclick="document.getElementById('doc-edit-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button onclick="window.saveDocModal()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow hover:bg-indigo-700 transition">שמור</button>
+                </div>
+            </div>
+        </div>`;
+
+        // שמור את הנתונים לסינון
+        window._allClientDocs = docs;
+    } catch(e) { el.innerHTML = '<p class="text-center text-red-400 py-8">שגיאה בטעינת מסמכים</p>'; }
+};
+
+function renderDocsClientList(docs) {
+    if (!docs.length) return '<p class="text-center text-slate-400 text-xs py-6">אין מסמכים ללקוחות עדיין</p>';
+    return `<div class="space-y-2">${docs.map(d => {
+        const statusCls = DOC_STATUS_COLORS[d.status] || DOC_STATUS_COLORS.draft;
+        const typeIcon = d.doc_type==='contract'?'📝':d.doc_type==='quote'?'💰':d.doc_type==='letter'?'✉️':d.doc_type==='report'?'📊':'📄';
+        return `<div class="flex items-start justify-between bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100 group">
+            <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                    <span>${typeIcon}</span>
+                    <p class="font-bold text-slate-800 text-xs truncate">${safeStr(d.title)}</p>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${statusCls}">${DOC_STATUS_LABELS[d.status]||d.status}</span>
+                </div>
+                ${d.customer_name ? `<p class="text-[11px] text-slate-500"><i class="fa-solid fa-user text-[9px] mr-1"></i>${safeStr(d.customer_name)}</p>` : ''}
+                <p class="text-[10px] text-slate-400 mt-0.5">${new Date(d.updated_at||d.created_at).toLocaleDateString('he-IL')}</p>
+            </div>
+            <div class="flex items-center gap-1 shrink-0 mr-2">
+                <button onclick="window.editDocModal(${d.id}, false)" class="text-[10px] text-slate-400 hover:text-indigo-600 px-1.5 py-1 transition"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="window.deleteDoc(${d.id})" class="text-[10px] text-red-400 hover:text-red-600 px-1.5 py-1 transition"><i class="fa-solid fa-trash"></i></button>
+            </div>
+        </div>`;
+    }).join('')}</div>`;
+}
+
+window.filterDocsList = function() {
+    const q = (document.getElementById('doc-search-input')?.value || '').toLowerCase();
+    const filtered = (window._allClientDocs || []).filter(d =>
+        !q || (d.customer_name||'').toLowerCase().includes(q) || (d.title||'').toLowerCase().includes(q)
+    );
+    const listEl = document.getElementById('docs-client-list');
+    if (listEl) listEl.innerHTML = renderDocsClientList(filtered);
+};
+
+window.openNewDocModal = function(isTemplate = false) {
+    document.getElementById('doc-modal-id').value = '';
+    document.getElementById('doc-modal-is-template').value = isTemplate ? '1' : '0';
+    document.getElementById('doc-modal-title-input').value = '';
+    document.getElementById('doc-modal-type').value = 'document';
+    document.getElementById('doc-modal-status').value = 'draft';
+    document.getElementById('doc-modal-content').value = '';
+    document.getElementById('doc-modal-notes').value = '';
+    document.getElementById('doc-modal-customer').value = '';
+    document.getElementById('doc-modal-title').textContent = isTemplate ? 'תבנית חדשה' : 'מסמך חדש';
+    const custWrap = document.getElementById('doc-modal-customer-wrap');
+    const statusWrap = document.getElementById('doc-modal-status-wrap');
+    if (custWrap) custWrap.style.display = isTemplate ? 'none' : '';
+    if (statusWrap) statusWrap.style.display = isTemplate ? 'none' : '';
+    document.getElementById('doc-edit-modal').classList.remove('hidden');
+};
+
+window.openDocFromTemplate = async function(templateId) {
+    try {
+        const r = await fetch(`${API}/professional-documents/${currentGroup.id}?is_template=true`).then(r => r.json());
+        const tpl = (r.documents || []).find(t => t.id === templateId);
+        if (!tpl) { showToast('error', 'תבנית לא נמצאה'); return; }
+        document.getElementById('doc-modal-id').value = '';
+        document.getElementById('doc-modal-is-template').value = '0';
+        document.getElementById('doc-modal-title-input').value = tpl.title;
+        document.getElementById('doc-modal-type').value = tpl.doc_type;
+        document.getElementById('doc-modal-status').value = 'draft';
+        document.getElementById('doc-modal-content').value = tpl.content || '';
+        document.getElementById('doc-modal-notes').value = '';
+        document.getElementById('doc-modal-customer').value = '';
+        document.getElementById('doc-modal-title').textContent = 'מסמך חדש (מתבנית)';
+        const custWrap = document.getElementById('doc-modal-customer-wrap');
+        const statusWrap = document.getElementById('doc-modal-status-wrap');
+        if (custWrap) custWrap.style.display = '';
+        if (statusWrap) statusWrap.style.display = '';
+        document.getElementById('doc-edit-modal').classList.remove('hidden');
+    } catch(e) { showToast('error', 'שגיאה'); }
+};
+
+window.editDocModal = async function(docId, isTemplate) {
+    try {
+        const endpoint = `${API}/professional-documents/${currentGroup.id}?is_template=${isTemplate}`;
+        const r = await fetch(endpoint).then(r => r.json());
+        const doc = (r.documents || []).find(d => d.id === docId);
+        if (!doc) { showToast('error', 'מסמך לא נמצא'); return; }
+        document.getElementById('doc-modal-id').value = docId;
+        document.getElementById('doc-modal-is-template').value = isTemplate ? '1' : '0';
+        document.getElementById('doc-modal-title-input').value = doc.title || '';
+        document.getElementById('doc-modal-type').value = doc.doc_type || 'document';
+        document.getElementById('doc-modal-status').value = doc.status || 'draft';
+        document.getElementById('doc-modal-content').value = doc.content || '';
+        document.getElementById('doc-modal-notes').value = doc.notes || '';
+        document.getElementById('doc-modal-customer').value = doc.customer_name || '';
+        document.getElementById('doc-modal-title').textContent = isTemplate ? 'עריכת תבנית' : 'עריכת מסמך';
+        const custWrap = document.getElementById('doc-modal-customer-wrap');
+        const statusWrap = document.getElementById('doc-modal-status-wrap');
+        if (custWrap) custWrap.style.display = isTemplate ? 'none' : '';
+        if (statusWrap) statusWrap.style.display = isTemplate ? 'none' : '';
+        document.getElementById('doc-edit-modal').classList.remove('hidden');
+    } catch(e) { showToast('error', 'שגיאה'); }
+};
+
+window.saveDocModal = async function() {
+    const id = document.getElementById('doc-modal-id').value;
+    const isTemplate = document.getElementById('doc-modal-is-template').value === '1';
+    const title = document.getElementById('doc-modal-title-input').value.trim();
+    if (!title) { showToast('error', 'נא למלא כותרת'); return; }
+    const body = {
+        title,
+        doc_type: document.getElementById('doc-modal-type').value,
+        status: isTemplate ? 'draft' : document.getElementById('doc-modal-status').value,
+        content: document.getElementById('doc-modal-content').value.trim(),
+        notes: document.getElementById('doc-modal-notes').value.trim(),
+        customer_name: isTemplate ? null : (document.getElementById('doc-modal-customer').value.trim() || null),
+        is_template: isTemplate
+    };
+    try {
+        if (id) {
+            await fetch(`${API}/professional-documents/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        } else {
+            await fetch(`${API}/professional-documents/${currentGroup.id}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        }
+        showToast('success', 'נשמר בהצלחה');
+        document.getElementById('doc-edit-modal').classList.add('hidden');
+        window.renderDocumentsTab();
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+};
+
+window.deleteDoc = async function(id) {
+    if (!confirm('למחוק מסמך זה?')) return;
+    try {
+        await fetch(`${API}/professional-documents/${id}`, { method:'DELETE' });
+        showToast('success', 'נמחק');
+        window.renderDocumentsTab();
+    } catch(e) { showToast('error', 'שגיאה במחיקה'); }
+};
+
+// טעינת מסמכים בכרטיס לקוח
+window.loadCustomerDocuments = async function(name, phone) {
+    const listEl = document.getElementById('cust-documents-list');
+    if (!listEl) return;
+    listEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-4"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
+    try {
+        const params = new URLSearchParams({ is_template: 'false' });
+        if (name) params.set('customer_name', name);
+        const r = await fetch(`${API}/professional-documents/${currentGroup.id}?${params}`).then(r => r.json());
+        const docs = r.documents || [];
+        if (!docs.length) {
+            listEl.innerHTML = `<div class="text-center py-6">
+                <p class="text-slate-400 text-xs mb-3">אין מסמכים ללקוח זה עדיין</p>
+                <button onclick="window.openNewDocForCustomer('${safeStr(name||'')}','${safeStr(phone||'')}')" class="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-3 py-1.5 rounded-lg transition">
+                    <i class="fa-solid fa-plus ml-1"></i> צור מסמך ראשון
+                </button>
+            </div>`;
+            return;
+        }
+        listEl.innerHTML = `
+            <div class="flex justify-end mb-2">
+                <button onclick="window.openNewDocForCustomer('${safeStr(name||'')}','${safeStr(phone||'')}')" class="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-lg transition flex items-center gap-1">
+                    <i class="fa-solid fa-plus text-[10px]"></i> מסמך חדש
+                </button>
+            </div>
+            <div class="space-y-2">
+            ${docs.map(d => {
+                const statusCls = DOC_STATUS_COLORS[d.status] || DOC_STATUS_COLORS.draft;
+                const typeIcon = d.doc_type==='contract'?'📝':d.doc_type==='quote'?'💰':d.doc_type==='letter'?'✉️':d.doc_type==='report'?'📊':'📄';
+                return `<div class="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-1.5 mb-0.5">
+                            <span class="text-sm">${typeIcon}</span>
+                            <p class="font-bold text-slate-800 text-xs truncate">${safeStr(d.title)}</p>
+                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${statusCls}">${DOC_STATUS_LABELS[d.status]||d.status}</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400">${new Date(d.updated_at||d.created_at).toLocaleDateString('he-IL')}</p>
+                    </div>
+                    <select onchange="window.updateDocStatus(${d.id}, this.value, '${safeStr(name||'')}','${safeStr(phone||'')}')" class="text-[10px] border border-slate-200 rounded-lg px-1 py-1 mr-2 outline-none">
+                        ${Object.entries(DOC_STATUS_LABELS).map(([k,v])=>`<option value="${k}" ${d.status===k?'selected':''}>${v}</option>`).join('')}
+                    </select>
+                </div>`;
+            }).join('')}
+            </div>`;
+    } catch(e) { listEl.innerHTML = '<p class="text-center text-red-400 text-xs py-4">שגיאה בטעינה</p>'; }
+};
+
+window.openNewDocForCustomer = function(custName, custPhone) {
+    document.getElementById('doc-modal-id').value = '';
+    document.getElementById('doc-modal-is-template').value = '0';
+    document.getElementById('doc-modal-title-input').value = '';
+    document.getElementById('doc-modal-type').value = 'document';
+    document.getElementById('doc-modal-status').value = 'draft';
+    document.getElementById('doc-modal-content').value = '';
+    document.getElementById('doc-modal-notes').value = '';
+    document.getElementById('doc-modal-customer').value = custName || '';
+    document.getElementById('doc-modal-title').textContent = 'מסמך חדש';
+    const custWrap = document.getElementById('doc-modal-customer-wrap');
+    const statusWrap = document.getElementById('doc-modal-status-wrap');
+    if (custWrap) custWrap.style.display = '';
+    if (statusWrap) statusWrap.style.display = '';
+    document.getElementById('doc-edit-modal').classList.remove('hidden');
+};
+
+window.updateDocStatus = async function(id, status, custName, custPhone) {
+    try {
+        await fetch(`${API}/professional-documents/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
+        showToast('success', 'סטטוס עודכן');
+        window.loadCustomerDocuments(custName, custPhone);
+    } catch(e) { showToast('error', 'שגיאה'); }
+};
+
+// ============================================================
+// ===== END PROFESSIONAL DOCUMENTS MODULE =====
 // ============================================================
