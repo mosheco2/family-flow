@@ -32875,6 +32875,12 @@ window.openWorkOrderModal = async function(woId) {
             if (tlH) tlH.textContent = 'היסטוריית תיק';
             const calNote = document.querySelector('#wo-view-calendar .bg-blue-50');
             if (calNote) calNote.innerHTML = '<i class="fa-solid fa-info-circle mr-1"></i> הזימון יישמר ביומן העסקי ויופיע אצל כל המשתתפים בתיק';
+            // עדכן labels סטטוסים לעסק מקצועי
+            const statusSel = document.getElementById('wo-status-select');
+            if (statusSel) {
+                const labelMap = { processing: 'בטיפול', scheduled: 'מתוזמן', pending_payment: 'הושלם — ממתין לתשלום', completed: 'סגור ✓', cancelled: 'בוטל' };
+                Array.from(statusSel.options).forEach(opt => { if (labelMap[opt.value]) opt.text = labelMap[opt.value]; });
+            }
         } else {
             if (woTabTeam) woTabTeam.textContent = 'צוות';
             if (woTabInventory) woTabInventory.classList.remove('hidden');
@@ -32993,10 +32999,10 @@ window.renderWoOverview = function(data) {
     const reserved = (data.inventory || []).filter(i => i.status === 'reserved');
     if (ip) ip.innerHTML = (!isPro && reserved.length) ? `<div class="bg-amber-50 rounded-xl p-2.5 border border-amber-100 text-xs text-amber-700"><i class="fa-solid fa-boxes-stacked mr-1.5"></i>${reserved.map(i => `${safeStr(i.item_name)} (${i.reserved_qty})`).join(' • ')}</div>` : '';
 
-    // כפתור קיקאוף — רק לעסק מקצועי
+    // כפתור קיקאוף — רק לעסק מקצועי כשהתיק עדיין פתוח
     const kickoffEl = document.getElementById('wo-kickoff-btn');
     if (kickoffEl) {
-        if (isPro) {
+        if (isPro && wo.status !== 'completed' && wo.status !== 'cancelled') {
             kickoffEl.classList.remove('hidden');
             kickoffEl.onclick = function() {
                 window.switchWoTab('calendar');
@@ -33007,6 +33013,51 @@ window.renderWoOverview = function(data) {
             };
         } else {
             kickoffEl.classList.add('hidden');
+        }
+    }
+
+    // כפתור "צור מסמך סיכום" — מוצג כשהתיק סגור (עסק מקצועי)
+    let summaryDocBtn = document.getElementById('wo-summary-doc-btn');
+    if (isPro) {
+        if (!summaryDocBtn) {
+            summaryDocBtn = document.createElement('button');
+            summaryDocBtn.id = 'wo-summary-doc-btn';
+            summaryDocBtn.className = 'w-full bg-indigo-600 text-white rounded-2xl py-3 font-bold text-sm hover:bg-indigo-700 transition flex items-center justify-center gap-2 mb-2';
+            summaryDocBtn.innerHTML = '<i class="fa-solid fa-file-circle-check"></i> צור מסמך סיכום';
+            kickoffEl?.parentNode.appendChild(summaryDocBtn);
+        }
+        if (wo.status === 'completed') {
+            summaryDocBtn.classList.remove('hidden');
+            summaryDocBtn.onclick = function() {
+                window.closeWorkOrderModal();
+                // נווט ללקוח וצור מסמך סיכום
+                setTimeout(() => {
+                    window.switchTab('documents');
+                    setTimeout(() => {
+                        // פתח modal מסמך חדש עם פרטי הלקוח מהתיק
+                        const custName = wo.customer_name || '';
+                        const custPhone = wo.customer_phone || '';
+                        if (document.getElementById('doc-modal-id')) {
+                            document.getElementById('doc-modal-id').value = '';
+                            document.getElementById('doc-modal-is-template').value = '0';
+                            document.getElementById('doc-modal-title-input').value = `סיכום תיק — ${custName}`;
+                            document.getElementById('doc-modal-type').value = 'report';
+                            document.getElementById('doc-modal-status').value = 'draft';
+                            document.getElementById('doc-modal-content').value = '';
+                            document.getElementById('doc-modal-notes').value = '';
+                            document.getElementById('doc-modal-customer').value = custName;
+                            document.getElementById('doc-modal-title').textContent = 'מסמך סיכום תיק';
+                            const custWrap = document.getElementById('doc-modal-customer-wrap');
+                            const statusWrap = document.getElementById('doc-modal-status-wrap');
+                            if (custWrap) custWrap.style.display = '';
+                            if (statusWrap) statusWrap.style.display = '';
+                            document.getElementById('doc-edit-modal').classList.remove('hidden');
+                        }
+                    }, 300);
+                }, 300);
+            };
+        } else {
+            summaryDocBtn.classList.add('hidden');
         }
     }
 };
@@ -44207,18 +44258,22 @@ window.loadCustomerDocuments = async function(name, phone) {
             ${docs.map(d => {
                 const statusCls = DOC_STATUS_COLORS[d.status] || DOC_STATUS_COLORS.draft;
                 const typeIcon = d.doc_type==='contract'?'📝':d.doc_type==='quote'?'💰':d.doc_type==='letter'?'✉️':d.doc_type==='report'?'📊':'📄';
-                return `<div class="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
-                    <div class="min-w-0 flex-1">
-                        <div class="flex items-center gap-1.5 mb-0.5">
+                const waLink = phone ? `https://wa.me/972${phone.replace(/^0/,'').replace(/[^0-9]/,'')}?text=${encodeURIComponent(`שלום ${safeStr(name||'')}, צירפתי עבורך מסמך: ${safeStr(d.title)}`)}` : '';
+                return `<div class="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100 mb-1">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <div class="flex items-center gap-1.5 min-w-0 flex-1">
                             <span class="text-sm">${typeIcon}</span>
                             <p class="font-bold text-slate-800 text-xs truncate">${safeStr(d.title)}</p>
                             <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${statusCls}">${DOC_STATUS_LABELS[d.status]||d.status}</span>
                         </div>
-                        <p class="text-[10px] text-slate-400">${new Date(d.updated_at||d.created_at).toLocaleDateString('he-IL')}</p>
                     </div>
-                    <select onchange="window.updateDocStatus(${d.id}, this.value, '${safeStr(name||'')}','${safeStr(phone||'')}')" class="text-[10px] border border-slate-200 rounded-lg px-1 py-1 mr-2 outline-none">
-                        ${Object.entries(DOC_STATUS_LABELS).map(([k,v])=>`<option value="${k}" ${d.status===k?'selected':''}>${v}</option>`).join('')}
-                    </select>
+                    <div class="flex items-center gap-2">
+                        <select onchange="window.updateDocStatus(${d.id}, this.value, '${safeStr(name||'')}','${safeStr(phone||'')}')" class="flex-1 text-[10px] border border-slate-200 rounded-lg px-1 py-1 outline-none">
+                            ${Object.entries(DOC_STATUS_LABELS).map(([k,v])=>`<option value="${k}" ${d.status===k?'selected':''}>${v}</option>`).join('')}
+                        </select>
+                        ${waLink ? `<a href="${waLink}" target="_blank" class="shrink-0 flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-lg hover:bg-green-100 transition"><i class="fa-brands fa-whatsapp"></i> שלח ללקוח</a>` : ''}
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">${new Date(d.updated_at||d.created_at).toLocaleDateString('he-IL')}</p>
                 </div>`;
             }).join('')}
             </div>`;
