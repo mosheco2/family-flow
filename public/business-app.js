@@ -32486,6 +32486,9 @@ async function saToggleLicense(groupId, featureKey, isActive) {
       </div>
       <div id="wo-assignees-preview" class="mb-3"></div>
       <div id="wo-inventory-preview" class="mb-3"></div>
+      <button id="wo-kickoff-btn" class="hidden w-full bg-teal-50 text-teal-700 border border-teal-200 rounded-2xl py-3 font-bold text-sm hover:bg-teal-100 transition flex items-center justify-center gap-2 mb-2">
+        <i class="fa-solid fa-calendar-check"></i> תזמן פגישת קיקאוף
+      </button>
     </div>
     <div id="wo-view-team" class="hidden pb-20">
       <div class="flex justify-between items-center mb-3">
@@ -32675,8 +32678,12 @@ window.convertToWorkOrder = async function(quoteId) {
         showToast('success', isPro ? 'התיק נוצר בהצלחה!' : 'פקודת העבודה נוצרה בהצלחה!');
         if (typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
         if (typeof window.fetchWorkOrders === 'function') window.fetchWorkOrders();
-        window.openWorkOrderModal(quoteId);
-        window.switchSalesTab('work-orders');
+        window.openWorkOrderModal(data.workOrderId || quoteId);
+        if (isPro) {
+            window.switchTab('cases');
+        } else {
+            window.switchSalesTab('work-orders');
+        }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
@@ -32985,7 +32992,23 @@ window.renderWoOverview = function(data) {
     const ip = document.getElementById('wo-inventory-preview');
     const reserved = (data.inventory || []).filter(i => i.status === 'reserved');
     if (ip) ip.innerHTML = (!isPro && reserved.length) ? `<div class="bg-amber-50 rounded-xl p-2.5 border border-amber-100 text-xs text-amber-700"><i class="fa-solid fa-boxes-stacked mr-1.5"></i>${reserved.map(i => `${safeStr(i.item_name)} (${i.reserved_qty})`).join(' • ')}</div>` : '';
-};
+
+    // כפתור קיקאוף — רק לעסק מקצועי
+    const kickoffEl = document.getElementById('wo-kickoff-btn');
+    if (kickoffEl) {
+        if (isPro) {
+            kickoffEl.classList.remove('hidden');
+            kickoffEl.onclick = function() {
+                window.switchWoTab('calendar');
+                const titleEl = document.getElementById('wo-cal-title');
+                if (titleEl && (!titleEl.value || titleEl.value === (wo.customer_name ? `עבודה עבור ${wo.customer_name}` : ''))) {
+                    titleEl.value = wo.customer_name ? `פגישת קיקאוף — ${wo.customer_name}` : 'פגישת קיקאוף';
+                }
+            };
+        } else {
+            kickoffEl.classList.add('hidden');
+        }
+    }
 
 window.renderWoTeam = function(assignees) {
     const list = document.getElementById('wo-assignees-list');
