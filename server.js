@@ -2245,27 +2245,6 @@ app.post('/api/sa/ai-generate', async (req, res) => {
         res.json({ success: false, error: 'שגיאה במנוע ה-AI: ' + e.message });
     }
 });
-// שליפת הקריאות עבור פאנל ה-Super Admin
-app.get('/api/superadmin/tickets', verifySA, async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT t.*, f.name as group_name, u.nickname as user_name 
-            FROM support_tickets t 
-            LEFT JOIN family_groups f ON t.group_id = f.id 
-            LEFT JOIN users u ON t.user_id = u.id 
-            ORDER BY t.created_at DESC
-        `);
-        res.json({ success: true, tickets: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// עדכון סטטוס הקריאה ע"י ה-Super Admin
-app.put('/api/superadmin/tickets/:id/status', verifySA, async (req, res) => {
-    try {
-        await pool.query('UPDATE support_tickets SET status = $1 WHERE id = $2', [req.body.status, req.params.id]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
 app.get('/api/test-email', async (req, res) => {
     try {
         const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : null;

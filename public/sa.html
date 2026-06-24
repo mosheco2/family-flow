@@ -330,6 +330,32 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
 
+                    <!-- טבלת שותפים / מטמיעים -->
+                    <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-md">
+                        <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-4">
+                            <div>
+                                <h2 class="text-lg font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-handshake text-emerald-500"></i> שותפים / מטמיעים</h2>
+                                <p class="text-xs text-slate-500 mt-1">ניהול שותפי הפצה ומטמיעי מערכת.</p>
+                            </div>
+                            <button onclick="openSAAddPartnerModal()" class="bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold shadow-md hover:bg-emerald-600 transition text-sm"><i class="fa-solid fa-plus mr-1"></i> הוסף שותף</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-right">
+                                <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
+                                    <tr>
+                                        <th class="px-4 py-3 rounded-tr-lg">שם שותף</th>
+                                        <th class="px-4 py-3">אימייל</th>
+                                        <th class="px-4 py-3 text-center">לקוחות</th>
+                                        <th class="px-4 py-3 text-center rounded-tl-lg">פעולות</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sa-partners-table-body" class="divide-y divide-slate-100">
+                                    <tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">טוען נתונים...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                 </div><!-- /vt-partners-overview -->
                 <div id="vt-partners-managers" class="vt-partners hidden">
                     <!-- Zone Manager Section -->
