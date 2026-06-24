@@ -43199,6 +43199,28 @@ window.createInvoiceFromTimelog = async function() {
 // ============================================================
 
 // ─── ניהול תוכן האתר (Content Management) ──────────────────
+// ─── AI helper for professional content ───────────────────────────────────────
+window._profContentAI = async function(prompt, btnEl) {
+    const orig = btnEl.innerHTML;
+    btnEl.disabled = true;
+    btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-1"></i>יוצר...';
+    try {
+        const r = await fetch(`${API}/ai/generate`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: prompt })
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error || 'שגיאה');
+        return d.answer;
+    } catch(e) {
+        showToast('error', 'שגיאת AI: ' + e.message);
+        return null;
+    } finally {
+        btnEl.disabled = false;
+        btnEl.innerHTML = orig;
+    }
+};
+
 window.renderProfessionalContentTab = async function() {
     const el = document.getElementById('content-content');
     if (!el) return;
@@ -43212,6 +43234,7 @@ window.renderProfessionalContentTab = async function() {
         const content = (await contentRes.json()).content || {};
         const expertise = (await expertiseRes.json()).items || [];
         const articles = (await articlesRes.json()).articles || [];
+        const bizName = safeStr(currentGroup?.name || 'העסק');
 
         el.innerHTML = `
         <div class="pb-20">
@@ -43234,6 +43257,12 @@ window.renderProfessionalContentTab = async function() {
             <!-- HERO tab -->
             <div id="pc-section-hero">
                 <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
+                    <div class="flex items-center justify-between mb-1">
+                        <p class="text-sm font-black text-slate-700">כותרת ראשית</p>
+                        <button id="pc-ai-hero-btn" onclick="window.aiGenerateHero(this)" class="flex items-center gap-1.5 text-xs font-bold text-violet-600 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-3 py-1.5 rounded-xl transition">
+                            ✨ צור עם AI
+                        </button>
+                    </div>
                     <p class="text-xs font-bold text-slate-500">כותרת ראשית (עברית)</p>
                     <input id="pc-hero-title-he" type="text" value="${safeStr(content.hero_title_he||'')}" placeholder="לדוג׳: משרד עורכי דין X" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
                     <p class="text-xs font-bold text-slate-500">כותרת ראשית (English)</p>
@@ -43252,9 +43281,14 @@ window.renderProfessionalContentTab = async function() {
 
             <!-- EXPERTISE tab -->
             <div id="pc-section-expertise" class="hidden">
-                <button onclick="window.openAddExpertise()" class="w-full bg-indigo-600 text-white rounded-2xl py-3 font-bold text-sm mb-3 hover:bg-indigo-700 transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-plus"></i> הוסף תחום עיסוק
-                </button>
+                <div class="flex gap-2 mb-3">
+                    <button onclick="window.openAddExpertise()" class="flex-1 bg-indigo-600 text-white rounded-2xl py-3 font-bold text-sm hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-plus"></i> הוסף ידנית
+                    </button>
+                    <button id="pc-ai-exp-btn" onclick="window.aiSuggestExpertise(this)" class="flex-1 bg-violet-600 text-white rounded-2xl py-3 font-bold text-sm hover:bg-violet-700 transition flex items-center justify-center gap-2">
+                        ✨ הצע עם AI
+                    </button>
+                </div>
                 <div id="pc-expertise-list">
                     ${expertise.length===0?'<p class="text-center text-slate-400 text-sm py-6">אין תחומי עיסוק — הוסף את הראשון</p>':
                     expertise.map(x=>`
@@ -43262,8 +43296,9 @@ window.renderProfessionalContentTab = async function() {
                         <div>
                             <p class="font-bold text-slate-800 text-sm">${x.icon||'⚖️'} ${safeStr(x.title_he||'')}</p>
                             ${x.title_en?`<p class="text-xs text-slate-400">${safeStr(x.title_en)}</p>`:''}
+                            ${x.description_he?`<p class="text-xs text-slate-500 mt-0.5">${safeStr(x.description_he)}</p>`:''}
                         </div>
-                        <button onclick="window.deleteExpertise(${x.id})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash text-sm"></i></button>
+                        <button onclick="window.deleteExpertise(${x.id})" class="text-red-400 hover:text-red-600 mr-2 shrink-0"><i class="fa-solid fa-trash text-sm"></i></button>
                     </div>`).join('')}
                 </div>
             </div>
@@ -43271,7 +43306,7 @@ window.renderProfessionalContentTab = async function() {
             <!-- ARTICLES tab -->
             <div id="pc-section-articles" class="hidden">
                 <button onclick="window.openAddArticle()" class="w-full bg-indigo-600 text-white rounded-2xl py-3 font-bold text-sm mb-3 hover:bg-indigo-700 transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-plus"></i> הוסף מאמר / עדכון
+                    <i class="fa-solid fa-plus"></i> מאמר חדש
                 </button>
                 <div id="pc-articles-list">
                     ${articles.length===0?'<p class="text-center text-slate-400 text-sm py-6">אין מאמרים עדיין</p>':
@@ -43295,6 +43330,12 @@ window.renderProfessionalContentTab = async function() {
             <!-- ABOUT tab -->
             <div id="pc-section-about" class="hidden">
                 <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
+                    <div class="flex items-center justify-between mb-1">
+                        <p class="text-sm font-black text-slate-700">אודות העסק</p>
+                        <button id="pc-ai-about-btn" onclick="window.aiGenerateAbout(this)" class="flex items-center gap-1.5 text-xs font-bold text-violet-600 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-3 py-1.5 rounded-xl transition">
+                            ✨ כתוב עם AI
+                        </button>
+                    </div>
                     <p class="text-xs font-bold text-slate-500">טקסט אודות (עברית)</p>
                     <textarea id="pc-about-he" rows="5" placeholder="ספר על העסק, הניסיון, הגישה..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 resize-none">${safeStr(content.about_text_he||'')}</textarea>
                     <p class="text-xs font-bold text-slate-500">טקסט אודות (English)</p>
@@ -43304,6 +43345,118 @@ window.renderProfessionalContentTab = async function() {
             </div>
         </div>`;
     } catch(e) { el.innerHTML = '<p class="text-center text-red-400 py-8">שגיאה בטעינת ניהול התוכן</p>'; }
+};
+
+// ─── AI generators ─────────────────────────────────────────────────────────────
+window.aiGenerateHero = async function(btn) {
+    const bizName = currentGroup?.name || 'העסק';
+    const prompt = `אתה כותב תוכן שיווקי לאתר תדמית של עסק מקצועי בשם "${bizName}".
+צור את הפלט הבא בפורמט JSON בלבד (ללא קוד markdown, רק JSON נקי):
+{
+  "title_he": "כותרת ראשית בעברית — קצרה ומשפיעה, עד 6 מילים",
+  "subtitle_he": "תת-כותרת בעברית — תיאור מקצועי ומשכנע, 1-2 משפטים",
+  "title_en": "Short English headline, up to 6 words",
+  "subtitle_en": "English subtitle, 1-2 professional sentences",
+  "cta_he": "טקסט כפתור CTA בעברית, עד 4 מילים",
+  "cta_en": "CTA button text in English, up to 4 words"
+}`;
+    const answer = await window._profContentAI(prompt, btn);
+    if (!answer) return;
+    try {
+        const clean = answer.replace(/```json|```/g, '').trim();
+        const d = JSON.parse(clean);
+        if (d.title_he) document.getElementById('pc-hero-title-he').value = d.title_he;
+        if (d.subtitle_he) document.getElementById('pc-hero-sub-he').value = d.subtitle_he;
+        if (d.title_en) document.getElementById('pc-hero-title-en').value = d.title_en;
+        if (d.subtitle_en) document.getElementById('pc-hero-sub-en').value = d.subtitle_en;
+        if (d.cta_he) document.getElementById('pc-cta-he').value = d.cta_he;
+        if (d.cta_en) document.getElementById('pc-cta-en').value = d.cta_en;
+        showToast('success', 'AI יצר כותרת — בדוק ושמור');
+    } catch(e) { showToast('error', 'שגיאה בפענוח תגובת AI'); }
+};
+
+window.aiGenerateAbout = async function(btn) {
+    const bizName = currentGroup?.name || 'העסק';
+    const existingHe = document.getElementById('pc-about-he')?.value?.trim();
+    const hintPart = existingHe ? `\nהתוכן הנוכחי לשיפור: "${existingHe}"` : '';
+    const prompt = `אתה כותב טקסט "אודות" לאתר תדמית של עסק מקצועי בשם "${bizName}".${hintPart}
+צור את הפלט הבא בפורמט JSON בלבד (ללא קוד markdown):
+{
+  "about_he": "טקסט אודות בעברית — 3-4 משפטים מקצועיים, חמים ואמינים, שמתארים את הניסיון, הגישה והערך שהעסק מביא ללקוח",
+  "about_en": "About text in English — 3-4 professional, warm and credible sentences"
+}`;
+    const answer = await window._profContentAI(prompt, btn);
+    if (!answer) return;
+    try {
+        const clean = answer.replace(/```json|```/g, '').trim();
+        const d = JSON.parse(clean);
+        if (d.about_he) document.getElementById('pc-about-he').value = d.about_he;
+        if (d.about_en) document.getElementById('pc-about-en').value = d.about_en;
+        showToast('success', 'AI כתב טקסט אודות — בדוק ושמור');
+    } catch(e) { showToast('error', 'שגיאה בפענוח תגובת AI'); }
+};
+
+window.aiSuggestExpertise = async function(btn) {
+    const bizName = currentGroup?.name || 'העסק';
+    const prompt = `אתה עוזר לעסק מקצועי בשם "${bizName}" לכתוב תחומי עיסוק לאתר שלו.
+הצע 5 תחומי עיסוק מקצועיים ורלוונטיים.
+החזר JSON בלבד (ללא markdown):
+[
+  {"icon": "⚖️", "title_he": "שם התחום בעברית", "title_en": "Field name in English", "description_he": "תיאור קצר 1-2 משפטים"},
+  ...
+]
+השתמש באמוג'י רלוונטי לכל תחום.`;
+    const answer = await window._profContentAI(prompt, btn);
+    if (!answer) return;
+    try {
+        const clean = answer.replace(/```json|```/g, '').trim();
+        const items = JSON.parse(clean);
+        if (!Array.isArray(items) || !items.length) throw new Error();
+        // הצג panel לבחירה
+        const html = `<div id="ai-exp-pick-modal" class="fixed inset-0 bg-slate-900/60 z-[9999] flex items-end justify-center" style="direction:rtl;">
+            <div class="bg-white w-full max-w-md rounded-t-3xl shadow-2xl p-5 max-h-[85vh] overflow-y-auto">
+                <h3 class="font-black text-slate-800 text-base mb-1">✨ AI הציע תחומי עיסוק</h3>
+                <p class="text-xs text-slate-400 mb-4">בחר את התחומים שברצונך להוסיף לאתר</p>
+                <div class="space-y-2" id="ai-exp-list">
+                    ${items.map((x,i) => `
+                    <label class="flex items-start gap-3 bg-slate-50 rounded-xl p-3 border border-slate-100 cursor-pointer hover:border-indigo-300 transition">
+                        <input type="checkbox" checked class="mt-0.5 w-4 h-4 accent-indigo-600 shrink-0" data-idx="${i}">
+                        <div>
+                            <p class="font-bold text-slate-800 text-sm">${x.icon||'💼'} ${safeStr(x.title_he||'')}</p>
+                            ${x.title_en ? `<p class="text-xs text-slate-400">${safeStr(x.title_en)}</p>` : ''}
+                            ${x.description_he ? `<p class="text-xs text-slate-500 mt-0.5">${safeStr(x.description_he)}</p>` : ''}
+                        </div>
+                    </label>`).join('')}
+                </div>
+                <div class="flex gap-2 mt-4">
+                    <button onclick="document.getElementById('ai-exp-pick-modal').remove()" class="flex-1 border border-slate-200 text-slate-600 rounded-xl py-2.5 font-bold text-sm">ביטול</button>
+                    <button onclick="window._saveAiExpertise(${JSON.stringify(items).replace(/"/g,'&quot;')})" class="flex-1 bg-indigo-600 text-white rounded-xl py-2.5 font-bold text-sm hover:bg-indigo-700 transition">הוסף שנבחרו</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    } catch(e) { showToast('error', 'שגיאה בפענוח תגובת AI'); }
+};
+
+window._saveAiExpertise = async function(items) {
+    const modal = document.getElementById('ai-exp-pick-modal');
+    const checks = modal.querySelectorAll('input[type=checkbox]');
+    const selected = Array.from(checks).filter(c => c.checked).map(c => items[parseInt(c.dataset.idx)]);
+    if (!selected.length) { showToast('error','לא נבחרו תחומים'); return; }
+    modal.remove();
+    let saved = 0;
+    for (const x of selected) {
+        try {
+            await fetch(`${API}/professional-expertise/${currentGroup.id}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(x)
+            });
+            saved++;
+        } catch(e) {}
+    }
+    showToast('success', `נוספו ${saved} תחומי עיסוק`);
+    renderProfessionalContentTab();
+    setTimeout(() => window.switchProfContentTab('expertise'), 100);
 };
 
 window.switchProfContentTab = function(tab) {
@@ -43344,10 +43497,15 @@ window.saveProfContentAbout = async function() {
 };
 
 window.openAddExpertise = function() {
-    const icons = ['⚖️','💼','📊','🏛️','🔍','📋','💡','🤝','📝','🏆','🎯','🔑'];
+    const icons = ['⚖️','💼','📊','🏛️','🔍','📋','💡','🤝','📝','🏆','🎯','🔑','🎓','🛡️','💎','🔧'];
     const html = `<div id="add-expertise-modal" class="fixed inset-0 bg-slate-900/60 z-[9999] flex items-end justify-center" style="direction:rtl;">
         <div class="bg-white w-full max-w-md rounded-t-3xl shadow-2xl p-5">
-            <h3 class="font-black text-slate-800 text-base mb-4">הוסף תחום עיסוק</h3>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-black text-slate-800 text-base">הוסף תחום עיסוק</h3>
+                <button id="exp-ai-fill-btn" onclick="window.aiFillExpertise(this)" class="text-xs font-bold text-violet-600 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-3 py-1.5 rounded-xl transition flex items-center gap-1">
+                    ✨ מלא עם AI
+                </button>
+            </div>
             <div class="space-y-3">
                 <div>
                     <p class="text-xs font-bold text-slate-500 mb-1">אייקון</p>
@@ -43365,6 +43523,31 @@ window.openAddExpertise = function() {
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.aiFillExpertise = async function(btn) {
+    const current = document.getElementById('exp-title-he')?.value?.trim();
+    const bizName = currentGroup?.name || 'העסק';
+    const hint = current ? `תחום שנכתב: "${current}"` : '';
+    const prompt = `אתה עוזר לעסק מקצועי בשם "${bizName}" לתאר תחום עיסוק לאתר שלו.
+${hint}
+${!current ? 'הצע תחום עיסוק מתאים לעסק מקצועי.' : 'השלם את הפרטים לתחום שנכתב.'}
+החזר JSON בלבד (ללא markdown):
+{
+  "title_he": "שם התחום בעברית — קצר ומקצועי",
+  "title_en": "Field name in English",
+  "description_he": "תיאור 1-2 משפטים המסבירים את השירות"
+}`;
+    const answer = await window._profContentAI(prompt, btn);
+    if (!answer) return;
+    try {
+        const clean = answer.replace(/```json|```/g, '').trim();
+        const d = JSON.parse(clean);
+        if (d.title_he) document.getElementById('exp-title-he').value = d.title_he;
+        if (d.title_en) document.getElementById('exp-title-en').value = d.title_en;
+        if (d.description_he) document.getElementById('exp-desc-he').value = d.description_he;
+        showToast('success', 'AI מילא — בדוק ושמור');
+    } catch(e) { showToast('error', 'שגיאה בפענוח תגובת AI'); }
 };
 
 window.saveExpertise = async function() {
@@ -43391,12 +43574,29 @@ window.deleteExpertise = async function(id) {
 window.openAddArticle = function() {
     const html = `<div id="add-article-modal" class="fixed inset-0 bg-slate-900/60 z-[9999] flex items-end justify-center" style="direction:rtl;">
         <div class="bg-white w-full max-w-md rounded-t-3xl shadow-2xl p-5 max-h-[90vh] overflow-y-auto">
-            <h3 class="font-black text-slate-800 text-base mb-4">הוסף מאמר / עדכון</h3>
+            <h3 class="font-black text-slate-800 text-base mb-4">מאמר חדש ✍️</h3>
             <div class="space-y-3">
-                <input id="art-title-he" type="text" placeholder="כותרת (עברית)" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
-                <input id="art-title-en" type="text" placeholder="Title (English)" dir="ltr" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
-                <textarea id="art-content-he" rows="5" placeholder="תוכן המאמר בעברית..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 resize-none"></textarea>
-                <textarea id="art-content-en" rows="4" dir="ltr" placeholder="Article content in English..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 resize-none"></textarea>
+                <div>
+                    <p class="text-xs font-bold text-slate-500 mb-1">כותרת (עברית)</p>
+                    <input id="art-title-he" type="text" placeholder="לדוג׳: 5 טעויות שכדאי להימנע מהן בהסכם עסקי" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-500 mb-1">כותרת (English)</p>
+                    <input id="art-title-en" type="text" placeholder="Article title in English" dir="ltr" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <p class="text-xs font-bold text-slate-500">תוכן המאמר (עברית)</p>
+                        <button id="art-ai-btn" onclick="window.aiWriteArticle(this)" class="text-[11px] font-bold text-violet-600 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1">
+                            ✨ כתוב עם AI
+                        </button>
+                    </div>
+                    <textarea id="art-content-he" rows="6" placeholder="הזן כותרת ולחץ 'כתוב עם AI', או כתוב ידנית..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 resize-none"></textarea>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-500 mb-1">תוכן (English)</p>
+                    <textarea id="art-content-en" rows="4" dir="ltr" placeholder="Article content in English (optional)..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 resize-none"></textarea>
+                </div>
                 <input id="art-tags" type="text" placeholder="תגיות (מופרד בפסיקים)" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
                 <label class="flex items-center gap-2 text-sm font-medium"><input id="art-publish" type="checkbox" checked class="w-4 h-4 accent-indigo-600"> פרסם מיד</label>
                 <div class="flex gap-2">
@@ -43407,6 +43607,34 @@ window.openAddArticle = function() {
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.aiWriteArticle = async function(btn) {
+    const titleHe = document.getElementById('art-title-he')?.value?.trim();
+    const titleEn = document.getElementById('art-title-en')?.value?.trim();
+    const bizName = currentGroup?.name || 'העסק';
+    if (!titleHe && !titleEn) { showToast('error','הזן כותרת מאמר קודם'); return; }
+    const topic = titleHe || titleEn;
+    const prompt = `אתה כותב מאמר מקצועי לאתר תדמית של עסק בשם "${bizName}".
+נושא המאמר: "${topic}"
+
+כתוב מאמר מקצועי, קצר ומעניין (300-500 מילים) שמבוסס על הנושא.
+החזר JSON בלבד (ללא markdown):
+{
+  "content_he": "תוכן המאמר בעברית — פסקאות עם רווח שורה בין כל פסקה",
+  "content_en": "Article content in English — same structure",
+  "tags": "תגיות מפרידות בפסיקים, עד 5"
+}`;
+    const answer = await window._profContentAI(prompt, btn);
+    if (!answer) return;
+    try {
+        const clean = answer.replace(/```json|```/g, '').trim();
+        const d = JSON.parse(clean);
+        if (d.content_he) document.getElementById('art-content-he').value = d.content_he;
+        if (d.content_en) document.getElementById('art-content-en').value = d.content_en;
+        if (d.tags) document.getElementById('art-tags').value = d.tags;
+        showToast('success', 'AI כתב את המאמר — בדוק ושמור');
+    } catch(e) { showToast('error', 'שגיאה בפענוח תגובת AI'); }
 };
 
 window.saveArticle = async function() {
