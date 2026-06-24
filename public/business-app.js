@@ -34948,11 +34948,21 @@ window._sportBack = function() {
 // ===== PROFESSIONAL DASHBOARD =====
 async function renderProfessionalDashboard(el) {
     el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm"><i class="fa-solid fa-spinner fa-spin ml-2"></i>טוען נתונים...</div>`;
-    let s = { active_cases:0, completed_cases:0, unbilled_hours:0, total_hours:0, new_leads:0, total_leads:0, month_revenue:0, today_appointments:[] };
+    let s = { active_cases:0, completed_cases:0, unbilled_hours:0, total_hours:0, new_leads:0, total_leads:0, month_revenue:0, today_appointments:[], pending_quotes:0 };
     try {
         const r = await fetch(`${API}/professional/dashboard/${currentGroup.id}`).then(r=>r.json());
         if (!r.error) s = r;
     } catch(e) {}
+
+    // משימות דחופות — מסוננות מ-allTasks הקיים (ללא קריאת API נוספת)
+    const now = new Date(); now.setHours(0,0,0,0);
+    const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
+    const urgentTasks = (allTasks || []).filter(t => {
+        if (!t.deadline || t.status !== 'pending') return false;
+        if (t.title && t.title.startsWith('SHIFT|')) return false;
+        const dl = new Date(t.deadline); dl.setHours(0,0,0,0);
+        return dl <= tomorrow;
+    }).slice(0, 5);
 
     const kpis = [
         { label:'תיקים פעילים',   value: s.active_cases,                                                    icon:'📁', color:'indigo',  tab:'cases' },
@@ -34998,16 +35008,45 @@ async function renderProfessionalDashboard(el) {
             </div>
         </div>` : '';
 
+    const pendingQuotesAlert = s.pending_quotes > 0 ? `
+        <div onclick="switchTab('sales')" class="bg-violet-50 border border-violet-200 rounded-2xl p-3 mb-3 flex items-center gap-3 cursor-pointer active:scale-95 transition">
+            <span class="text-2xl">📄</span>
+            <div class="flex-1 text-right">
+                <div class="text-sm font-black text-violet-700">${s.pending_quotes} הצע${s.pending_quotes === 1 ? 'ה' : 'ות'} ממתינ${s.pending_quotes === 1 ? 'ה' : 'ות'} לתגובת לקוח</div>
+                <div class="text-[11px] text-violet-500">לחץ לצפייה ומעקב</div>
+            </div>
+        </div>` : '';
+
+    const urgentTasksHtml = urgentTasks.length ? `
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-4">
+            <h3 class="font-black text-slate-700 text-sm mb-2">⚠️ משימות דחופות</h3>
+            ${urgentTasks.map(t => {
+                const dl = new Date(t.deadline);
+                const isOverdue = dl < now;
+                const dateStr = isOverdue
+                    ? `<span class="text-red-500 font-bold">פג תוקף ${dl.toLocaleDateString('he-IL',{day:'numeric',month:'short'})}</span>`
+                    : `<span class="text-amber-500 font-bold">להיום / מחר</span>`;
+                return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                    <span class="text-base">${isOverdue ? '🔴' : '🟡'}</span>
+                    <span class="text-sm text-slate-700 flex-1 truncate">${safeStr(t.title && t.title.startsWith('SOP|') ? JSON.parse(t.title.substring(4)).title||t.title : t.title)}</span>
+                    <span class="text-[10px]">${dateStr}</span>
+                </div>`;
+            }).join('')}
+            <button onclick="switchTab('tasks')" class="mt-2 w-full text-[11px] text-indigo-500 font-bold hover:text-indigo-700 transition">← לכל המשימות</button>
+        </div>` : '';
+
     el.innerHTML = `
         ${roleDashboardHeader('👔', 'לוח בקרה מקצועי', 'תיקים, שעות ולקוחות — בזמן אמת', 'from-indigo-600', 'to-violet-700')}
         ${unbildAlert}
         ${newLeadsAlert}
+        ${pendingQuotesAlert}
         <div class="grid grid-cols-3 gap-3 mb-4">${kpiHtml}</div>
         <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-4">
             <h3 class="font-black text-slate-700 text-sm mb-2">📅 פגישות היום</h3>
             ${apptHtml}
             <button onclick="switchTab('calendar')" class="mt-2 w-full text-[11px] text-indigo-500 font-bold hover:text-indigo-700 transition">← ליומן המלא</button>
         </div>
+        ${urgentTasksHtml}
         ${roleQuickActions([
             { icon:'📁', label:'תיקים',        tab:'cases' },
             { icon:'⏱️', label:'שעות עבודה',   tab:'timelog' },

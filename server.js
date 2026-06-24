@@ -12494,12 +12494,13 @@ app.delete('/api/professional-documents/:id', async (req, res) => {
 app.get('/api/professional/dashboard/:groupId', async (req, res) => {
     try {
         const gid = req.params.groupId;
-        const [casesR, hoursR, leadsR, revenueR, apptR] = await Promise.all([
+        const [casesR, hoursR, leadsR, revenueR, apptR, pendingQuotesR] = await Promise.all([
             pool.query(`SELECT status, COUNT(*) cnt FROM store_orders WHERE group_id=$1 AND call_type='work_order' GROUP BY status`, [gid]),
             pool.query(`SELECT COUNT(*) cnt, COALESCE(SUM(minutes),0) total_min, COALESCE(SUM(CASE WHEN NOT is_billed THEN minutes ELSE 0 END),0) unbilled_min FROM time_logs WHERE group_id=$1`, [gid]),
             pool.query(`SELECT COUNT(*) total, COUNT(CASE WHEN status='new' THEN 1 END) new_leads FROM professional_leads WHERE group_id=$1`, [gid]),
             pool.query(`SELECT COALESCE(SUM(amount),0) month_revenue FROM cashflow_entries WHERE group_id=$1 AND type='income' AND date >= date_trunc('month', CURRENT_DATE)`, [gid]),
-            pool.query(`SELECT id, title, start_time, end_time FROM calendar_events WHERE group_id=$1 AND DATE(start_time)=CURRENT_DATE ORDER BY start_time LIMIT 5`, [gid])
+            pool.query(`SELECT id, title, start_time, end_time FROM calendar_events WHERE group_id=$1 AND DATE(start_time)=CURRENT_DATE ORDER BY start_time LIMIT 5`, [gid]),
+            pool.query(`SELECT COUNT(*) cnt FROM store_orders WHERE group_id=$1 AND status='quote' AND quote_status='waiting_customer'`, [gid])
         ]);
         const casesByStatus = {};
         casesR.rows.forEach(r => { casesByStatus[r.status] = parseInt(r.cnt); });
@@ -12513,7 +12514,8 @@ app.get('/api/professional/dashboard/:groupId', async (req, res) => {
             new_leads: parseInt(leadsR.rows[0].new_leads),
             total_leads: parseInt(leadsR.rows[0].total),
             month_revenue: parseFloat(revenueR.rows[0].month_revenue),
-            today_appointments: apptR.rows
+            today_appointments: apptR.rows,
+            pending_quotes: parseInt(pendingQuotesR.rows[0].cnt)
         });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
