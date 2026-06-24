@@ -6208,6 +6208,25 @@ app.post('/api/store/ai-long-desc', async (req, res) => {
     } catch(e) { handleAIError(e, res, 'שגיאה בניסוח'); }
 });
 
+// === AI ACTIONS — ביצוע פעולות מהעוזרת העסקית ===
+app.post('/api/ai/actions', async (req, res) => {
+    try {
+        const { action, params, groupId } = req.body;
+        if (!groupId) return res.status(400).json({ error: 'groupId required' });
+        if (action === 'UPDATE_CATALOG_PRICE') {
+            const { itemId, price } = params;
+            await pool.query('UPDATE store_catalog SET price=$1 WHERE id=$2 AND group_id=$3', [parseFloat(price)||0, itemId, groupId]);
+            res.json({ success: true });
+        } else if (action === 'TOGGLE_CATALOG_ITEM') {
+            const { itemId, available } = params;
+            await pool.query('UPDATE store_catalog SET is_available=$1 WHERE id=$2 AND group_id=$3', [available===true||available==='true', itemId, groupId]);
+            res.json({ success: true });
+        } else {
+            res.status(400).json({ error: 'Unknown action' });
+        }
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/biz/chat-assistant', async (req, res) => {
     try {
         const { query, context, groupId } = req.body;
@@ -6276,7 +6295,29 @@ app.post('/api/biz/chat-assistant', async (req, res) => {
 • לעבור לחברים → [ACTION:OPEN_TAB|sport-members]
 • לעבור ללוח שיעורים → [ACTION:OPEN_TAB|sport-schedule]
 • לעבור להתראות → [ACTION:OPEN_TAB|sport-alerts]
-• לעבור לתשלומים → [ACTION:OPEN_TAB|sport-payments]` : `
+• לעבור לתשלומים → [ACTION:OPEN_TAB|sport-payments]` : (bizType === 'restaurant' || bizType === 'cafe') ? `
+
+== מסעדה / בית קפה — ניתוח ==
+• food cost: <28%=מצוין | 28-33%=טוב | 33-40%=גבוה | >40%=בעייתי | ממוצע ישראל: 28-35%
+• הזמנות: status=new מעל 20 דקות → התראה מיידית; avg_per_order_month <70₪ → המלץ upsell/combo
+• השווה ממוצע יומי החודש לחודש הקודם — ציין מגמה ברורה
+
+== מסעדה — פקודות פעולה ==
+כשמבקשים ליצור הזמנת שולחן → [ACTION:CREATE_TABLE_RES|שם לקוח|טלפון|YYYY-MM-DD|HH:MM|מספר סועדים|הערות]
+  דוגמה: [ACTION:CREATE_TABLE_RES|ישראל כהן|0501234567|2026-06-25|19:00|4|יום הולדת]
+  אם לא נאמר תאריך — השתמש בתאריך היום. אם לא נאמרה שעה — השתמש ב-20:00.
+כשמבקשים לעדכן סטטוס הזמנה → [ACTION:UPDATE_ORDER_STATUS|order_id|status]
+  (סטטוסים: processing / completed / cancelled / ready / shipped)
+  order_id נלקח מ-orders_summary.recent_10[].id
+כשמבקשים להפעיל/להשבית מנה → [ACTION:TOGGLE_CATALOG_ITEM|catalog_id|true/false]
+  catalog_id נלקח מרשימת catalog[].id שבקונטקסט
+כשמבקשים לשנות מחיר מנה → [ACTION:UPDATE_CATALOG_PRICE|catalog_id|מחיר חדש]
+• לפתוח הזמנות → [ACTION:OPEN_TAB|pos]
+• לפתוח תפריט/קטלוג → [ACTION:OPEN_TAB|catalog]
+• לפתוח שולחנות/יומן → [ACTION:OPEN_TAB|calendar]
+• לייצא הזמנות → [ACTION:EXPORT_EXCEL|orders]
+• לייצא לקוחות → [ACTION:EXPORT_EXCEL|customers]
+• לייצא food cost → [ACTION:EXPORT_EXCEL|food-cost]` : `
 
 == עקרונות food cost (מסעדות ישראל) ==
 • <28%: מצוין | 28-33%: טוב | 33-40%: גבוה | >40%: בעייתי
