@@ -32806,12 +32806,40 @@ window.openWorkOrderModal = async function(woId) {
             cSel.innerHTML = '<option value="">בחר פריט</option>' + cData.items.map(i => `<option value="${i.id}" data-name="${safeStr(i.name)}" data-avail="${i.available_qty}">${safeStr(i.name)} (זמין: ${i.available_qty})</option>`).join('');
         }
         window.switchWoTab('overview');
+        // התאמת ממשק לסוג עסק מקצועי
+        const isProfWo = currentGroup?.business_type === 'professional';
+        const woTabTeam = document.getElementById('wo-tab-team');
+        const woTabInventory = document.getElementById('wo-tab-inventory');
+        const woTabPurchase = document.getElementById('wo-tab-purchase');
+        const woTabTimeline = document.getElementById('wo-tab-timeline');
+        if (isProfWo) {
+            if (woTabTeam) woTabTeam.textContent = 'משתתפים 👥';
+            if (woTabInventory) woTabInventory.classList.add('hidden');
+            if (woTabPurchase) woTabPurchase.classList.add('hidden');
+            if (woTabTimeline) woTabTimeline.textContent = 'היסטוריה 📋';
+            const teamH = document.querySelector('#wo-view-team .flex.justify-between.items-center h4');
+            if (teamH) teamH.textContent = 'משתתפים בתיק';
+            const addBtn = document.querySelector('#wo-view-team .flex.justify-between.items-center button');
+            if (addBtn) addBtn.innerHTML = '<i class="fa-solid fa-plus mr-1"></i> הוסף משתתף';
+            const invH = document.querySelector('#wo-view-inventory .flex.justify-between.items-center h4');
+            if (invH) invH.textContent = 'משאבים ומעורבים';
+        } else {
+            if (woTabTeam) woTabTeam.textContent = 'צוות';
+            if (woTabInventory) woTabInventory.classList.remove('hidden');
+            if (woTabPurchase) woTabPurchase.classList.remove('hidden');
+            if (woTabTimeline) woTabTimeline.textContent = 'ציר זמן';
+            const teamH = document.querySelector('#wo-view-team .flex.justify-between.items-center h4');
+            if (teamH) teamH.textContent = 'צוות משויך';
+            const addBtn = document.querySelector('#wo-view-team .flex.justify-between.items-center button');
+            if (addBtn) addBtn.innerHTML = '<i class="fa-solid fa-plus mr-1"></i> שייך עובד';
+        }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); console.error(e); }
 };
 
 window.renderWoOverview = function(data) {
     const wo = data.workOrder;
-    document.getElementById('wo-modal-title').textContent = wo.quote_number || `פקודה #${wo.id}`;
+    const isPro = currentGroup?.business_type === 'professional';
+    document.getElementById('wo-modal-title').textContent = wo.quote_number || (isPro ? `תיק #${wo.id}` : `פקודה #${wo.id}`);
     document.getElementById('wo-modal-subtitle').textContent = safeStr(wo.customer_name || '');
     document.getElementById('wo-info-customer').textContent = safeStr(wo.customer_name || '—');
     document.getElementById('wo-info-amount').textContent = wo.total_amount ? `₪${parseFloat(wo.total_amount).toFixed(2)}` : '—';
@@ -32911,13 +32939,17 @@ window.renderWoOverview = function(data) {
     if (ap) ap.innerHTML = data.assignees?.length ? `<div class="bg-slate-50 rounded-xl p-2.5 border border-slate-100 text-xs text-slate-600"><i class="fa-solid fa-users mr-1.5"></i>${data.assignees.map(a => safeStr(a.user_name)).join(' • ')}</div>` : '';
     const ip = document.getElementById('wo-inventory-preview');
     const reserved = (data.inventory || []).filter(i => i.status === 'reserved');
-    if (ip) ip.innerHTML = reserved.length ? `<div class="bg-amber-50 rounded-xl p-2.5 border border-amber-100 text-xs text-amber-700"><i class="fa-solid fa-boxes-stacked mr-1.5"></i>${reserved.map(i => `${safeStr(i.item_name)} (${i.reserved_qty})`).join(' • ')}</div>` : '';
+    if (ip) ip.innerHTML = (!isPro && reserved.length) ? `<div class="bg-amber-50 rounded-xl p-2.5 border border-amber-100 text-xs text-amber-700"><i class="fa-solid fa-boxes-stacked mr-1.5"></i>${reserved.map(i => `${safeStr(i.item_name)} (${i.reserved_qty})`).join(' • ')}</div>` : '';
 };
 
 window.renderWoTeam = function(assignees) {
     const list = document.getElementById('wo-assignees-list');
     if (!list) return;
-    if (!assignees.length) { list.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">טרם שויכו עובדים לפקודה זו</p>'; return; }
+    const isPro = currentGroup?.business_type === 'professional';
+    const emptyTxt = isPro ? 'טרם נוספו משתתפים לתיק זה' : 'טרם שויכו עובדים לפקודה זו';
+    const totalLabel = isPro ? 'סה"כ עלות משתתפים' : 'סה"כ עלות צוות';
+    const hoursLabel = isPro ? 'שעות בתיק' : 'שעות עבודה';
+    if (!assignees.length) { list.innerHTML = `<p class="text-slate-400 text-xs text-center py-4">${emptyTxt}</p>`; return; }
     const total = assignees.reduce((s, a) => s + (parseFloat(a.hourly_rate || 0) * parseFloat(a.hours_worked || 0)), 0);
     list.innerHTML = assignees.map(a => {
         const cost = parseFloat(a.hourly_rate || 0) * parseFloat(a.hours_worked || 0);
@@ -32931,7 +32963,7 @@ window.renderWoTeam = function(assignees) {
         </div>
         <div class="grid grid-cols-2 gap-2">
             <div>
-                <label class="text-[9px] text-slate-400 block mb-0.5">שעות עבודה</label>
+                <label class="text-[9px] text-slate-400 block mb-0.5">${hoursLabel}</label>
                 <input type="number" min="0" step="0.5" value="${a.hours_worked || 0}" class="modern-input py-1 px-2 text-xs rounded-lg border border-slate-200 w-full outline-none focus:border-indigo-400" onchange="window.updateAssigneeCost(${a.user_id}, null, this.value)">
             </div>
             <div>
@@ -32941,7 +32973,7 @@ window.renderWoTeam = function(assignees) {
         </div>
         ${cost > 0 ? `<p class="text-[10px] text-indigo-600 font-bold mt-1.5">עלות: ₪${cost.toFixed(2)}</p>` : ''}
     </div>`;
-    }).join('') + (total > 0 ? `<div class="mt-1 bg-indigo-50 rounded-xl p-3 border border-indigo-100 flex justify-between items-center"><span class="text-xs font-bold text-slate-600">סה"כ עלות צוות</span><span class="font-black text-indigo-700">₪${total.toFixed(2)}</span></div>` : '');
+    }).join('') + (total > 0 ? `<div class="mt-1 bg-indigo-50 rounded-xl p-3 border border-indigo-100 flex justify-between items-center"><span class="text-xs font-bold text-slate-600">${totalLabel}</span><span class="font-black text-indigo-700">₪${total.toFixed(2)}</span></div>` : '');
 };
 
 window.updateAssigneeCost = async function(userId, hourlyRate, hoursWorked) {
@@ -33018,19 +33050,22 @@ window.renderWoInventory = function(inventory) {
 window.renderWoCosts = function(data) {
     const summary = document.getElementById('wo-costs-summary');
     if (!summary) return;
+    const isPro = currentGroup?.business_type === 'professional';
     const assignees = data.assignees || [];
     const inventory = data.inventory || [];
     const teamCost = assignees.reduce((s, a) => s + (parseFloat(a.hourly_rate || 0) * parseFloat(a.hours_worked || 0)), 0);
-    const inventoryCost = inventory.filter(i => i.status !== 'released').reduce((s, i) => s + (parseFloat(i.unit_price || 0) * parseFloat(i.reserved_qty || 0)), 0);
+    const inventoryCost = isPro ? 0 : inventory.filter(i => i.status !== 'released').reduce((s, i) => s + (parseFloat(i.unit_price || 0) * parseFloat(i.reserved_qty || 0)), 0);
     const totalCost = teamCost + inventoryCost;
     const quoteAmount = parseFloat(data.workOrder?.total_amount || 0);
     const profit = quoteAmount - totalCost;
     const fmtM = n => { const v = parseFloat(parseFloat(n).toFixed(2)); return v === 0 ? '0' : v.toLocaleString('he-IL', {minimumFractionDigits: 0, maximumFractionDigits: 2}); };
+    const teamLabel = isPro ? 'שעות עבודה בתיק' : 'עלות צוות';
+    const noTeamTxt = isPro ? 'אין משתתפים בתיק' : 'אין עובדים משויכים';
 
     let html = `
         <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
             <div class="flex justify-between items-center mb-2">
-                <span class="text-sm font-bold text-slate-700">עלות צוות</span>
+                <span class="text-sm font-bold text-slate-700">${teamLabel}</span>
                 <span class="text-sm font-black text-slate-700">₪${teamCost.toFixed(2)}</span>
             </div>
             <div class="text-xs text-slate-500 space-y-1 ml-2">
@@ -33038,32 +33073,39 @@ window.renderWoCosts = function(data) {
     if (assignees.length > 0) {
         html += assignees.map(a => {
             const cost = parseFloat(a.hourly_rate || 0) * parseFloat(a.hours_worked || 0);
-            return cost > 0 ? `<div class="flex justify-between"><span>${safeStr(a.user_name)}</span><span>₪${cost.toFixed(2)}</span></div>` : '';
+            const hours = parseFloat(a.hours_worked || 0);
+            const detail = isPro && hours > 0 ? `${hours}ש' × ₪${parseFloat(a.hourly_rate||0).toFixed(0)}` : '';
+            return cost > 0 ? `<div class="flex justify-between"><span>${safeStr(a.user_name)}${detail ? ` (${detail})` : ''}</span><span>₪${cost.toFixed(2)}</span></div>` : '';
         }).join('');
     } else {
-        html += '<p>אין עובדים משויכים</p>';
+        html += `<p>${noTeamTxt}</p>`;
     }
     html += `
             </div>
         </div>
+    `;
+    if (!isPro) {
+        html += `
         <div class="bg-amber-50 rounded-2xl p-4 border border-amber-100">
             <div class="flex justify-between items-center mb-2">
                 <span class="text-sm font-bold text-slate-700">עלות ציוד וחומרים</span>
                 <span class="text-sm font-black text-slate-700">₪${inventoryCost.toFixed(2)}</span>
             </div>
             <div class="text-xs text-slate-500 space-y-1 ml-2">
-    `;
-    if (inventory.length > 0) {
-        html += inventory.filter(i => i.status !== 'released').map(i => {
-            const cost = parseFloat(i.unit_price || 0) * parseFloat(i.reserved_qty || 0);
-            return cost > 0 ? `<div class="flex justify-between"><span>${safeStr(i.item_name)} (${i.reserved_qty})</span><span>₪${cost.toFixed(2)}</span></div>` : '';
-        }).join('');
-    } else {
-        html += '<p>אין ציוד משויך</p>';
+        `;
+        if (inventory.length > 0) {
+            html += inventory.filter(i => i.status !== 'released').map(i => {
+                const cost = parseFloat(i.unit_price || 0) * parseFloat(i.reserved_qty || 0);
+                return cost > 0 ? `<div class="flex justify-between"><span>${safeStr(i.item_name)} (${i.reserved_qty})</span><span>₪${cost.toFixed(2)}</span></div>` : '';
+            }).join('');
+        } else {
+            html += '<p>אין ציוד משויך</p>';
+        }
+        html += `
+            </div>
+        </div>`;
     }
     html += `
-            </div>
-        </div>
         <div class="bg-indigo-100 rounded-2xl p-4 border border-indigo-200">
             <div class="flex justify-between items-center">
                 <span class="text-sm font-bold text-indigo-700">סה"כ עלויות</span>
@@ -33075,16 +33117,18 @@ window.renderWoCosts = function(data) {
         const profitCls = profit >= 0
             ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
             : 'bg-red-50 border-red-200 text-red-700';
+        const incomeLabel = isPro ? 'שכר טרחה / הכנסה' : 'שווי ההצעה (הכנסה)';
+        const profitLabel = isPro ? 'רווחיות צפויה מהתיק' : 'רווחיות צפויה';
         html += `
         <div class="bg-green-50 rounded-2xl p-4 border border-green-200">
             <div class="flex justify-between items-center">
-                <span class="text-sm font-bold text-green-700">שווי ההצעה (הכנסה)</span>
+                <span class="text-sm font-bold text-green-700">${incomeLabel}</span>
                 <span class="text-sm font-black text-green-700">₪${fmtM(quoteAmount)}</span>
             </div>
         </div>
         <div class="rounded-2xl p-4 border ${profitCls}">
             <div class="flex justify-between items-center">
-                <span class="text-sm font-bold">רווחיות צפויה</span>
+                <span class="text-sm font-bold">${profitLabel}</span>
                 <span class="text-lg font-black">${profit >= 0 ? '+' : ''}₪${fmtM(profit)}</span>
             </div>
             ${quoteAmount > 0 && totalCost > 0 ? `<p class="text-[10px] mt-1 opacity-70">${Math.round((profit / quoteAmount) * 100)}% מההכנסה</p>` : ''}
