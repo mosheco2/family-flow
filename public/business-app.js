@@ -3302,7 +3302,7 @@ if(data.group) {
             });
 
             localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
-            setTimeout(() => { enforcePermissions(); applyBusinessTypeFilter(); }, 100);
+            setTimeout(() => { enforcePermissions(); applyBusinessTypeFilter(); window._applyBizVisibility && window._applyBizVisibility(); }, 100);
             
             try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
             
@@ -44374,4 +44374,55 @@ window.updateDocStatus = async function(id, status, custName, custPhone) {
 
 // ============================================================
 // ===== END PROFESSIONAL DOCUMENTS MODULE =====
+
+// ─── BIZ TYPE VISIBILITY ENFORCEMENT ────────────────────────────────────────
+// Reads hidden keys from SA Business Template Management and applies them.
+// Tab keys (tab:xxx) → hide nav buttons. Feature keys → inject CSS.
+
+window._bizHiddenKeys = new Set();
+
+window._applyBizVisibility = async function() {
+    const type = currentGroup?.business_type;
+    if (!type || type === 'other') return;
+    try {
+        const res = await fetch(`${API}/biz-visibility/${type}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const hiddenKeys = data.hiddenKeys || [];
+        window._bizHiddenKeys = new Set(hiddenKeys);
+
+        // Hide tab nav buttons per hidden key
+        hiddenKeys.forEach(key => {
+            if (!key.startsWith('tab:')) return;
+            const tabId = key.slice(4);
+            const tabBtn = document.getElementById(`tab-${tabId}`);
+            if (tabBtn) tabBtn.classList.add('hidden');
+            const dropBtn = document.getElementById(`gdrop-${tabId}`);
+            if (dropBtn) dropBtn.style.display = 'none';
+        });
+
+        // Recalculate group-level nav visibility
+        ['team','sales','inventory','finance','more'].forEach(group => {
+            const groupEl = document.getElementById(`gnav-group-${group}`);
+            if (!groupEl) return;
+            const visible = Array.from(groupEl.querySelectorAll('[id^="gdrop-"]')).filter(el => el.style.display !== 'none');
+            const groupBtn = document.getElementById(`gnav-btn-${group}`);
+            if (groupBtn) groupBtn.style.display = visible.length === 0 ? 'none' : '';
+        });
+
+        // Inject CSS rules for feature-level hiding (buttons/elements with data-viz-key)
+        let styleEl = document.getElementById('biz-viz-style');
+        if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = 'biz-viz-style';
+            document.head.appendChild(styleEl);
+        }
+        const featureRules = hiddenKeys
+            .filter(k => k.startsWith('feature:'))
+            .map(k => `[data-viz-key="${k}"] { display: none !important; }`)
+            .join('\n');
+        styleEl.textContent = featureRules;
+    } catch(e) { /* silent – biz visibility is non-critical */ }
+};
+// ─────────────────────────────────────────────────────────────────────────────
 // ============================================================
