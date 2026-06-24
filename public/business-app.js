@@ -13938,6 +13938,22 @@ async function submitGlobalAI() {
                 const scLabels = {new:'חדש',scheduled:'נקבע תור',processing:'בטיפול',done:'הושלם',cancelled:'בוטל',waiting_parts:'ממתין לחלקים'};
                 actionHtml += `<button onclick="window._aiUpdateSCStatus(${scId},'${scStatus}','${safeStr(scTitle)}',this)" class="mt-3 w-full bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-wrench"></i> עדכן קריאה: ${safeStr(scTitle)} → ${scLabels[scStatus]||scStatus}</button>`;
             }
+            // AI Action Parser — יצירת משימה ישירה (גנרי לכל סוגי עסקים)
+            const createTaskMatch = answerText.match(/\[ACTION:CREATE_TASK\|([^|^\]]+)\|([^|^\]]*)\|?(\d*)\]/);
+            if (createTaskMatch) {
+                const ctTitle = createTaskMatch[1].trim(), ctAssignee = (createTaskMatch[2]||'self').trim(), ctDays = parseInt(createTaskMatch[3])||1;
+                answerText = answerText.replace(createTaskMatch[0], '');
+                const ctLabel = ctAssignee === 'self' ? 'לי' : ctAssignee;
+                actionHtml += `<button onclick="window._aiCreateTask('${safeStr(ctTitle)}','${safeStr(ctAssignee)}',${ctDays},this)" class="mt-3 w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-list-check"></i> צור משימה ל${ctLabel}: ${safeStr(ctTitle)}</button>`;
+            }
+            // AI Action Parser — יצירת כלל התראה (גנרי לכל סוגי עסקים)
+            const createAlertMatch = answerText.match(/\[ACTION:CREATE_ALERT_RULE\|([^|^\]]+)\|([^|^\]]+)\|(\d*)\|?([^\]]*)\]/);
+            if (createAlertMatch) {
+                const arName = createAlertMatch[1].trim(), arTrigger = createAlertMatch[2].trim(), arCooldown = parseInt(createAlertMatch[3])||60, arDesc = (createAlertMatch[4]||'').trim();
+                answerText = answerText.replace(createAlertMatch[0], '');
+                const arTriggerLabels = {new_order:'הזמנה חדשה',order_timeout_15:'הזמנה לא מטופלת 15 דקות',order_timeout_30:'הזמנה לא מטופלת 30 דקות',new_lead:'פנייה חדשה',new_booking:'הזמנה/תור חדש',new_service_call:'קריאת שירות חדשה',payment_received:'תשלום התקבל',low_stock:'מלאי נמוך'};
+                actionHtml += `<button onclick="window._aiCreateAlertRule('${safeStr(arName)}','${arTrigger}',${arCooldown},'${safeStr(arDesc)}',this)" class="mt-3 w-full bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-bell"></i> צור התראה: ${safeStr(arName)} — ${arTriggerLabels[arTrigger]||arTrigger}</button>`;
+            }
             // Markdown bold → <strong>
             answerText = answerText.trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
             chatBox.innerHTML += `<div class="bg-white p-3.5 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%] fade-in leading-relaxed">${answerText}${actionHtml}</div>`;
@@ -36030,6 +36046,22 @@ window._sportLoadReports = async function(period) {
                     answerText = answerText.replace(regClassMatch[0], '');
                     actionHtml += `<button onclick="window._aiRegisterClass(${rcClassId},${rcMembId},'${safeStr(rcName)}',this)" class="mt-3 w-full bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-calendar-plus"></i> רשום ${safeStr(rcName)} לשיעור</button>`;
                 }
+                // AI Action Parser — יצירת משימה ישירה (גנרי)
+                const createTaskMatch = answerText.match(/\[ACTION:CREATE_TASK\|([^|^\]]+)\|([^|^\]]*)\|?(\d*)\]/);
+                if (createTaskMatch) {
+                    const ctTitle = createTaskMatch[1].trim(), ctAssignee = (createTaskMatch[2]||'self').trim(), ctDays = parseInt(createTaskMatch[3])||1;
+                    answerText = answerText.replace(createTaskMatch[0], '');
+                    const ctLabel = ctAssignee === 'self' ? 'לי' : ctAssignee;
+                    actionHtml += `<button onclick="window._aiCreateTask('${safeStr(ctTitle)}','${safeStr(ctAssignee)}',${ctDays},this)" class="mt-3 w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-list-check"></i> צור משימה ל${ctLabel}: ${safeStr(ctTitle)}</button>`;
+                }
+                // AI Action Parser — יצירת כלל התראה (גנרי)
+                const createAlertMatch = answerText.match(/\[ACTION:CREATE_ALERT_RULE\|([^|^\]]+)\|([^|^\]]+)\|(\d*)\|?([^\]]*)\]/);
+                if (createAlertMatch) {
+                    const arName = createAlertMatch[1].trim(), arTrigger = createAlertMatch[2].trim(), arCooldown = parseInt(createAlertMatch[3])||60, arDesc = (createAlertMatch[4]||'').trim();
+                    answerText = answerText.replace(createAlertMatch[0], '');
+                    const arTriggerLabels = {new_order:'הזמנה חדשה',order_timeout_15:'הזמנה לא מטופלת 15 דקות',order_timeout_30:'הזמנה לא מטופלת 30 דקות',new_lead:'פנייה חדשה',new_booking:'הזמנה/תור חדש',new_service_call:'קריאת שירות חדשה',payment_received:'תשלום התקבל',low_stock:'מלאי נמוך'};
+                    actionHtml += `<button onclick="window._aiCreateAlertRule('${safeStr(arName)}','${arTrigger}',${arCooldown},'${safeStr(arDesc)}',this)" class="mt-3 w-full bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-bell"></i> צור התראה: ${safeStr(arName)} — ${arTriggerLabels[arTrigger]||arTrigger}</button>`;
+                }
 
                 answerText = answerText.trim().replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
                 if (chatBox) { chatBox.innerHTML += `<div class="bg-white p-3.5 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%] fade-in leading-relaxed">${answerText}${actionHtml}</div>`; chatBox.scrollTop = chatBox.scrollHeight; }
@@ -42196,6 +42228,22 @@ async function deleteLogisticsInvoice(id) {
                     const dsColor = dsColors[dsStatus] || 'bg-slate-50 text-slate-700 border-slate-200';
                     actionHtml += `<button onclick="window._aiUpdateDeliveryStatus(${dsId},'${dsStatus}','${safeStr(dsCustomer)}',this)" class="mt-3 w-full ${dsColor} hover:opacity-80 border py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-truck"></i> עדכן משלוח ${safeStr(dsCustomer)} → ${dsLabels[dsStatus]||dsStatus}</button>`;
                 }
+                // AI Action Parser — יצירת משימה ישירה (גנרי)
+                const createTaskMatch = answerText.match(/\[ACTION:CREATE_TASK\|([^|^\]]+)\|([^|^\]]*)\|?(\d*)\]/);
+                if (createTaskMatch) {
+                    const ctTitle = createTaskMatch[1].trim(), ctAssignee = (createTaskMatch[2]||'self').trim(), ctDays = parseInt(createTaskMatch[3])||1;
+                    answerText = answerText.replace(createTaskMatch[0], '');
+                    const ctLabel = ctAssignee === 'self' ? 'לי' : ctAssignee;
+                    actionHtml += `<button onclick="window._aiCreateTask('${safeStr(ctTitle)}','${safeStr(ctAssignee)}',${ctDays},this)" class="mt-3 w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-list-check"></i> צור משימה ל${ctLabel}: ${safeStr(ctTitle)}</button>`;
+                }
+                // AI Action Parser — יצירת כלל התראה (גנרי)
+                const createAlertMatch = answerText.match(/\[ACTION:CREATE_ALERT_RULE\|([^|^\]]+)\|([^|^\]]+)\|(\d*)\|?([^\]]*)\]/);
+                if (createAlertMatch) {
+                    const arName = createAlertMatch[1].trim(), arTrigger = createAlertMatch[2].trim(), arCooldown = parseInt(createAlertMatch[3])||60, arDesc = (createAlertMatch[4]||'').trim();
+                    answerText = answerText.replace(createAlertMatch[0], '');
+                    const arTriggerLabels = {new_order:'הזמנה חדשה',order_timeout_15:'הזמנה לא מטופלת 15 דקות',order_timeout_30:'הזמנה לא מטופלת 30 דקות',new_lead:'פנייה חדשה',new_booking:'הזמנה/תור חדש',new_service_call:'קריאת שירות חדשה',payment_received:'תשלום התקבל',low_stock:'מלאי נמוך'};
+                    actionHtml += `<button onclick="window._aiCreateAlertRule('${safeStr(arName)}','${arTrigger}',${arCooldown},'${safeStr(arDesc)}',this)" class="mt-3 w-full bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-bell"></i> צור התראה: ${safeStr(arName)} — ${arTriggerLabels[arTrigger]||arTrigger}</button>`;
+                }
 
                 answerText = answerText.trim().replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
                 if (chatBox) { chatBox.innerHTML += `<div class="bg-white p-3.5 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%] fade-in leading-relaxed">${answerText}${actionHtml}</div>`; chatBox.scrollTop = chatBox.scrollHeight; }
@@ -44814,6 +44862,45 @@ window._aiUpdateSCStatus = async function(scId, status, scTitle, btn) {
             window._serviceCallsCache = window._serviceCallsCache.map(c => c.id == scId ? {...c, status} : c);
         } else { throw new Error(data.error||'error'); }
     } catch(e) { showToast('error', 'שגיאה בעדכון קריאה'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wrench"></i> נסה שוב'; } }
+};
+
+// === AI ACTION HANDLERS — GENERIC (ALL BIZ TYPES) ===
+window._aiCreateTask = async function(title, assignee, days, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> יוצר...'; }
+    try {
+        if (!currentGroup?.id) throw new Error('no group');
+        let assignedTo = currentUser?.id;
+        if (assignee && assignee !== 'self') {
+            const match = (membersCache||[]).find(m => m.nickname && m.nickname.includes(assignee));
+            if (match) assignedTo = match.id;
+        }
+        const res = await fetch(API + '/tasks', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ title, assignedTo, days: parseInt(days)||1, reward: 0, groupId: currentGroup.id, requireAiCheck: false })
+        });
+        const data = await res.json();
+        if (data.success || data.task || data.id) {
+            const toLabel = (assignee === 'self' || !assignee) ? 'לך' : assignee;
+            showToast('success', 'משימה "' + title + '" נוצרה ' + toLabel + ' ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> נוצרה!'; btn.className = btn.className.replace(/bg-indigo-\d+/g,'bg-green-50').replace(/text-indigo-\d+/g,'text-green-700').replace(/border-indigo-\d+/g,'border-green-200'); }
+        } else { throw new Error(data.error||'error'); }
+    } catch(e) { showToast('error', 'שגיאה ביצירת משימה'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-list-check"></i> נסה שוב'; } }
+};
+
+window._aiCreateAlertRule = async function(name, triggerType, cooldown, description, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> יוצר...'; }
+    try {
+        if (!currentGroup?.id) throw new Error('no group');
+        const res = await fetch(API + '/alerts/rules', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ group_id: currentGroup.id, name, trigger_type: triggerType, trigger_config: {}, recipients: ['ADMIN'], channels: ['in_app'], cooldown_minutes: parseInt(cooldown)||60, is_active: true })
+        });
+        const data = await res.json();
+        if (data.success || data.id || data.rule) {
+            showToast('success', 'התראה "' + name + '" הופעלה ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> הופעלה!'; btn.className = btn.className.replace(/bg-yellow-\d+/g,'bg-green-50').replace(/text-yellow-\d+/g,'text-green-700').replace(/border-yellow-\d+/g,'border-green-200'); }
+        } else { throw new Error(data.error||'error'); }
+    } catch(e) { showToast('error', 'שגיאה ביצירת התראה'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-bell"></i> נסה שוב'; } }
 };
 
 // === AI ACTION HANDLERS — LOGISTICS ===

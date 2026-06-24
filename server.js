@@ -6429,10 +6429,34 @@ ${context}
 
 == פקודות מיוחדות (ACTION) ==
 אם המשתמש מבקש:
-• ליצור משימה → הוסף [ACTION:ADD_TASK|כותרת המשימה] בסוף תשובתך
 • להוסיף לרכש → הוסף [ACTION:ADD_SHOP|שם הפריט] בסוף תשובתך
 • לייצא לאקסל/CSV → הוסף [ACTION:EXPORT_EXCEL|orders] או customers/cashflow/pantry/staff/food-cost בסוף
 • לעבור לטאב → הוסף [ACTION:OPEN_TAB|tabId] בסוף (tabIds: pos/sales/customers/pantry/foodcost/cashflow/shifts/members/calendar/deliveries/tasks)
+
+== יצירת משימה (לכל סוגי העסקים) ==
+כשמבקשים ליצור משימה → [ACTION:CREATE_TASK|כותרת|assignee|days]
+  assignee: "self" = למנהל עצמו, או שם עובד מרשימת הצוות
+  days: מספר ימים לדדליין (ברירת מחדל: 1)
+  דוגמאות:
+  "תזכיר לי לשלם לספק מחר" → [ACTION:CREATE_TASK|תשלום לספק|self|1]
+  "צור משימה לדוד לבצע בדיקת מלאי עד שלשום" → [ACTION:CREATE_TASK|בדיקת מלאי|דוד|3]
+
+== יצירת התראה (לכל סוגי העסקים) ==
+כשמבקשים ליצור התראה/נוטיפיקציה → [ACTION:CREATE_ALERT_RULE|שם|trigger_type|cooldown_minutes|תיאור]
+  trigger_type אפשריים:
+  • new_order — על כל הזמנה נכנסת חדשה
+  • order_timeout_15 — הזמנה שלא טופלה תוך 15 דקות
+  • order_timeout_30 — הזמנה שלא טופלה תוך 30 דקות
+  • new_lead — על כל פנייה/ליד חדש
+  • new_booking — על כל תור/הזמנה חדשה
+  • new_service_call — על כל קריאת שירות חדשה
+  • payment_received — על כל תשלום שהתקבל
+  • low_stock — על מלאי נמוך
+  cooldown_minutes: כמה דקות מינימום בין התראות (ברירת מחדל: 60; לא-דחוף: 120; דחוף: 5)
+  דוגמאות:
+  "צור התראה על כל הזמנה נכנסת" → [ACTION:CREATE_ALERT_RULE|הזמנה נכנסת|new_order|5|כל הזמנה חדשה]
+  "התרה על הזמנה שלא טופלה רבע שעה" → [ACTION:CREATE_ALERT_RULE|הזמנה לא מטופלת|order_timeout_15|60|הזמנה ללא טיפול תוך 15 דקות]
+  "צור התראה על כל פנייה חדשה" → [ACTION:CREATE_ALERT_RULE|פנייה חדשה|new_lead|15|כל ליד שנכנס למערכת]
 
 == יכולות ניתוח ==
 • סיכום מכירות: יומי/שבועי/חודשי, ממוצע להזמנה, מגמות
