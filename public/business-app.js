@@ -43684,7 +43684,9 @@ window.renderProfessionalLeadsTab = async function() {
                 </div>
             </div>
             ${leads.length===0?`<div class="text-center py-12 text-slate-400"><i class="fa-solid fa-inbox text-4xl mb-3 text-slate-200"></i><p class="font-medium">אין פניות עדיין</p><p class="text-xs mt-1">פניות מהאתר יופיעו כאן</p></div>`:
-            leads.map(l=>`
+            leads.map(l=>{
+                const isConverted = l.status === 'converted';
+                return `
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-3">
                 <div class="flex items-start justify-between mb-2">
                     <div>
@@ -43696,11 +43698,23 @@ window.renderProfessionalLeadsTab = async function() {
                     </select>
                 </div>
                 ${l.message?`<p class="text-xs text-slate-600 bg-slate-50 rounded-xl p-2.5 mb-2 leading-relaxed">"${safeStr(l.message)}"</p>`:''}
-                <div class="flex items-center gap-3 text-xs">
+                <div class="flex items-center gap-3 text-xs mb-3">
                     ${l.phone?`<a href="tel:${safeStr(l.phone)}" class="text-blue-600 font-bold flex items-center gap-1"><i class="fa-solid fa-phone"></i>${safeStr(l.phone)}</a>`:''}
                     ${l.email?`<a href="mailto:${safeStr(l.email)}" class="text-indigo-600 font-bold flex items-center gap-1"><i class="fa-solid fa-envelope"></i>${safeStr(l.email)}</a>`:''}
                 </div>
-            </div>`).join('')}
+                <div class="flex gap-2 flex-wrap">
+                    <button onclick="window.scheduleLeadMeeting(${JSON.stringify(l.name||'').replace(/"/g,'&quot;')}, ${JSON.stringify(l.phone||'').replace(/"/g,'&quot;')})"
+                        class="flex items-center gap-1 text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-xl transition">
+                        <i class="fa-solid fa-calendar-plus text-[10px]"></i> קבע פגישה
+                    </button>
+                    ${!isConverted ? `<button onclick="window.convertLeadToCustomer(${l.id}, ${JSON.stringify(l.name||'').replace(/"/g,'&quot;')}, ${JSON.stringify(l.phone||'').replace(/"/g,'&quot;')}, ${JSON.stringify(l.email||'').replace(/"/g,'&quot;')})"
+                        class="flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1.5 rounded-xl transition">
+                        <i class="fa-solid fa-user-plus text-[10px]"></i> המר ללקוח
+                    </button>` : `<span class="flex items-center gap-1 text-[11px] font-bold text-slate-400 bg-slate-50 border border-slate-100 px-2.5 py-1.5 rounded-xl">
+                        <i class="fa-solid fa-check text-[10px]"></i> הפך ללקוח
+                    </span>`}
+                </div>
+            </div>`;}).join('')}
         </div>`;
     } catch(e) { el.innerHTML = '<p class="text-center text-red-400 py-8">שגיאה בטעינת הפניות</p>'; }
 };
@@ -43710,6 +43724,56 @@ window.updateLeadStatus = async function(id, status) {
         await fetch(`${API}/professional-leads/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
         showToast('success','סטטוס עודכן');
     } catch(e) { showToast('error','שגיאה'); }
+};
+
+window.scheduleLeadMeeting = function(name, phone) {
+    switchTab('calendar');
+    setTimeout(() => {
+        if (typeof window.openCalEventModal === 'function') {
+            window.openCalEventModal();
+            const titleEl = document.getElementById('cal-event-title');
+            const phoneEl = document.getElementById('cal-event-phone');
+            if (titleEl) titleEl.value = `שיחת היכרות — ${name}`;
+            if (phoneEl && phone) phoneEl.value = phone;
+        }
+    }, 400);
+};
+
+window.convertLeadToCustomer = async function(leadId, name, phone, email) {
+    if (!await window._uiConfirm(`להמיר את "${name}" ללקוח רשום?`)) return;
+    try {
+        const custRes = await fetch(`${API}/store/customers`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, name, phone, email })
+        });
+        const custData = await custRes.json();
+        if (!custData.success) throw new Error(custData.error || 'שגיאה ביצירת לקוח');
+        await fetch(`${API}/professional-leads/${leadId}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'converted' })
+        });
+        // הצג אפשרות לשלוח הצעה
+        const html = `<div id="lead-converted-modal" class="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4" style="direction:rtl;">
+            <div class="bg-white rounded-3xl shadow-2xl p-6 max-w-sm w-full text-center">
+                <div class="text-4xl mb-3">🎉</div>
+                <h3 class="font-black text-slate-800 text-lg mb-1">הלקוח נוצר!</h3>
+                <p class="text-sm text-slate-500 mb-5">${safeStr(name)} נוסף/ה לרשימת הלקוחות שלך</p>
+                <div class="flex flex-col gap-2">
+                    <button onclick="document.getElementById('lead-converted-modal').remove(); switchTab('sales');"
+                        class="w-full bg-indigo-600 text-white rounded-xl py-3 font-bold text-sm hover:bg-indigo-700 transition">
+                        📄 שלח הצעת מחיר
+                    </button>
+                    <button onclick="document.getElementById('lead-converted-modal').remove(); switchTab('customers');"
+                        class="w-full bg-slate-100 text-slate-700 rounded-xl py-3 font-bold text-sm hover:bg-slate-200 transition">
+                        👤 צפה בכרטיס הלקוח
+                    </button>
+                    <button onclick="document.getElementById('lead-converted-modal').remove(); renderProfessionalLeadsTab();"
+                        class="text-slate-400 text-sm font-medium py-1">חזור לפניות</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    } catch(e) { showToast('error', e.message || 'שגיאה בהמרה'); }
 };
 
 // ============================================================
