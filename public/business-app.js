@@ -15413,7 +15413,15 @@ function showBusinessTypeWizard(afterSave) {
     if (document.getElementById('biz-type-wizard')) return;
     let selected = currentGroup?.business_type || null;
 
-    const cards = BUSINESS_TYPES.filter(b => b.id !== 'other').map(b => `
+    const WIZARD_TYPES = [
+        { id: 'restaurant',   icon: '🍕', name: 'מסעדה' },
+        { id: 'services',     icon: '🔧', name: 'שירות / מתקינים' },
+        { id: 'sport',        icon: '🏋️', name: 'ספורט וחוגים' },
+        { id: 'professional', icon: '👔', name: 'מומחים' },
+        { id: 'beauty',       icon: '💅', name: 'יופי ואסטטיקה' },
+    ];
+
+    const cards = WIZARD_TYPES.map(b => `
         <button type="button" onclick="btWizSelect('${b.id}',this)"
             class="bt-wiz-card flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition active:scale-95 ${selected===b.id?'border-indigo-500 bg-indigo-50':'border-slate-200 bg-white hover:border-indigo-200'}"
             data-btype="${b.id}" style="touch-action:manipulation;cursor:pointer;">
