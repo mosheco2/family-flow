@@ -729,14 +729,14 @@ function renderLeads(leads) {
         const statusColor = LEAD_STATUS_COLORS[l.status] || 'bg-slate-100 text-slate-500';
         const typeLabel = LEAD_TYPE_LABELS[l.lead_type] || '';
         return `
-        <div class="bg-slate-50 rounded-xl px-4 py-3 border border-slate-100">
+        <div class="bg-slate-50 rounded-xl px-4 py-3 border border-slate-100 cursor-pointer hover:bg-white hover:shadow-sm transition-all" onclick="openLeadCRMWithData(${l.id}, window._zmLeadsCache?.find(x=>x.id===${l.id})||{})">
             <div class="flex justify-between items-start">
-                <div class="flex flex-col gap-1.5 items-start">
-                    <button onclick="openLeadCRMWithData(${l.id}, window._zmLeadsCache?.find(x=>x.id===${l.id})||{})" class="text-xs font-bold bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition">ניהול</button>
+                <div class="flex flex-col gap-1.5 items-center pt-1">
+                    <i class="fa-solid fa-chevron-left text-slate-300 text-xs"></i>
                     ${score !== null && score !== undefined ? `<span class="text-xs font-black px-2 py-0.5 rounded-full ${scoreColor}">AI: ${score}/10</span>` : ''}
                     <span class="text-[10px] text-slate-400">${new Date(l.created_at).toLocaleDateString('he-IL')}</span>
                 </div>
-                <div class="text-right">
+                <div class="text-right flex-1 mr-3">
                     <div class="flex items-center gap-1.5 justify-end mb-1">
                         ${typeLabel ? `<span class="text-[10px] font-bold text-slate-500">${typeLabel}</span>` : ''}
                         <span class="text-xs font-bold px-2 py-0.5 rounded-full ${statusColor}">${statusLabel}</span>
@@ -795,16 +795,28 @@ async function openLeadCRMWithData(leadId, lead) {
     document.getElementById('zm-crm-status').value = lead.status || 'new';
     document.getElementById('zm-crm-notes').value = lead.crm_notes || '';
 
+    // כותרת דינמית עם שם הליד
+    const d = lead.data || {};
+    const leadName = [d.name, d.last_name].filter(Boolean).join(' ') || d.business_name || d.phone || `ליד #${leadId}`;
+    const titleEl = document.getElementById('zm-lead-crm-title');
+    const subtitleEl = document.getElementById('zm-lead-crm-subtitle');
+    if (titleEl) titleEl.textContent = leadName;
+    if (subtitleEl) subtitleEl.textContent = new Date(lead.created_at || Date.now()).toLocaleDateString('he-IL', { day:'numeric', month:'long', year:'numeric' });
+
+    // ניקוי שדה הערת פעולה
+    const noteInput = document.getElementById('zm-action-note-input');
+    if (noteInput) noteInput.value = '';
+
     const LEAD_FIELD_LABELS = { name:'שם פרטי', last_name:'שם משפחה', business_name:'שם עסק', address:'כתובת', city:'עיר', phone:'טלפון', email:'מייל', free_text:'הודעה חופשית' };
-    const fields = Object.entries(lead.data || {}).map(([k,v]) => {
+    const fields = Object.entries(d).map(([k,v]) => {
         if (!v) return '';
         const label = LEAD_FIELD_LABELS[k] || k;
-        if (k === 'free_text') return `<div class="mt-2"><div class="text-slate-400 text-xs mb-1">${label}</div><div class="bg-slate-50 rounded-lg p-2 text-sm text-slate-700 whitespace-pre-wrap border border-slate-100">${v}</div></div>`;
-        return `<div class="flex justify-between gap-2"><span class="text-slate-400 text-xs">${label}</span><span class="font-bold text-slate-700 text-sm">${v}</span></div>`;
+        if (k === 'free_text') return `<div class="col-span-2 mt-1"><div class="text-slate-400 text-xs mb-1">${label}</div><div class="bg-white rounded-xl p-3 text-sm text-slate-700 whitespace-pre-wrap border border-slate-100 leading-relaxed">${v}</div></div>`;
+        return `<div class="flex justify-between gap-2 py-0.5 border-b border-slate-100 last:border-0"><span class="text-slate-400 text-xs">${label}</span><span class="font-bold text-slate-700 text-sm">${v}</span></div>`;
     }).filter(Boolean).join('');
-    document.getElementById('zm-lead-crm-data').innerHTML = fields || '<p class="text-slate-400 text-xs">אין נתונים</p>';
+    document.getElementById('zm-lead-crm-data').innerHTML = fields || '<p class="text-slate-400 text-xs text-center py-2">אין נתונים</p>';
 
-    document.getElementById('zm-lead-actions-list').innerHTML = '<div class="text-slate-400 text-xs text-center py-2">טוען...</div>';
+    document.getElementById('zm-lead-actions-list').innerHTML = '<div class="text-slate-400 text-xs text-center py-3">טוען היסטוריה...</div>';
     try {
         const res = await fetch(`${API}/zone-manager/leads/${leadId}/actions`, { headers: { 'Authorization': zmToken } });
         const data = await res.json();
@@ -812,18 +824,39 @@ async function openLeadCRMWithData(leadId, lead) {
     } catch(e) {}
 }
 
+const ACTION_LABELS = { call:'שיחה', whatsapp:'ווצאפ', meeting:'פגישה', email:'מייל', other:'הערה' };
+const ACTION_ICONS  = { call:'📞', whatsapp:'💬', meeting:'🤝', email:'✉️', other:'📝' };
+const ACTION_COLORS = { call:'bg-blue-50 text-blue-600', whatsapp:'bg-green-50 text-green-600', meeting:'bg-amber-50 text-amber-600', email:'bg-slate-100 text-slate-600', other:'bg-purple-50 text-purple-600' };
+
 function renderLeadCRMActions(actions) {
     const list = document.getElementById('zm-lead-actions-list');
-    if (!actions.length) { list.innerHTML = '<p class="text-slate-400 text-xs text-center py-2">אין פעולות עדיין</p>'; return; }
-    const icons = { call:'📞', whatsapp:'💬', meeting:'🤝', email:'✉️', other:'📝' };
-    list.innerHTML = actions.map(a => `
-        <div class="flex justify-between items-center bg-white rounded-xl px-3 py-2 border border-slate-100">
-            <span class="text-[10px] text-slate-400">${new Date(a.created_at).toLocaleDateString('he-IL')}</span>
-            <div class="text-right">
-                <span class="text-xs font-bold text-slate-700">${icons[a.action_type] || '📝'} ${a.action_type}</span>
-                ${a.notes ? `<p class="text-[11px] text-slate-400">${a.notes}</p>` : ''}
+    if (!actions.length) {
+        list.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">אין פעולות עדיין<br><span class="text-slate-300">רשום פעולה ראשונה למעלה</span></p>';
+        return;
+    }
+    list.innerHTML = actions.map(a => {
+        const label = ACTION_LABELS[a.action_type] || a.action_type;
+        const icon  = ACTION_ICONS[a.action_type]  || '📝';
+        const color = ACTION_COLORS[a.action_type] || 'bg-slate-100 text-slate-600';
+        const dt = new Date(a.created_at);
+        const dateStr = dt.toLocaleDateString('he-IL', { day:'numeric', month:'short' });
+        const timeStr = dt.toLocaleTimeString('he-IL', { hour:'2-digit', minute:'2-digit' });
+        return `
+        <div class="bg-white rounded-xl px-3 py-2.5 border border-slate-100">
+            <div class="flex justify-between items-start gap-2">
+                <div class="text-right flex-1">
+                    <div class="flex items-center gap-1.5 justify-end mb-1">
+                        <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${color}">${icon} ${label}</span>
+                    </div>
+                    ${a.notes ? `<p class="text-xs text-slate-600 leading-relaxed">${a.notes}</p>` : '<p class="text-[11px] text-slate-300 italic">ללא הערה</p>'}
+                </div>
+                <div class="text-left shrink-0">
+                    <p class="text-[10px] text-slate-400 font-bold">${dateStr}</p>
+                    <p class="text-[10px] text-slate-300">${timeStr}</p>
+                </div>
             </div>
-        </div>`).join('');
+        </div>`;
+    }).join('');
 }
 
 async function saveLeadCRM() {
@@ -850,8 +883,8 @@ async function saveLeadCRM() {
 async function addLeadAction(actionType) {
     const leadId = document.getElementById('zm-crm-lead-id').value;
     if (!leadId) return;
-    const notes = prompt(`הוסף הערה ל${actionType === 'call' ? 'שיחה' : actionType === 'whatsapp' ? 'ווצאפ' : actionType === 'meeting' ? 'פגישה' : 'מייל'} (אופציונלי):`);
-    if (notes === null) return;
+    const noteInput = document.getElementById('zm-action-note-input');
+    const notes = noteInput ? noteInput.value.trim() : '';
     try {
         const res = await fetch(`${API}/zone-manager/leads/${leadId}/actions`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
@@ -859,6 +892,7 @@ async function addLeadAction(actionType) {
         });
         const data = await res.json();
         if (data.success) {
+            if (noteInput) noteInput.value = '';
             const actRes = await fetch(`${API}/zone-manager/leads/${leadId}/actions`, { headers: { 'Authorization': zmToken } });
             const actData = await actRes.json();
             renderLeadCRMActions(actData.actions || []);
