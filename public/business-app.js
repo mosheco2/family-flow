@@ -35850,23 +35850,23 @@ window._sportLoadReports = async function(period) {
 
             // Churn risk: inactive 14+ days
             const atRisk = (alerts.atRisk||[]).map(m=>({
-                name: m.member_name, phone: m.member_phone,
+                id: m.id, name: m.member_name, phone: m.member_phone,
                 days_inactive: m.last_checkin ? Math.floor((now-new Date(m.last_checkin))/86400000) : 99,
                 last_visit: m.last_checkin
             })).sort((a,b)=>b.days_inactive-a.days_inactive);
 
             // Expiring soon with churn risk score
             const expiring = (alerts.expiring||[]).map(m=>({
-                name: m.member_name, phone: m.member_phone,
+                id: m.id, name: m.member_name, phone: m.member_phone,
                 days_left: Math.ceil((new Date(m.end_date)-now)/86400000),
-                type: m.membership_type
+                type: m.membership_type || m.type_name
             })).sort((a,b)=>a.days_left-b.days_left);
 
             // Class occupancy analysis
             const upcoming = classes.filter(c=>new Date(c.start_time)>now).slice(0,10)
-                .map(c=>({name:c.class_name||c.name,time:c.start_time,trainer:c.trainer_name,registered:c.registration_count||0,capacity:c.max_participants||0,fill_pct:c.max_participants>0?Math.round(((c.registration_count||0)/c.max_participants)*100):0}));
+                .map(c=>({id:c.id,name:c.class_name||c.name,time:c.start_time,trainer:c.trainer_name,registered:c.registration_count||0,capacity:c.max_participants||0,fill_pct:c.max_participants>0?Math.round(((c.registration_count||0)/c.max_participants)*100):0}));
             const recentCls = classes.filter(c=>new Date(c.start_time)<=now).slice(0,5)
-                .map(c=>({name:c.class_name||c.name,time:c.start_time,registered:c.registration_count||0,capacity:c.max_participants||0}));
+                .map(c=>({id:c.id,name:c.class_name||c.name,time:c.start_time,registered:c.registration_count||0,capacity:c.max_participants||0}));
 
             const sportContext = {
                 business_type: 'sport',
@@ -35891,7 +35891,7 @@ window._sportLoadReports = async function(period) {
                     at_risk_count:   atRisk.length,
                     top_at_risk:     atRisk.slice(0,8),
                     frozen_count:    (alerts.frozen||[]).length,
-                    frozen_members:  (alerts.frozen||[]).slice(0,5).map(m=>({name:m.member_name,reason:m.frozen_reason}))
+                    frozen_members:  (alerts.frozen||[]).slice(0,5).map(m=>({id:m.id,name:m.member_name,reason:m.frozen_reason}))
                 },
                 renewals: {
                     expiring_count:   expiring.length,
@@ -35938,6 +35938,34 @@ window._sportLoadReports = async function(period) {
                     answerText = answerText.replace(tabMatch[0], '');
                     const tabLabels = {'sport-members':'חברים','sport-schedule':'לוח שיעורים','sport-alerts':'התראות','sport-payments':'תשלומים','sport-trainers':'מאמנים'};
                     actionHtml += `<button onclick="document.getElementById('global-ai-modal').classList.add('hidden'); switchTab('${tabId}')" class="mt-3 w-full bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-arrow-left"></i> עבור ל${tabLabels[tabId]||tabId}</button>`;
+                }
+                // AI Action: הקפאת מנוי
+                const freezeMatch = answerText.match(/\[ACTION:FREEZE_MEMBER\|(\d+)\|([^\]]*)\]/);
+                if (freezeMatch) {
+                    const fmId = freezeMatch[1], fmReason = freezeMatch[2];
+                    answerText = answerText.replace(freezeMatch[0], '');
+                    actionHtml += `<button onclick="window._aiFreezeMember(${fmId},'${safeStr(fmReason)}',this)" class="mt-3 w-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-snowflake"></i> הקפא מנוי #${fmId}${fmReason?' — '+safeStr(fmReason):''}</button>`;
+                }
+                // AI Action: ביטול הקפאה
+                const unfreezeMatch = answerText.match(/\[ACTION:UNFREEZE_MEMBER\|(\d+)\|([^\]]*)\]/);
+                if (unfreezeMatch) {
+                    const ufmId = unfreezeMatch[1], ufmName = unfreezeMatch[2];
+                    answerText = answerText.replace(unfreezeMatch[0], '');
+                    actionHtml += `<button onclick="window._aiUnfreezeMember(${ufmId},'${safeStr(ufmName)}',this)" class="mt-3 w-full bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border border-cyan-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-fire"></i> הפשר מנוי: ${safeStr(ufmName)}</button>`;
+                }
+                // AI Action: כניסה ידנית
+                const checkinMatch = answerText.match(/\[ACTION:CHECKIN_MEMBER\|(\d+)\|([^\]]*)\]/);
+                if (checkinMatch) {
+                    const chId = checkinMatch[1], chName = checkinMatch[2];
+                    answerText = answerText.replace(checkinMatch[0], '');
+                    actionHtml += `<button onclick="window._aiCheckinMember(${chId},'${safeStr(chName)}',this)" class="mt-3 w-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-person-walking-dashed-line-arrow-right"></i> רשום כניסה: ${safeStr(chName)}</button>`;
+                }
+                // AI Action: רישום לשיעור
+                const regClassMatch = answerText.match(/\[ACTION:REGISTER_CLASS\|(\d+)\|(\d+)\|([^\]]*)\]/);
+                if (regClassMatch) {
+                    const rcClassId = regClassMatch[1], rcMembId = regClassMatch[2], rcName = regClassMatch[3];
+                    answerText = answerText.replace(regClassMatch[0], '');
+                    actionHtml += `<button onclick="window._aiRegisterClass(${rcClassId},${rcMembId},'${safeStr(rcName)}',this)" class="mt-3 w-full bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-calendar-plus"></i> רשום ${safeStr(rcName)} לשיעור</button>`;
                 }
 
                 answerText = answerText.trim().replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
@@ -44534,4 +44562,65 @@ window._aiUpdateCatalogPrice = async function(itemId, price, btn) {
             if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> עודכן!'; btn.className = btn.className.replace(/bg-emerald-\d+/g,'bg-green-50').replace(/text-emerald-\d+/g,'text-green-700').replace(/border-emerald-\d+/g,'border-green-200'); }
         } else { throw new Error(); }
     } catch(e) { showToast('error', 'שגיאה בעדכון מחיר'); if (btn) { btn.disabled = false; } }
+};
+
+// === AI ACTION HANDLERS — SPORT ===
+window._aiFreezeMember = async function(membershipId, reason, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מקפיא...'; }
+    try {
+        const res = await fetch(API + '/sport/members/' + membershipId + '/freeze', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ reason: reason || 'בקשת מנהל' })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'מנוי הוקפא ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> הוקפא!'; btn.className = btn.className.replace(/bg-blue-\d+/g,'bg-green-50').replace(/text-blue-\d+/g,'text-green-700').replace(/border-blue-\d+/g,'border-green-200'); }
+        } else { throw new Error(); }
+    } catch(e) { showToast('error', 'שגיאה בהקפאת מנוי'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-snowflake"></i> נסה שוב'; } }
+};
+
+window._aiUnfreezeMember = async function(membershipId, memberName, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מפשיר...'; }
+    try {
+        const res = await fetch(API + '/sport/members/' + membershipId + '/unfreeze', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({})
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'מנוי ' + memberName + ' הופשר ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> הופשר!'; btn.className = btn.className.replace(/bg-cyan-\d+/g,'bg-green-50').replace(/text-cyan-\d+/g,'text-green-700').replace(/border-cyan-\d+/g,'border-green-200'); }
+        } else { throw new Error(); }
+    } catch(e) { showToast('error', 'שגיאה בביטול הקפאה'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-fire"></i> נסה שוב'; } }
+};
+
+window._aiCheckinMember = async function(membershipId, memberName, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> רושם...'; }
+    try {
+        const res = await fetch(API + '/sport/checkin', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, membershipId, memberName })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'כניסה נרשמה ל-' + memberName + ' ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> נרשם!'; btn.className = btn.className.replace(/bg-emerald-\d+/g,'bg-green-50').replace(/text-emerald-\d+/g,'text-green-700').replace(/border-emerald-\d+/g,'border-green-200'); }
+        } else { throw new Error(data.error||'error'); }
+    } catch(e) { showToast('error', 'שגיאה ברישום כניסה'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-person-walking-dashed-line-arrow-right"></i> נסה שוב'; } }
+};
+
+window._aiRegisterClass = async function(classId, membershipId, memberName, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> רושם...'; }
+    try {
+        const res = await fetch(API + '/sport/classes/' + classId + '/register', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ membershipId, memberName })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', memberName + ' נרשם לשיעור ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> נרשם!'; btn.className = btn.className.replace(/bg-violet-\d+/g,'bg-green-50').replace(/text-violet-\d+/g,'text-green-700').replace(/border-violet-\d+/g,'border-green-200'); }
+        } else { throw new Error(data.error||'error'); }
+    } catch(e) { showToast('error', 'שגיאה ברישום לשיעור'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-calendar-plus"></i> נסה שוב'; } }
 };
