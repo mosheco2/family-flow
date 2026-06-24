@@ -1951,6 +1951,8 @@ function switchTab(t) {
     if (t === 'logistics_reports')  try { loadLogisticsReports(); } catch(e) {}
     if (t === 'logistics_customers') try { loadLogisticsCustomers(); } catch(e) {}
     if (t === 'logistics_invoices')  try { loadLogisticsInvoices(); } catch(e) {}
+    if (t === 'cases')   try { renderCasesTab(); } catch(e) {}
+    if (t === 'timelog') try { renderTimelogTab(); } catch(e) {}
     if (t === 'reviews')               try { loadReviews(); } catch(e) {}
     if (t === 'settings')              { try { renderSettingsHub(); } catch(e) {} try { const _w = document.getElementById('biz-main-content-wrap'); if(_w) _w.scrollTop = 0; } catch(e) {} document.documentElement.scrollTop = 0; document.body.scrollTop = 0; window.scrollTo({ top: 0, behavior: 'instant' }); }
 }
@@ -2720,7 +2722,9 @@ const ALL_TABS = [
     { id: 'logistics_tracking', name: 'לינקי מעקב 🔗' },
     { id: 'logistics_reports',  name: 'דוחות לוגיסטיקה 📊' },
     { id: 'logistics_customers', name: 'מזמינים ונמענים 🤝' },
-    { id: 'logistics_invoices',  name: 'חשבוניות 🧾' }
+    { id: 'logistics_invoices',  name: 'חשבוניות 🧾' },
+    { id: 'cases',   name: 'תיקים 📁' },
+    { id: 'timelog', name: 'שעות עבודה ⏱️' }
 ];
 
 const ROLE_DEFAULTS = {
@@ -3969,9 +3973,9 @@ window.changeFeedPage = function(direction) {
 // ============================================================
 const GNAV_GROUPS = {
     team:      ['timeclock','shifts','calendar','tasks','academy','members','beauty_calendar','beauty_practitioners'],
-    sales:     ['pos','sales','customers','deliveries','reviews','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
+    sales:     ['pos','sales','customers','cases','deliveries','reviews','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
     inventory: ['shop','pantry','equipment','foodcost','beauty_inventory'],
-    finance:   ['bank','cashflow','budget','forecast','beauty_commissions'],
+    finance:   ['bank','cashflow','budget','timelog','forecast','beauty_commissions'],
     more:      ['community','surveys','settings']
 };
 
@@ -7364,7 +7368,7 @@ window.renderStoreQuotes = function() {
             if (currentStatus === 'waiting_customer') currentStatus = 'sent';
             
             const isApproved = currentStatus === 'approved';
-            const isWoBusinessType = ['services','construction','maintenance_repair','events','healthcare','restaurant','cafe'].includes(currentGroup?.business_type);
+            const isWoBusinessType = ['services','construction','maintenance_repair','events','healthcare','restaurant','cafe','professional'].includes(currentGroup?.business_type);
             const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
 
             const totalAmount = q.total_amount ? parseFloat(q.total_amount).toFixed(2) : "0.00";
@@ -28083,6 +28087,7 @@ const BUSINESS_TYPES = [
     { id: 'sport',              name: 'ספורט / כושר',           icon: '🏋️', modules: ['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts'] },
     { id: 'events',             name: 'אירועים / הפקות',       icon: '🎉', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','budget','equipment','shifts','shop'] },
     { id: 'food_production',    name: 'ייצור מזון',             icon: '🏭', modules: ['feed','pantry','shop','sales','customers','tasks','members','shifts','timeclock','cashflow','equipment','deliveries','foodcost'] },
+    { id: 'professional',       name: 'מקצועי / ייעוץ',         icon: '👔', modules: ['feed','sales','customers','cases','timelog','calendar','tasks','cashflow','budget','members','timeclock','bank','shop'] },
     { id: 'other',              name: 'אחר / כללי',             icon: '🏢', modules: null }
 ];
 
@@ -28100,6 +28105,7 @@ const BUSINESS_CONFIG = {
     sport:              { customer:'חבר',        customer_pl:'חברים',       product:'מנוי/אימון',    appointment:'אימון',         supplier:'ספק ציוד',         costing:'תמחור מנויים',    order:'הרשמה'    },
     events:             { customer:'מזמין',      customer_pl:'מזמינים',     product:'שירות הפקה',    appointment:'אירוע',         supplier:'נותן שירות',       costing:'תמחור אירוע',     order:'הזמנה'    },
     food_production:    { customer:'לקוח B2B',   customer_pl:'לקוחות',      product:'מוצר',          appointment:'הזמנת ייצור',   supplier:'ספק חומרי גלם',    costing:'עלות ייצור',      order:'הזמנה'    },
+    professional:       { customer:'לקוח',       customer_pl:'לקוחות',      product:'שירות',         appointment:'פגישה',         supplier:'קבלן חיצוני',      costing:'תמחור שירותים',   order:'תיק'      },
     other:              { customer:'לקוח',       customer_pl:'לקוחות',      product:'מוצר/שירות',    appointment:'תור/פגישה',     supplier:'ספק',              costing:'תמחור',           order:'הזמנה'    }
 };
 
@@ -28109,12 +28115,12 @@ function getBizTerm(key) {
 }
 
 const EMPLOYEE_ROLE_TYPES = [
-    { id: 'salesperson',    name: 'איש מכירות',    icon: '💼', feature_key: 'role_salesperson',    price: 29, color: 'blue',    business_types: ['retail','services','construction','food_production','other'] },
+    { id: 'salesperson',    name: 'איש מכירות',    icon: '💼', feature_key: 'role_salesperson',    price: 29, color: 'blue',    business_types: ['retail','services','construction','food_production','professional','other'] },
     { id: 'field_tech',     name: 'טכנאי שטח',     icon: '🔧', feature_key: 'role_field_tech',     price: 29, color: 'orange',  business_types: ['maintenance_repair','construction','logistics','other'] },
     { id: 'delivery',       name: 'שליח / נהג',    icon: '🛵', feature_key: 'role_delivery',       price: 19, color: 'green',   business_types: ['restaurant','retail','logistics','food_production','other'] },
     { id: 'warehouse',      name: 'מחסנאי',         icon: '📦', feature_key: 'role_warehouse',      price: 19, color: 'amber',   business_types: ['restaurant','retail','logistics','food_production','construction','other'] },
     { id: 'cleaner',        name: 'מנקה / אחזקה',  icon: '🧹', feature_key: 'role_cleaner',        price: 15, color: 'teal',    business_types: ['restaurant','retail','beauty','sport','events','other'] },
-    { id: 'support',        name: 'נציג שירות',    icon: '🎧', feature_key: 'role_support',        price: 19, color: 'purple',  business_types: ['services','healthcare','sport','education','other'] },
+    { id: 'support',        name: 'נציג שירות',    icon: '🎧', feature_key: 'role_support',        price: 19, color: 'purple',  business_types: ['services','healthcare','sport','education','professional','other'] },
     { id: 'cashier',        name: 'קופאי',          icon: '💰', feature_key: 'role_cashier',        price: 19, color: 'emerald', business_types: ['restaurant','retail','beauty','sport','other'] },
     { id: 'shift_manager',  name: 'מנהל משמרת',    icon: '📋', feature_key: 'role_shift_manager',  price: 29, color: 'indigo',  business_types: ['restaurant','retail','food_production','logistics','sport','other'] },
     { id: 'branch_manager', name: 'מנהל סניף',     icon: '🏢', feature_key: 'role_branch_manager', price: 39, color: 'slate',   business_types: null },
@@ -28206,6 +28212,7 @@ function applyBusinessTypeFilter() {
             logistics:      { customers: 'לקוחות 🤝' },
             construction:   { customers: 'לקוחות 🤝', calendar: 'לוח פרויקטים 📅' },
             events:         { customers: 'לקוחות 🤝', calendar: 'יומן אירועים 📅', sales: 'מכירות אירועים 🛍️' },
+            professional:   { customers: 'לקוחות 🤝', calendar: 'יומן פגישות 📅', sales: 'לידים ומכירות 📊', cases: 'תיקים 📁', timelog: 'שעות עבודה ⏱️' },
         };
         const renames = TAB_RENAME[bizType] || {};
         Object.entries(renames).forEach(([tabId, label]) => {
@@ -42613,3 +42620,283 @@ window.loadReviews = async function() {
         root.innerHTML = '<p class="text-center text-red-400 py-8">שגיאה בטעינת דירוגים</p>';
     }
 };
+
+// ============================================================
+// ===== PROFESSIONAL MODULE — תיקים ושעות עבודה =====
+// ============================================================
+
+// ─── מודול תיקים (Cases) ─────────────────────────────────────
+window.renderCasesTab = async function() {
+    const el = document.getElementById('content-cases');
+    if (!el) return;
+    el.innerHTML = '<div class="flex justify-center py-10"><div class="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>';
+
+    try {
+        const res = await fetch(`${API}/store/orders/${currentGroup.id}`);
+        const data = await res.json();
+        const cases = (data.orders || []).filter(o => o.call_type === 'work_order');
+
+        const statusLabel = { new:'חדש', processing:'בטיפול', completed:'הושלם', cancelled:'בוטל', pending:'ממתין' };
+        const statusColor = { new:'bg-blue-100 text-blue-700', processing:'bg-amber-100 text-amber-700', completed:'bg-green-100 text-green-700', cancelled:'bg-red-100 text-red-700', pending:'bg-slate-100 text-slate-500' };
+
+        el.innerHTML = `
+        <div class="pb-20">
+            <div class="bg-gradient-to-r from-indigo-700 to-slate-800 rounded-[2rem] p-5 text-white shadow-xl mb-4 relative overflow-hidden">
+                <div class="absolute -top-6 -left-6 w-32 h-32 bg-white/5 rounded-full"></div>
+                <h2 class="text-lg font-black mb-1">תיקים פעילים 📁</h2>
+                <p class="text-indigo-200 text-xs">ניהול תיקי לקוחות ופרויקטים</p>
+                <div class="flex gap-3 mt-3 flex-wrap">
+                    <div class="bg-white/10 rounded-xl px-3 py-2 text-center min-w-[70px]">
+                        <div class="text-xl font-black">${cases.filter(c=>c.status==='processing').length}</div>
+                        <div class="text-[10px] text-indigo-200">בטיפול</div>
+                    </div>
+                    <div class="bg-white/10 rounded-xl px-3 py-2 text-center min-w-[70px]">
+                        <div class="text-xl font-black">${cases.filter(c=>c.status==='new').length}</div>
+                        <div class="text-[10px] text-indigo-200">חדשים</div>
+                    </div>
+                    <div class="bg-white/10 rounded-xl px-3 py-2 text-center min-w-[70px]">
+                        <div class="text-xl font-black">${cases.filter(c=>c.status==='completed').length}</div>
+                        <div class="text-[10px] text-indigo-200">הושלמו</div>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="window.openWorkOrderModal(null)" class="w-full bg-indigo-600 text-white rounded-2xl py-3 font-bold text-sm mb-4 shadow-md hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-plus"></i> פתח תיק חדש
+            </button>
+
+            <div id="cases-filter-bar" class="flex gap-2 overflow-x-auto pb-2 mb-3">
+                ${['all','new','processing','completed'].map((s,i) => `
+                <button onclick="window.filterCases('${s}')" id="cases-filter-${s}" class="cases-filter-btn text-xs font-bold px-4 py-2 rounded-full border whitespace-nowrap transition ${i===0?'bg-indigo-600 text-white border-indigo-600':'bg-white text-slate-500 border-slate-200'}">
+                    ${s==='all'?'הכל':statusLabel[s]||s}
+                </button>`).join('')}
+            </div>
+
+            <div id="cases-list">
+                ${cases.length === 0 ? `<div class="text-center py-12 text-slate-400"><i class="fa-solid fa-folder-open text-4xl mb-3 text-slate-200"></i><p class="font-medium">אין תיקים עדיין</p><p class="text-xs mt-1">לחץ "פתח תיק חדש" כדי להתחיל</p></div>` :
+                cases.map(c => {
+                    const st = c.status || 'new';
+                    const total = parseFloat(c.total_amount || 0);
+                    const date = c.created_at ? new Date(c.created_at).toLocaleDateString('he-IL') : '';
+                    return `<div class="cases-item bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-3 cursor-pointer hover:border-indigo-200 hover:shadow-md transition" data-status="${st}" onclick="window.openWorkOrderModal(${c.id})">
+                        <div class="flex items-start justify-between mb-2">
+                            <div class="flex-1 pr-2">
+                                <p class="font-bold text-slate-800 text-sm">${safeStr(c.customer_name||'ללא שם')}</p>
+                                <p class="text-xs text-slate-400 mt-0.5">${safeStr(c.title||c.description||'ללא תיאור')}</p>
+                            </div>
+                            <span class="text-[10px] font-bold px-2 py-1 rounded-full ${statusColor[st]||statusColor.new}">${statusLabel[st]||st}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-slate-400">
+                            <span>#${c.id} • ${date}</span>
+                            ${total>0?`<span class="font-bold text-slate-700">₪${total.toFixed(2)}</span>`:''}
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>`;
+    } catch(e) {
+        el.innerHTML = '<p class="text-center text-red-400 py-8">שגיאה בטעינת התיקים</p>';
+    }
+};
+
+window.filterCases = function(status) {
+    document.querySelectorAll('.cases-filter-btn').forEach(b => b.classList.replace('bg-indigo-600','bg-white') || b.classList.replace('text-white','text-slate-500') || b.classList.replace('border-indigo-600','border-slate-200'));
+    const activeBtn = document.getElementById(`cases-filter-${status}`);
+    if (activeBtn) { activeBtn.classList.replace('bg-white','bg-indigo-600'); activeBtn.classList.replace('text-slate-500','text-white'); activeBtn.classList.replace('border-slate-200','border-indigo-600'); }
+    document.querySelectorAll('.cases-item').forEach(item => {
+        item.style.display = (status==='all' || item.dataset.status===status) ? '' : 'none';
+    });
+};
+
+// ─── מודול שעות עבודה (Timelog) ──────────────────────────────
+let _timerInterval = null;
+let _timerStart = null;
+let _timerRunning = false;
+
+window.renderTimelogTab = async function() {
+    const el = document.getElementById('content-timelog');
+    if (!el) return;
+    el.innerHTML = '<div class="flex justify-center py-10"><div class="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>';
+
+    try {
+        const res = await fetch(`${API}/timelog/${currentGroup.id}`);
+        const data = await res.json();
+        const entries = data.entries || [];
+
+        const totalUnbilledMin = entries.filter(e=>!e.is_billed).reduce((s,e)=>s+parseInt(e.minutes||0),0);
+        const totalUnbilledVal = entries.filter(e=>!e.is_billed).reduce((s,e)=>s+(parseInt(e.minutes||0)/60)*parseFloat(e.hourly_rate||0),0);
+
+        // Restore timer state from localStorage
+        const savedTimer = JSON.parse(localStorage.getItem('_timelog_timer')||'null');
+        if (savedTimer && savedTimer.groupId === currentGroup.id) {
+            _timerStart = savedTimer.start;
+            _timerRunning = true;
+        }
+
+        el.innerHTML = `
+        <div class="pb-20">
+            <div class="bg-gradient-to-r from-slate-800 to-indigo-800 rounded-[2rem] p-5 text-white shadow-xl mb-4 relative overflow-hidden">
+                <div class="absolute -top-4 -right-4 w-24 h-24 bg-white/5 rounded-full"></div>
+                <h2 class="text-lg font-black mb-1">שעות עבודה ⏱️</h2>
+                <p class="text-slate-300 text-xs">מעקב שעות לחיוב לקוחות</p>
+                <div class="flex gap-3 mt-3">
+                    <div class="bg-white/10 rounded-xl px-3 py-2 text-center">
+                        <div class="text-xl font-black">${Math.ceil(totalUnbilledMin/60)}</div>
+                        <div class="text-[10px] text-slate-300">שעות לחיוב</div>
+                    </div>
+                    <div class="bg-white/10 rounded-xl px-3 py-2 text-center">
+                        <div class="text-xl font-black">₪${totalUnbilledVal.toFixed(0)}</div>
+                        <div class="text-[10px] text-slate-300">שווי לחיוב</div>
+                    </div>
+                    <div class="bg-white/10 rounded-xl px-3 py-2 text-center">
+                        <div class="text-xl font-black">${entries.length}</div>
+                        <div class="text-[10px] text-slate-300">רשומות</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timer Widget -->
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-4">
+                <p class="text-xs font-bold text-slate-500 mb-3">⏱ טיימר חי</p>
+                <div class="flex items-center gap-3">
+                    <div id="timelog-timer-display" class="text-3xl font-black text-slate-800 tabular-nums tracking-tight flex-1">${_timerRunning?'מודד...':'00:00:00'}</div>
+                    <button id="timelog-timer-btn" onclick="window.toggleTimer()" class="px-5 py-3 rounded-xl font-bold text-sm transition shadow-md ${_timerRunning?'bg-red-500 hover:bg-red-600 text-white':'bg-green-500 hover:bg-green-600 text-white'}">
+                        ${_timerRunning?'⏹ עצור':'▶ התחל'}
+                    </button>
+                </div>
+                ${_timerRunning?`<p class="text-xs text-green-600 mt-2 font-medium">טיימר פעיל...</p>`:''}
+            </div>
+
+            <!-- Manual Entry Form -->
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-4">
+                <p class="text-xs font-bold text-slate-500 mb-3">✏️ הזנה ידנית</p>
+                <div class="space-y-3">
+                    <input id="timelog-desc" type="text" placeholder="תיאור העבודה" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input id="timelog-minutes" type="number" placeholder="דקות" min="1" class="border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                        <input id="timelog-rate" type="number" placeholder="₪/שעה" min="0" class="border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                    </div>
+                    <input id="timelog-customer" type="text" placeholder="שם לקוח (אופציונלי)" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                    <input id="timelog-date" type="date" value="${new Date().toISOString().slice(0,10)}" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                    <button onclick="window.saveTimelogEntry()" class="w-full bg-indigo-600 text-white rounded-xl py-2.5 font-bold text-sm hover:bg-indigo-700 transition">שמור רשומה</button>
+                </div>
+            </div>
+
+            <!-- Entries List -->
+            <div class="flex items-center justify-between mb-3 px-1">
+                <p class="text-sm font-bold text-slate-700">רשומות אחרונות</p>
+                ${totalUnbilledVal>0?`<button onclick="window.createInvoiceFromTimelog()" class="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-xl hover:bg-indigo-100 transition">💳 צור חשבונית מהשעות</button>`:''}
+            </div>
+            <div id="timelog-entries-list">
+                ${entries.length===0?`<div class="text-center py-10 text-slate-400"><i class="fa-solid fa-clock text-4xl mb-3 text-slate-200"></i><p class="font-medium">אין רשומות שעות</p></div>`:
+                entries.slice(0,50).map(e=>{
+                    const mins = parseInt(e.minutes||0);
+                    const hrs = Math.floor(mins/60); const rem = mins%60;
+                    const val = (mins/60)*parseFloat(e.hourly_rate||0);
+                    const dt = e.logged_date?new Date(e.logged_date).toLocaleDateString('he-IL'):'';
+                    return `<div class="bg-white rounded-2xl border ${e.is_billed?'border-green-100 opacity-60':'border-slate-100'} shadow-sm p-3.5 mb-2 flex items-start justify-between">
+                        <div class="flex-1 pr-2">
+                            <p class="text-sm font-bold text-slate-800">${safeStr(e.description||'ללא תיאור')}</p>
+                            ${e.customer_name?`<p class="text-xs text-indigo-600 font-medium mt-0.5">${safeStr(e.customer_name)}</p>`:''}
+                            <p class="text-xs text-slate-400 mt-0.5">${dt} • ${hrs}:${String(rem).padStart(2,'0')} שעות${val>0?` • ₪${val.toFixed(0)}`:''}</p>
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            ${e.is_billed?'<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">חויב</span>':''}
+                            <button onclick="window.deleteTimelogEntry(${e.id})" class="text-red-400 hover:text-red-600 text-xs"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>`;
+
+        if (_timerRunning && _timerStart) window._startTimerDisplay();
+    } catch(e) {
+        el.innerHTML = '<p class="text-center text-red-400 py-8">שגיאה בטעינת שעות העבודה</p>';
+    }
+};
+
+window.toggleTimer = function() {
+    if (_timerRunning) {
+        // Stop timer — prompt to save
+        clearInterval(_timerInterval);
+        _timerInterval = null;
+        const elapsed = Math.round((Date.now() - _timerStart) / 60000);
+        _timerRunning = false;
+        _timerStart = null;
+        localStorage.removeItem('_timelog_timer');
+        const btn = document.getElementById('timelog-timer-btn');
+        const disp = document.getElementById('timelog-timer-display');
+        if (btn) { btn.textContent = '▶ התחל'; btn.className = btn.className.replace('bg-red-500 hover:bg-red-600','bg-green-500 hover:bg-green-600'); }
+        if (disp) disp.textContent = '00:00:00';
+        if (elapsed > 0) {
+            document.getElementById('timelog-minutes').value = elapsed;
+            showToast('info', `עצרת לאחר ${elapsed} דקות — מלא פרטים ושמור`);
+        }
+    } else {
+        _timerStart = Date.now();
+        _timerRunning = true;
+        localStorage.setItem('_timelog_timer', JSON.stringify({ groupId: currentGroup.id, start: _timerStart }));
+        const btn = document.getElementById('timelog-timer-btn');
+        if (btn) { btn.textContent = '⏹ עצור'; btn.className = btn.className.replace('bg-green-500 hover:bg-green-600','bg-red-500 hover:bg-red-600'); }
+        window._startTimerDisplay();
+    }
+};
+
+window._startTimerDisplay = function() {
+    if (_timerInterval) clearInterval(_timerInterval);
+    _timerInterval = setInterval(() => {
+        const disp = document.getElementById('timelog-timer-display');
+        if (!disp) { clearInterval(_timerInterval); return; }
+        const elapsed = Math.floor((Date.now() - _timerStart) / 1000);
+        const h = Math.floor(elapsed/3600); const m = Math.floor((elapsed%3600)/60); const s = elapsed%60;
+        disp.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }, 1000);
+};
+
+window.saveTimelogEntry = async function() {
+    const desc = document.getElementById('timelog-desc')?.value?.trim();
+    const minutes = parseInt(document.getElementById('timelog-minutes')?.value || 0);
+    const rate = parseFloat(document.getElementById('timelog-rate')?.value || 0);
+    const customer = document.getElementById('timelog-customer')?.value?.trim();
+    const date = document.getElementById('timelog-date')?.value;
+    if (!minutes || minutes < 1) { showToast('error','הזן מספר דקות'); return; }
+    try {
+        const res = await fetch(`${API}/timelog/${currentGroup.id}`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ description: desc, minutes, hourly_rate: rate, customer_name: customer, logged_date: date })
+        });
+        if (!res.ok) throw new Error();
+        showToast('success','רשומה נשמרה');
+        renderTimelogTab();
+    } catch(e) { showToast('error','שגיאה בשמירה'); }
+};
+
+window.deleteTimelogEntry = async function(id) {
+    if (!await window._uiConfirm('למחוק רשומה זו?')) return;
+    try {
+        const res = await fetch(`${API}/timelog/entry/${id}`, { method:'DELETE' });
+        if (!res.ok) throw new Error();
+        showToast('success','רשומה נמחקה');
+        renderTimelogTab();
+    } catch(e) { showToast('error','שגיאה במחיקה'); }
+};
+
+window.createInvoiceFromTimelog = async function() {
+    showToast('info','פותח חשבונית מהשעות הלא מחויבות...');
+    try {
+        const res = await fetch(`${API}/timelog/${currentGroup.id}`);
+        const data = await res.json();
+        const unbilled = (data.entries||[]).filter(e=>!e.is_billed);
+        if (!unbilled.length) { showToast('info','אין שעות לחיוב'); return; }
+        const total = unbilled.reduce((s,e)=>(s + (parseInt(e.minutes||0)/60)*parseFloat(e.hourly_rate||0)),0);
+        const desc = unbilled.map(e=>`${safeStr(e.description||'עבודה')} (${Math.floor(parseInt(e.minutes)/60)}:${String(parseInt(e.minutes)%60).padStart(2,'0')})`).join(', ');
+        switchTab('cashflow');
+        setTimeout(() => {
+            showToast('info', `סה"כ לחיוב: ₪${total.toFixed(2)} — ${unbilled.length} רשומות`);
+        }, 500);
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+// ============================================================
+// ===== END PROFESSIONAL MODULE =====
+// ============================================================

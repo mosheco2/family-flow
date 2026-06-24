@@ -804,6 +804,22 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS payment_status VARCHAR(30) DEFAULT NULL`); } catch(e) {}
       // ===== END WORK ORDER PAYMENTS MODULE =====
 
+      // ===== PROFESSIONAL / TIMELOG MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS time_logs (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          user_id INT,
+          customer_name VARCHAR(200),
+          wo_id INT REFERENCES store_orders(id) ON DELETE SET NULL,
+          description TEXT,
+          minutes INT NOT NULL DEFAULT 0,
+          hourly_rate DECIMAL(10,2) DEFAULT 0,
+          logged_date DATE DEFAULT CURRENT_DATE,
+          is_billed BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      // ===== END PROFESSIONAL / TIMELOG MODULE =====
+
       // ===== SPORT / FITNESS MODULE =====
       try { await client.query(`CREATE TABLE IF NOT EXISTS sport_membership_types (
           id SERIAL PRIMARY KEY,
@@ -12219,6 +12235,45 @@ app.delete('/api/work-orders/payments/:paymentId', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
+// ===== TIMELOG API =====
+app.get('/api/timelog/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT * FROM time_logs WHERE group_id=$1 ORDER BY logged_date DESC, created_at DESC LIMIT 200`,
+            [req.params.groupId]
+        );
+        res.json({ entries: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/timelog/:groupId', async (req, res) => {
+    try {
+        const { description, minutes, hourly_rate, customer_name, logged_date, wo_id, user_id } = req.body;
+        if (!minutes || minutes < 1) return res.status(400).json({ error: 'minutes required' });
+        const r = await pool.query(
+            `INSERT INTO time_logs (group_id, user_id, customer_name, wo_id, description, minutes, hourly_rate, logged_date)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [req.params.groupId, user_id||null, customer_name||null, wo_id||null, description||null, minutes, hourly_rate||0, logged_date||null]
+        );
+        res.json({ entry: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/timelog/entry/:id/bill', async (req, res) => {
+    try {
+        await pool.query('UPDATE time_logs SET is_billed=TRUE WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/timelog/entry/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM time_logs WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+// ===== END TIMELOG API =====
 
 // קבלת תחנות תשלום לקריאת שירות
 app.get('/api/service-calls/:id/payments', async (req, res) => {
