@@ -44891,9 +44891,32 @@ window._aiCreateAlertRule = async function(name, triggerType, cooldown, descript
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> יוצר...'; }
     try {
         if (!currentGroup?.id) throw new Error('no group');
+        // מיפוי שמות ידידותיים לטייפים האמיתיים במנוע + קונפיג
+        const TRIGGER_MAP = {
+            new_order:              { type: 'new_order',            config: {},                      cooldown: 1 },
+            order_unhandled:        { type: 'order_unhandled',      config: { pending_hours: 0.5 },  cooldown: 30 },
+            order_timeout_15:       { type: 'order_unhandled',      config: { pending_hours: 0.25 }, cooldown: 15 },
+            order_timeout_30:       { type: 'order_unhandled',      config: { pending_hours: 0.5 },  cooldown: 30 },
+            order_timeout_60:       { type: 'order_unhandled',      config: { pending_hours: 1 },    cooldown: 60 },
+            inventory_low:          { type: 'inventory_low',        config: { min_quantity: 1 },     cooldown: 120 },
+            low_stock:              { type: 'inventory_low',        config: { min_quantity: 1 },     cooldown: 120 },
+            task_overdue:           { type: 'task_overdue',         config: {},                      cooldown: 60 },
+            balance_low:            { type: 'balance_low',          config: { min_balance: 500 },    cooldown: 360 },
+            quote_not_converted:    { type: 'quote_not_converted',  config: { pending_days: 3 },     cooldown: 1440 },
+            ticket_open:            { type: 'ticket_open',          config: { pending_hours: 24 },   cooldown: 120 },
+            new_service_call:       { type: 'ticket_open',          config: { pending_hours: 0.5 },  cooldown: 30 },
+            timeclock_no_punch_in:  { type: 'timeclock_no_punch_in',config: {},                      cooldown: 360 },
+            timeclock_no_punch_out: { type: 'timeclock_no_punch_out',config:{ max_hours: 10 },       cooldown: 60 },
+            shopping_pending:       { type: 'shopping_pending',     config: { pending_hours: 24 },   cooldown: 360 },
+            new_lead:               { type: 'ticket_open',          config: { pending_hours: 0.5 },  cooldown: 15 },
+            new_booking:            { type: 'new_order',            config: {},                      cooldown: 1 },
+            payment_received:       { type: 'order_unhandled',      config: { pending_hours: 0 },    cooldown: 5 },
+        };
+        const mapped = TRIGGER_MAP[triggerType] || { type: triggerType, config: {}, cooldown: parseInt(cooldown)||60 };
+        const finalCooldown = cooldown && cooldown !== mapped.cooldown ? parseInt(cooldown) : mapped.cooldown;
         const res = await fetch(API + '/alerts/rules', {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ group_id: currentGroup.id, name, trigger_type: triggerType, trigger_config: {}, recipients: ['ADMIN'], channels: ['in_app'], cooldown_minutes: parseInt(cooldown)||60, is_active: true })
+            body: JSON.stringify({ group_id: currentGroup.id, name, trigger_type: mapped.type, trigger_config: mapped.config, recipients: ['ADMIN'], channels: ['in_app'], cooldown_minutes: finalCooldown, is_active: true })
         });
         const data = await res.json();
         if (data.success || data.id || data.rule) {

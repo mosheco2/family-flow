@@ -6443,20 +6443,24 @@ ${context}
 
 == יצירת התראה (לכל סוגי העסקים) ==
 כשמבקשים ליצור התראה/נוטיפיקציה → [ACTION:CREATE_ALERT_RULE|שם|trigger_type|cooldown_minutes|תיאור]
-  trigger_type אפשריים:
-  • new_order — על כל הזמנה נכנסת חדשה
-  • order_timeout_15 — הזמנה שלא טופלה תוך 15 דקות
-  • order_timeout_30 — הזמנה שלא טופלה תוך 30 דקות
-  • new_lead — על כל פנייה/ליד חדש
-  • new_booking — על כל תור/הזמנה חדשה
-  • new_service_call — על כל קריאת שירות חדשה
-  • payment_received — על כל תשלום שהתקבל
-  • low_stock — על מלאי נמוך
-  cooldown_minutes: כמה דקות מינימום בין התראות (ברירת מחדל: 60; לא-דחוף: 120; דחוף: 5)
+  trigger_type אפשריים (אלה בלבד — המנוע מכיר אותם):
+  • new_order — על כל הזמנה חדשה שנכנסת (cooldown מומלץ: 1)
+  • order_unhandled — הזמנה שלא טופלה מעל X שעות (הגדרת זמן בcooldown: 60=שעה, 15=רבע שעה, 30=חצי שעה)
+  • inventory_low — פריט מלאי מתחת למינימום (cooldown מומלץ: 120)
+  • task_overdue — משימה שעבר הדדליין (cooldown מומלץ: 60)
+  • balance_low — יתרה נמוכה מסף (cooldown מומלץ: 360)
+  • quote_not_converted — הצעת מחיר שלא הוסבה להזמנה תוך 3 ימים (cooldown מומלץ: 1440)
+  • ticket_open — פנייה/קריאת שירות פתוחה מעל 24 שעות (cooldown מומלץ: 120)
+  • timeclock_no_punch_in — עובד שלא החתים כניסה היום (cooldown מומלץ: 360)
+  • timeclock_no_punch_out — עובד שניקב כניסה ולא יציאה מעל 10 שעות (cooldown מומלץ: 60)
+  • shopping_pending — פריט ברשימת קניות ממתין מעל 24 שעות (cooldown מומלץ: 360)
+  IMPORTANT: אל תמציא trigger_types אחרים — רק אלה למעלה עובדים.
+  cooldown_minutes: כמה דקות מינימום בין בדיקות (לא בין הודעות בודדות)
   דוגמאות:
-  "צור התראה על כל הזמנה נכנסת" → [ACTION:CREATE_ALERT_RULE|הזמנה נכנסת|new_order|5|כל הזמנה חדשה]
-  "התרה על הזמנה שלא טופלה רבע שעה" → [ACTION:CREATE_ALERT_RULE|הזמנה לא מטופלת|order_timeout_15|60|הזמנה ללא טיפול תוך 15 דקות]
-  "צור התראה על כל פנייה חדשה" → [ACTION:CREATE_ALERT_RULE|פנייה חדשה|new_lead|15|כל ליד שנכנס למערכת]
+  "צור התראה על כל הזמנה נכנסת" → [ACTION:CREATE_ALERT_RULE|הזמנה חדשה|new_order|1|כל הזמנה שנכנסת]
+  "התראה על הזמנה שלא טופלה רבע שעה" → [ACTION:CREATE_ALERT_RULE|הזמנה לא מטופלת|order_unhandled|15|הזמנה שממתינה מעל 15 דקות]
+  "התראה על מלאי נמוך" → [ACTION:CREATE_ALERT_RULE|מלאי נמוך|inventory_low|120|פריטים מתחת למינימום]
+  "התראה על משימות באיחור" → [ACTION:CREATE_ALERT_RULE|משימה באיחור|task_overdue|60|משימות שעבר הדדליין]
 
 == יכולות ניתוח ==
 • סיכום מכירות: יומי/שבועי/חודשי, ממוצע להזמנה, מגמות
@@ -10724,6 +10728,28 @@ async function checkRuleTrigger(rule) {
                 if (tickets.rows.length > 0) {
                     const subjects = tickets.rows.map(t => t.subject || `#${t.id}`).join(', ');
                     messages.push(`${tickets.rows.length} קריאות שירות פתוחות מעל ${hours}ש': ${subjects}`);
+                }
+                break;
+            }
+            case 'new_order': {
+                // מזהה הזמנות חדשות שנוצרו ב-10 דקות האחרונות ועדיין לא קיבלו התראה (dedup לפי reference_key)
+                const newOrders = await pool.query(
+                    `SELECT so.id, so.customer_name FROM store_orders so
+                     WHERE so.group_id=$1 AND so.status='new' AND so.created_at > NOW() - INTERVAL '10 minutes'
+                     AND NOT EXISTS (
+                         SELECT 1 FROM alert_notifications an
+                         WHERE an.rule_id=$2 AND an.reference_key='order_'||so.id::text
+                     )`,
+                    [rule.group_id, rule.id]
+                );
+                const channels = rule.channels || ['in_app'];
+                for (const order of newOrders.rows) {
+                    const msg = `הזמנה חדשה נכנסה מ-${order.customer_name||'לקוח'} (#${order.id}) — ממתינה לטיפול`;
+                    await pool.query(
+                        'INSERT INTO alert_notifications (group_id, rule_id, trigger_type, message, reference_key) VALUES ($1, $2, $3, $4, $5)',
+                        [rule.group_id, rule.id, 'new_order', msg, `order_${order.id}`]
+                    );
+                    if (channels.includes('email')) await sendAlertEmail(rule.group_id, '⚡ הזמנה חדשה', msg);
                 }
                 break;
             }
