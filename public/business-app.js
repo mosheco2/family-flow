@@ -43448,25 +43448,7 @@ window.renderProfessionalContentTab = async function() {
                     <i class="fa-solid fa-plus"></i> מאמר חדש
                 </button>
                 <div id="pc-articles-list">
-                    ${articles.length===0?'<p class="text-center text-slate-400 text-sm py-6">אין מאמרים עדיין</p>':
-                    articles.map(a=>{
-                        const storeUrl = encodeURIComponent(`${location.origin}/storefront.html?store=${currentGroup.group_code}#articles`);
-                        const shareTitle = encodeURIComponent(a.title_he||'');
-                        return `
-                    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-3.5 mb-2">
-                        <div class="flex items-start justify-between">
-                            <div class="flex-1 pr-2">
-                                <p class="font-bold text-slate-800 text-sm">${safeStr(a.title_he||'')}</p>
-                                ${a.title_en?`<p class="text-xs text-slate-400">${safeStr(a.title_en)}</p>`:''}
-                                <p class="text-[10px] text-slate-400 mt-1">${new Date(a.created_at).toLocaleDateString('he-IL')} • ${a.is_published?'<span class="text-green-600 font-bold">פורסם</span>':'<span class="text-amber-600 font-bold">טיוטה</span>'}</p>
-                            </div>
-                            <div class="flex gap-2 shrink-0">
-                                ${a.is_published?`<button onclick="window.openArticleShare('${storeUrl}','${shareTitle}')" class="text-xs font-bold px-2 py-1 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition"><i class="fa-solid fa-share-nodes text-[10px]"></i> שתף</button>`:''}
-                                <button onclick="window.toggleArticlePublish(${a.id},${!a.is_published})" class="text-xs font-bold px-2 py-1 rounded-lg border ${a.is_published?'border-amber-200 text-amber-600':'border-green-200 text-green-600'}">${a.is_published?'הסתר':'פרסם'}</button>
-                                <button onclick="window.deleteArticle(${a.id})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash text-sm"></i></button>
-                            </div>
-                        </div>
-                    </div>`;}).join('')
+                    ${window._renderArticlesList(articles, currentGroup)}
                 </div>
             </div>
 
@@ -43883,6 +43865,35 @@ window.toggleArticlePublish = async function(id, publish) {
 window.deleteArticle = async function(id) {
     if (!await window._uiConfirm('למחוק מאמר זה?')) return;
     try { await fetch(`${API}/professional-articles/${id}`, { method:'DELETE' }); showToast('success','נמחק'); renderProfessionalContentTab(); } catch(e) { showToast('error','שגיאה'); }
+};
+
+window._renderArticlesList = function(articles, grp) {
+    if (!articles || articles.length === 0) return '<p class="text-center text-slate-400 text-sm py-6">אין מאמרים עדיין</p>';
+    const baseUrl = location.origin + '/storefront.html?store=' + (grp && grp.group_code ? grp.group_code : '') + '#articles';
+    const storeUrl = encodeURIComponent(baseUrl);
+    return articles.map(function(a) {
+        const shareTitle = encodeURIComponent(a.title_he || '');
+        const shareBtn = a.is_published
+            ? '<button onclick="window.openArticleShare(\'' + storeUrl + '\',\'' + shareTitle + '\')" class="text-xs font-bold px-2 py-1 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition"><i class="fa-solid fa-share-nodes" style="font-size:10px"></i> שתף</button>'
+            : '';
+        const dateStr = a.created_at ? new Date(a.created_at).toLocaleDateString('he-IL') : '';
+        const statusBadge = a.is_published ? '<span class="text-green-600 font-bold">פורסם</span>' : '<span class="text-amber-600 font-bold">טיוטה</span>';
+        const enTitle = a.title_en ? '<p class="text-xs text-slate-400">' + safeStr(a.title_en) + '</p>' : '';
+        const borderCls = a.is_published ? 'border-amber-200 text-amber-600' : 'border-green-200 text-green-600';
+        const actionLabel = a.is_published ? 'הסתר' : 'פרסם';
+        return '<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-3.5 mb-2">' +
+            '<div class="flex items-start justify-between">' +
+            '<div class="flex-1 pr-2">' +
+            '<p class="font-bold text-slate-800 text-sm">' + safeStr(a.title_he || '') + '</p>' +
+            enTitle +
+            '<p class="text-slate-400 mt-1" style="font-size:10px">' + dateStr + ' • ' + statusBadge + '</p>' +
+            '</div>' +
+            '<div class="flex gap-2 shrink-0">' +
+            shareBtn +
+            '<button onclick="window.toggleArticlePublish(' + a.id + ',' + (!a.is_published) + ')" class="text-xs font-bold px-2 py-1 rounded-lg border ' + borderCls + '">' + actionLabel + '</button>' +
+            '<button onclick="window.deleteArticle(' + a.id + ')" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash text-sm"></i></button>' +
+            '</div></div></div>';
+    }).join('');
 };
 
 window.openArticleShare = function(encodedUrl, encodedTitle) {
