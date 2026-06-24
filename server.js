@@ -2148,8 +2148,10 @@ app.post('/api/sa/tickets/:id/feedback-loop', verifySA, async (req, res) => {
 async function callGeminiDirect(prompt) {
     if (!apiKey) throw new Error('Gemini API Key is missing in environment');
 
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const isOverload = msg => msg && (msg.includes('high demand') || msg.includes('overloaded') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota') || msg.includes('503') || msg.includes('429'));
+
     try {
-        // 1. נשאל את גוגל אילו מודלים בדיוק פתוחים עבור מפתח ה-API הזה
         const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
         const listRes = await fetch(listUrl);
         const listData = await listRes.json();
@@ -2158,9 +2160,8 @@ async function callGeminiDirect(prompt) {
             throw new Error('לא הצלחנו למשוך את רשימת המודלים מגוגל. בדוק את תקינות ה-API KEY.');
         }
 
-        // 2. נסנן רק מודלים של ג'מיני שתומכים ביצירת טקסט
-        const validModels = listData.models.filter(m => 
-            m.supportedGenerationMethods && 
+        const validModels = listData.models.filter(m =>
+            m.supportedGenerationMethods &&
             m.supportedGenerationMethods.includes('generateContent') &&
             m.name.includes('gemini')
         );
@@ -2169,35 +2170,59 @@ async function callGeminiDirect(prompt) {
             throw new Error('לא נמצאו מודלים נתמכים של ג\'מיני עבור מפתח ה-API הזה.');
         }
 
-        // נעדיף את flash המהיר, ואם אין - ניקח את הראשון שעובד ברשימה
-        const selectedModel = validModels.find(m => m.name.includes('flash')) || validModels[0];
-        console.log('✅ Auto-Discovery selected model:', selectedModel.name);
+        // מיון עדיפות: flash-lite קודם (קל יותר לעומס), אחר-כך flash, אחר-כך שאר
+        const flashLite = validModels.filter(m => m.name.includes('flash-lite') || m.name.includes('flash-8b'));
+        const flash = validModels.filter(m => m.name.includes('flash') && !m.name.includes('lite') && !m.name.includes('8b'));
+        const rest = validModels.filter(m => !m.name.includes('flash'));
+        const orderedModels = [...flashLite, ...flash, ...rest];
 
-        // 3. נבצע את הקריאה עם השם המדויק שגוגל החזירה (שכבר כולל את הקידומת models/)
-        const generateUrl = `https://generativelanguage.googleapis.com/v1beta/${selectedModel.name}:generateContent?key=${apiKey}`;
-        
-        const response = await fetch(generateUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }]
-            })
-        });
+        let lastErr = null;
+        for (const model of orderedModels.slice(0, 4)) {
+            const generateUrl = `https://generativelanguage.googleapis.com/v1beta/${model.name}:generateContent?key=${apiKey}`;
+            // 3 ניסיונות עם backoff לכל מודל
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    console.log(`🤖 Gemini attempt ${attempt}/3 with ${model.name}`);
+                    const response = await fetch(generateUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                    });
 
-        const data = await response.json();
-        
-        if (data.error) {
-            throw new Error(data.error.message);
+                    const data = await response.json();
+
+                    if (data.error) {
+                        const errMsg = data.error.message || '';
+                        if (isOverload(errMsg) && attempt < 3) {
+                            await sleep(attempt * 2000);
+                            continue;
+                        }
+                        throw new Error(errMsg);
+                    }
+
+                    if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content) {
+                        throw new Error('AI returned an empty response.');
+                    }
+
+                    console.log(`✅ Gemini success with ${model.name}`);
+                    return data.candidates[0].content.parts[0].text;
+                } catch (attemptErr) {
+                    lastErr = attemptErr;
+                    if (isOverload(attemptErr.message) && attempt < 3) {
+                        await sleep(attempt * 2000);
+                    } else if (!isOverload(attemptErr.message)) {
+                        throw attemptErr; // שגיאה שאינה עומס — אין טעם לנסות שוב
+                    }
+                }
+            }
+            // המודל הזה עמוס — עוברים לבא בתור
+            console.warn(`⚠️ Model ${model.name} overloaded, trying next...`);
         }
-        
-        if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content) {
-            throw new Error('AI returned an empty response.');
-        }
-        
-        return data.candidates[0].content.parts[0].text;
-        
+
+        throw lastErr || new Error('כל המודלים עמוסים כרגע. נסה שוב בעוד דקה.');
+
     } catch (err) {
-        console.error('Gemini Auto-Discovery Error:', err.message);
+        console.error('Gemini Error:', err.message);
         throw new Error(`תקלת תקשורת מול גוגל: ${err.message}`);
     }
 }
