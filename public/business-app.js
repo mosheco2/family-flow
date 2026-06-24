@@ -32744,6 +32744,18 @@ window.closeWorkOrderModal = function() {
 window.openWorkOrderModal = async function(woId) {
     const modal = document.getElementById('work-order-modal');
     if (!modal) return;
+
+    // יצירת תיק חדש כשנקרא עם null
+    if (!woId) {
+        try {
+            const r = await fetch(`${API}/work-orders/new/${currentGroup.id}`, {
+                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({})
+            }).then(r => r.json());
+            if (!r.success) { showToast('error', r.error || 'שגיאה ביצירת תיק'); return; }
+            woId = r.id;
+        } catch(e) { showToast('error', 'שגיאת תקשורת'); return; }
+    }
+
     modal.classList.remove('hidden');
     // הסתר FAB כדי שלא יחסום את המודל
     const fab = document.getElementById('fab-container');

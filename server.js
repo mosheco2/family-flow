@@ -11800,6 +11800,17 @@ app.get('/api/work-orders/profitability/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/work-orders/new/:groupId', async (req, res) => {
+    try {
+        const { customer_name, customer_phone, title, notes } = req.body;
+        const r = await pool.query(
+            `INSERT INTO store_orders (group_id, customer_name, customer_phone, status, call_type, notes, items, total_amount, created_at)
+             VALUES ($1,$2,$3,'open','work_order',$4,'[]',0,NOW()) RETURNING id`,
+            [req.params.groupId, customer_name||null, customer_phone||null, (title ? title + (notes?'\n'+notes:'') : notes)||null]);
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/work-orders/detail/:id', async (req, res) => {
     try {
         const id = req.params.id;
