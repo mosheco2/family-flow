@@ -43290,16 +43290,17 @@ window.renderProfessionalContentTab = async function() {
                     </button>
                 </div>
                 <div id="pc-expertise-list">
+                    ${(()=>{ window._expertiseMap = {}; expertise.forEach(x=>{ window._expertiseMap[x.id]=x; }); return ''; })()}
                     ${expertise.length===0?'<p class="text-center text-slate-400 text-sm py-6">אין תחומי עיסוק — הוסף את הראשון</p>':
                     expertise.map(x=>`
                     <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-3.5 mb-2 flex items-center justify-between">
-                        <div class="flex-1 min-w-0 cursor-pointer" onclick="window.openEditExpertise(${JSON.stringify(JSON.stringify(x))})">
+                        <div class="flex-1 min-w-0 cursor-pointer" onclick="window.openEditExpertise(${x.id})">
                             <p class="font-bold text-slate-800 text-sm">${x.icon||'⚖️'} ${safeStr(x.title_he||'')}</p>
                             ${x.title_en?`<p class="text-xs text-slate-400">${safeStr(x.title_en)}</p>`:''}
                             ${x.description_he?`<p class="text-xs text-slate-500 mt-0.5 truncate">${safeStr(x.description_he)}</p>`:'<p class="text-xs text-indigo-400 mt-0.5">+ הוסף תיאור</p>'}
                         </div>
                         <div class="flex gap-2 mr-2 shrink-0">
-                            <button onclick="window.openEditExpertise(${JSON.stringify(JSON.stringify(x))})" class="text-indigo-400 hover:text-indigo-600"><i class="fa-solid fa-pen text-sm"></i></button>
+                            <button onclick="window.openEditExpertise(${x.id})" class="text-indigo-400 hover:text-indigo-600"><i class="fa-solid fa-pen text-sm"></i></button>
                             <button onclick="window.deleteExpertise(${x.id})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash text-sm"></i></button>
                         </div>
                     </div>`).join('')}
@@ -43565,11 +43566,13 @@ window.saveExpertise = async function() {
     } catch(e) { showToast('error','שגיאה בשמירה'); }
 };
 
-window.openEditExpertise = function(jsonStr) {
-    const x = JSON.parse(jsonStr);
+window.openEditExpertise = function(id) {
+    const x = (window._expertiseMap || {})[id];
+    if (!x) { showToast('error','לא נמצאו נתוני התחום'); return; }
     const icons = ['⚖️','💼','📊','🏛️','🔍','📋','💡','🤝','📝','🏆','🎯','🔑','🎓','🛡️','💎','🔧'];
+    document.getElementById('edit-expertise-modal')?.remove();
     const html = `<div id="edit-expertise-modal" class="fixed inset-0 bg-slate-900/60 z-[9999] flex items-end justify-center" style="direction:rtl;">
-        <div class="bg-white w-full max-w-md rounded-t-3xl shadow-2xl p-5">
+        <div class="bg-white w-full max-w-md rounded-t-3xl shadow-2xl p-5 overflow-y-auto" style="max-height:90vh">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="font-black text-slate-800 text-base">עריכת תחום עיסוק</h3>
                 <button onclick="document.getElementById('edit-expertise-modal').remove()" class="text-slate-400 text-xl"><i class="fa-solid fa-xmark"></i></button>
@@ -43583,14 +43586,17 @@ window.openEditExpertise = function(jsonStr) {
                 <input id="edit-exp-title-he" type="text" value="${safeStr(x.title_he||'')}" placeholder="שם התחום (עברית)" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
                 <input id="edit-exp-title-en" type="text" value="${safeStr(x.title_en||'')}" placeholder="Field name (English)" dir="ltr" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
                 <div>
-                    <p class="text-xs font-bold text-slate-500 mb-1">תיאור (עברית)</p>
+                    <div class="flex items-center justify-between mb-1">
+                        <p class="text-xs font-bold text-slate-500">תיאור (עברית)</p>
+                        <button id="exp-edit-ai-btn" onclick="window.aiWriteExpertiseDesc(this)" class="text-xs font-bold text-violet-600 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1">✨ כתוב עם AI</button>
+                    </div>
                     <textarea id="edit-exp-desc-he" rows="3" placeholder="תאר את השירות בקצרה..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 resize-none">${safeStr(x.description_he||'')}</textarea>
                 </div>
                 <div>
                     <p class="text-xs font-bold text-slate-500 mb-1">תיאור (English)</p>
                     <textarea id="edit-exp-desc-en" rows="2" dir="ltr" placeholder="Brief description in English..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 resize-none">${safeStr(x.description_en||'')}</textarea>
                 </div>
-                <div class="flex gap-2">
+                <div class="flex gap-2 pt-1">
                     <button onclick="document.getElementById('edit-expertise-modal').remove()" class="flex-1 border border-slate-200 text-slate-600 rounded-xl py-2.5 font-bold text-sm">ביטול</button>
                     <button onclick="window.saveEditExpertise(${x.id})" class="flex-1 bg-indigo-600 text-white rounded-xl py-2.5 font-bold text-sm hover:bg-indigo-700 transition">שמור</button>
                 </div>
@@ -43598,6 +43604,26 @@ window.openEditExpertise = function(jsonStr) {
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.aiWriteExpertiseDesc = async function(btn) {
+    const titleHe = document.getElementById('edit-exp-title-he')?.value?.trim();
+    const titleEn = document.getElementById('edit-exp-title-en')?.value?.trim();
+    const bizName = currentGroup?.name || 'העסק';
+    if (!titleHe && !titleEn) { showToast('error','הזן שם תחום קודם'); return; }
+    const prompt = `אתה כותב תיאור קצר לתחום עיסוק לאתר תדמית של עסק מקצועי בשם "${bizName}".
+תחום: ${titleHe || titleEn}
+כתוב 2-3 משפטים המסבירים את השירות ומה הלקוח מקבל. שפה ישירה ומקצועית.
+החזר JSON בלבד: {"description_he":"...","description_en":"..."}`;
+    const answer = await window._profContentAI(prompt, btn);
+    if (!answer) return;
+    try {
+        const clean = answer.replace(/```json|```/g,'').trim();
+        const d = JSON.parse(clean);
+        if (d.description_he) document.getElementById('edit-exp-desc-he').value = d.description_he;
+        if (d.description_en) document.getElementById('edit-exp-desc-en').value = d.description_en;
+        showToast('success','AI כתב תיאור — בדוק ושמור');
+    } catch(e) { showToast('error','שגיאה בפענוח תגובת AI'); }
 };
 
 window.saveEditExpertise = async function(id) {
