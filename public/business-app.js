@@ -33009,6 +33009,7 @@ window.renderWoOverview = function(data) {
             kickoffEl.classList.add('hidden');
         }
     }
+};
 
 window.renderWoTeam = function(assignees) {
     const list = document.getElementById('wo-assignees-list');
