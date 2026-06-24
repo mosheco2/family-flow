@@ -57,7 +57,7 @@ window.applyUserPermissions = function() {
     const isMaster = perms.includes('all');
 
     const tabRequirements = {
-        'pulse': 'open', 'dashboard': 'open', 'clients': 'open', 'sysmap': 'open', 'legal': 'open',
+        'pulse': 'open', 'dashboard': 'open', 'clients': 'open', 'sysmap': 'open', 'legal': 'open', 'templates': 'open',
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
         'comm': 'comm', 'biz': 'biz', 'content': 'content',
         'hr': 'users', 'inbox': 'marketing', 'partners': 'all', 'finance': 'all'
@@ -89,7 +89,7 @@ window.checkTabAccess = function(tabId) {
     const perms = window.currentSAUser.permissions || [];
     
     // מעודכן לאפשר גישה גם לדשבורד
-    if (perms.includes('all') || tabId === 'pulse' || tabId === 'dashboard' || tabId === 'clients') return true;
+    if (perms.includes('all') || tabId === 'pulse' || tabId === 'dashboard' || tabId === 'clients' || tabId === 'templates') return true;
     
     const req = {
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
@@ -200,7 +200,7 @@ window.switchSATab = function(tabId) {
     if (tabId === 'finance') loadSAFinanceData();
     if (tabId === 'legal') loadLegalDocs();
 
-    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal'];
+    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates'];
     let activeTabTitle = 'לוח בקרה';
 
     allTabs.forEach(t => {
@@ -230,7 +230,7 @@ window.switchSATab = function(tabId) {
         comm:'קהילות', biz:'עסקים', clients:'קבוצות',
         inbox:'שיווק והשקות', content:'מיתוג ותוכן',
         hr:'נציגים וצוותים', partners:'שותפים', finance:'פיננסים',
-        sysmap:'מפת המערכת', legal:'מסמכים משפטיים'
+        sysmap:'מפת המערכת', legal:'מסמכים משפטיים', templates:'ניהול תבניות עסקים'
     };
     activeTabTitle = _tabTitles[tabId] || tabId;
 
@@ -258,6 +258,7 @@ window.switchSATab = function(tabId) {
     if (tabId === 'clients') loadSAData();
     if (tabId === 'partners') loadSAPartners();
     if (tabId === 'comm') loadSACommunityData();
+    if (tabId === 'templates') window.loadBizTemplates && window.loadBizTemplates();
 
     // Update group button active state + sub-nav bar
     _updateSAGroupNav(tabId);
@@ -273,6 +274,7 @@ const SA_GROUPS = {
     contentmkt: { tabs: ['content', 'inbox', 'legal'],  labels: ['מיתוג ותוכן', 'שיווק', 'משפטי'], icons: ['fa-image', 'fa-bullhorn', 'fa-file-contract'], default: 'content' },
     partners:   { tabs: ['partners'],                   labels: [],                                  icons: [],                                         default: 'partners' },
     system:     { tabs: ['hr', 'sysmap'],               labels: ['צוות ונציגים', 'מפת המערכת'],     icons: ['fa-user-tie', 'fa-map'],                  default: 'hr' },
+    templates:  { tabs: ['templates'],                  labels: ['תבניות עסקים'],                    icons: ['fa-layer-group'],                          default: 'templates' },
 };
 
 function _getGroupForTab(tabId) {
@@ -5958,4 +5960,516 @@ function updateLegalToolbar() {
     if (document.queryCommandState('bold'))      document.querySelector('.legal-tb-btn[title="מודגש"]')?.classList.add('active');
     if (document.queryCommandState('italic'))    document.querySelector('.legal-tb-btn[title="נטוי"]')?.classList.add('active');
     if (document.queryCommandState('underline')) document.querySelector('.legal-tb-btn[title="קו תחתי"]')?.classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ניהול תבניות עסקים — BIZ TEMPLATE VISIBILITY MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════
+
+const BIZ_TEMPLATE_TREE = {
+  restaurant: {
+    name: 'מסעדה / בית קפה', icon: '🍕',
+    elements: [
+      { key: 'tab:feed',      label: 'ראשי 🏠',                   type: 'tab' },
+      { key: 'tab:pos',       label: 'קופה (POS) 💰',              type: 'tab', children: [
+        { key: 'feature:pos:tables',         label: 'ניהול שולחנות',          type: 'feature' },
+        { key: 'feature:pos:kds',            label: 'מסך מטבח (KDS)',          type: 'feature' },
+        { key: 'feature:pos:receipts',       label: 'היסטוריית קבלות',         type: 'feature' },
+        { key: 'feature:pos:live-queue',     label: 'תור לייב',               type: 'feature' },
+      ]},
+      { key: 'tab:sales',     label: 'מכירות 🛍️',                  type: 'tab', children: [
+        { key: 'feature:sales:quotes',           label: 'הצעות מחיר',              type: 'feature' },
+        { key: 'feature:sales:invoices',         label: 'חשבוניות',                type: 'feature' },
+        { key: 'feature:sales:orders',           label: 'הזמנות',                  type: 'feature' },
+        { key: 'feature:sales:new-quote-btn',    label: 'כפתור: הצעה חדשה',        type: 'feature' },
+        { key: 'feature:sales:new-product-btn',  label: 'כפתור: מוצר חדש',         type: 'feature' },
+        { key: 'feature:sales:promotions',       label: 'מבצעים',                  type: 'feature' },
+      ]},
+      { key: 'tab:pantry',    label: 'ניהול מלאי 📦',              type: 'tab', children: [
+        { key: 'feature:pantry:add-item',    label: 'הוספת פריט',              type: 'feature' },
+        { key: 'feature:pantry:stock-take',  label: 'ספירת מלאי',              type: 'feature' },
+        { key: 'feature:pantry:alerts',      label: 'התראות מלאי נמוך',        type: 'feature' },
+      ]},
+      { key: 'tab:shop',      label: 'רכש ארגוני 🛒',              type: 'tab' },
+      { key: 'tab:customers', label: 'לקוחות 🤝',                  type: 'tab', children: [
+        { key: 'feature:customers:add',      label: 'הוספת לקוח',              type: 'feature' },
+        { key: 'feature:customers:loyalty',  label: 'נקודות נאמנות',           type: 'feature' },
+        { key: 'feature:customers:whatsapp', label: 'שליחת WhatsApp',           type: 'feature' },
+        { key: 'feature:customers:import',   label: 'ייבוא לקוחות',            type: 'feature' },
+      ]},
+      { key: 'tab:shifts',    label: 'משמרות 🗓️',                  type: 'tab', children: [
+        { key: 'feature:shifts:new-shift',   label: 'יצירת משמרת',             type: 'feature' },
+        { key: 'feature:shifts:publish',     label: 'פרסום לוח משמרות',        type: 'feature' },
+        { key: 'feature:shifts:swap',        label: 'החלפת משמרות',             type: 'feature' },
+      ]},
+      { key: 'tab:timeclock', label: 'נוכחות ⏱️',                 type: 'tab', children: [
+        { key: 'feature:timeclock:manual-entry', label: 'כניסה ידנית',         type: 'feature' },
+        { key: 'feature:timeclock:export',       label: 'ייצוא דוח נוכחות',    type: 'feature' },
+        { key: 'feature:timeclock:edit',         label: 'עריכת רישומים',        type: 'feature' },
+      ]},
+      { key: 'tab:tasks',     label: 'משימות ✅',                   type: 'tab', children: [
+        { key: 'feature:tasks:new-task',     label: 'משימה חדשה',              type: 'feature' },
+        { key: 'feature:tasks:new-project',  label: 'פרויקט חדש',              type: 'feature' },
+      ]},
+      { key: 'tab:cashflow',  label: 'תזרים 💸',                   type: 'tab', children: [
+        { key: 'feature:cashflow:add-income',  label: 'הוספת הכנסה',           type: 'feature' },
+        { key: 'feature:cashflow:add-expense', label: 'הוספת הוצאה',           type: 'feature' },
+        { key: 'feature:cashflow:export',      label: 'ייצוא',                  type: 'feature' },
+      ]},
+      { key: 'tab:budget',    label: 'תקציב 📊',                   type: 'tab', children: [
+        { key: 'feature:budget:set-limit',   label: 'הגדרת יעד תקציב',         type: 'feature' },
+        { key: 'feature:budget:add-category',label: 'הוספת קטגוריה',           type: 'feature' },
+      ]},
+      { key: 'tab:members',   label: 'ניהול צוות 👥',              type: 'tab', children: [
+        { key: 'feature:members:add',        label: 'הוספת עובד',              type: 'feature' },
+        { key: 'feature:members:roles',      label: 'ניהול תפקידים',           type: 'feature' },
+      ]},
+      { key: 'tab:calendar',  label: 'יומן 📅',                    type: 'tab', children: [
+        { key: 'feature:calendar:new-event', label: 'אירוע חדש',               type: 'feature' },
+      ]},
+      { key: 'tab:deliveries',label: 'שליחויות 🛵',                type: 'tab', children: [
+        { key: 'feature:deliveries:new-order', label: 'הזמנת שליחות',          type: 'feature' },
+        { key: 'feature:deliveries:tracking',  label: 'מעקב שליחויות',         type: 'feature' },
+      ]},
+      { key: 'tab:foodcost',  label: 'תמחור ורווחיות 🍽️',          type: 'tab' },
+      { key: 'tab:reviews',   label: 'ביקורות ⭐',                  type: 'tab' },
+    ]
+  },
+
+  sport: {
+    name: 'ספורט / כושר', icon: '🏋️',
+    elements: [
+      { key: 'tab:feed',      label: 'ראשי 🏠',                   type: 'tab' },
+      { key: 'tab:calendar',  label: 'יומן שיעורים 📅',            type: 'tab', children: [
+        { key: 'feature:calendar:new-event',     label: 'שיעור / אירוע חדש',     type: 'feature' },
+        { key: 'feature:calendar:trainer-assign',label: 'שיוך מאמן',            type: 'feature' },
+        { key: 'feature:calendar:booking',       label: 'הרשמה לשיעורים',       type: 'feature' },
+      ]},
+      { key: 'tab:pos',       label: 'קופה 💰',                    type: 'tab', children: [
+        { key: 'feature:pos:membership-sale', label: 'מכירת מנוי',             type: 'feature' },
+        { key: 'feature:pos:day-pass',        label: 'כרטיס כניסה יחיד',       type: 'feature' },
+        { key: 'feature:pos:receipts',        label: 'קבלות',                   type: 'feature' },
+      ]},
+      { key: 'tab:sales',     label: 'מכירות 🛍️',                  type: 'tab', children: [
+        { key: 'feature:sales:quotes',        label: 'הצעות מחיר',              type: 'feature' },
+        { key: 'feature:sales:invoices',      label: 'חשבוניות',                type: 'feature' },
+        { key: 'feature:sales:new-quote-btn', label: 'כפתור: הצעה חדשה',        type: 'feature' },
+      ]},
+      { key: 'tab:customers', label: 'חברי מועדון 🤝',             type: 'tab', children: [
+        { key: 'feature:customers:add',             label: 'חבר חדש',           type: 'feature' },
+        { key: 'feature:customers:membership-status',label: 'סטטוס מנוי',       type: 'feature' },
+        { key: 'feature:customers:freeze',          label: 'הקפאת מנוי',        type: 'feature' },
+        { key: 'feature:customers:whatsapp',        label: 'שליחת WhatsApp',     type: 'feature' },
+      ]},
+      { key: 'tab:members',   label: 'צוות / מאמנים 👥',           type: 'tab', children: [
+        { key: 'feature:members:add',         label: 'הוספת מאמן',             type: 'feature' },
+        { key: 'feature:members:roles',       label: 'ניהול תפקידים',          type: 'feature' },
+      ]},
+      { key: 'tab:timeclock', label: 'נוכחות ⏱️',                 type: 'tab', children: [
+        { key: 'feature:timeclock:manual-entry', label: 'כניסה ידנית',         type: 'feature' },
+        { key: 'feature:timeclock:export',       label: 'ייצוא',                type: 'feature' },
+      ]},
+      { key: 'tab:cashflow',  label: 'תזרים 💸',                   type: 'tab', children: [
+        { key: 'feature:cashflow:add-income',  label: 'הוספת הכנסה',           type: 'feature' },
+        { key: 'feature:cashflow:add-expense', label: 'הוספת הוצאה',           type: 'feature' },
+      ]},
+      { key: 'tab:tasks',     label: 'משימות ✅',                   type: 'tab', children: [
+        { key: 'feature:tasks:new-task',     label: 'משימה חדשה',              type: 'feature' },
+        { key: 'feature:tasks:new-project',  label: 'פרויקט חדש',              type: 'feature' },
+      ]},
+      { key: 'tab:equipment', label: 'ציוד 🔧',                    type: 'tab', children: [
+        { key: 'feature:equipment:add',          label: 'הוספת ציוד',          type: 'feature' },
+        { key: 'feature:equipment:maintenance',  label: 'תזמון תחזוקה',        type: 'feature' },
+      ]},
+      { key: 'tab:shifts',    label: 'משמרות 🗓️',                  type: 'tab', children: [
+        { key: 'feature:shifts:new-shift',   label: 'יצירת משמרת',             type: 'feature' },
+        { key: 'feature:shifts:publish',     label: 'פרסום לוח',               type: 'feature' },
+      ]},
+    ]
+  },
+
+  beauty: {
+    name: 'יופי / קוסמטיקה', icon: '💅',
+    elements: [
+      { key: 'tab:feed',                   label: 'ראשי 🏠',                        type: 'tab' },
+      { key: 'tab:beauty_calendar',        label: 'יומן מטפלות 💆',                 type: 'tab', children: [
+        { key: 'feature:beauty_calendar:new-appt',  label: 'תור חדש',             type: 'feature' },
+        { key: 'feature:beauty_calendar:cancel',    label: 'ביטול תור',           type: 'feature' },
+        { key: 'feature:beauty_calendar:reminder',  label: 'שליחת תזכורת',       type: 'feature' },
+        { key: 'feature:beauty_calendar:online-booking', label: 'הזמנה אונליין',  type: 'feature' },
+      ]},
+      { key: 'tab:beauty_practitioners',   label: 'מטפלות 💆',                      type: 'tab', children: [
+        { key: 'feature:beauty_practitioners:add',       label: 'הוספת מטפלת',    type: 'feature' },
+        { key: 'feature:beauty_practitioners:schedule',  label: 'ניהול זמינות',   type: 'feature' },
+        { key: 'feature:beauty_practitioners:commission',label: 'הגדרת עמלה',     type: 'feature' },
+      ]},
+      { key: 'tab:beauty_services',        label: 'שירותים וטיפולים 💎',            type: 'tab', children: [
+        { key: 'feature:beauty_services:add',     label: 'טיפול חדש',             type: 'feature' },
+        { key: 'feature:beauty_services:pricing', label: 'עריכת מחירון',          type: 'feature' },
+        { key: 'feature:beauty_services:ai',      label: 'הצע עם AI',             type: 'feature' },
+      ]},
+      { key: 'tab:beauty_subscriptions',   label: 'מנויים וחבילות 🎁',              type: 'tab', children: [
+        { key: 'feature:beauty_subscriptions:new',    label: 'חבילה חדשה',        type: 'feature' },
+        { key: 'feature:beauty_subscriptions:assign', label: 'שיוך ללקוח',        type: 'feature' },
+      ]},
+      { key: 'tab:pos',                    label: 'קופה 💰',                        type: 'tab', children: [
+        { key: 'feature:pos:sale',         label: 'מכירה',                         type: 'feature' },
+        { key: 'feature:pos:receipts',     label: 'קבלות',                         type: 'feature' },
+      ]},
+      { key: 'tab:beauty_clients',         label: 'תיקי לקוחות 📋',                 type: 'tab', children: [
+        { key: 'feature:beauty_clients:treatment-history', label: 'היסטוריית טיפולים',     type: 'feature' },
+        { key: 'feature:beauty_clients:notes',             label: 'הערות / אלרגיות',       type: 'feature' },
+        { key: 'feature:beauty_clients:photos',            label: 'תמונות לפני/אחרי',      type: 'feature' },
+        { key: 'feature:beauty_clients:whatsapp',          label: 'שליחת WhatsApp',         type: 'feature' },
+      ]},
+      { key: 'tab:beauty_inventory',       label: 'מלאי מקצועי 🧴',                 type: 'tab', children: [
+        { key: 'feature:beauty_inventory:add',   label: 'הוספת מוצר',             type: 'feature' },
+        { key: 'feature:beauty_inventory:alert', label: 'התראות מלאי נמוך',       type: 'feature' },
+      ]},
+      { key: 'tab:beauty_commissions',     label: 'עמלות ושכר 💰',                  type: 'tab', children: [
+        { key: 'feature:beauty_commissions:set-rate', label: 'הגדרת שיעור עמלה',  type: 'feature' },
+        { key: 'feature:beauty_commissions:export',   label: 'ייצוא לחישוב שכר',  type: 'feature' },
+      ]},
+      { key: 'tab:beauty_rfq',             label: 'ייעוץ ובקשות 💬',                type: 'tab' },
+      { key: 'tab:timeclock',              label: 'נוכחות ⏱️',                     type: 'tab', children: [
+        { key: 'feature:timeclock:manual-entry', label: 'כניסה ידנית',            type: 'feature' },
+        { key: 'feature:timeclock:export',       label: 'ייצוא',                   type: 'feature' },
+      ]},
+      { key: 'tab:cashflow',               label: 'תזרים 💸',                       type: 'tab', children: [
+        { key: 'feature:cashflow:add-income',  label: 'הוספת הכנסה',              type: 'feature' },
+        { key: 'feature:cashflow:add-expense', label: 'הוספת הוצאה',              type: 'feature' },
+      ]},
+      { key: 'tab:tasks',                  label: 'משימות ✅',                       type: 'tab', children: [
+        { key: 'feature:tasks:new-task',  label: 'משימה חדשה',                    type: 'feature' },
+      ]},
+      { key: 'tab:shop',                   label: 'רכש ארגוני 🛒',                  type: 'tab' },
+    ]
+  },
+
+  maintenance_repair: {
+    name: 'תיקונים ותחזוקה', icon: '🔧',
+    elements: [
+      { key: 'tab:feed',      label: 'ראשי 🏠',                   type: 'tab' },
+      { key: 'tab:calendar',  label: 'יומן ביקורים 📅',            type: 'tab', children: [
+        { key: 'feature:calendar:new-event',     label: 'ביקור / אירוע חדש',     type: 'feature' },
+        { key: 'feature:calendar:assign-tech',   label: 'שיוך טכנאי',            type: 'feature' },
+        { key: 'feature:calendar:customer-link', label: 'שיוך לקוח',             type: 'feature' },
+      ]},
+      { key: 'tab:tasks',     label: 'קריאות שירות ✅',             type: 'tab', children: [
+        { key: 'feature:tasks:new-task',     label: 'קריאה חדשה',                type: 'feature' },
+        { key: 'feature:tasks:new-project',  label: 'פרויקט חדש',               type: 'feature' },
+        { key: 'feature:tasks:kanban',       label: 'תצוגת קנבן',               type: 'feature' },
+      ]},
+      { key: 'tab:customers', label: 'לקוחות 🤝',                  type: 'tab', children: [
+        { key: 'feature:customers:add',          label: 'הוספת לקוח',            type: 'feature' },
+        { key: 'feature:customers:history',      label: 'היסטוריית שירות',       type: 'feature' },
+        { key: 'feature:customers:whatsapp',     label: 'שליחת WhatsApp',         type: 'feature' },
+        { key: 'feature:customers:equipment',    label: 'ציוד / נכסים של הלקוח', type: 'feature' },
+      ]},
+      { key: 'tab:members',   label: 'טכנאים / צוות 👥',           type: 'tab', children: [
+        { key: 'feature:members:add',        label: 'הוספת טכנאי',              type: 'feature' },
+        { key: 'feature:members:roles',      label: 'ניהול תפקידים',            type: 'feature' },
+      ]},
+      { key: 'tab:timeclock', label: 'נוכחות ⏱️',                 type: 'tab', children: [
+        { key: 'feature:timeclock:manual-entry', label: 'כניסה ידנית',          type: 'feature' },
+        { key: 'feature:timeclock:export',       label: 'ייצוא',                 type: 'feature' },
+      ]},
+      { key: 'tab:cashflow',  label: 'תזרים 💸',                   type: 'tab', children: [
+        { key: 'feature:cashflow:add-income',  label: 'הוספת הכנסה',            type: 'feature' },
+        { key: 'feature:cashflow:add-expense', label: 'הוספת הוצאה',            type: 'feature' },
+      ]},
+      { key: 'tab:pantry',    label: 'חלקי חילוף / מלאי 📦',      type: 'tab', children: [
+        { key: 'feature:pantry:add-item',    label: 'הוספת פריט',               type: 'feature' },
+        { key: 'feature:pantry:stock-take',  label: 'ספירת מלאי',               type: 'feature' },
+        { key: 'feature:pantry:alerts',      label: 'התראות מלאי נמוך',         type: 'feature' },
+      ]},
+      { key: 'tab:shop',      label: 'רכש ארגוני 🛒',              type: 'tab' },
+    ]
+  },
+
+  professional: {
+    name: 'מקצועי / ייעוץ', icon: '👔',
+    elements: [
+      { key: 'tab:feed',      label: 'ראשי 🏠',                   type: 'tab' },
+      { key: 'tab:sales',     label: 'מכירות / הצעות 🛍️',         type: 'tab', children: [
+        { key: 'feature:sales:quotes',             label: 'הצעות מחיר',          type: 'feature' },
+        { key: 'feature:sales:invoices',           label: 'חשבוניות',            type: 'feature' },
+        { key: 'feature:sales:orders',             label: 'הזמנות',              type: 'feature' },
+        { key: 'feature:sales:new-quote-btn',      label: 'כפתור: הצעה חדשה',    type: 'feature' },
+        { key: 'feature:sales:convert-to-case',    label: 'המרה לתיק',           type: 'feature' },
+      ]},
+      { key: 'tab:customers', label: 'לקוחות 🤝',                  type: 'tab', children: [
+        { key: 'feature:customers:add',      label: 'הוספת לקוח',               type: 'feature' },
+        { key: 'feature:customers:whatsapp', label: 'שליחת WhatsApp',            type: 'feature' },
+        { key: 'feature:customers:documents',label: 'מסמכי לקוח',               type: 'feature' },
+        { key: 'feature:customers:history',  label: 'היסטוריית עסקאות',          type: 'feature' },
+      ]},
+      { key: 'tab:cases',     label: 'תיקים 📁',                   type: 'tab', children: [
+        { key: 'feature:cases:new',           label: 'תיק חדש',                 type: 'feature' },
+        { key: 'feature:cases:kickoff',       label: 'פגישת קיקאוף',            type: 'feature' },
+        { key: 'feature:cases:summary-doc',   label: 'מסמך סיכום',              type: 'feature' },
+        { key: 'feature:cases:team',          label: 'צוות התיק',               type: 'feature' },
+        { key: 'feature:cases:costs',         label: 'עלויות ורווחיות',         type: 'feature' },
+        { key: 'feature:cases:status-change', label: 'שינוי סטטוס',             type: 'feature' },
+        { key: 'feature:cases:timelog-link',  label: 'שיוך שעות לתיק',          type: 'feature' },
+      ]},
+      { key: 'tab:leads',     label: 'פניות נכנסות 📥',             type: 'tab', children: [
+        { key: 'feature:leads:convert',      label: 'המרה ללקוח',               type: 'feature' },
+        { key: 'feature:leads:whatsapp',     label: 'שליחת WhatsApp',            type: 'feature' },
+        { key: 'feature:leads:schedule',     label: 'קביעת פגישה',              type: 'feature' },
+      ]},
+      { key: 'tab:timelog',   label: 'שעות עבודה ⏱️',             type: 'tab', children: [
+        { key: 'feature:timelog:timer',          label: 'טיימר חי',             type: 'feature' },
+        { key: 'feature:timelog:manual-entry',   label: 'הזנה ידנית',           type: 'feature' },
+        { key: 'feature:timelog:export-csv',     label: 'ייצוא CSV לשכר',        type: 'feature' },
+        { key: 'feature:timelog:create-invoice', label: 'יצירת חשבונית מהשעות', type: 'feature' },
+        { key: 'feature:timelog:wo-link',        label: 'שיוך לתיק',            type: 'feature' },
+      ]},
+      { key: 'tab:documents', label: 'מסמכים 📄',                  type: 'tab', children: [
+        { key: 'feature:documents:new',        label: 'מסמך חדש',              type: 'feature' },
+        { key: 'feature:documents:templates',  label: 'תבניות מסמכים',         type: 'feature' },
+        { key: 'feature:documents:whatsapp',   label: 'שלח מסמך ללקוח',        type: 'feature' },
+        { key: 'feature:documents:ai',         label: 'כתיבה עם AI',            type: 'feature' },
+      ]},
+      { key: 'tab:calendar',  label: 'יומן 📅',                    type: 'tab', children: [
+        { key: 'feature:calendar:new-event', label: 'אירוע חדש',               type: 'feature' },
+      ]},
+      { key: 'tab:tasks',     label: 'משימות ✅',                   type: 'tab', children: [
+        { key: 'feature:tasks:new-task',    label: 'משימה חדשה',               type: 'feature' },
+        { key: 'feature:tasks:new-project', label: 'פרויקט חדש',               type: 'feature' },
+      ]},
+      { key: 'tab:cashflow',  label: 'תזרים 💸',                   type: 'tab', children: [
+        { key: 'feature:cashflow:add-income',  label: 'הוספת הכנסה',           type: 'feature' },
+        { key: 'feature:cashflow:add-expense', label: 'הוספת הוצאה',           type: 'feature' },
+      ]},
+      { key: 'tab:budget',    label: 'תקציב 📊',                   type: 'tab', children: [
+        { key: 'feature:budget:set-limit',    label: 'הגדרת יעד',              type: 'feature' },
+        { key: 'feature:budget:add-category', label: 'קטגוריה חדשה',           type: 'feature' },
+      ]},
+      { key: 'tab:members',   label: 'צוות 👥',                    type: 'tab', children: [
+        { key: 'feature:members:add',   label: 'הוספת עובד',                   type: 'feature' },
+        { key: 'feature:members:roles', label: 'ניהול תפקידים',                type: 'feature' },
+      ]},
+      { key: 'tab:timeclock', label: 'נוכחות ⏱️',                 type: 'tab', children: [
+        { key: 'feature:timeclock:manual-entry', label: 'כניסה ידנית',         type: 'feature' },
+        { key: 'feature:timeclock:export',       label: 'ייצוא',                type: 'feature' },
+      ]},
+      { key: 'tab:bank',      label: 'כספים 💳',                   type: 'tab', children: [
+        { key: 'feature:bank:add-account',     label: 'הוספת חשבון',           type: 'feature' },
+        { key: 'feature:bank:add-transaction', label: 'הוספת תנועה',           type: 'feature' },
+      ]},
+      { key: 'tab:content',   label: 'תוכן האתר 🌐',               type: 'tab', children: [
+        { key: 'feature:content:hero',      label: 'כותרת ראשית (Hero)',        type: 'feature' },
+        { key: 'feature:content:expertise', label: 'תחומי עיסוק',              type: 'feature' },
+        { key: 'feature:content:articles',  label: 'מאמרים',                   type: 'feature' },
+        { key: 'feature:content:about',     label: 'אודות',                    type: 'feature' },
+        { key: 'feature:content:share',     label: 'שיתוף מאמרים',             type: 'feature' },
+        { key: 'feature:content:ai-write',  label: 'כתיבת תוכן עם AI',         type: 'feature' },
+      ]},
+    ]
+  },
+
+  logistics: {
+    name: 'לוגיסטיקה / הפצה', icon: '🚚',
+    elements: [
+      { key: 'tab:feed',                    label: 'ראשי 🏠',                       type: 'tab' },
+      { key: 'tab:logistics_orders',        label: 'קנבן משלוחים 📦',               type: 'tab', children: [
+        { key: 'feature:logistics_orders:new',          label: 'הזמנה חדשה',        type: 'feature' },
+        { key: 'feature:logistics_orders:assign-driver',label: 'שיוך נהג',          type: 'feature' },
+        { key: 'feature:logistics_orders:bulk-assign',  label: 'שיוך מרובה',        type: 'feature' },
+        { key: 'feature:logistics_orders:export',       label: 'ייצוא',              type: 'feature' },
+        { key: 'feature:logistics_orders:kanban-view',  label: 'תצוגת קנבן',        type: 'feature' },
+      ]},
+      { key: 'tab:logistics_drivers',       label: 'נהגים 🚗',                      type: 'tab', children: [
+        { key: 'feature:logistics_drivers:add',      label: 'הוספת נהג',           type: 'feature' },
+        { key: 'feature:logistics_drivers:map',      label: 'מיקום בזמן אמת',      type: 'feature' },
+        { key: 'feature:logistics_drivers:assign',   label: 'שיוך משלוחים לנהג',   type: 'feature' },
+      ]},
+      { key: 'tab:logistics_vehicles',      label: 'צי רכבים 🚚',                   type: 'tab', children: [
+        { key: 'feature:logistics_vehicles:add',         label: 'הוספת רכב',        type: 'feature' },
+        { key: 'feature:logistics_vehicles:maintenance', label: 'תזמון תחזוקה',    type: 'feature' },
+      ]},
+      { key: 'tab:logistics_pricing',       label: 'מחירון 💰',                     type: 'tab', children: [
+        { key: 'feature:logistics_pricing:add-zone',  label: 'הוספת אזור',         type: 'feature' },
+        { key: 'feature:logistics_pricing:rates',     label: 'עדכון תעריפים',      type: 'feature' },
+      ]},
+      { key: 'tab:logistics_cod',           label: 'גבייה COD 💵',                  type: 'tab', children: [
+        { key: 'feature:logistics_cod:collect',    label: 'רישום גבייה',           type: 'feature' },
+        { key: 'feature:logistics_cod:reconcile',  label: 'התאמת גבייה',           type: 'feature' },
+        { key: 'feature:logistics_cod:export',     label: 'ייצוא',                  type: 'feature' },
+      ]},
+      { key: 'tab:logistics_rfq',           label: 'הצעות מחיר 📋',                 type: 'tab', children: [
+        { key: 'feature:logistics_rfq:new',  label: 'הצעה חדשה',                   type: 'feature' },
+        { key: 'feature:logistics_rfq:send', label: 'שליחה ללקוח',                 type: 'feature' },
+      ]},
+      { key: 'tab:logistics_routes',        label: 'מסלולי חלוקה 🗺️',               type: 'tab', children: [
+        { key: 'feature:logistics_routes:optimize',  label: 'אופטימיזציית מסלול',  type: 'feature' },
+        { key: 'feature:logistics_routes:export',    label: 'ייצוא מסלול',          type: 'feature' },
+      ]},
+      { key: 'tab:logistics_tracking',      label: 'לינקי מעקב 🔗',                 type: 'tab', children: [
+        { key: 'feature:logistics_tracking:send',    label: 'שליחת לינק מעקב',     type: 'feature' },
+        { key: 'feature:logistics_tracking:sms',     label: 'שליחת SMS',            type: 'feature' },
+      ]},
+      { key: 'tab:logistics_reports',       label: 'דוחות 📊',                      type: 'tab', children: [
+        { key: 'feature:logistics_reports:daily',             label: 'דוח יומי',           type: 'feature' },
+        { key: 'feature:logistics_reports:driver-performance',label: 'ביצועי נהגים',       type: 'feature' },
+        { key: 'feature:logistics_reports:export',            label: 'ייצוא לאקסל',        type: 'feature' },
+      ]},
+      { key: 'tab:logistics_customers',     label: 'מזמינים ונמענים 🤝',             type: 'tab', children: [
+        { key: 'feature:logistics_customers:add',    label: 'הוספת לקוח',          type: 'feature' },
+        { key: 'feature:logistics_customers:import', label: 'ייבוא רשימה',         type: 'feature' },
+        { key: 'feature:logistics_customers:whatsapp',label: 'שליחת WhatsApp',      type: 'feature' },
+      ]},
+      { key: 'tab:logistics_invoices',      label: 'חשבוניות 🧾',                    type: 'tab', children: [
+        { key: 'feature:logistics_invoices:new',    label: 'חשבונית חדשה',         type: 'feature' },
+        { key: 'feature:logistics_invoices:export', label: 'ייצוא',                 type: 'feature' },
+      ]},
+      { key: 'tab:members',                 label: 'צוות 👥',                        type: 'tab', children: [
+        { key: 'feature:members:add',       label: 'הוספת עובד',                   type: 'feature' },
+      ]},
+      { key: 'tab:timeclock',               label: 'נוכחות ⏱️',                    type: 'tab', children: [
+        { key: 'feature:timeclock:manual-entry', label: 'כניסה ידנית',             type: 'feature' },
+        { key: 'feature:timeclock:export',       label: 'ייצוא',                    type: 'feature' },
+      ]},
+      { key: 'tab:cashflow',                label: 'תזרים 💸',                       type: 'tab', children: [
+        { key: 'feature:cashflow:add-income',  label: 'הוספת הכנסה',              type: 'feature' },
+        { key: 'feature:cashflow:add-expense', label: 'הוספת הוצאה',              type: 'feature' },
+      ]},
+      { key: 'tab:tasks',                   label: 'משימות ✅',                       type: 'tab', children: [
+        { key: 'feature:tasks:new-task',  label: 'משימה חדשה',                     type: 'feature' },
+      ]},
+    ]
+  }
+};
+
+let _vizHiddenKeys = {};
+let _vizCurrentType = 'restaurant';
+let _vizLoaded = false;
+
+window.loadBizTemplates = async function() {
+    if (_vizLoaded) { renderBizTemplatesView(_vizCurrentType); return; }
+    const container = document.getElementById('viz-loading');
+    if (container) container.classList.remove('hidden');
+    try {
+        const types = Object.keys(BIZ_TEMPLATE_TREE);
+        await Promise.all(types.map(async type => {
+            try {
+                const res = await fetch(`${API}/sa/biz-visibility/${type}`, { headers: { Authorization: saToken } });
+                const data = await res.json();
+                _vizHiddenKeys[type] = new Set(data.hiddenKeys || []);
+            } catch(e) { _vizHiddenKeys[type] = new Set(); }
+        }));
+        _vizLoaded = true;
+    } catch(e) {}
+    if (container) container.classList.add('hidden');
+    renderBizTemplatesView(_vizCurrentType);
+};
+
+function renderBizTemplatesView(type) {
+    _vizCurrentType = type;
+    // Update type selector buttons
+    Object.keys(BIZ_TEMPLATE_TREE).forEach(t => {
+        const btn = document.getElementById(`viz-type-${t}`);
+        if (!btn) return;
+        if (t === type) {
+            btn.className = btn.className.replace(/bg-white\s+text-slate-600\s+border-slate-200|bg-emerald-600\s+text-white\s+border-emerald-600/g, '').trim();
+            btn.className += ' bg-emerald-600 text-white border-emerald-600';
+        } else {
+            btn.className = btn.className.replace(/bg-emerald-600\s+text-white\s+border-emerald-600/g, '').trim();
+            btn.className += ' bg-white text-slate-600 border-slate-200';
+        }
+    });
+
+    const tree = BIZ_TEMPLATE_TREE[type];
+    if (!tree) return;
+    const hidden = _vizHiddenKeys[type] || new Set();
+    const total = countElements(tree.elements);
+    const hiddenCount = hidden.size;
+
+    const statsEl = document.getElementById('viz-stats');
+    if (statsEl) statsEl.innerHTML = `
+        <div class="text-center px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
+            <div class="text-xl font-black text-slate-800">${total}</div>
+            <div class="text-[10px] text-slate-400">סה"כ אלמנטים</div>
+        </div>
+        <div class="text-center px-4 py-2 bg-red-50 rounded-xl border border-red-100">
+            <div class="text-xl font-black text-red-600">${hiddenCount}</div>
+            <div class="text-[10px] text-slate-400">מוסתרים</div>
+        </div>
+        <div class="text-center px-4 py-2 bg-green-50 rounded-xl border border-green-100">
+            <div class="text-xl font-black text-green-600">${total - hiddenCount}</div>
+            <div class="text-[10px] text-slate-400">פעילים</div>
+        </div>`;
+
+    const container = document.getElementById('viz-elements-container');
+    if (!container) return;
+    container.innerHTML = tree.elements.map(el => renderVizElement(type, el, hidden, 0)).join('');
+}
+
+function countElements(elements) {
+    let n = 0;
+    (elements||[]).forEach(el => { n++; if (el.children) n += countElements(el.children); });
+    return n;
+}
+
+function renderVizElement(type, el, hidden, depth) {
+    const isHidden = hidden.has(el.key);
+    const ml = depth > 0 ? `style="margin-right:${depth * 20}px"` : '';
+    const bgCls = el.type === 'tab' ? 'bg-slate-50 border-slate-200' :
+                  el.type === 'subtab' ? 'bg-blue-50 border-blue-100' :
+                  'bg-white border-slate-100';
+    const typeBadge = el.type === 'tab'
+        ? '<span class="text-[9px] font-black bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full">טאב</span>'
+        : el.type === 'subtab'
+        ? '<span class="text-[9px] font-black bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">תת-טאב</span>'
+        : '<span class="text-[9px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">פיצ׳ר</span>';
+    const opacityCls = isHidden ? 'opacity-50' : '';
+    const labelCls = isHidden ? 'text-slate-400 line-through' : (depth === 0 ? 'text-slate-800 font-bold' : 'text-slate-700 font-medium');
+
+    let html = `<div ${ml} class="mb-1.5">
+        <div class="flex items-center justify-between px-3 py-2 rounded-xl border ${bgCls} ${opacityCls} transition-all">
+            <div class="flex items-center gap-2 min-w-0">
+                ${typeBadge}
+                <span class="text-sm ${labelCls} truncate">${el.label}</span>
+                ${isHidden ? '<span class="text-[9px] text-red-500 font-bold shrink-0">● מוסתר</span>' : ''}
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer shrink-0 mr-2">
+                <input type="checkbox" ${isHidden ? '' : 'checked'} onchange="window.toggleVizElement('${type}','${el.key}',!this.checked)" class="sr-only peer">
+                <div class="w-10 h-5 bg-red-300 rounded-full peer peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5"></div>
+            </label>
+        </div>
+        ${el.children ? el.children.map(child => renderVizElement(type, child, hidden, depth + 1)).join('') : ''}
+    </div>`;
+    return html;
+}
+
+window.toggleVizElement = async function(type, key, makeHidden) {
+    try {
+        const res = await fetch(`${API}/sa/biz-visibility/${type}/toggle`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: saToken },
+            body: JSON.stringify({ key, hidden: makeHidden })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error();
+        if (makeHidden) {
+            _vizHiddenKeys[type] = _vizHiddenKeys[type] || new Set();
+            _vizHiddenKeys[type].add(key);
+        } else {
+            _vizHiddenKeys[type]?.delete(key);
+        }
+        renderBizTemplatesView(type);
+        const tree = BIZ_TEMPLATE_TREE[type];
+        const name = tree?.elements.find(e=>e.key===key)?.label ||
+                     tree?.elements.flatMap(e=>e.children||[]).find(e=>e.key===key)?.label || key;
+        showSAToast(makeHidden ? `🔴 "${name}" הוסתר` : `✅ "${name}" הוצג`);
+    } catch(e) { showSAToast('❌ שגיאה בשמירה'); }
+};
+
+function showSAToast(msg) {
+    const t = document.createElement('div');
+    t.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-sm font-bold px-4 py-2 rounded-xl shadow-xl z-[99999] transition-all';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2500);
 }
