@@ -1953,6 +1953,8 @@ function switchTab(t) {
     if (t === 'logistics_invoices')  try { loadLogisticsInvoices(); } catch(e) {}
     if (t === 'cases')   try { renderCasesTab(); } catch(e) {}
     if (t === 'timelog') try { renderTimelogTab(); } catch(e) {}
+    if (t === 'content') try { renderProfessionalContentTab(); } catch(e) {}
+    if (t === 'leads')   try { renderProfessionalLeadsTab(); } catch(e) {}
     if (t === 'reviews')               try { loadReviews(); } catch(e) {}
     if (t === 'settings')              { try { renderSettingsHub(); } catch(e) {} try { const _w = document.getElementById('biz-main-content-wrap'); if(_w) _w.scrollTop = 0; } catch(e) {} document.documentElement.scrollTop = 0; document.body.scrollTop = 0; window.scrollTo({ top: 0, behavior: 'instant' }); }
 }
@@ -2724,7 +2726,9 @@ const ALL_TABS = [
     { id: 'logistics_customers', name: 'מזמינים ונמענים 🤝' },
     { id: 'logistics_invoices',  name: 'חשבוניות 🧾' },
     { id: 'cases',   name: 'תיקים 📁' },
-    { id: 'timelog', name: 'שעות עבודה ⏱️' }
+    { id: 'timelog', name: 'שעות עבודה ⏱️' },
+    { id: 'content', name: 'תוכן האתר 🌐' },
+    { id: 'leads',   name: 'פניות נכנסות 📥' }
 ];
 
 const ROLE_DEFAULTS = {
@@ -3973,10 +3977,10 @@ window.changeFeedPage = function(direction) {
 // ============================================================
 const GNAV_GROUPS = {
     team:      ['timeclock','shifts','calendar','tasks','academy','members','beauty_calendar','beauty_practitioners'],
-    sales:     ['pos','sales','customers','cases','deliveries','reviews','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
+    sales:     ['pos','sales','customers','cases','leads','deliveries','reviews','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
     inventory: ['shop','pantry','equipment','foodcost','beauty_inventory'],
     finance:   ['bank','cashflow','budget','timelog','forecast','beauty_commissions'],
-    more:      ['community','surveys','settings']
+    more:      ['community','surveys','content','settings']
 };
 
 // שמירת האב המקורי של כל dropdown לצורך החזרה
@@ -28087,7 +28091,7 @@ const BUSINESS_TYPES = [
     { id: 'sport',              name: 'ספורט / כושר',           icon: '🏋️', modules: ['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts'] },
     { id: 'events',             name: 'אירועים / הפקות',       icon: '🎉', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','budget','equipment','shifts','shop'] },
     { id: 'food_production',    name: 'ייצור מזון',             icon: '🏭', modules: ['feed','pantry','shop','sales','customers','tasks','members','shifts','timeclock','cashflow','equipment','deliveries','foodcost'] },
-    { id: 'professional',       name: 'מקצועי / ייעוץ',         icon: '👔', modules: ['feed','sales','customers','cases','timelog','calendar','tasks','cashflow','budget','members','timeclock','bank','shop'] },
+    { id: 'professional',       name: 'מקצועי / ייעוץ',         icon: '👔', modules: ['feed','sales','customers','cases','leads','timelog','calendar','tasks','cashflow','budget','members','timeclock','bank','shop','content'] },
     { id: 'other',              name: 'אחר / כללי',             icon: '🏢', modules: null }
 ];
 
@@ -28212,7 +28216,7 @@ function applyBusinessTypeFilter() {
             logistics:      { customers: 'לקוחות 🤝' },
             construction:   { customers: 'לקוחות 🤝', calendar: 'לוח פרויקטים 📅' },
             events:         { customers: 'לקוחות 🤝', calendar: 'יומן אירועים 📅', sales: 'מכירות אירועים 🛍️' },
-            professional:   { customers: 'לקוחות 🤝', calendar: 'יומן פגישות 📅', sales: 'לידים ומכירות 📊', cases: 'תיקים 📁', timelog: 'שעות עבודה ⏱️' },
+            professional:   { customers: 'לקוחות 🤝', calendar: 'יומן פגישות 📅', sales: 'לידים ומכירות 📊', cases: 'תיקים 📁', timelog: 'שעות עבודה ⏱️', content: 'אתר תדמית 🌐', leads: 'פניות נכנסות 📥' },
         };
         const renames = TAB_RENAME[bizType] || {};
         Object.entries(renames).forEach(([tabId, label]) => {
@@ -42899,4 +42903,298 @@ window.createInvoiceFromTimelog = async function() {
 
 // ============================================================
 // ===== END PROFESSIONAL MODULE =====
+// ============================================================
+
+// ============================================================
+// ===== PROFESSIONAL CONTENT & LEADS MODULES =====
+// ============================================================
+
+// ─── ניהול תוכן האתר (Content Management) ──────────────────
+window.renderProfessionalContentTab = async function() {
+    const el = document.getElementById('content-content');
+    if (!el) return;
+    el.innerHTML = '<div class="flex justify-center py-10"><div class="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>';
+    try {
+        const [contentRes, expertiseRes, articlesRes] = await Promise.all([
+            fetch(`${API}/professional-content/${currentGroup.id}`),
+            fetch(`${API}/professional-expertise/${currentGroup.id}`),
+            fetch(`${API}/professional-articles/${currentGroup.id}`)
+        ]);
+        const content = (await contentRes.json()).content || {};
+        const expertise = (await expertiseRes.json()).items || [];
+        const articles = (await articlesRes.json()).articles || [];
+
+        el.innerHTML = `
+        <div class="pb-20">
+            <div class="bg-gradient-to-r from-slate-800 to-indigo-900 rounded-[2rem] p-5 text-white shadow-xl mb-4 relative overflow-hidden">
+                <h2 class="text-lg font-black mb-1">אתר תדמית 🌐</h2>
+                <p class="text-slate-300 text-xs">ניהול תוכן האתר הציבורי שלך</p>
+                <a href="/storefront.html?store=${currentGroup.group_code}" target="_blank" class="inline-flex items-center gap-1 mt-3 bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-2 rounded-xl transition">
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> צפה באתר הציבורי
+                </a>
+            </div>
+
+            <!-- Sub-tabs -->
+            <div class="flex gap-2 mb-4 overflow-x-auto pb-1">
+                ${['hero','expertise','articles','about'].map((t,i) => `
+                <button onclick="window.switchProfContentTab('${t}')" id="pc-tab-${t}" class="pc-tab text-xs font-bold px-4 py-2 rounded-full border whitespace-nowrap transition ${i===0?'bg-indigo-600 text-white border-indigo-600':'bg-white text-slate-500 border-slate-200'}">
+                    ${{hero:'Hero / כותרת',expertise:'תחומי עיסוק',articles:'מאמרים',about:'אודות'}[t]}
+                </button>`).join('')}
+            </div>
+
+            <!-- HERO tab -->
+            <div id="pc-section-hero">
+                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
+                    <p class="text-xs font-bold text-slate-500">כותרת ראשית (עברית)</p>
+                    <input id="pc-hero-title-he" type="text" value="${safeStr(content.hero_title_he||'')}" placeholder="לדוג׳: משרד עורכי דין X" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                    <p class="text-xs font-bold text-slate-500">כותרת ראשית (English)</p>
+                    <input id="pc-hero-title-en" type="text" value="${safeStr(content.hero_title_en||'')}" placeholder="e.g. Law Firm X" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400" dir="ltr">
+                    <p class="text-xs font-bold text-slate-500">תת-כותרת (עברית)</p>
+                    <textarea id="pc-hero-sub-he" rows="2" placeholder="תיאור קצר של העסק..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 resize-none">${safeStr(content.hero_subtitle_he||'')}</textarea>
+                    <p class="text-xs font-bold text-slate-500">תת-כותרת (English)</p>
+                    <textarea id="pc-hero-sub-en" rows="2" dir="ltr" placeholder="Brief description..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 resize-none">${safeStr(content.hero_subtitle_en||'')}</textarea>
+                    <p class="text-xs font-bold text-slate-500">כפתור CTA (עברית)</p>
+                    <input id="pc-cta-he" type="text" value="${safeStr(content.cta_text_he||'צור קשר לייעוץ')}" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                    <p class="text-xs font-bold text-slate-500">כפתור CTA (English)</p>
+                    <input id="pc-cta-en" type="text" value="${safeStr(content.cta_text_en||'Contact Us')}" dir="ltr" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                    <button onclick="window.saveProfContentHero()" class="w-full bg-indigo-600 text-white rounded-xl py-2.5 font-bold text-sm hover:bg-indigo-700 transition">שמור כותרת</button>
+                </div>
+            </div>
+
+            <!-- EXPERTISE tab -->
+            <div id="pc-section-expertise" class="hidden">
+                <button onclick="window.openAddExpertise()" class="w-full bg-indigo-600 text-white rounded-2xl py-3 font-bold text-sm mb-3 hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-plus"></i> הוסף תחום עיסוק
+                </button>
+                <div id="pc-expertise-list">
+                    ${expertise.length===0?'<p class="text-center text-slate-400 text-sm py-6">אין תחומי עיסוק — הוסף את הראשון</p>':
+                    expertise.map(x=>`
+                    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-3.5 mb-2 flex items-center justify-between">
+                        <div>
+                            <p class="font-bold text-slate-800 text-sm">${x.icon||'⚖️'} ${safeStr(x.title_he||'')}</p>
+                            ${x.title_en?`<p class="text-xs text-slate-400">${safeStr(x.title_en)}</p>`:''}
+                        </div>
+                        <button onclick="window.deleteExpertise(${x.id})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash text-sm"></i></button>
+                    </div>`).join('')}
+                </div>
+            </div>
+
+            <!-- ARTICLES tab -->
+            <div id="pc-section-articles" class="hidden">
+                <button onclick="window.openAddArticle()" class="w-full bg-indigo-600 text-white rounded-2xl py-3 font-bold text-sm mb-3 hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-plus"></i> הוסף מאמר / עדכון
+                </button>
+                <div id="pc-articles-list">
+                    ${articles.length===0?'<p class="text-center text-slate-400 text-sm py-6">אין מאמרים עדיין</p>':
+                    articles.map(a=>`
+                    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-3.5 mb-2">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1 pr-2">
+                                <p class="font-bold text-slate-800 text-sm">${safeStr(a.title_he||'')}</p>
+                                ${a.title_en?`<p class="text-xs text-slate-400">${safeStr(a.title_en)}</p>`:''}
+                                <p class="text-[10px] text-slate-400 mt-1">${new Date(a.created_at).toLocaleDateString('he-IL')} • ${a.is_published?'<span class="text-green-600 font-bold">פורסם</span>':'<span class="text-amber-600 font-bold">טיוטה</span>'}</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="window.toggleArticlePublish(${a.id},${!a.is_published})" class="text-xs font-bold px-2 py-1 rounded-lg border ${a.is_published?'border-amber-200 text-amber-600':'border-green-200 text-green-600'}">${a.is_published?'הסתר':'פרסם'}</button>
+                                <button onclick="window.deleteArticle(${a.id})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash text-sm"></i></button>
+                            </div>
+                        </div>
+                    </div>`).join('')}
+                </div>
+            </div>
+
+            <!-- ABOUT tab -->
+            <div id="pc-section-about" class="hidden">
+                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
+                    <p class="text-xs font-bold text-slate-500">טקסט אודות (עברית)</p>
+                    <textarea id="pc-about-he" rows="5" placeholder="ספר על העסק, הניסיון, הגישה..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 resize-none">${safeStr(content.about_text_he||'')}</textarea>
+                    <p class="text-xs font-bold text-slate-500">טקסט אודות (English)</p>
+                    <textarea id="pc-about-en" rows="5" dir="ltr" placeholder="About us..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 resize-none">${safeStr(content.about_text_en||'')}</textarea>
+                    <button onclick="window.saveProfContentAbout()" class="w-full bg-indigo-600 text-white rounded-xl py-2.5 font-bold text-sm hover:bg-indigo-700 transition">שמור אודות</button>
+                </div>
+            </div>
+        </div>`;
+    } catch(e) { el.innerHTML = '<p class="text-center text-red-400 py-8">שגיאה בטעינת ניהול התוכן</p>'; }
+};
+
+window.switchProfContentTab = function(tab) {
+    ['hero','expertise','articles','about'].forEach(t => {
+        const s = document.getElementById(`pc-section-${t}`);
+        const b = document.getElementById(`pc-tab-${t}`);
+        if (s) s.classList.toggle('hidden', t!==tab);
+        if (b) {
+            b.classList.toggle('bg-indigo-600', t===tab); b.classList.toggle('text-white', t===tab); b.classList.toggle('border-indigo-600', t===tab);
+            b.classList.toggle('bg-white', t!==tab); b.classList.toggle('text-slate-500', t!==tab); b.classList.toggle('border-slate-200', t!==tab);
+        }
+    });
+};
+
+window.saveProfContentHero = async function() {
+    const body = {
+        hero_title_he: document.getElementById('pc-hero-title-he')?.value?.trim(),
+        hero_title_en: document.getElementById('pc-hero-title-en')?.value?.trim(),
+        hero_subtitle_he: document.getElementById('pc-hero-sub-he')?.value?.trim(),
+        hero_subtitle_en: document.getElementById('pc-hero-sub-en')?.value?.trim(),
+        cta_text_he: document.getElementById('pc-cta-he')?.value?.trim(),
+        cta_text_en: document.getElementById('pc-cta-en')?.value?.trim()
+    };
+    try {
+        const res = await fetch(`${API}/professional-content/${currentGroup.id}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        if (!res.ok) throw new Error();
+        showToast('success','כותרת האתר עודכנה');
+    } catch(e) { showToast('error','שגיאה בשמירה'); }
+};
+
+window.saveProfContentAbout = async function() {
+    const body = { about_text_he: document.getElementById('pc-about-he')?.value?.trim(), about_text_en: document.getElementById('pc-about-en')?.value?.trim() };
+    try {
+        const res = await fetch(`${API}/professional-content/${currentGroup.id}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        if (!res.ok) throw new Error();
+        showToast('success','טקסט אודות עודכן');
+    } catch(e) { showToast('error','שגיאה בשמירה'); }
+};
+
+window.openAddExpertise = function() {
+    const icons = ['⚖️','💼','📊','🏛️','🔍','📋','💡','🤝','📝','🏆','🎯','🔑'];
+    const html = `<div id="add-expertise-modal" class="fixed inset-0 bg-slate-900/60 z-[9999] flex items-end justify-center" style="direction:rtl;">
+        <div class="bg-white w-full max-w-md rounded-t-3xl shadow-2xl p-5">
+            <h3 class="font-black text-slate-800 text-base mb-4">הוסף תחום עיסוק</h3>
+            <div class="space-y-3">
+                <div>
+                    <p class="text-xs font-bold text-slate-500 mb-1">אייקון</p>
+                    <div class="flex flex-wrap gap-2">${icons.map(ic=>`<button onclick="document.getElementById('exp-icon').value='${ic}'; this.closest('.flex').querySelectorAll('button').forEach(b=>b.classList.remove('bg-indigo-100','border-indigo-400')); this.classList.add('bg-indigo-100','border-indigo-400')" class="w-8 h-8 border border-slate-200 rounded-lg text-lg flex items-center justify-center hover:bg-indigo-50 transition">${ic}</button>`).join('')}
+                    <input id="exp-icon" type="hidden" value="⚖️"></div>
+                </div>
+                <input id="exp-title-he" type="text" placeholder="שם התחום (עברית)" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                <input id="exp-title-en" type="text" placeholder="Field name (English)" dir="ltr" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                <textarea id="exp-desc-he" rows="2" placeholder="תיאור קצר..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 resize-none"></textarea>
+                <div class="flex gap-2">
+                    <button onclick="document.getElementById('add-expertise-modal').remove()" class="flex-1 border border-slate-200 text-slate-600 rounded-xl py-2.5 font-bold text-sm">ביטול</button>
+                    <button onclick="window.saveExpertise()" class="flex-1 bg-indigo-600 text-white rounded-xl py-2.5 font-bold text-sm hover:bg-indigo-700 transition">הוסף</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.saveExpertise = async function() {
+    const body = { icon: document.getElementById('exp-icon')?.value||'⚖️', title_he: document.getElementById('exp-title-he')?.value?.trim(), title_en: document.getElementById('exp-title-en')?.value?.trim(), description_he: document.getElementById('exp-desc-he')?.value?.trim() };
+    if (!body.title_he) { showToast('error','הזן שם תחום'); return; }
+    try {
+        const res = await fetch(`${API}/professional-expertise/${currentGroup.id}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        if (!res.ok) throw new Error();
+        document.getElementById('add-expertise-modal')?.remove();
+        showToast('success','תחום עיסוק נוסף');
+        renderProfessionalContentTab();
+    } catch(e) { showToast('error','שגיאה בשמירה'); }
+};
+
+window.deleteExpertise = async function(id) {
+    if (!await window._uiConfirm('למחוק תחום עיסוק זה?')) return;
+    try {
+        await fetch(`${API}/professional-expertise/${id}`, { method:'DELETE' });
+        showToast('success','נמחק');
+        renderProfessionalContentTab();
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+window.openAddArticle = function() {
+    const html = `<div id="add-article-modal" class="fixed inset-0 bg-slate-900/60 z-[9999] flex items-end justify-center" style="direction:rtl;">
+        <div class="bg-white w-full max-w-md rounded-t-3xl shadow-2xl p-5 max-h-[90vh] overflow-y-auto">
+            <h3 class="font-black text-slate-800 text-base mb-4">הוסף מאמר / עדכון</h3>
+            <div class="space-y-3">
+                <input id="art-title-he" type="text" placeholder="כותרת (עברית)" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                <input id="art-title-en" type="text" placeholder="Title (English)" dir="ltr" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                <textarea id="art-content-he" rows="5" placeholder="תוכן המאמר בעברית..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 resize-none"></textarea>
+                <textarea id="art-content-en" rows="4" dir="ltr" placeholder="Article content in English..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 resize-none"></textarea>
+                <input id="art-tags" type="text" placeholder="תגיות (מופרד בפסיקים)" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                <label class="flex items-center gap-2 text-sm font-medium"><input id="art-publish" type="checkbox" checked class="w-4 h-4 accent-indigo-600"> פרסם מיד</label>
+                <div class="flex gap-2">
+                    <button onclick="document.getElementById('add-article-modal').remove()" class="flex-1 border border-slate-200 text-slate-600 rounded-xl py-2.5 font-bold text-sm">ביטול</button>
+                    <button onclick="window.saveArticle()" class="flex-1 bg-indigo-600 text-white rounded-xl py-2.5 font-bold text-sm hover:bg-indigo-700 transition">שמור</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.saveArticle = async function() {
+    const body = { title_he: document.getElementById('art-title-he')?.value?.trim(), title_en: document.getElementById('art-title-en')?.value?.trim(), content_he: document.getElementById('art-content-he')?.value?.trim(), content_en: document.getElementById('art-content-en')?.value?.trim(), tags: document.getElementById('art-tags')?.value?.trim(), is_published: document.getElementById('art-publish')?.checked };
+    if (!body.title_he) { showToast('error','הזן כותרת'); return; }
+    try {
+        const res = await fetch(`${API}/professional-articles/${currentGroup.id}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        if (!res.ok) throw new Error();
+        document.getElementById('add-article-modal')?.remove();
+        showToast('success','מאמר נשמר');
+        renderProfessionalContentTab();
+    } catch(e) { showToast('error','שגיאה בשמירה'); }
+};
+
+window.toggleArticlePublish = async function(id, publish) {
+    try {
+        await fetch(`${API}/professional-articles/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ is_published: publish }) });
+        showToast('success', publish?'פורסם':'הוסתר');
+        renderProfessionalContentTab();
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+window.deleteArticle = async function(id) {
+    if (!await window._uiConfirm('למחוק מאמר זה?')) return;
+    try { await fetch(`${API}/professional-articles/${id}`, { method:'DELETE' }); showToast('success','נמחק'); renderProfessionalContentTab(); } catch(e) { showToast('error','שגיאה'); }
+};
+
+// ─── פניות נכנסות (Leads) ────────────────────────────────────
+window.renderProfessionalLeadsTab = async function() {
+    const el = document.getElementById('content-leads');
+    if (!el) return;
+    el.innerHTML = '<div class="flex justify-center py-10"><div class="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>';
+    try {
+        const res = await fetch(`${API}/professional-leads/${currentGroup.id}`);
+        const data = await res.json();
+        const leads = data.leads || [];
+        const statusLabel = { new:'חדש', contacted:'נוצר קשר', converted:'הפך לקוח', closed:'נסגר' };
+        const statusColor = { new:'bg-blue-100 text-blue-700', contacted:'bg-amber-100 text-amber-700', converted:'bg-green-100 text-green-700', closed:'bg-slate-100 text-slate-500' };
+        el.innerHTML = `
+        <div class="pb-20">
+            <div class="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-[2rem] p-5 text-white shadow-xl mb-4">
+                <h2 class="text-lg font-black mb-1">פניות נכנסות 📥</h2>
+                <p class="text-blue-200 text-xs">פניות שהגיעו מהאתר הציבורי</p>
+                <div class="flex gap-3 mt-3">
+                    <div class="bg-white/10 rounded-xl px-3 py-2 text-center"><div class="text-xl font-black">${leads.filter(l=>l.status==='new').length}</div><div class="text-[10px] text-blue-200">חדשות</div></div>
+                    <div class="bg-white/10 rounded-xl px-3 py-2 text-center"><div class="text-xl font-black">${leads.length}</div><div class="text-[10px] text-blue-200">סה"כ</div></div>
+                </div>
+            </div>
+            ${leads.length===0?`<div class="text-center py-12 text-slate-400"><i class="fa-solid fa-inbox text-4xl mb-3 text-slate-200"></i><p class="font-medium">אין פניות עדיין</p><p class="text-xs mt-1">פניות מהאתר יופיעו כאן</p></div>`:
+            leads.map(l=>`
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-3">
+                <div class="flex items-start justify-between mb-2">
+                    <div>
+                        <p class="font-bold text-slate-800">${safeStr(l.name||'')}</p>
+                        <p class="text-xs text-slate-400 mt-0.5">${safeStr(l.subject||'')} • ${new Date(l.created_at).toLocaleDateString('he-IL')}</p>
+                    </div>
+                    <select onchange="window.updateLeadStatus(${l.id},this.value)" class="text-xs font-bold px-2 py-1 rounded-lg border ${statusColor[l.status||'new']||statusColor.new} outline-none">
+                        ${Object.entries(statusLabel).map(([k,v])=>`<option value="${k}" ${l.status===k?'selected':''}>${v}</option>`).join('')}
+                    </select>
+                </div>
+                ${l.message?`<p class="text-xs text-slate-600 bg-slate-50 rounded-xl p-2.5 mb-2 leading-relaxed">"${safeStr(l.message)}"</p>`:''}
+                <div class="flex items-center gap-3 text-xs">
+                    ${l.phone?`<a href="tel:${safeStr(l.phone)}" class="text-blue-600 font-bold flex items-center gap-1"><i class="fa-solid fa-phone"></i>${safeStr(l.phone)}</a>`:''}
+                    ${l.email?`<a href="mailto:${safeStr(l.email)}" class="text-indigo-600 font-bold flex items-center gap-1"><i class="fa-solid fa-envelope"></i>${safeStr(l.email)}</a>`:''}
+                </div>
+            </div>`).join('')}
+        </div>`;
+    } catch(e) { el.innerHTML = '<p class="text-center text-red-400 py-8">שגיאה בטעינת הפניות</p>'; }
+};
+
+window.updateLeadStatus = async function(id, status) {
+    try {
+        await fetch(`${API}/professional-leads/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
+        showToast('success','סטטוס עודכן');
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+// ============================================================
+// ===== END PROFESSIONAL CONTENT & LEADS MODULES =====
 // ============================================================

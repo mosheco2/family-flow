@@ -820,6 +820,49 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       )`); } catch(e) {}
       // ===== END PROFESSIONAL / TIMELOG MODULE =====
 
+      // ===== PROFESSIONAL WEBSITE CONTENT MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS professional_content (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL UNIQUE,
+          hero_title_he TEXT, hero_title_en TEXT,
+          hero_subtitle_he TEXT, hero_subtitle_en TEXT,
+          cta_text_he VARCHAR(200) DEFAULT 'צור קשר לייעוץ',
+          cta_text_en VARCHAR(200) DEFAULT 'Contact Us',
+          about_text_he TEXT, about_text_en TEXT,
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS professional_expertise (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          icon VARCHAR(10) DEFAULT '⚖️',
+          title_he VARCHAR(200), title_en VARCHAR(200),
+          description_he TEXT, description_en TEXT,
+          sort_order INT DEFAULT 0,
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS professional_articles (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          title_he VARCHAR(500), title_en VARCHAR(500),
+          content_he TEXT, content_en TEXT,
+          tags VARCHAR(500),
+          is_published BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS professional_leads (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          name VARCHAR(200),
+          phone VARCHAR(50),
+          email VARCHAR(200),
+          subject VARCHAR(300),
+          message TEXT,
+          status VARCHAR(30) DEFAULT 'new',
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      // ===== END PROFESSIONAL WEBSITE CONTENT MODULE =====
+
       // ===== SPORT / FITNESS MODULE =====
       try { await client.query(`CREATE TABLE IF NOT EXISTS sport_membership_types (
           id SERIAL PRIMARY KEY,
@@ -12274,6 +12317,109 @@ app.delete('/api/timelog/entry/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 // ===== END TIMELOG API =====
+
+// ===== PROFESSIONAL WEBSITE CONTENT API =====
+// Content (hero, about)
+app.get('/api/professional-content/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM professional_content WHERE group_id=$1', [req.params.groupId]);
+        res.json({ content: r.rows[0] || {} });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/professional-content/:groupId', async (req, res) => {
+    try {
+        const fields = ['hero_title_he','hero_title_en','hero_subtitle_he','hero_subtitle_en','cta_text_he','cta_text_en','about_text_he','about_text_en'];
+        const vals = fields.map(f => req.body[f] ?? null);
+        await pool.query(
+            `INSERT INTO professional_content (group_id,${fields.join(',')},updated_at) VALUES ($1,${fields.map((_,i)=>`$${i+2}`)},NOW())
+             ON CONFLICT (group_id) DO UPDATE SET ${fields.map((f,i)=>`${f}=COALESCE($${i+2},professional_content.${f})`).join(',')},updated_at=NOW()`,
+            [req.params.groupId, ...vals]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Expertise areas
+app.get('/api/professional-expertise/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM professional_expertise WHERE group_id=$1 AND is_active=TRUE ORDER BY sort_order,id', [req.params.groupId]);
+        res.json({ items: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/professional-expertise/:groupId', async (req, res) => {
+    try {
+        const { icon, title_he, title_en, description_he, description_en } = req.body;
+        const r = await pool.query(
+            `INSERT INTO professional_expertise (group_id,icon,title_he,title_en,description_he,description_en) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [req.params.groupId, icon||'⚖️', title_he||null, title_en||null, description_he||null, description_en||null]
+        );
+        res.json({ item: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/professional-expertise/:id', async (req, res) => {
+    try { await pool.query('UPDATE professional_expertise SET is_active=FALSE WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Articles
+app.get('/api/professional-articles/:groupId', async (req, res) => {
+    try {
+        const onlyPublished = req.query.published === '1';
+        const r = await pool.query(
+            `SELECT * FROM professional_articles WHERE group_id=$1 ${onlyPublished?'AND is_published=TRUE':''} ORDER BY created_at DESC`,
+            [req.params.groupId]
+        );
+        res.json({ articles: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/professional-articles/:groupId', async (req, res) => {
+    try {
+        const { title_he, title_en, content_he, content_en, tags, is_published } = req.body;
+        const r = await pool.query(
+            `INSERT INTO professional_articles (group_id,title_he,title_en,content_he,content_en,tags,is_published) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+            [req.params.groupId, title_he||null, title_en||null, content_he||null, content_en||null, tags||null, is_published||false]
+        );
+        res.json({ article: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.patch('/api/professional-articles/:id', async (req, res) => {
+    try {
+        const { is_published } = req.body;
+        await pool.query('UPDATE professional_articles SET is_published=$1 WHERE id=$2', [is_published, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/professional-articles/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM professional_articles WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Leads (contact form submissions)
+app.get('/api/professional-leads/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM professional_leads WHERE group_id=$1 ORDER BY created_at DESC LIMIT 200', [req.params.groupId]);
+        res.json({ leads: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/professional-leads/:groupId', async (req, res) => {
+    try {
+        const { name, phone, email, subject, message } = req.body;
+        if (!name && !phone && !email) return res.status(400).json({ error: 'פרטים חסרים' });
+        const r = await pool.query(
+            `INSERT INTO professional_leads (group_id,name,phone,email,subject,message) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [req.params.groupId, name||null, phone||null, email||null, subject||null, message||null]
+        );
+        res.json({ lead: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.patch('/api/professional-leads/:id', async (req, res) => {
+    try {
+        const { status } = req.body;
+        await pool.query('UPDATE professional_leads SET status=$1 WHERE id=$2', [status, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+// ===== END PROFESSIONAL WEBSITE CONTENT API =====
 
 // קבלת תחנות תשלום לקריאת שירות
 app.get('/api/service-calls/:id/payments', async (req, res) => {

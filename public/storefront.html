@@ -676,6 +676,14 @@
                     }
                 } catch(e) { console.warn("Failed loading promotions", e); }
 
+                // Professional business type → render branding site instead of store
+                const _btype = data.businessType || data.business_type || '';
+                if (_btype === 'professional') {
+                    await renderProfessionalSite(data);
+                    getEl('loading-screen').classList.add('hidden');
+                    return;
+                }
+
                 window.renderHeader();
                 window.extractCategories();
                 window.renderPromotionsBanner();
@@ -692,6 +700,195 @@
             }
         }
         
+// ==========================================
+        // --- אתר תדמית מקצועי ---
+        // ==========================================
+        async function renderProfessionalSite(data) {
+            const lang = (new URLSearchParams(window.location.search).get('lang') || 'he');
+            const isEn = lang === 'en';
+            const dir = isEn ? 'ltr' : 'rtl';
+            const groupId = data.groupId;
+            const settings = data.settings || {};
+            const primaryColor = settings.primary_color || '#1e3a5f';
+            const bizName = isEn ? (settings.name_en || data.groupName) : (data.groupName || settings.name_he || '');
+            const logoUrl = settings.logo_url || settings.logo || '';
+            const phone = settings.phone || '';
+            const catalog = data.catalog || [];
+
+            // Fetch content
+            let content = {}, expertise = [], articles = [], hasProducts = catalog.filter(p=>p.is_available).length > 0;
+            try {
+                const [cr, er, ar] = await Promise.all([
+                    fetch(`${API}/professional-content/${groupId}`),
+                    fetch(`${API}/professional-expertise/${groupId}`),
+                    fetch(`${API}/professional-articles/${groupId}?published=1`)
+                ]);
+                content = (await cr.json()).content || {};
+                expertise = (await er.json()).items || [];
+                articles = (await ar.json()).articles || [];
+            } catch(e) {}
+
+            const heroTitle = isEn ? (content.hero_title_en || bizName) : (content.hero_title_he || bizName);
+            const heroSub = isEn ? (content.hero_subtitle_en || '') : (content.hero_subtitle_he || '');
+            const ctaText = isEn ? (content.cta_text_en || 'Contact Us') : (content.cta_text_he || 'צור קשר לייעוץ');
+            const aboutText = isEn ? (content.about_text_en || '') : (content.about_text_he || '');
+
+            document.title = heroTitle || 'אתר מקצועי';
+            document.documentElement.dir = dir;
+            document.documentElement.lang = lang;
+
+            const expertiseHtml = expertise.length === 0 ? '' : `
+            <section class="py-14 px-5 bg-slate-50" id="expertise">
+                <div class="max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-black text-slate-800 mb-2 text-center">${isEn?'Areas of Expertise':'תחומי עיסוק'}</h2>
+                    <div class="w-12 h-1 rounded-full mx-auto mb-8" style="background:${primaryColor}"></div>
+                    <div class="grid grid-cols-2 gap-3">
+                        ${expertise.map(x=>`
+                        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 hover:shadow-md transition">
+                            <div class="text-3xl mb-2">${x.icon||'⚖️'}</div>
+                            <h3 class="font-bold text-slate-800 text-sm">${isEn?(x.title_en||x.title_he||''):(x.title_he||'')}</h3>
+                            ${(isEn?x.description_en:x.description_he)?`<p class="text-xs text-slate-500 mt-1 leading-relaxed">${isEn?(x.description_en||''):(x.description_he||'')}</p>`:''}
+                        </div>`).join('')}
+                    </div>
+                </div>
+            </section>`;
+
+            const articlesHtml = articles.length === 0 ? '' : `
+            <section class="py-14 px-5 bg-white" id="articles">
+                <div class="max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-black text-slate-800 mb-2 text-center">${isEn?'Insights & Updates':'מאמרים ועדכונים'}</h2>
+                    <div class="w-12 h-1 rounded-full mx-auto mb-8" style="background:${primaryColor}"></div>
+                    <div class="space-y-4">
+                        ${articles.slice(0,3).map(a=>`
+                        <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100 cursor-pointer hover:shadow-sm transition" onclick="this.querySelector('.art-body').classList.toggle('hidden')">
+                            <h3 class="font-bold text-slate-800 text-sm mb-1">${isEn?(a.title_en||a.title_he||''):(a.title_he||'')}</h3>
+                            <p class="text-[10px] text-slate-400 mb-2">${new Date(a.created_at).toLocaleDateString(isEn?'en-GB':'he-IL')}</p>
+                            <div class="art-body hidden text-xs text-slate-600 leading-relaxed">${(isEn?(a.content_en||a.content_he||''):(a.content_he||'')).replace(/\n/g,'<br>')}</div>
+                        </div>`).join('')}
+                    </div>
+                </div>
+            </section>`;
+
+            const aboutHtml = aboutText ? `
+            <section class="py-14 px-5 bg-slate-50" id="about">
+                <div class="max-w-2xl mx-auto text-center">
+                    <h2 class="text-2xl font-black text-slate-800 mb-2">${isEn?'About Us':'אודות'}</h2>
+                    <div class="w-12 h-1 rounded-full mx-auto mb-6" style="background:${primaryColor}"></div>
+                    <p class="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">${aboutText}</p>
+                </div>
+            </section>` : '';
+
+            const productsHtml = hasProducts ? `
+            <section class="py-14 px-5 bg-white" id="services">
+                <div class="max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-black text-slate-800 mb-2 text-center">${isEn?'Services':'שירותים'}</h2>
+                    <div class="w-12 h-1 rounded-full mx-auto mb-8" style="background:${primaryColor}"></div>
+                    <div class="grid grid-cols-1 gap-3">
+                        ${catalog.filter(p=>p.is_available).map(p=>`
+                        <div class="bg-slate-50 rounded-2xl border border-slate-100 p-4 flex items-center justify-between">
+                            <div>
+                                <p class="font-bold text-slate-800 text-sm">${p.name||''}</p>
+                                ${p.description?`<p class="text-xs text-slate-500 mt-0.5">${p.description}</p>`:''}
+                            </div>
+                            ${parseFloat(p.price)>0?`<span class="font-black text-slate-700 text-sm">₪${parseFloat(p.price).toFixed(0)}</span>`:''}
+                        </div>`).join('')}
+                    </div>
+                </div>
+            </section>` : '';
+
+            const html = `
+            <div id="prof-site" style="direction:${dir}; font-family:'Heebo',sans-serif;" class="max-w-xl mx-auto min-h-screen bg-white shadow-2xl">
+                <!-- Language switcher -->
+                <div class="flex justify-end px-4 py-2 bg-white border-b border-slate-100 text-xs gap-2">
+                    <a href="?store=${new URLSearchParams(window.location.search).get('store')}&lang=he" class="${!isEn?'font-black text-slate-800':'text-slate-400'}">עב</a>
+                    <span class="text-slate-200">|</span>
+                    <a href="?store=${new URLSearchParams(window.location.search).get('store')}&lang=en" class="${isEn?'font-black text-slate-800':'text-slate-400'}">EN</a>
+                </div>
+
+                <!-- Header -->
+                <header class="text-white px-5 pt-10 pb-8 text-center relative overflow-hidden" style="background:linear-gradient(135deg,${primaryColor} 0%,#0f172a 100%)">
+                    <div class="absolute inset-0 opacity-10" style="background:repeating-linear-gradient(45deg,transparent,transparent 20px,rgba(255,255,255,.05) 20px,rgba(255,255,255,.05) 40px)"></div>
+                    ${logoUrl?`<img src="${logoUrl}" class="w-16 h-16 rounded-2xl object-cover mx-auto mb-4 shadow-lg border-2 border-white/20" onerror="this.style.display='none'">`:''}
+                    <h1 class="text-2xl font-black mb-2 leading-tight">${heroTitle}</h1>
+                    ${heroSub?`<p class="text-sm opacity-80 leading-relaxed mb-4">${heroSub}</p>`:''}
+                    <div class="flex flex-wrap gap-2 justify-center mt-4">
+                        <a href="#contact" class="bg-white font-black text-sm px-6 py-3 rounded-2xl shadow-lg hover:opacity-90 transition" style="color:${primaryColor}">${ctaText}</a>
+                        ${phone?`<a href="tel:${phone}" class="bg-white/20 text-white font-bold text-sm px-5 py-3 rounded-2xl border border-white/30 hover:bg-white/30 transition"><i class="fa-solid fa-phone mr-1"></i>${phone}</a>`:''}
+                    </div>
+                    <!-- Nav anchors -->
+                    <div class="flex flex-wrap justify-center gap-3 mt-6 text-xs opacity-70">
+                        ${expertise.length?`<a href="#expertise" class="hover:opacity-100">${isEn?'Expertise':'תחומים'}</a>`:''}
+                        ${articles.length?`<a href="#articles" class="hover:opacity-100">${isEn?'Articles':'מאמרים'}</a>`:''}
+                        ${aboutText?`<a href="#about" class="hover:opacity-100">${isEn?'About':'אודות'}</a>`:''}
+                        ${hasProducts?`<a href="#services" class="hover:opacity-100">${isEn?'Services':'שירותים'}</a>`:''}
+                        <a href="#contact" class="hover:opacity-100">${isEn?'Contact':'יצירת קשר'}</a>
+                    </div>
+                </header>
+
+                ${expertiseHtml}
+                ${articlesHtml}
+                ${aboutHtml}
+                ${productsHtml}
+
+                <!-- Contact Form -->
+                <section class="py-14 px-5 bg-white" id="contact">
+                    <div class="max-w-2xl mx-auto">
+                        <h2 class="text-2xl font-black text-slate-800 mb-2 text-center">${isEn?'Contact Us':'יצירת קשר'}</h2>
+                        <div class="w-12 h-1 rounded-full mx-auto mb-8" style="background:${primaryColor}"></div>
+                        <div id="contact-form-wrap" class="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-3">
+                            <input id="cf-name" type="text" placeholder="${isEn?'Full Name':'שם מלא'}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 bg-white">
+                            <input id="cf-phone" type="tel" placeholder="${isEn?'Phone':'טלפון'}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 bg-white">
+                            <input id="cf-email" type="email" placeholder="${isEn?'Email (optional)':'אימייל (אופציונלי)'}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 bg-white">
+                            ${expertise.length>0?`<select id="cf-subject" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 bg-white text-slate-600">
+                                <option value="">${isEn?'Subject / Area of interest':'נושא / תחום עניין'}</option>
+                                ${expertise.map(x=>`<option>${isEn?(x.title_en||x.title_he||''):(x.title_he||'')}</option>`).join('')}
+                                <option>${isEn?'Other':'אחר'}</option>
+                            </select>`:''}
+                            <textarea id="cf-message" rows="3" placeholder="${isEn?'Message (optional)':'הודעה קצרה (אופציונלי)'}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 bg-white resize-none"></textarea>
+                            <button onclick="submitProfContact(${groupId},'${lang}')" class="w-full text-white font-black py-3.5 rounded-2xl text-sm shadow-md hover:opacity-90 transition" style="background:${primaryColor}">${ctaText}</button>
+                        </div>
+                        ${phone?`<div class="text-center mt-6"><a href="tel:${phone}" class="inline-flex items-center gap-2 font-bold text-slate-700 text-sm hover:opacity-70 transition"><i class="fa-solid fa-phone text-lg" style="color:${primaryColor}"></i>${phone}</a></div>`:''}
+                    </div>
+                </section>
+
+                <!-- Footer -->
+                <footer class="py-8 text-center text-xs text-slate-400 border-t border-slate-100">
+                    <p class="font-medium">${heroTitle}</p>
+                    <p class="mt-1 opacity-60">Powered by Oneflow Life</p>
+                </footer>
+            </div>`;
+
+            document.body.innerHTML = html;
+        }
+
+        async function submitProfContact(groupId, lang) {
+            const isEn = lang === 'en';
+            const name = document.getElementById('cf-name')?.value?.trim();
+            const phone = document.getElementById('cf-phone')?.value?.trim();
+            const email = document.getElementById('cf-email')?.value?.trim();
+            const subject = document.getElementById('cf-subject')?.value?.trim();
+            const message = document.getElementById('cf-message')?.value?.trim();
+            if (!name && !phone) {
+                alert(isEn ? 'Please enter name or phone' : 'נא להזין שם או טלפון');
+                return;
+            }
+            try {
+                const res = await fetch(`${API}/professional-leads/${groupId}`, {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ name, phone, email, subject, message })
+                });
+                if (!res.ok) throw new Error();
+                document.getElementById('contact-form-wrap').innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="text-5xl mb-3">✅</div>
+                        <h3 class="text-lg font-black text-slate-800 mb-2">${isEn?'Thank you!':'תודה רבה!'}</h3>
+                        <p class="text-sm text-slate-500">${isEn?'We will contact you shortly.':'ניצור איתך קשר בהקדם.'}</p>
+                    </div>`;
+            } catch(e) {
+                alert(isEn ? 'Error submitting form. Please try again.' : 'שגיאה בשליחה. נסה שוב.');
+            }
+        }
+
 // ==========================================
         // --- מנגנון קרוסלת מבצעים - חנות ציבורית ---
         // ==========================================
