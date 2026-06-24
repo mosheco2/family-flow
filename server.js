@@ -4933,12 +4933,29 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
         const hfToken = process.env.HF_TOKEN;
         if (!hfToken) return res.json({ success: false, error: 'HF_TOKEN חסר בהגדרות השרת' });
 
-        // בנה prompt ממוקד ספציפי מאוד - צריך להיות שונה בכל פעם
-        let finalPrompt = `product photography, studio photo`;
-        finalPrompt += ` of "${productName}"`;
-        finalPrompt += `. Description: ${description}`;
-        if (category) finalPrompt += `. Type: ${category}`;
-        finalPrompt += `. Requirements: professional studio lighting, bright natural light, clean white background, product centered and focused, high quality commercial photo, photorealistic, 8k resolution, sharp details`;
+        // תרגום לאנגלית לפני שליחה ל-FLUX (המודל לא מבין עברית)
+        let enName = productName;
+        let enDesc = description;
+        let enCat = category || '';
+        if (apiKey) {
+            try {
+                const translatePrompt = `Translate the following food/product info from Hebrew to English for use in an AI image generation prompt. Return ONLY a JSON object with keys "name", "description", "category" — no extra text.\n\nName: ${productName}\nDescription: ${description}\nCategory: ${category || ''}`;
+                const translated = await callGeminiDirect(translatePrompt);
+                const cleaned = translated.replace(/```json|```/g, '').trim();
+                const parsed = JSON.parse(cleaned);
+                if (parsed.name) enName = parsed.name;
+                if (parsed.description) enDesc = parsed.description;
+                if (parsed.category) enCat = parsed.category;
+            } catch(translateErr) {
+                console.log('Translation skipped, using original:', translateErr.message);
+            }
+        }
+
+        // בנה prompt אנגלי ממוקד
+        let finalPrompt = `product photography, studio photo of ${enName}`;
+        finalPrompt += `. ${enDesc}`;
+        if (enCat) finalPrompt += `. Category: ${enCat}`;
+        finalPrompt += `. Professional studio lighting, bright natural light, clean white background, product centered and focused, high quality commercial photo, photorealistic, 8k resolution, sharp details, appetizing presentation`;
 
         const hfEndpoint = `https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell`;
         let hfRes;
