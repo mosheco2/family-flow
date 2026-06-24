@@ -713,6 +713,7 @@
             const bizName = isEn ? (settings.name_en || data.groupName) : (data.groupName || settings.name_he || '');
             const logoUrl = settings.logo_url || settings.logo || '';
             const phone = settings.phone || '';
+            const bannerUrl = settings.banner_url && settings.banner_url !== 'DELETE' && settings.banner_url !== 'null' ? settings.banner_url : '';
             const catalog = data.catalog || [];
 
             // Fetch content
@@ -806,8 +807,8 @@
                 </div>
 
                 <!-- Header -->
-                <header class="text-white px-5 pt-10 pb-8 text-center relative overflow-hidden" style="background:linear-gradient(135deg,${primaryColor} 0%,#0f172a 100%)">
-                    <div class="absolute inset-0 opacity-10" style="background:repeating-linear-gradient(45deg,transparent,transparent 20px,rgba(255,255,255,.05) 20px,rgba(255,255,255,.05) 40px)"></div>
+                <header class="text-white px-5 pt-10 pb-8 text-center relative overflow-hidden" style="${bannerUrl ? `background:url('${bannerUrl}') center/cover no-repeat` : `background:linear-gradient(135deg,${primaryColor} 0%,#0f172a 100%)`}">
+                    ${bannerUrl ? `<div class="absolute inset-0" style="background:linear-gradient(135deg,${primaryColor}cc 0%,#0f172acc 100%)"></div>` : `<div class="absolute inset-0 opacity-10" style="background:repeating-linear-gradient(45deg,transparent,transparent 20px,rgba(255,255,255,.05) 20px,rgba(255,255,255,.05) 40px)"></div>`}
                     ${logoUrl?`<img src="${logoUrl}" class="w-16 h-16 rounded-2xl object-cover mx-auto mb-4 shadow-lg border-2 border-white/20" onerror="this.style.display='none'">`:''}
                     <h1 class="text-2xl font-black mb-2 leading-tight">${heroTitle}</h1>
                     ${heroSub?`<p class="text-sm opacity-80 leading-relaxed mb-4">${heroSub}</p>`:''}
