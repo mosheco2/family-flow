@@ -4367,6 +4367,32 @@ window.renderDashboard = async function(forceRefresh = false) {
         return;
     }
 
+    // Professional business type custom dashboard
+    if (currentGroup?.business_type === 'professional' && !window._profDashRendering) {
+        window._profDashRendering = true;
+        let dashEl = document.getElementById('content-role-dashboard');
+        if (!dashEl) {
+            const container = document.getElementById('biz-main-content-wrap');
+            if (container) { dashEl = document.createElement('div'); dashEl.id = 'content-role-dashboard'; dashEl.className = 'px-2'; container.appendChild(dashEl); }
+        }
+        if (dashEl) {
+            dashEl.classList.remove('hidden');
+            dashEl.style.position = 'relative'; dashEl.style.zIndex = '1';
+            const feedEl = document.getElementById('content-feed');
+            if (feedEl) feedEl.classList.add('hidden');
+            ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+            await renderProfessionalDashboard(dashEl);
+            if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+            window._roleDashInterval = setInterval(() => {
+                const el = document.getElementById('content-role-dashboard');
+                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'professional') renderProfessionalDashboard(el);
+                else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+            }, 60000);
+        }
+        window._profDashRendering = false;
+        return;
+    }
+
     // הצג מחדש כרטיסי מנהל אם עברו ממצב עובד
     ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => {
         const el = document.getElementById(id);
@@ -34817,6 +34843,81 @@ window._sportBack = function() {
 };
 
 // ===== END SPORT / FITNESS MODULE =====
+
+// ===== PROFESSIONAL DASHBOARD =====
+async function renderProfessionalDashboard(el) {
+    el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm"><i class="fa-solid fa-spinner fa-spin ml-2"></i>טוען נתונים...</div>`;
+    let s = { active_cases:0, completed_cases:0, unbilled_hours:0, total_hours:0, new_leads:0, total_leads:0, month_revenue:0, today_appointments:[] };
+    try {
+        const r = await fetch(`${API}/professional/dashboard/${currentGroup.id}`).then(r=>r.json());
+        if (!r.error) s = r;
+    } catch(e) {}
+
+    const kpis = [
+        { label:'תיקים פעילים',   value: s.active_cases,                                                    icon:'📁', color:'indigo',  tab:'cases' },
+        { label:'שעות לחיוב',     value: s.unbilled_hours + ' ש׳',                                          icon:'⏱️', color: s.unbilled_hours > 0 ? 'orange' : 'slate', tab:'timelog' },
+        { label:'פניות חדשות',    value: s.new_leads,                                                        icon:'📥', color: s.new_leads > 0 ? 'red' : 'slate',   tab:'leads' },
+        { label:'הכנסה החודש',    value: '₪' + Number(s.month_revenue).toLocaleString('he-IL',{maximumFractionDigits:0}), icon:'💰', color:'emerald', tab:'cashflow' },
+        { label:'תיקים שהושלמו',  value: s.completed_cases,                                                 icon:'✅', color:'teal',    tab:'cases' },
+        { label:'סה"כ שעות',      value: s.total_hours + ' ש׳',                                             icon:'📊', color:'violet',  tab:'timelog' }
+    ];
+    const kpiHtml = kpis.map(k => `
+        <button type="button" onclick="switchTab('${k.tab}')"
+            class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition touch-manipulation"
+            style="touch-action:manipulation;cursor:pointer;">
+            <span class="text-xl">${k.icon}</span>
+            <div class="text-lg font-black text-${k.color}-600">${k.value}</div>
+            <div class="text-[10px] text-slate-500 font-bold">${k.label}</div>
+        </button>`).join('');
+
+    const todayAppts = s.today_appointments || [];
+    const apptHtml = todayAppts.length ? todayAppts.map(a => {
+        const t = a.start_time ? new Date(a.start_time).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+        return `<div class="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+            <span class="text-xs font-bold text-slate-400 w-10 shrink-0 dir-ltr">${t}</span>
+            <span class="text-sm font-bold text-slate-700 truncate">${safeStr(a.title)}</span>
+        </div>`;
+    }).join('') : `<p class="text-xs text-slate-400 text-center py-3">אין פגישות קבועות להיום</p>`;
+
+    const unbildAlert = s.unbilled_hours > 0 ? `
+        <div onclick="switchTab('timelog')" class="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-3 flex items-center gap-3 cursor-pointer active:scale-95 transition">
+            <span class="text-2xl">⏰</span>
+            <div class="flex-1 text-right">
+                <div class="text-sm font-black text-amber-700">${s.unbilled_hours} שעות ממתינות לחיוב</div>
+                <div class="text-[11px] text-amber-500">לחץ לפתיחת מודול שעות עבודה</div>
+            </div>
+        </div>` : '';
+
+    const newLeadsAlert = s.new_leads > 0 ? `
+        <div onclick="switchTab('leads')" class="bg-blue-50 border border-blue-200 rounded-2xl p-3 mb-3 flex items-center gap-3 cursor-pointer active:scale-95 transition">
+            <span class="text-2xl">📥</span>
+            <div class="flex-1 text-right">
+                <div class="text-sm font-black text-blue-700">${s.new_leads} פניות חדשות מהאתר</div>
+                <div class="text-[11px] text-blue-500">לחץ לטיפול בפניות</div>
+            </div>
+        </div>` : '';
+
+    el.innerHTML = `
+        ${roleDashboardHeader('👔', 'לוח בקרה מקצועי', 'תיקים, שעות ולקוחות — בזמן אמת', 'from-indigo-600', 'to-violet-700')}
+        ${unbildAlert}
+        ${newLeadsAlert}
+        <div class="grid grid-cols-3 gap-3 mb-4">${kpiHtml}</div>
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-4">
+            <h3 class="font-black text-slate-700 text-sm mb-2">📅 פגישות היום</h3>
+            ${apptHtml}
+            <button onclick="switchTab('calendar')" class="mt-2 w-full text-[11px] text-indigo-500 font-bold hover:text-indigo-700 transition">← ליומן המלא</button>
+        </div>
+        ${roleQuickActions([
+            { icon:'📁', label:'תיקים',        tab:'cases' },
+            { icon:'⏱️', label:'שעות עבודה',   tab:'timelog' },
+            { icon:'📄', label:'מסמכים',        tab:'documents' },
+            { icon:'👥', label:'לקוחות',        tab:'customers' },
+            { icon:'📥', label:'פניות',          tab:'leads', badge: s.new_leads || 0 },
+            { icon:'🌐', label:'אתר תדמית',     tab:'content' }
+        ])}
+        ${roleFullMenuBtn()}`;
+}
+// ===== END PROFESSIONAL DASHBOARD =====
 
 // ===== SPORT PHASE 2+ — CLASSES, MEMBER DETAIL, ALERTS, REPORTS =====
 

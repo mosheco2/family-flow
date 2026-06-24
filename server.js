@@ -12479,7 +12479,34 @@ app.delete('/api/professional-documents/:id', async (req, res) => {
     try { await pool.query('DELETE FROM professional_documents WHERE id=$1', [req.params.id]); res.json({ success: true }); }
     catch(e) { res.status(500).json({ error: e.message }); }
 });
-// ===== END PROFESSIONAL DOCUMENTS API =====
+// ===== PROFESSIONAL DASHBOARD API =====
+app.get('/api/professional/dashboard/:groupId', async (req, res) => {
+    try {
+        const gid = req.params.groupId;
+        const [casesR, hoursR, leadsR, revenueR, apptR] = await Promise.all([
+            pool.query(`SELECT status, COUNT(*) cnt FROM store_orders WHERE group_id=$1 AND call_type='work_order' GROUP BY status`, [gid]),
+            pool.query(`SELECT COUNT(*) cnt, COALESCE(SUM(minutes),0) total_min, COALESCE(SUM(CASE WHEN NOT is_billed THEN minutes ELSE 0 END),0) unbilled_min FROM time_logs WHERE group_id=$1`, [gid]),
+            pool.query(`SELECT COUNT(*) total, COUNT(CASE WHEN status='new' THEN 1 END) new_leads FROM professional_leads WHERE group_id=$1`, [gid]),
+            pool.query(`SELECT COALESCE(SUM(amount),0) month_revenue FROM cashflow_entries WHERE group_id=$1 AND type='income' AND date >= date_trunc('month', CURRENT_DATE)`, [gid]),
+            pool.query(`SELECT id, title, start_time, end_time FROM calendar_events WHERE group_id=$1 AND DATE(start_time)=CURRENT_DATE ORDER BY start_time LIMIT 5`, [gid])
+        ]);
+        const casesByStatus = {};
+        casesR.rows.forEach(r => { casesByStatus[r.status] = parseInt(r.cnt); });
+        const activeCases = (casesByStatus['open']||0) + (casesByStatus['in_progress']||0) + (casesByStatus['pending']||0);
+        const hrs = hoursR.rows[0];
+        res.json({
+            active_cases: activeCases,
+            completed_cases: casesByStatus['done'] || 0,
+            unbilled_hours: Math.round(parseInt(hrs.unbilled_min) / 60 * 10) / 10,
+            total_hours: Math.round(parseInt(hrs.total_min) / 60 * 10) / 10,
+            new_leads: parseInt(leadsR.rows[0].new_leads),
+            total_leads: parseInt(leadsR.rows[0].total),
+            month_revenue: parseFloat(revenueR.rows[0].month_revenue),
+            today_appointments: apptR.rows
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+// ===== END PROFESSIONAL DASHBOARD API =====
 
 // קבלת תחנות תשלום לקריאת שירות
 app.get('/api/service-calls/:id/payments', async (req, res) => {
