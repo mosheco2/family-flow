@@ -631,6 +631,44 @@ async function checkGlobalWelcome() {
 
 function closeWelcomeModal() { getEl('welcome-modal').classList.add('hidden'); if (window.pendingWelcomeMsg) { localStorage.setItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`, window.pendingWelcomeMsg); } checkAndShowTour(); }
 
+async function showPwaInstallBanner() {
+    try {
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        if (isStandalone) return;
+        const dismissed = localStorage.getItem('ofl_pwa_banner_dismissed');
+        if (dismissed && (Date.now() - parseInt(dismissed)) < 7 * 24 * 60 * 60 * 1000) return;
+        const res = await fetch('/api/settings/pwa-prompt');
+        const cfg = await res.json();
+        if (!cfg.enabled) return;
+        const ua = navigator.userAgent.toLowerCase();
+        const isIOS = /iphone|ipad|ipod/.test(ua);
+        const isSafariBrowser = isIOS && /safari/.test(ua) && !/crios|fxios|gsa/.test(ua);
+        const banner = document.createElement('div');
+        banner.id = 'pwa-install-banner';
+        banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#fff;border-top:2px solid #e0e7ff;box-shadow:0 -4px 24px rgba(79,70,229,0.12);transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1);';
+        const hintHtml = isSafariBrowser
+            ? `<div style="font-size:11px;color:#64748b;margin-top:2px;">לחץ <span style="color:#3b82f6;">⎙</span> ואח"כ <strong style="color:#1e293b">"הוסף למסך הבית"</strong></div>`
+            : `<div style="font-size:11px;color:#64748b;margin-top:2px;">גישה מהירה ישירות מהמסך הראשי</div>`;
+        const actionHtml = isSafariBrowser ? '' : `<button onclick="window._triggerPwaInstall()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:9px 18px;border-radius:12px;font-size:13px;font-weight:700;border:none;cursor:pointer;box-shadow:0 2px 8px rgba(99,102,241,0.4);white-space:nowrap;font-family:Rubik,sans-serif;" ><i class="fa-solid fa-download" style="margin-left:5px;"></i> התקן</button>`;
+        banner.innerHTML = `<div style="display:flex;align-items:center;gap:14px;padding:14px 18px;max-width:480px;margin:0 auto;"><div style="width:46px;height:46px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 10px rgba(99,102,241,0.35);"><i class="fa-solid fa-mobile-screen-button" style="color:#fff;font-size:20px;"></i></div><div style="flex:1;min-width:0;"><div style="font-weight:700;color:#1e293b;font-size:14px;font-family:Rubik,sans-serif;">הוסף לדף הבית</div>${hintHtml}</div>${actionHtml}<button onclick="window._dismissPwaBanner()" style="background:none;border:none;cursor:pointer;color:#cbd5e1;font-size:20px;padding:4px 8px;line-height:1;flex-shrink:0;">✕</button></div>`;
+        document.body.appendChild(banner);
+        requestAnimationFrame(() => requestAnimationFrame(() => { banner.style.transform = 'translateY(0)'; }));
+        window._dismissPwaBanner = function() {
+            const b = document.getElementById('pwa-install-banner');
+            if (b) { b.style.transform = 'translateY(100%)'; setTimeout(() => b.remove(), 350); }
+            localStorage.setItem('ofl_pwa_banner_dismissed', String(Date.now()));
+        };
+        window._triggerPwaInstall = async function() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') window._dismissPwaBanner();
+                deferredPrompt = null;
+            } else { showToast('info', 'פתחו את תפריט הדפדפן ובחרו "התקן אפליקציה" או "הוסף למסך הבית"'); }
+        };
+    } catch(e) { /* fail silently */ }
+}
+
 function openAlertModal(title, text) { const titleEl = getEl('generic-alert-title'); const textEl = getEl('generic-alert-text'); const modal = getEl('generic-alert-modal'); if(titleEl && textEl && modal) { titleEl.innerText = title; textEl.innerText = text; modal.classList.remove('hidden'); } }
 
 window.injectBusinessUI = function() {
@@ -2210,6 +2248,7 @@ async function loadDashboard() {
         switchTab('feed');
         try { const hasWelcome = await checkGlobalWelcome(); if (!hasWelcome) checkAndShowTour(); } catch(e) { checkAndShowTour(); }
         setTimeout(() => { try { window.checkEmployeePopups && window.checkEmployeePopups(); } catch(e) {} }, 2000);
+        setTimeout(showPwaInstallBanner, 3000);
 
         // פתיחת הצעת מחיר לעריכה אם הועברה מאפליקציית המשפחה (דרך query parameter)
         const urlParams = new URLSearchParams(window.location.search);

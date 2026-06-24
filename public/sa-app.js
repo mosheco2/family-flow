@@ -1231,6 +1231,9 @@ async function loadSAData() {
         setImgPreview('sa-member-welcome', data.memberWelcomeImg);
         const mwClearBtn = getEl('sa-member-welcome-clear-btn');
         if (mwClearBtn) { if (data.memberWelcomeImg) mwClearBtn.classList.remove('hidden'); else mwClearBtn.classList.add('hidden'); }
+        // PWA install prompt toggle
+        window._pwaInstallPromptEnabled = data.pwaInstallPromptEnabled !== false;
+        updatePwaPromptToggleUI();
         // Module popup settings
         window._memberModuleSettings = data.memberModuleSettings || {};
         renderModuleSettingsAdmin();
@@ -1298,7 +1301,8 @@ window.saveAllBanners = async function() {
             memberWelcomeEnabled: window._memberWelcomeEnabled !== false,
             memberWelcomeText: val('sa-member-welcome-text'),
             memberWelcomeImg: val('sa-member-welcome-img'),
-            memberModuleSettings: window._memberModuleSettings || {}
+            memberModuleSettings: window._memberModuleSettings || {},
+            pwaInstallPromptEnabled: window._pwaInstallPromptEnabled !== false
         };
 
         const res = await fetch(`${API}/superadmin/banners`, {
@@ -1363,6 +1367,22 @@ function updateMemberWelcomeToggleUI() {
 window.toggleMemberWelcome = function() {
     window._memberWelcomeEnabled = !window._memberWelcomeEnabled;
     updateMemberWelcomeToggleUI();
+};
+function updatePwaPromptToggleUI() {
+    const btn = getEl('pwa-prompt-toggle');
+    const dot = getEl('pwa-prompt-toggle-dot');
+    if (!btn || !dot) return;
+    if (window._pwaInstallPromptEnabled) {
+        btn.classList.remove('bg-slate-300'); btn.classList.add('bg-indigo-500');
+        dot.style.transform = 'translateX(20px)';
+    } else {
+        btn.classList.remove('bg-indigo-500'); btn.classList.add('bg-slate-300');
+        dot.style.transform = 'translateX(2px)';
+    }
+}
+window.togglePwaPrompt = function() {
+    window._pwaInstallPromptEnabled = !window._pwaInstallPromptEnabled;
+    updatePwaPromptToggleUI();
 };
 window.clearMemberWelcomeImg = function() {
     getEl('sa-member-welcome-img').value = '';

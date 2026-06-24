@@ -1348,6 +1348,28 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
 
+                    <!-- PWA Install Prompt Toggle -->
+                    <div class="bg-indigo-50 p-6 rounded-2xl border border-indigo-200">
+                        <h2 class="text-xl font-bold mb-1 text-indigo-900"><i class="fa-solid fa-mobile-screen-button text-indigo-500 mr-2"></i> הצעת קיצור דרך לדף הבית (PWA)</h2>
+                        <p class="text-xs text-slate-500 mb-5">הצג באנר צף לכל משתמש עסקי שטרם הוסיף את האפליקציה לדף הבית — Android, iOS ו-Desktop. נדחה ל-7 ימים אם המשתמש סוגר.</p>
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-indigo-100">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="font-bold text-slate-700">הצג הודעת "הוסף לדף הבית"</h3>
+                                    <p class="text-xs text-slate-400 mt-0.5">מופיע 3 שניות לאחר הכניסה למערכת.</p>
+                                </div>
+                                <button id="pwa-prompt-toggle" onclick="togglePwaPrompt()" class="relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200 focus:outline-none bg-slate-300">
+                                    <span id="pwa-prompt-toggle-dot" class="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-1"></span>
+                                </button>
+                            </div>
+                            <div class="mt-4 p-3 bg-indigo-50 rounded-xl border border-indigo-100 text-xs text-indigo-700 space-y-1">
+                                <div><i class="fa-brands fa-android text-green-600 w-4"></i> <strong>Android:</strong> כפתור "התקן" שמפעיל את ה-Native Install Prompt של הדפדפן</div>
+                                <div><i class="fa-brands fa-apple text-slate-700 w-4"></i> <strong>iOS Safari:</strong> הוראות: "לחץ ⎙ ואח"כ הוסף למסך הבית"</div>
+                                <div><i class="fa-solid fa-desktop text-blue-600 w-4"></i> <strong>Desktop:</strong> כפתור "התקן" לדפדפנים תומכי PWA (Chrome, Edge)</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <button onclick="saveAllBanners()" class="bg-blue-600 text-white px-6 py-4 rounded-xl font-bold w-full shadow-lg hover:bg-blue-700 transition text-lg mb-8">
                         <i class="fa-solid fa-save mr-2"></i> שמור נתונים ופרסם באנרים למערכת
                     </button>
