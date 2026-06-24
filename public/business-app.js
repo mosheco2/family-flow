@@ -1940,7 +1940,38 @@ function switchTab(t) {
     if (t === 'forecast') try { renderForecast(); } catch(e) {}
     if (t === 'timeclock') { try { if (currentUser && currentUser.role === 'ADMIN') fetchTimeclockReport(); checkTimeclockStatus(); } catch(e) {} }
     if (t === 'shifts') try { shiftNavDate = new Date(); setShiftView(shiftView || 'list'); renderShifts(); } catch(e) {}
-    if (t === 'sales') try { switchSalesTab('orders'); } catch(e) {}
+    if (t === 'sales') try {
+        if (currentGroup?.business_type === 'professional') {
+            // התאמת טאב מכירות לעסק מקצועי
+            const salesHeader = document.querySelector('#content-sales h3');
+            if (salesHeader) salesHeader.textContent = 'הצעות ותיקים 📊';
+            const bWO = document.getElementById('btn-sales-work-orders');
+            if (bWO) { bWO.innerHTML = '<i class="fa-solid fa-folder-open text-sm"></i>תיקים 📁'; }
+            const bCat = document.getElementById('btn-sales-catalog');
+            if (bCat) { bCat.innerHTML = '<i class="fa-solid fa-briefcase text-sm"></i>שירותים'; }
+            const bQ = document.getElementById('btn-sales-quotes');
+            if (bQ) { bQ.innerHTML = '<i class="fa-solid fa-file-signature text-sm"></i>הצעות'; }
+            const bOrd = document.getElementById('btn-sales-orders');
+            if (bOrd) bOrd.classList.add('hidden');
+            const bComplex = document.getElementById('btn-sales-complex');
+            if (bComplex) bComplex.classList.add('hidden');
+            switchSalesTab('quotes');
+        } else {
+            const bOrd = document.getElementById('btn-sales-orders');
+            if (bOrd) bOrd.classList.remove('hidden');
+            const bComplex = document.getElementById('btn-sales-complex');
+            if (bComplex) bComplex.classList.remove('hidden');
+            const salesHeader = document.querySelector('#content-sales h3');
+            if (salesHeader) salesHeader.textContent = 'ניהול חנות ומכירות 🛍️';
+            const bWO = document.getElementById('btn-sales-work-orders');
+            if (bWO) { bWO.innerHTML = '<i class="fa-solid fa-hammer text-sm"></i>פקודות עבודה'; }
+            const bCat = document.getElementById('btn-sales-catalog');
+            if (bCat) { bCat.innerHTML = '<i class="fa-solid fa-book-open text-sm"></i>קטלוג'; }
+            const bQ = document.getElementById('btn-sales-quotes');
+            if (bQ) { bQ.innerHTML = '<i class="fa-solid fa-file-invoice text-sm"></i>הצעות מחיר'; }
+            switchSalesTab('orders');
+        }
+    } catch(e) {}
     if (t === 'customers') try { if(typeof fetchStoreCustomers === 'function') fetchStoreCustomers(); } catch(e) {}
     if (t === 'deliveries') try { switchDeliveryTab('active'); } catch(e) {}
     if (t === 'budget') try { fetchBudget(); } catch(e) {}
@@ -7324,7 +7355,7 @@ function _renderBizQuoteTimeline(historyRaw) {
         sent_to_customer:        {icon:'fa-paper-plane',  label:'נשלחה ללקוח',              actorColor:'text-indigo-600'},
         resent_updated:          {icon:'fa-rotate-right', label:'גרסה מעודכנת נשלחה',       actorColor:'text-indigo-600'},
         customer_response:       {icon:'fa-reply',        label:'תגובת לקוח',               actorColor:'text-amber-600'},
-        converted_to_work_order: {icon:'fa-hammer',       label:'הומרה לפקודת עבודה',       actorColor:'text-emerald-600'},
+        converted_to_work_order: {icon:'fa-hammer',       label: currentGroup?.business_type === 'professional' ? 'הומרה לתיק' : 'הומרה לפקודת עבודה',       actorColor:'text-emerald-600'},
         approved:                {icon:'fa-check-circle', label:'אושרה',                    actorColor:'text-green-600'},
         business_message:        {icon:'fa-comment',      label:'שלחת הודעה ללקוח',         actorColor:'text-purple-600'},
     };
@@ -7422,6 +7453,7 @@ window.renderStoreQuotes = function() {
             
             const isApproved = currentStatus === 'approved';
             const isWoBusinessType = ['services','construction','maintenance_repair','events','healthcare','restaurant','cafe','professional'].includes(currentGroup?.business_type);
+            const woLabel = currentGroup?.business_type === 'professional' ? 'תיק' : 'פקודת עבודה';
             const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
 
             const totalAmount = q.total_amount ? parseFloat(q.total_amount).toFixed(2) : "0.00";
@@ -7490,18 +7522,18 @@ window.renderStoreQuotes = function() {
 
             if (isAlreadyWorkOrder) {
                 cardStyle = 'border-2 border-teal-400 bg-teal-50/40 shadow-md';
-                approveBtnHtml = `<span class="text-[11px] font-black text-teal-700 flex items-center gap-1.5 mt-2 w-full justify-center bg-teal-100 py-2 rounded-lg border border-teal-300 shadow-sm"><i class="fa-solid fa-hammer text-sm"></i> פקודת עבודה פעילה</span><button onclick="window.openWorkOrderModal(${q.id}); window.switchSalesTab('work-orders')" class="bg-teal-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-teal-700 transition flex items-center gap-1.5 w-full justify-center mt-1"><i class="fa-solid fa-arrow-left"></i> פתח פקודת עבודה</button>`;
+                approveBtnHtml = `<span class="text-[11px] font-black text-teal-700 flex items-center gap-1.5 mt-2 w-full justify-center bg-teal-100 py-2 rounded-lg border border-teal-300 shadow-sm"><i class="fa-solid fa-hammer text-sm"></i> ${woLabel} פעיל${currentGroup?.business_type==='professional'?'':'ה'}</span><button onclick="window.openWorkOrderModal(${q.id}); window.switchSalesTab('work-orders')" class="bg-teal-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-teal-700 transition flex items-center gap-1.5 w-full justify-center mt-1"><i class="fa-solid fa-arrow-left"></i> פתח ${woLabel}</button>`;
             } else if (isApproved && !isCustomerApproved) {
                  cardStyle = 'border-2 border-green-500 bg-green-50/40 shadow-md';
                  if (isWoBusinessType) {
-                     approveBtnHtml = `<span class="text-[11px] font-black text-green-700 flex items-center gap-1.5 mt-2 w-full justify-center bg-green-100 py-2 rounded-lg border border-green-300 shadow-sm"><i class="fa-solid fa-check-circle text-sm"></i> עברה לתור הזמנות</span><button onclick="window.convertToWorkOrder(${q.id})" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-blue-700 transition flex items-center gap-1.5 w-full justify-center mt-1"><i class="fa-solid fa-hammer"></i> 🔨 המר לפקודת עבודה</button>`;
+                     approveBtnHtml = `<span class="text-[11px] font-black text-green-700 flex items-center gap-1.5 mt-2 w-full justify-center bg-green-100 py-2 rounded-lg border border-green-300 shadow-sm"><i class="fa-solid fa-check-circle text-sm"></i> עברה לתור הזמנות</span><button onclick="window.convertToWorkOrder(${q.id})" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-blue-700 transition flex items-center gap-1.5 w-full justify-center mt-1"><i class="fa-solid fa-hammer"></i> 🔨 המר ל${woLabel}</button>`;
                  } else {
                      approveBtnHtml = `<span class="text-[11px] font-black text-green-700 flex items-center gap-1.5 mt-2 w-full justify-center bg-green-100 py-2 rounded-lg border border-green-300 shadow-sm"><i class="fa-solid fa-check-circle text-sm"></i> עברה לתור הזמנות</span>`;
                  }
             } else if (isCustomerApproved && !isApproved) {
                  cardStyle = 'border-2 border-blue-400 bg-blue-50/40 shadow-md';
                  if (isWoBusinessType) {
-                     approveBtnHtml = `<button onclick="window.convertToWorkOrder(${q.id})" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-blue-700 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-hammer"></i> 🔨 המר לפקודת עבודה</button><button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-300 transition flex items-center gap-1.5 w-full justify-center mt-1">העבר להזמנה רגילה</button>`;
+                     approveBtnHtml = `<button onclick="window.convertToWorkOrder(${q.id})" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-blue-700 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-hammer"></i> 🔨 המר ל${woLabel}</button><button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-300 transition flex items-center gap-1.5 w-full justify-center mt-1">העבר להזמנה רגילה</button>`;
                  } else {
                      approveBtnHtml = `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-800 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-check"></i> אישור והעברה להזמנות</button>`;
                  }
@@ -7509,13 +7541,13 @@ window.renderStoreQuotes = function() {
                  cardStyle = 'border-2 border-orange-400 bg-orange-50/40 shadow-md';
                  approveBtnHtml = `<div class="flex items-center gap-1.5 mt-2 w-full bg-orange-100 border border-orange-300 py-2 px-3 rounded-lg text-[10px] font-bold text-orange-800"><i class="fa-solid fa-triangle-exclamation"></i> נדרש עדכון — ערוך ושלח מחדש ב-OneFlow</div>`;
                  if (isWoBusinessType) {
-                     approveBtnHtml += `<button onclick="window.convertToWorkOrder(${q.id})" class="bg-teal-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-teal-700 transition flex items-center gap-1.5 w-full justify-center mt-1"><i class="fa-solid fa-hammer"></i> 🔨 המר לפקודת עבודה</button>`;
+                     approveBtnHtml += `<button onclick="window.convertToWorkOrder(${q.id})" class="bg-teal-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-teal-700 transition flex items-center gap-1.5 w-full justify-center mt-1"><i class="fa-solid fa-hammer"></i> 🔨 המר ל${woLabel}</button>`;
                  }
             } else if (qLinkStatus === 'pending') {
                  cardStyle = 'border-2 border-amber-400 bg-amber-50/30 shadow-sm';
             } else if (!isApproved) {
                  if (isWoBusinessType) {
-                     approveBtnHtml = `<button onclick="window.convertToWorkOrder(${q.id})" class="bg-teal-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-teal-700 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-hammer"></i> 🔨 המר לפקודת עבודה</button><button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-300 transition flex items-center gap-1.5 w-full justify-center mt-1"><i class="fa-solid fa-check"></i> אישור והעברה להזמנות</button>`;
+                     approveBtnHtml = `<button onclick="window.convertToWorkOrder(${q.id})" class="bg-teal-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-teal-700 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-hammer"></i> 🔨 המר ל${woLabel}</button><button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-300 transition flex items-center gap-1.5 w-full justify-center mt-1"><i class="fa-solid fa-check"></i> אישור והעברה להזמנות</button>`;
                  } else {
                      approveBtnHtml = `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-800 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-check"></i> אישור והעברה להזמנות</button>`;
                  }
@@ -7748,12 +7780,13 @@ window.assignAndSendQuote = async function(quoteId, familyGroupId, familyName) {
 
 // המרה לפקודת עבודה
 window.convertQuoteToWorkOrder = async function(quoteId) {
-    if (!await window._uiConfirm('להמיר הצעת מחיר זו לפקודת עבודה?')) return;
+    const isPro = currentGroup?.business_type === 'professional';
+    if (!await window._uiConfirm(isPro ? 'להמיר הצעה זו לתיק?' : 'להמיר הצעת מחיר זו לפקודת עבודה?')) return;
     try {
         const r = await fetch(`${API}/store/quotes/${quoteId}/to-work-order`, { method:'POST', headers:{'Content-Type':'application/json'} });
         const d = await r.json();
         if (d.success) {
-            showToast('success', `פקודת עבודה נפתחה! #${d.workOrderId}`);
+            showToast('success', isPro ? `תיק נפתח! #${d.workOrderId}` : `פקודת עבודה נפתחה! #${d.workOrderId}`);
             window.fetchStoreQuotes();
             if (typeof window.fetchWorkOrders === 'function') window.fetchWorkOrders();
         } else showToast('error', d.error || 'שגיאה');
@@ -7776,7 +7809,7 @@ window.openWorkOrderSchedule = function(woId) {
     document.getElementById('wo-sched-modal')?.remove();
     const html = `<div id="wo-sched-modal" class="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4" style="direction:rtl;">
         <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-5">
-            <h3 class="font-black text-slate-800 mb-3">📅 תזמון פקודת עבודה</h3>
+            <h3 class="font-black text-slate-800 mb-3">📅 ${currentGroup?.business_type === 'professional' ? 'תזמון פגישה לתיק' : 'תזמון פקודת עבודה'}</h3>
             <p class="text-xs text-slate-500 mb-2">${safeStr(wo?.title||'')}</p>
             <input id="wo-sched-dt" type="datetime-local" value="${current}" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm mb-3">
             <textarea id="wo-sched-note" rows="2" placeholder="הערת תזמון (אופציונלי)..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs mb-3"></textarea>
@@ -9514,12 +9547,13 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
                 <div class="flex items-center gap-2 shrink-0">
                     <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(q.total_amount || 0).toFixed(2)}</span>
                     <button onclick="event.stopPropagation(); ${closeCust} if(typeof window.openQuotePreview === 'function') window.openQuotePreview(${q.id})" class="text-slate-400 hover:text-orange-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="פתח הצעה"><i class="fa-solid fa-eye text-xs"></i></button>
-                    ${relatedWO ? `<button onclick="event.stopPropagation(); ${closeCust} if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${relatedWO.id})" class="text-blue-500 hover:text-blue-700 bg-blue-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-blue-100 shadow-sm" title="פתח פקודת עבודה קשורה"><i class="fa-solid fa-screwdriver-wrench text-xs"></i></button>` : ''}
+                    ${relatedWO ? `<button onclick="event.stopPropagation(); ${closeCust} if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${relatedWO.id})" class="text-blue-500 hover:text-blue-700 bg-blue-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-blue-100 shadow-sm" title="${currentGroup?.business_type==='professional'?'פתח תיק קשור':'פתח פקודת עבודה קשורה'}"><i class="fa-solid fa-screwdriver-wrench text-xs"></i></button>` : ''}
                 </div>
             </div>`;
         });
         workOrders.forEach(o => {
-            const woTitle = o.quote_title || (o.quote_number ? `פקודת עבודה #${o.quote_number}` : `פקודת עבודה #${o.id}`);
+            const _woTermCust = currentGroup?.business_type === 'professional' ? 'תיק' : 'פקודת עבודה';
+            const woTitle = o.quote_title || (o.quote_number ? `${_woTermCust} #${o.quote_number}` : `${_woTermCust} #${o.id}`);
             const closeCust = `document.getElementById('customer-modal').classList.add('hidden');`;
             historyHtml += `
             <div onclick="${closeCust} if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${o.id})" class="bg-white p-3 rounded-xl border border-blue-100 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
@@ -9529,12 +9563,12 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                     <span class="font-bold text-blue-700 dir-ltr">₪${parseFloat(o.total_amount || 0).toFixed(2)}</span>
-                    <button onclick="event.stopPropagation(); ${closeCust} if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${o.id})" class="text-slate-400 hover:text-blue-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="פתח פקודת עבודה"><i class="fa-solid fa-eye text-xs"></i></button>
+                    <button onclick="event.stopPropagation(); ${closeCust} if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${o.id})" class="text-slate-400 hover:text-blue-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="${currentGroup?.business_type==='professional'?'פתח תיק':'פתח פקודת עבודה'}"><i class="fa-solid fa-eye text-xs"></i></button>
                 </div>
             </div>`;
         });
     } else {
-        historyHtml += '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא נמצאו הצעות מחיר או פקודות עבודה פתוחות.</p>';
+        historyHtml += `<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא נמצאו ${currentGroup?.business_type==='professional'?'הצעות או תיקים פתוחים':'הצעות מחיר או פקודות עבודה פתוחות'}.</p>`;
     }
 
     listContainer.innerHTML = historyHtml;
@@ -18809,7 +18843,7 @@ function createEventCardHTML(e) {
                 </div>
                 <div class="flex-1 min-w-0 pr-1">
                     <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(e.title)}</h4>
-                    <p class="text-[10px] text-teal-600 mt-0.5"><i class="fa-solid fa-hammer mr-1"></i> פקודת עבודה</p>
+                    <p class="text-[10px] text-teal-600 mt-0.5"><i class="fa-solid fa-hammer mr-1"></i> ${currentGroup?.business_type==='professional'?'תיק':'פקודת עבודה'}</p>
                     ${e.customer_phone ? `<p class="text-[10px] text-slate-400 mt-1"><i class="fa-solid fa-phone text-slate-300"></i> ${safeStr(e.customer_phone)}</p>` : ''}
                 </div>
             </div>
@@ -28162,7 +28196,7 @@ const BUSINESS_TYPES = [
     { id: 'sport',              name: 'ספורט / כושר',           icon: '🏋️', modules: ['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts'] },
     { id: 'events',             name: 'אירועים / הפקות',       icon: '🎉', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','budget','equipment','shifts','shop'] },
     { id: 'food_production',    name: 'ייצור מזון',             icon: '🏭', modules: ['feed','pantry','shop','sales','customers','tasks','members','shifts','timeclock','cashflow','equipment','deliveries','foodcost'] },
-    { id: 'professional',       name: 'מקצועי / ייעוץ',         icon: '👔', modules: ['feed','sales','customers','cases','leads','timelog','documents','calendar','tasks','cashflow','budget','members','timeclock','bank','shop','content'] },
+    { id: 'professional',       name: 'מקצועי / ייעוץ',         icon: '👔', modules: ['feed','sales','customers','cases','leads','timelog','documents','calendar','tasks','cashflow','budget','members','timeclock','bank','content'] },
     { id: 'other',              name: 'אחר / כללי',             icon: '🏢', modules: null }
 ];
 
@@ -32626,7 +32660,11 @@ window.switchWoTab = function(tab) {
 };
 
 window.convertToWorkOrder = async function(quoteId) {
-    if (!await window._uiConfirm('להמיר את הצעת המחיר לפקודת עבודה? ניתן לנהל ממנה צוות, ציוד, יומן ושיח פנימי.')) return;
+    const isPro = currentGroup?.business_type === 'professional';
+    const confirmMsg = isPro
+        ? 'להמיר הצעה זו לתיק? ניתן לנהל ממנו משתתפים, מסמכים, יומן ושיח פנימי.'
+        : 'להמיר את הצעת המחיר לפקודת עבודה? ניתן לנהל ממנה צוות, ציוד, יומן ושיח פנימי.';
+    if (!await window._uiConfirm(confirmMsg)) return;
     try {
         const res = await fetch(`${API}/work-orders/convert/${quoteId}`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -32634,7 +32672,7 @@ window.convertToWorkOrder = async function(quoteId) {
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error || 'שגיאה בהמרה');
-        showToast('success', 'פקודת העבודה נוצרה בהצלחה!');
+        showToast('success', isPro ? 'התיק נוצר בהצלחה!' : 'פקודת העבודה נוצרה בהצלחה!');
         if (typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
         if (typeof window.fetchWorkOrders === 'function') window.fetchWorkOrders();
         window.openWorkOrderModal(quoteId);
@@ -32680,7 +32718,8 @@ window.renderWorkOrdersList = function(workOrders) {
     const list = document.getElementById('work-orders-list');
     if (!list) return;
     if (!workOrders.length) {
-        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא נמצאו פקודות עבודה. לחץ <strong>🔨 המר לפקודת עבודה</strong> בכרטיס הצעת מחיר.</p>';
+        const _isPro = currentGroup?.business_type === 'professional';
+        list.innerHTML = `<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">${_isPro ? 'לא נמצאו תיקים. לחץ <strong>🔨 המר לתיק</strong> בכרטיס הצעה.' : 'לא נמצאו פקודות עבודה. לחץ <strong>🔨 המר לפקודת עבודה</strong> בכרטיס הצעת מחיר.'}</p>`;
         return;
     }
     const statusLabels = { processing: { label: 'בתהליך', cls: 'bg-blue-100 text-blue-700 border-blue-200' }, scheduled: { label: 'מתוזמן', cls: 'bg-purple-100 text-purple-700 border-purple-200' }, completed: { label: 'הושלם', cls: 'bg-green-100 text-green-700 border-green-200' }, cancelled: { label: 'בוטל', cls: 'bg-red-100 text-red-700 border-red-200' }, new: { label: 'חדש', cls: 'bg-slate-100 text-slate-600 border-slate-200' } };
@@ -32717,7 +32756,7 @@ window.renderWorkOrdersList = function(workOrders) {
         return `<div class="p-4 rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition cursor-pointer" onclick="window.openWorkOrderModal(${wo.id})">
             <div class="flex justify-between items-start mb-2">
                 <div class="flex-1 min-w-0">
-                    <h4 class="font-bold text-slate-800 text-sm truncate">${wo.quote_number || `פקודה #${wo.id}`} — ${safeStr(wo.customer_name || 'לקוח')}</h4>
+                    <h4 class="font-bold text-slate-800 text-sm truncate">${wo.quote_number || `${currentGroup?.business_type==='professional'?'תיק':'פקודה'} #${wo.id}`} — ${safeStr(wo.customer_name || 'לקוח')}</h4>
                     ${serviceTitle ? `<p class="text-[11px] text-indigo-700 font-bold mt-0.5 truncate">${safeStr(serviceTitle)}</p>` : ''}
                     <p class="text-lg font-black text-indigo-600 mt-0.5">₪${revenue > 0 ? fmtM(revenue) : '—'}</p>
                     <p class="text-[10px] text-slate-500 mt-1">${dateStr} | ${safeStr(wo.customer_phone || 'ללא טלפון')}</p>
@@ -32823,6 +32862,12 @@ window.openWorkOrderModal = async function(woId) {
             if (addBtn) addBtn.innerHTML = '<i class="fa-solid fa-plus mr-1"></i> הוסף משתתף';
             const invH = document.querySelector('#wo-view-inventory .flex.justify-between.items-center h4');
             if (invH) invH.textContent = 'משאבים ומעורבים';
+            const notesH = document.querySelector('#wo-view-notes h4');
+            if (notesH) notesH.textContent = 'הערות תיק';
+            const tlH = document.querySelector('#wo-view-timeline h4');
+            if (tlH) tlH.textContent = 'היסטוריית תיק';
+            const calNote = document.querySelector('#wo-view-calendar .bg-blue-50');
+            if (calNote) calNote.innerHTML = '<i class="fa-solid fa-info-circle mr-1"></i> הזימון יישמר ביומן העסקי ויופיע אצל כל המשתתפים בתיק';
         } else {
             if (woTabTeam) woTabTeam.textContent = 'צוות';
             if (woTabInventory) woTabInventory.classList.remove('hidden');
@@ -33212,7 +33257,7 @@ window.addAssigneeToWo = async function() {
 };
 
 window.removeWoAssignee = async function(userId) {
-    if (!await window._uiConfirm('להסיר עובד זה מהפקודה?')) return;
+    if (!await window._uiConfirm(currentGroup?.business_type === 'professional' ? 'להסיר משתתף מהתיק?' : 'להסיר עובד זה מהפקודה?')) return;
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/assignees/${userId}`, { method: 'DELETE' });
         const data = await res.json();
