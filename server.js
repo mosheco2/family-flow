@@ -6295,7 +6295,18 @@ app.post('/api/biz/chat-assistant', async (req, res) => {
 • לעבור לחברים → [ACTION:OPEN_TAB|sport-members]
 • לעבור ללוח שיעורים → [ACTION:OPEN_TAB|sport-schedule]
 • לעבור להתראות → [ACTION:OPEN_TAB|sport-alerts]
-• לעבור לתשלומים → [ACTION:OPEN_TAB|sport-payments]` : (bizType === 'restaurant' || bizType === 'cafe') ? `
+• לעבור לתשלומים → [ACTION:OPEN_TAB|sport-payments]
+
+== ספורט — פקודות פעולה ==
+כשמבקשים להקפיא מנוי → [ACTION:FREEZE_MEMBER|membership_id|סיבה]
+  membership_id מתוך churn_risk.top_at_risk[].id או renewals.expiring_members[].id
+  דוגמה: [ACTION:FREEZE_MEMBER|42|בקשת חבר]
+כשמבקשים להפשיר מנוי → [ACTION:UNFREEZE_MEMBER|membership_id|שם חבר]
+  membership_id מתוך churn_risk.frozen_members[].id
+כשמבקשים לרשום כניסה ידנית → [ACTION:CHECKIN_MEMBER|membership_id|שם חבר]
+  membership_id מתוך churn_risk.top_at_risk[].id
+כשמבקשים לרשום חבר לשיעור → [ACTION:REGISTER_CLASS|class_id|membership_id|שם חבר]
+  class_id מתוך classes.upcoming_classes[].id` : (bizType === 'restaurant' || bizType === 'cafe') ? `
 
 == מסעדה / בית קפה — ניתוח ==
 • food cost: <28%=מצוין | 28-33%=טוב | 33-40%=גבוה | >40%=בעייתי | ממוצע ישראל: 28-35%
