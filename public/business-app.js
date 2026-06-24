@@ -42120,6 +42120,7 @@ async function deleteLogisticsInvoice(id) {
                     pending_pickup:  pendingPickup,
                     recent_orders:   orders.slice(0,8).map(o=>({id:o.id,customer:o.customer_name,status:o.status,driver:o.driver_name,fee:o.delivery_fee,date:o.created_at}))
                 },
+                orders_active: orders.filter(o=>!['delivered','cancelled'].includes(o.status)).slice(0,20).map(o=>({id:o.id,customer:o.customer_name,phone:o.customer_phone,status:o.status,driver:o.driver_name,address:o.delivery_address,date:o.scheduled_date})),
                 revenue: {
                     month_revenue:      monthRevenue,
                     prev_month_revenue: prevRevenue,
@@ -42184,6 +42185,16 @@ async function deleteLogisticsInvoice(id) {
                     answerText = answerText.replace(tabMatch[0], '');
                     const tabLabels = {'logistics_orders':'קנבן הזמנות','logistics_drivers':'נהגים','logistics_vehicles':'צי רכבים','logistics_cod':'גבייה COD','logistics_rfq':'הצעות מחיר','logistics_routes':'מסלולים'};
                     actionHtml += `<button onclick="document.getElementById('global-ai-modal').classList.add('hidden'); switchTab('${tabId}')" class="mt-3 w-full bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-arrow-left"></i> עבור ל${tabLabels[tabId]||tabId}</button>`;
+                }
+                // AI Action Parser — עדכון סטטוס משלוח
+                const deliveryStatusMatch = answerText.match(/\[ACTION:UPDATE_DELIVERY_STATUS\|(\d+)\|([\w_]+)\|([^\]]*)\]/);
+                if (deliveryStatusMatch) {
+                    const dsId = deliveryStatusMatch[1], dsStatus = deliveryStatusMatch[2], dsCustomer = deliveryStatusMatch[3];
+                    answerText = answerText.replace(deliveryStatusMatch[0], '');
+                    const dsLabels = {pending:'ממתין',assigned:'שויך לנהג',in_transit:'בדרך',delivered:'נמסר',failed:'נכשל',cancelled:'בוטל'};
+                    const dsColors = {pending:'bg-slate-50 text-slate-700 border-slate-200',assigned:'bg-blue-50 text-blue-700 border-blue-200',in_transit:'bg-amber-50 text-amber-700 border-amber-200',delivered:'bg-green-50 text-green-700 border-green-200',failed:'bg-red-50 text-red-700 border-red-200',cancelled:'bg-slate-50 text-slate-500 border-slate-200'};
+                    const dsColor = dsColors[dsStatus] || 'bg-slate-50 text-slate-700 border-slate-200';
+                    actionHtml += `<button onclick="window._aiUpdateDeliveryStatus(${dsId},'${dsStatus}','${safeStr(dsCustomer)}',this)" class="mt-3 w-full ${dsColor} hover:opacity-80 border py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-truck"></i> עדכן משלוח ${safeStr(dsCustomer)} → ${dsLabels[dsStatus]||dsStatus}</button>`;
                 }
 
                 answerText = answerText.trim().replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
@@ -44803,4 +44814,21 @@ window._aiUpdateSCStatus = async function(scId, status, scTitle, btn) {
             window._serviceCallsCache = window._serviceCallsCache.map(c => c.id == scId ? {...c, status} : c);
         } else { throw new Error(data.error||'error'); }
     } catch(e) { showToast('error', 'שגיאה בעדכון קריאה'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wrench"></i> נסה שוב'; } }
+};
+
+// === AI ACTION HANDLERS — LOGISTICS ===
+window._aiUpdateDeliveryStatus = async function(orderId, status, customerName, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
+    try {
+        const res = await fetch(API + '/logistics/orders/' + orderId + '/status', {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ status, actor_name: 'AI Assistant' })
+        });
+        const data = await res.json();
+        if (data.success) {
+            const labels = {pending:'ממתין',assigned:'שויך לנהג',in_transit:'בדרך',delivered:'נמסר',failed:'נכשל',cancelled:'בוטל'};
+            showToast('success', 'משלוח ' + customerName + ' עודכן → ' + (labels[status]||status) + ' ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> עודכן!'; btn.className = btn.className.replace(/bg-\w+-\d+/g,'bg-green-50').replace(/text-\w+-\d+/g,'text-green-700').replace(/border-\w+-\d+/g,'border-green-200'); }
+        } else { throw new Error(data.error||'error'); }
+    } catch(e) { showToast('error', 'שגיאה בעדכון משלוח'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-truck"></i> נסה שוב'; } }
 };

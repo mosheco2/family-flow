@@ -6266,6 +6266,12 @@ app.post('/api/biz/chat-assistant', async (req, res) => {
 [ACTION:EXPORT_EXCEL|logistics-revenue] — יצא Excel הכנסות
 [ACTION:EXPORT_EXCEL|logistics-vehicles] — יצא Excel צי רכבים
 
+## עדכון סטטוס משלוח:
+כשמבקשים לעדכן סטטוס הזמנה/משלוח → [ACTION:UPDATE_DELIVERY_STATUS|order_id|status|שם לקוח]
+  (סטטוסים אפשריים: assigned / in_transit / delivered / failed / cancelled)
+  order_id נלקח מ-orders_active[].id (מופיע בקונטקסט)
+  דוגמה: "עדכן הזמנה 123 כנמסרה" → [ACTION:UPDATE_DELIVERY_STATUS|123|delivered|שם הלקוח]
+
 ## מה לנתח מהקונטקסט שמתקבל:
 - מה שיעור ההצלחה (delivered/total) וכיצד משפר אותו
 - אלו נהגים מתפקדים הכי טוב/גרוע ולמה
