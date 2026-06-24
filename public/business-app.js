@@ -28143,15 +28143,15 @@ function getBizTerm(key) {
 }
 
 const EMPLOYEE_ROLE_TYPES = [
-    { id: 'salesperson',    name: 'איש מכירות',    icon: '💼', feature_key: 'role_salesperson',    price: 29, color: 'blue',    business_types: ['retail','services','construction','food_production','professional','other'] },
+    { id: 'salesperson',    name: 'איש מכירות',    icon: '💼', feature_key: 'role_salesperson',    price: 29, color: 'blue',    business_types: ['retail','services','construction','food_production','other'] },
     { id: 'field_tech',     name: 'טכנאי שטח',     icon: '🔧', feature_key: 'role_field_tech',     price: 29, color: 'orange',  business_types: ['maintenance_repair','construction','logistics','other'] },
     { id: 'delivery',       name: 'שליח / נהג',    icon: '🛵', feature_key: 'role_delivery',       price: 19, color: 'green',   business_types: ['restaurant','retail','logistics','food_production','other'] },
     { id: 'warehouse',      name: 'מחסנאי',         icon: '📦', feature_key: 'role_warehouse',      price: 19, color: 'amber',   business_types: ['restaurant','retail','logistics','food_production','construction','other'] },
     { id: 'cleaner',        name: 'מנקה / אחזקה',  icon: '🧹', feature_key: 'role_cleaner',        price: 15, color: 'teal',    business_types: ['restaurant','retail','beauty','sport','events','other'] },
-    { id: 'support',        name: 'נציג שירות',    icon: '🎧', feature_key: 'role_support',        price: 19, color: 'purple',  business_types: ['services','healthcare','sport','education','professional','other'] },
+    { id: 'support',        name: 'נציג שירות',    icon: '🎧', feature_key: 'role_support',        price: 19, color: 'purple',  business_types: ['services','healthcare','sport','education','other'] },
     { id: 'cashier',        name: 'קופאי',          icon: '💰', feature_key: 'role_cashier',        price: 19, color: 'emerald', business_types: ['restaurant','retail','beauty','sport','other'] },
     { id: 'shift_manager',  name: 'מנהל משמרת',    icon: '📋', feature_key: 'role_shift_manager',  price: 29, color: 'indigo',  business_types: ['restaurant','retail','food_production','logistics','sport','other'] },
-    { id: 'branch_manager', name: 'מנהל סניף',     icon: '🏢', feature_key: 'role_branch_manager', price: 39, color: 'slate',   business_types: null },
+    { id: 'branch_manager', name: 'מנהל סניף',     icon: '🏢', feature_key: 'role_branch_manager', price: 39, color: 'slate',   business_types: ['retail','restaurant','services','construction','food_production','logistics','sport','education','healthcare','maintenance_repair','events','cafe','beauty','other'] },
     { id: 'waiter',         name: 'מלצר/ית',       icon: '🍽️', feature_key: 'role_waiter',         price: 15, color: 'amber',   business_types: ['restaurant'] },
     { id: 'cook',           name: 'טבח/ית',         icon: '👨‍🍳', feature_key: 'role_cook',           price: 15, color: 'red',    business_types: ['restaurant','food_production'] },
     { id: 'therapist',        name: 'מטפלת',            icon: '💆', feature_key: 'role_therapist',        price: 19, color: 'pink',    business_types: ['beauty'] },
@@ -28159,6 +28159,9 @@ const EMPLOYEE_ROLE_TYPES = [
     { id: 'nail_tech',        name: 'טכנאית ציפורניים', icon: '💅', feature_key: 'role_nail_tech',        price: 19, color: 'rose',    business_types: ['beauty'] },
     { id: 'makeup_artist',    name: 'איפורנית',          icon: '💄', feature_key: 'role_makeup_artist',    price: 19, color: 'fuchsia', business_types: ['beauty'] },
     { id: 'reception',        name: 'קבלנית',            icon: '🗓️', feature_key: 'role_reception',        price: 15, color: 'teal',    business_types: ['beauty'] },
+    { id: 'consultant',       name: 'יועץ / מומחה',      icon: '🎯', feature_key: 'role_consultant',       price: 29, color: 'indigo',  business_types: ['professional'] },
+    { id: 'associate',        name: 'עוזר / אסיסטנט',    icon: '📋', feature_key: 'role_associate',        price: 19, color: 'slate',   business_types: ['professional'] },
+    { id: 'partner',          name: 'שותף בכיר',         icon: '🤝', feature_key: 'role_partner',          price: 39, color: 'amber',   business_types: ['professional'] },
 ];
 
 // --- Feature licensing helpers ---
