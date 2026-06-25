@@ -44464,6 +44464,10 @@ window.renderDocumentsTab = async function() {
                         <label class="text-xs font-bold text-slate-500 block mb-1">לקוח</label>
                         <input type="text" id="doc-modal-customer" class="modern-input py-2 text-sm bg-white" placeholder="שם הלקוח">
                     </div>
+                    <div id="doc-modal-email-wrap">
+                        <label class="text-xs font-bold text-slate-500 block mb-1">מייל לקוח</label>
+                        <input type="email" id="doc-modal-email" class="modern-input py-2 text-sm bg-white" placeholder="email@example.com">
+                    </div>
                     <div>
                         <label class="text-xs font-bold text-slate-500 block mb-1">תוכן המסמך</label>
                         <textarea id="doc-modal-content" class="modern-input py-2 text-sm bg-white h-40" placeholder="תוכן, תנאים, פרטים..."></textarea>
@@ -44478,6 +44482,35 @@ window.renderDocumentsTab = async function() {
                     <button onclick="window.saveDocModal()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow hover:bg-indigo-700 transition">שמור</button>
                 </div>
             </div>
+        </div>
+
+        <!-- Modal: חתימה דיגיטלית -->
+        <div id="doc-sig-modal" class="fixed inset-0 z-[400] hidden flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div class="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl">
+                <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                    <h3 class="text-base font-black text-slate-800">חתימה דיגיטלית ✍️</h3>
+                    <button onclick="document.getElementById('doc-sig-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark text-sm"></i></button>
+                </div>
+                <div class="p-5">
+                    <p class="text-xs text-slate-500 mb-3">חתמו בתוך המסגרת:</p>
+                    <canvas id="doc-sig-canvas" width="340" height="160" class="border-2 border-dashed border-slate-300 rounded-xl w-full bg-white touch-none cursor-crosshair"></canvas>
+                    <div class="flex gap-2 mt-4">
+                        <button onclick="window._clearSignature()" class="flex-1 bg-slate-100 py-2.5 rounded-xl font-bold text-slate-500 text-sm hover:bg-slate-200 transition">נקה</button>
+                        <button onclick="window._saveSignature()" class="flex-1 bg-green-600 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-green-700 transition shadow">שמור חתימה ✓</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: היסטוריית גרסאות -->
+        <div id="doc-history-modal" class="fixed inset-0 z-[400] hidden flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[80vh] flex flex-col">
+                <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+                    <h3 class="text-base font-black text-slate-800">היסטוריית גרסאות 📋</h3>
+                    <button onclick="document.getElementById('doc-history-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark text-sm"></i></button>
+                </div>
+                <div id="doc-history-list" class="flex-1 overflow-y-auto px-5 py-4 space-y-3"></div>
+            </div>
         </div>`;
 
         // שמור את הנתונים לסינון
@@ -44490,19 +44523,29 @@ function renderDocsClientList(docs) {
     return `<div class="space-y-2">${docs.map(d => {
         const statusCls = DOC_STATUS_COLORS[d.status] || DOC_STATUS_COLORS.draft;
         const typeIcon = d.doc_type==='contract'?'📝':d.doc_type==='quote'?'💰':d.doc_type==='letter'?'✉️':d.doc_type==='report'?'📊':'📄';
-        return `<div class="flex items-start justify-between bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100 group">
-            <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-2 mb-1">
-                    <span>${typeIcon}</span>
-                    <p class="font-bold text-slate-800 text-xs truncate">${safeStr(d.title)}</p>
-                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${statusCls}">${DOC_STATUS_LABELS[d.status]||d.status}</span>
+        const docJson = JSON.stringify({id:d.id,title:d.title,doc_type:d.doc_type,status:d.status,content:d.content,customer_name:d.customer_name,notes:d.notes,signature_data:d.signature_data}).replace(/'/g,"\\'");
+        return `<div class="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
+            <div class="flex items-start justify-between mb-2">
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span>${typeIcon}</span>
+                        <p class="font-bold text-slate-800 text-xs truncate">${safeStr(d.title)}</p>
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${statusCls}">${DOC_STATUS_LABELS[d.status]||d.status}</span>
+                        ${d.signature_data ? '<span class="text-[10px] text-green-600 font-bold">✍️</span>' : ''}
+                    </div>
+                    ${d.customer_name ? `<p class="text-[11px] text-slate-500"><i class="fa-solid fa-user text-[9px] mr-1"></i>${safeStr(d.customer_name)}${d.customer_email?` • ${safeStr(d.customer_email)}`:''}</p>` : ''}
+                    <p class="text-[10px] text-slate-400 mt-0.5">${new Date(d.updated_at||d.created_at).toLocaleDateString('he-IL')}</p>
                 </div>
-                ${d.customer_name ? `<p class="text-[11px] text-slate-500"><i class="fa-solid fa-user text-[9px] mr-1"></i>${safeStr(d.customer_name)}</p>` : ''}
-                <p class="text-[10px] text-slate-400 mt-0.5">${new Date(d.updated_at||d.created_at).toLocaleDateString('he-IL')}</p>
+                <div class="flex items-center gap-1 shrink-0 mr-1">
+                    <button onclick="window.editDocModal(${d.id}, false)" title="עריכה" class="text-slate-400 hover:text-indigo-600 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-indigo-50 transition"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                    <button onclick="window.deleteDoc(${d.id})" title="מחיקה" class="text-red-400 hover:text-red-600 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 transition"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                </div>
             </div>
-            <div class="flex items-center gap-1 shrink-0 mr-2">
-                <button onclick="window.editDocModal(${d.id}, false)" class="text-[10px] text-slate-400 hover:text-indigo-600 px-1.5 py-1 transition"><i class="fa-solid fa-pen"></i></button>
-                <button onclick="window.deleteDoc(${d.id})" class="text-[10px] text-red-400 hover:text-red-600 px-1.5 py-1 transition"><i class="fa-solid fa-trash"></i></button>
+            <div class="flex gap-1.5 flex-wrap">
+                <button onclick="window.exportDocPDF(${JSON.stringify(d).replace(/"/g,'&quot;')})" class="text-[10px] font-bold text-slate-600 bg-white border border-slate-200 px-2 py-1 rounded-lg hover:bg-slate-50 transition flex items-center gap-1"><i class="fa-solid fa-file-pdf text-red-500"></i> PDF</button>
+                <button onclick="window.openSignaturePad(${d.id}, '', '')" class="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-1 rounded-lg hover:bg-purple-100 transition flex items-center gap-1">✍️ חתימה</button>
+                <button onclick="window.showDocVersions(${d.id})" class="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded-lg hover:bg-slate-50 transition flex items-center gap-1"><i class="fa-solid fa-clock-rotate-left"></i> גרסאות</button>
+                ${d.customer_email ? `<button onclick="window.sendDocEmail(${d.id},'${safeStr(d.title)}','${safeStr(d.customer_email)}','','')" class="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-1 rounded-lg hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-envelope"></i> שלח מייל</button>` : ''}
             </div>
         </div>`;
     }).join('')}</div>`;
@@ -44526,10 +44569,14 @@ window.openNewDocModal = function(isTemplate = false) {
     document.getElementById('doc-modal-content').value = '';
     document.getElementById('doc-modal-notes').value = '';
     document.getElementById('doc-modal-customer').value = '';
+    const emailEl = document.getElementById('doc-modal-email');
+    if (emailEl) emailEl.value = '';
     document.getElementById('doc-modal-title').textContent = isTemplate ? 'תבנית חדשה' : 'מסמך חדש';
     const custWrap = document.getElementById('doc-modal-customer-wrap');
+    const emailWrap = document.getElementById('doc-modal-email-wrap');
     const statusWrap = document.getElementById('doc-modal-status-wrap');
     if (custWrap) custWrap.style.display = isTemplate ? 'none' : '';
+    if (emailWrap) emailWrap.style.display = isTemplate ? 'none' : '';
     if (statusWrap) statusWrap.style.display = isTemplate ? 'none' : '';
     document.getElementById('doc-edit-modal').classList.remove('hidden');
 };
@@ -44547,10 +44594,14 @@ window.openDocFromTemplate = async function(templateId) {
         document.getElementById('doc-modal-content').value = tpl.content || '';
         document.getElementById('doc-modal-notes').value = '';
         document.getElementById('doc-modal-customer').value = '';
+        const emailEl = document.getElementById('doc-modal-email');
+        if (emailEl) emailEl.value = '';
         document.getElementById('doc-modal-title').textContent = 'מסמך חדש (מתבנית)';
         const custWrap = document.getElementById('doc-modal-customer-wrap');
+        const emailWrap = document.getElementById('doc-modal-email-wrap');
         const statusWrap = document.getElementById('doc-modal-status-wrap');
         if (custWrap) custWrap.style.display = '';
+        if (emailWrap) emailWrap.style.display = '';
         if (statusWrap) statusWrap.style.display = '';
         document.getElementById('doc-edit-modal').classList.remove('hidden');
     } catch(e) { showToast('error', 'שגיאה'); }
@@ -44570,10 +44621,14 @@ window.editDocModal = async function(docId, isTemplate) {
         document.getElementById('doc-modal-content').value = doc.content || '';
         document.getElementById('doc-modal-notes').value = doc.notes || '';
         document.getElementById('doc-modal-customer').value = doc.customer_name || '';
+        const emailEl = document.getElementById('doc-modal-email');
+        if (emailEl) emailEl.value = doc.customer_email || '';
         document.getElementById('doc-modal-title').textContent = isTemplate ? 'עריכת תבנית' : 'עריכת מסמך';
         const custWrap = document.getElementById('doc-modal-customer-wrap');
+        const emailWrap = document.getElementById('doc-modal-email-wrap');
         const statusWrap = document.getElementById('doc-modal-status-wrap');
         if (custWrap) custWrap.style.display = isTemplate ? 'none' : '';
+        if (emailWrap) emailWrap.style.display = isTemplate ? 'none' : '';
         if (statusWrap) statusWrap.style.display = isTemplate ? 'none' : '';
         document.getElementById('doc-edit-modal').classList.remove('hidden');
     } catch(e) { showToast('error', 'שגיאה'); }
@@ -44591,6 +44646,7 @@ window.saveDocModal = async function() {
         content: document.getElementById('doc-modal-content').value.trim(),
         notes: document.getElementById('doc-modal-notes').value.trim(),
         customer_name: isTemplate ? null : (document.getElementById('doc-modal-customer').value.trim() || null),
+        customer_email: isTemplate ? null : (document.getElementById('doc-modal-email')?.value.trim() || null),
         is_template: isTemplate
     };
     try {
@@ -44635,7 +44691,7 @@ window.loadCustomerDocuments = async function(name, phone) {
         }
         listEl.innerHTML = `
             <div class="flex justify-end mb-2">
-                <button onclick="window.openNewDocForCustomer('${safeStr(name||'')}','${safeStr(phone||'')}')" class="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-lg transition flex items-center gap-1">
+                <button onclick="window.openNewDocForCustomer('${safeStr(name||'')}','${safeStr(phone||'')}','')" class="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-lg transition flex items-center gap-1">
                     <i class="fa-solid fa-plus text-[10px]"></i> מסמך חדש
                 </button>
             </div>
@@ -44644,28 +44700,36 @@ window.loadCustomerDocuments = async function(name, phone) {
                 const statusCls = DOC_STATUS_COLORS[d.status] || DOC_STATUS_COLORS.draft;
                 const typeIcon = d.doc_type==='contract'?'📝':d.doc_type==='quote'?'💰':d.doc_type==='letter'?'✉️':d.doc_type==='report'?'📊':'📄';
                 const waLink = phone ? `https://wa.me/972${phone.replace(/^0/,'').replace(/[^0-9]/,'')}?text=${encodeURIComponent(`שלום ${safeStr(name||'')}, צירפתי עבורך מסמך: ${safeStr(d.title)}`)}` : '';
+                const custEmail = d.customer_email || '';
                 return `<div class="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100 mb-1">
                     <div class="flex items-center justify-between mb-1.5">
                         <div class="flex items-center gap-1.5 min-w-0 flex-1">
                             <span class="text-sm">${typeIcon}</span>
                             <p class="font-bold text-slate-800 text-xs truncate">${safeStr(d.title)}</p>
                             <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${statusCls}">${DOC_STATUS_LABELS[d.status]||d.status}</span>
+                            ${d.signature_data ? '<span class="text-[10px] text-green-600 font-bold">✍️</span>' : ''}
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <select onchange="window.updateDocStatus(${d.id}, this.value, '${safeStr(name||'')}','${safeStr(phone||'')}')" class="flex-1 text-[10px] border border-slate-200 rounded-lg px-1 py-1 outline-none">
+                    <div class="flex items-center gap-2 mb-2">
+                        <select onchange="window.updateDocStatus(${d.id}, this.value, '${safeStr(name||'')}','${safeStr(phone||'')}')" class="flex-1 text-[10px] border border-slate-200 rounded-lg px-1 py-1 outline-none bg-white">
                             ${Object.entries(DOC_STATUS_LABELS).map(([k,v])=>`<option value="${k}" ${d.status===k?'selected':''}>${v}</option>`).join('')}
                         </select>
-                        ${waLink ? `<a href="${waLink}" target="_blank" class="shrink-0 flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-lg hover:bg-green-100 transition"><i class="fa-brands fa-whatsapp"></i> שלח ללקוח</a>` : ''}
+                        ${waLink ? `<a href="${waLink}" target="_blank" class="shrink-0 flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-lg hover:bg-green-100 transition"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>` : ''}
                     </div>
-                    <p class="text-[10px] text-slate-400 mt-1">${new Date(d.updated_at||d.created_at).toLocaleDateString('he-IL')}</p>
+                    <div class="flex gap-1.5 flex-wrap">
+                        <button onclick="window.exportDocPDF(${JSON.stringify(d).replace(/"/g,'&quot;')})" class="text-[10px] font-bold text-slate-600 bg-white border border-slate-200 px-2 py-1 rounded-lg hover:bg-slate-100 transition flex items-center gap-1"><i class="fa-solid fa-file-pdf text-red-500"></i> PDF</button>
+                        <button onclick="window.openSignaturePad(${d.id},'${safeStr(name||'')}','${safeStr(phone||'')}')" class="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-1 rounded-lg hover:bg-purple-100 transition flex items-center gap-1">✍️ חתימה</button>
+                        <button onclick="window.showDocVersions(${d.id})" class="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded-lg hover:bg-slate-50 transition flex items-center gap-1"><i class="fa-solid fa-clock-rotate-left"></i> גרסאות</button>
+                        <button onclick="window.sendDocEmail(${d.id},'${safeStr(d.title)}','${safeStr(custEmail)}','${safeStr(name||'')}','${safeStr(phone||'')}')" class="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-1 rounded-lg hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-envelope"></i> שלח מייל</button>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1.5">${new Date(d.updated_at||d.created_at).toLocaleDateString('he-IL')}</p>
                 </div>`;
             }).join('')}
             </div>`;
     } catch(e) { listEl.innerHTML = '<p class="text-center text-red-400 text-xs py-4">שגיאה בטעינה</p>'; }
 };
 
-window.openNewDocForCustomer = function(custName, custPhone) {
+window.openNewDocForCustomer = function(custName, custPhone, custEmail) {
     document.getElementById('doc-modal-id').value = '';
     document.getElementById('doc-modal-is-template').value = '0';
     document.getElementById('doc-modal-title-input').value = '';
@@ -44674,10 +44738,14 @@ window.openNewDocForCustomer = function(custName, custPhone) {
     document.getElementById('doc-modal-content').value = '';
     document.getElementById('doc-modal-notes').value = '';
     document.getElementById('doc-modal-customer').value = custName || '';
+    const emailEl = document.getElementById('doc-modal-email');
+    if (emailEl) emailEl.value = custEmail || '';
     document.getElementById('doc-modal-title').textContent = 'מסמך חדש';
     const custWrap = document.getElementById('doc-modal-customer-wrap');
+    const emailWrap = document.getElementById('doc-modal-email-wrap');
     const statusWrap = document.getElementById('doc-modal-status-wrap');
     if (custWrap) custWrap.style.display = '';
+    if (emailWrap) emailWrap.style.display = '';
     if (statusWrap) statusWrap.style.display = '';
     document.getElementById('doc-edit-modal').classList.remove('hidden');
 };
@@ -44688,6 +44756,157 @@ window.updateDocStatus = async function(id, status, custName, custPhone) {
         showToast('success', 'סטטוס עודכן');
         window.loadCustomerDocuments(custName, custPhone);
     } catch(e) { showToast('error', 'שגיאה'); }
+};
+
+// ─── ייצוא PDF ────────────────────────────────────────────────
+window.exportDocPDF = function(doc) {
+    if (typeof doc === 'string') { try { doc = JSON.parse(doc); } catch(e) { showToast('error','שגיאה'); return; } }
+    const typeLabels = { document:'מסמך', contract:'חוזה', quote:'הצעת מחיר', letter:'מכתב', report:'דוח' };
+    const statusLabels = { draft:'טיוטה', sent:'נשלח', signed:'חתום', approved:'מאושר', cancelled:'בוטל' };
+    const dateStr = new Date().toLocaleDateString('he-IL');
+    const w = window.open('', '_blank', 'width=820,height=700');
+    if (!w) { showToast('error', 'אפשר חלונות קופצים בדפדפן ונסה שוב'); return; }
+    const contentHtml = (doc.content||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    w.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>${doc.title||'מסמך'}</title>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:40px auto;color:#1e293b;line-height:1.7;padding:0 20px}
+        .header{border-bottom:2px solid #4338ca;padding-bottom:18px;margin-bottom:28px}
+        h1{color:#4338ca;font-size:22px;margin-bottom:8px}
+        .meta{color:#64748b;font-size:13px}
+        .content{white-space:pre-wrap;font-size:14px;line-height:1.8}
+        .sig-section{margin-top:40px;padding-top:20px;border-top:1px solid #e2e8f0}
+        .sig-label{font-size:12px;color:#64748b;margin-bottom:8px}
+        img.sig{max-width:220px;border-bottom:1px solid #334155;display:block}
+        .footer{margin-top:48px;padding-top:16px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:11px}
+        @media print{body{margin:24px;padding:0}button{display:none}}
+    </style></head><body>
+    <div class="header">
+        <h1>${safeStr(doc.title)}</h1>
+        <p class="meta">${doc.customer_name?`לקוח: ${safeStr(doc.customer_name)} &nbsp;|&nbsp; `:''}סוג: ${typeLabels[doc.doc_type]||doc.doc_type} &nbsp;|&nbsp; סטטוס: ${statusLabels[doc.status]||doc.status} &nbsp;|&nbsp; תאריך: ${dateStr}</p>
+    </div>
+    <div class="content">${contentHtml}</div>
+    ${doc.signature_data?`<div class="sig-section"><p class="sig-label">חתימה:</p><img class="sig" src="${doc.signature_data}" alt="חתימה"></div>`:''}
+    <div class="footer">נוצר ב-Oneflow Business &nbsp;|&nbsp; ${dateStr}</div>
+    <script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script>
+    </body></html>`);
+    w.document.close();
+};
+
+// ─── חתימה דיגיטלית ──────────────────────────────────────────
+window._sigDocId = null;
+window._sigCustName = '';
+window._sigCustPhone = '';
+window._sigDrawing = false;
+window._sigLastX = 0;
+window._sigLastY = 0;
+
+window.openSignaturePad = function(docId, custName, custPhone) {
+    window._sigDocId = docId;
+    window._sigCustName = custName;
+    window._sigCustPhone = custPhone;
+    const modal = document.getElementById('doc-sig-modal');
+    if (!modal) { showToast('error', 'פתח תחילה את מודול המסמכים'); return; }
+    modal.classList.remove('hidden');
+    const canvas = document.getElementById('doc-sig-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const getPos = (e, touch) => {
+        const r = canvas.getBoundingClientRect();
+        const src = touch ? e.touches[0] : e;
+        return { x: (src.clientX - r.left) * (canvas.width / r.width), y: (src.clientY - r.top) * (canvas.height / r.height) };
+    };
+    canvas.onmousedown = e => { window._sigDrawing = true; const p = getPos(e); window._sigLastX = p.x; window._sigLastY = p.y; };
+    canvas.onmousemove = e => { if (!window._sigDrawing) return; const p = getPos(e); ctx.beginPath(); ctx.moveTo(window._sigLastX, window._sigLastY); ctx.lineTo(p.x, p.y); ctx.stroke(); window._sigLastX = p.x; window._sigLastY = p.y; };
+    canvas.onmouseup = canvas.onmouseleave = () => { window._sigDrawing = false; };
+    canvas.ontouchstart = e => { e.preventDefault(); window._sigDrawing = true; const p = getPos(e, true); window._sigLastX = p.x; window._sigLastY = p.y; };
+    canvas.ontouchmove = e => { e.preventDefault(); if (!window._sigDrawing) return; const p = getPos(e, true); ctx.beginPath(); ctx.moveTo(window._sigLastX, window._sigLastY); ctx.lineTo(p.x, p.y); ctx.stroke(); window._sigLastX = p.x; window._sigLastY = p.y; };
+    canvas.ontouchend = () => { window._sigDrawing = false; };
+};
+
+window._clearSignature = function() {
+    const canvas = document.getElementById('doc-sig-canvas');
+    if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+};
+
+window._saveSignature = async function() {
+    const canvas = document.getElementById('doc-sig-canvas');
+    if (!canvas || !window._sigDocId) return;
+    const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    if (!Array.from(data).some(v => v !== 0)) { showToast('error', 'נא לחתום קודם'); return; }
+    const sigData = canvas.toDataURL('image/png');
+    try {
+        await fetch(`${API}/professional-documents/${window._sigDocId}`, {
+            method:'PATCH', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ signature_data: sigData, status: 'signed' })
+        });
+        showToast('success', 'חתימה נשמרה — סטטוס עודכן לחתום ✓');
+        document.getElementById('doc-sig-modal').classList.add('hidden');
+        if (window._sigCustName || window._sigCustPhone) {
+            window.loadCustomerDocuments(window._sigCustName, window._sigCustPhone);
+        } else {
+            window.renderDocumentsTab();
+        }
+    } catch(e) { showToast('error', 'שגיאה בשמירת חתימה'); }
+};
+
+// ─── היסטוריית גרסאות ────────────────────────────────────────
+window.showDocVersions = async function(docId) {
+    const modal = document.getElementById('doc-history-modal');
+    const listEl = document.getElementById('doc-history-list');
+    if (!modal || !listEl) { showToast('error', 'פתח תחילה את מודול המסמכים'); return; }
+    listEl.innerHTML = '<p class="text-center text-slate-400 text-sm py-6"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
+    modal.classList.remove('hidden');
+    try {
+        const r = await fetch(`${API}/professional-documents/${docId}/versions`).then(r => r.json());
+        const versions = r.versions || [];
+        if (!versions.length) {
+            listEl.innerHTML = '<p class="text-center text-slate-400 text-sm py-8">אין גרסאות קודמות<br><span class="text-xs text-slate-300 mt-1 block">גרסה נשמרת בכל פעם שעורכים ושומרים מסמך</span></p>';
+            return;
+        }
+        listEl.innerHTML = versions.map((v, i) => `
+            <div class="border border-slate-100 rounded-xl p-3">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-black text-slate-700">גרסה ${versions.length - i}</span>
+                    <span class="text-[10px] text-slate-400">${new Date(v.changed_at).toLocaleString('he-IL')}</span>
+                </div>
+                <div class="flex gap-2 mb-2">
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${DOC_STATUS_COLORS[v.status]||DOC_STATUS_COLORS.draft}">${DOC_STATUS_LABELS[v.status]||v.status||'—'}</span>
+                    <span class="text-[10px] text-slate-400">${v.doc_type||''}</span>
+                </div>
+                ${v.content ? `<pre class="text-[11px] text-slate-600 whitespace-pre-wrap bg-slate-50 rounded-lg p-2.5 max-h-28 overflow-y-auto leading-relaxed">${safeStr(v.content.substring(0,400))}${v.content.length>400?'\n…':''}</pre>` : '<p class="text-[10px] text-slate-300 italic">אין תוכן</p>'}
+            </div>`).join('');
+    } catch(e) { listEl.innerHTML = '<p class="text-center text-red-400 text-sm py-6">שגיאה בטעינה</p>'; }
+};
+
+// ─── שליחת מייל ─────────────────────────────────────────────
+window.sendDocEmail = async function(docId, docTitle, defaultEmail, custName, custPhone) {
+    const email = prompt(`שלח מסמך: "${docTitle}"\n\nהזן כתובת מייל:`, defaultEmail || '');
+    if (email === null) return;
+    if (!email || !/\S+@\S+\.\S+/.test(email)) { showToast('error', 'כתובת מייל לא תקינה'); return; }
+    try {
+        showToast('info', 'שולח מייל...');
+        const r = await fetch(`${API}/professional-documents/${docId}/send-email`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ to_email: email })
+        }).then(r => r.json());
+        if (!r.success) throw new Error(r.error||'שגיאה');
+        showToast('success', `מייל נשלח אל ${email} ✓`);
+        if (email !== defaultEmail) {
+            await fetch(`${API}/professional-documents/${docId}`, {
+                method:'PATCH', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ customer_email: email })
+            });
+        }
+        if (custName || custPhone) window.loadCustomerDocuments(custName, custPhone);
+        else window.renderDocumentsTab();
+    } catch(e) { showToast('error', 'שגיאה בשליחת המייל'); }
 };
 
 // ============================================================

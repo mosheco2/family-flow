@@ -876,6 +876,17 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           created_at TIMESTAMP DEFAULT NOW(),
           updated_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE professional_documents ADD COLUMN IF NOT EXISTS customer_email VARCHAR(200)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE professional_documents ADD COLUMN IF NOT EXISTS signature_data TEXT`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS professional_document_versions (
+          id SERIAL PRIMARY KEY,
+          document_id INT NOT NULL,
+          title VARCHAR(300),
+          content TEXT,
+          doc_type VARCHAR(30),
+          status VARCHAR(30),
+          changed_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
       // ===== END PROFESSIONAL WEBSITE CONTENT MODULE =====
 
       // ===== SPORT / FITNESS MODULE =====
@@ -12790,31 +12801,85 @@ app.get('/api/professional-documents/:groupId', async (req, res) => {
 
 app.post('/api/professional-documents/:groupId', async (req, res) => {
     try {
-        const { customer_name, customer_phone, title, content, doc_type, status, is_template, notes } = req.body;
+        const { customer_name, customer_phone, customer_email, title, content, doc_type, status, is_template, notes } = req.body;
         const r = await pool.query(
-            `INSERT INTO professional_documents (group_id,customer_name,customer_phone,title,content,doc_type,status,is_template,notes)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-            [req.params.groupId, customer_name||null, customer_phone||null, title, content||'', doc_type||'document', status||'draft', !!is_template, notes||null]);
+            `INSERT INTO professional_documents (group_id,customer_name,customer_phone,customer_email,title,content,doc_type,status,is_template,notes)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+            [req.params.groupId, customer_name||null, customer_phone||null, customer_email||null, title, content||'', doc_type||'document', status||'draft', !!is_template, notes||null]);
         res.json({ success: true, document: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.patch('/api/professional-documents/:id', async (req, res) => {
     try {
-        const { title, content, doc_type, status, notes, customer_name, customer_phone } = req.body;
+        const { title, content, doc_type, status, notes, customer_name, customer_phone, customer_email, signature_data } = req.body;
+        // שמור גרסה קודמת לפני עדכון תוכן/סטטוס
+        if (title !== undefined || content !== undefined || status !== undefined) {
+            const existing = await pool.query('SELECT title,content,doc_type,status FROM professional_documents WHERE id=$1', [req.params.id]);
+            if (existing.rows.length) {
+                const prev = existing.rows[0];
+                if (prev.title || prev.content) {
+                    await pool.query(
+                        `INSERT INTO professional_document_versions (document_id,title,content,doc_type,status) VALUES ($1,$2,$3,$4,$5)`,
+                        [req.params.id, prev.title, prev.content, prev.doc_type, prev.status]
+                    );
+                    // שמור עד 20 גרסאות לכל מסמך
+                    await pool.query(`DELETE FROM professional_document_versions WHERE document_id=$1 AND id NOT IN (SELECT id FROM professional_document_versions WHERE document_id=$1 ORDER BY changed_at DESC LIMIT 20)`, [req.params.id]);
+                }
+            }
+        }
         await pool.query(
-            `UPDATE professional_documents SET title=COALESCE($1,title), content=COALESCE($2,content),
+            `UPDATE professional_documents SET
+             title=COALESCE($1,title), content=COALESCE($2,content),
              doc_type=COALESCE($3,doc_type), status=COALESCE($4,status), notes=COALESCE($5,notes),
              customer_name=COALESCE($6,customer_name), customer_phone=COALESCE($7,customer_phone),
-             updated_at=NOW() WHERE id=$8`,
-            [title||null, content||null, doc_type||null, status||null, notes||null, customer_name||null, customer_phone||null, req.params.id]);
+             customer_email=COALESCE($8,customer_email), signature_data=COALESCE($9,signature_data),
+             updated_at=NOW() WHERE id=$10`,
+            [title||null, content||null, doc_type||null, status||null, notes||null,
+             customer_name||null, customer_phone||null, customer_email||null, signature_data||null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/professional-documents/:id/versions', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM professional_document_versions WHERE document_id=$1 ORDER BY changed_at DESC LIMIT 20', [req.params.id]);
+        res.json({ success: true, versions: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/professional-documents/:id/send-email', async (req, res) => {
+    try {
+        const { to_email } = req.body;
+        if (!to_email) return res.status(400).json({ error: 'חסרה כתובת מייל' });
+        const r = await pool.query('SELECT * FROM professional_documents WHERE id=$1', [req.params.id]);
+        if (!r.rows.length) return res.status(404).json({ error: 'מסמך לא נמצא' });
+        const doc = r.rows[0];
+        const typeLabels = { document:'מסמך', contract:'חוזה', quote:'הצעת מחיר', letter:'מכתב', report:'דוח' };
+        const html = `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+            <h2 style="color:#4338ca;margin:0 0 8px;">${doc.title}</h2>
+            <p style="color:#64748b;font-size:13px;margin:0 0 16px;">סוג: ${typeLabels[doc.doc_type]||doc.doc_type}</p>
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:0 0 20px;">
+            <div style="white-space:pre-wrap;font-size:14px;line-height:1.8;color:#1e293b;">${(doc.content||'(אין תוכן)').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+            ${doc.notes ? `<hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0 12px;"><p style="color:#94a3b8;font-size:12px;">הערות פנימיות: ${doc.notes}</p>` : ''}
+            ${doc.signature_data ? `<div style="margin-top:24px;"><p style="font-size:12px;color:#64748b;margin-bottom:6px;">חתימה:</p><img src="${doc.signature_data}" style="max-width:200px;border-bottom:1px solid #334155;"></div>` : ''}
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0 12px;">
+            <p style="color:#cbd5e1;font-size:11px;">נשלח מ-Oneflow Business</p>
+        </div>`;
+        await sendSystemEmail(to_email, `מסמך: ${doc.title}`, html);
+        if (doc.status === 'draft') {
+            await pool.query('UPDATE professional_documents SET status=$1,updated_at=NOW() WHERE id=$2', ['sent', doc.id]);
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/professional-documents/:id', async (req, res) => {
-    try { await pool.query('DELETE FROM professional_documents WHERE id=$1', [req.params.id]); res.json({ success: true }); }
-    catch(e) { res.status(500).json({ error: e.message }); }
+    try {
+        await pool.query('DELETE FROM professional_document_versions WHERE document_id=$1', [req.params.id]);
+        await pool.query('DELETE FROM professional_documents WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 // ===== PROFESSIONAL DASHBOARD API =====
 app.get('/api/professional/dashboard/:groupId', async (req, res) => {
