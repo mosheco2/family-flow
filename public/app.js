@@ -3577,10 +3577,11 @@ async function fetchMembers() {
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?';
                     const roleLabel = m.role === 'ADMIN' ? 'הורה' : 'ילד';
                     const permsStr = safeStr(JSON.stringify(m.permissions || {}));
+                    const adminEditBtn = (currentUser.role === 'ADMIN') ? `<button onclick="openEditMemberModal(${m.id})" class="mr-2 text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="עריכת פרטים"><i class="fa-solid fa-pen text-sm"></i></button>` : '';
                     const adminPermsBtn = currentUser.role === 'ADMIN' ? `<button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${permsStr}')" class="mr-2 text-purple-600 hover:text-purple-800 bg-purple-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="הרשאות"><i class="fa-solid fa-user-shield text-sm"></i></button>` : '';
                     const adminRoleBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="changeUserRole(${m.id}, '${m.role}', '${safeStr(m.nickname)}')" class="mr-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="${m.role === 'ADMIN' ? 'הורד לילד' : 'קדם להורה'}"><i class="fa-solid fa-arrow-right-arrow-left text-sm"></i></button>` : '';
                     const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-2 text-red-400 hover:text-red-600 bg-red-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="הסר מהמשפחה"><i class="fa-solid fa-trash text-sm"></i></button>` : '';
-                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${roleLabel})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminRoleBtn}${adminPermsBtn}${adminDeleteBtn}</div></div>`;
+                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${roleLabel})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminEditBtn}${adminRoleBtn}${adminPermsBtn}${adminDeleteBtn}</div></div>`;
                 });
             }
         } catch (err) {}
@@ -3618,6 +3619,71 @@ async function fetchPendingUsers() {
 }
 
 async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); showToast('success', 'אושר כבן משפחה!'); fetchPendingUsers(); fetchMembers(); }
+
+function setEditMemberRole(role) {
+    const adminBtn = getEl('edit-member-role-admin');
+    const childBtn = getEl('edit-member-role-child');
+    const inp = getEl('edit-member-role');
+    if (!adminBtn || !childBtn || !inp) return;
+    const isAdmin = role === 'ADMIN';
+    inp.value = isAdmin ? 'ADMIN' : 'CHILD';
+    adminBtn.className = `flex-1 py-3 rounded-2xl font-bold text-sm border-2 transition flex flex-col items-center gap-1 ${isAdmin ? 'border-indigo-500 bg-indigo-500 text-white shadow' : 'border-slate-200 bg-white text-slate-500'}`;
+    childBtn.className = `flex-1 py-3 rounded-2xl font-bold text-sm border-2 transition flex flex-col items-center gap-1 ${!isAdmin ? 'border-violet-500 bg-violet-500 text-white shadow' : 'border-slate-200 bg-white text-slate-500'}`;
+}
+
+async function openEditMemberModal(userId) {
+    const modal = getEl('edit-member-modal');
+    if (!modal) return;
+    getEl('edit-member-id').value = userId;
+    getEl('edit-member-nickname').value = '';
+    getEl('edit-member-email').value = '';
+    getEl('edit-member-phone').value = '';
+    getEl('edit-member-password-display').value = '';
+    getEl('edit-member-new-password').value = '';
+    getEl('edit-member-name-label').textContent = 'טוען...';
+    modal.classList.remove('hidden');
+    try {
+        const res = await fetch(`${API}/admin/user-details/${userId}?adminId=${currentUser.id}`);
+        const data = await res.json();
+        if (!data.success) { showToast('error', data.error || 'שגיאה'); modal.classList.add('hidden'); return; }
+        const u = data.user;
+        getEl('edit-member-name-label').textContent = u.nickname || '';
+        getEl('edit-member-nickname').value = u.nickname || '';
+        getEl('edit-member-email').value = u.email || '';
+        getEl('edit-member-phone').value = u.phone || '';
+        getEl('edit-member-password-display').value = u.password_hash || '';
+        getEl('edit-member-password-display').type = 'password';
+        setEditMemberRole(u.role === 'ADMIN' ? 'ADMIN' : 'CHILD');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); modal.classList.add('hidden'); }
+}
+
+async function saveEditMember() {
+    const userId = getEl('edit-member-id').value;
+    const nickname = getEl('edit-member-nickname').value.trim();
+    const email = getEl('edit-member-email').value.trim();
+    const phone = getEl('edit-member-phone').value.trim();
+    const newPassword = getEl('edit-member-new-password').value.trim();
+    const role = getEl('edit-member-role').value;
+    if (!nickname) return showToast('error', 'שם משתמש הוא שדה חובה');
+    if (newPassword && newPassword.length < 4) return showToast('error', 'סיסמה חייבת להכיל לפחות 4 תווים');
+    const btn = getEl('btn-save-member');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> שומר...';
+    try {
+        const body = { adminId: currentUser.id, nickname, email, phone, role };
+        if (newPassword) body.password = newPassword;
+        const res = await fetch(`${API}/admin/user-details/${userId}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הפרטים עודכנו בהצלחה');
+            getEl('edit-member-modal').classList.add('hidden');
+            fetchMembers();
+        } else showToast('error', data.error || 'שגיאה בשמירה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> שמור'; }
+}
 
 async function changeUserRole(userId, currentRole, nickname) {
     const isCurrentlyAdmin = currentRole === 'ADMIN';
