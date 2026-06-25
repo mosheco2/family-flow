@@ -4662,6 +4662,41 @@ Return ONLY valid JSON: { "store_name": "...", "items": [...] }`;
     } catch (e) { handleAIError(e, res, 'שגיאה בקריאת החשבונית'); }
 });
 
+app.post('/api/shopping/ai-generate-list', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+        const groupId = uRes.rows[0].group_id;
+        const hasTokens = await handleAITokens(groupId);
+        if (!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash', generationConfig: { responseMimeType: 'application/json' } });
+        const prompt = `אתה עוזר משפחתי ישראלי. צור רשימת קניות שבועית טיפוסית לבית ישראלי.
+הרשימה תהיה מאורגנת בדיוק לפי 6 קטגוריות אלה ובסדר זה: ירקות, פירות, שימורים, יבשים, דברי חלב, שתיה.
+עבור כל קטגוריה הצע 5-7 מוצרים נפוצים ומשתמשים בישראל.
+יחידות: ירקות ופירות — ק"ג, נוזלים — ל, כל השאר — יח'.
+כמויות: מציאותיות לצריכה שבועית של משפחה ממוצעת (2-4 נפשות).
+מוצרים בעברית בלבד, שמות קצרים וברורים.
+
+החזר JSON בלבד בפורמט הבא:
+{
+  "categories": [
+    {
+      "name": "ירקות",
+      "items": [
+        { "name": "עגבניות", "qty": 1, "unit": "ק\\"ג" },
+        { "name": "מלפפון", "qty": 1, "unit": "ק\\"ג" }
+      ]
+    }
+  ]
+}`;
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
+        const parsed = JSON.parse(text);
+        res.json({ success: true, categories: parsed.categories || [] });
+    } catch(e) { handleAIError(e, res, 'שגיאה ביצירת רשימת קניות'); }
+});
+
 app.post('/api/shopping/scan-receipt/save', async (req, res) => {
     try {
         const { items, userId } = req.body;
