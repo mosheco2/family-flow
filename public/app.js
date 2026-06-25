@@ -2453,6 +2453,88 @@ async function confirmCategoryPick(category) {
     window._pendingShopItem = null;
 }
 
+// ==========================================
+// --- AI Shopping List Generator ---
+// ==========================================
+async function openAiShoppingModal() {
+    const modal = getEl('ai-shop-modal');
+    const listEl = getEl('ai-shop-list');
+    if (!modal || !listEl) return;
+    listEl.innerHTML = `<div class="text-center py-12 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-3xl mb-3 text-violet-400"></i><p class="text-sm font-bold mt-2">מייצר רשימה...</p></div>`;
+    modal.classList.remove('hidden');
+    try {
+        const res = await fetch(`${API}/shopping/ai-generate-list`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (handleAIResponseCheck && handleAIResponseCheck(data)) return;
+        if (!data.success) throw new Error(data.error || 'שגיאה');
+        window._aiShopCategories = data.categories;
+        renderAiShopList(data.categories);
+    } catch(e) {
+        listEl.innerHTML = `<div class="text-center py-12 text-red-400"><i class="fa-solid fa-triangle-exclamation text-3xl mb-3"></i><p class="text-sm font-bold">שגיאה ביצירת הרשימה</p><p class="text-xs mt-1">${e.message || ''}</p></div>`;
+    }
+}
+
+function renderAiShopList(categories) {
+    const listEl = getEl('ai-shop-list');
+    if (!listEl) return;
+    const catEmoji = { 'ירקות': '🥦', 'פירות': '🍊', 'שימורים': '🥫', 'יבשים': '🌾', 'דברי חלב': '🥛', 'שתיה': '🧃' };
+    let html = '';
+    categories.forEach((cat, ci) => {
+        html += `<div>
+            <div class="flex items-center gap-1.5 mb-2">
+                <span class="text-base">${catEmoji[cat.name] || '🛒'}</span>
+                <span class="text-xs font-black text-slate-600">${cat.name}</span>
+            </div>
+            <div class="space-y-1.5">`;
+        cat.items.forEach((item, ii) => {
+            const id = `ai-cb-${ci}-${ii}`;
+            html += `<div class="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2">
+                <input type="checkbox" id="${id}" checked class="w-4 h-4 rounded accent-violet-500 shrink-0 cursor-pointer">
+                <input type="text" value="${item.name}" class="flex-1 min-w-0 bg-transparent text-sm font-bold text-slate-700 outline-none" data-ai-name>
+                <div class="flex items-center gap-1 shrink-0">
+                    <input type="number" value="${item.qty}" min="0.5" step="0.5" class="w-12 text-center text-xs bg-white border border-slate-200 rounded-lg py-1 outline-none font-bold" data-ai-qty>
+                    <span class="text-xs text-slate-400 w-6">${item.unit}</span>
+                    <input type="hidden" value="${item.unit}" data-ai-unit>
+                </div>
+            </div>`;
+        });
+        html += `</div></div>`;
+    });
+    listEl.innerHTML = html;
+}
+
+async function confirmAiShoppingList() {
+    const listEl = getEl('ai-shop-list');
+    if (!listEl) return;
+    const rows = listEl.querySelectorAll('[data-ai-name]');
+    const toAdd = [];
+    rows.forEach(nameInput => {
+        const wrapper = nameInput.closest('div.flex');
+        if (!wrapper) return;
+        const cb = wrapper.querySelector('input[type="checkbox"]');
+        if (!cb || !cb.checked) return;
+        const name = nameInput.value.trim();
+        const qty = parseFloat(wrapper.querySelector('[data-ai-qty]')?.value) || 1;
+        const unit = wrapper.querySelector('[data-ai-unit]')?.value || "יח'";
+        if (name) toAdd.push({ name, qty, unit });
+    });
+    if (toAdd.length === 0) return showToast('error', 'לא נבחרו פריטים');
+    getEl('ai-shop-modal').classList.add('hidden');
+    showToast('success', `מוסיף ${toAdd.length} פריטים לרשימה...`);
+    for (const item of toAdd) {
+        try {
+            await fetch(`${API}/shopping/add`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ itemName: item.name, quantity: item.qty, unit: item.unit, estimatedPrice: 0, unitsPerPackage: 1, userId: currentUser.id, groupId: currentGroup.id })
+            });
+        } catch(e) {}
+    }
+    fetchData();
+}
+
 async function loadCategoryMap() {
     if (!currentGroup || !currentGroup.id) return;
     try {
