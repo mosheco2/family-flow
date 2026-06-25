@@ -44372,12 +44372,33 @@ window.renderDocumentsTab = async function() {
     if (!el) return;
     el.innerHTML = '<p class="text-center text-slate-400 py-10"><i class="fa-solid fa-spinner fa-spin ml-2"></i>טוען מסמכים...</p>';
     try {
-        const [docsRes, templatesRes] = await Promise.all([
+        const [docsRes, templatesRes, customTypesRes, casesRes] = await Promise.all([
             fetch(`${API}/professional-documents/${currentGroup.id}?is_template=false`).then(r => r.json()),
-            fetch(`${API}/professional-documents/${currentGroup.id}?is_template=true`).then(r => r.json())
+            fetch(`${API}/professional-documents/${currentGroup.id}?is_template=true`).then(r => r.json()),
+            fetch(`${API}/professional-doc-types/${currentGroup.id}`).then(r => r.json()).catch(() => ({ types: [] })),
+            fetch(`${API}/work-orders/list/${currentGroup.id}`).then(r => r.json()).catch(() => ({ workOrders: [] }))
         ]);
         const docs = docsRes.documents || [];
         const templates = templatesRes.documents || [];
+        const customTypes = customTypesRes.types || [];
+        const openCases = (casesRes.workOrders || []).filter(c => !['done', 'cancelled', 'closed'].includes(c.status));
+        window._docCustomTypes = customTypes;
+        window._docOpenCases = openCases;
+
+        const typeOptsHtml = [
+            ...Object.entries(DOC_TYPE_LABELS).map(([k, v]) => `<option value="${k}">${v}</option>`),
+            ...customTypes.map(t => `<option value="custom_${t.id}">${t.icon || '📄'} ${t.name}</option>`)
+        ].join('');
+
+        const caseOptsHtml = `<option value="">-- ללא תיק --</option>` + openCases.map(c =>
+            `<option value="${c.id}">${safeStr(c.customer_name || '')}${c.quote_title ? ' — ' + safeStr(c.quote_title) : ''} #${c.id}</option>`
+        ).join('');
+
+        const customTypesHtml = customTypes.map(t => `
+            <div class="flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded-lg border border-indigo-200">
+                <span>${t.icon || '📄'} ${safeStr(t.name)}</span>
+                <button onclick="window._deleteDocType(${t.id})" class="text-red-400 hover:text-red-600 mr-1"><i class="fa-solid fa-xmark text-[9px]"></i></button>
+            </div>`).join('');
 
         el.innerHTML = `
         <div class="space-y-4 pb-4">
@@ -44387,6 +44408,24 @@ window.renderDocumentsTab = async function() {
                 <button onclick="window.openNewDocModal()" class="bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow hover:bg-indigo-700 transition">
                     <i class="fa-solid fa-plus"></i> מסמך חדש
                 </button>
+            </div>
+
+            <!-- ניהול סוגי מסמכים -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-black text-slate-700 text-sm">🗂️ סוגי מסמכים</h3>
+                    <button onclick="window._addDocType()" class="text-xs text-indigo-600 font-bold bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1 rounded-lg transition">+ הוסף סוג</button>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    ${Object.entries(DOC_TYPE_LABELS).map(([k, v]) => `<span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg border border-slate-200 font-medium">${v}</span>`).join('')}
+                    ${customTypesHtml}
+                </div>
+                <div id="add-doc-type-form" class="hidden mt-3 flex gap-2 items-center">
+                    <input type="text" id="new-doc-type-icon" maxlength="2" value="📄" class="modern-input py-1.5 text-sm bg-white w-12 text-center" placeholder="📄">
+                    <input type="text" id="new-doc-type-name" class="modern-input py-1.5 text-sm bg-white flex-1" placeholder="שם הסוג...">
+                    <button onclick="window._saveNewDocType()" class="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition shrink-0">הוסף</button>
+                    <button onclick="document.getElementById('add-doc-type-form').classList.add('hidden')" class="text-xs text-slate-400 hover:text-slate-600 px-2 py-1.5 rounded-lg transition shrink-0">✕</button>
+                </div>
             </div>
 
             <!-- תבניות -->
@@ -44442,6 +44481,7 @@ window.renderDocumentsTab = async function() {
                 <div class="flex-1 overflow-y-auto px-5 py-4 space-y-3">
                     <input type="hidden" id="doc-modal-id">
                     <input type="hidden" id="doc-modal-is-template">
+                    <input type="hidden" id="doc-modal-phone">
                     <div>
                         <label class="text-xs font-bold text-slate-500 block mb-1">כותרת המסמך *</label>
                         <input type="text" id="doc-modal-title-input" class="modern-input py-2 text-sm bg-white" placeholder="שם המסמך">
@@ -44450,7 +44490,7 @@ window.renderDocumentsTab = async function() {
                         <div>
                             <label class="text-xs font-bold text-slate-500 block mb-1">סוג</label>
                             <select id="doc-modal-type" class="modern-input py-2 text-sm bg-white">
-                                ${Object.entries(DOC_TYPE_LABELS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}
+                                ${typeOptsHtml}
                             </select>
                         </div>
                         <div id="doc-modal-status-wrap">
@@ -44462,11 +44502,23 @@ window.renderDocumentsTab = async function() {
                     </div>
                     <div id="doc-modal-customer-wrap">
                         <label class="text-xs font-bold text-slate-500 block mb-1">לקוח</label>
-                        <input type="text" id="doc-modal-customer" class="modern-input py-2 text-sm bg-white" placeholder="שם הלקוח">
+                        <div class="relative">
+                            <input type="text" id="doc-modal-customer" autocomplete="off"
+                                oninput="window._docSearchCustomer(this.value)"
+                                class="modern-input py-2 text-sm bg-white pr-8" placeholder="חפש לקוח לפי שם / טלפון...">
+                            <i class="fa-solid fa-magnifying-glass absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                        </div>
+                        <div id="doc-customer-results" class="hidden bg-white border border-slate-200 rounded-xl shadow-lg mt-1 max-h-40 overflow-y-auto z-10 relative"></div>
                     </div>
                     <div id="doc-modal-email-wrap">
                         <label class="text-xs font-bold text-slate-500 block mb-1">מייל לקוח</label>
                         <input type="email" id="doc-modal-email" class="modern-input py-2 text-sm bg-white" placeholder="email@example.com">
+                    </div>
+                    <div id="doc-modal-case-wrap">
+                        <label class="text-xs font-bold text-slate-500 block mb-1">תיק לקוח 📁</label>
+                        <select id="doc-modal-case-id" class="modern-input py-2 text-sm bg-white">
+                            ${caseOptsHtml}
+                        </select>
                     </div>
                     <div>
                         <label class="text-xs font-bold text-slate-500 block mb-1">תוכן המסמך</label>
@@ -44523,17 +44575,21 @@ function renderDocsClientList(docs) {
     return `<div class="space-y-2">${docs.map(d => {
         const statusCls = DOC_STATUS_COLORS[d.status] || DOC_STATUS_COLORS.draft;
         const typeIcon = d.doc_type==='contract'?'📝':d.doc_type==='quote'?'💰':d.doc_type==='letter'?'✉️':d.doc_type==='report'?'📊':'📄';
-        const docJson = JSON.stringify({id:d.id,title:d.title,doc_type:d.doc_type,status:d.status,content:d.content,customer_name:d.customer_name,notes:d.notes,signature_data:d.signature_data}).replace(/'/g,"\\'");
+        const caseInfo = d.work_order_id ? (() => {
+            const c = (window._docOpenCases || []).find(x => x.id === d.work_order_id);
+            return c ? `<span class="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full font-medium">📁 ${safeStr(c.customer_name || '')}${c.quote_title ? ' — ' + safeStr(c.quote_title) : ''} #${c.id}</span>` : `<span class="text-[10px] text-amber-600 font-medium">📁 תיק #${d.work_order_id}</span>`;
+        })() : '';
         return `<div class="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
             <div class="flex items-start justify-between mb-2">
                 <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-2 mb-1">
+                    <div class="flex items-center gap-2 mb-1 flex-wrap">
                         <span>${typeIcon}</span>
                         <p class="font-bold text-slate-800 text-xs truncate">${safeStr(d.title)}</p>
                         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${statusCls}">${DOC_STATUS_LABELS[d.status]||d.status}</span>
                         ${d.signature_data ? '<span class="text-[10px] text-green-600 font-bold">✍️</span>' : ''}
                     </div>
                     ${d.customer_name ? `<p class="text-[11px] text-slate-500"><i class="fa-solid fa-user text-[9px] mr-1"></i>${safeStr(d.customer_name)}${d.customer_email?` • ${safeStr(d.customer_email)}`:''}</p>` : ''}
+                    ${caseInfo ? `<div class="mt-0.5">${caseInfo}</div>` : ''}
                     <p class="text-[10px] text-slate-400 mt-0.5">${new Date(d.updated_at||d.created_at).toLocaleDateString('he-IL')}</p>
                 </div>
                 <div class="flex items-center gap-1 shrink-0 mr-1">
@@ -44569,15 +44625,23 @@ window.openNewDocModal = function(isTemplate = false) {
     document.getElementById('doc-modal-content').value = '';
     document.getElementById('doc-modal-notes').value = '';
     document.getElementById('doc-modal-customer').value = '';
+    const phoneEl = document.getElementById('doc-modal-phone');
+    if (phoneEl) phoneEl.value = '';
     const emailEl = document.getElementById('doc-modal-email');
     if (emailEl) emailEl.value = '';
+    const caseEl = document.getElementById('doc-modal-case-id');
+    if (caseEl) caseEl.value = '';
+    const resultsEl = document.getElementById('doc-customer-results');
+    if (resultsEl) { resultsEl.innerHTML = ''; resultsEl.classList.add('hidden'); }
     document.getElementById('doc-modal-title').textContent = isTemplate ? 'תבנית חדשה' : 'מסמך חדש';
     const custWrap = document.getElementById('doc-modal-customer-wrap');
     const emailWrap = document.getElementById('doc-modal-email-wrap');
     const statusWrap = document.getElementById('doc-modal-status-wrap');
+    const caseWrap = document.getElementById('doc-modal-case-wrap');
     if (custWrap) custWrap.style.display = isTemplate ? 'none' : '';
     if (emailWrap) emailWrap.style.display = isTemplate ? 'none' : '';
     if (statusWrap) statusWrap.style.display = isTemplate ? 'none' : '';
+    if (caseWrap) caseWrap.style.display = isTemplate ? 'none' : '';
     document.getElementById('doc-edit-modal').classList.remove('hidden');
 };
 
@@ -44594,15 +44658,23 @@ window.openDocFromTemplate = async function(templateId) {
         document.getElementById('doc-modal-content').value = tpl.content || '';
         document.getElementById('doc-modal-notes').value = '';
         document.getElementById('doc-modal-customer').value = '';
-        const emailEl = document.getElementById('doc-modal-email');
-        if (emailEl) emailEl.value = '';
+        const phoneElT = document.getElementById('doc-modal-phone');
+        if (phoneElT) phoneElT.value = '';
+        const emailElT = document.getElementById('doc-modal-email');
+        if (emailElT) emailElT.value = '';
+        const caseElT = document.getElementById('doc-modal-case-id');
+        if (caseElT) caseElT.value = '';
+        const resultsElT = document.getElementById('doc-customer-results');
+        if (resultsElT) { resultsElT.innerHTML = ''; resultsElT.classList.add('hidden'); }
         document.getElementById('doc-modal-title').textContent = 'מסמך חדש (מתבנית)';
         const custWrap = document.getElementById('doc-modal-customer-wrap');
         const emailWrap = document.getElementById('doc-modal-email-wrap');
         const statusWrap = document.getElementById('doc-modal-status-wrap');
+        const caseWrapT = document.getElementById('doc-modal-case-wrap');
         if (custWrap) custWrap.style.display = '';
         if (emailWrap) emailWrap.style.display = '';
         if (statusWrap) statusWrap.style.display = '';
+        if (caseWrapT) caseWrapT.style.display = '';
         document.getElementById('doc-edit-modal').classList.remove('hidden');
     } catch(e) { showToast('error', 'שגיאה'); }
 };
@@ -44621,15 +44693,23 @@ window.editDocModal = async function(docId, isTemplate) {
         document.getElementById('doc-modal-content').value = doc.content || '';
         document.getElementById('doc-modal-notes').value = doc.notes || '';
         document.getElementById('doc-modal-customer').value = doc.customer_name || '';
-        const emailEl = document.getElementById('doc-modal-email');
-        if (emailEl) emailEl.value = doc.customer_email || '';
+        const phoneElE = document.getElementById('doc-modal-phone');
+        if (phoneElE) phoneElE.value = doc.customer_phone || '';
+        const emailElE = document.getElementById('doc-modal-email');
+        if (emailElE) emailElE.value = doc.customer_email || '';
+        const caseElE = document.getElementById('doc-modal-case-id');
+        if (caseElE) caseElE.value = doc.work_order_id || '';
+        const resultsElE = document.getElementById('doc-customer-results');
+        if (resultsElE) { resultsElE.innerHTML = ''; resultsElE.classList.add('hidden'); }
         document.getElementById('doc-modal-title').textContent = isTemplate ? 'עריכת תבנית' : 'עריכת מסמך';
         const custWrap = document.getElementById('doc-modal-customer-wrap');
         const emailWrap = document.getElementById('doc-modal-email-wrap');
         const statusWrap = document.getElementById('doc-modal-status-wrap');
+        const caseWrapE = document.getElementById('doc-modal-case-wrap');
         if (custWrap) custWrap.style.display = isTemplate ? 'none' : '';
         if (emailWrap) emailWrap.style.display = isTemplate ? 'none' : '';
         if (statusWrap) statusWrap.style.display = isTemplate ? 'none' : '';
+        if (caseWrapE) caseWrapE.style.display = isTemplate ? 'none' : '';
         document.getElementById('doc-edit-modal').classList.remove('hidden');
     } catch(e) { showToast('error', 'שגיאה'); }
 };
@@ -44646,7 +44726,9 @@ window.saveDocModal = async function() {
         content: document.getElementById('doc-modal-content').value.trim(),
         notes: document.getElementById('doc-modal-notes').value.trim(),
         customer_name: isTemplate ? null : (document.getElementById('doc-modal-customer').value.trim() || null),
+        customer_phone: isTemplate ? null : (document.getElementById('doc-modal-phone')?.value.trim() || null),
         customer_email: isTemplate ? null : (document.getElementById('doc-modal-email')?.value.trim() || null),
+        work_order_id: isTemplate ? null : (document.getElementById('doc-modal-case-id')?.value || null),
         is_template: isTemplate
     };
     try {
@@ -44738,16 +44820,90 @@ window.openNewDocForCustomer = function(custName, custPhone, custEmail) {
     document.getElementById('doc-modal-content').value = '';
     document.getElementById('doc-modal-notes').value = '';
     document.getElementById('doc-modal-customer').value = custName || '';
-    const emailEl = document.getElementById('doc-modal-email');
-    if (emailEl) emailEl.value = custEmail || '';
+    const phoneElN = document.getElementById('doc-modal-phone');
+    if (phoneElN) phoneElN.value = custPhone || '';
+    const emailElN = document.getElementById('doc-modal-email');
+    if (emailElN) emailElN.value = custEmail || '';
+    const caseElN = document.getElementById('doc-modal-case-id');
+    if (caseElN) caseElN.value = '';
+    const resultsElN = document.getElementById('doc-customer-results');
+    if (resultsElN) { resultsElN.innerHTML = ''; resultsElN.classList.add('hidden'); }
     document.getElementById('doc-modal-title').textContent = 'מסמך חדש';
     const custWrap = document.getElementById('doc-modal-customer-wrap');
     const emailWrap = document.getElementById('doc-modal-email-wrap');
     const statusWrap = document.getElementById('doc-modal-status-wrap');
+    const caseWrapN = document.getElementById('doc-modal-case-wrap');
     if (custWrap) custWrap.style.display = '';
     if (emailWrap) emailWrap.style.display = '';
     if (statusWrap) statusWrap.style.display = '';
+    if (caseWrapN) caseWrapN.style.display = '';
     document.getElementById('doc-edit-modal').classList.remove('hidden');
+};
+
+// חיפוש לקוח לייב — store_customers + OneFlow Life
+window._docSearchTimer = null;
+window._docSearchCustomer = function(val) {
+    const resultsEl = document.getElementById('doc-customer-results');
+    if (!resultsEl) return;
+    clearTimeout(window._docSearchTimer);
+    if (!val || val.length < 2) { resultsEl.innerHTML = ''; resultsEl.classList.add('hidden'); return; }
+    window._docSearchTimer = setTimeout(async () => {
+        try {
+            const r = await fetch(`${API}/store/search-customers?q=${encodeURIComponent(val)}&groupId=${currentGroup.id}`).then(x => x.json());
+            const customers = r.customers || [];
+            if (!customers.length) { resultsEl.innerHTML = '<p class="text-xs text-slate-400 px-3 py-2">לא נמצאו תוצאות</p>'; resultsEl.classList.remove('hidden'); return; }
+            resultsEl.innerHTML = customers.map(c => {
+                const label = `${c.source_type === 'oneflow' ? '🌐 ' : ''}${safeStr(c.name || '')}${c.company_name && c.company_name !== c.name ? ' — ' + safeStr(c.company_name) : ''}${c.phone ? ' · ' + safeStr(c.phone) : ''}`;
+                const nameEsc = (c.name || '').replace(/'/g, "\\'");
+                const phoneEsc = (c.phone || '').replace(/'/g, "\\'");
+                const emailEsc = (c.email || '').replace(/'/g, "\\'");
+                return `<button type="button" onclick="window._docSelectCustomer('${nameEsc}','${phoneEsc}','${emailEsc}')" class="w-full text-right text-xs px-3 py-2 hover:bg-indigo-50 transition border-b border-slate-100 last:border-0">${label}</button>`;
+            }).join('');
+            resultsEl.classList.remove('hidden');
+        } catch(e) { resultsEl.innerHTML = ''; resultsEl.classList.add('hidden'); }
+    }, 280);
+};
+
+window._docSelectCustomer = function(name, phone, email) {
+    const custEl = document.getElementById('doc-modal-customer');
+    if (custEl) custEl.value = name;
+    const phoneEl = document.getElementById('doc-modal-phone');
+    if (phoneEl) phoneEl.value = phone;
+    const emailEl = document.getElementById('doc-modal-email');
+    if (emailEl) emailEl.value = email;
+    const resultsEl = document.getElementById('doc-customer-results');
+    if (resultsEl) { resultsEl.innerHTML = ''; resultsEl.classList.add('hidden'); }
+};
+
+// ניהול סוגי מסמכים מותאמים אישית
+window._addDocType = function() {
+    const formEl = document.getElementById('add-doc-type-form');
+    if (formEl) { formEl.classList.remove('hidden'); document.getElementById('new-doc-type-name')?.focus(); }
+};
+
+window._saveNewDocType = async function() {
+    const nameEl = document.getElementById('new-doc-type-name');
+    const iconEl = document.getElementById('new-doc-type-icon');
+    const name = nameEl?.value.trim();
+    if (!name) { showToast('error', 'נא למלא שם'); return; }
+    const icon = iconEl?.value.trim() || '📄';
+    try {
+        await fetch(`${API}/professional-doc-types/${currentGroup.id}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, icon })
+        });
+        showToast('success', 'סוג נוסף');
+        window.renderDocumentsTab();
+    } catch(e) { showToast('error', 'שגיאה'); }
+};
+
+window._deleteDocType = async function(id) {
+    if (!confirm('למחוק סוג מסמך זה?')) return;
+    try {
+        await fetch(`${API}/professional-doc-types/${id}`, { method: 'DELETE' });
+        showToast('success', 'נמחק');
+        window.renderDocumentsTab();
+    } catch(e) { showToast('error', 'שגיאה'); }
 };
 
 window.updateDocStatus = async function(id, status, custName, custPhone) {

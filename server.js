@@ -887,6 +887,14 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           status VARCHAR(30),
           changed_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS professional_doc_types (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          name VARCHAR(100) NOT NULL,
+          icon VARCHAR(10) DEFAULT '📄',
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE professional_documents ADD COLUMN IF NOT EXISTS work_order_id INT`); } catch(e) {}
       // ===== END PROFESSIONAL WEBSITE CONTENT MODULE =====
 
       // ===== SPORT / FITNESS MODULE =====
@@ -12801,18 +12809,18 @@ app.get('/api/professional-documents/:groupId', async (req, res) => {
 
 app.post('/api/professional-documents/:groupId', async (req, res) => {
     try {
-        const { customer_name, customer_phone, customer_email, title, content, doc_type, status, is_template, notes } = req.body;
+        const { customer_name, customer_phone, customer_email, title, content, doc_type, status, is_template, notes, work_order_id } = req.body;
         const r = await pool.query(
-            `INSERT INTO professional_documents (group_id,customer_name,customer_phone,customer_email,title,content,doc_type,status,is_template,notes)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-            [req.params.groupId, customer_name||null, customer_phone||null, customer_email||null, title, content||'', doc_type||'document', status||'draft', !!is_template, notes||null]);
+            `INSERT INTO professional_documents (group_id,customer_name,customer_phone,customer_email,title,content,doc_type,status,is_template,notes,work_order_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+            [req.params.groupId, customer_name||null, customer_phone||null, customer_email||null, title, content||'', doc_type||'document', status||'draft', !!is_template, notes||null, work_order_id||null]);
         res.json({ success: true, document: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.patch('/api/professional-documents/:id', async (req, res) => {
     try {
-        const { title, content, doc_type, status, notes, customer_name, customer_phone, customer_email, signature_data } = req.body;
+        const { title, content, doc_type, status, notes, customer_name, customer_phone, customer_email, signature_data, work_order_id } = req.body;
         // שמור גרסה קודמת לפני עדכון תוכן/סטטוס
         if (title !== undefined || content !== undefined || status !== undefined) {
             const existing = await pool.query('SELECT title,content,doc_type,status FROM professional_documents WHERE id=$1', [req.params.id]);
@@ -12834,9 +12842,11 @@ app.patch('/api/professional-documents/:id', async (req, res) => {
              doc_type=COALESCE($3,doc_type), status=COALESCE($4,status), notes=COALESCE($5,notes),
              customer_name=COALESCE($6,customer_name), customer_phone=COALESCE($7,customer_phone),
              customer_email=COALESCE($8,customer_email), signature_data=COALESCE($9,signature_data),
-             updated_at=NOW() WHERE id=$10`,
+             work_order_id=COALESCE($10::INT,work_order_id),
+             updated_at=NOW() WHERE id=$11`,
             [title||null, content||null, doc_type||null, status||null, notes||null,
-             customer_name||null, customer_phone||null, customer_email||null, signature_data||null, req.params.id]);
+             customer_name||null, customer_phone||null, customer_email||null, signature_data||null,
+             work_order_id||null, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -12878,6 +12888,30 @@ app.delete('/api/professional-documents/:id', async (req, res) => {
     try {
         await pool.query('DELETE FROM professional_document_versions WHERE document_id=$1', [req.params.id]);
         await pool.query('DELETE FROM professional_documents WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+// ===== PROFESSIONAL DOC TYPES =====
+app.get('/api/professional-doc-types/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM professional_doc_types WHERE group_id=$1 ORDER BY id', [req.params.groupId]);
+        res.json({ success: true, types: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/professional-doc-types/:groupId', async (req, res) => {
+    try {
+        const { name, icon } = req.body;
+        if (!name) return res.status(400).json({ error: 'חסר שם' });
+        const r = await pool.query(
+            'INSERT INTO professional_doc_types (group_id,name,icon) VALUES ($1,$2,$3) RETURNING *',
+            [req.params.groupId, name.trim(), icon||'📄']
+        );
+        res.json({ success: true, type: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/professional-doc-types/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM professional_doc_types WHERE id=$1', [req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
