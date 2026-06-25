@@ -10390,11 +10390,12 @@ window.cqSearchCustomer = function() {
     const resultsEl = document.getElementById('cq-customer-results');
     if (!resultsEl) return;
     if (!q) { resultsEl.innerHTML = ''; return; }
+    const qDigits = q.replace(/\D/g, '');
     const bizCusts = (window.storeCustomersCache || []).filter(c => {
         const qLower = q;
         return (c.name||'').toLowerCase().includes(qLower) ||
                (c.company_name||'').toLowerCase().includes(qLower) ||
-               (c.phone||'').replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
+               (qDigits && (c.phone||'').replace(/\D/g,'').includes(qDigits)) ||
                (c.email||'').toLowerCase().includes(qLower);
     }).slice(0, 8);
     const bizHtml = bizCusts.map(c => {
