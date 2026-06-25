@@ -20057,6 +20057,49 @@ window.openStoreProductModal = function(id = null) {
         storeModifierPresets.forEach((p, idx) => { presetOptions += `<option value="${idx}">${safeStr(p.name)}</option>`; });
     }
 
+    const bizType = currentGroup?.business_type || '';
+    const isRestaurant = bizType === 'restaurant';
+    const itemNameLabel = isRestaurant ? 'שם הפריט / המנה:'
+        : bizType === 'beauty' ? 'שם השירות / המוצר:'
+        : bizType === 'sport' ? 'שם הפעילות / המוצר:'
+        : 'שם הפריט / השירות:';
+    const itemNamePlaceholder = isRestaurant ? 'למשל: המבורגר הבית'
+        : bizType === 'beauty' ? 'למשל: טיפול פנים מרגיע'
+        : bizType === 'sport' ? 'למשל: שיעור יוגה'
+        : 'למשל: שירות / מוצר';
+    const productTypeOptionsHtml = isRestaurant
+        ? `<option value="retail">🛍️ מוצר קמעונאי / פיזי</option>
+           <option value="food">🍔 מנת מזון (עם תוספות)</option>
+           <option value="pizza_builder">🍕 הרכבת פיצה (רבעים/חצאים)</option>
+           <option value="bundle">🍱 ארוחת קומבו / סט מוצרים</option>
+           <option value="service">✂️ שירות</option>`
+        : bizType === 'beauty'
+        ? `<option value="service">✂️ שירות / טיפול</option>
+           <option value="retail">🛍️ מוצר למכירה</option>
+           <option value="bundle">🎁 חבילת שירותים</option>`
+        : bizType === 'sport'
+        ? `<option value="service">🏋️ פעילות / שיעור</option>
+           <option value="retail">🛍️ ציוד / מוצר</option>
+           <option value="bundle">🎁 מנוי / חבילה</option>`
+        : `<option value="service">✅ שירות / עבודה</option>
+           <option value="retail">🛍️ מוצר למכירה</option>
+           <option value="bundle">🎁 חבילת שירותים</option>`;
+    const kdsHtml = !isRestaurant ? '' : `
+        <div class="bg-orange-50 p-4 rounded-2xl border border-orange-100 shadow-sm">
+            <label class="text-xs font-bold text-orange-800 block mb-2">🍳 פס מטבח (KDS):</label>
+            <select id="sp-kitchen-station" class="modern-input py-2.5 text-sm bg-white font-bold text-orange-700 shadow-sm">
+                <option value="hot">🔥 פס חם — מנות חמות</option>
+                <option value="cold">❄️ פס קר — סלטים / קרים</option>
+                <option value="drinks">🥤 שתיה</option>
+                <option value="bread">🍞 לחמים / מאפים</option>
+                <option value="other">📋 אחר</option>
+            </select>
+            <label class="flex items-center gap-2 mt-3 cursor-pointer">
+                <input type="checkbox" id="sp-is-complimentary" class="w-4 h-4 rounded text-orange-600">
+                <span class="text-xs font-bold text-orange-700">פריט חינמי פנימי (ללא עלות — גלוי למלצרים בלבד, לא בחנות)</span>
+            </label>
+        </div>`;
+
     document.body.insertAdjacentHTML('beforeend', `
     <div id="store-product-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[90] flex items-center justify-center p-2 sm:p-4 fade-in">
         <div class="bg-slate-50 w-full max-w-xl rounded-[2rem] shadow-2xl relative flex flex-col h-[95vh] sm:max-h-[90vh] overflow-hidden border border-slate-200">
@@ -20097,27 +20140,10 @@ window.openStoreProductModal = function(id = null) {
                 <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
                     <label class="text-xs font-bold text-indigo-800 block mb-2">סוג תבנית מוצר:</label>
                     <select id="sp-product-type" onchange="window.onProductTypeChange()" class="modern-input py-2.5 text-sm bg-white font-bold text-indigo-700 outline-none focus:border-indigo-400 shadow-sm">
-                        <option value="retail">🛍️ מוצר קמעונאי / פיזי</option>
-                        <option value="food">🍔 מנת מזון / מסעדה (עם תוספות)</option>
-                        <option value="pizza_builder">🍕 הרכבת פיצה (רבעים/חצאים)</option>
-                        <option value="bundle">🍱 ארוחת קומבו / סט מוצרים</option>
-                        <option value="service">✂️ שירות / טיפול</option>
+                        ${productTypeOptionsHtml}
                     </select>
                 </div>
-                <div class="bg-orange-50 p-4 rounded-2xl border border-orange-100 shadow-sm">
-                    <label class="text-xs font-bold text-orange-800 block mb-2">🍳 פס מטבח (KDS):</label>
-                    <select id="sp-kitchen-station" class="modern-input py-2.5 text-sm bg-white font-bold text-orange-700 shadow-sm">
-                        <option value="hot">🔥 פס חם — מנות חמות</option>
-                        <option value="cold">❄️ פס קר — סלטים / קרים</option>
-                        <option value="drinks">🥤 שתיה</option>
-                        <option value="bread">🍞 לחמים / מאפים</option>
-                        <option value="other">📋 אחר</option>
-                    </select>
-                    <label class="flex items-center gap-2 mt-3 cursor-pointer">
-                        <input type="checkbox" id="sp-is-complimentary" class="w-4 h-4 rounded text-orange-600">
-                        <span class="text-xs font-bold text-orange-700">פריט חינמי פנימי (ללא עלות — גלוי למלצרים בלבד, לא בחנות)</span>
-                    </label>
-                </div>
+                ${kdsHtml}
 
                 <div id="bundle-builder-container" class="hidden border-t border-slate-200 pt-4 mt-2"></div>
                 
@@ -20129,8 +20155,8 @@ window.openStoreProductModal = function(id = null) {
 
                 <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                     <div>
-                        <label class="text-xs font-bold text-slate-600 block mb-1">שם הפריט / המנה:</label>
-                        <input type="text" id="sp-name" class="modern-input py-2.5 text-base font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white" placeholder="למשל: המבורגר הבית">
+                        <label class="text-xs font-bold text-slate-600 block mb-1">${itemNameLabel}</label>
+                        <input type="text" id="sp-name" class="modern-input py-2.5 text-base font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white" placeholder="${itemNamePlaceholder}">
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
@@ -25157,15 +25183,54 @@ window.currentComplexStepsUI = [];
 
 window.openComplexBuilderModal = function(id = null) {
     window.currentComplexStepsUI = [];
-    
+
     let modal = document.getElementById('complex-builder-modal');
     if (modal) modal.remove();
-    
+
+    const _cxBizType = currentGroup?.business_type || '';
+    const _cxIsRestaurant = _cxBizType === 'restaurant';
+    const _cxTitle = _cxIsRestaurant ? 'מפרט פרויקט / תפריט קייטרינג'
+        : _cxBizType === 'beauty' ? 'בניית חבילת שירות / מנוי'
+        : _cxBizType === 'sport' ? 'בניית תוכנית אימון / חבילה'
+        : _cxBizType === 'logistics' ? 'מפרט שינוע / חבילת הסכם'
+        : 'מפרט שירות / חבילת פרויקט';
+    const _cxTypeOptions = _cxIsRestaurant
+        ? `<option value="catering">תפריט לאירוע (מחיר פר מנה × כמות מוזמנים)</option>
+           <option value="project">מפרט פרויקט (מחיר בסיס + תוספות)</option>`
+        : _cxBizType === 'beauty'
+        ? `<option value="project">חבילת טיפולים (מחיר בסיס + תוספות)</option>
+           <option value="catering">מנוי / סדרת ביקורים (פר ביקור × כמות)</option>`
+        : _cxBizType === 'sport'
+        ? `<option value="project">תוכנית אימון (מחיר בסיס + שלבים)</option>
+           <option value="catering">מנוי (מחיר פר אימון × כמות)</option>`
+        : `<option value="project">מפרט פרויקט (מחיר בסיס + תוספות)</option>
+           <option value="catering">חבילת שירות (מחיר פר יחידה × כמות)</option>`;
+    const _cxTypeLabel = _cxIsRestaurant ? 'סוג המפרט (קובע את אופן החישוב בסל):'
+        : 'סוג החבילה (קובע את אופן החישוב):';
+    const _cxNameLabel = _cxIsRestaurant ? 'שם המפרט / התפריט (חובה):'
+        : _cxBizType === 'beauty' ? 'שם החבילה / הסדרה (חובה):'
+        : _cxBizType === 'sport' ? 'שם התוכנית / החבילה (חובה):'
+        : 'שם המפרט / החבילה (חובה):';
+    const _cxNamePlaceholder = _cxIsRestaurant ? 'למשל: תפריט חתונה 2026 / שיפוץ חדר רחצה'
+        : _cxBizType === 'beauty' ? 'למשל: חבילת טיפוח פנים / מנוי חודשי'
+        : _cxBizType === 'sport' ? 'למשל: תוכנית כושר 3 חודשים / מנוי שנתי'
+        : 'למשל: חבילת שירות שנתית / פרויקט הקמה';
+    const _cxBasePriceLabel = _cxIsRestaurant ? 'מחיר בסיס (למנה/לפרויקט):' : 'מחיר בסיס (לחבילה/לפרויקט):';
+    const _cxStepsLabel = _cxIsRestaurant ? 'שלבי המפרט / בחירות:'
+        : _cxBizType === 'beauty' ? 'שלבי הטיפול / אפשרויות:'
+        : _cxBizType === 'sport' ? 'שלבי התוכנית / אפשרויות:'
+        : 'שלבי הפרויקט / אפשרויות:';
+    const _cxCategoryPlaceholder = _cxIsRestaurant ? 'למשל: תפריטי אירועים'
+        : _cxBizType === 'beauty' ? 'למשל: חבילות טיפוח'
+        : 'למשל: חבילות שירות';
+    const _cxDescPlaceholder = _cxIsRestaurant ? 'הסבר קצר על המפרט והאפשרויות...'
+        : 'הסבר קצר על החבילה והאפשרויות...';
+
     document.body.insertAdjacentHTML('beforeend', `
     <div id="complex-builder-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[90] flex items-center justify-center p-2 sm:p-4 fade-in">
         <div class="bg-slate-50 w-full max-w-4xl rounded-[2rem] shadow-2xl relative flex flex-col h-[95vh] sm:max-h-[90vh] overflow-hidden border border-slate-200">
             <div class="flex justify-between items-center p-4 sm:p-5 border-b border-slate-200 shrink-0 bg-white z-10">
-                <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-list-check text-emerald-500 mr-2"></i> מפרט פרויקט / תפריט קייטרינג</h3>
+                <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-list-check text-emerald-500 mr-2"></i> ${_cxTitle}</h3>
                 <button type="button" onclick="document.getElementById('complex-builder-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center border border-slate-200"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
@@ -25175,37 +25240,36 @@ window.openComplexBuilderModal = function(id = null) {
                 <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="text-xs font-bold text-slate-600 block mb-1">סוג המפרט (קובע את אופן החישוב בסל):</label>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">${_cxTypeLabel}</label>
                             <select id="cx-type" class="modern-input py-2.5 text-sm font-bold text-emerald-700 shadow-sm bg-emerald-50 border-emerald-200 focus:bg-white transition outline-none cursor-pointer">
-                                <option value="catering">תפריט לאירוע (מחיר פר מנה X כמות מוזמנים)</option>
-                                <option value="project">מפרט פרויקט (מחיר בסיס + תוספות לפרויקט)</option>
+                                ${_cxTypeOptions}
                             </select>
                         </div>
                         <div>
-                            <label class="text-xs font-bold text-slate-600 block mb-1">שם המפרט / התפריט (חובה):</label>
-                            <input type="text" id="cx-name" class="modern-input py-2.5 text-sm font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white transition" placeholder="למשל: תפריט חתונה 2026 / שיפוץ חדר רחצה">
+                            <label class="text-xs font-bold text-slate-600 block mb-1">${_cxNameLabel}</label>
+                            <input type="text" id="cx-name" class="modern-input py-2.5 text-sm font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white transition" placeholder="${_cxNamePlaceholder}">
                         </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 mt-2">
                         <div>
-                            <label class="text-xs font-bold text-slate-600 block mb-1" title="ניתן להשאיר 0 אם התמחור מבוסס רק על הרכיבים בפנים">מחיר בסיס (למנה/לפרויקט):</label>
+                            <label class="text-xs font-bold text-slate-600 block mb-1" title="ניתן להשאיר 0 אם התמחור מבוסס רק על הרכיבים בפנים">${_cxBasePriceLabel}</label>
                             <input type="number" id="cx-price" class="modern-input py-2.5 text-base font-black text-slate-800 shadow-sm bg-slate-50 focus:bg-white transition text-center dir-ltr" placeholder="0.00">
                         </div>
                         <div>
                             <label class="text-xs font-bold text-slate-600 block mb-1">קטגוריה בחנות:</label>
-                            <input type="text" id="cx-category" class="modern-input py-2.5 text-sm font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white transition" placeholder="למשל: תפריטי אירועים">
+                            <input type="text" id="cx-category" class="modern-input py-2.5 text-sm font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white transition" placeholder="${_cxCategoryPlaceholder}">
                         </div>
                     </div>
                     <div>
                         <label class="text-xs font-bold text-slate-600 block mb-1">תיאור קצר (יופיע ללקוח):</label>
-                        <textarea id="cx-desc" class="modern-input py-2 text-sm h-16 bg-slate-50 focus:bg-white transition" placeholder="הסבר קצר על המפרט והאפשרויות..."></textarea>
+                        <textarea id="cx-desc" class="modern-input py-2 text-sm h-16 bg-slate-50 focus:bg-white transition" placeholder="${_cxDescPlaceholder}"></textarea>
                     </div>
                 </div>
 
                 <div class="bg-emerald-50/50 p-4 sm:p-5 rounded-2xl border border-emerald-100 shadow-sm mt-4">
                     <div class="flex justify-between items-center mb-4 border-b border-emerald-200/50 pb-3">
-                        <label class="text-sm font-black text-emerald-900 block"><i class="fa-solid fa-layer-group mr-1"></i> שלבי המפרט / בחירות:</label>
+                        <label class="text-sm font-black text-emerald-900 block"><i class="fa-solid fa-layer-group mr-1"></i> ${_cxStepsLabel}</label>
                         <button type="button" onclick="window.addComplexStep()" class="text-[10px] sm:text-xs font-bold text-white bg-emerald-600 px-4 py-2 rounded-lg shadow-sm hover:bg-emerald-700 transition"><i class="fa-solid fa-plus mr-1"></i> הוסף שלב</button>
                     </div>
                     <div id="cx-steps-container" class="space-y-6"></div>
