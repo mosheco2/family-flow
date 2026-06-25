@@ -44871,33 +44871,43 @@ window.loadCustomerDocuments = async function(name, phone) {
     } catch(e) { listEl.innerHTML = '<p class="text-center text-red-400 text-xs py-4">שגיאה בטעינה</p>'; }
 };
 
-window.openNewDocForCustomer = function(custName, custPhone, custEmail) {
-    document.getElementById('doc-modal-id').value = '';
-    document.getElementById('doc-modal-is-template').value = '0';
-    document.getElementById('doc-modal-title-input').value = '';
-    document.getElementById('doc-modal-type').value = 'document';
-    document.getElementById('doc-modal-status').value = 'draft';
-    document.getElementById('doc-modal-content').value = '';
-    document.getElementById('doc-modal-notes').value = '';
-    document.getElementById('doc-modal-customer').value = custName || '';
-    const phoneElN = document.getElementById('doc-modal-phone');
-    if (phoneElN) phoneElN.value = custPhone || '';
-    const emailElN = document.getElementById('doc-modal-email');
-    if (emailElN) emailElN.value = custEmail || '';
-    const caseElN = document.getElementById('doc-modal-case-id');
-    if (caseElN) caseElN.value = '';
-    const resultsElN = document.getElementById('doc-customer-results');
-    if (resultsElN) { resultsElN.innerHTML = ''; resultsElN.classList.add('hidden'); }
-    document.getElementById('doc-modal-title').textContent = 'מסמך חדש';
-    const custWrap = document.getElementById('doc-modal-customer-wrap');
-    const emailWrap = document.getElementById('doc-modal-email-wrap');
-    const statusWrap = document.getElementById('doc-modal-status-wrap');
-    const caseWrapN = document.getElementById('doc-modal-case-wrap');
-    if (custWrap) custWrap.style.display = '';
-    if (emailWrap) emailWrap.style.display = '';
-    if (statusWrap) statusWrap.style.display = '';
-    if (caseWrapN) caseWrapN.style.display = '';
-    document.getElementById('doc-edit-modal').classList.remove('hidden');
+window.openNewDocForCustomer = async function(custName, custPhone, custEmail) {
+    // ensure the documents modal is in the DOM (renderDocumentsTab adds it)
+    if (!document.getElementById('doc-edit-modal')) {
+        try { await window.renderDocumentsTab(); } catch(e) {}
+    }
+    const g = id => document.getElementById(id);
+    if (!g('doc-modal-id')) { showToast('error', 'שגיאה בטעינת מודול מסמכים'); return; }
+    g('doc-modal-id').value = '';
+    g('doc-modal-is-template').value = '0';
+    g('doc-modal-title-input').value = '';
+    g('doc-modal-type').value = 'document';
+    g('doc-modal-status').value = 'draft';
+    g('doc-modal-content').value = '';
+    g('doc-modal-notes').value = '';
+    g('doc-modal-customer').value = custName || '';
+    if (g('doc-modal-phone')) g('doc-modal-phone').value = custPhone || '';
+    if (g('doc-modal-email')) g('doc-modal-email').value = custEmail || '';
+    if (g('doc-modal-case-id')) g('doc-modal-case-id').value = '';
+    if (g('doc-customer-results')) { g('doc-customer-results').innerHTML = ''; g('doc-customer-results').classList.add('hidden'); }
+    ['doc-modal-first-name','doc-modal-last-name-input','doc-modal-id-number','doc-modal-phone-input','doc-modal-address','doc-modal-email-input'].forEach(id => { const el = g(id); if(el) el.value = ''; });
+    const pillsEl = g('doc-selected-pills'); if(pillsEl) { pillsEl.innerHTML=''; pillsEl.classList.add('hidden'); }
+    if (g('doc-modal-title')) g('doc-modal-title').textContent = 'מסמך חדש';
+    if (g('doc-modal-customer-wrap')) g('doc-modal-customer-wrap').style.display = '';
+    if (g('doc-modal-status-wrap')) g('doc-modal-status-wrap').style.display = '';
+    if (g('doc-modal-case-wrap')) g('doc-modal-case-wrap').style.display = '';
+    // if customer data provided switch to existing mode and show pills
+    if (custName) {
+        window._docSetMode('existing');
+        const pillsEl2 = g('doc-selected-pills');
+        if (pillsEl2) {
+            pillsEl2.innerHTML = [custName, custPhone, custEmail].filter(Boolean).map(v => `<span class="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-0.5 rounded-full font-medium">${v}</span>`).join('');
+            pillsEl2.classList.remove('hidden');
+        }
+    } else {
+        window._docSetMode('existing');
+    }
+    if (g('doc-edit-modal')) g('doc-edit-modal').classList.remove('hidden');
 };
 
 // חיפוש לקוח לייב — store_customers + OneFlow Life
