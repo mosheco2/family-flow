@@ -45020,7 +45020,7 @@ window._aiCreateAlertRule = async function(name, triggerType, cooldown, descript
         const finalCooldown = cooldown && cooldown !== mapped.cooldown ? parseInt(cooldown) : mapped.cooldown;
         const res = await fetch(API + '/alerts/rules', {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ group_id: currentGroup.id, name, trigger_type: mapped.type, trigger_config: mapped.config, recipients: ['ADMIN'], channels: ['in_app'], cooldown_minutes: finalCooldown, is_active: true })
+            body: JSON.stringify({ groupId: currentGroup.id, name, triggerType: mapped.type, triggerConfig: mapped.config, channels: ['in_app'], cooldownMinutes: finalCooldown })
         });
         const data = await res.json();
         if (data.success || data.id || data.rule) {
