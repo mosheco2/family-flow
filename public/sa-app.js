@@ -1235,7 +1235,6 @@ async function loadSAData() {
         window._pwaInstallPromptEnabled = data.pwaInstallPromptEnabled !== false;
         updatePwaPromptToggleUI();
         // Email settings
-        const setVal = (id, v) => { const el = getEl(id); if (el) el.value = v || ''; };
         setVal('smtp-from-name', data.smtpFromName);
         setVal('smtp-from-email', data.smtpFromEmail);
         setVal('admin-notification-email', data.adminNotificationEmail);
