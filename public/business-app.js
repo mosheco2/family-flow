@@ -10270,7 +10270,7 @@ window.showCustomerQuoteModal = function(customerId, options = {}) {
                         <button type="button" onclick="cqSearchCustomer()" class="shrink-0 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl" style="touch-action:manipulation;">🔍 חיפוש</button>
                     </div>
                     <p class="text-[9px] text-slate-400 mt-1">חיפוש לפי שם, טלפון, מייל</p>
-                    <div id="cq-customer-results" class="space-y-1 max-h-32 overflow-y-auto mt-1"></div>
+                    <div id="cq-customer-results" class="space-y-1 max-h-56 overflow-y-auto mt-1"></div>
                 </div>
                 <div>
                     <label class="text-[10px] font-bold text-slate-500 block mb-1">לכבוד (יופיע בהצעה)</label>
@@ -10397,15 +10397,16 @@ window.cqSearchCustomer = function() {
                (c.company_name||'').toLowerCase().includes(qLower) ||
                (qDigits && (c.phone||'').replace(/\D/g,'').includes(qDigits)) ||
                (c.email||'').toLowerCase().includes(qLower);
-    }).slice(0, 8);
+    });
     const bizHtml = bizCusts.map(c => {
-        const displayName = c.company_name ? `${c.company_name} (${c.name||''})` : (c.name || '');
+        const fullName = c.name || '';
+        const companyPart = c.company_name ? ` · ${c.company_name}` : '';
         const isOneflow = !!c.family_group_id;
         return `<button type="button" onclick="window.cqSelectCustomerObj(${c.id})" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-100 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;">
             <span>${isOneflow ? '🔗' : '🏪'}</span>
             <div class="flex-1 min-w-0">
-                <div class="truncate font-bold">${safeStr(displayName)}</div>
-                <div class="text-[10px] text-slate-400">${c.phone||''}${c.email?' · '+c.email:''}</div>
+                <div class="font-bold text-slate-800">${safeStr(fullName)}${safeStr(companyPart)}</div>
+                <div class="text-[10px] text-slate-500 mt-0.5 dir-ltr text-right">${c.phone||'—'}${c.email ? ' · ' + c.email : ''}</div>
             </div>
             ${isOneflow ? '<span class="text-[8px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded font-bold shrink-0">OneFlow</span>' : ''}
         </button>`;
