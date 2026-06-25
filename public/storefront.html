@@ -284,7 +284,7 @@
                         </div>
                     </div>
 
-                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mt-4">
+                    <div id="checkout-time-section" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mt-4">
                         <h4 class="font-bold text-sm text-slate-800 mb-3"><i class="fa-regular fa-clock text-indigo-500 mr-1"></i> מתי תרצו את ההזמנה?</h4>
                         <div class="flex bg-slate-200/50 p-1 rounded-xl mb-3">
                             <button type="button" id="btn-time-asap" onclick="window.toggleTargetTime('asap')" class="flex-1 py-2 text-sm font-bold bg-white text-indigo-700 rounded-lg shadow-sm transition border border-indigo-200">בהקדם האפשרי</button>
@@ -1952,19 +1952,20 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const btnSubmit = getEl('btn-submit-order');
             
             if (window._isProfessionalStore) {
-                // שירותי מומחים — אין פיקאפ/משלוח
+                // שירותי מומחים — אין פיקאפ/משלוח/בחירת זמן
                 if(modalTitle) modalTitle.innerText = 'הזמנת שירות';
                 if(btnSubmit) btnSubmit.innerHTML = `<span>שליחת בקשה לשירות</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${totalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`;
                 getEl('btn-delivery-false').parentElement.classList.add('hidden');
                 if(!skipToggle) window.toggleDelivery(false, true);
-                getEl('btn-time-asap').classList.remove('hidden');
-                getEl('btn-time-future').classList.add('flex-1');
-                getEl('btn-time-future').classList.remove('w-full');
+                const timeSec = getEl('checkout-time-section');
+                if(timeSec) timeSec.classList.add('hidden');
             } else if (calc.hasComplexItems) {
                 if(modalTitle) modalTitle.innerText = 'בקשה להצעת מחיר / אירוע';
                 if(btnSubmit) btnSubmit.innerHTML = `<span>שליחת בקשה להצעת מחיר</span> <i class="fa-solid fa-file-invoice"></i>`;
 
                 getEl('btn-delivery-false').parentElement.classList.add('hidden');
+                const timeSec2 = getEl('checkout-time-section');
+                if(timeSec2) timeSec2.classList.remove('hidden');
 
                 if(!skipToggle) window.toggleDelivery(false, true);
 
@@ -1977,6 +1978,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 if(btnSubmit) btnSubmit.innerHTML = `<span>סיום ושליחת הזמנה</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${totalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`;
 
                 getEl('btn-delivery-false').parentElement.classList.remove('hidden');
+                const timeSec3 = getEl('checkout-time-section');
+                if(timeSec3) timeSec3.classList.remove('hidden');
                 getEl('btn-time-asap').classList.remove('hidden');
                 getEl('btn-time-future').classList.add('flex-1');
                 getEl('btn-time-future').classList.remove('w-full');
