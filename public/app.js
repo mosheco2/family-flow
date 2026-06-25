@@ -2909,6 +2909,8 @@ async function adjustShopQty(id, delta) {
         await fetch(`${API}/shopping/update`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: id, quantity: newQty }) });
     } catch(e) { item.quantity = parseFloat(item.quantity) - delta; renderShopList(); }
 }
+
+async function smQuickAdd() {
     const input = getEl('sm-quick-input');
     const name = (input.value || '').trim();
     if (!name) return;
