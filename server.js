@@ -3958,6 +3958,38 @@ app.delete('/api/users/:id', async (req, res) => {
     try { await pool.query('DELETE FROM users WHERE id=$1', [req.params.id]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
 });
 
+// ניהול משפחה — עריכת פרטי משתמש מלאים (מנהל בלבד)
+app.get('/api/admin/user-details/:userId', async (req, res) => {
+    try {
+        const { adminId } = req.query;
+        const aRes = await pool.query('SELECT group_id, role FROM users WHERE id=$1', [adminId]);
+        if (!aRes.rows.length || aRes.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'אין הרשאה' });
+        const uRes = await pool.query('SELECT id, nickname, email, phone, password_hash, role, birth_year FROM users WHERE id=$1 AND group_id=$2', [req.params.userId, aRes.rows[0].group_id]);
+        if (!uRes.rows.length) return res.status(404).json({ error: 'משתמש לא נמצא' });
+        res.json({ success: true, user: uRes.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/admin/user-details/:userId', async (req, res) => {
+    try {
+        const { adminId, nickname, email, phone, password, role } = req.body;
+        const aRes = await pool.query('SELECT group_id, role FROM users WHERE id=$1', [adminId]);
+        if (!aRes.rows.length || aRes.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'אין הרשאה' });
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [req.params.userId]);
+        if (!uRes.rows.length || uRes.rows[0].group_id !== aRes.rows[0].group_id) return res.status(403).json({ error: 'אין הרשאה' });
+        const sets = []; const vals = [];
+        if (nickname && nickname.trim()) { vals.push(nickname.trim()); sets.push(`nickname=$${vals.length}`); }
+        if (email !== undefined) { vals.push(email ? email.trim().toLowerCase() : null); sets.push(`email=$${vals.length}`); }
+        if (phone !== undefined) { vals.push(phone ? phone.trim() : null); sets.push(`phone=$${vals.length}`); }
+        if (password && password.trim().length >= 4) { vals.push(password.trim()); sets.push(`password_hash=$${vals.length}`); }
+        if (role && ['ADMIN','CHILD','MEMBER'].includes(role)) { vals.push(role); sets.push(`role=$${vals.length}`); }
+        if (sets.length === 0) return res.json({ success: true });
+        vals.push(req.params.userId);
+        await pool.query(`UPDATE users SET ${sets.join(',')} WHERE id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/users/:id/password', async (req, res) => {
     try {
         const { oldPassword, newPassword } = req.body;
