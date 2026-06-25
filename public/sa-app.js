@@ -1293,6 +1293,24 @@ async function loadSAData() {
     } catch (e) { console.error('loadSAData error:', e); showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
 }
 
+window.saveEmailSettings = async function() {
+    try {
+        const payload = {
+            smtpFromEmail: val('smtp-from-email'),
+            smtpFromName: val('smtp-from-name'),
+            adminNotificationEmail: val('admin-notification-email'),
+            pwaInstallPromptEnabled: window._pwaInstallPromptEnabled !== false
+        };
+        const res = await fetch(`${API}/superadmin/banners`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) showToast('success', 'הגדרות המייל נשמרו בהצלחה!');
+        else showToast('error', 'שגיאה בשמירה');
+    } catch(e) { showToast('error', 'תקלת רשת'); }
+};
+
 window.saveAllBanners = async function() {
     try {
         const payload = {

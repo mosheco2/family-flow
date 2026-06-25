@@ -1145,6 +1145,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
           <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;" id="vtnav-content">
                       <button id="vtnav-content-branding" onclick="switchViewTab('content','branding')" style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-paint-roller" style="font-size:11px;"></i>מיתוג ולוגו</button>
                       <button id="vtnav-content-banners" onclick="switchViewTab('content','banners')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-bullhorn" style="font-size:11px;"></i>הודעות ובאנרים</button>
+                      <button id="vtnav-content-settings" onclick="switchViewTab('content','settings')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-envelope" style="font-size:11px;"></i>הגדרות מייל</button>
                     </div>
 
           <div id="vt-content-branding" class="vt-content">
@@ -1348,6 +1349,14 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
 
+                    <button onclick="saveAllBanners()" class="bg-blue-600 text-white px-6 py-4 rounded-xl font-bold w-full shadow-lg hover:bg-blue-700 transition text-lg mb-8">
+                        <i class="fa-solid fa-save mr-2"></i> שמור נתונים ופרסם באנרים למערכת
+                    </button>
+          </div>
+
+          <!-- טאב: הגדרות מייל -->
+          <div id="vt-content-settings" class="vt-content" style="display:none;">
+              <div class="space-y-6">
                     <!-- Email Settings -->
                     <div class="bg-blue-50 p-6 rounded-2xl border border-blue-200">
                         <h2 class="text-xl font-bold mb-1 text-blue-900"><i class="fa-solid fa-envelope text-blue-500 mr-2"></i> הגדרות מייל מערכת</h2>
@@ -1391,9 +1400,10 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
 
-                    <button onclick="saveAllBanners()" class="bg-blue-600 text-white px-6 py-4 rounded-xl font-bold w-full shadow-lg hover:bg-blue-700 transition text-lg mb-8">
-                        <i class="fa-solid fa-save mr-2"></i> שמור נתונים ופרסם באנרים למערכת
+                    <button onclick="saveEmailSettings()" class="bg-blue-600 text-white px-6 py-4 rounded-xl font-bold w-full shadow-lg hover:bg-blue-700 transition text-lg">
+                        <i class="fa-solid fa-save mr-2"></i> שמור הגדרות מייל
                     </button>
+              </div>
           </div>
                 </div>
 
