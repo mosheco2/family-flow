@@ -10385,11 +10385,18 @@ window.showCustomerQuoteModal = function(customerId, options = {}) {
 };
 
 // חיפוש לקוח — מאגר לקוחות העסק (שם, שם משפחה, שם עסק, טלפון)
-window.cqSearchCustomer = function() {
+window.cqSearchCustomer = async function() {
     const q = (document.getElementById('cq-customer-name')?.value || '').trim().toLowerCase();
     const resultsEl = document.getElementById('cq-customer-results');
     if (!resultsEl) return;
     if (!q) { resultsEl.innerHTML = ''; return; }
+
+    // טעינת לקוחות אם ה-cache ריק
+    if (!window.storeCustomersCache || window.storeCustomersCache.length === 0) {
+        resultsEl.innerHTML = '<p class="text-xs text-slate-400 py-1 text-center">טוען לקוחות...</p>';
+        if (typeof window.fetchStoreCustomers === 'function') await window.fetchStoreCustomers();
+    }
+
     const qDigits = q.replace(/\D/g, '');
     const bizCusts = (window.storeCustomersCache || []).filter(c => {
         const qLower = q;
