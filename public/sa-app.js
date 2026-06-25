@@ -178,12 +178,22 @@ async function handleSALogin(e) {
             applyUserPermissions();
             loadSAData();
             window.switchSATab('pulse');
+            if (!window._saOnlinePoll) {
+                window._saOnlinePoll = setInterval(async () => {
+                    try {
+                        const r = await fetch(`${API}/superadmin/online-count`, { headers: { 'Authorization': saToken } });
+                        const d = await r.json();
+                        if (d.onlineNow !== undefined) _setKPI('kpi-online-users', d.onlineNow);
+                    } catch(e) {}
+                }, 60000);
+            }
         } else { showToast('error', data.error); }
     } catch(err) { showToast('error', 'שגיאת התחברות'); }
 }
 
 function logoutSA() {
     saToken = null;
+    if (window._saOnlinePoll) { clearInterval(window._saOnlinePoll); window._saOnlinePoll = null; }
     localStorage.removeItem('ofl_sa_token');
     getEl('sa-dashboard-container').classList.add('hidden');
     getEl('auth-container').classList.remove('hidden');
@@ -546,7 +556,7 @@ function renderLivePulse(activityData, stats) {
 
     // ── Category 2: משפחות ומשתמשים ─────────────────────────────────────────
     const totalUsers = (stats.familyUsers || 0) + (stats.businessUsers || 0);
-    _setKPI('kpi-online-users', totalUsers);
+    _setKPI('kpi-online-users', stats.onlineNow ?? 0);
     // backward-compat IDs from old pulse panel
     if (getEl('pulse-active-users')) getEl('pulse-active-users').textContent = totalUsers;
 
