@@ -881,6 +881,9 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           updated_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
       try { await client.query(`ALTER TABLE professional_documents ADD COLUMN IF NOT EXISTS customer_email VARCHAR(200)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE professional_documents ADD COLUMN IF NOT EXISTS customer_last_name VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE professional_documents ADD COLUMN IF NOT EXISTS customer_id_number VARCHAR(50)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE professional_documents ADD COLUMN IF NOT EXISTS customer_address VARCHAR(300)`); } catch(e) {}
       try { await client.query(`ALTER TABLE professional_documents ADD COLUMN IF NOT EXISTS signature_data TEXT`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS professional_document_versions (
           id SERIAL PRIMARY KEY,
@@ -12922,18 +12925,18 @@ app.get('/api/professional-documents/:groupId', async (req, res) => {
 
 app.post('/api/professional-documents/:groupId', async (req, res) => {
     try {
-        const { customer_name, customer_phone, customer_email, title, content, doc_type, status, is_template, notes, work_order_id } = req.body;
+        const { customer_name, customer_last_name, customer_phone, customer_email, customer_id_number, customer_address, title, content, doc_type, status, is_template, notes, work_order_id } = req.body;
         const r = await pool.query(
-            `INSERT INTO professional_documents (group_id,customer_name,customer_phone,customer_email,title,content,doc_type,status,is_template,notes,work_order_id)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-            [req.params.groupId, customer_name||null, customer_phone||null, customer_email||null, title, content||'', doc_type||'document', status||'draft', !!is_template, notes||null, work_order_id||null]);
+            `INSERT INTO professional_documents (group_id,customer_name,customer_last_name,customer_phone,customer_email,customer_id_number,customer_address,title,content,doc_type,status,is_template,notes,work_order_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+            [req.params.groupId, customer_name||null, customer_last_name||null, customer_phone||null, customer_email||null, customer_id_number||null, customer_address||null, title, content||'', doc_type||'document', status||'draft', !!is_template, notes||null, work_order_id||null]);
         res.json({ success: true, document: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.patch('/api/professional-documents/:id', async (req, res) => {
     try {
-        const { title, content, doc_type, status, notes, customer_name, customer_phone, customer_email, signature_data, work_order_id } = req.body;
+        const { title, content, doc_type, status, notes, customer_name, customer_last_name, customer_phone, customer_email, customer_id_number, customer_address, signature_data, work_order_id } = req.body;
         // שמור גרסה קודמת לפני עדכון תוכן/סטטוס
         if (title !== undefined || content !== undefined || status !== undefined) {
             const existing = await pool.query('SELECT title,content,doc_type,status FROM professional_documents WHERE id=$1', [req.params.id]);
@@ -12953,12 +12956,15 @@ app.patch('/api/professional-documents/:id', async (req, res) => {
             `UPDATE professional_documents SET
              title=COALESCE($1,title), content=COALESCE($2,content),
              doc_type=COALESCE($3,doc_type), status=COALESCE($4,status), notes=COALESCE($5,notes),
-             customer_name=COALESCE($6,customer_name), customer_phone=COALESCE($7,customer_phone),
-             customer_email=COALESCE($8,customer_email), signature_data=COALESCE($9,signature_data),
-             work_order_id=COALESCE($10::INT,work_order_id),
-             updated_at=NOW() WHERE id=$11`,
+             customer_name=COALESCE($6,customer_name), customer_last_name=COALESCE($7,customer_last_name),
+             customer_phone=COALESCE($8,customer_phone), customer_email=COALESCE($9,customer_email),
+             customer_id_number=COALESCE($10,customer_id_number), customer_address=COALESCE($11,customer_address),
+             signature_data=COALESCE($12,signature_data),
+             work_order_id=COALESCE($13::INT,work_order_id),
+             updated_at=NOW() WHERE id=$14`,
             [title||null, content||null, doc_type||null, status||null, notes||null,
-             customer_name||null, customer_phone||null, customer_email||null, signature_data||null,
+             customer_name||null, customer_last_name||null, customer_phone||null, customer_email||null,
+             customer_id_number||null, customer_address||null, signature_data||null,
              work_order_id||null, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
