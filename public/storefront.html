@@ -678,7 +678,8 @@
 
                 // Professional business type → render branding site instead of store
                 const _btype = data.businessType || data.business_type || '';
-                if (_btype === 'professional') {
+                const _viewStore = urlParams.get('view') === 'store';
+                if (_btype === 'professional' && !_viewStore) {
                     await renderProfessionalSite(data);
                     getEl('loading-screen').classList.add('hidden');
                     return;
@@ -717,6 +718,8 @@
             const catalog = data.catalog || [];
 
             // Fetch content
+            const storeCode = new URLSearchParams(window.location.search).get('store') || '';
+            const storeViewUrl = `?store=${storeCode}${lang !== 'he' ? '&lang=' + lang : ''}&view=store`;
             let content = {}, expertise = [], articles = [], hasProducts = catalog.filter(p=>p.is_available).length > 0;
             try {
                 const [cr, er, ar] = await Promise.all([
@@ -800,19 +803,13 @@
 
             const productsHtml = hasProducts ? `
             <section class="py-14 px-5 bg-white" id="services">
-                <div class="max-w-2xl mx-auto">
-                    <h2 class="text-2xl font-black text-slate-800 mb-2 text-center">${isEn?'Services':'שירותים'}</h2>
-                    <div class="w-12 h-1 rounded-full mx-auto mb-8" style="background:${primaryColor}"></div>
-                    <div class="grid grid-cols-1 gap-3">
-                        ${catalog.filter(p=>p.is_available).map(p=>`
-                        <div class="bg-slate-50 rounded-2xl border border-slate-100 p-4 flex items-center justify-between">
-                            <div>
-                                <p class="font-bold text-slate-800 text-sm">${p.name||''}</p>
-                                ${p.description?`<p class="text-xs text-slate-500 mt-0.5">${p.description}</p>`:''}
-                            </div>
-                            ${parseFloat(p.price)>0?`<span class="font-black text-slate-700 text-sm">₪${parseFloat(p.price).toFixed(0)}</span>`:''}
-                        </div>`).join('')}
-                    </div>
+                <div class="max-w-2xl mx-auto text-center">
+                    <h2 class="text-2xl font-black text-slate-800 mb-2">${isEn?'Services':'שירותים'}</h2>
+                    <div class="w-12 h-1 rounded-full mx-auto mb-6" style="background:${primaryColor}"></div>
+                    <p class="text-slate-500 text-sm mb-6">${isEn?'Browse our full service catalog and place an order':'עיין בקטלוג השירותים המלא וצור הזמנה'}</p>
+                    <a href="${storeViewUrl}" class="inline-flex items-center gap-2 text-white font-black text-sm px-8 py-3.5 rounded-2xl shadow-md hover:opacity-90 transition" style="background:${primaryColor}">
+                        <i class="fa-solid fa-store"></i> ${isEn?'View Services & Order':'לחנות השירותים'}
+                    </a>
                 </div>
             </section>` : '';
 
@@ -851,7 +848,7 @@
                             ${expertise.length?`<a href="#expertise" class="hover:text-slate-700 transition">${isEn?'Expertise':'תחומים'}</a>`:''}
                             ${articles.length?`<a href="#articles" class="hover:text-slate-700 transition">${isEn?'Articles':'מאמרים'}</a>`:''}
                             ${aboutText?`<a href="#about" class="hover:text-slate-700 transition">${isEn?'About':'אודות'}</a>`:''}
-                            ${hasProducts?`<a href="#services" class="hover:text-slate-700 transition">${isEn?'Services':'שירותים'}</a>`:''}
+                            ${hasProducts?`<a href="${storeViewUrl}" class="hover:text-slate-700 transition">${isEn?'Services':'שירותים'}</a>`:''}
                             <a href="#contact" class="hover:text-slate-700 transition">${isEn?'Contact':'יצירת קשר'}</a>
                         </div>
                     </div>
