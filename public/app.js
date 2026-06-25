@@ -195,14 +195,157 @@ function checkAndStartTour(force) {
     const key = `tour_done_${currentUser.id}`;
     if (!force && localStorage.getItem(key)) return;
     localStorage.setItem(key, '1');
-    if (currentUser.role === 'ADMIN') { try { startAdminTour(); } catch(e) {} }
-    else if (currentUser.role === 'CHILD') { try { startChildTour(); } catch(e) {} }
+    try { showFamilyTour(); } catch(e) {}
 }
 
 window.triggerManualTour = function() {
-    if (currentUser?.role === 'ADMIN') { try { startAdminTour(); } catch(e) {} }
-    else if (currentUser?.role === 'CHILD') { try { startChildTour(); } catch(e) {} }
+    try { showFamilyTour(); } catch(e) {}
 };
+
+function showFamilyTour() {
+    const isAdmin = currentUser?.role === 'ADMIN';
+    const slides = isAdmin ? [
+        {
+            bg: 'from-violet-600 to-indigo-700',
+            emoji: '👨‍👩‍👧‍👦',
+            title: 'ברוכים הבאים ל-Oneflow Life!',
+            subtitle: 'המערכת שתשנה את האופן שבו המשפחה שלכם מתנהלת — כסף, קניות, וצמיחה יחד.',
+            features: [
+                { icon: '🏦', text: 'בנק משפחתי לניהול תקציב, דמי כיס וחיסכון לילדים' },
+                { icon: '🛒', text: 'רשימת קניות חכמה ושיתופית לכל המשפחה' },
+                { icon: '✅', text: 'משימות ותגמולים שמחנכים ילדים לאחריות פיננסית' },
+            ]
+        },
+        {
+            bg: 'from-emerald-500 to-teal-600',
+            emoji: '🛒',
+            title: 'הסופר החכם שלכם',
+            subtitle: 'נהלו קניות ביחד — כולם רואים את הרשימה, ואפשר לסמן מוצרים בזמן אמת מהסופר.',
+            features: [
+                { icon: '✨', text: 'AI ייצור עבורכם רשימת קניות שבועית שלמה תוך שניות' },
+                { icon: '📸', text: 'סרקו קבלה בסיום הקנייה — familAI תזין את כל הנתונים אוטומטית' },
+                { icon: '🔴', text: 'מצב "אני בסופר" — כל המשפחה רואה מה נאסף בזמן אמת' },
+            ]
+        },
+        {
+            bg: 'from-amber-500 to-orange-500',
+            emoji: '✅',
+            title: 'משימות ותגמולים',
+            subtitle: 'הגדירו משימות בית, תמחרו אותן, והילדים יקבלו תגמול כספי ישירות לארנק שלהם.',
+            features: [
+                { icon: '💪', text: 'הגדירו משימות יומיות, שבועיות או חד-פעמיות לכל ילד' },
+                { icon: '💰', text: 'הילדים מקבלים כסף אמיתי לארנק הדיגיטלי שלהם' },
+                { icon: '🎓', text: 'חידונים פיננסיים עם תגמולים לחינוך פיננסי מהנה' },
+            ]
+        },
+        {
+            bg: 'from-blue-500 to-cyan-600',
+            emoji: '📊',
+            title: 'תקציב ותשקיף',
+            subtitle: 'הגדירו יעדי הוצאות, עקבו אחרי הכסף, ו-familAI ייתן לכם טיפים לחיסכון.',
+            features: [
+                { icon: '📅', text: 'תשקיף תזרים — תכננו קדימה ודעו מה מצפה לכם' },
+                { icon: '🤖', text: 'familAI מנתח את ההוצאות ומציע דרכים לחסוך' },
+                { icon: '📦', text: 'ניהול מזווה — עקבו אחרי המלאי והעבירו לקניות בקליק' },
+            ]
+        },
+        {
+            bg: 'from-rose-500 to-pink-600',
+            emoji: '🚀',
+            title: 'מוכנים להתחיל?',
+            subtitle: 'הזמינו את בני המשפחה בוואטסאפ, הגדירו דמי כיס, וצאו לדרך יחד!',
+            features: [
+                { icon: '📱', text: 'שלחו הזמנה לבני המשפחה ישירות מתפריט "חברים"' },
+                { icon: '⚡', text: 'סוללת ה-AI מתאפסת כל יום — 10 פעולות חינמיות מדי יום' },
+                { icon: '💡', text: 'לחצו על "?" בכל מקום לקבלת עזרה' },
+            ]
+        }
+    ] : [
+        {
+            bg: 'from-violet-500 to-purple-700',
+            emoji: '🎉',
+            title: 'ברוכים הבאים ל-Oneflow!',
+            subtitle: 'כאן מתחיל המסע שלך — תרוויח כסף, תחסוך ותתנהל כמו מומחה אמיתי.',
+            features: [
+                { icon: '💰', text: 'ביצוע משימות בית = כסף אמיתי ישר לארנק שלך' },
+                { icon: '🎓', text: 'ענה על חידונים פיננסיים וקבל בונוסים מיוחדים' },
+                { icon: '🛒', text: 'בקש להוסיף מוצרים לרשימת הקניות המשפחתית' },
+            ]
+        },
+        {
+            bg: 'from-emerald-500 to-teal-600',
+            emoji: '💳',
+            title: 'הארנק האישי שלך',
+            subtitle: 'כל שקל שהרווחת מופיע כאן — ממשימות, מדמי כיס ומחידונים.',
+            features: [
+                { icon: '🏦', text: 'פתח קופת חיסכון ליעד שאתה חולם עליו' },
+                { icon: '📈', text: 'צבור ריבית על כסף שאתה חוסך — כמו אצל הבנק האמיתי' },
+                { icon: '📊', text: 'עקוב אחרי ההוצאות שלך ולמד לתכנן חכם' },
+            ]
+        },
+        {
+            bg: 'from-amber-500 to-orange-500',
+            emoji: '🚀',
+            title: 'בואו נתחיל!',
+            subtitle: 'בחר משימה, תסיים אותה, ותראה את הכסף מגיע ישירות אליך.',
+            features: [
+                { icon: '✅', text: 'היכנסו ל"משימות" ובחרו משימה לביצוע עכשיו' },
+                { icon: '🛒', text: 'ב"קניות" אפשר לבקש מההורים להוסיף דברים לרשימה' },
+                { icon: '🎓', text: 'באקדמיה מחכים לך חידונים כיפיים עם פרסים' },
+            ]
+        }
+    ];
+
+    document.getElementById('ofl-fam-tour-overlay')?.remove();
+    let idx = 0;
+
+    function renderSlide() {
+        document.getElementById('ofl-fam-tour-overlay')?.remove();
+        const s = slides[idx];
+        const isLast = idx === slides.length - 1;
+        const dots = slides.map((_, i) =>
+            `<div style="width:${i===idx?'28px':'8px'};height:8px;border-radius:999px;background:${i===idx?'rgba(255,255,255,0.95)':'rgba(255,255,255,0.35)'};transition:all 0.35s ease"></div>`
+        ).join('');
+        const feats = s.features.map(f =>
+            `<div style="display:flex;align-items:flex-start;gap:14px;padding:14px 16px;background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.07);border:1px solid #f1f5f9"><span style="font-size:22px;flex-shrink:0;margin-top:2px">${f.icon}</span><span style="font-size:13px;color:#334155;line-height:1.55;font-weight:500">${f.text}</span></div>`
+        ).join('');
+
+        const el = document.createElement('div');
+        el.id = 'ofl-fam-tour-overlay';
+        el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:flex-end;justify-content:center;font-family:Rubik,sans-serif;direction:rtl;background:rgba(15,23,42,0.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);';
+        el.innerHTML = `
+<div style="width:100%;max-width:480px;border-radius:28px 28px 0 0;overflow:hidden;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,0.3);">
+  <div class="bg-gradient-to-br ${s.bg}" style="padding:28px 24px 40px;flex-shrink:0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:7px">${dots}</div>
+      <button id="ofl-fam-tour-skip" style="color:rgba(255,255,255,0.85);font-size:13px;font-weight:600;background:rgba(0,0,0,0.18);border:none;cursor:pointer;font-family:Rubik,sans-serif;padding:7px 16px;border-radius:20px;">דלג</button>
+    </div>
+    <div style="text-align:center">
+      <div style="width:92px;height:92px;border-radius:50%;background:rgba(255,255,255,0.18);border:2px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:46px;margin:0 auto 20px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">${s.emoji}</div>
+      <h2 style="font-size:22px;font-weight:900;color:#fff;margin:0 0 8px;letter-spacing:-0.3px">${s.title}</h2>
+      <p style="color:rgba(255,255,255,0.82);font-size:14px;line-height:1.6;margin:0;font-weight:400">${s.subtitle}</p>
+    </div>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:20px 16px 8px;display:flex;flex-direction:column;gap:10px;background:#f8fafc;">
+    ${feats}
+  </div>
+  <div style="padding:14px 16px 28px;background:#f8fafc;">
+    <button id="ofl-fam-tour-next" class="bg-gradient-to-r ${s.bg}" style="width:100%;color:#fff;font-weight:800;font-size:16px;padding:15px;border-radius:16px;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.2);font-family:Rubik,sans-serif;">
+      ${isLast ? '🚀 בואו נתחיל!' : 'הבא →'}
+    </button>
+  </div>
+</div>`;
+
+        document.body.appendChild(el);
+        document.getElementById('ofl-fam-tour-skip').onclick = () => document.getElementById('ofl-fam-tour-overlay')?.remove();
+        document.getElementById('ofl-fam-tour-next').onclick = () => {
+            if (isLast) { document.getElementById('ofl-fam-tour-overlay')?.remove(); }
+            else { idx++; renderSlide(); }
+        };
+    }
+
+    renderSlide();
+}
 
 function startAdminTour() {
     switchTab('feed'); const intro = introJs();
@@ -1469,6 +1612,7 @@ async function fetchData() {
         try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
         try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
         try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
+        try { if (data.group) renderSmBanner(data.group); } catch(e) {}
         try { loadCategoryMap(); } catch(e) {}
         try { fetchBudget(); } catch(e) {}
         try { renderForecast(); } catch(e) {}
@@ -2768,17 +2912,88 @@ function toggleFab() { getEl('fab-container').classList.toggle('fab-open'); }
 // --- SUPERMARKET MODE (Feature 2) ---
 // ============================================================
 
+let _smFastPollInterval = null;
+let _smKnownItemIds = new Set();
+
 function openSupermarketMode() {
     const activeItems = shoppingListCache.filter(i => i.status !== 'requested');
     if (activeItems.length === 0) { showToast('error', 'אין פריטים ברשימה להתחיל קניה'); return; }
+    // שמירת IDs ידועים לפני כניסה למצב סופר
+    _smKnownItemIds = new Set(shoppingListCache.map(i => i.id));
     renderSupermarketList();
     getEl('supermarket-modal').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    // רישום בשרת שאני בסופר + polling מהיר
+    fetch(`${API}/shopping/supermarket/start`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id }) }).catch(() => {});
+    startSmFastPoll();
 }
 
 function closeSupermarketMode() {
     getEl('supermarket-modal').classList.add('hidden');
     document.body.style.overflow = '';
+    // סיום רישום בשרת + עצירת polling מהיר
+    fetch(`${API}/shopping/supermarket/end`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id }) }).catch(() => {});
+    stopSmFastPoll();
+}
+
+function startSmFastPoll() {
+    stopSmFastPoll();
+    _smFastPollInterval = setInterval(async () => {
+        try {
+            const res = await fetch(`${API}/data/${currentUser.id}`);
+            const data = await res.json();
+            if (!data || !data.shopping_list) return;
+            const prevIds = _smKnownItemIds;
+            const newItems = data.shopping_list.filter(i => !prevIds.has(i.id) && i.status !== 'requested');
+            if (newItems.length > 0) {
+                newItems.forEach(i => showSmNewItemNotification(i.item_name));
+                newItems.forEach(i => _smKnownItemIds.add(i.id));
+            }
+            shoppingListCache = data.shopping_list;
+            // עדכן את מצב הסיום גם בסופרמרקט אם המודל פתוח
+            const modal = getEl('supermarket-modal');
+            if (modal && !modal.classList.contains('hidden')) renderSupermarketList();
+        } catch(e) {}
+    }, 4000);
+}
+
+function stopSmFastPoll() {
+    if (_smFastPollInterval) { clearInterval(_smFastPollInterval); _smFastPollInterval = null; }
+}
+
+function showSmNewItemNotification(itemName) {
+    const existing = document.getElementById('sm-new-item-notif');
+    if (existing) existing.remove();
+    const el = document.createElement('div');
+    el.id = 'sm-new-item-notif';
+    el.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:99998;font-family:Rubik,sans-serif;direction:rtl;animation:smNotifIn 0.35s ease;';
+    el.innerHTML = `<div style="background:linear-gradient(135deg,#10b981,#0d9488);color:#fff;border-radius:24px;padding:20px 28px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4);min-width:240px;max-width:300px;">
+        <div style="font-size:36px;margin-bottom:8px">🛍️</div>
+        <p style="font-size:11px;font-weight:600;opacity:0.85;margin:0 0 4px">נוסף לרשימה</p>
+        <p style="font-size:18px;font-weight:900;margin:0">${itemName}</p>
+    </div>`;
+    if (!document.getElementById('sm-notif-style')) {
+        const s = document.createElement('style');
+        s.id = 'sm-notif-style';
+        s.textContent = '@keyframes smNotifIn{from{opacity:0;transform:translate(-50%,-50%) scale(0.7)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}';
+        document.head.appendChild(s);
+    }
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+}
+
+function renderSmBanner(groupData) {
+    const banner = getEl('sm-status-banner');
+    const nameEl = getEl('sm-banner-name');
+    if (!banner) return;
+    const smUserId = groupData?.sm_user_id;
+    if (smUserId && smUserId !== currentUser.id) {
+        const name = groupData.sm_user_name || 'מישהו';
+        if (nameEl) nameEl.textContent = `${name} נמצא עכשיו בסופר`;
+        banner.classList.remove('hidden');
+    } else {
+        banner.classList.add('hidden');
+    }
 }
 
 function renderSupermarketList() {
