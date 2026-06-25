@@ -2462,18 +2462,24 @@ async function openAiShoppingModal() {
     if (!modal || !listEl) return;
     listEl.innerHTML = `<div class="text-center py-12 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-3xl mb-3 text-violet-400"></i><p class="text-sm font-bold mt-2">מייצר רשימה...</p></div>`;
     modal.classList.remove('hidden');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
     try {
         const res = await fetch(`${API}/shopping/ai-generate-list`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id })
+            body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id }),
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
         const data = await res.json();
-        if (handleAIResponseCheck && handleAIResponseCheck(data)) return;
+        if (!handleAIResponseCheck(data)) return;
         if (!data.success) throw new Error(data.error || 'שגיאה');
         window._aiShopCategories = data.categories;
         renderAiShopList(data.categories);
     } catch(e) {
-        listEl.innerHTML = `<div class="text-center py-12 text-red-400"><i class="fa-solid fa-triangle-exclamation text-3xl mb-3"></i><p class="text-sm font-bold">שגיאה ביצירת הרשימה</p><p class="text-xs mt-1">${e.message || ''}</p></div>`;
+        clearTimeout(timeoutId);
+        const isTimeout = e.name === 'AbortError';
+        listEl.innerHTML = `<div class="text-center py-12 text-red-400"><i class="fa-solid fa-triangle-exclamation text-3xl mb-3"></i><p class="text-sm font-bold">${isTimeout ? 'הבקשה ארכה יותר מדי זמן' : 'שגיאה ביצירת הרשימה'}</p><button onclick="openAiShoppingModal()" class="mt-3 text-xs bg-violet-100 text-violet-700 px-4 py-2 rounded-xl font-bold">נסה שוב</button></div>`;
     }
 }
 
