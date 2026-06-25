@@ -372,6 +372,7 @@ pool.connect()
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS sm_user_id INT'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS sm_user_name VARCHAR(100)'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS sm_started_at TIMESTAMP'); } catch(e) {}
+      try { await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP'); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS features JSONB DEFAULT '{"store":true,"b2b":true,"academy":true,"calendar":true,"finance":true,"inventory":true,"crm":true,"deliveries":true,"foodcost":true,"ai":true}'::jsonb`); } catch(e) {}
       // מרכז משאבי אנוש והרשאות לסופר אדמין (RBAC)
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_teams (id SERIAL PRIMARY KEY, name VARCHAR(100), permissions JSONB DEFAULT '[]'::jsonb, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
@@ -3283,7 +3284,8 @@ app.get('/api/data/:userId', async (req, res) => {
         if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
         const user = userRes.rows[0];
         
-        // עדכון מכסת ה-AI היומית למשתמש בזמן הטעינה (מתאפס ל-10 בחצות)
+        // עדכון last_seen + מכסת AI יומית
+        await pool.query('UPDATE users SET last_seen=NOW() WHERE id=$1', [user.id]);
         await pool.query(`UPDATE family_groups SET ai_tokens = 10, last_token_reset = CURRENT_DATE WHERE id = $1 AND (last_token_reset IS NULL OR last_token_reset < CURRENT_DATE)`, [user.group_id]);
         
         const groupRes = await pool.query('SELECT * FROM family_groups WHERE id = $1', [user.group_id]);
@@ -3904,9 +3906,9 @@ app.get('/api/group/members', async (req, res) => {
         const { groupId } = req.query;
         let users;
         try {
-            users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year, permissions, employee_role_type FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
+            users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year, permissions, employee_role_type, last_seen FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
         } catch(err) {
-            users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year, employee_role_type FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
+            users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year, employee_role_type, last_seen FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
         }
         res.json(users.rows);
     } catch(e) { res.status(500).json({error: e.message}); }
