@@ -3568,20 +3568,55 @@ async function fetchMembers() {
             } catch (err) {}
         }
 
+        // לוח "מחוברים עכשיו" — גלוי להורה בלבד
+        if (currentUser.role === 'ADMIN') {
+            try {
+                const now = Date.now();
+                const onlineThreshold = 3 * 60 * 1000; // 3 דקות
+                const onlineMembers = membersCache.filter(m => m.last_seen && (now - new Date(m.last_seen).getTime()) < onlineThreshold);
+                let ob = getEl('members-online-banner');
+                if (!ob) {
+                    const c = getEl('members-list');
+                    if (c && c.parentNode) {
+                        ob = document.createElement('div');
+                        ob.id = 'members-online-banner';
+                        c.parentNode.insertBefore(ob, c);
+                    }
+                }
+                if (ob) {
+                    if (onlineMembers.length === 0) {
+                        ob.innerHTML = '';
+                    } else {
+                        const avatars = onlineMembers.map(m => {
+                            const ini = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?';
+                            const isMe = m.id === currentUser.id;
+                            return `<div class="flex flex-col items-center gap-1"><div class="relative w-10 h-10"><div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${isMe ? 'bg-emerald-500 text-white' : 'bg-white text-slate-700 border-2 border-emerald-200'} shadow">${ini}</div><span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full"></span></div><span class="text-[10px] text-slate-500 font-medium max-w-[40px] truncate">${isMe ? 'אני' : safeStr(m.nickname)}</span></div>`;
+                        }).join('');
+                        ob.innerHTML = `<div class="mx-0 mb-3 px-4 py-3 bg-gradient-to-l from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse inline-block"></span><span class="text-xs font-black text-emerald-700">מחוברים עכשיו</span><span class="text-[10px] bg-emerald-100 text-emerald-600 font-bold px-1.5 py-0.5 rounded-full">${onlineMembers.length}</span></div><span class="text-[10px] text-slate-400">מעודכן כל 30 שניות</span></div><div class="flex gap-3 flex-wrap">${avatars}</div></div>`;
+                    }
+                }
+            } catch(e) {}
+        }
+
         // רשימת בני המשפחה — גלויה לכולם
         try {
             const c = getEl('members-list');
             if (c) {
+                const now = Date.now();
+                const onlineThreshold = 3 * 60 * 1000;
                 c.innerHTML = '';
                 membersCache.forEach(m => {
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?';
                     const roleLabel = m.role === 'ADMIN' ? 'הורה' : 'ילד';
                     const permsStr = safeStr(JSON.stringify(m.permissions || {}));
+                    const isOnline = m.last_seen && (now - new Date(m.last_seen).getTime()) < onlineThreshold;
+                    const onlineDot = isOnline ? `<span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-white rounded-full"></span>` : '';
+                    const avatarWrap = `<div class="relative w-9 h-9"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div>${onlineDot}</div>`;
                     const adminEditBtn = (currentUser.role === 'ADMIN') ? `<button onclick="openEditMemberModal(${m.id})" class="mr-2 text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="עריכת פרטים"><i class="fa-solid fa-pen text-sm"></i></button>` : '';
                     const adminPermsBtn = currentUser.role === 'ADMIN' ? `<button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${permsStr}')" class="mr-2 text-purple-600 hover:text-purple-800 bg-purple-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="הרשאות"><i class="fa-solid fa-user-shield text-sm"></i></button>` : '';
                     const adminRoleBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="changeUserRole(${m.id}, '${m.role}', '${safeStr(m.nickname)}')" class="mr-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="${m.role === 'ADMIN' ? 'הורד לילד' : 'קדם להורה'}"><i class="fa-solid fa-arrow-right-arrow-left text-sm"></i></button>` : '';
                     const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-2 text-red-400 hover:text-red-600 bg-red-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="הסר מהמשפחה"><i class="fa-solid fa-trash text-sm"></i></button>` : '';
-                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${roleLabel})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminEditBtn}${adminRoleBtn}${adminPermsBtn}${adminDeleteBtn}</div></div>`;
+                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3">${avatarWrap}<span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${roleLabel})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminEditBtn}${adminRoleBtn}${adminPermsBtn}${adminDeleteBtn}</div></div>`;
                 });
             }
         } catch (err) {}
