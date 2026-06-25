@@ -44482,6 +44482,7 @@ window.renderDocumentsTab = async function() {
                     <input type="hidden" id="doc-modal-id">
                     <input type="hidden" id="doc-modal-is-template">
                     <input type="hidden" id="doc-modal-phone">
+                    <input type="hidden" id="doc-modal-email">
                     <div>
                         <label class="text-xs font-bold text-slate-500 block mb-1">כותרת המסמך *</label>
                         <input type="text" id="doc-modal-title-input" class="modern-input py-2 text-sm bg-white" placeholder="שם המסמך">
@@ -44501,18 +44502,54 @@ window.renderDocumentsTab = async function() {
                         </div>
                     </div>
                     <div id="doc-modal-customer-wrap">
-                        <label class="text-xs font-bold text-slate-500 block mb-1">לקוח</label>
-                        <div class="relative">
-                            <input type="text" id="doc-modal-customer" autocomplete="off"
-                                oninput="window._docSearchCustomer(this.value)"
-                                class="modern-input py-2 text-sm bg-white pr-8" placeholder="חפש לקוח לפי שם / טלפון...">
-                            <i class="fa-solid fa-magnifying-glass absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-xs font-bold text-slate-500">נמען המסמך</label>
+                            <div class="flex bg-slate-100 rounded-lg p-0.5 gap-0.5">
+                                <button type="button" id="doc-mode-existing-btn" onclick="window._docSetMode('existing')" class="px-3 py-1 text-[10px] font-bold rounded-md bg-white text-indigo-600 shadow-sm transition">לקוח קיים</button>
+                                <button type="button" id="doc-mode-new-btn" onclick="window._docSetMode('new')" class="px-3 py-1 text-[10px] font-bold rounded-md text-slate-400 transition">לקוח חדש</button>
+                            </div>
                         </div>
-                        <div id="doc-customer-results" class="hidden bg-white border border-slate-200 rounded-xl shadow-lg mt-1 max-h-40 overflow-y-auto z-10 relative"></div>
-                    </div>
-                    <div id="doc-modal-email-wrap">
-                        <label class="text-xs font-bold text-slate-500 block mb-1">מייל לקוח</label>
-                        <input type="email" id="doc-modal-email" class="modern-input py-2 text-sm bg-white" placeholder="email@example.com">
+                        <div id="doc-existing-section">
+                            <div class="relative">
+                                <input type="text" id="doc-modal-customer" autocomplete="off"
+                                    oninput="window._docSearchCustomer(this.value)"
+                                    class="modern-input py-2 text-sm bg-white pr-8" placeholder="חפש לפי שם / טלפון...">
+                                <i class="fa-solid fa-magnifying-glass absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                            </div>
+                            <div id="doc-customer-results" class="hidden bg-white border border-slate-200 rounded-xl shadow-lg mt-1 max-h-40 overflow-y-auto z-10 relative"></div>
+                            <div id="doc-selected-pills" class="hidden mt-2 flex flex-wrap gap-1.5"></div>
+                        </div>
+                        <div id="doc-new-section" class="hidden space-y-2">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-400 block mb-1">שם פרטי *</label>
+                                    <input type="text" id="doc-modal-first-name" class="modern-input py-2 text-sm bg-white" placeholder="שם פרטי">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-400 block mb-1">שם משפחה</label>
+                                    <input type="text" id="doc-modal-last-name-input" class="modern-input py-2 text-sm bg-white" placeholder="שם משפחה">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-400 block mb-1">תז / ח&quot;פ</label>
+                                    <input type="text" id="doc-modal-id-number" class="modern-input py-2 text-sm bg-white" placeholder="מספר זהות">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-400 block mb-1">טלפון</label>
+                                    <input type="tel" id="doc-modal-phone-input" class="modern-input py-2 text-sm bg-white" placeholder="05X-XXXXXXX">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-bold text-slate-400 block mb-1">כתובת</label>
+                                <input type="text" id="doc-modal-address" class="modern-input py-2 text-sm bg-white" placeholder="רחוב מספר, עיר">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-bold text-slate-400 block mb-1">מייל</label>
+                                <input type="email" id="doc-modal-email-input" class="modern-input py-2 text-sm bg-white" placeholder="email@example.com">
+                            </div>
+                            <button type="button" onclick="window._docInviteClient()" class="w-full bg-[#25D366]/10 text-[#25D366] border border-[#25D366]/30 py-2 rounded-xl text-xs font-bold hover:bg-[#25D366]/20 transition flex items-center justify-center gap-2"><i class="fa-brands fa-whatsapp"></i> שלח הזמנה לאפליקציה</button>
+                        </div>
                     </div>
                     <div id="doc-modal-case-wrap">
                         <label class="text-xs font-bold text-slate-500 block mb-1">תיק לקוח 📁</label>
@@ -44633,15 +44670,16 @@ window.openNewDocModal = function(isTemplate = false) {
     if (caseEl) caseEl.value = '';
     const resultsEl = document.getElementById('doc-customer-results');
     if (resultsEl) { resultsEl.innerHTML = ''; resultsEl.classList.add('hidden'); }
+    ['doc-modal-first-name','doc-modal-last-name-input','doc-modal-id-number','doc-modal-phone-input','doc-modal-address','doc-modal-email-input'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+    const pillsEl = document.getElementById('doc-selected-pills'); if(pillsEl) { pillsEl.innerHTML=''; pillsEl.classList.add('hidden'); }
     document.getElementById('doc-modal-title').textContent = isTemplate ? 'תבנית חדשה' : 'מסמך חדש';
     const custWrap = document.getElementById('doc-modal-customer-wrap');
-    const emailWrap = document.getElementById('doc-modal-email-wrap');
     const statusWrap = document.getElementById('doc-modal-status-wrap');
     const caseWrap = document.getElementById('doc-modal-case-wrap');
     if (custWrap) custWrap.style.display = isTemplate ? 'none' : '';
-    if (emailWrap) emailWrap.style.display = isTemplate ? 'none' : '';
     if (statusWrap) statusWrap.style.display = isTemplate ? 'none' : '';
     if (caseWrap) caseWrap.style.display = isTemplate ? 'none' : '';
+    if (!isTemplate) window._docSetMode('existing');
     document.getElementById('doc-edit-modal').classList.remove('hidden');
 };
 
@@ -44666,15 +44704,15 @@ window.openDocFromTemplate = async function(templateId) {
         if (caseElT) caseElT.value = '';
         const resultsElT = document.getElementById('doc-customer-results');
         if (resultsElT) { resultsElT.innerHTML = ''; resultsElT.classList.add('hidden'); }
+        ['doc-modal-first-name','doc-modal-last-name-input','doc-modal-id-number','doc-modal-phone-input','doc-modal-address','doc-modal-email-input'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
         document.getElementById('doc-modal-title').textContent = 'מסמך חדש (מתבנית)';
         const custWrap = document.getElementById('doc-modal-customer-wrap');
-        const emailWrap = document.getElementById('doc-modal-email-wrap');
         const statusWrap = document.getElementById('doc-modal-status-wrap');
         const caseWrapT = document.getElementById('doc-modal-case-wrap');
         if (custWrap) custWrap.style.display = '';
-        if (emailWrap) emailWrap.style.display = '';
         if (statusWrap) statusWrap.style.display = '';
         if (caseWrapT) caseWrapT.style.display = '';
+        window._docSetMode('existing');
         document.getElementById('doc-edit-modal').classList.remove('hidden');
     } catch(e) { showToast('error', 'שגיאה'); }
 };
@@ -44701,15 +44739,24 @@ window.editDocModal = async function(docId, isTemplate) {
         if (caseElE) caseElE.value = doc.work_order_id || '';
         const resultsElE = document.getElementById('doc-customer-results');
         if (resultsElE) { resultsElE.innerHTML = ''; resultsElE.classList.add('hidden'); }
+        // new fields
+        const fnEl = document.getElementById('doc-modal-first-name'); if(fnEl) fnEl.value = doc.customer_name || '';
+        const lnEl = document.getElementById('doc-modal-last-name-input'); if(lnEl) lnEl.value = doc.customer_last_name || '';
+        const idEl = document.getElementById('doc-modal-id-number'); if(idEl) idEl.value = doc.customer_id_number || '';
+        const phiEl = document.getElementById('doc-modal-phone-input'); if(phiEl) phiEl.value = doc.customer_phone || '';
+        const adrEl = document.getElementById('doc-modal-address'); if(adrEl) adrEl.value = doc.customer_address || '';
+        const emiEl = document.getElementById('doc-modal-email-input'); if(emiEl) emiEl.value = doc.customer_email || '';
         document.getElementById('doc-modal-title').textContent = isTemplate ? 'עריכת תבנית' : 'עריכת מסמך';
         const custWrap = document.getElementById('doc-modal-customer-wrap');
-        const emailWrap = document.getElementById('doc-modal-email-wrap');
         const statusWrap = document.getElementById('doc-modal-status-wrap');
         const caseWrapE = document.getElementById('doc-modal-case-wrap');
         if (custWrap) custWrap.style.display = isTemplate ? 'none' : '';
-        if (emailWrap) emailWrap.style.display = isTemplate ? 'none' : '';
         if (statusWrap) statusWrap.style.display = isTemplate ? 'none' : '';
         if (caseWrapE) caseWrapE.style.display = isTemplate ? 'none' : '';
+        if (!isTemplate) {
+            const hasExtra = doc.customer_last_name || doc.customer_id_number || doc.customer_address;
+            window._docSetMode(hasExtra ? 'new' : 'existing');
+        }
         document.getElementById('doc-edit-modal').classList.remove('hidden');
     } catch(e) { showToast('error', 'שגיאה'); }
 };
@@ -44719,15 +44766,28 @@ window.saveDocModal = async function() {
     const isTemplate = document.getElementById('doc-modal-is-template').value === '1';
     const title = document.getElementById('doc-modal-title-input').value.trim();
     if (!title) { showToast('error', 'נא למלא כותרת'); return; }
+    const _docMode = document.getElementById('doc-mode-new-btn')?.classList.contains('bg-white') ? 'new' : 'existing';
+    const _custName = _docMode === 'new'
+        ? (document.getElementById('doc-modal-first-name')?.value.trim() || document.getElementById('doc-modal-customer').value.trim())
+        : document.getElementById('doc-modal-customer').value.trim();
+    const _custPhone = _docMode === 'new'
+        ? (document.getElementById('doc-modal-phone-input')?.value.trim() || document.getElementById('doc-modal-phone')?.value.trim())
+        : document.getElementById('doc-modal-phone')?.value.trim();
+    const _custEmail = _docMode === 'new'
+        ? (document.getElementById('doc-modal-email-input')?.value.trim() || document.getElementById('doc-modal-email')?.value.trim())
+        : document.getElementById('doc-modal-email')?.value.trim();
     const body = {
         title,
         doc_type: document.getElementById('doc-modal-type').value,
         status: isTemplate ? 'draft' : document.getElementById('doc-modal-status').value,
         content: document.getElementById('doc-modal-content').value.trim(),
         notes: document.getElementById('doc-modal-notes').value.trim(),
-        customer_name: isTemplate ? null : (document.getElementById('doc-modal-customer').value.trim() || null),
-        customer_phone: isTemplate ? null : (document.getElementById('doc-modal-phone')?.value.trim() || null),
-        customer_email: isTemplate ? null : (document.getElementById('doc-modal-email')?.value.trim() || null),
+        customer_name: isTemplate ? null : (_custName || null),
+        customer_last_name: isTemplate ? null : (document.getElementById('doc-modal-last-name-input')?.value.trim() || null),
+        customer_phone: isTemplate ? null : (_custPhone || null),
+        customer_email: isTemplate ? null : (_custEmail || null),
+        customer_id_number: isTemplate ? null : (document.getElementById('doc-modal-id-number')?.value.trim() || null),
+        customer_address: isTemplate ? null : (document.getElementById('doc-modal-address')?.value.trim() || null),
         work_order_id: isTemplate ? null : (document.getElementById('doc-modal-case-id')?.value || null),
         is_template: isTemplate
     };
@@ -44842,6 +44902,47 @@ window.openNewDocForCustomer = function(custName, custPhone, custEmail) {
 
 // חיפוש לקוח לייב — store_customers + OneFlow Life
 window._docSearchTimer = null;
+window._docSetMode = function(mode) {
+    const existingBtn = document.getElementById('doc-mode-existing-btn');
+    const newBtn = document.getElementById('doc-mode-new-btn');
+    const existingSec = document.getElementById('doc-existing-section');
+    const newSec = document.getElementById('doc-new-section');
+    if (!existingBtn || !newBtn) return;
+    if (mode === 'new') {
+        existingBtn.className = 'px-3 py-1 text-[10px] font-bold rounded-md text-slate-400 transition';
+        newBtn.className = 'px-3 py-1 text-[10px] font-bold rounded-md bg-white text-indigo-600 shadow-sm transition';
+        if (existingSec) existingSec.classList.add('hidden');
+        if (newSec) newSec.classList.remove('hidden');
+    } else {
+        existingBtn.className = 'px-3 py-1 text-[10px] font-bold rounded-md bg-white text-indigo-600 shadow-sm transition';
+        newBtn.className = 'px-3 py-1 text-[10px] font-bold rounded-md text-slate-400 transition';
+        if (existingSec) existingSec.classList.remove('hidden');
+        if (newSec) newSec.classList.add('hidden');
+    }
+};
+
+window._docInviteClient = function() {
+    const name = document.getElementById('doc-modal-first-name')?.value.trim() || '';
+    const phone = document.getElementById('doc-modal-phone-input')?.value.trim() || '';
+    if (!currentGroup || !currentGroup.group_code) { showToast('error', 'קוד עסק לא זמין'); return; }
+    const joinLink = `${window.location.origin}/business.html?code=${currentGroup.group_code}&role=MEMBER`;
+    const bizName = currentGroup.name || 'העסק שלנו';
+    let text = `היי${name ? ' ' + name : ''}! 👋
+`;
+    text += `הוזמנת להצטרף לפורטל הלקוחות של ${bizName}.
+
+`;
+    text += `לחץ/י על הקישור כדי להירשם:
+🔗 ${joinLink}
+
+`;
+    text += `לאחר ההרשמה תוכל/י לצפות במסמכים, לחתום ולנהל את הקשר איתנו בקלות.`;
+    const waUrl = phone
+        ? `https://wa.me/972${phone.replace(/^0/,'').replace(/-/g,'').replace(/\s/g,'')}?text=${encodeURIComponent(text)}`
+        : `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(waUrl, '_blank');
+};
+
 window._docSearchCustomer = function(val) {
     const resultsEl = document.getElementById('doc-customer-results');
     if (!resultsEl) return;
@@ -44871,6 +44972,12 @@ window._docSelectCustomer = function(name, phone, email) {
     if (phoneEl) phoneEl.value = phone;
     const emailEl = document.getElementById('doc-modal-email');
     if (emailEl) emailEl.value = email;
+    // show pills for selected client
+    const pillsEl = document.getElementById('doc-selected-pills');
+    if (pillsEl) {
+        pillsEl.innerHTML = [name, phone, email].filter(Boolean).map(v => `<span class="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-0.5 rounded-full font-medium">${v}</span>`).join('');
+        pillsEl.classList.remove('hidden');
+    }
     const resultsEl = document.getElementById('doc-customer-results');
     if (resultsEl) { resultsEl.innerHTML = ''; resultsEl.classList.add('hidden'); }
 };
@@ -44920,6 +45027,23 @@ window.exportDocPDF = function(doc) {
     const typeLabels = { document:'מסמך', contract:'חוזה', quote:'הצעת מחיר', letter:'מכתב', report:'דוח' };
     const statusLabels = { draft:'טיוטה', sent:'נשלח', signed:'חתום', approved:'מאושר', cancelled:'בוטל' };
     const dateStr = new Date().toLocaleDateString('he-IL');
+    // logo
+    const logoBase64 = document.getElementById('store-logo-base64')?.value || document.getElementById('dash-logo-preview')?.src || '';
+    const logoHtml = logoBase64 && logoBase64.length > 10
+        ? `<img src="${logoBase64}" style="max-height:64px;max-width:160px;object-fit:contain;border-radius:8px;">`
+        : '';
+    const bizName = (typeof currentGroup !== 'undefined' && currentGroup?.name) ? currentGroup.name : '';
+    // recipient block
+    const recipientLines = [
+        doc.customer_name ? (doc.customer_name + (doc.customer_last_name ? ' ' + doc.customer_last_name : '')) : null,
+        doc.customer_id_number ? ('ת.ז / ח"פ: ' + doc.customer_id_number) : null,
+        doc.customer_address || null,
+        doc.customer_phone || null,
+        doc.customer_email || null
+    ].filter(Boolean);
+    const recipientHtml = recipientLines.length
+        ? `<div class="recipient-box"><p class="rec-label">לכבוד:</p>${recipientLines.map(l=>`<p>${l}</p>`).join('')}</div>`
+        : '';
     const w = window.open('', '_blank', 'width=820,height=700');
     if (!w) { showToast('error', 'אפשר חלונות קופצים בדפדפן ונסה שוב'); return; }
     const contentHtml = (doc.content||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -44927,23 +45051,32 @@ window.exportDocPDF = function(doc) {
     <style>
         *{box-sizing:border-box;margin:0;padding:0}
         body{font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:40px auto;color:#1e293b;line-height:1.7;padding:0 20px}
-        .header{border-bottom:2px solid #4338ca;padding-bottom:18px;margin-bottom:28px}
-        h1{color:#4338ca;font-size:22px;margin-bottom:8px}
-        .meta{color:#64748b;font-size:13px}
+        .header{border-bottom:2px solid #4338ca;padding-bottom:18px;margin-bottom:24px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+        .header-right{flex:1}
+        .biz-name{font-size:13px;font-weight:700;color:#1e293b;margin-bottom:4px}
+        h1{color:#4338ca;font-size:22px;margin-bottom:6px}
+        .meta{color:#64748b;font-size:12px}
+        .recipient-box{background:#f8fafc;border-right:3px solid #4338ca;padding:10px 14px;border-radius:6px;margin-bottom:22px;font-size:13px}
+        .rec-label{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:4px;letter-spacing:.05em}
         .content{white-space:pre-wrap;font-size:14px;line-height:1.8}
         .sig-section{margin-top:40px;padding-top:20px;border-top:1px solid #e2e8f0}
         .sig-label{font-size:12px;color:#64748b;margin-bottom:8px}
         img.sig{max-width:220px;border-bottom:1px solid #334155;display:block}
-        .footer{margin-top:48px;padding-top:16px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:11px}
+        .footer{margin-top:48px;padding-top:16px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:11px;display:flex;justify-content:space-between}
         @media print{body{margin:24px;padding:0}button{display:none}}
     </style></head><body>
     <div class="header">
-        <h1>${safeStr(doc.title)}</h1>
-        <p class="meta">${doc.customer_name?`לקוח: ${safeStr(doc.customer_name)} &nbsp;|&nbsp; `:''}סוג: ${typeLabels[doc.doc_type]||doc.doc_type} &nbsp;|&nbsp; סטטוס: ${statusLabels[doc.status]||doc.status} &nbsp;|&nbsp; תאריך: ${dateStr}</p>
+        <div class="header-right">
+            ${bizName ? `<p class="biz-name">${bizName}</p>` : ''}
+            <h1>${safeStr(doc.title)}</h1>
+            <p class="meta">סוג: ${typeLabels[doc.doc_type]||doc.doc_type} &nbsp;|&nbsp; סטטוס: ${statusLabels[doc.status]||doc.status} &nbsp;|&nbsp; תאריך: ${dateStr}</p>
+        </div>
+        ${logoHtml ? `<div>${logoHtml}</div>` : ''}
     </div>
+    ${recipientHtml}
     <div class="content">${contentHtml}</div>
     ${doc.signature_data?`<div class="sig-section"><p class="sig-label">חתימה:</p><img class="sig" src="${doc.signature_data}" alt="חתימה"></div>`:''}
-    <div class="footer">נוצר ב-Oneflow Business &nbsp;|&nbsp; ${dateStr}</div>
+    <div class="footer"><span>Oneflow Business</span><span>${dateStr}</span></div>
     <script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script>
     </body></html>`);
     w.document.close();
