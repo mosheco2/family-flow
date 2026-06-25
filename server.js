@@ -4663,26 +4663,34 @@ Return ONLY valid JSON: { "store_name": "...", "items": [...] }`;
 });
 
 app.post('/api/shopping/ai-generate-list', async (req, res) => {
+    const FALLBACK = [
+        { name: 'ירקות', items: [{ name: 'עגבניות', qty: 1, unit: 'ק"ג' }, { name: 'מלפפון', qty: 1, unit: 'ק"ג' }, { name: 'פלפל', qty: 0.5, unit: 'ק"ג' }, { name: 'גזר', qty: 0.5, unit: 'ק"ג' }, { name: 'בצל', qty: 1, unit: 'ק"ג' }, { name: 'שום', qty: 1, unit: "יח'" }] },
+        { name: 'פירות', items: [{ name: 'תפוחים', qty: 1, unit: 'ק"ג' }, { name: 'בננות', qty: 1, unit: 'ק"ג' }, { name: 'תפוזים', qty: 1, unit: 'ק"ג' }, { name: 'ענבים', qty: 0.5, unit: 'ק"ג' }, { name: 'לימון', qty: 3, unit: "יח'" }] },
+        { name: 'שימורים', items: [{ name: 'עגבניות מרוסקות', qty: 2, unit: "יח'" }, { name: 'טונה', qty: 3, unit: "יח'" }, { name: 'גרגרי חומוס', qty: 2, unit: "יח'" }, { name: 'תירס', qty: 2, unit: "יח'" }, { name: 'זיתים', qty: 1, unit: "יח'" }] },
+        { name: 'יבשים', items: [{ name: 'אורז', qty: 1, unit: 'ק"ג' }, { name: 'פסטה', qty: 2, unit: "יח'" }, { name: 'קמח', qty: 1, unit: 'ק"ג' }, { name: 'סוכר', qty: 1, unit: 'ק"ג' }, { name: 'קפה', qty: 1, unit: "יח'" }] },
+        { name: 'דברי חלב', items: [{ name: 'חלב', qty: 2, unit: 'ל' }, { name: 'גבינה לבנה', qty: 2, unit: "יח'" }, { name: 'יוגורט', qty: 4, unit: "יח'" }, { name: 'חמאה', qty: 1, unit: "יח'" }, { name: 'ביצים', qty: 12, unit: "יח'" }] },
+        { name: 'שתיה', items: [{ name: 'מים מינרלים', qty: 6, unit: "יח'" }, { name: 'מיץ תפוזים', qty: 2, unit: "יח'" }, { name: 'מים מוגזים', qty: 2, unit: "יח'" }, { name: 'מיץ ענבים', qty: 1, unit: "יח'" }] }
+    ];
     try {
         const { userId } = req.body;
         const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
         const groupId = uRes.rows[0].group_id;
         const hasTokens = await handleAITokens(groupId);
         if (!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash', generationConfig: { responseMimeType: 'application/json' } });
-        const prompt = `צור רשימת קניות שבועית לבית ישראלי ממוצע (2-4 נפשות).
-6 קטגוריות בסדר קבוע: ירקות, פירות, שימורים, יבשים, דברי חלב, שתיה.
-5-6 מוצרים נפוצים לכל קטגוריה. שמות קצרים בעברית. יחידות: ירקות/פירות=ק"ג, נוזלים=ל, שאר=יח'.
-JSON בלבד: {"categories":[{"name":"ירקות","items":[{"name":"עגבניות","qty":1,"unit":"ק\\"ג"}]}]}`;
+        if (!genAI) return res.json({ success: true, categories: FALLBACK });
+
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const prompt = 'Generate a typical Israeli family weekly shopping list in Hebrew, for 6 categories: ירקות, פירות, שימורים, יבשים, דברי חלב, שתיה. 5-6 common items each. Units: vegetables/fruits use \'ק"ג\', liquids use \'ל\', others use \'יח\\\'\'. Quantities realistic for a family of 4. Product names in Hebrew only. Return ONLY valid JSON object (no markdown, no explanation): {"categories":[{"name":"ירקות","items":[{"name":"עגבניות","qty":1,"unit":"ק\\"ג"}]}]}';
+
         const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 18000));
         const result = await Promise.race([model.generateContent(prompt), timeoutPromise]);
-        const text = result.response.text();
-        const parsed = JSON.parse(text);
-        res.json({ success: true, categories: parsed.categories || [] });
+        let text = result.response.text().trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+        const s = text.indexOf('{'), e2 = text.lastIndexOf('}');
+        const parsed = JSON.parse(s >= 0 ? text.slice(s, e2 + 1) : text);
+        res.json({ success: true, categories: (parsed.categories && parsed.categories.length > 0) ? parsed.categories : FALLBACK });
     } catch(e) {
-        if (e.message === 'TIMEOUT') return res.json({ success: false, error: 'הבקשה ארכה יותר מדי — נסה שוב' });
-        handleAIError(e, res, 'שגיאה ביצירת רשימת קניות');
+        console.error('AI shopping list error:', e.message);
+        res.json({ success: true, categories: FALLBACK });
     }
 });
 
