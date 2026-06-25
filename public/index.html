@@ -732,6 +732,18 @@
                             <button onclick="openSavedListsModal()" class="bg-amber-50 text-amber-600 px-4 py-3 rounded-2xl text-xs font-bold border border-amber-100 hover:bg-amber-100 transition flex items-center justify-center gap-1.5"><i class="fa-solid fa-bookmark"></i> רשימות שמורות</button>
                         </div>
 
+                        <!-- SM Status Banner - shown when a family member is at supermarket -->
+                        <div id="sm-status-banner" class="hidden mb-3 px-2">
+                            <div class="bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-lg shadow-emerald-100">
+                                <div class="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center text-xl shrink-0 animate-pulse">🛒</div>
+                                <div class="flex-1 min-w-0">
+                                    <p id="sm-banner-name" class="font-black text-sm">מישהו בסופר</p>
+                                    <p class="text-emerald-100 text-xs font-medium">הרשימה מתעדכנת בזמן אמת ✨</p>
+                                </div>
+                                <div class="w-2 h-2 bg-white rounded-full animate-ping"></div>
+                            </div>
+                        </div>
+
                         <div id="shop-requests-container" class="hidden mb-4 bg-orange-50 p-3 rounded-2xl border border-orange-100 shadow-sm">
                             <h4 id="req-title" class="text-sm font-bold text-orange-700 mb-2 flex items-center gap-2"><i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור הורה</h4>
                             <div id="shop-requests-list" class="space-y-2"></div>
