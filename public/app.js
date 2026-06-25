@@ -3578,8 +3578,9 @@ async function fetchMembers() {
                     const roleLabel = m.role === 'ADMIN' ? 'הורה' : 'ילד';
                     const permsStr = safeStr(JSON.stringify(m.permissions || {}));
                     const adminPermsBtn = currentUser.role === 'ADMIN' ? `<button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${m.role}', '${permsStr}')" class="mr-2 text-purple-600 hover:text-purple-800 bg-purple-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="הרשאות"><i class="fa-solid fa-user-shield text-sm"></i></button>` : '';
+                    const adminRoleBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="changeUserRole(${m.id}, '${m.role}', '${safeStr(m.nickname)}')" class="mr-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="${m.role === 'ADMIN' ? 'הורד לילד' : 'קדם להורה'}"><i class="fa-solid fa-arrow-right-arrow-left text-sm"></i></button>` : '';
                     const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-2 text-red-400 hover:text-red-600 bg-red-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="הסר מהמשפחה"><i class="fa-solid fa-trash text-sm"></i></button>` : '';
-                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${roleLabel})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminPermsBtn}${adminDeleteBtn}</div></div>`;
+                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${roleLabel})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminRoleBtn}${adminPermsBtn}${adminDeleteBtn}</div></div>`;
                 });
             }
         } catch (err) {}
@@ -3617,6 +3618,19 @@ async function fetchPendingUsers() {
 }
 
 async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); showToast('success', 'אושר כבן משפחה!'); fetchPendingUsers(); fetchMembers(); }
+
+async function changeUserRole(userId, currentRole, nickname) {
+    const isCurrentlyAdmin = currentRole === 'ADMIN';
+    const newRole = isCurrentlyAdmin ? 'CHILD' : 'ADMIN';
+    const newLabel = isCurrentlyAdmin ? 'ילד/ה' : 'הורה';
+    if (!confirm(`לשנות את תפקיד "${nickname}" ל${newLabel}?`)) return;
+    try {
+        const res = await fetch(`${API}/admin/change-role`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminId: currentUser.id, userId, newRole }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', `תפקיד עודכן ל${newLabel}`); fetchMembers(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
 async function openProfileModal() {
     getEl('old-password').value = '';
     getEl('new-password').value = '';
