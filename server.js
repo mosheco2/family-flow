@@ -3230,7 +3230,7 @@ app.post('/api/join', async (req, res) => {
         if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד ארגון/משפחה לא חוקי' });
         
         const group = gRes.rows[0];
-        const reqRole = role === 'ADMIN' ? 'ADMIN' : 'MEMBER';
+        const reqRole = role === 'ADMIN' ? 'ADMIN' : role === 'CHILD' ? 'CHILD' : 'MEMBER';
         const bYear = parseInt(birthYear) || null;
         const joinPhone = (req.body.phone || '').trim() || null;
 
