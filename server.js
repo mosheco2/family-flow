@@ -5780,6 +5780,56 @@ app.post('/api/store/quotes/:id/approve', async (req, res) => {
     } catch(e) { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
 });
 
+// --- חיפוש לקוחות מאוחד: store_customers + משתמשי OneFlow Life לפי שם/טלפון ---
+app.get('/api/store/search-customers', async (req, res) => {
+    try {
+        const { q, groupId } = req.query;
+        if (!q || !groupId) return res.json({ customers: [] });
+        const term = q.trim();
+        const digits = term.replace(/\D/g, '');
+        const like = `%${term}%`;
+
+        // חיפוש בלקוחות העסק
+        const bizRes = await pool.query(
+            `SELECT id, name, company_name, phone, email, family_group_id, NULL as source_type
+             FROM store_customers
+             WHERE group_id=$1 AND (name ILIKE $2 OR company_name ILIKE $2 OR email ILIKE $2
+               OR ($3 != '' AND REPLACE(REPLACE(phone,'-',''),' ','') LIKE $4))
+             ORDER BY name ASC LIMIT 50`,
+            [groupId, like, digits, `%${digits}%`]
+        );
+
+        // חיפוש במשתמשי OneFlow Life (שם/כינוי/טלפון)
+        const ofRes = await pool.query(
+            `SELECT DISTINCT ON (fg.id)
+                NULL::int as id,
+                COALESCE(NULLIF(TRIM(u.nickname),''), NULLIF(TRIM(u.first_name),''), fg.name) as name,
+                fg.name as company_name,
+                u.phone,
+                fg.admin_email as email,
+                fg.id as family_group_id,
+                'oneflow' as source_type
+             FROM users u
+             JOIN family_groups fg ON fg.id = u.group_id
+             WHERE fg.type IN ('FAMILY','BUSINESS') AND fg.id != $1
+               AND (u.nickname ILIKE $2 OR u.first_name ILIKE $2 OR fg.name ILIKE $2
+                    OR ($3 != '' AND REPLACE(REPLACE(u.phone,'-',''),' ','') LIKE $4))
+             ORDER BY fg.id, name ASC
+             LIMIT 50`,
+            [groupId, like, digits, `%${digits}%`]
+        );
+
+        // מיזוג + הסרת כפילויות לפי טלפון/family_group_id
+        const seen = new Set();
+        const results = [];
+        for (const row of [...bizRes.rows, ...ofRes.rows]) {
+            const key = row.family_group_id ? `fg:${row.family_group_id}` : (row.phone ? `ph:${row.phone.replace(/\D/g,'')}` : `id:${row.id}`);
+            if (!seen.has(key)) { seen.add(key); results.push(row); }
+        }
+        res.json({ customers: results });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // --- חיפוש משפחה/עסק ב-OneFlow Life לפי טלפון/אימייל ---
 app.get('/api/store/lookup-oneflow', async (req, res) => {
     try {

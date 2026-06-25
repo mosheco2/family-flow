@@ -10386,54 +10386,62 @@ window.showCustomerQuoteModal = function(customerId, options = {}) {
 
 // חיפוש לקוח — מאגר לקוחות העסק (שם, שם משפחה, שם עסק, טלפון)
 window.cqSearchCustomer = async function() {
-    const q = (document.getElementById('cq-customer-name')?.value || '').trim().toLowerCase();
+    const q = (document.getElementById('cq-customer-name')?.value || '').trim();
     const resultsEl = document.getElementById('cq-customer-results');
     if (!resultsEl) return;
     if (!q) { resultsEl.innerHTML = ''; return; }
+    if (!currentGroup?.id) return;
 
-    // טעינת לקוחות אם ה-cache ריק
-    if (!window.storeCustomersCache || window.storeCustomersCache.length === 0) {
-        resultsEl.innerHTML = '<p class="text-xs text-slate-400 py-1 text-center">טוען לקוחות...</p>';
-        if (typeof window.fetchStoreCustomers === 'function') await window.fetchStoreCustomers();
-    }
-
-    const qDigits = q.replace(/\D/g, '');
-    const bizCusts = (window.storeCustomersCache || []).filter(c => {
-        const qLower = q;
-        return (c.name||'').toLowerCase().includes(qLower) ||
-               (c.company_name||'').toLowerCase().includes(qLower) ||
-               (qDigits && (c.phone||'').replace(/\D/g,'').includes(qDigits)) ||
-               (c.email||'').toLowerCase().includes(qLower);
-    });
-    const bizHtml = bizCusts.map(c => {
-        const fullName = c.name || '';
-        const companyPart = c.company_name ? ` · ${c.company_name}` : '';
-        const isOneflow = !!c.family_group_id;
-        return `<button type="button" onclick="window.cqSelectCustomerObj(${c.id})" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-100 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;">
-            <span>${isOneflow ? '🔗' : '🏪'}</span>
-            <div class="flex-1 min-w-0">
-                <div class="font-bold text-slate-800">${safeStr(fullName)}${safeStr(companyPart)}</div>
-                <div class="text-[10px] text-slate-500 mt-0.5 dir-ltr text-right">${c.phone||'—'}${c.email ? ' · ' + c.email : ''}</div>
-            </div>
-            ${isOneflow ? '<span class="text-[8px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded font-bold shrink-0">OneFlow</span>' : ''}
-        </button>`;
-    }).join('');
-    if (!bizHtml) {
-        resultsEl.innerHTML = `<p class="text-xs text-slate-400 py-1 text-center">לא נמצאו לקוחות תואמים</p>`;
-        // If query looks like a phone number, copy to phone field and trigger OneFlow lookup
-        const digitsOnly = q.replace(/\D/g, '');
-        if (digitsOnly.length >= 9) {
-            const phoneEl = document.getElementById('cq-customer-phone');
-            if (phoneEl && !phoneEl.value) {
-                phoneEl.value = q;
-                window.cqOnPhoneEmailChange(true);
-            } else if (phoneEl && phoneEl.value) {
-                window.cqLookupOneflow();
+    resultsEl.innerHTML = '<p class="text-xs text-slate-400 py-1 text-center">מחפש...</p>';
+    try {
+        const res = await fetch(`${API}/store/search-customers?q=${encodeURIComponent(q)}&groupId=${currentGroup.id}`);
+        const data = await res.json();
+        const customers = data.customers || [];
+        if (!customers.length) {
+            resultsEl.innerHTML = `<p class="text-xs text-slate-400 py-1 text-center">לא נמצאו לקוחות תואמים</p>`;
+            // אם נראה כמו טלפון — נשים בשדה טלפון ונעשה OneFlow lookup
+            const digitsOnly = q.replace(/\D/g, '');
+            if (digitsOnly.length >= 9) {
+                const phoneEl = document.getElementById('cq-customer-phone');
+                if (phoneEl && !phoneEl.value) { phoneEl.value = q; window.cqOnPhoneEmailChange(true); }
+                else window.cqLookupOneflow();
             }
+            return;
         }
-    } else {
-        resultsEl.innerHTML = bizHtml;
+        resultsEl.innerHTML = customers.map(c => {
+            const isOneflow = !!(c.family_group_id);
+            const fullName = c.name || '';
+            const companyPart = (c.company_name && c.company_name !== c.name) ? ` · ${c.company_name}` : '';
+            const clickFn = c.id
+                ? `window.cqSelectCustomerObj(${c.id})`
+                : `window.cqSelectOneflowUser(${JSON.stringify(c).replace(/'/g,"\'").replace(/"/g,'&quot;')})`;
+            return `<button type="button" onclick="${clickFn}" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-100 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;">
+                <span>${isOneflow ? '🔗' : '🏪'}</span>
+                <div class="flex-1 min-w-0">
+                    <div class="font-bold text-slate-800">${safeStr(fullName)}${safeStr(companyPart)}</div>
+                    <div class="text-[10px] text-slate-500 mt-0.5 dir-ltr text-right">${c.phone||'—'}${c.email ? ' · ' + c.email : ''}</div>
+                </div>
+                ${isOneflow ? '<span class="text-[8px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded font-bold shrink-0">OneFlow</span>' : ''}
+            </button>`;
+        }).join('');
+    } catch(e) {
+        resultsEl.innerHTML = '<p class="text-xs text-red-400 py-1 text-center">שגיאה בחיפוש</p>';
     }
+};
+
+// בחירת משתמש OneFlow שאינו קיים עדיין ב-store_customers
+window.cqSelectOneflowUser = function(c) {
+    const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+    set('cq-customer-name', c.name || c.company_name || '');
+    set('cq-customer-phone', c.phone || '');
+    set('cq-customer-email', c.email || '');
+    const modal = document.getElementById('cq-modal');
+    if (modal && c.family_group_id) {
+        modal.dataset.familyGroupId = c.family_group_id;
+        window.cqUpdateOneflowBtn(true, c.name || c.company_name || '');
+    }
+    const resultsEl = document.getElementById('cq-customer-results');
+    if (resultsEl) resultsEl.innerHTML = `<p class="text-xs text-green-600 font-bold py-1">✅ ${safeStr(c.name||c.company_name)} נבחר · <span class="text-indigo-600">OneFlow</span></p>`;
 };
 window.cqSelectCustomerObj = function(custId) {
     const c = (window.storeCustomersCache || []).find(x => String(x.id) === String(custId));
