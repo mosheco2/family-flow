@@ -1691,6 +1691,61 @@
         </div>
     </div>
     
+    <!-- Edit Family Member Modal -->
+    <div id="edit-member-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl flex flex-col max-h-[92vh]">
+            <div class="px-6 pt-6 pb-4 border-b border-slate-100 shrink-0 flex justify-between items-center">
+                <div>
+                    <h3 class="text-lg font-black text-slate-800">✏️ עריכת חבר משפחה</h3>
+                    <p id="edit-member-name-label" class="text-xs text-slate-400 mt-0.5"></p>
+                </div>
+                <button onclick="document.getElementById('edit-member-modal').classList.add('hidden')" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                <input type="hidden" id="edit-member-id">
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">שם משתמש (כינוי)</label>
+                    <input type="text" id="edit-member-nickname" class="modern-input" placeholder="שם להציג באפליקציה">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">דואר אלקטרוני</label>
+                    <input type="email" id="edit-member-email" class="modern-input" placeholder="example@email.com" dir="ltr">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">מספר טלפון</label>
+                    <input type="tel" id="edit-member-phone" class="modern-input" placeholder="050-0000000" dir="ltr">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">סיסמה נוכחית</label>
+                    <div class="relative">
+                        <input type="text" id="edit-member-password-display" class="modern-input font-mono text-slate-500 bg-slate-50" readonly>
+                        <button type="button" onclick="document.getElementById('edit-member-password-display').type = document.getElementById('edit-member-password-display').type === 'password' ? 'text' : 'password'" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-eye text-sm"></i></button>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">סיסמה חדשה <span class="text-slate-400 font-normal">(השאר ריק לאי-שינוי)</span></label>
+                    <input type="password" id="edit-member-new-password" class="modern-input" placeholder="לפחות 4 תווים">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-2">סוג משתמש</label>
+                    <div class="flex gap-2">
+                        <button type="button" id="edit-member-role-admin" onclick="setEditMemberRole('ADMIN')" class="flex-1 py-3 rounded-2xl font-bold text-sm border-2 transition flex flex-col items-center gap-1">
+                            <span class="text-xl">👨‍👩‍👧</span><span>הורה</span>
+                        </button>
+                        <button type="button" id="edit-member-role-child" onclick="setEditMemberRole('CHILD')" class="flex-1 py-3 rounded-2xl font-bold text-sm border-2 transition flex flex-col items-center gap-1">
+                            <span class="text-xl">👦</span><span>ילד / ילדה</span>
+                        </button>
+                    </div>
+                    <input type="hidden" id="edit-member-role" value="CHILD">
+                </div>
+            </div>
+            <div class="px-6 pb-6 pt-3 border-t border-slate-100 shrink-0 flex gap-3">
+                <button onclick="document.getElementById('edit-member-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-2xl font-bold text-slate-500 text-sm">ביטול</button>
+                <button onclick="saveEditMember()" id="btn-save-member" class="flex-1 bg-indigo-600 text-white py-3 rounded-2xl font-bold text-sm shadow-lg shadow-indigo-200"><i class="fa-solid fa-floppy-disk mr-1"></i> שמור</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Edit Shop Item Modal -->
     <div id="edit-shop-item-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
