@@ -4671,30 +4671,19 @@ app.post('/api/shopping/ai-generate-list', async (req, res) => {
         if (!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash', generationConfig: { responseMimeType: 'application/json' } });
-        const prompt = `אתה עוזר משפחתי ישראלי. צור רשימת קניות שבועית טיפוסית לבית ישראלי.
-הרשימה תהיה מאורגנת בדיוק לפי 6 קטגוריות אלה ובסדר זה: ירקות, פירות, שימורים, יבשים, דברי חלב, שתיה.
-עבור כל קטגוריה הצע 5-7 מוצרים נפוצים ומשתמשים בישראל.
-יחידות: ירקות ופירות — ק"ג, נוזלים — ל, כל השאר — יח'.
-כמויות: מציאותיות לצריכה שבועית של משפחה ממוצעת (2-4 נפשות).
-מוצרים בעברית בלבד, שמות קצרים וברורים.
-
-החזר JSON בלבד בפורמט הבא:
-{
-  "categories": [
-    {
-      "name": "ירקות",
-      "items": [
-        { "name": "עגבניות", "qty": 1, "unit": "ק\\"ג" },
-        { "name": "מלפפון", "qty": 1, "unit": "ק\\"ג" }
-      ]
-    }
-  ]
-}`;
-        const result = await model.generateContent(prompt);
+        const prompt = `צור רשימת קניות שבועית לבית ישראלי ממוצע (2-4 נפשות).
+6 קטגוריות בסדר קבוע: ירקות, פירות, שימורים, יבשים, דברי חלב, שתיה.
+5-6 מוצרים נפוצים לכל קטגוריה. שמות קצרים בעברית. יחידות: ירקות/פירות=ק"ג, נוזלים=ל, שאר=יח'.
+JSON בלבד: {"categories":[{"name":"ירקות","items":[{"name":"עגבניות","qty":1,"unit":"ק\\"ג"}]}]}`;
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 18000));
+        const result = await Promise.race([model.generateContent(prompt), timeoutPromise]);
         const text = result.response.text();
         const parsed = JSON.parse(text);
         res.json({ success: true, categories: parsed.categories || [] });
-    } catch(e) { handleAIError(e, res, 'שגיאה ביצירת רשימת קניות'); }
+    } catch(e) {
+        if (e.message === 'TIMEOUT') return res.json({ success: false, error: 'הבקשה ארכה יותר מדי — נסה שוב' });
+        handleAIError(e, res, 'שגיאה ביצירת רשימת קניות');
+    }
 });
 
 app.post('/api/shopping/scan-receipt/save', async (req, res) => {
