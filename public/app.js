@@ -2658,12 +2658,14 @@ function renderShopList() {
     
     const getCatScore = (name, normalized) => {
         const lookups = [normalized, name].filter(Boolean);
+        // קטגוריה ידנית של המשתמש — עדיפות עליונה
+        for (const n of lookups) { if(categoryMapCache[n]) return categoryMapCache[n]; }
+        // חיפוש ב-PRODUCT_DB
         for (const n of lookups) {
             for(const [cat, items] of Object.entries(PRODUCT_DB)) {
                 if(items.includes(n)) return cat;
                 if(items.some(p => n.includes(p) || (p.split(' ')[0].length > 2 && n.includes(p.split(' ')[0])))) return cat;
             }
-            if(categoryMapCache[n]) return categoryMapCache[n];
         }
         return 'שונות';
     };
@@ -2781,7 +2783,7 @@ function closeSupermarketMode() {
 
 function renderSupermarketList() {
     const activeItems = shoppingListCache.filter(i => i.status !== 'requested');
-    const getCatScore = (name, normalized) => { const ll = [normalized,name].filter(Boolean); for(const n of ll) { for(const [cat,items] of Object.entries(PRODUCT_DB)) { if(items.includes(n)) return cat; if(items.some(p => n.includes(p)||(p.split(' ')[0].length>2&&n.includes(p.split(' ')[0])))) return cat; } if(categoryMapCache[n]) return categoryMapCache[n]; } return 'שונות'; };
+    const getCatScore = (name, normalized) => { const ll = [normalized,name].filter(Boolean); for(const n of ll) { if(categoryMapCache[n]) return categoryMapCache[n]; } for(const n of ll) { for(const [cat,items] of Object.entries(PRODUCT_DB)) { if(items.includes(n)) return cat; if(items.some(p => n.includes(p)||(p.split(' ')[0].length>2&&n.includes(p.split(' ')[0])))) return cat; } } return 'שונות'; };
     activeItems.sort((a,b) => getCatScore(a.item_name, a.normalized_name).localeCompare(getCatScore(b.item_name, b.normalized_name)));
     let currentCat = ''; let html = '';
     activeItems.forEach(i => {
