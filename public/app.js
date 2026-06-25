@@ -88,7 +88,7 @@ window.onload = async () => { 
 
     const failsafeTimer = setTimeout(() => { const preloader = getEl('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) { hidePreloaderAndShowAuth('login'); } }, 7000);
     const urlParams = new URLSearchParams(window.location.search); const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
-    if (inviteCode) { getEl('join-code').value = inviteCode; if(inviteRole) getEl('join-role').value = inviteRole; clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; }
+    if (inviteCode) { getEl('join-code').value = inviteCode; if(inviteRole) { getEl('join-role').value = inviteRole; try { setJoinRole(inviteRole); } catch(e) {} } clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; }
     
     const savedSAToken = localStorage.getItem('ofl_sa_token');
     const savedSession = localStorage.getItem('ofl_session'); 
@@ -486,7 +486,18 @@ async function handleCreate(e) {
     } finally { toggleLoader('login', false); } 
 }
 
-async function handleJoin(e) { 
+function setJoinRole(role) {
+    const adminBtn = getEl('join-role-admin-btn');
+    const childBtn = getEl('join-role-child-btn');
+    const roleInput = getEl('join-role');
+    if (!adminBtn || !childBtn || !roleInput) return;
+    const isAdmin = role === 'ADMIN';
+    roleInput.value = isAdmin ? 'ADMIN' : 'CHILD';
+    adminBtn.className = `flex-1 py-3 rounded-2xl font-bold text-sm border-2 transition flex flex-col items-center gap-1 ${isAdmin ? 'border-indigo-500 bg-indigo-500 text-white shadow' : 'border-slate-200 bg-white text-slate-500 shadow-sm'}`;
+    childBtn.className = `flex-1 py-3 rounded-2xl font-bold text-sm border-2 transition flex flex-col items-center gap-1 ${!isAdmin ? 'border-violet-500 bg-violet-500 text-white shadow' : 'border-slate-200 bg-white text-slate-500 shadow-sm'}`;
+}
+
+async function handleJoin(e) {
     e.preventDefault(); if(!getEl('join-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); forceTourStart = true; 
     const _jPhone = val('join-phone');
     if (_requiresPhone(val('join-year')) && !_jPhone.trim()) { showToast('error', 'מספר טלפון הוא שדה חובה מגיל 10'); return; }
@@ -3600,7 +3611,7 @@ async function fetchPendingUsers() {
         const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const users = await res.json(); const list = getEl('pending-list'); const container = getEl('admin-panel'); 
         if (users && users.length > 0) { 
             container.classList.remove('hidden'); list.innerHTML = ''; 
-            users.forEach(u => { list.innerHTML += `<div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm"><span class="text-sm font-bold text-slate-700">${safeStr(u.nickname)}</span><div class="flex gap-2"><button onclick="approveUser(${u.id})" class="bg-slate-800 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-slate-700 transition">אשר למשפחה</button></div></div>`; }); 
+            users.forEach(u => { const roleBadge = u.role === 'ADMIN' ? '<span class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold">הורה</span>' : u.role === 'CHILD' ? '<span class="text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded font-bold">ילד/ה</span>' : '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-bold">חבר</span>'; list.innerHTML += `<div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm"><div class="flex items-center gap-2"><span class="text-sm font-bold text-slate-700">${safeStr(u.nickname)}</span>${roleBadge}</div><div class="flex gap-2"><button onclick="approveUser(${u.id})" class="bg-slate-800 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-slate-700 transition">אשר</button></div></div>`; }); 
         } else { if(container) container.classList.add('hidden'); } 
     } catch(e) {} 
 }
