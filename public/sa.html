@@ -1348,6 +1348,27 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
 
+                    <!-- Email Settings -->
+                    <div class="bg-blue-50 p-6 rounded-2xl border border-blue-200">
+                        <h2 class="text-xl font-bold mb-1 text-blue-900"><i class="fa-solid fa-envelope text-blue-500 mr-2"></i> הגדרות מייל מערכת</h2>
+                        <p class="text-xs text-slate-500 mb-5">כתובת שולח המיילים ללקוחות ועסקים, ומייל קבלת ההתראות הניהוליות.</p>
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-blue-100 space-y-4">
+                            <div>
+                                <label class="text-xs font-bold text-slate-600 block mb-1">שם השולח (From Name)</label>
+                                <input id="smtp-from-name" type="text" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="Oneflow System">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-600 block mb-1">כתובת מייל שולח (From Email)</label>
+                                <input id="smtp-from-email" type="email" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left" placeholder="info@oneflowlife.co.il">
+                                <p class="text-[10px] text-slate-400 mt-1">⚠️ חייב להיות מורשה ב-SMTP — ב-Gmail צריך "Send As" מוגדר, או SMTP של הדומיין</p>
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-600 block mb-1">מייל קבלת התראות ניהוליות (הצטרפויות, תמיכה)</label>
+                                <input id="admin-notification-email" type="email" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left" placeholder="mcgames1978@gmail.com">
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- PWA Install Prompt Toggle -->
                     <div class="bg-indigo-50 p-6 rounded-2xl border border-indigo-200">
                         <h2 class="text-xl font-bold mb-1 text-indigo-900"><i class="fa-solid fa-mobile-screen-button text-indigo-500 mr-2"></i> הצעת קיצור דרך לדף הבית (PWA)</h2>

@@ -1627,6 +1627,21 @@ async function resolveOneFlowGroupIds(pool, businessGroupId, customers) {
 // =========================================================
 // פונקציית מערכת המיילים המרכזית (מאובטחת)
 // =========================================================
+async function getEmailConfig() {
+    try {
+        const r = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('smtp_from_email','smtp_from_name','admin_notification_email')");
+        const m = {};
+        r.rows.forEach(row => { m[row.key] = row.value; });
+        return {
+            fromEmail: m.smtp_from_email || process.env.SMTP_USER || '',
+            fromName:  m.smtp_from_name  || 'Oneflow System',
+            adminNotificationEmail: m.admin_notification_email || 'mcgames1978@gmail.com'
+        };
+    } catch(e) {
+        return { fromEmail: process.env.SMTP_USER || '', fromName: 'Oneflow System', adminNotificationEmail: 'mcgames1978@gmail.com' };
+    }
+}
+
 async function sendSystemEmail(to, subject, htmlContent) {
     const user = process.env.SMTP_USER;
     const pass = process.env.SMTP_PASS;
@@ -1636,17 +1651,18 @@ async function sendSystemEmail(to, subject, htmlContent) {
         return false;
     }
 
+    const cfg = await getEmailConfig();
     console.log(`📧 מנסה לשלוח מייל אל: ${to}...`);
     try {
         const transporter = nodemailer.createTransport({
             host: 'smtp.gmail.com',
             port: 465,
-            secure: true, // משתמש בפורט מאובטח 465
+            secure: true,
             auth: { user: user, pass: pass }
         });
         
         await transporter.sendMail({
-            from: `"Oneflow System" <${user}>`,
+            from: `"${cfg.fromName}" <${cfg.fromEmail || user}>`,
             to: to,
             subject: subject,
             html: htmlContent
@@ -1693,7 +1709,7 @@ app.post('/api/support/ticket', async (req, res) => {
         const newTicketId = tRes.rows[0].id;
 
         // התראה במייל לסופר אדמין
-        const supportEmail = 'mcgames1978@gmail.com'; 
+        const cfgEmail = await getEmailConfig(); const supportEmail = cfgEmail.adminNotificationEmail; 
         const ticketHtml = `
             <div dir="rtl" style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
                 <h2 style="color: #4f46e5; border-bottom: 2px solid #eef2ff; padding-bottom: 10px;">קריאת שירות חדשה #${newTicketId}</h2>
@@ -2850,7 +2866,7 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         const groups = await pool.query('SELECT * FROM family_groups ORDER BY created_at DESC');
         const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
         const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
-        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'business_welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_img_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_img_bottom', 'business_ad_banner_text_top', 'business_ad_banner_link_top', 'business_ad_banner_img_top', 'business_ad_banner_text_bottom', 'business_ad_banner_link_bottom', 'business_ad_banner_img_bottom', 'sa_email', 'sa_username', 'global_ai_logo', 'login_slides', 'sms_login_enabled', 'member_welcome_enabled', 'member_welcome_text', 'member_welcome_img', 'member_module_settings', 'pwa_install_prompt_enabled')");
+        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'business_welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_img_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_img_bottom', 'business_ad_banner_text_top', 'business_ad_banner_link_top', 'business_ad_banner_img_top', 'business_ad_banner_text_bottom', 'business_ad_banner_link_bottom', 'business_ad_banner_img_bottom', 'sa_email', 'sa_username', 'global_ai_logo', 'login_slides', 'sms_login_enabled', 'member_welcome_enabled', 'member_welcome_text', 'member_welcome_img', 'member_module_settings', 'pwa_install_prompt_enabled', 'smtp_from_email', 'smtp_from_name', 'admin_notification_email')");
         
         let unifiedActivity = [];
         activity.rows.forEach(a => { unifiedActivity.push({ date: a.date, group_name: a.group_name, user_name: a.user_name, description: a.description, amount: a.amount, is_financial: true }); });
@@ -2895,7 +2911,10 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
             memberWelcomeEnabled: getSet('member_welcome_enabled') !== 'false',
             memberWelcomeText: getSet('member_welcome_text'),
             memberWelcomeImg: getSet('member_welcome_img'),
-            memberModuleSettings: (() => { try { return JSON.parse(getSet('member_module_settings') || '{}'); } catch(e){ return {}; } })()
+            memberModuleSettings: (() => { try { return JSON.parse(getSet('member_module_settings') || '{}'); } catch(e){ return {}; } })(),
+            smtpFromEmail: getSet('smtp_from_email'),
+            smtpFromName: getSet('smtp_from_name'),
+            adminNotificationEmail: getSet('admin_notification_email')
         });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -2918,6 +2937,10 @@ app.post('/api/superadmin/banners', verifySA, async (req, res) => {
     if (memberModuleSettings !== undefined) items.push({ k: 'member_module_settings', v: JSON.stringify(memberModuleSettings || {}) });
     const { pwaInstallPromptEnabled } = req.body;
     if (pwaInstallPromptEnabled !== undefined) items.push({ k: 'pwa_install_prompt_enabled', v: String(pwaInstallPromptEnabled) });
+    const { smtpFromEmail, smtpFromName, adminNotificationEmail } = req.body;
+    if (smtpFromEmail !== undefined) items.push({ k: 'smtp_from_email', v: smtpFromEmail || '' });
+    if (smtpFromName !== undefined) items.push({ k: 'smtp_from_name', v: smtpFromName || '' });
+    if (adminNotificationEmail !== undefined) items.push({ k: 'admin_notification_email', v: adminNotificationEmail || '' });
 
     try {
         await pool.query('BEGIN');
@@ -3074,7 +3097,7 @@ app.post('/api/groups', async (req, res) => {
         
         const adminAlertHtml = `<div dir="rtl" style="font-family:Arial;"><h2>🎉 סביבה חדשה הוקמה!</h2><p>סוג: ${sysType}</p><p>שם: ${req.body.groupName}</p><p>מייל: ${req.body.adminEmail}</p><p>קוד: <b>${code}</b></p></div>`;
                 // שליחת מיילים ברקע - לא חוסמת את התגובה
-        sendSystemEmail('mcgames1978@gmail.com', 'Oneflow | הצטרפות חדשה למערכת!', adminAlertHtml).catch(e => console.error('Email error:', e));
+        getEmailConfig().then(cfg => sendSystemEmail(cfg.adminNotificationEmail, 'Oneflow | הצטרפות חדשה למערכת!', adminAlertHtml)).catch(e => console.error('Email error:', e));
 
         if (req.body.adminEmail) {
             const userThanksHtml = `<div dir="rtl" style="font-family:Arial;"><h2>ברוכים הבאים ל-${sysType}! 🚀</h2><p>שלום ${req.body.adminNickname},</p><p>הסביבה שלכם מוגדרת ומוכנה לפעולה.</p><br><p>פרטי הגישה שלכם:</p><p>קוד סביבה: <strong style="color: #2563eb;">${code}</strong></p><p>משתמש: <strong>${req.body.adminNickname}</strong></p><p>סיסמה: <strong>${req.body.password}</strong></p></div>`;

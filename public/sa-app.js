@@ -1234,6 +1234,11 @@ async function loadSAData() {
         // PWA install prompt toggle
         window._pwaInstallPromptEnabled = data.pwaInstallPromptEnabled !== false;
         updatePwaPromptToggleUI();
+        // Email settings
+        const setVal = (id, v) => { const el = getEl(id); if (el) el.value = v || ''; };
+        setVal('smtp-from-name', data.smtpFromName);
+        setVal('smtp-from-email', data.smtpFromEmail);
+        setVal('admin-notification-email', data.adminNotificationEmail);
         // Module popup settings
         window._memberModuleSettings = data.memberModuleSettings || {};
         renderModuleSettingsAdmin();
@@ -1302,7 +1307,10 @@ window.saveAllBanners = async function() {
             memberWelcomeText: val('sa-member-welcome-text'),
             memberWelcomeImg: val('sa-member-welcome-img'),
             memberModuleSettings: window._memberModuleSettings || {},
-            pwaInstallPromptEnabled: window._pwaInstallPromptEnabled !== false
+            pwaInstallPromptEnabled: window._pwaInstallPromptEnabled !== false,
+            smtpFromEmail: val('smtp-from-email'),
+            smtpFromName: val('smtp-from-name'),
+            adminNotificationEmail: val('admin-notification-email')
         };
 
         const res = await fetch(`${API}/superadmin/banners`, {
