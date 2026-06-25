@@ -369,6 +369,9 @@ pool.connect()
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS ai_tokens INT DEFAULT 10'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS last_token_reset DATE DEFAULT CURRENT_DATE'); } catch(e) {}
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS sm_user_id INT'); } catch(e) {}
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS sm_user_name VARCHAR(100)'); } catch(e) {}
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS sm_started_at TIMESTAMP'); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS features JSONB DEFAULT '{"store":true,"b2b":true,"academy":true,"calendar":true,"finance":true,"inventory":true,"crm":true,"deliveries":true,"foodcost":true,"ai":true}'::jsonb`); } catch(e) {}
       // מרכז משאבי אנוש והרשאות לסופר אדמין (RBAC)
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_teams (id SERIAL PRIMARY KEY, name VARCHAR(100), permissions JSONB DEFAULT '[]'::jsonb, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
@@ -4709,6 +4712,28 @@ app.post('/api/shopping/scan-receipt/save', async (req, res) => {
         }
         res.json({ success: true, count: items.length });
     } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- SUPERMARKET MODE: START / END ---
+// ============================================================
+
+app.post('/api/shopping/supermarket/start', async (req, res) => {
+    try {
+        const { userId, groupId } = req.body;
+        const uRes = await pool.query('SELECT nickname FROM users WHERE id=$1', [userId]);
+        const name = uRes.rows[0]?.nickname || 'מישהו';
+        await pool.query('UPDATE family_groups SET sm_user_id=$1, sm_user_name=$2, sm_started_at=NOW() WHERE id=$3', [userId, name, groupId]);
+        res.json({ success: true });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+app.post('/api/shopping/supermarket/end', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        await pool.query('UPDATE family_groups SET sm_user_id=NULL, sm_user_name=NULL, sm_started_at=NULL WHERE id=$1', [groupId]);
+        res.json({ success: true });
+    } catch(e) { res.json({ success: false, error: e.message }); }
 });
 
 app.post('/api/academy/tutor', async (req, res) => {
