@@ -685,11 +685,24 @@
                     return;
                 }
 
+                window._isProfessionalStore = (_btype === 'professional' && _viewStore);
+
                 window.renderHeader();
                 window.extractCategories();
                 window.renderPromotionsBanner();
                 window.renderCatalog();
                 loadStorePopups();
+
+                // Professional store: inject back button + hide delivery in checkout
+                if (window._isProfessionalStore) {
+                    const storeCode = urlParams.get('store') || '';
+                    const brandingUrl = `?store=${storeCode}`;
+                    const storeApp = getEl('store-app');
+                    const backBar = document.createElement('div');
+                    backBar.className = 'flex items-center gap-2 px-4 pt-3 pb-1';
+                    backBar.innerHTML = `<a href="${brandingUrl}" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-indigo-600 transition bg-slate-100 hover:bg-indigo-50 border border-slate-200 px-3 py-1.5 rounded-xl"><i class="fa-solid fa-arrow-right text-[10px]"></i> חזרה לאתר</a>`;
+                    storeApp.insertBefore(backBar, storeApp.firstChild);
+                }
 
                 getEl('loading-screen').classList.add('hidden');
                 getEl('store-app').classList.remove('hidden');
@@ -1881,14 +1894,23 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const modalTitle = getEl('checkout-modal-title');
             const btnSubmit = getEl('btn-submit-order');
             
-            if (calc.hasComplexItems) {
+            if (window._isProfessionalStore) {
+                // שירותי מומחים — אין פיקאפ/משלוח
+                if(modalTitle) modalTitle.innerText = 'הזמנת שירות';
+                if(btnSubmit) btnSubmit.innerHTML = `<span>שליחת בקשה לשירות</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${totalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`;
+                getEl('btn-delivery-false').parentElement.classList.add('hidden');
+                if(!skipToggle) window.toggleDelivery(false, true);
+                getEl('btn-time-asap').classList.remove('hidden');
+                getEl('btn-time-future').classList.add('flex-1');
+                getEl('btn-time-future').classList.remove('w-full');
+            } else if (calc.hasComplexItems) {
                 if(modalTitle) modalTitle.innerText = 'בקשה להצעת מחיר / אירוע';
                 if(btnSubmit) btnSubmit.innerHTML = `<span>שליחת בקשה להצעת מחיר</span> <i class="fa-solid fa-file-invoice"></i>`;
-                
+
                 getEl('btn-delivery-false').parentElement.classList.add('hidden');
-                
-                if(!skipToggle) window.toggleDelivery(false, true); 
-                
+
+                if(!skipToggle) window.toggleDelivery(false, true);
+
                 getEl('btn-time-asap').classList.add('hidden');
                 getEl('btn-time-future').classList.remove('flex-1');
                 getEl('btn-time-future').classList.add('w-full');
@@ -1896,7 +1918,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             } else {
                 if(modalTitle) modalTitle.innerText = 'העגלה שלך';
                 if(btnSubmit) btnSubmit.innerHTML = `<span>סיום ושליחת הזמנה</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${totalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`;
-                
+
                 getEl('btn-delivery-false').parentElement.classList.remove('hidden');
                 getEl('btn-time-asap').classList.remove('hidden');
                 getEl('btn-time-future').classList.add('flex-1');
