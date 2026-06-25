@@ -2914,7 +2914,8 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
             businesses: groups.rows.filter(g => g.type === 'BUSINESS').length,
             familyUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'FAMILY'; }).length,
             businessUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'BUSINESS'; }).length,
-            activeConnections: totalConnections
+            activeConnections: totalConnections,
+            onlineNow: parseInt((await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen > NOW() - INTERVAL '3 minutes'`)).rows[0].count) || 0
         };
         
         let loginSlidesRaw = getSet('login_slides');
@@ -2940,6 +2941,13 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
             adminNotificationEmail: getSet('admin_notification_email')
         });
     } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.get('/api/superadmin/online-count', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen > NOW() - INTERVAL '3 minutes'`);
+        res.json({ onlineNow: parseInt(r.rows[0].count) || 0 });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/superadmin/banners', verifySA, async (req, res) => {
