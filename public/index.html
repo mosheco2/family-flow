@@ -265,21 +265,7 @@
 <div id="view-join" class="px-8 py-6 hidden flex-1 overflow-y-auto pb-12">
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2>
                 <form onsubmit="handleJoin(event)" class="space-y-4">
-                    <input type="hidden" id="join-role" value="ADMIN">
-                    <!-- Role Selector -->
-                    <div>
-                        <p class="text-xs font-bold text-slate-500 mb-2 text-center">מה תפקידך במשפחה?</p>
-                        <div class="flex gap-2">
-                            <button type="button" id="join-role-admin-btn" onclick="setJoinRole('ADMIN')" class="flex-1 py-3 rounded-2xl font-bold text-sm border-2 border-indigo-500 bg-indigo-500 text-white shadow transition flex flex-col items-center gap-1">
-                                <span class="text-2xl">👨‍👩‍👧</span>
-                                <span>הורה</span>
-                            </button>
-                            <button type="button" id="join-role-child-btn" onclick="setJoinRole('CHILD')" class="flex-1 py-3 rounded-2xl font-bold text-sm border-2 border-slate-200 bg-white text-slate-500 shadow-sm transition flex flex-col items-center gap-1">
-                                <span class="text-2xl">👦</span>
-                                <span>ילד / ילדה</span>
-                            </button>
-                        </div>
-                    </div>
+                    <input type="hidden" id="join-role" value="MEMBER">
                     <input type="text" id="join-code" required placeholder="קוד כניסה (משפחה/עסק)" class="modern-input font-mono text-center tracking-widest uppercase text-blue-600 font-bold">
                     <input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input">
                     <input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input">
