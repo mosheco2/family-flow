@@ -1385,7 +1385,8 @@ async function loadDashboard() {
     const saTokenLocal = localStorage.getItem('ofl_sa_token');
     let dynamicBanner = document.getElementById('dynamic-sa-banner');
     
-    if (saTokenLocal) {
+    const activeImpersonation = localStorage.getItem('ofl_session');
+    if (saTokenLocal && activeImpersonation) {
         if (!dynamicBanner) {
             dynamicBanner = document.createElement('div');
             dynamicBanner.id = 'dynamic-sa-banner';
@@ -7268,7 +7269,8 @@ setInterval(() => {
     const saTokenLocal = localStorage.getItem('ofl_sa_token');
     let bruteBanner = document.getElementById('brute-force-sa-banner');
     
-    if (saTokenLocal) {
+    const activeSession = localStorage.getItem('ofl_session');
+    if (saTokenLocal && activeSession) {
         if (document.body.style.paddingTop !== '45px') {
             document.body.style.paddingTop = '45px';
         }
@@ -7277,7 +7279,7 @@ setInterval(() => {
             // שליפת שם הלקוח (המשפחה) מהסשן
             let customerName = 'לקוח';
             try {
-                const session = JSON.parse(localStorage.getItem('ofl_session'));
+                const session = JSON.parse(activeSession);
                 if (session && session.group) customerName = session.group.name;
             } catch(e) {}
 
