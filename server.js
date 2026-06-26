@@ -3235,8 +3235,8 @@ app.post('/api/admin/send-credentials', async (req, res) => {
 
 app.post('/api/join', async (req, res) => {
     try {
-        const { groupCode, nickname, birthYear, password, role } = req.body;
-        if (!groupCode || !nickname || !password) return res.status(400).json({ error: 'חסרים נתונים חובה' });
+        const { groupCode, nickname, birthYear, password, role, email } = req.body;
+        if (!groupCode || !nickname || !password || !email) return res.status(400).json({ error: 'חסרים נתונים חובה' });
         
         const gRes = await pool.query('SELECT id FROM family_groups WHERE group_code = $1', [groupCode.toUpperCase()]);
         if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד ארגון/משפחה לא חוקי' });
@@ -3251,9 +3251,10 @@ app.post('/api/join', async (req, res) => {
             return res.status(400).json({ error: 'מספר טלפון הוא שדה חובה מגיל 10' });
         }
 
+        const joinEmail = (email || '').trim().toLowerCase() || null;
         await pool.query(
-            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status, phone) VALUES ($1, $2, $3, $4, $5, 'pending', $6)`,
-            [group.id, nickname, bYear, password, reqRole, joinPhone]
+            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status, phone, email) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)`,
+            [group.id, nickname, bYear, password, reqRole, joinPhone, joinEmail]
         );
         res.json({ success: true });
     } catch (e) { 
