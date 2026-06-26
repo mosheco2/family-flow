@@ -3608,7 +3608,7 @@ async function fetchMembers() {
                 c.innerHTML = '';
                 membersCache.forEach(m => {
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?';
-                    const roleLabel = m.role === 'ADMIN' ? 'הורה' : 'ילד';
+                    const roleLabel = m.role === 'ADMIN' ? 'הורה' : m.role === 'CHILD' ? 'ילד' : 'חבר';
                     const permsStr = safeStr(JSON.stringify(m.permissions || {}));
                     const isOnline = m.last_seen && (now - new Date(m.last_seen).getTime()) < onlineThreshold;
                     const onlineDot = isOnline ? `<span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-white rounded-full"></span>` : '';
@@ -3725,11 +3725,12 @@ async function changeUserRole(userId, currentRole, nickname) {
     const isCurrentlyAdmin = currentRole === 'ADMIN';
     const newRole = isCurrentlyAdmin ? 'CHILD' : 'ADMIN';
     const newLabel = isCurrentlyAdmin ? 'ילד/ה' : 'הורה';
-    if (!confirm(`לשנות את תפקיד "${nickname}" ל${newLabel}?`)) return;
+    const curLabel = currentRole === 'ADMIN' ? 'הורה' : currentRole === 'CHILD' ? 'ילד/ה' : 'חבר';
+    if (!confirm(`לשנות את תפקיד "${nickname}" מ${curLabel} ל${newLabel}?\nההרשאות יעודכנו אוטומטית.`)) return;
     try {
         const res = await fetch(`${API}/admin/change-role`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminId: currentUser.id, userId, newRole }) });
         const data = await res.json();
-        if (data.success) { showToast('success', `תפקיד עודכן ל${newLabel}`); fetchMembers(); }
+        if (data.success) { showToast('success', `תפקיד עודכן ל${newLabel} וההרשאות עודכנו`); fetchMembers(); }
         else showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
