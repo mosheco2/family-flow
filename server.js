@@ -3957,12 +3957,17 @@ app.post('/api/admin/change-role', async (req, res) => {
     try {
         const { adminId, userId, newRole } = req.body;
         if (!['ADMIN','CHILD','MEMBER'].includes(newRole)) return res.status(400).json({ error: 'תפקיד לא חוקי' });
-        // וודא שהמבקש הוא מנהל של אותה קבוצה
         const adminRes = await pool.query('SELECT group_id, role FROM users WHERE id=$1', [adminId]);
         if (!adminRes.rows.length || adminRes.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'רק מנהל רשאי לשנות תפקידים' });
         const targetRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
         if (!targetRes.rows.length || targetRes.rows[0].group_id !== adminRes.rows[0].group_id) return res.status(403).json({ error: 'משתמש לא שייך לאותה קבוצה' });
-        await pool.query('UPDATE users SET role=$1 WHERE id=$2', [newRole, userId]);
+        // הרשאות אוטומטיות לפי תפקיד
+        const autoPerms = newRole === 'ADMIN'
+            ? { tabs: ['feed','shop','tasks','budget','members','goals','pantry','loans','academy','cashflow'] }
+            : newRole === 'CHILD'
+            ? { tabs: ['feed','shop','tasks','goals','academy'] }
+            : { tabs: ['feed'] };
+        await pool.query('UPDATE users SET role=$1, permissions=$2 WHERE id=$3', [newRole, JSON.stringify(autoPerms), userId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
