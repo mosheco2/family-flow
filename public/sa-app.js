@@ -1676,9 +1676,15 @@ function renderSAGroups() {
             </div>`;
         }
 
-        const isPro = g.is_premium ? '<span class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold ml-2">PRO</span>' : '';
-        const aiTokens = g.is_premium ? '∞' : (g.ai_tokens !== undefined ? g.ai_tokens : 10);
-        const proToggleBtn = g.is_premium ? `<button onclick="saTogglePremium(${g.id}, false)" class="bg-orange-100 text-orange-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-orange-200 transition"><i class="fa-solid fa-crown"></i> בטל Pro</button>` : `<button onclick="saTogglePremium(${g.id}, true)" class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-3 py-1 rounded text-[10px] font-bold hover:opacity-90 transition"><i class="fa-solid fa-crown"></i> הפעל Pro</button>`;
+        const gPlan = g.plan || (g.is_premium ? 'enterprise' : 'standard');
+        const planBadges = { standard: '<span class="bg-slate-100 text-slate-600 text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 border border-slate-200">Standard</span>', premium: '<span class="bg-amber-100 text-amber-700 text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 border border-amber-200">⭐ Premium</span>', enterprise: '<span class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold ml-2">Enterprise ♾️</span>' };
+        const isPro = planBadges[gPlan] || planBadges.standard;
+        const aiTokens = gPlan === 'enterprise' ? '∞' : gPlan === 'premium' ? `${g.ai_tokens ?? 50}/50` : `${g.ai_tokens ?? 10}/10`;
+        const planSelector = `<select onchange="saPlanChange(${g.id}, this.value)" class="text-[10px] border border-slate-200 rounded px-2 py-1 bg-white font-bold text-slate-700 cursor-pointer hover:border-indigo-400 transition">
+            <option value="standard" ${gPlan==='standard'?'selected':''}>Standard — 10/יום</option>
+            <option value="premium" ${gPlan==='premium'?'selected':''}>⭐ Premium — 50/יום</option>
+            <option value="enterprise" ${gPlan==='enterprise'?'selected':''}>♾️ Enterprise — ללא הגבלה</option>
+        </select>`;
         const typeBadge = g.member_type === 'member' ? '<span class="bg-violet-100 text-violet-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-violet-200"><i class="fa-solid fa-link mr-1"></i> חבר ONEFLOW</span>' : g.type === 'BUSINESS' ? '<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200"><i class="fa-solid fa-briefcase mr-1"></i> עסק</span>' : '<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-emerald-200"><i class="fa-solid fa-house mr-1"></i> משפחה</span>';
         const createdDate = g.created_at ? new Date(g.created_at).toLocaleDateString('he-IL') : 'לא ידוע';
 
@@ -1706,7 +1712,7 @@ function renderSAGroups() {
                         ${impersonateBtn}
                         ${upgradeBtn}
                         <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(g.name)}', '${safeStr(g.admin_email)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך פרטים</button>
-                        ${proToggleBtn}
+                        ${planSelector}
                         <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
                     </div>
                 </div>
@@ -1802,20 +1808,34 @@ async function saDeleteGroup(id) {
 }
 
 async function saTogglePremium(id, enable) {
-    if (!confirm(`האם אתה בטוח שברצונך ${enable ? 'להפעיל' : 'לבטל'} את מנוי ה-PRO לסביבה זו?`)) return;
     try {
-        const res = await fetch(`${API}/superadmin/groups/${id}/premium`, {
+        const plan = enable ? 'enterprise' : 'standard';
+        const res = await fetch(`${API}/superadmin/groups/${id}/plan`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ is_premium: enable, isPremium: enable, enable: enable })
+            body: JSON.stringify({ plan })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', `תוכנית עודכנה!`); loadSAData(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch (e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function saPlanChange(id, plan) {
+    const labels = { standard: 'Standard', premium: 'Premium', enterprise: 'Enterprise' };
+    if (!confirm(`לשנות רמת רישוי ל-${labels[plan] || plan}?`)) { renderSAGroups(); return; }
+    try {
+        const res = await fetch(`${API}/superadmin/groups/${id}/plan`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ plan })
         });
         const data = await res.json();
         if (data.success) {
-            showToast('success', `מנוי PRO ${enable ? 'הופעל' : 'בוטל'} בהצלחה!`);
-            loadSAData();
-        } else {
-            showToast('error', data.error || 'שגיאה בעדכון הסטטוס');
-        }
-    } catch (e) { showToast('error', 'שגיאת רשת בעדכון סטטוס מנוי'); }
+            const g = saAllGroups.find(x => x.id === id);
+            if (g) { g.plan = plan; g.is_premium = plan === 'enterprise'; }
+            showToast('success', `רמת רישוי שונתה ל-${labels[plan]}!`);
+            renderSAGroups();
+        } else showToast('error', data.error || 'שגיאה בעדכון');
+    } catch (e) { showToast('error', 'שגיאת רשת'); }
 }
 
 function openSAEditGroupModal(id, name, email) {
