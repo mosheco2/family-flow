@@ -5131,6 +5131,33 @@ app.delete('/api/store/catalog/:id', async (req, res) => {
     try { await pool.query('DELETE FROM store_catalog WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// --- Bulk import products from PDF scan ---
+app.post('/api/store/catalog/bulk-import', async (req, res) => {
+    try {
+        const { groupId, products } = req.body;
+        if (!groupId || !Array.isArray(products) || !products.length)
+            return res.status(400).json({ error: 'נתונים חסרים' });
+        const countRes = await pool.query('SELECT COUNT(*) FROM store_catalog WHERE group_id=$1', [groupId]);
+        const current = parseInt(countRes.rows[0].count);
+        const grp = await pool.query('SELECT plan, is_premium FROM family_groups WHERE id=$1', [groupId]);
+        const plan = grp.rows[0]?.plan || (grp.rows[0]?.is_premium ? 'enterprise' : 'standard');
+        const limit = plan === 'standard' ? 50 : 9999;
+        const canAdd = Math.max(0, limit - current);
+        const toInsert = products.slice(0, canAdd);
+        if (!toInsert.length)
+            return res.status(400).json({ error: `הגעת למגבלת ${limit} המוצרים. שדרג לתוכנית גבוהה יותר.` });
+        let inserted = 0;
+        for (const p of toInsert) {
+            await pool.query(
+                'INSERT INTO store_catalog (group_id, name, description, price, category, sku, product_type) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+                [groupId, (p.name||'').trim(), p.description || '', parseFloat(p.price)||0, p.category || 'כללי', p.sku || '', 'retail']
+            );
+            inserted++;
+        }
+        res.json({ success: true, imported: inserted, skipped: products.length - inserted });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // --- Generate AI Product Image ---
 app.post('/api/store/catalog/generate-image', async (req, res) => {
     try {
@@ -17025,6 +17052,35 @@ app.get('/api/reports/:groupId', async (req, res) => {
         console.error('Reports error:', e.message);
         res.status(500).json({ error: e.message });
     }
+});
+
+// ─── AI: Parse PDF / image → extract product list ────────────────────────────
+app.post('/api/ai/parse-pdf', async (req, res) => {
+    if (!genAI) return res.status(500).json({ error: 'מפתח Gemini חסר' });
+    const { fileBase64, mimeType, groupId, context } = req.body;
+    if (!groupId || !fileBase64) return res.status(400).json({ error: 'groupId וקובץ נדרשים' });
+    const canUseAI = await handleAITokens(groupId, 'parse-pdf');
+    if (!canUseAI) return res.status(429).json({ error: 'BATTERY_EMPTY' });
+    try {
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const contextHint = context === 'invoice' ? 'חשבונית ספק או תעודת משלוח'
+            : context === 'pricelist' ? 'מחירון ספק'
+            : context === 'menu' ? 'תפריט מסעדה'
+            : 'מסמך מוצרים';
+        const prompt = `זהו ${contextHint}. חלץ את רשימת המוצרים/הפריטים מהמסמך.
+החזר JSON בלבד ללא backtick:
+{"products":[{"name":"שם המוצר","price":0,"unit":"יח'","sku":"","category":"כללי","description":""}]}
+כללים: name=שם המוצר, price=מחיר כמספר (0 אם לא ידוע), unit=יחידת מידה, sku=מק"ט/ברקוד אם קיים, category=קטגוריה לפי הגיון, description=תיאור קצר.`;
+        const result = await model.generateContent([
+            { inlineData: { mimeType: mimeType || 'application/pdf', data: fileBase64 } },
+            prompt
+        ]);
+        let raw = result.response.text().replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/i,'').trim();
+        let parsed;
+        try { parsed = JSON.parse(raw); }
+        catch(e2) { return res.status(422).json({ error: 'לא הצלחתי לחלץ מוצרים מהמסמך' }); }
+        res.json({ success: true, products: Array.isArray(parsed.products) ? parsed.products : [] });
+    } catch(e) { handleAIError(e, res, 'שגיאה בניתוח הקובץ'); }
 });
 
 // הפעלת השרת
