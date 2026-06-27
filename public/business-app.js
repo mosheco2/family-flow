@@ -1951,6 +1951,7 @@ async function renderUnifiedReportsTab() {
         <div class="flex items-center justify-between mb-5">
             <h2 class="font-black text-slate-800 text-lg">📊 דוחות</h2>
             <div class="flex gap-2 items-center">
+                <button onclick="window._reportsExportPDF()" class="text-xs bg-red-50 text-red-700 font-bold px-3 py-1.5 rounded-xl border border-red-200 hover:bg-red-100 transition">ייצוא PDF</button>
                 <button onclick="window._reportsExportCSV()" class="text-xs bg-emerald-50 text-emerald-700 font-bold px-3 py-1.5 rounded-xl border border-emerald-200 hover:bg-emerald-100 transition">ייצוא CSV</button>
                 <select id="reports-period-select" onchange="window._reportsPeriod=this.value; renderUnifiedReportsTab()" class="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-right bg-white">
                     <option value="today" ${period==='today'?'selected':''}>היום</option>
@@ -2211,6 +2212,131 @@ window._reportsExportCSV = function() {
     const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
     const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`דוחות-${pl}.csv`; a.click();
     showToast('success', 'הקובץ מוכן להורדה');
+};
+
+window._reportsExportPDF = function() {
+    const data = window._reportsLastData;
+    if (!data) { showToast('error', 'אין נתונים לייצוא'); return; }
+    const period = window._reportsPeriod || 'month';
+    const pl = { today:'היום', week:'השבוע', month:'החודש', year:'השנה' }[period] || period;
+    const bType = currentGroup?.business_type || 'other';
+    const grpName = currentGroup?.name || '';
+    const fmt = n => Number(n||0).toLocaleString('he-IL', { maximumFractionDigits: 0 });
+    const fmtM = n => '₪' + fmt(n);
+    const now = new Date().toLocaleDateString('he-IL');
+    const c = data.common || {};
+
+    const tableStyle = 'width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;';
+    const thStyle = 'background:#f1f5f9;padding:8px 12px;text-align:right;font-weight:700;border-bottom:2px solid #e2e8f0;color:#475569;';
+    const tdStyle = 'padding:8px 12px;border-bottom:1px solid #f1f5f9;color:#1e293b;';
+    const tdMoneyStyle = tdStyle + 'color:#059669;font-weight:700;';
+    const sectionTitle = t => `<h3 style="font-size:14px;font-weight:800;color:#334155;margin:24px 0 10px;border-right:4px solid #6366f1;padding-right:10px;">${t}</h3>`;
+
+    let body = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;text-align:center;">
+            <div style="font-size:24px;font-weight:900;color:#16a34a;">${fmtM(c.income)}</div>
+            <div style="font-size:12px;color:#22c55e;margin-top:4px;">הכנסות ${pl}</div>
+        </div>
+        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px;text-align:center;">
+            <div style="font-size:24px;font-weight:900;color:#dc2626;">${fmtM(c.expense)}</div>
+            <div style="font-size:12px;color:#ef4444;margin-top:4px;">הוצאות ${pl}</div>
+        </div>
+    </div>`;
+
+    if (data.top_items?.length) {
+        body += sectionTitle('מוצרים מובילים');
+        body += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">מוצר</th><th style="${thStyle}text-align:center;">כמות</th><th style="${thStyle}text-align:left;">הכנסה</th></tr></thead><tbody>`;
+        data.top_items.forEach(i => { body += `<tr><td style="${tdStyle}">${i.item_name||'—'}</td><td style="${tdStyle}text-align:center;">${fmt(i.qty)}</td><td style="${tdMoneyStyle}">${fmtM(i.revenue)}</td></tr>`; });
+        body += '</tbody></table>';
+    }
+    if (data.by_status?.length) {
+        const sl = { pending:'ממתין', confirmed:'אושר', ready:'מוכן', completed:'הושלם', cancelled:'בוטל', delivered:'נמסר' };
+        body += sectionTitle('סטטוס הזמנות');
+        body += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">סטטוס</th><th style="${thStyle}text-align:center;">כמות</th><th style="${thStyle}text-align:left;">הכנסה</th></tr></thead><tbody>`;
+        data.by_status.forEach(s => { body += `<tr><td style="${tdStyle}">${sl[s.status]||s.status}</td><td style="${tdStyle}text-align:center;">${fmt(s.count)}</td><td style="${tdMoneyStyle}">${fmtM(s.revenue)}</td></tr>`; });
+        body += '</tbody></table>';
+    }
+    if (data.sport?.revenueByType?.length) {
+        body += sectionTitle('הכנסה לפי סוג מנוי');
+        body += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">סוג מנוי</th><th style="${thStyle}text-align:center;">כמות</th><th style="${thStyle}text-align:left;">הכנסה</th></tr></thead><tbody>`;
+        data.sport.revenueByType.forEach(t => { body += `<tr><td style="${tdStyle}">${t.type_name||'—'}</td><td style="${tdStyle}text-align:center;">${t.count}</td><td style="${tdMoneyStyle}">${fmtM(t.total)}</td></tr>`; });
+        body += '</tbody></table>';
+    }
+    if (data.sport?.membersByStatus?.length) {
+        const sl = { active:'פעיל', frozen:'מוקפא', expired:'פג', cancelled:'בוטל' };
+        body += sectionTitle('חברים לפי סטטוס');
+        body += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">סטטוס</th><th style="${thStyle}text-align:left;">כמות</th></tr></thead><tbody>`;
+        data.sport.membersByStatus.forEach(m => { body += `<tr><td style="${tdStyle}">${sl[m.status]||m.status}</td><td style="${tdStyle}">${fmt(m.count)}</td></tr>`; });
+        body += '</tbody></table>';
+    }
+    if (data.beauty?.revByPractitioner?.length) {
+        body += sectionTitle('הכנסות לפי מטפלת');
+        body += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">מטפלת</th><th style="${thStyle}text-align:center;">שירותים</th><th style="${thStyle}text-align:left;">הכנסה</th></tr></thead><tbody>`;
+        data.beauty.revByPractitioner.forEach(p => { body += `<tr><td style="${tdStyle}">${p.display_name||'—'}</td><td style="${tdStyle}text-align:center;">${p.services}</td><td style="${tdMoneyStyle}">${fmtM(p.revenue)}</td></tr>`; });
+        body += '</tbody></table>';
+    }
+    if (data.beauty?.topServices?.length) {
+        body += sectionTitle('שירותים מובילים');
+        body += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">שירות</th><th style="${thStyle}text-align:center;">כמות</th><th style="${thStyle}text-align:left;">הכנסה</th></tr></thead><tbody>`;
+        data.beauty.topServices.forEach(s => { body += `<tr><td style="${tdStyle}">${s.service_name||'—'}</td><td style="${tdStyle}text-align:center;">${s.count}</td><td style="${tdMoneyStyle}">${fmtM(s.revenue)}</td></tr>`; });
+        body += '</tbody></table>';
+    }
+    if (data.logistics?.by_driver?.length) {
+        const pct = (a,b) => b>0?Math.round((Number(a||0)/Number(b||1))*100):0;
+        body += sectionTitle('ביצועי נהגים');
+        body += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">נהג</th><th style="${thStyle}text-align:center;">משלוחים</th><th style="${thStyle}text-align:center;">הצלחה</th><th style="${thStyle}text-align:left;">הכנסה</th></tr></thead><tbody>`;
+        data.logistics.by_driver.forEach(d => { body += `<tr><td style="${tdStyle}">${d.driver_name||'—'}</td><td style="${tdStyle}text-align:center;">${d.total_orders}</td><td style="${tdStyle}text-align:center;">${pct(d.delivered_orders,d.total_orders)}%</td><td style="${tdMoneyStyle}">${fmtM(d.revenue)}</td></tr>`; });
+        body += '</tbody></table>';
+    }
+    if (data.maintenance?.callsByStatus?.length) {
+        const sl = { open:'פתוחה', in_progress:'בטיפול', done:'הושלמה', cancelled:'בוטלה' };
+        body += sectionTitle('קריאות שירות');
+        body += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">סטטוס</th><th style="${thStyle}text-align:center;">כמות</th><th style="${thStyle}text-align:left;">הכנסה</th></tr></thead><tbody>`;
+        data.maintenance.callsByStatus.forEach(s => { body += `<tr><td style="${tdStyle}">${sl[s.status]||s.status}</td><td style="${tdStyle}text-align:center;">${fmt(s.count)}</td><td style="${tdMoneyStyle}">${fmtM(s.revenue)}</td></tr>`; });
+        body += '</tbody></table>';
+    }
+    if (data.professional?.casesByStatus?.length) {
+        const sl = { open:'פתוח', in_progress:'בביצוע', completed:'הושלם', on_hold:'מוקפא', cancelled:'בוטל' };
+        body += sectionTitle('תיקים לפי סטטוס');
+        body += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">סטטוס</th><th style="${thStyle}text-align:center;">כמות</th><th style="${thStyle}text-align:left;">הכנסה</th></tr></thead><tbody>`;
+        data.professional.casesByStatus.forEach(s => { body += `<tr><td style="${tdStyle}">${sl[s.status]||s.status}</td><td style="${tdStyle}text-align:center;">${fmt(s.count)}</td><td style="${tdMoneyStyle}">${fmtM(s.revenue)}</td></tr>`; });
+        body += '</tbody></table>';
+        if (data.professional.hoursLogged) {
+            body += `<p style="font-size:13px;color:#475569;margin-bottom:20px;">סה"כ שעות עבודה מדווחות: <strong>${Math.round(parseFloat(data.professional.hoursLogged.total_hours||0))} שעות</strong></p>`;
+        }
+    }
+
+    const html = `<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="UTF-8">
+        <title>דוחות - ${grpName} - ${pl}</title>
+        <style>
+            @media print { body { margin: 0; } .no-print { display: none; } }
+            body { font-family: 'Segoe UI', Arial, sans-serif; direction: rtl; background: #fff; color: #1e293b; padding: 32px; max-width: 800px; margin: 0 auto; }
+        </style>
+    </head><body>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid #e2e8f0;">
+            <div>
+                <h1 style="font-size:22px;font-weight:900;color:#1e293b;margin:0 0 4px;">📊 דוחות עסקיים</h1>
+                <div style="font-size:14px;color:#64748b;">${grpName} | תקופה: ${pl} | הופק: ${now}</div>
+            </div>
+            <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:10px 18px;text-align:center;">
+                <div style="font-size:11px;color:#6366f1;font-weight:700;margin-bottom:2px;">רווח תפעולי</div>
+                <div style="font-size:20px;font-weight:900;color:${(parseFloat(c.income||0)-parseFloat(c.expense||0))>=0?'#16a34a':'#dc2626'};">${fmtM(parseFloat(c.income||0)-parseFloat(c.expense||0))}</div>
+            </div>
+        </div>
+        ${body}
+        <div style="margin-top:32px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center;">
+            דוח זה הופק על ידי מערכת Oneflow Life — ${now}
+        </div>
+        <div class="no-print" style="text-align:center;margin-top:24px;">
+            <button onclick="window.print()" style="background:#6366f1;color:#fff;border:none;padding:12px 32px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">🖨️ הדפס / שמור PDF</button>
+        </div>
+    </body></html>`;
+
+    const w = window.open('', '_blank');
+    if (!w) { showToast('error', 'אפשר את פתיחת חלונות קופצים בדפדפן'); return; }
+    w.document.write(html);
+    w.document.close();
+    setTimeout(() => w.print(), 600);
 };
 
 function switchTab(t) {
