@@ -382,6 +382,12 @@ pool.connect()
       // מערכת קריאות שירות (מלאה עם דחיפות וסוג SLA)
       try { await client.query(`CREATE TABLE IF NOT EXISTS support_tickets (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, subject VARCHAR(255), description TEXT, status VARCHAR(20) DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS log JSONB DEFAULT '[]'::jsonb`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS ai_usage_log (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          endpoint VARCHAR(100) DEFAULT 'general',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS assigned_to INT REFERENCES sa_users(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS assigned_team INT REFERENCES sa_teams(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`); } catch(e) {}
@@ -1582,15 +1588,19 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
-async function handleAITokens(groupId) {
+async function handleAITokens(groupId, endpoint = 'general') {
     try {
         await pool.query(`UPDATE family_groups SET ai_tokens = 10, last_token_reset = CURRENT_DATE WHERE id = $1 AND (last_token_reset IS NULL OR last_token_reset < CURRENT_DATE)`, [groupId]);
         const res = await pool.query('SELECT ai_tokens, is_premium FROM family_groups WHERE id = $1', [groupId]);
         if(res.rows.length === 0) return false;
         const group = res.rows[0];
-        if(group.is_premium) return true;
+        if(group.is_premium) {
+            pool.query('INSERT INTO ai_usage_log (group_id, endpoint) VALUES ($1, $2)', [groupId, endpoint]).catch(() => {});
+            return true;
+        }
         if(group.ai_tokens > 0) {
             await pool.query('UPDATE family_groups SET ai_tokens = ai_tokens - 1 WHERE id = $1', [groupId]);
+            pool.query('INSERT INTO ai_usage_log (group_id, endpoint) VALUES ($1, $2)', [groupId, endpoint]).catch(() => {});
             return true;
         }
         return false;
@@ -7559,6 +7569,33 @@ app.get('/api/sa/businesses', async (req, res) => {
     try {
         const result = await pool.query("SELECT id, name, group_code FROM family_groups WHERE type='BUSINESS' ORDER BY name");
         res.json({ success: true, businesses: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── SA: AI usage log ────────────────────────────────────────────────────────
+app.get('/api/sa/ai-usage', async (req, res) => {
+    try {
+        const days = parseInt(req.query.days) || 30;
+        const summary = await pool.query(`
+            SELECT fg.id, fg.name, fg.group_code, fg.is_premium,
+                   COALESCE(SUM(al.cnt), 0) AS total_calls,
+                   MAX(al.last_call) AS last_call,
+                   COALESCE(
+                       json_object_agg(al.endpoint, al.cnt) FILTER (WHERE al.endpoint IS NOT NULL),
+                       '{}'::json
+                   ) AS by_endpoint
+            FROM family_groups fg
+            LEFT JOIN (
+                SELECT group_id, endpoint, COUNT(*) AS cnt, MAX(created_at) AS last_call
+                FROM ai_usage_log
+                WHERE created_at >= NOW() - ($1 || ' days')::INTERVAL
+                GROUP BY group_id, endpoint
+            ) al ON al.group_id = fg.id
+            WHERE fg.type = 'BUSINESS'
+            GROUP BY fg.id, fg.name, fg.group_code, fg.is_premium
+            ORDER BY total_calls DESC NULLS LAST
+        `, [days]);
+        res.json({ success: true, days, rows: summary.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -14538,6 +14575,8 @@ app.post('/api/ai/sport/training-plan', async (req, res) => {
     if (!genAI) return res.status(500).json({ error: 'מפתח Gemini חסר' });
     const { memberName, memberPhone, fitnessGoal, currentFitness, availableDays, healthNotes, membershipType, groupId } = req.body;
     if (!groupId) return res.status(400).json({ error: 'groupId חובה' });
+    const canUseAI = await handleAITokens(groupId, 'sport/training-plan');
+    if (!canUseAI) return res.status(429).json({ error: 'BATTERY_EMPTY' });
     try {
         let checkinCount = 0;
         if (memberPhone) {
