@@ -1936,6 +1936,283 @@ async function handleJoin(e) {
 function logout() { localStorage.removeItem('ofl_session'); window.location.href = '/'; }
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
+// ============================================================
+// UNIFIED REPORTS TAB — דוחות אחיד לכל סוגי העסקים
+// ============================================================
+window._reportsPeriod = 'month';
+window._reportsLastData = null;
+
+async function renderUnifiedReportsTab() {
+    const el = document.getElementById('content-reports');
+    if (!el) return;
+    const bType = currentGroup?.business_type || 'other';
+    const period = window._reportsPeriod || 'month';
+    el.innerHTML = `<div class="p-4 max-w-lg mx-auto">
+        <div class="flex items-center justify-between mb-5">
+            <h2 class="font-black text-slate-800 text-lg">📊 דוחות</h2>
+            <div class="flex gap-2 items-center">
+                <button onclick="window._reportsExportCSV()" class="text-xs bg-emerald-50 text-emerald-700 font-bold px-3 py-1.5 rounded-xl border border-emerald-200 hover:bg-emerald-100 transition">ייצוא CSV</button>
+                <select id="reports-period-select" onchange="window._reportsPeriod=this.value; renderUnifiedReportsTab()" class="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-right bg-white">
+                    <option value="today" ${period==='today'?'selected':''}>היום</option>
+                    <option value="week" ${period==='week'?'selected':''}>השבוע</option>
+                    <option value="month" ${period==='month'?'selected':''}>החודש</option>
+                    <option value="year" ${period==='year'?'selected':''}>השנה</option>
+                </select>
+            </div>
+        </div>
+        <div id="reports-inner"><div class="text-center py-16 text-slate-400"><div class="w-8 h-8 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div><div class="text-sm">טוען דוחות...</div></div></div>
+    </div>`;
+    try {
+        const data = await fetch(`${API}/reports/${currentGroup.id}?period=${period}&btype=${bType}`).then(r => r.json());
+        window._reportsLastData = data;
+        const inner = document.getElementById('reports-inner');
+        if (inner) inner.innerHTML = _buildReportsHTML(data, bType, period);
+    } catch(e) {
+        const inner = document.getElementById('reports-inner');
+        if (inner) inner.innerHTML = '<div class="text-center py-12 text-red-400 text-sm">שגיאה בטעינת דוחות</div>';
+    }
+}
+
+function _buildReportsHTML(data, bType, period) {
+    const fmt = n => Number(n||0).toLocaleString('he-IL', { maximumFractionDigits: 0 });
+    const fmtM = n => '₪' + fmt(n);
+    const pct = (a,b) => b > 0 ? Math.round((Number(a||0)/Number(b||1))*100) : 0;
+    const periodLabel = { today:'היום', week:'השבוע', month:'החודש', year:'השנה' }[period] || period;
+    let html = '';
+
+    // KPIs ממאגר עסקאות
+    const c = data.common || {};
+    html += `<div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
+            <div class="text-2xl font-black text-emerald-700">${fmtM(c.income)}</div>
+            <div class="text-xs text-emerald-500 mt-1">הכנסות ${periodLabel}</div>
+        </div>
+        <div class="bg-red-50 rounded-2xl p-4 border border-red-100">
+            <div class="text-2xl font-black text-red-600">${fmtM(c.expense)}</div>
+            <div class="text-xs text-red-400 mt-1">הוצאות ${periodLabel}</div>
+        </div>
+    </div>`;
+
+    // גרף מגמת הכנסות
+    const revDays = data.revenue_by_day || [];
+    if (revDays.length > 1) {
+        const maxVal = Math.max(...revDays.map(d => parseFloat(d.income||0)), 1);
+        const bars = revDays.slice(-14).map(d => {
+            const h = Math.round((parseFloat(d.income||0)/maxVal)*100);
+            return `<div class="flex-1 flex flex-col items-center gap-1">
+                <div class="w-full bg-indigo-100 rounded-sm relative" style="height:48px">
+                    <div class="absolute bottom-0 w-full bg-indigo-500 rounded-sm transition-all" style="height:${h}%"></div>
+                </div>
+                <div class="text-[9px] text-slate-400">${(d.day||'').slice(5)}</div>
+            </div>`;
+        }).join('');
+        html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+            <div class="font-bold text-slate-700 text-sm mb-3">מגמת הכנסות</div>
+            <div class="flex gap-1 items-end">${bars}</div>
+        </div>`;
+    }
+
+    // מסעדה / קמעונאי / ייצור מזון
+    if (['restaurant','retail','food_production'].includes(bType) && data.orders) {
+        const o = data.orders;
+        html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+            <div class="font-bold text-slate-700 text-sm mb-3">הזמנות ${periodLabel}</div>
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div><div class="text-xl font-black text-slate-700">${fmt(o.total)}</div><div class="text-[11px] text-slate-400">הזמנות</div></div>
+                <div><div class="text-xl font-black text-emerald-700">${fmtM(o.revenue)}</div><div class="text-[11px] text-slate-400">הכנסה</div></div>
+                <div><div class="text-xl font-black text-indigo-700">${fmtM(o.avg_order)}</div><div class="text-[11px] text-slate-400">ממוצע</div></div>
+            </div>
+        </div>`;
+        if ((data.top_items||[]).length) {
+            html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+                <div class="font-bold text-slate-700 text-sm mb-3">מוצרים מובילים</div>
+                <table class="w-full text-xs"><thead><tr class="text-slate-400 border-b border-slate-100 pb-2">
+                    <th class="pb-2 text-right font-medium">מוצר</th><th class="pb-2 text-center font-medium">כמות</th><th class="pb-2 text-left font-medium">הכנסה</th>
+                </tr></thead><tbody>
+                ${data.top_items.map(i=>`<tr class="border-b border-slate-50"><td class="py-2 text-slate-700">${i.item_name||'—'}</td><td class="py-2 text-center">${fmt(i.qty)}</td><td class="py-2 text-right text-emerald-700 font-bold">${fmtM(i.revenue)}</td></tr>`).join('')}
+                </tbody></table>
+            </div>`;
+        }
+        if ((data.by_status||[]).length) {
+            const sl = { pending:'ממתין', confirmed:'אושר', ready:'מוכן', completed:'הושלם', cancelled:'בוטל', delivered:'נמסר' };
+            html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+                <div class="font-bold text-slate-700 text-sm mb-3">סטטוס הזמנות</div>
+                ${data.by_status.map(s=>`<div class="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0">
+                    <span class="text-sm text-slate-700">${sl[s.status]||s.status}</span>
+                    <div class="flex gap-3"><span class="text-sm font-bold">${fmt(s.count)}</span><span class="text-sm text-emerald-700 font-bold">${fmtM(s.revenue)}</span></div>
+                </div>`).join('')}
+            </div>`;
+        }
+    }
+
+    // ספורט
+    if (bType === 'sport' && data.sport) {
+        const s = data.sport;
+        const totalRev = (s.revenueByType||[]).reduce((a,t)=>a+parseFloat(t.total||0),0);
+        const totalMem = (s.membersByStatus||[]).reduce((a,m)=>a+parseInt(m.count||0),0);
+        const sl = { active:'פעיל', frozen:'מוקפא', expired:'פג', cancelled:'בוטל' };
+        html += `<div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="bg-emerald-50 rounded-2xl p-4 border border-emerald-100"><div class="text-2xl font-black text-emerald-700">${fmtM(totalRev)}</div><div class="text-xs text-emerald-500 mt-1">הכנסות מנויים</div></div>
+            <div class="bg-indigo-50 rounded-2xl p-4 border border-indigo-100"><div class="text-2xl font-black text-indigo-700">${fmt(totalMem)}</div><div class="text-xs text-indigo-500 mt-1">סה"כ חברים</div></div>
+        </div>`;
+        if ((s.revenueByType||[]).length) {
+            html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+                <div class="font-bold text-slate-700 text-sm mb-3">הכנסה לפי סוג מנוי</div>
+                <table class="w-full text-xs"><thead><tr class="text-slate-400 border-b border-slate-100"><th class="pb-2 text-right font-medium">סוג</th><th class="pb-2 text-center font-medium">כמות</th><th class="pb-2 text-left font-medium">הכנסה</th></tr></thead><tbody>
+                ${s.revenueByType.map(t=>`<tr class="border-b border-slate-50"><td class="py-2 text-slate-700">${t.type_name||'ללא שם'}</td><td class="py-2 text-center">${t.count}</td><td class="py-2 text-right text-emerald-700 font-bold">${fmtM(t.total)}</td></tr>`).join('')}
+                </tbody></table>
+            </div>`;
+        }
+        if ((s.membersByStatus||[]).length) {
+            html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+                <div class="font-bold text-slate-700 text-sm mb-3">חברים לפי סטטוס</div>
+                ${s.membersByStatus.map(m=>`<div class="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0"><span class="text-sm text-slate-700">${sl[m.status]||m.status}</span><span class="text-sm font-black text-slate-800">${fmt(m.count)}</span></div>`).join('')}
+            </div>`;
+        }
+        if ((s.checkinsByDay||[]).length > 1) {
+            const mx = Math.max(...s.checkinsByDay.map(d=>parseInt(d.count||0)),1);
+            html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+                <div class="font-bold text-slate-700 text-sm mb-3">כניסות יומיות</div>
+                <div class="flex gap-1 items-end">
+                ${s.checkinsByDay.slice(-14).map(d=>{const h=Math.round((parseInt(d.count||0)/mx)*100);return`<div class="flex-1 flex flex-col items-center gap-1"><div class="w-full bg-blue-100 rounded-sm relative" style="height:40px"><div class="absolute bottom-0 w-full bg-blue-400 rounded-sm" style="height:${h}%"></div></div><div class="text-[9px] text-slate-400">${(d.day||'').slice(5)}</div></div>`;}).join('')}
+                </div>
+            </div>`;
+        }
+        if ((s.revenueByMonth||[]).length) {
+            html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+                <div class="font-bold text-slate-700 text-sm mb-3">הכנסות לפי חודש</div>
+                <table class="w-full text-xs"><thead><tr class="text-slate-400 border-b border-slate-100"><th class="pb-2 text-right font-medium">חודש</th><th class="pb-2 text-left font-medium">הכנסה</th></tr></thead><tbody>
+                ${s.revenueByMonth.map(m=>`<tr class="border-b border-slate-50"><td class="py-2 text-slate-700">${m.month||''}</td><td class="py-2 text-right text-emerald-700 font-bold">${fmtM(m.total)}</td></tr>`).join('')}
+                </tbody></table>
+            </div>`;
+        }
+    }
+
+    // יופי / קוסמטיקה
+    if (bType === 'beauty' && data.beauty) {
+        const b = data.beauty;
+        const sl = { scheduled:'מתוכנן', completed:'הושלם', cancelled:'בוטל', no_show:'לא הגיע', confirmed:'אושר' };
+        if ((b.apptByStatus||[]).length) {
+            const totalA = b.apptByStatus.reduce((a,s)=>a+parseInt(s.count||0),0);
+            const totalR = b.apptByStatus.reduce((a,s)=>a+parseFloat(s.revenue||0),0);
+            html += `<div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="bg-pink-50 rounded-2xl p-4 border border-pink-100"><div class="text-2xl font-black text-pink-700">${fmt(totalA)}</div><div class="text-xs text-pink-500 mt-1">תורים</div></div>
+                <div class="bg-emerald-50 rounded-2xl p-4 border border-emerald-100"><div class="text-2xl font-black text-emerald-700">${fmtM(totalR)}</div><div class="text-xs text-emerald-500 mt-1">הכנסות תורים</div></div>
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+                <div class="font-bold text-slate-700 text-sm mb-3">תורים לפי סטטוס</div>
+                ${b.apptByStatus.map(s=>`<div class="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0"><span class="text-sm text-slate-700">${sl[s.status]||s.status}</span><div class="flex gap-3"><span class="text-sm font-bold">${fmt(s.count)}</span><span class="text-sm text-emerald-700 font-bold">${fmtM(s.revenue)}</span></div></div>`).join('')}
+            </div>`;
+        }
+        if ((b.revByPractitioner||[]).length) {
+            html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+                <div class="font-bold text-slate-700 text-sm mb-3">הכנסות לפי מטפלת</div>
+                <table class="w-full text-xs"><thead><tr class="text-slate-400 border-b border-slate-100"><th class="pb-2 text-right font-medium">מטפלת</th><th class="pb-2 text-center font-medium">שירותים</th><th class="pb-2 text-left font-medium">הכנסה</th></tr></thead><tbody>
+                ${b.revByPractitioner.map(p=>`<tr class="border-b border-slate-50"><td class="py-2 font-medium text-slate-700">${p.display_name||'—'}</td><td class="py-2 text-center">${p.services}</td><td class="py-2 text-right text-emerald-700 font-bold">${fmtM(p.revenue)}</td></tr>`).join('')}
+                </tbody></table>
+            </div>`;
+        }
+        if ((b.topServices||[]).length) {
+            html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+                <div class="font-bold text-slate-700 text-sm mb-3">שירותים מובילים</div>
+                <table class="w-full text-xs"><thead><tr class="text-slate-400 border-b border-slate-100"><th class="pb-2 text-right font-medium">שירות</th><th class="pb-2 text-center font-medium">כמות</th><th class="pb-2 text-left font-medium">הכנסה</th></tr></thead><tbody>
+                ${b.topServices.map(s=>`<tr class="border-b border-slate-50"><td class="py-2 text-slate-700">${s.service_name||'—'}</td><td class="py-2 text-center">${s.count}</td><td class="py-2 text-right text-emerald-700 font-bold">${fmtM(s.revenue)}</td></tr>`).join('')}
+                </tbody></table>
+            </div>`;
+        }
+    }
+
+    // תחזוקה / תיקונים
+    if (bType === 'maintenance_repair' && data.maintenance) {
+        const m = data.maintenance;
+        const sl = { open:'פתוחה', in_progress:'בטיפול', done:'הושלמה', cancelled:'בוטלה' };
+        html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+            <div class="flex justify-between items-center mb-3">
+                <div class="font-bold text-slate-700 text-sm">קריאות שירות</div>
+                <div class="text-emerald-700 font-black">${fmtM(m.revenue)} <span class="text-xs font-normal text-slate-400">הושלם</span></div>
+            </div>
+            ${(m.callsByStatus||[]).map(s=>`<div class="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0"><span class="text-sm text-slate-700">${sl[s.status]||s.status}</span><div class="flex gap-3"><span class="text-sm font-black">${fmt(s.count)}</span><span class="text-sm text-emerald-700">${fmtM(s.revenue)}</span></div></div>`).join('')}
+        </div>`;
+    }
+
+    // לוגיסטיקה
+    if (bType === 'logistics' && data.logistics) {
+        const l = data.logistics; const d2 = l.delivery||{}; const cod = l.cod||{};
+        html += `<div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="bg-blue-50 rounded-2xl p-4 border border-blue-100"><div class="text-2xl font-black text-blue-700">${fmt(d2.total_orders)}</div><div class="text-xs text-blue-500 mt-1">סה"כ משלוחים</div></div>
+            <div class="bg-emerald-50 rounded-2xl p-4 border border-emerald-100"><div class="text-2xl font-black text-emerald-700">${pct(d2.delivered_orders,d2.total_orders)}%</div><div class="text-xs text-emerald-500 mt-1">אחוז מסירה</div></div>
+            <div class="bg-indigo-50 rounded-2xl p-4 border border-indigo-100"><div class="text-2xl font-black text-indigo-700">${fmtM(d2.total_revenue)}</div><div class="text-xs text-indigo-500 mt-1">הכנסות</div></div>
+            <div class="bg-amber-50 rounded-2xl p-4 border border-amber-100"><div class="text-2xl font-black text-amber-700">${fmtM(cod.collected)}</div><div class="text-xs text-amber-500 mt-1">COD שנגבה</div></div>
+        </div>`;
+        if ((l.by_driver||[]).length) {
+            html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+                <div class="font-bold text-slate-700 text-sm mb-3">ביצועי נהגים</div>
+                <table class="w-full text-xs"><thead><tr class="text-slate-400 border-b border-slate-100"><th class="pb-2 text-right font-medium">נהג</th><th class="pb-2 text-center font-medium">משלוחים</th><th class="pb-2 text-center font-medium">הצלחה</th><th class="pb-2 text-left font-medium">הכנסה</th></tr></thead><tbody>
+                ${l.by_driver.map(dr=>`<tr class="border-b border-slate-50"><td class="py-2 font-medium text-slate-700">${dr.driver_name||'ללא נהג'}</td><td class="py-2 text-center">${dr.total_orders}</td><td class="py-2 text-center">${pct(dr.delivered_orders,dr.total_orders)}%</td><td class="py-2 text-right text-emerald-700 font-bold">${fmtM(dr.revenue)}</td></tr>`).join('')}
+                </tbody></table>
+            </div>`;
+        }
+        if (parseFloat(cod.pending||0)>0) {
+            html += `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3 items-start mb-4">
+                <span class="text-xl">⚠️</span>
+                <div><div class="font-bold text-amber-800 text-sm">COD ממתין לגבייה</div>
+                <div class="text-sm text-amber-700">${fmtM(cod.pending)} לא נגבו עדיין</div>
+                <button onclick="switchTab('logistics_cod')" class="text-xs text-amber-600 underline mt-1">עבור לגבייה</button></div>
+            </div>`;
+        }
+    }
+
+    // מומחים / ייעוץ
+    if (bType === 'professional' && data.professional) {
+        const p = data.professional;
+        const sl = { open:'פתוח', in_progress:'בביצוע', completed:'הושלם', on_hold:'מוקפא', cancelled:'בוטל' };
+        const totalCases = (p.casesByStatus||[]).reduce((a,s)=>a+parseInt(s.count||0),0);
+        html += `<div class="grid grid-cols-3 gap-3 mb-4">
+            <div class="bg-indigo-50 rounded-2xl p-3 border border-indigo-100 text-center"><div class="text-xl font-black text-indigo-700">${fmtM(p.revenue)}</div><div class="text-[11px] text-indigo-500 mt-1">הכנסות</div></div>
+            <div class="bg-slate-50 rounded-2xl p-3 border border-slate-100 text-center"><div class="text-xl font-black text-slate-700">${fmt(totalCases)}</div><div class="text-[11px] text-slate-500 mt-1">תיקים</div></div>
+            <div class="bg-amber-50 rounded-2xl p-3 border border-amber-100 text-center"><div class="text-xl font-black text-amber-700">${Math.round(parseFloat(p.hoursLogged?.total_hours||0))}</div><div class="text-[11px] text-amber-500 mt-1">שעות</div></div>
+        </div>`;
+        if ((p.casesByStatus||[]).length) {
+            html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+                <div class="font-bold text-slate-700 text-sm mb-3">תיקים לפי סטטוס</div>
+                ${p.casesByStatus.map(s=>`<div class="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0"><span class="text-sm text-slate-700">${sl[s.status]||s.status}</span><div class="flex gap-3"><span class="text-sm font-black">${fmt(s.count)}</span><span class="text-sm text-emerald-700">${fmtM(s.revenue)}</span></div></div>`).join('')}
+            </div>`;
+        }
+    }
+
+    // Generic — שירותים, בנייה, בריאות, חינוך, אירועים, אחר
+    if (data.generic) {
+        const g = data.generic; const o = g.orders||{};
+        html += `<div class="grid grid-cols-3 gap-3 mb-4">
+            <div class="bg-emerald-50 rounded-2xl p-3 border border-emerald-100 text-center"><div class="text-xl font-black text-emerald-700">${fmtM(o.revenue)}</div><div class="text-[11px] text-emerald-500 mt-1">הכנסות</div></div>
+            <div class="bg-blue-50 rounded-2xl p-3 border border-blue-100 text-center"><div class="text-xl font-black text-blue-700">${fmt(o.total)}</div><div class="text-[11px] text-blue-500 mt-1">הזמנות</div></div>
+            <div class="bg-indigo-50 rounded-2xl p-3 border border-indigo-100 text-center"><div class="text-xl font-black text-indigo-700">${fmtM(o.avg_order)}</div><div class="text-[11px] text-indigo-500 mt-1">ממוצע</div></div>
+        </div>`;
+    }
+
+    return html || '<div class="text-center py-12 text-slate-400 text-sm">אין נתונים לתצוגה בתקופה זו</div>';
+}
+
+window._reportsExportCSV = function() {
+    const data = window._reportsLastData;
+    if (!data) { showToast('error', 'אין נתונים לייצוא'); return; }
+    const period = window._reportsPeriod || 'month';
+    const pl = { today:'היום', week:'השבוע', month:'החודש', year:'השנה' }[period] || period;
+    let csv = '﻿';
+    csv += `דוחות - ${currentGroup?.name||''} - ${pl}\n\n`;
+    const c = data.common||{};
+    csv += `הכנסות,${c.income||0}\nהוצאות,${c.expense||0}\nעסקאות,${c.transactions||0}\n\n`;
+    if (data.top_items?.length) { csv += `מוצר,כמות,הכנסה\n`; data.top_items.forEach(i=>{csv+=`${i.item_name},${i.qty},${i.revenue}\n`;}); csv+='\n'; }
+    if (data.sport?.revenueByType?.length) { csv+=`סוג מנוי,כמות,הכנסה\n`; data.sport.revenueByType.forEach(t=>{csv+=`${t.type_name},${t.count},${t.total}\n`;}); csv+='\n'; }
+    if (data.beauty?.topServices?.length) { csv+=`שירות,כמות,הכנסה\n`; data.beauty.topServices.forEach(s=>{csv+=`${s.service_name},${s.count},${s.revenue}\n`;}); csv+='\n'; }
+    if (data.logistics?.by_driver?.length) { csv+=`נהג,משלוחים,הכנסה\n`; data.logistics.by_driver.forEach(d=>{csv+=`${d.driver_name},${d.total_orders},${d.revenue}\n`;}); csv+='\n'; }
+    if (data.professional?.casesByStatus?.length) { csv+=`סטטוס תיק,כמות,הכנסה\n`; data.professional.casesByStatus.forEach(s=>{csv+=`${s.status},${s.count},${s.revenue}\n`;}); csv+='\n'; }
+    if (data.maintenance?.callsByStatus?.length) { csv+=`סטטוס קריאה,כמות,הכנסה\n`; data.maintenance.callsByStatus.forEach(s=>{csv+=`${s.status},${s.count},${s.revenue}\n`;}); csv+='\n'; }
+    const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`דוחות-${pl}.csv`; a.click();
+    showToast('success', 'הקובץ מוכן להורדה');
+};
+
 function switchTab(t) {
     // עסקי יופי: הפנה מ-customers ל-beauty_clients
     if (t === 'customers' && currentGroup?.business_type === 'beauty') t = 'beauty_clients';
@@ -2046,6 +2323,7 @@ function switchTab(t) {
     if (t === 'content') try { renderProfessionalContentTab(); } catch(e) {}
     if (t === 'leads')     try { renderProfessionalLeadsTab(); } catch(e) {}
     if (t === 'documents') try { renderDocumentsTab(); } catch(e) {}
+    if (t === 'reports')   try { renderUnifiedReportsTab(); } catch(e) {}
     if (t === 'reviews')               try { loadReviews(); } catch(e) {}
     if (t === 'settings')              { try { renderSettingsHub(); } catch(e) {} try { const _w = document.getElementById('biz-main-content-wrap'); if(_w) _w.scrollTop = 0; } catch(e) {} document.documentElement.scrollTop = 0; document.body.scrollTop = 0; window.scrollTo({ top: 0, behavior: 'instant' }); }
 }
@@ -2821,7 +3099,8 @@ const ALL_TABS = [
     { id: 'timelog',   name: 'שעות עבודה ⏱️' },
     { id: 'content',   name: 'תוכן האתר 🌐' },
     { id: 'leads',     name: 'פניות נכנסות 📥' },
-    { id: 'documents', name: 'מסמכים 📄' }
+    { id: 'documents', name: 'מסמכים 📄' },
+    { id: 'reports',   name: 'דוחות 📊' }
 ];
 
 const ROLE_DEFAULTS = {
@@ -4072,7 +4351,7 @@ const GNAV_GROUPS = {
     team:      ['timeclock','shifts','calendar','tasks','academy','members','beauty_calendar','beauty_practitioners'],
     sales:     ['pos','sales','customers','cases','leads','deliveries','reviews','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
     inventory: ['shop','pantry','equipment','foodcost','beauty_inventory'],
-    finance:   ['bank','cashflow','budget','timelog','forecast','beauty_commissions'],
+    finance:   ['bank','cashflow','budget','timelog','forecast','beauty_commissions','reports'],
     more:      ['community','surveys','content','documents','settings']
 };
 
@@ -28417,19 +28696,19 @@ const ROLE_TYPE_TABS = {
 };
 
 const BUSINESS_TYPES = [
-    { id: 'restaurant',         name: 'מסעדה / בית קפה',      icon: '🍕', modules: ['feed','pos','sales','pantry','shop','customers','shifts','timeclock','tasks','cashflow','budget','members','calendar','deliveries','foodcost','kds','reviews'] },
-    { id: 'retail',             name: 'חנות קמעונאית',         icon: '🛍️', modules: ['feed','pos','sales','pantry','shop','customers','cashflow','budget','members','timeclock','tasks','bank'] },
-    { id: 'services',           name: 'שירותים מקצועיים',      icon: '💼', modules: ['feed','calendar','tasks','customers','cashflow','budget','members','timeclock','bank','pos','sales'] },
-    { id: 'construction',       name: 'בנייה / קבלנות',        icon: '🏗️', modules: ['feed','equipment','tasks','shifts','timeclock','members','cashflow','customers','bank','shop','pantry','budget'] },
-    { id: 'maintenance_repair', name: 'תחזוקה ותיקונים',       icon: '🔧', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','pantry','shop'] },
-    { id: 'logistics',          name: 'לוגיסטיקה / הפצה',     icon: '🚚', modules: ['feed','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','members','timeclock','cashflow','tasks'] },
-    { id: 'healthcare',         name: 'בריאות / קליניקה',      icon: '🏥', modules: ['feed','calendar','customers','tasks','members','timeclock','cashflow','bank','pos','pantry'] },
-    { id: 'beauty',             name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','beauty_calendar','beauty_practitioners','beauty_services','beauty_subscriptions','pos','beauty_clients','beauty_inventory','beauty_commissions','beauty_rfq','timeclock','cashflow','tasks','shop'] },
-    { id: 'education',          name: 'חינוך / הדרכה',         icon: '🎓', modules: ['feed','calendar','academy','tasks','members','timeclock','cashflow','customers','pos'] },
-    { id: 'sport',              name: 'ספורט / כושר',           icon: '🏋️', modules: ['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts'] },
-    { id: 'events',             name: 'אירועים / הפקות',       icon: '🎉', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','budget','equipment','shifts','shop'] },
-    { id: 'food_production',    name: 'ייצור מזון',             icon: '🏭', modules: ['feed','pantry','shop','sales','customers','tasks','members','shifts','timeclock','cashflow','equipment','deliveries','foodcost'] },
-    { id: 'professional',       name: 'מקצועי / ייעוץ',         icon: '👔', modules: ['feed','sales','customers','cases','leads','timelog','documents','calendar','tasks','cashflow','budget','members','timeclock','bank','content'] },
+    { id: 'restaurant',         name: 'מסעדה / בית קפה',      icon: '🍕', modules: ['feed','pos','sales','pantry','shop','customers','shifts','timeclock','tasks','cashflow','budget','members','calendar','deliveries','foodcost','kds','reviews','reports'] },
+    { id: 'retail',             name: 'חנות קמעונאית',         icon: '🛍️', modules: ['feed','pos','sales','pantry','shop','customers','cashflow','budget','members','timeclock','tasks','bank','reports'] },
+    { id: 'services',           name: 'שירותים מקצועיים',      icon: '💼', modules: ['feed','calendar','tasks','customers','cashflow','budget','members','timeclock','bank','pos','sales','reports'] },
+    { id: 'construction',       name: 'בנייה / קבלנות',        icon: '🏗️', modules: ['feed','equipment','tasks','shifts','timeclock','members','cashflow','customers','bank','shop','pantry','budget','reports'] },
+    { id: 'maintenance_repair', name: 'תחזוקה ותיקונים',       icon: '🔧', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','pantry','shop','reports'] },
+    { id: 'logistics',          name: 'לוגיסטיקה / הפצה',     icon: '🚚', modules: ['feed','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','members','timeclock','cashflow','tasks','reports'] },
+    { id: 'healthcare',         name: 'בריאות / קליניקה',      icon: '🏥', modules: ['feed','calendar','customers','tasks','members','timeclock','cashflow','bank','pos','pantry','reports'] },
+    { id: 'beauty',             name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','beauty_calendar','beauty_practitioners','beauty_services','beauty_subscriptions','pos','beauty_clients','beauty_inventory','beauty_commissions','beauty_rfq','timeclock','cashflow','tasks','shop','reports'] },
+    { id: 'education',          name: 'חינוך / הדרכה',         icon: '🎓', modules: ['feed','calendar','academy','tasks','members','timeclock','cashflow','customers','pos','reports'] },
+    { id: 'sport',              name: 'ספורט / כושר',           icon: '🏋️', modules: ['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts','reports'] },
+    { id: 'events',             name: 'אירועים / הפקות',       icon: '🎉', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','budget','equipment','shifts','shop','reports'] },
+    { id: 'food_production',    name: 'ייצור מזון',             icon: '🏭', modules: ['feed','pantry','shop','sales','customers','tasks','members','shifts','timeclock','cashflow','equipment','deliveries','foodcost','reports'] },
+    { id: 'professional',       name: 'מקצועי / ייעוץ',         icon: '👔', modules: ['feed','sales','customers','cases','leads','timelog','documents','calendar','tasks','cashflow','budget','members','timeclock','bank','content','reports'] },
     { id: 'other',              name: 'אחר / כללי',             icon: '🏢', modules: null }
 ];
 
