@@ -885,7 +885,10 @@ window.injectBusinessUI = function() {
                    <div id="sales-view-catalog" class="hidden space-y-4">
                         <div class="flex justify-between items-center mb-4 px-1">
                             <h4 class="font-bold text-slate-700 text-sm">קטלוג מנות ומוצרים</h4>
-                            <button onclick="window.openStoreProductModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> מוצר חדש</button>
+                            <div class="flex items-center gap-2">
+                                <button onclick="window.openPdfImportModal()" class="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100 transition"><i class="fa-solid fa-file-pdf mr-1"></i> ייבוא PDF</button>
+                                <button onclick="window.openStoreProductModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> מוצר חדש</button>
+                            </div>
                         </div>
                         <div id="store-catalog-list" class="space-y-3 pb-8"></div>
                     </div>
@@ -20240,6 +20243,7 @@ setInterval(() => {
         catalogHeader.innerHTML = `
             <h4 class="font-bold text-slate-700 text-sm">קטלוג מנות ומוצרים</h4>
             <div class="flex items-center gap-2">
+                <button onclick="window.openPdfImportModal()" class="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100 transition"><i class="fa-solid fa-file-pdf mr-1"></i> ייבוא PDF</button>
                 <button onclick="window.openStoreProductModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> מוצר חדש</button>
                 <button id="btn-manage-modifiers" onclick="window.openModifierTemplatesModal()" class="bg-white text-indigo-600 border border-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-50 transition"><i class="fa-solid fa-layer-group mr-1"></i> תבניות הרכבה</button>
             </div>
@@ -45984,4 +45988,126 @@ window._aiUpdateDeliveryStatus = async function(orderId, status, customerName, b
             if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> עודכן!'; btn.className = btn.className.replace(/bg-\w+-\d+/g,'bg-green-50').replace(/text-\w+-\d+/g,'text-green-700').replace(/border-\w+-\d+/g,'border-green-200'); }
         } else { throw new Error(data.error||'error'); }
     } catch(e) { showToast('error', 'שגיאה בעדכון משלוח'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-truck"></i> נסה שוב'; } }
+};
+
+// ─── ייבוא מוצרים מ-PDF / תמונה ─────────────────────────────────────────────
+window.openPdfImportModal = function() {
+    document.getElementById('pdf-import-modal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="pdf-import-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[91] flex items-center justify-center p-4 fade-in">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl relative flex flex-col max-h-[90vh] overflow-hidden border border-slate-200">
+            <div class="flex justify-between items-center p-5 border-b border-slate-200 shrink-0">
+                <h3 class="text-lg font-black text-slate-800"><i class="fa-solid fa-file-pdf text-red-500 mr-2"></i> ייבוא מוצרים מ-PDF / תמונה</h3>
+                <button onclick="document.getElementById('pdf-import-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-5 space-y-4 modal-scroll">
+                <div class="flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-8 cursor-pointer hover:bg-slate-100 transition" onclick="document.getElementById('pdf-file-input').click()">
+                    <i class="fa-solid fa-cloud-arrow-up text-4xl text-amber-400 mb-2"></i>
+                    <p class="text-sm font-bold text-slate-600">לחץ לבחירת קובץ PDF או תמונה</p>
+                    <p class="text-xs text-slate-400 mt-1">חשבונית / מחירון ספק / תפריט — עד 10MB</p>
+                    <input type="file" id="pdf-file-input" accept=".pdf,image/*" class="hidden" onchange="window.onPdfFileSelected(event)">
+                </div>
+                <div id="pdf-file-name" class="hidden text-xs text-center text-amber-700 font-bold bg-amber-50 border border-amber-200 rounded-xl py-2 px-3"></div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">סוג המסמך:</label>
+                    <select id="pdf-context" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white">
+                        <option value="pricelist">מחירון ספק</option>
+                        <option value="invoice">חשבונית / תעודת משלוח</option>
+                        <option value="menu">תפריט מסעדה</option>
+                        <option value="other">אחר</option>
+                    </select>
+                </div>
+                <div id="pdf-results" class="hidden"></div>
+            </div>
+            <div class="p-4 border-t border-slate-100 shrink-0 flex gap-2">
+                <button id="pdf-scan-btn" onclick="window.scanPdfForProducts()" class="flex-1 bg-amber-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-amber-600 transition shadow-md flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-magnifying-glass"></i> סרוק וחלץ מוצרים
+                </button>
+                <button id="pdf-import-btn" onclick="window.importScannedProducts()" class="hidden flex-1 bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-700 transition shadow-md flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-file-import"></i> ייבא נבחרים
+                </button>
+            </div>
+        </div>
+    </div>`);
+    window._pdfFileBase64 = null;
+    window._pdfMimeType = null;
+    window._pdfScannedProducts = [];
+};
+
+window.onPdfFileSelected = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { showToast('error', 'הקובץ גדול מ-10MB'); return; }
+    const nameEl = document.getElementById('pdf-file-name');
+    if (nameEl) { nameEl.textContent = '📎 ' + file.name + ' (' + (file.size/1024).toFixed(0) + ' KB)'; nameEl.classList.remove('hidden'); }
+    const reader = new FileReader();
+    reader.onload = e => {
+        window._pdfFileBase64 = e.target.result.split(',')[1];
+        window._pdfMimeType = file.type || 'application/pdf';
+    };
+    reader.readAsDataURL(file);
+};
+
+window.scanPdfForProducts = async function() {
+    if (!window._pdfFileBase64) { showToast('error', 'יש לבחור קובץ תחילה'); return; }
+    const btn = document.getElementById('pdf-scan-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> סורק...'; }
+    try {
+        const res = await fetch(API + '/ai/parse-pdf', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileBase64: window._pdfFileBase64, mimeType: window._pdfMimeType, groupId: currentGroup.id, context: document.getElementById('pdf-context')?.value || 'pricelist' })
+        });
+        const data = await res.json();
+        if (!handleAIResponseCheck(data)) return;
+        if (!data.success) { showToast('error', data.error || 'שגיאה בסריקה'); return; }
+        window._pdfScannedProducts = data.products || [];
+        window._renderPdfResults(window._pdfScannedProducts);
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> סרוק שוב'; } }
+};
+
+window._renderPdfResults = function(products) {
+    const el = document.getElementById('pdf-results');
+    const importBtn = document.getElementById('pdf-import-btn');
+    if (!el) return;
+    if (!products.length) { el.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">לא נמצאו מוצרים במסמך</p>'; el.classList.remove('hidden'); return; }
+    el.innerHTML = `
+        <div class="flex justify-between items-center mb-2">
+            <span class="text-xs font-bold text-slate-600">נמצאו ${products.length} מוצרים — בחר לייבוא:</span>
+            <button onclick="document.querySelectorAll('.pdf-item-cb').forEach(c=>c.checked=true)" class="text-[10px] text-indigo-600 font-bold hover:underline">סמן הכל</button>
+        </div>
+        <div class="space-y-1.5 max-h-64 overflow-y-auto modal-scroll pr-1">
+            ${products.map((p, i) => `
+            <label class="flex items-center gap-2 bg-slate-50 rounded-xl p-2.5 border border-slate-200 cursor-pointer hover:bg-amber-50 transition">
+                <input type="checkbox" class="pdf-item-cb w-4 h-4 rounded accent-amber-500" data-idx="${i}" checked>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-800 truncate">${safeStr(p.name)}</p>
+                    <p class="text-[10px] text-slate-500">${safeStr(p.category||'כללי')}${p.unit?' · '+safeStr(p.unit):''}${p.sku?' · '+safeStr(p.sku):''}</p>
+                </div>
+                <span class="text-xs font-black text-indigo-700 shrink-0">₪${p.price||0}</span>
+            </label>`).join('')}
+        </div>`;
+    el.classList.remove('hidden');
+    if (importBtn) importBtn.classList.remove('hidden');
+};
+
+window.importScannedProducts = async function() {
+    const checked = [...document.querySelectorAll('.pdf-item-cb:checked')].map(c => window._pdfScannedProducts[parseInt(c.dataset.idx)]).filter(Boolean);
+    if (!checked.length) { showToast('error', 'לא נבחרו מוצרים'); return; }
+    const btn = document.getElementById('pdf-import-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מייבא...'; }
+    try {
+        const res = await fetch(API + '/store/catalog/bulk-import', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, products: checked })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'יובאו ' + data.imported + ' מוצרים בהצלחה!' + (data.skipped ? ' (' + data.skipped + ' דולגו)' : ''));
+            document.getElementById('pdf-import-modal')?.remove();
+            try { if (typeof renderShopList === 'function') renderShopList(); } catch(e) {}
+            try { if (typeof loadStoreCatalog === 'function') loadStoreCatalog(); } catch(e) {}
+        } else { showToast('error', data.error || 'שגיאה בייבוא'); }
+    } catch(e) { showToast('error', 'שגיאת רשת בייבוא'); }
+    finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-file-import"></i> ייבא נבחרים'; } }
 };
