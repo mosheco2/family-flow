@@ -388,6 +388,8 @@ pool.connect()
           endpoint VARCHAR(100) DEFAULT 'general',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS plan VARCHAR(20) DEFAULT 'standard'`); } catch(e) {}
+      try { await client.query(`UPDATE family_groups SET plan='enterprise' WHERE is_premium=true AND (plan IS NULL OR plan='standard')`); } catch(e) {}
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS assigned_to INT REFERENCES sa_users(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS assigned_team INT REFERENCES sa_teams(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`); } catch(e) {}
@@ -1590,15 +1592,25 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 async function handleAITokens(groupId, endpoint = 'general') {
     try {
-        await pool.query(`UPDATE family_groups SET ai_tokens = 10, last_token_reset = CURRENT_DATE WHERE id = $1 AND (last_token_reset IS NULL OR last_token_reset < CURRENT_DATE)`, [groupId]);
-        const res = await pool.query('SELECT ai_tokens, is_premium FROM family_groups WHERE id = $1', [groupId]);
-        if(res.rows.length === 0) return false;
-        const group = res.rows[0];
-        if(group.is_premium) {
+        const gr = await pool.query('SELECT plan, is_premium, ai_tokens, last_token_reset FROM family_groups WHERE id = $1', [groupId]);
+        if (gr.rows.length === 0) return false;
+        const g = gr.rows[0];
+        const plan = g.plan || (g.is_premium ? 'enterprise' : 'standard');
+
+        if (plan === 'enterprise') {
             pool.query('INSERT INTO ai_usage_log (group_id, endpoint) VALUES ($1, $2)', [groupId, endpoint]).catch(() => {});
             return true;
         }
-        if(group.ai_tokens > 0) {
+
+        const dailyLimit = plan === 'premium' ? 50 : 10;
+        await pool.query(
+            `UPDATE family_groups SET ai_tokens = $2, last_token_reset = CURRENT_DATE
+             WHERE id = $1 AND (last_token_reset IS NULL OR last_token_reset < CURRENT_DATE)`,
+            [groupId, dailyLimit]
+        );
+
+        const res = await pool.query('SELECT ai_tokens FROM family_groups WHERE id = $1', [groupId]);
+        if (res.rows[0].ai_tokens > 0) {
             await pool.query('UPDATE family_groups SET ai_tokens = ai_tokens - 1 WHERE id = $1', [groupId]);
             pool.query('INSERT INTO ai_usage_log (group_id, endpoint) VALUES ($1, $2)', [groupId, endpoint]).catch(() => {});
             return true;
