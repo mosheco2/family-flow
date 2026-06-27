@@ -2852,7 +2852,18 @@ app.post('/api/superadmin/settings', verifySA, async (req, res) => {
 app.post('/api/superadmin/groups/:id/premium', verifySA, async (req, res) => {
     try {
         const enable = req.body.enable === true || req.body.enable === 'true';
-        await pool.query('UPDATE family_groups SET is_premium = $1 WHERE id = $2', [enable, req.params.id]);
+        const plan = enable ? 'enterprise' : 'standard';
+        await pool.query('UPDATE family_groups SET is_premium = $1, plan = $2 WHERE id = $3', [enable, plan, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/superadmin/groups/:id/plan', verifySA, async (req, res) => {
+    try {
+        const plan = req.body.plan;
+        if (!['standard', 'premium', 'enterprise'].includes(plan)) return res.status(400).json({ error: 'תוכנית לא תקינה' });
+        const isPremium = plan === 'enterprise';
+        await pool.query('UPDATE family_groups SET plan = $1, is_premium = $2 WHERE id = $3', [plan, isPremium, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
