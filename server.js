@@ -16867,6 +16867,104 @@ app.post('/api/public/restaurants/:groupId/verify-table-sms', async (req, res) =
 
 // ===== END PUBLIC RESERVATIONS API =====
 
+// ============================================================
+// UNIFIED REPORTS ENDPOINT
+// ============================================================
+app.get('/api/reports/:groupId', async (req, res) => {
+    try {
+        const gid = parseInt(req.params.groupId);
+        const period = req.query.period || 'month';
+        const btype = req.query.btype || 'other';
+        const df = { today: `DATE_TRUNC('day', NOW())`, week: `CURRENT_DATE - INTERVAL '7 days'`, month: `DATE_TRUNC('month', NOW())`, year: `DATE_TRUNC('year', NOW())` }[period] || `DATE_TRUNC('month', NOW())`;
+
+        // Common: transactions KPIs + daily trend
+        const [commonRes, revByDayRes] = await Promise.all([
+            pool.query(`SELECT COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE 0 END),0) AS income,
+                COALESCE(SUM(CASE WHEN type='expense' THEN amount ELSE 0 END),0) AS expense,
+                COUNT(*) AS transactions
+                FROM transactions WHERE group_id=$1 AND date >= ${df}`, [gid]),
+            pool.query(`SELECT TO_CHAR(date,'YYYY-MM-DD') AS day,
+                COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE 0 END),0) AS income
+                FROM transactions WHERE group_id=$1 AND date >= ${df} AND date >= CURRENT_DATE - 30
+                GROUP BY day ORDER BY day`, [gid])
+        ]);
+        const result = { period, btype, common: commonRes.rows[0], revenue_by_day: revByDayRes.rows };
+
+        // מסעדה / קמעונאי / ייצור מזון
+        if (['restaurant','retail','food_production'].includes(btype)) {
+            const [ordRes, itemsRes, statusRes] = await Promise.all([
+                pool.query(`SELECT COUNT(*) AS total, COALESCE(SUM(total_amount),0) AS revenue, COALESCE(AVG(total_amount),0) AS avg_order FROM store_orders WHERE group_id=$1 AND created_at >= ${df}`, [gid]),
+                pool.query(`SELECT soi.item_name, SUM(soi.quantity) AS qty, SUM(soi.quantity*soi.price_at_order) AS revenue FROM store_order_items soi JOIN store_orders so ON so.id=soi.order_id WHERE so.group_id=$1 AND so.created_at >= ${df} GROUP BY soi.item_name ORDER BY qty DESC LIMIT 10`, [gid]),
+                pool.query(`SELECT status, COUNT(*) AS count, COALESCE(SUM(total_amount),0) AS revenue FROM store_orders WHERE group_id=$1 AND created_at >= ${df} GROUP BY status`, [gid])
+            ]);
+            result.orders = ordRes.rows[0]; result.top_items = itemsRes.rows; result.by_status = statusRes.rows;
+        }
+
+        // ספורט
+        if (btype === 'sport') {
+            const [revByType, membersByStatus, checkinsByDay, revByMonth] = await Promise.all([
+                pool.query(`SELECT smt.name AS type_name, COUNT(*) AS count, SUM(sp.amount) AS total FROM sport_payments sp LEFT JOIN sport_memberships sm ON sp.membership_id=sm.id LEFT JOIN sport_membership_types smt ON sm.membership_type_id=smt.id WHERE sp.group_id=$1 AND sp.paid_at >= ${df} GROUP BY smt.name ORDER BY total DESC`, [gid]),
+                pool.query(`SELECT status, COUNT(*) AS count FROM sport_memberships WHERE group_id=$1 GROUP BY status`, [gid]),
+                pool.query(`SELECT TO_CHAR(checked_in_at,'YYYY-MM-DD') AS day, COUNT(*) AS count FROM sport_checkins WHERE group_id=$1 AND checked_in_at >= ${df} GROUP BY day ORDER BY day`, [gid]),
+                pool.query(`SELECT TO_CHAR(paid_at,'YYYY-MM') AS month, SUM(amount) AS total FROM sport_payments WHERE group_id=$1 AND paid_at >= CURRENT_DATE - INTERVAL '6 months' GROUP BY month ORDER BY month`, [gid])
+            ]);
+            result.sport = { revenueByType: revByType.rows, membersByStatus: membersByStatus.rows, checkinsByDay: checkinsByDay.rows, revenueByMonth: revByMonth.rows };
+        }
+
+        // יופי / קוסמטיקה
+        if (btype === 'beauty') {
+            const [apptStatus, revByPract, topSvc] = await Promise.all([
+                pool.query(`SELECT status, COUNT(*) AS count, COALESCE(SUM(total_price),0) AS revenue FROM beauty_appointments WHERE business_group_id=$1 AND created_at >= ${df} GROUP BY status`, [gid]),
+                pool.query(`SELECT bp.display_name, COUNT(bas.id) AS services, COALESCE(SUM(bas.price),0) AS revenue FROM beauty_appointment_segments bas JOIN beauty_practitioners bp ON bp.id=bas.practitioner_id JOIN beauty_appointments ba ON ba.id=bas.appointment_id WHERE ba.business_group_id=$1 AND ba.created_at >= ${df} GROUP BY bp.id, bp.display_name ORDER BY revenue DESC`, [gid]),
+                pool.query(`SELECT bas.service_name, COUNT(*) AS count, COALESCE(SUM(bas.price),0) AS revenue FROM beauty_appointment_segments bas JOIN beauty_appointments ba ON ba.id=bas.appointment_id WHERE ba.business_group_id=$1 AND ba.created_at >= ${df} GROUP BY bas.service_name ORDER BY count DESC LIMIT 10`, [gid])
+            ]);
+            result.beauty = { apptByStatus: apptStatus.rows, revByPractitioner: revByPract.rows, topServices: topSvc.rows };
+        }
+
+        // תחזוקה / תיקונים
+        if (btype === 'maintenance_repair') {
+            const [callsRes, revRes] = await Promise.all([
+                pool.query(`SELECT status, COUNT(*) AS count, COALESCE(SUM(price_quote),0) AS revenue FROM service_calls WHERE business_group_id=$1 AND created_at >= ${df} GROUP BY status`, [gid]),
+                pool.query(`SELECT COALESCE(SUM(price_quote),0) AS total FROM service_calls WHERE business_group_id=$1 AND status='done' AND created_at >= ${df}`, [gid])
+            ]);
+            result.maintenance = { callsByStatus: callsRes.rows, revenue: parseFloat(revRes.rows[0]?.total||0) };
+        }
+
+        // לוגיסטיקה
+        if (btype === 'logistics') {
+            const [delRes, driverRes, codRes] = await Promise.all([
+                pool.query(`SELECT COUNT(*) AS total_orders, COUNT(*) FILTER (WHERE status='delivered') AS delivered_orders, COALESCE(SUM(delivery_fee) FILTER (WHERE status='delivered'),0) AS total_revenue FROM logistics_orders WHERE group_id=$1 AND created_at >= ${df}`, [gid]),
+                pool.query(`SELECT ld.name AS driver_name, COUNT(lo.id) AS total_orders, COUNT(lo.id) FILTER (WHERE lo.status='delivered') AS delivered_orders, COALESCE(SUM(lo.delivery_fee) FILTER (WHERE lo.status='delivered'),0) AS revenue FROM logistics_drivers ld LEFT JOIN logistics_orders lo ON lo.driver_id=ld.id AND lo.created_at >= ${df} WHERE ld.group_id=$1 AND ld.is_active=true GROUP BY ld.id, ld.name ORDER BY delivered_orders DESC NULLS LAST`, [gid]),
+                pool.query(`SELECT COALESCE(SUM(cod_amount) FILTER (WHERE cod_collected=true),0) AS collected, COALESCE(SUM(cod_amount) FILTER (WHERE cod_amount>0 AND cod_collected=false AND status='delivered'),0) AS pending FROM logistics_orders WHERE group_id=$1 AND created_at >= ${df}`, [gid])
+            ]);
+            result.logistics = { delivery: delRes.rows[0], by_driver: driverRes.rows, cod: codRes.rows[0] };
+        }
+
+        // מומחים / ייעוץ
+        if (btype === 'professional') {
+            const [casesRes, hoursRes, revRes] = await Promise.all([
+                pool.query(`SELECT status, COUNT(*) AS count, COALESCE(SUM(total_amount),0) AS revenue FROM store_orders WHERE group_id=$1 AND created_at >= ${df} GROUP BY status`, [gid]),
+                pool.query(`SELECT COALESCE(SUM(minutes)/60.0,0) AS total_hours, COUNT(*) AS entries FROM time_logs WHERE group_id=$1 AND logged_date >= ${df}`, [gid]),
+                pool.query(`SELECT COALESCE(SUM(wop.amount),0) AS total FROM work_order_payments wop JOIN store_orders so ON so.id=wop.work_order_id WHERE so.group_id=$1 AND wop.status='received' AND wop.received_at >= ${df}`, [gid])
+            ]);
+            result.professional = { casesByStatus: casesRes.rows, hoursLogged: hoursRes.rows[0], revenue: parseFloat(revRes.rows[0]?.total||0) };
+        }
+
+        // Generic — שירותים, בנייה, בריאות, חינוך, אירועים, אחר
+        if (['services','construction','healthcare','education','events','other'].includes(btype)) {
+            const [ordRes] = await Promise.all([
+                pool.query(`SELECT COUNT(*) AS total, COALESCE(SUM(total_amount),0) AS revenue, COALESCE(AVG(total_amount),0) AS avg_order FROM store_orders WHERE group_id=$1 AND created_at >= ${df}`, [gid])
+            ]);
+            result.generic = { orders: ordRes.rows[0] };
+        }
+
+        res.json(result);
+    } catch(e) {
+        console.error('Reports error:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // הפעלת השרת
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
