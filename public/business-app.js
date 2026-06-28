@@ -14719,6 +14719,7 @@ async function loadBizCommunities() {
         if (!res.ok) { return; }
         
         if (data.success && data.communities) {
+            myCommunityBusinessesCache = data.communities;
             const list = document.getElementById('biz-my-communities-list');
             if (list) {
                 if (data.communities.length === 0) {
