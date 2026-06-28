@@ -7020,17 +7020,26 @@ window.createCommunityBundle = async function() {
 // ─── FLOW REWARDS CONFIG (SA) ────────────────────────────────
 
 const FLOW_CONFIG_LABELS = {
-    join_community:      'הצטרפות לקהילה חדשה',
-    referral:            'הפניית שכן שהצטרף לקהילה',
-    promo_redemption:    'מימוש מבצע עסק בקהילה',
-    profile_complete:    'מילוי פרופיל משפחתי מלא',
-    review_business:     'כתיבת ביקורת על עסק',
-    bundle_purchase:     'רכישת חבילת קהילה',
-    daily_login:         'כניסה יומית לאפליקציה',
-    ambassador_approved: 'שגריר — עסק שאושר לקהילה',
-    promo_community:     'עסק — מבצע מומש (רק לקהילה)',
-    bundle_community:    'עסק — חבילה נמכרה (רק לקהילה)',
-    flow_to_ils_rate:    'שיעור המרה: כמה ₣ = ₪10 הנחה',
+    // משפחה
+    join_community:        '👨‍👩‍👧 הצטרפות לקהילה חדשה',
+    referral:              '👨‍👩‍👧 הפניית שכן שהצטרף לקהילה',
+    promo_redemption:      '👨‍👩‍👧 מימוש מבצע עסק בקהילה',
+    profile_complete:      '👨‍👩‍👧 מילוי פרופיל משפחתי מלא',
+    review_business:       '👨‍👩‍👧 כתיבת ביקורת על עסק',
+    bundle_purchase:       '👨‍👩‍👧 רכישת חבילת קהילה',
+    daily_login:           '👨‍👩‍👧 כניסה יומית לאפליקציה',
+    ambassador_approved:   '👨‍👩‍👧 שגריר — עסק שאושר לקהילה',
+    // עסק
+    biz_join_approved:     '🏪 עסק — בקשת הצטרפות אושרה',
+    biz_promo_approved:    '🏪 עסק — מבצע אושר ע"י SA',
+    biz_promo_redeemed:    '🏪 עסק — מבצע מומש ע"י משפחה',
+    biz_bundle_sold:       '🏪 עסק — חבילה נמכרה',
+    biz_review_received:   '🏪 עסק — קיבל ביקורת חיובית (4–5 ⭐)',
+    biz_lead_received:     '🏪 עסק — קיבל פנייה דרך הקהילה',
+    // כללי
+    promo_community:       '📊 קהילה — מבצע מומש (רק לקהילה)',
+    bundle_community:      '📊 קהילה — חבילה נמכרה (רק לקהילה)',
+    flow_to_ils_rate:      '⚙️ שיעור המרה: כמה ₣ = ₪10 הנחה',
 };
 
 window.openFlowConfigPanel = async function() {

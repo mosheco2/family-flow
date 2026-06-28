@@ -7624,6 +7624,8 @@ app.post('/api/sa/community-business/approve', async (req, res) => {
         } else {
             // אין מנהל אזור → אישור סופי מיידי
             await pool.query('UPDATE community_businesses SET status=$1 WHERE community_id=$2 AND business_id=$3', ['approved', communityId, businessId]);
+            // Award FLOW to business + community
+            await awardFlow('business', parseInt(businessId), 'biz_join_approved', parseInt(communityId));
             res.json({ success: true, forwarded_to_zm: false });
         }
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -8321,6 +8323,7 @@ app.post('/api/zone-manager/community-business/approve', verifyZoneManager, asyn
         if (!check.rows.length) return res.status(403).json({ error: 'Unauthorized' });
         await pool.query('UPDATE community_businesses SET status=$1 WHERE community_id=$2 AND business_id=$3 AND status=$4',
             ['approved', communityId, businessId, 'zm_pending']);
+        await awardFlow('business', parseInt(businessId), 'biz_join_approved', parseInt(communityId));
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -9191,6 +9194,10 @@ app.post('/api/sa/community/promotions/:id/status', verifySA, async (req, res) =
         const { status } = req.body; // 'approved' or 'rejected'
         if (!['approved','rejected'].includes(status)) return res.status(400).json({ error: 'סטטוס לא חוקי' });
         await pool.query(`UPDATE community_promotions SET status=$1 WHERE id=$2`, [status, req.params.id]);
+        if (status === 'approved') {
+            const promo = await pool.query(`SELECT business_id, community_id FROM community_promotions WHERE id=$1`, [req.params.id]);
+            if (promo.rows.length) await awardFlow('business', promo.rows[0].business_id, 'biz_promo_approved', promo.rows[0].community_id, parseInt(req.params.id));
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -9552,7 +9559,13 @@ app.patch('/api/sa/community/bundles/:id', verifySA, async (req, res) => {
             ('ambassador_approved',  35,  15, 'שגריר — עסק אושר'),
             ('promo_community',       0,   5, 'עסק — מבצע מומש בקהילה'),
             ('bundle_community',      0,  20, 'עסק — חבילה נמכרה בקהילה'),
-            ('flow_to_ils_rate',    100,   0, 'כמה ₣ שווים ₪10 הנחה')
+            ('flow_to_ils_rate',    100,   0, 'כמה ₣ שווים ₪10 הנחה'),
+            ('biz_join_approved',    20,  10, 'עסק — בקשת הצטרפות לקהילה אושרה'),
+            ('biz_promo_approved',   10,   5, 'עסק — מבצע אושר ע"י SA'),
+            ('biz_promo_redeemed',    5,   5, 'עסק — מבצע מומש על ידי משפחה'),
+            ('biz_bundle_sold',      10,  20, 'עסק — חבילה שנמכרה'),
+            ('biz_review_received',   8,   2, 'עסק — קבל ביקורת חיובית'),
+            ('biz_lead_received',     5,   2, 'עסק — קיבל פנייה דרך הקהילה')
             ON CONFLICT (key) DO NOTHING;
         `);
     } catch(e) { console.error('[FLOW migration]', e.message); }
@@ -9729,6 +9742,79 @@ app.post('/api/flow/redemptions/:code/use', async (req, res) => {
         if (!r.rows.length) return res.status(404).json({ error: 'קוד לא תקין או כבר מומש' });
         await pool.query(`UPDATE flow_redemptions SET status='used', used_at=NOW() WHERE discount_code=$1`, [req.params.code.toUpperCase()]);
         res.json({ success: true, discountIls: r.rows[0].discount_ils });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Family redeems a community promotion (marks it as used → FLOW to family + biz + community)
+app.post('/api/community/promotions/:id/redeem', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
+        const promo = await pool.query(`SELECT * FROM community_promotions WHERE id=$1 AND status='approved'`, [req.params.id]);
+        if (!promo.rows.length) return res.status(404).json({ error: 'מבצע לא נמצא' });
+        const p = promo.rows[0];
+        // Award family (personal + community share)
+        await awardFlow('family', parseInt(groupId), 'promo_redemption', p.community_id, p.id);
+        // Award business
+        await awardFlow('business', p.business_id, 'biz_promo_redeemed', p.community_id, p.id);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Family writes a review on a business
+app.post('/api/community/reviews', async (req, res) => {
+    try {
+        const { familyGroupId, businessGroupId, communityId, rating, text } = req.body;
+        if (!familyGroupId || !businessGroupId || !rating) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        const r = parseInt(rating);
+        if (r < 1 || r > 5) return res.status(400).json({ error: 'דירוג 1–5 בלבד' });
+        // Prevent duplicate review same day
+        const dup = await pool.query(
+            `SELECT id FROM flow_transactions WHERE entity_type='family' AND entity_id=$1 AND action_key='review_business' AND reference_id=$2 AND created_at > NOW()-INTERVAL '30 days'`,
+            [familyGroupId, businessGroupId]);
+        if (dup.rows.length) return res.status(409).json({ error: 'כבר כתבת ביקורת על עסק זה החודש' });
+        // Award family
+        await awardFlow('family', parseInt(familyGroupId), 'review_business', communityId ? parseInt(communityId) : null, parseInt(businessGroupId));
+        // Award business (only for rating >= 4)
+        if (r >= 4) await awardFlow('business', parseInt(businessGroupId), 'biz_review_received', communityId ? parseInt(communityId) : null, parseInt(familyGroupId));
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Family contacts a business through community (lead)
+app.post('/api/community/biz-contact', async (req, res) => {
+    try {
+        const { familyGroupId, businessGroupId, communityId, message } = req.body;
+        if (!familyGroupId || !businessGroupId) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        // Prevent spam: once per business per day
+        const dup = await pool.query(
+            `SELECT id FROM flow_transactions WHERE entity_type='business' AND entity_id=$1 AND action_key='biz_lead_received' AND reference_id=$2 AND created_at::date=CURRENT_DATE`,
+            [businessGroupId, familyGroupId]);
+        if (!dup.rows.length) await awardFlow('business', parseInt(businessGroupId), 'biz_lead_received', communityId ? parseInt(communityId) : null, parseInt(familyGroupId));
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Family purchases a community bundle
+app.post('/api/community/bundles/:id/purchase', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
+        const bundle = await pool.query(
+            `SELECT cb.*, array_agg(cbb.business_id) as business_ids
+             FROM community_bundles cb
+             LEFT JOIN community_bundle_businesses cbb ON cbb.bundle_id=cb.id
+             WHERE cb.id=$1 AND cb.status='active'
+             GROUP BY cb.id`, [req.params.id]);
+        if (!bundle.rows.length) return res.status(404).json({ error: 'חבילה לא נמצאה' });
+        const b = bundle.rows[0];
+        // Award family
+        await awardFlow('family', parseInt(groupId), 'bundle_purchase', b.community_id, b.id);
+        // Award each business in the bundle
+        for (const bizId of (b.business_ids || []).filter(Boolean)) {
+            await awardFlow('business', parseInt(bizId), 'biz_bundle_sold', b.community_id, b.id);
+        }
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

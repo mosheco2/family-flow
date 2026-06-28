@@ -4303,6 +4303,10 @@ function renderCommunityPromotions(promos) {
             <span class="text-[10px] text-slate-400 font-medium">${safeStr(p.business_name)} · ${safeStr(p.community_name)}</span>
             ${p.valid_until ? `<span class="text-[10px] text-orange-500 font-bold">⏰ עד ${new Date(p.valid_until).toLocaleDateString('he-IL')}</span>` : ''}
         </div>
+        <div class="flex gap-2 mt-2">
+            <button onclick="redeemCommunityPromo(${p.id},this)" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold py-1.5 rounded-xl transition">✅ מימשתי את המבצע +3 ₣</button>
+            <button onclick="openWriteReviewModal(${p.business_id},'${safeStr(p.business_name)}')" class="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold py-1.5 px-3 rounded-xl transition">⭐ ביקורת</button>
+        </div>
     </div>`).join('');
 }
 
@@ -4326,6 +4330,80 @@ function renderCommunityBundles(bundles) {
         <div class="text-[10px] text-slate-400 mt-1.5">${safeStr(b.community_name)}</div>
     </div>`).join('');
 }
+
+// ─── FLOW COMMUNITY ACTIONS ──────────────────────────────────
+
+window.redeemCommunityPromo = async function(promoId, btn) {
+    if (!currentGroup) return;
+    btn.disabled = true;
+    btn.textContent = '...';
+    try {
+        const res = await fetch(`${API}/community/promotions/${promoId}/redeem`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            btn.textContent = '✅ נרשם! +3 ₣';
+            btn.className = btn.className.replace('bg-orange-500 hover:bg-orange-600','bg-green-500');
+            loadFamilyFlowWallet();
+        } else { btn.textContent = '✅ מימשתי'; btn.disabled = false; }
+    } catch(e) { btn.disabled = false; btn.textContent = '✅ מימשתי'; }
+};
+
+window.openWriteReviewModal = function(bizId, bizName) {
+    const existing = document.getElementById('write-review-modal');
+    if (existing) { existing.remove(); return; }
+    const comms = myConnectedCommunitiesCache || [];
+    const modal = document.createElement('div');
+    modal.id = 'write-review-modal';
+    modal.className = 'fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div class="p-4 border-b flex justify-between items-center bg-amber-50">
+            <h3 class="font-black text-slate-800 text-sm">⭐ ביקורת על ${safeStr(bizName)}</h3>
+            <button onclick="document.getElementById('write-review-modal').remove()" class="text-slate-400 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 space-y-3">
+            <p class="text-xs text-slate-500 bg-amber-50 rounded-xl p-2 border border-amber-100">ביקורת חיובית (4–5 ⭐) מזכה אותך ב-7 ₣ ואת העסק ב-8 ₣</p>
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-2 block">דירוג</label>
+                <div class="flex gap-2 justify-center text-3xl" id="star-rating">
+                    ${[1,2,3,4,5].map(i => `<span data-val="${i}" onclick="selectStar(${i})" class="cursor-pointer text-slate-300 hover:text-yellow-400 transition star-btn">★</span>`).join('')}
+                </div>
+                <input type="hidden" id="review-rating-val" value="0">
+            </div>
+            <textarea id="review-text" rows="3" placeholder="ספר על החוויה שלך..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm resize-none"></textarea>
+            <button onclick="submitCommunityReview(${bizId})" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-2.5 rounded-2xl text-sm transition">⭐ שלח ביקורת</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+};
+
+window.selectStar = function(val) {
+    document.getElementById('review-rating-val').value = val;
+    document.querySelectorAll('.star-btn').forEach((s,i) => {
+        s.className = s.className.replace('text-slate-300','').replace('text-yellow-400','');
+        s.classList.add(i < val ? 'text-yellow-400' : 'text-slate-300');
+    });
+};
+
+window.submitCommunityReview = async function(bizId) {
+    const rating = parseInt(document.getElementById('review-rating-val')?.value);
+    const text = document.getElementById('review-text')?.value?.trim();
+    if (!rating) { return; }
+    const communityId = myConnectedCommunitiesCache?.[0]?.id || null;
+    try {
+        const res = await fetch(`${API}/community/reviews`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ familyGroupId: currentGroup.id, businessGroupId: bizId, communityId, rating, text })
+        });
+        const data = await res.json();
+        document.getElementById('write-review-modal')?.remove();
+        if (data.success) { loadFamilyFlowWallet(); showToast && showToast('success','תודה! הביקורת נשמרה'); }
+        else showToast && showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast && showToast('error','שגיאה'); }
+};
 
 // ─── FLOW WALLET (FAMILY) ────────────────────────────────────
 
