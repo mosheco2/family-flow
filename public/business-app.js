@@ -15010,6 +15010,72 @@ window.loadMyBizBundles = async function() {
     } catch(e) { document.getElementById('biz-bundles-list').innerHTML = '<p class="text-red-400 text-sm text-center py-8">שגיאה</p>'; }
 };
 
+window.loadMyBizPromos = async function() {
+    const existing = document.getElementById('biz-mypromos-panel');
+    if (existing) { existing.remove(); return; }
+    const panel = document.createElement('div');
+    panel.id = 'biz-mypromos-panel';
+    panel.className = 'fixed inset-0 z-[9999] bg-white flex flex-col';
+    panel.innerHTML = `
+        <div class="px-4 py-3 border-b flex items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 shrink-0">
+            <button onclick="document.getElementById('biz-mypromos-panel').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 transition text-lg leading-none">←</button>
+            <h3 class="font-bold text-base text-slate-800">📋 המבצעים הקהילתיים שלי</h3>
+        </div>
+        <div id="biz-mypromos-list" class="overflow-y-auto flex-1 p-4 max-w-2xl w-full mx-auto"><p class="text-slate-400 text-sm text-center py-8">טוען...</p></div>`;
+    document.body.appendChild(panel);
+    if (!currentGroup?.id) return;
+    try {
+        const res = await fetch(`${API}/biz/community/promotions/${currentGroup.id}`);
+        const data = await res.json();
+        const list = data.promotions || [];
+        const el = document.getElementById('biz-mypromos-list');
+        if (!list.length) {
+            el.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">אין מבצעים עדיין. לחץ "📢 פרסם מבצע" ליצירה.</p>';
+            return;
+        }
+        el.innerHTML = list.map(p => {
+            const statusBadge = p.status === 'approved'
+                ? '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">✅ מאושר</span>'
+                : p.status === 'rejected'
+                ? '<span class="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">❌ נדחה</span>'
+                : '<span class="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">⏳ ממתין לאישור</span>';
+            const bannerBtn = p.status === 'approved'
+                ? `<button onclick="requestBannerForPromo(${p.id})" class="text-xs bg-pink-100 text-pink-700 px-3 py-1.5 rounded-lg font-bold hover:bg-pink-200 transition">🖼️ בקש קידום באנר</button>`
+                : '';
+            return `<div class="bg-white border border-slate-200 rounded-xl p-4 mb-3 shadow-sm">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <div class="font-bold text-slate-800">${safeStr(p.title)}</div>
+                        <div class="text-xs text-slate-500">${safeStr(p.community_name)}</div>
+                        ${p.discount_pct > 0 ? `<div class="text-xs text-green-600 font-bold">הנחה: ${p.discount_pct}%</div>` : ''}
+                        ${p.valid_until ? `<div class="text-xs text-orange-500">בתוקף עד: ${p.valid_until.slice(0,10)}</div>` : ''}
+                    </div>
+                    ${statusBadge}
+                </div>
+                ${p.content ? `<p class="text-xs text-slate-600 mb-2 bg-slate-50 rounded p-2">${safeStr(p.content)}</p>` : ''}
+                ${bannerBtn}
+            </div>`;
+        }).join('');
+    } catch(e) { document.getElementById('biz-mypromos-list').innerHTML = '<p class="text-red-400 text-sm text-center py-8">שגיאה</p>'; }
+};
+
+window.requestBannerForPromo = async function(promoId) {
+    if (!currentGroup?.id) return;
+    try {
+        const res = await fetch(`${API}/biz/community/promotions/${promoId}/banner-request`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ businessId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', '✅ בקשת הקידום נשלחה! מנהל הקהילה יאשר ויקבע תאריכים.');
+        } else {
+            showToast('info', data.error || 'שגיאה');
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
+
 // ─── FLOW WALLET (BUSINESS) ──────────────────────────────────
 
 window.openBizFlowWallet = async function() {
@@ -15149,6 +15215,7 @@ window.loadBizCommunities = async function() {
                 <button onclick="openInterestSearchModal()" class="bg-teal-100 text-teal-700 hover:bg-teal-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🔍 קהילות לפי עניין</button>
                 <button onclick="loadBizCommunitiesWithMatch()" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🎯 הצג % התאמה</button>
                 <button onclick="loadMyBizBundles()" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">📦 החבילות שלי</button>
+                <button onclick="loadMyBizPromos()" class="bg-pink-100 text-pink-700 hover:bg-pink-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">📋 המבצעים שלי</button>
                 <button onclick="openBizFlowWallet()" class="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">⚡ ארנק FLOW</button>
             `;
             anchor.parentElement?.insertBefore(bar, anchor);

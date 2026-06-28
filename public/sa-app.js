@@ -2065,7 +2065,8 @@ async function loadSACommunityData() {
                 <button onclick="openSAPromotionsPanel()" class="bg-orange-100 text-orange-700 hover:bg-orange-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">📢 אישור מבצעים</button>
                 <button onclick="openSAReferralsPanel()" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">🌟 שגרירי קהילה</button>
                 <button onclick="openSABundlesPanel()" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">📦 חבילות קהילה</button>
-                <button onclick="openMatchScorePanel(saBusinessesCache?.[0]?.id, saBusinessesCache?.[0]?.name||'בחר עסק')" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">🎯 התאמת עסקים</button>
+                <button onclick="openBusinessMatchStandalonePanel()" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">🎯 התאמת עסקים</button>
+                <button onclick="openSABannerRequestsPanel()" class="bg-pink-100 text-pink-700 hover:bg-pink-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">🖼️ בקשות באנר</button>
                 <button onclick="openFlowConfigPanel()" class="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">⚡ ניהול FLOW</button>
             `;
             section.insertBefore(bar, section.firstChild);
@@ -6533,7 +6534,10 @@ window.openSAReferralsPanel = async function() {
     panel.innerHTML = `
         <div class="px-4 py-3 border-b flex items-center gap-3 bg-gradient-to-r from-yellow-50 to-amber-50 shrink-0">
             <button onclick="document.getElementById('sa-referrals-panel').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 transition text-lg leading-none">←</button>
-            <h3 class="font-bold text-base text-slate-800">🌟 שגרירי קהילה — הפניות עסקים</h3>
+            <div>
+                <h3 class="font-bold text-base text-slate-800">🌟 שגרירי קהילה — הפניות עסקים</h3>
+                <p class="text-xs text-slate-500 mt-0.5">נקודות FLOW (35 לממליץ + 15 לקהילה) זוכות אוטומטית. הסכום כאן הוא בונוס נוסף לארנק קהילה.</p>
+            </div>
         </div>
         <div id="sa-referrals-list" class="overflow-y-auto flex-1 p-4 md:p-6 max-w-4xl w-full mx-auto"><p class="text-slate-400 text-sm text-center py-8">טוען...</p></div>`;
     document.body.appendChild(panel);
@@ -6662,21 +6666,20 @@ window.openCommunitiesMap = async function() {
     if (existing) { existing.remove(); return; }
     const panel = document.createElement('div');
     panel.id = 'sa-comm-map-panel';
-    panel.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    panel.className = 'fixed inset-0 z-[9999] bg-white flex flex-col';
     panel.innerHTML = `
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50">
-            <h3 class="font-bold text-lg text-slate-800">🗺️ מפת קהילות אינטראקטיבית</h3>
-            <button onclick="document.getElementById('sa-comm-map-panel').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        <div class="px-4 py-3 border-b flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 shrink-0">
+            <button onclick="document.getElementById('sa-comm-map-panel').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 transition text-lg leading-none">←</button>
+            <h3 class="font-bold text-base text-slate-800">🗺️ מפת קהילות אינטראקטיבית</h3>
         </div>
-        <div id="sa-map-content" class="overflow-y-auto flex-1 p-4"><p class="text-slate-400 text-sm text-center py-8">טוען נתוני מפה...</p></div>
-    </div>`;
+        <div id="sa-map-content" class="overflow-y-auto flex-1 p-4 md:p-6 max-w-4xl w-full mx-auto"><p class="text-slate-400 text-sm text-center py-8">טוען נתוני מפה...</p></div>`;
     document.body.appendChild(panel);
     try {
         const res = await fetch(`${API}/sa/communities/map-data`, { headers: { Authorization: saToken } });
         const data = await res.json();
-        const comms = data.communities || [];
         const el = document.getElementById('sa-map-content');
+        if (data.error) { el.innerHTML = `<p class="text-red-400 text-sm text-center py-8">שגיאה: ${safeStr(data.error)}</p>`; return; }
+        const comms = data.communities || [];
         if (!comms.length) { el.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">אין קהילות לתצוגה</p>'; return; }
 
         // Group by city for visual map
@@ -6718,6 +6721,165 @@ window.openCommunitiesMap = async function() {
         </div>`).join('') + `</div>`;
         el.innerHTML = html;
     } catch(e) { document.getElementById('sa-map-content').innerHTML = '<p class="text-red-400 text-sm text-center py-8">שגיאה בטעינה</p>'; }
+};
+
+// --- Feature: Business Match Standalone Panel ---
+window.openBusinessMatchStandalonePanel = function() {
+    const existing = document.getElementById('sa-biz-match-standalone');
+    if (existing) { existing.remove(); return; }
+    const bizList = saBusinessesCache || [];
+    const panel = document.createElement('div');
+    panel.id = 'sa-biz-match-standalone';
+    panel.className = 'fixed inset-0 z-[9999] bg-white flex flex-col';
+    panel.innerHTML = `
+        <div class="px-4 py-3 border-b flex items-center gap-3 bg-gradient-to-r from-purple-50 to-indigo-50 shrink-0">
+            <button onclick="document.getElementById('sa-biz-match-standalone').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 transition text-lg leading-none">←</button>
+            <h3 class="font-bold text-base text-slate-800">🎯 התאמת קהילות לעסק</h3>
+        </div>
+        <div class="p-4 border-b bg-slate-50 shrink-0">
+            <label class="text-xs font-bold text-slate-600 mb-1 block">בחר עסק לבדיקת התאמה:</label>
+            <select id="biz-match-selector" onchange="loadMatchForSelectedBiz()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm max-w-md">
+                <option value="">-- בחר עסק --</option>
+                ${bizList.map(b => `<option value="${b.id}" data-name="${safeStr(b.name)}">${safeStr(b.name)}</option>`).join('')}
+            </select>
+        </div>
+        <div id="sa-biz-match-results" class="overflow-y-auto flex-1 p-4 max-w-2xl w-full mx-auto">
+            <p class="text-slate-400 text-sm text-center py-12">בחר עסק כדי לראות התאמת קהילות</p>
+        </div>`;
+    document.body.appendChild(panel);
+};
+
+window.loadMatchForSelectedBiz = async function() {
+    const sel = document.getElementById('biz-match-selector');
+    const bizId = sel?.value;
+    const bizName = sel?.options[sel.selectedIndex]?.dataset?.name || '';
+    const el = document.getElementById('sa-biz-match-results');
+    if (!bizId || !el) return;
+    el.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">מחשב התאמות...</p>';
+    try {
+        const res = await fetch(`${API}/biz/communities/match/${bizId}`, { headers: { Authorization: saToken } });
+        const data = await res.json();
+        const list = (data.communities || []).slice(0, 20);
+        if (!list.length) { el.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">לא נמצאו קהילות</p>'; return; }
+        el.innerHTML = `<h4 class="font-bold text-slate-700 text-sm mb-3">קהילות מותאמות עבור: ${safeStr(bizName)}</h4>` + list.map(c => {
+            const score = c.match_score || 0;
+            const color = score >= 70 ? 'bg-green-500' : score >= 40 ? 'bg-amber-400' : 'bg-slate-300';
+            const scoreColor = score >= 70 ? 'text-green-600' : score >= 40 ? 'text-amber-600' : 'text-slate-400';
+            return `<div class="flex items-center gap-3 py-3 border-b border-slate-100 last:border-0">
+                <div class="w-14 text-center">
+                    <div class="text-xl font-black ${scoreColor}">${score}%</div>
+                </div>
+                <div class="flex-1">
+                    <div class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</div>
+                    <div class="text-xs text-slate-500">${safeStr(c.city || '')} · ${c.family_count || 0} משפחות · ${c.biz_count || 0} עסקים</div>
+                </div>
+                <div class="w-28 bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                    <div class="${color} h-2.5 rounded-full" style="width:${score}%"></div>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) { el.innerHTML = '<p class="text-red-400 text-sm text-center py-8">שגיאה בטעינה</p>'; }
+};
+
+// --- Feature: SA Banner Requests Panel ---
+window.openSABannerRequestsPanel = async function() {
+    const existing = document.getElementById('sa-banner-req-panel');
+    if (existing) { existing.remove(); return; }
+    const panel = document.createElement('div');
+    panel.id = 'sa-banner-req-panel';
+    panel.className = 'fixed inset-0 z-[9999] bg-white flex flex-col';
+    panel.innerHTML = `
+        <div class="px-4 py-3 border-b flex items-center gap-3 bg-gradient-to-r from-pink-50 to-rose-50 shrink-0">
+            <button onclick="document.getElementById('sa-banner-req-panel').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 transition text-lg leading-none">←</button>
+            <h3 class="font-bold text-base text-slate-800">🖼️ בקשות קידום באנר</h3>
+        </div>
+        <div id="sa-banner-list" class="overflow-y-auto flex-1 p-4 md:p-6 max-w-4xl w-full mx-auto"><p class="text-slate-400 text-sm text-center py-8">טוען...</p></div>`;
+    document.body.appendChild(panel);
+    await loadSABannerRequests();
+};
+
+async function loadSABannerRequests() {
+    const el = document.getElementById('sa-banner-list');
+    if (!el) return;
+    try {
+        const res = await fetch(`${API}/sa/community/banner-requests`, { headers: { Authorization: saToken } });
+        const data = await res.json();
+        const list = data.requests || [];
+        if (!list.length) { el.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">אין בקשות באנר עדיין</p>'; return; }
+        el.innerHTML = list.map(b => {
+            const statusTag = b.status === 'approved'
+                ? `<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">✅ פעיל ${b.start_date ? b.start_date.slice(0,10) : ''} — ${b.end_date ? b.end_date.slice(0,10) : ''}</span>`
+                : b.status === 'rejected'
+                ? `<span class="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">❌ נדחה</span>`
+                : `<span class="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">⏳ ממתין לאישור</span>`;
+            return `<div class="bg-white border border-slate-200 rounded-xl p-4 mb-3 shadow-sm" id="banner-req-${b.id}">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <div class="font-bold text-slate-800">${safeStr(b.promo_title)}</div>
+                        <div class="text-xs text-slate-500">${safeStr(b.business_name)} → ${safeStr(b.community_name)}</div>
+                        ${b.discount_pct > 0 ? `<div class="text-xs text-green-600 font-bold">הנחה: ${b.discount_pct}%</div>` : ''}
+                    </div>
+                    ${statusTag}
+                </div>
+                ${b.banner_headline ? `<div class="bg-gradient-to-l from-indigo-50 to-purple-50 border border-indigo-100 rounded-lg px-3 py-2 mb-2 text-sm font-bold text-indigo-800">💬 "${safeStr(b.banner_headline)}"</div>` : ''}
+                ${b.promo_content ? `<p class="text-xs text-slate-600 mb-2 bg-slate-50 rounded p-2">${safeStr(b.promo_content)}</p>` : ''}
+                ${b.status === 'pending' ? `
+                <div class="space-y-2 mt-3">
+                    <div class="flex gap-2">
+                        <div class="flex-1">
+                            <label class="text-[10px] font-bold text-slate-500 block mb-0.5">תחילת הצגה</label>
+                            <input type="date" id="banner-start-${b.id}" class="w-full border border-slate-200 rounded-lg px-2 py-1 text-xs">
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-[10px] font-bold text-slate-500 block mb-0.5">סיום הצגה</label>
+                            <input type="date" id="banner-end-${b.id}" class="w-full border border-slate-200 rounded-lg px-2 py-1 text-xs">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-0.5">כותרת באנר</label>
+                        <div class="flex gap-1">
+                            <input type="text" id="banner-headline-${b.id}" value="${safeStr(b.banner_headline || '')}" placeholder="כותרת שיווקית..." class="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-xs">
+                            <button onclick="generateBannerAI(${b.id})" class="bg-purple-100 text-purple-700 px-2 py-1 rounded-lg text-xs font-bold hover:bg-purple-200 transition">🤖 AI</button>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="approveBannerRequest(${b.id},'approved')" class="flex-1 bg-green-100 text-green-700 py-1.5 rounded-lg text-sm font-bold hover:bg-green-200 transition">✅ אשר ופרסם</button>
+                        <button onclick="approveBannerRequest(${b.id},'rejected')" class="flex-1 bg-red-100 text-red-600 py-1.5 rounded-lg text-sm font-bold hover:bg-red-200 transition">❌ דחה</button>
+                    </div>
+                </div>` : ''}
+            </div>`;
+        }).join('');
+    } catch(e) { el.innerHTML = '<p class="text-red-400 text-sm text-center py-8">שגיאה בטעינה</p>'; }
+}
+
+window.generateBannerAI = async function(id) {
+    const btn = document.querySelector(`#banner-req-${id} button[onclick="generateBannerAI(${id})"]`);
+    if (btn) btn.textContent = '⏳';
+    try {
+        const res = await fetch(`${API}/sa/community/banner-ai/${id}`, { method: 'POST', headers: { Authorization: saToken } });
+        const data = await res.json();
+        if (data.headline) {
+            const inp = document.getElementById(`banner-headline-${id}`);
+            if (inp) inp.value = data.headline;
+            showSAToast('🤖 כותרת AI נוצרה!');
+        } else showSAToast('שגיאה: ' + (data.error || 'AI לא זמין'));
+    } catch(e) { showSAToast('שגיאה'); }
+    if (btn) btn.textContent = '🤖 AI';
+};
+
+window.approveBannerRequest = async function(id, status) {
+    const startDate = document.getElementById(`banner-start-${id}`)?.value;
+    const endDate = document.getElementById(`banner-end-${id}`)?.value;
+    const bannerHeadline = document.getElementById(`banner-headline-${id}`)?.value?.trim();
+    if (status === 'approved' && (!startDate || !endDate)) { showSAToast('⚠️ יש להזין תאריך התחלה וסיום'); return; }
+    try {
+        await fetch(`${API}/sa/community/banner-requests/${id}/approve`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: saToken },
+            body: JSON.stringify({ status, startDate: startDate || null, endDate: endDate || null, bannerHeadline: bannerHeadline || null })
+        });
+        showSAToast(status === 'approved' ? '✅ באנר אושר ופורסם!' : '❌ בקשה נדחתה');
+        loadSABannerRequests();
+    } catch(e) { showSAToast('שגיאה'); }
 };
 
 // --- Feature 6: Community Bundles ---

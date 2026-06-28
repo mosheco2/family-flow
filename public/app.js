@@ -4269,6 +4269,7 @@ async function loadCommunityFeed() {
         const res = await fetch(`${API}/community/family-feed/${currentGroup.id}`);
         if (!res.ok) return;
         const data = await res.json();
+        renderCommunityBanners(data.banners || []);
         renderCommunityPromotions(data.promotions || []);
         renderCommunityBundles(data.bundles || []);
         // Show news tab badge if there's content
@@ -4283,6 +4284,33 @@ async function loadCommunityFeed() {
             }
         }
     } catch(e) {}
+}
+
+function renderCommunityBanners(banners) {
+    const el = getEl('comm-banners-feed');
+    if (!el) return;
+    if (!banners.length) { el.innerHTML = ''; return; }
+    el.innerHTML = banners.map(b => {
+        const storeUrl = b.group_code
+            ? `${window.location.origin}/storefront.html?store=${b.group_code}&communityId=${b.community_id}`
+            : '#';
+        const logoHtml = b.business_logo && !b.business_logo.startsWith('data:')
+            ? `<img src="${b.business_logo}" class="w-12 h-12 rounded-xl object-cover shadow border border-white shrink-0">`
+            : `<div class="w-12 h-12 rounded-xl bg-white/30 flex items-center justify-center text-2xl shrink-0">🏪</div>`;
+        return `<a href="${storeUrl}" class="block bg-gradient-to-l from-indigo-600 to-purple-700 text-white rounded-2xl p-4 shadow-md hover:shadow-lg transition fade-in no-underline">
+            <div class="flex items-center gap-3 mb-2">
+                ${logoHtml}
+                <div class="flex-1 text-right">
+                    <div class="text-[10px] font-bold text-indigo-200 uppercase tracking-wider">באנר קהילה · ${safeStr(b.community_name)}</div>
+                    <div class="font-black text-base leading-tight mt-0.5">${safeStr(b.banner_headline || b.title)}</div>
+                </div>
+            </div>
+            <div class="flex justify-between items-center">
+                <div class="text-[10px] text-indigo-200">לחץ לחנות ${safeStr(b.business_name)}</div>
+                ${b.discount_pct > 0 ? `<span class="bg-white/20 text-white text-xs font-black px-2.5 py-1 rounded-full">${b.discount_pct}% הנחה</span>` : ''}
+            </div>
+        </a>`;
+    }).join('');
 }
 
 function renderCommunityPromotions(promos) {

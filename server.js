@@ -7902,7 +7902,24 @@ app.get('/api/community/family-feed/:groupId', async (req, res) => {
              WHERE cb.community_id=ANY($1) AND cb.status='active'
              GROUP BY cb.id, c.name ORDER BY cb.created_at DESC`, [commIds]);
 
-        res.json({ promotions: promos.rows, bundles: bundles.rows });
+        // Active banners (approved, within date range)
+        let banners = { rows: [] };
+        try {
+            banners = await pool.query(
+                `SELECT cbr.id, cbr.banner_headline, cbr.start_date, cbr.end_date, cbr.community_id,
+                 cp.title, cp.content, cp.discount_pct, cp.valid_until,
+                 fg.name as business_name, fg.image_url as business_logo, fg.group_code,
+                 c.name as community_name
+                 FROM community_banner_requests cbr
+                 JOIN community_promotions cp ON cp.id=cbr.promotion_id
+                 JOIN family_groups fg ON fg.id=cbr.business_id
+                 JOIN communities c ON c.id=cbr.community_id
+                 WHERE cbr.community_id=ANY($1) AND cbr.status='approved'
+                 AND cbr.start_date <= CURRENT_DATE AND cbr.end_date >= CURRENT_DATE
+                 ORDER BY cbr.created_at DESC LIMIT 5`, [commIds]);
+        } catch(_) {}
+
+        res.json({ promotions: promos.rows, bundles: bundles.rows, banners: banners.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -9154,6 +9171,21 @@ app.get('/api/community/manager-data/:groupId', async (req, res) => {
         await pool.query(`ALTER TABLE communities ADD COLUMN IF NOT EXISTS community_type VARCHAR(20) DEFAULT 'geographic'`);
         await pool.query(`ALTER TABLE communities ADD COLUMN IF NOT EXISTS interest_tags TEXT`);
         await pool.query(`ALTER TABLE community_referrals ADD COLUMN IF NOT EXISTS notes TEXT`);
+        await pool.query(`ALTER TABLE community_promotions ADD COLUMN IF NOT EXISTS banner_headline TEXT`);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS community_banner_requests (
+                id SERIAL PRIMARY KEY,
+                promotion_id INT REFERENCES community_promotions(id) ON DELETE CASCADE,
+                business_id INT REFERENCES family_groups(id),
+                community_id INT REFERENCES communities(id),
+                status VARCHAR(20) DEFAULT 'pending',
+                start_date DATE,
+                end_date DATE,
+                banner_headline TEXT,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
         // Referral code system
         await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS referral_code VARCHAR(12) UNIQUE`);
         await pool.query(`ALTER TABLE family_communities ADD COLUMN IF NOT EXISTS referred_by_group_id INT REFERENCES family_groups(id)`);
@@ -9495,7 +9527,6 @@ app.get('/api/sa/communities/map-data', verifySA, async (req, res) => {
     try {
         const r = await pool.query(
             `SELECT c.id, c.name, c.city, c.status, c.community_type, c.interest_tags,
-             c.lat, c.lng,
              (SELECT COUNT(*) FROM family_communities WHERE community_id=c.id) as family_count,
              (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='approved') as biz_count,
              (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='pending') as pending_biz,
@@ -9505,6 +9536,83 @@ app.get('/api/sa/communities/map-data', verifySA, async (req, res) => {
              LEFT JOIN manager_zones mz ON mz.id=c.zone_id
              ORDER BY c.name`);
         res.json({ communities: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Feature: Community Banner Requests ---
+
+// Business requests a banner for their approved promotion
+app.post('/api/biz/community/promotions/:id/banner-request', async (req, res) => {
+    try {
+        const { businessId } = req.body;
+        if (!businessId) return res.status(400).json({ error: 'חסר businessId' });
+        const promo = await pool.query(
+            `SELECT * FROM community_promotions WHERE id=$1 AND business_id=$2 AND status='approved'`,
+            [req.params.id, businessId]);
+        if (!promo.rows.length) return res.status(404).json({ error: 'מבצע לא נמצא או לא מאושר' });
+        const p = promo.rows[0];
+        const existing = await pool.query(
+            `SELECT id FROM community_banner_requests WHERE promotion_id=$1 AND status!='rejected'`, [p.id]);
+        if (existing.rows.length) return res.status(409).json({ error: 'בקשת באנר כבר קיימת למבצע זה' });
+        const r = await pool.query(
+            `INSERT INTO community_banner_requests (promotion_id, business_id, community_id) VALUES ($1,$2,$3) RETURNING id`,
+            [p.id, p.business_id, p.community_id]);
+        res.json({ success: true, requestId: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA sees all banner requests
+app.get('/api/sa/community/banner-requests', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT cbr.*, cp.title as promo_title, cp.content as promo_content, cp.discount_pct,
+             fg.name as business_name, fg.image_url as business_logo, fg.group_code,
+             c.name as community_name
+             FROM community_banner_requests cbr
+             JOIN community_promotions cp ON cp.id=cbr.promotion_id
+             JOIN family_groups fg ON fg.id=cbr.business_id
+             JOIN communities c ON c.id=cbr.community_id
+             ORDER BY cbr.created_at DESC`);
+        res.json({ requests: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA approves/rejects a banner request with date range
+app.post('/api/sa/community/banner-requests/:id/approve', verifySA, async (req, res) => {
+    try {
+        const { status, startDate, endDate, bannerHeadline } = req.body;
+        if (!['approved','rejected'].includes(status)) return res.status(400).json({ error: 'סטטוס לא חוקי' });
+        if (status === 'approved' && (!startDate || !endDate)) return res.status(400).json({ error: 'נדרש תאריך התחלה וסיום' });
+        await pool.query(
+            `UPDATE community_banner_requests SET status=$1, start_date=$2, end_date=$3, banner_headline=$4 WHERE id=$5`,
+            [status, startDate || null, endDate || null, bannerHeadline || null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA generates AI headline for a banner request
+app.post('/api/sa/community/banner-ai/:id', verifySA, async (req, res) => {
+    try {
+        if (!genAI) return res.status(500).json({ error: 'AI לא זמין — חסר GEMINI_API_KEY' });
+        const r = await pool.query(
+            `SELECT cbr.*, cp.title, cp.content, cp.discount_pct,
+             fg.name as business_name, c.name as community_name
+             FROM community_banner_requests cbr
+             JOIN community_promotions cp ON cp.id=cbr.promotion_id
+             JOIN family_groups fg ON fg.id=cbr.business_id
+             JOIN communities c ON c.id=cbr.community_id
+             WHERE cbr.id=$1`, [req.params.id]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצאה בקשה' });
+        const item = r.rows[0];
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const prompt = `צור כותרת שיווקית קצרה (עד 10 מילים) בעברית לבאנר פרסומי קהילתי.
+מבצע: ${item.title}. ${item.content || ''} ${item.discount_pct > 0 ? `הנחה ${item.discount_pct}%.` : ''}
+עסק: ${item.business_name}. קהילה: ${item.community_name}.
+החזר רק את הכותרת עצמה, ללא מרכאות וללא נקודה בסוף.`;
+        const result = await model.generateContent(prompt);
+        const headline = result.response.text().trim().replace(/^["']|["']$/g, '').replace(/\.$/, '');
+        await pool.query(`UPDATE community_banner_requests SET banner_headline=$1 WHERE id=$2`, [headline, req.params.id]);
+        res.json({ success: true, headline });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
