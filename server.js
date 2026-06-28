@@ -7935,20 +7935,33 @@ app.post('/api/community/family-refer', async (req, res) => {
 // 3. הצטרפות לקהילה (בדיקת מגבלת 5 קהילות)
 app.post('/api/community/join', async (req, res) => {
     try {
-        const { groupId, code } = req.body;
+        const { groupId, code, referralCode } = req.body;
         const commRes = await pool.query("SELECT id, name FROM communities WHERE code = $1 AND status = 'active'", [code.toUpperCase().trim()]);
         if(commRes.rows.length === 0) return res.status(404).json({error: 'קוד קהילה שגוי או שהקהילה טרם הופעלה על ידי היזם.'});
-        
+
         const commId = commRes.rows[0].id;
-        
+
         // בדיקת המגבלה
         const countRes = await pool.query('SELECT COUNT(*) FROM family_communities WHERE group_id = $1', [groupId]);
         if (parseInt(countRes.rows[0].count) >= 5) return res.status(400).json({error: 'ניתן להצטרף לעד 5 קהילות במקביל.'});
-        
-        await pool.query('INSERT INTO family_communities (group_id, community_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [groupId, commId]);
-        // Award FLOW for joining
+
+        // Resolve referrer
+        let referrerId = null;
+        if (referralCode) {
+            const refRes = await pool.query(`SELECT id FROM family_groups WHERE referral_code=$1 AND type='FAMILY' AND id!=$2`, [referralCode.toUpperCase().trim(), groupId]);
+            if (refRes.rows.length) referrerId = refRes.rows[0].id;
+        }
+
+        await pool.query(
+            'INSERT INTO family_communities (group_id, community_id, referred_by_group_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+            [groupId, commId, referrerId]);
+
+        // Award joiner FLOW
         await awardFlow('family', parseInt(groupId), 'join_community', commId, commId);
-        res.json({success: true, community: commRes.rows[0]});
+        // Award referrer FLOW
+        if (referrerId) await awardFlow('family', referrerId, 'referral', commId, parseInt(groupId));
+
+        res.json({success: true, community: commRes.rows[0], referrerFound: !!referrerId});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
@@ -9138,9 +9151,32 @@ app.get('/api/community/manager-data/:groupId', async (req, res) => {
         await pool.query(`ALTER TABLE communities ADD COLUMN IF NOT EXISTS community_type VARCHAR(20) DEFAULT 'geographic'`);
         await pool.query(`ALTER TABLE communities ADD COLUMN IF NOT EXISTS interest_tags TEXT`);
         await pool.query(`ALTER TABLE community_referrals ADD COLUMN IF NOT EXISTS notes TEXT`);
+        // Referral code system
+        await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS referral_code VARCHAR(12) UNIQUE`);
+        await pool.query(`ALTER TABLE family_communities ADD COLUMN IF NOT EXISTS referred_by_group_id INT REFERENCES family_groups(id)`);
+        // Backfill referral codes for existing families
+        await pool.query(`
+            UPDATE family_groups SET referral_code = UPPER(SUBSTRING(MD5(id::text || 'fref') FROM 1 FOR 8))
+            WHERE type='FAMILY' AND referral_code IS NULL
+        `);
         console.log('[Community] Advanced feature tables ready');
     } catch(e) { console.error('[Community migration]', e.message); }
 })();
+
+// Get my referral code
+app.get('/api/community/my-referral-code/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT referral_code FROM family_groups WHERE id=$1 AND type='FAMILY'`, [req.params.groupId]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        let code = r.rows[0].referral_code;
+        if (!code) {
+            // Generate on demand
+            code = Math.random().toString(36).substring(2,6).toUpperCase() + Math.random().toString(36).substring(2,6).toUpperCase();
+            await pool.query(`UPDATE family_groups SET referral_code=$1 WHERE id=$2`, [code, req.params.groupId]);
+        }
+        res.json({ code });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
 // --- Feature 1: Community Promotions (קהילה כ"ערוץ שיווק") ---
 

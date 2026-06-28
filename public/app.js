@@ -4238,6 +4238,7 @@ function renderFamilyCommunities() {
     // ── Community Feed: Promotions + Bundles ─────────────────
     loadCommunityFeed();
     loadFamilyFlowWallet();
+    if (myConnectedCommunitiesCache.length > 0) loadMyReferralCode();
 
     // ── Initiatives (appended inside join view) ───────────────
     let initContainer = getEl('my-initiatives-container');
@@ -4626,19 +4627,48 @@ async function joinCommunityDyn() {
     const inputEl = getEl('community-code-input-dyn') || getEl('community-code-input');
     const code = inputEl ? inputEl.value : '';
     if(!code) return showToast('error', 'יש להזין קוד קהילה');
-    
+    const referralCode = (getEl('community-referral-input')?.value || '').trim().toUpperCase() || undefined;
+
     try {
         const res = await fetch(`${API}/community/join`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, code })
+            body: JSON.stringify({ groupId: currentGroup.id, code, referralCode })
         });
         const data = await res.json();
         if(data.success) {
-            showToast('success', `הצטרפתם בהצלחה לקהילת: ${data.community.name}`);
+            const msg = data.referrerFound
+                ? `הצטרפתם לקהילת ${data.community.name} 🎉 השכן שהפנה אותכם קיבל ₣ FLOW`
+                : `הצטרפתם בהצלחה לקהילת: ${data.community.name}`;
+            showToast('success', msg);
             fetchCommunityData();
+            loadMyReferralCode();
         } else { showToast('error', data.error || 'שגיאה. ודאו שהקוד נכון וטרם הגעתם ל-5 קהילות.'); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
+
+async function loadMyReferralCode() {
+    if (!currentGroup || currentGroup.type !== 'FAMILY') return;
+    try {
+        const res = await fetch(`${API}/community/my-referral-code/${currentGroup.id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const display = getEl('my-referral-code-display');
+        const card = getEl('my-referral-code-card');
+        if (display) display.textContent = data.code;
+        if (card) card.classList.remove('hidden');
+    } catch(e) {}
+}
+
+window.toggleReferralInput = function() {
+    const wrap = getEl('referral-input-wrap');
+    if (wrap) wrap.classList.toggle('hidden');
+};
+
+window.copyReferralCode = function() {
+    const code = getEl('my-referral-code-display')?.textContent?.trim();
+    if (!code || code === '...') return;
+    navigator.clipboard?.writeText(code).then(() => showToast('success', `קוד ${code} הועתק!`)).catch(() => showToast('info', `הקוד שלך: ${code}`));
+};
 
 async function leaveCommunity(commId, commName) {
     if(!confirm(`האם אתם בטוחים שברצונכם להתנתק מקהילת ${commName}? לא תוכלו לקבל הנחות מעסקים בקהילה זו.`)) return;
