@@ -525,6 +525,7 @@ function switchTab(t) { 
     if (t === 'recipes') try { renderRecipePantrySelection(); } catch(e) {}
     if (t === 'forecast') try { renderForecast(); } catch(e) {}
     if (t === 'cashflow') try { renderCashflow(); } catch(e) {}
+    if (t === 'budget') try { fetchBudget(); } catch(e) {}
     if (t === 'community') try { fetchCommunityData(); } catch(e) {}
     if (t === 'myorders') {
         try {
