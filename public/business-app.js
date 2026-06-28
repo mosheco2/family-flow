@@ -14756,6 +14756,81 @@ async function loadBizAvailableCommunities() {
     } catch(e) { console.error("Error loading available communities", e); }
 }
 
+window.setDiscoverMode = function(mode) {
+    const cityPanel = document.getElementById('disc-panel-city');
+    const bizPanel = document.getElementById('disc-panel-biz');
+    const cityBtn = document.getElementById('disc-mode-city');
+    const bizBtn = document.getElementById('disc-mode-biz');
+    const active = 'flex-1 py-2 px-3 rounded-xl text-xs font-bold bg-orange-500 text-white transition';
+    const inactive = 'flex-1 py-2 px-3 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
+    if (mode === 'city') {
+        if (cityPanel) cityPanel.classList.remove('hidden');
+        if (bizPanel) bizPanel.classList.add('hidden');
+        if (cityBtn) cityBtn.className = active;
+        if (bizBtn) bizBtn.className = inactive;
+    } else {
+        if (cityPanel) cityPanel.classList.add('hidden');
+        if (bizPanel) bizPanel.classList.remove('hidden');
+        if (cityBtn) cityBtn.className = inactive;
+        if (bizBtn) bizBtn.className = active;
+    }
+};
+
+window.detectBizCity = function() {
+    const cityInp = document.getElementById('biz-filter-city');
+    if (!cityInp) return;
+    // Try from business profile first
+    const profileCity = currentGroup?.city || currentGroup?.address_city;
+    if (profileCity) {
+        cityInp.value = profileCity;
+        filterBizAvailableCommunities();
+        return;
+    }
+    // Fallback: browser geolocation → reverse geocode
+    if (!navigator.geolocation) { showToast('info', 'הדפדפן לא תומך בזיהוי מיקום'); return; }
+    showToast('info', '📍 מזהה מיקום...');
+    navigator.geolocation.getCurrentPosition(async pos => {
+        try {
+            const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json&accept-language=he`);
+            const d = await r.json();
+            const city = d.address?.city || d.address?.town || d.address?.village || '';
+            if (city && cityInp) {
+                cityInp.value = city;
+                filterBizAvailableCommunities();
+            }
+        } catch(e) { showToast('error', 'לא הצלחנו לזהות את העיר'); }
+    }, () => showToast('error', 'לא ניתן לגשת למיקום'));
+};
+
+window.discoverViaBusinessCode = async function() {
+    const code = (document.getElementById('biz-via-code')?.value || '').trim().toUpperCase();
+    const el = document.getElementById('biz-via-result');
+    const list = document.getElementById('biz-available-communities-list');
+    if (!code || !currentGroup?.id) return;
+    if (el) el.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">מחפש...</p>';
+    try {
+        const res = await fetch(`${API}/biz/communities/via-biz/${code}/${currentGroup.id}`);
+        const data = await res.json();
+        if (!data.success) { if (el) el.innerHTML = `<p class="text-xs text-red-500 text-center py-2">${data.error || 'שגיאה'}</p>`; return; }
+        if (el) el.innerHTML = `<p class="text-xs text-green-700 font-bold bg-green-50 rounded-lg px-3 py-1.5">✅ קהילות של ${safeStr(data.via_biz)}:</p>`;
+        const comms = data.communities || [];
+        if (!comms.length) { if (list) list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 col-span-2">העסק אינו חבר בקהילות שאינך כבר חבר בהן</p>'; return; }
+        if (list) list.innerHTML = comms.map(c => {
+            const imgHtml = c.image_url ? `<img src="${c.image_url}" class="w-10 h-10 rounded-xl object-cover shadow-sm border border-slate-100 shrink-0">` : `<div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-400 shrink-0"><i class="fa-solid fa-users-rays"></i></div>`;
+            return `<div class="bg-white p-4 rounded-2xl shadow-sm border border-indigo-100 flex flex-col justify-between hover:shadow-md transition">
+                <div class="flex items-center gap-3 mb-3">
+                    ${imgHtml}
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4>
+                        <p class="text-[10px] text-slate-500"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')} · ${c.families_count || 0} משפחות</p>
+                    </div>
+                </div>
+                <button onclick="openBizJoinModal(${c.id}, '${safeStr(c.name).replace(/'/g,"\\'")}') " class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition">הצטרף לקהילה</button>
+            </div>`;
+        }).join('');
+    } catch(e) { if (el) el.innerHTML = '<p class="text-xs text-red-500 text-center py-2">שגיאת רשת</p>'; }
+};
+
 function filterBizAvailableCommunities() {
     const list = document.getElementById('biz-available-communities-list');
     if (!list) return;
@@ -14929,12 +15004,26 @@ window.submitBizPromo = async function() {
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 };
 
-// Feature 2: Show match score for available communities
+// Feature 2: Show match score in standalone panel
 window.loadBizCommunitiesWithMatch = async function() {
-    // Switch to discover tab so the list is visible
-    switchBizCommunityTab('discover');
-    const list = document.getElementById('biz-available-communities-list');
-    if (!list || !currentGroup?.id) return;
+    const existing = document.getElementById('biz-match-panel');
+    if (existing) { existing.remove(); return; }
+    const panel = document.createElement('div');
+    panel.id = 'biz-match-panel';
+    panel.className = 'fixed inset-0 z-[9999] bg-white flex flex-col';
+    panel.innerHTML = `
+        <div class="px-4 py-3 border-b flex items-center gap-3 bg-gradient-to-r from-purple-50 to-indigo-50 shrink-0">
+            <button onclick="document.getElementById('biz-match-panel').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 transition text-lg leading-none">←</button>
+            <div>
+                <h3 class="font-bold text-base text-slate-800">🎯 קהילות מומלצות עבורך</h3>
+                <p class="text-xs text-slate-500">ממוינות לפי % התאמה לסוג העסק שלך</p>
+            </div>
+        </div>
+        <div id="biz-match-panel-list" class="overflow-y-auto flex-1 p-4 max-w-2xl w-full mx-auto">
+            <p class="text-slate-400 text-sm text-center py-12">מחשב התאמות...</p>
+        </div>`;
+    document.body.appendChild(panel);
+    if (!currentGroup?.id) return;
     try {
         const [availRes, matchRes] = await Promise.all([
             fetch(`${API}/biz/communities/available/${currentGroup.id}`),
@@ -14946,24 +15035,34 @@ window.loadBizCommunitiesWithMatch = async function() {
         (matchData.communities || []).forEach(c => { matchMap[c.id] = c.match_score; });
         const communities = (availData.communities || []).map(c => ({ ...c, match_score: matchMap[c.id] || 0 }));
         communities.sort((a,b) => (b.match_score||0) - (a.match_score||0));
-        if (!communities.length) { list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">לא נמצאו קהילות</p>'; return; }
-        list.innerHTML = communities.map(c => {
+        const el = document.getElementById('biz-match-panel-list');
+        if (!el) return;
+        if (!communities.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">לא נמצאו קהילות פתוחות</p>'; return; }
+        el.innerHTML = communities.map(c => {
             const score = c.match_score || 0;
-            const scoreColor = score >= 70 ? 'text-green-600 bg-green-50' : score >= 40 ? 'text-amber-600 bg-amber-50' : 'text-slate-500 bg-slate-100';
-            const imgHtml = c.image_url ? `<img src="${c.image_url}" class="w-10 h-10 rounded-full object-cover shadow-sm mb-2 border border-slate-100">` : '';
-            return `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition">
-                <div class="flex justify-between items-start mb-3">
-                    <div>${imgHtml}<h4 class="font-bold text-slate-800">${safeStr(c.name)}</h4>
-                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')}</p></div>
-                    <div class="flex flex-col gap-1 items-end">
-                        <span class="${scoreColor} px-2 py-1 rounded-full font-black text-xs">🎯 ${score}%</span>
-                        <span class="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded text-[10px]">${c.families_count || 0} משפחות</span>
+            const scoreColor = score >= 70 ? 'text-green-600 bg-green-50 border-green-200' : score >= 40 ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-slate-500 bg-slate-100 border-slate-200';
+            const bar = score >= 70 ? 'bg-green-500' : score >= 40 ? 'bg-amber-400' : 'bg-slate-300';
+            const imgHtml = c.image_url ? `<img src="${c.image_url}" class="w-10 h-10 rounded-xl object-cover shadow-sm border border-slate-100 shrink-0">` : `<div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-400 shrink-0"><i class="fa-solid fa-users-rays"></i></div>`;
+            return `<div class="bg-white border border-slate-100 rounded-2xl p-4 mb-3 shadow-sm hover:shadow-md transition">
+                <div class="flex items-center gap-3 mb-3">
+                    ${imgHtml}
+                    <div class="flex-1">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4>
+                                <p class="text-[10px] text-slate-500"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')} · ${c.families_count || 0} משפחות</p>
+                            </div>
+                            <span class="${scoreColor} border px-2.5 py-1 rounded-full font-black text-xs shrink-0">🎯 ${score}%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
+                            <div class="${bar} h-1.5 rounded-full" style="width:${score}%"></div>
+                        </div>
                     </div>
                 </div>
-                <button onclick="openBizJoinModal(${c.id}, '${safeStr(c.name).replace(/'/g,"\\'")}') " class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition">הצטרף לקהילה</button>
+                <button onclick="openBizJoinModal(${c.id}, '${safeStr(c.name).replace(/'/g,"\\'")}');document.getElementById('biz-match-panel').remove()" class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition">הצטרף לקהילה</button>
             </div>`;
         }).join('');
-    } catch(e) { console.error('match load error', e); }
+    } catch(e) { const el = document.getElementById('biz-match-panel-list'); if(el) el.innerHTML = '<p class="text-red-400 text-sm text-center py-8">שגיאה בטעינה</p>'; }
 };
 
 // Feature 3: Business sees which bundles it's included in

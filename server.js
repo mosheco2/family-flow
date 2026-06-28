@@ -6989,6 +6989,24 @@ app.get('/api/biz/communities/available/:bizId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// Find communities via another business (discovery through peer business)
+app.get('/api/biz/communities/via-biz/:bizCode/:myBizId', async (req, res) => {
+    try {
+        const biz = await pool.query(`SELECT id, name FROM family_groups WHERE group_code=$1 AND type='BUSINESS'`, [req.params.bizCode.toUpperCase()]);
+        if (!biz.rows.length) return res.status(404).json({ error: 'לא נמצא עסק עם קוד זה' });
+        const b = biz.rows[0];
+        const result = await pool.query(`
+            SELECT c.id, c.name, c.city, c.image_url,
+            (SELECT COUNT(*) FROM family_communities WHERE community_id=c.id) as families_count,
+            (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='approved') as biz_count
+            FROM communities c
+            JOIN community_businesses cb ON cb.community_id=c.id AND cb.business_id=$1 AND cb.status='approved'
+            WHERE c.id NOT IN (SELECT community_id FROM community_businesses WHERE business_id=$2)
+        `, [b.id, req.params.myBizId]);
+        res.json({ success: true, via_biz: b.name, communities: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/biz/communities/join', async (req, res) => {
     try {
         const { communityId, businessId, discountPct } = req.body;

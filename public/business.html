@@ -2207,7 +2207,13 @@
                         </div>
                         <!-- Sub-view: Discover Communities -->
                         <div id="comm-view-discover" class="hidden">
-                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4">
+                            <!-- Discovery mode tabs -->
+                            <div class="flex gap-2 mb-3">
+                                <button id="disc-mode-city" onclick="setDiscoverMode('city')" class="flex-1 py-2 px-3 rounded-xl text-xs font-bold bg-orange-500 text-white transition">📍 גילוי לפי מיקום</button>
+                                <button id="disc-mode-biz" onclick="setDiscoverMode('biz')" class="flex-1 py-2 px-3 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">🏪 גילוי דרך עסק</button>
+                            </div>
+                            <!-- City/location filter -->
+                            <div id="disc-panel-city" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4">
                                 <div class="grid grid-cols-2 gap-3 mb-2">
                                     <div class="relative">
                                         <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
@@ -2224,6 +2230,18 @@
                                         <span class="text-xs font-bold text-slate-600">קהילות רב-אזוריות</span>
                                     </label>
                                 </div>
+                                <button onclick="detectBizCity()" class="w-full mt-1 text-xs text-orange-600 font-bold hover:text-orange-700 flex items-center justify-center gap-1.5 py-1.5 bg-orange-50 rounded-xl border border-orange-100 hover:bg-orange-100 transition">
+                                    <i class="fa-solid fa-location-crosshairs"></i> זהה את העיר שלי אוטומטית
+                                </button>
+                            </div>
+                            <!-- Via-business discovery -->
+                            <div id="disc-panel-biz" class="hidden bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4">
+                                <p class="text-xs text-slate-500 mb-3">הזן קוד עסק ותראה לאיזה קהילות הוא שייך — תוכל להצטרף לאותן קהילות</p>
+                                <div class="flex gap-2">
+                                    <input type="text" id="biz-via-code" placeholder="קוד עסק..." class="modern-input py-2 text-sm flex-1 uppercase font-mono tracking-widest" maxlength="10">
+                                    <button onclick="discoverViaBusinessCode()" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-700 transition">חפש</button>
+                                </div>
+                                <div id="biz-via-result" class="mt-3"></div>
                             </div>
                             <div id="biz-available-communities-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-20"></div>
                         </div>
