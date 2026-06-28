@@ -14854,6 +14854,239 @@ async function leaveBizCommunity(commId) {
     } catch(e) { showToast('error', 'תקלת רשת'); }
 }
 
+// ============================================================
+// --- COMMUNITY ADVANCED FEATURES (Business UI) ---
+// ============================================================
+
+// Feature 1: Business posts a promotion to community
+window.openBizPromoModal = function() {
+    const existing = document.getElementById('biz-promo-modal');
+    if (existing) { existing.remove(); return; }
+    const comms = (window.myCommunityBusinessesCache || []).filter(c => c.status === 'approved');
+    const modal = document.createElement('div');
+    modal.id = 'biz-promo-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-orange-50 to-amber-50">
+            <h3 class="font-bold text-lg text-slate-800">📢 פרסום מבצע לקהילה</h3>
+            <button onclick="document.getElementById('biz-promo-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 space-y-3">
+            ${!comms.length ? '<p class="text-sm text-slate-500 text-center py-4">אין קהילות מאושרות. הצטרף לקהילה תחילה.</p>' : `
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">קהילה</label>
+                <select id="promo-community" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                    ${comms.map(c => `<option value="${c.id}">${safeStr(c.name)}</option>`).join('')}
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">כותרת המבצע</label>
+                <input type="text" id="promo-title" placeholder="למשל: 20% הנחה על כל שירות ביוני!" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">פירוט (אופציונלי)</label>
+                <textarea id="promo-content" rows="3" placeholder="תאר את ההטבה בפירוט..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 mb-1 block">% הנחה</label>
+                    <input type="number" id="promo-discount" value="0" min="0" max="100" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 mb-1 block">בתוקף עד</label>
+                    <input type="date" id="promo-valid-until" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                </div>
+            </div>
+            <p class="text-[10px] text-slate-400">המבצע ישלח לאישור מנהל הקהילה לפני שיפורסם לחברים.</p>
+            <button onclick="submitBizPromo()" class="w-full bg-orange-500 text-white py-2.5 rounded-xl font-bold hover:bg-orange-600 transition">📤 שלח לאישור</button>`}
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+};
+
+window.submitBizPromo = async function() {
+    const communityId = document.getElementById('promo-community')?.value;
+    const title = document.getElementById('promo-title')?.value?.trim();
+    const content = document.getElementById('promo-content')?.value?.trim();
+    const discountPct = parseFloat(document.getElementById('promo-discount')?.value) || 0;
+    const validUntil = document.getElementById('promo-valid-until')?.value;
+    if (!communityId || !title) { showToast('error', 'יש להזין כותרת וקהילה'); return; }
+    try {
+        const res = await fetch(`${API}/biz/community/promotions`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ businessId: currentGroup.id, communityId, title, content, discountPct, validUntil: validUntil || null })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', '✅ המבצע נשלח לאישור הקהילה!');
+            document.getElementById('biz-promo-modal')?.remove();
+        } else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
+
+// Feature 2: Show match score for available communities
+window.loadBizCommunitiesWithMatch = async function() {
+    const list = document.getElementById('biz-available-communities-list');
+    if (!list || !currentGroup?.id) return;
+    try {
+        const [availRes, matchRes] = await Promise.all([
+            fetch(`${API}/biz/communities/available/${currentGroup.id}`),
+            fetch(`${API}/biz/communities/match/${currentGroup.id}`)
+        ]);
+        const availData = await availRes.json();
+        const matchData = await matchRes.json();
+        const matchMap = {};
+        (matchData.communities || []).forEach(c => { matchMap[c.id] = c.match_score; });
+        const communities = (availData.communities || []).map(c => ({ ...c, match_score: matchMap[c.id] || 0 }));
+        communities.sort((a,b) => (b.match_score||0) - (a.match_score||0));
+        if (!communities.length) { list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">לא נמצאו קהילות</p>'; return; }
+        list.innerHTML = communities.map(c => {
+            const score = c.match_score || 0;
+            const scoreColor = score >= 70 ? 'text-green-600 bg-green-50' : score >= 40 ? 'text-amber-600 bg-amber-50' : 'text-slate-500 bg-slate-100';
+            const imgHtml = c.image_url ? `<img src="${c.image_url}" class="w-10 h-10 rounded-full object-cover shadow-sm mb-2 border border-slate-100">` : '';
+            return `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition">
+                <div class="flex justify-between items-start mb-3">
+                    <div>${imgHtml}<h4 class="font-bold text-slate-800">${safeStr(c.name)}</h4>
+                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')}</p></div>
+                    <div class="flex flex-col gap-1 items-end">
+                        <span class="${scoreColor} px-2 py-1 rounded-full font-black text-xs">🎯 ${score}%</span>
+                        <span class="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded text-[10px]">${c.families_count || 0} משפחות</span>
+                    </div>
+                </div>
+                <button onclick="openBizJoinModal(${c.id}, '${safeStr(c.name).replace(/'/g,"\\'")}') " class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition">הצטרף לקהילה</button>
+            </div>`;
+        }).join('');
+    } catch(e) { console.error('match load error', e); }
+};
+
+// Feature 3: Refer a business to community (for family members accessing biz side)
+window.openBizReferralModal = function() {
+    const existing = document.getElementById('biz-refer-modal');
+    if (existing) { existing.remove(); return; }
+    const modal = document.createElement('div');
+    modal.id = 'biz-refer-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-yellow-50 to-amber-50">
+            <h3 class="font-bold text-lg text-slate-800">🌟 המלצה על עסק לקהילה</h3>
+            <button onclick="document.getElementById('biz-refer-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 space-y-3">
+            <p class="text-xs text-slate-500">המלץ על עסק שהיית רוצה לראות בקהילה שלך ותרוויח בונוס נקודות כשהעסק יאושר!</p>
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">קוד קבוצת העסק</label>
+                <input type="text" id="refer-biz-code" placeholder="הזן קוד קבוצה של העסק" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">קהילה</label>
+                <input type="text" id="refer-comm-id-input" placeholder="מזהה קהילה" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">למה ממליצים? (אופציונלי)</label>
+                <textarea id="refer-notes" rows="2" placeholder="שיר הלל קצר על העסק..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"></textarea>
+            </div>
+            <button onclick="submitBizReferral()" class="w-full bg-amber-500 text-white py-2.5 rounded-xl font-bold hover:bg-amber-600 transition">⭐ שלח המלצה</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+};
+
+window.submitBizReferral = async function() {
+    const bizCode = document.getElementById('refer-biz-code')?.value?.trim();
+    const commId = document.getElementById('refer-comm-id-input')?.value?.trim();
+    const notes = document.getElementById('refer-notes')?.value?.trim();
+    if (!bizCode || !commId) { showToast('error', 'יש למלא קוד עסק וקהילה'); return; }
+    try {
+        // Resolve biz code to ID
+        const bizRes = await fetch(`${API}/group/by-code/${bizCode}`);
+        const bizData = await bizRes.json();
+        if (!bizData.id) { showToast('error', 'לא נמצא עסק עם קוד זה'); return; }
+        const res = await fetch(`${API}/community/refer-business`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ referrerGroupId: currentGroup.id, businessId: bizData.id, communityId: parseInt(commId), notes })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', '✅ ההמלצה נשלחה! תרוויח נקודות כשהעסק יאושר.'); document.getElementById('biz-refer-modal')?.remove(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
+
+// Feature 4: Search communities by interest tag
+window.openInterestSearchModal = function() {
+    const existing = document.getElementById('biz-interest-search-modal');
+    if (existing) { existing.remove(); return; }
+    const modal = document.createElement('div');
+    modal.id = 'biz-interest-search-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-teal-50 to-cyan-50">
+            <h3 class="font-bold text-lg text-slate-800">🔍 קהילות לפי תחום עניין</h3>
+            <button onclick="document.getElementById('biz-interest-search-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-4">
+            <p class="text-xs text-slate-500 mb-3">חפש קהילות לפי תחום עניין — גם בערים אחרות. קהילות שמתעניינות בתחום שלך הן לקוחות פוטנציאליים מצוינים.</p>
+            <div class="flex gap-2 mb-3">
+                <input type="text" id="interest-search-input" placeholder="לדוגמה: כושר, יופי, ילדים..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm" onkeydown="if(event.key==='Enter')searchByInterest()">
+                <button onclick="searchByInterest()" class="bg-teal-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-teal-700 transition">חפש</button>
+            </div>
+            <div class="flex flex-wrap gap-2 mb-4">
+                ${['כושר','יופי','קוסמטיקה','ילדים','בריאות','אוכל אורגני'].map(t =>
+                    `<button onclick="document.getElementById('interest-search-input').value='${t}';searchByInterest()" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full hover:bg-teal-100 hover:text-teal-700 transition">${t}</button>`
+                ).join('')}
+            </div>
+        </div>
+        <div id="interest-search-results" class="overflow-y-auto flex-1 px-4 pb-4"><p class="text-slate-400 text-xs text-center py-4">הכנס תחום עניין לחיפוש</p></div>
+    </div>`;
+    document.body.appendChild(modal);
+};
+
+window.searchByInterest = async function() {
+    const tag = document.getElementById('interest-search-input')?.value?.trim();
+    const el = document.getElementById('interest-search-results');
+    if (!tag || !el) return;
+    el.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">מחפש...</p>';
+    try {
+        const res = await fetch(`${API}/communities/by-interest?tag=${encodeURIComponent(tag)}`);
+        const data = await res.json();
+        const list = data.communities || [];
+        if (!list.length) { el.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">לא נמצאו קהילות עם תגית זו</p>'; return; }
+        el.innerHTML = list.map(c => `
+        <div class="bg-white border border-slate-100 rounded-xl p-3 mb-2 shadow-sm flex justify-between items-center">
+            <div>
+                <div class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</div>
+                <div class="text-xs text-slate-500">${safeStr(c.city || 'כללי')} · ${c.family_count} משפחות · ${c.biz_count} עסקים</div>
+                <div class="text-[10px] text-teal-600 mt-0.5">תגית: ${safeStr(c.interest_tag)}</div>
+            </div>
+            <button onclick="openBizJoinModal(${c.id},'${safeStr(c.name).replace(/'/g,"\\'")}');document.getElementById('biz-interest-search-modal')?.remove()" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-700 transition">הצטרף</button>
+        </div>`).join('');
+    } catch(e) { el.innerHTML = '<p class="text-red-400 text-xs text-center py-4">שגיאה</p>'; }
+};
+
+// Inject community advanced toolbar into biz community page when loaded
+const _origLoadBizCommunities = loadBizCommunities;
+window.loadBizCommunities = async function() {
+    await _origLoadBizCommunities();
+    const toolbarId = 'biz-comm-adv-toolbar';
+    if (!document.getElementById(toolbarId)) {
+        const anchor = document.getElementById('biz-my-communities-list');
+        if (anchor) {
+            const bar = document.createElement('div');
+            bar.id = toolbarId;
+            bar.className = 'flex flex-wrap gap-2 mb-4 p-3 bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl border border-orange-100';
+            bar.innerHTML = `
+                <span class="text-xs font-bold text-slate-500 w-full mb-1">🚀 כלים קהילתיים:</span>
+                <button onclick="openBizPromoModal()" class="bg-orange-100 text-orange-700 hover:bg-orange-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">📢 פרסם מבצע</button>
+                <button onclick="openInterestSearchModal()" class="bg-teal-100 text-teal-700 hover:bg-teal-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🔍 קהילות לפי עניין</button>
+                <button onclick="loadBizCommunitiesWithMatch()" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🎯 הצג % התאמה</button>
+            `;
+            anchor.parentElement?.insertBefore(bar, anchor);
+        }
+    }
+};
+
 const originalLoadSADashboard = window.loadSADashboard;
 if(originalLoadSADashboard && !window.saCommLoaded) {
     window.loadSADashboard = async function() {

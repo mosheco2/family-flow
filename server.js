@@ -9017,6 +9017,420 @@ app.get('/api/community/manager-data/:groupId', async (req, res) => {
 });
 
 // ============================================================
+// --- COMMUNITY ADVANCED FEATURES (6 new features) ---
+// ============================================================
+
+// === MIGRATION: new community tables ===
+(async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS community_promotions (
+                id SERIAL PRIMARY KEY,
+                community_id INT REFERENCES communities(id) ON DELETE CASCADE,
+                business_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                title VARCHAR(200) NOT NULL,
+                content TEXT,
+                discount_pct NUMERIC(5,2) DEFAULT 0,
+                valid_until DATE,
+                status VARCHAR(20) DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS community_interests (
+                community_id INT REFERENCES communities(id) ON DELETE CASCADE,
+                interest_tag VARCHAR(50) NOT NULL,
+                PRIMARY KEY (community_id, interest_tag)
+            );
+            CREATE TABLE IF NOT EXISTS community_referrals (
+                id SERIAL PRIMARY KEY,
+                referrer_group_id INT REFERENCES family_groups(id),
+                business_id INT REFERENCES family_groups(id),
+                community_id INT REFERENCES communities(id) ON DELETE CASCADE,
+                status VARCHAR(20) DEFAULT 'pending',
+                reward_points NUMERIC(10,2) DEFAULT 0,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS community_bundles (
+                id SERIAL PRIMARY KEY,
+                community_id INT REFERENCES communities(id) ON DELETE CASCADE,
+                name VARCHAR(200) NOT NULL,
+                description TEXT,
+                discount_pct NUMERIC(5,2) DEFAULT 0,
+                status VARCHAR(20) DEFAULT 'active',
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS community_bundle_businesses (
+                bundle_id INT REFERENCES community_bundles(id) ON DELETE CASCADE,
+                business_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                PRIMARY KEY (bundle_id, business_id)
+            );
+        `);
+        // Add community_type column if missing
+        await pool.query(`ALTER TABLE communities ADD COLUMN IF NOT EXISTS community_type VARCHAR(20) DEFAULT 'geographic'`);
+        await pool.query(`ALTER TABLE communities ADD COLUMN IF NOT EXISTS interest_tags TEXT`);
+        await pool.query(`ALTER TABLE community_referrals ADD COLUMN IF NOT EXISTS notes TEXT`);
+        console.log('[Community] Advanced feature tables ready');
+    } catch(e) { console.error('[Community migration]', e.message); }
+})();
+
+// --- Feature 1: Community Promotions (קהילה כ"ערוץ שיווק") ---
+
+// Business posts a promotion to one of their communities
+app.post('/api/biz/community/promotions', async (req, res) => {
+    try {
+        const { businessId, communityId, title, content, discountPct, validUntil } = req.body;
+        if (!businessId || !communityId || !title) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        // Verify business is member of this community
+        const check = await pool.query(
+            `SELECT 1 FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='approved'`,
+            [communityId, businessId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'העסק אינו חבר בקהילה זו' });
+        const r = await pool.query(
+            `INSERT INTO community_promotions (community_id, business_id, title, content, discount_pct, valid_until, status)
+             VALUES ($1,$2,$3,$4,$5,$6,'pending') RETURNING *`,
+            [communityId, businessId, title, content || '', parseFloat(discountPct) || 0, validUntil || null]);
+        res.json({ success: true, promotion: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get promotions for a community (members see)
+app.get('/api/community/promotions/:communityId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT cp.*, fg.name as business_name FROM community_promotions cp
+             JOIN family_groups fg ON fg.id=cp.business_id
+             WHERE cp.community_id=$1 AND cp.status='approved'
+             AND (cp.valid_until IS NULL OR cp.valid_until >= CURRENT_DATE)
+             ORDER BY cp.created_at DESC`,
+            [req.params.communityId]);
+        res.json({ promotions: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Business sees their own promotions (all statuses)
+app.get('/api/biz/community/promotions/:businessId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT cp.*, c.name as community_name FROM community_promotions cp
+             JOIN communities c ON c.id=cp.community_id
+             WHERE cp.business_id=$1 ORDER BY cp.created_at DESC`,
+            [req.params.businessId]);
+        res.json({ promotions: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA/community manager approves or rejects promotion
+app.post('/api/sa/community/promotions/:id/status', verifySA, async (req, res) => {
+    try {
+        const { status } = req.body; // 'approved' or 'rejected'
+        if (!['approved','rejected'].includes(status)) return res.status(400).json({ error: 'סטטוס לא חוקי' });
+        await pool.query(`UPDATE community_promotions SET status=$1 WHERE id=$2`, [status, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA sees all pending promotions
+app.get('/api/sa/community/promotions', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT cp.*, c.name as community_name, fg.name as business_name
+             FROM community_promotions cp
+             JOIN communities c ON c.id=cp.community_id
+             JOIN family_groups fg ON fg.id=cp.business_id
+             WHERE cp.status='pending' ORDER BY cp.created_at DESC`);
+        res.json({ promotions: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Feature 2: Match Scoring (דירוג "התאמה") ---
+
+// Get communities with match % for a business
+app.get('/api/biz/communities/match/:bizId', async (req, res) => {
+    try {
+        const bizId = parseInt(req.params.bizId);
+        // Get business data
+        const biz = await pool.query(
+            `SELECT fg.*, c.city as community_city, c.id as current_community
+             FROM family_groups fg
+             LEFT JOIN communities c ON c.id=fg.community_id
+             WHERE fg.id=$1`, [bizId]);
+        if (!biz.rows.length) return res.status(404).json({ error: 'עסק לא נמצא' });
+        const b = biz.rows[0];
+
+        // Get all active communities
+        const comms = await pool.query(
+            `SELECT c.*,
+             (SELECT COUNT(*) FROM family_communities WHERE community_id=c.id) as family_count,
+             (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='approved') as biz_count
+             FROM communities c WHERE c.status='active'`);
+
+        const businessType = b.business_type || '';
+        const bizLat = parseFloat(b.location_lat) || 0;
+        const bizLng = parseFloat(b.location_lng) || 0;
+
+        const results = comms.rows.map(c => {
+            let score = 0;
+
+            // Distance score (0-40 pts) — closer = higher score
+            if (bizLat && bizLng && c.lat && c.lng) {
+                const dist = Math.sqrt(Math.pow(bizLat - parseFloat(c.lat||0), 2) + Math.pow(bizLng - parseFloat(c.lng||0), 2)) * 111;
+                score += Math.max(0, 40 - dist * 4);
+            } else if (b.community_city && c.city && b.community_city === c.city) {
+                score += 30; // same city bonus
+            } else {
+                score += 15; // no location data — base score
+            }
+
+            // Business count score (0-20 pts) — healthy community
+            const bizCnt = parseInt(c.biz_count) || 0;
+            score += Math.min(20, bizCnt * 2);
+
+            // Family count score (0-30 pts) — potential customers
+            const famCnt = parseInt(c.family_count) || 0;
+            score += Math.min(30, famCnt * 0.5);
+
+            // Type-based bonus (0-10 pts)
+            const tags = (c.interest_tags || '').toLowerCase();
+            const typeMap = { beauty: ['יופי','קוסמטיקה','ספא'], sport: ['כושר','ספורט'], food: ['אוכל','מסעדה','קייטרינג'], logistics: ['שירותים','לוגיסטיקה'] };
+            const myTags = typeMap[businessType] || [];
+            if (myTags.some(t => tags.includes(t))) score += 10;
+
+            return { ...c, match_score: Math.min(100, Math.round(score)) };
+        });
+
+        results.sort((a, b) => b.match_score - a.match_score);
+        res.json({ communities: results });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Feature 3: Community Ambassador/Referral (שגריר קהילה) ---
+
+// Family member refers a business to their community
+app.post('/api/community/refer-business', async (req, res) => {
+    try {
+        const { referrerGroupId, businessId, communityId, notes } = req.body;
+        if (!referrerGroupId || !businessId || !communityId) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        // Referrer must be in this community
+        const check = await pool.query(
+            `SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2`,
+            [referrerGroupId, communityId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'אינך חבר בקהילה זו' });
+        // No duplicate referral
+        const dup = await pool.query(
+            `SELECT 1 FROM community_referrals WHERE referrer_group_id=$1 AND business_id=$2 AND community_id=$3`,
+            [referrerGroupId, businessId, communityId]);
+        if (dup.rows.length) return res.status(409).json({ error: 'כבר הפנית עסק זה לקהילה' });
+        const r = await pool.query(
+            `INSERT INTO community_referrals (referrer_group_id, business_id, community_id, notes)
+             VALUES ($1,$2,$3,$4) RETURNING *`,
+            [referrerGroupId, businessId, communityId, notes || '']);
+        // Also add the business to community_businesses in pending state
+        await pool.query(
+            `INSERT INTO community_businesses (community_id, business_id, discount_pct, status)
+             VALUES ($1,$2,0,'pending') ON CONFLICT (community_id, business_id) DO NOTHING`,
+            [communityId, businessId]);
+        res.json({ success: true, referral: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get my referrals
+app.get('/api/community/my-referrals/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT cr.*, fg.name as business_name, c.name as community_name
+             FROM community_referrals cr
+             JOIN family_groups fg ON fg.id=cr.business_id
+             JOIN communities c ON c.id=cr.community_id
+             WHERE cr.referrer_group_id=$1 ORDER BY cr.created_at DESC`,
+            [req.params.groupId]);
+        res.json({ referrals: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA approves referral and awards points
+app.post('/api/sa/community/referrals/:id/approve', verifySA, async (req, res) => {
+    try {
+        const { rewardPoints } = req.body;
+        const ref = await pool.query(`SELECT * FROM community_referrals WHERE id=$1`, [req.params.id]);
+        if (!ref.rows.length) return res.status(404).json({ error: 'הפניה לא נמצאה' });
+        const r = ref.rows[0];
+        const pts = parseFloat(rewardPoints) || 50;
+        await pool.query(`UPDATE community_referrals SET status='approved', reward_points=$1 WHERE id=$2`, [pts, r.id]);
+        // Credit to community wallet
+        const w = await pool.query(
+            `INSERT INTO community_wallets (community_id, balance) VALUES ($1, 0)
+             ON CONFLICT (community_id) DO UPDATE SET community_id=$1 RETURNING id`,
+            [r.community_id]);
+        const wid = w.rows[0]?.id;
+        if (wid) {
+            await pool.query(`UPDATE community_wallets SET balance=balance+$1 WHERE id=$2`, [pts, wid]);
+            await pool.query(
+                `INSERT INTO community_wallet_transactions (community_id, amount, type, description)
+                 VALUES ($1,$2,'credit','בונוס שגריר קהילה')`, [r.community_id, pts]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA lists all referrals
+app.get('/api/sa/community/referrals', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT cr.*, fg.name as business_name, c.name as community_name, ref.name as referrer_name
+             FROM community_referrals cr
+             JOIN family_groups fg ON fg.id=cr.business_id
+             JOIN communities c ON c.id=cr.community_id
+             JOIN family_groups ref ON ref.id=cr.referrer_group_id
+             ORDER BY cr.created_at DESC`);
+        res.json({ referrals: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Feature 4: Interest-based communities (קהילה חוצת-ערים) ---
+
+// SA sets interest tags on a community
+app.post('/api/sa/communities/:id/interests', verifySA, async (req, res) => {
+    try {
+        const { tags } = req.body; // array of strings
+        if (!Array.isArray(tags)) return res.status(400).json({ error: 'tags חייב להיות מערך' });
+        await pool.query(`UPDATE communities SET interest_tags=$1 WHERE id=$2`, [tags.join(','), req.params.id]);
+        await pool.query(`DELETE FROM community_interests WHERE community_id=$1`, [req.params.id]);
+        for (const tag of tags) {
+            await pool.query(
+                `INSERT INTO community_interests (community_id, interest_tag) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+                [req.params.id, tag.trim()]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get interest tags for a community
+app.get('/api/sa/communities/:id/interests', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT interest_tag FROM community_interests WHERE community_id=$1`, [req.params.id]);
+        res.json({ tags: r.rows.map(x => x.interest_tag) });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Search communities by interest tag (for businesses looking for non-geographic communities)
+app.get('/api/communities/by-interest', async (req, res) => {
+    try {
+        const { tag } = req.query;
+        if (!tag) return res.status(400).json({ error: 'חסר tag' });
+        const r = await pool.query(
+            `SELECT c.*, ci.interest_tag,
+             (SELECT COUNT(*) FROM family_communities WHERE community_id=c.id) as family_count,
+             (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='approved') as biz_count
+             FROM communities c JOIN community_interests ci ON ci.community_id=c.id
+             WHERE ci.interest_tag ILIKE $1 AND c.status='active'
+             ORDER BY family_count DESC`,
+            [`%${tag}%`]);
+        res.json({ communities: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA: list all interest tags across communities
+app.get('/api/sa/community-interests', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT ci.interest_tag, COUNT(*) as community_count,
+             array_agg(c.name) as communities
+             FROM community_interests ci JOIN communities c ON c.id=ci.community_id
+             GROUP BY ci.interest_tag ORDER BY community_count DESC`);
+        res.json({ tags: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA: Set community type (geographic / interest)
+app.post('/api/sa/communities/:id/type', verifySA, async (req, res) => {
+    try {
+        const { communityType } = req.body;
+        if (!['geographic','interest'].includes(communityType)) return res.status(400).json({ error: 'סוג לא חוקי' });
+        await pool.query(`UPDATE communities SET community_type=$1 WHERE id=$2`, [communityType, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Feature 5: SA Interactive Map Data (מפת קהילות אינטראקטיבית) ---
+
+app.get('/api/sa/communities/map-data', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT c.id, c.name, c.city, c.status, c.community_type, c.interest_tags,
+             c.lat, c.lng,
+             (SELECT COUNT(*) FROM family_communities WHERE community_id=c.id) as family_count,
+             (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='approved') as biz_count,
+             (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='pending') as pending_biz,
+             (SELECT COALESCE(SUM(amount),0) FROM community_wallet_transactions WHERE community_id=c.id AND type='credit') as total_credit,
+             mz.name as zone_name
+             FROM communities c
+             LEFT JOIN manager_zones mz ON mz.id=c.zone_id
+             ORDER BY c.name`);
+        res.json({ communities: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Feature 6: Community Bundle Packages (חבילת קהילה) ---
+
+// SA creates a bundle
+app.post('/api/sa/community/bundles', verifySA, async (req, res) => {
+    try {
+        const { communityId, name, description, discountPct, businessIds } = req.body;
+        if (!communityId || !name || !Array.isArray(businessIds) || businessIds.length < 2)
+            return res.status(400).json({ error: 'נדרשים קהילה, שם ולפחות 2 עסקים' });
+        const b = await pool.query(
+            `INSERT INTO community_bundles (community_id, name, description, discount_pct)
+             VALUES ($1,$2,$3,$4) RETURNING *`,
+            [communityId, name, description || '', parseFloat(discountPct) || 0]);
+        const bundleId = b.rows[0].id;
+        for (const bizId of businessIds) {
+            await pool.query(
+                `INSERT INTO community_bundle_businesses (bundle_id, business_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+                [bundleId, bizId]);
+        }
+        res.json({ success: true, bundle: b.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get bundles for a community
+app.get('/api/community/bundles/:communityId', async (req, res) => {
+    try {
+        const bundles = await pool.query(
+            `SELECT cb.*, array_agg(fg.name) as business_names, array_agg(fg.id) as business_ids
+             FROM community_bundles cb
+             JOIN community_bundle_businesses cbb ON cbb.bundle_id=cb.id
+             JOIN family_groups fg ON fg.id=cbb.business_id
+             WHERE cb.community_id=$1 AND cb.status='active'
+             GROUP BY cb.id ORDER BY cb.created_at DESC`,
+            [req.params.communityId]);
+        res.json({ bundles: bundles.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA lists all bundles
+app.get('/api/sa/community/bundles', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT cb.*, c.name as community_name,
+             array_agg(fg.name) as business_names, COUNT(cbb.business_id) as biz_count
+             FROM community_bundles cb
+             JOIN communities c ON c.id=cb.community_id
+             JOIN community_bundle_businesses cbb ON cbb.bundle_id=cb.id
+             JOIN family_groups fg ON fg.id=cbb.business_id
+             GROUP BY cb.id, c.name ORDER BY cb.created_at DESC`);
+        res.json({ bundles: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA updates bundle status
+app.patch('/api/sa/community/bundles/:id', verifySA, async (req, res) => {
+    try {
+        const { status } = req.body;
+        await pool.query(`UPDATE community_bundles SET status=$1 WHERE id=$2`, [status, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
 // --- FOOD COST & RECIPE ENDPOINTS ---
 // ============================================================
 
@@ -11513,6 +11927,16 @@ app.post('/api/equipment/technicians/:id/link-business', async (req, res) => {
 });
 
 // Search for a business group by name OR phone (for linking from family side)
+app.get('/api/group/by-code/:code', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT id, name, type, business_type, group_code FROM family_groups WHERE group_code=$1`,
+            [req.params.code.toUpperCase()]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצאה קבוצה עם קוד זה' });
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/groups/search-business', async (req, res) => {
     try {
         const { q, type } = req.query;

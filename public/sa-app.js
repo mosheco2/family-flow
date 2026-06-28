@@ -2074,6 +2074,26 @@ async function saveSAEditUser() {
 }
 
 async function loadSACommunityData() {
+    // Inject community advanced tools toolbar if not yet present
+    const toolbarId = 'sa-comm-advanced-toolbar';
+    if (!document.getElementById(toolbarId)) {
+        const tbody = getEl('sa-communities-table-body');
+        const section = tbody ? tbody.closest('section') || tbody.parentElement?.parentElement : null;
+        if (section) {
+            const bar = document.createElement('div');
+            bar.id = toolbarId;
+            bar.className = 'flex flex-wrap gap-2 mb-4 p-3 bg-gradient-to-r from-slate-50 to-indigo-50 rounded-2xl border border-indigo-100';
+            bar.innerHTML = `
+                <span class="text-xs font-bold text-slate-500 w-full mb-1">🚀 כלים מתקדמים לקהילות:</span>
+                <button onclick="openCommunitiesMap()" class="bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">🗺️ מפת קהילות</button>
+                <button onclick="openSAPromotionsPanel()" class="bg-orange-100 text-orange-700 hover:bg-orange-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">📢 אישור מבצעים</button>
+                <button onclick="openSAReferralsPanel()" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">🌟 שגרירי קהילה</button>
+                <button onclick="openSABundlesPanel()" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">📦 חבילות קהילה</button>
+            `;
+            section.insertBefore(bar, section.firstChild);
+        }
+    }
+
     try {
         const tbody = getEl('sa-communities-table-body');
         if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> מפענח נתוני קהילות...</td></tr>`;
@@ -2261,7 +2281,12 @@ function renderSACommunitiesTable() {
                 <span class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold text-xs"><i class="fa-solid fa-house text-[10px]"></i> ${c.family_count || 0} משפחות</span>
                 <span class="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full font-bold text-xs ml-1"><i class="fa-solid fa-briefcase text-[10px]"></i> ${c.business_count || 0} עסקים</span>
             </td>
-            <td class="px-4 py-4 text-center"><button onclick="openSACommunityModal(${c.id})" class="bg-blue-100 text-blue-600 hover:bg-blue-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> מחיקה וניהול</button></td>
+            <td class="px-4 py-4 text-center">
+                <div class="flex flex-wrap gap-1.5 justify-center">
+                    <button onclick="openSACommunityModal(${c.id})" class="bg-blue-100 text-blue-600 hover:bg-blue-200 px-2.5 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול</button>
+                    <button onclick="openInterestTagsModal(${c.id},'${safeStr(c.name).replace(/'/g,"\\'")}')" class="bg-teal-100 text-teal-700 hover:bg-teal-200 px-2.5 py-1.5 rounded-lg text-xs font-bold transition" title="תגיות עניין">🏷️</button>
+                </div>
+            </td>
         </tr>
     `).join('');
 }
@@ -6548,3 +6573,444 @@ function showSAToast(msg) {
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 2500);
 }
+
+// ============================================================
+// --- COMMUNITY ADVANCED FEATURES (SA UI) ---
+// ============================================================
+
+// --- Feature 1: Promotions approval panel ---
+window.openSAPromotionsPanel = async function() {
+    const existing = document.getElementById('sa-promotions-panel');
+    if (existing) { existing.remove(); return; }
+    const panel = document.createElement('div');
+    panel.id = 'sa-promotions-panel';
+    panel.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    panel.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-orange-50 to-amber-50">
+            <h3 class="font-bold text-lg text-slate-800">📢 אישור מבצעים שיווקיים</h3>
+            <button onclick="document.getElementById('sa-promotions-panel').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div id="sa-promos-list" class="overflow-y-auto p-4 flex-1"><p class="text-slate-400 text-sm text-center py-8">טוען...</p></div>
+    </div>`;
+    document.body.appendChild(panel);
+    try {
+        const res = await fetch(`${API}/sa/community/promotions`, { headers: { Authorization: saToken } });
+        const data = await res.json();
+        const list = data.promotions || [];
+        const el = document.getElementById('sa-promos-list');
+        if (!list.length) { el.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">אין מבצעים ממתינים לאישור</p>'; return; }
+        el.innerHTML = list.map(p => `
+        <div class="bg-white border border-slate-200 rounded-xl p-4 mb-3 shadow-sm">
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <div class="font-bold text-slate-800">${safeStr(p.title)}</div>
+                    <div class="text-xs text-slate-500">${safeStr(p.business_name)} → ${safeStr(p.community_name)}</div>
+                    ${p.discount_pct > 0 ? `<div class="text-xs text-green-600 font-bold mt-1">הנחה: ${p.discount_pct}%</div>` : ''}
+                    ${p.valid_until ? `<div class="text-xs text-orange-500">בתוקף עד: ${p.valid_until?.slice(0,10)}</div>` : ''}
+                </div>
+            </div>
+            ${p.content ? `<p class="text-sm text-slate-600 mb-3 bg-slate-50 rounded-lg p-2">${safeStr(p.content)}</p>` : ''}
+            <div class="flex gap-2">
+                <button onclick="saApprovePromo(${p.id},'approved',this)" class="flex-1 bg-green-100 text-green-700 py-1.5 rounded-lg text-sm font-bold hover:bg-green-200 transition">✅ אשר</button>
+                <button onclick="saApprovePromo(${p.id},'rejected',this)" class="flex-1 bg-red-100 text-red-600 py-1.5 rounded-lg text-sm font-bold hover:bg-red-200 transition">❌ דחה</button>
+            </div>
+        </div>`).join('');
+    } catch(e) { document.getElementById('sa-promos-list').innerHTML = '<p class="text-red-400 text-sm text-center py-8">שגיאה בטעינה</p>'; }
+};
+
+window.saApprovePromo = async function(id, status, btn) {
+    btn.disabled = true;
+    try {
+        await fetch(`${API}/sa/community/promotions/${id}/status`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: saToken },
+            body: JSON.stringify({ status })
+        });
+        btn.closest('.bg-white').remove();
+        showSAToast(status === 'approved' ? '✅ מבצע אושר!' : '❌ מבצע נדחה');
+    } catch(e) { showSAToast('שגיאה'); btn.disabled = false; }
+};
+
+// --- Feature 2: Match score display (called from existing community table) ---
+window.openMatchScorePanel = async function(bizId, bizName) {
+    const existing = document.getElementById('sa-match-panel');
+    if (existing) existing.remove();
+    const panel = document.createElement('div');
+    panel.id = 'sa-match-panel';
+    panel.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    panel.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-purple-50 to-indigo-50">
+            <h3 class="font-bold text-lg text-slate-800">🎯 התאמת קהילות — ${safeStr(bizName)}</h3>
+            <button onclick="document.getElementById('sa-match-panel').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div id="sa-match-list" class="overflow-y-auto p-4 flex-1"><p class="text-slate-400 text-sm text-center py-8">מחשב התאמות...</p></div>
+    </div>`;
+    document.body.appendChild(panel);
+    try {
+        const res = await fetch(`${API}/biz/communities/match/${bizId}`, { headers: { Authorization: saToken } });
+        const data = await res.json();
+        const list = (data.communities || []).slice(0, 15);
+        const el = document.getElementById('sa-match-list');
+        if (!list.length) { el.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">לא נמצאו קהילות</p>'; return; }
+        el.innerHTML = list.map(c => {
+            const score = c.match_score || 0;
+            const color = score >= 70 ? 'bg-green-500' : score >= 40 ? 'bg-amber-400' : 'bg-slate-300';
+            return `<div class="flex items-center gap-3 py-2.5 border-b border-slate-100 last:border-0">
+                <div class="w-12 text-center">
+                    <div class="text-lg font-black ${score >= 70 ? 'text-green-600' : score >= 40 ? 'text-amber-600' : 'text-slate-400'}">${score}%</div>
+                </div>
+                <div class="flex-1">
+                    <div class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</div>
+                    <div class="text-xs text-slate-500">${safeStr(c.city || '')} · ${c.family_count || 0} משפחות · ${c.biz_count || 0} עסקים</div>
+                </div>
+                <div class="w-24 bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div class="${color} h-2 rounded-full transition-all" style="width:${score}%"></div>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) { document.getElementById('sa-match-list').innerHTML = '<p class="text-red-400 text-sm text-center py-8">שגיאה בטעינה</p>'; }
+};
+
+// --- Feature 3: Referrals panel ---
+window.openSAReferralsPanel = async function() {
+    const existing = document.getElementById('sa-referrals-panel');
+    if (existing) { existing.remove(); return; }
+    const panel = document.createElement('div');
+    panel.id = 'sa-referrals-panel';
+    panel.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    panel.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-yellow-50 to-amber-50">
+            <h3 class="font-bold text-lg text-slate-800">🌟 שגרירי קהילה — הפניות עסקים</h3>
+            <button onclick="document.getElementById('sa-referrals-panel').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div id="sa-referrals-list" class="overflow-y-auto p-4 flex-1"><p class="text-slate-400 text-sm text-center py-8">טוען...</p></div>
+    </div>`;
+    document.body.appendChild(panel);
+    try {
+        const res = await fetch(`${API}/sa/community/referrals`, { headers: { Authorization: saToken } });
+        const data = await res.json();
+        const list = data.referrals || [];
+        const el = document.getElementById('sa-referrals-list');
+        if (!list.length) { el.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">אין הפניות עדיין</p>'; return; }
+        el.innerHTML = list.map(r => `
+        <div class="bg-white border border-slate-200 rounded-xl p-4 mb-3 shadow-sm">
+            <div class="flex justify-between items-start">
+                <div>
+                    <div class="font-bold text-slate-800 text-sm">${safeStr(r.business_name)}</div>
+                    <div class="text-xs text-slate-500">הופנה ע"י: <strong>${safeStr(r.referrer_name)}</strong> → ${safeStr(r.community_name)}</div>
+                    <div class="text-xs text-slate-400">${new Date(r.created_at).toLocaleDateString('he-IL')}</div>
+                </div>
+                <span class="px-2 py-0.5 rounded-full text-xs font-bold ${r.status === 'approved' ? 'bg-green-100 text-green-700' : r.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'}">${r.status === 'approved' ? '✅ אושר' : r.status === 'rejected' ? '❌ נדחה' : '⏳ ממתין'}</span>
+            </div>
+            ${r.status === 'pending' ? `
+            <div class="flex gap-2 mt-3 items-center">
+                <input type="number" id="reward-${r.id}" value="50" min="0" class="border rounded-lg px-2 py-1 text-xs w-24 text-left" placeholder="נקודות">
+                <button onclick="saApproveReferral(${r.id},document.getElementById('reward-${r.id}').value)" class="flex-1 bg-green-100 text-green-700 py-1.5 rounded-lg text-sm font-bold hover:bg-green-200 transition">✅ אשר + בונוס</button>
+            </div>` : r.reward_points > 0 ? `<div class="text-xs text-green-600 mt-1">🎁 בונוס שניתן: ${r.reward_points} נקודות</div>` : ''}
+        </div>`).join('');
+    } catch(e) { document.getElementById('sa-referrals-list').innerHTML = '<p class="text-red-400 text-sm text-center py-8">שגיאה</p>'; }
+};
+
+window.saApproveReferral = async function(id, pts) {
+    try {
+        await fetch(`${API}/sa/community/referrals/${id}/approve`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: saToken },
+            body: JSON.stringify({ rewardPoints: parseFloat(pts) || 50 })
+        });
+        showSAToast('✅ הפניה אושרה + בונוס זוכה!');
+        openSAReferralsPanel(); openSAReferralsPanel(); // close & reopen
+    } catch(e) { showSAToast('שגיאה'); }
+};
+
+// --- Feature 4: Interest tags management (per community) ---
+window.openInterestTagsModal = async function(communityId, communityName) {
+    const existing = document.getElementById('sa-interest-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'sa-interest-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-teal-50 to-cyan-50">
+            <h3 class="font-bold text-lg text-slate-800">🏷️ תגיות עניין — ${safeStr(communityName)}</h3>
+            <button onclick="document.getElementById('sa-interest-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-4">
+            <p class="text-xs text-slate-500 mb-3">הגדר תגיות שמתארות את הקהילה (למשל: כושר, יופי, ילדים, אוכל בריא). מאפשר לעסקים למצוא קהילות לפי תחום עניין — אפילו בערים אחרות.</p>
+            <div id="interest-chips" class="flex flex-wrap gap-2 mb-3 min-h-[40px] p-2 border rounded-xl bg-slate-50"></div>
+            <div class="flex gap-2">
+                <input type="text" id="interest-tag-input" placeholder="תגית חדשה..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm" onkeydown="if(event.key==='Enter')addInterestChip()">
+                <button onclick="addInterestChip()" class="bg-teal-100 text-teal-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-teal-200 transition">+ הוסף</button>
+            </div>
+            <div class="flex flex-wrap gap-2 mt-3 mb-4">
+                ${['כושר','יופי','קוסמטיקה','ילדים','בריאות','אוכל אורגני','לוגיסטיקה','טכנולוגיה','חינוך','חיות מחמד'].map(t =>
+                    `<button onclick="addInterestChipValue('${t}')" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full hover:bg-teal-100 hover:text-teal-700 transition">${t}</button>`
+                ).join('')}
+            </div>
+            <button onclick="saveInterestTags(${communityId})" class="w-full bg-teal-600 text-white py-2.5 rounded-xl font-bold hover:bg-teal-700 transition">💾 שמור תגיות</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal._tags = [];
+    try {
+        const res = await fetch(`${API}/sa/communities/${communityId}/interests`, { headers: { Authorization: saToken } });
+        const data = await res.json();
+        modal._tags = data.tags || [];
+        renderInterestChips(modal._tags);
+    } catch(e) {}
+};
+
+function renderInterestChips(tags) {
+    const el = document.getElementById('interest-chips');
+    if (!el) return;
+    const modal = document.getElementById('sa-interest-modal');
+    el.innerHTML = tags.length ? tags.map(t => `
+        <span class="bg-teal-100 text-teal-800 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5">
+            ${safeStr(t)}
+            <button onclick="removeInterestChip('${t.replace(/'/g,"\\'")}') " class="text-teal-400 hover:text-red-500 leading-none font-black">×</button>
+        </span>`).join('') : '<span class="text-xs text-slate-400">טרם נוספו תגיות</span>';
+}
+
+window.addInterestChip = function() {
+    const inp = document.getElementById('interest-tag-input');
+    if (!inp || !inp.value.trim()) return;
+    addInterestChipValue(inp.value.trim());
+    inp.value = '';
+};
+
+window.addInterestChipValue = function(val) {
+    const modal = document.getElementById('sa-interest-modal');
+    if (!modal || !val) return;
+    if (!modal._tags) modal._tags = [];
+    if (!modal._tags.includes(val)) { modal._tags.push(val); renderInterestChips(modal._tags); }
+};
+
+window.removeInterestChip = function(val) {
+    const modal = document.getElementById('sa-interest-modal');
+    if (!modal) return;
+    modal._tags = (modal._tags || []).filter(t => t !== val);
+    renderInterestChips(modal._tags);
+};
+
+window.saveInterestTags = async function(communityId) {
+    const modal = document.getElementById('sa-interest-modal');
+    if (!modal) return;
+    try {
+        await fetch(`${API}/sa/communities/${communityId}/interests`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: saToken },
+            body: JSON.stringify({ tags: modal._tags || [] })
+        });
+        showSAToast('✅ תגיות עניין נשמרו!');
+        modal.remove();
+    } catch(e) { showSAToast('שגיאה'); }
+};
+
+// --- Feature 5: Communities Map (SA) ---
+window.openCommunitiesMap = async function() {
+    const existing = document.getElementById('sa-comm-map-panel');
+    if (existing) { existing.remove(); return; }
+    const panel = document.createElement('div');
+    panel.id = 'sa-comm-map-panel';
+    panel.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    panel.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50">
+            <h3 class="font-bold text-lg text-slate-800">🗺️ מפת קהילות אינטראקטיבית</h3>
+            <button onclick="document.getElementById('sa-comm-map-panel').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div id="sa-map-content" class="overflow-y-auto flex-1 p-4"><p class="text-slate-400 text-sm text-center py-8">טוען נתוני מפה...</p></div>
+    </div>`;
+    document.body.appendChild(panel);
+    try {
+        const res = await fetch(`${API}/sa/communities/map-data`, { headers: { Authorization: saToken } });
+        const data = await res.json();
+        const comms = data.communities || [];
+        const el = document.getElementById('sa-map-content');
+        if (!comms.length) { el.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">אין קהילות לתצוגה</p>'; return; }
+
+        // Group by city for visual map
+        const cities = {};
+        comms.forEach(c => {
+            const city = c.city || 'לא ידוע';
+            if (!cities[city]) cities[city] = [];
+            cities[city].push(c);
+        });
+
+        let html = `<div class="mb-4 grid grid-cols-3 gap-3">
+            <div class="bg-blue-50 rounded-xl p-3 text-center"><div class="text-2xl font-black text-blue-700">${comms.length}</div><div class="text-xs text-blue-500">קהילות</div></div>
+            <div class="bg-green-50 rounded-xl p-3 text-center"><div class="text-2xl font-black text-green-700">${comms.reduce((s,c)=>s+parseInt(c.family_count||0),0)}</div><div class="text-xs text-green-500">משפחות</div></div>
+            <div class="bg-purple-50 rounded-xl p-3 text-center"><div class="text-2xl font-black text-purple-700">${comms.reduce((s,c)=>s+parseInt(c.biz_count||0),0)}</div><div class="text-xs text-purple-500">עסקים</div></div>
+        </div>`;
+
+        html += `<div class="space-y-4">` + Object.entries(cities).map(([city, cs]) => `
+        <div class="border border-slate-200 rounded-xl overflow-hidden">
+            <div class="bg-slate-50 px-4 py-2 flex justify-between items-center">
+                <div class="font-bold text-slate-700 flex items-center gap-2"><span class="text-blue-500">📍</span> ${safeStr(city)}</div>
+                <span class="text-xs text-slate-500 bg-white px-2 py-0.5 rounded-full border">${cs.length} קהילות</span>
+            </div>
+            <div class="divide-y divide-slate-100">${cs.map(c => {
+                const typeLabel = c.community_type === 'interest' ? '<span class="bg-purple-100 text-purple-600 text-[10px] font-bold px-1.5 py-0.5 rounded">עניין</span>' : '<span class="bg-blue-100 text-blue-600 text-[10px] font-bold px-1.5 py-0.5 rounded">גאוגרפי</span>';
+                const statusDot = c.status === 'active' ? '🟢' : '🔴';
+                const tags = c.interest_tags ? c.interest_tags.split(',').filter(Boolean).map(t => `<span class="text-[10px] bg-teal-50 text-teal-600 px-1.5 py-0.5 rounded">${t.trim()}</span>`).join('') : '';
+                return `<div class="px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition">
+                    <div>
+                        <div class="font-bold text-slate-800 text-sm flex items-center gap-2">${statusDot} ${safeStr(c.name)} ${typeLabel}</div>
+                        ${tags ? `<div class="flex flex-wrap gap-1 mt-1">${tags}</div>` : ''}
+                    </div>
+                    <div class="flex gap-3 text-xs text-slate-500 items-center">
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-users text-blue-300"></i> ${c.family_count}</span>
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-store text-green-300"></i> ${c.biz_count}</span>
+                        ${parseInt(c.pending_biz||0) > 0 ? `<span class="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold">${c.pending_biz} ממתין</span>` : ''}
+                    </div>
+                </div>`;
+            }).join('')}</div>
+        </div>`).join('') + `</div>`;
+        el.innerHTML = html;
+    } catch(e) { document.getElementById('sa-map-content').innerHTML = '<p class="text-red-400 text-sm text-center py-8">שגיאה בטעינה</p>'; }
+};
+
+// --- Feature 6: Community Bundles ---
+window.openSABundlesPanel = async function() {
+    const existing = document.getElementById('sa-bundles-panel');
+    if (existing) { existing.remove(); return; }
+    const panel = document.createElement('div');
+    panel.id = 'sa-bundles-panel';
+    panel.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    panel.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-emerald-50 to-green-50">
+            <h3 class="font-bold text-lg text-slate-800">📦 חבילות קהילה</h3>
+            <div class="flex gap-2">
+                <button onclick="openCreateBundleForm()" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-emerald-700 transition">+ חדש</button>
+                <button onclick="document.getElementById('sa-bundles-panel').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+            </div>
+        </div>
+        <div id="sa-bundles-list" class="overflow-y-auto p-4 flex-1"><p class="text-slate-400 text-sm text-center py-8">טוען...</p></div>
+    </div>`;
+    document.body.appendChild(panel);
+    await loadSABundles();
+};
+
+async function loadSABundles() {
+    const el = document.getElementById('sa-bundles-list');
+    if (!el) return;
+    try {
+        const res = await fetch(`${API}/sa/community/bundles`, { headers: { Authorization: saToken } });
+        const data = await res.json();
+        const list = data.bundles || [];
+        if (!list.length) { el.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">אין חבילות קהילה. לחץ + חדש ליצירה</p>'; return; }
+        el.innerHTML = list.map(b => `
+        <div class="bg-white border border-slate-200 rounded-xl p-4 mb-3 shadow-sm">
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <div class="font-bold text-slate-800">${safeStr(b.name)}</div>
+                    <div class="text-xs text-slate-500">${safeStr(b.community_name)}</div>
+                    ${b.discount_pct > 0 ? `<div class="text-xs text-green-600 font-bold">הנחת חבילה: ${b.discount_pct}%</div>` : ''}
+                </div>
+                <span class="text-xs px-2 py-0.5 rounded-full font-bold ${b.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">${b.status === 'active' ? '✅ פעיל' : '🔴 לא פעיל'}</span>
+            </div>
+            ${b.description ? `<p class="text-xs text-slate-600 mb-2">${safeStr(b.description)}</p>` : ''}
+            <div class="flex flex-wrap gap-1.5 mb-3">
+                ${(b.business_names || []).map(n => `<span class="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">${safeStr(n)}</span>`).join('')}
+            </div>
+            <button onclick="toggleBundleStatus(${b.id},'${b.status === 'active' ? 'inactive' : 'active'}')" class="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition font-bold">${b.status === 'active' ? '🔴 השבת' : '✅ הפעל'}</button>
+        </div>`).join('');
+    } catch(e) { el.innerHTML = '<p class="text-red-400 text-sm text-center py-8">שגיאה</p>'; }
+}
+
+window.toggleBundleStatus = async function(id, status) {
+    try {
+        await fetch(`${API}/sa/community/bundles/${id}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: saToken },
+            body: JSON.stringify({ status })
+        });
+        showSAToast(status === 'active' ? '✅ החבילה הופעלה' : '🔴 החבילה הושבתה');
+        loadSABundles();
+    } catch(e) { showSAToast('שגיאה'); }
+};
+
+window.openCreateBundleForm = function() {
+    const existing = document.getElementById('sa-bundle-create-modal');
+    if (existing) { existing.remove(); return; }
+    const comms = saCommunitiesCache || [];
+    const modal = document.createElement('div');
+    modal.id = 'sa-bundle-create-modal';
+    modal.className = 'fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
+        <div class="p-4 border-b flex justify-between items-center">
+            <h3 class="font-bold text-lg">📦 יצירת חבילת קהילה</h3>
+            <button onclick="document.getElementById('sa-bundle-create-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 space-y-3">
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">קהילה</label>
+                <select id="bundle-community-id" onchange="loadBundleBusinesses()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                    <option value="">בחר קהילה...</option>
+                    ${comms.map(c => `<option value="${c.id}">${safeStr(c.name)}</option>`).join('')}
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">שם החבילה</label>
+                <input type="text" id="bundle-name" placeholder="למשל: חבילת יופי + כושר" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">תיאור (אופציונלי)</label>
+                <textarea id="bundle-desc" rows="2" placeholder="תיאור הטבות החבילה..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"></textarea>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">אחוז הנחת חבילה</label>
+                <input type="number" id="bundle-discount" value="0" min="0" max="50" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">עסקים בחבילה (בחר לפחות 2)</label>
+                <div id="bundle-businesses-list" class="border border-slate-200 rounded-xl p-2 max-h-48 overflow-y-auto">
+                    <p class="text-xs text-slate-400 text-center py-2">בחר קהילה תחילה</p>
+                </div>
+            </div>
+            <button onclick="createCommunityBundle()" class="w-full bg-emerald-600 text-white py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition">✅ צור חבילה</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+};
+
+window.loadBundleBusinesses = async function() {
+    const commId = document.getElementById('bundle-community-id')?.value;
+    const el = document.getElementById('bundle-businesses-list');
+    if (!el || !commId) return;
+    el.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">טוען עסקים...</p>';
+    try {
+        const res = await fetch(`${API}/sa/community-business/${commId}`, { headers: { Authorization: saToken } });
+        const data = await res.json();
+        const bizList = data.businesses || [];
+        if (!bizList.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">אין עסקים בקהילה זו</p>'; return; }
+        el.innerHTML = bizList.map(b => `
+            <label class="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-lg cursor-pointer text-sm">
+                <input type="checkbox" value="${b.business_id}" class="bundle-biz-check rounded">
+                <span class="font-medium text-slate-700">${safeStr(b.business_name)}</span>
+                ${b.discount_pct > 0 ? `<span class="text-xs text-green-600">${b.discount_pct}%</span>` : ''}
+            </label>`).join('');
+    } catch(e) { el.innerHTML = '<p class="text-red-400 text-xs text-center py-2">שגיאה</p>'; }
+};
+
+window.createCommunityBundle = async function() {
+    const communityId = document.getElementById('bundle-community-id')?.value;
+    const name = document.getElementById('bundle-name')?.value?.trim();
+    const description = document.getElementById('bundle-desc')?.value?.trim();
+    const discountPct = parseFloat(document.getElementById('bundle-discount')?.value) || 0;
+    const checked = Array.from(document.querySelectorAll('.bundle-biz-check:checked')).map(c => parseInt(c.value));
+    if (!communityId || !name || checked.length < 2) { showSAToast('⚠️ נדרשים קהילה, שם ולפחות 2 עסקים'); return; }
+    try {
+        const res = await fetch(`${API}/sa/community/bundles`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: saToken },
+            body: JSON.stringify({ communityId: parseInt(communityId), name, description, discountPct, businessIds: checked })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        showSAToast('✅ חבילת קהילה נוצרה!');
+        document.getElementById('sa-bundle-create-modal')?.remove();
+        loadSABundles();
+    } catch(e) { showSAToast('שגיאה: ' + e.message); }
+};
