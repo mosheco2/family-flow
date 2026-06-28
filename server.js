@@ -12353,17 +12353,26 @@ app.get('/c/camp/:token', async (req, res) => {
              FROM zm_campaigns c WHERE c.token=$1 AND c.status='active'`, [token]);
         const campaign = campRes.rows[0];
         const baseUrl = `${req.protocol}://${req.get('host')}`;
-        // og:image must be an absolute HTTP URL returning JPEG/PNG (not data: or SVG)
+        // og:image: prefer campaign banner, then global logo, then static fallback
         let ogImage = '';
         const isSvg = (url) => url && (url.startsWith('data:image/svg') || url.endsWith('.svg'));
-        if (campaign?.image_url && campaign.image_url.startsWith('data:') && !isSvg(campaign.image_url)) {
-            ogImage = `${baseUrl}/api/public/campaign-image/${token}`;
+        const isExternal = (url) => url && (url.startsWith('http://') || url.startsWith('https://'));
+        if (campaign?.image_url && !isSvg(campaign.image_url)) {
+            if (campaign.image_url.startsWith('data:')) {
+                ogImage = `${baseUrl}/api/public/campaign-image/${token}`;
+            } else if (isExternal(campaign.image_url)) {
+                ogImage = campaign.image_url;
+            }
         }
         if (!ogImage) {
             const logoRes = await pool.query("SELECT value FROM system_settings WHERE key='global_ai_logo'");
             const logoVal = logoRes.rows[0]?.value || '';
-            if (logoVal && logoVal.startsWith('data:') && logoVal.includes(',') && !isSvg(logoVal)) {
-                ogImage = `${baseUrl}/api/public/logo`;
+            if (logoVal && !isSvg(logoVal)) {
+                if (logoVal.startsWith('data:') && logoVal.includes(',')) {
+                    ogImage = `${baseUrl}/api/public/logo`;
+                } else if (isExternal(logoVal)) {
+                    ogImage = logoVal;
+                }
             }
         }
         // Final fallback: static logo.png (always JPEG/PNG, always works for WhatsApp)
@@ -12373,7 +12382,7 @@ app.get('/c/camp/:token', async (req, res) => {
         const title = (campaign?.title || 'OneFlow').replace(/"/g, '&quot;').replace(/</g, '&lt;');
         const desc = (campaign?.subtitle || campaign?.text_content || 'הצטרפו לפלטפורמת OneFlow').slice(0, 200).replace(/"/g, '&quot;').replace(/</g, '&lt;');
         const campaignUrl = `${baseUrl}/campaign.html?t=${token}`;
-        const hasCampaignImage = campaign?.image_url && campaign.image_url.startsWith('data:') && !isSvg(campaign.image_url);
+        const hasCampaignImage = campaign?.image_url && !isSvg(campaign.image_url) && (campaign.image_url.startsWith('data:') || isExternal(campaign.image_url));
         const ogW = hasCampaignImage ? '1200' : '512';
         const ogH = hasCampaignImage ? '630' : '512';
         res.set('Cache-Control', 'no-cache');

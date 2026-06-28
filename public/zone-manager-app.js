@@ -427,7 +427,7 @@ async function loadCampaigns() {
                     <button onclick="viewCampaignLeads(${c.id})" class="text-xs font-bold bg-emerald-50 text-emerald-700 px-2 py-1.5 rounded-lg hover:bg-emerald-100 transition text-center">
                         👥 ${c.lead_count || 0}
                     </button>
-                    <button onclick="copyLink('${campUrl}')" class="text-xs font-bold bg-indigo-50 text-indigo-600 px-2 py-1.5 rounded-lg hover:bg-indigo-100 transition text-center">
+                    <button onclick="copyLink('${ogUrl}')" class="text-xs font-bold bg-indigo-50 text-indigo-600 px-2 py-1.5 rounded-lg hover:bg-indigo-100 transition text-center">
                         🔗 לינק
                     </button>
                     <a href="${waUrl}" target="_blank" class="text-xs font-bold bg-green-50 text-green-600 px-2 py-1.5 rounded-lg hover:bg-green-100 transition text-center block">
