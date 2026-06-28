@@ -207,6 +207,7 @@ window.switchSATab = function(tabId) {
         return showToast('error', 'אין לך הרשאה לגשת למודול זה.');
     }
 
+    window._currentSATab = tabId;
     if (tabId === 'pulse') updateSADashboard();
     if (tabId === 'stats') loadSAData();
     if (tabId === 'finance') loadSAFinanceData();

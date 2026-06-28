@@ -670,3 +670,558 @@ function communityHelpBtn(context, cls) {
     class="${cls || 'w-6 h-6 rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 text-xs font-black flex items-center justify-center transition border border-slate-200'}"
     title="עזרה">?</button>`;
 }
+
+// ─── מדריכי SA (סופר-אדמין) ───────────────────────────────────
+
+const SA_HELP = {
+  pulse: {
+    title: '💓 דופק מערכת — מדריך',
+    color: 'from-indigo-600 to-purple-600',
+    sections: [
+      { icon: '📊', title: 'מה אני רואה כאן?', text: 'תצוגת KPI בזמן אמת: כמה משתמשים מחוברים עכשיו, כמה קריאות שירות פתוחות, כמה עסקים פעילים, וכמה עסקים ממתינים לאישור.' },
+      { icon: '🔴', title: 'תרחיש — יש קריאות פתוחות, מה לעשות?', steps: [
+        'ראו את מונה "קריאות פתוחות" בכרטיס KPI',
+        'לחצו על הכרטיס — המערכת תעבור אוטומטית לטאב "קריאות שירות"',
+        'טפלו בקריאות לפי סדר עדיפות'
+      ]},
+      { icon: '🏢', title: 'תרחיש — יש עסקים ממתינים לאישור', steps: [
+        'ראו את מונה "ממתינים לאישור" בכרטיס KPI',
+        'לחצו על הכרטיס — יועבר ל"עסקים" → סינון "ממתין"',
+        'אשרו או דחו כל בקשה'
+      ]}
+    ]
+  },
+  stats: {
+    title: '📊 דוחות ופיננסים — מדריך',
+    color: 'from-blue-600 to-cyan-500',
+    sections: [
+      { icon: '💡', title: 'מה אני רואה כאן?', text: 'גרפים ודוחות על ביצועי המערכת: כמה קבוצות/עסקים/משפחות פעילים, גידול לאורך זמן, והכנסות ממנויים.' },
+      { icon: '📈', title: 'תרחיש — רוצה לראות גידול חודשי', steps: [
+        'גרף "קבוצות חדשות לאורך זמן" — מציג ביצועי גיוס',
+        'בחרו פרק זמן (7 ימים / 30 ימים / 90 ימים) לצד הגרף',
+        'הורידו דוח CSV לניתוח מעמיק בגיליון אלקטרוני'
+      ]}
+    ]
+  },
+  dashboard: {
+    title: '📖 ספר מוצר — מדריך',
+    color: 'from-violet-600 to-purple-500',
+    sections: [
+      { icon: '💡', title: 'מה זה ספר מוצר?', text: 'תיעוד מובנה של כל פיצ\'רי המוצר: מה קיים, מה בפיתוח, מה מתוכנן. משמש כמקור האמת לצוות הפיתוח והמכירות.' },
+      { icon: '🔎', title: 'תרחיש — רוצה לראות מה קיים במוצר', steps: [
+        'עברו על הקטגוריות: ניהול קבוצות / פיננסים / קהילה / AI',
+        'כל פיצ\'ר מסומן: ✅ פעיל | 🔄 בפיתוח | 📋 מתוכנן',
+        'לחצו על פיצ\'ר לפרטים נוספים ולגרסה שבה הוצג'
+      ]}
+    ]
+  },
+  biz: {
+    title: '🏪 ניהול עסקים — מדריך',
+    color: 'from-orange-500 to-amber-500',
+    sections: [
+      { icon: '💡', title: 'מה אני עושה כאן?', text: 'ניהול כל העסקים הרשומים במערכת: אישור בקשות הרשמה, עדכון רמת רישוי, ופיקוח על פעילות עסקית.' },
+      { icon: '✅', title: 'תרחיש 1 — עסק בקש להצטרף, איך מאשרים?', steps: [
+        'סננו "ממתין לאישור" בשדה הסינון',
+        'לחצו על שם העסק לצפייה בפרטים מלאים',
+        'לחצו "אשר" — העסק נכנס לפעילות מיד',
+        'לחצו "דחה" עם סיבה אם יש בעיה'
+      ]},
+      { icon: '💎', title: 'תרחיש 2 — רוצה לשדרג עסק לפרימיום', steps: [
+        'חפשו את העסק לפי שם/קוד',
+        'לחצו על רמת הרישוי הנוכחית',
+        'בחרו רמה חדשה: Basic / Pro / Premium',
+        'לחצו שמור — הפיצ\'רים הנוספים נפתחים מיד'
+      ]}
+    ]
+  },
+  clients: {
+    title: '👥 קבוצות — מדריך',
+    color: 'from-teal-500 to-emerald-500',
+    sections: [
+      { icon: '💡', title: 'מה אני רואה כאן?', text: 'כל הקבוצות (משפחות) הרשומות — כל קבוצה היא ישות שמנהלת משק בית. כאן ניתן לצפות, לחפש ולבצע פעולות ניהוליות.' },
+      { icon: '🔍', title: 'תרחיש — לקוח מתקשר עם בעיה, איך מוצאים אותו?', steps: [
+        'חפשו את שם הקבוצה / אימייל / טלפון בשדה החיפוש',
+        'לחצו על שם הקבוצה לפרטים מלאים: חברים, עסקים, נקודות FLOW',
+        'ניתן לבצע פעולות: איפוס סיסמה, שינוי תוכנית, הוספת קרדיט'
+      ]}
+    ]
+  },
+  finance: {
+    title: '💰 פיננסים — מדריך',
+    color: 'from-emerald-600 to-green-500',
+    sections: [
+      { icon: '💡', title: 'מה אני עושה כאן?', text: 'מעקב הכנסות ממנויים, ניהול חשבוניות, וצפייה בגרפי הכנסה. גם ניהול ארנקי FLOW של קבוצות ועסקים.' },
+      { icon: '📋', title: 'תרחיש — רוצה לראות הכנסות החודש', steps: [
+        'כרטיס "הכנסות החודש" מציג סכום כולל ממנויים',
+        'גרף "הכנסות לאורך זמן" מציג מגמה חודשית',
+        'לחצו "ייצא CSV" לדוח מפורט לרואה חשבון'
+      ]},
+      { icon: '₣', title: 'תרחיש — קבוצה מבקשת זיכוי FLOW', steps: [
+        'חפשו את הקבוצה בשדה "מצא קבוצה"',
+        'הזינו את סכום הזיכוי ב-₣ FLOW',
+        'הזינו סיבה (לפנייה, לתיעוד)',
+        'לחצו "זכה" — הנקודות מופיעות מיד בארנק'
+      ]}
+    ]
+  },
+  support: {
+    title: '🎧 קריאות שירות — מדריך',
+    color: 'from-rose-500 to-red-500',
+    sections: [
+      { icon: '💡', title: 'מה אני עושה כאן?', text: 'ניהול כל קריאות התמיכה מלקוחות — בעיות טכניות, שאלות, בקשות. כל קריאה יש לטפל בה ולסגור.' },
+      { icon: '📋', title: 'תרחיש 1 — פתיחת קריאה חדשה', steps: [
+        'לחצו "+ קריאה חדשה"',
+        'בחרו קבוצה, נושא, ורמת דחיפות',
+        'הוסיפו תיאור מפורט',
+        'שמרו — הקריאה נפתחת ומוקצית לטיפול'
+      ]},
+      { icon: '✅', title: 'תרחיש 2 — סגירת קריאה שטופלה', steps: [
+        'לחצו על הקריאה',
+        'עדכנו סטטוס ל"נפתר" ורשמו פתרון',
+        'לחצו "סגור קריאה"',
+        'הלקוח יקבל עדכון אוטומטי'
+      ]}
+    ]
+  },
+  devops: {
+    title: '💻 פיתוח ומוצר — מדריך',
+    color: 'from-slate-700 to-slate-900',
+    sections: [
+      { icon: '💡', title: 'מה אני רואה כאן?', text: 'לוח קנבן לניהול משימות פיתוח: Backlog → In Progress → QA → Done. גם מטריצת פיצ\'רים ומפת יכולות.' },
+      { icon: '📋', title: 'תרחיש — הוספת משימה חדשה', steps: [
+        'לחצו "+ משימה" בעמודת Backlog',
+        'הזינו: כותרת, תיאור, עדיפות (P0-P3), אומדן שעות',
+        'קשרו לפיצ\'ר מוצר אם רלוונטי',
+        'לחצו שמור — המשימה מופיעה בקנבן'
+      ]},
+      { icon: '🔄', title: 'תרחיש — העברת משימה בין עמודות', steps: [
+        'לחצו על המשימה',
+        'שנו את הסטטוס בתפריט הנפתח',
+        'המשימה עוברת לעמודה המתאימה'
+      ]}
+    ]
+  },
+  content: {
+    title: '🎨 מיתוג ותוכן — מדריך',
+    color: 'from-pink-500 to-fuchsia-500',
+    sections: [
+      { icon: '💡', title: 'מה אני עושה כאן?', text: 'ניהול חומרי מיתוג: לוגו, צבעים, טקסטים ראשיים, תמונות. גם ניהול דפי נחיתה ותוכן שיווקי למערכת.' },
+      { icon: '🖼️', title: 'תרחיש — עדכון לוגו המערכת', steps: [
+        'לחצו על קטגוריית "לוגו ותמונות"',
+        'גררו קובץ PNG (רקע שקוף, לפחות 400×400 פיקסל)',
+        'לחצו "שמור" — הלוגו מתעדכן בכל ממשקי המערכת'
+      ]}
+    ]
+  },
+  inbox: {
+    title: '📣 שיווק והשקות — מדריך',
+    color: 'from-violet-500 to-purple-600',
+    sections: [
+      { icon: '💡', title: 'מה אני עושה כאן?', text: 'יצירת ניוזלטרים, הודעות מערכת למשתמשים, ותיאום קמפיינים שיווקיים.' },
+      { icon: '📧', title: 'תרחיש — שליחת ניוזלטר לכל המשתמשים', steps: [
+        'לחצו "ניוזלטר חדש"',
+        'בחרו קהל יעד: כל המשתמשים / עסקים / משפחות',
+        'כתבו נושא ותוכן (תומך עיצוב עשיר)',
+        'לחצו "שלח" או תזמנו לשעה ספציפית'
+      ]}
+    ]
+  },
+  legal: {
+    title: '⚖️ מסמכים משפטיים — מדריך',
+    color: 'from-slate-500 to-slate-700',
+    sections: [
+      { icon: '💡', title: 'מה אני עושה כאן?', text: 'ניהול מסמכים משפטיים: תנאי שימוש, מדיניות פרטיות, הסכמי שירות. כל גרסה מתועדת עם תאריך שינוי.' },
+      { icon: '✏️', title: 'תרחיש — עדכון תנאי שימוש', steps: [
+        'לחצו על "תנאי שימוש"',
+        'ערכו את הטקסט ישירות בעורך',
+        'לחצו "פרסם גרסה" — הגרסה הישנה נשמרת בארכיון',
+        'המשתמשים יתבקשו לאשר בכניסה הבאה'
+      ]}
+    ]
+  },
+  hr: {
+    title: '👔 נציגים וצוותים — מדריך',
+    color: 'from-blue-600 to-indigo-600',
+    sections: [
+      { icon: '💡', title: 'מה אני עושה כאן?', text: 'ניהול נציגי SA: הרשאות גישה, מעקב פעילות, צוותים.' },
+      { icon: '➕', title: 'תרחיש — הוספת נציג SA חדש', steps: [
+        'לחצו "+ נציג חדש"',
+        'הזינו: שם, אימייל, קוד SA, סיסמה',
+        'בחרו הרשאות: comm / biz / support / devops / all',
+        'לחצו שמור — הנציג יכול להתחבר מיד'
+      ]},
+      { icon: '🔒', title: 'תרחיש — שינוי הרשאות לנציג קיים', steps: [
+        'לחצו על שם הנציג',
+        'שנו את ה-checkboxes של ההרשאות',
+        'לחצו "עדכן" — ההרשאות פעילות מיד'
+      ]}
+    ]
+  },
+  sysmap: {
+    title: '🗺️ מפת המערכת — מדריך',
+    color: 'from-cyan-500 to-teal-500',
+    sections: [
+      { icon: '💡', title: 'מה אני רואה כאן?', text: 'תרשים ויזואלי של כל רכיבי המערכת: שרתים, מסדי נתונים, API-ים, ותלויות. עוזר להבין את הארכיטקטורה ולאתר בעיות.' },
+      { icon: '🔍', title: 'תרחיש — רוצה להבין תרחיש כשל', steps: [
+        'לחצו על רכיב במפה לפרטים',
+        'ראו את ה"קשרים" (חצים) — מי תלוי במי',
+        'אזור אדום = ממתין לטיפול / לא תקין'
+      ]}
+    ]
+  },
+  partners: {
+    title: '🤝 שותפים — מדריך',
+    color: 'from-amber-500 to-yellow-500',
+    sections: [
+      { icon: '💡', title: 'מה אני עושה כאן?', text: 'ניהול שותפים עסקיים: מפיצים, משווקים, אינטגרטורים. כל שותף מקבל נציגות ו/או עמלה.' },
+      { icon: '➕', title: 'תרחיש — הוספת שותף חדש', steps: [
+        'לחצו "+ שותף חדש"',
+        'הזינו: שם, איש קשר, אחוז עמלה, תחום פעילות',
+        'שמרו — השותף מקבל גישה לפורטל שותפים'
+      ]}
+    ]
+  },
+  templates: {
+    title: '🗂️ תבניות עסקים — מדריך',
+    color: 'from-indigo-500 to-blue-500',
+    sections: [
+      { icon: '💡', title: 'מה אני עושה כאן?', text: 'ניהול תבניות מוכנות לכל סוג עסק. כשעסק נרשם ובוחר סוג (מסעדה, יופי...) — התבנית מגדירה אוטומטית אילו טאבים ומודולים יוצגו.' },
+      { icon: '✏️', title: 'תרחיש — עדכון תבנית מסעדה', steps: [
+        'לחצו על "מסעדה / בית קפה"',
+        'הוסיפו או הסירו מודולים מהרשימה',
+        'לחצו שמור — עסקים חדשים מסוג מסעדה יקבלו את התבנית המעודכנת'
+      ]}
+    ]
+  }
+};
+
+// ─── מדריכי משפחה ─────────────────────────────────────────────
+
+const FAMILY_HELP = {
+  feed: {
+    title: '🏠 לוח ראשי — מדריך',
+    color: 'from-blue-500 to-indigo-500',
+    sections: [
+      { icon: '💡', title: 'מה אני רואה כאן?', text: 'מרכז הבית הדיגיטלי: עדכונים אחרונים, משימות ממתינות, הזמנות פתוחות ופעילות משפחתית בזמן אמת.' },
+      { icon: '🔔', title: 'תרחיש 1 — יש לי עדכון חדש', steps: [
+        'לחצו על הפעמון (🔔) בפינה',
+        'תראו את כל הפעילות: קניות שנוספו, משימות שהושלמו, הזמנות שנשלחו',
+        'לחצו על עדכון לקפיצה לאזור הרלוונטי'
+      ]},
+      { icon: '💬', title: 'תרחיש 2 — רוצה לשלוח הודעה לבן משפחה', steps: [
+        'לחצו על המעטפה (📧) בפינה',
+        'בחרו נמען מהמשפחה',
+        'כתבו הודעה ושלחו — מגיעה מיידית'
+      ]}
+    ]
+  },
+  shop: {
+    title: '🛒 קניות — מדריך',
+    color: 'from-emerald-500 to-teal-500',
+    sections: [
+      { icon: '💡', title: 'מה אני עושה כאן?', text: 'רשימת קניות חכמה שכל בני הבית יכולים לעדכן — וניתן להזמין ישירות מכאן.' },
+      { icon: '➕', title: 'תרחיש 1 — הוספת מוצר לרשימה', steps: [
+        'כתבו שם מוצר בשדה למעלה',
+        'לחצו "הוסף" או Enter',
+        'המוצר מופיע ברשימה לכל בני הבית מיד'
+      ]},
+      { icon: '✅', title: 'תרחיש 2 — סימון מוצר כנרכש', steps: [
+        'לחצו על שם המוצר ברשימה',
+        'הוא יוצלב ויועבר לתחתית כ"נרכש"',
+        'ניתן לאפס את הרשימה לקנייה הבאה'
+      ]},
+      { icon: '📦', title: 'תרחיש 3 — הזמנת מוצרים אונליין', steps: [
+        'לחצו "קנה אונליין" ליד מוצר',
+        'תועברו לחנות עסק מהקהילה שמציע את המוצר',
+        'ניתן להוסיף לסל ולשלם ישירות'
+      ]}
+    ]
+  },
+  myorders: {
+    title: '🛍️ הזמנות שלי — מדריך',
+    color: 'from-purple-500 to-violet-500',
+    sections: [
+      { icon: '💡', title: 'מה אני רואה כאן?', text: 'כל ההזמנות שביצעתם מעסקים — סטטוס, מועד משלוח ואפשרות לפתיחת קריאת שירות.' },
+      { icon: '📋', title: 'תרחיש 1 — הזמנה לא הגיעה, מה עושים?', steps: [
+        'מצאו את ההזמנה ברשימה',
+        'לחצו "פתח קריאת שירות"',
+        'בחרו "הזמנה לא הגיעה" וצרפו פרטים',
+        'העסק יקבל הודעה מיידית'
+      ]},
+      { icon: '🔄', title: 'תרחיש 2 — רוצה לעקוב אחר משלוח', steps: [
+        'לחצו על ההזמנה',
+        'תראו סטטוס: ממתין / בהכנה / בדרך / נמסר',
+        'לחצו "לינק מעקב" לעמוד מעקב חי'
+      ]}
+    ]
+  },
+  pantry: {
+    title: '📦 מזווה — מדריך',
+    color: 'from-amber-500 to-orange-500',
+    sections: [
+      { icon: '💡', title: 'מה זה מזווה?', text: 'מלאי הבית הדיגיטלי — מה יש בבית, כמה, ומתי עומד להיגמר. עוזר לא לקנות כפול ולא לשכוח לקנות.' },
+      { icon: '➕', title: 'תרחיש 1 — הוספת מוצר למזווה', steps: [
+        'לחצו "+ מוצר"',
+        'הזינו: שם, כמות, יחידת מידה, תאריך תפוגה (אופציונלי)',
+        'לחצו שמור — המוצר מופיע במזווה'
+      ]},
+      { icon: '⚠️', title: 'תרחיש 2 — מוצר עומד להיגמר', steps: [
+        'מוצרים עם מלאי נמוך מסומנים באדום אוטומטית',
+        'לחצו "הוסף לרשימת קניות" — עובר ישירות לטאב קניות',
+        'AI השף יכול גם להציע מה לבשל עם מה שנשאר'
+      ]}
+    ]
+  },
+  bank: {
+    title: '🏦 בנק משפחתי — מדריך',
+    color: 'from-blue-600 to-blue-800',
+    sections: [
+      { icon: '💡', title: 'מה זה בנק משפחתי?', text: 'ניהול ארנקים אישיים לכל בן משפחה — הורים מעבירים כסף/ניקודים, ילדים רואים את שלהם. אידיאלי לדמי כיס דיגיטליים.' },
+      { icon: '💰', title: 'תרחיש 1 — העברת כסף לילד', steps: [
+        'לחצו על שם הילד',
+        'לחצו "העבר"',
+        'הזינו סכום וסיבה ("דמי כיס שבועי")',
+        'לחצו שלח — הסכום מופיע מיד בארנק הילד'
+      ]},
+      { icon: '🎯', title: 'תרחיש 2 — הגדרת יעד חיסכון לילד', steps: [
+        'פתחו את ארנק הילד',
+        'לחצו "הגדר יעד"',
+        'הזינו שם יעד (כמו "אייפון") וסכום',
+        'הילד רואה את ההתקדמות לעבר היעד'
+      ]}
+    ]
+  },
+  cashflow: {
+    title: '💸 תזרים מזומנים — מדריך',
+    color: 'from-green-600 to-emerald-600',
+    sections: [
+      { icon: '💡', title: 'מה אני רואה כאן?', text: 'מעקב הכנסות והוצאות משפחתיות לאורך זמן. ראו לאן הכסף הולך ואיפה ניתן לחסוך.' },
+      { icon: '➕', title: 'תרחיש 1 — הוספת הוצאה', steps: [
+        'לחצו "+ הוצאה"',
+        'בחרו קטגוריה (שוטף / בריאות / בילוי / חינוך)',
+        'הזינו סכום ותיאור',
+        'לחצו שמור — הגרף מתעדכן מיד'
+      ]},
+      { icon: '📊', title: 'תרחיש 2 — רוצה לראות לאן הלך הכסף החודש', steps: [
+        'גרף העוגה מציג פירוט לפי קטגוריות',
+        'הקטגוריה הגדולה ביותר מודגשת',
+        'לחצו על קטגוריה לרשימת כל העסקאות בה'
+      ]}
+    ]
+  },
+  budget: {
+    title: '📊 תקציב — מדריך',
+    color: 'from-indigo-500 to-blue-600',
+    sections: [
+      { icon: '💡', title: 'מה זה תקציב?', text: 'הגדרת תקרת הוצאה לכל קטגוריה בחודש — כשניגשים לתקרה מקבלים התראה.' },
+      { icon: '✏️', title: 'תרחיש — הגדרת תקציב לקניות', steps: [
+        'לחצו "ערוך תקציב"',
+        'מצאו את הקטגוריה "קניות"',
+        'הזינו תקציב חודשי (לדוגמה: 3,000 ₪)',
+        'שמרו — סרגל ההתקדמות מתעדכן בזמן אמת'
+      ]}
+    ]
+  },
+  forecast: {
+    title: '📅 תשקיף — מדריך',
+    color: 'from-cyan-500 to-blue-500',
+    sections: [
+      { icon: '💡', title: 'מה זה תשקיף?', text: 'תחזית פיננסית עתידית — על סמך הכנסות ידועות (משכורת), הוצאות קבועות (שכירות, חשבונות) ועסקאות מתוכננות.' },
+      { icon: '📈', title: 'תרחיש — רוצה לדעת כמה יהיה לי בעוד 3 חודשים', steps: [
+        'הוסיפו הכנסות קבועות: "משכורת — 15 לחודש — 12,000 ₪"',
+        'הוסיפו הוצאות קבועות: "שכירות — 1 לחודש — 4,500 ₪"',
+        'גרף התשקיף מציג את היתרה הצפויה לכל חודש קדימה'
+      ]}
+    ]
+  },
+  tasks: {
+    title: '✅ משימות — מדריך',
+    color: 'from-violet-500 to-purple-600',
+    sections: [
+      { icon: '💡', title: 'מה זה משימות?', text: 'ניהול מטלות משפחתיות — ניקיון, תשלומים, מטלות לילדים. כל אחד רואה מה מוקצה לו.' },
+      { icon: '➕', title: 'תרחיש 1 — יצירת מטלה לילד', steps: [
+        'לחצו "+ משימה"',
+        'הזינו שם, תיאור, ותאריך יעד',
+        'הקצו לבן משפחה מהרשימה',
+        'לחצו שמור — מגיעה לרשימת המשימות שלו'
+      ]},
+      { icon: '✅', title: 'תרחיש 2 — סימון משימה כהושלמה', steps: [
+        'לחצו על המשימה',
+        'לחצו "סמן כהושלם"',
+        'הבן משפחה שהשלים מקבל נקודות FLOW (אם הוגדר פרס)'
+      ]}
+    ]
+  },
+  recipes: {
+    title: '👨‍🍳 שף AI — מדריך',
+    color: 'from-orange-500 to-red-500',
+    sections: [
+      { icon: '💡', title: 'מה זה שף AI?', text: 'AI שמציע מתכונים על סמך מה שיש לכם במזווה — מפחית בזבוז ועוזר להחליט מה לבשל.' },
+      { icon: '🍳', title: 'תרחיש 1 — מה לבשל הלילה?', steps: [
+        'לחצו "מה יש לי?" — השף רואה את תכולת המזווה',
+        'הוא מציע 3 מתכונים שניתן להכין עכשיו',
+        'לחצו על מתכון לקבלת הוראות בישול שלב אחר שלב'
+      ]},
+      { icon: '🛒', title: 'תרחיש 2 — רוצה מתכון ספציפי', steps: [
+        'כתבו שם מנה או סוג מטבח בשדה החיפוש',
+        'השף מציע מתכון עם רשימת מצרכים',
+        'לחצו "הוסף חסר לקניות" — מה שאין במזווה עובר לרשימת הקניות'
+      ]}
+    ]
+  },
+  members: {
+    title: '👥 ניהול משפחה — מדריך',
+    color: 'from-slate-600 to-slate-800',
+    sections: [
+      { icon: '💡', title: 'מה אני עושה כאן?', text: 'ניהול חברי המשפחה: הוספה, הרשאות, ותפקידים. רק מנהל הקבוצה יכול לבצע שינויים כאן.' },
+      { icon: '➕', title: 'תרחיש 1 — הוספת בן משפחה', steps: [
+        'לחצו "+ חבר חדש"',
+        'הזינו שם, אימייל וסיסמה זמנית',
+        'בחרו תפקיד: הורה / ילד / סבא-סבתא',
+        'שלחו הזמנה — הם מצטרפים בלחיצה על הקישור'
+      ]},
+      { icon: '🔒', title: 'תרחיש 2 — שינוי הרשאות לילד', steps: [
+        'לחצו על שם הילד',
+        'שנו מה הוא יכול לראות/לעשות (תקציב / קניות / בנק)',
+        'לחצו שמור — ההרשאות פעילות מיד'
+      ]}
+    ]
+  },
+  'home-maintenance': {
+    title: '🔧 ניהול הבית — מדריך',
+    color: 'from-stone-500 to-stone-700',
+    sections: [
+      { icon: '💡', title: 'מה אני עושה כאן?', text: 'מעקב אחר תקלות ותחזוקה בבית — פתיחת קריאות שירות, מעקב אחר טכנאים ותיעוד תיקונים.' },
+      { icon: '🚨', title: 'תרחיש 1 — יש תקלה, איך פותחים קריאה?', steps: [
+        'לחצו "+ קריאת שירות"',
+        'בחרו סוג תקלה: חשמל / אינסטלציה / מזגן / כללי',
+        'צרפו תמונה (אופציונלי)',
+        'לחצו שלח — ניתן לחפש טכנאי מהקהילה'
+      ]},
+      { icon: '📋', title: 'תרחיש 2 — מעקב אחר קריאה פתוחה', steps: [
+        'ראו את רשימת הקריאות עם סטטוסים: פתוח / בטיפול / נסגר',
+        'לחצו על קריאה לפרטים ולעדכון',
+        'לאחר תיקון לחצו "סגור קריאה" ודרגו את השירות'
+      ]}
+    ]
+  },
+  academy: {
+    title: '🎓 אקדמיה — מדריך',
+    color: 'from-violet-600 to-indigo-600',
+    sections: [
+      { icon: '💡', title: 'מה זה אקדמיה?', text: 'קורסים ותכנים לימודיים לבני הבית — כושר פיננסי, בישול, תכנות ועוד. חלק בחינם, חלק מנוי.' },
+      { icon: '🎓', title: 'תרחיש 1 — רוצה להתחיל קורס', steps: [
+        'עיינו בקטגוריות (💰 פיננסים / 🍳 בישול / 💻 טכנולוגיה)',
+        'לחצו על קורס שמעניין אתכם',
+        'לחצו "התחל קורס" — שיעור ראשון נפתח מיד'
+      ]},
+      { icon: '📊', title: 'תרחיש 2 — מעקב התקדמות', steps: [
+        'לחצו "ההתקדמות שלי" לסיכום כל הקורסים',
+        'ראו כמה אחוזים השלמתם מכל קורס',
+        'קבלו תעודה דיגיטלית בסיום קורס מלא'
+      ]}
+    ]
+  }
+};
+
+// ─── פונקציות עזרה לפי הקשר ─────────────────────────────────
+
+function showSAHelp() {
+  const tab = window._currentSATab || 'pulse';
+  const guide = SA_HELP[tab];
+  if (!guide) { showCommunityHelp('sa-' + tab); return; }
+
+  const existing = document.getElementById('comm-help-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'comm-help-overlay';
+  overlay.className = 'fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  const sectionsHtml = (guide.sections || []).map(s => {
+    let body = '';
+    if (s.text) body = `<p class="text-sm text-slate-600 leading-relaxed">${s.text}</p>`;
+    if (s.steps) {
+      body += `<ol class="mt-2 space-y-1.5 list-none">` +
+        s.steps.map((step, i) =>
+          `<li class="flex gap-2.5 text-sm text-slate-700">
+            <span class="shrink-0 w-5 h-5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-black flex items-center justify-center mt-0.5">${i+1}</span>
+            <span class="leading-relaxed">${step}</span>
+          </li>`
+        ).join('') + `</ol>`;
+    }
+    return `<div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xl">${s.icon}</span>
+        <h4 class="font-bold text-slate-800 text-sm">${s.title}</h4>
+      </div>${body}</div>`;
+  }).join('');
+
+  overlay.innerHTML = `
+    <div class="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-lg max-h-[88vh] overflow-hidden flex flex-col">
+      <div class="bg-gradient-to-l ${guide.color} text-white px-5 py-4 flex justify-between items-start shrink-0">
+        <div>
+          <h3 class="font-black text-base leading-tight">${guide.title}</h3>
+          <p class="text-white/70 text-[11px] mt-0.5">לחץ מחוץ לחלון כדי לסגור</p>
+        </div>
+        <button onclick="document.getElementById('comm-help-overlay').remove()"
+          class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white text-lg leading-none shrink-0 transition">×</button>
+      </div>
+      <div class="overflow-y-auto flex-1 p-4 space-y-3">${sectionsHtml}</div>
+      <div class="px-5 py-3 border-t border-slate-200 bg-white shrink-0 text-center">
+        <p class="text-[11px] text-slate-400">💡 מדריך לטאב: ${tab}</p>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function showFamilyHelp() {
+  const tab = window._currentFamilyTab || 'feed';
+  const guide = FAMILY_HELP[tab];
+  if (!guide) { showCommunityHelp('family-' + tab); return; }
+
+  const existing = document.getElementById('comm-help-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'comm-help-overlay';
+  overlay.className = 'fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  const sectionsHtml = (guide.sections || []).map(s => {
+    let body = '';
+    if (s.text) body = `<p class="text-sm text-slate-600 leading-relaxed">${s.text}</p>`;
+    if (s.steps) {
+      body += `<ol class="mt-2 space-y-1.5 list-none">` +
+        s.steps.map((step, i) =>
+          `<li class="flex gap-2.5 text-sm text-slate-700">
+            <span class="shrink-0 w-5 h-5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-black flex items-center justify-center mt-0.5">${i+1}</span>
+            <span class="leading-relaxed">${step}</span>
+          </li>`
+        ).join('') + `</ol>`;
+    }
+    return `<div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xl">${s.icon}</span>
+        <h4 class="font-bold text-slate-800 text-sm">${s.title}</h4>
+      </div>${body}</div>`;
+  }).join('');
+
+  overlay.innerHTML = `
+    <div class="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-lg max-h-[88vh] overflow-hidden flex flex-col">
+      <div class="bg-gradient-to-l ${guide.color} text-white px-5 py-4 flex justify-between items-start shrink-0">
+        <div>
+          <h3 class="font-black text-base leading-tight">${guide.title}</h3>
+          <p class="text-white/70 text-[11px] mt-0.5">לחץ מחוץ לחלון כדי לסגור</p>
+        </div>
+        <button onclick="document.getElementById('comm-help-overlay').remove()"
+          class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white text-lg leading-none shrink-0 transition">×</button>
+      </div>
+      <div class="overflow-y-auto flex-1 p-4 space-y-3">${sectionsHtml}</div>
+      <div class="px-5 py-3 border-t border-slate-200 bg-white shrink-0 text-center">
+        <p class="text-[11px] text-slate-400">💡 מדריך לטאב: ${tab}</p>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
