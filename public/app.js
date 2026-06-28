@@ -3941,16 +3941,16 @@ let myInitiativesCache = [];
 let myCashbackCache = []; // [{community_id, community_name, balance, total_earned, is_community_manager}]
 
 function switchFamCommunityTab(tab) {
-    ['join', 'benefits', 'news'].forEach(t => {
+    ['join', 'benefits', 'news', 'interests'].forEach(t => {
         const view = document.getElementById(`fam-comm-view-${t}`);
         const btn = document.getElementById(`btn-fam-comm-${t}`);
         if (view) view.classList.add('hidden');
-        if (btn) btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
+        if (btn) btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-1 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
     });
     const activeView = document.getElementById(`fam-comm-view-${tab}`);
     const activeBtn = document.getElementById(`btn-fam-comm-${tab}`);
     if (activeView) activeView.classList.remove('hidden');
-    if (activeBtn) activeBtn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition';
+    if (activeBtn) activeBtn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-1 rounded-xl text-[10px] font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition';
 }
 
 async function fetchCommunityData() {
@@ -4328,9 +4328,30 @@ function renderCommunityBundles(bundles) {
         <div class="flex flex-wrap gap-1.5 mt-2">
             ${(b.business_names || []).map(n => `<span class="text-[10px] bg-white text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full font-bold shadow-sm">${safeStr(n)}</span>`).join('')}
         </div>
-        <div class="text-[10px] text-slate-400 mt-1.5">${safeStr(b.community_name)}</div>
+        <div class="flex justify-between items-center mt-2.5 pt-2 border-t border-emerald-100">
+            <span class="text-[10px] text-slate-400">${safeStr(b.community_name)}</span>
+            <button onclick="purchaseCommunityBundle(${b.id},this)" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-1.5 px-4 rounded-xl transition">🛒 רכישה +18 ₣</button>
+        </div>
     </div>`).join('');
 }
+
+window.purchaseCommunityBundle = async function(bundleId, btn) {
+    if (!currentGroup) return;
+    btn.disabled = true;
+    btn.textContent = '...';
+    try {
+        const res = await fetch(`${API}/community/bundles/${bundleId}/purchase`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            btn.textContent = '✅ נרכש! +18 ₣';
+            btn.className = btn.className.replace('bg-emerald-600 hover:bg-emerald-700','bg-green-500');
+            loadFamilyFlowWallet && loadFamilyFlowWallet();
+        } else { btn.textContent = data.error || '✅ רכישה'; btn.disabled = false; }
+    } catch(e) { btn.disabled = false; btn.textContent = '🛒 רכישה'; }
+};
 
 // ─── FLOW COMMUNITY ACTIONS ──────────────────────────────────
 
@@ -4617,6 +4638,116 @@ window.submitFamReferral = async function() {
             getEl('fam-refer-modal')?.remove();
         } else showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
+
+// ─── INTEREST COMMUNITIES & MAP DISCOVERY ──────────────────────
+
+window.famSearchByInterest = async function() {
+    const tag = (getEl('fam-interest-input')?.value || '').trim();
+    const el = getEl('fam-interest-results');
+    if (!tag || !el) return;
+    el.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">מחפש...</p>';
+    try {
+        const res = await fetch(`${API}/communities/by-interest?tag=${encodeURIComponent(tag)}`);
+        const data = await res.json();
+        const list = data.communities || [];
+        if (!list.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">לא נמצאו קהילות עם תגית זו</p>'; return; }
+        const myIds = new Set((myConnectedCommunitiesCache || []).map(c => String(c.id)));
+        el.innerHTML = list.map(c => {
+            const joined = myIds.has(String(c.id));
+            return `<div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm flex justify-between items-center">
+                <div class="text-right">
+                    <div class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</div>
+                    <div class="text-xs text-slate-500">${safeStr(c.city || 'ארצי')} · ${c.family_count || 0} משפחות · ${c.biz_count || 0} עסקים</div>
+                    <div class="text-[10px] text-teal-600 mt-0.5">תגית: ${safeStr(c.interest_tag || tag)}</div>
+                </div>
+                ${joined
+                    ? `<span class="text-xs text-green-600 font-bold bg-green-50 px-3 py-1.5 rounded-xl">✅ חבר</span>`
+                    : `<button onclick="joinCommunityByCode('${safeStr(c.code)}','${safeStr(c.name).replace(/'/g,"\\'")}',this)" class="bg-teal-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-teal-700 transition">הצטרף</button>`
+                }
+            </div>`;
+        }).join('');
+    } catch(e) { el.innerHTML = '<p class="text-red-400 text-xs text-center py-4">שגיאה</p>'; }
+};
+
+window.joinCommunityByCode = async function(code, name, btn) {
+    if (!currentGroup || !code) return;
+    btn.disabled = true; btn.textContent = '...';
+    try {
+        const res = await fetch(`${API}/community/join`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, code })
+        });
+        const data = await res.json();
+        if (data.success) {
+            btn.textContent = '✅ הצטרפת!';
+            btn.className = btn.className.replace('bg-teal-600 hover:bg-teal-700','bg-green-500');
+            fetchCommunityData();
+            loadFamilyFlowWallet && loadFamilyFlowWallet();
+        } else { btn.textContent = data.error || 'שגיאה'; btn.disabled = false; }
+    } catch(e) { btn.textContent = 'שגיאת רשת'; btn.disabled = false; }
+};
+
+window.openCommunityDiscoveryModal = async function() {
+    const existing = document.getElementById('community-discovery-modal');
+    if (existing) { existing.remove(); return; }
+    const modal = document.createElement('div');
+    modal.id = 'community-discovery-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-teal-50 to-cyan-50">
+            <h3 class="font-bold text-lg text-slate-800">🗺️ גלה קהילות</h3>
+            <button onclick="document.getElementById('community-discovery-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 border-b">
+            <div class="flex gap-2">
+                <input type="text" id="discovery-city-input" placeholder="חפש לפי עיר..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm" onkeydown="if(event.key==='Enter')searchCommunitiesByCity()">
+                <button onclick="searchCommunitiesByCity()" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-700 transition">חפש</button>
+            </div>
+        </div>
+        <div id="discovery-results" class="overflow-y-auto flex-1 p-4">
+            <p class="text-xs text-slate-400 text-center py-4">טוען קהילות...</p>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    searchCommunitiesByCity('');
+};
+
+window.searchCommunitiesByCity = async function(city) {
+    const q = city !== undefined ? city : (getEl('discovery-city-input')?.value || '');
+    const el = getEl('discovery-results');
+    if (!el) return;
+    el.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">טוען...</p>';
+    try {
+        const url = q ? `${API}/communities/discover?city=${encodeURIComponent(q)}` : `${API}/communities/discover`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const byCity = data.byCity || [];
+        if (!byCity.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">לא נמצאו קהילות</p>'; return; }
+        const myIds = new Set((myConnectedCommunitiesCache || []).map(c => String(c.id)));
+        el.innerHTML = byCity.map(group => `
+            <div class="mb-4">
+                <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(group.city)}
+                </h4>
+                ${group.communities.map(c => {
+                    const joined = myIds.has(String(c.id));
+                    const typeLabel = c.community_type === 'interest' ? '🔖 עניין' : '📍 גיאוגרפית';
+                    return `<div class="bg-white border border-slate-100 rounded-xl p-3 mb-2 shadow-sm flex justify-between items-center">
+                        <div class="text-right">
+                            <div class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</div>
+                            <div class="text-xs text-slate-500">${c.family_count || 0} משפחות · ${c.biz_count || 0} עסקים · ${typeLabel}</div>
+                            ${c.interest_tags ? `<div class="text-[10px] text-teal-600 mt-0.5">${safeStr(c.interest_tags)}</div>` : ''}
+                        </div>
+                        ${joined
+                            ? `<span class="text-xs text-green-600 font-bold bg-green-50 px-3 py-1.5 rounded-xl">✅ חבר</span>`
+                            : `<button onclick="joinCommunityByCode('${safeStr(c.code)}','${safeStr(c.name).replace(/'/g,"\\'")}',this)" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-slate-700 transition">הצטרף</button>`
+                        }
+                    </div>`;
+                }).join('')}
+            </div>`).join('');
+    } catch(e) { el.innerHTML = '<p class="text-red-400 text-xs text-center py-4">שגיאה בטעינה</p>'; }
 };
 
 async function joinCommunity() {

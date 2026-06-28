@@ -9437,6 +9437,33 @@ app.get('/api/communities/by-interest', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// Public: discover communities for family join (no private codes exposed)
+app.get('/api/communities/discover', async (req, res) => {
+    try {
+        const { city, type } = req.query;
+        let where = `c.status='active'`;
+        const params = [];
+        if (city) { params.push(`%${city}%`); where += ` AND c.city ILIKE $${params.length}`; }
+        if (type) { params.push(type); where += ` AND c.community_type=$${params.length}`; }
+        const r = await pool.query(
+            `SELECT c.id, c.name, c.city, c.community_type, c.interest_tags,
+             (SELECT COUNT(*) FROM family_communities WHERE community_id=c.id) as family_count,
+             (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='approved') as biz_count
+             FROM communities c WHERE ${where}
+             ORDER BY family_count DESC LIMIT 50`,
+            params);
+        // Group by city for map view
+        const byCityMap = {};
+        r.rows.forEach(c => {
+            const key = c.city || 'ארצי';
+            if (!byCityMap[key]) byCityMap[key] = [];
+            byCityMap[key].push(c);
+        });
+        const byCity = Object.entries(byCityMap).map(([city, communities]) => ({ city, communities }));
+        res.json({ communities: r.rows, byCity });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // SA: list all interest tags across communities
 app.get('/api/sa/community-interests', verifySA, async (req, res) => {
     try {
@@ -9663,12 +9690,103 @@ app.put('/api/sa/flow/config', verifySA, async (req, res) => {
 // SA — FLOW stats overview
 app.get('/api/sa/flow/stats', verifySA, async (req, res) => {
     try {
-        const [issued, families, communities] = await Promise.all([
-            pool.query(`SELECT COALESCE(SUM(amount),0) as total FROM flow_transactions WHERE amount>0`),
-            pool.query(`SELECT w.entity_id, fg.name, w.balance FROM flow_wallets w JOIN family_groups fg ON fg.id=w.entity_id WHERE w.entity_type='family' ORDER BY w.balance DESC LIMIT 10`),
-            pool.query(`SELECT w.entity_id, c.name, w.balance FROM flow_wallets w JOIN communities c ON c.id=w.entity_id WHERE w.entity_type='community' ORDER BY w.balance DESC LIMIT 10`)
+        const [issued, families, communities, businesses, byDay, walletCount] = await Promise.all([
+            pool.query(`SELECT COALESCE(SUM(amount),0) as total, COALESCE(SUM(CASE WHEN amount<0 THEN ABS(amount) ELSE 0 END),0) as redeemed FROM flow_transactions`),
+            pool.query(`SELECT w.entity_id, fg.name, w.balance, w.updated_at FROM flow_wallets w JOIN family_groups fg ON fg.id=w.entity_id WHERE w.entity_type='family' ORDER BY w.balance DESC LIMIT 10`),
+            pool.query(`SELECT w.entity_id, c.name, w.balance, w.updated_at FROM flow_wallets w JOIN communities c ON c.id=w.entity_id WHERE w.entity_type='community' ORDER BY w.balance DESC LIMIT 10`),
+            pool.query(`SELECT w.entity_id, fg.name, w.balance, w.updated_at FROM flow_wallets w JOIN family_groups fg ON fg.id=w.entity_id WHERE w.entity_type='business' ORDER BY w.balance DESC LIMIT 10`),
+            pool.query(`SELECT DATE_TRUNC('day', created_at)::date as day, COALESCE(SUM(CASE WHEN amount>0 THEN amount ELSE 0 END),0) as issued, COALESCE(SUM(CASE WHEN amount<0 THEN ABS(amount) ELSE 0 END),0) as redeemed FROM flow_transactions WHERE created_at > NOW()-INTERVAL '30 days' GROUP BY 1 ORDER BY 1`),
+            pool.query(`SELECT entity_type, COUNT(*) as cnt, COALESCE(SUM(balance),0) as total_balance FROM flow_wallets GROUP BY entity_type`)
         ]);
-        res.json({ totalIssued: issued.rows[0].total, topFamilies: families.rows, topCommunities: communities.rows });
+        res.json({
+            totalIssued: issued.rows[0].total,
+            totalRedeemed: issued.rows[0].redeemed,
+            topFamilies: families.rows,
+            topCommunities: communities.rows,
+            topBusinesses: businesses.rows,
+            byDay: byDay.rows,
+            walletCount: walletCount.rows
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — full transaction log
+app.get('/api/sa/flow/transactions', verifySA, async (req, res) => {
+    try {
+        const { entityType, search, limit = 50, offset = 0 } = req.query;
+        let where = [];
+        const params = [];
+        if (entityType && entityType !== 'all') { params.push(entityType); where.push(`ft.entity_type=$${params.length}`); }
+        const whereStr = where.length ? 'WHERE ' + where.join(' AND ') : '';
+        const rows = await pool.query(`
+            SELECT ft.*, ft.created_at,
+                CASE ft.entity_type
+                    WHEN 'family' THEN (SELECT name FROM family_groups WHERE id=ft.entity_id)
+                    WHEN 'business' THEN (SELECT name FROM family_groups WHERE id=ft.entity_id)
+                    WHEN 'community' THEN (SELECT name FROM communities WHERE id=ft.entity_id)
+                END as entity_name
+            FROM flow_transactions ft
+            ${whereStr}
+            ORDER BY ft.created_at DESC
+            LIMIT $${params.length+1} OFFSET $${params.length+2}`,
+            [...params, parseInt(limit), parseInt(offset)]);
+        const total = await pool.query(`SELECT COUNT(*) FROM flow_transactions ft ${whereStr}`, params);
+        res.json({ transactions: rows.rows, total: parseInt(total.rows[0].count) });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — leaderboard of ALL entities
+app.get('/api/sa/flow/leaderboard', verifySA, async (req, res) => {
+    try {
+        const { entityType = 'all', limit = 100 } = req.query;
+        let rows;
+        if (entityType === 'family' || entityType === 'all') {
+            const fam = await pool.query(`SELECT 'family' as type, w.entity_id as id, fg.name, w.balance, w.updated_at FROM flow_wallets w JOIN family_groups fg ON fg.id=w.entity_id WHERE w.entity_type='family' ORDER BY w.balance DESC LIMIT $1`, [parseInt(limit)]);
+            if (entityType === 'family') return res.json({ entities: fam.rows });
+            const biz = await pool.query(`SELECT 'business' as type, w.entity_id as id, fg.name, w.balance, w.updated_at FROM flow_wallets w JOIN family_groups fg ON fg.id=w.entity_id WHERE w.entity_type='business' ORDER BY w.balance DESC LIMIT $1`, [parseInt(limit)]);
+            const comm = await pool.query(`SELECT 'community' as type, w.entity_id as id, c.name, w.balance, w.updated_at FROM flow_wallets w JOIN communities c ON c.id=w.entity_id WHERE w.entity_type='community' ORDER BY w.balance DESC LIMIT $1`, [parseInt(limit)]);
+            rows = [...fam.rows, ...biz.rows, ...comm.rows].sort((a,b) => b.balance - a.balance);
+        } else if (entityType === 'business') {
+            const r = await pool.query(`SELECT 'business' as type, w.entity_id as id, fg.name, w.balance, w.updated_at FROM flow_wallets w JOIN family_groups fg ON fg.id=w.entity_id WHERE w.entity_type='business' ORDER BY w.balance DESC LIMIT $1`, [parseInt(limit)]);
+            rows = r.rows;
+        } else {
+            const r = await pool.query(`SELECT 'community' as type, w.entity_id as id, c.name, w.balance, w.updated_at FROM flow_wallets w JOIN communities c ON c.id=w.entity_id WHERE w.entity_type='community' ORDER BY w.balance DESC LIMIT $1`, [parseInt(limit)]);
+            rows = r.rows;
+        }
+        res.json({ entities: rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — search groups (for grant UI)
+app.get('/api/sa/groups', verifySA, async (req, res) => {
+    try {
+        const { type, search = '' } = req.query;
+        const typeFilter = type && type !== 'all' ? `AND type=UPPER($2)` : '';
+        const params = [`%${search}%`];
+        if (type && type !== 'all') params.push(type);
+        const r = await pool.query(
+            `SELECT id, name, type FROM family_groups WHERE name ILIKE $1 ${typeFilter} ORDER BY name LIMIT 30`,
+            params);
+        res.json({ groups: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — manually grant or deduct FLOW
+app.post('/api/sa/flow/grant', verifySA, async (req, res) => {
+    try {
+        const { entityType, entityId, amount, reason } = req.body;
+        if (!entityType || !entityId || !amount || !reason) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        if (!['family','business','community'].includes(entityType)) return res.status(400).json({ error: 'סוג ישות לא חוקי' });
+        const amt = parseFloat(amount);
+        await pool.query(
+            `INSERT INTO flow_wallets (entity_type, entity_id, balance) VALUES ($1,$2,$3)
+             ON CONFLICT (entity_type, entity_id) DO UPDATE SET balance=flow_wallets.balance+$3, updated_at=NOW()`,
+            [entityType, parseInt(entityId), amt]);
+        await pool.query(
+            `INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description)
+             VALUES ($1,$2,$3,'sa_manual',$4)`,
+            [entityType, parseInt(entityId), amt, `SA: ${reason}`]);
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
