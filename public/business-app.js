@@ -14767,7 +14767,10 @@ function filterBizAvailableCommunities() {
     let filtered = [...bizAvailableCommCache];
 
     if (cityFilter) {
-        filtered = filtered.filter(c => c.city && c.city.toLowerCase().includes(cityFilter));
+        filtered = filtered.filter(c =>
+            (c.name && c.name.toLowerCase().includes(cityFilter)) ||
+            (c.city && c.city.toLowerCase().includes(cityFilter))
+        );
     }
     
     if (sizeFilter !== 'all') {
@@ -14928,6 +14931,8 @@ window.submitBizPromo = async function() {
 
 // Feature 2: Show match score for available communities
 window.loadBizCommunitiesWithMatch = async function() {
+    // Switch to discover tab so the list is visible
+    switchBizCommunityTab('discover');
     const list = document.getElementById('biz-available-communities-list');
     if (!list || !currentGroup?.id) return;
     try {
