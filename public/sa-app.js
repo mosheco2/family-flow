@@ -6586,15 +6586,13 @@ window.openSAPromotionsPanel = async function() {
     if (existing) { existing.remove(); return; }
     const panel = document.createElement('div');
     panel.id = 'sa-promotions-panel';
-    panel.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    panel.className = 'fixed inset-0 z-[9999] bg-white flex flex-col';
     panel.innerHTML = `
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
-        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-orange-50 to-amber-50">
-            <h3 class="font-bold text-lg text-slate-800">📢 אישור מבצעים שיווקיים</h3>
-            <button onclick="document.getElementById('sa-promotions-panel').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        <div class="px-4 py-3 border-b flex items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 shrink-0">
+            <button onclick="document.getElementById('sa-promotions-panel').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 transition text-lg leading-none">←</button>
+            <h3 class="font-bold text-base text-slate-800">📢 אישור מבצעים שיווקיים</h3>
         </div>
-        <div id="sa-promos-list" class="overflow-y-auto p-4 flex-1"><p class="text-slate-400 text-sm text-center py-8">טוען...</p></div>
-    </div>`;
+        <div id="sa-promos-list" class="overflow-y-auto flex-1 p-4 md:p-6 max-w-4xl w-full mx-auto"><p class="text-slate-400 text-sm text-center py-8">טוען...</p></div>`;
     document.body.appendChild(panel);
     try {
         const res = await fetch(`${API}/sa/community/promotions`, { headers: { Authorization: saToken } });
@@ -6680,15 +6678,13 @@ window.openSAReferralsPanel = async function() {
     if (existing) { existing.remove(); return; }
     const panel = document.createElement('div');
     panel.id = 'sa-referrals-panel';
-    panel.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    panel.className = 'fixed inset-0 z-[9999] bg-white flex flex-col';
     panel.innerHTML = `
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
-        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-yellow-50 to-amber-50">
-            <h3 class="font-bold text-lg text-slate-800">🌟 שגרירי קהילה — הפניות עסקים</h3>
-            <button onclick="document.getElementById('sa-referrals-panel').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        <div class="px-4 py-3 border-b flex items-center gap-3 bg-gradient-to-r from-yellow-50 to-amber-50 shrink-0">
+            <button onclick="document.getElementById('sa-referrals-panel').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 transition text-lg leading-none">←</button>
+            <h3 class="font-bold text-base text-slate-800">🌟 שגרירי קהילה — הפניות עסקים</h3>
         </div>
-        <div id="sa-referrals-list" class="overflow-y-auto p-4 flex-1"><p class="text-slate-400 text-sm text-center py-8">טוען...</p></div>
-    </div>`;
+        <div id="sa-referrals-list" class="overflow-y-auto flex-1 p-4 md:p-6 max-w-4xl w-full mx-auto"><p class="text-slate-400 text-sm text-center py-8">טוען...</p></div>`;
     document.body.appendChild(panel);
     try {
         const res = await fetch(`${API}/sa/community/referrals`, { headers: { Authorization: saToken } });
@@ -6879,18 +6875,16 @@ window.openSABundlesPanel = async function() {
     if (existing) { existing.remove(); return; }
     const panel = document.createElement('div');
     panel.id = 'sa-bundles-panel';
-    panel.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    panel.className = 'fixed inset-0 z-[9999] bg-white flex flex-col';
     panel.innerHTML = `
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-emerald-50 to-green-50">
-            <h3 class="font-bold text-lg text-slate-800">📦 חבילות קהילה</h3>
-            <div class="flex gap-2">
-                <button onclick="openCreateBundleForm()" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-emerald-700 transition">+ חדש</button>
-                <button onclick="document.getElementById('sa-bundles-panel').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        <div class="px-4 py-3 border-b flex justify-between items-center bg-gradient-to-r from-emerald-50 to-green-50 shrink-0">
+            <div class="flex items-center gap-3">
+                <button onclick="document.getElementById('sa-bundles-panel').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 transition text-lg leading-none">←</button>
+                <h3 class="font-bold text-base text-slate-800">📦 חבילות קהילה</h3>
             </div>
+            <button onclick="openCreateBundleForm()" class="bg-emerald-600 text-white px-4 py-1.5 rounded-xl text-sm font-bold hover:bg-emerald-700 transition">+ חבילה חדשה</button>
         </div>
-        <div id="sa-bundles-list" class="overflow-y-auto p-4 flex-1"><p class="text-slate-400 text-sm text-center py-8">טוען...</p></div>
-    </div>`;
+        <div id="sa-bundles-list" class="overflow-y-auto flex-1 p-4 md:p-6 max-w-4xl w-full mx-auto"><p class="text-slate-400 text-sm text-center py-8">טוען...</p></div>`;
     document.body.appendChild(panel);
     await loadSABundles();
 };
@@ -6939,14 +6933,13 @@ window.openCreateBundleForm = function() {
     const comms = saCommunitiesCache || [];
     const modal = document.createElement('div');
     modal.id = 'sa-bundle-create-modal';
-    modal.className = 'fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-4';
+    modal.className = 'fixed inset-0 z-[10000] bg-white flex flex-col';
     modal.innerHTML = `
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
-        <div class="p-4 border-b flex justify-between items-center">
-            <h3 class="font-bold text-lg">📦 יצירת חבילת קהילה</h3>
-            <button onclick="document.getElementById('sa-bundle-create-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        <div class="px-4 py-3 border-b flex items-center gap-3 shrink-0">
+            <button onclick="document.getElementById('sa-bundle-create-modal').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 transition text-lg leading-none">←</button>
+            <h3 class="font-bold text-base">📦 יצירת חבילת קהילה</h3>
         </div>
-        <div class="p-4 space-y-3">
+        <div class="overflow-y-auto flex-1 p-4 md:p-6 max-w-2xl w-full mx-auto space-y-3">
             <div>
                 <label class="text-xs font-bold text-slate-600 mb-1 block">קהילה</label>
                 <select id="bundle-community-id" onchange="loadBundleBusinesses()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
@@ -6973,8 +6966,7 @@ window.openCreateBundleForm = function() {
                 </div>
             </div>
             <button onclick="createCommunityBundle()" class="w-full bg-emerald-600 text-white py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition">✅ צור חבילה</button>
-        </div>
-    </div>`;
+        </div>`;
     document.body.appendChild(modal);
 };
 
@@ -7048,30 +7040,31 @@ window.openFlowConfigPanel = async function() {
 
     const panel = document.createElement('div');
     panel.id = 'sa-flow-config-panel';
-    panel.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    panel.className = 'fixed inset-0 z-[9999] bg-white flex flex-col';
     panel.innerHTML = `
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-amber-50 to-yellow-50">
-            <div>
-                <h3 class="font-black text-slate-800 text-base">⚡ ניהול מטבע FLOW</h3>
-                <p class="text-xs text-slate-500 mt-0.5">שנה כל ערך ולחץ שמור — השינוי נכנס לתוקף מיידית</p>
+        <div class="px-4 py-3 border-b flex justify-between items-center bg-gradient-to-r from-amber-50 to-yellow-50 shrink-0">
+            <div class="flex items-center gap-3">
+                <button onclick="document.getElementById('sa-flow-config-panel').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 transition text-lg leading-none">←</button>
+                <div>
+                    <h3 class="font-black text-slate-800 text-base">⚡ ניהול מטבע FLOW</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">שנה כל ערך ולחץ שמור — השינוי נכנס לתוקף מיידית</p>
+                </div>
             </div>
             <div class="flex gap-2 items-center">
                 <button onclick="openFlowStatsPanel()" class="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-xl font-bold hover:bg-blue-200 transition">📊 סטטיסטיקות</button>
-                <button onclick="document.getElementById('sa-flow-config-panel').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+                <button onclick="saveFlowConfig()" class="text-xs bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-xl font-bold transition shadow-sm">💾 שמור</button>
             </div>
         </div>
-        <div class="overflow-y-auto flex-1 p-4">
+        <div class="overflow-y-auto flex-1 p-4 md:p-6 max-w-4xl w-full mx-auto">
             <div id="flow-config-loading" class="text-center py-10 text-slate-400">
                 <i class="fa-solid fa-spinner fa-spin text-2xl"></i>
             </div>
             <div id="flow-config-table" class="hidden"></div>
         </div>
-        <div class="p-4 border-t bg-slate-50 flex justify-end gap-3">
+        <div class="px-4 py-3 border-t bg-slate-50 flex justify-end gap-3 shrink-0">
             <button onclick="document.getElementById('sa-flow-config-panel').remove()" class="px-4 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition">ביטול</button>
-            <button onclick="saveFlowConfig()" class="px-5 py-2 text-sm font-black text-white bg-amber-500 rounded-xl hover:bg-amber-600 transition shadow-md">💾 שמור הכל</button>
-        </div>
-    </div>`;
+            <button onclick="saveFlowConfig()" class="px-6 py-2 text-sm font-black text-white bg-amber-500 rounded-xl hover:bg-amber-600 transition shadow-md">💾 שמור הכל</button>
+        </div>`;
     document.body.appendChild(panel);
 
     try {
@@ -7134,35 +7127,272 @@ window.openFlowStatsPanel = async function() {
     if (existing) { existing.remove(); return; }
     const panel = document.createElement('div');
     panel.id = 'sa-flow-stats-panel';
-    panel.className = 'fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-4';
+    panel.className = 'fixed inset-0 z-[10000] bg-white flex flex-col';
     panel.innerHTML = `
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col">
-        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-amber-50 to-yellow-50">
-            <h3 class="font-black text-slate-800 text-base">📊 סטטיסטיקות FLOW</h3>
-            <button onclick="document.getElementById('sa-flow-stats-panel').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
-        </div>
-        <div class="overflow-y-auto flex-1 p-4">
-            <div id="flow-stats-content" class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>
-        </div>
-    </div>`;
-    document.body.appendChild(panel);
-    try {
-        const res = await fetch(`${API}/sa/flow/stats`, { headers: { Authorization: saToken } });
-        const d = await res.json();
-        document.getElementById('flow-stats-content').innerHTML = `
-        <div class="bg-amber-50 border border-amber-100 rounded-2xl p-4 mb-4 text-center">
-            <div class="text-3xl font-black text-amber-600">₣ ${parseFloat(d.totalIssued).toLocaleString('he-IL')}</div>
-            <div class="text-xs text-slate-500 mt-1">סך FLOW שהונפק במערכת</div>
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-            <div>
-                <h4 class="font-bold text-slate-700 text-sm mb-2">🏆 משפחות מובילות</h4>
-                ${d.topFamilies.map((f,i) => `<div class="flex justify-between text-xs py-1.5 border-b border-slate-100"><span>${i+1}. ${safeStr(f.name)}</span><span class="font-bold text-amber-600">₣${parseFloat(f.balance).toLocaleString()}</span></div>`).join('') || '<p class="text-xs text-slate-400">אין נתונים</p>'}
+        <div class="px-4 py-3 border-b flex justify-between items-center bg-gradient-to-r from-amber-50 to-yellow-50 shrink-0">
+            <div class="flex items-center gap-3">
+                <button onclick="document.getElementById('sa-flow-stats-panel').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 transition text-lg leading-none">←</button>
+                <div>
+                    <h3 class="font-black text-slate-800 text-base">📊 לוח בקרה FLOW</h3>
+                    <p class="text-[11px] text-slate-500 mt-0.5">מפת צבירה בזמן אמת לכל ישות במערכת</p>
+                </div>
             </div>
-            <div>
-                <h4 class="font-bold text-slate-700 text-sm mb-2">🏘️ קהילות מובילות</h4>
-                ${d.topCommunities.map((c,i) => `<div class="flex justify-between text-xs py-1.5 border-b border-slate-100"><span>${i+1}. ${safeStr(c.name)}</span><span class="font-bold text-emerald-600">₣${parseFloat(c.balance).toLocaleString()}</span></div>`).join('') || '<p class="text-xs text-slate-400">אין נתונים</p>'}
+            <button onclick="refreshFlowDashboard()" class="text-xs bg-amber-100 text-amber-700 px-3 py-1.5 rounded-xl font-bold hover:bg-amber-200 transition">🔄 רענן</button>
+        </div>
+        <!-- Tabs -->
+        <div class="flex border-b shrink-0 bg-slate-50 overflow-x-auto">
+            ${[['overview','🏆 מובילים'],['map','🗺️ מפת ₣'],['log','📋 פעילות'],['grant','🎁 הענקה']].map(([k,l],i) =>
+                `<button onclick="switchFlowTab('${k}')" id="flow-tab-${k}" class="flex-1 min-w-[80px] py-3 text-xs font-bold transition border-b-2 whitespace-nowrap px-2 ${i===0?'border-amber-500 text-amber-700 bg-white':'border-transparent text-slate-500 hover:text-slate-700'}">${l}</button>`
+            ).join('')}
+        </div>
+        <div class="overflow-y-auto flex-1 p-4 md:p-6">
+            <div class="max-w-5xl mx-auto">
+                <div id="flow-tab-content" class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>
             </div>
         </div>`;
-    } catch(e) { document.getElementById('flow-stats-content').innerHTML = '<p class="text-red-500 text-sm">שגיאה בטעינת נתונים</p>'; }
+    document.body.appendChild(panel);
+    await refreshFlowDashboard('overview');
+};
+
+window._flowDashData = null;
+window._flowActiveTab = 'overview';
+
+window.switchFlowTab = function(tab) {
+    window._flowActiveTab = tab;
+    document.querySelectorAll('[id^="flow-tab-"]').forEach(b => {
+        const active = b.id === `flow-tab-${tab}`;
+        b.className = `flex-1 py-2.5 text-xs font-bold transition border-b-2 ${active ? 'border-amber-500 text-amber-700 bg-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`;
+    });
+    renderFlowTab(tab, window._flowDashData);
+};
+
+window.refreshFlowDashboard = async function(tab) {
+    tab = tab || window._flowActiveTab || 'overview';
+    const content = document.getElementById('flow-tab-content');
+    if (content) content.innerHTML = '<div class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>';
+    try {
+        const [stats, leaderboard, txs] = await Promise.all([
+            fetch(`${API}/sa/flow/stats`, { headers: { Authorization: saToken } }).then(r => r.json()),
+            fetch(`${API}/sa/flow/leaderboard?entityType=all&limit=100`, { headers: { Authorization: saToken } }).then(r => r.json()),
+            fetch(`${API}/sa/flow/transactions?limit=30`, { headers: { Authorization: saToken } }).then(r => r.json())
+        ]);
+        window._flowDashData = { stats, leaderboard, txs };
+        renderFlowTab(tab, window._flowDashData);
+    } catch(e) { if(content) content.innerHTML = '<p class="text-red-500 text-sm text-center py-8">שגיאה בטעינת נתונים</p>'; }
+};
+
+function renderFlowTab(tab, d) {
+    const content = document.getElementById('flow-tab-content');
+    if (!content || !d) return;
+    if (tab === 'overview') {
+        const s = d.stats;
+        const issued = parseFloat(s.totalIssued||0), redeemed = parseFloat(s.totalRedeemed||0);
+        const pct = issued > 0 ? Math.round(redeemed/issued*100) : 0;
+        // Mini bar chart (30 days)
+        const days = s.byDay || [];
+        const maxVal = Math.max(...days.map(d=>parseFloat(d.issued||0)), 1);
+        const chartHtml = days.length ? `
+        <div class="mb-4">
+            <h4 class="font-bold text-slate-700 text-sm mb-2">📈 הנפקת ₣ — 30 ימים אחרונים</h4>
+            <div class="flex items-end gap-0.5 h-16 bg-slate-50 rounded-xl px-2 py-2">
+                ${days.map(d => {
+                    const h = Math.max(4, Math.round(parseFloat(d.issued||0)/maxVal*48));
+                    return `<div class="flex-1 bg-amber-400 rounded-t" style="height:${h}px" title="${d.day}: ₣${parseFloat(d.issued).toFixed(0)}"></div>`;
+                }).join('')}
+            </div>
+            <div class="flex justify-between text-[9px] text-slate-400 mt-1 px-2">
+                <span>${days[0]?.day||''}</span><span>${days[days.length-1]?.day||''}</span>
+            </div>
+        </div>` : '';
+        const wc = {};
+        (s.walletCount||[]).forEach(r => wc[r.entity_type] = r);
+        content.innerHTML = `
+        <div class="grid grid-cols-3 gap-3 mb-4">
+            <div class="bg-amber-50 border border-amber-100 rounded-2xl p-3 text-center">
+                <div class="text-2xl font-black text-amber-600">₣${Math.round(issued).toLocaleString('he-IL')}</div>
+                <div class="text-[10px] text-slate-500 mt-0.5">סך הונפק</div>
+            </div>
+            <div class="bg-green-50 border border-green-100 rounded-2xl p-3 text-center">
+                <div class="text-2xl font-black text-green-600">₣${Math.round(redeemed).toLocaleString('he-IL')}</div>
+                <div class="text-[10px] text-slate-500 mt-0.5">מומש (${pct}%)</div>
+            </div>
+            <div class="bg-blue-50 border border-blue-100 rounded-2xl p-3 text-center">
+                <div class="text-2xl font-black text-blue-600">₣${Math.round(issued-redeemed).toLocaleString('he-IL')}</div>
+                <div class="text-[10px] text-slate-500 mt-0.5">במחזור</div>
+            </div>
+        </div>
+        ${chartHtml}
+        <div class="grid grid-cols-3 gap-3">
+            <div>
+                <h4 class="font-bold text-slate-700 text-sm mb-2">👨‍👩‍👧 משפחות</h4>
+                <div class="text-[10px] text-slate-400 mb-1">${wc.family?.cnt||0} ארנקות · ₣${Math.round(wc.family?.total_balance||0).toLocaleString()}</div>
+                ${(s.topFamilies||[]).map((f,i) => `<div class="flex justify-between text-xs py-1 border-b border-slate-100"><span class="truncate max-w-[80px]">${i+1}. ${safeStr(f.name)}</span><span class="font-bold text-amber-600 shrink-0">₣${Math.round(f.balance)}</span></div>`).join('') || '<p class="text-xs text-slate-400">אין נתונים</p>'}
+            </div>
+            <div>
+                <h4 class="font-bold text-slate-700 text-sm mb-2">🏪 עסקים</h4>
+                <div class="text-[10px] text-slate-400 mb-1">${wc.business?.cnt||0} ארנקות · ₣${Math.round(wc.business?.total_balance||0).toLocaleString()}</div>
+                ${(s.topBusinesses||[]).map((b,i) => `<div class="flex justify-between text-xs py-1 border-b border-slate-100"><span class="truncate max-w-[80px]">${i+1}. ${safeStr(b.name)}</span><span class="font-bold text-purple-600 shrink-0">₣${Math.round(b.balance)}</span></div>`).join('') || '<p class="text-xs text-slate-400">אין נתונים</p>'}
+            </div>
+            <div>
+                <h4 class="font-bold text-slate-700 text-sm mb-2">🏘️ קהילות</h4>
+                <div class="text-[10px] text-slate-400 mb-1">${wc.community?.cnt||0} ארנקות · ₣${Math.round(wc.community?.total_balance||0).toLocaleString()}</div>
+                ${(s.topCommunities||[]).map((c,i) => `<div class="flex justify-between text-xs py-1 border-b border-slate-100"><span class="truncate max-w-[80px]">${i+1}. ${safeStr(c.name)}</span><span class="font-bold text-emerald-600 shrink-0">₣${Math.round(c.balance)}</span></div>`).join('') || '<p class="text-xs text-slate-400">אין נתונים</p>'}
+            </div>
+        </div>`;
+    } else if (tab === 'map') {
+        const entities = d.leaderboard?.entities || [];
+        const typeIcon = {family:'👨‍👩‍👧', business:'🏪', community:'🏘️'};
+        const typeColor = {family:'text-amber-600', business:'text-purple-600', community:'text-emerald-600'};
+        const maxBal = Math.max(...entities.map(e=>parseFloat(e.balance||0)), 1);
+        content.innerHTML = `
+        <div class="mb-3 flex gap-2">
+            ${['all','family','business','community'].map(t =>
+                `<button onclick="filterFlowMap('${t}')" id="flow-map-filter-${t}" class="text-xs px-3 py-1 rounded-full font-bold border transition ${t==='all'?'bg-amber-500 text-white border-amber-500':'bg-white text-slate-500 border-slate-200 hover:border-amber-300'}">${{all:'הכל',family:'משפחות',business:'עסקים',community:'קהילות'}[t]}</button>`
+            ).join('')}
+        </div>
+        <div id="flow-map-rows">
+            ${entities.map((e,i) => {
+                const bal = parseFloat(e.balance||0);
+                const barW = Math.max(2, Math.round(bal/maxBal*100));
+                return `<div class="flex items-center gap-2 py-1.5 border-b border-slate-50 flow-map-row" data-type="${e.type}">
+                    <span class="text-sm shrink-0">${typeIcon[e.type]||'?'}</span>
+                    <span class="text-xs text-slate-700 w-32 truncate shrink-0">${safeStr(e.name)}</span>
+                    <div class="flex-1 bg-slate-100 rounded-full h-2">
+                        <div class="h-2 rounded-full bg-amber-400" style="width:${barW}%"></div>
+                    </div>
+                    <span class="text-xs font-black ${typeColor[e.type]||''} shrink-0 w-16 text-left">₣${Math.round(bal).toLocaleString()}</span>
+                    <button onclick="openFlowGrantFor('${e.type}',${e.id},'${safeStr(e.name).replace(/'/g,'')}')" class="text-[10px] text-indigo-500 hover:text-indigo-700 font-bold shrink-0">הענק</button>
+                </div>`;
+            }).join('') || '<p class="text-sm text-slate-400 text-center py-8">אין ישויות עם ₣ עדיין</p>'}
+        </div>`;
+    } else if (tab === 'log') {
+        const txs = d.txs?.transactions || [];
+        const typeIcon = {family:'👨‍👩‍👧', business:'🏪', community:'🏘️'};
+        content.innerHTML = `
+        <div class="flex justify-between items-center mb-3">
+            <h4 class="font-bold text-slate-700 text-sm">פעילות אחרונה — 30 עסקאות</h4>
+            <select onchange="filterFlowLog(this.value)" class="text-xs border border-slate-200 rounded-lg px-2 py-1">
+                <option value="all">הכל</option>
+                <option value="family">משפחות</option>
+                <option value="business">עסקים</option>
+                <option value="community">קהילות</option>
+            </select>
+        </div>
+        <div id="flow-log-rows" class="space-y-1">
+            ${txs.map(t => {
+                const amt = parseFloat(t.amount);
+                const d = new Date(t.created_at);
+                return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 text-xs flow-log-row" data-type="${t.entity_type}">
+                    <span class="shrink-0">${typeIcon[t.entity_type]||'?'}</span>
+                    <span class="text-slate-600 flex-1 truncate">${safeStr(t.entity_name||'')} — ${safeStr(t.description||'')}</span>
+                    <span class="font-black shrink-0 ${amt>0?'text-green-600':'text-red-500'}">${amt>0?'+':''}${amt.toFixed(0)} ₣</span>
+                    <span class="text-slate-400 shrink-0 text-[10px]">${d.toLocaleDateString('he-IL')} ${d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</span>
+                </div>`;
+            }).join('') || '<p class="text-sm text-slate-400 text-center py-8">אין פעילות עדיין</p>'}
+        </div>`;
+    } else if (tab === 'grant') {
+        content.innerHTML = `
+        <div class="max-w-sm mx-auto">
+            <div class="bg-amber-50 border border-amber-100 rounded-2xl p-4 mb-4">
+                <p class="text-xs text-amber-700 font-medium">הענקה ידנית מאפשרת לך לתת או להוריד ₣ מכל ישות. שימוש לתיקון, פרסים, או פיצויים.</p>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 mb-1 block">סוג ישות</label>
+                    <select id="grant-entity-type" onchange="loadGrantEntities()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                        <option value="">— בחר סוג —</option>
+                        <option value="family">👨‍👩‍👧 משפחה</option>
+                        <option value="business">🏪 עסק</option>
+                        <option value="community">🏘️ קהילה</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 mb-1 block">שם הישות</label>
+                    <input type="text" id="grant-entity-search" oninput="loadGrantEntities()" placeholder="חפש לפי שם..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                    <select id="grant-entity-id" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mt-2 hidden">
+                        <option value="">— בחר ישות —</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 mb-1 block">כמות ₣ (שלילי = הפחתה)</label>
+                    <input type="number" id="grant-amount" placeholder="לדוגמה: 50 או -20" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-amber-600">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 mb-1 block">סיבה (תוצג בלוג)</label>
+                    <input type="text" id="grant-reason" placeholder="לדוגמה: פרס חודש, תיקון שגיאה..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                </div>
+                <button onclick="submitFlowGrant()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-2xl text-sm transition shadow-md">⚡ בצע הענקה</button>
+                <div id="grant-result" class="hidden"></div>
+            </div>
+        </div>`;
+    }
+}
+
+window.filterFlowMap = function(type) {
+    document.querySelectorAll('[id^="flow-map-filter-"]').forEach(b => {
+        const active = b.id === `flow-map-filter-${type}`;
+        b.className = `text-xs px-3 py-1 rounded-full font-bold border transition ${active ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-slate-200 hover:border-amber-300'}`;
+    });
+    document.querySelectorAll('.flow-map-row').forEach(r => {
+        r.style.display = (type === 'all' || r.dataset.type === type) ? '' : 'none';
+    });
+};
+
+window.filterFlowLog = function(type) {
+    document.querySelectorAll('.flow-log-row').forEach(r => {
+        r.style.display = (type === 'all' || r.dataset.type === type) ? '' : 'none';
+    });
+};
+
+window.openFlowGrantFor = function(entityType, entityId, name) {
+    switchFlowTab('grant');
+    setTimeout(() => {
+        const typeEl = document.getElementById('grant-entity-type');
+        if (typeEl) { typeEl.value = entityType; loadGrantEntities(entityId, name); }
+    }, 100);
+};
+
+window.loadGrantEntities = async function(presetId, presetName) {
+    const type = document.getElementById('grant-entity-type')?.value;
+    const search = document.getElementById('grant-entity-search')?.value?.trim();
+    const sel = document.getElementById('grant-entity-id');
+    if (!sel || !type) return;
+    sel.classList.remove('hidden');
+    if (presetId) {
+        sel.innerHTML = `<option value="${presetId}">${safeStr(presetName||'')}</option>`;
+        sel.value = presetId;
+        return;
+    }
+    try {
+        let url = type === 'community'
+            ? `${API}/sa/communities`
+            : `${API}/sa/groups?type=${type}&search=${encodeURIComponent(search||'')}`;
+        const res = await fetch(url, { headers: { Authorization: saToken } });
+        const data = await res.json();
+        const items = data.communities || data.groups || [];
+        sel.innerHTML = '<option value="">— בחר —</option>' + items.slice(0,30).map(i => `<option value="${i.id}">${safeStr(i.name)}</option>`).join('');
+    } catch(e) {}
+};
+
+window.submitFlowGrant = async function() {
+    const entityType = document.getElementById('grant-entity-type')?.value;
+    const entityId = document.getElementById('grant-entity-id')?.value;
+    const amount = document.getElementById('grant-amount')?.value;
+    const reason = document.getElementById('grant-reason')?.value?.trim();
+    const result = document.getElementById('grant-result');
+    if (!entityType || !entityId || !amount || !reason) { showSAToast('⚠️ יש למלא את כל השדות'); return; }
+    try {
+        const res = await fetch(`${API}/sa/flow/grant`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: saToken },
+            body: JSON.stringify({ entityType, entityId: parseInt(entityId), amount: parseFloat(amount), reason })
+        });
+        const data = await res.json();
+        if (data.success) {
+            result.classList.remove('hidden');
+            const amt = parseFloat(amount);
+            result.innerHTML = `<div class="bg-green-50 border border-green-200 rounded-xl p-3 text-center text-green-700 text-sm font-bold">✅ ${amt>0?'+':''}${amt} ₣ הועברו בהצלחה</div>`;
+            showSAToast('✅ הענקה בוצעה!');
+            setTimeout(() => refreshFlowDashboard('overview'), 1500);
+        } else throw new Error(data.error);
+    } catch(e) { showSAToast('שגיאה: ' + e.message); }
 };
