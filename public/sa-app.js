@@ -12,6 +12,7 @@ let saCommunitiesCache = [];
 let saBusinessesCache = [];
 let saTicketsCache = [];
 let saPartnersCache = [];
+let mockPartnerCounter = 1000;
 let currentCommFamiliesCache = [];
 let createCityTags = [];
 let editCityTags = [];
@@ -207,6 +208,7 @@ window.switchSATab = function(tabId) {
     }
 
     if (tabId === 'pulse') updateSADashboard();
+    if (tabId === 'stats') loadSAData();
     if (tabId === 'finance') loadSAFinanceData();
     if (tabId === 'legal') loadLegalDocs();
 
@@ -383,34 +385,6 @@ function _updateMobileNav() {
         }
     }
 }
-
-window.updateSADashboard = async function() {
-    try {
-        if (saTicketsCache.length === 0 && window.checkTabAccess('support')) {
-            const resT = await fetch(`${API}/superadmin/tickets`, { headers: { 'Authorization': saToken } });
-            const dataT = await resT.json();
-            if (dataT.success) saTicketsCache = dataT.tickets || [];
-        }
-        const openTickets = saTicketsCache.filter(t => t.status === 'open' || t.status === 'in_progress').length;
-        if(getEl('dash-open-tickets')) getEl('dash-open-tickets').innerText = openTickets;
-        
-        if (typeof devKanbanTasks !== 'undefined' && devKanbanTasks.length === 0 && window.checkTabAccess('devops')) {
-            const resK = await fetch(`${API}/sa/dev/tasks`, { headers: { 'Authorization': saToken } });
-            const dataK = await resK.json();
-            if (dataK.success) devKanbanTasks = dataK.tasks || [];
-        }
-        const openTasks = typeof devKanbanTasks !== 'undefined' ? devKanbanTasks.filter(t => t.status === 'backlog' || t.status === 'in_progress').length : 0;
-        if(getEl('dash-open-tasks')) getEl('dash-open-tasks').innerText = openTasks;
-
-        if (window.checkTabAccess('comm')) {
-            const resC = await fetch(`${API}/sa/communities/pending-businesses`, { headers: { 'Authorization': saToken } });
-            const dataC = await resC.json();
-            if (dataC.success && dataC.pending) {
-                if(getEl('dash-pending-biz')) getEl('dash-pending-biz').innerText = dataC.pending.length;
-            }
-        }
-    } catch(e) { console.error('Error updating dashboard', e); }
-};
 
 window.switchDevTab = function(tabId) {
     ['matrix', 'kanban', 'alm', 'qa', 'release'].forEach(t => {
@@ -1258,6 +1232,8 @@ async function loadSAData() {
             setTxt('sa-stat-businesses', data.stats.businesses);
             setTxt('sa-stat-family-users', data.stats.familyUsers);
             setTxt('sa-stat-biz-users', data.stats.businessUsers);
+            setTxt('sa-stat-communities', data.stats.communities);
+            setTxt('sa-stat-connections', data.stats.activeConnections);
         }
 
         if (data.activity && data.stats) {
@@ -4030,38 +4006,6 @@ window.deleteKanbanTask = async function() {
 };
 
 // ==========================================
-// --- המרת קריאת שירות למשימת פיתוח (סעיפים 1+4 באפיון) ---
-// ==========================================
-window.convertTicketToDevTask = function() {
-    if (!saCurrentTicketId) return;
-    
-    const t = saTicketsCache.find(x => x.id === saCurrentTicketId);
-    if (!t) return;
-    
-    document.getElementById('sa-ticket-modal').classList.add('hidden');
-    switchSATab('devops');
-    switchDevTab('kanban');
-    
-    const defaultTitle = `פנייה #${t.id}: ${t.subject}`;
-    const defaultDesc = `קריאת שירות #${t.id}\nמאת: ${t.group_name} (${t.user_name})\n\nתיאור התקלה מהלקוח:\n${t.description}`;
-    
-    openKanbanTaskModal();
-    
-    setTimeout(() => {
-        // שמירת ה"אבא" של המשימה במשתנים הנסתרים
-        getEl('kanban-task-owner-id').value = window.currentSAUser ? window.currentSAUser.id : '';
-        getEl('kanban-task-ticket-id').value = t.id;
-        
-        getEl('kanban-task-title').value = defaultTitle;
-        getEl('kanban-task-desc').value = defaultDesc;
-        getEl('kanban-task-type').value = 'bug';
-        getEl('kanban-task-priority').value = 'high';
-        
-        showToast('info', 'הקריאה קושרה! השלם את יצירת המשימה.');
-    }, 100);
-};
-
-// ==========================================
 // --- פתיחת קריאת שירות מתוך משימת קנבן ---
 // ==========================================
 window.openTicketFromTask = function(ticketId) {
@@ -5713,99 +5657,6 @@ window.openInternalMsgStatsModal = async function(msgId, title) {
         if (tbody) tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-4 text-center text-red-500">שגיאת רשת.</td></tr>';
     }
 };
-
-// ==========================================
-// --- מערכת הודעות פנימיות ואישורים ---
-// ==========================================
-
-function toggleIntMsgTarget() {
-    const type = val('int-msg-target-type');
-    const wrapper = getEl('int-msg-target-val-wrapper');
-    if (type === 'team') {
-        wrapper.classList.remove('hidden');
-        const select = getEl('int-msg-target-val');
-        if (typeof saTeamsCache !== 'undefined' && saTeamsCache.length > 0) {
-            select.innerHTML = saTeamsCache.map(t => `<option value="${t.id}">${safeStr(t.name)}</option>`).join('');
-        } else {
-            select.innerHTML = '<option value="">אין צוותים מוגדרים (או חסר קאש)</option>';
-        }
-    } else {
-        wrapper.classList.add('hidden');
-    }
-}
-
-function openInternalMsgModal() {
-    getEl('int-msg-title').value = '';
-    getEl('int-msg-content').value = '';
-    getEl('int-msg-target-type').value = 'all';
-    toggleIntMsgTarget();
-    getEl('sa-internal-msg-modal').classList.remove('hidden');
-}
-
-async function sendInternalMsg() {
-    const title = val('int-msg-title');
-    const content = val('int-msg-content');
-    const targetType = val('int-msg-target-type');
-    const targetId = targetType === 'team' ? val('int-msg-target-val') : null;
-
-    if (!title || !content) return showToast('error', 'יש למלא נושא ותוכן.');
-
-    try {
-        const res = await fetch(`${API}/messages/broadcast`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ title, content, targetType, targetId })
-        });
-        const data = await res.json();
-        if (data.success) {
-            showToast('success', 'הודעה פנימית נשלחה בהצלחה!');
-            getEl('sa-internal-msg-modal').classList.add('hidden');
-        } else {
-            showToast('error', data.error || 'שגיאה בשליחת הודעה.');
-        }
-    } catch (e) {
-        showToast('error', 'שגיאת רשת בשליחת הודעה.');
-    }
-}
-
-async function openInternalMsgStatsModal(msgId, title) {
-    getEl('stats-msg-title').innerText = `מנתח נתונים עבור: ${title}`;
-    const tbody = getEl('stats-msg-body');
-    tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-4 text-center text-slate-400">טוען נתונים...</td></tr>';
-    getEl('sa-internal-msg-stats-modal').classList.remove('hidden');
-
-    try {
-        const res = await fetch(`${API}/messages/${msgId}/stats`, { headers: { 'Authorization': saToken } });
-        const data = await res.json();
-        if (data.success) {
-            if (!data.stats || data.stats.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-4 text-center text-slate-400">טרם התקבלו מענים מאף עובד.</td></tr>';
-            } else {
-                tbody.innerHTML = data.stats.map(s => {
-                    let statusHtml = '';
-                    if(s.status === 'read') statusHtml = '<span class="text-blue-500 bg-blue-50 px-2 py-1 rounded font-bold">קראתי</span>';
-                    else if(s.status === 'approved') statusHtml = '<span class="text-green-500 bg-green-50 px-2 py-1 rounded font-bold">אישרתי</span>';
-                    else if(s.status === 'rejected') statusHtml = '<span class="text-red-500 bg-red-50 px-2 py-1 rounded font-bold">ביטלתי</span>';
-                    else statusHtml = '<span class="text-slate-400">לא ידוע</span>';
-
-                    const dateStr = s.responded_at ? new Date(s.responded_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'}) : '---';
-
-                    return `
-                        <tr>
-                            <td class="px-4 py-2 font-bold text-slate-700">${safeStr(s.name)}</td>
-                            <td class="px-4 py-2 text-center">${statusHtml}</td>
-                            <td class="px-4 py-2 text-slate-500 dir-ltr">${dateStr}</td>
-                        </tr>
-                    `;
-                }).join('');
-            }
-        } else {
-            tbody.innerHTML = `<tr><td colspan="3" class="px-4 py-4 text-center text-red-500">${safeStr(data.error)}</td></tr>`;
-        }
-    } catch(e) {
-        tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-4 text-center text-red-500">שגיאת רשת.</td></tr>';
-    }
-}
 
 // ============================================================
 // --- FINANCE & CASHBACK TAB ---

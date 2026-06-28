@@ -2955,6 +2955,8 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
 
         const connectionsRes = await pool.query("SELECT COUNT(*) FROM community_businesses WHERE status = 'approved'");
         const totalConnections = parseInt(connectionsRes.rows[0].count) || 0;
+        const commCountRes = await pool.query("SELECT COUNT(*) FROM communities WHERE status='active'");
+        const totalCommunities = parseInt(commCountRes.rows[0].count) || 0;
 
         const stats = {
             families: groups.rows.filter(g => g.type === 'FAMILY' && g.member_type !== 'member').length,
@@ -2963,6 +2965,7 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
             familyUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'FAMILY'; }).length,
             businessUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'BUSINESS'; }).length,
             activeConnections: totalConnections,
+            communities: totalCommunities,
             onlineNow: parseInt((await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen > NOW() - INTERVAL '3 minutes'`)).rows[0].count) || 0
         };
         
