@@ -1057,4 +1057,187 @@ accState = {
 
 ---
 
-*נוצר אוטומטית מקוד המקור · Oneflow Life · 2026-06-20*
+---
+
+## 13. מערכת עזרה מותאמת תפקיד (Help System)
+
+**גרסה: 2026-06-28** — נוסף לאחר ה-spec המקורי.
+
+### 13.1 כפתור "?" — Help Sheet
+
+בכל לשונית ראשית בסרגל התחתון מוצג כפתור עגול "?" בפינה עליונה ימנית.  
+לחיצה קוראת ל-`openFamilyHelp()` שמציגה Bottom Sheet מותאמת לפי:
+- **לשונית פעילה** — `window._currentFamilyTab` מעודכן בכל החלפת לשונית
+- **תפקיד המשתמש** — ADMIN/MANAGER → מדריך הורה; CHILD/MEMBER → מדריך ילד
+
+### 13.2 FAMILY_HELP_CONTENT
+
+מאגר תוכן בקובץ `app.js` עם 14 ערכים (אחד לכל לשונית):
+
+| לשונית | אייקון | תיאור |
+|--------|--------|--------|
+| `feed` | 🏠 | לוח ראשי — דשבורד |
+| `shop` | 🛒 | חנות עסקים |
+| `myorders` | 📦 | הזמנות שלי |
+| `bank` | 💰 | בנק משפחתי |
+| `cashflow` | 📊 | תזרים מזומנים |
+| `academy` | 🎓 | אקדמיה |
+| `tasks` | ✅ | משימות |
+| `community` | 🏘️ | קהילה |
+| `members` | 👥 | חברי המשפחה |
+| `budget` | 💳 | תקציב |
+| `pantry` | 🥫 | מלאי מזון |
+| `recipes` | 👨‍🍳 | מתכונים |
+| `forecast` | 🔮 | תחזית כלכלית |
+| `home-maintenance` | 🔧 | תחזוקת הבית |
+
+כל ערך מכיל:
+```js
+{
+  icon, title,
+  what,       // טקסט הסבר לילד/עובד
+  what_admin, // טקסט הסבר להורה/מנהל (אופציונלי)
+  tips,       // מערך טיפים לילד
+  tips_admin  // מערך טיפים להורה (אופציונלי)
+}
+```
+
+### 13.3 לוגיקת בחירת תוכן
+
+```js
+const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'MANAGER';
+const what  = (isAdmin && help.what_admin)  ? help.what_admin  : help.what;
+const tips  = (isAdmin && help.tips_admin)  ? help.tips_admin  : help.tips;
+```
+
+---
+
+## 14. מודול FLOW — מטבע קהילתי
+
+**גרסה: 2026-06-28** — מערכת נקודות FLOW (סמל: ₣) נוספה.
+
+### 14.1 מבנה הארנק
+
+כל משפחה מחזיקה **ארנק FLOW אישי** עם:
+- **יתרה** — נקודות ₣ שנצברו
+- **היסטוריית עסקאות** — list עם תיאור, סכום ותאריך
+- **קוד מימוש** — קוד הנחה ייחודי (פורמט `FL...`) הניתן לפדייה בעסקים
+
+### 14.2 איך מרוויחים ₣
+
+| פעולה | סכום ₣ |
+|-------|---------|
+| השלמת פרופיל | 15 |
+| קנייה ראשונה מחנות קהילה | 10 |
+| רכישת חבילת קהילה | 15 |
+| פדיית מבצע קהילה | 10 |
+| השארת ביקורת על עסק | 10 |
+| השפעת חבר (referral) — לממליץ | 35 |
+| השפעת חבר (referral) — לארנק קהילה | 15 |
+
+### 14.3 ממשק משתמש
+
+**לחצן ארנק** בלשונית קהילה → `loadFamilyFlowWallet()` → modal עם:
+- יתרה ₣ גדולה ומודגשת (גרדיאנט זהוב)
+- היסטוריית 10 עסקאות אחרונות
+- כפתור "מימוש" → `openFlowRedeemModal()`
+
+**מימוש:**
+1. המשתמש בוחר כמה ₣ לממש (מינימום 50)
+2. מקבל קוד הנחה ייחודי (`POST /api/flow/redeem`)
+3. מציג את הקוד לעסק שמאמת אותו
+
+### 14.4 API Endpoints
+
+| Method | Endpoint | תיאור |
+|--------|----------|-------|
+| GET | `/api/flow/wallet/family/:groupId` | יתרה + עסקאות |
+| POST | `/api/flow/redeem` | יצירת קוד מימוש |
+| POST | `/api/flow/redemptions/:code/use` | אימות קוד ע"י עסק |
+
+---
+
+## 15. מודול קהילה — פיצ'רים מתקדמים
+
+**גרסה: 2026-06-28** — 6 פיצ'רים קהילתיים נוספו.
+
+### 15.1 ארבע לשוניות הקהילה (`switchFamCommunityTab`)
+
+| id | כפתור | תיאור |
+|----|-------|-------|
+| `join` | 🏠 הקהילות שלי | הצטרפות וניהול קהילות |
+| `benefits` | 🏪 עסקים | רשימת עסקים עם הנחות |
+| `news` | 📢 חדשות | מבצעים וחבילות (badge מספרי) |
+| `interests` | 🔍 עניין | (לשונית עניין, בפיתוח) |
+
+### 15.2 עמוד "הקהילות שלי" (join)
+
+כשמחובר לקהילות מוצג:
+- **רשימת קהילות פעילות** (עד 5) — עם שם, עיר, ארנק ₣ (cashback)
+- **תג "מנהל קהילה"** אם `is_community_manager = true`
+- **כפתור "ניהול"** → `openCommunityManagerPanel()` למנהל
+- **כפתור "התנתק"** → `leaveCommunity()`
+- **כפתור הצטרפות לקהילה נוספת** (אם < 5)
+
+כשלא מחובר: מוצג banner הסבר עם כפתור הצטרפות (קוד) + שדה קוד מומלץ (referral).
+
+### 15.3 עמוד "עסקים" (benefits)
+
+רשימת עסקים מהקהילות שלי — לכל עסק:
+- שם + אייקון
+- **הנחה** — אחוז הנחה + סטטוס (פעיל/ממתין למינימום משפחות)
+- קישור לדף החנות של העסק
+- שם הקהילה
+
+### 15.4 עמוד "חדשות" (news)
+
+טוען ב-`loadCommunityFeed()` → `GET /api/community/family-feed/:groupId`
+
+**מבצעים (promotions):** `renderCommunityPromotions()`
+- כרטיס מבצע עם שם עסק, תיאור, אחוז הנחה, תאריך פג תוקף
+- כפתור "מימש" → `redeemCommunityPromo(promoId)` → `POST /api/community/promotions/:id/redeem`
+- זיכוי ₣ אוטומטי בפדיית מבצע
+
+**חבילות (bundles):** `renderCommunityBundles()`
+- חבילת עסקים — רשימת עסקים בחבילה, מחיר, תיאור
+- כפתור "רכוש" → `purchaseCommunityBundle(bundleId)` → `POST /api/community/bundles/:id/purchase`
+- זיכוי ₣ אוטומטי בקנייה
+
+**Banners:** `renderCommunityBanners()` — באנר גרדיאנט צבעוני של עסקים
+
+### 15.5 מערכת הפניות (Referral)
+
+- כל משפחה מקבלת **קוד הפניה אישי** ב-`GET /api/community/my-referral-code/:groupId`
+- הקוד מוצג בכרטיס ב-join view עם כפתור **העתקה/WhatsApp**
+- כאשר משפחה נרשמת עם קוד הפניה → המפנה מקבל 35₣ + קהילה מקבלת 15₣
+- שדה "קוד חבר שהמליץ" בטופס ההצטרפות לקהילה
+
+### 15.6 API Endpoints קהילה
+
+| Method | Endpoint | תיאור |
+|--------|----------|-------|
+| GET | `/api/community/info/:groupId` | מידע קהילות, עסקים |
+| GET | `/api/community/family-feed/:groupId` | banners, promos, bundles |
+| POST | `/api/community/promotions/:id/redeem` | פדיית מבצע |
+| POST | `/api/community/bundles/:id/purchase` | רכישת חבילה |
+| GET | `/api/community/my-referral-code/:groupId` | קוד הפניה אישי |
+| POST | `/api/community/join` | הצטרפות לקהילה (+ referralCode) |
+| POST | `/api/community/leave` | עזיבת קהילה |
+
+---
+
+## 16. DB — טבלאות נוספות (עדכון 2026-06-28)
+
+| טבלה | תיאור |
+|------|-------|
+| `flow_wallets` | ארנק ₣ לישות (entity_type + entity_id) |
+| `flow_transactions` | כל עסקאות ה-₣ |
+| `flow_redemptions` | קודי מימוש שנוצרו |
+| `community_promotions` | מבצעי עסקים בקהילה |
+| `community_bundles` | חבילות עסקים |
+| `community_banners` | באנרים לקידום |
+| `community_referrals` | קודי הפניה ומעקב |
+
+---
+
+*עודכן: 2026-06-28 | Oneflow Life*

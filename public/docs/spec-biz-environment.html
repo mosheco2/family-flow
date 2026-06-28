@@ -631,10 +631,136 @@
       </div>
     </section>
 
+    <!-- Section 13: Help System -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-6">
+      <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-violet-100 text-violet-700 flex items-center justify-center text-lg">❓</span>
+        13. מערכת עזרה מותאמת תפקיד
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700">חדש 2026-06-28</span>
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h3 class="font-black text-slate-700 mb-3">49+ ערכי BIZ_HELP_CONTENT</h3>
+          <p class="text-sm text-slate-600 mb-3">כפתור "?" בסרגל עליון → <code class="bg-slate-100 px-1 rounded text-xs">openBizHelp()</code></p>
+          <ul class="space-y-2 text-sm text-slate-600">
+            <li>• <b>תפקיד</b>: ADMIN/MANAGER → תוכן מנהל; עובד → תוכן עובד</li>
+            <li>• <b>badge תפקיד</b>: "מדריך למלצר/טבח/קופאי..."</li>
+            <li>• <b>sub-tab</b>: <code class="bg-slate-100 px-1 rounded text-xs">window._currentBizSubTab</code></li>
+          </ul>
+          <div class="mt-4 bg-slate-50 rounded-xl p-3">
+            <p class="text-xs font-bold text-slate-600 mb-1">ROLE_LABELS:</p>
+            <p class="text-xs text-slate-500">waiter=מלצר · cook=טבח · cashier=קופאי · delivery=שליח · field_tech=טכנאי · trainer=מאמן · beautician=קוסמטיקאית · barber=ספר</p>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-black text-slate-700 mb-3">מבנה הערך</h3>
+          <pre class="bg-slate-900 text-green-400 rounded-xl p-4 text-xs">{
+  icon, title,
+  what,         // הסבר לעובד
+  what_admin,   // הסבר למנהל
+  tips,         // טיפים לעובד
+  tips_admin    // טיפים למנהל
+}</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 14: FLOW Business -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-6">
+      <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center text-lg">⚡</span>
+        14. מודול FLOW — ארנק עסקי
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">חדש 2026-06-28</span>
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h3 class="font-black text-slate-700 mb-3">מקורות FLOW לעסק</h3>
+          <table class="text-sm border border-slate-200 rounded-xl overflow-hidden w-full">
+            <thead class="bg-amber-50"><tr><th class="p-2 text-right font-bold">מקור</th><th class="p-2 text-right font-bold">תיאור</th></tr></thead>
+            <tbody>
+              <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">biz_join_approved</td><td class="p-2">הצטרף לקהילה ואושר</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">biz_promo_redeemed</td><td class="p-2">לקוח מימש מבצע</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">biz_bundle_sold</td><td class="p-2">חבילה נמכרה</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">biz_review_received</td><td class="p-2">לקוח השאיר ביקורת</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h3 class="font-black text-slate-700 mb-3">אימות קוד הנחה</h3>
+          <ol class="space-y-2 text-sm text-slate-600">
+            <li class="flex gap-2"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">1</span>לקוח מציג קוד FL...</li>
+            <li class="flex gap-2"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">2</span>עובד מכניס ב"ארנק FLOW"</li>
+            <li class="flex gap-2"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">3</span>POST /api/flow/redemptions/:code/use</li>
+            <li class="flex gap-2"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">4</span>הנחה ₪ מוצגת על המסך</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 15: Community Advanced -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-6">
+      <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-orange-100 text-orange-700 flex items-center justify-center text-lg">🏘️</span>
+        15. קהילה — 6 פיצ'רים מתקדמים
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700">חדש 2026-06-28</span>
+      </h2>
+      <h3 class="font-black text-slate-700 mb-3">סרגל כלים קהילתיים</h3>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+        <div class="bg-orange-50 border border-orange-100 rounded-2xl p-3"><div class="text-lg mb-1">📢</div><div class="font-bold text-sm">פרסם מבצע</div><div class="text-xs text-slate-500">openBizPromoModal()</div></div>
+        <div class="bg-teal-50 border border-teal-100 rounded-2xl p-3"><div class="text-lg mb-1">🔍</div><div class="font-bold text-sm">קהילות לפי עניין</div><div class="text-xs text-slate-500">openInterestSearchModal()</div></div>
+        <div class="bg-purple-50 border border-purple-100 rounded-2xl p-3"><div class="text-lg mb-1">🎯</div><div class="font-bold text-sm">% התאמה</div><div class="text-xs text-slate-500">loadBizCommunitiesWithMatch()</div></div>
+        <div class="bg-green-50 border border-green-100 rounded-2xl p-3"><div class="text-lg mb-1">📦</div><div class="font-bold text-sm">החבילות שלי</div><div class="text-xs text-slate-500">loadMyBizBundles()</div></div>
+        <div class="bg-pink-50 border border-pink-100 rounded-2xl p-3"><div class="text-lg mb-1">📋</div><div class="font-bold text-sm">המבצעים שלי</div><div class="text-xs text-slate-500">loadMyBizPromos()</div></div>
+        <div class="bg-amber-50 border border-amber-100 rounded-2xl p-3"><div class="text-lg mb-1">⚡</div><div class="font-bold text-sm">ארנק FLOW</div><div class="text-xs text-slate-500">openBizFlowWallet()</div></div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h3 class="font-black text-slate-700 mb-3">% התאמה — ציון קהילה</h3>
+          <table class="text-sm border border-slate-200 rounded-xl overflow-hidden w-full">
+            <thead class="bg-purple-50"><tr><th class="p-2 text-right font-bold">גורם</th><th class="p-2 text-right font-bold">ניקוד</th></tr></thead>
+            <tbody>
+              <tr class="border-t border-slate-100"><td class="p-2">עיר זהה</td><td class="p-2 font-black text-purple-600">+35</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">GPS קרוב</td><td class="p-2 font-black text-purple-600">עד +40</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">גודל קהילה</td><td class="p-2 font-black text-purple-600">+0.5 × משפחות (מקס 30)</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">עסקים פעילים</td><td class="p-2 font-black text-purple-600">+2 × עסקים (מקס 20)</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">תגית עניין</td><td class="p-2 font-black text-purple-600">+10</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h3 class="font-black text-slate-700 mb-3">גילוי לפי מיקום</h3>
+          <ul class="space-y-2 text-sm text-slate-600">
+            <li>• <b>2 מצבים</b>: לפי עיר / דרך קוד עסק</li>
+            <li>• <b>זיהוי אוטומטי</b>: GPS → Nominatim → שם עיר</li>
+            <li>• <b>גילוי דרך עסק</b>: קוד עסק → הקהילות שלו</li>
+          </ul>
+          <p class="text-xs text-slate-500 mt-3">Endpoint: <code class="bg-slate-100 px-1 rounded">GET /api/biz/communities/via-biz/:code/:bizId</code></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 16: PDF Scan -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-6">
+      <h2 class="text-2xl font-black text-slate-800 mb-4 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center text-lg">📸</span>
+        16. ייבוא מוצרים — PDF/תמונה (Gemini)
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700">חדש 2026-06-28</span>
+      </h2>
+      <div class="flex flex-col gap-3 text-sm text-slate-600">
+        <p>ב-tab <b>inventory</b>: כפתור "📸 סרוק מסמך / תמונה"</p>
+        <ol class="space-y-2">
+          <li>1. בחירת קובץ PDF / תמונה</li>
+          <li>2. שליחה ל-<code class="bg-slate-100 px-1 rounded text-xs">POST /api/ai/scan-products</code> (base64)</li>
+          <li>3. Gemini Flash חולץ רשימת מוצרים: שם, יחידה, כמות, מחיר</li>
+          <li>4. המשתמש מאשר → ייבוא למלאי</li>
+        </ol>
+      </div>
+    </section>
+
     <!-- Footer -->
     <div class="bg-slate-800 rounded-3xl p-6 text-center text-slate-400 text-sm">
       <p class="font-black text-white mb-1">OneFlow Life BIZ — מפרט טכני מקיף</p>
-      <p class="text-xs">נוצר אוטומטית מקוד המקור · גרסה 2026-06-20</p>
+      <p class="text-xs">עודכן: 2026-06-28</p>
       <button onclick="window.print()" class="no-print mt-4 px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition">
         🖨️ שמור כ-PDF
       </button>

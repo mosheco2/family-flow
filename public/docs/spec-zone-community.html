@@ -786,10 +786,73 @@ zone_manager_commissions  (id, manager_id, community_id, order_id, amount, commi
 zone_manager_payments     (id, manager_id, amount, payment_method, notes, paid_at)</pre>
     </section>
 
+    <!-- Section 8: Advanced Features -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-6">
+      <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-orange-100 text-orange-700 flex items-center justify-center text-lg">🚀</span>
+        8. פיצ'רים מתקדמים — קהילה
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700">חדש 2026-06-28</span>
+      </h2>
+
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+        <div class="bg-amber-50 border border-amber-100 rounded-2xl p-3"><div class="text-2xl mb-1">⚡</div><div class="font-bold text-sm">ארנק FLOW</div><div class="text-xs text-slate-500">₣ לכל קהילה</div></div>
+        <div class="bg-teal-50 border border-teal-100 rounded-2xl p-3"><div class="text-2xl mb-1">🏷️</div><div class="font-bold text-sm">תגיות עניין</div><div class="text-xs text-slate-500">חיפוש קהילות</div></div>
+        <div class="bg-purple-50 border border-purple-100 rounded-2xl p-3"><div class="text-2xl mb-1">🎯</div><div class="font-bold text-sm">ציון התאמה</div><div class="text-xs text-slate-500">0-100%</div></div>
+        <div class="bg-green-50 border border-green-100 rounded-2xl p-3"><div class="text-2xl mb-1">📦</div><div class="font-bold text-sm">חבילות</div><div class="text-xs text-slate-500">2+ עסקים</div></div>
+        <div class="bg-pink-50 border border-pink-100 rounded-2xl p-3"><div class="text-2xl mb-1">📢</div><div class="font-bold text-sm">מבצעים</div><div class="text-xs text-slate-500">אישור + באנר</div></div>
+        <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-3"><div class="text-2xl mb-1">🌟</div><div class="font-bold text-sm">שגריר</div><div class="text-xs text-slate-500">35+15 ₣</div></div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h3 class="font-black text-slate-700 mb-3">ציון התאמה — אלגוריתם</h3>
+          <table class="text-sm border border-slate-200 rounded-xl overflow-hidden w-full">
+            <thead class="bg-purple-50"><tr><th class="p-2 text-right font-bold">גורם</th><th class="p-2 text-right font-bold">ניקוד</th></tr></thead>
+            <tbody>
+              <tr class="border-t border-slate-100"><td class="p-2">עיר זהה</td><td class="p-2 font-black text-purple-600">+35</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">GPS קרוב</td><td class="p-2 font-black text-purple-600">עד +40</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">גודל (0.5 × משפחות)</td><td class="p-2 font-black text-purple-600">מקס 30</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">עסקים (2 × עסקים)</td><td class="p-2 font-black text-purple-600">מקס 20</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">תגית עניין תואמת</td><td class="p-2 font-black text-purple-600">+10</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h3 class="font-black text-slate-700 mb-3">מערכת הפניות (Referral)</h3>
+          <ul class="space-y-2 text-sm text-slate-600">
+            <li>• משפחה מקבלת קוד ייחודי אישי</li>
+            <li>• בהצטרפות עם קוד: +35₣ לממליץ, +15₣ לקהילה</li>
+            <li>• המלצת עסק (family-refer) → Zone Manager מאשר</li>
+            <li>• אישור → 35₣ לעסק, 15₣ לקהילה + בונוס ידני</li>
+          </ul>
+          <h3 class="font-black text-slate-700 mb-3 mt-4">מנהל קהילה</h3>
+          <ul class="space-y-1 text-sm text-slate-600">
+            <li>• מינוי: <code class="bg-slate-100 px-1 rounded text-xs">zmSetCommunityManager()</code></li>
+            <li>• הרשאות: אישור עסקים, ניהול ארנק, נתוני קהילה</li>
+            <li>• badge "מנהל קהילה" בממשק המשפחה</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="mt-6">
+        <h3 class="font-black text-slate-700 mb-3">DB — טבלאות חדשות</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div class="bg-slate-50 rounded-xl p-2 text-center text-xs font-mono">flow_wallets</div>
+          <div class="bg-slate-50 rounded-xl p-2 text-center text-xs font-mono">flow_transactions</div>
+          <div class="bg-slate-50 rounded-xl p-2 text-center text-xs font-mono">flow_redemptions</div>
+          <div class="bg-slate-50 rounded-xl p-2 text-center text-xs font-mono">community_promotions</div>
+          <div class="bg-slate-50 rounded-xl p-2 text-center text-xs font-mono">community_bundles</div>
+          <div class="bg-slate-50 rounded-xl p-2 text-center text-xs font-mono">community_banners</div>
+          <div class="bg-slate-50 rounded-xl p-2 text-center text-xs font-mono">community_referrals</div>
+          <div class="bg-slate-50 rounded-xl p-2 text-center text-xs font-mono">community_bundle_businesses</div>
+        </div>
+      </div>
+    </section>
+
     <!-- Footer -->
     <div class="bg-gradient-to-br from-violet-600 to-purple-700 rounded-3xl p-6 text-white text-center no-print">
       <p class="font-black text-lg mb-1">OneFlow Life — Zone Manager &amp; Community</p>
-      <p class="text-violet-200 text-sm">מסמך זה נוצר אוטומטית מניתוח קוד · גרסה 2026-06-20</p>
+      <p class="text-violet-200 text-sm">עודכן: 2026-06-28</p>
       <button onclick="window.print()" class="mt-4 bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded-xl text-sm font-bold transition">
         שמור כ-PDF
       </button>

@@ -1198,10 +1198,120 @@ const pageOrders = allFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
       </div>
     </section>
 
+    <!-- Section 13: Help System -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-6">
+      <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-violet-100 text-violet-700 flex items-center justify-center text-lg">❓</span>
+        13. מערכת עזרה מותאמת תפקיד
+        <span class="badge badge-purple">חדש 2026-06-28</span>
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h3 class="font-black text-slate-700 mb-3">13.1 כפתור "?"</h3>
+          <p class="text-sm text-slate-600 mb-3">בכל לשונית ראשית קיים כפתור "?" שמציג Bottom Sheet מותאמת לפי:</p>
+          <ul class="space-y-2">
+            <li class="flex items-start gap-2 text-sm text-slate-600"><span class="text-violet-500">•</span><span><b>לשונית פעילה</b> — <code class="bg-slate-100 px-1 rounded text-xs">window._currentFamilyTab</code></span></li>
+            <li class="flex items-start gap-2 text-sm text-slate-600"><span class="text-violet-500">•</span><span><b>תפקיד</b> — ADMIN/MANAGER → הורה; CHILD/MEMBER → ילד</span></li>
+          </ul>
+          <div class="mt-4 bg-slate-50 rounded-xl p-3">
+            <p class="text-xs font-bold text-slate-600 mb-2">14 לשוניות עם תוכן:</p>
+            <div class="flex flex-wrap gap-1">
+              <span class="badge badge-indigo">feed</span><span class="badge badge-indigo">shop</span><span class="badge badge-indigo">myorders</span><span class="badge badge-indigo">bank</span><span class="badge badge-indigo">cashflow</span><span class="badge badge-indigo">academy</span><span class="badge badge-indigo">tasks</span><span class="badge badge-indigo">community</span><span class="badge badge-indigo">members</span><span class="badge badge-indigo">budget</span><span class="badge badge-indigo">pantry</span><span class="badge badge-indigo">recipes</span><span class="badge badge-indigo">forecast</span><span class="badge badge-indigo">home-maintenance</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-black text-slate-700 mb-3">13.2 מבנה FAMILY_HELP_CONTENT</h3>
+          <pre class="bg-slate-900 text-green-400 rounded-xl p-4 text-xs">{
+  icon, title,
+  what,        // הסבר לילד
+  what_admin,  // הסבר להורה
+  tips,        // טיפים לילד
+  tips_admin   // טיפים להורה
+}</pre>
+          <p class="text-xs text-slate-500 mt-2">שדות <code class="bg-slate-100 px-1 rounded">_admin</code> הם אופציונליים — fallback לשדה הרגיל.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 14: FLOW -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-6">
+      <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center text-lg">⚡</span>
+        14. מודול FLOW — מטבע קהילתי
+        <span class="badge badge-amber">חדש 2026-06-28</span>
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h3 class="font-black text-slate-700 mb-3">מקורות הכנסת ₣</h3>
+          <table class="text-sm border border-slate-200 rounded-xl overflow-hidden">
+            <thead class="bg-amber-50"><tr><th class="p-2 text-right font-bold">פעולה</th><th class="p-2 text-right font-bold">₣</th></tr></thead>
+            <tbody>
+              <tr class="border-t border-slate-100"><td class="p-2">השלמת פרופיל</td><td class="p-2 font-black text-amber-600">15</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">קנייה ראשונה מחנות קהילה</td><td class="p-2 font-black text-amber-600">10</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">רכישת חבילת קהילה</td><td class="p-2 font-black text-amber-600">15</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">פדיית מבצע קהילה</td><td class="p-2 font-black text-amber-600">10</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">ביקורת על עסק</td><td class="p-2 font-black text-amber-600">10</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">הפניית חבר (ממליץ)</td><td class="p-2 font-black text-amber-600">35</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">הפניית חבר (קהילה)</td><td class="p-2 font-black text-amber-600">15</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h3 class="font-black text-slate-700 mb-3">מימוש ₣</h3>
+          <ol class="space-y-2 text-sm text-slate-600">
+            <li class="flex gap-2"><span class="badge badge-amber">1</span>לחיצה על "ארנק FLOW" בלשונית קהילה</li>
+            <li class="flex gap-2"><span class="badge badge-amber">2</span>בחירת כמות (מינימום 50₣, צעד 100)</li>
+            <li class="flex gap-2"><span class="badge badge-amber">3</span>POST /api/flow/redeem → קוד הנחה FL...</li>
+            <li class="flex gap-2"><span class="badge badge-amber">4</span>הצגת הקוד בעסק שמאמת אותו</li>
+          </ol>
+          <p class="text-xs text-slate-500 mt-3">שיעור: 100₣ = ₪10 (ניתן לשינוי ע"י SA)</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 15: Community Advanced -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-6">
+      <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-lg">🏘️</span>
+        15. קהילה — פיצ'רים מתקדמים
+        <span class="badge badge-indigo">חדש 2026-06-28</span>
+      </h2>
+      <div class="mb-4">
+        <h3 class="font-black text-slate-700 mb-3">ארבע לשוניות קהילה</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="bg-orange-50 border border-orange-100 rounded-2xl p-3 text-center"><div class="text-2xl mb-1">🏠</div><div class="font-bold text-sm">הקהילות שלי</div><div class="text-xs text-slate-500 mt-1">join</div></div>
+          <div class="bg-green-50 border border-green-100 rounded-2xl p-3 text-center"><div class="text-2xl mb-1">🏪</div><div class="font-bold text-sm">עסקים</div><div class="text-xs text-slate-500 mt-1">benefits</div></div>
+          <div class="bg-blue-50 border border-blue-100 rounded-2xl p-3 text-center"><div class="text-2xl mb-1">📢</div><div class="font-bold text-sm">חדשות</div><div class="text-xs text-slate-500 mt-1">news</div></div>
+          <div class="bg-teal-50 border border-teal-100 rounded-2xl p-3 text-center"><div class="text-2xl mb-1">🔍</div><div class="font-bold text-sm">עניין</div><div class="text-xs text-slate-500 mt-1">interests</div></div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h3 class="font-black text-slate-700 mb-3">מבצעים וחבילות (news)</h3>
+          <ul class="space-y-2 text-sm text-slate-600">
+            <li class="flex items-start gap-2"><span class="text-indigo-500">•</span><span><b>Banners</b> — באנרי גרדיאנט של עסקים</span></li>
+            <li class="flex items-start gap-2"><span class="text-indigo-500">•</span><span><b>Promotions</b> — כרטיסי מבצע עם כפתור "מימוש" → +₣</span></li>
+            <li class="flex items-start gap-2"><span class="text-indigo-500">•</span><span><b>Bundles</b> — חבילות עסקים עם כפתור "רכוש" → +₣</span></li>
+            <li class="flex items-start gap-2"><span class="text-indigo-500">•</span><span>Badge כתום על לשונית עם מספר כולל</span></li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="font-black text-slate-700 mb-3">הפניות (referral)</h3>
+          <ul class="space-y-2 text-sm text-slate-600">
+            <li class="flex items-start gap-2"><span class="text-indigo-500">•</span><span>קוד הפניה אישי לכל משפחה</span></li>
+            <li class="flex items-start gap-2"><span class="text-indigo-500">•</span><span>כפתורי העתקה + WhatsApp</span></li>
+            <li class="flex items-start gap-2"><span class="text-indigo-500">•</span><span>שדה "קוד חבר שהמליץ" בהצטרפות</span></li>
+            <li class="flex items-start gap-2"><span class="text-indigo-500">•</span><span>הממליץ מקבל 35₣, הקהילה 15₣</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
     <!-- Footer -->
     <div class="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-6 text-white text-center no-print">
       <h3 class="font-black text-lg mb-1">Oneflow Life — Family Environment</h3>
-      <p class="text-indigo-200 text-sm">מסמך אפיון מלא · גרסה 2026-06-20</p>
+      <p class="text-indigo-200 text-sm">מסמך אפיון מלא · עודכן 2026-06-28</p>
       <button onclick="window.print()" class="mt-4 bg-white text-indigo-700 px-6 py-2.5 rounded-xl font-black text-sm hover:bg-indigo-50 transition">
         🖨️ שמור כ-PDF
       </button>

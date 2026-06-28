@@ -815,10 +815,123 @@ localStorage('ofl_session') ← session חדש
 
     </section>
 
+    <!-- Section 11: SA_GROUPS Structure -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-6">
+      <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center text-lg">🗂️</span>
+        11. SA_GROUPS — מבנה ניווט עדכני
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-slate-200 text-slate-700">עדכון 2026-06-28</span>
+      </h2>
+      <div class="overflow-x-auto">
+        <table class="text-sm border border-slate-200 rounded-xl overflow-hidden w-full">
+          <thead class="bg-slate-50"><tr><th class="p-2 text-right font-bold">Group</th><th class="p-2 text-right font-bold">Tabs</th><th class="p-2 text-right font-bold">תוויות</th></tr></thead>
+          <tbody>
+            <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">home</td><td class="p-2 font-mono text-xs">pulse, stats</td><td class="p-2">דופק מערכת, דוחות</td></tr>
+            <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">customers</td><td class="p-2 font-mono text-xs">comm, biz, clients</td><td class="p-2">קהילות, עסקים, קבוצות</td></tr>
+            <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">finance</td><td class="p-2 font-mono text-xs">finance</td><td class="p-2">פיננסים</td></tr>
+            <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">supportdev</td><td class="p-2 font-mono text-xs">support, devops</td><td class="p-2">קריאות שירות, פיתוח ומוצר</td></tr>
+            <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">contentmkt</td><td class="p-2 font-mono text-xs">content, inbox, legal</td><td class="p-2">מיתוג, שיווק, משפטי</td></tr>
+            <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">partners</td><td class="p-2 font-mono text-xs">partners</td><td class="p-2">שותפים</td></tr>
+            <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">system</td><td class="p-2 font-mono text-xs">hr, sysmap</td><td class="p-2">צוות ונציגים, מפת המערכת</td></tr>
+            <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">templates</td><td class="p-2 font-mono text-xs">templates</td><td class="p-2">תבניות עסקים</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 12: Help System SA -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-6">
+      <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-violet-100 text-violet-700 flex items-center justify-center text-lg">❓</span>
+        12. מערכת עזרה SA (showSAHelp)
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700">חדש 2026-06-28</span>
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <p class="text-sm text-slate-600 mb-3">כפתור "?" בסרגל העליון → <code class="bg-slate-100 px-1 rounded text-xs">showSAHelp()</code> מ-community-help.js</p>
+          <ul class="space-y-2 text-sm text-slate-600">
+            <li>• <code class="bg-slate-100 px-1 rounded text-xs">window._currentSATab</code> ← מעודכן בכל <code class="bg-slate-100 px-1 rounded text-xs">switchSATab()</code></li>
+            <li>• אם קיים ב-SA_HELP → מציג overlay מעוצב</li>
+            <li>• אם לא קיים → fallback: <code class="bg-slate-100 px-1 rounded text-xs">showCommunityHelp('sa-' + tab)</code></li>
+          </ul>
+          <div class="mt-3 bg-slate-50 rounded-xl p-3">
+            <p class="text-xs font-bold text-slate-600 mb-1">מפתחות SA_HELP:</p>
+            <div class="flex flex-wrap gap-1">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">pulse</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">stats</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">biz</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">finance</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">support</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">content</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">hr</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">partners</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-black text-slate-700 mb-2">Plan Selector</h3>
+          <div class="space-y-2">
+            <div class="flex items-center gap-2 bg-slate-50 rounded-xl p-2 text-sm"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-slate-200 text-slate-700">Standard</span><span class="text-slate-600">10 AI tokens/יום</span></div>
+            <div class="flex items-center gap-2 bg-amber-50 rounded-xl p-2 text-sm"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-200 text-amber-700">⭐ Premium</span><span class="text-slate-600">50 AI tokens/יום</span></div>
+            <div class="flex items-center gap-2 bg-indigo-50 rounded-xl p-2 text-sm"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-600 text-white">♾️ Enterprise</span><span class="text-slate-600">AI ללא הגבלה</span></div>
+          </div>
+          <p class="text-xs text-slate-500 mt-2">שינוי: <code class="bg-slate-100 px-1 rounded">saPlanChange(id, plan)</code> → <code class="bg-slate-100 px-1 rounded">POST /api/superadmin/groups/:id/plan</code></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 14: FLOW Dashboard -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-6">
+      <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center text-lg">⚡</span>
+        14. לוח בקרה FLOW (4 טאבים)
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">חדש 2026-06-28</span>
+      </h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div class="bg-amber-50 border border-amber-100 rounded-2xl p-3 text-center"><div class="text-2xl mb-1">🏆</div><div class="font-bold text-sm">מובילים</div><div class="text-xs text-slate-500">KPI + גרף + top-5</div></div>
+        <div class="bg-blue-50 border border-blue-100 rounded-2xl p-3 text-center"><div class="text-2xl mb-1">🗺️</div><div class="font-bold text-sm">מפת ₣</div><div class="text-xs text-slate-500">progress bars + filter</div></div>
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-center"><div class="text-2xl mb-1">📋</div><div class="font-bold text-sm">פעילות</div><div class="text-xs text-slate-500">30 עסקאות</div></div>
+        <div class="bg-green-50 border border-green-100 rounded-2xl p-3 text-center"><div class="text-2xl mb-1">🎁</div><div class="font-bold text-sm">הענקה</div><div class="text-xs text-slate-500">הוסף/הפחת ₣</div></div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <h3 class="font-black text-slate-700 mb-2 text-sm">טאב מובילים — KPI</h3>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="bg-amber-50 rounded-xl p-2 text-center"><div class="font-black text-amber-600 text-sm">₣ X</div><div class="text-xs text-slate-500">הונפק</div></div>
+            <div class="bg-green-50 rounded-xl p-2 text-center"><div class="font-black text-green-600 text-sm">₣ X</div><div class="text-xs text-slate-500">מומש</div></div>
+            <div class="bg-blue-50 rounded-xl p-2 text-center"><div class="font-black text-blue-600 text-sm">₣ X</div><div class="text-xs text-slate-500">במחזור</div></div>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-black text-slate-700 mb-2 text-sm">הגדרות FLOW (openFlowConfigPanel)</h3>
+          <p class="text-xs text-slate-600">17 מפתחות ניתנים לעריכה: triggers, שיעור המרה ₣→₪</p>
+          <p class="text-xs text-slate-500 mt-1">שמירה: <code class="bg-slate-100 px-1 rounded">PUT /api/sa/flow/config</code></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 15: Community Map -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-6">
+      <h2 class="text-2xl font-black text-slate-800 mb-4 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-lg">🗺️</span>
+        15. מפת קהילות SA
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">חדש 2026-06-28</span>
+      </h2>
+      <div class="flex flex-col gap-3 text-sm text-slate-600">
+        <p>Panel מסך מלא <code class="bg-slate-100 px-1 rounded text-xs">sa-comm-map-panel</code> ← <code class="bg-slate-100 px-1 rounded text-xs">openCommunitiesMap()</code></p>
+        <ul class="space-y-1">
+          <li>• KPI: סך קהילות / משפחות / עסקים</li>
+          <li>• קיבוץ לפי עיר</li>
+          <li>• לכל קהילה: status badge, community_type, interest_tags chips, pending_biz</li>
+        </ul>
+        <p class="text-xs text-slate-500">Endpoint: <code class="bg-slate-100 px-1 rounded">GET /api/sa/communities/map-data</code></p>
+      </div>
+    </section>
+
     <!-- Footer -->
     <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 text-center">
       <p class="text-xs text-slate-500">מסמך זה נוצר על בסיס קריאת קבצי המקור: <code class="text-green-400">sa.html</code> · <code class="text-green-400">sa-app.js</code> · <code class="text-green-400">server1.js</code></p>
-      <p class="text-xs text-slate-600 mt-1">Oneflow Life · Super Admin Specification · גרסה 2026-06-20</p>
+      <p class="text-xs text-slate-600 mt-1">Oneflow Life · Super Admin Specification · עודכן 2026-06-28</p>
       <button onclick="window.print()" class="no-print mt-4 inline-flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
         שמור כ-PDF

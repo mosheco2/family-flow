@@ -1277,4 +1277,197 @@ forecast, tasks, community, members, shifts
 
 ---
 
-*מסמך זה נוצר אוטומטית בהתבסס על קריאת קוד המקור. גרסה: 2026-06-20.*
+---
+
+## 13. מערכת עזרה מותאמת תפקיד (Help System)
+
+**גרסה: 2026-06-28** — נוסף לאחר ה-spec המקורי.
+
+### 13.1 כפתור "?" — Help Sheet
+
+בסרגל העליון קיים כפתור "?" שקורא ל-`openBizHelp()`.  
+הפונקציה מותאמת לפי:
+- **לשונית פעילה** — `window._currentBizTab` (מעודכן בכל `switchBizTab()`)
+- **sub-tab** — `window._currentBizSubTab` (עבור לשוניות משנה)
+- **תפקיד המשתמש** — ADMIN/MANAGER → תוכן מנהל; עובד → תוכן עובד עם badge תפקיד
+
+### 13.2 BIZ_HELP_CONTENT
+
+מאגר תוכן ב-`business-app.js` עם 49+ ערכים לכל הלשוניות:
+
+כל ערך מכיל:
+```js
+{
+  icon, title,
+  what,         // הסבר לעובד
+  what_admin,   // הסבר למנהל (אופציונלי)
+  tips,         // טיפים לעובד
+  tips_admin    // טיפים למנהל (אופציונלי)
+}
+```
+
+### 13.3 תג תפקיד (Role Badge)
+
+לעובדים עם `employee_role_type` מוצג badge כחול מעל רשימת הטיפים:
+```
+מדריך למלצר | מדריך לטבח | מדריך לקופאי | ...
+```
+
+מיפוי תפקידים (`ROLE_LABELS`):
+- `waiter` → מלצר, `cook` → טבח, `cashier` → קופאי, `delivery` → שליח
+- `field_tech` → טכנאי, `trainer` → מאמן, `instructor` → מדריך
+- `beautician` → קוסמטיקאית, `barber` → ספר
+
+### 13.4 BIZ_HELP_SUBTAB_CONTENT
+
+תוכן עזרה לסאב-טאבים ספציפיים (נסגר לפי `window._currentBizSubTab`):
+- תת-לשוניות ב-timeclock, tasks, cashflow, inventory ועוד
+
+---
+
+## 14. מודול FLOW — מטבע קהילתי עסקי
+
+**גרסה: 2026-06-28**
+
+### 14.1 ארנק FLOW עסקי
+
+כל עסק מחזיק **ארנק FLOW עסקי**:
+- יתרה ₣ שנצברו מפעילות קהילתית
+- היסטוריית 10 עסקאות אחרונות
+- ממשק לאימות קוד הנחה של לקוחות
+
+### 14.2 מקורות FLOW לעסק
+
+| מקור (`FLOW_CONFIG_LABELS`) | תיאור |
+|-------------|-------|
+| `biz_join_approved` | הצטרפות לקהילה אושרה |
+| `biz_promo_approved` | מבצע אושר ע"י SA |
+| `biz_promo_redeemed` | מבצע מומש ע"י לקוח |
+| `biz_bundle_sold` | חבילה נרכשה |
+| `biz_review_received` | לקוח השאיר ביקורת |
+| `biz_lead_received` | ליד נכנס מקמפיין |
+
+### 14.3 ממשק ארנק עסקי (`openBizFlowWallet`)
+
+- **כפתור "ארנק FLOW"** בסרגל הכלים הקהילתיים
+- Modal עם יתרה ₣ + היסטוריה
+- **כלי בדיקת קוד**: עובד מכניס קוד `FL...` של לקוח → `POST /api/flow/redemptions/:code/use`
+- אם תקין: מוצגת הנחה ₪; הקוד מסומן כמומש
+
+### 14.4 API Endpoints
+
+| Method | Endpoint | תיאור |
+|--------|----------|-------|
+| GET | `/api/flow/wallet/business/:groupId` | יתרה + עסקאות |
+| POST | `/api/flow/redemptions/:code/use` | אימות קוד הנחה |
+
+---
+
+## 15. מודול קהילה — פיצ'רים מתקדמים
+
+**גרסה: 2026-06-28** — 6 פיצ'רים קהילתיים נוספו לסרגל הכלים הקהילתי.
+
+### 15.1 שתי לשוניות קהילה (`switchBizCommunityTab`)
+
+| id | תיאור |
+|----|-------|
+| `mine` | הקהילות שלי — סטטוס חברות, הנחות |
+| `discover` | גילוי קהילות — לפי מיקום או קוד עסק |
+
+**גילוי לפי מיקום (`disc-mode-city`)**:
+- Input עיר + כפתור "זהה מיקום אוטומטית" (`detectBizCity()`)
+- גיאולוקיישן → Nominatim reverse geocode
+- תוצאות: גריד של קהילות עם כפתור הצטרפות
+
+**גילוי דרך עסק (`disc-mode-biz`)**:
+- Input קוד עסק → `discoverViaBusinessCode()` → `GET /api/biz/communities/via-biz/:code/:bizId`
+- מציג: "קהילות של [שם עסק]: ..."
+
+### 15.2 סרגל כלים קהילתיים (`biz-comm-adv-toolbar`)
+
+מוזרק אוטומטית מעל רשימת הקהילות בטעינה:
+
+| כפתור | פונקציה | צבע |
+|-------|----------|------|
+| 📢 פרסם מבצע | `openBizPromoModal()` | כתום |
+| 🔍 קהילות לפי עניין | `openInterestSearchModal()` | ירוק-כחול |
+| 🎯 הצג % התאמה | `loadBizCommunitiesWithMatch()` | סגול |
+| 📦 החבילות שלי | `loadMyBizBundles()` | ירוק |
+| 📋 המבצעים שלי | `loadMyBizPromos()` | ורוד |
+| ⚡ ארנק FLOW | `openBizFlowWallet()` | ענבר |
+
+לחצני "?" ליד כל כפתור קהילתי → `showCommunityHelp('biz-...')`
+
+### 15.3 פרסום מבצע (`openBizPromoModal`)
+
+1. מודל בחירת קהילה, כותרת, פירוט, % הנחה, תאריך תפוגה
+2. `submitBizPromo()` → `POST /api/biz/community/promotions`
+3. עובר לאישור SA/Zone Manager לפני פרסום
+4. `requestBannerForPromo()` → בקשת קידום באנר לאחר אישור
+
+### 15.4 % התאמה (`loadBizCommunitiesWithMatch`)
+
+Panel מסך מלא `biz-match-panel`:
+- **2 קריאות מקביל**: `available` + `match`
+- מיון יורד לפי `match_score`
+- **צבעי ציון**: 🟢 70%+ | 🟡 40-69% | ⚫ <40%
+- progress bar להצגה חזותית
+- כפתור "הצטרף" בכל שורה → `openBizJoinModal()`
+
+**גורמי ציון (API):**
+- מיקום (עיר זהה: +35, GPS קרוב: עד +40)
+- גודל קהילה (+0.5 למשפחה, מקס 30)
+- עסקים פעילים (+2 לעסק, מקס 20)
+- תגיות עניין (קהילת "יופי" לעסק יופי: +10)
+
+### 15.5 קהילות לפי עניין (`openInterestSearchModal`)
+
+Modal מסך מלא `biz-interest-search-modal`:
+- Input חופשי + תגיות מוכנות: כושר, יופי, קוסמטיקה, ילדים, בריאות, אוכל אורגני
+- `searchByInterest()` → `GET /api/communities/by-interest?tag={tag}`
+- תוצאות: שם, עיר, family_count, biz_count, interest_tag
+
+### 15.6 החבילות שלי (`loadMyBizBundles`)
+
+Panel מסך מלא `biz-bundles-panel`:
+- לכל קהילה מאושרת → `GET /api/community/bundles/:cid`
+- מסנן חבילות שמכילות את העסק (`b.business_ids.includes(groupId)`)
+- מציג: שם חבילה, % הנחה, תיאור, שמות שותפים בחבילה
+
+### 15.7 המבצעים שלי (`loadMyBizPromos`)
+
+Panel מסך מלא `biz-mypromos-panel`:
+- `GET /api/biz/community/promotions/:bizId`
+- סטטוסים: `pending` → `approved` → `rejected`
+- `requestBannerForPromo()` → `POST /api/biz/community/promotions/:id/banner-request`
+
+### 15.8 API Endpoints קהילה עסקית
+
+| Method | Endpoint | תיאור |
+|--------|----------|-------|
+| GET | `/api/biz/communities/my/:bizId` | הקהילות שלי |
+| GET | `/api/biz/communities/available/:bizId` | קהילות לגילוי |
+| GET | `/api/biz/communities/match/:bizId` | ציוני התאמה |
+| GET | `/api/biz/communities/via-biz/:code/:bizId` | גילוי דרך עסק |
+| POST | `/api/biz/community/promotions` | פרסום מבצע |
+| GET | `/api/biz/community/promotions/:bizId` | המבצעים שלי |
+| POST | `/api/biz/community/promotions/:id/banner-request` | בקשת באנר |
+| POST | `/api/community/join` | הצטרפות לקהילה |
+| GET | `/api/community/bundles/:communityId` | חבילות קהילה |
+| GET | `/api/communities/by-interest` | חיפוש לפי עניין |
+
+---
+
+## 16. ייבוא מוצרים — PDF/תמונה (Gemini Multimodal)
+
+**גרסה: 2026-06-28** — נוסף לאחר ה-spec המקורי.
+
+ב-tab **inventory** (מלאי) קיים כפתור "📸 סרוק מסמך / תמונה":
+- פותח modal לבחירת קובץ (PDF / תמונה)
+- קובץ נשלח ל-`POST /api/ai/scan-products` עם base64
+- שרת שולח ל-Gemini Flash (multimodal) לחילוץ רשימת מוצרים
+- תוצאה: רשימת מוצרים עם שם, יחידה, כמות, מחיר — ניתן לאשר ייבוא לאחר סקירה
+
+---
+
+*עודכן: 2026-06-28 | Oneflow Life*

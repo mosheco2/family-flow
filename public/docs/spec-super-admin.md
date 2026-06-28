@@ -786,5 +786,222 @@ localStorage('ofl_session') ← session חדש
 
 ---
 
-*מסמך זה נוצר אוטומטית על בסיס קריאת קבצי הקוד: `sa.html`, `sa-app.js`, `server1.js`*  
-*גרסה: 2026-06-20*
+---
+
+## 11. SA_GROUPS — מבנה ניווט עדכני
+
+**גרסה: 2026-06-28** — מבנה ה-`SA_GROUPS` כפי שנוגדר בקוד:
+
+```js
+const SA_GROUPS = {
+  home:       { tabs: ['pulse', 'stats'],             default: 'pulse' },
+  customers:  { tabs: ['comm', 'biz', 'clients'],     default: 'comm' },
+  finance:    { tabs: ['finance'],                    default: 'finance' },
+  supportdev: { tabs: ['support', 'devops'],          default: 'support' },
+  contentmkt: { tabs: ['content', 'inbox', 'legal'],  default: 'content' },
+  partners:   { tabs: ['partners'],                   default: 'partners' },
+  system:     { tabs: ['hr', 'sysmap'],               default: 'hr' },
+  templates:  { tabs: ['templates'],                  default: 'templates' },
+};
+```
+
+**תרגום לטאבים:**
+
+| Group | Tab | תווית |
+|-------|-----|-------|
+| home | pulse | דופק מערכת |
+| home | stats | דוחות |
+| customers | comm | קהילות |
+| customers | biz | עסקים |
+| customers | clients | קבוצות |
+| finance | finance | פיננסים |
+| supportdev | support | קריאות שירות |
+| supportdev | devops | פיתוח ומוצר |
+| contentmkt | content | מיתוג ותוכן |
+| contentmkt | inbox | שיווק |
+| contentmkt | legal | משפטי |
+| partners | partners | שותפים |
+| system | hr | צוות ונציגים |
+| system | sysmap | מפת המערכת |
+| templates | templates | תבניות עסקים |
+
+---
+
+## 12. מערכת עזרה (SA Help System)
+
+**גרסה: 2026-06-28**
+
+### 12.1 כפתור "?"
+
+כפתור "?" בסרגל העליון של SA קורא ל-`showSAHelp()` (מ-`community-help.js`).
+
+### 12.2 showSAHelp
+
+```js
+function showSAHelp() {
+  const tab = window._currentSATab || 'pulse';
+  const guide = SA_HELP[tab];
+  if (!guide) { showCommunityHelp('sa-' + tab); return; }
+  // מציג overlay מעוצב עם sections
+}
+```
+
+- **`window._currentSATab`** מעודכן ב-`switchSATab(tabId)` לכל מעבר טאב
+- אם טאב לא קיים ב-SA_HELP → fallback ל-`showCommunityHelp('sa-' + tab)`
+
+### 12.3 SA_HELP — תוכן קיים
+
+מפתחות בעלי תוכן: `pulse`, `stats`, `dashboard`, `biz`, `clients`, `finance`, `support`, `devops`, `content`, `inbox`, `legal`, `hr`, `sysmap`, `partners`, `templates`
+
+לכל מפתח: `{ title, color, sections: [{ icon, title, text?, steps? }] }`
+
+---
+
+## 13. Plan Selector — תוכנית לפי קבוצה
+
+**גרסה: 2026-06-28**
+
+### 13.1 שלוש תוכניות
+
+| תוכנית | תג | AI tokens/יום |
+|--------|-----|-------------|
+| `standard` | Standard — 10/יום | 10 |
+| `premium` | ⭐ Premium — 50/יום | 50 |
+| `enterprise` | ♾️ Enterprise — ללא הגבלה | ∞ |
+
+### 13.2 ממשק
+
+בכרטיס כל קבוצה (משפחה/עסק): `<select>` לשינוי תוכנית + badge צבעוני:
+- Standard = אפור
+- Premium = ענבר (🟡)
+- Enterprise = gradient אינדיגו-סגול (🔵🟣)
+
+### 13.3 שינוי תוכנית
+
+- `saPlanChange(groupId, plan)` → `POST /api/superadmin/groups/:id/plan`
+- `saTogglePremium(id, enable)` — toggle בין Standard ↔ Enterprise (legacy)
+
+### 13.4 ONEFLOW Membership
+
+- `g.member_type === 'member'` → תג "חבר ONEFLOW" (סגול)
+- יכול להשתנות: `saDemoteOneflow(id)` — "שדרג לסביבה רגילה"
+
+---
+
+## 14. לוח בקרה FLOW (SA FLOW Dashboard)
+
+**גרסה: 2026-06-28**
+
+### 14.1 פתיחת הפאנל
+
+כפתור "⚡ ניהול FLOW" ב-toolbar → `openFlowStatsPanel()` → Panel `sa-flow-stats-panel` (מסך מלא)
+
+### 14.2 4 טאבים
+
+#### 🏆 מובילים (overview)
+- **KPI 3 כרטיסים**: סך הונפק ₣ / ממומש ₣ + % / במחזור ₣
+- **גרף בר 30 יום** (ציר X = ימים, גובה = ₣ שהונפקו)
+- **3 עמודות top-5**: משפחות | עסקים | קהילות (לפי balance)
+- מספר ארנקות + סכום כולל לכל קטגוריה
+
+#### 🗺️ מפת ₣ (map)
+- **פילטר**: הכל / משפחות / עסקים / קהילות
+- לכל ישות: אמוג'י סוג, שם, progress bar יחסי, יתרה ₣, כפתור "הענק"
+- **`filterFlowMap(type)`** — מסנן `flow-map-row` לפי `data-type`
+
+#### 📋 פעילות (log)
+- 30 עסקאות אחרונות מ-`GET /api/sa/flow/transactions?limit=30`
+- select filter לפי סוג ישות
+- כל שורה: תאריך, שם ישות, תיאור, כמות ₣ (±), יתרה אחרי
+
+#### 🎁 הענקה (grant)
+- select: סוג ישות (family / business / community)
+- חיפוש ישות לפי שם
+- שדה כמות (חיובי = הוסף, שלילי = הפחת)
+- שדה סיבה (חובה)
+- `submitFlowGrant()` → `POST /api/sa/flow/grant`
+
+### 14.3 Data Loading
+
+```js
+window.refreshFlowDashboard = async function(tab) {
+  const [stats, leaderboard, txs] = await Promise.all([
+    fetch('/api/sa/flow/stats'),
+    fetch('/api/sa/flow/leaderboard?entityType=all&limit=100'),
+    fetch('/api/sa/flow/transactions?limit=30')
+  ]);
+};
+```
+
+### 14.4 הגדרות FLOW (`openFlowConfigPanel`)
+
+- טוען `GET /api/sa/flow/config` → טבלת הגדרות
+- ערכים ניתנים לעריכה: נקודות לפי trigger, שיעור המרה ₣→₪
+- "שמור הכל" → לכל שורה ששינויה `PUT /api/sa/flow/config`
+
+**מפתחות הגדרה (`FLOW_CONFIG_LABELS`):**
+
+| מפתח | תיאור |
+|------|-------|
+| `join_community` | הצטרפות לקהילה — משפחה |
+| `referral` | הפניית חבר — ₣ לממליץ |
+| `promo_redemption` | פדיית מבצע |
+| `profile_complete` | השלמת פרופיל |
+| `review_business` | ביקורת על עסק |
+| `bundle_purchase` | רכישת חבילה |
+| `daily_login` | כניסה יומית |
+| `ambassador_approved` | שגריר אושר |
+| `biz_join_approved` | עסק הצטרף לקהילה |
+| `biz_promo_approved` | מבצע אושר |
+| `biz_promo_redeemed` | מבצע מומש |
+| `biz_bundle_sold` | חבילה נמכרה |
+| `biz_review_received` | ביקורת התקבלה |
+| `biz_lead_received` | ליד התקבל |
+| `promo_community` | ₣ לקהילה ממבצע |
+| `bundle_community` | ₣ לקהילה מחבילה |
+| `flow_to_ils_rate` | שיעור המרה ₣→₪ |
+
+### 14.5 API Endpoints FLOW
+
+| Method | Endpoint | תיאור |
+|--------|----------|-------|
+| GET | `/api/sa/flow/stats` | סטטיסטיקות מלאות |
+| GET | `/api/sa/flow/leaderboard` | מובילים לפי entity_type |
+| GET | `/api/sa/flow/transactions` | פעילות אחרונה |
+| POST | `/api/sa/flow/grant` | הענקה/הפחתה ידנית |
+| GET | `/api/sa/flow/config` | הגדרות |
+| PUT | `/api/sa/flow/config` | שמירת הגדרה |
+
+---
+
+## 15. מפת קהילות SA (`openCommunitiesMap`)
+
+**גרסה: 2026-06-28**
+
+Panel מסך מלא `sa-comm-map-panel`:
+- `GET /api/sa/communities/map-data` → `{ communities: [...] }`
+- **KPI 3 כרטיסים** (מחושב client-side): סך קהילות / משפחות / עסקים
+- **קיבוץ לפי עיר** — לכל עיר: רשימת קהילות
+- לכל קהילה:
+  - Badge סטטוס: 🟢 פעילה / 🔴 לא פעילה
+  - Badge סוג: "עניין" / גיאוגרפי
+  - Chips תגיות עניין (`interest_tags`)
+  - family_count, biz_count, pending_biz (עסקים ממתינים)
+
+כפתור "מפת קהילות" זמין ב-toolbar של טאב `comm`.
+
+---
+
+## 16. פאנל % התאמה עסקי (SA)
+
+**גרסה: 2026-06-28**
+
+`openBusinessMatchStandalonePanel()` (sa-app.js) — Panel מסך מלא:
+- חיפוש עסק בשדה טקסט → dropdown
+- בחירת עסק → `GET /api/biz/communities/match/:bizId`
+- מציג ציוני % התאמה לכל קהילה זמינה
+- צבעים: ירוק (70%+), צהוב (40-69%), אפור (<40%)
+
+---
+
+*עודכן: 2026-06-28 | Oneflow Life BIZ*

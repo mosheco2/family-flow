@@ -583,4 +583,125 @@ zone_manager_payments (id, manager_id, amount, payment_method, notes, paid_at, r
 
 ---
 
-*מסמך זה נוצר אוטומטית מניתוח הקוד בתאריך 2026-06-20*
+---
+
+## 8. פיצ'רים מתקדמים — קהילה (עדכון 2026-06-28)
+
+### 8.1 ארנק FLOW לקהילה
+
+כל קהילה מחזיקה **ארנק FLOW עצמאי** (entity_type = 'community'):
+- **יתרה** — ₣ שנצברו מפעילות קהילתית (מבצעים, חבילות, הפניות)
+- **מקורות הכנסה**: `promo_community`, `bundle_community`, `ambassador_approved`
+- **מנהל הקהילה** יכול לראות את יתרת הארנק בפאנל הניהול (`openCommunityManagerPanel`)
+
+### 8.2 תגיות עניין (Interest Tags)
+
+קהילות יכולות להגדיר **תגית עניין** (`interest_tag`) — טקסט חופשי שמגדיר את נושא הקהילה:
+- לדוגמה: כושר, יופי, קוסמטיקה, ילדים, בריאות, אוכל אורגני
+- **עסקים** יכולים לחפש קהילות לפי תגית: `GET /api/communities/by-interest?tag={tag}`
+- **משפחות** יכולות לחפש קהילות לפי עניין: `famSearchByInterest()`
+- **SA map** מציג תגיות כ-chips על כל קהילה
+
+### 8.3 ציון התאמה (Match Score)
+
+API: `GET /api/biz/communities/match/:bizId` → מחזיר ציוני % התאמה לכל קהילה
+
+**אלגוריתם ציון (0–100%):**
+
+| גורם | ניקוד |
+|------|-------|
+| עיר זהה (name match) | +35 |
+| קרבה גיאוגרפית (GPS) | עד +40 |
+| גודל קהילה | +0.5 × מספר משפחות (מקס 30) |
+| עסקים פעילים | +2 × מספר עסקים (מקס 20) |
+| תגית עניין תואמת | +10 |
+
+**קריאורוף בעסק**: `loadBizCommunitiesWithMatch()` — panel מסך מלא עם מיון יורד.
+
+### 8.4 חבילות עסקים (Bundles)
+
+**יצירה (SA)**: `POST /api/sa/community/bundles`
+- שם, תיאור, מחיר, % הנחה, קהילה, מזהי עסקים (מינימום 2)
+
+**צפייה (עסק)**: `loadMyBizBundles()` — מציג חבילות שהעסק כלול בהן
+
+**רכישה (משפחה)**: `purchaseCommunityBundle(bundleId)` → `POST /api/community/bundles/:id/purchase`
+- זיכוי ₣ אוטומטי לארנק המשפחה וארנק הקהילה
+
+### 8.5 מבצעים קהילתיים (Promotions)
+
+**פרסום (עסק)**: `openBizPromoModal()` → `POST /api/biz/community/promotions`
+- עובר לאישור Zone Manager ו/או SA
+
+**אישור (Zone Manager)**: `zmApproveBiz()` → `POST /api/zone-manager/community-business/approve`
+
+**פדייה (משפחה)**: `redeemCommunityPromo(promoId)` → `POST /api/community/promotions/:id/redeem`
+- זיכוי ₣ לארנק המשפחה
+
+### 8.6 מערכת הפניות/שגריר (Ambassador/Referral)
+
+**הפניית חברים (משפחה ← משפחה)**:
+- כל משפחה מקבלת קוד ייחודי: `GET /api/community/my-referral-code/:groupId`
+- ב-join: שדה "קוד חבר שהמליץ" שנשלח ב-`POST /api/community/join`
+- כשהצטרפות מאושרת: +35₣ לממליץ, +15₣ לארנק הקהילה
+
+**המלצת עסק לקהילה (משפחה ← עסק)**:
+- `openFamReferralModal()` → `POST /api/community/family-refer`
+- Zone Manager/SA מאשר → `ambassador_approved` trigger
+
+**Zone Manager מאשר שגריר**:
+- 35₣ אוטומטית לעסק הממליץ
+- 15₣ לארנק הקהילה
+- אפשרות בונוס ידני (₪) לארנק הקהילה
+
+### 8.7 באנרים קהילתיים
+
+- עסקים מאושרים יכולים לבקש "קידום באנר": `requestBannerForPromo(promoId)`
+- Zone Manager מאשר + קובע תאריכים
+- `POST /api/sa/banners` → `POST /api/superadmin/banners` → מוצג ב-feed קהילתי
+
+### 8.8 מנהל קהילה — תפקיד `is_community_manager`
+
+- Zone Manager ממנה מנהל מקרב חברי קהילה: `zmSetCommunityManager(groupId, isManager)`
+- `POST /api/zone-manager/set-community-manager`
+- **הרשאות מנהל קהילה**:
+  - אישור/דחיית עסקים לקהילה
+  - ניהול ארנק הקהילה
+  - ראיית נתוני הקהילה (family_count, business_count, wallet)
+
+### 8.9 API Endpoints — פיצ'רים מתקדמים
+
+| Method | Endpoint | תיאור |
+|--------|----------|-------|
+| GET | `/api/communities/discover` | גילוי קהילות לפי עיר |
+| GET | `/api/communities/by-interest` | חיפוש לפי תגית עניין |
+| GET | `/api/biz/communities/match/:bizId` | ציוני % התאמה |
+| POST | `/api/sa/community/bundles` | יצירת חבילה (SA) |
+| GET | `/api/community/bundles/:communityId` | חבילות קהילה |
+| POST | `/api/community/bundles/:id/purchase` | רכישת חבילה |
+| POST | `/api/biz/community/promotions` | פרסום מבצע |
+| POST | `/api/community/promotions/:id/redeem` | פדיית מבצע |
+| POST | `/api/biz/community/promotions/:id/banner-request` | בקשת באנר |
+| GET | `/api/community/my-referral-code/:groupId` | קוד הפניה |
+| POST | `/api/community/family-refer` | המלצת עסק |
+| GET | `/api/sa/communities/map-data` | נתוני מפת SA |
+| GET | `/api/flow/wallet/community/:communityId` | ארנק FLOW קהילה |
+
+---
+
+## 9. DB Schema — טבלאות נוספות (עדכון 2026-06-28)
+
+| טבלה | תיאור |
+|------|-------|
+| `flow_wallets` | ארנק ₣ (entity_type + entity_id) |
+| `flow_transactions` | כל עסקאות ה-₣ |
+| `flow_redemptions` | קודי מימוש פיזיים (FL...) |
+| `community_promotions` | מבצעים של עסקים בקהילה |
+| `community_bundles` | חבילות קהילתיות |
+| `community_bundle_businesses` | עסקים שכלולים בחבילה |
+| `community_banners` | באנרים לקידום |
+| `community_referrals` | קודי הפניה ומעקב |
+
+---
+
+*עודכן: 2026-06-28 | Oneflow Life — Zone Manager & Community*
