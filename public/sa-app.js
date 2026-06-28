@@ -2089,6 +2089,7 @@ async function loadSACommunityData() {
                 <button onclick="openSAPromotionsPanel()" class="bg-orange-100 text-orange-700 hover:bg-orange-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">📢 אישור מבצעים</button>
                 <button onclick="openSAReferralsPanel()" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">🌟 שגרירי קהילה</button>
                 <button onclick="openSABundlesPanel()" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">📦 חבילות קהילה</button>
+                <button onclick="openMatchScorePanel(saBusinessesCache?.[0]?.id, saBusinessesCache?.[0]?.name||'בחר עסק')" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">🎯 התאמת עסקים</button>
             `;
             section.insertBefore(bar, section.firstChild);
         }

@@ -14960,57 +14960,53 @@ window.loadBizCommunitiesWithMatch = async function() {
     } catch(e) { console.error('match load error', e); }
 };
 
-// Feature 3: Refer a business to community (for family members accessing biz side)
-window.openBizReferralModal = function() {
-    const existing = document.getElementById('biz-refer-modal');
+// Feature 3: Business sees which bundles it's included in
+window.loadMyBizBundles = async function() {
+    const existing = document.getElementById('biz-bundles-panel');
     if (existing) { existing.remove(); return; }
-    const modal = document.createElement('div');
-    modal.id = 'biz-refer-modal';
-    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
-    modal.innerHTML = `
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-yellow-50 to-amber-50">
-            <h3 class="font-bold text-lg text-slate-800">🌟 המלצה על עסק לקהילה</h3>
-            <button onclick="document.getElementById('biz-refer-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+    const panel = document.createElement('div');
+    panel.id = 'biz-bundles-panel';
+    panel.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    panel.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-emerald-50 to-green-50">
+            <h3 class="font-bold text-lg text-slate-800">📦 החבילות הקהילתיות שלי</h3>
+            <button onclick="document.getElementById('biz-bundles-panel').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
         </div>
-        <div class="p-4 space-y-3">
-            <p class="text-xs text-slate-500">המלץ על עסק שהיית רוצה לראות בקהילה שלך ותרוויח בונוס נקודות כשהעסק יאושר!</p>
-            <div>
-                <label class="text-xs font-bold text-slate-600 mb-1 block">קוד קבוצת העסק</label>
-                <input type="text" id="refer-biz-code" placeholder="הזן קוד קבוצה של העסק" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono">
-            </div>
-            <div>
-                <label class="text-xs font-bold text-slate-600 mb-1 block">קהילה</label>
-                <input type="text" id="refer-comm-id-input" placeholder="מזהה קהילה" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
-            </div>
-            <div>
-                <label class="text-xs font-bold text-slate-600 mb-1 block">למה ממליצים? (אופציונלי)</label>
-                <textarea id="refer-notes" rows="2" placeholder="שיר הלל קצר על העסק..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"></textarea>
-            </div>
-            <button onclick="submitBizReferral()" class="w-full bg-amber-500 text-white py-2.5 rounded-xl font-bold hover:bg-amber-600 transition">⭐ שלח המלצה</button>
-        </div>
+        <div id="biz-bundles-list" class="overflow-y-auto p-4 flex-1"><p class="text-slate-400 text-sm text-center py-8">טוען...</p></div>
     </div>`;
-    document.body.appendChild(modal);
-};
-
-window.submitBizReferral = async function() {
-    const bizCode = document.getElementById('refer-biz-code')?.value?.trim();
-    const commId = document.getElementById('refer-comm-id-input')?.value?.trim();
-    const notes = document.getElementById('refer-notes')?.value?.trim();
-    if (!bizCode || !commId) { showToast('error', 'יש למלא קוד עסק וקהילה'); return; }
+    document.body.appendChild(panel);
+    if (!currentGroup?.id) return;
     try {
-        // Resolve biz code to ID
-        const bizRes = await fetch(`${API}/group/by-code/${bizCode}`);
-        const bizData = await bizRes.json();
-        if (!bizData.id) { showToast('error', 'לא נמצא עסק עם קוד זה'); return; }
-        const res = await fetch(`${API}/community/refer-business`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ referrerGroupId: currentGroup.id, businessId: bizData.id, communityId: parseInt(commId), notes })
-        });
-        const data = await res.json();
-        if (data.success) { showToast('success', '✅ ההמלצה נשלחה! תרוויח נקודות כשהעסק יאושר.'); document.getElementById('biz-refer-modal')?.remove(); }
-        else showToast('error', data.error || 'שגיאה');
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+        // Get all communities this business is in
+        const myCommsRes = await fetch(`${API}/biz/communities/my/${currentGroup.id}`);
+        const myCommsData = await myCommsRes.json();
+        const commIds = (myCommsData.communities || []).filter(c => c.status === 'approved').map(c => c.id);
+        const el = document.getElementById('biz-bundles-list');
+        if (!commIds.length) { el.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">אינך חבר בקהילות מאושרות</p>'; return; }
+        // Fetch bundles for each community
+        const allBundles = [];
+        for (const cid of commIds) {
+            const r = await fetch(`${API}/community/bundles/${cid}`);
+            const d = await r.json();
+            (d.bundles || []).forEach(b => allBundles.push(b));
+        }
+        // Filter bundles that include this business
+        const myBundles = allBundles.filter(b => (b.business_ids || []).map(String).includes(String(currentGroup.id)));
+        if (!myBundles.length) { el.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">אינך כלול בחבילות קהילה כרגע. פנה למנהל הקהילה ליצירת חבילה.</p>'; return; }
+        el.innerHTML = myBundles.map(b => `
+        <div class="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-100 rounded-xl p-4 mb-3 shadow-sm">
+            <div class="flex justify-between items-start mb-2">
+                <div class="font-bold text-slate-800">${safeStr(b.name)}</div>
+                ${b.discount_pct > 0 ? `<span class="bg-emerald-600 text-white text-xs font-black px-2 py-0.5 rounded-full">${b.discount_pct}% הנחה</span>` : ''}
+            </div>
+            ${b.description ? `<p class="text-xs text-slate-600 mb-2">${safeStr(b.description)}</p>` : ''}
+            <div class="text-xs text-slate-500">שותפים בחבילה:</div>
+            <div class="flex flex-wrap gap-1 mt-1">
+                ${(b.business_names || []).map(n => `<span class="text-xs bg-white text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full font-bold">${safeStr(n)}</span>`).join('')}
+            </div>
+        </div>`).join('');
+    } catch(e) { document.getElementById('biz-bundles-list').innerHTML = '<p class="text-red-400 text-sm text-center py-8">שגיאה</p>'; }
 };
 
 // Feature 4: Search communities by interest tag
@@ -15081,6 +15077,7 @@ window.loadBizCommunities = async function() {
                 <button onclick="openBizPromoModal()" class="bg-orange-100 text-orange-700 hover:bg-orange-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">📢 פרסם מבצע</button>
                 <button onclick="openInterestSearchModal()" class="bg-teal-100 text-teal-700 hover:bg-teal-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🔍 קהילות לפי עניין</button>
                 <button onclick="loadBizCommunitiesWithMatch()" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🎯 הצג % התאמה</button>
+                <button onclick="loadMyBizBundles()" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">📦 החבילות שלי</button>
             `;
             anchor.parentElement?.insertBefore(bar, anchor);
         }

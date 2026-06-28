@@ -4235,6 +4235,9 @@ function renderFamilyCommunities() {
         }
     }
 
+    // ── Community Feed: Promotions + Bundles ─────────────────
+    loadCommunityFeed();
+
     // ── Initiatives (appended inside join view) ───────────────
     let initContainer = getEl('my-initiatives-container');
     if (!initContainer) {
@@ -4253,6 +4256,133 @@ function renderFamilyCommunities() {
         switchFamCommunityTab('benefits');
     }
 }
+
+// ============================================================
+// --- COMMUNITY ADVANCED FEATURES (Family UI) ---
+// ============================================================
+
+async function loadCommunityFeed() {
+    if (!currentGroup || currentGroup.type !== 'FAMILY') return;
+    try {
+        const res = await fetch(`${API}/community/family-feed/${currentGroup.id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        renderCommunityPromotions(data.promotions || []);
+        renderCommunityBundles(data.bundles || []);
+        // Show news tab badge if there's content
+        const newsBtn = getEl('btn-fam-comm-news');
+        if (newsBtn && (data.promotions?.length || data.bundles?.length)) {
+            const total = (data.promotions?.length || 0) + (data.bundles?.length || 0);
+            if (!newsBtn.querySelector('.feed-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'feed-badge bg-orange-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full';
+                badge.textContent = total;
+                newsBtn.appendChild(badge);
+            }
+        }
+    } catch(e) {}
+}
+
+function renderCommunityPromotions(promos) {
+    // Render into the news tab's dedicated feed container
+    const el = getEl('comm-promotions-feed');
+    if (!el) return;
+    if (!promos.length) {
+        el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed">אין מבצעים פעילים כרגע</p>';
+        return;
+    }
+    el.innerHTML = promos.map(p => `
+    <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100 rounded-2xl p-4 shadow-sm">
+        <div class="flex justify-between items-start mb-1">
+            <div class="font-bold text-slate-800 text-sm">${safeStr(p.title)}</div>
+            ${p.discount_pct > 0 ? `<span class="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 mr-2">${p.discount_pct}% הנחה</span>` : ''}
+        </div>
+        ${p.content ? `<p class="text-xs text-slate-600 mt-1 leading-relaxed">${safeStr(p.content)}</p>` : ''}
+        <div class="flex justify-between items-center mt-2.5 pt-2 border-t border-orange-100">
+            <span class="text-[10px] text-slate-400 font-medium">${safeStr(p.business_name)} · ${safeStr(p.community_name)}</span>
+            ${p.valid_until ? `<span class="text-[10px] text-orange-500 font-bold">⏰ עד ${new Date(p.valid_until).toLocaleDateString('he-IL')}</span>` : ''}
+        </div>
+    </div>`).join('');
+}
+
+function renderCommunityBundles(bundles) {
+    const el = getEl('comm-bundles-feed');
+    if (!el) return;
+    if (!bundles.length) { el.innerHTML = ''; return; }
+    el.innerHTML = `
+    <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2 mt-2">
+        <span>📦</span> חבילות קהילה
+    </h4>` + bundles.map(b => `
+    <div class="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-100 rounded-2xl p-4 shadow-sm mb-3">
+        <div class="flex justify-between items-start mb-1">
+            <div class="font-bold text-slate-800 text-sm">${safeStr(b.name)}</div>
+            ${b.discount_pct > 0 ? `<span class="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 mr-2">${b.discount_pct}% הנחה</span>` : ''}
+        </div>
+        ${b.description ? `<p class="text-xs text-slate-600 mt-1 leading-relaxed">${safeStr(b.description)}</p>` : ''}
+        <div class="flex flex-wrap gap-1.5 mt-2">
+            ${(b.business_names || []).map(n => `<span class="text-[10px] bg-white text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full font-bold shadow-sm">${safeStr(n)}</span>`).join('')}
+        </div>
+        <div class="text-[10px] text-slate-400 mt-1.5">${safeStr(b.community_name)}</div>
+    </div>`).join('');
+}
+
+// Family refers a business to their community
+window.openFamReferralModal = function() {
+    if (!currentGroup || currentGroup.type !== 'FAMILY') return;
+    const comms = myConnectedCommunitiesCache || [];
+    const existing = getEl('fam-refer-modal');
+    if (existing) { existing.remove(); return; }
+    const modal = document.createElement('div');
+    modal.id = 'fam-refer-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-yellow-50 to-amber-50">
+            <h3 class="font-bold text-lg text-slate-800">🌟 המלץ על עסק לקהילה</h3>
+            <button onclick="getEl('fam-refer-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 space-y-3">
+            <p class="text-xs text-slate-500 bg-amber-50 rounded-xl p-3 border border-amber-100">
+                <strong>🎁 תרוויחי נקודות!</strong> כשהעסק שהמלצת עליו יאושר לקהילה — הקהילה שלך תקבל בונוס נקודות לארנק.
+            </p>
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">קוד הקבוצה של העסק</label>
+                <input type="text" id="fam-refer-biz-code" placeholder="הזן קוד קבוצה (לדוגמה: ABC123)" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-mono uppercase">
+            </div>
+            ${comms.length ? `
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">לאיזו קהילה?</label>
+                <select id="fam-refer-comm" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm">
+                    ${comms.map(c => `<option value="${c.id}">${safeStr(c.name)}</option>`).join('')}
+                </select>
+            </div>` : '<p class="text-xs text-red-400">אינך חבר בקהילה. הצטרף לקהילה תחילה.</p>'}
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">למה ממליצים? (אופציונלי)</label>
+                <textarea id="fam-refer-notes" rows="2" placeholder="ספר לנו קצת על העסק..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm"></textarea>
+            </div>
+            ${comms.length ? `<button onclick="submitFamReferral()" class="w-full bg-amber-500 text-white py-2.5 rounded-xl font-bold hover:bg-amber-600 transition">⭐ שלח המלצה</button>` : ''}
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+};
+
+window.submitFamReferral = async function() {
+    const bizCode = getEl('fam-refer-biz-code')?.value?.trim()?.toUpperCase();
+    const communityId = getEl('fam-refer-comm')?.value;
+    const notes = getEl('fam-refer-notes')?.value?.trim();
+    if (!bizCode || !communityId) { showToast('error', 'יש למלא קוד עסק וקהילה'); return; }
+    try {
+        const res = await fetch(`${API}/community/family-refer`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, bizCode, communityId: parseInt(communityId), notes })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', '✅ ההמלצה נשלחה! תרוויחו נקודות כשהעסק יאושר.');
+            getEl('fam-refer-modal')?.remove();
+        } else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
 
 async function joinCommunity() {
     return joinCommunityDyn();

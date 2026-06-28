@@ -7865,6 +7865,71 @@ app.get('/api/community/info/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// Family: get promotions and bundles for all their communities
+app.get('/api/community/family-feed/:groupId', async (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        // Get community IDs for this family
+        const commsR = await pool.query(
+            `SELECT community_id FROM family_communities WHERE group_id=$1`, [groupId]);
+        const commIds = commsR.rows.map(r => r.community_id);
+        if (!commIds.length) return res.json({ promotions: [], bundles: [] });
+
+        // Active promotions
+        const promos = await pool.query(
+            `SELECT cp.id, cp.title, cp.content, cp.discount_pct, cp.valid_until, cp.created_at,
+             fg.name as business_name, c.name as community_name
+             FROM community_promotions cp
+             JOIN family_groups fg ON fg.id=cp.business_id
+             JOIN communities c ON c.id=cp.community_id
+             WHERE cp.community_id=ANY($1) AND cp.status='approved'
+             AND (cp.valid_until IS NULL OR cp.valid_until >= CURRENT_DATE)
+             ORDER BY cp.created_at DESC LIMIT 20`, [commIds]);
+
+        // Active bundles
+        const bundles = await pool.query(
+            `SELECT cb.id, cb.name, cb.description, cb.discount_pct, c.name as community_name,
+             array_agg(fg.name ORDER BY fg.name) as business_names
+             FROM community_bundles cb
+             JOIN communities c ON c.id=cb.community_id
+             JOIN community_bundle_businesses cbb ON cbb.bundle_id=cb.id
+             JOIN family_groups fg ON fg.id=cbb.business_id
+             WHERE cb.community_id=ANY($1) AND cb.status='active'
+             GROUP BY cb.id, c.name ORDER BY cb.created_at DESC`, [commIds]);
+
+        res.json({ promotions: promos.rows, bundles: bundles.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Family: refer a business to their community
+app.post('/api/community/family-refer', async (req, res) => {
+    try {
+        const { groupId, bizCode, communityId, notes } = req.body;
+        if (!groupId || !bizCode || !communityId) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        // Verify family is in community
+        const check = await pool.query(
+            `SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2`, [groupId, communityId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'אינך חבר בקהילה זו' });
+        // Resolve business code
+        const biz = await pool.query(`SELECT id FROM family_groups WHERE group_code=$1 AND type='BUSINESS'`, [bizCode.toUpperCase()]);
+        if (!biz.rows.length) return res.status(404).json({ error: 'לא נמצא עסק עם קוד זה' });
+        const businessId = biz.rows[0].id;
+        // No duplicate
+        const dup = await pool.query(
+            `SELECT 1 FROM community_referrals WHERE referrer_group_id=$1 AND business_id=$2 AND community_id=$3`,
+            [groupId, businessId, communityId]);
+        if (dup.rows.length) return res.status(409).json({ error: 'כבר הפנית עסק זה לקהילה' });
+        await pool.query(
+            `INSERT INTO community_referrals (referrer_group_id, business_id, community_id, notes) VALUES ($1,$2,$3,$4)`,
+            [groupId, businessId, communityId, notes || '']);
+        await pool.query(
+            `INSERT INTO community_businesses (community_id, business_id, discount_pct, status)
+             VALUES ($1,$2,0,'pending') ON CONFLICT (community_id, business_id) DO NOTHING`,
+            [communityId, businessId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // 3. הצטרפות לקהילה (בדיקת מגבלת 5 קהילות)
 app.post('/api/community/join', async (req, res) => {
     try {
@@ -9255,18 +9320,15 @@ app.post('/api/sa/community/referrals/:id/approve', verifySA, async (req, res) =
         const r = ref.rows[0];
         const pts = parseFloat(rewardPoints) || 50;
         await pool.query(`UPDATE community_referrals SET status='approved', reward_points=$1 WHERE id=$2`, [pts, r.id]);
-        // Credit to community wallet
-        const w = await pool.query(
+        // Credit to community wallet (community_id IS the PK — no id column)
+        await pool.query(
             `INSERT INTO community_wallets (community_id, balance) VALUES ($1, 0)
-             ON CONFLICT (community_id) DO UPDATE SET community_id=$1 RETURNING id`,
+             ON CONFLICT (community_id) DO NOTHING`,
             [r.community_id]);
-        const wid = w.rows[0]?.id;
-        if (wid) {
-            await pool.query(`UPDATE community_wallets SET balance=balance+$1 WHERE id=$2`, [pts, wid]);
-            await pool.query(
-                `INSERT INTO community_wallet_transactions (community_id, amount, type, description)
-                 VALUES ($1,$2,'credit','בונוס שגריר קהילה')`, [r.community_id, pts]);
-        }
+        await pool.query(`UPDATE community_wallets SET balance=balance+$1, updated_at=NOW() WHERE community_id=$2`, [pts, r.community_id]);
+        await pool.query(
+            `INSERT INTO community_wallet_transactions (community_id, amount, type, description)
+             VALUES ($1,$2,'credit','בונוס שגריר קהילה')`, [r.community_id, pts]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
