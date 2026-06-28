@@ -9613,7 +9613,7 @@ app.patch('/api/sa/community/bundles/:id', verifySA, async (req, res) => {
         await pool.query(`
             INSERT INTO flow_config (key, personal_amount, community_amount, description) VALUES
             ('join_community',       15,  5,  'הצטרפות לקהילה חדשה'),
-            ('referral',             20,  10, 'הפניית שכן שהצטרף'),
+            ('referral',             20,  10, 'הפניית חבר שהצטרף'),
             ('promo_redemption',      3,   2, 'מימוש מבצע עסק'),
             ('profile_complete',     12,   3, 'מילוי פרופיל מלא'),
             ('review_business',       7,   3, 'כתיבת ביקורת על עסק'),
@@ -9631,6 +9631,8 @@ app.patch('/api/sa/community/bundles/:id', verifySA, async (req, res) => {
             ('biz_lead_received',     5,   2, 'עסק — קיבל פנייה דרך הקהילה')
             ON CONFLICT (key) DO NOTHING;
         `);
+        // Fix description wording (שכן→חבר) for existing deployments
+        await pool.query(`UPDATE flow_config SET description='הפניית חבר שהצטרף' WHERE key='referral' AND description LIKE '%שכן%'`);
     } catch(e) { console.error('[FLOW migration]', e.message); }
 })();
 

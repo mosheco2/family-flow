@@ -4430,6 +4430,7 @@ window.submitCommunityReview = async function(bizId) {
 // ─── FLOW WALLET (FAMILY) ────────────────────────────────────
 
 let familyFlowBalance = 0;
+let familyFlowRate = 100;
 
 async function loadFamilyFlowWallet() {
     if (!currentGroup || currentGroup.type !== 'FAMILY') return;
@@ -4438,6 +4439,7 @@ async function loadFamilyFlowWallet() {
         if (!res.ok) return;
         const data = await res.json();
         familyFlowBalance = data.balance || 0;
+        familyFlowRate = data.rate || 100;
 
         // Daily login reward
         fetch(`${API}/flow/daily-login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id }) }).catch(() => {});
@@ -4517,7 +4519,7 @@ window.openFlowRedeemModal = function() {
         `<option value="${b.id}">${safeStr(b.name)}</option>`).join('');
     const existing = getEl('flow-redeem-modal');
     if (existing) { existing.remove(); return; }
-    const rate = 100; // default, will be from wallet data
+    const rate = familyFlowRate || 100;
     const modal = document.createElement('div');
     modal.id = 'flow-redeem-modal';
     modal.className = 'fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-4';
@@ -4528,7 +4530,7 @@ window.openFlowRedeemModal = function() {
             <button onclick="getEl('flow-redeem-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
         </div>
         <div class="p-4 space-y-3">
-            <p class="text-xs text-slate-500 bg-amber-50 rounded-xl p-3 border border-amber-100">כל 100 ₣ = ₪10 הנחה. תקבל קוד חד-פעמי להציג לעסק.</p>
+            <p class="text-xs text-slate-500 bg-amber-50 rounded-xl p-3 border border-amber-100">כל ${rate} ₣ = ₪10 הנחה. תקבל קוד חד-פעמי להציג לעסק.</p>
             <div>
                 <label class="text-xs font-bold text-slate-600 mb-1 block">בחר עסק לממש אצלו</label>
                 <select id="redeem-biz-select" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
@@ -4548,7 +4550,7 @@ window.openFlowRedeemModal = function() {
     document.body.appendChild(modal);
     document.getElementById('redeem-flow-amount')?.addEventListener('input', e => {
         const v = parseInt(e.target.value) || 0;
-        const ils = Math.floor(v / 100) * 10;
+        const ils = Math.floor(v / (familyFlowRate || 100)) * 10;
         const el = document.getElementById('redeem-ils-preview');
         if (el) el.textContent = ils;
     });
