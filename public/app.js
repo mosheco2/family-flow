@@ -4237,6 +4237,7 @@ function renderFamilyCommunities() {
 
     // ── Community Feed: Promotions + Bundles ─────────────────
     loadCommunityFeed();
+    loadFamilyFlowWallet();
 
     // ── Initiatives (appended inside join view) ───────────────
     let initContainer = getEl('my-initiatives-container');
@@ -4325,6 +4326,161 @@ function renderCommunityBundles(bundles) {
         <div class="text-[10px] text-slate-400 mt-1.5">${safeStr(b.community_name)}</div>
     </div>`).join('');
 }
+
+// ─── FLOW WALLET (FAMILY) ────────────────────────────────────
+
+let familyFlowBalance = 0;
+
+async function loadFamilyFlowWallet() {
+    if (!currentGroup || currentGroup.type !== 'FAMILY') return;
+    try {
+        const res = await fetch(`${API}/flow/wallet/family/${currentGroup.id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        familyFlowBalance = data.balance || 0;
+
+        // Daily login reward
+        fetch(`${API}/flow/daily-login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id }) }).catch(() => {});
+
+        // Inject FLOW badge into news tab button
+        const newsBtn = getEl('btn-fam-comm-news');
+        if (newsBtn) {
+            let badge = newsBtn.querySelector('.flow-balance-chip');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'flow-balance-chip bg-amber-400 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full';
+                newsBtn.appendChild(badge);
+            }
+            badge.textContent = `₣${Math.floor(familyFlowBalance)}`;
+        }
+
+        // If wallet modal is open, refresh it
+        if (document.getElementById('fam-flow-wallet-modal')) renderFlowWalletContent(data);
+    } catch(e) {}
+}
+
+function renderFlowWalletContent(data) {
+    const content = document.getElementById('flow-wallet-content');
+    if (!content) return;
+    const bal = parseFloat(data.balance || 0);
+    const rate = parseFloat(data.rate || 100);
+    const worth = Math.floor(bal / rate) * 10;
+    content.innerHTML = `
+    <div class="bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl p-5 text-center mb-4 shadow-lg">
+        <div class="text-5xl font-black text-white mb-1">₣ ${bal.toLocaleString('he-IL', {minimumFractionDigits:0,maximumFractionDigits:1})}</div>
+        <div class="text-amber-100 text-sm">FLOW אישי</div>
+        ${worth > 0 ? `<div class="mt-2 bg-white/20 rounded-xl px-3 py-1 text-white text-xs font-bold">שווה ₪${worth} הנחה אצל עסק מחובר</div>` : '<div class="mt-2 text-amber-100 text-xs">צבור עוד ₣ כדי לממש הנחות</div>'}
+    </div>
+    <div class="mb-4">
+        <button onclick="openFlowRedeemModal()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-2xl text-sm transition shadow-md ${worth <= 0 ? 'opacity-50 pointer-events-none' : ''}">
+            🎁 ממש הנחה אצל עסק
+        </button>
+    </div>
+    <h4 class="font-bold text-slate-700 text-sm mb-2">📋 פעילות אחרונה</h4>
+    <div class="space-y-2 max-h-48 overflow-y-auto">
+        ${data.transactions?.length ? data.transactions.map(t => `
+        <div class="flex justify-between items-center text-xs py-2 border-b border-slate-100">
+            <span class="text-slate-600">${safeStr(t.description || '')}</span>
+            <span class="font-bold ${t.amount > 0 ? 'text-green-600' : 'text-red-500'}">${t.amount > 0 ? '+' : ''}${parseFloat(t.amount).toFixed(0)} ₣</span>
+        </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין — התחל לצבור ₣!</p>'}
+    </div>`;
+}
+
+window.openFlowWalletModal = async function() {
+    const existing = getEl('fam-flow-wallet-modal');
+    if (existing) { existing.remove(); return; }
+    const modal = document.createElement('div');
+    modal.id = 'fam-flow-wallet-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-amber-50 to-yellow-50">
+            <h3 class="font-black text-slate-800 text-base">⚡ ארנק FLOW האישי שלי</h3>
+            <button onclick="getEl('fam-flow-wallet-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div id="flow-wallet-content" class="p-4">
+            <div class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    try {
+        const res = await fetch(`${API}/flow/wallet/family/${currentGroup.id}`);
+        const data = await res.json();
+        renderFlowWalletContent(data);
+    } catch(e) { document.getElementById('flow-wallet-content').innerHTML = '<p class="text-red-500 text-sm text-center py-6">שגיאה בטעינת הארנק</p>'; }
+};
+
+window.openFlowRedeemModal = function() {
+    const comms = myConnectedCommunitiesCache || [];
+    // Collect businesses from community
+    const bizOptions = (window.communityBusinessesCache || []).map(b =>
+        `<option value="${b.id}">${safeStr(b.name)}</option>`).join('');
+    const existing = getEl('flow-redeem-modal');
+    if (existing) { existing.remove(); return; }
+    const rate = 100; // default, will be from wallet data
+    const modal = document.createElement('div');
+    modal.id = 'flow-redeem-modal';
+    modal.className = 'fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div class="p-4 border-b flex justify-between items-center bg-amber-50">
+            <h3 class="font-black text-slate-800 text-base">🎁 מימוש ₣ להנחה</h3>
+            <button onclick="getEl('flow-redeem-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 space-y-3">
+            <p class="text-xs text-slate-500 bg-amber-50 rounded-xl p-3 border border-amber-100">כל 100 ₣ = ₪10 הנחה. תקבל קוד חד-פעמי להציג לעסק.</p>
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">בחר עסק לממש אצלו</label>
+                <select id="redeem-biz-select" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                    <option value="">— בחר עסק —</option>
+                    ${bizOptions}
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">כמות ₣ לממש (מינימום 100)</label>
+                <input type="number" id="redeem-flow-amount" min="100" step="100" value="100" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-amber-600">
+                <p class="text-[10px] text-slate-400 mt-1">יתרה: ₣${Math.floor(familyFlowBalance)} · שווי: ₪<span id="redeem-ils-preview">10</span></p>
+            </div>
+            <button onclick="submitFlowRedeem()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-2xl text-sm transition shadow-md">🎁 קבל קוד הנחה</button>
+            <div id="redeem-result" class="hidden"></div>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('redeem-flow-amount')?.addEventListener('input', e => {
+        const v = parseInt(e.target.value) || 0;
+        const ils = Math.floor(v / 100) * 10;
+        const el = document.getElementById('redeem-ils-preview');
+        if (el) el.textContent = ils;
+    });
+};
+
+window.submitFlowRedeem = async function() {
+    const bizId = parseInt(document.getElementById('redeem-biz-select')?.value);
+    const flowAmt = parseInt(document.getElementById('redeem-flow-amount')?.value);
+    if (!bizId) { showToast && showToast('error','בחר עסק'); return; }
+    if (!flowAmt || flowAmt < 100) { showToast && showToast('error','מינימום 100 ₣'); return; }
+    if (flowAmt > familyFlowBalance) { showToast && showToast('error','אין מספיק ₣ בארנק'); return; }
+    try {
+        const res = await fetch(`${API}/flow/redeem`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ familyGroupId: currentGroup.id, businessGroupId: bizId, flowAmount: flowAmt })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        const result = document.getElementById('redeem-result');
+        if (result) {
+            result.classList.remove('hidden');
+            result.innerHTML = `
+            <div class="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
+                <div class="text-3xl font-black text-green-600 tracking-widest mb-1">${data.code}</div>
+                <div class="text-xs text-slate-600">קוד הנחה של ₪${data.discountIls} — הצג לעסק!</div>
+                <div class="text-[10px] text-slate-400 mt-1">הקוד חד-פעמי ותקף לשימוש אחד</div>
+            </div>`;
+        }
+        familyFlowBalance -= flowAmt;
+        loadFamilyFlowWallet();
+    } catch(e) { showToast && showToast('error', e.message); }
+};
 
 // Family refers a business to their community
 window.openFamReferralModal = function() {

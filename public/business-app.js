@@ -15010,6 +15010,76 @@ window.loadMyBizBundles = async function() {
     } catch(e) { document.getElementById('biz-bundles-list').innerHTML = '<p class="text-red-400 text-sm text-center py-8">שגיאה</p>'; }
 };
 
+// ─── FLOW WALLET (BUSINESS) ──────────────────────────────────
+
+window.openBizFlowWallet = async function() {
+    const existing = document.getElementById('biz-flow-wallet-modal');
+    if (existing) { existing.remove(); return; }
+    const modal = document.createElement('div');
+    modal.id = 'biz-flow-wallet-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-amber-50 to-yellow-50">
+            <div>
+                <h3 class="font-black text-slate-800 text-base">⚡ ארנק FLOW העסקי</h3>
+                <p class="text-[11px] text-slate-500 mt-0.5">₣ שהרוויח העסק מפעילות קהילתית</p>
+            </div>
+            <button onclick="document.getElementById('biz-flow-wallet-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div id="biz-flow-wallet-content" class="p-4">
+            <div class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    try {
+        const res = await fetch(`${API}/flow/wallet/business/${currentGroup.id}`);
+        const data = await res.json();
+        const bal = parseFloat(data.balance || 0);
+        document.getElementById('biz-flow-wallet-content').innerHTML = `
+        <div class="bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl p-5 text-center mb-4 shadow-lg">
+            <div class="text-4xl font-black text-white mb-1">₣ ${bal.toLocaleString('he-IL',{minimumFractionDigits:0,maximumFractionDigits:1})}</div>
+            <div class="text-amber-100 text-sm">יתרת FLOW עסקית</div>
+        </div>
+        <div class="mb-4 bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700">
+            <b>איך לממש?</b> ניתן להשתמש בארנק העסקי לרכישת חשיפה מועדפת בקהילות — פנה ל-Super Admin לפרטים.
+        </div>
+        <h4 class="font-bold text-slate-700 text-sm mb-2">📋 פעילות אחרונה</h4>
+        <div class="space-y-2 max-h-48 overflow-y-auto">
+            ${data.transactions?.length ? data.transactions.map(t => `
+            <div class="flex justify-between items-center text-xs py-2 border-b border-slate-100">
+                <span class="text-slate-600">${safeStr(t.description || '')}</span>
+                <span class="font-bold ${t.amount > 0 ? 'text-green-600' : 'text-red-500'}">${t.amount > 0 ? '+' : ''}${parseFloat(t.amount).toFixed(0)} ₣</span>
+            </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>'}
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-100">
+            <p class="text-[10px] text-slate-400 text-center">לבדיקת קוד הנחה של לקוח:</p>
+            <div class="flex gap-2 mt-2">
+                <input type="text" id="biz-check-code" placeholder="קוד הנחה (FL...)" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono uppercase">
+                <button onclick="bizVerifyFlowCode()" class="bg-green-500 text-white px-3 py-2 rounded-xl text-sm font-bold hover:bg-green-600 transition">אמת</button>
+            </div>
+            <div id="biz-code-result" class="mt-2 hidden"></div>
+        </div>`;
+    } catch(e) { document.getElementById('biz-flow-wallet-content').innerHTML = '<p class="text-red-500 text-sm text-center py-6">שגיאה בטעינת הארנק</p>'; }
+};
+
+window.bizVerifyFlowCode = async function() {
+    const code = document.getElementById('biz-check-code')?.value?.trim().toUpperCase();
+    const result = document.getElementById('biz-code-result');
+    if (!code || !result) return;
+    result.classList.remove('hidden');
+    result.innerHTML = '<p class="text-xs text-slate-400">בודק...</p>';
+    try {
+        const res = await fetch(`${API}/flow/redemptions/${code}/use`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            result.innerHTML = `<div class="bg-green-50 border border-green-200 rounded-xl p-3 text-center"><div class="text-green-700 font-black text-sm">✅ קוד תקין — הנחה ₪${data.discountIls}</div><div class="text-xs text-green-600 mt-0.5">הקוד סומן כמומש</div></div>`;
+        } else {
+            result.innerHTML = `<div class="bg-red-50 border border-red-200 rounded-xl p-3 text-center text-red-600 text-xs font-bold">❌ ${safeStr(data.error || 'קוד לא תקין')}</div>`;
+        }
+    } catch(e) { result.innerHTML = '<p class="text-red-500 text-xs">שגיאה בבדיקה</p>'; }
+};
+
 // Feature 4: Search communities by interest tag
 window.openInterestSearchModal = function() {
     const existing = document.getElementById('biz-interest-search-modal');
@@ -15079,6 +15149,7 @@ window.loadBizCommunities = async function() {
                 <button onclick="openInterestSearchModal()" class="bg-teal-100 text-teal-700 hover:bg-teal-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🔍 קהילות לפי עניין</button>
                 <button onclick="loadBizCommunitiesWithMatch()" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🎯 הצג % התאמה</button>
                 <button onclick="loadMyBizBundles()" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">📦 החבילות שלי</button>
+                <button onclick="openBizFlowWallet()" class="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">⚡ ארנק FLOW</button>
             `;
             anchor.parentElement?.insertBefore(bar, anchor);
         }

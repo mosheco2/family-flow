@@ -2090,6 +2090,7 @@ async function loadSACommunityData() {
                 <button onclick="openSAReferralsPanel()" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">🌟 שגרירי קהילה</button>
                 <button onclick="openSABundlesPanel()" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">📦 חבילות קהילה</button>
                 <button onclick="openMatchScorePanel(saBusinessesCache?.[0]?.id, saBusinessesCache?.[0]?.name||'בחר עסק')" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">🎯 התאמת עסקים</button>
+                <button onclick="openFlowConfigPanel()" class="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">⚡ ניהול FLOW</button>
             `;
             section.insertBefore(bar, section.firstChild);
         }
@@ -7014,4 +7015,145 @@ window.createCommunityBundle = async function() {
         document.getElementById('sa-bundle-create-modal')?.remove();
         loadSABundles();
     } catch(e) { showSAToast('שגיאה: ' + e.message); }
+};
+
+// ─── FLOW REWARDS CONFIG (SA) ────────────────────────────────
+
+const FLOW_CONFIG_LABELS = {
+    join_community:      'הצטרפות לקהילה חדשה',
+    referral:            'הפניית שכן שהצטרף לקהילה',
+    promo_redemption:    'מימוש מבצע עסק בקהילה',
+    profile_complete:    'מילוי פרופיל משפחתי מלא',
+    review_business:     'כתיבת ביקורת על עסק',
+    bundle_purchase:     'רכישת חבילת קהילה',
+    daily_login:         'כניסה יומית לאפליקציה',
+    ambassador_approved: 'שגריר — עסק שאושר לקהילה',
+    promo_community:     'עסק — מבצע מומש (רק לקהילה)',
+    bundle_community:    'עסק — חבילה נמכרה (רק לקהילה)',
+    flow_to_ils_rate:    'שיעור המרה: כמה ₣ = ₪10 הנחה',
+};
+
+window.openFlowConfigPanel = async function() {
+    const existing = document.getElementById('sa-flow-config-panel');
+    if (existing) { existing.remove(); return; }
+
+    const panel = document.createElement('div');
+    panel.id = 'sa-flow-config-panel';
+    panel.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    panel.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-amber-50 to-yellow-50">
+            <div>
+                <h3 class="font-black text-slate-800 text-base">⚡ ניהול מטבע FLOW</h3>
+                <p class="text-xs text-slate-500 mt-0.5">שנה כל ערך ולחץ שמור — השינוי נכנס לתוקף מיידית</p>
+            </div>
+            <div class="flex gap-2 items-center">
+                <button onclick="openFlowStatsPanel()" class="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-xl font-bold hover:bg-blue-200 transition">📊 סטטיסטיקות</button>
+                <button onclick="document.getElementById('sa-flow-config-panel').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+            </div>
+        </div>
+        <div class="overflow-y-auto flex-1 p-4">
+            <div id="flow-config-loading" class="text-center py-10 text-slate-400">
+                <i class="fa-solid fa-spinner fa-spin text-2xl"></i>
+            </div>
+            <div id="flow-config-table" class="hidden"></div>
+        </div>
+        <div class="p-4 border-t bg-slate-50 flex justify-end gap-3">
+            <button onclick="document.getElementById('sa-flow-config-panel').remove()" class="px-4 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition">ביטול</button>
+            <button onclick="saveFlowConfig()" class="px-5 py-2 text-sm font-black text-white bg-amber-500 rounded-xl hover:bg-amber-600 transition shadow-md">💾 שמור הכל</button>
+        </div>
+    </div>`;
+    document.body.appendChild(panel);
+
+    try {
+        const res = await fetch(`${API}/sa/flow/config`, { headers: { Authorization: saToken } });
+        const data = await res.json();
+        document.getElementById('flow-config-loading').classList.add('hidden');
+        const table = document.getElementById('flow-config-table');
+        table.classList.remove('hidden');
+        table.innerHTML = `
+        <table class="w-full text-sm border-collapse">
+            <thead>
+                <tr class="bg-slate-100 text-slate-600 text-xs">
+                    <th class="text-right p-3 rounded-tl-xl font-bold">פעולה</th>
+                    <th class="text-center p-3 font-bold">₣ אישי<br><span class="font-normal text-[10px]">(למשפחה)</span></th>
+                    <th class="text-center p-3 rounded-tr-xl font-bold">₣ קהילה<br><span class="font-normal text-[10px]">(לארנק הקהילה)</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                ${data.config.map(row => `
+                <tr class="border-b border-slate-100 hover:bg-amber-50 transition" data-key="${row.key}">
+                    <td class="p-3 font-medium text-slate-700">${FLOW_CONFIG_LABELS[row.key] || row.key}<br><span class="text-[10px] text-slate-400 font-mono">${row.key}</span></td>
+                    <td class="p-3 text-center">
+                        <input type="number" min="0" step="1" value="${row.personal_amount}"
+                            class="flow-cfg-personal w-20 text-center border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold focus:ring-2 focus:ring-amber-300 outline-none"
+                            ${row.key === 'flow_to_ils_rate' ? '' : ''}>
+                    </td>
+                    <td class="p-3 text-center">
+                        ${row.key === 'flow_to_ils_rate' ? '<span class="text-xs text-slate-400">—</span>' :
+                        `<input type="number" min="0" step="1" value="${row.community_amount}"
+                            class="flow-cfg-community w-20 text-center border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold focus:ring-2 focus:ring-amber-300 outline-none">`}
+                    </td>
+                </tr>`).join('')}
+            </tbody>
+        </table>
+        <p class="text-xs text-slate-400 mt-3 text-center">* שיעור ההמרה: ₣ בשורת "שיעור המרה" = ₪10 הנחה. לדוגמה: 100 ₣ = ₪10</p>`;
+    } catch(e) { showSAToast('שגיאה בטעינת הגדרות FLOW'); }
+};
+
+window.saveFlowConfig = async function() {
+    const rows = document.querySelectorAll('#flow-config-table tr[data-key]');
+    const items = Array.from(rows).map(row => ({
+        key: row.dataset.key,
+        personal_amount: parseFloat(row.querySelector('.flow-cfg-personal')?.value) || 0,
+        community_amount: parseFloat(row.querySelector('.flow-cfg-community')?.value) || 0,
+    }));
+    try {
+        const res = await fetch(`${API}/sa/flow/config`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: saToken },
+            body: JSON.stringify({ items })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        showSAToast('✅ הגדרות FLOW נשמרו בהצלחה!');
+        document.getElementById('sa-flow-config-panel').remove();
+    } catch(e) { showSAToast('שגיאה: ' + e.message); }
+};
+
+window.openFlowStatsPanel = async function() {
+    const existing = document.getElementById('sa-flow-stats-panel');
+    if (existing) { existing.remove(); return; }
+    const panel = document.createElement('div');
+    panel.id = 'sa-flow-stats-panel';
+    panel.className = 'fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-4';
+    panel.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-amber-50 to-yellow-50">
+            <h3 class="font-black text-slate-800 text-base">📊 סטטיסטיקות FLOW</h3>
+            <button onclick="document.getElementById('sa-flow-stats-panel').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="overflow-y-auto flex-1 p-4">
+            <div id="flow-stats-content" class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>
+        </div>
+    </div>`;
+    document.body.appendChild(panel);
+    try {
+        const res = await fetch(`${API}/sa/flow/stats`, { headers: { Authorization: saToken } });
+        const d = await res.json();
+        document.getElementById('flow-stats-content').innerHTML = `
+        <div class="bg-amber-50 border border-amber-100 rounded-2xl p-4 mb-4 text-center">
+            <div class="text-3xl font-black text-amber-600">₣ ${parseFloat(d.totalIssued).toLocaleString('he-IL')}</div>
+            <div class="text-xs text-slate-500 mt-1">סך FLOW שהונפק במערכת</div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <h4 class="font-bold text-slate-700 text-sm mb-2">🏆 משפחות מובילות</h4>
+                ${d.topFamilies.map((f,i) => `<div class="flex justify-between text-xs py-1.5 border-b border-slate-100"><span>${i+1}. ${safeStr(f.name)}</span><span class="font-bold text-amber-600">₣${parseFloat(f.balance).toLocaleString()}</span></div>`).join('') || '<p class="text-xs text-slate-400">אין נתונים</p>'}
+            </div>
+            <div>
+                <h4 class="font-bold text-slate-700 text-sm mb-2">🏘️ קהילות מובילות</h4>
+                ${d.topCommunities.map((c,i) => `<div class="flex justify-between text-xs py-1.5 border-b border-slate-100"><span>${i+1}. ${safeStr(c.name)}</span><span class="font-bold text-emerald-600">₣${parseFloat(c.balance).toLocaleString()}</span></div>`).join('') || '<p class="text-xs text-slate-400">אין נתונים</p>'}
+            </div>
+        </div>`;
+    } catch(e) { document.getElementById('flow-stats-content').innerHTML = '<p class="text-red-500 text-sm">שגיאה בטעינת נתונים</p>'; }
 };

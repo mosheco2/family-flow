@@ -7944,6 +7944,8 @@ app.post('/api/community/join', async (req, res) => {
         if (parseInt(countRes.rows[0].count) >= 5) return res.status(400).json({error: 'ניתן להצטרף לעד 5 קהילות במקביל.'});
         
         await pool.query('INSERT INTO family_communities (group_id, community_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [groupId, commId]);
+        // Award FLOW for joining
+        await awardFlow('family', parseInt(groupId), 'join_community', commId, commId);
         res.json({success: true, community: commRes.rows[0]});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -9329,6 +9331,8 @@ app.post('/api/sa/community/referrals/:id/approve', verifySA, async (req, res) =
         await pool.query(
             `INSERT INTO community_wallet_transactions (community_id, amount, type, description)
              VALUES ($1,$2,'credit','בונוס שגריר קהילה')`, [r.community_id, pts]);
+        // Award FLOW — referrer family + community
+        await awardFlow('family', r.referrer_group_id, 'ambassador_approved', r.community_id, r.id);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -9489,6 +9493,242 @@ app.patch('/api/sa/community/bundles/:id', verifySA, async (req, res) => {
         const { status } = req.body;
         await pool.query(`UPDATE community_bundles SET status=$1 WHERE id=$2`, [status, req.params.id]);
         res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- FLOW REWARDS ENGINE ---
+// ============================================================
+
+// Migration
+(async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS flow_config (
+                key VARCHAR(100) PRIMARY KEY,
+                personal_amount NUMERIC(10,2) DEFAULT 0,
+                community_amount NUMERIC(10,2) DEFAULT 0,
+                description VARCHAR(200)
+            );
+            CREATE TABLE IF NOT EXISTS flow_wallets (
+                id SERIAL PRIMARY KEY,
+                entity_type VARCHAR(20) NOT NULL,
+                entity_id INT NOT NULL,
+                balance NUMERIC(12,2) DEFAULT 0,
+                updated_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(entity_type, entity_id)
+            );
+            CREATE TABLE IF NOT EXISTS flow_transactions (
+                id SERIAL PRIMARY KEY,
+                entity_type VARCHAR(20) NOT NULL,
+                entity_id INT NOT NULL,
+                amount NUMERIC(10,2) NOT NULL,
+                action_key VARCHAR(100),
+                description VARCHAR(200),
+                reference_id INT,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS flow_redemptions (
+                id SERIAL PRIMARY KEY,
+                family_group_id INT REFERENCES family_groups(id),
+                business_group_id INT REFERENCES family_groups(id),
+                flow_amount NUMERIC(10,2) NOT NULL,
+                discount_ils NUMERIC(10,2) NOT NULL,
+                discount_code VARCHAR(20) UNIQUE NOT NULL,
+                status VARCHAR(20) DEFAULT 'active',
+                created_at TIMESTAMP DEFAULT NOW(),
+                used_at TIMESTAMP
+            );
+        `);
+        await pool.query(`
+            INSERT INTO flow_config (key, personal_amount, community_amount, description) VALUES
+            ('join_community',       15,  5,  'הצטרפות לקהילה חדשה'),
+            ('referral',             20,  10, 'הפניית שכן שהצטרף'),
+            ('promo_redemption',      3,   2, 'מימוש מבצע עסק'),
+            ('profile_complete',     12,   3, 'מילוי פרופיל מלא'),
+            ('review_business',       7,   3, 'כתיבת ביקורת על עסק'),
+            ('bundle_purchase',      18,   7, 'רכישת חבילת קהילה'),
+            ('daily_login',           1,   0, 'כניסה יומית'),
+            ('ambassador_approved',  35,  15, 'שגריר — עסק אושר'),
+            ('promo_community',       0,   5, 'עסק — מבצע מומש בקהילה'),
+            ('bundle_community',      0,  20, 'עסק — חבילה נמכרה בקהילה'),
+            ('flow_to_ils_rate',    100,   0, 'כמה ₣ שווים ₪10 הנחה')
+            ON CONFLICT (key) DO NOTHING;
+        `);
+    } catch(e) { console.error('[FLOW migration]', e.message); }
+})();
+
+// Helper: award FLOW to personal wallet and/or community wallet
+async function awardFlow(entityType, entityId, actionKey, communityId = null, referenceId = null) {
+    try {
+        const cfg = await pool.query(`SELECT personal_amount, community_amount, description FROM flow_config WHERE key=$1`, [actionKey]);
+        if (!cfg.rows.length) return;
+        const { personal_amount, community_amount, description } = cfg.rows[0];
+        const pa = parseFloat(personal_amount), ca = parseFloat(community_amount);
+
+        if (pa > 0 && entityId) {
+            await pool.query(
+                `INSERT INTO flow_wallets (entity_type, entity_id, balance) VALUES ($1,$2,$3)
+                 ON CONFLICT (entity_type, entity_id) DO UPDATE SET balance=flow_wallets.balance+$3, updated_at=NOW()`,
+                [entityType, entityId, pa]);
+            await pool.query(
+                `INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description, reference_id)
+                 VALUES ($1,$2,$3,$4,$5,$6)`,
+                [entityType, entityId, pa, actionKey, description, referenceId]);
+        }
+        if (ca > 0 && communityId) {
+            await pool.query(
+                `INSERT INTO flow_wallets (entity_type, entity_id, balance) VALUES ('community',$1,$2)
+                 ON CONFLICT (entity_type, entity_id) DO UPDATE SET balance=flow_wallets.balance+$2, updated_at=NOW()`,
+                [communityId, ca]);
+            await pool.query(
+                `INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description, reference_id)
+                 VALUES ('community',$1,$2,$3,$4,$5)`,
+                [communityId, ca, actionKey, description, referenceId]);
+        }
+    } catch(e) { console.error('[awardFlow]', e.message); }
+}
+
+// SA — get all config values
+app.get('/api/sa/flow/config', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT * FROM flow_config ORDER BY key`);
+        res.json({ config: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — update config values
+app.put('/api/sa/flow/config', verifySA, async (req, res) => {
+    try {
+        const { items } = req.body; // [{key, personal_amount, community_amount}]
+        if (!Array.isArray(items)) return res.status(400).json({ error: 'items חייב להיות מערך' });
+        for (const item of items) {
+            await pool.query(
+                `UPDATE flow_config SET personal_amount=$1, community_amount=$2 WHERE key=$3`,
+                [parseFloat(item.personal_amount) || 0, parseFloat(item.community_amount) || 0, item.key]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — FLOW stats overview
+app.get('/api/sa/flow/stats', verifySA, async (req, res) => {
+    try {
+        const [issued, families, communities] = await Promise.all([
+            pool.query(`SELECT COALESCE(SUM(amount),0) as total FROM flow_transactions WHERE amount>0`),
+            pool.query(`SELECT w.entity_id, fg.name, w.balance FROM flow_wallets w JOIN family_groups fg ON fg.id=w.entity_id WHERE w.entity_type='family' ORDER BY w.balance DESC LIMIT 10`),
+            pool.query(`SELECT w.entity_id, c.name, w.balance FROM flow_wallets w JOIN communities c ON c.id=w.entity_id WHERE w.entity_type='community' ORDER BY w.balance DESC LIMIT 10`)
+        ]);
+        res.json({ totalIssued: issued.rows[0].total, topFamilies: families.rows, topCommunities: communities.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Family — get personal FLOW wallet
+app.get('/api/flow/wallet/family/:groupId', async (req, res) => {
+    try {
+        const gid = parseInt(req.params.groupId);
+        const [wallet, txs] = await Promise.all([
+            pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='family' AND entity_id=$1`, [gid]),
+            pool.query(`SELECT amount, description, created_at FROM flow_transactions WHERE entity_type='family' AND entity_id=$1 ORDER BY created_at DESC LIMIT 20`, [gid])
+        ]);
+        const rate = await pool.query(`SELECT personal_amount FROM flow_config WHERE key='flow_to_ils_rate'`);
+        const rateVal = parseFloat(rate.rows[0]?.personal_amount) || 100;
+        res.json({ balance: parseFloat(wallet.rows[0]?.balance || 0), transactions: txs.rows, rate: rateVal });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Business — get FLOW wallet
+app.get('/api/flow/wallet/business/:groupId', async (req, res) => {
+    try {
+        const gid = parseInt(req.params.groupId);
+        const [wallet, txs] = await Promise.all([
+            pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='business' AND entity_id=$1`, [gid]),
+            pool.query(`SELECT amount, description, created_at FROM flow_transactions WHERE entity_type='business' AND entity_id=$1 ORDER BY created_at DESC LIMIT 20`, [gid])
+        ]);
+        res.json({ balance: parseFloat(wallet.rows[0]?.balance || 0), transactions: txs.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Community wallet — visible to members
+app.get('/api/flow/community-wallet/:communityId', async (req, res) => {
+    try {
+        const cid = parseInt(req.params.communityId);
+        const [wallet, txs] = await Promise.all([
+            pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='community' AND entity_id=$1`, [cid]),
+            pool.query(`SELECT amount, description, created_at FROM flow_transactions WHERE entity_type='community' AND entity_id=$1 ORDER BY created_at DESC LIMIT 20`, [cid])
+        ]);
+        res.json({ balance: parseFloat(wallet.rows[0]?.balance || 0), transactions: txs.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Family redeems FLOW for a discount code
+app.post('/api/flow/redeem', async (req, res) => {
+    try {
+        const { familyGroupId, businessGroupId, flowAmount } = req.body;
+        if (!familyGroupId || !businessGroupId || !flowAmount) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        const fa = parseFloat(flowAmount);
+        if (fa <= 0) return res.status(400).json({ error: 'כמות לא תקינה' });
+
+        // Check balance
+        const wallet = await pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='family' AND entity_id=$1`, [familyGroupId]);
+        const bal = parseFloat(wallet.rows[0]?.balance || 0);
+        if (bal < fa) return res.status(400).json({ error: `אין מספיק ₣ (יש לך ${bal} ₣)` });
+
+        // Calculate discount: rate = how many ₣ per ₪10
+        const rate = await pool.query(`SELECT personal_amount FROM flow_config WHERE key='flow_to_ils_rate'`);
+        const rateVal = parseFloat(rate.rows[0]?.personal_amount) || 100;
+        const discountIls = Math.floor(fa / rateVal) * 10;
+        if (discountIls <= 0) return res.status(400).json({ error: `מינימום ${rateVal} ₣ למימוש` });
+
+        // Deduct balance
+        await pool.query(`UPDATE flow_wallets SET balance=balance-$1, updated_at=NOW() WHERE entity_type='family' AND entity_id=$2`, [fa, familyGroupId]);
+        await pool.query(`INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description) VALUES ('family',$1,$2,'redeem','מימוש הנחה')`, [familyGroupId, -fa]);
+
+        // Generate unique code
+        const code = 'FL' + Math.random().toString(36).substring(2,8).toUpperCase();
+        await pool.query(
+            `INSERT INTO flow_redemptions (family_group_id, business_group_id, flow_amount, discount_ils, discount_code) VALUES ($1,$2,$3,$4,$5)`,
+            [familyGroupId, businessGroupId, fa, discountIls, code]);
+
+        res.json({ success: true, code, discountIls, flowSpent: fa });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Family daily login reward
+app.post('/api/flow/daily-login', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
+        // Check if already awarded today
+        const today = await pool.query(
+            `SELECT id FROM flow_transactions WHERE entity_type='family' AND entity_id=$1 AND action_key='daily_login' AND created_at::date=CURRENT_DATE`,
+            [groupId]);
+        if (today.rows.length) return res.json({ success: false, reason: 'כבר קיבלת ₣ היום' });
+        await awardFlow('family', groupId, 'daily_login', null, null);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — list active redemption codes
+app.get('/api/sa/flow/redemptions', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT fr.*, ff.name as family_name, fb.name as business_name
+            FROM flow_redemptions fr
+            JOIN family_groups ff ON ff.id=fr.family_group_id
+            JOIN family_groups fb ON fb.id=fr.business_group_id
+            ORDER BY fr.created_at DESC LIMIT 100`);
+        res.json({ redemptions: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Business marks a redemption code as used
+app.post('/api/flow/redemptions/:code/use', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT * FROM flow_redemptions WHERE discount_code=$1 AND status='active'`, [req.params.code.toUpperCase()]);
+        if (!r.rows.length) return res.status(404).json({ error: 'קוד לא תקין או כבר מומש' });
+        await pool.query(`UPDATE flow_redemptions SET status='used', used_at=NOW() WHERE discount_code=$1`, [req.params.code.toUpperCase()]);
+        res.json({ success: true, discountIls: r.rows[0].discount_ils });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
