@@ -1621,6 +1621,18 @@ async function handleAITokens(groupId, endpoint = 'general') {
     }
 }
 
+async function logBizIncome(groupId, amount, description, date = null) {
+    if (!amount || parseFloat(amount) <= 0) return;
+    try {
+        const adminU = await pool.query(`SELECT id FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1`, [groupId]);
+        await pool.query(
+            `INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_manual)
+             VALUES ($1,$2,$3,$4,'sales','income',$5,FALSE)`,
+            [adminU.rows[0]?.id || null, groupId, parseFloat(amount), description, date || new Date()]
+        );
+    } catch(e) {}
+}
+
 const handleAIError = (e, res, defaultMsg) => {
     console.error('AI Error:', e);
     if (e.message && e.message.includes('429')) return res.status(429).json({ success: false, error: 'מערכת ה-AI עמוסה כרגע. אנא המתינו כדקה ונסו שוב.' });
@@ -5853,7 +5865,17 @@ app.post('/api/store/orders/status', async (req, res) => {
         const verify = await pool.query('SELECT id, status FROM store_orders WHERE id=$1', [orderId]);
         console.log('[store/orders/status] After update, order status is:', verify.rows[0]?.status);
         res.json({ success: true });
-        if (status === 'delivered' || status === 'completed') triggerCashbackForOrder(orderId);
+        if (status === 'delivered' || status === 'completed') {
+            triggerCashbackForOrder(orderId);
+            try {
+                const oR = await pool.query('SELECT group_id, total_amount, customer_name FROM store_orders WHERE id=$1', [orderId]);
+                if (oR.rows[0]) {
+                    const o = oR.rows[0];
+                    logBizIncome(o.group_id, o.total_amount,
+                        `הזמנה הושלמה${o.customer_name ? ' — ' + o.customer_name : ''} (#${orderId})`);
+                }
+            } catch(ignoreErr) {}
+        }
         try {
             const orderR = await pool.query('SELECT family_group_id, group_id FROM store_orders WHERE id=$1', [orderId]);
             if (orderR.rows.length && orderR.rows[0].family_group_id) {
@@ -13670,6 +13692,7 @@ app.post('/api/sport/members/:id/renew', async (req, res) => {
         if (paymentAmount && parseFloat(paymentAmount) > 0) {
             await pool.query(`INSERT INTO sport_payments (group_id,membership_id,member_name,amount,payment_method,notes) VALUES ($1,$2,$3,$4,$5,$6)`,
                 [m.group_id, m.id, m.member_name, paymentAmount, paymentMethod || 'cash', notes || '']);
+            logBizIncome(m.group_id, paymentAmount, `מנוי ספורט — ${m.member_name || ''}`.trim());
         }
         res.json({ success: true, member: m });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -13681,6 +13704,7 @@ app.post('/api/sport/payments', async (req, res) => {
     try {
         const r = await pool.query(`INSERT INTO sport_payments (group_id,membership_id,member_name,amount,payment_method,notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
             [groupId, membershipId, memberName, amount, paymentMethod || 'cash', notes || '']);
+        logBizIncome(groupId, amount, `מנוי ספורט — ${memberName || ''}`.trim());
         res.json({ success: true, payment: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -15304,6 +15328,11 @@ app.post('/api/beauty/:bizId/appointments/:id/complete', async (req, res) => {
         }
 
         await client.query('COMMIT');
+        if (total_price && parseFloat(total_price) > 0) {
+            const apptData = appt.rows[0];
+            logBizIncome(req.params.bizId, total_price,
+                `תור יופי — ${apptData.client_name || 'לקוח'}`.trim());
+        }
         res.json({ success: true });
     } catch(e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
     finally { client.release(); }
@@ -16229,7 +16258,7 @@ app.patch('/api/logistics/orders/:id/status', async (req, res) => {
         await pool.query(`INSERT INTO logistics_order_events (order_id, group_id, event_type, old_status, new_status, actor_name, notes) VALUES ($1,$2,'status_change',$3,$4,$5,$6)`,
             [req.params.id, old.rows[0].group_id, oldStatus, status, actor_name||null, notes||null]);
         res.json({ success: true });
-        // Auto-invoice when delivered
+        // Auto-invoice + income log when delivered
         if (status === 'delivered') {
             try {
                 const ord = await pool.query('SELECT * FROM logistics_orders WHERE id=$1', [req.params.id]);
@@ -16241,6 +16270,8 @@ app.patch('/api/logistics/orders/:id/status', async (req, res) => {
                     await pool.query(`INSERT INTO logistics_invoices (group_id, order_id, invoice_number, customer_name, customer_email, amount, vat_amount, total_amount, status)
                         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending') ON CONFLICT DO NOTHING`,
                         [o.group_id, o.id, invNum, o.customer_name, o.customer_email||null, amt, vat, amt+vat]);
+                    logBizIncome(o.group_id, amt,
+                        `משלוח נמסר${o.customer_name ? ' — ' + o.customer_name : ''} (#${o.order_number || o.id})`);
                 }
             } catch(ignoreErr) {}
         }
