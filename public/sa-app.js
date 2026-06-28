@@ -6727,32 +6727,95 @@ window.openCommunitiesMap = async function() {
 window.openBusinessMatchStandalonePanel = function() {
     const existing = document.getElementById('sa-biz-match-standalone');
     if (existing) { existing.remove(); return; }
-    const bizList = saBusinessesCache || [];
     const panel = document.createElement('div');
     panel.id = 'sa-biz-match-standalone';
     panel.className = 'fixed inset-0 z-[9999] bg-white flex flex-col';
     panel.innerHTML = `
         <div class="px-4 py-3 border-b flex items-center gap-3 bg-gradient-to-r from-purple-50 to-indigo-50 shrink-0">
             <button onclick="document.getElementById('sa-biz-match-standalone').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 transition text-lg leading-none">←</button>
-            <h3 class="font-bold text-base text-slate-800">🎯 התאמת קהילות לעסק</h3>
+            <div>
+                <h3 class="font-bold text-base text-slate-800">🎯 התאמת קהילות לעסק</h3>
+                <p class="text-[11px] text-slate-500">בדוק אילו קהילות מתאימות לעסק לפי מיקום, גודל וסוג</p>
+            </div>
         </div>
         <div class="p-4 border-b bg-slate-50 shrink-0">
-            <label class="text-xs font-bold text-slate-600 mb-1 block">בחר עסק לבדיקת התאמה:</label>
-            <select id="biz-match-selector" onchange="loadMatchForSelectedBiz()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm max-w-md">
-                <option value="">-- בחר עסק --</option>
-                ${bizList.map(b => `<option value="${b.id}" data-name="${safeStr(b.name)}">${safeStr(b.name)}</option>`).join('')}
-            </select>
+            <div class="relative max-w-md">
+                <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"></i>
+                <input type="text" id="biz-match-search" placeholder="חפש שם עסק, קוד, עיר..." autocomplete="off"
+                    class="w-full border border-slate-200 rounded-xl pr-9 pl-3 py-2.5 text-sm focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 bg-white"
+                    oninput="filterBizMatchSearch(this.value)">
+                <div id="biz-match-dropdown" class="hidden absolute top-full right-0 left-0 bg-white border border-slate-200 rounded-xl shadow-lg mt-1 max-h-56 overflow-y-auto z-10"></div>
+            </div>
+            <div id="biz-match-selected" class="mt-2 hidden">
+                <span class="text-xs text-purple-700 font-bold bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-100" id="biz-match-selected-label"></span>
+                <button onclick="clearBizMatchSelection()" class="text-xs text-slate-400 hover:text-red-500 mr-2">✕ נקה</button>
+            </div>
         </div>
         <div id="sa-biz-match-results" class="overflow-y-auto flex-1 p-4 max-w-2xl w-full mx-auto">
-            <p class="text-slate-400 text-sm text-center py-12">בחר עסק כדי לראות התאמת קהילות</p>
+            <p class="text-slate-400 text-sm text-center py-12">חפש וסנן עסק כדי לראות התאמת קהילות</p>
         </div>`;
     document.body.appendChild(panel);
+
+    // Close dropdown when clicking outside
+    setTimeout(() => {
+        document.addEventListener('click', function closeDrop(e) {
+            if (!document.getElementById('biz-match-search')?.contains(e.target) &&
+                !document.getElementById('biz-match-dropdown')?.contains(e.target)) {
+                document.getElementById('biz-match-dropdown')?.classList.add('hidden');
+                document.removeEventListener('click', closeDrop);
+            }
+        });
+    }, 0);
 };
 
-window.loadMatchForSelectedBiz = async function() {
-    const sel = document.getElementById('biz-match-selector');
-    const bizId = sel?.value;
-    const bizName = sel?.options[sel.selectedIndex]?.dataset?.name || '';
+window.filterBizMatchSearch = function(q) {
+    const dd = document.getElementById('biz-match-dropdown');
+    if (!dd) return;
+    const bizList = saBusinessesCache || [];
+    const term = q.trim().toLowerCase();
+    if (!term) { dd.classList.add('hidden'); return; }
+    const hits = bizList.filter(b =>
+        (b.name||'').toLowerCase().includes(term) ||
+        (b.group_code||'').toLowerCase().includes(term) ||
+        (b.city||'').toLowerCase().includes(term) ||
+        (b.address_city||'').toLowerCase().includes(term)
+    ).slice(0, 20);
+    if (!hits.length) {
+        dd.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">לא נמצאו עסקים</p>';
+    } else {
+        dd.innerHTML = hits.map(b => `
+            <div class="px-3 py-2.5 hover:bg-purple-50 cursor-pointer flex items-center gap-3 border-b border-slate-50 last:border-0"
+                 onclick="selectBizForMatch(${b.id}, '${safeStr(b.name).replace(/'/g,"\\'")}', '${safeStr(b.city||b.address_city||'').replace(/'/g,"\\'")}')">
+                <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600 shrink-0 text-xs font-bold">${safeStr(b.name||'?')[0]}</div>
+                <div>
+                    <div class="text-sm font-bold text-slate-800">${safeStr(b.name)}</div>
+                    <div class="text-[10px] text-slate-500">${safeStr(b.group_code||'')} · ${safeStr(b.city||b.address_city||'')}</div>
+                </div>
+            </div>`).join('');
+    }
+    dd.classList.remove('hidden');
+};
+
+window.selectBizForMatch = function(bizId, bizName, bizCity) {
+    const inp = document.getElementById('biz-match-search');
+    const dd = document.getElementById('biz-match-dropdown');
+    const sel = document.getElementById('biz-match-selected');
+    const lbl = document.getElementById('biz-match-selected-label');
+    if (inp) inp.value = '';
+    if (dd) dd.classList.add('hidden');
+    if (lbl) lbl.textContent = `${bizName}${bizCity ? ' · ' + bizCity : ''}`;
+    if (sel) sel.classList.remove('hidden');
+    loadMatchForSelectedBiz(bizId, bizName);
+};
+
+window.clearBizMatchSelection = function() {
+    const sel = document.getElementById('biz-match-selected');
+    const el = document.getElementById('sa-biz-match-results');
+    if (sel) sel.classList.add('hidden');
+    if (el) el.innerHTML = '<p class="text-slate-400 text-sm text-center py-12">חפש וסנן עסק כדי לראות התאמת קהילות</p>';
+};
+
+window.loadMatchForSelectedBiz = async function(bizId, bizName) {
     const el = document.getElementById('sa-biz-match-results');
     if (!bizId || !el) return;
     el.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">מחשב התאמות...</p>';

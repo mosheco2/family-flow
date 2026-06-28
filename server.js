@@ -9330,28 +9330,32 @@ app.get('/api/biz/communities/match/:bizId', async (req, res) => {
         const bizLat = parseFloat(b.location_lat) || 0;
         const bizLng = parseFloat(b.location_lng) || 0;
 
+        // Collect all city variants for this business
+        const bizCities = [b.community_city, b.city, b.address_city].filter(Boolean).map(s => s.trim().toLowerCase());
+
         const results = comms.rows.map(c => {
             let score = 0;
 
-            // Distance score (0-40 pts) — closer = higher score
+            // Location score (0-40 pts) — exact geo wins, city match is fallback, no-data = 0
             if (bizLat && bizLng && c.lat && c.lng) {
                 const dist = Math.sqrt(Math.pow(bizLat - parseFloat(c.lat||0), 2) + Math.pow(bizLng - parseFloat(c.lng||0), 2)) * 111;
                 score += Math.max(0, 40 - dist * 4);
-            } else if (b.community_city && c.city && b.community_city === c.city) {
-                score += 30; // same city bonus
-            } else {
-                score += 15; // no location data — base score
+            } else if (c.city && bizCities.includes(c.city.trim().toLowerCase())) {
+                score += 35; // same city
+            } else if (c.city && bizCities.some(bc => bc && (bc.includes(c.city.trim().toLowerCase()) || c.city.trim().toLowerCase().includes(bc)))) {
+                score += 20; // partial city match (e.g. "תל אביב" vs "תל-אביב-יפו")
             }
+            // else: no location data at all → 0 (no artificial base score)
 
-            // Business count score (0-20 pts) — healthy community
+            // Community health: business count (0-20 pts)
             const bizCnt = parseInt(c.biz_count) || 0;
             score += Math.min(20, bizCnt * 2);
 
-            // Family count score (0-30 pts) — potential customers
+            // Market size: family count (0-30 pts)
             const famCnt = parseInt(c.family_count) || 0;
             score += Math.min(30, famCnt * 0.5);
 
-            // Type-based bonus (0-10 pts)
+            // Type/interest tag match (0-10 pts)
             const tags = (c.interest_tags || '').toLowerCase();
             const typeMap = { beauty: ['יופי','קוסמטיקה','ספא'], sport: ['כושר','ספורט'], food: ['אוכל','מסעדה','קייטרינג'], logistics: ['שירותים','לוגיסטיקה'] };
             const myTags = typeMap[businessType] || [];
