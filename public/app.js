@@ -4637,7 +4637,7 @@ async function joinCommunityDyn() {
         const data = await res.json();
         if(data.success) {
             const msg = data.referrerFound
-                ? `הצטרפתם לקהילת ${data.community.name} 🎉 השכן שהפנה אותכם קיבל ₣ FLOW`
+                ? `הצטרפתם לקהילת ${data.community.name} 🎉 החבר שהפנה אותכם קיבל ₣ FLOW`
                 : `הצטרפתם בהצלחה לקהילת: ${data.community.name}`;
             showToast('success', msg);
             fetchCommunityData();
