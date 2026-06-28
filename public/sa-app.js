@@ -2061,12 +2061,30 @@ async function loadSACommunityData() {
             bar.className = 'flex flex-wrap gap-2 mb-4 p-3 bg-gradient-to-r from-slate-50 to-indigo-50 rounded-2xl border border-indigo-100';
             bar.innerHTML = `
                 <span class="text-xs font-bold text-slate-500 w-full mb-1">🚀 כלים מתקדמים לקהילות:</span>
-                <button onclick="openCommunitiesMap()" class="bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">🗺️ מפת קהילות</button>
-                <button onclick="openSAPromotionsPanel()" class="bg-orange-100 text-orange-700 hover:bg-orange-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">📢 אישור מבצעים</button>
-                <button onclick="openSAReferralsPanel()" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">🌟 שגרירי קהילה</button>
-                <button onclick="openSABundlesPanel()" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">📦 חבילות קהילה</button>
-                <button onclick="openBusinessMatchStandalonePanel()" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">🎯 התאמת עסקים</button>
-                <button onclick="openSABannerRequestsPanel()" class="bg-pink-100 text-pink-700 hover:bg-pink-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">🖼️ בקשות באנר</button>
+                <span class="inline-flex items-center gap-1">
+                  <button onclick="openCommunitiesMap()" class="bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🗺️ מפת קהילות</button>
+                  <button onclick="showCommunityHelp('sa-map')" class="w-5 h-5 rounded-full bg-blue-50 border border-blue-200 text-blue-400 text-[9px] font-black flex items-center justify-center hover:bg-blue-100 transition" title="עזרה">?</button>
+                </span>
+                <span class="inline-flex items-center gap-1">
+                  <button onclick="openSAPromotionsPanel()" class="bg-orange-100 text-orange-700 hover:bg-orange-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">📢 אישור מבצעים</button>
+                  <button onclick="showCommunityHelp('sa-promotions')" class="w-5 h-5 rounded-full bg-orange-50 border border-orange-200 text-orange-400 text-[9px] font-black flex items-center justify-center hover:bg-orange-100 transition" title="עזרה">?</button>
+                </span>
+                <span class="inline-flex items-center gap-1">
+                  <button onclick="openSAReferralsPanel()" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🌟 שגרירי קהילה</button>
+                  <button onclick="showCommunityHelp('sa-ambassadors')" class="w-5 h-5 rounded-full bg-yellow-50 border border-yellow-200 text-yellow-500 text-[9px] font-black flex items-center justify-center hover:bg-yellow-100 transition" title="עזרה">?</button>
+                </span>
+                <span class="inline-flex items-center gap-1">
+                  <button onclick="openSABundlesPanel()" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">📦 חבילות קהילה</button>
+                  <button onclick="showCommunityHelp('sa-bundles')" class="w-5 h-5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-400 text-[9px] font-black flex items-center justify-center hover:bg-emerald-100 transition" title="עזרה">?</button>
+                </span>
+                <span class="inline-flex items-center gap-1">
+                  <button onclick="openBusinessMatchStandalonePanel()" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🎯 התאמת עסקים</button>
+                  <button onclick="showCommunityHelp('sa-match')" class="w-5 h-5 rounded-full bg-purple-50 border border-purple-200 text-purple-400 text-[9px] font-black flex items-center justify-center hover:bg-purple-100 transition" title="עזרה">?</button>
+                </span>
+                <span class="inline-flex items-center gap-1">
+                  <button onclick="openSABannerRequestsPanel()" class="bg-pink-100 text-pink-700 hover:bg-pink-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🖼️ בקשות באנר</button>
+                  <button onclick="showCommunityHelp('sa-banners')" class="w-5 h-5 rounded-full bg-pink-50 border border-pink-200 text-pink-400 text-[9px] font-black flex items-center justify-center hover:bg-pink-100 transition" title="עזרה">?</button>
+                </span>
                 <button onclick="openFlowConfigPanel()" class="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">⚡ ניהול FLOW</button>
             `;
             section.insertBefore(bar, section.firstChild);

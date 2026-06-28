@@ -2192,12 +2192,18 @@
                         </div>
                         <!-- Tab buttons (2 columns) -->
                         <div class="grid grid-cols-2 gap-2 mb-5">
-                            <button id="btn-comm-mine" onclick="window.switchBizCommunityTab('mine')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition">
-                                <i class="fa-solid fa-house-flag text-sm"></i>הקהילות שלי
-                            </button>
-                            <button id="btn-comm-discover" onclick="window.switchBizCommunityTab('discover')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">
-                                <i class="fa-solid fa-compass text-sm"></i>גלה קהילות
-                            </button>
+                            <div class="relative">
+                                <button id="btn-comm-mine" onclick="window.switchBizCommunityTab('mine')" class="w-full flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition">
+                                    <i class="fa-solid fa-house-flag text-sm"></i>הקהילות שלי
+                                </button>
+                                <button onclick="showCommunityHelp('biz-mine')" class="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white border border-orange-200 text-orange-500 text-[9px] font-black flex items-center justify-center shadow-sm hover:bg-orange-50 transition z-10">?</button>
+                            </div>
+                            <div class="relative">
+                                <button id="btn-comm-discover" onclick="window.switchBizCommunityTab('discover')" class="w-full flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">
+                                    <i class="fa-solid fa-compass text-sm"></i>גלה קהילות
+                                </button>
+                                <button onclick="showCommunityHelp('biz-discover')" class="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white border border-slate-200 text-slate-400 text-[9px] font-black flex items-center justify-center shadow-sm hover:bg-slate-50 transition z-10">?</button>
+                            </div>
                         </div>
                         <!-- Sub-view: My Communities -->
                         <div id="comm-view-mine">
@@ -3680,6 +3686,7 @@
     </script>
 
     <script src="business-app.js?v=135" defer></script>
+    <script src="community-help.js?v=1" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;

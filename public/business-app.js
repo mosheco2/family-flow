@@ -15317,9 +15317,18 @@ window.loadBizCommunities = async function() {
                 <span class="text-xs font-bold text-slate-500 w-full mb-1">🚀 כלים קהילתיים:</span>
                 <button onclick="openBizPromoModal()" class="bg-orange-100 text-orange-700 hover:bg-orange-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">📢 פרסם מבצע</button>
                 <button onclick="openInterestSearchModal()" class="bg-teal-100 text-teal-700 hover:bg-teal-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🔍 קהילות לפי עניין</button>
-                <button onclick="loadBizCommunitiesWithMatch()" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🎯 הצג % התאמה</button>
-                <button onclick="loadMyBizBundles()" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">📦 החבילות שלי</button>
-                <button onclick="loadMyBizPromos()" class="bg-pink-100 text-pink-700 hover:bg-pink-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">📋 המבצעים שלי</button>
+                <span class="inline-flex items-center gap-1">
+                  <button onclick="loadBizCommunitiesWithMatch()" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🎯 הצג % התאמה</button>
+                  <button onclick="showCommunityHelp('biz-match')" class="w-5 h-5 rounded-full bg-purple-50 border border-purple-200 text-purple-400 text-[9px] font-black flex items-center justify-center hover:bg-purple-100 transition" title="עזרה">?</button>
+                </span>
+                <span class="inline-flex items-center gap-1">
+                  <button onclick="loadMyBizBundles()" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">📦 החבילות שלי</button>
+                  <button onclick="showCommunityHelp('biz-bundles')" class="w-5 h-5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-400 text-[9px] font-black flex items-center justify-center hover:bg-emerald-100 transition" title="עזרה">?</button>
+                </span>
+                <span class="inline-flex items-center gap-1">
+                  <button onclick="loadMyBizPromos()" class="bg-pink-100 text-pink-700 hover:bg-pink-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">📋 המבצעים שלי</button>
+                  <button onclick="showCommunityHelp('biz-promos')" class="w-5 h-5 rounded-full bg-pink-50 border border-pink-200 text-pink-400 text-[9px] font-black flex items-center justify-center hover:bg-pink-100 transition" title="עזרה">?</button>
+                </span>
                 <button onclick="openBizFlowWallet()" class="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">⚡ ארנק FLOW</button>
             `;
             anchor.parentElement?.insertBefore(bar, anchor);

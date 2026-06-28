@@ -943,18 +943,30 @@
                     </div>
                     <!-- Tab buttons -->
                     <div class="grid grid-cols-4 gap-2 mb-5" id="community-tab-buttons">
-                        <button id="btn-fam-comm-join" onclick="switchFamCommunityTab('join')" class="flex flex-col items-center justify-center gap-1 py-3 px-1 rounded-xl text-[10px] font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition">
-                            <i class="fa-solid fa-link text-sm"></i>חיבור
-                        </button>
-                        <button id="btn-fam-comm-benefits" onclick="switchFamCommunityTab('benefits')" class="flex flex-col items-center justify-center gap-1 py-3 px-1 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">
-                            <i class="fa-solid fa-tag text-sm"></i>הטבות
-                        </button>
-                        <button id="btn-fam-comm-news" onclick="switchFamCommunityTab('news')" class="flex flex-col items-center justify-center gap-1 py-3 px-1 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">
-                            <i class="fa-solid fa-newspaper text-sm"></i>חדשות
-                        </button>
-                        <button id="btn-fam-comm-interests" onclick="switchFamCommunityTab('interests')" class="flex flex-col items-center justify-center gap-1 py-3 px-1 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">
-                            <i class="fa-solid fa-hashtag text-sm"></i>עניין
-                        </button>
+                        <div class="relative">
+                            <button id="btn-fam-comm-join" onclick="switchFamCommunityTab('join')" class="w-full flex flex-col items-center justify-center gap-1 py-3 px-1 rounded-xl text-[10px] font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition">
+                                <i class="fa-solid fa-link text-sm"></i>חיבור
+                            </button>
+                            <button onclick="showCommunityHelp('family-join')" class="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white border border-orange-200 text-orange-500 text-[9px] font-black flex items-center justify-center shadow-sm hover:bg-orange-50 transition z-10">?</button>
+                        </div>
+                        <div class="relative">
+                            <button id="btn-fam-comm-benefits" onclick="switchFamCommunityTab('benefits')" class="w-full flex flex-col items-center justify-center gap-1 py-3 px-1 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">
+                                <i class="fa-solid fa-tag text-sm"></i>הטבות
+                            </button>
+                            <button onclick="showCommunityHelp('family-benefits')" class="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white border border-slate-200 text-slate-400 text-[9px] font-black flex items-center justify-center shadow-sm hover:bg-slate-50 transition z-10">?</button>
+                        </div>
+                        <div class="relative">
+                            <button id="btn-fam-comm-news" onclick="switchFamCommunityTab('news')" class="w-full flex flex-col items-center justify-center gap-1 py-3 px-1 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">
+                                <i class="fa-solid fa-newspaper text-sm"></i>חדשות
+                            </button>
+                            <button onclick="showCommunityHelp('family-news')" class="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white border border-slate-200 text-slate-400 text-[9px] font-black flex items-center justify-center shadow-sm hover:bg-slate-50 transition z-10">?</button>
+                        </div>
+                        <div class="relative">
+                            <button id="btn-fam-comm-interests" onclick="switchFamCommunityTab('interests')" class="w-full flex flex-col items-center justify-center gap-1 py-3 px-1 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">
+                                <i class="fa-solid fa-hashtag text-sm"></i>עניין
+                            </button>
+                            <button onclick="showCommunityHelp('family-interests')" class="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white border border-slate-200 text-slate-400 text-[9px] font-black flex items-center justify-center shadow-sm hover:bg-slate-50 transition z-10">?</button>
+                        </div>
                     </div>
                     <!-- Sub-view: Join -->
                     <div id="fam-comm-view-join">
@@ -2214,6 +2226,7 @@
         }
     </script>
     <script src="app.js?v=38" defer></script>
+    <script src="community-help.js?v=1" defer></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
