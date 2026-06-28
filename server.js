@@ -9911,6 +9911,8 @@ app.post('/api/community/promotions/:id/redeem', async (req, res) => {
         await awardFlow('family', parseInt(groupId), 'promo_redemption', p.community_id, p.id);
         // Award business
         await awardFlow('business', p.business_id, 'biz_promo_redeemed', p.community_id, p.id);
+        // Award community wallet
+        if (p.community_id) await awardFlow('community', p.community_id, 'promo_community', p.community_id, p.id);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -9968,6 +9970,8 @@ app.post('/api/community/bundles/:id/purchase', async (req, res) => {
         for (const bizId of (b.business_ids || []).filter(Boolean)) {
             await awardFlow('business', parseInt(bizId), 'biz_bundle_sold', b.community_id, b.id);
         }
+        // Award community wallet
+        if (b.community_id) await awardFlow('community', b.community_id, 'bundle_community', b.community_id, b.id);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -12394,6 +12398,16 @@ app.put('/api/groups/:id/address', async (req, res) => {
         const { streetAddress, city } = req.body;
         await pool.query('UPDATE family_groups SET street_address=$1, city=$2 WHERE id=$3',
             [streetAddress || null, city || null, req.params.id]);
+        // Award profile_complete FLOW once per family (check if already awarded)
+        const gid = parseInt(req.params.id);
+        const alreadyAwarded = await pool.query(
+            `SELECT 1 FROM flow_transactions WHERE entity_type='family' AND entity_id=$1 AND action_key='profile_complete' LIMIT 1`, [gid]);
+        if (!alreadyAwarded.rows.length && streetAddress && city) {
+            const grp = await pool.query(`SELECT type FROM family_groups WHERE id=$1`, [gid]);
+            if (grp.rows.length && grp.rows[0].type === 'FAMILY') {
+                await awardFlow('family', gid, 'profile_complete', null, null);
+            }
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
