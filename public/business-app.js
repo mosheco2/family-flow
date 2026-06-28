@@ -27822,8 +27822,15 @@ window._currentBizTab = 'feed';
 const BIZ_HELP_CONTENT = {
     feed: {
         icon: '🏠', title: 'לוח ראשי',
-        what: 'תצוגת כל מה שחשוב לך עכשיו — פעולות דחופות, פעילות עסקית ועדכוני צוות בזמן אמת.',
+        what: 'תצוגת כל מה שחשוב לך עכשיו — פעולות דחופות ועדכוני הצוות.',
+        what_admin: 'תצוגת כל מה שחשוב לך עכשיו — פעולות דחופות, נתוני מכירות ועדכוני צוות בזמן אמת.',
         tips: [
+            '⚡ "מה מחכה לך" — משימות ופעולות דחופות שממתינות לך',
+            '🔔 לחץ על הפעמון למעלה לצפייה בכל הפעילות האחרונה',
+            '✨ לחץ על כפתור familAI לעזרה חכמה',
+            '🔍 לחץ על החיפוש לאיתור מהיר של מידע',
+        ],
+        tips_admin: [
             '⚡ "מה מחכה לך" — פעולות דחופות לטיפול מיידי (משימות, הזמנות, בקשות)',
             '📊 הכרטיסים מציגים נתוני מכירות, נוכחות ומשימות של היום',
             '🔔 לחץ על הפעמון למעלה לצפייה בכל הפעילות האחרונה',
@@ -27833,13 +27840,19 @@ const BIZ_HELP_CONTENT = {
     },
     timeclock: {
         icon: '⏱️', title: 'נוכחות',
-        what: 'מעקב שעות נוכחות — עובד מדווח כניסה/יציאה, מנהל רואה דוח שכר מפורט לכל הצוות.',
+        what: 'מעקב שעות נוכחות — דווח כניסה ויציאה ממשמרת.',
+        what_admin: 'מעקב שעות נוכחות — ראה דוחות שכר ושעות לכל הצוות.',
         tips: [
             '🟢 לחץ "כניסה" בתחילת משמרתך ו-"יציאה" בסיומה',
-            '📋 מנהל: בחר עובד + חודש לדוח שעות ושכר מפורט',
-            '✏️ לחץ "דיווח ידני" אם שכחת לדווח בזמן אמת',
+            '✏️ שכחת לדווח? לחץ "דיווח ידני" להוספת שעות בדיעבד',
+            '📋 ראה את שעות הנוכחות שלך לחודש הנוכחי',
+        ],
+        tips_admin: [
+            '📋 בחר עובד + חודש לדוח שעות ושכר מפורט',
+            '✏️ ערוך דיווחי נוכחות ידנית לתיקון טעויות',
             '📊 הדוח מציג סה"כ שעות ושכר משוער לתשלום',
             '📄 ייצא דוח PDF לחשבונאי או לארכיון',
+            '⚠️ סמן חריגות ומשמרות חסרות לטיפול',
         ]
     },
     shifts: {
@@ -27976,7 +27989,8 @@ const BIZ_HELP_CONTENT = {
     },
     tasks: {
         icon: '✅', title: 'משימות ונהלים',
-        what: 'ניהול משימות צוות, פרויקטים ונהלי עבודה (SOPs) עם מעקב ותגמול.',
+        what: 'המשימות שהוקצו לך — בצע, דווח ועמוד בלוחות זמנים.',
+        what_admin: 'ניהול משימות צוות, פרויקטים ונהלי עבודה (SOPs) עם מעקב ותגמול.',
         tips: [
             '➕ לחץ "+ משימה" ליצירת משימה והקצאה לעובד',
             '📋 לחץ "נהלים" לבניית SOP — רשימת שלבים מסודרת',
@@ -28536,10 +28550,19 @@ function openBizHelp() {
     const tab = window._currentBizTab || 'feed';
     const subTabKey = window._currentBizSubTab;
     const help = (subTabKey && BIZ_HELP_SUBTAB_CONTENT[subTabKey]) || BIZ_HELP_CONTENT[tab];
+    const sheet = document.getElementById('biz-help-sheet');
+    if (!sheet) return;
+    const isAdmin = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'MANAGER');
+    const isSenior = currentUser && currentUser.role === 'SENIOR';
+    const empRole = currentUser && currentUser.employee_role_type;
+    const ROLE_LABELS = {
+        waiter: 'מלצר', cook: 'טבח', cashier: 'קופאי', delivery: 'שליח',
+        field_tech: 'טכנאי', trainer: 'מאמן', instructor: 'מדריך',
+        beautician: 'קוסמטיקאית', barber: 'ספר', ADMIN: 'מנהל ראשי',
+        MANAGER: 'מנהל', SENIOR: 'בכיר', MEMBER: 'עובד'
+    };
+    const roleLabel = empRole ? (ROLE_LABELS[empRole] || empRole) : (ROLE_LABELS[currentUser?.role] || '');
     if (!help) {
-        // Generic help for unmapped tabs
-        const sheet = document.getElementById('biz-help-sheet');
-        if (!sheet) return;
         document.getElementById('biz-help-icon').textContent = '❓';
         document.getElementById('biz-help-title').textContent = 'עזרה';
         document.getElementById('biz-help-what').textContent = 'ניתן לבצע פעולות שונות בדף זה. לפרטים נוספים פנה למנהל המערכת.';
@@ -28547,13 +28570,16 @@ function openBizHelp() {
         sheet.classList.remove('hidden');
         return;
     }
+    const what = (isAdmin && help.what_admin) ? help.what_admin : help.what;
+    const tips = (isAdmin && help.tips_admin) ? help.tips_admin : help.tips;
     document.getElementById('biz-help-icon').textContent = help.icon;
     document.getElementById('biz-help-title').textContent = help.title;
-    document.getElementById('biz-help-what').textContent = help.what;
-    document.getElementById('biz-help-tips').innerHTML = help.tips
+    document.getElementById('biz-help-what').textContent = what;
+    const roleTag = roleLabel ? `<span class="inline-block mb-3 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs rounded-full font-medium">מדריך ל${roleLabel}</span>` : '';
+    document.getElementById('biz-help-tips').innerHTML = roleTag + tips
         .map(t => `<li class="flex items-start gap-2 text-sm text-slate-700 bg-white border border-slate-100 rounded-xl p-3 shadow-sm leading-relaxed">${t}</li>`)
         .join('');
-    document.getElementById('biz-help-sheet').classList.remove('hidden');
+    sheet.classList.remove('hidden');
 }
 
 function closeBizHelp() {
