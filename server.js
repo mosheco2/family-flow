@@ -8899,21 +8899,21 @@ app.get('/api/zone-manager/community-detail/:id', verifyZoneManager, async (req,
 
         // משפחות
         const families = await pool.query(
-            `SELECT fc.group_id, fg.name, fg.admin_email, fc.is_community_manager, fc.created_at
+            `SELECT fc.group_id, fg.name, fg.admin_email, fc.is_community_manager
              FROM family_communities fc JOIN family_groups fg ON fg.id=fc.group_id
              WHERE fc.community_id=$1 ORDER BY fc.is_community_manager DESC, fg.name`, [commId]);
 
         // עסקים
         const businesses = await pool.query(
-            `SELECT cb.business_id, b.name, b.category, b.phone, b.city, cb.status, cb.created_at
-             FROM community_businesses cb JOIN businesses b ON b.id=cb.business_id
-             WHERE cb.community_id=$1 AND cb.status='approved' ORDER BY b.name`, [commId]);
+            `SELECT cb.business_id, fg.name, fg.admin_email, cb.status, cb.created_at
+             FROM community_businesses cb JOIN family_groups fg ON fg.id=cb.business_id
+             WHERE cb.community_id=$1 AND cb.status='approved' ORDER BY fg.name`, [commId]);
 
         // מבצעים פעילים
         const promos = await pool.query(
-            `SELECT cp.id, cp.title, cp.discount_percent, cp.description, cp.expires_at, cp.status,
-                    b.name as business_name
-             FROM community_promotions cp JOIN businesses b ON b.id=cp.business_id
+            `SELECT cp.id, cp.title, cp.discount_pct, cp.valid_until, cp.status,
+                    fg.name as business_name
+             FROM community_promotions cp JOIN family_groups fg ON fg.id=cp.business_id
              WHERE cp.community_id=$1 AND cp.status='approved'
              ORDER BY cp.created_at DESC LIMIT 10`, [commId]);
 
