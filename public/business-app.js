@@ -15398,6 +15398,32 @@ window.searchByInterest = async function() {
     } catch(e) { el.innerHTML = '<p class="text-red-400 text-xs text-center py-4">שגיאה</p>'; }
 };
 
+// Help tooltips for community features
+window.showCommunityHelp = function(topic) {
+    const helps = {
+        'tab-mine': { title: 'הקהילות שלי', text: 'כאן מוצגות כל הקהילות שהעסק שלך כבר חבר בהן. תוכל לנהל מבצעים, הטבות וחבילות לחברי כל קהילה.' },
+        'tab-discover': { title: 'גלה קהילות', text: 'חפש קהילות חדשות לפי עיר, גודל ואזור — והצטרף אליהן כדי לחשוף את העסק שלך לאלפי משפחות.' },
+        'biz-match': { title: '% התאמה', text: 'ציון ההתאמה מחשב כמה הקהילה רלוונטית לעסק שלך — על בסיס קרבה גיאוגרפית, סוג העסק וגודל הקהילה. ככל שהציון גבוה יותר, כך יש לך סיכוי טוב יותר למשוך לקוחות חדשים.' },
+        'biz-bundles': { title: 'חבילות קהילה', text: 'חבילות הן מנויי שירות חודשיים שאתה מציע לחברי קהילה — לדוגמה "10% הנחה כל חודש". חברי הקהילה רוכשים את החבילה ואתה מקבל לקוחות קבועים.' },
+        'biz-promos': { title: 'מבצעים', text: 'מבצעים הם הצעות חד-פעמיות לחברי הקהילה — קוד קופון, הנחה מוגבלת בזמן, או מוצר חינם. המבצעים מופיעים בפיד של כל חברי הקהילה.' },
+    };
+    const h = helps[topic] || { title: 'עזרה', text: 'אין מידע נוסף על פיצ\'ר זה.' };
+    const id = 'comm-help-modal-' + topic;
+    document.getElementById(id)?.remove();
+    const m = document.createElement('div');
+    m.id = id;
+    m.className = 'fixed inset-0 z-[9999] flex items-center justify-center p-4';
+    m.innerHTML = `
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="document.getElementById('${id}').remove()"></div>
+        <div class="relative bg-white rounded-2xl shadow-2xl p-5 max-w-xs w-full text-right">
+            <button onclick="document.getElementById('${id}').remove()" class="absolute top-3 left-3 text-slate-400 hover:text-slate-600 text-lg">✕</button>
+            <div class="text-2xl mb-2">❓</div>
+            <h3 class="font-bold text-slate-800 text-base mb-2">${h.title}</h3>
+            <p class="text-sm text-slate-600 leading-relaxed">${h.text}</p>
+        </div>`;
+    document.body.appendChild(m);
+};
+
 // Inject community advanced toolbar into biz community page when loaded
 const _origLoadBizCommunities = loadBizCommunities;
 window.loadBizCommunities = async function() {
