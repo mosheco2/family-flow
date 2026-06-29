@@ -2087,6 +2087,7 @@ async function loadSACommunityData() {
                   <button onclick="showCommunityHelp('sa-banners')" class="w-5 h-5 rounded-full bg-pink-50 border border-pink-200 text-pink-400 text-[9px] font-black flex items-center justify-center hover:bg-pink-100 transition" title="עזרה">?</button>
                 </span>
                 <button onclick="openFlowConfigPanel()" class="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">⚡ ניהול FLOW</button>
+                <a href="community-guide.html" target="_blank" class="bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">📖 מדריך ניהול קהילות</a>
             `;
             section.insertBefore(bar, section.firstChild);
         }

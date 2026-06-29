@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מדריך ניהול קהילות — Oneflow Life</title>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Rubik', sans-serif; background: #f8fafc; color: #1e293b; direction: rtl; }
+
+  /* HEADER */
+  .guide-header {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #db2777 100%);
+    padding: 48px 24px 36px;
+    text-align: center;
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+  .guide-header::before {
+    content: '🏘️';
+    position: absolute;
+    font-size: 180px;
+    opacity: 0.08;
+    right: -20px;
+    top: -20px;
+  }
+  .guide-header h1 { font-size: 2rem; font-weight: 900; margin-bottom: 8px; }
+  .guide-header p { font-size: 1rem; opacity: 0.85; max-width: 560px; margin: 0 auto; line-height: 1.6; }
+  .version-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 99px;
+    margin-bottom: 16px;
+    letter-spacing: 0.5px;
+  }
+
+  /* LAYOUT */
+  .container { max-width: 960px; margin: 0 auto; padding: 0 16px 80px; }
+
+  /* TOC */
+  .toc {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 24px 28px;
+    margin: 32px 0 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .toc h2 { font-size: 14px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .toc a {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    text-decoration: none;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .toc a:hover { background: #eff6ff; border-color: #bfdbfe; color: #2563eb; }
+  .toc a .num { background: #4f46e5; color: white; font-size: 10px; font-weight: 900; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  /* SECTIONS */
+  .section {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .section-header {
+    display: flex; align-items: center; gap: 14px;
+    padding-bottom: 18px;
+    border-bottom: 2px solid #f1f5f9;
+    margin-bottom: 22px;
+  }
+  .section-icon {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .section-header h2 { font-size: 1.2rem; font-weight: 800; color: #1e293b; }
+  .section-header p { font-size: 13px; color: #64748b; margin-top: 2px; }
+
+  /* CARDS */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .card {
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 16px;
+    background: #fafafa;
+  }
+  .card h4 { font-size: 13px; font-weight: 800; margin-bottom: 6px; color: #1e293b; }
+  .card p { font-size: 12px; color: #64748b; line-height: 1.6; }
+  .card .icon { font-size: 24px; margin-bottom: 8px; }
+
+  /* SCENARIO STEPS */
+  .scenario {
+    background: #fafafa;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .scenario h3 {
+    font-size: 14px; font-weight: 800; color: #1e293b;
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .steps { list-style: none; }
+  .steps li {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 9px 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+    color: #334155;
+    line-height: 1.6;
+  }
+  .steps li:last-child { border-bottom: none; }
+  .step-num {
+    background: #4f46e5;
+    color: white;
+    font-size: 10px;
+    font-weight: 900;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* STATUS BADGES */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .badge-pending { background: #fef3c7; color: #d97706; }
+  .badge-approved { background: #dcfce7; color: #16a34a; }
+  .badge-rejected { background: #fee2e2; color: #dc2626; }
+  .badge-zm { background: #ede9fe; color: #7c3aed; }
+  .badge-active { background: #dbeafe; color: #2563eb; }
+
+  /* TABLE */
+  .guide-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .guide-table th {
+    background: #f1f5f9;
+    padding: 10px 14px;
+    text-align: right;
+    font-weight: 800;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+  }
+  .guide-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+    line-height: 1.5;
+    vertical-align: top;
+  }
+  .guide-table tr:hover td { background: #f8fafc; }
+
+  /* FLOW TABLE */
+  .flow-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .flow-table th {
+    background: #fef3c7;
+    padding: 10px 14px;
+    text-align: right;
+    font-weight: 800;
+    color: #92400e;
+    border-bottom: 2px solid #fde68a;
+  }
+  .flow-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #fef9e7;
+    color: #334155;
+    vertical-align: middle;
+  }
+  .flow-table tr:hover td { background: #fffbeb; }
+  .flow-amount { font-weight: 800; color: #d97706; }
+
+  /* ROLE PILLS */
+  .roles { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .role-pill {
+    padding: 6px 14px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 800;
+    border: 2px solid;
+  }
+  .role-sa { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
+  .role-zm { background: #f5f3ff; color: #7c3aed; border-color: #ddd6fe; }
+  .role-family { background: #fff7ed; color: #ea580c; border-color: #fed7aa; }
+  .role-biz { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+
+  /* ALERT BOXES */
+  .alert {
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 16px 0;
+    font-size: 13px;
+    line-height: 1.6;
+    display: flex; gap: 10px;
+  }
+  .alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+  .alert-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+  .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #14532d; }
+  .alert strong { font-weight: 800; }
+
+  /* DIVIDER */
+  .divider {
+    height: 1px; background: #f1f5f9;
+    margin: 20px 0;
+  }
+
+  /* FOOTER */
+  .guide-footer {
+    background: #1e293b;
+    color: #94a3b8;
+    text-align: center;
+    padding: 24px;
+    font-size: 12px;
+    margin-top: 40px;
+  }
+  .guide-footer strong { color: white; }
+
+  /* PRINT */
+  @media print { .toc { page-break-inside: avoid; } }
+
+  /* RESPONSIVE */
+  @media (max-width: 600px) {
+    .guide-header h1 { font-size: 1.4rem; }
+    .cards { grid-template-columns: 1fr 1fr; }
+    .toc-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="guide-header">
+  <div class="version-badge">מדריך מנהלים · גרסה 1.0 · 2026</div>
+  <h1>🏘️ מדריך ניהול קהילות</h1>
+  <p>המדריך המלא לניהול קהילות מקומיות — כולל משפחות, עסקים, מבצעים, FLOW ותהליכי אישור מ-A ל-Z</p>
+</div>
+
+<div class="container">
+
+<!-- TOC -->
+<div class="toc">
+  <h2>📋 תוכן עניינים</h2>
+  <div class="toc-grid">
+    <a href="#what"><span class="num">1</span> מה זה קהילה?</a>
+    <a href="#types"><span class="num">2</span> סוגי קהילות</a>
+    <a href="#who"><span class="num">3</span> מי מנהל מה?</a>
+    <a href="#lifecycle"><span class="num">4</span> מחזור חיי קהילה</a>
+    <a href="#family-guide"><span class="num">5</span> מדריך למשפחות</a>
+    <a href="#biz-guide"><span class="num">6</span> מדריך לעסקים</a>
+    <a href="#sa-guide"><span class="num">7</span> מדריך ל-SA</a>
+    <a href="#zm-guide"><span class="num">8</span> מדריך ל-ZM</a>
+    <a href="#promos"><span class="num">9</span> מבצעים וחבילות</a>
+    <a href="#flow"><span class="num">10</span> מטבע Flw</a>
+    <a href="#statuses"><span class="num">11</span> טבלת סטטוסים</a>
+    <a href="#faq"><span class="num">12</span> שאלות נפוצות</a>
+  </div>
+</div>
+
+<!-- SECTION 1: WHAT IS A COMMUNITY -->
+<div class="section" id="what">
+  <div class="section-header">
+    <div class="section-icon" style="background:#eff6ff;">🏘️</div>
+    <div>
+      <h2>1. מה זה קהילה?</h2>
+      <p>הבסיס של כל המערכת</p>
+    </div>
+  </div>
+
+  <p style="font-size:14px;line-height:1.8;color:#334155;margin-bottom:20px;">
+    קהילה היא קבוצה של <strong>משפחות ועסקים</strong> שחיים או עובדים באותו אזור — שכונה, ישוב, ועד עובדים, או כל קבוצת עניין משותף.
+    כשמשפחה וגם עסק חברים באותה קהילה — המשפחה מקבלת <strong>הנחה אוטומטית</strong> בעסק, ומרוויחה מטבעות Flw על כל פעולה בקהילה.
+  </p>
+
+  <div class="cards">
+    <div class="card">
+      <div class="icon">👨‍👩‍👧‍👦</div>
+      <h4>משפחה בקהילה</h4>
+      <p>רואה עסקים מקומיים, מקבלת הנחות, קוראת חדשות מקומיות ומרוויחה Flw על כל פעולה.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🏪</div>
+      <h4>עסק בקהילה</h4>
+      <p>מציע הנחה לחברי הקהילה, מפרסם מבצעים וחבילות, ומרוויח Flw על כל לקוח מהקהילה.</p>
+    </div>
+    <div class="card">
+      <div class="icon">💰</div>
+      <h4>ארנק קהילתי</h4>
+      <p>לכל קהילה יש ארנק Flw משלה. נצבר מפעולות החברים ומשמש לתגמולים קהילתיים.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🔓</div>
+      <h4>מינימום 30 משפחות</h4>
+      <p>ההנחות נפתחות לאחר שמספיק משפחות הצטרפו לקהילה. מתחת ל-30 — מוצגת סרגל התקדמות.</p>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <span>ℹ️</span>
+    <div><strong>קוד קהילה:</strong> כל קהילה מקבלת קוד ייחודי (פורמט: C-XXXXX). משפחות ועסקים משתמשים בקוד הזה כדי להצטרף. שמרו את הקוד — הוא לא משתנה.</div>
+  </div>
+</div>
+
+<!-- SECTION 2: TYPES -->
+<div class="section" id="types">
+  <div class="section-header">
+    <div class="section-icon" style="background:#f0fdf4;">🗺️</div>
+    <div>
+      <h2>2. סוגי קהילות</h2>
+      <p>שני סוגים עיקריים עם תכונות שונות</p>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card" style="border-color:#bfdbfe;background:#eff6ff;">
+      <div class="icon">📍</div>
+      <h4 style="color:#1d4ed8;">קהילה גיאוגרפית</h4>
+      <p>מבוססת מיקום — שכונה, ישוב, עיר. כל מי שגר באזור יכול להצטרף. מאפשרת חיבור עם עסקים ומשפחות קרובות פיזית.</p>
+      <div style="margin-top:10px;font-size:11px;font-weight:700;color:#2563eb;">דוגמאות: קהילת רמת אביב • ועד שכונת ב' • קהילת גבעתיים</div>
+    </div>
+    <div class="card" style="border-color:#ddd6fe;background:#f5f3ff;">
+      <div class="icon">🎯</div>
+      <h4 style="color:#6d28d9;">קהילת עניין</h4>
+      <p>מבוססת נושא משותף ולא מיקום. מתאימה לועדי עובדים, מועדוני ספורט, קבוצות תחביב, אנשי דת וכד'.</p>
+      <div style="margin-top:10px;font-size:11px;font-weight:700;color:#7c3aed;">דוגמאות: ועד עובדי מדינה • מועדון כדורגל • קהילת טבעונים</div>
+    </div>
+  </div>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:12px;margin-top:4px;">תגיות עניין — לסינון וחיפוש</h3>
+  <p style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:12px;">לכל קהילה (בעיקר קהילות עניין) אפשר לצרף תגיות שמאפשרות למשפחות למצוא אותה דרך מסך "גלה קהילות". לדוגמה: <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:11px;">ספורט, כשרות, ילדים, בריאות, חינוך</code></p>
+</div>
+
+<!-- SECTION 3: WHO MANAGES WHAT -->
+<div class="section" id="who">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef3c7;">👥</div>
+    <div>
+      <h2>3. מי מנהל מה?</h2>
+      <p>4 שחקנים במערכת — כל אחד עם תפקיד ברור</p>
+    </div>
+  </div>
+
+  <div class="roles">
+    <span class="role-pill role-sa">🔴 Super Admin (SA)</span>
+    <span class="role-pill role-zm">🟣 Zone Manager (ZM)</span>
+    <span class="role-pill role-family">🟠 משפחה</span>
+    <span class="role-pill role-biz">🟢 עסק</span>
+  </div>
+
+  <table class="guide-table">
+    <thead>
+      <tr>
+        <th>פעולה</th>
+        <th style="text-align:center;">SA</th>
+        <th style="text-align:center;">ZM</th>
+        <th style="text-align:center;">מנהל קהילה</th>
+        <th style="text-align:center;">משפחה</th>
+        <th style="text-align:center;">עסק</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>יצירת קהילה חדשה</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+      </tr>
+      <tr>
+        <td>אישור/דחיית הצטרפות משפחה</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+      </tr>
+      <tr>
+        <td>אישור עסק (דרך ZM)</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+      </tr>
+      <tr>
+        <td>אישור עסק ישיר (ללא ZM)</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+      </tr>
+      <tr>
+        <td>אישור מבצעים</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+      </tr>
+      <tr>
+        <td>יצירת חבילות</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+      </tr>
+      <tr>
+        <td>מינוי מנהל קהילה</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+      </tr>
+      <tr>
+        <td>הצטרפות לקהילה</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">✅</td>
+      </tr>
+      <tr>
+        <td>יצירת מבצע</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">✅</td>
+      </tr>
+      <tr>
+        <td>מימוש מבצע (קנייה)</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">—</td>
+      </tr>
+      <tr>
+        <td>הפניית חבר לקהילה</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">—</td>
+      </tr>
+      <tr>
+        <td>הפניית עסק לקהילה</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">—</td>
+      </tr>
+      <tr>
+        <td>ניהול תוכן קהילה</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">—</td>
+        <td style="text-align:center;">—</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="alert alert-info" style="margin-top:16px;">
+    <span>💡</span>
+    <div><strong>מנהל קהילה</strong> — משפחה שה-SA או ZM מינו אותה לניהול קהילה ספציפית. היא רואה פנל ניהול נוסף עם עסקים, עסקאות, ותיבת פנייה ל-ZM.</div>
+  </div>
+</div>
+
+<!-- SECTION 4: LIFECYCLE -->
+<div class="section" id="lifecycle">
+  <div class="section-header">
+    <div class="section-icon" style="background:#f0fdf4;">🔄</div>
+    <div>
+      <h2>4. מחזור חיי קהילה</h2>
+      <p>מיצירה ועד קהילה פעילה עם הנחות</p>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:20px;">
+    <div style="background:#eff6ff;border:2px solid #bfdbfe;border-radius:14px;padding:16px;text-align:center;">
+      <div style="font-size:28px;margin-bottom:6px;">🏗️</div>
+      <div style="font-size:12px;font-weight:800;color:#1d4ed8;">שלב 1</div>
+      <div style="font-size:13px;font-weight:700;color:#1e293b;">SA יוצר קהילה</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">שם, עיר, קוד, תמונה</div>
+    </div>
+    <div style="background:#faf5ff;border:2px solid #ddd6fe;border-radius:14px;padding:16px;text-align:center;">
+      <div style="font-size:28px;margin-bottom:6px;">📢</div>
+      <div style="font-size:12px;font-weight:800;color:#6d28d9;">שלב 2</div>
+      <div style="font-size:13px;font-weight:700;color:#1e293b;">פרסום הקוד</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">שולחים קוד לתושבים/עסקים</div>
+    </div>
+    <div style="background:#fff7ed;border:2px solid #fed7aa;border-radius:14px;padding:16px;text-align:center;">
+      <div style="font-size:28px;margin-bottom:6px;">👨‍👩‍👧</div>
+      <div style="font-size:12px;font-weight:800;color:#ea580c;">שלב 3</div>
+      <div style="font-size:13px;font-weight:700;color:#1e293b;">משפחות מצטרפות</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">ממתינות לאישור SA/ZM</div>
+    </div>
+    <div style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:14px;padding:16px;text-align:center;">
+      <div style="font-size:28px;margin-bottom:6px;">🏪</div>
+      <div style="font-size:12px;font-weight:800;color:#16a34a;">שלב 4</div>
+      <div style="font-size:13px;font-weight:700;color:#1e293b;">עסקים מצטרפים</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">אישור SA → ZM (אם יש)</div>
+    </div>
+    <div style="background:#fef9c3;border:2px solid #fde047;border-radius:14px;padding:16px;text-align:center;">
+      <div style="font-size:28px;margin-bottom:6px;">🔓</div>
+      <div style="font-size:12px;font-weight:800;color:#854d0e;">שלב 5</div>
+      <div style="font-size:13px;font-weight:700;color:#1e293b;">30 משפחות</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">הנחות מופעלות!</div>
+    </div>
+    <div style="background:#fdf4ff;border:2px solid #f0abfc;border-radius:14px;padding:16px;text-align:center;">
+      <div style="font-size:28px;margin-bottom:6px;">🎉</div>
+      <div style="font-size:12px;font-weight:800;color:#86198f;">שלב 6</div>
+      <div style="font-size:13px;font-weight:700;color:#1e293b;">קהילה פעילה</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">מבצעים, Flw, חבילות</div>
+    </div>
+  </div>
+
+  <div class="alert alert-warn">
+    <span>⚠️</span>
+    <div><strong>לגבי ה-30 משפחות:</strong> עד שהקהילה לא מגיעה למינימום — הנחות העסקים לא מופעלות. המשפחות רואות "X/30 משפחות לפתיחת הנחות". ניתן לשנות את הסף בהגדרות הקהילה.</div>
+  </div>
+</div>
+
+<!-- SECTION 5: FAMILY GUIDE -->
+<div class="section" id="family-guide">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fff7ed;">👨‍👩‍👧‍👦</div>
+    <div>
+      <h2>5. מדריך למשפחה</h2>
+      <p>כל מה שמשפחה יכולה לעשות בקהילה</p>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>📱 הטאבים במסך הקהילה — מה בכל אחד?</h3>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+      <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">
+        <div style="font-size:18px;margin-bottom:4px;">🔗</div>
+        <div style="font-weight:800;font-size:13px;margin-bottom:4px;">חיבור</div>
+        <ul style="font-size:12px;color:#64748b;line-height:1.8;padding-right:14px;">
+          <li>רשימת הקהילות שלי</li>
+          <li>קהילות ממתינות לאישור</li>
+          <li>הצטרפות לקהילה חדשה</li>
+          <li>הפניית חברים (קוד אישי)</li>
+        </ul>
+      </div>
+      <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">
+        <div style="font-size:18px;margin-bottom:4px;">🏷️</div>
+        <div style="font-weight:800;font-size:13px;margin-bottom:4px;">הטבות</div>
+        <ul style="font-size:12px;color:#64748b;line-height:1.8;padding-right:14px;">
+          <li>עסקים בקהילות שלי</li>
+          <li>אחוז הנחה לכל עסק</li>
+          <li>כמה משפחות עוד חסרות</li>
+          <li>כניסה לחנות העסק</li>
+        </ul>
+      </div>
+      <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">
+        <div style="font-size:18px;margin-bottom:4px;">📰</div>
+        <div style="font-weight:800;font-size:13px;margin-bottom:4px;">חדשות</div>
+        <ul style="font-size:12px;color:#64748b;line-height:1.8;padding-right:14px;">
+          <li>מבצעים פעילים בקהילה</li>
+          <li>קוד המבצע לשימוש בקופה</li>
+          <li>חבילות בעסקים מרובים</li>
+          <li>יתרת Flw האישית</li>
+        </ul>
+      </div>
+      <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">
+        <div style="font-size:18px;margin-bottom:4px;">#️⃣</div>
+        <div style="font-weight:800;font-size:13px;margin-bottom:4px;">עניין</div>
+        <ul style="font-size:12px;color:#64748b;line-height:1.8;padding-right:14px;">
+          <li>קהילות לפי נושא</li>
+          <li>סינון לפי תגיות</li>
+          <li>גילוי קהילות חדשות</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>🔗 תרחיש 1 — הצטרפות לקהילה עם קוד</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>נכנסים לטאב <strong>קהילה</strong> בתפריט המשפחה</li>
+      <li><span class="step-num">2</span>לוחצים על טאב <strong>חיבור</strong></li>
+      <li><span class="step-num">3</span>מזינים את הקוד בשדה (לדוגמה: <code style="background:#f1f5f9;padding:1px 6px;border-radius:4px;">SHKUNA5</code>) ולוחצים <strong>התחבר</strong></li>
+      <li><span class="step-num">4</span>מופיעה הודעה: <em>"הבקשה שלך נשלחה וממתינה לאישור"</em></li>
+      <li><span class="step-num">5</span>הקהילה מוצגת עם תגית <span class="badge badge-pending">ממתין לאישור</span></li>
+      <li><span class="step-num">6</span>לאחר שSA/ZM מאשרים — הקהילה הופכת פעילה + מקבלים <strong>+15 Flw</strong></li>
+    </ol>
+    <div class="alert alert-info" style="margin-top:12px;">
+      <span>ℹ️</span><div>מגבלה: ניתן להיות חבר פעיל בעד <strong>5 קהילות בו-זמנית</strong>. בקשות בסטטוס "ממתין" לא נספרות.</div>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>👥 תרחיש 2 — הפניית חבר לקהילה</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>לאחר שמצטרפים לקהילה — מופיע כרטיס <em>"הקוד שלי להפניית חברים"</em></li>
+      <li><span class="step-num">2</span>לוחצים <strong>העתק קוד</strong> ושולחים לחברים בווטסאפ</li>
+      <li><span class="step-num">3</span>החבר מזין את קוד ההפניה בעת הצטרפות לקהילה</li>
+      <li><span class="step-num">4</span>כשהחבר מאושר — שניהם מקבלים <strong>+20 Flw</strong> אוטומטית</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>🏷️ תרחיש 3 — שימוש בקוד מבצע</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>נכנסים לטאב <strong>חדשות</strong> — רואים מבצעים פעילים מהקהילה</li>
+      <li><span class="step-num">2</span>מציינים את קוד ההנחה המוצג על הכרטיס (לדוגמה: <code style="background:#f1f5f9;padding:1px 6px;border-radius:4px;">PROMO12345</code>)</li>
+      <li><span class="step-num">3</span>נכנסים לחנות העסק, בוחרים מוצרים</li>
+      <li><span class="step-num">4</span>בשדה <em>"קוד מבצע / הטבת קהילה"</em> — מזינים את הקוד</li>
+      <li><span class="step-num">5</span>ההנחה מנוכה אוטומטית מהסכום</li>
+      <li><span class="step-num">6</span>לאחר שהעסק מסמן את ההזמנה כ<strong>נמסרה</strong> — מקבלים <strong>+3 Flw</strong></li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>🏪 תרחיש 4 — הפניית עסק לקהילה</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>בטאב <strong>חיבור</strong> → לוחצים <em>"הפנה עסק לקהילה"</em></li>
+      <li><span class="step-num">2</span>מזינים את קוד העסק ומסבירים למה הוא מתאים לקהילה</li>
+      <li><span class="step-num">3</span>SA/ZM רואים את ההפניה ומאשרים</li>
+      <li><span class="step-num">4</span>לאחר אישור — מקבלים <strong>+35 Flw</strong> (בונוס שגריר)</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>🚪 תרחיש 5 — עזיבת קהילה</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>בטאב <strong>חיבור</strong> — לוחצים על כרטיס הקהילה הרצויה</li>
+      <li><span class="step-num">2</span>לוחצים <strong>התנתק</strong> (כפתור אדום)</li>
+      <li><span class="step-num">3</span>אישור ההתנתקות — מוחקת את החברות מיידית</li>
+      <li><span class="step-num">4</span>אחרי ההתנתקות — ניתן להצטרף לקהילה אחרת</li>
+    </ol>
+    <div class="alert alert-warn" style="margin-top:12px;">
+      <span>⚠️</span><div>עזיבת קהילה <strong>אינה מוחקת</strong> את יתרת ה-Flw שנצברה. הFlw נשמר בארנק האישי.</div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 6: BUSINESS GUIDE -->
+<div class="section" id="biz-guide">
+  <div class="section-header">
+    <div class="section-icon" style="background:#f0fdf4;">🏪</div>
+    <div>
+      <h2>6. מדריך לעסק</h2>
+      <p>כיצד עסק מצטרף ומנהל נוכחות בקהילה</p>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>🔗 תרחיש 1 — הצטרפות עסק לקהילה</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>נכנסים לממשק <strong>עסק</strong> → טאב קהילות</li>
+      <li><span class="step-num">2</span>מזינים קוד קהילה ואחוז הנחה שמציעים לחברי הקהילה</li>
+      <li><span class="step-num">3</span>הבקשה נשלחת ל-SA לאישור ראשוני</li>
+      <li><span class="step-num">4">
+        אם לקהילה יש מנהל אזור (ZM):
+        <ul style="margin-top:6px;padding-right:16px;font-size:12px;color:#64748b;">
+          <li>הבקשה עוברת ל-ZM → <span class="badge badge-zm">ממתין ל-ZM</span></li>
+          <li>ZM מאשר → <span class="badge badge-approved">מאושר</span></li>
+        </ul>
+        <br>אם לקהילה <u>אין</u> ZM — SA מאשר ישירות → <span class="badge badge-approved">מאושר</span>
+      </li>
+      <li><span class="step-num">5</span>לאחר אישור — העסק מקבל <strong>+20 Flw</strong> ומוצג בטאב "הטבות" של המשפחות</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>📢 תרחיש 2 — יצירת מבצע קהילתי</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>בממשק עסק → טאב קהילות → <em>"צור מבצע"</em></li>
+      <li><span class="step-num">2</span>ממלאים: כותרת, תיאור המבצע, אחוז הנחה, תאריך תפוגה</li>
+      <li><span class="step-num">3</span>הבקשה נשלחת ל-SA עם סטטוס <span class="badge badge-pending">ממתין לאישור</span></li>
+      <li><span class="step-num">4</span>SA מאשר — נוצר קוד ייחודי אוטומטית (לדוגמה: PROMO12345)</li>
+      <li><span class="step-num">5</span>המבצע מופיע בטאב "חדשות" של כל חברי הקהילה</li>
+      <li><span class="step-num">6</span>כשמשפחה ממשת — העסק מקבל <strong>+5 Flw</strong> על כל מימוש</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>🖼️ תרחיש 3 — בקשת קידום באנר</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>לאחר שמבצע אושר — מופיע כפתור <em>"בקש קידום באנר"</em></li>
+      <li><span class="step-num">2</span>לוחצים — הבקשה נשלחת ל-SA</li>
+      <li><span class="step-num">3</span>SA מגדיר: תאריכי הצגה, כותרת, ואפשרות ליצור כותרת AI</li>
+      <li><span class="step-num">4</span>הבאנר מוצג בראש מסך הקהילה של חברי הקהילה</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>📦 תרחיש 4 — הצגת קוד מבצע על הזמנה</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>משפחה הזמינה דרך החנות עם קוד מבצע</li>
+      <li><span class="step-num">2</span>בפנל ניהול ההזמנות — מופיעה תגית <em>"קוד מבצע קהילתי: PROMO12345"</em></li>
+      <li><span class="step-num">3</span>כשהעסק מסמן את ההזמנה <strong>"נמסרה"</strong> — Flw מועבר אוטומטית לכל הצדדים</li>
+    </ol>
+  </div>
+</div>
+
+<!-- SECTION 7: SA GUIDE -->
+<div class="section" id="sa-guide">
+  <div class="section-header">
+    <div class="section-icon" style="background:#eff6ff;">🔴</div>
+    <div>
+      <h2>7. מדריך ל-Super Admin</h2>
+      <p>ניהול מלא של כל קהילות המערכת</p>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>🏗️ תרחיש 1 — יצירת קהילה חדשה</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → <em>"צור קהילה חדשה"</em></li>
+      <li><span class="step-num">2</span>ממלאים: שם, עיר, קוד ייחודי, כתובת מייל + סיסמה למנהל, תמונה</li>
+      <li><span class="step-num">3</span>בוחרים סוג: <strong>גיאוגרפית</strong> (לפי מיקום) או <strong>עניין</strong> (לפי נושא)</li>
+      <li><span class="step-num">4</span>מוסיפים תגיות עניין לסינון (לקהילות עניין)</li>
+      <li><span class="step-num">5</span>שומרים — הקהילה פעילה ומוכנה לקבל בקשות</li>
+      <li><span class="step-num">6</span>שולחים את הקוד לתושבים/עסקים לצורך הצטרפות</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>👨‍👩‍👧 תרחיש 2 — אישור/דחיית משפחה</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → <em>"בקשות ממתינות מאת משפחות"</em></li>
+      <li><span class="step-num">2</span>רואים רשימה: שם משפחה · שם קהילה · תאריך הגשה</li>
+      <li><span class="step-num">3</span>לוחצים <strong>אשר</strong> → המשפחה נכנסת לקהילה + מקבלת <strong>+15 Flw</strong></li>
+      <li><span class="step-num">4</span>לוחצים <strong>דחה</strong> → הבקשה מוחקת (ניתן לבקש שנית)</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>🏪 תרחיש 3 — אישור עסק לקהילה</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → <em>"עסקים ממתינים"</em></li>
+      <li><span class="step-num">2</span>רואים: שם עסק, קהילה, אחוז הנחה, תאריך בקשה</li>
+      <li><span class="step-num">3</span>
+        שתי אפשרויות:
+        <ul style="margin-top:6px;padding-right:16px;font-size:12px;color:#334155;line-height:1.8;">
+          <li><strong>אשר</strong> — שולח ל-ZM לאישור נוסף (אם יש ZM לקהילה)</li>
+          <li><strong>אשר ישירות ללא ZM</strong> — העסק נכנס מיד, ללא שלבים נוספים</li>
+        </ul>
+      </li>
+      <li><span class="step-num">4</span>לאחר אישור מלא — העסק מקבל <strong>+20 Flw</strong></li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>📢 תרחיש 4 — אישור מבצע של עסק</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → <em>"אישור מבצעים"</em></li>
+      <li><span class="step-num">2</span>רואים: שם עסק, תיאור המבצע, אחוז הנחה, תאריך תפוגה</li>
+      <li><span class="step-num">3</span>לוחצים <strong>אשר</strong> → נוצר קוד אוטומטי + <strong>+10 Flw</strong> לעסק</li>
+      <li><span class="step-num">4</span>לוחצים <strong>דחה</strong> עם הסבר — העסק יכול לתקן ולשלוח מחדש</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>📦 תרחיש 5 — יצירת חבילה (Bundle)</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → <em>"חבילות"</em> → <em>"צור חבילה"</em></li>
+      <li><span class="step-num">2</span>בוחרים קהילה + מינימום 2 עסקים + אחוז הנחה כולל</li>
+      <li><span class="step-num">3</span>ממלאים שם ותיאור החבילה</li>
+      <li><span class="step-num">4</span>החבילה מופיעה בטאב "חדשות" של המשפחות</li>
+      <li><span class="step-num">5</span>משפחה שקונה חבילה מקבלת <strong>+18 Flw</strong></li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>🖼️ תרחיש 6 — אישור באנר פרסומי</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → <em>"בקשות באנר"</em></li>
+      <li><span class="step-num">2</span>רואים בקשה עם שם עסק ומבצע</li>
+      <li><span class="step-num">3</span>מגדירים: תאריך התחלה, תאריך סיום, כותרת הבאנר</li>
+      <li><span class="step-num">4</span>אפשרות: לחצו <em>"צור כותרת AI"</em> — המערכת מייצרת כותרת שיווקית אוטומטית</li>
+      <li><span class="step-num">5</span>לוחצים <strong>אשר</strong> — הבאנר מוצג בקהילה בתאריכים שנבחרו</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>⭐ תרחיש 7 — אישור הפניית שגריר</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → <em>"שגרירים"</em></li>
+      <li><span class="step-num">2</span>רואים: שם המשפחה שהפנתה, שם העסק, שם הקהילה</li>
+      <li><span class="step-num">3</span>לוחצים <strong>אשר</strong> → המשפחה מקבלת <strong>+35 Flw</strong> + הקהילה <strong>+15 Flw</strong></li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>👑 תרחיש 8 — מינוי מנהל קהילה</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק SA → לחיצה על קהילה → <em>"חברים"</em></li>
+      <li><span class="step-num">2</span>מאתרים את המשפחה הרצויה</li>
+      <li><span class="step-num">3</span>לוחצים <strong>הגדר מנהל</strong></li>
+      <li><span class="step-num">4</span>המשפחה רואה פנל ניהול נוסף: עסקים, עסקאות, תיבת פנייה ל-ZM</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>💰 תרחיש 9 — עדכון שיעורי Flw</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → <em>"הגדרות Flw"</em></li>
+      <li><span class="step-num">2</span>רואים טבלה עם כל סוגי הפעולות והתגמולים</li>
+      <li><span class="step-num">3</span>משנים כמות Flw לפעולה (אישי + קהילתי)</li>
+      <li><span class="step-num">4</span>שומרים — השינוי חל על כל פעולה עתידית</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>🗑️ תרחיש 10 — הסרת עסק מקהילה</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק SA → קהילה ספציפית → רשימת עסקים</li>
+      <li><span class="step-num">2</span>לוחצים על כפתור המחיקה ליד העסק</li>
+      <li><span class="step-num">3</span>אישור — העסק מוסר מהקהילה מיידית</li>
+      <li><span class="step-num">4</span>העסק יכול לבקש להצטרף מחדש</li>
+    </ol>
+  </div>
+</div>
+
+<!-- SECTION 8: ZM GUIDE -->
+<div class="section" id="zm-guide">
+  <div class="section-header">
+    <div class="section-icon" style="background:#f5f3ff;">🟣</div>
+    <div>
+      <h2>8. מדריך למנהל אזור (ZM)</h2>
+      <p>ניהול קהילות באזור הגיאוגרפי שלך</p>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <span>ℹ️</span>
+    <div><strong>מה ZM רואה?</strong> — רק קהילות שמשויכות לאזור שלו. לא ניתן לגשת לקהילות של אזורים אחרים.</div>
+  </div>
+
+  <div class="scenario">
+    <h3>👨‍👩‍👧 תרחיש 1 — אישור/דחיית משפחה</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק ZM → טאב <strong>"בקשות משפחות"</strong> (עם עיגול סגול)</li>
+      <li><span class="step-num">2</span>רואים: שם משפחה, שם קהילה, תאריך בקשה</li>
+      <li><span class="step-num">3</span>לוחצים <strong>אשר</strong> → המשפחה נכנסת + <strong>+15 Flw</strong></li>
+      <li><span class="step-num">4</span>לוחצים <strong>דחה</strong> → הבקשה מוחקת</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>🏪 תרחיש 2 — אישור עסק שהגיע מ-SA</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק ZM → <strong>"עסקים ממתינים"</strong></li>
+      <li><span class="step-num">2</span>רואים עסקים עם סטטוס <span class="badge badge-zm">ממתין ל-ZM</span></li>
+      <li><span class="step-num">3</span>בוחנים את העסק ומאשרים/דוחים</li>
+      <li><span class="step-num">4</span>אישור → עסק פעיל + <strong>+20 Flw</strong></li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>👑 תרחיש 3 — מינוי מנהל קהילה</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק ZM → <strong>"חיפוש חברים"</strong></li>
+      <li><span class="step-num">2</span>מחפשים משפחה בקהילה ספציפית</li>
+      <li><span class="step-num">3</span>לוחצים <strong>הגדר מנהל</strong></li>
+      <li><span class="step-num">4</span>המשפחה מקבלת הרשאות ניהול מלאות לאותה קהילה</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>🔍 תרחיש 4 — חיפוש חברים בקהילה</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק ZM → <strong>"חיפוש חברים"</strong></li>
+      <li><span class="step-num">2</span>בוחרים קהילה מהרשימה</li>
+      <li><span class="step-num">3</span>מחפשים לפי שם משפחה/עסק</li>
+      <li><span class="step-num">4</span>רואים: פרטי חבר, תאריך הצטרפות, סטטוס</li>
+    </ol>
+  </div>
+</div>
+
+<!-- SECTION 9: PROMOS & BUNDLES -->
+<div class="section" id="promos">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef3c7;">🎁</div>
+    <div>
+      <h2>9. מבצעים וחבילות</h2>
+      <p>שני כלים מרכזיים לתגמול חברי הקהילה</p>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+    <div style="background:#fff7ed;border:2px solid #fed7aa;border-radius:16px;padding:20px;">
+      <div style="font-size:24px;margin-bottom:8px;">🏷️ מבצע</div>
+      <ul style="font-size:13px;color:#334155;line-height:1.9;padding-right:16px;">
+        <li>עסק <strong>אחד</strong> יוצר מבצע</li>
+        <li>SA מאשר + קוד נוצר</li>
+        <li>משפחה משתמשת בקוד בקופה</li>
+        <li>הנחה: X% על הזמנה</li>
+        <li>תאריך תפוגה ניתן להגדרה</li>
+      </ul>
+    </div>
+    <div style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:16px;padding:20px;">
+      <div style="font-size:24px;margin-bottom:8px;">📦 חבילה</div>
+      <ul style="font-size:13px;color:#334155;line-height:1.9;padding-right:16px;">
+        <li>SA יוצר עם <strong>2+ עסקים</strong></li>
+        <li>הנחה על שילוב עסקים</li>
+        <li>משפחה קונה חבילה שלמה</li>
+        <li>תגמול Flw גבוה יותר</li>
+        <li>SA שולט בסטטוס (פעיל/לא)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:12px;">מחזור חיים של מבצע</h3>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+    <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;color:#92400e;">
+      1. עסק יוצר מבצע
+    </div>
+    <div style="color:#94a3b8;font-size:18px;">→</div>
+    <span class="badge badge-pending" style="font-size:12px;padding:6px 12px;">ממתין לאישור SA</span>
+    <div style="color:#94a3b8;font-size:18px;">→</div>
+    <span class="badge badge-approved" style="font-size:12px;padding:6px 12px;">אושר — קוד נוצר</span>
+    <div style="color:#94a3b8;font-size:18px;">→</div>
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;color:#1d4ed8;">
+      משפחה ממשת → Flw!
+    </div>
+  </div>
+
+  <div class="alert alert-success">
+    <span>✅</span>
+    <div><strong>קוד מבצע:</strong> נוצר אוטומטית בעת אישור SA. פורמט: PROMO + 5 תווים אקראיים (דוגמה: PROMOA7X3K). לא ניתן לערוך ידנית.</div>
+  </div>
+</div>
+
+<!-- SECTION 10: FLOW -->
+<div class="section" id="flow">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef3c7;">💰</div>
+    <div>
+      <h2>10. מטבע Flw — איך עובד?</h2>
+      <p>מערכת תגמול דיגיטלית לפעולות בקהילה</p>
+    </div>
+  </div>
+
+  <p style="font-size:13px;color:#334155;line-height:1.7;margin-bottom:20px;">
+    כל פעולה בקהילה מזכה ב-<strong>Flw</strong> — מטבע דיגיטלי שנצבר בארנק האישי. ניתן לממש את ה-Flw כהנחה כספית: <strong>100 Flw = ₪10 הנחה</strong> בעסקים חברי הקהילה.
+  </p>
+
+  <table class="flow-table">
+    <thead>
+      <tr>
+        <th>פעולה</th>
+        <th style="text-align:center;">מי מרוויח?</th>
+        <th style="text-align:center;">Flw אישי</th>
+        <th style="text-align:center;">Flw לקהילה</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>🏘️ הצטרפות לקהילה (אושרה)</td>
+        <td style="text-align:center;">משפחה</td>
+        <td style="text-align:center;" class="flow-amount">+15</td>
+        <td style="text-align:center;" class="flow-amount">+5</td>
+      </tr>
+      <tr>
+        <td>👥 חבר הצטרף דרך הפניה שלי</td>
+        <td style="text-align:center;">מפנה + מוצע</td>
+        <td style="text-align:center;" class="flow-amount">+20 כ"א</td>
+        <td style="text-align:center;" class="flow-amount">+10</td>
+      </tr>
+      <tr>
+        <td>🏷️ מימוש קוד מבצע</td>
+        <td style="text-align:center;">משפחה</td>
+        <td style="text-align:center;" class="flow-amount">+3</td>
+        <td style="text-align:center;" class="flow-amount">+2</td>
+      </tr>
+      <tr>
+        <td>📝 השלמת פרופיל</td>
+        <td style="text-align:center;">משפחה</td>
+        <td style="text-align:center;" class="flow-amount">+12</td>
+        <td style="text-align:center;" class="flow-amount">+3</td>
+      </tr>
+      <tr>
+        <td>⭐ כתיבת ביקורת לעסק</td>
+        <td style="text-align:center;">משפחה</td>
+        <td style="text-align:center;" class="flow-amount">+7</td>
+        <td style="text-align:center;" class="flow-amount">+3</td>
+      </tr>
+      <tr>
+        <td>📦 רכישת חבילה</td>
+        <td style="text-align:center;">משפחה</td>
+        <td style="text-align:center;" class="flow-amount">+18</td>
+        <td style="text-align:center;" class="flow-amount">+7</td>
+      </tr>
+      <tr>
+        <td>📅 כניסה יומית</td>
+        <td style="text-align:center;">משפחה</td>
+        <td style="text-align:center;" class="flow-amount">+1</td>
+        <td style="text-align:center;">—</td>
+      </tr>
+      <tr>
+        <td>⭐ הפניית שגריר (עסק אושר)</td>
+        <td style="text-align:center;">משפחה מפנה</td>
+        <td style="text-align:center;" class="flow-amount">+35</td>
+        <td style="text-align:center;" class="flow-amount">+15</td>
+      </tr>
+      <tr>
+        <td>🏪 עסק הצטרף לקהילה (אישור)</td>
+        <td style="text-align:center;">עסק</td>
+        <td style="text-align:center;" class="flow-amount">+20</td>
+        <td style="text-align:center;" class="flow-amount">+10</td>
+      </tr>
+      <tr>
+        <td>✅ מבצע עסק אושר</td>
+        <td style="text-align:center;">עסק</td>
+        <td style="text-align:center;" class="flow-amount">+10</td>
+        <td style="text-align:center;" class="flow-amount">+5</td>
+      </tr>
+      <tr>
+        <td>🛒 מבצע עסק מומש</td>
+        <td style="text-align:center;">עסק</td>
+        <td style="text-align:center;" class="flow-amount">+5</td>
+        <td style="text-align:center;" class="flow-amount">+5</td>
+      </tr>
+      <tr>
+        <td>📦 חבילה נמכרה</td>
+        <td style="text-align:center;">עסק</td>
+        <td style="text-align:center;" class="flow-amount">+10</td>
+        <td style="text-align:center;" class="flow-amount">+20</td>
+      </tr>
+      <tr>
+        <td>⭐ ביקורת על עסק</td>
+        <td style="text-align:center;">עסק</td>
+        <td style="text-align:center;" class="flow-amount">+8</td>
+        <td style="text-align:center;" class="flow-amount">+2</td>
+      </tr>
+      <tr>
+        <td>📩 פנייה ישירה לעסק</td>
+        <td style="text-align:center;">עסק</td>
+        <td style="text-align:center;" class="flow-amount">+5</td>
+        <td style="text-align:center;" class="flow-amount">+2</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="alert alert-warn" style="margin-top:16px;">
+    <span>⚙️</span>
+    <div><strong>שינוי שיעורי Flw:</strong> SA יכול לשנות כל סכום דרך ממשק SA → קהילות → הגדרות Flw. שינוי חל על פעולות עתידיות בלבד.</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <h3 style="font-size:13px;font-weight:800;margin-bottom:12px;">💸 מימוש Flw להנחה</h3>
+  <ol class="steps" style="margin-bottom:0;">
+    <li><span class="step-num">1</span>בארנק Flw — לוחצים <strong>"ממש הנחה"</strong></li>
+    <li><span class="step-num">2</span>מזינים כמות Flw לממש (מינימום 100 Flw)</li>
+    <li><span class="step-num">3</span>מקבלים <strong>קוד חד-פעמי</strong> לשימוש אצל עסק מחובר</li>
+    <li><span class="step-num">4</span>כל 100 Flw = ₪10 הנחה</li>
+  </ol>
+</div>
+
+<!-- SECTION 11: STATUSES -->
+<div class="section" id="statuses">
+  <div class="section-header">
+    <div class="section-icon" style="background:#f8fafc;">🚦</div>
+    <div>
+      <h2>11. טבלת סטטוסים</h2>
+      <p>מה כל סטטוס אומר ומה עושים איתו</p>
+    </div>
+  </div>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:10px;">חברות משפחה בקהילה</h3>
+  <table class="guide-table" style="margin-bottom:20px;">
+    <thead><tr><th>סטטוס</th><th>מה זה אומר</th><th>מה עושים?</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-pending">ממתין</span></td>
+        <td>המשפחה שלחה בקשה, טרם אושרה</td>
+        <td>SA/ZM לוחצים "אשר" או "דחה"</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-approved">מאושר</span></td>
+        <td>המשפחה חברה פעילה בקהילה</td>
+        <td>אין צורך בפעולה</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:10px;">חברות עסק בקהילה</h3>
+  <table class="guide-table" style="margin-bottom:20px;">
+    <thead><tr><th>סטטוס</th><th>מה זה אומר</th><th>מה עושים?</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-pending">ממתין</span></td>
+        <td>העסק שלח בקשה — טרם נבדקה על ידי SA</td>
+        <td>SA מאשר/דוחה</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-zm">ממתין ל-ZM</span></td>
+        <td>SA אישר — עכשיו ZM צריך לאשר</td>
+        <td>ZM מאשר/דוחה</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-approved">מאושר</span></td>
+        <td>עסק פעיל בקהילה — מוצג לחברים</td>
+        <td>אין פעולה נדרשת</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:10px;">מבצעים</h3>
+  <table class="guide-table" style="margin-bottom:20px;">
+    <thead><tr><th>סטטוס</th><th>מה זה אומר</th><th>מה עושים?</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-pending">ממתין</span></td>
+        <td>עסק שלח מבצע — ממתין לאישור SA</td>
+        <td>SA בוחן ומאשר/דוחה</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-approved">מאושר</span></td>
+        <td>מבצע פעיל — קוד נוצר ומוצג למשפחות</td>
+        <td>אין צורך</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-rejected">נדחה</span></td>
+        <td>SA דחה את המבצע</td>
+        <td>העסק יכול לתקן ולשלוח מחדש</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:10px;">קהילה עצמה</h3>
+  <table class="guide-table">
+    <thead><tr><th>סטטוס</th><th>מה זה אומר</th><th>מה עושים?</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-active">פעיל</span></td>
+        <td>קהילה פתוחה — משפחות ועסקים יכולים להצטרף</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-pending">ממתין</span></td>
+        <td>קהילה בהקמה — טרם פתוחה להצטרפות</td>
+        <td>SA מפעיל לסטטוס "פעיל"</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-rejected">לא פעיל</span></td>
+        <td>קהילה מושהית — לא ניתן להצטרף</td>
+        <td>SA יכול להפעיל מחדש</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- SECTION 12: FAQ -->
+<div class="section" id="faq">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef9c3;">❓</div>
+    <div>
+      <h2>12. שאלות נפוצות</h2>
+      <p>תשובות לשאלות הנפוצות ביותר</p>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px;">
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ משפחה הגישה בקשה — מתי תראה את הקהילה?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;">מיד עם הגשת הבקשה — הקהילה מופיעה עם תגית "ממתין". לאחר שSA/ZM מאשר — הסטטוס משתנה ל"מאושר" והמשפחה מקבלת גישה מלאה + Flw.</p>
+    </div>
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ האם עסק יכול להיות בכמה קהילות?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;">כן. עסק יכול להצטרף לכמה קהילות שרוצה. לכל קהילה הוא מגדיר אחוז הנחה שונה (אם רוצה).</p>
+    </div>
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ מה קורה כשאוסרים SA ישירות על עסק (ללא ZM)?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;">העסק מקבל אישור מלא ומיידי לקהילה — ללא צורך לחכות ל-ZM. הסטטוס קופץ ישר ל"מאושר". Flw מוענק אוטומטית לעסק.</p>
+    </div>
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ מתי ההנחות של עסק נפתחות לחברי הקהילה?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;">כשהקהילה מגיעה ל-<strong>30 משפחות מאושרות</strong> (ניתן לשנות בהגדרות). לפני כן — המשפחות רואות סרגל התקדמות ואת מספר החברים החסרים.</p>
+    </div>
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ קוד מבצע הוזן בקנייה — מתי מגיע ה-Flw?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;">ה-Flw מועבר רק לאחר שהעסק מסמן את ההזמנה כ<strong>"נמסרה"</strong> במערכת. זה מבטיח שה-Flw ניתן על קנייה שהושלמה בפועל.</p>
+    </div>
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ משפחה עזבה קהילה — האם מאבדת Flw?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;">לא. ה-Flw שנצבר שמור בארנק האישי ואינו קשור לחברות. גם אחרי עזיבה — ניתן לממש את ה-Flw שנצבר.</p>
+    </div>
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ מה ההבדל בין ארנק אישי לארנק קהילתי?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;"><strong>ארנק אישי:</strong> Flw של המשפחה עצמה — ניתן לממש לקניות. <strong>ארנק קהילתי:</strong> Flw שנצבר לטובת כל הקהילה — משמש להטבות קהילתיות, תחרויות ופרויקטים (מנוהל ע"י SA).</p>
+    </div>
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ האם ZM חייב לאשר כל עסק?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;">רק בקהילות שמשויכות לאזור שלו. SA יכול לעקוף את ה-ZM ולאשר ישירות. לקהילות ללא ZM — SA מאשר ישירות.</p>
+    </div>
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ מהו "שגריר קהילה"?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;">משפחה שממליצה לעסק להצטרף לקהילה — היא "שגריר". כשהעסק מאושר, המשפחה מקבלת <strong>+35 Flw</strong> והקהילה <strong>+15 Flw</strong>.</p>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<div class="guide-footer">
+  <strong>Oneflow Life</strong> · מדריך ניהול קהילות · כל הפעולות מבוצעות דרך הממשקים הייעודיים<br>
+  <span style="margin-top:4px;display:block;">SA → BIZ → FAMILY → ZM</span>
+</div>
+
+</body>
+</html>
