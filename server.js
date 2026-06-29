@@ -8883,6 +8883,63 @@ app.get('/api/zone-manager/all-community-managers', verifyZoneManager, async (re
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+
+// פרטי קהילה מלאים — משפחות, עסקים, מבצעים, FLOW
+app.get('/api/zone-manager/community-detail/:id', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        const commId = req.params.id;
+        // אימות שהקהילה באזור של ZM זה
+        const zoneCheck = await pool.query(
+            `SELECT c.id, c.name, c.city, c.description, c.status, c.created_at, mz.name as zone_name
+             FROM communities c JOIN manager_zones mz ON c.zone_id=mz.id
+             WHERE c.id=$1 AND mz.manager_id=$2`, [commId, managerId]);
+        if (!zoneCheck.rows.length) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+        const comm = zoneCheck.rows[0];
+
+        // משפחות
+        const families = await pool.query(
+            `SELECT fc.group_id, fg.name, fg.admin_email, fg.phone, fc.is_community_manager, fc.created_at
+             FROM family_communities fc JOIN family_groups fg ON fg.id=fc.group_id
+             WHERE fc.community_id=$1 ORDER BY fc.is_community_manager DESC, fg.name`, [commId]);
+
+        // עסקים
+        const businesses = await pool.query(
+            `SELECT cb.business_id, b.name, b.category, b.phone, b.city, cb.status, cb.created_at
+             FROM community_businesses cb JOIN businesses b ON b.id=cb.business_id
+             WHERE cb.community_id=$1 AND cb.status='approved' ORDER BY b.name`, [commId]);
+
+        // מבצעים פעילים
+        const promos = await pool.query(
+            `SELECT cp.id, cp.title, cp.discount_percent, cp.description, cp.expires_at, cp.status,
+                    b.name as business_name
+             FROM community_promotions cp JOIN businesses b ON b.id=cp.business_id
+             WHERE cp.community_id=$1 AND cp.status='approved'
+             ORDER BY cp.created_at DESC LIMIT 10`, [commId]);
+
+        // FLOW wallet של הקהילה
+        const wallet = await pool.query(
+            `SELECT balance FROM flow_wallets WHERE entity_type='community' AND entity_id=$1`, [commId]);
+
+        // פעולות FLOW אחרונות
+        const flowTx = await pool.query(
+            `SELECT ft.action_type, ft.community_amount, ft.created_at
+             FROM flow_transactions ft
+             WHERE ft.community_id=$1
+             ORDER BY ft.created_at DESC LIMIT 20`, [commId]);
+
+        res.json({
+            success: true,
+            community: comm,
+            families: families.rows,
+            businesses: businesses.rows,
+            promos: promos.rows,
+            flowBalance: wallet.rows[0]?.balance || 0,
+            flowTransactions: flowTx.rows
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // מינוי/הסרת מנהל קהילה ע"י מנהל אזור (משפיע על אותו שדה ש-SA משתמש בו)
 app.post('/api/zone-manager/set-community-manager', verifyZoneManager, async (req, res) => {
     try {
