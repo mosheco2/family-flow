@@ -15222,8 +15222,8 @@ async function renderBizFlowWidget() {
     try {
         function makeMiniHtml(bal) {
             const label = bal === null ? '...' : bal;
-            return `<div onclick="openBizFlowWallet()" style="cursor:pointer;background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);border-radius:20px;padding:12px 10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:0 4px 16px rgba(245,158,11,0.4);text-align:center;">
-                <div style="font-size:20px;">⚡</div>
+            return `<div onclick="openBizFlowWallet()" style="cursor:pointer;background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);border-radius:20px;padding:12px 10px;min-height:110px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:0 4px 16px rgba(245,158,11,0.4);text-align:center;">
+                <div style="font-size:22px;">⚡</div>
                 <div style="color:white;font-size:20px;font-weight:900;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,0.2);">${label}<span style="font-size:11px;"> ₣</span></div>
                 <div style="color:rgba(255,255,255,0.9);font-size:9px;font-weight:600;line-height:1.3;">מטבעות<br>FLOW</div>
                 <div style="background:rgba(255,255,255,0.3);border-radius:8px;padding:2px 6px;color:white;font-size:8px;font-weight:700;">לארנק ←</div>
@@ -15258,10 +15258,9 @@ async function renderBizFlowWidget() {
 
         let miniEl = null;
         if (roleDash && !roleDash.classList.contains('hidden')) {
-            // עוטף רק את כותרת הראש (ילד ראשון) — לא את כל roleDash
-            // כך הסטטיסטיקות/כפתורים ממשיכים ברוחב מלא
-            const headerEl = roleDash.querySelector(':scope > div');
-            miniEl = ensureGridWrap(headerEl, 12);
+            // תצוגת תפקיד — השתמש ב-slot שמוטמע ב-roleDashboardHeader
+            const slot = document.getElementById('biz-flow-mini-slot');
+            if (slot) { miniEl = slot; }
             if (stdWidget) stdWidget.classList.add('hidden');
         } else {
             const tourCard = document.getElementById('tour-balance-card');
@@ -30031,12 +30030,25 @@ function roleTodayWidget() {
 }
 function roleDashboardHeader(icon, title, subtitle, colorFrom, colorTo) {
     const today = new Date().toLocaleDateString('he-IL', {weekday:'long', day:'numeric', month:'long'});
-    return `<div class="bg-gradient-to-r ${colorFrom} ${colorTo} rounded-[2rem] p-5 text-white shadow-xl mb-4 relative overflow-hidden mt-3">
+    const headerDiv = `<div class="bg-gradient-to-r ${colorFrom} ${colorTo} rounded-[2rem] p-5 text-white shadow-xl relative overflow-hidden">
         <p class="text-white/60 text-xs mb-1">${today}</p>
         <h2 class="text-xl font-black mb-0.5">${icon} שלום, ${safeStr(currentUser.nickname)}</h2>
         <p class="text-white/80 text-xs">${title}</p>
         <p class="text-white/60 text-[10px] mt-0.5">${subtitle}</p>
     </div>`;
+    // מנהל: גריד 2/3+1/3 עם slot לווידג'ט FLOW — renderBizFlowWidget ממלא את #biz-flow-mini-slot
+    if (currentUser?.role === 'ADMIN') {
+        const loadingSlot = `<div onclick="openBizFlowWallet()" style="cursor:pointer;background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);border-radius:20px;padding:12px 10px;min-height:110px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;box-shadow:0 4px 16px rgba(245,158,11,0.4);">
+            <div style="font-size:22px;">⚡</div>
+            <div style="color:white;font-size:20px;font-weight:900;line-height:1;">...<span style="font-size:11px;"> ₣</span></div>
+            <div style="color:rgba(255,255,255,0.9);font-size:9px;font-weight:600;line-height:1.3;">מטבעות<br>FLOW</div>
+        </div>`;
+        return `<div class="flow-role-header-grid" style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:12px;margin-bottom:16px;">
+            ${headerDiv}
+            <div id="biz-flow-mini-slot">${loadingSlot}</div>
+        </div>`;
+    }
+    return `<div style="margin-top:12px;margin-bottom:16px;">${headerDiv}</div>`;
 }
 
 function rdBtn(tab, action, cls, content) {
