@@ -15007,12 +15007,14 @@ window.openBizPromoModal = function() {
 };
 
 window.submitBizPromo = async function() {
-    const communityId = document.getElementById('promo-community')?.value;
-    const title = document.getElementById('promo-title')?.value?.trim();
-    const content = document.getElementById('promo-content')?.value?.trim();
-    const discountPct = parseFloat(document.getElementById('promo-discount')?.value) || 0;
-    const validUntil = document.getElementById('promo-valid-until')?.value;
-    if (!communityId || !title) { showToast('error', 'יש להזין כותרת וקהילה'); return; }
+    const modal = document.getElementById('biz-promo-modal');
+    const communityId = modal?.querySelector('[id="promo-community"]')?.value;
+    const title = modal?.querySelector('[id="promo-title"]')?.value?.trim();
+    const content = modal?.querySelector('[id="promo-content"]')?.value?.trim();
+    const discountPct = parseFloat(modal?.querySelector('[id="promo-discount"]')?.value) || 0;
+    const validUntil = modal?.querySelector('[id="promo-valid-until"]')?.value;
+    if (!title) { showToast('error', 'יש להזין כותרת למבצע'); return; }
+    if (!communityId) { showToast('error', 'יש לבחור קהילה'); return; }
     try {
         const res = await fetch(`${API}/biz/community/promotions`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
