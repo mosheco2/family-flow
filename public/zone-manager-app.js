@@ -258,7 +258,7 @@ function renderZones() {
                         </button>
                     </div>
                     <div class="text-right">
-                        <h4 class="font-bold text-slate-700 text-sm cursor-pointer hover:text-indigo-600 transition" onclick="openCommunityDetail(${comm.id},'${(comm.name||'').replace(/'/g,'\\'')}')" ><i class="fa-solid fa-circle-info text-[10px] text-indigo-400 mr-1"></i>${comm.name}</h4>
+                        <h4 class="font-bold text-slate-700 text-sm cursor-pointer hover:text-indigo-600 transition" onclick="openCommunityDetail(${comm.id}, encodeURIComponent('${comm.name||''}'))"><i class="fa-solid fa-circle-info text-[10px] text-indigo-400 mr-1"></i>${comm.name}</h4>
                         ${comm.manager_name ? `<p class="text-[10px] text-purple-600 font-bold">מנהל: ${comm.manager_name}</p>` : '<p class="text-[10px] text-slate-400">אין מנהל ממונה</p>'}
                     </div>
                 </div>
@@ -1150,7 +1150,8 @@ async function loadCommissions() {
 let _cdData = null;
 let _cdCurrentTab = 'families';
 
-async function openCommunityDetail(commId, commName) {
+async function openCommunityDetail(commId, encodedName) {
+    const commName = decodeURIComponent(encodedName);
     const modal = document.getElementById('zm-comm-detail-modal');
     const body = document.getElementById('zm-cd-body');
     document.getElementById('zm-cd-name').textContent = commName;
