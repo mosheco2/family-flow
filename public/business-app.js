@@ -24684,7 +24684,7 @@ window.waiterSubmitOrder = async function() {
     try {
         const res = await fetch(`${API}/store/orders`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, customerName: `שולחן ${table}`, customerPhone: '', items, totalAmount: total, isDelivery: false, notes: JSON.stringify(meta) })
+            body: JSON.stringify({ groupId: currentGroup.id, customerName: `שולחן ${table}`, customerPhone: '', items, totalAmount: total, isDelivery: false, notes: JSON.stringify(meta), orderSource: 'table' })
         });
         const d = await res.json();
         if (d.success) {
@@ -25790,7 +25790,7 @@ window.finalizePOSOrder = async function() {
     try {
         const res = await fetch(`${API}/store/orders`, { 
             method: 'POST', headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ groupId: currentGroup.id, customerName: customerName, customerPhone: phone, items, totalAmount: grandTotal, isDelivery: false, notes: JSON.stringify(metaData) }) 
+            body: JSON.stringify({ groupId: currentGroup.id, customerName: customerName, customerPhone: phone, items, totalAmount: grandTotal, isDelivery: false, notes: JSON.stringify(metaData), orderSource: metaData.tableNumber ? 'table' : 'internal' }) 
         });
         const data = await res.json();
         
@@ -29812,7 +29812,9 @@ function applyBusinessTypeFilter() {
 // --- Role dashboard dispatcher ---
 
 window.rdAction = function(tab, action) {
-    if (action === 'full-menu') { window._suppressRoleDash = true; switchTab('feed'); return; }
+    // When navigating away from the admin KDS panel, close it first so the target tab is visible
+    if (tab !== 'kds') document.getElementById('admin-kds-panel')?.remove();
+    if (action === 'full-menu') { window._suppressRoleDash = true; document.getElementById('admin-kds-panel')?.remove(); switchTab('feed'); return; }
     if (action === 'waze') { window.open('https://waze.com', '_blank'); return; }
     if (action === 'camera') { if(typeof openCamera === 'function') openCamera(); else showToast('info','לחץ על הוספת משימה'); return; }
     if (action === 'inbox') { if(typeof openInboxModal === 'function') openInboxModal(); else switchTab('team'); return; }
@@ -33153,17 +33155,35 @@ window.openAdminTablesPanel = function() {
 };
 
 window.openAdminKDSPanel = async function() {
+    if (window._kdsAutoRefreshInterval) { clearInterval(window._kdsAutoRefreshInterval); window._kdsAutoRefreshInterval = null; }
     document.getElementById('admin-kds-panel')?.remove();
     const panel = document.createElement('div');
     panel.id = 'admin-kds-panel';
     panel.style.cssText = 'position:fixed;inset:0;z-index:99998;background:#0f172a;overflow-y:auto;font-family:Rubik,sans-serif;direction:rtl';
     panel.innerHTML = `<div style="position:sticky;top:0;z-index:1;background:#1e293b;padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #334155">
-      <button onclick="document.getElementById('admin-kds-panel')?.remove()" style="background:#334155;color:#e2e8f0;border:none;border-radius:10px;padding:8px 16px;font-size:14px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer">← חזרה</button>
-      <span style="color:white;font-size:16px;font-weight:800">🍳 מסך KDS מטבח</span>
+      <button ontouchend="event.preventDefault();document.getElementById('admin-kds-panel')?.remove();if(window._kdsAutoRefreshInterval){clearInterval(window._kdsAutoRefreshInterval);window._kdsAutoRefreshInterval=null;}" onclick="document.getElementById('admin-kds-panel')?.remove();if(window._kdsAutoRefreshInterval){clearInterval(window._kdsAutoRefreshInterval);window._kdsAutoRefreshInterval=null;}" style="background:#334155;color:#e2e8f0;border:none;border-radius:10px;padding:8px 16px;font-size:14px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer;touch-action:manipulation;">← חזרה</button>
+      <span style="color:white;font-size:16px;font-weight:800;flex:1">🍳 מסך KDS מטבח</span>
+      <button id="kds-refresh-btn" ontouchend="event.preventDefault();window.kdsRefreshPanel();" onclick="window.kdsRefreshPanel()" style="background:#0f172a;color:#94a3b8;border:1px solid #334155;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;font-family:Rubik,sans-serif;cursor:pointer;touch-action:manipulation;">🔄 רענן</button>
     </div>
     <div id="admin-kds-inner" style="padding:12px"></div>`;
     document.body.appendChild(panel);
-    await renderCookDashboard(document.getElementById('admin-kds-inner'));
+    const inner = document.getElementById('admin-kds-inner');
+    await renderCookDashboard(inner);
+    // Auto-refresh every 30s while panel is open
+    window.kdsRefreshPanel = async function() {
+        const btn = document.getElementById('kds-refresh-btn');
+        if (btn) btn.textContent = '⏳';
+        const el = document.getElementById('admin-kds-inner');
+        if (el) {
+            try { await renderCookDashboard(el); } catch(e) {}
+        }
+        if (btn) btn.textContent = '🔄 רענן';
+    };
+    window._kdsAutoRefreshInterval = setInterval(() => {
+        if (!document.getElementById('admin-kds-panel')) { clearInterval(window._kdsAutoRefreshInterval); window._kdsAutoRefreshInterval = null; return; }
+        if (document.getElementById('kds-bon-modal')) return; // don't refresh while bon is open
+        window.kdsRefreshPanel();
+    }, 30000);
 };
 
 // --- 11. Cook Dashboard (מסעדה / ייצור מזון) ---

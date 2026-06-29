@@ -2873,25 +2873,27 @@ app.get('/api/store/orders/:groupId', async (req, res) => {
 app.post('/api/store/orders', async (req, res) => {
     let dbClient;
     try {
-        const { groupId, customerName, customerPhone, items, totalAmount, isDelivery, deliveryFee, deliveryDetails, notes, status } = req.body;
+        const { groupId, customerName, customerPhone, items, totalAmount, isDelivery, deliveryFee, deliveryDetails, notes, status, orderSource } = req.body;
         dbClient = await pool.connect();
         await dbClient.query('BEGIN');
-        
+
         try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS is_delivery BOOLEAN DEFAULT FALSE`); } catch(e){}
         try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e){}
         try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_details TEXT`); } catch(e){}
         try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e){}
-        
+        try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS order_source TEXT DEFAULT 'website'`); } catch(e){}
+
         const deliveryDetailsStr = deliveryDetails ? JSON.stringify(deliveryDetails) : null;
         const actualDeliveryFee = parseFloat(deliveryFee) || 0;
         const isDeliv = isDelivery === true || isDelivery === 'true';
-        
+
         const familyGroupId = req.body.familyGroupId ? parseInt(req.body.familyGroupId) : null;
         const finalStatus = status || 'new';
-        
+        const finalOrderSource = orderSource || (familyGroupId ? 'family' : 'website');
+
         const oRes = await dbClient.query(
-            'INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_fee, delivery_details, family_group_id, quote_status, notes) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, $8, $9, NULL, $10) RETURNING id', 
-            [groupId, customerName, customerPhone, parseFloat(totalAmount)||0, finalStatus, isDeliv, actualDeliveryFee, deliveryDetailsStr, familyGroupId, notes || null]
+            'INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_fee, delivery_details, family_group_id, quote_status, notes, order_source) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, $8, $9, NULL, $10, $11) RETURNING id',
+            [groupId, customerName, customerPhone, parseFloat(totalAmount)||0, finalStatus, isDeliv, actualDeliveryFee, deliveryDetailsStr, familyGroupId, notes || null, finalOrderSource]
         );
         const orderId = oRes.rows[0].id;
         
@@ -2973,6 +2975,26 @@ app.patch('/api/store/orders/:id/target-date', async (req, res) => {
     try {
         const { targetDatetime } = req.body;
         await pool.query('UPDATE store_orders SET target_datetime=$1 WHERE id=$2', [targetDatetime || null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// KDS per-item ready sync (cross-device)
+app.patch('/api/store/orders/:id/item-ready', async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        const { idx, ready, clearAll } = req.body;
+        try { await pool.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS items_ready_json TEXT DEFAULT '[]'`); } catch(e2) {}
+        if (clearAll) {
+            await pool.query(`UPDATE store_orders SET items_ready_json='[]' WHERE id=$1`, [orderId]);
+        } else {
+            const r = await pool.query(`SELECT items_ready_json FROM store_orders WHERE id=$1`, [orderId]);
+            let arr = [];
+            try { arr = JSON.parse(r.rows[0]?.items_ready_json || '[]'); } catch(e2) {}
+            if (ready) { if (!arr.includes(idx)) arr.push(idx); }
+            else { arr = arr.filter(i => i !== idx); }
+            await pool.query(`UPDATE store_orders SET items_ready_json=$1 WHERE id=$2`, [JSON.stringify(arr), orderId]);
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
