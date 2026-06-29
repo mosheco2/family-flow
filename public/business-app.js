@@ -15222,7 +15222,7 @@ async function renderBizFlowWidget() {
     try {
         function makeMiniHtml(bal) {
             const label = bal === null ? '...' : bal;
-            return `<div onclick="openBizFlowWallet()" style="cursor:pointer;background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);border-radius:20px;padding:12px 10px;min-height:110px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:0 4px 16px rgba(245,158,11,0.4);text-align:center;">
+            return `<div onclick="openBizFlowWallet()" style="cursor:pointer;background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);border-radius:20px;padding:12px 10px;height:100%;min-height:110px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:0 4px 16px rgba(245,158,11,0.4);text-align:center;">
                 <div style="font-size:22px;">⚡</div>
                 <div style="color:white;font-size:20px;font-weight:900;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,0.2);">${label}<span style="font-size:11px;"> ₣</span></div>
                 <div style="color:rgba(255,255,255,0.9);font-size:9px;font-weight:600;line-height:1.3;">מטבעות<br>FLOW</div>
@@ -15246,6 +15246,7 @@ async function renderBizFlowWidget() {
             wrap.style.cssText = `display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:16px;margin-top:${topMargin||0}px;`;
             const miniCol = document.createElement('div');
             miniCol.className = 'flow-mini-widget';
+            miniCol.style.cssText = 'height:100%;';
             miniCol.innerHTML = makeMiniHtml(null);
             el.style.marginBottom = '0';
             el.style.marginTop = '0';
@@ -30038,7 +30039,7 @@ function roleDashboardHeader(icon, title, subtitle, colorFrom, colorTo) {
     </div>`;
     // מנהל: גריד 2/3+1/3 עם slot לווידג'ט FLOW — renderBizFlowWidget ממלא את #biz-flow-mini-slot
     if (currentUser?.role === 'ADMIN') {
-        const loadingSlot = `<div onclick="openBizFlowWallet()" style="cursor:pointer;background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);border-radius:20px;padding:12px 10px;min-height:110px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;box-shadow:0 4px 16px rgba(245,158,11,0.4);">
+        const loadingSlot = `<div onclick="openBizFlowWallet()" style="cursor:pointer;background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);border-radius:20px;padding:12px 10px;height:100%;min-height:110px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;box-shadow:0 4px 16px rgba(245,158,11,0.4);">
             <div style="font-size:22px;">⚡</div>
             <div style="color:white;font-size:20px;font-weight:900;line-height:1;">...<span style="font-size:11px;"> ₣</span></div>
             <div style="color:rgba(255,255,255,0.9);font-size:9px;font-weight:600;line-height:1.3;">מטבעות<br>FLOW</div>
