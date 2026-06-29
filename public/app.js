@@ -3964,7 +3964,7 @@ let myCashbackCache = []; // [{community_id, community_name, balance, total_earn
 
 function switchFamCommunityTab(tab) {
     const BASE = 'w-full h-14 flex flex-col items-center justify-center gap-0.5 px-1 rounded-xl text-[10px] font-bold overflow-hidden transition';
-    ['join', 'benefits', 'news', 'interests'].forEach(t => {
+    ['join', 'benefits', 'news', 'interests', 'pool'].forEach(t => {
         const view = document.getElementById(`fam-comm-view-${t}`);
         const btn = document.getElementById(`btn-fam-comm-${t}`);
         if (view) view.classList.add('hidden');
@@ -3974,6 +3974,241 @@ function switchFamCommunityTab(tab) {
     const activeBtn = document.getElementById(`btn-fam-comm-${tab}`);
     if (activeView) activeView.classList.remove('hidden');
     if (activeBtn) activeBtn.className = `${BASE} bg-orange-500 text-white shadow-md shadow-orange-200`;
+    if (tab === 'pool') renderFamPools();
+}
+
+// ─── FlowPool — FAMILY ───────────────────────────────────────────────
+let _activeFamPoolCommunityId = null;
+
+async function renderFamPools() {
+    const el = document.getElementById('fam-pool-list');
+    if (!el) return;
+    if (!currentGroup || currentGroup.type !== 'FAMILY') {
+        el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">התחבר כמשפחה כדי לראות פולים</p>';
+        return;
+    }
+    const communities = myConnectedCommunitiesCache || [];
+    if (!communities.length) {
+        el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">אינך מחובר לקהילה עדיין</p>';
+        return;
+    }
+    const commId = _activeFamPoolCommunityId || communities[0].community_id;
+    _activeFamPoolCommunityId = commId;
+
+    el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען...</p>';
+    try {
+        const res = await fetch(`${API}/community/pool/community/${commId}`, {});
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'שגיאה');
+        const pools = data.pools || [];
+
+        let commSelector = '';
+        if (communities.length > 1) {
+            const opts = communities.map(c => `<option value="${c.community_id}" ${c.community_id == commId ? 'selected' : ''}>${safeStr(c.name)}</option>`).join('');
+            commSelector = `<select onchange="_activeFamPoolCommunityId=this.value;renderFamPools()" class="modern-input py-1 text-xs mb-3 w-full">${opts}</select>`;
+        }
+
+        if (!pools.length) {
+            el.innerHTML = commSelector + '<div class="text-center py-8"><i class="fa-solid fa-water text-4xl text-slate-200 mb-3"></i><p class="text-sm font-bold text-slate-500">אין פולים פעילים</p><p class="text-xs text-slate-400">פתחו פול חדש ותפנו לעסקים</p></div>';
+            return;
+        }
+
+        const cards = pools.map(p => {
+            const statusLabel = { open_r1: 'סיבוב 1 פתוח', open_r2: 'סיבוב 2 פתוח', closed: 'סגור', expired: 'פג תוקף' }[p.status] || p.status;
+            const statusColor = { open_r1: 'bg-blue-100 text-blue-700', open_r2: 'bg-purple-100 text-purple-700', closed: 'bg-green-100 text-green-700', expired: 'bg-slate-100 text-slate-500' }[p.status] || 'bg-slate-100 text-slate-500';
+            const isMine = p.initiator_type === 'family' && p.initiator_id == currentGroup.id;
+            const maxP = p.max_price > 0 ? `עד ₪${Number(p.max_price).toLocaleString()}` : 'מחיר פתוח';
+            return `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 cursor-pointer hover:shadow-md transition" onclick="openFamPoolDetail(${p.id})">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(p.title)}</h4>
+                        ${p.service_category ? `<span class="text-[10px] text-slate-400">${safeStr(p.service_category)}</span>` : ''}
+                    </div>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColor} mr-2 shrink-0">${statusLabel}</span>
+                </div>
+                <div class="flex gap-4 text-xs text-slate-500 mt-2">
+                    <span><i class="fa-solid fa-users text-blue-400 ml-1"></i>${p.members_count || 0} משפחות</span>
+                    <span><i class="fa-solid fa-shekel-sign text-green-500 ml-1"></i>${maxP}</span>
+                    ${isMine ? '<span class="text-amber-600 font-bold">✦ יזמת</span>' : ''}
+                </div>
+            </div>`;
+        }).join('');
+
+        el.innerHTML = commSelector + cards;
+    } catch (e) {
+        el.innerHTML = `<p class="text-xs text-red-400 text-center py-8">${e.message}</p>`;
+    }
+}
+
+function openCreatePoolModal() {
+    if (!myConnectedCommunitiesCache.length) {
+        showToast('הצטרפו לקהילה תחילה', 'error');
+        return;
+    }
+    document.getElementById('modal-create-pool').classList.remove('hidden');
+}
+function closeCreatePoolModal() {
+    document.getElementById('modal-create-pool').classList.add('hidden');
+}
+
+async function createFamPool() {
+    const title = document.getElementById('pool-title-input').value.trim();
+    const desc = document.getElementById('pool-desc-input').value.trim();
+    if (!title || !desc) { showToast('כותרת ותיאור הם שדות חובה', 'error'); return; }
+    const community_id = _activeFamPoolCommunityId || (myConnectedCommunitiesCache[0] && myConnectedCommunitiesCache[0].community_id);
+    if (!community_id) { showToast('אינך מחובר לקהילה', 'error'); return; }
+
+    const payload = {
+        communityId: community_id,
+        initiatorType: 'family',
+        initiatorId: currentGroup.id,
+        title,
+        description: desc,
+        serviceCategory: document.getElementById('pool-category-input').value.trim() || null,
+        maxPrice: parseFloat(document.getElementById('pool-maxprice-input').value) || 0,
+        minFamilies: parseInt(document.getElementById('pool-minfam-input').value) || 2
+    };
+
+    try {
+        const res = await fetch(`${API}/community/pool`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'שגיאה');
+        showToast('🌊 פול נפתח בהצלחה!', 'success');
+        closeCreatePoolModal();
+        renderFamPools();
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+}
+
+async function openFamPoolDetail(poolId) {
+    const modal = document.getElementById('modal-pool-detail');
+    const body = document.getElementById('pool-detail-body');
+    const titleEl = document.getElementById('pool-detail-title');
+    modal.classList.remove('hidden');
+    body.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען...</p>';
+    try {
+        const res = await fetch(`${API}/community/pool/${poolId}`);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'שגיאה');
+        const p = data.pool;
+        const members = data.members || [];
+        const messages = data.messages || [];
+        titleEl.textContent = p.title;
+
+        const isFamInitiator = p.initiator_type === 'family' && p.initiator_id == currentGroup.id;
+        const isMember = members.some(m => m.group_id == currentGroup.id);
+        const isOpen = p.status === 'open_r1' || p.status === 'open_r2';
+
+        const statusLabel = { open_r1: '🔵 סיבוב 1 פתוח', open_r2: '🟣 סיבוב 2 פתוח', closed: '✅ סגור', expired: '⏰ פג תוקף' }[p.status] || p.status;
+
+        // טעינת הצעות למנהל/יוזמת בלבד
+        let bids = [];
+        if (isFamInitiator) {
+            try {
+                const bRes = await fetch(`${API}/community/pool/${poolId}/bids?viewerId=${currentGroup.id}&viewerType=family`);
+                const bData = await bRes.json();
+                if (bData.success) bids = bData.bids || [];
+            } catch (_) {}
+        }
+
+        let bidsHtml = '';
+        if (isFamInitiator && bids.length) {
+            bidsHtml = `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <h4 class="text-xs font-bold text-amber-800 mb-2">📋 הצעות עסקים (${bids.length})</h4>
+                <div class="space-y-2">
+                    ${bids.map(b => `<div class="bg-white rounded-lg p-2 border border-amber-100 text-xs">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-bold text-slate-700">₪${Number(b.price).toLocaleString()}</span>
+                            ${b.status === 'pending' && p.status !== 'closed' ? `<button onclick="selectPoolBid(${p.id},${b.id})" class="text-[10px] bg-green-500 text-white px-2 py-0.5 rounded-full font-bold hover:bg-green-600 transition">בחר</button>` : `<span class="text-[10px] font-bold ${b.status==='accepted'?'text-green-600':'text-slate-400'}">${b.status==='accepted'?'✅ נבחר':''}</span>`}
+                        </div>
+                        <p class="text-slate-500 text-[11px]">${safeStr(b.description)}</p>
+                        ${b.is_guest ? '<span class="text-purple-600 text-[10px]">👤 אורח (סיבוב 2)</span>' : ''}
+                    </div>`).join('')}
+                </div>
+                ${p.status === 'open_r1' ? `<button onclick="openFamPoolRound2(${p.id})" class="mt-2 w-full py-1.5 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition">פתח סיבוב 2 לעסקים חיצוניים</button>` : ''}
+            </div>`;
+        }
+
+        const msgsHtml = messages.length ? messages.map(m => {
+            const align = m.sender_type === 'family' ? 'flex-row-reverse' : 'flex-row';
+            const bg = m.sender_type === 'system' ? 'bg-slate-100 text-slate-500 text-center mx-auto rounded-full px-3 py-1 text-[11px]' : m.sender_type === 'family' ? 'bg-blue-100 text-blue-800 rounded-br-none' : 'bg-slate-100 text-slate-700 rounded-bl-none';
+            if (m.sender_type === 'system') return `<div class="${bg}">${safeStr(m.content)}</div>`;
+            return `<div class="flex ${align}"><div class="max-w-[80%] px-3 py-2 rounded-2xl text-xs ${bg}">${safeStr(m.content)}</div></div>`;
+        }).join('') : '<p class="text-xs text-slate-300 text-center py-4">אין הודעות עדיין</p>';
+
+        body.innerHTML = `
+            <div class="flex gap-2 items-center text-xs text-slate-500">
+                <span>${statusLabel}</span>
+                <span>·</span>
+                <span><i class="fa-solid fa-users ml-1"></i>${members.length} משפחות</span>
+                ${p.max_price > 0 ? `<span>· עד ₪${Number(p.max_price).toLocaleString()}</span>` : ''}
+            </div>
+            ${p.description ? `<p class="text-sm text-slate-600">${safeStr(p.description)}</p>` : ''}
+            ${bidsHtml}
+            ${isOpen && !isMember && !isFamInitiator ? `<button onclick="joinFamPool(${p.id})" class="w-full py-3 rounded-xl bg-blue-500 text-white font-bold text-sm hover:bg-blue-600 transition shadow-md">🌊 הצטרף לפול</button>` : ''}
+            ${isMember && !isFamInitiator ? '<div class="text-xs text-green-600 font-bold text-center py-2 bg-green-50 rounded-xl"><i class="fa-solid fa-check ml-1"></i>אתם חברים בפול הזה</div>' : ''}
+            <div class="border-t border-slate-100 pt-3">
+                <h4 class="text-xs font-bold text-slate-600 mb-2">💬 הודעות</h4>
+                <div class="space-y-2 max-h-48 overflow-y-auto mb-3">${msgsHtml}</div>
+                ${isOpen ? `<div class="flex gap-2">
+                    <input id="pool-msg-input-${p.id}" type="text" class="modern-input py-2 text-xs flex-1" placeholder="שלח הודעה לפול..." onkeydown="if(event.key==='Enter')sendPoolMessage(${p.id})">
+                    <button onclick="sendPoolMessage(${p.id})" class="bg-blue-500 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-blue-600 transition"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>` : ''}
+            </div>`;
+    } catch (e) {
+        body.innerHTML = `<p class="text-xs text-red-400 text-center py-8">${e.message}</p>`;
+    }
+}
+function closePoolDetailModal() {
+    document.getElementById('modal-pool-detail').classList.add('hidden');
+}
+
+async function joinFamPool(poolId) {
+    try {
+        const res = await fetch(`${API}/community/pool/${poolId}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id }) });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'שגיאה');
+        showToast('הצטרפת לפול! 🎉', 'success');
+        openFamPoolDetail(poolId);
+        renderFamPools();
+    } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function selectPoolBid(poolId, bidId) {
+    if (!confirm('לבחור את ההצעה הזו?')) return;
+    try {
+        const res = await fetch(`${API}/community/pool/${poolId}/select-bid`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bid_id: bidId, bidId, viewerId: currentGroup.id }) });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'שגיאה');
+        showToast('✅ הצעה נבחרה!', 'success');
+        openFamPoolDetail(poolId);
+        renderFamPools();
+    } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function openFamPoolRound2(poolId) {
+    if (!confirm('לפתוח סיבוב 2 לעסקים חיצוניים?')) return;
+    try {
+        const res = await fetch(`${API}/community/pool/${poolId}/open-round2`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ viewerId: currentGroup.id }) });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'שגיאה');
+        showToast('🟣 סיבוב 2 נפתח!', 'success');
+        openFamPoolDetail(poolId);
+    } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function sendPoolMessage(poolId) {
+    const input = document.getElementById(`pool-msg-input-${poolId}`);
+    const content = input ? input.value.trim() : '';
+    if (!content) return;
+    try {
+        const res = await fetch(`${API}/community/pool/${poolId}/message`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content, sender_type: 'family', sender_id: currentGroup.id }) });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'שגיאה');
+        input.value = '';
+        openFamPoolDetail(poolId);
+    } catch (e) { showToast(e.message, 'error'); }
 }
 
 async function fetchCommunityData() {

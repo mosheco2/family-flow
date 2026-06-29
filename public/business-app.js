@@ -14723,7 +14723,7 @@ async function loadTourSettings() {
 }
 
 window.switchBizCommunityTab = function(tab) {
-    ['mine', 'discover'].forEach(t => {
+    ['mine', 'discover', 'pool'].forEach(t => {
         const view = document.getElementById(`comm-view-${t}`);
         const btn = document.getElementById(`btn-comm-${t}`);
         if (view) view.classList.add('hidden');
@@ -14734,6 +14734,7 @@ window.switchBizCommunityTab = function(tab) {
     if (activeView) activeView.classList.remove('hidden');
     if (activeBtn) activeBtn.className = 'w-full flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition';
     if (tab === 'discover') filterBizAvailableCommunities();
+    if (tab === 'pool') loadBizPools();
 };
 
 async function loadBizCommunities() {
@@ -14782,6 +14783,112 @@ async function loadBizAvailableCommunities() {
             filterBizAvailableCommunities();
         }
     } catch(e) { console.error("Error loading available communities", e); }
+}
+
+// ─── FlowPool — BIZ ──────────────────────────────────────────────────
+async function loadBizPools() {
+    const el = document.getElementById('biz-pool-list');
+    if (!el || !currentGroup || !currentGroup.id) return;
+    el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען פולים...</p>';
+    try {
+        const res = await fetch(`${API}/biz/pools/${currentGroup.id}`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'שגיאה');
+        const pools = data.pools || [];
+        if (!pools.length) {
+            el.innerHTML = '<div class="text-center py-8"><i class="fa-solid fa-water text-4xl text-slate-200 mb-3"></i><p class="text-sm font-bold text-slate-500">אין פולים פתוחים כעת</p><p class="text-xs text-slate-400">כשמשפחות בקהילה יפתחו פולים הם יופיעו כאן</p></div>';
+            return;
+        }
+        el.innerHTML = pools.map(p => {
+            const statusLabel = { open_r1: 'סיבוב 1', open_r2: 'סיבוב 2 — עסקים חיצוניים' }[p.status] || p.status;
+            const statusColor = p.status === 'open_r2' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700';
+            const maxP = p.max_price > 0 ? `עד ₪${Number(p.max_price).toLocaleString()}` : 'מחיר פתוח';
+            return `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(p.title)}</h4>
+                        ${p.service_category ? `<p class="text-[11px] text-slate-400">${safeStr(p.service_category)}</p>` : ''}
+                    </div>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColor} mr-2 shrink-0">${statusLabel}</span>
+                </div>
+                ${p.description ? `<p class="text-xs text-slate-500 mb-2 line-clamp-2">${safeStr(p.description)}</p>` : ''}
+                <div class="flex gap-3 text-xs text-slate-400 mb-3">
+                    <span><i class="fa-solid fa-users ml-1"></i>${p.members_count || 0} משפחות</span>
+                    <span><i class="fa-solid fa-shekel-sign ml-1"></i>${maxP}</span>
+                </div>
+                <button onclick="openBizBidModal(${p.id},'${safeStr(p.title).replace(/'/g,"\\'")}',${p.max_price||0})" class="w-full py-2 rounded-xl bg-blue-500 text-white text-xs font-bold hover:bg-blue-600 transition shadow-sm">
+                    <i class="fa-solid fa-gavel ml-1"></i>הגש הצעת מחיר
+                </button>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        el.innerHTML = `<p class="text-xs text-red-400 text-center py-8">${e.message}</p>`;
+    }
+}
+
+let _bizBidTargetPoolId = null;
+function openBizBidModal(poolId, title, maxPrice) {
+    _bizBidTargetPoolId = poolId;
+    const modal = document.getElementById('modal-biz-bid');
+    if (!modal) {
+        const m = document.createElement('div');
+        m.id = 'modal-biz-bid';
+        m.className = 'fixed inset-0 bg-black/60 z-50 flex items-end justify-center';
+        m.onclick = function(e) { if (e.target === m) closeBizBidModal(); };
+        m.innerHTML = `<div class="bg-white rounded-t-3xl w-full max-w-lg p-6 pb-10">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-black text-slate-800 text-lg">💼 הגש הצעת מחיר</h3>
+                <button onclick="closeBizBidModal()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="text-sm font-bold text-slate-700 mb-4" id="biz-bid-pool-title"></p>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 mb-1 block">מחיר מוצע (₪) *</label>
+                    <input id="biz-bid-price-input" type="number" min="1" class="modern-input py-2 text-sm w-full" placeholder="הכנס מחיר">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 mb-1 block">תיאור ההצעה *</label>
+                    <textarea id="biz-bid-desc-input" rows="3" class="modern-input py-2 text-sm w-full resize-none" placeholder="פרט את השירות שאתה מציע, מה כלול, לוח זמנים..."></textarea>
+                </div>
+                <p id="biz-bid-maxprice-note" class="text-[11px] text-slate-400"></p>
+            </div>
+            <div class="mt-5 flex gap-3">
+                <button onclick="closeBizBidModal()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 transition">ביטול</button>
+                <button onclick="submitBizPoolBid()" class="flex-1 py-3 rounded-xl bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 transition shadow-md">שלח הצעה</button>
+            </div>
+        </div>`;
+        document.body.appendChild(m);
+    }
+    const modal2 = document.getElementById('modal-biz-bid');
+    modal2.classList.remove('hidden');
+    const titleEl = document.getElementById('biz-bid-pool-title');
+    if (titleEl) titleEl.textContent = title;
+    const note = document.getElementById('biz-bid-maxprice-note');
+    if (note) note.textContent = maxPrice > 0 ? `* המחיר המקסימלי בפול: ₪${Number(maxPrice).toLocaleString()}` : '';
+    const priceInput = document.getElementById('biz-bid-price-input');
+    if (priceInput) priceInput.value = '';
+    const descInput = document.getElementById('biz-bid-desc-input');
+    if (descInput) descInput.value = '';
+}
+function closeBizBidModal() {
+    const m = document.getElementById('modal-biz-bid');
+    if (m) m.classList.add('hidden');
+}
+
+async function submitBizPoolBid() {
+    const price = parseFloat(document.getElementById('biz-bid-price-input').value);
+    const description = document.getElementById('biz-bid-desc-input').value.trim();
+    if (!price || price <= 0) { showToast('הכנס מחיר תקף', 'error'); return; }
+    if (!description) { showToast('נדרש תיאור להצעה', 'error'); return; }
+    if (!_bizBidTargetPoolId) return;
+    try {
+        const res = await fetch(`${API}/community/pool/${_bizBidTargetPoolId}/bid`, { method: 'POST', headers: { ...{ Authorization: `Bearer ${currentUser?.token}` }, 'Content-Type': 'application/json' }, body: JSON.stringify({ price, description, businessGroupId: currentGroup.id }) });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'שגיאה');
+        showToast('✅ הצעה הוגשה בהצלחה!', 'success');
+        closeBizBidModal();
+        loadBizPools();
+    } catch (e) { showToast(e.message, 'error'); }
 }
 
 window.setDiscoverMode = function(mode) {

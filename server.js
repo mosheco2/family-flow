@@ -18571,6 +18571,264 @@ app.post('/api/ai/parse-pdf', async (req, res) => {
     } catch(e) { handleAIError(e, res, 'שגיאה בניתוח הקובץ'); }
 });
 
+// ============================================================
+// --- FLOW POOL (FlowPool) ---
+// ============================================================
+
+(async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS flow_pools (
+                id SERIAL PRIMARY KEY,
+                community_id INT REFERENCES communities(id) ON DELETE CASCADE,
+                initiator_type VARCHAR(10) NOT NULL,  -- 'family' | 'business'
+                initiator_id INT NOT NULL,             -- group_id של היוזם
+                title VARCHAR(200) NOT NULL,
+                description TEXT,
+                service_category VARCHAR(100),
+                max_price NUMERIC(10,2),               -- מחיר מקסימום (לפול של משפחה)
+                offer_price NUMERIC(10,2),             -- מחיר הצעה (לפול של עסק)
+                min_families INT DEFAULT 2,
+                status VARCHAR(20) DEFAULT 'open_r1',  -- open_r1 | open_r2 | closed | expired
+                winner_bid_id INT,
+                expires_at TIMESTAMP NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS flow_pool_members (
+                pool_id INT REFERENCES flow_pools(id) ON DELETE CASCADE,
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                joined_at TIMESTAMP DEFAULT NOW(),
+                PRIMARY KEY (pool_id, group_id)
+            );
+            CREATE TABLE IF NOT EXISTS flow_pool_bids (
+                id SERIAL PRIMARY KEY,
+                pool_id INT REFERENCES flow_pools(id) ON DELETE CASCADE,
+                business_group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                price NUMERIC(10,2) NOT NULL,
+                description TEXT,
+                is_guest BOOLEAN DEFAULT FALSE,
+                status VARCHAR(20) DEFAULT 'pending',  -- pending | accepted | rejected
+                submitted_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS flow_pool_messages (
+                id SERIAL PRIMARY KEY,
+                pool_id INT REFERENCES flow_pools(id) ON DELETE CASCADE,
+                sender_type VARCHAR(10) NOT NULL,  -- 'family' | 'business' | 'system'
+                sender_id INT,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+        `);
+        await pool.query(`
+            INSERT INTO flow_config (key, personal_amount, community_amount, description) VALUES
+            ('pool_join',         5,  2, 'הצטרפות לפול קהילתי'),
+            ('pool_bid_accepted', 25, 10, 'עסק — הצעה לפול התקבלה'),
+            ('pool_create',       3,  1, 'פתיחת פול קהילתי')
+            ON CONFLICT (key) DO NOTHING;
+        `);
+    } catch(e) { console.error('[FlowPool migration]', e.message); }
+})();
+
+// יצירת פול חדש (משפחה או עסק)
+app.post('/api/community/pool', async (req, res) => {
+    try {
+        const { communityId, initiatorType, initiatorId, title, description, serviceCategory, maxPrice, offerPrice, minFamilies } = req.body;
+        if (!communityId || !initiatorType || !initiatorId || !title) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        // ווידוא שהיוזם חבר בקהילה
+        const membership = await pool.query(
+            `SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2`,
+            [initiatorId, communityId]);
+        if (!membership.rows.length) return res.status(403).json({ error: 'היוזם אינו חבר בקהילה' });
+        const expiresAt = new Date(); expiresAt.setHours(23, 59, 59, 0);
+        const r = await pool.query(
+            `INSERT INTO flow_pools (community_id, initiator_type, initiator_id, title, description, service_category, max_price, offer_price, min_families, expires_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+            [communityId, initiatorType, initiatorId, title, description || '', serviceCategory || '', maxPrice || null, offerPrice || null, minFamilies || 2, expiresAt]);
+        const p = r.rows[0];
+        // היוזם מצטרף אוטומטית אם הוא משפחה
+        if (initiatorType === 'family') {
+            await pool.query(`INSERT INTO flow_pool_members (pool_id, group_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [p.id, initiatorId]);
+        }
+        await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,$2)`, [p.id, `פול חדש נפתח: ${title}`]);
+        await awardFlow('family', parseInt(initiatorId), 'pool_create', parseInt(communityId), p.id);
+        res.json({ success: true, pool: p });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// רשימת פולים פעילים בקהילה
+app.get('/api/community/pool/community/:communityId', async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT fp.*, fg.name as initiator_name,
+                (SELECT COUNT(*) FROM flow_pool_members WHERE pool_id=fp.id) as member_count,
+                (SELECT COUNT(*) FROM flow_pool_bids WHERE pool_id=fp.id AND status='pending') as bid_count
+            FROM flow_pools fp
+            JOIN family_groups fg ON fg.id=fp.initiator_id
+            WHERE fp.community_id=$1 AND fp.status IN ('open_r1','open_r2') AND fp.expires_at > NOW()
+            ORDER BY fp.created_at DESC`, [req.params.communityId]);
+        res.json({ success: true, pools: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// פרטי פול בודד
+app.get('/api/community/pool/:id', async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT fp.*, fg.name as initiator_name,
+                (SELECT COUNT(*) FROM flow_pool_members WHERE pool_id=fp.id) as member_count
+            FROM flow_pools fp JOIN family_groups fg ON fg.id=fp.initiator_id
+            WHERE fp.id=$1`, [req.params.id]);
+        if (!r.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
+        const p = r.rows[0];
+        const members = await pool.query(`SELECT fpm.group_id, fg.name FROM flow_pool_members fpm JOIN family_groups fg ON fg.id=fpm.group_id WHERE fpm.pool_id=$1`, [p.id]);
+        const messages = await pool.query(`SELECT fpm.*, fg.name as sender_name FROM flow_pool_messages fpm LEFT JOIN family_groups fg ON fg.id=fpm.sender_id WHERE fpm.pool_id=$1 ORDER BY fpm.created_at ASC`, [p.id]);
+        res.json({ success: true, pool: p, members: members.rows, messages: messages.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הצטרפות לפול (משפחה)
+app.post('/api/community/pool/:id/join', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1 AND status IN ('open_r1','open_r2') AND expires_at>NOW()`, [req.params.id]);
+        if (!pRes.rows.length) return res.status(400).json({ error: 'הפול אינו פעיל' });
+        const fp = pRes.rows[0];
+        // ווידוא חברות בקהילה
+        const mem = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2`, [groupId, fp.community_id]);
+        if (!mem.rows.length) return res.status(403).json({ error: 'אינך חבר בקהילה זו' });
+        await pool.query(`INSERT INTO flow_pool_members (pool_id, group_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [fp.id, groupId]);
+        await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,'משפחה חדשה הצטרפה לפול')`, [fp.id]);
+        await awardFlow('family', parseInt(groupId), 'pool_join', fp.community_id, fp.id);
+        const count = await pool.query(`SELECT COUNT(*) FROM flow_pool_members WHERE pool_id=$1`, [fp.id]);
+        res.json({ success: true, member_count: parseInt(count.rows[0].count) });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הגשת הצעה לפול (עסק)
+app.post('/api/community/pool/:id/bid', async (req, res) => {
+    try {
+        const { businessGroupId, price, description, isGuest } = req.body;
+        const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1 AND initiator_type='family' AND status IN ('open_r1','open_r2') AND expires_at>NOW()`, [req.params.id]);
+        if (!pRes.rows.length) return res.status(400).json({ error: 'הפול אינו פתוח להצעות' });
+        const fp = pRes.rows[0];
+        if (!isGuest) {
+            const mem = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2`, [businessGroupId, fp.community_id]);
+            if (!mem.rows.length) return res.status(403).json({ error: 'העסק אינו חבר בקהילה' });
+        }
+        // עסק יכול להגיש הצעה אחת בלבד לכל פול
+        await pool.query(`DELETE FROM flow_pool_bids WHERE pool_id=$1 AND business_group_id=$2`, [fp.id, businessGroupId]);
+        const r = await pool.query(
+            `INSERT INTO flow_pool_bids (pool_id, business_group_id, price, description, is_guest) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+            [fp.id, businessGroupId, price, description || '', isGuest || false]);
+        const fg = await pool.query(`SELECT name FROM family_groups WHERE id=$1`, [businessGroupId]);
+        await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,$2)`, [fp.id, `הצעה חדשה התקבלה`]);
+        res.json({ success: true, bid: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הצגת הצעות לפול (למנהל ויוזמת)
+app.get('/api/community/pool/:id/bids', async (req, res) => {
+    try {
+        const { viewerId, viewerType } = req.query;
+        const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
+        if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
+        const fp = pRes.rows[0];
+        // רק מנהל קהילה או יוזמת יכולים לראות הצעות
+        const isInitiator = parseInt(viewerId) === fp.initiator_id;
+        const isManager = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND is_community_manager=TRUE`, [viewerId, fp.community_id]);
+        if (!isInitiator && !isManager.rows.length) return res.status(403).json({ error: 'אין הרשאה לצפות בהצעות' });
+        const bids = await pool.query(`
+            SELECT fpb.*, fg.name as business_name
+            FROM flow_pool_bids fpb JOIN family_groups fg ON fg.id=fpb.business_group_id
+            WHERE fpb.pool_id=$1 ORDER BY fpb.price ASC`, [req.params.id]);
+        res.json({ success: true, bids: bids.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// בחירת הצעה מנצחת
+app.post('/api/community/pool/:id/select-bid', async (req, res) => {
+    try {
+        const { bidId, viewerId } = req.body;
+        const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
+        if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
+        const fp = pRes.rows[0];
+        const isInitiator = parseInt(viewerId) === fp.initiator_id;
+        const isManager = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND is_community_manager=TRUE`, [viewerId, fp.community_id]);
+        if (!isInitiator && !isManager.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        const bid = await pool.query(`SELECT * FROM flow_pool_bids WHERE id=$1 AND pool_id=$2`, [bidId, fp.id]);
+        if (!bid.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        await pool.query(`UPDATE flow_pools SET status='closed', winner_bid_id=$1 WHERE id=$2`, [bidId, fp.id]);
+        await pool.query(`UPDATE flow_pool_bids SET status='accepted' WHERE id=$1`, [bidId]);
+        await pool.query(`UPDATE flow_pool_bids SET status='rejected' WHERE pool_id=$1 AND id!=$2`, [fp.id, bidId]);
+        await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,'הצעה נבחרה — הפול נסגר בהצלחה!')`, [fp.id]);
+        await awardFlow('business', bid.rows[0].business_group_id, 'pool_bid_accepted', fp.community_id, fp.id);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// פתיחת סיבוב 2 (עסקים חיצוניים)
+app.post('/api/community/pool/:id/open-round2', async (req, res) => {
+    try {
+        const { viewerId } = req.body;
+        const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1 AND status='open_r1'`, [req.params.id]);
+        if (!pRes.rows.length) return res.status(400).json({ error: 'הפול לא בסיבוב 1' });
+        const fp = pRes.rows[0];
+        const isInitiator = parseInt(viewerId) === fp.initiator_id;
+        const isManager = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND is_community_manager=TRUE`, [viewerId, fp.community_id]);
+        if (!isInitiator && !isManager.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query(`UPDATE flow_pools SET status='open_r2' WHERE id=$1`, [fp.id]);
+        await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,'הפול נפתח לעסקים מחוץ לקהילה')`, [fp.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הודעות פול
+app.get('/api/community/pool/:id/messages', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT fpm.*, fg.name as sender_name FROM flow_pool_messages fpm LEFT JOIN family_groups fg ON fg.id=fpm.sender_id WHERE fpm.pool_id=$1 ORDER BY fpm.created_at ASC`, [req.params.id]);
+        res.json({ success: true, messages: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/community/pool/:id/message', async (req, res) => {
+    try {
+        const { senderId, senderType, content } = req.body;
+        if (!content?.trim()) return res.status(400).json({ error: 'תוכן ריק' });
+        const pRes = await pool.query(`SELECT id FROM flow_pools WHERE id=$1 AND status IN ('open_r1','open_r2') AND expires_at>NOW()`, [req.params.id]);
+        if (!pRes.rows.length) return res.status(400).json({ error: 'הפול לא פעיל' });
+        const r = await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,$2,$3,$4) RETURNING *`, [req.params.id, senderType, senderId, content.trim()]);
+        res.json({ success: true, message: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ניקוי פולים שפג תוקפם (נקרא בחצות)
+app.post('/api/community/pool/cleanup', async (req, res) => {
+    try {
+        const expired = await pool.query(`UPDATE flow_pools SET status='expired' WHERE status IN ('open_r1','open_r2') AND expires_at<=NOW() RETURNING id`);
+        if (expired.rows.length) {
+            const ids = expired.rows.map(r => r.id);
+            await pool.query(`DELETE FROM flow_pool_messages WHERE pool_id = ANY($1::int[])`, [ids]);
+        }
+        res.json({ success: true, expired: expired.rows.length });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// פולים פתוחים בקהילות שהעסק חבר בהן
+app.get('/api/biz/pools/:bizGroupId', async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT fp.*, fg.name as initiator_name,
+                (SELECT COUNT(*) FROM flow_pool_members WHERE pool_id=fp.id) as member_count
+            FROM flow_pools fp
+            JOIN family_groups fg ON fg.id=fp.initiator_id
+            JOIN family_communities fc ON fc.community_id=fp.community_id
+            WHERE fc.group_id=$1 AND fp.initiator_type='family'
+              AND fp.status IN ('open_r1','open_r2') AND fp.expires_at>NOW()
+            ORDER BY fp.created_at DESC`, [req.params.bizGroupId]);
+        res.json({ success: true, pools: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // הפעלת השרת
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);

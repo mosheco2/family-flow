@@ -2192,8 +2192,8 @@
                             <p class="text-orange-50 text-xs opacity-90">הצטרפו לקהילות מקומיות והציעו הטבות כדי למשוך לקוחות חדשים!</p>
                             <i class="fa-solid fa-users-rays absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
                         </div>
-                        <!-- Tab buttons (2 columns) -->
-                        <div class="grid grid-cols-2 gap-2 mb-5">
+                        <!-- Tab buttons (3 columns) -->
+                        <div class="grid grid-cols-3 gap-2 mb-5">
                             <div class="relative">
                                 <button id="btn-comm-mine" onclick="window.switchBizCommunityTab('mine')" class="w-full flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition">
                                     <i class="fa-solid fa-house-flag text-sm"></i>הקהילות שלי
@@ -2206,11 +2206,29 @@
                                 </button>
                                 <button onclick="showCommunityHelp('tab-discover')" class="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white border border-slate-300 text-slate-400 text-[9px] font-black flex items-center justify-center hover:bg-slate-100 transition shadow-sm" title="מה זה גלה קהילות?">?</button>
                             </div>
+                            <div>
+                                <button id="btn-comm-pool" onclick="window.switchBizCommunityTab('pool')" class="w-full flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">
+                                    <i class="fa-solid fa-water text-sm"></i>Pool 🌊
+                                </button>
+                            </div>
                         </div>
                         <!-- Sub-view: My Communities -->
                         <div id="comm-view-mine">
                             <div id="biz-my-communities-list" class="space-y-3 mb-4">
                                 <p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען קהילות...</p>
+                            </div>
+                        </div>
+                        <!-- Sub-view: FlowPool -->
+                        <div id="comm-view-pool" class="hidden pb-20">
+                            <div class="flex justify-between items-center mb-4 px-1">
+                                <div>
+                                    <h3 class="font-bold text-slate-700 text-base">🌊 FlowPool — מכרז קהילתי</h3>
+                                    <p class="text-xs text-slate-400 mt-0.5">פולים פתוחים שממתינים להצעות מחיר</p>
+                                </div>
+                                <button onclick="loadBizPools()" class="text-xs text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-rotate-right"></i></button>
+                            </div>
+                            <div id="biz-pool-list" class="space-y-3">
+                                <p class="text-xs text-slate-400 text-center py-8">טוען פולים...</p>
                             </div>
                         </div>
                         <!-- Sub-view: Discover Communities -->
