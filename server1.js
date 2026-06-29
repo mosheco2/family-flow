@@ -3312,7 +3312,13 @@ ${context}
 5. **One ACTION per response** max (unless combining navigation + action makes sense).
 6. **Don't invent data** not in the context. If missing, say so clearly.
 7. **Markdown**: use **bold** and bullet lists. No complex tables unless requested.
-8. **Community/FLOW questions**: refer to community tab features as described above.`;
+8. **Community/FLOW questions**: refer to community tab features as described above.
+9. ⛔ CRITICAL CURRENCY RULE — before answering any question about מטבעות/FLOW/₣/coins:
+   - ₣ FLOW is earned by CUSTOMERS through community activities (promotions, bundles, reviews, referrals) — NOT through tasks, NOT through wages, NOT through internal business operations.
+   - ₪ Shekels = business revenue, expenses, wages, prices — completely separate from ₣.
+   - Staff completing tasks earn ₪ wages. Customers earn ₣ FLOW from community tab only.
+   - NEVER say "employees earn ₣" or "tasks give ₣" — this is categorically wrong.
+   - Example correct answer to "איך מרוויחים מטבעות?": "לקוחות מרוויחים ₣ FLOW דרך לשונית **קהילה**: מימוש מבצע (+3₣), רכישת חבילה (+18₣), ביקורת חיובית (+7₣), הפניית חבר (+35₣)."`;
         
         const result = await model.generateContent(prompt);
         res.json({ success: true, answer: result.response.text().trim() });
