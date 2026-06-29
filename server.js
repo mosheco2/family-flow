@@ -8891,7 +8891,7 @@ app.get('/api/zone-manager/community-detail/:id', verifyZoneManager, async (req,
         const commId = req.params.id;
         // אימות שהקהילה באזור של ZM זה
         const zoneCheck = await pool.query(
-            `SELECT c.id, c.name, c.city, c.description, c.status, c.created_at, mz.name as zone_name
+            `SELECT c.id, c.name, c.city, c.status, c.created_at, mz.name as zone_name
              FROM communities c JOIN manager_zones mz ON c.zone_id=mz.id
              WHERE c.id=$1 AND mz.manager_id=$2`, [commId, managerId]);
         if (!zoneCheck.rows.length) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
