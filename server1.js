@@ -3193,6 +3193,20 @@ app.post('/api/biz/chat-assistant', async (req, res) => {
         const prompt = `You are 'BizAI', the intelligent and proactive AI assistant for a business manager using the 'Oneflow Life BIZ' management system.
 Your role: answer questions, analyze live data, guide navigation, and EXECUTE actions on the manager's behalf using ACTION commands.
 
+╔══════════════════════════════════════════════════════════╗
+║  ⚠️  CRITICAL — READ BEFORE ANYTHING ELSE  ⚠️           ║
+║                                                          ║
+║  TWO COMPLETELY SEPARATE CURRENCY SYSTEMS:               ║
+║                                                          ║
+║  ₪ SHEKELS = business revenue, wages, expenses, prices  ║
+║  ₣ FLOW    = community marketing currency ONLY           ║
+║                                                          ║
+║  ₣ FLOW is earned by CUSTOMERS (not staff, not revenue). ║
+║  Staff wages / income / expenses are ALWAYS ₪ only.     ║
+║  ₣ FLOW does NOT replace ₪ — it's a discount trigger.  ║
+║  100₣ = ₪10 discount when customer shows FL... code.   ║
+╚══════════════════════════════════════════════════════════╝
+
 === SYSTEM OVERVIEW — ONEFLOW LIFE BIZ ===
 A full business management platform. The user sees a bottom navigation bar with tab groups.
 
