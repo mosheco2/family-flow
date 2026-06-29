@@ -1252,7 +1252,7 @@ function renderCDTab(tab) {
         <div class="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
             <div class="flex items-center gap-2">
                 ${f.is_community_manager ? '<span class="bg-purple-100 text-purple-700 text-[9px] font-black px-2 py-0.5 rounded-full">⭐ מנהל</span>' : ''}
-                <span class="text-[10px] text-slate-400">${new Date(f.created_at).toLocaleDateString('he-IL')}</span>
+                <span class="text-[10px] text-slate-400">${f.admin_email || ''}</span>
             </div>
             <div class="text-right">
                 <p class="font-bold text-slate-800 text-sm">${f.name}</p>
@@ -1264,10 +1264,10 @@ function renderCDTab(tab) {
         if (!bizs.length) { body.innerHTML = '<div class="text-center text-slate-400 py-8">אין עסקים פעילים בקהילה</div>'; return; }
         body.innerHTML = bizs.map(b => `
         <div class="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
-            <span class="bg-emerald-100 text-emerald-700 text-[9px] font-black px-2 py-0.5 rounded-full">${b.category || 'עסק'}</span>
+            <span class="bg-emerald-100 text-emerald-700 text-[9px] font-black px-2 py-0.5 rounded-full">עסק</span>
             <div class="text-right">
                 <p class="font-bold text-slate-800 text-sm">${b.name}</p>
-                <p class="text-xs text-slate-500">${[b.city, b.phone].filter(Boolean).join(' • ')}</p>
+                <p class="text-xs text-slate-500">${b.admin_email || ''}</p>
             </div>
         </div>`).join('');
     } else if (tab === 'promos') {
@@ -1276,14 +1276,13 @@ function renderCDTab(tab) {
         body.innerHTML = promos.map(p => `
         <div class="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
             <div class="flex justify-between items-start">
-                <span class="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-0.5 rounded-full">${p.discount_percent ? p.discount_percent + '% הנחה' : 'מבצע'}</span>
+                <span class="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-0.5 rounded-full">${p.discount_pct ? p.discount_pct + '% הנחה' : 'מבצע'}</span>
                 <div class="text-right">
                     <p class="font-bold text-slate-800 text-sm">${p.title}</p>
                     <p class="text-xs text-slate-500">${p.business_name}</p>
-                    ${p.description ? `<p class="text-[10px] text-slate-400 mt-0.5">${p.description}</p>` : ''}
                 </div>
             </div>
-            ${p.expires_at ? `<p class="text-[10px] text-slate-400 text-left mt-1">תוקף: ${new Date(p.expires_at).toLocaleDateString('he-IL')}</p>` : ''}
+            ${p.valid_until ? `<p class="text-[10px] text-slate-400 text-left mt-1">תוקף: ${new Date(p.valid_until).toLocaleDateString('he-IL')}</p>` : ''}
         </div>`).join('');
     } else if (tab === 'flow') {
         const txs = _cdData.flowTransactions || [];
@@ -1297,8 +1296,8 @@ function renderCDTab(tab) {
         <div class="flex justify-between items-center p-2.5 bg-white border border-slate-100 rounded-xl text-xs">
             <span class="text-slate-400">${new Date(t.created_at).toLocaleDateString('he-IL')}</span>
             <div class="flex items-center gap-2">
-                <span class="font-black text-amber-600">+${t.community_amount} Flw</span>
-                <span class="text-slate-700">${actionLabels[t.action_type] || t.action_type}</span>
+                <span class="font-black text-amber-600">+${t.amount} Flw</span>
+                <span class="text-slate-700">${actionLabels[t.action_key] || t.action_key}</span>
             </div>
         </div>`).join('') : '<div class="text-center text-slate-400 py-4">אין פעולות FLOW עדיין</div>'}`;
     }

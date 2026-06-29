@@ -2654,12 +2654,7 @@ app.get('/api/sa/teams', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/sa/staff', verifySA, async (req, res) => {
-    try {
-        const result = await pool.query('SELECT u.*, t.name as team_name FROM sa_users u LEFT JOIN sa_teams t ON u.team_id = t.id ORDER BY u.name ASC');
-        res.json({ success: true, staff: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
+// duplicate removed — see /api/sa/staff below (uses safe column selection)
 
 // ==========================================
 // --- INTERNAL CHAT (WHISPERS) ---
@@ -3075,6 +3070,9 @@ app.get('/api/settings/login-mode', async (req, res) => {
         res.json({ success: true, smsEnabled });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
+// alias for /api/system/settings (used by sa-app.js loadSAAssistantLogo)
+app.get('/api/system/settings', async (req, res) => res.redirect('/api/system/public-config'));
 
 app.get('/api/system/public-config', async (req, res) => {
     try {
@@ -7572,20 +7570,18 @@ app.post('/api/b2b/orders/receive', async (req, res) => {
 
 app.get('/api/sa/communities', async (req, res) => {
     try {
-        try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`); } catch(err) {}
-
         const result = await pool.query(`
-            SELECT c.*, 
-                (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type='FAMILY') as family_count,
-                (SELECT COUNT(u.id) FROM users u JOIN family_groups f ON u.group_id = f.id WHERE f.community_id = c.id AND f.type='FAMILY') as users_count,
+            SELECT c.*,
+                (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count,
+                (SELECT COUNT(u.id) FROM users u JOIN family_communities fc ON u.group_id = fc.group_id WHERE fc.community_id = c.id) as users_count,
                 (SELECT COUNT(*) FROM community_businesses WHERE community_id = c.id AND status='approved') as business_count
             FROM communities c
             ORDER BY c.created_at DESC
         `);
         res.json({ success: true, communities: result.rows });
-    } catch(e) { 
+    } catch(e) {
         console.error("Error in /api/sa/communities:", e);
-        res.status(500).json({ error: e.message }); 
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -7782,6 +7778,10 @@ app.post('/api/sa/community-promo/approve', async (req, res) => {
         const { promoId } = req.body;
         const code = 'PROMO' + Math.random().toString(36).substring(2,7).toUpperCase();
         await pool.query("UPDATE community_promotions SET status='approved', promo_code=$1 WHERE id=$2", [code, promoId]);
+        const promo = await pool.query('SELECT business_id, community_id FROM community_promotions WHERE id=$1', [promoId]);
+        if (promo.rows.length) {
+            await awardFlow('business', promo.rows[0].business_id, 'biz_promo_approved', promo.rows[0].community_id, parseInt(promoId));
+        }
         res.json({ success: true, promo_code: code });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -7815,11 +7815,15 @@ app.get('/api/sa/community-promos/pending', async (req, res) => {
 app.post('/api/biz/community/promotions', async (req, res) => {
     try {
         const { businessId, communityId, title, content, discountPct, validUntil } = req.body;
-        if (!title || !communityId) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        if (!businessId || !communityId || !title) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        const check = await pool.query(
+            `SELECT 1 FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='approved'`,
+            [communityId, businessId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'העסק אינו חבר בקהילה זו' });
         const result = await pool.query(
-            'INSERT INTO community_promotions (community_id, business_id, title, content, discount_pct, valid_until, status) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
-            [communityId, businessId, title, content || '', parseFloat(discountPct)||0, validUntil || null, 'pending']
-        );
+            `INSERT INTO community_promotions (community_id, business_id, title, content, discount_pct, valid_until, status)
+             VALUES ($1,$2,$3,$4,$5,$6,'pending') RETURNING *`,
+            [communityId, businessId, title, content || '', parseFloat(discountPct)||0, validUntil || null]);
         res.json({ success: true, promo: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -8213,21 +8217,7 @@ app.delete('/api/community/leave/:groupId/:communityId', async (req, res) => {
 });
 
 // 5. דריסת השאילתות של הסופר-אדמין לספירת משפחות מתוך הטבלה החדשה
-app.get('/api/sa/communities', async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT c.*, 
-                (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count,
-                (SELECT COUNT(u.id) FROM users u JOIN family_communities fc ON u.group_id = fc.group_id WHERE fc.community_id = c.id) as users_count,
-                (SELECT COUNT(*) FROM community_businesses WHERE community_id = c.id AND status='approved') as business_count
-            FROM communities c
-            ORDER BY c.created_at DESC
-        `);
-        res.json({ success: true, communities: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// duplicate removed — see /api/sa/communities/:id/details above
+// duplicate removed — see /api/sa/communities above
 // ============================================================
 // --- COMMUNITY CASHBACK SYSTEM ENDPOINTS ---
 // ============================================================
@@ -9573,22 +9563,7 @@ app.get('/api/community/my-referral-code/:groupId', async (req, res) => {
 // --- Feature 1: Community Promotions (קהילה כ"ערוץ שיווק") ---
 
 // Business posts a promotion to one of their communities
-app.post('/api/biz/community/promotions', async (req, res) => {
-    try {
-        const { businessId, communityId, title, content, discountPct, validUntil } = req.body;
-        if (!businessId || !communityId || !title) return res.status(400).json({ error: 'חסרים שדות חובה' });
-        // Verify business is member of this community
-        const check = await pool.query(
-            `SELECT 1 FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='approved'`,
-            [communityId, businessId]);
-        if (!check.rows.length) return res.status(403).json({ error: 'העסק אינו חבר בקהילה זו' });
-        const r = await pool.query(
-            `INSERT INTO community_promotions (community_id, business_id, title, content, discount_pct, valid_until, status)
-             VALUES ($1,$2,$3,$4,$5,$6,'pending') RETURNING *`,
-            [communityId, businessId, title, content || '', parseFloat(discountPct) || 0, validUntil || null]);
-        res.json({ success: true, promotion: r.rows[0] });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
+// duplicate removed — see /api/biz/community/promotions above
 
 // Get promotions for a community (members see)
 app.get('/api/community/promotions/:communityId', async (req, res) => {

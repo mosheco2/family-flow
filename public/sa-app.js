@@ -1281,21 +1281,7 @@ async function loadSAData() {
 }
 
 window.saveEmailSettings = async function() {
-    try {
-        const payload = {
-            smtpFromEmail: val('smtp-from-email'),
-            smtpFromName: val('smtp-from-name'),
-            adminNotificationEmail: val('admin-notification-email'),
-            pwaInstallPromptEnabled: window._pwaInstallPromptEnabled !== false
-        };
-        const res = await fetch(`${API}/superadmin/banners`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (data.success) showToast('success', 'הגדרות המייל נשמרו בהצלחה!');
-        else showToast('error', 'שגיאה בשמירה');
-    } catch(e) { showToast('error', 'תקלת רשת'); }
+    await window.saveAllBanners();
 };
 
 window.saveAllBanners = async function() {
@@ -7173,7 +7159,7 @@ window.loadBundleBusinesses = async function() {
     try {
         const res = await fetch(`${API}/sa/community-business/${commId}`, { headers: { Authorization: saToken } });
         const data = await res.json();
-        const bizList = data.businesses || [];
+        const bizList = data.connections || [];
         if (!bizList.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">אין עסקים בקהילה זו</p>'; return; }
         el.innerHTML = bizList.map(b => `
             <label class="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-lg cursor-pointer text-sm">
