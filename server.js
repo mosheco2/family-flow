@@ -8923,9 +8923,9 @@ app.get('/api/zone-manager/community-detail/:id', verifyZoneManager, async (req,
 
         // פעולות FLOW אחרונות
         const flowTx = await pool.query(
-            `SELECT ft.action_type, ft.community_amount, ft.created_at
+            `SELECT ft.action_key, ft.amount, ft.description, ft.created_at
              FROM flow_transactions ft
-             WHERE ft.community_id=$1
+             WHERE ft.entity_type='community' AND ft.entity_id=$1
              ORDER BY ft.created_at DESC LIMIT 20`, [commId]);
 
         res.json({
