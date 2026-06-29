@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מדריך תחזוקה ותיקונים — ONEFLOW BUSINESS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+  :root { --primary: #ea580c; --primary-dark: #c2410c; --primary-light: #fff7ed; }
+  * { scroll-behavior: smooth; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f9fafb; color: #1e293b; }
+  .sidebar { position: fixed; top: 0; right: 0; width: 260px; height: 100vh; overflow-y: auto; background: #fff; border-left: 1px solid #e2e8f0; z-index: 40; padding: 1rem 0; }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: #ea580c; border-radius: 2px; }
+  .main-content { margin-right: 260px; max-width: 900px; padding: 2rem; }
+  .nav-link { display: block; padding: 0.4rem 1.2rem; font-size: 0.82rem; color: #475569; border-right: 3px solid transparent; transition: all 0.15s; }
+  .nav-link:hover, .nav-link.active { color: #ea580c; border-right-color: #ea580c; background: #fff7ed; font-weight: 600; }
+  .nav-category { padding: 0.6rem 1.2rem 0.2rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.4rem; }
+  .hero { background: linear-gradient(135deg, #ea580c 0%, #c2410c 40%, #b45309 100%); color: white; border-radius: 1.5rem; padding: 2.5rem; margin-bottom: 2rem; position: relative; overflow: hidden; }
+  .hero::before { content: '🔧'; position: absolute; left: -10px; top: -10px; font-size: 8rem; opacity: 0.08; }
+  .hero::after { content: '🔩'; position: absolute; left: 80px; bottom: -20px; font-size: 6rem; opacity: 0.06; }
+  .section-card { background: #fff; border-radius: 1rem; border: 1px solid #e2e8f0; margin-bottom: 1.5rem; overflow: hidden; }
+  .section-header { background: linear-gradient(90deg, #fff7ed, #ffedd5); padding: 1rem 1.5rem; border-bottom: 1px solid #fed7aa; display: flex; align-items: center; gap: 0.75rem; }
+  .section-header h2 { font-size: 1.15rem; font-weight: 700; color: #c2410c; }
+  .section-body { padding: 1.25rem 1.5rem; }
+  .step-box { display: flex; gap: 1rem; margin-bottom: 1rem; align-items: flex-start; }
+  .step-num { min-width: 2rem; height: 2rem; background: #ea580c; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
+  .step-content { flex: 1; }
+  .step-content strong { display: block; font-weight: 700; color: #1e293b; margin-bottom: 0.2rem; }
+  .step-content p, .step-content span { font-size: 0.9rem; color: #475569; }
+  .tip-box { background: #fff7ed; border-right: 4px solid #ea580c; border-radius: 0.5rem; padding: 0.75rem 1rem; margin: 0.75rem 0; font-size: 0.875rem; }
+  .tip-box strong { color: #c2410c; }
+  .warn-box { background: #fef2f2; border-right: 4px solid #dc2626; border-radius: 0.5rem; padding: 0.75rem 1rem; margin: 0.75rem 0; font-size: 0.875rem; }
+  .info-box { background: #eff6ff; border-right: 4px solid #3b82f6; border-radius: 0.5rem; padding: 0.75rem 1rem; margin: 0.75rem 0; font-size: 0.875rem; }
+  .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 700; margin-left: 0.3rem; }
+  .badge-orange { background: #ffedd5; color: #ea580c; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-green { background: #dcfce7; color: #16a34a; }
+  .badge-gray { background: #f1f5f9; color: #475569; }
+  .badge-red { background: #fee2e2; color: #dc2626; }
+  .role-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1rem; margin-bottom: 0.75rem; }
+  .role-card h4 { font-weight: 700; color: #1e293b; margin-bottom: 0.4rem; }
+  .img-placeholder { background: linear-gradient(135deg, #fff7ed, #ffedd5); border: 2px dashed #fed7aa; border-radius: 0.75rem; padding: 2.5rem; text-align: center; color: #ea580c; font-size: 0.85rem; margin: 1rem 0; }
+  .img-placeholder i { font-size: 2.5rem; margin-bottom: 0.5rem; display: block; opacity: 0.4; }
+  .table-wrap { overflow-x: auto; margin: 0.75rem 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  th { background: #fff7ed; color: #c2410c; font-weight: 700; padding: 0.6rem 0.75rem; text-align: right; border-bottom: 2px solid #fed7aa; }
+  td { padding: 0.55rem 0.75rem; border-bottom: 1px solid #f1f5f9; }
+  tr:last-child td { border-bottom: none; }
+  .faq-item { border: 1px solid #e2e8f0; border-radius: 0.75rem; margin-bottom: 0.6rem; overflow: hidden; }
+  .faq-q { padding: 0.85rem 1.1rem; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #fff; transition: background 0.15s; font-size: 0.9rem; }
+  .faq-q:hover { background: #fff7ed; }
+  .faq-a { display: none; padding: 0.85rem 1.1rem; background: #fafafa; font-size: 0.875rem; color: #475569; border-top: 1px solid #f1f5f9; }
+  .faq-a.open { display: block; }
+  .chip { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; font-weight: 600; background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; margin: 0.15rem; cursor: pointer; }
+  .chip:hover { background: #ea580c; color: white; }
+  .progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #ea580c, #b45309); z-index: 100; transition: width 0.2s; }
+  .back-top { position: fixed; bottom: 1.5rem; left: 1.5rem; background: #ea580c; color: white; width: 2.5rem; height: 2.5rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity 0.3s; z-index: 50; box-shadow: 0 4px 12px rgba(234,88,12,0.35); }
+  .search-box { padding: 0.6rem 1rem; margin: 0 0.8rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; font-size: 0.82rem; width: calc(100% - 1.6rem); }
+  @media(max-width:768px) { .sidebar{display:none;} .main-content{margin-right:0;padding:1rem;} }
+  .mobile-nav { display: none; position: sticky; top: 0; z-index: 30; background: white; border-bottom: 1px solid #e2e8f0; padding: 0.5rem 1rem; overflow-x: auto; white-space: nowrap; }
+  @media(max-width:768px) { .mobile-nav{display:block;} }
+  ul.check-list { list-style: none; padding: 0; }
+  ul.check-list li { padding: 0.25rem 0; font-size: 0.9rem; color: #475569; }
+  ul.check-list li::before { content: '✓ '; color: #ea580c; font-weight: 700; }
+  .module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 0.6rem; margin: 0.75rem 0; }
+  .module-item { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 0.6rem; padding: 0.6rem 0.75rem; font-size: 0.8rem; font-weight: 600; color: #c2410c; text-align: center; }
+  .pipeline-step { display: flex; align-items: center; gap: 0.5rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.6rem; padding: 0.6rem 1rem; margin-bottom: 0.4rem; font-size: 0.875rem; }
+  .pipeline-step .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 0.75rem; margin: 0.75rem 0; }
+  .kpi-card { background: linear-gradient(135deg, #fff7ed, #ffedd5); border: 1px solid #fed7aa; border-radius: 0.75rem; padding: 1rem; text-align: center; }
+  .kpi-card .kpi-value { font-size: 1.6rem; font-weight: 900; color: #ea580c; }
+  .kpi-card .kpi-label { font-size: 0.75rem; color: #78716c; margin-top: 0.2rem; }
+  .status-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid #f1f5f9; font-size: 0.875rem; }
+  .status-row:last-child { border-bottom: none; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progress-bar" style="width:0%"></div>
+<div class="back-top" id="back-top" onclick="window.scrollTo({top:0,behavior:'smooth'})"><i class="fa-solid fa-arrow-up text-sm"></i></div>
+
+<aside class="sidebar">
+  <div style="padding:1rem 1.2rem 0.5rem; border-bottom:1px solid #f1f5f9;">
+    <div style="font-size:1.1rem; font-weight:800; color:#ea580c;">🔧 מדריך תחזוקה</div>
+    <div style="font-size:0.72rem; color:#94a3b8; margin-top:0.2rem;">ONEFLOW BUSINESS</div>
+  </div>
+  <input class="search-box" id="sidebar-search" placeholder="חיפוש בתוכן..." oninput="searchSections(this.value)">
+  <nav id="sidebar-nav">
+    <div class="nav-category">מבוא</div>
+    <a class="nav-link" href="#quick-start">התחלה מהירה</a>
+    <a class="nav-link" href="#user-types">סוגי משתמשים</a>
+    <a class="nav-link" href="#setup-wizard">ויזארד הקמה</a>
+    <div class="nav-category">ניהול שטח</div>
+    <a class="nav-link" href="#dashboard">דשבורד מנהל</a>
+    <a class="nav-link" href="#service-calls">ניהול קריאות שירות</a>
+    <a class="nav-link" href="#technicians">ניהול טכנאים בשטח</a>
+    <a class="nav-link" href="#calendar">יומן ותאום</a>
+    <div class="nav-category">מלאי ותמחור</div>
+    <a class="nav-link" href="#parts">ניהול חלקים ומלאי</a>
+    <a class="nav-link" href="#quotes">הצעות מחיר לתיקון</a>
+    <a class="nav-link" href="#invoices">חשבוניות ותשלומים</a>
+    <div class="nav-category">לקוחות וחוזים</div>
+    <a class="nav-link" href="#customers">ניהול לקוחות ונכסים</a>
+    <a class="nav-link" href="#contracts">חוזי תחזוקה שוטפת</a>
+    <a class="nav-link" href="#reports">דוחות ואנליטיקה</a>
+    <div class="nav-category">ONEFLOW ו-AI</div>
+    <a class="nav-link" href="#alerts">התראות ומעקב</a>
+    <a class="nav-link" href="#inbox">הודעות</a>
+    <a class="nav-link" href="#oneflow">ONEFLOW LIFE</a>
+    <a class="nav-link" href="#ai-tools">כלי AI</a>
+    <a class="nav-link" href="#storefront">עמוד שירות ציבורי</a>
+    <a class="nav-link" href="#faq">שאלות נפוצות</a>
+  </nav>
+</aside>
+
+<div class="mobile-nav">
+  <span class="chip" onclick="scrollTo('#quick-start')">🚀 התחלה</span>
+  <span class="chip" onclick="scrollTo('#service-calls')">📞 קריאות</span>
+  <span class="chip" onclick="scrollTo('#technicians')">👷 טכנאים</span>
+  <span class="chip" onclick="scrollTo('#parts')">🔩 מלאי</span>
+  <span class="chip" onclick="scrollTo('#quotes')">📄 הצעות מחיר</span>
+  <span class="chip" onclick="scrollTo('#contracts')">📋 חוזים</span>
+  <span class="chip" onclick="scrollTo('#ai-tools')">🤖 AI</span>
+</div>
+
+<main class="main-content">
+
+<section class="hero" id="top">
+  <div style="position:relative;z-index:1;">
+    <div style="font-size:0.85rem;opacity:0.85;margin-bottom:0.4rem;">ONEFLOW BUSINESS — מדריך סוג עסק</div>
+    <h1 style="font-size:2rem;font-weight:900;margin-bottom:0.5rem;">🔧 מדריך תחזוקה ותיקונים</h1>
+    <p style="opacity:0.9;max-width:600px;line-height:1.6;">מדריך מקיף לניהול עסק תחזוקה ותיקונים — טכנאים בשטח, קריאות שירות, ניהול חלקים, חוזי תחזוקה שוטפת וחשבוניות. מותאם לחברות מזגנים, מעליות, אינסטלציה, חשמל, מכשירי חשמל ביתיים וכל שירות טכני.</p>
+    <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">8 מודולים</span>
+      <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">קריאות שירות</span>
+      <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">טכנאים GPS</span>
+      <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">ONEFLOW מחובר</span>
+    </div>
+  </div>
+</section>
+
+<!-- 1. QUICK START -->
+<section class="section-card" id="quick-start">
+  <div class="section-header"><span style="font-size:1.5rem;">🚀</span><h2>התחלה מהירה — 5 צעדים</h2></div>
+  <div class="section-body">
+    <div class="step-box"><div class="step-num">1</div><div class="step-content"><strong>צור עסק מסוג תחזוקה ותיקונים</strong><span>ONEFLOW → צור קבוצה → עסק → "תחזוקה ותיקונים". הגדר שם, לוגו, תחום התמחות (מזגנים, חשמל, אינסטלציה וכו').</span></div></div>
+    <div class="step-box"><div class="step-num">2</div><div class="step-content"><strong>הגדר סוגי שירות ורשימת מחירים</strong><span>הגדרות → קטלוג שירותים → הוסף סוגי עבודה (אבחון, תיקון, החלפת חלק, תחזוקה מונעת). קבע תעריפי שעה/פעולה.</span></div></div>
+    <div class="step-box"><div class="step-num">3</div><div class="step-content"><strong>הוסף טכנאים לצוות</strong><span>חברי צוות → הוסף → בחר תפקיד "טכנאי שטח" → הגדר אזור עבודה ומומחיות. הטכנאי מקבל גישה לאפליקציית שטח.</span></div></div>
+    <div class="step-box"><div class="step-num">4</div><div class="step-content"><strong>הגדר מלאי חלקים ראשוני</strong><span>מלאי → חלקים → ייבא רשימה או הזן ידנית: מק"ט, תיאור, מחיר עלות, מחיר מכירה, כמות במחסן.</span></div></div>
+    <div class="step-box"><div class="step-num">5</div><div class="step-content"><strong>פתח קריאת שירות ראשונה</strong><span>קריאות → חדשה → הזן פרטי לקוח, תיאור התקלה, עדיפות. הקצה לטכנאי → הטכנאי מקבל התראה מיידית.</span></div></div>
+    <div class="module-grid">
+      <div class="module-item">📅 יומן</div>
+      <div class="module-item">✅ משימות</div>
+      <div class="module-item">👤 לקוחות</div>
+      <div class="module-item">👥 חברי צוות</div>
+      <div class="module-item">⏰ שעון נוכחות</div>
+      <div class="module-item">💰 תזרים</div>
+      <div class="module-item">🛒 חנות</div>
+      <div class="module-item">🏪 מחסן</div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. USER TYPES -->
+<section class="section-card" id="user-types">
+  <div class="section-header"><span style="font-size:1.5rem;">👥</span><h2>סוגי משתמשים ורמות גישה</h2></div>
+  <div class="section-body">
+    <div class="role-card">
+      <h4>🔑 ADMIN</h4>
+      <p style="font-size:0.875rem;color:#475569;">גישה מלאה לכל המערכת: לקוחות, קריאות שירות, טכנאים, מלאי, כספים, הגדרות. רואה דוחות רווח/הפסד מלאים ונתוני KPI.</p>
+      <div style="margin-top:0.4rem;"><span class="badge badge-orange">כל מודול</span><span class="badge badge-blue">דוחות מלאים</span></div>
+    </div>
+    <div class="role-card">
+      <h4>🏢 מנהל/ית</h4>
+      <p style="font-size:0.875rem;color:#475569;">ניהול יומי: פתיחת קריאות, הקצאת טכנאים, מעקב סטטוס, אישור הצעות מחיר. גישה לדוחות תפעוליים אך לא להגדרות מערכת.</p>
+      <div style="margin-top:0.4rem;"><span class="badge badge-gray">קריאות + טכנאים + דוחות</span></div>
+    </div>
+    <div class="role-card">
+      <h4>👷 טכנאי שטח</h4>
+      <p style="font-size:0.875rem;color:#475569;">רואה קריאות המוקצות אליו, מעדכן סטטוס מהנייד, מתעד עבודה ששולמה, מדווח על חלקים שנצרכו. עדכון מיקום GPS אוטומטי.</p>
+      <div style="margin-top:0.4rem;"><span class="badge badge-gray">קריאות שלי + מלאי שטח</span></div>
+    </div>
+    <div class="role-card">
+      <h4>📞 מוקד שירות / נציג</h4>
+      <p style="font-size:0.875rem;color:#475569;">קבלת פניות, פתיחת קריאות שירות, תיאום עם לקוחות, מעקב סטטוס. אינו רואה נתוני שכר ורווחיות.</p>
+      <div style="margin-top:0.4rem;"><span class="badge badge-gray">Inbox + קריאות + יומן</span></div>
+    </div>
+    <div class="role-card">
+      <h4>🔗 לקוח ONEFLOW</h4>
+      <p style="font-size:0.875rem;color:#475569;">לקוח הרשום ב-ONEFLOW LIFE. מקבל עדכוני סטטוס קריאה, חשבוניות ותזכורות תחזוקה שוטפת ישירות לאפליקציית ONEFLOW שלו.</p>
+      <div style="margin-top:0.4rem;"><span class="badge badge-blue">ONEFLOW מחובר</span></div>
+    </div>
+    <div class="role-card">
+      <h4>🌐 לקוח ציבורי</h4>
+      <p style="font-size:0.875rem;color:#475569;">פותח קריאת שירות דרך עמוד השירות הציבורי ללא הרשמה. מקבל עדכונים ב-SMS / מייל. ניתן להמיר ללקוח ONEFLOW בהמשך.</p>
+      <div style="margin-top:0.4rem;"><span class="badge badge-gray">עמוד ציבורי בלבד</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. SETUP WIZARD -->
+<section class="section-card" id="setup-wizard">
+  <div class="section-header"><span style="font-size:1.5rem;">🧙</span><h2>ויזארד הקמת עסק תחזוקה</h2></div>
+  <div class="section-body">
+    <div class="img-placeholder"><i class="fa-solid fa-wand-magic-sparkles"></i>📸 כאן תופיע תמונת מסך של ויזארד ההקמה</div>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">בפתיחת עסק חדש מסוג תחזוקה, ויזארד 6 שלבים מדריך אותך:</p>
+    <div class="pipeline-step"><div class="dot" style="background:#ea580c;"></div><strong>שלב 1:</strong>&nbsp;פרטי עסק — שם, לוגו, תחום (מזגנים / חשמל / אינסטלציה / כללי)</div>
+    <div class="pipeline-step"><div class="dot" style="background:#f97316;"></div><strong>שלב 2:</strong>&nbsp;סוגי שירות — הגדר קטגוריות עבודה ותעריפים בסיסיים</div>
+    <div class="pipeline-step"><div class="dot" style="background:#fb923c;"></div><strong>שלב 3:</strong>&nbsp;צוות — הוסף טכנאים ומנהל מוקד, הגדר אזורי פעילות</div>
+    <div class="pipeline-step"><div class="dot" style="background:#fdba74;"></div><strong>שלב 4:</strong>&nbsp;מלאי ראשוני — ייבא חלקים בגיליון Excel או הזן ידנית</div>
+    <div class="pipeline-step"><div class="dot" style="background:#fed7aa;"></div><strong>שלב 5:</strong>&nbsp;העדפות תקשורת — SMS / מייל / WhatsApp ללקוחות</div>
+    <div class="pipeline-step"><div class="dot" style="background:#ffedd5;"></div><strong>שלב 6:</strong>&nbsp;עמוד שירות ציבורי — לוגו, תיאור, שעות, קישור לפתיחת קריאה</div>
+    <div class="tip-box"><strong>💡 טיפ:</strong> ניתן לדלג על שלבים ולהשלים מאוחר יותר. עסק פעיל כבר משלב 1.</div>
+  </div>
+</section>
+
+<!-- 4. DASHBOARD -->
+<section class="section-card" id="dashboard">
+  <div class="section-header"><span style="font-size:1.5rem;">📊</span><h2>דשבורד מנהל</h2></div>
+  <div class="section-body">
+    <div class="img-placeholder"><i class="fa-solid fa-chart-line"></i>📸 כאן תופיע תמונת מסך של דשבורד המנהל</div>
+    <h3 style="font-weight:700;margin-bottom:0.75rem;color:#c2410c;">KPI מרכזיים</h3>
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-value">24</div><div class="kpi-label">קריאות פתוחות</div></div>
+      <div class="kpi-card"><div class="kpi-value">8</div><div class="kpi-label">טכנאים בשטח</div></div>
+      <div class="kpi-card"><div class="kpi-value">₪42K</div><div class="kpi-label">הכנסות החודש</div></div>
+      <div class="kpi-card"><div class="kpi-value">2.4h</div><div class="kpi-label">ממוצע זמן טיפול</div></div>
+      <div class="kpi-card"><div class="kpi-value">4.7★</div><div class="kpi-label">שביעות רצון לקוחות</div></div>
+    </div>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#c2410c;">סטטוס קריאות בזמן אמת</h3>
+    <div class="status-row"><div class="status-dot" style="background:#ef4444;"></div><span>דחופות ממתינות להקצאה — <strong>3</strong></span></div>
+    <div class="status-row"><div class="status-dot" style="background:#f97316;"></div><span>בטיפול כרגע — <strong>12</strong></span></div>
+    <div class="status-row"><div class="status-dot" style="background:#eab308;"></div><span>ממתין לחלק / אישור — <strong>5</strong></span></div>
+    <div class="status-row"><div class="status-dot" style="background:#22c55e;"></div><span>הושלמו היום — <strong>18</strong></span></div>
+    <div class="tip-box"><strong>💡 מפה חיה:</strong> הדשבורד כולל מפת Google עם מיקום כל טכנאי בשטח ב-GPS בזמן אמת.</div>
+  </div>
+</section>
+
+<!-- 5. SERVICE CALLS -->
+<section class="section-card" id="service-calls">
+  <div class="section-header"><span style="font-size:1.5rem;">📞</span><h2>ניהול קריאות שירות</h2></div>
+  <div class="section-body">
+    <div class="img-placeholder"><i class="fa-solid fa-headset"></i>📸 כאן תופיע תמונת מסך של ניהול קריאות</div>
+    <h3 style="font-weight:700;margin-bottom:0.75rem;color:#c2410c;">פתיחת קריאת שירות</h3>
+    <div class="step-box"><div class="step-num">1</div><div class="step-content"><strong>פרטי לקוח ומכשיר/נכס</strong><span>חפש לקוח קיים או הזן חדש. בחר נכס (מכשיר, מערכת) מרשימת הנכסים של הלקוח, או הוסף נכס חדש עם פרטים (סוג, יצרן, דגם, מספר סידורי, תאריך התקנה).</span></div></div>
+    <div class="step-box"><div class="step-num">2</div><div class="step-content"><strong>תיאור התקלה</strong><span>הזן תיאור חופשי של התקלה. אפשר לצרף תמונות מהלקוח, קבצים קודמים. AI מציע קטגוריה ועדיפות ראשונית אוטומטית.</span></div></div>
+    <div class="step-box"><div class="step-num">3</div><div class="step-content"><strong>קביעת עדיפות</strong><span>בחר: דחוף 🔴 (4 שעות), גבוה 🟠 (24 שעות), רגיל 🟡 (48 שעות), נמוך ⚪ (מתוזמן). לחוזי SLA — עדיפות נקבעת אוטומטית.</span></div></div>
+    <div class="step-box"><div class="step-num">4</div><div class="step-content"><strong>הקצאת טכנאי</strong><span>המערכת מציגה טכנאים פנויים לפי אזור, מומחיות ועומס. בחר טכנאי → נשלחת אליו התראה push עם פרטי הקריאה וכתובת הניווט.</span></div></div>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#c2410c;">מחזור חיי קריאה</h3>
+    <div class="pipeline-step"><div class="dot" style="background:#94a3b8;"></div><strong>חדשה</strong>&nbsp;— נפתחה, ממתינה להקצאה</div>
+    <div class="pipeline-step"><div class="dot" style="background:#3b82f6;"></div><strong>הוקצתה</strong>&nbsp;— טכנאי ידוע, לא יצא לשטח</div>
+    <div class="pipeline-step"><div class="dot" style="background:#f97316;"></div><strong>בדרך</strong>&nbsp;— טכנאי בנסיעה ללקוח</div>
+    <div class="pipeline-step"><div class="dot" style="background:#eab308;"></div><strong>בטיפול</strong>&nbsp;— עבודה בפועל מתבצעת</div>
+    <div class="pipeline-step"><div class="dot" style="background:#8b5cf6;"></div><strong>ממתין לאישור/חלק</strong>&nbsp;— הצעת מחיר נשלחה / חלק הוזמן</div>
+    <div class="pipeline-step"><div class="dot" style="background:#22c55e;"></div><strong>הושלם</strong>&nbsp;— עבודה סיימה, דוח שטח הוגש</div>
+    <div class="pipeline-step"><div class="dot" style="background:#dc2626;"></div><strong>בוטל</strong>&nbsp;— בוטל ע"י לקוח / מנהל</div>
+    <div class="tip-box"><strong>💡 SMS אוטומטי:</strong> בכל שינוי סטטוס, הלקוח מקבל הודעת SMS / WhatsApp עדכון אוטומטית. ניתן להתאים אישית.</div>
+  </div>
+</section>
+
+<!-- 6. TECHNICIANS -->
+<section class="section-card" id="technicians">
+  <div class="section-header"><span style="font-size:1.5rem;">👷</span><h2>ניהול טכנאים בשטח</h2></div>
+  <div class="section-body">
+    <div class="img-placeholder"><i class="fa-solid fa-map-location-dot"></i>📸 כאן תופיע תמונת מסך של מפת הטכנאים בשטח</div>
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#c2410c;">מפת מיקום חיה</h3>
+    <ul class="check-list">
+      <li>מיקום GPS של כל טכנאי מתעדכן בזמן אמת (כל 60 שניות)</li>
+      <li>צבע סמל לפי סטטוס: ירוק=פנוי, כתום=בדרך, אדום=בטיפול</li>
+      <li>ניתן לגרור קריאה ממפה ישירות לטכנאי הקרוב</li>
+      <li>היסטוריית מסלול טכנאי ביום נתון</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#c2410c;">הקצאת קריאות</h3>
+    <ul class="check-list">
+      <li>הקצאה ידנית — מנהל בוחר טכנאי מהרשימה</li>
+      <li>הקצאה חכמה — AI מציע טכנאי אופטימלי לפי מיקום + מומחיות + עומס</li>
+      <li>הקצאה אוטומטית — לקריאות שגרתיות לפי כלל מוגדר מראש</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#c2410c;">עדכון סטטוס בשטח</h3>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.5rem;">הטכנאי מעדכן מהאפליקציה הנייד:</p>
+    <ul class="check-list">
+      <li>צילום תמונות לפני / אחרי תיקון</li>
+      <li>רישום חלקים שהוחלפו (סריקת ברקוד/QR)</li>
+      <li>זמן פתיחה ♦ זמן סגירה → חישוב אוטומטי עלות עבודה</li>
+      <li>חתימת לקוח דיגיטלית אישור עבודה</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#c2410c;">דוח יומי</h3>
+    <ul class="check-list">
+      <li>כמה קריאות טופל, כמה שעות עבד</li>
+      <li>חלקים שנצרכו ועלות</li>
+      <li>קריאות ממתינות ל"מחר"</li>
+      <li>ייצוא PDF לשכר וגבייה</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 7. CALENDAR -->
+<section class="section-card" id="calendar">
+  <div class="section-header"><span style="font-size:1.5rem;">📅</span><h2>יומן ותאום</h2></div>
+  <div class="section-body">
+    <div class="img-placeholder"><i class="fa-solid fa-calendar-days"></i>📸 כאן תופיע תמונת מסך של היומן</div>
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#c2410c;">תצוגות יומן</h3>
+    <ul class="check-list">
+      <li>תצוגת יום/שבוע/חודש — כל הקריאות המתוזמנות</li>
+      <li>תצוגת צוות — רצועה נפרדת לכל טכנאי, ניתן לגרור להעביר קריאות</li>
+      <li>תצוגת מפה — קריאות ממוינות גיאוגרפית לניהול מסלולים</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#c2410c;">אופטימיזציית מסלול</h3>
+    <ul class="check-list">
+      <li>AI מסדר קריאות היום לפי מסלול אופטימלי — חסכון בדלק ובזמן</li>
+      <li>ייצוא מסלול לניווט Google Maps / Waze</li>
+      <li>חישוב זמן נסיעה משוער בין קריאות</li>
+      <li>התראה כאשר יש פקק / עיכוב בדרך לקריאה הבאה</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#c2410c;">תיאום עם לקוח</h3>
+    <ul class="check-list">
+      <li>שלח ללקוח לינק בחירת חלון זמן (בדומה לקלנדלי)</li>
+      <li>לקוח בוחר → קריאה נכנסת לתור הטכנאי</li>
+      <li>תזכורת SMS / WhatsApp אוטומטית 24 שעות לפני ו-1 שעה לפני</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 8. PARTS -->
+<section class="section-card" id="parts">
+  <div class="section-header"><span style="font-size:1.5rem;">🔩</span><h2>ניהול חלקים ומלאי</h2></div>
+  <div class="section-body">
+    <div class="img-placeholder"><i class="fa-solid fa-boxes-stacking"></i>📸 כאן תופיע תמונת מסך של ניהול המלאי</div>
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#c2410c;">ניהול מחסן</h3>
+    <ul class="check-list">
+      <li>קטלוג חלקים: מק"ט, תיאור, יצרן, דגם תואם, מחיר עלות, מחיר מכירה</li>
+      <li>כמות מלאי בזמן אמת — מחסן ראשי + רכבי טכנאים</li>
+      <li>נקודת הזמנה מחדש — התראה כאשר מלאי נמוך מסף מוגדר</li>
+      <li>ייבוא/ייצוא Excel, QR code לכל פריט</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#c2410c;">שימוש חלקים בשטח</h3>
+    <ul class="check-list">
+      <li>טכנאי סורק ברקוד חלק שנצרך → מנוכה מהמלאי אוטומטית</li>
+      <li>חלק נוסף לחשבונית הלקוח אוטומטית</li>
+      <li>מעקב מלאי לפי רכב/טכנאי — יודעים מה יש בכל רכב</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#c2410c;">הזמנות ספקים</h3>
+    <ul class="check-list">
+      <li>יצירת הזמנת רכש ישירות מהמערכת</li>
+      <li>מעקב אחר הזמנות פתוחות וזמני אספקה</li>
+      <li>עדכון מלאי אוטומטי עם קבלת משלוח</li>
+    </ul>
+    <div class="warn-box"><strong>⚠️ שים לב:</strong> חלקים שנמכרו ללקוח מופיעים בחשבונית עם מחיר המכירה. עלות הרכש נשמרת לחישוב רווחיות פנימי.</div>
+  </div>
+</section>
+
+<!-- 9. QUOTES -->
+<section class="section-card" id="quotes">
+  <div class="section-header"><span style="font-size:1.5rem;">📄</span><h2>הצעות מחיר לתיקון</h2></div>
+  <div class="section-body">
+    <h3 style="font-weight:700;margin-bottom:0.75rem;color:#c2410c;">תהליך אבחון → הצעה → אישור → תיקון</h3>
+    <div class="pipeline-step"><div class="dot" style="background:#3b82f6;"></div><strong>אבחון:</strong>&nbsp;טכנאי מגיע, מאבחן תקלה ומזין ממצאים באפליקציה</div>
+    <div class="pipeline-step"><div class="dot" style="background:#f97316;"></div><strong>הצעת מחיר:</strong>&nbsp;המערכת מייצרת הצעה: עבודה + חלקים + מע"מ</div>
+    <div class="pipeline-step"><div class="dot" style="background:#eab308;"></div><strong>שליחה ללקוח:</strong>&nbsp;PDF / WhatsApp / לינק ייעודי לאישור אונליין</div>
+    <div class="pipeline-step"><div class="dot" style="background:#8b5cf6;"></div><strong>אישור לקוח:</strong>&nbsp;לחיצה על "אשר" → קריאה חוזרת לתור לביצוע תיקון</div>
+    <div class="pipeline-step"><div class="dot" style="background:#22c55e;"></div><strong>ביצוע:</strong>&nbsp;טכנאי מבצע תיקון, הצעה הופכת לחשבונית אוטומטית</div>
+    <div class="table-wrap">
+      <table>
+        <tr><th>רכיב הצעה</th><th>תיאור</th><th>מחיר</th></tr>
+        <tr><td>אבחון</td><td>ביקור טכנאי + זיהוי תקלה</td><td>₪150</td></tr>
+        <tr><td>עבודה</td><td>2 שעות טיפול × ₪180</td><td>₪360</td></tr>
+        <tr><td>חלק חילוף</td><td>מצוף מוטורי דגם X-200</td><td>₪220</td></tr>
+        <tr><td>מע"מ 18%</td><td></td><td>₪132</td></tr>
+        <tr><td><strong>סה"כ</strong></td><td></td><td><strong>₪862</strong></td></tr>
+      </table>
+    </div>
+    <div class="tip-box"><strong>💡 הצעה מרובת אפשרויות:</strong> ניתן להציע ללקוח שתי אפשרויות — תיקון חסכוני לעומת תיקון מלא. הלקוח בוחר מהלינק.</div>
+  </div>
+</section>
+
+<!-- 10. INVOICES -->
+<section class="section-card" id="invoices">
+  <div class="section-header"><span style="font-size:1.5rem;">🧾</span><h2>חשבוניות ותשלומים</h2></div>
+  <div class="section-body">
+    <ul class="check-list">
+      <li>חשבונית נוצרת אוטומטית מסגירת קריאה — כולל עבודה + חלקים</li>
+      <li>שליחה ב-PDF, מייל, WhatsApp</li>
+      <li>תמיכה בחשבונית מס + קבלה ישראלית</li>
+      <li>תשלום בכרטיס אשראי / Bit / PayBox ישר מהחשבונית</li>
+      <li>טכנאי יכול לגבות תשלום בשטח עם קורא כרטיס נייד</li>
+      <li>מעקב חובות פתוחים ותזכורות גבייה אוטומטיות</li>
+    </ul>
+    <div class="table-wrap">
+      <table>
+        <tr><th>סטטוס חשבונית</th><th>משמעות</th><th>פעולה</th></tr>
+        <tr><td><span class="badge badge-gray">טיוטה</span></td><td>לא נשלחה</td><td>ערוך / שלח</td></tr>
+        <tr><td><span class="badge badge-orange">נשלחה</span></td><td>ממתינה לתשלום</td><td>תזכורת</td></tr>
+        <tr><td><span class="badge badge-red">באיחור</span></td><td>עבר מועד תשלום</td><td>גבייה אוטומטית</td></tr>
+        <tr><td><span class="badge badge-green">שולמה</span></td><td>תשלום התקבל</td><td>קבלה</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- 11. CUSTOMERS & ASSETS -->
+<section class="section-card" id="customers">
+  <div class="section-header"><span style="font-size:1.5rem;">👤</span><h2>ניהול לקוחות ונכסים</h2></div>
+  <div class="section-body">
+    <div class="img-placeholder"><i class="fa-solid fa-building-user"></i>📸 כאן תופיע תמונת מסך של כרטיס לקוח עם נכסים</div>
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#c2410c;">כרטיס לקוח</h3>
+    <ul class="check-list">
+      <li>פרטי קשר, כתובות, הערות</li>
+      <li>היסטוריית קריאות שירות מלאה</li>
+      <li>חשבוניות וחובות פתוחים</li>
+      <li>חוזי תחזוקה פעילים</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#c2410c;">ניהול נכסי לקוח (Asset Management)</h3>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.5rem;">לכל לקוח ניתן לנהל רשימת מכשירים / ציוד בבעלותו:</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>שדה</th><th>דוגמה</th></tr>
+        <tr><td>סוג נכס</td><td>מזגן / מקרר / דוד / מעלית</td></tr>
+        <tr><td>יצרן ודגם</td><td>Daikin FTXS35</td></tr>
+        <tr><td>מספר סידורי</td><td>SN-2021-334455</td></tr>
+        <tr><td>תאריך התקנה</td><td>03/2021</td></tr>
+        <tr><td>תאריך אחריות</td><td>03/2023</td></tr>
+        <tr><td>תחזוקה אחרונה</td><td>11/2025</td></tr>
+        <tr><td>תחזוקה הבאה</td><td>11/2026 (תזכורת אוטומטית)</td></tr>
+      </table>
+    </div>
+    <div class="tip-box"><strong>💡 תזכורת תחזוקה:</strong> כאשר מתקרב מועד תחזוקה, המערכת שולחת ללקוח SMS/מייל אוטומטי עם הצעה לתאם ביקור.</div>
+  </div>
+</section>
+
+<!-- 12. MAINTENANCE CONTRACTS -->
+<section class="section-card" id="contracts">
+  <div class="section-header"><span style="font-size:1.5rem;">📋</span><h2>חוזי תחזוקה שוטפת</h2></div>
+  <div class="section-body">
+    <div class="img-placeholder"><i class="fa-solid fa-file-contract"></i>📸 כאן תופיע תמונת מסך של ניהול חוזי תחזוקה</div>
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#c2410c;">סוגי חוזים</h3>
+    <div class="role-card">
+      <h4>📅 חוזה ביקורים תקופתיים</h4>
+      <p style="font-size:0.875rem;color:#475569;">X ביקורים בשנה לתחזוקה מונעת. המערכת מתזמנת ביקורים אוטומטית ומייצרת קריאה שירות + חשבונית חודשית/רבעונית.</p>
+    </div>
+    <div class="role-card">
+      <h4>🛡️ חוזה תיקונים כולל</h4>
+      <p style="font-size:0.875rem;color:#475569;">תשלום חודשי קבוע — לקוח מקבל שירות ותיקונים כלולים (עד מגבלה). כלי מעקב מציג את עלות הכיסוי לעומת ה"צריכה" בפועל.</p>
+    </div>
+    <div class="role-card">
+      <h4>⚡ חוזה עדיפות + SLA</h4>
+      <p style="font-size:0.875rem;color:#475569;">לקוח מקבל תגובה מובטחת תוך 4/8/24 שעות. המערכת מסמנת קריאות SLA בצבע ייעודי ומתריעה לפני פגיעה בהתחייבות.</p>
+    </div>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#c2410c;">חיוב חוזי</h3>
+    <ul class="check-list">
+      <li>חשבונית חוזרת אוטומטית בתאריך מוסכם (חודשי / רבעוני / שנתי)</li>
+      <li>חידוש אוטומטי עם התראה מראש ל-30 יום</li>
+      <li>התראה כאשר חוזה עומד לפוג</li>
+      <li>דוח ניצול חוזה — כמה ביקורים/שעות נוצלו מתוך המגבלה</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 13. REPORTS -->
+<section class="section-card" id="reports">
+  <div class="section-header"><span style="font-size:1.5rem;">📈</span><h2>דוחות ואנליטיקה</h2></div>
+  <div class="section-body">
+    <div class="img-placeholder"><i class="fa-solid fa-chart-bar"></i>📸 כאן תופיע תמונת מסך של דוחות</div>
+    <h3 style="font-weight:700;margin-bottom:0.75rem;color:#c2410c;">מדדי ביצוע מרכזיים</h3>
+    <div class="table-wrap">
+      <table>
+        <tr><th>מדד</th><th>הגדרה</th><th>יעד טוב</th></tr>
+        <tr><td>MTTR</td><td>Mean Time To Repair — זמן ממוצע לסגירת קריאה</td><td>פחות מ-3 שעות</td></tr>
+        <tr><td>First Fix Rate</td><td>אחוז קריאות שנסגרו בביקור ראשון</td><td>מעל 75%</td></tr>
+        <tr><td>SLA Compliance</td><td>אחוז קריאות שנסגרו בזמן SLA מובטח</td><td>מעל 95%</td></tr>
+        <tr><td>עלות לקריאה</td><td>שעות + חלקים חלקי מספר קריאות</td><td>לפי ענף</td></tr>
+        <tr><td>שביעות רצון NPS</td><td>ציון שביעות רצון אחרי כל קריאה</td><td>מעל 4.5/5</td></tr>
+      </table>
+    </div>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#c2410c;">דוחות טכנאים</h3>
+    <ul class="check-list">
+      <li>מספר קריאות לטכנאי ביום/שבוע/חודש</li>
+      <li>ממוצע זמן טיפול לטכנאי — ניהול ביצועים</li>
+      <li>אחוז first-fix לפי טכנאי — זיהוי צורכי הכשרה</li>
+      <li>הכנסה שנוצרה לפי טכנאי</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#c2410c;">דוחות פיננסיים</h3>
+    <ul class="check-list">
+      <li>הכנסות חודשיות — עבודה / חלקים / חוזים</li>
+      <li>שולי רווח גולמי לפי סוג שירות</li>
+      <li>חובות פתוחים ואיחורי תשלום</li>
+      <li>עלות מלאי שנצרך לעומת הכנסה מחלקים</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 14. ALERTS -->
+<section class="section-card" id="alerts">
+  <div class="section-header"><span style="font-size:1.5rem;">⚠️</span><h2>התראות ומעקב</h2></div>
+  <div class="section-body">
+    <div class="table-wrap">
+      <table>
+        <tr><th>התראה</th><th>מתי</th><th>למי</th></tr>
+        <tr><td>קריאה דחופה ממתינה</td><td>לא הוקצה טכנאי תוך 30 דקות</td><td>מנהל + מוקד</td></tr>
+        <tr><td>SLA בסכנה</td><td>נותרו 2 שעות לחריגת SLA</td><td>מנהל</td></tr>
+        <tr><td>מלאי נמוך</td><td>כמות מלאי ירדה מתחת לסף</td><td>מנהל מלאי</td></tr>
+        <tr><td>חשבונית באיחור</td><td>עברו 7/14/30 יום ממועד תשלום</td><td>מנהל + גבייה</td></tr>
+        <tr><td>חוזה עומד לפוג</td><td>30 יום לפני סיום חוזה</td><td>מנהל + מכירות</td></tr>
+        <tr><td>מועד תחזוקה נכסים</td><td>חודש לפני תחזוקה מתוכננת</td><td>מוקד + לקוח</td></tr>
+        <tr><td>טכנאי לא עדכן סטטוס</td><td>קריאה ב"בטיפול" מעל שעתיים</td><td>מנהל</td></tr>
+        <tr><td>ביקורת שלילית</td><td>לקוח נתן דירוג 1-2 כוכבים</td><td>מנהל</td></tr>
+      </table>
+    </div>
+    <div class="tip-box"><strong>💡 ערוצי התראה:</strong> Push נייד, מייל, SMS, Slack/Teams. ניתן להגדיר ערוץ לפי סוג התראה.</div>
+  </div>
+</section>
+
+<!-- 15. INBOX -->
+<section class="section-card" id="inbox">
+  <div class="section-header"><span style="font-size:1.5rem;">💬</span><h2>הודעות (Inbox)</h2></div>
+  <div class="section-body">
+    <ul class="check-list">
+      <li>קריאות שירות חדשות מהעמוד הציבורי</li>
+      <li>הודעות מלקוחות ONEFLOW</li>
+      <li>בקשות תיאום שעה מלקוחות</li>
+      <li>שאלות על הצעות מחיר פתוחות</li>
+      <li>אישורי עבודה וחתימות לקוח</li>
+    </ul>
+    <div class="tip-box"><strong>💡 תיוג אוטומטי:</strong> AI מסווג הודעות — קריאה דחופה, בקשת מידע, תלונה — ומפנה לנציג/מנהל המתאים.</div>
+    <div class="info-box"><strong>📱 ניתן לענות ישירות:</strong> תשובה ללקוח ONEFLOW ישירות מה-Inbox — הוא מקבל הודעה ב-ONEFLOW שלו.</div>
+  </div>
+</section>
+
+<!-- 16. ONEFLOW LIFE -->
+<section class="section-card" id="oneflow">
+  <div class="section-header"><span style="font-size:1.5rem;">🔗</span><h2>ONEFLOW LIFE — חיבוריות לקוחות</h2></div>
+  <div class="section-body">
+    <div class="tip-box"><strong>💡 ONEFLOW:</strong> לקוחות שנרשמו ב-ONEFLOW LIFE ומספר טלפונם תואם — מזוהים אוטומטית ומקבלים חוויה מחוברת.</div>
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#c2410c;">מה לקוח ONEFLOW מקבל</h3>
+    <ul class="check-list">
+      <li>עדכוני סטטוס קריאה בזמן אמת ב-ONEFLOW שלו</li>
+      <li>מעקב אחר הטכנאי בדרך — ETA חי</li>
+      <li>צפייה בהצעת מחיר ואישור/דחייה מהאפליקציה</li>
+      <li>קבלת חשבונית ותשלום ישיר מ-ONEFLOW</li>
+      <li>תזכורות תחזוקה תקופתית לנכסיהם</li>
+      <li>היסטוריית כל הקריאות, חשבוניות וחוזים</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#c2410c;">תקשורת דו-כיוונית</h3>
+    <ul class="check-list">
+      <li>לקוח שולח הודעה / שאלה מ-ONEFLOW → מגיעה ל-Inbox שלך</li>
+      <li>אתה עונה → הלקוח רואה תשובה ב-ONEFLOW שלו</li>
+      <li>כל השיחה שמורה ומשויכת לכרטיס הלקוח</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#c2410c;">שידורים לכלל לקוחות ONEFLOW</h3>
+    <ul class="check-list">
+      <li>שלח הודעת שירות לכל לקוחות ONEFLOW: "עדכון שעות קיץ"</li>
+      <li>מבצע תחזוקה לקראת קיץ לכל בעלי מזגן</li>
+      <li>עדכון מחירים — הודעה מראש</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 17. AI TOOLS -->
+<section class="section-card" id="ai-tools">
+  <div class="section-header"><span style="font-size:1.5rem;">🤖</span><h2>כלי AI</h2></div>
+  <div class="section-body">
+    <div class="role-card">
+      <h4>🔍 אבחון עזרה — Diagnosis Assistant</h4>
+      <p style="font-size:0.875rem;color:#475569;">טכנאי מתאר תסמינים בשדה → AI מציע סיבות נפוצות, חלקים עלולים להתקלקל, ופתרונות מבוסס מאגר ידע עצום. מקצר זמן אבחון ב-40%.</p>
+    </div>
+    <div class="role-card">
+      <h4>📊 תחזית תקלות — Predictive Maintenance</h4>
+      <p style="font-size:0.875rem;color:#475569;">AI מנתח היסטוריית תקלות לפי מכשיר, גיל וסביבה — מזהה נכסים בסיכון גבוה לתקלה בחודשים הקרובים. שלח הצעת תחזוקה מונעת לפני התקלה.</p>
+    </div>
+    <div class="role-card">
+      <h4>🗺️ אופטימיזציית מסלול — Route AI</h4>
+      <p style="font-size:0.875rem;color:#475569;">AI מחשב מסלול יומי אופטימלי לכל טכנאי לפי קריאות, מיקום, תנועה ועדיפויות. חסכון ממוצע של 25% בזמן נסיעה.</p>
+    </div>
+    <div class="role-card">
+      <h4>📝 כתיבת הצעת מחיר חכמה</h4>
+      <p style="font-size:0.875rem;color:#475569;">הזן ממצאי אבחון → AI מייצר הצעת מחיר מפורטת ומקצועית כולל פירוט עבודה, חלקים ועלויות — מותאמת לסגנון העסק.</p>
+    </div>
+    <div class="role-card">
+      <h4>📧 גבייה אוטומטית חכמה</h4>
+      <p style="font-size:0.875rem;color:#475569;">AI מנסח הודעות גבייה מנומסות בסגנון מותאם לקוח ולפי עומק האיחור. שולח בעיתוי מיטבי להגדלת אחוז גבייה.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 18. STOREFRONT -->
+<section class="section-card" id="storefront">
+  <div class="section-header"><span style="font-size:1.5rem;">🌐</span><h2>עמוד שירות ציבורי</h2></div>
+  <div class="section-body">
+    <div class="img-placeholder"><i class="fa-solid fa-globe"></i>📸 כאן תופיע תמונת מסך של עמוד השירות הציבורי</div>
+    <ul class="check-list">
+      <li>לוגו, שם עסק, תחום, שעות פעילות</li>
+      <li>רשימת שירותים עם תיאור ומחיר אינדיקטיבי (אופציונלי)</li>
+      <li>טופס פתיחת קריאה ציבורי — לקוח מזין: שם, טלפון, כתובת, תיאור תקלה</li>
+      <li>בחירת חלון זמן מועדף לביקור</li>
+      <li>ביקורות ודירוג לקוחות</li>
+      <li>לקוח ONEFLOW מזוהה אוטומטית בביקור בעמוד</li>
+    </ul>
+    <div class="tip-box"><strong>💡 SEO מקומי:</strong> העמוד הציבורי ממוטב לחיפוש Google המקומי. לקוחות שמחפשים "תיקון מזגן [עיר]" יכולים למצוא אתכם ישירות.</div>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#c2410c;">קישורי שיתוף</h3>
+    <ul class="check-list">
+      <li>לינק ייעודי לכל סוג שירות — לשיתוף ברשתות חברתיות</li>
+      <li>כפתור WhatsApp לפתיחת קריאה מהירה</li>
+      <li>QR code לדלת / כרטיס ביקור</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 19. FAQ -->
+<section class="section-card" id="faq">
+  <div class="section-header"><span style="font-size:1.5rem;">❓</span><h2>שאלות נפוצות</h2></div>
+  <div class="section-body">
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>כמה טכנאים ניתן לנהל במערכת?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">אין הגבלה. המערכת מתאימה לעסק עם 1 טכנאי ועד מאות טכנאים. עם יותר טכנאים, מפת ה-GPS, מנוע ההקצאה החכמה ודוחות הביצועים יהיו חיוניים יותר.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>האם הטכנאי חייב להוריד אפליקציה?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">כן — אפליקציית ONEFLOW Technician לנייד (iOS/Android) נדרשת לעדכוני GPS, קריאת קריאות, עדכון סטטוס וצילום תמונות. ההתקנה חינמית וממשק פשוט.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>איך מנהלים מלאי רכב טכנאי?</span><i class="fa-solid fa-chevron-down text s-slate-400"></i></div>
+      <div class="faq-a">כל טכנאי מוגדר עם "מחסן רכב" אישי. בתחילת יום הטכנאי "טוען" מהמחסן הראשי → כשמשתמש בחלק מנכה מהרכב → בסוף יום מתאם מלאי חוזר.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>האם ניתן להפעיל שעון SLA על חוזים?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">כן. בכל חוזה מגדירים זמני תגובה לפי עדיפות (דחוף/רגיל/תכנוני). כשנפתחת קריאה מלקוח חוזה — מתחיל מד זמן SLA. מנהל מקבל התראה לפני חריגה.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>האם לקוח יכול לעקוב אחרי הטכנאי בדרך?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">כן, ללקוחות ONEFLOW יש מעקב ETA חי. ללקוחות ציבוריים — נשלחת הודעת SMS עם הלינק למעקב כשהטכנאי יוצא לדרך.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>האם ניתן לייבא לקוחות קיימים?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">כן. ייבוא CSV עם שדות: שם, טלפון, מייל, כתובת. ייבוא נכסים — קובץ Excel עם עמודות: לקוח, סוג נכס, דגם, מ"ס, תאריך התקנה.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>איך עובדים חוזי תחזוקה עם ביקורים שנתיים?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">הגדר חוזה שנתי עם 2 ביקורים — המערכת יוצרת אוטומטית 2 קריאות שירות מתוזמנות בתאריכים שהגדרת, ומייצרת חשבונית שנתית. ניתן לחלק לתשלומים חודשיים.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>האם ניתן לנהל כמה ענפי שירות (מזגנים + אינסטלציה) מאותו עסק?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">כן. הגדר קטגוריות שירות מרובות תחת אותו עסק. ניתן לשייך כל טכנאי לקטגוריות מסוימות, ודוחות ניתן לסנן לפי קטגוריה.</div>
+    </div>
+  </div>
+</section>
+
+<div style="text-align:center;padding:2rem 0;color:#94a3b8;font-size:0.8rem;border-top:1px solid #e2e8f0;margin-top:1rem;">
+  <div style="font-weight:600;color:#ea580c;font-size:1rem;margin-bottom:0.25rem;">🔧 ONEFLOW BUSINESS — מדריך תחזוקה ותיקונים</div>
+  <div>עדכון אחרון: יוני 2026 | v1.0</div>
+  <div style="margin-top:0.5rem;">
+    <a href="/biz-guide.html" style="color:#ea580c;">מדריך כללי</a> ·
+    <a href="/services-guide.html" style="color:#ea580c;">שירותים מקצועיים</a> ·
+    <a href="/restaurant-guide.html" style="color:#ea580c;">מסעדה</a> ·
+    <a href="/guide.html" style="color:#ea580c;">ONEFLOW</a>
+  </div>
+</div>
+
+</main>
+
+<script>
+window.addEventListener('scroll', () => {
+  const s = document.documentElement;
+  const pct = (s.scrollTop / (s.scrollHeight - s.clientHeight)) * 100;
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('back-top').style.opacity = s.scrollTop > 300 ? '1' : '0';
+});
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.nav-link');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { navLinks.forEach(l => l.classList.remove('active')); const a = document.querySelector('.nav-link[href="#'+e.target.id+'"]'); if(a) a.classList.add('active'); }});
+}, { threshold: 0.3 });
+sections.forEach(s => obs.observe(s));
+function toggleFaq(el) { const a = el.nextElementSibling; a.classList.toggle('open'); el.querySelector('i').style.transform = a.classList.contains('open') ? 'rotate(180deg)' : ''; }
+function searchSections(q) { if(!q){document.querySelectorAll('.section-card').forEach(s=>s.style.display='');return;} const lq=q.toLowerCase(); document.querySelectorAll('.section-card').forEach(s=>{s.style.display=s.textContent.toLowerCase().includes(lq)?'':'none';}); }
+function scrollTo(id) { document.querySelector(id)?.scrollIntoView({behavior:'smooth'}); }
+</script>
+</body>
+</html>

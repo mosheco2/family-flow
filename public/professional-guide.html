@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מדריך עסק מקצועי / ייעוץ — ONEFLOW BUSINESS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+  :root { --primary: #1d4ed8; --primary-dark: #1e3a8a; --primary-light: #eff6ff; }
+  * { scroll-behavior: smooth; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f9fafb; color: #1e293b; }
+  .sidebar { position: fixed; top: 0; right: 0; width: 260px; height: 100vh; overflow-y: auto; background: #fff; border-left: 1px solid #e2e8f0; z-index: 40; padding: 1rem 0; }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: #1d4ed8; border-radius: 2px; }
+  .main-content { margin-right: 260px; max-width: 900px; padding: 2rem; }
+  .nav-link { display: block; padding: 0.4rem 1.2rem; font-size: 0.82rem; color: #475569; border-right: 3px solid transparent; transition: all 0.15s; }
+  .nav-link:hover, .nav-link.active { color: #1d4ed8; border-right-color: #1d4ed8; background: #eff6ff; font-weight: 600; }
+  .nav-category { padding: 0.6rem 1.2rem 0.2rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.4rem; }
+  .hero { background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 50%, #3b82f6 100%); color: white; border-radius: 1.5rem; padding: 2.5rem; margin-bottom: 2rem; position: relative; overflow: hidden; }
+  .hero::before { content: '👔'; position: absolute; left: -10px; top: -10px; font-size: 8rem; opacity: 0.08; }
+  .hero::after { content: '📁'; position: absolute; left: 80px; bottom: -20px; font-size: 6rem; opacity: 0.06; }
+  .section-card { background: #fff; border-radius: 1rem; border: 1px solid #e2e8f0; margin-bottom: 1.5rem; overflow: hidden; }
+  .section-header { background: linear-gradient(90deg, #eff6ff, #f0f9ff); padding: 1rem 1.5rem; border-bottom: 1px solid #bfdbfe; display: flex; align-items: center; gap: 0.75rem; }
+  .section-header h2 { font-size: 1.15rem; font-weight: 700; color: #1e3a8a; }
+  .section-body { padding: 1.25rem 1.5rem; }
+  .step-box { display: flex; gap: 1rem; margin-bottom: 1rem; align-items: flex-start; }
+  .step-num { min-width: 2rem; height: 2rem; background: #1d4ed8; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
+  .step-content { flex: 1; }
+  .step-content strong { display: block; font-weight: 700; color: #1e293b; margin-bottom: 0.2rem; }
+  .step-content p, .step-content span { font-size: 0.9rem; color: #475569; }
+  .tip-box { background: #eff6ff; border-right: 4px solid #1d4ed8; border-radius: 0.5rem; padding: 0.75rem 1rem; margin: 0.75rem 0; font-size: 0.875rem; }
+  .tip-box strong { color: #1e3a8a; }
+  .warn-box { background: #fef2f2; border-right: 4px solid #dc2626; border-radius: 0.5rem; padding: 0.75rem 1rem; margin: 0.75rem 0; font-size: 0.875rem; }
+  .info-box { background: #f0fdf4; border-right: 4px solid #16a34a; border-radius: 0.5rem; padding: 0.75rem 1rem; margin: 0.75rem 0; font-size: 0.875rem; }
+  .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 700; margin-left: 0.3rem; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-green { background: #dcfce7; color: #16a34a; }
+  .badge-gray { background: #f1f5f9; color: #475569; }
+  .badge-orange { background: #ffedd5; color: #c2410c; }
+  .badge-purple { background: #f5f3ff; color: #7c3aed; }
+  .role-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1rem; margin-bottom: 0.75rem; }
+  .role-card h4 { font-weight: 700; color: #1e293b; margin-bottom: 0.4rem; }
+  .table-wrap { overflow-x: auto; margin: 0.75rem 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  th { background: #eff6ff; color: #1e3a8a; font-weight: 700; padding: 0.6rem 0.75rem; text-align: right; border-bottom: 2px solid #bfdbfe; }
+  td { padding: 0.55rem 0.75rem; border-bottom: 1px solid #f1f5f9; }
+  tr:last-child td { border-bottom: none; }
+  .faq-item { border: 1px solid #e2e8f0; border-radius: 0.75rem; margin-bottom: 0.6rem; overflow: hidden; }
+  .faq-q { padding: 0.85rem 1.1rem; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #fff; transition: background 0.15s; font-size: 0.9rem; }
+  .faq-q:hover { background: #eff6ff; }
+  .faq-a { display: none; padding: 0.85rem 1.1rem; background: #fafafa; font-size: 0.875rem; color: #475569; border-top: 1px solid #f1f5f9; }
+  .faq-a.open { display: block; }
+  .chip { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; font-weight: 600; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; margin: 0.15rem; cursor: pointer; }
+  .chip:hover { background: #1d4ed8; color: white; }
+  .progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #1d4ed8, #3b82f6); z-index: 100; transition: width 0.2s; }
+  .back-top { position: fixed; bottom: 1.5rem; left: 1.5rem; background: #1d4ed8; color: white; width: 2.5rem; height: 2.5rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity 0.3s; z-index: 50; box-shadow: 0 4px 12px rgba(29,78,216,0.35); }
+  .search-box { padding: 0.6rem 1rem; margin: 0 0.8rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; font-size: 0.82rem; width: calc(100% - 1.6rem); }
+  @media(max-width:768px) { .sidebar{display:none;} .main-content{margin-right:0;padding:1rem;} }
+  .mobile-nav { display: none; position: sticky; top: 0; z-index: 30; background: white; border-bottom: 1px solid #e2e8f0; padding: 0.5rem 1rem; overflow-x: auto; white-space: nowrap; }
+  @media(max-width:768px) { .mobile-nav{display:block;} }
+  ul.check-list { list-style: none; padding: 0; }
+  ul.check-list li { padding: 0.25rem 0; font-size: 0.9rem; color: #475569; }
+  ul.check-list li::before { content: '✓ '; color: #1d4ed8; font-weight: 700; }
+  .module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 0.6rem; margin: 0.75rem 0; }
+  .module-item { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 0.6rem; padding: 0.6rem 0.75rem; font-size: 0.8rem; font-weight: 600; color: #1e3a8a; text-align: center; }
+  .pipeline-step { display: flex; align-items: center; gap: 0.5rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.6rem; padding: 0.6rem 1rem; margin-bottom: 0.4rem; font-size: 0.875rem; }
+  .pipeline-step .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .scenario-card { border: 1px solid #bfdbfe; border-radius: 0.75rem; background: #f8fbff; padding: 1rem 1.25rem; margin-bottom: 0.75rem; }
+  .scenario-card h4 { font-weight: 700; color: #1e3a8a; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progress-bar" style="width:0%"></div>
+<div class="back-top" id="back-top" onclick="window.scrollTo({top:0,behavior:'smooth'})"><i class="fa-solid fa-arrow-up text-sm"></i></div>
+
+<aside class="sidebar">
+  <div style="padding:1rem 1.2rem 0.5rem; border-bottom:1px solid #f1f5f9;">
+    <div style="font-size:1.1rem; font-weight:800; color:#1d4ed8;">👔 מדריך מקצועי</div>
+    <div style="font-size:0.72rem; color:#94a3b8; margin-top:0.2rem;">ONEFLOW BUSINESS</div>
+  </div>
+  <input class="search-box" id="sidebar-search" placeholder="חיפוש בתוכן..." oninput="searchSections(this.value)">
+  <nav id="sidebar-nav">
+    <div class="nav-category">מבוא</div>
+    <a class="nav-link" href="#quick-start">התחלה מהירה</a>
+    <a class="nav-link" href="#modules">מודולים פעילים</a>
+    <a class="nav-link" href="#user-types">תפקידי צוות</a>
+    <div class="nav-category">ניהול לקוחות ולידים</div>
+    <a class="nav-link" href="#customers">CRM לקוחות</a>
+    <a class="nav-link" href="#leads">לידים ולקוחות פוטנציאליים</a>
+    <a class="nav-link" href="#feed">פיד ועדכונים</a>
+    <div class="nav-category">תיקים ומכירות</div>
+    <a class="nav-link" href="#quotes">הצעות מחיר</a>
+    <a class="nav-link" href="#cases">תיקים (ניהול פרויקטים)</a>
+    <a class="nav-link" href="#documents">מסמכים</a>
+    <div class="nav-category">זמן ויומן</div>
+    <a class="nav-link" href="#calendar">יומן ופגישות</a>
+    <a class="nav-link" href="#timelog">דיווח שעות</a>
+    <a class="nav-link" href="#timeclock">שעון נוכחות</a>
+    <a class="nav-link" href="#tasks">משימות</a>
+    <div class="nav-category">פיננסים</div>
+    <a class="nav-link" href="#cashflow">תזרים מזומנים</a>
+    <a class="nav-link" href="#budget">תקציב</a>
+    <a class="nav-link" href="#bank">חשבון בנק</a>
+    <div class="nav-category">תוכן וחזית ציבורית</div>
+    <a class="nav-link" href="#storefront">אתר ציבורי</a>
+    <a class="nav-link" href="#articles">מאמרים ובלוג</a>
+    <a class="nav-link" href="#content">ניהול תוכן</a>
+    <div class="nav-category">נוספות</div>
+    <a class="nav-link" href="#members">ניהול צוות</a>
+    <a class="nav-link" href="#scenarios">תסריטי שימוש</a>
+    <a class="nav-link" href="#faq">שאלות נפוצות</a>
+  </nav>
+</aside>
+
+<div class="mobile-nav">
+  <span class="chip" onclick="location.href='#quick-start'">🚀 התחלה</span>
+  <span class="chip" onclick="location.href='#cases'">📁 תיקים</span>
+  <span class="chip" onclick="location.href='#quotes'">📄 הצעות</span>
+  <span class="chip" onclick="location.href='#customers'">👤 לקוחות</span>
+  <span class="chip" onclick="location.href='#calendar'">📅 יומן</span>
+  <span class="chip" onclick="location.href='#timelog'">⏱ שעות</span>
+  <span class="chip" onclick="location.href='#storefront'">🌐 אתר</span>
+  <span class="chip" onclick="location.href='#articles'">📝 מאמרים</span>
+</div>
+
+<main class="main-content">
+
+<!-- HERO -->
+<section class="hero" id="top">
+  <div style="position:relative;z-index:1;">
+    <div style="font-size:0.85rem;opacity:0.85;margin-bottom:0.4rem;">ONEFLOW BUSINESS — מדריך סוג עסק</div>
+    <h1 style="font-size:2rem;font-weight:900;margin-bottom:0.5rem;">👔 מדריך עסק מקצועי / ייעוץ</h1>
+    <p style="opacity:0.9;max-width:600px;line-height:1.6;">מדריך מקיף לניהול עסק מקצועי — עורכי דין, רואי חשבון, יועצים עסקיים, מנהלים, מטפלים, אדריכלים, מעצבים, יחסי ציבור, פסיכולוגים, מאמנים ועוד.</p>
+    <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">15 מודולים</span>
+      <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">מודל תיקים מקצועי</span>
+      <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">דיווח שעות מדויק</span>
+      <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">אתר ציבורי + מאמרים</span>
+    </div>
+  </div>
+</section>
+
+<!-- QUICK START -->
+<section class="section-card" id="quick-start">
+  <div class="section-header"><span style="font-size:1.5rem;">🚀</span><h2>התחלה מהירה — 5 צעדים</h2></div>
+  <div class="section-body">
+    <div class="step-box"><div class="step-num">1</div><div class="step-content"><strong>צור עסק מסוג "מקצועי / ייעוץ"</strong><span>ONEFLOW → צור קבוצה → עסק → בחר "מקצועי / ייעוץ". הגדר שם, לוגו ותחום התמחות.</span></div></div>
+    <div class="step-box"><div class="step-num">2</div><div class="step-content"><strong>הגדר שירותים וקטלוג</strong><span>מכירות → שירותים → הוסף שירותים עם תמחור (שעתי, קבוע, לפי פרויקט).</span></div></div>
+    <div class="step-box"><div class="step-num">3</div><div class="step-content"><strong>הוסף לקוח ראשון</strong><span>לקוחות → לקוח חדש → הזן שם, טלפון, דוא"ל. ניתן לייבא מרשימה קיימת.</span></div></div>
+    <div class="step-box"><div class="step-num">4</div><div class="step-content"><strong>שלח הצעת מחיר</strong><span>מכירות → הצעות → הצעה חדשה → בחר לקוח, הוסף שירותים, שלח ב-PDF / WhatsApp.</span></div></div>
+    <div class="step-box"><div class="step-num">5</div><div class="step-content"><strong>המר לתיק ופתח עבודה</strong><span>בהצעה שאושרה → "המר לתיק" → נפתח תיק עם יומן, מסמכים ומשתתפים.</span></div></div>
+    <div class="tip-box"><strong>💡 טיפ:</strong> הויזארד ינחה אותך צעד אחר צעד בהקמה הראשונית — לא תצטרך להגדיר הכל ידנית.</div>
+  </div>
+</section>
+
+<!-- MODULES -->
+<section class="section-card" id="modules">
+  <div class="section-header"><span style="font-size:1.5rem;">🧩</span><h2>מודולים פעילים בעסק מקצועי</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">המודולים הבאים זמינים בסוג העסק "מקצועי / ייעוץ". כל מודול הוא לשונית בתפריט הראשי.</p>
+    <div class="module-grid">
+      <div class="module-item">📰 פיד</div>
+      <div class="module-item">📊 מכירות</div>
+      <div class="module-item">👤 לקוחות</div>
+      <div class="module-item">📁 תיקים</div>
+      <div class="module-item">🎯 לידים</div>
+      <div class="module-item">⏱ דיווח שעות</div>
+      <div class="module-item">📄 מסמכים</div>
+      <div class="module-item">📅 יומן</div>
+      <div class="module-item">✅ משימות</div>
+      <div class="module-item">💰 תזרים</div>
+      <div class="module-item">📋 תקציב</div>
+      <div class="module-item">👥 חברים</div>
+      <div class="module-item">⏰ שעון נוכחות</div>
+      <div class="module-item">🏦 בנק</div>
+      <div class="module-item">🌐 תוכן</div>
+    </div>
+    <div class="info-box"><strong>הבדל מסוגי עסקים אחרים:</strong> בעסק מקצועי אין מודול חנות/חנות ציבורית (B2B) ואין מודול מלאי — הפוקוס הוא על ניהול תיקים, שעות, מסמכים ולקוחות.</div>
+  </div>
+</section>
+
+<!-- USER TYPES -->
+<section class="section-card" id="user-types">
+  <div class="section-header"><span style="font-size:1.5rem;">👥</span><h2>תפקידי צוות בעסק מקצועי</h2></div>
+  <div class="section-body">
+    <div class="role-card">
+      <h4>👑 מנהל / בעל עסק <span class="badge badge-blue">Admin</span></h4>
+      <p style="font-size:0.875rem;color:#475569;">גישה מלאה לכל המערכת: לקוחות, תיקים, כספים, צוות, הגדרות. יכול לראות רווחיות של כל תיק.</p>
+    </div>
+    <div class="role-card">
+      <h4>📋 עוזר מנהל <span class="badge badge-green">Assistant</span></h4>
+      <p style="font-size:0.875rem;color:#475569;">מנהל יומן, לקוחות ומשימות. אין גישה לדוחות פיננסיים מפורטים.</p>
+    </div>
+    <div class="role-card">
+      <h4>🔧 נותן שירות / יועץ <span class="badge badge-purple">Professional</span></h4>
+      <p style="font-size:0.875rem;color:#475569;">רואה רק את התיקים שהוא משויך אליהם. יכול לדווח שעות, להוסיף הערות ומסמכים. לא רואה מידע כספי.</p>
+    </div>
+    <div class="tip-box"><strong>💡 הוספת צוות:</strong> צוות ← הזמן עובד ← הגדר תפקיד. כל אחד מקבל גישה מותאמת לתפקידו.</div>
+  </div>
+</section>
+
+<!-- CUSTOMERS -->
+<section class="section-card" id="customers">
+  <div class="section-header"><span style="font-size:1.5rem;">👤</span><h2>CRM — ניהול לקוחות</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">לקוחות הוא לב המערכת — כל תיק, הצעה, יומן ומסמך מקושר ללקוח.</p>
+    <div class="step-box"><div class="step-num">1</div><div class="step-content"><strong>הוספת לקוח חדש</strong><span>לקוחות → + לקוח חדש → שם, טלפון, דוא"ל, כתובת, הערות.</span></div></div>
+    <div class="step-box"><div class="step-num">2</div><div class="step-content"><strong>כרטיס לקוח</strong><span>לחץ על לקוח → רואה: תיקים פתוחים, היסטוריית תיקים והצעות, פגישות, מסמכים, הערות.</span></div></div>
+    <div class="step-box"><div class="step-num">3</div><div class="step-content"><strong>חיפוש וסינון</strong><span>חפש לפי שם / טלפון / דוא"ל. סנן לפי תגיות, סטטוס פעיל/לא פעיל.</span></div></div>
+    <div class="tip-box"><strong>💡 היסטוריה בכרטיס לקוח:</strong> הלשונית "תיקים והצעות" מציגה את כל הפעילות של הלקוח — תיקים פתוחים, הצעות שנשלחו, תשלומים.</div>
+  </div>
+</section>
+
+<!-- LEADS -->
+<section class="section-card" id="leads">
+  <div class="section-header"><span style="font-size:1.5rem;">🎯</span><h2>לידים — לקוחות פוטנציאליים</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">לידים מגיעים אוטומטית מהאתר הציבורי (טופס יצירת קשר) או נוספים ידנית.</p>
+    <div class="step-box"><div class="step-num">1</div><div class="step-content"><strong>לידים מהאתר</strong><span>מישהו מילא טופס ביצירת קשר באתר שלך → מופיע אוטומטית ברשימת הלידים.</span></div></div>
+    <div class="step-box"><div class="step-num">2</div><div class="step-content"><strong>לידים ידניים</strong><span>לידים → + ליד חדש → שם, טלפון, צורך, מקור (המלצה / פרסום / רשת חברתית).</span></div></div>
+    <div class="step-box"><div class="step-num">3</div><div class="step-content"><strong>המרה ללקוח</strong><span>כשהליד אושר → "המר ללקוח" → נוצר כרטיס לקוח אוטומטית עם כל הפרטים.</span></div></div>
+    <div class="info-box"><strong>מעקב ליד:</strong> ניתן לסמן סטטוס — חדש / יצרנו קשר / בתהליך / סגור (הצלחה/כישלון). זה עוזר לראות מה קורה עם כל ליד.</div>
+  </div>
+</section>
+
+<!-- FEED -->
+<section class="section-card" id="feed">
+  <div class="section-header"><span style="font-size:1.5rem;">📰</span><h2>פיד — לוח בקרה ועדכונים</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">הפיד הוא הלשונית הראשית — רואים עדכונים, התראות, קיצורי דרך לפעולות נפוצות.</p>
+    <ul class="check-list">
+      <li>התראות על תיקים דחופים או עם תאריך יעד קרוב</li>
+      <li>פגישות היום ומחר</li>
+      <li>משימות שנפתחו ומשימות שפג תוקפן</li>
+      <li>לידים חדשים שהגיעו מהאתר</li>
+      <li>עדכונים על הצעות שנפתחו על ידי לקוחות</li>
+    </ul>
+  </div>
+</section>
+
+<!-- QUOTES -->
+<section class="section-card" id="quotes">
+  <div class="section-header"><span style="font-size:1.5rem;">📄</span><h2>הצעות מחיר</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">מכירות → הצעות. הצעות המחיר הן הנקודה שממנה מתחיל כל פרויקט.</p>
+    <div class="step-box"><div class="step-num">1</div><div class="step-content"><strong>הצעה חדשה</strong><span>+ הצעה חדשה → בחר לקוח → הוסף שירותים מהקטלוג → קבע מחיר, תנאי תשלום.</span></div></div>
+    <div class="step-box"><div class="step-num">2</div><div class="step-content"><strong>שליחה ללקוח</strong><span>שלח ב-PDF / WhatsApp / דוא"ל. הלקוח יכול לאשר אותה אונליין.</span></div></div>
+    <div class="step-box"><div class="step-num">3</div><div class="step-content"><strong>המרה לתיק</strong><span>כשהלקוח אישר ← "המר לתיק" ← נפתח תיק מקצועי אוטומטית.</span></div></div>
+    <div class="pipeline-step"><span class="dot" style="background:#3b82f6;"></span><strong>טיוטה</strong></div>
+    <div class="pipeline-step"><span class="dot" style="background:#f59e0b;"></span><strong>נשלחה</strong></div>
+    <div class="pipeline-step"><span class="dot" style="background:#8b5cf6;"></span><strong>נפתחה על ידי הלקוח</strong></div>
+    <div class="pipeline-step"><span class="dot" style="background:#16a34a;"></span><strong>אושרה ← המרה לתיק</strong></div>
+    <div class="pipeline-step"><span class="dot" style="background:#dc2626;"></span><strong>נדחתה</strong></div>
+  </div>
+</section>
+
+<!-- CASES -->
+<section class="section-card" id="cases">
+  <div class="section-header"><span style="font-size:1.5rem;">📁</span><h2>תיקים — ניהול פרויקטים מקצועיים</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">התיק הוא יחידת העבודה המרכזית בעסק מקצועי. כל פרויקט / לקוח / נושא מנוהל כתיק נפרד.</p>
+
+    <h3 style="font-weight:700;color:#1e3a8a;margin:1rem 0 0.5rem;">מה יש בתיק?</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>לשונית</th><th>מה רואים</th></tr></thead>
+        <tbody>
+          <tr><td><strong>סקירה</strong></td><td>פרטי התיק, סטטוס, תאריכי פתיחה/יעד, שכר טרחה</td></tr>
+          <tr><td><strong>משתתפים 👥</strong></td><td>אנשי צוות השייכים לתיק, שעות וביצועים</td></tr>
+          <tr><td><strong>מסמכים</strong></td><td>חוזים, נספחים, תוצרים — לפי תיק</td></tr>
+          <tr><td><strong>הערות תיק</strong></td><td>הערות פנימיות לצוות (לא גלויות ללקוח)</td></tr>
+          <tr><td><strong>פגישה ויומן</strong></td><td>תזמון פגישות מחוברות לתיק</td></tr>
+          <tr><td><strong>היסטוריית תיק 📋</strong></td><td>ציר זמן של כל הפעולות: פגישות, מסמכים, שינויי סטטוס</td></tr>
+          <tr><td><strong>עלויות</strong></td><td>שעות עבודה בתיק, שכר טרחה/הכנסה, רווחיות צפויה</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="font-weight:700;color:#1e3a8a;margin:1rem 0 0.5rem;">כיצד פותחים תיק?</h3>
+    <div class="step-box"><div class="step-num">1</div><div class="step-content"><strong>מהצעת מחיר (מומלץ)</strong><span>מכירות → הצעות → בהצעה מאושרת → "המר לתיק" → תיק נפתח עם כל פרטי הלקוח.</span></div></div>
+    <div class="step-box"><div class="step-num">2</div><div class="step-content"><strong>ישירות מרשימת התיקים</strong><span>מכירות → תיקים 📁 → + תיק חדש → בחר לקוח, הגדר נושא ותאריך.</span></div></div>
+
+    <h3 style="font-weight:700;color:#1e3a8a;margin:1rem 0 0.5rem;">ניהול שוטף של תיק</h3>
+    <ul class="check-list">
+      <li>הוסף משתתפים — בחר מהצוות, הגדר תפקיד בתיק</li>
+      <li>תזמן פגישה — לחץ "פגישה ויומן", הפגישה נרשמת ביומן ואצל כל המשתתפים</li>
+      <li>העלה מסמכים — חוזים, תוצרים, פרוטוקולים</li>
+      <li>דווח שעות — ממסך דיווח שעות עם ציון מספר התיק</li>
+      <li>עקוב אחרי רווחיות — בלשונית "עלויות": שעות × תעריף מול שכר טרחה</li>
+    </ul>
+
+    <div class="tip-box"><strong>💡 סטטוס תיק:</strong> פתוח / בטיפול / ממתין ללקוח / סגור. ניתן לסנן את רשימת התיקים לפי סטטוס.</div>
+  </div>
+</section>
+
+<!-- DOCUMENTS -->
+<section class="section-card" id="documents">
+  <div class="section-header"><span style="font-size:1.5rem;">📄</span><h2>מסמכים</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">ניהול מסמכים מקצועיים — חוזים, הצהרות, טפסים, תוצרים — כולם מקושרים לתיק ולקוח.</p>
+    <div class="step-box"><div class="step-num">1</div><div class="step-content"><strong>תבניות מסמכים</strong><span>מסמכים → תבניות → צור תבנית עם שדות דינמיים (שם לקוח, תאריך, סכום). שמור לשימוש חוזר.</span></div></div>
+    <div class="step-box"><div class="step-num">2</div><div class="step-content"><strong>מסמך לפי לקוח / תיק</strong><span>בתוך תיק → לשונית מסמכים → + מסמך → המערכת ממלאת פרטי לקוח אוטומטית.</span></div></div>
+    <div class="step-box"><div class="step-num">3</div><div class="step-content"><strong>הורדה ושליחה</strong><span>הורד כ-PDF, שלח ישירות ב-WhatsApp / דוא"ל לחתימה.</span></div></div>
+    <div class="info-box"><strong>דוגמאות לתבניות:</strong> חוזה שירות, הסכם סודיות (NDA), אישור קבלת פרויקט, דוח עבודה חודשי, פרוטוקול ישיבה.</div>
+  </div>
+</section>
+
+<!-- CALENDAR -->
+<section class="section-card" id="calendar">
+  <div class="section-header"><span style="font-size:1.5rem;">📅</span><h2>יומן ופגישות</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">יומן עסקי מרכזי — מציג פגישות, אבני דרך בתיקים, ומשימות בעלות תאריך יעד.</p>
+    <div class="step-box"><div class="step-num">1</div><div class="step-content"><strong>קביעת פגישה מהיומן</strong><span>יומן → לחץ על שעה ריקה → בחר לקוח / תיק → הגדר נושא ומשך.</span></div></div>
+    <div class="step-box"><div class="step-num">2</div><div class="step-content"><strong>קביעת פגישה מתוך תיק</strong><span>בתיק → "פגישה ויומן" → תזמן פגישה → הזימון נרשם ביומן ואצל כל משתתפי התיק.</span></div></div>
+    <div class="step-box"><div class="step-num">3</div><div class="step-content"><strong>תזכורות</strong><span>המערכת שולחת תזכורת אוטומטית לפני פגישה לפי הגדרת הזמן שתבחר.</span></div></div>
+    <div class="tip-box"><strong>💡 צבעים ביומן:</strong> כל סוג אירוע מוצג בצבע שונה — פגישה עם לקוח, משימה פנימית, אבן דרך בתיק.</div>
+  </div>
+</section>
+
+<!-- TIMELOG -->
+<section class="section-card" id="timelog">
+  <div class="section-header"><span style="font-size:1.5rem;">⏱</span><h2>דיווח שעות</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">מודול מרכזי לעסק מקצועי — מאפשר לעקוב אחרי שעות עבודה לפי תיק ועובד.</p>
+    <div class="step-box"><div class="step-num">1</div><div class="step-content"><strong>דיווח שעות ידני</strong><span>דיווח שעות → + רשומה → בחר תיק, תאריך, שעות, תיאור העבודה.</span></div></div>
+    <div class="step-box"><div class="step-num">2</div><div class="step-content"><strong>טיימר</strong><span>לחץ ▶ כדי להתחיל טיימר בזמן אמת → בסיום לחץ ⏹ → השעות נרשמות אוטומטית.</span></div></div>
+    <div class="step-box"><div class="step-num">3</div><div class="step-content"><strong>דוח שעות</strong><span>ראה סה"כ שעות לפי תיק, לפי עובד, לפי תקופה. שמש לחישוב שכר טרחה.</span></div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>מה רואים</th><th>איפה</th></tr></thead>
+        <tbody>
+          <tr><td>שעות לפי תיק</td><td>בתוך התיק → לשונית עלויות</td></tr>
+          <tr><td>שעות לפי עובד</td><td>דיווח שעות → סנן לפי עובד</td></tr>
+          <tr><td>שעות לפי תקופה</td><td>דיווח שעות → סנן לפי חודש</td></tr>
+          <tr><td>רווחיות תיק</td><td>תיק → עלויות → שעות × תעריף מול שכר טרחה</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="info-box"><strong>כיצד עובד החישוב:</strong> שעות עבודה × תעריף שעתי של העובד = עלות תיק. שכר טרחה ללקוח - עלות תיק = רווח צפוי.</div>
+  </div>
+</section>
+
+<!-- TIMECLOCK -->
+<section class="section-card" id="timeclock">
+  <div class="section-header"><span style="font-size:1.5rem;">⏰</span><h2>שעון נוכחות</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">שעון נוכחות פשוט — כניסה ויציאה לעבודה, שונה מדיווח שעות לתיק.</p>
+    <div class="step-box"><div class="step-num">1</div><div class="step-content"><strong>כניסה לעבודה</strong><span>שעון נוכחות → "כניסה" → רושם שעה + מיקום (אופציונלי).</span></div></div>
+    <div class="step-box"><div class="step-num">2</div><div class="step-content"><strong>יציאה</strong><span>שעון נוכחות → "יציאה" → רושם שעה ומחשב סה"כ שעות יום.</span></div></div>
+    <div class="step-box"><div class="step-num">3</div><div class="step-content"><strong>דוח נוכחות</strong><span>שעון נוכחות → היסטוריה → ראה נוכחות לפי עובד ולפי חודש.</span></div></div>
+    <div class="tip-box"><strong>ההבדל:</strong> שעון נוכחות = מתי הגעת/יצאת. דיווח שעות = כמה שעות עבדת על כל תיק ספציפי.</div>
+  </div>
+</section>
+
+<!-- TASKS -->
+<section class="section-card" id="tasks">
+  <div class="section-header"><span style="font-size:1.5rem;">✅</span><h2>משימות</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">ניהול משימות — יכולות להיות קשורות לתיק ספציפי או כלליות.</p>
+    <div class="step-box"><div class="step-num">1</div><div class="step-content"><strong>משימה חדשה</strong><span>משימות → + משימה → כותרת, תאריך יעד, שייך לעובד, קשר לתיק (אופציונלי).</span></div></div>
+    <div class="step-box"><div class="step-num">2</div><div class="step-content"><strong>מעקב סטטוס</strong><span>לא התחיל / בתהליך / הושלם. ניתן לסנן לפי סטטוס ועובד.</span></div></div>
+    <div class="step-box"><div class="step-num">3</div><div class="step-content"><strong>תזכורות</strong><span>קבל התראה כשמשימה מתקרבת לתאריך יעד או פגה.</span></div></div>
+  </div>
+</section>
+
+<!-- CASHFLOW -->
+<section class="section-card" id="cashflow">
+  <div class="section-header"><span style="font-size:1.5rem;">💰</span><h2>תזרים מזומנים</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">סקירה פיננסית של העסק — הכנסות, הוצאות, רווח נקי לפי תקופה.</p>
+    <ul class="check-list">
+      <li>הכנסות מתיקים ושכר טרחה</li>
+      <li>הוצאות כגון: משכורות, שכירות, ציוד, תוכנות</li>
+      <li>גרף תזרים חודשי / רבעוני / שנתי</li>
+      <li>השוואה בין תקופות</li>
+      <li>ייצוא לאקסל לרואה חשבון</li>
+    </ul>
+    <div class="tip-box"><strong>💡 שימוש:</strong> בדוק בסוף כל חודש — האם ההכנסות מכסות את ההוצאות? כמה תיקים פתוחים ומה הצפי שלהם?</div>
+  </div>
+</section>
+
+<!-- BUDGET -->
+<section class="section-card" id="budget">
+  <div class="section-header"><span style="font-size:1.5rem;">📋</span><h2>תקציב</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">תכנון תקציבי — הגדר יעד הכנסות ותקציב הוצאות לכל קטגוריה.</p>
+    <div class="step-box"><div class="step-num">1</div><div class="step-content"><strong>הגדר יעד הכנסה חודשי</strong><span>תקציב → הכנסות → הזן יעד. המערכת תמדוד את ההשגה בפועל.</span></div></div>
+    <div class="step-box"><div class="step-num">2</div><div class="step-content"><strong>הגדר תקציב הוצאות</strong><span>לפי קטגוריה: כוח אדם, שיווק, תפעול, ציוד. קבל התראה כשמתקרבים לתקרה.</span></div></div>
+    <div class="step-box"><div class="step-num">3</div><div class="step-content"><strong>מעקב ביצוע</strong><span>בכל חודש — ראה תקציב מול ביצוע בפועל לכל קטגוריה.</span></div></div>
+  </div>
+</section>
+
+<!-- BANK -->
+<section class="section-card" id="bank">
+  <div class="section-header"><span style="font-size:1.5rem;">🏦</span><h2>חשבון בנק</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">חיבור לחשבון הבנק לצורך מעקב תנועות ופיוס עם הרשומות במערכת.</p>
+    <ul class="check-list">
+      <li>ייבוא תנועות בנק מקובץ CSV (ממרבית הבנקים בישראל)</li>
+      <li>סיווג תנועות: הכנסה / הוצאה / העברה</li>
+      <li>התאמה בין תשלום שהתקבל בבנק לבין תיק ספציפי</li>
+      <li>מעקב יתרה שוטפת</li>
+    </ul>
+  </div>
+</section>
+
+<!-- MEMBERS -->
+<section class="section-card" id="members">
+  <div class="section-header"><span style="font-size:1.5rem;">👥</span><h2>ניהול צוות</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">הוסף עמיתים, שותפים, ועוזרים לעסק ושייך אותם לתיקים.</p>
+    <div class="step-box"><div class="step-num">1</div><div class="step-content"><strong>הזמנת איש צוות</strong><span>צוות → + הזמן → הזן דוא"ל → בחר תפקיד (מנהל / עוזר / נותן שירות).</span></div></div>
+    <div class="step-box"><div class="step-num">2</div><div class="step-content"><strong>שיוך לתיקים</strong><span>בכל תיק → משתתפים → + הוסף משתתף → בחר מהצוות.</span></div></div>
+    <div class="step-box"><div class="step-num">3</div><div class="step-content"><strong>עלות עובד</strong><span>הגדר תעריף שעתי לכל עובד — ישמש לחישוב עלות תיק מול שכר טרחה.</span></div></div>
+    <div class="info-box"><strong>עובד חיצוני / פרילנסר:</strong> ניתן להוסיף ולשייך לתיק ספציפי בלבד, ללא גישה לשאר הנתונים.</div>
+  </div>
+</section>
+
+<!-- STOREFRONT -->
+<section class="section-card" id="storefront">
+  <div class="section-header"><span style="font-size:1.5rem;">🌐</span><h2>אתר ציבורי — חזית העסק</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">האתר הציבורי של העסק שלך — גלוי לכולם, ממותג לעסק שלך, כולל 4 אזורים עיקריים.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>אזור</th><th>מה מציג</th><th>כיצד לערוך</th></tr></thead>
+        <tbody>
+          <tr><td><strong>עמוד ראשי</strong></td><td>שם העסק, תיאור, שירותים מרכזיים</td><td>תוכן → עמוד ראשי</td></tr>
+          <tr><td><strong>תחומי מומחיות</strong></td><td>רשימת תחומי ההתמחות שלך</td><td>תוכן → מומחיות</td></tr>
+          <tr><td><strong>מאמרים</strong></td><td>מאמרי בלוג / עמדות מקצועיות / מדריכים</td><td>תוכן → מאמרים → פרסם</td></tr>
+          <tr><td><strong>יצירת קשר</strong></td><td>טופס שליחת הודעה → מגיע אליך כליד</td><td>אוטומטי</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tip-box"><strong>💡 הגדרת כתובת האתר:</strong> הגדרות העסק → כתובת ציבורית. הלינק ניתן לשיתוף בכרטיס ביקור, אינסטגרם, לינקדאין.</div>
+  </div>
+</section>
+
+<!-- ARTICLES -->
+<section class="section-card" id="articles">
+  <div class="section-header"><span style="font-size:1.5rem;">📝</span><h2>מאמרים ובלוג מקצועי</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">פרסם מאמרים, תובנות, עמדות מקצועיות — מציגים באתר הציבורי שלך ובונים מוניטין.</p>
+    <div class="step-box"><div class="step-num">1</div><div class="step-content"><strong>כתיבת מאמר חדש</strong><span>תוכן → מאמרים → + מאמר חדש → כותרת, תמצית, תוכן, תמונה ראשית.</span></div></div>
+    <div class="step-box"><div class="step-num">2</div><div class="step-content"><strong>פרסום</strong><span>שמור כטיוטה ← ערוך ← "פרסם" ← מופיע מיידית באתר הציבורי.</span></div></div>
+    <div class="step-box"><div class="step-num">3</div><div class="step-content"><strong>תצוגה בציבור</strong><span>המבקרים באתר רואים עד 3 מאמרים אחרונים. לחיצה על מאמר פותחת אותו לקריאה מלאה.</span></div></div>
+    <div class="info-box"><strong>למה לפרסם מאמרים?</strong> בונה אמינות מקצועית, משפר חשיפה בגוגל, מעודד לידים להשאיר פרטים אחרי קריאה.</div>
+  </div>
+</section>
+
+<!-- CONTENT -->
+<section class="section-card" id="content">
+  <div class="section-header"><span style="font-size:1.5rem;">🎨</span><h2>ניהול תוכן</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">ניהול כל התוכן שמופיע באתר הציבורי — עמוד ראשי, תחומי מומחיות, מאמרים, לוגו.</p>
+    <ul class="check-list">
+      <li>שינוי שם העסק, סלוגן, תיאור</li>
+      <li>העלאת לוגו ותמונת כיסוי</li>
+      <li>הגדרת שירותים מרכזיים שמוצגים</li>
+      <li>עריכת אזור "אודות" ו"צור קשר"</li>
+      <li>ניהול תחומי מומחיות ומיומנויות</li>
+    </ul>
+  </div>
+</section>
+
+<!-- SCENARIOS -->
+<section class="section-card" id="scenarios">
+  <div class="section-header"><span style="font-size:1.5rem;">🎬</span><h2>תסריטי שימוש — יום רגיל בעסק</h2></div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">כיצד נראה יום עבודה טיפוסי בעסק מקצועי עם ONEFLOW?</p>
+
+    <div class="scenario-card">
+      <h4>🌅 בוקר — בדיקת מצב</h4>
+      <p style="font-size:0.875rem;color:#475569;">פיד → רואה: פגישות היום, משימות דחופות, לידים חדשים מהאתר. יומן → מוודא שכל הפגישות ביומן.</p>
+    </div>
+
+    <div class="scenario-card">
+      <h4>📞 ליד חדש הגיע</h4>
+      <p style="font-size:0.875rem;color:#475569;">לידים → פרטי הליד (הגיע מאתר) → יצירת קשר → קביעת שיחת היכרות ביומן → אחרי שיחה: המרה ללקוח + שליחת הצעת מחיר.</p>
+    </div>
+
+    <div class="scenario-card">
+      <h4>📄 לקוח אישר הצעה</h4>
+      <p style="font-size:0.875rem;color:#475569;">מכירות → הצעות → "המר לתיק" → שמות פרטי הלקוח → הוסף משתתפים → תזמן פגישת קיקאוף ביומן.</p>
+    </div>
+
+    <div class="scenario-card">
+      <h4>⏱ עבודה על תיק</h4>
+      <p style="font-size:0.875rem;color:#475569;">דיווח שעות → בחר תיק → הפעל טיימר → עבוד → עצור. או: דווח ידנית שעות בסוף היום עם תיאור מה נעשה.</p>
+    </div>
+
+    <div class="scenario-card">
+      <h4>📋 סיום פרויקט</h4>
+      <p style="font-size:0.875rem;color:#475569;">תיק → שנה סטטוס ל"סגור" → צור מסמך סיכום → שלח ללקוח → בדוק לשונית "עלויות" לראות רווחיות סופית.</p>
+    </div>
+
+    <div class="scenario-card">
+      <h4>📊 סוף חודש</h4>
+      <p style="font-size:0.875rem;color:#475569;">תזרים → ראה הכנסות vs. הוצאות החודש. תקציב → בדוק ביצוע מול יעד. דיווח שעות → ייצא דוח לחישוב שכר.</p>
+    </div>
+
+    <div class="scenario-card">
+      <h4>📝 שיווק ותוכן</h4>
+      <p style="font-size:0.875rem;color:#475569;">תוכן → מאמרים → כתוב מאמר מקצועי → פרסם. מופיע אוטומטית באתר. שתף לינק בלינקדאין / אינסטגרם.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section-card" id="faq">
+  <div class="section-header"><span style="font-size:1.5rem;">❓</span><h2>שאלות נפוצות</h2></div>
+  <div class="section-body">
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        <span>מה ההבדל בין תיק לפרויקט?</span>
+        <i class="fa-solid fa-chevron-down text-sm" style="color:#94a3b8;transition:transform 0.2s;"></i>
+      </div>
+      <div class="faq-a">תיק הוא המינוח שמשתמשים בו ב-ONEFLOW לסוג העסק "מקצועי / ייעוץ". הוא זהה לפרויקט — כולל יומן, מסמכים, משתתפים ומעקב שעות. מתאים לעורך דין, יועץ, מטפל, אדריכל וכל נותן שירות מקצועי.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        <span>איך מחשבים רווחיות תיק?</span>
+        <i class="fa-solid fa-chevron-down text-sm" style="color:#94a3b8;transition:transform 0.2s;"></i>
+      </div>
+      <div class="faq-a">בתוך התיק → לשונית "עלויות". המערכת לוקחת את שעות העבודה שדווחו × התעריף השעתי של כל עובד = עלות. שכר הטרחה שהגדרת בהצעה - עלות = רווח צפוי. ניתן לראות אחוז רווח.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        <span>האם לקוחות יכולים לראות את התיק?</span>
+        <i class="fa-solid fa-chevron-down text-sm" style="color:#94a3b8;transition:transform 0.2s;"></i>
+      </div>
+      <div class="faq-a">לא. התיקים הם פנימיים לצוות שלך. הלקוחות מקבלים: הצעת מחיר, מסמכים ספציפיים שתשלח אליהם, וגישה לאתר הציבורי שלך.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        <span>כיצד מגיעים לידים מהאתר?</span>
+        <i class="fa-solid fa-chevron-down text-sm" style="color:#94a3b8;transition:transform 0.2s;"></i>
+      </div>
+      <div class="faq-a">באתר הציבורי שלך יש טופס "צור קשר". כשמישהו ממלא אותו — הפרטים מגיעים אוטומטית ל"לידים" במערכת עם כל המידע שהזין. לא צריך לעשות כלום — מגיע לבד.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        <span>מה ההבדל בין דיווח שעות לשעון נוכחות?</span>
+        <i class="fa-solid fa-chevron-down text-sm" style="color:#94a3b8;transition:transform 0.2s;"></i>
+      </div>
+      <div class="faq-a">שעון נוכחות = שעת הגעה ויציאה מהעבודה (כמו כרטיס עובד). דיווח שעות = על איזה תיק עבדת ובמשך כמה זמן (לצורך חיוב לקוח וחישוב רווחיות).</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        <span>כיצד מוסיפים תחומי מומחיות לאתר?</span>
+        <i class="fa-solid fa-chevron-down text-sm" style="color:#94a3b8;transition:transform 0.2s;"></i>
+      </div>
+      <div class="faq-a">תוכן → עמוד ראשי → אזור מומחיות → + הוסף תחום → כתוב שם ותיאור קצר. מופיע מיידית באתר הציבורי.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        <span>האם ניתן לנהל כמה לקוחות במקביל?</span>
+        <i class="fa-solid fa-chevron-down text-sm" style="color:#94a3b8;transition:transform 0.2s;"></i>
+      </div>
+      <div class="faq-a">כן, בלי הגבלה. כל לקוח יכול להיות בו-זמנית בתיקים מרובים, עם נותני שירות שונים. כל תיק עצמאי, עם יומן, שעות ומסמכים נפרדים.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        <span>כיצד מייצאים נתונים לרואה חשבון?</span>
+        <i class="fa-solid fa-chevron-down text-sm" style="color:#94a3b8;transition:transform 0.2s;"></i>
+      </div>
+      <div class="faq-a">תזרים → ייצוא CSV. דיווח שעות → ייצוא. ניתן לסנן לפי תאריך ולייצא בדיוק את הטווח שצריך. הקובץ נפתח ב-Excel ישירות.</div>
+    </div>
+
+  </div>
+</section>
+
+</main>
+
+<script>
+// Progress bar
+window.addEventListener('scroll', () => {
+  const el = document.documentElement;
+  const pct = (el.scrollTop / (el.scrollHeight - el.clientHeight)) * 100;
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('back-top').style.opacity = el.scrollTop > 300 ? '1' : '0';
+});
+
+// Active nav
+const navLinks = document.querySelectorAll('.nav-link');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      navLinks.forEach(l => l.classList.remove('active'));
+      const link = document.querySelector(`.nav-link[href="#${e.target.id}"]`);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+document.querySelectorAll('section[id]').forEach(s => observer.observe(s));
+
+// FAQ toggle
+function toggleFaq(el) {
+  const ans = el.nextElementSibling;
+  const icon = el.querySelector('i');
+  ans.classList.toggle('open');
+  icon.style.transform = ans.classList.contains('open') ? 'rotate(180deg)' : '';
+}
+
+// Search
+function searchSections(q) {
+  if (!q) { navLinks.forEach(l => l.style.display = ''); return; }
+  navLinks.forEach(l => {
+    l.style.display = l.textContent.includes(q) ? '' : 'none';
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>אפיון סביבת Zone Manager וקהילה — OneFlow</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Heebo', sans-serif; }
+  code, pre { font-family: 'Fira Code', monospace; direction: ltr; }
+  pre { direction: ltr; text-align: left; }
+  table { border-collapse: collapse; width: 100%; }
+  h2 { scroll-margin-top: 80px; }
+  h3 { scroll-margin-top: 80px; }
+  @media print {
+    .no-print { display: none !important; }
+    body { font-size: 11pt; }
+    .page-break { page-break-before: always; }
+    pre, code { font-size: 9pt; }
+  }
+  .toc-link { transition: all .15s; }
+  .toc-link:hover { color: #7c3aed; padding-right: 4px; }
+  .step-circle { width:1.5rem; height:1.5rem; border-radius:9999px; display:flex; align-items:center; justify-content:center; font-size:.7rem; font-weight:900; flex-shrink:0; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+<!-- Header -->
+<div class="no-print sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+  <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center">
+        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </div>
+      <div>
+        <h1 class="font-black text-slate-800 text-sm leading-none">אפיון Zone Manager וקהילה</h1>
+        <p class="text-[10px] text-slate-400 mt-0.5">OneFlow Life · Zone Manager &amp; Community · גרסה 2026-06-20</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="/docs/spec-zone-community.md" download class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        הורד MD
+      </a>
+      <button onclick="window.print()" class="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-bold transition">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+        שמור PDF
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="max-w-5xl mx-auto px-4 py-8 flex gap-8">
+
+  <!-- TOC sidebar -->
+  <aside class="no-print w-56 flex-shrink-0 hidden lg:block">
+    <div class="sticky top-20 bg-white rounded-2xl border border-slate-200 p-4 text-sm">
+      <p class="font-black text-slate-700 mb-3 text-xs uppercase tracking-wider">תוכן עניינים</p>
+      <nav class="space-y-1">
+        <a href="#s1" class="toc-link block text-slate-500 text-xs py-0.5">1. ארכיטקטורה</a>
+        <a href="#s2" class="toc-link block text-slate-500 text-xs py-0.5">2. ניווט וטאבים</a>
+        <a href="#s3" class="toc-link block text-slate-500 text-xs py-0.5">3. מודול אזורים</a>
+        <a href="#s4" class="toc-link block text-slate-500 text-xs py-0.5">4. מודול שיווק</a>
+        <a href="#s5" class="toc-link block text-slate-500 text-xs py-0.5">5. מודול לידים</a>
+        <a href="#s6" class="toc-link block text-slate-500 text-xs py-0.5">6. מודול אינבוקס</a>
+        <a href="#s7" class="toc-link block text-slate-500 text-xs py-0.5">7. מודול עמלות</a>
+        <a href="#s8" class="toc-link block text-slate-500 text-xs py-0.5">8. קמפיינים — flow מלא</a>
+        <a href="#s9" class="toc-link block text-slate-500 text-xs py-0.5">9. סביבת קהילה</a>
+        <a href="#s10" class="toc-link block text-slate-500 text-xs py-0.5">10. API Endpoints</a>
+        <a href="#s11" class="toc-link block text-slate-500 text-xs py-0.5">11. לוגיקות מיוחדות</a>
+      </nav>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="flex-1 min-w-0 space-y-10">
+
+    <!-- Title block -->
+    <div class="bg-gradient-to-br from-violet-600 to-purple-700 rounded-3xl p-8 text-white">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-2xl">🗺️</div>
+        <div>
+          <h1 class="text-2xl font-black">מפרט טכני מקיף — Zone Manager וקהילה</h1>
+          <p class="text-violet-200 text-sm mt-1">OneFlow Life · Zone Manager &amp; Community Environment</p>
+        </div>
+      </div>
+      <p class="text-violet-100 text-sm leading-relaxed">מסמך זה מתאר את מלוא הפונקציונליות של סביבת Zone Manager (מנהל אזור) ומודול הקהילות במערכת OneFlow. נכתב לשימוש כמקור ידע ב-NotebookLM ולצרכי פיתוח.</p>
+      <div class="flex flex-wrap gap-2 mt-4">
+        <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-bold">6 טאבים</span>
+        <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-bold">4 פונקציות AI</span>
+        <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-bold">50+ API endpoints</span>
+        <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-bold">3 סוגי קמפיין</span>
+        <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-bold">גרסה 2026-06-20</span>
+      </div>
+    </div>
+
+    <!-- Section 1: Architecture -->
+    <section id="s1" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-sm font-black">1</span>
+        ארכיטקטורה
+      </h2>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">1.1 קבצים ו-URL</h3>
+      <div class="overflow-x-auto mb-6">
+        <table class="text-sm">
+          <thead><tr class="bg-slate-50"><th class="text-right p-3 border border-slate-200 font-bold text-slate-600">רכיב</th><th class="text-right p-3 border border-slate-200 font-bold text-slate-600">קובץ</th><th class="text-right p-3 border border-slate-200 font-bold text-slate-600">URL</th></tr></thead>
+          <tbody>
+            <tr><td class="p-3 border border-slate-100 font-mono text-xs text-violet-700">HTML</td><td class="p-3 border border-slate-100 text-xs">public/zone-manager.html</td><td class="p-3 border border-slate-100 font-mono text-xs">/zone-manager.html</td></tr>
+            <tr class="bg-slate-50"><td class="p-3 border border-slate-100 font-mono text-xs text-violet-700">JS</td><td class="p-3 border border-slate-100 text-xs">public/zone-manager-app.js</td><td class="p-3 border border-slate-100 text-xs">(טעון מה-HTML)</td></tr>
+            <tr><td class="p-3 border border-slate-100 font-mono text-xs text-violet-700">עמוד קמפיין</td><td class="p-3 border border-slate-100 text-xs">public/campaign.html</td><td class="p-3 border border-slate-100 font-mono text-xs">/campaign.html?t=TOKEN</td></tr>
+            <tr class="bg-slate-50"><td class="p-3 border border-slate-100 font-mono text-xs text-violet-700">OG Preview</td><td class="p-3 border border-slate-100 text-xs">route ב-server.js</td><td class="p-3 border border-slate-100 font-mono text-xs">/c/camp/:token</td></tr>
+            <tr><td class="p-3 border border-slate-100 font-mono text-xs text-violet-700">Backend</td><td class="p-3 border border-slate-100 text-xs">server.js</td><td class="p-3 border border-slate-100 font-mono text-xs">/api/zone-manager/*</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">1.2 מבנה ארגוני</h3>
+      <div class="bg-slate-900 rounded-2xl p-4 mb-6 overflow-x-auto">
+        <pre class="text-green-400 text-xs">Super Admin
+  └── Zone Manager (מנהל אזור)
+        └── Zones (אזורים גיאוגרפיים)
+              └── Communities (קהילות / שכונות)
+                    ├── Family Groups (משפחות)
+                    └── Business Groups (עסקים)</pre>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">1.3 מי משתמש בסביבה</h3>
+      <div class="bg-violet-50 border border-violet-100 rounded-2xl p-5 mb-6">
+        <p class="font-black text-violet-800 mb-3">Zone Manager = מנהל אזור</p>
+        <ul class="space-y-2 text-sm text-slate-700">
+          <li class="flex items-start gap-2"><span class="text-violet-500 mt-0.5">▸</span> אחראי על אזור גיאוגרפי הכולל מספר קהילות שכונתיות</li>
+          <li class="flex items-start gap-2"><span class="text-violet-500 mt-0.5">▸</span> מגייס משפחות ועסקים לפלטפורמה דרך קמפיינים</li>
+          <li class="flex items-start gap-2"><span class="text-violet-500 mt-0.5">▸</span> מפקח על קהילות, ממנה מנהלי קהילה מקומיים</li>
+          <li class="flex items-start gap-2"><span class="text-violet-500 mt-0.5">▸</span> מרוויח עמלה (ברירת מחדל: 5%) על פעילות בקהילות שלו</li>
+        </ul>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">1.4 קשר לסביבות FAMILY ו-BIZ</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
+          <p class="font-black text-indigo-700 text-sm mb-2">FAMILY</p>
+          <p class="text-xs text-slate-600">משפחות מצטרפות לקהילה בקוד → רואות עסקים מקומיים + הנחות + feed שכונתי</p>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
+          <p class="font-black text-emerald-700 text-sm mb-2">BIZ</p>
+          <p class="text-xs text-slate-600">עסקים מגישים בקשת הצטרפות לקהילה עם אחוז הנחה → עוברים אישור SA + ZM</p>
+        </div>
+        <div class="bg-violet-50 border border-violet-200 rounded-2xl p-4">
+          <p class="font-black text-violet-700 text-sm mb-2">ZONE MANAGER ← כאן</p>
+          <p class="text-xs text-slate-600">גשר בין שתי הסביבות: מגייס, מפקח, מנהל עמלות</p>
+        </div>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">1.5 Authentication</h3>
+      <div class="space-y-2 mb-4">
+        <div class="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+          <span class="step-circle bg-violet-600 text-white">1</span>
+          <div><p class="text-sm font-bold">כניסה</p><p class="text-xs text-slate-500">POST /api/zone-manager/login → token + manager object</p></div>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+          <span class="step-circle bg-violet-600 text-white">2</span>
+          <div><p class="text-sm font-bold">אחסון</p><p class="text-xs text-slate-500">localStorage: zm_token + zm_manager (JSON)</p></div>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+          <span class="step-circle bg-violet-600 text-white">3</span>
+          <div><p class="text-sm font-bold">כל בקשה</p><p class="text-xs text-slate-500">Header: Authorization: &lt;token&gt; → middleware verifyZoneManager</p></div>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+          <span class="step-circle bg-violet-500 text-white">*</span>
+          <div><p class="text-sm font-bold">הרשמה</p><p class="text-xs text-slate-500">בקשה → status=pending → Super Admin מאשר → status=active</p></div>
+        </div>
+      </div>
+      <pre class="bg-slate-900 text-green-400 rounded-xl p-4 text-xs overflow-x-auto">// Token format
+ZM_&lt;managerId&gt;_&lt;timestamp&gt;_&lt;random6&gt;   // session token (in-memory Map)
+ZMR_&lt;managerId&gt;_&lt;timestamp&gt;_&lt;random&gt;   // reset token (1hr TTL)</pre>
+    </section>
+
+    <!-- Section 2: Navigation -->
+    <section id="s2" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-sm font-black">2</span>
+        ניווט וטאבים
+      </h2>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">2.1 Stats Bar (תמיד גלוי)</h3>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-center">
+          <p class="text-2xl font-black text-indigo-700">N</p>
+          <p class="text-xs font-bold text-indigo-500">אזורים</p>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-center">
+          <p class="text-2xl font-black text-emerald-700">N</p>
+          <p class="text-xs font-bold text-emerald-500">קהילות</p>
+        </div>
+        <div class="bg-amber-50 border border-amber-100 rounded-xl p-3 text-center">
+          <p class="text-lg font-black text-amber-700">₪N</p>
+          <p class="text-xs font-bold text-amber-500">עמלות שנצברו</p>
+          <div class="text-[9px] text-amber-400 mt-0.5">מתחילת פעילות + חודש</div>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-center">
+          <p class="text-lg font-black text-emerald-700">₪N</p>
+          <p class="text-xs font-bold text-emerald-500">שולם</p>
+          <div class="w-full bg-slate-200 rounded-full h-1 mt-1"><div class="bg-emerald-400 h-1 rounded-full" style="width:60%"></div></div>
+        </div>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">2.2 טאבים ראשיים</h3>
+      <div class="overflow-x-auto">
+        <table class="text-sm">
+          <thead><tr class="bg-slate-50"><th class="text-right p-3 border border-slate-200 font-bold text-slate-600 text-xs">טאב</th><th class="text-right p-3 border border-slate-200 font-bold text-slate-600 text-xs">תיאור</th><th class="text-right p-3 border border-slate-200 font-bold text-slate-600 text-xs">טעינה</th></tr></thead>
+          <tbody>
+            <tr><td class="p-3 border border-slate-100 font-bold text-sm">אזורים</td><td class="p-3 border border-slate-100 text-xs">קהילות לפי אזורים גיאוגרפיים</td><td class="p-3 border border-slate-100 font-mono text-xs">renderZones()</td></tr>
+            <tr class="bg-slate-50"><td class="p-3 border border-slate-100 font-bold text-sm">בקשות עסקים <span class="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">badge</span></td><td class="p-3 border border-slate-100 text-xs">עסקים ממתינים לאישור ZM</td><td class="p-3 border border-slate-100 font-mono text-xs">zmLoadPendingBiz()</td></tr>
+            <tr><td class="p-3 border border-slate-100 font-bold text-sm">שיווק</td><td class="p-3 border border-slate-100 text-xs">קמפיינים + תבניות הודעה</td><td class="p-3 border border-slate-100 font-mono text-xs">loadCampaigns() + loadTemplates()</td></tr>
+            <tr class="bg-slate-50"><td class="p-3 border border-slate-100 font-bold text-sm">לידים</td><td class="p-3 border border-slate-100 text-xs">לידים לפי קמפיין + CRM</td><td class="p-3 border border-slate-100 font-mono text-xs">loadLeadsTab()</td></tr>
+            <tr><td class="p-3 border border-slate-100 font-bold text-sm">אינבוקס <span class="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">badge</span></td><td class="p-3 border border-slate-100 text-xs">שיחות עם מנהלי קהילה</td><td class="p-3 border border-slate-100 font-mono text-xs">loadInbox()</td></tr>
+            <tr class="bg-slate-50"><td class="p-3 border border-slate-100 font-bold text-sm">עמלות</td><td class="p-3 border border-slate-100 text-xs">היסטוריית עמלות</td><td class="p-3 border border-slate-100 font-mono text-xs">loadCommissions()</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 3: Zones Module -->
+    <section id="s3" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-sm font-black">3</span>
+        מודול אזורים
+      </h2>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">3.1 תצוגת אזורים וקהילות</h3>
+      <p class="text-sm text-slate-600 mb-4">כרטיס לכל אזור גיאוגרפי. בתוך כל אזור — רשת קהילות בגריד 2 עמודות.</p>
+      <div class="bg-slate-50 rounded-2xl p-4 mb-6 text-sm space-y-2">
+        <p class="font-bold text-slate-700">לכל קהילה מוצג:</p>
+        <ul class="space-y-1 text-slate-600">
+          <li class="flex gap-2"><span class="text-violet-500">▸</span> שם + עיר</li>
+          <li class="flex gap-2"><span class="text-violet-500">▸</span> badge: <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">✓ פעילה</span> / <span class="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-xs font-bold">⏳ בהתפתחות</span></li>
+          <li class="flex gap-2"><span class="text-violet-500">▸</span> Progress bar: משפחות (X/30) + עסקים (X/15)</li>
+          <li class="flex gap-2"><span class="text-violet-500">▸</span> כפתור מינוי מנהל קהילה</li>
+        </ul>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">3.2 ספי פעילות (system_settings)</h3>
+      <div class="overflow-x-auto mb-6">
+        <table class="text-sm">
+          <thead><tr class="bg-slate-50"><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">מפתח</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">ברירת מחדל</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">משמעות</th></tr></thead>
+          <tbody>
+            <tr><td class="p-2.5 border border-slate-100 font-mono text-xs">community_min_families</td><td class="p-2.5 border border-slate-100 text-xs font-bold">30</td><td class="p-2.5 border border-slate-100 text-xs">מינימום משפחות לקהילה פעילה</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 font-mono text-xs">community_min_businesses</td><td class="p-2.5 border border-slate-100 text-xs font-bold">15</td><td class="p-2.5 border border-slate-100 text-xs">מינימום עסקים לקהילה פעילה</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 font-mono text-xs">zone_manager_commission_pct</td><td class="p-2.5 border border-slate-100 text-xs font-bold">5%</td><td class="p-2.5 border border-slate-100 text-xs">עמלת מנהל אזור (אחוז מהעסקאות)</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 font-mono text-xs">zone_max_zones_per_manager</td><td class="p-2.5 border border-slate-100 text-xs font-bold">4</td><td class="p-2.5 border border-slate-100 text-xs">מקסימום אזורים למנהל</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">3.3 מינוי מנהל קהילה מקומי</h3>
+      <div class="space-y-2">
+        <div class="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+          <span class="step-circle bg-purple-500 text-white">1</span>
+          <div><p class="text-sm font-bold">פתיחת modal</p><p class="text-xs text-slate-500">לחיצה על כפתור "מנה מנהל קהילה" → openZMAppointModal(communityId, name)</p></div>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+          <span class="step-circle bg-purple-500 text-white">2</span>
+          <div><p class="text-sm font-bold">חיפוש חברים</p><p class="text-xs text-slate-500">GET /api/zone-manager/communities-members?communityId=X&amp;q=QUERY (מינימום 2 תווים)</p></div>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+          <span class="step-circle bg-purple-500 text-white">3</span>
+          <div><p class="text-sm font-bold">מינוי / הסרה</p><p class="text-xs text-slate-500">POST /api/zone-manager/set-community-manager ← {groupId, communityId, isManager}</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 4: Marketing Module -->
+    <section id="s4" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-sm font-black">4</span>
+        מודול שיווק — קמפיינים ותבניות
+      </h2>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">4.1 סוגי קמפיין</h3>
+      <div class="grid grid-cols-3 gap-3 mb-6">
+        <div class="border-2 border-indigo-200 bg-indigo-50 rounded-xl p-3 text-center">
+          <div class="text-xl mb-1">🏪</div>
+          <p class="font-bold text-indigo-800 text-xs">גיוס עסקים</p>
+          <p class="text-[10px] text-indigo-500 mt-1">type: business</p>
+        </div>
+        <div class="border-2 border-violet-200 bg-violet-50 rounded-xl p-3 text-center">
+          <div class="text-xl mb-1">👨‍👩‍👧</div>
+          <p class="font-bold text-violet-800 text-xs">גיוס משפחות</p>
+          <p class="text-[10px] text-violet-500 mt-1">type: family</p>
+        </div>
+        <div class="border-2 border-emerald-200 bg-emerald-50 rounded-xl p-3 text-center">
+          <div class="text-xl mb-1">🤝</div>
+          <p class="font-bold text-emerald-800 text-xs">חיבור לקהילה</p>
+          <p class="text-[10px] text-emerald-500 mt-1">type: community_join</p>
+        </div>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">4.2 בניית קמפיין — שלבים</h3>
+      <div class="space-y-2 mb-6">
+        <div class="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+          <span class="step-circle bg-violet-600 text-white">1</span>
+          <div><p class="text-sm font-bold">בחירת סוג קמפיין</p><p class="text-xs text-slate-500">שינוי סוג מציג רשימת מודולים רלוונטית (17 לעסקים / 12 למשפחות)</p></div>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+          <span class="step-circle bg-violet-600 text-white">2</span>
+          <div><p class="text-sm font-bold">AI Draft (אופציונלי)</p><p class="text-xs text-slate-500">goal + audience + modules → POST /api/zone-manager/ai/draft-campaign → title + subtitle + text</p></div>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+          <span class="step-circle bg-violet-600 text-white">3</span>
+          <div><p class="text-sm font-bold">AI Banner (אופציונלי)</p><p class="text-xs text-slate-500">title + type → POST /api/zone-manager/ai/generate-banner → SVG base64</p></div>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+          <span class="step-circle bg-violet-600 text-white">4</span>
+          <div><p class="text-sm font-bold">בחירת שדות טופס ליד</p><p class="text-xs text-slate-500">name / last_name / business_name / city / address / phone / email / free_text</p></div>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+          <span class="step-circle bg-violet-600 text-white">5</span>
+          <div><p class="text-sm font-bold">שמירה</p><p class="text-xs text-slate-500">POST /api/zone-manager/campaigns → DB: zm_campaigns עם token ייחודי (UUID)</p></div>
+        </div>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">4.3 כרטיסיית קמפיין ברשימה</h3>
+      <div class="bg-slate-50 rounded-2xl p-4 mb-6">
+        <div class="grid grid-cols-4 gap-2 text-center">
+          <div class="bg-emerald-50 rounded-lg p-2 text-xs font-bold text-emerald-700">👥 N לידים</div>
+          <div class="bg-indigo-50 rounded-lg p-2 text-xs font-bold text-indigo-600">🔗 לינק</div>
+          <div class="bg-green-50 rounded-lg p-2 text-xs font-bold text-green-600">💬 ווצאפ</div>
+          <div class="bg-slate-100 rounded-lg p-2 text-xs text-slate-400">תאריך</div>
+        </div>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">4.4 תבניות הודעה</h3>
+      <p class="text-sm text-slate-600 mb-2">תבניות לשימוש חוזר בשליחת הודעות לאינבוקס:</p>
+      <div class="overflow-x-auto">
+        <table class="text-sm">
+          <thead><tr class="bg-slate-50"><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">פעולה</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">Endpoint</th></tr></thead>
+          <tbody>
+            <tr><td class="p-2.5 border border-slate-100 text-xs">יצירת תבנית</td><td class="p-2.5 border border-slate-100 font-mono text-xs">POST /api/zone-manager/templates</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs">מחיקת תבנית</td><td class="p-2.5 border border-slate-100 font-mono text-xs">DELETE /api/zone-manager/templates/:id</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs">שימוש בתבנית</td><td class="p-2.5 border border-slate-100 text-xs">ממלא שדות הודעה חדשה אוטומטית</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 5: Leads Module -->
+    <section id="s5" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-sm font-black">5</span>
+        מודול לידים
+      </h2>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">5.1 ניווט</h3>
+      <p class="text-sm text-slate-600 mb-4">dropdown לבחירת קמפיין → טעינת הלידים שלו. כפתור רענון ידני.</p>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">5.2 שדות ליד</h3>
+      <div class="overflow-x-auto mb-6">
+        <table class="text-sm">
+          <thead><tr class="bg-slate-50"><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">שדה</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">תיאור</th></tr></thead>
+          <tbody>
+            <tr><td class="p-2.5 border border-slate-100 font-mono text-xs">data (JSONB)</td><td class="p-2.5 border border-slate-100 text-xs">שדות הטופס שמולאו</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 font-mono text-xs">lead_type</td><td class="p-2.5 border border-slate-100 text-xs">family / business / unknown</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 font-mono text-xs">status</td><td class="p-2.5 border border-slate-100 text-xs">new / contacted / interested / not_interested / converted</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 font-mono text-xs">ai_score</td><td class="p-2.5 border border-slate-100 text-xs">ציון AI 1-10 (null אם לא נותח)</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 font-mono text-xs">ai_notes</td><td class="p-2.5 border border-slate-100 text-xs">הערת AI קצרה</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 font-mono text-xs">crm_notes</td><td class="p-2.5 border border-slate-100 text-xs">הערות CRM ידניות של מנהל האזור</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">5.3 Lead CRM Modal</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <div class="bg-violet-50 border border-violet-100 rounded-2xl p-4">
+          <p class="font-black text-violet-800 text-sm mb-2">עדכון CRM</p>
+          <ul class="space-y-1 text-xs text-slate-600">
+            <li>▸ שינוי סוג ליד</li>
+            <li>▸ שינוי סטטוס</li>
+            <li>▸ הוספת הערות</li>
+            <li>▸ שמירה: PUT /api/zone-manager/leads/:id</li>
+          </ul>
+        </div>
+        <div class="bg-purple-50 border border-purple-100 rounded-2xl p-4">
+          <p class="font-black text-purple-800 text-sm mb-2">לוג פעולות</p>
+          <div class="grid grid-cols-2 gap-1.5">
+            <span class="bg-blue-100 text-blue-700 text-xs rounded px-1.5 py-1 text-center font-bold">📞 שיחה</span>
+            <span class="bg-green-100 text-green-700 text-xs rounded px-1.5 py-1 text-center font-bold">💬 ווצאפ</span>
+            <span class="bg-amber-100 text-amber-700 text-xs rounded px-1.5 py-1 text-center font-bold">🤝 פגישה</span>
+            <span class="bg-slate-100 text-slate-700 text-xs rounded px-1.5 py-1 text-center font-bold">✉️ מייל</span>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">5.4 ניתוח AI</h3>
+      <div class="bg-purple-50 border border-purple-100 rounded-2xl p-4">
+        <p class="text-sm font-bold text-purple-800 mb-2">כפתור "נתח עם AI" (מוצג כשיש לידים לא-מנותחים)</p>
+        <p class="text-xs text-slate-600">POST /api/zone-manager/ai/analyze-leads → {campaignId}</p>
+        <p class="text-xs text-slate-500 mt-1">מנתח עד 50 לידים (ai_score IS NULL), מחזיר ציון 1-10 + הערה. מעדכן DB.</p>
+      </div>
+    </section>
+
+    <!-- Section 6: Inbox Module -->
+    <section id="s6" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-sm font-black">6</span>
+        מודול אינבוקס
+      </h2>
+
+      <p class="text-sm text-slate-600 mb-5">שיחות (threads) בין Zone Manager לבין מנהלי קהילה מקומיים.</p>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">6.1 פעולות</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
+          <p class="font-black text-indigo-800 text-xs mb-1">הודעה חדשה</p>
+          <p class="text-[11px] text-slate-500">בחר קהילה → כתוב → שלח</p>
+          <p class="font-mono text-[10px] text-indigo-600 mt-1">POST /inbox/new</p>
+        </div>
+        <div class="bg-violet-50 border border-violet-100 rounded-xl p-3">
+          <p class="font-black text-violet-800 text-xs mb-1">שידור</p>
+          <p class="text-[11px] text-slate-500">הודעה לכל מנהלי הקהילות</p>
+          <p class="font-mono text-[10px] text-violet-600 mt-1">POST /inbox/broadcast</p>
+        </div>
+        <div class="bg-purple-50 border border-purple-100 rounded-xl p-3">
+          <p class="font-black text-purple-800 text-xs mb-1">AI תשובה</p>
+          <p class="text-[11px] text-slate-500">הצעת תשובה לשיחה</p>
+          <p class="font-mono text-[10px] text-purple-600 mt-1">POST /ai/suggest-reply</p>
+        </div>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">6.2 מבנה שיחה</h3>
+      <div class="bg-slate-50 rounded-2xl p-4 space-y-2">
+        <div class="flex justify-start">
+          <div class="bg-indigo-500 text-white text-xs px-3 py-2 rounded-2xl rounded-br-sm max-w-[70%]">הודעת מנהל אזור (שמאל = indigo)</div>
+        </div>
+        <div class="flex justify-end">
+          <div class="bg-white border border-slate-200 text-slate-700 text-xs px-3 py-2 rounded-2xl rounded-bl-sm max-w-[70%]">הודעת מנהל קהילה (ימין = לבן)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 7: Commissions -->
+    <section id="s7" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-sm font-black">7</span>
+        מודול עמלות
+      </h2>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="bg-amber-50 border border-amber-100 rounded-2xl p-4">
+          <p class="font-black text-amber-800 mb-2">עמלות נצברות</p>
+          <p class="text-sm text-slate-600">נרשמות ב-<code class="text-xs bg-amber-100 px-1 rounded">zone_manager_commissions</code></p>
+          <p class="text-xs text-slate-500 mt-1">מתי: בכל הזמנה/תשלום בקהילה שתחת אחריות ה-ZM</p>
+          <p class="text-xs text-slate-500">שיעור: <code class="text-xs bg-amber-100 px-1 rounded">commission_pct</code> (ברירת מחדל 5%)</p>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
+          <p class="font-black text-emerald-800 mb-2">עמלות שולמו</p>
+          <p class="text-sm text-slate-600">נרשמות ב-<code class="text-xs bg-emerald-100 px-1 rounded">zone_manager_payments</code></p>
+          <p class="text-xs text-slate-500 mt-1">נרשמות ידנית על ידי Super Admin</p>
+          <p class="text-xs text-slate-500">Progress bar: paid/earned %</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 8: Campaign Full Flow -->
+    <section id="s8" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm page-break">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-sm font-black">8</span>
+        קמפיינים — Flow מלא
+      </h2>
+
+      <h3 class="font-black text-slate-700 mb-4 text-sm">8.1 זרימה מלאה — יצירה עד שליחה ב-WhatsApp</h3>
+      <div class="bg-slate-900 rounded-2xl p-4 mb-6 overflow-x-auto">
+        <pre class="text-green-400 text-xs">1. ZM יוצר קמפיין (modal)
+   → POST /api/zone-manager/campaigns
+   → DB: zm_campaigns (token = UUID)
+
+2. ZM לוחץ "ווצאפ"
+   → נפתח: https://wa.me/?text=ENCODED
+   → הטקסט: שורה ראשונה מהקמפיין + 👉 /c/camp/TOKEN
+
+3. WhatsApp מבצע crawl לנתיב /c/camp/TOKEN
+   → Server מחזיר HTML עם OG meta tags
+   → og:title, og:description, og:image
+
+4. משתמש מקבל כרטיס preview ב-WhatsApp
+   → לוחץ → נכנס ל-/c/camp/TOKEN
+   → http-equiv=refresh → מועבר ל-/campaign.html?t=TOKEN
+
+5. campaign.html
+   → GET /api/public/campaign/TOKEN
+   → מציג כותרת + תמונה + טקסט + שדות טופס
+
+6. ממלא טופס + שולח
+   → POST /api/public/campaign/TOKEN/submit
+   → DB: zm_campaign_leads
+
+7. ZM רואה ליד בטאב לידים
+   → ניתוח AI → עדכון CRM → מעקב</pre>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">8.2 OG Preview — לוגיקת תמונה</h3>
+      <div class="space-y-2 mb-6">
+        <div class="flex items-start gap-3 bg-emerald-50 rounded-xl p-3">
+          <span class="step-circle bg-emerald-500 text-white">1</span>
+          <div><p class="text-sm font-bold">תמונת קמפיין (JPEG/PNG)</p><p class="text-xs text-slate-500">data: שאינה SVG → endpoint: /api/public/campaign-image/TOKEN (1200x630)</p></div>
+        </div>
+        <div class="flex items-start gap-3 bg-amber-50 rounded-xl p-3">
+          <span class="step-circle bg-amber-500 text-white">2</span>
+          <div><p class="text-sm font-bold">לוגו מערכת (data:)</p><p class="text-xs text-slate-500">אם אין תמונה קמפיין → /api/public/logo (512x512)</p></div>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-100 rounded-xl p-3">
+          <span class="step-circle bg-slate-400 text-white">3</span>
+          <div><p class="text-sm font-bold">fallback ← /logo.png</p><p class="text-xs text-slate-500">תמיד עובד עם WhatsApp (JPEG/PNG סטטי)</p></div>
+        </div>
+      </div>
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+        <strong>הערה חשובה:</strong> SVG שנוצר ב-AI אינו תקין כ-og:image. WhatsApp מחייב URL מוחלט עם JPEG/PNG. לכן SVGs מוחלפים בלוגו.
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm mt-6">8.3 עמוד הקמפיין הציבורי (campaign.html)</h3>
+      <div class="overflow-x-auto">
+        <table class="text-sm">
+          <thead><tr class="bg-slate-50"><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">רכיב</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">תיאור</th></tr></thead>
+          <tbody>
+            <tr><td class="p-2.5 border border-slate-100 text-xs font-bold">שדה name</td><td class="p-2.5 border border-slate-100 text-xs">input type=text</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs font-bold">שדה phone</td><td class="p-2.5 border border-slate-100 text-xs">input type=tel, dir=ltr</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs font-bold">שדה email</td><td class="p-2.5 border border-slate-100 text-xs">input type=email, dir=ltr</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs font-bold">שדה free_text</td><td class="p-2.5 border border-slate-100 text-xs">textarea (הודעה חופשית)</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs font-bold">ברירת מחדל</td><td class="p-2.5 border border-slate-100 text-xs">name + phone (אם אין fields_config)</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs font-bold">הגשה</td><td class="p-2.5 border border-slate-100 font-mono text-xs">POST /api/public/campaign/:token/submit</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 9: Community Environment -->
+    <section id="s9" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-sm font-black">9</span>
+        סביבת קהילה (Community)
+      </h2>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">9.1 מהי קהילה ב-OneFlow</h3>
+      <div class="bg-violet-50 border border-violet-100 rounded-2xl p-4 mb-6">
+        <p class="font-black text-violet-800 mb-3">קהילה = ישות ארגונית שכונתית / גיאוגרפית</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <p class="text-xs font-bold text-slate-600 mb-1">שדות:</p>
+            <ul class="space-y-0.5 text-xs text-slate-500">
+              <li>id, name, city</li>
+              <li>code (קוד הצטרפות 4-6 תווים)</li>
+              <li>zone_id (אזור גיאוגרפי)</li>
+              <li>status: pending / active</li>
+              <li>image_url (אופציונלי)</li>
+            </ul>
+          </div>
+          <div>
+            <p class="text-xs font-bold text-slate-600 mb-1">טבלאות DB:</p>
+            <ul class="space-y-0.5 text-xs text-slate-500 font-mono">
+              <li>communities</li>
+              <li>family_communities</li>
+              <li>community_businesses</li>
+              <li>manager_zones</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">9.2 מה Family App יכול לעשות בקהילה</h3>
+      <div class="overflow-x-auto mb-6">
+        <table class="text-sm">
+          <thead><tr class="bg-slate-50"><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">פעולה</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">Endpoint</th></tr></thead>
+          <tbody>
+            <tr><td class="p-2.5 border border-slate-100 text-xs">הצטרפות לקהילה בקוד</td><td class="p-2.5 border border-slate-100 font-mono text-xs">POST /api/community/join</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs">צפייה בעסקים מקומיים + הנחות</td><td class="p-2.5 border border-slate-100 font-mono text-xs">GET /api/community/info/:groupId</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs">מעקב cashback</td><td class="p-2.5 border border-slate-100 font-mono text-xs">GET /api/community/cashback-info/:groupId</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs">קהילה בפיד הבית</td><td class="p-2.5 border border-slate-100 text-xs">community_updates מה-dashboard</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs">יצירת קהילה חדשה</td><td class="p-2.5 border border-slate-100 font-mono text-xs">POST /api/community/user-create</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs">עזיבת קהילה</td><td class="p-2.5 border border-slate-100 font-mono text-xs">DELETE /api/community/leave/:gId/:cId</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs">אינבוקס קהילתי</td><td class="p-2.5 border border-slate-100 font-mono text-xs">GET /api/community/inbox/:groupId</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">9.3 מה Business App יכול לעשות בקהילה</h3>
+      <div class="overflow-x-auto mb-6">
+        <table class="text-sm">
+          <thead><tr class="bg-slate-50"><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">פעולה</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">Endpoint</th></tr></thead>
+          <tbody>
+            <tr><td class="p-2.5 border border-slate-100 text-xs">קהילות שהעסק חבר בהן</td><td class="p-2.5 border border-slate-100 font-mono text-xs">GET /api/biz/communities/my/:bizId</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs">גילוי קהילות זמינות</td><td class="p-2.5 border border-slate-100 font-mono text-xs">GET /api/biz/communities/available/:bizId</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs">בקשת הצטרפות + discountPct</td><td class="p-2.5 border border-slate-100 font-mono text-xs">POST /api/biz/communities/join</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs">עזיבת קהילה</td><td class="p-2.5 border border-slate-100 font-mono text-xs">DELETE /api/biz/communities/leave/:cId/:bId</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-4 text-sm">9.4 זרימת הצטרפות עסק לקהילה (3 שלבים)</h3>
+      <div class="space-y-2 mb-6">
+        <div class="flex items-start gap-3 bg-orange-50 border border-orange-100 rounded-xl p-3">
+          <span class="step-circle bg-orange-500 text-white">1</span>
+          <div>
+            <p class="text-sm font-bold">עסק מגיש בקשה</p>
+            <p class="text-xs text-slate-500">POST /api/biz/communities/join · {communityId, businessId, discountPct} → status=<strong>pending</strong></p>
+          </div>
+        </div>
+        <div class="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-xl p-3">
+          <span class="step-circle bg-amber-500 text-white">2</span>
+          <div>
+            <p class="text-sm font-bold">Super Admin מאשר (שלב ביניים)</p>
+            <p class="text-xs text-slate-500">POST /api/sa/community-business/approve → status=<strong>approved</strong> (ביניים)</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-3 bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+          <span class="step-circle bg-emerald-600 text-white">3</span>
+          <div>
+            <p class="text-sm font-bold">Zone Manager מאשר סופית</p>
+            <p class="text-xs text-slate-500">POST /api/zone-manager/community-business/approve → עסק פעיל בקהילה + הנחה זמינה למשפחות</p>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">9.5 מנהל קהילה מקומי (Community Manager)</h3>
+      <div class="bg-purple-50 border border-purple-100 rounded-2xl p-4">
+        <ul class="space-y-1 text-sm text-slate-600">
+          <li class="flex gap-2"><span class="text-purple-500">▸</span> ממונה על ידי Zone Manager מחברי הקהילה</li>
+          <li class="flex gap-2"><span class="text-purple-500">▸</span> <code class="text-xs bg-purple-100 px-1 rounded">is_community_manager=TRUE</code> ב-family_communities</li>
+          <li class="flex gap-2"><span class="text-purple-500">▸</span> מקבל ושולח הודעות ב-inbox קהילתי</li>
+          <li class="flex gap-2"><span class="text-purple-500">▸</span> יכול לאשר/לדחות בקשות עסקים</li>
+          <li class="flex gap-2"><span class="text-purple-500">▸</span> <code class="text-xs bg-purple-100 px-1 rounded">GET /api/community/manager-data/:groupId</code> — נתוני ניהול מלאים</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Section 10: API Endpoints -->
+    <section id="s10" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm page-break">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-sm font-black">10</span>
+        API Endpoints — סיכום
+      </h2>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">10.1 Zone Manager — Auth</h3>
+      <div class="overflow-x-auto mb-6">
+        <table class="text-sm">
+          <thead><tr class="bg-slate-50"><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">Method</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">Path</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">תיאור</th></tr></thead>
+          <tbody>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-emerald-100 text-emerald-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/register</td><td class="p-2.5 border border-slate-100 text-xs">הרשמה (status=pending)</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-emerald-100 text-emerald-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/login</td><td class="p-2.5 border border-slate-100 text-xs">כניסה, מחזיר token</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-emerald-100 text-emerald-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/forgot-password</td><td class="p-2.5 border border-slate-100 text-xs">שליחת מייל איפוס</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-emerald-100 text-emerald-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/reset-password</td><td class="p-2.5 border border-slate-100 text-xs">איפוס סיסמה</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">10.2 Zone Manager — Dashboard וקהילות</h3>
+      <div class="overflow-x-auto mb-6">
+        <table class="text-sm">
+          <thead><tr class="bg-slate-50"><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">Method</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">Path</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">תיאור</th></tr></thead>
+          <tbody>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-blue-100 text-blue-700 font-mono px-1 rounded">GET</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/dashboard</td><td class="p-2.5 border border-slate-100 text-xs">אזורים, קהילות, עמלות</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-blue-100 text-blue-700 font-mono px-1 rounded">GET</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/commissions</td><td class="p-2.5 border border-slate-100 text-xs">היסטוריית עמלות</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-blue-100 text-blue-700 font-mono px-1 rounded">GET</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/communities-members</td><td class="p-2.5 border border-slate-100 text-xs">חיפוש חברים למינוי מנהל</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-emerald-100 text-emerald-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/set-community-manager</td><td class="p-2.5 border border-slate-100 text-xs">מינוי/הסרת מנהל קהילה</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-blue-100 text-blue-700 font-mono px-1 rounded">GET</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/pending-businesses</td><td class="p-2.5 border border-slate-100 text-xs">עסקים ממתינים לאישור</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-emerald-100 text-emerald-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/community-business/approve</td><td class="p-2.5 border border-slate-100 text-xs">אישור עסק לקהילה</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-emerald-100 text-emerald-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/community-business/reject</td><td class="p-2.5 border border-slate-100 text-xs">דחיית בקשת עסק</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">10.3 Zone Manager — קמפיינים, לידים, AI, Inbox</h3>
+      <div class="overflow-x-auto mb-6">
+        <table class="text-sm">
+          <thead><tr class="bg-slate-50"><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">Method</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">Path</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">תיאור</th></tr></thead>
+          <tbody>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-blue-100 text-blue-700 font-mono px-1 rounded">GET</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/campaigns</td><td class="p-2.5 border border-slate-100 text-xs">רשימת קמפיינים</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-emerald-100 text-emerald-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/campaigns</td><td class="p-2.5 border border-slate-100 text-xs">יצירת קמפיין</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-amber-100 text-amber-700 font-mono px-1 rounded">PUT</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/campaigns/:id</td><td class="p-2.5 border border-slate-100 text-xs">עריכת קמפיין</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-red-100 text-red-700 font-mono px-1 rounded">DELETE</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/campaigns/:id</td><td class="p-2.5 border border-slate-100 text-xs">מחיקת קמפיין</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-blue-100 text-blue-700 font-mono px-1 rounded">GET</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/campaigns/:id/leads</td><td class="p-2.5 border border-slate-100 text-xs">לידים של קמפיין</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-amber-100 text-amber-700 font-mono px-1 rounded">PUT</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/leads/:id</td><td class="p-2.5 border border-slate-100 text-xs">עדכון ליד (CRM)</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-blue-100 text-blue-700 font-mono px-1 rounded">GET</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/leads/:id/actions</td><td class="p-2.5 border border-slate-100 text-xs">לוג פעולות ליד</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-emerald-100 text-emerald-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/leads/:id/actions</td><td class="p-2.5 border border-slate-100 text-xs">הוספת פעולת CRM</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-purple-100 text-purple-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/ai/draft-campaign</td><td class="p-2.5 border border-slate-100 text-xs">AI ניסוח טקסט קמפיין</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-purple-100 text-purple-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/ai/generate-banner</td><td class="p-2.5 border border-slate-100 text-xs">AI יצירת SVG באנר</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-purple-100 text-purple-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/ai/analyze-leads</td><td class="p-2.5 border border-slate-100 text-xs">AI ניתוח לידים</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-purple-100 text-purple-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/ai/suggest-reply</td><td class="p-2.5 border border-slate-100 text-xs">AI הצעת תשובה</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-blue-100 text-blue-700 font-mono px-1 rounded">GET</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/inbox</td><td class="p-2.5 border border-slate-100 text-xs">רשימת שיחות</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-emerald-100 text-emerald-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/inbox/new</td><td class="p-2.5 border border-slate-100 text-xs">הודעה חדשה</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-emerald-100 text-emerald-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/inbox/broadcast</td><td class="p-2.5 border border-slate-100 text-xs">שידור לכל מנהלי הקהילות</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-blue-100 text-blue-700 font-mono px-1 rounded">GET</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/inbox/:threadId</td><td class="p-2.5 border border-slate-100 text-xs">שיחה בודדת</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-emerald-100 text-emerald-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/inbox/:threadId/reply</td><td class="p-2.5 border border-slate-100 text-xs">תגובה בשיחה</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-blue-100 text-blue-700 font-mono px-1 rounded">GET</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/templates</td><td class="p-2.5 border border-slate-100 text-xs">רשימת תבניות</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-emerald-100 text-emerald-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/templates</td><td class="p-2.5 border border-slate-100 text-xs">יצירת תבנית</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-red-100 text-red-700 font-mono px-1 rounded">DELETE</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/zone-manager/templates/:id</td><td class="p-2.5 border border-slate-100 text-xs">מחיקת תבנית</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">10.4 ציבורי + Community</h3>
+      <div class="overflow-x-auto">
+        <table class="text-sm">
+          <thead><tr class="bg-slate-50"><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">Method</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">Path</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">תיאור</th></tr></thead>
+          <tbody>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-blue-100 text-blue-700 font-mono px-1 rounded">GET</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/public/campaign/:token</td><td class="p-2.5 border border-slate-100 text-xs">הגדרות קמפיין (ציבורי)</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-emerald-100 text-emerald-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/public/campaign/:token/submit</td><td class="p-2.5 border border-slate-100 text-xs">הגשת טופס ליד (ציבורי)</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-blue-100 text-blue-700 font-mono px-1 rounded">GET</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/c/camp/:token</td><td class="p-2.5 border border-slate-100 text-xs">OG preview ל-WhatsApp</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-blue-100 text-blue-700 font-mono px-1 rounded">GET</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/public/campaign-image/:token</td><td class="p-2.5 border border-slate-100 text-xs">תמונת קמפיין (binary)</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-emerald-100 text-emerald-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/community/join</td><td class="p-2.5 border border-slate-100 text-xs">FAMILY: הצטרפות לקהילה</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-blue-100 text-blue-700 font-mono px-1 rounded">GET</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/community/info/:groupId</td><td class="p-2.5 border border-slate-100 text-xs">FAMILY: קהילות + עסקים</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs"><span class="bg-emerald-100 text-emerald-700 font-mono px-1 rounded">POST</span></td><td class="p-2.5 border border-slate-100 font-mono text-xs">/api/biz/communities/join</td><td class="p-2.5 border border-slate-100 text-xs">BIZ: בקשת הצטרפות לקהילה</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 11: Special Logic -->
+    <section id="s11" class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-sm font-black">11</span>
+        לוגיקות מיוחדות
+      </h2>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">11.1 AI — ניסוח טקסט קמפיין</h3>
+      <div class="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl p-4 mb-5">
+        <div class="flex justify-between items-start mb-3">
+          <span class="text-xs bg-purple-200 text-purple-800 px-2 py-0.5 rounded-full font-bold">Gemini 2.5 Flash</span>
+          <span class="text-xs text-slate-500">fallback: 1.5 Flash</span>
+        </div>
+        <p class="text-sm font-bold text-slate-700 mb-2">קלט:</p>
+        <p class="text-xs text-slate-500 mb-2">goal (פרטים נוספים) + audience (קהל יעד) + campaignType + modules[]</p>
+        <p class="text-sm font-bold text-slate-700 mb-2">הקשר לפי סוג:</p>
+        <ul class="space-y-1 text-xs text-slate-600">
+          <li><strong>business</strong> → מדגיש יכולות OneFlow BIZ (POS, CRM, מלאי...)</li>
+          <li><strong>family</strong> → מדגיש כלים משפחתיים (בנק, תקציב, שף AI...)</li>
+          <li><strong>community_join</strong> → מדגיש ערך הקהילה המקומית</li>
+        </ul>
+        <p class="text-sm font-bold text-slate-700 mt-3 mb-1">פלט JSON:</p>
+        <pre class="bg-white border border-slate-200 rounded-lg p-2 text-xs">{"title": "...", "subtitle": "...", "text_content": "..."}</pre>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">11.2 AI — יצירת תמונת באנר (SVG)</h3>
+      <div class="overflow-x-auto mb-5">
+        <table class="text-sm">
+          <thead><tr class="bg-slate-50"><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">סוג קמפיין</th><th class="text-right p-2.5 border border-slate-200 font-bold text-slate-600 text-xs">גוון</th></tr></thead>
+          <tbody>
+            <tr><td class="p-2.5 border border-slate-100 text-xs">business</td><td class="p-2.5 border border-slate-100 text-xs">כחולים כהים (#1e3a8a → #0ea5e9)</td></tr>
+            <tr class="bg-slate-50"><td class="p-2.5 border border-slate-100 text-xs">family</td><td class="p-2.5 border border-slate-100 text-xs">indigo-purple-pink (#4f46e5 → #f472b6)</td></tr>
+            <tr><td class="p-2.5 border border-slate-100 text-xs">community_join</td><td class="p-2.5 border border-slate-100 text-xs">ירוקים (#064e3b → #34d399)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-xs text-slate-500 mb-5">SVG 1600x900 · ללא טקסט · צורות גיאומטריות בלבד · מוחזר כ-base64 data URL</p>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">11.3 AI — ניתוח לידים</h3>
+      <div class="bg-slate-50 rounded-2xl p-4 mb-5">
+        <p class="text-xs text-slate-600">מודל: Gemini 2.5 Flash · מנתח עד 50 לידים ללא ציון (ai_score IS NULL)</p>
+        <pre class="bg-slate-900 text-green-400 rounded-xl p-3 text-xs mt-2 overflow-x-auto">// פלט JSON
+{"results": [{"id": 1, "score": 8, "notes": "מעוניין, ציין עסק פעיל"}]}</pre>
+      </div>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">11.4 WhatsApp Integration</h3>
+      <pre class="bg-slate-900 text-green-400 rounded-xl p-4 text-xs mb-5 overflow-x-auto">// בניית URL לשיתוף
+const waLines = [];
+waLines.push(firstParagraph + '...');
+waLines.push('');
+waLines.push('👉 ' + ogUrl);  // ogUrl = /c/camp/TOKEN
+const waUrl = 'https://wa.me/?text=' + encodeURIComponent(waLines.join('\n'));</pre>
+
+      <h3 class="font-black text-slate-700 mb-3 text-sm">11.5 DB Schema — טבלאות Zone Manager</h3>
+      <pre class="bg-slate-900 text-green-400 rounded-xl p-4 text-xs overflow-x-auto">zone_managers         (id, name, email, password_hash, status, commission_pct)
+manager_zones         (id, manager_id, name, status)
+communities           (id, name, code, city, zone_id, status, image_url)
+family_communities    (group_id, community_id, is_community_manager)
+community_businesses  (community_id, business_id, discount_pct, status)
+zm_campaigns          (id, zone_manager_id, title, subtitle, text_content,
+                        fields_config, token UUID, campaign_type, image_url, status)
+zm_campaign_leads     (id, campaign_id, data JSONB, lead_type, status,
+                        ai_score, ai_notes, crm_notes)
+zm_lead_actions       (id, lead_id, action_type, notes, created_at)
+zm_inbox_threads      (id, zone_manager_id, community_id, group_id, subject)
+zm_inbox_messages     (id, thread_id, sender_type, content, is_read, created_at)
+zm_message_templates  (id, zone_manager_id, name, subject, content)
+zone_manager_commissions  (id, manager_id, community_id, order_id, amount, commission_pct)
+zone_manager_payments     (id, manager_id, amount, payment_method, notes, paid_at)</pre>
+    </section>
+
+    <!-- Section 8: Advanced Features -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-6">
+      <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-orange-100 text-orange-700 flex items-center justify-center text-lg">🚀</span>
+        8. פיצ'רים מתקדמים — קהילה
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700">חדש 2026-06-28</span>
+      </h2>
+
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+        <div class="bg-amber-50 border border-amber-100 rounded-2xl p-3"><div class="text-2xl mb-1">⚡</div><div class="font-bold text-sm">ארנק FLOW</div><div class="text-xs text-slate-500">₣ לכל קהילה</div></div>
+        <div class="bg-teal-50 border border-teal-100 rounded-2xl p-3"><div class="text-2xl mb-1">🏷️</div><div class="font-bold text-sm">תגיות עניין</div><div class="text-xs text-slate-500">חיפוש קהילות</div></div>
+        <div class="bg-purple-50 border border-purple-100 rounded-2xl p-3"><div class="text-2xl mb-1">🎯</div><div class="font-bold text-sm">ציון התאמה</div><div class="text-xs text-slate-500">0-100%</div></div>
+        <div class="bg-green-50 border border-green-100 rounded-2xl p-3"><div class="text-2xl mb-1">📦</div><div class="font-bold text-sm">חבילות</div><div class="text-xs text-slate-500">2+ עסקים</div></div>
+        <div class="bg-pink-50 border border-pink-100 rounded-2xl p-3"><div class="text-2xl mb-1">📢</div><div class="font-bold text-sm">מבצעים</div><div class="text-xs text-slate-500">אישור + באנר</div></div>
+        <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-3"><div class="text-2xl mb-1">🌟</div><div class="font-bold text-sm">שגריר</div><div class="text-xs text-slate-500">35+15 ₣</div></div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h3 class="font-black text-slate-700 mb-3">ציון התאמה — אלגוריתם</h3>
+          <table class="text-sm border border-slate-200 rounded-xl overflow-hidden w-full">
+            <thead class="bg-purple-50"><tr><th class="p-2 text-right font-bold">גורם</th><th class="p-2 text-right font-bold">ניקוד</th></tr></thead>
+            <tbody>
+              <tr class="border-t border-slate-100"><td class="p-2">עיר זהה</td><td class="p-2 font-black text-purple-600">+35</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">GPS קרוב</td><td class="p-2 font-black text-purple-600">עד +40</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">גודל (0.5 × משפחות)</td><td class="p-2 font-black text-purple-600">מקס 30</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">עסקים (2 × עסקים)</td><td class="p-2 font-black text-purple-600">מקס 20</td></tr>
+              <tr class="border-t border-slate-100"><td class="p-2">תגית עניין תואמת</td><td class="p-2 font-black text-purple-600">+10</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h3 class="font-black text-slate-700 mb-3">מערכת הפניות (Referral)</h3>
+          <ul class="space-y-2 text-sm text-slate-600">
+            <li>• משפחה מקבלת קוד ייחודי אישי</li>
+            <li>• בהצטרפות עם קוד: +35₣ לממליץ, +15₣ לקהילה</li>
+            <li>• המלצת עסק (family-refer) → Zone Manager מאשר</li>
+            <li>• אישור → 35₣ לעסק, 15₣ לקהילה + בונוס ידני</li>
+          </ul>
+          <h3 class="font-black text-slate-700 mb-3 mt-4">מנהל קהילה</h3>
+          <ul class="space-y-1 text-sm text-slate-600">
+            <li>• מינוי: <code class="bg-slate-100 px-1 rounded text-xs">zmSetCommunityManager()</code></li>
+            <li>• הרשאות: אישור עסקים, ניהול ארנק, נתוני קהילה</li>
+            <li>• badge "מנהל קהילה" בממשק המשפחה</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="mt-6">
+        <h3 class="font-black text-slate-700 mb-3">DB — טבלאות חדשות</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div class="bg-slate-50 rounded-xl p-2 text-center text-xs font-mono">flow_wallets</div>
+          <div class="bg-slate-50 rounded-xl p-2 text-center text-xs font-mono">flow_transactions</div>
+          <div class="bg-slate-50 rounded-xl p-2 text-center text-xs font-mono">flow_redemptions</div>
+          <div class="bg-slate-50 rounded-xl p-2 text-center text-xs font-mono">community_promotions</div>
+          <div class="bg-slate-50 rounded-xl p-2 text-center text-xs font-mono">community_bundles</div>
+          <div class="bg-slate-50 rounded-xl p-2 text-center text-xs font-mono">community_banners</div>
+          <div class="bg-slate-50 rounded-xl p-2 text-center text-xs font-mono">community_referrals</div>
+          <div class="bg-slate-50 rounded-xl p-2 text-center text-xs font-mono">community_bundle_businesses</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <div class="bg-gradient-to-br from-violet-600 to-purple-700 rounded-3xl p-6 text-white text-center no-print">
+      <p class="font-black text-lg mb-1">OneFlow Life — Zone Manager &amp; Community</p>
+      <p class="text-violet-200 text-sm">עודכן: 2026-06-28</p>
+      <button onclick="window.print()" class="mt-4 bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded-xl text-sm font-bold transition">
+        שמור כ-PDF
+      </button>
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>
