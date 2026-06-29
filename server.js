@@ -5780,7 +5780,7 @@ app.get('/api/store/orders/:groupId', async (req, res) => {
 app.post('/api/store/orders', async (req, res) => {
     let dbClient;
     try {
-        const { groupId, customerName, customerPhone, items, totalAmount, isDelivery, deliveryFee, deliveryDetails, notes, status } = req.body;
+        const { groupId, customerName, customerPhone, items, totalAmount, isDelivery, deliveryFee, deliveryDetails, notes, status, promoCode } = req.body;
         dbClient = await pool.connect();
         await dbClient.query('BEGIN');
         
@@ -5788,17 +5788,44 @@ app.post('/api/store/orders', async (req, res) => {
         try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e){}
         try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_details TEXT`); } catch(e){}
         try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e){}
-        
+        try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS community_promo_code VARCHAR(30)`); } catch(e){}
+        try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS community_promo_id INT`); } catch(e){}
+
         const deliveryDetailsStr = deliveryDetails ? JSON.stringify(deliveryDetails) : null;
         const actualDeliveryFee = parseFloat(deliveryFee) || 0;
         const isDeliv = isDelivery === true || isDelivery === 'true';
-        
+
         const familyGroupId = req.body.familyGroupId ? parseInt(req.body.familyGroupId) : null;
         const finalStatus = status || 'pending_approval';
-        
+
+        // אימות קוד מבצע קהילתי
+        let communityPromoId = null;
+        let communityPromoCode = (req.body.communityPromoCode || '').trim().toUpperCase();
+        if (communityPromoCode && familyGroupId) {
+            try {
+                const promoRes = await dbClient.query(
+                    `SELECT cp.id FROM community_promotions cp
+                     JOIN family_communities fc ON fc.community_id = cp.community_id
+                     WHERE UPPER(cp.promo_code) = $1
+                       AND cp.status = 'approved'
+                       AND (cp.valid_until IS NULL OR cp.valid_until >= NOW())
+                       AND fc.group_id = $2 AND fc.status = 'approved'
+                     LIMIT 1`,
+                    [communityPromoCode, familyGroupId]
+                );
+                if (promoRes.rows.length) {
+                    communityPromoId = promoRes.rows[0].id;
+                } else {
+                    communityPromoCode = null; // קוד לא תקין — מתעלמים
+                }
+            } catch(e) { communityPromoCode = null; }
+        } else {
+            communityPromoCode = null;
+        }
+
         const oRes = await dbClient.query(
-            'INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_fee, delivery_details, family_group_id, quote_status, notes, order_source) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, $8, $9, NULL, $10, $11) RETURNING id',
-            [groupId, customerName, customerPhone, parseFloat(totalAmount)||0, finalStatus, isDeliv, actualDeliveryFee, deliveryDetailsStr, familyGroupId, notes || null, req.body.orderSource || 'website']
+            'INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_fee, delivery_details, family_group_id, quote_status, notes, order_source, community_promo_code, community_promo_id) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, $8, $9, NULL, $10, $11, $12, $13) RETURNING id',
+            [groupId, customerName, customerPhone, parseFloat(totalAmount)||0, finalStatus, isDeliv, actualDeliveryFee, deliveryDetailsStr, familyGroupId, notes || null, req.body.orderSource || 'website', communityPromoCode || null, communityPromoId || null]
         );
         const orderId = oRes.rows[0].id;
         
@@ -5817,7 +5844,32 @@ app.post('/api/store/orders', async (req, res) => {
             itemsHtmlList += `<li><strong>דמי משלוח</strong> - ₪${actualDeliveryFee}</li>`;
         }
         
+        // שמור קוד פרומו בהזמנה (אם הגיע)
+        if (promoCode) {
+            try {
+                await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS promo_code VARCHAR(50)`);
+                await dbClient.query(`UPDATE store_orders SET promo_code=$1 WHERE id=$2`, [promoCode.toUpperCase(), orderId]);
+            } catch(e) {}
+        }
+
         await dbClient.query('COMMIT');
+
+        // הפעל מימוש פרומו-קוד קהילתי אחרי הcommit (async, non-blocking)
+        if (promoCode && familyGroupId) {
+            pool.query(
+                `SELECT id, community_id, business_id FROM community_promotions WHERE promo_code=$1 AND status='approved' AND (valid_until IS NULL OR valid_until>=CURRENT_DATE)`,
+                [promoCode.toUpperCase()]
+            ).then(async (pr) => {
+                if (pr.rows.length) {
+                    const p = pr.rows[0];
+                    try {
+                        await awardFlow('family', familyGroupId, 'promo_redemption', p.community_id, p.id);
+                        await awardFlow('business', p.business_id, 'biz_promo_redeemed', p.community_id, p.id);
+                        if (p.community_id) await awardFlow('community', p.community_id, 'promo_community', p.community_id, p.id);
+                    } catch(e) { console.error('Promo FLOW award error:', e); }
+                }
+            }).catch(e => console.error('Promo lookup error:', e));
+        }
 
         setTimeout(async () => {
             try {
@@ -5884,11 +5936,20 @@ app.post('/api/store/orders/status', async (req, res) => {
         if (status === 'delivered' || status === 'completed') {
             triggerCashbackForOrder(orderId);
             try {
-                const oR = await pool.query('SELECT group_id, total_amount, customer_name FROM store_orders WHERE id=$1', [orderId]);
+                const oR = await pool.query('SELECT group_id, total_amount, customer_name, family_group_id, community_promo_id FROM store_orders WHERE id=$1', [orderId]);
                 if (oR.rows[0]) {
                     const o = oR.rows[0];
                     logBizIncome(o.group_id, o.total_amount,
                         `הזמנה הושלמה${o.customer_name ? ' — ' + o.customer_name : ''} (#${orderId})`);
+                    // הענקת FLOW למשפחה שהשתמשה במבצע קהילתי
+                    if (o.community_promo_id && o.family_group_id) {
+                        try {
+                            const promoCom = await pool.query('SELECT community_id FROM community_promotions WHERE id=$1', [o.community_promo_id]);
+                            if (promoCom.rows.length) {
+                                await awardFlow('family', parseInt(o.family_group_id), 'promo_used', promoCom.rows[0].community_id, o.community_promo_id);
+                            }
+                        } catch(pe) { console.error('[promo_flow_award]', pe.message); }
+                    }
                 }
             } catch(ignoreErr) {}
         }
@@ -8536,6 +8597,55 @@ app.post('/api/zone-manager/community-business/reject', verifyZoneManager, async
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ZM — בקשות הצטרפות משפחות לקהילות באזורו
+app.get('/api/zone-manager/pending-families', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        const result = await pool.query(`
+            SELECT fc.group_id, fc.community_id, fg.name as family_name, c.name as comm_name, fc.joined_at
+            FROM family_communities fc
+            JOIN family_groups fg ON fc.group_id = fg.id
+            JOIN communities c ON fc.community_id = c.id
+            JOIN manager_zones mz ON c.zone_id = mz.id
+            WHERE fc.status = 'pending' AND mz.manager_id = $1
+            ORDER BY fc.joined_at DESC
+        `, [managerId]);
+        res.json({ success: true, pending: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ZM — אישור הצטרפות משפחה לקהילה
+app.post('/api/zone-manager/community-family/approve', verifyZoneManager, async (req, res) => {
+    try {
+        const { groupId, communityId } = req.body;
+        const { managerId } = req.zmSession;
+        const check = await pool.query(`
+            SELECT 1 FROM communities c
+            JOIN manager_zones mz ON c.zone_id = mz.id
+            WHERE c.id = $1 AND mz.manager_id = $2
+        `, [communityId, managerId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'Unauthorized' });
+        await pool.query("UPDATE family_communities SET status='approved' WHERE group_id=$1 AND community_id=$2 AND status='pending'", [groupId, communityId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ZM — דחיית הצטרפות משפחה לקהילה
+app.post('/api/zone-manager/community-family/reject', verifyZoneManager, async (req, res) => {
+    try {
+        const { groupId, communityId } = req.body;
+        const { managerId } = req.zmSession;
+        const check = await pool.query(`
+            SELECT 1 FROM communities c
+            JOIN manager_zones mz ON c.zone_id = mz.id
+            WHERE c.id = $1 AND mz.manager_id = $2
+        `, [communityId, managerId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'Unauthorized' });
+        await pool.query("DELETE FROM family_communities WHERE group_id=$1 AND community_id=$2 AND status='pending'", [groupId, communityId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // SA — רשימת מנהלי אזורים (פעילים ומושהים)
 app.get('/api/sa/zone-managers', verifySA, async (req, res) => {
     try {
@@ -10171,6 +10281,25 @@ app.post('/api/flow/redemptions/:code/use', async (req, res) => {
         if (!r.rows.length) return res.status(404).json({ error: 'קוד לא תקין או כבר מומש' });
         await pool.query(`UPDATE flow_redemptions SET status='used', used_at=NOW() WHERE discount_code=$1`, [req.params.code.toUpperCase()]);
         res.json({ success: true, discountIls: r.rows[0].discount_ils });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Validate a community promo code (public — used by storefront checkout)
+app.get('/api/community/promotions/validate', async (req, res) => {
+    try {
+        const { code } = req.query;
+        if (!code) return res.status(400).json({ error: 'חסר קוד' });
+        const result = await pool.query(
+            `SELECT cp.id, cp.title, cp.discount_pct, cp.valid_until, fg.name as biz_name, c.name as comm_name
+             FROM community_promotions cp
+             JOIN family_groups fg ON cp.business_id = fg.id
+             JOIN communities c ON cp.community_id = c.id
+             WHERE cp.promo_code = $1 AND cp.status = 'approved'
+               AND (cp.valid_until IS NULL OR cp.valid_until >= CURRENT_DATE)`,
+            [code.toUpperCase()]
+        );
+        if (!result.rows.length) return res.status(404).json({ success: false, error: 'קוד לא תקין, לא מאושר, או פג תוקף' });
+        res.json({ success: true, promo: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

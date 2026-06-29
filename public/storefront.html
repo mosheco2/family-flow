@@ -303,6 +303,16 @@
                         <textarea id="general-notes" class="modern-input py-2.5 text-sm bg-white border-slate-200 h-20" placeholder="הערות מיוחדות, אלרגיות, או בקשות..."></textarea>
                     </div>
 
+                    <!-- PROMO CODE FIELD -->
+                    <div class="mt-3" id="promo-code-section">
+                        <label class="text-[10px] font-bold text-slate-400 mr-1">קוד מבצע / הטבת קהילה (אופציונלי)</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="promo-code-input" class="modern-input py-2.5 text-sm bg-white border-slate-200 flex-1 dir-ltr text-center font-bold tracking-wider uppercase" placeholder="PROMO12345">
+                            <button type="button" onclick="window.applyPromoCode()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition shrink-0">החל</button>
+                        </div>
+                        <div id="promo-code-msg" class="hidden text-xs font-bold mt-1.5 px-2"></div>
+                    </div>
+
                 </form>
             </div>
 
@@ -2058,8 +2068,36 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             }
         };
 
+        window._appliedPromo = null;
+
+        window.applyPromoCode = async function() {
+            const input = document.getElementById('promo-code-input');
+            const msg = document.getElementById('promo-code-msg');
+            const code = (input?.value || '').trim().toUpperCase();
+            msg.className = 'text-xs font-bold mt-1.5 px-2';
+            if (!code) { msg.textContent = 'הכנס קוד מבצע'; msg.classList.add('text-red-500'); msg.classList.remove('hidden'); return; }
+            msg.textContent = 'בודק...'; msg.classList.remove('hidden', 'text-red-500', 'text-green-600');
+            try {
+                const res = await fetch(`${API}/community/promotions/validate?code=${encodeURIComponent(code)}`);
+                const data = await res.json();
+                if (data.success && data.promo) {
+                    window._appliedPromo = { code, promoId: data.promo.id, discount: data.promo.discount_pct };
+                    msg.textContent = `✓ קוד אושר! הנחה של ${data.promo.discount_pct}% — ${data.promo.title}`;
+                    msg.classList.add('text-green-600');
+                } else {
+                    window._appliedPromo = null;
+                    msg.textContent = data.error || 'קוד לא תקין או פג תוקף';
+                    msg.classList.add('text-red-500');
+                }
+            } catch(e) {
+                window._appliedPromo = null;
+                msg.textContent = 'שגיאת תקשורת';
+                msg.classList.add('text-red-500');
+            }
+        };
+
         window.submitOrder = async function(e) {
-            e.preventDefault(); 
+            e.preventDefault();
             const btn = getEl('btn-submit-order'); 
             btn.disabled = true; 
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מעבד...';
@@ -2117,18 +2155,21 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 }
             }
 
-            const payload = { 
-                groupId: storeData.groupId, 
-                customerName: val('cust-name'), 
-                customerPhone: val('cust-phone'), 
-                items: items, 
-                totalAmount: finalTotalWithDelivery, 
-                isDelivery: isDelivery, 
-                deliveryFee: delFee, 
-                deliveryDetails: deliveryData, 
+            const appliedPromoCode = (window._appliedPromo && window._appliedPromo.code) ? window._appliedPromo.code : null;
+
+            const payload = {
+                groupId: storeData.groupId,
+                customerName: val('cust-name'),
+                customerPhone: val('cust-phone'),
+                items: items,
+                totalAmount: finalTotalWithDelivery,
+                isDelivery: isDelivery,
+                deliveryFee: delFee,
+                deliveryDetails: deliveryData,
                 familyGroupId: familyId,
                 notes: finalNotes,
-                orderType: calc.hasComplexItems ? 'quote' : 'order'
+                orderType: calc.hasComplexItems ? 'quote' : 'order',
+                communityPromoCode: appliedPromoCode
             };
 
             try {

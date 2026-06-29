@@ -13761,6 +13761,7 @@ window.renderStoreOrders = function() {
         const isDelivery = (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true' || meta);
         const deliveryTag = isDelivery ? '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg border border-slate-200 ml-1"><i class="fa-solid fa-motorcycle"></i> משלוח</span>' : '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg border border-slate-200 ml-1"><i class="fa-solid fa-person-walking"></i> איסוף</span>';
         const srcTag = o.order_source === 'table' ? '<span class="text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded-lg border border-violet-200 ml-1">🍽️ שולחן</span>' : '<span class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-lg border border-blue-200 ml-1">🌐 אתר</span>';
+        const promoTag = o.community_promo_code ? `<span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-lg border border-emerald-200 ml-1 font-bold"><i class="fa-solid fa-tag"></i> קוד: ${safeStr(o.community_promo_code)}</span>` : '';
         
         let deliveryData = {};
         if (meta && meta.delivery_details) deliveryData = meta.delivery_details;
@@ -13858,7 +13859,7 @@ window.renderStoreOrders = function() {
                     </div>
 
                     <div class="flex items-center justify-end gap-2 text-[11px] text-slate-400 font-mono mt-1 flex-wrap">
-                        ${receivedTimeStr} | ${receivedDateStr} ${deliveryTag} ${srcTag} ${isQuoteOrigin}
+                        ${receivedTimeStr} | ${receivedDateStr} ${deliveryTag} ${srcTag} ${promoTag} ${isQuoteOrigin}
                     </div>
                 </div>
             </div>
@@ -13923,6 +13924,11 @@ window.openStoreOrderModal = function(orderId) {
     
     if (displayNote) {
          itemsHtml += displayNote;
+    }
+
+    // תצוגת מבצע קהילתי
+    if (order.community_promo_code) {
+        itemsHtml += `<div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-4 flex items-center gap-2"><i class="fa-solid fa-tag text-emerald-600"></i><div><p class="text-xs font-black text-emerald-800">קוד מבצע קהילתי הופעל</p><p class="text-[11px] text-emerald-600 font-mono font-bold">${safeStr(order.community_promo_code)}</p></div></div>`;
     }
 
     if (rawItems.length > 0) {
