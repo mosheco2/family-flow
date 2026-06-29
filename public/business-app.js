@@ -4755,12 +4755,11 @@ window.renderDashboard = async function(forceRefresh = false) {
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             window._roleDashInterval = setInterval(() => {
                 const el = document.getElementById('content-role-dashboard');
-                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'beauty') { renderBeautyAdminDashboard(el); renderBizFlowWidget().catch(()=>{}); }
+                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'beauty') renderBeautyAdminDashboard(el);
                 else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             }, 30000);
         }
         window._beautyDashRendering = false;
-        try { await renderBizFlowWidget(); } catch(e) {}
         return;
     }
 
@@ -4783,12 +4782,11 @@ window.renderDashboard = async function(forceRefresh = false) {
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             window._roleDashInterval = setInterval(() => {
                 const el = document.getElementById('content-role-dashboard');
-                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'logistics') { renderLogisticsAdminDashboard(el); renderBizFlowWidget().catch(()=>{}); }
+                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'logistics') renderLogisticsAdminDashboard(el);
                 else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             }, 30000);
         }
         window._logisticsDashRendering = false;
-        try { await renderBizFlowWidget(); } catch(e) {}
         return;
     }
 
@@ -4840,11 +4838,10 @@ window.renderDashboard = async function(forceRefresh = false) {
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             window._roleDashInterval = setInterval(() => {
                 const el = document.getElementById('content-role-dashboard');
-                if (el && !el.classList.contains('hidden')) { renderBranchManagerMaintenanceDashboard(el); renderBizFlowWidget().catch(()=>{}); }
+                if (el && !el.classList.contains('hidden')) renderBranchManagerMaintenanceDashboard(el);
                 else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             }, 20000);
         }
-        try { await renderBizFlowWidget(); } catch(e) {}
         return;
     }
 
@@ -4866,22 +4863,21 @@ window.renderDashboard = async function(forceRefresh = false) {
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             window._roleDashInterval = setInterval(() => {
                 const el = document.getElementById('content-role-dashboard');
-                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'professional') { renderProfessionalDashboard(el); renderBizFlowWidget().catch(()=>{}); }
+                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'professional') renderProfessionalDashboard(el);
                 else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             }, 60000);
         }
         window._profDashRendering = false;
-        try { await renderBizFlowWidget(); } catch(e) {}
         return;
     }
 
-    // הצג מחדש כרטיסי מנהל אם עברו ממצב עובד
+    // עטיפת גריד FLOW תחילה (sync) — לפני הצגת tour-balance-card, מונע פלאש גודל
+    renderBizFlowWidget().catch(()=>{});
+    // הצג מחדש כרטיסי מנהל — כבר בתוך גריד, אין מתיחה
     ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.remove('hidden');
     });
-    // עטיפת גריד FLOW מיד (sync) — לפני הטעינות הasync, ללא פלאש
-    renderBizFlowWidget().catch(()=>{});
     ['emp-home-header','emp-home-footer'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
@@ -5068,7 +5064,8 @@ window.renderDashboard = async function(forceRefresh = false) {
         // ★ Sparklines
         try { renderSparklines(); } catch(e) {}
 
-        // ★ FLOW balance widget — כבר הופעל מוקדם יותר (sync wrap), כאן רק מרענן יתרה
+        // ★ FLOW balance widget (מנהלים בלבד)
+        try { await renderBizFlowWidget(); } catch(e) {}
 
     } catch(err) { console.error('renderDashboard:', err); }
 };
@@ -15218,72 +15215,29 @@ function launchFlowConfetti() {
 // ─── FLOW WALLET (BUSINESS) ──────────────────────────────────
 
 async function renderBizFlowWidget() {
-    if (currentUser?.role !== 'ADMIN') return;
+    const widget = document.getElementById('flow-balance-widget');
+    if (!widget || currentUser?.role !== 'ADMIN') { if (widget) widget.classList.add('hidden'); return; }
     try {
-        function makeMiniHtml(bal) {
-            const label = bal === null ? '...' : bal;
-            return `<div onclick="openBizFlowWallet()" style="cursor:pointer;background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);border-radius:20px;padding:12px 10px;height:100%;min-height:110px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:0 4px 16px rgba(245,158,11,0.4);text-align:center;">
-                <div style="font-size:22px;">⚡</div>
-                <div style="color:white;font-size:20px;font-weight:900;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,0.2);">${label}<span style="font-size:11px;"> ₣</span></div>
-                <div style="color:rgba(255,255,255,0.9);font-size:9px;font-weight:600;line-height:1.3;">מטבעות<br>FLOW</div>
-                <div style="background:rgba(255,255,255,0.3);border-radius:8px;padding:2px 6px;color:white;font-size:8px;font-weight:700;">לארנק ←</div>
-            </div>`;
-        }
-
-        const roleDash = document.getElementById('content-role-dashboard');
-        const stdWidget = document.getElementById('flow-balance-widget');
-
-        // שלב 1: עטיפה sync מיידית (ללא fetch) — מונע פלאש של כרטיס גדול
-        // עוטף את האלמנט עצמו (לא ילד שלו) כדי שה-setInterval לא יהרוס את ה-wrapper
-        // align-items:start מונע מתיחת עמודת FLOW לאורך כל הדשבורד
-        function ensureGridWrap(el, topMargin) {
-            if (!el) return null;
-            if (el.parentElement?.classList?.contains('flow-header-wrap')) {
-                return el.parentElement.querySelector('.flow-mini-widget');
-            }
-            const wrap = document.createElement('div');
-            wrap.className = 'flow-header-wrap';
-            wrap.style.cssText = `display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:16px;margin-top:${topMargin||0}px;`;
-            const miniCol = document.createElement('div');
-            miniCol.className = 'flow-mini-widget';
-            miniCol.style.cssText = 'height:100%;';
-            miniCol.innerHTML = makeMiniHtml(null);
-            el.style.marginBottom = '0';
-            el.style.marginTop = '0';
-            el.after(wrap);
-            wrap.appendChild(el);
-            wrap.appendChild(miniCol);
-            if (stdWidget) stdWidget.classList.add('hidden');
-            return miniCol;
-        }
-
-        let miniEl = null;
-        if (roleDash && !roleDash.classList.contains('hidden')) {
-            // תצוגת תפקיד — השתמש ב-slot שמוטמע ב-roleDashboardHeader
-            const slot = document.getElementById('biz-flow-mini-slot');
-            if (slot) { miniEl = slot; }
-            if (stdWidget) stdWidget.classList.add('hidden');
-        } else {
-            const tourCard = document.getElementById('tour-balance-card');
-            if (tourCard) {
-                miniEl = ensureGridWrap(tourCard, 0);
-            } else if (stdWidget) {
-                stdWidget.classList.remove('hidden');
-                stdWidget.innerHTML = makeMiniHtml(0);
-                miniEl = stdWidget;
-            }
-        }
-
-        // שלב 2: fetch יתרה ועדכון async
         const res = await fetch(`${API}/flow/wallet/business/${currentGroup.id}`);
         const data = await res.json();
         const bal = Math.floor(parseFloat(data.balance || 0));
-        if (miniEl) miniEl.innerHTML = makeMiniHtml(bal);
-
-    } catch(e) {
-        const w = document.getElementById('flow-balance-widget');
-        if (w) w.classList.add('hidden');
-    }
+        widget.classList.remove('hidden');
+        widget.innerHTML = `<div onclick="openBizFlowWallet()" style="cursor:pointer;background:linear-gradient(135deg,#f59e0b,#d97706,#b45309);border-radius:20px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(245,158,11,0.35);position:relative;overflow:hidden;">
+            <div style="position:absolute;inset:0;background:radial-gradient(circle at 80% 50%,rgba(255,255,255,0.12),transparent 60%);pointer-events:none;"></div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div style="background:rgba(255,255,255,0.2);border-radius:14px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;">⚡</div>
+                <div>
+                    <div style="color:rgba(255,255,255,0.85);font-size:11px;font-weight:600;margin-bottom:2px;">ארנק FLOW העסקי</div>
+                    <div style="color:white;font-size:26px;font-weight:900;line-height:1;">${bal} <span style="font-size:14px;">₣</span></div>
+                    <div style="color:rgba(255,255,255,0.7);font-size:10px;margin-top:2px;">צבירה מביקורות לקוחות ופעילות קהילה</div>
+                </div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+                <div style="background:rgba(255,255,255,0.2);border-radius:10px;padding:6px 12px;color:white;font-size:11px;font-weight:700;">לארנק &larr;</div>
+                ${bal > 0 ? `<div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:3px 8px;color:rgba(255,255,255,0.9);font-size:10px;">+${bal}₣ שנצברו</div>` : ''}
+            </div>
+        </div>`;
+    } catch(e) { widget.classList.add('hidden'); }
 }
 
 window.openBizFlowWallet = async function() {
@@ -30031,25 +29985,12 @@ function roleTodayWidget() {
 }
 function roleDashboardHeader(icon, title, subtitle, colorFrom, colorTo) {
     const today = new Date().toLocaleDateString('he-IL', {weekday:'long', day:'numeric', month:'long'});
-    const headerDiv = `<div class="bg-gradient-to-r ${colorFrom} ${colorTo} rounded-[2rem] p-5 text-white shadow-xl relative overflow-hidden">
+    return `<div class="bg-gradient-to-r ${colorFrom} ${colorTo} rounded-[2rem] p-5 text-white shadow-xl mb-4 relative overflow-hidden mt-3">
         <p class="text-white/60 text-xs mb-1">${today}</p>
         <h2 class="text-xl font-black mb-0.5">${icon} שלום, ${safeStr(currentUser.nickname)}</h2>
         <p class="text-white/80 text-xs">${title}</p>
         <p class="text-white/60 text-[10px] mt-0.5">${subtitle}</p>
     </div>`;
-    // מנהל: גריד 2/3+1/3 עם slot לווידג'ט FLOW — renderBizFlowWidget ממלא את #biz-flow-mini-slot
-    if (currentUser?.role === 'ADMIN') {
-        const loadingSlot = `<div onclick="openBizFlowWallet()" style="cursor:pointer;background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);border-radius:20px;padding:12px 10px;height:100%;min-height:110px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;box-shadow:0 4px 16px rgba(245,158,11,0.4);">
-            <div style="font-size:22px;">⚡</div>
-            <div style="color:white;font-size:20px;font-weight:900;line-height:1;">...<span style="font-size:11px;"> ₣</span></div>
-            <div style="color:rgba(255,255,255,0.9);font-size:9px;font-weight:600;line-height:1.3;">מטבעות<br>FLOW</div>
-        </div>`;
-        return `<div class="flow-role-header-grid" style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:12px;margin-bottom:16px;">
-            ${headerDiv}
-            <div id="biz-flow-mini-slot">${loadingSlot}</div>
-        </div>`;
-    }
-    return `<div style="margin-top:12px;margin-bottom:16px;">${headerDiv}</div>`;
 }
 
 function rdBtn(tab, action, cls, content) {
