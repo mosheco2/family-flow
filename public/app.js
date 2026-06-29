@@ -4376,6 +4376,7 @@ window.purchaseCommunityBundle = async function(bundleId, btn) {
         if (data.success) {
             btn.textContent = '✅ נרכש! +18 ₣';
             btn.className = btn.className.replace('bg-emerald-600 hover:bg-emerald-700','bg-green-500');
+            launchFlowConfetti();
             loadFamilyFlowWallet && loadFamilyFlowWallet();
         } else { btn.textContent = data.error || '✅ רכישה'; btn.disabled = false; }
     } catch(e) { btn.disabled = false; btn.textContent = '🛒 רכישה'; }
@@ -4396,6 +4397,7 @@ window.redeemCommunityPromo = async function(promoId, btn) {
         if (data.success) {
             btn.textContent = '✅ נרשם! +3 ₣';
             btn.className = btn.className.replace('bg-orange-500 hover:bg-orange-600','bg-green-500');
+            launchFlowConfetti();
             loadFamilyFlowWallet();
         } else { btn.textContent = '✅ מימשתי'; btn.disabled = false; }
     } catch(e) { btn.disabled = false; btn.textContent = '✅ מימשתי'; }
@@ -4450,10 +4452,36 @@ window.submitCommunityReview = async function(bizId) {
         });
         const data = await res.json();
         document.getElementById('write-review-modal')?.remove();
-        if (data.success) { loadFamilyFlowWallet(); showToast && showToast('success','תודה! הביקורת נשמרה'); }
+        if (data.success) { if (parseInt(document.getElementById('review-rating-val')?.value) >= 4) launchFlowConfetti(); loadFamilyFlowWallet(); showToast && showToast('success','תודה! הביקורת נשמרה ✅'); }
         else showToast && showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast && showToast('error','שגיאה'); }
 };
+
+// ─── FLOW CONFETTI ────────────────────────────────────────────
+function launchFlowConfetti() {
+    const colors = ['#f59e0b','#fbbf24','#fcd34d','#10b981','#6366f1','#ec4899','#3b82f6','#f97316'];
+    if (!document.getElementById('flow-confetti-kf')) {
+        const s = document.createElement('style');
+        s.id = 'flow-confetti-kf';
+        s.textContent = '@keyframes _fcFall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(105vh) rotate(720deg);opacity:0}}';
+        document.head.appendChild(s);
+    }
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:999999;overflow:hidden;';
+    document.body.appendChild(wrap);
+    for (let i = 0; i < 90; i++) {
+        const el = document.createElement('div');
+        const sz = (Math.random() * 8 + 5).toFixed(1);
+        const left = (Math.random() * 100).toFixed(1);
+        const delay = (Math.random() * 0.6).toFixed(2);
+        const dur = (Math.random() * 1.5 + 1.8).toFixed(2);
+        const rot = Math.floor(Math.random() * 360);
+        const br = Math.random() > 0.5 ? '50%' : '2px';
+        el.style.cssText = `position:absolute;width:${sz}px;height:${sz}px;background:${colors[i%colors.length]};border-radius:${br};left:${left}%;top:0;animation:_fcFall ${dur}s ${delay}s ease-in forwards;transform:rotate(${rot}deg);`;
+        wrap.appendChild(el);
+    }
+    setTimeout(() => wrap.remove(), 3800);
+}
 
 // ─── FLOW WALLET (FAMILY) ────────────────────────────────────
 
@@ -4607,6 +4635,7 @@ window.submitFlowRedeem = async function() {
                 <div class="text-[10px] text-slate-400 mt-1">הקוד חד-פעמי ותקף לשימוש אחד</div>
             </div>`;
         }
+        launchFlowConfetti();
         familyFlowBalance -= flowAmt;
         loadFamilyFlowWallet();
     } catch(e) { showToast && showToast('error', e.message); }
@@ -4712,6 +4741,7 @@ window.joinCommunityByCode = async function(code, name, btn) {
         if (data.success) {
             btn.textContent = '✅ הצטרפת!';
             btn.className = btn.className.replace('bg-teal-600 hover:bg-teal-700','bg-green-500');
+            launchFlowConfetti();
             fetchCommunityData();
             loadFamilyFlowWallet && loadFamilyFlowWallet();
         } else { btn.textContent = data.error || 'שגיאה'; btn.disabled = false; }
