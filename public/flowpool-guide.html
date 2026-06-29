@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מדריך FlowPool — Oneflow Life</title>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Rubik', sans-serif; background: #f8fafc; color: #1e293b; direction: rtl; }
+
+  .guide-header {
+    background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 45%, #06b6d4 100%);
+    padding: 48px 24px 36px;
+    text-align: center;
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+  .guide-header::before {
+    content: '🌊';
+    position: absolute;
+    font-size: 220px;
+    opacity: 0.07;
+    right: -30px;
+    top: -30px;
+    line-height: 1;
+  }
+  .guide-header h1 { font-size: 2rem; font-weight: 900; margin-bottom: 8px; text-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  .guide-header p { font-size: 1rem; opacity: 0.9; max-width: 580px; margin: 0 auto; line-height: 1.6; }
+  .version-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.25);
+    border: 1px solid rgba(255,255,255,0.4);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 99px;
+    margin-bottom: 16px;
+    letter-spacing: 0.5px;
+  }
+  .header-stats {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+  .header-stat { text-align: center; }
+  .header-stat .val { font-size: 2rem; font-weight: 900; line-height: 1; }
+  .header-stat .lbl { font-size: 11px; opacity: 0.85; font-weight: 600; margin-top: 2px; }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 0 16px 80px; }
+
+  .toc {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 24px 28px;
+    margin: 32px 0 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .toc h2 { font-size: 14px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .toc a {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    text-decoration: none;
+    color: #1e40af;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .toc a:hover { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+  .toc a .num { background: #3b82f6; color: white; font-size: 10px; font-weight: 900; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  .section {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .section-header {
+    display: flex; align-items: center; gap: 14px;
+    padding-bottom: 18px;
+    border-bottom: 2px solid #f1f5f9;
+    margin-bottom: 22px;
+  }
+  .section-icon {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .section-header h2 { font-size: 1.2rem; font-weight: 800; color: #1e293b; }
+  .section-header p { font-size: 13px; color: #64748b; margin-top: 2px; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .card {
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 16px;
+    background: #fafafa;
+  }
+  .card h4 { font-size: 13px; font-weight: 800; margin-bottom: 6px; color: #1e293b; }
+  .card p { font-size: 12px; color: #64748b; line-height: 1.6; }
+  .card .icon { font-size: 24px; margin-bottom: 8px; }
+
+  .scenario {
+    background: #fafafa;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .scenario h3 {
+    font-size: 14px; font-weight: 800; color: #1e293b;
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .steps { list-style: none; }
+  .steps li {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 9px 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+    color: #334155;
+    line-height: 1.6;
+  }
+  .steps li:last-child { border-bottom: none; }
+  .step-num {
+    background: #3b82f6;
+    color: white;
+    font-size: 10px;
+    font-weight: 900;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .badge-r1 { background: #dbeafe; color: #1d4ed8; }
+  .badge-r2 { background: #ede9fe; color: #7c3aed; }
+  .badge-closed { background: #dcfce7; color: #16a34a; }
+  .badge-expired { background: #f1f5f9; color: #64748b; }
+  .badge-pending { background: #fef3c7; color: #d97706; }
+  .badge-accepted { background: #dcfce7; color: #16a34a; }
+  .badge-rejected { background: #fee2e2; color: #dc2626; }
+
+  .flow-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .flow-table th {
+    background: #dbeafe;
+    padding: 10px 14px;
+    text-align: right;
+    font-weight: 800;
+    color: #1e40af;
+    border-bottom: 2px solid #bfdbfe;
+  }
+  .flow-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #eff6ff;
+    color: #334155;
+    vertical-align: middle;
+    line-height: 1.5;
+  }
+  .flow-table tr:hover td { background: #eff6ff; }
+  .flow-amount-pos { font-weight: 900; color: #16a34a; }
+  .flow-amount { font-weight: 900; color: #3b82f6; }
+
+  .guide-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .guide-table th {
+    background: #f1f5f9;
+    padding: 10px 14px;
+    text-align: right;
+    font-weight: 800;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+  }
+  .guide-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+    line-height: 1.5;
+    vertical-align: top;
+  }
+  .guide-table tr:hover td { background: #f8fafc; }
+
+  .roles { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .role-pill {
+    padding: 6px 14px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 800;
+    border: 2px solid;
+  }
+  .role-sa { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
+  .role-zm { background: #f5f3ff; color: #7c3aed; border-color: #ddd6fe; }
+  .role-family { background: #fff7ed; color: #ea580c; border-color: #fed7aa; }
+  .role-biz { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+
+  .alert {
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 16px 0;
+    font-size: 13px;
+    line-height: 1.6;
+    display: flex; gap: 10px;
+  }
+  .alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+  .alert-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+  .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #14532d; }
+  .alert-pool { background: #eff6ff; border: 1px solid #93c5fd; color: #1e3a8a; }
+  .alert strong { font-weight: 800; }
+
+  .divider { height: 1px; background: #f1f5f9; margin: 20px 0; }
+
+  .pool-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    color: white;
+    font-weight: 900;
+    font-size: 13px;
+    padding: 4px 12px;
+    border-radius: 99px;
+    box-shadow: 0 2px 6px rgba(59,130,246,0.3);
+  }
+
+  .timeline {
+    position: relative;
+    padding-right: 28px;
+    margin-bottom: 4px;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    right: 9px;
+    top: 0; bottom: 0;
+    width: 2px;
+    background: #bfdbfe;
+  }
+  .timeline-item {
+    position: relative;
+    padding-bottom: 20px;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    right: -20px;
+    top: 5px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: #3b82f6;
+    border: 2px solid white;
+    box-shadow: 0 0 0 2px #bfdbfe;
+  }
+  .timeline-label { font-size: 12px; font-weight: 800; color: #1d4ed8; margin-bottom: 2px; }
+  .timeline-text { font-size: 12px; color: #64748b; line-height: 1.5; }
+
+  code {
+    background: #f1f5f9;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-family: monospace;
+    color: #475569;
+  }
+
+  .round-box {
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .round-icon { font-size: 32px; flex-shrink: 0; }
+  .round-title { font-size: 14px; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
+  .round-desc { font-size: 12px; color: #64748b; line-height: 1.5; }
+
+  .guide-footer {
+    background: #1e293b;
+    color: #94a3b8;
+    text-align: center;
+    padding: 24px;
+    font-size: 12px;
+    margin-top: 40px;
+  }
+  .guide-footer strong { color: white; }
+
+  @media (max-width: 600px) {
+    .guide-header h1 { font-size: 1.4rem; }
+    .cards { grid-template-columns: 1fr 1fr; }
+    .toc-grid { grid-template-columns: 1fr 1fr; }
+    .header-stats { gap: 20px; }
+    .header-stat .val { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="guide-header">
+  <div class="version-badge">מדריך מנהלים · גרסה 1.0 · 2026</div>
+  <h1>🌊 מדריך FlowPool</h1>
+  <p>המדריך המלא לקנייה קבוצתית קהילתית — איך פותחים פול, איך מגישים הצעה, ואיך מנצחים בסיבוב הנכון</p>
+  <div class="header-stats">
+    <div class="header-stat">
+      <div class="val">2</div>
+      <div class="lbl">סיבובי מכרז</div>
+    </div>
+    <div class="header-stat">
+      <div class="val">∞</div>
+      <div class="lbl">משפחות בפול</div>
+    </div>
+    <div class="header-stat">
+      <div class="val">🔒</div>
+      <div class="lbl">מכרז עיוור</div>
+    </div>
+    <div class="header-stat">
+      <div class="val">Flw</div>
+      <div class="lbl">תגמול לכל פעולה</div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- TOC -->
+<div class="toc">
+  <h2>📋 תוכן עניינים</h2>
+  <div class="toc-grid">
+    <a href="#what"><span class="num">1</span> מה זה FlowPool?</a>
+    <a href="#who-opens"><span class="num">2</span> מי פותח פול?</a>
+    <a href="#lifecycle"><span class="num">3</span> מחזור חיים</a>
+    <a href="#rounds"><span class="num">4</span> סיבוב 1 ו-2</a>
+    <a href="#blind-auction"><span class="num">5</span> מכרז עיוור</a>
+    <a href="#family-guide"><span class="num">6</span> מדריך למשפחה</a>
+    <a href="#biz-guide"><span class="num">7</span> מדריך לעסק</a>
+    <a href="#messages"><span class="num">8</span> הודעות בפול</a>
+    <a href="#flw-rewards"><span class="num">9</span> Flw מ-FlowPool</a>
+    <a href="#statuses"><span class="num">10</span> טבלת סטטוסים</a>
+    <a href="#scenarios-family"><span class="num">11</span> תסריטים — משפחה</a>
+    <a href="#scenarios-biz"><span class="num">12</span> תסריטים — עסק</a>
+    <a href="#check-scripts"><span class="num">13</span> איך בודקים הכל</a>
+    <a href="#faq"><span class="num">14</span> שאלות נפוצות</a>
+  </div>
+</div>
+
+<!-- SECTION 1: WHAT IS FLOWPOOL -->
+<div class="section" id="what">
+  <div class="section-header">
+    <div class="section-icon" style="background:#dbeafe;">🌊</div>
+    <div>
+      <h2>1. מה זה FlowPool?</h2>
+      <p>כוח קנייה קבוצתי בתוך הקהילה</p>
+    </div>
+  </div>
+
+  <p style="font-size:14px;line-height:1.8;color:#334155;margin-bottom:20px;">
+    <strong>FlowPool</strong> הוא מנגנון קנייה קבוצתית שמאפשר למשפחות ועסקים בקהילה להתאגד יחד ולפנות לעסקים בבקשת הצעת מחיר משותפת. במקום שכל משפחה תתמקח בנפרד — הפול מרכז את הביקוש, מגדיל את כוח המיקוח, ומאפשר לקבל מחיר טוב יותר מכל אחד בנפרד.
+    הפול פועל כ<strong>מכרז עיוור</strong>: עסקים מגישים הצעות מחיר מבלי לראות את הצעות המתחרים. המנצח נבחר ע"י היוזמת — ולא אוטומטית לפי הנמוך ביותר.
+  </p>
+
+  <div class="cards">
+    <div class="card" style="border-color:#bfdbfe;background:#eff6ff;">
+      <div class="icon">🎯</div>
+      <h4>כוח משותף</h4>
+      <p>10 משפחות שצריכות אינסטלטור מקבלות מחיר שאי-אפשר להשיג ביחיד. ככל שיש יותר משפחות — כוח המיקוח גדל.</p>
+    </div>
+    <div class="card" style="border-color:#bfdbfe;background:#eff6ff;">
+      <div class="icon">🔒</div>
+      <h4>מכרז עיוור</h4>
+      <p>עסקים לא רואים מה המתחרים הציעו. ההצעות חשאיות עד הבחירה. מונע מחירי הישמטות והטיה.</p>
+    </div>
+    <div class="card" style="border-color:#bfdbfe;background:#eff6ff;">
+      <div class="icon">🔄</div>
+      <h4>שני סיבובים</h4>
+      <p>סיבוב 1: עסקים מהקהילה. סיבוב 2: עסקים חיצוניים. אם סיבוב 1 לא מניב תוצאה — פותחים ל"אורחים".</p>
+    </div>
+    <div class="card" style="border-color:#bfdbfe;background:#eff6ff;">
+      <div class="icon">⚡</div>
+      <h4>Flw לכולם</h4>
+      <p>פתיחת פול, הצטרפות, ובחירת הצעה מנצחת — כולן מניבות Flw אוטומטית. המערכת מתגמלת כל שחקן.</p>
+    </div>
+  </div>
+
+  <div class="alert alert-pool">
+    <span>🌊</span>
+    <div><strong>כשני הצדדים יכולים לפתוח פול:</strong> משפחה יכולה לפתוח פול ולמשוך אליו עסקים, ועסק יכול לפתוח פול ולמשוך אליו משפחות. שני הכיוונים תקפים ועובדים אותו דבר.</div>
+  </div>
+</div>
+
+<!-- SECTION 2: WHO OPENS -->
+<div class="section" id="who-opens">
+  <div class="section-header">
+    <div class="section-icon" style="background:#dbeafe;">🤝</div>
+    <div>
+      <h2>2. מי יכול לפתוח פול?</h2>
+      <p>פול יכול להיפתח משני כיוונים</p>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+    <div style="background:#fff7ed;border:2px solid #fed7aa;border-radius:16px;padding:20px;">
+      <div style="font-size:28px;margin-bottom:10px;">👨‍👩‍👧‍👦 משפחה יוזמת</div>
+      <ul style="font-size:13px;color:#334155;line-height:1.9;padding-right:16px;">
+        <li>מגדירה שירות או מוצר נדרש</li>
+        <li>קובעת מחיר מקסימלי (אופציונלי)</li>
+        <li>מזמינה משפחות נוספות להצטרף</li>
+        <li>מקבלת את הצעות העסקים</li>
+        <li><strong>רואה הכל</strong> — כל ההצעות, כל הכפתורים</li>
+        <li>בוחרת את ההצעה המנצחת</li>
+      </ul>
+    </div>
+    <div style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:16px;padding:20px;">
+      <div style="font-size:28px;margin-bottom:10px;">🏪 עסק יוזם</div>
+      <ul style="font-size:13px;color:#334155;line-height:1.9;padding-right:16px;">
+        <li>מציע שירות/מוצר לקהילה</li>
+        <li>קובע מחיר מיוחד לקבוצה</li>
+        <li>מזמין משפחות להצטרף לעסקה</li>
+        <li>מגדיר מינימום משפחות לעסקה</li>
+        <li><strong>רואה הכל</strong> — כמה הצטרפו, מי הצטרף</li>
+        <li>העסקה מופעלת כשהמינימום מתמלא</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <span>ℹ️</span>
+    <div><strong>תנאי לפתיחת פול:</strong> הפותח (משפחה או עסק) חייב להיות <strong>חבר פעיל</strong> בקהילה שבה הפול נפתח. לא ניתן לפתוח פול בקהילה שאינך חבר בה.</div>
+  </div>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:12px;margin-top:8px;">מה היוזמת רואה שאחרים לא?</h3>
+  <table class="guide-table">
+    <thead>
+      <tr>
+        <th>מידע/פעולה</th>
+        <th style="text-align:center;">יוזמת</th>
+        <th style="text-align:center;">חבר (לא יוזמת)</th>
+        <th style="text-align:center;">עסק מציע</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>רשימת הצעות עסקים</td>
+        <td style="text-align:center;">✅ רואה</td>
+        <td style="text-align:center;">❌</td>
+        <td style="text-align:center;">❌ רק שלו</td>
+      </tr>
+      <tr>
+        <td>מחיר כל הצעה</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">❌</td>
+        <td style="text-align:center;">❌</td>
+      </tr>
+      <tr>
+        <td>בחירת הצעה מנצחת</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">❌</td>
+        <td style="text-align:center;">❌</td>
+      </tr>
+      <tr>
+        <td>פתיחת סיבוב 2</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">❌</td>
+        <td style="text-align:center;">❌</td>
+      </tr>
+      <tr>
+        <td>כמה חברים הצטרפו</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">✅</td>
+      </tr>
+      <tr>
+        <td>שליחת הודעות בפול</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">✅</td>
+        <td style="text-align:center;">✅</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- SECTION 3: LIFECYCLE -->
+<div class="section" id="lifecycle">
+  <div class="section-header">
+    <div class="section-icon" style="background:#dbeafe;">🔄</div>
+    <div>
+      <h2>3. מחזור חיים של פול</h2>
+      <p>מפתיחה ועד סגירה — כל שלב בסדר</p>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:8px;margin-bottom:20px;">
+    <div style="background:#eff6ff;border:2px solid #bfdbfe;border-radius:14px;padding:16px;text-align:center;">
+      <div style="font-size:26px;margin-bottom:6px;">🌊</div>
+      <div style="font-size:12px;font-weight:800;color:#1d4ed8;">שלב 1</div>
+      <div style="font-size:13px;font-weight:700;color:#1e293b;">פתיחת פול</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">יוזמת מגדירה שירות + מחיר</div>
+    </div>
+    <div style="background:#dbeafe;border:2px solid #93c5fd;border-radius:14px;padding:16px;text-align:center;">
+      <div style="font-size:26px;margin-bottom:6px;">👨‍👩‍👧</div>
+      <div style="font-size:12px;font-weight:800;color:#1d4ed8;">שלב 2</div>
+      <div style="font-size:13px;font-weight:700;color:#1e293b;">גיוס משפחות</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">חברות מצטרפות לפול</div>
+    </div>
+    <div style="background:#fff7ed;border:2px solid #fed7aa;border-radius:14px;padding:16px;text-align:center;">
+      <div style="font-size:26px;margin-bottom:6px;">📋</div>
+      <div style="font-size:12px;font-weight:800;color:#ea580c;">שלב 3</div>
+      <div style="font-size:13px;font-weight:700;color:#1e293b;">סיבוב 1 — עסקי קהילה</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">עסקים חברים מגישים הצעות</div>
+    </div>
+    <div style="background:#f5f3ff;border:2px solid #ddd6fe;border-radius:14px;padding:16px;text-align:center;">
+      <div style="font-size:26px;margin-bottom:6px;">🌐</div>
+      <div style="font-size:12px;font-weight:800;color:#7c3aed;">שלב 4 (אם נדרש)</div>
+      <div style="font-size:13px;font-weight:700;color:#1e293b;">סיבוב 2 — עסקים חיצוניים</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">אורחים מגישים הצעות</div>
+    </div>
+    <div style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:14px;padding:16px;text-align:center;">
+      <div style="font-size:26px;margin-bottom:6px;">✅</div>
+      <div style="font-size:12px;font-weight:800;color:#16a34a;">שלב 5</div>
+      <div style="font-size:13px;font-weight:700;color:#1e293b;">בחירת מנצח</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">יוזמת בוחרת הצעה → פול נסגר</div>
+    </div>
+    <div style="background:#fef3c7;border:2px solid #fde68a;border-radius:14px;padding:16px;text-align:center;">
+      <div style="font-size:26px;margin-bottom:6px;">⚡</div>
+      <div style="font-size:12px;font-weight:800;color:#92400e;">שלב 6</div>
+      <div style="font-size:13px;font-weight:700;color:#1e293b;">Flw מחולק</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">תגמול לעסק המנצח + יוזמת</div>
+    </div>
+  </div>
+
+  <div class="alert alert-warn">
+    <span>⏰</span>
+    <div><strong>תוקף פול:</strong> כל פול נפתח עם זמן פג תוקף. אם לא נבחרה הצעה לפני הפגת התוקף — הפול עובר לסטטוס <span class="badge badge-expired" style="font-size:11px;">פג תוקף</span> ולא ניתן לפעול בו. הרשומה נשמרת לצורכי ביקורת ואוֹדיט.</div>
+  </div>
+</div>
+
+<!-- SECTION 4: ROUNDS -->
+<div class="section" id="rounds">
+  <div class="section-header">
+    <div class="section-icon" style="background:#dbeafe;">🔁</div>
+    <div>
+      <h2>4. סיבוב 1 ו-סיבוב 2 — ההבדל</h2>
+      <p>שני שלבי מכרז שנפתחים ברצף</p>
+    </div>
+  </div>
+
+  <div class="round-box" style="background:#eff6ff;border:2px solid #bfdbfe;">
+    <div class="round-icon">🔵</div>
+    <div>
+      <div class="round-title">סיבוב 1 — עסקים מהקהילה <span class="badge badge-r1" style="margin-right:8px;">open_r1</span></div>
+      <div class="round-desc">
+        הסיבוב הראשון פתוח <strong>אך ורק לעסקים שהם חברים פעילים בקהילה</strong> שבה הפול נפתח. עסק חיצוני שאינו חבר — אינו יכול לראות את הפול ולא להציע הצעה. הגיון: עדיפות לעסקים מקומיים שכבר קיימים ביחסים עם הקהילה.
+      </div>
+    </div>
+  </div>
+
+  <div class="round-box" style="background:#f5f3ff;border:2px solid #ddd6fe;">
+    <div class="round-icon">🟣</div>
+    <div>
+      <div class="round-title">סיבוב 2 — עסקים חיצוניים (אורחים) <span class="badge badge-r2" style="margin-right:8px;">open_r2</span></div>
+      <div class="round-desc">
+        אם היוזמת לא מצאה הצעה מתאימה בסיבוב 1 — היא יכולה לפתוח סיבוב 2. בסיבוב 2 <strong>כל עסק יכול להגיש הצעה</strong>, גם אם אינו חבר בקהילה. העסק מסומן כ"אורח" בהצעות. זו הדרך להרחיב את התחרות ולמצוא מחיר טוב יותר.
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <span>💡</span>
+    <div><strong>חשוב להבין:</strong> סיבוב 2 <strong>אינו מבטל</strong> את הצעות סיבוב 1. כשפותחים סיבוב 2 — כל ההצעות הקיימות מסיבוב 1 נשארות תקפות. היוזמת בוחרת מתוך הכל — פנימי וחיצוני גם יחד.</div>
+  </div>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:12px;margin-top:8px;">מתי כדאי לפתוח סיבוב 2?</h3>
+  <table class="guide-table">
+    <thead>
+      <tr><th>מצב</th><th>המלצה</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>לא התקבלה אף הצעה בסיבוב 1</td>
+        <td>פתחו סיבוב 2 — אין מה להפסיד</td>
+      </tr>
+      <tr>
+        <td>ההצעות בסיבוב 1 גבוהות מהמחיר המקסימלי</td>
+        <td>פתחו סיבוב 2 להגדלת תחרות</td>
+      </tr>
+      <tr>
+        <td>ההצעות בסיבוב 1 סבירות</td>
+        <td>לא חייבים — בחרו הצעה ישירות</td>
+      </tr>
+      <tr>
+        <td>הפול כמעט פג תוקף ואין הצעות טובות</td>
+        <td>פתחו סיבוב 2 בדחיפות</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- SECTION 5: BLIND AUCTION -->
+<div class="section" id="blind-auction">
+  <div class="section-header">
+    <div class="section-icon" style="background:#dbeafe;">🔒</div>
+    <div>
+      <h2>5. מכרז עיוור — העיקרון</h2>
+      <p>כל עסק מציע ללא לדעת מה הציעו האחרים</p>
+    </div>
+  </div>
+
+  <p style="font-size:14px;line-height:1.8;color:#334155;margin-bottom:20px;">
+    ב-FlowPool כל הצעת עסק היא <strong>חשאית לחלוטין</strong>. עסק שמגיש הצעה לא יודע כמה המתחרים הציעו, כמה הצעות הוגשו, ואפילו לא האם הוגשו הצעות אחרות. ההצעות נחשפות <strong>רק ליוזמת</strong> — ורק לאחר שהיא מחליטה לבחור.
+  </p>
+
+  <div class="cards">
+    <div class="card" style="border-color:#bfdbfe;background:#eff6ff;">
+      <div class="icon">⚖️</div>
+      <h4>תחרות הוגנת</h4>
+      <p>כשאף עסק לא יודע מה הציע המתחרה — כולם מציעים את הטוב ביותר שיכולים. אין "שריטה" של מחיר רק ב-₪1 מתחת לאחר.</p>
+    </div>
+    <div class="card" style="border-color:#bfdbfe;background:#eff6ff;">
+      <div class="icon">🛡️</div>
+      <h4>אמינות המערכת</h4>
+      <p>היוזמת יכולה לבחור לפי כל שיקול — לא רק מחיר. תיאור השירות, אמינות, ניסיון — הכל שקלא.</p>
+    </div>
+    <div class="card" style="border-color:#bfdbfe;background:#eff6ff;">
+      <div class="icon">🚫</div>
+      <h4>ללא דיומה</h4>
+      <p>עסקים לא יכולים לתאם מחירים ביניהם כי לא יודעים מה האחרים הציעו. מניעת קנוניה מובנית במערכת.</p>
+    </div>
+    <div class="card" style="border-color:#bfdbfe;background:#eff6ff;">
+      <div class="icon">👁️</div>
+      <h4>שקיפות ליוזמת בלבד</h4>
+      <p>היוזמת — ורק היא — רואה את כל ההצעות. לאחר הבחירה, ההצעה המנצחת ניתן לראות. הנדחות נשארות חשאיות.</p>
+    </div>
+  </div>
+
+  <div class="alert alert-warn">
+    <span>⚠️</span>
+    <div><strong>לתשומת לב עסקים:</strong> אתם מגישים הצעה אחת בלבד לכל פול. ניתן לעדכן את ההצעה לפני שהיוזמת בחרה — הגשה נוספת מחליפה את הקודמת. <strong>אין מגבלה על מספר הפולים</strong> שניתן להציע בהם בו-זמנית.</div>
+  </div>
+</div>
+
+<!-- SECTION 6: FAMILY GUIDE -->
+<div class="section" id="family-guide">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fff7ed;">👨‍👩‍👧‍👦</div>
+    <div>
+      <h2>6. מדריך למשפחה</h2>
+      <p>כל מה שמשפחה יכולה לעשות בFlowPool</p>
+    </div>
+  </div>
+
+  <div class="roles">
+    <span class="role-pill role-family">🟠 רלוונטי למשפחה</span>
+  </div>
+
+  <div class="scenario">
+    <h3>📱 איפה מוצאים את FlowPool?</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>נכנסים לטאב <strong>קהילה</strong> בתפריט המשפחה</li>
+      <li><span class="step-num">2</span>בחלק הקהילה מוצגים 5 טאבים: חיבור · הטבות · חדשות · עניין · <strong>Pool 🌊</strong></li>
+      <li><span class="step-num">3</span>לוחצים על <strong>Pool 🌊</strong> — מוצגת רשימת כל הפולים הפעילים בקהילה</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>🌊 תרחיש 1 — פתיחת פול חדש (משפחה יוזמת)</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>בטאב <strong>Pool 🌊</strong> → לוחצים <em>"+ פול חדש"</em> (כפתור כחול, ימין למעלה)</li>
+      <li><span class="step-num">2</span>ממלאים <strong>כותרת</strong> — ברורה וספציפית. לדוגמה: <em>"אינסטלטור לדירות בבניין ז'"</em></li>
+      <li><span class="step-num">3</span>ממלאים <strong>תיאור</strong> — פרטים: כמה דירות, איזה עבודה, לוח זמנים מבוקש</li>
+      <li><span class="step-num">4</span>ממלאים <strong>קטגוריה</strong> (לדוגמה: אינסטלציה, ניקיון, גינון) — לסינון עסקים</li>
+      <li><span class="step-num">5</span>מגדירים <strong>מחיר מקסימלי</strong> — מה המחיר שמעליו לא תקבלו הצעה. 0 = פתוח לכל מחיר</li>
+      <li><span class="step-num">6</span>מגדירים <strong>מינימום משפחות</strong> — כמה משפחות צריכות להצטרף (ברירת מחדל: 2)</li>
+      <li><span class="step-num">7</span>בוחרים <strong>פג תוקף</strong> — 24/48/72 שעות או שבוע</li>
+      <li><span class="step-num">8</span>לוחצים <strong>"פתח פול 🌊"</strong> — הפול נוצר, אתם בחורים כ"חבר" אוטומטית, ומקבלים +3 Flw</li>
+    </ol>
+    <div class="alert alert-success" style="margin-top:10px;">
+      <span>✅</span><div>לאחר הפתיחה — הפול מוצג לכל חברי הקהילה בטאב Pool. הודעת מערכת אוטומטית נשלחת לפול: <em>"פול חדש נפתח: [כותרת]"</em></div>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>👋 תרחיש 2 — הצטרפות לפול קיים (משפחה שאינה יוזמת)</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>בטאב <strong>Pool 🌊</strong> — גולשים ברשימת הפולים הפעילים</li>
+      <li><span class="step-num">2</span>לוחצים על פול שמעניין אתכם — נפתח מסך פרטים</li>
+      <li><span class="step-num">3</span>קוראים את הכותרת, התיאור, הקטגוריה והמחיר המקסימלי</li>
+      <li><span class="step-num">4</span>לוחצים <strong>"🌊 הצטרף לפול"</strong> — הצטרפתם!</li>
+      <li><span class="step-num">5</span>מקבלים אוטומטית: <strong>+5 Flw</strong> על ההצטרפות</li>
+      <li><span class="step-num">6</span>הפול מוצג עכשיו עם תגית <span style="font-size:12px;font-weight:700;color:#16a34a;">✦ אתם חברים</span></li>
+      <li><span class="step-num">7</span>ניתן לשלוח הודעות בפול ולעקוב אחר ההתפתחויות</li>
+    </ol>
+    <div class="alert alert-info" style="margin-top:10px;">
+      <span>ℹ️</span><div>כחבר בפול — <strong>אינכם רואים</strong> את הצעות העסקים. רק היוזמת רואה אותן. תדעו מה קורה רק לאחר שיוזמת תבחר הצעה מנצחת.</div>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>✅ תרחיש 3 — בחירת הצעה מנצחת (יוזמת בלבד)</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>נכנסים לפרטי הפול שפתחתם</li>
+      <li><span class="step-num">2</span>בחלק <em>"📋 הצעות עסקים"</em> — מוצגות כל ההצעות שהתקבלו</li>
+      <li><span class="step-num">3</span>לכל הצעה מוצג: <strong>מחיר · תיאור · האם אורח (סיבוב 2)</strong></li>
+      <li><span class="step-num">4</span>לוחצים <strong>"בחר"</strong> ליד ההצעה שהכי מתאימה</li>
+      <li><span class="step-num">5</span>מופיע אישור: <em>"לבחור את ההצעה הזו?"</em> → לוחצים <strong>אישור</strong></li>
+      <li><span class="step-num">6</span>הפול עובר לסטטוס <span class="badge badge-closed">סגור ✅</span></li>
+      <li><span class="step-num">7</span>ההצעה הנבחרת מסומנת כ-<span class="badge badge-accepted">✅ נבחר</span>, שאר ההצעות כ-<span class="badge badge-rejected">נדחה</span></li>
+      <li><span class="step-num">8</span>העסק המנצח מקבל <strong>+25 Flw</strong> אוטומטית</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>🟣 תרחיש 4 — פתיחת סיבוב 2 (יוזמת בלבד)</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>נכנסים לפרטי הפול — הפול בסטטוס <span class="badge badge-r1">סיבוב 1 פתוח</span></li>
+      <li><span class="step-num">2</span>בחלק הצעות — לוחצים <strong>"פתח סיבוב 2 לעסקים חיצוניים"</strong></li>
+      <li><span class="step-num">3</span>מופיע אישור: <em>"לפתוח סיבוב 2 לעסקים חיצוניים?"</em></li>
+      <li><span class="step-num">4</span>לוחצים <strong>אישור</strong> — הפול עובר לסטטוס <span class="badge badge-r2">סיבוב 2 פתוח</span></li>
+      <li><span class="step-num">5</span>הודעת מערכת נשלחת: <em>"הפול נפתח לעסקים מחוץ לקהילה"</em></li>
+      <li><span class="step-num">6</span>עסקים חיצוניים יכולים כעת לראות את הפול ולהגיש הצעות</li>
+    </ol>
+  </div>
+</div>
+
+<!-- SECTION 7: BUSINESS GUIDE -->
+<div class="section" id="biz-guide">
+  <div class="section-header">
+    <div class="section-icon" style="background:#f0fdf4;">🏪</div>
+    <div>
+      <h2>7. מדריך לעסק</h2>
+      <p>איך עסק מגלה ומגיב לפולים בקהילה</p>
+    </div>
+  </div>
+
+  <div class="roles">
+    <span class="role-pill role-biz">🟢 רלוונטי לעסק</span>
+  </div>
+
+  <div class="scenario">
+    <h3>📱 איפה עסק רואה פולים?</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>נכנסים לממשק <strong>עסק</strong> → טאב <strong>קהילות</strong></li>
+      <li><span class="step-num">2</span>בחלק העליון מוצגים 3 טאבים: הקהילות שלי · גלה קהילות · <strong>Pool 🌊</strong></li>
+      <li><span class="step-num">3</span>לוחצים על <strong>Pool 🌊</strong> — מוצגת רשימת כל הפולים הפתוחים בקהילות שהעסק חבר בהן</li>
+      <li><span class="step-num">4</span>לוחצים על כפתור הריענון <i style="font-size:11px;">↺</i> לצפייה בפולים חדשים</li>
+    </ol>
+    <div class="alert alert-info" style="margin-top:10px;">
+      <span>ℹ️</span><div><strong>פולים בסיבוב 2:</strong> אם הפול עבר לסיבוב 2 — הוא מופיע גם לעסקים שאינם חברים בקהילה (אורחים). עסקים כאלה יוכלו להגיש הצעה אך יסומנו כ"אורח" בפני היוזמת.</div>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>💼 תרחיש 1 — הגשת הצעת מחיר לפול</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>בטאב <strong>Pool 🌊</strong> — גולשים ורואים פולים רלוונטיים לסוג העסק</li>
+      <li><span class="step-num">2</span>קוראים את פרטי הפול: שירות נדרש, כמה משפחות, מחיר מקסימלי</li>
+      <li><span class="step-num">3</span>לוחצים <strong>"💼 הגש הצעת מחיר"</strong></li>
+      <li><span class="step-num">4</span>מזינים <strong>מחיר</strong> — הסכום שאתם מציעים לכלל הקבוצה</li>
+      <li><span class="step-num">5</span>מזינים <strong>תיאור ההצעה</strong> — מה כלול, לוח זמנים, ניסיון רלוונטי, תנאים</li>
+      <li><span class="step-num">6</span>לוחצים <strong>"שלח הצעה"</strong> — ההצעה נשלחת ליוזמת</li>
+      <li><span class="step-num">7</span>הכפתור משתנה — לא ניתן לשלוח הצעה נוספת לאותו פול (רק לעדכן)</li>
+    </ol>
+    <div class="alert alert-warn" style="margin-top:10px;">
+      <span>⚠️</span><div><strong>זכרו:</strong> המכרז עיוור. אתם לא יודעים כמה הציעו אחרים. הגישו את ההצעה הטובה ביותר שאתם יכולים — לא "מחיר הישמטות" שמוריד אחרים.</div>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>🏆 תרחיש 2 — הצעתכם נבחרה!</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>היוזמת בחרה את הצעתכם — הפול נסגר</li>
+      <li><span class="step-num">2</span>הודעת מערכת בפול: <em>"הצעה נבחרה — הפול נסגר בהצלחה!"</em></li>
+      <li><span class="step-num">3</span>מקבלים אוטומטית <strong>+25 Flw</strong> לארנק העסק</li>
+      <li><span class="step-num">4</span>ניתן לתקשר עם הקבוצה דרך הודעות הפול לתיאום ביצוע</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>❌ תרחיש 3 — הצעתכם לא נבחרה</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>הפול נסגר — הצעתכם מסומנת <span class="badge badge-rejected">נדחה</span></li>
+      <li><span class="step-num">2</span>לא מקבלים Flw (Flw ניתן רק לנבחר)</li>
+      <li><span class="step-num">3</span>ניתן להגיש הצעות לפולים אחרים — אין מגבלה</li>
+    </ol>
+    <div class="alert alert-success" style="margin-top:10px;">
+      <span>💡</span><div>דחייה אינה עונש — המכרז עיוור ולפעמים פשוט הייתה הצעה אחרת. כל פול הוא הזדמנות חדשה. <strong>היוזמת לא בוחרת בהכרח לפי מחיר</strong> — הסבר טוב, ניסיון מוכח ולוח זמנים ברור שווים הרבה.</div>
+    </div>
+  </div>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:12px;margin-top:8px;">עצות לעסקים — איך לנצח בפול?</h3>
+  <table class="guide-table">
+    <thead>
+      <tr><th>טיפ</th><th>למה זה עובד?</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>📝 <strong>תיאור מפורט ואישי</strong></td>
+        <td>יוזמת שרואה "אינסטלטור עם 15 שנות ניסיון בבניינים ישנים, כולל הגעה תוך 48 שעות" — מעדיפה על פני מחיר נמוך ותיאור סתמי</td>
+      </tr>
+      <tr>
+        <td>⏰ <strong>לוח זמנים ברור</strong></td>
+        <td>ציינו מתי תוכלו להגיע, כמה זמן ייקח, מתי מסיימים. קהילה מסכימה על מחיר מעט גבוה אם הזמן ברור</td>
+      </tr>
+      <tr>
+        <td>📋 <strong>פירוט מה כלול</strong></td>
+        <td>חומרים, עבודה, ביקורת נוספת — הכל בשקיפות. הפתעות אחרי הבחירה פוגעות ב-Flw ובמוניטין</td>
+      </tr>
+      <tr>
+        <td>🤝 <strong>הצטרפו לקהילה מראש</strong></td>
+        <td>עסקים חברי קהילה מוצגים בסיבוב 1. אורחי סיבוב 2 נראים כ"זרים" — חברי הקהילה מקבלים אמון גבוה יותר</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- SECTION 8: MESSAGES -->
+<div class="section" id="messages">
+  <div class="section-header">
+    <div class="section-icon" style="background:#dbeafe;">💬</div>
+    <div>
+      <h2>8. הודעות בפול</h2>
+      <p>ערוץ תקשורת ייעודי לכל פול</p>
+    </div>
+  </div>
+
+  <p style="font-size:14px;line-height:1.8;color:#334155;margin-bottom:20px;">
+    לכל פול יש ערוץ הודעות ייעודי שבו יכולים לתקשר משפחות, עסקים ומערכת. ההודעות מוצגות בסגנון צ'אט — שולח מימין, מקבל משמאל. <strong>הודעות המערכת</strong> (כמו "פול נפתח", "הצעה נבחרה") מוצגות במרכז כהודעות מידע.
+  </p>
+
+  <div class="cards">
+    <div class="card" style="border-color:#bfdbfe;background:#eff6ff;">
+      <div class="icon">👨‍👩‍👧‍👦</div>
+      <h4>הודעות משפחה</h4>
+      <p>משפחות בפול יכולות לשאול שאלות, לתאם עם יוזמת, ולהביע עניין בשירות. כל חבר בפול יכול לכתוב.</p>
+    </div>
+    <div class="card" style="border-color:#bfdbfe;background:#eff6ff;">
+      <div class="icon">🏪</div>
+      <h4>הודעות עסק</h4>
+      <p>עסקים שהגישו הצעה יכולים לשאול שאלות הבהרה, להוסיף פרטים על ההצעה, לתאם זמינות.</p>
+    </div>
+    <div class="card" style="border-color:#bfdbfe;background:#eff6ff;">
+      <div class="icon">🤖</div>
+      <h4>הודעות מערכת</h4>
+      <p>אוטומטיות: פול נפתח · משפחה הצטרפה · הצעה התקבלה · סיבוב 2 נפתח · הצעה נבחרה — הפול נסגר.</p>
+    </div>
+    <div class="card" style="border-color:#bfdbfe;background:#eff6ff;">
+      <div class="icon">🌙</div>
+      <h4>מחיקה בחצות</h4>
+      <p>הודעות הצ'אט נמחקות בחצות כל יום. הפול עצמו ורשומת ההצעות — נשמרים לנצח לצורכי ביקורת.</p>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>✉️ איך שולחים הודעה בפול?</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>נכנסים לפרטי הפול (לחיצה על פול כלשהו מהרשימה)</li>
+      <li><span class="step-num">2</span>גוללים לחלק התחתון — <strong>"💬 הודעות"</strong></li>
+      <li><span class="step-num">3</span>מזינים הודעה בשדה הטקסט</li>
+      <li><span class="step-num">4</span>לוחצים <strong>Enter</strong> או כפתור השליחה (✈️)</li>
+      <li><span class="step-num">5</span>ההודעה מופיעה לכל המשתתפים שנכנסים לפרטי הפול</li>
+    </ol>
+    <div class="alert alert-warn" style="margin-top:10px;">
+      <span>⚠️</span><div>שליחת הודעות אפשרית רק כשהפול <strong>פתוח</strong> (סיבוב 1 או 2). לאחר שהפול נסגר או פג תוקף — ניתן לצפות בהודעות בלבד.</div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 9: FLW REWARDS -->
+<div class="section" id="flw-rewards">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef3c7;">⚡</div>
+    <div>
+      <h2>9. Flw מ-FlowPool — טבלת תגמולים</h2>
+      <p>כל פעולה בפול מניבה Flw — לכל השחקנים</p>
+    </div>
+  </div>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:10px;">תגמולי משפחה</h3>
+  <table class="flow-table" style="margin-bottom:20px;">
+    <thead>
+      <tr>
+        <th>פעולה</th>
+        <th style="text-align:center;">Flw אישי</th>
+        <th style="text-align:center;">Flw לקהילה</th>
+        <th>מתי?</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>🌊 פתיחת פול חדש</td>
+        <td style="text-align:center;" class="flow-amount-pos">+3</td>
+        <td style="text-align:center;" class="flow-amount">+1</td>
+        <td>מיידי עם פתיחת הפול</td>
+      </tr>
+      <tr>
+        <td>👋 הצטרפות לפול קיים</td>
+        <td style="text-align:center;" class="flow-amount-pos">+5</td>
+        <td style="text-align:center;" class="flow-amount">+2</td>
+        <td>מיידי עם ההצטרפות</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:10px;">תגמולי עסק</h3>
+  <table class="flow-table" style="margin-bottom:20px;">
+    <thead>
+      <tr>
+        <th>פעולה</th>
+        <th style="text-align:center;">Flw לעסק</th>
+        <th style="text-align:center;">Flw לקהילה</th>
+        <th>מתי?</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>🏆 הצעה נבחרה כמנצחת</td>
+        <td style="text-align:center;" class="flow-amount-pos">+25</td>
+        <td style="text-align:center;" class="flow-amount">+10</td>
+        <td>מיידי עם בחירת ההצעה ע"י יוזמת</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="alert alert-pool">
+    <span>⚡</span>
+    <div>
+      <strong>חישוב לדוגמה:</strong><br>
+      <span style="font-size:12px;line-height:2;">
+        יוזמת פותחת פול: <strong>+3 Flw</strong> · 8 משפחות מצטרפות: <strong>+40 Flw לקהילה</strong> · עסק מנצח: <strong>+25 Flw</strong><br>
+        <span style="color:#1d4ed8;">סך הכל לקהילה: 1 (פתיחה) + 16 (הצטרפויות) + 10 (ניצחון) = <strong>27 Flw קהילתי</strong></span>
+      </span>
+    </div>
+  </div>
+
+  <div class="alert alert-info" style="margin-top:0;">
+    <span>ℹ️</span>
+    <div><strong>שיעורים ניתנים לשינוי ע"י SA</strong> — הערכים שמוצגים כאן הם ברירות המחדל מה-<code>flow_config</code>. SA יכול לשנות כל סכום דרך ממשק הניהול, השינוי חל על פעולות עתידיות בלבד.</div>
+  </div>
+</div>
+
+<!-- SECTION 10: STATUSES -->
+<div class="section" id="statuses">
+  <div class="section-header">
+    <div class="section-icon" style="background:#dbeafe;">📊</div>
+    <div>
+      <h2>10. טבלת סטטוסים</h2>
+      <p>כל הסטטוסים — של פול, של הצעה, ושל חברות</p>
+    </div>
+  </div>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:10px;">סטטוסי פול</h3>
+  <table class="guide-table" style="margin-bottom:20px;">
+    <thead>
+      <tr><th>סטטוס</th><th>תצוגה</th><th>משמעות</th><th>מי יכול לפעול?</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>open_r1</code></td>
+        <td><span class="badge badge-r1">🔵 סיבוב 1 פתוח</span></td>
+        <td>פול פעיל — מקבל הצעות מעסקי קהילה בלבד</td>
+        <td>עסקי קהילה מגישים · משפחות מצטרפות · יוזמת בוחרת</td>
+      </tr>
+      <tr>
+        <td><code>open_r2</code></td>
+        <td><span class="badge badge-r2">🟣 סיבוב 2 פתוח</span></td>
+        <td>פול פעיל — מקבל גם עסקים חיצוניים</td>
+        <td>כל עסק מגיש (כולל אורחים) · משפחות מצטרפות</td>
+      </tr>
+      <tr>
+        <td><code>closed</code></td>
+        <td><span class="badge badge-closed">✅ סגור</span></td>
+        <td>יוזמת בחרה הצעה מנצחת — הפול הסתיים בהצלחה</td>
+        <td>קריאה בלבד — לא ניתן להגיש/להצטרף</td>
+      </tr>
+      <tr>
+        <td><code>expired</code></td>
+        <td><span class="badge badge-expired">⏰ פג תוקף</span></td>
+        <td>הפול פג לפני שנבחרה הצעה</td>
+        <td>קריאה בלבד — הרשומה שמורה לביקורת</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:10px;">סטטוסי הצעה (bid)</h3>
+  <table class="guide-table">
+    <thead>
+      <tr><th>סטטוס</th><th>תצוגה</th><th>משמעות</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>pending</code></td>
+        <td><span class="badge badge-pending">ממתין</span></td>
+        <td>הצעה הוגשה — טרם נבחרה ולא נדחתה. ניתן לעדכן.</td>
+      </tr>
+      <tr>
+        <td><code>accepted</code></td>
+        <td><span class="badge badge-accepted">✅ נבחר</span></td>
+        <td>הצעה נבחרה כמנצחת ע"י היוזמת. עסק מקבל +25 Flw.</td>
+      </tr>
+      <tr>
+        <td><code>rejected</code></td>
+        <td><span class="badge badge-rejected">נדחה</span></td>
+        <td>הצעה לא נבחרה — הפול נסגר עם הצעה אחרת.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- SECTION 11: SCENARIOS FAMILY -->
+<div class="section" id="scenarios-family">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fff7ed;">🌊</div>
+    <div>
+      <h2>11. תסריטים מעשיים — משפחה</h2>
+      <p>דוגמאות אמיתיות מהחיים — שלב אחר שלב</p>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>🔵 תרחיש 1 — 8 שכנים מחפשים ניקיון מדרגות</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>שרה פותחת פול: <em>"ניקיון מדרגות — בניין 12 רחוב הגפן"</em> עם מחיר מקסימלי ₪400/חודש לבניין</li>
+      <li><span class="step-num">2</span>7 שכנות נוספות רואות את הפול ומצטרפות — כל אחת מקבלת +5 Flw</li>
+      <li><span class="step-num">3</span>שתי חברות ניקיון מהקהילה מגישות הצעות: ₪350 ו-₪380</li>
+      <li><span class="step-num">4</span>שרה (יוזמת) קוראת את שתי ההצעות. החברה ב-₪380 מציעה כלי ניקיון מתקדמים + ניקיון שבועי נוסף בחינם לחודש ראשון</li>
+      <li><span class="step-num">5</span>שרה בוחרת את ₪380 — ערך מוסף גבוה יותר למרות מחיר גבוה</li>
+      <li><span class="step-num">6</span>הפול נסגר. חברת הניקיון מקבלת +25 Flw. שרה כותבת בצ'אט: "תיאמו איתה ישירות"</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>🟣 תרחיש 2 — פול שעובר לסיבוב 2</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>יוסי פותח פול: <em>"תיקון גג — 15 יחידות דיור"</em> עם מקסימום ₪8,000 לכלל הבניין</li>
+      <li><span class="step-num">2</span>אחרי 24 שעות — לא הוגשה אף הצעה מעסקי הקהילה. קבלני בנייה אינם חלק מהקהילה הספציפית.</li>
+      <li><span class="step-num">3</span>יוסי פותח סיבוב 2 — "פתח סיבוב 2 לעסקים חיצוניים"</li>
+      <li><span class="step-num">4</span>3 קבלנים חיצוניים רואים את הפול ומגישים הצעות: ₪6,500 / ₪7,200 / ₪9,100</li>
+      <li><span class="step-num">5</span>יוסי בוחר את ₪7,200 — הקבלן שהציע ₪6,500 כתב תיאור קצר וללא ביטוח, הקבלן ב-₪7,200 כתב פירוט מלא כולל ערבות שנה</li>
+      <li><span class="step-num">6</span>הצעה הנבחרת מסומנת. הקבלן מקבל +25 Flw. ₹9,100 נדחה בלי לדעת מה הניצחון היה.</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>🏪 תרחיש 3 — עסק פותח פול משלו</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>חנות ירקות שחברה בקהילה פותחת פול מצד העסק: <em>"סל ירקות שבועי — 10 משפחות, ₪45/סל"</em></li>
+      <li><span class="step-num">2</span>מינימום 10 משפחות, מחיר מוצע: ₪45 לסל שבועי (הנחה של 20% ממחיר רגיל)</li>
+      <li><span class="step-num">3</span>11 משפחות מצטרפות לפול תוך 48 שעות</li>
+      <li><span class="step-num">4</span>המינימום הושג — העסק מתאם דרך הצ'אט: "יהיה מוכן לאיסוף כל ראשון ב-17:00"</li>
+      <li><span class="step-num">5</span>הפול "נסגר" כשהעסק מסמן אותו (אין מכרז — יש רק מחיר קבוע והמינימום הושג)</li>
+    </ol>
+  </div>
+</div>
+
+<!-- SECTION 12: SCENARIOS BIZ -->
+<div class="section" id="scenarios-biz">
+  <div class="section-header">
+    <div class="section-icon" style="background:#f0fdf4;">🏪</div>
+    <div>
+      <h2>12. תסריטים מעשיים — עסק</h2>
+      <p>כיצד עסק מוצא ומנצח בפולים</p>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>🔍 תרחיש 1 — אינסטלטור מגיש הצעות לכמה פולים ביחד</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>אינסטלטור נכנס לטאב Pool 🌊 — רואה 3 פולים פתוחים בקהילות שחבר בהן</li>
+      <li><span class="step-num">2</span>קורא בפירוט את 3 הפולים: בניין א' 6 דירות, בניין ב' 12 דירות, בניין ג' 4 דירות</li>
+      <li><span class="step-num">3</span>מגיש הצעה לבניין א': ₪1,200 + תיאור מפורט עם לוח זמנים של שבוע</li>
+      <li><span class="step-num">4</span>מגיש הצעה לבניין ב': ₪2,400 + הצעה לביצוע בסוף שבוע כדי לא להפריע לדיירים</li>
+      <li><span class="step-num">5</span>בניין ג' קטן מדי ולא כדאי — לא מגיש</li>
+      <li><span class="step-num">6</span>ניצח בבניין א' — קיבל +25 Flw. בניין ב' — עדיין ממתין</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>🌐 תרחיש 2 — עסק כאורח בסיבוב 2</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>מעצב גינות שאינו חבר בקהילת "שכונת ב'" רואה בממשק שלו פולים בסיבוב 2</li>
+      <li><span class="step-num">2</span>מופיע פול: <em>"עיצוב גינה קהילתית — 20 משפחות"</em> עם מחיר מקסימלי ₪5,000</li>
+      <li><span class="step-num">3</span>מגיש הצעה כ"אורח" (מחוץ לקהילה): ₪4,200 + תיאור + תמונות עבודות קודמות (בהודעת צ'אט)</li>
+      <li><span class="step-num">4</span>היוזמת רואה שה"אורח" מציע מחיר טוב עם תיק עבודות מרשים</li>
+      <li><span class="step-num">5</span>הצעתו נבחרת — מקבל +25 Flw. ראה הזדמנות עסקית — שוקל להצטרף לקהילה כחבר</li>
+    </ol>
+    <div class="alert alert-success" style="margin-top:10px;">
+      <span>💡</span><div><strong>אפקט משני:</strong> ניצחון כ"אורח" בסיבוב 2 הוא הזדמנות להציג את העסק בפני 20 משפחות חדשות. כמה מהן עלולות לפנות אליך ישירות גם לעבודות אחרות.</div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 13: HOW TO CHECK -->
+<div class="section" id="check-scripts">
+  <div class="section-header">
+    <div class="section-icon" style="background:#dbeafe;">🔍</div>
+    <div>
+      <h2>13. איך בודקים הכל — שאלות ותשובות מהירות</h2>
+      <p>תרשים פתרון בעיות נפוצות</p>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>❓ "לא רואה את טאב Pool בקהילה"</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ודאו שאתם <strong>מחוברים לקהילה</strong> — טאב Pool מופיע רק לחברי קהילה פעילים</li>
+      <li><span class="step-num">2</span>לכו לטאב <strong>חיבור</strong> ובדקו שהקהילה שלכם מאושרת (לא "ממתינה")</li>
+      <li><span class="step-num">3</span>רנדרו מחדש את מסך הקהילה — לאחר אישור יש פעמים שצריך לרענן</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>❓ "כעסק, לא רואה פולים בטאב Pool"</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ודאו שהעסק <strong>חבר מאושר</strong> בלפחות קהילה אחת (טאב "הקהילות שלי")</li>
+      <li><span class="step-num">2</span>לחצו על ריענון ↺ — הרשימה לא מתעדכנת אוטומטית</li>
+      <li><span class="step-num">3</span>ייתכן שאין פולים פתוחים כרגע — כשמשפחות יפתחו פולים הם יופיעו כאן</li>
+      <li><span class="step-num">4</span>הצטרפו לקהילות נוספות — יותר קהילות = יותר פולים גלויים</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>❓ "שלחתי הצעה לפול — איך יודע אם נבחרתי?"</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>כנסו לטאב Pool 🌊 — הפול יעבור לסטטוס <span class="badge badge-closed">✅ סגור</span></li>
+      <li><span class="step-num">2</span>הצעתכם תסומן כ-<span class="badge badge-accepted">✅ נבחר</span> אם ניצחתם, או <span class="badge badge-rejected">נדחה</span> אם לא</li>
+      <li><span class="step-num">3</span>ניצחתם? תראו <strong>+25 Flw</strong> בארנק העסק</li>
+      <li><span class="step-num">4</span>לא ניצחתם? המערכת לא מספרת למה — כל פול הוא הזדמנות חדשה</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>❓ "פתחתי פול אבל לא מגיעות הצעות"</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>בדקו שהכותרת <strong>ספציפית</strong> — "אינסטלציה" ברורה יותר מ"עזרה בבית"</li>
+      <li><span class="step-num">2</span>בדקו שה<strong>תיאור מלא</strong> — עסקים צריכים לדעת מה בדיוק נדרש</li>
+      <li><span class="step-num">3</span>בדקו שה<strong>מחיר המקסימלי</strong> לא נמוך מדי — זה עלול להרתיע עסקים</li>
+      <li><span class="step-num">4</span>שלחו הודעה בצ'אט הפול עם פרטים נוספים</li>
+      <li><span class="step-num">5</span>אם עדיין אין — <strong>פתחו סיבוב 2</strong> להרחבת קהל העסקים</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>❓ "הפול פג תוקף לפני שבחרתי הצעה"</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>הפול עבר לסטטוס <span class="badge badge-expired">⏰ פג תוקף</span> — לא ניתן לפעול בו יותר</li>
+      <li><span class="step-num">2</span>פתחו <strong>פול חדש</strong> עם אותו תיאור (ניתן להעתיק)</li>
+      <li><span class="step-num">3</span>בפרמטר "פג תוקף" — בחרו זמן ארוך יותר הפעם</li>
+      <li><span class="step-num">4</span>הרשומה הישנה נשמרת — ניתן לראות אותה לצורכי ייחוס</li>
+    </ol>
+  </div>
+</div>
+
+<!-- SECTION 14: FAQ -->
+<div class="section" id="faq">
+  <div class="section-header">
+    <div class="section-icon" style="background:#dbeafe;">❓</div>
+    <div>
+      <h2>14. שאלות נפוצות</h2>
+      <p>תשובות לשאלות שחוזרות על עצמן</p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div style="space-y:16px;">
+    <div style="margin-bottom:20px;">
+      <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:6px;">🌊 האם פול מחייב את המשפחות לקנות?</div>
+      <div style="font-size:13px;color:#475569;line-height:1.7;">לא. הצטרפות לפול היא <strong>הצהרת עניין</strong> בלבד, לא התחייבות. כשיוזמת בוחרת הצעה — כל משפחה מחליטה בנפרד אם לממש את העסקה.</div>
+    </div>
+    <div class="divider"></div>
+
+    <div style="margin-bottom:20px;">
+      <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:6px;">🔒 האם עסק יכול לגלות כמה הצעות הוגשו?</div>
+      <div style="font-size:13px;color:#475569;line-height:1.7;">לא. עסק רואה רק את ההצעה שהגיש בעצמו. מספר ההצעות, תוכנן, ומחיריהן — חשאיים לחלוטין. רק היוזמת רואה את התמונה המלאה.</div>
+    </div>
+    <div class="divider"></div>
+
+    <div style="margin-bottom:20px;">
+      <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:6px;">💡 האם היוזמת חייבת לבחור לפי מחיר?</div>
+      <div style="font-size:13px;color:#475569;line-height:1.7;">לא. היוזמת בוחרת לפי כל שיקול שתרצה — מחיר, תיאור, אמינות, לוח זמנים, שם עסק. אין חובה לבחור את המחיר הנמוך ביותר. המכרז עיוור — לא מכרז מחיר.</div>
+    </div>
+    <div class="divider"></div>
+
+    <div style="margin-bottom:20px;">
+      <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:6px;">🔄 האם אפשר לעדכן הצעה שכבר הגשתי?</div>
+      <div style="font-size:13px;color:#475569;line-height:1.7;">כן — כל עוד הפול פתוח ולא נבחרה הצעה, ניתן להגיש הצעה נוספת שתחליף את הקודמת. לכל עסק יש <strong>הצעה אחת פעילה בלבד</strong> בכל פול בכל רגע נתון.</div>
+    </div>
+    <div class="divider"></div>
+
+    <div style="margin-bottom:20px;">
+      <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:6px;">📋 האם הפול נשמר לאחר הסגירה?</div>
+      <div style="font-size:13px;color:#475569;line-height:1.7;">כן. <strong>הפול עצמו נשמר לנצח</strong> — כולל הכותרת, ההצעות, ומי ניצח. רק <strong>הודעות הצ'אט</strong> נמחקות בחצות כל יום. נתוני הפול משמשים לצורכי ביקורת ואוֹדיט.</div>
+    </div>
+    <div class="divider"></div>
+
+    <div style="margin-bottom:20px;">
+      <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:6px;">🏪 האם עסק חיצוני (סיבוב 2) מקבל Flw?</div>
+      <div style="font-size:13px;color:#475569;line-height:1.7;">כן. עסק אורח שהצעתו נבחרת מקבל <strong>+25 Flw</strong> בדיוק כמו עסק חבר. ה-Flw מועבר לארנק העסק החיצוני. עם זאת, Flw של עסק חיצוני ניתן לממש <strong>רק בקהילות שהוא חבר בהן</strong> — אם אינו חבר בשום קהילה, הFlw ממתין עד שיצטרף.</div>
+    </div>
+    <div class="divider"></div>
+
+    <div style="margin-bottom:20px;">
+      <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:6px;">👑 כמה פולים ניתן לפתוח בו-זמנית?</div>
+      <div style="font-size:13px;color:#475569;line-height:1.7;">אין מגבלה. ניתן לפתוח מספר פולים מקביל בו-זמנית — בקהילה אחת או בקהילות שונות. כל פול עצמאי ועומד בפני עצמו.</div>
+    </div>
+    <div class="divider"></div>
+
+    <div style="margin-bottom:0;">
+      <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:6px;">🔔 האם מקבלים התראה על הצעות חדשות?</div>
+      <div style="font-size:13px;color:#475569;line-height:1.7;">כרגע — לא. יוזמת צריכה להיכנס לפרטי הפול כדי לראות הצעות חדשות. מומלץ לבדוק את הפול מדי כמה שעות. <strong>התראות Push</strong> עשויות להיות זמינות בגרסאות עתידיות.</div>
+    </div>
+  </div>
+</div>
+
+<!-- LIFECYCLE TIMELINE -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:#dbeafe;">📅</div>
+    <div>
+      <h2>מחזור זמן מלא — דוגמה</h2>
+      <p>מ-0 עד סגירת פול מוצלחת בתוך 48 שעות</p>
+    </div>
+  </div>
+
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="timeline-label">שעה 0:00 — יוזמת פותחת פול</div>
+      <div class="timeline-text">הכותרת, התיאור והמחיר מוגדרים. הפול עולה לסיבוב 1. יוזמת מקבלת +3 Flw.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-label">שעה 0:30 — משפחות מצטרפות</div>
+      <div class="timeline-text">4 שכנות שרואות את הפול בטאב Pool מצטרפות. כל אחת מקבלת +5 Flw.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-label">שעה 2:00 — עסק מגיש הצעה ראשונה</div>
+      <div class="timeline-text">חברת ניקיון שחברה בקהילה מגישה ₪320 + תיאור מפורט. היוזמת קיבלה התראה (בגרסאות עתידיות).</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-label">שעה 6:00 — עסק שני מגיש הצעה</div>
+      <div class="timeline-text">חברה נוספת מגישה ₪280. שני עסקים — שניהם לא יודעים על ההצעה של השני.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-label">שעה 24:00 — יוזמת בוחרת</div>
+      <div class="timeline-text">יוזמת נכנסת לפרטי הפול, קוראת שתי הצעות, בוחרת ₪320 בגלל תיאור ביטוח עבודה מלא.</div>
+    </div>
+    <div class="timeline-item" style="padding-bottom:0;">
+      <div class="timeline-label">שעה 24:01 — פול נסגר ✅</div>
+      <div class="timeline-text">חברת הניקיון שנבחרה מקבלת +25 Flw. הפול עובר לסטטוס סגור. הצ'אט ממשיך פתוח לתיאום ביצוע.</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<div class="guide-footer">
+  <strong>Oneflow Life — FlowPool Guide v1.0</strong><br>
+  מדריך זה מתעדכן עם כל גרסה חדשה של המערכת · לשאלות פנו ל-<strong>support@oneflowlife.co.il</strong><br>
+  <span style="margin-top:8px;display:block;">ניווט: <a href="/community-guide.html" style="color:#93c5fd;text-decoration:none;">מדריך קהילות</a> · <a href="/flow-guide.html" style="color:#93c5fd;text-decoration:none;">מדריך מטבעות Flw</a> · <a href="/business.html" style="color:#93c5fd;text-decoration:none;">ממשק עסק</a> · <a href="/" style="color:#93c5fd;text-decoration:none;">ממשק משפחה</a></span>
+</div>
+
+</body>
+</html>
