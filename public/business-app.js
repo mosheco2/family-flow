@@ -4704,9 +4704,6 @@ window.renderDashboard = async function(forceRefresh = false) {
     const isEmployee = currentUser?.role === 'MEMBER' || currentUser?.role === 'SENIOR';
     if (isEmployee) { await renderEmployeeDashboard(); return; }
 
-    // ★ FLOW widget — מנהלים בלבד, בכל סוגי העסקים
-    if (currentUser?.role === 'ADMIN') try { await renderBizFlowWidget(); } catch(e) {}
-
     // For admin/owner in sport business, render sport dashboard into content-feed
     if (currentUser?.role === 'ADMIN' && currentGroup?.business_type === 'sport') {
         if (window._sportScreenActive || window._sportDashRendering) return;
@@ -4763,6 +4760,7 @@ window.renderDashboard = async function(forceRefresh = false) {
             }, 30000);
         }
         window._beautyDashRendering = false;
+        try { await renderBizFlowWidget(); } catch(e) {}
         return;
     }
 
@@ -4790,6 +4788,7 @@ window.renderDashboard = async function(forceRefresh = false) {
             }, 30000);
         }
         window._logisticsDashRendering = false;
+        try { await renderBizFlowWidget(); } catch(e) {}
         return;
     }
 
@@ -4845,6 +4844,7 @@ window.renderDashboard = async function(forceRefresh = false) {
                 else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             }, 20000);
         }
+        try { await renderBizFlowWidget(); } catch(e) {}
         return;
     }
 
@@ -4871,6 +4871,7 @@ window.renderDashboard = async function(forceRefresh = false) {
             }, 60000);
         }
         window._profDashRendering = false;
+        try { await renderBizFlowWidget(); } catch(e) {}
         return;
     }
 
@@ -5064,6 +5065,9 @@ window.renderDashboard = async function(forceRefresh = false) {
 
         // ★ Sparklines
         try { renderSparklines(); } catch(e) {}
+
+        // ★ FLOW balance widget (מנהלים בלבד)
+        try { await renderBizFlowWidget(); } catch(e) {}
 
     } catch(err) { console.error('renderDashboard:', err); }
 };
@@ -15213,14 +15217,12 @@ function launchFlowConfetti() {
 // ─── FLOW WALLET (BUSINESS) ──────────────────────────────────
 
 async function renderBizFlowWidget() {
-    const widget = document.getElementById('flow-balance-widget');
-    if (!widget || currentUser?.role !== 'ADMIN') { if (widget) widget.classList.add('hidden'); return; }
+    if (currentUser?.role !== 'ADMIN') return;
     try {
         const res = await fetch(`${API}/flow/wallet/business/${currentGroup.id}`);
         const data = await res.json();
         const bal = Math.floor(parseFloat(data.balance || 0));
-        widget.classList.remove('hidden');
-        widget.innerHTML = `<div onclick="openBizFlowWallet()" style="cursor:pointer;background:linear-gradient(135deg,#f59e0b,#d97706,#b45309);border-radius:20px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(245,158,11,0.35);position:relative;overflow:hidden;">
+        const html = `<div style="margin:0 8px 16px;"><div onclick="openBizFlowWallet()" style="cursor:pointer;background:linear-gradient(135deg,#f59e0b,#d97706,#b45309);border-radius:20px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(245,158,11,0.35);position:relative;overflow:hidden;">
             <div style="position:absolute;inset:0;background:radial-gradient(circle at 80% 50%,rgba(255,255,255,0.12),transparent 60%);pointer-events:none;"></div>
             <div style="display:flex;align-items:center;gap:12px;">
                 <div style="background:rgba(255,255,255,0.2);border-radius:14px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;">⚡</div>
@@ -15234,8 +15236,28 @@ async function renderBizFlowWidget() {
                 <div style="background:rgba(255,255,255,0.2);border-radius:10px;padding:6px 12px;color:white;font-size:11px;font-weight:700;">לארנק &larr;</div>
                 ${bal > 0 ? `<div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:3px 8px;color:rgba(255,255,255,0.9);font-size:10px;">+${bal}₣ שנצברו</div>` : ''}
             </div>
-        </div>`;
-    } catch(e) { widget.classList.add('hidden'); }
+        </div></div>`;
+
+        // תצוגת תפקיד (יופי/לוגיסטיקה/מתקינים/מומחים) — הזרק לתחילת content-role-dashboard
+        const roleDash = document.getElementById('content-role-dashboard');
+        const stdWidget = document.getElementById('flow-balance-widget');
+        if (roleDash && !roleDash.classList.contains('hidden')) {
+            let injected = roleDash.querySelector('.flow-widget-injected');
+            if (!injected) {
+                injected = document.createElement('div');
+                injected.className = 'flow-widget-injected';
+                roleDash.insertBefore(injected, roleDash.firstChild);
+            }
+            injected.innerHTML = html;
+            if (stdWidget) stdWidget.classList.add('hidden');
+        } else if (stdWidget) {
+            stdWidget.classList.remove('hidden');
+            stdWidget.innerHTML = html;
+        }
+    } catch(e) {
+        const w = document.getElementById('flow-balance-widget');
+        if (w) w.classList.add('hidden');
+    }
 }
 
 window.openBizFlowWallet = async function() {
