@@ -15405,7 +15405,10 @@ window.showCommunityHelp = function(topic) {
         'tab-discover': { title: 'גלה קהילות', text: 'חפש קהילות חדשות לפי עיר, גודל ואזור — והצטרף אליהן כדי לחשוף את העסק שלך לאלפי משפחות.' },
         'biz-match': { title: '% התאמה', text: 'ציון ההתאמה מחשב כמה הקהילה רלוונטית לעסק שלך — על בסיס קרבה גיאוגרפית, סוג העסק וגודל הקהילה. ככל שהציון גבוה יותר, כך יש לך סיכוי טוב יותר למשוך לקוחות חדשים.' },
         'biz-bundles': { title: 'חבילות קהילה', text: 'חבילות הן מנויי שירות חודשיים שאתה מציע לחברי קהילה — לדוגמה "10% הנחה כל חודש". חברי הקהילה רוכשים את החבילה ואתה מקבל לקוחות קבועים.' },
-        'biz-promos': { title: 'מבצעים', text: 'מבצעים הם הצעות חד-פעמיות לחברי הקהילה — קוד קופון, הנחה מוגבלת בזמן, או מוצר חינם. המבצעים מופיעים בפיד של כל חברי הקהילה.' },
+        'biz-promos': { title: 'פרסם מבצע', text: 'פרסם מבצע חד-פעמי לחברי הקהילה — קוד קופון, הנחה מוגבלת בזמן, או מוצר חינם. המבצע יופיע בפיד של כל חברי הקהילות שאתה חבר בהן.' },
+        'biz-my-promos': { title: 'המבצעים שלי', text: 'צפה בכל המבצעים שפרסמת בעבר — פעילים, שפגו, או ממתינים לאישור. תוכל לערוך, לחדש או למחוק מבצעים קיימים.' },
+        'biz-interest': { title: 'קהילות לפי עניין', text: 'חפש קהילות לפי תחומי עניין — קהילות ספורט, אוכל, הורים, חיות מחמד ועוד. מצא את הקהילות שהכי מתאימות לסוג השירות שלך.' },
+        'biz-flow': { title: 'ארנק FLOW', text: 'מטבעות FLOW הם מטבע הפלטפורמה — תוכל לרכוש FLOW ולהשתמש בהם לקידום ממוקד, בוסטים לחשיפה, ושדרוג חבילות קהילה.' },
     };
     const h = helps[topic] || { title: 'עזרה', text: 'אין מידע נוסף על פיצ\'ר זה.' };
     const id = 'comm-help-modal-' + topic;
@@ -15437,8 +15440,14 @@ window.loadBizCommunities = async function() {
             bar.className = 'flex flex-wrap gap-2 mb-4 p-3 bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl border border-orange-100';
             bar.innerHTML = `
                 <span class="text-xs font-bold text-slate-500 w-full mb-1">🚀 כלים קהילתיים:</span>
-                <button onclick="openBizPromoModal()" class="bg-orange-100 text-orange-700 hover:bg-orange-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">📢 פרסם מבצע</button>
-                <button onclick="openInterestSearchModal()" class="bg-teal-100 text-teal-700 hover:bg-teal-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🔍 קהילות לפי עניין</button>
+                <span class="inline-flex items-center gap-1">
+                  <button onclick="openBizPromoModal()" class="bg-orange-100 text-orange-700 hover:bg-orange-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">📢 פרסם מבצע</button>
+                  <button onclick="showCommunityHelp('biz-promos')" class="w-5 h-5 rounded-full bg-orange-50 border border-orange-200 text-orange-400 text-[9px] font-black flex items-center justify-center hover:bg-orange-100 transition" title="עזרה">?</button>
+                </span>
+                <span class="inline-flex items-center gap-1">
+                  <button onclick="openInterestSearchModal()" class="bg-teal-100 text-teal-700 hover:bg-teal-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🔍 קהילות לפי עניין</button>
+                  <button onclick="showCommunityHelp('biz-interest')" class="w-5 h-5 rounded-full bg-teal-50 border border-teal-200 text-teal-400 text-[9px] font-black flex items-center justify-center hover:bg-teal-100 transition" title="עזרה">?</button>
+                </span>
                 <span class="inline-flex items-center gap-1">
                   <button onclick="loadBizCommunitiesWithMatch()" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">🎯 הצג % התאמה</button>
                   <button onclick="showCommunityHelp('biz-match')" class="w-5 h-5 rounded-full bg-purple-50 border border-purple-200 text-purple-400 text-[9px] font-black flex items-center justify-center hover:bg-purple-100 transition" title="עזרה">?</button>
@@ -15449,9 +15458,12 @@ window.loadBizCommunities = async function() {
                 </span>
                 <span class="inline-flex items-center gap-1">
                   <button onclick="loadMyBizPromos()" class="bg-pink-100 text-pink-700 hover:bg-pink-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">📋 המבצעים שלי</button>
-                  <button onclick="showCommunityHelp('biz-promos')" class="w-5 h-5 rounded-full bg-pink-50 border border-pink-200 text-pink-400 text-[9px] font-black flex items-center justify-center hover:bg-pink-100 transition" title="עזרה">?</button>
+                  <button onclick="showCommunityHelp('biz-my-promos')" class="w-5 h-5 rounded-full bg-pink-50 border border-pink-200 text-pink-400 text-[9px] font-black flex items-center justify-center hover:bg-pink-100 transition" title="עזרה">?</button>
                 </span>
-                <button onclick="openBizFlowWallet()" class="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">⚡ ארנק FLOW</button>
+                <span class="inline-flex items-center gap-1">
+                  <button onclick="openBizFlowWallet()" class="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold transition">⚡ ארנק FLOW</button>
+                  <button onclick="showCommunityHelp('biz-flow')" class="w-5 h-5 rounded-full bg-amber-50 border border-amber-200 text-amber-400 text-[9px] font-black flex items-center justify-center hover:bg-amber-100 transition" title="עזרה">?</button>
+                </span>
             `;
             anchor.parentElement?.insertBefore(bar, anchor);
         }
