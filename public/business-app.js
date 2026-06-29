@@ -4755,10 +4755,12 @@ window.renderDashboard = async function(forceRefresh = false) {
             await renderBeautyAdminDashboard(dashEl);
             try { await renderBizFlowWidget(); } catch(e) {}
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
-            window._roleDashInterval = setInterval(() => {
+            window._roleDashInterval = setInterval(async () => {
                 const el = document.getElementById('content-role-dashboard');
-                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'beauty') renderBeautyAdminDashboard(el);
-                else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'beauty') {
+                    await renderBeautyAdminDashboard(el);
+                    try { await renderBizFlowWidget(); } catch(e) {}
+                } else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             }, 30000);
         }
         window._beautyDashRendering = false;
@@ -4783,10 +4785,12 @@ window.renderDashboard = async function(forceRefresh = false) {
             await renderLogisticsAdminDashboard(dashEl);
             try { await renderBizFlowWidget(); } catch(e) {}
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
-            window._roleDashInterval = setInterval(() => {
+            window._roleDashInterval = setInterval(async () => {
                 const el = document.getElementById('content-role-dashboard');
-                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'logistics') renderLogisticsAdminDashboard(el);
-                else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'logistics') {
+                    await renderLogisticsAdminDashboard(el);
+                    try { await renderBizFlowWidget(); } catch(e) {}
+                } else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             }, 30000);
         }
         window._logisticsDashRendering = false;
@@ -4810,10 +4814,12 @@ window.renderDashboard = async function(forceRefresh = false) {
             await renderLogisticsDriverDashboard(dashEl);
             try { await renderBizFlowWidget(); } catch(e) {}
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
-            window._roleDashInterval = setInterval(() => {
+            window._roleDashInterval = setInterval(async () => {
                 const el = document.getElementById('content-role-dashboard');
-                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'logistics') renderLogisticsDriverDashboard(el);
-                else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'logistics') {
+                    await renderLogisticsDriverDashboard(el);
+                    try { await renderBizFlowWidget(); } catch(e) {}
+                } else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             }, 60000);
         }
         window._logisticsDriverDashRendering = false;
@@ -4841,10 +4847,12 @@ window.renderDashboard = async function(forceRefresh = false) {
             await renderBranchManagerMaintenanceDashboard(dashEl);
             try { await renderBizFlowWidget(); } catch(e) {}
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
-            window._roleDashInterval = setInterval(() => {
+            window._roleDashInterval = setInterval(async () => {
                 const el = document.getElementById('content-role-dashboard');
-                if (el && !el.classList.contains('hidden')) renderBranchManagerMaintenanceDashboard(el);
-                else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+                if (el && !el.classList.contains('hidden')) {
+                    await renderBranchManagerMaintenanceDashboard(el);
+                    try { await renderBizFlowWidget(); } catch(e) {}
+                } else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             }, 20000);
         }
         return;
@@ -4867,10 +4875,12 @@ window.renderDashboard = async function(forceRefresh = false) {
             await renderProfessionalDashboard(dashEl);
             try { await renderBizFlowWidget(); } catch(e) {}
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
-            window._roleDashInterval = setInterval(() => {
+            window._roleDashInterval = setInterval(async () => {
                 const el = document.getElementById('content-role-dashboard');
-                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'professional') renderProfessionalDashboard(el);
-                else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'professional') {
+                    await renderProfessionalDashboard(el);
+                    try { await renderBizFlowWidget(); } catch(e) {}
+                } else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             }, 60000);
         }
         window._profDashRendering = false;
@@ -15233,8 +15243,8 @@ async function renderBizFlowWidget() {
         if (!widget) {
             widget = document.createElement('div');
             widget.id = 'biz-flow-widget-role-slot';
-            widget.className = 'px-2 mb-4';
-            roleEl.prepend(widget);
+            widget.className = 'px-2 mb-4 mt-2';
+            roleEl.append(widget);
         }
     } else {
         // Clean up role slot if switching back to general dashboard
