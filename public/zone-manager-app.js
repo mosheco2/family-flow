@@ -136,10 +136,10 @@ async function loadDashboard() {
         if (!zmData.success) return;
 
         document.getElementById('zm-stat-zones').textContent = zmData.zones?.length || 0;
-        const totalComm = (zmData.communities || []).length;
+        const totalComm = (zmData.zones || []).reduce((s, z) => s + (z.communities?.length || 0), 0);
         document.getElementById('zm-stat-communities').textContent = totalComm;
 
-        const stats = zmData.commissions || {};
+        const stats = zmData.commissionStats || {};
         const fmt = v => `₪${parseFloat(v||0).toLocaleString('he-IL',{maximumFractionDigits:0})}`;
         document.getElementById('zm-stat-comm-total').textContent = fmt(stats.total_earned);
         document.getElementById('zm-stat-comm-month').textContent = fmt(stats.month_earned);
@@ -166,7 +166,7 @@ async function loadDashboard() {
 
         // טען badge של בקשות עסקים ממתינות
         try {
-            const pbRes = await fetch(`${API}/zone-manager/pending-businesses`, { headers: { 'Authorization': zmToken } });
+            const pbRes = await fetch(`${API}/zone-manager/pending-biz`, { headers: { 'Authorization': zmToken } });
             const pbData = await pbRes.json();
             const bizBadge = document.getElementById('zm-pending-biz-badge');
             if (bizBadge && pbData.success && pbData.pending?.length > 0) {
@@ -188,12 +188,11 @@ async function loadDashboard() {
 
         // טען inbox badge
         try {
-            const ibRes = await fetch(`${API}/zone-manager/inbox`, { headers: { 'Authorization': zmToken } });
+            const ibRes = await fetch(`${API}/zone-manager/inbox/unread-count`, { headers: { 'Authorization': zmToken } });
             const ibData = await ibRes.json();
             const inboxBadge = document.getElementById('zm-inbox-badge');
-            const unreadTotal = (ibData.threads||[]).reduce((s,t)=>s+parseInt(t.unread_count||0),0);
-            if (inboxBadge && unreadTotal > 0) {
-                inboxBadge.textContent = unreadTotal;
+            if (inboxBadge && ibData.success && ibData.count > 0) {
+                inboxBadge.textContent = ibData.count;
                 inboxBadge.classList.remove('hidden');
             }
         } catch(e) {}
@@ -233,10 +232,7 @@ function renderZones() {
         container.innerHTML = '<div class="text-center text-slate-400 py-8">אין אזורים מוקצים עדיין</div>';
         return;
     }
-    const allComms = zmData.communities || [];
-    container.innerHTML = zmData.zones.map(zone => {
-        const zoneCommunities = allComms.filter(c => c.zone_id === zone.id || c.zone_id === String(zone.id));
-        return `
+    container.innerHTML = zmData.zones.map(zone => `
     <div class="card p-5">
         <div class="flex justify-between items-start mb-4">
             <span class="text-[10px] font-bold px-2 py-1 rounded-full ${zone.status === 'active' ? 'badge-ok' : 'badge-warn'}">
@@ -244,11 +240,11 @@ function renderZones() {
             </span>
             <div class="text-right">
                 <h3 class="font-black text-slate-800 text-base">${zone.name}</h3>
-                <p class="text-xs text-slate-500">${zoneCommunities.length} קהילות באזור</p>
+                <p class="text-xs text-slate-500">${zone.communities?.length || 0} קהילות באזור</p>
             </div>
         </div>
         <div class="space-y-3">
-            ${zoneCommunities.map(comm => `
+            ${(zone.communities || []).map(comm => `
             <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
                 <div class="flex justify-between items-start mb-2">
                     <div class="flex items-center gap-2">
@@ -278,8 +274,7 @@ function renderZones() {
                 </div>
             </div>`).join('')}
         </div>
-    </div>`;
-    }).join('');
+    </div>`).join('');
 }
 
 // ==========================================
@@ -290,7 +285,7 @@ async function zmLoadPendingBiz() {
     if (!list) return;
     list.innerHTML = '<div class="text-center text-slate-400 py-6">טוען...</div>';
     try {
-        const res = await fetch(`${API}/zone-manager/pending-businesses`, { headers: { 'Authorization': zmToken } });
+        const res = await fetch(`${API}/zone-manager/pending-biz`, { headers: { 'Authorization': zmToken } });
         const data = await res.json();
         const pending = data.pending || [];
         if (!pending.length) {
@@ -407,7 +402,7 @@ async function zmApproveFamily(groupId, communityId) {
         });
         const data = await res.json();
         if (data.success) {
-            zmToast('המשפחה אושרה לקהילה! Flw FLOW הוענקו.');
+            zmToast('המשפחה אושרה לקהילה!');
             document.getElementById(`fam-req-${groupId}-${communityId}`)?.remove();
             const badge = document.getElementById('zm-pending-fam-badge');
             if (badge) {
@@ -486,7 +481,7 @@ async function zmLoadTemplates() {
     if (!list) return;
     list.innerHTML = '<div class="text-center text-slate-400 py-4">טוען תבניות...</div>';
     try {
-        const res = await fetch(`${API}/zone-manager/templates`, { headers: { 'Authorization': zmToken } });
+        const res = await fetch(`${API}/zone-manager/message-templates`, { headers: { 'Authorization': zmToken } });
         const data = await res.json();
         const templates = data.templates || [];
         if (!templates.length) { list.innerHTML = '<div class="text-center text-slate-400 py-4">אין תבניות עדיין</div>'; return; }
@@ -542,7 +537,7 @@ async function zmAIDraftCampaign() {
     
     btn.disabled = true; btn.textContent = '⏳ יוצר...';
     try {
-        const res = await fetch(`${API}/zone-manager/ai/draft-campaign`, {
+        const res = await fetch(`${API}/zone-manager/ai-campaign-draft`, {
             method: 'POST',
             headers: {'Content-Type':'application/json','Authorization': zmToken},
             body: JSON.stringify({type, goal, audience, selectedModules})
@@ -566,7 +561,7 @@ async function zmAIGenerateBanner() {
     const btn = document.getElementById('zm-ai-banner-btn');
     btn.disabled = true; btn.textContent = '⏳ מייצר תמונה...';
     try {
-        const res = await fetch(`${API}/zone-manager/ai/generate-banner`, {
+        const res = await fetch(`${API}/zone-manager/ai-campaign-banner`, {
             method: 'POST',
             headers: {'Content-Type':'application/json','Authorization': zmToken},
             body: JSON.stringify({title, subtitle, type})
@@ -771,7 +766,7 @@ async function openLeadCRM(leadId) {
     modal.classList.remove('hidden');
     dataEl.innerHTML = '<div class="text-center text-slate-400 py-4">טוען...</div>';
     try {
-        const res = await fetch(`${API}/zone-manager/leads/${leadId}`, { headers: {'Authorization': zmToken} });
+        const res = await fetch(`${API}/zone-manager/campaigns/leads/${leadId}`, { headers: {'Authorization': zmToken} });
         const data = await res.json();
         const lead = data.lead;
         if (!lead) { dataEl.innerHTML = '<div class="text-red-400">שגיאה בטעינה</div>'; return; }
@@ -802,10 +797,10 @@ async function saveLeadCRM() {
     const status = document.getElementById('zm-crm-status').value;
     const notes = document.getElementById('zm-crm-notes').value;
     try {
-        const res = await fetch(`${API}/zone-manager/leads/${leadId}`, {
-            method: 'PUT',
+        const res = await fetch(`${API}/zone-manager/campaigns/leads/${leadId}/crm`, {
+            method: 'PATCH',
             headers: {'Content-Type':'application/json','Authorization': zmToken},
-            body: JSON.stringify({lead_type: leadType, status, crm_notes: notes})
+            body: JSON.stringify({leadType, status, crmNotes: notes})
         });
         const data = await res.json();
         if (data.success) {
@@ -821,7 +816,7 @@ async function addLeadAction(actionType) {
     if (!leadId) return;
     const note = document.getElementById('zm-action-note-input').value.trim();
     try {
-        const res = await fetch(`${API}/zone-manager/leads/${leadId}/actions`, {
+        const res = await fetch(`${API}/zone-manager/campaigns/leads/${leadId}/actions`, {
             method: 'POST',
             headers: {'Content-Type':'application/json','Authorization': zmToken},
             body: JSON.stringify({actionType, notes: note})
@@ -839,7 +834,7 @@ async function loadLeadActions(leadId) {
     const list = document.getElementById('zm-lead-actions-list');
     if (!list) return;
     try {
-        const res = await fetch(`${API}/zone-manager/leads/${leadId}/actions`, { headers: {'Authorization': zmToken} });
+        const res = await fetch(`${API}/zone-manager/campaigns/leads/${leadId}/actions`, { headers: {'Authorization': zmToken} });
         const data = await res.json();
         const actions = data.actions || [];
         const typeLabels = { call:'📞 שיחה', whatsapp:'💬 ווצאפ', meeting:'🤝 פגישה', email:'✉️ מייל', note:'📝 הערה' };
@@ -861,7 +856,7 @@ async function zmLoadInbox() {
     const list = document.getElementById('zm-inbox-list');
     list.innerHTML = '<div class="text-center text-slate-400 py-6">טוען...</div>';
     try {
-        const res = await fetch(`${API}/zone-manager/inbox`, { headers: {'Authorization': zmToken} });
+        const res = await fetch(`${API}/zone-manager/inbox/threads`, { headers: {'Authorization': zmToken} });
         const data = await res.json();
         const threads = data.threads || [];
         if (!threads.length) { list.innerHTML = '<div class="text-center text-slate-400 py-6">אין הודעות עדיין</div>'; return; }
@@ -889,7 +884,7 @@ async function openZMThread(threadId) {
     msgs.innerHTML = '<div class="text-center text-slate-400 py-6">טוען...</div>';
     document.getElementById('zm-reply-input').value = '';
     try {
-        const res = await fetch(`${API}/zone-manager/inbox/${threadId}`, { headers: {'Authorization': zmToken} });
+        const res = await fetch(`${API}/zone-manager/inbox/threads/${threadId}`, { headers: {'Authorization': zmToken} });
         const data = await res.json();
         const thread = data.thread;
         titleEl.textContent = thread.subject || 'ללא נושא';
@@ -917,7 +912,7 @@ async function sendZMReply() {
     const content = document.getElementById('zm-reply-input').value.trim();
     if (!content || !zmCurrentThreadId) return;
     try {
-        const res = await fetch(`${API}/zone-manager/inbox/${zmCurrentThreadId}/reply`, {
+        const res = await fetch(`${API}/zone-manager/inbox/threads/${zmCurrentThreadId}/messages`, {
             method: 'POST',
             headers: {'Content-Type':'application/json','Authorization': zmToken},
             body: JSON.stringify({content})
@@ -934,9 +929,8 @@ async function zmAISuggestReply() {
     const btn = document.getElementById('zm-ai-reply-btn');
     btn.disabled = true; btn.textContent = '⏳ חושב...';
     try {
-        const res = await fetch(`${API}/zone-manager/ai/suggest-reply`, {
-            method: 'POST', headers: {'Content-Type':'application/json','Authorization': zmToken},
-            body: JSON.stringify({threadId: zmCurrentThreadId})
+        const res = await fetch(`${API}/zone-manager/inbox/threads/${zmCurrentThreadId}/ai-reply`, {
+            method: 'POST', headers: {'Authorization': zmToken}
         });
         const data = await res.json();
         if (data.success && data.suggestion) {
@@ -972,7 +966,7 @@ async function loadCommunityManagers() {
     const select = document.getElementById('zm-newmsg-target');
     select.innerHTML = '<option value="">טוען...</option>';
     try {
-        const res = await fetch(`${API}/zone-manager/all-community-managers`, { headers: {'Authorization': zmToken} });
+        const res = await fetch(`${API}/zone-manager/community-managers`, { headers: {'Authorization': zmToken} });
         const data = await res.json();
         const managers = data.managers || [];
         select.innerHTML = '<option value="">בחר מנהל קהילה</option>' +
@@ -1000,7 +994,7 @@ async function sendZMNewMessage() {
             const groupId = targetEl.value;
             const commId = targetEl.options[targetEl.selectedIndex]?.dataset?.comm;
             if (!groupId) { errEl.textContent = 'יש לבחור נמען'; errEl.classList.remove('hidden'); btn.disabled = false; return; }
-            url = `${API}/zone-manager/inbox/new`;
+            url = `${API}/zone-manager/inbox/send`;
             body = { groupId: parseInt(groupId), communityId: commId ? parseInt(commId) : null, subject, content };
         }
         const res = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json','Authorization': zmToken}, body: JSON.stringify(body) });
@@ -1032,7 +1026,7 @@ async function saveZMTemplate() {
     const errEl = document.getElementById('zm-tpl-err');
     if (!name || !content) { errEl.textContent = 'שם ותוכן הם שדות חובה'; errEl.classList.remove('hidden'); return; }
     try {
-        const res = await fetch(`${API}/zone-manager/templates`, {
+        const res = await fetch(`${API}/zone-manager/message-templates`, {
             method: 'POST',
             headers: {'Content-Type':'application/json','Authorization': zmToken},
             body: JSON.stringify({name, subject, content})
@@ -1049,7 +1043,7 @@ async function saveZMTemplate() {
 async function deleteZMTemplate(id) {
     if (!confirm('למחוק תבנית זו?')) return;
     try {
-        const res = await fetch(`${API}/zone-manager/templates/${id}`, { method: 'DELETE', headers: {'Authorization': zmToken} });
+        const res = await fetch(`${API}/zone-manager/message-templates/${id}`, { method: 'DELETE', headers: {'Authorization': zmToken} });
         const data = await res.json();
         if (data.success) { zmToast('תבנית נמחקה'); await zmLoadTemplates(); }
         else zmToast(data.error || 'שגיאה', 'error');
@@ -1059,7 +1053,7 @@ async function deleteZMTemplate(id) {
 function useTemplate(id) {
     const modal = document.getElementById('zm-newmsg-modal');
     if (!modal) return;
-    const res = fetch(`${API}/zone-manager/templates`, { headers: {'Authorization': zmToken} })
+    const res = fetch(`${API}/zone-manager/message-templates`, { headers: {'Authorization': zmToken} })
         .then(r => r.json())
         .then(data => {
             const tpl = (data.templates || []).find(t => t.id === id);
@@ -1085,7 +1079,7 @@ async function zmSearchMembers() {
     const list = document.getElementById('zm-appoint-list');
     if (q.length < 2) { list.innerHTML = ''; return; }
     try {
-        const res = await fetch(`${API}/zone-manager/communities-members?communityId=${_zmAppointCommunityId}&q=${encodeURIComponent(q)}`, { headers: {'Authorization': zmToken} });
+        const res = await fetch(`${API}/zone-manager/search-members?q=${encodeURIComponent(q)}`, { headers: {'Authorization': zmToken} });
         const data = await res.json();
         const members = data.members || [];
         list.innerHTML = members.map(m => `
@@ -1105,7 +1099,7 @@ async function zmSearchMembers() {
 async function zmAppointManager(groupId, communityId, name) {
     if (!confirm(`למנות את ${name} כמנהל הקהילה?`)) return;
     try {
-        const res = await fetch(`${API}/zone-manager/set-community-manager`, {
+        const res = await fetch(`${API}/zone-manager/appoint-community-manager`, {
             method: 'POST',
             headers: {'Content-Type':'application/json','Authorization': zmToken},
             body: JSON.stringify({groupId, communityId})
