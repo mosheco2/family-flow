@@ -321,6 +321,9 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
   <div class="sidebar-section-label">כלים</div>
   <a class="nav-link" href="#ai" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-robot"></i></span> כלי AI ✨</a>
   <a class="nav-link" href="#faq" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-circle-question"></i></span> שאלות נפוצות</a>
+  <div class="sidebar-section-label">מדריכים לפי סוג</div>
+  <a class="nav-link" href="#guide-restaurant" onclick="setActive(this)"><span class="nav-icon">🍕</span> מסעדה / קפה</a>
+  <a class="nav-link" href="#guide-services" onclick="setActive(this)"><span class="nav-icon">💼</span> שירותים מקצועיים</a>
 </nav>
 
 <!-- MOBILE NAV -->
@@ -348,6 +351,8 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
     <span class="chip" onclick="goTo('bank')">💳 כספים</span>
     <span class="chip" onclick="goTo('ai')">✨ AI</span>
     <span class="chip" onclick="goTo('faq')">❓ FAQ</span>
+    <span class="chip" onclick="goTo('guide-restaurant')">🍕 מסעדה</span>
+    <span class="chip" onclick="goTo('guide-services')">💼 שירותים</span>
   </div>
 </div>
 
@@ -1744,6 +1749,679 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
             <div class="accordion-body">לחץ על אייקון הצ'אט בפינה השמאלית התחתונה בכל מסך. צוות התמיכה זמין א'-ה' 09:00-18:00. ניתן גם לשלוח מייל ל-support@oneflowlife.co.il</div>
           </div>
         </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== GUIDE: RESTAURANT ===== REWRITTEN FROM CODE AUDIT ===== -->
+    <section id="guide-restaurant">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#fff7ed;color:#ea580c;font-size:1.6rem">🍕</div>
+        <div>
+          <div class="card-title">מדריך מסעדה / בית קפה</div>
+          <div class="card-subtitle">15 מודולים פעילים — ניהול שולחנות, KDS, מלצרים, טבחים, קופה עם שיוך שולחן, פוד קוסט ומשמרות</div>
+        </div>
+      </div>
+      <div class="card-body">
+
+        <!-- מינוח ייחודי למסעדה -->
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:0.875rem;padding:1rem 1.25rem;margin-bottom:1.25rem">
+          <div style="font-weight:800;color:#c2410c;margin-bottom:0.625rem;font-size:0.875rem">🗂️ מינוח ייחודי במערכת עבור מסעדה</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;font-size:0.78rem">
+            <div style="background:white;border-radius:0.5rem;padding:0.5rem 0.75rem"><strong style="color:#9a3412">לקוח</strong> = אורח</div>
+            <div style="background:white;border-radius:0.5rem;padding:0.5rem 0.75rem"><strong style="color:#9a3412">מוצר</strong> = מנה</div>
+            <div style="background:white;border-radius:0.5rem;padding:0.5rem 0.75rem"><strong style="color:#9a3412">תור</strong> = שולחן</div>
+            <div style="background:white;border-radius:0.5rem;padding:0.5rem 0.75rem"><strong style="color:#9a3412">ספק</strong> = ספק חומרי גלם</div>
+            <div style="background:white;border-radius:0.5rem;padding:0.5rem 0.75rem"><strong style="color:#9a3412">תמחור</strong> = תמחור מנות</div>
+            <div style="background:white;border-radius:0.5rem;padding:0.5rem 0.75rem"><strong style="color:#9a3412">הזמנה</strong> = הזמנה</div>
+          </div>
+          <div style="margin-top:0.75rem;font-size:0.75rem;color:#92400e">טאבים משונים שם: <strong>לקוחות → אורחים 🤝</strong> &nbsp;·&nbsp; <strong>יומן → הזמנות שולחנות 📅</strong></div>
+        </div>
+
+        <!-- מודולים פעילים -->
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:0.875rem;padding:1rem 1.25rem;margin-bottom:1.5rem">
+          <div style="font-weight:800;color:#c2410c;margin-bottom:0.625rem;font-size:0.875rem"><i class="fa-solid fa-puzzle-piece" style="margin-left:4px"></i> 15 מודולים פעילים</div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.4rem">
+            <span style="background:#fff;border:1px solid #fdba74;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#9a3412">📰 פיד</span>
+            <span style="background:#fff;border:1px solid #fdba74;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#9a3412">💰 קופה (POS)</span>
+            <span style="background:#fff;border:1px solid #fdba74;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#9a3412">🛍️ מכירות וחנות</span>
+            <span style="background:#fff;border:1px solid #fdba74;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#9a3412">🥫 מזווה (Pantry)</span>
+            <span style="background:#fff;border:1px solid #fdba74;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#9a3412">🛒 רכש</span>
+            <span style="background:#fff;border:1px solid #fdba74;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#9a3412">🤝 אורחים CRM</span>
+            <span style="background:#fff;border:1px solid #fdba74;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#9a3412">🔄 משמרות</span>
+            <span style="background:#fff;border:1px solid #fdba74;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#9a3412">⏱️ שעון נוכחות</span>
+            <span style="background:#fff;border:1px solid #fdba74;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#9a3412">✅ משימות</span>
+            <span style="background:#fff;border:1px solid #fdba74;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#9a3412">💸 תזרים</span>
+            <span style="background:#fff;border:1px solid #fdba74;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#9a3412">📊 תקציב</span>
+            <span style="background:#fff;border:1px solid #fdba74;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#9a3412">👥 עובדים</span>
+            <span style="background:#fff;border:1px solid #fdba74;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#9a3412">📅 הזמנות שולחנות</span>
+            <span style="background:#fff;border:1px solid #fdba74;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#9a3412">🛵 שליחויות</span>
+            <span style="background:#fff;border:1px solid #fdba74;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#9a3412">🍽️ פוד קוסט</span>
+          </div>
+        </div>
+
+        <!-- הגדרה ראשונית -->
+        <div style="font-weight:700;color:#1e293b;margin-bottom:0.75rem;font-size:0.95rem">⚙️ הגדרה ראשונית</div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">בחר "מסעדה / בית קפה" בהגדרות מהות עסק</div>
+              <div class="step-desc">הגדרות ← מהות עסק ← 🍕 מסעדה. המערכת מפעילה את 15 המודולים הרלוונטיים ומשנה את כל המינוח (אורח, מנה, שולחן וכד').</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">הגדר מספר שולחנות (ברירת מחדל: 8, מקסימום: 200)</div>
+              <div class="step-desc">הגדרות ← מהות עסק ← שדה "מספר שולחנות" (input 1–200). לאחר שמירה — מפת שולחנות מופיעה בקופה, בלוח מנהל המשמרת ובממשק המלצר.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">בנה תפריט — קבע עלות לכל מנה (לפוד קוסט)</div>
+              <div class="step-desc">קטלוג ← "+ מנה". שדות חובה לפוד קוסט: מחיר מכירה + עלות רכישה. לכל מנה ניתן לקבוע גם station מטבח: 🔥 פס חם / ❄️ פס קר / 🥤 שתיה / 🍞 לחמים / 📋 אחר.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-title">הוסף עובדים — בחר תפקיד מסעדה</div>
+              <div class="step-desc">עובדים ← הזמן ← בחר תפקיד: מלצר/ית (₪15/חודש, רק במסעדה) או טבח/ית (₪15/חודש, מסעדה + ייצור מזון). כל תפקיד מקבל גישה לטאבים ספציפיים בלבד.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ניהול שולחנות -->
+        <div style="font-weight:700;color:#1e293b;margin:1.5rem 0 0.75rem;font-size:0.95rem">🪑 ניהול שולחנות — הלב של המסעדה</div>
+        <p style="color:#475569;font-size:0.875rem;line-height:1.7;margin-bottom:1rem">מפת השולחנות מוצגת בכל ממשקי המסעדה — מנהל, מנהל משמרת ומלצר. כולם רואים את אותה תמונה בזמן אמת.</p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">מצבי שולחן</div>
+              <div class="step-desc">
+                <span style="background:#dcfce7;color:#166534;padding:0.15rem 0.5rem;border-radius:9999px;font-size:0.72rem;font-weight:700;margin-left:4px">ירוק — פנוי</span>
+                <span style="background:#fef2f2;color:#991b1b;padding:0.15rem 0.5rem;border-radius:9999px;font-size:0.72rem;font-weight:700;margin-left:4px">אדום — תפוס</span>
+                — לחיצה על שולחן בקופה מסמנת אותו כ"תפוס" ומקשרת אותו להזמנה. מספר השולחן מוצג על ההזמנה לאורך כל הטיפול בה.
+              </div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">שיוך מלצר לשולחן (מנהל משמרת)</div>
+              <div class="step-desc">מנהל המשמרת בוחר מלצר לכל שולחן מרשימת נפתחת. השיוך תקף ליום המשמרת ומוצג מתחת למספר השולחן בממשקי המלצר ומנהל המשמרת.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">קופה עם בחירת שולחן</div>
+              <div class="step-desc">בקופה מופיעה רצועת כפתורי שולחנות מעל שדה הלקוח. לחיצה על שולחן בוחרת אותו לסל הנוכחי. הכפתור מציג: מספר שולחן + שם המלצר המשויך (אם הוגדר).</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- מוקאפ מפת שולחנות -->
+        <div class="mockup" style="margin-top:1.25rem">
+          <div class="mockup-bar">
+            <div class="mockup-dots">
+              <div class="mockup-dot" style="background:#ef4444"></div>
+              <div class="mockup-dot" style="background:#f59e0b"></div>
+              <div class="mockup-dot" style="background:#22c55e"></div>
+            </div>
+            <div style="flex:1;text-align:center;font-size:0.7rem;color:#64748b">מפת שולחנות — מנהל משמרת</div>
+          </div>
+          <div class="mockup-screen" style="background:linear-gradient(135deg,#fff7ed,#ffedd5);padding:1.25rem;align-items:stretch">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;width:100%;margin-bottom:0.875rem">
+              <div style="background:white;border-radius:0.75rem;padding:0.625rem;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.06)">
+                <div style="font-size:1.1rem;font-weight:900;color:#16a34a">₪3,840</div><div style="font-size:0.6rem;color:#64748b">💰 מכירות היום</div>
+              </div>
+              <div style="background:white;border-radius:0.75rem;padding:0.625rem;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.06)">
+                <div style="font-size:1.1rem;font-weight:900;color:#4f46e5">28</div><div style="font-size:0.6rem;color:#64748b">📋 הזמנות</div>
+              </div>
+              <div style="background:white;border-radius:0.75rem;padding:0.625rem;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.06)">
+                <div style="font-size:1.1rem;font-weight:900;color:#7c3aed">5/6</div><div style="font-size:0.6rem;color:#64748b">👥 נוכחות</div>
+              </div>
+            </div>
+            <div style="background:white;border-radius:0.875rem;padding:0.75rem;width:100%">
+              <div style="font-size:0.68rem;font-weight:700;color:#9a3412;margin-bottom:0.5rem">🍽️ שיוך מלצרים לשולחנות</div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.3rem">
+                <div style="border:2px solid #ef4444;background:#fef2f2;border-radius:0.5rem;padding:0.35rem;text-align:center;font-size:0.65rem"><div style="font-weight:800;color:#dc2626">1</div><div style="color:#64748b;font-size:0.55rem">יוסי מ'</div><div style="background:#ef4444;color:white;border-radius:3px;font-size:0.5rem;padding:0 2px;margin-top:2px">תפוס</div></div>
+                <div style="border:2px solid #ef4444;background:#fef2f2;border-radius:0.5rem;padding:0.35rem;text-align:center;font-size:0.65rem"><div style="font-weight:800;color:#dc2626">2</div><div style="color:#64748b;font-size:0.55rem">יוסי מ'</div><div style="background:#ef4444;color:white;border-radius:3px;font-size:0.5rem;padding:0 2px;margin-top:2px">תפוס</div></div>
+                <div style="border:2px solid #d1d5db;background:#f9fafb;border-radius:0.5rem;padding:0.35rem;text-align:center;font-size:0.65rem"><div style="font-weight:800;color:#374151">3</div><div style="color:#9ca3af;font-size:0.55rem">לא שויך</div><div style="background:#e5e7eb;color:#6b7280;border-radius:3px;font-size:0.5rem;padding:0 2px;margin-top:2px">פנוי</div></div>
+                <div style="border:2px solid #ef4444;background:#fef2f2;border-radius:0.5rem;padding:0.35rem;text-align:center;font-size:0.65rem"><div style="font-weight:800;color:#dc2626">4</div><div style="color:#64748b;font-size:0.55rem">רינה כ'</div><div style="background:#ef4444;color:white;border-radius:3px;font-size:0.5rem;padding:0 2px;margin-top:2px">תפוס</div></div>
+                <div style="border:2px solid #d1d5db;background:#f9fafb;border-radius:0.5rem;padding:0.35rem;text-align:center;font-size:0.65rem"><div style="font-weight:800;color:#374151">5</div><div style="color:#9ca3af;font-size:0.55rem">לא שויך</div><div style="background:#e5e7eb;color:#6b7280;border-radius:3px;font-size:0.5rem;padding:0 2px;margin-top:2px">פנוי</div></div>
+                <div style="border:2px solid #ef4444;background:#fef2f2;border-radius:0.5rem;padding:0.35rem;text-align:center;font-size:0.65rem"><div style="font-weight:800;color:#dc2626">6</div><div style="color:#64748b;font-size:0.55rem">רינה כ'</div><div style="background:#ef4444;color:white;border-radius:3px;font-size:0.5rem;padding:0 2px;margin-top:2px">תפוס</div></div>
+                <div style="border:2px solid #ef4444;background:#fef2f2;border-radius:0.5rem;padding:0.35rem;text-align:center;font-size:0.65rem"><div style="font-weight:800;color:#dc2626">7</div><div style="color:#64748b;font-size:0.55rem">דני ל'</div><div style="background:#ef4444;color:white;border-radius:3px;font-size:0.5rem;padding:0 2px;margin-top:2px">תפוס</div></div>
+                <div style="border:2px solid #d1d5db;background:#f9fafb;border-radius:0.5rem;padding:0.35rem;text-align:center;font-size:0.65rem"><div style="font-weight:800;color:#374151">8</div><div style="color:#9ca3af;font-size:0.55rem">לא שויך</div><div style="background:#e5e7eb;color:#6b7280;border-radius:3px;font-size:0.5rem;padding:0 2px;margin-top:2px">פנוי</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="mockup-caption">מנהל משמרת — מפת שולחנות עם שיוך מלצרים ו-KPI מכירות/נוכחות</div>
+        </div>
+
+        <!-- ממשק מלצר -->
+        <div style="font-weight:700;color:#1e293b;margin:1.5rem 0 0.75rem;font-size:0.95rem">🍽️ ממשק מלצר/ית — תפקיד ייחודי למסעדה</div>
+        <p style="color:#475569;font-size:0.875rem;line-height:1.7;margin-bottom:0.875rem">תפקיד "מלצר/ית" קיים <strong>אך ורק</strong> בסוג עסק מסעדה. המלצר רואה ממשק ייעודי בלבד — לא תזרים, לא דוחות.</p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">מפת שולחנות + בקשות שירות</div>
+              <div class="step-desc">המלצר רואה את כל השולחנות עם מצב (פנוי/תפוס) ושמו על השולחנות ששויכו לו. בקשות שירות מאורחים (כגון בקשת חשבון, קרח נוסף וכד') מופיעות עם שם הבקשה ומספר השולחן.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">מנות מוכנות — לאיסוף מהמטבח</div>
+              <div class="step-desc">כשהטבח מסמן מנה כ"מוכנה" — מופיעה למלצר ברשימה "מנות מוכנות": שם המנה, מספר שולחן, שעת הכנה. לחיצת "הוגש ✓" מסמנת שהמנה הוגשה לשולחן.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">הזמנות מוכנות לאיסוף מלא</div>
+              <div class="step-desc">כשכל מנות ההזמנה מוכנות — ההזמנה עוברת ל"ממתין לאיסוף": מוצגות כל המנות, מספר שולחן. לחיצת "סופק ✓" מסמנת שההזמנה הועברה לשולחן.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">כפתור "הזמנה לשולחן 🍽️" — קופה מלצר</div>
+              <div class="step-desc">פותח קופה ייעודית. בראש — בחר שולחן. גריד מנות לבחירה. לכל פריט: כמות + הערה. כפתורים: "נקה חדש", "סגור חשבון 💳" (גבייה), "שמור הזמנה 💾" (שמור לטיפול מאוחר). ניתן לשמור הזמנה פתוחה ולחזור אליה בכל עת.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="screenshot-wrap">
+          <img src="guide-screens/pos.png" alt="קופה מסעדה" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 קופה מסעדה — בחירת שולחן ורישום הזמנה</div>
+        </div>
+
+        <!-- ממשק טבח -->
+        <div style="font-weight:700;color:#1e293b;margin:1.5rem 0 0.75rem;font-size:0.95rem">👨‍🍳 ממשק טבח/ית — KDS (Kitchen Display System)</div>
+        <p style="color:#475569;font-size:0.875rem;line-height:1.7;margin-bottom:0.875rem">תפקיד "טבח/ית" קיים במסעדה ובייצור מזון. הממשק מציג כרטיסי הזמנות של היום לפי סטטוס (חדש/בביצוע/מוכן).</p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">5 תחנות מטבח (Kitchen Stations)</div>
+              <div class="step-desc">
+                כל מנה בקטלוג מוגדרת לתחנה:
+                <span style="background:#fef2f2;color:#dc2626;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.72rem;font-weight:600">🔥 פס חם</span>
+                <span style="background:#eff6ff;color:#2563eb;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.72rem;font-weight:600">❄️ פס קר</span>
+                <span style="background:#f5f3ff;color:#7c3aed;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.72rem;font-weight:600">🥤 שתיה</span>
+                <span style="background:#fefce8;color:#92400e;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.72rem;font-weight:600">🍞 לחמים</span>
+                <span style="background:#f8fafc;color:#475569;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.72rem;font-weight:600">📋 אחר</span>
+                — ה-KDS מסנן כרטיסי הזמנות לפי תחנה.
+              </div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">סימון מנות כמוכנות</div>
+              <div class="step-desc">לכל מנה בכרטיס — checkbox. סימון מנה שולח הודעה למלצר האחראי על השולחן (מופיע אצלו תחת "מנות מוכנות"). כשכל המנות בהזמנה מסומנות — ההזמנה כולה עוברת ל"מוכן לאיסוף".</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">התראת מלאי נמוך</div>
+              <div class="step-desc">הטבח רואה רשימת פריטי מזווה (Pantry) שהגיעו מתחת לכמות המינימלית. מאפשר להזמין/לרכוש חומרי גלם לפני שייגמרו.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- מוקאפ KDS -->
+        <div class="mockup" style="margin-top:1.25rem">
+          <div class="mockup-bar">
+            <div class="mockup-dots">
+              <div class="mockup-dot" style="background:#ef4444"></div>
+              <div class="mockup-dot" style="background:#f59e0b"></div>
+              <div class="mockup-dot" style="background:#22c55e"></div>
+            </div>
+            <div style="flex:1;text-align:center;font-size:0.7rem;color:#64748b">KDS — ממשק טבח 👨‍🍳</div>
+          </div>
+          <div class="mockup-screen" style="background:linear-gradient(135deg,#1e293b,#334155);padding:1.25rem;align-items:stretch">
+            <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;margin-bottom:0.625rem">📋 הזמנות — תחנת 🔥 פס חם</div>
+            <div style="display:flex;flex-direction:column;gap:0.5rem">
+              <div style="background:#1e1e2e;border:1px solid #ef4444;border-radius:0.625rem;padding:0.75rem">
+                <div style="display:flex;justify-content:space-between;margin-bottom:0.375rem">
+                  <span style="color:#f1f5f9;font-size:0.72rem;font-weight:700">הזמנה #1042 · שולחן 3</span>
+                  <span style="background:#ef4444;color:white;padding:0.1rem 0.375rem;border-radius:4px;font-size:0.6rem;font-weight:700">חדש</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem">
+                  <input type="checkbox" style="accent-color:#22c55e">
+                  <span style="color:#e2e8f0;font-size:0.7rem">שניצל וינאי × 2</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem">
+                  <input type="checkbox" checked style="accent-color:#22c55e">
+                  <span style="color:#64748b;font-size:0.7rem;text-decoration:line-through">פסטה ボロnese × 1</span>
+                  <span style="background:#22c55e;color:white;padding:0.1rem 0.3rem;border-radius:3px;font-size:0.55rem">מוכן</span>
+                </div>
+              </div>
+              <div style="background:#1e1e2e;border:1px solid #f59e0b;border-radius:0.625rem;padding:0.75rem">
+                <div style="display:flex;justify-content:space-between;margin-bottom:0.375rem">
+                  <span style="color:#f1f5f9;font-size:0.72rem;font-weight:700">הזמנה #1043 · שולחן 7</span>
+                  <span style="background:#f59e0b;color:white;padding:0.1rem 0.375rem;border-radius:4px;font-size:0.6rem;font-weight:700">בביצוע</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem">
+                  <input type="checkbox" style="accent-color:#22c55e">
+                  <span style="color:#e2e8f0;font-size:0.7rem">סטייק × 1 — 🌡️ medium well</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mockup-caption">KDS — תצוגת מטבח עם כרטיסי הזמנות לפי תחנה, סימון מנות וסטטוס</div>
+        </div>
+
+        <!-- פוד קוסט -->
+        <div style="font-weight:700;color:#1e293b;margin:1.5rem 0 0.75rem;font-size:0.95rem">📊 פוד קוסט (תמחור ורווחיות)</div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">חישוב עלות לפי עץ מוצר</div>
+              <div class="step-desc">לכל מנה בונים עץ חומרי גלם עם כמות + עלות. המערכת מחשבת אוטומטית: עלות מנה, מחיר מכירה, רווח גולמי ואחוז פוד קוסט.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">דוחות רווחיות</div>
+              <div class="step-desc">טאב פוד קוסט מציג: רשימת מנות עם עלות/מחיר/רווח, מנות עם פוד קוסט גבוה, ומדד כולל לחודש. נגיש גם לטבח — שיכול לראות עלויות ולדווח על שינויי מחיר של חומרי גלם.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="screenshot-wrap">
+          <img src="guide-screens/foodcost.png" alt="פוד קוסט" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 פוד קוסט — עלות מנות, רווח גולמי ומדד אחוז עלות</div>
+        </div>
+
+        <!-- תפקידים + הרשאות -->
+        <div style="font-weight:700;color:#1e293b;margin:1.5rem 0 0.75rem;font-size:0.95rem">👥 תפקידים ייחודיים למסעדה</div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+            <thead>
+              <tr style="background:#fff7ed">
+                <th style="text-align:right;padding:0.5rem 0.75rem;border-bottom:2px solid #fed7aa;color:#9a3412">תפקיד</th>
+                <th style="text-align:right;padding:0.5rem 0.75rem;border-bottom:2px solid #fed7aa;color:#9a3412">מחיר</th>
+                <th style="text-align:right;padding:0.5rem 0.75rem;border-bottom:2px solid #fed7aa;color:#9a3412">גישה לטאבים</th>
+                <th style="text-align:right;padding:0.5rem 0.75rem;border-bottom:2px solid #fed7aa;color:#9a3412">ממשק ייחודי</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid #f1f5f9">
+                <td style="padding:0.5rem 0.75rem;font-weight:700">🍽️ מלצר/ית</td>
+                <td style="padding:0.5rem 0.75rem;color:#64748b">₪15/חודש</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">קופה, מכירות, משימות, יומן, עובדים, משמרות, נוכחות</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">מפת שולחנות, מנות מוכנות מהמטבח, בקשות שירות, קופה לשולחן</td>
+              </tr>
+              <tr style="border-bottom:1px solid #f1f5f9">
+                <td style="padding:0.5rem 0.75rem;font-weight:700">👨‍🍳 טבח/ית</td>
+                <td style="padding:0.5rem 0.75rem;color:#64748b">₪15/חודש</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">מזווה, משימות, משמרות, פוד קוסט, נוכחות</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">תצוגת מטבח (KDS) לפי תחנות, סימון מנות מוכנות, התראת מלאי נמוך</td>
+              </tr>
+              <tr>
+                <td style="padding:0.5rem 0.75rem;font-weight:700">📋 מנהל משמרת</td>
+                <td style="padding:0.5rem 0.75rem;color:#64748b">₪29/חודש</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">קופה, מכירות, משימות, עובדים, משמרות, נוכחות, תזרים, לקוחות</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">KPI מכירות + נוכחות, שיוך מלצרים לשולחנות, הזמנות מוכנות, בקשות שירות</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout-tip" style="margin-top:1.25rem">
+          <span class="callout-icon">💡</span>
+          <div><strong>שיוך שולחן:</strong> מנהל המשמרת משייך מלצרים לשולחנות בתחילת כל משמרת. שמות המלצרים מוצגים מתחת למספר השולחן בכל הממשקים כל אותו יום.</div>
+        </div>
+        <div class="callout callout-warn">
+          <span class="callout-icon">⚠️</span>
+          <div><strong>שים לב:</strong> מצב שולחנות ושיוך מלצרים מתאפס בתחילת כל יום עבודה — יש לשייך מחדש את המלצרים לשולחנות בכל בוקר/משמרת.</div>
+        </div>
+        <div class="callout callout-info">
+          <span class="callout-icon">📊</span>
+          <div><strong>פוד קוסט:</strong> כדי לקבל נתונים מדויקים — חובה להזין עלות (לא רק מחיר מכירה) לכל מנה בקטלוג. ללא עלות — אחוז הפוד קוסט יוצג כ-0%.</div>
+        </div>
+
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== GUIDE: SERVICES ===== REWRITTEN FROM CODE AUDIT ===== -->
+    <section id="guide-services">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#eff6ff;color:#2563eb;font-size:1.6rem">💼</div>
+        <div>
+          <div class="card-title">מדריך שירותים מקצועיים</div>
+          <div class="card-subtitle">11 מודולים — יומן פגישות (4 תצוגות), הצעות מחיר (פינגפונג + המרה לפרויקט), CRM, נציג שירות ואיש מכירות</div>
+        </div>
+      </div>
+      <div class="card-body">
+
+        <!-- מינוח ייחודי לשירותים -->
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:0.875rem;padding:1rem 1.25rem;margin-bottom:1.25rem">
+          <div style="font-weight:800;color:#1e40af;margin-bottom:0.625rem;font-size:0.875rem">🗂️ מינוח ייחודי במערכת עבור שירותים מקצועיים</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;font-size:0.78rem">
+            <div style="background:white;border-radius:0.5rem;padding:0.5rem 0.75rem"><strong style="color:#1e40af">לקוח</strong> = לקוח</div>
+            <div style="background:white;border-radius:0.5rem;padding:0.5rem 0.75rem"><strong style="color:#1e40af">מוצר</strong> = שירות</div>
+            <div style="background:white;border-radius:0.5rem;padding:0.5rem 0.75rem"><strong style="color:#1e40af">תור</strong> = פגישה</div>
+            <div style="background:white;border-radius:0.5rem;padding:0.5rem 0.75rem"><strong style="color:#1e40af">ספק</strong> = קבלן חיצוני</div>
+            <div style="background:white;border-radius:0.5rem;padding:0.5rem 0.75rem"><strong style="color:#1e40af">תמחור</strong> = תמחור שירותים</div>
+            <div style="background:white;border-radius:0.5rem;padding:0.5rem 0.75rem"><strong style="color:#1e40af">הזמנה</strong> = פרויקט</div>
+          </div>
+        </div>
+
+        <!-- מודולים פעילים ומה לא -->
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:0.875rem;padding:1rem 1.25rem;margin-bottom:1.5rem">
+          <div style="font-weight:800;color:#1e40af;margin-bottom:0.625rem;font-size:0.875rem"><i class="fa-solid fa-puzzle-piece" style="margin-left:4px"></i> 11 מודולים פעילים</div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem">
+            <span style="background:#fff;border:1px solid #93c5fd;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#1e40af">📰 פיד</span>
+            <span style="background:#fff;border:1px solid #93c5fd;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#1e40af">📅 יומן פגישות</span>
+            <span style="background:#fff;border:1px solid #93c5fd;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#1e40af">✅ משימות</span>
+            <span style="background:#fff;border:1px solid #93c5fd;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#1e40af">🤝 לקוחות CRM</span>
+            <span style="background:#fff;border:1px solid #93c5fd;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#1e40af">💸 תזרים</span>
+            <span style="background:#fff;border:1px solid #93c5fd;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#1e40af">📊 תקציב</span>
+            <span style="background:#fff;border:1px solid #93c5fd;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#1e40af">👥 עובדים</span>
+            <span style="background:#fff;border:1px solid #93c5fd;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#1e40af">⏱️ שעון נוכחות</span>
+            <span style="background:#fff;border:1px solid #93c5fd;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#1e40af">💳 בנק/כספים</span>
+            <span style="background:#fff;border:1px solid #93c5fd;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#1e40af">💰 קופה (חיוב לקוח)</span>
+            <span style="background:#fff;border:1px solid #93c5fd;border-radius:9999px;padding:0.2rem 0.625rem;font-size:0.72rem;font-weight:600;color:#1e40af">🛍️ מכירות + הצעות מחיר</span>
+          </div>
+          <div style="font-size:0.72rem;color:#64748b"><strong style="color:#ef4444">לא פעיל:</strong> 🥫 מזווה · 🍽️ פוד קוסט · 🛵 שליחויות · 🔄 משמרות</div>
+        </div>
+
+        <!-- הגדרה ראשונית -->
+        <div style="font-weight:700;color:#1e293b;margin-bottom:0.75rem;font-size:0.95rem">⚙️ הגדרה ראשונית</div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">בחר "שירותים מקצועיים" בהגדרות מהות עסק</div>
+              <div class="step-desc">הגדרות ← מהות עסק ← 💼 שירותים. המערכת מפעילה 11 מודולים ומשנה את המינוח (פגישה, פרויקט, קבלן חיצוני וכד').</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">הגדר רשימת שירותים ביומן</div>
+              <div class="step-desc">יומן ← כרטיסייה "שירותים" ← "+ שירות חדש". שדות: שם שירות, משך (דקות), מחיר. השירות מקושר לאירועי יומן ולהצעות מחיר. ניתן למחוק שירות רק אם אין פגישות מקושרות אליו.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">הגדר שעות עבודה וזמינות</div>
+              <div class="step-desc">יומן ← "הגדרות זמינות". לכל יום בשבוע: האם פעיל, שעת פתיחה וסגירה, מרווח בין תורים (לדוגמה: כל 30 דקות). שינוי ההגדרות משפיע על הצגת חלונות הזמן הזמינים בקביעת פגישות.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-title">הוסף לקוחות ל-CRM</div>
+              <div class="step-desc">לקוחות ← "+ לקוח". שדות: שם, טלפון, אימייל. כל הצעת מחיר ופגישה ביומן מקושרות ללקוח לפי מספר טלפון. ניתן לחייג ישירות מרשימת הלקוחות.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- יומן -->
+        <div style="font-weight:700;color:#1e293b;margin:1.5rem 0 0.75rem;font-size:0.95rem">📅 יומן פגישות — 4 תצוגות</div>
+        <p style="color:#475569;font-size:0.875rem;line-height:1.7;margin-bottom:0.875rem">כל פגישה כוללת: סוג שירות, כותרת, פרטי לקוח, הערות, תאריך ושעה, וסטטוס (ממתין / אושר).</p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">תצוגת יום</div>
+              <div class="step-desc">כל הפגישות של יום נבחר מוצגות כרצועות עם: שעת תחילה, כותרת, שם לקוח וסטטוס. לחיצה פותחת פרטים מלאים ואפשרות לשנות סטטוס.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">תצוגת שבוע</div>
+              <div class="step-desc">גריד 7 עמודות — יום אחד לעמודה. כל אירוע מוצג כ-pill קצר עם השעה. ניתן לגרור בין ימים.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">תצוגת חודש</div>
+              <div class="step-desc">לוח חודשי מלא עם indicators לימים שיש בהם פגישות. לחיצה על יום עובר לתצוגת יום.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">תצוגת אג'נדה</div>
+              <div class="step-desc">רשימה כרונולוגית של כל הפגישות הקרובות — שימושי לתכנון שבועי מהיר.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">הוספת פגישה</div>
+              <div class="step-desc">לחץ על יום/שעה ← בחר שירות מהרשימה, הוסף כותרת, טלפון לקוח, הערות, תאריך ושעת התחלה. הפגישה נשמרת בסטטוס "ממתין" — ניתן לשנות ל-"אושר" לאחר אישור עם הלקוח.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- מוקאפ יומן -->
+        <div class="mockup" style="margin-top:1.25rem">
+          <div class="mockup-bar">
+            <div class="mockup-dots">
+              <div class="mockup-dot" style="background:#ef4444"></div>
+              <div class="mockup-dot" style="background:#f59e0b"></div>
+              <div class="mockup-dot" style="background:#22c55e"></div>
+            </div>
+            <div style="flex:1;text-align:center;font-size:0.7rem;color:#64748b">יומן פגישות — תצוגת יום</div>
+          </div>
+          <div class="mockup-screen" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);padding:1.25rem;align-items:stretch">
+            <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem">
+              <span style="background:#2563eb;color:white;padding:0.25rem 0.625rem;border-radius:9999px;font-size:0.65rem;font-weight:700">יום</span>
+              <span style="background:white;color:#64748b;padding:0.25rem 0.625rem;border-radius:9999px;font-size:0.65rem;font-weight:600;border:1px solid #e2e8f0">שבוע</span>
+              <span style="background:white;color:#64748b;padding:0.25rem 0.625rem;border-radius:9999px;font-size:0.65rem;font-weight:600;border:1px solid #e2e8f0">חודש</span>
+              <span style="background:white;color:#64748b;padding:0.25rem 0.625rem;border-radius:9999px;font-size:0.65rem;font-weight:600;border:1px solid #e2e8f0">אג'נדה</span>
+            </div>
+            <div style="background:white;border-radius:0.875rem;padding:0.75rem;width:100%;box-shadow:0 2px 6px rgba(0,0,0,0.06)">
+              <div style="font-size:0.68rem;font-weight:700;color:#1e40af;margin-bottom:0.5rem">📅 יום ג׳ 10/06/2026</div>
+              <div style="display:flex;flex-direction:column;gap:0.3rem">
+                <div style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.5rem;background:#dbeafe;border-radius:0.5rem;font-size:0.67rem">
+                  <span style="color:#1e40af;font-weight:700;min-width:35px">09:00</span>
+                  <span style="flex:1;font-weight:600;color:#1e293b">דוד לוי · ייעוץ (60 דק')</span>
+                  <span style="background:#22c55e;color:white;padding:0.1rem 0.35rem;border-radius:4px;font-size:0.58rem;font-weight:700">אושר</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.5rem;background:#dbeafe;border-radius:0.5rem;font-size:0.67rem">
+                  <span style="color:#1e40af;font-weight:700;min-width:35px">10:30</span>
+                  <span style="flex:1;font-weight:600;color:#1e293b">שרה כהן · ליווי עסקי (90 דק')</span>
+                  <span style="background:#22c55e;color:white;padding:0.1rem 0.35rem;border-radius:4px;font-size:0.58rem;font-weight:700">אושר</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.5rem;background:#fef9c3;border-radius:0.5rem;font-size:0.67rem">
+                  <span style="color:#92400e;font-weight:700;min-width:35px">13:00</span>
+                  <span style="flex:1;font-weight:600;color:#1e293b">רון בר · הצעת מחיר (45 דק')</span>
+                  <span style="background:#f59e0b;color:white;padding:0.1rem 0.35rem;border-radius:4px;font-size:0.58rem;font-weight:700">ממתין</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.5rem;background:#f1f5f9;border-radius:0.5rem;font-size:0.67rem;color:#94a3b8">
+                  <span style="min-width:35px">15:00</span>
+                  <span>פנוי — לחץ להוסיף פגישה</span>
+                  <span style="background:#e2e8f0;color:#94a3b8;padding:0.1rem 0.35rem;border-radius:4px;font-size:0.58rem">+</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mockup-caption">יומן — תצוגת יום עם פגישות, שירות, משך זמן וסטטוס (ממתין/אושר)</div>
+        </div>
+
+        <div class="screenshot-wrap">
+          <img src="guide-screens/calendar.png" alt="יומן פגישות" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 יומן — ניהול פגישות לקוחות ב-4 תצוגות</div>
+        </div>
+
+        <!-- הצעות מחיר -->
+        <div style="font-weight:700;color:#1e293b;margin:1.5rem 0 0.75rem;font-size:0.95rem">📄 הצעות מחיר — מחזור חיים מלא</div>
+        <p style="color:#475569;font-size:0.875rem;line-height:1.7;margin-bottom:0.875rem">כל הצעה כוללת: פריטי שירות + מחירים + ציר זמן מלא של כל השלבים — מהשליחה ועד האישור הסופי.</p>
+
+        <!-- מחזור חיים מלא -->
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.875rem;padding:1.25rem;margin-bottom:1.25rem">
+          <div style="font-size:0.8rem;font-weight:700;color:#1e293b;margin-bottom:0.75rem">מחזור חיים של הצעת מחיר:</div>
+          <div style="display:flex;flex-direction:column;gap:0.625rem">
+            <div style="display:flex;align-items:flex-start;gap:0.875rem;font-size:0.825rem">
+              <span style="background:#94a3b8;color:white;border-radius:9999px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:800;flex-shrink:0">1</span>
+              <div><strong>טיוטה</strong> — העסק יוצר הצעה: בוחר לקוח, מוסיף פריטי שירות + מחירים, הערות ותנאי תשלום. נשמרת כטיוטה עד לשליחה.</div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:0.875rem;font-size:0.825rem">
+              <span style="background:#4f46e5;color:white;border-radius:9999px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:800;flex-shrink:0">2</span>
+              <div><strong>נשלחה ללקוח</strong> — לוחצים "שלח ב-OneFlow" → הלקוח מקבל <strong>פעמון 🔔 + הודעה</strong>. בכרטיס ההצעה בצד העסק: תג כחול "נשלחה ללקוח".</div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:0.875rem;font-size:0.825rem">
+              <span style="background:#7c3aed;color:white;border-radius:9999px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:800;flex-shrink:0">3</span>
+              <div><strong>תגובת לקוח</strong> — 4 אפשרויות: ✅ אשר / 💬 בקש הנחה / 📋 בקש שינויים / 💬 שלח הודעה · ❌ סרב. העסק מקבל פעמון. בכרטיס ההצעה: <span style="background:#f97316;color:white;padding:0.1rem 0.35rem;border-radius:4px;font-size:0.7rem">נדרש עדכון — כרטיס כתום</span>.</div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:0.875rem;font-size:0.825rem">
+              <span style="background:#4f46e5;color:white;border-radius:9999px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:800;flex-shrink:0">4</span>
+              <div><strong>עדכון ושליחה מחדש</strong> — העסק עורך ושולח מחדש → הלקוח מקבל פעמון "גרסה מעודכנת". כפתורי האישור/דחייה מוצגים ללקוח מחדש, גם אם כבר הגיב — עם תגובתו הקודמת כהקשר כחול מעל הכפתורים.</div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:0.875rem;font-size:0.825rem">
+              <span style="background:#16a34a;color:white;border-radius:9999px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:800;flex-shrink:0">5</span>
+              <div><strong>אושרה ← המרה לפרויקט</strong> — לקוח אישר ← העסק לוחץ "המר לפקודת עבודה" ← נוצר פרויקט חדש עם תג "הומרה מהצעת מחיר" ← הלקוח מקבל פעמון שהפרויקט נפתח.</div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:0.875rem;font-size:0.825rem">
+              <span style="background:#ef4444;color:white;border-radius:9999px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:800;flex-shrink:0">✕</span>
+              <div><strong>בוטלה</strong> — לקוח סרב ← כרטיס ההצעה מקבל באנר אדום "ההצעה בוטלה" עם מחיקה ויזואלית. לא ניתן להמשיך לתקשר דרך הצעה זו.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- היסטוריית ציר זמן -->
+        <div class="steps">
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">ציר זמן מלא של ההצעה</div>
+              <div class="step-desc">כל שלב נרשם ומוצג בציר זמן: שליחה ללקוח, גרסה מעודכנת, תגובת לקוח, המרה לפרויקט, אישור, הודעות עסק. הציר מוצג בכרטיס ההצעה — גם בצד העסק וגם אצל הלקוח.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">שליחת הודעה ישירה מכרטיס ההצעה</div>
+              <div class="step-desc">העסק יכול לשלוח הודעה ישירה ללקוח מתוך כרטיס ההצעה עצמו — ללא צורך ב-WhatsApp. ההודעה מופיעה בציר הזמן ולקוח מקבל פעמון.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
+            <div>
+              <div class="step-title">עדכון אוטומטי כל 20 שניות</div>
+              <div class="step-desc">רשימת ההצעות מתרעננת ברקע כל 20 שניות — גם בצד העסק וגם בצד הלקוח. לא צריך לרענן ידנית כדי לראות שינויים חדשים.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="screenshot-wrap">
+          <img src="guide-screens/sales.png" alt="הצעות מחיר" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 מכירות — רשימת הצעות מחיר: טיוטה / נשלחה / נדרש עדכון (כתום) / אושרה</div>
+        </div>
+
+        <!-- תפקידים ייחודיים -->
+        <div style="font-weight:700;color:#1e293b;margin:1.5rem 0 0.75rem;font-size:0.95rem">👥 תפקידים ייחודיים לשירותים מקצועיים</div>
+
+        <div style="overflow-x:auto;margin-bottom:1.25rem">
+          <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+            <thead>
+              <tr style="background:#eff6ff">
+                <th style="text-align:right;padding:0.5rem 0.75rem;border-bottom:2px solid #bfdbfe;color:#1e40af">תפקיד</th>
+                <th style="text-align:right;padding:0.5rem 0.75rem;border-bottom:2px solid #bfdbfe;color:#1e40af">מחיר</th>
+                <th style="text-align:right;padding:0.5rem 0.75rem;border-bottom:2px solid #bfdbfe;color:#1e40af">גישה לטאבים</th>
+                <th style="text-align:right;padding:0.5rem 0.75rem;border-bottom:2px solid #bfdbfe;color:#1e40af">ממשק ייחודי</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid #f1f5f9">
+                <td style="padding:0.5rem 0.75rem;font-weight:700">🎧 נציג שירות</td>
+                <td style="padding:0.5rem 0.75rem;color:#64748b">₪19/חודש</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">לקוחות, משימות, יומן, נוכחות</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">חיפוש לקוח, 5 לקוחות אחרונים עם חיוג מהיר, פניות חדשות, תורים היום</td>
+              </tr>
+              <tr>
+                <td style="padding:0.5rem 0.75rem;font-weight:700">💼 איש מכירות</td>
+                <td style="padding:0.5rem 0.75rem;color:#64748b">₪29/חודש</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">קופה, מכירות, לקוחות, משימות, יומן, נוכחות, משמרות</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">לקוח חדש, הצעת מחיר, קביעת פגישה — פעולות מהירות; 3 לקוחות אחרונים; ניווט לתזרים ומכירות</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ממשק נציג שירות -->
+        <div class="mockup">
+          <div class="mockup-bar">
+            <div class="mockup-dots">
+              <div class="mockup-dot" style="background:#ef4444"></div>
+              <div class="mockup-dot" style="background:#f59e0b"></div>
+              <div class="mockup-dot" style="background:#22c55e"></div>
+            </div>
+            <div style="flex:1;text-align:center;font-size:0.7rem;color:#64748b">ממשק נציג שירות 🎧</div>
+          </div>
+          <div class="mockup-screen" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);padding:1.25rem;align-items:stretch">
+            <div style="font-size:0.75rem;font-weight:800;color:#7c3aed;margin-bottom:0.75rem">🎧 ממשק נציג שירות</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.4rem;margin-bottom:0.75rem">
+              <div style="background:white;border-radius:0.625rem;padding:0.5rem;text-align:center;font-size:0.62rem;font-weight:700;color:#2563eb">🔍<br>חיפוש לקוח</div>
+              <div style="background:white;border-radius:0.625rem;padding:0.5rem;text-align:center;font-size:0.62rem;font-weight:700;color:#16a34a">➕<br>פנייה חדשה</div>
+              <div style="background:white;border-radius:0.625rem;padding:0.5rem;text-align:center;font-size:0.62rem;font-weight:700;color:#7c3aed">📞<br>שיחות היום</div>
+            </div>
+            <div style="background:white;border-radius:0.75rem;padding:0.75rem">
+              <div style="font-size:0.65rem;font-weight:700;color:#4b5563;margin-bottom:0.4rem">לקוחות אחרונים</div>
+              <div style="display:flex;flex-direction:column;gap:0.3rem">
+                <div style="display:flex;align-items:center;gap:0.5rem;padding:0.3rem 0.4rem;border-radius:0.5rem;background:#f9fafb">
+                  <div style="width:28px;height:28px;background:#7c3aed;border-radius:9999px;display:flex;align-items:center;justify-content:center;color:white;font-size:0.65rem;font-weight:800;flex-shrink:0">ד</div>
+                  <div style="flex:1"><div style="font-size:0.68rem;font-weight:600;color:#1e293b">דנה לוי</div><div style="font-size:0.58rem;color:#94a3b8">050-1234567</div></div>
+                  <div style="background:#dcfce7;color:#166534;width:22px;height:22px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-size:0.6rem">📞</div>
+                  <div style="background:#dbeafe;color:#1e40af;width:22px;height:22px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-size:0.6rem">✉️</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;padding:0.3rem 0.4rem;border-radius:0.5rem;background:#f9fafb">
+                  <div style="width:28px;height:28px;background:#2563eb;border-radius:9999px;display:flex;align-items:center;justify-content:center;color:white;font-size:0.65rem;font-weight:800;flex-shrink:0">מ</div>
+                  <div style="flex:1"><div style="font-size:0.68rem;font-weight:600;color:#1e293b">מיכל ברק</div><div style="font-size:0.58rem;color:#94a3b8">052-9876543</div></div>
+                  <div style="background:#dcfce7;color:#166534;width:22px;height:22px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-size:0.6rem">📞</div>
+                  <div style="background:#dbeafe;color:#1e40af;width:22px;height:22px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-size:0.6rem">✉️</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mockup-caption">נציג שירות — פעולות מהירות + 5 לקוחות אחרונים עם חיוג ישיר</div>
+        </div>
+
+        <div class="screenshot-wrap">
+          <img src="guide-screens/crm.png" alt="CRM לקוחות" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 לקוחות CRM — רשימה, חיפוש וחיוג מהיר</div>
+        </div>
+
+        <!-- callouts -->
+        <div class="callout callout-tip" style="margin-top:1rem">
+          <span class="callout-icon">🔔</span>
+          <div><strong>פעמונים אוטומטיים:</strong> כל שלב בהצעה מייצר פעמון — שליחה ראשונה, עדכון, תגובת לקוח, אישור, המרה לפרויקט. לא צריך לעקוב ידנית.</div>
+        </div>
+        <div class="callout callout-tip">
+          <span class="callout-icon">📄</span>
+          <div><strong>המרה לפרויקט:</strong> לאחר אישור לקוח — לחץ "המר לפקודת עבודה" בכרטיס ההצעה. נוצרת הזמנה עם badge סגול "הומרה מהצעת מחיר #X" בטאב ה-orders של הלקוח.</div>
+        </div>
+        <div class="callout callout-info">
+          <span class="callout-icon">📅</span>
+          <div><strong>יומן + הצעה:</strong> ניתן לקשר הצעת מחיר לפגישה ביומן על ידי ציון מספר ההצעה בשדה הערות של הפגישה. שימושי כשפגישה ראשונה מובילה לשירות קבוע.</div>
+        </div>
+        <div class="callout callout-warn">
+          <span class="callout-icon">⚠️</span>
+          <div><strong>אין שליחויות:</strong> סוג "שירותים" לא כולל מודול שליחויות. עבור שירותים ניידים (טכנאי בית) — שקול סוג "תחזוקה ותיקונים" שכולל שדה-טכנאי.</div>
+        </div>
+
       </div>
     </div>
     </section>

@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>אפיון סביבת Super Admin — OneFlow Life SA</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Heebo', sans-serif; }
+  code, pre { font-family: 'Fira Code', monospace; direction: ltr; }
+  pre { direction: ltr; text-align: left; }
+  table { border-collapse: collapse; width: 100%; }
+  h2, h3 { scroll-margin-top: 80px; }
+  @media print {
+    .no-print { display: none !important; }
+    body { font-size: 11pt; background: white !important; color: black !important; }
+    .page-break { page-break-before: always; }
+    pre, code { font-size: 9pt; }
+  }
+  .toc-link { transition: all .15s; }
+  .toc-link:hover { color: #818cf8; padding-right: 4px; }
+  .badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; }
+  tr:hover td { background: rgba(99,102,241,0.05); }
+</style>
+</head>
+<body class="bg-slate-900 text-slate-200">
+
+<!-- Sticky Header -->
+<div class="no-print sticky top-0 z-50 bg-slate-800 border-b border-slate-700 shadow-lg">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-lg">🛡️</div>
+      <div>
+        <h1 class="font-black text-slate-100 text-sm leading-none">אפיון סביבת Super Admin</h1>
+        <p class="text-[10px] text-slate-400 mt-0.5">OneFlow Life SA · גרסה 2026-06-20</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="spec-super-admin.md" download class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-xs font-bold transition">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        הורד MD
+      </a>
+      <button onclick="window.print()" class="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+        שמור PDF
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="max-w-6xl mx-auto px-4 py-8 flex gap-8">
+
+  <!-- TOC Sidebar -->
+  <aside class="no-print w-60 flex-shrink-0 hidden lg:block">
+    <div class="sticky top-20 bg-slate-800 rounded-2xl border border-slate-700 p-4 text-sm">
+      <p class="font-black text-indigo-400 mb-3 text-xs uppercase tracking-wider">תוכן עניינים</p>
+      <nav class="space-y-0.5">
+        <a href="#s1"  class="toc-link block text-slate-400 text-xs py-1 hover:text-indigo-400">1. ארכיטקטורה ואימות</a>
+        <a href="#s2"  class="toc-link block text-slate-400 text-xs py-1 hover:text-indigo-400">2. ניווט ו-SA_GROUPS</a>
+        <a href="#s3"  class="toc-link block text-slate-400 text-xs py-1 hover:text-indigo-400">3. הרשאות (checkTabAccess)</a>
+        <a href="#s4"  class="toc-link block text-slate-400 text-xs py-1 hover:text-indigo-400">4. דופק מערכת (pulse)</a>
+        <a href="#s5"  class="toc-link block text-slate-400 text-xs py-1 hover:text-indigo-400">5. קריאות שירות (support)</a>
+        <a href="#s6"  class="toc-link block text-slate-400 text-xs py-1 hover:text-indigo-400">6. פיתוח ומוצר (devops)</a>
+        <a href="#s7"  class="toc-link block text-slate-400 text-xs py-1 hover:text-indigo-400">7. לקוחות ועסקים</a>
+        <a href="#s8"  class="toc-link block text-slate-400 text-xs py-1 hover:text-indigo-400">8. שיווק ותוכן</a>
+        <a href="#s9"  class="toc-link block text-slate-400 text-xs py-1 hover:text-indigo-400">9. פיננסים (finance)</a>
+        <a href="#s10" class="toc-link block text-slate-400 text-xs py-1 hover:text-indigo-400">10. שותפים (partners)</a>
+        <a href="#s11" class="toc-link block text-slate-400 text-xs py-1 hover:text-indigo-400">11. צוות ונציגים (hr)</a>
+        <a href="#s12" class="toc-link block text-slate-400 text-xs py-1 hover:text-indigo-400">12. מסמכים משפטיים</a>
+        <a href="#s13" class="toc-link block text-slate-400 text-xs py-1 hover:text-indigo-400">13. Impersonation Mode</a>
+        <a href="#s14" class="toc-link block text-slate-400 text-xs py-1 hover:text-indigo-400">14. AI ולוגיקות מיוחדות</a>
+        <a href="#s15" class="toc-link block text-slate-400 text-xs py-1 hover:text-indigo-400">15. API Endpoints</a>
+      </nav>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 min-w-0 space-y-10">
+
+    <!-- Hero Title Block -->
+    <div class="bg-gradient-to-br from-indigo-700 via-violet-700 to-slate-800 rounded-3xl p-8 text-white border border-indigo-500/30">
+      <div class="flex items-center gap-4 mb-4">
+        <div class="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-3xl">🛡️</div>
+        <div>
+          <h1 class="text-2xl font-black leading-tight">מפרט טכני — סביבת Super Admin</h1>
+          <p class="text-indigo-200 text-sm mt-1">OneFlow Life · SA Environment · גרסה 2026-06-20</p>
+        </div>
+      </div>
+      <p class="text-slate-200 text-sm leading-relaxed max-w-2xl">
+        מסמך זה מתאר את מלוא הפונקציונליות של סביבת ה-Super Admin — מרכז הבקרה המרכזי של מערכת Oneflow Life.
+        הסביבה מאפשרת ניהול כלל הקבוצות, העסקים, הקהילות, הצוות, הפיננסים, ומוצרי הפלטפורמה.
+        נכתב על בסיס קריאת קבצי המקור: <code class="bg-white/10 px-2 py-0.5 rounded text-xs">sa.html</code>,
+        <code class="bg-white/10 px-2 py-0.5 rounded text-xs">sa-app.js</code>,
+        <code class="bg-white/10 px-2 py-0.5 rounded text-xs">server1.js</code>.
+      </p>
+      <div class="flex flex-wrap gap-2 mt-5">
+        <span class="badge bg-indigo-500/30 text-indigo-200">URL: /sa.html</span>
+        <span class="badge bg-violet-500/30 text-violet-200">Node.js / Express</span>
+        <span class="badge bg-slate-600/50 text-slate-300">PostgreSQL</span>
+        <span class="badge bg-green-500/20 text-green-300">Vanilla JS + TailwindCSS</span>
+        <span class="badge bg-orange-500/20 text-orange-300">15 טאבים</span>
+        <span class="badge bg-pink-500/20 text-pink-300">7 קבוצות ניווט</span>
+      </div>
+    </div>
+
+    <!-- Section 1: Architecture & Auth -->
+    <section id="s1">
+      <div class="bg-gradient-to-r from-slate-700 to-slate-800 rounded-2xl px-6 py-4 mb-5 border border-slate-600">
+        <h2 class="text-lg font-black text-indigo-400">1. ארכיטקטורה ואימות</h2>
+      </div>
+
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden mb-5">
+        <div class="px-5 py-3 border-b border-slate-700 bg-slate-750">
+          <h3 class="font-bold text-slate-200 text-sm">1.1 קבצים ומיקום</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="text-sm">
+            <thead class="bg-slate-700/50">
+              <tr>
+                <th class="text-right px-4 py-2.5 text-slate-400 font-bold text-xs uppercase tracking-wider w-32">רכיב</th>
+                <th class="text-right px-4 py-2.5 text-slate-400 font-bold text-xs uppercase tracking-wider">פרטים</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700">
+              <tr><td class="px-4 py-2.5 text-slate-300 font-medium">URL</td><td class="px-4 py-2.5"><code class="text-green-400 bg-slate-900 px-2 py-0.5 rounded text-xs">/sa.html</code></td></tr>
+              <tr><td class="px-4 py-2.5 text-slate-300 font-medium">HTML</td><td class="px-4 py-2.5"><code class="text-green-400 bg-slate-900 px-2 py-0.5 rounded text-xs">sa.html</code> — שלד HTML</td></tr>
+              <tr><td class="px-4 py-2.5 text-slate-300 font-medium">JS ראשי</td><td class="px-4 py-2.5"><code class="text-green-400 bg-slate-900 px-2 py-0.5 rounded text-xs">sa-app.js</code> (~6000+ שורות)</td></tr>
+              <tr><td class="px-4 py-2.5 text-slate-300 font-medium">Backend</td><td class="px-4 py-2.5">Node.js / Express — <code class="text-green-400 bg-slate-900 px-2 py-0.5 rounded text-xs">server1.js</code></td></tr>
+              <tr><td class="px-4 py-2.5 text-slate-300 font-medium">Database</td><td class="px-4 py-2.5">PostgreSQL</td></tr>
+              <tr><td class="px-4 py-2.5 text-slate-300 font-medium">Frontend</td><td class="px-4 py-2.5">Vanilla JS + TailwindCSS (ללא framework)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+        <!-- Method 1: SMS OTP -->
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-sm">1</span>
+            <h3 class="font-bold text-slate-200 text-sm">SMS OTP — כניסת מאסטר</h3>
+          </div>
+          <ol class="space-y-1.5 text-xs text-slate-300">
+            <li class="flex gap-2"><span class="text-indigo-400 font-bold">1.</span>מאסטר מזין מספר טלפון</li>
+            <li class="flex gap-2"><span class="text-indigo-400 font-bold">2.</span>SMS עם OTP 6 ספרות (Twilio)</li>
+            <li class="flex gap-2"><span class="text-indigo-400 font-bold">3.</span><code class="text-green-400">POST /api/superadmin/send-otp</code></li>
+            <li class="flex gap-2"><span class="text-indigo-400 font-bold">4.</span><code class="text-green-400">POST /api/superadmin/verify-otp</code></li>
+            <li class="flex gap-2"><span class="text-indigo-400 font-bold">5.</span>Token: <code class="text-yellow-400">SA_SECRET_TOKEN_2026</code></li>
+            <li class="flex gap-2"><span class="text-indigo-400 font-bold">6.</span>permissions: <code class="text-green-400">['all']</code></li>
+          </ol>
+          <div class="mt-3 bg-slate-900 rounded-lg p-2 text-xs text-slate-400">
+            OTP: 6 ספרות · תוקף 5 דקות · שמור ב-<code class="text-green-400">otpCache</code> (זיכרון)
+          </div>
+        </div>
+        <!-- Method 2: Staff Login -->
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="w-7 h-7 rounded-lg bg-violet-600 flex items-center justify-center text-sm">2</span>
+            <h3 class="font-bold text-slate-200 text-sm">Staff Login — כניסת צוות</h3>
+          </div>
+          <ol class="space-y-1.5 text-xs text-slate-300">
+            <li class="flex gap-2"><span class="text-violet-400 font-bold">1.</span>עובד מזין אימייל + סיסמה</li>
+            <li class="flex gap-2"><span class="text-violet-400 font-bold">2.</span><code class="text-green-400">POST /api/superadmin/login</code></li>
+            <li class="flex gap-2"><span class="text-violet-400 font-bold">3.</span>בדיקה מול <code class="text-green-400">sa_users</code> JOIN <code class="text-green-400">sa_teams</code></li>
+            <li class="flex gap-2"><span class="text-violet-400 font-bold">4.</span>RBAC permissions לפי שדה בטבלת צוות</li>
+          </ol>
+          <div class="mt-3 bg-slate-900 rounded-lg p-2 text-xs text-slate-400">
+            הרשאות אפשריות: support · devops · marketing · stats · biz · comm · users · content · all
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5">
+        <h3 class="font-bold text-slate-200 text-sm mb-3">1.3 אחסון Session</h3>
+        <pre class="bg-slate-950 text-green-400 p-4 rounded-xl text-xs overflow-x-auto"><code>// Token
+localStorage.setItem('ofl_sa_token', token);
+
+// User object
+window.currentSAUser = {
+  id,
+  name,
+  email,
+  team,
+  permissions: []  // ['all'] למאסטר, או ['support', 'biz', ...] לצוות
+};
+localStorage.setItem('ofl_sa_user', JSON.stringify(currentSAUser));
+
+// טעינת דף: אם ofl_sa_token + ofl_sa_user קיימים → auto-login
+// loadSAData() → POST /api/superadmin/data → switchSATab('pulse')</code></pre>
+      </div>
+    </section>
+
+    <!-- Section 2: Navigation -->
+    <section id="s2">
+      <div class="bg-gradient-to-r from-slate-700 to-slate-800 rounded-2xl px-6 py-4 mb-5 border border-slate-600">
+        <h2 class="text-lg font-black text-indigo-400">2. ניווט ו-SA_GROUPS</h2>
+      </div>
+
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 mb-5">
+        <h3 class="font-bold text-slate-200 text-sm mb-3">2.1 מבנה 7 קבוצות הניווט</h3>
+        <pre class="bg-slate-950 text-green-400 p-4 rounded-xl text-xs overflow-x-auto"><code>const SA_GROUPS = {
+    home:       { tabs: ['pulse', 'stats'],             default: 'pulse'   },
+    customers:  { tabs: ['comm', 'biz', 'clients'],     default: 'comm'    },
+    finance:    { tabs: ['finance'],                    default: 'finance' },
+    supportdev: { tabs: ['support', 'devops'],          default: 'support' },
+    contentmkt: { tabs: ['content', 'inbox', 'legal'],  default: 'content' },
+    partners:   { tabs: ['partners'],                   default: 'partners'},
+    system:     { tabs: ['hr', 'sysmap'],               default: 'hr'      },
+};</code></pre>
+      </div>
+
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
+        <div class="px-5 py-3 border-b border-slate-700">
+          <h3 class="font-bold text-slate-200 text-sm">2.2 טבלת 15 הטאבים</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="text-sm">
+            <thead class="bg-slate-700/50">
+              <tr>
+                <th class="text-right px-4 py-2.5 text-slate-400 font-bold text-xs uppercase tracking-wider">טאב</th>
+                <th class="text-right px-4 py-2.5 text-slate-400 font-bold text-xs uppercase tracking-wider">קבוצה</th>
+                <th class="text-right px-4 py-2.5 text-slate-400 font-bold text-xs uppercase tracking-wider">שם עברי</th>
+                <th class="text-right px-4 py-2.5 text-slate-400 font-bold text-xs uppercase tracking-wider">תיאור</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700">
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">pulse</code></td><td class="px-4 py-2 text-slate-400 text-xs">home</td><td class="px-4 py-2 text-slate-200 text-xs">דופק מערכת</td><td class="px-4 py-2 text-slate-400 text-xs">KPIs בזמן אמת + Activity stream</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">stats</code></td><td class="px-4 py-2 text-slate-400 text-xs">home</td><td class="px-4 py-2 text-slate-200 text-xs">דוחות</td><td class="px-4 py-2 text-slate-400 text-xs">סטטיסטיקות מורחבות + לוג פעילות</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">comm</code></td><td class="px-4 py-2 text-slate-400 text-xs">customers</td><td class="px-4 py-2 text-slate-200 text-xs">קהילות</td><td class="px-4 py-2 text-slate-400 text-xs">ניהול קהילות + חיבורי עסקים</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">biz</code></td><td class="px-4 py-2 text-slate-400 text-xs">customers</td><td class="px-4 py-2 text-slate-200 text-xs">עסקים</td><td class="px-4 py-2 text-slate-400 text-xs">טבלת כל העסקים + חיבורי קהילה</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">clients</code></td><td class="px-4 py-2 text-slate-400 text-xs">customers</td><td class="px-4 py-2 text-slate-200 text-xs">קבוצות</td><td class="px-4 py-2 text-slate-400 text-xs">כל הקבוצות: משפחות + עסקים + חברים</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">finance</code></td><td class="px-4 py-2 text-slate-400 text-xs">finance</td><td class="px-4 py-2 text-slate-200 text-xs">פיננסים</td><td class="px-4 py-2 text-slate-400 text-xs">עמלות, גביות, ארנקי קהילות</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">support</code></td><td class="px-4 py-2 text-slate-400 text-xs">supportdev</td><td class="px-4 py-2 text-slate-200 text-xs">קריאות שירות</td><td class="px-4 py-2 text-slate-400 text-xs">Ticket management + SLA + AI Triage</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">devops</code></td><td class="px-4 py-2 text-slate-400 text-xs">supportdev</td><td class="px-4 py-2 text-slate-200 text-xs">פיתוח ומוצר</td><td class="px-4 py-2 text-slate-400 text-xs">Kanban + Matrix + QA + Release</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">content</code></td><td class="px-4 py-2 text-slate-400 text-xs">contentmkt</td><td class="px-4 py-2 text-slate-200 text-xs">מיתוג ותוכן</td><td class="px-4 py-2 text-slate-400 text-xs">לוגו, banners, slides, module popups</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">inbox</code></td><td class="px-4 py-2 text-slate-400 text-xs">contentmkt</td><td class="px-4 py-2 text-slate-200 text-xs">שיווק</td><td class="px-4 py-2 text-slate-400 text-xs">שידורי הודעות + release notes</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">legal</code></td><td class="px-4 py-2 text-slate-400 text-xs">contentmkt</td><td class="px-4 py-2 text-slate-200 text-xs">משפטי</td><td class="px-4 py-2 text-slate-400 text-xs">4 מסמכים משפטיים עם עורך RTF</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">partners</code></td><td class="px-4 py-2 text-slate-400 text-xs">partners</td><td class="px-4 py-2 text-slate-200 text-xs">שותפים</td><td class="px-4 py-2 text-slate-400 text-xs">Zone Managers + עמלות + אזורים</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">hr</code></td><td class="px-4 py-2 text-slate-400 text-xs">system</td><td class="px-4 py-2 text-slate-200 text-xs">צוות ונציגים</td><td class="px-4 py-2 text-slate-400 text-xs">ניהול SA staff + צוותים + Whispers</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">sysmap</code></td><td class="px-4 py-2 text-slate-400 text-xs">system</td><td class="px-4 py-2 text-slate-200 text-xs">מפת המערכת</td><td class="px-4 py-2 text-slate-400 text-xs">ארכיטקטורת המערכת</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">dashboard</code></td><td class="px-4 py-2 text-slate-400 text-xs">—</td><td class="px-4 py-2 text-slate-200 text-xs">דשבורד</td><td class="px-4 py-2 text-slate-400 text-xs">גישה פתוחה (legacy)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="text-xs text-slate-500 mt-2 px-1">כאשר קבוצה מכילה יותר מטאב אחד — מוצגת שורת sub-nav עם כפתורי pill לכל טאב.</p>
+    </section>
+
+    <!-- Section 3: Permissions -->
+    <section id="s3">
+      <div class="bg-gradient-to-r from-slate-700 to-slate-800 rounded-2xl px-6 py-4 mb-5 border border-slate-600">
+        <h2 class="text-lg font-black text-indigo-400">3. הרשאות (checkTabAccess)</h2>
+      </div>
+
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden mb-5">
+        <div class="overflow-x-auto">
+          <table class="text-sm">
+            <thead class="bg-slate-700/50">
+              <tr>
+                <th class="text-right px-4 py-2.5 text-slate-400 font-bold text-xs uppercase tracking-wider">טאב</th>
+                <th class="text-right px-4 py-2.5 text-slate-400 font-bold text-xs uppercase tracking-wider">הרשאה נדרשת</th>
+                <th class="text-right px-4 py-2.5 text-slate-400 font-bold text-xs uppercase tracking-wider">רמת גישה</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700">
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">pulse, dashboard, clients, sysmap, legal</code></td><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">open</span></td><td class="px-4 py-2 text-slate-300 text-xs">כל משתמש SA</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">support</code></td><td class="px-4 py-2"><span class="badge bg-orange-500/20 text-orange-400">support</span></td><td class="px-4 py-2 text-slate-300 text-xs">צוות תמיכה</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">devops</code></td><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">devops</span></td><td class="px-4 py-2 text-slate-300 text-xs">צוות פיתוח</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">stats</code></td><td class="px-4 py-2"><span class="badge bg-purple-500/20 text-purple-400">stats</span></td><td class="px-4 py-2 text-slate-300 text-xs">צוות אנליטיקה</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">comm</code></td><td class="px-4 py-2"><span class="badge bg-teal-500/20 text-teal-400">comm</span></td><td class="px-4 py-2 text-slate-300 text-xs">צוות קהילות</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">biz</code></td><td class="px-4 py-2"><span class="badge bg-yellow-500/20 text-yellow-400">biz</span></td><td class="px-4 py-2 text-slate-300 text-xs">צוות עסקים</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">content</code></td><td class="px-4 py-2"><span class="badge bg-pink-500/20 text-pink-400">content</span></td><td class="px-4 py-2 text-slate-300 text-xs">צוות תוכן</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">hr</code></td><td class="px-4 py-2"><span class="badge bg-indigo-500/20 text-indigo-400">users</span></td><td class="px-4 py-2 text-slate-300 text-xs">ניהול משתמשים</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">inbox</code></td><td class="px-4 py-2"><span class="badge bg-rose-500/20 text-rose-400">marketing</span></td><td class="px-4 py-2 text-slate-300 text-xs">צוות שיווק</td></tr>
+              <tr><td class="px-4 py-2"><code class="text-green-400 text-xs">partners, finance</code></td><td class="px-4 py-2"><span class="badge bg-red-500/20 text-red-400">all</span></td><td class="px-4 py-2 text-slate-300 text-xs">מאסטר SA בלבד</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="bg-indigo-900/30 border border-indigo-700/50 rounded-xl p-4 text-xs text-indigo-300">
+        <span class="font-bold">כלל:</span> <code class="text-green-400">permissions.includes('all')</code> → גישה מלאה לכל הטאבים ללא יוצא מן הכלל.
+      </div>
+    </section>
+
+    <!-- Section 4: Pulse -->
+    <section id="s4">
+      <div class="bg-gradient-to-r from-slate-700 to-slate-800 rounded-2xl px-6 py-4 mb-5 border border-slate-600">
+        <h2 class="text-lg font-black text-indigo-400">4. דופק מערכת (pulse)</h2>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4"><div class="text-xs font-bold text-slate-400 mb-1">עסקים</div><div class="text-xs text-slate-300">חדשים ב-24h / סה"כ עסקים</div></div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4"><div class="text-xs font-bold text-slate-400 mb-1">עסקים פעילים</div><div class="text-xs text-slate-300">פעילים / ממתינים לאישור</div></div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4"><div class="text-xs font-bold text-slate-400 mb-1">הכנסות</div><div class="text-xs text-slate-300">ב-24h / סה"כ כולל</div></div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4"><div class="text-xs font-bold text-slate-400 mb-1">משפחות</div><div class="text-xs text-slate-300">חדשות ב-24h / סה"כ</div></div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4"><div class="text-xs font-bold text-slate-400 mb-1">משתמשים</div><div class="text-xs text-slate-300">חדשים ב-24h / סה"כ</div></div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4"><div class="text-xs font-bold text-slate-400 mb-1">קהילות</div><div class="text-xs text-slate-300">חדשות ב-24h / עם הנחות</div></div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4"><div class="text-xs font-bold text-slate-400 mb-1">AI</div><div class="text-xs text-slate-300">שימוש ב-24h / tokens שנוצלו</div></div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4"><div class="text-xs font-bold text-slate-400 mb-1">תמיכה</div><div class="text-xs text-slate-300">פתיחות ב-24h / סגורות + <span class="text-red-400">SLA indicator</span></div></div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4"><div class="text-xs font-bold text-slate-400 mb-1">בריאות מערכת</div><div class="text-xs text-slate-300">שגיאות / QA%</div></div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4"><div class="text-xs font-bold text-slate-400 mb-1">פיתוח</div><div class="text-xs text-slate-300">משימות פתוחות / Releases</div></div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-red-900/30 border border-red-700/40 rounded-xl p-4">
+          <div class="text-xs font-bold text-red-400 mb-1">SLA Breach</div>
+          <div class="text-xs text-slate-300">Ticket פתוח מעל 24h → border אדום + אנימציית pulse על כרטיס התמיכה</div>
+        </div>
+        <div class="bg-orange-900/30 border border-orange-700/40 rounded-xl p-4">
+          <div class="text-xs font-bold text-orange-400 mb-1">Anomaly Alert</div>
+          <div class="text-xs text-slate-300">errorCount >= 3 → banner אדום "זוהתה אנומליה"</div>
+        </div>
+        <div class="bg-indigo-900/30 border border-indigo-700/40 rounded-xl p-4">
+          <div class="text-xs font-bold text-indigo-400 mb-1">Fullscreen Mode</div>
+          <div class="text-xs text-slate-300"><code class="text-green-400">togglePulseFullscreen()</code> → overlay + רענון כל 30s + Fullscreen API</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: Support -->
+    <section id="s5">
+      <div class="bg-gradient-to-r from-slate-700 to-slate-800 rounded-2xl px-6 py-4 mb-5 border border-slate-600">
+        <h2 class="text-lg font-black text-indigo-400">5. קריאות שירות (support)</h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+          <h3 class="font-bold text-sm text-slate-200 mb-3">סטטוסים</h3>
+          <div class="space-y-2 text-xs">
+            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="text-slate-300">open — פתוח</span></div>
+            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-500"></span><span class="text-slate-300">in_progress — בטיפול</span></div>
+            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span><span class="text-slate-300">resolved — נסגר</span></div>
+          </div>
+        </div>
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+          <h3 class="font-bold text-sm text-slate-200 mb-3">עדיפויות</h3>
+          <div class="space-y-2 text-xs">
+            <div class="flex items-center gap-2 text-slate-300"><span>🚨</span>critical</div>
+            <div class="flex items-center gap-2 text-slate-300"><span>🔴</span>high</div>
+            <div class="flex items-center gap-2 text-slate-300"><span>🟡</span>normal</div>
+            <div class="flex items-center gap-2 text-slate-300"><span>🔵</span>low</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 space-y-3">
+        <h3 class="font-bold text-sm text-slate-200">יכולות תמיכה מתקדמות</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div class="bg-slate-900 rounded-lg p-3"><span class="font-bold text-indigo-400">SLA Matrix</span> — הגדרת SLA (שעות) לפי ticket_type × priority<br><code class="text-green-400">GET/POST /api/sa/sla-matrix</code></div>
+          <div class="bg-slate-900 rounded-lg p-3"><span class="font-bold text-violet-400">AI Triage</span> — סיווג אוטומטי: עדיפות + ticket_type<br><code class="text-green-400">POST /api/superadmin/tickets/:id/ai-triage</code></div>
+          <div class="bg-slate-900 rounded-lg p-3"><span class="font-bold text-yellow-400">AI Dedup</span> — בדיקת כפילות לפני יצירת משימה<br><code class="text-green-400">POST /api/sa/dev/check-duplicates</code></div>
+          <div class="bg-slate-900 rounded-lg p-3"><span class="font-bold text-green-400">Feedback Loop</span> — סגירת ticket + הודעה ללקוח + ציר זמן<br><code class="text-green-400">POST /api/sa/tickets/:id/feedback-loop</code></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 6: DevOps -->
+    <section id="s6">
+      <div class="bg-gradient-to-r from-slate-700 to-slate-800 rounded-2xl px-6 py-4 mb-5 border border-slate-600">
+        <h2 class="text-lg font-black text-indigo-400">6. פיתוח ומוצר (devops)</h2>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+          <div class="text-xs font-bold text-indigo-400 mb-1">matrix — Product Matrix</div>
+          <div class="text-xs text-slate-300">ספר QA: תרחישי בדיקה. סטטוסים: passed/failed/in_dev/untested. Pagination: 15/עמוד.</div>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+          <div class="text-xs font-bold text-green-400 mb-1">kanban — לוח משימות</div>
+          <div class="text-xs text-slate-300">4 עמודות Drag&amp;Drop. לא ניתן להעביר ישירות in_progress→done. סוגים: ✨🐞🎨🔧</div>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+          <div class="text-xs font-bold text-yellow-400 mb-1">alm — ALM Hub</div>
+          <div class="text-xs text-slate-300">תצוגת שורות קריאה-בלבד עם ספירות + קישורים לטיקטים.</div>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+          <div class="text-xs font-bold text-purple-400 mb-1">qa — QA Staging</div>
+          <div class="text-xs text-slate-300">טבלת טסטים מאוחדת מ-DB + Kanban. פילטר: pass/fail/pending. AI לייצור תרחישים.</div>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+          <div class="text-xs font-bold text-pink-400 mb-1">release — Release Notes</div>
+          <div class="text-xs text-slate-300">FamilAI מייצר HTML מ-Kanban done. שידור לכל המשתמשים. ייצוא PDF.</div>
+        </div>
+      </div>
+
+      <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+        <h3 class="font-bold text-sm text-slate-200 mb-3">זרימת סטטוס Kanban</h3>
+        <pre class="bg-slate-950 text-green-400 p-4 rounded-xl text-xs overflow-x-auto"><code>backlog → in_progress → qa → done
+                          ↑
+        חובה לעבור qa לפני done (לא ניתן לדלג!)
+
+Notifications אוטומטיות:
+  • משימה עוברת in_progress → qa  → התראה "ממתין לבדיקה"
+  • משימה עוברת qa → done         → התראה "הושלם!"
+  • משימה מקבלת גרסה              → התראה "שויכה לגרסה X"</code></pre>
+      </div>
+    </section>
+
+    <!-- Section 7: Customers/Biz/Clients -->
+    <section id="s7">
+      <div class="bg-gradient-to-r from-slate-700 to-slate-800 rounded-2xl px-6 py-4 mb-5 border border-slate-600">
+        <h2 class="text-lg font-black text-indigo-400">7. לקוחות ועסקים (comm / biz / clients)</h2>
+      </div>
+
+      <div class="space-y-4">
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5">
+          <h3 class="font-bold text-sm text-slate-200 mb-3">קהילות (comm)</h3>
+          <ul class="text-xs text-slate-300 space-y-1.5">
+            <li>• יצירת קהילה: שם, תגי ערים (autocomplete), קוד, credentials מנהל, תמונה (canvas resize 600px JPEG 0.8)</li>
+            <li>• חיבור עסק + הגדרת % הנחה: <code class="text-green-400">POST /api/sa/community-business</code></li>
+            <li>• אישור / דחיית בקשות הצטרפות: <code class="text-green-400">POST /api/sa/community-business/approve</code></li>
+            <li>• שיוך קהילה לאזור: <code class="text-green-400">PUT /api/sa/communities/:id/assign-zone</code></li>
+          </ul>
+        </div>
+
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5">
+          <h3 class="font-bold text-sm text-slate-200 mb-3">קבוצות (clients) — פעולות זמינות</h3>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+            <div class="bg-slate-900 rounded-lg p-2.5 text-slate-300"><span class="text-indigo-400 font-bold">Impersonate</span> — כניסה כמנהל הקבוצה</div>
+            <div class="bg-slate-900 rounded-lg p-2.5 text-slate-300"><span class="text-green-400 font-bold">Edit</span> — עריכת שם / אימייל / features</div>
+            <div class="bg-slate-900 rounded-lg p-2.5 text-slate-300"><span class="text-yellow-400 font-bold">PRO toggle</span> — הפעלת מנוי PRO</div>
+            <div class="bg-slate-900 rounded-lg p-2.5 text-slate-300"><span class="text-red-400 font-bold">Delete</span> — מחיקת קבוצה</div>
+            <div class="bg-slate-900 rounded-lg p-2.5 text-slate-300"><span class="text-purple-400 font-bold">Upgrade</span> — member → family</div>
+            <div class="bg-slate-900 rounded-lg p-2.5 text-slate-300"><span class="text-teal-400 font-bold">Modules</span> — 17 checkboxes מודולים</div>
+          </div>
+          <div class="mt-3 text-xs text-slate-400">
+            <span class="font-bold text-slate-300">Feature flags עסקים (18):</span> store · b2b · academy · calendar · finance · inventory · crm · deliveries · foodcost · ai · timeclock · cashflow · budget · forecast · tasks · community · members · shifts
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 8: Marketing & Content -->
+    <section id="s8">
+      <div class="bg-gradient-to-r from-slate-700 to-slate-800 rounded-2xl px-6 py-4 mb-5 border border-slate-600">
+        <h2 class="text-lg font-black text-indigo-400">8. שיווק ותוכן (inbox / content)</h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5">
+          <h3 class="font-bold text-sm text-slate-200 mb-3">שיווק (inbox)</h3>
+          <ul class="text-xs text-slate-300 space-y-2">
+            <li>• שידור: יעד (כולם/עסקים/משפחות/ספציפי) + נושא + HTML</li>
+            <li>• <code class="text-green-400">POST /api/sa/inbox/broadcast</code></li>
+            <li>• בנאי Release Notes עם FamilAI</li>
+          </ul>
+        </div>
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5">
+          <h3 class="font-bold text-sm text-slate-200 mb-3">מיתוג ותוכן (content)</h3>
+          <ul class="text-xs text-slate-300 space-y-2">
+            <li>• לוגו AI גלובלי: upload → 512px PNG → Base64</li>
+            <li>• Login Slides: carousel + toggle active/inactive</li>
+            <li>• Family/Business Banners: עליון + תחתון (טקסט + קישור + תמונה)</li>
+            <li>• Member Welcome Banner: on/off + טקסט + תמונה</li>
+            <li>• Module Popups: title / text / image / enabled לכל 17 מודולים</li>
+            <li>• Welcome messages נפרד למשפחה ועסק</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 9: Finance -->
+    <section id="s9">
+      <div class="bg-gradient-to-r from-slate-700 to-slate-800 rounded-2xl px-6 py-4 mb-5 border border-slate-600">
+        <h2 class="text-lg font-black text-indigo-400">9. פיננסים (finance)</h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+          <div class="text-xs font-bold text-yellow-400 mb-1">שיעורי פלטפורמה</div>
+          <div class="text-xs text-slate-300">% עמלה + % cashback<br>מחשבון דוגמה חי<br><code class="text-green-400">GET/PUT /api/sa/settings/rates</code></div>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+          <div class="text-xs font-bold text-red-400 mb-1">חובות עסקים</div>
+          <div class="text-xs text-slate-300">מכירות / עמלה / cashback / ממתין / % גבייה + כפתור גבייה<br><code class="text-green-400">GET /api/sa/business-dues</code></div>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+          <div class="text-xs font-bold text-green-400 mb-1">ארנקי קהילות</div>
+          <div class="text-xs text-slate-300">לכל קהילה: משפחות, cashback שנצבר, יתרה<br><code class="text-green-400">GET /api/sa/community-wallets</code></div>
+        </div>
+      </div>
+
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
+        <div class="px-5 py-3 border-b border-slate-700"><h3 class="font-bold text-sm text-slate-200">API פיננסי</h3></div>
+        <div class="overflow-x-auto">
+          <table class="text-xs">
+            <thead class="bg-slate-700/50">
+              <tr>
+                <th class="text-right px-4 py-2 text-slate-400 font-bold uppercase tracking-wider w-16">Method</th>
+                <th class="text-right px-4 py-2 text-slate-400 font-bold uppercase tracking-wider">Endpoint</th>
+                <th class="text-right px-4 py-2 text-slate-400 font-bold uppercase tracking-wider">תיאור</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700">
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/finance-summary</code></td><td class="px-4 py-2 text-slate-300">סיכום פיננסי כולל</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/settings/rates</code></td><td class="px-4 py-2 text-slate-300">קריאת שיעורי עמלה/cashback</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-yellow-500/20 text-yellow-400">PUT</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/settings/rates</code></td><td class="px-4 py-2 text-slate-300">עדכון שיעורים</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/business-dues</code></td><td class="px-4 py-2 text-slate-300">חובות עסקים</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/business-collections/:bizId</code></td><td class="px-4 py-2 text-slate-300">היסטוריית גביות לעסק</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/business-collections</code></td><td class="px-4 py-2 text-slate-300">רישום גבייה חדשה</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/community-wallets</code></td><td class="px-4 py-2 text-slate-300">ארנקי קהילות</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 10: Partners -->
+    <section id="s10">
+      <div class="bg-gradient-to-r from-slate-700 to-slate-800 rounded-2xl px-6 py-4 mb-5 border border-slate-600">
+        <h2 class="text-lg font-black text-indigo-400">10. שותפים (partners)</h2>
+      </div>
+
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 mb-4">
+        <h3 class="font-bold text-sm text-slate-200 mb-3">Zone Managers</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div class="bg-slate-900 rounded-lg p-3">
+            <div class="font-bold text-indigo-400 mb-1">טבלה ראשית</div>
+            <div class="text-slate-300">שם, אימייל, אזורים, קהילות, % עמלה, סטטוס</div>
+          </div>
+          <div class="bg-slate-900 rounded-lg p-3">
+            <div class="font-bold text-green-400 mb-1">חלון פרטי ZM</div>
+            <div class="text-slate-300">אזורים + קהילות, עמלות שנצברו, היסטוריית תשלומים</div>
+          </div>
+          <div class="bg-slate-900 rounded-lg p-3">
+            <div class="font-bold text-yellow-400 mb-1">פעולות</div>
+            <div class="text-slate-300">הוספת אזור, שיוך קהילה, העברה בין מנהלים, רישום תשלום</div>
+          </div>
+          <div class="bg-slate-900 rounded-lg p-3">
+            <div class="font-bold text-purple-400 mb-1">הגדרות אזור</div>
+            <div class="text-slate-300">מינימום משפחות/עסקים, % עמלה ברירת מחדל</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-indigo-900/20 border border-indigo-700/40 rounded-xl p-4 text-xs text-indigo-300">
+        <span class="font-bold">KPI פיננסי שותפים:</span> סה"כ earned · סה"כ paid · חוב · ערכי חודש נוכחי
+      </div>
+    </section>
+
+    <!-- Section 11: HR -->
+    <section id="s11">
+      <div class="bg-gradient-to-r from-slate-700 to-slate-800 rounded-2xl px-6 py-4 mb-5 border border-slate-600">
+        <h2 class="text-lg font-black text-indigo-400">11. צוות ונציגים (hr)</h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+          <div class="text-xs font-bold text-indigo-400 mb-2">SA Teams</div>
+          <div class="text-xs text-slate-300 space-y-1">
+            <div>יצירה / מחיקת צוותים</div>
+            <div>RBAC permissions לכל צוות</div>
+            <div><code class="text-green-400">GET/POST/PUT/DELETE /api/sa/teams</code></div>
+          </div>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+          <div class="text-xs font-bold text-green-400 mb-2">SA Staff</div>
+          <div class="text-xs text-slate-300 space-y-1">
+            <div>רשימת עובדים: שיוך לצוות, סטטוס</div>
+            <div>הוספה / עריכה / מחיקה</div>
+            <div><code class="text-green-400">GET/POST/PUT/DELETE /api/sa/staff</code></div>
+          </div>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+          <div class="text-xs font-bold text-violet-400 mb-2">Whispers (Internal Chat)</div>
+          <div class="text-xs text-slate-300 space-y-1">
+            <div>צ'אט בזמן אמת בין SA staff</div>
+            <div>חדרים: general + צוות + DMs</div>
+            <div>Polling כל 10 שניות</div>
+            <div><code class="text-green-400">GET /api/sa/chat/:room</code></div>
+            <div><code class="text-green-400">POST /api/sa/chat</code></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 12: Legal -->
+    <section id="s12">
+      <div class="bg-gradient-to-r from-slate-700 to-slate-800 rounded-2xl px-6 py-4 mb-5 border border-slate-600">
+        <h2 class="text-lg font-black text-indigo-400">12. מסמכים משפטיים (legal)</h2>
+      </div>
+
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden mb-4">
+        <div class="overflow-x-auto">
+          <table class="text-sm">
+            <thead class="bg-slate-700/50">
+              <tr>
+                <th class="text-right px-4 py-2.5 text-slate-400 font-bold text-xs uppercase tracking-wider">מפתח</th>
+                <th class="text-right px-4 py-2.5 text-slate-400 font-bold text-xs uppercase tracking-wider">שם המסמך</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700">
+              <tr><td class="px-4 py-2.5"><code class="text-green-400 text-xs">legal_tos_family</code></td><td class="px-4 py-2.5 text-slate-300 text-xs">תקנון משפחה</td></tr>
+              <tr><td class="px-4 py-2.5"><code class="text-green-400 text-xs">legal_tos_business</code></td><td class="px-4 py-2.5 text-slate-300 text-xs">תקנון עסקים</td></tr>
+              <tr><td class="px-4 py-2.5"><code class="text-green-400 text-xs">legal_privacy</code></td><td class="px-4 py-2.5 text-slate-300 text-xs">מדיניות פרטיות</td></tr>
+              <tr><td class="px-4 py-2.5"><code class="text-green-400 text-xs">legal_accessibility</code></td><td class="px-4 py-2.5 text-slate-300 text-xs">הצהרת נגישות</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 text-xs text-slate-300">
+        <span class="font-bold text-slate-200">עורך טקסט עשיר:</span> contenteditable div · toolbar: bold / italic / underline / h2 / h3 / רשימות ·
+        <code class="text-green-400">GET /api/sa/legal</code> · <code class="text-green-400">PUT /api/sa/legal/:key</code> ·
+        <span class="text-green-400 font-bold">גישה פתוחה לכל SA users</span>
+      </div>
+    </section>
+
+    <!-- Section 13: Impersonation -->
+    <section id="s13">
+      <div class="bg-gradient-to-r from-slate-700 to-slate-800 rounded-2xl px-6 py-4 mb-5 border border-slate-600">
+        <h2 class="text-lg font-black text-indigo-400">13. Impersonation Mode</h2>
+      </div>
+
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5">
+        <pre class="bg-slate-950 text-green-400 p-4 rounded-xl text-xs overflow-x-auto"><code>SA לוחץ "Impersonate" על קבוצה
+          ↓
+impersonateGroup(groupId, userId)
+          ↓
+חיפוש קבוצה + משתמש מנהל
+          ↓
+שמירת SA token: localStorage('ofl_sa_return_token')
+          ↓
+הסרת 'ofl_sa_token' מ-localStorage
+          ↓
+יצירת session: { user: targetUser, group: targetGroup, isImpersonating: true }
+          ↓
+localStorage('ofl_session') ← session חדש
+          ↓
+פתיחה בטאב חדש: /business.html (עסק) / / (משפחה)
+          ↓
+אחרי 2 שניות: שחזור SA token → 'ofl_sa_token'</code></pre>
+        <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div class="bg-slate-900 rounded-lg p-3 text-slate-300">
+            <span class="font-bold text-orange-400">פס אדום:</span> מוצג בסביבת BIZ/FAMILY (לא ב-SA). סביבות היעד בודקות <code class="text-green-400">ofl_session.isImpersonating</code>.
+          </div>
+          <div class="bg-slate-900 rounded-lg p-3 text-slate-300">
+            <span class="font-bold text-green-400">יציאה:</span> סגירת הטאב החדש. ה-SA session שוחזר אוטומטית אחרי 2 שניות מרגע הכניסה.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 14: AI -->
+    <section id="s14">
+      <div class="bg-gradient-to-r from-slate-700 to-slate-800 rounded-2xl px-6 py-4 mb-5 border border-slate-600">
+        <h2 class="text-lg font-black text-indigo-400">14. AI ולוגיקות מיוחדות</h2>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+        <div class="bg-slate-800 border border-indigo-700/40 rounded-xl p-4">
+          <div class="text-xs font-bold text-indigo-400 mb-2">FamilAI Triage</div>
+          <div class="text-xs text-slate-300 mb-2">קורא תיאור ticket → מסווג: עדיפות + ticket_type → מעדכן ticket + audit log</div>
+          <code class="text-green-400 text-xs">POST /api/superadmin/tickets/:id/ai-triage</code>
+        </div>
+        <div class="bg-slate-800 border border-violet-700/40 rounded-xl p-4">
+          <div class="text-xs font-bold text-violet-400 mb-2">AI Dedup</div>
+          <div class="text-xs text-slate-300 mb-2">בדיקה אם משימה חדשה כפולה. מוחזר: isDuplicate, explanation, matchedTaskId, confidence</div>
+          <code class="text-green-400 text-xs">POST /api/sa/dev/check-duplicates</code>
+        </div>
+        <div class="bg-slate-800 border border-pink-700/40 rounded-xl p-4">
+          <div class="text-xs font-bold text-pink-400 mb-2">Release Notes Generator</div>
+          <div class="text-xs text-slate-300 mb-2">מקבל context מ-Kanban done → AI כותב HTML מעוצב (gradient header, לוגו, טקסט)</div>
+          <code class="text-green-400 text-xs">POST /api/sa/ai-generate</code>
+        </div>
+        <div class="bg-slate-800 border border-green-700/40 rounded-xl p-4">
+          <div class="text-xs font-bold text-green-400 mb-2">QA AI Generator</div>
+          <div class="text-xs text-slate-300 mb-2">יצירת תרחישי בדיקה אוטומטיים לפי מודול / feature</div>
+          <code class="text-green-400 text-xs">POST /api/sa/ai/generate-qa</code>
+        </div>
+      </div>
+
+      <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+        <h3 class="font-bold text-sm text-slate-200 mb-2">Notifications פנימיות SA</h3>
+        <div class="text-xs text-slate-300 space-y-1">
+          <div>• אחסון: <code class="text-green-400">localStorage('sa_notifs_' + userId)</code></div>
+          <div>• סוגים: <span class="text-blue-400">info</span> · <span class="text-green-400">success</span> · <span class="text-orange-400">warning</span></div>
+          <div>• פעמון עם badge count ב-topbar</div>
+          <div>• טריגרים: qa→done · in_progress→qa · קבלת גרסה</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 15: API Endpoints -->
+    <section id="s15" class="page-break">
+      <div class="bg-gradient-to-r from-slate-700 to-slate-800 rounded-2xl px-6 py-4 mb-5 border border-slate-600">
+        <h2 class="text-lg font-black text-indigo-400">15. API Endpoints — רשימה מלאה</h2>
+      </div>
+
+      <!-- Auth -->
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden mb-4">
+        <div class="px-5 py-3 border-b border-slate-700 bg-slate-750"><h3 class="font-bold text-xs text-slate-300 uppercase tracking-wider">אימות</h3></div>
+        <div class="overflow-x-auto">
+          <table class="text-xs">
+            <thead class="bg-slate-700/30"><tr><th class="text-right px-4 py-2 text-slate-400 w-16">Method</th><th class="text-right px-4 py-2 text-slate-400">Endpoint</th><th class="text-right px-4 py-2 text-slate-400">תיאור</th></tr></thead>
+            <tbody class="divide-y divide-slate-700">
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/superadmin/send-otp</code></td><td class="px-4 py-2 text-slate-300">שליחת SMS OTP</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/superadmin/verify-otp</code></td><td class="px-4 py-2 text-slate-300">אימות OTP + החזרת token</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/superadmin/login</code></td><td class="px-4 py-2 text-slate-300">כניסת צוות (email+password)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Groups & Users -->
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden mb-4">
+        <div class="px-5 py-3 border-b border-slate-700"><h3 class="font-bold text-xs text-slate-300 uppercase tracking-wider">קבוצות ומשתמשים</h3></div>
+        <div class="overflow-x-auto">
+          <table class="text-xs">
+            <thead class="bg-slate-700/30"><tr><th class="text-right px-4 py-2 text-slate-400 w-16">Method</th><th class="text-right px-4 py-2 text-slate-400">Endpoint</th><th class="text-right px-4 py-2 text-slate-400">תיאור</th></tr></thead>
+            <tbody class="divide-y divide-slate-700">
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/superadmin/data</code></td><td class="px-4 py-2 text-slate-300">כל נתוני SA</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/superadmin/group-360/:id</code></td><td class="px-4 py-2 text-slate-300">360° view לקבוצה</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-red-500/20 text-red-400">DELETE</span></td><td class="px-4 py-2"><code class="text-green-400">/api/superadmin/groups/:id</code></td><td class="px-4 py-2 text-slate-300">מחיקת קבוצה</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-yellow-500/20 text-yellow-400">PUT</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/groups/:id</code></td><td class="px-4 py-2 text-slate-300">עריכת קבוצה</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-orange-500/20 text-orange-400">PATCH</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/groups/:id/modules</code></td><td class="px-4 py-2 text-slate-300">עדכון unlocked_modules</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-orange-500/20 text-orange-400">PATCH</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/groups/:id/upgrade-member</code></td><td class="px-4 py-2 text-slate-300">שדרוג member → family</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/superadmin/groups/:id/premium</code></td><td class="px-4 py-2 text-slate-300">toggle PRO</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-red-500/20 text-red-400">DELETE</span></td><td class="px-4 py-2"><code class="text-green-400">/api/superadmin/users/:id</code></td><td class="px-4 py-2 text-slate-300">מחיקת משתמש</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-yellow-500/20 text-yellow-400">PUT</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/users/:id</code></td><td class="px-4 py-2 text-slate-300">עריכת nickname/password</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-orange-500/20 text-orange-400">PATCH</span></td><td class="px-4 py-2"><code class="text-green-400">/api/superadmin/users/:id</code></td><td class="px-4 py-2 text-slate-300">עריכה מלאה (phone, email, role, status)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tickets -->
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden mb-4">
+        <div class="px-5 py-3 border-b border-slate-700"><h3 class="font-bold text-xs text-slate-300 uppercase tracking-wider">Tickets ו-SLA</h3></div>
+        <div class="overflow-x-auto">
+          <table class="text-xs">
+            <thead class="bg-slate-700/30"><tr><th class="text-right px-4 py-2 text-slate-400 w-16">Method</th><th class="text-right px-4 py-2 text-slate-400">Endpoint</th><th class="text-right px-4 py-2 text-slate-400">תיאור</th></tr></thead>
+            <tbody class="divide-y divide-slate-700">
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/superadmin/tickets</code></td><td class="px-4 py-2 text-slate-300">כל הטיקטים</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/superadmin/tickets</code></td><td class="px-4 py-2 text-slate-300">יצירת ticket חדש</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-red-500/20 text-red-400">DELETE</span></td><td class="px-4 py-2"><code class="text-green-400">/api/superadmin/tickets/:id</code></td><td class="px-4 py-2 text-slate-300">מחיקת ticket</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/superadmin/tickets/:id/reply</code></td><td class="px-4 py-2 text-slate-300">תגובה לטיקט</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/superadmin/tickets/:id/ai-triage</code></td><td class="px-4 py-2 text-slate-300">AI triage (סיווג אוטומטי)</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-yellow-500/20 text-yellow-400">PUT</span></td><td class="px-4 py-2"><code class="text-green-400">/api/superadmin/tickets/:id/status</code></td><td class="px-4 py-2 text-slate-300">שינוי סטטוס</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/sla-matrix</code></td><td class="px-4 py-2 text-slate-300">קריאת SLA matrix</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/sla-matrix</code></td><td class="px-4 py-2 text-slate-300">עדכון SLA matrix</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Dev/Kanban -->
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden mb-4">
+        <div class="px-5 py-3 border-b border-slate-700"><h3 class="font-bold text-xs text-slate-300 uppercase tracking-wider">Dev / Kanban / Versions / QA</h3></div>
+        <div class="overflow-x-auto">
+          <table class="text-xs">
+            <thead class="bg-slate-700/30"><tr><th class="text-right px-4 py-2 text-slate-400 w-16">Method</th><th class="text-right px-4 py-2 text-slate-400">Endpoint</th><th class="text-right px-4 py-2 text-slate-400">תיאור</th></tr></thead>
+            <tbody class="divide-y divide-slate-700">
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/dev/tasks</code></td><td class="px-4 py-2 text-slate-300">כל משימות Kanban</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/dev/tasks</code></td><td class="px-4 py-2 text-slate-300">משימה חדשה</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-yellow-500/20 text-yellow-400">PUT</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/dev/tasks/:id/status</code></td><td class="px-4 py-2 text-slate-300">שינוי סטטוס Kanban</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/dev/check-duplicates</code></td><td class="px-4 py-2 text-slate-300">AI בדיקת כפילות</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/matrix</code></td><td class="px-4 py-2 text-slate-300">Product Matrix</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-yellow-500/20 text-yellow-400">PUT</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/matrix/:id/status</code></td><td class="px-4 py-2 text-slate-300">עדכון סטטוס תרחיש</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/versions</code></td><td class="px-4 py-2 text-slate-300">כל הגרסאות</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/versions</code></td><td class="px-4 py-2 text-slate-300">גרסה חדשה</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/qa/tests</code></td><td class="px-4 py-2 text-slate-300">כל הטסטים</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/qa/runs</code></td><td class="px-4 py-2 text-slate-300">הרצת QA run</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/ai/generate-qa</code></td><td class="px-4 py-2 text-slate-300">AI ייצור תרחישי QA</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/ai-generate</code></td><td class="px-4 py-2 text-slate-300">AI ייצור release notes</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Communities -->
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden mb-4">
+        <div class="px-5 py-3 border-b border-slate-700"><h3 class="font-bold text-xs text-slate-300 uppercase tracking-wider">קהילות ועסקים</h3></div>
+        <div class="overflow-x-auto">
+          <table class="text-xs">
+            <thead class="bg-slate-700/30"><tr><th class="text-right px-4 py-2 text-slate-400 w-16">Method</th><th class="text-right px-4 py-2 text-slate-400">Endpoint</th><th class="text-right px-4 py-2 text-slate-400">תיאור</th></tr></thead>
+            <tbody class="divide-y divide-slate-700">
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/communities</code></td><td class="px-4 py-2 text-slate-300">כל הקהילות</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/communities</code></td><td class="px-4 py-2 text-slate-300">קהילה חדשה</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-yellow-500/20 text-yellow-400">PUT</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/communities/:id</code></td><td class="px-4 py-2 text-slate-300">עריכת קהילה</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-yellow-500/20 text-yellow-400">PUT</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/communities/:id/assign-zone</code></td><td class="px-4 py-2 text-slate-300">שיוך לאזור</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/community-business</code></td><td class="px-4 py-2 text-slate-300">חיבור עסק לקהילה</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/community-business/approve</code></td><td class="px-4 py-2 text-slate-300">אישור בקשת הצטרפות</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/community-business/reject</code></td><td class="px-4 py-2 text-slate-300">דחיית בקשה</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/businesses</code></td><td class="px-4 py-2 text-slate-300">כל העסקים</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Partners / HR / Content -->
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden mb-4">
+        <div class="px-5 py-3 border-b border-slate-700"><h3 class="font-bold text-xs text-slate-300 uppercase tracking-wider">שותפים · HR · תוכן · משפטי</h3></div>
+        <div class="overflow-x-auto">
+          <table class="text-xs">
+            <thead class="bg-slate-700/30"><tr><th class="text-right px-4 py-2 text-slate-400 w-16">Method</th><th class="text-right px-4 py-2 text-slate-400">Endpoint</th><th class="text-right px-4 py-2 text-slate-400">תיאור</th></tr></thead>
+            <tbody class="divide-y divide-slate-700">
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/zone-managers</code></td><td class="px-4 py-2 text-slate-300">כל Zone Managers</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/zone-managers/:id/zones</code></td><td class="px-4 py-2 text-slate-300">הוספת אזור ל-ZM</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/zone-manager-payments</code></td><td class="px-4 py-2 text-slate-300">רישום תשלום ל-ZM</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/zone-managers/pending</code></td><td class="px-4 py-2 text-slate-300">ZM ממתינים לאישור</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/teams</code></td><td class="px-4 py-2 text-slate-300">צוותי SA</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/staff</code></td><td class="px-4 py-2 text-slate-300">הוספת עובד SA</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/chat/:room</code></td><td class="px-4 py-2 text-slate-300">הודעות Whispers</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/inbox/broadcast</code></td><td class="px-4 py-2 text-slate-300">שידור הודעה</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/superadmin/banners</code></td><td class="px-4 py-2 text-slate-300">עדכון banners</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-green-500/20 text-green-400">POST</span></td><td class="px-4 py-2"><code class="text-green-400">/api/superadmin/settings</code></td><td class="px-4 py-2 text-slate-300">עדכון הגדרות מערכת</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-blue-500/20 text-blue-400">GET</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/legal</code></td><td class="px-4 py-2 text-slate-300">כל המסמכים המשפטיים</td></tr>
+              <tr><td class="px-4 py-2"><span class="badge bg-yellow-500/20 text-yellow-400">PUT</span></td><td class="px-4 py-2"><code class="text-green-400">/api/sa/legal/:key</code></td><td class="px-4 py-2 text-slate-300">שמירת מסמך משפטי</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Section 11: SA_GROUPS Structure -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-6">
+      <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center text-lg">🗂️</span>
+        11. SA_GROUPS — מבנה ניווט עדכני
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-slate-200 text-slate-700">עדכון 2026-06-28</span>
+      </h2>
+      <div class="overflow-x-auto">
+        <table class="text-sm border border-slate-200 rounded-xl overflow-hidden w-full">
+          <thead class="bg-slate-50"><tr><th class="p-2 text-right font-bold">Group</th><th class="p-2 text-right font-bold">Tabs</th><th class="p-2 text-right font-bold">תוויות</th></tr></thead>
+          <tbody>
+            <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">home</td><td class="p-2 font-mono text-xs">pulse, stats</td><td class="p-2">דופק מערכת, דוחות</td></tr>
+            <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">customers</td><td class="p-2 font-mono text-xs">comm, biz, clients</td><td class="p-2">קהילות, עסקים, קבוצות</td></tr>
+            <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">finance</td><td class="p-2 font-mono text-xs">finance</td><td class="p-2">פיננסים</td></tr>
+            <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">supportdev</td><td class="p-2 font-mono text-xs">support, devops</td><td class="p-2">קריאות שירות, פיתוח ומוצר</td></tr>
+            <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">contentmkt</td><td class="p-2 font-mono text-xs">content, inbox, legal</td><td class="p-2">מיתוג, שיווק, משפטי</td></tr>
+            <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">partners</td><td class="p-2 font-mono text-xs">partners</td><td class="p-2">שותפים</td></tr>
+            <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">system</td><td class="p-2 font-mono text-xs">hr, sysmap</td><td class="p-2">צוות ונציגים, מפת המערכת</td></tr>
+            <tr class="border-t border-slate-100"><td class="p-2 font-mono text-xs">templates</td><td class="p-2 font-mono text-xs">templates</td><td class="p-2">תבניות עסקים</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 12: Help System SA -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-6">
+      <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-violet-100 text-violet-700 flex items-center justify-center text-lg">❓</span>
+        12. מערכת עזרה SA (showSAHelp)
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700">חדש 2026-06-28</span>
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <p class="text-sm text-slate-600 mb-3">כפתור "?" בסרגל העליון → <code class="bg-slate-100 px-1 rounded text-xs">showSAHelp()</code> מ-community-help.js</p>
+          <ul class="space-y-2 text-sm text-slate-600">
+            <li>• <code class="bg-slate-100 px-1 rounded text-xs">window._currentSATab</code> ← מעודכן בכל <code class="bg-slate-100 px-1 rounded text-xs">switchSATab()</code></li>
+            <li>• אם קיים ב-SA_HELP → מציג overlay מעוצב</li>
+            <li>• אם לא קיים → fallback: <code class="bg-slate-100 px-1 rounded text-xs">showCommunityHelp('sa-' + tab)</code></li>
+          </ul>
+          <div class="mt-3 bg-slate-50 rounded-xl p-3">
+            <p class="text-xs font-bold text-slate-600 mb-1">מפתחות SA_HELP:</p>
+            <div class="flex flex-wrap gap-1">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">pulse</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">stats</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">biz</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">finance</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">support</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">content</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">hr</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">partners</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-black text-slate-700 mb-2">Plan Selector</h3>
+          <div class="space-y-2">
+            <div class="flex items-center gap-2 bg-slate-50 rounded-xl p-2 text-sm"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-slate-200 text-slate-700">Standard</span><span class="text-slate-600">10 AI tokens/יום</span></div>
+            <div class="flex items-center gap-2 bg-amber-50 rounded-xl p-2 text-sm"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-200 text-amber-700">⭐ Premium</span><span class="text-slate-600">50 AI tokens/יום</span></div>
+            <div class="flex items-center gap-2 bg-indigo-50 rounded-xl p-2 text-sm"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-600 text-white">♾️ Enterprise</span><span class="text-slate-600">AI ללא הגבלה</span></div>
+          </div>
+          <p class="text-xs text-slate-500 mt-2">שינוי: <code class="bg-slate-100 px-1 rounded">saPlanChange(id, plan)</code> → <code class="bg-slate-100 px-1 rounded">POST /api/superadmin/groups/:id/plan</code></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 14: FLOW Dashboard -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-6">
+      <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center text-lg">⚡</span>
+        14. לוח בקרה FLOW (4 טאבים)
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">חדש 2026-06-28</span>
+      </h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div class="bg-amber-50 border border-amber-100 rounded-2xl p-3 text-center"><div class="text-2xl mb-1">🏆</div><div class="font-bold text-sm">מובילים</div><div class="text-xs text-slate-500">KPI + גרף + top-5</div></div>
+        <div class="bg-blue-50 border border-blue-100 rounded-2xl p-3 text-center"><div class="text-2xl mb-1">🗺️</div><div class="font-bold text-sm">מפת ₣</div><div class="text-xs text-slate-500">progress bars + filter</div></div>
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-center"><div class="text-2xl mb-1">📋</div><div class="font-bold text-sm">פעילות</div><div class="text-xs text-slate-500">30 עסקאות</div></div>
+        <div class="bg-green-50 border border-green-100 rounded-2xl p-3 text-center"><div class="text-2xl mb-1">🎁</div><div class="font-bold text-sm">הענקה</div><div class="text-xs text-slate-500">הוסף/הפחת ₣</div></div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <h3 class="font-black text-slate-700 mb-2 text-sm">טאב מובילים — KPI</h3>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="bg-amber-50 rounded-xl p-2 text-center"><div class="font-black text-amber-600 text-sm">₣ X</div><div class="text-xs text-slate-500">הונפק</div></div>
+            <div class="bg-green-50 rounded-xl p-2 text-center"><div class="font-black text-green-600 text-sm">₣ X</div><div class="text-xs text-slate-500">מומש</div></div>
+            <div class="bg-blue-50 rounded-xl p-2 text-center"><div class="font-black text-blue-600 text-sm">₣ X</div><div class="text-xs text-slate-500">במחזור</div></div>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-black text-slate-700 mb-2 text-sm">הגדרות FLOW (openFlowConfigPanel)</h3>
+          <p class="text-xs text-slate-600">17 מפתחות ניתנים לעריכה: triggers, שיעור המרה ₣→₪</p>
+          <p class="text-xs text-slate-500 mt-1">שמירה: <code class="bg-slate-100 px-1 rounded">PUT /api/sa/flow/config</code></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 15: Community Map -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-6">
+      <h2 class="text-2xl font-black text-slate-800 mb-4 flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-lg">🗺️</span>
+        15. מפת קהילות SA
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">חדש 2026-06-28</span>
+      </h2>
+      <div class="flex flex-col gap-3 text-sm text-slate-600">
+        <p>Panel מסך מלא <code class="bg-slate-100 px-1 rounded text-xs">sa-comm-map-panel</code> ← <code class="bg-slate-100 px-1 rounded text-xs">openCommunitiesMap()</code></p>
+        <ul class="space-y-1">
+          <li>• KPI: סך קהילות / משפחות / עסקים</li>
+          <li>• קיבוץ לפי עיר</li>
+          <li>• לכל קהילה: status badge, community_type, interest_tags chips, pending_biz</li>
+        </ul>
+        <p class="text-xs text-slate-500">Endpoint: <code class="bg-slate-100 px-1 rounded">GET /api/sa/communities/map-data</code></p>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-5 text-center">
+      <p class="text-xs text-slate-500">מסמך זה נוצר על בסיס קריאת קבצי המקור: <code class="text-green-400">sa.html</code> · <code class="text-green-400">sa-app.js</code> · <code class="text-green-400">server1.js</code></p>
+      <p class="text-xs text-slate-600 mt-1">Oneflow Life · Super Admin Specification · עודכן 2026-06-28</p>
+      <button onclick="window.print()" class="no-print mt-4 inline-flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+        שמור כ-PDF
+      </button>
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>

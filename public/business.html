@@ -13,6 +13,13 @@
     <meta name="description" content="מערכת הניהול B2B החכמה של ONEBTN. ניהול עובדים, משמרות, מלאי, רכש ותקציבים מבוסס AI.">
     <meta property="og:title" content="Oneflowlife Pro - ניהול עסקי">
     <meta property="og:description" content="העצימו את הצוות ונהלו את התקציב, המשמרות והמלאי בצורה חכמה ואוטומטית.">
+    <meta property="og:image" content="https://family-flow-app.onrender.com/api/public/logo">
+    <meta property="og:image:secure_url" content="https://family-flow-app.onrender.com/api/public/logo">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta property="og:url" content="https://www.oneflowlife.co.il">
+    <meta property="og:type" content="website">
 
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#1e293b">
@@ -187,10 +194,41 @@
         /* Hide broken banner images */
         img[src="/undefined"], img[src="/null"], img[src="/"], img:not([src]) { display: none !important; }
 
+        /* אייקוני פעולה בתוך קוביית שולחן — אזור מגע נוח לאצבע */
+        .table-icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            min-height: 32px;
+            font-size: 14px;
+            line-height: 1;
+            border-radius: 8px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            opacity: 0.7;
+            transition: opacity 0.15s, background 0.15s, transform 0.1s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .table-icon-btn:active {
+            opacity: 1;
+            transform: scale(0.9);
+            background: rgba(0,0,0,0.08);
+        }
+
         /* התאמת באנרים לתצוגה מלאה ללא חיתוך */
-        #app-banner-top, #app-banner-bottom { display: flex !important; align-items: center; justify-content: center; background-color: transparent !important; padding: 0 !important; }
-        #app-banner-top img, #app-banner-bottom img { object-fit: contain !important; width: 100% !important; height: auto !important; max-height: 120px !important; margin: 0 auto; display: block; }
+        #app-banner-top:not(.hidden), #app-banner-bottom:not(.hidden) { display: flex !important; align-items: center; justify-content: center; background-color: transparent !important; padding: 0 !important; }
+        #app-banner-top:not(.hidden) img, #app-banner-bottom:not(.hidden) img { object-fit: contain !important; width: 100% !important; height: auto !important; max-height: 120px !important; margin: 0 auto; display: block; }
+        #app-banner-top.hidden, #app-banner-bottom.hidden { display: none !important; height: 0 !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; }
     </style>
+    <link rel="manifest" href="/manifest-business.json">
+    <meta name="theme-color" content="#1e1b4b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FF Business">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
     <datalist id="israel-cities">
@@ -218,8 +256,14 @@
     <input type="file" id="task-proof-upload" accept="image/*" capture="environment" class="hidden" onchange="handleTaskProofUpload(event)">
     <input type="file" id="receipt-scan-upload" accept="image/*" capture="environment" class="hidden" onchange="handleReceiptUpload(event)">
 
-    <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-[999999] flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]">
-        <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
+    <div id="toast" class="fixed inset-0 hidden z-[999999] flex items-center justify-center p-6" style="direction:rtl;" onclick="if(event.target===this){this.classList.add('hidden');clearTimeout(window._toastTimer);}">
+        <div id="toast-inner" class="flex items-start gap-3 px-5 py-4 rounded-3xl shadow-2xl border w-full max-w-sm">
+            <i id="toast-icon" class="text-2xl mt-0.5 shrink-0"></i>
+            <span id="toast-message" class="font-semibold text-sm leading-relaxed flex-1"></span>
+            <button onclick="document.getElementById('toast').classList.add('hidden'); clearTimeout(window._toastTimer);" class="shrink-0 w-7 h-7 flex items-center justify-center rounded-full opacity-50 hover:opacity-100 transition mt-0.5" id="toast-close">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+        </div>
     </div>
 
     <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
@@ -277,6 +321,11 @@
                     <button onclick="switchView('join')" class="text-slate-400 font-medium block w-full">הצטרפות לארגון / משפחה קיימת</button>
                     <button onclick="switchView('sa-login')" class="text-[10px] text-slate-300 mt-6 underline block w-full text-center">כניסת מנהל מערכת ראשי</button>
                 </div>
+                <div class="flex justify-center gap-4 pb-6 pt-2">
+                    <button type="button" onclick="openTosModal(event,'legal_privacy')" class="text-[10px] text-slate-400 hover:text-slate-600 transition underline">מדיניות פרטיות</button>
+                    <span class="text-slate-200 text-[10px]">|</span>
+                    <button type="button" onclick="openTosModal(event,'legal_accessibility')" class="text-[10px] text-slate-400 hover:text-slate-600 transition underline">הצהרת נגישות</button>
+                </div>
             </div>
             
             <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto pb-12">
@@ -299,7 +348,7 @@
                         <div class="flex items-start gap-2">
                             <label class="cursor-pointer flex items-start gap-2">
                                 <input type="checkbox" id="create-tos" class="w-4 h-4 accent-blue-600 mt-0.5">
-                                <span class="text-[11px] text-slate-600 leading-tight">קראתי ואני מאשר/ת את <button type="button" onclick="openTosModal(event)" class="text-blue-600 font-bold underline bg-transparent border-none p-0 cursor-pointer">תקנון ותנאי השימוש</button> (חובה)</span>
+                                <span class="text-[11px] text-slate-600 leading-tight">קראתי ואני מאשר/ת את <button type="button" onclick="openTosModal(event,'legal_tos_business')" class="text-blue-600 font-bold underline bg-transparent border-none p-0 cursor-pointer">תקנון ותנאי השימוש</button> (חובה)</span>
                             </label>
                         </div>
                         <div class="flex items-start gap-2">
@@ -395,6 +444,23 @@
                         <p class="text-xs text-slate-500 mb-3">יופיע כפופ-אפ לכל משתמש שמתחבר לחשבון עסקי. השאירו ריק כדי לבטל.</p>
                         <textarea id="sa-biz-welcome-msg" class="w-full p-4 rounded-xl border border-slate-300 h-32 mb-4 text-sm" placeholder="הודעה לצוות העובדים..."></textarea>
                     </div>
+                </div>
+
+                <!-- ניהול סיור קבלת פנים -->
+                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8">
+                    <h2 class="text-xl font-bold mb-2 text-slate-800"><i class="fa-solid fa-route text-violet-500 mr-2"></i> סיור קבלת פנים</h2>
+                    <p class="text-xs text-slate-500 mb-4">הסיור המודרך מוצג לכל משתמש עסקי פעם ביום בכניסתו למערכת, ומותאם לסוג העסק ולתפקידו.</p>
+                    <div class="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-slate-200">
+                        <div>
+                            <p class="text-sm font-bold text-slate-700">הסיור פעיל</p>
+                            <p class="text-xs text-slate-400">כיבוי ימנע הצגת הסיור לכל המשתמשים</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="sa-tour-enabled" class="sr-only peer" checked onchange="saveTourEnabled(this.checked)">
+                            <div class="w-11 h-6 bg-slate-200 peer-focus:ring-2 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:right-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
+                        </label>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-3">💡 עריכת תוכן השקפים לפי סוג עסק ותפקיד — יתווסף בגרסה הבאה</p>
                 </div>
 
                 <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8">
@@ -527,24 +593,24 @@
                         </div>
                         <h1 class="flex-1 min-w-0 text-base font-black text-slate-800 tracking-tight leading-tight truncate" id="dash-group-name">טוען...</h1>
                         <div class="flex items-center gap-1.5 shrink-0">
-                            <button onclick="openActivityPanel()" id="btn-bell" class="relative w-8 h-8 flex items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-600 rounded-full shadow-sm border border-yellow-100 transition" title="פעמון פעילות">
+                            <button onclick="openActivityPanel()" id="btn-bell" class="relative min-w-[44px] min-h-[44px] flex items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-600 rounded-full shadow-sm border border-yellow-100 transition" title="פעמון פעילות">
                                 <i class="fa-solid fa-bell text-xs"></i>
                                 <span id="bell-badge" class="hidden absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] font-black rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5">0</span>
                             </button>
-                            <button onclick="if(typeof window.openInboxModal === 'function') window.openInboxModal()" class="relative w-8 h-8 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shadow-sm border border-emerald-100 transition" title="תיבת הודעות נכנסות">
+                            <button onclick="if(typeof window.openInboxModal === 'function') window.openInboxModal()" class="relative min-w-[44px] min-h-[44px] bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shadow-sm border border-emerald-100 transition" title="תיבת הודעות נכנסות">
                                 <i class="fa-regular fa-envelope text-xs"></i>
                                 <span id="inbox-unread-badge" class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-sm hidden border border-white">0</span>
                             </button>
-                            <button onclick="openSupportTicketModal();" class="w-8 h-8 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-full flex items-center justify-center shadow-sm border border-blue-100 transition" title="מרכז שירות ותמיכה">
+                            <button onclick="openSupportTicketModal();" class="min-w-[44px] min-h-[44px] bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-full flex items-center justify-center shadow-sm border border-blue-100 transition" title="מרכז שירות ותמיכה">
                                 <i class="fa-solid fa-headset text-xs"></i>
                             </button>
-                            <button onclick="openProfileModal();" class="w-8 h-8 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-full flex items-center justify-center shadow-sm border border-slate-200 transition" title="הגדרות פרופיל">
+                            <button onclick="openProfileModal();" class="min-w-[44px] min-h-[44px] bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-full flex items-center justify-center shadow-sm border border-slate-200 transition" title="הגדרות פרופיל">
                                 <i class="fa-solid fa-gear text-xs"></i>
                             </button>
-                            <button onclick="logout();" class="w-8 h-8 bg-red-50 hover:bg-red-100 text-red-500 rounded-full flex items-center justify-center shadow-sm border border-red-100 transition" title="התנתקות">
+                            <button onclick="logout();" class="min-w-[44px] min-h-[44px] bg-red-50 hover:bg-red-100 text-red-500 rounded-full flex items-center justify-center shadow-sm border border-red-100 transition" title="התנתקות">
                                 <i class="fa-solid fa-power-off text-xs"></i>
                             </button>
-                            <button onclick="toggleDesktopView();" class="w-8 h-8 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center shadow-sm border border-indigo-100 transition" id="btn-toggle-desktop" title="הרחב תצוגה">
+                            <button onclick="toggleDesktopView();" class="min-w-[44px] min-h-[44px] bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center shadow-sm border border-indigo-100 transition" id="btn-toggle-desktop" title="הרחב תצוגה">
                                 <i class="fa-solid fa-desktop text-xs"></i>
                             </button>
                         </div>
@@ -568,8 +634,114 @@
                     <span class="hidden" id="main-header-slogan"></span>
                     <div class="flex-1"></div>
                     <button type="button" onclick="openProfileModal()" id="ai-battery-indicator" class="hidden text-[9px] font-bold px-2 py-1 rounded border cursor-pointer hover:bg-purple-100 transition flex items-center gap-1 shadow-sm"></button>
+                    <button onclick="openGlobalSearch()" class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-indigo-100 transition-all duration-150" title="חיפוש">
+                      <i class="fa-solid fa-magnifying-glass text-slate-500 text-sm"></i>
+                    </button>
+                    <button onclick="openActivityPanel()" class="relative flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-indigo-100 transition-all duration-150">
+                      <i class="fa-solid fa-bell text-slate-500 text-sm"></i>
+                      <span id="gnav-alert-badge" class="hidden absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white text-[8px] font-black rounded-full flex items-center justify-center ring-1 ring-white">0</span>
+                    </button>
+                    <button onclick="openBizHelp()" class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-indigo-100 transition-all duration-150" title="עזרה">
+                      <i class="fa-regular fa-circle-question text-slate-500 text-sm"></i>
+                    </button>
                 </div>
 
+                <!-- ★ GROUP NAV — 5 קבוצות במקום 20 טאבים -->
+                <div id="group-nav" class="bg-slate-900 px-2 py-1.5 flex items-center gap-0.5 border-b border-slate-800 border-t border-t-slate-700 relative z-30 overflow-x-auto mt-1" style="scrollbar-width:none">
+
+                  <!-- ראשי — direct -->
+                  <button id="gnav-btn-feed" onclick="switchTab('feed')"
+                    class="gnav-btn flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 transition-all duration-150">
+                    <i class="fa-solid fa-house text-[10px]"></i> ראשי
+                  </button>
+
+                  <!-- צוות -->
+                  <div class="relative flex-shrink-0" id="gnav-group-team">
+                    <button id="gnav-btn-team" onclick="toggleNavDropdown('team')"
+                      class="gnav-btn flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-150">
+                      <i class="fa-solid fa-users text-[10px]"></i> צוות <span id="gnav-badge-team" class="hidden text-[9px] bg-red-500 text-white rounded-full min-w-[14px] h-3.5 inline-flex items-center justify-center px-1 font-bold leading-none">0</span> <i class="fa-solid fa-chevron-down text-[7px] opacity-60"></i>
+                    </button>
+                    <div id="gnav-dropdown-team" class="hidden bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 z-[9999] min-w-[160px]" onclick="event.stopPropagation()">
+                      <button onclick="switchTab('timeclock');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-timeclock">⏱️ נוכחות</button>
+                      <button onclick="switchTab('shifts');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-shifts">🗓️ משמרות</button>
+                      <button onclick="switchTab('calendar');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-calendar">🌐 יומן ציבורי</button>
+                      <button onclick="switchTab('tasks');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center justify-between" id="gdrop-tasks"><span class="flex items-center gap-2">✅ משימות</span><span id="gdrop-badge-tasks" class="hidden text-[9px] bg-red-500 text-white rounded-full min-w-[14px] h-3.5 inline-flex items-center justify-center px-1 font-bold leading-none"></span></button>
+                      <button onclick="switchTab('academy');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-academy">🎓 הכשרות</button>
+                      <button onclick="switchTab('members');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-members">👥 ניהול צוות</button>
+                      <!-- beauty-only -->
+                      <button onclick="switchTab('beauty_calendar');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-pink-50 hover:text-pink-700 transition flex items-center gap-2" id="gdrop-beauty_calendar" data-beauty-only="1">📅 יומן פנימי</button>
+                      <button onclick="switchTab('beauty_practitioners');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-pink-50 hover:text-pink-700 transition flex items-center gap-2" id="gdrop-beauty_practitioners" data-beauty-only="1">💆 מטפלות</button>
+                    </div>
+                  </div>
+
+                  <!-- מכירות -->
+                  <div class="relative flex-shrink-0" id="gnav-group-sales">
+                    <button id="gnav-btn-sales" onclick="toggleNavDropdown('sales')"
+                      class="gnav-btn flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-150">
+                      <i class="fa-solid fa-store text-[10px]"></i> מכירות <span id="gnav-badge-sales" class="hidden text-[9px] bg-amber-500 text-white rounded-full min-w-[14px] h-3.5 inline-flex items-center justify-center px-1 font-bold leading-none">0</span> <i class="fa-solid fa-chevron-down text-[7px] opacity-60"></i>
+                    </button>
+                    <div id="gnav-dropdown-sales" class="hidden bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 z-[9999] min-w-[160px]" onclick="event.stopPropagation()">
+                      <button onclick="switchTab('pos');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-pos">💰 קופה</button>
+                      <button onclick="switchTab('sales');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center justify-between" id="gdrop-sales"><span class="flex items-center gap-2">🛍️ מכירות וחנות</span><span id="gdrop-badge-orders" class="hidden text-[9px] bg-amber-500 text-white rounded-full min-w-[14px] h-3.5 inline-flex items-center justify-center px-1 font-bold leading-none"></span></button>
+                      <button onclick="switchTab('customers');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-customers">🤝 לקוחות</button>
+                      <button onclick="switchTab('deliveries');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-deliveries">🛵 שליחויות</button>
+                      <!-- beauty-only -->
+                      <button onclick="switchTab('beauty_services');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-pink-50 hover:text-pink-700 transition flex items-center gap-2" id="gdrop-beauty_services" data-beauty-only="1">💎 שירותים וטיפולים</button>
+                      <button onclick="switchTab('beauty_subscriptions');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-violet-50 hover:text-violet-700 transition flex items-center gap-2" id="gdrop-beauty_subscriptions" data-beauty-only="1">🎁 מנויים וחבילות</button>
+                      <button onclick="switchTab('beauty_clients');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-pink-50 hover:text-pink-700 transition flex items-center gap-2" id="gdrop-beauty_clients" data-beauty-only="1">📋 תיקי לקוחות</button>
+                      <button onclick="switchTab('beauty_rfq');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-pink-50 hover:text-pink-700 transition flex items-center gap-2" id="gdrop-beauty_rfq" data-beauty-only="1">💬 ייעוץ ובקשות</button>
+                    </div>
+                  </div>
+
+                  <!-- מלאי -->
+                  <div class="relative flex-shrink-0" id="gnav-group-inventory">
+                    <button id="gnav-btn-inventory" onclick="toggleNavDropdown('inventory')"
+                      class="gnav-btn flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-150">
+                      <i class="fa-solid fa-box text-[10px]"></i> מלאי <i class="fa-solid fa-chevron-down text-[7px] opacity-60"></i>
+                    </button>
+                    <div id="gnav-dropdown-inventory" class="hidden bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 z-[9999] min-w-[160px]" onclick="event.stopPropagation()">
+                      <button onclick="switchTab('shop');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-shop">🛒 רכש וספקים</button>
+                      <button onclick="switchTab('pantry');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-pantry">📦 מלאי מחסן</button>
+                      <button onclick="switchTab('equipment');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-equipment">🔧 תחזוקת ציוד</button>
+                      <button onclick="switchTab('foodcost');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-foodcost">🍽️ פוד קוסט</button>
+                      <!-- beauty-only -->
+                      <button onclick="switchTab('beauty_inventory');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-pink-50 hover:text-pink-700 transition flex items-center gap-2" id="gdrop-beauty_inventory" data-beauty-only="1">🧴 מלאי יופי</button>
+                    </div>
+                  </div>
+
+                  <!-- כספים -->
+                  <div class="relative flex-shrink-0" id="gnav-group-finance">
+                    <button id="gnav-btn-finance" onclick="toggleNavDropdown('finance')"
+                      class="gnav-btn flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-150">
+                      <i class="fa-solid fa-shekel-sign text-[10px]"></i> כספים <i class="fa-solid fa-chevron-down text-[7px] opacity-60"></i>
+                    </button>
+                    <div id="gnav-dropdown-finance" class="hidden bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 z-[9999] min-w-[160px]" onclick="event.stopPropagation()">
+                      <button onclick="switchTab('bank');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-bank">💳 כספים</button>
+                      <button onclick="switchTab('cashflow');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-cashflow">💸 תזרים</button>
+                      <button onclick="switchTab('budget');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-budget">📊 תקציב</button>
+                      <button onclick="switchTab('forecast');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-forecast">📈 תשקיף</button>
+                      <!-- beauty-only -->
+                      <button onclick="switchTab('beauty_commissions');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-pink-50 hover:text-pink-700 transition flex items-center gap-2" id="gdrop-beauty_commissions" data-beauty-only="1">💸 עמלות ושכר</button>
+                    </div>
+                  </div>
+
+                  <!-- עוד (קהילות, תקשורת) -->
+                  <div class="relative flex-shrink-0" id="gnav-group-more">
+                    <button id="gnav-btn-more" onclick="toggleNavDropdown('more')"
+                      class="gnav-btn flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-150">
+                      <i class="fa-solid fa-ellipsis text-[10px]"></i> עוד
+                    </button>
+                    <div id="gnav-dropdown-more" class="hidden bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 z-[9999] min-w-[160px]" onclick="event.stopPropagation()">
+                      <button onclick="switchTab('community');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-community">🏘️ קהילות</button>
+                      <button onclick="switchTab('surveys');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-surveys">📣 תקשורת</button>
+                      <button id="gnav-btn-settings" onclick="switchTab('settings');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition flex items-center gap-2">⚙️ הגדרות</button>
+                    </div>
+                  </div>
+
+                </div>
+
+                <!-- OLD tab buttons — hidden, kept for JS (enforcePermissions/switchTab) -->
+                <div style="display:none" aria-hidden="true">
                 <div class="relative px-2 py-1 group w-full border-b border-slate-100 bg-white z-30">
                     <div class="slider-container">
                         <button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button>
@@ -577,9 +749,10 @@
                             <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button>
                             <button onclick="switchTab('timeclock')" id="tab-timeclock" class="tab-btn">נוכחות ⏱️</button>
                             <button onclick="switchTab('shifts')" id="tab-shifts" class="tab-btn">משמרות 🗓️</button>
-                            <button onclick="switchTab('calendar')" id="tab-calendar" class="tab-btn">יומן ותורים 📅</button>
+                            <button onclick="switchTab('calendar')" id="tab-calendar" class="tab-btn">יומן ציבורי 🌐</button>
                             <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">רכש 🛒</button>
                             <button onclick="switchTab('pantry')" id="tab-pantry" class="tab-btn">מלאי 📦</button>
+                            <button onclick="switchTab('equipment')" id="tab-equipment" class="tab-btn relative">ציוד 🔧<span id="tab-equipment-badge" class="hidden absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] bg-red-500 rounded-full text-[9px] text-white font-bold flex items-center justify-center px-0.5"></span></button>
                             <button onclick="switchTab('foodcost')" id="tab-foodcost" class="tab-btn">פוד קוסט 🍽️</button>
                             <button onclick="switchTab('pos')" id="tab-pos" class="tab-btn">קופה 💰</button>
                             <button onclick="switchTab('sales')" id="tab-sales" class="tab-btn">מכירות וחנות 🛍️</button>
@@ -594,15 +767,104 @@
                             <button onclick="switchTab('community')" id="tab-community" class="tab-btn">קהילות 🏘️</button>
                             <button onclick="switchTab('members')" id="tab-members" class="tab-btn">צוות 👥</button>
                             <button onclick="switchTab('surveys')" id="tab-surveys" class="tab-btn">תקשורת 📣</button>
+                            <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn">הגדרות ⚙️</button>
                         </div>
                         <button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button>
                     </div>
                 </div>
-               <div class="px-2 w-full">
+                </div><!-- /hidden legacy nav -->
+               <div id="biz-main-content-wrap" class="px-2 w-full">
                    
                     <div id="content-feed">
-                        <!-- Balance card — FIRST, prominent -->
-                        <div id="tour-balance-card" class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-6 text-white shadow-xl shadow-blue-200 mb-4 relative overflow-hidden transform transition hover:scale-[1.01] mx-2 mt-1">
+
+                        <!-- ★ מה מחכה לך — URGENT ITEMS (role-aware, ראשון בעמוד) -->
+                        <div id="urgent-items-section" class="px-2 mt-2 mb-0 hidden">
+                          <div class="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+                            <div class="bg-gradient-to-l from-amber-50 to-orange-50 px-4 py-2.5 flex items-center justify-between border-b border-amber-100">
+                              <span class="text-sm font-black text-amber-800 flex items-center gap-2">
+                                <span class="w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center text-[10px] text-white font-black animate-pulse" id="urgent-count-badge">0</span>
+                                ⚡ מה מחכה לך עכשיו
+                              </span>
+                              <button onclick="document.getElementById('urgent-items-section').classList.add('hidden')" class="text-amber-400 hover:text-amber-600 text-xs"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <div id="urgent-items-list" class="divide-y divide-slate-50"></div>
+                          </div>
+                        </div>
+
+                        <!-- ★ מסך עובד — חלק עליון: ברכה + כפתורים -->
+                        <div id="emp-home-header" class="hidden px-2 pt-2 space-y-3">
+
+                          <!-- כרטיס פתיחה: ברוך הבא + שעון -->
+                          <div class="bg-gradient-to-l from-indigo-600 to-blue-500 rounded-2xl p-5 text-white shadow-lg relative overflow-hidden">
+                            <div class="flex items-center justify-between">
+                              <div>
+                                <p class="text-blue-100 text-xs font-medium mb-0.5 opacity-80" id="emp-date-label"></p>
+                                <h2 class="text-2xl font-black leading-tight" id="emp-greeting">שלום! 👋</h2>
+                                <p class="text-blue-200 text-xs mt-1 opacity-80" id="emp-shift-label">טוען פרטי משמרת...</p>
+                              </div>
+                              <div class="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0" id="emp-avatar-circle">
+                                <i class="fa-solid fa-user text-white text-2xl"></i>
+                              </div>
+                            </div>
+                            <i class="fa-solid fa-clock absolute -left-3 -bottom-3 text-[6rem] text-white opacity-10"></i>
+                          </div>
+
+                          <!-- כפתורים ראשיים: כניסה/יציאה + לוח משמרות -->
+                          <div class="grid grid-cols-2 gap-3">
+                            <button onclick="switchTab('timeclock')"
+                              class="flex flex-col items-center justify-center gap-2 bg-white border-2 border-emerald-200 rounded-2xl py-5 shadow-sm active:scale-95 transition-transform">
+                              <div class="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                <i class="fa-solid fa-fingerprint text-emerald-600 text-2xl"></i>
+                              </div>
+                              <span class="text-sm font-bold text-slate-700">כניסה / יציאה</span>
+                              <span class="text-[10px] text-slate-400" id="emp-punch-status">טוען...</span>
+                            </button>
+                            <button onclick="switchTab('shifts')"
+                              class="flex flex-col items-center justify-center gap-2 bg-white border-2 border-indigo-200 rounded-2xl py-5 shadow-sm active:scale-95 transition-transform">
+                              <div class="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
+                                <i class="fa-solid fa-calendar-days text-indigo-600 text-2xl"></i>
+                              </div>
+                              <span class="text-sm font-bold text-slate-700">לוח משמרות</span>
+                              <span class="text-[10px] text-slate-400" id="emp-next-shift">המשמרת שלי</span>
+                            </button>
+                          </div>
+
+                        </div>
+
+                        <!-- ★ מסך עובד — חלק תחתון: משימות + קישורים -->
+                        <div id="emp-home-footer" class="hidden px-2 pb-6 space-y-3">
+
+                          <!-- משימות אישיות להיום -->
+                          <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                            <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                              <span class="text-sm font-black text-slate-800">📋 המשימות שלי היום</span>
+                              <button onclick="switchTab('tasks')" class="text-xs text-indigo-500 font-bold hover:underline">כל המשימות →</button>
+                            </div>
+                            <div id="emp-tasks-list" class="divide-y divide-slate-50 max-h-52 overflow-y-auto">
+                              <div class="px-4 py-3 text-xs text-slate-400">טוען משימות...</div>
+                            </div>
+                          </div>
+
+                          <!-- קישורים מהירים נוספים -->
+                          <div class="grid grid-cols-3 gap-2">
+                            <button onclick="switchTab('calendar')" class="flex flex-col items-center gap-1.5 bg-white rounded-xl py-3 border border-slate-100 shadow-sm active:scale-95 transition-transform">
+                              <i class="fa-solid fa-calendar-days text-purple-500 text-lg"></i>
+                              <span class="text-[10px] font-bold text-slate-600">יומן</span>
+                            </button>
+                            <button onclick="switchTab('tasks')" class="flex flex-col items-center gap-1.5 bg-white rounded-xl py-3 border border-slate-100 shadow-sm active:scale-95 transition-transform">
+                              <i class="fa-solid fa-list-check text-emerald-500 text-lg"></i>
+                              <span class="text-[10px] font-bold text-slate-600">משימות</span>
+                            </button>
+                            <button onclick="switchTab('surveys')" class="flex flex-col items-center gap-1.5 bg-white rounded-xl py-3 border border-slate-100 shadow-sm active:scale-95 transition-transform">
+                              <i class="fa-solid fa-bullhorn text-blue-500 text-lg"></i>
+                              <span class="text-[10px] font-bold text-slate-600">תקשורת</span>
+                            </button>
+                          </div>
+
+                        </div>
+
+                        <!-- Balance card — FIRST, prominent (hidden initially to prevent layout-shift before JS wraps in FLOW grid) -->
+                        <div id="tour-balance-card" class="hidden bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-6 text-white shadow-xl shadow-blue-200 mb-4 relative overflow-hidden transform transition hover:scale-[1.01] mx-2 mt-1">
                           <div class="flex items-start justify-between">
                             <div>
                               <p class="text-blue-100 text-xs font-medium mb-0.5 opacity-80">יתרה נוכחית</p>
@@ -627,30 +889,70 @@
                         </div>
 
                         <!-- KPI cards (BELOW tiles) -->
-                        <div class="grid grid-cols-2 gap-3 px-2 mb-4">
-                          <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-3.5 text-white shadow-md shadow-indigo-200">
+                        <div id="admin-kpi-cards" class="grid grid-cols-2 gap-3 px-2 mb-4">
+                          <button type="button" onclick="switchTab('cashflow')" class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-3.5 text-white shadow-md shadow-indigo-200 overflow-hidden relative text-right active:scale-95 transition" style="touch-action:manipulation;">
                             <div class="text-indigo-200 text-[10px] font-semibold mb-1">מכירות היום</div>
                             <div class="text-2xl font-black" id="kpi-sales-today">₪0</div>
                             <div class="text-indigo-200 text-[10px] mt-1" id="kpi-orders-today">0 הזמנות</div>
-                          </div>
-                          <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-3.5 text-white shadow-md shadow-emerald-200">
+                            <div id="spark-sales" class="absolute bottom-0 left-0 right-0 opacity-40"></div>
+                          </button>
+                          <button type="button" onclick="switchTab('timeclock')" class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-3.5 text-white shadow-md shadow-emerald-200 overflow-hidden relative text-right active:scale-95 transition" style="touch-action:manipulation;">
                             <div class="text-emerald-200 text-[10px] font-semibold mb-1">עובדים פעילים</div>
                             <div class="text-2xl font-black" id="kpi-active-staff">0</div>
-                            <div class="text-emerald-200 text-[10px] mt-1">בצוות</div>
-                          </div>
-                          <div class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm">
+                            <div class="text-emerald-200 text-[10px] mt-1" id="kpi-staff-status">בצוות</div>
+                            <div id="spark-staff" class="absolute bottom-0 left-0 right-0 opacity-40"></div>
+                          </button>
+                          <button type="button" onclick="switchTab('sales')" class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm overflow-hidden relative text-right active:scale-95 transition cursor-pointer" style="touch-action:manipulation;">
                             <div class="text-slate-400 text-[10px] font-semibold mb-1">הזמנות פתוחות</div>
                             <div class="text-2xl font-black text-amber-500" id="kpi-open-orders">0</div>
                             <div class="text-slate-400 text-[10px] mt-1">ממתינות לטיפול</div>
-                          </div>
-                          <div class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm">
+                            <div id="spark-orders" class="absolute bottom-0 left-0 right-0 opacity-30"></div>
+                          </button>
+                          <button type="button" onclick="switchTab('tasks')" class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm overflow-hidden relative text-right active:scale-95 transition cursor-pointer" style="touch-action:manipulation;">
                             <div class="text-slate-400 text-[10px] font-semibold mb-1">משימות פתוחות</div>
                             <div class="text-2xl font-black text-rose-500" id="kpi-open-tasks">0</div>
                             <div class="text-slate-400 text-[10px] mt-1">לא הושלמו</div>
+                            <div id="spark-tasks" class="absolute bottom-0 left-0 right-0 opacity-30"></div>
+                          </button>
+                        </div>
+
+                        <!-- Restaurant-specific KPI cards (מוצגים רק למסעדה/בית קפה) -->
+                        <div id="restaurant-kpi-cards" class="grid grid-cols-2 gap-3 px-2 mb-4 hidden">
+                          <div class="bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl p-3.5 text-white shadow-md shadow-orange-200 overflow-hidden relative">
+                            <div class="text-orange-200 text-[10px] font-semibold mb-1">🍽️ עלות מזון ממוצעת</div>
+                            <div class="text-2xl font-black" id="kpi-food-cost-pct">—</div>
+                            <div class="text-orange-200 text-[10px] mt-1">Food Cost %</div>
+                          </div>
+                          <button type="button" onclick="switchTab('deliveries')" class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm overflow-hidden relative text-right active:scale-95 transition cursor-pointer" style="touch-action:manipulation;">
+                            <div class="text-slate-400 text-[10px] font-semibold mb-1">🛵 משלוחים בדרך</div>
+                            <div class="text-2xl font-black text-indigo-500" id="kpi-deliveries-transit">0</div>
+                            <div class="text-slate-400 text-[10px] mt-1">ממתינים למסירה</div>
+                          </button>
+                          <div class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm overflow-hidden relative text-right">
+                            <div class="text-slate-400 text-[10px] font-semibold mb-1">📈 ממוצע להזמנה</div>
+                            <div class="text-2xl font-black text-emerald-600" id="kpi-avg-per-order">₪0</div>
+                            <div class="text-slate-400 text-[10px] mt-1">החודש</div>
+                          </div>
+                          <button type="button" onclick="switchTab('pantry')" class="bg-amber-50 rounded-2xl p-3.5 border border-amber-200 shadow-sm overflow-hidden relative text-right active:scale-95 transition cursor-pointer" style="touch-action:manipulation;">
+                            <div class="text-amber-600 text-[10px] font-semibold mb-1">⚠️ מלאי נמוך</div>
+                            <div class="text-2xl font-black text-amber-600" id="kpi-low-stock-count">0</div>
+                            <div class="text-amber-500 text-[10px] mt-1">פריטים מתחת לרף</div>
+                          </button>
+                          <button type="button" onclick="switchTab('sales');setTimeout(()=>window.switchSalesTab&&window.switchSalesTab('reviews'),200)" class="bg-yellow-50 rounded-2xl p-3.5 border border-yellow-200 shadow-sm overflow-hidden relative cursor-pointer active:scale-95 transition text-right" style="touch-action:manipulation;">
+                            <div class="text-yellow-700 text-[10px] font-semibold mb-1">⭐ דירוג לקוחות</div>
+                            <div class="text-2xl font-black text-yellow-600" id="kpi-avg-rating">—</div>
+                            <div class="text-yellow-500 text-[10px] mt-1">ממוצע כוכבים</div>
+                          </button>
+                          <div class="bg-blue-50 rounded-2xl p-3.5 border border-blue-200 shadow-sm overflow-hidden relative cursor-pointer col-span-2" onclick="switchTab('calendar');setTimeout(()=>typeof switchCalendarTab==='function'&&switchCalendarTab('requests'),200)" style="touch-action:manipulation;">
+                            <div class="text-blue-700 text-[10px] font-semibold mb-1">📅 הזמנות שולחן ממתינות</div>
+                            <div class="text-2xl font-black text-blue-600" id="kpi-pending-reservations">0</div>
+                            <div class="text-blue-500 text-[10px] mt-1">לחץ לפתיחת בקשות שיבוץ ← אישור/דחייה</div>
                           </div>
                         </div>
 
                         <!-- Alerts (low stock only, compact) -->
+                        <div id="flow-balance-widget" class="px-2 mb-4 hidden"></div>
+
                         <div id="dashboard-alerts" class="px-2 mb-4 hidden">
                           <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3.5">
                             <div class="flex items-center gap-2 mb-2">
@@ -664,7 +966,7 @@
 
                     <div id="content-calendar" class="hidden">
                         <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 mb-4 relative overflow-hidden">
-                            <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">יומן ותורים 📅</h3>
+                            <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">יומן ציבורי 🌐</h3>
                             
                             <div class="flex bg-slate-100 p-1.5 rounded-xl mb-4 overflow-x-auto modal-scroll whitespace-nowrap">
                                 <button id="btn-cal-tab-main" onclick="if(typeof switchCalendarTab==='function') switchCalendarTab('main')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">לוח זמנים (היומן שלי)</button>
@@ -891,21 +1193,56 @@
                     </div>
 
                     <div id="content-cashflow" class="hidden">
+                        <!-- עמלות פלטפורמה וגביה -->
+                        <div class="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 mb-4">
+                            <div class="flex justify-between items-center mb-4">
+                                <button onclick="fetchCommissionSummary()" class="text-[10px] text-slate-400 hover:text-slate-600"><i class="fa-solid fa-rotate-right mr-1"></i>רענן</button>
+                                <h3 class="font-bold text-slate-800 text-sm"><i class="fa-solid fa-percent text-violet-500 mr-1"></i> עמלות פלטפורמה וגביה</h3>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3" id="biz-commission-cubes">
+                                <div class="col-span-2 text-center text-xs text-slate-400 py-4">טוען...</div>
+                            </div>
+                        </div>
                         <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
                             <div class="flex justify-between items-center mb-4">
                                 <h3 class="font-bold text-slate-800 text-lg">ניהול תזרים 💸</h3>
                             </div>
-                            <p class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mb-4"><i class="fa-solid fa-circle-info text-blue-500"></i> כאן ניתן לראות ולערוך את כל הפעולות הפיננסיות מהעבר, למקרה של טעות בדיווח.</p>
-                            
-                            <div class="flex gap-2 mb-4">
-                                 <select id="cashflow-user-filter" onchange="renderCashflow()" class="modern-input py-2 text-sm bg-slate-50 flex-1 hidden"></select>
-                                 <select id="cashflow-date-filter" onchange="renderCashflow()" class="modern-input py-2 text-sm bg-slate-50 flex-1">
-                                     <option value="all">כל הזמן</option>
-                                     <option value="1">חודש אחרון</option>
-                                     <option value="3">3 חודשים</option>
-                                 </select>
+                            <!-- טאבים: תזרים / גביה -->
+                            <div class="flex gap-2 mb-4 border-b border-slate-100 pb-0">
+                                <button id="cf-sub-tab-cashflow" onclick="window.switchCfSubTab('cashflow')" class="px-4 py-2 text-xs font-bold border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50 rounded-t-lg transition">💸 תזרים</button>
+                                <button id="cf-sub-tab-collection" onclick="window.switchCfSubTab('collection')" class="px-4 py-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700 rounded-t-lg transition">💳 גביה</button>
                             </div>
-                            <div id="cashflow-list" class="space-y-3 pb-20"></div>
+                            <!-- תזרים -->
+                            <div id="cf-sub-view-cashflow">
+                                <p class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mb-4"><i class="fa-solid fa-circle-info text-blue-500"></i> כאן ניתן לראות ולערוך את כל הפעולות הפיננסיות מהעבר.</p>
+                                <div class="flex gap-2 mb-4">
+                                    <select id="cashflow-user-filter" onchange="renderCashflow()" class="modern-input py-2 text-sm bg-slate-50 flex-1 hidden"></select>
+                                    <select id="cashflow-date-filter" onchange="renderCashflow()" class="modern-input py-2 text-sm bg-slate-50 flex-1">
+                                        <option value="all">כל הזמן</option>
+                                        <option value="1">חודש אחרון</option>
+                                        <option value="3">3 חודשים</option>
+                                    </select>
+                                </div>
+                                <div id="cashflow-list" class="space-y-3 pb-20"></div>
+                            </div>
+                            <!-- גביה -->
+                            <div id="cf-sub-view-collection" class="hidden pb-20">
+                                <div id="collection-summary-bar" class="hidden mb-4 grid grid-cols-3 gap-2 text-center">
+                                    <div class="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                                        <div class="text-[10px] text-slate-500 mb-0.5">ממתין לגביה</div>
+                                        <div id="col-sum-pending" class="text-sm font-black text-amber-600 dir-ltr">₪0</div>
+                                    </div>
+                                    <div class="bg-green-50 rounded-xl p-3 border border-green-100">
+                                        <div class="text-[10px] text-slate-500 mb-0.5">התקבל</div>
+                                        <div id="col-sum-received" class="text-sm font-black text-green-600 dir-ltr">₪0</div>
+                                    </div>
+                                    <div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                                        <div class="text-[10px] text-slate-500 mb-0.5">סה"כ חויב</div>
+                                        <div id="col-sum-total" class="text-sm font-black text-slate-700 dir-ltr">₪0</div>
+                                    </div>
+                                </div>
+                                <div id="collection-list" class="space-y-2"></div>
+                            </div>
                         </div>
                     </div>
 <div id="content-pos" class="hidden h-[85vh] flex-col md:flex-row gap-4 pb-20 mt-2">
@@ -941,13 +1278,23 @@
                             </div>
                             <div id="pos-cart-list" class="flex-1 overflow-y-auto modal-scroll p-4 space-y-3 bg-slate-50/50"></div>
                             <div class="p-5 bg-white border-t border-slate-200 shadow-[0_-4px_10px_rgba(0,0,0,0.03)] shrink-0">
-                                <div class="flex justify-between items-end mb-4">
+                                <div class="flex justify-between items-end mb-3">
                                     <span class="text-sm font-bold text-slate-400" id="pos-items-count">0 פריטים</span>
                                     <span class="text-4xl font-black text-indigo-600 dir-ltr" id="pos-total-display">₪0.00</span>
                                 </div>
-                                <button id="btn-submit-pos" onclick="window.openPOSTender()" class="w-full bg-emerald-500 text-white py-4 rounded-2xl font-black text-xl shadow-lg hover:bg-emerald-600 transition flex justify-center items-center gap-3">
-                                    תשלום <i class="fa-solid fa-credit-card"></i>
-                                </button>
+                                <div id="pos-manual-discount-row" class="hidden flex justify-between items-center text-xs mb-2 px-1">
+                                    <span class="text-rose-500 font-bold">הנחה ידנית:</span>
+                                    <span id="pos-manual-discount-display" class="text-rose-600 font-black dir-ltr"></span>
+                                    <button onclick="window.clearPOSManualDiscount()" class="text-slate-400 hover:text-red-500 text-[10px] transition">✕ בטל</button>
+                                </div>
+                                <div class="flex gap-2 mb-2">
+                                    <button onclick="window.openPOSDiscountModal()" class="flex-1 bg-rose-50 text-rose-600 border border-rose-200 py-2.5 rounded-xl font-bold text-sm hover:bg-rose-100 transition flex items-center justify-center gap-1.5">
+                                        <i class="fa-solid fa-tag text-xs"></i> הנחה
+                                    </button>
+                                    <button onclick="window.openPOSTender()" id="btn-submit-pos" class="flex-[3] bg-emerald-500 text-white py-2.5 rounded-xl font-black text-lg shadow-lg hover:bg-emerald-600 transition flex justify-center items-center gap-2">
+                                        תשלום <i class="fa-solid fa-credit-card"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -956,41 +1303,41 @@
                         <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
                             <h3 class="font-bold text-slate-800 text-lg mb-4">ניהול חנות ומכירות 🛍️</h3>
                             
-<div id="sales-stats-dashboard" class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-                                <div class="bg-fuchsia-50 p-4 rounded-2xl border border-fuchsia-100 flex flex-col items-center justify-center text-center shadow-sm">
-                                    <span class="text-xs font-bold text-fuchsia-600 uppercase tracking-wider mb-1.5">הזמנות היום</span>
-                                    <span id="stat-orders-today" class="text-3xl font-black text-fuchsia-900 truncate w-full">0</span>
+                            <div id="sales-stats-dashboard" class="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-5">
+                                <div class="bg-fuchsia-50 px-3 py-2.5 rounded-xl border border-fuchsia-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <span class="text-[10px] font-bold text-fuchsia-600 uppercase tracking-wider mb-1">הזמנות היום</span>
+                                    <span id="stat-orders-today" class="text-xl font-black text-fuchsia-900 truncate w-full">0</span>
                                 </div>
-                                <div class="bg-teal-50 p-4 rounded-2xl border border-teal-100 flex flex-col items-center justify-center text-center shadow-sm">
-                                    <span class="text-xs font-bold text-teal-600 uppercase tracking-wider mb-1.5">הכנסות היום</span>
-                                    <span id="stat-revenue-today" class="text-3xl font-black text-teal-900 truncate w-full" dir="ltr">₪0</span>
+                                <div class="bg-teal-50 px-3 py-2.5 rounded-xl border border-teal-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <span class="text-[10px] font-bold text-teal-600 uppercase tracking-wider mb-1">הכנסות היום</span>
+                                    <span id="stat-revenue-today" class="text-xl font-black text-teal-900 truncate w-full" dir="ltr">₪0</span>
                                 </div>
-                                <div class="bg-orange-50 p-4 rounded-2xl border border-orange-100 flex flex-col items-center justify-center text-center shadow-sm">
-                                    <span class="text-xs font-bold text-orange-600 uppercase tracking-wider mb-1.5">הזמנות פתוחות</span>
-                                    <span id="stat-open-orders" class="text-3xl font-black text-orange-900 truncate w-full">0</span>
+                                <div class="bg-orange-50 px-3 py-2.5 rounded-xl border border-orange-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <span class="text-[10px] font-bold text-orange-600 uppercase tracking-wider mb-1">הזמנות פתוחות</span>
+                                    <span id="stat-open-orders" class="text-xl font-black text-orange-900 truncate w-full">0</span>
                                 </div>
-                                <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex flex-col items-center justify-center text-center shadow-sm">
-                                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1.5">הזמנות החודש</span>
-                                    <span id="stat-orders-count" class="text-3xl font-black text-blue-900 truncate w-full">0</span>
+                                <div class="bg-blue-50 px-3 py-2.5 rounded-xl border border-blue-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <span class="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">הזמנות החודש</span>
+                                    <span id="stat-orders-count" class="text-xl font-black text-blue-900 truncate w-full">0</span>
                                 </div>
-                                <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex flex-col items-center justify-center text-center shadow-sm">
-                                    <span class="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1.5">הכנסות החודש</span>
-                                    <span id="stat-revenue-month" class="text-3xl font-black text-emerald-900 truncate w-full" dir="ltr">₪0</span>
+                                <div class="bg-emerald-50 px-3 py-2.5 rounded-xl border border-emerald-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">הכנסות החודש</span>
+                                    <span id="stat-revenue-month" class="text-xl font-black text-emerald-900 truncate w-full" dir="ltr">₪0</span>
                                 </div>
-                                <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex flex-col items-center justify-center text-center shadow-sm">
-                                    <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1.5">הצעות ממתינות</span>
-                                    <span id="stat-pending-quotes" class="text-3xl font-black text-indigo-900 truncate w-full">0</span>
+                                <div class="bg-indigo-50 px-3 py-2.5 rounded-xl border border-indigo-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <span class="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-1">הצעות ממתינות</span>
+                                    <span id="stat-pending-quotes" class="text-xl font-black text-indigo-900 truncate w-full">0</span>
                                 </div>
                             </div>
-                            <div class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto modal-scroll whitespace-nowrap">
-                                <button id="btn-sales-orders" onclick="window.switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות חנות</button>
-                                <button id="btn-sales-quotes" onclick="window.switchSalesTab('quotes')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הצעות מחיר</button>
-                                <button id="btn-sales-catalog" onclick="window.switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג מנות</button>
-                                <button id="btn-sales-complex" onclick="window.switchSalesTab('complex')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">פרויקטים וקייטרינג</button>
-                                <button id="btn-sales-marketing" onclick="window.switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שיווק ומבצעים</button>
-                                <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות חנות</button>
-                                <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition hidden">אנליטיקה ודוחות</button>
-                            </div>
+                            <div class="grid grid-cols-3 gap-2 mb-6">
+                                <button id="btn-sales-orders" onclick="window.switchSalesTab('orders')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-md shadow-indigo-200 transition"><i class="fa-solid fa-bag-shopping text-sm"></i>הזמנות</button>
+                                <button id="btn-sales-quotes" onclick="window.switchSalesTab('quotes')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-file-invoice text-sm"></i>הצעות מחיר</button>
+                                <button id="btn-sales-catalog" onclick="window.switchSalesTab('catalog')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-book-open text-sm"></i>קטלוג</button>
+                                <button id="btn-sales-complex" onclick="window.switchSalesTab('complex')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-utensils text-sm"></i>פרויקטים</button>
+                                <button id="btn-sales-marketing" onclick="window.switchSalesTab('marketing')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-bullhorn text-sm"></i>שיווק</button>
+                                <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-gear text-sm"></i>הגדרות</button>
+                                <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="hidden flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-chart-bar text-sm"></i>אנליטיקה</button>
+                            </div>
 
                             <div id="sales-view-orders" class="space-y-4">
                                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-2">
@@ -1016,6 +1363,7 @@
                                         <option value="ready">מוכנות</option>
                                         <option value="shipped">במשלוח</option>
                                         <option value="completed">הושלמו</option>
+                                        <option value="rated">⭐ מדורגות</option>
                                     </select>
                                 </div>
                                 <div id="store-orders-list" class="space-y-3 pb-8"></div>
@@ -1421,6 +1769,69 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Reviews Module -->
+                    <div id="content-reviews" class="hidden px-1 pb-20 mt-4">
+                        <div id="reviews-root"></div>
+                    </div>
+
+                    <!-- Role Dashboard — populated dynamically by showRoleDashboard() -->
+                    <div id="content-role-dashboard" class="hidden px-1"></div>
+
+                    <div id="content-equipment" class="hidden">
+                        <div class="bg-gradient-to-r from-slate-700 to-slate-900 rounded-[2rem] p-5 text-white shadow-xl mb-4 relative overflow-hidden mt-3">
+                            <h3 class="text-lg font-bold mb-1 flex items-center gap-2"><i class="fa-solid fa-screwdriver-wrench"></i> תחזוקת ציוד</h3>
+                            <p class="text-slate-300 text-xs opacity-90">נהלו את הציוד, לוח התחזוקה וספר התקלות של העסק.</p>
+                            <i class="fa-solid fa-gears absolute -left-4 -bottom-4 text-8xl text-white opacity-10"></i>
+                        </div>
+                        <div class="flex gap-1 mb-4 bg-slate-100 rounded-2xl p-1">
+                            <button onclick="switchEquipmentTab('items')" id="eqtab-items" class="flex-1 py-2 text-xs font-bold rounded-xl bg-white shadow-sm text-slate-800 transition">ציוד 🔧</button>
+                            <button onclick="switchEquipmentTab('maintenance')" id="eqtab-maintenance" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition">תחזוקה 📋</button>
+                            <button onclick="switchEquipmentTab('faults')" id="eqtab-faults" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition">תקלות ⚠️</button>
+                            <button onclick="switchEquipmentTab('technicians')" id="eqtab-technicians" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition">טכנאים 👷</button>
+                        </div>
+                        <div id="eq-view-items">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-bold text-slate-800 text-sm">פנקס ציוד</h3>
+                                <button onclick="openEquipmentItemModal()" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-700 transition"><i class="fa-solid fa-plus ml-1"></i> הוסף ציוד</button>
+                            </div>
+                            <div id="equipment-items-list"></div>
+                        </div>
+                        <div id="eq-view-maintenance" class="hidden">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-bold text-slate-800 text-sm">לוח תחזוקה</h3>
+                                <button onclick="openMaintenanceModal()" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-700 transition"><i class="fa-solid fa-plus ml-1"></i> הוסף</button>
+                            </div>
+                            <div class="flex gap-2 mb-3 overflow-x-auto pb-1">
+                                <button onclick="filterMaintenance('all')" id="mfilter-all" class="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-800 text-white whitespace-nowrap">הכל</button>
+                                <button onclick="filterMaintenance('pending')" id="mfilter-pending" class="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 whitespace-nowrap">ממתין</button>
+                                <button onclick="filterMaintenance('overdue')" id="mfilter-overdue" class="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 whitespace-nowrap">פג תוקף</button>
+                                <button onclick="filterMaintenance('completed')" id="mfilter-completed" class="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 whitespace-nowrap">בוצע</button>
+                            </div>
+                            <div id="equipment-maintenance-list"></div>
+                        </div>
+                        <div id="eq-view-faults" class="hidden">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-bold text-slate-800 text-sm">ספר תקלות</h3>
+                                <button onclick="openFaultModal()" class="bg-red-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm hover:bg-red-700 transition"><i class="fa-solid fa-plus ml-1"></i> דווח תקלה</button>
+                            </div>
+                            <div class="flex gap-2 mb-3 overflow-x-auto pb-1">
+                                <button onclick="filterFaults('all')" id="ffilter-all" class="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-800 text-white whitespace-nowrap">הכל</button>
+                                <button onclick="filterFaults('open')" id="ffilter-open" class="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 whitespace-nowrap">פתוח</button>
+                                <button onclick="filterFaults('in_progress')" id="ffilter-in_progress" class="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 whitespace-nowrap">בטיפול</button>
+                                <button onclick="filterFaults('resolved')" id="ffilter-resolved" class="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 whitespace-nowrap">נסגר</button>
+                            </div>
+                            <div id="equipment-faults-list"></div>
+                        </div>
+                        <div id="eq-view-technicians" class="hidden">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-bold text-slate-800 text-sm">טכנאים וחברות שירות</h3>
+                                <button onclick="openTechnicianModal()" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-700 transition"><i class="fa-solid fa-plus ml-1"></i> הוסף טכנאי</button>
+                            </div>
+                            <div id="equipment-technicians-list"></div>
+                        </div>
+                    </div>
+
                    <div id="content-foodcost" class="hidden">
                         <div class="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-[2rem] p-6 text-white shadow-xl mb-4 relative overflow-hidden">
                             <h3 class="text-xl font-bold mb-1 flex items-center gap-2"><i class="fa-solid fa-chart-pie"></i> ניהול פוד קוסט ורווחיות</h3>
@@ -1586,6 +1997,25 @@
                                 <button onclick="openPantryModal()" class="flex-1 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוספה ידנית</button>
                             </div>
                         </div>
+                        <div id="pantry-buffer-bar" class="space-y-2 mb-3">
+                            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center gap-3">
+                                <div class="flex-1">
+                                    <p class="text-[10px] font-bold text-slate-600">🛡️ אחוז מינימום לשימוש שוטף</p>
+                                    <p class="text-[9px] text-slate-400 mt-0.5" id="pantry-buffer-desc">0% — כל המלאי זמין לשריון</p>
+                                </div>
+                                <input type="number" id="pantry-buffer-input" min="0" max="100" step="1" value="0" class="w-16 text-center border border-slate-200 rounded-xl py-1.5 text-sm font-black text-slate-700 outline-none focus:border-indigo-400">
+                                <span class="text-xs text-slate-500 font-bold">%</span>
+                            </div>
+                            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex items-center gap-3">
+                                <div class="flex-1">
+                                    <p class="text-[10px] font-bold text-amber-700">⚠️ אחוז התראה על קרבה למינימום</p>
+                                    <p class="text-[9px] text-amber-600 mt-0.5" id="pantry-warning-desc">0% — ללא התראות</p>
+                                </div>
+                                <input type="number" id="pantry-warning-input" min="0" max="100" step="1" value="0" class="w-16 text-center border border-amber-200 rounded-xl py-1.5 text-sm font-black text-amber-700 outline-none focus:border-amber-400">
+                                <span class="text-xs text-amber-600 font-bold">%</span>
+                            </div>
+                            <button onclick="window.savePantryBuffer()" class="w-full bg-indigo-600 text-white px-4 py-2.5 rounded-2xl text-xs font-bold hover:bg-indigo-700 transition">שמור הגדרות מלאי</button>
+                        </div>
                         <div id="pantry-list" class="space-y-3 pb-20"></div>
                     </div>
 
@@ -1743,54 +2173,73 @@
                     </div>
 
                     <div id="content-tasks" class="hidden">
-                        <p id="admin-tasks-hint" class="text-xs text-slate-500 bg-indigo-50 p-3 rounded-xl border border-indigo-100 mx-2 mb-4 hidden font-medium shadow-sm"><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i> נהלו פרויקטים וסדרי עבודה. בנו נהלים שוטפים (SOPs) או משימות בודדות, והקצו לצוות. כשיסיימו יצלמו הוכחה לתגמול!</p>
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 px-2 gap-3">
-                            <h3 class="font-bold text-slate-700 text-lg">לוח משימות ונהלים</h3>
-                            <div class="flex flex-wrap gap-2 w-full sm:w-auto">
-                                <button onclick="openTaskModal(true)" id="btn-self-task" class="flex-1 sm:flex-none bg-indigo-100 text-indigo-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-200 transition hidden"><i class="fa-solid fa-star text-yellow-500 mr-1"></i> דיווח עצמי</button>
-                                <button onclick="if(typeof window.openTaskSetManagerModal === 'function') window.openTaskSetManagerModal()" id="btn-manage-task-sets" class="flex-1 sm:flex-none bg-white text-indigo-600 border border-indigo-200 px-3 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-50 transition hidden"><i class="fa-solid fa-layer-group mr-1"></i> נהלים (SOPs)</button>
-                                <button onclick="openTaskModal()" id="btn-add-task" class="flex-1 sm:flex-none bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-blue-700 transition hidden"><i class="fa-solid fa-plus mr-1"></i> משימה חדשה</button>
-                            </div>
-                        </div>
-                        <div id="tasks-list" class="space-y-3 pb-20"></div>
-                    </div>
+                        <div class="flex items-center justify-between mb-3 px-2">
+                            <h3 class="font-bold text-slate-700 text-base whitespace-nowrap">משימות ונהלים</h3>
+                            <div class="flex items-center gap-1.5 flex-shrink-0">
+                                <button onclick="openTaskModal(true)" id="btn-self-task" class="bg-indigo-100 text-indigo-700 px-2.5 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-200 transition hidden whitespace-nowrap"><i class="fa-solid fa-star text-yellow-500 mr-1"></i> דיווח עצמי</button>
+                                <button onclick="if(typeof window.openTaskSetManagerModal === 'function') window.openTaskSetManagerModal()" id="btn-manage-task-sets" class="bg-white text-indigo-600 border border-indigo-200 px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-50 transition hidden whitespace-nowrap"><i class="fa-solid fa-layer-group mr-1"></i> נהלים</button>
+                                <button onclick="openTaskModal()" id="btn-add-task" class="bg-blue-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-blue-700 transition hidden whitespace-nowrap"><i class="fa-solid fa-plus mr-1"></i> + משימה</button>
+                            </div>
+                        </div>
+                        <p id="admin-tasks-hint" class="text-xs text-slate-500 bg-indigo-50 p-3 rounded-xl border border-indigo-100 mx-2 mb-3 hidden font-medium shadow-sm"><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i> נהלו פרויקטים וסדרי עבודה. בנו נהלים שוטפים (SOPs) או משימות בודדות, והקצו לצוות. כשיסיימו יצלמו הוכחה לתגמול!</p>
+                        <div id="tasks-list" class="space-y-3 pb-20"></div>
+                    </div>
 
-                    <div id="content-community" class="hidden">
-                        <div class="bg-gradient-to-r from-orange-400 to-pink-500 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden">
+                    <div id="content-community" class="hidden pt-4">
+                        <!-- Hero banner -->
+                        <div class="bg-gradient-to-r from-orange-400 to-pink-500 rounded-[2rem] p-6 text-white shadow-xl mb-5 relative overflow-hidden">
                             <h3 class="text-xl font-bold mb-1">הקהילות שלנו 🏘️</h3>
                             <p class="text-orange-50 text-xs opacity-90">הצטרפו לקהילות מקומיות והציעו הטבות כדי למשוך לקוחות חדשים!</p>
                             <i class="fa-solid fa-users-rays absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
                         </div>
-
-                        <h3 class="font-bold text-slate-700 text-lg mb-3 px-2">הקהילות שלי</h3>
-                        <div id="biz-my-communities-list" class="space-y-3 mb-8">
-                            <p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען קהילות...</p>
-                        </div>
-
-                        <div class="flex justify-between items-center mb-3 px-2">
-                            <h3 class="font-bold text-slate-700 text-lg">גלו קהילות חדשות 🔍</h3>
-                        </div>
-                        
-                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4">
-                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
-                                <div class="relative">
-                                    <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                                    <input type="text" id="biz-filter-city" onkeyup="filterBizAvailableCommunities()" class="modern-input py-2 pr-9 text-sm bg-slate-50" placeholder="חיפוש עיר/אזור...">
-                                </div>
-                                <select id="biz-filter-size" onchange="filterBizAvailableCommunities()" class="modern-input py-2 text-sm bg-slate-50">
-                                    <option value="all">כל הגדלים</option>
-                                    <option value="50">+50 משפחות</option>
-                                    <option value="100">+100 משפחות</option>
-                                    <option value="500">+500 משפחות</option>
-                                </select>
-                                <label class="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 rounded-xl border border-slate-200 sm:col-span-1 col-span-2">
-                                    <input type="checkbox" id="biz-filter-multi" onchange="filterBizAvailableCommunities()" class="w-4 h-4 accent-orange-500">
-                                    <span class="text-xs font-bold text-slate-600">קהילות רב-אזוריות</span>
-                                </label>
+                        <!-- Tab buttons (2 columns) -->
+                        <div class="grid grid-cols-2 gap-2 mb-5">
+                            <div class="relative">
+                                <button id="btn-comm-mine" onclick="window.switchBizCommunityTab('mine')" class="w-full flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition">
+                                    <i class="fa-solid fa-house-flag text-sm"></i>הקהילות שלי
+                                </button>
+                                <button onclick="showCommunityHelp('tab-mine')" class="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white border border-orange-300 text-orange-400 text-[9px] font-black flex items-center justify-center hover:bg-orange-50 transition shadow-sm" title="מה זה הקהילות שלי?">?</button>
+                            </div>
+                            <div class="relative">
+                                <button id="btn-comm-discover" onclick="window.switchBizCommunityTab('discover')" class="w-full flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">
+                                    <i class="fa-solid fa-compass text-sm"></i>גלה קהילות
+                                </button>
+                                <button onclick="showCommunityHelp('tab-discover')" class="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white border border-slate-300 text-slate-400 text-[9px] font-black flex items-center justify-center hover:bg-slate-100 transition shadow-sm" title="מה זה גלה קהילות?">?</button>
                             </div>
                         </div>
-
-                        <div id="biz-available-communities-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-20">
+                        <!-- Sub-view: My Communities -->
+                        <div id="comm-view-mine">
+                            <div id="biz-my-communities-list" class="space-y-3 mb-4">
+                                <p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען קהילות...</p>
+                            </div>
+                        </div>
+                        <!-- Sub-view: Discover Communities -->
+                        <div id="comm-view-discover" class="hidden">
+                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4">
+                                <div class="grid grid-cols-2 gap-3 mb-2">
+                                    <div class="relative col-span-2">
+                                        <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                                        <input type="text" id="biz-filter-city" onkeyup="filterBizAvailableCommunities()" class="modern-input py-2 pr-9 pl-4 text-sm bg-slate-50" placeholder="חיפוש עיר/אזור...">
+                                    </div>
+                                    <div class="col-span-2">
+                                        <button onclick="window.detectBizCity()" class="w-full flex items-center justify-center gap-2 py-2 px-4 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200 rounded-xl text-xs font-bold transition">
+                                            <i class="fa-solid fa-location-crosshairs"></i>
+                                            חפש קהילות לפי מיקומי הנוכחי
+                                        </button>
+                                    </div>
+                                    <select id="biz-filter-size" onchange="filterBizAvailableCommunities()" class="modern-input py-2 text-sm bg-slate-50">
+                                        <option value="all">כל הגדלים</option>
+                                        <option value="50">+50 משפחות</option>
+                                        <option value="100">+100 משפחות</option>
+                                        <option value="500">+500 משפחות</option>
+                                    </select>
+                                    <label class="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 rounded-xl border border-slate-200">
+                                        <input type="checkbox" id="biz-filter-multi" onchange="filterBizAvailableCommunities()" class="w-4 h-4 accent-orange-500">
+                                        <span class="text-xs font-bold text-slate-600">קהילות רב-אזוריות</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div id="biz-available-communities-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-20"></div>
                         </div>
                     </div>
                     <div id="content-members" class="hidden space-y-6">
@@ -1803,6 +2252,7 @@
                         </div>
                         
                         <div id="admin-members-tools" class="hidden">
+                            <button onclick="openBusinessSettingsModal()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2 mb-2"><i class="fa-solid fa-building-cog"></i> הגדרות עסק וממשקי תפקיד</button>
                             <button onclick="sendCredentialsEmail()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-envelope-open-text"></i> קבל פרטי גישה למייל הורה</button>
                             <p class="text-[10px] text-slate-400 text-center mt-2">ישלח אליכם דו"ח גישה מלא של כל בני המשפחה לשם אבטחה ובקרה.</p>
                         </div>
@@ -1811,6 +2261,10 @@
                                 <div id="pending-list" class="space-y-2 p-2"></div>
                             </div>
                         </div>
+
+                        <!-- ⚙️ טאב הגדרות — Hub מאורגן -->
+                        <div id="content-settings" class="hidden"></div>
+
                     </div>
 
                     <!-- ═══ SURVEYS TAB ═══ -->
@@ -1916,6 +2370,27 @@
                             </div>
                         </div>
                     </div>
+
+                <!-- ===== BEAUTY & COSMETICS TABS ===== -->
+                <div id="content-beauty_calendar" class="hidden px-2 pt-2"></div>
+                <div id="content-beauty_clients" class="hidden px-2 pt-2"></div>
+                <div id="content-beauty_inventory" class="hidden px-2 pt-2"></div>
+                <div id="content-beauty_services" class="hidden px-2 pt-2"></div>
+                <div id="content-beauty_subscriptions" class="hidden px-2 pt-2"></div>
+                <div id="content-beauty_commissions" class="hidden px-2 pt-2"></div>
+                <div id="content-beauty_rfq" class="hidden px-2 pt-2"></div>
+                <div id="content-beauty_practitioners" class="hidden px-2 pt-2"></div>
+
+                <!-- ===== LOGISTICS TABS ===== -->
+                <div id="content-logistics_orders" class="hidden px-2 pt-2"></div>
+                <div id="content-logistics_drivers" class="hidden px-2 pt-2"></div>
+                <div id="content-logistics_vehicles" class="hidden px-2 pt-2"></div>
+                <div id="content-logistics_pricing" class="hidden px-2 pt-2"></div>
+                <div id="content-logistics_cod" class="hidden px-2 pt-2"></div>
+                <div id="content-logistics_rfq" class="hidden px-2 pt-2"></div>
+                <div id="content-logistics_routes" class="hidden px-2 pt-2"></div>
+                <div id="content-logistics_tracking" class="hidden px-2 pt-2"></div>
+                <div id="content-logistics_reports" class="hidden px-2 pt-2"></div>
 
                 </div>
 
@@ -2310,7 +2785,7 @@
                             <p class="text-sm font-bold text-slate-700">בדיקת איכות AI 🤖</p>
                             <p class="text-xs text-slate-500">המערכת תבדוק את ביצוע המשימה</p>
                         </div>
-                        <button type="button" id="ai-check-toggle" onclick="toggleAiCheck()" class="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-800 transition">
+                        <button type="button" id="ai-check-toggle" onclick="toggleAiCheck()" class="relative inline-flex h-6 w-11 items-center rounded-full bg-green-500 transition">
                             <span id="ai-check-knob" class="inline-block h-4 w-4 transform translate-x-6 rounded-full bg-white transition"></span>
                         </button>
                     </div>
@@ -2533,8 +3008,15 @@
                         <h4 class="text-sm font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2" id="catalog-form-title">הוספת מוצר לקטלוג</h4>
                         
                         <div class="space-y-3">
-                            <input type="text" id="cat-prod-name" class="modern-input py-2 text-sm" placeholder="שם המוצר / מקט (חובה)">
-                            
+                            <div>
+                                <label class="text-[10px] font-bold text-slate-500 block mb-1">שם מוצר (חובה):</label>
+                                <input type="text" id="cat-prod-name" class="modern-input py-2 text-sm" placeholder="שם המוצר">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-bold text-slate-500 block mb-1">מק"ט (אופציונלי):</label>
+                                <input type="text" id="cat-prod-sku" class="modern-input py-2 text-sm dir-ltr text-left" placeholder="SKU">
+                            </div>
+
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <label class="text-[10px] font-bold text-slate-500 block mb-1">מחיר ליחידה (₪):</label>
@@ -2563,6 +3045,17 @@
                                     <label class="text-[10px] font-bold text-slate-500 block mb-1">מאפיינים (אופציונלי):</label>
                                     <input type="text" id="cat-prod-desc" class="modern-input py-2 text-sm" placeholder="כשרות, גודל, צבע...">
                                 </div>
+                            </div>
+
+                            <div>
+                                <label class="text-[10px] font-bold text-slate-500 block mb-1">קישורים לפריטים במלאי העסק:</label>
+                                <div id="cat-prod-catalog-links" class="space-y-1 mb-2 min-h-[1.5rem]"><p class="text-[10px] text-slate-400 italic">אין קישורים עדיין</p></div>
+                                <div class="flex gap-1.5 items-center">
+                                    <select id="cat-prod-catalog-id" class="modern-input py-1.5 text-xs bg-white flex-1"><option value="">בחר פריט...</option></select>
+                                    <input type="number" id="cat-prod-catalog-qty" value="1" min="0.01" step="0.01" class="modern-input py-1.5 text-xs bg-white w-14 text-center" placeholder="כמות">
+                                    <button onclick="addCatalogLink()" type="button" class="bg-indigo-600 text-white px-2.5 py-1.5 rounded-xl text-xs font-bold hover:bg-indigo-700 transition whitespace-nowrap shrink-0">+ הוסף</button>
+                                </div>
+                                <p class="text-[9px] text-slate-400 mt-0.5">כשסחורה מגיעה — יתעדכן מלאי כל הפריטים המקושרים</p>
                             </div>
                             
                             <div class="flex gap-2 pt-2 border-t border-slate-200 mt-2">
@@ -2909,6 +3402,7 @@
                     <button onclick="window.createCustomerFromOrder()" class="mt-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5"><i class="fa-solid fa-user-plus"></i> צור לקוח ממאגר</button>
                     <p class="text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200"><i class="fa-regular fa-clock mr-1"></i> התקבל ב: <span id="so-modal-date"></span></p>
                     <p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-calendar-check mr-1 text-green-500"></i> יעד אספקה: <span id="so-modal-target" class="font-bold text-green-700"></span></p>
+                    <p id="so-modal-address" class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-location-dot mr-1 text-amber-500"></i> כתובת: <span class="font-bold text-slate-700"></span></p>
                 </div>
 
                 <h4 class="font-bold text-slate-700 text-sm mb-2">פירוט הפריטים:</h4>
@@ -2949,12 +3443,18 @@
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <button onclick="window.setTenderMethod('cash')" id="btn-tender-cash" class="p-4 rounded-2xl border-2 border-slate-100 flex flex-col items-center gap-2 hover:border-indigo-200 transition bg-white border-indigo-600 bg-indigo-50/50"><i class="fa-solid fa-money-bill-1-wave text-2xl text-emerald-500"></i><span class="text-xs font-black text-slate-700">מזומן</span></button>
-                        <button onclick="window.setTenderMethod('credit')" id="btn-tender-credit" class="p-4 rounded-2xl border-2 border-slate-100 flex flex-col items-center gap-2 hover:border-indigo-200 transition bg-white"><i class="fa-solid fa-credit-card text-2xl text-blue-500"></i><span class="text-xs font-black text-slate-700">אשראי / דיגיטלי</span></button>
+                        <button onclick="window.setTenderMethod('credit')" id="btn-tender-credit" class="p-4 rounded-2xl border-2 border-slate-100 flex flex-col items-center gap-2 hover:border-indigo-200 transition bg-white"><i class="fa-solid fa-credit-card text-2xl text-blue-500"></i><span class="text-xs font-black text-slate-700">כרטיס אשראי</span></button>
+                        <button onclick="window.setTenderMethod('bit')" id="btn-tender-bit" class="p-4 rounded-2xl border-2 border-slate-100 flex flex-col items-center gap-2 hover:border-indigo-200 transition bg-white"><i class="fa-brands fa-whatsapp text-2xl text-green-500"></i><span class="text-xs font-black text-slate-700">ביט</span></button>
+                        <button onclick="window.setTenderMethod('paybox')" id="btn-tender-paybox" class="p-4 rounded-2xl border-2 border-slate-100 flex flex-col items-center gap-2 hover:border-indigo-200 transition bg-white"><i class="fa-solid fa-mobile-screen-button text-2xl text-purple-500"></i><span class="text-xs font-black text-slate-700">פייבוקס</span></button>
                     </div>
-                    <div id="tender-on-account-container">
-                        <button onclick="window.setTenderMethod('on_account')" id="btn-tender-account" class="w-full p-4 rounded-2xl border-2 border-slate-100 flex items-center justify-center gap-3 hover:border-indigo-200 transition bg-white">
+                    <div id="tender-on-account-container" class="flex gap-2">
+                        <button onclick="window.setTenderMethod('on_account')" id="btn-tender-account" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 flex items-center justify-center gap-3 hover:border-indigo-200 transition bg-white">
                             <i class="fa-solid fa-user-clock text-xl text-amber-500"></i>
-                            <span class="text-xs font-black text-slate-700">רישום "הקפה" (על החשבון)</span>
+                            <span class="text-xs font-black text-slate-700">הקפה</span>
+                        </button>
+                        <button onclick="window.applyFullDiscount()" id="btn-tender-gift" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 flex items-center justify-center gap-3 hover:border-pink-200 transition bg-white">
+                            <i class="fa-solid fa-gift text-xl text-pink-500"></i>
+                            <span class="text-xs font-black text-slate-700">שי / חינם</span>
                         </button>
                     </div>
                     <div class="relative">
@@ -2967,6 +3467,7 @@
                         </div>
                     </div>
                     <button onclick="window.addPaymentToSplit()" class="w-full bg-slate-800 text-white py-4 rounded-2xl font-bold text-sm shadow-md hover:bg-slate-700 transition">הוסף לתשלום</button>
+                    <button onclick="window.openItemSplitModal()" class="w-full bg-violet-50 border border-violet-200 text-violet-700 py-3 rounded-2xl font-bold text-sm hover:bg-violet-100 transition flex items-center justify-center gap-2"><i class="fa-solid fa-scissors"></i> פיצול לפי מנות</button>
                 </div>
                 <div class="flex flex-col gap-5">
                     <div class="bg-slate-50 border border-slate-200 rounded-3xl p-5 shadow-inner flex-1 flex flex-col">
@@ -2984,6 +3485,18 @@
                             <input type="checkbox" id="tender-send-receipt" checked class="w-5 h-5 accent-indigo-600 rounded">
                             <span class="text-xs font-bold text-slate-600 group-hover:text-slate-800 transition">שלח סיכום קנייה ל-WhatsApp</span>
                          </label>
+                    </div>
+                    <div id="tender-tip-row" class="bg-amber-50 border border-amber-100 p-4 rounded-2xl hidden">
+                        <label class="text-[10px] font-black text-amber-600 block mb-2">🌟 טיפ (לרצון הלקוח):</label>
+                        <div class="flex gap-2 items-center">
+                            <div class="flex gap-1.5">
+                                <button onclick="window.setTenderTip(10)" class="tip-pct-btn bg-white border border-amber-200 text-amber-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-amber-100 transition">10%</button>
+                                <button onclick="window.setTenderTip(15)" class="tip-pct-btn bg-white border border-amber-200 text-amber-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-amber-100 transition">15%</button>
+                                <button onclick="window.setTenderTip(20)" class="tip-pct-btn bg-white border border-amber-200 text-amber-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-amber-100 transition">20%</button>
+                                <button onclick="window.setTenderTip(0)" class="tip-pct-btn bg-white border border-slate-200 text-slate-500 text-[10px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition">ללא</button>
+                            </div>
+                            <input type="number" id="tender-tip-amount" min="0" placeholder="₪ סכום" oninput="window.updateTenderTip()" class="flex-1 text-center bg-white border border-amber-200 rounded-lg py-1.5 px-2 text-sm font-bold dir-ltr focus:ring-2 focus:ring-amber-200 outline-none">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3154,7 +3667,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=64" defer></script>
+    <script src="business-app.js?v=135" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
@@ -3892,14 +4405,22 @@
                         <p class="text-xs font-bold text-indigo-600 mt-1">העוזרת האישית שלך</p>
                     </div>
                     
-                    <div id="global-ai-chat" class="flex-1 bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100 space-y-3 flex flex-col overflow-y-auto modal-scroll min-h-0">
-                        <div class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%]">
-                            היי! אני העוזרת הווירטואלית שלכם. איך אוכל לעזור היום?
+                    <div id="global-ai-chat" class="flex-1 bg-slate-50 rounded-xl p-3 mb-3 border border-slate-100 space-y-3 flex flex-col overflow-y-auto modal-scroll min-h-0">
+                        <div class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[90%]">
+                            שלום! אני <strong>FamliAI</strong> — עוזרת עסקית חכמה. אני מכירה את כל נתוני העסק שלך בזמן אמת: הזמנות, מלאי, תזרים, food cost, צוות ועוד. מה תרצה לדעת?
                         </div>
                     </div>
-
+                    <!-- שאלות מהירות -->
+                    <div id="ai-quick-questions" class="flex gap-1.5 flex-wrap mb-2 shrink-0">
+                        <button onclick="document.getElementById('global-ai-input').value='סכם את המכירות של היום'; submitGlobalAI()" class="text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-full px-2.5 py-1 hover:bg-indigo-100 transition">📊 מכירות היום</button>
+                        <button onclick="document.getElementById('global-ai-input').value='אילו מנות הכי רווחיות ואילו בעייתיות מבחינת food cost?'; submitGlobalAI()" class="text-[10px] font-bold bg-orange-50 text-orange-600 border border-orange-100 rounded-full px-2.5 py-1 hover:bg-orange-100 transition">🍽️ Food Cost</button>
+                        <button onclick="document.getElementById('global-ai-input').value='אילו פריטים במלאי עומדים להיגמר?'; submitGlobalAI()" class="text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-100 rounded-full px-2.5 py-1 hover:bg-amber-100 transition">📦 מלאי נמוך</button>
+                        <button onclick="document.getElementById('global-ai-input').value='ייצא את כל ההזמנות לאקסל'; submitGlobalAI()" class="text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full px-2.5 py-1 hover:bg-emerald-100 transition">📥 ייצוא Excel</button>
+                        <button onclick="document.getElementById('global-ai-input').value='מה המצב הפיננסי של העסק? כמה הכנסות מול הוצאות?'; submitGlobalAI()" class="text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100 rounded-full px-2.5 py-1 hover:bg-blue-100 transition">💰 תזרים</button>
+                        <button onclick="document.getElementById('global-ai-input').value='חזה את הכנסות החודש הבא לפי מגמה'; submitGlobalAI()" class="text-[10px] font-bold bg-purple-50 text-purple-600 border border-purple-100 rounded-full px-2.5 py-1 hover:bg-purple-100 transition">🔮 חיזוי</button>
+                    </div>
                     <div class="relative shrink-0">
-                        <input type="text" id="global-ai-input" placeholder="שאלו אותי על נתונים, מלאי או הזמנות..." class="modern-input py-3 pr-4 pl-12 text-sm border-indigo-200 focus:border-indigo-500 shadow-sm" onkeypress="if(event.key === 'Enter' && typeof submitGlobalAI === 'function') submitGlobalAI()">
+                        <input type="text" id="global-ai-input" placeholder="שאל/י אותי כל שאלה עסקית..." class="modern-input py-3 pr-4 pl-12 text-sm border-indigo-200 focus:border-indigo-500 shadow-sm" onkeypress="if(event.key === 'Enter' && typeof submitGlobalAI === 'function') submitGlobalAI()">
                         <button onclick="if(typeof submitGlobalAI === 'function') submitGlobalAI()" id="btn-global-ai-submit" class="absolute left-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center hover:bg-indigo-700 transition shadow-md"><i class="fa-solid fa-arrow-up"></i></button>
                     </div>
                 </div>
@@ -3944,7 +4465,7 @@
 
     <!-- Floating Glass Pill — גישה מהירה -->
     <div id="floating-pill"
-         class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80]
+         class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[95]
                 flex items-center gap-0.5 p-1.5
                 bg-white/85 backdrop-blur-xl rounded-full
                 shadow-[0_4px_24px_rgba(0,0,0,0.10),0_0_0_1px_rgba(255,255,255,0.9)]
@@ -3992,25 +4513,25 @@
             </span>
         </button>
 
-        <!-- מפריד לפני נגישות -->
-        <div id="pill-sep-access" class="hidden w-px h-6 bg-slate-200/80 mx-0.5 shrink-0"></div>
-
-        <!-- נגישות (תמיד גלוי) -->
-        <button onclick="openAccessibilityModal()"
-                aria-label="הגדרות נגישות"
-                class="relative group">
-            <div class="w-12 h-12 rounded-full flex items-center justify-center
-                        hover:bg-blue-50 active:scale-95 transition-all duration-150">
-                <i class="fa-solid fa-universal-access text-blue-500 text-[20px]"></i>
-            </div>
-            <span class="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap
-                         text-[10px] font-bold text-white bg-slate-800/90 px-2.5 py-1 rounded-full
-                         opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100
-                         transition-all duration-150 origin-bottom pointer-events-none">
-                נגישות
-            </span>
+        <button id="pill-hide-btn" onclick="(function(){document.getElementById('floating-pill').style.opacity='0.1';document.getElementById('floating-pill').style.pointerEvents='none';sessionStorage.setItem('pill_hidden','1');setTimeout(()=>{document.getElementById('pill-hidden-restore').classList.remove('hidden')},300);})()"
+          class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition text-[10px] ml-1" title="הסתר זמנית">
+          <i class="fa-solid fa-minus"></i>
         </button>
+
     </div>
+
+    <!-- נגישות — מינימליסטי, צמוד לדופן ימין -->
+    <button onclick="openAccessibilityModal()"
+            aria-label="הגדרות נגישות"
+            class="fixed top-1/2 -translate-y-1/2 right-0 z-[85]
+                   w-7 h-14 bg-white/80 backdrop-blur-sm
+                   border border-l-0 border-slate-200
+                   rounded-l-xl shadow-md
+                   flex items-center justify-center
+                   hover:w-9 hover:bg-blue-50 active:scale-95
+                   transition-all duration-200 group">
+        <i class="fa-solid fa-universal-access text-blue-400 text-[13px] group-hover:text-blue-600"></i>
+    </button>
 
 <!-- Inventory Count Modal -->
 <div id="inventory-count-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
@@ -5294,5 +5815,65 @@
         </div>
       </div>
     </div>
+
+  <!-- ★ GLOBAL SEARCH MODAL -->
+  <div id="global-search-modal" class="hidden fixed inset-0 z-[9998] flex flex-col" dir="rtl">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeGlobalSearch()"></div>
+    <div class="relative z-10 bg-white rounded-b-3xl shadow-2xl max-h-[85vh] flex flex-col mx-0 mt-0">
+      <!-- שדה חיפוש -->
+      <div class="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
+        <i class="fa-solid fa-magnifying-glass text-indigo-500 text-base flex-shrink-0"></i>
+        <input id="global-search-input" type="text" placeholder="חפש לקוח, הזמנה, מוצר, עובד, משימה..."
+          class="flex-1 text-sm font-medium text-slate-800 bg-transparent outline-none placeholder-slate-400"
+          oninput="runGlobalSearch(this.value)" autofocus>
+        <button onclick="closeGlobalSearch()" class="text-slate-400 hover:text-slate-600 flex-shrink-0">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <!-- תוצאות -->
+      <div id="global-search-results" class="overflow-y-auto flex-1 px-2 py-2">
+        <div class="text-center text-slate-400 text-xs py-8">התחל להקליד לחיפוש...</div>
+      </div>
+    </div>
+  </div>
+
+
+<!-- ★ Help Sheet Modal -->
+<div id="biz-help-sheet" class="fixed inset-0 z-[99997] flex items-end hidden">
+  <div class="absolute inset-0 bg-black/50" onclick="closeBizHelp()"></div>
+  <div class="relative w-full max-w-lg mx-auto bg-white rounded-t-3xl shadow-2xl overflow-hidden">
+    <div class="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 bg-slate-200 rounded-full"></div>
+    <div class="max-h-[78vh] overflow-y-auto modal-scroll pt-7 pb-4 px-5">
+      <div class="flex items-center gap-3 mb-4">
+        <span id="biz-help-icon" class="text-3xl"></span>
+        <h2 id="biz-help-title" class="font-bold text-slate-800 text-xl"></h2>
+      </div>
+      <p id="biz-help-what" class="text-sm text-slate-600 mb-4 leading-relaxed bg-indigo-50 p-3 rounded-xl border border-indigo-100"></p>
+      <h3 class="font-bold text-slate-700 mb-3 text-sm">💡 טיפים ופעולות עיקריות</h3>
+      <ul id="biz-help-tips" class="space-y-2 mb-4"></ul>
+    </div>
+    <div class="px-5 pb-6 pt-3 border-t border-slate-100 bg-white">
+      <button onclick="closeBizHelp()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold text-sm hover:bg-slate-700 transition">הבנתי, סגור</button>
+    </div>
+  </div>
+</div>
+
+<div id="tos-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto modal-scroll">
+        <h3 class="text-xl font-bold mb-4 text-slate-800 border-b border-slate-100 pb-3">תקנון ותנאי שימוש 📜</h3>
+        <div id="tos-modal-content" class="flex-1 text-xs text-slate-600 space-y-4 pr-2 leading-relaxed text-justify">
+            <p class="text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin mr-2"></i>טוען...</p>
+        </div>
+        <button type="button" onclick="closeTosModal()" class="mt-6 w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition">קראתי והבנתי</button>
+    </div>
+</div>
+
+<div id="pill-hidden-restore" class="hidden fixed bottom-3 left-3 z-[90]">
+  <button onclick="document.getElementById('floating-pill').style.opacity='';document.getElementById('floating-pill').style.pointerEvents='';sessionStorage.removeItem('pill_hidden');document.getElementById('pill-hidden-restore').classList.add('hidden')"
+    class="w-10 h-10 bg-slate-800 text-white rounded-full shadow-xl flex items-center justify-center text-sm hover:bg-slate-700 transition" title="הצג עוזרת">
+    <i class="fa-solid fa-robot"></i>
+  </button>
+</div>
+
 </body>
 </html>

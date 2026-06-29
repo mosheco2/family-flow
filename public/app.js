@@ -10,9 +10,22 @@ const getEl = id => document.getElementById(id);
 const val = id => getEl(id) ? getEl(id).value : '';
 const safeStr = str => (str || '').toString().replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
-let currentUser = null; let currentGroup = null; let pollInterval = null; let saToken = null; let saAllGroups = []; let saAllUsers = [];
+let currentUser = null; let currentGroup = null; let pollInterval = null;
 let membersCache = []; let shoppingListCache = []; let wisdomCache = {}; let categoryMapCache = {};
 let bundlesCache = []; let allBundles = []; let pantryCache = [];
+let shopMultiDeleteMode = false; let pantryMultiDeleteMode = false;
+
+function getCatScore(name, normalized) {
+    const lookups = [normalized, name].filter(Boolean);
+    for (const n of lookups) {
+        for (const [cat, items] of Object.entries(PRODUCT_DB)) {
+            if (items.includes(n)) return cat;
+            if (items.some(p => n.includes(p) || (p.split(' ')[0].length > 2 && n.includes(p.split(' ')[0])))) return cat;
+        }
+        if (categoryMapCache[n]) return categoryMapCache[n];
+    }
+    return 'שונות';
+}
 let allTasks = []; let allTransactions = []; let feedCache = [];
 let forecastCache = { startingBalance: 0, items: [] };
 let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
@@ -75,7 +88,7 @@ window.onload = async () => { 
 
     const failsafeTimer = setTimeout(() => { const preloader = getEl('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) { hidePreloaderAndShowAuth('login'); } }, 7000);
     const urlParams = new URLSearchParams(window.location.search); const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
-    if (inviteCode) { getEl('join-code').value = inviteCode; if(inviteRole) getEl('join-role').value = inviteRole; clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; }
+    if (inviteCode) { getEl('join-code').value = inviteCode; if(inviteRole) { getEl('join-role').value = inviteRole; try { setJoinRole(inviteRole); } catch(e) {} } clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; }
     
     const savedSAToken = localStorage.getItem('ofl_sa_token');
     const savedSession = localStorage.getItem('ofl_session'); 
@@ -87,21 +100,11 @@ window.onload = async () => { 
             if(session && session.user && session.group) { 
                 if (session.group.type === 'BUSINESS') { window.location.href = '/business.html'; return; }
                 currentUser = session.user; currentGroup = session.group; 
-                if (savedSAToken) saToken = savedSAToken; 
                 clearTimeout(failsafeTimer); loadDashboard(); return; 
             }
         } catch(e) { localStorage.removeItem('ofl_session'); } 
     }
 
-    // כניסה לסופר-אדמין (אם אין סשן לקוח פעיל)
-    if (savedSAToken) {
-        saToken = savedSAToken; clearTimeout(failsafeTimer); 
-        getEl('auth-container').classList.add('hidden'); 
-        const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden');
-        getEl('sa-dashboard-container').classList.remove('hidden');
-        const preloader = getEl('app-preloader'); if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
-        loadSAData(); return;
-    }
 
     clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
 };
@@ -111,59 +114,32 @@ window.exitImpersonation = function() {
     window.location.reload();
 };
 
-window.impersonateGroup = async function(groupId) {
-    try {
-        const res = await fetch(`${API}/sa/impersonate`, { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json', 'Authorization': saToken},
-            body: JSON.stringify({ groupId: groupId })
-        });
-        const data = await res.json();
-        if(data.success) {
-            localStorage.setItem('ofl_session', JSON.stringify({user: data.user, group: data.group}));
-            window.location.reload(); 
-        } else {
-            showToast('error', data.error || 'שגיאה בהשתלטות');
-        }
-    } catch(e) { showToast('error', 'שגיאת רשת בהשתלטות'); }
-};
 
-window.exitImpersonation = function() {
-    localStorage.removeItem('ofl_session');
-    window.location.reload();
-};
 
-function showToast(t,m) { const el=getEl('toast'); const icon = getEl('toast-icon'); el.classList.remove('hidden'); getEl('toast-message').innerText=m; icon.className=t==='success'?'fa-solid fa-check text-green-400':'fa-solid fa-xmark text-red-400'; setTimeout(()=>el.classList.add('hidden'),3000); }
+function showToast(t,m) { const el=getEl('toast'); const icon = getEl('toast-icon'); el.classList.remove('hidden'); getEl('toast-message').innerText=m; icon.className=t==='success'?'fa-solid fa-check text-green-400':t==='info'?'fa-solid fa-circle-info text-blue-400':'fa-solid fa-xmark text-red-400'; setTimeout(()=>el.classList.add('hidden'),3500); }
+function showOrderStatusToast(orderId, storeName, statusText, isDelivery) {
+    let n = document.getElementById('order-status-notif');
+    if (!n) { n = document.createElement('div'); n.id = 'order-status-notif'; document.body.appendChild(n); }
+    n.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:999999;min-width:260px;max-width:88vw;direction:rtl;';
+    const icon = isDelivery ? '🛵' : '🏃';
+    const borderColor = isDelivery ? '#6366f1' : '#10b981';
+    const textColor = isDelivery ? '#6366f1' : '#059669';
+    const bgColor = isDelivery ? '#eef2ff' : '#ecfdf5';
+    n.innerHTML = `<div style="background:#fff;border:1.5px solid ${borderColor};border-radius:18px;box-shadow:0 8px 32px rgba(0,0,0,0.12);padding:12px 16px;display:flex;align-items:center;gap:12px;animation:slideUpIn 0.3s ease;">
+        <div style="width:40px;height:40px;border-radius:12px;background:${bgColor};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${icon}</div>
+        <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:800;color:#1e293b;">עדכון הזמנה #${orderId}</div>
+            <div style="font-size:11px;color:#64748b;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${storeName}</div>
+            <div style="font-size:13px;font-weight:700;color:${textColor};margin-top:3px;">${statusText}</div>
+        </div>
+        <button onclick="document.getElementById('order-status-notif').remove()" style="font-size:16px;color:#94a3b8;background:none;border:none;cursor:pointer;padding:4px;flex-shrink:0;">✕</button>
+    </div>`;
+    if (n._hideTimer) clearTimeout(n._hideTimer);
+}
 function toggleLoader(a,s) { const txt = getEl(`btn-${a}-text`); const ldr = getEl(`btn-${a}-loader`); if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); } }
 function triggerConfetti() { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
 
-async function handleSALogin(e) {
-    e.preventDefault();
-    try {
-        const res = await fetch(`${API}/superadmin/login`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code: val('sa-code'), password: val('sa-password')}) }); const data = await res.json();
-        if(data.success) { saToken = data.token; localStorage.setItem('ofl_sa_token', saToken); getEl('auth-container').classList.add('hidden'); const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden'); getEl('sa-dashboard-container').classList.remove('hidden'); loadSAData(); } else { showToast('error', data.error); }
-    } catch(err) { showToast('error', 'שגיאת תקשורת'); }
-}
 
-function logoutSA() { saToken = null; localStorage.removeItem('ofl_sa_token'); getEl('sa-dashboard-container').classList.add('hidden'); getEl('auth-container').classList.remove('hidden'); const mw = getEl('main-wrapper'); if(mw) mw.classList.remove('hidden'); switchView('login'); }
-
-async function updateSACredentials() {
-    const newUsername = val('sa-new-username'); const newPassword = val('sa-new-password');
-    if(!newUsername || !newPassword) return showToast('error', 'יש להזין שם משתמש וסיסמה חדשים');
-    if(!confirm('האם אתה בטוח שברצונך לשנות את פרטי הגישה של המנהל הראשי?')) return;
-    try {
-        const res = await fetch(`${API}/superadmin/credentials`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ newUsername, newPassword }) }); const data = await res.json();
-        if(data.success) { showToast('success', 'פרטי ההתחברות שונו בהצלחה!'); getEl('sa-new-username').value = ''; getEl('sa-new-password').value = ''; } else { showToast('error', data.error || 'שגיאה בעדכון פרטים'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
-}
-
-async function saveAllBanners() {
-    try {
-        const res = await fetch(`${API}/superadmin/banners`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ topText: val('sa-banner-top-text'), topLink: val('sa-banner-top-link'), topImg: val('sa-banner-top-img'), bottomText: val('sa-banner-bottom-text'), bottomLink: val('sa-banner-bottom-link'), bottomImg: val('sa-banner-bottom-img'), bizTopText: val('sa-biz-banner-top-text'), bizTopLink: val('sa-biz-banner-top-link'), bizTopImg: val('sa-biz-banner-top-img'), bizBottomText: val('sa-biz-banner-bottom-text'), bizBottomLink: val('sa-biz-banner-bottom-link'), bizBottomImg: val('sa-biz-banner-bottom-img') }) });
-        const data = await res.json();
-        if(data.success) { showToast('success', 'הבאנרים נשמרו בהצלחה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
-    } catch(e) { showToast('error', 'תקלת רשת מול השרת'); }
-}
 
 function applyBannersToDOM(banners) {
     const appTop = getEl('app-banner-top'); const appBottom = getEl('app-banner-bottom');
@@ -210,129 +186,165 @@ async function fetchBanners() {
     } catch(e) {}
 }
 
-async function loadSAData() {
-    fetchBanners();
-    try {
-        const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); const data = await res.json();
-        if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
-        
-        const setVal = (id, v) => { const e = getEl(id); if(e) e.value = v || ''; };
-        setVal('sa-welcome-msg', data.welcomeMsg); setVal('sa-biz-welcome-msg', data.businessWelcomeMsg);
-        setVal('sa-banner-top-text', data.adBannerTextTop); setVal('sa-banner-top-link', data.adBannerLinkTop); setVal('sa-banner-top-img', data.adBannerImgTop);
-        setVal('sa-banner-bottom-text', data.adBannerTextBottom); setVal('sa-banner-bottom-link', data.adBannerLinkBottom); setVal('sa-banner-bottom-img', data.adBannerImgBottom);
-        setVal('sa-biz-banner-top-text', data.bizBannerTextTop); setVal('sa-biz-banner-top-link', data.bizBannerLinkTop); setVal('sa-biz-banner-top-img', data.bizBannerImgTop);
-        setVal('sa-biz-banner-bottom-text', data.bizBannerTextBottom); setVal('sa-biz-banner-bottom-link', data.bizBannerLinkBottom); setVal('sa-biz-banner-bottom-img', data.bizBannerImgBottom);
 
-        const setTxt = (id, v) => { const e = getEl(id); if(e) e.innerText = v || 0; };
-        if(data.stats) { setTxt('sa-stat-families', data.stats.families); setTxt('sa-stat-businesses', data.stats.businesses); setTxt('sa-stat-family-users', data.stats.familyUsers); setTxt('sa-stat-biz-users', data.stats.businessUsers); }
-
-        const actList = getEl('sa-activity-list');
-        if(actList) {
-            actList.innerHTML = data.activity.map(a => { const amountHtml = a.is_financial ? `<span class="font-bold text-slate-800 dir-ltr">(₪${a.amount})</span>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">הרשמה</span>`; return `<div class="text-xs border-b pb-2 mb-2 flex justify-between items-center"><div class="flex-1"><span class="font-bold text-slate-700">${new Date(a.date).toLocaleDateString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span> | ${safeStr(a.group_name)} | <span class="font-bold">${safeStr(a.user_name)}</span> | ${safeStr(a.description)}</div> ${amountHtml}</div>`; }).join('');
-            if (data.activity.length === 0) actList.innerHTML = '<p class="text-slate-400 text-sm">אין פעילות עדיין במערכת...</p>';
-        }
-        saAllGroups = data.groups; saAllUsers = data.users; renderSAGroups();
-        
-        // כאן קוראים לטעינת הקהילות מיד כשהמנהל נכנס!
-        loadSACommunityData();
-        
-    } catch(e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
-}
-
-function renderSAGroups() {
-    const groupsList = getEl('sa-groups-list'); let gHtml = ''; const term = val('sa-search-group').toLowerCase();
-    const filteredGroups = saAllGroups.filter(g => (g.name && g.name.toLowerCase().includes(term)) || (g.group_code && g.group_code.toLowerCase().includes(term)));
-    if(filteredGroups.length === 0) { groupsList.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">לא נמצאו סביבות התואמות לחיפוש.</p>'; return; }
-    
-    filteredGroups.forEach(g => {
-        let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => `
-            <div class="flex justify-between items-center bg-slate-50 p-2 mt-1 rounded border border-slate-100 text-sm">
-                <span>${safeStr(u.nickname)} <span class="text-[10px] text-slate-400">(${u.role === 'ADMIN' ? 'הורה/מנהל' : 'בן משפחה/עובד'})</span></span>
-                <div class="flex gap-1">
-                    <button onclick="openSAEditUserModal(${u.id}, '${safeStr(u.nickname)}')" class="text-blue-400 hover:text-blue-600 bg-white p-1 rounded shadow-sm transition"><i class="fa-solid fa-pen"></i></button>
-                    <button onclick="saDeleteUser(${u.id})" class="text-red-400 hover:text-red-600 bg-white p-1 rounded shadow-sm transition"><i class="fa-solid fa-trash"></i></button>
-                </div>
-            </div>
-        `).join('');
-        
-        if (!uHtml) uHtml = '<p class="text-xs text-slate-400 py-1">אין משתמשים רשומים.</p>';
-        const isPro = g.is_premium ? '<span class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold ml-2">PRO</span>' : '';
-        const aiTokens = g.is_premium ? '∞' : (g.ai_tokens !== undefined ? g.ai_tokens : 10);
-        const proToggleBtn = g.is_premium ? `<button onclick="saTogglePremium(${g.id}, false)" class="bg-orange-100 text-orange-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-orange-200 transition"><i class="fa-solid fa-crown"></i> בטל Pro</button>` : `<button onclick="saTogglePremium(${g.id}, true)" class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-3 py-1 rounded text-[10px] font-bold hover:opacity-90 transition"><i class="fa-solid fa-crown"></i> הפעל Pro</button>`;
-        const typeBadge = g.type === 'BUSINESS' ? '<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200"><i class="fa-solid fa-briefcase mr-1"></i> עסק</span>' : '<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-emerald-200"><i class="fa-solid fa-house mr-1"></i> משפחה</span>';
-        const createdDate = g.created_at ? new Date(g.created_at).toLocaleDateString('he-IL') : 'לא ידוע';
-        
-        gHtml += `
-        <div class="bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm">
-            <div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')">
-                <div class="flex items-center">
-                    <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i></div>
-                    <div>
-                        <h3 class="font-bold text-slate-800 text-sm flex items-center">${safeStr(g.name)} ${isPro} ${typeBadge}</h3>
-                        <p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p>
-                    </div>
-                </div>
-                <i class="fa-solid fa-chevron-down text-slate-300"></i>
-            </div>
-            <div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50">
-                <div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap">
-                    <h4 class="text-xs font-bold text-slate-600">משתמשים:</h4>
-                    <div class="flex gap-2 flex-wrap">
-                        <button onclick="impersonateGroup(${g.id})" class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-emerald-200 transition"><i class="fa-solid fa-right-to-bracket"></i> התחבר למשפחה</button>
-                        <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(g.name)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך שם</button>
-                        <button onclick="open360Report(${g.id})" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-eye"></i> דוח 360</button>
-                        ${proToggleBtn}
-                        <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
-                    </div>
-                </div>
-                ${uHtml}
-            </div>
-        </div>`;
-    }); 
-    groupsList.innerHTML = gHtml;
-}
 
 // פונקציות העריכה
-function openSAEditGroupModal(id, name) {
-    getEl('sa-edit-group-id').value = id;
-    getEl('sa-edit-group-name').value = name;
-    getEl('sa-edit-group-modal').classList.remove('hidden');
+
+function checkAndStartTour(force) {
+    if (!currentUser) return;
+    const key = `tour_done_${currentUser.id}`;
+    if (!force && localStorage.getItem(key)) return;
+    localStorage.setItem(key, '1');
+    try { showFamilyTour(); } catch(e) {}
 }
 
-async function saveSAEditGroup() {
-    const id = val('sa-edit-group-id');
-    const name = val('sa-edit-group-name');
-    if (!name) return showToast('error', 'שם לא יכול להיות ריק');
-    try {
-        const res = await fetch(`${API}/sa/groups/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name }) });
-        if ((await res.json()).success) {
-            showToast('success', 'שם עודכן בהצלחה');
-            getEl('sa-edit-group-modal').classList.add('hidden');
-            loadSAData();
-        } else showToast('error', 'שגיאה בעדכון השם');
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-}
+window.triggerManualTour = function() {
+    try { showFamilyTour(); } catch(e) {}
+};
 
-function openSAEditUserModal(id, nickname) {
-    getEl('sa-edit-user-id').value = id;
-    getEl('sa-edit-user-name').value = nickname;
-    getEl('sa-edit-user-pass').value = '';
-    getEl('sa-edit-user-modal').classList.remove('hidden');
-}
+function showFamilyTour() {
+    const isAdmin = currentUser?.role === 'ADMIN';
+    const slides = isAdmin ? [
+        {
+            bg: 'from-violet-600 to-indigo-700',
+            emoji: '👨‍👩‍👧‍👦',
+            title: 'ברוכים הבאים ל-Oneflow Life!',
+            subtitle: 'המערכת שתשנה את האופן שבו המשפחה שלכם מתנהלת — כסף, קניות, וצמיחה יחד.',
+            features: [
+                { icon: '🏦', text: 'בנק משפחתי לניהול תקציב, דמי כיס וחיסכון לילדים' },
+                { icon: '🛒', text: 'רשימת קניות חכמה ושיתופית לכל המשפחה' },
+                { icon: '✅', text: 'משימות ותגמולים שמחנכים ילדים לאחריות פיננסית' },
+            ]
+        },
+        {
+            bg: 'from-emerald-500 to-teal-600',
+            emoji: '🛒',
+            title: 'הסופר החכם שלכם',
+            subtitle: 'נהלו קניות ביחד — כולם רואים את הרשימה, ואפשר לסמן מוצרים בזמן אמת מהסופר.',
+            features: [
+                { icon: '✨', text: 'AI ייצור עבורכם רשימת קניות שבועית שלמה תוך שניות' },
+                { icon: '📸', text: 'סרקו קבלה בסיום הקנייה — familAI תזין את כל הנתונים אוטומטית' },
+                { icon: '🔴', text: 'מצב "אני בסופר" — כל המשפחה רואה מה נאסף בזמן אמת' },
+            ]
+        },
+        {
+            bg: 'from-amber-500 to-orange-500',
+            emoji: '✅',
+            title: 'משימות ותגמולים',
+            subtitle: 'הגדירו משימות בית, תמחרו אותן, והילדים יקבלו תגמול כספי ישירות לארנק שלהם.',
+            features: [
+                { icon: '💪', text: 'הגדירו משימות יומיות, שבועיות או חד-פעמיות לכל ילד' },
+                { icon: '💰', text: 'הילדים מקבלים כסף אמיתי לארנק הדיגיטלי שלהם' },
+                { icon: '🎓', text: 'חידונים פיננסיים עם תגמולים לחינוך פיננסי מהנה' },
+            ]
+        },
+        {
+            bg: 'from-blue-500 to-cyan-600',
+            emoji: '📊',
+            title: 'תקציב ותשקיף',
+            subtitle: 'הגדירו יעדי הוצאות, עקבו אחרי הכסף, ו-familAI ייתן לכם טיפים לחיסכון.',
+            features: [
+                { icon: '📅', text: 'תשקיף תזרים — תכננו קדימה ודעו מה מצפה לכם' },
+                { icon: '🤖', text: 'familAI מנתח את ההוצאות ומציע דרכים לחסוך' },
+                { icon: '📦', text: 'ניהול מזווה — עקבו אחרי המלאי והעבירו לקניות בקליק' },
+            ]
+        },
+        {
+            bg: 'from-rose-500 to-pink-600',
+            emoji: '🚀',
+            title: 'מוכנים להתחיל?',
+            subtitle: 'הזמינו את בני המשפחה בוואטסאפ, הגדירו דמי כיס, וצאו לדרך יחד!',
+            features: [
+                { icon: '📱', text: 'שלחו הזמנה לבני המשפחה ישירות מתפריט "חברים"' },
+                { icon: '⚡', text: 'סוללת ה-AI מתאפסת כל יום — 10 פעולות חינמיות מדי יום' },
+                { icon: '💡', text: 'לחצו על "?" בכל מקום לקבלת עזרה' },
+            ]
+        }
+    ] : [
+        {
+            bg: 'from-violet-500 to-purple-700',
+            emoji: '🎉',
+            title: 'ברוכים הבאים ל-Oneflow!',
+            subtitle: 'כאן מתחיל המסע שלך — תרוויח כסף, תחסוך ותתנהל כמו מומחה אמיתי.',
+            features: [
+                { icon: '💰', text: 'ביצוע משימות בית = כסף אמיתי ישר לארנק שלך' },
+                { icon: '🎓', text: 'ענה על חידונים פיננסיים וקבל בונוסים מיוחדים' },
+                { icon: '🛒', text: 'בקש להוסיף מוצרים לרשימת הקניות המשפחתית' },
+            ]
+        },
+        {
+            bg: 'from-emerald-500 to-teal-600',
+            emoji: '💳',
+            title: 'הארנק האישי שלך',
+            subtitle: 'כל שקל שהרווחת מופיע כאן — ממשימות, מדמי כיס ומחידונים.',
+            features: [
+                { icon: '🏦', text: 'פתח קופת חיסכון ליעד שאתה חולם עליו' },
+                { icon: '📈', text: 'צבור ריבית על כסף שאתה חוסך — כמו אצל הבנק האמיתי' },
+                { icon: '📊', text: 'עקוב אחרי ההוצאות שלך ולמד לתכנן חכם' },
+            ]
+        },
+        {
+            bg: 'from-amber-500 to-orange-500',
+            emoji: '🚀',
+            title: 'בואו נתחיל!',
+            subtitle: 'בחר משימה, תסיים אותה, ותראה את הכסף מגיע ישירות אליך.',
+            features: [
+                { icon: '✅', text: 'היכנסו ל"משימות" ובחרו משימה לביצוע עכשיו' },
+                { icon: '🛒', text: 'ב"קניות" אפשר לבקש מההורים להוסיף דברים לרשימה' },
+                { icon: '🎓', text: 'באקדמיה מחכים לך חידונים כיפיים עם פרסים' },
+            ]
+        }
+    ];
 
-async function saveSAEditUser() {
-    const id = val('sa-edit-user-id');
-    const nickname = val('sa-edit-user-name');
-    const password = val('sa-edit-user-pass');
-    if (!nickname) return showToast('error', 'כינוי לא יכול להיות ריק');
-    try {
-        const res = await fetch(`${API}/sa/users/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ nickname, password }) });
-        if ((await res.json()).success) {
-            showToast('success', 'המשתמש עודכן בהצלחה!');
-            getEl('sa-edit-user-modal').classList.add('hidden');
-            loadSAData();
-        } else showToast('error', 'שגיאה בעדכון משתמש');
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    document.getElementById('ofl-fam-tour-overlay')?.remove();
+    let idx = 0;
+
+    function renderSlide() {
+        document.getElementById('ofl-fam-tour-overlay')?.remove();
+        const s = slides[idx];
+        const isLast = idx === slides.length - 1;
+        const dots = slides.map((_, i) =>
+            `<div style="width:${i===idx?'28px':'8px'};height:8px;border-radius:999px;background:${i===idx?'rgba(255,255,255,0.95)':'rgba(255,255,255,0.35)'};transition:all 0.35s ease"></div>`
+        ).join('');
+        const feats = s.features.map(f =>
+            `<div style="display:flex;align-items:flex-start;gap:14px;padding:14px 16px;background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.07);border:1px solid #f1f5f9"><span style="font-size:22px;flex-shrink:0;margin-top:2px">${f.icon}</span><span style="font-size:13px;color:#334155;line-height:1.55;font-weight:500">${f.text}</span></div>`
+        ).join('');
+
+        const el = document.createElement('div');
+        el.id = 'ofl-fam-tour-overlay';
+        el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:flex-end;justify-content:center;font-family:Rubik,sans-serif;direction:rtl;background:rgba(15,23,42,0.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);';
+        el.innerHTML = `
+<div style="width:100%;max-width:480px;border-radius:28px 28px 0 0;overflow:hidden;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,0.3);">
+  <div class="bg-gradient-to-br ${s.bg}" style="padding:28px 24px 40px;flex-shrink:0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:7px">${dots}</div>
+      <button id="ofl-fam-tour-skip" style="color:rgba(255,255,255,0.85);font-size:13px;font-weight:600;background:rgba(0,0,0,0.18);border:none;cursor:pointer;font-family:Rubik,sans-serif;padding:7px 16px;border-radius:20px;">דלג</button>
+    </div>
+    <div style="text-align:center">
+      <div style="width:92px;height:92px;border-radius:50%;background:rgba(255,255,255,0.18);border:2px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:46px;margin:0 auto 20px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">${s.emoji}</div>
+      <h2 style="font-size:22px;font-weight:900;color:#fff;margin:0 0 8px;letter-spacing:-0.3px">${s.title}</h2>
+      <p style="color:rgba(255,255,255,0.82);font-size:14px;line-height:1.6;margin:0;font-weight:400">${s.subtitle}</p>
+    </div>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:20px 16px 8px;display:flex;flex-direction:column;gap:10px;background:#f8fafc;">
+    ${feats}
+  </div>
+  <div style="padding:14px 16px 28px;background:#f8fafc;">
+    <button id="ofl-fam-tour-next" class="bg-gradient-to-r ${s.bg}" style="width:100%;color:#fff;font-weight:800;font-size:16px;padding:15px;border-radius:16px;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.2);font-family:Rubik,sans-serif;">
+      ${isLast ? '🚀 בואו נתחיל!' : 'הבא →'}
+    </button>
+  </div>
+</div>`;
+
+        document.body.appendChild(el);
+        document.getElementById('ofl-fam-tour-skip').onclick = () => document.getElementById('ofl-fam-tour-overlay')?.remove();
+        document.getElementById('ofl-fam-tour-next').onclick = () => {
+            if (isLast) { document.getElementById('ofl-fam-tour-overlay')?.remove(); }
+            else { idx++; renderSlide(); }
+        };
+    }
+
+    renderSlide();
 }
 
 function startAdminTour() {
@@ -397,7 +409,26 @@ function switchView(view) {
     const tg = getEl(`view-${view}`); if(tg) tg.classList.remove('hidden'); 
 }
 
-function openTosModal(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const modal = getEl('tos-modal'); if(modal) modal.classList.remove('hidden'); }
+function openTosModal(e, docKey) {
+    if(e) { e.preventDefault(); e.stopPropagation(); }
+    const modal = getEl('tos-modal');
+    if(!modal) return;
+    modal.classList.remove('hidden');
+    const contentEl = getEl('tos-modal-content');
+    if(!contentEl) return;
+    const key = docKey || 'legal_tos_family';
+    contentEl.innerHTML = '<p class="text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin mr-2"></i>טוען...</p>';
+    fetch(`${API}/public/legal/${key}`)
+        .then(r => r.json())
+        .then(data => {
+            if(data.success && data.content) {
+                contentEl.innerHTML = data.content;
+            } else {
+                contentEl.innerHTML = '<p class="text-slate-400 text-center py-4">לא נמצא תוכן למסמך זה.</p>';
+            }
+        })
+        .catch(() => { contentEl.innerHTML = '<p class="text-red-400 text-center py-4">שגיאה בטעינת המסמך.</p>'; });
+}
 function closeTosModal() { const modal = getEl('tos-modal'); if(modal) modal.classList.add('hidden'); }
 
 async function handleLogin(e) { 
@@ -414,12 +445,27 @@ async function handleLogin(e) {
     } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
 }
 
+
+function _requiresPhone(birthYear) {
+    const y = parseInt(birthYear);
+    if (!y || isNaN(y)) return false;
+    return (new Date().getFullYear() - y) >= 10;
+}
+
 async function handleCreate(e) { 
     e.preventDefault(); 
     if(!getEl('create-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); 
     forceTourStart = true; toggleLoader('login', true); 
     try { 
-        const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }) }); 
+        const _cPhone = val('create-phone');
+        const _cType = val('create-type');
+        const _birthYear = _cType === 'FAMILY' ? val('create-year') : (val('create-year-biz') || val('create-year'));
+        if (_requiresPhone(_birthYear) && !_cPhone.trim()) { showToast('error', 'מספר טלפון הוא שדה חובה מגיל 10'); toggleLoader('login', false); return; }
+        const _firstName = val('create-first-name') || '';
+        const _lastName = val('create-last-name') || '';
+        const _familyNickname = val('create-family-nickname') || '';
+        const _adminNickname = _lastName ? `${_firstName} ${_lastName}`.trim() : _firstName;
+        const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type: _cType, groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: _adminNickname, firstName: _firstName, lastName: _lastName, familyNickname: _familyNickname, birthYear: _birthYear, password: val('create-password'), phone: _cPhone }) });
         const data = await res.json(); 
         if(data.success) { 
             currentUser = data.user; currentGroup = data.group; 
@@ -440,9 +486,22 @@ async function handleCreate(e) {
     } finally { toggleLoader('login', false); } 
 }
 
-async function handleJoin(e) { 
+function setJoinRole(role) {
+    const adminBtn = getEl('join-role-admin-btn');
+    const childBtn = getEl('join-role-child-btn');
+    const roleInput = getEl('join-role');
+    if (!adminBtn || !childBtn || !roleInput) return;
+    const isAdmin = role === 'ADMIN';
+    roleInput.value = isAdmin ? 'ADMIN' : 'CHILD';
+    adminBtn.className = `flex-1 py-3 rounded-2xl font-bold text-sm border-2 transition flex flex-col items-center gap-1 ${isAdmin ? 'border-indigo-500 bg-indigo-500 text-white shadow' : 'border-slate-200 bg-white text-slate-500 shadow-sm'}`;
+    childBtn.className = `flex-1 py-3 rounded-2xl font-bold text-sm border-2 transition flex flex-col items-center gap-1 ${!isAdmin ? 'border-violet-500 bg-violet-500 text-white shadow' : 'border-slate-200 bg-white text-slate-500 shadow-sm'}`;
+}
+
+async function handleJoin(e) {
     e.preventDefault(); if(!getEl('join-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); forceTourStart = true; 
-    const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) }); 
+    const _jPhone = val('join-phone');
+    if (_requiresPhone(val('join-year')) && !_jPhone.trim()) { showToast('error', 'מספר טלפון הוא שדה חובה מגיל 10'); return; }
+    const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), email: val('join-email'), password: val('join-password'), phone: _jPhone }) });
     const d=await res.json(); 
     if(d.success) { showToast('success', 'בקשתך נשלחה בהצלחה! יש להמתין לאישור מנהל הסביבה.'); window.history.replaceState({}, document.title, window.location.pathname); switchView('login'); } else showToast('error', d.error); 
 }
@@ -451,154 +510,789 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','tasks','shop','myorders','bank','cashflow','community','academy','members','budget','pantry','recipes','forecast'].forEach(x => { 
+    ['feed','tasks','shop','myorders','bank','cashflow','community','academy','members','budget','pantry','recipes','forecast','home-maintenance'].forEach(x => { 
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
     }); 
-    const targetContent = getEl(`content-${t}`); if(targetContent) targetContent.classList.remove('hidden'); 
-    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
-    
-    if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
+    const targetContent = getEl(`content-${t}`); if(targetContent) { targetContent.classList.remove('hidden','tab-anim'); void targetContent.offsetWidth; targetContent.classList.add('tab-anim'); }
+    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active');
+    window._currentFamilyTab = t;
+
+    if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
     else { try { renderShopList(); } catch(e) {} }
     
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
     if (t === 'recipes') try { renderRecipePantrySelection(); } catch(e) {}
     if (t === 'forecast') try { renderForecast(); } catch(e) {}
     if (t === 'cashflow') try { renderCashflow(); } catch(e) {}
+    if (t === 'budget') try { fetchBudget(); } catch(e) {}
     if (t === 'community') try { fetchCommunityData(); } catch(e) {}
-    if (t === 'myorders') try { fetchMyOrders(); } catch(e) {}
+    if (t === 'myorders') {
+        try {
+            const lastSubTab = sessionStorage.getItem('myorders_sub_tab') || 'orders';
+            switchMyOrdersTab(lastSubTab);
+            fetchMyOrders();
+            loadFamilyServiceCalls();
+            startMyOrdersAutoRefresh();
+        } catch(e) {}
+    }
+    if (t === 'home-maintenance') try { loadHomeMaintenance(); } catch(e) {}
 }
 
 let myOrdersCache = [];
 
-async function fetchMyOrders() {
-    const list = getEl('my-orders-list');
-    if (!list) return;
-    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען הזמנות מהעסקים... <i class="fa-solid fa-spinner fa-spin ml-1"></i></p>';
-    
-    try {
-        const res = await fetch(`${API}/store/orders/my/${currentUser.id}`);
-        const data = await res.json();
-        
-        if (data.success) {
-            myOrdersCache = data.orders || [];
-            renderMyOrders();
-        } else {
-            list.innerHTML = `<p class="text-xs text-red-500 text-center py-10">${data.error || 'שגיאה בטעינת ההזמנות'}</p>`;
-        }
-    } catch (e) {
-        list.innerHTML = '<p class="text-xs text-red-500 text-center py-10">שגיאת תקשורת מול השרת</p>';
-    }
+// --- Auto-refresh כל 20 שניות כשב-myorders ---
+let _myordersRefreshInterval = null;
+function startMyOrdersAutoRefresh() {
+    if (_myordersRefreshInterval) return;
+    _myordersRefreshInterval = setInterval(async () => {
+        try {
+            const res = await fetch(`${API}/store/orders/my/${currentUser.id}`);
+            const d = await res.json();
+            if (d.success) {
+                const newOrders = d.orders || [];
+                // Check for status changes and add notifications
+                if (window._previousOrdersCache) {
+                    const oldMap = new Map((window._previousOrdersCache || []).map(o => [o.id, o]));
+                    let hasChanges = false;
+                    newOrders.forEach(newOrder => {
+                        const oldOrder = oldMap.get(newOrder.id);
+                        if (oldOrder && oldOrder.status !== newOrder.status) {
+                            console.log('[polling] Status changed:', { orderId: newOrder.id, oldStatus: oldOrder.status, newStatus: newOrder.status });
+                            hasChanges = true;
+                            // Order status changed - add bell badge notification
+                            const badge = getEl('bell-badge');
+                            if (badge) {
+                                const count = parseInt(badge.textContent || '0') + 1;
+                                badge.textContent = count;
+                                badge.classList.remove('hidden');
+                                badge.style.animation = 'pulse 0.5s';
+                                setTimeout(() => badge.style.animation = '', 500);
+                            }
+                            // Toast מעוצב עם פרטי ההזמנה — מותאם לסוג (משלוח / איסוף עצמי)
+                            const isDeliv = !!(newOrder.is_delivery == 1 || newOrder.is_delivery === true || newOrder.is_delivery === 'true');
+                            const statusMap = {
+                                pending_approval: 'ממתין לאישור',
+                                new:              'התקבל בעסק ✅',
+                                processing:       'בהכנה 🍳',
+                                ready:            isDeliv ? 'מוכן לשליחה 📦' : 'מוכן לאיסוף — אפשר לבוא 🏃',
+                                shipped:          isDeliv ? 'בדרך אליך 🛵' : 'מוכן לאיסוף ✅',
+                                delivering:       isDeliv ? 'בדרך אליך 🛵' : 'מוכן לאיסוף ✅',
+                                completed:        'הושלם ✅',
+                                cancelled:        'בוטל ❌'
+                            };
+                            showOrderStatusToast(newOrder.id, newOrder.store_name || 'העסק', statusMap[newOrder.status] || newOrder.status, isDeliv);
+                        }
+                    });
+                    // רענן accordions אם יש שינוי סטטוס
+                    if (hasChanges) {
+                        document.querySelectorAll('.biz-accordion').forEach(accordion => {
+                            const wrapper = accordion.closest('[data-biz-id]');
+                            const bizGroupId = wrapper?.dataset?.bizId;
+                            if (bizGroupId && currentGroup) {
+                                // מחק ה-cache כדי שהaccordion יטען נתונים חדשים בפתיחה הבאה
+                                delete accordion.dataset.loaded;
+                                // אם accordion פתוח, רענן אוטומטית
+                                if (!accordion.classList.contains('hidden')) {
+                                    fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`)
+                                        .then(r => r.json())
+                                        .then(res => _renderBizAccordion(accordion, res, res.type || 'restaurant'))
+                                        .catch(() => {});
+                                }
+                            }
+                        });
+                    }
+                }
+                window._previousOrdersCache = newOrders;
+                myOrdersCache = newOrders;
+                // עדכן UI כשבטאב myorders
+                if (window._currentFamilyTab === 'myorders') {
+                    const currentSubTab = sessionStorage.getItem('myorders_sub_tab') || 'orders';
+                    if (currentSubTab === 'orders') {
+                        renderMyOrders();
+                    }
+                }
+            }
+        } catch(e) {}
+        const activitiesSection = getEl('myorders-section-activities');
+        if (activitiesSection && !activitiesSection.classList.contains('hidden') && currentGroup) {
+            try {
+                // עדכן cache של accordions בטאב הפעילויות בלי לרענן את ה-DOM
+                // כשהמשתמש יפתח accordion, הוא יטען נתונים חדשים
+                document.querySelectorAll('#myorders-section-activities .biz-accordion').forEach(accordion => {
+                    const wrapper = accordion.closest('[data-biz-id]');
+                    if (wrapper?.dataset?.bizId && currentGroup) {
+                        delete accordion.dataset.loaded;
+                    }
+                });
+            } catch(e) {}
+        }
+        const quotesSection = getEl('myorders-section-quotes');
+        if (quotesSection && !quotesSection.classList.contains('hidden') && currentGroup) {
+            try {
+                const uid = currentUser ? currentUser.id : '';
+                const res = await fetch(`${API}/store/quotes/family/${currentGroup.id}?userId=${uid}`);
+                const d = await res.json();
+                if (d.success) { familyQuotesCache = d.quotes || []; renderFamilyQuotesTab(); }
+            } catch(e) {}
+        }
+    }, 3000);
 }
+
+async function fetchMyOrders() {
+    const list = getEl('my-orders-list');
+    if (!list) return;
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען הזמנות מהעסקים... <i class="fa-solid fa-spinner fa-spin ml-1"></i></p>';
+    
+    const timeoutId = setTimeout(() => {
+        if (list.querySelector('.fa-spinner')) {
+            list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">לא הצלחנו לטעון נסה לרענן את הדף</p>';
+        }
+    }, 10000);
+    
+    try {
+        const res = await fetch(`${API}/store/orders/my/${currentUser.id}`);
+        const data = await res.json();
+        clearTimeout(timeoutId);
+        
+        if (data.success) {
+            myOrdersCache = data.orders || [];
+            renderMyOrders();
+        } else {
+            list.innerHTML = `<p class="text-xs text-red-500 text-center py-10">${data.error || 'שגיאה בטעינת ההזמנות'}</p>`;
+        }
+    } catch (e) {
+        clearTimeout(timeoutId);
+        list.innerHTML = '<p class="text-xs text-red-500 text-center py-10">שגיאת תקשורת מול השרת</p>';
+    }
+}
+
+window._myOrdersPage = window._myOrdersPage || 0;
+window._myOrdersFilter = window._myOrdersFilter || 'orders';
+window._myOrdersSearch = window._myOrdersSearch || '';
+window._ordersFilter = window._ordersFilter || { search: '', period: 'all', sort: 'desc' };
+window._scTypeFilter = window._scTypeFilter || 'all';
+
+function _renderOrderItems(items) {
+    let arr = items;
+    if (!arr) return '<span class="text-slate-400 text-[11px]">ללא פרטים</span>';
+    if (typeof arr === 'string') { try { arr = JSON.parse(arr); } catch(e) { return `<span class="text-slate-500 text-[11px]">${safeStr(arr)}</span>`; } }
+    if (!Array.isArray(arr)) return '<span class="text-slate-400 text-[11px]">ללא פרטים</span>';
+    const visible = arr.filter(i => !i.is_quote_metadata && (i.name || i.item_name));
+    if (!visible.length) return '<span class="text-slate-400 text-[11px]">ללא פרטים</span>';
+    return visible.map(i => {
+        const name = i.name || i.item_name || '';
+        const qty = parseFloat(i.quantity || i.qty || 1);
+        const price = parseFloat(i.price || i.price_per_unit || 0);
+        const lineTotal = qty * price;
+        return `<div class="flex justify-between items-center py-1 border-b border-slate-50 last:border-0 gap-2">
+            <span class="text-slate-700 text-[11px] flex-1 min-w-0">${safeStr(name)}</span>
+            <span class="text-slate-400 text-[10px] shrink-0 dir-ltr">×${qty}${lineTotal > 0 ? ' · ₪' + lineTotal.toFixed(0) : ''}</span>
+        </div>`;
+    }).join('');
+}
+
+function applyOrdersFilter(orders) {
+    const f = window._ordersFilter;
+    let result = [...orders];
+    if (f.search) {
+        const q = f.search.toLowerCase();
+        result = result.filter(o => (o.store_name||'').toLowerCase().includes(q) || (o.customer_name||'').toLowerCase().includes(q) || (o.notes||'').toLowerCase().includes(q));
+    }
+    if (f.period !== 'all') {
+        const now = Date.now();
+        const ms = { week: 7*864e5, month: 30*864e5, quarter: 90*864e5 }[f.period] || 0;
+        if (ms) {
+            result = result.filter(o => {
+                const createdMs = now - new Date(o.created_at).getTime();
+                // הצג אם נוצרה בתקופה
+                if (createdMs <= ms) return true;
+                // הצג גם אם עדיין בעיבוד (לא סיימה/בוטלה) — אנחנו סוקדים שהסטטוס עדכן לאחרונה
+                const inProgress = !['completed', 'cancelled', 'done'].includes(o.status);
+                return inProgress;
+            });
+        }
+    }
+    if (f.sort === 'asc') result.sort((a,b) => new Date(a.created_at)-new Date(b.created_at));
+    else result.sort((a,b) => new Date(b.created_at)-new Date(a.created_at));
+    return result;
+}
+function switchMyOrdersTab(tab) {
+    // redirect beauty to activities (tab removed)
+    if (tab === 'beauty') tab = 'activities';
+    try { sessionStorage.setItem('myorders_sub_tab', tab); } catch(e) {}
+    ['orders','activities','faults','quotes'].forEach(t => {
+        const btn = getEl(`myorders-tab-${t}`);
+        const sec = getEl(`myorders-section-${t}`);
+        if (btn) btn.className = `flex-1 py-2 text-xs rounded-xl transition ${t === tab ? 'font-black bg-white text-slate-700 shadow-sm' : 'font-bold text-slate-500'}`;
+        if (sec) sec.classList.toggle('hidden', t !== tab);
+    });
+    if (tab === 'faults') renderBusinessServiceCallsTab();
+    if (tab === 'quotes') loadFamilyQuotes();
+    if (tab === 'activities') loadMyActivities();
+}
+
+async function renderMyFaultsAsServiceCalls() {
+    const list = getEl('my-service-calls-list'); if (!list) return;
+    // טען נתוני תקלות אם לא נטענו עדיין
+    if (!hmFaults || !hmFaults.length) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
+        try {
+            const r = await fetch(`/api/equipment/faults/${currentGroup.id}`);
+            const d = await r.json();
+            if (d.success) hmFaults = d.faults || [];
+        } catch(e) {}
+    }
+    const statusColors = { open: 'border-red-200 bg-red-50', in_progress: 'border-orange-200 bg-orange-50', resolved: 'border-green-200 bg-green-50' };
+    const statusLabels = { open: 'פתוח', in_progress: 'בטיפול', resolved: 'טופל' };
+    const sevColors = { low: 'bg-slate-100 text-slate-600', medium: 'bg-amber-100 text-amber-700', high: 'bg-orange-100 text-orange-700', critical: 'bg-red-100 text-red-700' };
+    const sevLabels = { low: 'נמוכה', medium: 'בינונית', high: 'גבוהה', critical: 'קריטית' };
+    const activeFaults = (hmFaults || []).filter(f => f.status !== 'resolved');
+    if (!activeFaults.length) {
+        list.innerHTML = `<div class="text-center py-10 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-circle-check text-3xl mb-2 opacity-30 block"></i><p class="text-sm">אין קריאות שירות פתוחות</p><p class="text-xs mt-1 px-4">לפתיחת קריאה חדשה — נהול הבית ← בעיות ← הוסף בעיה</p></div>`;
+        return;
+    }
+    list.innerHTML = activeFaults.map(f => {
+        const sc = statusColors[f.status] || 'border-slate-200 bg-white';
+        const sl = statusLabels[f.status] || f.status;
+        const sev = sevColors[f.severity] || 'bg-slate-100 text-slate-600';
+        const sevL = sevLabels[f.severity] || f.severity;
+        const dateStr = new Date(f.created_at).toLocaleDateString('he-IL');
+        const phone = f.fault_tech_phone;
+        return `<div class="bg-white border ${sc} rounded-2xl p-4 shadow-sm">
+            <div class="flex items-start justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5 flex-wrap mb-1">
+                        <span class="font-bold text-slate-800 text-sm">${safeStr(f.title)}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${sev}">${sevL}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${sc.replace('bg-','text-').replace('-50','')}">${sl}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mb-1">${safeStr(f.equipment_name || '')} · ${dateStr}</p>
+                    ${f.fault_tech_name ? `<p class="text-[11px] text-indigo-600"><i class="fa-solid fa-user-gear ml-1"></i>${safeStr(f.fault_tech_name)}${f.fault_tech_company ? ' — ' + safeStr(f.fault_tech_company) : ''}</p>` : ''}
+                    ${f.scheduled_date ? `<p class="text-[10px] text-indigo-500 font-bold mt-0.5"><i class="fa-solid fa-calendar-check ml-1"></i>${new Date(f.scheduled_date).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'})}</p>` : ''}
+                    ${phone ? `<div class="flex gap-1.5 mt-2 flex-wrap">
+                        <a href="tel:${phone.replace(/\D/g,'')}" class="flex items-center gap-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-lg"><i class="fa-solid fa-phone"></i> חייג</a>
+                        <a href="https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent('שלום, בנוגע לקריאה: ' + f.title)}" target="_blank" class="flex items-center gap-1 text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 px-2 py-1 rounded-lg"><i class="fa-brands fa-whatsapp"></i> וואצאפ</a>
+                    </div>` : ''}
+                </div>
+                <button onclick="switchTab('home-maintenance'); setTimeout(()=>switchHomeMaintenanceTab('faults'),100)" class="text-[10px] text-indigo-500 font-bold shrink-0 bg-indigo-50 px-2 py-1 rounded-lg">פרטים →</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
 
 function renderMyOrders() {
-    const list = getEl('my-orders-list');
-    if (!list) return;
-    
-    if (myOrdersCache.length === 0) {
-        list.innerHTML = `
-        <div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center shadow-sm">
-            <i class="fa-solid fa-basket-shopping text-4xl text-slate-300 mb-3"></i>
-            <p class="text-sm font-bold text-slate-500">אין לכם הזמנות פעילות מעסקים מקומיים.</p>
-            <p class="text-xs text-slate-400 mt-1">כנסו לקהילה והתחילו להנות ממשלוחים והטבות!</p>
-        </div>`;
-        return;
-    }
+    const list = getEl('my-orders-list');
+    if (!list) return;
 
-    let html = '';
-    myOrdersCache.forEach(o => {
-        let statusColor = '';
-        let statusText = '';
-        let progressPct = 0;
-        let statusIcon = '';
-        
-        switch(o.status) {
-            case 'quote':
-                statusColor = 'border-slate-300 bg-slate-100'; 
-                statusText = o.quote_status === 'approved' ? 'הצעת מחיר אושרה' : 'הצעת מחיר'; 
-                progressPct = 10; 
-                statusIcon = 'fa-file-invoice';
-                break;
-            case 'new': 
-                statusColor = 'border-blue-200 bg-blue-50'; 
-                statusText = 'התקבל בעסק'; 
-                progressPct = 25; 
-                statusIcon = 'fa-clock';
-                break;
-            case 'processing': 
-                statusColor = 'border-orange-200 bg-orange-50'; 
-                statusText = 'באריזה / הכנה'; 
-                progressPct = 50; 
-                statusIcon = 'fa-box';
-                break;
-            case 'ready': 
-                statusColor = 'border-purple-200 bg-purple-50'; 
-                statusText = 'מוכן לאיסוף'; 
-                progressPct = 75; 
-                statusIcon = 'fa-bag-shopping';
-                break;
-            case 'shipped': 
-                statusColor = 'border-indigo-200 bg-indigo-50'; 
-                statusText = o.is_delivery ? 'בדרך אליך! 🛵' : 'בדרך אלייך!'; 
-                progressPct = 90; 
-                statusIcon = o.is_delivery ? 'fa-motorcycle' : 'fa-truck-fast';
-                break;
-            case 'completed': 
-                statusColor = 'border-green-200 bg-green-50'; 
-                statusText = 'הושלם ונמסר'; 
-                progressPct = 100; 
-                statusIcon = 'fa-check-double';
-                break;
-            default: 
-                statusColor = 'border-slate-200 bg-slate-50'; 
-                statusText = 'בטיפול'; 
-                progressPct = 10;
-                statusIcon = 'fa-spinner fa-spin';
-        }
+    // עדכון פאנל סינון
+    const filterEl = getEl('orders-filter-panel');
+    if (filterEl) {
+        const f = window._ordersFilter;
+        filterEl.querySelector('#orders-search-input').value = f.search || '';
+        ['all','week','month','quarter'].forEach(p => {
+            const btn = filterEl.querySelector(`[data-period="${p}"]`);
+            if (btn) btn.className = `text-[10px] px-2.5 py-1 rounded-lg font-bold transition ${p === f.period ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`;
+        });
+        const sortBtn = filterEl.querySelector('#orders-sort-btn');
+        if (sortBtn) sortBtn.innerHTML = f.sort === 'asc' ? '<i class="fa-solid fa-arrow-up-short-wide ml-1"></i>ישן→חדש' : '<i class="fa-solid fa-arrow-down-wide-short ml-1"></i>חדש→ישן';
+    }
 
-        const dateStr = new Date(o.created_at).toLocaleDateString('he-IL', {hour: '2-digit', minute:'2-digit'});
-        
-        html += `
-        <div class="bg-white rounded-2xl shadow-sm border ${statusColor} overflow-hidden transition-all hover:shadow-md cursor-pointer" onclick="document.getElementById('order-details-${o.id}').classList.toggle('hidden')">
-            <div class="p-4 flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-slate-400 shadow-sm shrink-0 border border-slate-100">
-                        <i class="fa-solid fa-store"></i>
-                    </div>
-                    <div>
-                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(o.store_name || 'עסק מקומי')}</h4>
-                        <p class="text-[10px] text-slate-500"><i class="fa-solid ${statusIcon} ml-1"></i> ${statusText} • ${dateStr}</p>
-                    </div>
-                </div>
-                <div class="flex flex-col items-end">
-                    <span class="font-black text-slate-800 dir-ltr text-sm">₪${parseFloat(o.total_amount).toFixed(2)}</span>
-                    <span class="text-[9px] text-slate-400 font-mono tracking-widest mt-0.5">#${o.id}</span>
-                </div>
-            </div>
-            
-            <div id="order-details-${o.id}" class="hidden border-t border-slate-100/50 bg-white/50 p-4">
-                <div class="mb-4 ${o.status === 'quote' ? 'hidden' : ''}">
-                    <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
-                        <span>התקבל</span>
-                        <span>בהכנה</span>
-                        <span>במשלוח</span>
-                        <span>נמסר</span>
-                    </div>
-                    <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden shadow-inner">
-                        <div class="bg-indigo-500 h-1.5 rounded-full transition-all duration-1000" style="width: ${progressPct}%"></div>
-                    </div>
-                </div>
-                <div class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <p class="font-bold mb-2">פירוט ההזמנה/ההצעה:</p>
-                    <div class="whitespace-pre-line leading-relaxed">${safeStr(o.items_json || o.items)}</div>
-                    ${o.notes ? `<p class="mt-2 pt-2 border-t border-slate-200"><strong>הערות:</strong> ${safeStr(o.notes)}</p>` : ''}
-                </div>
-            </div>
-        </div>
-        `;
-    });
-    list.innerHTML = html;
+    const allFiltered = applyOrdersFilter(myOrdersCache)
+        .filter(o => o.status !== 'quote' && (!o.quote_status || o.quote_status === 'approved'));
+
+    if (!allFiltered.length) {
+        list.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center shadow-sm">
+            <i class="fa-solid fa-basket-shopping text-4xl text-slate-300 mb-3"></i>
+            <p class="text-sm font-bold text-slate-500">${myOrdersCache.length ? 'אין הזמנות התואמות את הסינון.' : 'אין לכם הזמנות מעסקים מקומיים.'}</p>
+            <p class="text-xs text-slate-400 mt-1">${myOrdersCache.length ? 'נסו לשנות את הסינון.' : 'כנסו לקהילה והתחילו להנות ממשלוחים והטבות!'}</p>
+        </div>`;
+        return;
+    }
+
+    const PAGE_SIZE = 15;
+    if (!window._myOrdersPageNum) window._myOrdersPageNum = 0;
+    const totalPages = Math.ceil(allFiltered.length / PAGE_SIZE);
+    if (window._myOrdersPageNum >= totalPages) window._myOrdersPageNum = 0;
+    const page = window._myOrdersPageNum;
+    const pageOrders = allFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+    let html = '';
+    pageOrders.forEach(o => {
+        let statusColor = '', statusText = '', statusIcon = '';
+        switch(o.status) {
+            case 'pending_approval': statusColor='border-yellow-200 bg-yellow-50'; statusText='ממתין לאישור עסק'; statusIcon='fa-hourglass-half'; break;
+            case 'new':        statusColor='border-blue-200 bg-blue-50'; statusText='התקבל בעסק'; statusIcon='fa-clock'; break;
+            case 'processing': statusColor='border-orange-200 bg-orange-50'; statusText='באריזה / הכנה'; statusIcon='fa-box'; break;
+            case 'ready':      statusColor='border-purple-200 bg-purple-50'; statusText='מוכן לאיסוף'; statusIcon='fa-bag-shopping'; break;
+            case 'shipped':    statusColor='border-indigo-200 bg-indigo-50'; statusText=o.is_delivery?'בדרך אליך! 🛵':'בדרך אלייך!'; statusIcon=o.is_delivery?'fa-motorcycle':'fa-truck-fast'; break;
+            case 'delivering': statusColor='border-indigo-200 bg-indigo-50'; statusText='בדרך אליך 🛵'; statusIcon='fa-motorcycle'; break;
+            case 'completed':  statusColor='border-green-200 bg-green-50'; statusText='הושלם ונמסר'; statusIcon='fa-check-double'; break;
+            default:           statusColor='border-slate-200 bg-slate-50'; statusText='בטיפול'; statusIcon='fa-hourglass-half';
+        }
+        const dateStr = new Date(o.created_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+        const borderCls = statusColor.split(' ')[0];
+        const isDeliv = !!(o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true');
+        const orderTypeBadge = `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${isDeliv ? 'bg-indigo-50 text-indigo-600' : 'bg-green-50 text-green-700'}">${isDeliv ? '🛵 משלוח' : '🏃 איסוף עצמי'}</span>`;
+        const fromQuote = o.quote_status === 'approved' && o.quote_number
+            ? `<div class="flex items-center gap-1.5 mt-1 bg-indigo-50 border border-indigo-200 rounded-lg px-2 py-1 w-fit">
+                <i class="fa-solid fa-file-invoice text-indigo-500 text-[10px]"></i>
+                <span class="text-[10px] font-bold text-indigo-700">הומרה מהצעת מחיר ${o.quote_number}</span>
+               </div>`
+            : '';
+        html += `<div class="bg-white rounded-2xl border ${borderCls} border-r-4 mb-3 cursor-pointer active:scale-[0.99] transition overflow-hidden" onclick="document.getElementById('order-details-${o.id}').classList.toggle('hidden')" style="touch-action:manipulation;">
+            <div class="p-3 flex justify-between items-center gap-2">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5"><i class="fa-solid fa-store text-slate-400 text-[10px] shrink-0"></i><h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(o.store_name || 'עסק מקומי')}</h4>${orderTypeBadge}</div>
+                    <p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid ${statusIcon} ml-1"></i> ${statusText} · ${dateStr}</p>
+                    ${fromQuote}
+                </div>
+                <div class="flex flex-col items-end shrink-0">
+                    <span class="font-black text-slate-800 dir-ltr text-sm">₪${parseFloat(o.total_amount||0).toFixed(0)}</span>
+                    <span class="text-[9px] text-slate-400 font-mono">#${o.id}</span>
+                </div>
+            </div>
+            <div id="order-details-${o.id}" class="hidden border-t border-slate-100 bg-slate-50 p-3">
+                <div class="text-xs text-slate-600 bg-white p-2 rounded-xl border border-slate-100">
+                    ${_renderOrderItems(o.items)}
+                    ${(o.notes && !o.quote_status) ? `<p class="mt-2 pt-2 border-t border-slate-200 text-[11px]"><strong>הערות:</strong> ${safeStr(o.notes)}</p>` : ''}
+                </div>
+                ${(o.status === 'completed' && (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true')) ? (
+                    o.customer_rating
+                    ? `<div class="mt-2 bg-green-50 border border-green-200 rounded-xl p-2 text-center text-xs font-bold text-green-700">✅ קיבלת ודירגת — תודה!</div>`
+                    : `<div id="order-confirm-${o.id}" class="mt-2 bg-slate-50 border border-slate-200 rounded-xl p-2">
+                        <p class="text-[11px] font-bold text-slate-600 text-center mb-2">קיבלת את ההזמנה?</p>
+                        <div class="flex gap-2">
+                            <button onclick="confirmOrderReceipt(${o.id}, true)" class="flex-1 py-2 bg-green-500 text-white text-xs font-black rounded-xl">✅ כן, קיבלתי</button>
+                            <button onclick="confirmOrderReceipt(${o.id}, false)" class="flex-1 py-2 bg-red-500 text-white text-xs font-black rounded-xl">❌ לא קיבלתי</button>
+                        </div>
+                    </div>`
+                ) : ''}
+        </div>
+        </div>`;
+    });
+
+    // pagination bar
+    if (totalPages > 1) {
+        const from = page * PAGE_SIZE + 1;
+        const to = Math.min((page + 1) * PAGE_SIZE, allFiltered.length);
+        html += `<div class="flex items-center justify-between mt-3 px-1">
+            <button onclick="window._myOrdersPageNum=Math.max(0,window._myOrdersPageNum-1);renderMyOrders();" ${page===0?'disabled':''} class="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition ${page===0?'text-slate-300 bg-slate-50':'text-slate-600 bg-white border border-slate-200 active:scale-95'}" style="touch-action:manipulation;">
+                <i class="fa-solid fa-chevron-right text-[10px]"></i> הקודם
+            </button>
+            <span class="text-[11px] text-slate-400 font-bold">${from}–${to} מתוך ${allFiltered.length}</span>
+            <button onclick="window._myOrdersPageNum=Math.min(${totalPages-1},window._myOrdersPageNum+1);renderMyOrders();" ${page===totalPages-1?'disabled':''} class="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition ${page===totalPages-1?'text-slate-300 bg-slate-50':'text-slate-600 bg-white border border-slate-200 active:scale-95'}" style="touch-action:manipulation;">
+                הבא <i class="fa-solid fa-chevron-left text-[10px]"></i>
+            </button>
+        </div>`;
+    }
+
+    list.innerHTML = html;
 }
+
+async function confirmOrderReceipt(orderId, received) {
+    const container = document.getElementById(`order-confirm-${orderId}`);
+    if (!received) {
+        try {
+            await fetch(`${API}/store/orders/${orderId}/customer-feedback`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ received: false, familyGroupId: currentGroup?.id })
+            });
+            if (container) container.innerHTML = `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:8px 12px;font-size:11px;color:#dc2626;font-weight:700;text-align:center;">😟 דיווח נשמר. צוות העסק יצור קשר איתך.</div>`;
+        } catch(e) {
+            showToast('error', 'שגיאה בשמירת הדיווח');
+        }
+        return;
+    }
+    window._orderRatingModal(orderId);
+}
+
+function setOrdersSearch(val) {
+    window._ordersFilter.search = val;
+    window._myOrdersPageNum = 0;
+    renderMyOrders();
+}
+function setOrdersPeriod(p) {
+    window._ordersFilter.period = p;
+    window._myOrdersPageNum = 0;
+    renderMyOrders();
+}
+function toggleOrdersSort() {
+    window._ordersFilter.sort = window._ordersFilter.sort === 'desc' ? 'asc' : 'desc';
+    window._myOrdersPageNum = 0;
+    renderMyOrders();
+}
+function setScTypeFilter(t) {
+    window._scTypeFilter = t;
+    renderBusinessServiceCallsTab();
+}
+
+let familyQuotesCache = [];
+
+async function loadFamilyQuotes() {
+    const list = getEl('family-quotes-list');
+    if (!list) return;
+    if (!currentGroup) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">יש להתחבר תחילה לצפייה בהצעות מחיר.</p>';
+        return;
+    }
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-10"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען הצעות מחיר...</p>';
+    try {
+        const uid = currentUser ? currentUser.id : '';
+        const res = await fetch(`${API}/store/quotes/family/${currentGroup.id}?userId=${uid}`);
+        const data = await res.json();
+        if (data.success) { familyQuotesCache = data.quotes || []; renderFamilyQuotesTab(); }
+        else list.innerHTML = `<p class="text-xs text-red-500 text-center py-10">${data.error || 'שגיאה'}</p>`;
+    } catch(e) { list.innerHTML = '<p class="text-xs text-red-500 text-center py-10">שגיאת תקשורת</p>'; }
+}
+
+function _renderQuoteTimeline(historyRaw) {
+    const history = typeof historyRaw === 'string' ? JSON.parse(historyRaw || '[]') : (historyRaw || []);
+    if (!history.length) return '';
+    const evMap = {
+        sent_to_customer:       {icon:'fa-paper-plane',       label:'נשלחה אליך',              color:'indigo'},
+        resent_updated:         {icon:'fa-rotate-right',      label:'גרסה מעודכנת נשלחה אליך', color:'indigo'},
+        customer_response:      {icon:'fa-reply',             label:'שלחת תגובה',              color:'blue'},
+        converted_to_work_order:{icon:'fa-hammer',            label:'הומרה לפקודת עבודה',       color:'emerald'},
+        approved:               {icon:'fa-check-circle',      label:'אושרה',                   color:'green'},
+        business_message:       {icon:'fa-comment',           label:'הודעה מהעסק',              color:'purple'},
+    };
+    const respLabels = {approved:'אישרת', rejected:'סירבת', discount_request:'ביקשת הנחה', items_request:'ביקשת שינויים', message:'שלחת הודעה'};
+    const sorted = [...history].sort((a,b) => new Date(a.ts)-new Date(b.ts));
+    const items = sorted.map((ev,i) => {
+        const e = evMap[ev.type] || {icon:'fa-circle-dot', label:ev.type, color:'slate'};
+        const label = ev.type === 'customer_response' ? (respLabels[ev.responseType] || ev.responseType) : e.label;
+        const dateStr = new Date(ev.ts).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+        const textSnip = ev.text ? `<span class="text-slate-400 mr-1">: ${safeStr(ev.text.substring(0,40))}${ev.text.length>40?'…':''}</span>` : '';
+        const isLast = i === sorted.length-1;
+        return `<div class="flex items-start gap-2 ${isLast?'':'pb-2'} relative">
+            ${isLast?'':'<div class="absolute right-[5px] top-4 bottom-0 w-px bg-slate-200"></div>'}
+            <div class="shrink-0 w-2.5 h-2.5 rounded-full bg-${e.color}-400 border-2 border-white shadow-sm mt-0.5 z-10"></div>
+            <div class="flex-1 min-w-0 leading-tight">
+                <span class="text-[10px] font-bold text-${e.color}-700">${label}</span>${textSnip}
+                <span class="text-[9px] text-slate-400 block">${dateStr}</span>
+            </div>
+        </div>`;
+    }).join('');
+    return `<details class="mt-2 pt-2 border-t border-slate-100">
+        <summary class="text-[10px] text-slate-400 font-bold cursor-pointer flex items-center gap-1 select-none list-none">
+            <i class="fa-solid fa-clock-rotate-left"></i> היסטוריה (${sorted.length})
+        </summary>
+        <div class="mt-2 space-y-0.5 pr-1">${items}</div>
+    </details>`;
+}
+
+function renderFamilyQuotesTab() {
+    const list = getEl('family-quotes-list');
+    if (!list) return;
+    if (!familyQuotesCache.length) {
+        list.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center">
+            <i class="fa-solid fa-file-invoice-dollar text-4xl text-slate-300 mb-3"></i>
+            <p class="text-sm font-bold text-slate-500">אין הצעות מחיר עדיין.</p>
+            <p class="text-[11px] text-slate-400 mt-1">כאשר עסק ישלח לך הצעת מחיר דרך OneFlow, היא תופיע כאן.</p></div>`;
+        return;
+    }
+    const statusMap = {
+        draft:             {label:'טיוטא',                    color:'bg-slate-100 text-slate-600'},
+        waiting_customer:  {label:'ממתין לתשובתך',            color:'bg-amber-100 text-amber-700'},
+        waiting_business:  {label:'ממתין לתגובת העסק',        color:'bg-blue-100 text-blue-700'},
+        customer_approved: {label:'אישרת',                    color:'bg-green-100 text-green-700'},
+        approved:          {label:'אושרה',                    color:'bg-blue-100 text-blue-700'},
+        cancelled:         {label:'בוטלה',                    color:'bg-red-100 text-red-700'}
+    };
+    let html = '';
+    familyQuotesCache.forEach(q => {
+        const qs = q.quote_status || 'draft';
+        const isCancelled = qs === 'cancelled';
+        const history = typeof q.quote_history === 'string' ? JSON.parse(q.quote_history||'[]') : (q.quote_history || []);
+        const hasBusinessMessage = history.some(e => e.type === 'business_message');
+        // כדור אצל העסק — לקוח כבר הגיב אך ממתין לעדכון
+        const customerWaiting = qs === 'waiting_customer' && q.customer_response_type &&
+            ['discount_request','items_request','message'].includes(q.customer_response_type);
+        const effectiveStatus = isCancelled ? 'cancelled' : (customerWaiting && !hasBusinessMessage) ? 'waiting_business' : qs;
+        const st = statusMap[effectiveStatus] || {label:qs, color:'bg-slate-100 text-slate-600'};
+        const canRespond = qs === 'waiting_customer' && !customerWaiting;
+
+        const dateStr = new Date(q.created_at).toLocaleDateString('he-IL');
+        let metaTitle='', metaNotes='', metaValidity='';
+        try {
+            const items = typeof q.items === 'string' ? JSON.parse(q.items||'[]') : (q.items||[]);
+            const meta = items.find(i => i.is_quote_metadata);
+            if (meta) { const m=JSON.parse(meta.data||'{}'); metaTitle=m.title||''; metaNotes=m.notes||''; metaValidity=m.validity||''; }
+        } catch(e) {}
+        const title = q.quote_title || metaTitle || `הצעה #${q.id}`;
+        const bizName = q.business_name || 'עסק';
+
+        // עיצוב כרטיסיה לפי מצב
+        const cardStyle = isCancelled
+            ? 'border-red-200 bg-red-50/40 opacity-80'
+            : customerWaiting
+                ? 'border-blue-200 bg-blue-50/30'
+                : canRespond
+                    ? 'border-amber-300 bg-white shadow-md'
+                    : 'border-slate-200 bg-white shadow-sm';
+
+        // חיווי "כדור אצל העסק"
+        const waitingBizBanner = customerWaiting ? `
+            <div class="mx-3 mb-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-[11px] font-bold text-blue-700 flex items-center gap-2">
+                <i class="fa-solid fa-hourglass-half text-blue-400"></i>
+                תגובתך נשלחה — ממתין לעדכון מהעסק
+            </div>` : '';
+
+        // באנר בוטלה
+        const cancelledBanner = isCancelled ? `
+            <div class="mx-3 mb-2 px-3 py-2 bg-red-100 border border-red-200 rounded-xl text-[11px] font-bold text-red-700 flex items-center gap-2">
+                <i class="fa-solid fa-ban"></i> הצעה זו בוטלה
+            </div>` : '';
+
+        // באנר "עברה להזמנות"
+        const convertedEvent = history.find(e => e.type === 'converted_to_work_order');
+        const isConverted = !!(convertedEvent || q.quote_status === 'approved');
+        const convertedDateStr = convertedEvent
+            ? new Date(convertedEvent.ts).toLocaleDateString('he-IL')
+            : (q.updated_at ? new Date(q.updated_at).toLocaleDateString('he-IL') : '');
+        const convertedBanner = isConverted ? `
+            <div class="mx-3 mb-2 px-3 py-2 bg-green-50 border border-green-200 rounded-xl text-[11px] font-bold text-green-700 flex items-center gap-2">
+                <i class="fa-solid fa-check-circle text-green-500"></i>
+                עברה להזמנות${convertedDateStr ? ' • ' + convertedDateStr : ''}
+            </div>` : '';
+
+        // תגובה קודמת שנשלחה (אם יש ועדיין רלוונטית)
+        const prevRespHtml = q.customer_response && customerWaiting
+            ? `<div class="mt-1.5 text-[11px] bg-blue-50 rounded-xl p-2 border border-blue-100"><i class="fa-solid fa-reply text-blue-400 ml-1"></i><span class="font-bold text-blue-700">תגובתך: </span>${safeStr(q.customer_response)}</div>`
+            : '';
+
+        // הודעה אחרונה מהעסק — מוצגת בגוף הכרטיס
+        const lastBizMsg = [...history].filter(e => e.type === 'business_message').sort((a,b) => new Date(b.ts)-new Date(a.ts))[0];
+        const bizMsgHtml = lastBizMsg
+            ? `<div class="mt-1.5 text-[11px] bg-purple-50 rounded-xl p-2 border border-purple-200 flex items-start gap-1.5">
+                <i class="fa-solid fa-comment text-purple-400 mt-0.5 shrink-0"></i>
+                <div><span class="font-bold text-purple-700">עסק: </span><span class="text-purple-800">${safeStr(lastBizMsg.text||'')}</span></div>
+               </div>`
+            : '';
+
+        const timelineHtml = _renderQuoteTimeline(q.quote_history);
+
+        html += `<div class="rounded-2xl border ${cardStyle} overflow-hidden mb-3">
+            <div class="p-4 flex justify-between items-start gap-3">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1 flex-wrap">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold ${st.color}">${st.label}</span>
+                        ${isCancelled ? '<span class="text-[10px] font-bold text-red-500"><i class="fa-solid fa-ban ml-0.5"></i>בוטלה</span>' : ''}
+                    </div>
+                    <h4 class="font-bold text-slate-800 text-sm ${isCancelled?'line-through opacity-60':''}">${safeStr(title)}</h4>
+                    <p class="text-[11px] text-slate-500 mt-0.5"><i class="fa-solid fa-store ml-1"></i>${safeStr(bizName)} • ${dateStr}</p>
+                    ${metaValidity && !isCancelled ? `<p class="text-[10px] text-slate-400 mt-0.5"><i class="fa-regular fa-calendar ml-1"></i>תוקף: ${safeStr(metaValidity)}</p>` : ''}
+                </div>
+                <div class="text-left shrink-0">
+                    <span class="font-black text-slate-800 text-sm ${isCancelled?'line-through opacity-50':''}" dir="ltr">₪${parseFloat(q.total_amount||0).toFixed(2)}</span>
+                    <p class="text-[9px] text-slate-400 font-mono mt-0.5">#${q.id}</p>
+                </div>
+            </div>
+            ${cancelledBanner}${convertedBanner}${waitingBizBanner}
+            <div class="border-t border-slate-100 bg-slate-50/50 p-3 text-xs text-slate-600">
+                <div class="space-y-1 mb-2">${_renderOrderItems(q.items)}</div>
+                ${metaNotes && !isCancelled ? `<p class="text-[10px] text-slate-500 pt-2 border-t border-slate-100"><i class="fa-solid fa-note-sticky ml-1"></i>${safeStr(metaNotes)}</p>` : ''}
+                ${prevRespHtml}
+                ${bizMsgHtml}
+                ${timelineHtml}
+            </div>
+            <div class="border-t border-slate-100 px-3 pb-3 pt-2">
+                ${isCancelled
+                    ? `<div class="w-full bg-red-50 border border-red-200 text-red-400 text-xs font-bold rounded-xl py-2.5 text-center"><i class="fa-solid fa-ban ml-1"></i>הצעה בוטלה</div>`
+                    : isConverted
+                        ? `<button onclick="window.openFamilyQuoteView(${q.id})" class="w-full bg-green-50 text-green-700 border border-green-200 text-xs font-bold rounded-xl py-2.5 transition hover:bg-green-100"><i class="fa-solid fa-hammer ml-1"></i>פרטי האירוע</button>`
+                        : customerWaiting
+                            ? `<button onclick="window.openFamilyQuoteView(${q.id})" class="w-full bg-slate-100 text-slate-600 text-xs font-bold rounded-xl py-2.5 transition hover:bg-slate-200"><i class="fa-solid fa-eye ml-1"></i>צפה בהצעה</button>`
+                            : `<button onclick="window.openFamilyQuoteView(${q.id})" class="w-full ${canRespond ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'} text-xs font-bold rounded-xl py-2.5 transition">
+                                ${canRespond ? '<i class="fa-solid fa-reply ml-1"></i>פתח הצעה ↙ נדרשת תגובה' : '<i class="fa-solid fa-eye ml-1"></i>צפה בהצעה'}
+                            </button>`
+                }
+            </div>
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+window.openFamilyQuoteView = function(quoteId) {
+    const q = familyQuotesCache.find(x => String(x.id) === String(quoteId));
+    if (!q) return;
+    document.getElementById('fqv-modal')?.remove();
+    const items = typeof q.items === 'string' ? JSON.parse(q.items||'[]') : (q.items||[]);
+    let title='', notes='', validity='', discount=0, vatRate=18, noVat=false, introText='';
+    try {
+        const meta = items.find(i => i.is_quote_metadata);
+        if (meta) { const m = JSON.parse(meta.data||'{}'); title=m.title||''; notes=m.notes||''; validity=m.validity||''; discount=parseFloat(m.discount||0); vatRate=parseFloat(m.vatRate||18); noVat=!!m.noVat; introText=m.introText||''; }
+    } catch(e) {}
+    const visibleItems = items.filter(i => !i.is_quote_metadata && !i.is_delivery_metadata && (i.name||i.item_name));
+    let subtotal = visibleItems.reduce((s,i) => s + (parseFloat(i.price||0)*parseFloat(i.quantity||i.qty||1)), 0);
+    const discountAmt = subtotal * discount / 100;
+    const beforeVat = subtotal - discountAmt;
+    const vatAmt = noVat ? 0 : beforeVat * vatRate / 100;
+    const total = beforeVat + vatAmt;
+    const dateStr = new Date(q.created_at).toLocaleDateString('he-IL');
+    const canRespond = (q.quote_status === 'waiting_customer');
+    const alreadyResponded = !!q.customer_response_type;
+    const itemsHtml = visibleItems.map(i => {
+        const n = i.name||i.item_name||''; const qty = parseFloat(i.quantity||i.qty||1); const price = parseFloat(i.price||0);
+        return `<div class="flex justify-between items-center py-2 border-b border-slate-100 last:border-0">
+            <span class="flex-1 text-slate-700 text-sm font-medium">${safeStr(n)}</span>
+            <span class="text-slate-500 text-xs mx-3 shrink-0">×${qty}</span>
+            <span class="text-slate-500 text-xs mx-2 shrink-0 dir-ltr">₪${price.toFixed(0)}</span>
+            <span class="font-bold text-slate-800 text-sm dir-ltr shrink-0">₪${(qty*price).toFixed(2)}</span>
+        </div>`;
+    }).join('') || '<p class="text-slate-400 text-sm text-center py-3">ללא פריטים</p>';
+
+    // כפתורי תגובה
+    const responseMap = { approved:'✅ אישרת', rejected:'❌ סירבת', discount_request:'💬 ביקשת הנחה', items_request:'📋 ביקשת שינויים', message:'💬 שלחת הודעה' };
+    const responseLabel = alreadyResponded ? (responseMap[q.customer_response_type]||q.customer_response_type) : '';
+
+    // תגובות של העסק מה-quote_history
+    const history = typeof q.quote_history === 'string' ? JSON.parse(q.quote_history||'[]') : (q.quote_history || []);
+    const businessMessages = history.filter(e => e.type === 'business_message').sort((a,b) => new Date(a.ts)-new Date(b.ts));
+    const businessMessagesHtml = businessMessages.length > 0 ? businessMessages.map(msg => {
+        const dateStr = new Date(msg.ts).toLocaleDateString('he-IL', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+        return `<div class="bg-purple-50 border border-purple-200 rounded-xl p-3 text-sm text-purple-900">
+            <p class="font-bold text-xs text-purple-500 mb-1"><i class="fa-solid fa-comment ml-1"></i> הודעה מהעסק:</p>
+            <p class="text-xs leading-relaxed whitespace-pre-line">${safeStr(msg.text || '')}</p>
+            <p class="text-[10px] text-purple-400 mt-2 text-left">${dateStr}</p>
+        </div>`;
+    }).join('') : '';
+
+    let actionHtml = '';
+    if (canRespond) {
+        const prevResponseHtml = alreadyResponded
+            ? `<div class="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 mb-2 text-xs text-blue-700 text-center"><i class="fa-solid fa-clock-rotate-left ml-1"></i><strong>תגובתך הקודמת:</strong> ${responseLabel}${q.customer_response ? ` — ${safeStr(q.customer_response)}` : ''}</div>`
+            : '';
+        actionHtml = `<div class="border-t border-slate-100 p-4 space-y-2 shrink-0 bg-white">
+            ${prevResponseHtml}
+            <p class="text-[10px] font-bold text-slate-500 mb-2 text-center">מה תרצה לעשות עם ההצעה?</p>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="window._fqvRespond(${quoteId},'approved','')" class="bg-green-500 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-green-600 transition"><i class="fa-solid fa-check"></i> אשר הצעה</button>
+                <button onclick="window._fqvOpenRequest(${quoteId},'discount_request')" class="bg-blue-500 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-blue-600 transition"><i class="fa-solid fa-percent"></i> בקש הנחה</button>
+                <button onclick="window._fqvOpenRequest(${quoteId},'items_request')" class="bg-purple-500 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-purple-600 transition"><i class="fa-solid fa-list-check"></i> בקש שינויים</button>
+                <button onclick="window._fqvOpenRequest(${quoteId},'message')" class="bg-slate-500 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-slate-600 transition"><i class="fa-solid fa-comment"></i> שלח הודעה</button>
+            </div>
+            <button onclick="window._fqvRespond(${quoteId},'rejected','')" class="w-full bg-red-50 text-red-600 border border-red-200 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition"><i class="fa-solid fa-xmark ml-1"></i>סרב להצעה</button>
+        </div>`;
+    } else if (alreadyResponded) {
+        actionHtml = `<div class="border-t border-slate-100 p-3 shrink-0 bg-slate-50">
+            <p class="text-xs text-center font-bold text-slate-500">${responseLabel}${q.customer_response ? `: ${safeStr(q.customer_response)}` : ''}</p>
+        </div>`;
+    }
+
+    const html = `<div id="fqv-modal" class="fixed inset-0 bg-slate-900/70 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4" style="direction:rtl;">
+        <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[93vh] overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 bg-indigo-600 text-white shrink-0">
+                <div>
+                    <h2 class="font-black text-base">${safeStr(title||'הצעת מחיר')}</h2>
+                    <p class="text-[11px] text-indigo-200 mt-0.5"><i class="fa-solid fa-store ml-1"></i>${safeStr(q.business_name||'')} · ${dateStr}${validity ? ` · תוקף ${validity} יום` : ''}</p>
+                </div>
+                <button onclick="document.getElementById('fqv-modal').remove()" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-3">
+                ${businessMessagesHtml}
+                ${introText ? `<div class="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 whitespace-pre-line border border-slate-200">${safeStr(introText)}</div>` : ''}
+                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-50 px-3 py-2 text-[10px] font-bold text-slate-500 border-b border-slate-200 grid grid-cols-12 gap-1">
+                        <span class="col-span-6">תיאור</span><span class="col-span-2 text-center">כמות</span><span class="col-span-2 text-center">מחיר</span><span class="col-span-2 text-center">סה"כ</span>
+                    </div>
+                    <div class="px-3">${itemsHtml}</div>
+                    <div class="px-3 pb-3 space-y-1.5 border-t border-slate-100 pt-2">
+                        <div class="flex justify-between text-xs text-slate-500"><span>סכום ביניים:</span><span dir="ltr">₪${subtotal.toFixed(2)}</span></div>
+                        ${discount > 0 ? `<div class="flex justify-between text-xs text-red-500 font-bold"><span>הנחה (${discount}%):</span><span dir="ltr">-₪${discountAmt.toFixed(2)}</span></div>` : ''}
+                        ${discount > 0 ? `<div class="flex justify-between text-xs text-slate-500"><span>לפני מע"מ:</span><span dir="ltr">₪${beforeVat.toFixed(2)}</span></div>` : ''}
+                        ${!noVat && vatRate > 0 ? `<div class="flex justify-between text-xs text-slate-500"><span>מע"מ (${vatRate}%):</span><span dir="ltr">₪${vatAmt.toFixed(2)}</span></div>` : ''}
+                        <div class="flex justify-between text-sm font-black border-t border-slate-200 pt-2 mt-1"><span>סה"כ לתשלום:</span><span dir="ltr" class="text-indigo-700">₪${total.toFixed(2)}</span></div>
+                    </div>
+                </div>
+                ${notes ? `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800"><strong>הערות ותנאי תשלום:</strong><br><span class="whitespace-pre-line mt-1 block">${safeStr(notes)}</span></div>` : ''}
+            </div>
+            ${actionHtml}
+            <div id="fqv-request-panel" class="hidden border-t border-slate-100 p-4 bg-white shrink-0">
+                <p id="fqv-request-label" class="text-xs font-bold text-slate-700 mb-2"></p>
+                <textarea id="fqv-request-text" rows="3" placeholder="פרט את הבקשה שלך..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none resize-none"></textarea>
+                <div class="flex gap-2 mt-2">
+                    <button onclick="window._fqvSubmitRequest(${quoteId})" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">שלח</button>
+                    <button onclick="document.getElementById('fqv-request-panel').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold">ביטול</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._fqvCurrentType = '';
+window._fqvOpenRequest = function(quoteId, type) {
+    const labels = { discount_request: 'פרט את הבקשה להנחה (סכום / אחוז / סיבה):', items_request: 'פרט אילו שינויים / תוספות תרצה:', message: 'כתוב הודעה לעסק:' };
+    window._fqvCurrentType = type;
+    const panel = document.getElementById('fqv-request-panel');
+    const label = document.getElementById('fqv-request-label');
+    if (panel && label) { label.textContent = labels[type] || 'פרט:'; panel.classList.remove('hidden'); document.getElementById('fqv-request-text')?.focus(); }
+};
+window._fqvSubmitRequest = function(quoteId) {
+    const text = document.getElementById('fqv-request-text')?.value?.trim() || '';
+    if (!text) { showToast('error','הוסף פירוט לבקשה'); return; }
+    window._fqvRespond(quoteId, window._fqvCurrentType, text);
+};
+window._fqvRespond = async function(quoteId, responseType, responseText) {
+    try {
+        const res = await fetch(`${API}/store/quotes/${quoteId}/customer-response`, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ responseType, responseText, familyGroupId: currentGroup ? currentGroup.id : null })
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('fqv-modal')?.remove();
+            showToast('success', responseType === 'approved' ? '✅ ההצעה אושרה!' : '📩 הבקשה נשלחה לעסק');
+            await loadFamilyQuotes();
+        } else showToast('error', data.error || 'שגיאה בשליחה');
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+window.openQuoteResponseModal = function(quoteId) {
+    getEl('qrm-quote-id').value = quoteId;
+    getEl('qrm-message').value = '';
+    const radios = document.querySelectorAll('input[name="qrm-type"]');
+    radios.forEach(r => r.checked = false);
+    getEl('quote-response-modal').classList.remove('hidden');
+};
+
+window.closeQuoteResponseModal = function() {
+    getEl('quote-response-modal').classList.add('hidden');
+};
+
+window.submitQuoteResponse = async function() {
+    const quoteId = getEl('qrm-quote-id').value;
+    const message = getEl('qrm-message').value.trim();
+    const typeEl = document.querySelector('input[name="qrm-type"]:checked');
+    if (!typeEl) { showToast('error','בחר סוג תשובה'); return; }
+    const responseType = typeEl.value;
+    if ((responseType === 'discount_request' || responseType === 'items_request' || responseType === 'message') && !message) {
+        showToast('error','הוסף הודעה / פירוט הבקשה');
+        return;
+    }
+    const btn = getEl('qrm-submit-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-1"></i> שולח...'; }
+    try {
+        const res = await fetch(`${API}/store/quotes/${quoteId}/customer-response`, {
+            method: 'PATCH',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ responseType, responseText: message, familyGroupId: currentGroup ? currentGroup.id : null })
+        });
+        const data = await res.json();
+        if (data.success) {
+            closeQuoteResponseModal();
+            showToast('success','התשובה נשלחה לעסק');
+            await loadFamilyQuotes();
+        } else showToast('error', data.error || 'שגיאה בשליחה');
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+    finally { if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane ml-1"></i> שלח תשובה'; } }
+};
+
+
+
 
 function updateBatteryUI() {
     const indicator = getEl('ai-battery-indicator'); if(!indicator || !currentGroup) return;
@@ -684,13 +1378,16 @@ function executeWithAIWarning(actionFn) {
 async function loadDashboard() {
     const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
     const mw = getEl('main-wrapper'); if (mw) mw.classList.add('hidden');
+
     getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
+    const _isMember = currentGroup?.member_type === 'member';
 
     // --- הזרקת באנר השתלטות דינמי ישירות ל-Body (בטוח 100%) ---
     const saTokenLocal = localStorage.getItem('ofl_sa_token');
     let dynamicBanner = document.getElementById('dynamic-sa-banner');
     
-    if (saTokenLocal) {
+    const activeImpersonation = localStorage.getItem('ofl_session');
+    if (saTokenLocal && activeImpersonation) {
         if (!dynamicBanner) {
             dynamicBanner = document.createElement('div');
             dynamicBanner.id = 'dynamic-sa-banner';
@@ -714,8 +1411,9 @@ async function loadDashboard() {
     }
     // -----------------------------------------------------------
 
-    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
-    getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
+    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">${currentGroup.group_code}</span>` : '';
+    const _groupDisplayName = currentGroup.family_nickname || currentGroup.name;
+    getEl('dash-group-name').innerHTML = `${safeStr(_groupDisplayName)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.first_name || currentUser.nickname;
 
     const isAdmin = currentUser.role === 'ADMIN';
     if(isAdmin) { 
@@ -735,19 +1433,144 @@ async function loadDashboard() {
     try {
         if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ fetchLoans(); } catch(e){} if(isAdmin) { try{ fetchPendingUsers(); } catch(e){} } }, 30000); }
         setInterval(refreshBellBadge, 30000); refreshBellBadge();
+        startMyOrdersAutoRefresh();
         try { fetchBanners(); } catch(e){}
         try { await fetchMembers(); } catch(e){}
         if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
         try { await fetchData(); } catch(e){}
         try { await fetchLoans(); } catch(e){}
+        if (_isMember) { try { await loadMemberSettings(); } catch(e){} try { applyMemberLocks(); } catch(e){} }
     } catch (e) {
         showToast('error', 'שגיאה בטעינת חלק מהנתונים');
     } finally {
-        const preloader = getEl('app-preloader'); 
-        const finalizeLoad = async () => { const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; } };
+        const preloader = getEl('app-preloader');
+        const finalizeLoad = async () => {
+            // בדוק אם משתמש חבר חייב לשנות סיסמה בכניסה ראשונה
+            if (currentUser?.must_change_password) { showForcePasswordChange(); return; }
+            const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; }
+        };
         if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
     }
 }
+
+async function checkGlobalWelcome() {
+    try {
+        const res = await fetch(`${API}/settings/welcome`);
+        const data = await res.json();
+        if (data.message && data.message.trim() !== '') {
+            const seen = localStorage.getItem(`ofl_welcome_${currentUser?.id}_${currentGroup?.group_code}`);
+            if (seen !== data.message) {
+                const textEl = document.getElementById('welcome-modal-text');
+                const modalEl = document.getElementById('welcome-modal');
+                if (textEl && modalEl) {
+                    textEl.innerText = data.message;
+                    modalEl.classList.remove('hidden');
+                    window.pendingWelcomeMsg = data.message;
+                    return true;
+                }
+            }
+        }
+    } catch(e) {}
+    return false;
+}
+
+function showForcePasswordChange() {
+    const existing = document.getElementById('force-pw-overlay');
+    if (existing) existing.remove();
+    const el = document.createElement('div');
+    el.id = 'force-pw-overlay';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0f172a;overflow-y:auto;padding:20px;direction:rtl;';
+    const prefillId = currentUser?.id_number || '';
+    const prefillEmail = currentUser?.email || '';
+    const prefillYear = currentUser?.birth_year || '';
+    el.innerHTML = `
+        <div style="background:white;border-radius:24px;padding:28px 24px;width:100%;max-width:360px;text-align:right;margin:40px auto;">
+            <div style="text-align:center;margin-bottom:20px;">
+                <div style="font-size:40px;margin-bottom:8px;">🔐</div>
+                <div style="font-size:18px;font-weight:900;color:#1e293b;">ברוך הבא ל-ONEFLOW!</div>
+                <div style="font-size:12px;color:#64748b;margin-top:6px;">אנא מלא את הפרטים לפני הכניסה למערכת</div>
+            </div>
+            <div id="force-pw-error" style="display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:12px;padding:10px 14px;font-size:12px;color:#dc2626;margin-bottom:12px;"></div>
+            <div style="background:#f8fafc;border-radius:16px;padding:16px;margin-bottom:16px;">
+                <div style="font-size:11px;font-weight:800;color:#6366f1;margin-bottom:12px;display:flex;align-items:center;gap:6px;">🔑 בחירת סיסמה</div>
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">סיסמה חדשה (לפחות 4 תווים)</label>
+                    <input id="force-pw-new" type="password" placeholder="הקלד סיסמה חדשה..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;" />
+                </div>
+                <div>
+                    <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">אימות סיסמה</label>
+                    <input id="force-pw-confirm" type="password" placeholder="הקלד שוב..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;" />
+                </div>
+            </div>
+            <div style="background:#f8fafc;border-radius:16px;padding:16px;margin-bottom:20px;">
+                <div style="font-size:11px;font-weight:800;color:#0891b2;margin-bottom:12px;display:flex;align-items:center;gap:6px;">👤 פרטים אישיים</div>
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">מספר תעודת זהות</label>
+                    <input id="force-pw-idnum" type="text" inputmode="numeric" placeholder="9 ספרות..." value="${prefillId}" style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;" />
+                </div>
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">כתובת אימייל</label>
+                    <input id="force-pw-email" type="email" inputmode="email" placeholder="example@gmail.com" value="${prefillEmail}" style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;direction:ltr;" />
+                </div>
+                <div>
+                    <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">שנת לידה</label>
+                    <input id="force-pw-year" type="number" inputmode="numeric" min="1920" max="2020" placeholder="לדוגמה: 1990" value="${prefillYear}" style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;" />
+                </div>
+            </div>
+            <button onclick="window._submitForcePassword()" style="width:100%;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;border:none;border-radius:14px;padding:14px;font-size:15px;font-weight:900;cursor:pointer;">שמור והמשך ←</button>
+        </div>`;
+    document.body.appendChild(el);
+    document.getElementById('force-pw-new')?.focus();
+}
+
+window._submitForcePassword = async function() {
+    const np = document.getElementById('force-pw-new')?.value?.trim();
+    const cp = document.getElementById('force-pw-confirm')?.value?.trim();
+    const idNum = document.getElementById('force-pw-idnum')?.value?.trim() || '';
+    const email = document.getElementById('force-pw-email')?.value?.trim() || '';
+    const year = document.getElementById('force-pw-year')?.value?.trim() || '';
+    const errEl = document.getElementById('force-pw-error');
+    const showErr = (msg) => { if(errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
+    if (!np || np.length < 4) { showErr('סיסמה חייבת להכיל לפחות 4 תווים'); return; }
+    if (np !== cp) { showErr('הסיסמאות אינן תואמות'); return; }
+    if (year && (isNaN(parseInt(year)) || parseInt(year) < 1920 || parseInt(year) > 2020)) { showErr('שנת לידה לא תקינה (1920–2020)'); return; }
+    if (errEl) errEl.style.display = 'none';
+    const btn = document.querySelector('#force-pw-overlay button');
+    if (btn) { btn.disabled = true; btn.textContent = 'שומר...'; }
+    try {
+        const payload = { newPassword: np };
+        if (idNum) payload.id_number = idNum;
+        if (email) payload.email = email;
+        if (year) payload.birth_year = parseInt(year);
+        const r = await fetch(`${API}/users/${currentUser.id}/set-first-password`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).then(r => r.json());
+        if (r.success) {
+            currentUser.must_change_password = false;
+            if (idNum) currentUser.id_number = idNum;
+            if (email) currentUser.email = email;
+            if (year) currentUser.birth_year = parseInt(year);
+            const s = JSON.parse(localStorage.getItem('ofl_session') || '{}');
+            if (s.user) {
+                s.user.must_change_password = false;
+                if (idNum) s.user.id_number = idNum;
+                if (email) s.user.email = email;
+                if (year) s.user.birth_year = parseInt(year);
+                localStorage.setItem('ofl_session', JSON.stringify(s));
+            }
+            document.getElementById('force-pw-overlay')?.remove();
+            showToast('success', 'הפרטים נשמרו בהצלחה! ✅');
+            try { await checkGlobalWelcome(); } catch(e) {}
+        } else {
+            showErr(r.error || 'שגיאה בשמירת הפרטים');
+            if (btn) { btn.disabled = false; btn.textContent = 'שמור והמשך ←'; }
+        }
+    } catch(e) {
+        showErr('שגיאת תקשורת — נסה שוב');
+        if (btn) { btn.disabled = false; btn.textContent = 'שמור והמשך ←'; }
+    }
+};
 
 async function fetchData() {
     try {
@@ -757,11 +1580,28 @@ async function fetchData() {
         
         currentUser.balance = data.user.balance; 
         if(data.group) {
-            currentGroup.ai_tokens = data.group.ai_tokens; currentGroup.is_premium = data.group.is_premium; updateBatteryUI();
+            currentGroup.ai_tokens = data.group.ai_tokens; currentGroup.is_premium = data.group.is_premium; updateBatteryUI(); if (data.group.unlocked_modules !== undefined) { const prev = JSON.stringify(currentGroup.unlocked_modules || []); currentGroup.unlocked_modules = data.group.unlocked_modules; if (currentGroup.member_type === 'member' && prev !== JSON.stringify(data.group.unlocked_modules)) { try { applyMemberLocks(); } catch(e){} } }
             const profileUp = getEl('profile-upgrade-section');
             if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
             // עדכון המזהה למקרה שהקהילה השתנתה
             currentGroup.community_id = data.group.community_id;
+            // עדכון member_type ו-family_nickname מהשרת
+            const prevMemberType = currentGroup.member_type;
+            if (data.group.member_type !== undefined) currentGroup.member_type = data.group.member_type;
+            if (data.group.family_nickname !== undefined) currentGroup.family_nickname = data.group.family_nickname;
+            // זיהוי שדרוג מחבר למשפחה
+            if (prevMemberType === 'member' && data.group.member_type === 'family') {
+                // הסר נעילות חבר
+                try { if(typeof applyMemberLocks === 'function') applyMemberLocks(); } catch(e) {}
+                // עדכן session
+                try { localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); } catch(e) {}
+                // הצג מודל שדרוג (רק פעם אחת)
+                const upgradeKey = `ofl_upgrade_shown_${currentGroup.id}`;
+                if (!localStorage.getItem(upgradeKey)) {
+                    localStorage.setItem(upgradeKey, '1');
+                    setTimeout(() => showFamilyUpgradeModal(), 1200);
+                }
+            }
         }
 
         if (currentUser.role === 'ADMIN') {
@@ -785,12 +1625,14 @@ async function fetchData() {
         try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
         try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
         try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
+        try { if (data.group) renderSmBanner(data.group); } catch(e) {}
         try { loadCategoryMap(); } catch(e) {}
         try { fetchBudget(); } catch(e) {}
         try { renderForecast(); } catch(e) {}
         
         // קריאה לרינדור הקהילות ממש כאן!
         try { renderFamilyCommunities(window.communityBusinessesCache); } catch(e) {}
+        try { fetchCashbackInfo(); } catch(e) {}
         
         try {
             const goalsList = getEl(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? getEl('my-goals-container') : null; 
@@ -823,6 +1665,9 @@ async function fetchData() {
 
         try { renderChildTodo(); buildAndRenderFeed(); if (getEl('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
         try { renderQuickTiles(); } catch(e) {}
+        try { renderFamilyUrgentItems(); } catch(e) {}
+        try { renderChildDashboard(); } catch(e) {}
+        try { updateFamilyNavBadges(); } catch(e) {}
     } catch(e) {}
 }
 
@@ -1069,17 +1914,86 @@ function handleTaskProofUpload(event) {
 function handleReceiptUpload(event) {
     const file = event.target.files[0]; if(!file) return;
     executeWithAIWarning(() => {
-        showFamilAIModal('קופאית אוטומטית', null); getEl('familai-loading-text').innerText = 'familAI סורקת את הקבלה... זה ייקח רגע.';
-        compressImage(file, 1200, 1200, 0.8, async (compressedDataUrl) => {
+        showFamilAIModal('קופאית אוטומאטית', null); getEl('familai-loading-text').innerText = 'familAI סורקת את הקבלה... זה ייקח כ-30 שניות.';
+        compressImage(file, 800, 800, 0.65, async (compressedDataUrl) => {
             const base64 = compressedDataUrl.split(',')[1];
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 90000);
             try {
-                const res = await fetch(`${API}/shopping/scan-receipt`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, imageBase64: base64, mimeType: 'image/jpeg' }) }); const data = await res.json();
+                const res = await fetch(`${API}/shopping/scan-receipt`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, imageBase64: base64, mimeType: 'image/jpeg' }), signal: controller.signal });
+                clearTimeout(timeout);
+                const data = await res.json();
                 if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
-                if(data.success) { showFamilAIModal('קופאית אוטומטית', `סרקתי והוספתי ${data.count} פריטים מהקבלה לעגלה שלכם בהצלחה!`); triggerConfetti(); fetchData(); } else { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בקריאת החשבונית.'); }
-            } catch(err) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאת תקשורת עם השרת.'); }
+                getEl('familai-advisor-modal').classList.add('hidden');
+                if(data.success && data.items && data.items.length) {
+                    showReceiptReviewModal(data.items, data.storeName || '');
+                } else if (data.error === 'parse_error') {
+                    showToast('error', 'שגיאת ניתוח — נסה שוב בתמונה ברורה יותר.');
+                } else if (data.error) {
+                    showToast('error', data.error);
+                } else {
+                    showToast('error', 'לא זוהו פריטים בקבלה — נסה לצלם שוב בתאורה טובה.');
+                }
+            } catch(err) { 
+                clearTimeout(timeout);
+                getEl('familai-advisor-modal').classList.add('hidden'); 
+                if(err.name === 'AbortError') showToast('error', 'הסריקה ארכה יותר מדי — נסה שוב עם תמונה קטנה יותר.');
+                else showToast('error', 'שגיאת תקשורת — בדוק חיבור לאינטרנט ונסה שוב.');
+            }
             event.target.value = '';
         });
     });
+}
+
+function showReceiptReviewModal(items, storeName) {
+    const listEl = getEl('receipt-review-list');
+    const storeLabel = getEl('receipt-store-label');
+    if(storeLabel) storeLabel.textContent = storeName ? '🏪 ' + storeName : '';
+    if(!listEl) return;
+    window._receiptParsedItems = items;
+    listEl.innerHTML = items.map((item, idx) => {
+        const hasDiscount = item.discount && parseFloat(item.discount) > 0;
+        const netPrice = parseFloat(item.net_unit_price) || parseFloat(item.unit_price) || 0;
+        const origPrice = parseFloat(item.unit_price) || 0;
+        const qty = parseFloat(item.qty) || 1;
+        const disc = parseFloat(item.discount) || 0;
+        const priceDisplay = hasDiscount
+            ? `<span class="line-through text-slate-400 text-[10px]">₪${origPrice.toFixed(2)}</span> <span class="text-green-600 font-bold text-xs">₪${netPrice.toFixed(2)}</span> <span class="text-[9px] text-green-500">(-₪${disc.toFixed(2)})</span>`
+            : `<span class="font-bold text-xs text-slate-700">₪${netPrice.toFixed(2)}</span>`;
+        return `<label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-purple-50 cursor-pointer transition">
+            <input type="checkbox" class="receipt-item-cb w-4 h-4 accent-purple-600 rounded shrink-0" data-idx="${idx}" checked>
+            <div class="flex-1 min-w-0">
+                <div class="text-xs font-bold text-slate-800 truncate">${safeStr(item.name)}</div>
+                <div class="text-[10px] text-slate-400">${qty > 1 ? qty + ' ' + (item.unit || 'יח') + ' × ' : ''}${item.unit || 'יח'} ליחידה</div>
+            </div>
+            <div class="text-left shrink-0">${priceDisplay}</div>
+        </label>`;
+    }).join('');
+    getEl('receipt-review-modal').classList.remove('hidden');
+}
+
+async function confirmReceiptItems() {
+    const cbs = document.querySelectorAll('.receipt-item-cb:checked');
+    const allItems = window._receiptParsedItems || [];
+    const selected = Array.from(cbs).map(cb => allItems[parseInt(cb.dataset.idx)]).filter(Boolean);
+    if(!selected.length) return showToast('error', 'לא נבחרו פריטים להוספה');
+    getEl('receipt-review-modal').classList.add('hidden');
+    try {
+        const res = await fetch(`${API}/shopping/scan-receipt/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: selected, userId: currentUser.id }) });
+        const data = await res.json();
+        if(data.success) {
+            for (const item of selected) {
+                const detectedCat = getCatScore(item.name, item.normalized_name);
+                const saveKey = item.normalized_name || item.name;
+                if (detectedCat && detectedCat !== 'שונות' && !categoryMapCache[saveKey]) {
+                    categoryMapCache[saveKey] = detectedCat;
+                    fetch(`${API}/shopping/category-map`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id, normalizedName: saveKey, category: detectedCat }) });
+                }
+            }
+            showFamilAIModal('קופאית אוטומאטית', `✅ הוספתי ${data.count} פריטים מהקבלה לרשימת הקניות!`); triggerConfetti(); fetchData();
+        }
+        else showToast('error', 'שגיאה בשמירת הפריטים');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
 function startBarcodeScan(target) { currentScanTarget = target; let input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment'; input.onchange = (e) => handleProductImageUpload(e, target); input.click(); }
@@ -1137,8 +2051,9 @@ function renderPantry() {
         const minusAmount = packQty - (1 / upp);
         const plusAmount = packQty + (1 / upp);
 
+        const pantryDelCb = pantryMultiDeleteMode ? `<label class="absolute top-2 left-2 z-10 cursor-pointer"><input type="checkbox" class="pantry-del-cb w-5 h-5 accent-red-500 cursor-pointer rounded" data-id="${p.id}" onchange="updatePantryDeleteCount()"></label>` : '';
         list.innerHTML += `
-        <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col mb-3">
+        <div class="bg-white p-3.5 rounded-2xl border ${pantryMultiDeleteMode ? 'border-red-100' : 'border-slate-200'} shadow-sm flex flex-col mb-3 relative">${pantryDelCb}
             <div class="flex justify-between items-center mb-3">
                 <div class="flex-1 pr-2">
                     <h4 class="font-bold text-slate-800 text-sm">${p.item_name}</h4>
@@ -1257,6 +2172,39 @@ function renderChildTodo() {
         htmlStr += `<div class="bg-white p-3 rounded-2xl border border-purple-100 shadow-sm flex justify-between items-center cursor-pointer hover:bg-purple-50 transition mb-2" onclick="switchTab('academy')"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center"><i class="fa-solid fa-graduation-cap"></i></div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(b.title)}</h4><p class="text-[10px] text-slate-500"><i class="fa-regular fa-calendar"></i> ${dateStr} • אתגר לימודי • תגמול: ₪${reward}${deadlineMsg}</p></div></div><i class="fa-solid fa-chevron-left text-slate-300"></i></div>`;
     });
     if (hasItems) { todoList.innerHTML = htmlStr; todoSection.classList.remove('hidden'); } else { todoList.innerHTML = ''; todoSection.classList.add('hidden'); }
+}
+
+function renderChildDashboard() {
+    const isChild = currentUser && currentUser.role !== 'ADMIN';
+    const header = getEl('child-home-header');
+    const footer = getEl('child-home-footer');
+    const balanceCard = getEl('tour-balance-card');
+    const quickTiles = getEl('quick-tiles');
+
+    if (!isChild) {
+        if (header) header.classList.add('hidden');
+        if (footer) footer.classList.add('hidden');
+        return;
+    }
+
+    // Show child sections, hide admin ones
+    if (header) header.classList.remove('hidden');
+    if (footer) footer.classList.remove('hidden');
+    if (balanceCard) balanceCard.classList.add('hidden');
+    if (quickTiles) quickTiles.classList.add('hidden');
+
+    // Copy balance from the main balance element
+    const mainBal = getEl('user-balance');
+    const childBal = getEl('child-balance-display');
+    if (childBal && mainBal) childBal.innerText = mainBal.innerText;
+
+    // Greeting
+    const greetEl = getEl('child-greeting-text');
+    if (greetEl && currentUser.name) {
+        const hour = new Date().getHours();
+        const greet = hour < 12 ? 'בוקר טוב' : hour < 18 ? 'צהריים טובים' : 'ערב טוב';
+        greetEl.innerText = `${greet}, ${currentUser.name}! 👋`;
+    }
 }
 
 function openApproveTaskModal(id, title, currentReward) { getEl('approve-task-id').value = id; getEl('approve-task-title').innerText = title; getEl('approve-task-reward').value = currentReward || 0; getEl('approve-task-modal').classList.remove('hidden'); }
@@ -1390,9 +2338,31 @@ function renderUnifiedFeed() {
             return; 
         }
         
+        // ── FLOW balance widget (הורים/מנהלים בלבד) ──────────────
+        let flowWidgetHtml = '';
+        if (currentUser.role === 'ADMIN' && typeof familyFlowBalance !== 'undefined') {
+            const flowBal = Math.floor(familyFlowBalance);
+            const ilsVal = Math.floor(flowBal / 100) * 10;
+            flowWidgetHtml = `<div onclick="switchTab('community')" style="cursor:pointer;background:linear-gradient(135deg,#f59e0b,#d97706,#b45309);border-radius:20px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(245,158,11,0.35);position:relative;overflow:hidden;" id="flow-home-widget">
+                <div style="position:absolute;inset:0;background:radial-gradient(circle at 80% 50%,rgba(255,255,255,0.12),transparent 60%);pointer-events:none;"></div>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="background:rgba(255,255,255,0.2);border-radius:14px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;">⚡</div>
+                    <div>
+                        <div style="color:rgba(255,255,255,0.85);font-size:11px;font-weight:600;margin-bottom:2px;">ארנק FLOW המשפחה</div>
+                        <div style="color:white;font-size:26px;font-weight:900;line-height:1;">${flowBal} <span style="font-size:14px;">₣</span></div>
+                        ${ilsVal > 0 ? `<div style="color:rgba(255,255,255,0.75);font-size:10px;margin-top:2px;">שווה ₪${ilsVal} הנחה בקהילה</div>` : '<div style="color:rgba(255,255,255,0.65);font-size:10px;margin-top:2px;">צבור 100₣ למימוש הנחה</div>'}
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+                    <div style="background:rgba(255,255,255,0.2);border-radius:10px;padding:6px 12px;color:white;font-size:11px;font-weight:700;">לקהילה &larr;</div>
+                    ${flowBal >= 100 ? `<div style="background:#10b981;border-radius:8px;padding:4px 10px;color:white;font-size:10px;font-weight:700;">ניתן למימוש ✓</div>` : ''}
+                </div>
+            </div>`;
+        }
+
         let html = '';
         const today = new Date();
-        
+
         filtered.forEach(item => {
             // טיפול בטוח בתאריכים
             if(!item.date || !(item.date instanceof Date) || isNaN(item.date.getTime())) return;
@@ -1431,7 +2401,7 @@ function renderUnifiedFeed() {
             html += `<div class="${colorClass} p-3.5 rounded-2xl shadow-sm border transform transition hover:scale-[1.01] mb-2 flex items-center">${contentHtml}</div>`;
         });
         
-        list.innerHTML = html;
+        list.innerHTML = flowWidgetHtml + html;
     } catch (err) {
         console.error("Error in renderUnifiedFeed:", err);
     }
@@ -1455,6 +2425,15 @@ function renderCashflow() {
         const editBtn = currentUser.role === 'ADMIN' ? `<button onclick="openEditTransactionModal(${t.id}, ${t.amount}, '${safeStr(t.description)}', '${t.category}', '${t.type}')" class="text-blue-500 bg-blue-50 w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-100 transition"><i class="fa-solid fa-pen text-xs"></i></button>` : '';
         html += `<div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-2 flex items-center justify-between hover:border-blue-100 transition"><div class="flex-1 overflow-hidden pr-2"><p class="font-bold text-slate-800 leading-tight flex items-center mt-0.5">${icon} <span class="mr-2 truncate">${safeStr(t.description)}</span> ${userName}</p><p class="text-[10px] text-slate-400 mt-1">${dateStr} ${catBadge}</p></div><div class="flex items-center gap-3 pl-1"><span class="font-bold text-base ${amountClass} whitespace-nowrap" dir="ltr">${prefix}₪${t.amount}</span>${editBtn}</div></div>`;
     });
+
+    if (totalPages > 1) {
+        html += `<div class="flex items-center justify-between mt-3 px-1">
+            <button onclick="window._myOrdersPage=Math.max(0,(window._myOrdersPage||0)-1);renderMyOrders();" class="text-xs font-bold px-4 py-2 rounded-xl border border-slate-200 bg-white transition" style="touch-action:manipulation;${safePageIdx===0?'opacity:0.4;pointer-events:none;':''}">→ הקודם</button>
+            <span class="text-[11px] text-slate-500 font-bold">${safePageIdx+1} / ${totalPages}</span>
+            <button onclick="window._myOrdersPage=Math.min(${totalPages-1},(window._myOrdersPage||0)+1);renderMyOrders();" class="text-xs font-bold px-4 py-2 rounded-xl border border-slate-200 bg-white transition" style="touch-action:manipulation;${safePageIdx===totalPages-1?'opacity:0.4;pointer-events:none;':''}">הבא ←</button>
+        </div>`;
+    }
+
     list.innerHTML = html;
 }
 
@@ -1653,6 +2632,94 @@ async function confirmCategoryPick(category) {
     window._pendingShopItem = null;
 }
 
+// ==========================================
+// --- AI Shopping List Generator ---
+// ==========================================
+async function openAiShoppingModal() {
+    const modal = getEl('ai-shop-modal');
+    const listEl = getEl('ai-shop-list');
+    if (!modal || !listEl) return;
+    listEl.innerHTML = `<div class="text-center py-12 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-3xl mb-3 text-violet-400"></i><p class="text-sm font-bold mt-2">מייצר רשימה...</p></div>`;
+    modal.classList.remove('hidden');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+    try {
+        const res = await fetch(`${API}/shopping/ai-generate-list`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id }),
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        const data = await res.json();
+        if (!handleAIResponseCheck(data)) return;
+        if (!data.success) throw new Error(data.error || 'שגיאה');
+        window._aiShopCategories = data.categories;
+        renderAiShopList(data.categories);
+    } catch(e) {
+        clearTimeout(timeoutId);
+        const isTimeout = e.name === 'AbortError';
+        listEl.innerHTML = `<div class="text-center py-12 text-red-400"><i class="fa-solid fa-triangle-exclamation text-3xl mb-3"></i><p class="text-sm font-bold">${isTimeout ? 'הבקשה ארכה יותר מדי זמן' : 'שגיאה ביצירת הרשימה'}</p><button onclick="openAiShoppingModal()" class="mt-3 text-xs bg-violet-100 text-violet-700 px-4 py-2 rounded-xl font-bold">נסה שוב</button></div>`;
+    }
+}
+
+function renderAiShopList(categories) {
+    const listEl = getEl('ai-shop-list');
+    if (!listEl) return;
+    const catEmoji = { 'ירקות': '🥦', 'פירות': '🍊', 'שימורים': '🥫', 'יבשים': '🌾', 'דברי חלב': '🥛', 'שתיה': '🧃' };
+    let html = '';
+    categories.forEach((cat, ci) => {
+        html += `<div>
+            <div class="flex items-center gap-1.5 mb-2">
+                <span class="text-base">${catEmoji[cat.name] || '🛒'}</span>
+                <span class="text-xs font-black text-slate-600">${cat.name}</span>
+            </div>
+            <div class="space-y-1.5">`;
+        cat.items.forEach((item, ii) => {
+            const id = `ai-cb-${ci}-${ii}`;
+            html += `<div class="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2">
+                <input type="checkbox" id="${id}" checked class="w-4 h-4 rounded accent-violet-500 shrink-0 cursor-pointer">
+                <input type="text" value="${item.name}" class="flex-1 min-w-0 bg-transparent text-sm font-bold text-slate-700 outline-none" data-ai-name>
+                <div class="flex items-center gap-1 shrink-0">
+                    <input type="number" value="${item.qty}" min="0.5" step="0.5" class="w-12 text-center text-xs bg-white border border-slate-200 rounded-lg py-1 outline-none font-bold" data-ai-qty>
+                    <span class="text-xs text-slate-400 w-6">${item.unit}</span>
+                    <input type="hidden" value="${item.unit}" data-ai-unit>
+                </div>
+            </div>`;
+        });
+        html += `</div></div>`;
+    });
+    listEl.innerHTML = html;
+}
+
+async function confirmAiShoppingList() {
+    const listEl = getEl('ai-shop-list');
+    if (!listEl) return;
+    const rows = listEl.querySelectorAll('[data-ai-name]');
+    const toAdd = [];
+    rows.forEach(nameInput => {
+        const wrapper = nameInput.closest('div.flex');
+        if (!wrapper) return;
+        const cb = wrapper.querySelector('input[type="checkbox"]');
+        if (!cb || !cb.checked) return;
+        const name = nameInput.value.trim();
+        const qty = parseFloat(wrapper.querySelector('[data-ai-qty]')?.value) || 1;
+        const unit = wrapper.querySelector('[data-ai-unit]')?.value || "יח'";
+        if (name) toAdd.push({ name, qty, unit });
+    });
+    if (toAdd.length === 0) return showToast('error', 'לא נבחרו פריטים');
+    getEl('ai-shop-modal').classList.add('hidden');
+    showToast('success', `מוסיף ${toAdd.length} פריטים לרשימה...`);
+    for (const item of toAdd) {
+        try {
+            await fetch(`${API}/shopping/add`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ itemName: item.name, quantity: item.qty, unit: item.unit, estimatedPrice: 0, unitsPerPackage: 1, userId: currentUser.id, groupId: currentGroup.id })
+            });
+        } catch(e) {}
+    }
+    fetchData();
+}
+
 async function loadCategoryMap() {
     if (!currentGroup || !currentGroup.id) return;
     try {
@@ -1663,6 +2730,71 @@ async function loadCategoryMap() {
 }
 
 async function deleteItem(id) { if(!confirm('למחוק פריט דרישה זה?')) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק בהצלחה'); fetchData(); }
+function toggleShopMultiDelete() {
+    shopMultiDeleteMode = !shopMultiDeleteMode;
+    const btn = document.getElementById('btn-shop-multi-delete');
+    const bar = document.getElementById('shop-delete-bar');
+    if (btn) { btn.innerHTML = shopMultiDeleteMode ? '<i class="fa-solid fa-xmark mr-1"></i> ביטול בחירה' : '<i class="fa-solid fa-check-square mr-1"></i> בחר למחיקה'; btn.classList.toggle('bg-red-50', !shopMultiDeleteMode); btn.classList.toggle('text-red-600', !shopMultiDeleteMode); btn.classList.toggle('bg-slate-100', shopMultiDeleteMode); btn.classList.toggle('text-slate-600', shopMultiDeleteMode); }
+    if (bar) bar.classList.toggle('hidden', !shopMultiDeleteMode);
+    if (!shopMultiDeleteMode) updateShopDeleteCount();
+    renderShopList();
+}
+
+function updateShopDeleteCount() {
+    const cbs = document.querySelectorAll('.shop-del-cb:checked');
+    const bar = document.getElementById('shop-delete-bar');
+    const cnt = document.getElementById('shop-delete-count');
+    if (cnt) cnt.textContent = cbs.length + ' פריטים נבחרו';
+    if (bar) { if (shopMultiDeleteMode) { bar.classList.remove('hidden'); } }
+}
+
+async function deleteSelectedShopItems() {
+    const cbs = document.querySelectorAll('.shop-del-cb:checked');
+    if (cbs.length === 0) return showToast('error', 'לא נבחרו פריטים למחיקה');
+    if (!confirm('למחוק ' + cbs.length + ' פריטים?')) return;
+    const ids = Array.from(cbs).map(cb => cb.dataset.id);
+    await Promise.all(ids.map(id => fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' })));
+    showToast('success', ids.length + ' פריטים נמחקו');
+    shopMultiDeleteMode = false;
+    const bar = document.getElementById('shop-delete-bar');
+    if (bar) bar.classList.add('hidden');
+    const btn = document.getElementById('btn-shop-multi-delete');
+    if (btn) { btn.innerHTML = '<i class="fa-solid fa-check-square mr-1"></i> בחר למחיקה'; btn.classList.remove('bg-slate-100', 'text-slate-600'); btn.classList.add('bg-red-50', 'text-red-600'); }
+    fetchData();
+}
+
+function togglePantryMultiDelete() {
+    pantryMultiDeleteMode = !pantryMultiDeleteMode;
+    const btn = document.getElementById('btn-pantry-multi-delete');
+    const bar = document.getElementById('pantry-delete-bar');
+    if (btn) { btn.innerHTML = pantryMultiDeleteMode ? '<i class="fa-solid fa-xmark mr-1"></i> ביטול בחירה' : '<i class="fa-solid fa-trash-can mr-1"></i> בחר למחיקה'; btn.classList.toggle('bg-red-50', !pantryMultiDeleteMode); btn.classList.toggle('text-red-500', !pantryMultiDeleteMode); btn.classList.toggle('border-red-200', !pantryMultiDeleteMode); btn.classList.toggle('bg-slate-100', pantryMultiDeleteMode); btn.classList.toggle('text-slate-600', pantryMultiDeleteMode); btn.classList.toggle('border-slate-200', pantryMultiDeleteMode); }
+    if (bar) bar.classList.toggle('hidden', !pantryMultiDeleteMode);
+    if (!pantryMultiDeleteMode) updatePantryDeleteCount();
+    renderPantry();
+}
+
+function updatePantryDeleteCount() {
+    const cbs = document.querySelectorAll('.pantry-del-cb:checked');
+    const bar = document.getElementById('pantry-delete-bar');
+    const cnt = document.getElementById('pantry-delete-count');
+    if (cnt) cnt.textContent = cbs.length + ' פריטים נבחרו';
+    if (bar && pantryMultiDeleteMode) bar.classList.remove('hidden');
+}
+
+async function deleteSelectedPantryItems() {
+    const cbs = document.querySelectorAll('.pantry-del-cb:checked');
+    if (cbs.length === 0) return showToast('error', 'לא נבחרו פריטים למחיקה');
+    if (!confirm('למחוק ' + cbs.length + ' פריטים מהמזווה?')) return;
+    const ids = Array.from(cbs).map(cb => cb.dataset.id);
+    await Promise.all(ids.map(id => fetch(`${API}/pantry/delete/${id}`, { method: 'DELETE' })));
+    showToast('success', ids.length + ' פריטים נמחקו');
+    pantryMultiDeleteMode = false;
+    const bar = document.getElementById('pantry-delete-bar');
+    if (bar) bar.classList.add('hidden');
+    const btn = document.getElementById('btn-pantry-multi-delete');
+    if (btn) { btn.innerHTML = '<i class="fa-solid fa-trash-can mr-1"></i> בחר למחיקה'; btn.classList.remove('bg-slate-100', 'text-slate-600', 'border-slate-200'); btn.classList.add('bg-red-50', 'text-red-500', 'border-red-200'); }
+    fetchData();
+}
 
 async function clearEntireCart() {
     if(!confirm('האם אתה בטוח שברצונך למחוק את כל בקשות הרכש? פעולה זו אינה הפיכה.')) return;
@@ -1690,7 +2822,11 @@ function renderShopList() {
     const isShopTabActive = getEl('tab-shop') && getEl('tab-shop').classList.contains('tab-active');
 
     if(activeItems.length === 0) { 
-        list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">רשימת ההזמנות ריקה</p>'; 
+        list.innerHTML = `<div class="text-center py-12 text-slate-400">
+  <i class="fa-solid fa-cart-shopping text-4xl mb-3"></i>
+  <p class="font-bold text-sm">העגלה ריקה</p>
+  <p class="text-xs mt-1">הוסף מוצרים מהקטלוג</p>
+</div>`; 
         const f = getEl('cart-footer'); if(f) f.classList.add('hidden'); 
         const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); 
         return; 
@@ -1699,11 +2835,23 @@ function renderShopList() {
     if (isShopTabActive) { const f = getEl('cart-footer'); if(f) f.classList.remove('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.add('fab-lifted'); } 
     else { const f = getEl('cart-footer'); if(f) f.classList.add('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); }
     
-    const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return categoryMapCache[name] || 'שונות'; };
-    activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
+    const getCatScore = (name, normalized) => {
+        const lookups = [normalized, name].filter(Boolean);
+        // קטגוריה ידנית של המשתמש — עדיפות עליונה
+        for (const n of lookups) { if(categoryMapCache[n]) return categoryMapCache[n]; }
+        // חיפוש ב-PRODUCT_DB
+        for (const n of lookups) {
+            for(const [cat, items] of Object.entries(PRODUCT_DB)) {
+                if(items.includes(n)) return cat;
+                if(items.some(p => n.includes(p) || (p.split(' ')[0].length > 2 && n.includes(p.split(' ')[0])))) return cat;
+            }
+        }
+        return 'שונות';
+    };
+    activeItems.sort((a,b) => getCatScore(a.item_name, a.normalized_name).localeCompare(getCatScore(b.item_name, b.normalized_name)));
     let currentCat = ''; let shopHtml = '';
     activeItems.forEach(i => {
-        const cat = getCatScore(i.item_name); if(cat !== currentCat) { shopHtml += `<div class="category-header">${cat}</div>`; currentCat = cat; }
+        const cat = getCatScore(i.item_name, i.normalized_name); if(cat !== currentCat) { shopHtml += `<div class="category-header">${cat}</div>`; currentCat = cat; }
         const isChecked = i.status === 'in_cart'; const valPrice = i.estimated_price > 0 ? i.estimated_price : ''; 
         const savedWisdom = wisdomCache[i.id]; const showWisdom = savedWisdom && savedWisdom.length > 0;
         const unitPrice = parseFloat(i.estimated_price) || 0; const totalRowPrice = unitPrice * parseFloat(i.quantity);
@@ -1718,7 +2866,8 @@ function renderShopList() {
             bestPriceHtml = `<div class="text-[9px] font-bold ${badgeColor} px-2 py-1 rounded-lg mt-1 w-fit"><i class="fa-solid ${icon}"></i> ${sourceText}: ₪${bestP}/${i.unit || "יח'"} (${safeStr(i.best_price.store_name)}, ${dDate})</div>`; 
         }
 
-        shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3"><input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-blue-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${safeStr(i.item_name)}</span><div class="flex gap-1"><button onclick="openEditShopItem(${i.id})" class="text-slate-300 hover:text-blue-500 text-xs px-1.5"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-1.5"><i class="fa-solid fa-trash"></i></button></div></div><span class="text-[10px] text-slate-400">ביקש/ה: ${safeStr(i.requester_name)}</span>${bestPriceHtml}<div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ל${safeStr(i.unit || "יח'")}</span><input type="number" id="price-${i.id}" value="${valPrice}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-blue-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(1)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">${i.quantity} ${safeStr(i.unit || "יח'")}</span></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר בספק</button></div></div>`;
+        const delCb = shopMultiDeleteMode ? `<label class="flex items-center flex-shrink-0 mr-1 cursor-pointer"><input type="checkbox" class="shop-del-cb w-5 h-5 accent-red-500 cursor-pointer rounded" data-id="${i.id}" onchange="updateShopDeleteCount()"></label>` : '';
+        shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border ${shopMultiDeleteMode ? 'border-red-100' : 'border-slate-100'} flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3">${delCb}<input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-blue-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${safeStr(i.item_name)}</span><div class="flex gap-1"><button onclick="openEditShopItem(${i.id})" class="text-slate-300 hover:text-blue-500 text-xs px-1.5"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-1.5"><i class="fa-solid fa-trash"></i></button></div></div><span class="text-[10px] text-slate-400">ביקש/ה: ${safeStr(i.requester_name)}</span>${bestPriceHtml}<div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ל${safeStr(i.unit || "יח'")}</span><input type="number" id="price-${i.id}" value="${valPrice}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-blue-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(1)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><div class="flex items-center gap-1"><button onclick="adjustShopQty(${i.id},-1)" class="w-9 h-9 bg-slate-200 active:bg-red-200 text-slate-600 active:text-red-600 rounded-full text-lg font-black leading-none flex items-center justify-center transition shrink-0 touch-manipulation select-none">−</button><span class="text-xs font-bold text-slate-700 min-w-[2.8rem] text-center">${i.quantity}<br><span class="text-[9px] font-normal text-slate-400">${safeStr(i.unit || "יח'")}</span></span><button onclick="adjustShopQty(${i.id},1)" class="w-9 h-9 bg-slate-200 active:bg-green-200 text-slate-600 active:text-green-600 rounded-full text-lg font-black leading-none flex items-center justify-center transition shrink-0 touch-manipulation select-none">+</button></div></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר בספק</button></div></div>`;
     });
     list.innerHTML = shopHtml; calcRunningTotal();
 }
@@ -1798,26 +2947,97 @@ function toggleFab() { getEl('fab-container').classList.toggle('fab-open'); }
 // --- SUPERMARKET MODE (Feature 2) ---
 // ============================================================
 
+let _smFastPollInterval = null;
+let _smKnownItemIds = new Set();
+
 function openSupermarketMode() {
     const activeItems = shoppingListCache.filter(i => i.status !== 'requested');
     if (activeItems.length === 0) { showToast('error', 'אין פריטים ברשימה להתחיל קניה'); return; }
+    // שמירת IDs ידועים לפני כניסה למצב סופר
+    _smKnownItemIds = new Set(shoppingListCache.map(i => i.id));
     renderSupermarketList();
     getEl('supermarket-modal').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    // רישום בשרת שאני בסופר + polling מהיר
+    fetch(`${API}/shopping/supermarket/start`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id }) }).catch(() => {});
+    startSmFastPoll();
 }
 
 function closeSupermarketMode() {
     getEl('supermarket-modal').classList.add('hidden');
     document.body.style.overflow = '';
+    // סיום רישום בשרת + עצירת polling מהיר
+    fetch(`${API}/shopping/supermarket/end`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id }) }).catch(() => {});
+    stopSmFastPoll();
+}
+
+function startSmFastPoll() {
+    stopSmFastPoll();
+    _smFastPollInterval = setInterval(async () => {
+        try {
+            const res = await fetch(`${API}/data/${currentUser.id}`);
+            const data = await res.json();
+            if (!data || !data.shopping_list) return;
+            const prevIds = _smKnownItemIds;
+            const newItems = data.shopping_list.filter(i => !prevIds.has(i.id) && i.status !== 'requested');
+            if (newItems.length > 0) {
+                newItems.forEach(i => showSmNewItemNotification(i.item_name));
+                newItems.forEach(i => _smKnownItemIds.add(i.id));
+            }
+            shoppingListCache = data.shopping_list;
+            // עדכן את מצב הסיום גם בסופרמרקט אם המודל פתוח
+            const modal = getEl('supermarket-modal');
+            if (modal && !modal.classList.contains('hidden')) renderSupermarketList();
+        } catch(e) {}
+    }, 4000);
+}
+
+function stopSmFastPoll() {
+    if (_smFastPollInterval) { clearInterval(_smFastPollInterval); _smFastPollInterval = null; }
+}
+
+function showSmNewItemNotification(itemName) {
+    const existing = document.getElementById('sm-new-item-notif');
+    if (existing) existing.remove();
+    const el = document.createElement('div');
+    el.id = 'sm-new-item-notif';
+    el.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:99998;font-family:Rubik,sans-serif;direction:rtl;animation:smNotifIn 0.35s ease;';
+    el.innerHTML = `<div style="background:linear-gradient(135deg,#10b981,#0d9488);color:#fff;border-radius:24px;padding:20px 28px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4);min-width:240px;max-width:300px;">
+        <div style="font-size:36px;margin-bottom:8px">🛍️</div>
+        <p style="font-size:11px;font-weight:600;opacity:0.85;margin:0 0 4px">נוסף לרשימה</p>
+        <p style="font-size:18px;font-weight:900;margin:0">${itemName}</p>
+    </div>`;
+    if (!document.getElementById('sm-notif-style')) {
+        const s = document.createElement('style');
+        s.id = 'sm-notif-style';
+        s.textContent = '@keyframes smNotifIn{from{opacity:0;transform:translate(-50%,-50%) scale(0.7)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}';
+        document.head.appendChild(s);
+    }
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+}
+
+function renderSmBanner(groupData) {
+    const banner = getEl('sm-status-banner');
+    const nameEl = getEl('sm-banner-name');
+    if (!banner) return;
+    const smUserId = groupData?.sm_user_id;
+    if (smUserId && smUserId !== currentUser.id) {
+        const name = groupData.sm_user_name || 'מישהו';
+        if (nameEl) nameEl.textContent = `${name} נמצא עכשיו בסופר`;
+        banner.classList.remove('hidden');
+    } else {
+        banner.classList.add('hidden');
+    }
 }
 
 function renderSupermarketList() {
     const activeItems = shoppingListCache.filter(i => i.status !== 'requested');
-    const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return categoryMapCache[name] || 'שונות'; };
-    activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
+    const getCatScore = (name, normalized) => { const ll = [normalized,name].filter(Boolean); for(const n of ll) { if(categoryMapCache[n]) return categoryMapCache[n]; } for(const n of ll) { for(const [cat,items] of Object.entries(PRODUCT_DB)) { if(items.includes(n)) return cat; if(items.some(p => n.includes(p)||(p.split(' ')[0].length>2&&n.includes(p.split(' ')[0])))) return cat; } } return 'שונות'; };
+    activeItems.sort((a,b) => getCatScore(a.item_name, a.normalized_name).localeCompare(getCatScore(b.item_name, b.normalized_name)));
     let currentCat = ''; let html = '';
     activeItems.forEach(i => {
-        const cat = getCatScore(i.item_name);
+        const cat = getCatScore(i.item_name, i.normalized_name);
         if(cat !== currentCat) {
             html += `<div class="text-emerald-400 text-xs font-black uppercase tracking-wider px-2 pt-3 pb-1">${cat}</div>`;
             currentCat = cat;
@@ -1922,11 +3142,24 @@ async function saveEditShopItem() {
                 categoryMapCache[name] = category;
                 fetch(`${API}/shopping/category-map`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({groupId: currentGroup.id, normalizedName: name, category})});
             }
+            const cachedItem = shoppingListCache.find(i => i.id == id);
+            if (cachedItem) { cachedItem.item_name = name; cachedItem.normalized_name = name; }
             getEl('edit-shop-item-modal').classList.add('hidden');
             showToast('success', 'הפריט עודכן');
             fetchData();
         } else showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function adjustShopQty(id, delta) {
+    const item = shoppingListCache.find(i => i.id === id);
+    if (!item) return;
+    const newQty = Math.max(0.5, parseFloat(item.quantity) + delta);
+    item.quantity = newQty;
+    renderShopList();
+    try {
+        await fetch(`${API}/shopping/update`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: id, quantity: newQty }) });
+    } catch(e) { item.quantity = parseFloat(item.quantity) - delta; renderShopList(); }
 }
 
 async function smQuickAdd() {
@@ -2359,18 +3592,55 @@ async function fetchMembers() {
             } catch (err) {}
         }
 
+        // לוח "מחוברים עכשיו" — גלוי להורה בלבד
+        if (currentUser.role === 'ADMIN') {
+            try {
+                const now = Date.now();
+                const onlineThreshold = 3 * 60 * 1000; // 3 דקות
+                const onlineMembers = membersCache.filter(m => m.last_seen && (now - new Date(m.last_seen).getTime()) < onlineThreshold);
+                let ob = getEl('members-online-banner');
+                if (!ob) {
+                    const c = getEl('members-list');
+                    if (c && c.parentNode) {
+                        ob = document.createElement('div');
+                        ob.id = 'members-online-banner';
+                        c.parentNode.insertBefore(ob, c);
+                    }
+                }
+                if (ob) {
+                    if (onlineMembers.length === 0) {
+                        ob.innerHTML = '';
+                    } else {
+                        const avatars = onlineMembers.map(m => {
+                            const ini = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?';
+                            const isMe = m.id === currentUser.id;
+                            return `<div class="flex flex-col items-center gap-1"><div class="relative w-10 h-10"><div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${isMe ? 'bg-emerald-500 text-white' : 'bg-white text-slate-700 border-2 border-emerald-200'} shadow">${ini}</div><span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full"></span></div><span class="text-[10px] text-slate-500 font-medium max-w-[40px] truncate">${isMe ? 'אני' : safeStr(m.nickname)}</span></div>`;
+                        }).join('');
+                        ob.innerHTML = `<div class="mx-0 mb-3 px-4 py-3 bg-gradient-to-l from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse inline-block"></span><span class="text-xs font-black text-emerald-700">מחוברים עכשיו</span><span class="text-[10px] bg-emerald-100 text-emerald-600 font-bold px-1.5 py-0.5 rounded-full">${onlineMembers.length}</span></div><span class="text-[10px] text-slate-400">מעודכן כל 30 שניות</span></div><div class="flex gap-3 flex-wrap">${avatars}</div></div>`;
+                    }
+                }
+            } catch(e) {}
+        }
+
         // רשימת בני המשפחה — גלויה לכולם
         try {
             const c = getEl('members-list');
             if (c) {
+                const now = Date.now();
+                const onlineThreshold = 3 * 60 * 1000;
                 c.innerHTML = '';
                 membersCache.forEach(m => {
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?';
-                    const roleLabel = m.role === 'ADMIN' ? 'הורה' : 'ילד';
+                    const roleLabel = m.role === 'ADMIN' ? 'הורה' : m.role === 'CHILD' ? 'ילד' : 'חבר';
                     const permsStr = safeStr(JSON.stringify(m.permissions || {}));
-                    const adminPermsBtn = currentUser.role === 'ADMIN' ? `<button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${m.role}', '${permsStr}')" class="mr-2 text-purple-600 hover:text-purple-800 bg-purple-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="הרשאות"><i class="fa-solid fa-user-shield text-sm"></i></button>` : '';
+                    const isOnline = m.last_seen && (now - new Date(m.last_seen).getTime()) < onlineThreshold;
+                    const onlineDot = isOnline ? `<span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-white rounded-full"></span>` : '';
+                    const avatarWrap = `<div class="relative w-9 h-9"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div>${onlineDot}</div>`;
+                    const adminEditBtn = (currentUser.role === 'ADMIN') ? `<button onclick="openEditMemberModal(${m.id})" class="mr-2 text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="עריכת פרטים"><i class="fa-solid fa-pen text-sm"></i></button>` : '';
+                    const adminPermsBtn = currentUser.role === 'ADMIN' ? `<button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${permsStr}')" class="mr-2 text-purple-600 hover:text-purple-800 bg-purple-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="הרשאות"><i class="fa-solid fa-user-shield text-sm"></i></button>` : '';
+                    const adminRoleBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="changeUserRole(${m.id}, '${m.role}', '${safeStr(m.nickname)}')" class="mr-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="${m.role === 'ADMIN' ? 'הורד לילד' : 'קדם להורה'}"><i class="fa-solid fa-arrow-right-arrow-left text-sm"></i></button>` : '';
                     const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-2 text-red-400 hover:text-red-600 bg-red-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="הסר מהמשפחה"><i class="fa-solid fa-trash text-sm"></i></button>` : '';
-                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${roleLabel})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminPermsBtn}${adminDeleteBtn}</div></div>`;
+                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3">${avatarWrap}<span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${roleLabel})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminEditBtn}${adminRoleBtn}${adminPermsBtn}${adminDeleteBtn}</div></div>`;
                 });
             }
         } catch (err) {}
@@ -2387,7 +3657,7 @@ async function fetchMembers() {
                     children.forEach(m => {
                         const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?';
                         const permsStr = safeStr(JSON.stringify(m.permissions || {}));
-                        a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(m.nickname) || 'ילד'}</h4><p class="text-[10px] text-slate-400">דמי כיס: ₪${m.allowance_amount || 0} • ריבית: ${m.interest_rate || 0}%</p><p class="text-xs font-bold text-slate-700 mt-1">יתרה: <span class="text-slate-800">₪${m.balance || 0}</span></p></div></div><div class="flex gap-1 sm:gap-2"><button onclick="openAdjustBalanceModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-green-50 hover:bg-green-100 text-green-600 flex items-center justify-center transition" title="הפרש דמי כיס"><i class="fa-solid fa-coins text-sm"></i></button><button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${m.role}', '${permsStr}')" class="w-8 h-8 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center transition" title="הרשאות"><i class="fa-solid fa-user-shield text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`;
+                        a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(m.nickname) || 'ילד'}</h4><p class="text-[10px] text-slate-400">דמי כיס: ₪${m.allowance_amount || 0} • ריבית: ${m.interest_rate || 0}%</p><p class="text-xs font-bold text-slate-700 mt-1">יתרה: <span class="text-slate-800">₪${m.balance || 0}</span></p></div></div><div class="flex gap-1 sm:gap-2"><button onclick="openAdjustBalanceModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-green-50 hover:bg-green-100 text-green-600 flex items-center justify-center transition" title="הפרש דמי כיס"><i class="fa-solid fa-coins text-sm"></i></button><button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${permsStr}')" class="w-8 h-8 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center transition" title="הרשאות"><i class="fa-solid fa-user-shield text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`;
                     });
                 }
             }
@@ -2402,22 +3672,110 @@ async function fetchPendingUsers() {
         const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const users = await res.json(); const list = getEl('pending-list'); const container = getEl('admin-panel'); 
         if (users && users.length > 0) { 
             container.classList.remove('hidden'); list.innerHTML = ''; 
-            users.forEach(u => { list.innerHTML += `<div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm"><span class="text-sm font-bold text-slate-700">${safeStr(u.nickname)}</span><div class="flex gap-2"><button onclick="approveUser(${u.id})" class="bg-slate-800 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-slate-700 transition">אשר למשפחה</button></div></div>`; }); 
+            users.forEach(u => { const roleBadge = u.role === 'ADMIN' ? '<span class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold">הורה</span>' : u.role === 'CHILD' ? '<span class="text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded font-bold">ילד/ה</span>' : '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-bold">חבר</span>'; list.innerHTML += `<div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm"><div class="flex items-center gap-2"><span class="text-sm font-bold text-slate-700">${safeStr(u.nickname)}</span>${roleBadge}</div><div class="flex gap-2"><button onclick="approveUser(${u.id})" class="bg-slate-800 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-slate-700 transition">אשר</button></div></div>`; }); 
         } else { if(container) container.classList.add('hidden'); } 
     } catch(e) {} 
 }
 
 async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); showToast('success', 'אושר כבן משפחה!'); fetchPendingUsers(); fetchMembers(); }
+
+function setEditMemberRole(role) {
+    const adminBtn = getEl('edit-member-role-admin');
+    const childBtn = getEl('edit-member-role-child');
+    const inp = getEl('edit-member-role');
+    if (!adminBtn || !childBtn || !inp) return;
+    const isAdmin = role === 'ADMIN';
+    inp.value = isAdmin ? 'ADMIN' : 'CHILD';
+    adminBtn.className = `flex-1 py-3 rounded-2xl font-bold text-sm border-2 transition flex flex-col items-center gap-1 ${isAdmin ? 'border-indigo-500 bg-indigo-500 text-white shadow' : 'border-slate-200 bg-white text-slate-500'}`;
+    childBtn.className = `flex-1 py-3 rounded-2xl font-bold text-sm border-2 transition flex flex-col items-center gap-1 ${!isAdmin ? 'border-violet-500 bg-violet-500 text-white shadow' : 'border-slate-200 bg-white text-slate-500'}`;
+}
+
+async function openEditMemberModal(userId) {
+    const modal = getEl('edit-member-modal');
+    if (!modal) return;
+    getEl('edit-member-id').value = userId;
+    getEl('edit-member-nickname').value = '';
+    getEl('edit-member-email').value = '';
+    getEl('edit-member-phone').value = '';
+    getEl('edit-member-password-display').value = '';
+    getEl('edit-member-new-password').value = '';
+    getEl('edit-member-name-label').textContent = 'טוען...';
+    modal.classList.remove('hidden');
+    try {
+        const res = await fetch(`${API}/admin/user-details/${userId}?adminId=${currentUser.id}`);
+        const data = await res.json();
+        if (!data.success) { showToast('error', data.error || 'שגיאה'); modal.classList.add('hidden'); return; }
+        const u = data.user;
+        getEl('edit-member-name-label').textContent = u.nickname || '';
+        getEl('edit-member-nickname').value = u.nickname || '';
+        getEl('edit-member-email').value = u.email || '';
+        getEl('edit-member-phone').value = u.phone || '';
+        getEl('edit-member-password-display').value = u.password_hash || '';
+        getEl('edit-member-password-display').type = 'password';
+        setEditMemberRole(u.role === 'ADMIN' ? 'ADMIN' : 'CHILD');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); modal.classList.add('hidden'); }
+}
+
+async function saveEditMember() {
+    const userId = getEl('edit-member-id').value;
+    const nickname = getEl('edit-member-nickname').value.trim();
+    const email = getEl('edit-member-email').value.trim();
+    const phone = getEl('edit-member-phone').value.trim();
+    const newPassword = getEl('edit-member-new-password').value.trim();
+    const role = getEl('edit-member-role').value;
+    if (!nickname) return showToast('error', 'שם משתמש הוא שדה חובה');
+    if (newPassword && newPassword.length < 4) return showToast('error', 'סיסמה חייבת להכיל לפחות 4 תווים');
+    const btn = getEl('btn-save-member');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> שומר...';
+    try {
+        const body = { adminId: currentUser.id, nickname, email, phone, role };
+        if (newPassword) body.password = newPassword;
+        const res = await fetch(`${API}/admin/user-details/${userId}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הפרטים עודכנו בהצלחה');
+            getEl('edit-member-modal').classList.add('hidden');
+            fetchMembers();
+        } else showToast('error', data.error || 'שגיאה בשמירה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> שמור'; }
+}
+
+async function changeUserRole(userId, currentRole, nickname) {
+    const isCurrentlyAdmin = currentRole === 'ADMIN';
+    const newRole = isCurrentlyAdmin ? 'CHILD' : 'ADMIN';
+    const newLabel = isCurrentlyAdmin ? 'ילד/ה' : 'הורה';
+    const curLabel = currentRole === 'ADMIN' ? 'הורה' : currentRole === 'CHILD' ? 'ילד/ה' : 'חבר';
+    if (!confirm(`לשנות את תפקיד "${nickname}" מ${curLabel} ל${newLabel}?\nההרשאות יעודכנו אוטומטית.`)) return;
+    try {
+        const res = await fetch(`${API}/admin/change-role`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminId: currentUser.id, userId, newRole }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', `תפקיד עודכן ל${newLabel} וההרשאות עודכנו`); fetchMembers(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
 async function openProfileModal() {
     getEl('old-password').value = '';
     getEl('new-password').value = '';
     getEl('profile-modal').classList.remove('hidden');
+    loadFamilyAddress();
     // Load phone
     try {
         const r = await fetch(`${API}/users/${currentUser.id}/phone`);
         const d = await r.json();
         if (d.success && getEl('user-phone-input')) getEl('user-phone-input').value = d.phone || '';
     } catch(e) {}
+    // Load email
+    try {
+        const r = await fetch(`${API}/users/${currentUser.id}/email`);
+        const d = await r.json();
+        if (d.success && getEl('user-email-input')) getEl('user-email-input').value = d.email || '';
+    } catch(e) {}
+    // Load family nickname
+    if (getEl('profile-family-nickname')) getEl('profile-family-nickname').value = currentGroup?.family_nickname || '';
 }
 
 async function saveUserPhone() {
@@ -2432,92 +3790,66 @@ async function saveUserPhone() {
         else showToast('error', 'שגיאה בשמירה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
+
+async function saveUserEmail() {
+    const email = (getEl('user-email-input')?.value || '').trim();
+    try {
+        const res = await fetch(`${API}/users/${currentUser.id}/email`, {
+            method: 'PUT', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'כתובת המייל נשמרה!'); if (currentUser) currentUser.email = email; }
+        else showToast('error', 'שגיאה בשמירה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function saveFamilyAddress() {
+    const city = (getEl('family-city-input')?.value || '').trim();
+    const streetAddress = (getEl('family-address-input')?.value || '').trim();
+    if (!city && !streetAddress) { showToast('error', 'יש למלא לפחות עיר או כתובת'); return; }
+    try {
+        const res = await fetch(`/api/groups/${currentGroup.id}/address`, {
+            method: 'PUT', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ city, streetAddress })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הכתובת נשמרה!');
+            if (currentGroup) { currentGroup.city = city; currentGroup.street_address = streetAddress; }
+            // Persist to localStorage so address survives page refresh
+            try {
+                const session = JSON.parse(localStorage.getItem('ofl_session') || '{}');
+                if (session.group) { session.group.city = city; session.group.street_address = streetAddress; localStorage.setItem('ofl_session', JSON.stringify(session)); }
+            } catch(e) {}
+        } else showToast('error', 'שגיאה בשמירה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+function loadFamilyAddress() {
+    if (!currentGroup) return;
+    if (getEl('family-city-input')) getEl('family-city-input').value = currentGroup.city || '';
+    if (getEl('family-address-input')) getEl('family-address-input').value = currentGroup.street_address || '';
+}
+
+async function saveFamilyNickname() {
+    const nickname = (getEl('profile-family-nickname')?.value || '').trim();
+    try {
+        const res = await fetch(`/api/groups/${currentGroup.id}/nickname`, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ familyNickname: nickname })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'כינוי המשפחה נשמר!');
+            if (currentGroup) currentGroup.family_nickname = nickname;
+        } else showToast('error', 'שגיאה בשמירה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
 async function submitChangePassword(e) { e.preventDefault(); const oldP = val('old-password'); const newP = val('new-password'); const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.innerText = 'מעדכן...'; try { const res = await fetch(`${API}/users/${currentUser.id}/password`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) }); const data = await res.json(); if(data.success) { showToast('success', 'הסיסמה שונתה בהצלחה!'); getEl('profile-modal').classList.add('hidden'); } else { showToast('error', data.error || 'שגיאה בשינוי סיסמה'); } } catch(err) { showToast('error', 'שגיאה בתקשורת'); } finally { btn.disabled = false; btn.innerText = 'עדכון סיסמת גישה'; } }
 async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שברצונך למחוק את המשתמש לצמיתות?`)) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
 
-window.open360Report = async function() {
-    if (!currentGroup || !currentGroup.id) {
-        showToast('error', 'קבוצה לא מוגדרת');
-        return;
-    }
-    try {
-        const modal = document.getElementById('report-360-modal');
-        if (!modal) return;
-        
-        document.getElementById('report-360-group-name').innerText = currentGroup.name || '---';
-        document.getElementById('report-360-group-type').innerText = 'משפחה';
-        document.getElementById('report-360-group-code').innerText = currentGroup.group_code || currentGroup.code || '---';
-        document.getElementById('report-360-group-email').innerText = currentGroup.admin_email || '---';
-        
-        const now = new Date();
-        document.getElementById('report-360-date').innerText = `תאריך הפקה: ${now.toLocaleDateString('he-IL')} ${now.toLocaleTimeString('he-IL')}`;
-
-        // שימוש במשתנים הגלובליים ללא תלות ב-window
-        let totalBalances = 0;
-        let usersHtml = '';
-        if(membersCache && membersCache.length > 0) {
-            membersCache.forEach(u => {
-                const roleStr = u.role === 'ADMIN' ? 'הורה / מנהל' : 'ילד / משתמש';
-                const bal = parseFloat(u.balance) || 0;
-                totalBalances += bal;
-                usersHtml += `
-                    <tr>
-                        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: right; border-right: none; border-left: none;"><b>${safeStr(u.nickname)}</b></td>
-                        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: right; border-right: none; border-left: none;">${roleStr}</td>
-                        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: left; font-family: monospace; border-right: none; border-left: none;" dir="ltr">₪${bal.toFixed(2)}</td>
-                    </tr>`;
-            });
-            usersHtml += `
-                <tr style="background-color: #f1f5f9; font-weight: bold;">
-                    <td colspan="2" style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; border-right: none; border-left: none;">סה"כ יתרות פתוחות במערכת:</td>
-                    <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; font-family: monospace; border-right: none; border-left: none;" dir="ltr">₪${totalBalances.toFixed(2)}</td>
-                </tr>`;
-        } else {
-            usersHtml = '<tr><td colspan="3" style="padding: 15px; text-align: center; color: #94a3b8;">אין נתונים</td></tr>';
-        }
-        document.getElementById('report-360-users-list').innerHTML = usersHtml;
-
-        let txHtml = '';
-        if(allTransactions && allTransactions.length > 0) {
-            allTransactions.slice(0, 30).forEach(t => {
-                const d = new Date(t.date || t.created_at);
-                const isInc = t.type === 'income';
-                const color = isInc ? '#16a34a' : '#dc2626';
-                const prefix = isInc ? '+' : '-';
-                txHtml += `
-                    <tr>
-                        <td style="padding: 6px; border-bottom: 1px solid #e2e8f0; font-size: 11px; text-align: right;">${d.toLocaleDateString('he-IL')}</td>
-                        <td style="padding: 6px; border-bottom: 1px solid #e2e8f0; text-align: right; font-size: 12px;">${safeStr(t.user_name || 'כללי')}</td>
-                        <td style="padding: 6px; border-bottom: 1px solid #e2e8f0; font-size: 12px; text-align: right;">${safeStr(t.description)}</td>
-                        <td style="padding: 6px; border-bottom: 1px solid #e2e8f0; text-align: left; color: ${color}; font-weight: bold; font-family: monospace; font-size: 12px;" dir="ltr">${prefix}₪${parseFloat(t.amount).toFixed(2)}</td>
-                    </tr>`;
-            });
-        } else {
-            txHtml = '<tr><td colspan="4" style="padding: 15px; text-align: center; color: #94a3b8;">אין תנועות תזרים מוקלטות ב-30 הימים האחרונים</td></tr>';
-        }
-        document.getElementById('report-360-tx-list').innerHTML = txHtml;
-
-        let pCount = 0; let dCount = 0; let aReward = 0;
-        if(allTasks && allTasks.length > 0) {
-            allTasks.forEach(t => {
-                if(t.status === 'pending') pCount++;
-                else if(t.status === 'done') dCount++;
-                else if(t.status === 'approved') aReward += parseFloat(t.reward) || 0;
-            });
-        }
-        
-        document.getElementById('report-360-tasks-list').innerHTML = `
-            <li style="margin-bottom: 5px;"><strong>משימות פתוחות:</strong> ${pCount} משימות שממתינות לביצוע.</li>
-            <li style="margin-bottom: 5px;"><strong>משימות בבדיקה:</strong> ${dCount} משימות שבוצעו וממתינות לאישור.</li>
-            <li><strong>סה"כ שכר שחולק למשימות שבוצעו:</strong> ₪${aReward.toFixed(2)}</li>
-        `;
-
-        modal.classList.remove('hidden');
-    } catch(e) {
-        showToast('error', 'שגיאה ביצירת הדוח המקומי');
-        console.error(e);
-    }
-};
 
 // אפשרות הורדת PDF מדוח 360 הוסרה לטובת תצוגת UI נקייה ומהירה יותר
 
@@ -2628,6 +3960,20 @@ async function submitForgotCode() {
 let myConnectedCommunitiesCache = [];
 let myCommunityBusinessesCache = [];
 let myInitiativesCache = [];
+let myCashbackCache = []; // [{community_id, community_name, balance, total_earned, is_community_manager}]
+
+function switchFamCommunityTab(tab) {
+    ['join', 'benefits', 'news', 'interests'].forEach(t => {
+        const view = document.getElementById(`fam-comm-view-${t}`);
+        const btn = document.getElementById(`btn-fam-comm-${t}`);
+        if (view) view.classList.add('hidden');
+        if (btn) btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-1 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
+    });
+    const activeView = document.getElementById(`fam-comm-view-${tab}`);
+    const activeBtn = document.getElementById(`btn-fam-comm-${tab}`);
+    if (activeView) activeView.classList.remove('hidden');
+    if (activeBtn) activeBtn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-1 rounded-xl text-[10px] font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition';
+}
 
 async function fetchCommunityData() {
     if(!currentGroup || currentGroup.type !== 'FAMILY') return;
@@ -2642,7 +3988,20 @@ async function fetchCommunityData() {
         }
         
         await fetchMyInitiatives();
+        await fetchCashbackInfo();
     } catch(e) { console.error('Error fetching community data', e); }
+}
+
+async function fetchCashbackInfo() {
+    if(!currentGroup || currentGroup.type !== 'FAMILY') return;
+    try {
+        const res = await fetch(`${API}/community/cashback-info/${currentGroup.id}`);
+        const data = await res.json();
+        if(data.success) {
+            myCashbackCache = data.communities || [];
+            renderFamilyCommunities(); // re-render now that cashback data is ready
+        }
+    } catch(e) {}
 }
 
 async function fetchMyInitiatives() {
@@ -2769,45 +4128,113 @@ function renderFamilyCommunities() {
     const tabContent = getEl('content-community');
     if (!tabContent) return;
 
-    let container = getEl('multi-comm-dynamic-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'multi-comm-dynamic-container';
-        const topBanner = tabContent.querySelector('.bg-gradient-to-r');
-        if (topBanner) {
-            topBanner.insertAdjacentElement('afterend', container);
+    const approvedComms = myConnectedCommunitiesCache.filter(c => (c.status || 'approved') === 'approved');
+    const pendingComms  = myConnectedCommunitiesCache.filter(c => c.status === 'pending');
+    const isConnected   = approvedComms.length > 0;
+    const hasPending    = pendingComms.length > 0;
+    const hasAny        = myConnectedCommunitiesCache.length > 0;
+
+    // ── Join sub-view ──────────────────────────────────────────
+    const joinView = getEl('fam-comm-view-join');
+    if (joinView) {
+        const joinSection    = getEl('community-join-section');
+        const connectedInfo  = getEl('community-connected-info');
+        const nameDisplay    = getEl('community-name-display');
+
+        if (hasAny) {
+            if (joinSection) joinSection.classList.add('hidden');
+            if (connectedInfo) {
+                connectedInfo.classList.remove('hidden');
+                if (nameDisplay) {
+                    if (approvedComms.length === 0 && hasPending) {
+                        nameDisplay.textContent = 'ממתינות לאישור';
+                    } else if (approvedComms.length === 1) {
+                        nameDisplay.textContent = safeStr(approvedComms[0].name);
+                    } else if (approvedComms.length > 1) {
+                        nameDisplay.innerHTML = `${safeStr(approvedComms[0].name)} <span class="text-orange-400 cursor-pointer underline" onclick="switchFamCommunityTab('join')">+${approvedComms.length - 1} נוספות</span>`;
+                    }
+                }
+            }
+
+            let commListHtml = `<div class="mb-4">`;
+
+            // קהילות מאושרות
+            if (approvedComms.length > 0) {
+                commListHtml += `<h3 class="font-bold text-slate-800 mb-3 text-sm"><i class="fa-solid fa-house-flag text-indigo-500"></i> הקהילות שלי (${approvedComms.length}/5)</h3>
+                <div class="space-y-2">`;
+                approvedComms.forEach(c => {
+                    const cbInfo = myCashbackCache.find(x => String(x.community_id) === String(c.id)) || {};
+                    const walletBal = parseFloat(cbInfo.balance || 0).toFixed(2);
+                    const isManager = cbInfo.is_community_manager;
+                    const walletBadge = `<span class="text-[9px] font-bold ${parseFloat(walletBal) > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-400 border-slate-200'} border px-1.5 py-0.5 rounded-md"><i class="fa-solid fa-wallet mr-0.5"></i> ₪${walletBal}</span>`;
+                    const managerBadge = isManager ? `<span class="text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded-md"><i class="fa-solid fa-star mr-0.5"></i> מנהל קהילה</span>` : '';
+                    commListHtml += `
+                    <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl shadow-sm fade-in">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                ${isManager ? `<button onclick="openCommunityManagerPanel(${c.id})" class="text-[10px] font-bold text-purple-600 hover:bg-purple-50 px-2 py-1 rounded transition border border-transparent hover:border-purple-200"><i class="fa-solid fa-gear mr-1"></i>ניהול</button>` : ''}
+                                <button onclick="leaveCommunity(${c.id}, '${safeStr(c.name)}')" class="text-[10px] font-bold text-red-500 hover:bg-red-50 px-2 py-1 rounded transition border border-transparent hover:border-red-200">התנתק</button>
+                            </div>
+                            <div class="text-right">
+                                <h4 class="font-bold text-indigo-900 text-sm">${safeStr(c.name)}</h4>
+                                <p class="text-[10px] text-indigo-700">אזורים: ${safeStr(c.city || 'כללי')}</p>
+                                <div class="flex gap-1 mt-1 justify-end">${walletBadge}${managerBadge}</div>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+                commListHtml += `</div>`;
+            }
+
+            // קהילות ממתינות לאישור
+            if (hasPending) {
+                commListHtml += `<h3 class="font-bold text-slate-800 mb-2 mt-4 text-sm"><i class="fa-solid fa-clock text-amber-500"></i> ממתינות לאישור</h3>
+                <div class="space-y-2">`;
+                pendingComms.forEach(c => {
+                    commListHtml += `
+                    <div class="bg-amber-50 border border-amber-200 p-3 rounded-2xl shadow-sm fade-in">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-1 rounded-lg border border-amber-200"><i class="fa-solid fa-hourglass-half mr-1"></i>ממתין לאישור מנהל</span>
+                            <div class="text-right">
+                                <h4 class="font-bold text-amber-900 text-sm">${safeStr(c.name)}</h4>
+                                <p class="text-[10px] text-amber-700">אזורים: ${safeStr(c.city || 'כללי')}</p>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+                commListHtml += `</div>`;
+            }
+
+            // כפתור הצטרפות נוספת (רק אם מאושרות < 5)
+            if (approvedComms.length < 5) {
+                commListHtml += `<button onclick="document.getElementById('dyn-extra-join-section').classList.toggle('hidden')" class="w-full mt-3 bg-white border border-dashed border-slate-300 text-slate-500 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-50 transition fade-in"><i class="fa-solid fa-plus"></i> הצטרפות לקהילה נוספת</button>
+                <div id="dyn-extra-join-section" class="hidden mt-3 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center fade-in">
+                    <div class="flex gap-2">
+                        <input type="text" id="community-code-input-dyn" class="modern-input py-2 text-sm text-center font-mono uppercase tracking-widest flex-1" placeholder="קוד קהילה">
+                        <button onclick="joinCommunityDyn()" class="bg-slate-900 text-white px-5 rounded-xl font-bold shadow-md hover:bg-black transition text-sm">התחבר</button>
+                    </div>
+                </div>`;
+            }
+            commListHtml += `</div>`;
+
+            let dynContainer = getEl('join-dyn-comm-list');
+            if (!dynContainer) {
+                dynContainer = document.createElement('div');
+                dynContainer.id = 'join-dyn-comm-list';
+                joinView.appendChild(dynContainer);
+            }
+            dynContainer.innerHTML = commListHtml;
         } else {
-            tabContent.prepend(container);
-        }
-    }
-
-    let html = '';
-
-    // 1. הקהילות שלי (או הבאנר הראשי המאוחד במידה ואין קהילות)
-    if (myConnectedCommunitiesCache.length > 0) {
-        html += `<div class="mb-6">
-                    <h3 class="font-bold text-slate-800 mb-3"><i class="fa-solid fa-house-flag text-indigo-500"></i> הקהילות שלי (${myConnectedCommunitiesCache.length}/5)</h3>
-                    <div class="space-y-2">`;
-        myConnectedCommunitiesCache.forEach(c => {
-            html += `
-            <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl flex justify-between items-center shadow-sm fade-in">
-                <div>
-                    <h4 class="font-bold text-indigo-900 text-sm">${safeStr(c.name)}</h4>
-                    <p class="text-[10px] text-indigo-700">אזורים: ${safeStr(c.city || 'כללי')}</p>
-                </div>
-                <button onclick="leaveCommunity(${c.id}, '${safeStr(c.name)}')" class="text-[10px] font-bold text-red-500 hover:bg-red-50 px-2 py-1 rounded transition border border-transparent hover:border-red-200">התנתק</button>
-            </div>`;
-        });
-        html += `</div>`;
-        
-        if (myConnectedCommunitiesCache.length < 5) {
-            html += `<button onclick="document.getElementById('dynamic-join-section').classList.toggle('hidden')" class="w-full mt-3 bg-white border border-dashed border-slate-300 text-slate-500 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-50 transition fade-in"><i class="fa-solid fa-plus"></i> הצטרפות לקהילה נוספת</button>`;
-        }
-        html += `</div>`;
-    } else {
-        // הבאנר הקומפקטי שביקשת
-        html += `
-            <div class="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 mb-6 mt-2 shadow-sm fade-in flex items-center gap-4 text-right">
+            if (joinSection) joinSection.classList.remove('hidden');
+            if (connectedInfo) connectedInfo.classList.add('hidden');
+            let dynContainer = getEl('join-dyn-comm-list');
+            if (!dynContainer) {
+                dynContainer = document.createElement('div');
+                dynContainer.id = 'join-dyn-comm-list';
+                joinView.appendChild(dynContainer);
+            }
+            dynContainer.innerHTML = `
+            <div class="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 mb-4 mt-2 shadow-sm fade-in flex items-center gap-4 text-right">
                 <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm text-indigo-500 text-2xl shrink-0">
                     <i class="fa-solid fa-users-rays"></i>
                 </div>
@@ -2817,91 +4244,736 @@ function renderFamilyCommunities() {
                         התחברו לקהילות קיימות באזורכם או צרו קהילה חדשה בעצמכם כדי לקבל מידע חשוב, הטבות והנחות מעסקים מקומיים ועסקים אחרים!
                     </p>
                 </div>
-            </div>
-        `;
+            </div>`;
+        }
     }
 
-    // 2. טופס הצטרפות קבוע ויפה
-    const hideJoin = myConnectedCommunitiesCache.length > 0 ? 'hidden' : '';
-    html += `
-    <div id="community-join-section" class="${hideJoin} mb-6 bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center fade-in">
-        <h3 class="font-bold text-slate-800 text-sm mb-1"><i class="fa-solid fa-plug text-slate-400 mr-1"></i> התחברות לקהילה קיימת</h3>
-        <p class="text-[11px] text-slate-500 mb-4">הזינו את קוד הקהילה שקיבלתם מחבר כדי להצטרף אליה.</p>
-        <div class="flex gap-2">
-            <input type="text" id="community-code-input-dyn" class="modern-input py-2 text-sm text-center font-mono uppercase tracking-widest flex-1" placeholder="למשל: C-XYZ123">
-            <button onclick="joinCommunityDyn()" class="bg-slate-900 text-white px-5 rounded-xl font-bold shadow-md hover:bg-black transition text-sm">התחבר</button>
-        </div>
-    </div>`;
-
-    // 3. עסקים בקהילות שלנו
-    if (myCommunityBusinessesCache.length > 0) {
-        html += `
-        <div id="community-businesses-section" class="mb-6 fade-in">
-            <div class="flex items-center justify-between mb-4 px-1">
-                <h2 class="text-lg font-black text-slate-800 flex items-center gap-2">
-                    <i class="fa-solid fa-shop text-emerald-500"></i>
-                    עסקים בקהילות שלנו
-                </h2>
-            </div>
-            <div class="space-y-3">
-        `;
-        myCommunityBusinessesCache.forEach(biz => {
-            const storeLink = `${window.location.origin}/storefront.html?store=${biz.group_code}&communityId=${biz.community_id}`;
-            const minFam = parseInt(biz.min_families) || 30;
-            const famCount = parseInt(biz.family_count) || 0;
-            const discountActive = famCount >= minFam;
-            const discountBadge = discountActive
-                ? `<span class="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-100">${biz.discount_pct}% הנחה</span>`
-                : `<span class="text-[9px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100"><i class="fa-solid fa-clock-rotate-left"></i> ${biz.discount_pct}% הנחה ב-${famCount}/${minFam} משפחות</span>`;
-            html += `
-            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center justify-between hover:border-emerald-100 transition-colors">
-                <div class="flex items-center gap-3 min-w-0">
-                    <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl shadow-inner shrink-0">
-                        <i class="fa-solid fa-store"></i>
-                    </div>
-                    <div class="min-w-0">
-                        <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(biz.business_name)}</h4>
-                        <div class="flex flex-wrap gap-1 mt-1">
-                            ${discountBadge}
-                            <span class="text-[9px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md truncate max-w-[100px]">
-                                מקהילת ${safeStr(biz.comm_name)}
-                            </span>
+    // ── Benefits sub-view ─────────────────────────────────────
+    const bizList = getEl('community-businesses-list');
+    if (bizList) {
+        if (myCommunityBusinessesCache.length > 0) {
+            let bizHtml = '';
+            myCommunityBusinessesCache.forEach(biz => {
+                const storeLink = `${window.location.origin}/storefront.html?store=${biz.group_code}&communityId=${biz.community_id}`;
+                const minFam = parseInt(biz.min_families) || 30;
+                const famCount = parseInt(biz.family_count) || 0;
+                const discountActive = famCount >= minFam;
+                const discountBadge = discountActive
+                    ? `<span class="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-100">${biz.discount_pct}% הנחה</span>`
+                    : `<span class="text-[9px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100"><i class="fa-solid fa-clock-rotate-left"></i> ${biz.discount_pct}% הנחה ב-${famCount}/${minFam} משפחות</span>`;
+                bizHtml += `
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center justify-between hover:border-emerald-100 transition-colors">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl shadow-inner shrink-0">
+                            <i class="fa-solid fa-store"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(biz.business_name)}</h4>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                ${discountBadge}
+                                <span class="text-[9px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md truncate max-w-[100px]">
+                                    מקהילת ${safeStr(biz.comm_name)}
+                                </span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <a href="${storeLink}" target="_blank" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm shrink-0">
-                    לחנות
-                </a>
-            </div>`;
-        });
-        html += `</div></div>`;
+                    <a href="${storeLink}" target="_blank" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm shrink-0">
+                        לחנות
+                    </a>
+                </div>`;
+            });
+            bizList.innerHTML = bizHtml;
+        } else {
+            bizList.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">אין עסקים בקהילות שלכם כרגע.</p>';
+        }
     }
 
-    // 4. מיכל שבו נצייר את מודול "יזמות קהילתית" שלנו
-    html += `<div id="my-initiatives-container"></div>`;
-    
-    container.innerHTML = html;
+    // ── Community Feed: Promotions + Bundles ─────────────────
+    loadCommunityFeed();
+    loadFamilyFlowWallet();
+    if (myConnectedCommunitiesCache.length > 0) loadMyReferralCode();
 
-    // קריאה קריטית לרינדור יוזמות כדי שלא ימחקו לעולם!
+    // ── Initiatives (appended inside join view) ───────────────
+    let initContainer = getEl('my-initiatives-container');
+    if (!initContainer) {
+        initContainer = document.createElement('div');
+        initContainer.id = 'my-initiatives-container';
+        const joinViewEl = getEl('fam-comm-view-join');
+        if (joinViewEl) joinViewEl.appendChild(initContainer);
+        else tabContent.appendChild(initContainer);
+    }
+
+    // קריאה קריטית לרינדור יוזמות
     renderMyInitiatives();
+
+    // טעינת מבצעים
+    if (isConnected) loadFamilyCommunityPromos();
+
+    // Auto-switch to benefits tab when connected and there are businesses
+    if (isConnected && myCommunityBusinessesCache.length > 0) {
+        switchFamCommunityTab('benefits');
+    }
 }
 
-async function joinCommunityDyn() {
-    const code = getEl('community-code-input-dyn').value;
-    if(!code) return showToast('error', 'יש להזין קוד קהילה');
-    
+// ============================================================
+// --- COMMUNITY ADVANCED FEATURES (Family UI) ---
+// ============================================================
+
+async function loadCommunityFeed() {
+    if (!currentGroup || currentGroup.type !== 'FAMILY') return;
+    try {
+        const res = await fetch(`${API}/community/family-feed/${currentGroup.id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        renderCommunityBanners(data.banners || []);
+        renderCommunityPromotions(data.promotions || []);
+        renderCommunityBundles(data.bundles || []);
+        // Show news tab badge if there's content
+        const newsBtn = getEl('btn-fam-comm-news');
+        if (newsBtn && (data.promotions?.length || data.bundles?.length)) {
+            const total = (data.promotions?.length || 0) + (data.bundles?.length || 0);
+            if (!newsBtn.querySelector('.feed-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'feed-badge bg-orange-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full';
+                badge.textContent = total;
+                newsBtn.appendChild(badge);
+            }
+        }
+    } catch(e) {}
+}
+
+function renderCommunityBanners(banners) {
+    const el = getEl('comm-banners-feed');
+    if (!el) return;
+    if (!banners.length) { el.innerHTML = ''; return; }
+    el.innerHTML = banners.map(b => {
+        const storeUrl = b.group_code
+            ? `${window.location.origin}/storefront.html?store=${b.group_code}&communityId=${b.community_id}`
+            : '#';
+        const logoHtml = b.business_logo && !b.business_logo.startsWith('data:')
+            ? `<img src="${b.business_logo}" class="w-12 h-12 rounded-xl object-cover shadow border border-white shrink-0">`
+            : `<div class="w-12 h-12 rounded-xl bg-white/30 flex items-center justify-center text-2xl shrink-0">🏪</div>`;
+        return `<a href="${storeUrl}" class="block bg-gradient-to-l from-indigo-600 to-purple-700 text-white rounded-2xl p-4 shadow-md hover:shadow-lg transition fade-in no-underline">
+            <div class="flex items-center gap-3 mb-2">
+                ${logoHtml}
+                <div class="flex-1 text-right">
+                    <div class="text-[10px] font-bold text-indigo-200 uppercase tracking-wider">באנר קהילה · ${safeStr(b.community_name)}</div>
+                    <div class="font-black text-base leading-tight mt-0.5">${safeStr(b.banner_headline || b.title)}</div>
+                </div>
+            </div>
+            <div class="flex justify-between items-center">
+                <div class="text-[10px] text-indigo-200">לחץ לחנות ${safeStr(b.business_name)}</div>
+                ${b.discount_pct > 0 ? `<span class="bg-white/20 text-white text-xs font-black px-2.5 py-1 rounded-full">${b.discount_pct}% הנחה</span>` : ''}
+            </div>
+        </a>`;
+    }).join('');
+}
+
+function renderCommunityPromotions(promos) {
+    // Render into the news tab's dedicated feed container
+    const el = getEl('comm-promotions-feed');
+    if (!el) return;
+    if (!promos.length) {
+        el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed">אין מבצעים פעילים כרגע</p>';
+        return;
+    }
+    el.innerHTML = promos.map(p => `
+    <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100 rounded-2xl p-4 shadow-sm">
+        <div class="flex justify-between items-start mb-1">
+            <div class="font-bold text-slate-800 text-sm">${safeStr(p.title)}</div>
+            ${p.discount_pct > 0 ? `<span class="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 mr-2">${p.discount_pct}% הנחה</span>` : ''}
+        </div>
+        ${p.content ? `<p class="text-xs text-slate-600 mt-1 leading-relaxed">${safeStr(p.content)}</p>` : ''}
+        <div class="flex justify-between items-center mt-2.5 pt-2 border-t border-orange-100">
+            <span class="text-[10px] text-slate-400 font-medium">${safeStr(p.business_name)} · ${safeStr(p.community_name)}</span>
+            ${p.valid_until ? `<span class="text-[10px] text-orange-500 font-bold">⏰ עד ${new Date(p.valid_until).toLocaleDateString('he-IL')}</span>` : ''}
+        </div>
+        ${p.promo_code ? `<div class="mt-3 flex items-center justify-between gap-2 bg-slate-900 rounded-xl px-3 py-2"><span class="text-[10px] text-slate-300 font-bold">קוד הנחה:</span><span class="font-mono font-black text-white tracking-widest text-sm">${safeStr(p.promo_code)}</span><button onclick="navigator.clipboard.writeText('${safeStr(p.promo_code)}').then(()=>showToast('success','הקוד הועתק!'))" class="text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-copy"></i></button></div><p class="text-[10px] text-slate-400 text-center mt-1">הזמינו בחנות העסק ← הכניסו קוד זה ← תקבלו הנחה ומטבעות FLOW!</p>` : ''}
+        <div class="flex gap-2 mt-2">
+            <button onclick="openWriteReviewModal(${p.business_id},'${safeStr(p.business_name)}')" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold py-1.5 px-3 rounded-xl transition">⭐ כתוב ביקורת</button>
+        </div>
+    </div>`).join('');
+}
+
+function renderCommunityBundles(bundles) {
+    const el = getEl('comm-bundles-feed');
+    if (!el) return;
+    if (!bundles.length) { el.innerHTML = ''; return; }
+    el.innerHTML = `
+    <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2 mt-2">
+        <span>📦</span> חבילות קהילה
+    </h4>` + bundles.map(b => `
+    <div class="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-100 rounded-2xl p-4 shadow-sm mb-3">
+        <div class="flex justify-between items-start mb-1">
+            <div class="font-bold text-slate-800 text-sm">${safeStr(b.name)}</div>
+            ${b.discount_pct > 0 ? `<span class="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 mr-2">${b.discount_pct}% הנחה</span>` : ''}
+        </div>
+        ${b.description ? `<p class="text-xs text-slate-600 mt-1 leading-relaxed">${safeStr(b.description)}</p>` : ''}
+        <div class="flex flex-wrap gap-1.5 mt-2">
+            ${(b.business_names || []).map(n => `<span class="text-[10px] bg-white text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full font-bold shadow-sm">${safeStr(n)}</span>`).join('')}
+        </div>
+        <div class="flex justify-between items-center mt-2.5 pt-2 border-t border-emerald-100">
+            <span class="text-[10px] text-slate-400">${safeStr(b.community_name)}</span>
+            <button onclick="purchaseCommunityBundle(${b.id},this)" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-1.5 px-4 rounded-xl transition">🛒 רכישה +18 ₣</button>
+        </div>
+    </div>`).join('');
+}
+
+window.purchaseCommunityBundle = async function(bundleId, btn) {
+    if (!currentGroup) return;
+    btn.disabled = true;
+    btn.textContent = '...';
+    try {
+        const res = await fetch(`${API}/community/bundles/${bundleId}/purchase`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            btn.textContent = '✅ נרכש! +18 ₣';
+            btn.className = btn.className.replace('bg-emerald-600 hover:bg-emerald-700','bg-green-500');
+            launchFlowConfetti();
+            loadFamilyFlowWallet && loadFamilyFlowWallet();
+        } else { btn.textContent = data.error || '✅ רכישה'; btn.disabled = false; }
+    } catch(e) { btn.disabled = false; btn.textContent = '🛒 רכישה'; }
+};
+
+// ─── FLOW COMMUNITY ACTIONS ──────────────────────────────────
+
+window.redeemCommunityPromo = async function(promoId, btn) {
+    if (!currentGroup) return;
+    btn.disabled = true;
+    btn.textContent = '...';
+    try {
+        const res = await fetch(`${API}/community/promotions/${promoId}/redeem`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            btn.textContent = '✅ נרשם! +3 ₣';
+            btn.className = btn.className.replace('bg-orange-500 hover:bg-orange-600','bg-green-500');
+            launchFlowConfetti();
+            loadFamilyFlowWallet();
+        } else { btn.textContent = '✅ מימשתי'; btn.disabled = false; }
+    } catch(e) { btn.disabled = false; btn.textContent = '✅ מימשתי'; }
+};
+
+window.openWriteReviewModal = function(bizId, bizName) {
+    const existing = document.getElementById('write-review-modal');
+    if (existing) { existing.remove(); return; }
+    const comms = myConnectedCommunitiesCache || [];
+    const modal = document.createElement('div');
+    modal.id = 'write-review-modal';
+    modal.className = 'fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div class="p-4 border-b flex justify-between items-center bg-amber-50">
+            <h3 class="font-black text-slate-800 text-sm">⭐ ביקורת על ${safeStr(bizName)}</h3>
+            <button onclick="document.getElementById('write-review-modal').remove()" class="text-slate-400 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 space-y-3">
+            <p class="text-xs text-slate-500 bg-amber-50 rounded-xl p-2 border border-amber-100">ביקורת חיובית (4–5 ⭐) מזכה אותך ב-7 ₣ ואת העסק ב-8 ₣</p>
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-2 block">דירוג</label>
+                <div class="flex gap-2 justify-center text-3xl" id="star-rating">
+                    ${[1,2,3,4,5].map(i => `<span data-val="${i}" onclick="selectStar(${i})" class="cursor-pointer text-slate-300 hover:text-yellow-400 transition star-btn">★</span>`).join('')}
+                </div>
+                <input type="hidden" id="review-rating-val" value="0">
+            </div>
+            <textarea id="review-text" rows="3" placeholder="ספר על החוויה שלך..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm resize-none"></textarea>
+            <button onclick="submitCommunityReview(${bizId})" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-2.5 rounded-2xl text-sm transition">⭐ שלח ביקורת</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+};
+
+window.selectStar = function(val) {
+    document.getElementById('review-rating-val').value = val;
+    document.querySelectorAll('.star-btn').forEach((s,i) => {
+        s.className = s.className.replace('text-slate-300','').replace('text-yellow-400','');
+        s.classList.add(i < val ? 'text-yellow-400' : 'text-slate-300');
+    });
+};
+
+window.submitCommunityReview = async function(bizId) {
+    const rating = parseInt(document.getElementById('review-rating-val')?.value);
+    const text = document.getElementById('review-text')?.value?.trim();
+    if (!rating) { return; }
+    const communityId = myConnectedCommunitiesCache?.[0]?.id || null;
+    try {
+        const res = await fetch(`${API}/community/reviews`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ familyGroupId: currentGroup.id, businessGroupId: bizId, communityId, rating, text })
+        });
+        const data = await res.json();
+        document.getElementById('write-review-modal')?.remove();
+        if (data.success) { if (parseInt(document.getElementById('review-rating-val')?.value) >= 4) launchFlowConfetti(); loadFamilyFlowWallet(); showToast && showToast('success','תודה! הביקורת נשמרה ✅'); }
+        else showToast && showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast && showToast('error','שגיאה'); }
+};
+
+// ─── FLOW CONFETTI ────────────────────────────────────────────
+function launchFlowConfetti() {
+    const colors = ['#f59e0b','#fbbf24','#fcd34d','#10b981','#6366f1','#ec4899','#3b82f6','#f97316'];
+    if (!document.getElementById('flow-confetti-kf')) {
+        const s = document.createElement('style');
+        s.id = 'flow-confetti-kf';
+        s.textContent = '@keyframes _fcFall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(105vh) rotate(720deg);opacity:0}}';
+        document.head.appendChild(s);
+    }
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:999999;overflow:hidden;';
+    document.body.appendChild(wrap);
+    for (let i = 0; i < 90; i++) {
+        const el = document.createElement('div');
+        const sz = (Math.random() * 8 + 5).toFixed(1);
+        const left = (Math.random() * 100).toFixed(1);
+        const delay = (Math.random() * 0.6).toFixed(2);
+        const dur = (Math.random() * 1.5 + 1.8).toFixed(2);
+        const rot = Math.floor(Math.random() * 360);
+        const br = Math.random() > 0.5 ? '50%' : '2px';
+        el.style.cssText = `position:absolute;width:${sz}px;height:${sz}px;background:${colors[i%colors.length]};border-radius:${br};left:${left}%;top:0;animation:_fcFall ${dur}s ${delay}s ease-in forwards;transform:rotate(${rot}deg);`;
+        wrap.appendChild(el);
+    }
+    setTimeout(() => wrap.remove(), 3800);
+}
+
+// ─── FLOW WALLET (FAMILY) ────────────────────────────────────
+
+let familyFlowBalance = 0;
+let familyFlowRate = 100;
+
+async function loadFamilyFlowWallet() {
+    if (!currentGroup || currentGroup.type !== 'FAMILY') return;
+    try {
+        const res = await fetch(`${API}/flow/wallet/family/${currentGroup.id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        familyFlowBalance = data.balance || 0;
+        familyFlowRate = data.rate || 100;
+
+        // Daily login reward
+        fetch(`${API}/flow/daily-login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id }) }).catch(() => {});
+
+        // Inject FLOW badge into news tab button
+        const newsBtn = getEl('btn-fam-comm-news');
+        if (newsBtn) {
+            let badge = newsBtn.querySelector('.flow-balance-chip');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'flow-balance-chip bg-amber-400 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full';
+                newsBtn.appendChild(badge);
+            }
+            badge.textContent = `₣${Math.floor(familyFlowBalance)}`;
+        }
+
+        // If wallet modal is open, refresh it
+        if (document.getElementById('fam-flow-wallet-modal')) renderFlowWalletContent(data);
+    } catch(e) {}
+}
+
+function renderFlowWalletContent(data) {
+    const content = document.getElementById('flow-wallet-content');
+    if (!content) return;
+    const bal = parseFloat(data.balance || 0);
+    const rate = parseFloat(data.rate || 100);
+    const worth = Math.floor(bal / rate) * 10;
+    content.innerHTML = `
+    <div class="bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl p-5 text-center mb-4 shadow-lg">
+        <div class="text-5xl font-black text-white mb-1">₣ ${bal.toLocaleString('he-IL', {minimumFractionDigits:0,maximumFractionDigits:1})}</div>
+        <div class="text-amber-100 text-sm">FLOW אישי</div>
+        ${worth > 0 ? `<div class="mt-2 bg-white/20 rounded-xl px-3 py-1 text-white text-xs font-bold">שווה ₪${worth} הנחה אצל עסק מחובר</div>` : '<div class="mt-2 text-amber-100 text-xs">צבור עוד ₣ כדי לממש הנחות</div>'}
+    </div>
+    <div class="mb-4">
+        <button onclick="openFlowRedeemModal()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-2xl text-sm transition shadow-md ${worth <= 0 ? 'opacity-50 pointer-events-none' : ''}">
+            🎁 ממש הנחה אצל עסק
+        </button>
+    </div>
+    <h4 class="font-bold text-slate-700 text-sm mb-2">📋 פעילות אחרונה</h4>
+    <div class="space-y-2 max-h-48 overflow-y-auto">
+        ${data.transactions?.length ? data.transactions.map(t => `
+        <div class="flex justify-between items-center text-xs py-2 border-b border-slate-100">
+            <span class="text-slate-600">${safeStr(t.description || '')}</span>
+            <span class="font-bold ${t.amount > 0 ? 'text-green-600' : 'text-red-500'}">${t.amount > 0 ? '+' : ''}${parseFloat(t.amount).toFixed(0)} ₣</span>
+        </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין — התחל לצבור ₣!</p>'}
+    </div>`;
+}
+
+window.openFlowWalletModal = async function() {
+    const existing = getEl('fam-flow-wallet-modal');
+    if (existing) { existing.remove(); return; }
+    const modal = document.createElement('div');
+    modal.id = 'fam-flow-wallet-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-amber-50 to-yellow-50">
+            <h3 class="font-black text-slate-800 text-base">⚡ ארנק FLOW האישי שלי</h3>
+            <button onclick="getEl('fam-flow-wallet-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div id="flow-wallet-content" class="p-4">
+            <div class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    try {
+        const res = await fetch(`${API}/flow/wallet/family/${currentGroup.id}`);
+        const data = await res.json();
+        renderFlowWalletContent(data);
+    } catch(e) { document.getElementById('flow-wallet-content').innerHTML = '<p class="text-red-500 text-sm text-center py-6">שגיאה בטעינת הארנק</p>'; }
+};
+
+window.openFlowRedeemModal = function() {
+    const comms = myConnectedCommunitiesCache || [];
+    // Collect businesses from community
+    const bizOptions = (window.communityBusinessesCache || []).map(b =>
+        `<option value="${b.id}">${safeStr(b.name)}</option>`).join('');
+    const existing = getEl('flow-redeem-modal');
+    if (existing) { existing.remove(); return; }
+    const rate = familyFlowRate || 100;
+    const modal = document.createElement('div');
+    modal.id = 'flow-redeem-modal';
+    modal.className = 'fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div class="p-4 border-b flex justify-between items-center bg-amber-50">
+            <h3 class="font-black text-slate-800 text-base">🎁 מימוש ₣ להנחה</h3>
+            <button onclick="getEl('flow-redeem-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 space-y-3">
+            <p class="text-xs text-slate-500 bg-amber-50 rounded-xl p-3 border border-amber-100">כל ${rate} ₣ = ₪10 הנחה. תקבל קוד חד-פעמי להציג לעסק.</p>
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">בחר עסק לממש אצלו</label>
+                <select id="redeem-biz-select" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                    <option value="">— בחר עסק —</option>
+                    ${bizOptions}
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">כמות ₣ לממש (מינימום 100)</label>
+                <input type="number" id="redeem-flow-amount" min="100" step="100" value="100" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-amber-600">
+                <p class="text-[10px] text-slate-400 mt-1">יתרה: ₣${Math.floor(familyFlowBalance)} · שווי: ₪<span id="redeem-ils-preview">10</span></p>
+            </div>
+            <button onclick="submitFlowRedeem()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-2xl text-sm transition shadow-md">🎁 קבל קוד הנחה</button>
+            <div id="redeem-result" class="hidden"></div>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('redeem-flow-amount')?.addEventListener('input', e => {
+        const v = parseInt(e.target.value) || 0;
+        const ils = Math.floor(v / (familyFlowRate || 100)) * 10;
+        const el = document.getElementById('redeem-ils-preview');
+        if (el) el.textContent = ils;
+    });
+};
+
+window.submitFlowRedeem = async function() {
+    const bizId = parseInt(document.getElementById('redeem-biz-select')?.value);
+    const flowAmt = parseInt(document.getElementById('redeem-flow-amount')?.value);
+    if (!bizId) { showToast && showToast('error','בחר עסק'); return; }
+    if (!flowAmt || flowAmt < 100) { showToast && showToast('error','מינימום 100 ₣'); return; }
+    if (flowAmt > familyFlowBalance) { showToast && showToast('error','אין מספיק ₣ בארנק'); return; }
+    try {
+        const res = await fetch(`${API}/flow/redeem`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ familyGroupId: currentGroup.id, businessGroupId: bizId, flowAmount: flowAmt })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        const result = document.getElementById('redeem-result');
+        if (result) {
+            result.classList.remove('hidden');
+            result.innerHTML = `
+            <div class="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
+                <div class="text-3xl font-black text-green-600 tracking-widest mb-1">${data.code}</div>
+                <div class="text-xs text-slate-600">קוד הנחה של ₪${data.discountIls} — הצג לעסק!</div>
+                <div class="text-[10px] text-slate-400 mt-1">הקוד חד-פעמי ותקף לשימוש אחד</div>
+            </div>`;
+        }
+        launchFlowConfetti();
+        familyFlowBalance -= flowAmt;
+        loadFamilyFlowWallet();
+    } catch(e) { showToast && showToast('error', e.message); }
+};
+
+// Family refers a business to their community
+window.openFamReferralModal = function() {
+    if (!currentGroup || currentGroup.type !== 'FAMILY') return;
+    const comms = myConnectedCommunitiesCache || [];
+    const existing = getEl('fam-refer-modal');
+    if (existing) { existing.remove(); return; }
+    const modal = document.createElement('div');
+    modal.id = 'fam-refer-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-yellow-50 to-amber-50">
+            <h3 class="font-bold text-lg text-slate-800">🌟 המלץ על עסק לקהילה</h3>
+            <button onclick="getEl('fam-refer-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 space-y-3">
+            <p class="text-xs text-slate-500 bg-amber-50 rounded-xl p-3 border border-amber-100">
+                <strong>🎁 תרוויחי נקודות!</strong> כשהעסק שהמלצת עליו יאושר לקהילה — הקהילה שלך תקבל בונוס נקודות לארנק.
+            </p>
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">קוד הקבוצה של העסק</label>
+                <input type="text" id="fam-refer-biz-code" placeholder="הזן קוד קבוצה (לדוגמה: ABC123)" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-mono uppercase">
+            </div>
+            ${comms.length ? `
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">לאיזו קהילה?</label>
+                <select id="fam-refer-comm" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm">
+                    ${comms.map(c => `<option value="${c.id}">${safeStr(c.name)}</option>`).join('')}
+                </select>
+            </div>` : '<p class="text-xs text-red-400">אינך חבר בקהילה. הצטרף לקהילה תחילה.</p>'}
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">למה ממליצים? (אופציונלי)</label>
+                <textarea id="fam-refer-notes" rows="2" placeholder="ספר לנו קצת על העסק..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm"></textarea>
+            </div>
+            ${comms.length ? `<button onclick="submitFamReferral()" class="w-full bg-amber-500 text-white py-2.5 rounded-xl font-bold hover:bg-amber-600 transition">⭐ שלח המלצה</button>` : ''}
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+};
+
+window.submitFamReferral = async function() {
+    const bizCode = getEl('fam-refer-biz-code')?.value?.trim()?.toUpperCase();
+    const communityId = getEl('fam-refer-comm')?.value;
+    const notes = getEl('fam-refer-notes')?.value?.trim();
+    if (!bizCode || !communityId) { showToast('error', 'יש למלא קוד עסק וקהילה'); return; }
+    try {
+        const res = await fetch(`${API}/community/family-refer`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, bizCode, communityId: parseInt(communityId), notes })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', '✅ ההמלצה נשלחה! תרוויחו נקודות כשהעסק יאושר.');
+            getEl('fam-refer-modal')?.remove();
+        } else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
+
+// ─── INTEREST COMMUNITIES & MAP DISCOVERY ──────────────────────
+
+window.famSearchByInterest = async function() {
+    const tag = (getEl('fam-interest-input')?.value || '').trim();
+    const el = getEl('fam-interest-results');
+    if (!tag || !el) return;
+    el.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">מחפש...</p>';
+    try {
+        const res = await fetch(`${API}/communities/by-interest?tag=${encodeURIComponent(tag)}`);
+        const data = await res.json();
+        const list = data.communities || [];
+        if (!list.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">לא נמצאו קהילות עם תגית זו</p>'; return; }
+        const myIds = new Set((myConnectedCommunitiesCache || []).map(c => String(c.id)));
+        el.innerHTML = list.map(c => {
+            const joined = myIds.has(String(c.id));
+            return `<div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm flex justify-between items-center">
+                <div class="text-right">
+                    <div class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</div>
+                    <div class="text-xs text-slate-500">${safeStr(c.city || 'ארצי')} · ${c.family_count || 0} משפחות · ${c.biz_count || 0} עסקים</div>
+                    <div class="text-[10px] text-teal-600 mt-0.5">תגית: ${safeStr(c.interest_tag || tag)}</div>
+                </div>
+                ${joined
+                    ? `<span class="text-xs text-green-600 font-bold bg-green-50 px-3 py-1.5 rounded-xl">✅ חבר</span>`
+                    : `<button onclick="joinCommunityByCode('${safeStr(c.code)}','${safeStr(c.name).replace(/'/g,"\\'")}',this)" class="bg-teal-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-teal-700 transition">הצטרף</button>`
+                }
+            </div>`;
+        }).join('');
+    } catch(e) { el.innerHTML = '<p class="text-red-400 text-xs text-center py-4">שגיאה</p>'; }
+};
+
+window.joinCommunityByCode = async function(code, name, btn) {
+    if (!currentGroup || !code) return;
+    btn.disabled = true; btn.textContent = '...';
     try {
         const res = await fetch(`${API}/community/join`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
+            method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ groupId: currentGroup.id, code })
         });
         const data = await res.json();
-        if(data.success) {
-            showToast('success', `הצטרפתם בהצלחה לקהילת: ${data.community.name}`);
+        if (data.success) {
+            btn.textContent = '✅ הצטרפת!';
+            btn.className = btn.className.replace('bg-teal-600 hover:bg-teal-700','bg-green-500');
+            launchFlowConfetti();
             fetchCommunityData();
+            loadFamilyFlowWallet && loadFamilyFlowWallet();
+        } else { btn.textContent = data.error || 'שגיאה'; btn.disabled = false; }
+    } catch(e) { btn.textContent = 'שגיאת רשת'; btn.disabled = false; }
+};
+
+window.openCommunityDiscoveryModal = async function() {
+    const existing = document.getElementById('community-discovery-modal');
+    if (existing) { existing.remove(); return; }
+    const modal = document.createElement('div');
+    modal.id = 'community-discovery-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-teal-50 to-cyan-50">
+            <h3 class="font-bold text-lg text-slate-800">🗺️ גלה קהילות</h3>
+            <button onclick="document.getElementById('community-discovery-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 border-b">
+            <div class="flex gap-2">
+                <input type="text" id="discovery-city-input" placeholder="חפש לפי עיר..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm" onkeydown="if(event.key==='Enter')searchCommunitiesByCity()">
+                <button onclick="searchCommunitiesByCity()" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-700 transition">חפש</button>
+            </div>
+        </div>
+        <div id="discovery-results" class="overflow-y-auto flex-1 p-4">
+            <p class="text-xs text-slate-400 text-center py-4">טוען קהילות...</p>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    searchCommunitiesByCity('');
+};
+
+window.searchCommunitiesByCity = async function(city) {
+    const q = city !== undefined ? city : (getEl('discovery-city-input')?.value || '');
+    const el = getEl('discovery-results');
+    if (!el) return;
+    el.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">טוען...</p>';
+    try {
+        const url = q ? `${API}/communities/discover?city=${encodeURIComponent(q)}` : `${API}/communities/discover`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const byCity = data.byCity || [];
+        if (!byCity.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">לא נמצאו קהילות</p>'; return; }
+        const myIds = new Set((myConnectedCommunitiesCache || []).map(c => String(c.id)));
+        el.innerHTML = byCity.map(group => `
+            <div class="mb-4">
+                <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(group.city)}
+                </h4>
+                ${group.communities.map(c => {
+                    const joined = myIds.has(String(c.id));
+                    const typeLabel = c.community_type === 'interest' ? '🔖 עניין' : '📍 גיאוגרפית';
+                    return `<div class="bg-white border border-slate-100 rounded-xl p-3 mb-2 shadow-sm flex justify-between items-center">
+                        <div class="text-right">
+                            <div class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</div>
+                            <div class="text-xs text-slate-500">${c.family_count || 0} משפחות · ${c.biz_count || 0} עסקים · ${typeLabel}</div>
+                            ${c.interest_tags ? `<div class="text-[10px] text-teal-600 mt-0.5">${safeStr(c.interest_tags)}</div>` : ''}
+                        </div>
+                        ${joined
+                            ? `<span class="text-xs text-green-600 font-bold bg-green-50 px-3 py-1.5 rounded-xl">✅ חבר</span>`
+                            : `<button onclick="joinCommunityByCode('${safeStr(c.code)}','${safeStr(c.name).replace(/'/g,"\\'")}',this)" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-slate-700 transition">הצטרף</button>`
+                        }
+                    </div>`;
+                }).join('')}
+            </div>`).join('');
+    } catch(e) { el.innerHTML = '<p class="text-red-400 text-xs text-center py-4">שגיאה בטעינה</p>'; }
+};
+
+async function loadFamilyCommunityPromos() {
+    if (!currentGroup || !currentGroup.id) return;
+    try {
+        const res = await fetch(`${API}/community/promos/${currentGroup.id}`);
+        const data = await res.json();
+        if (!data.success) return;
+        renderFamilyCommunityPromos(data.promos || []);
+    } catch(e) {}
+}
+
+function renderFamilyCommunityPromos(promos) {
+    // מחפשים את container המבצעים (בתוך tab הטבות)
+    let promosContainer = getEl('community-promos-container');
+    if (!promosContainer) {
+        const benefitsView = getEl('fam-comm-view-benefits');
+        if (!benefitsView) return;
+        promosContainer = document.createElement('div');
+        promosContainer.id = 'community-promos-container';
+        promosContainer.className = 'mt-5';
+        benefitsView.appendChild(promosContainer);
+    }
+    if (!promos.length) { promosContainer.innerHTML = ''; return; }
+    let html = `<h3 class="font-bold text-slate-800 mb-3 text-sm"><i class="fa-solid fa-tag text-pink-500"></i> מבצעים קהילתיים</h3><div class="space-y-3">`;
+    promos.forEach(p => {
+        const until = p.valid_until ? `<span class="text-[9px] text-slate-500">בתוקף עד: ${p.valid_until.slice(0,10)}</span>` : '';
+        const discountBadge = p.discount_pct > 0 ? `<span class="text-[9px] font-bold bg-pink-50 text-pink-700 border border-pink-100 px-1.5 py-0.5 rounded">${p.discount_pct}% הנחה</span>` : '';
+        html += `
+        <div class="bg-white border border-pink-100 rounded-2xl p-4 shadow-sm fade-in">
+            <div class="flex justify-between items-start mb-2">
+                <div class="flex gap-1 flex-wrap">${discountBadge}${until}</div>
+                <div class="text-right">
+                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(p.title)}</h4>
+                    <p class="text-[10px] text-slate-500">מאת: ${safeStr(p.biz_name || 'עסק')}</p>
+                </div>
+            </div>
+            ${p.content ? `<p class="text-xs text-slate-600 mb-3 text-right leading-relaxed">${safeStr(p.content)}</p>` : ''}
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-right">
+                <p class="text-[10px] font-bold text-amber-800 mb-1"><i class="fa-solid fa-circle-info mr-1"></i>איך לממש את המבצע?</p>
+                <p class="text-[10px] text-amber-700 leading-relaxed">
+                    1. היכנסו לחנות העסק<br>
+                    2. הוסיפו מוצרים לסל וסיימו הזמנה<br>
+                    3. בזמן ההזמנה הזינו את קוד הקופון שתקבלו ממנהל הקהילה<br>
+                    4. לאחר אישור ההזמנה — תקבלו צבירת מטבעות!
+                </p>
+            </div>
+            ${p.promo_code ? `<div class="mt-2 text-center"><span class="font-mono font-black text-base bg-slate-900 text-white px-4 py-1.5 rounded-xl tracking-widest">${safeStr(p.promo_code)}</span></div>` : ''}
+        </div>`;
+    });
+    html += '</div>';
+    promosContainer.innerHTML = html;
+}
+
+async function joinCommunity() {
+    return joinCommunityDyn();
+}
+
+async function joinCommunityDyn() {
+    const inputEl = getEl('community-code-input-dyn') || getEl('community-code-input');
+    const code = inputEl ? inputEl.value : '';
+    if(!code) return showToast('error', 'יש להזין קוד קהילה');
+    const referralCode = (getEl('community-referral-input')?.value || '').trim().toUpperCase() || undefined;
+
+    try {
+        const res = await fetch(`${API}/community/join`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, code, referralCode })
+        });
+        const data = await res.json();
+        if(data.success && data.pending) {
+            showToast('info', `הבקשה לקהילת "${data.community.name}" נשלחה — ממתינה לאישור מנהל.`);
+            fetchCommunityData();
+            loadMyReferralCode();
+        } else if(data.success) {
+            const msg = data.referrerFound
+                ? `הצטרפתם לקהילת ${data.community.name} 🎉 החבר שהפנה אותכם קיבל ₣ FLOW`
+                : `הצטרפתם בהצלחה לקהילת: ${data.community.name}`;
+            showToast('success', msg);
+            fetchCommunityData();
+            loadMyReferralCode();
+        } else if(data.pending) {
+            showToast('info', data.error || 'הבקשה שלך ממתינה לאישור.');
         } else { showToast('error', data.error || 'שגיאה. ודאו שהקוד נכון וטרם הגעתם ל-5 קהילות.'); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
+
+async function loadMyReferralCode() {
+    if (!currentGroup || currentGroup.type !== 'FAMILY') return;
+    try {
+        const res = await fetch(`${API}/community/my-referral-code/${currentGroup.id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const display = getEl('my-referral-code-display');
+        const card = getEl('my-referral-code-card');
+        if (display) display.textContent = data.code;
+        if (card) card.classList.remove('hidden');
+    } catch(e) {}
+}
+
+window.toggleReferralInput = function() {
+    const wrap = getEl('referral-input-wrap');
+    if (wrap) wrap.classList.toggle('hidden');
+};
+
+window.copyReferralCode = function() {
+    const code = getEl('my-referral-code-display')?.textContent?.trim();
+    if (!code || code === '...') return;
+    navigator.clipboard?.writeText(code).then(() => showToast('success', `קוד ${code} הועתק!`)).catch(() => showToast('info', `הקוד שלך: ${code}`));
+};
 
 async function leaveCommunity(commId, commName) {
     if(!confirm(`האם אתם בטוחים שברצונכם להתנתק מקהילת ${commName}? לא תוכלו לקבל הנחות מעסקים בקהילה זו.`)) return;
@@ -2924,6 +4996,294 @@ if (familyOriginalSwitchTab && !window.familySwitchTabOverridden) {
     window.familySwitchTabOverridden = true;
 }
 // ============================================================
+// --- פאנל מנהל קהילה ---
+// ============================================================
+
+async function openCommunityManagerPanel(commId) {
+    try {
+        const res = await fetch(`${API}/community/manager-data/${currentGroup.id}`);
+        const data = await res.json();
+        if (!data.success) return showToast('error', 'שגיאה בטעינת נתוני קהילה');
+
+        const comm = data.managed_communities.find(c => c.community_id === commId);
+        const wallet = data.wallets.find(w => w.community_id === commId) || { balance: 0, total_earned: 0 };
+        const pending = (data.pending_businesses || []).filter(b => b.community_id === commId && b.status === 'pending');
+        const approved = (data.pending_businesses || []).filter(b => b.community_id === commId && b.status === 'approved');
+        const txs = (data.transactions || []).filter(t => t.community_id === commId).slice(0, 10);
+
+        let modal = document.getElementById('comm-manager-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'comm-manager-modal';
+            modal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9990] flex items-center justify-center p-4';
+            document.body.appendChild(modal);
+        }
+
+        const pendingHtml = pending.length ? pending.map(b => `
+            <div class="bg-orange-50 border border-orange-100 p-3 rounded-xl flex justify-between items-center mb-2">
+                <div class="flex gap-2">
+                    <button onclick="saApproveBizFromManager(${b.community_id}, ${b.business_id})" class="bg-emerald-500 text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-emerald-600">אשר</button>
+                    <button onclick="saRejectBizFromManager(${b.community_id}, ${b.business_id})" class="bg-red-100 text-red-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-200">דחה</button>
+                </div>
+                <div class="text-right">
+                    <p class="font-bold text-slate-800 text-sm">${safeStr(b.business_name)}</p>
+                    <p class="text-[10px] text-slate-500">הנחה מוצעת: ${b.discount_pct}%</p>
+                </div>
+            </div>`).join('') : '<p class="text-slate-400 text-sm text-center py-4">אין בקשות ממתינות</p>';
+
+        const approvedHtml = approved.length ? approved.map(b => `
+            <div class="bg-white border border-slate-100 p-3 rounded-xl flex justify-between items-center mb-2">
+                <span class="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded">${b.discount_pct}% הנחה</span>
+                <span class="font-bold text-slate-700 text-sm">${safeStr(b.business_name)}</span>
+            </div>`).join('') : '<p class="text-slate-400 text-sm text-center py-2">אין עסקים פעילים</p>';
+
+        const txHtml = txs.length ? txs.map(t => `
+            <div class="flex justify-between items-center border-b border-slate-50 py-2">
+                <span class="text-emerald-600 font-bold text-sm">+₪${parseFloat(t.amount).toFixed(2)}</span>
+                <div class="text-right">
+                    <p class="text-xs text-slate-700">${safeStr(t.description || '')}</p>
+                    <p class="text-[10px] text-slate-400">${new Date(t.created_at).toLocaleDateString('he-IL')}</p>
+                </div>
+            </div>`).join('') : '<p class="text-slate-400 text-sm text-center py-4">אין תנועות עדיין</p>';
+
+        modal.innerHTML = `
+        <div class="bg-white w-full max-w-lg rounded-3xl p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto modal-scroll relative" dir="rtl">
+            <button onclick="document.getElementById('comm-manager-modal').remove()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="text-xl font-bold mb-1 text-slate-800"><i class="fa-solid fa-star text-purple-500 mr-2"></i> ניהול קהילה</h3>
+            <p class="text-sm text-slate-500 mb-5">${safeStr(comm?.community_name || '')}</p>
+
+            <!-- ארנק -->
+            <div class="bg-gradient-to-l from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl p-5 mb-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[10px] text-amber-600 font-bold">סה"כ נצבר</p>
+                        <p class="text-2xl font-black text-amber-800">₪${parseFloat(wallet.total_earned).toFixed(2)}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs text-amber-600 font-bold"><i class="fa-solid fa-wallet mr-1"></i> ארנק קהילה</p>
+                        <p class="text-3xl font-black text-amber-700">₪${parseFloat(wallet.balance).toFixed(2)}</p>
+                        <p class="text-[10px] text-amber-500">יתרה זמינה</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- אישורי עסקים -->
+            <div class="mb-5">
+                <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-store text-orange-500"></i> בקשות הצטרפות ממתינות</h4>
+                ${pendingHtml}
+            </div>
+
+            <!-- שותפים -->
+            <div class="mb-5">
+                <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-handshake text-blue-500"></i> עסקים פעילים בקהילה</h4>
+                ${approvedHtml}
+            </div>
+
+            <!-- הודעות ממנהל האזור -->
+            <div class="mb-5">
+                <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-inbox text-indigo-500"></i> הודעות ממנהל האזור</h4>
+                <button onclick="openCommunityManagerInbox(${commId})" class="w-full py-3 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-700 font-bold text-sm hover:bg-indigo-100 transition">
+                    <i class="fa-solid fa-inbox mr-2"></i>פתח תיבת הודעות
+                </button>
+            </div>
+
+            <!-- תנועות ארנק -->
+            <div>
+                <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-emerald-500"></i> היסטוריית קאשבק</h4>
+                ${txHtml}
+            </div>
+        </div>`;
+        modal.classList.remove('hidden');
+    } catch(e) { showToast('error', 'שגיאה בטעינת פאנל קהילה'); }
+}
+
+async function saApproveBizFromManager(communityId, businessId) {
+    try {
+        const res = await fetch(`${API}/sa/community-business/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
+        const data = await res.json();
+        if(data.success) { showToast('success', 'העסק אושר!'); document.getElementById('comm-manager-modal')?.remove(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function saRejectBizFromManager(communityId, businessId) {
+    try {
+        const res = await fetch(`${API}/sa/community-business/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
+        const data = await res.json();
+        if(data.success) { showToast('success', 'הבקשה נדחתה'); document.getElementById('comm-manager-modal')?.remove(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+// ============================================================
+// --- COMMUNITY MANAGER INBOX ---
+// ============================================================
+
+let cmInboxCurrentThreadId = null;
+let cmInboxCurrentCommunityId = null;
+
+async function openCommunityManagerInbox(communityId) {
+    cmInboxCurrentCommunityId = communityId;
+    cmInboxCurrentThreadId = null;
+    let modal = document.getElementById('cm-inbox-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'cm-inbox-modal';
+        modal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9995] flex items-center justify-center p-4';
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+    <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden" dir="rtl" style="font-family:'Rubik',sans-serif">
+        <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+            <button onclick="document.getElementById('cm-inbox-modal').remove()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="font-black text-slate-800"><i class="fa-solid fa-inbox text-indigo-500 mr-2"></i>הודעות ממנהל האזור</h3>
+        </div>
+        <div id="cm-inbox-view" class="flex-1 overflow-y-auto p-4">
+            <div class="text-center text-slate-400 py-6">טוען...</div>
+        </div>
+        <div id="cm-inbox-reply-bar" class="hidden p-4 border-t border-slate-100 space-y-2">
+            <div class="flex gap-2">
+                <button onclick="sendCMReply()" class="bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-600 transition whitespace-nowrap">שלח</button>
+                <textarea id="cm-reply-input" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-400 resize-none" rows="2" placeholder="כתוב תשובה..."></textarea>
+            </div>
+            <button onclick="showCMThreadList()" class="text-xs text-slate-400 hover:text-slate-600 font-bold">← חזרה לרשימה</button>
+        </div>
+        <div class="p-4 border-t border-slate-100 flex gap-2" id="cm-inbox-footer">
+            <button onclick="openCMNewThread()" class="flex-1 py-2 text-sm font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-xl hover:bg-indigo-100 transition">
+                <i class="fa-solid fa-pen mr-1.5"></i>שלח הודעה למנהל האזור
+            </button>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+    showCMThreadList();
+}
+
+async function showCMThreadList() {
+    cmInboxCurrentThreadId = null;
+    document.getElementById('cm-inbox-reply-bar').classList.add('hidden');
+    document.getElementById('cm-inbox-footer').classList.remove('hidden');
+    const view = document.getElementById('cm-inbox-view');
+    view.innerHTML = '<div class="text-center text-slate-400 py-4">טוען...</div>';
+    try {
+        const res = await fetch(`${API}/community/inbox/${currentGroup.id}`);
+        const data = await res.json();
+        const threads = data.threads || [];
+        if (!threads.length) {
+            view.innerHTML = '<div class="text-center text-slate-400 py-10"><i class="fa-solid fa-inbox text-4xl text-slate-200 mb-3 block"></i>אין הודעות עדיין</div>';
+            return;
+        }
+        view.innerHTML = threads.map(t => {
+            const unread = parseInt(t.unread_count || 0);
+            return `
+            <div class="flex items-center gap-3 rounded-2xl px-4 py-3.5 border mb-2 cursor-pointer hover:shadow-sm transition ${unread > 0 ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-100'}" onclick="openCMThread(${t.id})">
+                <div class="w-9 h-9 rounded-xl ${unread > 0 ? 'bg-indigo-200' : 'bg-slate-200'} flex items-center justify-center flex-shrink-0">
+                    <i class="fa-solid fa-comment-dots ${unread > 0 ? 'text-indigo-600' : 'text-slate-500'} text-sm"></i>
+                </div>
+                <div class="flex-1 min-w-0 text-right">
+                    <div class="flex justify-between">
+                        <span class="text-[10px] text-slate-400">${new Date(t.last_message_at).toLocaleDateString('he-IL')}</span>
+                        <p class="font-bold text-slate-700 text-sm truncate">${t.zone_manager_name || '—'}</p>
+                    </div>
+                    <p class="text-xs text-slate-500 truncate">${t.last_message || ''}</p>
+                </div>
+                ${unread > 0 ? `<span class="bg-indigo-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">${unread}</span>` : ''}
+            </div>`;
+        }).join('');
+    } catch(e) { view.innerHTML = '<div class="text-red-400 text-center py-4">שגיאת תקשורת</div>'; }
+}
+
+async function openCMThread(threadId) {
+    cmInboxCurrentThreadId = threadId;
+    const view = document.getElementById('cm-inbox-view');
+    view.innerHTML = '<div class="text-center text-slate-400 py-4">טוען...</div>';
+    document.getElementById('cm-inbox-reply-bar').classList.remove('hidden');
+    document.getElementById('cm-inbox-footer').classList.add('hidden');
+    document.getElementById('cm-reply-input').value = '';
+    try {
+        const res = await fetch(`${API}/community/inbox/thread/${threadId}/${currentGroup.id}`);
+        const data = await res.json();
+        if (!data.success) { view.innerHTML = '<div class="text-red-400 text-center py-4">שגיאה</div>'; return; }
+        view.innerHTML = `
+            <p class="text-xs font-bold text-slate-400 text-center mb-3">${data.thread.subject || ''} · ${data.thread.zone_manager_name || ''}</p>
+            <div class="space-y-3">
+                ${(data.messages || []).map(m => {
+                    const isCommunity = m.sender_type === 'community';
+                    return `<div class="flex ${isCommunity ? 'justify-start' : 'justify-end'}">
+                        <div class="max-w-[80%] px-4 py-2.5 rounded-2xl text-sm ${isCommunity ? 'bg-slate-200 text-slate-700 rounded-bl-sm' : 'bg-indigo-500 text-white rounded-br-sm'}">
+                            <p>${m.content}</p>
+                            <p class="text-[10px] mt-1 ${isCommunity ? 'text-slate-400' : 'text-indigo-200'} text-left">${new Date(m.created_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</p>
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>`;
+        view.scrollTop = view.scrollHeight;
+    } catch(e) { view.innerHTML = '<div class="text-red-400 text-center py-4">שגיאת תקשורת</div>'; }
+}
+
+async function sendCMReply() {
+    const content = document.getElementById('cm-reply-input').value.trim();
+    if (!content || !cmInboxCurrentThreadId) return;
+    document.getElementById('cm-reply-input').value = '';
+    try {
+        const res = await fetch(`${API}/community/inbox/thread/${cmInboxCurrentThreadId}/reply`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, content })
+        });
+        const data = await res.json();
+        if (data.success) openCMThread(cmInboxCurrentThreadId);
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function openCMNewThread() {
+    const communityId = cmInboxCurrentCommunityId;
+    if (!communityId) { showToast('error', 'שגיאה בזיהוי הקהילה'); return; }
+    let modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4" dir="rtl" style="font-family:'Rubik',sans-serif">
+        <div class="flex justify-between items-center">
+            <button onclick="this.closest('.fixed').remove()" class="text-slate-400 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="font-black text-slate-800">שלח הודעה למנהל האזור</h3>
+        </div>
+        <div>
+            <label class="text-xs font-bold text-slate-500 block mb-1.5">נושא</label>
+            <input type="text" id="cm-new-subject" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-400" placeholder="נושא ההודעה">
+        </div>
+        <div>
+            <label class="text-xs font-bold text-slate-500 block mb-1.5">הודעה</label>
+            <textarea id="cm-new-content" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-400 resize-none" rows="4" placeholder="כתוב את הודעתך..."></textarea>
+        </div>
+        <p id="cm-new-err" class="text-red-500 text-xs text-center hidden"></p>
+        <div class="flex gap-2">
+            <button onclick="this.closest('.fixed').remove()" class="flex-1 py-2 text-sm font-bold text-slate-500 bg-slate-100 rounded-xl hover:bg-slate-200 transition">ביטול</button>
+            <button onclick="submitCMNewThread(${communityId}, this)" class="flex-1 py-2 text-sm font-bold text-white bg-indigo-500 rounded-xl hover:bg-indigo-600 transition">שלח</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+}
+
+async function submitCMNewThread(communityId, btn) {
+    const subject = document.getElementById('cm-new-subject').value.trim();
+    const content = document.getElementById('cm-new-content').value.trim();
+    const err = document.getElementById('cm-new-err');
+    err.classList.add('hidden');
+    if (!content) { err.textContent = 'תוכן ההודעה חובה'; err.classList.remove('hidden'); return; }
+    btn.disabled = true; btn.textContent = 'שולח...';
+    try {
+        const res = await fetch(`${API}/community/inbox/new`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, communityId, subject, content })
+        });
+        const data = await res.json();
+        if (data.success) {
+            btn.closest('.fixed').remove();
+            showCMThreadList();
+        } else { err.textContent = data.error || 'שגיאה'; err.classList.remove('hidden'); btn.disabled = false; btn.textContent = 'שלח'; }
+    } catch(e) { err.textContent = 'שגיאת תקשורת'; err.classList.remove('hidden'); btn.disabled = false; btn.textContent = 'שלח'; }
+}
+
+// ============================================================
 // --- ניהול קהילות דרך ממשק אדמין ראשי (Super Admin) ---
 // ============================================================
 
@@ -2936,26 +5296,6 @@ let currentCommFamiliesCache = [];
 let createCityTags = [];
 let editCityTags = [];
 
-function updateCityTagsDisplay(type) {
-    const tagsArr = type === 'create' ? createCityTags : editCityTags;
-    const container = getEl(type === 'create' ? 'sa-comm-city-tags' : 'sa-edit-comm-city-tags');
-    const dataInput = getEl(type === 'create' ? 'sa-comm-city-data' : 'sa-edit-comm-city-data');
-    if (!container || !dataInput) return;
-
-    if (tagsArr.length === 0) {
-        container.innerHTML = '<p class="text-[10px] text-slate-400 w-full text-center my-auto">לא נבחרו ערים. חובה לבחור לפחות עיר אחת.</p>';
-        dataInput.value = '';
-        return;
-    }
-
-    container.innerHTML = tagsArr.map((city, index) => `
-        <div class="bg-orange-100 text-orange-800 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 border border-orange-200 shadow-sm animate-bounce-in">
-            ${city}
-            <button onclick="removeCityTag('${type}', ${index})" class="text-orange-500 hover:text-red-500 transition focus:outline-none"><i class="fa-solid fa-times"></i></button>
-        </div>
-    `).join('');
-    dataInput.value = tagsArr.join(', ');
-}
 
 function addCityTag(type) {
     const input = getEl(type === 'create' ? 'sa-comm-city-input' : 'sa-edit-comm-city-input');
@@ -2972,190 +5312,10 @@ function addCityTag(type) {
 }
 
 // המרת תמונה לקהילה
-function handleCommImageUpload(event, type) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            let width = img.width; let height = img.height;
-            const maxSize = 600; // נקטין קצת כדי לחסוך מקום בשרת
-            if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } 
-            else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
-            canvas.width = width; canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-            const base64 = canvas.toDataURL('image/jpeg', 0.8);
-            
-            if (type === 'create') {
-                getEl('sa-comm-image-base64').value = base64;
-                getEl('sa-comm-img-preview').src = base64;
-                getEl('sa-comm-img-preview-container').classList.remove('hidden');
-            } else {
-                getEl('sa-edit-comm-image-base64').value = base64;
-                getEl('sa-edit-comm-img-preview').src = base64;
-                getEl('sa-edit-comm-img-preview').classList.remove('hidden');
-                const placeholder = getEl('sa-edit-comm-img-placeholder');
-                if(placeholder) placeholder.classList.add('hidden');
-            }
-        };
-        img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-}
 
-function switchSATab(tabId) {
-    ['stats', 'comm', 'content', 'users', 'biz'].forEach(t => {
-        const view = document.getElementById(`sa-view-${t}`);
-        const btn = document.getElementById(`btn-sa-tab-${t}`);
-        if (view) view.classList.add('hidden');
-        if (btn) btn.className = 'flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition';
-    });
-    
-    const activeView = document.getElementById(`sa-view-${tabId}`);
-    const activeBtn = document.getElementById(`btn-sa-tab-${tabId}`);
-    if (activeView) activeView.classList.remove('hidden');
-    if (activeBtn) activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-white text-slate-800 rounded-xl shadow-sm transition';
-}
 
-async function loadSACommunityData() {
-    try {
-        const tbody = getEl('sa-communities-table-body');
-        if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> מפענח נתוני קהילות...</td></tr>`;
 
-        // 1. קהילות
-        try {
-            const commRes = await fetch(`${API}/sa/communities`, { headers: { 'Authorization': saToken || '' } });
-            const commData = await commRes.json();
-            
-            if(commData.success) {
-                saCommunitiesCache = commData.communities || [];
-                
-                const totalCommunities = saCommunitiesCache.length;
-                const totalCommMembers = saCommunitiesCache.reduce((sum, c) => sum + parseInt(c.family_count || 0), 0);
-                
-                // סכימה של סך כל החיבורים המאושרים מתוך הקהילות ששלפנו!
-                const totalApprovedConnections = saCommunitiesCache.reduce((sum, c) => sum + parseInt(c.business_count || 0), 0);
 
-                if (getEl('sa-stat-communities')) getEl('sa-stat-communities').innerText = totalCommunities;
-                if (getEl('sa-stat-community-members')) getEl('sa-stat-community-members').innerText = totalCommMembers;
-                // עדכון הקובייה ה-6
-                if (getEl('sa-stat-connections')) getEl('sa-stat-connections').innerText = totalApprovedConnections;
-
-                if(typeof filterSACommSelect === 'function') filterSACommSelect();
-                renderSACommunitiesTable();
-            } else {
-                if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-red-500 bg-red-50 rounded-xl">שגיאת שרת: ${commData.error}</td></tr>`;
-            }
-        } catch(e) { 
-            if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-red-500">שגיאת תקשורת בטעינת קהילות</td></tr>`;
-        }
-
-        // 2. עסקים
-        try {
-            let bizRes = await fetch(`${API}/sa/businesses`, { headers: { 'Authorization': saToken || '' } });
-            if (!bizRes.ok) bizRes = await fetch(`${API}/store/coupons/all`); 
-            
-            if (bizRes.ok) {
-                const bizData = await bizRes.json();
-                if(bizData.success) {
-                    saBusinessesCache = bizData.businesses || [];
-                    if(typeof filterSABizSelect === 'function') filterSABizSelect();
-                    renderSABusinessesTable();
-                }
-            }
-        } catch(e) {}
-
-        // 3. בקשות ממתינות לאישור
-        loadSAPendingRequests();
-
-    } catch(e) { console.error('General error in loadSACommunityData:', e); }
-}
-
-// -- חיפוש חכם (Live Search) שיוך עסקים לקהילות (דרישה 4) --
-
-function handleSmartCommSearch() {
-    const input = getEl('sa-smart-comm-search');
-    const resultsContainer = getEl('sa-smart-comm-results');
-    const query = input.value.toLowerCase().trim();
-    
-    if (!query) {
-        resultsContainer.classList.add('hidden');
-        return;
-    }
-
-    const filtered = saCommunitiesCache.filter(c => 
-        (c.name && c.name.toLowerCase().includes(query)) || 
-        (c.city && c.city.toLowerCase().includes(query)) ||
-        (String(c.family_count) === query)
-    ).slice(0, 10); // מציג עד 10 תוצאות
-
-    if (filtered.length === 0) {
-        resultsContainer.innerHTML = '<div class="p-3 text-sm text-slate-500 text-center">לא נמצאו קהילות תואמות.</div>';
-    } else {
-        resultsContainer.innerHTML = filtered.map(c => `
-            <div onclick="selectSmartComm(${c.id}, '${safeStr(c.name)}')" class="p-3 border-b border-slate-100 hover:bg-indigo-50 cursor-pointer transition">
-                <div class="font-bold text-slate-800 text-sm flex justify-between">
-                    <span>${safeStr(c.name)}</span>
-                    <span class="text-[10px] bg-slate-100 text-slate-500 px-2 rounded-full flex items-center gap-1"><i class="fa-solid fa-house"></i> ${c.family_count || 0} משפחות</span>
-                </div>
-                <div class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-location-dot text-indigo-400"></i> אזורים: ${safeStr(c.city || 'כללי')}</div>
-            </div>
-        `).join('');
-    }
-    resultsContainer.classList.remove('hidden');
-}
-
-function selectSmartComm(id, name) {
-    getEl('sa-link-comm').value = id;
-    getEl('sa-smart-comm-search').value = '';
-    getEl('sa-smart-comm-search').classList.add('hidden');
-    getEl('sa-smart-comm-results').classList.add('hidden');
-    
-    const display = getEl('sa-selected-comm-display');
-    display.querySelector('span').innerText = `קהילה נבחרה: ${name}`;
-    display.classList.remove('hidden');
-    
-    loadCommunityBusinesses(); // מרנדר את העסקים המחוברים לקהילה זו למטה
-}
-
-function clearSmartCommSelection() {
-    getEl('sa-link-comm').value = '';
-    getEl('sa-selected-comm-display').classList.add('hidden');
-    const searchInput = getEl('sa-smart-comm-search');
-    searchInput.classList.remove('hidden');
-    searchInput.focus();
-    getEl('sa-comm-biz-list').innerHTML = 'יש לבחור קהילה ממעל';
-}
-
-function handleSmartBizSearch() {
-    const input = getEl('sa-smart-biz-search');
-    const resultsContainer = getEl('sa-smart-biz-results');
-    const query = input.value.toLowerCase().trim();
-    
-    if (!query) {
-        resultsContainer.classList.add('hidden');
-        return;
-    }
-
-    const filtered = saBusinessesCache.filter(b => 
-        (b.name && b.name.toLowerCase().includes(query)) ||
-        (b.store_type && b.store_type.toLowerCase().includes(query)) // (בהנחה שנוסיף סוג בהמשך, כרגע סינון רגיל)
-    ).slice(0, 10);
-
-    if (filtered.length === 0) {
-        resultsContainer.innerHTML = '<div class="p-3 text-sm text-slate-500 text-center">לא נמצאו עסקים תואמים.</div>';
-    } else {
-        resultsContainer.innerHTML = filtered.map(b => `
-            <div onclick="selectSmartBiz(${b.id}, '${safeStr(b.name)}')" class="p-3 border-b border-slate-100 hover:bg-emerald-50 cursor-pointer transition">
-                <div class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-store text-emerald-500"></i> ${safeStr(b.name)}</div>
-            </div>
-        `).join('');
-    }
-    resultsContainer.classList.remove('hidden');
-}
 
 function selectSmartBiz(id, name) {
     getEl('sa-link-biz').value = id;
@@ -3289,64 +5449,6 @@ function renderSACommunitiesTable() {
 
 function filterSACommunities() { renderSACommunitiesTable(); }
 
-async function openSACommunityModal(id) {
-    const comm = saCommunitiesCache.find(c => c.id == id);
-    if(!comm) return;
-    
-    getEl('sa-edit-comm-id').value = comm.id;
-    getEl('sa-edit-comm-title').innerText = comm.name;
-    getEl('sa-edit-comm-name').value = comm.name;
-    getEl('sa-edit-comm-code').value = comm.code;
-    getEl('sa-edit-comm-email').value = comm.manager_email;
-    getEl('sa-edit-comm-pass').value = comm.manager_password;
-    
-    editCityTags = comm.city ? comm.city.split(',').map(c => c.trim()).filter(c => c) : [];
-    updateCityTagsDisplay('edit');
-
-    getEl('sa-edit-comm-image-base64').value = '';
-    const imgPreview = getEl('sa-edit-comm-img-preview');
-    const placeholder = getEl('sa-edit-comm-img-placeholder');
-    if (comm.image_url) {
-        imgPreview.src = comm.image_url;
-        imgPreview.classList.remove('hidden');
-        if(placeholder) placeholder.classList.add('hidden');
-    } else {
-        imgPreview.src = '';
-        imgPreview.classList.add('hidden');
-        if(placeholder) placeholder.classList.remove('hidden');
-    }
-    
-    getEl('sa-edit-comm-fam-count').innerText = comm.family_count || 0;
-    getEl('sa-edit-comm-biz-count').innerText = comm.business_count || 0;
-    
-    const searchInput = getEl('sa-search-comm-fam');
-    if (searchInput) searchInput.value = '';
-    
-    const famList = getEl('sa-edit-comm-families');
-    const bizList = getEl('sa-edit-comm-businesses');
-    famList.innerHTML = '<p class="text-xs text-slate-400 p-2">טוען נתונים...</p>';
-    bizList.innerHTML = '<p class="text-xs text-slate-400 p-2">טוען נתונים...</p>';
-    
-    getEl('sa-community-modal').classList.remove('hidden');
-    
-    try {
-        const res = await fetch(`${API}/sa/communities/${id}/details`);
-        const data = await res.json();
-        if(data.success) {
-            currentCommFamiliesCache = data.families || [];
-            renderSACommFamilies();
-            
-            if(data.businesses.length === 0) {
-                bizList.innerHTML = '<p class="text-xs text-slate-400 p-2 bg-slate-50 border border-dashed rounded-lg text-center mt-2">אין עסקים נותני הנחה.</p>';
-            } else {
-                bizList.innerHTML = data.businesses.map(b => `<div class="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm mb-1.5 text-xs flex justify-between items-center"><span class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-store text-slate-300"></i> ${safeStr(b.name)}</span><span class="text-green-600 font-bold bg-green-50 px-2 py-1 rounded border border-green-100">${b.discount_pct}% הנחה</span></div>`).join('');
-            }
-        }
-    } catch(e) {
-        famList.innerHTML = '<p class="text-xs text-red-400 p-2">שגיאה בטעינה</p>';
-        bizList.innerHTML = '<p class="text-xs text-red-400 p-2">שגיאה בטעינה</p>';
-    }
-}
 
 function renderSACommFamilies(query = '') {
     const famList = getEl('sa-edit-comm-families');
@@ -3371,15 +5473,18 @@ function renderSACommFamilies(query = '') {
             ? f.users.map(u => `<div class="text-[10px] text-slate-500 pl-2 pr-1 py-1.5 border-t border-slate-100 flex justify-between bg-slate-50/50 hover:bg-slate-100 transition"><span><i class="fa-solid ${u.role === 'ADMIN' ? 'fa-user-tie text-blue-400' : 'fa-user text-slate-400'} ml-1"></i> ${safeStr(u.nickname)}</span><span class="bg-white px-1.5 rounded shadow-sm">${u.role === 'ADMIN' ? 'מנהל/הורה' : 'חבר/ילד'}</span></div>`).join('')
             : '<div class="text-[10px] text-slate-400 pl-2 py-1.5 border-t border-slate-100 bg-slate-50/50">אין משתמשים פנימיים.</div>';
 
+        const commId = getEl('sa-edit-comm-id') ? getEl('sa-edit-comm-id').value : '';
+        const isManagerFamily = f.is_community_manager;
         return `
         <div class="bg-white rounded-lg border border-slate-200 mb-1.5 overflow-hidden shadow-sm">
             <div class="p-2.5 text-xs flex justify-between items-center cursor-pointer hover:bg-blue-50 transition group" onclick="document.getElementById('sa-comm-fam-${f.id}').classList.toggle('hidden')">
-                <div class="font-bold text-slate-700 flex items-center gap-2">
-                    <i class="fa-solid fa-users text-slate-300 group-hover:text-blue-400 transition"></i> ${safeStr(f.name)}
-                </div>
                 <div class="flex items-center gap-2">
-                    <span class="font-mono text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded tracking-widest border border-slate-200">קוד: ${safeStr(f.group_code || '---')}</span>
-                    <i class="fa-solid fa-chevron-down text-[10px] text-slate-300"></i>
+                    ${isManagerFamily ? '' : `<button onclick="event.stopPropagation();setSACommunityManager(${commId}, ${f.id}, true)" class="text-[9px] font-bold bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded hover:bg-purple-200 transition whitespace-nowrap">הגדר מנהל</button>`}
+                    ${isManagerFamily ? `<button onclick="event.stopPropagation();setSACommunityManager(${commId}, ${f.id}, false)" class="text-[9px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded hover:bg-red-100 hover:text-red-600 transition whitespace-nowrap">הסר מנהל</button>` : ''}
+                </div>
+                <div class="font-bold text-slate-700 flex items-center gap-2">
+                    ${isManagerFamily ? '<i class="fa-solid fa-star text-purple-400 text-[10px]"></i>' : ''}
+                    <i class="fa-solid fa-users text-slate-300 group-hover:text-blue-400 transition"></i> ${safeStr(f.name)}
                 </div>
             </div>
             <div id="sa-comm-fam-${f.id}" class="hidden flex flex-col">
@@ -3389,199 +5494,6 @@ function renderSACommFamilies(query = '') {
     }).join('');
 }
 
-function filterSACommFamilies() {
-    const query = getEl('sa-search-comm-fam') ? getEl('sa-search-comm-fam').value : '';
-    renderSACommFamilies(query);
-}
-
-async function saveSACommunityEdit() {
-    const id = val('sa-edit-comm-id');
-    const name = val('sa-edit-comm-name');
-    const code = val('sa-edit-comm-code');
-    const email = val('sa-edit-comm-email');
-    const pass = val('sa-edit-comm-pass');
-    const cityData = val('sa-edit-comm-city-data'); 
-    const imageUrl = val('sa-edit-comm-image-base64'); // משיכת התמונה אם עודכנה
-    
-    if(!name || !code) return showToast('error', 'שם וקוד חובה');
-    if(!cityData) return showToast('error', 'חובה להגדיר לפחות אזור גאוגרפי אחד לקהילה');
-
-    try {
-        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, city: cityData, code, managerEmail: email, managerPassword: pass, imageUrl}) });
-        if((await res.json()).success) {
-            showToast('success', 'הקהילה עודכנה בהצלחה!');
-            getEl('sa-community-modal').classList.add('hidden');
-            loadSACommunityData();
-        } else showToast('error', 'שגיאה בעדכון הקהילה');
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-}
-
-async function deleteSACommunity() {
-    const id = val('sa-edit-comm-id');
-    if(!confirm('אזהרה: מחיקת הקהילה תנתק את כל המשפחות והעסקים המקושרים אליה. פעולה זו בלתי הפיכה! האם להמשיך?')) return;
-    try {
-        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'DELETE' });
-        if((await res.json()).success) {
-            showToast('success', 'הקהילה נמחקה לחלוטין!');
-            getEl('sa-community-modal').classList.add('hidden');
-            loadSACommunityData();
-        } else showToast('error', 'שגיאה במחיקת הקהילה');
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-}
-
-async function createSACommunity() {
-    const name = val('sa-comm-name'); 
-    const code = val('sa-comm-code'); 
-    const email = val('sa-comm-email'); 
-    const pass = val('sa-comm-pass');
-    const cityData = val('sa-comm-city-data'); 
-    const imageUrl = val('sa-comm-image-base64'); // משיכת התמונה
-    
-    if(!name || !code || !cityData) return showToast('error', 'שם הקהילה, ערים וקוד - שדות חובה.');
-    
-    const btn = document.querySelector('button[onclick="createSACommunity()"]');
-    if(btn) { btn.disabled = true; btn.innerText = 'מקים...'; }
-    
-    try {
-        const res = await fetch(`${API}/sa/communities`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, city: cityData, code, managerEmail: email, managerPassword: pass, imageUrl})});
-        const data = await res.json();
-        if(data.success) { 
-            showToast('success', 'קהילה הוקמה בהצלחה!'); 
-            getEl('sa-comm-name').value=''; getEl('sa-comm-city-input').value=''; getEl('sa-comm-code').value=''; getEl('sa-comm-email').value=''; getEl('sa-comm-pass').value=''; 
-            getEl('sa-comm-image-base64').value=''; const prevCont = getEl('sa-comm-img-preview-container'); if(prevCont) prevCont.classList.add('hidden');
-            createCityTags = []; updateCityTagsDisplay('create');
-            loadSACommunityData(); 
-        } else { 
-            showToast('error', data.error || 'שגיאה ביצירת הקהילה'); 
-        }
-    } catch(e) { 
-        showToast('error', 'שגיאת תקשורת מול השרת'); 
-    } finally {
-        if(btn) { btn.disabled = false; btn.innerText = 'הקמת קהילה'; }
-    }
-}
-async function deleteSACommunity() {
-    const id = val('sa-edit-comm-id');
-    if(!confirm('אזהרה: מחיקת הקהילה תנתק את כל המשפחות והעסקים המקושרים אליה. פעולה זו בלתי הפיכה! האם להמשיך?')) return;
-    try {
-        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'DELETE' });
-        if((await res.json()).success) {
-            showToast('success', 'הקהילה נמחקה לחלוטין!');
-            getEl('sa-community-modal').classList.add('hidden');
-            loadSACommunityData();
-        } else showToast('error', 'שגיאה במחיקת הקהילה');
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-}
-
-async function saveWelcomeMsg(type = 'FAMILY') { 
-    const body = type === 'BUSINESS' ? { businessWelcomeMsg: val('sa-biz-welcome-msg') } : { welcomeMsg: val('sa-welcome-msg') };
-    const btn = document.querySelector(`button[onclick="saveWelcomeMsg('${type}')"]`);
-    if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
-    try { 
-        const res = await fetch(`${API}/superadmin/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify(body) }); 
-        if ((await res.json()).success) {
-            showToast('success', 'הודעת הפתיחה נשמרה בהצלחה!'); 
-        } else {
-            showToast('error', 'שגיאה בשמירת ההודעה');
-        }
-    } catch(e) { 
-        showToast('error', 'תקלת תקשורת בשמירת ההודעה'); 
-    } finally {
-        if (btn) { btn.disabled = false; btn.innerText = 'שמור הודעה'; }
-    }
-}
-async function checkGlobalWelcome() {
-    try {
-        const res = await fetch(`${API}/settings/welcome?type=FAMILY`);
-        const data = await res.json();
-        if (data.message && data.message.trim() !== '') {
-            const seen = localStorage.getItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`);
-            if (seen !== data.message) {
-                getEl('welcome-modal-text').innerText = data.message;
-                setupPwaInstallSection();
-                getEl('welcome-modal').classList.remove('hidden');
-                window.pendingWelcomeMsg = data.message;
-                return true;
-            }
-        }
-    } catch(e) {}
-    return false;
-}
-
-function closeWelcomeModal() {
-    getEl('welcome-modal').classList.add('hidden');
-    if (window.pendingWelcomeMsg) {
-        localStorage.setItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`, window.pendingWelcomeMsg);
-    }
-    checkAndStartTour(forceTourStart);
-    forceTourStart = false;
-}
-
-function checkAndStartTour(force = false) {
-    setTimeout(() => {
-        try {
-            const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`;
-            if (force || !localStorage.getItem(tourKey)) {
-                localStorage.setItem(tourKey, 'true');
-                switchTab('feed');
-                if (currentUser.role === 'ADMIN') startAdminTour();
-                else startChildTour();
-            }
-        } catch(e) {}
-    }, 1000);
-}
-
-function triggerManualTour() {
-    getEl('profile-modal').classList.add('hidden');
-    setTimeout(() => {
-        switchTab('feed');
-        if (currentUser.role === 'ADMIN') startAdminTour();
-        else startChildTour();
-    }, 300);
-}
-
-function openAlertModal(title, text) {
-    const titleEl = getEl('generic-alert-title');
-    const textEl = getEl('generic-alert-text');
-    const modal = getEl('generic-alert-modal');
-    if(titleEl && textEl && modal) {
-        titleEl.innerText = title;
-        textEl.innerText = text;
-        modal.classList.remove('hidden');
-    }
-}
-async function linkBizToCommunity() {
-    const communityId = val('sa-link-comm'); 
-    const businessId = val('sa-link-biz'); 
-    let discountPct = val('sa-link-discount');
-    discountPct = discountPct ? parseFloat(discountPct) : 0;
-    
-    if(!communityId || !businessId) return showToast('error', 'חובה לבחור קהילה ועסק');
-    
-    try {
-        const res = await fetch(`${API}/sa/community-business`, { 
-            method: 'POST', 
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('saToken') || '')
-            }, 
-            body: JSON.stringify({ communityId, businessId, discountPct })
-        });
-        
-        const data = await res.json();
-        if(data.success) { 
-            showToast('success', 'העסק שויך לקהילה!'); 
-            if(typeof loadCommunityBusinesses === 'function') loadCommunityBusinesses(); 
-            if(typeof loadSACommunityData === 'function') loadSACommunityData(); 
-            if(typeof clearSmartBizSelection === 'function') clearSmartBizSelection(); 
-        } else { 
-            showToast('error', data.error || 'שגיאה בחיבור העסק'); 
-        }
-    } catch(e) { 
-        console.error('Network Error linking biz:', e);
-        showToast('error', 'שגיאת תקשורת מול השרת'); 
-    }
-}
 
 async function loadCommunityBusinesses() {
     const communityId = val('sa-link-comm');
@@ -4031,12 +5943,13 @@ const ALL_TABS = [
     { id: 'budget', name: 'ניהול תקציב 📊' },
     { id: 'pantry', name: 'ניהול מזווה 📦' },
     { id: 'recipes', name: 'שף פרטי 👨‍🍳' },
-    { id: 'forecast', name: 'תשקיף כלכלי 📅' }
+    { id: 'forecast', name: 'תשקיף כלכלי 📅' },
+    { id: 'home-maintenance', name: 'ניהול הבית 🔧' }
 ];
 
 const ROLE_DEFAULTS = {
     'ADMIN': ALL_TABS.map(t => t.id),
-    'MANAGER': ['feed', 'tasks', 'shop', 'pantry', 'academy', 'recipes'],
+    'MANAGER': ['feed', 'tasks', 'shop', 'pantry', 'academy', 'recipes', 'home-maintenance'],
     'SENIOR': ['feed', 'tasks', 'shop', 'pantry', 'academy'],
     'MEMBER': ['feed', 'tasks', 'shop', 'academy']
 };
@@ -4127,6 +6040,7 @@ function enforcePermissions() {
             if(activeBtn.id !== 'tab-feed') switchTab('feed');
         }
     });
+    try { updateFamilyGroupNavVisibility(); } catch(e) {}
 }
 
 // =====================================
@@ -4215,6 +6129,130 @@ if (!window.switchTabOverridden) {
 
 // קריאה ראשונית כשכל הדף נטען
 setTimeout(enforcePermissions, 1500);
+
+// ============================================================
+// --- FAMILY GROUP NAV ---
+// ============================================================
+const FAMILY_GNAV_GROUPS = {
+    home:   ['shop', 'myorders', 'pantry', 'recipes', 'home-maintenance'],
+    money:  ['bank', 'cashflow', 'budget', 'forecast'],
+    family: ['tasks', 'academy', 'community', 'members']
+};
+
+const _fgnavOriginalParents = {};
+
+window.toggleFamilyNavDropdown = function(group) {
+    const dd = document.getElementById(`fgnav-dropdown-${group}`);
+    if (!dd) return;
+    const isOpen = !dd.classList.contains('hidden');
+    window.closeFamilyNavDropdowns();
+    if (isOpen) return;
+
+    const btn = document.getElementById(`fgnav-group-${group}`);
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+
+    if (!_fgnavOriginalParents[group]) _fgnavOriginalParents[group] = dd.parentElement;
+    document.body.appendChild(dd);
+
+    const ddWidth = 170;
+    let leftPos = rect.left;
+    if (leftPos + ddWidth > window.innerWidth - 8) leftPos = window.innerWidth - ddWidth - 8;
+    if (leftPos < 8) leftPos = 8;
+
+    dd.style.cssText = `position:fixed; top:${rect.bottom + 4}px; left:${leftPos}px; right:auto; z-index:99999;`;
+    dd.classList.remove('hidden');
+};
+
+window.closeFamilyNavDropdowns = function() {
+    Object.keys(FAMILY_GNAV_GROUPS).forEach(g => {
+        const dd = document.getElementById(`fgnav-dropdown-${g}`);
+        if (!dd) return;
+        dd.classList.add('hidden');
+        dd.removeAttribute('style');
+        const orig = _fgnavOriginalParents[g];
+        if (orig && dd.parentElement !== orig) orig.appendChild(dd);
+    });
+};
+
+function updateFamilyGroupNavActiveState(tabId) {
+    const feedBtn = document.getElementById('fgnav-btn-feed');
+    if (feedBtn) {
+        feedBtn.className = tabId === 'feed'
+            ? 'fgnav-btn flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 transition-all duration-150'
+            : 'fgnav-btn flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-150';
+    }
+    let activeGroup = null;
+    for (const [g, tabs] of Object.entries(FAMILY_GNAV_GROUPS)) {
+        if (tabs.includes(tabId)) { activeGroup = g; break; }
+    }
+    Object.keys(FAMILY_GNAV_GROUPS).forEach(g => {
+        const btn = document.getElementById(`fgnav-btn-${g}`);
+        if (!btn) return;
+        btn.classList.toggle('bg-indigo-600', g === activeGroup);
+        btn.classList.toggle('text-white', g === activeGroup);
+        btn.classList.toggle('text-slate-400', g !== activeGroup);
+    });
+}
+
+function updateFamilyGroupNavVisibility() {
+    Object.entries(FAMILY_GNAV_GROUPS).forEach(([g, tabs]) => {
+        const groupEl = document.getElementById(`fgnav-group-${g}`);
+        if (!groupEl) return;
+        const hasVisible = tabs.some(id => {
+            const btn = document.getElementById(`tab-${id}`);
+            return btn && btn.style.display !== 'none';
+        });
+        groupEl.style.display = hasVisible ? '' : 'none';
+    });
+}
+
+function syncFamilyBellBadge() {
+    const src  = document.getElementById('bell-badge');
+    const dest = document.getElementById('fgnav-bell-badge');
+    if (!src || !dest) return;
+    const hidden = src.classList.contains('hidden');
+    dest.classList.toggle('hidden', hidden);
+    if (!hidden) dest.textContent = src.textContent;
+}
+
+function updateFamilyNavBadges() {
+    const isAdmin = currentUser?.role === 'ADMIN';
+    const homeCount = isAdmin
+        ? (shoppingListCache || []).filter(i => i.status === 'pending_approval').length
+        : (allTasks || []).filter(t => t.status === 'pending' && String(t.assigned_to) === String(currentUser?.id)).length;
+    const homeBadge = document.getElementById('fgnav-badge-home');
+    if (homeBadge) { homeBadge.textContent = homeCount > 9 ? '9+' : homeCount; homeBadge.classList.toggle('hidden', homeCount === 0); }
+
+    const familyCount = isAdmin
+        ? (allTasks || []).filter(t => t.status === 'completed' || t.status === 'done').length
+        : (bundlesCache || []).filter(b => b.status === 'assigned').length;
+    const familyBadge = document.getElementById('fgnav-badge-family');
+    if (familyBadge) { familyBadge.textContent = familyCount > 9 ? '9+' : familyCount; familyBadge.classList.toggle('hidden', familyCount === 0); }
+}
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
+}
+
+// סגירת dropdown בלחיצה מחוץ לנאב
+document.addEventListener('click', function(e) {
+    if (e.target.closest('#family-group-nav')) return;
+    const inDropdown = Object.keys(FAMILY_GNAV_GROUPS).some(g => {
+        const dd = document.getElementById(`fgnav-dropdown-${g}`);
+        return dd && !dd.classList.contains('hidden') && dd.contains(e.target);
+    });
+    if (!inDropdown) window.closeFamilyNavDropdowns?.();
+});
+
+// עטיפת switchTab לעדכון group nav
+(function() {
+    const _prev = window.switchTab;
+    window.switchTab = function(tabId) {
+        _prev(tabId);
+        try { updateFamilyGroupNavActiveState(tabId); closeFamilyNavDropdowns(); syncFamilyBellBadge(); } catch(e) {}
+    };
+})();
 
 // הוספת מזהה גרסה בתחתית המסך
 (function addVersionBadge() {
@@ -4355,8 +6393,8 @@ window.renderGroupInfo = function() {
     
     const nameEl = document.getElementById('dash-group-name');
     if (nameEl) {
-        const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
-        nameEl.innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`;
+        const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">${currentGroup.group_code}</span>` : '';
+        nameEl.innerHTML = `${safeStr(currentGroup.family_nickname || currentGroup.name)} ${codeBadge}`;
     }
 
     const logo = currentGroup.logo || currentGroup.logo_url || currentGroup.image_url;
@@ -4377,6 +6415,66 @@ window.renderGroupInfo = function() {
         if (mgmtPreview) mgmtPreview.classList.add('hidden');
         if (mgmtIcon) mgmtIcon.classList.remove('hidden');
     }
+};
+
+// ===== מודל שדרוג משפחה (חבר → משפחה) =====
+window._upgradePhotoBase64 = null;
+
+window.showFamilyUpgradeModal = function() {
+    const modal = document.getElementById('family-upgrade-modal'); if (!modal) return;
+    const nickInput = document.getElementById('upgrade-family-nickname');
+    if (nickInput) nickInput.value = currentGroup?.family_nickname || '';
+    const prev = document.getElementById('upgrade-photo-preview-wrap');
+    if (prev) prev.classList.add('hidden');
+    window._upgradePhotoBase64 = null;
+    modal.classList.remove('hidden');
+    try { confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } }); } catch(e) {}
+};
+
+window.closeUpgradeModal = function() {
+    const modal = document.getElementById('family-upgrade-modal'); if (modal) modal.classList.add('hidden');
+};
+
+window.onUpgradePhotoSelected = function(event) {
+    const file = event.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const max = 512; let w = img.width, h = img.height;
+            if (w > h) { if (w > max) { h = h * max / w; w = max; } } else { if (h > max) { w = w * max / h; h = max; } }
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            window._upgradePhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+            const prev = document.getElementById('upgrade-photo-preview');
+            const wrap = document.getElementById('upgrade-photo-preview-wrap');
+            if (prev) prev.src = window._upgradePhotoBase64;
+            if (wrap) wrap.classList.remove('hidden');
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+window.saveUpgradeModal = async function() {
+    const btn = document.getElementById('btn-save-upgrade'); if (btn) { btn.disabled = true; btn.textContent = 'שומר...'; }
+    try {
+        const nickname = (document.getElementById('upgrade-family-nickname')?.value || '').trim();
+        const updates = [];
+        if (nickname || window._upgradePhotoBase64) {
+            if (nickname) updates.push(fetch(`${API}/groups/${currentGroup.id}/nickname`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ familyNickname: nickname }) }));
+            if (window._upgradePhotoBase64) updates.push(fetch(`${API}/groups/${currentGroup.id}/logo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ logo: window._upgradePhotoBase64 }) }));
+            await Promise.all(updates);
+            if (nickname) currentGroup.family_nickname = nickname;
+            if (window._upgradePhotoBase64) currentGroup.logo = window._upgradePhotoBase64;
+            localStorage.setItem('ofl_session', JSON.stringify({ user: currentUser, group: currentGroup }));
+            try { window.renderGroupInfo(); } catch(e) {}
+        }
+        closeUpgradeModal();
+        showToast('success', '🎉 ברוכים הבאים למשפחה מלאה!');
+    } catch(e) { showToast('error', 'שגיאה בשמירה, נסה שוב'); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = 'שמור והמשך'; } }
 };
 
 window.openTicketsModal = function() {
@@ -5755,7 +7853,9 @@ window.sendFamilaiChatMessage = async function() {
             pantry: pantryCache.map(p => ({item: p.item_name, qty: p.quantity, unit: p.unit, updated: p.updated_at})),
             shopping_list: shoppingListCache.map(s => ({item: s.item_name, qty: s.quantity, status: s.status})),
             tasks: allTasks.filter(t => t.status !== 'approved').map(t => ({title: t.title, assigned_to: t.assignee_name, reward: t.reward, status: t.status})),
-            recent_transactions: allTransactions.slice(0, 40).map(tx => ({desc: tx.description, amount: tx.amount, type: tx.type, date: tx.date}))
+            recent_transactions: allTransactions.slice(0, 40).map(tx => ({desc: tx.description, amount: tx.amount, type: tx.type, date: tx.date})),
+            my_communities: (myConnectedCommunitiesCache||[]).map(c => ({id: c.id, name: c.name, type: c.type})),
+            flow_balance: familyFlowBalance
         };
         
         const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
@@ -5773,6 +7873,9 @@ window.sendFamilaiChatMessage = async function() {
         const data = await res.json();
         
         if (data.success) {
+            if (data.action_type === 'OPEN_TAB' && data.action_data?.tab) {
+                switchTab(data.action_data.tab);
+            }
             let formattedAns = data.answer;
             formattedAns = formattedAns.replace(/\*\*(.*?)\*\*/g, '<strong class="text-purple-700">$1</strong>');
             formattedAns = formattedAns.replace(/\n/g, '<br>');
@@ -5872,7 +7975,8 @@ setInterval(() => {
     const saTokenLocal = localStorage.getItem('ofl_sa_token');
     let bruteBanner = document.getElementById('brute-force-sa-banner');
     
-    if (saTokenLocal) {
+    const activeSession = localStorage.getItem('ofl_session');
+    if (saTokenLocal && activeSession) {
         if (document.body.style.paddingTop !== '45px') {
             document.body.style.paddingTop = '45px';
         }
@@ -5881,7 +7985,7 @@ setInterval(() => {
             // שליפת שם הלקוח (המשפחה) מהסשן
             let customerName = 'לקוח';
             try {
-                const session = JSON.parse(localStorage.getItem('ofl_session'));
+                const session = JSON.parse(activeSession);
                 if (session && session.group) customerName = session.group.name;
             } catch(e) {}
 
@@ -5994,22 +8098,4099 @@ function renderQuickTiles() {
   const pantryCount = (pantryCache || []).length;
   const taskCount = (allTasks || []).filter(t => t.status === 'pending').length;
   const tiles = [
-    { fa:'fa-cart-shopping',  label:'קניות',        badge: shopCount,   tab:'shop',      bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0d9488)', badge_bg:'#059669' },
-    { fa:'fa-box-open',       label:'מזווה',         badge: pantryCount, tab:'pantry',    bg:'#fff7ed', grad:'linear-gradient(135deg,#fb923c,#ea580c)', badge_bg:'#c2410c' },
-    { fa:'fa-chart-pie',      label:'תקציב',         badge: null,        tab:'cashflow',  bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4f46e5)', badge_bg:'#2563eb' },
-    { fa:'fa-people-group',   label:'הקהילה שלי',    badge: null,        tab:'community', bg:'#faf5ff', grad:'linear-gradient(135deg,#c084fc,#db2777)', badge_bg:'#7c3aed' },
-    { fa:'fa-list-check',     label:'משימות',        badge: taskCount,   tab:'tasks',     bg:'#f0fdf4', grad:'linear-gradient(135deg,#4ade80,#16a34a)', badge_bg:'#15803d' },
-    { fa:'fa-clipboard-list', label:'הזמנות שלי',    badge: null,        tab:'myorders',  bg:'#fff1f2', grad:'linear-gradient(135deg,#fb7185,#e11d48)', badge_bg:'#be123c' },
+    { fa:'fa-cart-shopping',  label:'קניות',        badge: shopCount,   tab:'shop',             bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0d9488)', badge_bg:'#059669' },
+    { fa:'fa-box-open',       label:'מזווה',         badge: pantryCount, tab:'pantry',           bg:'#fff7ed', grad:'linear-gradient(135deg,#fb923c,#ea580c)', badge_bg:'#c2410c' },
+    { fa:'fa-chart-pie',      label:'תקציב',         badge: null,        tab:'cashflow',         bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4f46e5)', badge_bg:'#2563eb' },
+    { fa:'fa-people-group',   label:'הקהילה שלי',    badge: null,        tab:'community',        bg:'#faf5ff', grad:'linear-gradient(135deg,#c084fc,#db2777)', badge_bg:'#7c3aed' },
+    { fa:'fa-list-check',     label:'משימות',        badge: taskCount,   tab:'tasks',            bg:'#f0fdf4', grad:'linear-gradient(135deg,#4ade80,#16a34a)', badge_bg:'#15803d' },
+    { fa:'fa-wrench',         label:'ניהול הבית',    badge: null,        tab:'home-maintenance', bg:'#fefce8', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
+    { fa:'fa-clipboard-list', label:'הזמנות שלי',    badge: null,        tab:'myorders',         bg:'#fff1f2', grad:'linear-gradient(135deg,#fb7185,#e11d48)', badge_bg:'#be123c', fullWidth: true },
   ];
-  container.innerHTML = tiles.map(t => `
-    <button onclick="switchTab('${t.tab}')"
-      style="background:${t.bg};border:1.5px solid rgba(0,0,0,0.06)"
-      class="relative rounded-2xl p-3.5 flex flex-col items-center gap-2 shadow-sm hover:shadow-lg hover:scale-[1.04] active:scale-95 transition-all duration-200 cursor-pointer">
-      <div style="background:${t.grad}" class="w-11 h-11 rounded-xl flex items-center justify-center shadow-md mb-0.5">
+  const isMember = currentGroup?.member_type === 'member';
+  const unlockedMods = currentGroup?.unlocked_modules || [];
+  container.innerHTML = tiles.map(t => {
+    const isMyOrders = t.tab === 'myorders';
+    const fullWidthStyle = t.fullWidth ? 'grid-column:1/-1;' : '';
+    const locked = isMember && !isMyOrders && !unlockedMods.includes(t.tab);
+    if (locked) {
+      return `<button onclick="showMemberModuleUpgrade('${t.tab}')"
+          style="background:#f8fafc;border:1.5px solid rgba(0,0,0,0.06);opacity:0.7;${fullWidthStyle}"
+          class="relative rounded-2xl p-3.5 flex flex-col items-center gap-2 shadow-sm cursor-pointer">
+          <div style="background:linear-gradient(135deg,#94a3b8,#64748b)" class="w-11 h-11 rounded-xl flex items-center justify-center shadow-md mb-0.5">
+            <i class="fa-solid fa-lock text-white text-lg"></i>
+          </div>
+          <span class="text-[11px] font-bold text-slate-400 text-center leading-tight">${t.label}</span>
+        </button>`;
+    }
+    const fullWidthInner = t.fullWidth ? 'flex-row gap-3 justify-center' : 'flex-col';
+    return `<button onclick="switchTab('${t.tab}')"
+      style="background:${t.bg};border:1.5px solid rgba(0,0,0,0.06);${fullWidthStyle}"
+      class="relative rounded-2xl p-3.5 flex ${fullWidthInner} items-center gap-2 shadow-sm hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all duration-200 cursor-pointer">
+      <div style="background:${t.grad}" class="w-11 h-11 rounded-xl flex items-center justify-center shadow-md ${t.fullWidth ? 'flex-shrink-0' : 'mb-0.5'}">
         <i class="fa-solid ${t.fa} text-white text-lg"></i>
       </div>
-      <span class="text-[11px] font-bold text-slate-600 text-center leading-tight">${t.label}</span>
+      <span class="text-[11px] font-bold text-slate-600 ${t.fullWidth ? 'text-base' : 'text-center'} leading-tight">${t.label}</span>
       ${t.badge !== null && t.badge > 0 ? `<span style="background:${t.badge_bg}" class="absolute -top-1.5 -right-1.5 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-md">${t.badge}</span>` : ''}
-    </button>
-  `).join('');
+    </button>`;
+  }).join('');
 }
+
+// ── FAMILY URGENT ITEMS — "מה מחכה לך" ──────────────────────
+async function renderFamilyUrgentItems() {
+    const section = document.getElementById('family-urgent-section');
+    const list    = document.getElementById('family-urgent-list');
+    const badge   = document.getElementById('family-urgent-badge');
+    if (!section || !list || !currentGroup) return;
+
+    const isAdmin = currentUser?.role === 'ADMIN';
+    const now     = new Date();
+    const todayStr = now.toDateString();
+    const items   = [];
+
+    const C = {
+        high:   { bg:'bg-red-50',   border:'border-red-100',   ibg:'bg-red-100',   txt:'text-red-600' },
+        medium: { bg:'bg-amber-50', border:'border-amber-100', ibg:'bg-amber-100', txt:'text-amber-700' },
+        low:    { bg:'bg-slate-50', border:'border-slate-100', ibg:'bg-slate-100', txt:'text-slate-500' }
+    };
+
+    if (isAdmin) {
+        // ─ משימות ממתינות לאישור ─
+        const pendingApproval = (allTasks || []).filter(t => t.status === 'completed' || t.status === 'done');
+        if (pendingApproval.length > 0)
+            items.push({ icon:'✅', urgency:'high',
+                title:`${pendingApproval.length} משימות ממתינות לאישורך`,
+                sub: pendingApproval.slice(0,2).map(t => t.title).join(', '),
+                tab:'tasks', actionLabel:'אשר' });
+
+        // ─ פריטי קניות ממתינים לאישור ─
+        const pendingShop = (shoppingListCache || []).filter(i => i.status === 'pending_approval');
+        if (pendingShop.length > 0)
+            items.push({ icon:'🛒', urgency:'high',
+                title:`${pendingShop.length} בקשות קניה ממתינות`,
+                sub: pendingShop.slice(0,2).map(i => i.name).join(', '),
+                tab:'shop', actionLabel:'בדוק' });
+
+        // ─ משימות שעברו דד-ליין ─
+        const overdue = (allTasks || []).filter(t =>
+            t.status === 'pending' && t.deadline && new Date(t.deadline) < now
+        );
+        if (overdue.length > 0)
+            items.push({ icon:'⏰', urgency:'medium',
+                title:`${overdue.length} משימות שעברו דד-ליין`,
+                sub: overdue.slice(0,2).map(t => t.title).join(', '),
+                tab:'tasks', actionLabel:'ראה' });
+
+        // ─ מלאי מזווה נמוך ─
+        const lowPantry = (pantryCache || []).filter(p => parseFloat(p.quantity) <= 1);
+        if (lowPantry.length > 0)
+            items.push({ icon:'📦', urgency:'low',
+                title:`${lowPantry.length} פריטים במזווה כמעט נגמרו`,
+                sub: lowPantry.slice(0,3).map(p => p.item_name).join(', '),
+                tab:'pantry', actionLabel:'עדכן' });
+
+        // ─ תחזוקה ותקלות בבית ─
+        try {
+            const [hmMRes, hmFRes] = await Promise.all([
+                fetch(`/api/equipment/maintenance/${currentGroup.id}`),
+                fetch(`/api/equipment/faults/${currentGroup.id}`)
+            ]);
+            const hmMData = await hmMRes.json();
+            const hmFData = await hmFRes.json();
+            if (hmMData.success) {
+                const today2 = new Date(); today2.setHours(0,0,0,0);
+                const in7 = new Date(today2); in7.setDate(today2.getDate() + 7);
+                const urgMaint = hmMData.records.filter(m => {
+                    if (m.status === "completed" || !m.scheduled_date) return false;
+                    const sd = new Date(m.scheduled_date); sd.setHours(0,0,0,0);
+                    return sd <= in7;
+                });
+                if (urgMaint.length > 0) {
+                    const late = urgMaint.filter(m => new Date(m.scheduled_date) < today2);
+                    items.push({ icon:"🔧", urgency: late.length > 0 ? "high" : "medium",
+                        title:`${urgMaint.length} תחזוקות בית ממתינות${late.length > 0 ? " (" + late.length + " באיחור)" : ""}`,
+                        sub: urgMaint[0].description || "", tab:"home-maintenance", actionLabel:"טפל" });
+                }
+            }
+            if (hmFData.success) {
+                const openF = hmFData.faults.filter(f => f.status !== "resolved");
+                if (openF.length > 0) {
+                    const crit = openF.filter(f => f.severity === "critical" || f.severity === "high");
+                    items.push({ icon:"⚠️", urgency: crit.length > 0 ? "high" : "medium",
+                        title:`${openF.length} תקלות בית פתוחות`,
+                        sub: openF[0].title || "", tab:"home-maintenance", actionLabel:"טפל" });
+                }
+            }
+        } catch(e) {}
+
+    } else {
+        // ─ ילד/חבר משפחה ─
+        // משימות אישיות לסגירה
+        const myTasks = (allTasks || []).filter(t => {
+            if (t.status === 'approved' || t.status === 'cancelled') return false;
+            if (t.assigned_to && String(t.assigned_to) !== String(currentUser?.id)) return false;
+            return t.status === 'pending';
+        });
+        if (myTasks.length > 0) {
+            const overdue = myTasks.filter(t => t.deadline && new Date(t.deadline) < now);
+            items.push({ icon:'✅', urgency: overdue.length > 0 ? 'high' : 'medium',
+                title:`${myTasks.length} משימות שלך ממתינות`,
+                sub: myTasks.slice(0,2).map(t => t.title).join(', '),
+                tab:'tasks', actionLabel:'בצע' });
+        }
+
+        // אתגרי אקדמיה ממתינים
+        const myAcademy = (bundlesCache || []).filter(b => b.status === 'assigned');
+        if (myAcademy.length > 0)
+            items.push({ icon:'🎓', urgency:'medium',
+                title:`${myAcademy.length} אתגרי אקדמיה ממתינים לך`,
+                sub: myAcademy.slice(0,2).map(b => b.title).join(', '),
+                tab:'academy', actionLabel:'התחל' });
+    }
+
+    if (items.length === 0) { section.classList.add('hidden'); return; }
+
+    list.innerHTML = items.map((item, i) => {
+        const c = C[item.urgency] || C.low;
+        const sep = i < items.length - 1 ? `border-b ${c.border}` : '';
+        return `<div class="flex items-center gap-3 px-4 py-3 ${c.bg} ${sep} cursor-pointer active:opacity-70 transition-opacity"
+                     onclick="switchTab('${item.tab}')">
+          <div class="w-9 h-9 rounded-xl ${c.ibg} flex items-center justify-center flex-shrink-0 text-base">${item.icon}</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-xs font-bold text-slate-800 leading-tight">${item.title}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">${item.sub}</div>
+          </div>
+          <span class="text-[10px] font-bold ${c.txt} bg-white border ${c.border} rounded-full px-2.5 py-1 flex-shrink-0 whitespace-nowrap">${item.actionLabel} →</span>
+        </div>`;
+    }).join('');
+
+    if (badge) badge.textContent = items.length;
+    section.classList.remove('hidden');
+}
+
+// ════════════════════════════════════════════════
+// ★ HELP SYSTEM — תוכן עזרה לכל מודול (משפחה)
+// ════════════════════════════════════════════════
+window._currentFamilyTab = 'feed';
+
+const FAMILY_HELP_CONTENT = {
+    feed: {
+        icon: '🏠', title: 'לוח ראשי',
+        what: 'דשבורד אישי — יתרת הכסף שלך, משימות פתוחות ופעולות דחופות.',
+        what_admin: 'דשבורד משפחתי — סיכום יתרות כלל בני המשפחה, משימות פתוחות ופעולות דחופות.',
+        tips: [
+            '💰 הכרטיס הגדול מציג את יתרת הכסף האישית שלך',
+            '⚡ "מה מחכה לך" — פעולות דחופות הדורשות תשומת לב',
+            '🎯 הכרטיסים הקטנים — קישורים מהירים לפעולות נפוצות',
+            '🔔 לחץ על הפעמון לצפייה בכל הפעילות האחרונה',
+        ],
+        tips_admin: [
+            '👨‍👩‍👧 אתה רואה סיכום של כלל המשפחה — יתרות, בקשות ומשימות',
+            '⚡ "מה מחכה לך" — בקשות קנייה ודיווחי משימות הממתינות לאישורך',
+            '🔔 כל פעולת ילד מופיעה בעדכונים — אישור, תגמול, חסימה',
+            '🎯 לחץ על כרטיס ילד לצפייה מהירה בפעילותו',
+            '⚙️ עבור ל"ניהול משפחה" להגדרות מלאות',
+        ]
+    },
+    shop: {
+        icon: '🛒', title: 'בקשות קנייה',
+        what: 'שלח בקשות לרכישת מוצרים, ועקוב אחר הסטטוס עד לאישור ההורה.',
+        what_admin: 'ניהול בקשות קנייה של בני המשפחה — אשר, דחה, או קנה בעצמך.',
+        tips: [
+            '➕ לחץ "+ בקשה" לפתיחת בקשת קנייה חדשה',
+            '📝 ציין את שם המוצר, כמות ומחיר משוער',
+            '⏳ הבקשה נשלחת לאישור ההורה — המתן!',
+            '✅ לאחר אישור — המוצר יירכש ויגיע!',
+            '🛍️ ניתן לעקוב אחר סטטוס כל בקשה',
+        ],
+        tips_admin: [
+            '📋 כל בקשות הקנייה של הילדים מוצגות כאן',
+            '✅ לחץ "אשר" לאישור הרכישה — הילד מקבל הודעה',
+            '❌ לחץ "דחה" + סיבה — הילד יראה את ההסבר',
+            '🛒 ניתן גם לקנות מיד דרך עסקים מקומיים בקהילה',
+            '💰 רכישה מאושרת מנכה אוטומטית מיתרת הארנק המשפחתי',
+        ]
+    },
+    myorders: {
+        icon: '🛵', title: 'הזמנות מעסקים',
+        what: 'עקוב אחר הזמנות שביצעת מעסקים מקומיים בקהילה — מזון, מוצרים ומשלוחים.',
+        what_admin: 'סיכום כל הזמנות המשפחה מעסקים מקומיים — בכל הסטטוסים.',
+        tips: [
+            '🏪 הזמנות נוצרות כשמזמינים מחנות עסק מקומי בקהילה',
+            '🟡 "התקבל בעסק" — ההזמנה נקלטה ובטיפול',
+            '📦 "באריזה / הכנה" — העסק מכין את ההזמנה',
+            '🛵 "בדרך אליך" — השליח בדרך, מגיע בקרוב!',
+            '✅ "נמסר" — ההזמנה הושלמה בהצלחה',
+        ],
+        tips_admin: [
+            '📋 ראה את כל הזמנות המשפחה — שלך וגם של הילדים',
+            '🔍 סנן לפי ילד ספציפי או לפי סטטוס',
+            '📞 יש בעיה עם הזמנה? לחץ על ההזמנה לפרטי קשר העסק',
+            '💰 עלויות ההזמנות נרשמות אוטומטית בהיסטוריה הכספית',
+            '📊 עבור ל"תקציב" לראות כמה הוצאת על הזמנות החודש',
+        ]
+    },
+    bank: {
+        icon: '🐷', title: 'הארנק שלי',
+        what: 'ארנק כספי אישי — יתרה, היסטוריה ויעדי חיסכון.',
+        what_admin: 'ניהול הכספים המשפחתי — יתרות כלל הילדים, תגמולים ובקשות מקדמה.',
+        tips: [
+            '💰 יתרתך הנוכחית — כסף שהצטבר ממשימות ולימוד',
+            '🎯 הגדר יעד חיסכון — לאיזה מטרה אתה חוסך?',
+            '📈 הפס מציג את ההתקדמות לקראת היעד',
+            '💸 ניתן לבקש מקדמה — ממתינה לאישור ההורה',
+            '🏆 הגע ליעד וקבל בונוס!',
+        ],
+        tips_admin: [
+            '👨‍👩‍👧 ראה יתרת ארנק של כל ילד בנפרד',
+            '💸 אשר או דחה בקשות מקדמה מהילדים',
+            '🎁 הענק בונוס ידני לילד שהצטיין',
+            '🔄 העבר כסף בין ילדים או הוסף/הורד יתרה ידנית',
+            '📊 עבור להיסטוריה לראות מאיפה הגיע כל שקל',
+        ]
+    },
+    cashflow: {
+        icon: '📜', title: 'היסטוריה',
+        what: 'צפייה בכל הפעולות הכספיות שלך — הכנסות, הוצאות ותגמולים.',
+        what_admin: 'היסטוריה כספית מלאה של כלל המשפחה — כולל פירוט לפי ילד.',
+        tips: [
+            '📋 ראה את כל הפעולות הכספיות לפי תאריך',
+            '🟢 ירוק = כסף שנכנס (שכר, בונוס, תגמול)',
+            '🔴 אדום = כסף שיצא (רכישה, הוצאה)',
+            '🔍 חפש פעולה ספציפית לפי שם או סכום',
+            '📊 ראה סיכום הכנסות/הוצאות לחודש',
+        ],
+        tips_admin: [
+            '👨‍👩‍👧 בחר "כל המשפחה" לצפייה מאוחדת או סנן לפי ילד',
+            '🟢 ירוק = תגמולים, בונוסים; 🔴 אדום = רכישות, הוצאות',
+            '📊 ייצא את ההיסטוריה לאקסל לניתוח מעמיק',
+            '🔍 חפש לפי ילד, תאריך, סוג פעולה',
+            '📅 השווה חודשים לבדיקת מגמות הוצאה',
+        ]
+    },
+    academy: {
+        icon: '🎓', title: 'אקדמיה',
+        what: 'למד, ענה על שאלות נכון — ותרוויח כסף אמיתי! אתגרים מותאמים אישית.',
+        what_admin: 'ניהול אתגרי הלמידה לבני המשפחה — הקצה אתגרים, עקוב אחר התקדמות ותגמל.',
+        tips: [
+            '🎲 לחץ "הגרל אתגר מהיר" לאתגר רנדומלי',
+            '📚 הספרייה — אלפי מבחנים לפי גיל ונושא',
+            '💰 כל תשובה נכונה = כסף לארנק שלך',
+            '🏆 השלם את כל שאלות האתגר לקבלת הבונוס המלא',
+            '📖 ניתן לחזור על אתגרים שהוקצו לך',
+        ],
+        tips_admin: [
+            '➕ הקצה אתגר לילד ספציפי עם בונוס כספי',
+            '📚 בחר מהספרייה לפי גיל, נושא ורמת קושי',
+            '📊 עקוב אחר ניקוד וסיום אתגרים לכל ילד',
+            '💰 הגדר את סכום הבונוס לכל אתגר — מוטיבציה!',
+            '🏆 ראה דירוג ילדים לפי הישגים לימודיים',
+        ]
+    },
+    tasks: {
+        icon: '✅', title: 'משימות',
+        what: 'המשימות שהוקצו לך — בצע, דווח וקבל תגמול!',
+        what_admin: 'ניהול משימות המשפחה — צור, הקצה, אשר ותגמל.',
+        tips: [
+            '📋 ראה את כל המשימות הפעילות שלך',
+            '📸 לחץ "דיווח סיום" + צלם הוכחת ביצוע',
+            '⏰ שים לב לתאריכי יעד — אל תפספס!',
+            '💰 לאחר אישור ההורה — הבונוס נזקף לארנק',
+            '📋 משימת SOP = בצע שלב אחר שלב לפי הנוהל',
+        ],
+        tips_admin: [
+            '➕ לחץ "צור משימה" — הגדר שם, תיאור, תאריך יעד ובונוס',
+            '👦 הקצה לילד ספציפי או לכל המשפחה',
+            '📸 ילד מדווח + מצרף צילום הוכחה — אתה מאשר',
+            '✅ לחץ "אשר" לאחר בדיקת ההוכחה — הבונוס עובר אוטומטית',
+            '📋 SOP = רצף שלבים עם בדיקת כל שלב בנפרד',
+        ]
+    },
+    community: {
+        icon: '👥', title: 'קהילה',
+        what: 'קהילות מקומיות — צפה בעסקים בשכונה, הזמן משלוחים ונצל הטבות בלעדיות לחברים.',
+        what_admin: 'ניהול חברות הקהילה של המשפחה — הצטרפות, הטבות ועדכונים מקומיים.',
+        tips: [
+            '🏪 ראה עסקים מקומיים שמציעים הטבות לחברי הקהילה',
+            '🛒 לחץ על עסק \u2192 "הזמן" לביצוע הזמנה ממנו',
+            '🏷️ הטבות ומבצעים זמינים רק לחברי הקהילה',
+            '📢 קרא עדכונים ואירועים שפרסמו עסקים ושכנים',
+            '📦 הזמנות מהעסק מופיעות ב"הזמנות מעסקים" שלך',
+        ],
+        tips_admin: [
+            '🏘️ הצטרף לקהילה שכונתית — גישה להטבות ומבצעים בלעדיים',
+            '🏪 ראה את כל העסקים המקומיים המשתתפים',
+            '📢 פרסם בקשה לשכנים (שירות, עזרה, שיתוף)',
+            '📋 עקוב אחר ההזמנות של כל בני המשפחה מהקהילה',
+            '⭐ דרג עסקים מקומיים ועזור לשכנים לבחור',
+        ]
+    },
+    members: {
+        icon: '👨‍👩‍👧', title: 'ניהול משפחה',
+        what: 'פרטי חברות המשפחה שלך — ניתן לראות מידע בסיסי על הקבוצה.',
+        what_admin: 'ניהול מלא של חברי המשפחה — הוספה, תפקידים, הגדרות גישה ומעקב.',
+        tips: [
+            '👀 ראה מי שייך לקבוצה המשפחתית שלך',
+            '📋 הצג את יתרתך ופעילותך האחרונה',
+        ],
+        tips_admin: [
+            '➕ לחץ "הוסף חבר" לצירוף בן/בת משפחה',
+            '👦 הגדר שם, גיל ותפקיד (ילד / הורה / אחר) לכל חבר',
+            '💰 ראה את יתרת הכסף ופעילות כל ילד',
+            '📊 עקוב אחר ביצועי כל ילד — משימות, לימוד ותגמולים',
+            '⚙️ קבע מה כל ילד רואה ומה מוסתר ממנו',
+        ]
+    },
+    budget: {
+        icon: '📊', title: 'תקציב משפחתי',
+        what: 'צפה בתקציב המשפחתי — כמה הוצאנו ומה נשאר (נגיש להורה בלבד).',
+        what_admin: 'הגדר יעדי הוצאות משפחתיים ועקוב בזמן אמת אחרי עמידה בתקציב.',
+        tips: [
+            '📊 ראה את הקטגוריות וסכומי ההוצאה',
+            '🟢 ירוק = בתקציב; 🔴 אדום = חריגה',
+        ],
+        tips_admin: [
+            '➕ הגדר קטגוריות הוצאה — מזון, בידור, לימודים...',
+            '🎯 הגדר תקציב חודשי לכל קטגוריה',
+            '📈 המערכת מחשבת אוטומטית את ההוצאות בפועל',
+            '🔴 קטגוריות שחרגו מסומנות באדום — פעל מייד',
+            '📅 עבור בין תצוגה חודשית לשנתית להשוואה',
+        ]
+    },
+    pantry: {
+        icon: '📦', title: 'מזווה',
+        what: 'מעקב אחר מה יש בבית — מזון, ניקיון ומוצרים נחוצים.',
+        tips: [
+            '➕ הוסף מוצר למזווה עם כמות ותאריך תפוגה',
+            '🔴 מוצרים שאזלו מסומנים להשלמה',
+            '📅 שים לב לתאריכי תפוגה — הימנע מבזבוז',
+            '🛒 ניתן לשלוח מוצרים ישירות לרשימת הקנייה',
+            '✨ familAI יכולה להמליץ מתכונים לפי מה שיש',
+        ],
+        tips_admin: [
+            '➕ הוסף מוצר עם כמות, יחידה ותאריך תפוגה',
+            '🔴 המערכת מתריעה על מוצרים שאזלו או עומדים לפוג',
+            '🛒 שלח מוצרים חסרים ישירות לרשימת הקנייה',
+            '✨ familAI מנתחת את המזווה ומציעה מתכונים חכמים',
+            '📊 ראה היסטוריית צריכה לכל מוצר',
+        ]
+    },
+    recipes: {
+        icon: '🍳', title: 'מתכונים',
+        what: 'מצא וצור מתכונים מהמרכיבים שיש לך בבית — עם עזרת AI.',
+        tips: [
+            '✨ לחץ "צור מתכון" ו-familAI תבנה מתכון מהמזווה שלך',
+            '🥕 בחר מרכיבים ספציפיים שרוצים להשתמש בהם',
+            '👨‍👩‍👧 ציין כמה סועדים לכוונון הכמויות',
+            '📋 העתק את המתכון לשמירה או שיתוף',
+            '🔄 ניסית מתכון? ניתן לבקש גרסה משופרת',
+        ],
+        tips_admin: [
+            '✨ familAI יוצרת מתכון חכם מהמרכיבים שיש במזווה',
+            '🥕 בחר מרכיבים ספציפיים שרוצים להשתמש בהם',
+            '👨‍👩‍👧 ציין מספר סועדים וסוגי תזונה (צמחוני, ללא גלוטן...)',
+            '📋 שמור מתכונים מועדפים לשימוש חוזר',
+            '🔄 בקש וריאציות — אותם מרכיבים, טעם שונה',
+        ]
+    },
+    forecast: {
+        icon: '📅', title: 'תחזית',
+        what: 'תצוגה של תחזית ההוצאות המשפחתיות הצפויות.',
+        what_admin: 'תכנון הוצאות עתידיות — ראה לאן הולך הכסף המשפחתי ותכנן מראש.',
+        tips: [
+            '📊 ראה את ההוצאות הצפויות לחודשים הקרובים',
+            '📆 עבור בין תצוגה חודשית לשנתית',
+        ],
+        tips_admin: [
+            '➕ הוסף הוצאה עתידית צפויה (חופשה, ציוד לבית...)',
+            '📆 עבור בין תצוגה חודשית לשנתית',
+            '📊 הגרף מציג תחזית תזרים לחודשים הבאים',
+            '🎯 תכנן רכישות גדולות מראש',
+            '💡 עזר לכל המשפחה לחסוך ביחד ליעד משותף',
+        ]
+    },
+    'home-maintenance': {
+        icon: '🔧', title: 'ניהול הבית',
+        what: 'מעקב אחר ציוד ומכשירים בבית — תחזוקה, תקלות ואנשי קשר לתיקונים.',
+        what_admin: 'ניהול נכסי הבית — מכשירים, אחזקה תקופתית, תקלות ואנשי קשר לשירות.',
+        tips: [
+            '🔧 ראה את רשימת המכשירים/הציוד בבית',
+            '⚠️ הגש דיווח תקלה — ההורה יקבל התראה',
+            '📞 מצא אנשי קשר לתיקון בנושאים שונים',
+        ],
+        tips_admin: [
+            '➕ הוסף מכשיר/ציוד — דגם, תאריך רכישה, אחריות',
+            '🔧 תזמן תחזוקה תקופתית (מזגן, דוד, מסנן...)',
+            '⚠️ ניהול תקלות — פתח, עקוב, סגור לאחר תיקון',
+            '📞 שמור אנשי קשר של בעלי מקצוע לפי קטגוריה',
+            '📅 המערכת מתריעה כשמועד תחזוקה מתקרב',
+        ]
+    },
+};
+
+function openFamilyHelp() {
+    const tab = window._currentFamilyTab || 'feed';
+    const help = FAMILY_HELP_CONTENT[tab];
+    const sheet = document.getElementById('family-help-sheet');
+    if (!sheet) return;
+    const isAdmin = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'MANAGER');
+    if (!help) {
+        document.getElementById('family-help-icon').textContent = '❓';
+        document.getElementById('family-help-title').textContent = 'עזרה';
+        document.getElementById('family-help-what').textContent = 'לפרטים נוספים פנה להורה או למנהל המשפחה.';
+        document.getElementById('family-help-tips').innerHTML = '';
+        sheet.classList.remove('hidden');
+        return;
+    }
+    const what = (isAdmin && help.what_admin) ? help.what_admin : help.what;
+    const tips = (isAdmin && help.tips_admin) ? help.tips_admin : help.tips;
+    document.getElementById('family-help-icon').textContent = help.icon;
+    document.getElementById('family-help-title').textContent = help.title;
+    document.getElementById('family-help-what').textContent = what;
+    document.getElementById('family-help-tips').innerHTML = tips
+        .map(t => `<li class="flex items-start gap-2 text-sm text-slate-700 bg-white border border-slate-100 rounded-xl p-3 shadow-sm leading-relaxed">${t}</li>`)
+        .join('');
+    sheet.classList.remove('hidden');
+}
+
+function closeFamilyHelp() {
+    const sheet = document.getElementById('family-help-sheet');
+    if (sheet) sheet.classList.add('hidden');
+}
+
+// ============================================================
+// === ניהול הבית — HOME MAINTENANCE MODULE ==================
+// ============================================================
+
+let hmItems = [], hmMaintenance = [], hmFaults = [], hmContacts = [];
+let hmMaintenanceFilter = 'all', hmFaultsFilter = 'all';
+let hmFaultNotes = {};
+
+const HM_CAT_COLORS = { 'מקרר/הקפאה':'bg-blue-100 text-blue-700','תנור/אפייה':'bg-orange-100 text-orange-700','מזגן':'bg-cyan-100 text-cyan-700','חשמל':'bg-yellow-100 text-yellow-700','אינסטלציה':'bg-indigo-100 text-indigo-700','רכב':'bg-violet-100 text-violet-700','כללי':'bg-slate-100 text-slate-600' };
+const HM_STATUS_COLORS = { 'active':'bg-emerald-100 text-emerald-700','inactive':'bg-amber-100 text-amber-700','disposed':'bg-red-100 text-red-700' };
+const HM_STATUS_LABELS = { 'active':'פעיל','inactive':'לא פעיל','disposed':'הושלך' };
+const HM_MTYPE_LABELS = { 'periodic':'תקופתי','repair':'תיקון','inspection':'בדיקה' };
+const HM_MTYPE_COLORS = { 'periodic':'bg-blue-100 text-blue-700','repair':'bg-orange-100 text-orange-700','inspection':'bg-violet-100 text-violet-700' };
+const HM_SEV_COLORS = { 'low':'bg-slate-100 text-slate-600','medium':'bg-amber-100 text-amber-700','high':'bg-orange-100 text-orange-700','critical':'bg-red-100 text-red-700' };
+const HM_SEV_LABELS = { 'low':'נמוכה','medium':'בינונית','high':'גבוהה','critical':'קריטית' };
+const HM_FSTATUS_LABELS = { 'open':'פתוח','in_progress':'בטיפול','resolved':'נסגר' };
+const HM_FSTATUS_COLORS = { 'open':'bg-red-100 text-red-700','in_progress':'bg-blue-100 text-blue-700','resolved':'bg-emerald-100 text-emerald-700' };
+
+async function loadHomeMaintenance() {
+    if (!currentGroup) return;
+    loadFamilyServiceCalls().catch(()=>{});
+    await Promise.all([fetchHMItems(), fetchHMMaintenance(), fetchHMFaults(), fetchHMContacts()]);
+    switchHomeMaintenanceTab('items');
+    checkHMNotifications();
+}
+
+async function checkHMNotifications() {
+    try {
+        const res = await fetch(`/api/equipment/notifications/check/${currentGroup.id}`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success && data.created > 0) {
+            const badge = document.getElementById('fgnav-bell-badge');
+            if (badge) { badge.textContent = (parseInt(badge.textContent)||0) + data.created; badge.classList.remove('hidden'); }
+        }
+    } catch(e) {}
+}
+
+async function fetchHMItems() {
+    try { const r = await fetch(`/api/equipment/items/${currentGroup.id}`); const d = await r.json(); if (d.success) hmItems = d.items; renderHMItems(); } catch(e) {}
+}
+async function fetchHMMaintenance() {
+    try { const r = await fetch(`/api/equipment/maintenance/${currentGroup.id}`); const d = await r.json(); if (d.success) hmMaintenance = d.records; renderHMMaintenance(); updateHMBadge(); } catch(e) {}
+}
+async function fetchHMFaults() {
+    try { const r = await fetch(`/api/equipment/faults/${currentGroup.id}`); const d = await r.json(); if (d.success) hmFaults = d.faults; renderHMFaults(); updateHMBadge(); } catch(e) {}
+}
+async function fetchHMContacts() {
+    try {
+        const r = await fetch(`/api/equipment/technicians/${currentGroup.id}`);
+        const d = await r.json();
+        if (d.success) hmContacts = d.technicians || [];
+        renderHMContacts();
+    } catch(e) { console.error('fetchHMContacts error:', e); }
+}
+
+function updateHMBadge() {
+    const badge = getEl('tab-home-maintenance-badge');
+    if (!badge) return;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const in7 = new Date(today); in7.setDate(today.getDate() + 7);
+    const urgMaint = hmMaintenance.filter(m => !m.status === 'completed' && m.scheduled_date && new Date(m.scheduled_date) <= in7).length;
+    const openFaults = hmFaults.filter(f => f.status !== 'resolved').length;
+    const total = urgMaint + openFaults;
+    if (total > 0) { badge.textContent = total; badge.classList.remove('hidden'); }
+    else badge.classList.add('hidden');
+}
+
+function switchHomeMaintenanceTab(tab) {
+    ['items','maintenance','faults','contacts'].forEach(t => {
+        const v = getEl(`hm-view-${t}`); if (v) v.classList.toggle('hidden', t !== tab);
+        const b = getEl(`hm-tab-${t}`);
+        if (b) b.className = `flex-1 py-2 text-xs font-bold rounded-xl transition ${t === tab ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500'}`;
+    });
+    if (tab === 'items') renderHMItems();
+    if (tab === 'maintenance') renderHMMaintenance();
+    if (tab === 'faults') renderHMFaults();
+    if (tab === 'contacts') renderHMContacts();
+}
+
+// --- ITEMS ---
+function renderHMItems() {
+    const list = getEl('hm-items-list'); if (!list) return;
+    if (!hmItems.length) { list.innerHTML = `<div class="text-center py-12 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-screwdriver-wrench text-4xl mb-3 opacity-30 block"></i><p class="text-sm font-medium">אין ציוד רשום עדיין</p></div>`; return; }
+    list.innerHTML = hmItems.map(item => {
+        const catColor = HM_CAT_COLORS[item.category] || 'bg-slate-100 text-slate-600';
+        const stColor = HM_STATUS_COLORS[item.status] || '';
+        const stLabel = HM_STATUS_LABELS[item.status] || item.status;
+        const mCount = hmMaintenance.filter(m => m.equipment_id === item.id && m.status !== 'completed').length;
+        const fCount = hmFaults.filter(f => f.equipment_id === item.id && f.status !== 'resolved').length;
+        let warrantyHtml = '';
+        if (item.warranty_expiry) {
+            const exp = new Date(item.warranty_expiry);
+            const diff = Math.ceil((exp - new Date()) / 86400000);
+            warrantyHtml = `<span class="text-[10px] ${diff < 0 ? 'text-red-500' : diff < 30 ? 'text-amber-500' : 'text-slate-400'}"><i class="fa-regular fa-calendar ml-1"></i>${diff < 0 ? 'אחריות פגה' : 'אחריות עד ' + exp.toLocaleDateString('he-IL')}</span>`;
+        }
+        return `<div class="bg-white border border-slate-100 rounded-2xl p-4 mb-3 shadow-sm">
+            <div class="flex items-start justify-between">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(item.name)}</h4>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${catColor}">${safeStr(item.category)}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${stColor}">${stLabel}</span>
+                    </div>
+                    ${item.serial_number ? `<p class="text-[11px] text-slate-400">מ"ס: ${safeStr(item.serial_number)}</p>` : ''}
+                    ${warrantyHtml}
+                    <div class="flex gap-2 mt-2 flex-wrap">
+                        ${mCount > 0 ? `<span class="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100"><i class="fa-solid fa-wrench ml-1"></i>${mCount} תחזוקה</span>` : ''}
+                        ${fCount > 0 ? `<span class="text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded-full border border-red-100"><i class="fa-solid fa-triangle-exclamation ml-1"></i>${fCount} תקלות</span>` : ''}
+                    </div>
+                </div>
+                <div class="flex gap-2 mr-2 shrink-0">
+                    <button onclick="openHMHistory(${item.id})" title="היסטוריה" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-indigo-50 transition text-slate-400 hover:text-indigo-600"><i class="fa-solid fa-clock-rotate-left text-xs"></i></button>
+                    <button onclick="openHMItemModal(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 transition text-slate-500"><i class="fa-solid fa-pen text-xs"></i></button>
+                    <button onclick="deleteHMItem(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-red-50 transition text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function openHMItemModal(id = null) {
+    let modal = getEl('hm-item-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="hm-item-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-5 border-b border-slate-100">
+                    <h3 id="hmitem-modal-title" class="font-black text-slate-800 text-base">הוספת ציוד</h3>
+                    <button onclick="getEl('hm-item-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 space-y-3 overflow-y-auto max-h-[70vh]">
+                    <input type="hidden" id="hmitem-id">
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שם הציוד / המכשיר *</label><input id="hmitem-name" type="text" placeholder="למשל: מקרר סמסונג, מזגן ביתי..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">קטגוריה</label>
+                        <select id="hmitem-category" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <option value="מקרר/הקפאה">מקרר/הקפאה</option><option value="תנור/אפייה">תנור/אפייה</option><option value="מזגן">מזגן</option><option value="חשמל">חשמל</option><option value="אינסטלציה">אינסטלציה</option><option value="רכב">רכב</option><option value="כללי" selected>כללי</option>
+                        </select>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">מספר סידורי / דגם</label><input id="hmitem-serial" type="text" placeholder="אופציונלי" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div class="flex gap-3">
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">תאריך רכישה</label><input id="hmitem-purchase" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">פקיעת אחריות</label><input id="hmitem-warranty" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">סטטוס</label>
+                        <select id="hmitem-status" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <option value="active">פעיל</option><option value="inactive">לא פעיל</option><option value="disposed">הושלך</option>
+                        </select>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">איש קשר לתיקון</label><select id="hmitem-technician" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"><option value="">ללא שיוך</option></select></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">הערות</label><textarea id="hmitem-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea></div>
+                </div>
+                <div class="p-4 border-t border-slate-100"><button onclick="submitHMItem()" class="w-full bg-slate-800 text-white font-black py-3 rounded-2xl text-sm hover:bg-slate-700 transition shadow-md">שמור</button></div>
+            </div>
+        </div>`);
+        modal = getEl('hm-item-modal');
+    }
+    const item = id ? hmItems.find(x => x.id === id) : null;
+    getEl('hmitem-modal-title').textContent = item ? 'עריכת ציוד' : 'הוספת ציוד';
+    getEl('hmitem-id').value = item ? item.id : '';
+    getEl('hmitem-name').value = item ? item.name : '';
+    getEl('hmitem-category').value = item ? item.category : 'כללי';
+    getEl('hmitem-serial').value = item ? (item.serial_number || '') : '';
+    getEl('hmitem-purchase').value = item?.purchase_date ? item.purchase_date.split('T')[0] : '';
+    getEl('hmitem-warranty').value = item?.warranty_expiry ? item.warranty_expiry.split('T')[0] : '';
+    getEl('hmitem-status').value = item ? item.status : 'active';
+    getEl('hmitem-notes').value = item ? (item.notes || '') : '';
+    const techSel = getEl('hmitem-technician');
+    techSel.innerHTML = '<option value="">ללא שיוך</option>' + hmContacts.map(t => `<option value="${t.id}">${safeStr(t.name)}${t.company_name ? ' — ' + safeStr(t.company_name) : ''}</option>`).join('');
+    techSel.value = item ? (item.technician_id || '') : '';
+    modal.classList.remove('hidden');
+}
+
+async function submitHMItem() {
+    const id = getEl('hmitem-id').value;
+    const name = getEl('hmitem-name').value.trim();
+    if (!name) { showToast('error', 'שם הציוד חובה'); return; }
+    try {
+        const res = await fetch('/api/equipment/items', { method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ id: id||null, groupId: currentGroup.id, name,
+                category: getEl('hmitem-category').value, serialNumber: getEl('hmitem-serial').value||null,
+                purchaseDate: getEl('hmitem-purchase').value||null, warrantyExpiry: getEl('hmitem-warranty').value||null,
+                status: getEl('hmitem-status').value, notes: getEl('hmitem-notes').value||null,
+                technicianId: getEl('hmitem-technician').value||null }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', id ? 'עודכן' : 'נוסף'); getEl('hm-item-modal').classList.add('hidden'); await fetchHMItems(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function deleteHMItem(id) {
+    if (!confirm('למחוק ציוד זה?')) return;
+    try { await fetch(`/api/equipment/items/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchHMItems(); } catch(e) {}
+}
+
+// --- MAINTENANCE ---
+function filterHMMaintenance(f) {
+    hmMaintenanceFilter = f;
+    ['all','pending','overdue','completed'].forEach(x => {
+        const btn = getEl(`hmf-maint-${x}`);
+        if (btn) btn.className = `shrink-0 px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${x === f ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`;
+    });
+    renderHMMaintenance();
+}
+
+function renderHMMaintenance() {
+    const list = getEl('hm-maintenance-list'); if (!list) return;
+    const today = new Date(); today.setHours(0,0,0,0);
+    let filtered = hmMaintenance.map(m => {
+        let cs = m.status;
+        if (m.status === 'pending' && m.scheduled_date && new Date(m.scheduled_date) < today) cs = 'overdue';
+        return { ...m, cs };
+    });
+    if (hmMaintenanceFilter !== 'all') filtered = filtered.filter(m => m.cs === hmMaintenanceFilter);
+    if (!filtered.length) { list.innerHTML = `<div class="text-center py-10 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><p class="text-sm">אין רשומות תחזוקה</p></div>`; return; }
+    list.innerHTML = filtered.map(m => {
+        const tColor = HM_MTYPE_COLORS[m.maintenance_type] || 'bg-slate-100 text-slate-600';
+        const tLabel = HM_MTYPE_LABELS[m.maintenance_type] || m.maintenance_type;
+        let statusBadge;
+        if (m.cs === 'completed') statusBadge = '<span class="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">בוצע ✓</span>';
+        else if (m.cs === 'overdue') statusBadge = '<span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold animate-pulse">פג תוקף ⚠</span>';
+        else statusBadge = '<span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">ממתין</span>';
+        const dateStr = m.scheduled_date ? new Date(m.scheduled_date).toLocaleDateString('he-IL') : '—';
+        return `<div class="bg-white border ${m.cs === 'overdue' ? 'border-red-200 bg-red-50/20' : 'border-slate-100'} rounded-2xl p-4 mb-3 shadow-sm">
+            <div class="flex items-start justify-between">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <span class="font-bold text-slate-800 text-sm">${safeStr(m.equipment_name)}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${tColor}">${tLabel}</span>
+                        ${statusBadge}
+                    </div>
+                    ${m.description ? `<p class="text-xs text-slate-500 mb-1">${safeStr(m.description)}</p>` : ''}
+                    <div class="flex items-center gap-3 flex-wrap text-[10px] text-slate-400">
+                        <span><i class="fa-regular fa-calendar ml-1"></i>${dateStr}</span>
+                        ${m.technician_name ? `<span><i class="fa-solid fa-user-gear ml-1"></i>${safeStr(m.technician_name)}</span>` : ''}
+                        ${m.cost ? `<span class="text-slate-600 font-bold">₪${parseFloat(m.cost).toLocaleString()}</span>` : ''}
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2 mr-2 shrink-0">
+                    ${m.cs !== 'completed' ? `<button onclick="completeHMMaintenance(${m.id})" class="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-lg font-bold hover:bg-emerald-100 transition">✓ בצע</button>` : ''}
+                    <button onclick="openHMMaintenanceModal(${m.id})" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-400"><i class="fa-solid fa-pen text-xs"></i></button>
+                    <button onclick="deleteHMMaintenance(${m.id})" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function openHMMaintenanceModal(id = null) {
+    let modal = getEl('hm-maint-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="hm-maint-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-5 border-b border-slate-100">
+                    <h3 id="hmmaint-modal-title" class="font-black text-slate-800 text-base">הוספת תחזוקה</h3>
+                    <button onclick="getEl('hm-maint-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 space-y-3 overflow-y-auto max-h-[70vh]">
+                    <input type="hidden" id="hmmaint-id">
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">ציוד *</label><select id="hmmaint-equipment" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></select></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">סוג</label>
+                        <select id="hmmaint-type" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <option value="periodic">תקופתי</option><option value="repair">תיקון</option><option value="inspection">בדיקה</option>
+                        </select>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">תיאור</label><textarea id="hmmaint-desc" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea></div>
+                    <div class="flex gap-3">
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">תאריך מתוכנן</label><input id="hmmaint-date" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">עלות</label><input id="hmmaint-cost" type="number" placeholder="₪" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">חזרה אוטומטית (ימים)</label><input id="hmmaint-interval" type="number" placeholder="ריק = ללא חזרה" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div id="hmmaint-tech-row"><label class="text-xs font-bold text-slate-500 mb-1 block">איש קשר לתיקון</label>
+                        <div class="flex gap-2">
+                            <input id="hmmaint-tech-name" type="text" placeholder="שם" class="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <input id="hmmaint-tech-phone" type="tel" placeholder="טלפון" class="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4 border-t border-slate-100"><button onclick="submitHMMaintenance()" class="w-full bg-slate-800 text-white font-black py-3 rounded-2xl text-sm hover:bg-slate-700 transition shadow-md">שמור</button></div>
+            </div>
+        </div>`);
+        modal = getEl('hm-maint-modal');
+    }
+    const rec = id ? hmMaintenance.find(x => x.id === id) : null;
+    getEl('hmmaint-modal-title').textContent = rec ? 'עריכת תחזוקה' : 'הוספת תחזוקה';
+    getEl('hmmaint-id').value = rec ? rec.id : '';
+    const eqSel = getEl('hmmaint-equipment');
+    eqSel.innerHTML = '<option value="">בחר ציוד...</option>' + hmItems.map(i => `<option value="${i.id}">${safeStr(i.name)}</option>`).join('');
+    eqSel.value = rec ? rec.equipment_id : '';
+    getEl('hmmaint-type').value = rec ? rec.maintenance_type : 'periodic';
+    getEl('hmmaint-desc').value = rec ? (rec.description || '') : '';
+    getEl('hmmaint-date').value = rec?.scheduled_date ? rec.scheduled_date.split('T')[0] : '';
+    getEl('hmmaint-cost').value = rec ? (rec.cost || '') : '';
+    getEl('hmmaint-interval').value = rec ? (rec.interval_days || '') : '';
+    getEl('hmmaint-tech-name').value = rec ? (rec.technician_name || '') : '';
+    getEl('hmmaint-tech-phone').value = rec ? (rec.technician_phone || '') : '';
+    modal.classList.remove('hidden');
+}
+
+async function submitHMMaintenance() {
+    const id = getEl('hmmaint-id').value;
+    const equipmentId = getEl('hmmaint-equipment').value;
+    if (!equipmentId) { showToast('error', 'יש לבחור ציוד'); return; }
+    try {
+        const res = await fetch('/api/equipment/maintenance', { method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ id: id||null, groupId: currentGroup.id, equipmentId,
+                maintenanceType: getEl('hmmaint-type').value, description: getEl('hmmaint-desc').value||null,
+                scheduledDate: getEl('hmmaint-date').value||null, cost: getEl('hmmaint-cost').value||null,
+                technicianName: getEl('hmmaint-tech-name').value||null, technicianPhone: getEl('hmmaint-tech-phone').value||null,
+                intervalDays: getEl('hmmaint-interval').value||null }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', id ? 'עודכן' : 'נוסף'); getEl('hm-maint-modal').classList.add('hidden'); await fetchHMMaintenance(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function completeHMMaintenance(id) {
+    try {
+        const res = await fetch(`/api/equipment/maintenance/${id}/complete`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({}) });
+        const data = await res.json();
+        if (data.success) { showToast('success', data.nextScheduled ? 'בוצע! תחזוקה הבאה תוזמנה' : 'בוצע!'); await fetchHMMaintenance(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) {}
+}
+
+async function deleteHMMaintenance(id) {
+    if (!confirm('למחוק?')) return;
+    try { await fetch(`/api/equipment/maintenance/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchHMMaintenance(); } catch(e) {}
+}
+
+// --- FAULTS ---
+function filterHMFaults(f) {
+    hmFaultsFilter = f;
+    ['all','open','in_progress','resolved'].forEach(x => {
+        const btn = getEl(`hmf-fault-${x}`);
+        if (btn) btn.className = `shrink-0 px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${x === f ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`;
+    });
+    renderHMFaults();
+}
+
+function renderHMFaults() {
+    const list = getEl('hm-faults-list'); if (!list) return;
+    let filtered = hmFaultsFilter === 'all' ? hmFaults : hmFaults.filter(f => f.status === hmFaultsFilter);
+    // קריאות שירות מהעסק — מוצגות תמיד בראש הרשימה
+    const activeSC = (familyServiceCalls || []).filter(c => c.status !== 'cancelled' && c.status !== 'done');
+    const scHtml = activeSC.map(c => {
+        const SC_ST = { new:'ממתינה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים' };
+        const sc_bg = { new:'border-blue-300 bg-blue-50', seen:'border-indigo-300 bg-indigo-50', in_progress:'border-amber-300 bg-amber-50', pending_parts:'border-purple-300 bg-purple-50' };
+        const createdStr = c.created_at ? new Date(c.created_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'}) : '';
+        const scheduledStr = c.scheduled_at ? new Date(c.scheduled_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : null;
+        const borderBg = sc_bg[c.status] || 'border-slate-200 bg-white';
+        return `<div onclick="openFamilyCallModal(${c.id})" class="border-r-4 ${borderBg} rounded-2xl p-3 mb-2 cursor-pointer active:scale-[0.99] transition shadow-sm" style="touch-action:manipulation;">
+            <div class="flex items-start justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                        <span class="text-[9px] font-black text-indigo-600 bg-white border border-indigo-200 px-1.5 py-0.5 rounded-full">🏢 קריאת שירות מהעסק</span>
+                        ${c.business_name ? `<span class="text-[9px] text-slate-500">${safeStr(c.business_name)}</span>` : ''}
+                    </div>
+                    <div class="text-sm font-bold text-slate-800 truncate">${safeStr(c.title)}</div>
+                    ${createdStr ? `<div class="text-[10px] text-slate-400">${createdStr}</div>` : ''}
+                    ${scheduledStr ? `<div class="text-[10px] text-blue-600 font-bold">📅 ${scheduledStr}</div>` : '<div class="text-[10px] text-amber-600 font-bold">⚠️ ללא תאריך טיפול</div>'}
+                </div>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/80 border border-current shrink-0">${SC_ST[c.status]||c.status}</span>
+            </div>
+        </div>`;
+    }).join('');
+    if (!filtered.length && !activeSC.length) { list.innerHTML = `<div class="text-center py-10 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-circle-check text-3xl mb-2 opacity-30 block"></i><p class="text-sm">אין תקלות</p></div>`; return; }
+    if (!filtered.length) { list.innerHTML = scHtml; return; }
+    list.innerHTML = scHtml + filtered.map(f => {
+        const sColor = HM_SEV_COLORS[f.severity] || 'bg-slate-100 text-slate-600';
+        const sLabel = HM_SEV_LABELS[f.severity] || f.severity;
+        const stColor = HM_FSTATUS_COLORS[f.status] || 'bg-slate-100 text-slate-600';
+        const stLabel = HM_FSTATUS_LABELS[f.status] || f.status;
+        const dateStr = new Date(f.created_at).toLocaleDateString('he-IL');
+        const notesCount = parseInt(f.notes_count) || 0;
+        return `<div class="bg-white border ${f.severity === 'critical' ? 'border-red-200' : 'border-slate-100'} rounded-2xl p-4 mb-3 shadow-sm">
+            <div class="flex items-start gap-3">
+                ${f.image_url ? `<img src="${f.image_url}" class="w-14 h-14 rounded-xl object-cover shrink-0 border border-slate-100 cursor-pointer" onclick="window.open('${f.image_url}','_blank')">` : ''}
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(f.title)}</h4>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${sColor}">${sLabel}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${stColor}">${stLabel}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mb-2">${safeStr(f.equipment_name)} · ${dateStr}</p>
+                    <div class="flex gap-1 border-b border-slate-100 mb-2">
+                        <button onclick="showHMFaultTab(${f.id},'details')" id="hmftab-details-${f.id}" class="text-[11px] font-bold px-3 py-1 rounded-t-lg border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50">פרטים</button>
+                        <button onclick="showHMFaultTab(${f.id},'notes')" id="hmftab-notes-${f.id}" class="text-[11px] font-bold px-3 py-1 rounded-t-lg border-b-2 border-transparent text-slate-400 hover:text-slate-600">הערות${notesCount ? ` <span class="bg-indigo-100 text-indigo-700 rounded-full px-1.5">${notesCount}</span>` : ''}</button>
+                    </div>
+                    <div id="hmftab-content-details-${f.id}">
+                        ${f.scheduled_date ? `<p class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded-lg mb-1.5 flex items-center gap-1"><i class="fa-solid fa-calendar-check"></i> מתוזמן ל: ${new Date(f.scheduled_date).toLocaleString('he-IL', {dateStyle:'short',timeStyle:'short'})}</p>` : ''}
+                        ${f.description ? `<p class="text-xs text-slate-500">${safeStr(f.description)}</p>` : ''}
+                        ${f.resolution_notes ? `<p class="text-xs text-emerald-700 mt-1 bg-emerald-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-check-circle ml-1"></i>${safeStr(f.resolution_notes)}</p>` : ''}
+                        ${f.fault_tech_name ? `<p class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-user-gear text-slate-400 ml-1"></i> ${safeStr(f.fault_tech_name)}${f.fault_tech_company ? ' — ' + safeStr(f.fault_tech_company) : ''}</p>` : ''}
+                        ${(() => {
+                            const phone = f.fault_tech_phone || (() => { const item = hmItems.find(i => i.id === f.equipment_id); return item?.technician_phone; })();
+                            if (!phone || f.status === 'resolved') return '';
+                            const techName = f.fault_tech_name || 'איש קשר';
+                            const waMsg = encodeURIComponent(`שלום ${techName}, יש לנו בעיה: "${f.title}"${f.scheduled_date ? '. תאריך מבוקש: ' + new Date(f.scheduled_date).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'}) : ''}`);
+                            return `<div class="flex gap-1.5 mt-2 flex-wrap">
+                                <a href="tel:${phone.replace(/\D/g,'')}" class="flex items-center gap-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-lg hover:bg-emerald-100"><i class="fa-solid fa-phone"></i> חייג</a>
+                                <a href="https://wa.me/${phone.replace(/\D/g,'')}?text=${waMsg}" target="_blank" class="flex items-center gap-1 text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 px-2 py-1 rounded-lg hover:bg-green-100"><i class="fa-brands fa-whatsapp"></i> וואצאפ</a>
+                                <a href="https://waze.com/ul?q=${encodeURIComponent(techName)}&navigate=yes" target="_blank" class="flex items-center gap-1 text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1 rounded-lg hover:bg-blue-100"><i class="fa-solid fa-location-arrow"></i> Waze</a>
+                            </div>`;
+                        })()}
+                    </div>
+                    <div id="hmftab-content-notes-${f.id}" class="hidden">
+                        <div id="hm-fnotes-list-${f.id}" class="space-y-1.5 mb-2 max-h-40 overflow-y-auto"></div>
+                        <button onclick="openHMAddNote(${f.id})" class="w-full text-[11px] font-bold text-indigo-600 border border-dashed border-indigo-200 rounded-xl py-1.5 hover:bg-indigo-50 transition">+ הוסף הערה</button>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2 shrink-0">
+                    <button onclick="openHMFaultStatusPopup(${f.id})" title="שינוי סטטוס" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600"><i class="fa-solid fa-arrows-rotate text-xs"></i></button>
+                    <button onclick="openHMFaultModal(${f.id})" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-400"><i class="fa-solid fa-pen text-xs"></i></button>
+                    <button onclick="deleteHMFault(${f.id})" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function showHMFaultTab(faultId, tab) {
+    const dBtn = getEl(`hmftab-details-${faultId}`), nBtn = getEl(`hmftab-notes-${faultId}`);
+    const dDiv = getEl(`hmftab-content-details-${faultId}`), nDiv = getEl(`hmftab-content-notes-${faultId}`);
+    if (!dBtn) return;
+    const active = 'text-[11px] font-bold px-3 py-1 rounded-t-lg border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50';
+    const inactive = 'text-[11px] font-bold px-3 py-1 rounded-t-lg border-b-2 border-transparent text-slate-400 hover:text-slate-600';
+    if (tab === 'details') { dBtn.className = active; nBtn.className = inactive; dDiv.classList.remove('hidden'); nDiv.classList.add('hidden'); }
+    else { nBtn.className = active; dBtn.className = inactive; nDiv.classList.remove('hidden'); dDiv.classList.add('hidden'); await fetchAndRenderHMFaultNotes(faultId); }
+}
+
+async function fetchAndRenderHMFaultNotes(faultId) {
+    const container = getEl(`hm-fnotes-list-${faultId}`); if (!container) return;
+    try {
+        const res = await fetch(`/api/equipment/faults/${faultId}/notes`);
+        const data = await res.json();
+        if (!data.success) return;
+        hmFaultNotes[faultId] = data.notes;
+        const stColors = { open: 'bg-orange-100 text-orange-700', in_progress: 'bg-blue-100 text-blue-700', resolved: 'bg-emerald-100 text-emerald-700' };
+        const stLabels = { open: 'פתוח', in_progress: 'בטיפול', resolved: 'טופל' };
+        if (!data.notes.length) { container.innerHTML = `<p class="text-[11px] text-slate-400 text-center py-2">אין הערות עדיין</p>`; return; }
+        container.innerHTML = data.notes.map(n => `<div class="bg-slate-50 rounded-xl px-3 py-2 text-xs">
+            <div class="flex items-center justify-between gap-2 mb-0.5">
+                <span class="text-slate-400 text-[10px]">${new Date(n.created_at).toLocaleDateString('he-IL')}</span>
+                ${n.status_to ? `<span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${stColors[n.status_to]||''}">${stLabels[n.status_to]||n.status_to}</span>` : ''}
+            </div>
+            <p class="text-slate-600">${safeStr(n.note)}</p>
+        </div>`).join('');
+    } catch(e) {}
+}
+
+function openHMFaultModal(id = null) {
+    let modal = getEl('hm-fault-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="hm-fault-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-5 border-b border-slate-100">
+                    <h3 id="hmfault-modal-title" class="font-black text-slate-800 text-base">דיווח בעיה</h3>
+                    <button onclick="getEl('hm-fault-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 space-y-3 overflow-y-auto max-h-[70vh]">
+                    <input type="hidden" id="hmfault-id">
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">ציוד *</label><select id="hmfault-equipment" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></select></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">כותרת הבעיה *</label><input id="hmfault-title" type="text" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">פירוט</label><textarea id="hmfault-desc" rows="3" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שלח לאיש קשר (איש מקצוע)</label>
+                        <select id="hmfault-technician" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <option value="">ללא שיוך לאיש קשר</option>
+                        </select>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">תאריך ושעה מבוקשים (אופציונלי)</label>
+                        <input id="hmfault-scheduled" type="datetime-local" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                    </div>
+                    <div class="flex gap-3">
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">דחיפות</label>
+                            <select id="hmfault-severity" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                                <option value="low">נמוכה</option><option value="medium" selected>בינונית</option><option value="high">גבוהה</option><option value="critical">קריטית</option>
+                            </select>
+                        </div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">סטטוס</label>
+                            <select id="hmfault-status" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                                <option value="open">פתוח</option><option value="in_progress">בטיפול</option><option value="resolved">טופל</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">הוספת תמונה</label>
+                        <label class="flex items-center gap-2 border border-dashed border-slate-300 rounded-xl p-3 cursor-pointer hover:bg-slate-50">
+                            <i class="fa-solid fa-camera text-slate-400"></i>
+                            <span id="hmfault-img-label" class="text-xs text-slate-400">לחץ להוספת תמונה</span>
+                            <input type="file" accept="image/*" class="hidden" onchange="handleHMFaultImage(this)">
+                        </label>
+                        <img id="hmfault-img-preview" class="hidden w-full max-h-40 object-contain rounded-xl border border-slate-100 mt-2">
+                    </div>
+                </div>
+                <div class="p-4 border-t border-slate-100"><button onclick="submitHMFault()" class="w-full bg-red-600 text-white font-black py-3 rounded-2xl text-sm hover:bg-red-700 transition shadow-md">שמור</button></div>
+            </div>
+        </div>`);
+        modal = getEl('hm-fault-modal');
+    }
+    const fault = id ? hmFaults.find(x => x.id === id) : null;
+    getEl('hmfault-modal-title').textContent = fault ? 'עריכת בעיה' : 'דיווח בעיה';
+    getEl('hmfault-id').value = fault ? fault.id : '';
+    const eqSel = getEl('hmfault-equipment');
+    eqSel.innerHTML = '<option value="">בחר ציוד...</option>' + hmItems.map(i => `<option value="${i.id}">${safeStr(i.name)}</option>`).join('');
+    eqSel.value = fault ? fault.equipment_id : '';
+    getEl('hmfault-title').value = fault ? fault.title : '';
+    getEl('hmfault-desc').value = fault ? (fault.description || '') : '';
+    getEl('hmfault-severity').value = fault ? fault.severity : 'medium';
+    getEl('hmfault-status').value = fault ? fault.status : 'open';
+    // בורר איש קשר
+    const techSel = getEl('hmfault-technician');
+    techSel.innerHTML = '<option value="">ללא שיוך לאיש קשר</option>' + (hmContacts||[]).map(t => `<option value="${t.id}">${safeStr(t.name)}${t.company_name ? ' — ' + safeStr(t.company_name) : ''}</option>`).join('');
+    techSel.value = fault ? (fault.technician_id || '') : '';
+    // תאריך מבוקש
+    const schedEl = getEl('hmfault-scheduled');
+    if (schedEl) schedEl.value = fault?.scheduled_date ? new Date(fault.scheduled_date).toISOString().slice(0,16) : '';
+    window._hmFaultImageData = fault ? (fault.image_url || null) : null;
+    const preview = getEl('hmfault-img-preview');
+    if (fault?.image_url) { preview.src = fault.image_url; preview.classList.remove('hidden'); getEl('hmfault-img-label').textContent = 'תמונה קיימת'; }
+    else { preview.classList.add('hidden'); getEl('hmfault-img-label').textContent = 'לחץ להוספת תמונה'; }
+    modal.classList.remove('hidden');
+}
+
+function handleHMFaultImage(input) {
+    const file = input.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => { window._hmFaultImageData = e.target.result; const p = getEl('hmfault-img-preview'); p.src = e.target.result; p.classList.remove('hidden'); getEl('hmfault-img-label').textContent = file.name; };
+    reader.readAsDataURL(file);
+}
+
+async function submitHMFault() {
+    const id = getEl('hmfault-id').value;
+    const equipmentId = getEl('hmfault-equipment').value;
+    const title = getEl('hmfault-title').value.trim();
+    if (!equipmentId) { showToast('error', 'יש לבחור ציוד'); return; }
+    if (!title) { showToast('error', 'כותרת חובה'); return; }
+    const statusVal = getEl('hmfault-status').value;
+    const technicianId = getEl('hmfault-technician')?.value || null;
+    const scheduledDate = getEl('hmfault-scheduled')?.value || null;
+    let resolvedDate = null;
+    if (statusVal === 'resolved') {
+        const existing = id ? hmFaults.find(x => x.id === parseInt(id)) : null;
+        resolvedDate = existing?.resolved_date ? existing.resolved_date.split('T')[0] : new Date().toISOString().split('T')[0];
+    }
+    try {
+        const res = await fetch('/api/equipment/faults', { method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ id: id||null, groupId: currentGroup.id, equipmentId, title,
+                description: getEl('hmfault-desc').value||null, imageUrl: window._hmFaultImageData||null,
+                severity: getEl('hmfault-severity').value, status: statusVal, resolvedDate,
+                technicianId: technicianId||null, scheduledDate: scheduledDate||null }) });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', id ? 'עודכן' : 'נרשם');
+            getEl('hm-fault-modal').classList.add('hidden');
+            await fetchHMFaults();
+            // אם נבחר איש קשר — הצע שליחת וואצאפ
+            if (!id && technicianId) {
+                const tech = (hmContacts||[]).find(t => t.id == technicianId);
+                if (tech?.phone) {
+                    const msg = `שלום ${safeStr(tech.name)}, יש לנו בעיה ב"${title}". ${getEl('hmfault-desc').value ? 'פירוט: ' + getEl('hmfault-desc').value : ''} ${scheduledDate ? 'תאריך מבוקש: ' + new Date(scheduledDate).toLocaleString('he-IL') : ''}`;
+                    if (confirm(`לשלוח וואצאפ ל-${tech.name}?`)) {
+                        window.open(`https://wa.me/${tech.phone.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`, '_blank');
+                    }
+                }
+            }
+        }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function deleteHMFault(id) {
+    if (!confirm('למחוק?')) return;
+    try { await fetch(`/api/equipment/faults/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchHMFaults(); } catch(e) {}
+}
+
+function openHMFaultStatusPopup(faultId) {
+    const fault = hmFaults.find(f => f.id === faultId); if (!fault) return;
+    let modal = getEl('hm-fault-status-popup');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="hm-fault-status-popup" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                    <h3 class="font-black text-slate-800 text-sm">שינוי סטטוס</h3>
+                    <button onclick="getEl('hm-fault-status-popup').classList.add('hidden')" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark text-xs"></i></button>
+                </div>
+                <div class="p-4 space-y-3">
+                    <input type="hidden" id="hmfsp-id">
+                    <p id="hmfsp-title" class="text-xs font-bold text-slate-500 truncate"></p>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">סטטוס חדש</label>
+                        <select id="hmfsp-status" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <option value="open">פתוח</option><option value="in_progress">בטיפול</option><option value="resolved">טופל</option>
+                        </select>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">הערה</label>
+                        <textarea id="hmfsp-note" rows="3" placeholder="מה עודכן?" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea>
+                    </div>
+                </div>
+                <div class="p-4 border-t border-slate-100"><button onclick="submitHMFaultStatus()" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm hover:bg-indigo-700 transition">עדכן סטטוס</button></div>
+            </div>
+        </div>`);
+        modal = getEl('hm-fault-status-popup');
+    }
+    getEl('hmfsp-id').value = fault.id;
+    getEl('hmfsp-title').textContent = fault.title;
+    getEl('hmfsp-status').value = fault.status;
+    getEl('hmfsp-note').value = '';
+    modal.classList.remove('hidden');
+}
+
+async function submitHMFaultStatus() {
+    const id = getEl('hmfsp-id').value;
+    const status = getEl('hmfsp-status').value;
+    const note = getEl('hmfsp-note').value.trim();
+    try {
+        const res = await fetch(`/api/equipment/faults/${id}/status`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status, note, groupId: currentGroup.id }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'סטטוס עודכן'); getEl('hm-fault-status-popup').classList.add('hidden'); await fetchHMFaults(); setTimeout(() => showHMFaultTab(parseInt(id), 'notes'), 50); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+function openHMAddNote(faultId) {
+    const fault = hmFaults.find(f => f.id === faultId); if (!fault) return;
+    let modal = getEl('hm-add-note-popup');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="hm-add-note-popup" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                    <h3 class="font-black text-slate-800 text-sm">הוספת הערה</h3>
+                    <button onclick="getEl('hm-add-note-popup').classList.add('hidden')" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark text-xs"></i></button>
+                </div>
+                <div class="p-4 space-y-3">
+                    <input type="hidden" id="hmanp-id">
+                    <p id="hmanp-title" class="text-xs font-bold text-slate-500 truncate"></p>
+                    <textarea id="hmanp-note" rows="4" placeholder="כתוב הערה..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea>
+                </div>
+                <div class="p-4 border-t border-slate-100"><button onclick="submitHMNote()" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm hover:bg-indigo-700 transition">שמור הערה</button></div>
+            </div>
+        </div>`);
+        modal = getEl('hm-add-note-popup');
+    }
+    getEl('hmanp-id').value = faultId;
+    getEl('hmanp-title').textContent = fault.title;
+    getEl('hmanp-note').value = '';
+    modal.classList.remove('hidden');
+    setTimeout(() => getEl('hmanp-note').focus(), 100);
+}
+
+async function submitHMNote() {
+    const faultId = getEl('hmanp-id').value;
+    const note = getEl('hmanp-note').value.trim();
+    if (!note) { showToast('error', 'יש לכתוב הערה'); return; }
+    try {
+        const res = await fetch(`/api/equipment/faults/${faultId}/notes`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ note, groupId: currentGroup.id }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'הערה נשמרה'); getEl('hm-add-note-popup').classList.add('hidden'); await fetchHMFaults(); setTimeout(() => showHMFaultTab(parseInt(faultId), 'notes'), 50); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+function sendHMFaultWhatsApp(faultId) {
+    const fault = hmFaults.find(f => f.id === faultId); if (!fault) return;
+    const item = hmItems.find(i => i.id === fault.equipment_id); if (!item?.technician_phone) return;
+    const msg = `שלום, יש לנו בעיה בבית:\n*${fault.title}*\nציוד: ${item.name}\n${fault.description ? 'פירוט: ' + fault.description : ''}`;
+    window.open(`https://wa.me/${item.technician_phone.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// --- CONTACTS (אנשי קשר לתיקונים) ---
+function renderHMContacts() {
+    const list = getEl('hm-contacts-list'); if (!list) return;
+    if (!hmContacts.length) { list.innerHTML = `<div class="text-center py-12 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-address-book text-4xl mb-3 opacity-30 block"></i><p class="text-sm font-medium">אין אנשי קשר עדיין</p></div>`; return; }
+    list.innerHTML = hmContacts.map(t => {
+        const oneflowBadge = t.oneflow_verified ? `<span class="inline-flex items-center gap-1 text-[9px] font-black bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200"><i class="fa-solid fa-circle-check"></i> ONEFLOW LIFE</span>` : '';
+        const sendCallBtn = t.business_group_id ? `<button onclick="openServiceCallWizard(${t.id})" class="flex items-center gap-1 text-[10px] text-orange-700 font-black bg-orange-50 px-2 py-1 rounded-lg border border-orange-200 active:scale-95 transition" style="touch-action:manipulation;"><i class="fa-solid fa-wrench"></i> שלח קריאה</button>` : '';
+        const linkBtn = !t.business_group_id ? `<button onclick="openLinkBusinessModal(${t.id})" class="flex items-center gap-1 text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-200 active:scale-95 transition" style="touch-action:manipulation;"><i class="fa-solid fa-link"></i> קשר ל-ONEFLOW LIFE</button>` : '';
+        return `<div class="bg-white border border-slate-100 rounded-2xl p-4 mb-3 shadow-sm">
+        <div class="flex items-start justify-between">
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap mb-0.5">
+                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(t.name)}</h4>
+                    ${oneflowBadge}                </div>
+                ${t.company_name ? `<p class="text-[11px] text-indigo-600 font-medium">${safeStr(t.company_name)}</p>` : ''}
+                ${t.specialty ? `<p class="text-[11px] text-slate-400">${safeStr(t.specialty)}</p>` : ''}
+                <div class="flex gap-2 mt-2 flex-wrap">
+                    ${t.phone ? `<a href="tel:${safeStr(t.phone)}" class="flex items-center gap-1 text-[10px] text-slate-600 font-bold bg-slate-50 px-2 py-1 rounded-lg border border-slate-200"><i class="fa-solid fa-phone text-emerald-500"></i> ${safeStr(t.phone)}</a>` : ''}
+                    ${t.phone ? `<a href="https://wa.me/${t.phone.replace(/\D/g,'')}" target="_blank" class="flex items-center gap-1 text-[10px] text-green-700 font-bold bg-green-50 px-2 py-1 rounded-lg border border-green-200"><i class="fa-brands fa-whatsapp"></i> וואצאפ</a>` : ''}
+                    ${sendCallBtn}${linkBtn}
+                </div>
+            </div>
+            <div class="flex gap-2 mr-2 shrink-0">
+                <button onclick="openHMContactModal(${t.id})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500"><i class="fa-solid fa-pen text-xs"></i></button>
+                <button onclick="deleteHMContact(${t.id})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
+            </div>
+        </div>
+    </div>`;
+    }).join('');
+}
+
+// ─── SERVICE CALL WIZARD (Family side) ──────────────────────────────────────
+let familyServiceCalls = [];
+
+async function loadFamilyServiceCalls() {
+    try {
+        const r = await fetch(`/api/service-calls/family/${currentGroup.id}`);
+        const d = await r.json();
+        familyServiceCalls = d.calls || [];
+        renderBusinessServiceCallsTab();
+        try { renderHMFaults(); } catch(e) {}
+    } catch(e) {}
+}
+
+function renderBusinessServiceCallsTab() {
+    const list = getEl('my-service-calls-list');
+    if (!list) return;
+    const ST_LABEL = { new:'ממתינה לטיפול', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
+    const ST_COLOR = { new:'border-blue-400', seen:'border-indigo-400', in_progress:'border-amber-400', pending_parts:'border-purple-400', done:'border-green-400', cancelled:'border-slate-300' };
+    const ST_BG   = { new:'bg-blue-50', seen:'bg-indigo-50', in_progress:'bg-amber-50', pending_parts:'bg-purple-50', done:'bg-green-50', cancelled:'bg-slate-50' };
+    const ST_TEXT = { new:'text-blue-700', seen:'text-indigo-700', in_progress:'text-amber-700', pending_parts:'text-purple-700', done:'text-green-700', cancelled:'text-slate-500' };
+    const typeFilter = window._scTypeFilter || 'all';
+    // עדכן כפתורי סינון
+    ['all','external','internal'].forEach(t => {
+        const btn = getEl(`sc-type-filter-${t}`);
+        if (btn) btn.className = `text-[10px] px-2.5 py-1 rounded-lg font-bold transition ${t === typeFilter ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-500'}`;
+    });
+    const allActive = (familyServiceCalls || []).filter(c => c.status !== 'cancelled');
+    const allFaults = (hmFaults || []).filter(f => f.status !== 'resolved');
+    const active = typeFilter === 'internal' ? [] : allActive;
+    const openFaults = typeFilter === 'external' ? [] : allFaults;
+    if (!active.length && !openFaults.length) {
+        list.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center">
+            <i class="fa-solid fa-wrench text-3xl text-slate-300 mb-2 block"></i>
+            <p class="text-sm font-bold text-slate-500">${(allActive.length || allFaults.length) ? 'אין קריאות התואמות את הסינון.' : 'אין קריאות שירות פעילות'}</p>
+            <p class="text-xs text-slate-400 mt-1">${(allActive.length || allFaults.length) ? '' : 'לפתיחת קריאה — כנסו לאיש קשר ובחרו "קריאת שירות"'}</p>
+        </div>`;
+        return;
+    }
+    const faultsHtml = openFaults.map(f => {
+        const sev = { low:'🟢', normal:'🔵', medium:'🟠', high:'🔴', critical:'🚨' }[f.severity] || '⚠️';
+        const stF = { open:'פתוחה', in_progress:'בטיפול' }[f.status] || f.status;
+        return `<div onclick="switchTab('home-maintenance');setTimeout(()=>{switchHomeMaintenanceTab('faults')},150)" class="border-r-4 border-orange-300 bg-orange-50 rounded-2xl p-3 mb-2 cursor-pointer active:scale-[0.99] transition shadow-sm" style="touch-action:manipulation;">
+            <div class="flex items-start justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5 mb-0.5">
+                        <span class="text-[9px] font-black text-orange-700 bg-white border border-orange-200 px-1.5 py-0.5 rounded-full">🏠 תקלה בבית</span>
+                    </div>
+                    <div class="text-sm font-bold text-slate-800 truncate">${sev} ${safeStr(f.title)}</div>
+                    <div class="text-[10px] text-slate-500">${safeStr(f.equipment_name||'')} · ${stF}</div>
+                </div>
+                <span class="text-[9px] font-bold text-orange-600 bg-white border border-orange-200 px-2 py-0.5 rounded-full shrink-0">פרטים →</span>
+            </div>
+        </div>`;
+    }).join('');
+    const scHtml = active.map(c => {
+        const borderCls = ST_COLOR[c.status] || 'border-slate-300';
+        const bgCls = ST_BG[c.status] || 'bg-white';
+        const textCls = ST_TEXT[c.status] || 'text-slate-600';
+        const stLabel = ST_LABEL[c.status] || c.status;
+        const createdStr = c.created_at ? new Date(c.created_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'}) : '';
+        const scheduledStr = c.scheduled_at ? new Date(c.scheduled_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : null;
+        const noDateFlag = (c.status !== 'done' && c.status !== 'cancelled' && !c.scheduled_at) ? `<span class="text-[9px] bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full font-bold">⚠️ ללא תאריך</span>` : '';
+        const partsFlag = c.parts_status === 'parts_ready' ? `<span class="text-[9px] bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded-full font-bold">✅ חלקים מוכנים</span>`
+                        : (c.parts_status === 'pending_parts' || c.parts_status === 'waiting_delivery') ? `<span class="text-[9px] bg-purple-100 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded-full font-bold">📦 ממתין לחלקים</span>` : '';
+        return `<div onclick="openFamilyCallModal(${c.id})" class="border-r-4 ${borderCls} ${bgCls} rounded-2xl p-3 mb-2 cursor-pointer active:scale-[0.99] transition bg-white shadow-sm" style="touch-action:manipulation;">
+            <div class="flex items-start justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-bold text-slate-800 truncate">${safeStr(c.title)}</div>
+                    <div class="text-[10px] text-slate-500">${c.business_name ? safeStr(c.business_name) : 'בעל מקצוע'}${createdStr ? ' · ' + createdStr : ''}</div>
+                    ${scheduledStr ? `<div class="text-[10px] text-blue-600 font-bold mt-0.5">📅 ${scheduledStr}</div>` : ''}
+                    ${(noDateFlag || partsFlag) ? `<div class="flex gap-1 flex-wrap mt-1">${noDateFlag}${partsFlag}</div>` : ''}
+                </div>
+                <div class="flex flex-col items-end gap-1 shrink-0">
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border ${borderCls} ${textCls}">${stLabel}</span>
+                    ${c.price_quote ? `<span class="text-[9px] text-indigo-700 font-bold">₪${parseFloat(c.price_quote).toFixed(0)}</span>` : ''}
+                    ${c.rating ? `<span class="text-[10px]">${'⭐'.repeat(c.rating)}</span>` : ''}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+    list.innerHTML = scHtml + faultsHtml;
+}
+
+window.openFamilyCallModal = async function(callId) {
+    const call = familyServiceCalls.find(c => c.id === callId);
+    if (!call) return;
+    let messages = [];
+    try { const r = await fetch(`/api/service-calls/${callId}/messages`); const d = await r.json(); messages = d.messages||[]; } catch(e) {}
+    document.getElementById('fam-sc-modal')?.remove();
+    const SC_STATUS_LABELS_FAM = { new:'ממתינה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
+    const msgHtml = messages.map(m => `<div class="flex ${m.sender_type==='family'?'justify-start':'justify-end'} mb-2">
+        <div class="max-w-[80%] ${m.sender_type==='family'?'bg-slate-100 text-slate-800':'bg-indigo-500 text-white'} rounded-2xl px-3 py-2 text-xs">
+            <div class="font-bold text-[10px] mb-1 opacity-70">${safeStr(m.sender_name||m.sender_type)}</div>
+            ${safeStr(m.message)}
+        </div>
+    </div>`).join('');
+
+    const partsHtml = call.parts_status ? (() => {
+        const partsLabels = { pending_parts:'⏳ ממתין לחלקים', waiting_delivery:'🚚 חלקים בדרך', parts_ready:'✅ חלקים מוכנים' };
+        const partsBgs = { pending_parts:'bg-purple-50 border-purple-200 text-purple-700', waiting_delivery:'bg-blue-50 border-blue-200 text-blue-700', parts_ready:'bg-green-50 border-green-200 text-green-700' };
+        return `<div class="rounded-2xl p-3 border ${partsBgs[call.parts_status]||'bg-slate-50 border-slate-200 text-slate-600'}">
+            <div class="text-[10px] font-bold mb-1">מצב חלקים</div>
+            <div class="text-xs font-bold">${partsLabels[call.parts_status]||call.parts_status}</div>
+        </div>`;
+    })() : '';
+
+    const canCancel = call.status === 'new' || call.status === 'seen';
+    const canRate = call.status === 'done' && !call.rating;
+    const alreadyRated = call.status === 'done' && call.rating;
+
+    const rateHtml = canRate ? `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-3">
+        <div class="text-[10px] font-bold text-amber-700 mb-2">⭐ דרג את השירות</div>
+        <div class="flex gap-2 justify-center" id="fam-sc-stars-${callId}">
+            ${[1,2,3,4,5].map(n => `<button onclick="rateFamilyServiceCall(${callId},${n})" class="text-2xl text-slate-300 hover:text-amber-400 active:scale-90 transition" style="touch-action:manipulation;">★</button>`).join('')}
+        </div>
+    </div>` : alreadyRated ? `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-center">
+        <span class="text-sm font-bold text-amber-700">הדירוג שלך: ${'⭐'.repeat(call.rating)}</span>
+    </div>` : '';
+
+    const html = `<div id="fam-sc-modal" class="fixed inset-0 bg-white z-[9990] flex flex-col" style="direction:rtl;">
+        <div class="flex items-center gap-3 px-4 py-3 bg-indigo-600 text-white shrink-0">
+            <button onclick="document.getElementById('fam-sc-modal').remove()" class="text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <div class="flex-1 min-w-0">
+                <div class="font-black text-sm truncate">${safeStr(call.title)}</div>
+                <div class="text-[10px] opacity-80">${call.business_name ? safeStr(call.business_name) : 'בעל מקצוע'}</div>
+            </div>
+            <span class="text-[10px] font-bold bg-white/20 px-2 py-1 rounded-lg">${SC_STATUS_LABELS_FAM[call.status]||call.status}</span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 space-y-3">
+            <div class="bg-slate-50 rounded-2xl p-3 text-sm space-y-1.5">
+                ${call.created_at ? `<p class="text-[10px] text-slate-400">נפתחה: ${new Date(call.created_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</p>` : ''}
+                ${call.description ? `<p class="text-slate-700 mt-1">${safeStr(call.description)}</p>` : ''}
+                ${call.address ? `<p class="text-xs text-slate-500"><i class="fa-solid fa-location-dot ml-1 text-indigo-400"></i>${safeStr(call.address)}</p>` : ''}
+                ${call.requested_date ? `<p class="text-xs text-slate-500"><i class="fa-solid fa-calendar ml-1 text-amber-400"></i>תאריך מבוקש: ${new Date(call.requested_date).toLocaleDateString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</p>` : ''}
+                ${call.scheduled_at ? `<p class="text-xs font-bold text-blue-700 bg-blue-50 rounded-lg px-2 py-1 inline-flex items-center gap-1"><i class="fa-solid fa-calendar-check"></i> תאריך טיפול מתוזמן: ${new Date(call.scheduled_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</p>` : `<p class="text-[10px] text-amber-600 font-bold">⚠️ טרם תוזמן תאריך טיפול</p>`}
+                ${call.price_quote ? `<div class="p-2 bg-indigo-50 rounded-xl text-xs font-bold text-indigo-800">הצעת מחיר מהעסק: ₪${parseFloat(call.price_quote).toFixed(0)}</div>` : ''}
+            </div>
+            ${partsHtml}
+            ${rateHtml}
+            <div class="bg-slate-50 rounded-2xl p-3">
+                <div class="text-[10px] font-bold text-slate-500 mb-2">💬 שיחה עם בעל המקצוע</div>
+                <div id="fam-sc-chat-${callId}" class="min-h-[80px] max-h-48 overflow-y-auto mb-2">${msgHtml || '<p class="text-center text-slate-400 text-xs py-4">אין הודעות עדיין</p>'}</div>
+                ${call.status !== 'done' && call.status !== 'cancelled' ? `<div class="flex gap-2">
+                    <input type="text" id="fam-sc-msg-${callId}" placeholder="כתוב הודעה..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-xs">
+                    <button onclick="sendFamilyScMessage(${callId})" class="bg-indigo-600 text-white px-3 py-2 rounded-xl text-xs font-black active:scale-95 transition"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>` : ''}
+            </div>
+            ${canCancel ? `<button onclick="cancelFamilyServiceCall(${callId})" class="w-full border border-red-200 text-red-500 font-bold py-3 rounded-2xl text-sm hover:bg-red-50 transition active:scale-95" style="touch-action:manipulation;">ביטול קריאה</button>` : ''}
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    // Chat polling every 10s
+    if (window._famScChatInterval) clearInterval(window._famScChatInterval);
+    window._famScChatInterval = setInterval(async () => {
+        const chatEl = document.getElementById(`fam-sc-chat-${callId}`);
+        if (!chatEl || !document.getElementById('fam-sc-modal')) { clearInterval(window._famScChatInterval); return; }
+        try {
+            const r2 = await fetch(`/api/service-calls/${callId}/messages`);
+            const d2 = await r2.json();
+            chatEl.innerHTML = (d2.messages||[]).map(m => `<div class="flex ${m.sender_type==='family'?'justify-start':'justify-end'} mb-2"><div class="max-w-[80%] ${m.sender_type==='family'?'bg-slate-100 text-slate-800':'bg-indigo-500 text-white'} rounded-2xl px-3 py-2 text-xs"><div class="font-bold text-[10px] mb-1 opacity-70">${safeStr(m.sender_name||m.sender_type)}</div>${safeStr(m.message)}</div></div>`).join('') || '<p class="text-center text-slate-400 text-xs py-4">אין הודעות עדיין</p>';
+            chatEl.scrollTop = chatEl.scrollHeight;
+        } catch(e) {}
+    }, 10000);
+};
+
+window.sendFamilyScMessage = async function(callId) {
+    const input = document.getElementById(`fam-sc-msg-${callId}`);
+    const msg = input?.value?.trim();
+    if (!msg) return;
+    input.value = '';
+    try {
+        await fetch(`/api/service-calls/${callId}/messages`, { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ senderType: 'family', senderName: currentUser?.nickname || 'משפחה', message: msg }) });
+        const r = await fetch(`/api/service-calls/${callId}/messages`);
+        const d = await r.json();
+        const chatEl = document.getElementById(`fam-sc-chat-${callId}`);
+        if (chatEl) {
+            chatEl.innerHTML = (d.messages||[]).map(m => `<div class="flex ${m.sender_type==='family'?'justify-start':'justify-end'} mb-2">
+                <div class="max-w-[80%] ${m.sender_type==='family'?'bg-slate-100 text-slate-800':'bg-indigo-500 text-white'} rounded-2xl px-3 py-2 text-xs">
+                    <div class="font-bold text-[10px] mb-1 opacity-70">${safeStr(m.sender_name||m.sender_type)}</div>
+                    ${safeStr(m.message)}
+                </div>
+            </div>`).join('');
+            chatEl.scrollTop = chatEl.scrollHeight;
+        }
+    } catch(e) {}
+};
+
+window.cancelFamilyServiceCall = async function(callId) {
+    if (!confirm('לבטל את הקריאה?')) return;
+    try {
+        const r = await fetch(`/api/service-calls/${callId}`, { method:'DELETE' });
+        if (r.ok) {
+            document.getElementById('fam-sc-modal')?.remove();
+            await loadFamilyServiceCalls();
+            if (typeof showToast === 'function') showToast('success', 'הקריאה בוטלה');
+        }
+    } catch(e) {}
+};
+
+window.rateFamilyServiceCall = async function(callId, rating) {
+    try {
+        const r = await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rating }) });
+        if (r.ok) {
+            const idx = familyServiceCalls.findIndex(c => c.id === callId);
+            if (idx >= 0) familyServiceCalls[idx].rating = rating;
+            const starsEl = document.getElementById(`fam-sc-stars-${callId}`);
+            if (starsEl) starsEl.parentElement.outerHTML = `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-center"><span class="text-sm font-bold text-amber-700">הדירוג שלך: ${'⭐'.repeat(rating)}</span></div>`;
+            renderBusinessServiceCallsTab();
+            if (typeof showToast === 'function') showToast('success', 'תודה על הדירוג!');
+        }
+    } catch(e) {}
+};
+
+window.openServiceCallWizard = function(technicianId) {
+    const tech = hmContacts.find(t => t.id === technicianId);
+    if (!tech) return;
+    document.getElementById('sc-wizard-modal')?.remove();
+    const html = `<div id="sc-wizard-modal" class="fixed inset-0 bg-slate-900/60 z-[9992] flex items-end justify-center sm:items-center sm:p-4" style="direction:rtl;">
+        <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-4 border-b border-slate-100 bg-gradient-to-l from-indigo-50">
+                <div>
+                    <h3 class="font-black text-slate-800 text-base">🔧 קריאת שירות חדשה</h3>
+                    <p class="text-xs text-indigo-600 font-medium mt-0.5">אל: ${safeStr(tech.name)}${tech.company_name ? ' · ' + safeStr(tech.company_name) : ''} <span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-black">ONEFLOW LIFE</span></p>
+                </div>
+                <button onclick="document.getElementById('sc-wizard-modal').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100"><i class="fa-solid fa-xmark text-slate-500"></i></button>
+            </div>
+            <div class="p-4 space-y-3 overflow-y-auto max-h-[65vh]">
+                <input type="hidden" id="scw-tech-id" value="${technicianId}">
+                <input type="hidden" id="scw-biz-id" value="${tech.business_group_id}">
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">תיאור הבעיה *</label>
+                    <textarea id="scw-title" rows="2" placeholder="למשל: המזגן לא מקרר, ברז דולף..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea>
+                </div>
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">כתובת הטיפול</label>
+                    <input id="scw-address" type="text" value="${[currentGroup?.city, currentGroup?.street_address].filter(Boolean).join(', ')}" placeholder="הרחוב שלך..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                </div>
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">פרטים נוספים (אופציונלי)</label>
+                    <textarea id="scw-desc" rows="2" placeholder="הוסף מידע שיעזור לבעל המקצוע..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea>
+                </div>
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">תאריך מועדף לטיפול (אופציונלי)</label>
+                    <input id="scw-requested-date" type="datetime-local" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                </div>
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">עדיפות</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        ${[['low','נמוכה','🟢'],['normal','רגילה','🔵'],['high','גבוהה','🟠'],['urgent','דחוף','🔴']].map(([v,l,e]) =>
+                            `<button type="button" onclick="scwSetPriority('${v}',this)" id="scwp-${v}" class="scwp-btn border rounded-xl py-2 text-xs font-bold text-slate-600 transition ${v==='normal'?'border-indigo-400 bg-indigo-50 text-indigo-700':'border-slate-200'}" style="touch-action:manipulation;">${e}<br>${l}</button>`).join('')}
+                    </div>
+                    <input type="hidden" id="scw-priority" value="normal">
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-100">
+                <button onclick="submitServiceCallWizard()" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm hover:bg-indigo-700 transition shadow-md">שלח קריאה → ${safeStr(tech.name)}</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.scwSetPriority = function(val, btn) {
+    document.getElementById('scw-priority').value = val;
+    document.querySelectorAll('.scwp-btn').forEach(b => b.className = b.className.replace('border-indigo-400 bg-indigo-50 text-indigo-700','border-slate-200').replace('border-indigo-400','border-slate-200'));
+    btn.classList.remove('border-slate-200'); btn.classList.add('border-indigo-400','bg-indigo-50','text-indigo-700');
+};
+
+window.submitServiceCallWizard = async function() {
+    const title = document.getElementById('scw-title')?.value?.trim();
+    if (!title) { if(typeof showToast==='function') showToast('error','נא לתאר את הבעיה'); return; }
+    const address = document.getElementById('scw-address')?.value?.trim();
+    const desc = document.getElementById('scw-desc')?.value?.trim();
+    const priority = document.getElementById('scw-priority')?.value || 'normal';
+    const bizIdRaw = document.getElementById('scw-biz-id')?.value;
+    const businessGroupId = (bizIdRaw && bizIdRaw !== 'null' && bizIdRaw !== 'undefined') ? parseInt(bizIdRaw) || null : null;
+    const techIdRaw = document.getElementById('scw-tech-id')?.value;
+    const techId = (techIdRaw && techIdRaw !== 'null' && techIdRaw !== 'undefined') ? parseInt(techIdRaw) || null : null;
+    const requestedDate = document.getElementById('scw-requested-date')?.value || null;
+    const customerName = currentUser?.nickname || currentUser?.name || null;
+    try {
+        const r = await fetch('/api/service-calls', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ familyGroupId: currentGroup.id, businessGroupId, technicianContactId: techId, title, description: desc||null, address: address||null, priority, createdByUserId: currentUser?.id, customerName, requestedDate }) });
+        const d = await r.json();
+        if (!r.ok) { if(typeof showToast==='function') showToast('error', d.error || 'שגיאה בשליחת הקריאה'); return; }
+        document.getElementById('sc-wizard-modal')?.remove();
+        if (typeof showToast === 'function') showToast('success', 'הקריאה נשלחה! 🎉');
+        await loadFamilyServiceCalls();
+        if (typeof switchTab === 'function') switchTab('myorders');
+    } catch(e) { if(typeof showToast==='function') showToast('error','שגיאה בשליחת הקריאה'); }
+};
+
+window.openLinkBusinessModal = async function(techId) {
+    document.getElementById('hm-link-biz-modal')?.remove();
+    const isNew = (techId === null || techId === undefined);
+    const subtitle = isNew
+        ? 'חפש עסק ONEFLOW LIFE — אם נמצא, ייצור קשר חדש אוטומטית ותוכל לשלוח קריאות ישירות.'
+        : 'חפש את שם העסק של בעל המקצוע ב-ONEFLOW LIFE כדי לאפשר שליחת קריאות ישירות.';
+    const html = `<div id="hm-link-biz-modal" class="fixed inset-0 bg-slate-900/60 z-[9993] flex items-end justify-center sm:items-center sm:p-4" style="direction:rtl;">
+        <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-4 border-b border-slate-100">
+                <h3 class="font-black text-slate-800 text-base">🔍 חיפוש עסק ONEFLOW LIFE</h3>
+                <button onclick="document.getElementById('hm-link-biz-modal').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100"><i class="fa-solid fa-xmark text-slate-500"></i></button>
+            </div>
+            <div class="p-4 space-y-3">
+                <p class="text-xs text-slate-500">${subtitle}</p>
+                <input type="hidden" id="hm-link-tech-id" value="${techId ?? ''}">
+                <select id="hm-link-type" onchange="searchBusinessForLink(document.getElementById('hm-link-search').value)" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none mb-1">
+                    <option value="">כל סוגי העסקים</option>
+                    <option value="electrician">חשמלאי</option>
+                    <option value="plumber">אינסטלטור</option>
+                    <option value="ac_tech">מיזוג אוויר</option>
+                    <option value="carpenter">נגר</option>
+                    <option value="painter">צבעי</option>
+                    <option value="locksmith">מנעולן</option>
+                    <option value="cleaner">ניקיון</option>
+                    <option value="restaurant">מסעדה</option>
+                    <option value="other">אחר</option>
+                </select>
+                <input id="hm-link-search" type="text" placeholder="שם עסק, טלפון..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none" oninput="searchBusinessForLink(this.value)" autofocus>
+                <div id="hm-link-results" class="space-y-2 max-h-48 overflow-y-auto"></div>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    setTimeout(() => document.getElementById('hm-link-search')?.focus(), 100);
+};
+
+window.searchBusinessForLink = async function(q) {
+    const el = document.getElementById('hm-link-results');
+    if (!el || q.length < 2) { if(el) el.innerHTML = ''; return; }
+    try {
+        const bizType = document.getElementById('hm-link-type')?.value || '';
+        const typeParam = bizType ? `&type=${encodeURIComponent(bizType)}` : '';
+        const r = await fetch(`/api/groups/search-business?q=${encodeURIComponent(q)}${typeParam}`);
+        const d = await r.json();
+        if (!d.groups?.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">לא נמצאו עסקים</p>'; return; }
+        const techIdVal = document.getElementById('hm-link-tech-id')?.value || '';
+        el.innerHTML = d.groups.map(g => `<button onclick="linkTechToBusiness(${techIdVal||'null'}, ${g.id}, '${safeStr(g.name).replace(/'/g,"\\'")}', '${safeStr(g.phone||'').replace(/'/g,"\\'")}')" class="w-full text-right border border-slate-200 rounded-xl px-3 py-2.5 text-sm hover:bg-indigo-50 hover:border-indigo-300 transition flex items-center gap-2 active:scale-[0.98]" style="touch-action:manipulation;">
+            <i class="fa-solid fa-store text-indigo-400 shrink-0"></i>
+            <div class="flex-1 min-w-0"><div class="font-bold text-slate-800 text-xs">${safeStr(g.name)}</div><div class="text-[10px] text-slate-400">${g.business_type||'עסק'}${g.phone ? ' · ' + safeStr(g.phone) : ''}</div></div>
+            <i class="fa-solid fa-link text-indigo-400 text-xs shrink-0"></i>
+        </button>`).join('');
+    } catch(e) {}
+};
+
+window.linkTechToBusiness = async function(techId, bizGroupId, bizName, bizPhone) {
+    try {
+        let newTech = null;
+        if (!techId) {
+            const r = await fetch('/api/equipment/technicians', { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ groupId: currentGroup.id, name: bizName || 'בעל מקצוע', phone: bizPhone || null, businessGroupId: bizGroupId }) });
+            const d = await r.json();
+            if (!d.success) throw new Error(d.error || 'שגיאת שרת');
+            newTech = d.technician;
+        } else {
+            const r = await fetch(`/api/equipment/technicians/${techId}/link-business`, { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ businessGroupId: bizGroupId }) });
+            const d = await r.json();
+            if (!d.success) throw new Error(d.error || 'שגיאה בקישור');
+            newTech = d.technician;
+        }
+        // Immediately update local cache so contact appears even if fetchHMContacts is slow
+        if (newTech && typeof hmContacts !== 'undefined') {
+            hmContacts = [...(hmContacts||[]).filter(c => c.id !== newTech.id), newTech];
+            if (typeof renderHMContacts === 'function') renderHMContacts();
+        }
+        document.getElementById('hm-link-biz-modal')?.remove();
+        switchHomeMaintenanceTab('contacts');
+        if(typeof showToast==='function') showToast('success', 'הוקשר בהצלחה! 🎉');
+        fetchHMContacts(); // refresh in background without awaiting
+    } catch(e) { console.error('linkTechToBusiness error:', e); if(typeof showToast==='function') showToast('error', e.message || 'שגיאה'); }
+};
+
+function openHMContactModal(id = null) {
+    let modal = getEl('hm-contact-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="hm-contact-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-5 border-b border-slate-100">
+                    <h3 id="hmcontact-modal-title" class="font-black text-slate-800 text-base">הוספת איש קשר לתיקון</h3>
+                    <button onclick="getEl('hm-contact-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 space-y-3 overflow-y-auto max-h-[70vh]">
+                    <input type="hidden" id="hmcontact-id">
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שם *</label><input id="hmcontact-name" type="text" placeholder="למשל: יוסי האינסטלטור" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שם חברה</label><input id="hmcontact-company" type="text" placeholder="אופציונלי" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">התמחות</label><input id="hmcontact-specialty" type="text" placeholder="למשל: אינסטלציה, חשמל, מזגנים..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">טלפון</label><input id="hmcontact-phone" type="tel" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">מייל</label><input id="hmcontact-email" type="email" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">הערות</label><textarea id="hmcontact-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea></div>
+                </div>
+                <div class="p-4 border-t border-slate-100"><button onclick="submitHMContact()" class="w-full bg-slate-800 text-white font-black py-3 rounded-2xl text-sm hover:bg-slate-700 transition shadow-md">שמור</button></div>
+            </div>
+        </div>`);
+        modal = getEl('hm-contact-modal');
+    }
+    const contact = id ? hmContacts.find(x => x.id === id) : null;
+    getEl('hmcontact-modal-title').textContent = contact ? 'עריכת איש קשר' : 'הוספת איש קשר לתיקון';
+    getEl('hmcontact-id').value = contact ? contact.id : '';
+    getEl('hmcontact-name').value = contact ? contact.name : '';
+    getEl('hmcontact-company').value = contact ? (contact.company_name || '') : '';
+    getEl('hmcontact-specialty').value = contact ? (contact.specialty || '') : '';
+    getEl('hmcontact-phone').value = contact ? (contact.phone || '') : '';
+    getEl('hmcontact-email').value = contact ? (contact.email || '') : '';
+    getEl('hmcontact-notes').value = contact ? (contact.notes || '') : '';
+    modal.classList.remove('hidden');
+}
+
+async function submitHMContact() {
+    const id = getEl('hmcontact-id').value;
+    const name = getEl('hmcontact-name').value.trim();
+    if (!name) { showToast('error', 'שם חובה'); return; }
+    try {
+        const res = await fetch('/api/equipment/technicians', { method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ id: id||null, groupId: currentGroup.id, name,
+                companyName: getEl('hmcontact-company').value||null, specialty: getEl('hmcontact-specialty').value||null,
+                phone: getEl('hmcontact-phone').value||null, email: getEl('hmcontact-email').value||null,
+                notes: getEl('hmcontact-notes').value||null }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', id ? 'עודכן' : 'נוסף'); getEl('hm-contact-modal').classList.add('hidden'); await fetchHMContacts(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function deleteHMContact(id) {
+    if (!confirm('למחוק?')) return;
+    try { await fetch(`/api/equipment/technicians/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchHMContacts(); } catch(e) {}
+}
+
+// --- HISTORY ---
+let hmHistItemId = null, hmHistData = [], hmHistTypeFilter = 'all', hmHistPeriodFilter = 'all';
+
+async function openHMHistory(itemId) {
+    const item = hmItems.find(x => x.id === itemId); if (!item) return;
+    hmHistItemId = itemId; hmHistTypeFilter = 'all'; hmHistPeriodFilter = 'all';
+    let modal = getEl('hm-history-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="hm-history-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col" style="max-height:88vh">
+                <div class="flex items-center justify-between p-5 border-b border-slate-100 shrink-0">
+                    <div><h3 id="hmhist-title" class="font-black text-slate-800 text-base">היסטוריה</h3><p id="hmhist-subtitle" class="text-xs text-slate-400 mt-0.5"></p></div>
+                    <button onclick="getEl('hm-history-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-4 border-b border-slate-100 space-y-2 shrink-0">
+                    <input id="hmhist-search" type="text" placeholder="חיפוש..." oninput="renderHMHistFiltered()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                    <div class="flex gap-2 flex-wrap">
+                        <div class="flex gap-0.5 bg-slate-100 rounded-xl p-1">
+                            <button onclick="setHMHistFilter('type','all')" id="hmhf-type-all" class="text-[11px] px-2.5 py-1 rounded-lg font-bold bg-white text-slate-700 shadow-sm">הכל</button>
+                            <button onclick="setHMHistFilter('type','maintenance')" id="hmhf-type-maintenance" class="text-[11px] px-2.5 py-1 rounded-lg font-bold text-slate-400">🔧 תחזוקה</button>
+                            <button onclick="setHMHistFilter('type','fault')" id="hmhf-type-fault" class="text-[11px] px-2.5 py-1 rounded-lg font-bold text-slate-400">⚠️ בעיות</button>
+                        </div>
+                        <div class="flex gap-0.5 bg-slate-100 rounded-xl p-1">
+                            <button onclick="setHMHistFilter('period','all')" id="hmhf-period-all" class="text-[11px] px-2.5 py-1 rounded-lg font-bold bg-white text-slate-700 shadow-sm">הכל</button>
+                            <button onclick="setHMHistFilter('period','month')" id="hmhf-period-month" class="text-[11px] px-2.5 py-1 rounded-lg font-bold text-slate-400">חודש</button>
+                            <button onclick="setHMHistFilter('period','3months')" id="hmhf-period-3months" class="text-[11px] px-2.5 py-1 rounded-lg font-bold text-slate-400">3 חודשים</button>
+                            <button onclick="setHMHistFilter('period','year')" id="hmhf-period-year" class="text-[11px] px-2.5 py-1 rounded-lg font-bold text-slate-400">שנה</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="hmhist-list" class="overflow-y-auto flex-1 p-4"></div>
+            </div>
+        </div>`);
+        modal = getEl('hm-history-modal');
+    }
+    getEl('hmhist-title').textContent = `היסטוריה: ${item.name}`;
+    getEl('hmhist-subtitle').textContent = 'טוען...';
+    getEl('hmhist-search').value = '';
+    modal.classList.remove('hidden');
+    try {
+        const res = await fetch(`/api/equipment/items/${itemId}/history?groupId=${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) { hmHistData = data.history; getEl('hmhist-subtitle').textContent = `${hmHistData.length} רשומות`; renderHMHistFiltered(); }
+    } catch(e) { getEl('hmhist-subtitle').textContent = 'שגיאה בטעינה'; }
+}
+
+function setHMHistFilter(filterType, value) {
+    if (filterType === 'type') { hmHistTypeFilter = value; ['all','maintenance','fault'].forEach(v => { const b = getEl(`hmhf-type-${v}`); if (b) b.className = `text-[11px] px-2.5 py-1 rounded-lg font-bold ${v === value ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400'}`; }); }
+    else { hmHistPeriodFilter = value; ['all','month','3months','year'].forEach(v => { const b = getEl(`hmhf-period-${v}`); if (b) b.className = `text-[11px] px-2.5 py-1 rounded-lg font-bold ${v === value ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400'}`; }); }
+    renderHMHistFiltered();
+}
+
+function renderHMHistFiltered() {
+    const list = getEl('hmhist-list'); if (!list) return;
+    const search = (getEl('hmhist-search')?.value || '').trim().toLowerCase();
+    const periodMs = { month: 30, '3months': 90, year: 365 };
+    const now = new Date();
+    let filtered = hmHistData.filter(r => {
+        if (hmHistTypeFilter !== 'all' && r.type !== hmHistTypeFilter) return false;
+        if (hmHistPeriodFilter !== 'all') { const d = periodMs[hmHistPeriodFilter]; const c = new Date(now); c.setDate(c.getDate() - d); if (!r.event_date || new Date(r.event_date) < c) return false; }
+        if (search) { const h = `${r.title} ${r.description||''} ${r.technician_name||''} ${r.resolution_notes||''}`.toLowerCase(); if (!h.includes(search)) return false; }
+        return true;
+    });
+    if (!filtered.length) { list.innerHTML = `<div class="text-center py-10 text-slate-400"><i class="fa-solid fa-magnifying-glass text-2xl mb-2 opacity-30 block"></i><p class="text-sm">אין רשומות התואמות</p></div>`; return; }
+    const mStatusLabels = { pending:'ממתין', completed:'בוצע', overdue:'באיחור' };
+    const mStatusColors = { pending:'bg-amber-100 text-amber-700', completed:'bg-emerald-100 text-emerald-700', overdue:'bg-red-100 text-red-700' };
+    list.innerHTML = filtered.map(r => {
+        const dateStr = r.event_date ? new Date(r.event_date).toLocaleDateString('he-IL') : '';
+        if (r.type === 'maintenance') {
+            const stColor = mStatusColors[r.status] || 'bg-slate-100 text-slate-600';
+            return `<div class="flex gap-3 mb-3"><div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5 text-sm">🔧</div>
+                <div class="flex-1 bg-blue-50 rounded-xl p-3">
+                    <div class="flex items-center gap-2 flex-wrap mb-0.5"><span class="font-bold text-xs text-slate-800">${safeStr(r.title)}</span>${r.maintenance_type ? `<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">${HM_MTYPE_LABELS[r.maintenance_type]||r.maintenance_type}</span>` : ''}<span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${stColor}">${mStatusLabels[r.status]||r.status}</span></div>
+                    <p class="text-[10px] text-slate-400">${dateStr}${r.technician_name ? ' · ' + safeStr(r.technician_name) : ''}${r.cost ? ' · ₪' + r.cost : ''}</p>
+                    ${r.description && r.description !== r.title ? `<p class="text-[11px] text-slate-500 mt-0.5">${safeStr(r.description)}</p>` : ''}
+                </div></div>`;
+        } else {
+            return `<div class="flex gap-3 mb-3"><div class="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0 mt-0.5 text-sm">⚠️</div>
+                <div class="flex-1 bg-red-50 rounded-xl p-3">
+                    <div class="flex items-center gap-2 flex-wrap mb-0.5"><span class="font-bold text-xs text-slate-800">${safeStr(r.title)}</span><span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${HM_SEV_COLORS[r.severity]||''}">${HM_SEV_LABELS[r.severity]||''}</span><span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${HM_FSTATUS_COLORS[r.status]||''}">${HM_FSTATUS_LABELS[r.status]||r.status}</span></div>
+                    <p class="text-[10px] text-slate-400">${dateStr}</p>
+                    ${r.description ? `<p class="text-[11px] text-slate-500">${safeStr(r.description)}</p>` : ''}
+                    ${r.resolution_notes ? `<p class="text-[11px] text-emerald-700 mt-1 bg-emerald-50 px-2 py-0.5 rounded-lg">${safeStr(r.resolution_notes)}</p>` : ''}
+                </div></div>`;
+        }
+    }).join('');
+}
+
+// ─── ONEFLOWLIFE MEMBER DASHBOARD ────────────────────────────────────────────
+// ===== MEMBER TYPE — Module Locking + Upgrade Popups =====
+
+const MEMBER_MODULES = {
+  bank:              { icon:'🏦', name:'הבנק המשפחתי',       tagline:'הזמנות שלך — בתמונה הכלכלית המלאה', desc:'נהל הכנסות, הוצאות ודמי כיס לכל בני הבית ממקום אחד. כל הזמנה שתבצע מהעסקים שמחוברים אליך נרשמת אוטומטית — ותמיד תדע בדיוק לאן הכסף הולך.' },
+  cashflow:          { icon:'💸', name:'תזרים הוצאות',         tagline:'כמה הוצאת החודש? בדיוק עכשיו תדע', desc:'מעקב חכם אחרי כל עסקה — כולל הזמנות, תשלומי מנויים ותיקונים מהעסקים שלך. גרף אחד, תמונה ברורה, שליטה מלאה.' },
+  budget:            { icon:'📊', name:'ניהול תקציב',           tagline:'אל תגלה בסוף החודש', desc:'הגדר תקציב לכל קטגוריה — אוכל, בילויים, תחזוקה. הזמנות מהעסקים המחוברים אליך נספרות אוטומטית, ותקבל התראה לפני שחורגים.' },
+  forecast:          { icon:'📅', name:'תשקיף עתידי',           tagline:'ראה 6 חודשים קדימה — לפני שהם מגיעים', desc:'תכנן הוצאות עתידיות, מנויים קבועים והזמנות חוזרות. AI שמנתח את ההרגלים שלך ומייצר תמונה כלכלית עתידית מדויקת.' },
+  tasks:             { icon:'✅', name:'משימות וצ\'ופרים',       tagline:'הפוך משימות לפרסים — ממש', desc:'הקצה משימות לילדים ובני הבית, קבע פרסי כסף אמיתיים, ועקוב אחרי ביצוע. כשהמשפחה עובדת יחד — כולם מרוויחים.' },
+  shop:              { icon:'🛒', name:'רשימת קניות חכמה',      tagline:'לא תשכח שום דבר — לעולם', desc:'רשימת קניות משותפת לכל המשפחה בזמן אמת. הוסף פריטים מהמזווה, שתף עם בן/בת הזוג, וסנכרן עם ההזמנות שלך מהעסקים באזור.' },
+  pantry:            { icon:'📦', name:'מזווה חכם',              tagline:'תמיד תדע מה נגמר — לפני שנגמר', desc:'מעקב אחרי מלאי הבית: מזון, ניקיון, תרופות. כשמשהו אוזל — הזמן ישירות מהעסק המועדף שלך בלחיצה אחת.' },
+  recipes:           { icon:'👨‍🍳', name:'שף פרטי AI',            tagline:'ארוחה מושלמת — ממה שכבר יש לך', desc:'מתכונים מותאמים אישית על בסיס מה שיש לך במזווה. AI שיודע מה הזמנת השבוע ומציע ארוחות שמשלימות את מה שכבר קנית.' },
+  community:         { icon:'🏘️', name:'קהילה מקומית',           tagline:'הכוח של השכונה — ביד', desc:'גלה עסקים חדשים, קרא המלצות שכנים ותיאום קניות קבוצתיות. יותר עסקים לבחור — יותר כוח מיקוח ברשת שלך.' },
+  members:           { icon:'👨‍👩‍👧‍👦', name:'ניהול משפחה',          tagline:'כולם בפנים — כל אחד בתפקידו', desc:'הוסף בני משפחה, הגדר הרשאות מותאמות לכל גיל ותפקיד. ניהול מלא של מי רואה מה ומי יכול לעשות מה.' },
+  academy:           { icon:'🎓', name:'אקדמיה פיננסית',         tagline:'ילדים שמבינים כסף — מתחילים מהבית', desc:'אתגרי ידע פיננסי אינטראקטיביים לילדים עם פרסי כסף אמיתיים. כישורי חיים שהם ישאו איתם לאורך שנים.' },
+  'home-maintenance':{ icon:'🔧', name:'ניהול הבית',              tagline:'הבית שלך — מתועד ומנוהל', desc:'עקוב אחרי תחזוקות, ביטוחים, ספקים וקריאות שירות. מחובר לעסקי התיקונים שמחוברים אליך — כל ההיסטוריה במקום אחד.' },
+  'kids-wallet':     { icon:'👧', name:'ארנק דיגיטלי לילדים',   tagline:'הכסף של הילד — שקוף, חי, ומחנך', desc:'כל ילד מקבל ארנק דיגיטלי משלו עם יתרה, היסטוריית הוצאות והכנסות ומטרות חיסכון. אתה רואה הכל בזמן אמת — הם לומדים אחריות כלכלית. פרסי המשימות מועברים ישירות לארנק שלהם.' },
+  'kids-mode':       { icon:'🧒', name:'מסך ילדים',               tagline:'הממשק שגורם להם לרצות להיכנס', desc:'הילד נכנס — המערכת מזהה אותו ומציגה לו בדיוק מה שלו: המשימות שממתינות, הפרסים שצבר, הוצאות והכנסות של הארנק שלו. ממשק שמרגיש "שלו" — לא של ההורים.' },
+  'supermarket-mode':{ icon:'🛒', name:'מצב "אני בסופר"',          tagline:'קניות בזמן אמת — כולם בסנכרון', desc:'פתח מצב סופר בקנייה: כל מוצר שתסמן "נלקח" נעלם מהרשימה של כולם. מחיר יקר? קבל השוואה. מוצר חסר? בני הבית מוסיפים בזמן אמת.' },
+  'ai-assistant':    { icon:'🤖', name:'עוזרת אישית AI',           tagline:'מנהלת הבית החכמה שרצית', desc:'AI שמכירה את המשפחה שלך: יודעת מה הזמנת, מה הוצאת, מה קניתם. שאל "מה לבשל הערב?" או "כמה הוצאנו על אוכל?" — תשובה מיידית מבוססת נתוני האמת שלך.' },
+  'expense-tracking':{ icon:'📈', name:'מעקב הוצאות שוטף',         tagline:'מאה הוצאות קטנות — תמונה אחת גדולה', desc:'כל הוצאה נרשמת — חד פעמית, קבועה חודשית, מנוי שנתי. הזמנות מהעסקים המחוברים אליך נכנסות אוטומטית — אפס הקלדה ידנית.' },
+};
+
+async function loadMemberSettings() {
+    try {
+        const r = await fetch(`${API}/settings/member-content`);
+        if (r.ok) window._memberContentSettings = await r.json();
+        else window._memberContentSettings = {};
+    } catch(e) { window._memberContentSettings = {}; }
+}
+
+// Lock all tabs for member type (except feed + myorders)
+function applyMemberLocks() {
+    const unlockedMods = currentGroup?.unlocked_modules || [];
+    const ALWAYS_OPEN_TABS = ['feed', 'myorders'];
+    const ALWAYS_OPEN_DROPS = ['myorders']; // fgdrop- items always open for members
+
+    // --- Lock scrollable tab bar ---
+    document.querySelectorAll('[id^="tab-"]').forEach(btn => {
+        const tabId = btn.id.replace('tab-', '');
+        if (ALWAYS_OPEN_TABS.includes(tabId) || unlockedMods.includes(tabId)) return;
+        btn.classList.add('opacity-40', 'grayscale');
+        btn.style.position = 'relative';
+        if (!btn.querySelector('.member-lock-icon')) {
+            const lk = document.createElement('span');
+            lk.className = 'member-lock-icon';
+            lk.style.cssText = 'position:absolute;top:2px;right:2px;font-size:8px;';
+            lk.textContent = '\u{1F512}';
+            btn.appendChild(lk);
+        }
+        btn.style.pointerEvents = 'auto';
+        btn.onclick = (e) => { e.stopPropagation(); e.preventDefault(); showMemberModuleUpgrade(tabId); };
+    });
+
+    // --- Lock top-nav dropdown items (fgdrop-*) ---
+    document.querySelectorAll('[id^="fgdrop-"]').forEach(btn => {
+        const tabId = btn.id.replace('fgdrop-', '');
+        if (ALWAYS_OPEN_DROPS.includes(tabId) || unlockedMods.includes(tabId)) return;
+        btn.style.opacity = '0.45';
+        btn.style.pointerEvents = 'auto';
+        const origOnclick = btn.getAttribute('onclick');
+        btn.setAttribute('onclick', `event.stopPropagation();closeFamilyNavDropdowns();showMemberModuleUpgrade('${tabId}')`);
+    });
+
+    // --- Refresh quick tiles (lock icons already handled in renderQuickTiles) ---
+    try { renderQuickTiles(); } catch(e) {}
+}
+
+// ===== MEMBER FEED DASHBOARD =====
+window._mfOrdersCache = [];
+window._mfFilter = { search: '', period: 'all', sort: 'desc' };
+window._mfActiveTab = 'orders';
+
+window.fetchMemberFeedOrders = async function() {
+    const list = document.getElementById('mf-orders-list');
+    if (!list || !currentUser) return;
+    list.innerHTML = '<p style="font-size:11px;color:#94a3b8;text-align:center;padding:24px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">טוען הזמנות... <i class="fa-solid fa-spinner fa-spin ml-1"></i></p>';
+    try {
+        const res = await fetch(`${API}/store/orders/my/${currentUser.id}`);
+        const data = await res.json();
+        if (data.success) {
+            const newOrders = data.orders || [];
+            // Check for status changes and add notifications
+            if (window._previousMfOrdersCache) {
+                const oldMap = new Map((window._previousMfOrdersCache || []).map(o => [o.id, o]));
+                newOrders.forEach(newOrder => {
+                    const oldOrder = oldMap.get(newOrder.id);
+                    if (oldOrder && oldOrder.status !== newOrder.status) {
+                        // Order status changed - add bell badge notification
+                        const badge = getEl('bell-badge');
+                        if (badge) {
+                            const count = parseInt(badge.textContent || '0') + 1;
+                            badge.textContent = count;
+                            badge.classList.remove('hidden');
+                        }
+                    }
+                });
+            }
+            window._previousMfOrdersCache = newOrders;
+            window._mfOrdersCache = newOrders;
+            renderMemberFeedOrders();
+        } else {
+            list.innerHTML = `<p style="font-size:11px;color:#ef4444;text-align:center;padding:20px;">${data.error || 'שגיאה בטעינה'}</p>`;
+        }
+    } catch(e) {
+        if (list) list.innerHTML = '<p style="font-size:11px;color:#ef4444;text-align:center;padding:20px;">שגיאת תקשורת</p>';
+    }
+};
+
+window.renderMemberFeedOrders = function() {
+    const list = document.getElementById('mf-orders-list');
+    if (!list) return;
+    let items = [...(window._mfOrdersCache || [])];
+    const { search, period, sort } = window._mfFilter;
+    if (search) items = items.filter(o => (o.business_name || '').includes(search) || (o.status || '').includes(search));
+    if (period !== 'all') {
+        const days = period === 'week' ? 7 : period === 'month' ? 30 : 90;
+        const cutoff = new Date(Date.now() - days * 86400000);
+        items = items.filter(o => new Date(o.created_at) >= cutoff);
+    }
+    items.sort((a, b) => sort === 'desc' ? new Date(b.created_at) - new Date(a.created_at) : new Date(a.created_at) - new Date(b.created_at));
+    if (!items.length) {
+        list.innerHTML = '<p style="font-size:12px;color:#94a3b8;text-align:center;padding:32px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">אין הזמנות להצגה</p>';
+        return;
+    }
+    const statusColor = { pending:'#f59e0b', confirmed:'#3b82f6', delivered:'#10b981', cancelled:'#ef4444', processing:'#8b5cf6', new:'#ef4444', shipped:'#8b5cf6', delivering:'#8b5cf6', completed:'#10b981', ready:'#f59e0b', done:'#10b981' };
+    const statusLabel = { pending:'ממתין', confirmed:'אושר', delivered:'נמסר', cancelled:'בוטל', processing:'בהכנה', new:'חדש', shipped:'בדרך אליך', delivering:'בדרך אליך', completed:'סופק', ready:'מוכן', done:'הושלם' };
+    list.innerHTML = items.map(o => {
+        const sc = statusColor[o.status] || '#64748b';
+        const sl = statusLabel[o.status] || o.status;
+        const dt = o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL') : '';
+        return '<div style="background:white;border:1px solid #e2e8f0;border-radius:14px;padding:12px 14px;margin-bottom:8px;direction:rtl;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">' +
+                '<div style="font-size:13px;font-weight:800;color:#1e293b;">' + safeStr(o.business_name || 'עסק') + '</div>' +
+                '<span style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:8px;background:' + sc + '22;color:' + sc + ';">' + sl + '</span>' +
+            '</div>' +
+            (o.items_summary ? '<div style="font-size:11px;color:#64748b;margin-bottom:4px;">' + safeStr(o.items_summary) + '</div>' : '') +
+            '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                '<span style="font-size:11px;color:#94a3b8;">' + dt + '</span>' +
+                (o.total_price ? '<span style="font-size:13px;font-weight:800;color:#1e293b;" dir="ltr">₪' + Number(o.total_price).toLocaleString() + '</span>' : '') +
+            '</div>' +
+        '</div>';
+    }).join('');
+};
+
+window.filterMemberFeedOrders = function() {
+    const inp = document.getElementById('mf-orders-search');
+    if (inp) window._mfFilter.search = inp.value;
+    renderMemberFeedOrders();
+};
+
+window.setMemberFeedPeriod = function(period) {
+    window._mfFilter.period = period;
+    document.querySelectorAll('[data-mfp]').forEach(btn => {
+        const on = btn.dataset.mfp === period;
+        btn.style.background = on ? '#6d28d9' : '#f1f5f9';
+        btn.style.color = on ? 'white' : '#64748b';
+    });
+    renderMemberFeedOrders();
+};
+
+window.toggleMemberFeedSort = function() {
+    window._mfFilter.sort = window._mfFilter.sort === 'desc' ? 'asc' : 'desc';
+    const btn = document.getElementById('mf-sort-btn');
+    if (btn) btn.textContent = window._mfFilter.sort === 'desc' ? 'חדש\u2192ישן' : 'ישן\u2192חדש';
+    renderMemberFeedOrders();
+};
+
+window.switchMemberFeedTab = function(tab) {
+    window._mfActiveTab = tab;
+    ['orders','faults','quotes'].forEach(t => {
+        const sec = document.getElementById('mf-section-' + t);
+        const btn = document.getElementById('mf-tab-' + t);
+        if (sec) sec.style.display = t === tab ? 'block' : 'none';
+        if (btn) {
+            btn.style.background = t === tab ? 'white' : 'transparent';
+            btn.style.color = t === tab ? '#334155' : '#94a3b8';
+            btn.style.fontWeight = t === tab ? '900' : '700';
+            btn.style.boxShadow = t === tab ? '0 1px 3px rgba(0,0,0,0.08)' : 'none';
+        }
+    });
+    if (tab === 'faults') loadMemberFeedFaults();
+    if (tab === 'quotes') loadMemberFeedQuotes();
+};
+
+window.loadMemberFeedFaults = async function() {
+    const list = document.getElementById('mf-faults-list');
+    if (!list || !currentGroup) return;
+    list.innerHTML = '<p style="font-size:11px;color:#94a3b8;text-align:center;padding:24px;"><i class="fa-solid fa-spinner fa-spin"></i></p>';
+    try {
+        const res = await fetch(`${API}/family/service-calls/${currentGroup.id}`);
+        const data = await res.json();
+        const calls = data.calls || [];
+        if (!calls.length) { list.innerHTML = '<p style="font-size:12px;color:#94a3b8;text-align:center;padding:32px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">אין קריאות שירות פתוחות</p>'; return; }
+        list.innerHTML = calls.map(c => {
+            const dt = c.created_at ? new Date(c.created_at).toLocaleDateString('he-IL') : '';
+            return '<div style="background:white;border:1px solid #e2e8f0;border-radius:14px;padding:12px 14px;margin-bottom:8px;direction:rtl;">' +
+                '<div style="font-size:13px;font-weight:800;color:#1e293b;margin-bottom:4px;">' + safeStr(c.title || 'קריאת שירות') + '</div>' +
+                (c.business_name ? '<div style="font-size:11px;color:#6d28d9;font-weight:700;margin-bottom:3px;">\uD83C\uDFE2 ' + safeStr(c.business_name) + '</div>' : '') +
+                '<div style="font-size:11px;color:#94a3b8;">' + dt + '</div>' +
+            '</div>';
+        }).join('');
+    } catch(e) { list.innerHTML = '<p style="font-size:11px;color:#ef4444;text-align:center;padding:20px;">שגיאת תקשורת</p>'; }
+};
+
+window.loadMemberFeedQuotes = async function() {
+    const list = document.getElementById('mf-quotes-list');
+    if (!list || !currentGroup) return;
+    list.innerHTML = '<p style="font-size:11px;color:#94a3b8;text-align:center;padding:24px;"><i class="fa-solid fa-spinner fa-spin"></i></p>';
+    try {
+        const res = await fetch(`${API}/family/quotes/${currentGroup.id}`);
+        const data = await res.json();
+        const quotes = data.quotes || [];
+        if (!quotes.length) { list.innerHTML = '<p style="font-size:12px;color:#94a3b8;text-align:center;padding:32px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">אין הצעות מחיר</p>'; return; }
+        list.innerHTML = quotes.map(q => {
+            const dt = q.created_at ? new Date(q.created_at).toLocaleDateString('he-IL') : '';
+            const sc = q.status === 'approved' ? '#10b981' : q.status === 'rejected' ? '#ef4444' : '#f59e0b';
+            const sl = q.status === 'approved' ? 'אושרה' : q.status === 'rejected' ? 'נדחתה' : 'ממתינה';
+            return '<div style="background:white;border:1px solid #e2e8f0;border-radius:14px;padding:12px 14px;margin-bottom:8px;direction:rtl;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px;">' +
+                    '<div style="font-size:13px;font-weight:800;color:#1e293b;">' + safeStr(q.business_name || 'עסק') + '</div>' +
+                    '<span style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:8px;background:' + sc + '22;color:' + sc + ';">' + sl + '</span>' +
+                '</div>' +
+                '<div style="font-size:11px;color:#94a3b8;">' + dt + (q.total_price ? ' \u2022 \u20AA' + Number(q.total_price).toLocaleString() : '') + '</div>' +
+            '</div>';
+        }).join('');
+    } catch(e) { list.innerHTML = '<p style="font-size:11px;color:#ef4444;text-align:center;padding:20px;">שגיאת תקשורת</p>'; }
+};
+
+
+window.showMemberModuleUpgrade = function(moduleKey) {
+    const mod = MEMBER_MODULES[moduleKey] || { icon: '🔒', name: moduleKey, tagline: 'מודול זה דורש שדרוג', desc: 'צור קשר עם המנהל לפתיחת המודול.' };
+    const _mcs2 = window._memberContentSettings || {};
+    const _modSet = (_mcs2.memberModuleSettings || {})[moduleKey] || {};
+    if (_modSet.enabled === false) return;
+    document.getElementById('member-upgrade-overlay')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'member-upgrade-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);z-index:9999;display:flex;align-items:flex-end;justify-content:center;direction:rtl;';
+    overlay.innerHTML = `<div style="background:white;width:100%;max-width:480px;border-radius:28px 28px 0 0;padding:24px 20px 32px;box-shadow:0 -8px 32px rgba(0,0,0,0.15);text-align:right;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <button onclick="document.getElementById('member-upgrade-overlay').remove()" style="width:32px;height:32px;background:#f1f5f9;border:none;border-radius:50%;font-size:14px;cursor:pointer;color:#64748b;">✕</button>
+            <div style="font-size:28px;">${mod.icon}</div>
+        </div>
+        <div style="font-size:18px;font-weight:900;color:#1e293b;margin-bottom:4px;">🔒 ${_modSet.title ? safeStr(_modSet.title) : safeStr(mod.name)}</div>
+        <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:10px;">"${safeStr(mod.tagline)}"</div>
+        ${(_modSet.text || mod.desc) ? '<div style="font-size:13px;color:#475569;line-height:1.6;margin-bottom:' + (_modSet.img ? '10px' : '20px') + ';background:#f8fafc;border-radius:12px;padding:12px;">' + safeStr(_modSet.text || mod.desc) + '</div>' : ''}
+        ${_modSet.img ? '<img src="' + _modSet.img + '" style="width:100%;max-height:150px;object-fit:contain;border-radius:12px;margin-bottom:16px;">' : ''}
+        <div id="member-upgrade-result" style="margin-bottom:8px;"></div>
+        <button onclick="window._submitModuleRequest('${moduleKey}','${safeStr(mod.name).replace(/'/g,"&#39;")}')"
+            style="width:100%;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;border:none;border-radius:16px;padding:14px;font-size:14px;font-weight:900;cursor:pointer;margin-bottom:8px;">
+            📤 שלח בקשת שדרוג לניהול
+        </button>
+        <div style="font-size:10px;color:#94a3b8;text-align:center;">המנהל יקבל את בקשתך ויוכל לפתוח את המודול עבורך</div>
+    </div>`;
+    document.body.appendChild(overlay);
+};
+
+window._submitModuleRequest = async function(moduleKey, moduleName) {
+    const resEl = document.getElementById('member-upgrade-result');
+    try {
+        const r = await fetch(`${API}/member/request-module`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, moduleKey, moduleName })
+        }).then(r => r.json());
+        if (r.success) {
+            if (resEl) resEl.innerHTML = '<div style="background:#f0fdf4;color:#16a34a;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;text-align:center;">✅ הבקשה נשלחה! המנהל יחזור אליך.</div>';
+            const btn = document.querySelector('#member-upgrade-overlay button[onclick*="_submitModuleRequest"]');
+            if (btn) btn.disabled = true;
+        } else {
+            if (resEl) resEl.innerHTML = '<div style="color:#ef4444;font-size:12px;text-align:center;">שגיאה — נסה שוב</div>';
+        }
+    } catch(e) {
+        if (resEl) resEl.innerHTML = '<div style="color:#ef4444;font-size:12px;text-align:center;">שגיאת תקשורת</div>';
+    }
+};
+
+// ===== END MEMBER TYPE =====
+
+async function renderMemberDashboard() {
+    // Hide family containers, show member dashboard
+    const dc = getEl('dashboard-container'); if (dc) dc.classList.add('hidden');
+    const fab = getEl('fab-container'); if (fab) fab.classList.add('hidden');
+    let el = document.getElementById('member-dashboard-root');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'member-dashboard-root';
+        el.style.cssText = 'position:fixed;inset:0;overflow-y:auto;background:#f8fafc;direction:rtl;z-index:50;';
+        document.body.appendChild(el);
+    }
+    el.innerHTML = `<div style="max-width:480px;margin:0 auto;padding:16px 12px 80px;">
+        <!-- Header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <button onclick="window._memberLogout()" style="background:#f1f5f9;border:none;border-radius:12px;padding:8px 14px;font-size:12px;font-weight:700;color:#64748b;cursor:pointer;">יציאה</button>
+            <div style="text-align:right;">
+                <div style="font-size:18px;font-weight:900;color:#1e293b;">שלום, ${safeStr(currentUser.nickname)} 👋</div>
+                <div style="font-size:11px;color:#94a3b8;">החשבון האישי שלך ב-ONEFLOW</div>
+            </div>
+        </div>
+
+        <!-- Trial Banner -->
+        <div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:20px;padding:14px 16px;margin-bottom:16px;color:white;text-align:right;">
+            <div style="font-size:13px;font-weight:900;margin-bottom:2px;">🎁 חודש ראשון בחינם!</div>
+            <div style="font-size:11px;opacity:0.85;">גישה לכל ההזמנות, מנויים ונתונים שלך במקום אחד</div>
+        </div>
+
+        <!-- Notifications -->
+        <div id="member-notifs-section" style="margin-bottom:12px;"></div>
+
+        <!-- Businesses -->
+        <div id="member-biz-list">
+            <div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">טוען...</div>
+        </div>
+    </div>`;
+
+    // Load notifications
+    _memberLoadNotifications(currentGroup.id);
+
+    // Load businesses
+    try {
+        const r = await fetch(`${API}/member/my-businesses/${currentGroup.id}`);
+        const d = await r.json();
+        const bizsEl = document.getElementById('member-biz-list');
+        if (!bizsEl) return;
+        const businesses = d.businesses || [];
+        if (!businesses.length) {
+            bizsEl.innerHTML = `<div style="text-align:center;padding:32px;color:#94a3b8;font-size:13px;">עדיין לא קושרת לעסקים. בקש מהמסלקאה/המאמן שלך לחבר אותך.</div>`;
+            return;
+        }
+        const pending = businesses.filter(b => b.status === 'pending');
+        const active  = businesses.filter(b => b.status === 'active');
+
+        let html = '';
+
+        // Pending requests section
+        if (pending.length) {
+            html += `<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:20px;padding:14px;margin-bottom:16px;">
+                <div style="font-size:13px;font-weight:900;color:#92400e;margin-bottom:10px;">⏳ בקשות קישור ממתינות לאישורך</div>
+                ${pending.map(b => `
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #fde68a;">
+                    <div style="font-size:22px;">${_memberBizIcon(b.business_type)}</div>
+                    <div style="flex:1;text-align:right;">
+                        <div style="font-size:13px;font-weight:800;color:#1e293b;">${safeStr(b.business_name)}</div>
+                        <div style="font-size:10px;color:#92400e;">${_memberBizTypeLabel(b.business_type)} · ${b.linked_by_admin_name ? 'ע"י '+safeStr(b.linked_by_admin_name) : ''}</div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">
+                        <button onclick="window._memberRespond(${b.id},'approve')" style="background:#10b981;color:white;border:none;border-radius:10px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;">✅ אשר</button>
+                        <button onclick="window._memberRespond(${b.id},'reject')" style="background:#f1f5f9;color:#ef4444;border:1px solid #fca5a5;border-radius:10px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;">✕ דחה</button>
+                    </div>
+                </div>`).join('')}
+            </div>`;
+        }
+
+        const memberUnlockedModules = d.unlocked_modules || [];
+
+        // Active businesses
+        html += active.map(b => {
+            const isRepair = b.business_type === 'maintenance_repair';
+            const isRestaurant = b.business_type === 'restaurant';
+            const bizNameEsc = safeStr(b.business_name).replace(/'/g,"&#39;");
+            return `
+            <div id="biz-section-${b.business_group_id}" style="background:white;border:1px solid #e2e8f0;border-radius:20px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <div style="width:38px;height:38px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">
+                        ${_memberBizIcon(b.business_type)}
+                    </div>
+                    <div style="flex:1;text-align:right;">
+                        <div style="font-size:13px;font-weight:800;color:#1e293b;">${safeStr(b.business_name)}</div>
+                        <div style="font-size:10px;color:#94a3b8;">${_memberBizTypeLabel(b.business_type)}</div>
+                    </div>
+                    ${isRepair ? `<button onclick="window._memberNewServiceCall('${b.business_group_id}','${bizNameEsc}')" style="background:#e0e7ff;color:#4f46e5;border:none;border-radius:10px;padding:6px 10px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0;">➕ קריאה חדשה</button>` : ''}
+                </div>
+                <div id="orders-${b.business_group_id}" style="text-align:center;color:#94a3b8;font-size:12px;padding:8px;">טוען...</div>
+                ${isRestaurant ? `<div id="quotes-${b.business_group_id}"></div>` : ''}
+            </div>`;
+        }).join('');
+
+        bizsEl.innerHTML = html || `<div style="text-align:center;padding:32px;color:#94a3b8;font-size:13px;">עדיין לא קושרת לעסקים.</div>`;
+
+        // Load orders + quotes for active businesses only
+        for (const b of active) {
+            _memberLoadOrders(b.business_group_id, b.business_type);
+            if (b.business_type === 'restaurant') _memberLoadQuotes(b.business_group_id);
+        }
+    } catch(e) {
+        const bizsEl = document.getElementById('member-biz-list');
+        if(bizsEl) bizsEl.innerHTML = `<div style="text-align:center;padding:24px;color:#ef4444;font-size:12px;">שגיאה בטעינת הנתונים</div>`;
+    }
+}
+
+window._memberLogout = function() {
+    localStorage.removeItem('ofl_session');
+    window.location.reload();
+};
+
+async function _memberLoadNotifications(groupId) {
+    const el = document.getElementById('member-notifs-section');
+    if (!el) return;
+    try {
+        const r = await fetch(`${API}/alerts/notifications?groupId=${groupId}&limit=10`);
+        const d = await r.json();
+        const notifs = d.notifications || [];
+        const unread = notifs.filter(n => !n.is_read);
+        if (!notifs.length) { el.innerHTML = ''; return; }
+        const statusDot = unread.length ? `<span style="background:#ef4444;color:white;font-size:10px;font-weight:700;border-radius:999px;padding:1px 7px;margin-right:6px;">${unread.length}</span>` : '';
+        el.innerHTML = `<div style="background:white;border:1px solid #e2e8f0;border-radius:20px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <button onclick="_memberMarkAllNotifsRead(${groupId})" style="background:none;border:none;font-size:11px;color:#94a3b8;cursor:pointer;">סמן הכל כנקרא</button>
+                <div style="font-size:13px;font-weight:800;color:#1e293b;text-align:right;">${statusDot}עדכונים מהעסקים שלך</div>
+            </div>
+            ${notifs.slice(0,5).map(n => {
+                const dt = new Date(n.created_at).toLocaleDateString('he-IL',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'});
+                const unreadStyle = !n.is_read ? 'background:#f0fdf4;border-right:3px solid #10b981;' : '';
+                return `<div style="padding:8px 0;${unreadStyle}border-bottom:1px solid #f1f5f9;text-align:right;">
+                    <div style="font-size:12px;color:#1e293b;font-weight:${n.is_read?'500':'700'}">${n.message}</div>
+                    <div style="font-size:10px;color:#94a3b8;margin-top:2px;">${dt}</div>
+                </div>`;
+            }).join('')}
+        </div>`;
+        if (unread.length) {
+            try { await fetch(`${API}/alerts/notifications/read-all`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId }) }); } catch(e) {}
+        }
+    } catch(e) {}
+}
+
+async function _memberMarkAllNotifsRead(groupId) {
+    try {
+        await fetch(`${API}/alerts/notifications/read-all`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId }) });
+        _memberLoadNotifications(groupId);
+    } catch(e) {}
+}
+
+window._memberRespond = async function(linkId, decision) {
+    try {
+        const r = await fetch(`${API}/member/link/${linkId}/respond`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ decision })
+        }).then(r => r.json());
+        if (r.success) renderMemberDashboard();
+    } catch(e) { alert('שגיאת תקשורת'); }
+};
+
+async function _memberLoadOrders(bizGroupId, bizType) {
+    const el = document.getElementById(`orders-${bizGroupId}`);
+    if (!el) return;
+    try {
+        const r = await fetch(`${API}/member/my-orders/${bizGroupId}/${currentGroup.id}`);
+        const d = await r.json();
+        const orders = d.orders || [];
+        if (!orders.length) { el.innerHTML = `<div style="color:#94a3b8;font-size:12px;text-align:center;padding:8px;">אין היסטוריה עדיין</div>`; return; }
+        const resolvedType = d.type || bizType;
+        el.innerHTML = orders.map(o => {
+            if (resolvedType === 'sport') {
+                const statusColor = { active:'#10b981', frozen:'#3b82f6', expired:'#ef4444', cancelled:'#94a3b8' }[o.status] || '#94a3b8';
+                const statusLabel = { active:'פעיל', frozen:'מוקפא', expired:'פג תוקף', cancelled:'בוטל' }[o.status] || o.status;
+                const end = o.end_date ? new Date(o.end_date).toLocaleDateString('he-IL') : '—';
+                const sess = o.sessions_total ? `${o.sessions_total-(o.sessions_used||0)}/${o.sessions_total} כניסות` : '';
+                const canFreeze = o.status === 'active';
+                const canUnfreeze = o.status === 'frozen';
+                return `<div style="background:#f8fafc;border-radius:12px;padding:10px 12px;margin-bottom:8px;text-align:right;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                        <span style="font-size:10px;font-weight:700;background:${statusColor}20;color:${statusColor};padding:2px 8px;border-radius:20px;">${statusLabel}</span>
+                        <span style="font-size:12px;font-weight:800;color:#1e293b;">${safeStr(o.type_name||'מנוי')}</span>
+                    </div>
+                    <div style="font-size:10px;color:#94a3b8;margin-bottom:${canFreeze||canUnfreeze?'6':'0'}px;">${sess}${sess?' · ':''}עד ${end}</div>
+                    ${canFreeze ? `<button onclick="window._memberFreeze(${o.id},'${bizGroupId}')" style="font-size:10px;font-weight:700;background:#dbeafe;color:#1d4ed8;border:none;border-radius:8px;padding:5px 0;cursor:pointer;width:100%;">❄️ הקפא מנוי</button>` : ''}
+                    ${canUnfreeze ? `<button onclick="window._memberUnfreeze(${o.id},'${bizGroupId}')" style="font-size:10px;font-weight:700;background:#d1fae5;color:#065f46;border:none;border-radius:8px;padding:5px 0;cursor:pointer;width:100%;">▶️ שחרר הקפאה</button>` : ''}
+                </div>`;
+            } else if (resolvedType === 'maintenance_repair') {
+                const SC_STATUS = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
+                const SC_COLOR = { new:'#6366f1', seen:'#3b82f6', in_progress:'#f59e0b', pending_parts:'#f97316', done:'#10b981', cancelled:'#94a3b8' };
+                const statusLabel = SC_STATUS[o.status] || o.status;
+                const statusColor = SC_COLOR[o.status] || '#94a3b8';
+                const date = o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL') : '';
+                const scheduled = o.scheduled_at ? ` · תור: ${new Date(o.scheduled_at).toLocaleDateString('he-IL')}` : '';
+                const price = o.price_quote ? ` · ₪${parseFloat(o.price_quote).toFixed(0)}` : '';
+                const canCancel = !['done','cancelled'].includes(o.status);
+                const canRate = o.status === 'done' && !o.rating;
+                const titleEsc = safeStr(o.title||'קריאת שירות').replace(/'/g,"&#39;");
+                return `<div style="background:#f8fafc;border-radius:12px;padding:10px 12px;margin-bottom:8px;text-align:right;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                        <div style="display:flex;gap:6px;flex-shrink:0;">
+                            <button onclick="window._memberOpenScDetails(${o.id},'${titleEsc}','${o.status}',${o.price_quote||0},'${bizGroupId}')" style="font-size:10px;font-weight:700;background:#e0e7ff;color:#4f46e5;border:none;border-radius:8px;padding:3px 8px;cursor:pointer;">💬 פרטים</button>
+                            ${canCancel ? `<button onclick="window._memberCancelSc(${o.id},'${bizGroupId}')" style="font-size:10px;font-weight:700;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;padding:3px 8px;cursor:pointer;">ביטול</button>` : ''}
+                        </div>
+                        <span style="font-size:12px;font-weight:800;color:#1e293b;">${safeStr(o.title||'קריאת שירות')}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                        <span style="font-size:10px;font-weight:700;background:${statusColor}20;color:${statusColor};padding:2px 8px;border-radius:20px;">${statusLabel}</span>
+                        <span style="font-size:10px;color:#94a3b8;">${date}${scheduled}${price}</span>
+                    </div>
+                    ${canRate ? `<div style="margin-top:6px;text-align:center;font-size:11px;color:#92400e;">דרג: ${[1,2,3,4,5].map(r=>`<span onclick="window._memberRateSc(${o.id},${r},'${bizGroupId}')" style="cursor:pointer;font-size:18px;">⭐</span>`).join('')}</div>` : ''}
+                    ${o.rating ? `<div style="margin-top:4px;text-align:center;font-size:11px;color:#92400e;">הדירוג שלך: ${'⭐'.repeat(o.rating)}</div>` : ''}
+                </div>`;
+            } else if (resolvedType === 'restaurant') {
+                const REST_STATUS = { new:'חדשה', preparing:'בהכנה', ready:'מוכן', delivered:'נמסר', cancelled:'בוטל' };
+                const REST_COLOR = { new:'#6366f1', preparing:'#f59e0b', ready:'#10b981', delivered:'#64748b', cancelled:'#94a3b8' };
+                const statusLabel = REST_STATUS[o.status] || o.status;
+                const statusColor = REST_COLOR[o.status] || '#94a3b8';
+                const date = o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL') : '';
+                const deliveryTag = o.is_delivery ? ' · 🛵 משלוח' : ' · 🥡 איסוף';
+                const isDelivered = o.status === 'delivered' && (o.is_delivery === 1 || o.is_delivery === true || o.is_delivery === 'true');
+                const hasRated = o.customer_rating;
+                let itemsSummary = '';
+                try {
+                    const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
+                    if (items.length) itemsSummary = items.slice(0,3).map(it => safeStr(it.name||it.title||'')).filter(Boolean).join(', ');
+                } catch(e2) {}
+                const confirmationUI = isDelivered ? (hasRated ?
+                    `<div style="margin-top:6px;background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:6px 8px;text-align:center;font-size:10px;font-weight:700;color:#15803d;">✅ קיבלת ודירגת — תודה!</div>` :
+                    `<div style="margin-top:6px;display:flex;gap:4px;">
+                        <button onclick="window.confirmOrderReceipt(${o.id}, false)" style="flex:1;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:6px;font-size:10px;font-weight:700;cursor:pointer;">❌ לא קיבלתי</button>
+                        <button onclick="window.confirmOrderReceipt(${o.id}, true)" style="flex:1;background:#dcfce7;color:#15803d;border:none;border-radius:8px;padding:6px;font-size:10px;font-weight:700;cursor:pointer;">✅ כן, קיבלתי</button>
+                    </div>`) : '';
+                return `<div style="background:#f8fafc;border-radius:12px;padding:10px 12px;margin-bottom:8px;text-align:right;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                        <span style="font-size:10px;font-weight:700;background:${statusColor}20;color:${statusColor};padding:2px 8px;border-radius:20px;">${statusLabel}</span>
+                        <span style="font-size:12px;font-weight:800;color:#1e293b;">${safeStr(o.order_number||'הזמנה')}</span>
+                    </div>
+                    <div style="font-size:10px;color:#94a3b8;">${date}${deliveryTag}${o.total_amount?' · ₪'+parseFloat(o.total_amount).toFixed(0):''}</div>
+                    ${itemsSummary ? `<div style="font-size:10px;color:#64748b;margin-top:2px;">${itemsSummary}</div>` : ''}
+                    ${confirmationUI}
+                </div>`;
+            } else {
+                const date = o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL') : '';
+                return `<div style="background:#f8fafc;border-radius:12px;padding:10px 12px;margin-bottom:8px;text-align:right;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+                        <span style="font-size:11px;font-weight:700;color:#64748b;">${date}</span>
+                        <span style="font-size:12px;font-weight:800;color:#1e293b;">${safeStr(o.order_number||'הזמנה')}</span>
+                    </div>
+                    <div style="font-size:10px;color:#94a3b8;">${o.total_amount ? '₪'+parseFloat(o.total_amount).toFixed(0) : ''} ${o.status||''}</div>
+                </div>`;
+            }
+        }).join('');
+    } catch(e) { if(el) el.innerHTML = `<div style="color:#ef4444;font-size:12px;padding:8px;">שגיאה</div>`; }
+}
+
+function _memberBizIcon(type) {
+    const icons = { sport:'🏋️', restaurant:'🍕', retail:'🛍️', services:'💼', construction:'🏗️', maintenance_repair:'🔧', logistics:'🚚', healthcare:'🏥', beauty:'💅', education:'🎓', events:'🎉', food_production:'🏭' };
+    return icons[type] || '🏢';
+}
+function _memberBizTypeLabel(type) {
+    const labels = { sport:'ספורט / כושר', restaurant:'מסעדה / בית קפה', retail:'חנות', services:'שירותים', construction:'בנייה', maintenance_repair:'תחזוקה', logistics:'לוגיסטיקה', healthcare:'בריאות', beauty:'יופי', education:'חינוך', events:'אירועים', food_production:'ייצור מזון' };
+    return labels[type] || type;
+}
+
+// ONEFLOWLIFE MEMBER — interactive actions
+
+window._memberOpenScDetails = async function(callId, title, status, priceQuote, bizGroupId) {
+    let modal = document.getElementById('member-sc-modal');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.id = 'member-sc-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-end;';
+    const SC_STATUS = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
+    const statusLabel = SC_STATUS[status] || status;
+    const canCancel = !['done','cancelled'].includes(status);
+    const canRate = status === 'done';
+    modal.innerHTML = `
+        <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-height:85vh;overflow-y:auto;padding:20px 16px 32px;direction:rtl;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                <button onclick="document.getElementById('member-sc-modal')?.remove()" style="background:#f1f5f9;border:none;border-radius:12px;padding:6px 14px;font-size:12px;font-weight:700;color:#64748b;cursor:pointer;">סגור</button>
+                <div style="text-align:right;">
+                    <div style="font-size:14px;font-weight:900;color:#1e293b;">${safeStr(title)}</div>
+                    <div style="font-size:11px;color:#94a3b8;">${statusLabel}${priceQuote ? ' · ₪'+parseFloat(priceQuote).toFixed(0) : ''}</div>
+                </div>
+            </div>
+            <div id="member-sc-chat-${callId}" style="background:#f8fafc;border-radius:16px;padding:12px;min-height:80px;max-height:260px;overflow-y:auto;margin-bottom:12px;">
+                <div style="text-align:center;color:#94a3b8;font-size:12px;">טוען שיחה...</div>
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:12px;">
+                <button onclick="window._memberSendScMsg(${callId},'${bizGroupId}')" style="background:#4f46e5;color:white;border:none;border-radius:12px;padding:10px 16px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">שלח</button>
+                <input id="member-sc-msg-input-${callId}" type="text" placeholder="כתוב הודעה..." style="flex:1;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;font-size:12px;direction:rtl;outline:none;" onkeydown="if(event.key==='Enter')window._memberSendScMsg(${callId},'${bizGroupId}')"/>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                ${canCancel ? `<button onclick="window._memberCancelSc(${callId},'${bizGroupId}')" style="background:#fee2e2;color:#ef4444;border:none;border-radius:12px;padding:8px 16px;font-size:11px;font-weight:700;cursor:pointer;">ביטול קריאה</button>` : ''}
+                ${canRate ? `<div style="width:100%;text-align:center;padding:8px;background:#fffbeb;border-radius:12px;">
+                    <div style="font-size:11px;color:#92400e;margin-bottom:4px;font-weight:700;">דרג את השירות</div>
+                    ${[1,2,3,4,5].map(r=>`<span onclick="window._memberRateSc(${callId},${r},'${bizGroupId}')" style="cursor:pointer;font-size:22px;">⭐</span>`).join('')}
+                </div>` : ''}
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    try {
+        const r = await fetch(`/api/service-calls/${callId}/messages`);
+        const d = await r.json();
+        const chatEl = document.getElementById(`member-sc-chat-${callId}`);
+        if (chatEl) {
+            const msgs = d.messages || [];
+            chatEl.innerHTML = msgs.length ? msgs.map(m => `<div style="display:flex;justify-content:${m.sender_type==='family'?'flex-start':'flex-end'};margin-bottom:8px;">
+                <div style="max-width:80%;background:${m.sender_type==='family'?'#f1f5f9':'#4f46e5'};color:${m.sender_type==='family'?'#1e293b':'white'};border-radius:12px;padding:8px 12px;font-size:12px;">
+                    <div style="font-size:9px;opacity:0.7;margin-bottom:2px;font-weight:700;">${safeStr(m.sender_name||m.sender_type)}</div>
+                    ${safeStr(m.message)}
+                </div>
+            </div>`).join('') : '<div style="text-align:center;color:#94a3b8;font-size:12px;padding:16px;">אין הודעות עדיין</div>';
+            chatEl.scrollTop = chatEl.scrollHeight;
+        }
+    } catch(e) {}
+};
+
+window._memberSendScMsg = async function(callId, bizGroupId) {
+    const input = document.getElementById(`member-sc-msg-input-${callId}`);
+    const msg = input?.value?.trim();
+    if (!msg) return;
+    input.value = '';
+    try {
+        await fetch(`/api/service-calls/${callId}/messages`, { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ senderType:'family', senderName: currentUser?.nickname || 'לקוח', message: msg }) });
+        const r2 = await fetch(`/api/service-calls/${callId}/messages`);
+        const d2 = await r2.json();
+        const chatEl = document.getElementById(`member-sc-chat-${callId}`);
+        if (chatEl) {
+            chatEl.innerHTML = (d2.messages||[]).map(m => `<div style="display:flex;justify-content:${m.sender_type==='family'?'flex-start':'flex-end'};margin-bottom:8px;">
+                <div style="max-width:80%;background:${m.sender_type==='family'?'#f1f5f9':'#4f46e5'};color:${m.sender_type==='family'?'#1e293b':'white'};border-radius:12px;padding:8px 12px;font-size:12px;">
+                    <div style="font-size:9px;opacity:0.7;margin-bottom:2px;font-weight:700;">${safeStr(m.sender_name||m.sender_type)}</div>
+                    ${safeStr(m.message)}
+                </div>
+            </div>`).join('');
+            chatEl.scrollTop = chatEl.scrollHeight;
+        }
+    } catch(e) {}
+};
+
+window._memberCancelSc = async function(callId, bizGroupId) {
+    if (!confirm('לבטל את הקריאה?')) return;
+    try {
+        const r = await fetch(`/api/service-calls/${callId}`, { method:'DELETE' });
+        if (r.ok) {
+            document.getElementById('member-sc-modal')?.remove();
+            _memberLoadOrders(bizGroupId, 'maintenance_repair');
+        }
+    } catch(e) {}
+};
+
+window._memberRateSc = async function(callId, rating, bizGroupId) {
+    try {
+        await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rating }) });
+        document.getElementById('member-sc-modal')?.remove();
+        _memberLoadOrders(bizGroupId, 'maintenance_repair');
+    } catch(e) {}
+};
+
+window._memberFreeze = async function(membershipId, bizGroupId) {
+    if (!confirm('להקפיא את המנוי?')) return;
+    try {
+        const r = await fetch(`/api/sport/members/${membershipId}/freeze`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({}) });
+        if (r.ok) _memberLoadOrders(bizGroupId, 'sport');
+    } catch(e) {}
+};
+
+window._memberUnfreeze = async function(membershipId, bizGroupId) {
+    if (!confirm('לשחרר את ההקפאה?')) return;
+    try {
+        const r = await fetch(`/api/sport/members/${membershipId}/unfreeze`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({}) });
+        if (r.ok) _memberLoadOrders(bizGroupId, 'sport');
+    } catch(e) {}
+};
+
+// פתיחת קריאת שירות חדשה מדשבורד חבר
+window._memberNewServiceCall = function(bizGroupId, bizName) {
+    document.getElementById('member-new-sc-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'member-new-sc-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-end;';
+    modal.innerHTML = `
+        <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-height:85vh;overflow-y:auto;padding:20px 16px 32px;direction:rtl;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                <button onclick="document.getElementById('member-new-sc-modal')?.remove()" style="background:#f1f5f9;border:none;border-radius:12px;padding:6px 14px;font-size:12px;font-weight:700;color:#64748b;cursor:pointer;">סגור</button>
+                <div style="text-align:right;">
+                    <div style="font-size:14px;font-weight:900;color:#1e293b;">🔧 קריאת שירות חדשה</div>
+                    <div style="font-size:11px;color:#94a3b8;">${safeStr(bizName)}</div>
+                </div>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">תיאור הבעיה *</label>
+                <textarea id="mnsc-title" rows="2" placeholder="למשל: המזגן לא מקרר, ברז דולף..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;font-size:13px;direction:rtl;outline:none;resize:none;box-sizing:border-box;"></textarea>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">כתובת הטיפול</label>
+                <input id="mnsc-address" type="text" placeholder="הרחוב שלך..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;font-size:13px;direction:rtl;outline:none;box-sizing:border-box;"/>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">פרטים נוספים (אופציונלי)</label>
+                <textarea id="mnsc-desc" rows="2" style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;font-size:13px;direction:rtl;outline:none;resize:none;box-sizing:border-box;"></textarea>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:6px;">עדיפות</label>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+                    ${[['low','נמוכה','🟢'],['normal','רגילה','🔵'],['high','גבוהה','🟠'],['urgent','דחוף','🔴']].map(([v,l,e])=>`<button type="button" onclick="document.getElementById('mnsc-priority').value='${v}';document.querySelectorAll('.mnsc-prio-btn').forEach(b=>b.style.borderColor='#e2e8f0');this.style.borderColor='#4f46e5'" class="mnsc-prio-btn" style="border:2px solid ${v==='normal'?'#4f46e5':'#e2e8f0'};border-radius:10px;padding:8px 4px;font-size:11px;font-weight:700;cursor:pointer;background:white;">${e}<br>${l}</button>`).join('')}
+                </div>
+                <input type="hidden" id="mnsc-priority" value="normal"/>
+            </div>
+            <button onclick="window._memberSubmitNewSc('${bizGroupId}')" style="width:100%;background:#4f46e5;color:white;border:none;border-radius:14px;padding:14px;font-size:13px;font-weight:900;cursor:pointer;">שלח קריאה ←</button>
+        </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+window._memberSubmitNewSc = async function(bizGroupId) {
+    const title = document.getElementById('mnsc-title')?.value?.trim();
+    if (!title) { alert('נא לתאר את הבעיה'); return; }
+    const address = document.getElementById('mnsc-address')?.value?.trim() || null;
+    const desc = document.getElementById('mnsc-desc')?.value?.trim() || null;
+    const priority = document.getElementById('mnsc-priority')?.value || 'normal';
+    try {
+        const r = await fetch('/api/service-calls', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                familyGroupId: currentGroup.id,
+                businessGroupId: parseInt(bizGroupId),
+                title, description: desc, address, priority,
+                customerName: currentUser?.nickname || null,
+                customerPhone: currentUser?.phone || null,
+                createdByUserId: currentUser?.id || null
+            })
+        });
+        const d = await r.json();
+        if (d.success) {
+            document.getElementById('member-new-sc-modal')?.remove();
+            _memberLoadOrders(bizGroupId, 'maintenance_repair');
+        } else { alert(d.error || 'שגיאה בשליחה'); }
+    } catch(e) { alert('שגיאת תקשורת'); }
+};
+
+// טעינת הצעות מחיר למסעדה בדשבורד חבר
+async function _memberLoadQuotes(bizGroupId) {
+    const el = document.getElementById(`quotes-${bizGroupId}`);
+    if (!el) return;
+    try {
+        const r = await fetch(`${API}/store/quotes/family/${currentGroup.id}?userId=${currentUser?.id||''}`);
+        const d = await r.json();
+        const quotes = (d.quotes||[]).filter(q => String(q.group_id) === String(bizGroupId));
+        if (!quotes.length) return;
+        // add to familyQuotesCache so openFamilyQuoteView can find them
+        quotes.forEach(q => {
+            if (!familyQuotesCache.find(x => x.id === q.id)) familyQuotesCache.push(q);
+        });
+        const QS = { waiting_customer:'ממתינה לתגובתך', customer_approved:'אישרת', waiting_business:'בבדיקת העסק', cancelled:'בוטלה' };
+        const QC = { waiting_customer:'#f59e0b', customer_approved:'#10b981', waiting_business:'#6366f1', cancelled:'#94a3b8' };
+        el.innerHTML = `<div style="border-top:1px solid #f1f5f9;padding-top:8px;margin-top:4px;">
+            <div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px;">📋 הצעות מחיר</div>
+            ${quotes.map(q => {
+                const qs = q.quote_status || (q.status==='quote'?'waiting_customer':q.status);
+                const qColor = QC[qs] || '#94a3b8';
+                const qLabel = QS[qs] || qs;
+                const date = q.created_at ? new Date(q.created_at).toLocaleDateString('he-IL') : '';
+                const total = q.total_amount ? '₪'+parseFloat(q.total_amount).toFixed(0) : '';
+                return `<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;">
+                    <button onclick="openFamilyQuoteView(${q.id})" style="background:#f59e0b;color:white;border:none;border-radius:8px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;">צפה</button>
+                    <div style="text-align:right;">
+                        <div style="font-size:12px;font-weight:800;color:#1e293b;">${safeStr(q.quote_title||'הצעת מחיר')}</div>
+                        <div style="font-size:10px;color:#92400e;">${qLabel}${total?' · '+total:''}${date?' · '+date:''}</div>
+                    </div>
+                </div>`;
+            }).join('')}
+        </div>`;
+    } catch(e) {}
+}
+
+// SA: שדרוג חבר למשפחה
+
+window.saSetMemberModules = async function(groupId) {
+    const MODULES = ['full_orders','full_service_calls','community','calendar'];
+    const selected = MODULES.filter(k => document.getElementById(`samod-${k}`)?.checked);
+    try {
+        const r = await fetch(`${API}/sa/groups/${groupId}/modules`, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ modules: selected })
+        });
+        const d = await r.json();
+        if (d.success) {
+            document.getElementById('sa-modules-modal')?.remove();
+            if (typeof showToast === 'function') showToast('success', '✅ מודולים עודכנו');
+            if (typeof loadSAData === 'function') loadSAData();
+        } else { alert(d.error || 'שגיאה'); }
+    } catch(e) { alert('שגיאת תקשורת'); }
+};
+
+// ============================================================
+// ===== הפעילות שלי — עסקים שקישרו את המשפחה =======================
+
+const _ACTIVITY_CAT = {
+    beauty:             { icon: '💅', label: 'יופי וטיפוח' },
+    gym:                { icon: '💪', label: 'כושר וספורט' },
+    sport:              { icon: '🏋️', label: 'ספורט' },
+    restaurant:         { icon: '🍽️', label: 'מסעדה' },
+    maintenance_repair: { icon: '🔧', label: 'תיקונים ואחזקה' },
+    construction:       { icon: '🏗️', label: 'בנייה ושיפוץ' },
+    services:           { icon: '🛎️', label: 'שירותים' },
+    healthcare:         { icon: '🏥', label: 'בריאות' },
+    events:             { icon: '🎉', label: 'אירועים' },
+    other:              { icon: '🏢', label: 'עסקים נוספים' },
+};
+
+let _activityAllBiz = [];
+
+async function loadMyActivities() {
+    const el = document.getElementById('my-activities-list');
+    if (!el || !currentGroup) return;
+    el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
+    try {
+        const d = await fetch(`${API}/family/linked-businesses/${currentGroup.id}`).then(r => r.json());
+        _activityAllBiz = d.businesses || [];
+
+        if (!_activityAllBiz.length) {
+            el.innerHTML = `
+                <div class="text-center py-10 text-slate-400">
+                    <div class="text-3xl mb-2">🏢</div>
+                    <p class="text-sm font-bold text-slate-500">עדיין אין פעילות</p>
+                    <p class="text-xs mt-1">כאשר עסק יוסיף אותך כלקוח, הוא יופיע כאן</p>
+                </div>`;
+            return;
+        }
+
+        // Build search + filter controls (only non-pending types)
+        const types = [...new Set(_activityAllBiz.map(b => b.business_type || 'other'))];
+        const filterPills = ['all', ...types].map(t => {
+            const cat = _ACTIVITY_CAT[t] || { icon: '🏢', label: t };
+            return `<button class="act-filter-pill shrink-0 px-3 py-1.5 rounded-full text-xs font-bold border transition ${t === 'all' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}" data-type="${t}" onclick="window._actFilter(this)">
+                ${t === 'all' ? 'הכל' : cat.icon + ' ' + cat.label}
+            </button>`;
+        }).join('');
+
+        el.innerHTML = `
+            <div class="mb-3 space-y-2">
+                <div class="relative">
+                    <input id="act-search" type="search" placeholder="חפש עסק..." oninput="window._actSearch(this.value)"
+                        class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm pr-9 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 placeholder:text-slate-400" />
+                    <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                </div>
+                ${types.length > 1 ? `<div class="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">${filterPills}</div>` : ''}
+            </div>
+            <div id="act-biz-list"></div>`;
+
+        _actRender('all', '');
+    } catch(e) {
+        el.innerHTML = '<p class="text-xs text-red-500 text-center py-6">שגיאה בטעינת הנתונים</p>';
+    }
+}
+
+window._actRespond = async function(linkId, decision) {
+    try {
+        const res = await fetch(`${API}/member/link/${linkId}/respond`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ decision })
+        });
+        const d = await res.json();
+        if (d.success) {
+            showToast('success', decision === 'approve' ? 'הקישור אושר!' : 'הקישור נדחה');
+            loadMyActivities();
+        } else showToast('error', 'שגיאה בעדכון');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._actFilter = function(btn) {
+    document.querySelectorAll('.act-filter-pill').forEach(b => {
+        b.className = b.className.replace(/bg-indigo-600 text-white border-indigo-600/, 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300');
+    });
+    btn.className = btn.className.replace('bg-white text-slate-600 border-slate-200 hover:border-indigo-300', 'bg-indigo-600 text-white border-indigo-600');
+    const search = document.getElementById('act-search')?.value || '';
+    _actRender(btn.dataset.type, search);
+};
+
+window._actSearch = function(q) {
+    const active = document.querySelector('.act-filter-pill.bg-indigo-600')?.dataset.type || 'all';
+    _actRender(active, q);
+};
+
+function _actRender(filterType, searchQ) {
+    const listEl = document.getElementById('act-biz-list');
+    if (!listEl) return;
+    const q = (searchQ || '').trim().toLowerCase();
+
+    const visible = _activityAllBiz.filter(b => {
+        if (filterType !== 'all' && (b.business_type || 'other') !== filterType) return false;
+        if (q && !b.business_name?.toLowerCase().includes(q)) return false;
+        return true;
+    });
+
+    // Group by type preserving order
+    const groups = {};
+    for (const b of visible) {
+        const t = b.business_type || 'other';
+        if (!groups[t]) groups[t] = [];
+        groups[t].push(b);
+    }
+
+    let html = '';
+    for (const [type, bizsOfType] of Object.entries(groups)) {
+        const cat = _ACTIVITY_CAT[type] || { icon: '🏢', label: 'עסקים נוספים' };
+        const realBizs = bizsOfType;
+        const showHeader = filterType === 'all' || (Object.keys(groups).length > 1);
+
+        html += `<div class="mb-5" data-cat="${type}">`;
+        if (showHeader) {
+            html += `<div class="flex items-center gap-2 mb-2.5 px-1 border-b border-slate-100 pb-1.5">
+                <span class="text-lg">${cat.icon}</span>
+                <h3 class="text-sm font-black text-slate-700">${cat.label}</h3>
+                ${realBizs.length > 0 ? `<span class="text-[10px] font-bold text-slate-400 mr-auto">${realBizs.length} עסקים</span>` : ''}
+            </div>`;
+        }
+        html += `<div class="space-y-2">`;
+
+        for (const b of realBizs) {
+            const storeLink = b.group_code ? `${window.location.origin}/storefront.html?store=${b.group_code}${b.community_id ? '&communityId=' + b.community_id : ''}` : '';
+            const linkedDate = b.linked_at ? new Date(b.linked_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+            const bizId = b.business_group_id;
+            const bizType = b.business_type || 'other';
+            const isPending = b.status === 'pending';
+
+            if (isPending) {
+                html += `<div class="biz-act-wrapper rounded-2xl overflow-hidden shadow-sm border border-amber-200 bg-amber-50" data-biz-id="${bizId}">
+                    <div class="flex items-center gap-3 p-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-xl flex-shrink-0">${cat.icon}</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <p class="font-black text-slate-800 text-sm truncate">${safeStr(b.business_name)}</p>
+                                <span class="text-[9px] font-black bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full">⏳ ממתין לאישורך</span>
+                            </div>
+                            <p class="text-[10px] text-amber-700 mt-0.5">${b.linked_by_admin_name ? 'בקשה מ' + safeStr(b.linked_by_admin_name) : cat.label}${linkedDate ? ' · ' + linkedDate : ''}</p>
+                        </div>
+                        <div class="flex flex-col gap-1.5 shrink-0">
+                            <button onclick="window._actRespond(${b.link_id},'approve')" class="bg-emerald-500 text-white rounded-lg px-3 py-1.5 text-[11px] font-bold whitespace-nowrap">✅ אשר</button>
+                            <button onclick="window._actRespond(${b.link_id},'reject')" class="bg-white text-red-500 border border-red-200 rounded-lg px-3 py-1.5 text-[11px] font-bold whitespace-nowrap">✕ דחה</button>
+                        </div>
+                    </div>
+                </div>`;
+                continue;
+            }
+
+            html += `<div class="biz-act-wrapper rounded-2xl overflow-hidden shadow-sm border border-slate-200 bg-white" data-biz-id="${bizId}">
+                <div class="flex items-center gap-3 p-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 flex items-center justify-center text-xl flex-shrink-0">${cat.icon}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <p class="font-black text-slate-800 text-sm truncate">${safeStr(b.business_name)}</p>
+                            <span id="biz-appt-pending-badge-${bizId}" class="hidden text-[9px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded-full">⏳ ממתין לאישורך</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-0.5">${cat.label}${linkedDate ? ' · מ-' + linkedDate : ''}</p>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        ${storeLink ? `<a href="${storeLink}" target="_blank" rel="noopener" class="bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl px-2.5 py-2 text-[10px] font-bold hover:bg-indigo-100 transition flex flex-col items-center gap-0.5">
+                            <i class="fa-solid fa-store text-xs"></i><span>חנות</span>
+                        </a>` : ''}
+                        <button onclick="window._bizQuickActions(${bizId},'${bizType}','${(b.business_name||'').replace(/'/g,"\\'")}','${b.group_code||''}')"
+                            class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white text-lg font-black flex items-center justify-center hover:opacity-90 transition shadow-sm">+</button>
+                        <button onclick="window._toggleBizAccordion(this,${bizId},'${bizType}')"
+                            class="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition text-sm">
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="biz-accordion hidden border-t border-slate-100">
+                    <div class="p-3 text-center text-xs text-slate-400"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</div>
+                </div>
+            </div>`;
+        }
+
+
+
+        html += `</div></div>`;
+    }
+
+    if (!html) {
+        html = `<div class="text-center py-8 text-slate-400">
+            <div class="text-2xl mb-1">🔍</div>
+            <p class="text-sm">לא נמצאו עסקים תואמים</p>
+        </div>`;
+    }
+
+    listEl.innerHTML = html;
+}
+
+// ─── BIZ QUICK ACTIONS ────────────────────────────────────────────────────────
+
+const _BIZ_ACTIONS_MAP = {
+    beauty:             [{ icon:'📅', label:'קבע תור', action:'beauty_book' }, { icon:'💌', label:'ייעוץ מקדים', action:'beauty_rfq' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
+    sport:              [{ icon:'💳', label:'רכוש מנוי', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
+    gym:                [{ icon:'💳', label:'רכוש מנוי', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
+    restaurant:         [{ icon:'🛒', label:'בצע הזמנה', action:'storefront' }, { icon:'🍽️', label:'הזמן שולחן', action:'table_reservation' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
+    maintenance_repair: [{ icon:'🔧', label:'פתח קריאת שירות', action:'service_call' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
+    logistics:          [{ icon:'📦', label:'בקש הצעת מחיר', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
+};
+
+window._bizQuickActions = function(bizGroupId, bizType, bizName, groupCode) {
+    const biz = _activityAllBiz.find(b => b.business_group_id == bizGroupId) || {};
+    const lf = biz.licensed_features || null;
+    const defaultActions = _BIZ_ACTIONS_MAP[bizType] || [{ icon:'🌐', label:'בקר בחנות', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }];
+    const actionKeyMap = { storefront:'ss_storefront', beauty_rfq:'ss_rfq', service_call:'ss_service_call', message:'ss_message', table_reservation:'ss_table_reservation' };
+    const actions = lf ? defaultActions.filter(a => { const k = actionKeyMap[a.action]; return !k || lf[k] !== false; }) : defaultActions;
+    const storeUrl = groupCode ? `${window.location.origin}/storefront.html?store=${groupCode}` : null;
+    const btns = actions.map(a => {
+        let handler = '';
+        if (a.action === 'storefront' && storeUrl) handler = `
+            const newWindow = window.open('${storeUrl}&familyGroupId=${currentGroup?.id||''}','_blank');
+            const checkFocus = setInterval(() => {
+                if (newWindow?.closed) {
+                    clearInterval(checkFocus);
+                    if (window._currentFamilyTab === 'myorders') {
+                        setTimeout(() => {
+                            const subTab = sessionStorage.getItem('myorders_sub_tab') || 'orders';
+                            if (subTab === 'orders') fetchMyOrders();
+                        }, 500);
+                    }
+                }
+            }, 500);
+            document.getElementById('biz-qs-sheet')?.remove();
+        `;
+        else if (a.action === 'beauty_book' && storeUrl) handler = `window.open('${storeUrl}&action=book&familyGroupId=${currentGroup?.id||''}','_blank');document.getElementById('biz-qs-sheet')?.remove()`;
+        else if (a.action === 'beauty_rfq') handler = `document.getElementById('biz-qs-sheet')?.remove();window._familyNewRfqModal&&window._familyNewRfqModal(${bizGroupId},'${bizName.replace(/'/g,"\\'")}',null)`;
+        else if (a.action === 'service_call') handler = `document.getElementById('biz-qs-sheet')?.remove();window._memberNewServiceCall(${bizGroupId},'${bizName.replace(/'/g,"\\'")}')`;
+        else if (a.action === 'table_reservation') handler = `document.getElementById('biz-qs-sheet')?.remove();window._tableReservationModal(${bizGroupId},'${bizName.replace(/'/g,"\\'")}')`;
+        else if (a.action === 'message') handler = `document.getElementById('biz-qs-sheet')?.remove();window._bizMessageModal(${bizGroupId},'${bizName.replace(/'/g,"\\'")}')`;
+        else handler = `document.getElementById('biz-qs-sheet')?.remove()`;
+        return `<button onclick="${handler}" class="flex items-center gap-3 w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 transition">
+            <span class="text-xl">${a.icon}</span>${a.label}
+        </button>`;
+    }).join('');
+    const sheet = document.createElement('div');
+    sheet.id = 'biz-qs-sheet';
+    sheet.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;direction:rtl;';
+    sheet.innerHTML = `<div style="background:white;border-radius:24px 24px 0 0;padding:20px;width:100%;max-width:480px;margin:0 auto;">
+        <div style="width:40px;height:4px;background:#e2e8f0;border-radius:4px;margin:0 auto 16px;"></div>
+        <p style="font-weight:900;font-size:14px;color:#1e293b;margin-bottom:12px;">פעולות מהירות — ${safeStr(bizName)}</p>
+        <div style="display:flex;flex-direction:column;gap:8px;">${btns}</div>
+        <button onclick="document.getElementById('biz-qs-sheet')?.remove()" style="width:100%;margin-top:12px;padding:12px;background:#f1f5f9;border:none;border-radius:16px;font-weight:700;font-size:13px;color:#64748b;cursor:pointer;">ביטול</button>
+    </div>`;
+    sheet.addEventListener('click', e => { if (e.target === sheet) sheet.remove(); });
+    document.body.appendChild(sheet);
+};
+
+window._bizMessageModal = function(bizGroupId, bizName) {
+    const modal = document.createElement('div');
+    modal.id = 'biz-msg-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;padding:20px;direction:rtl;';
+    modal.innerHTML = `<div style="background:white;border-radius:24px;padding:24px;width:100%;max-width:400px;">
+        <p style="font-weight:900;font-size:16px;color:#1e293b;margin-bottom:4px;">✉️ שלח הודעה ל-${safeStr(bizName)}</p>
+        <p style="font-size:11px;color:#94a3b8;margin-bottom:16px;">ההודעה תגיע ל-Inbox של העסק</p>
+        <textarea id="biz-msg-text" rows="4" placeholder="כתוב את הודעתך כאן..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px;font-size:14px;resize:none;box-sizing:border-box;outline:none;"></textarea>
+        <div id="biz-msg-err" style="display:none;color:#dc2626;font-size:12px;margin-top:6px;"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+            <button onclick="document.getElementById('biz-msg-modal')?.remove()" style="flex:1;padding:12px;background:#f1f5f9;border:none;border-radius:14px;font-weight:700;font-size:13px;color:#64748b;cursor:pointer;">ביטול</button>
+            <button onclick="window._sendBizMessage(${bizGroupId})" style="flex:2;padding:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;border-radius:14px;font-weight:900;font-size:13px;cursor:pointer;">שלח הודעה ✉️</button>
+        </div>
+    </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+    document.getElementById('biz-msg-text')?.focus();
+};
+
+window._sendBizMessage = async function(bizGroupId) {
+    const txt = document.getElementById('biz-msg-text')?.value?.trim();
+    const errEl = document.getElementById('biz-msg-err');
+    if (!txt) { if(errEl) { errEl.textContent = 'נא לכתוב הודעה'; errEl.style.display = 'block'; } return; }
+    const btn = document.querySelector('#biz-msg-modal button:last-child');
+    if (btn) { btn.disabled = true; btn.textContent = 'שולח...'; }
+    try {
+        const r = await fetch(`${API}/inbox/customer`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: bizGroupId, name: currentUser?.nickname || 'לקוח', contact: currentUser?.phone || '', subject: 'פנייה מלקוח ONEFLOW', content: txt, customerGroupId: currentGroup?.id || null })
+        }).then(r => r.json());
+        if (r.success) {
+            document.getElementById('biz-msg-modal')?.remove();
+            showToast('success', 'ההודעה נשלחה ✅');
+        } else { if(errEl) { errEl.textContent = r.error || 'שגיאה בשליחה'; errEl.style.display = 'block'; } if(btn){ btn.disabled=false; btn.textContent='שלח הודעה ✉️'; } }
+    } catch(e) { if(errEl){ errEl.textContent='שגיאת תקשורת'; errEl.style.display='block'; } if(btn){ btn.disabled=false; btn.textContent='שלח הודעה ✉️'; } }
+};
+
+window._orderRatingModal = function(orderId, bizGroupId) {
+    document.getElementById('order-rating-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'order-rating-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:20px;direction:rtl;';
+    modal.innerHTML = `<div style="background:white;border-radius:24px;padding:24px;width:100%;max-width:380px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <button onclick="document.getElementById('order-rating-modal')?.remove()" style="background:#f1f5f9;border:none;border-radius:12px;width:32px;height:32px;cursor:pointer;font-size:16px;color:#64748b;">✕</button>
+            <div style="text-align:right;">
+                <p style="font-weight:900;font-size:15px;color:#1e293b;">⭐ דרג את ההזמנה</p>
+                <p style="font-size:11px;color:#94a3b8;">הזמנה #${orderId}</p>
+            </div>
+        </div>
+        <div style="text-align:center;margin-bottom:16px;">
+            <p style="font-size:13px;color:#475569;font-weight:700;margin-bottom:10px;">בחר דירוג:</p>
+            <div id="rating-stars" style="display:flex;justify-content:center;gap:8px;font-size:32px;">
+                ${[1,2,3,4,5].map(n=>`<span onclick="window._setRatingStar(${n})" data-val="${n}" style="cursor:pointer;opacity:0.3;transition:opacity 0.1s;">⭐</span>`).join('')}
+            </div>
+            <p id="rating-label" style="font-size:11px;color:#94a3b8;margin-top:6px;height:16px;"></p>
+        </div>
+        <textarea id="rating-notes" rows="3" placeholder="הערות (אופציונלי)..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px;font-size:13px;resize:none;box-sizing:border-box;outline:none;margin-bottom:12px;"></textarea>
+        <div id="rating-err" style="display:none;color:#dc2626;font-size:12px;margin-bottom:8px;"></div>
+        <div style="display:flex;gap:8px;">
+            <button onclick="document.getElementById('order-rating-modal')?.remove()" style="flex:1;padding:12px;background:#f1f5f9;border:none;border-radius:14px;font-weight:700;font-size:13px;color:#64748b;cursor:pointer;">ביטול</button>
+            <button id="rating-submit-btn" onclick="window._submitOrderRating(${orderId},'${bizGroupId}')" style="flex:2;padding:12px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;border:none;border-radius:14px;font-weight:900;font-size:13px;cursor:pointer;">שלח דירוג ⭐</button>
+        </div>
+    </div>`;
+    modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+};
+window._setRatingStar = function(val) {
+    const labels = ['','גרוע 😞','לא טוב 😕','בסדר 😐','טוב 😊','מצוין! 🤩'];
+    document.querySelectorAll('#rating-stars span').forEach((s,i) => { s.style.opacity = (i < val) ? '1' : '0.3'; });
+    const lbl = document.getElementById('rating-label');
+    if (lbl) lbl.textContent = labels[val] || '';
+    document.getElementById('rating-stars').dataset.rating = val;
+};
+window._submitOrderRating = async function(orderId, bizGroupId) {
+    const rating = parseInt(document.getElementById('rating-stars')?.dataset?.rating || 0);
+    const notes = document.getElementById('rating-notes')?.value?.trim();
+    const errEl = document.getElementById('rating-err');
+    if (!rating) { if(errEl){errEl.textContent='בחר דירוג'; errEl.style.display='block';} return; }
+    const btn = document.getElementById('rating-submit-btn');
+    if(btn){btn.disabled=true; btn.textContent='שולח...';}
+    try {
+        const r = await fetch(`${API}/store/orders/${orderId}/customer-feedback`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ rating, notes, received: true, familyGroupId: currentGroup?.id })
+        }).then(r=>r.json());
+        if(r.success){
+            document.getElementById('order-rating-modal')?.remove();
+            showToast('success','תודה על הדירוג! ⭐');
+            // Update confirmation container in both tabs
+            const confirmContainer = document.getElementById(`order-confirm-${orderId}`);
+            if (confirmContainer) {
+                confirmContainer.innerHTML = `<div style="background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:6px 10px;font-size:11px;font-weight:700;color:#15803d;text-align:center;">✅ קיבלת ודירגת — תודה!</div>`;
+            }
+            // Refresh the accordion if open (with delay so user sees success message)
+            if(bizGroupId && currentGroup){
+                setTimeout(async () => {
+                    const wrapper = document.querySelector(`[data-biz-id="${bizGroupId}"]`);
+                    const accordion = wrapper?.querySelector('.biz-accordion');
+                    if(accordion){
+                        delete accordion.dataset.loaded;
+                        accordion.innerHTML='<p class="p-4 text-xs text-slate-400 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
+                        const res = await fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`).then(r=>r.json());
+                        _renderBizAccordion(accordion, res, 'restaurant');
+                    }
+                }, 1500);
+            }
+        } else {
+            if(errEl){errEl.textContent=r.error||'שגיאה';errEl.style.display='block';}
+            if(btn){btn.disabled=false;btn.textContent='שלח דירוג ⭐';}
+        }
+    } catch(e){ if(errEl){errEl.textContent='שגיאת תקשורת';errEl.style.display='block';} if(btn){btn.disabled=false;} }
+};
+
+window._tableReservationModal = function(bizGroupId, bizName) {
+    const today = new Date().toISOString().split('T')[0];
+    const modal = document.createElement('div');
+    modal.id = 'table-res-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;padding:20px;direction:rtl;';
+    modal.innerHTML = `<div style="background:white;border-radius:24px;padding:24px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <button onclick="document.getElementById('table-res-modal')?.remove()" style="background:#f1f5f9;border:none;border-radius:12px;width:32px;height:32px;cursor:pointer;font-size:16px;color:#64748b;">✕</button>
+            <div style="text-align:right;">
+                <p style="font-weight:900;font-size:15px;color:#1e293b;">🍽️ הזמנת שולחן</p>
+                <p style="font-size:11px;color:#94a3b8;">${safeStr(bizName)}</p>
+            </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <div>
+                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;text-align:right;">📅 תאריך</label>
+                <input type="date" id="tres-date" min="${today}" value="${today}"
+                    onchange="window._loadTableAvailabilityForModal(${bizGroupId}, this.value)"
+                    style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 14px;font-size:14px;box-sizing:border-box;direction:ltr;text-align:left;">
+            </div>
+            <div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                    <span id="tres-slots-label" style="font-size:11px;color:#94a3b8;"></span>
+                    <label style="font-size:11px;font-weight:700;color:#64748b;text-align:right;">🕐 בחר שעה</label>
+                </div>
+                <input type="hidden" id="tres-time">
+                <div id="tres-time-slots" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                    <p style="grid-column:1/-1;font-size:11px;color:#94a3b8;text-align:center;padding:12px 0;"><i class="fa-solid fa-spinner fa-spin"></i> טוען זמינות...</p>
+                </div>
+            </div>
+            <div>
+                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;text-align:right;">👥 מספר סועדים</label>
+                <input type="number" id="tres-guests" min="1" max="30" value="2"
+                    style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 14px;font-size:14px;box-sizing:border-box;text-align:center;">
+            </div>
+            <div>
+                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;text-align:right;">📝 הערות (אופציונלי)</label>
+                <textarea id="tres-notes" rows="2" placeholder="אלרגיות, אירוע מיוחד, העדפת ישיבה..."
+                    style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 14px;font-size:13px;resize:none;box-sizing:border-box;direction:rtl;"></textarea>
+            </div>
+            <div id="tres-err" style="display:none;color:#dc2626;font-size:12px;text-align:center;"></div>
+            <button onclick="window._submitTableReservation(${bizGroupId},'${bizName.replace(/'/g,"\\'")}',this)"
+                style="width:100%;padding:14px;background:linear-gradient(135deg,#f97316,#ea580c);color:white;border:none;border-radius:16px;font-weight:900;font-size:14px;cursor:pointer;">
+                🍽️ שלח בקשת הזמנה
+            </button>
+        </div>
+    </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+    // טעינת זמינות לתאריך היום מיד עם פתיחת ה-modal
+    window._loadTableAvailabilityForModal(bizGroupId, today);
+};
+
+window._loadTableAvailabilityForModal = async function(bizGroupId, dateStr, preSelectedTime) {
+    if (!dateStr) return;
+    const slotsEl = document.getElementById('tres-time-slots');
+    const labelEl = document.getElementById('tres-slots-label');
+    if (!slotsEl) return;
+
+    slotsEl.innerHTML = '<p style="grid-column:1/-1;font-size:11px;color:#94a3b8;text-align:center;padding:12px 0;"><i class="fa-solid fa-spinner fa-spin"></i> טוען זמינות...</p>';
+    if (labelEl) labelEl.textContent = '';
+
+    try {
+        const res = await fetch(`${API}/public/restaurants/${bizGroupId}/availability/${dateStr}`);
+        const data = await res.json();
+
+        if (!data.success || !data.slots?.length) {
+            slotsEl.innerHTML = '<p style="grid-column:1/-1;font-size:11px;color:#ef4444;text-align:center;padding:12px 0;">אין זמינות בתאריך זה</p>';
+            return;
+        }
+
+        slotsEl.innerHTML = data.slots.map(slot => {
+            const isDisabled = !slot.available;
+            const label = isDisabled ? 'תפוס' : `${slot.tables} שולחנות`;
+            const baseStyle = 'border:none;border-radius:10px;padding:8px 4px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s;line-height:1.4;';
+            const style = isDisabled
+                ? baseStyle + 'background:#f1f5f9;color:#94a3b8;cursor:not-allowed;opacity:0.7;'
+                : baseStyle + 'background:white;color:#374151;border:1.5px solid #e2e8f0;';
+            return `<button type="button" ${isDisabled ? 'disabled' : ''} data-slot="${slot.time}"
+                onclick="document.getElementById('tres-time').value='${slot.time}';window._highlightSelectedTimeModal('${slot.time}')"
+                style="${style}">
+                ${slot.time}<br><span style="font-size:9px;font-weight:500;color:${isDisabled?'#94a3b8':'#6b7280'};">${label}</span>
+            </button>`;
+        }).join('');
+
+        // אם יש שעה שנבחרה מראש (למשל ב-_acceptTableAlt) — מסמנים אותה
+        if (preSelectedTime) {
+            document.getElementById('tres-time').value = preSelectedTime;
+            window._highlightSelectedTimeModal(preSelectedTime);
+        }
+    } catch(e) {
+        slotsEl.innerHTML = '<p style="grid-column:1/-1;font-size:11px;color:#ef4444;text-align:center;padding:12px 0;">שגיאה בטעינת זמינות</p>';
+    }
+};
+
+window._highlightSelectedTimeModal = function(selectedTime) {
+    document.querySelectorAll('#tres-time-slots button').forEach(btn => {
+        if (btn.dataset.slot === selectedTime) {
+            btn.style.background = '#eff6ff';
+            btn.style.border = '2px solid #3b82f6';
+            btn.style.color = '#1d4ed8';
+        } else if (!btn.disabled) {
+            btn.style.background = 'white';
+            btn.style.border = '1.5px solid #e2e8f0';
+            btn.style.color = '#374151';
+        }
+    });
+    const labelEl = document.getElementById('tres-slots-label');
+    if (labelEl) labelEl.textContent = selectedTime ? `נבחרה: ${selectedTime}` : '';
+};
+
+window._submitTableReservation = async function(bizGroupId, bizName, btn) {
+    const date   = document.getElementById('tres-date')?.value;
+    const time   = document.getElementById('tres-time')?.value;
+    const guests = document.getElementById('tres-guests')?.value || '2';
+    const notes  = document.getElementById('tres-notes')?.value?.trim() || '';
+    const errEl  = document.getElementById('tres-err');
+    if (!date || !time) { if(errEl){errEl.textContent='נא לבחור תאריך ושעה';errEl.style.display='block';} return; }
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ שולח...'; }
+    const dateHe = new Date(date).toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
+    const title = `${currentUser?.nickname || 'לקוח'} — ${guests} סועדים`;
+    try {
+        const r = await fetch(`${API}/calendar/events`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                groupId: bizGroupId,
+                title,
+                customerPhone: currentUser?.phone || '',
+                notes: notes || null,
+                eventDate: date,
+                startTime: time,
+                status: 'pending',
+                customerGroupId: currentGroup?.id || null,
+                numGuests: parseInt(guests) || 2,
+                callType: 'table_reservation'
+            })
+        }).then(r => r.json());
+        if (r.success) {
+            const modal = document.getElementById('table-res-modal');
+            const origEventId = modal?.dataset?.origEventId;
+            modal?.remove();
+            if (origEventId) {
+                fetch(`${API}/calendar/events/${origEventId}/status`, {
+                    method: 'PUT', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ status: 'cancelled' })
+                }).catch(() => {});
+                showToast('success', r.status === 'approved' ? `ההזמנה אושרה! שולחן ${r.assignedTable} מחכה לך 🍽️✅` : 'הבקשה החדשה נשלחה וממתינה לאישור המסעדה ✅');
+            } else {
+                showToast('success', r.status === 'approved' ? `ההזמנה אושרה! שולחן ${r.assignedTable} מחכה לך 🍽️✅` : 'בקשת ההזמנה נשלחה! המסעדה תאשר בקרוב ✅');
+            }
+            // רענן accordion כדי שההזמנה תופיע מיד בצד הלקוח
+            const wrapper = document.querySelector(`[data-biz-id="${bizGroupId}"]`);
+            const accordion = wrapper?.querySelector('.biz-accordion');
+            if (accordion && currentGroup) {
+                delete accordion.dataset.loaded;
+                accordion.innerHTML = '<p class="p-4 text-xs text-slate-400 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
+                fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`)
+                    .then(r => r.json())
+                    .then(res => _renderBizAccordion(accordion, res, res.type || 'restaurant'))
+                    .catch(() => {});
+            }
+        } else { if(errEl){errEl.textContent=r.error||'שגיאה בשליחה';errEl.style.display='block';} if(btn){btn.disabled=false;btn.textContent='🍽️ שלח בקשת הזמנה';} }
+    } catch(e) { if(errEl){errEl.textContent='שגיאת תקשורת';errEl.style.display='block';} if(btn){btn.disabled=false;btn.textContent='🍽️ שלח בקשת הזמנה';} }
+};
+
+window._clientConfirmBeautyAppt = async function(apptId, action, btn) {
+    if (!currentGroup) return;
+    if (btn) { btn.disabled = true; btn.textContent = action === 'confirm' ? 'שומר...' : 'דוחה...'; }
+    try {
+        const r = await fetch(`${API}/family/${currentGroup.id}/beauty/appointments/${apptId}/client-confirm`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action })
+        }).then(r => r.json());
+        if (r.success) {
+            showToast('success', action === 'confirm' ? 'התור אושר ✅' : 'התור נדחה');
+            const wrapper = btn.closest('.biz-act-wrapper');
+            const accordion = wrapper?.querySelector('.biz-accordion');
+            const bizGroupId = wrapper?.dataset?.bizId;
+            if (accordion && bizGroupId && currentGroup) {
+                delete accordion.dataset.loaded;
+                accordion.innerHTML = '<p class="p-4 text-xs text-slate-400 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
+                const res = await fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`).then(r => r.json());
+                _renderBizAccordion(accordion, res, res.type);
+            }
+        } else { showToast('error', r.error || 'שגיאה'); if(btn){ btn.disabled=false; btn.textContent=action==='confirm'?'✅ אשר תור':'✕ דחה'; } }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); if(btn){ btn.disabled=false; } }
+};
+
+window._clientConfirmAp = (id, btn) => window._clientConfirmBeautyAppt(id, 'confirm', btn);
+window._clientRejectAp  = (id, btn) => window._clientConfirmBeautyAppt(id, 'decline', btn);
+
+// לקוח בחר שעה חלופית מתוך הזמנת שולחן שנדחתה
+window._acceptTableAlt = function(bizGroupId, bizName, dateStr, time, origEventId) {
+    document.getElementById('table-res-modal')?.remove();
+    window._tableReservationModal(parseInt(bizGroupId), bizName);
+    setTimeout(() => {
+        const dateEl = document.getElementById('tres-date');
+        if (dateEl) dateEl.value = dateStr;
+        // מסמן ה-modal כבקשה חלופית כדי לבטל האירוע הישן אחרי submit
+        const modal = document.getElementById('table-res-modal');
+        if (modal && origEventId) modal.dataset.origEventId = origEventId;
+        // טוען זמינות לתאריך החלופי + מסמן את השעה המוצעת
+        window._loadTableAvailabilityForModal(parseInt(bizGroupId), dateStr, time);
+    }, 150);
+};
+
+// לקוח דחה את כל החלופות — מסמן האירוע כ-cancelled
+window._declineAllTableAlts = async function(eventId) {
+    if (!confirm('לבטל את כל הבקשה?')) return;
+    try {
+        await fetch(`${API}/calendar/events/${eventId}/status`, {
+            method: 'PUT', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ status: 'cancelled' })
+        });
+        showToast('info', 'הבקשה בוטלה');
+        // רענן accordion
+        const acc = document.querySelector('.biz-accordion');
+        if (acc) { delete acc.dataset.loaded; acc.click?.(); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._bizSortAppts = function(btn) {
+    const acc = btn.closest('.biz-accordion');
+    if (!acc?._rawData) return;
+    const dir = btn.dataset.dir;
+    // toggle pill colors
+    acc.querySelectorAll('.biz-sort-btn').forEach(b => {
+        b.className = b.className.replace('bg-indigo-600 text-white border-indigo-600', 'bg-white text-slate-500 border-slate-200');
+    });
+    btn.className = btn.className.replace('bg-white text-slate-500 border-slate-200', 'bg-indigo-600 text-white border-indigo-600');
+    const listEl = acc.querySelector('.biz-appt-list');
+    if (!listEl) return;
+    const act = acc._rawData.activity || {};
+    const appts = act.appointments || [];
+    const calEvts = act.calendarEvents || [];
+    const fmtDT = d => d ? new Date(d).toLocaleString('he-IL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+    const ref = id => `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>`;
+    const sLabel = { completed:'הושלם', cancelled:'בוטל', pending:'ממתין', confirmed:'מאושר', scheduled:'מתוכנן', no_show:'לא הגיע' };
+    const sColor = a => a.status==='completed'?'bg-green-100 text-green-700':a.status==='cancelled'?'bg-red-100 text-red-600':'bg-blue-100 text-blue-700';
+    let active = appts.filter(a => a.status !== 'pending_client');
+    let approved = calEvts.filter(e => e.status === 'approved' || e.status === 'done');
+    if (dir === 'asc') { active = [...active].reverse(); approved = [...approved].reverse(); }
+    listEl.innerHTML = active.map(a => {
+        const seg = a.segments?.[0];
+        return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+            <div class="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center text-sm shrink-0">📅</div>
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-slate-700 truncate">${seg?.service_name||'טיפול'}${ref(a.id)}</p>
+                <p class="text-[10px] text-slate-400">${fmtDT(a.start_time||a.created_at)}</p>
+            </div>
+            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${sColor(a)}">${sLabel[a.status]||a.status}</span>
+        </div>`;
+    }).join('') + approved.map(e => {
+        const dt = new Date(e.event_date).toLocaleDateString('he-IL') + ' ' + (e.start_time||'').slice(0,5);
+        return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+            <div class="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center text-sm shrink-0">📅</div>
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-slate-700 truncate">${e.service_name||e.title||'תור'}${ref(e.id)}</p>
+                <p class="text-[10px] text-slate-400">${dt}${e.duration_mins?' · '+e.duration_mins+' דק':''}</p>
+            </div>
+            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">מאושר</span>
+        </div>`;
+    }).join('') || '<p class="text-xs text-slate-400 text-center py-3">אין תורים</p>';
+};
+
+window._bizSortList = function(btn) {
+    const acc = btn.closest('.biz-accordion');
+    if (!acc?._rawData || !acc?._listRenderers) return;
+    const dir       = btn.dataset.dir;
+    const listCls   = btn.dataset.list;
+    const dataKey   = btn.dataset.key;
+    const dateField = btn.dataset.date;
+    acc.querySelectorAll('.biz-sort-btn').forEach(b => {
+        b.className = b.className.replace('bg-indigo-600 text-white border-indigo-600', 'bg-white text-slate-500 border-slate-200');
+    });
+    btn.className = btn.className.replace('bg-white text-slate-500 border-slate-200', 'bg-indigo-600 text-white border-indigo-600');
+    const listEl = acc.querySelector('.' + listCls);
+    if (!listEl) return;
+    const renderer = acc._listRenderers[dataKey];
+    if (!renderer) return;
+    const items = [...((acc._rawData.activity || {})[dataKey] || [])];
+    items.sort((a, b) => {
+        const da = new Date(a[dateField] || 0).getTime();
+        const db = new Date(b[dateField] || 0).getTime();
+        return dir === 'asc' ? da - db : db - da;
+    });
+    listEl.innerHTML = items.map(renderer).join('') ||
+        '<p class="text-xs text-slate-400 text-center py-3">אין פריטים</p>';
+};
+
+// ─── BIZ ACCORDION ────────────────────────────────────────────────────────────
+
+window._toggleBizAccordion = async function(btn, bizGroupId, bizType) {
+    const wrapper = btn.closest('.biz-act-wrapper');
+    if (!wrapper) return;
+    const accordion = wrapper.querySelector('.biz-accordion');
+    if (!accordion) return;
+    const chevron = btn.querySelector('i');
+    const isOpen = !accordion.classList.contains('hidden');
+    if (isOpen) {
+        accordion.classList.add('hidden');
+        if (chevron) { chevron.classList.remove('fa-chevron-up'); chevron.classList.add('fa-chevron-down'); }
+        return;
+    }
+    accordion.classList.remove('hidden');
+    if (chevron) { chevron.classList.remove('fa-chevron-down'); chevron.classList.add('fa-chevron-up'); }
+    const loadedAt = accordion.dataset.loaded ? parseInt(accordion.dataset.loaded) : 0;
+    if (Date.now() - loadedAt < 30000) return; // cache 30s
+    accordion.dataset.loaded = String(Date.now());
+    try {
+        const r = await fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`).then(r => r.json());
+        _renderBizAccordion(accordion, r, bizType);
+        // Show badge if there are pending_client appointments
+        const pendingCount = (r.activity?.appointments || []).filter(a => a.status === 'pending_client').length;
+        const badge = document.getElementById(`biz-appt-pending-badge-${bizGroupId}`);
+        if (badge) pendingCount > 0 ? badge.classList.remove('hidden') : badge.classList.add('hidden');
+    } catch(e) {
+        accordion.innerHTML = '<p class="p-4 text-xs text-red-500 text-center">שגיאה בטעינת ההיסטוריה</p>';
+    }
+};
+
+function _renderBizAccordion(el, data, bizType) {
+    const act = data.activity || {};
+    const fmtDate = d => d ? new Date(d).toLocaleDateString('he-IL', { day:'2-digit', month:'2-digit', year:'numeric' }) : '—';
+    const fmtDateTime = d => d ? new Date(d).toLocaleString('he-IL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+
+    // Build tabs + items per type
+    const tabs = [];
+    const sections = {};
+    const listRenderers = {};
+
+    if (bizType === 'beauty') {
+        const appts = act.appointments || [];
+        const rfqs  = act.rfqs || [];
+        const allCalEvts = act.calendarEvents || [];
+        const approvedCalEvts = allCalEvts.filter(e => e.status === 'approved' || e.status === 'done');
+        const pendingAppts = appts.filter(a => a.status === 'pending_client');
+        const activeAppts  = appts.filter(a => a.status !== 'pending_client');
+        const apptStatusLabel = { completed:'הושלם', cancelled:'בוטל', pending:'ממתין', confirmed:'מאושר', scheduled:'מתוכנן', no_show:'לא הגיע' };
+        const apptStatusColor = a => a.status==='completed'?'bg-green-100 text-green-700':a.status==='cancelled'?'bg-red-100 text-red-600':'bg-blue-100 text-blue-700';
+        const apptRef = id => `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>`;
+        const renderApptRow = a => {
+            const seg = a.segments?.[0];
+            return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                <div class="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center text-sm shrink-0">📅</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-700 truncate">${seg?.service_name || 'טיפול'}${apptRef(a.id)}</p>
+                    <p class="text-[10px] text-slate-400">${fmtDateTime(a.start_time || a.created_at)}</p>
+                </div>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${apptStatusColor(a)}">${apptStatusLabel[a.status]||a.status}</span>
+            </div>`;
+        };
+        const renderApprovedCalRow = e => {
+            const dt = new Date(e.event_date).toLocaleDateString('he-IL') + ' ' + (e.start_time||'').slice(0,5);
+            return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                <div class="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center text-sm shrink-0">📅</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-700 truncate">${e.service_name || e.title || 'תור'}${apptRef(e.id)}</p>
+                    <p class="text-[10px] text-slate-400">${dt}${e.duration_mins?' · '+e.duration_mins+' דק':''}</p>
+                </div>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">מאושר</span>
+            </div>`;
+        };
+        const renderPendingRow = a => {
+            const seg = a.segments?.[0];
+            const dt = fmtDateTime(a.start_time || a.created_at);
+            return `<div class="rounded-xl border border-amber-200 bg-amber-50 p-3 mb-2">
+                <div class="flex items-start justify-between gap-2 mb-2">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-black text-slate-800 truncate">${seg?.service_name || 'טיפול'}${apptRef(a.id)}</p>
+                        <p class="text-[10px] text-slate-500">${dt}</p>
+                    </div>
+                    <span class="text-[9px] font-black bg-amber-400 text-white px-1.5 py-0.5 rounded-full shrink-0">⏳ ממתין לאישורך</span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="window._clientConfirmAp(${a.id},this)" class="flex-1 bg-green-500 text-white text-[11px] font-black py-1.5 rounded-lg hover:bg-green-600 transition active:scale-95">✅ אשר תור</button>
+                    <button onclick="window._clientRejectAp(${a.id},this)" class="flex-1 bg-slate-200 text-slate-600 text-[11px] font-black py-1.5 rounded-lg hover:bg-red-100 hover:text-red-600 transition active:scale-95">✕ דחה</button>
+                </div>
+            </div>`;
+        };
+        const totalAppts = activeAppts.length + approvedCalEvts.length;
+        const pendingLabel = pendingAppts.length > 0 ? `בקשות תור (${pendingAppts.length}) 🔔` : 'בקשות תור';
+        tabs.push({ id:'all', label:'הכל' }, { id:'cal_evts', label: pendingLabel }, { id:'appts', label:`תורים (${totalAppts})` }, { id:'rfqs', label:`ייעוץ (${rfqs.length})` });
+        // appts section: sort pills + list
+        const buildApptHtml = (sortDir) => {
+            let rows = [...activeAppts];
+            let calRows = [...approvedCalEvts];
+            if (sortDir === 'asc') { rows.reverse(); calRows.reverse(); }
+            return rows.map(renderApptRow).join('') + calRows.map(renderApprovedCalRow).join('');
+        };
+        const sortControls = `<div class="flex gap-1.5 mb-2">
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-indigo-600 text-white border-indigo-600 transition" data-dir="desc" onclick="window._bizSortAppts(this)">חדש ראשון</button>
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-white text-slate-500 border-slate-200 transition" data-dir="asc" onclick="window._bizSortAppts(this)">ישן ראשון</button>
+        </div>`;
+        const apptHtml = totalAppts > 0
+            ? sortControls + `<div class="biz-appt-list">${buildApptHtml('desc')}</div>`
+            : '<p class="text-xs text-slate-400 text-center py-3">אין תורים</p>';
+        const pendingHtml = pendingAppts.length > 0
+            ? pendingAppts.map(renderPendingRow).join('')
+            : '<p class="text-xs text-slate-400 text-center py-3">אין בקשות ממתינות</p>';
+        const rfqHtml = rfqs.length ? rfqs.map(r => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                <div class="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center text-sm shrink-0">💌</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-700 truncate">${r.service_description || 'פנייה'}</p>
+                    <p class="text-[10px] text-slate-400">${fmtDate(r.created_at)}</p>
+                </div>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">${r.status||''}</span>
+            </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין פניות ייעוץ</p>';
+        sections.cal_evts = pendingHtml;
+        sections.appts = apptHtml;
+        sections.rfqs  = rfqHtml;
+        sections.all   = (totalAppts + rfqs.length + pendingAppts.length === 0) ? '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>' : pendingHtml + apptHtml + rfqHtml;
+
+    } else if (bizType === 'sport' || bizType === 'gym') {
+        const mems   = act.memberships || [];
+        const checks = act.checkins || [];
+        const _ref = id => id ? `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>` : '';
+        const renderMem = m => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-sm shrink-0">💳</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-700">${m.type_name || 'מנוי'}${_ref(m.id)}</p>
+                    <p class="text-[10px] text-slate-400">${fmtDate(m.start_date)} – ${fmtDate(m.end_date)}</p>
+                </div>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${m.status==='active'?'bg-green-100 text-green-700':'bg-slate-100 text-slate-500'}">${m.status==='active'?'פעיל':'לא פעיל'}</span>
+            </div>`;
+        listRenderers.memberships = renderMem;
+        tabs.push({ id:'all', label:'הכל' }, { id:'membership', label:`מנוי (${mems.length})` }, { id:'checkins', label:`כניסות (${checks.length})` });
+        const memSortControls = `<div class="flex gap-1.5 mb-2">
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-indigo-600 text-white border-indigo-600 transition" data-dir="desc" data-list="biz-mem-list" data-key="memberships" data-date="start_date" onclick="window._bizSortList(this)">חדש ראשון</button>
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-white text-slate-500 border-slate-200 transition" data-dir="asc" data-list="biz-mem-list" data-key="memberships" data-date="start_date" onclick="window._bizSortList(this)">ישן ראשון</button>
+        </div>`;
+        const memHtml = mems.length
+            ? memSortControls + `<div class="biz-mem-list">${mems.map(renderMem).join('')}</div>`
+            : '<p class="text-xs text-slate-400 text-center py-3">אין מנוי</p>';
+        const checkHtml = checks.length ? checks.map(c => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                <div class="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center text-sm shrink-0">✅</div>
+                <p class="text-xs text-slate-600 flex-1">${fmtDateTime(c.checked_in_at)}</p>
+            </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין כניסות</p>';
+        sections.membership = memHtml;
+        sections.checkins   = checkHtml;
+        sections.all = (mems.length + checks.length === 0) ? '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>' : memHtml + checkHtml;
+
+    } else if (bizType === 'restaurant' || bizType === 'services') {
+        const orders = act.orders || [];
+        const quotes = act.quotes || [];
+        const tableRes = (act.tableReservations || []);
+        const _ref = id => id ? `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>` : '';
+        const _ordStatus = { pending_approval:'ממתין לאישור ⏳', new:'חדש 🔴', confirmed:'אושר', processing:'בהכנה 🍳', ready:'מוכן לאיסוף ✅', shipped:'בדרך אליך 🛵', delivering:'בדרך אליך 🛵', done:'הושלם ✅', completed:'סופק ✅', cancelled:'בוטל ❌', pending:'ממתין' };
+        const _ordStatusColor = s => s==='done'||s==='completed'?'bg-green-100 text-green-700':s==='cancelled'?'bg-red-100 text-red-600':s==='ready'?'bg-orange-100 text-orange-700':s==='shipped'?'bg-purple-100 text-purple-700':s==='processing'||s==='confirmed'?'bg-blue-100 text-blue-700':s==='pending_approval'?'bg-yellow-100 text-yellow-700':'bg-slate-100 text-slate-600';
+        const isDelivery = o => !!(o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true');
+        const isConfirmable = o => !o.customer_rating && (o.status === 'completed' || o.status === 'shipped') && isDelivery(o);
+        const canRateNonDelivery = o => !o.customer_rating && (o.status === 'completed' || o.status === 'shipped') && !isDelivery(o);
+        const ratingStars = o => o.customer_rating ? '⭐'.repeat(o.customer_rating) : '';
+        const renderOrd = o => {
+            console.log('[activities accordion] Rendering order:', { id: o.id, status: o.status });
+            const detId = `biz-ord-det-${o.id}`;
+            let itemsArr = [];
+            try { itemsArr = Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]'); } catch(e) {}
+            itemsArr = (itemsArr||[]).filter(i => i && (i.name||i.item_name));
+            const itemsHtml = itemsArr.length
+                ? itemsArr.map(i => `<div class="flex justify-between items-center py-0.5"><span class="text-slate-600">${safeStr(i.name||i.item_name)}</span><span class="text-slate-400 dir-ltr">×${i.qty||i.quantity||1}${parseFloat(i.price||0)>0?' ₪'+(parseFloat(i.price)*(parseFloat(i.qty||i.quantity||1))).toFixed(0):''}</span></div>`).join('')
+                : '';
+            const bizId = el.closest('[data-biz-id]')?.dataset?.bizId||'';
+            const hasDetail = !!(itemsHtml || o.notes || isConfirmable(o) || canRateNonDelivery(o));
+            const confirmUI = isConfirmable(o)
+                ? `<div id="order-confirm-${o.id}" class="mt-1.5 bg-slate-50 border border-slate-200 rounded-lg p-2">
+                    <p class="text-[10px] font-bold text-slate-600 text-center mb-1.5">קיבלת את ההזמנה?</p>
+                    <div class="flex gap-1.5">
+                        <button onclick="event.stopPropagation();confirmOrderReceipt(${o.id},false)" style="flex:1;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:5px 4px;font-size:10px;font-weight:800;cursor:pointer;">❌ לא קיבלתי</button>
+                        <button onclick="event.stopPropagation();confirmOrderReceipt(${o.id},true)" style="flex:1;background:#dcfce7;color:#15803d;border:none;border-radius:8px;padding:5px 4px;font-size:10px;font-weight:800;cursor:pointer;">✅ כן, קיבלתי</button>
+                    </div>
+                  </div>`
+                : (o.customer_rating
+                    ? `<div class="mt-1.5 text-center text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 rounded-lg p-1.5">✅ קיבלת ודירגת — תודה!</div>`
+                    : (canRateNonDelivery(o)
+                        ? `<div class="mt-1.5"><button onclick="event.stopPropagation();window._orderRatingModal(${o.id},'${bizId}')" class="text-[10px] font-black bg-yellow-50 border border-yellow-200 text-yellow-700 px-2.5 py-1 rounded-lg hover:bg-yellow-100 transition">⭐ דרג את ההזמנה</button></div>`
+                        : ''));
+            return `<div class="border-b border-slate-50 last:border-0">
+                <div class="flex items-center gap-2 py-2 ${hasDetail?'cursor-pointer':''}" ${hasDetail?`onclick="const d=document.getElementById('${detId}');if(d){d.classList.toggle('hidden');}"`:''}>
+                    <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-sm shrink-0">🛒</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold text-slate-700">הזמנה${_ref(o.id)} <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${isDelivery(o)?'bg-indigo-50 text-indigo-600':'bg-green-50 text-green-700'}">${isDelivery(o)?'🛵 משלוח':'🏃 איסוף עצמי'}</span>${ratingStars(o)?` <span class="text-yellow-500">${ratingStars(o)}</span>`:''}</p>
+                        <p class="text-[10px] text-slate-400">${fmtDate(o.created_at)}${parseFloat(o.total_price||0)>0?' · ₪'+parseFloat(o.total_price).toFixed(0):''}${itemsArr.length?' · '+itemsArr.length+' פריטים':''}</p>
+                    </div>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${_ordStatusColor(o.status)}">${_ordStatus[o.status]||o.status||''}</span>
+                    ${hasDetail?'<span class="text-slate-300 text-[10px]">▼</span>':''}
+                </div>
+                ${hasDetail?`<div id="${detId}" class="hidden pb-2 pr-2">
+                    ${itemsHtml?`<div class="bg-slate-50 rounded-lg p-2 text-[10px] mb-1.5">${itemsHtml}</div>`:''}
+                    ${o.notes?`<p class="text-[10px] text-slate-500 truncate">📝 ${safeStr(o.notes)}</p>`:''}
+                    ${confirmUI}
+                </div>`:''}
+            </div>`;
+        };
+        const _quoteStatusMap = {
+            'waiting_customer': 'בהמתנה ללקוח',
+            'waiting_approval': 'בהמתנה לאישור',
+            'rejected': 'נדחה',
+            'approved': 'אושרה',
+            'converted_to_order': 'הומרה להזמנה',
+            'cancelled': 'בוטלה',
+            'accepted': 'התקבלה',
+            'quote': 'טיוטה'
+        };
+        const _quoteStatusColor = s => {
+            const status = (s || '').toLowerCase();
+            if (status.includes('waiting_customer') || status.includes('בהמתנה')) return 'bg-blue-100 text-blue-700';
+            if (status.includes('rejected') || status.includes('נדחה')) return 'bg-red-100 text-red-700';
+            if (status.includes('approved') || status.includes('אושרה')) return 'bg-green-100 text-green-700';
+            if (status.includes('converted') || status.includes('הומרה')) return 'bg-purple-100 text-purple-700';
+            return 'bg-yellow-100 text-yellow-700';
+        };
+        const renderQuote = q => {
+            const statusVal = q.quote_status || q.status || 'quote';
+            const displayStatus = _quoteStatusMap[statusVal] || statusVal;
+            const colorClass = _quoteStatusColor(statusVal);
+            return `<div onclick="window._openQuoteFromActivity(${q.id})" class="flex items-center gap-2 py-2 px-2 border-b border-slate-50 last:border-0 hover:bg-yellow-50 cursor-pointer rounded transition">
+                <div class="w-8 h-8 rounded-lg bg-yellow-50 flex items-center justify-center text-sm shrink-0">📋</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-700">הצעה${_ref(q.id)}</p>
+                    <p class="text-[10px] text-slate-400">${fmtDate(q.created_at)}</p>
+                </div>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${colorClass}">${displayStatus}</span>
+            </div>`;
+        };
+        listRenderers.orders = renderOrd;
+        listRenderers.quotes = renderQuote;
+        const pendingRes = tableRes.filter(r => r.status === 'pending');
+        const resLabel = pendingRes.length > 0 ? `שולחנות (${tableRes.length}) 🔔` : `שולחנות (${tableRes.length})`;
+        tabs.push({ id:'all', label:'הכל' }, { id:'reservations', label: resLabel }, { id:'orders', label:`הזמנות (${orders.length})` }, { id:'quotes', label:`הצעות (${quotes.length})` });
+        const ordSortControls = `<div class="flex gap-1.5 mb-2">
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-indigo-600 text-white border-indigo-600 transition" data-dir="desc" data-list="biz-ord-list" data-key="orders" data-date="created_at" onclick="window._bizSortList(this)">חדש ראשון</button>
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-white text-slate-500 border-slate-200 transition" data-dir="asc" data-list="biz-ord-list" data-key="orders" data-date="created_at" onclick="window._bizSortList(this)">ישן ראשון</button>
+        </div>`;
+        const ordHtml = orders.length
+            ? ordSortControls + `<div class="biz-ord-list">${orders.map(renderOrd).join('')}</div>`
+            : '<p class="text-xs text-slate-400 text-center py-3">אין הזמנות</p>';
+        const qHtml = quotes.length
+            ? `<div class="biz-quote-list">${quotes.map(renderQuote).join('')}</div>`
+            : '<p class="text-xs text-slate-400 text-center py-3">אין הצעות</p>';
+        const _resStatusColor = s => s==='approved'?'bg-green-100 text-green-700':s==='pending'?'bg-amber-100 text-amber-700':s==='rejected'?'bg-red-100 text-red-600':'bg-slate-100 text-slate-500';
+        const _resStatusLabel = s => ({approved:'אושר ✅', pending:'ממתין לאישור ⏳', cancelled:'בוטל', rejected:'נדחה ❌'}[s]||s||'');
+        const renderRes = r => {
+            const dt = r.event_date ? new Date(String(r.event_date).split('T')[0]+'T12:00:00').toLocaleDateString('he-IL', {weekday:'short',day:'numeric',month:'numeric'}) : '';
+            const tm = r.start_time ? String(r.start_time).slice(0,5) : '';
+            const tableInfo = r.reserved_table_number ? ` · שולחן ${r.reserved_table_number}` : '';
+            const dateStr = r.event_date ? String(r.event_date).split('T')[0] : '';
+            const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+            const isToday = dateStr === todayStr;
+            const wrapperCls = isToday
+                ? 'border-b border-orange-100 last:border-0 bg-orange-50 rounded-xl mx-0.5 mb-1'
+                : 'border-b border-slate-50 last:border-0';
+            const iconCls = isToday ? 'bg-orange-100' : 'bg-amber-50';
+            const todayBadge = isToday ? '<span class="text-[9px] font-black text-white bg-orange-500 px-1.5 py-0.5 rounded-full mr-1">היום!</span>' : '';
+            // חלופות: כשנדחה והמסעדה שלחה אפשרויות אחרות
+            let altsHtml = '';
+            if (r.status === 'rejected') {
+                let alts = [];
+                try { alts = Array.isArray(r.alternatives_json) ? r.alternatives_json : JSON.parse(r.alternatives_json || '[]'); } catch(e2) {}
+                if (alts.length) {
+                    const bizId = el.closest('[data-biz-id]')?.dataset?.bizId || '';
+                    const bizName = el.closest('[data-biz-id]')?.dataset?.bizName || '';
+                    altsHtml = `<div class="mt-2 pt-2 border-t border-red-100">
+                        <p class="text-[10px] font-bold text-slate-600 mb-1.5">⏰ בחר מועד חלופי:</p>
+                        <div class="flex flex-wrap gap-1.5">
+                            ${alts.map(t => `<button onclick="window._acceptTableAlt('${bizId}','${bizName}','${dateStr}','${t}',${r.id})" class="text-[11px] font-bold bg-amber-50 border border-amber-300 text-amber-700 px-3 py-1.5 rounded-full hover:bg-amber-100 transition active:scale-95">${t}</button>`).join('')}
+                            <button onclick="window._declineAllTableAlts(${r.id})" class="text-[11px] font-bold bg-slate-100 border border-slate-200 text-slate-500 px-3 py-1.5 rounded-full hover:bg-red-50 hover:text-red-500 transition">✕ לא מתאים</button>
+                        </div>
+                    </div>`;
+                }
+            }
+            const hasDetails = !!altsHtml || !!r.notes;
+            const detailId = `res-detail-${r.id}`;
+            const chevron = hasDetails ? `<span class="text-slate-300 text-[10px] transition-transform" id="res-chev-${r.id}">▼</span>` : '';
+            return `<div class="${wrapperCls}">
+                <div class="flex items-center gap-2 py-2 ${isToday ? 'px-2' : ''} cursor-pointer" onclick="window._toggleResDetail('${detailId}','res-chev-${r.id}')">
+                    <div class="w-8 h-8 rounded-lg ${iconCls} flex items-center justify-center text-sm shrink-0">${isToday ? '🗓️' : '🍽️'}</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold ${isToday ? 'text-orange-700' : 'text-slate-700'}">${todayBadge}${dt} ${tm}${tableInfo}${_ref(r.id)}</p>
+                        <p class="text-[10px] ${isToday ? 'text-orange-500' : 'text-slate-400'}">${r.num_guests ? r.num_guests + ' סועדים' : ''}${r.notes ? ' · ' + r.notes : ''}</p>
+                    </div>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${_resStatusColor(r.status)}">${_resStatusLabel(r.status)}</span>
+                    ${chevron}
+                </div>
+                ${altsHtml ? `<div id="${detailId}" class="hidden pb-2 ${isToday ? 'px-2' : ''}">${altsHtml}</div>` : ''}
+            </div>`;
+        };
+        window._toggleResDetail = function(detailId, chevId) {
+            const det = document.getElementById(detailId);
+            const chev = document.getElementById(chevId);
+            if (!det) return;
+            det.classList.toggle('hidden');
+            if (chev) chev.style.transform = det.classList.contains('hidden') ? '' : 'rotate(180deg)';
+        };
+        const resHtml = tableRes.length
+            ? `<div>${tableRes.map(renderRes).join('')}</div>`
+            : '<p class="text-xs text-slate-400 text-center py-3">אין הזמנות שולחן</p>';
+        sections.reservations = resHtml;
+        sections.orders = ordHtml;
+        sections.quotes = qHtml;
+        sections.all = (orders.length + quotes.length + tableRes.length === 0) ? '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>' : resHtml + ordHtml + qHtml;
+
+    } else if (bizType === 'maintenance_repair') {
+        const calls = act.serviceCalls || [];
+        const workOrders = act.workOrders || [];
+        const _ref = id => id ? `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>` : '';
+        const _callStatusMap = {new:'חדש',scheduled:'נקבע',processing:'בטיפול',in_progress:'בטיפול',done:'הושלם',cancelled:'בוטל',quote:'הצעה',pending_payment:'ממתין תשלום',pending_parts:'ממתין חלקים'};
+        const renderCall = c => {
+            const payments = Array.isArray(c.payments) ? c.payments : [];
+            const totalCharged = payments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+            const totalReceived = payments.reduce((s, p) => s + parseFloat(p.received_amount || (p.status === 'received' ? p.amount : 0) || 0), 0);
+            const statusColor = c.status==='done' ? 'bg-green-100 text-green-700' : c.status==='cancelled' ? 'bg-red-100 text-red-600' : c.payment_status==='pending_payment'||c.payment_status==='partial' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700';
+            const statusLabel = c.payment_status === 'paid' ? 'שולם' : c.payment_status === 'partial' ? 'שולם חלקית' : c.payment_status === 'pending_payment' ? 'ממתין תשלום' : _callStatusMap[c.status]||c.status||'';
+            let milestoneRows = '';
+            if (payments.length > 0) {
+                milestoneRows = `<div class="bg-slate-50 rounded-lg px-2 py-1 mt-1 space-y-0">${payments.map(p => {
+                    const isPaid = p.status === 'received';
+                    const dueStr = p.due_date ? new Date(p.due_date).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'}) : '';
+                    return `<div class="flex items-center gap-1 py-0.5">
+                        <span class="text-[10px] ${isPaid?'text-green-600':'text-slate-400'}">${isPaid?'✅':'⏳'}</span>
+                        <span class="text-[10px] text-slate-600 flex-1">${p.milestone_name||'תחנת תשלום'}</span>
+                        <span class="text-[10px] font-bold ${isPaid?'text-green-700':'text-slate-700'}">₪${parseFloat(p.amount||0).toLocaleString('he-IL',{maximumFractionDigits:0})}</span>
+                        ${dueStr?`<span class="text-[9px] text-slate-400 mr-1">${dueStr}</span>`:''}
+                    </div>`;
+                }).join('')}</div>`;
+            }
+            return `<div class="py-2 border-b border-slate-50 last:border-0">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-sm shrink-0">🔧</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold text-slate-700 truncate">${c.issue_description||c.title||'קריאת שירות'}${_ref(c.id)}</p>
+                        <p class="text-[10px] text-slate-400">${fmtDate(c.created_at)}</p>
+                    </div>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statusColor}">${statusLabel}</span>
+                </div>
+                ${totalCharged > 0 ? `<div class="mr-10 mt-0.5">
+                    <div class="flex items-center gap-3 text-[10px] text-slate-500">
+                        <span>חויב: <b class="text-slate-700">₪${totalCharged.toLocaleString('he-IL',{maximumFractionDigits:0})}</b></span>
+                        <span>שולם: <b class="text-green-700">₪${totalReceived.toLocaleString('he-IL',{maximumFractionDigits:0})}</b></span>
+                    </div>
+                    ${milestoneRows}
+                </div>` : ''}
+            </div>`;
+        };
+        const renderWorkOrder = wo => {
+            const payments = Array.isArray(wo.payments) ? wo.payments : [];
+            const totalCharged = parseFloat(wo.total_amount || 0);
+            const totalReceived = payments.reduce((s, p) => s + parseFloat(p.received_amount || (p.status === 'received' ? p.amount : 0) || 0), 0);
+            const woStatusMap = {processing:'בטיפול',done:'הושלם',cancelled:'בוטל',pending_payment:'ממתין תשלום'};
+            const woStatusLabel = woStatusMap[wo.payment_status] || woStatusMap[wo.status] || wo.status || '';
+            const woStatusColor = wo.payment_status === 'paid' || wo.status === 'done' ? 'bg-green-100 text-green-700' : wo.payment_status === 'pending_payment' || wo.payment_status === 'partial' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700';
+            const paymentStatusLabel = wo.payment_status === 'paid' ? 'שולם במלואו' : wo.payment_status === 'partial' ? 'שולם חלקית' : wo.payment_status === 'pending_payment' ? 'ממתין לתשלום' : '';
+            let milestoneRows = '';
+            if (payments.length > 0) {
+                milestoneRows = payments.map(p => {
+                    const isPaid = p.status === 'received';
+                    const dueStr = p.due_date ? new Date(p.due_date).toLocaleDateString('he-IL', {day:'2-digit',month:'2-digit'}) : '';
+                    return `<div class="flex items-center gap-1 py-0.5">
+                        <span class="text-[10px] ${isPaid ? 'text-green-600' : 'text-slate-500'}">${isPaid ? '✅' : '⏳'}</span>
+                        <span class="text-[10px] text-slate-600 flex-1">${p.milestone_name||'תחנת תשלום'}</span>
+                        <span class="text-[10px] font-bold ${isPaid ? 'text-green-700' : 'text-slate-700'}">₪${parseFloat(p.amount||0).toLocaleString('he-IL',{maximumFractionDigits:0})}</span>
+                        ${dueStr ? `<span class="text-[9px] text-slate-400 mr-1">${dueStr}</span>` : ''}
+                    </div>`;
+                }).join('');
+            }
+            return `<div class="py-2 border-b border-slate-50 last:border-0">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-sm shrink-0">📋</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold text-slate-700 truncate">${wo.quote_title||'פקודת עבודה'}${_ref(wo.id)}</p>
+                        <p class="text-[10px] text-slate-400">${fmtDate(wo.created_at)}</p>
+                    </div>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${woStatusColor}">${woStatusLabel}</span>
+                </div>
+                ${totalCharged > 0 ? `<div class="mr-10 mt-1">
+                    <div class="flex items-center gap-3 text-[10px] text-slate-500 mb-1">
+                        <span>סה"כ: <b class="text-slate-700">₪${totalCharged.toLocaleString('he-IL',{maximumFractionDigits:0})}</b></span>
+                        <span>שולם: <b class="text-green-700">₪${totalReceived.toLocaleString('he-IL',{maximumFractionDigits:0})}</b></span>
+                        ${paymentStatusLabel ? `<span class="text-amber-600 font-bold">${paymentStatusLabel}</span>` : ''}
+                    </div>
+                    ${milestoneRows ? `<div class="bg-slate-50 rounded-lg px-2 py-1 space-y-0">${milestoneRows}</div>` : ''}
+                </div>` : ''}
+            </div>`;
+        };
+        listRenderers.serviceCalls = renderCall;
+        listRenderers.workOrders = renderWorkOrder;
+        tabs.push({ id:'all', label:'הכל' }, { id:'calls', label:`קריאות (${calls.length})` });
+        if (workOrders.length) tabs.push({ id:'workorders', label:`פקודות עבודה (${workOrders.length})` });
+        const callSortControls = `<div class="flex gap-1.5 mb-2">
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-indigo-600 text-white border-indigo-600 transition" data-dir="desc" data-list="biz-calls-list" data-key="serviceCalls" data-date="created_at" onclick="window._bizSortList(this)">חדש ראשון</button>
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-white text-slate-500 border-slate-200 transition" data-dir="asc" data-list="biz-calls-list" data-key="serviceCalls" data-date="created_at" onclick="window._bizSortList(this)">ישן ראשון</button>
+        </div>`;
+        const callsHtml = calls.length
+            ? callSortControls + `<div class="biz-calls-list">${calls.map(renderCall).join('')}</div>`
+            : '<p class="text-xs text-slate-400 text-center py-3">אין קריאות שירות</p>';
+        const woHtml = workOrders.length
+            ? `<div class="biz-workorders-list">${workOrders.map(renderWorkOrder).join('')}</div>`
+            : '<p class="text-xs text-slate-400 text-center py-3">אין פקודות עבודה</p>';
+        sections.calls = callsHtml;
+        sections.workorders = woHtml;
+        const allCombined = (calls.length === 0 && workOrders.length === 0)
+            ? '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>'
+            : (calls.length ? callsHtml : '') + (workOrders.length ? `<div class="mt-2">${woHtml}</div>` : '');
+        sections.all = allCombined;
+
+    } else if (bizType === 'logistics') {
+        const orders = act.logisticsOrders || [];
+        const _ref = id => id ? `<span class="text-[9px] font-mono text-slate-300 ml-1">#${String(id).padStart(4,'0')}</span>` : '';
+        const _logStatusLabel = s => ({new:'חדש',confirmed:'אושר',assigned:'שויך',picked_up:'נאסף',in_transit:'בדרך',arrived:'הגיע',delivered:'נמסר',partial:'חלקי',failed_attempt:'לא ענה',returned:'הוחזר',cancelled:'בוטל',pending_quote:'ממתין הצעה',quote_sent:'הצעה נשלחה'}[s]||s||'');
+        const renderLogOrd = o => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-sm shrink-0">📦</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-700">${o.order_number ? o.order_number : ''}${_ref(o.id)}</p>
+                    <p class="text-[10px] text-slate-400">${o.delivery_address||''} · ${fmtDate(o.created_at)}</p>
+                </div>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">${_logStatusLabel(o.status)}</span>
+            </div>`;
+        listRenderers.logisticsOrders = renderLogOrd;
+        tabs.push({ id:'all', label:'הכל' }, { id:'orders', label:`משלוחים (${orders.length})` });
+        const logSortControls = `<div class="flex gap-1.5 mb-2">
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-indigo-600 text-white border-indigo-600 transition" data-dir="desc" data-list="biz-log-list" data-key="logisticsOrders" data-date="created_at" onclick="window._bizSortList(this)">חדש ראשון</button>
+            <button class="biz-sort-btn text-[10px] font-bold px-2 py-1 rounded-full border bg-white text-slate-500 border-slate-200 transition" data-dir="asc" data-list="biz-log-list" data-key="logisticsOrders" data-date="created_at" onclick="window._bizSortList(this)">ישן ראשון</button>
+        </div>`;
+        const ordHtml = orders.length
+            ? logSortControls + `<div class="biz-log-list">${orders.map(renderLogOrd).join('')}</div>`
+            : '<p class="text-xs text-slate-400 text-center py-3">אין משלוחים</p>';
+        sections.orders = ordHtml;
+        sections.all    = orders.length ? ordHtml : '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>';
+
+    } else {
+        tabs.push({ id:'all', label:'הכל' });
+        sections.all = '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>';
+    }
+
+    // Log tab — unified timeline
+    const logItems = act.log || [];
+    if (logItems.length > 0) {
+        const typeIcon = { appointment:'📅', beauty_appt:'💅', order:'🛒', service_call:'🔧' };
+        const statusLabels = { pending:'ממתין', approved:'אושר', confirmed:'אושר', completed:'הושלם', done:'הושלם', cancelled:'בוטל' };
+        tabs.push({ id:'log', label:'לוג' });
+        sections.log = '<div class="relative pr-4">' + logItems.map((item, i) => {
+            const dt = new Date(item.time).toLocaleString('he-IL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+            const icon = typeIcon[item.type] || '•';
+            const status = statusLabels[item.status || item.direction] || '';
+            return `<div class="flex gap-2 mb-2 relative">
+                <div class="absolute right-0 top-3 bottom-0 border-r border-dashed border-slate-200"></div>
+                <div class="w-6 h-6 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] shrink-0 relative z-10">${icon}</div>
+                <div class="flex-1 min-w-0 py-1">
+                    <p class="text-xs text-slate-700 truncate">${item.label || ''} ${status ? '<span class="text-[9px] text-slate-400">('+status+')</span>' : ''}</p>
+                    <p class="text-[9px] text-slate-400">${dt}</p>
+                </div>
+            </div>`;
+        }).join('') + '</div>';
+    }
+
+    // Messages tab — always present for all business types
+    const msgs = act.messages || [];
+    {
+        tabs.push({ id:'messages', label:`הודעות${msgs.length ? ' ('+msgs.length+')' : ''}` });
+        sections.messages = (msgs.length ? msgs.map(m => {
+            const isMine = m.direction === 'inbound';
+            const dt = new Date(m.created_at).toLocaleString('he-IL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+            return `<div class="flex ${isMine ? 'justify-end' : 'justify-start'} mb-2">
+                <div class="max-w-[80%] px-3 py-2 rounded-2xl text-xs ${isMine ? 'bg-indigo-600 text-white rounded-bl-none' : 'bg-slate-100 text-slate-700 rounded-br-none'}">
+                    <p class="leading-relaxed">${safeStr(m.content)}</p>
+                    <p class="text-[9px] mt-1 opacity-70 text-left">${dt}</p>
+                </div>
+            </div>`;
+        }).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין הודעות עדיין</p>') + `<div class="mt-3 pt-3 border-t border-slate-100">
+            <textarea id="biz-acc-msg-${el.closest('[data-biz-id]')?.dataset?.bizId||''}" rows="2" placeholder="כתוב הודעה לעסק..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs resize-none focus:outline-none focus:border-indigo-400"></textarea>
+            <button onclick="window._sendBizAccordionMsg(this)" class="mt-1.5 w-full bg-indigo-600 text-white rounded-xl py-2 text-xs font-bold hover:bg-indigo-700 transition">שלח הודעה</button>
+        </div>`;
+    }
+
+    // If there are pending items → prefer pending tab
+    const _resTab = tabs.find(t => t.id === 'reservations');
+    const defaultTabId = tabs.find(t => t.id === 'cal_evts') ? 'cal_evts' : (_resTab?.label?.includes('🔔') ? 'reservations' : tabs[0]?.id);
+    const tabPills = tabs.map(t => {
+        const isDefault = t.id === defaultTabId;
+        const isPendingTab = t.id === 'cal_evts';
+        const cls = isDefault ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-slate-200';
+        const dot = isPendingTab && !isDefault ? ' 🔔' : '';
+        return `<button class="biz-acc-tab shrink-0 px-3 py-1 rounded-full text-[11px] font-bold border transition ${cls}" data-tab="${t.id}" onclick="window._switchBizTab(this,'${t.id}')">${t.label}${dot}</button>`;
+    }).join('');
+
+    el.innerHTML = `<div class="p-3">
+        <div class="flex gap-2 mb-3 hide-scrollbar overflow-x-auto">${tabPills}</div>
+        <div class="biz-acc-content">${sections[defaultTabId] || ''}</div>
+    </div>`;
+    el._sections      = sections;
+    el._bizType       = bizType;
+    el._rawData       = data;
+    el._listRenderers = listRenderers;
+};
+
+window._switchBizTab = function(btn, tabId) {
+    const acc = btn.closest('.biz-accordion');
+    if (!acc) return;
+    acc.querySelectorAll('.biz-acc-tab').forEach(b => {
+        b.className = b.className
+            .replace('bg-indigo-600 text-white border-indigo-600', 'bg-white text-slate-500 border-slate-200')
+            .replace('bg-amber-500 text-white border-amber-500', 'bg-white text-slate-500 border-slate-200');
+    });
+    const activeColor = tabId === 'cal_evts' ? 'bg-amber-500 text-white border-amber-500' : 'bg-indigo-600 text-white border-indigo-600';
+    btn.className = btn.className.replace('bg-white text-slate-500 border-slate-200', activeColor);
+    const content = acc.querySelector('.biz-acc-content');
+    if (content && acc._sections) content.innerHTML = acc._sections[tabId] || '';
+};
+
+window._sendBizAccordionMsg = async function(btn) {
+    const wrapper = btn.closest('.biz-act-wrapper');
+    const bizId = wrapper?.dataset?.bizId;
+    if (!bizId) return;
+    const ta = wrapper.querySelector(`#biz-acc-msg-${bizId}`);
+    const txt = ta?.value?.trim();
+    if (!txt) return;
+    btn.disabled = true; btn.textContent = 'שולח...';
+    try {
+        const biz = _activityAllBiz.find(b => b.business_group_id == bizId) || {};
+        const r = await fetch(`${API}/inbox/customer`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: parseInt(bizId), name: currentUser?.nickname||'לקוח', contact: currentUser?.phone||'', subject:'פנייה מלקוח ONEFLOW', content: txt, customerGroupId: currentGroup?.id||null })
+        }).then(r=>r.json());
+        if (r.success) {
+            if (ta) ta.value = '';
+            // Invalidate accordion cache so next open reloads
+            const _accWrapper = btn.closest('.biz-act-wrapper');
+            if (_accWrapper) { const _acc = _accWrapper.querySelector('.biz-accordion'); if (_acc) delete _acc.dataset.loaded; }
+            // Add message to UI optimistically
+            const msgArea = btn.closest('.biz-acc-content');
+            const bubble = document.createElement('div');
+            bubble.className = 'flex justify-end mb-2';
+            bubble.innerHTML = `<div class="max-w-[80%] px-3 py-2 rounded-2xl text-xs bg-indigo-600 text-white rounded-bl-none"><p class="leading-relaxed">${safeStr(txt)}</p><p class="text-[9px] mt-1 opacity-70 text-left">עכשיו</p></div>`;
+            const replyBox = btn.closest('div.mt-3');
+            if (replyBox) replyBox.insertAdjacentElement('beforebegin', bubble);
+            showToast('success','ההודעה נשלחה ✅');
+        } else { showToast('error', r.error||'שגיאה'); }
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+    btn.disabled = false; btn.textContent = 'שלח הודעה';
+};
+
+// ===== BEAUTY RFQ — FAMILY SIDE (P4) =======================
+// ============================================================
+
+window._beautyRfqState = { businesses: [], rfqs: [] };
+
+async function _prefetchBeautyRfqs() {
+    if (!currentGroup) return;
+    try {
+        const [bizRes, rfqRes] = await Promise.all([
+            fetch(`${API}/beauty/businesses`).then(r=>r.json()),
+            fetch(`${API}/beauty/rfq/family/${currentGroup.id}`).then(r=>r.json())
+        ]);
+        window._beautyRfqState.businesses = bizRes.businesses || [];
+        window._beautyRfqState.rfqs = rfqRes.rfqs || [];
+    } catch(e) {}
+}
+
+async function loadFamilyBeautyRfqInline() {
+    const el = document.getElementById('activities-beauty-rfq') || document.getElementById('myorders-beauty-content'); if (!el) return;
+    if (!currentGroup) { el.innerHTML = '<p class="text-slate-400 text-center py-6 text-sm">נא להתחבר תחילה</p>'; return; }
+    if (!window._beautyRfqState.businesses.length && !window._beautyRfqState.rfqs.length) {
+        el.innerHTML = `<div class="flex items-center justify-center py-8 text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען...</div>`;
+        await _prefetchBeautyRfqs();
+    }
+    _renderFamilyBeautyRfqInline();
+}
+
+// kept for backwards compat (called from _openFamilyRfq reload)
+async function loadFamilyBeautyRfq() {
+    await _prefetchBeautyRfqs();
+    _renderFamilyBeautyRfqInline();
+}
+
+function _rfqStatusLabel(status) {
+    const map = {
+        new: { label: 'נשלח ✉️', cls: 'bg-blue-100 text-blue-700' },
+        questionnaire_sent: { label: 'ממתין לתשובות 📋', cls: 'bg-yellow-100 text-yellow-700' },
+        client_responded: { label: 'ענינו ✅', cls: 'bg-indigo-100 text-indigo-700' },
+        plan_sent: { label: 'תוכנית טיפול 📄', cls: 'bg-purple-100 text-purple-700' },
+        accepted: { label: 'תוכנית אושרה 🎉', cls: 'bg-green-100 text-green-700' },
+        rejected: { label: 'נדחה', cls: 'bg-red-100 text-red-600' }
+    };
+    const s = map[status] || { label: status, cls: 'bg-slate-100 text-slate-500' };
+    return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${s.cls}">${s.label}</span>`;
+}
+
+function _renderFamilyBeautyRfqInline() {
+    const el = document.getElementById('activities-beauty-rfq') || document.getElementById('myorders-beauty-content'); if (!el) return;
+    const { businesses, rfqs } = window._beautyRfqState;
+
+    const rfqCards = rfqs.length === 0
+        ? `<div class="text-center py-8 text-slate-400 text-sm">
+            <i class="fa-solid fa-paper-plane text-3xl mb-3 block opacity-30"></i>
+            עדיין לא שלחת פנייה לשום מכון — בחר מכון למטה
+           </div>`
+        : rfqs.map(rfq => {
+            const needsAction = rfq.status === 'questionnaire_sent' || rfq.status === 'plan_sent';
+            return `<div class="bg-white rounded-2xl border ${needsAction ? 'border-purple-300 shadow-purple-50' : 'border-slate-100'} shadow-sm p-4 cursor-pointer hover:shadow-md transition"
+                onclick="window._openFamilyRfq(${rfq.id})">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white text-lg shrink-0">💅</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap mb-0.5">
+                            <p class="text-sm font-bold text-slate-800">${rfq.business_name || 'מכון יופי'}</p>
+                            ${_rfqStatusLabel(rfq.status)}
+                            ${needsAction ? '<span class="text-[9px] font-black bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full animate-pulse">נדרשת פעולה</span>' : ''}
+                        </div>
+                        <p class="text-[11px] text-slate-500 truncate">${rfq.service_description || '—'}</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">${rfq.updated_at ? new Date(rfq.updated_at).toLocaleDateString('he-IL') : ''}</p>
+                    </div>
+                    <i class="fa-solid fa-chevron-left text-slate-300 text-xs mt-1 shrink-0"></i>
+                </div>
+            </div>`;
+        }).join('');
+
+    const bizCards = businesses.length === 0
+        ? `<p class="text-slate-400 text-sm text-center py-4">אין מכוני יופי רשומים בפלטפורמה כרגע</p>`
+        : businesses.map(b => `
+        <div class="bg-white rounded-2xl border border-pink-100 shadow-sm p-3 flex items-center gap-3 hover:shadow-md transition">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white text-lg shrink-0">💅</div>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-slate-800">${b.name}</p>
+                ${b.city ? `<p class="text-[11px] text-slate-400">${b.city}</p>` : ''}
+                ${b.description ? `<p class="text-[10px] text-slate-500 truncate">${b.description}</p>` : ''}
+            </div>
+            <button onclick="window._familyNewRfqModal(${b.id}, '${(b.name||'').replace(/'/g,"\\'")}', this)"
+                class="shrink-0 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-3 py-2 rounded-xl text-xs font-black shadow-sm hover:opacity-90 transition">
+                שלח פנייה
+            </button>
+        </div>`).join('');
+
+    el.innerHTML = `
+<div class="space-y-4">
+    <!-- header -->
+    <div class="bg-gradient-to-l from-pink-50 to-purple-50 rounded-2xl border border-pink-200 p-4">
+        <h2 class="text-base font-black text-slate-800 flex items-center gap-2 mb-1">
+            <span class="text-2xl">💅</span> שירותי יופי וקוסמטיקה
+        </h2>
+        <p class="text-xs text-slate-500">פנה/י למכון יופי, ענה/י על שאלות והתאם/י טיפול בדיוק בשבילך</p>
+    </div>
+
+    <!-- my rfqs -->
+    ${rfqs.length > 0 ? `<div>
+        <h3 class="text-xs font-black text-slate-600 mb-2 px-1 uppercase tracking-wide">הפניות שלי</h3>
+        <div class="space-y-2">${rfqCards}</div>
+    </div>` : rfqCards}
+
+    <!-- discovery -->
+    <div>
+        <h3 class="text-xs font-black text-slate-600 mb-2 px-1 uppercase tracking-wide">מכוני יופי בפלטפורמה</h3>
+        <div class="space-y-2">${bizCards}</div>
+    </div>
+</div>`;
+}
+
+window._familyNewRfqModal = function(bizId, bizName, btn) {
+    const html = `
+<div id="family-rfq-modal" class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-4 flex items-center justify-between">
+            <div>
+                <h3 class="font-black text-white text-base">פנייה ל-${bizName}</h3>
+                <p class="text-pink-100 text-xs">תאר/י מה את/ה מחפש/ת</p>
+            </div>
+            <button onclick="document.getElementById('family-rfq-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 space-y-4 overflow-y-auto flex-1">
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">מה השירות שמעניין אותך? *</label>
+                <textarea id="rfq-desc" rows="4" placeholder="לדוגמה: רוצה לצבוע את השיער, מחפשת עיצוב גבות, ניסיתי מוצר X בעבר..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-pink-300"></textarea>
+            </div>
+            <div class="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700 flex items-start gap-2">
+                <i class="fa-solid fa-circle-info mt-0.5 shrink-0"></i>
+                <span>לאחר שליחת הפנייה, המכון עשוי לשלוח שאלון קצר להתאמת הטיפול האידיאלי עבורך.</span>
+            </div>
+        </div>
+        <div class="p-5 border-t">
+            <button onclick="window._submitFamilyRfq(${bizId})" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-2xl text-sm font-black shadow-sm hover:opacity-90 transition">שלח פנייה 💌</button>
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._submitFamilyRfq = async function(bizId) {
+    const desc = document.getElementById('rfq-desc')?.value?.trim();
+    if (!desc) { showToast ? showToast('error','נא תארי את הבקשה') : alert('נא תארי את הבקשה'); return; }
+    if (!currentGroup) return;
+    try {
+        const r = await fetch(`${API}/beauty/rfq`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ business_group_id: bizId, client_family_id: currentGroup.id, service_description: desc })
+        }).then(r=>r.json());
+        document.getElementById('family-rfq-modal')?.remove();
+        if (r.id || r.success) {
+            if (window.showToast) showToast('success', 'הפנייה נשלחה! המכון יחזור אליך בקרוב 💌');
+            else alert('הפנייה נשלחה!');
+            loadFamilyBeautyRfqInline();
+        } else {
+            if (window.showToast) showToast('error', r.error || 'שגיאה');
+            else alert(r.error || 'שגיאה');
+        }
+    } catch(e) {
+        if (window.showToast) showToast('error', 'שגיאת תקשורת');
+        else alert('שגיאת תקשורת');
+    }
+};
+
+window._openFamilyRfq = async function(rfqId) {
+    const rfq = window._beautyRfqState.rfqs.find(r => r.id === rfqId); if (!rfq) return;
+    const status = rfq.status;
+    const qData = rfq.questionnaire_data || {};
+    const plan = rfq.treatment_plan || {};
+    const msgs = rfq.messages || [];
+
+    let actionSection = '';
+    if (status === 'questionnaire_sent' && qData.questions && qData.questions.length > 0) {
+        const qFields = qData.questions.map((q, i) => `
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">${q}</label>
+                <input id="rfq-ans-${i}" type="text" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>`).join('');
+        actionSection = `
+            <div class="bg-purple-50 border border-purple-200 rounded-2xl p-4 space-y-3">
+                <p class="text-xs font-black text-purple-700">📋 המכון שלח שאלון — ענה/י כדי לקבל הצעה:</p>
+                ${qFields}
+                <button onclick="window._submitRfqAnswers(${rfqId}, ${qData.questions.length})" class="w-full bg-purple-600 text-white py-2.5 rounded-xl text-xs font-black hover:bg-purple-700 transition">שלח תשובות</button>
+            </div>`;
+    } else if (status === 'plan_sent' && plan.sessions) {
+        const sessRows = plan.sessions.map(s => `<li class="text-xs text-slate-600">• ${s.name || s.service || 'טיפול'} ${s.duration_min ? '· ' + s.duration_min + ' דק׳' : ''} ${s.price ? '· ₪' + s.price : ''}</li>`).join('');
+        actionSection = `
+            <div class="bg-green-50 border border-green-200 rounded-2xl p-4 space-y-3">
+                <p class="text-xs font-black text-green-700">📄 תוכנית הטיפול שלך מוכנה!</p>
+                ${plan.title ? `<p class="text-sm font-bold text-slate-800">${plan.title}</p>` : ''}
+                <ul class="space-y-1">${sessRows}</ul>
+                ${plan.total_price ? `<p class="text-sm font-black text-slate-800">סה"כ: ₪${plan.total_price}</p>` : ''}
+                <div class="flex gap-2 mt-2">
+                    <button onclick="window._acceptRfqPlan(${rfqId})" class="flex-1 bg-green-600 text-white py-2.5 rounded-xl text-xs font-black hover:bg-green-700 transition">אשר תוכנית ✅</button>
+                    ${plan.payment_link ? `<a href="${plan.payment_link}" target="_blank" class="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-xs font-black hover:bg-blue-700 transition text-center">שלם עכשיו 💳</a>` : ''}
+                </div>
+            </div>`;
+    }
+
+    const msgHtml = msgs.length === 0 ? `<p class="text-slate-400 text-xs text-center py-2">אין הודעות עדיין</p>`
+        : msgs.map(m => `<div class="flex ${m.from === 'client' ? 'justify-end' : 'justify-start'}">
+            <div class="max-w-[80%] px-3 py-2 rounded-2xl text-xs ${m.from === 'client' ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-700'}">
+                ${m.text}
+                <div class="text-[9px] opacity-60 mt-0.5 text-right">${new Date(m.ts).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</div>
+            </div>
+          </div>`).join('');
+
+    const html = `
+<div id="family-rfq-detail-modal" class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+        <div class="bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-4 flex items-center justify-between">
+            <div>
+                <h3 class="font-black text-white text-base">${rfq.business_name || 'מכון יופי'}</h3>
+                <div class="mt-0.5">${_rfqStatusLabel(status)}</div>
+            </div>
+            <button onclick="document.getElementById('family-rfq-detail-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="overflow-y-auto flex-1 p-5 space-y-4">
+            <div class="bg-slate-50 rounded-xl px-3 py-2">
+                <p class="text-[10px] text-slate-400 mb-0.5">הבקשה שלי</p>
+                <p class="text-xs text-slate-700">${rfq.service_description || '—'}</p>
+            </div>
+            ${actionSection}
+            <!-- messages -->
+            <div>
+                <p class="text-xs font-bold text-slate-600 mb-2">הודעות</p>
+                <div class="space-y-2 max-h-40 overflow-y-auto mb-3">${msgHtml}</div>
+                <div class="flex gap-2">
+                    <input id="rfq-msg-input" type="text" placeholder="כתוב/י הודעה..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"/>
+                    <button onclick="window._sendRfqMsg(${rfqId})" class="bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-black hover:bg-purple-700 transition">שלח</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._submitRfqAnswers = async function(rfqId, count) {
+    const answers = [];
+    for (let i = 0; i < count; i++) {
+        answers.push(document.getElementById(`rfq-ans-${i}`)?.value?.trim() || '');
+    }
+    try {
+        const r = await fetch(`${API}/beauty/rfq/${rfqId}/client-response`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ answers, photos: [] })
+        }).then(r=>r.json());
+        document.getElementById('family-rfq-detail-modal')?.remove();
+        if (r.success) {
+            if (window.showToast) showToast('success', 'תשובותיך נשלחו ✅');
+            loadFamilyBeautyRfqInline();
+        } else { if (window.showToast) showToast('error', r.error || 'שגיאה'); }
+    } catch(e) { if (window.showToast) showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._acceptRfqPlan = async function(rfqId) {
+    try {
+        const r = await fetch(`${API}/beauty/rfq/${rfqId}/accept`, { method: 'POST' }).then(r=>r.json());
+        document.getElementById('family-rfq-detail-modal')?.remove();
+        if (r.success) {
+            if (window.showToast) showToast('success', 'תוכנית הטיפול אושרה! 🎉');
+            loadFamilyBeautyRfqInline();
+        } else { if (window.showToast) showToast('error', r.error || 'שגיאה'); }
+    } catch(e) { if (window.showToast) showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._sendRfqMsg = async function(rfqId) {
+    const text = document.getElementById('rfq-msg-input')?.value?.trim();
+    if (!text) return;
+    try {
+        const r = await fetch(`${API}/beauty/rfq/${rfqId}/message`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ from: 'client', text })
+        }).then(r=>r.json());
+        if (r.success) {
+            document.getElementById('family-rfq-detail-modal')?.remove();
+            loadFamilyBeautyRfqInline().then(() => window._openFamilyRfq(rfqId));
+        }
+    } catch(e) {}
+};
+
+window._editQuoteFromActivity = function(quoteId) {
+    window.open(`/business.html?editQuoteId=${quoteId}`, '_blank');
+};
+
+window._openQuoteFromActivity = async function(quoteId) {
+    // Show loading state
+    const loader = document.createElement('div');
+    loader.className = 'fixed inset-0 bg-black/30 flex items-center justify-center z-50';
+    loader.innerHTML = '<div class="bg-white rounded-xl px-5 py-3 text-sm font-bold text-slate-700 shadow-lg">טוען הצעה...</div>';
+    document.body.appendChild(loader);
+
+    try {
+        // Fetch full quote data from family quotes API
+        const userId = window.currentUser?.id || '';
+        const res = await fetch(`${API}/store/quotes/family/${currentGroup.id}?userId=${userId}`);
+        const data = await res.json();
+        loader.remove();
+
+        if (!data.success) { showToast('error', 'שגיאה בטעינת הנתונים'); return; }
+
+        const quote = (data.quotes || []).find(q => String(q.id) === String(quoteId));
+        if (!quote) { showToast('error', 'לא נמצאה הצעת מחיר'); return; }
+
+        let itemsHtml = '';
+        const items = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items||'[]') : []);
+        let metaData = null;
+        let subtotal = 0;
+
+        items.forEach(i => {
+            if (i.is_quote_metadata || i.catalogId === 999999) {
+                if (i.is_quote_metadata) {
+                    try { metaData = JSON.parse(i.data||'{}'); } catch(e) {}
+                }
+                return;
+            }
+            const price = parseFloat(i.price_at_order || i.price || i.unit_price || 0);
+            const qty = parseFloat(i.quantity || 1);
+            const lineTotal = price * qty;
+            subtotal += lineTotal;
+            itemsHtml += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:13px; direction:rtl;">
+                <span style="flex:1; text-align:right;">${safeStr(i.item_name || i.name || '')}</span>
+                <span style="width:40px; text-align:center; color:#64748b;">x${qty}</span>
+                <span style="width:70px; text-align:left; direction:ltr; color:#64748b;">₪${price.toFixed(2)}</span>
+                <span style="width:80px; text-align:left; direction:ltr; font-weight:bold;">₪${lineTotal.toFixed(2)}</span>
+            </div>`;
+        });
+
+        const statusMap = {
+            'waiting_customer': 'בהמתנה ללקוח',
+            'waiting_approval': 'בהמתנה לאישור',
+            'rejected': 'נדחה',
+            'approved': 'אושרה',
+            'converted_to_order': 'הומרה להזמנה',
+            'cancelled': 'בוטלה',
+            'quote': 'טיוטה'
+        };
+        const statusVal = quote.quote_status || quote.status || 'quote';
+        const displayStatus = statusMap[statusVal] || statusVal;
+        const createdDate = new Date(quote.created_at).toLocaleDateString('he-IL');
+        const bizName = quote.business_name || '';
+        const quoteNum = String(quoteId).padStart(4,'0');
+
+        // Build notes from metaData or raw notes field
+        if (!metaData && quote.notes) {
+            try { metaData = JSON.parse(quote.notes); } catch(e) {}
+        }
+
+        // Price breakdown
+        const discountPct = parseFloat(metaData?.discount || 0);
+        const noVat = !!(metaData?.noVat);
+        const vatRate = parseFloat(metaData?.vatRate ?? 18);
+        const afterDiscount = discountPct > 0 ? subtotal * (1 - discountPct / 100) : subtotal;
+        const vatAmount = noVat ? 0 : afterDiscount * (vatRate / 100);
+        const calcTotal = afterDiscount + vatAmount;
+        const totalToShow = parseFloat(quote.total_amount || calcTotal || 0);
+
+        let priceBreakdownHtml = '';
+        if (subtotal > 0) {
+            priceBreakdownHtml = `<div class="border-t border-slate-100 pt-3 space-y-1.5 text-sm">`;
+            if (discountPct > 0) {
+                priceBreakdownHtml += `
+                    <div class="flex justify-between text-slate-500"><span>סכום לפני הנחה:</span><span dir="ltr">₪${subtotal.toFixed(2)}</span></div>
+                    <div class="flex justify-between text-red-500"><span>הנחה (${discountPct}%):</span><span dir="ltr">-₪${(subtotal - afterDiscount).toFixed(2)}</span></div>
+                    <div class="flex justify-between text-slate-600"><span>נטו לפני מע"מ:</span><span dir="ltr">₪${afterDiscount.toFixed(2)}</span></div>`;
+            } else {
+                priceBreakdownHtml += `<div class="flex justify-between text-slate-500"><span>נטו לפני מע"מ:</span><span dir="ltr">₪${subtotal.toFixed(2)}</span></div>`;
+            }
+            if (!noVat && vatRate > 0) {
+                priceBreakdownHtml += `<div class="flex justify-between text-slate-500"><span>מע"מ (${vatRate}%):</span><span dir="ltr">₪${vatAmount.toFixed(2)}</span></div>`;
+            }
+            priceBreakdownHtml += `
+                <div class="flex justify-between font-black text-base border-t border-slate-200 pt-2 mt-1">
+                    <span dir="ltr" class="text-indigo-700">₪${totalToShow.toFixed(2)}</span>
+                    <span class="text-slate-700">סה"כ לתשלום:</span>
+                </div>
+            </div>`;
+        } else {
+            priceBreakdownHtml = `<div class="border-t border-slate-100 pt-3">
+                <div class="flex justify-between font-black text-base">
+                    <span dir="ltr" class="text-indigo-700">₪${totalToShow.toFixed(2)}</span>
+                    <span class="text-slate-700">סה"כ לתשלום:</span>
+                </div>
+            </div>`;
+        }
+
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+        modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" dir="rtl">
+            <div class="flex items-center justify-between p-5 border-b border-slate-200 bg-gradient-to-r from-yellow-50 to-amber-50 sticky top-0 rounded-t-2xl">
+                <h2 class="text-base font-black text-slate-800">📋 הצעת מחיר #${quoteNum}</h2>
+                <button onclick="this.closest('.fixed').remove()" class="w-8 h-8 rounded-full bg-white hover:bg-slate-100 flex items-center justify-center text-slate-600 text-lg">✕</button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div><p class="text-[10px] font-bold text-slate-400 mb-0.5">תאריך</p><p class="font-semibold text-slate-800">${createdDate}</p></div>
+                    <div><p class="text-[10px] font-bold text-slate-400 mb-0.5">סטטוס</p><span class="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">${displayStatus}</span></div>
+                    ${bizName ? `<div class="col-span-2"><p class="text-[10px] font-bold text-slate-400 mb-0.5">עסק</p><p class="font-semibold text-slate-800">${safeStr(bizName)}</p></div>` : ''}
+                    ${quote.customer_name ? `<div class="col-span-2"><p class="text-[10px] font-bold text-slate-400 mb-0.5">לקוח</p><p class="font-semibold text-slate-800">${safeStr(quote.customer_name)}</p></div>` : ''}
+                </div>
+
+                ${itemsHtml ? `<div class="border-t border-slate-100 pt-3">
+                    <div class="grid grid-cols-4 text-[10px] font-bold text-slate-400 pb-1 border-b border-slate-100 mb-1">
+                        <span class="col-span-2 text-right">פריט</span><span class="text-center">כמות</span><span class="text-left">מחיר</span><span class="text-left">סה"כ</span>
+                    </div>
+                    ${itemsHtml}
+                </div>` : '<p class="text-xs text-slate-400 text-center py-2">אין פירוט פריטים</p>'}
+
+                ${priceBreakdownHtml}
+
+                ${metaData && metaData.introText ? `<div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-900">
+                    <p class="font-bold text-xs text-blue-500 mb-1">הקדמה מהעסק:</p>
+                    <p class="text-xs leading-relaxed" style="white-space:pre-line;">${safeStr(metaData.introText)}</p>
+                </div>` : ''}
+
+                ${metaData && metaData.notes ? `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <p class="font-bold text-xs text-amber-600 mb-1">תנאים והערות:</p>
+                    <p class="text-xs text-amber-900 leading-relaxed" style="white-space:pre-line;">${safeStr(metaData.notes)}</p>
+                </div>` : ''}
+
+                <div class="border-t border-slate-100 pt-4 flex gap-2">
+                    <button onclick="this.closest('.fixed').remove()" class="flex-1 bg-slate-100 text-slate-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition">סגור</button>
+                    <button onclick="this.closest('.fixed').remove(); switchTab('myorders'); switchMyOrdersTab('quotes'); loadFamilyQuotes();" class="flex-1 bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition">📋 פתח בהצעות שלי</button>
+                </div>
+            </div>
+        </div>`;
+
+        document.body.appendChild(modal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+    } catch(e) {
+        loader.remove();
+        showToast('error', 'שגיאה בטעינת ההצעה');
+    }
+};
+

@@ -2183,12 +2183,12 @@ let storeModifierPresets = [];
 let currentStoreOrderId = null;
 
 function switchSalesTab(subTab) {
-    ['orders', 'catalog', 'marketing', 'settings'].forEach(t => {
+    ['orders', 'quotes', 'catalog', 'complex', 'marketing', 'settings', 'analytics'].forEach(t => {
         const view = getEl(`sales-view-${t}`); if(view) view.classList.add('hidden');
-        const btn = getEl(`btn-sales-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+        const btn = getEl(`btn-sales-${t}`); if(btn) btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
     });
     const targetView = getEl(`sales-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
-    const targetBtn = getEl(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
+    const targetBtn = getEl(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-md shadow-indigo-200 transition';
 
     if(subTab === 'orders') fetchStoreOrders();
     if(subTab === 'catalog') fetchStoreCatalog();

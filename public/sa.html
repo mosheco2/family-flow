@@ -70,7 +70,25 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 .sa-top-bar-title{font-size:1rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:0.5rem}
 #toast{font-family:'Rubik',sans-serif!important;border-radius:99px!important}
 @media(max-width:900px){#sa-sidebar{width:220px}#sa-main-content{margin-right:220px;padding:1rem}}
-@media(max-width:640px){#sa-sidebar{width:200px}#sa-main-content{margin-right:200px;padding:0.75rem}}
+@media(max-width:640px){
+  #sa-sidebar{transform:translateX(100%);transition:transform 0.25s ease;position:fixed!important;top:0;bottom:0;right:0;z-index:300!important}
+  #sa-sidebar.sidebar-open{transform:translateX(0)}
+  #sa-main-content{margin-right:0!important;padding:0.75rem!important}
+  .sa-top-bar{border-radius:0.5rem;padding:0.6rem 0.85rem;margin-bottom:0.75rem}
+  #sa-subnav-bar{flex-wrap:nowrap!important;overflow-x:auto!important}
+  #sa-view-pulse .grid>div{overflow:hidden}
+  #sa-view-pulse .grid>div .text-center>span{font-size:clamp(0.7rem,4.5vw,1.5rem)!important;word-break:break-all;display:block}
+}
+@media(min-width:641px) and (max-width:900px){#sa-sidebar{width:220px}#sa-main-content{margin-right:220px;padding:1rem}}
+.legal-editor p{margin-bottom:0.6rem}
+/* KPI number overflow protection */
+#sa-view-pulse .text-2xl.font-black{word-break:break-all;overflow-wrap:break-word;min-width:0;max-width:100%}
+.legal-editor h2{font-size:1.2rem;font-weight:800;color:#1e293b;margin:1rem 0 0.4rem}
+.legal-editor h3{font-size:1rem;font-weight:700;color:#334155;margin:0.8rem 0 0.3rem}
+.legal-editor ul{list-style:disc;padding-right:1.5rem;margin-bottom:0.5rem}
+.legal-editor ol{list-style:decimal;padding-right:1.5rem;margin-bottom:0.5rem}
+.legal-editor li{margin-bottom:0.2rem}
+.legal-tb-btn.active{background:white;box-shadow:0 1px 4px rgba(0,0,0,.12);color:#4f46e5}
 </style>
 </head>
 <body class="text-slate-800 bg-slate-50 relative min-h-screen">
@@ -155,52 +173,30 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             <p>Oneflow Life — ניהול מערכת</p>
           </div>
           <div class="sb-ver"><span>מערכת ראשית</span><span style="font-weight:800;color:#c4b5fd">v2</span></div>
-          <div style="padding:0.5rem 0">
-            <div class="sb-label">ראשי</div>
-            <button id="btn-sa-tab-pulse" onclick="switchSATab('pulse')" class="hidden flex">
-              <i class="fa-solid fa-heart-pulse" style="color:#f87171"></i> דופק מערכת
+          <div style="padding:0.75rem 0">
+            <button id="btn-sa-group-home" onclick="switchSAGroup('home')" class="hidden flex">
+              <i class="fa-solid fa-gauge-high" style="color:#f87171"></i> בית
             </button>
-            <button id="btn-sa-tab-stats" onclick="switchSATab('stats')" class="hidden flex">
-              <i class="fa-solid fa-chart-line"></i> דוחות ופיננסים
+            <button id="btn-sa-group-customers" onclick="switchSAGroup('customers')" class="hidden flex">
+              <i class="fa-solid fa-users" style="color:#60a5fa"></i> לקוחות ועסקים
             </button>
-            <button id="btn-sa-tab-dashboard" onclick="window.open('/qa-book.html', '_blank')" class="hidden flex">
-              <i class="fa-solid fa-book-open" style="color:#60a5fa"></i> ספר מוצר ו-QA
+            <button id="btn-sa-group-finance" onclick="switchSAGroup('finance')" class="hidden flex">
+              <i class="fa-solid fa-wallet" style="color:#f59e0b"></i> פיננסים
             </button>
-          </div>
-          <div style="padding:0.5rem 0">
-            <div class="sb-label">תפעול ושירות</div>
-            <button id="btn-sa-tab-support" onclick="switchSATab('support')" class="hidden flex">
-              <i class="fa-solid fa-headset" style="color:#60a5fa"></i> קריאות שירות
+            <button id="btn-sa-group-supportdev" onclick="switchSAGroup('supportdev')" class="hidden flex">
+              <i class="fa-solid fa-headset" style="color:#a78bfa"></i> תמיכה ופיתוח
             </button>
-            <button id="btn-sa-tab-devops" onclick="switchSATab('devops')" class="hidden flex">
-              <i class="fa-solid fa-code" style="color:#a78bfa"></i> פיתוח ומוצר
+            <button id="btn-sa-group-contentmkt" onclick="switchSAGroup('contentmkt')" class="hidden flex">
+              <i class="fa-solid fa-image" style="color:#f472b6"></i> תוכן ושיווק
             </button>
-          </div>
-          <div style="padding:0.5rem 0">
-            <div class="sb-label">לקוחות ועסקים</div>
-            <button id="btn-sa-tab-comm" onclick="switchSATab('comm')" class="hidden flex">
-              <i class="fa-solid fa-users-rays"></i> קהילות
+            <button id="btn-sa-group-partners" onclick="switchSAGroup('partners')" class="hidden flex">
+              <i class="fa-solid fa-handshake" style="color:#34d399"></i> שותפים
             </button>
-            <button id="btn-sa-tab-biz" onclick="switchSATab('biz')" class="hidden flex">
-              <i class="fa-solid fa-store"></i> עסקים
+            <button id="btn-sa-group-system" onclick="switchSAGroup('system')" class="hidden flex">
+              <i class="fa-solid fa-gear" style="color:#94a3b8"></i> צוות ומערכת
             </button>
-            <button id="btn-sa-tab-clients" onclick="switchSATab('clients')" class="hidden flex">
-              <i class="fa-solid fa-users"></i> לקוחות קצה
-            </button>
-          </div>
-          <div style="padding:0.5rem 0">
-            <div class="sb-label">צמיחה והנהלה</div>
-            <button id="btn-sa-tab-inbox" onclick="switchSATab('inbox')" class="hidden flex">
-              <i class="fa-solid fa-bullhorn" style="color:#f472b6"></i> שיווק והשקות
-            </button>
-            <button id="btn-sa-tab-content" onclick="switchSATab('content')" class="hidden flex">
-              <i class="fa-solid fa-image"></i> מיתוג ותוכן
-            </button>
-            <button id="btn-sa-tab-hr" onclick="switchSATab('hr')" class="hidden flex">
-              <i class="fa-solid fa-user-tie"></i> נציגים וצוותים
-            </button>
-            <button id="btn-sa-tab-partners" onclick="switchSATab('partners')" class="hidden flex">
-              <i class="fa-solid fa-handshake"></i> שותפים
+            <button id="btn-sa-group-templates" onclick="switchSAGroup('templates')" class="hidden flex">
+              <i class="fa-solid fa-layer-group" style="color:#10b981"></i> תבניות עסקים
             </button>
           </div>
           <div class="sb-footer">
@@ -213,7 +209,10 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 
         <main id="sa-main-content">
             
-            <button onclick="toggleSASidebar()" class="absolute top-4 right-4 z-[60] text-slate-400 hover:text-indigo-600 bg-white shadow-md w-8 h-8 flex items-center justify-center rounded-full transition-all md:hidden">
+            <!-- Mobile sidebar overlay backdrop -->
+            <div id="sa-sidebar-backdrop" onclick="toggleSASidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:299;backdrop-filter:blur(2px);"></div>
+
+            <button onclick="toggleSASidebar()" class="fixed top-4 right-4 z-[310] text-slate-400 hover:text-indigo-600 bg-white shadow-md w-9 h-9 flex items-center justify-center rounded-full transition-all md:hidden" id="sa-hamburger-btn">
                 <i class="fa-solid fa-bars"></i>
             </button>
 
@@ -223,6 +222,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 </div>
                 
                 <div class="flex items-center gap-4 relative z-50">
+                    <button onclick="showSAHelp()" title="עזרה בדף הנוכחי" class="w-8 h-8 bg-indigo-100 hover:bg-indigo-200 text-indigo-600 rounded-full flex items-center justify-center font-black text-sm transition">?</button>
                     <div class="relative cursor-pointer" onclick="toggleSANotifications()">
                         <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
                             <i class="fa-solid fa-bell"></i>
@@ -252,35 +252,174 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 </div>
             </div>
 
+            <!-- Sub-navigation bar: shows context tabs within merged sections -->
+            <div id="sa-subnav-bar" style="display:none;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.5rem 0.75rem;margin-bottom:1.25rem;gap:0.5rem;align-items:center;flex-wrap:wrap;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;"></div>
+
             <div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 modal-scroll relative">
 
-                <div id="sa-view-partners" class="hidden space-y-8 fade-in">
-                    <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
-                        <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                            <div>
-                                <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-handshake text-emerald-500"></i> ניהול שותפים חיצוניים</h2>
-                                <p class="text-sm text-slate-500 mt-1">הקמת יוזרים למטמיעים חיצוניים ומעקב אחר הלקוחות והעמלות שלהם.</p>
-                            </div>
-                            <button onclick="openSAAddPartnerModal()" class="bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-md hover:bg-emerald-600 transition"><i class="fa-solid fa-plus mr-1"></i> הקם שותף חדש</button>
+                <div id="sa-view-partners" class="hidden fade-in">
+                  <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;" id="vtnav-partners">
+          <button id="vtnav-partners-overview" onclick="switchViewTab('partners','overview')" style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-chart-bar" style="font-size:11px;"></i>סקירה</button>
+          <button id="vtnav-partners-managers" onclick="switchViewTab('partners','managers')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-map-location-dot" style="font-size:11px;"></i>מנהלי אזורים</button>
+        </div>
+                <div id="vt-partners-overview" class="vt-partners space-y-6">
+
+                    <!-- קוביות KPI -->
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                        <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-map-location-dot text-2xl text-indigo-500 mb-2"></i>
+                            <span class="text-2xl font-black text-indigo-700" id="sa-partners-kpi-total-zm">--</span>
+                            <span class="text-[10px] text-indigo-600 font-bold mt-1">מנהלי אזורים</span>
                         </div>
-                        
+                        <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-circle-check text-2xl text-emerald-500 mb-2"></i>
+                            <span class="text-2xl font-black text-emerald-700" id="sa-partners-kpi-active-zm">--</span>
+                            <span class="text-[10px] text-emerald-600 font-bold mt-1">מנהלים פעילים</span>
+                        </div>
+                        <div class="bg-violet-50 border border-violet-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-users-rays text-2xl text-violet-500 mb-2"></i>
+                            <span class="text-2xl font-black text-violet-700" id="sa-partners-kpi-communities">--</span>
+                            <span class="text-[10px] text-violet-600 font-bold mt-1">קהילות מנוהלות</span>
+                        </div>
+                        <div class="bg-pink-50 border border-pink-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-bullhorn text-2xl text-pink-500 mb-2"></i>
+                            <span class="text-2xl font-black text-pink-700" id="sa-partners-kpi-campaigns">--</span>
+                            <span class="text-[10px] text-pink-600 font-bold mt-1">קמפיינים פעילים</span>
+                        </div>
+                        <div class="bg-amber-50 border border-amber-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-address-card text-2xl text-amber-500 mb-2"></i>
+                            <span class="text-2xl font-black text-amber-700" id="sa-partners-kpi-leads">--</span>
+                            <span class="text-[10px] text-amber-600 font-bold mt-1">לידים שנאספו</span>
+                        </div>
+                    </div>
+
+                    <!-- קוביות פיננסיות — נתוני עמלות מנהלי אזורים -->
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                        <div class="bg-amber-50 border border-amber-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-sack-dollar text-2xl text-amber-500 mb-2"></i>
+                            <span class="text-2xl font-black text-amber-700" id="sa-prt-fin-total-earned">--</span>
+                            <span class="text-[10px] text-amber-600 font-bold mt-1">סה"כ עמלות שנצברו</span>
+                        </div>
+                        <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-money-bill-transfer text-2xl text-emerald-500 mb-2"></i>
+                            <span class="text-2xl font-black text-emerald-700" id="sa-prt-fin-total-paid">--</span>
+                            <span class="text-[10px] text-emerald-600 font-bold mt-1">סה"כ שולם למנהלים</span>
+                        </div>
+                        <div class="bg-red-50 border border-red-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-clock text-2xl text-red-400 mb-2"></i>
+                            <span class="text-2xl font-black text-red-600" id="sa-prt-fin-total-debt">--</span>
+                            <span class="text-[10px] text-red-500 font-bold mt-1">חוב פתוח למנהלים</span>
+                            <div class="w-full mt-2">
+                                <div class="flex justify-between text-[9px] text-red-400 mb-0.5"><span id="sa-prt-fin-paid-pct">0%</span><span>שולם</span></div>
+                                <div class="w-full bg-red-100 rounded-full h-1.5"><div id="sa-prt-fin-paid-bar" class="bg-emerald-400 h-1.5 rounded-full transition-all duration-700" style="width:0%"></div></div>
+                            </div>
+                        </div>
+                        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm relative">
+                            <span class="absolute top-2 right-2 text-[9px] font-bold bg-amber-200 text-amber-700 px-1.5 py-0.5 rounded-full">חודש שוטף</span>
+                            <i class="fa-solid fa-sack-dollar text-2xl text-amber-400 mb-2 mt-2"></i>
+                            <span class="text-2xl font-black text-amber-600" id="sa-prt-fin-month-earned">--</span>
+                            <span class="text-[10px] text-amber-500 font-bold mt-1">עמלות החודש</span>
+                        </div>
+                        <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm relative">
+                            <span class="absolute top-2 right-2 text-[9px] font-bold bg-emerald-200 text-emerald-700 px-1.5 py-0.5 rounded-full">חודש שוטף</span>
+                            <i class="fa-solid fa-money-bill-transfer text-2xl text-emerald-400 mb-2 mt-2"></i>
+                            <span class="text-2xl font-black text-emerald-600" id="sa-prt-fin-month-paid">--</span>
+                            <span class="text-[10px] text-emerald-500 font-bold mt-1">תשלומים החודש</span>
+                        </div>
+                        <div class="bg-red-50 border border-red-200 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm relative">
+                            <span class="absolute top-2 right-2 text-[9px] font-bold bg-red-200 text-red-700 px-1.5 py-0.5 rounded-full">חודש שוטף</span>
+                            <i class="fa-solid fa-clock text-2xl text-red-300 mb-2 mt-2"></i>
+                            <span class="text-2xl font-black text-red-500" id="sa-prt-fin-month-debt">--</span>
+                            <span class="text-[10px] text-red-400 font-bold mt-1">חוב פתוח החודש</span>
+                        </div>
+                    </div>
+
+                    <!-- טבלת שותפים / מטמיעים -->
+                    <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-md">
+                        <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-4">
+                            <div>
+                                <h2 class="text-lg font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-handshake text-emerald-500"></i> שותפים / מטמיעים</h2>
+                                <p class="text-xs text-slate-500 mt-1">ניהול שותפי הפצה ומטמיעי מערכת.</p>
+                            </div>
+                            <button onclick="openSAAddPartnerModal()" class="bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold shadow-md hover:bg-emerald-600 transition text-sm"><i class="fa-solid fa-plus mr-1"></i> הוסף שותף</button>
+                        </div>
                         <div class="overflow-x-auto">
-                            <table class="w-full text-sm text-right whitespace-nowrap">
+                            <table class="w-full text-sm text-right">
                                 <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
                                     <tr>
-                                        <th class="px-4 py-3 rounded-tr-lg">שם השותף</th>
-                                        <th class="px-4 py-3">אימייל גישה</th>
-                                        <th class="px-4 py-3 text-center">לקוחות משויכים</th>
+                                        <th class="px-4 py-3 rounded-tr-lg">שם שותף</th>
+                                        <th class="px-4 py-3">אימייל</th>
+                                        <th class="px-4 py-3 text-center">לקוחות</th>
                                         <th class="px-4 py-3 text-center rounded-tl-lg">פעולות</th>
                                     </tr>
                                 </thead>
                                 <tbody id="sa-partners-table-body" class="divide-y divide-slate-100">
-                                    <tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">אין שותפים רשומים במערכת עדיין.</td></tr>
+                                    <tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">טוען נתונים...</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                </div>
+
+                </div><!-- /vt-partners-overview -->
+                <div id="vt-partners-managers" class="vt-partners hidden">
+                    <!-- Zone Manager Section -->
+                    <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
+                        <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                            <div>
+                                <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-map-location-dot text-indigo-500"></i> מנהלי אזורים</h2>
+                                <p class="text-sm text-slate-500 mt-1">ניהול מנהלי האזורים, הקצאת אזורים וקהילות, מעקב עמלות.</p>
+                            </div>
+                            <div class="flex gap-2 flex-wrap justify-end">
+                                <button onclick="openZMSettingsPanel()" class="bg-slate-100 text-slate-700 px-4 py-2.5 rounded-xl font-bold hover:bg-slate-200 transition text-sm"><i class="fa-solid fa-sliders mr-1"></i> הגדרות רף</button>
+                                <button onclick="openZMCreateModal()" class="bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-md hover:bg-indigo-600 transition text-sm"><i class="fa-solid fa-plus mr-1"></i> הקם מנהל אזור</button>
+                            </div>
+                        </div>
+
+                        <!-- Settings panel (toggled) -->
+                        <div id="zm-settings-panel" class="hidden mb-6 bg-indigo-50 border border-indigo-100 rounded-2xl p-5">
+                            <h3 class="text-sm font-bold text-indigo-800 mb-4 text-right"><i class="fa-solid fa-sliders mr-1"></i> הגדרות רף ועמלות מנהלי אזורים</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="text-xs font-bold text-indigo-700 block mb-1">מינימום משפחות לקהילה פעילה</label>
+                                    <input type="number" id="zm-setting-min-families" class="modern-input" placeholder="30" min="1">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-indigo-700 block mb-1">מינימום עסקים לקהילה פעילה</label>
+                                    <input type="number" id="zm-setting-min-businesses" class="modern-input" placeholder="15" min="1">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-indigo-700 block mb-1">ברירת מחדל עמלה למנהל אזור (%)</label>
+                                    <input type="number" id="zm-setting-commission-pct" class="modern-input" placeholder="5" step="0.1" min="0" max="100">
+                                </div>
+                            </div>
+                            <div class="flex gap-3 mt-4">
+                                <button onclick="saveZoneSettings()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition">שמור הגדרות</button>
+                                <button onclick="document.getElementById('zm-settings-panel').classList.add('hidden')" class="bg-white text-slate-500 px-6 py-2.5 rounded-xl font-bold border border-slate-200 hover:bg-slate-50 transition">סגור</button>
+                            </div>
+                        </div>
+
+                        <!-- Zone managers table -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-right whitespace-nowrap">
+                                <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
+                                    <tr>
+                                        <th class="px-4 py-3 rounded-tr-lg">שם מנהל האזור</th>
+                                        <th class="px-4 py-3">אימייל</th>
+                                        <th class="px-4 py-3 text-center">אזורים</th>
+                                        <th class="px-4 py-3 text-center">קהילות</th>
+                                        <th class="px-4 py-3 text-center">עמלה %</th>
+                                        <th class="px-4 py-3 text-center">סטטוס</th>
+                                        <th class="px-4 py-3 text-center rounded-tl-lg">פעולות</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sa-zone-managers-table-body" class="divide-y divide-slate-100">
+                                    <tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">לחץ על "שותפים" לטעינת הנתונים</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div><!-- /vt-partners-managers -->
+                </div><!-- /sa-view-partners -->
 
                 <div id="sa-view-pulse" class="hidden fade-in">
 
@@ -345,10 +484,10 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             </div>
                         </div>
 
-                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
-                            <p class="text-xs font-bold text-slate-700 text-right mb-2 flex items-center justify-end gap-1.5"><i class="fa-solid fa-users text-teal-400 text-[10px]"></i> משתמשים</p>
+                        <div class="bg-white rounded-xl border border-emerald-200 shadow-sm p-3 ring-1 ring-emerald-100">
+                            <p class="text-xs font-bold text-slate-700 text-right mb-2 flex items-center justify-end gap-1.5"><span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse inline-block"></span> מחוברים</p>
                             <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-100">
-                                <div class="text-center px-2"><p class="text-[8px] text-teal-400 font-bold uppercase mb-1">24 שעות</p><span class="text-2xl font-black text-teal-600" id="kpi-online-users">--</span></div>
+                                <div class="text-center px-2"><p class="text-[8px] text-emerald-500 font-bold uppercase mb-1">עכשיו</p><span class="text-2xl font-black text-emerald-600" id="kpi-online-users">--</span></div>
                                 <div class="text-center px-2"><p class="text-[8px] text-slate-400 font-bold uppercase mb-1">סה"כ</p><span class="text-2xl font-black text-slate-500" id="kpi-total-kids">--</span></div>
                             </div>
                         </div>
@@ -547,7 +686,12 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     </div>
                 </div>
 
-                <div id="sa-view-comm" class="hidden space-y-8 fade-in">
+                <div id="sa-view-comm" class="hidden fade-in">
+                  <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;" id="vtnav-comm">
+          <button id="vtnav-comm-manage" onclick="switchViewTab('comm','manage')" style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-plus-circle" style="font-size:11px;"></i>הקמה ושיוך</button>
+          <button id="vtnav-comm-table" onclick="switchViewTab('comm','table')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-list" style="font-size:11px;"></i>טבלת קהילות</button>
+        </div>
+                <div id="vt-comm-manage" class="vt-comm space-y-8">
                     <div id="sa-pending-biz-container" class="hidden bg-orange-100/50 p-6 rounded-2xl border border-orange-200 shadow-sm">
                         <h3 class="font-bold text-orange-800 text-lg mb-4 flex items-center gap-2"><i class="fa-solid fa-bell text-orange-500"></i> בקשות הצטרפות ממתינות (עסקים לקהילות)</h3>
                         <div id="sa-pending-biz-list" class="space-y-3"></div>
@@ -629,7 +773,9 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
 
-                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md mt-8">
+                </div><!-- /vt-comm-manage -->
+                <div id="vt-comm-table" class="vt-comm hidden">
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                             <h3 class="font-bold text-slate-800 text-lg"><i class="fa-solid fa-list text-orange-500 mr-2"></i> טבלת קהילות פעילות</h3>
                             <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -664,7 +810,153 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             </table>
                         </div>
                     </div>
-                </div>
+                </div><!-- /vt-comm-table -->
+                </div><!-- /sa-view-comm -->
+
+                <div id="sa-view-finance" class="hidden fade-in">
+                  <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;" id="vtnav-finance">
+          <button id="vtnav-finance-overview" onclick="switchViewTab('finance','overview')" style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-chart-pie" style="font-size:11px;"></i>סקירה</button>
+          <button id="vtnav-finance-settings" onclick="switchViewTab('finance','settings')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-percent" style="font-size:11px;"></i>הגדרות</button>
+          <button id="vtnav-finance-dues" onclick="switchViewTab('finance','dues')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-file-invoice-dollar" style="font-size:11px;"></i>חובות עסקים</button>
+          <button id="vtnav-finance-wallets" onclick="switchViewTab('finance','wallets')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-wallet" style="font-size:11px;"></i>ארנקי קהילות</button>
+        </div>
+                <div id="vt-finance-overview" class="vt-finance">
+                    <!-- קוביות סיכום -->
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                        <div class="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-sack-dollar text-2xl text-blue-500 mb-2"></i>
+                            <span class="text-2xl font-black text-blue-700" id="sa-fin-total-commission">--</span>
+                            <span class="text-[10px] text-blue-600 font-bold mt-1">סה"כ עמלות שנצברו</span>
+                        </div>
+                        <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-hand-holding-dollar text-2xl text-emerald-500 mb-2"></i>
+                            <span class="text-2xl font-black text-emerald-700" id="sa-fin-total-cashback">--</span>
+                            <span class="text-[10px] text-emerald-600 font-bold mt-1">סה"כ קאשבק לקהילות</span>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-200 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm relative">
+                            <span class="absolute top-2 right-2 text-[9px] font-bold bg-blue-200 text-blue-700 px-1.5 py-0.5 rounded-full">חודש שוטף</span>
+                            <i class="fa-solid fa-sack-dollar text-2xl text-blue-400 mb-2 mt-2"></i>
+                            <span class="text-2xl font-black text-blue-600" id="sa-fin-month-commission">--</span>
+                            <span class="text-[10px] text-blue-500 font-bold mt-1">עמלות החודש</span>
+                        </div>
+                        <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm relative">
+                            <span class="absolute top-2 right-2 text-[9px] font-bold bg-emerald-200 text-emerald-700 px-1.5 py-0.5 rounded-full">חודש שוטף</span>
+                            <i class="fa-solid fa-hand-holding-dollar text-2xl text-emerald-400 mb-2 mt-2"></i>
+                            <span class="text-2xl font-black text-emerald-600" id="sa-fin-month-cashback">--</span>
+                            <span class="text-[10px] text-emerald-500 font-bold mt-1">קאשבק החודש</span>
+                        </div>
+                        <div class="bg-violet-50 border border-violet-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-hand-holding-dollar text-2xl text-violet-500 mb-2"></i>
+                            <span class="text-2xl font-black text-violet-700" id="sa-fin-total-collected">--</span>
+                            <span class="text-[10px] text-violet-600 font-bold mt-1">סה"כ נגבה</span>
+                            <div class="w-full mt-2">
+                                <div class="flex justify-between text-[9px] text-violet-500 mb-0.5">
+                                    <span id="sa-fin-collected-pct">0%</span>
+                                    <span>מהחוב</span>
+                                </div>
+                                <div class="w-full bg-violet-100 rounded-full h-1.5">
+                                    <div id="sa-fin-collected-bar" class="bg-violet-500 h-1.5 rounded-full transition-all duration-700" style="width:0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm relative">
+                            <span class="absolute top-2 right-2 text-[9px] font-bold bg-violet-200 text-violet-700 px-1.5 py-0.5 rounded-full">חודש שוטף</span>
+                            <i class="fa-solid fa-hand-holding-dollar text-2xl text-violet-400 mb-2 mt-2"></i>
+                            <span class="text-2xl font-black text-violet-600" id="sa-fin-month-collected">--</span>
+                            <span class="text-[10px] text-violet-500 font-bold mt-1">גביה החודש</span>
+                            <div class="w-full mt-2">
+                                <div class="flex justify-between text-[9px] text-violet-400 mb-0.5">
+                                    <span id="sa-fin-month-collected-pct">0%</span>
+                                    <span>מהחודש</span>
+                                </div>
+                                <div class="w-full bg-violet-100 rounded-full h-1.5">
+                                    <div id="sa-fin-month-collected-bar" class="bg-violet-400 h-1.5 rounded-full transition-all duration-700" style="width:0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div><!-- /vt-finance-overview -->
+                <div id="vt-finance-settings" class="vt-finance hidden">
+                    <!-- אחוזי עמלה וקאשבק -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
+                        <h2 class="text-xl font-bold mb-6 text-slate-800"><i class="fa-solid fa-percent text-emerald-500 mr-2"></i> הגדרות עמלה וקאשבק קהילתי</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-5">
+                                <label class="text-xs font-bold text-emerald-700 block mb-2">אחוז עמלה מהפלטפורמה (% ממחזור מכירות)</label>
+                                <div class="flex items-center gap-3">
+                                    <input type="number" id="sa-commission-pct" step="0.1" min="0" max="100" class="modern-input py-2.5 text-sm flex-1" placeholder="3" oninput="updateRatesExample(this.value, document.getElementById('sa-cashback-pct')?.value||30)">
+                                    <span class="text-emerald-700 font-bold">%</span>
+                                </div>
+                                <p class="text-[10px] text-emerald-600 mt-2">כמה % גובה הפלטפורמה מכל הזמנה שסטטוסה שונה ל"נמסר"</p>
+                            </div>
+                            <div class="bg-amber-50 border border-amber-100 rounded-2xl p-5">
+                                <label class="text-xs font-bold text-amber-700 block mb-2">אחוז קאשבק לקהילה (% מהעמלה שחוזר לקהילה)</label>
+                                <div class="flex items-center gap-3">
+                                    <input type="number" id="sa-cashback-pct" step="0.1" min="0" max="100" class="modern-input py-2.5 text-sm flex-1" placeholder="30" oninput="updateRatesExample(document.getElementById('sa-commission-pct')?.value||3, this.value)">
+                                    <span class="text-amber-700 font-bold">%</span>
+                                </div>
+                                <p class="text-[10px] text-amber-600 mt-2">מתוך העמלה, כמה % חוזר לארנק הקהילה של הלקוח</p>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-4 text-sm text-slate-600 mb-5 text-right">
+                            <span class="font-bold">דוגמה:</span> הזמנה 1,000&#8362; &#8592; עמלה <span id="sa-example-comm" class="font-bold text-emerald-700">30.00&#8362;</span> &#8592; קאשבק לקהילה <span id="sa-example-cashback" class="font-bold text-amber-600">9.00&#8362;</span>
+                        </div>
+                        <button onclick="savePlatformRates()" class="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold w-full shadow-lg hover:bg-emerald-700 transition"><i class="fa-solid fa-save mr-2"></i> שמור הגדרות</button>
+                    </div>
+
+                </div><!-- /vt-finance-settings -->
+                <div id="vt-finance-dues" class="vt-finance hidden">
+                    <!-- חובות עסקים -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
+                        <div class="flex justify-between items-center mb-5">
+                            <button onclick="loadSAFinanceData()" class="text-xs text-slate-500 hover:text-slate-700 font-bold"><i class="fa-solid fa-rotate-right mr-1"></i> רענן</button>
+                            <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-file-invoice-dollar text-blue-500 mr-2"></i> חובות עסקים לפלטפורמה</h2>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-right whitespace-nowrap">
+                                <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-4 py-3 rounded-tr-lg">עסק</th>
+                                        <th class="px-4 py-3 text-center">מחזור מכירות</th>
+                                        <th class="px-4 py-3 text-center">עמלה כוללת</th>
+                                        <th class="px-4 py-3 text-center">קאשבק שהופרש</th>
+                                        <th class="px-4 py-3 text-center">ממתין לגבייה</th>
+                                        <th class="px-4 py-3 text-center">נגבה</th>
+                                        <th class="px-4 py-3 text-center rounded-tl-lg">פעולה</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sa-dues-table-body" class="divide-y divide-slate-100">
+                                    <tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">טוען נתונים...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div><!-- /vt-finance-dues -->
+                <div id="vt-finance-wallets" class="vt-finance hidden">
+                    <!-- ארנקי קהילות -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
+                        <h2 class="text-xl font-bold mb-5 text-slate-800"><i class="fa-solid fa-wallet text-purple-500 mr-2"></i> ארנקי קהילות - יתרות קאשבק</h2>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-right whitespace-nowrap">
+                                <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-4 py-3 rounded-tr-lg">קהילה</th>
+                                        <th class="px-4 py-3">אזור</th>
+                                        <th class="px-4 py-3 text-center">משפחות</th>
+                                        <th class="px-4 py-3 text-center">סה"כ נצבר</th>
+                                        <th class="px-4 py-3 text-center rounded-tl-lg">יתרה זמינה</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sa-wallets-table-body" class="divide-y divide-slate-100">
+                                    <tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">טוען נתונים...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div><!-- /vt-finance-wallets -->
+                </div><!-- /sa-view-finance -->
 
                 <div id="sa-view-biz" class="hidden space-y-8 fade-in">
                     <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
@@ -851,7 +1143,13 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
         </div><!-- /sa-newsletter-builder -->
 
         <div id="sa-view-content" class="hidden space-y-8 fade-in">
+          <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;" id="vtnav-content">
+                      <button id="vtnav-content-branding" onclick="switchViewTab('content','branding')" style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-paint-roller" style="font-size:11px;"></i>מיתוג ולוגו</button>
+                      <button id="vtnav-content-banners" onclick="switchViewTab('content','banners')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-bullhorn" style="font-size:11px;"></i>הודעות ובאנרים</button>
+                      <button id="vtnav-content-settings" onclick="switchViewTab('content','settings')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-envelope" style="font-size:11px;"></i>הגדרות מייל</button>
+                    </div>
 
+          <div id="vt-content-branding" class="vt-content">
                     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                         <h2 class="text-xl font-black mb-1 text-slate-800"><i class="fa-solid fa-sliders text-indigo-500 mr-2"></i> הגדרות כניסה למערכת</h2>
                         <p class="text-xs text-slate-400 mb-5">שליטה על אמצעי ההתחברות שמוצגים בדף הכניסה של הסופר-אדמין</p>
@@ -863,6 +1161,27 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             <button id="sms-login-toggle" onclick="toggleSmsLogin()" class="relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200 focus:outline-none bg-slate-300">
                                 <span id="sms-login-toggle-dot" class="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-1"></span>
                             </button>
+                        </div>
+
+                        <!-- קוד SMS גנרי לבדיקות -->
+                        <div class="mt-4 bg-amber-50 rounded-xl px-5 py-4 border border-amber-200">
+                            <div class="flex items-start justify-between gap-4">
+                                <div class="flex-1">
+                                    <div class="font-bold text-amber-800 text-sm flex items-center gap-2">
+                                        <i class="fa-solid fa-flask text-amber-500"></i>
+                                        קוד SMS קבוע לבדיקות (Test Mode)
+                                    </div>
+                                    <div class="text-xs text-amber-700 mt-1">כאשר מוגדר — כל הזמנות שולחן יאומתו עם קוד זה במקום קוד אקראי.<br>השאר ריק לקוד אקראי (מצב רגיל).</div>
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <input type="text" id="sa-sms-debug-code" maxlength="4"
+                                        placeholder="0000"
+                                        class="w-20 text-center text-lg font-mono font-bold border-2 border-amber-300 rounded-xl px-2 py-1.5 bg-white focus:outline-none focus:border-amber-500 tracking-[0.3em]"
+                                        oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+                                    <button onclick="saveSmsDebugCode()" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm">שמור</button>
+                                </div>
+                            </div>
+                            <div id="sa-sms-debug-status" class="text-xs mt-2 hidden"></div>
                         </div>
                     </div>
 
@@ -900,7 +1219,9 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             </div>
                         </div>
                     </div>
+          </div>
 
+          <div id="vt-content-banners" class="vt-content" style="display:none;">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
                             <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bullhorn text-blue-500 mr-2"></i> הודעת פתיחה משפחות</h2>
@@ -983,9 +1304,108 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             </div>
                         </div>
                     </div>
+                    <!-- Member Banners & Module Popups -->
+                    <div class="bg-violet-50 p-6 rounded-2xl border border-violet-200">
+                        <h2 class="text-xl font-bold mb-1 text-violet-900"><i class="fa-solid fa-user-lock text-violet-500 mr-2"></i> הודעות לחברי ONEFLOW (Member)</h2>
+                        <p class="text-xs text-slate-500 mb-5">הגדרות הבאנר וחלונות השדרוג המוצגים ללקוחות מסוג "חבר" שמחוברים לחשבון משפחה נעול.</p>
+
+                        <!-- Welcome Banner -->
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-violet-100 mb-5">
+                            <div class="flex items-center justify-between mb-3">
+                                <div>
+                                    <h3 class="font-bold text-slate-700">באנר קבלת פנים (Member Welcome)</h3>
+                                    <p class="text-xs text-slate-400 mt-0.5">מוצג בראש מסך הבית לכל חבר.</p>
+                                </div>
+                                <button id="member-welcome-toggle" onclick="toggleMemberWelcome()" class="relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200 focus:outline-none bg-slate-300">
+                                    <span id="member-welcome-toggle-dot" class="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-1"></span>
+                                </button>
+                            </div>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">טקסט הבאנר:</label>
+                                    <textarea id="sa-member-welcome-text" class="w-full p-3 rounded-xl border border-slate-300 h-24 text-sm" placeholder="ברוך הבא! לחץ על הזמנות שלי לניהול הזמנות..."></textarea>
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">תמונה לבאנר (אופציונלי — עם או בלי טקסט):</label>
+                                    <div class="flex flex-col gap-2">
+                                        <input type="hidden" id="sa-member-welcome-img">
+                                        <input type="file" id="sa-member-welcome-upload" accept="image/*" class="hidden" onchange="handleBannerImageUpload(event, 'sa-member-welcome-img', 'sa-member-welcome-preview')">
+                                        <div class="flex gap-2">
+                                            <button type="button" onclick="document.getElementById('sa-member-welcome-upload').click()" class="flex-1 bg-slate-100 text-slate-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition"><i class="fa-solid fa-upload"></i> העלה תמונה</button>
+                                            <button type="button" id="sa-member-welcome-clear-btn" onclick="clearMemberWelcomeImg()" class="hidden bg-red-50 text-red-500 px-3 py-2 rounded-lg text-xs font-bold border border-red-200 hover:bg-red-100 transition">הסר</button>
+                                        </div>
+                                        <img id="sa-member-welcome-preview" src="" class="hidden w-full h-24 object-contain rounded-lg border border-slate-200 bg-slate-50">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Module Upgrade Popups -->
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-violet-100">
+                            <h3 class="font-bold text-slate-700 mb-1">חלונות שדרוג מודולים</h3>
+                            <p class="text-xs text-slate-500 mb-4">לכל מודול ניתן להפעיל/לכבות את הפופ-אפ ולהוסיף תמונה שיווקית.</p>
+                            <div id="sa-module-settings-list" class="space-y-2">
+                                <p class="text-xs text-slate-400 text-center py-2">טוען...</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <button onclick="saveAllBanners()" class="bg-blue-600 text-white px-6 py-4 rounded-xl font-bold w-full shadow-lg hover:bg-blue-700 transition text-lg mb-8">
                         <i class="fa-solid fa-save mr-2"></i> שמור נתונים ופרסם באנרים למערכת
                     </button>
+          </div>
+
+          <!-- טאב: הגדרות מייל -->
+          <div id="vt-content-settings" class="vt-content" style="display:none;">
+              <div class="space-y-6">
+                    <!-- Email Settings -->
+                    <div class="bg-blue-50 p-6 rounded-2xl border border-blue-200">
+                        <h2 class="text-xl font-bold mb-1 text-blue-900"><i class="fa-solid fa-envelope text-blue-500 mr-2"></i> הגדרות מייל מערכת</h2>
+                        <p class="text-xs text-slate-500 mb-5">כתובת שולח המיילים ללקוחות ועסקים, ומייל קבלת ההתראות הניהוליות.</p>
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-blue-100 space-y-4">
+                            <div>
+                                <label class="text-xs font-bold text-slate-600 block mb-1">שם השולח (From Name)</label>
+                                <input id="smtp-from-name" type="text" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="Oneflow System">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-600 block mb-1">כתובת מייל שולח (From Email)</label>
+                                <input id="smtp-from-email" type="email" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left" placeholder="info@oneflowlife.co.il">
+                                <p class="text-[10px] text-slate-400 mt-1">⚠️ חייב להיות מורשה ב-SMTP — ב-Gmail צריך "Send As" מוגדר, או SMTP של הדומיין</p>
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-600 block mb-1">מייל קבלת התראות ניהוליות (הצטרפויות, תמיכה)</label>
+                                <input id="admin-notification-email" type="email" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left" placeholder="mcgames1978@gmail.com">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PWA Install Prompt Toggle -->
+                    <div class="bg-indigo-50 p-6 rounded-2xl border border-indigo-200">
+                        <h2 class="text-xl font-bold mb-1 text-indigo-900"><i class="fa-solid fa-mobile-screen-button text-indigo-500 mr-2"></i> הצעת קיצור דרך לדף הבית (PWA)</h2>
+                        <p class="text-xs text-slate-500 mb-5">הצג באנר צף לכל משתמש עסקי שטרם הוסיף את האפליקציה לדף הבית — Android, iOS ו-Desktop. נדחה ל-7 ימים אם המשתמש סוגר.</p>
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-indigo-100">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="font-bold text-slate-700">הצג הודעת "הוסף לדף הבית"</h3>
+                                    <p class="text-xs text-slate-400 mt-0.5">מופיע 3 שניות לאחר הכניסה למערכת.</p>
+                                </div>
+                                <button id="pwa-prompt-toggle" onclick="togglePwaPrompt()" class="relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200 focus:outline-none bg-slate-300">
+                                    <span id="pwa-prompt-toggle-dot" class="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-1"></span>
+                                </button>
+                            </div>
+                            <div class="mt-4 p-3 bg-indigo-50 rounded-xl border border-indigo-100 text-xs text-indigo-700 space-y-1">
+                                <div><i class="fa-brands fa-android text-green-600 w-4"></i> <strong>Android:</strong> כפתור "התקן" שמפעיל את ה-Native Install Prompt של הדפדפן</div>
+                                <div><i class="fa-brands fa-apple text-slate-700 w-4"></i> <strong>iOS Safari:</strong> הוראות: "לחץ ⎙ ואח"כ הוסף למסך הבית"</div>
+                                <div><i class="fa-solid fa-desktop text-blue-600 w-4"></i> <strong>Desktop:</strong> כפתור "התקן" לדפדפנים תומכי PWA (Chrome, Edge)</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="saveEmailSettings()" class="bg-blue-600 text-white px-6 py-4 rounded-xl font-bold w-full shadow-lg hover:bg-blue-700 transition text-lg">
+                        <i class="fa-solid fa-save mr-2"></i> שמור הגדרות מייל
+                    </button>
+              </div>
+          </div>
                 </div>
 
                <div id="sa-view-clients" class="hidden space-y-8 fade-in">
@@ -1001,7 +1421,13 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     </div>
                 </div>
 
-                <div id="sa-view-hr" class="hidden space-y-8 fade-in">
+                <div id="sa-view-hr" class="hidden fade-in">
+                  <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;" id="vtnav-hr">
+          <button id="vtnav-hr-teams" onclick="switchViewTab('hr','teams')" style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-user-shield" style="font-size:11px;"></i>צוותים</button>
+          <button id="vtnav-hr-staff" onclick="switchViewTab('hr','staff')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-user-tie" style="font-size:11px;"></i>נציגים</button>
+          <button id="vtnav-hr-master" onclick="switchViewTab('hr','master')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-key" style="font-size:11px;"></i>מאסטר אדמין</button>
+        </div>
+                <div id="vt-hr-teams" class="vt-hr">
                     <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
                         <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
                             <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-user-shield text-indigo-500 mr-2"></i> ניהול צוותים והרשאות גישה (RBAC)</h2>
@@ -1010,6 +1436,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         <div id="sa-teams-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
                     </div>
 
+                </div><!-- /vt-hr-teams -->
+                <div id="vt-hr-staff" class="vt-hr hidden">
                     <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
                         <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
                             <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-user-tie text-blue-500 mr-2"></i> נציגי מערכת וצוות עובדים</h2>
@@ -1031,6 +1459,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
 
+                </div><!-- /vt-hr-staff -->
+                <div id="vt-hr-master" class="vt-hr hidden">
                     <div class="bg-slate-50 p-6 rounded-3xl border border-slate-200 mb-8 border-l-4 border-l-red-500">
                         <h2 class="text-xl font-black mb-2 text-slate-800"><i class="fa-solid fa-key text-red-500 mr-2"></i> מנהל על מרכזי (Master Admin)</h2>
                         <p class="text-xs text-slate-500 mb-4">שינוי פרטי גישה של חשבון המאסטר הראשי.</p>
@@ -1043,7 +1473,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             <button onclick="updateSACredentials()" class="bg-red-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-red-700 transition">שמור ועדכן</button>
                         </div>
                     </div>
-                </div>
+                </div><!-- /vt-hr-master -->
+                </div><!-- /sa-view-hr -->
 
                 <div id="sa-view-devops" class="hidden space-y-8 fade-in">
                     <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
@@ -1383,6 +1814,323 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     </div>
                 </div>
             </div>
+
+                <!-- מפת המערכת -->
+                <div id="sa-view-sysmap" class="hidden space-y-8 fade-in">
+                <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
+                    <div class="mb-8 border-b border-slate-100 pb-6">
+                        <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-map text-indigo-600"></i> מפת המערכת</h2>
+                        <p class="text-sm text-slate-500 mt-1">כל עמודי ומסכי OneFlow — לינקים, תפקיד וסביבה</p>
+                    </div>
+                    <div class="mb-8">
+                        <div class="flex items-center gap-2 mb-4">
+                            <div class="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center"><i class="fa-solid fa-house text-indigo-600 text-sm"></i></div>
+                            <h3 class="text-lg font-black text-slate-700">סביבת משפחה (Family)</h3>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <a href="/index.html" target="_blank" class="flex items-start gap-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-100 hover:bg-indigo-100 transition group">
+                                <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-mobile-screen text-white text-sm"></i></div>
+                                <div><p class="font-bold text-slate-800 group-hover:text-indigo-700 transition">אפליקציית משפחה <i class="fa-solid fa-arrow-up-right-from-square text-xs text-indigo-400 mr-1"></i></p><p class="text-xs text-slate-500 mt-0.5">/index.html — לוח בקרה, הבנק המשפחתי, תקציב, מזווה, שף AI, משימות, קהילה</p></div>
+                            </a>
+                            <a href="/guide.html" target="_blank" class="flex items-start gap-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-100 hover:bg-indigo-100 transition group">
+                                <div class="w-10 h-10 rounded-xl bg-indigo-400 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-book-open text-white text-sm"></i></div>
+                                <div><p class="font-bold text-slate-800 group-hover:text-indigo-700 transition">מדריך למשפחה <i class="fa-solid fa-arrow-up-right-from-square text-xs text-indigo-400 mr-1"></i></p><p class="text-xs text-slate-500 mt-0.5">/guide.html — מדריך הדרכה אינטראקטיבי עם שקפים לפיצ'רים של סביבת משפחה</p></div>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="mb-8">
+                        <div class="flex items-center gap-2 mb-4">
+                            <div class="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center"><i class="fa-solid fa-store text-blue-600 text-sm"></i></div>
+                            <h3 class="text-lg font-black text-slate-700">סביבת עסק (Business)</h3>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <a href="/business.html" target="_blank" class="flex items-start gap-4 p-4 bg-blue-50 rounded-2xl border border-blue-100 hover:bg-blue-100 transition group">
+                                <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-briefcase text-white text-sm"></i></div>
+                                <div><p class="font-bold text-slate-800 group-hover:text-blue-700 transition">אפליקציית עסק <i class="fa-solid fa-arrow-up-right-from-square text-xs text-blue-400 mr-1"></i></p><p class="text-xs text-slate-500 mt-0.5">/business.html — POS, מלאי, CRM, שיווק, נוכחות, משלוחים, תזרים</p></div>
+                            </a>
+                            <div class="flex items-start gap-4 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                                <div class="w-10 h-10 rounded-xl bg-sky-500 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-shop text-white text-sm"></i></div>
+                                <div><p class="font-bold text-slate-800">חזית חנות (Storefront)</p><p class="text-xs text-slate-500 mt-0.5">/:alias — עמוד ציבורי של חנות/עסק לפי כינוי. קטלוג מוצרים, הזמנות, מידע על העסק</p></div>
+                            </div>
+                            <a href="/biz-guide.html" target="_blank" class="flex items-start gap-4 p-4 bg-blue-50 rounded-2xl border border-blue-100 hover:bg-blue-100 transition group">
+                                <div class="w-10 h-10 rounded-xl bg-blue-400 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-book-open text-white text-sm"></i></div>
+                                <div><p class="font-bold text-slate-800 group-hover:text-blue-700 transition">מדריך לעסק <i class="fa-solid fa-arrow-up-right-from-square text-xs text-blue-400 mr-1"></i></p><p class="text-xs text-slate-500 mt-0.5">/biz-guide.html — מדריך הדרכה אינטראקטיבי לפיצ'רים של סביבת עסק</p></div>
+                            </a>
+                            <div class="flex items-start gap-4 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                                <div class="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-file-signature text-white text-sm"></i></div>
+                                <div><p class="font-bold text-slate-800">אישור הצעת מחיר / הזמנת רכש</p><p class="text-xs text-slate-500 mt-0.5">/c/q/:id/:token · /c/po/:id/:token — עמודים ציבוריים לאישור ע"י לקוח / ספק</p></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-8">
+                        <div class="flex items-center gap-2 mb-4">
+                            <div class="w-8 h-8 rounded-xl bg-violet-100 flex items-center justify-center"><i class="fa-solid fa-bullhorn text-violet-600 text-sm"></i></div>
+                            <h3 class="text-lg font-black text-slate-700">Zone Manager — מרקטינג גיוס</h3>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <a href="/zone-manager.html" target="_blank" class="flex items-start gap-4 p-4 bg-violet-50 rounded-2xl border border-violet-100 hover:bg-violet-100 transition group">
+                                <div class="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-chart-network text-white text-sm"></i></div>
+                                <div><p class="font-bold text-slate-800 group-hover:text-violet-700 transition">לוח בקרה Zone Manager <i class="fa-solid fa-arrow-up-right-from-square text-xs text-violet-400 mr-1"></i></p><p class="text-xs text-slate-500 mt-0.5">/zone-manager.html — קמפיינים, לידים, אינבוקס, AI לטקסט ותמונה</p></div>
+                            </a>
+                            <div class="flex items-start gap-4 p-4 bg-violet-50 rounded-2xl border border-violet-100">
+                                <div class="w-10 h-10 rounded-xl bg-pink-500 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-clipboard-list text-white text-sm"></i></div>
+                                <div><p class="font-bold text-slate-800">עמוד קמפיין (לינק ציבורי)</p><p class="text-xs text-slate-500 mt-0.5">/campaign.html?t=TOKEN — עמוד איסוף פרטים שנשלח בווצאפ. באנר, לוגו, טופס ליד</p></div>
+                            </div>
+                            <div class="flex items-start gap-4 p-4 bg-violet-50 rounded-2xl border border-violet-100">
+                                <div class="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center flex-shrink-0"><i class="fa-brands fa-whatsapp text-white text-sm"></i></div>
+                                <div><p class="font-bold text-slate-800">OG Preview לווצאפ</p><p class="text-xs text-slate-500 mt-0.5">/c/camp/:token — נתיב ביניים עם og:image/title לתצוגה מקדימה בווצאפ → מפנה ל-campaign.html</p></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-8">
+                        <div class="flex items-center gap-2 mb-4">
+                            <div class="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center"><i class="fa-solid fa-gear text-slate-600 text-sm"></i></div>
+                            <h3 class="text-lg font-black text-slate-700">ניהול מערכת</h3>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <a href="/sa.html" target="_blank" class="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200 hover:bg-slate-100 transition group">
+                                <div class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-shield-halved text-white text-sm"></i></div>
+                                <div><p class="font-bold text-slate-800 group-hover:text-slate-600 transition">Super Admin <i class="fa-solid fa-arrow-up-right-from-square text-xs text-slate-400 mr-1"></i></p><p class="text-xs text-slate-500 mt-0.5">/sa.html — ניהול עליון: הגדרות מערכת, מנהלי אזור, לוגו, באנרים, SMS</p></div>
+                            </a>
+                            <div class="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                                <div class="w-10 h-10 rounded-xl bg-slate-600 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-database text-white text-sm"></i></div>
+                                <div><p class="font-bold text-slate-800">הגדרת DB</p><p class="text-xs text-slate-500 mt-0.5">/setup-db — איתחול טבלאות בסיס הנתונים (שימוש חד-פעמי בדיפלוי)</p></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- אפיון מערכת -->
+                    <div class="mb-8">
+                        <div class="flex items-center gap-2 mb-4">
+                            <div class="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center"><i class="fa-solid fa-file-lines text-amber-600 text-sm"></i></div>
+                            <h3 class="text-lg font-black text-slate-700">אפיון מערכת</h3>
+                            <span class="text-xs text-slate-400 font-medium">— מסמכי אפיון מפורטים לכל סביבה (NotebookLM)</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div class="flex items-start gap-4 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                                <div class="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center flex-shrink-0 flex-shrink-0"><i class="fa-solid fa-store text-white text-sm"></i></div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-bold text-slate-800">אפיון סביבת עסקים</p>
+                                    <p class="text-xs text-slate-500 mt-0.5 mb-2">כל המודולים, טאבים, הרשאות, API, סוגי עסק, לוגיקות</p>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <a href="/docs/spec-biz-environment.html" target="_blank" class="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition"><i class="fa-solid fa-eye text-[10px]"></i> פתח</a>
+                                        <a href="/docs/spec-biz-environment.md" download class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-amber-200 hover:bg-amber-50 text-amber-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-download text-[10px]"></i> MD</a>
+                                        <a href="/docs/spec-biz-environment.html" target="_blank" onclick="setTimeout(()=>window.open('/docs/spec-biz-environment.html','_blank'), 100)" class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-print text-[10px]"></i> PDF</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                                <div class="w-10 h-10 rounded-xl bg-indigo-500 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-house text-white text-sm"></i></div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-bold text-slate-800">אפיון סביבת משפחה</p>
+                                    <p class="text-xs text-slate-500 mt-0.5 mb-2">מודולים, תפקידים, API, הזמנות, AI, קהילה</p>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <a href="/docs/spec-family-environment.html" target="_blank" class="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-xs font-bold transition"><i class="fa-solid fa-eye text-[10px]"></i> פתח</a>
+                                        <a href="/docs/spec-family-environment.md" download class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-indigo-200 hover:bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-download text-[10px]"></i> MD</a>
+                                        <a href="/docs/spec-family-environment.html" target="_blank" class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-print text-[10px]"></i> PDF</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-4 p-4 bg-violet-50 rounded-2xl border border-violet-100">
+                                <div class="w-10 h-10 rounded-xl bg-violet-500 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-users-rays text-white text-sm"></i></div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-bold text-slate-800">אפיון קהילות / Zone Manager</p>
+                                    <p class="text-xs text-slate-500 mt-0.5 mb-2">קמפיינים, לידים, קהילות, עמלות, AI, WhatsApp</p>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <a href="/docs/spec-zone-community.html" target="_blank" class="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500 hover:bg-violet-600 text-white rounded-lg text-xs font-bold transition"><i class="fa-solid fa-eye text-[10px]"></i> פתח</a>
+                                        <a href="/docs/spec-zone-community.md" download class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-violet-200 hover:bg-violet-50 text-violet-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-download text-[10px]"></i> MD</a>
+                                        <a href="/docs/spec-zone-community.html" target="_blank" class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-print text-[10px]"></i> PDF</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-4 p-4 bg-slate-100 rounded-2xl border border-slate-200">
+                                <div class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-shield-halved text-white text-sm"></i></div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-bold text-slate-800">אפיון Super Admin</p>
+                                    <p class="text-xs text-slate-500 mt-0.5 mb-2">15 טאבים, impersonation, banners, legal, AI, 100+ endpoints</p>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <a href="/docs/spec-super-admin.html" target="_blank" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition"><i class="fa-solid fa-eye text-[10px]"></i> פתח</a>
+                                        <a href="/docs/spec-super-admin.md" download class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-download text-[10px]"></i> MD</a>
+                                        <a href="/docs/spec-super-admin.html" target="_blank" class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-print text-[10px]"></i> PDF</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- QA Book -->
+                            <div class="flex items-start gap-4 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                                <div class="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-vial-circle-check text-white text-sm"></i></div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-bold text-slate-800">ספר QA — תרחישי בדיקה</p>
+                                    <p class="text-xs text-slate-500 mt-0.5 mb-2">~150 תרחישים לכל הסביבות, edge cases, API smoke tests, regression</p>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <a href="/docs/spec-qa-book.html" target="_blank" class="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition"><i class="fa-solid fa-eye text-[10px]"></i> פתח</a>
+                                        <a href="/docs/spec-qa-book.md" download class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-emerald-200 hover:bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-download text-[10px]"></i> MD</a>
+                                        <a href="/docs/spec-qa-book.html" target="_blank" class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-print text-[10px]"></i> PDF</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center gap-2 mb-4">
+                            <div class="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center"><i class="fa-solid fa-globe text-emerald-600 text-sm"></i></div>
+                            <h3 class="text-lg font-black text-slate-700">עמודים ציבוריים ותומכים</h3>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <a href="/privacy.html" target="_blank" class="flex items-start gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 hover:bg-emerald-100 transition group">
+                                <div class="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-lock text-white text-xs"></i></div>
+                                <div><p class="font-bold text-slate-800 group-hover:text-emerald-700 transition text-sm">מדיניות פרטיות <i class="fa-solid fa-arrow-up-right-from-square text-xs text-emerald-400 mr-1"></i></p><p class="text-xs text-slate-400">/privacy.html</p></div>
+                            </a>
+                            <a href="/survey.html" target="_blank" class="flex items-start gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 hover:bg-emerald-100 transition group">
+                                <div class="w-9 h-9 rounded-xl bg-teal-500 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-square-poll-vertical text-white text-xs"></i></div>
+                                <div><p class="font-bold text-slate-800 group-hover:text-teal-700 transition text-sm">סקר משתמשים <i class="fa-solid fa-arrow-up-right-from-square text-xs text-teal-400 mr-1"></i></p><p class="text-xs text-slate-400">/survey.html</p></div>
+                            </a>
+                            <a href="/launch-presentation.html" target="_blank" class="flex items-start gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 hover:bg-emerald-100 transition group">
+                                <div class="w-9 h-9 rounded-xl bg-orange-500 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-presentation-screen text-white text-xs"></i></div>
+                                <div><p class="font-bold text-slate-800 group-hover:text-orange-700 transition text-sm">מצגת השקה <i class="fa-solid fa-arrow-up-right-from-square text-xs text-orange-400 mr-1"></i></p><p class="text-xs text-slate-400">/launch-presentation.html</p></div>
+                            </a>
+                            <a href="/qa-book.html" target="_blank" class="flex items-start gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 hover:bg-emerald-100 transition group">
+                                <div class="w-9 h-9 rounded-xl bg-indigo-500 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-vial-circle-check text-white text-xs"></i></div>
+                                <div><p class="font-bold text-slate-800 group-hover:text-indigo-700 transition text-sm">ספר QA <i class="fa-solid fa-arrow-up-right-from-square text-xs text-indigo-400 mr-1"></i></p><p class="text-xs text-slate-400">/qa-book.html</p></div>
+                            </a>
+                            <a href="/SPECIFICATION.html" target="_blank" class="flex items-start gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 hover:bg-emerald-100 transition group">
+                                <div class="w-9 h-9 rounded-xl bg-slate-500 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-file-code text-white text-xs"></i></div>
+                                <div><p class="font-bold text-slate-800 group-hover:text-slate-700 transition text-sm">ספציפיקציה טכנית <i class="fa-solid fa-arrow-up-right-from-square text-xs text-slate-400 mr-1"></i></p><p class="text-xs text-slate-400">/SPECIFICATION.html</p></div>
+                            </a>
+                            <a href="/ux-mockup.html" target="_blank" class="flex items-start gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 hover:bg-emerald-100 transition group">
+                                <div class="w-9 h-9 rounded-xl bg-pink-500 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-pen-ruler text-white text-xs"></i></div>
+                                <div><p class="font-bold text-slate-800 group-hover:text-pink-700 transition text-sm">UX Mockup <i class="fa-solid fa-arrow-up-right-from-square text-xs text-pink-400 mr-1"></i></p><p class="text-xs text-slate-400">/ux-mockup.html</p></div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                </div>
+
+                <!-- מסמכים משפטיים -->
+                <div id="sa-view-legal" class="hidden space-y-8 fade-in">
+                    <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
+                        <div class="mb-6 border-b border-slate-100 pb-6">
+                            <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-contract text-indigo-600"></i> מסמכים משפטיים</h2>
+                            <p class="text-sm text-slate-500 mt-1">ניהול תקנון, מדיניות פרטיות ומסמכי הצהרה של המערכת</p>
+                        </div>
+
+                        <!-- Document tabs -->
+                        <div class="flex gap-2 flex-wrap mb-6" id="legal-doc-tabs">
+                            <button onclick="switchLegalDoc('legal_tos_family')" id="legal-tab-legal_tos_family" class="px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 text-white transition">תקנון — משפחה</button>
+                            <button onclick="switchLegalDoc('legal_tos_business')" id="legal-tab-legal_tos_business" class="px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">תקנון — עסקים</button>
+                            <button onclick="switchLegalDoc('legal_privacy')" id="legal-tab-legal_privacy" class="px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">מדיניות פרטיות</button>
+                            <button onclick="switchLegalDoc('legal_accessibility')" id="legal-tab-legal_accessibility" class="px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">הצהרת נגישות</button>
+                        </div>
+
+                        <div class="mb-3 flex items-center justify-between">
+                            <label id="legal-doc-label" class="text-sm font-bold text-slate-700">תקנון — משפחה</label>
+                        </div>
+
+                        <!-- Rich text toolbar -->
+                        <div class="flex flex-wrap gap-1 mb-0 bg-slate-50 border border-slate-200 border-b-0 rounded-t-2xl p-2">
+                            <button type="button" onclick="legalFmt('bold')" title="מודגש" class="legal-tb-btn w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm transition font-bold text-sm">B</button>
+                            <button type="button" onclick="legalFmt('italic')" title="נטוי" class="legal-tb-btn w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm transition italic text-sm">I</button>
+                            <button type="button" onclick="legalFmt('underline')" title="קו תחתי" class="legal-tb-btn w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm transition underline text-sm">U</button>
+                            <div class="w-px h-6 bg-slate-200 mx-1 self-center"></div>
+                            <button type="button" onclick="legalFmtBlock('h2')" title="כותרת גדולה" class="legal-tb-btn px-2 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm transition text-xs font-bold">H1</button>
+                            <button type="button" onclick="legalFmtBlock('h3')" title="כותרת קטנה" class="legal-tb-btn px-2 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm transition text-xs font-bold">H2</button>
+                            <button type="button" onclick="legalFmtBlock('p')" title="פסקה רגילה" class="legal-tb-btn px-2 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm transition text-xs">¶</button>
+                            <div class="w-px h-6 bg-slate-200 mx-1 self-center"></div>
+                            <button type="button" onclick="legalFmt('insertUnorderedList')" title="רשימת נקודות" class="legal-tb-btn w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm transition text-sm"><i class="fa-solid fa-list-ul text-xs"></i></button>
+                            <button type="button" onclick="legalFmt('insertOrderedList')" title="רשימה ממוספרת" class="legal-tb-btn w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm transition text-sm"><i class="fa-solid fa-list-ol text-xs"></i></button>
+                            <div class="w-px h-6 bg-slate-200 mx-1 self-center"></div>
+                            <button type="button" onclick="legalFmt('removeFormat')" title="נקה עיצוב" class="legal-tb-btn w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-white hover:shadow-sm transition text-xs"><i class="fa-solid fa-eraser text-xs"></i></button>
+                        </div>
+
+                        <!-- Contenteditable editor -->
+                        <div id="legal-doc-editor"
+                             contenteditable="true"
+                             dir="rtl"
+                             class="w-full min-h-[320px] border border-slate-200 rounded-b-2xl p-5 text-sm text-slate-700 bg-white focus:outline-none focus:border-indigo-400 transition leading-relaxed legal-editor"
+                             style="font-family:inherit"
+                             onmouseup="updateLegalToolbar()" onkeyup="updateLegalToolbar()"></div>
+
+                        <div class="flex items-center gap-3 mt-4">
+                            <button onclick="saveLegalDoc()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow hover:bg-indigo-700 transition flex items-center gap-2"><i class="fa-solid fa-floppy-disk"></i> שמור מסמך</button>
+                            <span id="legal-save-status" class="text-sm font-bold hidden"></span>
+                        </div>
+                    </div>
+                </div>
+
+            <!-- ══════════════════════════════════════════════════ -->
+            <!-- תבניות עסקים view                                  -->
+            <!-- ══════════════════════════════════════════════════ -->
+            <div id="sa-view-templates" class="hidden space-y-6 fade-in">
+
+              <!-- כותרת + הוראות -->
+              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                <h2 class="text-xl font-bold text-slate-800 flex items-center gap-3 mb-1">
+                  <i class="fa-solid fa-layer-group text-emerald-500"></i> ניהול תבניות עסקים
+                </h2>
+                <p class="text-sm text-slate-500">הסתר/הצג טאבים, פיצ'רים ולחצנים לפי סוג עסק. השינויים חלים על כל העסקים מאותו סוג.</p>
+              </div>
+
+              <!-- בורר סוג עסק -->
+              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                <div class="flex flex-wrap gap-2" id="viz-type-tabs">
+                  <button onclick="window.renderBizTemplatesView && window.renderBizTemplatesView('restaurant')"
+                    id="viz-tab-restaurant"
+                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-slate-200 bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition">
+                    🍽️ מסעדה ואוכל
+                  </button>
+                  <button onclick="window.renderBizTemplatesView && window.renderBizTemplatesView('sport')"
+                    id="viz-tab-sport"
+                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-slate-200 bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition">
+                    🏋️ ספורט וכושר
+                  </button>
+                  <button onclick="window.renderBizTemplatesView && window.renderBizTemplatesView('beauty')"
+                    id="viz-tab-beauty"
+                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-slate-200 bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition">
+                    💅 יופי וקוסמטיקה
+                  </button>
+                  <button onclick="window.renderBizTemplatesView && window.renderBizTemplatesView('maintenance_repair')"
+                    id="viz-tab-maintenance_repair"
+                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-slate-200 bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition">
+                    🔧 תיקונים ותחזוקה
+                  </button>
+                  <button onclick="window.renderBizTemplatesView && window.renderBizTemplatesView('professional')"
+                    id="viz-tab-professional"
+                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-slate-200 bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition">
+                    🎓 מומחים ומקצועות
+                  </button>
+                  <button onclick="window.renderBizTemplatesView && window.renderBizTemplatesView('logistics')"
+                    id="viz-tab-logistics"
+                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-slate-200 bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition">
+                    🚚 לוגיסטיקה ומשלוחים
+                  </button>
+                </div>
+              </div>
+
+              <!-- סרגל סטטיסטיקות -->
+              <div id="viz-stats-bar" class="hidden grid grid-cols-3 gap-4">
+                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 text-center">
+                  <div class="text-2xl font-black text-slate-800" id="viz-stat-total">0</div>
+                  <div class="text-xs text-slate-500 mt-1">סה"כ אלמנטים</div>
+                </div>
+                <div class="bg-white rounded-2xl border border-emerald-100 shadow-sm p-4 text-center">
+                  <div class="text-2xl font-black text-emerald-600" id="viz-stat-active">0</div>
+                  <div class="text-xs text-slate-500 mt-1">פעילים</div>
+                </div>
+                <div class="bg-white rounded-2xl border border-red-100 shadow-sm p-4 text-center">
+                  <div class="text-2xl font-black text-red-500" id="viz-stat-hidden">0</div>
+                  <div class="text-xs text-slate-500 mt-1">מוסתרים</div>
+                </div>
+              </div>
+
+              <!-- טוען / עץ אלמנטים -->
+              <div id="viz-loading" class="hidden text-center py-12">
+                <div class="w-8 h-8 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                <p class="text-sm text-slate-500">טוען נתונים...</p>
+              </div>
+
+              <div id="viz-elements-container" class="space-y-3"></div>
+
+            </div><!-- /sa-view-templates -->
+
         </main>
       </div>
     </div> <div id="sa-community-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
@@ -1466,17 +2214,93 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             
             <input type="hidden" id="sa-edit-group-id">
             
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <div>
-                    <label class="text-xs font-bold text-slate-500 mb-1 block">שם הסביבה:</label>
-                    <input type="text" id="sa-edit-group-name" class="modern-input py-2 text-sm" placeholder="שם המשפחה או העסק">
+            <div class="mb-5">
+                <!-- שורה 1: שם + קוד סביבה -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                    <div class="sm:col-span-2">
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">שם הסביבה</label>
+                        <input type="text" id="sa-edit-group-name" class="modern-input py-2 text-sm" placeholder="שם המשפחה או העסק">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">קוד סביבה <span class="text-slate-400 font-normal">(לא ניתן לשינוי)</span></label>
+                        <input type="text" id="sa-edit-group-code" class="modern-input py-2 text-sm font-mono tracking-widest bg-slate-100 text-slate-400 uppercase" readonly disabled placeholder="קוד">
+                    </div>
                 </div>
-                <div>
-                    <label class="text-xs font-bold text-slate-500 mb-1 block">אימייל מנהל הסביבה:</label>
-                    <input type="email" id="sa-edit-group-email" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="כתובת המייל">
+                <!-- שורה 2: מייל + טלפון מנהל -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">מייל מנהל</label>
+                        <input type="email" id="sa-edit-group-email" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="כתובת המייל">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">טלפון מנהל</label>
+                        <input type="tel" id="sa-edit-group-admin-phone" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="05X-XXXXXXX">
+                    </div>
                 </div>
+                <!-- שורה 3: עיר + כתובת -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">עיר</label>
+                        <input type="text" id="sa-edit-group-city" class="modern-input py-2 text-sm" placeholder="עיר">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">כתובת</label>
+                        <input type="text" id="sa-edit-group-address" class="modern-input py-2 text-sm" placeholder="רחוב ומספר">
+                    </div>
+                </div>
+                <!-- שדות ספציפיים למשפחה -->
+                <div id="sa-edit-family-fields" class="hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">שם משפחה (last_name)</label>
+                        <input type="text" id="sa-edit-group-last-name" class="modern-input py-2 text-sm" placeholder="שם משפחה">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">כינוי משפחה</label>
+                        <input type="text" id="sa-edit-group-family-nickname" class="modern-input py-2 text-sm" placeholder="לדוג׳: כהן">
+                    </div>
+                </div>
+                </div>
+                <!-- שדות ספציפיים לעסק -->
+                <div id="sa-edit-business-fields" class="hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">סוג עסק</label>
+                        <select id="sa-edit-group-biz-type" class="modern-input py-2 text-sm">
+                            <option value="other">כללי / אחר</option>
+                            <option value="restaurant">מסעדה / בית קפה 🍕</option>
+                            <option value="retail">חנות קמעונאית 🛍️</option>
+                            <option value="services">שירותים מקצועיים 💼</option>
+                            <option value="construction">בנייה / קבלנות 🏗️</option>
+                            <option value="maintenance_repair">תחזוקה ותיקונים 🔧</option>
+                            <option value="healthcare">בריאות / קליניקה 🏥</option>
+                            <option value="beauty">יופי / קוסמטיקה 💅</option>
+                            <option value="education">חינוך / הדרכה 🎓</option>
+                            <option value="sport">ספורט / כושר 🏋️</option>
+                            <option value="events">אירועים / הפקות 🎉</option>
+                            <option value="food_production">ייצור מזון 🏭</option>
+                            <option value="logistics">לוגיסטיקה / משלוחים 🚚</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">שם איש קשר</label>
+                        <input type="text" id="sa-edit-group-contact-name" class="modern-input py-2 text-sm" placeholder="שם איש הקשר בעסק">
+                    </div>
+                </div>
+                </div><!-- /sa-edit-business-fields -->
             </div>
 
+            <!-- Family module unlocking (for member-type groups only) -->
+            <div id="sa-member-modules-section" class="hidden mb-6">
+                <div class="flex justify-between items-center mb-3 border-b border-violet-100 pb-2">
+                    <h4 class="font-bold text-violet-700 text-sm"><i class="fa-solid fa-puzzle-piece mr-1"></i> מודולים פתוחים לחשבון חבר זה:</h4>
+                    <span class="text-[10px] text-slate-400">הזמנות שלי פתוחות תמיד</span>
+                </div>
+                <div id="sa-member-modules-grid" class="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2"></div>
+            </div>
+
+            <!-- Business feature flags (for business/family groups) -->
+            <div id="sa-flags-section">
             <div class="flex justify-between items-center mb-3 border-b border-slate-100 pb-2">
                 <h4 class="font-bold text-slate-700 text-sm">מודולים ופיצ'רים פעילים (Feature Flags):</h4>
                 <div class="flex gap-2">
@@ -1563,7 +2387,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     <span class="text-xs font-black text-purple-800"><i class="fa-solid fa-robot text-purple-500 w-4 text-center mr-1"></i> עוזר AI וכלים חכמים</span>
                 </label>
             </div>
-            
+            </div><!-- /sa-flags-section -->
+
             <div class="flex gap-3 pt-2 border-t border-slate-100">
                 <button onclick="document.getElementById('sa-edit-group-modal').classList.add('hidden')" class="w-1/3 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
                 <button onclick="saveSAEditGroup()" class="w-2/3 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-blue-700 transition">שמור שינויים והרשאות</button>
@@ -1572,16 +2397,63 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
     </div>
 
     <div id="sa-edit-user-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative fade-in">
-            <h3 class="text-xl font-bold mb-4 text-slate-800">עריכת משתמש</h3>
-            <input type="hidden" id="sa-edit-user-id">
-            <label class="text-xs font-bold text-slate-500 mb-1 block">שם משתמש:</label>
-            <input type="text" id="sa-edit-user-name" class="modern-input mb-3" placeholder="כינוי המשתמש">
-            <label class="text-xs font-bold text-slate-500 mb-1 block">סיסמה חדשה (השאר ריק כדי לא לשנות):</label>
-            <input type="text" id="sa-edit-user-pass" class="modern-input mb-6 text-left dir-ltr" placeholder="********">
-            <div class="flex gap-3">
-                <button onclick="document.getElementById('sa-edit-user-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
-                <button onclick="saveSAEditUser()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-blue-700 transition">שמור נתונים</button>
+        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl relative fade-in max-h-[90vh] overflow-y-auto" dir="rtl">
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-4 flex items-center justify-between rounded-t-[2rem]">
+                <h3 class="font-black text-white text-base">✏️ עריכת משתמש</h3>
+                <button onclick="document.getElementById('sa-edit-user-modal').classList.add('hidden')" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-5 space-y-3">
+                <input type="hidden" id="sa-edit-user-id">
+                <div id="sa-edit-user-info" class="bg-slate-50 rounded-xl p-3 text-xs text-slate-500 space-y-1"></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">שם תצוגה *</label>
+                        <input id="sa-edit-user-name" type="text" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-400 focus:outline-none" placeholder="שם המשתמש">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">תפקיד</label>
+                        <select id="sa-edit-user-role" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:border-indigo-400 focus:outline-none">
+                            <option value="ADMIN">מנהל/הורה</option>
+                            <option value="MEMBER">עובד/בן משפחה</option>
+                            <option value="SENIOR">בכיר</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">📱 טלפון <span class="text-red-400">*</span></label>
+                        <input id="sa-edit-user-phone" type="tel" placeholder="05X-XXXXXXX" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-400 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">🪪 ת.ז. (אופציונלי)</label>
+                        <input id="sa-edit-user-id-number" type="text" placeholder="9 ספרות" maxlength="9" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-400 focus:outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">📧 אימייל (אופציונלי)</label>
+                        <input id="sa-edit-user-email" type="email" placeholder="user@example.com" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-400 focus:outline-none text-left" dir="ltr">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">📅 שנת לידה</label>
+                        <input id="sa-edit-user-birth" type="number" placeholder="1990" min="1900" max="2020" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-400 focus:outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">🔑 סיסמה חדשה (השאר ריק לאי-שינוי)</label>
+                    <input id="sa-edit-user-pass" type="text" placeholder="השאר ריק לאי-שינוי" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-400 focus:outline-none text-left" dir="ltr">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">סטטוס</label>
+                    <select id="sa-edit-user-status" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:border-indigo-400 focus:outline-none">
+                        <option value="active">פעיל</option>
+                        <option value="pending">ממתין</option>
+                        <option value="inactive">לא פעיל</option>
+                    </select>
+                </div>
+                <button onclick="saveSAEditUser()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-black shadow hover:bg-indigo-700 transition">
+                    <i class="fa-solid fa-check mr-1"></i> שמור שינויים
+                </button>
             </div>
         </div>
     </div>
@@ -1968,7 +2840,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
         </div>
     </div>
 
-    <script src="sa-app.js?v=15"></script>
+    <script src="sa-app.js?v=27"></script>
+    <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">
             <button onclick="document.getElementById('sa-sla-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
@@ -2333,5 +3206,39 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
     } catch(e) {}
 })();
 </script>
+
+<!-- modal גביה מעסק — מחוץ לכל container כדי ש-fixed יעבוד נכון -->
+<!-- modal גביה מעסק — מחוץ לכל container כדי ש-fixed יעבוד נכון -->
+<div id="sa-collection-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl">
+        <div class="flex justify-between items-center mb-5">
+            <h3 class="text-lg font-black text-slate-800"><i class="fa-solid fa-hand-holding-dollar text-violet-500 mr-2"></i> רישום גביה</h3>
+            <button onclick="document.getElementById('sa-collection-modal').classList.add('hidden')" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p class="text-sm font-bold text-slate-600 mb-4" id="sa-coll-biz-name"></p>
+        <input type="hidden" id="sa-coll-biz-id">
+        <div class="space-y-4">
+            <div>
+                <label class="text-xs font-bold text-slate-500 block mb-1">סכום שנגבה (₪)</label>
+                <input type="number" id="sa-coll-amount" step="0.01" min="0" class="modern-input py-2.5 text-sm w-full" placeholder="0.00">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-500 block mb-1">תאריך גביה</label>
+                <input type="date" id="sa-coll-date" class="modern-input py-2.5 text-sm w-full">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-500 block mb-1">הערות (אופציונלי)</label>
+                <input type="text" id="sa-coll-notes" class="modern-input py-2.5 text-sm w-full" placeholder="למשל: העברה בנקאית, מספר אסמכתא...">
+            </div>
+        </div>
+        <button onclick="saveBusinessCollection()" class="mt-6 bg-violet-600 text-white px-6 py-3 rounded-xl font-bold w-full shadow hover:bg-violet-700 transition"><i class="fa-solid fa-save mr-2"></i> שמור גביה</button>
+        <div class="mt-5">
+            <h4 class="text-xs font-bold text-slate-500 mb-2"><i class="fa-solid fa-clock-rotate-left mr-1"></i> היסטוריית גביות</h4>
+            <div id="sa-coll-history" class="space-y-1 max-h-48 overflow-y-auto text-xs text-slate-600">
+                <p class="text-slate-400 text-center py-2">טוען...</p>
+            </div>
+        </div>
+    </div>
+</div>
 </body>
 </html>

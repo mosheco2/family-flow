@@ -171,7 +171,29 @@ function openAlertModal(title, text) {
     if(titleEl && textEl && modal) { titleEl.innerText = title; textEl.innerText = text; modal.classList.remove('hidden'); } 
 }
 
-function openTosModal(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const modal = document.getElementById('tos-modal'); if(modal) modal.classList.remove('hidden'); }
+function openTosModal(e, docKey) {
+    if(e) { e.preventDefault(); e.stopPropagation(); }
+    const modal = document.getElementById('tos-modal');
+    if(!modal) return;
+    modal.classList.remove('hidden');
+    const contentEl = document.getElementById('tos-modal-content');
+    if(!contentEl) return;
+    const key = docKey || (window._tosDocKey || 'legal_tos_family');
+    const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+    contentEl.innerHTML = '<p class="text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin mr-2"></i>טוען...</p>';
+    fetch(`${API_BASE}/public/legal/${key}`)
+        .then(r => r.json())
+        .then(data => {
+            if(data.success && data.content) {
+                contentEl.innerHTML = data.content;
+            } else {
+                contentEl.innerHTML = '<p class="text-slate-400 text-center py-4">לא נמצא תוכן למסמך זה.</p>';
+            }
+        })
+        .catch(() => {
+            contentEl.innerHTML = '<p class="text-red-400 text-center py-4">שגיאה בטעינת המסמך.</p>';
+        });
+}
 function closeTosModal() { const modal = document.getElementById('tos-modal'); if(modal) modal.classList.add('hidden'); }
 
 // ==========================================
