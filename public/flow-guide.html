@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מדריך מטבע Flw — Oneflow Life</title>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Rubik', sans-serif; background: #f8fafc; color: #1e293b; direction: rtl; }
+
+  .guide-header {
+    background: linear-gradient(135deg, #d97706 0%, #f59e0b 40%, #fbbf24 100%);
+    padding: 48px 24px 36px;
+    text-align: center;
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+  .guide-header::before {
+    content: '⚡';
+    position: absolute;
+    font-size: 220px;
+    opacity: 0.07;
+    right: -30px;
+    top: -30px;
+    line-height: 1;
+  }
+  .guide-header h1 { font-size: 2rem; font-weight: 900; margin-bottom: 8px; text-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  .guide-header p { font-size: 1rem; opacity: 0.9; max-width: 580px; margin: 0 auto; line-height: 1.6; }
+  .version-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.25);
+    border: 1px solid rgba(255,255,255,0.4);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 99px;
+    margin-bottom: 16px;
+    letter-spacing: 0.5px;
+  }
+  .header-stats {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+  .header-stat {
+    text-align: center;
+  }
+  .header-stat .val { font-size: 2rem; font-weight: 900; line-height: 1; }
+  .header-stat .lbl { font-size: 11px; opacity: 0.85; font-weight: 600; margin-top: 2px; }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 0 16px 80px; }
+
+  .toc {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 24px 28px;
+    margin: 32px 0 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .toc h2 { font-size: 14px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .toc a {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 12px;
+    text-decoration: none;
+    color: #92400e;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .toc a:hover { background: #fef3c7; border-color: #fbbf24; color: #78350f; }
+  .toc a .num { background: #d97706; color: white; font-size: 10px; font-weight: 900; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  .section {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .section-header {
+    display: flex; align-items: center; gap: 14px;
+    padding-bottom: 18px;
+    border-bottom: 2px solid #f1f5f9;
+    margin-bottom: 22px;
+  }
+  .section-icon {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .section-header h2 { font-size: 1.2rem; font-weight: 800; color: #1e293b; }
+  .section-header p { font-size: 13px; color: #64748b; margin-top: 2px; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .card {
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 16px;
+    background: #fafafa;
+  }
+  .card h4 { font-size: 13px; font-weight: 800; margin-bottom: 6px; color: #1e293b; }
+  .card p { font-size: 12px; color: #64748b; line-height: 1.6; }
+  .card .icon { font-size: 24px; margin-bottom: 8px; }
+
+  .scenario {
+    background: #fafafa;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .scenario h3 {
+    font-size: 14px; font-weight: 800; color: #1e293b;
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .steps { list-style: none; }
+  .steps li {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 9px 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+    color: #334155;
+    line-height: 1.6;
+  }
+  .steps li:last-child { border-bottom: none; }
+  .step-num {
+    background: #d97706;
+    color: white;
+    font-size: 10px;
+    font-weight: 900;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .badge-pending { background: #fef3c7; color: #d97706; }
+  .badge-approved { background: #dcfce7; color: #16a34a; }
+  .badge-rejected { background: #fee2e2; color: #dc2626; }
+  .badge-flw { background: #fef3c7; color: #92400e; }
+  .badge-active { background: #dbeafe; color: #2563eb; }
+
+  .flow-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .flow-table th {
+    background: #fef3c7;
+    padding: 10px 14px;
+    text-align: right;
+    font-weight: 800;
+    color: #92400e;
+    border-bottom: 2px solid #fde68a;
+  }
+  .flow-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #fef9e7;
+    color: #334155;
+    vertical-align: middle;
+    line-height: 1.5;
+  }
+  .flow-table tr:hover td { background: #fffbeb; }
+  .flow-amount-pos { font-weight: 900; color: #16a34a; }
+  .flow-amount-neg { font-weight: 900; color: #dc2626; }
+  .flow-amount { font-weight: 900; color: #d97706; }
+
+  .guide-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .guide-table th {
+    background: #f1f5f9;
+    padding: 10px 14px;
+    text-align: right;
+    font-weight: 800;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+  }
+  .guide-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+    line-height: 1.5;
+    vertical-align: top;
+  }
+  .guide-table tr:hover td { background: #f8fafc; }
+
+  .roles { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .role-pill {
+    padding: 6px 14px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 800;
+    border: 2px solid;
+  }
+  .role-sa { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
+  .role-zm { background: #f5f3ff; color: #7c3aed; border-color: #ddd6fe; }
+  .role-family { background: #fff7ed; color: #ea580c; border-color: #fed7aa; }
+  .role-biz { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+
+  .alert {
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 16px 0;
+    font-size: 13px;
+    line-height: 1.6;
+    display: flex; gap: 10px;
+  }
+  .alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+  .alert-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+  .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #14532d; }
+  .alert-flw { background: #fef3c7; border: 1px solid #fde68a; color: #78350f; }
+  .alert strong { font-weight: 800; }
+
+  .divider { height: 1px; background: #f1f5f9; margin: 20px 0; }
+
+  .flw-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: white;
+    font-weight: 900;
+    font-size: 13px;
+    padding: 4px 12px;
+    border-radius: 99px;
+    box-shadow: 0 2px 6px rgba(217,119,6,0.3);
+  }
+
+  .wallet-card {
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .wallet-icon { font-size: 32px; flex-shrink: 0; }
+  .wallet-title { font-size: 14px; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
+  .wallet-desc { font-size: 12px; color: #64748b; line-height: 1.5; }
+
+  .timeline {
+    position: relative;
+    padding-right: 28px;
+    margin-bottom: 4px;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    right: 9px;
+    top: 0; bottom: 0;
+    width: 2px;
+    background: #fde68a;
+  }
+  .timeline-item {
+    position: relative;
+    padding-bottom: 20px;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    right: -20px;
+    top: 5px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: #f59e0b;
+    border: 2px solid white;
+    box-shadow: 0 0 0 2px #fde68a;
+  }
+  .timeline-label { font-size: 12px; font-weight: 800; color: #92400e; margin-bottom: 2px; }
+  .timeline-text { font-size: 12px; color: #64748b; line-height: 1.5; }
+
+  .big-number {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: #d97706;
+    line-height: 1;
+  }
+
+  code {
+    background: #f1f5f9;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-family: monospace;
+    color: #475569;
+  }
+
+  .guide-footer {
+    background: #1e293b;
+    color: #94a3b8;
+    text-align: center;
+    padding: 24px;
+    font-size: 12px;
+    margin-top: 40px;
+  }
+  .guide-footer strong { color: white; }
+
+  @media (max-width: 600px) {
+    .guide-header h1 { font-size: 1.4rem; }
+    .cards { grid-template-columns: 1fr 1fr; }
+    .toc-grid { grid-template-columns: 1fr 1fr; }
+    .header-stats { gap: 20px; }
+    .header-stat .val { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="guide-header">
+  <div class="version-badge">מדריך מנהלים · גרסה 1.0 · 2026</div>
+  <h1>⚡ מדריך מטבע Flw</h1>
+  <p>המדריך המלא למערכת התגמול הדיגיטלית — איך מרוויחים, איך ממשים, ואיך מנהלים Flw בכל סביבות המערכת</p>
+  <div class="header-stats">
+    <div class="header-stat">
+      <div class="val">100</div>
+      <div class="lbl">Flw = ₪10 הנחה</div>
+    </div>
+    <div class="header-stat">
+      <div class="val">4</div>
+      <div class="lbl">סוגי ארנקים</div>
+    </div>
+    <div class="header-stat">
+      <div class="val">14+</div>
+      <div class="lbl">דרכי הרווחה</div>
+    </div>
+    <div class="header-stat">
+      <div class="val">3</div>
+      <div class="lbl">שלבי מימוש</div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- TOC -->
+<div class="toc">
+  <h2>📋 תוכן עניינים</h2>
+  <div class="toc-grid">
+    <a href="#what-is-flw"><span class="num">1</span> מה זה Flw?</a>
+    <a href="#wallets"><span class="num">2</span> סוגי ארנקים</a>
+    <a href="#earn-family"><span class="num">3</span> הרווחה — משפחה</a>
+    <a href="#earn-biz"><span class="num">4</span> הרווחה — עסק</a>
+    <a href="#redeem"><span class="num">5</span> מימוש Flw</a>
+    <a href="#sa-manage"><span class="num">6</span> ניהול SA</a>
+    <a href="#zm-view"><span class="num">7</span> תצוגת ZM</a>
+    <a href="#rates-table"><span class="num">8</span> טבלת שיעורים</a>
+    <a href="#lifecycle"><span class="num">9</span> מחזור חיים</a>
+    <a href="#scenarios-family"><span class="num">10</span> תסריטים — משפחה</a>
+    <a href="#scenarios-biz"><span class="num">11</span> תסריטים — עסק</a>
+    <a href="#scenarios-sa"><span class="num">12</span> תסריטים — SA</a>
+    <a href="#check-scripts"><span class="num">13</span> איך בודקים הכל</a>
+    <a href="#faq"><span class="num">14</span> שאלות נפוצות</a>
+  </div>
+</div>
+
+<!-- SECTION 1: WHAT IS FLW -->
+<div class="section" id="what-is-flw">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef3c7;">⚡</div>
+    <div>
+      <h2>1. מה זה Flw?</h2>
+      <p>מטבע דיגיטלי שמתגמל על כל פעולה בקהילה</p>
+    </div>
+  </div>
+
+  <p style="font-size:14px;line-height:1.8;color:#334155;margin-bottom:20px;">
+    <strong>Flw</strong> (קיצור של Flow) הוא המטבע הדיגיטלי הפנימי של Oneflow Life. בכל פעם שמשפחה מצטרפת לקהילה, עסק מאושר, מבצע ממומש, חבר מוזמן או ביקורת נכתבת — כולם מרוויחים Flw.
+    ה-Flw נשמר בארנק דיגיטלי וניתן לממש אותו כ<strong>הנחה כספית אמיתית</strong> בקניות בעסקים המשתתפים.
+  </p>
+
+  <div class="cards">
+    <div class="card" style="border-color:#fde68a;background:#fffbeb;">
+      <div class="icon">💰</div>
+      <h4>שווי אמיתי</h4>
+      <p><strong>100 Flw = ₪10 הנחה</strong>. ממשים בעסקים חברי הקהילה. לא תפוגה — הFlw לא פג.</p>
+    </div>
+    <div class="card" style="border-color:#fde68a;background:#fffbeb;">
+      <div class="icon">🏆</div>
+      <h4>תגמול על פעולות</h4>
+      <p>כל פעולה חיובית — הצטרפות, הפניה, קנייה, ביקורת — מניבה Flw אוטומטית ומיידית.</p>
+    </div>
+    <div class="card" style="border-color:#fde68a;background:#fffbeb;">
+      <div class="icon">🏘️</div>
+      <h4>אפקט קהילתי</h4>
+      <p>חלק מהFlw הולך לארנק הקהילתי — משמש להטבות קהילתיות ופרויקטים משותפים.</p>
+    </div>
+    <div class="card" style="border-color:#fde68a;background:#fffbeb;">
+      <div class="icon">🔄</div>
+      <h4>אוטומטי לחלוטין</h4>
+      <p>המערכת מחשבת ומעבירה Flw אוטומטית — אין צורך בפעולה ידנית מצד אף אחד.</p>
+    </div>
+  </div>
+
+  <div class="alert alert-flw">
+    <span>⚡</span>
+    <div><strong>שוויון ערך:</strong> 100 Flw = ₪10 | 500 Flw = ₪50 | 1,000 Flw = ₪100. מינימום מימוש: 100 Flw. אין מגבלת מקסימום לצבירה.</div>
+  </div>
+</div>
+
+<!-- SECTION 2: WALLETS -->
+<div class="section" id="wallets">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef3c7;">👛</div>
+    <div>
+      <h2>2. סוגי ארנקים — מי מחזיק Flw?</h2>
+      <p>4 סוגי ארנקים שונים במערכת</p>
+    </div>
+  </div>
+
+  <div class="wallet-card" style="background:#fff7ed;border:2px solid #fed7aa;">
+    <div class="wallet-icon">👨‍👩‍👧‍👦</div>
+    <div>
+      <div class="wallet-title">ארנק משפחה (אישי)</div>
+      <div class="wallet-desc">כל קבוצת משפחה מחזיקה ארנק Flw אישי. הFlw שנצבר שייך למשפחה בלבד ולא לקהילה. ניתן לממש להנחות בקנייה. <strong>לא פג עם עזיבת קהילה.</strong></div>
+    </div>
+  </div>
+
+  <div class="wallet-card" style="background:#f0fdf4;border:2px solid #bbf7d0;">
+    <div class="wallet-icon">🏪</div>
+    <div>
+      <div class="wallet-title">ארנק עסק</div>
+      <div class="wallet-desc">כל עסק חבר מחזיק ארנק Flw נפרד. מתגמל על הצטרפות לקהילות, אישור מבצעים, מימוש לקוחות, וביקורות. ניתן לממש כנגד שירותי הפלטפורמה.</div>
+    </div>
+  </div>
+
+  <div class="wallet-card" style="background:#eff6ff;border:2px solid #bfdbfe;">
+    <div class="wallet-icon">🏘️</div>
+    <div>
+      <div class="wallet-title">ארנק קהילתי</div>
+      <div class="wallet-desc">לכל קהילה ארנק משותף. נצבר מחלק מפעולות החברים. מנוהל ע"י SA — משמש לתחרויות, מבצעים קהילתיים, ופרויקטים. לא שייך לאף משפחה בנפרד.</div>
+    </div>
+  </div>
+
+  <div class="wallet-card" style="background:#f5f3ff;border:2px solid #ddd6fe;">
+    <div class="wallet-icon">🗺️</div>
+    <div>
+      <div class="wallet-title">ארנק אזורי (ZM)</div>
+      <div class="wallet-desc">לכל מנהל אזור ארנק Flw שמקבל עמלות על פעילות הקהילות באזורו. ZM יכול לממש לשירותי פלטפורמה, פרסום, או תגמול לקהילות מצטיינות.</div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <span>ℹ️</span>
+    <div><strong>כלל בסיסי:</strong> כשמשפחה מרוויחה Flw — חלק ממנו הולך לארנק האישי וחלק לארנק הקהילתי. כשעסק מרוויח — הולך לארנק העסק וחלק לקהילה. לעולם לא מנוכה מאחד לטובת השני.</div>
+  </div>
+</div>
+
+<!-- SECTION 3: EARN - FAMILY -->
+<div class="section" id="earn-family">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fff7ed;">👨‍👩‍👧‍👦</div>
+    <div>
+      <h2>3. איך משפחה מרוויחה Flw?</h2>
+      <p>14+ פעולות שמניבות Flw — חלקן יומיות, חלקן חד-פעמיות</p>
+    </div>
+  </div>
+
+  <div class="roles">
+    <span class="role-pill role-family">🟠 רלוונטי למשפחה</span>
+  </div>
+
+  <table class="flow-table">
+    <thead>
+      <tr>
+        <th>פעולה</th>
+        <th style="text-align:center;">Flw אישי</th>
+        <th style="text-align:center;">Flw לקהילה</th>
+        <th>מתי?</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>🏘️ הצטרפות לקהילה — אושרה ע"י SA/ZM</td>
+        <td style="text-align:center;" class="flow-amount-pos">+15</td>
+        <td style="text-align:center;" class="flow-amount">+5</td>
+        <td>פעם אחת לכל קהילה</td>
+      </tr>
+      <tr>
+        <td>👥 הפניית חבר — החבר אושר</td>
+        <td style="text-align:center;" class="flow-amount-pos">+20</td>
+        <td style="text-align:center;" class="flow-amount">+10</td>
+        <td>לכל חבר שהוזמן</td>
+      </tr>
+      <tr>
+        <td>👤 הגעה דרך הפניה (נמצאת)</td>
+        <td style="text-align:center;" class="flow-amount-pos">+20</td>
+        <td style="text-align:center;" class="flow-amount">+10</td>
+        <td>פעם אחת בהצטרפות</td>
+      </tr>
+      <tr>
+        <td>⭐ הפניית עסק לקהילה — אושר (שגריר)</td>
+        <td style="text-align:center;" class="flow-amount-pos">+35</td>
+        <td style="text-align:center;" class="flow-amount">+15</td>
+        <td>לכל עסק שהוזמן</td>
+      </tr>
+      <tr>
+        <td>🏷️ מימוש קוד מבצע בעסק</td>
+        <td style="text-align:center;" class="flow-amount-pos">+3</td>
+        <td style="text-align:center;" class="flow-amount">+2</td>
+        <td>לכל מימוש</td>
+      </tr>
+      <tr>
+        <td>📦 רכישת חבילת Bundle</td>
+        <td style="text-align:center;" class="flow-amount-pos">+18</td>
+        <td style="text-align:center;" class="flow-amount">+7</td>
+        <td>לכל רכישת חבילה</td>
+      </tr>
+      <tr>
+        <td>📝 השלמת פרופיל המשפחה</td>
+        <td style="text-align:center;" class="flow-amount-pos">+12</td>
+        <td style="text-align:center;" class="flow-amount">+3</td>
+        <td>פעם אחת</td>
+      </tr>
+      <tr>
+        <td>⭐ כתיבת ביקורת לעסק</td>
+        <td style="text-align:center;" class="flow-amount-pos">+7</td>
+        <td style="text-align:center;" class="flow-amount">+3</td>
+        <td>לכל ביקורת</td>
+      </tr>
+      <tr>
+        <td>📅 כניסה יומית לאפליקציה</td>
+        <td style="text-align:center;" class="flow-amount-pos">+1</td>
+        <td style="text-align:center;">—</td>
+        <td>כל יום (עד 30/חודש)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="alert alert-flw" style="margin-top:16px;">
+    <span>💡</span>
+    <div><strong>טיפ:</strong> השגריר הוא הדרך הכי רווחית — +35 Flw על כל עסק שמזמינים. משפחה שמזמינה 3 עסקים = 105 Flw = ₪10.50 הנחה. שווה להגיד לכולם!</div>
+  </div>
+</div>
+
+<!-- SECTION 4: EARN - BUSINESS -->
+<div class="section" id="earn-biz">
+  <div class="section-header">
+    <div class="section-icon" style="background:#f0fdf4;">🏪</div>
+    <div>
+      <h2>4. איך עסק מרוויח Flw?</h2>
+      <p>Flw לעסקים — על כל פעולה חיובית בקהילה</p>
+    </div>
+  </div>
+
+  <div class="roles">
+    <span class="role-pill role-biz">🟢 רלוונטי לעסק</span>
+  </div>
+
+  <table class="flow-table">
+    <thead>
+      <tr>
+        <th>פעולה</th>
+        <th style="text-align:center;">Flw לעסק</th>
+        <th style="text-align:center;">Flw לקהילה</th>
+        <th>מתי?</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>🏘️ הצטרפות לקהילה אושרה</td>
+        <td style="text-align:center;" class="flow-amount-pos">+20</td>
+        <td style="text-align:center;" class="flow-amount">+10</td>
+        <td>פעם אחת לכל קהילה</td>
+      </tr>
+      <tr>
+        <td>✅ מבצע אושר ע"י SA</td>
+        <td style="text-align:center;" class="flow-amount-pos">+10</td>
+        <td style="text-align:center;" class="flow-amount">+5</td>
+        <td>לכל מבצע שמאושר</td>
+      </tr>
+      <tr>
+        <td>🛒 מבצע מומש ע"י לקוח</td>
+        <td style="text-align:center;" class="flow-amount-pos">+5</td>
+        <td style="text-align:center;" class="flow-amount">+5</td>
+        <td>לכל מימוש</td>
+      </tr>
+      <tr>
+        <td>📦 חבילת Bundle נמכרה</td>
+        <td style="text-align:center;" class="flow-amount-pos">+10</td>
+        <td style="text-align:center;" class="flow-amount">+20</td>
+        <td>לכל מכירת חבילה</td>
+      </tr>
+      <tr>
+        <td>⭐ ביקורת חיובית על העסק</td>
+        <td style="text-align:center;" class="flow-amount-pos">+8</td>
+        <td style="text-align:center;" class="flow-amount">+2</td>
+        <td>לכל ביקורת</td>
+      </tr>
+      <tr>
+        <td>📩 פנייה ישירה מלקוח</td>
+        <td style="text-align:center;" class="flow-amount-pos">+5</td>
+        <td style="text-align:center;" class="flow-amount">+2</td>
+        <td>לכל פנייה</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="alert alert-success">
+    <span>📊</span>
+    <div><strong>חישוב לדוגמה:</strong> עסק שמצטרף ל-3 קהילות (+60) + 5 מבצעים מאושרים (+50) + 20 מימושים (+100) + 10 ביקורות (+80) = <strong>290 Flw = ₪29 הנחה</strong> על שירותי הפלטפורמה.</div>
+  </div>
+</div>
+
+<!-- SECTION 5: REDEEM -->
+<div class="section" id="redeem">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef3c7;">💸</div>
+    <div>
+      <h2>5. איך ממשים Flw?</h2>
+      <p>3 שלבים פשוטים לקבל הנחה אמיתית</p>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:24px;">
+    <div style="background:#eff6ff;border:2px solid #bfdbfe;border-radius:14px;padding:18px;text-align:center;">
+      <div style="font-size:32px;margin-bottom:8px;">👛</div>
+      <div style="font-size:12px;font-weight:800;color:#1d4ed8;margin-bottom:4px;">שלב 1</div>
+      <div style="font-size:13px;font-weight:700;">כנסו לארנק</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">טאב "חדשות" ← ארנק Flw</div>
+    </div>
+    <div style="background:#fff7ed;border:2px solid #fed7aa;border-radius:14px;padding:18px;text-align:center;">
+      <div style="font-size:32px;margin-bottom:8px;">🔢</div>
+      <div style="font-size:12px;font-weight:800;color:#ea580c;margin-bottom:4px;">שלב 2</div>
+      <div style="font-size:13px;font-weight:700;">בחרו כמות</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">מינימום 100 Flw</div>
+    </div>
+    <div style="background:#fef3c7;border:2px solid #fde68a;border-radius:14px;padding:18px;text-align:center;">
+      <div style="font-size:32px;margin-bottom:8px;">🎫</div>
+      <div style="font-size:12px;font-weight:800;color:#92400e;margin-bottom:4px;">שלב 3</div>
+      <div style="font-size:13px;font-weight:700;">קבלו קוד</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">חד-פעמי לשימוש בעסק</div>
+    </div>
+    <div style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:14px;padding:18px;text-align:center;">
+      <div style="font-size:32px;margin-bottom:8px;">🏪</div>
+      <div style="font-size:12px;font-weight:800;color:#15803d;margin-bottom:4px;">שלב 4</div>
+      <div style="font-size:13px;font-weight:700;">הזינו בקופה</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">ההנחה מנוכה אוטומטית</div>
+    </div>
+  </div>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:12px;">טבלת מימוש מהירה</h3>
+  <table class="flow-table">
+    <thead>
+      <tr>
+        <th>כמות Flw</th>
+        <th style="text-align:center;">שווי הנחה</th>
+        <th>דוגמת שימוש</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="flw-pill">⚡ 100 Flw</span></td>
+        <td style="text-align:center;" class="flow-amount-pos">₪10</td>
+        <td>תספורת, מוצר קטן, משלוח</td>
+      </tr>
+      <tr>
+        <td><span class="flw-pill">⚡ 200 Flw</span></td>
+        <td style="text-align:center;" class="flow-amount-pos">₪20</td>
+        <td>ארוחה, טיפול יופי קצר</td>
+      </tr>
+      <tr>
+        <td><span class="flw-pill">⚡ 500 Flw</span></td>
+        <td style="text-align:center;" class="flow-amount-pos">₪50</td>
+        <td>טיפול, מוצר ביתי</td>
+      </tr>
+      <tr>
+        <td><span class="flw-pill">⚡ 1,000 Flw</span></td>
+        <td style="text-align:center;" class="flow-amount-pos">₪100</td>
+        <td>חבילת שירות, רהיט, מוצר אלקטרוני</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="alert alert-warn">
+    <span>⚠️</span>
+    <div>
+      <strong>חשוב לדעת לפני מימוש:</strong>
+      <ul style="margin-top:8px;padding-right:16px;line-height:1.9;font-size:12px;">
+        <li>הקוד שמתקבל הוא <strong>חד-פעמי</strong> — לא ניתן להשתמש בו פעמיים</li>
+        <li>הקוד תקף <strong>48 שעות</strong> מרגע היצירה — יש להשתמש בו בזמן</li>
+        <li>מימוש ניתן <strong>רק בעסקים שחברים בקהילה שלכם</strong></li>
+        <li>לאחר מימוש — ה-Flw מנוכה מהארנק ולא ניתן לשחזרו</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 6: SA MANAGE -->
+<div class="section" id="sa-manage">
+  <div class="section-header">
+    <div class="section-icon" style="background:#eff6ff;">🔴</div>
+    <div>
+      <h2>6. ניהול Flw ע"י Super Admin</h2>
+      <p>SA שולט בשיעורים, מכסות ומצב הארנקים</p>
+    </div>
+  </div>
+
+  <div class="roles">
+    <span class="role-pill role-sa">🔴 Super Admin בלבד</span>
+  </div>
+
+  <div class="cards">
+    <div class="card" style="border-color:#bfdbfe;background:#eff6ff;">
+      <div class="icon">⚙️</div>
+      <h4>עדכון שיעורי Flw</h4>
+      <p>SA יכול לשנות את כמות ה-Flw שניתנת על כל פעולה — לכל סוג פעולה בנפרד. שינוי חל על פעולות עתידיות בלבד.</p>
+    </div>
+    <div class="card" style="border-color:#bfdbfe;background:#eff6ff;">
+      <div class="icon">🏘️</div>
+      <h4>ניהול ארנק קהילתי</h4>
+      <p>SA רואה את יתרת כל ארנק קהילתי, מאשר שימוש בFlw הקהילתי, ויכול לחלק אותו לתחרויות ואירועים.</p>
+    </div>
+    <div class="card" style="border-color:#bfdbfe;background:#eff6ff;">
+      <div class="icon">📊</div>
+      <h4>דוחות Flw</h4>
+      <p>SA רואה כמה Flw נצבר במערכת כולה — פר קהילה, פר עסק, פר חודש. ניתן לייצא לדוח Excel.</p>
+    </div>
+    <div class="card" style="border-color:#bfdbfe;background:#eff6ff;">
+      <div class="icon">🎁</div>
+      <h4>Flw ידני</h4>
+      <p>SA יכול לתת Flw ידנית למשפחה, עסק או קהילה — למשל: כפיצוי, כפרס, או כבונוס אירוע.</p>
+    </div>
+  </div>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:12px;margin-top:8px;">איך SA משנה שיעורי Flw?</h3>
+  <div class="scenario">
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → <em>"הגדרות Flw"</em></li>
+      <li><span class="step-num">2</span>מוצגת טבלת כל הפעולות עם השיעורים הנוכחיים</li>
+      <li><span class="step-num">3</span>לוחצים על השדה ומשנים את הסכום (Flw אישי / Flw לקהילה)</li>
+      <li><span class="step-num">4</span>לוחצים <strong>שמור</strong> — השינוי נכנס לתוקף מיידית</li>
+      <li><span class="step-num">5</span>פעולות שכבר בוצעו <strong>לא משתנות</strong> — רק פעולות חדשות</li>
+    </ol>
+  </div>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:12px;">איך SA נותן Flw ידני?</h3>
+  <div class="scenario">
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → <em>"ניהול Flw"</em> → <em>"העבר Flw ידני"</em></li>
+      <li><span class="step-num">2</span>בוחרים סוג נמען: משפחה / עסק / קהילה</li>
+      <li><span class="step-num">3</span>מחפשים את הנמען לפי שם</li>
+      <li><span class="step-num">4</span>מזינים כמות Flw וסיבה (יופיע בהיסטוריה)</li>
+      <li><span class="step-num">5</span>לוחצים <strong>העבר</strong> — הFlw מוסף מיידית לארנק</li>
+    </ol>
+  </div>
+
+  <div class="alert alert-warn">
+    <span>⚠️</span>
+    <div><strong>שים לב:</strong> הורדת שיעורי Flw משמעותית עלולה לפגוע במוטיבציה של המשתמשים. מומלץ להודיע מראש על שינויים דרמטיים בערוצי התקשורת של הקהילה.</div>
+  </div>
+</div>
+
+<!-- SECTION 7: ZM VIEW -->
+<div class="section" id="zm-view">
+  <div class="section-header">
+    <div class="section-icon" style="background:#f5f3ff;">🟣</div>
+    <div>
+      <h2>7. Flw ממבט מנהל אזור (ZM)</h2>
+      <p>ZM רואה נתוני Flw ברמת האזור שלו</p>
+    </div>
+  </div>
+
+  <div class="roles">
+    <span class="role-pill role-zm">🟣 Zone Manager</span>
+  </div>
+
+  <div class="cards">
+    <div class="card" style="border-color:#ddd6fe;background:#f5f3ff;">
+      <div class="icon">📊</div>
+      <h4>דשבורד Flw אזורי</h4>
+      <p>ZM רואה את סך ה-Flw שנצבר בכל הקהילות באזורו — בדשבורד הראשי.</p>
+    </div>
+    <div class="card" style="border-color:#ddd6fe;background:#f5f3ff;">
+      <div class="icon">🏘️</div>
+      <h4>Flw קהילתי לפי קהילה</h4>
+      <p>בלחיצה על "פרטים" בכל קהילה — ZM רואה בטאב FLOW את יתרת הארנק הקהילתי ו-20 פעולות אחרונות.</p>
+    </div>
+    <div class="card" style="border-color:#ddd6fe;background:#f5f3ff;">
+      <div class="icon">💰</div>
+      <h4>עמלות ZM</h4>
+      <p>ZM מקבל עמלת Flw על כל אישור עסק וכל אישור משפחה שמבצע. מוצג בטאב "עמלות" בדשבורד.</p>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <span>ℹ️</span>
+    <div><strong>הבחנה חשובה:</strong> ZM לא שולט בשיעורי Flw — זו הרשאת SA בלבד. ZM רק רואה ומדווח. אם ZM רוצה לשנות שיעורים — יפנה ל-SA.</div>
+  </div>
+</div>
+
+<!-- SECTION 8: RATES TABLE -->
+<div class="section" id="rates-table">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef3c7;">📋</div>
+    <div>
+      <h2>8. טבלת שיעורים מלאה</h2>
+      <p>כל הפעולות, כל הנמענים, כל הסכומים — במקום אחד</p>
+    </div>
+  </div>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:10px;">פעולות משפחה</h3>
+  <table class="flow-table" style="margin-bottom:20px;">
+    <thead>
+      <tr><th>פעולה</th><th style="text-align:center;">Flw אישי</th><th style="text-align:center;">Flw קהילתי</th><th style="text-align:center;">תדירות</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>הצטרפות לקהילה (אושרה)</td><td style="text-align:center;" class="flow-amount-pos">+15</td><td style="text-align:center;" class="flow-amount">+5</td><td style="text-align:center;">פעם / קהילה</td></tr>
+      <tr><td>הגעה דרך הפניה</td><td style="text-align:center;" class="flow-amount-pos">+20</td><td style="text-align:center;" class="flow-amount">+10</td><td style="text-align:center;">פעם אחת</td></tr>
+      <tr><td>הפניית חבר (אושר)</td><td style="text-align:center;" class="flow-amount-pos">+20</td><td style="text-align:center;" class="flow-amount">+10</td><td style="text-align:center;">לכל חבר</td></tr>
+      <tr><td>הפניית עסק — שגריר (אושר)</td><td style="text-align:center;" class="flow-amount-pos">+35</td><td style="text-align:center;" class="flow-amount">+15</td><td style="text-align:center;">לכל עסק</td></tr>
+      <tr><td>מימוש קוד מבצע</td><td style="text-align:center;" class="flow-amount-pos">+3</td><td style="text-align:center;" class="flow-amount">+2</td><td style="text-align:center;">לכל מימוש</td></tr>
+      <tr><td>רכישת חבילת Bundle</td><td style="text-align:center;" class="flow-amount-pos">+18</td><td style="text-align:center;" class="flow-amount">+7</td><td style="text-align:center;">לכל חבילה</td></tr>
+      <tr><td>השלמת פרופיל</td><td style="text-align:center;" class="flow-amount-pos">+12</td><td style="text-align:center;" class="flow-amount">+3</td><td style="text-align:center;">פעם אחת</td></tr>
+      <tr><td>כתיבת ביקורת לעסק</td><td style="text-align:center;" class="flow-amount-pos">+7</td><td style="text-align:center;" class="flow-amount">+3</td><td style="text-align:center;">לכל ביקורת</td></tr>
+      <tr><td>כניסה יומית</td><td style="text-align:center;" class="flow-amount-pos">+1</td><td style="text-align:center;">—</td><td style="text-align:center;">כל יום</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:10px;">פעולות עסק</h3>
+  <table class="flow-table" style="margin-bottom:20px;">
+    <thead>
+      <tr><th>פעולה</th><th style="text-align:center;">Flw לעסק</th><th style="text-align:center;">Flw קהילתי</th><th style="text-align:center;">תדירות</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>הצטרפות לקהילה (אושרה)</td><td style="text-align:center;" class="flow-amount-pos">+20</td><td style="text-align:center;" class="flow-amount">+10</td><td style="text-align:center;">פעם / קהילה</td></tr>
+      <tr><td>מבצע אושר</td><td style="text-align:center;" class="flow-amount-pos">+10</td><td style="text-align:center;" class="flow-amount">+5</td><td style="text-align:center;">לכל מבצע</td></tr>
+      <tr><td>מבצע מומש</td><td style="text-align:center;" class="flow-amount-pos">+5</td><td style="text-align:center;" class="flow-amount">+5</td><td style="text-align:center;">לכל מימוש</td></tr>
+      <tr><td>חבילה Bundle נמכרה</td><td style="text-align:center;" class="flow-amount-pos">+10</td><td style="text-align:center;" class="flow-amount">+20</td><td style="text-align:center;">לכל מכירה</td></tr>
+      <tr><td>ביקורת על העסק</td><td style="text-align:center;" class="flow-amount-pos">+8</td><td style="text-align:center;" class="flow-amount">+2</td><td style="text-align:center;">לכל ביקורת</td></tr>
+      <tr><td>פנייה ישירה מלקוח</td><td style="text-align:center;" class="flow-amount-pos">+5</td><td style="text-align:center;" class="flow-amount">+2</td><td style="text-align:center;">לכל פנייה</td></tr>
+    </tbody>
+  </table>
+
+  <div class="alert alert-info">
+    <span>ℹ️</span>
+    <div><strong>שיעורים ניתנים לשינוי ע"י SA</strong> — הערכים שמוצגים כאן הם ברירות המחדל. SA יכול לשנות כל סכום בנפרד דרך ממשק הניהול.</div>
+  </div>
+</div>
+
+<!-- SECTION 9: LIFECYCLE -->
+<div class="section" id="lifecycle">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef3c7;">🔄</div>
+    <div>
+      <h2>9. מחזור חיים של Flw</h2>
+      <p>מהרגע שנרוויח ועד לרגע שנממש</p>
+    </div>
+  </div>
+
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="timeline-label">🏃 פעולה מבוצעת</div>
+      <div class="timeline-text">משפחה מבצעת פעולה (מצטרפת לקהילה, מממשת מבצע, כותבת ביקורת וכו')</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-label">⚡ חישוב אוטומטי</div>
+      <div class="timeline-text">המערכת מחשבת כמה Flw מגיע לפי השיעורים הנוכחיים שהגדיר SA</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-label">✅ אישור פעולה (אם נדרש)</div>
+      <div class="timeline-text">חלק מהפעולות מחייבות אישור לפני שהFlw מועבר — למשל: הצטרפות לקהילה מחייבת אישור SA/ZM, מבצע מחייב אישור SA, הפנייה מחייבת אישור שגריר</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-label">💰 הפקדה לארנקים</div>
+      <div class="timeline-text">Flw מתחלק: חלק לארנק האישי/עסקי + חלק לארנק הקהילתי. ההפקדה מיידית עם האישור</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-label">📊 מעקב ברגע אמת</div>
+      <div class="timeline-text">היתרה מתעדכנת מיידית בארנק. היסטוריית הפעולות מתעדת כל תנועה עם תאריך וסיבה</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-label">🎫 יצירת קוד מימוש</div>
+      <div class="timeline-text">כשרוצים לממש — בוחרים כמות Flw ומקבלים קוד חד-פעמי שתקף 48 שעות</div>
+    </div>
+    <div class="timeline-item" style="padding-bottom:0;">
+      <div class="timeline-label">🏪 מימוש בעסק</div>
+      <div class="timeline-text">מזינים הקוד בקופת העסק → ההנחה מחושבת → Flw מנוכה מהארנק סופית</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <h3 style="font-size:13px;font-weight:800;color:#475569;margin-bottom:12px;">פעולות שמחייבות אישור לפני שFlw מועבר</h3>
+  <table class="guide-table">
+    <thead><tr><th>פעולה</th><th>מי מאשר?</th><th>מה קורה לפני אישור?</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>הצטרפות משפחה לקהילה</td>
+        <td>SA / ZM</td>
+        <td>Flw לא מועבר — הקהילה מוצגת כ"ממתינה"</td>
+      </tr>
+      <tr>
+        <td>הפניית עסק (שגריר)</td>
+        <td>SA</td>
+        <td>Flw לא מועבר — המשפחה רואה "ממתין לאישור שגריר"</td>
+      </tr>
+      <tr>
+        <td>אישור עסק לקהילה</td>
+        <td>SA (+ ZM אם יש)</td>
+        <td>Flw לא מועבר — העסק ממתין</td>
+      </tr>
+      <tr>
+        <td>מבצע מומש → Flw</td>
+        <td>עסק מסמן "נמסר"</td>
+        <td>Flw לא מועבר עד שההזמנה מסומנת כנמסרה</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- SECTION 10: SCENARIOS - FAMILY -->
+<div class="section" id="scenarios-family">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fff7ed;">👨‍👩‍👧‍👦</div>
+    <div>
+      <h2>10. תסריטים מעשיים — משפחה</h2>
+      <p>שלב אחר שלב — איך עובד Flw בחיי היומיום</p>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>⚡ תרחיש 1 — הצטרפתם לקהילה וקיבלתם Flw</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>הגשתם בקשה לקהילה עם קוד C-SHKUNA</li>
+      <li><span class="step-num">2</span>SA/ZM אישרו את הבקשה</li>
+      <li><span class="step-num">3</span>קיבלתם הודעה: <em>"הצטרפות אושרה! קיבלתם +15 Flw"</em></li>
+      <li><span class="step-num">4</span>נכנסים לטאב <strong>חדשות</strong> → <strong>ארנק Flw</strong> — רואים 15 Flw</li>
+      <li><span class="step-num">5</span>גם הקהילה קיבלה +5 Flw לארנק הקהילתי שלה</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>⚡ תרחיש 2 — זימנתם חבר וקיבלתם בונוס כפול</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>העתקתם את קוד ההפניה האישי שלכם ושלחתם לחבר בווטסאפ</li>
+      <li><span class="step-num">2</span>החבר נכנס לאפליקציה, הצטרף לקהילה עם הקוד שלכם</li>
+      <li><span class="step-num">3</span>SA/ZM אישרו את החבר</li>
+      <li><span class="step-num">4</span><strong>אתם</strong> קיבלתם: +20 Flw על ההפניה</li>
+      <li><span class="step-num">5</span><strong>החבר</strong> קיבל: +15 Flw על הצטרפות + 20 Flw על הגעה מהפניה = <strong>35 Flw</strong></li>
+      <li><span class="step-num">6</span>הקהילה קיבלה: +5 (הצטרפות) + +10 (הפניה) = <strong>15 Flw קהילתי</strong></li>
+    </ol>
+    <div class="alert alert-success" style="margin-top:10px;">
+      <span>🎯</span><div>זמינו 3 חברים = 60 Flw לכם = ₪6 הנחה, פלוס כל חבר שלכם גם מזמין... זה מתגלגל!</div>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>⚡ תרחיש 3 — הפניתם עסק (שגריר) וקיבלתם +35</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>יש לכם ספק מקומי שחושבים שיתאים לקהילה</li>
+      <li><span class="step-num">2</span>בטאב <strong>קהילה → חיבור</strong> → <em>"הפנה עסק"</em> — מזינים קוד העסק + שם + הסבר</li>
+      <li><span class="step-num">3</span>SA רואה את ההפניה וכל הפרטים שכתבתם</li>
+      <li><span class="step-num">4</span>SA מאשר את העסק לקהילה</li>
+      <li><span class="step-num">5</span>קיבלתם הודעה: <em>"ההפניה שלכם אושרה! +35 Flw"</em></li>
+      <li><span class="step-num">6</span>הקהילה קיבלה: +15 Flw לארנק הקהילתי</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>⚡ תרחיש 4 — מימשתם קוד מבצע וצברתם</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ראיתם מבצע <em>"20% הנחה בפיצרייה המקומית"</em> בטאב חדשות</li>
+      <li><span class="step-num">2</span>רשמתם את הקוד: <code>PROMO4XK8B</code></li>
+      <li><span class="step-num">3</span>הזמנתם פיצה — הזנתם הקוד בקופה — קיבלתם 20% הנחה</li>
+      <li><span class="step-num">4</span>הפיצרייה סימנה את ההזמנה כ<strong>"נמסרה"</strong></li>
+      <li><span class="step-num">5</span>קיבלתם אוטומטית: +3 Flw לארנק האישי + הקהילה +2 Flw</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>⚡ תרחיש 5 — מימשתם Flw לקנייה</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>נצברו לכם 320 Flw מפעולות שונות</li>
+      <li><span class="step-num">2</span>טאב <strong>חדשות</strong> → <strong>ארנק Flw</strong> → <em>"ממש הנחה"</em></li>
+      <li><span class="step-num">3</span>בחרתם לממש 300 Flw (= ₪30 הנחה)</li>
+      <li><span class="step-num">4</span>קיבלתם קוד חד-פעמי: <code>REDEEM-7XP2K</code> — תקף 48 שעות</li>
+      <li><span class="step-num">5</span>נכנסתם לחנות של עסק בקהילה → הזנתם הקוד → ₪30 נוכו מהחשבון</li>
+      <li><span class="step-num">6</span>הארנק מציג 20 Flw נותרים (320 − 300)</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>⚡ תרחיש 6 — הרווחתם Flw יומי במשך חודש</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>כל פעם שנכנסים לאפליקציה ביום חדש — המערכת מזהה כניסה יומית</li>
+      <li><span class="step-num">2</span>מופיעה אנימציה קטנה: <em>"+1 Flw — כניסה יומית"</em></li>
+      <li><span class="step-num">3</span>30 כניסות ביום = 30 Flw נוספים בחודש</li>
+      <li><span class="step-num">4</span>ביחד עם פעולות אחרות — מצטבר מהר לסכומים שניתנים לממש</li>
+    </ol>
+    <div class="alert alert-info" style="margin-top:10px;">
+      <span>💡</span><div>30 Flw יומי + 15 הצטרפות + 12 פרופיל + 7 ביקורת אחת = <strong>64 Flw</strong> רק בשבוע הראשון — כבר 64% מהדרך להנחה הראשונה!</div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 11: SCENARIOS - BUSINESS -->
+<div class="section" id="scenarios-biz">
+  <div class="section-header">
+    <div class="section-icon" style="background:#f0fdf4;">🏪</div>
+    <div>
+      <h2>11. תסריטים מעשיים — עסק</h2>
+      <p>איך עסק צובר ומממש Flw בפלטפורמה</p>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>⚡ תרחיש 1 — הצטרפתם לקהילה וקיבלתם Flw</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>נכנסתם לממשק עסק → <strong>קהילות</strong> → הגשתם בקשה לקהילה עם 15% הנחה</li>
+      <li><span class="step-num">2</span>SA אישר → אם יש ZM — ZM אישר גם</li>
+      <li><span class="step-num">3</span>קיבלתם: <span class="flw-pill">⚡ +20 Flw</span> לארנק העסק</li>
+      <li><span class="step-num">4</span>המוצרים שלכם מופיעים עכשיו בטאב "הטבות" של כל חברי הקהילה</li>
+      <li><span class="step-num">5</span>כל חבר שרוכש אצלכם — גם הוא וגם אתם תרוויחו Flw</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>⚡ תרחיש 2 — פרסמתם מבצע וקיבלתם כפול</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק עסק → <strong>קהילות</strong> → <em>"צור מבצע"</em></li>
+      <li><span class="step-num">2</span>כתבתם: "30% הנחה על כל טיפול ספא לחברי הקהילה — עד סוף החודש"</li>
+      <li><span class="step-num">3</span>SA אישר → קיבלתם <span class="flw-pill">⚡ +10 Flw</span> על האישור</li>
+      <li><span class="step-num">4</span>כל משפחה שממשת את הקוד — אתם מקבלים <span class="flw-pill">⚡ +5 Flw</span> נוספים</li>
+      <li><span class="step-num">5</span>20 מימושים בחודש = 10 (אישור) + 100 (מימושים) = <strong>110 Flw</strong></li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>⚡ תרחיש 3 — לקוח ממש ואתם שכחתם לסמן "נמסר"</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>לקוח הזמין דרך האפליקציה עם קוד מבצע קהילתי</li>
+      <li><span class="step-num">2</span>סיפקתם את המוצר/שירות</li>
+      <li><span class="step-num">3</span>שכחתם לסמן "נמסרה" בממשק ניהול ההזמנות</li>
+      <li><span class="step-num">4</span>ה-Flw <strong>לא יועבר</strong> ללקוח ולא לכם — עד שתסמנו</li>
+      <li><span class="step-num">5</span>נכנסים ל<strong>הזמנות</strong> → מאתרים את ההזמנה → לוחצים <strong>"סמן כנמסרה"</strong></li>
+      <li><span class="step-num">6</span>ה-Flw מועבר אוטומטית לכל הצדדים תוך שניות</li>
+    </ol>
+    <div class="alert alert-warn" style="margin-top:10px;">
+      <span>⚠️</span><div>סימון "נמסרה" הוא <strong>חובה</strong> לצורך הפעלת Flw. לקוח שלא קיבל Flw לא ירצה לקנות שוב. הרגל לסמן מיידית עם המסירה.</div>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>⚡ תרחיש 4 — מימשתם Flw של העסק על שירות פלטפורמה</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>צבר העסק 400 Flw לאורך חודש פעיל</li>
+      <li><span class="step-num">2</span>ממשק עסק → <strong>קהילות</strong> → <em>"ארנק Flw"</em> → <em>"ממש Flw"</em></li>
+      <li><span class="step-num">3</span>בחרתם לממש 400 Flw = ₪40 הנחה</li>
+      <li><span class="step-num">4</span>ה-₪40 מנוכים מחיוב החודשי של העסק בפלטפורמה</li>
+      <li><span class="step-num">5</span>הארנק מתאפס ל-0, המחזור מתחיל מחדש</li>
+    </ol>
+  </div>
+</div>
+
+<!-- SECTION 12: SCENARIOS - SA -->
+<div class="section" id="scenarios-sa">
+  <div class="section-header">
+    <div class="section-icon" style="background:#eff6ff;">🔴</div>
+    <div>
+      <h2>12. תסריטים מעשיים — Super Admin</h2>
+      <p>ניהול מערכת Flw ברמה מלאה</p>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <h3>⚡ תרחיש 1 — העלאת שיעור Flw על הפניית שגריר</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>החלטתם לתמרץ יותר הפניות עסקים — רוצים להעלות מ-35 ל-50 Flw</li>
+      <li><span class="step-num">2</span>ממשק SA → <strong>קהילות</strong> → <em>"הגדרות Flw"</em></li>
+      <li><span class="step-num">3</span>מאתרים שורת <em>"הפניית עסק — שגריר"</em></li>
+      <li><span class="step-num">4</span>משנים <code>35</code> ל-<code>50</code> בשדה "Flw אישי"</li>
+      <li><span class="step-num">5</span>לוחצים <strong>שמור</strong> — השינוי חל מיידית על כל הפניה שתאושר מעכשיו</li>
+      <li><span class="step-num">6</span>הפניות שכבר אושרו — לא משתנות</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>⚡ תרחיש 2 — הענקת Flw ידנית לקהילה שעברה 100 משפחות</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>קהילת "שכונת הצפון" הגיעה ל-100 משפחות — אירוע חגיגי</li>
+      <li><span class="step-num">2</span>ממשק SA → <strong>קהילות</strong> → <em>"ניהול Flw"</em> → <em>"העבר Flw ידני"</em></li>
+      <li><span class="step-num">3</span>בוחרים נמען: <strong>קהילה</strong> → מחפשים "שכונת הצפון"</li>
+      <li><span class="step-num">4</span>מזינים: <code>500</code> Flw, סיבה: "בונוס חגיגת 100 משפחות 🎉"</li>
+      <li><span class="step-num">5</span>לוחצים <strong>העבר</strong> — 500 Flw מתווספים לארנק הקהילתי</li>
+      <li><span class="step-num">6</span>מנהל הקהילה רואה את ה-Flw ויכול להחליט איך לחלקו</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>⚡ תרחיש 3 — בדיקת כמה Flw נצבר בכל המערכת החודש</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → <em>"דוחות Flw"</em></li>
+      <li><span class="step-num">2</span>בוחרים טווח תאריכים: חודש אחרון</li>
+      <li><span class="step-num">3</span>הדוח מציג: סך Flw שהונפק / סך Flw שמומש / יתרה כוללת</li>
+      <li><span class="step-num">4</span>פירוט לפי קהילה: אילו קהילות הכי פעילות</li>
+      <li><span class="step-num">5</span>פירוט לפי פעולה: מה הפעולה שמניבה הכי הרבה Flw</li>
+      <li><span class="step-num">6</span>לוחצים <strong>ייצוא Excel</strong> לדוח מפורט</li>
+    </ol>
+  </div>
+
+  <div class="scenario">
+    <h3>⚡ תרחיש 4 — ביטול Flw שניתן בטעות</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>שגריר קיבל +35 Flw אבל מתברר שהוא והעסק היו באותה משפחה — לא כשר</li>
+      <li><span class="step-num">2</span>ממשק SA → <strong>קהילות</strong> → <em>"ניהול Flw"</em> → <em>"היסטוריית עסקאות"</em></li>
+      <li><span class="step-num">3</span>מאתרים את הפעולה הספציפית</li>
+      <li><span class="step-num">4</span>לוחצים <strong>בטל עסקה</strong></li>
+      <li><span class="step-num">5</span>הFlw מנוכה אוטומטית מהארנק (אם עדיין שם)</li>
+      <li><span class="step-num">6</span>אם כבר מומש — SA מסמן כ"חוב" ומנכה בפעם הבאה</li>
+    </ol>
+  </div>
+</div>
+
+<!-- SECTION 13: CHECK SCRIPTS -->
+<div class="section" id="check-scripts">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef9c3;">🔍</div>
+    <div>
+      <h2>13. איך בודקים הכל — מדריך אבחון</h2>
+      <p>שאלה ← תשובה. לפי סוג משתמש</p>
+    </div>
+  </div>
+
+  <!-- SA CHECK -->
+  <div style="background:#eff6ff;border:2px solid #bfdbfe;border-radius:16px;padding:18px 20px;margin-bottom:20px;">
+    <div style="font-size:15px;font-weight:900;color:#1d4ed8;margin-bottom:16px;">🔴 Super Admin — שאלות אבחון</div>
+
+    <div class="scenario">
+      <h3>✅ למה משפחה לא קיבלה Flw על הצטרפות?</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → <em>"בקשות משפחות"</em></li>
+        <li><span class="step-num">2</span>בדקו אם המשפחה עדיין <span class="badge badge-pending">ממתינה לאישור</span> — אם כן, אשרו ואז Flw יועבר</li>
+        <li><span class="step-num">3</span>אם המשפחה <span class="badge badge-approved">מאושרת</span> — בדקו היסטוריית Flw שלה → שורת "הצטרפות לקהילה" צריכה להופיע</li>
+        <li><span class="step-num">4</span>אם שורה לא קיימת — ייתכן שגיאה טכנית. ניתן לתת Flw ידני דרך <em>"העבר Flw ידני"</em></li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ למה עסק לא קיבל Flw אחרי אישור?</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>בדקו אם אישרתם ישירות (SA) או שלחתם ל-ZM</li>
+        <li><span class="step-num">2</span>אם שלחתם ל-ZM — ה-Flw מגיע רק לאחר שגם ZM אישר</li>
+        <li><span class="step-num">3</span>בדקו ב<em>"עסקים ממתינים"</em> — אם עדיין ממתין ל-ZM, Flw לא הועבר</li>
+        <li><span class="step-num">4</span>ZM אישר? — בדקו ארנק העסק. אם 0 — תנו ידני</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ איך לדעת אילו קהילות הכי פעילות ב-Flw?</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → <em>"דוחות Flw"</em></li>
+        <li><span class="step-num">2</span>בוחרים טווח חודשי</li>
+        <li><span class="step-num">3</span>הטבלה ממוינת לפי כמות Flw שנצברה בקהילה — הכי גבוה = הכי פעיל</li>
+        <li><span class="step-num">4</span>קהילות עם 0 Flw = לא פעילות — שקלו פנייה למנהל הקהילה</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ כמה Flw יש בארנק קהילתי מסוים?</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → לחיצה על הקהילה → <em>"ארנק קהילתי"</em></li>
+        <li><span class="step-num">2</span>מוצגת יתרה נוכחית + גרף צבירה חודשי</li>
+        <li><span class="step-num">3</span>לחיצה על <em>"היסטוריה"</em> — רשימת כל הפעולות שהוסיפו Flw לקהילה</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ZM CHECK -->
+  <div style="background:#f5f3ff;border:2px solid #ddd6fe;border-radius:16px;padding:18px 20px;margin-bottom:20px;">
+    <div style="font-size:15px;font-weight:900;color:#6d28d9;margin-bottom:16px;">🟣 Zone Manager — שאלות אבחון</div>
+
+    <div class="scenario">
+      <h3>✅ איך לראות כמה Flw יש לקהילה באזור שלי?</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק ZM → <strong>אזורים וקהילות</strong> → לחצן <strong>"פרטים"</strong> ליד הקהילה</li>
+        <li><span class="step-num">2</span>לוחצים טאב <strong>FLOW</strong></li>
+        <li><span class="step-num">3</span>מוצג: יתרת הארנק הקהילתי + 20 פעולות אחרונות</li>
+        <li><span class="step-num">4</span>בתחתית — כרטיס "Flw קהילה" מציג מספר עגול</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ למה לא קיבלתי עמלת Flw על אישור שביצעתי?</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק ZM → <strong>דשבורד</strong> → <em>"עמלות"</em></li>
+        <li><span class="step-num">2</span>בדקו אם הפעולה שאישרתם מופיעה ברשימה</li>
+        <li><span class="step-num">3</span>אם לא — ייתכן שה-SA ביטל את הפעולה, או שמדובר בפעולה שאינה מזכה בעמלה</li>
+        <li><span class="step-num">4</span>פנו ל-SA עם פרטי הפעולה — הם יכולים לתת עמלה ידנית</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- FAMILY CHECK -->
+  <div style="background:#fff7ed;border:2px solid #fed7aa;border-radius:16px;padding:18px 20px;margin-bottom:20px;">
+    <div style="font-size:15px;font-weight:900;color:#c2410c;margin-bottom:16px;">🟠 משפחה — שאלות אבחון</div>
+
+    <div class="scenario">
+      <h3>✅ למה לא קיבלתי Flw אחרי שהצטרפתי לקהילה?</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>טאב <strong>קהילה → חיבור</strong> — בדקו את הסטטוס</li>
+        <li><span class="step-num">2</span>אם <span class="badge badge-pending">ממתין לאישור</span> — הFlw יגיע רק לאחר שSA/ZM יאשרו</li>
+        <li><span class="step-num">3</span>אם <span class="badge badge-approved">מאושר</span> אבל אין Flw — כנסו ל<strong>ארנק Flw</strong> ובדקו היסטוריה</li>
+        <li><span class="step-num">4</span>אם לא מוצגת שורה של הצטרפות — פנו ל-SA דרך <em>"תמיכה"</em></li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ זימנתי חבר — למה לא קיבלתי את ה-+20?</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ה-+20 מגיע רק לאחר שהחבר <strong>אושר ע"י SA/ZM</strong></li>
+        <li><span class="step-num">2</span>בדקו: האם החבר שלכם כבר נכנס לאפליקציה ומילא את הבקשה?</li>
+        <li><span class="step-num">3</span>האם השתמש בקוד ההפניה שלכם — ולא רק נכנס לקהילה בעצמו?</li>
+        <li><span class="step-num">4</span>אם הכל בסדר — ייתכן שהאישור עוד בדרך. Flw מגיע אוטומטית עם האישור</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ ניסיתי לממש קוד Flw — אמר "קוד לא תקף"</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>בדקו אם הקוד נוצר לפני יותר מ-<strong>48 שעות</strong> — תפג תוקפו</li>
+        <li><span class="step-num">2</span>בדקו אם כבר השתמשתם בקוד בעסק אחר — הוא חד-פעמי</li>
+        <li><span class="step-num">3</span>בדקו שהעסק <strong>חבר בקהילה שלכם</strong> — לא ניתן לממש בעסק שאינו בקהילה</li>
+        <li><span class="step-num">4</span>אם הכל תקין — צרו קוד חדש (ה-Flw לא ינוכה עד שתשתמשו)</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ עזבתי קהילה — איפה ה-Flw שלי?</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>הFlw שנצבר <strong>נשמר בארנק האישי ולא נמחק</strong></li>
+        <li><span class="step-num">2</span>טאב <strong>חדשות</strong> → <strong>ארנק Flw</strong> — תראו את כל היתרה</li>
+        <li><span class="step-num">3</span>לאחר עזיבה — לא תוכלו לממש בעסקים של הקהילה ההיא</li>
+        <li><span class="step-num">4</span>אם תצטרפו לקהילה אחרת — תוכלו לממש בעסקים שם</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- BIZ CHECK -->
+  <div style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:16px;padding:18px 20px;">
+    <div style="font-size:15px;font-weight:900;color:#15803d;margin-bottom:16px;">🟢 עסק — שאלות אבחון</div>
+
+    <div class="scenario">
+      <h3>✅ לקוח אמר שלא קיבל Flw — מה עשיתם לא נכון?</h3>
+      <ol class="steps">
+        <li><span class="step-num">1">הסיבה הכמעט-ודאית: לא סימנתם את ההזמנה <strong>"נמסרה"</strong></li>
+        <li><span class="step-num">2</span>ממשק עסק → <strong>הזמנות</strong> — מאתרים את ההזמנה</li>
+        <li><span class="step-num">3</span>לוחצים <strong>"סמן כנמסרה"</strong> — Flw יועבר תוך שניות ללקוח ולכם</li>
+        <li><span class="step-num">4</span>אם ההזמנה לא מופיעה — יש בעיה ביצירת ההזמנה. פנו ל-SA</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ איך לדעת כמה Flw נצבר לעסק השבוע?</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק עסק → <strong>קהילות</strong> → <em>"ארנק Flw"</em></li>
+        <li><span class="step-num">2</span>לחיצה על <em>"היסטוריה"</em></li>
+        <li><span class="step-num">3</span>מסננים לפי תאריך — שבוע אחרון</li>
+        <li><span class="step-num">4</span>רשימת כל הפעולות: מימוש, ביקורת, הצטרפות לקהילה — עם הFlw שקיבלתם</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ מבצע שפרסמתם לא מניב מימושים — למה?</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>בדקו שהמבצע <span class="badge badge-approved">מאושר</span> — ממתין SA לא מוצג ללקוחות</li>
+        <li><span class="step-num">2</span>בדקו תאריך תפוגה — אולי כבר פג</li>
+        <li><span class="step-num">3</span>בדקו שהקהילה שלכם הגיעה ל-30 משפחות — לפני כן הטבות לא פעילות</li>
+        <li><span class="step-num">4</span>אם הכל תקין — שלחו תזכורת לחברי הקהילה דרך מנהל הקהילה</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 14: FAQ -->
+<div class="section" id="faq">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef9c3;">❓</div>
+    <div>
+      <h2>14. שאלות נפוצות על Flw</h2>
+      <p>תשובות מהירות לכל מה שנשאלים</p>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px;">
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ האם Flw פג תוקפו?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;">לא! Flw שנצבר <strong>לא פג לעולם</strong>. הוא נשמר בארנק עד שאתם מחליטים לממש. גם אחרי שנים — הFlw שם ומחכה.</p>
+    </div>
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ האם ניתן להעביר Flw לאחר?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;">לא ישירות בין משתמשים. SA יכול לבצע העברות ידניות בין ארנקים מטעמים מיוחדים (פיצוי, פרס, טעות).</p>
+    </div>
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ מה ההבדל בין Flw אישי לקהילתי?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;"><strong>Flw אישי:</strong> שלכם בלבד — ממשים לקניות. <strong>Flw קהילתי:</strong> שייך לכולם בקהילה — SA מחליט מה לעשות איתו (תחרויות, פרסים, אירועים).</p>
+    </div>
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ האם ניתן לממש Flw חלקית?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;">כן! בוחרים בדיוק כמה Flw לממש — מינימום 100 Flw. השאר נשאר בארנק. למשל: 340 Flw — ממשים 300, נשארים עם 40.</p>
+    </div>
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ הqlw שלי הופיע ואז נעלם — למה?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;">ייתכן שהפעולה שהניבה אותו בוטלה לאחר מכן (למשל — SA ביטל אישור שגריר חשוד). בדקו את ההיסטוריה — עסקת ביטול תוצג בסימן מינוס.</p>
+    </div>
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ כמה Flw צריך כדי להרוויח ₪100?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;"><strong>1,000 Flw = ₪100 הנחה.</strong> איך מגיעים? לדוגמה: 3 קהילות (45) + 3 עסקים מוזמנים (105) + 10 חברים מוזמנים (200) + כניסה יומית חודש (30) + 20 מבצעים ממומשים (60) + 5 ביקורות (35) + חבילה (18) = <strong>493 Flw</strong> — כמעט ₪50 בחצי שנה פעילה.</p>
+    </div>
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ עסק שסגר — מה עם ה-Flw שממשים אצלו?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;">כשעסק נסגר/יוצא מהקהילה — קודי Flw שנוצרו לעסק הזה לא ניתנים לשימוש. ה-Flw בארנק לא נעלם — ניתן לממש בעסק אחר בקהילה.</p>
+    </div>
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ האם כניסה יומית מוגבלת?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;">ניתן לקבל Flw יומי פעם אחת ביממה. אין הגבלה לכמות ימים בחודש (מקסימום 30 Flw/חודש מכניסה יומית).</p>
+    </div>
+
+    <div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:6px;">❓ SA שינה שיעור Flw — האם הFlw הקיים שלי מושפע?</div>
+      <p style="font-size:13px;color:#64748b;line-height:1.7;"><strong>לא.</strong> שינוי שיעורים חל רק על פעולות עתידיות. הFlw שכבר נצבר בארנק שלכם — לא משתנה ולא מנוכה.</p>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<div class="guide-footer">
+  <strong>Oneflow Life</strong> · מדריך מטבע Flw · כל הפעולות מבוצעות דרך הממשקים הייעודיים<br>
+  <span style="margin-top:4px;display:block;">100 Flw = ₪10 הנחה · לא פג תוקף · אוטומטי לחלוטין</span>
+</div>
+
+</body>
+</html>
