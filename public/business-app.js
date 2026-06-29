@@ -4704,6 +4704,9 @@ window.renderDashboard = async function(forceRefresh = false) {
     const isEmployee = currentUser?.role === 'MEMBER' || currentUser?.role === 'SENIOR';
     if (isEmployee) { await renderEmployeeDashboard(); return; }
 
+    // ★ FLOW widget — מנהלים בלבד, בכל סוגי העסקים
+    if (currentUser?.role === 'ADMIN') try { await renderBizFlowWidget(); } catch(e) {}
+
     // For admin/owner in sport business, render sport dashboard into content-feed
     if (currentUser?.role === 'ADMIN' && currentGroup?.business_type === 'sport') {
         if (window._sportScreenActive || window._sportDashRendering) return;
@@ -5061,9 +5064,6 @@ window.renderDashboard = async function(forceRefresh = false) {
 
         // ★ Sparklines
         try { renderSparklines(); } catch(e) {}
-
-        // ★ FLOW balance widget (מנהלים בלבד)
-        try { await renderBizFlowWidget(); } catch(e) {}
 
     } catch(err) { console.error('renderDashboard:', err); }
 };
