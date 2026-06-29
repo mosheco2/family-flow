@@ -2211,9 +2211,12 @@
                         <div id="comm-view-discover" class="hidden">
                             <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4">
                                 <div class="grid grid-cols-2 gap-3 mb-2">
-                                    <div class="relative">
+                                    <div class="relative col-span-2">
                                         <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                                        <input type="text" id="biz-filter-city" onkeyup="filterBizAvailableCommunities()" class="modern-input py-2 pr-9 text-sm bg-slate-50" placeholder="חיפוש עיר/אזור...">
+                                        <input type="text" id="biz-filter-city" onkeyup="filterBizAvailableCommunities()" class="modern-input py-2 pr-9 pl-12 text-sm bg-slate-50" placeholder="חיפוש עיר/אזור...">
+                                        <button onclick="window.detectBizCity()" title="זיהוי מיקום אוטומטי" class="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-orange-100 hover:bg-orange-200 text-orange-600 rounded-lg transition text-sm">
+                                            <i class="fa-solid fa-location-crosshairs"></i>
+                                        </button>
                                     </div>
                                     <select id="biz-filter-size" onchange="filterBizAvailableCommunities()" class="modern-input py-2 text-sm bg-slate-50">
                                         <option value="all">כל הגדלים</option>
@@ -2221,7 +2224,7 @@
                                         <option value="100">+100 משפחות</option>
                                         <option value="500">+500 משפחות</option>
                                     </select>
-                                    <label class="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 rounded-xl border border-slate-200 col-span-2">
+                                    <label class="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 rounded-xl border border-slate-200">
                                         <input type="checkbox" id="biz-filter-multi" onchange="filterBizAvailableCommunities()" class="w-4 h-4 accent-orange-500">
                                         <span class="text-xs font-bold text-slate-600">קהילות רב-אזוריות</span>
                                     </label>
