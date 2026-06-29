@@ -8865,6 +8865,24 @@ app.get('/api/zone-manager/communities-members', verifyZoneManager, async (req, 
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+
+// כל מנהלי הקהילות באזורי ZM (לשימוש בשליחת הודעות)
+app.get('/api/zone-manager/all-community-managers', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        const result = await pool.query(
+            `SELECT fc.group_id, fc.community_id, fg.name AS manager_name, fg.admin_email, c.name AS community_name
+             FROM family_communities fc
+             JOIN family_groups fg ON fg.id=fc.group_id
+             JOIN communities c ON c.id=fc.community_id
+             JOIN manager_zones mz ON mz.id=c.zone_id
+             WHERE mz.manager_id=$1 AND fc.is_community_manager=TRUE
+             ORDER BY c.name, fg.name`,
+            [managerId]);
+        res.json({ success: true, managers: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // מינוי/הסרת מנהל קהילה ע"י מנהל אזור (משפיע על אותו שדה ש-SA משתמש בו)
 app.post('/api/zone-manager/set-community-manager', verifyZoneManager, async (req, res) => {
     try {
