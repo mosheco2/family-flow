@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oneflow Life — המדריך השיווקי המלא</title>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Rubik', sans-serif; background: #f8fafc; color: #1e293b; direction: rtl; }
+
+  /* ===== HERO ===== */
+  .hero {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0369a1 100%);
+    padding: 60px 24px 48px;
+    text-align: center;
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '🌊';
+    position: absolute; font-size: 260px; opacity: 0.05;
+    right: -40px; top: -40px; line-height: 1;
+  }
+  .hero::after {
+    content: '✨';
+    position: absolute; font-size: 180px; opacity: 0.05;
+    left: -20px; bottom: -40px; line-height: 1;
+  }
+  .hero-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white; font-size: 12px; font-weight: 700;
+    padding: 4px 16px; border-radius: 99px; margin-bottom: 20px;
+    letter-spacing: 1px;
+  }
+  .hero h1 { font-size: 2.6rem; font-weight: 900; line-height: 1.15; margin-bottom: 16px; }
+  .hero h1 span { color: #38bdf8; }
+  .hero p { font-size: 1.05rem; opacity: 0.85; max-width: 620px; margin: 0 auto 32px; line-height: 1.7; }
+  .hero-stats {
+    display: flex; justify-content: center; gap: 40px; flex-wrap: wrap;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    padding-top: 28px; margin-top: 8px;
+  }
+  .hero-stat .val { font-size: 2.2rem; font-weight: 900; color: #38bdf8; line-height: 1; }
+  .hero-stat .lbl { font-size: 11px; opacity: 0.8; font-weight: 600; margin-top: 4px; }
+
+  /* ===== WORLD STRIP ===== */
+  .world-strip {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
+    max-width: 960px; margin: 0 auto;
+  }
+  .world-card {
+    padding: 28px 24px; text-align: center; color: white;
+    position: relative; overflow: hidden;
+  }
+  .world-card.fam { background: linear-gradient(135deg, #7c3aed, #a855f7); }
+  .world-card.biz { background: linear-gradient(135deg, #0369a1, #0ea5e9); }
+  .world-card.com { background: linear-gradient(135deg, #059669, #10b981); }
+  .world-card .icon { font-size: 40px; margin-bottom: 10px; display: block; }
+  .world-card h3 { font-size: 1.1rem; font-weight: 900; margin-bottom: 6px; }
+  .world-card p { font-size: 12px; opacity: 0.88; line-height: 1.6; }
+
+  /* ===== LAYOUT ===== */
+  .container { max-width: 960px; margin: 0 auto; padding: 0 16px 80px; }
+
+  /* ===== TOC ===== */
+  .toc {
+    background: white; border: 1px solid #e2e8f0; border-radius: 20px;
+    padding: 24px 28px; margin: 32px 0 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .toc h2 { font-size: 13px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .toc a {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px; background: #f0f9ff; border: 1px solid #bae6fd;
+    border-radius: 12px; text-decoration: none; color: #0369a1;
+    font-size: 13px; font-weight: 600; transition: all 0.15s;
+  }
+  .toc a:hover { background: #e0f2fe; border-color: #38bdf8; }
+  .toc a .num { background: #0369a1; color: white; font-size: 10px; font-weight: 900; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  /* ===== SECTION ===== */
+  .section {
+    background: white; border: 1px solid #e2e8f0; border-radius: 20px;
+    padding: 28px; margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .section-header {
+    display: flex; align-items: center; gap: 14px;
+    padding-bottom: 18px; border-bottom: 2px solid #f1f5f9; margin-bottom: 22px;
+  }
+  .section-icon {
+    width: 52px; height: 52px; border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; flex-shrink: 0;
+  }
+  .section-header h2 { font-size: 1.2rem; font-weight: 800; color: #1e293b; }
+  .section-header p { font-size: 13px; color: #64748b; margin-top: 2px; }
+
+  /* ===== CARDS ===== */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .card { border: 1px solid #e2e8f0; border-radius: 16px; padding: 18px; background: #fafafa; }
+  .card .icon { font-size: 28px; margin-bottom: 10px; }
+  .card h4 { font-size: 13px; font-weight: 800; margin-bottom: 6px; color: #1e293b; }
+  .card p { font-size: 12px; color: #64748b; line-height: 1.6; }
+
+  /* ===== COMPARISON TABLE ===== */
+  .comp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .comp-table th {
+    padding: 12px 16px; text-align: center; font-weight: 800;
+    border-bottom: 2px solid #e2e8f0;
+  }
+  .comp-table th:first-child { text-align: right; }
+  .comp-table td {
+    padding: 11px 16px; border-bottom: 1px solid #f1f5f9;
+    color: #334155; vertical-align: middle; text-align: center;
+  }
+  .comp-table td:first-child { text-align: right; font-weight: 600; color: #1e293b; }
+  .comp-table tr:hover td { background: #f8fafc; }
+  .th-fam { background: #f3e8ff; color: #7c3aed; }
+  .th-biz { background: #e0f2fe; color: #0369a1; }
+  .th-com { background: #d1fae5; color: #059669; }
+  .check { color: #16a34a; font-weight: 900; font-size: 16px; }
+  .cross { color: #94a3b8; font-size: 16px; }
+  .partial { color: #d97706; font-size: 13px; font-weight: 700; }
+
+  /* ===== JOURNEY ===== */
+  .journey { display: flex; flex-direction: column; gap: 0; }
+  .journey-step {
+    display: flex; gap: 16px; align-items: flex-start;
+    padding: 16px 0; border-bottom: 1px solid #f1f5f9;
+  }
+  .journey-step:last-child { border-bottom: none; }
+  .journey-num {
+    min-width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 900; color: white; flex-shrink: 0;
+  }
+  .journey-content h4 { font-size: 14px; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
+  .journey-content p { font-size: 12.5px; color: #64748b; line-height: 1.6; }
+
+  /* ===== BENEFITS ===== */
+  .benefit-row {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px;
+    margin-bottom: 16px;
+  }
+  .benefit {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 16px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fafafa;
+  }
+  .benefit .icon { font-size: 26px; flex-shrink: 0; margin-top: 2px; }
+  .benefit h4 { font-size: 13px; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
+  .benefit p { font-size: 12px; color: #64748b; line-height: 1.6; }
+
+  /* ===== SCENARIO ===== */
+  .scenario {
+    background: #fafafa; border: 1px solid #e2e8f0; border-radius: 16px;
+    padding: 20px; margin-bottom: 14px;
+  }
+  .scenario h3 { font-size: 14px; font-weight: 800; color: #1e293b; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .steps { list-style: none; }
+  .steps li {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 9px 0; border-bottom: 1px solid #f1f5f9;
+    font-size: 13px; color: #334155; line-height: 1.6;
+  }
+  .steps li:last-child { border-bottom: none; }
+  .step-num {
+    background: #0369a1; color: white; font-size: 10px; font-weight: 900;
+    min-width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ===== HIGHLIGHT BOXES ===== */
+  .box { border-radius: 14px; padding: 16px 18px; margin-bottom: 14px; font-size: 13px; line-height: 1.7; }
+  .box-purple { background: #f3e8ff; border: 1px solid #d8b4fe; color: #6b21a8; }
+  .box-blue   { background: #e0f2fe; border: 1px solid #7dd3fc; color: #0c4a6e; }
+  .box-green  { background: #d1fae5; border: 1px solid #6ee7b7; color: #065f46; }
+  .box-amber  { background: #fef3c7; border: 1px solid #fde68a; color: #92400e; }
+  .box-slate  { background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155; }
+  .box strong { font-weight: 800; }
+
+  /* ===== FLOW PILL ===== */
+  .flw { display: inline-block; background: #fef3c7; border: 1px solid #fde68a; color: #92400e; font-weight: 800; font-size: 11px; padding: 2px 8px; border-radius: 99px; }
+
+  /* ===== USER TYPES ===== */
+  .user-types { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 20px; }
+  .user-type { border-radius: 16px; padding: 20px 16px; text-align: center; }
+  .user-type.fam { background: linear-gradient(135deg,#f3e8ff,#ede9fe); border: 1px solid #d8b4fe; }
+  .user-type.biz { background: linear-gradient(135deg,#e0f2fe,#dbeafe); border: 1px solid #7dd3fc; }
+  .user-type.com { background: linear-gradient(135deg,#d1fae5,#dcfce7); border: 1px solid #6ee7b7; }
+  .user-type .icon { font-size: 36px; margin-bottom: 10px; display: block; }
+  .user-type h3 { font-size: 15px; font-weight: 900; margin-bottom: 6px; }
+  .user-type.fam h3 { color: #7c3aed; }
+  .user-type.biz h3 { color: #0369a1; }
+  .user-type.com h3 { color: #059669; }
+  .user-type p { font-size: 12px; color: #475569; line-height: 1.6; }
+
+  /* ===== ECOSYSTEM ===== */
+  .eco-row {
+    display: flex; gap: 12px; align-items: center; padding: 14px;
+    border: 1px solid #e2e8f0; border-radius: 14px; margin-bottom: 10px;
+    background: #fafafa;
+  }
+  .eco-icon { font-size: 28px; flex-shrink: 0; }
+  .eco-text h4 { font-size: 13px; font-weight: 800; color: #1e293b; margin-bottom: 3px; }
+  .eco-text p { font-size: 12px; color: #64748b; line-height: 1.6; }
+
+  /* ===== FAQ ===== */
+  .faq { border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; margin-bottom: 10px; }
+  .faq-q { padding: 14px 18px; font-size: 13px; font-weight: 800; color: #1e293b; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+  .faq-a { padding: 14px 18px; font-size: 13px; color: #475569; line-height: 1.7; background: white; }
+
+  /* ===== PRICING ===== */
+  .pricing-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 14px; margin-bottom: 20px; }
+  .pricing-card {
+    border-radius: 18px; padding: 22px 18px; text-align: center;
+    border: 2px solid transparent;
+  }
+  .pricing-card.free { background: #f8fafc; border-color: #e2e8f0; }
+  .pricing-card.premium { background: linear-gradient(135deg,#fefce8,#fffbeb); border-color: #fde68a; }
+  .pricing-card.biz-card { background: linear-gradient(135deg,#e0f2fe,#dbeafe); border-color: #7dd3fc; }
+  .pricing-card .price { font-size: 2rem; font-weight: 900; margin: 10px 0 4px; line-height: 1; }
+  .pricing-card .period { font-size: 11px; color: #64748b; margin-bottom: 14px; }
+  .pricing-card h3 { font-size: 14px; font-weight: 900; margin-bottom: 12px; }
+  .pricing-card ul { list-style: none; text-align: right; }
+  .pricing-card ul li { font-size: 12px; color: #475569; padding: 5px 0; border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; gap: 8px; align-items: center; }
+  .pricing-card ul li:last-child { border-bottom: none; }
+  .pricing-card ul li::before { content: '✓'; font-weight: 900; color: #16a34a; flex-shrink: 0; }
+
+  /* ===== CTA ===== */
+  .cta-block {
+    background: linear-gradient(135deg, #0f172a, #1e3a5f);
+    border-radius: 24px; padding: 40px 32px; text-align: center; color: white; margin-top: 32px;
+  }
+  .cta-block h2 { font-size: 1.6rem; font-weight: 900; margin-bottom: 12px; }
+  .cta-block p { font-size: 14px; opacity: 0.8; max-width: 500px; margin: 0 auto 28px; line-height: 1.7; }
+  .cta-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-block; padding: 13px 28px; border-radius: 14px;
+    font-size: 14px; font-weight: 800; text-decoration: none; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-white { background: white; color: #0369a1; }
+  .btn-white:hover { background: #e0f2fe; }
+  .btn-outline { background: transparent; color: white; border: 2px solid rgba(255,255,255,0.4); }
+  .btn-outline:hover { background: rgba(255,255,255,0.1); }
+
+  /* ===== RESPONSIVE ===== */
+  @media(max-width:640px){
+    .hero h1 { font-size: 1.8rem; }
+    .world-strip { grid-template-columns: 1fr; }
+    .user-types { grid-template-columns: 1fr; }
+    .cards { grid-template-columns: 1fr; }
+    .comp-table { font-size: 11px; }
+    .comp-table th, .comp-table td { padding: 8px 10px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <div class="hero-badge">ONEFLOW LIFE • המערכת שמחברת קהילות, משפחות ועסקים</div>
+  <h1>הפלטפורמה שבה <span>כולם מרוויחים</span><br>יחד</h1>
+  <p>Oneflow Life היא מערכת חיים דיגיטלית שמחברת בין משפחות, עסקים מקומיים וקהילות — דרך כלים פשוטים, מטבע ייחודי ורשת תמיכה שמגבירה את כוחו של כל אחד.</p>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="val">3</div><div class="lbl">עולמות מחוברים</div></div>
+    <div class="hero-stat"><div class="val">Flw</div><div class="lbl">מטבע קהילתי פנימי</div></div>
+    <div class="hero-stat"><div class="val">∞</div><div class="lbl">שיתופי פעולה אפשריים</div></div>
+    <div class="hero-stat"><div class="val">100%</div><div class="lbl">דיגיטלי ועברית מלאה</div></div>
+  </div>
+</div>
+
+<!-- ===== WORLD STRIP ===== -->
+<div class="world-strip">
+  <div class="world-card fam">
+    <span class="icon">👨‍👩‍👧‍👦</span>
+    <h3>משפחות</h3>
+    <p>ניהול חיי היומיום, גישה להטבות מקומיות ומטבע Flw</p>
+  </div>
+  <div class="world-card biz">
+    <span class="icon">🏪</span>
+    <h3>עסקים</h3>
+    <p>לקוחות, מלאי, הזמנות, שיווק וחיבור לקהילה</p>
+  </div>
+  <div class="world-card com">
+    <span class="icon">🏘️</span>
+    <h3>קהילות</h3>
+    <p>גשר בין משפחות לעסקים — חיזוק הכלכלה המקומית</p>
+  </div>
+</div>
+
+<!-- ===== CONTAINER ===== -->
+<div class="container">
+
+  <!-- TOC -->
+  <div class="toc">
+    <h2>תוכן עניינים</h2>
+    <div class="toc-grid">
+      <a href="#sec-overview"><span class="num">1</span> מה זה Oneflow Life?</a>
+      <a href="#sec-users"><span class="num">2</span> שלושה סוגי משתמשים</a>
+      <a href="#sec-family"><span class="num">3</span> עולם המשפחה</a>
+      <a href="#sec-biz"><span class="num">4</span> עולם העסק</a>
+      <a href="#sec-community"><span class="num">5</span> עולם הקהילה</a>
+      <a href="#sec-flw"><span class="num">6</span> מטבע Flw</a>
+      <a href="#sec-connection"><span class="num">7</span> איך הכל מתחבר?</a>
+      <a href="#sec-compare"><span class="num">8</span> השוואת יכולות</a>
+      <a href="#sec-journey"><span class="num">9</span> מסע המשתמש</a>
+      <a href="#sec-scenarios"><span class="num">10</span> תסריטים מהחיים</a>
+      <a href="#sec-benefits"><span class="num">11</span> למה Oneflow Life?</a>
+      <a href="#sec-faq"><span class="num">12</span> שאלות נפוצות</a>
+    </div>
+  </div>
+
+  <!-- 1. OVERVIEW -->
+  <div class="section" id="sec-overview">
+    <div class="section-header">
+      <div class="section-icon" style="background:#e0f2fe">🌊</div>
+      <div>
+        <h2>מה זה Oneflow Life?</h2>
+        <p>הפלטפורמה שמחברת בין שלושה עולמות: משפחה, עסק וקהילה</p>
+      </div>
+    </div>
+
+    <div class="box box-blue" style="margin-bottom:20px">
+      <strong>הרעיון בשורה אחת:</strong> בני משפחה קונים מעסקים מקומיים, מרוויחים Flw, ומשתפים פעולה דרך הקהילה — כולם יוצאים מחוזקים.
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="icon">📱</div>
+        <h4>אפליקציה אחת לכל הצרכים</h4>
+        <p>ניהול הבית, הרכישות, ההטבות והתקשורת — הכל במקום אחד</p>
+      </div>
+      <div class="card">
+        <div class="icon">🤝</div>
+        <h4>רשת קהילתית אמיתית</h4>
+        <p>עסקים מקומיים מחוברים למשפחות מקומיות — בלי תיווך ובלי עמלות גבוהות</p>
+      </div>
+      <div class="card">
+        <div class="icon">⚡</div>
+        <h4>מטבע Flw שמתגמל הכל</h4>
+        <p>כל פעולה ברשת — כניסה, רכישה, הפניה, ביקורת — מייצרת ערך</p>
+      </div>
+      <div class="card">
+        <div class="icon">🏆</div>
+        <h4>עסקים שצומחים מקהילה</h4>
+        <p>חשיפה לחברי הקהילה, אמינות מוכחת, כלים מקצועיים מובנים</p>
+      </div>
+    </div>
+
+    <div class="eco-row">
+      <div class="eco-icon">🔄</div>
+      <div class="eco-text">
+        <h4>כלכלה מעגלית</h4>
+        <p>כסף שמוצא בעסקים מקומיים → מגדיל את הקהילה → מושך עוד עסקים ומשפחות → מוצא שוב. Oneflow Life יוצרת מעגל שמחזק את עצמו.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. USER TYPES -->
+  <div class="section" id="sec-users">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f3e8ff">👥</div>
+      <div>
+        <h2>שלושה סוגי משתמשים</h2>
+        <p>כל אחד עם תפקיד, יכולות וערך ייחודי ברשת</p>
+      </div>
+    </div>
+    <div class="user-types">
+      <div class="user-type fam">
+        <span class="icon">👨‍👩‍👧‍👦</span>
+        <h3>משפחה</h3>
+        <p>יחידה בסיסית ברשת. מנהלת הזמנות, רכישות, קשר עם עסקים, הטבות קהילתיות ומטבע Flw.</p>
+      </div>
+      <div class="user-type biz">
+        <span class="icon">🏪</span>
+        <h3>עסק</h3>
+        <p>כל עסק מקומי — מסעדה, קליניקה, חנות, מאפייה. מנהל לקוחות, מלאי, הזמנות ומוכר דרך הקהילה.</p>
+      </div>
+      <div class="user-type com">
+        <span class="icon">🏘️</span>
+        <h3>מנהל קהילה</h3>
+        <p>מחבר בין משפחות לעסקים, מאשר חברויות, מנהל מבצעים ומייצג את הקהילה.</p>
+      </div>
+    </div>
+    <div class="box box-slate">
+      <strong>חשוב:</strong> כל עסק הוא גם "משפחה" ברמת המערכת — הוא מנוהל כחשבון עם יכולות מורחבות של לקוחות, מלאי, POS ועוד. המשפחה לעומת זאת מתמקדת בצריכה, הטבות וקהילה.
+    </div>
+  </div>
+
+  <!-- 3. FAMILY -->
+  <div class="section" id="sec-family">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f3e8ff">👨‍👩‍👧‍👦</div>
+      <div>
+        <h2>עולם המשפחה</h2>
+        <p>הניהול, ההטבות וחיי הקהילה של כל בית</p>
+      </div>
+    </div>
+
+    <div class="box box-purple" style="margin-bottom:20px">
+      <strong>מה משפחה מקבלת?</strong> גישה להטבות עסקים מקומיים, צבירת Flw, חברות בקהילה, כלי ניהול בית ותמיכת AI.
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="icon">🏠</div>
+        <h4>ניהול בית חכם</h4>
+        <p>לוח שנה, רשימות, הזמנות מעסקים, מעקב הוצאות</p>
+      </div>
+      <div class="card">
+        <div class="icon">🎁</div>
+        <h4>הטבות קהילה</h4>
+        <p>גישה להנחות של עסקים בקהילה, מבצעים בלעדיים לחברים</p>
+      </div>
+      <div class="card">
+        <div class="icon">⚡</div>
+        <h4>צבירת Flw</h4>
+        <p>כניסה יומית, רכישות, ביקורות, הפניות — כל פעולה צוברת מטבע</p>
+      </div>
+      <div class="card">
+        <div class="icon">🤖</div>
+        <h4>עוזר AI אישי</h4>
+        <p>שאלות על הקהילה, עסקים, מבצעים — מענה מיידי</p>
+      </div>
+      <div class="card">
+        <div class="icon">📬</div>
+        <h4>תיבת הודעות</h4>
+        <p>תקשורת ישירה עם הקהילה ועם עסקים שותפים</p>
+      </div>
+      <div class="card">
+        <div class="icon">👑</div>
+        <h4>מנהל קהילה</h4>
+        <p>משפחה שמקבלת תפקיד ניהולי — מנהלת חברויות ופעילות</p>
+      </div>
+    </div>
+
+    <h3 style="font-size:14px;font-weight:800;color:#7c3aed;margin-bottom:12px">✦ איך משפחה מצטרפת לקהילה?</h3>
+    <div class="journey">
+      <div class="journey-step">
+        <div class="journey-num" style="background:#7c3aed">1</div>
+        <div class="journey-content">
+          <h4>הרשמה חינמית</h4>
+          <p>יוצרים חשבון עם שם הבית, כתובת מייל וסיסמה — תוך 2 דקות</p>
+        </div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-num" style="background:#7c3aed">2</div>
+        <div class="journey-content">
+          <h4>מצטרפים לקהילה</h4>
+          <p>מזינים קוד קהילה שקיבלתם, או מבקשים הצטרפות לקהילה הקרובה אליכם</p>
+        </div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-num" style="background:#7c3aed">3</div>
+        <div class="journey-content">
+          <h4>גישה מיידית להטבות</h4>
+          <p>רואים את כל עסקי הקהילה, המבצעים, ומצברים Flw מהכניסה הראשונה</p>
+        </div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-num" style="background:#7c3aed">4</div>
+        <div class="journey-content">
+          <h4>ממליצים לשכנים</h4>
+          <p>שולחים קוד הפניה — כל שכן שמצטרף מזכה את המשפחה ב-Flw נוסף</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. BIZ -->
+  <div class="section" id="sec-biz">
+    <div class="section-header">
+      <div class="section-icon" style="background:#e0f2fe">🏪</div>
+      <div>
+        <h2>עולם העסק</h2>
+        <p>פלטפורמת ניהול עסקי מלאה + חיבור לקהילה מקומית</p>
+      </div>
+    </div>
+
+    <div class="box box-blue" style="margin-bottom:20px">
+      <strong>בשונה מפלטפורמות אחרות:</strong> Oneflow Life לא רק מביאה לקוחות — היא מעניקה לעסק כלי ניהול מלאים: POS, מלאי, לקוחות, צוות, דוחות וקשר קהילתי אמיתי.
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="icon">🛒</div>
+        <h4>קופה חכמה (POS)</h4>
+        <p>קטלוג מוצרים, הנחות, עגלת קנייה ותשלום — מהסלולר</p>
+      </div>
+      <div class="card">
+        <div class="icon">📦</div>
+        <h4>ניהול מלאי</h4>
+        <p>מעקב מוצרים, התראות מלאי נמוך, קישור לקטלוג המכירות</p>
+      </div>
+      <div class="card">
+        <div class="icon">👥</div>
+        <h4>ניהול לקוחות</h4>
+        <p>כרטיסי לקוח, היסטוריית קנייה, הערות, קשר ישיר</p>
+      </div>
+      <div class="card">
+        <div class="icon">📊</div>
+        <h4>דוחות ואנליטיקה</h4>
+        <p>מכירות, הכנסות, מוצרים מובילים, תחזית — הכל בזמן אמת</p>
+      </div>
+      <div class="card">
+        <div class="icon">🗓️</div>
+        <h4>קביעת תורים</h4>
+        <p>לוח שנה עם תורים, תזכורות אוטומטיות וניהול שירותים</p>
+      </div>
+      <div class="card">
+        <div class="icon">👷</div>
+        <h4>ניהול צוות</h4>
+        <p>עובדים, שעות, תפקידים, לוחות זמנים ומשמרות</p>
+      </div>
+      <div class="card">
+        <div class="icon">🎯</div>
+        <h4>מבצעי קהילה</h4>
+        <p>פרסום הנחות לחברי הקהילה — חשיפה מיידית לקהל ממוקד</p>
+      </div>
+      <div class="card">
+        <div class="icon">🤖</div>
+        <h4>עוזר AI עסקי</h4>
+        <p>ניתוח נתונים, המלצות, תשובות מיידיות על נושאים עסקיים</p>
+      </div>
+    </div>
+
+    <h3 style="font-size:14px;font-weight:800;color:#0369a1;margin-bottom:12px">✦ סוגי עסקים נתמכים</h3>
+    <div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">
+      <div class="card" style="text-align:center;padding:14px">
+        <div class="icon">🍕</div>
+        <h4>מסעדות ומזון</h4>
+      </div>
+      <div class="card" style="text-align:center;padding:14px">
+        <div class="icon">💇</div>
+        <h4>יופי וטיפוח</h4>
+      </div>
+      <div class="card" style="text-align:center;padding:14px">
+        <div class="icon">🏋️</div>
+        <h4>ספורט וכושר</h4>
+      </div>
+      <div class="card" style="text-align:center;padding:14px">
+        <div class="icon">🩺</div>
+        <h4>בריאות ורפואה</h4>
+      </div>
+      <div class="card" style="text-align:center;padding:14px">
+        <div class="icon">🛠️</div>
+        <h4>שירותי תיקון</h4>
+      </div>
+      <div class="card" style="text-align:center;padding:14px">
+        <div class="icon">🚚</div>
+        <h4>לוגיסטיקה</h4>
+      </div>
+    </div>
+
+    <h3 style="font-size:14px;font-weight:800;color:#0369a1;margin-bottom:12px;margin-top:4px">✦ איך עסק מצטרף לקהילה?</h3>
+    <div class="journey">
+      <div class="journey-step">
+        <div class="journey-num" style="background:#0369a1">1</div>
+        <div class="journey-content">
+          <h4>פותחים חשבון עסקי</h4>
+          <p>הרשמה + אשף הקמה — בוחרים סוג עסק, שם, ומקבלים סביבת עבודה מותאמת</p>
+        </div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-num" style="background:#0369a1">2</div>
+        <div class="journey-content">
+          <h4>מגישים בקשת חברות בקהילה</h4>
+          <p>בוחרים קהילה קרובה, שולחים בקשה — מנהל הקהילה מאשר תוך שעות</p>
+        </div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-num" style="background:#0369a1">3</div>
+        <div class="journey-content">
+          <h4>מפרסמים מבצע ראשון</h4>
+          <p>מבצע הנחה לחברי הקהילה — נחשף מיידית לכל המשפחות הרשומות</p>
+        </div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-num" style="background:#0369a1">4</div>
+        <div class="journey-content">
+          <h4>צוברים Flw ואמינות</h4>
+          <p>כל לקוח שממש את המבצע נותן ביקורת → בונה מוניטין → מושך לקוחות נוספים</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. COMMUNITY -->
+  <div class="section" id="sec-community">
+    <div class="section-header">
+      <div class="section-icon" style="background:#d1fae5">🏘️</div>
+      <div>
+        <h2>עולם הקהילה</h2>
+        <p>הגשר שמחבר בין משפחות לעסקים — וגורם לכלכלה המקומית לפרוח</p>
+      </div>
+    </div>
+
+    <div class="box box-green" style="margin-bottom:20px">
+      <strong>קהילה ב-Oneflow Life</strong> היא ישות עצמאית: שכונה, ישוב, מגדל מגורים, עמותה, או כל קבוצה עם עניין משותף. יש לה מנהל, חברים (משפחות) ועסקים שותפים.
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="icon">🔑</div>
+        <h4>קוד קהילה ייחודי</h4>
+        <p>כל קהילה מקבלת קוד — משפחות מצטרפות בעזרתו, עסקים מבקשים חברות</p>
+      </div>
+      <div class="card">
+        <div class="icon">✅</div>
+        <h4>אישור חברות</h4>
+        <p>מנהל הקהילה מאשר משפחות ועסקים — שומר על אמינות הרשת</p>
+      </div>
+      <div class="card">
+        <div class="icon">🎫</div>
+        <h4>מבצעי עסקים</h4>
+        <p>עסקי הקהילה מפרסמים הנחות — נגישות רק לחברי הקהילה</p>
+      </div>
+      <div class="card">
+        <div class="icon">📦</div>
+        <h4>חבילות Flw</h4>
+        <p>הקהילה יוצרת חבילות שמאחדות כמה עסקים עם הנחות משולבות</p>
+      </div>
+      <div class="card">
+        <div class="icon">💰</div>
+        <h4>ארנק Flw קהילתי</h4>
+        <p>הקהילה צוברת Flw מפעילות חבריה — ניתן להשתמש בו לטובת הקהילה</p>
+      </div>
+      <div class="card">
+        <div class="icon">📢</div>
+        <h4>כרזות ושיווק</h4>
+        <p>בנרים, הכרזות וקמפיינים — מנהל מקדם את הקהילה פנימה וחוצה</p>
+      </div>
+    </div>
+
+    <div class="box box-slate">
+      <strong>מנהל קהילה</strong> הוא משפחה שקיבלה הרשאה מיוחדת. הוא רואה את כל חברי הקהילה, מנהל מבצעים, מאשר בקשות ומקבל Flw על כל פעילות בקהילה שלו.
+    </div>
+  </div>
+
+  <!-- 6. FLW -->
+  <div class="section" id="sec-flw">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fef3c7">⚡</div>
+      <div>
+        <h2>מטבע Flw — הדלק של המערכת</h2>
+        <p>כל פעולה ברשת מייצרת ערך. כל ערך ניתן לממש.</p>
+      </div>
+    </div>
+
+    <div class="box box-amber" style="margin-bottom:20px">
+      <strong>100 Flw = ₪10 ערך ממשי.</strong> ניתן לממש ב-3 אפשרויות: הנחה בעסק מקומי, העברה לארנק הקהילה, או צבירה לרכישת חבילות.
+    </div>
+
+    <div class="cards">
+      <div class="card" style="border-color:#fde68a;background:#fffbeb">
+        <div class="icon">📅</div>
+        <h4>כניסה יומית</h4>
+        <p>כל כניסה מזכה במטבעות — עידוד שימוש קבוע</p>
+      </div>
+      <div class="card" style="border-color:#fde68a;background:#fffbeb">
+        <div class="icon">🛒</div>
+        <h4>רכישה בעסק</h4>
+        <p>כל קנייה בעסק קהילתי מזכה משפחה, עסק וקהילה</p>
+      </div>
+      <div class="card" style="border-color:#fde68a;background:#fffbeb">
+        <div class="icon">⭐</div>
+        <h4>ביקורת עסק</h4>
+        <p>כתיבת ביקורת אמיתית = Flw + אמינות לעסק</p>
+      </div>
+      <div class="card" style="border-color:#fde68a;background:#fffbeb">
+        <div class="icon">👋</div>
+        <h4>הפניית שכנים</h4>
+        <p>כל שכן שנרשם בעזרת הקוד שלכם = Flw עבורכם</p>
+      </div>
+      <div class="card" style="border-color:#fde68a;background:#fffbeb">
+        <div class="icon">🎫</div>
+        <h4>מימוש מבצע</h4>
+        <p>שימוש בקוד מבצע מזכה את המשפחה ואת הקהילה</p>
+      </div>
+      <div class="card" style="border-color:#fde68a;background:#fffbeb">
+        <div class="icon">📦</div>
+        <h4>רכישת חבילה</h4>
+        <p>חבילת עסקים קהילתיים מזכה בתגמולי Flw גבוהים</p>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="box box-purple">
+        <strong>משפחה צוברת Flw על:</strong><br>
+        כניסה יומית • רכישות • ביקורות • הפניות • הצטרפות לקהילה • מימוש מבצעים
+      </div>
+      <div class="box box-blue">
+        <strong>עסק צובר Flw על:</strong><br>
+        הצטרפות לקהילה • אישור מבצע • מימוש מבצע ע"י לקוח • ביקורת עליו
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. CONNECTION -->
+  <div class="section" id="sec-connection">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f0fdf4">🔗</div>
+      <div>
+        <h2>איך הכל מתחבר?</h2>
+        <p>שלושת העולמות יוצרים ביחד מערכת אקולוגית שלמה</p>
+      </div>
+    </div>
+
+    <div class="eco-row">
+      <div class="eco-icon">1️⃣</div>
+      <div class="eco-text">
+        <h4>משפחה מצטרפת לקהילה</h4>
+        <p>מקבלת קוד → נרשמת → זכאית לכל הטבות הקהילה באופן מיידי</p>
+      </div>
+    </div>
+    <div class="eco-row">
+      <div class="eco-icon">2️⃣</div>
+      <div class="eco-text">
+        <h4>עסק מצטרף לקהילה</h4>
+        <p>שולח בקשה → מנהל מאשר → פרטי העסק נחשפים לכל חברי הקהילה</p>
+      </div>
+    </div>
+    <div class="eco-row">
+      <div class="eco-icon">3️⃣</div>
+      <div class="eco-text">
+        <h4>עסק מפרסם מבצע</h4>
+        <p>מנהל הקהילה מאשר המבצע → כל המשפחות רואות → רוכשות ומממשות</p>
+      </div>
+    </div>
+    <div class="eco-row">
+      <div class="eco-icon">4️⃣</div>
+      <div class="eco-text">
+        <h4>כולם מרוויחים Flw</h4>
+        <p>המשפחה רוכשת → מקבלת Flw. העסק מקבל Flw. הקהילה מקבלת Flw. כולם צמחו.</p>
+      </div>
+    </div>
+    <div class="eco-row">
+      <div class="eco-icon">5️⃣</div>
+      <div class="eco-text">
+        <h4>Flw מגביר פעילות</h4>
+        <p>ה-Flw שנצבר מממשים בעסקי הקהילה → מחזק שוב את העסקים המקומיים</p>
+      </div>
+    </div>
+
+    <div class="box box-green" style="margin-top:6px">
+      <strong>התוצאה:</strong> רשת שמחזקת את עצמה. ככל שיש יותר משפחות ועסקים — הרשת שווה יותר לכולם.
+    </div>
+  </div>
+
+  <!-- 8. COMPARE -->
+  <div class="section" id="sec-compare">
+    <div class="section-header">
+      <div class="section-icon" style="background:#e0f2fe">📊</div>
+      <div>
+        <h2>השוואת יכולות לפי סוג משתמש</h2>
+        <p>מה כל אחד יכול לעשות במערכת</p>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="comp-table">
+        <thead>
+          <tr>
+            <th style="background:#f1f5f9;color:#475569">יכולת / פיצ'ר</th>
+            <th class="th-fam">👨‍👩‍👧‍👦 משפחה</th>
+            <th class="th-biz">🏪 עסק</th>
+            <th class="th-com">🏘️ מנהל קהילה</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>הצטרפות לקהילה</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+          <tr><td>צבירת Flw</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+          <tr><td>מימוש מבצעי הקהילה</td><td><span class="check">✓</span></td><td><span class="cross">—</span></td><td><span class="partial">ניהולי</span></td></tr>
+          <tr><td>פרסום מבצעים</td><td><span class="cross">—</span></td><td><span class="check">✓</span></td><td><span class="partial">אישור</span></td></tr>
+          <tr><td>POS וקופה</td><td><span class="cross">—</span></td><td><span class="check">✓</span></td><td><span class="cross">—</span></td></tr>
+          <tr><td>ניהול לקוחות</td><td><span class="cross">—</span></td><td><span class="check">✓</span></td><td><span class="cross">—</span></td></tr>
+          <tr><td>ניהול מלאי</td><td><span class="cross">—</span></td><td><span class="check">✓</span></td><td><span class="cross">—</span></td></tr>
+          <tr><td>קביעת תורים</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="cross">—</span></td></tr>
+          <tr><td>אישור חברות לקהילה</td><td><span class="cross">—</span></td><td><span class="cross">—</span></td><td><span class="check">✓</span></td></tr>
+          <tr><td>ניהול ארנק Flw קהילה</td><td><span class="cross">—</span></td><td><span class="cross">—</span></td><td><span class="check">✓</span></td></tr>
+          <tr><td>יצירת חבילות עסקים</td><td><span class="cross">—</span></td><td><span class="cross">—</span></td><td><span class="check">✓</span></td></tr>
+          <tr><td>ביקורות על עסקים</td><td><span class="check">✓</span></td><td><span class="cross">—</span></td><td><span class="partial">צפייה</span></td></tr>
+          <tr><td>הפניית שכנים לקהילה</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+          <tr><td>עוזר AI</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="cross">—</span></td></tr>
+          <tr><td>דוחות ואנליטיקה</td><td><span class="partial">בסיסי</span></td><td><span class="check">✓ מלא</span></td><td><span class="partial">קהילתי</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 9. JOURNEY -->
+  <div class="section" id="sec-journey">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fef3c7">🗺️</div>
+      <div>
+        <h2>מסע המשתמש — מהרשמה לפעילות מלאה</h2>
+        <p>איך נראה יום ראשון, שבוע ראשון וחודש ראשון</p>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+      <div>
+        <div style="background:#f3e8ff;border-radius:12px;padding:14px;margin-bottom:10px;text-align:center">
+          <div style="font-size:20px;font-weight:900;color:#7c3aed">יום 1</div>
+          <div style="font-size:11px;color:#7c3aed;font-weight:700">ההתחלה</div>
+        </div>
+        <div class="steps">
+          <li style="padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:12px;color:#334155;line-height:1.5">🔑 נרשמים ומצטרפים לקהילה</li>
+          <li style="padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:12px;color:#334155;line-height:1.5">⚡ מקבלים Flw פתיחה</li>
+          <li style="padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:12px;color:#334155;line-height:1.5">🎁 רואים מבצעי הקהילה</li>
+          <li style="padding:7px 0;font-size:12px;color:#334155;line-height:1.5">📬 מקבלים הודעת ברוך הבא</li>
+        </div>
+      </div>
+      <div>
+        <div style="background:#e0f2fe;border-radius:12px;padding:14px;margin-bottom:10px;text-align:center">
+          <div style="font-size:20px;font-weight:900;color:#0369a1">שבוע 1</div>
+          <div style="font-size:11px;color:#0369a1;font-weight:700">ההתנסות</div>
+        </div>
+        <div class="steps">
+          <li style="padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:12px;color:#334155;line-height:1.5">☀️ כניסות יומיות וצבירת Flw</li>
+          <li style="padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:12px;color:#334155;line-height:1.5">🛒 רכישה ראשונה בעסק</li>
+          <li style="padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:12px;color:#334155;line-height:1.5">⭐ כתיבת ביקורת ראשונה</li>
+          <li style="padding:7px 0;font-size:12px;color:#334155;line-height:1.5">👋 הפניית שכן ראשון</li>
+        </div>
+      </div>
+      <div>
+        <div style="background:#d1fae5;border-radius:12px;padding:14px;margin-bottom:10px;text-align:center">
+          <div style="font-size:20px;font-weight:900;color:#059669">חודש 1</div>
+          <div style="font-size:11px;color:#059669;font-weight:700">החיבור המלא</div>
+        </div>
+        <div class="steps">
+          <li style="padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:12px;color:#334155;line-height:1.5">💰 מימוש Flw בהנחה</li>
+          <li style="padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:12px;color:#334155;line-height:1.5">📦 רכישת חבילה קהילתית</li>
+          <li style="padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:12px;color:#334155;line-height:1.5">🌐 חיבור לעוד קהילות</li>
+          <li style="padding:7px 0;font-size:12px;color:#334155;line-height:1.5">🏆 ביסוס מוניטין ברשת</li>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10. SCENARIOS -->
+  <div class="section" id="sec-scenarios">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fef9c3">📖</div>
+      <div>
+        <h2>תסריטים מהחיים</h2>
+        <p>איך Oneflow Life נראה בשימוש אמיתי</p>
+      </div>
+    </div>
+
+    <div class="scenario">
+      <h3>👨‍👩‍👧‍👦 משפחת כהן — שכונת נחלאות</h3>
+      <ul class="steps">
+        <li><span class="step-num" style="background:#7c3aed">1</span>נרשמת לאפליקציה ומצטרפת לקהילת נחלאות עם קוד שקיבלה מהשכנה</li>
+        <li><span class="step-num" style="background:#7c3aed">2</span>רואה ש-12 עסקים שכונתיים חברים בקהילה — ביניהם המכולת, הכושר והמזגגייה</li>
+        <li><span class="step-num" style="background:#7c3aed">3</span>מממשת קוד הנחה של 15% בבית הקפה השכונתי — חוסכת 8₪, מקבלת <span class="flw">+20 Flw</span></li>
+        <li><span class="step-num" style="background:#7c3aed">4</span>שולחת קוד הפניה לשלוש שכנות — כולן נרשמות, המשפחה מקבלת <span class="flw">+60 Flw</span></li>
+        <li><span class="step-num" style="background:#7c3aed">5</span>אחרי חודש: 210 Flw = ₪21 ערך — ממשת ארוחת ערב בעסק הקהילה</li>
+      </ul>
+    </div>
+
+    <div class="scenario">
+      <h3>🍕 מסעדה "פיצה אבא" — מרכז תל אביב</h3>
+      <ul class="steps">
+        <li><span class="step-num" style="background:#0369a1">1</span>פותחת חשבון עסקי, מגדירה קטלוג מוצרים ומחירים</li>
+        <li><span class="step-num" style="background:#0369a1">2</span>מגישה בקשת חברות לקהילת הדר — מאושרת ביממה</li>
+        <li><span class="step-num" style="background:#0369a1">3</span>מפרסמת: "שישי שישי — 20% הנחה לחברי הקהילה" → מנהל מאשר → 80 משפחות רואות מיד</li>
+        <li><span class="step-num" style="background:#0369a1">4</span>22 משפחות ממשות את המבצע בשבת הראשונה — +44 לקוחות חדשים</li>
+        <li><span class="step-num" style="background:#0369a1">5</span>18 ביקורות חיוביות נכתבות → מוניטין → עוד משפחות מגיעות</li>
+      </ul>
+    </div>
+
+    <div class="scenario">
+      <h3>🏘️ דינה — מנהלת קהילת הגבעה</h3>
+      <ul class="steps">
+        <li><span class="step-num" style="background:#059669">1</span>מקבלת תפקיד ניהול הקהילה — רואה בקשות הצטרפות של משפחות ועסקים</li>
+        <li><span class="step-num" style="background:#059669">2</span>מאשרת 3 עסקים חדשים: פיזיותרפיה, קורסי בישול, כביסה ופרים</li>
+        <li><span class="step-num" style="background:#059669">3</span>יוצרת "חבילת בריאות הגבעה" — פיזיו + תזונאית + ספא, 18% הנחה משולבת</li>
+        <li><span class="step-num" style="background:#059669">4</span>14 משפחות רוכשות את החבילה — הקהילה צוברת <span class="flw">+280 Flw</span></li>
+        <li><span class="step-num" style="background:#059669">5</span>ה-Flw הקהילתי ממומש לכרזת אירוע שכונתי — כולם מרוויחים</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 11. BENEFITS -->
+  <div class="section" id="sec-benefits">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f0fdf4">🏆</div>
+      <div>
+        <h2>למה Oneflow Life?</h2>
+        <p>מה הופך את הפלטפורמה לשונה מכל אלטרנטיבה אחרת</p>
+      </div>
+    </div>
+
+    <div class="benefit-row">
+      <div class="benefit">
+        <div class="icon">🏡</div>
+        <div>
+          <h4>מקומי ואמיתי</h4>
+          <p>לא פלטפורמת ענק אנונימית. קהילה אמיתית עם שכנים ועסקים שאתם מכירים.</p>
+        </div>
+      </div>
+      <div class="benefit">
+        <div class="icon">💰</div>
+        <div>
+          <h4>חוסכים כסף אמיתי</h4>
+          <p>משפחה פעילה חוסכת עשרות שקלים בחודש דרך Flw והנחות קהילתיות.</p>
+        </div>
+      </div>
+    </div>
+    <div class="benefit-row">
+      <div class="benefit">
+        <div class="icon">📈</div>
+        <div>
+          <h4>עסקים שצומחים</h4>
+          <p>חשיפה לקהל ממוקד ומחויב — לא קליקים רנדומליים אלא לקוחות אמיתיים עם עניין.</p>
+        </div>
+      </div>
+      <div class="benefit">
+        <div class="icon">🔒</div>
+        <div>
+          <h4>סגור ואמין</h4>
+          <p>רק מי שמאושר על ידי מנהל הקהילה נכנס — שומרים על איכות הרשת.</p>
+        </div>
+      </div>
+    </div>
+    <div class="benefit-row">
+      <div class="benefit">
+        <div class="icon">⚡</div>
+        <div>
+          <h4>תגמול על הכל</h4>
+          <p>כניסה, רכישה, ביקורת, הפניה — כל פעולה מייצרת Flw עבורך ועבור הקהילה.</p>
+        </div>
+      </div>
+      <div class="benefit">
+        <div class="icon">🤖</div>
+        <div>
+          <h4>AI בתוך הקהילה</h4>
+          <p>עוזר חכם למשפחות ולעסקים — מידע, המלצות ותשובות בזמן אמת.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="box box-amber" style="margin-top:8px;text-align:center">
+      <strong>⚡ בניגוד לרשתות חברתיות — כאן הפעילות שלך שווה כסף אמיתי.</strong>
+    </div>
+  </div>
+
+  <!-- 12. FAQ -->
+  <div class="section" id="sec-faq">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f1f5f9">❓</div>
+      <div>
+        <h2>שאלות נפוצות</h2>
+        <p>כל מה שרציתם לדעת לפני שמתחילים</p>
+      </div>
+    </div>
+
+    <div class="faq">
+      <div class="faq-q">כמה עולה להירשם?</div>
+      <div class="faq-a">ההרשמה למשפחה היא <strong>חינמית לחלוטין</strong>. עסקים מקבלים תקופת ניסיון ולאחריה יש תוכניות מסחריות מותאמות לגודל העסק.</div>
+    </div>
+    <div class="faq">
+      <div class="faq-q">איך מצטרפים לקהילה?</div>
+      <div class="faq-a">מקבלים קוד מהקהילה (משכן, שלט, אתר הישוב) → מזינים אותו באפליקציה → מנהל מאשר → מקבלים גישה. הכל אוטומטי ומהיר.</div>
+    </div>
+    <div class="faq">
+      <div class="faq-q">האם ה-Flw יכול "לפוג"?</div>
+      <div class="faq-a">Flw שנצבר אינו פג. יש עסקים שמגבילים מימוש לתוקף מבצע מסוים, אבל הצבירה בארנק האישי נשמרת לתמיד.</div>
+    </div>
+    <div class="faq">
+      <div class="faq-q">האם עסק יכול להיות בכמה קהילות?</div>
+      <div class="faq-a"><strong>כן.</strong> עסק יכול להצטרף לכמה קהילות במקביל, לפרסם מבצעים שונים לכל קהילה ולקבל Flw ממכל אחת.</div>
+    </div>
+    <div class="faq">
+      <div class="faq-q">מי יכול להיות מנהל קהילה?</div>
+      <div class="faq-a">כל משפחה שמעוניינת לנהל קהילה ומקבלת אישור. אפשר להקים קהילה חדשה (שכונה, בניין, מוסד) ולנהל אותה לפי הכללים שקובעים.</div>
+    </div>
+    <div class="faq">
+      <div class="faq-q">האם האפליקציה זמינה במובייל?</div>
+      <div class="faq-a"><strong>כן.</strong> Oneflow Life פועלת כאפליקציית PWA — עובדת בדפדפן מובייל ומתנהגת כאפליקציה נטיבית, ללא צורך בהורדה מהחנות.</div>
+    </div>
+    <div class="faq">
+      <div class="faq-q">מה קורה אם עסק עוזב את הקהילה?</div>
+      <div class="faq-a">הוא יוצא מרשימת עסקי הקהילה ומבצעיו לא מוצגים. Flw שכבר נצבר אצל המשפחות נשמר ויכול לממש בעסקים אחרים.</div>
+    </div>
+    <div class="faq">
+      <div class="faq-q">איך מגינים על פרטיות המשתמשים?</div>
+      <div class="faq-a">המידע האישי לא משותף בין עסקים ללא הרשאה מפורשת. הפרטים שנחשפים לעסק בעת רכישה הם מינימליים וכפי שנקבעו בהגדרות.</div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-block">
+    <h2>מוכנים להצטרף לרשת?</h2>
+    <p>הצטרפו לאלפי משפחות ועסקים שכבר חיים את Oneflow Life — חסכו כסף, הגדילו הכנסה, חזקו את הקהילה שלכם.</p>
+    <div class="cta-buttons">
+      <a href="/" class="btn btn-white">👨‍👩‍👧‍👦 אני משפחה — כניסה</a>
+      <a href="/business.html" class="btn btn-white" style="color:#0369a1">🏪 אני עסק — כניסה</a>
+      <a href="community-guide.html" class="btn btn-outline" target="_blank">📖 מדריך קהילות</a>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
