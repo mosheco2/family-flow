@@ -15155,7 +15155,7 @@ window.loadMyBizPromos = async function() {
     try {
         const res = await fetch(`${API}/biz/community/promotions/${currentGroup.id}`);
         const data = await res.json();
-        const list = data.promotions || [];
+        const list = data.promos || data.promotions || [];
         const el = document.getElementById('biz-mypromos-list');
         if (!list.length) {
             el.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">אין מבצעים עדיין. לחץ "📢 פרסם מבצע" ליצירה.</p>';
@@ -15174,7 +15174,7 @@ window.loadMyBizPromos = async function() {
                 <div class="flex justify-between items-start mb-2">
                     <div>
                         <div class="font-bold text-slate-800">${safeStr(p.title)}</div>
-                        <div class="text-xs text-slate-500">${safeStr(p.community_name)}</div>
+                        <div class="text-xs text-slate-500">${safeStr(p.comm_name || p.community_name)}</div>
                         ${p.discount_pct > 0 ? `<div class="text-xs text-green-600 font-bold">הנחה: ${p.discount_pct}%</div>` : ''}
                         ${p.valid_until ? `<div class="text-xs text-orange-500">בתוקף עד: ${p.valid_until.slice(0,10)}</div>` : ''}
                     </div>

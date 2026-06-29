@@ -139,6 +139,19 @@ pool.connect()
       // ============ COMMUNITY CASHBACK SYSTEM ============
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS owner_user_id INT REFERENCES users(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_communities ADD COLUMN IF NOT EXISTS is_community_manager BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_communities ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'approved'`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS community_promotions (
+          id SERIAL PRIMARY KEY,
+          community_id INT REFERENCES communities(id) ON DELETE CASCADE,
+          business_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          title VARCHAR(200) NOT NULL,
+          content TEXT,
+          discount_pct NUMERIC(5,2) DEFAULT 0,
+          valid_until DATE,
+          promo_code VARCHAR(20) UNIQUE,
+          status VARCHAR(20) DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS community_wallets (
           community_id INT PRIMARY KEY REFERENCES communities(id) ON DELETE CASCADE,
           balance NUMERIC(12,2) DEFAULT 0,
@@ -7660,6 +7673,128 @@ app.post('/api/sa/community-business/reject', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// SA — אישור ישיר של עסק ללא מנהל אזור
+app.post('/api/sa/community-business/approve-direct', async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        await pool.query("UPDATE community_businesses SET status='approved' WHERE community_id=$1 AND business_id=$2", [communityId, businessId]);
+        res.json({ success: true, direct: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — בקשות הצטרפות ממתינות של משפחות
+app.get('/api/sa/communities/pending-families', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT fc.group_id, fc.community_id, fg.name as family_name, c.name as comm_name, fc.joined_at
+            FROM family_communities fc
+            JOIN family_groups fg ON fc.group_id = fg.id
+            JOIN communities c ON fc.community_id = c.id
+            WHERE fc.status = 'pending'
+            ORDER BY fc.joined_at DESC
+        `);
+        res.json({ success: true, pending: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — אישור הצטרפות משפחה לקהילה
+app.post('/api/sa/community-family/approve', async (req, res) => {
+    try {
+        const { groupId, communityId } = req.body;
+        await pool.query("UPDATE family_communities SET status='approved' WHERE group_id=$1 AND community_id=$2", [groupId, communityId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — דחיית הצטרפות משפחה לקהילה
+app.post('/api/sa/community-family/reject', async (req, res) => {
+    try {
+        const { groupId, communityId } = req.body;
+        await pool.query('DELETE FROM family_communities WHERE group_id=$1 AND community_id=$2', [groupId, communityId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — אישור מבצע קהילה (עם קוד ייחודי אוטומטי)
+app.post('/api/sa/community-promo/approve', async (req, res) => {
+    try {
+        const { promoId } = req.body;
+        const code = 'PROMO' + Math.random().toString(36).substring(2,7).toUpperCase();
+        await pool.query("UPDATE community_promotions SET status='approved', promo_code=$1 WHERE id=$2", [code, promoId]);
+        res.json({ success: true, promo_code: code });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — דחיית מבצע קהילה
+app.post('/api/sa/community-promo/reject', async (req, res) => {
+    try {
+        const { promoId } = req.body;
+        await pool.query("UPDATE community_promotions SET status='rejected' WHERE id=$1", [promoId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — רשימת כל מבצעי הקהילות הממתינים
+app.get('/api/sa/community-promos/pending', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT cp.id, cp.title, cp.content, cp.discount_pct, cp.valid_until, cp.status,
+                   fg.name as biz_name, c.name as comm_name
+            FROM community_promotions cp
+            JOIN family_groups fg ON cp.business_id = fg.id
+            JOIN communities c ON cp.community_id = c.id
+            WHERE cp.status = 'pending'
+            ORDER BY cp.created_at DESC
+        `);
+        res.json({ success: true, promos: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עסק — הגשת מבצע קהילה לאישור
+app.post('/api/biz/community/promotions', async (req, res) => {
+    try {
+        const { businessId, communityId, title, content, discountPct, validUntil } = req.body;
+        if (!title || !communityId) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        const result = await pool.query(
+            'INSERT INTO community_promotions (community_id, business_id, title, content, discount_pct, valid_until, status) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+            [communityId, businessId, title, content || '', parseFloat(discountPct)||0, validUntil || null, 'pending']
+        );
+        res.json({ success: true, promo: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עסק — רשימת מבצעי הקהילה של העסק
+app.get('/api/biz/community/promotions/:bizId', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT cp.*, c.name as comm_name
+            FROM community_promotions cp
+            JOIN communities c ON cp.community_id = c.id
+            WHERE cp.business_id = $1
+            ORDER BY cp.created_at DESC
+        `, [req.params.bizId]);
+        res.json({ success: true, promos: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// משפחה — מבצעים מאושרים בקהילות שלה
+app.get('/api/community/promos/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT cp.id, cp.title, cp.content, cp.discount_pct, cp.valid_until, cp.promo_code,
+                   fg.name as biz_name, fg.group_code as biz_code, c.name as comm_name, c.id as community_id
+            FROM community_promotions cp
+            JOIN family_groups fg ON cp.business_id = fg.id
+            JOIN communities c ON cp.community_id = c.id
+            JOIN family_communities fc ON fc.community_id = c.id AND fc.group_id = $1 AND fc.status = 'approved'
+            WHERE cp.status = 'approved'
+              AND (cp.valid_until IS NULL OR cp.valid_until >= CURRENT_DATE)
+            ORDER BY cp.created_at DESC
+        `, [req.params.groupId]);
+        res.json({ success: true, promos: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/sa/businesses', async (req, res) => {
     try {
         const result = await pool.query("SELECT id, name, group_code FROM family_groups WHERE type='BUSINESS' ORDER BY name");
@@ -7863,8 +7998,10 @@ app.get('/api/community/info/:groupId', async (req, res) => {
     try {
         const commsRes = await pool.query(`
             SELECT DISTINCT c.id, c.name, c.city, c.image_url, c.code, c.min_families,
-                   (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count
+                   COALESCE(fc.status, 'approved') as status,
+                   (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id AND status='approved') as family_count
             FROM communities c
+            LEFT JOIN family_communities fc ON c.id = fc.community_id AND fc.group_id = $1
             WHERE c.id IN (
                 SELECT community_id FROM family_communities WHERE group_id = $1
                 UNION
@@ -7970,7 +8107,7 @@ app.post('/api/community/family-refer', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// 3. הצטרפות לקהילה (בדיקת מגבלת 5 קהילות)
+// 3. הצטרפות לקהילה — ממתינה לאישור SA/מנהל אזור
 app.post('/api/community/join', async (req, res) => {
     try {
         const { groupId, code, referralCode } = req.body;
@@ -7979,9 +8116,17 @@ app.post('/api/community/join', async (req, res) => {
 
         const commId = commRes.rows[0].id;
 
-        // בדיקת המגבלה
-        const countRes = await pool.query('SELECT COUNT(*) FROM family_communities WHERE group_id = $1', [groupId]);
-        if (parseInt(countRes.rows[0].count) >= 5) return res.status(400).json({error: 'ניתן להצטרף לעד 5 קהילות במקביל.'});
+        // בדוק אם כבר קיים (ממתין או מאושר)
+        const existingRes = await pool.query('SELECT status FROM family_communities WHERE group_id = $1 AND community_id = $2', [groupId, commId]);
+        if (existingRes.rows.length > 0) {
+            const s = existingRes.rows[0].status;
+            if (s === 'pending') return res.json({ success: false, pending: true, error: 'הבקשה שלך ממתינה לאישור — נחזור אליך בקרוב!' });
+            return res.json({ success: false, error: 'כבר מחובר לקהילה זו.' });
+        }
+
+        // ספירה רק של קהילות מאושרות
+        const countRes = await pool.query("SELECT COUNT(*) FROM family_communities WHERE group_id = $1 AND status = 'approved'", [groupId]);
+        if (parseInt(countRes.rows[0].count) >= 5) return res.status(400).json({error: 'ניתן להצטרף לעד 5 קהילות מאושרות במקביל.'});
 
         // Resolve referrer
         let referrerId = null;
@@ -7991,15 +8136,10 @@ app.post('/api/community/join', async (req, res) => {
         }
 
         await pool.query(
-            'INSERT INTO family_communities (group_id, community_id, referred_by_group_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-            [groupId, commId, referrerId]);
+            'INSERT INTO family_communities (group_id, community_id, status, referred_by_group_id) VALUES ($1, $2, $3, $4)',
+            [groupId, commId, 'pending', referrerId]);
 
-        // Award joiner FLOW
-        await awardFlow('family', parseInt(groupId), 'join_community', commId, commId);
-        // Award referrer FLOW
-        if (referrerId) await awardFlow('family', referrerId, 'referral', commId, parseInt(groupId));
-
-        res.json({success: true, community: commRes.rows[0], referrerFound: !!referrerId});
+        res.json({success: true, pending: true, community: commRes.rows[0], referrerFound: !!referrerId});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 

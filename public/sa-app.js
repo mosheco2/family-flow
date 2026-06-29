@@ -2206,25 +2206,75 @@ async function loadSAPendingRequests() {
     const container = getEl('sa-pending-biz-container'); const list = getEl('sa-pending-biz-list');
     if(!container || !list) return;
     try {
+        // בקשות עסקים
         const res = await fetch(`${API}/sa/communities/pending-businesses`); const data = await res.json();
+        let html = '';
         if (data.success && data.pending && data.pending.length > 0) {
-            container.classList.remove('hidden');
-            list.innerHTML = data.pending.map(p => {
+            html += `<h4 class="text-xs font-bold text-slate-500 mb-2 mt-1">🏢 בקשות עסקים לקהילה</h4>`;
+            html += data.pending.map(p => {
                 const isZmPending = p.status === 'zm_pending';
                 const actionsHtml = isZmPending
-                    ? `<span class="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-xl font-bold"><i class="fa-solid fa-clock mr-1"></i>ממתין לאישור מנהל אזור</span>`
-                    : `<button onclick="approveSABizRequest(${p.community_id}, ${p.business_id})" class="bg-slate-800 text-white px-5 py-2 rounded-xl text-xs font-bold shadow-sm"><i class="fa-solid fa-check mr-1"></i> אשר</button>
-                       <button onclick="rejectSABizRequest(${p.community_id}, ${p.business_id})" class="bg-red-50 text-red-600 px-5 py-2 rounded-xl text-xs font-bold shadow-sm"><i class="fa-solid fa-xmark mr-1"></i> דחה</button>`;
-                return `<div class="bg-white p-4 rounded-2xl shadow-sm border ${isZmPending ? 'border-blue-100' : 'border-orange-100'} flex justify-between items-center hover:shadow-md transition mb-2">
+                    ? `<div class="flex flex-col gap-1 items-end">
+                         <span class="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 px-2 py-1 rounded-lg font-bold"><i class="fa-solid fa-clock mr-1"></i>ממתין למנהל אזור</span>
+                         <button onclick="approveSABizDirect(${p.community_id}, ${p.business_id})" class="text-[10px] bg-orange-100 text-orange-700 border border-orange-200 px-2 py-1 rounded-lg font-bold hover:bg-orange-200 transition"><i class="fa-solid fa-bolt mr-1"></i>אשר ישירות ללא ZM</button>
+                         <button onclick="rejectSABizRequest(${p.community_id}, ${p.business_id})" class="text-[10px] bg-red-50 text-red-600 border border-red-100 px-2 py-1 rounded-lg font-bold hover:bg-red-100 transition">דחה</button>
+                       </div>`
+                    : `<div class="flex flex-col gap-1 items-end">
+                         <button onclick="approveSABizRequest(${p.community_id}, ${p.business_id})" class="bg-slate-800 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm"><i class="fa-solid fa-check mr-1"></i> אשר</button>
+                         <button onclick="rejectSABizRequest(${p.community_id}, ${p.business_id})" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm"><i class="fa-solid fa-xmark mr-1"></i> דחה</button>
+                       </div>`;
+                return `<div class="bg-white p-3 rounded-2xl shadow-sm border ${isZmPending ? 'border-blue-100' : 'border-orange-100'} flex justify-between items-center hover:shadow-md transition mb-2">
                     <div>
                         <h4 class="font-bold text-slate-800 text-sm">העסק: ${safeStr(p.biz_name)}</h4>
-                        <p class="text-xs text-slate-500 mt-0.5">מבקש להצטרף לקהילת: <strong>${safeStr(p.comm_name)}</strong></p>
-                        <p class="text-[11px] text-green-700 font-bold mt-1 bg-green-50 px-2 py-0.5 rounded-full inline-block border border-green-200">מוכן לתת ${p.discount_pct}% הנחה</p>
+                        <p class="text-xs text-slate-500 mt-0.5">קהילה: <strong>${safeStr(p.comm_name)}</strong></p>
+                        <p class="text-[11px] text-green-700 font-bold mt-1 bg-green-50 px-2 py-0.5 rounded-full inline-block border border-green-200">${p.discount_pct}% הנחה לחברים</p>
                     </div>
-                    <div class="flex flex-col gap-2 items-end">${actionsHtml}</div>
+                    ${actionsHtml}
                 </div>`;
             }).join('');
-        } else { container.classList.add('hidden'); }
+        }
+
+        // בקשות משפחות
+        try {
+            const famRes = await fetch(`${API}/sa/communities/pending-families`); const famData = await famRes.json();
+            if (famData.success && famData.pending && famData.pending.length > 0) {
+                html += `<h4 class="text-xs font-bold text-slate-500 mb-2 mt-3">👨‍👩‍👧 בקשות משפחות להצטרפות לקהילה</h4>`;
+                html += famData.pending.map(p => `
+                    <div class="bg-white p-3 rounded-2xl shadow-sm border border-indigo-100 flex justify-between items-center hover:shadow-md transition mb-2">
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">משפחה: ${safeStr(p.family_name)}</h4>
+                            <p class="text-xs text-slate-500 mt-0.5">מבקשת להצטרף לקהילת: <strong>${safeStr(p.comm_name)}</strong></p>
+                        </div>
+                        <div class="flex flex-col gap-1 items-end">
+                            <button onclick="approveSAFamilyRequest(${p.group_id}, ${p.community_id})" class="bg-indigo-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm hover:bg-indigo-700 transition"><i class="fa-solid fa-check mr-1"></i> אשר</button>
+                            <button onclick="rejectSAFamilyRequest(${p.group_id}, ${p.community_id})" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm hover:bg-red-100 transition"><i class="fa-solid fa-xmark mr-1"></i> דחה</button>
+                        </div>
+                    </div>`).join('');
+            }
+        } catch(_) {}
+
+        // מבצעי קהילה ממתינים לאישור
+        try {
+            const promoRes = await fetch(`${API}/sa/community-promos/pending`); const promoData = await promoRes.json();
+            if (promoData.success && promoData.promos && promoData.promos.length > 0) {
+                html += `<h4 class="text-xs font-bold text-slate-500 mb-2 mt-3">📢 מבצעי קהילה ממתינים לאישור</h4>`;
+                html += promoData.promos.map(p => `
+                    <div class="bg-white p-3 rounded-2xl shadow-sm border border-pink-100 flex justify-between items-center hover:shadow-md transition mb-2">
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">${safeStr(p.title)}</h4>
+                            <p class="text-xs text-slate-500 mt-0.5">${safeStr(p.biz_name)} ← קהילת ${safeStr(p.comm_name)}</p>
+                            ${p.discount_pct > 0 ? `<p class="text-[11px] text-pink-700 font-bold mt-1 bg-pink-50 px-2 py-0.5 rounded-full inline-block border border-pink-200">${p.discount_pct}% הנחה</p>` : ''}
+                        </div>
+                        <div class="flex flex-col gap-1 items-end">
+                            <button onclick="approveSAPromo(${p.id})" class="bg-pink-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm hover:bg-pink-700 transition"><i class="fa-solid fa-check mr-1"></i> אשר</button>
+                            <button onclick="rejectSAPromo(${p.id})" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm hover:bg-red-100 transition"><i class="fa-solid fa-xmark mr-1"></i> דחה</button>
+                        </div>
+                    </div>`).join('');
+            }
+        } catch(_) {}
+
+        if (html) { container.classList.remove('hidden'); list.innerHTML = html; }
+        else { container.classList.add('hidden'); }
     } catch(e) { console.error('Error loading pending requests', e); }
 }
 
@@ -2249,6 +2299,54 @@ async function rejectSABizRequest(communityId, businessId) {
     try {
         const res = await fetch(`${API}/sa/community-business/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
         if((await res.json()).success) { showToast('info', 'הבקשה נדחתה והוסרה מהרשימה.'); loadSACommunityData(); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function approveSABizDirect(communityId, businessId) {
+    if(!confirm('לאשר את העסק ישירות לקהילה (ללא המתנה למנהל אזור)?')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/approve-direct`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
+        const data = await res.json();
+        if(data.success) { showToast('success', 'העסק אושר ישירות לקהילה!'); loadSACommunityData(); loadSAPendingRequests(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function approveSAFamilyRequest(groupId, communityId) {
+    try {
+        const res = await fetch(`${API}/sa/community-family/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId, communityId }) });
+        const data = await res.json();
+        if(data.success) { showToast('success', 'המשפחה אושרה לקהילה!'); loadSAPendingRequests(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function rejectSAFamilyRequest(groupId, communityId) {
+    if(!confirm('האם לדחות את בקשת ההצטרפות של המשפחה?')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-family/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId, communityId }) });
+        const data = await res.json();
+        if(data.success) { showToast('info', 'בקשת המשפחה נדחתה.'); loadSAPendingRequests(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function approveSAPromo(promoId) {
+    try {
+        const res = await fetch(`${API}/sa/community-promo/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ promoId }) });
+        const data = await res.json();
+        if(data.success) { showToast('success', `המבצע אושר! קוד: ${data.promo_code}`); loadSAPendingRequests(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function rejectSAPromo(promoId) {
+    if(!confirm('האם לדחות את המבצע?')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-promo/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ promoId }) });
+        const data = await res.json();
+        if(data.success) { showToast('info', 'המבצע נדחה.'); loadSAPendingRequests(); }
+        else showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
