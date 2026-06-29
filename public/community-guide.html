@@ -278,6 +278,7 @@
     <a href="#flow"><span class="num">10</span> מטבע Flw</a>
     <a href="#statuses"><span class="num">11</span> טבלת סטטוסים</a>
     <a href="#faq"><span class="num">12</span> שאלות נפוצות</a>
+    <a href="#check-scripts"><span class="num">13</span> איך בודקים כל דבר</a>
   </div>
 </div>
 
@@ -1236,6 +1237,289 @@
     </div>
 
   </div>
+</div>
+
+<!-- SECTION 13: PRACTICAL CHECK SCRIPTS -->
+<div class="section" id="check-scripts">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef9c3;">🔍</div>
+    <div>
+      <h2>13. איך בודקים כל דבר — תסריטים מעשיים</h2>
+      <p>מדריך שלב-אחר-שלב בשפה פשוטה לכל סוג משתמש</p>
+    </div>
+  </div>
+
+  <!-- SA SCRIPTS -->
+  <div style="background:#eff6ff;border:2px solid #bfdbfe;border-radius:16px;padding:18px 20px;margin-bottom:20px;">
+    <div style="font-size:16px;font-weight:900;color:#1d4ed8;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+      🔴 Super Admin — איך בודקים...
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק אם יש בקשות השתמשות שלא טופלו</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>נכנסים לממשק SA</li>
+        <li><span class="step-num">2</span>מסתכלים על הטאב <strong>קהילות</strong> — אם יש עיגול מספר אדום על הטאב, זה אומר שיש בקשות שממתינות</li>
+        <li><span class="step-num">3</span>לוחצים על <strong>"בקשות ממתינות מאת משפחות"</strong></li>
+        <li><span class="step-num">4</span>הרשימה מציגה: שם המשפחה, שם הקהילה, מתי הגישה בקשה</li>
+        <li><span class="step-num">5</span>אם הרשימה ריקה — אין בקשות שממתינות, הכל מטופל ✅</li>
+      </ol>
+      <div class="alert alert-info" style="margin-top:10px;">
+        <span>💡</span><div>בדקו גם את <strong>"עסקים ממתינים"</strong> ו<strong>"אישור מבצעים"</strong> — שלושת הרשימות האלה הן מה שצריך לטפל בהן כל יום.</div>
+      </div>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק כמה משפחות יש בקהילה מסוימת</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong></li>
+        <li><span class="step-num">2</span>מחפשים את שם הקהילה או גוללים ברשימה</li>
+        <li><span class="step-num">3</span>על כרטיס הקהילה — מוצג המספר: <em>"X משפחות"</em></li>
+        <li><span class="step-num">4</span>אם פחות מ-30 — הסרגל הכחול מראה כמה עוד חסר לפתיחת ההנחות</li>
+        <li><span class="step-num">5</span>לפרטים מלאים — לוחצים על שם הקהילה ומסתכלים בטאב <strong>"חברים"</strong></li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק אם עסק שבקש להצטרף קיבל אישור</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → <em>"עסקים ממתינים"</em></li>
+        <li><span class="step-num">2</span>מחפשים את שם העסק ברשימה</li>
+        <li><span class="step-num">3</span>אם מופיע ברשימה — <span class="badge badge-pending">ממתין</span> לאישור SA, או <span class="badge badge-zm">ממתין ל-ZM</span></li>
+        <li><span class="step-num">4</span>אם <strong>לא</strong> מופיע ברשימה — כנראה כבר אושר. מחפשים אותו בתוך הקהילה בטאב "עסקים" ורואים <span class="badge badge-approved">מאושר</span></li>
+        <li><span class="step-num">5</span>אם לא מופיע בשום מקום — הבקשה נדחתה או לא הוגשה</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק אם מבצע של עסק פעיל</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → <em>"אישור מבצעים"</em></li>
+        <li><span class="step-num">2</span>אם המבצע מופיע — הוא עדיין <span class="badge badge-pending">ממתין</span> לאישורך</li>
+        <li><span class="step-num">3</span>אם לא מופיע ברשימה — כנסו לקהילה הספציפית → טאב "מבצעים"</li>
+        <li><span class="step-num">4</span>מבצע פעיל יופיע עם <span class="badge badge-approved">מאושר</span> וקוד המבצע לידו (לדוגמה: PROMO3K8X2)</li>
+        <li><span class="step-num">5</span>מבצע שפג תוקפו יופיע עם תאריך אדום — ניתן לעדכן תאריך</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק את הארנק הקהילתי של קהילה</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → לחיצה על קהילה ספציפית</li>
+        <li><span class="step-num">2</span>מסתכלים על כרטיס <strong>"ארנק קהילתי"</strong> — מוצג היתרה הנוכחית</li>
+        <li><span class="step-num">3</span>ניתן ללחוץ על <em>"היסטוריית עסקאות"</em> לראות מאיפה הגיע ה-Flw</li>
+        <li><span class="step-num">4</span>אם הסכום 0 — ייתכן שהקהילה חדשה ולא היו עדיין פעולות</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק מי מנהל קהילה מסוימת</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong> → לחיצה על הקהילה</li>
+        <li><span class="step-num">2</span>לוחצים טאב <strong>"חברים"</strong></li>
+        <li><span class="step-num">3</span>מחפשים חבר עם תגית <span class="badge badge-active">מנהל קהילה</span> לידו</li>
+        <li><span class="step-num">4</span>אם לא קיים מנהל — שורת הכפתורים מאפשרת <em>"הגדר מנהל"</em> לאחת המשפחות</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק אם קהילה הגיעה ל-30 משפחות</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק SA → <strong>קהילות</strong></li>
+        <li><span class="step-num">2</span>מחפשים את הקהילה</li>
+        <li><span class="step-num">3</span>על הכרטיס — מוצג מספר משפחות מאושרות</li>
+        <li><span class="step-num">4</span>אם המספר ≥ 30 — הנחות פעילות, יוצג <span class="badge badge-approved">הנחות פעילות</span></li>
+        <li><span class="step-num">5</span>אם המספר &lt; 30 — מוצג <em>"עוד X משפחות לפתיחת הנחות"</em></li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ZM SCRIPTS -->
+  <div style="background:#f5f3ff;border:2px solid #ddd6fe;border-radius:16px;padding:18px 20px;margin-bottom:20px;">
+    <div style="font-size:16px;font-weight:900;color:#6d28d9;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+      🟣 מנהל אזור (ZM) — איך בודקים...
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק אם יש בקשות שמחכות לי</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>נכנסים לממשק מנהל אזור (oneflowlife.co.il/zone-manager.html)</li>
+        <li><span class="step-num">2</span>בדשבורד — מסתכלים על הקוביות בראש המסך</li>
+        <li><span class="step-num">3</span>קוביה <strong>"בקשות ממתינות"</strong> — מספר כחול שמוצג בה</li>
+        <li><span class="step-num">4</span>לוחצים על <strong>טאב "משפחות"</strong> — רשימת בקשות הצטרפות</li>
+        <li><span class="step-num">5</span>לוחצים על <strong>טאב "עסקים"</strong> — עסקים שנשלחו מ-SA ומחכים לאישורי</li>
+        <li><span class="step-num">6</span>אם שניהם ריקים — אין בקשות ממתינות ✅</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק מה קורה בקהילה מסוימת באזור שלי</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק ZM → טאב <strong>"אזורים וקהילות"</strong></li>
+        <li><span class="step-num">2</span>רואים את כל הקהילות באזורי, מאורגנות לפי אזור</li>
+        <li><span class="step-num">3</span>לוחצים <strong>"פרטים"</strong> ליד קהילה — נפתח חלון עם 4 טאבים:<br>
+          <span style="font-size:12px;color:#64748b;padding-right:16px;display:block;margin-top:4px;">• <strong>משפחות</strong> — רשימת כל המשפחות החברות<br>• <strong>עסקים</strong> — עסקים פעילים בקהילה<br>• <strong>מבצעים</strong> — מבצעים פעילים כרגע<br>• <strong>FLOW</strong> — יתרת הארנק הקהילתי</span>
+        </li>
+        <li><span class="step-num">4</span>בתחתית החלון — כרטיסי סטטיסטיקה עם סיכום מספרי</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק אם עסק ספציפי כבר פועל בקהילה</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק ZM → <strong>"אזורים וקהילות"</strong> → לחצן <strong>"פרטים"</strong> ליד הקהילה</li>
+        <li><span class="step-num">2</span>לוחצים טאב <strong>עסקים</strong></li>
+        <li><span class="step-num">3</span>מחפשים את שם העסק ברשימה</li>
+        <li><span class="step-num">4</span>אם מוצג — העסק פעיל ✅. אם לא — או שלא הצטרף, או שממתין לאישור</li>
+        <li><span class="step-num">5</span>עסקים ממתינים מוצגים בטאב <strong>"עסקים ממתינים"</strong> בתפריט הראשי</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק אם ליד ספציפי פתוח או סגור</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק ZM → טאב <strong>"לידים"</strong></li>
+        <li><span class="step-num">2</span>מחפשים את שם הליד בשדה החיפוש</li>
+        <li><span class="step-num">3</span>על כרטיס הליד — מוצג הסטטוס: <span class="badge badge-active">חדש</span> / <span class="badge badge-pending">בטיפול</span> / <span class="badge badge-approved">סגור</span></li>
+        <li><span class="step-num">4</span>לחיצה על הכרטיס — מציגה את כל הפרטים: פרטי קשר, קהילה מבוקשת, היסטוריית שיחות</li>
+        <li><span class="step-num">5</span>אפשר לעדכן את הסטטוס ישירות מכאן</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק את הריכוז הכספי (עמלות) של האזור</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק ZM → <strong>דשבורד</strong> (מסך הבית)</li>
+        <li><span class="step-num">2</span>מסתכלים על קוביית <strong>"עמלות"</strong> — מוצג סכום העמלות שנצברו</li>
+        <li><span class="step-num">3</span>הגרף מתחת מציג התפלגות לפי חודשים</li>
+        <li><span class="step-num">4</span>לפירוט — לוחצים טאב <strong>"עמלות"</strong></li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- FAMILY SCRIPTS -->
+  <div style="background:#fff7ed;border:2px solid #fed7aa;border-radius:16px;padding:18px 20px;margin-bottom:20px;">
+    <div style="font-size:16px;font-weight:900;color:#c2410c;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+      🟠 משפחה — איך בודקים...
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק אם הצטרפות לקהילה אושרה</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>נכנסים לאפליקציה → טאב <strong>קהילה</strong> → <strong>חיבור</strong></li>
+        <li><span class="step-num">2</span>רואים את הקהילה שהגשתם אליה בקשה</li>
+        <li><span class="step-num">3</span>אם מוצג <span class="badge badge-pending">ממתין לאישור</span> — עדיין מחכים לSA/ZM</li>
+        <li><span class="step-num">4</span>אם מוצג <span class="badge badge-approved">חבר פעיל</span> — אושרתם! תקבלו גם +15 Flw בארנק</li>
+        <li><span class="step-num">5</span>אם הקהילה נעלמה לגמרי — הבקשה נדחתה. אפשר לשלוח מחדש</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק כמה Flw יש לי ומה שווים</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>טאב <strong>חדשות</strong> → כרטיס <em>"ארנק ה-Flw שלי"</em></li>
+        <li><span class="step-num">2</span>מוצגת היתרה הנוכחית (לדוגמה: 340 Flw)</li>
+        <li><span class="step-num">3</span>מתחת מוצג <em>"שווה ₪34 הנחה"</em> (100 Flw = ₪10)</li>
+        <li><span class="step-num">4</span>לחיצה על <strong>"היסטוריה"</strong> — מציגה מאיפה הגיע כל הFlw</li>
+        <li><span class="step-num">5</span>כדי לממש — לוחצים <strong>"ממש הנחה"</strong> ומזינים כמות (מינימום 100)</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק אם ההפניה שלי לחבר עבדה</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>טאב <strong>קהילה</strong> → <strong>חיבור</strong> → <em>"הפניות שלי"</em></li>
+        <li><span class="step-num">2</span>מוצגת רשימת חברים שהפניתם</li>
+        <li><span class="step-num">3</span>ליד כל חבר — הסטטוס: <span class="badge badge-pending">ממתין</span> / <span class="badge badge-approved">אושר</span></li>
+        <li><span class="step-num">4</span>ברגע שרואים <span class="badge badge-approved">אושר</span> — ה-+20 Flw כבר בארנק שלכם</li>
+        <li><span class="step-num">5</span>אם החבר טרם אושר — הסבירו לו שהוא צריך לחכות לאישור SA/ZM</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק אילו עסקים נותנים הנחה בקהילה שלי</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>טאב <strong>קהילה</strong> → <strong>הטבות</strong></li>
+        <li><span class="step-num">2</span>רואים רשימת עסקים + אחוז ההנחה לכל אחד</li>
+        <li><span class="step-num">3</span>אם הנחות <strong>לא מופעלות</strong> — מוצג <em>"עוד X משפחות לפתיחת הנחות"</em></li>
+        <li><span class="step-num">4</span>לוחצים על עסק — נכנסים לחנות עם ההנחה מופעלת אוטומטית</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק אם קוד מבצע שקיבלתי עוד תקף</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>טאב <strong>קהילה</strong> → <strong>חדשות</strong></li>
+        <li><span class="step-num">2</span>מחפשים את כרטיס המבצע</li>
+        <li><span class="step-num">3</span>תאריך התפוגה מוצג על הכרטיס — אם עבר, המבצע פג</li>
+        <li><span class="step-num">4</span>אם המבצע לא מופיע כלל — כנראה פג תוקפו או הוסר על ידי SA</li>
+        <li><span class="step-num">5</span>הקוד עצמו מוצג על הכרטיס — רשמו אותו לפני שנכנסים לקופה</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- BUSINESS SCRIPTS -->
+  <div style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:16px;padding:18px 20px;">
+    <div style="font-size:16px;font-weight:900;color:#15803d;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+      🟢 עסק — איך בודקים...
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק אם העסק שלי כבר פעיל בקהילה</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק עסק → טאב <strong>קהילות</strong></li>
+        <li><span class="step-num">2</span>רואים רשימת הקהילות שנרשמתם אליהן</li>
+        <li><span class="step-num">3</span><span class="badge badge-pending">ממתין</span> — SA טרם אישר</li>
+        <li><span class="step-num">4</span><span class="badge badge-zm">ממתין ל-ZM</span> — SA אישר, מחכה לאישור ZM</li>
+        <li><span class="step-num">5</span><span class="badge badge-approved">מאושר</span> — פעיל! חברי הקהילה רואים אתכם בהטבות</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק אם מבצע שיצרתם אושר ופעיל</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק עסק → <strong>קהילות</strong> → <em>"המבצעים שלי"</em></li>
+        <li><span class="step-num">2</span>מסתכלים על הסטטוס ליד כל מבצע</li>
+        <li><span class="step-num">3</span><span class="badge badge-approved">מאושר</span> + קוד מוצג = המבצע פעיל. חברי הקהילה רואים אותו</li>
+        <li><span class="step-num">4</span><span class="badge badge-pending">ממתין</span> = SA עדיין לא בדק. אפשר לחכות או לפנות אליו</li>
+        <li><span class="step-num">5</span><span class="badge badge-rejected">נדחה</span> = SA דחה. בדקו את הסיבה ושלחו גרסה מתוקנת</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק כמה פעמים ממשו קוד מבצע שלכם</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק עסק → <strong>קהילות</strong> → לחיצה על מבצע ספציפי</li>
+        <li><span class="step-num">2</span>מוצג <em>"מומש X פעמים"</em></li>
+        <li><span class="step-num">3</span>על כל מימוש — קיבלתם +5 Flw לארנק העסק</li>
+        <li><span class="step-num">4</span>ניתן לראות גם את ההזמנות שנכנסו עם הקוד בטאב <strong>"הזמנות"</strong></li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק את יתרת Flw של העסק</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק עסק → <strong>קהילות</strong> → <em>"ארנק Flw"</em></li>
+        <li><span class="step-num">2</span>מוצגת היתרה הנוכחית</li>
+        <li><span class="step-num">3</span>לוחצים <em>"היסטוריה"</em> — רואים על אילו פעולות קיבלתם Flw</li>
+        <li><span class="step-num">4</span>כדי לממש — לוחצים <strong>"ממש Flw"</strong> (100 Flw = ₪10 הנחה על שירות פלטפורמה)</li>
+      </ol>
+    </div>
+
+    <div class="scenario">
+      <h3>✅ לבדוק אם הזמנה עם קוד קהילתי הושלמה</h3>
+      <ol class="steps">
+        <li><span class="step-num">1</span>ממשק עסק → <strong>הזמנות</strong></li>
+        <li><span class="step-num">2</span>מחפשים הזמנה — על הזמנות שהגיעו עם קוד קהילתי יופיע תג <em>"קוד קהילה"</em> כחול</li>
+        <li><span class="step-num">3</span>אם סטטוס ההזמנה <strong>"ממתין"</strong> — לסמן "נמסרה" כדי לשחרר את ה-Flw ללקוח ולעסק</li>
+        <li><span class="step-num">4</span>לאחר סימון "נמסרה" — ה-Flw עובר אוטומטית לכל הצדדים תוך מספר שניות</li>
+      </ol>
+      <div class="alert alert-warn" style="margin-top:10px;">
+        <span>⚠️</span><div>אם לא תסמנו "נמסרה" — הלקוח לא יקבל את ה-Flw שלו. זה מוריד מוטיבציה לרכישות עתידיות. סמנו מיד עם המסירה.</div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 </div><!-- /container -->
