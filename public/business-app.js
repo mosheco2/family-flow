@@ -5062,6 +5062,9 @@ window.renderDashboard = async function(forceRefresh = false) {
         // ★ Sparklines
         try { renderSparklines(); } catch(e) {}
 
+        // ★ FLOW balance widget (מנהלים בלבד)
+        try { await renderBizFlowWidget(); } catch(e) {}
+
     } catch(err) { console.error('renderDashboard:', err); }
 };
 
@@ -15208,6 +15211,32 @@ function launchFlowConfetti() {
 }
 
 // ─── FLOW WALLET (BUSINESS) ──────────────────────────────────
+
+async function renderBizFlowWidget() {
+    const widget = document.getElementById('flow-balance-widget');
+    if (!widget || currentUser?.role !== 'ADMIN') { if (widget) widget.classList.add('hidden'); return; }
+    try {
+        const res = await fetch(`${API}/flow/wallet/business/${currentGroup.id}`);
+        const data = await res.json();
+        const bal = Math.floor(parseFloat(data.balance || 0));
+        widget.classList.remove('hidden');
+        widget.innerHTML = `<div onclick="openBizFlowWallet()" style="cursor:pointer;background:linear-gradient(135deg,#f59e0b,#d97706,#b45309);border-radius:20px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(245,158,11,0.35);position:relative;overflow:hidden;">
+            <div style="position:absolute;inset:0;background:radial-gradient(circle at 80% 50%,rgba(255,255,255,0.12),transparent 60%);pointer-events:none;"></div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div style="background:rgba(255,255,255,0.2);border-radius:14px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;">⚡</div>
+                <div>
+                    <div style="color:rgba(255,255,255,0.85);font-size:11px;font-weight:600;margin-bottom:2px;">ארנק FLOW העסקי</div>
+                    <div style="color:white;font-size:26px;font-weight:900;line-height:1;">${bal} <span style="font-size:14px;">₣</span></div>
+                    <div style="color:rgba(255,255,255,0.7);font-size:10px;margin-top:2px;">צבירה מביקורות לקוחות ופעילות קהילה</div>
+                </div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+                <div style="background:rgba(255,255,255,0.2);border-radius:10px;padding:6px 12px;color:white;font-size:11px;font-weight:700;">לארנק &larr;</div>
+                ${bal > 0 ? `<div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:3px 8px;color:rgba(255,255,255,0.9);font-size:10px;">+${bal}₣ שנצברו</div>` : ''}
+            </div>
+        </div>`;
+    } catch(e) { widget.classList.add('hidden'); }
+}
 
 window.openBizFlowWallet = async function() {
     const existing = document.getElementById('biz-flow-wallet-modal');
