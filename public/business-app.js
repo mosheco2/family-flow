@@ -15224,7 +15224,7 @@ async function renderBizFlowWidget() {
         const bal = Math.floor(parseFloat(data.balance || 0));
 
         // קובייה מלאה — בדשבורד הרגיל (מסעדה/קמעונאי וכו')
-        const fullHtml = `<div onclick="openBizFlowWallet()" style="cursor:pointer;background:linear-gradient(135deg,#f59e0b,#d97706,#b45309);border-radius:20px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(245,158,11,0.35);position:relative;overflow:hidden;">
+        const fullHtml = `<div onclick="openBizFlowWallet()" style="cursor:pointer;background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);border-radius:20px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(245,158,11,0.35);position:relative;overflow:hidden;">
             <div style="position:absolute;inset:0;background:radial-gradient(circle at 80% 50%,rgba(255,255,255,0.12),transparent 60%);pointer-events:none;"></div>
             <div style="display:flex;align-items:center;gap:12px;">
                 <div style="background:rgba(255,255,255,0.2);border-radius:14px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;">⚡</div>
@@ -15237,63 +15237,51 @@ async function renderBizFlowWidget() {
             <div style="background:rgba(255,255,255,0.2);border-radius:10px;padding:6px 12px;color:white;font-size:11px;font-weight:700;">לארנק ←</div>
         </div>`;
 
-        // קובייה קטנה — לצד באנר תפקיד (1/3 מרוחב)
-        const miniHtml = `<div onclick="openBizFlowWallet()" style="cursor:pointer;height:100%;background:linear-gradient(160deg,#f59e0b,#b45309);border-radius:20px;padding:12px 10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:0 4px 16px rgba(245,158,11,0.4);text-align:center;">
+        // קובייה קטנה — לצד באנר תפקיד (1/3 מרוחב) — זהב אמיתי ללא חום
+        const miniHtml = `<div onclick="openBizFlowWallet()" style="cursor:pointer;height:100%;background:linear-gradient(135deg,#fde68a,#f59e0b,#d97706);border-radius:20px;padding:12px 10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:0 4px 16px rgba(245,158,11,0.4);text-align:center;">
             <div style="font-size:20px;">⚡</div>
-            <div style="color:white;font-size:20px;font-weight:900;line-height:1;">${bal}<span style="font-size:11px;"> ₣</span></div>
-            <div style="color:rgba(255,255,255,0.8);font-size:9px;font-weight:600;line-height:1.3;">מטבעות<br>FLOW</div>
-            ${bal >= 100 ? `<div style="background:rgba(255,255,255,0.25);border-radius:8px;padding:2px 6px;color:white;font-size:8px;font-weight:700;">לארנק ←</div>` : `<div style="color:rgba(255,255,255,0.6);font-size:8px;">לארנק ←</div>`}
+            <div style="color:white;font-size:20px;font-weight:900;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,0.2);">${bal}<span style="font-size:11px;"> ₣</span></div>
+            <div style="color:rgba(255,255,255,0.9);font-size:9px;font-weight:600;line-height:1.3;">מטבעות<br>FLOW</div>
+            <div style="background:rgba(255,255,255,0.3);border-radius:8px;padding:2px 6px;color:white;font-size:8px;font-weight:700;">לארנק ←</div>
         </div>`;
 
         const roleDash = document.getElementById('content-role-dashboard');
         const stdWidget = document.getElementById('flow-balance-widget');
 
-        // פונקציה משותפת: עוטפת באנר ראשי עם קובייה ב-2/3+1/3
-        function wrapBannerWithMini(banner) {
-            if (!banner) return;
-            const existing = banner.parentElement?.classList?.contains('flow-header-wrap');
-            if (existing) {
-                const mini = banner.parentElement.querySelector('.flow-mini-widget');
-                if (mini) mini.innerHTML = miniHtml;
-                return;
-            }
-            if (banner.dataset.flowWrapped) {
-                const mini = banner.parentElement?.querySelector('.flow-mini-widget');
+        // עוטפת אלמנט בגריד 2/3+1/3 — עוטף את האלמנט עצמו (לא ילד שלו)
+        // כך ה-setInterval שמרענן innerHTML של roleDash לא הורס את ה-wrapper
+        function ensureGridWrap(el, topMargin) {
+            if (!el) return;
+            if (el.parentElement?.classList?.contains('flow-header-wrap')) {
+                const mini = el.parentElement.querySelector('.flow-mini-widget');
                 if (mini) mini.innerHTML = miniHtml;
                 return;
             }
             const wrap = document.createElement('div');
             wrap.className = 'flow-header-wrap';
-            wrap.style.cssText = 'display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:16px;';
-            banner.dataset.flowWrapped = '1';
-            const savedMargin = banner.style.marginBottom;
-            banner.style.marginBottom = '0';
-            banner.style.marginTop = '0';
+            wrap.style.cssText = `display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:16px;margin-top:${topMargin || 0}px;`;
             const miniCol = document.createElement('div');
             miniCol.className = 'flow-mini-widget';
+            miniCol.style.cssText = 'min-height:100px;';
             miniCol.innerHTML = miniHtml;
-            banner.after(wrap);
-            wrap.appendChild(banner);
+            el.style.marginBottom = '0';
+            el.style.marginTop = '0';
+            el.after(wrap);
+            wrap.appendChild(el);
             wrap.appendChild(miniCol);
             if (stdWidget) stdWidget.classList.add('hidden');
         }
 
         if (roleDash && !roleDash.classList.contains('hidden')) {
-            // תצוגת תפקיד — עטוף את ה-div הראשון (roleDashboardHeader)
-            const existingWrap = roleDash.querySelector('.flow-header-wrap');
-            if (existingWrap) {
-                const mini = existingWrap.querySelector('.flow-mini-widget');
-                if (mini) mini.innerHTML = miniHtml;
-            } else {
-                const firstDiv = roleDash.querySelector(':scope > div');
-                wrapBannerWithMini(firstDiv);
-            }
+            // תצוגת תפקיד — עוטפים את roleDash עצמו (לא ילד שלו!)
+            // כך ה-setInterval שמרענן roleDash.innerHTML לא מוחק את הקובייה
+            ensureGridWrap(roleDash, 12);
             if (stdWidget) stdWidget.classList.add('hidden');
         } else {
-            // דשבורד רגיל — עטוף את #tour-balance-card
+            // דשבורד רגיל — עוטפים את #tour-balance-card
             const tourCard = document.getElementById('tour-balance-card');
             if (tourCard) {
-                wrapBannerWithMini(tourCard);
+                ensureGridWrap(tourCard, 0);
             } else if (stdWidget) {
                 stdWidget.classList.remove('hidden');
                 stdWidget.innerHTML = fullHtml;
