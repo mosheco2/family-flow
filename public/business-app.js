@@ -4723,6 +4723,7 @@ window.renderDashboard = async function(forceRefresh = false) {
         });
         if (feedEl) {
             await renderSportDashboard(feedEl);
+            try { await renderBizFlowWidget(); } catch(e) {}
             if (window._roleDashInterval) clearInterval(window._roleDashInterval);
             window._roleDashInterval = setInterval(() => {
                 if (window._sportScreenActive) return;
@@ -4752,6 +4753,7 @@ window.renderDashboard = async function(forceRefresh = false) {
             if (feedEl) feedEl.classList.add('hidden');
             ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             await renderBeautyAdminDashboard(dashEl);
+            try { await renderBizFlowWidget(); } catch(e) {}
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             window._roleDashInterval = setInterval(() => {
                 const el = document.getElementById('content-role-dashboard');
@@ -4779,6 +4781,7 @@ window.renderDashboard = async function(forceRefresh = false) {
             if (feedEl) feedEl.classList.add('hidden');
             ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             await renderLogisticsAdminDashboard(dashEl);
+            try { await renderBizFlowWidget(); } catch(e) {}
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             window._roleDashInterval = setInterval(() => {
                 const el = document.getElementById('content-role-dashboard');
@@ -4805,6 +4808,7 @@ window.renderDashboard = async function(forceRefresh = false) {
             if (feedEl) feedEl.classList.add('hidden');
             ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             await renderLogisticsDriverDashboard(dashEl);
+            try { await renderBizFlowWidget(); } catch(e) {}
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             window._roleDashInterval = setInterval(() => {
                 const el = document.getElementById('content-role-dashboard');
@@ -4835,6 +4839,7 @@ window.renderDashboard = async function(forceRefresh = false) {
             const feedEl = document.getElementById('content-feed');
             if (feedEl) feedEl.classList.add('hidden');
             await renderBranchManagerMaintenanceDashboard(dashEl);
+            try { await renderBizFlowWidget(); } catch(e) {}
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             window._roleDashInterval = setInterval(() => {
                 const el = document.getElementById('content-role-dashboard');
@@ -4860,6 +4865,7 @@ window.renderDashboard = async function(forceRefresh = false) {
             if (feedEl) feedEl.classList.add('hidden');
             ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             await renderProfessionalDashboard(dashEl);
+            try { await renderBizFlowWidget(); } catch(e) {}
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             window._roleDashInterval = setInterval(() => {
                 const el = document.getElementById('content-role-dashboard');
@@ -15215,13 +15221,33 @@ function launchFlowConfetti() {
 // ─── FLOW WALLET (BUSINESS) ──────────────────────────────────
 
 async function renderBizFlowWidget() {
-    const widget = document.getElementById('flow-balance-widget');
-    if (!widget || currentUser?.role !== 'ADMIN') { if (widget) widget.classList.add('hidden'); return; }
+    if (currentUser?.role !== 'ADMIN' || !currentGroup?.id) return;
+
+    // If a role-specific dashboard is visible, inject there; else fill flow-balance-widget
+    const roleEl = document.getElementById('content-role-dashboard');
+    const roleVisible = roleEl && !roleEl.classList.contains('hidden');
+
+    let widget;
+    if (roleVisible) {
+        widget = document.getElementById('biz-flow-widget-role-slot');
+        if (!widget) {
+            widget = document.createElement('div');
+            widget.id = 'biz-flow-widget-role-slot';
+            widget.className = 'px-2 mb-4';
+            roleEl.prepend(widget);
+        }
+    } else {
+        // Clean up role slot if switching back to general dashboard
+        const old = document.getElementById('biz-flow-widget-role-slot');
+        if (old) old.remove();
+        widget = document.getElementById('flow-balance-widget');
+        if (!widget) return;
+    }
+
     try {
         const res = await fetch(`${API}/flow/wallet/business/${currentGroup.id}`);
         const data = await res.json();
         const bal = Math.floor(parseFloat(data.balance || 0));
-        widget.classList.remove('hidden');
         widget.innerHTML = `<div onclick="openBizFlowWallet()" style="cursor:pointer;background:linear-gradient(135deg,#f59e0b,#d97706,#b45309);border-radius:20px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(245,158,11,0.35);position:relative;overflow:hidden;">
             <div style="position:absolute;inset:0;background:radial-gradient(circle at 80% 50%,rgba(255,255,255,0.12),transparent 60%);pointer-events:none;"></div>
             <div style="display:flex;align-items:center;gap:12px;">
@@ -15237,7 +15263,8 @@ async function renderBizFlowWidget() {
                 ${bal > 0 ? `<div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:3px 8px;color:rgba(255,255,255,0.9);font-size:10px;">+${bal}₣ שנצברו</div>` : ''}
             </div>
         </div>`;
-    } catch(e) { widget.classList.add('hidden'); }
+        if (!roleVisible) widget.classList.remove('hidden');
+    } catch(e) { if (widget) widget.classList.add('hidden'); }
 }
 
 window.openBizFlowWallet = async function() {
