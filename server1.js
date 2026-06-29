@@ -4683,6 +4683,7 @@ ${context}
 4. **Execute actions** — if user explicitly says "add", "create", "open", use the appropriate action_type.
 5. **Output STRICTLY as valid JSON** matching this schema:
 {
+  "currency_check": "REQUIRED: If question involves מטבעות/coins/FLOW/₣ — write: 'The question is about ₣ FLOW. Tasks give ₪ shekels NOT ₣. Answer must describe community tab activities only.' If question is unrelated to currency — write: 'N/A'.",
   "answer": "תשובה מלאה בעברית עם **הדגשות** רלוונטיות.",
   "action_type": "NONE",
   "action_data": {}
@@ -4699,7 +4700,7 @@ Rules:
 - Use "CREATE_TASK" only if user explicitly says "create task", "add task", "open a task".
 - Use "ADD_GROCERY" only if user explicitly says "add to list", "add to shopping".
 - NEVER invent data not in context. If data is missing say so clearly.
-- For community/FLOW questions: refer to the COMMUNITY TAB and FLOW REWARDS sections above.`;
+- CRITICAL CURRENCY RULE: If asked about מטבעות/coins/FLOW/₣ → answer describes ONLY community tab activities (promotions, bundles, reviews, referrals). NEVER mention tasks as a way to earn ₣ FLOW. Tasks reward ₪ shekels (family bank), never ₣.`;
         
         const result = await model.generateContent(prompt);
         const aiResponse = JSON.parse(result.response.text());
