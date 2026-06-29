@@ -14721,12 +14721,12 @@ window.switchBizCommunityTab = function(tab) {
         const view = document.getElementById(`comm-view-${t}`);
         const btn = document.getElementById(`btn-comm-${t}`);
         if (view) view.classList.add('hidden');
-        if (btn) btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
+        if (btn) btn.className = 'w-full flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
     });
     const activeView = document.getElementById(`comm-view-${tab}`);
     const activeBtn = document.getElementById(`btn-comm-${tab}`);
     if (activeView) activeView.classList.remove('hidden');
-    if (activeBtn) activeBtn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition';
+    if (activeBtn) activeBtn.className = 'w-full flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition';
     if (tab === 'discover') filterBizAvailableCommunities();
 };
 
