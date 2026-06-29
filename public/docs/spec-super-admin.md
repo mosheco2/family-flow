@@ -899,20 +899,20 @@ function showSAHelp() {
 ### 14.2 4 טאבים
 
 #### 🏆 מובילים (overview)
-- **KPI 3 כרטיסים**: סך הונפק ₣ / ממומש ₣ + % / במחזור ₣
-- **גרף בר 30 יום** (ציר X = ימים, גובה = ₣ שהונפקו)
+- **KPI 3 כרטיסים**: סך הונפק Flw / ממומש Flw + % / במחזור Flw
+- **גרף בר 30 יום** (ציר X = ימים, גובה = Flw שהונפקו)
 - **3 עמודות top-5**: משפחות | עסקים | קהילות (לפי balance)
 - מספר ארנקות + סכום כולל לכל קטגוריה
 
-#### 🗺️ מפת ₣ (map)
+#### 🗺️ מפת Flw (map)
 - **פילטר**: הכל / משפחות / עסקים / קהילות
-- לכל ישות: אמוג'י סוג, שם, progress bar יחסי, יתרה ₣, כפתור "הענק"
+- לכל ישות: אמוג'י סוג, שם, progress bar יחסי, יתרה Flw, כפתור "הענק"
 - **`filterFlowMap(type)`** — מסנן `flow-map-row` לפי `data-type`
 
 #### 📋 פעילות (log)
 - 30 עסקאות אחרונות מ-`GET /api/sa/flow/transactions?limit=30`
 - select filter לפי סוג ישות
-- כל שורה: תאריך, שם ישות, תיאור, כמות ₣ (±), יתרה אחרי
+- כל שורה: תאריך, שם ישות, תיאור, כמות Flw (±), יתרה אחרי
 
 #### 🎁 הענקה (grant)
 - select: סוג ישות (family / business / community)
@@ -936,7 +936,7 @@ window.refreshFlowDashboard = async function(tab) {
 ### 14.4 הגדרות FLOW (`openFlowConfigPanel`)
 
 - טוען `GET /api/sa/flow/config` → טבלת הגדרות
-- ערכים ניתנים לעריכה: נקודות לפי trigger, שיעור המרה ₣→₪
+- ערכים ניתנים לעריכה: נקודות לפי trigger, שיעור המרה Flw→₪
 - "שמור הכל" → לכל שורה ששינויה `PUT /api/sa/flow/config`
 
 **מפתחות הגדרה (`FLOW_CONFIG_LABELS`):**
@@ -944,7 +944,7 @@ window.refreshFlowDashboard = async function(tab) {
 | מפתח | תיאור |
 |------|-------|
 | `join_community` | הצטרפות לקהילה — משפחה |
-| `referral` | הפניית חבר — ₣ לממליץ |
+| `referral` | הפניית חבר — Flw לממליץ |
 | `promo_redemption` | פדיית מבצע |
 | `profile_complete` | השלמת פרופיל |
 | `review_business` | ביקורת על עסק |
@@ -957,9 +957,9 @@ window.refreshFlowDashboard = async function(tab) {
 | `biz_bundle_sold` | חבילה נמכרה |
 | `biz_review_received` | ביקורת התקבלה |
 | `biz_lead_received` | ליד התקבל |
-| `promo_community` | ₣ לקהילה ממבצע |
-| `bundle_community` | ₣ לקהילה מחבילה |
-| `flow_to_ils_rate` | שיעור המרה ₣→₪ |
+| `promo_community` | Flw לקהילה ממבצע |
+| `bundle_community` | Flw לקהילה מחבילה |
+| `flow_to_ils_rate` | שיעור המרה Flw→₪ |
 
 ### 14.5 API Endpoints FLOW
 

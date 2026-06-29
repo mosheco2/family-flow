@@ -10005,7 +10005,7 @@ app.patch('/api/sa/community/bundles/:id', verifySA, async (req, res) => {
             ('ambassador_approved',  35,  15, 'שגריר — עסק אושר'),
             ('promo_community',       0,   5, 'עסק — מבצע מומש בקהילה'),
             ('bundle_community',      0,  20, 'עסק — חבילה נמכרה בקהילה'),
-            ('flow_to_ils_rate',    100,   0, 'כמה ₣ שווים ₪10 הנחה'),
+            ('flow_to_ils_rate',    100,   0, 'כמה Flw שווים ₪10 הנחה'),
             ('biz_join_approved',    20,  10, 'עסק — בקשת הצטרפות לקהילה אושרה'),
             ('biz_promo_approved',   10,   5, 'עסק — מבצע אושר ע"י SA'),
             ('biz_promo_redeemed',    5,   5, 'עסק — מבצע מומש על ידי משפחה'),
@@ -10224,13 +10224,13 @@ app.post('/api/flow/redeem', async (req, res) => {
         // Check balance
         const wallet = await pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='family' AND entity_id=$1`, [familyGroupId]);
         const bal = parseFloat(wallet.rows[0]?.balance || 0);
-        if (bal < fa) return res.status(400).json({ error: `אין מספיק ₣ (יש לך ${bal} ₣)` });
+        if (bal < fa) return res.status(400).json({ error: `אין מספיק Flw (יש לך ${bal} Flw)` });
 
-        // Calculate discount: rate = how many ₣ per ₪10
+        // Calculate discount: rate = how many Flw per ₪10
         const rate = await pool.query(`SELECT personal_amount FROM flow_config WHERE key='flow_to_ils_rate'`);
         const rateVal = parseFloat(rate.rows[0]?.personal_amount) || 100;
         const discountIls = Math.floor(fa / rateVal) * 10;
-        if (discountIls <= 0) return res.status(400).json({ error: `מינימום ${rateVal} ₣ למימוש` });
+        if (discountIls <= 0) return res.status(400).json({ error: `מינימום ${rateVal} Flw למימוש` });
 
         // Deduct balance
         await pool.query(`UPDATE flow_wallets SET balance=balance-$1, updated_at=NOW() WHERE entity_type='family' AND entity_id=$2`, [fa, familyGroupId]);
@@ -10255,7 +10255,7 @@ app.post('/api/flow/daily-login', async (req, res) => {
         const today = await pool.query(
             `SELECT id FROM flow_transactions WHERE entity_type='family' AND entity_id=$1 AND action_key='daily_login' AND created_at::date=CURRENT_DATE`,
             [groupId]);
-        if (today.rows.length) return res.json({ success: false, reason: 'כבר קיבלת ₣ היום' });
+        if (today.rows.length) return res.json({ success: false, reason: 'כבר קיבלת Flw היום' });
         await awardFlow('family', groupId, 'daily_login', null, null);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }

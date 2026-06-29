@@ -590,7 +590,7 @@ zone_manager_payments (id, manager_id, amount, payment_method, notes, paid_at, r
 ### 8.1 ארנק FLOW לקהילה
 
 כל קהילה מחזיקה **ארנק FLOW עצמאי** (entity_type = 'community'):
-- **יתרה** — ₣ שנצברו מפעילות קהילתית (מבצעים, חבילות, הפניות)
+- **יתרה** — Flw שנצברו מפעילות קהילתית (מבצעים, חבילות, הפניות)
 - **מקורות הכנסה**: `promo_community`, `bundle_community`, `ambassador_approved`
 - **מנהל הקהילה** יכול לראות את יתרת הארנק בפאנל הניהול (`openCommunityManagerPanel`)
 
@@ -626,7 +626,7 @@ API: `GET /api/biz/communities/match/:bizId` → מחזיר ציוני % התא�
 **צפייה (עסק)**: `loadMyBizBundles()` — מציג חבילות שהעסק כלול בהן
 
 **רכישה (משפחה)**: `purchaseCommunityBundle(bundleId)` → `POST /api/community/bundles/:id/purchase`
-- זיכוי ₣ אוטומטי לארנק המשפחה וארנק הקהילה
+- זיכוי Flw אוטומטי לארנק המשפחה וארנק הקהילה
 
 ### 8.5 מבצעים קהילתיים (Promotions)
 
@@ -636,22 +636,22 @@ API: `GET /api/biz/communities/match/:bizId` → מחזיר ציוני % התא�
 **אישור (Zone Manager)**: `zmApproveBiz()` → `POST /api/zone-manager/community-business/approve`
 
 **פדייה (משפחה)**: `redeemCommunityPromo(promoId)` → `POST /api/community/promotions/:id/redeem`
-- זיכוי ₣ לארנק המשפחה
+- זיכוי Flw לארנק המשפחה
 
 ### 8.6 מערכת הפניות/שגריר (Ambassador/Referral)
 
 **הפניית חברים (משפחה ← משפחה)**:
 - כל משפחה מקבלת קוד ייחודי: `GET /api/community/my-referral-code/:groupId`
 - ב-join: שדה "קוד חבר שהמליץ" שנשלח ב-`POST /api/community/join`
-- כשהצטרפות מאושרת: +35₣ לממליץ, +15₣ לארנק הקהילה
+- כשהצטרפות מאושרת: +35Flw לממליץ, +15Flw לארנק הקהילה
 
 **המלצת עסק לקהילה (משפחה ← עסק)**:
 - `openFamReferralModal()` → `POST /api/community/family-refer`
 - Zone Manager/SA מאשר → `ambassador_approved` trigger
 
 **Zone Manager מאשר שגריר**:
-- 35₣ אוטומטית לעסק הממליץ
-- 15₣ לארנק הקהילה
+- 35Flw אוטומטית לעסק הממליץ
+- 15Flw לארנק הקהילה
 - אפשרות בונוס ידני (₪) לארנק הקהילה
 
 ### 8.7 באנרים קהילתיים
@@ -693,8 +693,8 @@ API: `GET /api/biz/communities/match/:bizId` → מחזיר ציוני % התא�
 
 | טבלה | תיאור |
 |------|-------|
-| `flow_wallets` | ארנק ₣ (entity_type + entity_id) |
-| `flow_transactions` | כל עסקאות ה-₣ |
+| `flow_wallets` | ארנק Flw (entity_type + entity_id) |
+| `flow_transactions` | כל עסקאות ה-Flw |
 | `flow_redemptions` | קודי מימוש פיזיים (FL...) |
 | `community_promotions` | מבצעים של עסקים בקהילה |
 | `community_bundles` | חבילות קהילתיות |

@@ -7224,7 +7224,7 @@ const FLOW_CONFIG_LABELS = {
     // כללי
     promo_community:       '📊 קהילה — מבצע מומש (רק לקהילה)',
     bundle_community:      '📊 קהילה — חבילה נמכרה (רק לקהילה)',
-    flow_to_ils_rate:      '⚙️ שיעור המרה: כמה ₣ = ₪10 הנחה',
+    flow_to_ils_rate:      '⚙️ שיעור המרה: כמה Flw = ₪10 הנחה',
 };
 
 window.openFlowConfigPanel = async function() {
@@ -7271,8 +7271,8 @@ window.openFlowConfigPanel = async function() {
             <thead>
                 <tr class="bg-slate-100 text-slate-600 text-xs">
                     <th class="text-right p-3 rounded-tl-xl font-bold">פעולה</th>
-                    <th class="text-center p-3 font-bold">₣ אישי<br><span class="font-normal text-[10px]">(למשפחה)</span></th>
-                    <th class="text-center p-3 rounded-tr-xl font-bold">₣ קהילה<br><span class="font-normal text-[10px]">(לארנק הקהילה)</span></th>
+                    <th class="text-center p-3 font-bold">Flw אישי<br><span class="font-normal text-[10px]">(למשפחה)</span></th>
+                    <th class="text-center p-3 rounded-tr-xl font-bold">Flw קהילה<br><span class="font-normal text-[10px]">(לארנק הקהילה)</span></th>
                 </tr>
             </thead>
             <tbody>
@@ -7292,7 +7292,7 @@ window.openFlowConfigPanel = async function() {
                 </tr>`).join('')}
             </tbody>
         </table>
-        <p class="text-xs text-slate-400 mt-3 text-center">* שיעור ההמרה: ₣ בשורת "שיעור המרה" = ₪10 הנחה. לדוגמה: 100 ₣ = ₪10</p>`;
+        <p class="text-xs text-slate-400 mt-3 text-center">* שיעור ההמרה: Flw בשורת "שיעור המרה" = ₪10 הנחה. לדוגמה: 100 Flw = ₪10</p>`;
     } catch(e) { showSAToast('שגיאה בטעינת הגדרות FLOW'); }
 };
 
@@ -7334,7 +7334,7 @@ window.openFlowStatsPanel = async function() {
         </div>
         <!-- Tabs -->
         <div class="flex border-b shrink-0 bg-slate-50 overflow-x-auto">
-            ${[['overview','🏆 מובילים'],['map','🗺️ מפת ₣'],['log','📋 פעילות'],['grant','🎁 הענקה']].map(([k,l],i) =>
+            ${[['overview','🏆 מובילים'],['map','🗺️ מפת Flw'],['log','📋 פעילות'],['grant','🎁 הענקה']].map(([k,l],i) =>
                 `<button onclick="switchFlowTab('${k}')" id="flow-tab-${k}" class="flex-1 min-w-[80px] py-3 text-xs font-bold transition border-b-2 whitespace-nowrap px-2 ${i===0?'border-amber-500 text-amber-700 bg-white':'border-transparent text-slate-500 hover:text-slate-700'}">${l}</button>`
             ).join('')}
         </div>
@@ -7386,11 +7386,11 @@ function renderFlowTab(tab, d) {
         const maxVal = Math.max(...days.map(d=>parseFloat(d.issued||0)), 1);
         const chartHtml = days.length ? `
         <div class="mb-4">
-            <h4 class="font-bold text-slate-700 text-sm mb-2">📈 הנפקת ₣ — 30 ימים אחרונים</h4>
+            <h4 class="font-bold text-slate-700 text-sm mb-2">📈 הנפקת Flw — 30 ימים אחרונים</h4>
             <div class="flex items-end gap-0.5 h-16 bg-slate-50 rounded-xl px-2 py-2">
                 ${days.map(d => {
                     const h = Math.max(4, Math.round(parseFloat(d.issued||0)/maxVal*48));
-                    return `<div class="flex-1 bg-amber-400 rounded-t" style="height:${h}px" title="${d.day}: ₣${parseFloat(d.issued).toFixed(0)}"></div>`;
+                    return `<div class="flex-1 bg-amber-400 rounded-t" style="height:${h}px" title="${d.day}: Flw${parseFloat(d.issued).toFixed(0)}"></div>`;
                 }).join('')}
             </div>
             <div class="flex justify-between text-[9px] text-slate-400 mt-1 px-2">
@@ -7402,15 +7402,15 @@ function renderFlowTab(tab, d) {
         content.innerHTML = `
         <div class="grid grid-cols-3 gap-3 mb-4">
             <div class="bg-amber-50 border border-amber-100 rounded-2xl p-3 text-center">
-                <div class="text-2xl font-black text-amber-600">₣${Math.round(issued).toLocaleString('he-IL')}</div>
+                <div class="text-2xl font-black text-amber-600">Flw${Math.round(issued).toLocaleString('he-IL')}</div>
                 <div class="text-[10px] text-slate-500 mt-0.5">סך הונפק</div>
             </div>
             <div class="bg-green-50 border border-green-100 rounded-2xl p-3 text-center">
-                <div class="text-2xl font-black text-green-600">₣${Math.round(redeemed).toLocaleString('he-IL')}</div>
+                <div class="text-2xl font-black text-green-600">Flw${Math.round(redeemed).toLocaleString('he-IL')}</div>
                 <div class="text-[10px] text-slate-500 mt-0.5">מומש (${pct}%)</div>
             </div>
             <div class="bg-blue-50 border border-blue-100 rounded-2xl p-3 text-center">
-                <div class="text-2xl font-black text-blue-600">₣${Math.round(issued-redeemed).toLocaleString('he-IL')}</div>
+                <div class="text-2xl font-black text-blue-600">Flw${Math.round(issued-redeemed).toLocaleString('he-IL')}</div>
                 <div class="text-[10px] text-slate-500 mt-0.5">במחזור</div>
             </div>
         </div>
@@ -7418,18 +7418,18 @@ function renderFlowTab(tab, d) {
         <div class="grid grid-cols-3 gap-3">
             <div>
                 <h4 class="font-bold text-slate-700 text-sm mb-2">👨‍👩‍👧 משפחות</h4>
-                <div class="text-[10px] text-slate-400 mb-1">${wc.family?.cnt||0} ארנקות · ₣${Math.round(wc.family?.total_balance||0).toLocaleString()}</div>
-                ${(s.topFamilies||[]).map((f,i) => `<div class="flex justify-between text-xs py-1 border-b border-slate-100"><span class="truncate max-w-[80px]">${i+1}. ${safeStr(f.name)}</span><span class="font-bold text-amber-600 shrink-0">₣${Math.round(f.balance)}</span></div>`).join('') || '<p class="text-xs text-slate-400">אין נתונים</p>'}
+                <div class="text-[10px] text-slate-400 mb-1">${wc.family?.cnt||0} ארנקות · Flw${Math.round(wc.family?.total_balance||0).toLocaleString()}</div>
+                ${(s.topFamilies||[]).map((f,i) => `<div class="flex justify-between text-xs py-1 border-b border-slate-100"><span class="truncate max-w-[80px]">${i+1}. ${safeStr(f.name)}</span><span class="font-bold text-amber-600 shrink-0">Flw${Math.round(f.balance)}</span></div>`).join('') || '<p class="text-xs text-slate-400">אין נתונים</p>'}
             </div>
             <div>
                 <h4 class="font-bold text-slate-700 text-sm mb-2">🏪 עסקים</h4>
-                <div class="text-[10px] text-slate-400 mb-1">${wc.business?.cnt||0} ארנקות · ₣${Math.round(wc.business?.total_balance||0).toLocaleString()}</div>
-                ${(s.topBusinesses||[]).map((b,i) => `<div class="flex justify-between text-xs py-1 border-b border-slate-100"><span class="truncate max-w-[80px]">${i+1}. ${safeStr(b.name)}</span><span class="font-bold text-purple-600 shrink-0">₣${Math.round(b.balance)}</span></div>`).join('') || '<p class="text-xs text-slate-400">אין נתונים</p>'}
+                <div class="text-[10px] text-slate-400 mb-1">${wc.business?.cnt||0} ארנקות · Flw${Math.round(wc.business?.total_balance||0).toLocaleString()}</div>
+                ${(s.topBusinesses||[]).map((b,i) => `<div class="flex justify-between text-xs py-1 border-b border-slate-100"><span class="truncate max-w-[80px]">${i+1}. ${safeStr(b.name)}</span><span class="font-bold text-purple-600 shrink-0">Flw${Math.round(b.balance)}</span></div>`).join('') || '<p class="text-xs text-slate-400">אין נתונים</p>'}
             </div>
             <div>
                 <h4 class="font-bold text-slate-700 text-sm mb-2">🏘️ קהילות</h4>
-                <div class="text-[10px] text-slate-400 mb-1">${wc.community?.cnt||0} ארנקות · ₣${Math.round(wc.community?.total_balance||0).toLocaleString()}</div>
-                ${(s.topCommunities||[]).map((c,i) => `<div class="flex justify-between text-xs py-1 border-b border-slate-100"><span class="truncate max-w-[80px]">${i+1}. ${safeStr(c.name)}</span><span class="font-bold text-emerald-600 shrink-0">₣${Math.round(c.balance)}</span></div>`).join('') || '<p class="text-xs text-slate-400">אין נתונים</p>'}
+                <div class="text-[10px] text-slate-400 mb-1">${wc.community?.cnt||0} ארנקות · Flw${Math.round(wc.community?.total_balance||0).toLocaleString()}</div>
+                ${(s.topCommunities||[]).map((c,i) => `<div class="flex justify-between text-xs py-1 border-b border-slate-100"><span class="truncate max-w-[80px]">${i+1}. ${safeStr(c.name)}</span><span class="font-bold text-emerald-600 shrink-0">Flw${Math.round(c.balance)}</span></div>`).join('') || '<p class="text-xs text-slate-400">אין נתונים</p>'}
             </div>
         </div>`;
     } else if (tab === 'map') {
@@ -7453,10 +7453,10 @@ function renderFlowTab(tab, d) {
                     <div class="flex-1 bg-slate-100 rounded-full h-2">
                         <div class="h-2 rounded-full bg-amber-400" style="width:${barW}%"></div>
                     </div>
-                    <span class="text-xs font-black ${typeColor[e.type]||''} shrink-0 w-16 text-left">₣${Math.round(bal).toLocaleString()}</span>
+                    <span class="text-xs font-black ${typeColor[e.type]||''} shrink-0 w-16 text-left">Flw${Math.round(bal).toLocaleString()}</span>
                     <button onclick="openFlowGrantFor('${e.type}',${e.id},'${safeStr(e.name).replace(/'/g,'')}')" class="text-[10px] text-indigo-500 hover:text-indigo-700 font-bold shrink-0">הענק</button>
                 </div>`;
-            }).join('') || '<p class="text-sm text-slate-400 text-center py-8">אין ישויות עם ₣ עדיין</p>'}
+            }).join('') || '<p class="text-sm text-slate-400 text-center py-8">אין ישויות עם Flw עדיין</p>'}
         </div>`;
     } else if (tab === 'log') {
         const txs = d.txs?.transactions || [];
@@ -7478,7 +7478,7 @@ function renderFlowTab(tab, d) {
                 return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 text-xs flow-log-row" data-type="${t.entity_type}">
                     <span class="shrink-0">${typeIcon[t.entity_type]||'?'}</span>
                     <span class="text-slate-600 flex-1 truncate">${safeStr(t.entity_name||'')} — ${safeStr(t.description||'')}</span>
-                    <span class="font-black shrink-0 ${amt>0?'text-green-600':'text-red-500'}">${amt>0?'+':''}${amt.toFixed(0)} ₣</span>
+                    <span class="font-black shrink-0 ${amt>0?'text-green-600':'text-red-500'}">${amt>0?'+':''}${amt.toFixed(0)} Flw</span>
                     <span class="text-slate-400 shrink-0 text-[10px]">${d.toLocaleDateString('he-IL')} ${d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</span>
                 </div>`;
             }).join('') || '<p class="text-sm text-slate-400 text-center py-8">אין פעילות עדיין</p>'}
@@ -7487,7 +7487,7 @@ function renderFlowTab(tab, d) {
         content.innerHTML = `
         <div class="max-w-sm mx-auto">
             <div class="bg-amber-50 border border-amber-100 rounded-2xl p-4 mb-4">
-                <p class="text-xs text-amber-700 font-medium">הענקה ידנית מאפשרת לך לתת או להוריד ₣ מכל ישות. שימוש לתיקון, פרסים, או פיצויים.</p>
+                <p class="text-xs text-amber-700 font-medium">הענקה ידנית מאפשרת לך לתת או להוריד Flw מכל ישות. שימוש לתיקון, פרסים, או פיצויים.</p>
             </div>
             <div class="space-y-3">
                 <div>
@@ -7507,7 +7507,7 @@ function renderFlowTab(tab, d) {
                     </select>
                 </div>
                 <div>
-                    <label class="text-xs font-bold text-slate-600 mb-1 block">כמות ₣ (שלילי = הפחתה)</label>
+                    <label class="text-xs font-bold text-slate-600 mb-1 block">כמות Flw (שלילי = הפחתה)</label>
                     <input type="number" id="grant-amount" placeholder="לדוגמה: 50 או -20" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-amber-600">
                 </div>
                 <div>
@@ -7583,7 +7583,7 @@ window.submitFlowGrant = async function() {
         if (data.success) {
             result.classList.remove('hidden');
             const amt = parseFloat(amount);
-            result.innerHTML = `<div class="bg-green-50 border border-green-200 rounded-xl p-3 text-center text-green-700 text-sm font-bold">✅ ${amt>0?'+':''}${amt} ₣ הועברו בהצלחה</div>`;
+            result.innerHTML = `<div class="bg-green-50 border border-green-200 rounded-xl p-3 text-center text-green-700 text-sm font-bold">✅ ${amt>0?'+':''}${amt} Flw הועברו בהצלחה</div>`;
             showSAToast('✅ הענקה בוצעה!');
             setTimeout(() => refreshFlowDashboard('overview'), 1500);
         } else throw new Error(data.error);

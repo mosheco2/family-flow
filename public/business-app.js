@@ -15272,13 +15272,13 @@ async function renderBizFlowWidget() {
                 <div style="background:rgba(255,255,255,0.2);border-radius:14px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;">⚡</div>
                 <div>
                     <div style="color:rgba(255,255,255,0.85);font-size:11px;font-weight:600;margin-bottom:2px;">ארנק FLOW העסקי</div>
-                    <div style="color:white;font-size:26px;font-weight:900;line-height:1;">${bal} <span style="font-size:14px;">₣</span></div>
+                    <div style="color:white;font-size:26px;font-weight:900;line-height:1;">${bal} <span style="font-size:14px;">Flw</span></div>
                     <div style="color:rgba(255,255,255,0.7);font-size:10px;margin-top:2px;">צבירה מביקורות לקוחות ופעילות קהילה</div>
                 </div>
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
                 <div style="background:rgba(255,255,255,0.2);border-radius:10px;padding:6px 12px;color:white;font-size:11px;font-weight:700;">לארנק &larr;</div>
-                ${bal > 0 ? `<div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:3px 8px;color:rgba(255,255,255,0.9);font-size:10px;">+${bal}₣ שנצברו</div>` : ''}
+                ${bal > 0 ? `<div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:3px 8px;color:rgba(255,255,255,0.9);font-size:10px;">+${bal}Flw שנצברו</div>` : ''}
             </div>
         </div>`;
         if (!roleVisible) widget.classList.remove('hidden');
@@ -15296,7 +15296,7 @@ window.openBizFlowWallet = async function() {
         <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-amber-50 to-yellow-50">
             <div>
                 <h3 class="font-black text-slate-800 text-base">⚡ ארנק FLOW העסקי</h3>
-                <p class="text-[11px] text-slate-500 mt-0.5">₣ שהרוויח העסק מפעילות קהילתית</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Flw שהרוויח העסק מפעילות קהילתית</p>
             </div>
             <button onclick="document.getElementById('biz-flow-wallet-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
         </div>
@@ -15311,7 +15311,7 @@ window.openBizFlowWallet = async function() {
         const bal = parseFloat(data.balance || 0);
         document.getElementById('biz-flow-wallet-content').innerHTML = `
         <div class="bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl p-5 text-center mb-4 shadow-lg">
-            <div class="text-4xl font-black text-white mb-1">₣ ${bal.toLocaleString('he-IL',{minimumFractionDigits:0,maximumFractionDigits:1})}</div>
+            <div class="text-4xl font-black text-white mb-1">Flw ${bal.toLocaleString('he-IL',{minimumFractionDigits:0,maximumFractionDigits:1})}</div>
             <div class="text-amber-100 text-sm">יתרת FLOW עסקית</div>
         </div>
         <div class="mb-4 bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700">
@@ -15322,7 +15322,7 @@ window.openBizFlowWallet = async function() {
             ${data.transactions?.length ? data.transactions.map(t => `
             <div class="flex justify-between items-center text-xs py-2 border-b border-slate-100">
                 <span class="text-slate-600">${safeStr(t.description || '')}</span>
-                <span class="font-bold ${t.amount > 0 ? 'text-green-600' : 'text-red-500'}">${t.amount > 0 ? '+' : ''}${parseFloat(t.amount).toFixed(0)} ₣</span>
+                <span class="font-bold ${t.amount > 0 ? 'text-green-600' : 'text-red-500'}">${t.amount > 0 ? '+' : ''}${parseFloat(t.amount).toFixed(0)} Flw</span>
             </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>'}
         </div>
         <div class="mt-4 pt-3 border-t border-slate-100">

@@ -1114,18 +1114,18 @@ const tips  = (isAdmin && help.tips_admin)  ? help.tips_admin  : help.tips;
 
 ## 14. מודול FLOW — מטבע קהילתי
 
-**גרסה: 2026-06-28** — מערכת נקודות FLOW (סמל: ₣) נוספה.
+**גרסה: 2026-06-28** — מערכת נקודות FLOW (סמל: Flw) נוספה.
 
 ### 14.1 מבנה הארנק
 
 כל משפחה מחזיקה **ארנק FLOW אישי** עם:
-- **יתרה** — נקודות ₣ שנצברו
+- **יתרה** — נקודות Flw שנצברו
 - **היסטוריית עסקאות** — list עם תיאור, סכום ותאריך
 - **קוד מימוש** — קוד הנחה ייחודי (פורמט `FL...`) הניתן לפדייה בעסקים
 
-### 14.2 איך מרוויחים ₣
+### 14.2 איך מרוויחים Flw
 
-| פעולה | סכום ₣ |
+| פעולה | סכום Flw |
 |-------|---------|
 | השלמת פרופיל | 15 |
 | קנייה ראשונה מחנות קהילה | 10 |
@@ -1138,12 +1138,12 @@ const tips  = (isAdmin && help.tips_admin)  ? help.tips_admin  : help.tips;
 ### 14.3 ממשק משתמש
 
 **לחצן ארנק** בלשונית קהילה → `loadFamilyFlowWallet()` → modal עם:
-- יתרה ₣ גדולה ומודגשת (גרדיאנט זהוב)
+- יתרה Flw גדולה ומודגשת (גרדיאנט זהוב)
 - היסטוריית 10 עסקאות אחרונות
 - כפתור "מימוש" → `openFlowRedeemModal()`
 
 **מימוש:**
-1. המשתמש בוחר כמה ₣ לממש (מינימום 50)
+1. המשתמש בוחר כמה Flw לממש (מינימום 50)
 2. מקבל קוד הנחה ייחודי (`POST /api/flow/redeem`)
 3. מציג את הקוד לעסק שמאמת אותו
 
@@ -1173,7 +1173,7 @@ const tips  = (isAdmin && help.tips_admin)  ? help.tips_admin  : help.tips;
 ### 15.2 עמוד "הקהילות שלי" (join)
 
 כשמחובר לקהילות מוצג:
-- **רשימת קהילות פעילות** (עד 5) — עם שם, עיר, ארנק ₣ (cashback)
+- **רשימת קהילות פעילות** (עד 5) — עם שם, עיר, ארנק Flw (cashback)
 - **תג "מנהל קהילה"** אם `is_community_manager = true`
 - **כפתור "ניהול"** → `openCommunityManagerPanel()` למנהל
 - **כפתור "התנתק"** → `leaveCommunity()`
@@ -1196,12 +1196,12 @@ const tips  = (isAdmin && help.tips_admin)  ? help.tips_admin  : help.tips;
 **מבצעים (promotions):** `renderCommunityPromotions()`
 - כרטיס מבצע עם שם עסק, תיאור, אחוז הנחה, תאריך פג תוקף
 - כפתור "מימש" → `redeemCommunityPromo(promoId)` → `POST /api/community/promotions/:id/redeem`
-- זיכוי ₣ אוטומטי בפדיית מבצע
+- זיכוי Flw אוטומטי בפדיית מבצע
 
 **חבילות (bundles):** `renderCommunityBundles()`
 - חבילת עסקים — רשימת עסקים בחבילה, מחיר, תיאור
 - כפתור "רכוש" → `purchaseCommunityBundle(bundleId)` → `POST /api/community/bundles/:id/purchase`
-- זיכוי ₣ אוטומטי בקנייה
+- זיכוי Flw אוטומטי בקנייה
 
 **Banners:** `renderCommunityBanners()` — באנר גרדיאנט צבעוני של עסקים
 
@@ -1209,7 +1209,7 @@ const tips  = (isAdmin && help.tips_admin)  ? help.tips_admin  : help.tips;
 
 - כל משפחה מקבלת **קוד הפניה אישי** ב-`GET /api/community/my-referral-code/:groupId`
 - הקוד מוצג בכרטיס ב-join view עם כפתור **העתקה/WhatsApp**
-- כאשר משפחה נרשמת עם קוד הפניה → המפנה מקבל 35₣ + קהילה מקבלת 15₣
+- כאשר משפחה נרשמת עם קוד הפניה → המפנה מקבל 35Flw + קהילה מקבלת 15Flw
 - שדה "קוד חבר שהמליץ" בטופס ההצטרפות לקהילה
 
 ### 15.6 API Endpoints קהילה
@@ -1230,8 +1230,8 @@ const tips  = (isAdmin && help.tips_admin)  ? help.tips_admin  : help.tips;
 
 | טבלה | תיאור |
 |------|-------|
-| `flow_wallets` | ארנק ₣ לישות (entity_type + entity_id) |
-| `flow_transactions` | כל עסקאות ה-₣ |
+| `flow_wallets` | ארנק Flw לישות (entity_type + entity_id) |
+| `flow_transactions` | כל עסקאות ה-Flw |
 | `flow_redemptions` | קודי מימוש שנוצרו |
 | `community_promotions` | מבצעי עסקים בקהילה |
 | `community_bundles` | חבילות עסקים |

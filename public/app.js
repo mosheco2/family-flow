@@ -2349,8 +2349,8 @@ function renderUnifiedFeed() {
                     <div style="background:rgba(255,255,255,0.2);border-radius:14px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;">⚡</div>
                     <div>
                         <div style="color:rgba(255,255,255,0.85);font-size:11px;font-weight:600;margin-bottom:2px;">ארנק FLOW המשפחה</div>
-                        <div style="color:white;font-size:26px;font-weight:900;line-height:1;">${flowBal} <span style="font-size:14px;">₣</span></div>
-                        ${ilsVal > 0 ? `<div style="color:rgba(255,255,255,0.75);font-size:10px;margin-top:2px;">שווה ₪${ilsVal} הנחה בקהילה</div>` : '<div style="color:rgba(255,255,255,0.65);font-size:10px;margin-top:2px;">צבור 100₣ למימוש הנחה</div>'}
+                        <div style="color:white;font-size:26px;font-weight:900;line-height:1;">${flowBal} <span style="font-size:14px;">Flw</span></div>
+                        ${ilsVal > 0 ? `<div style="color:rgba(255,255,255,0.75);font-size:10px;margin-top:2px;">שווה ₪${ilsVal} הנחה בקהילה</div>` : '<div style="color:rgba(255,255,255,0.65);font-size:10px;margin-top:2px;">צבור 100Flw למימוש הנחה</div>'}
                     </div>
                 </div>
                 <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
@@ -4411,7 +4411,7 @@ function renderCommunityBundles(bundles) {
         </div>
         <div class="flex justify-between items-center mt-2.5 pt-2 border-t border-emerald-100">
             <span class="text-[10px] text-slate-400">${safeStr(b.community_name)}</span>
-            <button onclick="purchaseCommunityBundle(${b.id},this)" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-1.5 px-4 rounded-xl transition">🛒 רכישה +18 ₣</button>
+            <button onclick="purchaseCommunityBundle(${b.id},this)" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-1.5 px-4 rounded-xl transition">🛒 רכישה +18 Flw</button>
         </div>
     </div>`).join('');
 }
@@ -4427,7 +4427,7 @@ window.purchaseCommunityBundle = async function(bundleId, btn) {
         });
         const data = await res.json();
         if (data.success) {
-            btn.textContent = '✅ נרכש! +18 ₣';
+            btn.textContent = '✅ נרכש! +18 Flw';
             btn.className = btn.className.replace('bg-emerald-600 hover:bg-emerald-700','bg-green-500');
             launchFlowConfetti();
             loadFamilyFlowWallet && loadFamilyFlowWallet();
@@ -4448,7 +4448,7 @@ window.redeemCommunityPromo = async function(promoId, btn) {
         });
         const data = await res.json();
         if (data.success) {
-            btn.textContent = '✅ נרשם! +3 ₣';
+            btn.textContent = '✅ נרשם! +3 Flw';
             btn.className = btn.className.replace('bg-orange-500 hover:bg-orange-600','bg-green-500');
             launchFlowConfetti();
             loadFamilyFlowWallet();
@@ -4470,7 +4470,7 @@ window.openWriteReviewModal = function(bizId, bizName) {
             <button onclick="document.getElementById('write-review-modal').remove()" class="text-slate-400 text-2xl leading-none">&times;</button>
         </div>
         <div class="p-4 space-y-3">
-            <p class="text-xs text-slate-500 bg-amber-50 rounded-xl p-2 border border-amber-100">ביקורת חיובית (4–5 ⭐) מזכה אותך ב-7 ₣ ואת העסק ב-8 ₣</p>
+            <p class="text-xs text-slate-500 bg-amber-50 rounded-xl p-2 border border-amber-100">ביקורת חיובית (4–5 ⭐) מזכה אותך ב-7 Flw ואת העסק ב-8 Flw</p>
             <div>
                 <label class="text-xs font-bold text-slate-600 mb-2 block">דירוג</label>
                 <div class="flex gap-2 justify-center text-3xl" id="star-rating">
@@ -4556,7 +4556,7 @@ async function loadFamilyFlowWallet() {
         // Update FLOW badge in news tab button
         const flowBadge = getEl('comm-news-flow-badge');
         if (flowBadge) {
-            flowBadge.textContent = `₣${Math.floor(familyFlowBalance)}`;
+            flowBadge.textContent = `Flw${Math.floor(familyFlowBalance)}`;
             flowBadge.classList.remove('hidden');
         }
 
@@ -4573,9 +4573,9 @@ function renderFlowWalletContent(data) {
     const worth = Math.floor(bal / rate) * 10;
     content.innerHTML = `
     <div class="bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl p-5 text-center mb-4 shadow-lg">
-        <div class="text-5xl font-black text-white mb-1">₣ ${bal.toLocaleString('he-IL', {minimumFractionDigits:0,maximumFractionDigits:1})}</div>
+        <div class="text-5xl font-black text-white mb-1">Flw ${bal.toLocaleString('he-IL', {minimumFractionDigits:0,maximumFractionDigits:1})}</div>
         <div class="text-amber-100 text-sm">FLOW אישי</div>
-        ${worth > 0 ? `<div class="mt-2 bg-white/20 rounded-xl px-3 py-1 text-white text-xs font-bold">שווה ₪${worth} הנחה אצל עסק מחובר</div>` : '<div class="mt-2 text-amber-100 text-xs">צבור עוד ₣ כדי לממש הנחות</div>'}
+        ${worth > 0 ? `<div class="mt-2 bg-white/20 rounded-xl px-3 py-1 text-white text-xs font-bold">שווה ₪${worth} הנחה אצל עסק מחובר</div>` : '<div class="mt-2 text-amber-100 text-xs">צבור עוד Flw כדי לממש הנחות</div>'}
     </div>
     <div class="mb-4">
         <button onclick="openFlowRedeemModal()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-2xl text-sm transition shadow-md ${worth <= 0 ? 'opacity-50 pointer-events-none' : ''}">
@@ -4587,8 +4587,8 @@ function renderFlowWalletContent(data) {
         ${data.transactions?.length ? data.transactions.map(t => `
         <div class="flex justify-between items-center text-xs py-2 border-b border-slate-100">
             <span class="text-slate-600">${safeStr(t.description || '')}</span>
-            <span class="font-bold ${t.amount > 0 ? 'text-green-600' : 'text-red-500'}">${t.amount > 0 ? '+' : ''}${parseFloat(t.amount).toFixed(0)} ₣</span>
-        </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין — התחל לצבור ₣!</p>'}
+            <span class="font-bold ${t.amount > 0 ? 'text-green-600' : 'text-red-500'}">${t.amount > 0 ? '+' : ''}${parseFloat(t.amount).toFixed(0)} Flw</span>
+        </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין — התחל לצבור Flw!</p>'}
     </div>`;
 }
 
@@ -4630,11 +4630,11 @@ window.openFlowRedeemModal = function() {
     modal.innerHTML = `
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
         <div class="p-4 border-b flex justify-between items-center bg-amber-50">
-            <h3 class="font-black text-slate-800 text-base">🎁 מימוש ₣ להנחה</h3>
+            <h3 class="font-black text-slate-800 text-base">🎁 מימוש Flw להנחה</h3>
             <button onclick="getEl('flow-redeem-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
         </div>
         <div class="p-4 space-y-3">
-            <p class="text-xs text-slate-500 bg-amber-50 rounded-xl p-3 border border-amber-100">כל ${rate} ₣ = ₪10 הנחה. תקבל קוד חד-פעמי להציג לעסק.</p>
+            <p class="text-xs text-slate-500 bg-amber-50 rounded-xl p-3 border border-amber-100">כל ${rate} Flw = ₪10 הנחה. תקבל קוד חד-פעמי להציג לעסק.</p>
             <div>
                 <label class="text-xs font-bold text-slate-600 mb-1 block">בחר עסק לממש אצלו</label>
                 <select id="redeem-biz-select" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
@@ -4643,9 +4643,9 @@ window.openFlowRedeemModal = function() {
                 </select>
             </div>
             <div>
-                <label class="text-xs font-bold text-slate-600 mb-1 block">כמות ₣ לממש (מינימום 100)</label>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">כמות Flw לממש (מינימום 100)</label>
                 <input type="number" id="redeem-flow-amount" min="100" step="100" value="100" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-amber-600">
-                <p class="text-[10px] text-slate-400 mt-1">יתרה: ₣${Math.floor(familyFlowBalance)} · שווי: ₪<span id="redeem-ils-preview">10</span></p>
+                <p class="text-[10px] text-slate-400 mt-1">יתרה: Flw${Math.floor(familyFlowBalance)} · שווי: ₪<span id="redeem-ils-preview">10</span></p>
             </div>
             <button onclick="submitFlowRedeem()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-2xl text-sm transition shadow-md">🎁 קבל קוד הנחה</button>
             <div id="redeem-result" class="hidden"></div>
@@ -4664,8 +4664,8 @@ window.submitFlowRedeem = async function() {
     const bizId = parseInt(document.getElementById('redeem-biz-select')?.value);
     const flowAmt = parseInt(document.getElementById('redeem-flow-amount')?.value);
     if (!bizId) { showToast && showToast('error','בחר עסק'); return; }
-    if (!flowAmt || flowAmt < 100) { showToast && showToast('error','מינימום 100 ₣'); return; }
-    if (flowAmt > familyFlowBalance) { showToast && showToast('error','אין מספיק ₣ בארנק'); return; }
+    if (!flowAmt || flowAmt < 100) { showToast && showToast('error','מינימום 100 Flw'); return; }
+    if (flowAmt > familyFlowBalance) { showToast && showToast('error','אין מספיק Flw בארנק'); return; }
     try {
         const res = await fetch(`${API}/flow/redeem`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -4932,7 +4932,7 @@ async function joinCommunityDyn() {
             loadMyReferralCode();
         } else if(data.success) {
             const msg = data.referrerFound
-                ? `הצטרפתם לקהילת ${data.community.name} 🎉 החבר שהפנה אותכם קיבל ₣ FLOW`
+                ? `הצטרפתם לקהילת ${data.community.name} 🎉 החבר שהפנה אותכם קיבל Flw FLOW`
                 : `הצטרפתם בהצלחה לקהילת: ${data.community.name}`;
             showToast('success', msg);
             fetchCommunityData();
