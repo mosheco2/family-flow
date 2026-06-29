@@ -136,10 +136,10 @@ async function loadDashboard() {
         if (!zmData.success) return;
 
         document.getElementById('zm-stat-zones').textContent = zmData.zones?.length || 0;
-        const totalComm = (zmData.zones || []).reduce((s, z) => s + (z.communities?.length || 0), 0);
+        const totalComm = (zmData.communities || []).length;
         document.getElementById('zm-stat-communities').textContent = totalComm;
 
-        const stats = zmData.commissionStats || {};
+        const stats = zmData.commissions || {};
         const fmt = v => `₪${parseFloat(v||0).toLocaleString('he-IL',{maximumFractionDigits:0})}`;
         document.getElementById('zm-stat-comm-total').textContent = fmt(stats.total_earned);
         document.getElementById('zm-stat-comm-month').textContent = fmt(stats.month_earned);
@@ -233,7 +233,10 @@ function renderZones() {
         container.innerHTML = '<div class="text-center text-slate-400 py-8">אין אזורים מוקצים עדיין</div>';
         return;
     }
-    container.innerHTML = zmData.zones.map(zone => `
+    const allComms = zmData.communities || [];
+    container.innerHTML = zmData.zones.map(zone => {
+        const zoneCommunities = allComms.filter(c => c.zone_id === zone.id || c.zone_id === String(zone.id));
+        return `
     <div class="card p-5">
         <div class="flex justify-between items-start mb-4">
             <span class="text-[10px] font-bold px-2 py-1 rounded-full ${zone.status === 'active' ? 'badge-ok' : 'badge-warn'}">
@@ -241,11 +244,11 @@ function renderZones() {
             </span>
             <div class="text-right">
                 <h3 class="font-black text-slate-800 text-base">${zone.name}</h3>
-                <p class="text-xs text-slate-500">${zone.communities?.length || 0} קהילות באזור</p>
+                <p class="text-xs text-slate-500">${zoneCommunities.length} קהילות באזור</p>
             </div>
         </div>
         <div class="space-y-3">
-            ${(zone.communities || []).map(comm => `
+            ${zoneCommunities.map(comm => `
             <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
                 <div class="flex justify-between items-start mb-2">
                     <div class="flex items-center gap-2">
@@ -275,7 +278,8 @@ function renderZones() {
                 </div>
             </div>`).join('')}
         </div>
-    </div>`).join('');
+    </div>`;
+    }).join('');
 }
 
 // ==========================================

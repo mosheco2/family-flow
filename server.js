@@ -8988,6 +8988,20 @@ app.post('/api/public/campaign/:token/submit', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+
+// קבלת פרטי ליד בודד
+app.get('/api/zone-manager/leads/:id', verifyZoneManager, async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM zm_campaign_leads WHERE id=$1',
+            [req.params.id]);
+        if (!result.rows.length) return res.status(404).json({ error: 'ליד לא נמצא' });
+        const lead = result.rows[0];
+        if (typeof lead.data === 'string') lead.data = JSON.parse(lead.data);
+        res.json({ success: true, lead });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // --- LEAD CRM: עדכון סטטוס/נוטות ---
 app.put('/api/zone-manager/leads/:id', verifyZoneManager, async (req, res) => {
     try {
