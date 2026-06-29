@@ -4388,9 +4388,9 @@ function renderCommunityPromotions(promos) {
             <span class="text-[10px] text-slate-400 font-medium">${safeStr(p.business_name)} · ${safeStr(p.community_name)}</span>
             ${p.valid_until ? `<span class="text-[10px] text-orange-500 font-bold">⏰ עד ${new Date(p.valid_until).toLocaleDateString('he-IL')}</span>` : ''}
         </div>
+        ${p.promo_code ? `<div class="mt-3 flex items-center justify-between gap-2 bg-slate-900 rounded-xl px-3 py-2"><span class="text-[10px] text-slate-300 font-bold">קוד הנחה:</span><span class="font-mono font-black text-white tracking-widest text-sm">${safeStr(p.promo_code)}</span><button onclick="navigator.clipboard.writeText('${safeStr(p.promo_code)}').then(()=>showToast('success','הקוד הועתק!'))" class="text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-copy"></i></button></div><p class="text-[10px] text-slate-400 text-center mt-1">הזמינו בחנות העסק ← הכניסו קוד זה ← תקבלו הנחה ומטבעות FLOW!</p>` : ''}
         <div class="flex gap-2 mt-2">
-            <button onclick="redeemCommunityPromo(${p.id},this)" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold py-1.5 rounded-xl transition">✅ מימשתי את המבצע +3 ₣</button>
-            <button onclick="openWriteReviewModal(${p.business_id},'${safeStr(p.business_name)}')" class="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold py-1.5 px-3 rounded-xl transition">⭐ ביקורת</button>
+            <button onclick="openWriteReviewModal(${p.business_id},'${safeStr(p.business_name)}')" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold py-1.5 px-3 rounded-xl transition">⭐ כתוב ביקורת</button>
         </div>
     </div>`).join('');
 }
