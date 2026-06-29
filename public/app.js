@@ -3963,16 +3963,17 @@ let myInitiativesCache = [];
 let myCashbackCache = []; // [{community_id, community_name, balance, total_earned, is_community_manager}]
 
 function switchFamCommunityTab(tab) {
+    const BASE = 'w-full h-14 flex flex-col items-center justify-center gap-0.5 px-1 rounded-xl text-[10px] font-bold overflow-hidden transition';
     ['join', 'benefits', 'news', 'interests'].forEach(t => {
         const view = document.getElementById(`fam-comm-view-${t}`);
         const btn = document.getElementById(`btn-fam-comm-${t}`);
         if (view) view.classList.add('hidden');
-        if (btn) btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-1 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
+        if (btn) btn.className = `${BASE} bg-slate-100 text-slate-600 hover:bg-slate-200`;
     });
     const activeView = document.getElementById(`fam-comm-view-${tab}`);
     const activeBtn = document.getElementById(`btn-fam-comm-${tab}`);
     if (activeView) activeView.classList.remove('hidden');
-    if (activeBtn) activeBtn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-1 rounded-xl text-[10px] font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition';
+    if (activeBtn) activeBtn.className = `${BASE} bg-orange-500 text-white shadow-md shadow-orange-200`;
 }
 
 async function fetchCommunityData() {
@@ -4328,16 +4329,12 @@ async function loadCommunityFeed() {
         renderCommunityBanners(data.banners || []);
         renderCommunityPromotions(data.promotions || []);
         renderCommunityBundles(data.bundles || []);
-        // Show news tab badge if there's content
-        const newsBtn = getEl('btn-fam-comm-news');
-        if (newsBtn && (data.promotions?.length || data.bundles?.length)) {
-            const total = (data.promotions?.length || 0) + (data.bundles?.length || 0);
-            if (!newsBtn.querySelector('.feed-badge')) {
-                const badge = document.createElement('span');
-                badge.className = 'feed-badge bg-orange-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full';
-                badge.textContent = total;
-                newsBtn.appendChild(badge);
-            }
+        // Show news tab count badge if there's content
+        const total = (data.promotions?.length || 0) + (data.bundles?.length || 0);
+        const countBadge = getEl('comm-news-count-badge');
+        if (countBadge) {
+            if (total > 0) { countBadge.textContent = total; countBadge.classList.remove('hidden'); }
+            else { countBadge.classList.add('hidden'); }
         }
     } catch(e) {}
 }
@@ -4556,16 +4553,11 @@ async function loadFamilyFlowWallet() {
         // Daily login reward
         fetch(`${API}/flow/daily-login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id }) }).catch(() => {});
 
-        // Inject FLOW badge into news tab button
-        const newsBtn = getEl('btn-fam-comm-news');
-        if (newsBtn) {
-            let badge = newsBtn.querySelector('.flow-balance-chip');
-            if (!badge) {
-                badge = document.createElement('span');
-                badge.className = 'flow-balance-chip bg-amber-400 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full';
-                newsBtn.appendChild(badge);
-            }
-            badge.textContent = `₣${Math.floor(familyFlowBalance)}`;
+        // Update FLOW badge in news tab button
+        const flowBadge = getEl('comm-news-flow-badge');
+        if (flowBadge) {
+            flowBadge.textContent = `₣${Math.floor(familyFlowBalance)}`;
+            flowBadge.classList.remove('hidden');
         }
 
         // If wallet modal is open, refresh it
