@@ -33344,7 +33344,7 @@ async function renderCookDashboard(el) {
             ${rdBtn('pantry','','bg-red-50 rounded-2xl p-4 shadow-sm border border-red-100 flex items-center gap-3','<span class="text-2xl">📦</span><div class="text-right"><div class="text-xs font-black text-red-800">מלאי מטבח</div><div class="text-[10px] text-red-500">כל הפריטים</div></div>')}
             ${rdBtn('foodcost','','bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3','<span class="text-2xl">🍽️</span><div class="text-right"><div class="text-xs font-black text-orange-800">תמחור מנות</div><div class="text-[10px] text-orange-500">עלות מנה</div></div>')}
         </div>
-        ${roleFullMenuBtn()}`;
+        ${rdBtn('', 'waiter-pos', 'w-full py-3 text-xs text-slate-400 font-bold hover:text-slate-600 transition mt-2', '<i class="fa-solid fa-book-open ml-1"></i> לתפריט המלא')}`;
 }
 
 // Helper: quick task complete from role dashboard
