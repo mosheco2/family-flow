@@ -8899,7 +8899,7 @@ app.get('/api/zone-manager/community-detail/:id', verifyZoneManager, async (req,
 
         // משפחות
         const families = await pool.query(
-            `SELECT fc.group_id, fg.name, fg.admin_email, fg.phone, fc.is_community_manager, fc.created_at
+            `SELECT fc.group_id, fg.name, fg.admin_email, fc.is_community_manager, fc.created_at
              FROM family_communities fc JOIN family_groups fg ON fg.id=fc.group_id
              WHERE fc.community_id=$1 ORDER BY fc.is_community_manager DESC, fg.name`, [commId]);
 
