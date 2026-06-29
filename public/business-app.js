@@ -15248,38 +15248,56 @@ async function renderBizFlowWidget() {
         const roleDash = document.getElementById('content-role-dashboard');
         const stdWidget = document.getElementById('flow-balance-widget');
 
+        // פונקציה משותפת: עוטפת באנר ראשי עם קובייה ב-2/3+1/3
+        function wrapBannerWithMini(banner) {
+            if (!banner) return;
+            const existing = banner.parentElement?.classList?.contains('flow-header-wrap');
+            if (existing) {
+                const mini = banner.parentElement.querySelector('.flow-mini-widget');
+                if (mini) mini.innerHTML = miniHtml;
+                return;
+            }
+            if (banner.dataset.flowWrapped) {
+                const mini = banner.parentElement?.querySelector('.flow-mini-widget');
+                if (mini) mini.innerHTML = miniHtml;
+                return;
+            }
+            const wrap = document.createElement('div');
+            wrap.className = 'flow-header-wrap';
+            wrap.style.cssText = 'display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:16px;';
+            banner.dataset.flowWrapped = '1';
+            const savedMargin = banner.style.marginBottom;
+            banner.style.marginBottom = '0';
+            banner.style.marginTop = '0';
+            const miniCol = document.createElement('div');
+            miniCol.className = 'flow-mini-widget';
+            miniCol.innerHTML = miniHtml;
+            banner.after(wrap);
+            wrap.appendChild(banner);
+            wrap.appendChild(miniCol);
+            if (stdWidget) stdWidget.classList.add('hidden');
+        }
+
         if (roleDash && !roleDash.classList.contains('hidden')) {
-            // מצא את הבאנר הראשי (roleDashboardHeader) ועטוף אותו עם הקובייה ב-2/3 + 1/3
+            // תצוגת תפקיד — עטוף את ה-div הראשון (roleDashboardHeader)
             const existingWrap = roleDash.querySelector('.flow-header-wrap');
             if (existingWrap) {
-                // עדכן רק את הקובייה
                 const mini = existingWrap.querySelector('.flow-mini-widget');
                 if (mini) mini.innerHTML = miniHtml;
             } else {
-                // מצא את הבאנר הראשי — ה-div הראשון של roleDashboardHeader
-                const firstDiv = roleDash.querySelector('div');
-                if (firstDiv) {
-                    const wrap = document.createElement('div');
-                    wrap.className = 'flow-header-wrap';
-                    wrap.style.cssText = 'display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:16px;margin-top:12px;';
-                    // שכפל את הבאנר הראשי ל-2/3
-                    const headerClone = firstDiv.cloneNode(true);
-                    headerClone.style.margin = '0';
-                    // הסר margin-bottom/mt מהבאנר המקורי כי הWrapper מטפל בזה
-                    headerClone.style.marginBottom = '0';
-                    headerClone.style.marginTop = '0';
-                    const miniCol = document.createElement('div');
-                    miniCol.className = 'flow-mini-widget';
-                    miniCol.innerHTML = miniHtml;
-                    wrap.appendChild(headerClone);
-                    wrap.appendChild(miniCol);
-                    firstDiv.replaceWith(wrap);
-                }
+                const firstDiv = roleDash.querySelector(':scope > div');
+                wrapBannerWithMini(firstDiv);
             }
             if (stdWidget) stdWidget.classList.add('hidden');
-        } else if (stdWidget) {
-            stdWidget.classList.remove('hidden');
-            stdWidget.innerHTML = fullHtml;
+        } else {
+            // דשבורד רגיל — עטוף את #tour-balance-card
+            const tourCard = document.getElementById('tour-balance-card');
+            if (tourCard) {
+                wrapBannerWithMini(tourCard);
+            } else if (stdWidget) {
+                stdWidget.classList.remove('hidden');
+                stdWidget.innerHTML = fullHtml;
+            }
         }
     } catch(e) {
         const w = document.getElementById('flow-balance-widget');
