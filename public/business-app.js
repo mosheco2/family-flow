@@ -14279,7 +14279,8 @@ async function submitGlobalAI() {
             : undefined,
         service_calls_open: currentGroup?.business_type==='maintenance_repair'
             ? (window._serviceCallsCache||[]).filter(c=>!['done','cancelled'].includes(c.status)).slice(0,20).map(c=>({id:c.id,title:c.title,customer:c.customer_name||c.family_name,status:c.status,priority:c.priority,scheduled:c.scheduled_at,parts_status:c.parts_status}))
-            : undefined
+            : undefined,
+        my_communities: (window.myCommunityBusinessesCache||[]).filter(c=>c.status==='approved').map(c=>({id:c.id,name:c.name,type:c.type,cashback_percent:c.cashback_percent,members_count:c.members_count}))
     };
 
     try {

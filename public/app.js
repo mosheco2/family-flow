@@ -7709,7 +7709,9 @@ window.sendFamilaiChatMessage = async function() {
             pantry: pantryCache.map(p => ({item: p.item_name, qty: p.quantity, unit: p.unit, updated: p.updated_at})),
             shopping_list: shoppingListCache.map(s => ({item: s.item_name, qty: s.quantity, status: s.status})),
             tasks: allTasks.filter(t => t.status !== 'approved').map(t => ({title: t.title, assigned_to: t.assignee_name, reward: t.reward, status: t.status})),
-            recent_transactions: allTransactions.slice(0, 40).map(tx => ({desc: tx.description, amount: tx.amount, type: tx.type, date: tx.date}))
+            recent_transactions: allTransactions.slice(0, 40).map(tx => ({desc: tx.description, amount: tx.amount, type: tx.type, date: tx.date})),
+            my_communities: (myConnectedCommunitiesCache||[]).map(c => ({id: c.id, name: c.name, type: c.type})),
+            flow_balance: familyFlowBalance
         };
         
         const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
@@ -7727,6 +7729,9 @@ window.sendFamilaiChatMessage = async function() {
         const data = await res.json();
         
         if (data.success) {
+            if (data.action_type === 'OPEN_TAB' && data.action_data?.tab) {
+                switchTab(data.action_data.tab);
+            }
             let formattedAns = data.answer;
             formattedAns = formattedAns.replace(/\*\*(.*?)\*\*/g, '<strong class="text-purple-700">$1</strong>');
             formattedAns = formattedAns.replace(/\n/g, '<br>');
