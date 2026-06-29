@@ -4755,7 +4755,7 @@ window.renderDashboard = async function(forceRefresh = false) {
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             window._roleDashInterval = setInterval(() => {
                 const el = document.getElementById('content-role-dashboard');
-                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'beauty') renderBeautyAdminDashboard(el);
+                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'beauty') { renderBeautyAdminDashboard(el); renderBizFlowWidget().catch(()=>{}); }
                 else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             }, 30000);
         }
@@ -4783,7 +4783,7 @@ window.renderDashboard = async function(forceRefresh = false) {
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             window._roleDashInterval = setInterval(() => {
                 const el = document.getElementById('content-role-dashboard');
-                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'logistics') renderLogisticsAdminDashboard(el);
+                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'logistics') { renderLogisticsAdminDashboard(el); renderBizFlowWidget().catch(()=>{}); }
                 else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             }, 30000);
         }
@@ -4840,7 +4840,7 @@ window.renderDashboard = async function(forceRefresh = false) {
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             window._roleDashInterval = setInterval(() => {
                 const el = document.getElementById('content-role-dashboard');
-                if (el && !el.classList.contains('hidden')) renderBranchManagerMaintenanceDashboard(el);
+                if (el && !el.classList.contains('hidden')) { renderBranchManagerMaintenanceDashboard(el); renderBizFlowWidget().catch(()=>{}); }
                 else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             }, 20000);
         }
@@ -4866,7 +4866,7 @@ window.renderDashboard = async function(forceRefresh = false) {
             if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             window._roleDashInterval = setInterval(() => {
                 const el = document.getElementById('content-role-dashboard');
-                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'professional') renderProfessionalDashboard(el);
+                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'professional') { renderProfessionalDashboard(el); renderBizFlowWidget().catch(()=>{}); }
                 else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             }, 60000);
         }
@@ -15243,7 +15243,7 @@ async function renderBizFlowWidget() {
             }
             const wrap = document.createElement('div');
             wrap.className = 'flow-header-wrap';
-            wrap.style.cssText = `display:grid;grid-template-columns:2fr 1fr;gap:10px;align-items:start;margin-bottom:16px;margin-top:${topMargin||0}px;`;
+            wrap.style.cssText = `display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:16px;margin-top:${topMargin||0}px;`;
             const miniCol = document.createElement('div');
             miniCol.className = 'flow-mini-widget';
             miniCol.innerHTML = makeMiniHtml(null);
@@ -15258,7 +15258,10 @@ async function renderBizFlowWidget() {
 
         let miniEl = null;
         if (roleDash && !roleDash.classList.contains('hidden')) {
-            miniEl = ensureGridWrap(roleDash, 12);
+            // עוטף רק את כותרת הראש (ילד ראשון) — לא את כל roleDash
+            // כך הסטטיסטיקות/כפתורים ממשיכים ברוחב מלא
+            const headerEl = roleDash.querySelector(':scope > div');
+            miniEl = ensureGridWrap(headerEl, 12);
             if (stdWidget) stdWidget.classList.add('hidden');
         } else {
             const tourCard = document.getElementById('tour-balance-card');
