@@ -15181,6 +15181,32 @@ window.requestBannerForPromo = async function(promoId) {
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 };
 
+// ─── FLOW CONFETTI (BIZ) ─────────────────────────────────────
+function launchFlowConfetti() {
+    const colors = ['#f59e0b','#fbbf24','#fcd34d','#10b981','#6366f1','#ec4899','#3b82f6','#f97316'];
+    if (!document.getElementById('flow-confetti-kf')) {
+        const s = document.createElement('style');
+        s.id = 'flow-confetti-kf';
+        s.textContent = '@keyframes _fcFall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(105vh) rotate(720deg);opacity:0}}';
+        document.head.appendChild(s);
+    }
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:999999;overflow:hidden;';
+    document.body.appendChild(wrap);
+    for (let i = 0; i < 90; i++) {
+        const el = document.createElement('div');
+        const sz = (Math.random() * 8 + 5).toFixed(1);
+        const left = (Math.random() * 100).toFixed(1);
+        const delay = (Math.random() * 0.6).toFixed(2);
+        const dur = (Math.random() * 1.5 + 1.8).toFixed(2);
+        const rot = Math.floor(Math.random() * 360);
+        const br = Math.random() > 0.5 ? '50%' : '2px';
+        el.style.cssText = `position:absolute;width:${sz}px;height:${sz}px;background:${colors[i%colors.length]};border-radius:${br};left:${left}%;top:0;animation:_fcFall ${dur}s ${delay}s ease-in forwards;transform:rotate(${rot}deg);`;
+        wrap.appendChild(el);
+    }
+    setTimeout(() => wrap.remove(), 3800);
+}
+
 // ─── FLOW WALLET (BUSINESS) ──────────────────────────────────
 
 window.openBizFlowWallet = async function() {
@@ -15244,6 +15270,7 @@ window.bizVerifyFlowCode = async function() {
         const res = await fetch(`${API}/flow/redemptions/${code}/use`, { method: 'POST' });
         const data = await res.json();
         if (data.success) {
+            launchFlowConfetti();
             result.innerHTML = `<div class="bg-green-50 border border-green-200 rounded-xl p-3 text-center"><div class="text-green-700 font-black text-sm">✅ קוד תקין — הנחה ₪${data.discountIls}</div><div class="text-xs text-green-600 mt-0.5">הקוד סומן כמומש</div></div>`;
         } else {
             result.innerHTML = `<div class="bg-red-50 border border-red-200 rounded-xl p-3 text-center text-red-600 text-xs font-bold">❌ ${safeStr(data.error || 'קוד לא תקין')}</div>`;
