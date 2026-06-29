@@ -4594,6 +4594,30 @@ app.post('/api/family/chat-assistant', async (req, res) => {
             generationConfig: { responseMimeType: "application/json" } 
         });
         
+        // זיהוי שאלות FLOW — הזרקת הקשר ממוקד ישירות לפני השאלה
+        const isFlowQuestion = /מטבע|flow|₣|פלו|coin|קוין|נקוד|reward.*קהיל|קהיל.*reward/i.test(query);
+        const flowInjection = isFlowQuestion ? `
+
+╔══════════════════════════════════════════════════════════════════╗
+║  🚨 SERVER DETECTED: THIS IS A ₣ FLOW QUESTION 🚨              ║
+║                                                                  ║
+║  MANDATORY ANSWER — use EXACTLY this information:               ║
+║  ₣ FLOW מטבעות are earned ONLY through "קהילה" community tab:  ║
+║  • מימוש מבצע קהילתי = +3₣                                     ║
+║  • רכישת חבילה קהילתית = +18₣                                  ║
+║  • ביקורת חיובית (4-5⭐) על עסק = +7₣                         ║
+║  • הפניית משפחה לקהילה (קוד) = +35₣                           ║
+║  • הצטרפות לקהילה חדשה = בונוס קטן                            ║
+║  • כניסה יומית (אוטומטי) = בונוס קטן                          ║
+║                                                                  ║
+║  ❌ DO NOT mention: tasks, chores, missions, homework            ║
+║  ❌ DO NOT say: "השלמת משימות" earns ₣ — THIS IS WRONG         ║
+║  ✅ Tasks give ₪ shekels (bank tab). NOT ₣ FLOW.               ║
+║  ✅ To see ₣ balance: community tab → "ארנק FLOW ⚡"            ║
+║  ✅ Redeem ₣: minimum 100₣ → FL... code → show to business      ║
+╚══════════════════════════════════════════════════════════════════╝
+` : '';
+
         const prompt = `You are 'FamilAI', the highly intelligent, warm, and proactive AI assistant for a family using the 'Oneflow Life' family management app.
 You can deeply analyze family data, provide forecasts AND execute actions on behalf of the user.
 
@@ -4678,7 +4702,7 @@ interests (🔍 עניין):
 
 === LIVE FAMILY DATA ===
 ${context}
-
+${flowInjection}
 === USER REQUEST ===
 "${query}"
 
