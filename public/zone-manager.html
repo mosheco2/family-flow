@@ -596,7 +596,6 @@
 <!-- Community Detail Modal -->
 <div id="zm-comm-detail-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9993] flex items-center justify-center p-4 hidden">
     <div class="card w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <!-- Header -->
         <div class="flex justify-between items-start p-5 border-b border-slate-100">
             <button onclick="document.getElementById('zm-comm-detail-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 mt-1"><i class="fa-solid fa-xmark text-lg"></i></button>
             <div class="text-right">
@@ -604,18 +603,13 @@
                 <p class="text-xs text-slate-500 mt-0.5" id="zm-cd-meta"></p>
             </div>
         </div>
-        <!-- Tabs -->
         <div class="flex gap-1 px-4 pt-3 border-b border-slate-100">
-            <button onclick="switchCDTab('families')" id="zm-cdtab-families" class="zm-cdtab active text-xs font-bold px-3 py-1.5 rounded-t-lg border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50">👨‍👩‍👧 משפחות</button>
-            <button onclick="switchCDTab('businesses')" id="zm-cdtab-businesses" class="zm-cdtab text-xs font-bold px-3 py-1.5 rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700">🏪 עסקים</button>
-            <button onclick="switchCDTab('promos')" id="zm-cdtab-promos" class="zm-cdtab text-xs font-bold px-3 py-1.5 rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700">📢 מבצעים</button>
-            <button onclick="switchCDTab('flow')" id="zm-cdtab-flow" class="zm-cdtab text-xs font-bold px-3 py-1.5 rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700">⚡ FLOW</button>
+            <button onclick="switchCDTab('families')" id="zm-cdtab-families" class="text-xs font-bold px-3 py-1.5 rounded-t-lg border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50">👨‍👩‍👧 משפחות</button>
+            <button onclick="switchCDTab('businesses')" id="zm-cdtab-businesses" class="text-xs font-bold px-3 py-1.5 rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700">🏪 עסקים</button>
+            <button onclick="switchCDTab('promos')" id="zm-cdtab-promos" class="text-xs font-bold px-3 py-1.5 rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700">📢 מבצעים</button>
+            <button onclick="switchCDTab('flow')" id="zm-cdtab-flow" class="text-xs font-bold px-3 py-1.5 rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700">⚡ FLOW</button>
         </div>
-        <!-- Body -->
-        <div class="overflow-y-auto flex-1 p-5 space-y-3" id="zm-cd-body">
-            <div class="text-center text-slate-400 py-8"><i class="fa-solid fa-spinner fa-spin mr-2"></i>טוען...</div>
-        </div>
-        <!-- Footer stats -->
+        <div class="overflow-y-auto flex-1 p-5 space-y-3" id="zm-cd-body"></div>
         <div class="flex gap-3 px-5 py-3 bg-slate-50 border-t border-slate-100 rounded-b-2xl">
             <div class="text-center flex-1"><div class="text-sm font-black text-indigo-600" id="zm-cd-stat-families">—</div><div class="text-[10px] text-slate-400 font-bold">משפחות</div></div>
             <div class="text-center flex-1"><div class="text-sm font-black text-emerald-600" id="zm-cd-stat-businesses">—</div><div class="text-[10px] text-slate-400 font-bold">עסקים</div></div>
@@ -626,6 +620,6 @@
 </div>
 
 <div id="zm-toast" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 px-5 py-3 rounded-2xl text-white text-sm font-bold shadow-xl z-[9999]"></div>
-<script src="zone-manager-app.js?v=7"></script>
+<script src="zone-manager-app.js?v=8"></script>
 </body>
 </html>
