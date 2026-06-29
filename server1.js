@@ -4596,7 +4596,7 @@ app.post('/api/family/chat-assistant', async (req, res) => {
         
         // זיהוי שאלות FLOW — hardcoded bypass לשאלות ישירות על מטבעות
         const isFlowQuestion = /מטבע|flow|₣|פלו|coin|קוין|נקוד|reward.*קהיל|קהיל.*reward/i.test(query);
-        const isDirectFlowQuestion = /מה.*?(ה?מטבע|ה?flow|ה?פלו)|איך.*(צובר|מרוויח|קונה|מקבל|אוסף).*(מטבע|flow|₣|פלו|coin)|מה\s*ז[הן].*(מטבע|flow|פלו)|כמה.*(מטבע|₣)|מטבעות.*מה|מה.*מטבעות/i.test(query.trim());
+        const isDirectFlowQuestion = /מטבע|flow|₣|פלו|coin|קוין/i.test(query.trim());
         if (isDirectFlowQuestion) {
             return res.json({
                 success: true,
