@@ -7083,9 +7083,16 @@ app.get('/api/biz/communities/via-biz/:bizCode/:myBizId', async (req, res) => {
 app.post('/api/biz/communities/join', async (req, res) => {
     try {
         const { communityId, businessId, discountPct } = req.body;
+        const zoneRes = await pool.query(`
+            SELECT zm.id FROM communities c
+            JOIN manager_zones mz ON c.zone_id = mz.id
+            JOIN zone_managers zm ON mz.manager_id = zm.id AND zm.status = 'active'
+            WHERE c.id = $1 LIMIT 1
+        `, [communityId]);
+        const status = zoneRes.rows.length > 0 ? 'zm_pending' : 'pending';
         await pool.query(
-            'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4', 
-            [communityId, businessId, parseFloat(discountPct)||0, 'pending']
+            'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4',
+            [communityId, businessId, parseFloat(discountPct)||0, status]
         );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -7744,7 +7751,7 @@ app.post('/api/sa/community-business/approve-direct', async (req, res) => {
 app.get('/api/sa/communities/pending-families', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT fc.group_id, fc.community_id, fg.name as family_name, c.name as comm_name, fc.joined_at
+            SELECT fc.group_id, fc.community_id, COALESCE(NULLIF(fg.family_nickname,''), fg.name) as family_name, c.name as comm_name, fc.joined_at
             FROM family_communities fc
             JOIN family_groups fg ON fc.group_id = fg.id
             JOIN communities c ON fc.community_id = c.id
@@ -8593,7 +8600,7 @@ app.get('/api/zone-manager/pending-families', verifyZoneManager, async (req, res
     try {
         const { managerId } = req.zmSession;
         const result = await pool.query(`
-            SELECT fc.group_id, fc.community_id, fg.name as family_name, c.name as comm_name, fc.joined_at
+            SELECT fc.group_id, fc.community_id, COALESCE(NULLIF(fg.family_nickname,''), fg.name) as family_name, c.name as comm_name, fc.joined_at
             FROM family_communities fc
             JOIN family_groups fg ON fc.group_id = fg.id
             JOIN communities c ON fc.community_id = c.id
@@ -8916,7 +8923,7 @@ app.get('/api/zone-manager/community-detail/:id', verifyZoneManager, async (req,
         // משפחות (approved + pending)
         const families = await pool.query(
             `SELECT fc.group_id, fc.status, fc.is_community_manager,
-                    fg.id, fg.name, fg.admin_email, fg.group_code
+                    fg.id, COALESCE(NULLIF(fg.family_nickname,''), fg.name) as name, fg.admin_email, fg.group_code
              FROM family_communities fc JOIN family_groups fg ON fg.id=fc.group_id
              WHERE fc.community_id=$1 ORDER BY fc.status DESC, fc.is_community_manager DESC, fg.name`, [commId]);
 
