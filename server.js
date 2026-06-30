@@ -8189,11 +8189,13 @@ app.get('/api/community/family-feed/:groupId', async (req, res) => {
 
         // Active promotions
         const promos = await pool.query(
-            `SELECT cp.id, cp.title, cp.content, cp.discount_pct, cp.valid_until, cp.created_at,
-             fg.name as business_name, c.name as community_name
+            `SELECT cp.id, cp.title, cp.content, cp.discount_pct, cp.valid_until, cp.created_at, cp.promo_code,
+             fg.name as business_name, fg.name as biz_name, fg.group_code as biz_code, c.name as community_name, c.name as comm_name, c.id as community_id,
+             ss.phone as biz_phone
              FROM community_promotions cp
              JOIN family_groups fg ON fg.id=cp.business_id
              JOIN communities c ON c.id=cp.community_id
+             LEFT JOIN store_settings ss ON ss.group_id = fg.id
              WHERE cp.community_id=ANY($1) AND cp.status='approved'
              AND (cp.valid_until IS NULL OR cp.valid_until >= CURRENT_DATE)
              ORDER BY cp.created_at DESC LIMIT 20`, [commIds]);
@@ -18938,8 +18940,11 @@ app.get('/api/community/pool/:id/bids', async (req, res) => {
         const isManager = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND is_community_manager=TRUE`, [viewerId, fp.community_id]);
         if (!isInitiator && !isManager.rows.length) return res.status(403).json({ error: 'אין הרשאה לצפות בהצעות' });
         const bids = await pool.query(`
-            SELECT fpb.*, fg.name as business_name
-            FROM flow_pool_bids fpb JOIN family_groups fg ON fg.id=fpb.business_group_id
+            SELECT fpb.*, fg.name as business_name, fg.group_code as biz_code,
+                   ss.phone as biz_phone
+            FROM flow_pool_bids fpb
+            JOIN family_groups fg ON fg.id=fpb.business_group_id
+            LEFT JOIN store_settings ss ON ss.group_id=fg.id
             WHERE fpb.pool_id=$1 ORDER BY fpb.price ASC`, [req.params.id]);
         res.json({ success: true, bids: bids.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }

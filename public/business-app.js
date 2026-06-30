@@ -14986,7 +14986,7 @@ function openBizBidModal(poolId, title, maxPrice) {
         m.id = 'modal-biz-bid';
         m.className = 'fixed inset-0 bg-black/60 z-50 flex items-end justify-center';
         m.onclick = function(e) { if (e.target === m) closeBizBidModal(); };
-        m.innerHTML = `<div class="bg-white rounded-t-3xl w-full max-w-lg p-6 pb-10">
+        m.innerHTML = `<div class="bg-white rounded-t-3xl w-full max-w-lg p-6 pb-10 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="font-black text-slate-800 text-lg">💼 הגש הצעת מחיר</h3>
                 <button onclick="closeBizBidModal()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
@@ -14996,12 +14996,25 @@ function openBizBidModal(poolId, title, maxPrice) {
                 <div>
                     <label class="text-xs font-bold text-slate-600 mb-1 block">מחיר מוצע (₪) *</label>
                     <input id="biz-bid-price-input" type="number" min="1" class="modern-input py-2 text-sm w-full" placeholder="הכנס מחיר">
+                    <p id="biz-bid-maxprice-note" class="text-[11px] text-slate-400 mt-1"></p>
                 </div>
-                <div>
-                    <label class="text-xs font-bold text-slate-600 mb-1 block">תיאור ההצעה *</label>
-                    <textarea id="biz-bid-desc-input" rows="3" class="modern-input py-2 text-sm w-full resize-none" placeholder="פרט את השירות שאתה מציע, מה כלול, לוח זמנים..."></textarea>
+                <div class="border border-slate-200 rounded-xl p-3 bg-slate-50">
+                    <p class="text-xs font-black text-slate-700 mb-2">📋 הצעה מסודרת</p>
+                    <div class="space-y-2">
+                        <div>
+                            <label class="text-[11px] font-bold text-slate-500 mb-1 block">מה כולל השירות *</label>
+                            <textarea id="biz-bid-includes-input" rows="2" class="modern-input py-2 text-sm w-full resize-none" placeholder="פרט מה בדיוק כולל השירות..."></textarea>
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-bold text-slate-500 mb-1 block">לוח זמנים</label>
+                            <input id="biz-bid-timeline-input" type="text" class="modern-input py-2 text-sm w-full" placeholder="לדוגמה: תוך 3 ימי עסקים, שבוע...">
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-bold text-slate-500 mb-1 block">תנאים והערות</label>
+                            <textarea id="biz-bid-terms-input" rows="2" class="modern-input py-2 text-sm w-full resize-none" placeholder="תנאי תשלום, הגבלות, הערות נוספות..."></textarea>
+                        </div>
+                    </div>
                 </div>
-                <p id="biz-bid-maxprice-note" class="text-[11px] text-slate-400"></p>
             </div>
             <div class="mt-5 flex gap-3">
                 <button onclick="closeBizBidModal()" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 transition">ביטול</button>
@@ -15018,8 +15031,7 @@ function openBizBidModal(poolId, title, maxPrice) {
     if (note) note.textContent = maxPrice > 0 ? `* המחיר המקסימלי בפול: ₪${Number(maxPrice).toLocaleString()}` : '';
     const priceInput = document.getElementById('biz-bid-price-input');
     if (priceInput) priceInput.value = '';
-    const descInput = document.getElementById('biz-bid-desc-input');
-    if (descInput) descInput.value = '';
+    ['biz-bid-includes-input','biz-bid-timeline-input','biz-bid-terms-input'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
 }
 function closeBizBidModal() {
     const m = document.getElementById('modal-biz-bid');
@@ -15028,10 +15040,16 @@ function closeBizBidModal() {
 
 async function submitBizPoolBid() {
     const price = parseFloat(document.getElementById('biz-bid-price-input').value);
-    const description = document.getElementById('biz-bid-desc-input').value.trim();
+    const includes = (document.getElementById('biz-bid-includes-input')?.value || '').trim();
+    const timeline = (document.getElementById('biz-bid-timeline-input')?.value || '').trim();
+    const terms = (document.getElementById('biz-bid-terms-input')?.value || '').trim();
     if (!price || price <= 0) { showToast('הכנס מחיר תקף', 'error'); return; }
-    if (!description) { showToast('נדרש תיאור להצעה', 'error'); return; }
+    if (!includes) { showToast('נדרש לפרט מה כולל השירות', 'error'); return; }
     if (!_bizBidTargetPoolId) return;
+    const parts = [`📦 מה כולל: ${includes}`];
+    if (timeline) parts.push(`⏱ לוח זמנים: ${timeline}`);
+    if (terms) parts.push(`📌 תנאים: ${terms}`);
+    const description = parts.join('\n');
     try {
         const res = await fetch(`${API}/community/pool/${_bizBidTargetPoolId}/bid`, { method: 'POST', headers: { ...{ Authorization: `Bearer ${currentUser?.token}` }, 'Content-Type': 'application/json' }, body: JSON.stringify({ price, description, businessGroupId: currentGroup.id }) });
         const data = await res.json();

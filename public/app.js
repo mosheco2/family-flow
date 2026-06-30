@@ -4132,17 +4132,23 @@ async function openFamPoolDetail(poolId) {
             bidsHtml = `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
                 <h4 class="text-xs font-bold text-amber-800 mb-2">📋 הצעות עסקים (${bids.length})</h4>
                 <div class="space-y-2">
-                    ${bids.map(b => `<div class="bg-white rounded-lg p-2 border border-amber-100 text-xs">
-                        <div class="flex justify-between items-center mb-1">
-                            <div class="flex items-center gap-1">
-                                <span class="font-bold text-slate-700">₪${Number(b.price).toLocaleString()}</span>
-                                ${b.status === 'pending' && p.status !== 'closed' ? `<button onclick="selectPoolBid(${p.id},${b.id})" class="text-[10px] bg-green-500 text-white px-2 py-0.5 rounded-full font-bold hover:bg-green-600 transition">בחר ✓</button>` : `<span class="text-[10px] font-bold ${b.status==='accepted'?'text-green-600':'text-slate-400'}">${b.status==='accepted'?'✅ נבחר':''}</span>`}
+                    ${bids.map(b => {
+                        const storeLink = b.biz_code ? `<a href="/storefront.html?store=${safeStr(b.biz_code)}&communityId=${p.community_id}" target="_blank" class="text-blue-600 underline text-[10px]">🛒 חנות</a>` : '';
+                        const phoneLink = b.biz_phone ? `<a href="tel:${safeStr(b.biz_phone)}" class="text-green-600 text-[10px]">📞 ${safeStr(b.biz_phone)}</a>` : '';
+                        return `<div class="bg-white rounded-lg p-2 border border-amber-100 text-xs">
+                        <div class="flex justify-between items-start mb-1">
+                            <div>
+                                <span class="font-bold text-slate-800 text-[12px]">🏪 ${safeStr(b.business_name || b.biz_name || '')}</span>
+                                ${b.is_guest ? '<span class="text-purple-600 text-[10px] mr-1">👤 אורח</span>' : ''}
+                                <div class="flex gap-2 mt-0.5">${storeLink}${phoneLink}</div>
                             </div>
-                            <span class="font-bold text-slate-800 text-[11px]">${safeStr(b.biz_name || b.business_name || '')}</span>
+                            <div class="text-left">
+                                <span class="font-black text-blue-700 text-[13px]">₪${Number(b.price).toLocaleString()}</span><br>
+                                ${b.status === 'pending' && p.status !== 'closed' ? `<button onclick="selectPoolBid(${p.id},${b.id})" class="text-[10px] bg-green-500 text-white px-2 py-0.5 rounded-full font-bold hover:bg-green-600 transition mt-0.5">בחר ✓</button>` : `<span class="text-[10px] font-bold ${b.status==='accepted'?'text-green-600':'text-slate-400'}">${b.status==='accepted'?'✅ נבחר':''}</span>`}
+                            </div>
                         </div>
-                        <p class="text-slate-500 text-[11px]">${safeStr(b.description)}</p>
-                        ${b.is_guest ? '<span class="text-purple-600 text-[10px]">👤 אורח (סיבוב 2)</span>' : ''}
-                    </div>`).join('')}
+                        ${b.description ? `<p class="text-slate-600 text-[11px] border-t border-slate-50 pt-1 mt-1 whitespace-pre-wrap">${safeStr(b.description)}</p>` : ''}
+                    </div>`;}).join('')}
                 </div>
                 ${p.status === 'open_r1' ? `<button onclick="openFamPoolRound2(${p.id})" class="mt-2 w-full py-1.5 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition">פתח סיבוב 2 לעסקים חיצוניים</button>` : ''}
             </div>`;
