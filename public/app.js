@@ -4654,7 +4654,10 @@ async function loadCommunityFeed() {
     if (!currentGroup || currentGroup.type !== 'FAMILY') return;
     try {
         const res = await fetch(`${API}/community/family-feed/${currentGroup.id}`);
-        if (!res.ok) return;
+        if (!res.ok) {
+            renderCommunityPromotions([]);
+            return;
+        }
         const data = await res.json();
         renderCommunityBanners(data.banners || []);
         renderCommunityPromotions(data.promotions || []);
@@ -4666,7 +4669,7 @@ async function loadCommunityFeed() {
             if (total > 0) { countBadge.textContent = total; countBadge.classList.remove('hidden'); }
             else { countBadge.classList.add('hidden'); }
         }
-    } catch(e) {}
+    } catch(e) { console.error('loadCommunityFeed error:', e); renderCommunityPromotions([]); }
 }
 
 function renderCommunityBanners(banners) {

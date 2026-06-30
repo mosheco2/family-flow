@@ -8229,7 +8229,7 @@ app.get('/api/community/family-feed/:groupId', async (req, res) => {
         } catch(_) {}
 
         res.json({ promotions: promos.rows, bundles: bundles.rows, banners: banners.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { console.error('family-feed error:', e.message); res.status(500).json({ error: e.message }); }
 });
 
 // Family: refer a business to their community
