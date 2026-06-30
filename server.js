@@ -8184,8 +8184,8 @@ app.post('/api/community/family-refer', async (req, res) => {
 app.post('/api/community/join', async (req, res) => {
     try {
         const { groupId, code, referralCode } = req.body;
-        const commRes = await pool.query("SELECT id, name FROM communities WHERE code = $1 AND status = 'active'", [code.toUpperCase().trim()]);
-        if(commRes.rows.length === 0) return res.status(404).json({error: 'קוד קהילה שגוי או שהקהילה טרם הופעלה על ידי היזם.'});
+        const commRes = await pool.query("SELECT id, name, status FROM communities WHERE code = $1 AND status IN ('active','pending')", [code.toUpperCase().trim()]);
+        if(commRes.rows.length === 0) return res.status(404).json({error: 'קוד קהילה שגוי או שהקהילה אינה קיימת.'});
 
         const commId = commRes.rows[0].id;
 
