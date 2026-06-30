@@ -7052,10 +7052,11 @@ app.get('/api/biz/communities/available/:bizId', async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT c.id, c.name, c.city, c.image_url,
-            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type = 'FAMILY') as families_count,
-            (SELECT COUNT(u.id) FROM users u JOIN family_groups f ON u.group_id = f.id WHERE f.community_id = c.id AND f.type = 'FAMILY') as users_count
+            (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id AND status = 'approved') as families_count,
+            (SELECT COUNT(u.id) FROM users u JOIN family_communities fc ON u.group_id = fc.group_id WHERE fc.community_id = c.id AND fc.status = 'approved') as users_count
             FROM communities c
-            WHERE c.id NOT IN (SELECT community_id FROM community_businesses WHERE business_id = $1)
+            WHERE c.status = 'active'
+            AND c.id NOT IN (SELECT community_id FROM community_businesses WHERE business_id = $1)
         `, [req.params.bizId]);
         res.json({ success: true, communities: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
