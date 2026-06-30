@@ -9579,6 +9579,17 @@ app.get('/api/community/manager-data/:groupId', async (req, res) => {
     } catch(e) { console.error('[Community migration]', e.message); }
 })();
 
+// Count families that joined via my referral code
+app.get('/api/community/my-referral-stats/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE status='approved') as approved
+             FROM family_communities WHERE referred_by_group_id=$1`,
+            [req.params.groupId]);
+        res.json({ total: parseInt(r.rows[0].total), approved: parseInt(r.rows[0].approved) });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // Get my referral code
 app.get('/api/community/my-referral-code/:groupId', async (req, res) => {
     try {

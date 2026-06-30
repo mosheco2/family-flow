@@ -5308,14 +5308,25 @@ let _selectedCommName = null;
 async function loadMyReferralCode() {
     if (!currentGroup || currentGroup.type !== 'FAMILY') return;
     try {
-        const res = await fetch(`${API}/community/my-referral-code/${currentGroup.id}`);
-        if (!res.ok) return;
-        const data = await res.json();
+        const [codeRes, statsRes] = await Promise.all([
+            fetch(`${API}/community/my-referral-code/${currentGroup.id}`),
+            fetch(`${API}/community/my-referral-stats/${currentGroup.id}`)
+        ]);
+        if (!codeRes.ok) return;
+        const data = await codeRes.json();
         _myReferralCode = data.code;
-        const display = getEl('my-referral-code-display');
         const card = getEl('my-referral-code-card');
-        if (display) display.textContent = data.code;
         if (card) card.classList.remove('hidden');
+        // ספירת הפניות
+        if (statsRes.ok) {
+            const stats = await statsRes.json();
+            const countEl = getEl('my-referrals-count-display');
+            if (countEl) {
+                countEl.textContent = stats.approved > 0
+                    ? `הפנית ${stats.approved} חבר${stats.approved > 1 ? 'ים' : ''} בהצלחה`
+                    : '';
+            }
+        }
         // אתחל עם הקהילה הראשונה אם קיימת
         const firstComm = (myConnectedCommunitiesCache || []).find(c => (c.status || 'approved') === 'approved');
         if (firstComm) selectCommunityForReferral(firstComm.id, firstComm.name, firstComm.code, true);
