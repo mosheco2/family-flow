@@ -15543,9 +15543,88 @@ window.showCommunityHelp = function(topic) {
 };
 
 // Inject community advanced toolbar into biz community page when loaded
+async function loadBizCommunityInvitations() {
+    if (!currentGroup) return;
+    try {
+        const res = await fetch(`${API}/biz/community-invitations/${currentGroup.id}`);
+        const data = await res.json();
+        if (!data.success || !data.invitations.length) { document.getElementById('biz-comm-invitations')?.remove(); return; }
+        let panel = document.getElementById('biz-comm-invitations');
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.id = 'biz-comm-invitations';
+            const anchor = document.getElementById('biz-my-communities-list');
+            if (anchor) anchor.parentElement?.insertBefore(panel, anchor);
+        }
+        panel.innerHTML = `
+        <div class="bg-teal-50 border border-teal-200 rounded-2xl p-4 mb-4">
+            <h4 class="font-bold text-teal-700 text-sm mb-3"><i class="fa-solid fa-envelope-open-text mr-1"></i> הזמנות מקהילות (${data.invitations.length})</h4>
+            ${data.invitations.map(inv => `
+            <div class="bg-white border border-teal-100 rounded-xl p-3 mb-2 flex justify-between items-center">
+                <div class="flex gap-2">
+                    <button onclick="openAcceptInviteModal(${inv.community_id},'${safeStr(inv.comm_name).replace(/'/g,"\\'")}')" class="bg-teal-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-teal-600">אשר + הגדר הנחה</button>
+                    <button onclick="declineBizInvite(${inv.community_id})" class="bg-red-50 text-red-500 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-100">דחה</button>
+                </div>
+                <div class="text-right">
+                    <p class="font-bold text-slate-800 text-sm">${safeStr(inv.comm_name)}</p>
+                    <p class="text-[10px] text-slate-400">${safeStr(inv.city || '')}</p>
+                </div>
+            </div>`).join('')}
+        </div>`;
+    } catch(e) {}
+}
+
+window.openAcceptInviteModal = function(commId, commName) {
+    const existing = document.getElementById('accept-invite-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'accept-invite-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl" dir="rtl">
+        <h3 class="font-bold text-slate-800 mb-1">✅ אישור הצטרפות</h3>
+        <p class="text-sm text-slate-500 mb-4">קהילת ${safeStr(commName)}</p>
+        <label class="text-xs font-bold text-slate-600 block mb-1">אחוז הנחה לחברי הקהילה:</label>
+        <input id="accept-invite-discount" type="number" min="0" max="100" placeholder="לדוגמה: 10" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-4 focus:ring-2 focus:ring-teal-300 outline-none">
+        <p class="text-[10px] text-slate-400 mb-4">לאחר האישור הבקשה תועבר למנהל הקהילה לאישור סופי.</p>
+        <div class="flex gap-2">
+            <button onclick="submitAcceptInvite(${commId})" class="flex-1 bg-teal-500 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-teal-600">שלח לאישור מנהל</button>
+            <button onclick="document.getElementById('accept-invite-modal').remove()" class="flex-1 bg-slate-100 text-slate-600 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-200">ביטול</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+};
+
+window.submitAcceptInvite = async function(commId) {
+    const discount = getEl('accept-invite-discount')?.value;
+    if (discount === '' || discount === undefined) return showToast('error', 'יש להזין אחוז הנחה (ניתן 0)');
+    try {
+        const res = await fetch(`${API}/biz/community-invitation/accept`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ businessId: currentGroup.id, communityId: commId, discountPct: parseFloat(discount)||0 })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'הבקשה נשלחה למנהל הקהילה לאישור!'); document.getElementById('accept-invite-modal')?.remove(); loadBizCommunityInvitations(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
+
+window.declineBizInvite = async function(commId) {
+    try {
+        const res = await fetch(`${API}/biz/community-invitation/decline`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ businessId: currentGroup.id, communityId: commId })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('info', 'ההזמנה נדחתה'); loadBizCommunityInvitations(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
+
 const _origLoadBizCommunities = loadBizCommunities;
 window.loadBizCommunities = async function() {
     await _origLoadBizCommunities();
+    loadBizCommunityInvitations();
     const toolbarId = 'biz-comm-adv-toolbar';
     if (!document.getElementById(toolbarId)) {
         const anchor = document.getElementById('biz-my-communities-list');

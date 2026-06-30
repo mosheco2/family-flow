@@ -7098,6 +7098,69 @@ app.post('/api/biz/communities/join', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// משפחה — חיפוש עסקים להמלצה
+app.get('/api/community/search-business', async (req, res) => {
+    try {
+        const { q } = req.query;
+        if (!q) return res.json({ businesses: [] });
+        const result = await pool.query(
+            `SELECT id, name, group_code FROM family_groups WHERE type='BUSINESS' AND (name ILIKE $1 OR group_code ILIKE $1) LIMIT 10`,
+            [`%${q}%`]);
+        res.json({ businesses: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// משפחה — המלצה/הזמנת עסק להצטרף לקהילה → status=biz_invited
+app.post('/api/community/invite-business', async (req, res) => {
+    try {
+        const { groupId, communityId, businessId } = req.body;
+        // ודא שהמשפחה חברה בקהילה
+        const check = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND status='approved'`, [groupId, communityId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'אינך חבר מאושר בקהילה זו' });
+        // בדוק שהעסק לא כבר חבר
+        const existing = await pool.query(`SELECT status FROM community_businesses WHERE community_id=$1 AND business_id=$2`, [communityId, businessId]);
+        if (existing.rows.length) return res.status(400).json({ error: `העסק כבר ${existing.rows[0].status === 'approved' ? 'חבר בקהילה' : 'בתהליך הצטרפות'}` });
+        await pool.query(
+            `INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1,$2,0,'biz_invited',CURRENT_TIMESTAMP)`,
+            [communityId, businessId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עסק — הזמנות ממתינות מקהילות
+app.get('/api/biz/community-invitations/:bizId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT cb.community_id, c.name as comm_name, c.city, cb.created_at
+             FROM community_businesses cb JOIN communities c ON c.id=cb.community_id
+             WHERE cb.business_id=$1 AND cb.status='biz_invited' ORDER BY cb.created_at DESC`,
+            [req.params.bizId]);
+        res.json({ success: true, invitations: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עסק — אישור הזמנה + קביעת אחוז הנחה → comm_mgr_pending
+app.post('/api/biz/community-invitation/accept', async (req, res) => {
+    try {
+        const { businessId, communityId, discountPct } = req.body;
+        if (discountPct === undefined || discountPct === '') return res.status(400).json({ error: 'יש להזין אחוז הנחה' });
+        const r = await pool.query(
+            `UPDATE community_businesses SET status='comm_mgr_pending', discount_pct=$1 WHERE community_id=$2 AND business_id=$3 AND status='biz_invited' RETURNING id`,
+            [parseFloat(discountPct)||0, communityId, businessId]);
+        if (!r.rows.length) return res.status(404).json({ error: 'הזמנה לא נמצאה' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עסק — דחיית הזמנה
+app.post('/api/biz/community-invitation/decline', async (req, res) => {
+    try {
+        const { businessId, communityId } = req.body;
+        await pool.query(`DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='biz_invited'`, [communityId, businessId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.delete('/api/biz/communities/leave/:communityId/:bizId', async (req, res) => {
     try {
         await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [req.params.communityId, req.params.bizId]);

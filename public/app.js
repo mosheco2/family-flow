@@ -4454,6 +4454,7 @@ function renderFamilyCommunities() {
                             <div class="flex items-center gap-2">
                                 ${isFirst ? `<span class="comm-selected-badge text-[9px] font-bold bg-indigo-500 text-white px-1.5 py-0.5 rounded-md">✓ נבחרה</span>` : ''}
                                 ${isManager ? `<button onclick="event.stopPropagation();openCommunityManagerPanel(${c.id})" class="text-[10px] font-bold text-purple-600 hover:bg-purple-50 px-2 py-1 rounded transition border border-transparent hover:border-purple-200"><i class="fa-solid fa-gear mr-1"></i>ניהול</button>` : ''}
+                                <button onclick="event.stopPropagation();openInviteBizModal(${c.id},'${safeStr(c.name).replace(/'/g,"\\'")}')" class="text-[10px] font-bold text-teal-600 hover:bg-teal-50 px-2 py-1 rounded transition border border-transparent hover:border-teal-200"><i class="fa-solid fa-store mr-1"></i>הזמן עסק</button>
                                 <button onclick="event.stopPropagation();leaveCommunity(${c.id}, '${safeStr(c.name)}')" class="text-[10px] font-bold text-red-500 hover:bg-red-50 px-2 py-1 rounded transition border border-transparent hover:border-red-200">התנתק</button>
                             </div>
                             <div class="text-right">
@@ -5437,7 +5438,7 @@ async function openCommunityManagerPanel(commId) {
 
         const comm = data.managed_communities.find(c => c.community_id === commId);
         const wallet = data.wallets.find(w => w.community_id === commId) || { balance: 0, total_earned: 0 };
-        const pending = (data.pending_businesses || []).filter(b => b.community_id === commId && b.status === 'pending');
+        const pending = (data.pending_businesses || []).filter(b => b.community_id === commId && b.status === 'comm_mgr_pending');
         const approved = (data.pending_businesses || []).filter(b => b.community_id === commId && b.status === 'approved');
         const pendingFamilies = (data.pending_families || []).filter(f => f.community_id === commId);
         const txs = (data.transactions || []).filter(t => t.community_id === commId).slice(0, 10);
@@ -5563,6 +5564,65 @@ async function saRejectBizFromManager(communityId, businessId) {
         else showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
+
+// ── הזמן עסק לקהילה (מצד משפחה) ────────────────────────────
+window.openInviteBizModal = function(commId, commName) {
+    const existing = document.getElementById('invite-biz-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'invite-biz-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-end justify-center';
+    modal.innerHTML = `
+    <div class="bg-white rounded-t-3xl w-full max-w-lg p-5 pb-8" dir="rtl">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-slate-800">🏪 הזמן עסק לקהילת ${safeStr(commName)}</h3>
+            <button onclick="document.getElementById('invite-biz-modal').remove()" class="text-slate-400 text-xl">&times;</button>
+        </div>
+        <div class="flex gap-2 mb-3">
+            <input id="invite-biz-search" type="text" placeholder="חפש לפי שם עסק או קוד..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm" oninput="_inviteBizSearchDebounce(this.value, ${commId})">
+            <button onclick="_searchBizForInvite(getEl('invite-biz-search').value, ${commId})" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold">חפש</button>
+        </div>
+        <div id="invite-biz-results" class="space-y-2 max-h-64 overflow-y-auto"></div>
+    </div>`;
+    document.body.appendChild(modal);
+};
+
+let _inviteBizSearchTimer = null;
+window._inviteBizSearchDebounce = function(val, commId) {
+    clearTimeout(_inviteBizSearchTimer);
+    _inviteBizSearchTimer = setTimeout(() => _searchBizForInvite(val, commId), 350);
+};
+
+window._searchBizForInvite = async function(q, commId) {
+    const el = getEl('invite-biz-results');
+    if (!el || !q.trim()) return;
+    el.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">טוען...</p>';
+    try {
+        const res = await fetch(`${API}/community/search-business?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        if (!data.businesses.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">לא נמצאו עסקים</p>'; return; }
+        el.innerHTML = data.businesses.map(b => `
+            <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 flex justify-between items-center">
+                <button onclick="sendBizInvite(${commId}, ${b.id})" class="bg-teal-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-teal-600">הזמן</button>
+                <div class="text-right">
+                    <p class="font-bold text-slate-800 text-sm">${safeStr(b.name)}</p>
+                    <p class="text-[10px] text-slate-400 font-mono">${safeStr(b.group_code)}</p>
+                </div>
+            </div>`).join('');
+    } catch(e) { el.innerHTML = '<p class="text-red-400 text-xs text-center py-3">שגיאה בחיפוש</p>'; }
+};
+
+window.sendBizInvite = async function(commId, bizId) {
+    try {
+        const res = await fetch(`${API}/community/invite-business`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, communityId: commId, businessId: bizId })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'ההזמנה נשלחה לעסק!'); document.getElementById('invite-biz-modal')?.remove(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
 
 window.commMgrApproveFamily = async function(communityId, targetGroupId) {
     try {
