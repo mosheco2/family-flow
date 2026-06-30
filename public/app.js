@@ -5352,10 +5352,7 @@ window.toggleReferralInput = function() {
 window.copyReferralCode = function() {
     const code = getEl('my-referral-code-display')?.textContent?.trim();
     if (!code || code === '...') return;
-    const text = _selectedCommCode
-        ? `הצטרף לקהילת ${_selectedCommName} ב-Oneflow! קוד קהילה: ${_selectedCommCode} | קוד הפניה: ${code}`
-        : code;
-    navigator.clipboard?.writeText(text).then(() => showToast('success', '✅ הקוד הועתק!')).catch(() => showToast('info', `הקוד: ${text}`));
+    navigator.clipboard?.writeText(code).then(() => showToast('success', `✅ קוד ${code} הועתק!`)).catch(() => showToast('info', `הקוד: ${code}`));
 };
 
 window.shareReferralWhatsApp = function() {
