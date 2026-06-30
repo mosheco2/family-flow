@@ -18712,6 +18712,19 @@ app.get('/api/community/pool/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// הסרת חברה מהפול (ע"י היוזמת)
+app.post('/api/community/pool/:id/remove-member', async (req, res) => {
+    try {
+        const { groupId, initiatorId } = req.body;
+        const check = await pool.query(
+            `SELECT 1 FROM flow_pools WHERE id=$1 AND initiator_type='family' AND initiator_id=$2`,
+            [req.params.id, initiatorId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query(`DELETE FROM flow_pool_members WHERE pool_id=$1 AND group_id=$2`, [req.params.id, groupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // הצטרפות לפול (משפחה)
 app.post('/api/community/pool/:id/join', async (req, res) => {
     try {

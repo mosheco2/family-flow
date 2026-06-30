@@ -4027,7 +4027,7 @@ async function renderFamPools() {
                     <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColor} mr-2 shrink-0">${statusLabel}</span>
                 </div>
                 <div class="flex gap-4 text-xs text-slate-500 mt-2">
-                    <span><i class="fa-solid fa-users text-blue-400 ml-1"></i>${p.members_count || 0} משפחות</span>
+                    <span><i class="fa-solid fa-users text-blue-400 ml-1"></i>${p.member_count || 0} משפחות</span>
                     <span><i class="fa-solid fa-shekel-sign text-green-500 ml-1"></i>${maxP}</span>
                     ${isMine ? '<span class="text-amber-600 font-bold">✦ יזמת</span>' : ''}
                 </div>
@@ -4113,6 +4113,20 @@ async function openFamPoolDetail(poolId) {
             } catch (_) {}
         }
 
+        // רשימת חברות הפול (ליוזמת בלבד)
+        let membersHtml = '';
+        if (isFamInitiator && members.length) {
+            membersHtml = `<div class="bg-blue-50 border border-blue-100 rounded-xl p-3">
+                <h4 class="text-xs font-bold text-blue-800 mb-2">👥 משפחות בפול (${members.length})</h4>
+                <div class="space-y-1">
+                    ${members.map(m => `<div class="flex justify-between items-center bg-white rounded-lg px-2.5 py-1.5 text-xs border border-blue-50">
+                        <button onclick="removePoolMember(${p.id},${m.group_id})" class="text-[10px] text-red-400 hover:text-red-600 transition font-bold">הסר</button>
+                        <span class="font-medium text-slate-700">${safeStr(m.name)}${m.group_id == currentGroup.id ? ' <span class="text-[9px] text-blue-500">(את/ה)</span>' : ''}</span>
+                    </div>`).join('')}
+                </div>
+            </div>`;
+        }
+
         let bidsHtml = '';
         if (isFamInitiator && bids.length) {
             bidsHtml = `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
@@ -4146,6 +4160,7 @@ async function openFamPoolDetail(poolId) {
                 ${p.max_price > 0 ? `<span>· עד ₪${Number(p.max_price).toLocaleString()}</span>` : ''}
             </div>
             ${p.description ? `<p class="text-sm text-slate-600">${safeStr(p.description)}</p>` : ''}
+            ${membersHtml}
             ${bidsHtml}
             ${isOpen && !isMember && !isFamInitiator ? `<button onclick="joinFamPool(${p.id})" class="w-full py-3 rounded-xl bg-blue-500 text-white font-bold text-sm hover:bg-blue-600 transition shadow-md">🌊 הצטרף לפול</button>` : ''}
             ${isFamInitiator ? '<div class="text-xs text-blue-600 font-bold text-center py-2 bg-blue-50 rounded-xl"><i class="fa-solid fa-crown ml-1"></i>אתם יוזמי הפול — הצטרפתם אוטומטית</div>' : (isMember ? '<div class="text-xs text-green-600 font-bold text-center py-2 bg-green-50 rounded-xl"><i class="fa-solid fa-check ml-1"></i>אתם חברים בפול הזה</div>' : '')}
@@ -4210,6 +4225,21 @@ async function sendPoolMessage(poolId) {
         input.value = '';
         openFamPoolDetail(poolId);
     } catch (e) { console.error('sendPoolMessage error:', e); showToast('error', e.message || 'שגיאה'); }
+}
+
+async function removePoolMember(poolId, groupId) {
+    if (!confirm('להסיר משפחה זו מהפול?')) return;
+    try {
+        const res = await fetch(`${API}/community/pool/${poolId}/remove-member`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId, initiatorId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'שגיאה');
+        showToast('success', 'המשפחה הוסרה מהפול');
+        openFamPoolDetail(poolId);
+        renderFamPools();
+    } catch(e) { console.error('removePoolMember:', e); showToast('error', e.message || 'שגיאה'); }
 }
 
 async function fetchCommunityData() {
