@@ -5315,11 +5315,13 @@ async function loadMyReferralCode() {
 window.selectCommunityForReferral = function(commId, commName, commCode, silent) {
     _selectedCommCode = commCode;
     _selectedCommName = commName;
-    // עדכן כרטיס קוד
-    const selLabel = getEl('referral-selected-comm');
+    // עדכן כרטיס קוד — מציג קוד קהילה (לכניסה), לא קוד הפניה אישי
+    const commCodeSection = getEl('referral-comm-code-section');
+    const commCodeDisplay = getEl('referral-comm-code-display');
     const selName = getEl('referral-comm-name-display');
     const waBtn = getEl('referral-wa-btn');
-    if (selLabel) selLabel.classList.remove('hidden');
+    if (commCodeSection) commCodeSection.classList.remove('hidden');
+    if (commCodeDisplay) commCodeDisplay.textContent = commCode || '—';
     if (selName) selName.textContent = commName;
     if (waBtn) waBtn.classList.remove('hidden');
     // סימון ויזואלי
@@ -5350,9 +5352,10 @@ window.toggleReferralInput = function() {
 };
 
 window.copyReferralCode = function() {
-    const code = getEl('my-referral-code-display')?.textContent?.trim();
-    if (!code || code === '...') return;
-    navigator.clipboard?.writeText(code).then(() => showToast('success', `✅ קוד ${code} הועתק!`)).catch(() => showToast('info', `הקוד: ${code}`));
+    // מעתיק קוד קהילה (לא קוד הפניה אישי) — זה מה שהחבר צריך להזין
+    const code = _selectedCommCode || getEl('referral-comm-code-display')?.textContent?.trim();
+    if (!code || code === '—') { showToast('info', 'בחר קהילה תחילה'); return; }
+    navigator.clipboard?.writeText(code).then(() => showToast('success', `✅ קוד ${code} הועתק!`)).catch(() => showToast('info', `קוד הקהילה: ${code}`));
 };
 
 window.shareReferralWhatsApp = function() {
