@@ -8636,6 +8636,31 @@ app.post('/api/zone-manager/community-family/reject', verifyZoneManager, async (
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ZM — פרטי משפחה (משתמשים + קהילות)
+app.get('/api/zone-manager/family-detail/:groupId', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        const { groupId } = req.params;
+        // אימות שהמשפחה שייכת לאזור של ZM זה
+        const check = await pool.query(
+            `SELECT 1 FROM family_communities fc
+             JOIN communities c ON c.id=fc.community_id
+             JOIN manager_zones mz ON c.zone_id=mz.id
+             WHERE fc.group_id=$1 AND mz.manager_id=$2 LIMIT 1`, [groupId, managerId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        const fg = await pool.query(`SELECT id, name, admin_email, group_code, created_at FROM family_groups WHERE id=$1`, [groupId]);
+        if (!fg.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const users = await pool.query(`SELECT nickname, role, email FROM users WHERE group_id=$1 ORDER BY role`, [groupId]);
+        const comms = await pool.query(
+            `SELECT c.name, fc.status, fc.is_community_manager
+             FROM family_communities fc JOIN communities c ON c.id=fc.community_id
+             WHERE fc.group_id=$1`, [groupId]);
+        const wallet = await pool.query(
+            `SELECT COALESCE(SUM(fw.balance),0) as balance FROM flow_wallets fw WHERE fw.entity_type='family' AND fw.entity_id=$1`, [groupId]);
+        res.json({ success: true, group: fg.rows[0], users: users.rows, communities: comms.rows, flowBalance: wallet.rows[0]?.balance || 0 });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // SA — רשימת מנהלי אזורים (פעילים ומושהים)
 app.get('/api/sa/zone-managers', verifySA, async (req, res) => {
     try {
@@ -8887,11 +8912,12 @@ app.get('/api/zone-manager/community-detail/:id', verifyZoneManager, async (req,
         if (!zoneCheck.rows.length) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
         const comm = zoneCheck.rows[0];
 
-        // משפחות
+        // משפחות (approved + pending)
         const families = await pool.query(
-            `SELECT fc.group_id, fg.name, fg.admin_email, fc.is_community_manager
+            `SELECT fc.group_id, fc.status, fc.is_community_manager,
+                    fg.id, fg.name, fg.admin_email, fg.group_code
              FROM family_communities fc JOIN family_groups fg ON fg.id=fc.group_id
-             WHERE fc.community_id=$1 ORDER BY fc.is_community_manager DESC, fg.name`, [commId]);
+             WHERE fc.community_id=$1 ORDER BY fc.status DESC, fc.is_community_manager DESC, fg.name`, [commId]);
 
         // עסקים
         const businesses = await pool.query(

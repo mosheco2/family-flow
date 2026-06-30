@@ -1220,7 +1220,9 @@ async function openCommunityDetail(commId, encodedName) {
         if (!_cdData.success) { body.innerHTML = `<div class="text-red-400 text-center py-6">${_cdData.error || 'שגיאה'}</div>`; return; }
         const c = _cdData.community;
         document.getElementById('zm-cd-meta').textContent = [c.city, c.zone_name, c.status === 'active' ? 'פעיל' : c.status].filter(Boolean).join(' • ');
-        document.getElementById('zm-cd-stat-families').textContent = _cdData.families.length;
+        const approvedFams = (_cdData.families || []).filter(f => f.status !== 'pending');
+        const pendingFams = (_cdData.families || []).filter(f => f.status === 'pending');
+        document.getElementById('zm-cd-stat-families').textContent = approvedFams.length + (pendingFams.length ? ` (+${pendingFams.length})` : '');
         document.getElementById('zm-cd-stat-businesses').textContent = _cdData.businesses.length;
         document.getElementById('zm-cd-stat-promos').textContent = _cdData.promos.length;
         document.getElementById('zm-cd-stat-flow').textContent = Math.floor(_cdData.flowBalance || 0);
@@ -1248,17 +1250,43 @@ function renderCDTab(tab) {
     if (tab === 'families') {
         const fams = _cdData.families;
         if (!fams.length) { body.innerHTML = '<div class="text-center text-slate-400 py-8">אין משפחות רשומות בקהילה</div>'; return; }
-        body.innerHTML = fams.map(f => `
-        <div class="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
-            <div class="flex items-center gap-2">
-                ${f.is_community_manager ? '<span class="bg-purple-100 text-purple-700 text-[9px] font-black px-2 py-0.5 rounded-full">⭐ מנהל</span>' : ''}
-                <span class="text-[10px] text-slate-400">${f.admin_email || ''}</span>
-            </div>
-            <div class="text-right">
-                <p class="font-bold text-slate-800 text-sm">${f.name}</p>
-                <p class="text-xs text-slate-500">${f.admin_email || ''}</p>
-            </div>
-        </div>`).join('');
+        const pending = fams.filter(f => f.status === 'pending');
+        const approved = fams.filter(f => f.status !== 'pending');
+        const commId = _cdData.community.id;
+        let html = '';
+        if (pending.length) {
+            html += `<div class="mb-3">
+                <h4 class="text-xs font-bold text-amber-700 mb-2 flex items-center gap-1"><i class="fa-solid fa-clock text-amber-500"></i> ממתינות לאישור (${pending.length})</h4>
+                ${pending.map(f => `
+                <div class="flex justify-between items-center p-3 bg-amber-50 border border-amber-200 rounded-xl mb-2">
+                    <div class="flex gap-2">
+                        <button onclick="zmApproveFamily(${f.group_id},${commId})" class="text-[10px] font-bold bg-green-500 text-white px-2.5 py-1 rounded-lg hover:bg-green-600 transition">אשר</button>
+                        <button onclick="zmRejectFamily(${f.group_id},${commId})" class="text-[10px] font-bold bg-red-100 text-red-600 px-2.5 py-1 rounded-lg hover:bg-red-200 transition">דחה</button>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-bold text-slate-800 text-sm">${f.name}</p>
+                        <p class="text-[10px] text-slate-500">${f.admin_email || ''}</p>
+                    </div>
+                </div>`).join('')}
+            </div>`;
+        }
+        if (approved.length) {
+            html += `<div>
+                <h4 class="text-xs font-bold text-slate-500 mb-2">משפחות פעילות (${approved.length})</h4>
+                ${approved.map(f => `
+                <div class="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-xl shadow-sm mb-2 cursor-pointer hover:bg-blue-50 transition" onclick="openZMFamilyDetail(${f.group_id})">
+                    <div class="flex items-center gap-2">
+                        ${f.is_community_manager ? '<span class="bg-purple-100 text-purple-700 text-[9px] font-black px-2 py-0.5 rounded-full">⭐ מנהל</span>' : ''}
+                        <i class="fa-solid fa-chevron-left text-slate-300 text-xs"></i>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-bold text-slate-800 text-sm">${f.name}</p>
+                        <p class="text-[10px] text-slate-500">${f.admin_email || ''}</p>
+                    </div>
+                </div>`).join('')}
+            </div>`;
+        }
+        body.innerHTML = html;
     } else if (tab === 'businesses') {
         const bizs = _cdData.businesses;
         if (!bizs.length) { body.innerHTML = '<div class="text-center text-slate-400 py-8">אין עסקים פעילים בקהילה</div>'; return; }
@@ -1301,4 +1329,84 @@ function renderCDTab(tab) {
             </div>
         </div>`).join('') : '<div class="text-center text-slate-400 py-4">אין פעולות FLOW עדיין</div>'}`;
     }
+}
+
+async function zmApproveFamily(groupId, commId) {
+    try {
+        const res = await fetch(`${API}/zone-manager/community-family/approve`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ groupId, communityId: commId })
+        });
+        const data = await res.json();
+        if (data.success) { showZMToast('✅ המשפחה אושרה!'); openCommunityDetail(commId, document.getElementById('zm-cd-name').textContent); }
+        else showZMToast(data.error || 'שגיאה', 'error');
+    } catch(e) { showZMToast('שגיאת רשת', 'error'); }
+}
+
+async function zmRejectFamily(groupId, commId) {
+    if (!confirm('לדחות את בקשת ההצטרפות של המשפחה?')) return;
+    try {
+        const res = await fetch(`${API}/zone-manager/community-family/reject`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ groupId, communityId: commId })
+        });
+        const data = await res.json();
+        if (data.success) { showZMToast('🗑 הבקשה נדחתה'); openCommunityDetail(commId, document.getElementById('zm-cd-name').textContent); }
+        else showZMToast(data.error || 'שגיאה', 'error');
+    } catch(e) { showZMToast('שגיאת רשת', 'error'); }
+}
+
+async function openZMFamilyDetail(groupId) {
+    const existing = document.getElementById('zm-family-detail-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'zm-family-detail-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4';
+    modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] overflow-y-auto">
+        <div class="p-4 border-b flex justify-between items-center">
+            <button onclick="document.getElementById('zm-family-detail-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl">&times;</button>
+            <h3 class="font-bold text-slate-800 text-lg" id="zm-fam-detail-name">טוען...</h3>
+        </div>
+        <div id="zm-fam-detail-body" class="p-4 space-y-3"><div class="text-center text-slate-400 py-8"><i class="fa-solid fa-spinner fa-spin"></i></div></div>
+    </div>`;
+    document.body.appendChild(modal);
+    try {
+        const res = await fetch(`${API}/zone-manager/family-detail/${groupId}`, { headers: { 'Authorization': zmToken } });
+        const data = await res.json();
+        if (!data.success) { document.getElementById('zm-fam-detail-body').innerHTML = `<p class="text-red-400 text-center">${data.error}</p>`; return; }
+        const g = data.group;
+        document.getElementById('zm-fam-detail-name').textContent = g.name;
+        const usersHtml = (data.users || []).map(u => `
+            <div class="flex justify-between items-center text-xs py-1.5 border-b border-slate-50">
+                <span class="text-[10px] ${u.role==='ADMIN'?'text-blue-500 font-bold':'text-slate-400'}">${u.role==='ADMIN'?'מנהל/הורה':'חבר'}</span>
+                <span class="text-slate-700">${u.nickname || u.email || ''}</span>
+            </div>`).join('') || '<p class="text-xs text-slate-400">אין משתמשים</p>';
+        const commsHtml = (data.communities || []).map(c => `
+            <div class="flex justify-between text-xs py-1">
+                <span class="${c.status==='pending'?'text-amber-500':'text-green-600'} font-bold text-[10px]">${c.status==='pending'?'⏳ ממתין':'✅ מאושר'}</span>
+                <span class="text-slate-700">${c.name}</span>
+            </div>`).join('') || '<p class="text-xs text-slate-400">אין קהילות</p>';
+        document.getElementById('zm-fam-detail-body').innerHTML = `
+            <div class="bg-slate-50 rounded-xl p-3 text-xs space-y-1 text-right">
+                <p><span class="text-slate-400">מייל: </span><span class="font-medium">${g.admin_email || '—'}</span></p>
+                <p><span class="text-slate-400">קוד: </span><span class="font-mono font-bold text-slate-700">${g.group_code || '—'}</span></p>
+                <p><span class="text-slate-400">Flw: </span><span class="font-bold text-amber-600">${Math.floor(data.flowBalance || 0)}</span></p>
+            </div>
+            <div>
+                <h4 class="text-xs font-bold text-slate-600 mb-2">👥 משתמשים</h4>
+                <div class="bg-white rounded-xl border border-slate-100 p-2">${usersHtml}</div>
+            </div>
+            <div>
+                <h4 class="text-xs font-bold text-slate-600 mb-2">🏘️ קהילות</h4>
+                <div class="bg-white rounded-xl border border-slate-100 p-2 space-y-1">${commsHtml}</div>
+            </div>`;
+    } catch(e) { document.getElementById('zm-fam-detail-body').innerHTML = '<p class="text-red-400 text-center">שגיאת רשת</p>'; }
+}
+
+function showZMToast(msg, type='success') {
+    const el = document.createElement('div');
+    el.className = `fixed top-4 left-1/2 -translate-x-1/2 z-[99999] px-4 py-2 rounded-xl text-sm font-bold shadow-lg ${type==='error'?'bg-red-500 text-white':'bg-green-500 text-white'}`;
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3000);
 }
