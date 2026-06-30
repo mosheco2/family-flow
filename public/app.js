@@ -4586,8 +4586,10 @@ function renderFamilyCommunities() {
     // טעינת מבצעים
     if (isConnected) loadFamilyCommunityPromos();
 
-    // Auto-switch to benefits tab when connected and there are businesses
-    if (isConnected && myCommunityBusinessesCache.length > 0) {
+    // Auto-switch to benefits tab when connected and there are businesses,
+    // but only if the user didn't explicitly open the join tab
+    const currentlyOnJoin = !getEl('fam-comm-view-join')?.classList.contains('hidden');
+    if (isConnected && myCommunityBusinessesCache.length > 0 && !currentlyOnJoin) {
         switchFamCommunityTab('benefits');
     }
 }
@@ -5116,7 +5118,7 @@ window.openCommunityDiscoveryModal = async function() {
         </div>
         <div class="p-4 border-b">
             <div class="flex gap-2">
-                <input type="text" id="discovery-city-input" placeholder="חפש לפי שם קהילה, עיר או אזור..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm" onkeydown="if(event.key==='Enter')searchCommunitiesByCity()">
+                <input type="text" id="discovery-city-input" placeholder="חפש לפי שם קהילה, עיר או אזור..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm" oninput="_discoverySearchDebounce(this.value)" onkeydown="if(event.key==='Enter')searchCommunitiesByCity()">
                 <button onclick="searchCommunitiesByCity()" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-700 transition">חפש</button>
             </div>
         </div>
@@ -5164,6 +5166,12 @@ function _renderDiscoveryMyComms() {
     html += `<p class="text-[10px] text-slate-400 text-center mt-3">לחפש קהילות נוספות — הקלד שם/עיר/אזור בחיפוש</p>`;
     el.innerHTML = html;
 }
+
+let _discoverySearchTimer = null;
+window._discoverySearchDebounce = function(val) {
+    clearTimeout(_discoverySearchTimer);
+    _discoverySearchTimer = setTimeout(() => searchCommunitiesByCity(val), 350);
+};
 
 window.searchCommunitiesByCity = async function(city) {
     const q = city !== undefined ? city : (getEl('discovery-city-input')?.value || '').trim();
