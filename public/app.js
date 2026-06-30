@@ -5314,6 +5314,9 @@ function renderFamilyCommunityPromos(promos) {
     promos.forEach(p => {
         const until = p.valid_until ? `<span class="text-[9px] text-slate-500">בתוקף עד: ${p.valid_until.slice(0,10)}</span>` : '';
         const discountBadge = p.discount_pct > 0 ? `<span class="text-[9px] font-bold bg-pink-50 text-pink-700 border border-pink-100 px-1.5 py-0.5 rounded">${p.discount_pct}% הנחה</span>` : '';
+        const storeUrl = p.biz_code ? `${window.location.origin}/storefront.html?store=${safeStr(p.biz_code)}&communityId=${p.community_id}` : null;
+        const storeBtn = storeUrl ? `<a href="${storeUrl}" target="_blank" class="block w-full text-center bg-slate-900 hover:bg-slate-700 text-white text-xs font-bold py-2 px-3 rounded-xl transition mt-3">🛒 לחנות העסק — הנחת קהילה פעילה</a>` : '';
+        const phoneBtn = p.biz_phone ? `<a href="tel:${safeStr(p.biz_phone)}" class="block w-full text-center bg-green-50 hover:bg-green-100 text-green-700 text-xs font-bold py-2 px-3 rounded-xl transition mt-2 border border-green-100">📞 ${safeStr(p.biz_phone)}</a>` : '';
         html += `
         <div class="bg-white border border-pink-100 rounded-2xl p-4 shadow-sm fade-in">
             <div class="flex justify-between items-start mb-2">
@@ -5324,16 +5327,8 @@ function renderFamilyCommunityPromos(promos) {
                 </div>
             </div>
             ${p.content ? `<p class="text-xs text-slate-600 mb-3 text-right leading-relaxed">${safeStr(p.content)}</p>` : ''}
-            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-right">
-                <p class="text-[10px] font-bold text-amber-800 mb-1"><i class="fa-solid fa-circle-info mr-1"></i>איך לממש את המבצע?</p>
-                <p class="text-[10px] text-amber-700 leading-relaxed">
-                    1. היכנסו לחנות העסק<br>
-                    2. הוסיפו מוצרים לסל וסיימו הזמנה<br>
-                    3. בזמן ההזמנה הזינו את קוד הקופון שתקבלו ממנהל הקהילה<br>
-                    4. לאחר אישור ההזמנה — תקבלו צבירת מטבעות!
-                </p>
-            </div>
             ${p.promo_code ? `<div class="mt-2 text-center"><span class="font-mono font-black text-base bg-slate-900 text-white px-4 py-1.5 rounded-xl tracking-widest">${safeStr(p.promo_code)}</span></div>` : ''}
+            ${storeBtn}${phoneBtn}
         </div>`;
     });
     html += '</div>';
