@@ -4252,8 +4252,19 @@ async function fetchCommunityData() {
             myConnectedCommunitiesCache = data.communities || [];
             myCommunityBusinessesCache = data.businesses || [];
             renderFamilyCommunities();
+            // polling אוטומטי כשיש קהילות בהמתנה — מאפשר רענון ללא פעולת משתמש
+            const hasPending = myConnectedCommunitiesCache.some(c => c.status === 'pending');
+            if (hasPending && !window._pendingCommRefresh) {
+                window._pendingCommRefresh = setInterval(async () => {
+                    await fetchCommunityData();
+                    const stillPending = myConnectedCommunitiesCache.some(c => c.status === 'pending');
+                    if (!stillPending) { clearInterval(window._pendingCommRefresh); window._pendingCommRefresh = null; }
+                }, 15000);
+            } else if (!hasPending && window._pendingCommRefresh) {
+                clearInterval(window._pendingCommRefresh); window._pendingCommRefresh = null;
+            }
         }
-        
+
         await fetchMyInitiatives();
         await fetchCashbackInfo();
     } catch(e) { console.error('Error fetching community data', e); }
@@ -5428,6 +5439,7 @@ async function openCommunityManagerPanel(commId) {
         const wallet = data.wallets.find(w => w.community_id === commId) || { balance: 0, total_earned: 0 };
         const pending = (data.pending_businesses || []).filter(b => b.community_id === commId && b.status === 'pending');
         const approved = (data.pending_businesses || []).filter(b => b.community_id === commId && b.status === 'approved');
+        const pendingFamilies = (data.pending_families || []).filter(f => f.community_id === commId);
         const txs = (data.transactions || []).filter(t => t.community_id === commId).slice(0, 10);
 
         let modal = document.getElementById('comm-manager-modal');
@@ -5437,6 +5449,18 @@ async function openCommunityManagerPanel(commId) {
             modal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9990] flex items-center justify-center p-4';
             document.body.appendChild(modal);
         }
+
+        const pendingFamiliesHtml = pendingFamilies.length ? pendingFamilies.map(f => `
+            <div class="bg-blue-50 border border-blue-100 p-3 rounded-xl flex justify-between items-center mb-2">
+                <div class="flex gap-2">
+                    <button onclick="commMgrApproveFamily(${commId}, ${f.group_id})" class="bg-emerald-500 text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-emerald-600">אשר</button>
+                    <button onclick="commMgrRejectFamily(${commId}, ${f.group_id})" class="bg-red-100 text-red-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-200">דחה</button>
+                </div>
+                <div class="text-right">
+                    <p class="font-bold text-slate-800 text-sm">${safeStr(f.family_name)}</p>
+                    <p class="text-[10px] text-slate-400">${new Date(f.joined_at).toLocaleDateString('he-IL')}</p>
+                </div>
+            </div>`).join('') : '<p class="text-slate-400 text-sm text-center py-3">אין בקשות ממתינות</p>';
 
         const pendingHtml = pending.length ? pending.map(b => `
             <div class="bg-orange-50 border border-orange-100 p-3 rounded-xl flex justify-between items-center mb-2">
@@ -5486,9 +5510,15 @@ async function openCommunityManagerPanel(commId) {
                 </div>
             </div>
 
+            <!-- בקשות משפחות ממתינות -->
+            ${pendingFamilies.length ? `<div class="mb-5 bg-blue-50 rounded-2xl p-4 border border-blue-100">
+                <h4 class="font-bold text-blue-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-users text-blue-500"></i> משפחות ממתינות לאישור (${pendingFamilies.length})</h4>
+                ${pendingFamiliesHtml}
+            </div>` : ''}
+
             <!-- אישורי עסקים -->
             <div class="mb-5">
-                <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-store text-orange-500"></i> בקשות הצטרפות ממתינות</h4>
+                <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-store text-orange-500"></i> בקשות עסקים ממתינות</h4>
                 ${pendingHtml}
             </div>
 
@@ -5533,6 +5563,24 @@ async function saRejectBizFromManager(communityId, businessId) {
         else showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
+
+window.commMgrApproveFamily = async function(communityId, targetGroupId) {
+    try {
+        const res = await fetch(`${API}/community/manager/family/approve`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, communityId, targetGroupId }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'המשפחה אושרה'); openCommunityManagerPanel(communityId); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
+
+window.commMgrRejectFamily = async function(communityId, targetGroupId) {
+    try {
+        const res = await fetch(`${API}/community/manager/family/reject`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, communityId, targetGroupId }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'הבקשה נדחתה'); openCommunityManagerPanel(communityId); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
 
 // ============================================================
 // --- COMMUNITY MANAGER INBOX ---

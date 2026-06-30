@@ -7747,7 +7747,7 @@ app.post('/api/sa/community-business/approve-direct', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// SA — בקשות הצטרפות ממתינות של משפחות
+// SA — בקשות הצטרפות ממתינות של משפחות (רק קהילות ללא ZM פעיל — אלו עם ZM מטופלות ע"י ZM)
 app.get('/api/sa/communities/pending-families', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -7756,6 +7756,11 @@ app.get('/api/sa/communities/pending-families', async (req, res) => {
             JOIN family_groups fg ON fc.group_id = fg.id
             JOIN communities c ON fc.community_id = c.id
             WHERE fc.status = 'pending'
+              AND NOT EXISTS (
+                SELECT 1 FROM manager_zones mz
+                JOIN zone_managers zm ON mz.manager_id = zm.id AND zm.status = 'active'
+                WHERE mz.id = c.zone_id
+              )
             ORDER BY fc.joined_at DESC
         `);
         res.json({ success: true, pending: result.rows });
@@ -9461,6 +9466,28 @@ app.get('/api/community/cashback-info/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// מנהל קהילה — אישור/דחיית משפחה
+app.post('/api/community/manager/family/approve', async (req, res) => {
+    try {
+        const { groupId, communityId, targetGroupId } = req.body;
+        // ודא שהמבקש הוא מנהל הקהילה
+        const check = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND is_community_manager=TRUE`, [groupId, communityId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query(`UPDATE family_communities SET status='approved' WHERE group_id=$1 AND community_id=$2 AND status='pending'`, [targetGroupId, communityId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/community/manager/family/reject', async (req, res) => {
+    try {
+        const { groupId, communityId, targetGroupId } = req.body;
+        const check = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND is_community_manager=TRUE`, [groupId, communityId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query(`DELETE FROM family_communities WHERE group_id=$1 AND community_id=$2 AND status='pending'`, [targetGroupId, communityId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ניהול ארנק קהילה למנהל קהילה: רשימת עסקים + תנועות
 app.get('/api/community/manager-data/:groupId', async (req, res) => {
     try {
@@ -9479,6 +9506,13 @@ app.get('/api/community/manager-data/:groupId', async (req, res) => {
              FROM community_businesses cb JOIN family_groups fg ON cb.business_id=fg.id
              WHERE cb.community_id=ANY($1)`, [commIds]);
 
+        // משפחות ממתינות לאישור
+        const pendingFamiliesRes = await pool.query(
+            `SELECT fc.group_id, fc.community_id, COALESCE(NULLIF(fg.family_nickname,''), fg.name) as family_name, fc.joined_at
+             FROM family_communities fc JOIN family_groups fg ON fc.group_id=fg.id
+             WHERE fc.community_id=ANY($1) AND fc.status='pending'
+             ORDER BY fc.joined_at DESC`, [commIds]);
+
         // ארנקים
         const walletsRes = await pool.query(
             `SELECT cw.*, c.name as community_name FROM community_wallets cw
@@ -9494,6 +9528,7 @@ app.get('/api/community/manager-data/:groupId', async (req, res) => {
             success: true,
             managed_communities: mgrRes.rows,
             pending_businesses: pendingRes.rows,
+            pending_families: pendingFamiliesRes.rows,
             wallets: walletsRes.rows,
             transactions: txRes.rows
         });
