@@ -2510,12 +2510,30 @@ async function openSABusinessModal(bizId) {
                 list.innerHTML = data.communities.map(c => `
                     <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex justify-between items-center mb-2">
                         <div><span class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</span><p class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-house"></i> ${c.families_count || 0} משפחות | <span class="font-bold text-green-600">${c.discount_pct}% הנחה</span></p></div>
-                        <div class="flex flex-col items-end gap-2"><span class="text-[10px] ${c.status === 'approved' ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'} px-2 py-0.5 rounded font-bold">${c.status === 'approved' ? 'מחובר ופעיל' : 'ממתין לאישור'}</span><button onclick="removeBizFromCommunityInModal(${c.id}, ${bizId})" class="text-[10px] font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition"><i class="fa-solid fa-trash"></i> נתק עסק</button></div>
+                        <div class="flex flex-col items-end gap-2">
+                            <span class="text-[10px] ${c.status === 'approved' ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'} px-2 py-0.5 rounded font-bold">${c.status === 'approved' ? 'מחובר ופעיל' : 'ממתין לאישור'}</span>
+                            <button onclick="openSADiscountEdit(${c.id},${bizId},${c.discount_pct})" class="text-[10px] font-bold text-teal-600 hover:bg-teal-50 px-2 py-1 rounded transition"><i class="fa-solid fa-percent mr-1"></i>עדכן הנחה</button>
+                            <button onclick="removeBizFromCommunityInModal(${c.id}, ${bizId})" class="text-[10px] font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition"><i class="fa-solid fa-trash"></i> נתק עסק</button>
+                        </div>
                     </div>
                 `).join('');
             }
         }
     } catch(e) { list.innerHTML = '<p class="text-xs text-red-500 text-center py-4">שגיאה בטעינת נתונים</p>'; }
+}
+
+async function openSADiscountEdit(commId, bizId, current) {
+    const v = prompt(`אחוז הנחה חדש (נוכחי: ${current}%):`, current);
+    if (v === null || v === '') return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/discount`, {
+            method: 'PUT', headers: {'Content-Type':'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token')||'')},
+            body: JSON.stringify({ communityId: commId, businessId: bizId, discountPct: parseFloat(v)||0 })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'ההנחה עודכנה'); openSABusinessModal(bizId); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 async function removeBizFromCommunityInModal(commId, bizId) {

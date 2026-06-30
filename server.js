@@ -7769,6 +7769,15 @@ app.delete('/api/sa/community-business/:commId/:bizId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// SA — עדכון אחוז הנחה של עסק בקהילה
+app.put('/api/sa/community-business/discount', verifySA, async (req, res) => {
+    try {
+        const { communityId, businessId, discountPct } = req.body;
+        await pool.query('UPDATE community_businesses SET discount_pct=$1 WHERE community_id=$2 AND business_id=$3', [parseFloat(discountPct)||0, communityId, businessId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/sa/community-business/approve', async (req, res) => {
     try {
         const { communityId, businessId } = req.body;
@@ -8663,6 +8672,29 @@ app.post('/api/zone-manager/community-business/reject', verifyZoneManager, async
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ZM — עדכון אחוז הנחה של עסק בקהילה באזורו
+app.put('/api/zone-manager/community-business/discount', verifyZoneManager, async (req, res) => {
+    try {
+        const { communityId, businessId, discountPct } = req.body;
+        const { managerId } = req.zmSession;
+        const check = await pool.query(`SELECT 1 FROM communities c JOIN manager_zones mz ON c.zone_id=mz.id WHERE c.id=$1 AND mz.manager_id=$2`, [communityId, managerId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'Unauthorized' });
+        await pool.query('UPDATE community_businesses SET discount_pct=$1 WHERE community_id=$2 AND business_id=$3', [parseFloat(discountPct)||0, communityId, businessId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עסק — עדכון אחוז הנחה עצמי לקהילה (רק לקהילות מאושרות)
+app.put('/api/biz/community-discount', async (req, res) => {
+    try {
+        const { businessId, communityId, discountPct } = req.body;
+        const check = await pool.query(`SELECT 1 FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='approved'`, [communityId, businessId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה לעדכן — החיבור לא מאושר' });
+        await pool.query('UPDATE community_businesses SET discount_pct=$1 WHERE community_id=$2 AND business_id=$3', [parseFloat(discountPct)||0, communityId, businessId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ZM — בקשות הצטרפות משפחות לקהילות באזורו
 app.get('/api/zone-manager/pending-families', verifyZoneManager, async (req, res) => {
     try {
@@ -8997,7 +9029,7 @@ app.get('/api/zone-manager/community-detail/:id', verifyZoneManager, async (req,
 
         // עסקים
         const businesses = await pool.query(
-            `SELECT cb.business_id, fg.name, fg.admin_email, cb.status, cb.created_at
+            `SELECT cb.business_id as id, cb.business_id, fg.name, fg.admin_email, cb.status, cb.discount_pct, cb.created_at
              FROM community_businesses cb JOIN family_groups fg ON fg.id=cb.business_id
              WHERE cb.community_id=$1 AND cb.status='approved' ORDER BY fg.name`, [commId]);
 

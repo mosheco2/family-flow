@@ -14762,7 +14762,8 @@ async function loadBizCommunities() {
                         let statusHtml = c.status === 'approved' ? '<span class="text-green-600 bg-green-50 px-2 py-0.5 rounded text-[10px] border border-green-100">מאושר</span>' : '<span class="text-orange-500 bg-orange-50 px-2 py-0.5 rounded text-[10px] border border-orange-100">ממתין לאישור</span>';
                         const imgHtml = c.image_url ? `<img src="${c.image_url}" class="w-10 h-10 rounded-lg object-cover shadow-sm shrink-0">` : `<div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-users-rays"></i></div>`;
                         
-                        return `<div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center mb-2"><div class="flex items-center gap-3">${imgHtml}<div><h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4><p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')} • <i class="fa-solid fa-house ml-1"></i> ${c.families_count || 0} משפחות (${c.users_count || 0} משתמשים)</p><p class="text-[10px] text-slate-500 mt-0.5">הצעת הנחה: <span class="font-bold text-slate-700">${c.discount_pct}%</span></p></div></div><div class="flex flex-col items-end gap-2">${statusHtml}<button onclick="leaveBizCommunity(${c.id})" class="text-[10px] font-bold text-red-500 hover:underline">התנתק</button></div></div>`;
+                        const updateBtn = c.status === 'approved' ? `<button onclick="openUpdateDiscountModal(${c.id},'${safeStr(c.name).replace(/'/g,"\\'")}',${c.discount_pct})" class="text-[10px] font-bold text-teal-600 hover:bg-teal-50 px-2 py-1 rounded border border-transparent hover:border-teal-200 transition"><i class="fa-solid fa-percent mr-1"></i>עדכן הנחה</button>` : '';
+                        return `<div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center mb-2"><div class="flex items-center gap-3">${imgHtml}<div><h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4><p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')} • <i class="fa-solid fa-house ml-1"></i> ${c.families_count || 0} משפחות (${c.users_count || 0} משתמשים)</p><p class="text-[10px] text-slate-500 mt-0.5">הצעת הנחה: <span class="font-bold text-slate-700">${c.discount_pct}%</span></p></div></div><div class="flex flex-col items-end gap-2">${statusHtml}${updateBtn}<button onclick="leaveBizCommunity(${c.id})" class="text-[10px] font-bold text-red-500 hover:underline">התנתק</button></div></div>`;
                     }).join('');
                 }
             }
@@ -15052,6 +15053,41 @@ async function submitBizCommunityJoin() {
         }
     } catch(e) { showToast('error', 'תקלת רשת'); }
 }
+
+window.openUpdateDiscountModal = function(commId, commName, currentDiscount) {
+    const existing = document.getElementById('update-discount-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'update-discount-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl" dir="rtl">
+        <h3 class="font-bold text-slate-800 mb-1"><i class="fa-solid fa-percent text-teal-500 mr-1"></i> עדכון אחוז הנחה</h3>
+        <p class="text-sm text-slate-500 mb-4">קהילת ${safeStr(commName)}</p>
+        <label class="text-xs font-bold text-slate-600 block mb-1">אחוז הנחה חדש לחברי הקהילה:</label>
+        <input id="update-discount-input" type="number" min="0" max="100" value="${currentDiscount}" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm mb-4 focus:ring-2 focus:ring-teal-300 outline-none">
+        <div class="flex gap-2">
+            <button onclick="submitUpdateDiscount(${commId})" class="flex-1 bg-teal-500 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-teal-600">שמור</button>
+            <button onclick="document.getElementById('update-discount-modal').remove()" class="flex-1 bg-slate-100 text-slate-600 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-200">ביטול</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('update-discount-input')?.focus();
+};
+
+window.submitUpdateDiscount = async function(commId) {
+    const val = document.getElementById('update-discount-input')?.value;
+    if (val === '' || val === undefined) return showToast('error', 'יש להזין אחוז הנחה');
+    try {
+        const res = await fetch(`${API}/biz/community-discount`, {
+            method: 'PUT', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ businessId: currentGroup.id, communityId: commId, discountPct: parseFloat(val)||0 })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'ההנחה עודכנה בהצלחה'); document.getElementById('update-discount-modal')?.remove(); loadBizCommunities(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
 
 async function leaveBizCommunity(commId) {
     if(!await window._uiConfirm('האם אתה בטוח שברצונך להתנתק מקהילה זו? לקוחות הקהילה לא יוכלו ליהנות יותר מההטבות בחנות שלך.')) return;

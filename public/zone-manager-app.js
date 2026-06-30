@@ -1377,8 +1377,12 @@ function renderCDTab(tab) {
         const bizs = _cdData.businesses;
         if (!bizs.length) { body.innerHTML = '<div class="text-center text-slate-400 py-8">אין עסקים פעילים בקהילה</div>'; return; }
         body.innerHTML = bizs.map(b => `
-        <div class="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
-            <span class="bg-emerald-100 text-emerald-700 text-[9px] font-black px-2 py-0.5 rounded-full">עסק</span>
+        <div class="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-xl shadow-sm mb-2">
+            <div class="flex flex-col items-start gap-1">
+                <span class="bg-emerald-100 text-emerald-700 text-[9px] font-black px-2 py-0.5 rounded-full">עסק</span>
+                ${b.discount_pct > 0 ? `<span class="text-[10px] text-green-600 font-bold">${b.discount_pct}% הנחה</span>` : '<span class="text-[10px] text-slate-400">ללא הנחה</span>'}
+                <button onclick="openZMDiscountEdit(${_cdData.community.id},${b.id},${b.discount_pct||0})" class="text-[10px] font-bold text-teal-600 hover:bg-teal-50 px-2 py-1 rounded border border-teal-200 transition"><i class="fa-solid fa-percent mr-1"></i>עדכן הנחה</button>
+            </div>
             <div class="text-right">
                 <p class="font-bold text-slate-800 text-sm">${b.name}</p>
                 <p class="text-xs text-slate-500">${b.admin_email || ''}</p>
@@ -1438,6 +1442,20 @@ async function zmRejectFamily(groupId, commId) {
         });
         const data = await res.json();
         if (data.success) { showZMToast('🗑 הבקשה נדחתה'); openCommunityDetail(commId, document.getElementById('zm-cd-name').textContent); }
+        else showZMToast(data.error || 'שגיאה', 'error');
+    } catch(e) { showZMToast('שגיאת רשת', 'error'); }
+}
+
+async function openZMDiscountEdit(commId, bizId, current) {
+    const v = prompt(`אחוז הנחה חדש (נוכחי: ${current}%):`, current);
+    if (v === null || v === '') return;
+    try {
+        const res = await fetch(`${API}/zone-manager/community-business/discount`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ communityId: commId, businessId: bizId, discountPct: parseFloat(v)||0 })
+        });
+        const data = await res.json();
+        if (data.success) { showZMToast('ההנחה עודכנה בהצלחה'); renderCDTab('businesses'); }
         else showZMToast(data.error || 'שגיאה', 'error');
     } catch(e) { showZMToast('שגיאת רשת', 'error'); }
 }
