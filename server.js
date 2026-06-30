@@ -18912,7 +18912,7 @@ app.post('/api/community/pool/:id/bid', async (req, res) => {
         if (!pRes.rows.length) return res.status(400).json({ error: 'הפול אינו פתוח להצעות' });
         const fp = pRes.rows[0];
         if (!isGuest) {
-            const mem = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2`, [businessGroupId, fp.community_id]);
+            const mem = await pool.query(`SELECT 1 FROM community_businesses WHERE business_id=$1 AND community_id=$2 AND status='approved'`, [businessGroupId, fp.community_id]);
             if (!mem.rows.length) return res.status(403).json({ error: 'העסק אינו חבר בקהילה' });
         }
         // עסק יכול להגיש הצעה אחת בלבד לכל פול
