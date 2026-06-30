@@ -3992,7 +3992,7 @@ async function renderFamPools() {
         el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">אינך מחובר לקהילה עדיין</p>';
         return;
     }
-    const commId = _activeFamPoolCommunityId || communities[0].community_id;
+    const commId = _activeFamPoolCommunityId || communities[0].id;
     _activeFamPoolCommunityId = commId;
 
     el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען...</p>';
@@ -4004,7 +4004,7 @@ async function renderFamPools() {
 
         let commSelector = '';
         if (communities.length > 1) {
-            const opts = communities.map(c => `<option value="${c.community_id}" ${c.community_id == commId ? 'selected' : ''}>${safeStr(c.name)}</option>`).join('');
+            const opts = communities.map(c => `<option value="${c.id}" ${c.id == commId ? 'selected' : ''}>${safeStr(c.name)}</option>`).join('');
             commSelector = `<select onchange="_activeFamPoolCommunityId=this.value;renderFamPools()" class="modern-input py-1 text-xs mb-3 w-full">${opts}</select>`;
         }
 
@@ -4054,9 +4054,9 @@ function closeCreatePoolModal() {
 async function createFamPool() {
     const title = document.getElementById('pool-title-input').value.trim();
     const desc = document.getElementById('pool-desc-input').value.trim();
-    if (!title || !desc) { showToast('כותרת ותיאור הם שדות חובה', 'error'); return; }
-    const community_id = _activeFamPoolCommunityId || (myConnectedCommunitiesCache[0] && myConnectedCommunitiesCache[0].community_id);
-    if (!community_id) { showToast('אינך מחובר לקהילה', 'error'); return; }
+    if (!title || !desc) { showToast('error', 'כותרת ותיאור הם שדות חובה'); return; }
+    const community_id = _activeFamPoolCommunityId || (myConnectedCommunitiesCache[0] && myConnectedCommunitiesCache[0].id);
+    if (!community_id) { showToast('error', 'אינך מחובר לקהילה'); return; }
 
     const payload = {
         communityId: community_id,
@@ -4073,11 +4073,12 @@ async function createFamPool() {
         const res = await fetch(`${API}/community/pool`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
-        showToast('🌊 פול נפתח בהצלחה!', 'success');
+        showToast('success', '🌊 פול נפתח בהצלחה!');
         closeCreatePoolModal();
         renderFamPools();
     } catch (e) {
-        showToast(e.message, 'error');
+        console.error('createFamPool error:', e);
+        showToast('error', e.message || 'שגיאה ביצירת פול');
     }
 }
 
@@ -4169,10 +4170,10 @@ async function joinFamPool(poolId) {
         const res = await fetch(`${API}/community/pool/${poolId}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id }) });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
-        showToast('הצטרפת לפול! 🎉', 'success');
+        showToast('success', 'הצטרפת לפול! 🎉');
         openFamPoolDetail(poolId);
         renderFamPools();
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) { console.error('joinFamPool error:', e); showToast('error', e.message || 'שגיאה'); }
 }
 
 async function selectPoolBid(poolId, bidId) {
@@ -4181,10 +4182,10 @@ async function selectPoolBid(poolId, bidId) {
         const res = await fetch(`${API}/community/pool/${poolId}/select-bid`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bid_id: bidId, bidId, viewerId: currentGroup.id }) });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
-        showToast('✅ הצעה נבחרה!', 'success');
+        showToast('success', '✅ הצעה נבחרה!');
         openFamPoolDetail(poolId);
         renderFamPools();
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) { console.error('selectPoolBid error:', e); showToast('error', e.message || 'שגיאה'); }
 }
 
 async function openFamPoolRound2(poolId) {
@@ -4193,9 +4194,9 @@ async function openFamPoolRound2(poolId) {
         const res = await fetch(`${API}/community/pool/${poolId}/open-round2`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ viewerId: currentGroup.id }) });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
-        showToast('🟣 סיבוב 2 נפתח!', 'success');
+        showToast('success', '🟣 סיבוב 2 נפתח!');
         openFamPoolDetail(poolId);
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) { console.error('openFamPoolRound2 error:', e); showToast('error', e.message || 'שגיאה'); }
 }
 
 async function sendPoolMessage(poolId) {
@@ -4208,7 +4209,7 @@ async function sendPoolMessage(poolId) {
         if (!data.success) throw new Error(data.error || 'שגיאה');
         input.value = '';
         openFamPoolDetail(poolId);
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) { console.error('sendPoolMessage error:', e); showToast('error', e.message || 'שגיאה'); }
 }
 
 async function fetchCommunityData() {
