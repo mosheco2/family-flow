@@ -4,6 +4,34 @@
 
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
 
+function triggerCoinAnimationBiz(newBalance) {
+    const chip = document.getElementById('biz-header-flw-chip');
+    if (!chip) return;
+    const rect = chip.getBoundingClientRect();
+    const targetX = rect.left + rect.width / 2;
+    const targetY = rect.top + rect.height / 2;
+    for (let i = 0; i < 7; i++) {
+        const coin = document.createElement('div');
+        coin.style.cssText = `position:fixed;z-index:99999;font-size:20px;pointer-events:none;
+            left:${Math.random()*60+20}%;bottom:80px;transition:all 0.7s cubic-bezier(.4,0,.2,1);
+            transition-delay:${i*0.06}s;opacity:1;`;
+        coin.textContent = '🪙';
+        document.body.appendChild(coin);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            coin.style.left = targetX + 'px';
+            coin.style.bottom = (window.innerHeight - targetY) + 'px';
+            coin.style.opacity = '0';
+            coin.style.transform = 'scale(0.3)';
+        }));
+        setTimeout(() => coin.remove(), 900 + i * 60);
+    }
+    setTimeout(() => {
+        const numEl = document.getElementById('biz-header-flw-num');
+        if (numEl) numEl.textContent = newBalance;
+        if (chip) { chip.style.transform = 'scale(1.3)'; setTimeout(() => { chip.style.transform = ''; }, 300); }
+    }, 650);
+}
+
 const getEl = id => document.getElementById(id);
 const val = id => getEl(id) ? getEl(id).value : '';
 const safeStr = str => (str || '').toString().replace(/'/g, "&#39;").replace(/"/g, "&quot;");
@@ -15409,6 +15437,18 @@ async function renderBizFlowWidget() {
         const res = await fetch(`${API}/flow/wallet/business/${currentGroup.id}`);
         const data = await res.json();
         const bal = Math.floor(parseFloat(data.balance || 0));
+        // Update header chip
+        const bizChip = document.getElementById('biz-header-flw-chip');
+        const bizChipNum = document.getElementById('biz-header-flw-num');
+        if (bizChip) {
+            const prevBal = parseInt(bizChipNum?.textContent || '0');
+            if (bizChipNum) bizChipNum.textContent = bal;
+            bizChip.classList.remove('hidden');
+            bizChip.classList.add('flex');
+            if (bal > prevBal && prevBal > 0) {
+                if (typeof triggerCoinAnimationBiz === 'function') triggerCoinAnimationBiz(bal);
+            }
+        }
         widget.innerHTML = `<div onclick="openBizFlowWallet()" style="cursor:pointer;background:linear-gradient(135deg,#f59e0b,#d97706,#b45309);border-radius:20px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(245,158,11,0.35);position:relative;overflow:hidden;">
             <div style="position:absolute;inset:0;background:radial-gradient(circle at 80% 50%,rgba(255,255,255,0.12),transparent 60%);pointer-events:none;"></div>
             <div style="display:flex;align-items:center;gap:12px;">

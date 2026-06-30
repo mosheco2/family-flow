@@ -206,7 +206,7 @@ async function zmApproveFamilyFromPanel(groupId, communityId) {
             body: JSON.stringify({ groupId, communityId })
         });
         const data = await res.json();
-        if (data.success) { zmShowToast('success', 'המשפחה אושרה!'); loadZMPendingPanel(); }
+        if (data.success) { zmShowToast('success', 'המשפחה אושרה!'); loadZMPendingPanel(); loadDashboard(); }
         else zmShowToast('error', data.error || 'שגיאה');
     } catch(e) { zmShowToast('error', 'שגיאת תקשורת'); }
 }
@@ -1428,7 +1428,7 @@ async function zmApproveFamily(groupId, commId) {
             body: JSON.stringify({ groupId, communityId: commId })
         });
         const data = await res.json();
-        if (data.success) { showZMToast('✅ המשפחה אושרה!'); openCommunityDetail(commId, document.getElementById('zm-cd-name').textContent); }
+        if (data.success) { showZMToast('✅ המשפחה אושרה!'); openCommunityDetail(commId, document.getElementById('zm-cd-name').textContent); loadDashboard(); }
         else showZMToast(data.error || 'שגיאה', 'error');
     } catch(e) { showZMToast('שגיאת רשת', 'error'); }
 }

@@ -7932,11 +7932,13 @@ app.get('/api/community/promos/:groupId', async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT cp.id, cp.title, cp.content, cp.discount_pct, cp.valid_until, cp.promo_code,
-                   fg.name as biz_name, fg.group_code as biz_code, c.name as comm_name, c.id as community_id
+                   fg.name as biz_name, fg.group_code as biz_code, c.name as comm_name, c.id as community_id,
+                   ss.phone as biz_phone, ss.is_active as store_active
             FROM community_promotions cp
             JOIN family_groups fg ON cp.business_id = fg.id
             JOIN communities c ON cp.community_id = c.id
             JOIN family_communities fc ON fc.community_id = c.id AND fc.group_id = $1 AND fc.status = 'approved'
+            LEFT JOIN store_settings ss ON ss.group_id = fg.id
             WHERE cp.status = 'approved'
               AND (cp.valid_until IS NULL OR cp.valid_until >= CURRENT_DATE)
             ORDER BY cp.created_at DESC
@@ -19019,8 +19021,8 @@ app.get('/api/biz/pools/:bizGroupId', async (req, res) => {
                 (SELECT COUNT(*) FROM flow_pool_members WHERE pool_id=fp.id) as member_count
             FROM flow_pools fp
             JOIN family_groups fg ON fg.id=fp.initiator_id
-            JOIN family_communities fc ON fc.community_id=fp.community_id
-            WHERE fc.group_id=$1 AND fp.initiator_type='family'
+            JOIN community_businesses cb ON cb.community_id=fp.community_id AND cb.business_id=$1 AND cb.status='approved'
+            WHERE fp.initiator_type='family'
               AND fp.status IN ('open_r1','open_r2') AND fp.expires_at>NOW()
             ORDER BY fp.created_at DESC`, [req.params.bizGroupId]);
         res.json({ success: true, pools: r.rows });

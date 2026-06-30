@@ -4695,7 +4695,12 @@ function renderCommunityPromotions(promos) {
         el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed">אין מבצעים פעילים כרגע</p>';
         return;
     }
-    el.innerHTML = promos.map(p => `
+    el.innerHTML = promos.map(p => {
+        const storeUrl = p.biz_code && p.store_active ? `${window.location.origin}/storefront.html?store=${safeStr(p.biz_code)}&communityId=${p.community_id}` : null;
+        const storeBtn = storeUrl ? `<a href="${storeUrl}" target="_blank" class="flex-1 bg-slate-900 hover:bg-slate-700 text-white text-xs font-bold py-1.5 px-3 rounded-xl transition text-center">🛒 לחנות העסק</a>` : '';
+        const phoneBtn = p.biz_phone ? `<a href="tel:${safeStr(p.biz_phone)}" class="flex-1 bg-green-50 hover:bg-green-100 text-green-700 text-xs font-bold py-1.5 px-3 rounded-xl transition text-center border border-green-100">📞 ${safeStr(p.biz_phone)}</a>` : '';
+        const actionBtns = (storeBtn || phoneBtn) ? `<div class="flex gap-2 mt-2">${storeBtn}${phoneBtn}</div>` : '';
+        return `
     <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100 rounded-2xl p-4 shadow-sm">
         <div class="flex justify-between items-start mb-1">
             <div class="font-bold text-slate-800 text-sm">${safeStr(p.title)}</div>
@@ -4703,14 +4708,13 @@ function renderCommunityPromotions(promos) {
         </div>
         ${p.content ? `<p class="text-xs text-slate-600 mt-1 leading-relaxed">${safeStr(p.content)}</p>` : ''}
         <div class="flex justify-between items-center mt-2.5 pt-2 border-t border-orange-100">
-            <span class="text-[10px] text-slate-400 font-medium">${safeStr(p.business_name)} · ${safeStr(p.community_name)}</span>
+            <span class="text-[10px] text-slate-400 font-medium">${safeStr(p.biz_name || p.business_name)} · ${safeStr(p.comm_name || p.community_name)}</span>
             ${p.valid_until ? `<span class="text-[10px] text-orange-500 font-bold">⏰ עד ${new Date(p.valid_until).toLocaleDateString('he-IL')}</span>` : ''}
         </div>
-        ${p.promo_code ? `<div class="mt-3 flex items-center justify-between gap-2 bg-slate-900 rounded-xl px-3 py-2"><span class="text-[10px] text-slate-300 font-bold">קוד הנחה:</span><span class="font-mono font-black text-white tracking-widest text-sm">${safeStr(p.promo_code)}</span><button onclick="navigator.clipboard.writeText('${safeStr(p.promo_code)}').then(()=>showToast('success','הקוד הועתק!'))" class="text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-copy"></i></button></div><p class="text-[10px] text-slate-400 text-center mt-1">הזמינו בחנות העסק ← הכניסו קוד זה ← תקבלו הנחה ומטבעות FLOW!</p>` : ''}
-        <div class="flex gap-2 mt-2">
-            <button onclick="openWriteReviewModal(${p.business_id},'${safeStr(p.business_name)}')" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold py-1.5 px-3 rounded-xl transition">⭐ כתוב ביקורת</button>
-        </div>
-    </div>`).join('');
+        ${p.promo_code ? `<div class="mt-3 flex items-center justify-between gap-2 bg-slate-900 rounded-xl px-3 py-2"><span class="text-[10px] text-slate-300 font-bold">קוד הנחה:</span><span class="font-mono font-black text-white tracking-widest text-sm">${safeStr(p.promo_code)}</span><button onclick="navigator.clipboard.writeText('${safeStr(p.promo_code)}').then(()=>showToast('success','הקוד הועתק!'))" class="text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-copy"></i></button></div>` : ''}
+        ${actionBtns}
+    </div>`;
+    }).join('');
 }
 
 function renderCommunityBundles(bundles) {
@@ -4861,6 +4865,40 @@ function launchFlowConfetti() {
 
 let familyFlowBalance = 0;
 let familyFlowRate = 100;
+let _flwBalInitialized = false;
+
+function triggerCoinAnimation(newBalance) {
+    const chip = getEl('header-flw-chip');
+    if (!chip) return;
+    const rect = chip.getBoundingClientRect();
+    const targetX = rect.left + rect.width / 2;
+    const targetY = rect.top + rect.height / 2;
+    for (let i = 0; i < 7; i++) {
+        const coin = document.createElement('div');
+        coin.style.cssText = `position:fixed;z-index:99999;font-size:20px;pointer-events:none;
+            left:${Math.random()*60+20}%;bottom:80px;transition:all 0.7s cubic-bezier(.4,0,.2,1);
+            transition-delay:${i*0.06}s;opacity:1;`;
+        coin.textContent = '🪙';
+        document.body.appendChild(coin);
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                coin.style.left = targetX + 'px';
+                coin.style.bottom = (window.innerHeight - targetY) + 'px';
+                coin.style.opacity = '0';
+                coin.style.transform = 'scale(0.3)';
+            });
+        });
+        setTimeout(() => coin.remove(), 900 + i * 60);
+    }
+    setTimeout(() => {
+        const numEl = getEl('header-flw-num');
+        if (numEl) numEl.textContent = Math.floor(newBalance);
+        if (chip) {
+            chip.style.transform = 'scale(1.3)';
+            setTimeout(() => { chip.style.transform = ''; }, 300);
+        }
+    }, 650);
+}
 
 async function loadFamilyFlowWallet() {
     if (!currentGroup || currentGroup.type !== 'FAMILY') return;
@@ -4868,6 +4906,7 @@ async function loadFamilyFlowWallet() {
         const res = await fetch(`${API}/flow/wallet/family/${currentGroup.id}`);
         if (!res.ok) return;
         const data = await res.json();
+        const prevBal = familyFlowBalance;
         familyFlowBalance = data.balance || 0;
         familyFlowRate = data.rate || 100;
 
@@ -4880,6 +4919,19 @@ async function loadFamilyFlowWallet() {
             flowBadge.textContent = `Flw${Math.floor(familyFlowBalance)}`;
             flowBadge.classList.remove('hidden');
         }
+
+        // Update header FLW chip
+        const chip = getEl('header-flw-chip');
+        const numEl = getEl('header-flw-num');
+        if (chip) {
+            if (numEl) numEl.textContent = Math.floor(familyFlowBalance);
+            chip.classList.remove('hidden');
+            chip.classList.add('flex');
+            if (_flwBalInitialized && familyFlowBalance > prevBal) {
+                triggerCoinAnimation(familyFlowBalance);
+            }
+        }
+        _flwBalInitialized = true;
 
         // If wallet modal is open, refresh it
         if (document.getElementById('fam-flow-wallet-modal')) renderFlowWalletContent(data);
