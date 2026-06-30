@@ -19001,6 +19001,23 @@ app.post('/api/community/pool/:id/message', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// הצעות שעסק הגיש לפולים
+app.get('/api/biz/my-pool-bids/:bizGroupId', async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT fpb.id as bid_id, fpb.price, fpb.description, fpb.status as bid_status, fpb.created_at as bid_at,
+                   fp.id as pool_id, fp.title, fp.status as pool_status, fp.community_id,
+                   fg_init.name as initiator_name, fp.initiator_id
+            FROM flow_pool_bids fpb
+            JOIN flow_pools fp ON fp.id = fpb.pool_id
+            JOIN family_groups fg_init ON fg_init.id = fp.initiator_id
+            WHERE fpb.business_group_id = $1
+            ORDER BY fpb.created_at DESC
+        `, [req.params.bizGroupId]);
+        res.json({ success: true, bids: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ניקוי פולים שפג תוקפם (נקרא בחצות)
 app.post('/api/community/pool/cleanup', async (req, res) => {
     try {

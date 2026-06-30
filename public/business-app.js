@@ -14815,15 +14815,134 @@ async function loadBizAvailableCommunities() {
 }
 
 // ─── FlowPool — BIZ ──────────────────────────────────────────────────
+let _bizMyBids = [];
+
+async function loadBizMyBids() {
+    if (!currentGroup || !currentGroup.id) return;
+    try {
+        const res = await fetch(`${API}/biz/my-pool-bids/${currentGroup.id}`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const data = await res.json();
+        _bizMyBids = data.success ? (data.bids || []) : [];
+        renderBizMyBids();
+    } catch(e) { _bizMyBids = []; }
+}
+
+function renderBizMyBids() {
+    let el = document.getElementById('biz-my-bids-section');
+    if (!el) {
+        const poolList = document.getElementById('biz-pool-list');
+        if (!poolList) return;
+        el = document.createElement('div');
+        el.id = 'biz-my-bids-section';
+        poolList.parentElement.insertBefore(el, poolList);
+    }
+    if (!_bizMyBids.length) { el.innerHTML = ''; return; }
+    const statusIcon = { pending: '⏳', accepted: '✅', rejected: '❌' };
+    const statusText = { pending: 'ממתין לאישור', accepted: 'הצעה נבחרה!', rejected: 'לא נבחרה' };
+    const statusColor = { pending: 'bg-amber-50 border-amber-200 text-amber-800', accepted: 'bg-green-50 border-green-200 text-green-800', rejected: 'bg-slate-50 border-slate-200 text-slate-500' };
+    el.innerHTML = `
+    <div class="mb-4">
+        <h3 class="text-xs font-black text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-1">
+            <i class="fa-solid fa-paper-plane text-blue-400"></i> הצעות שהגשתי
+        </h3>
+        <div class="space-y-2">
+        ${_bizMyBids.map(b => {
+            const st = b.bid_status || 'pending';
+            const colorClass = statusColor[st] || statusColor.pending;
+            const poolClosed = b.pool_status === 'closed' || b.pool_status === 'expired';
+            return `<div class="border rounded-2xl p-3 ${colorClass}">
+                <div class="flex justify-between items-start mb-1">
+                    <span class="text-[11px] font-bold">${statusIcon[st]} ${statusText[st] || st}</span>
+                    <div class="text-right">
+                        <p class="text-xs font-bold text-slate-800">${safeStr(b.title)}</p>
+                        <p class="text-[10px] text-slate-500">יוזם: ${safeStr(b.initiator_name)}</p>
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-600 mb-2">הצעתי: <span class="font-black">₪${Number(b.price).toLocaleString()}</span> — ${safeStr(b.description)}</p>
+                ${!poolClosed ? `<button onclick="openBizPoolChat(${b.pool_id},'${safeStr(b.title).replace(/'/g,"\\'")}','${safeStr(b.initiator_name).replace(/'/g,"\\'")}',${b.initiator_id})" class="text-[11px] font-bold bg-white/70 hover:bg-white border border-current px-3 py-1 rounded-xl transition">
+                    💬 שלח הודעה ליוזם
+                </button>` : ''}
+                ${st === 'accepted' ? `<p class="text-[11px] font-bold mt-2">🎉 מזל טוב! ההצעה שלך נבחרה. צור קשר עם ${safeStr(b.initiator_name)} להמשך.</p>` : ''}
+            </div>`;
+        }).join('')}
+        </div>
+    </div>`;
+}
+
+window.openBizPoolChat = async function(poolId, poolTitle, initiatorName, initiatorId) {
+    const existing = document.getElementById('biz-pool-chat-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'biz-pool-chat-modal';
+    modal.className = 'fixed inset-0 bg-black/60 z-[9999] flex items-end justify-center';
+    modal.onclick = e => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `<div class="bg-white rounded-t-3xl w-full max-w-lg flex flex-col" style="max-height:80vh">
+        <div class="flex justify-between items-center px-5 py-4 border-b shrink-0">
+            <button onclick="document.getElementById('biz-pool-chat-modal').remove()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <div class="text-right">
+                <h3 class="font-black text-slate-800 text-sm">${safeStr(poolTitle)}</h3>
+                <p class="text-[11px] text-slate-400">שיחה עם ${safeStr(initiatorName)}</p>
+            </div>
+        </div>
+        <div id="biz-pool-chat-msgs" class="flex-1 overflow-y-auto p-4 space-y-2">
+            <p class="text-xs text-slate-300 text-center py-4">טוען...</p>
+        </div>
+        <div class="flex gap-2 p-4 border-t shrink-0">
+            <input id="biz-pool-chat-input" type="text" class="modern-input py-2 text-xs flex-1" placeholder="הודעה ליוזם הפול..." onkeydown="if(event.key==='Enter')sendBizPoolMsg(${poolId})">
+            <button onclick="sendBizPoolMsg(${poolId})" class="bg-blue-500 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-blue-600"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    await loadBizPoolChatMsgs(poolId);
+};
+
+async function loadBizPoolChatMsgs(poolId) {
+    const el = document.getElementById('biz-pool-chat-msgs');
+    if (!el) return;
+    try {
+        const res = await fetch(`${API}/community/pool/${poolId}/messages`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const data = await res.json();
+        const msgs = data.messages || [];
+        if (!msgs.length) { el.innerHTML = '<p class="text-xs text-slate-300 text-center py-4">אין הודעות עדיין</p>'; return; }
+        el.innerHTML = msgs.map(m => {
+            if (m.sender_type === 'system') return `<div class="bg-slate-100 text-slate-500 text-center mx-auto rounded-full px-3 py-1 text-[11px] max-w-xs">${safeStr(m.content)}</div>`;
+            const isMine = m.sender_id == currentGroup.id;
+            return `<div class="flex ${isMine ? 'flex-row-reverse' : 'flex-row'}">
+                <div class="max-w-[80%] px-3 py-2 rounded-2xl text-xs ${isMine ? 'bg-blue-100 text-blue-800 rounded-br-none' : 'bg-slate-100 text-slate-700 rounded-bl-none'}">
+                    ${!isMine ? `<p class="text-[10px] font-bold mb-0.5 text-slate-500">${safeStr(m.sender_name || '')}</p>` : ''}
+                    ${safeStr(m.content)}
+                </div>
+            </div>`;
+        }).join('');
+        el.scrollTop = el.scrollHeight;
+    } catch(e) { el.innerHTML = '<p class="text-xs text-red-400 text-center py-4">שגיאה</p>'; }
+}
+
+window.sendBizPoolMsg = async function(poolId) {
+    const input = document.getElementById('biz-pool-chat-input');
+    const content = input ? input.value.trim() : '';
+    if (!content) return;
+    try {
+        await fetch(`${API}/community/pool/${poolId}/message`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
+            body: JSON.stringify({ senderId: currentGroup.id, senderType: 'business', content })
+        });
+        if (input) input.value = '';
+        await loadBizPoolChatMsgs(poolId);
+    } catch(e) {}
+};
+
 async function loadBizPools() {
     const el = document.getElementById('biz-pool-list');
     if (!el || !currentGroup || !currentGroup.id) return;
     el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען פולים...</p>';
+    await loadBizMyBids();
     try {
         const res = await fetch(`${API}/biz/pools/${currentGroup.id}`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
         const pools = data.pools || [];
+        const myBidPoolIds = new Set(_bizMyBids.map(b => String(b.pool_id)));
         if (!pools.length) {
             el.innerHTML = '<div class="text-center py-8"><i class="fa-solid fa-water text-4xl text-slate-200 mb-3"></i><p class="text-sm font-bold text-slate-500">אין פולים פתוחים כעת</p><p class="text-xs text-slate-400">כשמשפחות בקהילה יפתחו פולים הם יופיעו כאן</p></div>';
             return;
@@ -14832,6 +14951,10 @@ async function loadBizPools() {
             const statusLabel = { open_r1: 'סיבוב 1', open_r2: 'סיבוב 2 — עסקים חיצוניים' }[p.status] || p.status;
             const statusColor = p.status === 'open_r2' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700';
             const maxP = p.max_price > 0 ? `עד ₪${Number(p.max_price).toLocaleString()}` : 'מחיר פתוח';
+            const myBid = _bizMyBids.find(b => String(b.pool_id) === String(p.id));
+            const actionBtn = myBid
+                ? `<div class="w-full py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold text-center">⏳ הצעה הוגשה — ₪${Number(myBid.price).toLocaleString()}</div>`
+                : `<button onclick="openBizBidModal(${p.id},'${safeStr(p.title).replace(/'/g,"\\'")}',${p.max_price||0})" class="w-full py-2 rounded-xl bg-blue-500 text-white text-xs font-bold hover:bg-blue-600 transition shadow-sm"><i class="fa-solid fa-gavel ml-1"></i>הגש הצעת מחיר</button>`;
             return `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
                 <div class="flex justify-between items-start mb-2">
                     <div class="flex-1 min-w-0">
@@ -14844,10 +14967,9 @@ async function loadBizPools() {
                 <div class="flex gap-3 text-xs text-slate-400 mb-3">
                     <span><i class="fa-solid fa-users ml-1"></i>${p.members_count || 0} משפחות</span>
                     <span><i class="fa-solid fa-shekel-sign ml-1"></i>${maxP}</span>
+                    <span><i class="fa-solid fa-user ml-1"></i>יוזם: ${safeStr(p.initiator_name)}</span>
                 </div>
-                <button onclick="openBizBidModal(${p.id},'${safeStr(p.title).replace(/'/g,"\\'")}',${p.max_price||0})" class="w-full py-2 rounded-xl bg-blue-500 text-white text-xs font-bold hover:bg-blue-600 transition shadow-sm">
-                    <i class="fa-solid fa-gavel ml-1"></i>הגש הצעת מחיר
-                </button>
+                ${actionBtn}
             </div>`;
         }).join('');
     } catch (e) {
@@ -14914,7 +15036,7 @@ async function submitBizPoolBid() {
         const res = await fetch(`${API}/community/pool/${_bizBidTargetPoolId}/bid`, { method: 'POST', headers: { ...{ Authorization: `Bearer ${currentUser?.token}` }, 'Content-Type': 'application/json' }, body: JSON.stringify({ price, description, businessGroupId: currentGroup.id }) });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
-        showToast('✅ הצעה הוגשה בהצלחה!', 'success');
+        showToast('✅ הצעה הוגשה בהצלחה! היא תופיע בסקציית "הצעות שהגשתי"', 'success');
         closeBizBidModal();
         loadBizPools();
     } catch (e) { showToast(e.message, 'error'); }

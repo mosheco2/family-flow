@@ -4134,8 +4134,11 @@ async function openFamPoolDetail(poolId) {
                 <div class="space-y-2">
                     ${bids.map(b => `<div class="bg-white rounded-lg p-2 border border-amber-100 text-xs">
                         <div class="flex justify-between items-center mb-1">
-                            <span class="font-bold text-slate-700">₪${Number(b.price).toLocaleString()}</span>
-                            ${b.status === 'pending' && p.status !== 'closed' ? `<button onclick="selectPoolBid(${p.id},${b.id})" class="text-[10px] bg-green-500 text-white px-2 py-0.5 rounded-full font-bold hover:bg-green-600 transition">בחר</button>` : `<span class="text-[10px] font-bold ${b.status==='accepted'?'text-green-600':'text-slate-400'}">${b.status==='accepted'?'✅ נבחר':''}</span>`}
+                            <div class="flex items-center gap-1">
+                                <span class="font-bold text-slate-700">₪${Number(b.price).toLocaleString()}</span>
+                                ${b.status === 'pending' && p.status !== 'closed' ? `<button onclick="selectPoolBid(${p.id},${b.id})" class="text-[10px] bg-green-500 text-white px-2 py-0.5 rounded-full font-bold hover:bg-green-600 transition">בחר ✓</button>` : `<span class="text-[10px] font-bold ${b.status==='accepted'?'text-green-600':'text-slate-400'}">${b.status==='accepted'?'✅ נבחר':''}</span>`}
+                            </div>
+                            <span class="font-bold text-slate-800 text-[11px]">${safeStr(b.biz_name || b.business_name || '')}</span>
                         </div>
                         <p class="text-slate-500 text-[11px]">${safeStr(b.description)}</p>
                         ${b.is_guest ? '<span class="text-purple-600 text-[10px]">👤 אורח (סיבוב 2)</span>' : ''}
