@@ -5174,10 +5174,20 @@ window.searchCommunitiesByCity = async function(city) {
     try {
         const res = await fetch(`${API}/communities/discover?q=${encodeURIComponent(q)}`);
         const data = await res.json();
-        const byCity = data.byCity || [];
-        if (!byCity.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">לא נמצאו קהילות עבור "' + safeStr(q) + '"</p>'; return; }
-        const myApproved = new Set((myConnectedCommunitiesCache || []).filter(c => (c.status||'approved')==='approved').map(c => String(c.id)));
-        const myPending = new Set((myConnectedCommunitiesCache || []).filter(c => c.status === 'pending').map(c => String(c.id)));
+        let allComms = (data.byCity || []).flatMap(g => g.communities);
+        // fallback: קהילות שהמשפחה חברה בהן שתואמות את החיפוש תמיד מוצגות
+        const myAll = myConnectedCommunitiesCache || [];
+        const ql = q.toLowerCase();
+        const myMatching = myAll.filter(c => (c.name||'').toLowerCase().includes(ql) || (c.city||'').toLowerCase().includes(ql));
+        const returnedIds = new Set(allComms.map(c => String(c.id)));
+        myMatching.forEach(c => { if (!returnedIds.has(String(c.id))) allComms.push({ id: c.id, name: c.name, city: c.city, code: c.code, community_type: c.community_type, family_count: c.member_count || 0, biz_count: 0 }); });
+        if (!allComms.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">לא נמצאו קהילות עבור "' + safeStr(q) + '"</p>'; return; }
+        // קיבוץ לפי עיר
+        const byCityMap = {};
+        allComms.forEach(c => { const k = c.city || 'ארצי'; if (!byCityMap[k]) byCityMap[k] = []; byCityMap[k].push(c); });
+        const byCity = Object.entries(byCityMap).map(([city, communities]) => ({ city, communities }));
+        const myApproved = new Set(myAll.filter(c => (c.status||'approved')==='approved').map(c => String(c.id)));
+        const myPending = new Set(myAll.filter(c => c.status === 'pending').map(c => String(c.id)));
         el.innerHTML = byCity.map(group => `
             <div class="mb-4">
                 <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
