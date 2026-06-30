@@ -4696,7 +4696,7 @@ function renderCommunityPromotions(promos) {
         return;
     }
     el.innerHTML = promos.map(p => {
-        const storeUrl = p.biz_code && p.store_active ? `${window.location.origin}/storefront.html?store=${safeStr(p.biz_code)}&communityId=${p.community_id}` : null;
+        const storeUrl = p.biz_code ? `${window.location.origin}/storefront.html?store=${safeStr(p.biz_code)}&communityId=${p.community_id}` : null;
         const storeBtn = storeUrl ? `<a href="${storeUrl}" target="_blank" class="flex-1 bg-slate-900 hover:bg-slate-700 text-white text-xs font-bold py-1.5 px-3 rounded-xl transition text-center">🛒 לחנות העסק</a>` : '';
         const phoneBtn = p.biz_phone ? `<a href="tel:${safeStr(p.biz_phone)}" class="flex-1 bg-green-50 hover:bg-green-100 text-green-700 text-xs font-bold py-1.5 px-3 rounded-xl transition text-center border border-green-100">📞 ${safeStr(p.biz_phone)}</a>` : '';
         const actionBtns = (storeBtn || phoneBtn) ? `<div class="flex gap-2 mt-2">${storeBtn}${phoneBtn}</div>` : '';
