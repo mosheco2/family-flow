@@ -4523,15 +4523,28 @@ function renderFamilyCommunities() {
     const bizList = getEl('community-businesses-list');
     if (bizList) {
         if (myCommunityBusinessesCache.length > 0) {
-            let bizHtml = '';
+            // קיבוץ לפי עסק — עסק שמופיע בכמה קהילות מאוחד לכרטיס אחד
+            const bizMap = {};
             myCommunityBusinessesCache.forEach(biz => {
-                const storeLink = `${window.location.origin}/storefront.html?store=${biz.group_code}&communityId=${biz.community_id}`;
+                const key = String(biz.business_id || biz.group_code);
+                if (!bizMap[key]) bizMap[key] = { ...biz, communities: [] };
+                bizMap[key].communities.push({ id: biz.community_id, name: biz.comm_name, discount_pct: biz.discount_pct, family_count: biz.family_count, min_families: biz.min_families });
+            });
+            let bizHtml = '';
+            Object.values(bizMap).forEach(biz => {
+                const comms = biz.communities;
                 const minFam = parseInt(biz.min_families) || 30;
                 const famCount = parseInt(biz.family_count) || 0;
-                const discountActive = famCount >= minFam;
-                const discountBadge = discountActive
-                    ? `<span class="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-100">${biz.discount_pct}% הנחה</span>`
-                    : `<span class="text-[9px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100"><i class="fa-solid fa-clock-rotate-left"></i> ${biz.discount_pct}% הנחה ב-${famCount}/${minFam} משפחות</span>`;
+                const multiComm = comms.length > 1;
+                const commBadges = comms.map(c => {
+                    const active = parseInt(c.family_count) >= (parseInt(c.min_families) || 30);
+                    return `<span class="text-[9px] font-bold ${active ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'} border px-1.5 py-0.5 rounded-md">
+                        ${c.discount_pct}% הנחה ב-${safeStr(c.name)}
+                    </span>`;
+                }).join('');
+                const actionBtn = multiComm
+                    ? `<button onclick="openBizCommunityPicker('${safeStr(biz.group_code)}','${safeStr(biz.business_name).replace(/'/g,"\\'")}',${JSON.stringify(comms).replace(/"/g,'&quot;')})" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm shrink-0">לחנות ▾</button>`
+                    : `<a href="${window.location.origin}/storefront.html?store=${biz.group_code}&communityId=${comms[0].id}" target="_blank" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm shrink-0">לחנות</a>`;
                 bizHtml += `
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center justify-between hover:border-emerald-100 transition-colors">
                     <div class="flex items-center gap-3 min-w-0">
@@ -4540,17 +4553,10 @@ function renderFamilyCommunities() {
                         </div>
                         <div class="min-w-0">
                             <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(biz.business_name)}</h4>
-                            <div class="flex flex-wrap gap-1 mt-1">
-                                ${discountBadge}
-                                <span class="text-[9px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md truncate max-w-[100px]">
-                                    מקהילת ${safeStr(biz.comm_name)}
-                                </span>
-                            </div>
+                            <div class="flex flex-wrap gap-1 mt-1">${commBadges}</div>
                         </div>
                     </div>
-                    <a href="${storeLink}" target="_blank" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm shrink-0">
-                        לחנות
-                    </a>
+                    ${actionBtn}
                 </div>`;
             });
             bizList.innerHTML = bizHtml;
@@ -4589,6 +4595,37 @@ function renderFamilyCommunities() {
 // ============================================================
 // --- COMMUNITY ADVANCED FEATURES (Family UI) ---
 // ============================================================
+
+window.openBizCommunityPicker = function(groupCode, bizName, comms) {
+    const existing = getEl('biz-comm-picker-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'biz-comm-picker-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-end justify-center';
+    modal.innerHTML = `
+    <div class="bg-white rounded-t-3xl w-full max-w-lg p-5 pb-8 shadow-2xl">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-slate-800 text-base">🏪 ${safeStr(bizName)}</h3>
+            <button onclick="getEl('biz-comm-picker-modal').remove()" class="text-slate-400 hover:text-red-500 text-xl">&times;</button>
+        </div>
+        <p class="text-xs text-slate-500 mb-3">דרך איזו קהילה לכנס לחנות?</p>
+        <div class="space-y-2">
+            ${comms.map(c => {
+                const active = parseInt(c.family_count) >= (parseInt(c.min_families) || 30);
+                const badge = active
+                    ? `<span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">${c.discount_pct}% הנחה פעילה ✓</span>`
+                    : `<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">${c.discount_pct}% הנחה — ${c.family_count}/${c.min_families || 30} משפחות</span>`;
+                return `<a href="${window.location.origin}/storefront.html?store=${groupCode}&communityId=${c.id}" target="_blank" onclick="getEl('biz-comm-picker-modal').remove()"
+                    class="flex justify-between items-center bg-slate-50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-200 rounded-2xl px-4 py-3 transition cursor-pointer">
+                    <div class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</div>
+                    ${badge}
+                </a>`;
+            }).join('')}
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
 
 async function loadCommunityFeed() {
     if (!currentGroup || currentGroup.type !== 'FAMILY') return;
@@ -5084,25 +5121,62 @@ window.openCommunityDiscoveryModal = async function() {
             </div>
         </div>
         <div id="discovery-results" class="overflow-y-auto flex-1 p-4">
-            <p class="text-xs text-slate-400 text-center py-4">טוען קהילות...</p>
         </div>
     </div>`;
     document.body.appendChild(modal);
-    searchCommunitiesByCity('');
+    // ברירת מחדל: הצג קהילות הקיימות של המשפחה
+    _renderDiscoveryMyComms();
 };
 
-window.searchCommunitiesByCity = async function(city) {
-    const q = city !== undefined ? city : (getEl('discovery-city-input')?.value || '');
+function _renderDiscoveryMyComms() {
     const el = getEl('discovery-results');
     if (!el) return;
+    const myComms = myConnectedCommunitiesCache || [];
+    if (!myComms.length) {
+        el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">עוד לא חברים בקהילה — חפשו קהילה לעיל</p>';
+        return;
+    }
+    const approved = myComms.filter(c => (c.status || 'approved') === 'approved');
+    const pending = myComms.filter(c => c.status === 'pending');
+    let html = '';
+    if (approved.length) {
+        html += `<h4 class="text-xs font-bold text-slate-500 mb-2">✅ הקהילות שלי</h4>`;
+        html += approved.map(c => `
+            <div class="bg-white border border-green-100 rounded-xl p-3 mb-2 shadow-sm flex justify-between items-center">
+                <div class="text-right">
+                    <div class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</div>
+                    <div class="text-xs text-slate-500">${safeStr(c.city || 'כללי')}</div>
+                </div>
+                <span class="text-xs text-green-600 font-bold bg-green-50 px-3 py-1.5 rounded-xl border border-green-100">✅ חבר</span>
+            </div>`).join('');
+    }
+    if (pending.length) {
+        html += `<h4 class="text-xs font-bold text-slate-500 mb-2 mt-3">⏳ ממתינות לאישור</h4>`;
+        html += pending.map(c => `
+            <div class="bg-white border border-amber-100 rounded-xl p-3 mb-2 shadow-sm flex justify-between items-center">
+                <div class="text-right">
+                    <div class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</div>
+                    <div class="text-xs text-slate-500">${safeStr(c.city || 'כללי')}</div>
+                </div>
+                <span class="text-xs text-amber-600 font-bold bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-100">⏳ ממתין</span>
+            </div>`).join('');
+    }
+    html += `<p class="text-[10px] text-slate-400 text-center mt-3">לחפש קהילות נוספות — הקלד שם/עיר/אזור בחיפוש</p>`;
+    el.innerHTML = html;
+}
+
+window.searchCommunitiesByCity = async function(city) {
+    const q = city !== undefined ? city : (getEl('discovery-city-input')?.value || '').trim();
+    const el = getEl('discovery-results');
+    if (!el) return;
+    if (!q) { _renderDiscoveryMyComms(); return; }
     el.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">טוען...</p>';
     try {
-        const url = q ? `${API}/communities/discover?q=${encodeURIComponent(q)}` : `${API}/communities/discover`;
-        const res = await fetch(url);
+        const res = await fetch(`${API}/communities/discover?q=${encodeURIComponent(q)}`);
         const data = await res.json();
         const byCity = data.byCity || [];
-        if (!byCity.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">לא נמצאו קהילות</p>'; return; }
-        const myApproved = new Set((myConnectedCommunitiesCache || []).filter(c => c.status === 'approved').map(c => String(c.id)));
+        if (!byCity.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">לא נמצאו קהילות עבור "' + safeStr(q) + '"</p>'; return; }
+        const myApproved = new Set((myConnectedCommunitiesCache || []).filter(c => (c.status||'approved')==='approved').map(c => String(c.id)));
         const myPending = new Set((myConnectedCommunitiesCache || []).filter(c => c.status === 'pending').map(c => String(c.id)));
         el.innerHTML = byCity.map(group => `
             <div class="mb-4">
@@ -5121,9 +5195,9 @@ window.searchCommunitiesByCity = async function(city) {
                             ${c.interest_tags ? `<div class="text-[10px] text-teal-600 mt-0.5">${safeStr(c.interest_tags)}</div>` : ''}
                         </div>
                         ${approved
-                            ? `<span class="text-xs text-green-600 font-bold bg-green-50 px-3 py-1.5 rounded-xl">✅ חבר</span>`
+                            ? `<span class="text-xs text-green-600 font-bold bg-green-50 px-3 py-1.5 rounded-xl border border-green-100">✅ חבר</span>`
                             : pending
-                            ? `<span class="text-xs text-amber-600 font-bold bg-amber-50 px-3 py-1.5 rounded-xl">⏳ ממתין לאישור</span>`
+                            ? `<span class="text-xs text-amber-600 font-bold bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-100">⏳ ממתין לאישור</span>`
                             : `<button onclick="joinCommunityByCode('${safeStr(c.code)}','${safeStr(c.name).replace(/'/g,"\\'")}',this)" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-slate-700 transition">הצטרף</button>`
                         }
                     </div>`;
