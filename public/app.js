@@ -5023,11 +5023,10 @@ window.joinCommunityByCode = async function(code, name, btn) {
         });
         const data = await res.json();
         if (data.success) {
-            btn.textContent = '✅ הצטרפת!';
-            btn.className = btn.className.replace('bg-teal-600 hover:bg-teal-700','bg-green-500');
-            launchFlowConfetti();
+            btn.textContent = '⏳ ממתין לאישור';
+            btn.className = btn.className.replace(/bg-\w+-\d+\s*/g,'') + ' bg-amber-500 cursor-default';
+            btn.disabled = true;
             fetchCommunityData();
-            loadFamilyFlowWallet && loadFamilyFlowWallet();
         } else { btn.textContent = data.error || 'שגיאה'; btn.disabled = false; }
     } catch(e) { btn.textContent = 'שגיאת רשת'; btn.disabled = false; }
 };
@@ -5069,14 +5068,16 @@ window.searchCommunitiesByCity = async function(city) {
         const data = await res.json();
         const byCity = data.byCity || [];
         if (!byCity.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">לא נמצאו קהילות</p>'; return; }
-        const myIds = new Set((myConnectedCommunitiesCache || []).map(c => String(c.id)));
+        const myApproved = new Set((myConnectedCommunitiesCache || []).filter(c => c.status === 'approved').map(c => String(c.id)));
+        const myPending = new Set((myConnectedCommunitiesCache || []).filter(c => c.status === 'pending').map(c => String(c.id)));
         el.innerHTML = byCity.map(group => `
             <div class="mb-4">
                 <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
                     <i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(group.city)}
                 </h4>
                 ${group.communities.map(c => {
-                    const joined = myIds.has(String(c.id));
+                    const approved = myApproved.has(String(c.id));
+                    const pending = myPending.has(String(c.id));
                     const typeLabel = c.community_type === 'interest' ? '🔖 עניין' : '📍 גיאוגרפית';
                     return `<div class="bg-white border border-slate-100 rounded-xl p-3 mb-2 shadow-sm flex justify-between items-center">
                         <div class="text-right">
@@ -5084,8 +5085,10 @@ window.searchCommunitiesByCity = async function(city) {
                             <div class="text-xs text-slate-500">${c.family_count || 0} משפחות · ${c.biz_count || 0} עסקים · ${typeLabel}</div>
                             ${c.interest_tags ? `<div class="text-[10px] text-teal-600 mt-0.5">${safeStr(c.interest_tags)}</div>` : ''}
                         </div>
-                        ${joined
+                        ${approved
                             ? `<span class="text-xs text-green-600 font-bold bg-green-50 px-3 py-1.5 rounded-xl">✅ חבר</span>`
+                            : pending
+                            ? `<span class="text-xs text-amber-600 font-bold bg-amber-50 px-3 py-1.5 rounded-xl">⏳ ממתין לאישור</span>`
                             : `<button onclick="joinCommunityByCode('${safeStr(c.code)}','${safeStr(c.name).replace(/'/g,"\\'")}',this)" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-slate-700 transition">הצטרף</button>`
                         }
                     </div>`;
