@@ -4429,18 +4429,21 @@ function renderFamilyCommunities() {
             if (approvedComms.length > 0) {
                 commListHtml += `<h3 class="font-bold text-slate-800 mb-3 text-sm"><i class="fa-solid fa-house-flag text-indigo-500"></i> הקהילות שלי (${approvedComms.length}/5)</h3>
                 <div class="space-y-2">`;
-                approvedComms.forEach(c => {
+                approvedComms.forEach((c, idx) => {
                     const cbInfo = myCashbackCache.find(x => String(x.community_id) === String(c.id)) || {};
                     const walletBal = parseFloat(cbInfo.balance || 0).toFixed(2);
                     const isManager = cbInfo.is_community_manager;
                     const walletBadge = `<span class="text-[9px] font-bold ${parseFloat(walletBal) > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-400 border-slate-200'} border px-1.5 py-0.5 rounded-md"><i class="fa-solid fa-wallet mr-0.5"></i> ₪${walletBal}</span>`;
                     const managerBadge = isManager ? `<span class="text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded-md"><i class="fa-solid fa-star mr-0.5"></i> מנהל קהילה</span>` : '';
+                    const isFirst = idx === 0;
                     commListHtml += `
-                    <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl shadow-sm fade-in">
+                    <div id="comm-card-${c.id}" class="comm-select-card cursor-pointer border-2 p-3 rounded-2xl shadow-sm fade-in transition ${isFirst ? 'border-indigo-400 bg-indigo-100' : 'border-indigo-100 bg-indigo-50 hover:border-indigo-300'}"
+                         onclick="selectCommunityForReferral(${c.id},'${safeStr(c.name).replace(/'/g,"\\'")}','${safeStr(c.code || '')}')">
                         <div class="flex justify-between items-center">
                             <div class="flex items-center gap-2">
-                                ${isManager ? `<button onclick="openCommunityManagerPanel(${c.id})" class="text-[10px] font-bold text-purple-600 hover:bg-purple-50 px-2 py-1 rounded transition border border-transparent hover:border-purple-200"><i class="fa-solid fa-gear mr-1"></i>ניהול</button>` : ''}
-                                <button onclick="leaveCommunity(${c.id}, '${safeStr(c.name)}')" class="text-[10px] font-bold text-red-500 hover:bg-red-50 px-2 py-1 rounded transition border border-transparent hover:border-red-200">התנתק</button>
+                                ${isFirst ? `<span class="comm-selected-badge text-[9px] font-bold bg-indigo-500 text-white px-1.5 py-0.5 rounded-md">✓ נבחרה</span>` : ''}
+                                ${isManager ? `<button onclick="event.stopPropagation();openCommunityManagerPanel(${c.id})" class="text-[10px] font-bold text-purple-600 hover:bg-purple-50 px-2 py-1 rounded transition border border-transparent hover:border-purple-200"><i class="fa-solid fa-gear mr-1"></i>ניהול</button>` : ''}
+                                <button onclick="event.stopPropagation();leaveCommunity(${c.id}, '${safeStr(c.name)}')" class="text-[10px] font-bold text-red-500 hover:bg-red-50 px-2 py-1 rounded transition border border-transparent hover:border-red-200">התנתק</button>
                             </div>
                             <div class="text-right">
                                 <h4 class="font-bold text-indigo-900 text-sm">${safeStr(c.name)}</h4>
@@ -5214,18 +5217,58 @@ async function joinCommunityDyn() {
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
+let _myReferralCode = null;
+let _selectedCommCode = null;
+let _selectedCommName = null;
+
 async function loadMyReferralCode() {
     if (!currentGroup || currentGroup.type !== 'FAMILY') return;
     try {
         const res = await fetch(`${API}/community/my-referral-code/${currentGroup.id}`);
         if (!res.ok) return;
         const data = await res.json();
+        _myReferralCode = data.code;
         const display = getEl('my-referral-code-display');
         const card = getEl('my-referral-code-card');
         if (display) display.textContent = data.code;
         if (card) card.classList.remove('hidden');
+        // אתחל עם הקהילה הראשונה אם קיימת
+        const firstComm = (myConnectedCommunitiesCache || []).find(c => (c.status || 'approved') === 'approved');
+        if (firstComm) selectCommunityForReferral(firstComm.id, firstComm.name, firstComm.code, true);
     } catch(e) {}
 }
+
+window.selectCommunityForReferral = function(commId, commName, commCode, silent) {
+    _selectedCommCode = commCode;
+    _selectedCommName = commName;
+    // עדכן כרטיס קוד
+    const selLabel = getEl('referral-selected-comm');
+    const selName = getEl('referral-comm-name-display');
+    const waBtn = getEl('referral-wa-btn');
+    if (selLabel) selLabel.classList.remove('hidden');
+    if (selName) selName.textContent = commName;
+    if (waBtn) waBtn.classList.remove('hidden');
+    // סימון ויזואלי
+    document.querySelectorAll('.comm-select-card').forEach(el => {
+        el.classList.remove('border-indigo-400', 'bg-indigo-100');
+        el.classList.add('border-indigo-100', 'bg-indigo-50');
+        const badge = el.querySelector('.comm-selected-badge');
+        if (badge) badge.remove();
+    });
+    const card = getEl(`comm-card-${commId}`);
+    if (card) {
+        card.classList.remove('border-indigo-100', 'bg-indigo-50');
+        card.classList.add('border-indigo-400', 'bg-indigo-100');
+        const btnsDiv = card.querySelector('.flex.items-center.gap-2');
+        if (btnsDiv && !btnsDiv.querySelector('.comm-selected-badge')) {
+            const badge = document.createElement('span');
+            badge.className = 'comm-selected-badge text-[9px] font-bold bg-indigo-500 text-white px-1.5 py-0.5 rounded-md';
+            badge.textContent = '✓ נבחרה';
+            btnsDiv.prepend(badge);
+        }
+    }
+    if (!silent) showToast('info', `נבחרה קהילת ${commName} — כעת העתק את הקוד`);
+};
 
 window.toggleReferralInput = function() {
     const wrap = getEl('referral-input-wrap');
@@ -5235,7 +5278,17 @@ window.toggleReferralInput = function() {
 window.copyReferralCode = function() {
     const code = getEl('my-referral-code-display')?.textContent?.trim();
     if (!code || code === '...') return;
-    navigator.clipboard?.writeText(code).then(() => showToast('success', `קוד ${code} הועתק!`)).catch(() => showToast('info', `הקוד שלך: ${code}`));
+    const text = _selectedCommCode
+        ? `הצטרף לקהילת ${_selectedCommName} ב-Oneflow! קוד קהילה: ${_selectedCommCode} | קוד הפניה: ${code}`
+        : code;
+    navigator.clipboard?.writeText(text).then(() => showToast('success', '✅ הקוד הועתק!')).catch(() => showToast('info', `הקוד: ${text}`));
+};
+
+window.shareReferralWhatsApp = function() {
+    const code = _myReferralCode;
+    if (!code || !_selectedCommCode) return;
+    const msg = `היי! הצטרפ/י לקהילת ${_selectedCommName} ב-Oneflow 🏘️\nקוד קהילה: *${_selectedCommCode}*\nקוד הפניה שלי: *${code}*\n👉 ${window.location.origin}/?inviteCommunityCode=${_selectedCommCode}&ref=${code}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
 };
 
 async function leaveCommunity(commId, commName) {
