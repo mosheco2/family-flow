@@ -2075,6 +2075,7 @@ async function loadSACommunityData() {
                 <button onclick="openFlowConfigPanel()" class="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">⚡ ניהול FLOW</button>
                 <a href="community-guide.html" target="_blank" class="bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">📖 מדריך ניהול קהילות</a>
                 <a href="flow-guide.html" target="_blank" class="bg-amber-500 text-white hover:bg-amber-600 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">⚡ מדריך Flw</a>
+                <a href="flowpool-guide.html" target="_blank" class="bg-cyan-600 text-white hover:bg-cyan-700 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">🏊 מדריך FlowPool</a>
             `;
             section.insertBefore(bar, section.firstChild);
         }
