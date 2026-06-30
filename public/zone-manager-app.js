@@ -22,6 +22,7 @@ window.onload = () => {
         zmManager = JSON.parse(savedMgr);
         showDashboard();
         loadDashboard();
+        // showDashboard already sets _zmPendingRefresh
     }
 };
 
@@ -117,6 +118,7 @@ async function zmResetSubmit() {
 function zmLogout() {
     localStorage.removeItem('zm_token'); localStorage.removeItem('zm_manager');
     zmToken = null; zmManager = null; zmData = null;
+    if (window._zmPendingRefresh) { clearInterval(window._zmPendingRefresh); window._zmPendingRefresh = null; }
     document.getElementById('zm-login').classList.remove('hidden');
     document.getElementById('zm-dashboard').classList.add('hidden');
     zmSwitchAuthTab('login');
@@ -126,6 +128,100 @@ function showDashboard() {
     document.getElementById('zm-login').classList.add('hidden');
     document.getElementById('zm-dashboard').classList.remove('hidden');
     if (zmManager) document.getElementById('zm-header-name').textContent = zmManager.name || '';
+    if (!window._zmPendingRefresh) {
+        window._zmPendingRefresh = setInterval(() => loadZMPendingPanel(), 60000);
+    }
+}
+
+async function loadZMPendingPanel() {
+    const panel = document.getElementById('zm-pending-panel');
+    if (!panel) return;
+    try {
+        const [bizRes, famRes] = await Promise.all([
+            fetch(`${API}/zone-manager/pending-businesses`, { headers: { 'Authorization': zmToken } }),
+            fetch(`${API}/zone-manager/pending-families`, { headers: { 'Authorization': zmToken } })
+        ]);
+        const bizData = await bizRes.json();
+        const famData = await famRes.json();
+        const bizPending = (bizData.success && bizData.pending) ? bizData.pending : [];
+        const famPending = (famData.success && famData.pending) ? famData.pending : [];
+        const total = bizPending.length + famPending.length;
+
+        // עדכון badge
+        const badge = document.getElementById('zm-pending-biz-badge');
+        if (badge) {
+            if (total > 0) { badge.textContent = total; badge.classList.remove('hidden'); }
+            else badge.classList.add('hidden');
+        }
+
+        if (total === 0) {
+            panel.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 text-center text-slate-400 text-sm"><i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i>אין בקשות ממתינות לאישור</div>';
+            return;
+        }
+
+        let html = '<div class="bg-white rounded-2xl shadow-sm border border-amber-100 overflow-hidden">';
+        html += '<div class="px-4 py-3 bg-amber-50 border-b border-amber-100 flex items-center gap-2"><span class="text-amber-700 font-bold text-sm">⏳ בקשות ממתינות לאישורך</span><span class="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">' + total + '</span></div>';
+        html += '<div class="divide-y divide-slate-100">';
+
+        if (famPending.length > 0) {
+            html += '<div class="px-4 py-2 bg-indigo-50/50"><p class="text-[11px] font-bold text-indigo-600 uppercase tracking-wide">👨‍👩‍👧 משפחות מבקשות להצטרף לקהילה</p></div>';
+            html += famPending.map(p => `
+                <div class="px-4 py-3 flex justify-between items-center gap-3">
+                    <div>
+                        <p class="font-bold text-slate-800 text-sm">${p.family_name || 'משפחה'}</p>
+                        <p class="text-xs text-slate-500">קהילה: <strong>${p.comm_name}</strong></p>
+                    </div>
+                    <div class="flex gap-2 shrink-0">
+                        <button onclick="zmApproveFamilyFromPanel(${p.group_id},${p.community_id})" class="bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">אשר</button>
+                        <button onclick="zmRejectFamilyFromPanel(${p.group_id},${p.community_id})" class="bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-red-100 transition">דחה</button>
+                    </div>
+                </div>`).join('');
+        }
+
+        if (bizPending.length > 0) {
+            html += '<div class="px-4 py-2 bg-orange-50/50"><p class="text-[11px] font-bold text-orange-600 uppercase tracking-wide">🏢 עסקים מבקשים להצטרף לקהילה</p></div>';
+            html += bizPending.map(p => `
+                <div class="px-4 py-3 flex justify-between items-center gap-3">
+                    <div>
+                        <p class="font-bold text-slate-800 text-sm">${p.biz_name}</p>
+                        <p class="text-xs text-slate-500">קהילה: <strong>${p.comm_name}</strong> · <span class="text-green-700 font-bold">${p.discount_pct}% הנחה</span></p>
+                    </div>
+                    <div class="flex gap-2 shrink-0">
+                        <button onclick="zmApproveBiz(${p.community_id},${p.business_id})" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-slate-700 transition">אשר</button>
+                        <button onclick="zmRejectBiz(${p.community_id},${p.business_id})" class="bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-red-100 transition">דחה</button>
+                    </div>
+                </div>`).join('');
+        }
+
+        html += '</div></div>';
+        panel.innerHTML = html;
+    } catch(e) { panel.innerHTML = '<div class="bg-white rounded-2xl border border-slate-100 p-4 text-center text-red-400 text-sm">שגיאת טעינה</div>'; }
+}
+
+async function zmApproveFamilyFromPanel(groupId, communityId) {
+    if (!confirm('לאשר את הצטרפות המשפחה לקהילה?')) return;
+    try {
+        const res = await fetch(`${API}/zone-manager/community-family/approve`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ groupId, communityId })
+        });
+        const data = await res.json();
+        if (data.success) { zmShowToast('success', 'המשפחה אושרה!'); loadZMPendingPanel(); }
+        else zmShowToast('error', data.error || 'שגיאה');
+    } catch(e) { zmShowToast('error', 'שגיאת תקשורת'); }
+}
+
+async function zmRejectFamilyFromPanel(groupId, communityId) {
+    if (!confirm('לדחות את בקשת ההצטרפות?')) return;
+    try {
+        const res = await fetch(`${API}/zone-manager/community-family/reject`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ groupId, communityId })
+        });
+        const data = await res.json();
+        if (data.success) { zmShowToast('info', 'הבקשה נדחתה'); loadZMPendingPanel(); }
+        else zmShowToast('error', data.error || 'שגיאה');
+    } catch(e) { zmShowToast('error', 'שגיאת תקשורת'); }
 }
 
 async function loadDashboard() {
@@ -155,17 +251,7 @@ async function loadDashboard() {
         document.getElementById('zm-paid-month-pct').textContent = monthPct + '%';
 
         renderZones(data);
-
-        // טען badge של בקשות עסקים ממתינות
-        try {
-            const pbRes = await fetch(`${API}/zone-manager/pending-businesses`, { headers: { 'Authorization': zmToken } });
-            const pbData = await pbRes.json();
-            const badge = document.getElementById('zm-pending-biz-badge');
-            if (badge && pbData.success && pbData.pending?.length > 0) {
-                badge.textContent = pbData.pending.length;
-                badge.classList.remove('hidden');
-            }
-        } catch(e) {}
+        loadZMPendingPanel();
     } catch(e) { console.error('Dashboard load error', e); }
 }
 

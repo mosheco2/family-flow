@@ -34,6 +34,9 @@ window.onload = () => {
         getEl('sa-dashboard-container').classList.remove('hidden');
         applyUserPermissions();
         loadSAData();
+        if (!window._saPendingRefresh) {
+            window._saPendingRefresh = setInterval(() => loadSAPendingRequests(), 60000);
+        }
 
         // פתיחה אוטומטית של טיקט מ-URL param (למשל מ-qa-book.html)
         const urlTicket = new URLSearchParams(window.location.search).get('ticket');
@@ -179,6 +182,9 @@ async function handleSALogin(e) {
             applyUserPermissions();
             loadSAData();
             window.switchSATab('pulse');
+            if (!window._saPendingRefresh) {
+                window._saPendingRefresh = setInterval(() => loadSAPendingRequests(), 60000);
+            }
             if (!window._saOnlinePoll) {
                 window._saOnlinePoll = setInterval(async () => {
                     try {
@@ -195,6 +201,7 @@ async function handleSALogin(e) {
 function logoutSA() {
     saToken = null;
     if (window._saOnlinePoll) { clearInterval(window._saOnlinePoll); window._saOnlinePoll = null; }
+    if (window._saPendingRefresh) { clearInterval(window._saPendingRefresh); window._saPendingRefresh = null; }
     localStorage.removeItem('ofl_sa_token');
     getEl('sa-dashboard-container').classList.add('hidden');
     getEl('auth-container').classList.remove('hidden');
