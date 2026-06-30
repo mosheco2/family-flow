@@ -4148,7 +4148,7 @@ async function openFamPoolDetail(poolId) {
             ${p.description ? `<p class="text-sm text-slate-600">${safeStr(p.description)}</p>` : ''}
             ${bidsHtml}
             ${isOpen && !isMember && !isFamInitiator ? `<button onclick="joinFamPool(${p.id})" class="w-full py-3 rounded-xl bg-blue-500 text-white font-bold text-sm hover:bg-blue-600 transition shadow-md">🌊 הצטרף לפול</button>` : ''}
-            ${isMember && !isFamInitiator ? '<div class="text-xs text-green-600 font-bold text-center py-2 bg-green-50 rounded-xl"><i class="fa-solid fa-check ml-1"></i>אתם חברים בפול הזה</div>' : ''}
+            ${isFamInitiator ? '<div class="text-xs text-blue-600 font-bold text-center py-2 bg-blue-50 rounded-xl"><i class="fa-solid fa-crown ml-1"></i>אתם יוזמי הפול — הצטרפתם אוטומטית</div>' : (isMember ? '<div class="text-xs text-green-600 font-bold text-center py-2 bg-green-50 rounded-xl"><i class="fa-solid fa-check ml-1"></i>אתם חברים בפול הזה</div>' : '')}
             <div class="border-t border-slate-100 pt-3">
                 <h4 class="text-xs font-bold text-slate-600 mb-2">💬 הודעות</h4>
                 <div class="space-y-2 max-h-48 overflow-y-auto mb-3">${msgsHtml}</div>
@@ -4446,10 +4446,11 @@ function renderFamilyCommunities() {
             if (approvedComms.length < 5) {
                 commListHtml += `<button onclick="document.getElementById('dyn-extra-join-section').classList.toggle('hidden')" class="w-full mt-3 bg-white border border-dashed border-slate-300 text-slate-500 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-50 transition fade-in"><i class="fa-solid fa-plus"></i> הצטרפות לקהילה נוספת</button>
                 <div id="dyn-extra-join-section" class="hidden mt-3 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center fade-in">
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 mb-2">
                         <input type="text" id="community-code-input-dyn" class="modern-input py-2 text-sm text-center font-mono uppercase tracking-widest flex-1" placeholder="קוד קהילה">
                         <button onclick="joinCommunityDyn()" class="bg-slate-900 text-white px-5 rounded-xl font-bold shadow-md hover:bg-black transition text-sm">התחבר</button>
                     </div>
+                    <button onclick="openCommunityDiscoveryModal()" class="text-xs text-teal-600 hover:text-teal-800 font-medium">🗺️ גלה קהילות</button>
                 </div>`;
             }
             commListHtml += `</div>`;
