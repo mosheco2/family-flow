@@ -9845,16 +9845,26 @@ app.get('/api/communities/by-interest', async (req, res) => {
 // Public: discover communities for family join (no private codes exposed)
 app.get('/api/communities/discover', async (req, res) => {
     try {
-        const { city, type } = req.query;
+        const { city, type, q } = req.query;
         let where = `c.status='active'`;
         const params = [];
-        if (city) { params.push(`%${city}%`); where += ` AND c.city ILIKE $${params.length}`; }
+        if (q) {
+            params.push(`%${q}%`);
+            const idx = params.length;
+            where += ` AND (c.name ILIKE $${idx} OR c.city ILIKE $${idx} OR mz.name ILIKE $${idx})`;
+        } else if (city) {
+            params.push(`%${city}%`);
+            where += ` AND c.city ILIKE $${params.length}`;
+        }
         if (type) { params.push(type); where += ` AND c.community_type=$${params.length}`; }
         const r = await pool.query(
             `SELECT c.id, c.name, c.city, c.code, c.community_type, c.interest_tags,
+             mz.name as zone_name,
              (SELECT COUNT(*) FROM family_communities WHERE community_id=c.id) as family_count,
              (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='approved') as biz_count
-             FROM communities c WHERE ${where}
+             FROM communities c
+             LEFT JOIN manager_zones mz ON c.zone_id = mz.id
+             WHERE ${where}
              ORDER BY family_count DESC LIMIT 50`,
             params);
         // Group by city for map view

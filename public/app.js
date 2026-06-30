@@ -5076,7 +5076,7 @@ window.openCommunityDiscoveryModal = async function() {
         </div>
         <div class="p-4 border-b">
             <div class="flex gap-2">
-                <input type="text" id="discovery-city-input" placeholder="חפש לפי עיר..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm" onkeydown="if(event.key==='Enter')searchCommunitiesByCity()">
+                <input type="text" id="discovery-city-input" placeholder="חפש לפי שם קהילה, עיר או אזור..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm" onkeydown="if(event.key==='Enter')searchCommunitiesByCity()">
                 <button onclick="searchCommunitiesByCity()" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-700 transition">חפש</button>
             </div>
         </div>
@@ -5094,7 +5094,7 @@ window.searchCommunitiesByCity = async function(city) {
     if (!el) return;
     el.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">טוען...</p>';
     try {
-        const url = q ? `${API}/communities/discover?city=${encodeURIComponent(q)}` : `${API}/communities/discover`;
+        const url = q ? `${API}/communities/discover?q=${encodeURIComponent(q)}` : `${API}/communities/discover`;
         const res = await fetch(url);
         const data = await res.json();
         const byCity = data.byCity || [];
@@ -5114,6 +5114,7 @@ window.searchCommunitiesByCity = async function(city) {
                         <div class="text-right">
                             <div class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</div>
                             <div class="text-xs text-slate-500">${c.family_count || 0} משפחות · ${c.biz_count || 0} עסקים · ${typeLabel}</div>
+                            ${c.zone_name ? `<div class="text-[10px] text-indigo-500 mt-0.5">📍 ${safeStr(c.zone_name)}</div>` : ''}
                             ${c.interest_tags ? `<div class="text-[10px] text-teal-600 mt-0.5">${safeStr(c.interest_tags)}</div>` : ''}
                         </div>
                         ${approved

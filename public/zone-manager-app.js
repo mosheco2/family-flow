@@ -315,7 +315,7 @@ async function zmApproveBiz(communityId, businessId) {
             body: JSON.stringify({ communityId, businessId })
         });
         const data = await res.json();
-        if (data.success) { zmShowToast('success', 'העסק אושר והצטרף לקהילה!'); zmLoadPendingBiz(); }
+        if (data.success) { zmShowToast('success', 'העסק אושר והצטרף לקהילה!'); zmLoadPendingBiz(); loadZMPendingPanel(); loadDashboard(); }
         else zmShowToast('error', data.error || 'שגיאה');
     } catch(e) { zmShowToast('error', 'שגיאת תקשורת'); }
 }
@@ -328,7 +328,7 @@ async function zmRejectBiz(communityId, businessId) {
             body: JSON.stringify({ communityId, businessId })
         });
         const data = await res.json();
-        if (data.success) { zmShowToast('info', 'הבקשה נדחתה'); zmLoadPendingBiz(); }
+        if (data.success) { zmShowToast('info', 'הבקשה נדחתה'); zmLoadPendingBiz(); loadZMPendingPanel(); loadDashboard(); }
         else zmShowToast('error', data.error || 'שגיאה');
     } catch(e) { zmShowToast('error', 'שגיאת תקשורת'); }
 }
