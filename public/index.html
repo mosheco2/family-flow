@@ -978,6 +978,11 @@
                                 <i class="fa-solid fa-water text-sm"></i>Pool 🌊
                             </button>
                         </div>
+                        <div>
+                            <button id="btn-fam-comm-pool-archive" onclick="switchFamCommunityTab('pool-archive')" class="w-full h-14 flex flex-col items-center justify-center gap-0.5 px-1 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition overflow-hidden">
+                                <i class="fa-solid fa-box-archive text-sm"></i>ארכיב פולים
+                            </button>
+                        </div>
                     </div>
                     <!-- Sub-view: Join -->
                     <div id="fam-comm-view-join">
@@ -1069,6 +1074,19 @@
                         </div>
                         <div id="fam-pool-list" class="space-y-3">
                             <p class="text-xs text-slate-400 text-center py-8">טוען פולים...</p>
+                        </div>
+                    </div>
+                    <!-- Sub-view: Pool Archive (family) -->
+                    <div id="fam-comm-view-pool-archive" class="hidden pb-20">
+                        <div class="flex justify-between items-center mb-4 px-1">
+                            <div>
+                                <h3 class="font-bold text-slate-700 text-base">📦 ארכיב פולים</h3>
+                                <p class="text-xs text-slate-400 mt-0.5">פולים שנסגרו או הועברו לארכיב</p>
+                            </div>
+                            <button onclick="loadFamPoolArchive()" class="text-xs text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-rotate-right"></i></button>
+                        </div>
+                        <div id="fam-pool-archive-list" class="space-y-3">
+                            <p class="text-xs text-slate-400 text-center py-8">טוען...</p>
                         </div>
                     </div>
                     <!-- Modal: Create Pool -->

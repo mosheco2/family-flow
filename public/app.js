@@ -3964,7 +3964,7 @@ let myCashbackCache = []; // [{community_id, community_name, balance, total_earn
 
 function switchFamCommunityTab(tab) {
     const BASE = 'w-full h-14 flex flex-col items-center justify-center gap-0.5 px-1 rounded-xl text-[10px] font-bold overflow-hidden transition';
-    ['join', 'benefits', 'news', 'interests', 'pool'].forEach(t => {
+    ['join', 'benefits', 'news', 'interests', 'pool', 'pool-archive'].forEach(t => {
         const view = document.getElementById(`fam-comm-view-${t}`);
         const btn = document.getElementById(`btn-fam-comm-${t}`);
         if (view) view.classList.add('hidden');
@@ -3975,6 +3975,7 @@ function switchFamCommunityTab(tab) {
     if (activeView) activeView.classList.remove('hidden');
     if (activeBtn) activeBtn.className = `${BASE} bg-orange-500 text-white shadow-md shadow-orange-200`;
     if (tab === 'pool') renderFamPools();
+    if (tab === 'pool-archive') loadFamPoolArchive();
 }
 
 // ─── FlowPool — FAMILY ───────────────────────────────────────────────
@@ -4228,6 +4229,40 @@ async function closeFamPool(poolId) {
 }
 function closePoolDetailModal() {
     document.getElementById('modal-pool-detail').classList.add('hidden');
+}
+
+async function loadFamPoolArchive() {
+    const el = document.getElementById('fam-pool-archive-list');
+    if (!el || !currentGroup) return;
+    el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען...</p>';
+    try {
+        const res = await fetch(`${API}/community/pool/family-archive/${currentGroup.id}`);
+        const data = await res.json();
+        const pools = data.pools || [];
+        if (!pools.length) {
+            el.innerHTML = '<div class="text-center py-12"><i class="fa-solid fa-box-archive text-4xl text-slate-200 mb-3"></i><p class="text-sm font-bold text-slate-400">הארכיב ריק</p><p class="text-xs text-slate-300 mt-1">פולים שיסגרו או יועברו לארכיב יופיעו כאן</p></div>';
+            return;
+        }
+        const statusLabel = { archived: 'מוארכב', closed: 'נסגר — בוצע', expired: 'פג תוקף' };
+        const statusColor = { archived: 'bg-slate-100 text-slate-600', closed: 'bg-green-100 text-green-700', expired: 'bg-orange-100 text-orange-700' };
+        el.innerHTML = pools.map(p => {
+            const st = p.status;
+            return `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                <div class="flex justify-between items-start mb-2">
+                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(p.title)}</h4>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColor[st] || 'bg-slate-100 text-slate-600'} mr-1 shrink-0">${statusLabel[st] || st}</span>
+                </div>
+                ${p.description ? `<p class="text-xs text-slate-500 mb-2 line-clamp-2">${safeStr(p.description)}</p>` : ''}
+                <div class="flex gap-3 text-[11px] text-slate-400">
+                    <span><i class="fa-solid fa-users ml-1"></i>${p.members_count || 0} משפחות</span>
+                    ${p.bids_count > 0 ? `<span><i class="fa-solid fa-gavel ml-1"></i>${p.bids_count} הצעות</span>` : ''}
+                    ${p.max_price > 0 ? `<span>עד ₪${Number(p.max_price).toLocaleString()}</span>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) {
+        el.innerHTML = `<p class="text-xs text-red-400 text-center py-8">${e.message}</p>`;
+    }
 }
 
 function openEditFamPool(poolId, title, description, maxPrice) {

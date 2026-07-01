@@ -19166,7 +19166,23 @@ app.get('/api/biz/pools/:bizGroupId', async (req, res) => {
 });
 
 // ארכיב פולים לעסק — כל פולים מוארכבים שהעסק השתתף בהם
-// ארכיב פולים לעסק — פולים שהעסק הסתיר בצד שלו (biz_pool_hidden)
+// ארכיב פולים למשפחה — פולים שהמשפחה יזמה ומוארכבים/סגורים
+app.get('/api/community/pool/family-archive/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT fp.id, fp.title, fp.description, fp.status, fp.max_price, fp.created_at,
+                (SELECT COUNT(*) FROM flow_pool_members WHERE pool_id=fp.id) as members_count,
+                (SELECT COUNT(*) FROM flow_pool_bids WHERE pool_id=fp.id) as bids_count
+            FROM flow_pools fp
+            WHERE fp.initiator_id=$1
+              AND fp.status IN ('archived','closed')
+            ORDER BY fp.created_at DESC
+        `, [req.params.groupId]);
+        res.json({ success: true, pools: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ארכיב פולים לעסק — פולים מ-biz_pool_hidden + פולים גלובלי archived שהעסק השתתף בהם
 app.get('/api/biz/pool-archive/:bizGroupId', async (req, res) => {
     try {
         const r = await pool.query(`
@@ -19176,7 +19192,17 @@ app.get('/api/biz/pool-archive/:bizGroupId', async (req, res) => {
             FROM flow_pools fp
             JOIN family_groups fg ON fg.id=fp.initiator_id
             LEFT JOIN flow_pool_bids fpb ON fpb.pool_id=fp.id AND fpb.business_group_id=$1
-            WHERE fp.id IN (SELECT pool_id FROM biz_pool_hidden WHERE biz_group_id=$1)
+            WHERE (
+                fp.id IN (SELECT pool_id FROM biz_pool_hidden WHERE biz_group_id=$1)
+                OR (
+                    fp.status = 'archived'
+                    AND fp.id IN (
+                        SELECT pool_id FROM flow_pool_bids WHERE business_group_id=$1
+                        UNION
+                        SELECT pool_id FROM flow_pool_messages WHERE sender_id=$1 AND sender_type='business'
+                    )
+                )
+            )
             ORDER BY fp.created_at DESC
         `, [req.params.bizGroupId]);
         res.json({ success: true, pools: r.rows });

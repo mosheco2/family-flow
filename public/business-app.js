@@ -14751,18 +14751,19 @@ async function loadTourSettings() {
 }
 
 window.switchBizCommunityTab = function(tab) {
-    ['mine', 'discover', 'pool'].forEach(t => {
+    ['mine', 'discover', 'pool', 'pool-archive'].forEach(t => {
         const view = document.getElementById(`comm-view-${t}`);
         const btn = document.getElementById(`btn-comm-${t}`);
         if (view) view.classList.add('hidden');
-        if (btn) btn.className = 'w-full flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
+        if (btn) btn.className = 'w-full flex flex-col items-center justify-center gap-1 py-3 px-1 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
     });
     const activeView = document.getElementById(`comm-view-${tab}`);
     const activeBtn = document.getElementById(`btn-comm-${tab}`);
     if (activeView) activeView.classList.remove('hidden');
-    if (activeBtn) activeBtn.className = 'w-full flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition';
+    if (activeBtn) activeBtn.className = 'w-full flex flex-col items-center justify-center gap-1 py-3 px-1 rounded-xl text-[10px] font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition';
     if (tab === 'discover') filterBizAvailableCommunities();
     if (tab === 'pool') loadBizPools();
+    if (tab === 'pool-archive') loadBizPoolArchivePage();
 };
 
 async function loadBizCommunities() {
@@ -15012,54 +15013,42 @@ window.archiveBizPool = async function(poolId, btn) {
     }
 };
 
-let _bizPoolArchiveVisible = false;
-
-window.toggleBizPoolArchive = async function() {
-    _bizPoolArchiveVisible = !_bizPoolArchiveVisible;
-    const sec = document.getElementById('biz-pool-archive-section');
-    const btn = document.getElementById('btn-biz-pool-archive');
-    if (!_bizPoolArchiveVisible) {
-        sec.classList.add('hidden');
-        sec.innerHTML = '';
-        if (btn) btn.classList.remove('bg-slate-100');
-        return;
-    }
-    if (btn) btn.classList.add('bg-slate-100');
-    sec.classList.remove('hidden');
-    sec.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">טוען ארכיב...</p>';
+async function loadBizPoolArchivePage() {
+    const el = document.getElementById('biz-pool-archive-list');
+    if (!el || !currentGroup) return;
+    el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען ארכיב...</p>';
     try {
         const res = await fetch(`${API}/biz/pool-archive/${currentGroup.id}`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
         const data = await res.json();
         const archived = data.pools || [];
         if (!archived.length) {
-            sec.innerHTML = '<div class="bg-slate-50 rounded-2xl border border-dashed border-slate-200 p-6 text-center mb-4"><i class="fa-solid fa-box-archive text-3xl text-slate-300 mb-2"></i><p class="text-sm font-bold text-slate-400">הארכיב ריק</p></div>';
+            el.innerHTML = '<div class="text-center py-12"><i class="fa-solid fa-box-archive text-4xl text-slate-200 mb-3"></i><p class="text-sm font-bold text-slate-400">הארכיב ריק</p><p class="text-xs text-slate-300 mt-1">פולים שתעבירו לארכיב יופיעו כאן</p></div>';
             return;
         }
-        sec.innerHTML = `
-        <div class="bg-slate-50 rounded-2xl border border-slate-200 p-3 mb-4">
-            <h4 class="text-xs font-black text-slate-600 mb-2 flex items-center gap-1"><i class="fa-solid fa-box-archive text-slate-400"></i> ארכיב פולים</h4>
-            <div class="space-y-2">
-            ${archived.map(p => {
-                const myBid = (p.my_price != null) ? `₪${Number(p.my_price).toLocaleString()}` : null;
-                const acceptedBadge = p.my_bid_status === 'accepted' ? '<span class="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">✅ נבחרה</span>' : '';
-                return `<div class="bg-white rounded-xl border border-slate-100 p-3">
-                    <div class="flex justify-between items-start">
-                        <p class="text-xs font-bold text-slate-700">${safeStr(p.title)}</p>
-                        ${acceptedBadge}
-                    </div>
-                    ${p.description ? `<p class="text-[11px] text-slate-400 mt-0.5 line-clamp-1">${safeStr(p.description)}</p>` : ''}
-                    <div class="flex gap-2 mt-1 text-[11px] text-slate-400">
-                        <span><i class="fa-solid fa-user ml-0.5"></i>יוזם: ${safeStr(p.initiator_name)}</span>
-                        ${myBid ? `<span>· הצעתי: <b class="text-slate-600">${myBid}</b></span>` : ''}
-                    </div>
-                </div>`;
-            }).join('')}
-            </div>
-        </div>`;
+        const statusLabel = { open_r1: 'פעיל', open_r2: 'פעיל — סיבוב 2', expired: 'פג תוקף', archived: 'מוארכב', closed: 'סגור' };
+        const statusColor = { open_r1: 'bg-blue-100 text-blue-700', open_r2: 'bg-purple-100 text-purple-700', expired: 'bg-orange-100 text-orange-700', archived: 'bg-slate-100 text-slate-600', closed: 'bg-green-100 text-green-700' };
+        el.innerHTML = archived.map(p => {
+            const myBid = (p.my_price != null) ? `₪${Number(p.my_price).toLocaleString()}` : null;
+            const acceptedBadge = p.my_bid_status === 'accepted' ? '<span class="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full ml-1">✅ נבחרה</span>' : '';
+            const stLabel = statusLabel[p.status] || p.status;
+            const stColor = statusColor[p.status] || 'bg-slate-100 text-slate-600';
+            return `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                <div class="flex justify-between items-start mb-1">
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${stColor}">${stLabel}</span>
+                    ${acceptedBadge}
+                </div>
+                <h4 class="font-bold text-slate-800 text-sm mt-1">${safeStr(p.title)}</h4>
+                ${p.description ? `<p class="text-xs text-slate-500 mt-0.5 line-clamp-2">${safeStr(p.description)}</p>` : ''}
+                <div class="flex gap-3 text-[11px] text-slate-400 mt-2">
+                    <span><i class="fa-solid fa-user ml-0.5"></i>יוזם: ${safeStr(p.initiator_name)}</span>
+                    ${myBid ? `<span>· הצעתי: <b class="text-slate-600">${myBid}</b></span>` : ''}
+                </div>
+            </div>`;
+        }).join('');
     } catch(e) {
-        sec.innerHTML = `<p class="text-xs text-red-400 text-center py-4">שגיאה: ${e.message}</p>`;
+        el.innerHTML = `<p class="text-xs text-red-400 text-center py-8">שגיאה: ${e.message}</p>`;
     }
-};
+}
 
 let _bizBidTargetPoolId = null;
 function openBizBidModal(poolId, title, maxPrice) {
