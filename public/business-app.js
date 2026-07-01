@@ -15872,12 +15872,17 @@ window.openBizFlowWallet = async function() {
             <b>איך לממש?</b> ניתן להשתמש בארנק העסקי לרכישת חשיפה מועדפת בקהילות — פנה ל-Super Admin לפרטים.
         </div>
         <h4 class="font-bold text-slate-700 text-sm mb-2">📋 פעילות אחרונה</h4>
-        <div class="space-y-2 max-h-48 overflow-y-auto">
-            ${data.transactions?.length ? data.transactions.map(t => `
-            <div class="flex justify-between items-center text-xs py-2 border-b border-slate-100">
-                <span class="text-slate-600">${safeStr(t.description || '')}</span>
-                <span class="font-bold ${t.amount > 0 ? 'text-green-600' : 'text-red-500'}">${t.amount > 0 ? '+' : ''}${parseFloat(t.amount).toFixed(0)} Flw</span>
-            </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>'}
+        <div class="space-y-1.5 max-h-64 overflow-y-auto">
+            ${data.transactions?.length ? data.transactions.map(t => {
+                const isCustomer = t.action_key === 'customer_redeem';
+                const rowBg = isCustomer ? 'bg-amber-50 border border-amber-100 rounded-xl px-2' : 'border-b border-slate-100';
+                const icon = isCustomer ? '🪙' : (t.amount > 0 ? '⬆️' : '⬇️');
+                const amtColor = t.amount > 0 ? 'text-green-600' : 'text-red-500';
+                return `<div class="flex justify-between items-center text-xs py-2 ${rowBg}">
+                    <span class="text-slate-600 leading-snug">${icon} ${safeStr(t.description || '')}</span>
+                    <span class="font-bold ${amtColor} shrink-0 mr-2">${t.amount > 0 ? '+' : ''}${parseFloat(t.amount).toFixed(0)} Flw</span>
+                </div>`;
+            }).join('') : '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>'}
         </div>
         <div class="mt-4 pt-3 border-t border-slate-100">
             <p class="text-[10px] text-slate-400 text-center">לבדיקת קוד הנחה של לקוח:</p>

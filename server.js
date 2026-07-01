@@ -10632,7 +10632,7 @@ app.get('/api/flow/wallet/business/:groupId', async (req, res) => {
         const gid = parseInt(req.params.groupId);
         const [wallet, txs] = await Promise.all([
             pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='business' AND entity_id=$1`, [gid]),
-            pool.query(`SELECT amount, description, created_at FROM flow_transactions WHERE entity_type='business' AND entity_id=$1 ORDER BY created_at DESC LIMIT 20`, [gid])
+            pool.query(`SELECT amount, description, action_key, created_at FROM flow_transactions WHERE entity_type='business' AND entity_id=$1 ORDER BY created_at DESC LIMIT 50`, [gid])
         ]);
         res.json({ balance: parseFloat(wallet.rows[0]?.balance || 0), transactions: txs.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -10710,8 +10710,10 @@ app.post('/api/flow/redeem', async (req, res) => {
 
         // Credit business wallet: 1 coin per 3 redeemed by customer
         if (bizEarn > 0) {
+            const famRow = await pool.query(`SELECT name FROM family_groups WHERE id=$1`, [familyGroupId]);
+            const famName = famRow.rows[0]?.name || 'לקוח';
             await pool.query(`INSERT INTO flow_wallets (entity_type, entity_id, balance) VALUES ('business',$1,$2) ON CONFLICT (entity_type, entity_id) DO UPDATE SET balance=flow_wallets.balance+$2, updated_at=NOW()`, [businessGroupId, bizEarn]);
-            await pool.query(`INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description) VALUES ('business',$1,$2,'customer_redeem',$3)`, [businessGroupId, bizEarn, `צבירה ממימוש לקוח — קוד ${code}`]);
+            await pool.query(`INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description) VALUES ('business',$1,$2,'customer_redeem',$3)`, [businessGroupId, bizEarn, `צבירה ממימוש — ${famName} (${fa} Flw) קוד ${code}`]);
         }
 
         res.json({ success: true, code, discountIls, flowSpent: fa, expiresAt });
@@ -10766,8 +10768,10 @@ app.post('/api/flow/deduct', async (req, res) => {
 
         // Credit business wallet: 1 coin per 3 redeemed by customer
         if (bizEarnDeduct > 0) {
+            const famRowD = await pool.query(`SELECT name FROM family_groups WHERE id=$1`, [familyGroupId]);
+            const famNameD = famRowD.rows[0]?.name || 'לקוח';
             await pool.query(`INSERT INTO flow_wallets (entity_type, entity_id, balance) VALUES ('business',$1,$2) ON CONFLICT (entity_type, entity_id) DO UPDATE SET balance=flow_wallets.balance+$2, updated_at=NOW()`, [businessGroupId, bizEarnDeduct]);
-            await pool.query(`INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description) VALUES ('business',$1,$2,'customer_redeem',$3)`, [businessGroupId, bizEarnDeduct, `צבירה ממימוש לקוח${orderId ? ` — הזמנה #${orderId}` : ''} — ${bizNameForCredit}`]);
+            await pool.query(`INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description) VALUES ('business',$1,$2,'customer_redeem',$3)`, [businessGroupId, bizEarnDeduct, `צבירה ממימוש — ${famNameD} (${fa} Flw)${orderId ? ` הזמנה #${orderId}` : ''}`]);
         }
 
         res.json({ success: true, deducted: fa, remaining: bal - fa });
