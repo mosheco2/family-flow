@@ -1031,6 +1031,38 @@ window.injectBusinessUI = function() {
                                 </div>
                                 </div>
 
+                                <div id="restaurant-store-settings-block" class="hidden space-y-4">
+                                    <h4 class="font-black text-slate-800 mb-3 mt-8">🍽️ הגדרות מסעדה / קפה</h4>
+                                    <div class="bg-orange-50 border border-orange-100 rounded-2xl p-4 space-y-4">
+                                        <label class="flex items-center gap-3 cursor-pointer">
+                                            <input type="checkbox" id="store-enable-table-booking" class="w-5 h-5 accent-orange-500 rounded" checked>
+                                            <div>
+                                                <span class="font-bold text-slate-700 text-sm block">הצג כפתור "הזמן שולחן" בחנות הציבורית</span>
+                                                <span class="text-xs text-slate-400">לקוחות יוכלו לבקש שריון שולחן ישירות מהחנות</span>
+                                            </div>
+                                        </label>
+                                        <div>
+                                            <label class="text-xs font-bold text-slate-600 mb-2 block">מצב יומן הזמנות</label>
+                                            <div class="space-y-2">
+                                                <label class="flex items-start gap-2.5 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition">
+                                                    <input type="radio" name="store-booking-mode" value="appointments" checked class="mt-0.5 accent-orange-500 shrink-0">
+                                                    <div>
+                                                        <span class="text-sm font-bold text-slate-700 block">תורים רגילים</span>
+                                                        <span class="text-xs text-slate-400">לקוחות מזמינים תור / שולחן ביומן הפתוח</span>
+                                                    </div>
+                                                </label>
+                                                <label class="flex items-start gap-2.5 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition">
+                                                    <input type="radio" name="store-booking-mode" value="events_quote" class="mt-0.5 accent-orange-500 shrink-0">
+                                                    <div>
+                                                        <span class="text-sm font-bold text-slate-700 block">🎉 בקשת אירוע / קייטרינג</span>
+                                                        <span class="text-xs text-slate-400">לקוחות שולחים בקשה לאירוע עם בחירת תפריט ומספר סועדים — מגיע כהצעת מחיר לאישורך</span>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div id="sport-store-settings-block" class="hidden space-y-4">
                                     <h4 class="font-black text-slate-800 mb-4 mt-8">הגדרות ספורט</h4>
                                     <div class="space-y-4">
@@ -11823,7 +11855,9 @@ async function saveStoreSettings() {
             whatsappNumber: getVal('store-whatsapp'),
             includeVat: includeVat,
             vatRate: parseFloat(document.getElementById('store-vat-rate')?.value) || 18,
-            storeAlias: storeAlias
+            storeAlias: storeAlias,
+            enableTableBooking: getChecked('store-enable-table-booking'),
+            bookingMode: (document.querySelector('input[name="store-booking-mode"]:checked')?.value) || 'appointments'
         };
 
         const res = await fetch(`${API}/store/settings`, {
@@ -20113,12 +20147,17 @@ window.switchSalesTab = function(subTab) {
         if (typeof fetchStoreSettings === 'function') fetchStoreSettings();
         const modWrap = document.getElementById('modifiers-section-wrapper');
         const sportBlock = document.getElementById('sport-store-settings-block');
+        const restBlock = document.getElementById('restaurant-store-settings-block');
+        const bizType = currentGroup?.business_type || '';
+        const isRestaurant = ['restaurant', 'cafe'].includes(bizType);
         if (isSport) {
             if (modWrap) modWrap.classList.add('hidden');
             if (sportBlock) { sportBlock.classList.remove('hidden'); window._loadSportStoreSettings(); }
+            if (restBlock) restBlock.classList.add('hidden');
         } else {
             if (modWrap) modWrap.classList.remove('hidden');
             if (sportBlock) sportBlock.classList.add('hidden');
+            if (restBlock) restBlock.classList.toggle('hidden', !isRestaurant);
         }
     }
     if(subTab === 'quotes') {
@@ -21369,6 +21408,13 @@ window.fetchStoreSettings = async function() {
                 try { storeModifierPresets = JSON.parse(data.settings.modifier_presets); } catch(e) { storeModifierPresets = []; }
                 renderPresetSelector();
             }
+
+            // Restaurant settings
+            const tableBookingEl = getElSafe('store-enable-table-booking');
+            if (tableBookingEl) tableBookingEl.checked = data.settings.enable_table_booking !== false;
+            const bookingModeVal = data.settings.booking_mode || 'appointments';
+            const bmRadio = document.querySelector(`input[name="store-booking-mode"][value="${bookingModeVal}"]`);
+            if (bmRadio) bmRadio.checked = true;
         }
     } catch(e) {}
 };
@@ -22959,7 +23005,9 @@ async function saveStoreSettings() {
             whatsappNumber: getVal('store-whatsapp'),
             includeVat: includeVat,
             vatRate: parseFloat(document.getElementById('store-vat-rate')?.value) || 18,
-            storeAlias: storeAlias
+            storeAlias: storeAlias,
+            enableTableBooking: getChecked('store-enable-table-booking'),
+            bookingMode: (document.querySelector('input[name="store-booking-mode"]:checked')?.value) || 'appointments'
         };
 
         const res = await fetch(`${API}/store/settings`, {

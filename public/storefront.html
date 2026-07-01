@@ -436,6 +436,56 @@
         </div>
     </div>
 
+    <!-- Event Quote Request Modal -->
+    <div id="event-quote-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[85] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl p-6 shadow-2xl relative max-h-[90vh] flex flex-col slide-up overflow-hidden">
+            <button onclick="document.getElementById('event-quote-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition flex items-center justify-center z-10"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0">🎉 בקשת הצעת מחיר לאירוע</h3>
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">שם מלא</label>
+                    <input type="text" id="eq-name" class="modern-input py-2.5 text-sm bg-white border-slate-200" placeholder="ישראל ישראלי">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">טלפון</label>
+                    <input type="tel" id="eq-phone" class="modern-input py-2.5 text-sm text-left dir-ltr bg-white border-slate-200" placeholder="050-0000000">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">סוג האירוע</label>
+                    <select id="eq-type" class="modern-input py-2.5 text-sm bg-white border-slate-200">
+                        <option value="">-- בחר סוג --</option>
+                        <option value="wedding">חתונה / אירוסין</option>
+                        <option value="bar_mitzvah">בר / בת מצווה</option>
+                        <option value="birthday">יום הולדת</option>
+                        <option value="corporate">אירוע עסקי</option>
+                        <option value="other">אחר</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-2">תאריך האירוע</label>
+                        <input type="date" id="eq-date" class="modern-input py-2.5 text-sm bg-white border-slate-200">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-2">מספר סועדים</label>
+                        <input type="number" id="eq-guests" min="1" placeholder="50" class="modern-input py-2.5 text-sm bg-white border-slate-200">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">בחירת מנות מהתפריט (אופציונלי)</label>
+                    <div id="eq-menu-items" class="space-y-1 max-h-40 overflow-y-auto border border-slate-200 rounded-xl p-2 bg-slate-50 text-xs text-slate-400 text-center py-4">טוען תפריט...</div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">הערות / בקשות מיוחדות</label>
+                    <textarea id="eq-notes" rows="3" placeholder="אלרגיות, העדפות, פירוט נוסף..." class="modern-input py-2.5 text-sm bg-white border-slate-200"></textarea>
+                </div>
+                <button type="button" onclick="window.submitEventQuote()" id="btn-submit-eq" class="w-full bg-orange-600 text-white py-4 rounded-2xl font-bold shadow-xl text-base hover:bg-orange-700 transition active:scale-95 flex justify-center items-center gap-2">
+                    <span>שלח בקשה לקבלת הצעת מחיר</span> <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- SMS Verification Modal -->
     <div id="sms-verification-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[95] flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl relative flex flex-col">
@@ -610,23 +660,39 @@
                         }
                     }
 
-                    // הצג כפתור "הזמן שולחן" עבור עסקי מסעדה
+                    // הצג כפתור "הזמן שולחן" עבור עסקי מסעדה (לפי הגדרת החנות)
                     const isRestaurant = ['restaurant', 'cafe'].includes(data.business_type);
+                    const tableEnabled = data.settings?.enable_table_booking !== false;
                     const tableBtn = getEl('btn-book-table');
-                    if (tableBtn && isRestaurant) {
+                    if (tableBtn && isRestaurant && tableEnabled) {
                         tableBtn.classList.remove('hidden');
-                        getEl('store-contact-info').classList.remove('hidden');
+                        getEl('store-contact-info')?.classList.remove('hidden');
+                    }
+                    // כפתור יומן — שנה טקסט למצב אירוע/קייטרינג
+                    const bookingMode = data.settings?.booking_mode || 'appointments';
+                    window._storeBookingMode = bookingMode;
+                    const bookBtn = document.getElementById('btn-open-booking');
+                    if (bookBtn && bookingMode === 'events_quote') {
+                        bookBtn.innerHTML = '<i class="fa-solid fa-party-horn"></i> בקשת אירוע / קייטרינג';
                     }
                 } catch(e) { console.warn('Calendar module not active'); }
 
                 // הצג כפתור "הזמן שולחן" עבור עסקי מסעדה — מחוץ לblock של calendar
                 const _bizType = data.businessType || data.business_type || '';
                 const _isRest = ['restaurant', 'cafe'].includes(_bizType);
+                const _tableEnabled = data.settings?.enable_table_booking !== false;
                 const _tableBtn = getEl('btn-book-table');
-                if (_tableBtn && _isRest) {
+                if (_tableBtn && _isRest && _tableEnabled) {
                     _tableBtn.classList.remove('hidden');
                     const contactInfo = getEl('store-contact-info');
                     if (contactInfo) contactInfo.classList.remove('hidden');
+                }
+                // מחוץ לblock: שנה טקסט יומן
+                const _bookingMode = data.settings?.booking_mode || 'appointments';
+                window._storeBookingMode = window._storeBookingMode || _bookingMode;
+                const _bookBtn = document.getElementById('btn-open-booking');
+                if (_bookBtn && _bookingMode === 'events_quote') {
+                    _bookBtn.innerHTML = '<i class="fa-solid fa-party-horn"></i> בקשת אירוע / קייטרינג';
                 }
 
                 if (data.communityData) {
@@ -2382,7 +2448,83 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             }
         };
 
+        async function openEventQuoteModal() {
+            const modal = document.getElementById('event-quote-modal');
+            if (!modal) return;
+            // Set min date
+            const dateEl = document.getElementById('eq-date');
+            if (dateEl) dateEl.min = new Date().toISOString().split('T')[0];
+            // Load menu
+            const menuEl = document.getElementById('eq-menu-items');
+            if (menuEl && storeData?.groupId) {
+                try {
+                    const cr = await fetch(`${API}/store/catalog/${storeData.groupId}`);
+                    const items = await cr.json();
+                    if (Array.isArray(items) && items.length) {
+                        menuEl.innerHTML = items.filter(i => i.is_active !== false).map(i =>
+                            `<label class="flex items-center gap-2 py-1.5 px-2 hover:bg-white rounded-lg cursor-pointer">
+                                <input type="checkbox" name="eq-item" value="${i.id}" data-name="${safeStr(i.name)}" data-price="${i.price}" class="accent-orange-500 shrink-0">
+                                <span class="text-sm text-slate-700">${safeStr(i.name)}</span>
+                                <span class="text-xs text-slate-400 mr-auto">₪${parseFloat(i.price).toFixed(2)}</span>
+                            </label>`
+                        ).join('');
+                    } else { menuEl.innerText = 'אין פריטים בתפריט'; }
+                } catch(e) { menuEl.innerText = 'שגיאה בטעינת תפריט'; }
+            }
+            // Prefill from session
+            try {
+                const session = JSON.parse(localStorage.getItem('ofl_session'));
+                if (session?.user) {
+                    const nameEl = document.getElementById('eq-name');
+                    const phoneEl = document.getElementById('eq-phone');
+                    if (nameEl && !nameEl.value) nameEl.value = session.user.name || '';
+                    if (phoneEl && !phoneEl.value) phoneEl.value = session.user.phone || '';
+                }
+            } catch(e) {}
+            modal.classList.remove('hidden');
+        }
+
+        window.submitEventQuote = async function() {
+            const name = document.getElementById('eq-name')?.value?.trim();
+            const phone = document.getElementById('eq-phone')?.value?.trim();
+            const eventType = document.getElementById('eq-type')?.value;
+            const date = document.getElementById('eq-date')?.value;
+            const guests = document.getElementById('eq-guests')?.value;
+            const notes = document.getElementById('eq-notes')?.value?.trim();
+            const selectedItems = Array.from(document.querySelectorAll('input[name="eq-item"]:checked')).map(el => ({
+                id: el.value, name: el.dataset.name, price: el.dataset.price
+            }));
+            if (!name || !phone) { showToast('error', 'נא למלא שם וטלפון'); return; }
+            if (!date) { showToast('error', 'נא לבחור תאריך אירוע'); return; }
+            const btn = document.getElementById('btn-submit-eq');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-2"></i> שולח...'; }
+            try {
+                const res = await fetch(`${API}/store/quotes`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        groupId: storeData.groupId,
+                        customerName: name, customerPhone: phone,
+                        title: `בקשת אירוע — ${document.querySelector('#eq-type option:checked')?.text || eventType}`,
+                        notes: `תאריך אירוע: ${date}\nסועדים: ${guests || '?'}\n${notes ? 'הערות: ' + notes : ''}\n${selectedItems.length ? 'מנות נבחרות: ' + selectedItems.map(i => i.name).join(', ') : ''}`,
+                        items: selectedItems.map(i => ({ name: i.name, quantity: 1, price: parseFloat(i.price) || 0 })),
+                        source: 'event_quote'
+                    })
+                });
+                const data = await res.json();
+                if (data.success || data.quoteId) {
+                    document.getElementById('event-quote-modal')?.classList.add('hidden');
+                    showToast('success', '✅ בקשתך נשלחה! ניצור קשר בהקדם עם הצעת מחיר.');
+                } else { showToast('error', data.error || 'שגיאה בשליחה'); }
+            } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+            finally { if (btn) { btn.disabled = false; btn.innerHTML = '<span>שלח בקשה לקבלת הצעת מחיר</span> <i class="fa-solid fa-paper-plane"></i>'; } }
+        };
+
         window.openBookingModal = async function() {
+            // מצב אירוע/קייטרינג — פתח טופס בקשת הצעת מחיר לאירוע
+            if (window._storeBookingMode === 'events_quote') {
+                openEventQuoteModal();
+                return;
+            }
             if (!storeData || !storeData.calendarSettings) {
                 showToast('error', 'מערכת התורים לא הוגדרה בעסק זה.');
                 return;
