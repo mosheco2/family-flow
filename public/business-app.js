@@ -15012,6 +15012,55 @@ window.archiveBizPool = async function(poolId, btn) {
     }
 };
 
+let _bizPoolArchiveVisible = false;
+
+window.toggleBizPoolArchive = async function() {
+    _bizPoolArchiveVisible = !_bizPoolArchiveVisible;
+    const sec = document.getElementById('biz-pool-archive-section');
+    const btn = document.getElementById('btn-biz-pool-archive');
+    if (!_bizPoolArchiveVisible) {
+        sec.classList.add('hidden');
+        sec.innerHTML = '';
+        if (btn) btn.classList.remove('bg-slate-100');
+        return;
+    }
+    if (btn) btn.classList.add('bg-slate-100');
+    sec.classList.remove('hidden');
+    sec.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">טוען ארכיב...</p>';
+    try {
+        const res = await fetch(`${API}/biz/pool-archive/${currentGroup.id}`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const data = await res.json();
+        const archived = data.pools || [];
+        if (!archived.length) {
+            sec.innerHTML = '<div class="bg-slate-50 rounded-2xl border border-dashed border-slate-200 p-6 text-center mb-4"><i class="fa-solid fa-box-archive text-3xl text-slate-300 mb-2"></i><p class="text-sm font-bold text-slate-400">הארכיב ריק</p></div>';
+            return;
+        }
+        sec.innerHTML = `
+        <div class="bg-slate-50 rounded-2xl border border-slate-200 p-3 mb-4">
+            <h4 class="text-xs font-black text-slate-600 mb-2 flex items-center gap-1"><i class="fa-solid fa-box-archive text-slate-400"></i> ארכיב פולים</h4>
+            <div class="space-y-2">
+            ${archived.map(p => {
+                const myBid = (p.my_price != null) ? `₪${Number(p.my_price).toLocaleString()}` : null;
+                const acceptedBadge = p.my_bid_status === 'accepted' ? '<span class="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">✅ נבחרה</span>' : '';
+                return `<div class="bg-white rounded-xl border border-slate-100 p-3">
+                    <div class="flex justify-between items-start">
+                        <p class="text-xs font-bold text-slate-700">${safeStr(p.title)}</p>
+                        ${acceptedBadge}
+                    </div>
+                    ${p.description ? `<p class="text-[11px] text-slate-400 mt-0.5 line-clamp-1">${safeStr(p.description)}</p>` : ''}
+                    <div class="flex gap-2 mt-1 text-[11px] text-slate-400">
+                        <span><i class="fa-solid fa-user ml-0.5"></i>יוזם: ${safeStr(p.initiator_name)}</span>
+                        ${myBid ? `<span>· הצעתי: <b class="text-slate-600">${myBid}</b></span>` : ''}
+                    </div>
+                </div>`;
+            }).join('')}
+            </div>
+        </div>`;
+    } catch(e) {
+        sec.innerHTML = `<p class="text-xs text-red-400 text-center py-4">שגיאה: ${e.message}</p>`;
+    }
+};
+
 let _bizBidTargetPoolId = null;
 function openBizBidModal(poolId, title, maxPrice) {
     _bizBidTargetPoolId = poolId;

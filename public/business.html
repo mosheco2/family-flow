@@ -2228,8 +2228,12 @@
                                     <h3 class="font-bold text-slate-700 text-base">🌊 FlowPool — מכרז קהילתי</h3>
                                     <p class="text-xs text-slate-400 mt-0.5">פולים פתוחים שממתינים להצעות מחיר</p>
                                 </div>
-                                <button onclick="loadBizPools()" class="text-xs text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-rotate-right"></i></button>
+                                <div class="flex gap-2">
+                                    <button onclick="toggleBizPoolArchive()" id="btn-biz-pool-archive" class="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 px-2 py-1 rounded-lg transition flex items-center gap-1"><i class="fa-solid fa-box-archive"></i> ארכיב</button>
+                                    <button onclick="loadBizPools()" class="text-xs text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-rotate-right"></i></button>
+                                </div>
                             </div>
+                            <div id="biz-pool-archive-section" class="hidden mb-4"></div>
                             <div id="biz-pool-list" class="space-y-3">
                                 <p class="text-xs text-slate-400 text-center py-8">טוען פולים...</p>
                             </div>

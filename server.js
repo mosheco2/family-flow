@@ -19151,6 +19151,28 @@ app.get('/api/biz/pools/:bizGroupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ארכיב פולים לעסק — כל פולים מוארכבים שהעסק השתתף בהם
+app.get('/api/biz/pool-archive/:bizGroupId', async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT DISTINCT fp.id, fp.title, fp.description, fp.status, fp.created_at,
+                fg.name as initiator_name,
+                fpb.price as my_price, fpb.status as my_bid_status
+            FROM flow_pools fp
+            JOIN family_groups fg ON fg.id=fp.initiator_id
+            LEFT JOIN flow_pool_bids fpb ON fpb.pool_id=fp.id AND fpb.business_group_id=$1
+            WHERE fp.status = 'archived'
+              AND fp.id IN (
+                  SELECT pool_id FROM flow_pool_bids WHERE business_group_id=$1
+                  UNION
+                  SELECT pool_id FROM flow_pool_messages WHERE sender_id=$1 AND sender_type='business'
+              )
+            ORDER BY fp.created_at DESC
+        `, [req.params.bizGroupId]);
+        res.json({ success: true, pools: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // הפעלת השרת
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
