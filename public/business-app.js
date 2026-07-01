@@ -15351,16 +15351,25 @@ async function leaveBizCommunity(commId) {
 // ============================================================
 
 // Feature 1: Business posts a promotion to community
-window.openBizPromoModal = function() {
+window.openBizPromoModal = async function() {
     const existing = document.getElementById('biz-promo-modal');
     if (existing) { existing.remove(); return; }
     const comms = (window.myCommunityBusinessesCache || []).filter(c => c.status === 'approved');
+
+    // Load catalog items for product promo
+    let catalogItems = [];
+    try {
+        const cr = await fetch(`/api/store/catalog/${currentGroup.id}`);
+        const cd = await cr.json();
+        if (Array.isArray(cd)) catalogItems = cd;
+    } catch(e) {}
+
     const modal = document.createElement('div');
     modal.id = 'biz-promo-modal';
     modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4';
     modal.innerHTML = `
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-orange-50 to-amber-50">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-orange-50 to-amber-50 sticky top-0 z-10">
             <h3 class="font-bold text-lg text-slate-800">📢 פרסום מבצע לקהילה</h3>
             <button onclick="document.getElementById('biz-promo-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
         </div>
@@ -15378,9 +15387,22 @@ window.openBizPromoModal = function() {
             </div>
             <div>
                 <label class="text-xs font-bold text-slate-600 mb-1 block">פירוט (אופציונלי)</label>
-                <textarea id="promo-content" rows="3" placeholder="תאר את ההטבה בפירוט..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"></textarea>
+                <textarea id="promo-content" rows="2" placeholder="תאר את ההטבה בפירוט..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"></textarea>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="text-xs font-bold text-slate-600 mb-2 block">סוג מבצע</label>
+                <div class="flex gap-2">
+                    <label class="flex-1 flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2 cursor-pointer has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition">
+                        <input type="radio" name="promo-type" value="discount" checked onchange="togglePromoTypeUI()" class="accent-orange-500">
+                        <span class="text-sm font-bold text-slate-700">% הנחה כללית</span>
+                    </label>
+                    <label class="flex-1 flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2 cursor-pointer has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition">
+                        <input type="radio" name="promo-type" value="product" onchange="togglePromoTypeUI()" class="accent-orange-500">
+                        <span class="text-sm font-bold text-slate-700">🛍️ מוצר מהקטלוג</span>
+                    </label>
+                </div>
+            </div>
+            <div id="promo-discount-section" class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="text-xs font-bold text-slate-600 mb-1 block">% הנחה</label>
                     <input type="number" id="promo-discount" value="0" min="0" max="100" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
@@ -15390,6 +15412,30 @@ window.openBizPromoModal = function() {
                     <input type="date" id="promo-valid-until" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
                 </div>
             </div>
+            <div id="promo-product-section" class="hidden space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 mb-1 block">מוצר מהקטלוג</label>
+                    ${catalogItems.length ? `
+                    <select id="promo-catalog-item" onchange="updateProductPromoPrice()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                        <option value="">-- בחר מוצר --</option>
+                        ${catalogItems.map(p => `<option value="${p.id}" data-price="${p.price}">${safeStr(p.name)} — ₪${parseFloat(p.price).toFixed(2)}</option>`).join('')}
+                    </select>` : '<p class="text-xs text-slate-400">אין מוצרים בקטלוג. הוסף מוצרים תחילה.</p>'}
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 mb-1 block">מחיר מבצע למוצר</label>
+                    <div class="flex gap-2 items-center">
+                        <input type="number" id="promo-product-price" placeholder="₪ מחיר מיוחד" min="0" step="0.01" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                        <label class="flex items-center gap-1.5 text-sm font-bold text-green-600 cursor-pointer whitespace-nowrap">
+                            <input type="checkbox" id="promo-product-free" onchange="toggleProductFree()" class="accent-green-500">
+                            חינם 🎁
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 mb-1 block">בתוקף עד</label>
+                    <input type="date" id="promo-valid-until-product" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                </div>
+            </div>
             <p class="text-[10px] text-slate-400">המבצע ישלח לאישור מנהל הקהילה לפני שיפורסם לחברים.</p>
             <button onclick="submitBizPromo()" class="w-full bg-orange-500 text-white py-2.5 rounded-xl font-bold hover:bg-orange-600 transition">📤 שלח לאישור</button>`}
         </div>
@@ -15397,19 +15443,57 @@ window.openBizPromoModal = function() {
     document.body.appendChild(modal);
 };
 
+window.togglePromoTypeUI = function() {
+    const type = document.querySelector('input[name="promo-type"]:checked')?.value;
+    document.getElementById('promo-discount-section').classList.toggle('hidden', type === 'product');
+    document.getElementById('promo-product-section').classList.toggle('hidden', type !== 'product');
+};
+
+window.updateProductPromoPrice = function() {
+    const sel = document.getElementById('promo-catalog-item');
+    const priceInput = document.getElementById('promo-product-price');
+    const freeBox = document.getElementById('promo-product-free');
+    if (!sel || !priceInput || freeBox?.checked) return;
+    const price = parseFloat(sel.selectedOptions[0]?.dataset?.price) || 0;
+    priceInput.value = price > 0 ? (price * 0.9).toFixed(2) : '';
+};
+
+window.toggleProductFree = function() {
+    const free = document.getElementById('promo-product-free')?.checked;
+    const priceInput = document.getElementById('promo-product-price');
+    if (!priceInput) return;
+    priceInput.disabled = free;
+    if (free) priceInput.value = '0';
+};
+
 window.submitBizPromo = async function() {
     const modal = document.getElementById('biz-promo-modal');
     const communityId = modal?.querySelector('[id="promo-community"]')?.value;
     const title = modal?.querySelector('[id="promo-title"]')?.value?.trim();
     const content = modal?.querySelector('[id="promo-content"]')?.value?.trim();
-    const discountPct = parseFloat(modal?.querySelector('[id="promo-discount"]')?.value) || 0;
-    const validUntil = modal?.querySelector('[id="promo-valid-until"]')?.value;
+    const promoType = modal?.querySelector('input[name="promo-type"]:checked')?.value || 'discount';
     if (!title) { showToast('error', 'יש להזין כותרת למבצע'); return; }
     if (!communityId) { showToast('error', 'יש לבחור קהילה'); return; }
+
+    let body;
+    if (promoType === 'product') {
+        const catalogItemId = modal?.querySelector('[id="promo-catalog-item"]')?.value;
+        const isFree = modal?.querySelector('[id="promo-product-free"]')?.checked;
+        const productPromoPrice = isFree ? 0 : parseFloat(modal?.querySelector('[id="promo-product-price"]')?.value);
+        const validUntil = modal?.querySelector('[id="promo-valid-until-product"]')?.value;
+        if (!catalogItemId) { showToast('error', 'יש לבחור מוצר מהקטלוג'); return; }
+        if (!isFree && (isNaN(productPromoPrice) || productPromoPrice < 0)) { showToast('error', 'יש להזין מחיר מבצע'); return; }
+        body = { businessId: currentGroup.id, communityId, title, content, discountPct: 0, validUntil: validUntil || null, promoType: 'product', catalogItemId: parseInt(catalogItemId), productPromoPrice };
+    } else {
+        const discountPct = parseFloat(modal?.querySelector('[id="promo-discount"]')?.value) || 0;
+        const validUntil = modal?.querySelector('[id="promo-valid-until"]')?.value;
+        body = { businessId: currentGroup.id, communityId, title, content, discountPct, validUntil: validUntil || null, promoType: 'discount' };
+    }
+
     try {
         const res = await fetch(`${API}/biz/community/promotions`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ businessId: currentGroup.id, communityId, title, content, discountPct, validUntil: validUntil || null })
+            body: JSON.stringify(body)
         });
         const data = await res.json();
         if (data.success) {
