@@ -2260,9 +2260,10 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             if (!input) return;
             const v = parseInt(input.value) || 0;
             const rate = _flowRedeemParams.rate || 100;
-            const ils = Math.floor(v / rate) * 10;
+            // חישוב פרופורציונלי: כל rate מטבעות = ₪10
+            const ils = Math.round((v / rate) * 10 * 100) / 100;
             const el = document.getElementById('flow-redeem-ils');
-            if (el) el.textContent = `₪${ils}`;
+            if (el) el.textContent = `₪${ils.toFixed(2)}`;
             _flowRedeemParams.currentAmount = v;
             _flowRedeemParams.currentDiscount = ils;
             if (window.updateCartFooter) window.updateCartFooter();
@@ -2565,8 +2566,20 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                                 })
                             });
                         } catch(e) { console.warn('Flow deduct failed', e); }
+                        // עדכון יתרה מקומית — מניעת מימוש כפול
+                        _flowRedeemParams.balance = Math.max(0, _flowRedeemParams.balance - flowRedeemAmount);
                         _flowRedeemParams.currentAmount = 0;
                         _flowRedeemParams.currentDiscount = 0;
+                        // עדכון תצוגת יתרה ב-widget
+                        const balLbl = document.getElementById('flow-redeem-balance-label');
+                        if (balLbl) balLbl.textContent = `⚡ יתרה: ${Math.floor(_flowRedeemParams.balance)} Flw`;
+                        const inp = document.getElementById('flow-redeem-input');
+                        if (inp) { inp.value = 0; inp.max = Math.floor(_flowRedeemParams.balance); }
+                        const ilsEl = document.getElementById('flow-redeem-ils');
+                        if (ilsEl) ilsEl.textContent = '₪0.00';
+                        if (_flowRedeemParams.balance <= 0) {
+                            document.getElementById('flow-redeem-section')?.classList.add('hidden');
+                        }
                     }
 
                     try{ confetti({ particleCount: 200, spread: 90, origin: { y: 0.5 }, colors: ['#000', '#4f46e5', '#10b981'] }); } catch(e){}
