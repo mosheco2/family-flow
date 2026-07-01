@@ -2266,9 +2266,11 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
         window.onFlowRedeemInput = function() {
             const input = document.getElementById('flow-redeem-input');
             if (!input) return;
-            const v = parseInt(input.value) || 0;
+            const bal = Math.floor(_flowRedeemParams.balance || 0);
+            let v = parseInt(input.value) || 0;
+            if (v < 0) v = 0;
+            if (v > bal) { v = bal; input.value = bal; }
             const rate = _flowRedeemParams.rate || 100;
-            // חישוב פרופורציונלי: כל rate מטבעות = ₪10
             const ils = Math.round((v / rate) * 10 * 100) / 100;
             const el = document.getElementById('flow-redeem-ils');
             if (el) el.textContent = `₪${ils.toFixed(2)}`;
@@ -2542,7 +2544,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const appliedPromoCode = (window._appliedPromo && window._appliedPromo.code) ? window._appliedPromo.code : null;
             const appliedPromoType = window._appliedPromo?.type || null;
 
-            const flowRedeemAmount = _flowRedeemParams.currentAmount || 0;
+            const _maxFlow = Math.floor(_flowRedeemParams.balance || 0);
+            const flowRedeemAmount = Math.min(_flowRedeemParams.currentAmount || 0, _maxFlow);
             const flowRedeemDiscount = _flowRedeemParams.currentDiscount || 0;
             const flowFamilyGroupId = _flowRedeemParams.familyGroupId || familyId;
 
