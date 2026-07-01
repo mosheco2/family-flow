@@ -5170,7 +5170,9 @@ function renderFlowWalletContent(data) {
     const minR = parseFloat(data.min_redeem || familyFlowMinRedeem || 100);
     const quarter = parseFloat(data.redeem_quarter || familyFlowRedeemQuarter || 0);
     const worth = Math.floor(bal / rate) * 10;
-    const canRedeem = bal >= minR;
+    // מי שכבר מימש בעבר יכול לממש גם ביתרה חלקית (עד איפוס הרבעון)
+    const hasRedeemed = !!data.has_redeemed;
+    const canRedeem = bal > 0 && (bal >= minR || hasRedeemed);
 
     let expiryDate = null;
     let expiryHtml = '';
@@ -5208,7 +5210,7 @@ function renderFlowWalletContent(data) {
         <button onclick="openFlowRedeemToStore(${bal},${minR})" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-2xl text-sm transition shadow-md ${!canRedeem ? 'opacity-50 pointer-events-none' : ''}">
             🛒 ממש הנחה בחנות עסק
         </button>
-        ${!canRedeem ? `<p class="text-[10px] text-slate-400 text-center mt-1">נדרש מינימום ${minR} Flw למימוש (יש לך ${Math.floor(bal)})</p>` : ''}
+        ${!canRedeem ? `<p class="text-[10px] text-slate-400 text-center mt-1">צבור ${minR} Flw כדי להתחיל לממש (יש לך ${Math.floor(bal)})</p>` : ''}
         <button onclick="openFlowRedeemModal()" class="w-full mt-2 bg-white border border-amber-300 text-amber-700 font-bold py-2 rounded-2xl text-xs transition hover:bg-amber-50">
             🎁 קבל קוד הנחה (להציג ידנית)
         </button>

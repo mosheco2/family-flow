@@ -10577,15 +10577,17 @@ app.post('/api/sa/flow/grant', verifySA, async (req, res) => {
 app.get('/api/flow/wallet/family/:groupId', async (req, res) => {
     try {
         const gid = parseInt(req.params.groupId);
-        const [wallet, txs] = await Promise.all([
+        const [wallet, txs, pastRedeem, cfg] = await Promise.all([
             pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='family' AND entity_id=$1`, [gid]),
-            pool.query(`SELECT amount, description, created_at FROM flow_transactions WHERE entity_type='family' AND entity_id=$1 ORDER BY created_at DESC LIMIT 20`, [gid])
+            pool.query(`SELECT amount, description, created_at FROM flow_transactions WHERE entity_type='family' AND entity_id=$1 ORDER BY created_at DESC LIMIT 20`, [gid]),
+            pool.query(`SELECT 1 FROM flow_transactions WHERE entity_type='family' AND entity_id=$1 AND action_key IN ('redeem','store_redeem') LIMIT 1`, [gid]),
+            pool.query(`SELECT key, personal_amount FROM flow_config WHERE key IN ('flow_to_ils_rate','flow_min_redeem','flow_redeem_quarter')`)
         ]);
-        const cfg = await pool.query(`SELECT key, personal_amount FROM flow_config WHERE key IN ('flow_to_ils_rate','flow_min_redeem','flow_redeem_quarter')`);
         const cfgMap = Object.fromEntries(cfg.rows.map(r => [r.key, parseFloat(r.personal_amount)]));
         res.json({
             balance: parseFloat(wallet.rows[0]?.balance || 0),
             transactions: txs.rows,
+            has_redeemed: pastRedeem.rows.length > 0,
             rate: cfgMap.flow_to_ils_rate || 100,
             min_redeem: cfgMap.flow_min_redeem || 100,
             redeem_quarter: cfgMap.flow_redeem_quarter || 0
@@ -10632,12 +10634,15 @@ app.post('/api/flow/redeem', async (req, res) => {
         const minRedeem = cfgMap.flow_min_redeem || 100;
         const redeemQuarter = cfgMap.flow_redeem_quarter || 0;
 
-        if (fa < minRedeem) return res.status(400).json({ error: `מינימום ${minRedeem} Flw למימוש` });
-
         // Check balance
         const wallet = await pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='family' AND entity_id=$1`, [familyGroupId]);
         const bal = parseFloat(wallet.rows[0]?.balance || 0);
         if (bal < fa) return res.status(400).json({ error: `אין מספיק Flw (יש לך ${bal} Flw)` });
+
+        // מי שמימש בעבר יכול לממש גם ביתרה חלקית (פחות מminRedeem)
+        const pastRedeem = await pool.query(`SELECT 1 FROM flow_transactions WHERE entity_type='family' AND entity_id=$1 AND action_key IN ('redeem','store_redeem') LIMIT 1`, [familyGroupId]);
+        const hasRedeemed = pastRedeem.rows.length > 0;
+        if (fa < minRedeem && !hasRedeemed) return res.status(400).json({ error: `מינימום ${minRedeem} Flw למימוש ראשון` });
 
         // Calculate discount
         const discountIls = Math.floor(fa / rateVal) * 10;
