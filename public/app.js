@@ -5168,19 +5168,38 @@ function renderFlowWalletContent(data) {
     const worth = Math.floor(bal / rate) * 10;
     const canRedeem = bal >= minR;
 
-    let quarterHtml = '';
+    let expiryDate = null;
+    let expiryHtml = '';
     if (quarter >= 1 && quarter <= 4) {
-        const qNames = ['', 'Q1 (31 מרץ)', 'Q2 (30 יוני)', 'Q3 (30 ספטמבר)', 'Q4 (31 דצמבר)'];
-        quarterHtml = `<div class="mt-1 text-amber-100 text-[10px]">תוקף מימוש: עד סוף ${qNames[quarter]}</div>`;
+        const now = new Date();
+        const yr = now.getFullYear();
+        const quarterEnds = [
+            new Date(yr, 2, 31), new Date(yr, 5, 30),
+            new Date(yr, 8, 30), new Date(yr, 11, 31)
+        ];
+        expiryDate = quarterEnds[quarter - 1];
+        if (expiryDate < now) expiryDate = new Date(new Date(expiryDate).setFullYear(yr + 1));
+        const expStr = expiryDate.toLocaleDateString('he-IL', {day:'2-digit', month:'2-digit', year:'numeric'});
+        expiryHtml = `
+        <div class="flex items-center justify-between bg-orange-50 border border-orange-200 rounded-xl px-3 py-2 mb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-orange-500 text-sm">⏰</span>
+                <div>
+                    <div class="text-xs font-bold text-orange-700">תוקף קודי מימוש</div>
+                    <div class="text-[10px] text-orange-500">קודים שתפיק יפוגו ב-${expStr}</div>
+                </div>
+            </div>
+            <span class="text-xs font-black text-orange-600 bg-orange-100 px-2 py-0.5 rounded-lg">${expStr}</span>
+        </div>`;
     }
 
     content.innerHTML = `
-    <div class="bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl p-5 text-center mb-4 shadow-lg">
+    <div class="bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl p-5 text-center mb-3 shadow-lg">
         <div class="text-5xl font-black text-white mb-1">Flw ${bal.toLocaleString('he-IL', {minimumFractionDigits:0,maximumFractionDigits:1})}</div>
         <div class="text-amber-100 text-sm">FLOW אישי</div>
         ${worth > 0 ? `<div class="mt-2 bg-white/20 rounded-xl px-3 py-1 text-white text-xs font-bold">שווה ₪${worth} הנחה אצל עסק מחובר</div>` : `<div class="mt-2 text-amber-100 text-xs">צבור ${minR} Flw כדי לממש הנחה</div>`}
-        ${quarterHtml}
     </div>
+    ${expiryHtml}
     <div class="mb-4">
         <button onclick="openFlowRedeemModal()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-2xl text-sm transition shadow-md ${!canRedeem ? 'opacity-50 pointer-events-none' : ''}">
             🎁 ממש הנחה אצל עסק
