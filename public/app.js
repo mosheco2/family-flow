@@ -4043,7 +4043,7 @@ function renderFamCommunityBenefits() {
         const actionBtn = multiComm
             ? `<button onclick="openBizCommunityPicker('${safeStr(biz.group_code)}','${safeStr(biz.business_name).replace(/'/g,"\\'")}',${JSON.stringify(comms).replace(/"/g,'&quot;')})" class="bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm shrink-0">לחנות ▾</button>`
             : `<a href="${window.location.origin}/storefront.html?store=${safeStr(biz.group_code)}&communityId=${comms[0]?.id}" target="_blank" class="bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm shrink-0">לחנות</a>`;
-        const logoHtml = biz.biz_logo && !biz.biz_logo.startsWith('data:')
+        const logoHtml = biz.biz_logo
             ? `<img src="${safeStr(biz.biz_logo)}" class="w-12 h-12 rounded-xl object-cover shrink-0 border border-slate-100 shadow-sm" onerror="this.style.display='none'">`
             : `<div class="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center shrink-0"><i class="fa-solid fa-store text-xl"></i></div>`;
         return `
@@ -4896,8 +4896,8 @@ function renderCommunityPromotions(promos) {
         const storeBtn = storeUrl ? `<a href="${storeUrl}" target="_blank" class="flex-1 bg-slate-900 hover:bg-slate-700 text-white text-xs font-bold py-1.5 px-3 rounded-xl transition text-center">🛒 לחנות העסק</a>` : '';
         const phoneBtn = p.biz_phone ? `<a href="tel:${safeStr(p.biz_phone)}" class="flex-1 bg-green-50 hover:bg-green-100 text-green-700 text-xs font-bold py-1.5 px-3 rounded-xl transition text-center border border-green-100">📞 ${safeStr(p.biz_phone)}</a>` : '';
         const actionBtns = (storeBtn || phoneBtn) ? `<div class="flex gap-2 mt-2">${storeBtn}${phoneBtn}</div>` : '';
-        const logoHtml = p.biz_logo && !p.biz_logo.startsWith('data:')
-            ? `<img src="${safeStr(p.biz_logo)}" class="w-11 h-11 rounded-xl object-cover shrink-0 border border-orange-100 shadow-sm">`
+        const logoHtml = p.biz_logo
+            ? `<img src="${safeStr(p.biz_logo)}" class="w-11 h-11 rounded-xl object-cover shrink-0 border border-orange-100 shadow-sm" onerror="this.style.display='none'">`
             : `<div class="w-11 h-11 rounded-xl bg-orange-100 flex items-center justify-center shrink-0"><i class="fa-solid fa-store text-orange-400 text-base"></i></div>`;
         return `
     <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100 rounded-2xl p-4 shadow-sm">
@@ -4934,7 +4934,7 @@ function renderCommunityBundles(bundles) {
         const logos = b.business_logos || [];
         const bizLogosHtml = names.map((n, i) => {
             const logo = logos[i];
-            return logo && !logo.startsWith('data:')
+            return logo
                 ? `<img src="${safeStr(logo)}" title="${safeStr(n)}" class="w-8 h-8 rounded-lg object-cover border border-emerald-100 shadow-sm" onerror="this.style.display='none'">`
                 : `<div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center" title="${safeStr(n)}"><i class="fa-solid fa-store text-emerald-400 text-xs"></i></div>`;
         }).join('');
