@@ -1960,6 +1960,18 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 getEl('checkout-total').innerText = `₪${totalWithDelivery.toFixed(2)}`;
             }
 
+            // VAT line (when store has include_vat enabled)
+            const oldVatMsg = getEl('checkout-vat-msg'); if(oldVatMsg) oldVatMsg.remove();
+            if (storeData.settings && storeData.settings.include_vat) {
+                const vatRate = parseFloat(storeData.settings.vat_rate) || 18;
+                const vatAmount = totalWithDelivery * vatRate / (100 + vatRate);
+                getEl('checkout-total').parentElement.insertAdjacentHTML('afterend',
+                    `<div id="checkout-vat-msg" class="flex items-center justify-between text-xs text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 mt-1 mb-1">
+                        <span>מתוכם מע"מ ${vatRate}% (מגולם)</span>
+                        <span>₪${vatAmount.toFixed(2)}</span>
+                    </div>`);
+            }
+
             // Community discount line (always when applicable)
             if (storeData.communityData && storeData.communityData.discount_active && commSavingTotal > 0) {
                 getEl('checkout-total').parentElement.insertAdjacentHTML('afterend', `

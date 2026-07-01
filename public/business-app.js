@@ -11822,7 +11822,8 @@ async function saveStoreSettings() {
             closeTime: getVal('store-close-time'), 
             whatsappNumber: getVal('store-whatsapp'),
             includeVat: includeVat,
-            storeAlias: storeAlias 
+            vatRate: parseFloat(document.getElementById('store-vat-rate')?.value) || 18,
+            storeAlias: storeAlias
         };
 
         const res = await fetch(`${API}/store/settings`, {
@@ -22837,7 +22838,8 @@ async function saveStoreSettings() {
             closeTime: getVal('store-close-time'), 
             whatsappNumber: getVal('store-whatsapp'),
             includeVat: includeVat,
-            storeAlias: storeAlias 
+            vatRate: parseFloat(document.getElementById('store-vat-rate')?.value) || 18,
+            storeAlias: storeAlias
         };
 
         const res = await fetch(`${API}/store/settings`, {
