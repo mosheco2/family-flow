@@ -4929,15 +4929,24 @@ function renderCommunityPromotions(promos) {
         const storeBtn = storeUrl ? `<a href="${storeUrl}" target="_blank" class="flex-1 bg-slate-900 hover:bg-slate-700 text-white text-xs font-bold py-1.5 px-3 rounded-xl transition text-center">🛒 לחנות העסק</a>` : '';
         const phoneBtn = p.biz_phone ? `<a href="tel:${safeStr(p.biz_phone)}" class="flex-1 bg-green-50 hover:bg-green-100 text-green-700 text-xs font-bold py-1.5 px-3 rounded-xl transition text-center border border-green-100">📞 ${safeStr(p.biz_phone)}</a>` : '';
         const actionBtns = (storeBtn || phoneBtn) ? `<div class="flex gap-2 mt-2">${storeBtn}${phoneBtn}</div>` : '';
+        const logoHtml = p.biz_logo && !p.biz_logo.startsWith('data:')
+            ? `<img src="${safeStr(p.biz_logo)}" class="w-11 h-11 rounded-xl object-cover shrink-0 border border-orange-100 shadow-sm">`
+            : `<div class="w-11 h-11 rounded-xl bg-orange-100 flex items-center justify-center shrink-0"><i class="fa-solid fa-store text-orange-400 text-base"></i></div>`;
         return `
     <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100 rounded-2xl p-4 shadow-sm">
-        <div class="flex justify-between items-start mb-1">
-            <div class="font-bold text-slate-800 text-sm">${safeStr(p.title)}</div>
-            ${p.discount_pct > 0 ? `<span class="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 mr-2">${p.discount_pct}% הנחה</span>` : ''}
+        <div class="flex items-start gap-3 mb-2">
+            ${logoHtml}
+            <div class="flex-1 min-w-0">
+                <div class="flex justify-between items-start gap-1">
+                    <div class="font-bold text-slate-800 text-sm leading-tight">${safeStr(p.title)}</div>
+                    ${p.discount_pct > 0 ? `<span class="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shrink-0">${p.discount_pct}% הנחה</span>` : ''}
+                </div>
+                <div class="text-[10px] text-slate-400 mt-0.5">${safeStr(p.biz_name || p.business_name)} · ${safeStr(p.comm_name || p.community_name)}</div>
+            </div>
         </div>
-        ${p.content ? `<p class="text-xs text-slate-600 mt-1 leading-relaxed">${safeStr(p.content)}</p>` : ''}
-        <div class="flex justify-between items-center mt-2.5 pt-2 border-t border-orange-100">
-            <span class="text-[10px] text-slate-400 font-medium">${safeStr(p.biz_name || p.business_name)} · ${safeStr(p.comm_name || p.community_name)}</span>
+        ${p.content ? `<p class="text-xs text-slate-600 leading-relaxed mb-2">${safeStr(p.content)}</p>` : ''}
+        <div class="flex justify-between items-center pt-2 border-t border-orange-100">
+            <span class="text-[10px] text-slate-400"></span>
             ${p.valid_until ? `<span class="text-[10px] text-orange-500 font-bold">⏰ עד ${new Date(p.valid_until).toLocaleDateString('he-IL')}</span>` : ''}
         </div>
         ${p.promo_code ? `<div class="mt-3 flex items-center justify-between gap-2 bg-slate-900 rounded-xl px-3 py-2"><span class="text-[10px] text-slate-300 font-bold">קוד הנחה:</span><span class="font-mono font-black text-white tracking-widest text-sm">${safeStr(p.promo_code)}</span><button onclick="navigator.clipboard.writeText('${safeStr(p.promo_code)}').then(()=>showToast('success','הקוד הועתק!'))" class="text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-copy"></i></button></div>` : ''}

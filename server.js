@@ -8235,7 +8235,8 @@ app.get('/api/community/family-feed/:groupId', async (req, res) => {
         // Active promotions
         const promos = await pool.query(
             `SELECT cp.id, cp.title, cp.content, cp.discount_pct, cp.valid_until, cp.created_at, cp.promo_code,
-             fg.name as business_name, fg.name as biz_name, fg.group_code as biz_code, c.name as community_name, c.name as comm_name, c.id as community_id,
+             fg.name as business_name, fg.name as biz_name, fg.group_code as biz_code,
+             fg.image_url as biz_logo, c.name as community_name, c.name as comm_name, c.id as community_id,
              ss.phone as biz_phone
              FROM community_promotions cp
              JOIN family_groups fg ON fg.id=cp.business_id
