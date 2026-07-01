@@ -2594,7 +2594,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                                 body: JSON.stringify({
                                     familyGroupId: flowFamilyGroupId,
                                     amount: flowRedeemAmount,
-                                    description: `מימוש הנחה ב${storeData.groupName || 'חנות'} — הזמנה #${data.orderId}`
+                                    businessGroupId: storeData.groupId,
+                                    orderId: data.orderId
                                 })
                             });
                         } catch(e) { console.warn('Flow deduct failed', e); }

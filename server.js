@@ -10701,7 +10701,7 @@ app.post('/api/flow/redeem/validate', async (req, res) => {
 // Direct flow deduction (used after storefront order with coin discount)
 app.post('/api/flow/deduct', async (req, res) => {
     try {
-        const { familyGroupId, amount, description } = req.body;
+        const { familyGroupId, amount, description, businessGroupId, orderId } = req.body;
         if (!familyGroupId || !amount) return res.status(400).json({ error: 'חסרים שדות חובה' });
         const fa = parseFloat(amount);
         if (fa <= 0) return res.status(400).json({ error: 'כמות לא תקינה' });
@@ -10710,8 +10710,17 @@ app.post('/api/flow/deduct', async (req, res) => {
         const bal = parseFloat(wallet.rows[0]?.balance || 0);
         if (bal < fa) return res.status(400).json({ error: `אין מספיק Flw (יש ${bal})` });
 
+        // Build description with business name from DB
+        let finalDesc = description;
+        if (!finalDesc && businessGroupId) {
+            const bizRow = await pool.query(`SELECT name FROM family_groups WHERE id=$1`, [businessGroupId]);
+            const bizName = bizRow.rows[0]?.name || 'חנות';
+            finalDesc = `מימוש הנחה ב${bizName}${orderId ? ` — הזמנה #${orderId}` : ''}`;
+        }
+        finalDesc = finalDesc || 'מימוש הנחה בחנות';
+
         await pool.query(`UPDATE flow_wallets SET balance=balance-$1, updated_at=NOW() WHERE entity_type='family' AND entity_id=$2`, [fa, familyGroupId]);
-        await pool.query(`INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description) VALUES ('family',$1,$2,'store_redeem',$3)`, [familyGroupId, -fa, description || 'מימוש הנחה בחנות']);
+        await pool.query(`INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description) VALUES ('family',$1,$2,'store_redeem',$3)`, [familyGroupId, -fa, finalDesc]);
 
         res.json({ success: true, deducted: fa, remaining: bal - fa });
     } catch(e) { res.status(500).json({ error: e.message }); }
