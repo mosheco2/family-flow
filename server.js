@@ -9748,6 +9748,7 @@ app.get('/api/community/manager-data/:groupId', async (req, res) => {
                 created_at TIMESTAMP DEFAULT NOW()
             )
         `);
+        await pool.query(`ALTER TABLE community_banner_requests ADD COLUMN IF NOT EXISTS position SMALLINT DEFAULT 5 CHECK (position >= 1 AND position <= 10)`);
         // Referral code system
         await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS referral_code VARCHAR(12) UNIQUE`);
         await pool.query(`ALTER TABLE family_communities ADD COLUMN IF NOT EXISTS referred_by_group_id INT REFERENCES family_groups(id)`);
@@ -10176,7 +10177,7 @@ app.get('/api/community/approved-banners', async (req, res) => {
              WHERE cbr.status = 'approved'
                AND (cbr.start_date IS NULL OR cbr.start_date <= $1)
                AND (cbr.end_date IS NULL OR cbr.end_date >= $1)
-             ORDER BY cbr.created_at DESC`,
+             ORDER BY COALESCE(cbr.position, 5) ASC, cbr.created_at DESC`,
             [today]
         );
         res.json({ success: true, banners: r.rows });
@@ -10189,7 +10190,7 @@ app.get('/api/sa/community/banner-requests', verifySA, async (req, res) => {
         const r = await pool.query(
             `SELECT cbr.*, cp.title as promo_title, cp.content as promo_content, cp.discount_pct,
              fg.name as business_name, fg.image_url as business_logo, fg.group_code,
-             c.name as community_name
+             c.name as community_name, COALESCE(cbr.position, 5) as position
              FROM community_banner_requests cbr
              JOIN community_promotions cp ON cp.id=cbr.promotion_id
              JOIN family_groups fg ON fg.id=cbr.business_id
@@ -10202,12 +10203,13 @@ app.get('/api/sa/community/banner-requests', verifySA, async (req, res) => {
 // SA approves/rejects a banner request with date range
 app.post('/api/sa/community/banner-requests/:id/approve', verifySA, async (req, res) => {
     try {
-        const { status, startDate, endDate, bannerHeadline } = req.body;
+        const { status, startDate, endDate, bannerHeadline, position } = req.body;
         if (!['approved','rejected'].includes(status)) return res.status(400).json({ error: 'סטטוס לא חוקי' });
         if (status === 'approved' && (!startDate || !endDate)) return res.status(400).json({ error: 'נדרש תאריך התחלה וסיום' });
+        const pos = Math.min(10, Math.max(1, parseInt(position) || 5));
         await pool.query(
-            `UPDATE community_banner_requests SET status=$1, start_date=$2, end_date=$3, banner_headline=$4 WHERE id=$5`,
-            [status, startDate || null, endDate || null, bannerHeadline || null, req.params.id]);
+            `UPDATE community_banner_requests SET status=$1, start_date=$2, end_date=$3, banner_headline=$4, position=$5 WHERE id=$6`,
+            [status, startDate || null, endDate || null, bannerHeadline || null, pos, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

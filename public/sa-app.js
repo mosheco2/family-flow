@@ -7039,6 +7039,7 @@ async function loadSABannerRequests() {
                 </div>
                 ${b.banner_headline ? `<div class="bg-gradient-to-l from-indigo-50 to-purple-50 border border-indigo-100 rounded-lg px-3 py-2 mb-2 text-sm font-bold text-indigo-800">💬 "${safeStr(b.banner_headline)}"</div>` : ''}
                 ${b.promo_content ? `<p class="text-xs text-slate-600 mb-2 bg-slate-50 rounded p-2">${safeStr(b.promo_content)}</p>` : ''}
+                ${b.status === 'approved' ? `<div class="text-[10px] text-slate-400 mt-1">מיקום: <span class="font-bold text-indigo-600">${b.position || 5}</span>/10</div>` : ''}
                 ${b.status === 'pending' ? `
                 <div class="space-y-2 mt-3">
                     <div class="flex gap-2">
@@ -7056,6 +7057,13 @@ async function loadSABannerRequests() {
                         <div class="flex gap-1">
                             <input type="text" id="banner-headline-${b.id}" value="${safeStr(b.banner_headline || '')}" placeholder="כותרת שיווקית..." class="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-xs">
                             <button onclick="generateBannerAI(${b.id})" class="bg-purple-100 text-purple-700 px-2 py-1 rounded-lg text-xs font-bold hover:bg-purple-200 transition">🤖 AI</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-0.5">מיקום בעמוד הבית (1 = ראשון, 10 = אחרון)</label>
+                        <div class="flex items-center gap-2">
+                            <input type="range" id="banner-position-${b.id}" min="1" max="10" value="5" class="flex-1 accent-indigo-500" oninput="document.getElementById('banner-pos-val-${b.id}').textContent=this.value">
+                            <span id="banner-pos-val-${b.id}" class="text-sm font-black text-indigo-600 w-6 text-center">5</span>
                         </div>
                     </div>
                     <div class="flex gap-2">
@@ -7087,11 +7095,12 @@ window.approveBannerRequest = async function(id, status) {
     const startDate = document.getElementById(`banner-start-${id}`)?.value;
     const endDate = document.getElementById(`banner-end-${id}`)?.value;
     const bannerHeadline = document.getElementById(`banner-headline-${id}`)?.value?.trim();
+    const position = parseInt(document.getElementById(`banner-position-${id}`)?.value) || 5;
     if (status === 'approved' && (!startDate || !endDate)) { showSAToast('⚠️ יש להזין תאריך התחלה וסיום'); return; }
     try {
         await fetch(`${API}/sa/community/banner-requests/${id}/approve`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: saToken },
-            body: JSON.stringify({ status, startDate: startDate || null, endDate: endDate || null, bannerHeadline: bannerHeadline || null })
+            body: JSON.stringify({ status, startDate: startDate || null, endDate: endDate || null, bannerHeadline: bannerHeadline || null, position })
         });
         showSAToast(status === 'approved' ? '✅ באנר אושר ופורסם!' : '❌ בקשה נדחתה');
         loadSABannerRequests();
