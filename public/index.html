@@ -940,159 +940,180 @@
                     </div>
 
 <div id="content-community" class="hidden">
-                    <!-- Hero banner -->
-                    <div class="bg-gradient-to-r from-orange-400 to-pink-500 rounded-[2rem] p-6 text-white shadow-xl mb-4 relative overflow-hidden">
-                        <h3 class="text-xl font-bold mb-1">הקהילה שלנו 🏘️</h3>
-                        <p class="text-orange-50 text-xs opacity-90 mb-3">הישארו מעודכנים בכל מה שקורה בקהילה שלכם.</p>
-                        <a href="/community-home.html" class="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white text-xs font-black px-4 py-2 rounded-xl transition backdrop-blur-sm border border-white/30">
-                            <i class="fa-solid fa-globe text-xs"></i> עולם הקהילות ✨
-                        </a>
-                        <i class="fa-solid fa-calendar-days absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
-                    </div>
-                    <!-- Tab buttons -->
-                    <div class="grid grid-cols-5 gap-1 mb-5" id="community-tab-buttons">
-                        <div class="relative">
-                            <button id="btn-fam-comm-join" onclick="switchFamCommunityTab('join')" class="w-full h-14 flex flex-col items-center justify-center gap-0.5 px-1 rounded-xl text-[10px] font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition overflow-hidden">
-                                <i class="fa-solid fa-link text-sm"></i>חיבור
+                    <!-- View: Home (ברירת מחדל) -->
+                    <div id="fam-comm-view-home">
+                        <!-- 4 כפתורים compact -->
+                        <div class="grid grid-cols-4 gap-2 mb-4">
+                            <button onclick="switchFamCommunityTab('manage')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition text-[11px] font-bold">
+                                <i class="fa-solid fa-people-group text-base text-orange-400"></i>ניהול קהילות
                             </button>
-                            <button onclick="showCommunityHelp('family-join')" class="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white border border-orange-200 text-orange-500 text-[9px] font-black flex items-center justify-center shadow-sm hover:bg-orange-50 transition z-10">?</button>
-                        </div>
-                        <div class="relative">
-                            <button id="btn-fam-comm-benefits" onclick="switchFamCommunityTab('benefits')" class="w-full h-14 flex flex-col items-center justify-center gap-0.5 px-1 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition overflow-hidden">
-                                <i class="fa-solid fa-tag text-sm"></i>הטבות
+                            <button onclick="switchFamCommunityTab('promos')" class="relative flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-pink-50 hover:text-pink-600 transition text-[11px] font-bold">
+                                <i class="fa-solid fa-percent text-base text-pink-400"></i>מבצעים
+                                <span id="comm-promos-count-badge" class="hidden bg-red-500 text-white text-[8px] font-black px-1 rounded-full absolute -top-1 -right-1 min-w-[16px] h-[16px] flex items-center justify-center"></span>
                             </button>
-                            <button onclick="showCommunityHelp('family-benefits')" class="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white border border-slate-200 text-slate-400 text-[9px] font-black flex items-center justify-center shadow-sm hover:bg-slate-50 transition z-10">?</button>
-                        </div>
-                        <div class="relative">
-                            <button id="btn-fam-comm-promos" onclick="switchFamCommunityTab('promos')" class="w-full h-14 flex flex-col items-center justify-center gap-0.5 px-1 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition overflow-hidden">
-                                <i class="fa-solid fa-tag text-sm"></i>מבצעים
-                                <span id="comm-promos-count-badge" class="hidden bg-red-500 text-white text-[8px] font-black px-1 rounded-full leading-tight absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center z-10 pointer-events-none rounded-full"></span>
+                            <button onclick="switchFamCommunityTab('news')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-600 transition text-[11px] font-bold">
+                                <i class="fa-solid fa-newspaper text-base text-sky-400"></i>חדשות
                             </button>
-                            <button onclick="showCommunityHelp('family-news')" class="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white border border-slate-200 text-slate-400 text-[9px] font-black flex items-center justify-center shadow-sm hover:bg-slate-50 transition z-10">?</button>
-                        </div>
-                        <div class="relative">
-                            <button id="btn-fam-comm-interests" onclick="switchFamCommunityTab('interests')" class="w-full h-14 flex flex-col items-center justify-center gap-0.5 px-1 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition overflow-hidden">
-                                <i class="fa-solid fa-hashtag text-sm"></i>עניין
-                            </button>
-                            <button onclick="showCommunityHelp('family-interests')" class="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white border border-slate-200 text-slate-400 text-[9px] font-black flex items-center justify-center shadow-sm hover:bg-slate-50 transition z-10">?</button>
-                        </div>
-                        <div class="relative">
-                            <button id="btn-fam-comm-pool" onclick="switchFamCommunityTab('pool')" class="w-full h-14 flex flex-col items-center justify-center gap-0.5 px-1 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition overflow-hidden">
-                                <i class="fa-solid fa-water text-sm"></i>Pool 🌊
+                            <button onclick="switchFamCommunityTab('benefits')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-teal-50 hover:text-teal-600 transition text-[11px] font-bold">
+                                <i class="fa-solid fa-tag text-base text-teal-400"></i>הטבות
                             </button>
                         </div>
+                        <!-- הודעה למשפחה ללא קהילה -->
+                        <div id="comm-home-no-community" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 text-center">
+                            <i class="fa-solid fa-house-flag text-2xl text-amber-400 mb-2 block"></i>
+                            <p class="text-sm font-bold text-amber-800 mb-1">עדיין לא מחוברים לקהילה</p>
+                            <p class="text-xs text-amber-600 mb-3">חברו את המשפחה לקהילה המקומית שלכם כדי ליהנות מהטבות ומבצעים</p>
+                            <button onclick="switchFamCommunityTab('manage')" class="bg-amber-500 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-amber-600 transition">עבור לניהול קהילות ←</button>
+                        </div>
+                        <!-- אזור שיווקי — באנרים מאושרים -->
                         <div>
-                            <button id="btn-fam-comm-pool-archive" onclick="switchFamCommunityTab('pool-archive')" class="w-full h-14 flex flex-col items-center justify-center gap-0.5 px-1 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition overflow-hidden">
-                                <i class="fa-solid fa-box-archive text-sm"></i>ארכיב פולים
-                            </button>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">מבצעים מומלצים</p>
+                            <div id="comm-home-banners-feed" class="space-y-3">
+                                <p class="text-xs text-slate-400 text-center py-8">טוען...</p>
+                            </div>
                         </div>
                     </div>
-                    <!-- Sub-view: Join -->
-                    <div id="fam-comm-view-join">
-                        <div id="community-list-container" class="hidden" style="display: none;"></div>
-                        <div id="community-join-section" class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 mb-6 text-center">
-                            <i class="fa-solid fa-house-flag text-4xl text-slate-300 mb-3"></i>
-                            <h4 class="font-bold text-slate-700 mb-2">חיבור לקהילה המקומית</h4>
-                            <p class="text-xs text-slate-500 mb-4">הזינו את קוד הקהילה שלכם (יישוב, ועד עובדים, שכונה) כדי לראות עסקים מקומיים ולהנות מהנחות.</p>
+                    <!-- View: Manage (ניהול קהילות) -->
+                    <div id="fam-comm-view-manage" class="hidden pb-20">
+                        <div class="flex items-center gap-2 mb-4">
+                            <button onclick="switchFamCommunityTab('home')" class="text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-arrow-right"></i></button>
+                            <h3 class="font-bold text-slate-700 text-base">ניהול קהילות</h3>
+                        </div>
+                        <!-- טאבי משנה -->
+                        <div class="flex gap-2 mb-4 overflow-x-auto pb-1">
+                            <button id="btn-fam-sub-join" onclick="switchFamCommSubTab('join')" class="whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-500 text-white transition">חיבור</button>
+                            <button id="btn-fam-sub-interests" onclick="switchFamCommSubTab('interests')" class="whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">קהילות עניין</button>
+                            <button id="btn-fam-sub-pool" onclick="switchFamCommSubTab('pool')" class="whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">FlowPool 🌊</button>
+                            <button id="btn-fam-sub-pool-archive" onclick="switchFamCommSubTab('pool-archive')" class="whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">ארכיב</button>
+                        </div>
+                        <!-- Sub: Join -->
+                        <div id="fam-comm-view-join">
+                            <div id="community-list-container" class="hidden" style="display:none;"></div>
+                            <div id="community-join-section" class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 mb-6 text-center">
+                                <i class="fa-solid fa-house-flag text-4xl text-slate-300 mb-3"></i>
+                                <h4 class="font-bold text-slate-700 mb-2">חיבור לקהילה המקומית</h4>
+                                <p class="text-xs text-slate-500 mb-4">הזינו את קוד הקהילה שלכם (יישוב, ועד עובדים, שכונה) כדי לראות עסקים מקומיים ולהנות מהנחות.</p>
+                                <div class="flex gap-2 mb-3">
+                                    <input type="text" id="community-code-input" class="modern-input py-2 text-center tracking-widest font-mono uppercase text-sm" placeholder="קוד קהילה">
+                                    <button onclick="joinCommunity()" id="btn-join-community" class="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-slate-700 transition whitespace-nowrap">התחבר</button>
+                                </div>
+                                <div class="flex justify-between items-center mt-1">
+                                    <button onclick="openCommunityDiscoveryModal()" class="text-xs text-teal-600 hover:text-teal-800 font-medium">🗺️ גלה קהילות</button>
+                                    <button onclick="toggleReferralInput()" class="text-xs text-indigo-500 hover:text-indigo-700 font-medium">+ הופנית על ידי חבר? הזן קוד הפניה</button>
+                                </div>
+                                <div id="referral-input-wrap" class="hidden mt-2">
+                                    <input type="text" id="community-referral-input" class="modern-input py-2 text-center tracking-widest font-mono uppercase text-sm" placeholder="קוד הפניה של החבר (לא חובה)">
+                                    <p class="text-[10px] text-slate-400 mt-1">החבר שהפנה אותך יקבל Flw FLOW כשתצטרף</p>
+                                </div>
+                            </div>
+                            <div id="my-referral-code-card" class="hidden bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl p-4 mb-4 text-center">
+                                <p class="text-xs font-bold text-indigo-700 mb-1">📤 הזמן חבר לקהילה</p>
+                                <p class="text-[10px] text-slate-500 mb-2">לחץ על קהילה למטה כדי לבחור אליה תשלח את החבר</p>
+                                <div id="referral-comm-code-section" class="hidden mb-3">
+                                    <p class="text-[10px] font-bold text-slate-500 mb-0.5">קהילה: <span id="referral-comm-name-display" class="text-indigo-600"></span></p>
+                                    <p class="text-[10px] text-slate-400 mb-1">קוד קהילה — לשיתוף עם החבר</p>
+                                    <div class="text-2xl font-black text-indigo-800 tracking-widest font-mono bg-white rounded-xl py-2 px-3 border border-indigo-100 mb-2" id="referral-comm-code-display">—</div>
+                                    <p class="text-[9px] text-indigo-500 mb-2">✨ כשהחבר יצטרף תקבל 20 Flw · <span id="my-referrals-count-display" class="font-bold"></span></p>
+                                </div>
+                                <div class="flex gap-2 justify-center">
+                                    <button onclick="copyReferralCode()" id="referral-copy-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition">📋 העתק קוד קהילה</button>
+                                    <button id="referral-wa-btn" onclick="shareReferralWhatsApp()" class="hidden bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition">📲 שתף בוואטסאפ</button>
+                                </div>
+                            </div>
+                            <div id="community-connected-info" class="hidden mb-4">
+                                <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                                    <span id="community-name-display" class="text-xs font-bold text-slate-700"></span>
+                                    <button onclick="leaveCommunity()" class="text-[10px] font-bold text-red-500 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition border border-red-100 shadow-sm"><i class="fa-solid fa-right-from-bracket"></i> התנתק</button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Sub: Interests -->
+                        <div id="fam-comm-view-interests" class="hidden pb-4">
+                            <p class="text-xs text-slate-500 mb-3 px-1">חפש קהילות לפי תחום עניין — גם מחוץ לאזורך.</p>
                             <div class="flex gap-2 mb-3">
-                                <input type="text" id="community-code-input" class="modern-input py-2 text-center tracking-widest font-mono uppercase text-sm" placeholder="קוד קהילה">
-                                <button onclick="joinCommunity()" id="btn-join-community" class="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-slate-700 transition whitespace-nowrap">התחבר</button>
+                                <input type="text" id="fam-interest-input" placeholder="לדוגמה: כושר, יופי, ילדים..." class="modern-input py-2 text-sm flex-1" onkeydown="if(event.key==='Enter')famSearchByInterest()">
+                                <button onclick="famSearchByInterest()" class="bg-teal-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-teal-700 transition whitespace-nowrap">חפש</button>
                             </div>
-                            <div class="flex justify-between items-center mt-1">
-                                <button onclick="openCommunityDiscoveryModal()" class="text-xs text-teal-600 hover:text-teal-800 font-medium">🗺️ גלה קהילות</button>
-                                <button onclick="toggleReferralInput()" class="text-xs text-indigo-500 hover:text-indigo-700 font-medium">+ הופנית על ידי חבר? הזן קוד הפניה</button>
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                <button onclick="document.getElementById('fam-interest-input').value='כושר';famSearchByInterest()" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full hover:bg-teal-100 hover:text-teal-700 transition">כושר</button>
+                                <button onclick="document.getElementById('fam-interest-input').value='יופי';famSearchByInterest()" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full hover:bg-teal-100 hover:text-teal-700 transition">יופי</button>
+                                <button onclick="document.getElementById('fam-interest-input').value='ילדים';famSearchByInterest()" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full hover:bg-teal-100 hover:text-teal-700 transition">ילדים</button>
+                                <button onclick="document.getElementById('fam-interest-input').value='בריאות';famSearchByInterest()" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full hover:bg-teal-100 hover:text-teal-700 transition">בריאות</button>
+                                <button onclick="document.getElementById('fam-interest-input').value='אוכל';famSearchByInterest()" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full hover:bg-teal-100 hover:text-teal-700 transition">אוכל</button>
                             </div>
-                            <div id="referral-input-wrap" class="hidden mt-2">
-                                <input type="text" id="community-referral-input" class="modern-input py-2 text-center tracking-widest font-mono uppercase text-sm" placeholder="קוד הפניה של החבר (לא חובה)">
-                                <p class="text-[10px] text-slate-400 mt-1">החבר שהפנה אותך יקבל Flw FLOW כשתצטרף</p>
-                            </div>
-                        </div>
-                        <!-- My referral code card — shown after joining -->
-                        <div id="my-referral-code-card" class="hidden bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl p-4 mb-4 text-center">
-                            <p class="text-xs font-bold text-indigo-700 mb-1">📤 הזמן חבר לקהילה</p>
-                            <p class="text-[10px] text-slate-500 mb-2">לחץ על קהילה למטה כדי לבחור אליה תשלח את החבר</p>
-                            <!-- קוד קהילה — זה מה שהחבר מזין בכניסה -->
-                            <div id="referral-comm-code-section" class="hidden mb-3">
-                                <p class="text-[10px] font-bold text-slate-500 mb-0.5">קהילה: <span id="referral-comm-name-display" class="text-indigo-600"></span></p>
-                                <p class="text-[10px] text-slate-400 mb-1">קוד קהילה — לשיתוף עם החבר</p>
-                                <div class="text-2xl font-black text-indigo-800 tracking-widest font-mono bg-white rounded-xl py-2 px-3 border border-indigo-100 mb-2" id="referral-comm-code-display">—</div>
-                                <p class="text-[9px] text-indigo-500 mb-2">✨ כשהחבר יצטרף תקבל 20 Flw · <span id="my-referrals-count-display" class="font-bold"></span></p>
-                            </div>
-                            <div class="flex gap-2 justify-center">
-                                <button onclick="copyReferralCode()" id="referral-copy-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition">📋 העתק קוד קהילה</button>
-                                <button id="referral-wa-btn" onclick="shareReferralWhatsApp()" class="hidden bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition">📲 שתף בוואטסאפ</button>
+                            <div id="fam-interest-results" class="space-y-2">
+                                <p class="text-xs text-slate-400 text-center py-6">הכנס תחום עניין לחיפוש</p>
                             </div>
                         </div>
-                        <div id="community-connected-info" class="hidden mb-4">
-                            <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                                <span id="community-name-display" class="text-xs font-bold text-slate-700"></span>
-                                <button onclick="leaveCommunity()" class="text-[10px] font-bold text-red-500 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition border border-red-100 shadow-sm"><i class="fa-solid fa-right-from-bracket"></i> התנתק</button>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Sub-view: Benefits -->
-                    <div id="fam-comm-view-benefits" class="hidden">
-                        <div id="community-businesses-section">
+                        <!-- Sub: FlowPool -->
+                        <div id="fam-comm-view-pool" class="hidden pb-4">
                             <div class="flex justify-between items-center mb-4 px-1">
                                 <div>
-                                    <h3 class="font-bold text-slate-700 text-base">הטבות בעסקים לקהילה</h3>
-                                    <p class="text-xs text-slate-400 mt-0.5">הטבות בלעדיות לחברי הקהילה</p>
+                                    <h3 class="font-bold text-slate-700 text-base">🌊 FlowPool — קנייה קבוצתית</h3>
+                                    <p class="text-xs text-slate-400 mt-0.5">הצטרפו לפולים פעילים או פתחו פול חדש</p>
                                 </div>
-                                <button onclick="openFamReferralModal()" class="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1">🌟 המלץ עסק</button>
+                                <button onclick="openCreatePoolModal()" class="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm">
+                                    <i class="fa-solid fa-plus"></i> פול חדש
+                                </button>
                             </div>
-                            <div id="community-businesses-list" class="space-y-3 pb-20"></div>
-                        </div>
-                    </div>
-                    <!-- Sub-view: Interests (קהילות עניין) -->
-                    <div id="fam-comm-view-interests" class="hidden pb-20">
-                        <div class="flex justify-between items-center mb-4 px-1">
-                            <h3 class="font-bold text-slate-700 text-base">🔍 קהילות לפי עניין</h3>
-                        </div>
-                        <p class="text-xs text-slate-500 mb-3 px-1">חפש קהילות לפי תחום עניין — גם מחוץ לאזורך. הצטרף לקהילות שחולקות את תחומי ההתעניינות שלך.</p>
-                        <div class="flex gap-2 mb-3">
-                            <input type="text" id="fam-interest-input" placeholder="לדוגמה: כושר, יופי, ילדים..." class="modern-input py-2 text-sm flex-1" onkeydown="if(event.key==='Enter')famSearchByInterest()">
-                            <button onclick="famSearchByInterest()" class="bg-teal-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-teal-700 transition whitespace-nowrap">חפש</button>
-                        </div>
-                        <div class="flex flex-wrap gap-2 mb-4">
-                            <button onclick="document.getElementById('fam-interest-input').value='כושר';famSearchByInterest()" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full hover:bg-teal-100 hover:text-teal-700 transition">כושר</button>
-                            <button onclick="document.getElementById('fam-interest-input').value='יופי';famSearchByInterest()" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full hover:bg-teal-100 hover:text-teal-700 transition">יופי</button>
-                            <button onclick="document.getElementById('fam-interest-input').value='ילדים';famSearchByInterest()" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full hover:bg-teal-100 hover:text-teal-700 transition">ילדים</button>
-                            <button onclick="document.getElementById('fam-interest-input').value='בריאות';famSearchByInterest()" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full hover:bg-teal-100 hover:text-teal-700 transition">בריאות</button>
-                            <button onclick="document.getElementById('fam-interest-input').value='אוכל';famSearchByInterest()" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full hover:bg-teal-100 hover:text-teal-700 transition">אוכל</button>
-                        </div>
-                        <div id="fam-interest-results" class="space-y-2">
-                            <p class="text-xs text-slate-400 text-center py-6">הכנס תחום עניין לחיפוש</p>
-                        </div>
-                    </div>
-                    <!-- Sub-view: FlowPool -->
-                    <div id="fam-comm-view-pool" class="hidden pb-20">
-                        <div class="flex justify-between items-center mb-4 px-1">
-                            <div>
-                                <h3 class="font-bold text-slate-700 text-base">🌊 FlowPool — קנייה קבוצתית</h3>
-                                <p class="text-xs text-slate-400 mt-0.5">הצטרפו לפולים פעילים או פתחו פול חדש</p>
+                            <div id="fam-pool-list" class="space-y-3">
+                                <p class="text-xs text-slate-400 text-center py-8">טוען פולים...</p>
                             </div>
-                            <button onclick="openCreatePoolModal()" class="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm">
-                                <i class="fa-solid fa-plus"></i> פול חדש
-                            </button>
                         </div>
-                        <div id="fam-pool-list" class="space-y-3">
-                            <p class="text-xs text-slate-400 text-center py-8">טוען פולים...</p>
-                        </div>
-                    </div>
-                    <!-- Sub-view: Pool Archive (family) -->
-                    <div id="fam-comm-view-pool-archive" class="hidden pb-20">
-                        <div class="flex justify-between items-center mb-4 px-1">
-                            <div>
-                                <h3 class="font-bold text-slate-700 text-base">📦 ארכיב פולים</h3>
-                                <p class="text-xs text-slate-400 mt-0.5">פולים שנסגרו או הועברו לארכיב</p>
+                        <!-- Sub: Pool Archive -->
+                        <div id="fam-comm-view-pool-archive" class="hidden pb-4">
+                            <div class="flex justify-between items-center mb-4 px-1">
+                                <div>
+                                    <h3 class="font-bold text-slate-700 text-base">📦 ארכיב פולים</h3>
+                                    <p class="text-xs text-slate-400 mt-0.5">פולים שנסגרו או הועברו לארכיב</p>
+                                </div>
+                                <button onclick="loadFamPoolArchive()" class="text-xs text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-rotate-right"></i></button>
                             </div>
-                            <button onclick="loadFamPoolArchive()" class="text-xs text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-rotate-right"></i></button>
-                        </div>
-                        <div id="fam-pool-archive-list" class="space-y-3">
-                            <p class="text-xs text-slate-400 text-center py-8">טוען...</p>
+                            <div id="fam-pool-archive-list" class="space-y-3">
+                                <p class="text-xs text-slate-400 text-center py-8">טוען...</p>
+                            </div>
                         </div>
                     </div>
-                    <!-- Modal: Create Pool -->
+                    <!-- View: Promos -->
+                    <div id="fam-comm-view-promos" class="hidden pb-20">
+                        <div class="flex items-center gap-2 mb-4">
+                            <button onclick="switchFamCommunityTab('home')" class="text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-arrow-right"></i></button>
+                            <h3 class="font-bold text-slate-700 text-base">🏷️ מבצעים מיוחדים</h3>
+                            <div class="mr-auto flex items-center gap-2">
+                                <button onclick="openFlowWalletModal()" class="bg-amber-400 hover:bg-amber-500 text-white text-xs font-black px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm">⚡ Flw FLOW</button>
+                                <button onclick="loadCommunityFeed()" class="text-xs text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-rotate-right"></i></button>
+                            </div>
+                        </div>
+                        <div id="comm-banners-feed" class="space-y-3 mb-3"></div>
+                        <div id="comm-promotions-feed" class="space-y-3 mb-4">
+                            <p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed">טוען מבצעים...</p>
+                        </div>
+                        <div id="comm-bundles-feed" class="space-y-3"></div>
+                    </div>
+                    <!-- View: News -->
+                    <div id="fam-comm-view-news" class="hidden pb-20">
+                        <div class="flex items-center gap-2 mb-4">
+                            <button onclick="switchFamCommunityTab('home')" class="text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-arrow-right"></i></button>
+                            <h3 class="font-bold text-slate-700 text-base">📰 חדשות הקהילה</h3>
+                        </div>
+                        <div class="text-center py-16 text-slate-400">
+                            <i class="fa-solid fa-newspaper text-5xl mb-4 block opacity-30"></i>
+                            <p class="text-sm font-bold">בקרוב — הודעות ומאמרים מהקהילה</p>
+                            <p class="text-xs mt-1">המדור ייפתח בקרוב לפרסום תכנים מקהילתיים</p>
+                        </div>
+                    </div>
+                    <!-- View: Benefits -->
+                    <div id="fam-comm-view-benefits" class="hidden pb-20">
+                        <div class="flex items-center gap-2 mb-4">
+                            <button onclick="switchFamCommunityTab('home')" class="text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-arrow-right"></i></button>
+                            <h3 class="font-bold text-slate-700 text-base">הטבות בעסקים לקהילה</h3>
+                            <button onclick="openFamReferralModal()" class="mr-auto bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1">🌟 המלץ עסק</button>
+                        </div>
+                        <div id="community-businesses-section">
+                            <div id="community-businesses-list" class="space-y-3"></div>
+                        </div>
+                    </div>
+                    <!-- Modals -->
                     <div id="modal-create-pool" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onclick="if(event.target===this)closeCreatePoolModal()">
                         <div class="bg-white rounded-t-3xl w-full max-w-lg p-6 pb-10 max-h-[90vh] overflow-y-auto">
                             <div class="flex justify-between items-center mb-5">
@@ -1138,7 +1159,6 @@
                             </div>
                         </div>
                     </div>
-                    <!-- Modal: Pool Detail -->
                     <div id="modal-pool-detail" class="hidden fixed inset-0 bg-white z-[200] overflow-y-auto">
                         <div class="w-full max-w-lg mx-auto p-4 pb-20 pt-4">
                             <div class="flex justify-between items-center mb-4 sticky top-0 bg-white pt-2 pb-3 border-b border-slate-100 z-10">
@@ -1146,32 +1166,6 @@
                                 <button onclick="closePoolDetailModal()" class="text-slate-400 hover:text-slate-600 text-2xl"><i class="fa-solid fa-xmark"></i></button>
                             </div>
                             <div id="pool-detail-body" class="space-y-4"></div>
-                        </div>
-                    </div>
-                    <!-- Sub-view: Promos (מבצעים מיוחדים + חבילות) -->
-                    <div id="fam-comm-view-promos" class="hidden pb-20">
-                        <div class="flex justify-between items-center mb-4 px-1">
-                            <h3 class="font-bold text-slate-700 text-base">🏷️ מבצעים מיוחדים</h3>
-                            <div class="flex items-center gap-2">
-                                <button onclick="openFlowWalletModal()" class="bg-amber-400 hover:bg-amber-500 text-white text-xs font-black px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm">⚡ Flw FLOW</button>
-                                <button onclick="loadCommunityFeed()" class="text-xs text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-rotate-right"></i></button>
-                            </div>
-                        </div>
-                        <div id="comm-banners-feed" class="space-y-3 mb-3"></div>
-                        <div id="comm-promotions-feed" class="space-y-3 mb-4">
-                            <p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed">טוען מבצעים...</p>
-                        </div>
-                        <div id="comm-bundles-feed" class="space-y-3"></div>
-                    </div>
-                    <!-- Sub-view: News (חדשות — לשימוש עתידי) -->
-                    <div id="fam-comm-view-news" class="hidden pb-20">
-                        <div class="flex justify-between items-center mb-4 px-1">
-                            <h3 class="font-bold text-slate-700 text-base">📰 חדשות הקהילה</h3>
-                        </div>
-                        <div class="text-center py-16 text-slate-400">
-                            <i class="fa-solid fa-newspaper text-5xl mb-4 block opacity-30"></i>
-                            <p class="text-sm font-bold">בקרוב — הודעות ומאמרים מהקהילה</p>
-                            <p class="text-xs mt-1">המדור ייפתח בקרוב לפרסום תכנים מקהילתיים</p>
                         </div>
                     </div>
                 </div>

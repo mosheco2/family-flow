@@ -3965,19 +3965,82 @@ let myInitiativesCache = [];
 let myCashbackCache = []; // [{community_id, community_name, balance, total_earned, is_community_manager}]
 
 function switchFamCommunityTab(tab) {
-    const BASE = 'w-full h-14 flex flex-col items-center justify-center gap-0.5 px-1 rounded-xl text-[10px] font-bold overflow-hidden transition';
-    ['join', 'benefits', 'promos', 'news', 'interests', 'pool', 'pool-archive'].forEach(t => {
+    ['home', 'manage', 'benefits', 'promos', 'news'].forEach(t => {
         const view = document.getElementById(`fam-comm-view-${t}`);
-        const btn = document.getElementById(`btn-fam-comm-${t}`);
         if (view) view.classList.add('hidden');
-        if (btn) btn.className = `${BASE} bg-slate-100 text-slate-600 hover:bg-slate-200`;
     });
     const activeView = document.getElementById(`fam-comm-view-${tab}`);
-    const activeBtn = document.getElementById(`btn-fam-comm-${tab}`);
     if (activeView) activeView.classList.remove('hidden');
-    if (activeBtn) activeBtn.className = `${BASE} bg-orange-500 text-white shadow-md shadow-orange-200`;
-    if (tab === 'pool') renderFamPools();
-    if (tab === 'pool-archive') loadFamPoolArchive();
+    if (tab === 'home') loadCommHomeBanners();
+    if (tab === 'manage') switchFamCommSubTab('join');
+    if (tab === 'promos') loadCommunityFeed();
+    if (tab === 'benefits') renderFamCommunityBenefits();
+}
+
+function switchFamCommSubTab(sub) {
+    ['join', 'interests', 'pool', 'pool-archive'].forEach(t => {
+        const view = document.getElementById(`fam-comm-view-${t}`);
+        const btn = document.getElementById(`btn-fam-sub-${t}`);
+        if (view) view.classList.add('hidden');
+        if (btn) btn.className = 'whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
+    });
+    const activeView = document.getElementById(`fam-comm-view-${sub}`);
+    const activeBtn = document.getElementById(`btn-fam-sub-${sub}`);
+    if (activeView) activeView.classList.remove('hidden');
+    if (activeBtn) activeBtn.className = 'whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-500 text-white transition';
+    if (sub === 'pool') renderFamPools();
+    if (sub === 'pool-archive') loadFamPoolArchive();
+}
+
+async function loadCommHomeBanners() {
+    const el = document.getElementById('comm-home-banners-feed');
+    if (!el) return;
+    try {
+        const res = await fetch(`${API}/community/approved-banners`);
+        const data = await res.json();
+        const banners = data.banners || [];
+        if (!banners.length) {
+            el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">אין באנרים פעילים כרגע</p>';
+            return;
+        }
+        el.innerHTML = banners.map(b => `
+            <div class="bg-gradient-to-r from-orange-400 to-pink-500 rounded-2xl p-4 text-white shadow-md cursor-pointer" onclick="switchFamCommunityTab('promos')">
+                <div class="flex items-center gap-3">
+                    ${b.business_logo ? `<img src="${b.business_logo}" class="w-12 h-12 rounded-xl object-cover bg-white/20 shrink-0">` : `<div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fa-solid fa-store text-xl"></i></div>`}
+                    <div class="flex-1 min-w-0">
+                        <p class="font-black text-sm leading-tight">${safeStr(b.banner_headline || b.promo_title || '')}</p>
+                        <p class="text-orange-100 text-xs mt-0.5">${safeStr(b.business_name || '')} · ${safeStr(b.community_name || '')}</p>
+                        ${b.discount_pct ? `<span class="inline-block bg-white/25 text-white text-[10px] font-black px-2 py-0.5 rounded-full mt-1">-${b.discount_pct}%</span>` : ''}
+                    </div>
+                    <i class="fa-solid fa-chevron-left text-white/60 text-xs shrink-0"></i>
+                </div>
+            </div>`).join('');
+    } catch(e) {
+        el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">שגיאה בטעינת באנרים</p>';
+    }
+}
+
+function renderFamCommunityBenefits() {
+    const bizList = document.getElementById('community-businesses-list');
+    if (!bizList) return;
+    if (myCommunityBusinessesCache.length > 0) {
+        const grouped = {};
+        myCommunityBusinessesCache.forEach(b => {
+            if (!grouped[b.group_id]) grouped[b.group_id] = { ...b, communities: [] };
+            grouped[b.group_id].communities.push(b.community_name || '');
+        });
+        bizList.innerHTML = Object.values(grouped).map(b => `
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-3 cursor-pointer hover:shadow-md transition" onclick="window.open('/storefront.html?code=${safeStr(b.group_code)}','_self')">
+                ${b.image_url ? `<img src="${safeStr(b.image_url)}" class="w-12 h-12 rounded-xl object-cover shrink-0">` : `<div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center shrink-0"><i class="fa-solid fa-store text-slate-400 text-xl"></i></div>`}
+                <div class="flex-1 min-w-0">
+                    <p class="font-bold text-slate-800 text-sm truncate">${safeStr(b.name)}</p>
+                    <p class="text-xs text-slate-400">${b.communities.filter(Boolean).join(', ')}</p>
+                </div>
+                ${b.discount_pct ? `<span class="bg-orange-100 text-orange-700 text-xs font-black px-2 py-1 rounded-xl shrink-0">-${b.discount_pct}%</span>` : ''}
+            </div>`).join('');
+    } else {
+        bizList.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">אין עסקים מקומיים להצגה עדיין</p>';
+    }
 }
 
 // ─── FlowPool — FAMILY ───────────────────────────────────────────────
@@ -4586,7 +4649,7 @@ function renderFamilyCommunities() {
                     } else if (approvedComms.length === 1) {
                         nameDisplay.textContent = safeStr(approvedComms[0].name);
                     } else if (approvedComms.length > 1) {
-                        nameDisplay.innerHTML = `${safeStr(approvedComms[0].name)} <span class="text-orange-400 cursor-pointer underline" onclick="switchFamCommunityTab('join')">+${approvedComms.length - 1} נוספות</span>`;
+                        nameDisplay.innerHTML = `${safeStr(approvedComms[0].name)} <span class="text-orange-400 cursor-pointer underline" onclick="switchFamCommunityTab('manage');switchFamCommSubTab('join')">+${approvedComms.length - 1} נוספות</span>`;
                     }
                 }
             }
@@ -4755,16 +4818,18 @@ function renderFamilyCommunities() {
     // טעינת מבצעים
     if (isConnected) loadFamilyCommunityPromos();
 
-    // Auto-switch to benefits tab only on first load (all views hidden = initial state)
-    const anyVisible = ['join','benefits','promos','news','interests','pool','pool-archive'].some(t => !getEl(`fam-comm-view-${t}`)?.classList.contains('hidden'));
-    // בדיקה אם חזרנו מ-community-home עם בקשת טאב ספציפי
+    // הצגת עמוד הבית של עולם הקהילות
+    const anyVisible = ['home','manage','benefits','promos','news'].some(t => !getEl(`fam-comm-view-${t}`)?.classList.contains('hidden'));
     const requestedTab = localStorage.getItem('ofl_open_community_tab');
     if (requestedTab) {
         localStorage.removeItem('ofl_open_community_tab');
         switchFamCommunityTab(requestedTab);
-    } else if (isConnected && myCommunityBusinessesCache.length > 0 && !anyVisible) {
-        switchFamCommunityTab('benefits');
+    } else if (!anyVisible) {
+        switchFamCommunityTab('home');
     }
+    // עדכון הודעת אין קהילה בבית
+    const noCommunityEl = getEl('comm-home-no-community');
+    if (noCommunityEl) noCommunityEl.classList.toggle('hidden', isConnected);
 }
 
 // ============================================================
