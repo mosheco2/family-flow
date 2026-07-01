@@ -5302,7 +5302,15 @@ window.openFlowRedeemModal = function() {
 };
 
 window.openFlowRedeemToStore = function(bal, minR) {
-    const businesses = window.communityBusinessesCache || [];
+    const rawBiz = myCommunityBusinessesCache.length ? myCommunityBusinessesCache : (window.communityBusinessesCache || []);
+    // Deduplicate by group_code
+    const bizMap = {};
+    rawBiz.forEach(b => {
+        const key = b.group_code || String(b.business_id);
+        if (!bizMap[key]) bizMap[key] = { ...b, logo_url: b.biz_logo || b.logo_url };
+        else if (!bizMap[key].community_id) bizMap[key].community_id = b.community_id;
+    });
+    const businesses = Object.values(bizMap);
     if (!businesses.length) {
         showToast && showToast('info', 'אין עסקים מחוברים לקהילות שלך');
         return;
