@@ -8211,12 +8211,13 @@ app.get('/api/community/info/:groupId', async (req, res) => {
         const commIds = commsRes.rows.map(c => c.id);
         const bizRes = await pool.query(`
             SELECT cb.community_id, cb.discount_pct, b.name as business_name, b.group_code,
-                   b.image_url as biz_logo, b.id as business_id,
+                   COALESCE(ss.logo_url, b.image_url) as biz_logo, b.id as business_id,
                    c.name as comm_name, c.min_families,
                    (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count
             FROM community_businesses cb
             JOIN family_groups b ON cb.business_id = b.id
             JOIN communities c ON cb.community_id = c.id
+            LEFT JOIN store_settings ss ON ss.group_id = b.id
             WHERE cb.community_id = ANY($1) AND cb.status = 'approved'
         `, [commIds]);
 
@@ -8238,7 +8239,7 @@ app.get('/api/community/family-feed/:groupId', async (req, res) => {
         const promos = await pool.query(
             `SELECT cp.id, cp.title, cp.content, cp.discount_pct, cp.valid_until, cp.created_at, cp.promo_code,
              fg.name as business_name, fg.name as biz_name, fg.group_code as biz_code,
-             fg.image_url as biz_logo, c.name as community_name, c.name as comm_name, c.id as community_id,
+             COALESCE(ss.logo_url, fg.image_url) as biz_logo, c.name as community_name, c.name as comm_name, c.id as community_id,
              ss.phone as biz_phone
              FROM community_promotions cp
              JOIN family_groups fg ON fg.id=cp.business_id
@@ -8252,11 +8253,12 @@ app.get('/api/community/family-feed/:groupId', async (req, res) => {
         const bundles = await pool.query(
             `SELECT cb.id, cb.name, cb.description, cb.discount_pct, c.name as community_name,
              array_agg(fg.name ORDER BY fg.name) as business_names,
-             array_agg(fg.image_url ORDER BY fg.name) as business_logos
+             array_agg(COALESCE(ss.logo_url, fg.image_url) ORDER BY fg.name) as business_logos
              FROM community_bundles cb
              JOIN communities c ON c.id=cb.community_id
              JOIN community_bundle_businesses cbb ON cbb.bundle_id=cb.id
              JOIN family_groups fg ON fg.id=cbb.business_id
+             LEFT JOIN store_settings ss ON ss.group_id = fg.id
              WHERE cb.community_id=ANY($1) AND cb.status='active'
              GROUP BY cb.id, c.name ORDER BY cb.created_at DESC`, [commIds]);
 
@@ -10172,12 +10174,13 @@ app.get('/api/community/approved-banners', async (req, res) => {
         const r = await pool.query(
             `SELECT cbr.id, cbr.banner_headline, cbr.start_date, cbr.end_date, cbr.community_id,
              cp.title as promo_title, cp.discount_pct, cp.promo_type, cp.catalog_item_id,
-             fg.name as business_name, fg.image_url as business_logo, fg.group_code,
+             fg.name as business_name, COALESCE(ss.logo_url, fg.image_url) as business_logo, fg.group_code,
              c.name as community_name
              FROM community_banner_requests cbr
              JOIN community_promotions cp ON cp.id = cbr.promotion_id
              JOIN family_groups fg ON fg.id = cbr.business_id
              JOIN communities c ON c.id = cbr.community_id
+             LEFT JOIN store_settings ss ON ss.group_id = fg.id
              WHERE cbr.status = 'approved'
                AND (cbr.start_date IS NULL OR cbr.start_date <= $1)
                AND (cbr.end_date IS NULL OR cbr.end_date >= $1)
