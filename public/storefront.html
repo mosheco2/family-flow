@@ -2248,6 +2248,9 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             _flowRedeemParams.currentAmount = v;
             _flowRedeemParams.currentDiscount = ils;
             if (window.updateCartFooter) window.updateCartFooter();
+            // רענון סיכום קופה אם פתוחה
+            const cm = document.getElementById('checkout-modal');
+            if (cm && !cm.classList.contains('hidden') && window.openCheckoutModal) window.openCheckoutModal(true);
         };
 
         window.clearFlowRedeem = function() {
@@ -2259,6 +2262,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             if (el) el.textContent = '₪0';
             document.getElementById('flow-redeem-section')?.classList.add('hidden');
             if (window.updateCartFooter) window.updateCartFooter();
+            const cm2 = document.getElementById('checkout-modal');
+            if (cm2 && !cm2.classList.contains('hidden') && window.openCheckoutModal) window.openCheckoutModal(true);
         };
 
         function clearProductPromoBanner() {

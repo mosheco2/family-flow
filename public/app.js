@@ -5301,22 +5301,9 @@ window.openFlowRedeemModal = function() {
     });
 };
 
-window.openFlowRedeemToStore = function(bal, minR) {
-    const rawBiz = myCommunityBusinessesCache.length ? myCommunityBusinessesCache : (window.communityBusinessesCache || []);
-    // Deduplicate by group_code
-    const bizMap = {};
-    rawBiz.forEach(b => {
-        const key = b.group_code || String(b.business_id);
-        if (!bizMap[key]) bizMap[key] = { ...b, logo_url: b.biz_logo || b.logo_url };
-        else if (!bizMap[key].community_id) bizMap[key].community_id = b.community_id;
-    });
-    const businesses = Object.values(bizMap);
-    if (!businesses.length) {
-        showToast && showToast('info', 'אין עסקים מחוברים לקהילות שלך');
-        return;
-    }
+function _buildFlowToStoreModal(bal, businesses) {
     const existing = getEl('flow-to-store-modal');
-    if (existing) { existing.remove(); return; }
+    if (existing) existing.remove();
     const modal = document.createElement('div');
     modal.id = 'flow-to-store-modal';
     modal.className = 'fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-4';
@@ -5347,7 +5334,70 @@ window.openFlowRedeemToStore = function(bal, minR) {
         </div>
     </div>`;
     document.body.appendChild(modal);
+}
+
+window.openFlowRedeemToStore = async function(bal, minR) {
+    const existing = getEl('flow-to-store-modal');
+    if (existing) { existing.remove(); return; }
+
+    // Show loading modal immediately
+    const loadingModal = document.createElement('div');
+    loadingModal.id = 'flow-to-store-modal';
+    loadingModal.className = 'fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-4';
+    loadingModal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
+        <i class="fa-solid fa-circle-notch fa-spin text-amber-500 text-2xl mb-3"></i>
+        <p class="text-slate-500 text-sm font-bold">טוען עסקים...</p>
+    </div>`;
+    document.body.appendChild(loadingModal);
+
+    let rawBiz = myCommunityBusinessesCache.length ? myCommunityBusinessesCache : (window.communityBusinessesCache || []);
+
+    // Fetch live if cache is empty
+    if (!rawBiz.length && currentGroup && currentGroup.id) {
+        try {
+            const res = await fetch(`${API}/community/info/${currentGroup.id}`);
+            const d = await res.json();
+            if (d.success && d.businesses) {
+                myCommunityBusinessesCache = d.businesses;
+                rawBiz = d.businesses;
+            }
+        } catch(e) {}
+    }
+
+    // Deduplicate by group_code
+    const bizMap = {};
+    rawBiz.forEach(b => {
+        const key = b.group_code || String(b.business_id);
+        if (!bizMap[key]) bizMap[key] = { ...b, logo_url: b.biz_logo || b.logo_url };
+        else if (!bizMap[key].community_id) bizMap[key].community_id = b.community_id;
+    });
+    const businesses = Object.values(bizMap);
+
+    // Remove loading modal and show real one
+    getEl('flow-to-store-modal')?.remove();
+    if (!businesses.length) {
+        showToast && showToast('info', 'אין עסקים מחוברים לקהילות שלך');
+        return;
+    }
+    _buildFlowToStoreModal(bal, businesses);
 };
+
+// Legacy inner function for backward compat — no longer used as standalone
+function _openFlowRedeemToStoreSync(bal, minR) {
+    const existing = getEl('flow-to-store-modal');
+    if (existing) { existing.remove(); return; }
+    const rawBiz = myCommunityBusinessesCache.length ? myCommunityBusinessesCache : (window.communityBusinessesCache || []);
+    const bizMap = {};
+    rawBiz.forEach(b => {
+        const key = b.group_code || String(b.business_id);
+        if (!bizMap[key]) bizMap[key] = { ...b, logo_url: b.biz_logo || b.logo_url };
+        else if (!bizMap[key].community_id) bizMap[key].community_id = b.community_id;
+    });
+    const businesses = Object.values(bizMap);
+    if (!businesses.length) { showToast && showToast('info', 'אין עסקים'); return; }
+    _buildFlowToStoreModal(bal, businesses);
+}
+
 
 window.goToStoreWithFlow = function(storeCode, communityId, flowBalance) {
     const familyId = currentGroup?.id || '';
