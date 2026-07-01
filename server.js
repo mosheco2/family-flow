@@ -10625,17 +10625,38 @@ app.post('/api/flow/redeem', async (req, res) => {
             if (expiresAt < now) expiresAt = new Date(expiresAt.setFullYear(year + 1));
         }
 
+        // Get business name for description
+        const bizRow = await pool.query(`SELECT name FROM family_groups WHERE id=$1`, [businessGroupId]);
+        const bizName = bizRow.rows[0]?.name || 'עסק';
+
         // Deduct balance
         await pool.query(`UPDATE flow_wallets SET balance=balance-$1, updated_at=NOW() WHERE entity_type='family' AND entity_id=$2`, [fa, familyGroupId]);
-        await pool.query(`INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description) VALUES ('family',$1,$2,'redeem','מימוש הנחה')`, [familyGroupId, -fa]);
-
-        // Generate unique code
         const code = 'FL' + Math.random().toString(36).substring(2,8).toUpperCase();
+        await pool.query(`INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description) VALUES ('family',$1,$2,'redeem',$3)`, [familyGroupId, -fa, `מימוש הנחה ב${bizName} — קוד ${code}`]);
+
+        // Generate unique code (already generated above)
         await pool.query(
             `INSERT INTO flow_redemptions (family_group_id, business_group_id, flow_amount, discount_ils, discount_code, expires_at) VALUES ($1,$2,$3,$4,$5,$6)`,
             [familyGroupId, businessGroupId, fa, discountIls, code, expiresAt]);
 
         res.json({ success: true, code, discountIls, flowSpent: fa, expiresAt });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Validate and consume a FL* manual redemption code (used in storefront coupon field)
+app.post('/api/flow/redeem/validate', async (req, res) => {
+    try {
+        const { code, groupId } = req.body;
+        if (!code) return res.status(400).json({ error: 'חסר קוד' });
+        const r = await pool.query(`SELECT * FROM flow_redemptions WHERE discount_code=$1 AND (status IS NULL OR status='pending')`, [code]);
+        if (!r.rows[0]) return res.status(400).json({ error: 'קוד לא תקין או כבר נוצל' });
+        const red = r.rows[0];
+        if (red.expires_at && new Date(red.expires_at) < new Date()) return res.status(400).json({ error: 'קוד פג תוקף' });
+        if (red.business_group_id && groupId && String(red.business_group_id) !== String(groupId)) {
+            return res.status(400).json({ error: 'קוד לא תקף לחנות זו' });
+        }
+        await pool.query(`UPDATE flow_redemptions SET status='used', used_at=NOW() WHERE discount_code=$1`, [code]);
+        res.json({ success: true, discountIls: parseFloat(red.discount_ils), flowAmount: parseFloat(red.flow_amount) });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

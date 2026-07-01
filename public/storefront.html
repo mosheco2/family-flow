@@ -1944,6 +1944,10 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             if (window._appliedPromo && window._appliedPromo.discount) {
                 discountAmount += baseTotal * (parseFloat(window._appliedPromo.discount) / 100);
             }
+            // Apply flow manual code discount (fixed ILS amount)
+            if (window._appliedPromo && window._appliedPromo.type === 'flow_code' && window._appliedPromo.flowDiscountIls) {
+                discountAmount += parseFloat(window._appliedPromo.flowDiscountIls);
+            }
 
             // Apply flow coin redemption discount
             const flowDiscount = _flowRedeemParams.currentDiscount || 0;
@@ -2035,7 +2039,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             getEl('checkout-items').innerHTML = itemsHtml; 
             const totalWithDelivery = calc.finalTotal + delFee;
 
-            const hasPromo = window._appliedPromo && window._appliedPromo.discount;
+            const hasPromo = window._appliedPromo && (window._appliedPromo.discount || window._appliedPromo.type === 'flow_code');
+            const isFlowCode = window._appliedPromo?.type === 'flow_code';
             const commSavingTotal = calc.originalTotal - calc.baseTotal;
             // originalTotal = before any discount; crossed-out when there's any saving
             const hasAnySaving = commSavingTotal > 0 || calc.discountAmount > 0;
@@ -2064,10 +2069,13 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
 
             // Promo discount line (in addition to community discount)
             if (hasPromo && calc.discountAmount > 0) {
+                const promoLabel = isFlowCode
+                    ? `🪙 קוד מטבעות ${window._appliedPromo.code}`
+                    : `🏷️ קוד מבצע ${parseFloat(window._appliedPromo.discount).toFixed(0)}%`;
                 getEl('checkout-total').parentElement.insertAdjacentHTML('afterend',
                     `<div id="checkout-discount-msg" class="flex items-center justify-between text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 mt-1">
-                        <span>🏷️ קוד מבצע ${parseFloat(window._appliedPromo.discount).toFixed(0)}%</span>
-                        <span>חסכת ₪${calc.discountAmount.toFixed(2)}</span>
+                        <span>${promoLabel}</span>
+                        <span>חסכת ₪${(isFlowCode ? parseFloat(window._appliedPromo.flowDiscountIls) : calc.discountAmount).toFixed(2)}</span>
                     </div>`);
             } else if (calc.discountAmount > 0) {
                 getEl('checkout-total').parentElement.insertAdjacentHTML('afterend',
@@ -2301,6 +2309,28 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 const cid = urlP.get('communityId');
                 const sc = urlP.get('store') || (window.location.pathname !== '/' ? window.location.pathname.replace('/','') : '');
 
+                // FL* codes — Flow manual redemption codes
+                if (/^FL[A-Z0-9]{6}$/.test(code)) {
+                    const flRes = await fetch(`${API}/flow/redeem/validate`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code, groupId: storeData?.groupId })
+                    });
+                    const flData = await flRes.json();
+                    if (flData.success) {
+                        clearProductPromoBanner();
+                        window._appliedPromo = { code, type: 'flow_code', discount: 0, flowDiscountIls: flData.discountIls };
+                        msg.textContent = `✓ קוד מטבעות אושר! הנחה של ₪${parseFloat(flData.discountIls).toFixed(2)}`;
+                        msg.classList.add('text-green-600');
+                        if (window.updateCartFooter) window.updateCartFooter();
+                        if (window.openCheckoutModal) window.openCheckoutModal(true);
+                    } else {
+                        window._appliedPromo = null;
+                        msg.textContent = flData.error || 'קוד לא תקין או כבר נוצל';
+                        msg.classList.add('text-red-500');
+                    }
+                    return;
+                }
+
                 // First try store coupon (works for everyone)
                 const couponRes = await fetch(`${API}/store/coupons/validate?code=${encodeURIComponent(code)}&storeCode=${encodeURIComponent(sc)}`);
                 if (couponRes.ok) {
@@ -2530,6 +2560,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 orderType: calc.hasComplexItems ? 'quote' : 'order',
                 communityPromoCode: appliedPromoType === 'community_promo' ? appliedPromoCode : null,
                 storeCouponCode: appliedPromoType === 'store_coupon' ? appliedPromoCode : null,
+                flowRedeemCode: appliedPromoType === 'flow_code' ? appliedPromoCode : null,
+                flowRedeemCodeDiscount: appliedPromoType === 'flow_code' ? (window._appliedPromo?.flowDiscountIls || 0) : null,
                 appliedDiscountPct: window._appliedPromo?.discount || null,
                 flowRedeemAmount: flowRedeemAmount > 0 ? flowRedeemAmount : null,
                 flowRedeemDiscount: flowRedeemDiscount > 0 ? flowRedeemDiscount : null,
