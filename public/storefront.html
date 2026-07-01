@@ -1870,14 +1870,23 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const calc = window.calculateCartDetails();
             const footer = getEl('cart-footer');
             const btnText = getEl('cart-checkout-text');
-            if (calc.totalQty > 0) { 
-                getEl('cart-count').innerText = calc.totalQty; 
-                getEl('cart-total').innerText = `₪${calc.finalTotal.toFixed(2)}`; 
+            if (calc.totalQty > 0) {
+                getEl('cart-count').innerText = calc.totalQty;
+                getEl('cart-total').innerText = `₪${calc.finalTotal.toFixed(2)}`;
                 if (btnText) {
                     btnText.innerText = calc.hasComplexItems ? 'בקשת הצעת מחיר' : 'לתשלום';
                 }
-                footer.classList.remove('hidden'); 
+                footer.classList.remove('hidden');
             } else footer.classList.add('hidden');
+            // Refresh product promo banner condition state
+            const promo = window._appliedPromo;
+            if (promo && promo.promoType === 'product' && document.getElementById('product-promo-banner')) {
+                renderProductPromoBanner({
+                    product_name: promo.productName, product_promo_price: promo.productPromoPrice,
+                    product_original_price: promo.productOriginalPrice, condition_type: promo.conditionType,
+                    condition_value: promo.conditionValue, condition_item_name: promo.conditionItemName
+                });
+            }
         };
 
         window.toggleDelivery = function(isDel, skipUpdate = false) {
@@ -2145,7 +2154,11 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                         window._appliedPromo = {
                             code, promoId: p.id, discount: 0, type: 'community_promo', promoType: 'product',
                             catalogItemId: p.catalog_item_id, productPromoPrice: promoPrice,
-                            productName: p.product_name, productOriginalPrice: parseFloat(p.product_original_price)
+                            productName: p.product_name, productOriginalPrice: parseFloat(p.product_original_price),
+                            conditionType: p.condition_type || 'none',
+                            conditionValue: p.condition_value ? parseFloat(p.condition_value) : null,
+                            conditionItemId: p.condition_item_id || null,
+                            conditionItemName: p.condition_item_name || null
                         };
                         const priceLabel = isFree ? 'חינם 🎁' : `₪${promoPrice.toFixed(2)}`;
                         msg.textContent = `✓ מבצע: ${p.product_name} ב${priceLabel}! הוסף לעגלה ↓`;
@@ -2171,12 +2184,33 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             }
         };
 
+        function getConditionLabel(p) {
+            const ct = p.condition_type || 'none';
+            if (ct === 'min_amount' && p.condition_value) return `בקניה מעל ₪${parseFloat(p.condition_value).toFixed(0)}`;
+            if (ct === 'product' && p.condition_item_name) return `בקניית ${p.condition_item_name}`;
+            return null;
+        }
+
+        function checkPromoCondition() {
+            const promo = window._appliedPromo;
+            if (!promo || promo.conditionType === 'none' || !promo.conditionType) return { ok: true };
+            const calc = window.calculateCartDetails ? window.calculateCartDetails() : null;
+            if (promo.conditionType === 'min_amount') {
+                const total = calc ? calc.baseTotal : 0;
+                if (total < promo.conditionValue) return { ok: false, reason: `יש להוסיף לסל לפחות ₪${promo.conditionValue.toFixed(0)} (כרגע ₪${total.toFixed(0)})` };
+            }
+            if (promo.conditionType === 'product') {
+                const hasItem = Object.values(cart).some(i => i.catalogId == promo.conditionItemId && !i.isPromoProduct);
+                if (!hasItem) return { ok: false, reason: `יש לרכוש ${promo.conditionItemName || 'את המוצר הנדרש'} כדי לקבל את המתנה` };
+            }
+            return { ok: true };
+        }
+
         function renderProductPromoBanner(p) {
             let banner = document.getElementById('product-promo-banner');
             if (!banner) {
                 banner = document.createElement('div');
                 banner.id = 'product-promo-banner';
-                // Insert after promo code row
                 const promoRow = document.getElementById('promo-code-msg')?.closest('div');
                 if (promoRow) promoRow.after(banner);
                 else document.getElementById('cart-footer')?.prepend(banner);
@@ -2185,19 +2219,25 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const promoPrice = parseFloat(p.product_promo_price);
             const origPrice = parseFloat(p.product_original_price);
             const priceLabel = isFree ? '<span class="text-green-600 font-black">חינם 🎁</span>' : `<span class="text-green-600 font-black">₪${promoPrice.toFixed(2)}</span> <span class="line-through text-slate-400 text-xs">₪${origPrice.toFixed(2)}</span>`;
+            const condLabel = getConditionLabel(p);
+            const cond = checkPromoCondition();
             banner.className = 'mx-3 mb-2 bg-green-50 border border-green-200 rounded-xl p-3 flex items-center justify-between gap-2';
             banner.innerHTML = `
                 <div class="flex-1 min-w-0">
                     <div class="text-xs font-bold text-green-700 mb-0.5">🎁 מבצע מיוחד לקהילה</div>
                     <div class="text-sm font-bold text-slate-800 truncate">${safeStr(p.product_name)}</div>
-                    <div class="text-sm">${priceLabel}</div>
+                    <div class="text-sm mb-1">${priceLabel}</div>
+                    ${condLabel ? `<div class="text-xs text-amber-600 font-semibold">⚡ ${condLabel}</div>` : ''}
+                    ${!cond.ok ? `<div class="text-xs text-red-500 mt-1">${cond.reason}</div>` : ''}
                 </div>
-                <button onclick="addPromoProductToCart()" class="shrink-0 bg-green-500 text-white text-xs font-bold px-3 py-2 rounded-xl hover:bg-green-600 transition">הוסף לעגלה</button>`;
+                <button onclick="addPromoProductToCart()" ${!cond.ok ? 'disabled' : ''} class="shrink-0 text-xs font-bold px-3 py-2 rounded-xl transition ${cond.ok ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}">הוסף לעגלה</button>`;
         }
 
         window.addPromoProductToCart = function() {
             const promo = window._appliedPromo;
             if (!promo || promo.promoType !== 'product') return;
+            const cond = checkPromoCondition();
+            if (!cond.ok) { showToast && showToast('error', cond.reason); return; }
             const id = promo.catalogItemId;
             const price = promo.productPromoPrice;
             const name = promo.productName;
@@ -2210,6 +2250,14 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             }
             if (window.updateCartFooter) window.updateCartFooter();
             showToast && showToast('success', `${name} נוסף לעגלה!`);
+            // Re-render banner to update button state
+            if (promo.conditionType && promo.conditionType !== 'none') {
+                renderProductPromoBanner({
+                    product_name: promo.productName, product_promo_price: promo.productPromoPrice,
+                    product_original_price: promo.productOriginalPrice, condition_type: promo.conditionType,
+                    condition_value: promo.conditionValue, condition_item_name: promo.conditionItemName
+                });
+            }
         };
 
         window.submitOrder = async function(e) {

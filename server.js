@@ -155,6 +155,9 @@ pool.connect()
       try { await client.query(`ALTER TABLE community_promotions ADD COLUMN IF NOT EXISTS promo_type VARCHAR(20) DEFAULT 'discount'`); } catch(e) {}
       try { await client.query(`ALTER TABLE community_promotions ADD COLUMN IF NOT EXISTS catalog_item_id INT`); } catch(e) {}
       try { await client.query(`ALTER TABLE community_promotions ADD COLUMN IF NOT EXISTS product_promo_price DECIMAL(10,2)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE community_promotions ADD COLUMN IF NOT EXISTS condition_type VARCHAR(20) DEFAULT 'none'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE community_promotions ADD COLUMN IF NOT EXISTS condition_value NUMERIC(10,2)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE community_promotions ADD COLUMN IF NOT EXISTS condition_item_id INT`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS community_wallets (
           community_id INT PRIMARY KEY REFERENCES communities(id) ON DELETE CASCADE,
           balance NUMERIC(12,2) DEFAULT 0,
@@ -7923,18 +7926,20 @@ app.get('/api/sa/community-promos/pending', async (req, res) => {
 // עסק — הגשת מבצע קהילה לאישור
 app.post('/api/biz/community/promotions', async (req, res) => {
     try {
-        const { businessId, communityId, title, content, discountPct, validUntil, promoType, catalogItemId, productPromoPrice } = req.body;
+        const { businessId, communityId, title, content, discountPct, validUntil, promoType, catalogItemId, productPromoPrice, conditionType, conditionValue, conditionItemId } = req.body;
         if (!businessId || !communityId || !title) return res.status(400).json({ error: 'חסרים שדות חובה' });
         const check = await pool.query(
             `SELECT 1 FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='approved'`,
             [communityId, businessId]);
         if (!check.rows.length) return res.status(403).json({ error: 'העסק אינו חבר בקהילה זו' });
         const type = promoType || 'discount';
+        const cType = conditionType || 'none';
         const result = await pool.query(
-            `INSERT INTO community_promotions (community_id, business_id, title, content, discount_pct, valid_until, status, promo_type, catalog_item_id, product_promo_price)
-             VALUES ($1,$2,$3,$4,$5,$6,'pending',$7,$8,$9) RETURNING *`,
+            `INSERT INTO community_promotions (community_id, business_id, title, content, discount_pct, valid_until, status, promo_type, catalog_item_id, product_promo_price, condition_type, condition_value, condition_item_id)
+             VALUES ($1,$2,$3,$4,$5,$6,'pending',$7,$8,$9,$10,$11,$12) RETURNING *`,
             [communityId, businessId, title, content || '', parseFloat(discountPct)||0, validUntil || null,
-             type, catalogItemId || null, productPromoPrice != null ? parseFloat(productPromoPrice) : null]);
+             type, catalogItemId || null, productPromoPrice != null ? parseFloat(productPromoPrice) : null,
+             cType, conditionValue != null ? parseFloat(conditionValue) : null, conditionItemId || null]);
         res.json({ success: true, promo: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -9780,12 +9785,15 @@ app.get('/api/community/promotions/validate', async (req, res) => {
         if (!communityId) return res.status(403).json({ success: false, error: 'קוד מבצע קהילה זמין רק לחברי קהילה' });
         const result = await pool.query(
             `SELECT cp.id, cp.title, cp.discount_pct, cp.valid_until, cp.promo_type, cp.catalog_item_id, cp.product_promo_price,
+                    cp.condition_type, cp.condition_value, cp.condition_item_id,
                     fg.name as biz_name, c.name as comm_name,
-                    sc.name as product_name, sc.price as product_original_price
+                    sc.name as product_name, sc.price as product_original_price,
+                    sci.name as condition_item_name
              FROM community_promotions cp
              JOIN family_groups fg ON cp.business_id = fg.id
              JOIN communities c ON cp.community_id = c.id
              LEFT JOIN store_catalog sc ON sc.id = cp.catalog_item_id
+             LEFT JOIN store_catalog sci ON sci.id = cp.condition_item_id
              WHERE cp.promo_code = $1 AND cp.status = 'approved'
                AND cp.community_id = $2
                AND (cp.valid_until IS NULL OR cp.valid_until >= CURRENT_DATE)`,
