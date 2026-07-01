@@ -8210,8 +8210,10 @@ app.get('/api/community/info/:groupId', async (req, res) => {
 
         const commIds = commsRes.rows.map(c => c.id);
         const bizRes = await pool.query(`
-            SELECT cb.community_id, cb.discount_pct, b.name as business_name, b.group_code, c.name as comm_name,
-                   c.min_families, (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count
+            SELECT cb.community_id, cb.discount_pct, b.name as business_name, b.group_code,
+                   b.image_url as biz_logo, b.id as business_id,
+                   c.name as comm_name, c.min_families,
+                   (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count
             FROM community_businesses cb
             JOIN family_groups b ON cb.business_id = b.id
             JOIN communities c ON cb.community_id = c.id

@@ -4023,24 +4023,39 @@ async function loadCommHomeBanners() {
 function renderFamCommunityBenefits() {
     const bizList = document.getElementById('community-businesses-list');
     if (!bizList) return;
-    if (myCommunityBusinessesCache.length > 0) {
-        const grouped = {};
-        myCommunityBusinessesCache.forEach(b => {
-            if (!grouped[b.group_id]) grouped[b.group_id] = { ...b, communities: [] };
-            grouped[b.group_id].communities.push(b.community_name || '');
-        });
-        bizList.innerHTML = Object.values(grouped).map(b => `
-            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-3 cursor-pointer hover:shadow-md transition" onclick="window.open('/storefront.html?code=${safeStr(b.group_code)}','_self')">
-                ${b.image_url ? `<img src="${safeStr(b.image_url)}" class="w-12 h-12 rounded-xl object-cover shrink-0">` : `<div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center shrink-0"><i class="fa-solid fa-store text-slate-400 text-xl"></i></div>`}
-                <div class="flex-1 min-w-0">
-                    <p class="font-bold text-slate-800 text-sm truncate">${safeStr(b.name)}</p>
-                    <p class="text-xs text-slate-400">${b.communities.filter(Boolean).join(', ')}</p>
-                </div>
-                ${b.discount_pct ? `<span class="bg-orange-100 text-orange-700 text-xs font-black px-2 py-1 rounded-xl shrink-0">-${b.discount_pct}%</span>` : ''}
-            </div>`).join('');
-    } else {
+    if (!myCommunityBusinessesCache.length) {
         bizList.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">אין עסקים מקומיים להצגה עדיין</p>';
+        return;
     }
+    const bizMap = {};
+    myCommunityBusinessesCache.forEach(biz => {
+        const key = biz.group_code || String(biz.business_id);
+        if (!bizMap[key]) bizMap[key] = { ...biz, communities: [] };
+        bizMap[key].communities.push({ id: biz.community_id, name: biz.comm_name, discount_pct: biz.discount_pct, family_count: biz.family_count, min_families: biz.min_families });
+    });
+    bizList.innerHTML = Object.values(bizMap).map(biz => {
+        const comms = biz.communities;
+        const multiComm = comms.length > 1;
+        const commBadges = comms.map(c => {
+            const active = parseInt(c.family_count) >= (parseInt(c.min_families) || 30);
+            return `<span class="text-[9px] font-bold ${active ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'} border px-1.5 py-0.5 rounded-md">${c.discount_pct}% הנחה ב-${safeStr(c.name)}</span>`;
+        }).join('');
+        const actionBtn = multiComm
+            ? `<button onclick="openBizCommunityPicker('${safeStr(biz.group_code)}','${safeStr(biz.business_name).replace(/'/g,"\\'")}',${JSON.stringify(comms).replace(/"/g,'&quot;')})" class="bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm shrink-0">לחנות ▾</button>`
+            : `<a href="${window.location.origin}/storefront.html?store=${safeStr(biz.group_code)}&communityId=${comms[0]?.id}" target="_blank" class="bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm shrink-0">לחנות</a>`;
+        const logoHtml = biz.biz_logo && !biz.biz_logo.startsWith('data:')
+            ? `<img src="${safeStr(biz.biz_logo)}" class="w-12 h-12 rounded-xl object-cover shrink-0 border border-slate-100 shadow-sm" onerror="this.style.display='none'">`
+            : `<div class="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center shrink-0"><i class="fa-solid fa-store text-xl"></i></div>`;
+        return `
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3 hover:border-emerald-100 transition-colors">
+            ${logoHtml}
+            <div class="flex-1 min-w-0">
+                <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(biz.business_name)}</h4>
+                <div class="flex flex-wrap gap-1 mt-1">${commBadges}</div>
+            </div>
+            ${actionBtn}
+        </div>`;
+    }).join('');
 }
 
 // ─── FlowPool — FAMILY ───────────────────────────────────────────────
@@ -4751,52 +4766,6 @@ function renderFamilyCommunities() {
         }
     }
 
-    // ── Benefits sub-view ─────────────────────────────────────
-    const bizList = getEl('community-businesses-list');
-    if (bizList) {
-        if (myCommunityBusinessesCache.length > 0) {
-            // קיבוץ לפי עסק — עסק שמופיע בכמה קהילות מאוחד לכרטיס אחד
-            const bizMap = {};
-            myCommunityBusinessesCache.forEach(biz => {
-                const key = String(biz.business_id || biz.group_code);
-                if (!bizMap[key]) bizMap[key] = { ...biz, communities: [] };
-                bizMap[key].communities.push({ id: biz.community_id, name: biz.comm_name, discount_pct: biz.discount_pct, family_count: biz.family_count, min_families: biz.min_families });
-            });
-            let bizHtml = '';
-            Object.values(bizMap).forEach(biz => {
-                const comms = biz.communities;
-                const minFam = parseInt(biz.min_families) || 30;
-                const famCount = parseInt(biz.family_count) || 0;
-                const multiComm = comms.length > 1;
-                const commBadges = comms.map(c => {
-                    const active = parseInt(c.family_count) >= (parseInt(c.min_families) || 30);
-                    return `<span class="text-[9px] font-bold ${active ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'} border px-1.5 py-0.5 rounded-md">
-                        ${c.discount_pct}% הנחה ב-${safeStr(c.name)}
-                    </span>`;
-                }).join('');
-                const actionBtn = multiComm
-                    ? `<button onclick="openBizCommunityPicker('${safeStr(biz.group_code)}','${safeStr(biz.business_name).replace(/'/g,"\\'")}',${JSON.stringify(comms).replace(/"/g,'&quot;')})" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm shrink-0">לחנות ▾</button>`
-                    : `<a href="${window.location.origin}/storefront.html?store=${biz.group_code}&communityId=${comms[0].id}" target="_blank" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm shrink-0">לחנות</a>`;
-                bizHtml += `
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center justify-between hover:border-emerald-100 transition-colors">
-                    <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl shadow-inner shrink-0">
-                            <i class="fa-solid fa-store"></i>
-                        </div>
-                        <div class="min-w-0">
-                            <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(biz.business_name)}</h4>
-                            <div class="flex flex-wrap gap-1 mt-1">${commBadges}</div>
-                        </div>
-                    </div>
-                    ${actionBtn}
-                </div>`;
-            });
-            bizList.innerHTML = bizHtml;
-        } else {
-            bizList.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">אין עסקים בקהילות שלכם כרגע.</p>';
-        }
-    }
-
     // ── Community Feed: Promotions + Bundles ─────────────────
     loadCommunityFeed();
     loadFamilyFlowWallet();
@@ -4815,8 +4784,6 @@ function renderFamilyCommunities() {
     // קריאה קריטית לרינדור יוזמות
     renderMyInitiatives();
 
-    // טעינת מבצעים
-    if (isConnected) loadFamilyCommunityPromos();
 
     // הצגת עמוד הבית של עולם הקהילות
     const anyVisible = ['home','manage','benefits','promos','news'].some(t => !getEl(`fam-comm-view-${t}`)?.classList.contains('hidden'));
