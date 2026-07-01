@@ -2401,7 +2401,9 @@ function renderUnifiedFeed() {
             html += `<div class="${colorClass} p-3.5 rounded-2xl shadow-sm border transform transition hover:scale-[1.01] mb-2 flex items-center">${contentHtml}</div>`;
         });
         
-        list.innerHTML = flowWidgetHtml + html;
+        const walletContainer = getEl('flow-wallet-widget-container');
+        if (walletContainer) walletContainer.innerHTML = flowWidgetHtml;
+        list.innerHTML = html;
     } catch (err) {
         console.error("Error in renderUnifiedFeed:", err);
     }
