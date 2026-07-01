@@ -10520,6 +10520,35 @@ app.get('/api/sa/flow/transactions', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// SA — fix legacy store_redeem descriptions that lack business name
+app.post('/api/sa/flow/fix-descriptions', verifySA, async (req, res) => {
+    try {
+        // Find store_redeem transactions with generic description (no business name)
+        const txs = await pool.query(`
+            SELECT ft.id, ft.entity_id as family_id, ft.description,
+                   fr.business_group_id, fg.name as biz_name,
+                   ft.created_at
+            FROM flow_transactions ft
+            LEFT JOIN flow_redemptions fr ON fr.family_group_id=ft.entity_id
+                AND fr.created_at BETWEEN ft.created_at - INTERVAL '10 minutes' AND ft.created_at + INTERVAL '10 minutes'
+            LEFT JOIN family_groups fg ON fg.id=fr.business_group_id
+            WHERE ft.action_key IN ('store_redeem','redeem')
+              AND (ft.description='מימוש הנחה בחנות' OR ft.description LIKE 'מימוש הנחה בחנות%' OR ft.description LIKE 'מימוש הנחה — %')
+              AND fr.business_group_id IS NOT NULL AND fg.name IS NOT NULL
+        `);
+        let fixed = 0;
+        for (const tx of txs.rows) {
+            const newDesc = tx.description.replace(/^מימוש הנחה בחנות/, `מימוש הנחה ב${tx.biz_name}`)
+                                          .replace(/^מימוש הנחה — /, `מימוש הנחה ב${tx.biz_name} — `);
+            if (newDesc !== tx.description) {
+                await pool.query(`UPDATE flow_transactions SET description=$1 WHERE id=$2`, [newDesc, tx.id]);
+                fixed++;
+            }
+        }
+        res.json({ success: true, fixed, checked: txs.rows.length });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // SA — leaderboard of ALL entities
 app.get('/api/sa/flow/leaderboard', verifySA, async (req, res) => {
     try {
