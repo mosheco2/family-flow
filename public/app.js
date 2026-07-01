@@ -4172,7 +4172,7 @@ async function openFamPoolDetail(poolId) {
             ${membersHtml}
             ${bidsHtml}
             ${isOpen && !isMember && !isFamInitiator ? `<button onclick="joinFamPool(${p.id})" class="w-full py-3 rounded-xl bg-blue-500 text-white font-bold text-sm hover:bg-blue-600 transition shadow-md">🌊 הצטרף לפול</button>` : ''}
-            ${isFamInitiator ? '<div class="text-xs text-blue-600 font-bold text-center py-2 bg-blue-50 rounded-xl"><i class="fa-solid fa-crown ml-1"></i>אתם יוזמי הפול — הצטרפתם אוטומטית</div>' : (isMember ? '<div class="text-xs text-green-600 font-bold text-center py-2 bg-green-50 rounded-xl"><i class="fa-solid fa-check ml-1"></i>אתם חברים בפול הזה</div>' : '')}
+            ${isFamInitiator ? `<div class="text-xs text-blue-600 font-bold text-center py-2 bg-blue-50 rounded-xl flex items-center justify-between px-3"><span><i class="fa-solid fa-crown ml-1"></i>אתם יוזמי הפול — הצטרפתם אוטומטית</span><button onclick="openEditFamPool(${p.id},'${safeStr(p.title)}','${safeStr(p.description||'')}',${p.max_price||0})" class="text-[10px] bg-white border border-blue-200 text-blue-600 px-2 py-1 rounded-lg hover:bg-blue-50 transition">✏️ עריכה</button></div>` : (isMember ? '<div class="text-xs text-green-600 font-bold text-center py-2 bg-green-50 rounded-xl"><i class="fa-solid fa-check ml-1"></i>אתם חברים בפול הזה</div>' : '')}
             ${p.status === 'expired' && isFamInitiator ? `
             <div class="bg-orange-50 border border-orange-200 rounded-xl p-3 space-y-2">
                 <p class="text-xs font-bold text-orange-700 text-center">⏰ הפול פג תוקף — בחר פעולה:</p>
@@ -4228,6 +4228,54 @@ async function closeFamPool(poolId) {
 }
 function closePoolDetailModal() {
     document.getElementById('modal-pool-detail').classList.add('hidden');
+}
+
+function openEditFamPool(poolId, title, description, maxPrice) {
+    const existing = document.getElementById('modal-edit-fam-pool');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'modal-edit-fam-pool';
+    modal.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-[200] p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-3">
+            <div class="flex justify-between items-center">
+                <h3 class="font-black text-slate-800 text-base">✏️ עריכת פול</h3>
+                <button onclick="document.getElementById('modal-edit-fam-pool').remove()" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-slate-500">כותרת הפול</label>
+                <input id="edit-pool-title" type="text" value="${title}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-slate-500">תיאור הצורך</label>
+                <textarea id="edit-pool-description" rows="3" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm resize-none">${description}</textarea>
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-slate-500">תקציב מקסימלי (₪)</label>
+                <input id="edit-pool-maxprice" type="number" value="${maxPrice || ''}" placeholder="אופציונלי" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+            </div>
+            <button onclick="saveEditFamPool(${poolId})" class="w-full py-3 bg-blue-500 text-white font-bold rounded-xl hover:bg-blue-600 transition text-sm">💾 שמור שינויים</button>
+        </div>`;
+    document.body.appendChild(modal);
+}
+
+async function saveEditFamPool(poolId) {
+    const title = document.getElementById('edit-pool-title')?.value.trim();
+    const description = document.getElementById('edit-pool-description')?.value.trim();
+    const maxPrice = parseFloat(document.getElementById('edit-pool-maxprice')?.value) || 0;
+    if (!title) { showToast('error', 'חובה להזין כותרת'); return; }
+    try {
+        const res = await fetch(`${API}/community/pool/${poolId}/edit`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ viewerId: currentGroup.id, title, description, maxPrice })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'שגיאה');
+        showToast('success', '✅ הפול עודכן!');
+        document.getElementById('modal-edit-fam-pool')?.remove();
+        openFamPoolDetail(poolId);
+        renderFamPools();
+    } catch(e) { showToast('error', e.message); }
 }
 
 async function joinFamPool(poolId) {

@@ -1854,6 +1854,11 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 });
             }
 
+            // Apply store coupon or community promo code discount
+            if (window._appliedPromo && window._appliedPromo.discount) {
+                discountAmount += baseTotal * (parseFloat(window._appliedPromo.discount) / 100);
+            }
+
             if (discountAmount > baseTotal) discountAmount = baseTotal;
             finalTotal = baseTotal - discountAmount;
             return { baseTotal, finalTotal, discountAmount, totalQty, hasComplexItems };
@@ -2078,11 +2083,34 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             if (!code) { msg.textContent = 'הכנס קוד מבצע'; msg.classList.add('text-red-500'); msg.classList.remove('hidden'); return; }
             msg.textContent = 'בודק...'; msg.classList.remove('hidden', 'text-red-500', 'text-green-600');
             try {
-                const res = await fetch(`${API}/community/promotions/validate?code=${encodeURIComponent(code)}`);
+                const urlP = new URLSearchParams(window.location.search);
+                const cid = urlP.get('communityId');
+                const sc = urlP.get('store') || (window.location.pathname !== '/' ? window.location.pathname.replace('/','') : '');
+
+                // First try store coupon (works for everyone)
+                const couponRes = await fetch(`${API}/store/coupons/validate?code=${encodeURIComponent(code)}&storeCode=${encodeURIComponent(sc)}`);
+                if (couponRes.ok) {
+                    const couponData = await couponRes.json();
+                    if (couponData.success && couponData.coupon) {
+                        window._appliedPromo = { code, couponId: couponData.coupon.id, discount: couponData.coupon.discount_pct, type: 'store_coupon' };
+                        msg.textContent = `✓ קופון אושר! הנחה של ${couponData.coupon.discount_pct}%`;
+                        msg.classList.add('text-green-600');
+                        return;
+                    }
+                }
+
+                // Then try community promo code (only if communityId exists)
+                if (!cid) {
+                    window._appliedPromo = null;
+                    msg.textContent = 'קוד לא תקין או פג תוקף';
+                    msg.classList.add('text-red-500');
+                    return;
+                }
+                const res = await fetch(`${API}/community/promotions/validate?code=${encodeURIComponent(code)}&communityId=${encodeURIComponent(cid)}`);
                 const data = await res.json();
                 if (data.success && data.promo) {
-                    window._appliedPromo = { code, promoId: data.promo.id, discount: data.promo.discount_pct };
-                    msg.textContent = `✓ קוד אושר! הנחה של ${data.promo.discount_pct}% — ${data.promo.title}`;
+                    window._appliedPromo = { code, promoId: data.promo.id, discount: data.promo.discount_pct, type: 'community_promo' };
+                    msg.textContent = `✓ קוד מבצע קהילה אושר! הנחה של ${data.promo.discount_pct}% — ${data.promo.title}`;
                     msg.classList.add('text-green-600');
                 } else {
                     window._appliedPromo = null;
@@ -2156,6 +2184,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             }
 
             const appliedPromoCode = (window._appliedPromo && window._appliedPromo.code) ? window._appliedPromo.code : null;
+            const appliedPromoType = window._appliedPromo?.type || null;
 
             const payload = {
                 groupId: storeData.groupId,
@@ -2169,7 +2198,9 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 familyGroupId: familyId,
                 notes: finalNotes,
                 orderType: calc.hasComplexItems ? 'quote' : 'order',
-                communityPromoCode: appliedPromoCode
+                communityPromoCode: appliedPromoType === 'community_promo' ? appliedPromoCode : null,
+                storeCouponCode: appliedPromoType === 'store_coupon' ? appliedPromoCode : null,
+                appliedDiscountPct: window._appliedPromo?.discount || null
             };
 
             try {

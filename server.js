@@ -7168,6 +7168,23 @@ app.delete('/api/biz/communities/leave/:communityId/:bizId', async (req, res) =>
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// Validate store coupon at checkout (must be before /:groupId to avoid route conflict)
+app.get('/api/store/coupons/validate', async (req, res) => {
+    try {
+        const { code, storeCode } = req.query;
+        if (!code || !storeCode) return res.status(400).json({ error: 'חסר קוד או מזהה חנות' });
+        const groupRes = await pool.query(`SELECT group_id FROM store_settings WHERE store_code=$1`, [storeCode]);
+        if (!groupRes.rows.length) return res.status(404).json({ success: false, error: 'חנות לא נמצאה' });
+        const groupId = groupRes.rows[0].group_id;
+        const r = await pool.query(
+            `SELECT * FROM store_coupons WHERE group_id=$1 AND UPPER(code)=$2 AND (valid_until IS NULL OR valid_until >= CURRENT_DATE)`,
+            [groupId, code.toUpperCase().trim()]
+        );
+        if (!r.rows.length) return res.status(404).json({ success: false, error: 'קוד קופון לא תקין או פג תוקף' });
+        res.json({ success: true, coupon: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/store/coupons/:groupId', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM store_coupons WHERE group_id=$1 ORDER BY created_at DESC', [req.params.groupId]);
@@ -9746,6 +9763,27 @@ app.get('/api/community/my-referral-code/:groupId', async (req, res) => {
 // Business posts a promotion to one of their communities
 // duplicate removed — see /api/biz/community/promotions above
 
+// Validate a community promo code (must be before /:communityId to avoid route conflict)
+app.get('/api/community/promotions/validate', async (req, res) => {
+    try {
+        const { code, communityId } = req.query;
+        if (!code) return res.status(400).json({ error: 'חסר קוד' });
+        if (!communityId) return res.status(403).json({ success: false, error: 'קוד מבצע קהילה זמין רק לחברי קהילה' });
+        const result = await pool.query(
+            `SELECT cp.id, cp.title, cp.discount_pct, cp.valid_until, fg.name as biz_name, c.name as comm_name
+             FROM community_promotions cp
+             JOIN family_groups fg ON cp.business_id = fg.id
+             JOIN communities c ON cp.community_id = c.id
+             WHERE cp.promo_code = $1 AND cp.status = 'approved'
+               AND cp.community_id = $2
+               AND (cp.valid_until IS NULL OR cp.valid_until >= CURRENT_DATE)`,
+            [code.toUpperCase(), communityId]
+        );
+        if (!result.rows.length) return res.status(404).json({ success: false, error: 'קוד לא תקין, לא מאושר, או פג תוקף' });
+        res.json({ success: true, promo: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // Get promotions for a community (members see)
 app.get('/api/community/promotions/:communityId', async (req, res) => {
     try {
@@ -10536,25 +10574,6 @@ app.post('/api/flow/redemptions/:code/use', async (req, res) => {
         if (!r.rows.length) return res.status(404).json({ error: 'קוד לא תקין או כבר מומש' });
         await pool.query(`UPDATE flow_redemptions SET status='used', used_at=NOW() WHERE discount_code=$1`, [req.params.code.toUpperCase()]);
         res.json({ success: true, discountIls: r.rows[0].discount_ils });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// Validate a community promo code (public — used by storefront checkout)
-app.get('/api/community/promotions/validate', async (req, res) => {
-    try {
-        const { code } = req.query;
-        if (!code) return res.status(400).json({ error: 'חסר קוד' });
-        const result = await pool.query(
-            `SELECT cp.id, cp.title, cp.discount_pct, cp.valid_until, fg.name as biz_name, c.name as comm_name
-             FROM community_promotions cp
-             JOIN family_groups fg ON cp.business_id = fg.id
-             JOIN communities c ON cp.community_id = c.id
-             WHERE cp.promo_code = $1 AND cp.status = 'approved'
-               AND (cp.valid_until IS NULL OR cp.valid_until >= CURRENT_DATE)`,
-            [code.toUpperCase()]
-        );
-        if (!result.rows.length) return res.status(404).json({ success: false, error: 'קוד לא תקין, לא מאושר, או פג תוקף' });
-        res.json({ success: true, promo: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -19018,6 +19037,22 @@ app.post('/api/community/pool/:id/renew', async (req, res) => {
         newExpiry.setHours(23, 59, 59, 0);
         await pool.query(`UPDATE flow_pools SET status='open_r1', expires_at=$1 WHERE id=$2`, [newExpiry, fp.id]);
         await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,$2)`, [fp.id, `תוקף הפול חודש עד ${newExpiry.toLocaleDateString('he-IL')}`]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עריכת פול
+app.post('/api/community/pool/:id/edit', async (req, res) => {
+    try {
+        const { viewerId, title, description, maxPrice } = req.body;
+        if (!viewerId || !title) return res.status(400).json({ error: 'חסרים שדות' });
+        const fp = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
+        if (!fp.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
+        if (fp.rows[0].initiator_group_id != viewerId) return res.status(403).json({ error: 'רק היוזם יכול לערוך' });
+        await pool.query(`UPDATE flow_pools SET title=$1, description=$2, max_price=$3 WHERE id=$4`,
+            [title, description || null, parseFloat(maxPrice) || 0, req.params.id]);
+        await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,$2)`,
+            [fp.rows[0].id, 'הפול עודכן על ידי היוזם']);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
