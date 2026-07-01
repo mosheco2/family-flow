@@ -2343,7 +2343,7 @@ function renderUnifiedFeed() {
         if (currentUser.role === 'ADMIN' && typeof familyFlowBalance !== 'undefined') {
             const flowBal = Math.floor(familyFlowBalance);
             const ilsVal = Math.floor(flowBal / 100) * 10;
-            flowWidgetHtml = `<div onclick="switchTab('community')" style="cursor:pointer;background:linear-gradient(135deg,#f59e0b,#d97706,#b45309);border-radius:20px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(245,158,11,0.35);position:relative;overflow:hidden;" id="flow-home-widget">
+            flowWidgetHtml = `<div onclick="openFlowWalletModal()" style="cursor:pointer;background:linear-gradient(135deg,#f59e0b,#d97706,#b45309);border-radius:20px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(245,158,11,0.35);position:relative;overflow:hidden;" id="flow-home-widget">
                 <div style="position:absolute;inset:0;background:radial-gradient(circle at 80% 50%,rgba(255,255,255,0.12),transparent 60%);pointer-events:none;"></div>
                 <div style="display:flex;align-items:center;gap:12px;">
                     <div style="background:rgba(255,255,255,0.2);border-radius:14px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;">⚡</div>
@@ -5081,6 +5081,8 @@ function launchFlowConfetti() {
 
 let familyFlowBalance = 0;
 let familyFlowRate = 100;
+let familyFlowMinRedeem = 100;
+let familyFlowRedeemQuarter = 0;
 let _flwBalInitialized = false;
 
 function triggerCoinAnimation(newBalance) {
@@ -5125,6 +5127,8 @@ async function loadFamilyFlowWallet() {
         const prevBal = familyFlowBalance;
         familyFlowBalance = data.balance || 0;
         familyFlowRate = data.rate || 100;
+        familyFlowMinRedeem = data.min_redeem || 100;
+        familyFlowRedeemQuarter = data.redeem_quarter || 0;
 
         // Daily login reward
         fetch(`${API}/flow/daily-login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id }) }).catch(() => {});
@@ -5159,27 +5163,48 @@ function renderFlowWalletContent(data) {
     if (!content) return;
     const bal = parseFloat(data.balance || 0);
     const rate = parseFloat(data.rate || 100);
+    const minR = parseFloat(data.min_redeem || familyFlowMinRedeem || 100);
+    const quarter = parseFloat(data.redeem_quarter || familyFlowRedeemQuarter || 0);
     const worth = Math.floor(bal / rate) * 10;
+    const canRedeem = bal >= minR;
+
+    let quarterHtml = '';
+    if (quarter >= 1 && quarter <= 4) {
+        const qNames = ['', 'Q1 (31 מרץ)', 'Q2 (30 יוני)', 'Q3 (30 ספטמבר)', 'Q4 (31 דצמבר)'];
+        quarterHtml = `<div class="mt-1 text-amber-100 text-[10px]">תוקף מימוש: עד סוף ${qNames[quarter]}</div>`;
+    }
+
     content.innerHTML = `
     <div class="bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl p-5 text-center mb-4 shadow-lg">
         <div class="text-5xl font-black text-white mb-1">Flw ${bal.toLocaleString('he-IL', {minimumFractionDigits:0,maximumFractionDigits:1})}</div>
         <div class="text-amber-100 text-sm">FLOW אישי</div>
-        ${worth > 0 ? `<div class="mt-2 bg-white/20 rounded-xl px-3 py-1 text-white text-xs font-bold">שווה ₪${worth} הנחה אצל עסק מחובר</div>` : '<div class="mt-2 text-amber-100 text-xs">צבור עוד Flw כדי לממש הנחות</div>'}
+        ${worth > 0 ? `<div class="mt-2 bg-white/20 rounded-xl px-3 py-1 text-white text-xs font-bold">שווה ₪${worth} הנחה אצל עסק מחובר</div>` : `<div class="mt-2 text-amber-100 text-xs">צבור ${minR} Flw כדי לממש הנחה</div>`}
+        ${quarterHtml}
     </div>
     <div class="mb-4">
-        <button onclick="openFlowRedeemModal()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-2xl text-sm transition shadow-md ${worth <= 0 ? 'opacity-50 pointer-events-none' : ''}">
+        <button onclick="openFlowRedeemModal()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-2xl text-sm transition shadow-md ${!canRedeem ? 'opacity-50 pointer-events-none' : ''}">
             🎁 ממש הנחה אצל עסק
         </button>
+        ${!canRedeem ? `<p class="text-[10px] text-slate-400 text-center mt-1">נדרש מינימום ${minR} Flw למימוש (יש לך ${Math.floor(bal)})</p>` : ''}
     </div>
     <h4 class="font-bold text-slate-700 text-sm mb-2">📋 פעילות אחרונה</h4>
-    <div class="space-y-2 max-h-48 overflow-y-auto">
-        ${data.transactions?.length ? data.transactions.map(t => `
+    <div class="space-y-2 max-h-52 overflow-y-auto">
+        ${data.transactions?.length ? data.transactions.map(t => {
+            const d = t.created_at ? new Date(t.created_at) : null;
+            const dateStr = d ? d.toLocaleDateString('he-IL', {day:'2-digit',month:'2-digit',year:'2-digit'}) : '';
+            return `
         <div class="flex justify-between items-center text-xs py-2 border-b border-slate-100">
-            <span class="text-slate-600">${safeStr(t.description || '')}</span>
-            <span class="font-bold ${t.amount > 0 ? 'text-green-600' : 'text-red-500'}">${t.amount > 0 ? '+' : ''}${parseFloat(t.amount).toFixed(0)} Flw</span>
-        </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין — התחל לצבור Flw!</p>'}
+            <div>
+                <span class="text-slate-600">${safeStr(t.description || '')}</span>
+                ${dateStr ? `<div class="text-[10px] text-slate-400 mt-0.5">${dateStr}</div>` : ''}
+            </div>
+            <span class="font-bold shrink-0 mr-2 ${t.amount > 0 ? 'text-green-600' : 'text-red-500'}">${t.amount > 0 ? '+' : ''}${parseFloat(t.amount).toFixed(0)} Flw</span>
+        </div>`;
+        }).join('') : '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין — התחל לצבור Flw!</p>'}
     </div>`;
 }
+
+window.openFamilyFlowWallet = function() { window.openFlowWalletModal(); };
 
 window.openFlowWalletModal = async function() {
     const existing = getEl('fam-flow-wallet-modal');
@@ -5213,6 +5238,10 @@ window.openFlowRedeemModal = function() {
     const existing = getEl('flow-redeem-modal');
     if (existing) { existing.remove(); return; }
     const rate = familyFlowRate || 100;
+    const minR = familyFlowMinRedeem || 100;
+    const quarter = familyFlowRedeemQuarter || 0;
+    const qNames = ['', 'Q1 (31 מרץ)', 'Q2 (30 יוני)', 'Q3 (30 ספטמבר)', 'Q4 (31 דצמבר)'];
+    const quarterNote = (quarter >= 1 && quarter <= 4) ? `<p class="text-[10px] text-orange-500 font-bold mt-1">⏰ תוקף הקוד: עד סוף ${qNames[quarter]}</p>` : '';
     const modal = document.createElement('div');
     modal.id = 'flow-redeem-modal';
     modal.className = 'fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-4';
@@ -5232,9 +5261,10 @@ window.openFlowRedeemModal = function() {
                 </select>
             </div>
             <div>
-                <label class="text-xs font-bold text-slate-600 mb-1 block">כמות Flw לממש (מינימום 100)</label>
-                <input type="number" id="redeem-flow-amount" min="100" step="100" value="100" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-amber-600">
-                <p class="text-[10px] text-slate-400 mt-1">יתרה: Flw${Math.floor(familyFlowBalance)} · שווי: ₪<span id="redeem-ils-preview">10</span></p>
+                <label class="text-xs font-bold text-slate-600 mb-1 block">כמות Flw לממש (מינימום ${minR})</label>
+                <input type="number" id="redeem-flow-amount" min="${minR}" step="${minR}" value="${minR}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-amber-600">
+                <p class="text-[10px] text-slate-400 mt-1">יתרה: Flw${Math.floor(familyFlowBalance)} · שווי: ₪<span id="redeem-ils-preview">${Math.floor(minR / rate) * 10}</span></p>
+                ${quarterNote}
             </div>
             <button onclick="submitFlowRedeem()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-2xl text-sm transition shadow-md">🎁 קבל קוד הנחה</button>
             <div id="redeem-result" class="hidden"></div>
@@ -5252,8 +5282,9 @@ window.openFlowRedeemModal = function() {
 window.submitFlowRedeem = async function() {
     const bizId = parseInt(document.getElementById('redeem-biz-select')?.value);
     const flowAmt = parseInt(document.getElementById('redeem-flow-amount')?.value);
+    const minR = familyFlowMinRedeem || 100;
     if (!bizId) { showToast && showToast('error','בחר עסק'); return; }
-    if (!flowAmt || flowAmt < 100) { showToast && showToast('error','מינימום 100 Flw'); return; }
+    if (!flowAmt || flowAmt < minR) { showToast && showToast('error',`מינימום ${minR} Flw`); return; }
     if (flowAmt > familyFlowBalance) { showToast && showToast('error','אין מספיק Flw בארנק'); return; }
     try {
         const res = await fetch(`${API}/flow/redeem`, {
@@ -5270,6 +5301,7 @@ window.submitFlowRedeem = async function() {
                 <div class="text-3xl font-black text-green-600 tracking-widest mb-1">${data.code}</div>
                 <div class="text-xs text-slate-600">קוד הנחה של ₪${data.discountIls} — הצג לעסק!</div>
                 <div class="text-[10px] text-slate-400 mt-1">הקוד חד-פעמי ותקף לשימוש אחד</div>
+                ${data.expiresAt ? `<div class="text-[10px] text-orange-500 font-bold mt-1">⏰ תוקף עד: ${new Date(data.expiresAt).toLocaleDateString('he-IL')}</div>` : ''}
             </div>`;
         }
         launchFlowConfetti();

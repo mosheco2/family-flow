@@ -7270,6 +7270,8 @@ const FLOW_CONFIG_LABELS = {
     promo_community:       '📊 קהילה — מבצע מומש (רק לקהילה)',
     bundle_community:      '📊 קהילה — חבילה נמכרה (רק לקהילה)',
     flow_to_ils_rate:      '⚙️ שיעור המרה: כמה Flw = ₪10 הנחה',
+    flow_min_redeem:       '🔒 מינימום Flw למימוש הנחה',
+    flow_redeem_quarter:   '📅 תוקף מימוש — רבעון קלנדרי (0=ללא)',
 };
 
 window.openFlowConfigPanel = async function() {
@@ -7311,7 +7313,52 @@ window.openFlowConfigPanel = async function() {
         document.getElementById('flow-config-loading').classList.add('hidden');
         const table = document.getElementById('flow-config-table');
         table.classList.remove('hidden');
+        const specialKeys = ['flow_min_redeem', 'flow_redeem_quarter', 'flow_to_ils_rate'];
+        const specialRows = Object.fromEntries(data.config.filter(r => specialKeys.includes(r.key)).map(r => [r.key, r]));
+        const mainRows = data.config.filter(r => !specialKeys.includes(r.key));
+        const minRedeemVal = parseFloat(specialRows.flow_min_redeem?.personal_amount) || 100;
+        const quarterVal = parseInt(specialRows.flow_redeem_quarter?.personal_amount) || 0;
+        const rateVal = parseFloat(specialRows.flow_to_ils_rate?.personal_amount) || 100;
+
         table.innerHTML = `
+        <!-- Section מיוחד: הגדרות מימוש -->
+        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4">
+            <h4 class="font-black text-amber-800 text-sm mb-3">⚙️ הגדרות מימוש מטבעות</h4>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div class="bg-white rounded-xl border border-amber-100 p-3" data-key="flow_to_ils_rate">
+                    <div class="text-xs font-bold text-slate-600 mb-1">שיעור המרה</div>
+                    <div class="text-[10px] text-slate-400 mb-2">כמה Flw = ₪10 הנחה</div>
+                    <div class="flex items-center gap-1">
+                        <input type="number" min="1" step="1" value="${rateVal}" class="flow-cfg-personal w-20 text-center border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold focus:ring-2 focus:ring-amber-300 outline-none">
+                        <span class="text-xs text-slate-500">Flw = ₪10</span>
+                    </div>
+                    <input type="hidden" class="flow-cfg-community" value="0">
+                </div>
+                <div class="bg-white rounded-xl border border-amber-100 p-3" data-key="flow_min_redeem">
+                    <div class="text-xs font-bold text-slate-600 mb-1">מינימום למימוש</div>
+                    <div class="text-[10px] text-slate-400 mb-2">מינימום Flw נדרש לקבלת קוד הנחה</div>
+                    <div class="flex items-center gap-1">
+                        <input type="number" min="0" step="10" value="${minRedeemVal}" class="flow-cfg-personal w-20 text-center border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold focus:ring-2 focus:ring-amber-300 outline-none">
+                        <span class="text-xs text-slate-500">Flw</span>
+                    </div>
+                    <input type="hidden" class="flow-cfg-community" value="0">
+                </div>
+                <div class="bg-white rounded-xl border border-amber-100 p-3" data-key="flow_redeem_quarter">
+                    <div class="text-xs font-bold text-slate-600 mb-1">תוקף קוד מימוש</div>
+                    <div class="text-[10px] text-slate-400 mb-2">קודים יפוגו בסוף הרבעון שנבחר</div>
+                    <select class="flow-cfg-personal w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold focus:ring-2 focus:ring-amber-300 outline-none">
+                        <option value="0" ${quarterVal===0?'selected':''}>ללא תוקף</option>
+                        <option value="1" ${quarterVal===1?'selected':''}>Q1 — עד 31 מרץ</option>
+                        <option value="2" ${quarterVal===2?'selected':''}>Q2 — עד 30 יוני</option>
+                        <option value="3" ${quarterVal===3?'selected':''}>Q3 — עד 30 ספטמבר</option>
+                        <option value="4" ${quarterVal===4?'selected':''}>Q4 — עד 31 דצמבר</option>
+                    </select>
+                    <input type="hidden" class="flow-cfg-community" value="0">
+                </div>
+            </div>
+        </div>
+
+        <!-- טבלת פעולות -->
         <table class="w-full text-sm border-collapse">
             <thead>
                 <tr class="bg-slate-100 text-slate-600 text-xs">
@@ -7321,18 +7368,16 @@ window.openFlowConfigPanel = async function() {
                 </tr>
             </thead>
             <tbody>
-                ${data.config.map(row => `
+                ${mainRows.map(row => `
                 <tr class="border-b border-slate-100 hover:bg-amber-50 transition" data-key="${row.key}">
                     <td class="p-3 font-medium text-slate-700">${FLOW_CONFIG_LABELS[row.key] || row.key}<br><span class="text-[10px] text-slate-400 font-mono">${row.key}</span></td>
                     <td class="p-3 text-center">
                         <input type="number" min="0" step="1" value="${row.personal_amount}"
-                            class="flow-cfg-personal w-20 text-center border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold focus:ring-2 focus:ring-amber-300 outline-none"
-                            ${row.key === 'flow_to_ils_rate' ? '' : ''}>
+                            class="flow-cfg-personal w-20 text-center border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold focus:ring-2 focus:ring-amber-300 outline-none">
                     </td>
                     <td class="p-3 text-center">
-                        ${row.key === 'flow_to_ils_rate' ? '<span class="text-xs text-slate-400">—</span>' :
-                        `<input type="number" min="0" step="1" value="${row.community_amount}"
-                            class="flow-cfg-community w-20 text-center border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold focus:ring-2 focus:ring-amber-300 outline-none">`}
+                        <input type="number" min="0" step="1" value="${row.community_amount}"
+                            class="flow-cfg-community w-20 text-center border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold focus:ring-2 focus:ring-amber-300 outline-none">
                     </td>
                 </tr>`).join('')}
             </tbody>

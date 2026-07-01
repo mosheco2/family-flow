@@ -10370,9 +10370,12 @@ app.patch('/api/sa/community/bundles/:id', verifySA, async (req, res) => {
             ('biz_promo_redeemed',    5,   5, 'עסק — מבצע מומש על ידי משפחה'),
             ('biz_bundle_sold',      10,  20, 'עסק — חבילה שנמכרה'),
             ('biz_review_received',   8,   2, 'עסק — קבל ביקורת חיובית'),
-            ('biz_lead_received',     5,   2, 'עסק — קיבל פנייה דרך הקהילה')
+            ('biz_lead_received',     5,   2, 'עסק — קיבל פנייה דרך הקהילה'),
+            ('flow_min_redeem',      100,   0, 'מינימום Flw למימוש הנחה'),
+            ('flow_redeem_quarter',    0,   0, 'תוקף מימוש — רבעון (0=ללא, 1-4=Q1-Q4)')
             ON CONFLICT (key) DO NOTHING;
         `);
+        await pool.query(`ALTER TABLE flow_redemptions ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP`);
         // Fix description wording (שכן→חבר) for existing deployments
         await pool.query(`UPDATE flow_config SET description='הפניית חבר שהצטרף' WHERE key='referral' AND description LIKE '%שכן%'`);
     } catch(e) { console.error('[FLOW migration]', e.message); }
@@ -10542,9 +10545,15 @@ app.get('/api/flow/wallet/family/:groupId', async (req, res) => {
             pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='family' AND entity_id=$1`, [gid]),
             pool.query(`SELECT amount, description, created_at FROM flow_transactions WHERE entity_type='family' AND entity_id=$1 ORDER BY created_at DESC LIMIT 20`, [gid])
         ]);
-        const rate = await pool.query(`SELECT personal_amount FROM flow_config WHERE key='flow_to_ils_rate'`);
-        const rateVal = parseFloat(rate.rows[0]?.personal_amount) || 100;
-        res.json({ balance: parseFloat(wallet.rows[0]?.balance || 0), transactions: txs.rows, rate: rateVal });
+        const cfg = await pool.query(`SELECT key, personal_amount FROM flow_config WHERE key IN ('flow_to_ils_rate','flow_min_redeem','flow_redeem_quarter')`);
+        const cfgMap = Object.fromEntries(cfg.rows.map(r => [r.key, parseFloat(r.personal_amount)]));
+        res.json({
+            balance: parseFloat(wallet.rows[0]?.balance || 0),
+            transactions: txs.rows,
+            rate: cfgMap.flow_to_ils_rate || 100,
+            min_redeem: cfgMap.flow_min_redeem || 100,
+            redeem_quarter: cfgMap.flow_redeem_quarter || 0
+        });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -10580,16 +10589,38 @@ app.post('/api/flow/redeem', async (req, res) => {
         const fa = parseFloat(flowAmount);
         if (fa <= 0) return res.status(400).json({ error: 'כמות לא תקינה' });
 
+        // Load config: rate, min_redeem, redeem_quarter
+        const cfg = await pool.query(`SELECT key, personal_amount FROM flow_config WHERE key IN ('flow_to_ils_rate','flow_min_redeem','flow_redeem_quarter')`);
+        const cfgMap = Object.fromEntries(cfg.rows.map(r => [r.key, parseFloat(r.personal_amount)]));
+        const rateVal = cfgMap.flow_to_ils_rate || 100;
+        const minRedeem = cfgMap.flow_min_redeem || 100;
+        const redeemQuarter = cfgMap.flow_redeem_quarter || 0;
+
+        if (fa < minRedeem) return res.status(400).json({ error: `מינימום ${minRedeem} Flw למימוש` });
+
         // Check balance
         const wallet = await pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='family' AND entity_id=$1`, [familyGroupId]);
         const bal = parseFloat(wallet.rows[0]?.balance || 0);
         if (bal < fa) return res.status(400).json({ error: `אין מספיק Flw (יש לך ${bal} Flw)` });
 
-        // Calculate discount: rate = how many Flw per ₪10
-        const rate = await pool.query(`SELECT personal_amount FROM flow_config WHERE key='flow_to_ils_rate'`);
-        const rateVal = parseFloat(rate.rows[0]?.personal_amount) || 100;
+        // Calculate discount
         const discountIls = Math.floor(fa / rateVal) * 10;
         if (discountIls <= 0) return res.status(400).json({ error: `מינימום ${rateVal} Flw למימוש` });
+
+        // Calculate expiry based on quarter setting
+        let expiresAt = null;
+        if (redeemQuarter >= 1 && redeemQuarter <= 4) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const quarterEnds = [
+                new Date(year, 2, 31, 23, 59, 59),
+                new Date(year, 5, 30, 23, 59, 59),
+                new Date(year, 8, 30, 23, 59, 59),
+                new Date(year, 11, 31, 23, 59, 59),
+            ];
+            expiresAt = quarterEnds[redeemQuarter - 1];
+            if (expiresAt < now) expiresAt = new Date(expiresAt.setFullYear(year + 1));
+        }
 
         // Deduct balance
         await pool.query(`UPDATE flow_wallets SET balance=balance-$1, updated_at=NOW() WHERE entity_type='family' AND entity_id=$2`, [fa, familyGroupId]);
@@ -10598,10 +10629,10 @@ app.post('/api/flow/redeem', async (req, res) => {
         // Generate unique code
         const code = 'FL' + Math.random().toString(36).substring(2,8).toUpperCase();
         await pool.query(
-            `INSERT INTO flow_redemptions (family_group_id, business_group_id, flow_amount, discount_ils, discount_code) VALUES ($1,$2,$3,$4,$5)`,
-            [familyGroupId, businessGroupId, fa, discountIls, code]);
+            `INSERT INTO flow_redemptions (family_group_id, business_group_id, flow_amount, discount_ils, discount_code, expires_at) VALUES ($1,$2,$3,$4,$5,$6)`,
+            [familyGroupId, businessGroupId, fa, discountIls, code, expiresAt]);
 
-        res.json({ success: true, code, discountIls, flowSpent: fa });
+        res.json({ success: true, code, discountIls, flowSpent: fa, expiresAt });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
