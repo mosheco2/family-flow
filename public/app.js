@@ -5254,9 +5254,12 @@ window.openFlowWalletModal = async function() {
 
 window.openFlowRedeemModal = function() {
     const comms = myConnectedCommunitiesCache || [];
-    // Collect businesses from community
-    const bizOptions = (window.communityBusinessesCache || []).map(b =>
-        `<option value="${b.id}">${safeStr(b.name)}</option>`).join('');
+    // Collect businesses — prefer myCommunityBusinessesCache (loaded from /community/info)
+    const _allBiz = myCommunityBusinessesCache.length ? myCommunityBusinessesCache : (window.communityBusinessesCache || []);
+    const _bizMap = {};
+    _allBiz.forEach(b => { const k = b.business_id || b.id; if (!_bizMap[k]) _bizMap[k] = b; });
+    const bizOptions = Object.values(_bizMap).map(b =>
+        `<option value="${b.business_id || b.id}">${safeStr(b.business_name || b.name || '')}</option>`).join('');
     const existing = getEl('flow-redeem-modal');
     if (existing) { existing.remove(); return; }
     const rate = familyFlowRate || 100;
