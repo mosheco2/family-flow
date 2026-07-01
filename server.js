@@ -18830,6 +18830,15 @@ app.post('/api/ai/parse-pdf', async (req, res) => {
             );
         `);
         await pool.query(`
+            CREATE TABLE IF NOT EXISTS biz_pool_hidden (
+                id SERIAL PRIMARY KEY,
+                pool_id INT NOT NULL,
+                biz_group_id INT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(pool_id, biz_group_id)
+            );
+        `);
+        await pool.query(`
             INSERT INTO flow_config (key, personal_amount, community_amount, description) VALUES
             ('pool_join',         5,  2, 'הצטרפות לפול קהילתי'),
             ('pool_bid_accepted', 25, 10, 'עסק — הצעה לפול התקבלה'),
@@ -19010,22 +19019,25 @@ app.post('/api/community/pool/:id/open-round2', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ארכיב פול (יוזם בלבד)
+// ארכיב פול — יוזם (משפחה) משנה סטטוס גלובלי; עסק מסתיר רק בצד שלו
 app.post('/api/community/pool/:id/archive', async (req, res) => {
     try {
         const { viewerId, bizArchive } = req.body;
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
         if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
         const fp = pRes.rows[0];
-        // עסק יכול לארכב פול פג תוקף שהשתתף בו; יוזם יכול תמיד
-        if (!bizArchive && parseInt(viewerId) !== fp.initiator_id) return res.status(403).json({ error: 'רק היוזם יכול לארכב' });
         if (bizArchive) {
-            // וידוא שהעסק השתתף בפול
-            const bidCheck = await pool.query(`SELECT 1 FROM flow_pool_bids WHERE pool_id=$1 AND business_group_id=$2 UNION SELECT 1 FROM flow_pool_messages WHERE pool_id=$1 AND sender_id=$2 AND sender_type='business'`, [fp.id, viewerId]);
-            if (!bidCheck.rows.length) return res.status(403).json({ error: 'העסק לא השתתף בפול' });
+            // עסק: ארכיב אישי בלבד — לא משנה סטטוס גלובלי
+            await pool.query(
+                `INSERT INTO biz_pool_hidden (pool_id, biz_group_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+                [fp.id, viewerId]
+            );
+        } else {
+            // יוזם משפחה: ארכיב גלובלי
+            if (parseInt(viewerId) !== fp.initiator_id) return res.status(403).json({ error: 'רק היוזם יכול לארכב' });
+            await pool.query(`UPDATE flow_pools SET status='archived' WHERE id=$1`, [fp.id]);
+            await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,'הפול הועבר לארכיב')`, [fp.id]);
         }
-        await pool.query(`UPDATE flow_pools SET status='archived' WHERE id=$1`, [fp.id]);
-        await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,'הפול הועבר לארכיב')`, [fp.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -19121,7 +19133,7 @@ app.get('/api/biz/pools/:bizGroupId', async (req, res) => {
               AND community_id IN (SELECT community_id FROM community_businesses WHERE business_id=$1 AND status='approved')
         `, [req.params.bizGroupId]);
 
-        // פולים פתוחים בקהילות שהעסק חבר בהן
+        // פולים פתוחים בקהילות שהעסק חבר בהן (לא מוסתרים)
         const r = await pool.query(`
             SELECT fp.*, fg.name as initiator_name,
                 (SELECT COUNT(*) FROM flow_pool_members WHERE pool_id=fp.id) as member_count
@@ -19130,15 +19142,17 @@ app.get('/api/biz/pools/:bizGroupId', async (req, res) => {
             JOIN community_businesses cb ON cb.community_id=fp.community_id AND cb.business_id=$1 AND cb.status='approved'
             WHERE fp.initiator_type='family'
               AND fp.status IN ('open_r1','open_r2')
+              AND fp.id NOT IN (SELECT pool_id FROM biz_pool_hidden WHERE biz_group_id=$1)
             ORDER BY fp.created_at DESC`, [req.params.bizGroupId]);
 
-        // פולים פגי תוקף שהעסק השתתף בהם (הצעה / הודעה)
+        // פולים פגי תוקף שהעסק השתתף בהם ולא הסתיר
         const expiredR = await pool.query(`
             SELECT DISTINCT fp.*, fg.name as initiator_name,
                 (SELECT COUNT(*) FROM flow_pool_members WHERE pool_id=fp.id) as member_count
             FROM flow_pools fp
             JOIN family_groups fg ON fg.id=fp.initiator_id
             WHERE fp.status = 'expired'
+              AND fp.id NOT IN (SELECT pool_id FROM biz_pool_hidden WHERE biz_group_id=$1)
               AND fp.id IN (
                   SELECT pool_id FROM flow_pool_bids WHERE business_group_id=$1
                   UNION
@@ -19152,6 +19166,7 @@ app.get('/api/biz/pools/:bizGroupId', async (req, res) => {
 });
 
 // ארכיב פולים לעסק — כל פולים מוארכבים שהעסק השתתף בהם
+// ארכיב פולים לעסק — פולים שהעסק הסתיר בצד שלו (biz_pool_hidden)
 app.get('/api/biz/pool-archive/:bizGroupId', async (req, res) => {
     try {
         const r = await pool.query(`
@@ -19161,12 +19176,7 @@ app.get('/api/biz/pool-archive/:bizGroupId', async (req, res) => {
             FROM flow_pools fp
             JOIN family_groups fg ON fg.id=fp.initiator_id
             LEFT JOIN flow_pool_bids fpb ON fpb.pool_id=fp.id AND fpb.business_group_id=$1
-            WHERE fp.status = 'archived'
-              AND fp.id IN (
-                  SELECT pool_id FROM flow_pool_bids WHERE business_group_id=$1
-                  UNION
-                  SELECT pool_id FROM flow_pool_messages WHERE sender_id=$1 AND sender_type='business'
-              )
+            WHERE fp.id IN (SELECT pool_id FROM biz_pool_hidden WHERE biz_group_id=$1)
             ORDER BY fp.created_at DESC
         `, [req.params.bizGroupId]);
         res.json({ success: true, pools: r.rows });
