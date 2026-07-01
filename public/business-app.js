@@ -15471,6 +15471,7 @@ window.openBizPromoModal = async function() {
                         <option value="none">ללא תנאי — זמין לכל רוכש</option>
                         <option value="min_amount">בקניה מעל סכום מינימלי</option>
                         <option value="product">בקניית מוצר ספציפי</option>
+                        <option value="category">בקניית פריט מקטגוריה</option>
                     </select>
                     <div id="promo-condition-min" class="hidden">
                         <label class="text-xs text-slate-500 mb-1 block">סכום מינימום לסל (₪)</label>
@@ -15483,6 +15484,14 @@ window.openBizPromoModal = async function() {
                             <option value="">-- בחר מוצר --</option>
                             ${catalogItems.map(p => `<option value="${p.id}">${safeStr(p.name)}</option>`).join('')}
                         </select>` : '<p class="text-xs text-slate-400">אין מוצרים בקטלוג.</p>'}
+                    </div>
+                    <div id="promo-condition-category" class="hidden">
+                        <label class="text-xs text-slate-500 mb-1 block">קטגוריה שחייבת להיות בסל</label>
+                        ${[...new Set(catalogItems.map(p => p.category).filter(Boolean))].length ? `
+                        <select id="promo-condition-cat-select" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                            <option value="">-- בחר קטגוריה --</option>
+                            ${[...new Set(catalogItems.map(p => p.category).filter(Boolean))].map(cat => `<option value="${safeStr(cat)}">${safeStr(cat)}</option>`).join('')}
+                        </select>` : '<p class="text-xs text-slate-400">אין קטגוריות בקטלוג.</p>'}
                     </div>
                 </div>
                 <div>
@@ -15507,6 +15516,7 @@ window.toggleConditionUI = function() {
     const ct = document.getElementById('promo-condition-type')?.value;
     document.getElementById('promo-condition-min').classList.toggle('hidden', ct !== 'min_amount');
     document.getElementById('promo-condition-product').classList.toggle('hidden', ct !== 'product');
+    document.getElementById('promo-condition-category')?.classList.toggle('hidden', ct !== 'category');
 };
 
 window.updateProductPromoPrice = function() {
@@ -15546,14 +15556,18 @@ window.submitBizPromo = async function() {
         // Condition
         const conditionType = modal?.querySelector('[id="promo-condition-type"]')?.value || 'none';
         let conditionValue = null, conditionItemId = null;
+        let conditionCategory = null;
         if (conditionType === 'min_amount') {
             conditionValue = parseFloat(modal?.querySelector('[id="promo-condition-amount"]')?.value);
             if (!conditionValue || conditionValue <= 0) { showToast('error', 'יש להזין סכום מינימום'); return; }
         } else if (conditionType === 'product') {
             conditionItemId = modal?.querySelector('[id="promo-condition-item"]')?.value;
             if (!conditionItemId) { showToast('error', 'יש לבחור מוצר תנאי'); return; }
+        } else if (conditionType === 'category') {
+            conditionCategory = modal?.querySelector('[id="promo-condition-cat-select"]')?.value;
+            if (!conditionCategory) { showToast('error', 'יש לבחור קטגוריה'); return; }
         }
-        body = { businessId: currentGroup.id, communityId, title, content, discountPct: 0, validUntil: validUntil || null, promoType: 'product', catalogItemId: parseInt(catalogItemId), productPromoPrice, conditionType, conditionValue, conditionItemId: conditionItemId ? parseInt(conditionItemId) : null };
+        body = { businessId: currentGroup.id, communityId, title, content, discountPct: 0, validUntil: validUntil || null, promoType: 'product', catalogItemId: parseInt(catalogItemId), productPromoPrice, conditionType, conditionValue, conditionItemId: conditionItemId ? parseInt(conditionItemId) : null, conditionCategory };
     } else {
         const discountPct = parseFloat(modal?.querySelector('[id="promo-discount"]')?.value) || 0;
         const validUntil = modal?.querySelector('[id="promo-valid-until"]')?.value;

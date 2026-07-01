@@ -660,39 +660,44 @@
                         }
                     }
 
-                    // הצג כפתור "הזמן שולחן" עבור עסקי מסעדה (לפי הגדרת החנות)
+                    // הגדרות מסעדה
                     const isRestaurant = ['restaurant', 'cafe'].includes(data.business_type);
                     const tableEnabled = data.settings?.enable_table_booking !== false;
+                    const bookingMode = data.settings?.booking_mode || 'appointments';
+                    window._storeBookingMode = bookingMode;
+
+                    // כפתור הזמן שולחן
                     const tableBtn = getEl('btn-book-table');
                     if (tableBtn && isRestaurant && tableEnabled) {
                         tableBtn.classList.remove('hidden');
                         getEl('store-contact-info')?.classList.remove('hidden');
                     }
-                    // כפתור יומן — שנה טקסט למצב אירוע/קייטרינג
-                    const bookingMode = data.settings?.booking_mode || 'appointments';
-                    window._storeBookingMode = bookingMode;
-                    const bookBtn = document.getElementById('btn-open-booking');
-                    if (bookBtn && bookingMode === 'events_quote') {
+                    // כפתור אירוע/קייטרינג — מוצג תמיד למסעדה במצב events_quote (גם בלי calendar)
+                    const bookBtn = getEl('btn-book-appointment');
+                    if (bookBtn && isRestaurant && bookingMode === 'events_quote') {
+                        bookBtn.classList.remove('hidden');
                         bookBtn.innerHTML = '<i class="fa-solid fa-party-horn"></i> בקשת אירוע / קייטרינג';
+                        getEl('store-contact-info')?.classList.remove('hidden');
                     }
                 } catch(e) { console.warn('Calendar module not active'); }
 
-                // הצג כפתור "הזמן שולחן" עבור עסקי מסעדה — מחוץ לblock של calendar
+                // גיבוי מחוץ לblock — הגדרות מסעדה
                 const _bizType = data.businessType || data.business_type || '';
                 const _isRest = ['restaurant', 'cafe'].includes(_bizType);
                 const _tableEnabled = data.settings?.enable_table_booking !== false;
-                const _tableBtn = getEl('btn-book-table');
-                if (_tableBtn && _isRest && _tableEnabled) {
-                    _tableBtn.classList.remove('hidden');
-                    const contactInfo = getEl('store-contact-info');
-                    if (contactInfo) contactInfo.classList.remove('hidden');
-                }
-                // מחוץ לblock: שנה טקסט יומן
                 const _bookingMode = data.settings?.booking_mode || 'appointments';
                 window._storeBookingMode = window._storeBookingMode || _bookingMode;
-                const _bookBtn = document.getElementById('btn-open-booking');
-                if (_bookBtn && _bookingMode === 'events_quote') {
+
+                const _tableBtn = getEl('btn-book-table');
+                if (_tableBtn && _isRest && _tableEnabled && _tableBtn.classList.contains('hidden')) {
+                    _tableBtn.classList.remove('hidden');
+                    getEl('store-contact-info')?.classList.remove('hidden');
+                }
+                const _bookBtn = getEl('btn-book-appointment');
+                if (_bookBtn && _isRest && _bookingMode === 'events_quote' && _bookBtn.classList.contains('hidden')) {
+                    _bookBtn.classList.remove('hidden');
                     _bookBtn.innerHTML = '<i class="fa-solid fa-party-horn"></i> בקשת אירוע / קייטרינג';
+                    getEl('store-contact-info')?.classList.remove('hidden');
                 }
 
                 if (data.communityData) {
@@ -1950,7 +1955,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 renderProductPromoBanner({
                     product_name: promo.productName, product_promo_price: promo.productPromoPrice,
                     product_original_price: promo.productOriginalPrice, condition_type: promo.conditionType,
-                    condition_value: promo.conditionValue, condition_item_name: promo.conditionItemName
+                    condition_value: promo.conditionValue, condition_item_name: promo.conditionItemName,
+                    condition_category: promo.conditionCategory
                 });
             }
         };
@@ -2224,7 +2230,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                             conditionType: p.condition_type || 'none',
                             conditionValue: p.condition_value ? parseFloat(p.condition_value) : null,
                             conditionItemId: p.condition_item_id || null,
-                            conditionItemName: p.condition_item_name || null
+                            conditionItemName: p.condition_item_name || null,
+                            conditionCategory: p.condition_category || null
                         };
                         const priceLabel = isFree ? 'חינם 🎁' : `₪${promoPrice.toFixed(2)}`;
                         msg.textContent = `✓ מבצע: ${p.product_name} ב${priceLabel}! הוסף לעגלה ↓`;
@@ -2254,6 +2261,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const ct = p.condition_type || 'none';
             if (ct === 'min_amount' && p.condition_value) return `בקניה מעל ₪${parseFloat(p.condition_value).toFixed(0)}`;
             if (ct === 'product' && p.condition_item_name) return `בקניית ${p.condition_item_name}`;
+            if (ct === 'category' && p.condition_category) return `בקניית פריט מ"${p.condition_category}"`;
             return null;
         }
 
@@ -2268,6 +2276,14 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             if (promo.conditionType === 'product') {
                 const hasItem = Object.values(cart).some(i => i.catalogId == promo.conditionItemId && !i.isPromoProduct);
                 if (!hasItem) return { ok: false, reason: `יש לרכוש ${promo.conditionItemName || 'את המוצר הנדרש'} כדי לקבל את המתנה` };
+            }
+            if (promo.conditionType === 'category') {
+                const hasCategory = Object.values(cart).some(i => {
+                    if (i.isPromoProduct) return false;
+                    const catItem = storeData?.catalog?.find(c => String(c.id) === String(i.catalogId));
+                    return catItem && catItem.category === promo.conditionCategory;
+                });
+                if (!hasCategory) return { ok: false, reason: `יש להוסיף לסל פריט מקטגוריית "${promo.conditionCategory}"` };
             }
             return { ok: true };
         }
@@ -2321,7 +2337,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 renderProductPromoBanner({
                     product_name: promo.productName, product_promo_price: promo.productPromoPrice,
                     product_original_price: promo.productOriginalPrice, condition_type: promo.conditionType,
-                    condition_value: promo.conditionValue, condition_item_name: promo.conditionItemName
+                    condition_value: promo.conditionValue, condition_item_name: promo.conditionItemName,
+                    condition_category: promo.conditionCategory
                 });
             }
         };
