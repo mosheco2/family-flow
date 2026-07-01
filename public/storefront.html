@@ -2095,6 +2095,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                         window._appliedPromo = { code, couponId: couponData.coupon.id, discount: couponData.coupon.discount_pct, type: 'store_coupon' };
                         msg.textContent = `✓ קופון אושר! הנחה של ${couponData.coupon.discount_pct}%`;
                         msg.classList.add('text-green-600');
+                        if (window.updateCartFooter) window.updateCartFooter();
+                        if (window.openCheckoutModal) window.openCheckoutModal(true);
                         return;
                     }
                 }
@@ -2112,6 +2114,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                     window._appliedPromo = { code, promoId: data.promo.id, discount: data.promo.discount_pct, type: 'community_promo' };
                     msg.textContent = `✓ קוד מבצע קהילה אושר! הנחה של ${data.promo.discount_pct}% — ${data.promo.title}`;
                     msg.classList.add('text-green-600');
+                    if (window.updateCartFooter) window.updateCartFooter();
+                    if (window.openCheckoutModal) window.openCheckoutModal(true);
                 } else {
                     window._appliedPromo = null;
                     msg.textContent = data.error || 'קוד לא תקין או פג תוקף';
