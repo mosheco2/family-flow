@@ -303,6 +303,21 @@
                         <textarea id="general-notes" class="modern-input py-2.5 text-sm bg-white border-slate-200 h-20" placeholder="הערות מיוחדות, אלרגיות, או בקשות..."></textarea>
                     </div>
 
+                    <!-- FLOW COIN REDEMPTION WIDGET (shown only when arrived from wallet) -->
+                    <div id="flow-redeem-section" class="mt-3 hidden">
+                        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <span id="flow-redeem-balance-label" class="text-xs font-bold text-amber-700">⚡ Flw לממש</span>
+                                <button type="button" onclick="window.clearFlowRedeem()" class="text-[10px] text-slate-400 hover:text-red-500">הסר</button>
+                            </div>
+                            <div class="flex gap-2 items-center">
+                                <input type="number" id="flow-redeem-input" class="flex-1 border border-amber-300 rounded-xl px-3 py-2 text-sm font-bold text-amber-700 bg-white text-center" min="0" step="1" value="0" oninput="window.onFlowRedeemInput()">
+                                <span class="text-xs text-slate-500 shrink-0">= הנחה של <span id="flow-redeem-ils" class="font-black text-green-600">₪0</span></span>
+                            </div>
+                            <p id="flow-redeem-hint" class="text-[10px] text-amber-600 mt-1"></p>
+                        </div>
+                    </div>
+
                     <!-- PROMO CODE FIELD -->
                     <div class="mt-3" id="promo-code-section">
                         <label class="text-[10px] font-bold text-slate-400 mr-1">קוד מבצע / הטבת קהילה (אופציונלי)</label>
@@ -1927,9 +1942,13 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 discountAmount += baseTotal * (parseFloat(window._appliedPromo.discount) / 100);
             }
 
+            // Apply flow coin redemption discount
+            const flowDiscount = _flowRedeemParams.currentDiscount || 0;
+            if (flowDiscount > 0) discountAmount += flowDiscount;
+
             if (discountAmount > baseTotal) discountAmount = baseTotal;
             finalTotal = baseTotal - discountAmount;
-            return { baseTotal, originalTotal, finalTotal, discountAmount, totalQty, hasComplexItems };
+            return { baseTotal, originalTotal, finalTotal, discountAmount, totalQty, hasComplexItems, flowDiscount };
         };
 
         window.updateCartFooter = function() {
@@ -2060,6 +2079,16 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                         <span>חסכת ₪${commSavingTotal.toFixed(2)}</span>
                     </div>`);
             }
+
+            // Flow coin redemption discount line
+            const oldFlowMsg = getEl('checkout-flow-msg'); if (oldFlowMsg) oldFlowMsg.remove();
+            if (calc.flowDiscount > 0) {
+                getEl('checkout-total').parentElement.insertAdjacentHTML('afterend',
+                    `<div id="checkout-flow-msg" class="flex items-center justify-between text-xs font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 mt-1">
+                        <span>⚡ מימוש ${_flowRedeemParams.currentAmount} Flw</span>
+                        <span>הנחה ₪${calc.flowDiscount.toFixed(2)}</span>
+                    </div>`);
+            }
             
             const modalTitle = getEl('checkout-modal-title');
             const btnSubmit = getEl('btn-submit-order');
@@ -2172,6 +2201,65 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
         };
 
         window._appliedPromo = null;
+
+        // ─── FLOW COIN REDEMPTION ──────────────────────────────────────────────
+        let _flowRedeemParams = { enabled: false, balance: 0, familyGroupId: null, rate: 100, minRedeem: 100 };
+
+        (function initFlowRedeemFromUrl() {
+            const urlP = new URLSearchParams(window.location.search);
+            const flowRedeem = parseInt(urlP.get('flowRedeem') || '0');
+            const familyGroupId = urlP.get('familyGroupId');
+            if (!flowRedeem || !familyGroupId) return;
+
+            _flowRedeemParams.enabled = true;
+            _flowRedeemParams.balance = flowRedeem;
+            _flowRedeemParams.familyGroupId = familyGroupId;
+
+            // Load config (rate + minRedeem)
+            fetch(`${API}/flow/wallet/family/${familyGroupId}`)
+                .then(r => r.json())
+                .then(d => {
+                    _flowRedeemParams.rate = parseFloat(d.rate || 100);
+                    _flowRedeemParams.minRedeem = parseFloat(d.min_redeem || 100);
+                    _flowRedeemParams.balance = parseFloat(d.balance || flowRedeem);
+                    const section = document.getElementById('flow-redeem-section');
+                    if (!section) return;
+                    const bal = _flowRedeemParams.balance;
+                    const minR = _flowRedeemParams.minRedeem;
+                    const rate = _flowRedeemParams.rate;
+                    document.getElementById('flow-redeem-balance-label').textContent = `⚡ יתרה: ${Math.floor(bal)} Flw`;
+                    const input = document.getElementById('flow-redeem-input');
+                    if (input) { input.max = Math.floor(bal); input.min = 0; input.value = Math.min(Math.floor(bal), minR * Math.floor(bal / minR)) || 0; }
+                    document.getElementById('flow-redeem-hint').textContent = `כל ${rate} Flw = ₪10 הנחה · מינימום ${minR} Flw`;
+                    window.onFlowRedeemInput();
+                    section.classList.remove('hidden');
+                })
+                .catch(() => {});
+        })();
+
+        window.onFlowRedeemInput = function() {
+            const input = document.getElementById('flow-redeem-input');
+            if (!input) return;
+            const v = parseInt(input.value) || 0;
+            const rate = _flowRedeemParams.rate || 100;
+            const ils = Math.floor(v / rate) * 10;
+            const el = document.getElementById('flow-redeem-ils');
+            if (el) el.textContent = `₪${ils}`;
+            _flowRedeemParams.currentAmount = v;
+            _flowRedeemParams.currentDiscount = ils;
+            if (window.updateCartFooter) window.updateCartFooter();
+        };
+
+        window.clearFlowRedeem = function() {
+            _flowRedeemParams.currentAmount = 0;
+            _flowRedeemParams.currentDiscount = 0;
+            const input = document.getElementById('flow-redeem-input');
+            if (input) input.value = 0;
+            const el = document.getElementById('flow-redeem-ils');
+            if (el) el.textContent = '₪0';
+            document.getElementById('flow-redeem-section')?.classList.add('hidden');
+            if (window.updateCartFooter) window.updateCartFooter();
+        };
 
         function clearProductPromoBanner() {
             document.getElementById('product-promo-banner')?.remove();
@@ -2400,6 +2488,10 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const appliedPromoCode = (window._appliedPromo && window._appliedPromo.code) ? window._appliedPromo.code : null;
             const appliedPromoType = window._appliedPromo?.type || null;
 
+            const flowRedeemAmount = _flowRedeemParams.currentAmount || 0;
+            const flowRedeemDiscount = _flowRedeemParams.currentDiscount || 0;
+            const flowFamilyGroupId = _flowRedeemParams.familyGroupId || familyId;
+
             const payload = {
                 groupId: storeData.groupId,
                 customerName: val('cust-name'),
@@ -2414,7 +2506,10 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 orderType: calc.hasComplexItems ? 'quote' : 'order',
                 communityPromoCode: appliedPromoType === 'community_promo' ? appliedPromoCode : null,
                 storeCouponCode: appliedPromoType === 'store_coupon' ? appliedPromoCode : null,
-                appliedDiscountPct: window._appliedPromo?.discount || null
+                appliedDiscountPct: window._appliedPromo?.discount || null,
+                flowRedeemAmount: flowRedeemAmount > 0 ? flowRedeemAmount : null,
+                flowRedeemDiscount: flowRedeemDiscount > 0 ? flowRedeemDiscount : null,
+                flowFamilyGroupId: flowRedeemAmount > 0 ? flowFamilyGroupId : null
             };
 
             try {
@@ -2425,7 +2520,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 
                 const data = await res.json();
                 
-                if (data.success) { 
+                if (data.success) {
                     if (timeType === 'future' && targetTimeVal) {
                         try {
                             const formattedDate = targetTimeVal.replace('T', ' ') + ':00';
@@ -2433,6 +2528,22 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                                 method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ targetDatetime: formattedDate })
                             });
                         } catch(e) { console.warn("Failed to set target date"); }
+                    }
+
+                    // Deduct flow coins if redemption was applied
+                    if (flowRedeemAmount > 0 && flowFamilyGroupId) {
+                        try {
+                            await fetch(`${API}/flow/deduct`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    familyGroupId: flowFamilyGroupId,
+                                    amount: flowRedeemAmount,
+                                    description: `מימוש הנחה בחנות — הזמנה #${data.orderId}`
+                                })
+                            });
+                        } catch(e) { console.warn('Flow deduct failed', e); }
+                        _flowRedeemParams.currentAmount = 0;
+                        _flowRedeemParams.currentDiscount = 0;
                     }
 
                     try{ confetti({ particleCount: 200, spread: 90, origin: { y: 0.5 }, colors: ['#000', '#4f46e5', '#10b981'] }); } catch(e){}

@@ -3414,10 +3414,13 @@ app.get('/api/data/:userId', async (req, res) => {
         
         if (group.community_id) {
             const commBizRes = await pool.query(`
-                SELECT cb.discount_pct, cb.created_at, b.name as business_name, b.id as business_id, b.group_code, c.name as comm_name
+                SELECT cb.discount_pct, cb.created_at, b.name as business_name, b.id as business_id, b.group_code,
+                       c.name as comm_name, c.id as community_id,
+                       COALESCE(ss.logo_url, b.image_url) as logo_url
                 FROM community_businesses cb
                 JOIN family_groups b ON cb.business_id = b.id
                 JOIN communities c ON cb.community_id = c.id
+                LEFT JOIN store_settings ss ON ss.group_id = b.id
                 WHERE cb.community_id = $1 AND cb.status = 'approved'
             `, [group.community_id]);
             
@@ -10633,6 +10636,25 @@ app.post('/api/flow/redeem', async (req, res) => {
             [familyGroupId, businessGroupId, fa, discountIls, code, expiresAt]);
 
         res.json({ success: true, code, discountIls, flowSpent: fa, expiresAt });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Direct flow deduction (used after storefront order with coin discount)
+app.post('/api/flow/deduct', async (req, res) => {
+    try {
+        const { familyGroupId, amount, description } = req.body;
+        if (!familyGroupId || !amount) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        const fa = parseFloat(amount);
+        if (fa <= 0) return res.status(400).json({ error: 'כמות לא תקינה' });
+
+        const wallet = await pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='family' AND entity_id=$1`, [familyGroupId]);
+        const bal = parseFloat(wallet.rows[0]?.balance || 0);
+        if (bal < fa) return res.status(400).json({ error: `אין מספיק Flw (יש ${bal})` });
+
+        await pool.query(`UPDATE flow_wallets SET balance=balance-$1, updated_at=NOW() WHERE entity_type='family' AND entity_id=$2`, [fa, familyGroupId]);
+        await pool.query(`INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description) VALUES ('family',$1,$2,'store_redeem',$3)`, [familyGroupId, -fa, description || 'מימוש הנחה בחנות']);
+
+        res.json({ success: true, deducted: fa, remaining: bal - fa });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

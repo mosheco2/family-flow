@@ -5201,10 +5201,13 @@ function renderFlowWalletContent(data) {
     </div>
     ${expiryHtml}
     <div class="mb-4">
-        <button onclick="openFlowRedeemModal()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-2xl text-sm transition shadow-md ${!canRedeem ? 'opacity-50 pointer-events-none' : ''}">
-            🎁 ממש הנחה אצל עסק
+        <button onclick="openFlowRedeemToStore(${bal},${minR})" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-2xl text-sm transition shadow-md ${!canRedeem ? 'opacity-50 pointer-events-none' : ''}">
+            🛒 ממש הנחה בחנות עסק
         </button>
         ${!canRedeem ? `<p class="text-[10px] text-slate-400 text-center mt-1">נדרש מינימום ${minR} Flw למימוש (יש לך ${Math.floor(bal)})</p>` : ''}
+        <button onclick="openFlowRedeemModal()" class="w-full mt-2 bg-white border border-amber-300 text-amber-700 font-bold py-2 rounded-2xl text-xs transition hover:bg-amber-50">
+            🎁 קבל קוד הנחה (להציג ידנית)
+        </button>
     </div>
     <h4 class="font-bold text-slate-700 text-sm mb-2">📋 פעילות אחרונה</h4>
     <div class="space-y-2 max-h-52 overflow-y-auto">
@@ -5296,6 +5299,57 @@ window.openFlowRedeemModal = function() {
         const el = document.getElementById('redeem-ils-preview');
         if (el) el.textContent = ils;
     });
+};
+
+window.openFlowRedeemToStore = function(bal, minR) {
+    const businesses = window.communityBusinessesCache || [];
+    if (!businesses.length) {
+        showToast && showToast('info', 'אין עסקים מחוברים לקהילות שלך');
+        return;
+    }
+    const existing = getEl('flow-to-store-modal');
+    if (existing) { existing.remove(); return; }
+    const modal = document.createElement('div');
+    modal.id = 'flow-to-store-modal';
+    modal.className = 'fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-4';
+    const bizListHtml = businesses.map(b => {
+        const communityId = b.community_id || '';
+        const storeCode = b.group_code || '';
+        if (!storeCode) return '';
+        return `<button onclick="window.goToStoreWithFlow('${storeCode}','${communityId}',${Math.floor(bal)})" class="w-full flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl hover:border-amber-400 hover:bg-amber-50 transition text-right">
+            ${b.logo_url ? `<img src="${safeStr(b.logo_url)}" class="w-10 h-10 rounded-lg object-cover shrink-0">` : `<div class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0"><i class="fa-solid fa-store text-slate-400"></i></div>`}
+            <div class="flex-1 min-w-0">
+                <div class="font-bold text-slate-800 text-sm truncate">${safeStr(b.business_name || '')}</div>
+                <div class="text-xs text-slate-400">${safeStr(b.comm_name || '')}</div>
+            </div>
+            <i class="fa-solid fa-chevron-left text-slate-300 text-xs shrink-0"></i>
+        </button>`;
+    }).join('');
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div class="p-4 border-b flex justify-between items-center bg-amber-50">
+            <div>
+                <h3 class="font-black text-slate-800 text-base">🛒 בחר עסק לממש הנחה</h3>
+                <p class="text-xs text-amber-600 mt-0.5">יתרה: ${Math.floor(bal)} Flw</p>
+            </div>
+            <button onclick="getEl('flow-to-store-modal').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 space-y-2 max-h-80 overflow-y-auto">
+            ${bizListHtml || '<p class="text-sm text-slate-400 text-center py-4">לא נמצאו עסקים בקהילות שלך</p>'}
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+};
+
+window.goToStoreWithFlow = function(storeCode, communityId, flowBalance) {
+    const familyId = currentGroup?.id || '';
+    let url = `${window.location.origin}/storefront.html?store=${encodeURIComponent(storeCode)}&flowRedeem=${flowBalance}&familyGroupId=${familyId}`;
+    if (communityId) url += `&communityId=${communityId}`;
+    window.open(url, '_blank');
+    const m = getEl('flow-to-store-modal');
+    if (m) m.remove();
+    const w = getEl('fam-flow-wallet-modal');
+    if (w) w.remove();
 };
 
 window.submitFlowRedeem = async function() {
