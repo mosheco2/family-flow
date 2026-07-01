@@ -4173,6 +4173,15 @@ async function openFamPoolDetail(poolId) {
             ${bidsHtml}
             ${isOpen && !isMember && !isFamInitiator ? `<button onclick="joinFamPool(${p.id})" class="w-full py-3 rounded-xl bg-blue-500 text-white font-bold text-sm hover:bg-blue-600 transition shadow-md">🌊 הצטרף לפול</button>` : ''}
             ${isFamInitiator ? '<div class="text-xs text-blue-600 font-bold text-center py-2 bg-blue-50 rounded-xl"><i class="fa-solid fa-crown ml-1"></i>אתם יוזמי הפול — הצטרפתם אוטומטית</div>' : (isMember ? '<div class="text-xs text-green-600 font-bold text-center py-2 bg-green-50 rounded-xl"><i class="fa-solid fa-check ml-1"></i>אתם חברים בפול הזה</div>' : '')}
+            ${p.status === 'expired' && isFamInitiator ? `
+            <div class="bg-orange-50 border border-orange-200 rounded-xl p-3 space-y-2">
+                <p class="text-xs font-bold text-orange-700 text-center">⏰ הפול פג תוקף — בחר פעולה:</p>
+                <div class="flex gap-2">
+                    <button onclick="renewFamPool(${p.id})" class="flex-1 py-2 rounded-xl bg-blue-500 text-white text-xs font-bold hover:bg-blue-600 transition">🔄 חדש תוקף (7 ימים)</button>
+                    <button onclick="archiveFamPool(${p.id})" class="flex-1 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200 transition">📦 העבר לארכיב</button>
+                </div>
+                <button onclick="closeFamPool(${p.id})" class="w-full py-2 rounded-xl bg-green-50 border border-green-200 text-green-700 text-xs font-bold hover:bg-green-100 transition">✅ סגור כבוע מול עסק</button>
+            </div>` : ''}
             <div class="border-t border-slate-100 pt-3">
                 <h4 class="text-xs font-bold text-slate-600 mb-2">💬 הודעות</h4>
                 <div class="space-y-2 max-h-48 overflow-y-auto mb-3">${msgsHtml}</div>
@@ -4184,6 +4193,38 @@ async function openFamPoolDetail(poolId) {
     } catch (e) {
         body.innerHTML = `<p class="text-xs text-red-400 text-center py-8">${e.message}</p>`;
     }
+}
+async function renewFamPool(poolId) {
+    try {
+        const res = await fetch(`${API}/community/pool/${poolId}/renew`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ viewerId: currentGroup.id, days: 7 }) });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'שגיאה');
+        showToast('success', '🔄 תוקף הפול חודש ל-7 ימים!');
+        openFamPoolDetail(poolId);
+        renderFamPools();
+    } catch(e) { showToast('error', e.message); }
+}
+async function archiveFamPool(poolId) {
+    if (!confirm('להעביר את הפול לארכיב?')) return;
+    try {
+        const res = await fetch(`${API}/community/pool/${poolId}/archive`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ viewerId: currentGroup.id }) });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'שגיאה');
+        showToast('success', '📦 הפול הועבר לארכיב');
+        document.getElementById('modal-pool-detail').classList.add('hidden');
+        renderFamPools();
+    } catch(e) { showToast('error', e.message); }
+}
+async function closeFamPool(poolId) {
+    if (!confirm('לסגור את הפול כבוע מול עסק?')) return;
+    try {
+        const res = await fetch(`${API}/community/pool/${poolId}/select-bid`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ viewerId: currentGroup.id, bidId: null, closeOnly: true }) });
+        // If no bid, just update status directly
+        const res2 = await fetch(`${API}/community/pool/${poolId}/archive`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ viewerId: currentGroup.id }) });
+        showToast('success', '✅ הפול נסגר');
+        document.getElementById('modal-pool-detail').classList.add('hidden');
+        renderFamPools();
+    } catch(e) { showToast('error', e.message); }
 }
 function closePoolDetailModal() {
     document.getElementById('modal-pool-detail').classList.add('hidden');

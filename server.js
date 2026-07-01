@@ -9687,6 +9687,8 @@ app.get('/api/community/manager-data/:groupId', async (req, res) => {
         await pool.query(`ALTER TABLE communities ADD COLUMN IF NOT EXISTS interest_tags TEXT`);
         await pool.query(`ALTER TABLE community_referrals ADD COLUMN IF NOT EXISTS notes TEXT`);
         await pool.query(`ALTER TABLE community_promotions ADD COLUMN IF NOT EXISTS banner_headline TEXT`);
+        await pool.query(`ALTER TABLE community_promotions ADD COLUMN IF NOT EXISTS promo_code VARCHAR(20)`);
+        await pool.query(`ALTER TABLE community_promotions ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending'`);
         await pool.query(`
             CREATE TABLE IF NOT EXISTS community_banner_requests (
                 id SERIAL PRIMARY KEY,
@@ -18844,16 +18846,18 @@ app.post('/api/community/pool', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// רשימת פולים פעילים בקהילה
+// רשימת פולים בקהילה (כולל פגי תוקף, לא כולל סגורים/ארכיב)
 app.get('/api/community/pool/community/:communityId', async (req, res) => {
     try {
+        // עדכון אוטומטי לסטטוס 'expired' עבור פולים שפג תוקפם
+        await pool.query(`UPDATE flow_pools SET status='expired' WHERE community_id=$1 AND status IN ('open_r1','open_r2') AND expires_at <= NOW()`, [req.params.communityId]);
         const r = await pool.query(`
             SELECT fp.*, fg.name as initiator_name,
                 (SELECT COUNT(*) FROM flow_pool_members WHERE pool_id=fp.id) as member_count,
                 (SELECT COUNT(*) FROM flow_pool_bids WHERE pool_id=fp.id AND status='pending') as bid_count
             FROM flow_pools fp
             JOIN family_groups fg ON fg.id=fp.initiator_id
-            WHERE fp.community_id=$1 AND fp.status IN ('open_r1','open_r2') AND fp.expires_at > NOW()
+            WHERE fp.community_id=$1 AND fp.status NOT IN ('closed','archived')
             ORDER BY fp.created_at DESC`, [req.params.communityId]);
         res.json({ success: true, pools: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -18983,6 +18987,37 @@ app.post('/api/community/pool/:id/open-round2', async (req, res) => {
         if (!isInitiator && !isManager.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(`UPDATE flow_pools SET status='open_r2' WHERE id=$1`, [fp.id]);
         await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,'הפול נפתח לעסקים מחוץ לקהילה')`, [fp.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ארכיב פול (יוזם בלבד)
+app.post('/api/community/pool/:id/archive', async (req, res) => {
+    try {
+        const { viewerId } = req.body;
+        const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
+        if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
+        const fp = pRes.rows[0];
+        if (parseInt(viewerId) !== fp.initiator_id) return res.status(403).json({ error: 'רק היוזם יכול לארכב' });
+        await pool.query(`UPDATE flow_pools SET status='archived' WHERE id=$1`, [fp.id]);
+        await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,'הפול הועבר לארכיב')`, [fp.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// חידוש תוקף פול (יוזם בלבד)
+app.post('/api/community/pool/:id/renew', async (req, res) => {
+    try {
+        const { viewerId, days } = req.body;
+        const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
+        if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
+        const fp = pRes.rows[0];
+        if (parseInt(viewerId) !== fp.initiator_id) return res.status(403).json({ error: 'רק היוזם יכול לחדש' });
+        const newExpiry = new Date();
+        newExpiry.setDate(newExpiry.getDate() + (parseInt(days) || 7));
+        newExpiry.setHours(23, 59, 59, 0);
+        await pool.query(`UPDATE flow_pools SET status='open_r1', expires_at=$1 WHERE id=$2`, [newExpiry, fp.id]);
+        await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,$2)`, [fp.id, `תוקף הפול חודש עד ${newExpiry.toLocaleDateString('he-IL')}`]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
