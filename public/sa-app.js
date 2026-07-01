@@ -7387,11 +7387,12 @@ window.openFlowConfigPanel = async function() {
 };
 
 window.saveFlowConfig = async function() {
-    const rows = document.querySelectorAll('#flow-config-table tr[data-key]');
-    const items = Array.from(rows).map(row => ({
-        key: row.dataset.key,
-        personal_amount: parseFloat(row.querySelector('.flow-cfg-personal')?.value) || 0,
-        community_amount: parseFloat(row.querySelector('.flow-cfg-community')?.value) || 0,
+    // שורות הטבלה הראשית (tr) + תאי ה-section המיוחד (div)
+    const allElements = document.querySelectorAll('#flow-config-table [data-key]');
+    const items = Array.from(allElements).map(el => ({
+        key: el.dataset.key,
+        personal_amount: parseFloat(el.querySelector('.flow-cfg-personal')?.value) || 0,
+        community_amount: parseFloat(el.querySelector('.flow-cfg-community')?.value) || 0,
     }));
     try {
         const res = await fetch(`${API}/sa/flow/config`, {
