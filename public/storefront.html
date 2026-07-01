@@ -513,11 +513,11 @@
     <div id="booking-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl p-6 shadow-2xl relative max-h-[90vh] flex flex-col slide-up overflow-hidden">
             <button onclick="document.getElementById('booking-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition flex items-center justify-center z-10"><i class="fa-solid fa-xmark"></i></button>
-            <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-regular fa-calendar-check text-cyan-500 mr-1"></i> קביעת תור / בקשת אירוע</h3>
-            
+            <h3 id="booking-modal-title" class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-regular fa-calendar-check text-cyan-500 mr-1"></i> קביעת תור / בקשת אירוע</h3>
+
             <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 space-y-5">
                 <div>
-                    <label class="text-xs font-bold text-slate-600 block mb-2">1. מה תרצו לקבוע?</label>
+                    <label id="booking-modal-what-label" class="text-xs font-bold text-slate-600 block mb-2">1. מה תרצו לקבוע?</label>
                     <select id="book-service" class="modern-input py-3 text-sm bg-slate-50 font-bold text-cyan-700 border-cyan-100 focus:border-cyan-400">
                         <option value="">טוען שירותים...</option>
                     </select>
@@ -2535,12 +2535,26 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 dateInput.value = today;
             }
 
+            const isRestaurantType = ['restaurant', 'cafe'].includes(storeData.businessType || storeData.business_type || '');
+            // עדכן כותרת ושאלה לפי סוג עסק
+            const modalTitle = getEl('booking-modal-title');
+            const whatLabel = getEl('booking-modal-what-label');
+            if (isRestaurantType) {
+                if (modalTitle) modalTitle.innerHTML = '<i class="fa-solid fa-party-horn text-orange-500 mr-1"></i> בקשת הזמנה לאירוע / איסוף';
+                if (whatLabel) whatLabel.textContent = '1. סוג ההזמנה:';
+            } else {
+                if (modalTitle) modalTitle.innerHTML = '<i class="fa-regular fa-calendar-check text-cyan-500 mr-1"></i> קביעת תור / בקשת אירוע';
+                if (whatLabel) whatLabel.textContent = '1. מה תרצו לקבוע?';
+            }
+
             const svcSelect = getEl('book-service');
             if (svcSelect) {
                 if (storeData.calendarServices && storeData.calendarServices.length > 0) {
                     svcSelect.innerHTML = storeData.calendarServices.map(s => `<option value="${s.id}">${safeStr(s.name)} (~${s.duration_mins} דק')</option>`).join('');
                 } else {
-                    svcSelect.innerHTML = '<option value="">פגישה / תור כללי</option>';
+                    svcSelect.innerHTML = isRestaurantType
+                        ? '<option value="">אירוע / איסוף</option>'
+                        : '<option value="">פגישה / תור כללי</option>';
                 }
             }
 
