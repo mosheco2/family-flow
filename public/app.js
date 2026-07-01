@@ -1435,11 +1435,15 @@ async function loadDashboard() {
         setInterval(refreshBellBadge, 30000); refreshBellBadge();
         startMyOrdersAutoRefresh();
         try { fetchBanners(); } catch(e){}
-        try { await fetchMembers(); } catch(e){}
-        if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
-        try { await fetchData(); } catch(e){}
-        try { await fetchLoans(); } catch(e){}
-        if (_isMember) { try { await loadMemberSettings(); } catch(e){} try { applyMemberLocks(); } catch(e){} }
+        const _parallelLoads = [
+            fetchMembers().catch(()=>{}),
+            fetchData().catch(()=>{}),
+            fetchLoans().catch(()=>{})
+        ];
+        if (isAdmin) _parallelLoads.push(fetchPendingUsers().catch(()=>{}));
+        if (_isMember) _parallelLoads.push(loadMemberSettings().catch(()=>{}));
+        await Promise.all(_parallelLoads);
+        if (_isMember) { try { applyMemberLocks(); } catch(e){} }
     } catch (e) {
         showToast('error', 'שגיאה בטעינת חלק מהנתונים');
     } finally {

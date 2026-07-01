@@ -1579,6 +1579,22 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       )`); } catch(e) {}
       // ===== END LOGISTICS MODULE =====
 
+      // Performance indexes for /api/data/:userId hot path
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_users_group_id ON users(group_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_tasks_group_id ON tasks(group_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_pantry_group_id ON pantry(group_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_shopping_list_group_id ON shopping_list(group_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_sti_item_name ON shopping_trip_items(item_name)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_sti_normalized_name ON shopping_trip_items(normalized_name)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_sti_price ON shopping_trip_items(price_per_unit) WHERE price_per_unit > 0`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_quiz_bundles_created_by ON quiz_bundles(created_by)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_quiz_questions_bundle_id ON quiz_questions(bundle_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_user_assignments_user_id ON user_assignments(user_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_loans_group_id ON loans(group_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_transactions_group_id ON transactions(group_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)`); } catch(e) {}
+
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -3376,31 +3392,48 @@ app.get('/api/data/:userId', async (req, res) => {
         const adminBalRes = await pool.query("SELECT COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id = $1 AND u.role = 'ADMIN'", [group.id]);
         group.admin_total_balance = adminBalRes.rows[0].total;
 
-        const tasks = await pool.query('SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1 ORDER BY t.created_at DESC', [group.id]);
-        const pantry = await pool.query('SELECT * FROM pantry WHERE group_id = $1 ORDER BY updated_at DESC', [group.id]);
-        const shoppingList = await pool.query('SELECT sl.*, u.nickname as requester_name FROM shopping_list sl LEFT JOIN users u ON sl.requester_id = u.id WHERE sl.group_id = $1 ORDER BY sl.added_at DESC', [group.id]);
-        
-        for (let item of shoppingList.rows) {
-            const _norm = item.normalized_name || item.item_name;
-            const _words = _norm.split(' ').filter(w => w.length > 2);
-            const _kw = _words.length > 0 ? _words[0] : '';
+        // Parallel fetch of independent data
+        const [tasks, pantry, shoppingList, goals, allBundles, userBundles] = await Promise.all([
+            pool.query('SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1 ORDER BY t.created_at DESC', [group.id]),
+            pool.query('SELECT * FROM pantry WHERE group_id = $1 ORDER BY updated_at DESC', [group.id]),
+            pool.query('SELECT sl.*, u.nickname as requester_name FROM shopping_list sl LEFT JOIN users u ON sl.requester_id = u.id WHERE sl.group_id = $1 ORDER BY sl.added_at DESC', [group.id]),
+            pool.query('SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id = $1 OR g.target_user_id = $1', [user.id]),
+            pool.query(`SELECT * FROM quiz_bundles WHERE created_by = $1 OR created_by = 'SYSTEM' ORDER BY created_at DESC`, [String(user.group_id)]),
+            pool.query(`SELECT ua.*, qb.title, qb.type, qb.age_group, qb.threshold, qb.text_content, qb.reward as default_reward, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id LEFT JOIN users u ON ua.user_id = u.id WHERE ua.user_id = $1 OR $2 = 'ADMIN'`, [user.id, user.role])
+        ]);
+
+        // Batch best-price lookup (one query for all shopping items, not N queries)
+        if (shoppingList.rows.length > 0) {
+            const names = shoppingList.rows.map(i => i.item_name);
+            const norms = shoppingList.rows.map(i => i.normalized_name || i.item_name);
             const bestPriceRes = await pool.query(
-                `SELECT sti.price_per_unit, st.store_name, st.branch_name, st.trip_date, st.group_id
+                `SELECT DISTINCT ON (sti.item_name) sti.item_name, sti.normalized_name,
+                        sti.price_per_unit, st.store_name, st.branch_name, st.trip_date, st.group_id
                  FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id
-                 WHERE (sti.item_name = $1 OR sti.normalized_name = $2
-                        OR ($3 != '' AND (sti.normalized_name ILIKE $4 OR sti.item_name ILIKE $4)))
-                 AND sti.price_per_unit > 0
-                 ORDER BY sti.price_per_unit ASC LIMIT 1`,
-                [item.item_name, _norm, _kw, '%' + _kw + '%']
+                 WHERE sti.price_per_unit > 0
+                   AND (sti.item_name = ANY($1) OR sti.normalized_name = ANY($2))
+                 ORDER BY sti.item_name, sti.price_per_unit ASC`,
+                [names, norms]
             );
-            if (bestPriceRes.rows.length > 0) { const bp = bestPriceRes.rows[0]; item.best_price = { price_per_unit: bp.price_per_unit, store_name: bp.store_name || 'ספק לא ידוע', branch_name: bp.branch_name || '', trip_date: bp.trip_date, is_local: bp.group_id === group.id }; }
+            const bpMap = {};
+            for (const bp of bestPriceRes.rows) {
+                bpMap[bp.item_name] = bp;
+                if (bp.normalized_name) bpMap[bp.normalized_name] = bp;
+            }
+            for (const item of shoppingList.rows) {
+                const bp = bpMap[item.item_name] || bpMap[item.normalized_name || item.item_name];
+                if (bp) item.best_price = { price_per_unit: bp.price_per_unit, store_name: bp.store_name || 'ספק לא ידוע', branch_name: bp.branch_name || '', trip_date: bp.trip_date, is_local: bp.group_id === group.id };
+            }
         }
 
-        const goals = await pool.query('SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id = $1 OR g.target_user_id = $1', [user.id]);
-        const allBundles = await pool.query(`SELECT * FROM quiz_bundles WHERE created_by = $1 OR created_by = 'SYSTEM' ORDER BY created_at DESC`, [String(user.group_id)]);
-        const userBundles = await pool.query(`SELECT ua.*, qb.title, qb.type, qb.age_group, qb.threshold, qb.text_content, qb.reward as default_reward, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id LEFT JOIN users u ON ua.user_id = u.id WHERE ua.user_id = $1 OR $2 = 'ADMIN'`, [user.id, user.role]);
-
-        for (let b of userBundles.rows) { const qRes = await pool.query('SELECT * FROM quiz_questions WHERE bundle_id = $1', [b.bundle_id]); b.questions = qRes.rows; }
+        // Batch quiz questions (one query for all bundles, not N queries)
+        if (userBundles.rows.length > 0) {
+            const bundleIds = userBundles.rows.map(b => b.bundle_id);
+            const allQRes = await pool.query('SELECT * FROM quiz_questions WHERE bundle_id = ANY($1)', [bundleIds]);
+            const qByBundle = {};
+            for (const q of allQRes.rows) { (qByBundle[q.bundle_id] = qByBundle[q.bundle_id] || []).push(q); }
+            for (const b of userBundles.rows) { b.questions = qByBundle[b.bundle_id] || []; }
+        }
 
         let weeklyStats = null;
         if (user.role !== 'ADMIN') {
@@ -19368,6 +19401,26 @@ app.get('/api/biz/pool-archive/:bizGroupId', async (req, res) => {
 });
 
 // הפעלת השרת
-app.listen(port, () => {
+app.listen(port, async () => {
     console.log(`Server is running on port ${port}`);
+    // Create performance indexes on startup (idempotent)
+    try {
+        await Promise.all([
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_users_group_id ON users(group_id)`),
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_tasks_group_id ON tasks(group_id)`),
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_pantry_group_id ON pantry(group_id)`),
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_shopping_list_group_id ON shopping_list(group_id)`),
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_sti_item_name ON shopping_trip_items(item_name)`),
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_sti_normalized_name ON shopping_trip_items(normalized_name)`),
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_sti_price ON shopping_trip_items(price_per_unit) WHERE price_per_unit > 0`),
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_quiz_bundles_created_by ON quiz_bundles(created_by)`),
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_quiz_questions_bundle_id ON quiz_questions(bundle_id)`),
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_user_assignments_user_id ON user_assignments(user_id)`),
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id)`),
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_loans_group_id ON loans(group_id)`),
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_transactions_group_id ON transactions(group_id)`),
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)`),
+        ].map(p => p.catch(()=>{}))); // ignore if table doesn't exist yet
+        console.log('Performance indexes ensured.');
+    } catch(e) { console.warn('Index setup warning:', e.message); }
 });
