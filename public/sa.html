@@ -2178,7 +2178,15 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 </div>
             </div>
             
-            <div class="mt-6 flex justify-between items-center border-t border-slate-100 pt-4">
+            <div class="mt-4 border border-purple-100 rounded-xl p-3 bg-purple-50">
+                <div class="flex justify-between items-center mb-2">
+                    <input type="text" id="sa-users-appoint-search" oninput="filterSAUsersAppoint()" class="bg-white border border-purple-200 rounded-lg py-1 px-2 text-xs outline-none focus:border-purple-400 w-48" placeholder="חיפוש משתמש...">
+                    <h4 class="font-bold text-purple-800 text-xs"><i class="fa-solid fa-crown ml-1"></i>מינוי מנהל קהילה מרשימת משתמשים</h4>
+                </div>
+                <div id="sa-users-appoint-list" class="space-y-1.5 max-h-44 overflow-y-auto modal-scroll"></div>
+            </div>
+
+            <div class="mt-4 flex justify-between items-center border-t border-slate-100 pt-4">
                 <button onclick="deleteSACommunity()" class="text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg font-bold text-sm transition"><i class="fa-solid fa-trash"></i> מחק קהילה לגמרי</button>
                 <button onclick="document.getElementById('sa-community-modal').classList.add('hidden')" class="bg-slate-100 text-slate-600 px-6 py-2 rounded-lg font-bold hover:bg-slate-200 transition">סגור</button>
             </div>

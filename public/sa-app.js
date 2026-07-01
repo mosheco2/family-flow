@@ -2403,7 +2403,7 @@ async function openSACommunityModal(id) {
     try {
         const res = await fetch(`${API}/sa/communities/${id}/details`, { headers: { 'Authorization': saToken || '' } }); const data = await res.json();
         if(data.success) {
-            currentCommFamiliesCache = data.families || []; renderSACommFamilies();
+            currentCommFamiliesCache = data.families || []; renderSACommFamilies(); renderSAUsersAppoint();
             if(data.businesses.length === 0) { bizList.innerHTML = '<p class="text-xs text-slate-400 p-2 bg-slate-50 border border-dashed rounded-lg text-center mt-2">אין עסקים נותני הנחה.</p>'; } 
             else { bizList.innerHTML = data.businesses.map(b => `<div class="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm mb-1.5 text-xs flex justify-between items-center"><span class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-store text-slate-300"></i> ${safeStr(b.name)}<span class="font-mono text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">${safeStr(b.group_code||'')}</span></span><span class="text-green-600 font-bold bg-green-50 px-2 py-1 rounded border border-green-100">${b.discount_pct}% הנחה</span></div>`).join(''); }
         }
@@ -2428,6 +2428,28 @@ function renderSACommFamilies(query = '') {
 }
 
 function filterSACommFamilies() { const query = getEl('sa-search-comm-fam') ? getEl('sa-search-comm-fam').value : ''; renderSACommFamilies(query); }
+
+let _saUsersAppointCache = [];
+function renderSAUsersAppoint(query = '') {
+    const el = getEl('sa-users-appoint-list'); if (!el) return;
+    const commId = getEl('sa-edit-comm-id') ? getEl('sa-edit-comm-id').value : '';
+    _saUsersAppointCache = currentCommFamiliesCache.flatMap(f =>
+        (f.users || []).map(u => ({ ...u, family_name: f.name, group_id: f.id, is_manager: f.is_community_manager }))
+    );
+    let filtered = _saUsersAppointCache;
+    if (query) { const q = query.toLowerCase(); filtered = filtered.filter(u => (u.nickname||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q) || (u.family_name||'').toLowerCase().includes(q)); }
+    if (!filtered.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">אין משתמשים בקהילה</p>'; return; }
+    el.innerHTML = filtered.map(u => `
+        <div class="flex justify-between items-center bg-white rounded-lg px-3 py-2 border border-purple-100 text-xs">
+            <button onclick="setSACommunityManager(${commId},${u.group_id},${!u.is_manager})" class="text-[10px] font-bold px-2 py-0.5 rounded-lg transition ${u.is_manager ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-purple-100 text-purple-700 hover:bg-purple-200'}">${u.is_manager ? 'הסר מנהל' : 'מנה כמנהל'}</button>
+            <div class="text-right">
+                <span class="font-bold text-slate-700">${u.nickname || u.email || '—'}</span>
+                <span class="text-[10px] text-slate-400 mr-1">(${u.family_name || ''})</span>
+                ${u.is_manager ? '<span class="text-[10px] text-purple-600 font-bold mr-1">⭐ מנהל</span>' : ''}
+            </div>
+        </div>`).join('');
+}
+function filterSAUsersAppoint() { const q = getEl('sa-users-appoint-search')?.value || ''; renderSAUsersAppoint(q); }
 
 async function setSACommunityManager(commId, groupId, isManager) {
     try {

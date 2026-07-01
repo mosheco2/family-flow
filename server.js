@@ -8764,7 +8764,7 @@ app.get('/api/zone-manager/family-detail/:groupId', verifyZoneManager, async (re
         if (!fg.rows.length) return res.status(404).json({ error: 'לא נמצא' });
         const users = await pool.query(`SELECT nickname, role, email FROM users WHERE group_id=$1 ORDER BY role`, [groupId]);
         const comms = await pool.query(
-            `SELECT c.name, fc.status, fc.is_community_manager
+            `SELECT c.id, c.name, fc.status, fc.is_community_manager
              FROM family_communities fc JOIN communities c ON c.id=fc.community_id
              WHERE fc.group_id=$1`, [groupId]);
         const wallet = await pool.query(

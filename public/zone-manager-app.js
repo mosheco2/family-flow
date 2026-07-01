@@ -425,13 +425,13 @@ async function openZMAppointModal(communityId, communityName) {
     zmAppointCommunityId = communityId;
     document.getElementById('zm-appoint-comm-name').textContent = `קהילה: ${communityName}`;
     document.getElementById('zm-appoint-search').value = '';
-    document.getElementById('zm-appoint-list').innerHTML = '<p class="text-slate-400 text-sm text-center py-4">הקלד לחיפוש</p>';
+    document.getElementById('zm-appoint-list').innerHTML = '<p class="text-slate-400 text-xs text-center py-2">טוען...</p>';
     document.getElementById('zm-appoint-modal').classList.remove('hidden');
+    zmSearchMembers();
 }
 
 async function zmSearchMembers() {
     const q = document.getElementById('zm-appoint-search').value.trim();
-    if (q.length < 2) return;
     const list = document.getElementById('zm-appoint-list');
     list.innerHTML = '<p class="text-slate-400 text-xs text-center py-2">מחפש...</p>';
     try {
@@ -464,6 +464,25 @@ async function zmSetCommunityManager(groupId, isManager) {
             loadDashboard();
         }
     } catch(e) { alert('שגיאת תקשורת'); }
+}
+
+async function zmSetManagerFromFamily(groupId, communityId, isManager, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+    try {
+        const res = await fetch(`${API}/zone-manager/set-community-manager`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ groupId, communityId, isManager })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showZMToast(isManager ? '🎖️ מונה כמנהל קהילה!' : 'הוסר תפקיד מנהל');
+            loadDashboard();
+            // Refresh family detail
+            const modal = document.getElementById('zm-family-detail-modal');
+            if (modal) modal.remove();
+            openZMFamilyDetail(groupId);
+        } else { showZMToast(data.error || 'שגיאה', 'error'); if (btn) { btn.disabled = false; btn.textContent = isManager ? '🎖️ מנה מנהל' : '👑 הסר מנהל'; } }
+    } catch(e) { showZMToast('שגיאת תקשורת', 'error'); if (btn) btn.disabled = false; }
 }
 
 // ============================================================
@@ -1485,11 +1504,16 @@ async function openZMFamilyDetail(groupId) {
                 <span class="text-[10px] ${u.role==='ADMIN'?'text-blue-500 font-bold':'text-slate-400'}">${u.role==='ADMIN'?'מנהל/הורה':'חבר'}</span>
                 <span class="text-slate-700">${u.nickname || u.email || ''}</span>
             </div>`).join('') || '<p class="text-xs text-slate-400">אין משתמשים</p>';
-        const commsHtml = (data.communities || []).map(c => `
-            <div class="flex justify-between text-xs py-1">
-                <span class="${c.status==='pending'?'text-amber-500':'text-green-600'} font-bold text-[10px]">${c.status==='pending'?'⏳ ממתין':'✅ מאושר'}</span>
-                <span class="text-slate-700">${c.name}</span>
-            </div>`).join('') || '<p class="text-xs text-slate-400">אין קהילות</p>';
+        const familyGroupId = g.id;
+        const commsHtml = (data.communities || []).map(c => {
+            const isApproved = c.status === 'approved';
+            const isManager = c.is_community_manager;
+            const managerBtn = isApproved ? `<button onclick="zmSetManagerFromFamily(${familyGroupId},${c.id},${!isManager},this)" class="text-[10px] font-bold px-2 py-0.5 rounded-lg transition ${isManager ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-purple-50 text-purple-600 hover:bg-purple-100'}">${isManager ? '👑 הסר מנהל' : '🎖️ מנה מנהל'}</button>` : '';
+            return `<div class="flex justify-between items-center text-xs py-1.5 border-b border-slate-50 last:border-0">
+                <div class="flex items-center gap-2">${managerBtn}<span class="${c.status==='pending'?'text-amber-500':'text-green-600'} font-bold text-[10px]">${c.status==='pending'?'⏳ ממתין':'✅'}</span></div>
+                <span class="text-slate-700 font-medium">${c.name}</span>
+            </div>`;
+        }).join('') || '<p class="text-xs text-slate-400">אין קהילות</p>';
         document.getElementById('zm-fam-detail-body').innerHTML = `
             <div class="bg-slate-50 rounded-xl p-3 text-xs space-y-1 text-right">
                 <p><span class="text-slate-400">מייל: </span><span class="font-medium">${g.admin_email || '—'}</span></p>
