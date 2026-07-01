@@ -10160,6 +10160,29 @@ app.post('/api/biz/community/promotions/:id/banner-request', async (req, res) =>
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// Public — approved banners for community home page
+app.get('/api/community/approved-banners', async (req, res) => {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const r = await pool.query(
+            `SELECT cbr.id, cbr.banner_headline, cbr.start_date, cbr.end_date, cbr.community_id,
+             cp.title as promo_title, cp.discount_pct, cp.promo_type, cp.catalog_item_id,
+             fg.name as business_name, fg.image_url as business_logo, fg.group_code,
+             c.name as community_name
+             FROM community_banner_requests cbr
+             JOIN community_promotions cp ON cp.id = cbr.promotion_id
+             JOIN family_groups fg ON fg.id = cbr.business_id
+             JOIN communities c ON c.id = cbr.community_id
+             WHERE cbr.status = 'approved'
+               AND (cbr.start_date IS NULL OR cbr.start_date <= $1)
+               AND (cbr.end_date IS NULL OR cbr.end_date >= $1)
+             ORDER BY cbr.created_at DESC`,
+            [today]
+        );
+        res.json({ success: true, banners: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // SA sees all banner requests
 app.get('/api/sa/community/banner-requests', verifySA, async (req, res) => {
     try {

@@ -3966,7 +3966,7 @@ let myCashbackCache = []; // [{community_id, community_name, balance, total_earn
 
 function switchFamCommunityTab(tab) {
     const BASE = 'w-full h-14 flex flex-col items-center justify-center gap-0.5 px-1 rounded-xl text-[10px] font-bold overflow-hidden transition';
-    ['join', 'benefits', 'news', 'interests', 'pool', 'pool-archive'].forEach(t => {
+    ['join', 'benefits', 'promos', 'news', 'interests', 'pool', 'pool-archive'].forEach(t => {
         const view = document.getElementById(`fam-comm-view-${t}`);
         const btn = document.getElementById(`btn-fam-comm-${t}`);
         if (view) view.classList.add('hidden');
@@ -4756,8 +4756,13 @@ function renderFamilyCommunities() {
     if (isConnected) loadFamilyCommunityPromos();
 
     // Auto-switch to benefits tab only on first load (all views hidden = initial state)
-    const anyVisible = ['join','benefits','news','interests','pool','pool-archive'].some(t => !getEl(`fam-comm-view-${t}`)?.classList.contains('hidden'));
-    if (isConnected && myCommunityBusinessesCache.length > 0 && !anyVisible) {
+    const anyVisible = ['join','benefits','promos','news','interests','pool','pool-archive'].some(t => !getEl(`fam-comm-view-${t}`)?.classList.contains('hidden'));
+    // בדיקה אם חזרנו מ-community-home עם בקשת טאב ספציפי
+    const requestedTab = localStorage.getItem('ofl_open_community_tab');
+    if (requestedTab) {
+        localStorage.removeItem('ofl_open_community_tab');
+        switchFamCommunityTab(requestedTab);
+    } else if (isConnected && myCommunityBusinessesCache.length > 0 && !anyVisible) {
         switchFamCommunityTab('benefits');
     }
 }
@@ -4811,7 +4816,7 @@ async function loadCommunityFeed() {
         renderCommunityBundles(data.bundles || []);
         // Show news tab count badge if there's content
         const total = (data.promotions?.length || 0) + (data.bundles?.length || 0);
-        const countBadge = getEl('comm-news-count-badge');
+        const countBadge = getEl('comm-promos-count-badge');
         if (countBadge) {
             if (total > 0) { countBadge.textContent = total; countBadge.classList.remove('hidden'); }
             else { countBadge.classList.add('hidden'); }
