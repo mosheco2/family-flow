@@ -804,7 +804,10 @@
                 }
 
                 getEl('loading-screen').classList.add('hidden');
-                
+
+                // הפעלת widget מטבעות אם הגיע מהארנק
+                if (window._initFlowRedeemWidget) window._initFlowRedeemWidget();
+
             } catch (err) {
                 console.error("Critical store init error", err);
                 getEl('loading-screen').classList.add('hidden');
@@ -2205,7 +2208,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
         // ─── FLOW COIN REDEMPTION ──────────────────────────────────────────────
         let _flowRedeemParams = { enabled: false, balance: 0, familyGroupId: null, rate: 100, minRedeem: 100 };
 
-        (function initFlowRedeemFromUrl() {
+        function _applyFlowRedeemWidget() {
             const urlP = new URLSearchParams(window.location.search);
             const flowRedeem = parseInt(urlP.get('flowRedeem') || '0');
             const familyGroupId = urlP.get('familyGroupId');
@@ -2214,28 +2217,43 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             _flowRedeemParams.enabled = true;
             _flowRedeemParams.balance = flowRedeem;
             _flowRedeemParams.familyGroupId = familyGroupId;
+            _flowRedeemParams.currentAmount = 0;
+            _flowRedeemParams.currentDiscount = 0;
 
-            // Load config (rate + minRedeem)
+            // Show widget immediately with URL balance (before API response)
+            const section = document.getElementById('flow-redeem-section');
+            if (section) {
+                const labelEl = document.getElementById('flow-redeem-balance-label');
+                if (labelEl) labelEl.textContent = `⚡ יתרה: ${Math.floor(flowRedeem)} Flw`;
+                const input = document.getElementById('flow-redeem-input');
+                if (input) { input.max = Math.floor(flowRedeem); input.min = 0; input.value = 0; }
+                const hintEl = document.getElementById('flow-redeem-hint');
+                if (hintEl) hintEl.textContent = `כל 100 Flw = ₪10 הנחה · מינימום 100 Flw`;
+                section.classList.remove('hidden');
+            }
+
+            // Load accurate config from server in background
             fetch(`${API}/flow/wallet/family/${familyGroupId}`)
                 .then(r => r.json())
                 .then(d => {
                     _flowRedeemParams.rate = parseFloat(d.rate || 100);
                     _flowRedeemParams.minRedeem = parseFloat(d.min_redeem || 100);
                     _flowRedeemParams.balance = parseFloat(d.balance || flowRedeem);
-                    const section = document.getElementById('flow-redeem-section');
-                    if (!section) return;
                     const bal = _flowRedeemParams.balance;
                     const minR = _flowRedeemParams.minRedeem;
                     const rate = _flowRedeemParams.rate;
-                    document.getElementById('flow-redeem-balance-label').textContent = `⚡ יתרה: ${Math.floor(bal)} Flw`;
-                    const input = document.getElementById('flow-redeem-input');
-                    if (input) { input.max = Math.floor(bal); input.min = 0; input.value = Math.min(Math.floor(bal), minR * Math.floor(bal / minR)) || 0; }
-                    document.getElementById('flow-redeem-hint').textContent = `כל ${rate} Flw = ₪10 הנחה · מינימום ${minR} Flw`;
-                    window.onFlowRedeemInput();
-                    section.classList.remove('hidden');
+                    const lbl = document.getElementById('flow-redeem-balance-label');
+                    if (lbl) lbl.textContent = `⚡ יתרה: ${Math.floor(bal)} Flw`;
+                    const inp = document.getElementById('flow-redeem-input');
+                    if (inp) { inp.max = Math.floor(bal); }
+                    const hint = document.getElementById('flow-redeem-hint');
+                    if (hint) hint.textContent = `כל ${rate} Flw = ₪10 הנחה · מינימום ${minR} Flw`;
                 })
                 .catch(() => {});
-        })();
+        }
+
+        // Run after store loads (called from initStore)
+        window._initFlowRedeemWidget = _applyFlowRedeemWidget;
 
         window.onFlowRedeemInput = function() {
             const input = document.getElementById('flow-redeem-input');
