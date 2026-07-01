@@ -20392,7 +20392,7 @@ window.switchCalendarTab = function(subTab) {
     const targetView = getEl(`cal-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
     const targetBtn = getEl(`btn-cal-tab-${subTab}`); if(targetBtn) targetBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
 
-    if (subTab === 'main') {
+    if (subTab === 'main' || subTab === 'settings') {
         fetchCalendarData();
     }
 };
