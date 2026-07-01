@@ -1944,14 +1944,14 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const oldMsg = getEl('checkout-discount-msg'); if(oldMsg) oldMsg.remove();
             const oldCommMsg = getEl('checkout-community-msg'); if(oldCommMsg) oldCommMsg.remove();
 
-            if (hasPromo && totalSaving > 0) {
-                // show original (pre-community) price crossed out, combined saving
-                const crossedPrice = (calc.originalTotal + delFee).toFixed(2);
+            if (hasPromo && calc.discountAmount > 0) {
+                // crossed-out = community price (baseTotal), saving = promo only
+                const crossedPrice = (calc.baseTotal + delFee).toFixed(2);
                 getEl('checkout-total').innerHTML = `<span class="text-sm text-slate-400 line-through mr-2 font-normal">₪${crossedPrice}</span>₪${totalWithDelivery.toFixed(2)}`;
                 getEl('checkout-total').parentElement.insertAdjacentHTML('afterend',
                     `<div id="checkout-discount-msg" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 mt-1 mb-3 flex items-center justify-between gap-3">
-                        <span>🏷️ קוד מבצע ${window._appliedPromo.discount}%</span>
-                        <span>חסכת ₪${totalSaving.toFixed(2)}</span>
+                        <span>🏷️ קוד מבצע ${parseFloat(window._appliedPromo.discount).toFixed(0)}%</span>
+                        <span>חסכת ₪${calc.discountAmount.toFixed(2)}</span>
                     </div>`);
             } else if (calc.discountAmount > 0) {
                 getEl('checkout-total').innerHTML = `<span class="text-sm text-slate-400 line-through mr-2 font-normal">₪${(calc.baseTotal + delFee).toFixed(2)}</span>₪${totalWithDelivery.toFixed(2)}`;
@@ -1960,8 +1960,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 getEl('checkout-total').innerText = `₪${totalWithDelivery.toFixed(2)}`;
             }
 
-            // Community discount line (only when no promo active)
-            if (!hasPromo && storeData.communityData && storeData.communityData.discount_active && commSavingTotal > 0) {
+            // Community discount line (always when applicable)
+            if (storeData.communityData && storeData.communityData.discount_active && commSavingTotal > 0) {
                 getEl('checkout-total').parentElement.insertAdjacentHTML('afterend', `
                     <div id="checkout-community-msg" class="flex items-center justify-between text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 mt-1 mb-3">
                         <span><i class="fa-solid fa-house-flag mr-1"></i> הנחת קהילה ${storeData.communityData.discount_pct}%</span>
