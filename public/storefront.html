@@ -1803,15 +1803,17 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
         };
 
         window.calculateCartDetails = function() {
-            let baseTotal = 0; let totalQty = 0;
+            let baseTotal = 0; let originalTotal = 0; let totalQty = 0;
             let itemsForPromo = [];
             let hasComplexItems = false;
-            
+
             Object.values(cart).forEach(item => {
                 baseTotal += (item.qty * item.price);
                 totalQty += item.qty;
                 const catalogItem = storeData.catalog.find(c => String(c.id) === String(item.catalogId));
-                
+                const origPrice = (catalogItem && catalogItem.original_price) ? parseFloat(catalogItem.original_price) : item.price;
+                originalTotal += item.qty * origPrice;
+
                 if (catalogItem && catalogItem.product_type === 'complex_builder') {
                     hasComplexItems = true;
                 } else {
@@ -1861,7 +1863,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
 
             if (discountAmount > baseTotal) discountAmount = baseTotal;
             finalTotal = baseTotal - discountAmount;
-            return { baseTotal, finalTotal, discountAmount, totalQty, hasComplexItems };
+            return { baseTotal, originalTotal, finalTotal, discountAmount, totalQty, hasComplexItems };
         };
 
         window.updateCartFooter = function() {
@@ -1935,32 +1937,36 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             getEl('checkout-items').innerHTML = itemsHtml; 
             const totalWithDelivery = calc.finalTotal + delFee;
 
-            if (calc.discountAmount > 0) {
+            const hasPromo = window._appliedPromo && window._appliedPromo.discount;
+            const commSavingTotal = calc.originalTotal - calc.baseTotal;
+            const totalSaving = commSavingTotal + calc.discountAmount;
+
+            const oldMsg = getEl('checkout-discount-msg'); if(oldMsg) oldMsg.remove();
+            const oldCommMsg = getEl('checkout-community-msg'); if(oldCommMsg) oldCommMsg.remove();
+
+            if (hasPromo && totalSaving > 0) {
+                // show original (pre-community) price crossed out, combined saving
+                const crossedPrice = (calc.originalTotal + delFee).toFixed(2);
+                getEl('checkout-total').innerHTML = `<span class="text-sm text-slate-400 line-through mr-2 font-normal">₪${crossedPrice}</span>₪${totalWithDelivery.toFixed(2)}`;
+                getEl('checkout-total').parentElement.insertAdjacentHTML('afterend',
+                    `<div id="checkout-discount-msg" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 mt-1 mb-3 flex items-center justify-between gap-3">
+                        <span>🏷️ קוד מבצע ${window._appliedPromo.discount}%</span>
+                        <span>חסכת ₪${totalSaving.toFixed(2)}</span>
+                    </div>`);
+            } else if (calc.discountAmount > 0) {
                 getEl('checkout-total').innerHTML = `<span class="text-sm text-slate-400 line-through mr-2 font-normal">₪${(calc.baseTotal + delFee).toFixed(2)}</span>₪${totalWithDelivery.toFixed(2)}`;
-                const oldMsg = getEl('checkout-discount-msg'); if(oldMsg) oldMsg.remove();
                 getEl('checkout-total').parentElement.insertAdjacentHTML('afterend', `<div id="checkout-discount-msg" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 text-left w-max mr-auto mt-1 mb-3">חסכת ₪${calc.discountAmount.toFixed(2)} במבצעים!</div>`);
             } else {
                 getEl('checkout-total').innerText = `₪${totalWithDelivery.toFixed(2)}`;
-                const oldMsg = getEl('checkout-discount-msg'); if(oldMsg) oldMsg.remove();
             }
 
-            // Community discount savings line
-            const oldCommMsg = getEl('checkout-community-msg'); if(oldCommMsg) oldCommMsg.remove();
-            if (storeData.communityData && storeData.communityData.discount_active) {
-                let commSaving = 0;
-                Object.values(cart).forEach(cartItem => {
-                    const catalogItem = storeData.catalog.find(c => String(c.id) === String(cartItem.catalogId));
-                    if (catalogItem && catalogItem.original_price) {
-                        commSaving += (catalogItem.original_price - parseFloat(catalogItem.price)) * cartItem.qty;
-                    }
-                });
-                if (commSaving > 0) {
-                    getEl('checkout-total').parentElement.insertAdjacentHTML('afterend', `
-                        <div id="checkout-community-msg" class="flex items-center justify-between text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 mt-1 mb-3">
-                            <span><i class="fa-solid fa-house-flag mr-1"></i> הנחת קהילה ${storeData.communityData.discount_pct}%</span>
-                            <span>חסכת ₪${commSaving.toFixed(2)}</span>
-                        </div>`);
-                }
+            // Community discount line (only when no promo active)
+            if (!hasPromo && storeData.communityData && storeData.communityData.discount_active && commSavingTotal > 0) {
+                getEl('checkout-total').parentElement.insertAdjacentHTML('afterend', `
+                    <div id="checkout-community-msg" class="flex items-center justify-between text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 mt-1 mb-3">
+                        <span><i class="fa-solid fa-house-flag mr-1"></i> הנחת קהילה ${storeData.communityData.discount_pct}%</span>
+                        <span>חסכת ₪${commSavingTotal.toFixed(2)}</span>
+                    </div>`);
             }
             
             const modalTitle = getEl('checkout-modal-title');
