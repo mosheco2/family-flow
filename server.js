@@ -8249,7 +8249,8 @@ app.get('/api/community/family-feed/:groupId', async (req, res) => {
         // Active bundles
         const bundles = await pool.query(
             `SELECT cb.id, cb.name, cb.description, cb.discount_pct, c.name as community_name,
-             array_agg(fg.name ORDER BY fg.name) as business_names
+             array_agg(fg.name ORDER BY fg.name) as business_names,
+             array_agg(fg.image_url ORDER BY fg.name) as business_logos
              FROM community_bundles cb
              JOIN communities c ON c.id=cb.community_id
              JOIN community_bundle_businesses cbb ON cbb.bundle_id=cb.id

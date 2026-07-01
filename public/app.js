@@ -4962,21 +4962,32 @@ function renderCommunityBundles(bundles) {
     el.innerHTML = `
     <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2 mt-2">
         <span>📦</span> חבילות קהילה
-    </h4>` + bundles.map(b => `
+    </h4>` + bundles.map(b => {
+        const names = b.business_names || [];
+        const logos = b.business_logos || [];
+        const bizLogosHtml = names.map((n, i) => {
+            const logo = logos[i];
+            return logo && !logo.startsWith('data:')
+                ? `<img src="${safeStr(logo)}" title="${safeStr(n)}" class="w-8 h-8 rounded-lg object-cover border border-emerald-100 shadow-sm" onerror="this.style.display='none'">`
+                : `<div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center" title="${safeStr(n)}"><i class="fa-solid fa-store text-emerald-400 text-xs"></i></div>`;
+        }).join('');
+        return `
     <div class="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-100 rounded-2xl p-4 shadow-sm mb-3">
         <div class="flex justify-between items-start mb-1">
             <div class="font-bold text-slate-800 text-sm">${safeStr(b.name)}</div>
             ${b.discount_pct > 0 ? `<span class="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 mr-2">${b.discount_pct}% הנחה</span>` : ''}
         </div>
         ${b.description ? `<p class="text-xs text-slate-600 mt-1 leading-relaxed">${safeStr(b.description)}</p>` : ''}
-        <div class="flex flex-wrap gap-1.5 mt-2">
-            ${(b.business_names || []).map(n => `<span class="text-[10px] bg-white text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full font-bold shadow-sm">${safeStr(n)}</span>`).join('')}
+        <div class="flex items-center gap-1.5 mt-2 flex-wrap">
+            ${bizLogosHtml}
+            ${names.map(n => `<span class="text-[10px] bg-white text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full font-bold shadow-sm">${safeStr(n)}</span>`).join('')}
         </div>
         <div class="flex justify-between items-center mt-2.5 pt-2 border-t border-emerald-100">
             <span class="text-[10px] text-slate-400">${safeStr(b.community_name)}</span>
             <button onclick="purchaseCommunityBundle(${b.id},this)" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-1.5 px-4 rounded-xl transition">🛒 רכישה +18 Flw</button>
         </div>
-    </div>`).join('');
+    </div>`;
+    }).join('');
 }
 
 window.purchaseCommunityBundle = async function(bundleId, btn) {
