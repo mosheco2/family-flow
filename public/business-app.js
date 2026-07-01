@@ -14875,10 +14875,10 @@ window.openBizPoolChat = async function(poolId, poolTitle, initiatorName, initia
     if (existing) existing.remove();
     const modal = document.createElement('div');
     modal.id = 'biz-pool-chat-modal';
-    modal.className = 'fixed inset-0 bg-black/60 z-[9999] flex items-end justify-center';
-    modal.onclick = e => { if (e.target === modal) modal.remove(); };
-    modal.innerHTML = `<div class="bg-white rounded-t-3xl w-full max-w-lg flex flex-col" style="max-height:80vh">
-        <div class="flex justify-between items-center px-5 py-4 border-b shrink-0">
+    modal.className = 'fixed inset-0 bg-white z-[9999] flex flex-col overflow-hidden';
+    modal.onclick = null;
+    modal.innerHTML = `<div class="w-full max-w-lg mx-auto flex flex-col flex-1 overflow-hidden">
+        <div class="flex justify-between items-center px-5 py-4 border-b shrink-0 bg-white sticky top-0 z-10">
             <button onclick="document.getElementById('biz-pool-chat-modal').remove()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
             <div class="text-right">
                 <h3 class="font-black text-slate-800 text-sm">${safeStr(poolTitle)}</h3>
