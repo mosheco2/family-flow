@@ -3377,23 +3377,22 @@ app.post('/api/login', async (req, res) => {
 // ============================================================
 
 app.get('/api/data/:userId', async (req, res) => {
+    const _t0 = Date.now();
     try {
         const userRes = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.userId]);
         if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
         const user = userRes.rows[0];
-        
-        // עדכון last_seen + מכסת AI יומית
-        await pool.query('UPDATE users SET last_seen=NOW() WHERE id=$1', [user.id]);
-        await pool.query(`UPDATE family_groups SET ai_tokens = 10, last_token_reset = CURRENT_DATE WHERE id = $1 AND (last_token_reset IS NULL OR last_token_reset < CURRENT_DATE)`, [user.group_id]);
-        
+
+        // עדכון last_seen + מכסת AI יומית (fire-and-forget — לא מחכים)
+        pool.query('UPDATE users SET last_seen=NOW() WHERE id=$1', [user.id]).catch(()=>{});
+        pool.query(`UPDATE family_groups SET ai_tokens = 10, last_token_reset = CURRENT_DATE WHERE id = $1 AND (last_token_reset IS NULL OR last_token_reset < CURRENT_DATE)`, [user.group_id]).catch(()=>{});
+
         const groupRes = await pool.query('SELECT * FROM family_groups WHERE id = $1', [user.group_id]);
         const group = groupRes.rows[0];
 
-        const adminBalRes = await pool.query("SELECT COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id = $1 AND u.role = 'ADMIN'", [group.id]);
-        group.admin_total_balance = adminBalRes.rows[0].total;
-
-        // Parallel fetch of independent data
-        const [tasks, pantry, shoppingList, goals, allBundles, userBundles] = await Promise.all([
+        // Parallel fetch of all independent data (including admin balance)
+        const [adminBalRes, tasks, pantry, shoppingList, goals, allBundles, userBundles] = await Promise.all([
+            pool.query("SELECT COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id = $1 AND u.role = 'ADMIN'", [group.id]),
             pool.query('SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1 ORDER BY t.created_at DESC', [group.id]),
             pool.query('SELECT * FROM pantry WHERE group_id = $1 ORDER BY updated_at DESC', [group.id]),
             pool.query('SELECT sl.*, u.nickname as requester_name FROM shopping_list sl LEFT JOIN users u ON sl.requester_id = u.id WHERE sl.group_id = $1 ORDER BY sl.added_at DESC', [group.id]),
@@ -3401,29 +3400,30 @@ app.get('/api/data/:userId', async (req, res) => {
             pool.query(`SELECT * FROM quiz_bundles WHERE created_by = $1 OR created_by = 'SYSTEM' ORDER BY created_at DESC`, [String(user.group_id)]),
             pool.query(`SELECT ua.*, qb.title, qb.type, qb.age_group, qb.threshold, qb.text_content, qb.reward as default_reward, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id LEFT JOIN users u ON ua.user_id = u.id WHERE ua.user_id = $1 OR $2 = 'ADMIN'`, [user.id, user.role])
         ]);
+        group.admin_total_balance = adminBalRes.rows[0].total;
 
-        // Batch best-price lookup (one query for all shopping items, not N queries)
+        // Best-price lookup: parallel individual queries (avoids slow DISTINCT ON + full-scan)
         if (shoppingList.rows.length > 0) {
-            const names = shoppingList.rows.map(i => i.item_name);
-            const norms = shoppingList.rows.map(i => i.normalized_name || i.item_name);
-            const bestPriceRes = await pool.query(
-                `SELECT DISTINCT ON (sti.item_name) sti.item_name, sti.normalized_name,
-                        sti.price_per_unit, st.store_name, st.branch_name, st.trip_date, st.group_id
-                 FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id
-                 WHERE sti.price_per_unit > 0
-                   AND (sti.item_name = ANY($1) OR sti.normalized_name = ANY($2))
-                 ORDER BY sti.item_name, sti.price_per_unit ASC`,
-                [names, norms]
-            );
-            const bpMap = {};
-            for (const bp of bestPriceRes.rows) {
-                bpMap[bp.item_name] = bp;
-                if (bp.normalized_name) bpMap[bp.normalized_name] = bp;
-            }
-            for (const item of shoppingList.rows) {
-                const bp = bpMap[item.item_name] || bpMap[item.normalized_name || item.item_name];
-                if (bp) item.best_price = { price_per_unit: bp.price_per_unit, store_name: bp.store_name || 'ספק לא ידוע', branch_name: bp.branch_name || '', trip_date: bp.trip_date, is_local: bp.group_id === group.id };
-            }
+            await Promise.all(shoppingList.rows.map(async (item) => {
+                const _norm = item.normalized_name || item.item_name;
+                const _words = _norm.split(' ').filter(w => w.length > 2);
+                const _kw = _words.length > 0 ? _words[0] : '';
+                try {
+                    const bp = await pool.query(
+                        `SELECT sti.price_per_unit, st.store_name, st.branch_name, st.trip_date, st.group_id
+                         FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id
+                         WHERE (sti.item_name = $1 OR sti.normalized_name = $2
+                                OR ($3 != '' AND (sti.normalized_name ILIKE $4 OR sti.item_name ILIKE $4)))
+                         AND sti.price_per_unit > 0
+                         ORDER BY sti.price_per_unit ASC LIMIT 1`,
+                        [item.item_name, _norm, _kw, '%' + _kw + '%']
+                    );
+                    if (bp.rows.length > 0) {
+                        const r = bp.rows[0];
+                        item.best_price = { price_per_unit: r.price_per_unit, store_name: r.store_name || 'ספק לא ידוע', branch_name: r.branch_name || '', trip_date: r.trip_date, is_local: r.group_id === group.id };
+                    }
+                } catch(e) {}
+            }));
         }
 
         // Batch quiz questions (one query for all bundles, not N queries)
@@ -3475,14 +3475,16 @@ app.get('/api/data/:userId', async (req, res) => {
             }
         }
 
-        res.json({ 
-            user, group, tasks: tasks.rows, pantry: pantry.rows, shopping_list: shoppingList.rows, 
-            goals: goals.rows, quiz_bundles: userBundles.rows, all_bundles: allBundles.rows, 
-            weekly_stats: weeklyStats, community_updates: community_updates, community_businesses: community_businesses 
+        const _elapsed = Date.now() - _t0;
+        if (_elapsed > 500) console.warn(`[PERF] /api/data/${req.params.userId} took ${_elapsed}ms`);
+        res.json({
+            user, group, tasks: tasks.rows, pantry: pantry.rows, shopping_list: shoppingList.rows,
+            goals: goals.rows, quiz_bundles: userBundles.rows, all_bundles: allBundles.rows,
+            weekly_stats: weeklyStats, community_updates: community_updates, community_businesses: community_businesses
         });
-    } catch (e) { 
+    } catch (e) {
         console.error('Error in /api/data/:userId:', e);
-        res.status(500).json({ error: e.message }); 
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -19415,26 +19417,27 @@ app.get('/api/biz/pool-archive/:bizGroupId', async (req, res) => {
 });
 
 // הפעלת השרת
-app.listen(port, async () => {
+app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
-    // Create performance indexes on startup (idempotent)
-    try {
-        await Promise.all([
-            pool.query(`CREATE INDEX IF NOT EXISTS idx_users_group_id ON users(group_id)`),
-            pool.query(`CREATE INDEX IF NOT EXISTS idx_tasks_group_id ON tasks(group_id)`),
-            pool.query(`CREATE INDEX IF NOT EXISTS idx_pantry_group_id ON pantry(group_id)`),
-            pool.query(`CREATE INDEX IF NOT EXISTS idx_shopping_list_group_id ON shopping_list(group_id)`),
-            pool.query(`CREATE INDEX IF NOT EXISTS idx_sti_item_name ON shopping_trip_items(item_name)`),
-            pool.query(`CREATE INDEX IF NOT EXISTS idx_sti_normalized_name ON shopping_trip_items(normalized_name)`),
-            pool.query(`CREATE INDEX IF NOT EXISTS idx_sti_price ON shopping_trip_items(price_per_unit) WHERE price_per_unit > 0`),
-            pool.query(`CREATE INDEX IF NOT EXISTS idx_quiz_bundles_created_by ON quiz_bundles(created_by)`),
-            pool.query(`CREATE INDEX IF NOT EXISTS idx_quiz_questions_bundle_id ON quiz_questions(bundle_id)`),
-            pool.query(`CREATE INDEX IF NOT EXISTS idx_user_assignments_user_id ON user_assignments(user_id)`),
-            pool.query(`CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id)`),
-            pool.query(`CREATE INDEX IF NOT EXISTS idx_loans_group_id ON loans(group_id)`),
-            pool.query(`CREATE INDEX IF NOT EXISTS idx_transactions_group_id ON transactions(group_id)`),
-            pool.query(`CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)`),
-        ].map(p => p.catch(()=>{}))); // ignore if table doesn't exist yet
+    // Create performance indexes in background (non-blocking, sequential to avoid pool pressure)
+    const idxQueries = [
+        `CREATE INDEX IF NOT EXISTS idx_users_group_id ON users(group_id)`,
+        `CREATE INDEX IF NOT EXISTS idx_tasks_group_id ON tasks(group_id)`,
+        `CREATE INDEX IF NOT EXISTS idx_pantry_group_id ON pantry(group_id)`,
+        `CREATE INDEX IF NOT EXISTS idx_shopping_list_group_id ON shopping_list(group_id)`,
+        `CREATE INDEX IF NOT EXISTS idx_sti_item_name ON shopping_trip_items(item_name)`,
+        `CREATE INDEX IF NOT EXISTS idx_sti_normalized_name ON shopping_trip_items(normalized_name)`,
+        `CREATE INDEX IF NOT EXISTS idx_quiz_bundles_created_by ON quiz_bundles(created_by)`,
+        `CREATE INDEX IF NOT EXISTS idx_quiz_questions_bundle_id ON quiz_questions(bundle_id)`,
+        `CREATE INDEX IF NOT EXISTS idx_user_assignments_user_id ON user_assignments(user_id)`,
+        `CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id)`,
+        `CREATE INDEX IF NOT EXISTS idx_loans_group_id ON loans(group_id)`,
+        `CREATE INDEX IF NOT EXISTS idx_transactions_group_id ON transactions(group_id)`,
+        `CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)`,
+    ];
+    // Run sequentially after 5s delay — don't block startup or early requests
+    setTimeout(async () => {
+        for (const q of idxQueries) { try { await pool.query(q); } catch(e) {} }
         console.log('Performance indexes ensured.');
-    } catch(e) { console.warn('Index setup warning:', e.message); }
+    }, 5000);
 });
