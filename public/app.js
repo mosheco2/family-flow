@@ -4231,6 +4231,24 @@ function closePoolDetailModal() {
     document.getElementById('modal-pool-detail').classList.add('hidden');
 }
 
+async function restoreFamPool(poolId, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = 'מחזיר...'; }
+    try {
+        const res = await fetch(`${API}/community/pool/${poolId}/restore`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ viewerId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'שגיאה');
+        showToast('success', '↩️ הפול הוחזר לפולים הפעילים!');
+        loadFamPoolArchive();
+        renderFamPools();
+    } catch(e) {
+        if (btn) { btn.disabled = false; btn.textContent = '↩️ החזר לפולים הפעילים'; }
+        showToast('error', e.message);
+    }
+}
+
 async function loadFamPoolArchive() {
     const el = document.getElementById('fam-pool-archive-list');
     if (!el || !currentGroup) return;
@@ -4247,6 +4265,9 @@ async function loadFamPoolArchive() {
         const statusColor = { archived: 'bg-slate-100 text-slate-600', closed: 'bg-green-100 text-green-700', expired: 'bg-orange-100 text-orange-700' };
         el.innerHTML = pools.map(p => {
             const st = p.status;
+            const restoreBtn = st === 'archived'
+                ? `<button onclick="restoreFamPool(${p.id},this)" class="mt-3 w-full py-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold hover:bg-blue-100 transition">↩️ החזר לפולים הפעילים</button>`
+                : '';
             return `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
                 <div class="flex justify-between items-start mb-2">
                     <h4 class="font-bold text-slate-800 text-sm">${safeStr(p.title)}</h4>
@@ -4258,6 +4279,7 @@ async function loadFamPoolArchive() {
                     ${p.bids_count > 0 ? `<span><i class="fa-solid fa-gavel ml-1"></i>${p.bids_count} הצעות</span>` : ''}
                     ${p.max_price > 0 ? `<span>עד ₪${Number(p.max_price).toLocaleString()}</span>` : ''}
                 </div>
+                ${restoreBtn}
             </div>`;
         }).join('');
     } catch(e) {
@@ -4731,10 +4753,9 @@ function renderFamilyCommunities() {
     // טעינת מבצעים
     if (isConnected) loadFamilyCommunityPromos();
 
-    // Auto-switch to benefits tab when connected and there are businesses,
-    // but only if the user didn't explicitly open the join tab
-    const currentlyOnJoin = !getEl('fam-comm-view-join')?.classList.contains('hidden');
-    if (isConnected && myCommunityBusinessesCache.length > 0 && !currentlyOnJoin) {
+    // Auto-switch to benefits tab only on first load (all views hidden = initial state)
+    const anyVisible = ['join','benefits','news','interests','pool','pool-archive'].some(t => !getEl(`fam-comm-view-${t}`)?.classList.contains('hidden'));
+    if (isConnected && myCommunityBusinessesCache.length > 0 && !anyVisible) {
         switchFamCommunityTab('benefits');
     }
 }

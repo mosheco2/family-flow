@@ -19075,6 +19075,24 @@ app.post('/api/community/pool/:id/edit', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// החזרת פול מארכיב (יוזם בלבד)
+app.post('/api/community/pool/:id/restore', async (req, res) => {
+    try {
+        const { viewerId } = req.body;
+        const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
+        if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
+        const fp = pRes.rows[0];
+        if (parseInt(viewerId) !== fp.initiator_id) return res.status(403).json({ error: 'רק היוזם יכול להחזיר' });
+        if (fp.status !== 'archived') return res.status(400).json({ error: 'הפול אינו בארכיב' });
+        // פותחים מחדש עם תוקף של 7 ימים
+        const newExpiry = new Date();
+        newExpiry.setDate(newExpiry.getDate() + 7);
+        await pool.query(`UPDATE flow_pools SET status='open_r1', expires_at=$1 WHERE id=$2`, [newExpiry, fp.id]);
+        await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,'הפול הוחזר לפעילות')`, [fp.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // הודעות פול
 app.get('/api/community/pool/:id/messages', async (req, res) => {
     try {
