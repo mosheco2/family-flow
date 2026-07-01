@@ -1033,33 +1033,22 @@ window.injectBusinessUI = function() {
 
                                 <div id="restaurant-store-settings-block" class="hidden space-y-4">
                                     <h4 class="font-black text-slate-800 mb-3 mt-8">🍽️ הגדרות מסעדה / קפה</h4>
-                                    <div class="bg-orange-50 border border-orange-100 rounded-2xl p-4 space-y-4">
-                                        <label class="flex items-center gap-3 cursor-pointer">
-                                            <input type="checkbox" id="store-enable-table-booking" class="w-5 h-5 accent-orange-500 rounded" checked>
+                                    <div class="bg-orange-50 border border-orange-100 rounded-2xl p-4 space-y-3">
+                                        <p class="text-xs font-bold text-slate-500 mb-1">בחרו אילו כפתורים יוצגו בחנות הציבורית:</p>
+                                        <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition">
+                                            <input type="checkbox" id="store-enable-table-booking" class="w-5 h-5 accent-orange-500 rounded mt-0.5 shrink-0">
                                             <div>
-                                                <span class="font-bold text-slate-700 text-sm block">הצג כפתור "הזמן שולחן" בחנות הציבורית</span>
-                                                <span class="text-xs text-slate-400">לקוחות יוכלו לבקש שריון שולחן ישירות מהחנות</span>
+                                                <span class="font-bold text-slate-700 text-sm block">🪑 הזמנת שולחן</span>
+                                                <span class="text-xs text-slate-400">לקוחות יוכלו לבקש שריון שולחן על בסיס זמינות שולחנות</span>
                                             </div>
                                         </label>
-                                        <div>
-                                            <label class="text-xs font-bold text-slate-600 mb-2 block">מצב יומן הזמנות</label>
-                                            <div class="space-y-2">
-                                                <label class="flex items-start gap-2.5 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition">
-                                                    <input type="radio" name="store-booking-mode" value="appointments" checked class="mt-0.5 accent-orange-500 shrink-0">
-                                                    <div>
-                                                        <span class="text-sm font-bold text-slate-700 block">תורים רגילים</span>
-                                                        <span class="text-xs text-slate-400">לקוחות מזמינים תור / שולחן ביומן הפתוח</span>
-                                                    </div>
-                                                </label>
-                                                <label class="flex items-start gap-2.5 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition">
-                                                    <input type="radio" name="store-booking-mode" value="events_quote" class="mt-0.5 accent-orange-500 shrink-0">
-                                                    <div>
-                                                        <span class="text-sm font-bold text-slate-700 block">🎉 בקשת אירוע / קייטרינג</span>
-                                                        <span class="text-xs text-slate-400">לקוחות שולחים בקשה לאירוע עם בחירת תפריט ומספר סועדים — מגיע כהצעת מחיר לאישורך</span>
-                                                    </div>
-                                                </label>
+                                        <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition">
+                                            <input type="checkbox" id="store-enable-event-booking" class="w-5 h-5 accent-orange-500 rounded mt-0.5 shrink-0">
+                                            <div>
+                                                <span class="font-bold text-slate-700 text-sm block">🎉 הזמנת בקשת אירוע / קייטרינג</span>
+                                                <span class="text-xs text-slate-400">לקוחות שולחים בקשה לאירוע עם בחירת תפריט ומספר סועדים — מגיע כהצעת מחיר לאישורך</span>
                                             </div>
-                                        </div>
+                                        </label>
                                     </div>
                                 </div>
 
@@ -11857,7 +11846,7 @@ async function saveStoreSettings() {
             vatRate: parseFloat(document.getElementById('store-vat-rate')?.value) || 18,
             storeAlias: storeAlias,
             enableTableBooking: getChecked('store-enable-table-booking'),
-            bookingMode: (document.querySelector('input[name="store-booking-mode"]:checked')?.value) || 'appointments'
+            enableEventBooking: getChecked('store-enable-event-booking')
         };
 
         const res = await fetch(`${API}/store/settings`, {
@@ -20406,7 +20395,6 @@ window.fetchCalendarData = async function() {
             calServicesCache = data.services || [];
             if (data.settings) {
                 calSettingsCache = data.settings;
-                getEl('cal-setting-active').checked = calSettingsCache.is_active;
                 getEl('cal-setting-open').value = calSettingsCache.open_time || '09:00';
                 getEl('cal-setting-close').value = calSettingsCache.close_time || '18:00';
                 getEl('cal-setting-interval').value = calSettingsCache.interval_mins || 30;
@@ -21301,7 +21289,7 @@ window.saveCalendarSettings = async function() {
     try {
         const payload = {
             groupId: currentGroup.id,
-            isActive: getEl('cal-setting-active').checked,
+            isActive: true,
             openTime: val('cal-setting-open'),
             closeTime: val('cal-setting-close'),
             intervalMins: val('cal-setting-interval')
@@ -21425,10 +21413,9 @@ window.fetchStoreSettings = async function() {
 
             // Restaurant settings
             const tableBookingEl = getElSafe('store-enable-table-booking');
-            if (tableBookingEl) tableBookingEl.checked = data.settings.enable_table_booking !== false;
-            const bookingModeVal = data.settings.booking_mode || 'appointments';
-            const bmRadio = document.querySelector(`input[name="store-booking-mode"][value="${bookingModeVal}"]`);
-            if (bmRadio) bmRadio.checked = true;
+            if (tableBookingEl) tableBookingEl.checked = data.settings.enable_table_booking === true;
+            const eventBookingEl = getElSafe('store-enable-event-booking');
+            if (eventBookingEl) eventBookingEl.checked = data.settings.enable_event_booking === true;
         }
     } catch(e) {}
 };
@@ -23021,7 +23008,7 @@ async function saveStoreSettings() {
             vatRate: parseFloat(document.getElementById('store-vat-rate')?.value) || 18,
             storeAlias: storeAlias,
             enableTableBooking: getChecked('store-enable-table-booking'),
-            bookingMode: (document.querySelector('input[name="store-booking-mode"]:checked')?.value) || 'appointments'
+            enableEventBooking: getChecked('store-enable-event-booking')
         };
 
         const res = await fetch(`${API}/store/settings`, {

@@ -645,41 +645,55 @@
                 // סוג עסק — מהAPI (שדה camelCase)
                 const bizType = data.businessType || data.business_type || '';
                 const isRestaurant = ['restaurant', 'cafe'].includes(bizType);
-                const bookingMode = data.settings?.booking_mode || 'appointments';
-                window._storeBookingMode = bookingMode;
 
-                // [1] כפתור "הזמן שולחן" — למסעדות עם אפשרות הזמנת שולחן
-                const tableEnabled = data.settings?.enable_table_booking !== false;
-                if (isRestaurant && tableEnabled) {
-                    const tableBtn = getEl('btn-book-table');
-                    if (tableBtn) {
-                        tableBtn.classList.remove('hidden');
-                        getEl('store-contact-info')?.classList.remove('hidden');
-                    }
-                }
-
-                // [2+3] כפתור יומן — תלוי ביומן פעיל
-                try {
-                    const calRes = await fetch(`${API}/calendar/${storeData.groupId}`);
-                    const calData = await calRes.json();
-                    if (calData.success && calData.settings && calData.settings.is_active) {
-                        storeData.calendarSettings = calData.settings;
-                        storeData.calendarServices = calData.services || [];
-                        storeData.calendarEvents = calData.events || [];
-                        const bookBtn = getEl('btn-book-appointment');
-                        if (bookBtn) {
-                            bookBtn.classList.remove('hidden');
+                if (isRestaurant) {
+                    // [1] כפתור "הזמן שולחן" — לפי הגדרות החנות
+                    if (data.settings?.enable_table_booking === true) {
+                        const tableBtn = getEl('btn-book-table');
+                        if (tableBtn) {
+                            tableBtn.classList.remove('hidden');
                             getEl('store-contact-info')?.classList.remove('hidden');
-                            // מסעדה — כפתור הזמנת אירוע/קייטרינג
-                            if (isRestaurant) {
-                                bookBtn.innerHTML = '<i class="fa-solid fa-party-horn"></i> הזמנת אירוע / קייטרינג';
-                            }
-                            if (urlParams.get('action') === 'book') {
-                                setTimeout(() => window.openBookingModal && window.openBookingModal(), 800);
-                            }
                         }
                     }
-                } catch(e) { console.warn('Calendar module not active'); }
+                    // [2] כפתור "הזמנת אירוע / קייטרינג" — לפי הגדרות החנות
+                    if (data.settings?.enable_event_booking === true) {
+                        const evtBtn = getEl('btn-book-appointment');
+                        if (evtBtn) {
+                            evtBtn.classList.remove('hidden');
+                            evtBtn.innerHTML = '<i class="fa-solid fa-party-horn"></i> הזמנת אירוע / קייטרינג';
+                            getEl('store-contact-info')?.classList.remove('hidden');
+                        }
+                        // טעינת נתוני יומן לצורך פתיחת המודאל
+                        try {
+                            const calRes = await fetch(`${API}/calendar/${storeData.groupId}`);
+                            const calData = await calRes.json();
+                            if (calData.success) {
+                                storeData.calendarSettings = calData.settings;
+                                storeData.calendarServices = calData.services || [];
+                                storeData.calendarEvents = calData.events || [];
+                            }
+                        } catch(e) {}
+                    }
+                } else {
+                    // עסק שאינו מסעדה — כפתור "קביעת תור" לפי יומן פעיל
+                    try {
+                        const calRes = await fetch(`${API}/calendar/${storeData.groupId}`);
+                        const calData = await calRes.json();
+                        if (calData.success && calData.settings && calData.settings.is_active) {
+                            storeData.calendarSettings = calData.settings;
+                            storeData.calendarServices = calData.services || [];
+                            storeData.calendarEvents = calData.events || [];
+                            const bookBtn = getEl('btn-book-appointment');
+                            if (bookBtn) {
+                                bookBtn.classList.remove('hidden');
+                                getEl('store-contact-info')?.classList.remove('hidden');
+                                if (urlParams.get('action') === 'book') {
+                                    setTimeout(() => window.openBookingModal && window.openBookingModal(), 800);
+                                }
+                            }
+                        }
+                    } catch(e) { console.warn('Calendar module not active'); }
+                }
 
                 if (data.communityData) {
                     const comm = data.communityData;
@@ -2518,8 +2532,9 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
         };
 
         window.openBookingModal = async function() {
-            // מצב אירוע/קייטרינג — פתח טופס בקשת הצעת מחיר לאירוע
-            if (window._storeBookingMode === 'events_quote') {
+            // מסעדה/קפה — תמיד פותח טופס בקשת אירוע/קייטרינג
+            const _biz = storeData?.businessType || storeData?.business_type || '';
+            if (['restaurant', 'cafe'].includes(_biz)) {
                 openEventQuoteModal();
                 return;
             }
