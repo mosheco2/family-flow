@@ -2394,7 +2394,7 @@ window._reportsExportPDF = function() {
 function switchTab(t) {
     // עסקי יופי: הפנה מ-customers ל-beauty_clients
     if (t === 'customers' && currentGroup?.business_type === 'beauty') t = 'beauty_clients';
-    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','settings','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','reviews','cases','timelog','content','leads','documents'].forEach(x => {
+    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','settings','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','reviews','cases','timelog','content','leads','documents','biz-ads'].forEach(x => {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden');
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active');
     });
@@ -2501,6 +2501,7 @@ function switchTab(t) {
     if (t === 'content') try { renderProfessionalContentTab(); } catch(e) {}
     if (t === 'leads')     try { renderProfessionalLeadsTab(); } catch(e) {}
     if (t === 'documents') try { renderDocumentsTab(); } catch(e) {}
+    if (t === 'biz-ads') try { renderBizAdsTab(); } catch(e) {}
     if (t === 'reports')   try { renderUnifiedReportsTab(); } catch(e) {}
     if (t === 'reviews')               try { loadReviews(); } catch(e) {}
     if (t === 'settings')              { try { renderSettingsHub(); } catch(e) {} try { const _w = document.getElementById('biz-main-content-wrap'); if(_w) _w.scrollTop = 0; } catch(e) {} document.documentElement.scrollTop = 0; document.body.scrollTop = 0; window.scrollTo({ top: 0, behavior: 'instant' }); }
@@ -3273,6 +3274,7 @@ const ALL_TABS = [
     { id: 'logistics_reports',  name: 'דוחות לוגיסטיקה 📊' },
     { id: 'logistics_customers', name: 'מזמינים ונמענים 🤝' },
     { id: 'logistics_invoices',  name: 'חשבוניות 🧾' },
+    { id: 'biz-ads',   name: 'פרסום FLOW 📢' },
     { id: 'cases',     name: 'תיקים 📁' },
     { id: 'timelog',   name: 'שעות עבודה ⏱️' },
     { id: 'content',   name: 'תוכן האתר 🌐' },
@@ -4530,7 +4532,7 @@ const GNAV_GROUPS = {
     sales:     ['pos','sales','customers','cases','leads','deliveries','reviews','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
     inventory: ['shop','pantry','equipment','foodcost','beauty_inventory'],
     finance:   ['bank','cashflow','budget','timelog','forecast','beauty_commissions','reports'],
-    more:      ['community','surveys','content','documents','settings']
+    more:      ['community','surveys','content','documents','biz-ads','settings']
 };
 
 // שמירת האב המקורי של כל dropdown לצורך החזרה
@@ -47753,4 +47755,220 @@ window.importScannedProducts = async function() {
         } else { showToast('error', data.error || 'שגיאה בייבוא'); }
     } catch(e) { showToast('error', 'שגיאת רשת בייבוא'); }
     finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-file-import"></i> ייבא נבחרים'; } }
+};
+
+// ============================================================
+// BIZ ADS TAB — פרסום FLOW
+// ============================================================
+
+let _bizAdSlots = [];
+let _bizAdFlowBalance = 0;
+
+async function renderBizAdsTab() {
+    if (!currentGroup) return;
+    await Promise.all([
+        _loadBizAdSlots(),
+        _loadBizAdOrders(),
+        _loadBizBilling()
+    ]);
+}
+
+async function _loadBizAdSlots() {
+    try {
+        const communityIds = currentGroup._communityIds || [];
+        const communityId = communityIds[0] || '';
+        const url = `${API}/biz/banner/slots${communityId ? '?communityId='+communityId : ''}`;
+        const r = await fetch(url);
+        const d = await r.json();
+        _bizAdSlots = d.success ? d.slots : [];
+
+        const walletR = await fetch(`${API}/flow/wallet/business/${currentGroup.id}`);
+        const walletD = await walletR.json();
+        _bizAdFlowBalance = parseFloat(walletD.balance || 0);
+
+        const slotSel = document.getElementById('biz-ads-slot');
+        if (!slotSel) return;
+        slotSel.innerHTML = '<option value="">בחר שטח פרסום...</option>' +
+            _bizAdSlots.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        bizAdsCalc();
+    } catch(e) {}
+}
+
+window.bizAdsCalc = function() {
+    const slotId = parseInt(document.getElementById('biz-ads-slot')?.value);
+    const durationSel = document.getElementById('biz-ads-duration');
+    const method = document.getElementById('biz-ads-method')?.value || 'mixed';
+    const resultEl = document.getElementById('biz-ads-calc-result');
+    if (!resultEl) return;
+
+    const slot = _bizAdSlots.find(s => s.id === slotId);
+    if (!slot) {
+        if (durationSel) durationSel.innerHTML = '<option value="">בחר תקופה...</option>';
+        resultEl.classList.add('hidden');
+        return;
+    }
+
+    // populate durations
+    if (durationSel) {
+        const curDur = durationSel.value;
+        durationSel.innerHTML = '<option value="">בחר תקופה...</option>' +
+            (slot.pricing||[]).map(p => `<option value="${p.duration_days}" ${curDur==p.duration_days?'selected':''}>${p.duration_days} ימים</option>`).join('');
+    }
+
+    const duration = parseInt(durationSel?.value);
+    if (!duration) { resultEl.classList.add('hidden'); return; }
+
+    const pricing = (slot.pricing||[]).find(p => p.duration_days === duration);
+    if (!pricing) { resultEl.classList.add('hidden'); return; }
+
+    const maxCoins = parseFloat(pricing.price_coins);
+    const priceIls = parseFloat(pricing.price_ils);
+    let coinsUsed = 0, cashAmount = 0;
+
+    if (method === 'coins') {
+        coinsUsed = maxCoins;
+        cashAmount = 0;
+    } else if (method === 'cash') {
+        coinsUsed = 0;
+        cashAmount = priceIls;
+    } else {
+        coinsUsed = Math.min(_bizAdFlowBalance, maxCoins);
+        const coinsValueIls = maxCoins > 0 ? (coinsUsed / maxCoins) * priceIls : 0;
+        cashAmount = Math.max(0, priceIls - coinsValueIls);
+    }
+
+    const notEnough = method === 'coins' && _bizAdFlowBalance < maxCoins;
+    resultEl.classList.remove('hidden');
+    resultEl.innerHTML = `
+        <div class="flex items-center justify-between">
+            <span class="text-slate-600 font-bold">יתרת מטבעות שלך</span>
+            <span class="font-black text-purple-700">🪙 ${_bizAdFlowBalance.toFixed(0)}</span>
+        </div>
+        <div class="flex items-center justify-between">
+            <span class="text-slate-600 font-bold">מחיר מלא</span>
+            <span class="font-black text-slate-700">🪙${maxCoins} / ₪${priceIls}</span>
+        </div>
+        <hr class="border-purple-200">
+        <div class="flex items-center justify-between">
+            <span class="text-slate-600 font-bold">מטבעות לניכוי</span>
+            <span class="font-black ${notEnough ? 'text-red-600' : 'text-purple-700'}">🪙 ${coinsUsed.toFixed(0)}</span>
+        </div>
+        <div class="flex items-center justify-between">
+            <span class="text-slate-600 font-bold">תשלום כספי</span>
+            <span class="font-black text-slate-700">₪ ${cashAmount.toFixed(2)}</span>
+        </div>
+        ${notEnough ? `<p class="text-xs text-red-500 font-bold text-center">⚠️ יתרת מטבעות לא מספיקה (חסרים ${(maxCoins-_bizAdFlowBalance).toFixed(0)} 🪙)</p>` : ''}
+    `;
+};
+
+window.submitBizAdOrder = async function() {
+    const slotId = parseInt(document.getElementById('biz-ads-slot')?.value);
+    const duration = parseInt(document.getElementById('biz-ads-duration')?.value);
+    const method = document.getElementById('biz-ads-method')?.value || 'mixed';
+    const notes = document.getElementById('biz-ads-notes')?.value || '';
+    if (!slotId || !duration) return showToast('error', 'נא לבחור שטח פרסום ותקופה');
+
+    const btn = document.getElementById('btn-submit-biz-ad');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...'; }
+    try {
+        const r = await fetch(`${API}/biz/banner/orders`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ business_id: currentGroup.id, slot_id: slotId, duration_days: duration, payment_method: method, notes, community_ids: [] })
+        });
+        const d = await r.json();
+        if (d.success) {
+            showToast('success', 'בקשת פרסום נשלחה! נחזור אליך בקרוב.');
+            document.getElementById('biz-ads-slot').value = '';
+            document.getElementById('biz-ads-duration').innerHTML = '<option value="">בחר תקופה...</option>';
+            document.getElementById('biz-ads-notes').value = '';
+            document.getElementById('biz-ads-calc-result').classList.add('hidden');
+            _loadBizAdOrders();
+        } else showToast('error', d.error || 'שגיאה בשליחה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+    finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שלח בקשת פרסום'; } }
+};
+
+async function _loadBizAdOrders() {
+    const el = document.getElementById('biz-ads-orders-list');
+    if (!el || !currentGroup) return;
+    try {
+        const r = await fetch(`${API}/biz/banner/orders?business_id=${currentGroup.id}`);
+        const d = await r.json();
+        if (!d.success || !d.orders.length) { el.innerHTML = '<p class="text-slate-400 text-xs text-center py-3">אין הזמנות עדיין</p>'; return; }
+        const stLabel = { pending_approval:'ממתין לאישור', active:'פעיל 🟢', expired:'הסתיים', cancelled:'בוטל', pending_payment:'ממתין לתשלום' };
+        const stColor = { pending_approval:'amber', active:'green', expired:'slate', cancelled:'red', pending_payment:'blue' };
+        el.innerHTML = d.orders.map(o => {
+            const sc = stColor[o.status] || 'slate';
+            const sl = stLabel[o.status] || o.status;
+            const dates = o.start_date ? `${new Date(o.start_date).toLocaleDateString('he-IL')} — ${new Date(o.end_date).toLocaleDateString('he-IL')}` : '';
+            return `<div class="border border-slate-100 rounded-xl p-3 bg-slate-50">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="font-bold text-slate-800 text-xs">${o.slot_name||''}</span>
+                    <span class="text-[10px] bg-${sc}-100 text-${sc}-700 font-bold px-2 py-0.5 rounded-full">${sl}</span>
+                </div>
+                <p class="text-[10px] text-slate-500">${o.duration_days} ימים · 🪙${o.coins_used} + ₪${o.cash_amount}</p>
+                ${dates ? `<p class="text-[10px] text-slate-400">${dates}</p>` : ''}
+            </div>`;
+        }).join('');
+    } catch(e) {}
+}
+
+async function _loadBizBilling() {
+    const el = document.getElementById('biz-billing-list');
+    if (!el || !currentGroup) return;
+    try {
+        const r = await fetch(`${API}/biz/billing?business_id=${currentGroup.id}`);
+        const d = await r.json();
+        if (!d.records?.length) { el.innerHTML = '<p class="text-slate-400 text-xs text-center py-3">אין רשומות</p>'; return; }
+        const stLabel = { unpaid:'לא שולם', paid:'שולם ✓', pending_confirm:'ממתין לאישור SA', partial:'חלקי' };
+        const stColor = { unpaid:'red', paid:'green', pending_confirm:'amber', partial:'orange' };
+        const methodLabel = { coins:'מטבעות', cash:'כספי', mixed:'מעורב', credit_card:'אשראי' };
+        el.innerHTML = d.records.map(b => {
+            const sc = stColor[b.payment_status] || 'slate';
+            const sl = stLabel[b.payment_status] || b.payment_status;
+            const confirmBtn = b.payment_status === 'unpaid' && b.cash_amount > 0
+                ? `<button onclick="openBizPaymentConfirm(${b.id},'${(b.description||'').replace(/'/g,"\\'")}',${b.cash_amount})" class="text-[10px] bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-1 rounded-full transition mt-1">אשר תשלום ✍</button>`
+                : '';
+            const sigLine = b.signature_data
+                ? `<p class="text-[10px] text-blue-500">✍ חתמת: ${b.signature_data}</p>`
+                : '';
+            return `<div class="border border-slate-100 rounded-xl p-3 bg-white">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="font-bold text-slate-800 text-xs">${b.description||b.slot_name||'פרסום'}</span>
+                    <span class="text-[10px] bg-${sc}-100 text-${sc}-700 font-bold px-2 py-0.5 rounded-full">${sl}</span>
+                </div>
+                <p class="text-[10px] text-slate-500">${new Date(b.created_at).toLocaleDateString('he-IL')} · ${methodLabel[b.payment_method]||b.payment_method||''} · 🪙${b.coins_used} + ₪${b.cash_amount}</p>
+                ${sigLine}
+                ${confirmBtn}
+            </div>`;
+        }).join('');
+    } catch(e) {}
+}
+
+window.openBizPaymentConfirm = function(billingId, desc, cashAmount) {
+    document.getElementById('biz-payment-billing-id').value = billingId;
+    document.getElementById('biz-payment-desc').textContent = desc;
+    document.getElementById('biz-payment-amount').textContent = `₪${parseFloat(cashAmount).toFixed(2)}`;
+    document.getElementById('biz-payment-signature').value = '';
+    document.getElementById('biz-payment-confirm-modal').classList.remove('hidden');
+};
+
+window.confirmBizPayment = async function() {
+    const billingId = document.getElementById('biz-payment-billing-id').value;
+    const sig = document.getElementById('biz-payment-signature').value.trim();
+    if (!sig) return showToast('error', 'נא לרשום שמך המלא כחתימה');
+    try {
+        const r = await fetch(`${API}/biz/billing/${billingId}/confirm`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ business_id: currentGroup.id, signature_data: sig })
+        });
+        const d = await r.json();
+        if (d.success) {
+            showToast('success', 'תשלום אושר בהצלחה! 🎉');
+            document.getElementById('biz-payment-confirm-modal').classList.add('hidden');
+            _loadBizBilling();
+        } else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };

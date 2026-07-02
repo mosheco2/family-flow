@@ -2484,6 +2484,76 @@
                 <div id="content-logistics_tracking" class="hidden px-2 pt-2"></div>
                 <div id="content-logistics_reports" class="hidden px-2 pt-2"></div>
 
+                <!-- BIZ ADS TAB -->
+                <div id="content-biz-ads" class="hidden px-2 pt-2 pb-20 space-y-4">
+                    <!-- מחשבון + הזמנה -->
+                    <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-5">
+                        <h3 class="font-black text-slate-800 text-base flex items-center gap-2 mb-4"><i class="fa-solid fa-rectangle-ad text-purple-500"></i> מחשבון פרסום FLOW</h3>
+                        <div class="space-y-3 mb-4">
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">שטח פרסום</label>
+                                <select id="biz-ads-slot" onchange="bizAdsCalc()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+                                    <option value="">בחר שטח פרסום...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">תקופת פרסום</label>
+                                <select id="biz-ads-duration" onchange="bizAdsCalc()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+                                    <option value="">בחר תקופה...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">אופן תשלום</label>
+                                <select id="biz-ads-method" onchange="bizAdsCalc()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+                                    <option value="mixed">מעורב (מטבעות + מזומן)</option>
+                                    <option value="coins">מטבעות בלבד</option>
+                                    <option value="cash">כספי בלבד</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="biz-ads-calc-result" class="hidden bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl p-4 mb-4 space-y-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">הערות (אופציונלי)</label>
+                            <textarea id="biz-ads-notes" rows="2" placeholder="הערות לצוות..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400 resize-none"></textarea>
+                        </div>
+                        <button onclick="submitBizAdOrder()" id="btn-submit-biz-ad" class="mt-4 w-full bg-purple-600 hover:bg-purple-700 text-white font-black py-3 rounded-2xl transition flex items-center justify-center gap-2 text-sm">
+                            <i class="fa-solid fa-paper-plane"></i> שלח בקשת פרסום
+                        </button>
+                    </div>
+
+                    <!-- הזמנות פרסום של העסק -->
+                    <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-5">
+                        <h3 class="font-black text-slate-800 text-base flex items-center gap-2 mb-3"><i class="fa-solid fa-list-check text-indigo-500"></i> ההזמנות שלי</h3>
+                        <div id="biz-ads-orders-list" class="space-y-2"></div>
+                    </div>
+
+                    <!-- כרטסת עלויות -->
+                    <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-5">
+                        <h3 class="font-black text-slate-800 text-base flex items-center gap-2 mb-3"><i class="fa-solid fa-receipt text-green-500"></i> כרטסת עלויות</h3>
+                        <div id="biz-billing-list" class="space-y-2"></div>
+                    </div>
+                </div>
+
+                <!-- modal: אישור תשלום + חתימה -->
+                <div id="biz-payment-confirm-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+                    <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm p-6">
+                        <h3 class="text-lg font-black text-slate-800 mb-1">אישור תשלום</h3>
+                        <p class="text-sm text-slate-500 mb-4" id="biz-payment-desc"></p>
+                        <input type="hidden" id="biz-payment-billing-id">
+                        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-4">
+                            <p class="text-xs text-amber-700 font-bold mb-2">סכום לתשלום: <span id="biz-payment-amount" class="text-amber-900"></span></p>
+                            <p class="text-xs text-amber-600">מטבעות כבר נוכו אוטומטית. יש לאשר שהתשלום הכספי בוצע.</p>
+                        </div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">חתימה דיגיטלית — שם מלא</label>
+                        <input type="text" id="biz-payment-signature" placeholder="הקלד את שמך המלא לאישור" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-4 focus:outline-none focus:border-purple-400">
+                        <div class="flex gap-3">
+                            <button onclick="confirmBizPayment()" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-xl transition text-sm">אשר תשלום ✍</button>
+                            <button onclick="document.getElementById('biz-payment-confirm-modal').classList.add('hidden')" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-xl transition text-sm">ביטול</button>
+                        </div>
+                    </div>
+                </div>
+
                 </div>
 
                 <!-- Survey Builder Modal -->
@@ -3759,7 +3829,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=135" defer></script>
+    <script src="business-app.js?v=136" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
