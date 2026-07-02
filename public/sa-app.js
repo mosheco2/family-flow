@@ -382,7 +382,8 @@ window.switchViewTab = function(viewId, tabId) {
         activeBtn.style.border = '1px solid #4338ca';
     }
     // trigger data loads for specific sub-tabs
-    if (viewId === 'adslots' && tabId === 'slots') { try { loadBannerSlotsPanel(); } catch(e) {} }
+    if (viewId === 'adslots' && tabId === 'slots') { /* preloader/cloudinary sub-tab, no data load */ }
+    if (viewId === 'adslots' && tabId === 'manage') { try { loadBannerSlotsPanel(); } catch(e) {} }
     if (viewId === 'adslots' && tabId === 'orders') { try { loadBannerOrders(); } catch(e) {} }
     if (viewId === 'finance' && tabId === 'adsbilling') { try { loadBillingOverview(); } catch(e) {} }
 };
@@ -7880,7 +7881,7 @@ let _allCommunitiesForBanner = [];
 const _origRenderAdSlots = window.renderAdSlotsPanel;
 window.renderAdSlotsPanel = async function() {
     if (_origRenderAdSlots) await _origRenderAdSlots();
-    switchViewTab('adslots', 'slots');
+    switchViewTab('adslots', 'manage');
     loadBannerSlotsPanel();
 };
 
@@ -7923,6 +7924,12 @@ async function loadBannerSlotsPanel() {
     } catch(e) { el.innerHTML = `<p class="text-red-500 text-xs text-center py-4">שגיאה: ${e.message}</p>`; }
 }
 
+function _showBannerSlotModal() {
+    const modal = document.getElementById('banner-slot-modal');
+    document.body.appendChild(modal);
+    modal.classList.remove('hidden');
+}
+
 window.openNewBannerSlotModal = function() {
     document.getElementById('bsm-id').value = '';
     document.getElementById('bsm-name').value = '';
@@ -7933,7 +7940,8 @@ window.openNewBannerSlotModal = function() {
     document.getElementById('banner-slot-modal-title').textContent = 'שטח פרסום חדש';
     _renderBsmCommunities([]);
     _renderBsmPricing([{duration_days:7,price_coins:100,price_ils:50},{duration_days:30,price_coins:350,price_ils:175}]);
-    document.getElementById('banner-slot-modal').classList.remove('hidden');
+    _renderBsmCommPricing([]);
+    _showBannerSlotModal();
 };
 
 window.openEditBannerSlotModal = function(id) {
@@ -7947,8 +7955,11 @@ window.openEditBannerSlotModal = function(id) {
     document.getElementById('bsm-ils').value = s.base_price_ils;
     document.getElementById('banner-slot-modal-title').textContent = 'עריכת שטח פרסום';
     _renderBsmCommunities(s.communities ? s.communities.map(c=>c.id) : []);
-    _renderBsmPricing(s.pricing || []);
-    document.getElementById('banner-slot-modal').classList.remove('hidden');
+    const durPricing = (s.pricing||[]).filter(p => !p.community_count || p.community_count === 0);
+    const commPricing = (s.pricing||[]).filter(p => p.community_count > 0);
+    _renderBsmPricing(durPricing);
+    _renderBsmCommPricing(commPricing);
+    _showBannerSlotModal();
 };
 
 function _renderBsmCommunities(selectedIds) {
@@ -7991,6 +8002,29 @@ window.addPricingRow = function() {
     container.appendChild(div);
 };
 
+function _renderBsmCommPricing(rows) {
+    const container = document.getElementById('bsm-comm-pricing-rows');
+    if (!container) return;
+    container.innerHTML = (rows||[]).map((p,i) => `
+        <div class="flex gap-2 items-center comm-pricing-row" data-idx="${i}">
+            <input type="number" min="1" value="${p.community_count||''}" placeholder="מספר" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-16 cp-count focus:outline-none">
+            <input type="number" min="0" value="${p.price_coins||''}" placeholder="🪙" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-20 cp-coins focus:outline-none">
+            <input type="number" min="0" step="0.01" value="${p.price_ils||''}" placeholder="₪" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-20 cp-ils focus:outline-none">
+            <button onclick="this.closest('.comm-pricing-row').remove()" class="text-red-400 hover:text-red-600 text-xs">✕</button>
+        </div>`).join('');
+}
+
+window.addCommPricingRow = function() {
+    const container = document.getElementById('bsm-comm-pricing-rows');
+    const div = document.createElement('div');
+    div.className = 'flex gap-2 items-center comm-pricing-row';
+    div.innerHTML = `<input type="number" min="1" placeholder="מספר" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-16 cp-count focus:outline-none">
+        <input type="number" min="0" placeholder="🪙" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-20 cp-coins focus:outline-none">
+        <input type="number" min="0" step="0.01" placeholder="₪" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-20 cp-ils focus:outline-none">
+        <button onclick="this.closest('.comm-pricing-row').remove()" class="text-red-400 hover:text-red-600 text-xs">✕</button>`;
+    container.appendChild(div);
+};
+
 window.saveBannerSlot = async function() {
     const id = document.getElementById('bsm-id').value;
     const name = document.getElementById('bsm-name').value.trim();
@@ -7998,11 +8032,19 @@ window.saveBannerSlot = async function() {
     if (!name || !location_key) return showToast('error', 'שם ומיקום חובה');
 
     const community_ids = Array.from(document.querySelectorAll('.bsm-com-cb:checked')).map(cb=>parseInt(cb.value));
-    const pricing = Array.from(document.querySelectorAll('.pricing-row')).map(row => ({
+    const durPricing = Array.from(document.querySelectorAll('.pricing-row')).map(row => ({
         duration_days: parseInt(row.querySelector('.pr-dur').value) || 0,
         price_coins: parseFloat(row.querySelector('.pr-coins').value) || 0,
-        price_ils: parseFloat(row.querySelector('.pr-ils').value) || 0
+        price_ils: parseFloat(row.querySelector('.pr-ils').value) || 0,
+        community_count: 0
     })).filter(p => p.duration_days > 0);
+    const commPricing = Array.from(document.querySelectorAll('.comm-pricing-row')).map(row => ({
+        duration_days: 0,
+        community_count: parseInt(row.querySelector('.cp-count').value) || 0,
+        price_coins: parseFloat(row.querySelector('.cp-coins').value) || 0,
+        price_ils: parseFloat(row.querySelector('.cp-ils').value) || 0
+    })).filter(p => p.community_count > 0);
+    const pricing = [...durPricing, ...commPricing];
 
     try {
         let slotId = id;

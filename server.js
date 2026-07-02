@@ -19550,10 +19550,11 @@ app.get('/api/biz/pool-archive/:bizGroupId', async (req, res) => {
             CREATE TABLE IF NOT EXISTS banner_pricing (
                 id SERIAL PRIMARY KEY,
                 slot_id INT REFERENCES banner_slots(id) ON DELETE CASCADE,
-                duration_days INT NOT NULL,
+                duration_days INT NOT NULL DEFAULT 0,
+                community_count INT NOT NULL DEFAULT 0,
                 price_coins NUMERIC(10,2) NOT NULL,
                 price_ils NUMERIC(10,2) NOT NULL,
-                UNIQUE(slot_id, duration_days)
+                UNIQUE(slot_id, duration_days, community_count)
             );
             CREATE TABLE IF NOT EXISTS banner_orders (
                 id SERIAL PRIMARY KEY,
@@ -19597,6 +19598,12 @@ app.get('/api/biz/pool-archive/:bizGroupId', async (req, res) => {
             );
         `);
         // seed default slots if none exist
+        // migrate: add community_count column if missing
+        await pool.query(`ALTER TABLE banner_pricing ADD COLUMN IF NOT EXISTS community_count INT NOT NULL DEFAULT 0`).catch(()=>{});
+        // migrate: update unique constraint to include community_count
+        await pool.query(`ALTER TABLE banner_pricing DROP CONSTRAINT IF EXISTS banner_pricing_slot_id_duration_days_key`).catch(()=>{});
+        await pool.query(`ALTER TABLE banner_pricing ADD CONSTRAINT banner_pricing_slot_dur_comm_key UNIQUE (slot_id, duration_days, community_count)`).catch(()=>{});
+
         const existing = await pool.query(`SELECT COUNT(*) as c FROM banner_slots`);
         if (parseInt(existing.rows[0].c) === 0) {
             await pool.query(`
@@ -19609,13 +19616,13 @@ app.get('/api/biz/pool-archive/:bizGroupId', async (req, res) => {
             const slots = await pool.query(`SELECT id FROM banner_slots ORDER BY id`);
             for (const slot of slots.rows) {
                 await pool.query(`
-                    INSERT INTO banner_pricing (slot_id, duration_days, price_coins, price_ils) VALUES
-                    ($1, 7,  100, 50),
-                    ($1, 14, 180, 90),
-                    ($1, 30, 350, 175),
-                    ($1, 60, 600, 300),
-                    ($1, 90, 800, 400)
-                    ON CONFLICT (slot_id, duration_days) DO NOTHING;
+                    INSERT INTO banner_pricing (slot_id, duration_days, community_count, price_coins, price_ils) VALUES
+                    ($1, 7,  0, 100, 50),
+                    ($1, 14, 0, 180, 90),
+                    ($1, 30, 0, 350, 175),
+                    ($1, 60, 0, 600, 300),
+                    ($1, 90, 0, 800, 400)
+                    ON CONFLICT (slot_id, duration_days, community_count) DO NOTHING;
                 `, [slot.id]);
             }
         }
@@ -19634,7 +19641,7 @@ app.get('/api/sa/banner/slots', async (req, res) => {
             SELECT bsc.slot_id, c.id, c.name FROM banner_slot_communities bsc
             JOIN communities c ON c.id=bsc.community_id ORDER BY c.name
         `);
-        const pricing = await pool.query(`SELECT * FROM banner_pricing ORDER BY slot_id, duration_days`);
+        const pricing = await pool.query(`SELECT * FROM banner_pricing ORDER BY slot_id, community_count, duration_days`);
         const comMap = {};
         communities.rows.forEach(r => { if (!comMap[r.slot_id]) comMap[r.slot_id]=[]; comMap[r.slot_id].push({id:r.id,name:r.name}); });
         const pricMap = {};
@@ -19688,14 +19695,18 @@ app.put('/api/sa/banner/slots/:id/communities', async (req, res) => {
 app.put('/api/sa/banner/slots/:id/pricing', async (req, res) => {
     try {
         const slotId = parseInt(req.params.id);
-        const { pricing } = req.body; // [{duration_days, price_coins, price_ils}]
+        const { pricing } = req.body;
         if (!Array.isArray(pricing)) return res.status(400).json({error:'pricing must be array'});
+        // delete existing pricing for this slot then reinsert (simpler than upsert with 3-col key)
+        await pool.query(`DELETE FROM banner_pricing WHERE slot_id=$1`, [slotId]);
         for (const p of pricing) {
+            const durDays = parseInt(p.duration_days) || 0;
+            const commCount = parseInt(p.community_count) || 0;
             await pool.query(
-                `INSERT INTO banner_pricing (slot_id,duration_days,price_coins,price_ils)
-                 VALUES ($1,$2,$3,$4)
-                 ON CONFLICT (slot_id,duration_days) DO UPDATE SET price_coins=$3,price_ils=$4`,
-                [slotId, p.duration_days, p.price_coins, p.price_ils]
+                `INSERT INTO banner_pricing (slot_id,duration_days,community_count,price_coins,price_ils)
+                 VALUES ($1,$2,$3,$4,$5)
+                 ON CONFLICT (slot_id,duration_days,community_count) DO UPDATE SET price_coins=$4,price_ils=$5`,
+                [slotId, durDays, commCount, p.price_coins, p.price_ils]
             );
         }
         res.json({success:true});
