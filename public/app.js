@@ -197,20 +197,22 @@ async function fetchAds() {
 
 function renderAdSlot(slotKey, imgEl, linkEl, wrapEl, placeholderEl) {
     const slot = _adsCache && _adsCache[slotKey];
-    if (slot && slot.active && slot.img) {
+    const hasAd = slot && slot.active && slot.img;
+    // container always visible
+    if(wrapEl) wrapEl.classList.remove('hidden');
+    if(hasAd) {
         if(imgEl) imgEl.src = slot.img;
-        if(linkEl) { linkEl.href = slot.link || '#'; }
-        if(wrapEl) wrapEl.classList.remove('hidden');
+        if(linkEl) { linkEl.href = slot.link || '#'; linkEl.classList.remove('hidden'); }
         if(placeholderEl) placeholderEl.classList.add('hidden');
     } else {
-        if(wrapEl) wrapEl.classList.add('hidden');
+        if(linkEl) linkEl.classList.add('hidden');
         if(placeholderEl) placeholderEl.classList.remove('hidden');
     }
 }
 
 function applyAdsToDOM(slots) {
     _adsCache = slots;
-    // preloader splash
+    // preloader splash — only show when active (can't show placeholder on full-screen loader)
     const splashAd = getEl('preloader-splash-ad');
     if(slots.splash && slots.splash.active && slots.splash.img) {
         const si = getEl('preloader-splash-img'); if(si) si.src = slots.splash.img;
@@ -220,10 +222,10 @@ function applyAdsToDOM(slots) {
     // balance side
     renderAdSlot('balance_side', getEl('ad-slot-balance-side-img'), getEl('ad-slot-balance-side'), getEl('ad-slot-balance-side'), getEl('ad-slot-balance-side-placeholder'));
     // flow
-    renderAdSlot('flow', getEl('ad-slot-flow-img'), getEl('ad-slot-flow-link'), getEl('ad-slot-flow'), null);
+    renderAdSlot('flow', getEl('ad-slot-flow-img'), getEl('ad-slot-flow-link'), getEl('ad-slot-flow'), getEl('ad-slot-flow-ph'));
     // shop top
-    renderAdSlot('shop_top', getEl('ad-slot-shop-top-img'), getEl('ad-slot-shop-top-link'), getEl('ad-slot-shop-top'), null);
-    // supermarket splash
+    renderAdSlot('shop_top', getEl('ad-slot-shop-top-img'), getEl('ad-slot-shop-top-link'), getEl('ad-slot-shop-top'), getEl('ad-slot-shop-top-ph'));
+    // supermarket splash — only show when active
     const smSplash = slots.supermarket_splash;
     if(smSplash && smSplash.active && smSplash.img) {
         const si = getEl('ad-slot-supermarket-splash-img'); if(si) si.src = smSplash.img;
@@ -232,7 +234,7 @@ function applyAdsToDOM(slots) {
     // page tops
     ['pantry_top','home_maint_top','bank_top','cashflow_top','budget_top','forecast_top','tasks_top','academy_top','community_top'].forEach(key => {
         const slug = key.replace(/_/g, '-');
-        renderAdSlot(key, getEl(`ad-slot-${slug}-img`), getEl(`ad-slot-${slug}-link`), getEl(`ad-slot-${slug}`), null);
+        renderAdSlot(key, getEl(`ad-slot-${slug}-img`), getEl(`ad-slot-${slug}-link`), getEl(`ad-slot-${slug}`), getEl(`ad-slot-${slug}-ph`));
     });
 }
 
