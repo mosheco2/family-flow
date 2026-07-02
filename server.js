@@ -2944,7 +2944,7 @@ app.get('/api/settings/welcome', async (req, res) => {
 });
 
 // Ad slots — all family placements
-const AD_SLOT_KEYS = ['splash','balance_side','flow','shop_top','shop_list','supermarket_splash','pantry_top','home_maint_top','bank_top','cashflow_top','budget_top','forecast_top','tasks_top','academy_top','community_top'];
+const AD_SLOT_KEYS = ['splash','splash_biz','balance_side','flow','shop_top','shop_list','supermarket_splash','pantry_top','home_maint_top','bank_top','cashflow_top','budget_top','forecast_top','tasks_top','academy_top','community_top'];
 
 app.get('/api/ads', async (req, res) => {
     try {

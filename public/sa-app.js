@@ -7686,7 +7686,8 @@ window.submitFlowGrant = async function() {
 // שטחי פרסום — SA panel
 // ═══════════════════════════════════════════════════════════
 const AD_SLOT_DEFS = [
-    { key: 'splash',               label: 'מסך טעינה (Splash)' },
+    { key: 'splash',               label: '🏠 מסך טעינה — משפחה (Splash)' },
+    { key: 'splash_biz',           label: '💼 מסך טעינה — עסק (Splash)' },
     { key: 'balance_side',         label: 'כרטיס יתרה — צד (2/3)' },
     { key: 'flow',                 label: 'מתחת לבאנר FLOW' },
     { key: 'shop_top',             label: 'מעל "סופר חכם"' },

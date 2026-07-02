@@ -235,6 +235,14 @@ function applyAdsToDOM(slots) {
             if(bar) { bar.style.width = '0%'; requestAnimationFrame(() => { bar.style.width = '100%'; }); }
         });
     }
+    // splash עסק (business.html)
+    if(slots.splash_biz && slots.splash_biz.active && slots.splash_biz.img) {
+        const defB = getEl('preloader-default-biz'); if(defB) defB.classList.add('hidden');
+        const splashB = getEl('preloader-splash-biz'); if(splashB) { splashB.href = slots.splash_biz.link || '#'; splashB.classList.remove('hidden'); }
+        const spinB = getEl('preloader-spinner-biz'); if(spinB) spinB.classList.remove('hidden');
+        const siB = getEl('preloader-splash-biz-img'); if(siB && siB.getAttribute('src') !== slots.splash_biz.img) siB.src = slots.splash_biz.img;
+        requestAnimationFrame(() => { const b = getEl('preloader-splash-biz-bar'); if(b) { b.style.width='0%'; requestAnimationFrame(()=>{ b.style.width='100%'; }); } });
+    }
     // balance side
     renderAdSlot('balance_side', getEl('ad-slot-balance-side-img'), getEl('ad-slot-balance-side'), getEl('ad-slot-balance-side'), getEl('ad-slot-balance-side-placeholder'));
     // flow
