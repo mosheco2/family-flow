@@ -2169,8 +2169,26 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             <input id="bsm-name" type="text" placeholder="למשל: באנר עליון — קהילה" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
                         </div>
                         <div>
-                            <label class="text-xs font-bold text-slate-500 block mb-1">מפתח מיקום</label>
-                            <input id="bsm-location" type="text" placeholder="community_top / storefront_top / ..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+                            <label class="text-xs font-bold text-slate-500 block mb-1">אזור פרסום</label>
+                            <select id="bsm-location" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400 bg-white">
+                                <option value="">-- בחר אזור --</option>
+                                <option value="splash">🏠 מסך טעינה — משפחה (Splash)</option>
+                                <option value="splash_biz">💼 מסך טעינה — עסק (Splash)</option>
+                                <option value="balance_side">כרטיס יתרה — צד (2/3)</option>
+                                <option value="flow">מתחת לבאנר FLOW</option>
+                                <option value="shop_top">מעל "סופר חכם"</option>
+                                <option value="shop_list">בין פריטי קניות</option>
+                                <option value="supermarket_splash">אחרי "אני בסופר" (Splash)</option>
+                                <option value="pantry_top">עמוד מזווה — מעל</option>
+                                <option value="home_maint_top">עמוד ניהול הבית — מעל</option>
+                                <option value="bank_top">עמוד בנק — מעל</option>
+                                <option value="cashflow_top">עמוד תזרים — מעל</option>
+                                <option value="budget_top">עמוד תקציב — מעל</option>
+                                <option value="forecast_top">עמוד תחזית — מעל</option>
+                                <option value="tasks_top">עמוד משימות — מעל</option>
+                                <option value="academy_top">עמוד אקדמיה — מעל</option>
+                                <option value="community_top">עמוד קהילה — מעל</option>
+                            </select>
                         </div>
                         <div>
                             <label class="text-xs font-bold text-slate-500 block mb-1">תיאור</label>
@@ -3016,7 +3034,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
         </div>
     </div>
 
-    <script src="sa-app.js?v=31"></script>
+    <script src="sa-app.js?v=32"></script>
     <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">
