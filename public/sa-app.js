@@ -7720,12 +7720,25 @@ window.saveCldConfig = async function() {
 
 async function loadCldConfig() {
     try {
-        const res = await fetch(`${API}/sa/settings/cloudinary_cloud_name,cloudinary_upload_preset`, { headers:{Authorization:saToken} });
+        const res = await fetch(`${API}/sa/settings/cloudinary_cloud_name,cloudinary_upload_preset,preloader_text`, { headers:{Authorization:saToken} });
         const data = await res.json();
         if(data.cloudinary_cloud_name) document.getElementById('cld-cloud-name').value = data.cloudinary_cloud_name;
         if(data.cloudinary_upload_preset) document.getElementById('cld-upload-preset').value = data.cloudinary_upload_preset;
+        if(data.preloader_text) { const el = document.getElementById('preloader-text-input'); if(el) el.value = data.preloader_text; }
     } catch(e){}
 }
+
+window.savePreloaderText = async function() {
+    const text = document.getElementById('preloader-text-input')?.value?.trim();
+    const statusEl = document.getElementById('preloader-text-status');
+    if (!text) return;
+    try {
+        const res = await fetch(`${API}/sa/settings`, { method:'POST', headers:{'Content-Type':'application/json', Authorization:saToken}, body: JSON.stringify({key:'preloader_text', value:text}) });
+        const data = await res.json();
+        if(data.success) { if(statusEl){statusEl.textContent='✅ נשמר!'; statusEl.className='text-xs font-bold text-green-600'; statusEl.classList.remove('hidden'); setTimeout(()=>statusEl.classList.add('hidden'),2500);} }
+        else throw new Error();
+    } catch(e) { if(statusEl){statusEl.textContent='❌ שגיאה'; statusEl.className='text-xs font-bold text-red-600'; statusEl.classList.remove('hidden');} }
+};
 
 // ─── דחיסת תמונה בצד הלקוח לפני העלאה ─────────────────────────────────────
 async function compressImage(file, { maxWidth = 1200, quality = 0.82 } = {}) {

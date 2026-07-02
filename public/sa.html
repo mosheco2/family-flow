@@ -2060,6 +2060,16 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             <!-- שטחי פרסום view                                    -->
             <!-- ══════════════════════════════════════════════════ -->
             <div id="sa-view-adslots" class="hidden space-y-6 fade-in">
+                <!-- כיתוב מסך טעינה -->
+                <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-md">
+                    <h3 class="text-base font-black text-slate-800 flex items-center gap-2 mb-4"><i class="fa-solid fa-comment-dots text-teal-500"></i> כיתוב מסך טעינה</h3>
+                    <div class="flex gap-3 items-center">
+                        <input type="text" id="preloader-text-input" placeholder="מסדרת את החיים שלך... רגע אחד ✨" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-teal-400">
+                        <button onclick="savePreloaderText()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-floppy-disk"></i> שמור</button>
+                        <span id="preloader-text-status" class="text-xs font-bold hidden"></span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-2">הטקסט מופיע מתחת לאנימציית הטעינה כשאין תמונת splash</p>
+                </div>
                 <!-- הגדרות Cloudinary -->
                 <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-md">
                     <h3 class="text-base font-black text-slate-800 flex items-center gap-2 mb-4"><i class="fa-solid fa-cloud-arrow-up text-blue-500"></i> הגדרות Cloudinary (אחסון תמונות)</h3>
