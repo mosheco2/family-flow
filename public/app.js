@@ -617,7 +617,7 @@ function switchTab(t) { 
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
     if (t === 'recipes') try { renderRecipePantrySelection(); } catch(e) {}
     if (t === 'forecast') try { renderForecast(); } catch(e) {}
-    if (t === 'cashflow') { try { renderCashflow(); } catch(e) {} if (!allTransactions.length) try { fetchData(); } catch(e) {} }
+    if (t === 'cashflow') { try { renderCashflow(); } catch(e) {} fetchCashflowData(); }
     if (t === 'budget') try { fetchBudget(); } catch(e) {}
     if (t === 'community') try { fetchCommunityData(); } catch(e) {}
     if (t === 'myorders') {
@@ -2509,14 +2509,33 @@ function renderUnifiedFeed() {
     }
 }
 
+async function fetchCashflowData() {
+    if (!currentUser || !currentGroup) return;
+    try {
+        const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
+        const res = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=200`);
+        if (res.ok) {
+            const data = await res.json();
+            allTransactions = Array.isArray(data) ? data : [];
+        }
+    } catch(e) {}
+    if (window._currentFamilyTab === 'cashflow') try { renderCashflow(); } catch(e) {}
+}
+
 function renderCashflow() {
     const list = getEl('cashflow-list'); if (!list) return;
+    if (!currentUser) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">טוען...</p>'; return; }
     const userFilter = val('cashflow-user-filter') || 'all'; const dateFilter = val('cashflow-date-filter') || 'all';
-    if (!Array.isArray(allTransactions)) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">טוען נתונים...</p>'; return; }
+    if (!Array.isArray(allTransactions) || allTransactions.length === 0) {
+        list.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">אין תנועות תזרים להצגה.</p>';
+        return;
+    }
     let filtered = allTransactions.slice();
-    if (currentUser.role !== 'ADMIN') { filtered = filtered.filter(t => String(t.user_id) === String(currentUser.id)); const cfFilter = getEl('cashflow-user-filter'); if(cfFilter) cfFilter.classList.add('hidden'); }
-    else { const cfFilter = getEl('cashflow-user-filter'); if(cfFilter) cfFilter.classList.remove('hidden'); if (userFilter !== 'all' && userFilter !== '') { filtered = filtered.filter(t => String(t.user_id) === String(userFilter)); } }
-    if (dateFilter !== 'all') { const monthsBack = parseInt(dateFilter); const cutoffDate = new Date(); cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack); filtered = filtered.filter(t => new Date(t.date) >= cutoffDate); }
+    try {
+        if (currentUser.role !== 'ADMIN') { filtered = filtered.filter(t => String(t.user_id) === String(currentUser.id)); const cfFilter = getEl('cashflow-user-filter'); if(cfFilter) cfFilter.classList.add('hidden'); }
+        else { const cfFilter = getEl('cashflow-user-filter'); if(cfFilter) cfFilter.classList.remove('hidden'); if (userFilter !== 'all' && userFilter !== '') { filtered = filtered.filter(t => String(t.user_id) === String(userFilter)); } }
+        if (dateFilter !== 'all') { const monthsBack = parseInt(dateFilter); const cutoffDate = new Date(); cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack); filtered = filtered.filter(t => new Date(t.date) >= cutoffDate); }
+    } catch(e) { filtered = allTransactions.slice(); }
     if (filtered.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">אין תנועות תזרים להצגה בתקופה זו.</p>'; return; }
     let html = '';
     filtered.forEach(t => {
