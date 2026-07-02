@@ -7736,14 +7736,21 @@ window.openCldUpload = function(slotKey) {
     }
     if (typeof cloudinary === 'undefined') { alert('Cloudinary Widget לא נטען. נסה לרענן את הדף.'); return; }
     const widget = cloudinary.createUploadWidget(
-        { cloudName, uploadPreset: preset, sources:['local','url'], multiple:false, language:'he', showAdvancedOptions:false, folder:'family-flow-ads', maxFileSize:2000000, clientAllowedFormats:['jpg','jpeg','png','webp','gif'] },
+        { cloudName, uploadPreset: preset, sources:['local','url'], multiple:false, language:'he', showAdvancedOptions:false, folder:'family-flow-ads', maxFileSize:20000000, clientAllowedFormats:['jpg','jpeg','png','webp','gif','mp4','webm','mov'] },
         (error, result) => {
             if (!error && result && result.event === 'success') {
                 const url = result.info.secure_url;
+                const resourceType = result.info.resource_type;
                 const imgInput = document.getElementById(`ad-img-${slotKey}`);
                 if(imgInput) { imgInput.value = url; }
                 const previewEl = document.getElementById(`ad-preview-${slotKey}`);
-                if(previewEl) { previewEl.src = url; previewEl.classList.remove('hidden'); }
+                if(previewEl) {
+                    if(resourceType === 'video') {
+                        previewEl.outerHTML = `<video id="ad-preview-${slotKey}" src="${url}" class="w-full h-20 object-cover rounded-xl mb-2 border border-slate-200" autoplay muted loop playsinline></video>`;
+                    } else {
+                        previewEl.src = url; previewEl.classList.remove('hidden');
+                    }
+                }
             }
         }
     );
