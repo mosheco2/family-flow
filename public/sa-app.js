@@ -381,6 +381,10 @@ window.switchViewTab = function(viewId, tabId) {
         activeBtn.style.color = 'white';
         activeBtn.style.border = '1px solid #4338ca';
     }
+    // trigger data loads for specific sub-tabs
+    if (viewId === 'adslots' && tabId === 'slots') { try { loadBannerSlotsPanel(); } catch(e) {} }
+    if (viewId === 'adslots' && tabId === 'orders') { try { loadBannerOrders(); } catch(e) {} }
+    if (viewId === 'finance' && tabId === 'adsbilling') { try { loadBillingOverview(); } catch(e) {} }
 };
 
 // Close mobile sidebar after navigating (on mobile widths)
@@ -7876,9 +7880,8 @@ let _allCommunitiesForBanner = [];
 const _origRenderAdSlots = window.renderAdSlotsPanel;
 window.renderAdSlotsPanel = async function() {
     if (_origRenderAdSlots) await _origRenderAdSlots();
+    switchViewTab('adslots', 'slots');
     loadBannerSlotsPanel();
-    loadBannerOrders();
-    loadBillingOverview();
 };
 
 async function loadBannerSlotsPanel() {
