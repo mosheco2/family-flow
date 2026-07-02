@@ -10269,11 +10269,12 @@ app.post('/api/biz/community/promotions/:id/banner-request', async (req, res) =>
 app.get('/api/community/approved-banners', async (req, res) => {
     try {
         const today = new Date().toISOString().split('T')[0];
-        const r = await pool.query(
+        // legacy community_banner_requests
+        const r1 = await pool.query(
             `SELECT cbr.id, cbr.banner_headline, cbr.start_date, cbr.end_date, cbr.community_id,
              cp.title as promo_title, cp.discount_pct, cp.promo_type, cp.catalog_item_id,
              fg.name as business_name, COALESCE(ss.logo_url, fg.image_url) as business_logo, fg.group_code,
-             c.name as community_name
+             c.name as community_name, 'legacy' as source
              FROM community_banner_requests cbr
              JOIN community_promotions cp ON cp.id = cbr.promotion_id
              JOIN family_groups fg ON fg.id = cbr.business_id
@@ -10285,9 +10286,42 @@ app.get('/api/community/approved-banners', async (req, res) => {
              ORDER BY COALESCE(cbr.position, 5) ASC, cbr.created_at DESC`,
             [today]
         );
-        res.json({ success: true, banners: r.rows });
+        // new banner_orders system (active, date in range, community in community_ids)
+        const { communityId } = req.query;
+        let r2 = { rows: [] };
+        if (communityId) {
+            r2 = await pool.query(
+                `SELECT bo.id, bs.name as promo_title, bo.start_date, bo.end_date,
+                 $1::int as community_id, bs.name as banner_headline,
+                 fg.name as business_name, COALESCE(ss.logo_url, fg.image_url) as business_logo, fg.group_code,
+                 NULL as promo_type, NULL as discount_pct, NULL as catalog_item_id,
+                 bs.location_key, bo.slot_id, 'flow_ads' as source
+                 FROM banner_orders bo
+                 JOIN family_groups fg ON fg.id=bo.business_id
+                 JOIN banner_slots bs ON bs.id=bo.slot_id
+                 LEFT JOIN store_settings ss ON ss.group_id=fg.id
+                 WHERE bo.status='active'
+                   AND bo.start_date <= $2 AND bo.end_date >= $2
+                   AND bo.community_ids::jsonb @> to_jsonb($1::int)
+                 ORDER BY bo.start_date ASC`,
+                [parseInt(communityId), today]
+            );
+        }
+        res.json({ success: true, banners: [...r1.rows, ...r2.rows] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
+// Daily cron — expire banner orders + mark expiring-soon
+(function scheduleBannerCron() {
+    async function runBannerCron() {
+        try {
+            // expire orders past end_date
+            await pool.query(`UPDATE banner_orders SET status='expired' WHERE status='active' AND end_date < CURRENT_DATE`);
+        } catch(e) { console.error('[BANNER CRON]', e.message); }
+    }
+    runBannerCron();
+    setInterval(runBannerCron, 6 * 60 * 60 * 1000); // every 6 hours
+})();
 
 // SA sees all banner requests
 app.get('/api/sa/community/banner-requests', verifySA, async (req, res) => {
@@ -19926,14 +19960,21 @@ app.get('/api/biz/banner/slots', async (req, res) => {
               )
             ORDER BY bs.id
         `, communityId ? [communityId] : []);
+        const slotIds = slots.rows.map(s=>s.id);
         const pricing = await pool.query(`
-            SELECT * FROM banner_pricing WHERE slot_id=ANY($1) ORDER BY slot_id,duration_days
-        `, [slots.rows.map(s=>s.id)]);
+            SELECT * FROM banner_pricing WHERE slot_id=ANY($1) ORDER BY slot_id,community_count,duration_days
+        `, [slotIds]);
+        const communities = await pool.query(`
+            SELECT bsc.slot_id, c.id, c.name FROM banner_slot_communities bsc
+            JOIN communities c ON c.id=bsc.community_id WHERE bsc.slot_id=ANY($1) ORDER BY c.name
+        `, [slotIds]);
         const pMap = {};
         pricing.rows.forEach(p => { if(!pMap[p.slot_id]) pMap[p.slot_id]=[]; pMap[p.slot_id].push(p); });
+        const cMap = {};
+        communities.rows.forEach(r => { if(!cMap[r.slot_id]) cMap[r.slot_id]=[]; cMap[r.slot_id].push({id:r.id,name:r.name}); });
         const rateCfg = await pool.query(`SELECT personal_amount FROM flow_config WHERE key='flow_to_ils_rate' LIMIT 1`).catch(()=>({rows:[]}));
         const flow_rate = parseFloat(rateCfg.rows[0]?.personal_amount || 100);
-        res.json({success:true, slots: slots.rows.map(s=>({...s, pricing:pMap[s.id]||[]})), flow_rate});
+        res.json({success:true, slots: slots.rows.map(s=>({...s, pricing:pMap[s.id]||[], communities:cMap[s.id]||[]})), flow_rate});
     } catch(e) { res.status(500).json({error:e.message}); }
 });
 
@@ -19944,12 +19985,16 @@ app.post('/api/biz/banner/orders', async (req, res) => {
                 coins_used: clientCoins, cash_amount: clientCash, total_price_ils: clientTotal } = req.body;
         if (!business_id || !slot_id || !duration_days) return res.status(400).json({error:'שדות חסרים'});
 
-        // validate pricing exists
-        const pricing = await pool.query(
+        // validate pricing exists — prefer community_count match, fallback to 0
+        const commCount = Array.isArray(community_ids) ? community_ids.length : 0;
+        const pricingExact = await pool.query(
+            `SELECT * FROM banner_pricing WHERE slot_id=$1 AND duration_days=$2 AND community_count=$3`, [slot_id, duration_days, commCount]
+        );
+        const pricingBase = pricingExact.rows.length ? pricingExact : await pool.query(
             `SELECT * FROM banner_pricing WHERE slot_id=$1 AND duration_days=$2 AND (community_count=0 OR community_count IS NULL)`, [slot_id, duration_days]
         );
-        if (!pricing.rows.length) return res.status(400).json({error:'מחירון לא נמצא'});
-        const p = pricing.rows[0];
+        if (!pricingBase.rows.length) return res.status(400).json({error:'מחירון לא נמצא'});
+        const p = pricingBase.rows[0];
         const total_price_ils = parseFloat(p.price_ils);
 
         // validate coin balance if coins used

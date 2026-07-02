@@ -8096,17 +8096,28 @@ window.loadBannerOrders = async function() {
         el.innerHTML = d.orders.map(o => {
             const sc = statusColor[o.status] || 'slate';
             const sl = statusLabel[o.status] || o.status;
+            // expiry warning
+            let expiryBadge = '';
+            if (o.status === 'active' && o.end_date) {
+                const daysLeft = Math.ceil((new Date(o.end_date) - new Date()) / 86400000);
+                if (daysLeft <= 1) expiryBadge = `<span class="text-[10px] bg-red-100 text-red-600 font-bold px-2 py-0.5 rounded-full">⚠️ יפוג ${daysLeft<=0?'היום':'מחר'}</span>`;
+                else if (daysLeft <= 3) expiryBadge = `<span class="text-[10px] bg-orange-100 text-orange-600 font-bold px-2 py-0.5 rounded-full">יפוג בעוד ${daysLeft} ימים</span>`;
+            }
+            const commIds = o.community_ids ? (Array.isArray(o.community_ids) ? o.community_ids : JSON.parse(o.community_ids||'[]')) : [];
+            const commBadge = commIds.length ? `<span class="text-[10px] text-slate-400">📍${commIds.length} קהילות</span>` : '';
             const actions = o.status === 'pending_approval'
                 ? `<button onclick="openBannerScheduleModal(${o.id},${o.slot_id},${o.duration_days},'${(o.business_name||'').replace(/'/g,"\\'")}','${(o.slot_name||'').replace(/'/g,"\\'")}','${o.coins_used||0}','${o.cash_amount||0}')" class="text-[10px] bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1 rounded-full transition flex items-center gap-1"><i class="fa-solid fa-calendar-check" style="font-size:9px"></i>שבץ ואשר</button>
                    <button onclick="cancelBannerOrder(${o.id})" class="text-[10px] bg-red-100 hover:bg-red-200 text-red-600 font-bold px-3 py-1 rounded-full transition mr-1">בטל</button>`
                 : `<button onclick="openClientLedger(${o.business_id},'${o.business_name}')" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-3 py-1 rounded-full transition">כרטסת</button>`;
             return `<div class="border border-slate-100 rounded-xl p-3 bg-white flex items-center justify-between gap-2">
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-0.5">
+                    <div class="flex items-center gap-2 mb-0.5 flex-wrap">
                         <span class="font-bold text-slate-800 text-xs truncate">${o.business_name||'?'}</span>
                         <span class="text-[10px] bg-${sc}-100 text-${sc}-700 font-bold px-2 py-0.5 rounded-full whitespace-nowrap">${sl}</span>
+                        ${expiryBadge}
                     </div>
-                    <p class="text-[10px] text-slate-500">${o.slot_name||''} · ${o.duration_days} ימים · 🪙${o.coins_used} + ₪${o.cash_amount}</p>
+                    <p class="text-[10px] text-slate-500">${o.slot_name||''} · ${o.duration_days} ימים · 🪙${o.coins_used} + ₪${o.cash_amount} ${commBadge}</p>
+                    ${o.start_date && o.end_date ? `<p class="text-[10px] text-indigo-500 font-bold">${new Date(o.start_date).toLocaleDateString('he-IL')} → ${new Date(o.end_date).toLocaleDateString('he-IL')}</p>` : ''}
                 </div>
                 <div class="flex items-center gap-1 shrink-0">${actions}</div>
             </div>`;

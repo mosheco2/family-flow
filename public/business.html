@@ -2497,6 +2497,12 @@
                                     <option value="">בחר שטח פרסום...</option>
                                 </select>
                             </div>
+                            <!-- קהילות חשיפה -->
+                            <div id="biz-ads-communities-row" class="hidden">
+                                <label class="text-xs font-bold text-slate-500 block mb-1">אזורי חשיפה <span class="text-purple-500 font-normal" id="biz-ads-comm-count-label"></span></label>
+                                <div id="biz-ads-communities-list" class="flex flex-wrap gap-2 mt-1"></div>
+                                <p class="text-[10px] text-slate-400 mt-1">בחר קהילות שבהן הבאנר יוצג. יותר קהילות = מחיר גבוה יותר.</p>
+                            </div>
                             <div>
                                 <label class="text-xs font-bold text-slate-500 block mb-1">תקופת פרסום</label>
                                 <select id="biz-ads-duration" onchange="bizAdsCalc()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
@@ -3827,7 +3833,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=140" defer></script>
+    <script src="business-app.js?v=141" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;

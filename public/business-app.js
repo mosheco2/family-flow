@@ -47798,12 +47798,20 @@ async function _loadBizAdSlots() {
     } catch(e) {}
 }
 
+function _getBizAdSelectedCommunities() {
+    const cbs = document.querySelectorAll('.biz-ads-comm-cb:checked');
+    return Array.from(cbs).map(cb => parseInt(cb.value));
+}
+
 window.bizAdsCalc = function() {
     const slotId = parseInt(document.getElementById('biz-ads-slot')?.value);
     const durationSel = document.getElementById('biz-ads-duration');
     const resultEl = document.getElementById('biz-ads-calc-result');
     const coinsRow = document.getElementById('biz-ads-coins-row');
     const balLabel = document.getElementById('biz-ads-balance-label');
+    const commRow = document.getElementById('biz-ads-communities-row');
+    const commList = document.getElementById('biz-ads-communities-list');
+    const commCountLabel = document.getElementById('biz-ads-comm-count-label');
     if (!resultEl) return;
 
     const slot = _bizAdSlots.find(s => s.id === slotId);
@@ -47811,29 +47819,59 @@ window.bizAdsCalc = function() {
         if (durationSel) durationSel.innerHTML = '<option value="">בחר תקופה...</option>';
         resultEl.classList.add('hidden');
         if (coinsRow) coinsRow.classList.add('hidden');
+        if (commRow) commRow.classList.add('hidden');
         return;
     }
 
-    // populate durations from ILS-only pricing rows
+    // populate community checkboxes if slot has communities
+    if (commRow && commList) {
+        const slotComms = slot.communities || [];
+        if (slotComms.length) {
+            commRow.classList.remove('hidden');
+            const checked = _getBizAdSelectedCommunities();
+            commList.innerHTML = slotComms.map(c => `
+                <label class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 cursor-pointer hover:border-purple-400 transition text-xs font-bold text-slate-700">
+                    <input type="checkbox" class="biz-ads-comm-cb accent-purple-600 w-3.5 h-3.5" value="${c.id}" ${checked.includes(c.id)?'checked':''} onchange="bizAdsCalc()">
+                    ${c.name}
+                </label>
+            `).join('');
+        } else {
+            commRow.classList.add('hidden');
+        }
+    }
+
+    const selectedComms = _getBizAdSelectedCommunities();
+    const commCount = selectedComms.length;
+    if (commCountLabel) commCountLabel.textContent = commCount > 0 ? `(${commCount} נבחרו)` : '';
+
+    // populate durations — prefer community_count-specific pricing, fallback base
     if (durationSel) {
         const curDur = durationSel.value;
-        const durRows = (slot.pricing||[]).filter(p => !p.community_count || p.community_count === 0);
+        const baseDurs = (slot.pricing||[]).filter(p => !p.community_count || p.community_count === 0);
+        const uniqueDays = [...new Set(baseDurs.map(p=>p.duration_days))];
         durationSel.innerHTML = '<option value="">בחר תקופה...</option>' +
-            durRows.map(p => `<option value="${p.duration_days}" ${curDur==p.duration_days?'selected':''}>${p.duration_days} ימים — ₪${parseFloat(p.price_ils).toFixed(0)}</option>`).join('');
+            uniqueDays.map(days => {
+                const commP = (slot.pricing||[]).find(p => p.duration_days === days && p.community_count === commCount);
+                const baseP = baseDurs.find(p => p.duration_days === days);
+                const useP = commP || baseP;
+                const price = useP ? parseFloat(useP.price_ils).toFixed(0) : '?';
+                return `<option value="${days}" ${curDur==days?'selected':''}>${days} ימים — ₪${price}${commP?' (מחיר לפי קהילות)':''}</option>`;
+            }).join('');
     }
 
     const duration = parseInt(durationSel?.value);
     if (!duration) { resultEl.classList.add('hidden'); if (coinsRow) coinsRow.classList.add('hidden'); return; }
 
-    const pricing = (slot.pricing||[]).find(p => p.duration_days === duration && (!p.community_count || p.community_count === 0));
+    // best pricing match
+    const commP = (slot.pricing||[]).find(p => p.duration_days === duration && p.community_count === commCount);
+    const baseP = (slot.pricing||[]).find(p => p.duration_days === duration && (!p.community_count || p.community_count === 0));
+    const pricing = commP || baseP;
     if (!pricing) { resultEl.classList.add('hidden'); if (coinsRow) coinsRow.classList.add('hidden'); return; }
 
     const priceIls = parseFloat(pricing.price_ils);
-    // coin value: _bizAdFlowRate coins = ₪10 → 1 coin = ₪(10/rate)
-    const coinValueIls = 10 / _bizAdFlowRate; // ₪ per coin
+    const coinValueIls = 10 / _bizAdFlowRate;
     const maxCoinsCanUse = Math.min(_bizAdFlowBalance, Math.floor(priceIls / coinValueIls));
 
-    // show coins input row
     if (coinsRow) {
         coinsRow.classList.remove('hidden');
         if (balLabel) balLabel.textContent = `(יתרה: 🪙${_bizAdFlowBalance.toFixed(0)})`;
@@ -47851,6 +47889,7 @@ window.bizAdsCalc = function() {
 
     resultEl.classList.remove('hidden');
     resultEl.innerHTML = `
+        ${commCount > 0 ? `<p class="text-xs text-purple-700 font-bold mb-2">📍 ${commCount} קהילות נבחרו</p>` : ''}
         <div class="flex items-center justify-between text-sm">
             <span class="text-slate-600 font-bold">מחיר כולל</span>
             <span class="font-black text-slate-800">₪${priceIls.toFixed(2)}</span>
@@ -47875,9 +47914,14 @@ window.submitBizAdOrder = async function() {
     const notes = document.getElementById('biz-ads-notes')?.value || '';
     if (!slotId || !duration) return showToast('error', 'נא לבחור שטח פרסום ותקופה');
 
+    const selectedComms = _getBizAdSelectedCommunities();
+    const commCount = selectedComms.length;
+
     // read calc values
     const slot = _bizAdSlots.find(s => s.id === slotId);
-    const pricing = (slot?.pricing||[]).find(p => p.duration_days === duration && (!p.community_count || p.community_count === 0));
+    const commP = (slot?.pricing||[]).find(p => p.duration_days === duration && p.community_count === commCount);
+    const baseP = (slot?.pricing||[]).find(p => p.duration_days === duration && (!p.community_count || p.community_count === 0));
+    const pricing = commP || baseP;
     const priceIls = parseFloat(pricing?.price_ils || 0);
     const coinValueIls = 10 / _bizAdFlowRate;
     const maxCoinsCanUse = Math.min(_bizAdFlowBalance, Math.floor(priceIls / coinValueIls));
@@ -47892,7 +47936,7 @@ window.submitBizAdOrder = async function() {
         const r = await fetch(`${API}/biz/banner/orders`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ business_id: currentGroup.id, slot_id: slotId, duration_days: duration, payment_method: paymentMethod, coins_used: coinsToUse, cash_amount: cashAmount, total_price_ils: priceIls, notes, community_ids: [] })
+            body: JSON.stringify({ business_id: currentGroup.id, slot_id: slotId, duration_days: duration, payment_method: paymentMethod, coins_used: coinsToUse, cash_amount: cashAmount, total_price_ils: priceIls, notes, community_ids: selectedComms })
         });
         const d = await r.json();
         if (d.success) {
@@ -47920,13 +47964,22 @@ async function _loadBizAdOrders() {
             const sc = stColor[o.status] || 'slate';
             const sl = stLabel[o.status] || o.status;
             const dates = o.start_date ? `${new Date(o.start_date).toLocaleDateString('he-IL')} — ${new Date(o.end_date).toLocaleDateString('he-IL')}` : '';
+            let expiryWarn = '';
+            if (o.status === 'active' && o.end_date) {
+                const daysLeft = Math.ceil((new Date(o.end_date) - new Date()) / 86400000);
+                if (daysLeft <= 1) expiryWarn = `<p class="text-[10px] text-red-600 font-bold mt-1">⚠️ הפרסום יפוג ${daysLeft<=0?'היום':'מחר'}! פנה אלינו לחידוש</p>`;
+                else if (daysLeft <= 3) expiryWarn = `<p class="text-[10px] text-orange-600 font-bold mt-1">⚠️ הפרסום יפוג בעוד ${daysLeft} ימים</p>`;
+            }
+            const commIds = o.community_ids ? (Array.isArray(o.community_ids) ? o.community_ids : JSON.parse(o.community_ids||'[]')) : [];
+            const commInfo = commIds.length ? `<span class="mr-1 text-slate-400">· 📍${commIds.length} קהילות</span>` : '';
             return `<div class="border border-slate-100 rounded-xl p-3 bg-slate-50">
                 <div class="flex items-center justify-between mb-1">
                     <span class="font-bold text-slate-800 text-xs">${o.slot_name||''}</span>
                     <span class="text-[10px] bg-${sc}-100 text-${sc}-700 font-bold px-2 py-0.5 rounded-full">${sl}</span>
                 </div>
-                <p class="text-[10px] text-slate-500">${o.duration_days} ימים · 🪙${o.coins_used} + ₪${o.cash_amount}</p>
-                ${dates ? `<p class="text-[10px] text-slate-400">${dates}</p>` : ''}
+                <p class="text-[10px] text-slate-500">${o.duration_days} ימים · 🪙${o.coins_used} + ₪${o.cash_amount}${commInfo}</p>
+                ${dates ? `<p class="text-[10px] text-indigo-500 font-bold">${dates}</p>` : ''}
+                ${expiryWarn}
             </div>`;
         }).join('');
     } catch(e) {}
