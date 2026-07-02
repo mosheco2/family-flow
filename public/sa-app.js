@@ -7727,6 +7727,27 @@ async function loadCldConfig() {
     } catch(e){}
 }
 
+// ─── דחיסת תמונה בצד הלקוח לפני העלאה ─────────────────────────────────────
+async function compressImage(file, { maxWidth = 1200, quality = 0.82 } = {}) {
+    return new Promise((resolve) => {
+        const isVideo = file.type.startsWith('video/');
+        if (isVideo) { resolve(file); return; } // וידאו — ללא דחיסה
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            let { width, height } = img;
+            if (width > maxWidth) { height = Math.round(height * maxWidth / width); width = maxWidth; }
+            const canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            canvas.toBlob(blob => resolve(blob || file), 'image/jpeg', quality);
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+        img.src = url;
+    });
+}
+
 window.openCldUpload = function(slotKey) {
     const cloudName = document.getElementById('cld-cloud-name')?.value?.trim();
     const preset = document.getElementById('cld-upload-preset')?.value?.trim();
@@ -7734,27 +7755,45 @@ window.openCldUpload = function(slotKey) {
         alert('יש להגדיר Cloud Name ו-Upload Preset בהגדרות Cloudinary למעלה תחילה');
         return;
     }
-    if (typeof cloudinary === 'undefined') { alert('Cloudinary Widget לא נטען. נסה לרענן את הדף.'); return; }
-    const widget = cloudinary.createUploadWidget(
-        { cloudName, uploadPreset: preset, sources:['local','url'], multiple:false, language:'he', showAdvancedOptions:false, folder:'family-flow-ads', maxFileSize:20000000, clientAllowedFormats:['jpg','jpeg','png','webp','gif','mp4','webm','mov'] },
-        (error, result) => {
-            if (!error && result && result.event === 'success') {
-                const url = result.info.secure_url;
-                const resourceType = result.info.resource_type;
-                const imgInput = document.getElementById(`ad-img-${slotKey}`);
-                if(imgInput) { imgInput.value = url; }
-                const previewEl = document.getElementById(`ad-preview-${slotKey}`);
-                if(previewEl) {
-                    if(resourceType === 'video') {
-                        previewEl.outerHTML = `<video id="ad-preview-${slotKey}" src="${url}" class="w-full h-20 object-cover rounded-xl mb-2 border border-slate-200" autoplay muted loop playsinline></video>`;
-                    } else {
-                        previewEl.src = url; previewEl.classList.remove('hidden');
-                    }
+    // פתח בורר קבצים סמוי
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime';
+    input.onchange = async () => {
+        const file = input.files[0];
+        if (!file) return;
+        const statusEl = document.getElementById(`ad-status-${slotKey}`);
+        const origSize = (file.size / 1024).toFixed(0);
+        if (statusEl) { statusEl.textContent = `דוחס (${origSize}KB)...`; statusEl.className = 'block text-center text-xs font-bold mt-2 text-blue-500'; statusEl.classList.remove('hidden'); }
+        try {
+            const compressed = await compressImage(file);
+            const compSize = (compressed.size / 1024).toFixed(0);
+            if (statusEl) statusEl.textContent = `מעלה (${compSize}KB)...`;
+            const fd = new FormData();
+            fd.append('file', compressed, file.name.replace(/\.[^.]+$/, '.jpg'));
+            fd.append('upload_preset', preset);
+            fd.append('folder', 'family-flow-ads');
+            const isVideo = file.type.startsWith('video/');
+            const resourceType = isVideo ? 'video' : 'image';
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, { method: 'POST', body: fd });
+            const data = await res.json();
+            if (!data.secure_url) throw new Error(data.error?.message || 'שגיאת Cloudinary');
+            const imgInput = document.getElementById(`ad-img-${slotKey}`);
+            if (imgInput) imgInput.value = data.secure_url;
+            const previewEl = document.getElementById(`ad-preview-${slotKey}`);
+            if (previewEl) {
+                if (isVideo) {
+                    previewEl.outerHTML = `<video id="ad-preview-${slotKey}" src="${data.secure_url}" class="w-full h-20 object-cover rounded-xl mb-2 border border-slate-200" autoplay muted loop playsinline></video>`;
+                } else {
+                    previewEl.src = data.secure_url; previewEl.classList.remove('hidden');
                 }
             }
+            if (statusEl) { statusEl.textContent = `✅ עלה! ${origSize}KB → ${compSize}KB`; statusEl.className = 'block text-center text-xs font-bold mt-2 text-green-600'; setTimeout(() => statusEl.classList.add('hidden'), 3000); }
+        } catch(e) {
+            if (statusEl) { statusEl.textContent = '❌ ' + e.message; statusEl.className = 'block text-center text-xs font-bold mt-2 text-red-600'; }
         }
-    );
-    widget.open();
+    };
+    input.click();
 };
 
 window.renderAdSlotsPanel = async function() {
