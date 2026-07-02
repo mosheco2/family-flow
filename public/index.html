@@ -171,10 +171,9 @@
 
     <div id="app-preloader" class="fixed inset-0 bg-slate-900 z-[9999] flex flex-col items-center justify-center transition-opacity duration-700">
         <!-- Splash ad — מוצג כשיש תמונה מוגדרת ב-SA -->
-        <a id="preloader-splash-ad" href="#" target="_blank" class="hidden absolute inset-0 z-10 flex items-center justify-center bg-slate-900">
+        <a id="preloader-splash-ad" href="#" target="_blank" class="hidden absolute inset-0 z-10 bg-slate-900">
             <img id="preloader-splash-img" src="" alt=""
-                 class="max-w-full max-h-full w-auto h-auto object-contain"
-                 style="max-width:min(100vw,480px); max-height:100vh;">
+                 class="absolute inset-0 w-full h-full object-contain">
             <!-- Progress bar -->
             <div class="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
                 <div id="preloader-splash-bar" class="h-full bg-white/80 rounded-full" style="width:0%;transition:width 2.5s ease-out;"></div>
