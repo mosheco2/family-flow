@@ -166,6 +166,21 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="FamilyFlow">
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    <!-- טוען splash מ-cache לפני render — מונע הבהוב לוגו -->
+    <script>
+      (function(){
+        try {
+          var ads = JSON.parse(localStorage.getItem('ofl_ads') || '{}');
+          var s = ads.splash;
+          if(s && s.active && s.img) {
+            // מוסיף style inline לפני render של ה-body
+            document.write('<style>#preloader-default{display:none!important}#preloader-splash-ad{display:flex!important}</style>');
+            // שומר את הנתונים לשימוש מיידי אחרי render
+            window.__splashPreload = s;
+          }
+        } catch(e){}
+      })();
+    </script>
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
 
@@ -213,6 +228,21 @@
             </div>
         </div>
     </div>
+    <!-- מחיל splash מה-cache מיידית אחרי render ה-preloader -->
+    <script>
+      (function(){
+        var s = window.__splashPreload;
+        if(!s) return;
+        var img = document.getElementById('preloader-splash-img');
+        var lnk = document.getElementById('preloader-splash-ad');
+        var spin = document.getElementById('preloader-spinner-wrap');
+        var bar = document.getElementById('preloader-splash-bar');
+        if(img) img.src = s.img;
+        if(lnk) lnk.href = s.link || '#';
+        if(spin) spin.classList.remove('hidden');
+        if(bar) requestAnimationFrame(function(){ requestAnimationFrame(function(){ bar.style.width='100%'; }); });
+      })();
+    </script>
 
     <input type="file" id="task-proof-upload" accept="image/*" capture="environment" class="hidden" onchange="handleTaskProofUpload(event)">
     <input type="file" id="receipt-scan-upload" accept="image/*" capture="environment" class="hidden" onchange="handleReceiptUpload(event)">
