@@ -99,7 +99,7 @@ window.checkTabAccess = function(tabId) {
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
         'comm': 'comm', 'biz': 'biz', 'content': 'content',
         'hr': 'users', 'inbox': 'marketing', 'partners': 'all',
-        'finance': 'all'
+        'finance': 'all', 'adslots': 'content', 'legal': 'content'
     };
     
     if (req[tabId] && !perms.includes(req[tabId])) return false;
@@ -220,7 +220,8 @@ window.switchSATab = function(tabId) {
     if (tabId === 'finance') loadSAFinanceData();
     if (tabId === 'legal') loadLegalDocs();
 
-    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates'];
+    if (tabId === 'adslots') window.renderAdSlotsPanel && window.renderAdSlotsPanel();
+    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots'];
     let activeTabTitle = 'לוח בקרה';
 
     allTabs.forEach(t => {
@@ -250,7 +251,7 @@ window.switchSATab = function(tabId) {
         comm:'קהילות', biz:'עסקים', clients:'קבוצות',
         inbox:'שיווק והשקות', content:'מיתוג ותוכן',
         hr:'נציגים וצוותים', partners:'שותפים', finance:'פיננסים',
-        sysmap:'מפת המערכת', legal:'מסמכים משפטיים', templates:'ניהול תבניות עסקים'
+        sysmap:'מפת המערכת', legal:'מסמכים משפטיים', templates:'ניהול תבניות עסקים', adslots:'שטחי פרסום'
     };
     activeTabTitle = _tabTitles[tabId] || tabId;
 
@@ -291,7 +292,7 @@ const SA_GROUPS = {
     customers:  { tabs: ['comm', 'biz', 'clients'],     labels: ['קהילות', 'עסקים', 'קבוצות'],      icons: ['fa-users-rays', 'fa-store', 'fa-users'],  default: 'comm' },
     finance:    { tabs: ['finance'],                    labels: [],                                  icons: [],                                         default: 'finance' },
     supportdev: { tabs: ['support', 'devops'],          labels: ['קריאות שירות', 'פיתוח ומוצר'],    icons: ['fa-headset', 'fa-code'],                  default: 'support' },
-    contentmkt: { tabs: ['content', 'inbox', 'legal'],  labels: ['מיתוג ותוכן', 'שיווק', 'משפטי'], icons: ['fa-image', 'fa-bullhorn', 'fa-file-contract'], default: 'content' },
+    contentmkt: { tabs: ['content', 'inbox', 'legal', 'adslots'],  labels: ['מיתוג ותוכן', 'שיווק', 'משפטי', 'שטחי פרסום'], icons: ['fa-image', 'fa-bullhorn', 'fa-file-contract', 'fa-rectangle-ad'], default: 'content' },
     partners:   { tabs: ['partners'],                   labels: [],                                  icons: [],                                         default: 'partners' },
     system:     { tabs: ['hr', 'sysmap'],               labels: ['צוות ונציגים', 'מפת המערכת'],     icons: ['fa-user-tie', 'fa-map'],                  default: 'hr' },
     templates:  { tabs: ['templates'],                  labels: ['תבניות עסקים'],                    icons: ['fa-layer-group'],                          default: 'templates' },
@@ -7679,4 +7680,79 @@ window.submitFlowGrant = async function() {
             setTimeout(() => refreshFlowDashboard('overview'), 1500);
         } else throw new Error(data.error);
     } catch(e) { showSAToast('שגיאה: ' + e.message); }
+};
+
+// ═══════════════════════════════════════════════════════════
+// שטחי פרסום — SA panel
+// ═══════════════════════════════════════════════════════════
+const AD_SLOT_DEFS = [
+    { key: 'splash',               label: 'מסך טעינה (Splash)' },
+    { key: 'balance_side',         label: 'כרטיס יתרה — צד (2/3)' },
+    { key: 'flow',                 label: 'מתחת לבאנר FLOW' },
+    { key: 'shop_top',             label: 'מעל "סופר חכם"' },
+    { key: 'shop_list',            label: 'בין פריטי קניות' },
+    { key: 'supermarket_splash',   label: 'אחרי "אני בסופר" (Splash)' },
+    { key: 'pantry_top',           label: 'עמוד מזווה — מעל' },
+    { key: 'home_maint_top',       label: 'עמוד ניהול הבית — מעל' },
+    { key: 'bank_top',             label: 'עמוד בנק — מעל' },
+    { key: 'cashflow_top',         label: 'עמוד תזרים — מעל' },
+    { key: 'budget_top',           label: 'עמוד תקציב — מעל' },
+    { key: 'forecast_top',         label: 'עמוד תחזית — מעל' },
+    { key: 'tasks_top',            label: 'עמוד משימות — מעל' },
+    { key: 'academy_top',          label: 'עמוד אקדמיה — מעל' },
+    { key: 'community_top',        label: 'עמוד קהילה — מעל' },
+];
+
+window.renderAdSlotsPanel = async function() {
+    const grid = document.getElementById('ad-slots-grid');
+    if (!grid) return;
+    grid.innerHTML = '<p class="text-slate-400 text-sm text-center col-span-2 py-8">טוען...</p>';
+    try {
+        const res = await fetch(`${API}/ads`, { headers: { Authorization: saToken } });
+        const data = await res.json();
+        const slots = (data.success && data.slots) ? data.slots : {};
+        grid.innerHTML = AD_SLOT_DEFS.map(def => {
+            const s = slots[def.key] || {};
+            const isActive = s.active ? 'checked' : '';
+            const imgVal = (s.img || '').replace(/"/g, '&quot;');
+            const linkVal = (s.link || '').replace(/"/g, '&quot;');
+            const previewHtml = s.img ? `<img src="${imgVal}" class="w-full h-20 object-cover rounded-xl mt-2 mb-1 border border-slate-200">` : '';
+            return `<div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold text-slate-800 text-sm">${def.label}</h3>
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input type="checkbox" id="ad-active-${def.key}" ${isActive} class="w-4 h-4 accent-pink-500">
+                        <span class="text-xs text-slate-500 font-bold">פעיל</span>
+                    </label>
+                </div>
+                ${previewHtml}
+                <input type="text" id="ad-img-${def.key}" value="${imgVal}" placeholder="URL תמונה" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-2 focus:outline-none focus:border-pink-400">
+                <input type="text" id="ad-link-${def.key}" value="${linkVal}" placeholder="URL קישור (אופציונלי)" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-3 focus:outline-none focus:border-pink-400">
+                <button onclick="saveAdSlot('${def.key}')" class="w-full bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> שמור</button>
+                <span id="ad-status-${def.key}" class="block text-center text-xs font-bold mt-2 hidden"></span>
+            </div>`;
+        }).join('');
+    } catch(e) {
+        grid.innerHTML = '<p class="text-red-500 text-sm col-span-2 text-center py-8">שגיאה בטעינת שטחי הפרסום</p>';
+    }
+};
+
+window.saveAdSlot = async function(key) {
+    const img = document.getElementById(`ad-img-${key}`)?.value?.trim() || '';
+    const link = document.getElementById(`ad-link-${key}`)?.value?.trim() || '';
+    const active = document.getElementById(`ad-active-${key}`)?.checked ? true : false;
+    const statusEl = document.getElementById(`ad-status-${key}`);
+    try {
+        const res = await fetch(`${API}/sa/ads`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: saToken },
+            body: JSON.stringify({ slot: key, img, link, active })
+        });
+        const data = await res.json();
+        if (data.success) {
+            if (statusEl) { statusEl.textContent = '✅ נשמר!'; statusEl.className = 'block text-center text-xs font-bold mt-2 text-green-600'; statusEl.classList.remove('hidden'); setTimeout(() => statusEl.classList.add('hidden'), 2000); }
+        } else throw new Error(data.error);
+    } catch(e) {
+        if (statusEl) { statusEl.textContent = '❌ שגיאה: ' + e.message; statusEl.className = 'block text-center text-xs font-bold mt-2 text-red-600'; statusEl.classList.remove('hidden'); }
+    }
 };

@@ -186,6 +186,65 @@ async function fetchBanners() {
     } catch(e) {}
 }
 
+let _adsCache = null;
+async function fetchAds() {
+    try {
+        const cached = localStorage.getItem('ofl_ads'); if(cached) { try { _adsCache = JSON.parse(cached); applyAdsToDOM(_adsCache); } catch(e) {} }
+        const res = await fetch(`${API}/ads`); const data = await res.json();
+        if(data.success && data.slots) { _adsCache = data.slots; localStorage.setItem('ofl_ads', JSON.stringify(data.slots)); applyAdsToDOM(data.slots); }
+    } catch(e) {}
+}
+
+function renderAdSlot(slotKey, imgEl, linkEl, wrapEl, placeholderEl) {
+    const slot = _adsCache && _adsCache[slotKey];
+    if (slot && slot.active && slot.img) {
+        if(imgEl) imgEl.src = slot.img;
+        if(linkEl) { linkEl.href = slot.link || '#'; }
+        if(wrapEl) wrapEl.classList.remove('hidden');
+        if(placeholderEl) placeholderEl.classList.add('hidden');
+    } else {
+        if(wrapEl) wrapEl.classList.add('hidden');
+        if(placeholderEl) placeholderEl.classList.remove('hidden');
+    }
+}
+
+function applyAdsToDOM(slots) {
+    _adsCache = slots;
+    // preloader splash
+    const splashAd = getEl('preloader-splash-ad');
+    if(slots.splash && slots.splash.active && slots.splash.img) {
+        const si = getEl('preloader-splash-img'); if(si) si.src = slots.splash.img;
+        if(splashAd) { splashAd.href = slots.splash.link || '#'; splashAd.classList.remove('hidden'); }
+        const def = getEl('preloader-default'); if(def) def.classList.add('hidden');
+    }
+    // balance side
+    renderAdSlot('balance_side', getEl('ad-slot-balance-side-img'), getEl('ad-slot-balance-side'), getEl('ad-slot-balance-side'), getEl('ad-slot-balance-side-placeholder'));
+    // flow
+    renderAdSlot('flow', getEl('ad-slot-flow-img'), getEl('ad-slot-flow-link'), getEl('ad-slot-flow'), null);
+    // shop top
+    renderAdSlot('shop_top', getEl('ad-slot-shop-top-img'), getEl('ad-slot-shop-top-link'), getEl('ad-slot-shop-top'), null);
+    // supermarket splash
+    const smSplash = slots.supermarket_splash;
+    if(smSplash && smSplash.active && smSplash.img) {
+        const si = getEl('ad-slot-supermarket-splash-img'); if(si) si.src = smSplash.img;
+        const sl = getEl('ad-slot-supermarket-splash-link'); if(sl) sl.href = smSplash.link || '#';
+    }
+    // page tops
+    ['pantry_top','home_maint_top','bank_top','cashflow_top','budget_top','forecast_top','tasks_top','academy_top','community_top'].forEach(key => {
+        const slug = key.replace(/_/g, '-');
+        renderAdSlot(key, getEl(`ad-slot-${slug}-img`), getEl(`ad-slot-${slug}-link`), getEl(`ad-slot-${slug}`), null);
+    });
+}
+
+function openSupermarketModeWithAd() {
+    const smSplash = _adsCache && _adsCache.supermarket_splash;
+    if(smSplash && smSplash.active && smSplash.img) {
+        const overlay = getEl('ad-slot-supermarket-splash');
+        if(overlay) { overlay.classList.remove('hidden'); return; }
+    }
+    openSupermarketMode();
+}
+
 
 
 // פונקציות העריכה
@@ -1435,6 +1494,7 @@ async function loadDashboard() {
         setInterval(refreshBellBadge, 30000); refreshBellBadge();
         startMyOrdersAutoRefresh();
         try { fetchBanners(); } catch(e){}
+        try { fetchAds(); } catch(e){}
         const _parallelLoads = [
             fetchMembers().catch(()=>{}),
             fetchData().catch(()=>{}),
@@ -2855,9 +2915,14 @@ function renderShopList() {
         return 'שונות';
     };
     activeItems.sort((a,b) => getCatScore(a.item_name, a.normalized_name).localeCompare(getCatScore(b.item_name, b.normalized_name)));
-    let currentCat = ''; let shopHtml = '';
+    const _shopListAd = _adsCache && _adsCache.shop_list;
+    let currentCat = ''; let shopHtml = ''; let _shopItemCount = 0;
     activeItems.forEach(i => {
         const cat = getCatScore(i.item_name, i.normalized_name); if(cat !== currentCat) { shopHtml += `<div class="category-header">${cat}</div>`; currentCat = cat; }
+        _shopItemCount++;
+        if(_shopItemCount === 5 && _shopListAd && _shopListAd.active && _shopListAd.img) {
+            shopHtml += `<a href="${_shopListAd.link||'#'}" target="_blank" class="block w-full rounded-2xl overflow-hidden h-16 mb-2"><img src="${_shopListAd.img}" alt="" class="w-full h-full object-cover"></a>`;
+        }
         const isChecked = i.status === 'in_cart'; const valPrice = i.estimated_price > 0 ? i.estimated_price : ''; 
         const savedWisdom = wisdomCache[i.id]; const showWisdom = savedWisdom && savedWisdom.length > 0;
         const unitPrice = parseFloat(i.estimated_price) || 0; const totalRowPrice = unitPrice * parseFloat(i.quantity);

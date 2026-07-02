@@ -170,10 +170,20 @@
 <body class="text-slate-800 bg-slate-50 relative">
 
     <div id="app-preloader" class="fixed inset-0 bg-slate-50 z-[9999] flex flex-col items-center justify-center transition-opacity duration-700">
-        <img src="/icons/icon-192x192.png" alt="Oneflow Life" class="w-32 h-auto mb-4 animate-pulse object-contain" id="preloader-logo" fetchpriority="high" onerror="this.style.display='none'; document.getElementById('preloader-fallback').classList.remove('hidden');">
-        <div id="preloader-fallback" class="text-6xl mb-4 hidden">🤖</div>
-        <h2 class="text-xl font-bold text-slate-800 mb-1">Oneflow Life</h2>
-        <p class="text-sm text-slate-500 font-medium animate-pulse">מכינה את הנתונים...</p>
+        <!-- Splash ad — full screen image (shown when SA sets splash ad) -->
+        <a id="preloader-splash-ad" href="#" target="_blank" class="hidden absolute inset-0 z-10">
+            <img id="preloader-splash-img" src="" alt="" class="w-full h-full object-cover">
+            <div class="absolute inset-0 flex items-end justify-center pb-16">
+                <div class="bg-black/40 backdrop-blur-sm rounded-full px-5 py-2 text-white text-xs font-bold animate-pulse">ממשיך לאפליקציה...</div>
+            </div>
+        </a>
+        <!-- Default logo loader -->
+        <div id="preloader-default" class="flex flex-col items-center justify-center">
+            <img src="/icons/icon-192x192.png" alt="Oneflow Life" class="w-32 h-auto mb-4 animate-pulse object-contain" id="preloader-logo" fetchpriority="high" onerror="this.style.display='none'; document.getElementById('preloader-fallback').classList.remove('hidden');">
+            <div id="preloader-fallback" class="text-6xl mb-4 hidden">🤖</div>
+            <h2 class="text-xl font-bold text-slate-800 mb-1">Oneflow Life</h2>
+            <p class="text-sm text-slate-500 font-medium animate-pulse">מכינה את הנתונים...</p>
+        </div>
     </div>
 
     <input type="file" id="task-proof-upload" accept="image/*" capture="environment" class="hidden" onchange="handleTaskProofUpload(event)">
@@ -633,10 +643,16 @@
                             </button>
                           </div>
                         </div>
-                        <div id="tour-balance-card" class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-4 sm:p-5 text-white shadow-lg shadow-blue-200 mb-4 relative overflow-hidden transform transition hover:scale-[1.01]">
-                            <p class="text-blue-100 text-xs font-medium mb-0.5 opacity-80">יתרה נוכחית</p>
-                            <h1 class="text-3xl font-bold tracking-tight" dir="ltr" id="user-balance">₪0</h1>
-                            <i class="fa-solid fa-wallet absolute -right-4 -bottom-4 text-[4rem] text-white opacity-10 rotate-12"></i>
+                        <div class="flex gap-2 mb-4">
+                            <div id="tour-balance-card" class="w-1/3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl p-3 text-white shadow-lg shadow-blue-200 relative overflow-hidden flex flex-col justify-center">
+                                <p class="text-blue-100 text-[10px] font-medium mb-0.5 opacity-80">יתרה נוכחית</p>
+                                <h1 class="text-xl font-bold tracking-tight" dir="ltr" id="user-balance">₪0</h1>
+                                <i class="fa-solid fa-wallet absolute -right-2 -bottom-2 text-3xl text-white opacity-10 rotate-12"></i>
+                            </div>
+                            <a id="ad-slot-balance-side" href="#" target="_blank" class="w-2/3 rounded-2xl overflow-hidden hidden relative bg-slate-100">
+                                <img id="ad-slot-balance-side-img" src="" alt="" class="w-full h-full object-cover">
+                            </a>
+                            <div id="ad-slot-balance-side-placeholder" class="w-2/3 rounded-2xl bg-slate-100 border border-dashed border-slate-300 flex items-center justify-center text-slate-300 text-xs font-bold">פרסום</div>
                         </div>
                         <div id="child-todo-section" class="hidden mb-8"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">לביצוע 🎯</h3><div id="child-todo-list" class="space-y-3"></div></div>
 
@@ -645,6 +661,7 @@
                         </div>
 
                         <div id="flow-wallet-widget-container" class="px-2 mb-2"></div>
+                        <div id="ad-slot-flow" class="px-2 mb-2 hidden"><a id="ad-slot-flow-link" href="#" target="_blank" class="block w-full rounded-2xl overflow-hidden h-16 relative"><img id="ad-slot-flow-img" src="" alt="" class="w-full h-full object-cover"></a></div>
                         <div class="flex flex-col gap-2 mb-4 px-2">
                             <div class="flex justify-between items-center">
                                 <h3 class="font-bold text-slate-700 text-lg">פיד פעילות</h3>
@@ -666,6 +683,7 @@
                     </div>
 
                     <div id="content-bank" class="hidden">
+                        <div id="ad-slot-bank-top" class="px-2 mb-3 hidden"><a id="ad-slot-bank-top-link" href="#" target="_blank" class="block w-full rounded-2xl overflow-hidden h-16 relative"><img id="ad-slot-bank-top-img" src="" alt="" class="w-full h-full object-cover"></a></div>
                         <div id="bank-admin-view" class="hidden space-y-6">
                             <div class="bg-emerald-50 rounded-[2rem] p-6 border border-emerald-100 text-center relative overflow-hidden shadow-sm">
                                 <div class="relative z-10"><h3 class="font-bold text-emerald-800 text-xl mb-2">יום תשלום 🤑</h3><p class="text-sm text-emerald-600 mb-6 px-4">חלוקת דמי כיס וחישוב ריבית לכל הילדים בלחיצה אחת</p><button onclick="triggerPayday()" class="btn-payday w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-200 transition"><i class="fa-solid fa-money-bill-wave"></i> בצע PayDay</button></div>
@@ -692,6 +710,7 @@
                     </div>
 
                     <div id="content-cashflow" class="hidden">
+                        <div id="ad-slot-cashflow-top" class="px-2 mb-3 hidden"><a id="ad-slot-cashflow-top-link" href="#" target="_blank" class="block w-full rounded-2xl overflow-hidden h-16 relative"><img id="ad-slot-cashflow-top-img" src="" alt="" class="w-full h-full object-cover"></a></div>
                         <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
                             <div class="flex justify-between items-center mb-4">
                                 <h3 class="font-bold text-slate-800 text-lg">ניהול תזרים 💸</h3>
@@ -711,17 +730,28 @@
                     </div>
 
                     <div id="content-shop" class="hidden">
-                        <div class="flex justify-between items-center mb-4 px-2">
+                        <!-- Ad banner top of shopping -->
+                        <div id="ad-slot-shop-top" class="px-2 mb-3 hidden"><a id="ad-slot-shop-top-link" href="#" target="_blank" class="block w-full rounded-2xl overflow-hidden h-16 relative"><img id="ad-slot-shop-top-img" src="" alt="" class="w-full h-full object-cover"></a></div>
+
+                        <div class="flex justify-between items-center mb-2 px-2">
                             <h3 class="font-bold text-slate-700 text-lg">סופר חכם 🛒</h3>
-                            <div class="flex gap-2">
-                                <button onclick="openHistoryModal()" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-clock-rotate-left mr-1"></i> היסטוריה</button>
-                                <button onclick="document.getElementById('receipt-scan-upload').click()" id="btn-scan-receipt" class="hidden bg-purple-100 text-purple-600 px-3 py-2 rounded-full text-xs font-bold shadow-sm hover:bg-purple-200 transition"><i class="fa-solid fa-receipt"></i> סרוק קבלה</button>
-                                <button onclick="startBarcodeScan('shop')" class="bg-slate-100 text-slate-600 px-3 py-2 rounded-full text-xs font-bold hover:bg-slate-200 transition shadow-sm"><i class="fa-solid fa-barcode"></i> סרוק מוצר</button>
-                                <button onclick="openAiShoppingModal()" class="bg-violet-100 text-violet-600 px-3 py-2 rounded-full text-xs font-bold hover:bg-violet-200 transition shadow-sm"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> רשימה AI</button>
+                            <div class="flex gap-2 items-center">
                                 <button onclick="openShopModal()" class="bg-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition"><i class="fa-solid fa-plus mr-1"></i> הוסף</button>
+                                <!-- More options dropdown -->
+                                <div class="relative" id="shop-more-menu-wrap">
+                                    <button onclick="document.getElementById('shop-more-dropdown').classList.toggle('hidden')" class="bg-slate-100 text-slate-600 px-3 py-2 rounded-full text-xs font-bold hover:bg-slate-200 transition"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                                    <div id="shop-more-dropdown" class="hidden absolute left-0 top-10 bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 min-w-[170px] z-50" onclick="document.getElementById('shop-more-dropdown').classList.add('hidden')">
+                                        <button onclick="openHistoryModal()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-indigo-400"></i> היסטוריה</button>
+                                        <button onclick="startBarcodeScan('shop')" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition flex items-center gap-2"><i class="fa-solid fa-barcode text-slate-400"></i> סרוק מוצר</button>
+                                        <button onclick="openAiShoppingModal()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-violet-50 hover:text-violet-700 transition flex items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles text-violet-400"></i> רשימה AI</button>
+                                        <button onclick="exportShopToWhatsApp()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-green-50 hover:text-green-700 transition flex items-center gap-2"><i class="fa-brands fa-whatsapp text-green-500"></i> שתף בוואטסאפ</button>
+                                        <button onclick="openPasteListModal()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition flex items-center gap-2"><i class="fa-solid fa-paste text-blue-400"></i> הדבק רשימה</button>
+                                        <button onclick="document.getElementById('receipt-scan-upload').click()" id="btn-scan-receipt" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition flex items-center gap-2"><i class="fa-solid fa-receipt text-purple-400"></i> סרוק קבלה</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="flex justify-between items-center mb-2 px-2" id="admin-shop-tools" class="hidden">
+                        <div class="flex justify-between items-center mb-2 px-2" id="admin-shop-tools">
                             <button onclick="toggleSelectAll()" class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">בחר הכל לסיום</button>
                             <div class="flex gap-1.5">
                                 <button id="btn-shop-multi-delete" onclick="toggleShopMultiDelete()" class="text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition"><i class="fa-solid fa-check-square mr-1"></i> בחר למחיקה</button>
@@ -729,13 +759,20 @@
                             </div>
                         </div>
 
-                        <div class="flex gap-2 mb-4 px-2">
-                            <button onclick="exportShopToWhatsApp()" class="flex-1 bg-green-50 text-green-600 py-2 rounded-xl text-xs font-bold hover:bg-green-100 transition shadow-sm border border-green-100 flex items-center justify-center gap-1.5"><i class="fa-brands fa-whatsapp text-sm"></i> שתף בוואטסאפ</button>
-                            <button onclick="openPasteListModal()" class="flex-1 bg-blue-50 text-blue-600 py-2 rounded-xl text-xs font-bold hover:bg-blue-100 transition shadow-sm border border-blue-100 flex items-center justify-center gap-1.5"><i class="fa-solid fa-paste"></i> הדבק רשימה</button>
-                        </div>
                         <div class="flex gap-2 mb-3 px-2">
-                            <button onclick="openSupermarketMode()" class="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-3 rounded-2xl text-sm font-bold shadow-lg shadow-emerald-200 hover:scale-[1.02] transition flex items-center justify-center gap-2"><i class="fa-solid fa-cart-shopping"></i> אני בסופר! 🛒</button>
+                            <button onclick="openSupermarketModeWithAd()" class="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-3 rounded-2xl text-sm font-bold shadow-lg shadow-emerald-200 hover:scale-[1.02] transition flex items-center justify-center gap-2"><i class="fa-solid fa-cart-shopping"></i> אני בסופר! 🛒</button>
                             <button onclick="openSavedListsModal()" class="bg-amber-50 text-amber-600 px-4 py-3 rounded-2xl text-xs font-bold border border-amber-100 hover:bg-amber-100 transition flex items-center justify-center gap-1.5"><i class="fa-solid fa-bookmark"></i> רשימות שמורות</button>
+                        </div>
+
+                        <!-- Supermarket splash ad overlay -->
+                        <div id="ad-slot-supermarket-splash" class="hidden fixed inset-0 z-[99998] flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm">
+                            <div class="relative w-full max-w-sm mx-4 rounded-3xl overflow-hidden shadow-2xl">
+                                <a id="ad-slot-supermarket-splash-link" href="#" target="_blank" class="block">
+                                    <img id="ad-slot-supermarket-splash-img" src="" alt="" class="w-full object-cover max-h-[60vh]">
+                                </a>
+                                <button onclick="document.getElementById('ad-slot-supermarket-splash').classList.add('hidden');openSupermarketMode();" class="absolute top-3 left-3 w-8 h-8 bg-black/50 text-white rounded-full text-lg leading-none flex items-center justify-center font-bold">✕</button>
+                            </div>
+                            <button onclick="document.getElementById('ad-slot-supermarket-splash').classList.add('hidden');openSupermarketMode();" class="mt-4 text-white/80 text-sm font-bold">המשך לרשימה ›</button>
                         </div>
 
                         <!-- SM Status Banner - shown when a family member is at supermarket -->
@@ -758,6 +795,7 @@
                     </div>
                     
                     <div id="content-pantry" class="hidden">
+                        <div id="ad-slot-pantry-top" class="px-2 mb-3 hidden"><a id="ad-slot-pantry-top-link" href="#" target="_blank" class="block w-full rounded-2xl overflow-hidden h-16 relative"><img id="ad-slot-pantry-top-img" src="" alt="" class="w-full h-full object-cover"></a></div>
                         <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
                             <button onclick="getPantryInsight()" id="btn-pantry-insight" class="hidden absolute top-6 left-6 text-[10px] font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-200 transition flex items-center gap-1 z-10"><i class="fa-solid fa-wand-magic-sparkles"></i> דוח מלאי AI</button>
                             
@@ -833,6 +871,7 @@
                     </div>
 
                     <div id="content-academy" class="hidden">
+                        <div id="ad-slot-academy-top" class="px-2 mb-3 hidden"><a id="ad-slot-academy-top-link" href="#" target="_blank" class="block w-full rounded-2xl overflow-hidden h-16 relative"><img id="ad-slot-academy-top-img" src="" alt="" class="w-full h-full object-cover"></a></div>
                         <div id="academy-admin-view" class="hidden">
                             <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-6 text-xs text-blue-800"><i class="fa-solid fa-circle-info mt-0.5"></i> הקצו מבחנים לילדים כדי שירוויחו כסף מלמידה. familAI יכולה לייצר לכם כל מבחן שרק תבקשו!</div>
                             <div class="flex justify-between items-center mb-6 px-2">
@@ -876,6 +915,7 @@
                     </div>
 
                     <div id="content-budget" class="hidden">
+                        <div id="ad-slot-budget-top" class="px-2 mb-3 hidden"><a id="ad-slot-budget-top-link" href="#" target="_blank" class="block w-full rounded-2xl overflow-hidden h-16 relative"><img id="ad-slot-budget-top-img" src="" alt="" class="w-full h-full object-cover"></a></div>
                         <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden">
                             <button onclick="getBudgetInsight()" id="btn-budget-insight" class="hidden absolute top-6 left-6 text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100 hover:bg-purple-100 transition flex items-center gap-1 z-10"><i class="fa-solid fa-wand-magic-sparkles"></i> תובנות familAI</button>
                             <div class="flex justify-between items-center mb-4">
@@ -889,6 +929,7 @@
                     </div>
 
                     <div id="content-forecast" class="hidden">
+                        <div id="ad-slot-forecast-top" class="px-2 mb-3 hidden"><a id="ad-slot-forecast-top-link" href="#" target="_blank" class="block w-full rounded-2xl overflow-hidden h-16 relative"><img id="ad-slot-forecast-top-img" src="" alt="" class="w-full h-full object-cover"></a></div>
                         <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
                             <button onclick="getForecastInsight()" id="btn-forecast-insight" class="absolute top-6 left-6 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition flex items-center gap-1 z-10"><i class="fa-solid fa-wand-magic-sparkles"></i> תובנות עתיד</button>
                             
@@ -928,6 +969,7 @@
                     </div>
 
                     <div id="content-tasks" class="hidden">
+                        <div id="ad-slot-tasks-top" class="px-2 mb-3 hidden"><a id="ad-slot-tasks-top-link" href="#" target="_blank" class="block w-full rounded-2xl overflow-hidden h-16 relative"><img id="ad-slot-tasks-top-img" src="" alt="" class="w-full h-full object-cover"></a></div>
                         <p id="admin-tasks-hint" class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mx-2 mb-4 hidden"><i class="fa-solid fa-circle-info text-blue-500"></i> צרו משימות לילדים וקבעו תגמול. כשיסיימו, הם יצלמו הוכחה ו-familAI תאשר את התשלום באופן אוטומטי, או שתוכלו לאשר ולתגמל בעצמכם!</p>
                         <div class="flex justify-between items-center mb-4 px-2">
                             <h3 class="font-bold text-slate-700 text-lg">לוח משימות</h3>
@@ -940,6 +982,7 @@
                     </div>
 
 <div id="content-community" class="hidden">
+                    <div id="ad-slot-community-top" class="px-2 mb-3 hidden"><a id="ad-slot-community-top-link" href="#" target="_blank" class="block w-full rounded-2xl overflow-hidden h-16 relative"><img id="ad-slot-community-top-img" src="" alt="" class="w-full h-full object-cover"></a></div>
                     <!-- View: Home (ברירת מחדל) -->
                     <div id="fam-comm-view-home" class="hidden">
                         <!-- 4 כפתורים compact -->
@@ -1214,6 +1257,7 @@
                     </div>
             <!-- ניהול הבית -->
             <div id="content-home-maintenance" class="hidden pb-4 px-3">
+                <div id="ad-slot-home-maint-top" class="mb-3 hidden"><a id="ad-slot-home-maint-top-link" href="#" target="_blank" class="block w-full rounded-2xl overflow-hidden h-16 relative"><img id="ad-slot-home-maint-top-img" src="" alt="" class="w-full h-full object-cover"></a></div>
                 <!-- banner -->
                 <div class="bg-gradient-to-r from-slate-700 to-slate-900 rounded-[2rem] p-5 text-white shadow-xl mb-4 relative overflow-hidden mt-3">
                     <h3 class="text-lg font-bold mb-1 flex items-center gap-2"><i class="fa-solid fa-house-chimney-crack"></i> ניהול הבית</h3>
