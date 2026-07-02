@@ -7864,3 +7864,324 @@ window.saveAdSlot = async function(key) {
         if (statusEl) { statusEl.textContent = '❌ שגיאה: ' + e.message; statusEl.className = 'block text-center text-xs font-bold mt-2 text-red-600'; statusEl.classList.remove('hidden'); }
     }
 };
+
+// ============================================================
+// BANNER ADS SYSTEM — SA UI
+// ============================================================
+
+let _bannerSlots = [];
+let _allCommunitiesForBanner = [];
+
+// called from switchSATab('adslots') — extend existing renderAdSlotsPanel
+const _origRenderAdSlots = window.renderAdSlotsPanel;
+window.renderAdSlotsPanel = async function() {
+    if (_origRenderAdSlots) await _origRenderAdSlots();
+    loadBannerSlotsPanel();
+    loadBannerOrders();
+    loadBillingOverview();
+};
+
+async function loadBannerSlotsPanel() {
+    const el = document.getElementById('banner-slots-list');
+    if (!el) return;
+    el.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">טוען...</p>';
+    try {
+        const [slotsRes, commRes] = await Promise.all([
+            fetch(`${API}/sa/banner/slots`, { headers: { Authorization: saToken } }),
+            fetch(`${API}/sa/communities`, { headers: { Authorization: saToken } })
+        ]);
+        const slotsData = await slotsRes.json();
+        const commData = await commRes.json();
+        _bannerSlots = slotsData.success ? slotsData.slots : [];
+        _allCommunitiesForBanner = commData.communities || commData || [];
+
+        if (!_bannerSlots.length) { el.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">אין שטחי פרסום מוגדרים</p>'; return; }
+        el.innerHTML = _bannerSlots.map(s => {
+            const comLabel = s.communities && s.communities.length ? s.communities.map(c=>c.name).join(', ') : 'כל הקהילות';
+            const statusBadge = s.is_active
+                ? '<span class="text-[10px] bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">פעיל</span>'
+                : '<span class="text-[10px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-full">לא פעיל</span>';
+            const pricingStr = (s.pricing||[]).map(p=>`${p.duration_days}י׳: ${p.price_coins}🪙/${p.price_ils}₪`).join(' | ');
+            return `<div class="border border-slate-200 rounded-2xl p-4 bg-slate-50">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="font-bold text-slate-800 text-sm">${s.name}</span>
+                            ${statusBadge}
+                        </div>
+                        <p class="text-xs text-slate-500 mb-1"><i class="fa-solid fa-location-dot text-purple-400 ml-1"></i>${s.location_key}</p>
+                        <p class="text-xs text-indigo-600 mb-1"><i class="fa-solid fa-users ml-1"></i>${comLabel}</p>
+                        <p class="text-[10px] text-slate-400">${pricingStr}</p>
+                    </div>
+                    <button onclick="openEditBannerSlotModal(${s.id})" class="text-purple-600 bg-purple-50 hover:bg-purple-100 w-8 h-8 rounded-full flex items-center justify-center transition text-xs"><i class="fa-solid fa-pen"></i></button>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) { el.innerHTML = `<p class="text-red-500 text-xs text-center py-4">שגיאה: ${e.message}</p>`; }
+}
+
+window.openNewBannerSlotModal = function() {
+    document.getElementById('bsm-id').value = '';
+    document.getElementById('bsm-name').value = '';
+    document.getElementById('bsm-location').value = '';
+    document.getElementById('bsm-desc').value = '';
+    document.getElementById('bsm-coins').value = '';
+    document.getElementById('bsm-ils').value = '';
+    document.getElementById('banner-slot-modal-title').textContent = 'שטח פרסום חדש';
+    _renderBsmCommunities([]);
+    _renderBsmPricing([{duration_days:7,price_coins:100,price_ils:50},{duration_days:30,price_coins:350,price_ils:175}]);
+    document.getElementById('banner-slot-modal').classList.remove('hidden');
+};
+
+window.openEditBannerSlotModal = function(id) {
+    const s = _bannerSlots.find(x=>x.id===id);
+    if (!s) return;
+    document.getElementById('bsm-id').value = s.id;
+    document.getElementById('bsm-name').value = s.name;
+    document.getElementById('bsm-location').value = s.location_key;
+    document.getElementById('bsm-desc').value = s.description || '';
+    document.getElementById('bsm-coins').value = s.base_price_coins;
+    document.getElementById('bsm-ils').value = s.base_price_ils;
+    document.getElementById('banner-slot-modal-title').textContent = 'עריכת שטח פרסום';
+    _renderBsmCommunities(s.communities ? s.communities.map(c=>c.id) : []);
+    _renderBsmPricing(s.pricing || []);
+    document.getElementById('banner-slot-modal').classList.remove('hidden');
+};
+
+function _renderBsmCommunities(selectedIds) {
+    const container = document.getElementById('bsm-communities-list');
+    if (!container) return;
+    container.innerHTML = _allCommunitiesForBanner.map(c => `
+        <label class="flex items-center gap-2 cursor-pointer hover:bg-white rounded px-1 py-0.5">
+            <input type="checkbox" value="${c.id}" ${selectedIds.includes(c.id)?'checked':''} class="bsm-com-cb accent-purple-500">
+            <span>${c.name}</span>
+        </label>`).join('');
+}
+
+window.filterBsmCommunities = function() {
+    const q = (document.getElementById('bsm-community-search')?.value||'').toLowerCase();
+    document.querySelectorAll('#bsm-communities-list label').forEach(l => {
+        l.style.display = l.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+};
+
+function _renderBsmPricing(rows) {
+    const container = document.getElementById('bsm-pricing-rows');
+    if (!container) return;
+    container.innerHTML = rows.map((p,i) => `
+        <div class="flex gap-2 items-center pricing-row" data-idx="${i}">
+            <input type="number" min="1" value="${p.duration_days}" placeholder="ימים" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-16 pr-dur focus:outline-none">
+            <input type="number" min="0" value="${p.price_coins}" placeholder="🪙" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-20 pr-coins focus:outline-none">
+            <input type="number" min="0" step="0.01" value="${p.price_ils}" placeholder="₪" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-20 pr-ils focus:outline-none">
+            <button onclick="this.closest('.pricing-row').remove()" class="text-red-400 hover:text-red-600 text-xs">✕</button>
+        </div>`).join('');
+}
+
+window.addPricingRow = function() {
+    const container = document.getElementById('bsm-pricing-rows');
+    const div = document.createElement('div');
+    div.className = 'flex gap-2 items-center pricing-row';
+    div.innerHTML = `<input type="number" min="1" placeholder="ימים" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-16 pr-dur focus:outline-none">
+        <input type="number" min="0" placeholder="🪙" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-20 pr-coins focus:outline-none">
+        <input type="number" min="0" step="0.01" placeholder="₪" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-20 pr-ils focus:outline-none">
+        <button onclick="this.closest('.pricing-row').remove()" class="text-red-400 hover:text-red-600 text-xs">✕</button>`;
+    container.appendChild(div);
+};
+
+window.saveBannerSlot = async function() {
+    const id = document.getElementById('bsm-id').value;
+    const name = document.getElementById('bsm-name').value.trim();
+    const location_key = document.getElementById('bsm-location').value.trim();
+    if (!name || !location_key) return showToast('error', 'שם ומיקום חובה');
+
+    const community_ids = Array.from(document.querySelectorAll('.bsm-com-cb:checked')).map(cb=>parseInt(cb.value));
+    const pricing = Array.from(document.querySelectorAll('.pricing-row')).map(row => ({
+        duration_days: parseInt(row.querySelector('.pr-dur').value) || 0,
+        price_coins: parseFloat(row.querySelector('.pr-coins').value) || 0,
+        price_ils: parseFloat(row.querySelector('.pr-ils').value) || 0
+    })).filter(p => p.duration_days > 0);
+
+    try {
+        let slotId = id;
+        if (id) {
+            await fetch(`${API}/sa/banner/slots/${id}`, {
+                method: 'PUT', headers: {'Content-Type':'application/json', Authorization:saToken},
+                body: JSON.stringify({ name, description:document.getElementById('bsm-desc').value, base_price_coins:parseFloat(document.getElementById('bsm-coins').value)||0, base_price_ils:parseFloat(document.getElementById('bsm-ils').value)||0 })
+            });
+        } else {
+            const r = await fetch(`${API}/sa/banner/slots`, {
+                method: 'POST', headers: {'Content-Type':'application/json', Authorization:saToken},
+                body: JSON.stringify({ name, location_key, description:document.getElementById('bsm-desc').value, base_price_coins:parseFloat(document.getElementById('bsm-coins').value)||0, base_price_ils:parseFloat(document.getElementById('bsm-ils').value)||0 })
+            });
+            const d = await r.json();
+            slotId = d.slot?.id;
+        }
+        await fetch(`${API}/sa/banner/slots/${slotId}/communities`, {
+            method:'PUT', headers:{'Content-Type':'application/json', Authorization:saToken},
+            body: JSON.stringify({ community_ids })
+        });
+        if (pricing.length) {
+            await fetch(`${API}/sa/banner/slots/${slotId}/pricing`, {
+                method:'PUT', headers:{'Content-Type':'application/json', Authorization:saToken},
+                body: JSON.stringify({ pricing })
+            });
+        }
+        showToast('success', 'שטח פרסום נשמר!');
+        document.getElementById('banner-slot-modal').classList.add('hidden');
+        loadBannerSlotsPanel();
+    } catch(e) { showToast('error', e.message); }
+};
+
+window.loadBannerOrders = async function() {
+    const el = document.getElementById('banner-orders-list');
+    if (!el) return;
+    const status = document.getElementById('banner-orders-filter')?.value || '';
+    el.innerHTML = '<p class="text-slate-400 text-xs text-center py-3">טוען...</p>';
+    try {
+        const url = `${API}/sa/banner/orders${status ? '?status='+status : ''}`;
+        const r = await fetch(url, { headers: { Authorization: saToken } });
+        const d = await r.json();
+        if (!d.success || !d.orders.length) { el.innerHTML = '<p class="text-slate-400 text-xs text-center py-3">אין הזמנות</p>'; return; }
+        const statusLabel = { pending_approval:'ממתין לאישור', active:'פעיל', expired:'הסתיים', cancelled:'בוטל', pending_payment:'ממתין לתשלום' };
+        const statusColor = { pending_approval:'amber', active:'green', expired:'slate', cancelled:'red', pending_payment:'blue' };
+        el.innerHTML = d.orders.map(o => {
+            const sc = statusColor[o.status] || 'slate';
+            const sl = statusLabel[o.status] || o.status;
+            const actions = o.status === 'pending_approval'
+                ? `<button onclick="approveBannerOrder(${o.id})" class="text-[10px] bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-1 rounded-full transition">אשר</button>
+                   <button onclick="cancelBannerOrder(${o.id})" class="text-[10px] bg-red-100 hover:bg-red-200 text-red-600 font-bold px-3 py-1 rounded-full transition mr-1">בטל</button>`
+                : `<button onclick="openClientLedger(${o.business_id},'${o.business_name}')" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-3 py-1 rounded-full transition">כרטסת</button>`;
+            return `<div class="border border-slate-100 rounded-xl p-3 bg-white flex items-center justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-0.5">
+                        <span class="font-bold text-slate-800 text-xs truncate">${o.business_name||'?'}</span>
+                        <span class="text-[10px] bg-${sc}-100 text-${sc}-700 font-bold px-2 py-0.5 rounded-full whitespace-nowrap">${sl}</span>
+                    </div>
+                    <p class="text-[10px] text-slate-500">${o.slot_name||''} · ${o.duration_days} ימים · 🪙${o.coins_used} + ₪${o.cash_amount}</p>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">${actions}</div>
+            </div>`;
+        }).join('');
+    } catch(e) { el.innerHTML = `<p class="text-red-500 text-xs text-center py-3">שגיאה: ${e.message}</p>`; }
+};
+
+window.approveBannerOrder = async function(id) {
+    if (!confirm('לאשר הזמנה זו ולנכות מטבעות?')) return;
+    try {
+        const r = await fetch(`${API}/sa/banner/orders/${id}/approve`, { method:'PUT', headers:{Authorization:saToken} });
+        const d = await r.json();
+        if (d.success) { showToast('success', 'הזמנה אושרה!'); loadBannerOrders(); loadBillingOverview(); }
+        else showToast('error', d.error);
+    } catch(e) { showToast('error', e.message); }
+};
+
+window.cancelBannerOrder = async function(id) {
+    if (!confirm('לבטל הזמנה זו?')) return;
+    try {
+        await fetch(`${API}/sa/banner/orders/${id}/cancel`, { method:'PUT', headers:{Authorization:saToken} });
+        showToast('info', 'הזמנה בוטלה'); loadBannerOrders();
+    } catch(e) { showToast('error', e.message); }
+};
+
+window.loadBillingOverview = async function() {
+    const el = document.getElementById('billing-records-list');
+    const totalsEl = document.getElementById('billing-totals-bar');
+    if (!el) return;
+    const status = document.getElementById('billing-status-filter')?.value || '';
+    el.innerHTML = '<p class="text-slate-400 text-xs text-center py-3">טוען...</p>';
+    try {
+        const url = `${API}/sa/billing${status ? '?status='+status : ''}`;
+        const r = await fetch(url, { headers: { Authorization: saToken } });
+        const d = await r.json();
+        if (totalsEl && d.totals) {
+            totalsEl.innerHTML = `
+                <div class="bg-red-50 border border-red-100 rounded-2xl p-3 text-center">
+                    <p class="text-xs text-red-500 font-bold">חוב פתוח</p>
+                    <p class="text-lg font-black text-red-700">₪${parseFloat(d.totals.total_unpaid||0).toFixed(0)}</p>
+                </div>
+                <div class="bg-green-50 border border-green-100 rounded-2xl p-3 text-center">
+                    <p class="text-xs text-green-500 font-bold">שולם החודש</p>
+                    <p class="text-lg font-black text-green-700">₪${parseFloat(d.totals.paid_this_month||0).toFixed(0)}</p>
+                </div>
+                <div class="bg-slate-50 border border-slate-100 rounded-2xl p-3 text-center">
+                    <p class="text-xs text-slate-500 font-bold">סה"כ רשומות</p>
+                    <p class="text-lg font-black text-slate-700">${d.records?.length||0}</p>
+                </div>`;
+        }
+        if (!d.records?.length) { el.innerHTML = '<p class="text-slate-400 text-xs text-center py-3">אין רשומות</p>'; return; }
+        const stLabel = { unpaid:'לא שולם', paid:'שולם', pending_confirm:'ממתין לאישור', partial:'חלקי' };
+        const stColor = { unpaid:'red', paid:'green', pending_confirm:'amber', partial:'orange' };
+        el.innerHTML = d.records.map(b => {
+            const sc = stColor[b.payment_status] || 'slate';
+            const sl = stLabel[b.payment_status] || b.payment_status;
+            const paidAction = b.payment_status !== 'paid'
+                ? `<button onclick="markBillingPaid(${b.id})" class="text-[10px] bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-1 rounded-full transition">סמן שולם</button>`
+                : '<span class="text-[10px] text-green-600 font-bold">✓ שולם</span>';
+            return `<div class="border border-slate-100 rounded-xl p-3 bg-white flex items-center justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-0.5">
+                        <span class="font-bold text-slate-800 text-xs truncate cursor-pointer underline" onclick="openClientLedger(${b.business_id},'${(b.business_name||'').replace(/'/g,"\\'")}' )">${b.business_name||'?'}</span>
+                        <span class="text-[10px] bg-${sc}-100 text-${sc}-700 font-bold px-2 py-0.5 rounded-full whitespace-nowrap">${sl}</span>
+                    </div>
+                    <p class="text-[10px] text-slate-500">${b.description||''} · 🪙${b.coins_used} + ₪${b.cash_amount} · ${b.due_date ? new Date(b.due_date).toLocaleDateString('he-IL') : ''}</p>
+                    ${b.signature_data ? `<p class="text-[10px] text-blue-500 mt-0.5">✍ חתם: ${b.signature_data} (${b.payment_confirmed_at ? new Date(b.payment_confirmed_at).toLocaleDateString('he-IL') : ''})</p>` : ''}
+                </div>
+                <div class="shrink-0">${paidAction}</div>
+            </div>`;
+        }).join('');
+    } catch(e) { el.innerHTML = `<p class="text-red-500 text-xs text-center py-3">שגיאה: ${e.message}</p>`; }
+};
+
+window.markBillingPaid = async function(id) {
+    const note = prompt('הערה (אופציונלי):') || '';
+    try {
+        const r = await fetch(`${API}/sa/billing/${id}/paid`, {
+            method:'PUT', headers:{'Content-Type':'application/json', Authorization:saToken},
+            body: JSON.stringify({ sa_note: note })
+        });
+        const d = await r.json();
+        if (d.success) { showToast('success', 'סומן כשולם!'); loadBillingOverview(); }
+        else showToast('error', d.error);
+    } catch(e) { showToast('error', e.message); }
+};
+
+window.openClientLedger = async function(bizId, bizName) {
+    const modal = document.getElementById('client-ledger-modal');
+    const content = document.getElementById('client-ledger-content');
+    const title = document.getElementById('client-ledger-title');
+    if (!modal) return;
+    title.textContent = `כרטסת לקוח — ${bizName}`;
+    content.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">טוען...</p>';
+    modal.classList.remove('hidden');
+    try {
+        const r = await fetch(`${API}/sa/clients/${bizId}/ledger`, { headers: { Authorization: saToken } });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error);
+        const balStr = `<div class="bg-purple-50 border border-purple-100 rounded-2xl p-3 mb-4 flex items-center justify-between">
+            <span class="text-xs font-bold text-purple-700">יתרת מטבעות נוכחית</span>
+            <span class="text-lg font-black text-purple-700">🪙 ${parseFloat(d.flow_balance||0).toFixed(0)}</span>
+        </div>`;
+        if (!d.records?.length) { content.innerHTML = balStr + '<p class="text-slate-400 text-xs text-center py-4">אין רשומות</p>'; return; }
+        const stLabel = { unpaid:'לא שולם', paid:'שולם', pending_confirm:'ממתין לאישור' };
+        const stColor = { unpaid:'red', paid:'green', pending_confirm:'amber' };
+        content.innerHTML = balStr + d.records.map(b => {
+            const sc = stColor[b.payment_status] || 'slate';
+            const sl = stLabel[b.payment_status] || b.payment_status;
+            const method = { coins:'מטבעות בלבד', cash:'כספי בלבד', mixed:'מעורב', credit_card:'אשראי' }[b.payment_method] || b.payment_method || '';
+            const sigLine = b.signature_data
+                ? `<p class="text-[10px] text-blue-500 mt-1">✍ אושר ע"י: ${b.signature_data} · ${b.payment_confirmed_at ? new Date(b.payment_confirmed_at).toLocaleDateString('he-IL') : ''}</p>`
+                : '';
+            return `<div class="border border-slate-100 rounded-xl p-3 mb-2 bg-slate-50">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="flex-1">
+                        <p class="font-bold text-slate-800 text-xs mb-0.5">${b.description||b.slot_name||'פרסום'}</p>
+                        <p class="text-[10px] text-slate-500">${new Date(b.created_at).toLocaleDateString('he-IL')} · ${method} · 🪙${b.coins_used} + ₪${b.cash_amount}</p>
+                        ${sigLine}
+                        ${b.sa_note ? `<p class="text-[10px] text-slate-400 mt-0.5">הערת SA: ${b.sa_note}</p>` : ''}
+                    </div>
+                    <span class="text-[10px] bg-${sc}-100 text-${sc}-700 font-bold px-2 py-0.5 rounded-full whitespace-nowrap">${sl}</span>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) { content.innerHTML = `<p class="text-red-500 text-xs text-center py-4">שגיאה: ${e.message}</p>`; }
+};

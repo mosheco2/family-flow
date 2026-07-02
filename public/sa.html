@@ -2098,6 +2098,104 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     </div>
                     <div id="ad-slots-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
                 </div>
+
+                <!-- ═══ שטחי פרסום חדשים (הזמנות) ═══ -->
+                <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
+                    <div class="flex items-center justify-between mb-5">
+                        <h2 class="text-xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-calendar-days text-purple-500"></i> שטחי פרסום להזמנה</h2>
+                        <button onclick="openNewBannerSlotModal()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-2"><i class="fa-solid fa-plus"></i> שטח חדש</button>
+                    </div>
+                    <div id="banner-slots-list" class="space-y-3"></div>
+                </div>
+
+                <!-- ═══ הזמנות פרסום ═══ -->
+                <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-list-check text-indigo-500"></i> הזמנות פרסום</h2>
+                        <select id="banner-orders-filter" onchange="loadBannerOrders()" class="text-xs border border-slate-200 rounded-xl px-3 py-2 focus:outline-none">
+                            <option value="">כל הסטטוסים</option>
+                            <option value="pending_approval">ממתין לאישור</option>
+                            <option value="active">פעיל</option>
+                            <option value="expired">הסתיים</option>
+                            <option value="cancelled">בוטל</option>
+                        </select>
+                    </div>
+                    <div id="banner-orders-list" class="space-y-2"></div>
+                </div>
+
+                <!-- ═══ מרכז גביה ═══ -->
+                <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
+                    <h2 class="text-xl font-black text-slate-800 flex items-center gap-2 mb-4"><i class="fa-solid fa-hand-holding-dollar text-green-500"></i> מרכז גביה</h2>
+                    <div id="billing-totals-bar" class="grid grid-cols-3 gap-3 mb-5"></div>
+                    <div class="flex gap-2 mb-4">
+                        <select id="billing-status-filter" onchange="loadBillingOverview()" class="text-xs border border-slate-200 rounded-xl px-3 py-2 flex-1 focus:outline-none">
+                            <option value="">כל הסטטוסים</option>
+                            <option value="unpaid">לא שולם</option>
+                            <option value="pending_confirm">ממתין לאישור SA</option>
+                            <option value="paid">שולם</option>
+                        </select>
+                    </div>
+                    <div id="billing-records-list" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- modal: שטח פרסום חדש / עריכה -->
+            <div id="banner-slot-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+                    <h3 class="text-lg font-black text-slate-800 mb-4" id="banner-slot-modal-title">שטח פרסום חדש</h3>
+                    <input type="hidden" id="bsm-id">
+                    <div class="space-y-3 mb-4">
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">שם השטח</label>
+                            <input id="bsm-name" type="text" placeholder="למשל: באנר עליון — קהילה" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">מפתח מיקום</label>
+                            <input id="bsm-location" type="text" placeholder="community_top / storefront_top / ..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">תיאור</label>
+                            <input id="bsm-desc" type="text" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">מחיר בסיס 🪙</label>
+                                <input id="bsm-coins" type="number" min="0" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">מחיר בסיס ₪</label>
+                                <input id="bsm-ils" type="number" min="0" step="0.01" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-2">קהילות (ריק = כל הקהילות)</label>
+                            <div class="border border-slate-200 rounded-xl p-3 max-h-40 overflow-y-auto bg-slate-50">
+                                <input type="text" id="bsm-community-search" placeholder="חיפוש קהילה..." oninput="filterBsmCommunities()" class="w-full border border-slate-200 rounded-xl px-2 py-1 text-xs mb-2 focus:outline-none">
+                                <div id="bsm-communities-list" class="space-y-1 text-xs"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-2">מחירון לפי תקופה</label>
+                            <div id="bsm-pricing-rows" class="space-y-2"></div>
+                            <button onclick="addPricingRow()" class="text-xs text-purple-600 font-bold mt-2 flex items-center gap-1"><i class="fa-solid fa-plus"></i> הוסף תקופה</button>
+                        </div>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="saveBannerSlot()" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold py-2.5 rounded-xl transition">שמור</button>
+                        <button onclick="document.getElementById('banner-slot-modal').classList.add('hidden')" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-bold py-2.5 rounded-xl transition">ביטול</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- modal: כרטסת לקוח -->
+            <div id="client-ledger-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-black text-slate-800" id="client-ledger-title">כרטסת לקוח</h3>
+                        <button onclick="document.getElementById('client-ledger-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
+                    </div>
+                    <div id="client-ledger-content"></div>
+                </div>
             </div>
 
             <!-- ══════════════════════════════════════════════════ -->
