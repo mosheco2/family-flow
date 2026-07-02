@@ -2194,15 +2194,10 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             <label class="text-xs font-bold text-slate-500 block mb-1">תיאור</label>
                             <input id="bsm-desc" type="text" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="text-xs font-bold text-slate-500 block mb-1">מחיר בסיס 🪙</label>
-                                <input id="bsm-coins" type="number" min="0" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
-                            </div>
-                            <div>
-                                <label class="text-xs font-bold text-slate-500 block mb-1">מחיר בסיס ₪</label>
-                                <input id="bsm-ils" type="number" min="0" step="0.01" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
-                            </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">מחיר בסיס ₪</label>
+                            <input id="bsm-ils" type="number" min="0" step="0.01" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+                            <input type="hidden" id="bsm-coins" value="0">
                         </div>
                         <div>
                             <label class="text-xs font-bold text-slate-500 block mb-2">קהילות (ריק = כל הקהילות)</label>
@@ -2213,13 +2208,13 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                         <div>
                             <label class="text-xs font-bold text-slate-500 block mb-1">מחירון לפי תקופה (ימים)</label>
-                            <div class="flex gap-2 text-[10px] text-slate-400 font-bold mb-1 px-1"><span class="w-16">ימים</span><span class="w-20">🪙 מטבעות</span><span class="w-20">₪ שקלים</span></div>
+                            <div class="flex gap-2 text-[10px] text-slate-400 font-bold mb-1 px-1"><span class="w-16">ימים</span><span class="w-28">₪ מחיר</span></div>
                             <div id="bsm-pricing-rows" class="space-y-2"></div>
                             <button onclick="addPricingRow()" class="text-xs text-purple-600 font-bold mt-2 flex items-center gap-1"><i class="fa-solid fa-plus"></i> הוסף תקופה</button>
                         </div>
                         <div>
                             <label class="text-xs font-bold text-slate-500 block mb-1">מחירון לפי כמות קהילות</label>
-                            <div class="flex gap-2 text-[10px] text-slate-400 font-bold mb-1 px-1"><span class="w-16">קהילות</span><span class="w-20">🪙 מטבעות</span><span class="w-20">₪ שקלים</span></div>
+                            <div class="flex gap-2 text-[10px] text-slate-400 font-bold mb-1 px-1"><span class="w-16">קהילות</span><span class="w-28">₪ מחיר</span></div>
                             <div id="bsm-comm-pricing-rows" class="space-y-2"></div>
                             <button onclick="addCommPricingRow()" class="text-xs text-indigo-600 font-bold mt-2 flex items-center gap-1"><i class="fa-solid fa-plus"></i> הוסף רמת קהילות</button>
                         </div>
@@ -3034,7 +3029,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
         </div>
     </div>
 
-    <script src="sa-app.js?v=32"></script>
+    <script src="sa-app.js?v=33"></script>
     <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">

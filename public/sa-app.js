@@ -7989,8 +7989,8 @@ function _renderBsmPricing(rows) {
     container.innerHTML = rows.map((p,i) => `
         <div class="flex gap-2 items-center pricing-row" data-idx="${i}">
             <input type="number" min="1" value="${p.duration_days}" placeholder="ימים" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-16 pr-dur focus:outline-none">
-            <input type="number" min="0" value="${p.price_coins}" placeholder="🪙" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-20 pr-coins focus:outline-none">
-            <input type="number" min="0" step="0.01" value="${p.price_ils}" placeholder="₪" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-20 pr-ils focus:outline-none">
+            <input type="number" min="0" step="0.01" value="${p.price_ils}" placeholder="₪" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-28 pr-ils focus:outline-none">
+            <input type="hidden" value="0" class="pr-coins">
             <button onclick="this.closest('.pricing-row').remove()" class="text-red-400 hover:text-red-600 text-xs">✕</button>
         </div>`).join('');
 }
@@ -8000,8 +8000,8 @@ window.addPricingRow = function() {
     const div = document.createElement('div');
     div.className = 'flex gap-2 items-center pricing-row';
     div.innerHTML = `<input type="number" min="1" placeholder="ימים" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-16 pr-dur focus:outline-none">
-        <input type="number" min="0" placeholder="🪙" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-20 pr-coins focus:outline-none">
-        <input type="number" min="0" step="0.01" placeholder="₪" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-20 pr-ils focus:outline-none">
+        <input type="number" min="0" step="0.01" placeholder="₪" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-28 pr-ils focus:outline-none">
+        <input type="hidden" value="0" class="pr-coins">
         <button onclick="this.closest('.pricing-row').remove()" class="text-red-400 hover:text-red-600 text-xs">✕</button>`;
     container.appendChild(div);
 };
@@ -8012,8 +8012,8 @@ function _renderBsmCommPricing(rows) {
     container.innerHTML = (rows||[]).map((p,i) => `
         <div class="flex gap-2 items-center comm-pricing-row" data-idx="${i}">
             <input type="number" min="1" value="${p.community_count||''}" placeholder="מספר" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-16 cp-count focus:outline-none">
-            <input type="number" min="0" value="${p.price_coins||''}" placeholder="🪙" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-20 cp-coins focus:outline-none">
-            <input type="number" min="0" step="0.01" value="${p.price_ils||''}" placeholder="₪" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-20 cp-ils focus:outline-none">
+            <input type="number" min="0" step="0.01" value="${p.price_ils||''}" placeholder="₪" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-28 cp-ils focus:outline-none">
+            <input type="hidden" value="0" class="cp-coins">
             <button onclick="this.closest('.comm-pricing-row').remove()" class="text-red-400 hover:text-red-600 text-xs">✕</button>
         </div>`).join('');
 }
@@ -8023,8 +8023,8 @@ window.addCommPricingRow = function() {
     const div = document.createElement('div');
     div.className = 'flex gap-2 items-center comm-pricing-row';
     div.innerHTML = `<input type="number" min="1" placeholder="מספר" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-16 cp-count focus:outline-none">
-        <input type="number" min="0" placeholder="🪙" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-20 cp-coins focus:outline-none">
-        <input type="number" min="0" step="0.01" placeholder="₪" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-20 cp-ils focus:outline-none">
+        <input type="number" min="0" step="0.01" placeholder="₪" class="border border-slate-200 rounded-xl px-2 py-1.5 text-xs w-28 cp-ils focus:outline-none">
+        <input type="hidden" value="0" class="cp-coins">
         <button onclick="this.closest('.comm-pricing-row').remove()" class="text-red-400 hover:text-red-600 text-xs">✕</button>`;
     container.appendChild(div);
 };

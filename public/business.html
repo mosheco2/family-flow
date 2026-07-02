@@ -2502,13 +2502,10 @@
                                     <option value="">בחר תקופה...</option>
                                 </select>
                             </div>
-                            <div>
-                                <label class="text-xs font-bold text-slate-500 block mb-1">אופן תשלום</label>
-                                <select id="biz-ads-method" onchange="bizAdsCalc()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
-                                    <option value="mixed">מעורב (מטבעות + מזומן)</option>
-                                    <option value="coins">מטבעות בלבד</option>
-                                    <option value="cash">כספי בלבד</option>
-                                </select>
+                            <div id="biz-ads-coins-row" class="hidden">
+                                <label class="text-xs font-bold text-slate-500 block mb-1">מטבעות לניכוי <span id="biz-ads-balance-label" class="text-purple-500"></span></label>
+                                <input type="number" id="biz-ads-coins-input" min="0" value="0" oninput="bizAdsCalc()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400" placeholder="0">
+                                <p class="text-[10px] text-slate-400 mt-1">הזן כמה מטבעות לממש (עד יתרתך). כל 10 מטבעות = ₪1</p>
                             </div>
                         </div>
                         <div id="biz-ads-calc-result" class="hidden bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl p-4 mb-4 space-y-2 text-sm">
@@ -3829,7 +3826,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=136" defer></script>
+    <script src="business-app.js?v=137" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;

@@ -19880,39 +19880,36 @@ app.get('/api/biz/banner/slots', async (req, res) => {
         `, [slots.rows.map(s=>s.id)]);
         const pMap = {};
         pricing.rows.forEach(p => { if(!pMap[p.slot_id]) pMap[p.slot_id]=[]; pMap[p.slot_id].push(p); });
-        res.json({success:true, slots: slots.rows.map(s=>({...s, pricing:pMap[s.id]||[]}))});
+        const rateCfg = await pool.query(`SELECT personal_amount FROM flow_config WHERE key='flow_to_ils_rate' LIMIT 1`).catch(()=>({rows:[]}));
+        const flow_rate = parseFloat(rateCfg.rows[0]?.personal_amount || 100);
+        res.json({success:true, slots: slots.rows.map(s=>({...s, pricing:pMap[s.id]||[]})), flow_rate});
     } catch(e) { res.status(500).json({error:e.message}); }
 });
 
 // POST submit banner order (business)
 app.post('/api/biz/banner/orders', async (req, res) => {
     try {
-        const { business_id, slot_id, community_ids, duration_days, payment_method, notes } = req.body;
+        const { business_id, slot_id, community_ids, duration_days, payment_method, notes,
+                coins_used: clientCoins, cash_amount: clientCash, total_price_ils: clientTotal } = req.body;
         if (!business_id || !slot_id || !duration_days) return res.status(400).json({error:'שדות חסרים'});
 
+        // validate pricing exists
         const pricing = await pool.query(
-            `SELECT * FROM banner_pricing WHERE slot_id=$1 AND duration_days=$2`, [slot_id, duration_days]
+            `SELECT * FROM banner_pricing WHERE slot_id=$1 AND duration_days=$2 AND (community_count=0 OR community_count IS NULL)`, [slot_id, duration_days]
         );
         if (!pricing.rows.length) return res.status(400).json({error:'מחירון לא נמצא'});
         const p = pricing.rows[0];
+        const total_price_ils = parseFloat(p.price_ils);
 
-        let coins_used = 0, cash_amount = 0, total_price_ils = parseFloat(p.price_ils);
-
-        if (payment_method === 'coins') {
-            coins_used = parseFloat(p.price_coins);
-            cash_amount = 0;
-        } else if (payment_method === 'cash') {
-            coins_used = 0;
-            cash_amount = total_price_ils;
-        } else { // mixed — use available coins
+        // validate coin balance if coins used
+        let coins_used = Math.max(0, parseFloat(clientCoins) || 0);
+        let cash_amount = parseFloat(clientCash) ?? Math.max(0, total_price_ils - coins_used * (10/100));
+        if (coins_used > 0) {
             const wallet = await pool.query(
                 `SELECT COALESCE(balance,0) as balance FROM flow_wallets WHERE entity_type='business' AND entity_id=$1`, [business_id]
             );
             const bal = parseFloat(wallet.rows[0]?.balance || 0);
-            const maxCoins = parseFloat(p.price_coins);
-            coins_used = Math.min(bal, maxCoins);
-            const coinsValueIls = (coins_used / maxCoins) * total_price_ils;
-            cash_amount = Math.max(0, total_price_ils - coinsValueIls);
+            if (coins_used > bal) return res.status(400).json({error:`יתרת מטבעות לא מספיקה (יתרה: ${bal.toFixed(0)})`});
         }
 
         const r = await pool.query(

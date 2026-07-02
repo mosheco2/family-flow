@@ -47763,6 +47763,7 @@ window.importScannedProducts = async function() {
 
 let _bizAdSlots = [];
 let _bizAdFlowBalance = 0;
+let _bizAdFlowRate = 100; // 100 coins = ₪10, i.e. 10 coins = ₪1
 
 async function renderBizAdsTab() {
     if (!currentGroup) return;
@@ -47775,16 +47776,17 @@ async function renderBizAdsTab() {
 
 async function _loadBizAdSlots() {
     try {
+        // load coin balance
+        const walletRes = await fetch(`${API}/flow/wallet/business/${currentGroup.id}`).catch(()=>null);
+        if (walletRes?.ok) { const wd = await walletRes.json(); _bizAdFlowBalance = parseFloat(wd.balance || 0); }
+
         const communityIds = currentGroup._communityIds || [];
         const communityId = communityIds[0] || '';
         const url = `${API}/biz/banner/slots${communityId ? '?communityId='+communityId : ''}`;
         const r = await fetch(url);
         const d = await r.json();
         _bizAdSlots = d.success ? d.slots : [];
-
-        const walletR = await fetch(`${API}/flow/wallet/business/${currentGroup.id}`);
-        const walletD = await walletR.json();
-        _bizAdFlowBalance = parseFloat(walletD.balance || 0);
+        if (d.flow_rate) _bizAdFlowRate = parseFloat(d.flow_rate);
 
         const slotSel = document.getElementById('biz-ads-slot');
         if (!slotSel) return;
@@ -47797,76 +47799,90 @@ async function _loadBizAdSlots() {
 window.bizAdsCalc = function() {
     const slotId = parseInt(document.getElementById('biz-ads-slot')?.value);
     const durationSel = document.getElementById('biz-ads-duration');
-    const method = document.getElementById('biz-ads-method')?.value || 'mixed';
     const resultEl = document.getElementById('biz-ads-calc-result');
+    const coinsRow = document.getElementById('biz-ads-coins-row');
+    const balLabel = document.getElementById('biz-ads-balance-label');
     if (!resultEl) return;
 
     const slot = _bizAdSlots.find(s => s.id === slotId);
     if (!slot) {
         if (durationSel) durationSel.innerHTML = '<option value="">בחר תקופה...</option>';
         resultEl.classList.add('hidden');
+        if (coinsRow) coinsRow.classList.add('hidden');
         return;
     }
 
-    // populate durations
+    // populate durations from ILS-only pricing rows
     if (durationSel) {
         const curDur = durationSel.value;
+        const durRows = (slot.pricing||[]).filter(p => !p.community_count || p.community_count === 0);
         durationSel.innerHTML = '<option value="">בחר תקופה...</option>' +
-            (slot.pricing||[]).map(p => `<option value="${p.duration_days}" ${curDur==p.duration_days?'selected':''}>${p.duration_days} ימים</option>`).join('');
+            durRows.map(p => `<option value="${p.duration_days}" ${curDur==p.duration_days?'selected':''}>${p.duration_days} ימים — ₪${parseFloat(p.price_ils).toFixed(0)}</option>`).join('');
     }
 
     const duration = parseInt(durationSel?.value);
-    if (!duration) { resultEl.classList.add('hidden'); return; }
+    if (!duration) { resultEl.classList.add('hidden'); if (coinsRow) coinsRow.classList.add('hidden'); return; }
 
-    const pricing = (slot.pricing||[]).find(p => p.duration_days === duration);
-    if (!pricing) { resultEl.classList.add('hidden'); return; }
+    const pricing = (slot.pricing||[]).find(p => p.duration_days === duration && (!p.community_count || p.community_count === 0));
+    if (!pricing) { resultEl.classList.add('hidden'); if (coinsRow) coinsRow.classList.add('hidden'); return; }
 
-    const maxCoins = parseFloat(pricing.price_coins);
     const priceIls = parseFloat(pricing.price_ils);
-    let coinsUsed = 0, cashAmount = 0;
+    // coin value: _bizAdFlowRate coins = ₪10 → 1 coin = ₪(10/rate)
+    const coinValueIls = 10 / _bizAdFlowRate; // ₪ per coin
+    const maxCoinsCanUse = Math.min(_bizAdFlowBalance, Math.floor(priceIls / coinValueIls));
 
-    if (method === 'coins') {
-        coinsUsed = maxCoins;
-        cashAmount = 0;
-    } else if (method === 'cash') {
-        coinsUsed = 0;
-        cashAmount = priceIls;
-    } else {
-        coinsUsed = Math.min(_bizAdFlowBalance, maxCoins);
-        const coinsValueIls = maxCoins > 0 ? (coinsUsed / maxCoins) * priceIls : 0;
-        cashAmount = Math.max(0, priceIls - coinsValueIls);
+    // show coins input row
+    if (coinsRow) {
+        coinsRow.classList.remove('hidden');
+        if (balLabel) balLabel.textContent = `(יתרה: 🪙${_bizAdFlowBalance.toFixed(0)})`;
+        const coinsInput = document.getElementById('biz-ads-coins-input');
+        if (coinsInput) {
+            coinsInput.max = maxCoinsCanUse;
+            if (parseFloat(coinsInput.value) > maxCoinsCanUse) coinsInput.value = maxCoinsCanUse;
+        }
     }
 
-    const notEnough = method === 'coins' && _bizAdFlowBalance < maxCoins;
+    const coinsInput = document.getElementById('biz-ads-coins-input');
+    const coinsToUse = Math.max(0, Math.min(parseFloat(coinsInput?.value || 0), maxCoinsCanUse, _bizAdFlowBalance));
+    const coinsIlsValue = coinsToUse * coinValueIls;
+    const cashAmount = Math.max(0, priceIls - coinsIlsValue);
+
     resultEl.classList.remove('hidden');
     resultEl.innerHTML = `
-        <div class="flex items-center justify-between">
-            <span class="text-slate-600 font-bold">יתרת מטבעות שלך</span>
-            <span class="font-black text-purple-700">🪙 ${_bizAdFlowBalance.toFixed(0)}</span>
+        <div class="flex items-center justify-between text-sm">
+            <span class="text-slate-600 font-bold">מחיר כולל</span>
+            <span class="font-black text-slate-800">₪${priceIls.toFixed(2)}</span>
         </div>
-        <div class="flex items-center justify-between">
-            <span class="text-slate-600 font-bold">מחיר מלא</span>
-            <span class="font-black text-slate-700">🪙${maxCoins} / ₪${priceIls}</span>
+        <hr class="border-purple-200 my-1">
+        <div class="flex items-center justify-between text-sm">
+            <span class="text-slate-600 font-bold">ניכוי מטבעות</span>
+            <span class="font-black text-purple-700">🪙${coinsToUse.toFixed(0)} = ₪${coinsIlsValue.toFixed(2)}</span>
         </div>
-        <hr class="border-purple-200">
-        <div class="flex items-center justify-between">
-            <span class="text-slate-600 font-bold">מטבעות לניכוי</span>
-            <span class="font-black ${notEnough ? 'text-red-600' : 'text-purple-700'}">🪙 ${coinsUsed.toFixed(0)}</span>
+        <div class="flex items-center justify-between text-sm border-t border-purple-200 pt-2 mt-1">
+            <span class="text-slate-700 font-black">לתשלום כספי</span>
+            <span class="font-black text-lg text-indigo-700">₪${cashAmount.toFixed(2)}</span>
         </div>
-        <div class="flex items-center justify-between">
-            <span class="text-slate-600 font-bold">תשלום כספי</span>
-            <span class="font-black text-slate-700">₪ ${cashAmount.toFixed(2)}</span>
-        </div>
-        ${notEnough ? `<p class="text-xs text-red-500 font-bold text-center">⚠️ יתרת מטבעות לא מספיקה (חסרים ${(maxCoins-_bizAdFlowBalance).toFixed(0)} 🪙)</p>` : ''}
+        ${coinsToUse === 0 && _bizAdFlowBalance > 0 ? `<p class="text-xs text-slate-400 text-center">💡 יש לך 🪙${_bizAdFlowBalance.toFixed(0)} מטבעות — הזן כמה לממש למעלה</p>` : ''}
+        ${cashAmount === 0 ? `<p class="text-xs text-green-600 font-bold text-center">✅ תשלום מלא במטבעות!</p>` : ''}
     `;
 };
 
 window.submitBizAdOrder = async function() {
     const slotId = parseInt(document.getElementById('biz-ads-slot')?.value);
     const duration = parseInt(document.getElementById('biz-ads-duration')?.value);
-    const method = document.getElementById('biz-ads-method')?.value || 'mixed';
     const notes = document.getElementById('biz-ads-notes')?.value || '';
     if (!slotId || !duration) return showToast('error', 'נא לבחור שטח פרסום ותקופה');
+
+    // read calc values
+    const slot = _bizAdSlots.find(s => s.id === slotId);
+    const pricing = (slot?.pricing||[]).find(p => p.duration_days === duration && (!p.community_count || p.community_count === 0));
+    const priceIls = parseFloat(pricing?.price_ils || 0);
+    const coinValueIls = 10 / _bizAdFlowRate;
+    const maxCoinsCanUse = Math.min(_bizAdFlowBalance, Math.floor(priceIls / coinValueIls));
+    const coinsToUse = Math.max(0, Math.min(parseFloat(document.getElementById('biz-ads-coins-input')?.value || 0), maxCoinsCanUse));
+    const coinsIlsValue = coinsToUse * coinValueIls;
+    const cashAmount = Math.max(0, priceIls - coinsIlsValue);
+    const paymentMethod = coinsToUse > 0 && cashAmount === 0 ? 'coins' : coinsToUse > 0 ? 'mixed' : 'cash';
 
     const btn = document.getElementById('btn-submit-biz-ad');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...'; }
@@ -47874,7 +47890,7 @@ window.submitBizAdOrder = async function() {
         const r = await fetch(`${API}/biz/banner/orders`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ business_id: currentGroup.id, slot_id: slotId, duration_days: duration, payment_method: method, notes, community_ids: [] })
+            body: JSON.stringify({ business_id: currentGroup.id, slot_id: slotId, duration_days: duration, payment_method: paymentMethod, coins_used: coinsToUse, cash_amount: cashAmount, total_price_ils: priceIls, notes, community_ids: [] })
         });
         const d = await r.json();
         if (d.success) {
