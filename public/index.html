@@ -166,16 +166,23 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="FamilyFlow">
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
-    <!-- טוען splash מ-cache לפני render — מונע הבהוב לוגו -->
+    <!-- בדיקת session לפני render — redirect מיידי למשתמשים מחוברים -->
     <script>
       (function(){
+        try {
+          var session = JSON.parse(localStorage.getItem('ofl_session') || 'null');
+          if (session && session.group) {
+            if (session.group.type === 'BUSINESS') {
+              window.location.replace('/business.html');
+              return;
+            }
+          }
+        } catch(e){ localStorage.removeItem('ofl_session'); }
         try {
           var ads = JSON.parse(localStorage.getItem('ofl_ads') || '{}');
           var s = ads.splash;
           if(s && s.active && s.img) {
-            // מוסיף style inline לפני render של ה-body
             document.write('<style>#preloader-default{display:none!important}#preloader-splash-ad{display:flex!important}</style>');
-            // שומר את הנתונים לשימוש מיידי אחרי render
             window.__splashPreload = s;
           }
         } catch(e){}
