@@ -617,7 +617,7 @@ function switchTab(t) { 
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
     if (t === 'recipes') try { renderRecipePantrySelection(); } catch(e) {}
     if (t === 'forecast') try { renderForecast(); } catch(e) {}
-    if (t === 'cashflow') try { renderCashflow(); } catch(e) {}
+    if (t === 'cashflow') { try { renderCashflow(); } catch(e) {} if (!allTransactions.length) try { fetchData(); } catch(e) {} }
     if (t === 'budget') try { fetchBudget(); } catch(e) {}
     if (t === 'community') try { fetchCommunityData(); } catch(e) {}
     if (t === 'myorders') {
@@ -1761,7 +1761,9 @@ async function fetchData() {
             if(transRes.ok) { const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; }
         } catch(e) { allTransactions = []; }
 
-        try { renderChildTodo(); buildAndRenderFeed(); if (window._currentFamilyTab === 'cashflow') renderCashflow(); } catch(e) {}
+        try { renderChildTodo(); } catch(e) {}
+        try { buildAndRenderFeed(); } catch(e) {}
+        try { if (window._currentFamilyTab === 'cashflow') renderCashflow(); } catch(e) {}
         try { renderQuickTiles(); } catch(e) {}
         try { renderFamilyUrgentItems(); } catch(e) {}
         try { renderChildDashboard(); } catch(e) {}
