@@ -2060,10 +2060,31 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             <!-- שטחי פרסום view                                    -->
             <!-- ══════════════════════════════════════════════════ -->
             <div id="sa-view-adslots" class="hidden space-y-6 fade-in">
+                <!-- הגדרות Cloudinary -->
+                <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-md">
+                    <h3 class="text-base font-black text-slate-800 flex items-center gap-2 mb-4"><i class="fa-solid fa-cloud-arrow-up text-blue-500"></i> הגדרות Cloudinary (אחסון תמונות)</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Cloud Name</label>
+                            <input type="text" id="cld-cloud-name" placeholder="לדוגמה: my-cloud-abc" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Upload Preset (unsigned)</label>
+                            <input type="text" id="cld-upload-preset" placeholder="לדוגמה: family_ads" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button onclick="saveCldConfig()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition flex items-center gap-2"><i class="fa-solid fa-floppy-disk"></i> שמור הגדרות</button>
+                        <span id="cld-config-status" class="text-xs font-bold hidden"></span>
+                        <a href="https://cloudinary.com/console" target="_blank" class="text-xs text-blue-500 underline mr-auto">פתח Cloudinary Dashboard ↗</a>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-3">לאחר שמירה — כפתור "העלה תמונה" בכל שטח יעלה ישירות ל-Cloudinary</p>
+                </div>
+                <!-- גריד שטחי פרסום -->
                 <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
                     <div class="mb-6 border-b border-slate-100 pb-6">
                         <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-rectangle-ad text-pink-500"></i> ניהול שטחי פרסום</h2>
-                        <p class="text-sm text-slate-500 mt-1">ניהול 16 שטחי הפרסום הדיגיטלי במערכת המשפחות</p>
+                        <p class="text-sm text-slate-500 mt-1">ניהול 15 שטחי הפרסום הדיגיטלי במערכת המשפחות</p>
                     </div>
                     <div id="ad-slots-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
                 </div>
@@ -2861,7 +2882,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
         </div>
     </div>
 
-    <script src="sa-app.js?v=27"></script>
+    <script src="https://upload-widget.cloudinary.com/latest/global/all.js" type="text/javascript"></script>
+    <script src="sa-app.js?v=28"></script>
     <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">

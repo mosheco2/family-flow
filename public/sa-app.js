@@ -7703,9 +7703,57 @@ const AD_SLOT_DEFS = [
     { key: 'community_top',        label: 'עמוד קהילה — מעל' },
 ];
 
+// ─── Cloudinary Config ────────────────────────────────────────────────────────
+window.saveCldConfig = async function() {
+    const cloudName = document.getElementById('cld-cloud-name')?.value?.trim();
+    const preset = document.getElementById('cld-upload-preset')?.value?.trim();
+    const statusEl = document.getElementById('cld-config-status');
+    if (!cloudName || !preset) { if(statusEl){statusEl.textContent='❌ יש למלא שני השדות'; statusEl.className='text-xs font-bold text-red-600'; statusEl.classList.remove('hidden');} return; }
+    try {
+        await Promise.all([
+            fetch(`${API}/sa/settings`, { method:'POST', headers:{'Content-Type':'application/json', Authorization:saToken}, body: JSON.stringify({key:'cloudinary_cloud_name', value:cloudName}) }),
+            fetch(`${API}/sa/settings`, { method:'POST', headers:{'Content-Type':'application/json', Authorization:saToken}, body: JSON.stringify({key:'cloudinary_upload_preset', value:preset}) }),
+        ]);
+        if(statusEl){statusEl.textContent='✅ נשמר!'; statusEl.className='text-xs font-bold text-green-600'; statusEl.classList.remove('hidden'); setTimeout(()=>statusEl.classList.add('hidden'),2500);}
+    } catch(e) { if(statusEl){statusEl.textContent='❌ שגיאה'; statusEl.className='text-xs font-bold text-red-600'; statusEl.classList.remove('hidden');} }
+};
+
+async function loadCldConfig() {
+    try {
+        const res = await fetch(`${API}/sa/settings/cloudinary_cloud_name,cloudinary_upload_preset`, { headers:{Authorization:saToken} });
+        const data = await res.json();
+        if(data.cloudinary_cloud_name) document.getElementById('cld-cloud-name').value = data.cloudinary_cloud_name;
+        if(data.cloudinary_upload_preset) document.getElementById('cld-upload-preset').value = data.cloudinary_upload_preset;
+    } catch(e){}
+}
+
+window.openCldUpload = function(slotKey) {
+    const cloudName = document.getElementById('cld-cloud-name')?.value?.trim();
+    const preset = document.getElementById('cld-upload-preset')?.value?.trim();
+    if (!cloudName || !preset) {
+        alert('יש להגדיר Cloud Name ו-Upload Preset בהגדרות Cloudinary למעלה תחילה');
+        return;
+    }
+    if (typeof cloudinary === 'undefined') { alert('Cloudinary Widget לא נטען. נסה לרענן את הדף.'); return; }
+    const widget = cloudinary.createUploadWidget(
+        { cloudName, uploadPreset: preset, sources:['local','url'], multiple:false, language:'he', showAdvancedOptions:false, folder:'family-flow-ads', maxFileSize:2000000, clientAllowedFormats:['jpg','jpeg','png','webp','gif'] },
+        (error, result) => {
+            if (!error && result && result.event === 'success') {
+                const url = result.info.secure_url;
+                const imgInput = document.getElementById(`ad-img-${slotKey}`);
+                if(imgInput) { imgInput.value = url; }
+                const previewEl = document.getElementById(`ad-preview-${slotKey}`);
+                if(previewEl) { previewEl.src = url; previewEl.classList.remove('hidden'); }
+            }
+        }
+    );
+    widget.open();
+};
+
 window.renderAdSlotsPanel = async function() {
     const grid = document.getElementById('ad-slots-grid');
     if (!grid) return;
+    loadCldConfig();
     grid.innerHTML = '<p class="text-slate-400 text-sm text-center col-span-2 py-8">טוען...</p>';
     try {
         const res = await fetch(`${API}/ads`, { headers: { Authorization: saToken } });
@@ -7716,7 +7764,6 @@ window.renderAdSlotsPanel = async function() {
             const isActive = s.active ? 'checked' : '';
             const imgVal = (s.img || '').replace(/"/g, '&quot;');
             const linkVal = (s.link || '').replace(/"/g, '&quot;');
-            const previewHtml = s.img ? `<img src="${imgVal}" class="w-full h-20 object-cover rounded-xl mt-2 mb-1 border border-slate-200">` : '';
             return `<div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                 <div class="flex items-center justify-between mb-3">
                     <h3 class="font-bold text-slate-800 text-sm">${def.label}</h3>
@@ -7725,8 +7772,9 @@ window.renderAdSlotsPanel = async function() {
                         <span class="text-xs text-slate-500 font-bold">פעיל</span>
                     </label>
                 </div>
-                ${previewHtml}
-                <input type="text" id="ad-img-${def.key}" value="${imgVal}" placeholder="URL תמונה" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-2 focus:outline-none focus:border-pink-400">
+                ${imgVal ? `<img id="ad-preview-${def.key}" src="${imgVal}" class="w-full h-20 object-cover rounded-xl mb-2 border border-slate-200">` : `<img id="ad-preview-${def.key}" src="" class="w-full h-20 object-cover rounded-xl mb-2 border border-slate-200 hidden">`}
+                <button onclick="openCldUpload('${def.key}')" class="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold px-4 py-2 rounded-xl transition mb-2 flex items-center justify-center gap-2"><i class="fa-solid fa-cloud-arrow-up"></i> העלה תמונה</button>
+                <input type="text" id="ad-img-${def.key}" value="${imgVal}" placeholder="או הדבק URL תמונה ישירות" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-2 focus:outline-none focus:border-pink-400">
                 <input type="text" id="ad-link-${def.key}" value="${linkVal}" placeholder="URL קישור (אופציונלי)" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-3 focus:outline-none focus:border-pink-400">
                 <button onclick="saveAdSlot('${def.key}')" class="w-full bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> שמור</button>
                 <span id="ad-status-${def.key}" class="block text-center text-xs font-bold mt-2 hidden"></span>

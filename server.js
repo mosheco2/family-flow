@@ -2973,6 +2973,25 @@ app.post('/api/sa/ads', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// נתיבים גנריים לניהול system_settings מה-SA
+app.get('/api/sa/settings/:keys', verifySA, async (req, res) => {
+    try {
+        const keys = req.params.keys.split(',').map(k => k.trim()).filter(Boolean);
+        const result = await pool.query(`SELECT key, value FROM system_settings WHERE key = ANY($1)`, [keys]);
+        const map = Object.fromEntries(result.rows.map(r => [r.key, r.value]));
+        res.json(map);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/settings', verifySA, async (req, res) => {
+    try {
+        const { key, value } = req.body;
+        if (!key) return res.status(400).json({ error: 'key required' });
+        await pool.query(`INSERT INTO system_settings(key,value) VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=$2`, [key, value || '']);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/banners', async (req, res) => {
     try {
         const isBiz = req.query.type === 'BUSINESS';
