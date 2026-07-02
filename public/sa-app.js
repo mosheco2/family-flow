@@ -383,7 +383,7 @@ window.switchViewTab = function(viewId, tabId) {
     }
     // trigger data loads for specific sub-tabs
     if (viewId === 'adslots' && tabId === 'slots') { /* preloader/cloudinary sub-tab, no data load */ }
-    if (viewId === 'adslots' && tabId === 'manage') { try { loadBannerSlotsPanel(); } catch(e) {} }
+    if (viewId === 'adslots' && tabId === 'manage') { try { loadBannerSlotsPanel(); loadBannerTimeline(); } catch(e) {} }
     if (viewId === 'adslots' && tabId === 'orders') { try { loadBannerOrders(); } catch(e) {} }
     if (viewId === 'finance' && tabId === 'adsbilling') { try { loadBillingOverview(); } catch(e) {} }
 };
@@ -8097,7 +8097,7 @@ window.loadBannerOrders = async function() {
             const sc = statusColor[o.status] || 'slate';
             const sl = statusLabel[o.status] || o.status;
             const actions = o.status === 'pending_approval'
-                ? `<button onclick="approveBannerOrder(${o.id})" class="text-[10px] bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-1 rounded-full transition">אשר</button>
+                ? `<button onclick="openBannerScheduleModal(${o.id},${o.slot_id},${o.duration_days},'${(o.business_name||'').replace(/'/g,"\\'")}','${(o.slot_name||'').replace(/'/g,"\\'")}','${o.coins_used||0}','${o.cash_amount||0}')" class="text-[10px] bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1 rounded-full transition flex items-center gap-1"><i class="fa-solid fa-calendar-check" style="font-size:9px"></i>שבץ ואשר</button>
                    <button onclick="cancelBannerOrder(${o.id})" class="text-[10px] bg-red-100 hover:bg-red-200 text-red-600 font-bold px-3 py-1 rounded-full transition mr-1">בטל</button>`
                 : `<button onclick="openClientLedger(${o.business_id},'${o.business_name}')" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-3 py-1 rounded-full transition">כרטסת</button>`;
             return `<div class="border border-slate-100 rounded-xl p-3 bg-white flex items-center justify-between gap-2">
@@ -8114,14 +8114,140 @@ window.loadBannerOrders = async function() {
     } catch(e) { el.innerHTML = `<p class="text-red-500 text-xs text-center py-3">שגיאה: ${e.message}</p>`; }
 };
 
-window.approveBannerOrder = async function(id) {
-    if (!confirm('לאשר הזמנה זו ולנכות מטבעות?')) return;
+window.approveBannerOrder = async function(id, startDate) {
     try {
-        const r = await fetch(`${API}/sa/banner/orders/${id}/approve`, { method:'PUT', headers:{Authorization:saToken} });
+        const body = startDate ? JSON.stringify({start_date: startDate}) : '{}';
+        const r = await fetch(`${API}/sa/banner/orders/${id}/approve`, {
+            method:'PUT',
+            headers:{Authorization:saToken, 'Content-Type':'application/json'},
+            body
+        });
         const d = await r.json();
-        if (d.success) { showToast('success', 'הזמנה אושרה!'); loadBannerOrders(); loadBillingOverview(); }
-        else showToast('error', d.error);
-    } catch(e) { showToast('error', e.message); }
+        if (d.success) { showToast('success', 'הזמנה אושרה!'); loadBannerOrders(); loadBillingOverview(); return true; }
+        else { showToast('error', d.error); return false; }
+    } catch(e) { showToast('error', e.message); return false; }
+};
+
+// ── Banner Schedule Modal ──────────────────────────────────────
+window.openBannerScheduleModal = function(orderId, slotId, durationDays, bizName, slotName, coinsUsed, cashAmount) {
+    document.getElementById('bsched-order-id').value = orderId;
+    document.getElementById('bsched-slot-id').value = slotId;
+    document.getElementById('bsched-biz-name').textContent = bizName;
+    document.getElementById('bsched-slot-name').textContent = slotName;
+    document.getElementById('bsched-duration').textContent = durationDays;
+    document.getElementById('bsched-payment').textContent = `🪙${coinsUsed} + ₪${cashAmount}`;
+    // default start date = today
+    const today = new Date().toISOString().split('T')[0];
+    const startInp = document.getElementById('bsched-start-date');
+    startInp.value = today;
+    startInp.min = today;
+    // store duration for calc
+    startInp.dataset.duration = durationDays;
+    startInp.dataset.slotId = slotId;
+    document.getElementById('bsched-conflict').classList.add('hidden');
+    document.getElementById('bsched-ok').classList.add('hidden');
+    document.getElementById('bsched-confirm-btn').disabled = false;
+    document.getElementById('bsched-end-date').textContent = _calcEndDate(today, durationDays);
+    document.getElementById('banner-schedule-modal').classList.remove('hidden');
+    // auto-check on open
+    onBschedDateChange();
+};
+
+window.closeBannerScheduleModal = function() {
+    document.getElementById('banner-schedule-modal').classList.add('hidden');
+};
+
+function _calcEndDate(startStr, days) {
+    const d = new Date(startStr);
+    d.setDate(d.getDate() + parseInt(days));
+    return d.toLocaleDateString('he-IL');
+}
+
+window.onBschedDateChange = async function() {
+    const startInp = document.getElementById('bsched-start-date');
+    const startStr = startInp.value;
+    const duration = parseInt(startInp.dataset.duration || 0);
+    const slotId = startInp.dataset.slotId;
+    if (!startStr) return;
+    // calc end
+    const startD = new Date(startStr);
+    const endD = new Date(startD);
+    endD.setDate(endD.getDate() + duration);
+    const endStr = endD.toISOString().split('T')[0];
+    document.getElementById('bsched-end-date').textContent = endD.toLocaleDateString('he-IL');
+    // check availability
+    document.getElementById('bsched-conflict').classList.add('hidden');
+    document.getElementById('bsched-ok').classList.add('hidden');
+    document.getElementById('bsched-confirm-btn').disabled = true;
+    try {
+        const r = await fetch(`${API}/sa/banner/slots/${slotId}/availability?start=${startStr}&end=${endStr}`, { headers:{Authorization:saToken} });
+        const d = await r.json();
+        if (d.conflicts && d.conflicts.length) {
+            document.getElementById('bsched-conflict').classList.remove('hidden');
+            document.getElementById('bsched-conflict-details').innerHTML = d.conflicts.map(c =>
+                `<p>• <strong>${c.business_name}</strong> — ${c.start_date ? new Date(c.start_date).toLocaleDateString('he-IL') : '?'} עד ${c.end_date ? new Date(c.end_date).toLocaleDateString('he-IL') : '?'}</p>`
+            ).join('');
+            document.getElementById('bsched-confirm-btn').disabled = true;
+        } else {
+            document.getElementById('bsched-ok').classList.remove('hidden');
+            document.getElementById('bsched-confirm-btn').disabled = false;
+        }
+    } catch(e) { document.getElementById('bsched-confirm-btn').disabled = false; }
+};
+
+window.confirmBannerSchedule = async function() {
+    const orderId = document.getElementById('bsched-order-id').value;
+    const startDate = document.getElementById('bsched-start-date').value;
+    if (!startDate) { showToast('error', 'נא לבחור תאריך התחלה'); return; }
+    document.getElementById('bsched-confirm-btn').disabled = true;
+    const ok = await approveBannerOrder(orderId, startDate);
+    if (ok) closeBannerScheduleModal();
+    else document.getElementById('bsched-confirm-btn').disabled = false;
+};
+
+window.cancelBannerOrderModal = async function() {
+    const orderId = document.getElementById('bsched-order-id').value;
+    if (!confirm('לבטל הזמנה זו?')) return;
+    await cancelBannerOrder(orderId);
+    closeBannerScheduleModal();
+};
+
+// ── Banner Timeline (לוח תפוסות) ──────────────────────────────
+window.loadBannerTimeline = async function() {
+    const el = document.getElementById('banner-timeline-list');
+    if (!el) return;
+    el.innerHTML = '<p class="text-slate-400 text-xs text-center py-3">טוען...</p>';
+    try {
+        const r = await fetch(`${API}/sa/banner/timeline`, { headers:{Authorization:saToken} });
+        const d = await r.json();
+        if (!d.orders || !d.orders.length) { el.innerHTML = '<p class="text-slate-400 text-xs text-center py-3">אין הזמנות פעילות</p>'; return; }
+        // group by slot
+        const bySlot = {};
+        d.orders.forEach(o => {
+            if (!bySlot[o.slot_id]) bySlot[o.slot_id] = { name: o.slot_name, orders: [] };
+            bySlot[o.slot_id].orders.push(o);
+        });
+        const statusLabel = { pending_approval:'ממתין לאישור', active:'פעיל' };
+        const statusColor = { pending_approval:'amber', active:'green' };
+        el.innerHTML = Object.values(bySlot).map(slot => `
+            <div class="border border-slate-100 rounded-2xl p-3 bg-slate-50">
+                <p class="text-xs font-black text-slate-700 mb-2 flex items-center gap-1"><i class="fa-solid fa-rectangle-ad text-purple-400"></i> ${slot.name}</p>
+                <div class="space-y-1">
+                ${slot.orders.map(o => {
+                    const sc = statusColor[o.status] || 'slate';
+                    const sl = statusLabel[o.status] || o.status;
+                    const startStr = o.start_date ? new Date(o.start_date).toLocaleDateString('he-IL') : '—';
+                    const endStr = o.end_date ? new Date(o.end_date).toLocaleDateString('he-IL') : '—';
+                    return `<div class="flex items-center gap-2 text-[11px] bg-white border border-slate-100 rounded-xl px-3 py-1.5">
+                        <span class="font-bold text-slate-800 flex-1">${o.business_name||'?'}</span>
+                        <span class="text-slate-500">${startStr} → ${endStr}</span>
+                        <span class="bg-${sc}-100 text-${sc}-700 font-bold px-2 py-0.5 rounded-full text-[10px]">${sl}</span>
+                    </div>`;
+                }).join('')}
+                </div>
+            </div>
+        `).join('');
+    } catch(e) { el.innerHTML = `<p class="text-red-500 text-xs text-center py-3">שגיאה: ${e.message}</p>`; }
 };
 
 window.cancelBannerOrder = async function(id) {

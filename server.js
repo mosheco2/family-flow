@@ -19732,6 +19732,43 @@ app.get('/api/sa/banner/orders', async (req, res) => {
     } catch(e) { res.status(500).json({error:e.message}); }
 });
 
+// GET availability check for a slot on a date range
+app.get('/api/sa/banner/slots/:id/availability', async (req, res) => {
+    try {
+        const { start, end } = req.query;
+        if (!start || !end) return res.status(400).json({error:'נדרש start ו-end'});
+        const r = await pool.query(`
+            SELECT bo.id, bo.start_date, bo.end_date, bo.duration_days, fg.name as business_name
+            FROM banner_orders bo
+            LEFT JOIN family_groups fg ON fg.id=bo.business_id
+            WHERE bo.slot_id=$1
+              AND bo.status IN ('active','pending_approval')
+              AND bo.start_date IS NOT NULL
+              AND bo.end_date IS NOT NULL
+              AND bo.start_date < $3::date
+              AND bo.end_date > $2::date
+        `, [req.params.id, start, end]);
+        res.json({ success:true, conflicts: r.rows });
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// GET timeline — all active/upcoming orders per slot
+app.get('/api/sa/banner/timeline', async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT bo.id, bo.slot_id, bo.start_date, bo.end_date, bo.duration_days, bo.status,
+                   fg.name as business_name, bs.name as slot_name, bs.location_key
+            FROM banner_orders bo
+            LEFT JOIN family_groups fg ON fg.id=bo.business_id
+            LEFT JOIN banner_slots bs ON bs.id=bo.slot_id
+            WHERE bo.status IN ('active','pending_approval')
+              AND (bo.end_date IS NULL OR bo.end_date >= NOW())
+            ORDER BY bs.name, bo.start_date NULLS LAST
+        `);
+        res.json({ success:true, orders: r.rows });
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
 // PUT approve banner order (SA) — deducts coins, creates billing record
 app.put('/api/sa/banner/orders/:id/approve', async (req, res) => {
     const client = await pool.connect();
@@ -19758,10 +19795,24 @@ app.put('/api/sa/banner/orders/:id/approve', async (req, res) => {
             );
         }
 
-        // set dates
-        const startDate = new Date();
+        // set dates — prefer SA-supplied start_date, else use NOW()
+        const reqStart = req.body && req.body.start_date ? new Date(req.body.start_date) : new Date();
+        const startDate = reqStart;
         const endDate = new Date(startDate);
         endDate.setDate(endDate.getDate() + ord.duration_days);
+
+        // conflict check
+        const confRes = await client.query(`
+            SELECT bo.id, fg.name as business_name FROM banner_orders bo
+            LEFT JOIN family_groups fg ON fg.id=bo.business_id
+            WHERE bo.slot_id=$1 AND bo.id<>$2 AND bo.status IN ('active')
+              AND bo.start_date IS NOT NULL AND bo.end_date IS NOT NULL
+              AND bo.start_date < $4 AND bo.end_date > $3
+        `, [ord.slot_id, ord.id, startDate, endDate]);
+        if (confRes.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({error:`תפוס ע"י: ${confRes.rows.map(r=>r.business_name).join(', ')}`, conflicts: confRes.rows});
+        }
 
         await client.query(
             `UPDATE banner_orders SET status='active',start_date=$1,end_date=$2 WHERE id=$3`,
