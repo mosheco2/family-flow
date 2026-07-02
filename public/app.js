@@ -212,17 +212,16 @@ function renderAdSlot(slotKey, imgEl, linkEl, wrapEl, placeholderEl) {
 
 function applyAdsToDOM(slots) {
     _adsCache = slots;
-    // preloader splash — מציג תמונה מלאה במקום הלוגו כל זמן הטעינה
+    // preloader splash — מציג תמונה במסגרת האפליקציה + spinner
     const splashAd = getEl('preloader-splash-ad');
     if(slots.splash && slots.splash.active && slots.splash.img) {
         const def = getEl('preloader-default');
-        if(def) def.classList.add('hidden');                         // הסתר לוגו מיידית
-        if(splashAd) { splashAd.href = slots.splash.link || '#'; splashAd.classList.remove('hidden'); } // הצג מיידית
+        if(def) def.classList.add('hidden');
+        if(splashAd) { splashAd.href = slots.splash.link || '#'; splashAd.classList.remove('hidden'); }
+        const spinnerWrap = getEl('preloader-spinner-wrap');
+        if(spinnerWrap) spinnerWrap.classList.remove('hidden');
         const si = getEl('preloader-splash-img');
-        if(si && si.getAttribute('src') !== slots.splash.img) {
-            si.src = slots.splash.img;                               // טען תמונה
-        }
-        // הפעל progress bar
+        if(si && si.getAttribute('src') !== slots.splash.img) { si.src = slots.splash.img; }
         requestAnimationFrame(() => {
             const bar = getEl('preloader-splash-bar');
             if(bar) { bar.style.width = '0%'; requestAnimationFrame(() => { bar.style.width = '100%'; }); }

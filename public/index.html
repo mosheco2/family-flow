@@ -169,29 +169,48 @@
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
 
-    <div id="app-preloader" class="fixed inset-0 bg-slate-900 z-[9999] flex flex-col items-center justify-center transition-opacity duration-700">
-        <!-- Splash ad — מוצג כשיש תמונה מוגדרת ב-SA -->
-        <a id="preloader-splash-ad" href="#" target="_blank" class="hidden absolute inset-0 z-10 bg-slate-900">
-            <img id="preloader-splash-img" src="" alt=""
-                 class="absolute inset-0 w-full h-full object-cover">
-            <!-- Progress bar -->
-            <div class="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
-                <div id="preloader-splash-bar" class="h-full bg-white/80 rounded-full" style="width:0%;transition:width 2.5s ease-out;"></div>
-            </div>
-            <!-- טקסט תחתון -->
-            <div class="absolute bottom-6 left-0 right-0 flex justify-center">
-                <div class="bg-black/50 backdrop-blur-sm rounded-full px-5 py-2 text-white text-xs font-bold flex items-center gap-2">
-                    <span class="inline-block w-2 h-2 rounded-full bg-white animate-pulse"></span>
-                    ממשיך לאפליקציה...
+    <style>
+        @keyframes ofl-spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+        @keyframes ofl-pulse-ring { 0%{transform:scale(0.8);opacity:1} 100%{transform:scale(1.6);opacity:0} }
+        @keyframes ofl-bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+        .ofl-spinner { animation: ofl-spin 1.1s linear infinite; }
+        .ofl-ring { animation: ofl-pulse-ring 1.4s ease-out infinite; }
+        .ofl-dot1 { animation: ofl-bounce 1s ease-in-out infinite 0s; }
+        .ofl-dot2 { animation: ofl-bounce 1s ease-in-out infinite 0.18s; }
+        .ofl-dot3 { animation: ofl-bounce 1s ease-in-out infinite 0.36s; }
+    </style>
+    <div id="app-preloader" class="fixed inset-0 bg-slate-200 z-[9999] flex items-center justify-center transition-opacity duration-700">
+        <!-- מסגרת בגודל האפליקציה -->
+        <div class="relative w-full max-w-lg mx-auto bg-white overflow-hidden flex flex-col" style="height:100dvh; max-height:100dvh;">
+            <!-- Splash ad — מוצג כשיש תמונה מוגדרת ב-SA -->
+            <a id="preloader-splash-ad" href="#" target="_blank" class="hidden absolute inset-0 z-10 bg-white">
+                <img id="preloader-splash-img" src="" alt="" class="absolute inset-0 w-full h-full object-cover">
+                <!-- Progress bar -->
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-black/10">
+                    <div id="preloader-splash-bar" class="h-full bg-slate-700/60 rounded-full" style="width:0%;transition:width 2.8s ease-out;"></div>
+                </div>
+            </a>
+            <!-- Default logo loader -->
+            <div id="preloader-default" class="absolute inset-0 flex flex-col items-center justify-center bg-white">
+                <img src="/icons/icon-192x192.png" alt="Oneflow Life" class="w-24 h-auto mb-6 object-contain" id="preloader-logo" fetchpriority="high" onerror="this.style.display='none'; document.getElementById('preloader-fallback').classList.remove('hidden');">
+                <div id="preloader-fallback" class="text-5xl mb-6 hidden">🤖</div>
+                <h2 class="text-lg font-bold text-slate-800 mb-6">Oneflow Life</h2>
+                <!-- אנימציית טעינה -->
+                <div class="flex items-end gap-2">
+                    <div class="ofl-dot1 w-3 h-3 rounded-full bg-teal-400"></div>
+                    <div class="ofl-dot2 w-3 h-3 rounded-full bg-teal-500"></div>
+                    <div class="ofl-dot3 w-3 h-3 rounded-full bg-teal-600"></div>
                 </div>
             </div>
-        </a>
-        <!-- Default logo loader — מוצג כשאין תמונה -->
-        <div id="preloader-default" class="flex flex-col items-center justify-center">
-            <img src="/icons/icon-192x192.png" alt="Oneflow Life" class="w-32 h-auto mb-4 animate-pulse object-contain" id="preloader-logo" fetchpriority="high" onerror="this.style.display='none'; document.getElementById('preloader-fallback').classList.remove('hidden');">
-            <div id="preloader-fallback" class="text-6xl mb-4 hidden">🤖</div>
-            <h2 class="text-xl font-bold text-white mb-1">Oneflow Life</h2>
-            <p class="text-sm text-white/60 font-medium animate-pulse">מכינה את הנתונים...</p>
+            <!-- אנימציית טעינה על ה-splash -->
+            <div id="preloader-spinner-wrap" class="hidden absolute inset-0 z-20 pointer-events-none flex items-center justify-center">
+                <div class="relative flex items-center justify-center w-16 h-16">
+                    <div class="ofl-ring absolute w-16 h-16 rounded-full border-4 border-white/70"></div>
+                    <svg class="ofl-spinner w-10 h-10 text-white drop-shadow" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="40 20"/>
+                    </svg>
+                </div>
+            </div>
         </div>
     </div>
 
