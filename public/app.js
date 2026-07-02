@@ -2561,14 +2561,6 @@ function renderCashflow() {
         html += `<div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-2 flex items-center justify-between hover:border-blue-100 transition"><div class="flex-1 overflow-hidden pr-2"><p class="font-bold text-slate-800 leading-tight flex items-center mt-0.5">${icon} <span class="mr-2 truncate">${safeStr(t.description)}</span> ${userName}</p><p class="text-[10px] text-slate-400 mt-1">${dateStr} ${catBadge}</p></div><div class="flex items-center gap-3 pl-1"><span class="font-bold text-base ${amountClass} whitespace-nowrap" dir="ltr">${prefix}₪${t.amount}</span>${editBtn}</div></div>`;
     });
 
-    if (totalPages > 1) {
-        html += `<div class="flex items-center justify-between mt-3 px-1">
-            <button onclick="window._myOrdersPage=Math.max(0,(window._myOrdersPage||0)-1);renderMyOrders();" class="text-xs font-bold px-4 py-2 rounded-xl border border-slate-200 bg-white transition" style="touch-action:manipulation;${safePageIdx===0?'opacity:0.4;pointer-events:none;':''}">→ הקודם</button>
-            <span class="text-[11px] text-slate-500 font-bold">${safePageIdx+1} / ${totalPages}</span>
-            <button onclick="window._myOrdersPage=Math.min(${totalPages-1},(window._myOrdersPage||0)+1);renderMyOrders();" class="text-xs font-bold px-4 py-2 rounded-xl border border-slate-200 bg-white transition" style="touch-action:manipulation;${safePageIdx===totalPages-1?'opacity:0.4;pointer-events:none;':''}">הבא ←</button>
-        </div>`;
-    }
-
     list.innerHTML = html;
 }
 
