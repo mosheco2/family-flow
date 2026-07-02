@@ -8091,6 +8091,8 @@ window.loadBannerOrders = async function() {
         const r = await fetch(url, { headers: { Authorization: saToken } });
         const d = await r.json();
         if (!d.success || !d.orders.length) { el.innerHTML = '<p class="text-slate-400 text-xs text-center py-3">אין הזמנות</p>'; return; }
+        // cache community_ids per order
+        d.orders.forEach(o => { _boeOrdersCache[o.id] = { community_ids: Array.isArray(o.community_ids) ? o.community_ids : JSON.parse(o.community_ids||'[]') }; });
         const statusLabel = { pending_approval:'ממתין לאישור', active:'פעיל', expired:'הסתיים', cancelled:'בוטל', pending_payment:'ממתין לתשלום' };
         const statusColor = { pending_approval:'amber', active:'green', expired:'slate', cancelled:'red', pending_payment:'blue' };
         el.innerHTML = d.orders.map(o => {
@@ -8108,7 +8110,8 @@ window.loadBannerOrders = async function() {
             const actions = o.status === 'pending_approval'
                 ? `<button onclick="openBannerScheduleModal(${o.id},${o.slot_id},${o.duration_days},'${(o.business_name||'').replace(/'/g,"\\'")}','${(o.slot_name||'').replace(/'/g,"\\'")}','${o.coins_used||0}','${o.cash_amount||0}')" class="text-[10px] bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1 rounded-full transition flex items-center gap-1"><i class="fa-solid fa-calendar-check" style="font-size:9px"></i>שבץ ואשר</button>
                    <button onclick="cancelBannerOrder(${o.id})" class="text-[10px] bg-red-100 hover:bg-red-200 text-red-600 font-bold px-3 py-1 rounded-full transition mr-1">בטל</button>`
-                : `<button onclick="openClientLedger(${o.business_id},'${o.business_name}')" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-3 py-1 rounded-full transition">כרטסת</button>`;
+                : `<button onclick="openClientLedger(${o.business_id},'${o.business_name}')" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-3 py-1 rounded-full transition">כרטסת</button>
+                   <button data-oedit="${o.id}" data-oname="${(o.business_name||'').replace(/"/g,'')}" data-oslot="${(o.slot_name||'').replace(/"/g,'')}" data-onotes="${(o.notes||'').replace(/"/g,'')}" onclick="_openBoeFromBtn(this)" class="text-[10px] bg-purple-50 hover:bg-purple-100 text-purple-600 font-bold px-3 py-1 rounded-full transition"><i class="fa-solid fa-pen" style="font-size:9px"></i></button>`;
             return `<div class="border border-slate-100 rounded-xl p-3 bg-white flex items-center justify-between gap-2">
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-0.5 flex-wrap">
@@ -8221,6 +8224,64 @@ window.cancelBannerOrderModal = async function() {
     if (!confirm('לבטל הזמנה זו?')) return;
     await cancelBannerOrder(orderId);
     closeBannerScheduleModal();
+};
+
+// ── Banner Order Edit Modal ────────────────────────────────────
+let _boeAllCommunities = [];
+let _boeOrdersCache = {};
+
+window._openBoeFromBtn = function(btn) {
+    const id = btn.dataset.oedit;
+    const cached = _boeOrdersCache[id] || {};
+    openBannerOrderEditModal(id, btn.dataset.oname, btn.dataset.oslot, cached.community_ids||[], btn.dataset.onotes||'');
+};
+
+window.openBannerOrderEditModal = async function(orderId, bizName, slotName, communityIds, notes) {
+    document.getElementById('boe-order-id').value = orderId;
+    document.getElementById('boe-title').textContent = `${bizName} · ${slotName}`;
+    document.getElementById('boe-notes').value = notes || '';
+    const commList = document.getElementById('boe-communities-list');
+    commList.innerHTML = '<p class="text-slate-400 text-xs">טוען קהילות...</p>';
+    document.getElementById('banner-order-edit-modal').classList.remove('hidden');
+    // load communities
+    try {
+        if (!_boeAllCommunities.length) {
+            const r = await fetch(`${API}/sa/communities`, { headers:{Authorization:saToken} });
+            const d = await r.json();
+            _boeAllCommunities = d.communities || [];
+        }
+        const selected = Array.isArray(communityIds) ? communityIds.map(Number) : (typeof communityIds==='string' ? JSON.parse(communityIds||'[]').map(Number) : []);
+        commList.innerHTML = _boeAllCommunities.map(c => `
+            <label class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 cursor-pointer hover:border-purple-400 transition text-xs font-bold text-slate-700">
+                <input type="checkbox" class="boe-comm-cb accent-purple-600 w-3.5 h-3.5" value="${c.id}" ${selected.includes(c.id)?'checked':''}>
+                ${c.name}
+            </label>
+        `).join('');
+    } catch(e) { commList.innerHTML = `<p class="text-red-500 text-xs">שגיאה: ${e.message}</p>`; }
+};
+
+window.closeBannerOrderEditModal = function() {
+    document.getElementById('banner-order-edit-modal').classList.add('hidden');
+};
+
+window.saveBannerOrderEdit = async function() {
+    const orderId = document.getElementById('boe-order-id').value;
+    const notes = document.getElementById('boe-notes').value;
+    const selectedComms = Array.from(document.querySelectorAll('.boe-comm-cb:checked')).map(cb => parseInt(cb.value));
+    try {
+        const r = await fetch(`${API}/sa/banner/orders/${orderId}`, {
+            method: 'PUT',
+            headers: { Authorization: saToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ community_ids: selectedComms, notes })
+        });
+        const d = await r.json();
+        if (d.success) {
+            showToast('success', 'הזמנה עודכנה!');
+            closeBannerOrderEditModal();
+            loadBannerOrders();
+            loadBannerTimeline();
+        } else showToast('error', d.error);
+    } catch(e) { showToast('error', e.message); }
 };
 
 // ── Banner Timeline (לוח תפוסות) ──────────────────────────────

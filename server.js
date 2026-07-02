@@ -19874,6 +19874,22 @@ app.put('/api/sa/banner/orders/:id/approve', async (req, res) => {
     finally { client.release(); }
 });
 
+// PUT update banner order communities/slot (SA)
+app.put('/api/sa/banner/orders/:id', async (req, res) => {
+    try {
+        const { community_ids, slot_id, notes } = req.body;
+        const fields = [], vals = [];
+        let i = 1;
+        if (community_ids !== undefined) { fields.push(`community_ids=$${i++}`); vals.push(JSON.stringify(community_ids)); }
+        if (slot_id !== undefined) { fields.push(`slot_id=$${i++}`); vals.push(slot_id); }
+        if (notes !== undefined) { fields.push(`notes=$${i++}`); vals.push(notes); }
+        if (!fields.length) return res.status(400).json({error:'אין שדות לעדכון'});
+        vals.push(req.params.id);
+        await pool.query(`UPDATE banner_orders SET ${fields.join(',')} WHERE id=$${i}`, vals);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
 // PUT cancel banner order (SA)
 app.put('/api/sa/banner/orders/:id/cancel', async (req, res) => {
     try {
@@ -19972,9 +19988,19 @@ app.get('/api/biz/banner/slots', async (req, res) => {
         pricing.rows.forEach(p => { if(!pMap[p.slot_id]) pMap[p.slot_id]=[]; pMap[p.slot_id].push(p); });
         const cMap = {};
         communities.rows.forEach(r => { if(!cMap[r.slot_id]) cMap[r.slot_id]=[]; cMap[r.slot_id].push({id:r.id,name:r.name}); });
+        // if a slot has no assigned communities, load all communities as options
+        const slotsWithoutComm = slots.rows.filter(s => !cMap[s.id] || !cMap[s.id].length).map(s=>s.id);
+        let allComms = { rows: [] };
+        if (slotsWithoutComm.length) {
+            allComms = await pool.query(`SELECT id, name FROM communities ORDER BY name`);
+        }
         const rateCfg = await pool.query(`SELECT personal_amount FROM flow_config WHERE key='flow_to_ils_rate' LIMIT 1`).catch(()=>({rows:[]}));
         const flow_rate = parseFloat(rateCfg.rows[0]?.personal_amount || 100);
-        res.json({success:true, slots: slots.rows.map(s=>({...s, pricing:pMap[s.id]||[], communities:cMap[s.id]||[]})), flow_rate});
+        res.json({success:true, slots: slots.rows.map(s=>({
+            ...s,
+            pricing: pMap[s.id]||[],
+            communities: cMap[s.id]?.length ? cMap[s.id] : allComms.rows
+        })), flow_rate});
     } catch(e) { res.status(500).json({error:e.message}); }
 });
 

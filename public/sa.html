@@ -3037,6 +3037,31 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
         </div>
     </div>
 
+    <!-- Banner Order Edit Modal (communities + slot) -->
+    <div id="banner-order-edit-modal" class="hidden fixed inset-0 bg-black/40 z-[900] flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div class="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md p-6 sm:p-8 modal-scroll overflow-y-auto max-h-[90vh]">
+        <div class="flex items-center justify-between mb-5">
+          <h3 class="text-base font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-pen text-indigo-500"></i> עריכת הזמנה</h3>
+          <button onclick="closeBannerOrderEditModal()" class="text-slate-400 hover:text-slate-700 text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="mb-1 text-xs text-slate-500 font-bold" id="boe-title">—</div>
+        <div class="mb-4">
+          <label class="text-xs font-bold text-slate-700 block mb-2">קהילות חשיפה</label>
+          <div id="boe-communities-list" class="flex flex-wrap gap-2"></div>
+          <p class="text-[10px] text-slate-400 mt-1">הבאנר יוצג בקהילות שמסומנות</p>
+        </div>
+        <div class="mb-4">
+          <label class="text-xs font-bold text-slate-700 block mb-1">הערות פנימיות</label>
+          <textarea id="boe-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-400 resize-none"></textarea>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="saveBannerOrderEdit()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> שמור</button>
+          <button onclick="closeBannerOrderEditModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold px-4 py-2.5 rounded-xl transition">ביטול</button>
+        </div>
+        <input type="hidden" id="boe-order-id">
+      </div>
+    </div>
+
     <!-- Banner Schedule Modal -->
     <div id="banner-schedule-modal" class="hidden fixed inset-0 bg-black/40 z-[900] flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div class="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md p-6 sm:p-8 modal-scroll overflow-y-auto max-h-[90vh]">
@@ -3075,7 +3100,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
       </div>
     </div>
 
-    <script src="sa-app.js?v=34"></script>
+    <script src="sa-app.js?v=35"></script>
     <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">
