@@ -801,6 +801,7 @@
                     <div id="gnav-dropdown-more" class="hidden bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 z-[9999] min-w-[160px]" onclick="event.stopPropagation()">
                       <button onclick="switchTab('community');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-community">🏘️ קהילות</button>
                       <button onclick="switchTab('surveys');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-surveys">📣 תקשורת</button>
+                      <button onclick="switchTab('biz-ads');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition flex items-center gap-2" id="gdrop-biz-ads">📢 פרסום FLOW</button>
                       <button id="gnav-btn-settings" onclick="switchTab('settings');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition flex items-center gap-2">⚙️ הגדרות</button>
                     </div>
                   </div>
@@ -3826,7 +3827,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=139" defer></script>
+    <script src="business-app.js?v=140" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
