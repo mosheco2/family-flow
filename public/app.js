@@ -81,32 +81,40 @@ const hidePreloaderAndShowAuth = (view = 'login') => {
     if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
 };
 
-window.onload = async () => { 
-    initAccessibility();
-    const btnMonthly = getEl('btn-forecast-monthly'); const btnYearly = getEl('btn-forecast-yearly');
-    if(btnMonthly) btnMonthly.addEventListener('click', () => toggleForecastMode('monthly')); if(btnYearly) btnYearly.addEventListener('click', () => toggleForecastMode('yearly'));
+window.onload = async () => {
+    initAccessibility();
+    const btnMonthly = getEl('btn-forecast-monthly'); const btnYearly = getEl('btn-forecast-yearly');
+    if(btnMonthly) btnMonthly.addEventListener('click', () => toggleForecastMode('monthly')); if(btnYearly) btnYearly.addEventListener('click', () => toggleForecastMode('yearly'));
 
-    const failsafeTimer = setTimeout(() => { const preloader = getEl('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) { hidePreloaderAndShowAuth('login'); } }, 7000);
-    const urlParams = new URLSearchParams(window.location.search); const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
-    if (inviteCode) { getEl('join-code').value = inviteCode; if(inviteRole) { getEl('join-role').value = inviteRole; try { setJoinRole(inviteRole); } catch(e) {} } clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; }
-    
-    const savedSAToken = localStorage.getItem('ofl_sa_token');
-    const savedSession = localStorage.getItem('ofl_session'); 
+    const failsafeTimer = setTimeout(() => { const preloader = getEl('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) { hidePreloaderAndShowAuth('login'); } }, 7000);
+    const urlParams = new URLSearchParams(window.location.search); const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
+    if (inviteCode) { getEl('join-code').value = inviteCode; if(inviteRole) { getEl('join-role').value = inviteRole; try { setJoinRole(inviteRole); } catch(e) {} } clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; }
 
-    // תמיכה בהשתלטות: אם יש סשן לקוח פעיל, נטען אותו קודם גם אם אנחנו סופר-אדמין
-    if(savedSession) { 
-        try { 
-            const session = JSON.parse(savedSession); 
-            if(session && session.user && session.group) { 
-                if (session.group.type === 'BUSINESS') { window.location.href = '/business.html'; return; }
-                currentUser = session.user; currentGroup = session.group; 
-                clearTimeout(failsafeTimer); loadDashboard(); return; 
-            }
-        } catch(e) { localStorage.removeItem('ofl_session'); } 
-    }
+    // מביא ads מוקדם — splash צריך להופיע לכולם (גם אנונימי/אינקוגניטו)
+    const adsPromise = fetchAds().catch(()=>{});
 
+    const savedSAToken = localStorage.getItem('ofl_sa_token');
+    const savedSession = localStorage.getItem('ofl_session');
 
-    clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
+    // תמיכה בהשתלטות: אם יש סשן לקוח פעיל, נטען אותו קודם גם אם אנחנו סופר-אדמין
+    if(savedSession) {
+        try {
+            const session = JSON.parse(savedSession);
+            if(session && session.user && session.group) {
+                if (session.group.type === 'BUSINESS') { window.location.href = '/business.html'; return; }
+                currentUser = session.user; currentGroup = session.group;
+                // אם יש splash פעיל מ-cache — ממתינים לסיום האנימציה לפני מעבר לדאשבורד
+                if (window.__splashPreload) { await new Promise(r => setTimeout(r, 2800)); }
+                clearTimeout(failsafeTimer); loadDashboard(); return;
+            }
+        } catch(e) { localStorage.removeItem('ofl_session'); }
+    }
+
+    // אין סשן — מחכים ל-fetch ads ואז מציגים splash אם קיים, לאחר מכן login
+    await adsPromise;
+    const hasSplash = _adsCache && _adsCache.splash && _adsCache.splash.active && _adsCache.splash.img;
+    if (hasSplash) { await new Promise(r => setTimeout(r, 3000)); }
+    clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
 };
 
 window.exitImpersonation = function() {
