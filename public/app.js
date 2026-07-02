@@ -195,10 +195,10 @@ async function fetchAds() {
         const cached = localStorage.getItem('ofl_ads'); if(cached) { try { _adsCache = JSON.parse(cached); applyAdsToDOM(_adsCache); } catch(e) {} }
         const res = await fetch(`${API}/ads`); const data = await res.json();
         if(data.success && data.slots) { _adsCache = data.slots; localStorage.setItem('ofl_ads', JSON.stringify(data.slots)); applyAdsToDOM(data.slots); }
-        // טען כיתוב preloader מהשרת
+        // טען כיתוב preloader מהשרת (נתיב ציבורי)
         try {
-            const sr = await fetch(`${API}/sa/settings/preloader_text`); const sd = await sr.json();
-            if(sd.preloader_text) { localStorage.setItem('ofl_preloader_text', sd.preloader_text); const el = document.getElementById('preloader-loading-text'); if(el) el.textContent = sd.preloader_text; const el2 = document.getElementById('preloader-loading-text-splash'); if(el2) el2.textContent = sd.preloader_text; }
+            const sr = await fetch(`${API}/public/settings/preloader_text`); const sd = await sr.json();
+            if(sd.value) { localStorage.setItem('ofl_preloader_text', sd.value); const el = document.getElementById('preloader-loading-text'); if(el) el.textContent = sd.value; const el2 = document.getElementById('preloader-loading-text-splash'); if(el2) el2.textContent = sd.value; }
         } catch(e2){}
     } catch(e) {}
 }

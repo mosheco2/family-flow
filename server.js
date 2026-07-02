@@ -2974,6 +2974,17 @@ app.post('/api/sa/ads', verifySA, async (req, res) => {
 });
 
 // נתיבים גנריים לניהול system_settings מה-SA
+// נתיב ציבורי לקריאת הגדרות preloader (ללא אימות)
+const PUBLIC_READABLE_SETTINGS = ['preloader_text'];
+app.get('/api/public/settings/:key', async (req, res) => {
+    try {
+        const key = req.params.key;
+        if (!PUBLIC_READABLE_SETTINGS.includes(key)) return res.status(403).json({ error: 'not allowed' });
+        const result = await pool.query(`SELECT value FROM system_settings WHERE key=$1`, [key]);
+        res.json({ value: result.rows[0]?.value || null });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/sa/settings/:keys', verifySA, async (req, res) => {
     try {
         const keys = req.params.keys.split(',').map(k => k.trim()).filter(Boolean);
