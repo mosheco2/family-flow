@@ -2510,16 +2510,29 @@ function renderUnifiedFeed() {
 }
 
 async function fetchCashflowData() {
-    if (!currentUser || !currentGroup) return;
+    const list = document.getElementById('cashflow-list');
+    if (!currentUser || !currentGroup) {
+        if (list) list.innerHTML = '<p class="text-center text-amber-500 text-sm py-4 bg-amber-50 rounded-2xl border border-dashed border-amber-200 mt-2">ממתין לטעינת נתוני משתמש...</p>';
+        return;
+    }
+    if (list) list.innerHTML = '<p class="text-center text-slate-400 text-sm py-4">מביא נתוני תזרים...</p>';
     try {
         const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
         const res = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=200`);
         if (res.ok) {
             const data = await res.json();
             allTransactions = Array.isArray(data) ? data : [];
+        } else {
+            if (list) list.innerHTML = `<p class="text-center text-red-500 text-sm py-4">שגיאת שרת ${res.status}</p>`;
+            return;
         }
-    } catch(e) {}
-    if (window._currentFamilyTab === 'cashflow') try { renderCashflow(); } catch(e) {}
+    } catch(e) {
+        if (list) list.innerHTML = '<p class="text-center text-red-500 text-sm py-4">שגיאת תקשורת עם השרת</p>';
+        return;
+    }
+    try { renderCashflow(); } catch(e) {
+        if (list) list.innerHTML = `<p class="text-center text-red-500 text-sm py-4">שגיאה: ${e.message}</p>`;
+    }
 }
 
 function renderCashflow() {
