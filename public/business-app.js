@@ -30554,8 +30554,10 @@ function applyBusinessTypeFilter() {
         });
         return;
     }
+    // tabs always visible for all business types and all future types
+    const ALWAYS_VISIBLE_TABS = ['biz-ads'];
     ALL_TABS.forEach(tab => {
-        const isEnabled = enabled.includes(tab.id);
+        const isEnabled = enabled.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id);
         const hasExplicitPermission = userGrantedTabs.includes(tab.id);
         const tabBtn = getEl(`tab-${tab.id}`);
         if (tabBtn) { if (!isEnabled && !isAdminOrManager && !hasExplicitPermission) tabBtn.classList.add('hidden'); else tabBtn.classList.remove('hidden'); }
