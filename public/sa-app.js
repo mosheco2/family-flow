@@ -7783,13 +7783,11 @@ window.openCldUpload = function(slotKey) {
         if (!file) return;
         const statusEl = document.getElementById(`ad-status-${slotKey}`);
         const origSize = (file.size / 1024).toFixed(0);
-        if (statusEl) { statusEl.textContent = `דוחס (${origSize}KB)...`; statusEl.className = 'block text-center text-xs font-bold mt-2 text-blue-500'; statusEl.classList.remove('hidden'); }
+        if (statusEl) { statusEl.textContent = `מעלה (${origSize}KB)...`; statusEl.className = 'block text-center text-xs font-bold mt-2 text-blue-500'; statusEl.classList.remove('hidden'); }
         try {
-            const compressed = await compressImage(file);
-            const compSize = (compressed.size / 1024).toFixed(0);
-            if (statusEl) statusEl.textContent = `מעלה (${compSize}KB)...`;
+            // banner ads: upload original without compression to preserve quality
             const fd = new FormData();
-            fd.append('file', compressed, file.name.replace(/\.[^.]+$/, '.jpg'));
+            fd.append('file', file, file.name);
             fd.append('upload_preset', preset);
             fd.append('folder', 'family-flow-ads');
             const isVideo = file.type.startsWith('video/');
@@ -7807,7 +7805,7 @@ window.openCldUpload = function(slotKey) {
                     previewEl.src = data.secure_url; previewEl.classList.remove('hidden');
                 }
             }
-            if (statusEl) { statusEl.textContent = `✅ עלה! ${origSize}KB → ${compSize}KB`; statusEl.className = 'block text-center text-xs font-bold mt-2 text-green-600'; setTimeout(() => statusEl.classList.add('hidden'), 3000); }
+            if (statusEl) { statusEl.textContent = `✅ עלה! (${origSize}KB)`; statusEl.className = 'block text-center text-xs font-bold mt-2 text-green-600'; setTimeout(() => statusEl.classList.add('hidden'), 3000); }
         } catch(e) {
             if (statusEl) { statusEl.textContent = '❌ ' + e.message; statusEl.className = 'block text-center text-xs font-bold mt-2 text-red-600'; }
         }
