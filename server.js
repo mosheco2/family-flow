@@ -2973,31 +2973,6 @@ app.post('/api/sa/ads', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-const AD_SLOT_KEYS = ['splash','balance_side','flow','shop_top','shop_list','supermarket_splash','pantry_top','home_maint_top','bank_top','cashflow_top','budget_top','forecast_top','tasks_top','academy_top','community_top'];
-
-app.get('/api/ads', async (req, res) => {
-    try {
-        const keys = AD_SLOT_KEYS.flatMap(s => [`ad_slot_${s}_img`,`ad_slot_${s}_link`,`ad_slot_${s}_active`]);
-        const { rows } = await pool.query(`SELECT key, value FROM system_settings WHERE key = ANY($1)`, [keys]);
-        const map = {}; rows.forEach(r => { map[r.key] = r.value; });
-        const slots = {};
-        AD_SLOT_KEYS.forEach(s => {
-            slots[s] = { img: map[`ad_slot_${s}_img`] || '', link: map[`ad_slot_${s}_link`] || '', active: map[`ad_slot_${s}_active`] === 'true' };
-        });
-        res.json({ success: true, slots });
-    } catch(e) { res.json({ success: false, error: e.message }); }
-});
-
-app.post('/api/sa/ads', verifySA, async (req, res) => {
-    try {
-        const { slot, img, link, active } = req.body;
-        if (!AD_SLOT_KEYS.includes(slot)) return res.json({ success: false, error: 'slot לא תקני' });
-        const upsert = async (k, v) => pool.query(`INSERT INTO system_settings(key,value) VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=$2`, [k, v]);
-        await Promise.all([upsert(`ad_slot_${slot}_img`, img || ''), upsert(`ad_slot_${slot}_link`, link || ''), upsert(`ad_slot_${slot}_active`, active ? 'true' : 'false')]);
-        res.json({ success: true });
-    } catch(e) { res.json({ success: false, error: e.message }); }
-});
-
 app.get('/api/banners', async (req, res) => {
     try {
         const isBiz = req.query.type === 'BUSINESS';
