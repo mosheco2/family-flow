@@ -386,7 +386,7 @@
                             </div>
                         </div>
 
-                        <div class="flex-1 flex flex-col justify-between h-16 sm:h-20 py-0.5">
+                        <div class="flex-1 flex flex-col justify-between min-h-[64px] sm:min-h-[80px] py-0.5">
                             <div class="flex justify-between items-start w-full">
                                 <div>
                                     <h2 id="dash-group-name" class="font-black text-slate-800 text-sm sm:text-base leading-tight"></h2>
@@ -432,16 +432,6 @@
                             </div>
                         </div>
                     </header>
-
-                <div class="w-full h-24 sm:h-28 border-b border-slate-100 bg-slate-50 relative overflow-hidden">
-                    <a id="app-banner-top" class="hidden w-full h-full hover:opacity-95 transition-opacity flex items-center justify-center overflow-hidden"></a>
-                    <div id="app-banner-placeholder" class="absolute inset-0 flex items-center justify-center text-slate-300 pointer-events-none">
-                        <div class="flex flex-col items-center">
-                            <i class="fa-solid fa-rectangle-ad text-lg mb-1 opacity-20"></i>
-                            <span class="text-[9px] font-black uppercase tracking-widest opacity-40">מרכז ההטבות</span>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- ★ FAMILY GROUP NAV — 3 קבוצות -->
                 <div id="family-group-nav" class="bg-slate-900 px-2 py-1.5 flex items-center gap-0.5 border-b border-slate-800 relative z-30 overflow-x-auto" style="scrollbar-width:none">
@@ -531,6 +521,17 @@
                     </div>
                 </div>
                 </div><!-- /hidden legacy nav -->
+                </div><!-- /sticky -->
+
+                <!-- באנר עליון — מחוץ לstickyכדי שלא יחתוך אייקוני header -->
+                <div class="w-full h-24 sm:h-28 border-b border-slate-100 bg-slate-50 relative overflow-hidden flex-shrink-0">
+                    <a id="app-banner-top" class="hidden w-full h-full hover:opacity-95 transition-opacity flex items-center justify-center overflow-hidden"></a>
+                    <div id="app-banner-placeholder" class="absolute inset-0 flex items-center justify-center text-slate-300 pointer-events-none">
+                        <div class="flex flex-col items-center">
+                            <i class="fa-solid fa-rectangle-ad text-lg mb-1 opacity-20"></i>
+                            <span class="text-[9px] font-black uppercase tracking-widest opacity-40">מרכז ההטבות</span>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="px-2 w-full">
