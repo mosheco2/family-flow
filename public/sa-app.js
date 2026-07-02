@@ -7926,22 +7926,26 @@ async function loadBannerSlotsPanel() {
 
 function _showBannerSlotModal() {
     const modal = document.getElementById('banner-slot-modal');
-    document.body.appendChild(modal);
+    if (!modal) return;
     modal.classList.remove('hidden');
+    const mc = document.getElementById('sa-main-content');
+    if (mc) mc.scrollTop = 0; else window.scrollTo(0,0);
 }
 
 window.openNewBannerSlotModal = function() {
-    document.getElementById('bsm-id').value = '';
-    document.getElementById('bsm-name').value = '';
-    document.getElementById('bsm-location').value = '';
-    document.getElementById('bsm-desc').value = '';
-    document.getElementById('bsm-coins').value = '';
-    document.getElementById('bsm-ils').value = '';
-    document.getElementById('banner-slot-modal-title').textContent = 'שטח פרסום חדש';
-    _renderBsmCommunities([]);
-    _renderBsmPricing([{duration_days:7,price_coins:100,price_ils:50},{duration_days:30,price_coins:350,price_ils:175}]);
-    _renderBsmCommPricing([]);
-    _showBannerSlotModal();
+    try {
+        document.getElementById('bsm-id').value = '';
+        document.getElementById('bsm-name').value = '';
+        document.getElementById('bsm-location').value = '';
+        document.getElementById('bsm-desc').value = '';
+        document.getElementById('bsm-coins').value = '';
+        document.getElementById('bsm-ils').value = '';
+        document.getElementById('banner-slot-modal-title').textContent = 'שטח פרסום חדש';
+        _renderBsmCommunities([]);
+        _renderBsmPricing([{duration_days:7,price_coins:100,price_ils:50},{duration_days:30,price_coins:350,price_ils:175}]);
+        _renderBsmCommPricing([]);
+        _showBannerSlotModal();
+    } catch(e) { showToast('error', 'שגיאה: ' + e.message); console.error(e); }
 };
 
 window.openEditBannerSlotModal = function(id) {
