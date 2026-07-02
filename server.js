@@ -19526,6 +19526,450 @@ app.get('/api/biz/pool-archive/:bizGroupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ============================================================
+// BANNER ADS SYSTEM — DB migration
+// ============================================================
+(async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS banner_slots (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(200) NOT NULL,
+                location_key VARCHAR(100) NOT NULL,
+                description TEXT,
+                base_price_coins NUMERIC(10,2) DEFAULT 0,
+                base_price_ils NUMERIC(10,2) DEFAULT 0,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS banner_slot_communities (
+                slot_id INT REFERENCES banner_slots(id) ON DELETE CASCADE,
+                community_id INT REFERENCES communities(id) ON DELETE CASCADE,
+                PRIMARY KEY (slot_id, community_id)
+            );
+            CREATE TABLE IF NOT EXISTS banner_pricing (
+                id SERIAL PRIMARY KEY,
+                slot_id INT REFERENCES banner_slots(id) ON DELETE CASCADE,
+                duration_days INT NOT NULL,
+                price_coins NUMERIC(10,2) NOT NULL,
+                price_ils NUMERIC(10,2) NOT NULL,
+                UNIQUE(slot_id, duration_days)
+            );
+            CREATE TABLE IF NOT EXISTS banner_orders (
+                id SERIAL PRIMARY KEY,
+                business_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                slot_id INT REFERENCES banner_slots(id) ON DELETE SET NULL,
+                community_ids JSONB DEFAULT '[]',
+                start_date DATE,
+                end_date DATE,
+                duration_days INT NOT NULL,
+                total_price_ils NUMERIC(10,2) DEFAULT 0,
+                coins_used NUMERIC(10,2) DEFAULT 0,
+                cash_amount NUMERIC(10,2) DEFAULT 0,
+                payment_method VARCHAR(20) DEFAULT 'mixed',
+                status VARCHAR(30) DEFAULT 'pending_approval',
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS billing_records (
+                id SERIAL PRIMARY KEY,
+                business_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                banner_order_id INT REFERENCES banner_orders(id) ON DELETE SET NULL,
+                description TEXT,
+                amount_ils NUMERIC(10,2) DEFAULT 0,
+                coins_used NUMERIC(10,2) DEFAULT 0,
+                cash_amount NUMERIC(10,2) DEFAULT 0,
+                payment_method VARCHAR(20),
+                payment_status VARCHAR(20) DEFAULT 'unpaid',
+                due_date DATE,
+                paid_at TIMESTAMP,
+                sa_note TEXT,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS payment_confirmations (
+                id SERIAL PRIMARY KEY,
+                billing_record_id INT REFERENCES billing_records(id) ON DELETE CASCADE,
+                business_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                confirmed_at TIMESTAMP DEFAULT NOW(),
+                signature_data TEXT NOT NULL,
+                ip_address VARCHAR(60),
+                user_agent TEXT
+            );
+        `);
+        // seed default slots if none exist
+        const existing = await pool.query(`SELECT COUNT(*) as c FROM banner_slots`);
+        if (parseInt(existing.rows[0].c) === 0) {
+            await pool.query(`
+                INSERT INTO banner_slots (name, location_key, description, base_price_coins, base_price_ils) VALUES
+                ('באנר עליון — דף קהילה', 'community_top', 'באנר רחב בראש דף הקהילה', 500, 250),
+                ('באנר עליון — חנות עסק', 'storefront_top', 'באנר בראש עמוד החנות', 300, 150),
+                ('כרטיס מוצגים — פיד קהילה', 'community_feed_card', 'כרטיס עסק מוצג בפיד הפעילות', 400, 200)
+                ON CONFLICT DO NOTHING;
+            `);
+            const slots = await pool.query(`SELECT id FROM banner_slots ORDER BY id`);
+            for (const slot of slots.rows) {
+                await pool.query(`
+                    INSERT INTO banner_pricing (slot_id, duration_days, price_coins, price_ils) VALUES
+                    ($1, 7,  100, 50),
+                    ($1, 14, 180, 90),
+                    ($1, 30, 350, 175),
+                    ($1, 60, 600, 300),
+                    ($1, 90, 800, 400)
+                    ON CONFLICT (slot_id, duration_days) DO NOTHING;
+                `, [slot.id]);
+            }
+        }
+    } catch(e) { console.error('[BANNER migration]', e.message); }
+})();
+
+// ============================================================
+// BANNER ADS — Super Admin API
+// ============================================================
+
+// GET all banner slots
+app.get('/api/sa/banner/slots', async (req, res) => {
+    try {
+        const slots = await pool.query(`SELECT * FROM banner_slots ORDER BY id`);
+        const communities = await pool.query(`
+            SELECT bsc.slot_id, c.id, c.name FROM banner_slot_communities bsc
+            JOIN communities c ON c.id=bsc.community_id ORDER BY c.name
+        `);
+        const pricing = await pool.query(`SELECT * FROM banner_pricing ORDER BY slot_id, duration_days`);
+        const comMap = {};
+        communities.rows.forEach(r => { if (!comMap[r.slot_id]) comMap[r.slot_id]=[]; comMap[r.slot_id].push({id:r.id,name:r.name}); });
+        const pricMap = {};
+        pricing.rows.forEach(r => { if (!pricMap[r.slot_id]) pricMap[r.slot_id]=[]; pricMap[r.slot_id].push(r); });
+        res.json({ success:true, slots: slots.rows.map(s=>({...s, communities:comMap[s.id]||[], pricing:pricMap[s.id]||[]})) });
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// POST create banner slot
+app.post('/api/sa/banner/slots', async (req, res) => {
+    try {
+        const { name, location_key, description, base_price_coins, base_price_ils } = req.body;
+        if (!name || !location_key) return res.status(400).json({error:'שם ומיקום חובה'});
+        const r = await pool.query(
+            `INSERT INTO banner_slots (name,location_key,description,base_price_coins,base_price_ils)
+             VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+            [name, location_key, description||'', base_price_coins||0, base_price_ils||0]
+        );
+        res.json({success:true, slot:r.rows[0]});
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// PUT update banner slot
+app.put('/api/sa/banner/slots/:id', async (req, res) => {
+    try {
+        const { name, description, base_price_coins, base_price_ils, is_active } = req.body;
+        await pool.query(
+            `UPDATE banner_slots SET name=$1,description=$2,base_price_coins=$3,base_price_ils=$4,is_active=$5 WHERE id=$6`,
+            [name, description||'', base_price_coins||0, base_price_ils||0, is_active!==false, req.params.id]
+        );
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// PUT update slot community assignments
+app.put('/api/sa/banner/slots/:id/communities', async (req, res) => {
+    try {
+        const slotId = parseInt(req.params.id);
+        const { community_ids } = req.body; // [] = all communities
+        await pool.query(`DELETE FROM banner_slot_communities WHERE slot_id=$1`, [slotId]);
+        if (Array.isArray(community_ids) && community_ids.length > 0) {
+            for (const cid of community_ids) {
+                await pool.query(`INSERT INTO banner_slot_communities(slot_id,community_id) VALUES($1,$2) ON CONFLICT DO NOTHING`, [slotId, cid]);
+            }
+        }
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// PUT update pricing for a slot
+app.put('/api/sa/banner/slots/:id/pricing', async (req, res) => {
+    try {
+        const slotId = parseInt(req.params.id);
+        const { pricing } = req.body; // [{duration_days, price_coins, price_ils}]
+        if (!Array.isArray(pricing)) return res.status(400).json({error:'pricing must be array'});
+        for (const p of pricing) {
+            await pool.query(
+                `INSERT INTO banner_pricing (slot_id,duration_days,price_coins,price_ils)
+                 VALUES ($1,$2,$3,$4)
+                 ON CONFLICT (slot_id,duration_days) DO UPDATE SET price_coins=$3,price_ils=$4`,
+                [slotId, p.duration_days, p.price_coins, p.price_ils]
+            );
+        }
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// GET all banner orders (SA)
+app.get('/api/sa/banner/orders', async (req, res) => {
+    try {
+        const { status, business_id } = req.query;
+        let where = 'WHERE 1=1';
+        const params = [];
+        if (status) { params.push(status); where += ` AND bo.status=$${params.length}`; }
+        if (business_id) { params.push(business_id); where += ` AND bo.business_id=$${params.length}`; }
+        const r = await pool.query(`
+            SELECT bo.*, fg.name as business_name, bs.name as slot_name, bs.location_key
+            FROM banner_orders bo
+            LEFT JOIN family_groups fg ON fg.id=bo.business_id
+            LEFT JOIN banner_slots bs ON bs.id=bo.slot_id
+            ${where} ORDER BY bo.created_at DESC
+        `, params);
+        res.json({success:true, orders:r.rows});
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// PUT approve banner order (SA) — deducts coins, creates billing record
+app.put('/api/sa/banner/orders/:id/approve', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const ordRes = await client.query(`SELECT * FROM banner_orders WHERE id=$1`, [req.params.id]);
+        if (!ordRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({error:'הזמנה לא נמצאה'}); }
+        const ord = ordRes.rows[0];
+        if (ord.status !== 'pending_approval') { await client.query('ROLLBACK'); return res.status(400).json({error:'הזמנה לא ממתינה לאישור'}); }
+
+        // deduct coins from business wallet
+        if (ord.coins_used > 0) {
+            const walletRes = await client.query(`SELECT balance FROM flow_wallets WHERE entity_type='business' AND entity_id=$1`, [ord.business_id]);
+            const bal = walletRes.rows.length ? parseFloat(walletRes.rows[0].balance) : 0;
+            if (bal < ord.coins_used) { await client.query('ROLLBACK'); return res.status(400).json({error:`יתרת מטבעות לא מספיקה (יתרה: ${bal})`}); }
+            await client.query(
+                `UPDATE flow_wallets SET balance=balance-$1,updated_at=NOW() WHERE entity_type='business' AND entity_id=$2`,
+                [ord.coins_used, ord.business_id]
+            );
+            await client.query(
+                `INSERT INTO flow_transactions(entity_type,entity_id,amount,action_key,description,reference_id)
+                 VALUES('business',$1,$2,'banner_purchase','רכישת שטח פרסום',$3)`,
+                [ord.business_id, -ord.coins_used, ord.id]
+            );
+        }
+
+        // set dates
+        const startDate = new Date();
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + ord.duration_days);
+
+        await client.query(
+            `UPDATE banner_orders SET status='active',start_date=$1,end_date=$2 WHERE id=$3`,
+            [startDate, endDate, ord.id]
+        );
+
+        // create billing record only if cash is owed
+        let billingId = null;
+        if (ord.cash_amount > 0) {
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 7);
+            const br = await client.query(
+                `INSERT INTO billing_records(business_id,banner_order_id,description,amount_ils,coins_used,cash_amount,payment_method,payment_status,due_date)
+                 VALUES($1,$2,$3,$4,$5,$6,$7,'unpaid',$8) RETURNING id`,
+                [ord.business_id, ord.id,
+                 `פרסום באנר — ${ord.duration_days} ימים`,
+                 ord.total_price_ils, ord.coins_used, ord.cash_amount, ord.payment_method, dueDate]
+            );
+            billingId = br.rows[0].id;
+        }
+
+        await client.query('COMMIT');
+        res.json({success:true, billing_id:billingId});
+    } catch(e) { await client.query('ROLLBACK'); res.status(500).json({error:e.message}); }
+    finally { client.release(); }
+});
+
+// PUT cancel banner order (SA)
+app.put('/api/sa/banner/orders/:id/cancel', async (req, res) => {
+    try {
+        await pool.query(`UPDATE banner_orders SET status='cancelled' WHERE id=$1`, [req.params.id]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// ============================================================
+// BANNER ADS — Billing & Ledger API
+// ============================================================
+
+// GET billing overview (SA) — all unpaid records
+app.get('/api/sa/billing', async (req, res) => {
+    try {
+        const { business_id, status } = req.query;
+        let where = 'WHERE 1=1';
+        const params = [];
+        if (business_id) { params.push(business_id); where += ` AND br.business_id=$${params.length}`; }
+        if (status) { params.push(status); where += ` AND br.payment_status=$${params.length}`; }
+        const r = await pool.query(`
+            SELECT br.*, fg.name as business_name
+            FROM billing_records br
+            LEFT JOIN family_groups fg ON fg.id=br.business_id
+            ${where} ORDER BY br.created_at DESC
+        `, params);
+        const totals = await pool.query(`
+            SELECT
+              SUM(CASE WHEN payment_status='unpaid' THEN cash_amount ELSE 0 END) as total_unpaid,
+              SUM(CASE WHEN payment_status='paid' AND DATE_TRUNC('month',paid_at)=DATE_TRUNC('month',NOW()) THEN cash_amount ELSE 0 END) as paid_this_month
+            FROM billing_records
+        `);
+        res.json({success:true, records:r.rows, totals:totals.rows[0]});
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// PUT mark billing record as paid (SA)
+app.put('/api/sa/billing/:id/paid', async (req, res) => {
+    try {
+        const { sa_note } = req.body;
+        await pool.query(
+            `UPDATE billing_records SET payment_status='paid',paid_at=NOW(),sa_note=$1 WHERE id=$2`,
+            [sa_note||null, req.params.id]
+        );
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// GET client ledger — all billing for a business (SA)
+app.get('/api/sa/clients/:bizId/ledger', async (req, res) => {
+    try {
+        const records = await pool.query(`
+            SELECT br.*, bo.slot_id, bs.name as slot_name, bs.location_key,
+                   pc.confirmed_at as payment_confirmed_at, pc.signature_data
+            FROM billing_records br
+            LEFT JOIN banner_orders bo ON bo.id=br.banner_order_id
+            LEFT JOIN banner_slots bs ON bs.id=bo.slot_id
+            LEFT JOIN payment_confirmations pc ON pc.billing_record_id=br.id
+            WHERE br.business_id=$1
+            ORDER BY br.created_at DESC
+        `, [req.params.bizId]);
+        const wallet = await pool.query(
+            `SELECT balance FROM flow_wallets WHERE entity_type='business' AND entity_id=$1`, [req.params.bizId]
+        );
+        res.json({success:true, records:records.rows, flow_balance: wallet.rows[0]?.balance || 0});
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// ============================================================
+// BANNER ADS — Business API
+// ============================================================
+
+// GET available banner slots for a business (filtered by community)
+app.get('/api/biz/banner/slots', async (req, res) => {
+    try {
+        const { communityId } = req.query;
+        const slots = await pool.query(`
+            SELECT DISTINCT bs.*
+            FROM banner_slots bs
+            WHERE bs.is_active=TRUE
+              AND (
+                NOT EXISTS (SELECT 1 FROM banner_slot_communities bsc WHERE bsc.slot_id=bs.id)
+                ${communityId ? `OR EXISTS (SELECT 1 FROM banner_slot_communities bsc WHERE bsc.slot_id=bs.id AND bsc.community_id=$1)` : ''}
+              )
+            ORDER BY bs.id
+        `, communityId ? [communityId] : []);
+        const pricing = await pool.query(`
+            SELECT * FROM banner_pricing WHERE slot_id=ANY($1) ORDER BY slot_id,duration_days
+        `, [slots.rows.map(s=>s.id)]);
+        const pMap = {};
+        pricing.rows.forEach(p => { if(!pMap[p.slot_id]) pMap[p.slot_id]=[]; pMap[p.slot_id].push(p); });
+        res.json({success:true, slots: slots.rows.map(s=>({...s, pricing:pMap[s.id]||[]}))});
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// POST submit banner order (business)
+app.post('/api/biz/banner/orders', async (req, res) => {
+    try {
+        const { business_id, slot_id, community_ids, duration_days, payment_method, notes } = req.body;
+        if (!business_id || !slot_id || !duration_days) return res.status(400).json({error:'שדות חסרים'});
+
+        const pricing = await pool.query(
+            `SELECT * FROM banner_pricing WHERE slot_id=$1 AND duration_days=$2`, [slot_id, duration_days]
+        );
+        if (!pricing.rows.length) return res.status(400).json({error:'מחירון לא נמצא'});
+        const p = pricing.rows[0];
+
+        let coins_used = 0, cash_amount = 0, total_price_ils = parseFloat(p.price_ils);
+
+        if (payment_method === 'coins') {
+            coins_used = parseFloat(p.price_coins);
+            cash_amount = 0;
+        } else if (payment_method === 'cash') {
+            coins_used = 0;
+            cash_amount = total_price_ils;
+        } else { // mixed — use available coins
+            const wallet = await pool.query(
+                `SELECT COALESCE(balance,0) as balance FROM flow_wallets WHERE entity_type='business' AND entity_id=$1`, [business_id]
+            );
+            const bal = parseFloat(wallet.rows[0]?.balance || 0);
+            const maxCoins = parseFloat(p.price_coins);
+            coins_used = Math.min(bal, maxCoins);
+            const coinsValueIls = (coins_used / maxCoins) * total_price_ils;
+            cash_amount = Math.max(0, total_price_ils - coinsValueIls);
+        }
+
+        const r = await pool.query(
+            `INSERT INTO banner_orders(business_id,slot_id,community_ids,duration_days,total_price_ils,coins_used,cash_amount,payment_method,notes)
+             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [business_id, slot_id, JSON.stringify(community_ids||[]), duration_days,
+             total_price_ils, coins_used, cash_amount, payment_method||'mixed', notes||'']
+        );
+        res.json({success:true, order:r.rows[0]});
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// GET business banner orders
+app.get('/api/biz/banner/orders', async (req, res) => {
+    try {
+        const { business_id } = req.query;
+        if (!business_id) return res.status(400).json({error:'business_id חסר'});
+        const r = await pool.query(`
+            SELECT bo.*, bs.name as slot_name, bs.location_key
+            FROM banner_orders bo
+            LEFT JOIN banner_slots bs ON bs.id=bo.slot_id
+            WHERE bo.business_id=$1 ORDER BY bo.created_at DESC
+        `, [business_id]);
+        res.json({success:true, orders:r.rows});
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// GET business billing ledger (business side)
+app.get('/api/biz/billing', async (req, res) => {
+    try {
+        const { business_id } = req.query;
+        if (!business_id) return res.status(400).json({error:'business_id חסר'});
+        const r = await pool.query(`
+            SELECT br.*, bs.name as slot_name,
+                   pc.confirmed_at as payment_confirmed_at, pc.signature_data
+            FROM billing_records br
+            LEFT JOIN banner_orders bo ON bo.id=br.banner_order_id
+            LEFT JOIN banner_slots bs ON bs.id=bo.slot_id
+            LEFT JOIN payment_confirmations pc ON pc.billing_record_id=br.id
+            WHERE br.business_id=$1 ORDER BY br.created_at DESC
+        `, [business_id]);
+        res.json({success:true, records:r.rows});
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// POST confirm payment + digital signature (business)
+app.post('/api/biz/billing/:id/confirm', async (req, res) => {
+    try {
+        const { business_id, signature_data } = req.body;
+        if (!signature_data) return res.status(400).json({error:'חתימה דיגיטלית חסרה'});
+        const br = await pool.query(`SELECT * FROM billing_records WHERE id=$1 AND business_id=$2`, [req.params.id, business_id]);
+        if (!br.rows.length) return res.status(404).json({error:'רשומה לא נמצאה'});
+        if (br.rows[0].payment_status === 'paid') return res.status(400).json({error:'כבר מסומן כשולם'});
+        const existing = await pool.query(`SELECT id FROM payment_confirmations WHERE billing_record_id=$1`, [req.params.id]);
+        if (existing.rows.length) return res.status(400).json({error:'אישור כבר קיים'});
+        await pool.query(
+            `INSERT INTO payment_confirmations(billing_record_id,business_id,signature_data,ip_address,user_agent)
+             VALUES($1,$2,$3,$4,$5)`,
+            [req.params.id, business_id, signature_data,
+             req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '',
+             req.headers['user-agent'] || '']
+        );
+        // mark billing as paid-pending (SA will confirm final)
+        await pool.query(`UPDATE billing_records SET payment_status='pending_confirm' WHERE id=$1`, [req.params.id]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error:e.message}); }
+});
+
 // הפעלת השרת
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
