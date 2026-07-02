@@ -212,12 +212,31 @@ function renderAdSlot(slotKey, imgEl, linkEl, wrapEl, placeholderEl) {
 
 function applyAdsToDOM(slots) {
     _adsCache = slots;
-    // preloader splash — only show when active (can't show placeholder on full-screen loader)
+    // preloader splash — מציג תמונה מלאה במקום הלוגו כל זמן הטעינה
     const splashAd = getEl('preloader-splash-ad');
+    const preloaderEl = getEl('app-preloader');
     if(slots.splash && slots.splash.active && slots.splash.img) {
-        const si = getEl('preloader-splash-img'); if(si) si.src = slots.splash.img;
-        if(splashAd) { splashAd.href = slots.splash.link || '#'; splashAd.classList.remove('hidden'); }
-        const def = getEl('preloader-default'); if(def) def.classList.add('hidden');
+        const si = getEl('preloader-splash-img');
+        if(si && !si.src) {
+            // טעינה מוקדמת — רק אם התמונה לא נטענה עדיין
+            si.onload = () => {
+                if(splashAd) splashAd.classList.remove('hidden');
+                const def = getEl('preloader-default'); if(def) def.classList.add('hidden');
+                // הפעל progress bar
+                requestAnimationFrame(() => {
+                    const bar = getEl('preloader-splash-bar');
+                    if(bar) bar.style.width = '100%';
+                });
+            };
+            si.src = slots.splash.img;
+        } else if(si && si.complete) {
+            if(splashAd) splashAd.classList.remove('hidden');
+            const def = getEl('preloader-default'); if(def) def.classList.add('hidden');
+            const bar = getEl('preloader-splash-bar');
+            if(bar) requestAnimationFrame(() => { bar.style.width = '100%'; });
+        }
+        if(splashAd) splashAd.href = slots.splash.link || '#';
+        if(preloaderEl) preloaderEl.style.backgroundColor = '#0f172a';
     }
     // balance side
     renderAdSlot('balance_side', getEl('ad-slot-balance-side-img'), getEl('ad-slot-balance-side'), getEl('ad-slot-balance-side'), getEl('ad-slot-balance-side-placeholder'));
