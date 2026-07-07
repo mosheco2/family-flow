@@ -2643,7 +2643,410 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   </div>
 
 </div>
-<div id="beauty" class="page"><div class="cs"><div class="cs-i">💅</div><h2>יופי / קוסמטיקה</h2><p>המדריך בהכנה — יתווסף בקרוב</p></div></div>
+<div id="beauty" class="page">
+
+  <div class="subnav">
+    <button class="sn on" onclick="goTo('b-enter')">כניסה</button>
+    <button class="sn" onclick="goTo('b-wizard')">ויזארד</button>
+    <button class="sn" onclick="goTo('b-nav')">ניווט</button>
+    <button class="sn" onclick="goTo('b-calendar')">יומן תורים</button>
+    <button class="sn" onclick="goTo('b-practitioners')">מטפלות</button>
+    <button class="sn" onclick="goTo('b-services')">שירותים</button>
+    <button class="sn" onclick="goTo('b-subscriptions')">מנויים</button>
+    <button class="sn" onclick="goTo('b-clients')">לקוחות</button>
+    <button class="sn" onclick="goTo('b-inventory')">מלאי</button>
+    <button class="sn" onclick="goTo('b-commissions')">עמלות</button>
+    <button class="sn" onclick="goTo('b-rfq')">ייעוץ</button>
+  </div>
+
+  <!-- ─── כניסה ראשונה ─── -->
+  <div class="chapter" id="b-enter">
+    <h2>💅 יופי / קוסמטיקה — כניסה ראשונה</h2>
+    <p>סוג עסק זה מיועד למכוני יופי, ספא, סלוני שיער, קליניקות לייזר, קוסמטיקאיות ועסקי יופי מכל הסוגים. המערכת בנויה לניהול <strong>תורים לפי מטפלת</strong>, <strong>תיקי לקוחות</strong>, <strong>מנויים</strong>, <strong>מלאי מקצועי</strong> ו<strong>עמלות אוטומטיות</strong>.</p>
+
+    <div class="box">
+      <strong>🔤 שפה מותאמת ליופי</strong>
+      <table class="field-table" style="margin-top:.5rem">
+        <tr><th>מונח כללי</th><th>מה רואים בממשק</th></tr>
+        <tr><td>לקוח</td><td>לקוחה</td></tr>
+        <tr><td>מוצר</td><td>טיפול / מוצר</td></tr>
+        <tr><td>הזמנה</td><td>תור</td></tr>
+        <tr><td>ספק</td><td>ספק קוסמטיקה</td></tr>
+      </table>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">לוח הבקרה של מנהל יופי</div>
+      <p>ברגע שנכנסים, מוצג דשבורד ייחודי עם 6 מדדים שמתעדכנים בזמן אמת:</p>
+      <div class="auto-grid">
+        <div class="auto-card">📅 <strong>תורים היום</strong><br>כמה תורים קבועו להיום</div>
+        <div class="auto-card">💰 <strong>הכנסה היום</strong><br>סכום גבוי עד עכשיו היום</div>
+        <div class="auto-card">⏳ <strong>תורים עתידיים</strong><br>תורים שכבר קבועו לימים הבאים</div>
+        <div class="auto-card">👥 <strong>לקוחות מקושרות</strong><br>סה"כ לקוחות ברשימה</div>
+        <div class="auto-card">💸 <strong>עמלות לתשלום</strong><br>כמה חייבים למטפלות</div>
+        <div class="auto-card">📊 <strong>הכנסה החודש</strong><br>סיכום כל הכנסות החודש</div>
+      </div>
+      <div class="box" style="margin-top:.7rem">
+        <strong>🔔 התראות אוטומטיות</strong><br>
+        אם יש מוצרים שמלאי שלהם נמוך, או לקוחות שלא הגיעו לתור — מופיע באנר כתום בראש הדשבורד.
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── ויזארד הקמה ─── -->
+  <div class="chapter" id="b-wizard">
+    <h2>🧙 ויזארד ההקמה</h2>
+    <p>בכניסה הראשונה לחשבון חדש מופיע ויזארד הקמה. לעסק יופי בחר באפשרות <strong>יופי ואסטטיקה 💅</strong>.</p>
+
+    <div class="mod">
+      <div class="mod-t">שלבי הויזארד</div>
+      <ol class="steps">
+        <li class="step"><strong>בחירת סוג עסק</strong> — לחץ על הכרטיס <em>יופי ואסטטיקה 💅</em> ולחץ המשך.</li>
+        <li class="step"><strong>פרטי העסק</strong> — שם המכון/הסלון, כתובת, תיאור קצר.</li>
+        <li class="step"><strong>פרטי יצירת קשר</strong> — טלפון, דוא"ל, אתר אינטרנט קיים (לא חובה).</li>
+        <li class="step"><strong>הגדרות ראשוניות</strong> — שעות פעילות, שירותים ראשיים.</li>
+      </ol>
+      <p style="font-size:.85rem">לאחר הויזארד: הוסף <strong>מטפלות</strong> (ראה פרק מטפלות) ואחר-כך <strong>שירותים</strong> (ראה פרק שירותים). רק אז ניתן להתחיל לקבוע תורים.</p>
+    </div>
+  </div>
+
+  <!-- ─── ניווט ─── -->
+  <div class="chapter" id="b-nav">
+    <h2>🗺️ ניווט וממשק</h2>
+    <p>לאחר הגדרת העסק כ<em>יופי / קוסמטיקה</em>, מופיעות בתפריט כרטיסיות ייחודיות שאינן קיימות בשאר סוגי העסקים.</p>
+
+    <div class="auto-grid">
+      <div class="auto-card">
+        <div style="font-size:1.3rem;margin-bottom:.3rem">👥 צוות</div>
+        <ul>
+          <li><strong>שעון נוכחות</strong> — כניסה/יציאה עובדים</li>
+          <li><strong>יומן מטפלות 💆</strong> — יומן תורים לפי מטפלת</li>
+          <li><strong>מטפלות 💆</strong> — ניהול צוות המטפלות</li>
+          <li><strong>יומן</strong> — אירועים פנימיים</li>
+          <li><strong>משימות</strong> — מטלות לצוות</li>
+        </ul>
+      </div>
+      <div class="auto-card">
+        <div style="font-size:1.3rem;margin-bottom:.3rem">💼 מכירות</div>
+        <ul>
+          <li><strong>קופה</strong> — גביית תשלום בקופה</li>
+          <li><strong>שירותים וטיפולים 💎</strong> — רשימת הטיפולים</li>
+          <li><strong>מנויים וחבילות 🎁</strong> — חבילות כניסות</li>
+          <li><strong>תיקי לקוחות 📋</strong> — כרטיסי לקוחות</li>
+          <li><strong>ייעוץ ובקשות 💬</strong> — מ-ONEFLOW LIFE</li>
+        </ul>
+      </div>
+      <div class="auto-card">
+        <div style="font-size:1.3rem;margin-bottom:.3rem">📦 מלאי</div>
+        <ul>
+          <li><strong>מלאי מקצועי 🧴</strong> — back-bar + מכירה לצרכן</li>
+          <li><strong>חנות</strong> — מוצרים לחנות האונליין</li>
+        </ul>
+      </div>
+      <div class="auto-card">
+        <div style="font-size:1.3rem;margin-bottom:.3rem">💰 כספים</div>
+        <ul>
+          <li><strong>תזרים</strong> — הכנסות והוצאות</li>
+          <li><strong>עמלות ושכר 💰</strong> — עמלות מטפלות</li>
+          <li><strong>דוחות</strong> — סיכומים פיננסיים</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">תפקידי עובדים ועלויות</div>
+      <table class="field-table">
+        <tr><th>תפקיד</th><th>מה הוא עושה</th><th>עלות חודשית</th></tr>
+        <tr><td>מטפלת</td><td>מטפלת בסיסית עם גישה ליומן ותיקי לקוחות</td><td>₪19</td></tr>
+        <tr><td>מטפלת בכירה</td><td>הרשאות מורחבות, עמלה גבוהה יותר</td><td>₪29</td></tr>
+        <tr><td>טכנאית ציפורניים</td><td>מתמחה בטיפולי ציפורניים</td><td>₪19</td></tr>
+        <tr><td>איפורנית</td><td>מתמחה באיפור ועיצוב</td><td>₪19</td></tr>
+        <tr><td>קבלנית</td><td>קביעת תורים, ניהול יומן</td><td>₪15</td></tr>
+        <tr><td>קופאי</td><td>גביית תשלום בקופה</td><td>₪19</td></tr>
+        <tr><td>מנקה / אחזקה</td><td>גישה מוגבלת לדיווח נוכחות בלבד</td><td>₪15</td></tr>
+        <tr><td>מנהל סניף</td><td>גישה מלאה לניהול העסק</td><td>₪39</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ─── יומן תורים ─── -->
+  <div class="chapter" id="b-calendar">
+    <h2>📅 יומן תורים</h2>
+    <p>כרטיסיית <strong>יומן מטפלות</strong> (בתפריט <em>צוות</em>) היא לב העסק. כל מטפלת מוצגת כעמודה נפרדת, ותורים מוצגים כקלפים צבעוניים לפי שעה — ממש כמו יומן גוגל.</p>
+
+    <div class="mod">
+      <div class="mod-t">תצוגות היומן</div>
+      <div class="actions">
+        <span class="tag">יום</span>
+        <span class="tag">שבוע</span>
+        <span class="tag">חודש</span>
+      </div>
+      <p style="font-size:.85rem;margin-top:.4rem">לחץ על אחת מהתצוגות בחלק העליון של היומן. תצוגת <em>יום</em> הכי שימושית לניהול שוטף — רואים כל מטפלת בעמודה נפרדת עם כל התורים שלה באותו יום.</p>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">מקורות תור</div>
+      <table class="field-table">
+        <tr><th>סמל</th><th>מקור</th><th>הסבר</th></tr>
+        <tr><td>🌐</td><td>אתר ציבורי</td><td>לקוחה קבעה תור באתר העסק</td></tr>
+        <tr><td>📅</td><td>ידני</td><td>נקבע על-ידי הצוות מהממשק</td></tr>
+        <tr><td>📋</td><td>בקשת ייעוץ</td><td>הגיע מכרטיסיית <em>ייעוץ ובקשות</em></td></tr>
+      </table>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">קביעת תור חדש</div>
+      <ol class="steps">
+        <li class="step">לחץ על שעה פנויה בעמודת המטפלת הרצויה — נפתח חלון קביעת תור.</li>
+        <li class="step">בחר לקוחה (מהרשימה הקיימת או הוסף חדשה), שירות, ותאריך/שעה.</li>
+        <li class="step">אם ללקוחה יש מנוי פעיל — המערכת מציגה אותו אוטומטית ומאפשרת מימוש כניסה.</li>
+        <li class="step">לחץ <strong>שמור</strong>. התור מופיע בעמודת המטפלת מיידית.</li>
+      </ol>
+    </div>
+
+    <div class="box">
+      <strong>⏳ תורים ממתינים לאישור</strong><br>
+      לקוחות שקבעו תור מהאתר הציבורי מופיעות כ<em>ממתינות לאישור</em>. אשר או בטל כל בקשה מתוך היומן.
+    </div>
+  </div>
+
+  <!-- ─── מטפלות ─── -->
+  <div class="chapter" id="b-practitioners">
+    <h2>💆 מטפלות וצוות יופי</h2>
+    <p>כרטיסיית <strong>מטפלות</strong> (בתפריט <em>צוות</em>) מאפשרת להגדיר כל מטפלת עם הפרטים שישפיעו על היומן ועל חישוב העמלות.</p>
+
+    <div class="mod">
+      <div class="mod-t">הוספת מטפלת חדשה</div>
+      <ol class="steps">
+        <li class="step">לחץ <strong>+ מטפלת חדשה</strong>.</li>
+        <li class="step">מלא את הפרטים הבאים:</li>
+      </ol>
+      <table class="field-table">
+        <tr><th>שדה</th><th>הסבר</th></tr>
+        <tr><td>שם מלא *</td><td>השם שיופיע ביומן ובדוחות</td></tr>
+        <tr><td>דרגה</td><td>ג׳וניור / מטפלת / בכירה / מנהלת טיפולים — משפיע על עמלה</td></tr>
+        <tr><td>צבע זיהוי</td><td>הצבע של עמודת המטפלת ביומן — בחר צבע שונה לכל מטפלת</td></tr>
+        <tr><td>עמלת שירות %</td><td>כמה אחוז מכל טיפול מקבלת המטפלת</td></tr>
+        <tr><td>עמלת קמעונאות %</td><td>כמה אחוז ממכירת מוצרים מקבלת המטפלת</td></tr>
+        <tr><td>התמחויות</td><td>פנים / גוף / ציפורניים / שיער / הסרת שיער / עיסוי / איפור / ריסים</td></tr>
+      </table>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">השבתת מטפלת</div>
+      <p>לחץ <strong>השבת</strong> על כרטיס המטפלת — היא נעלמת מהיומן אבל הנתונים שלה נשמרים. לחץ <strong>הפעל</strong> כדי להחזיר אותה.</p>
+    </div>
+  </div>
+
+  <!-- ─── שירותים ─── -->
+  <div class="chapter" id="b-services">
+    <h2>💎 שירותים וטיפולים</h2>
+    <p>כרטיסיית <strong>שירותים וטיפולים</strong> (בתפריט <em>מכירות</em>) מכילה את כל הטיפולים שניתן לקבוע תור עבורם. חובה להגדיר שירותים לפני שניתן לקבוע תורים.</p>
+
+    <div class="mod">
+      <div class="mod-t">קטגוריות שירות</div>
+      <div class="actions">
+        <span class="tag">💇 שיער</span>
+        <span class="tag">💅 ציפורניים</span>
+        <span class="tag">✨ טיפולי פנים</span>
+        <span class="tag">🧖 טיפולי גוף</span>
+        <span class="tag">🌸 ספא / עיסוי</span>
+        <span class="tag">⚡ לייזר / IPL</span>
+        <span class="tag">💄 איפור</span>
+        <span class="tag">💎 כללי</span>
+      </div>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">הוספת שירות חדש</div>
+      <ol class="steps">
+        <li class="step">לחץ <strong>+ שירות חדש</strong>.</li>
+        <li class="step">מלא את הפרטים:</li>
+      </ol>
+      <table class="field-table">
+        <tr><th>שדה</th><th>הסבר</th></tr>
+        <tr><td>שם השירות *</td><td>לדוג׳: "טיפול פנים קלאסי", "מניקור ג׳ל"</td></tr>
+        <tr><td>קטגוריה</td><td>בחר מהרשימה למעלה — ישפיע על המיון ביומן</td></tr>
+        <tr><td>משך בדקות *</td><td>כמה זמן נמשך הטיפול — ישמש לחסימת הזמן ביומן</td></tr>
+        <tr><td>מחיר ₪ *</td><td>מחיר הטיפול ללקוחה</td></tr>
+        <tr><td>צבע</td><td>הצבע של קלף התור ביומן</td></tr>
+        <tr><td>תיאור</td><td>הסבר קצר על הטיפול (מוצג גם באתר הציבורי)</td></tr>
+        <tr><td>⚠️ Patch Test נדרש</td><td>סמן אם הטיפול דורש בדיקת עור מוקדמת — יוצג תג אדום בכרטיס</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ─── מנויים ─── -->
+  <div class="chapter" id="b-subscriptions">
+    <h2>🎁 מנויים וחבילות</h2>
+    <p>כרטיסיית <strong>מנויים וחבילות</strong> (בתפריט <em>מכירות</em>) מאפשרת ליצור חבילות כניסות מוגבלות שלקוחות רוכשות מראש ומממשות בכל ביקור.</p>
+
+    <div class="mod">
+      <div class="mod-t">יצירת חבילה חדשה</div>
+      <ol class="steps">
+        <li class="step">לחץ <strong>+ חבילה חדשה</strong>.</li>
+        <li class="step">מלא: שם החבילה, כמות כניסות, מחיר, תוקף בימים (ברירת מחדל 365), תיאור.</li>
+        <li class="step">לחץ שמור. החבילה מופיעה ברשימה ומוכנה למכירה.</li>
+      </ol>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">מכירת מנוי ללקוחה</div>
+      <ol class="steps">
+        <li class="step">עבור לכרטיסיית <strong>תיקי לקוחות</strong> ופתח את תיק הלקוחה.</li>
+        <li class="step">לחץ <strong>מכור מנוי</strong> ← בחר את החבילה הרצויה ← גבה תשלום.</li>
+        <li class="step">המנוי מופיע בתיק הלקוחה עם מונה כניסות.</li>
+      </ol>
+    </div>
+
+    <div class="box">
+      <strong>💡 מימוש כניסה בקביעת תור</strong><br>
+      כשקובעים תור ללקוחה שיש לה מנוי פעיל — המערכת מציגה אוטומטית את המנוי ומאפשרת לסמן "מימוש כניסה" מבלי לגבות תשלום נוסף.
+    </div>
+  </div>
+
+  <!-- ─── תיקי לקוחות ─── -->
+  <div class="chapter" id="b-clients">
+    <h2>📋 תיקי לקוחות</h2>
+    <p>כרטיסיית <strong>תיקי לקוחות</strong> (בתפריט <em>מכירות</em>) שומרת כרטיס מפורט לכל לקוחה — היסטוריית טיפולים, מנויים פעילים, הערות ואלרגיות.</p>
+
+    <div class="mod">
+      <div class="mod-t">הוספת לקוחה חדשה</div>
+      <ol class="steps">
+        <li class="step">לחץ <strong>+ לקוח חדש</strong>.</li>
+        <li class="step">מלא את הפרטים:</li>
+      </ol>
+      <table class="field-table">
+        <tr><th>שדה</th><th>הסבר</th></tr>
+        <tr><td>שם מלא *</td><td>שם הלקוחה</td></tr>
+        <tr><td>מספר ת.ז *</td><td>9 ספרות — נדרש לזיהוי ולמניעת כפילויות</td></tr>
+        <tr><td>טלפון</td><td>לשליחת תזכורות ולתיאום</td></tr>
+        <tr><td>ONEFLOW LIFE</td><td>לחץ <em>בדוק</em> אחרי מילוי טלפון — המערכת מחפשת אם הלקוחה רשומה בקהילת ONEFLOW ומקשרת אוטומטית</td></tr>
+        <tr><td>אימייל</td><td>לשליחת אישורי תור</td></tr>
+        <tr><td>תאריך לידה</td><td>לשליחת ברכות ומבצעי יום הולדת</td></tr>
+        <tr><td>הערות / אלרגיות</td><td>מידע רפואי/קוסמטי חשוב לטיפול</td></tr>
+      </table>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">Patch Test — בדיקת עור</div>
+      <p>שירותים מסוימים (כמו לייזר, צבע שיער) מחייבים בדיקת עור מוקדמת. בתיק הלקוחה מופיע תג מצב הבדיקה:</p>
+      <div class="actions">
+        <span class="tag" style="background:#dcfce7;color:#166534">פאץ׳ תקין</span>
+        <span class="tag" style="background:#fee2e2;color:#dc2626">פאץ׳ נכשל</span>
+        <span class="tag" style="background:#fef9c3;color:#854d0e">ממתין לפאץ׳</span>
+        <span class="tag" style="background:#ffedd5;color:#c2410c">פאץ׳ פג</span>
+      </div>
+    </div>
+
+    <div class="box">
+      <strong>📊 ממוצע ביקור</strong><br>
+      בכרטיס הלקוחה ברשימה מוצג אוטומטית "ממוצע ביקור: כל X ימים". זה מאפשר לזהות לקוחות שלא ביקרו זמן רב ולפנות אליהן.
+    </div>
+  </div>
+
+  <!-- ─── מלאי ─── -->
+  <div class="chapter" id="b-inventory">
+    <h2>🧴 מלאי מקצועי</h2>
+    <p>כרטיסיית <strong>מלאי מקצועי</strong> (בתפריט <em>מלאי</em>) מנהלת שני סוגי מוצרים. חשוב להבין את ההבדל ביניהם:</p>
+
+    <div class="auto-grid">
+      <div class="auto-card">
+        <div style="font-size:1.5rem;margin-bottom:.3rem">🛍️ קמעונאי (Retail)</div>
+        <p style="font-size:.85rem">מוצרים שמוכרים ללקוחות לשימוש ביתי. לדוג׳: קרמים, שמפו, ציפורניים.</p>
+      </div>
+      <div class="auto-card">
+        <div style="font-size:1.5rem;margin-bottom:.3rem">🧴 Back-Bar</div>
+        <p style="font-size:.85rem">חומרים מקצועיים לשימוש פנימי בטיפולים. לדוג׳: חומצות, צבעים, שמנים.</p>
+      </div>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">שדות פריט מלאי</div>
+      <table class="field-table">
+        <tr><th>שדה</th><th>הסבר</th></tr>
+        <tr><td>שם מוצר</td><td>שם המוצר כפי שיופיע ברשימה</td></tr>
+        <tr><td>מותג / SKU</td><td>מזהה לתיאום עם ספק</td></tr>
+        <tr><td>כמות במלאי</td><td>כמה יחידות יש כרגע</td></tr>
+        <tr><td>סף הזמנה מחדש</td><td>כשהמלאי יורד מתחת לסף זה — מופיעה התראה אדומה</td></tr>
+        <tr><td>מחיר עלות ₪</td><td>כמה שילמתם לספק (לחישוב רווח)</td></tr>
+        <tr><td>יחידת מידה</td><td>יח׳ / מ"ל / גרם</td></tr>
+      </table>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">עדכון מלאי ידני</div>
+      <p>לכל פריט יש כפתורי <strong>+</strong> (קיבלנו סחורה) ו-<strong>−</strong> (שימוש בטיפול). לחץ לשינוי הכמות. ניתן לסנן בין <em>הכל / קמעונאי / Back-Bar</em>.</p>
+    </div>
+
+    <div class="box">
+      <strong>🔔 התראת מלאי נמוך</strong><br>
+      כשפריט יורד מתחת לסף ההזמנה מחדש — מופיעה רצועה אדומה בראש המסך עם שמות הפריטים. גם הדשבורד הראשי מציג את מספר הפריטים בסכנה.
+    </div>
+  </div>
+
+  <!-- ─── עמלות ─── -->
+  <div class="chapter" id="b-commissions">
+    <h2>💰 עמלות ושכר</h2>
+    <p>כרטיסיית <strong>עמלות ושכר</strong> (בתפריט <em>כספים</em>) מחשבת אוטומטית את העמלה המגיעה לכל מטפלת לפי אחוז שהוגדר בפרופיל שלה — ללא צורך בחישוב ידני.</p>
+
+    <div class="mod">
+      <div class="mod-t">איך עמלות עובדות?</div>
+      <ol class="steps">
+        <li class="step">כשטיפול מסומן כ<strong>הושלם</strong> ביומן — המערכת מחשבת אוטומטית את העמלה (אחוז מהמחיר).</li>
+        <li class="step">אם המטפלת גם מכרה מוצר קמעונאי — מחושבת עמלת קמעונאות נוספת.</li>
+        <li class="step">כל העמלות מצטברות לכרטיס "לא שולם" של המטפלת.</li>
+        <li class="step">בסוף תקופת שכר: לחץ <strong>שלם ₪X</strong> ← העמלות מסומנות כ"שולמו ✅".</li>
+      </ol>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">סיכום תקופה</div>
+      <p>בראש המסך מוצגים 3 מדדים:</p>
+      <div class="auto-grid">
+        <div class="auto-card"><strong>סה"כ עמלות</strong><br>כל העמלות בתקופה (שולמו + לא שולמו)</div>
+        <div class="auto-card"><strong>לא שולם ₪</strong><br>כמה חייבים כרגע למטפלות</div>
+        <div class="auto-card"><strong>מספר מטפלות</strong><br>כמה מטפלות יש עמלות בתקופה</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── ייעוץ ובקשות ─── -->
+  <div class="chapter" id="b-rfq">
+    <h2>💬 ייעוץ ובקשות מ-ONEFLOW LIFE</h2>
+    <p>כרטיסיית <strong>ייעוץ ובקשות</strong> (בתפריט <em>מכירות</em>) מציגה בקשות טיפול שלקוחות שלחו מאפליקציית ONEFLOW LIFE הקהילתית. זהו ערוץ לקוחות חדש מובנה במערכת.</p>
+
+    <div class="mod">
+      <div class="mod-t">תהליך הבקשה</div>
+      <ol class="steps">
+        <li class="step"><strong>חדש</strong> — לקוחה שלחה בקשה לטיפול. שלח לה שאלון ראשוני.</li>
+        <li class="step"><strong>שאלון נשלח</strong> — ממתינים לתשובות. שלח בקשה לתמונות אם נדרש.</li>
+        <li class="step"><strong>ממתין לתמונות</strong> — הלקוחה צריכה לשלוח תמונות (לדוג׳: מצב עור/שיער). שלח תוכנית טיפול.</li>
+        <li class="step"><strong>תוכנית נשלחה</strong> — ממתינים לאישור הלקוחה.</li>
+        <li class="step"><strong>אושר</strong> — הלקוחה אישרה. קבע תורים — הסטטוס עובר ל<em>תורים נקבעו</em>.</li>
+      </ol>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">סטטוסי בקשה</div>
+      <div class="actions">
+        <span class="tag" style="background:#e0f2fe;color:#0369a1">🆕 חדש</span>
+        <span class="tag" style="background:#e0e7ff;color:#3730a3">📋 שאלון נשלח</span>
+        <span class="tag" style="background:#fef3c7;color:#92400e">📸 ממתין לתמונות</span>
+        <span class="tag" style="background:#f3e8ff;color:#6b21a8">📄 תוכנית נשלחה</span>
+        <span class="tag" style="background:#dcfce7;color:#166534">✅ אושר</span>
+        <span class="tag" style="background:#fce7f3;color:#9d174d">📅 תורים נקבעו</span>
+        <span class="tag" style="background:#fee2e2;color:#dc2626">❌ נדחה</span>
+      </div>
+    </div>
+
+    <div class="box">
+      <strong>💡 מה זה ONEFLOW LIFE?</strong><br>
+      ONEFLOW LIFE היא האפליקציה הקהילתית של המשפחה — לקוחות שמשתמשות בה יכולות לשלוח בקשות ישירות לעסקי היופי המחוברים. כל בקשה מגיעה אוטומטית לכרטיסייה זו.
+    </div>
+  </div>
+
+</div>
 
 <script>
 function show(id) {
@@ -2680,7 +3083,8 @@ const obs = new IntersectionObserver(entries => {
       's-enter':8,'s-wizard':9,'s-nav':10,'s-schedule':11,'s-trainers':12,'s-team':13,'s-equip':14,'s-money':15,
       'm-enter':16,'m-wizard':17,'m-nav':18,'m-calls':19,'m-stock':20,'m-team':21,'m-money':22,
       'l-enter':23,'l-wizard':24,'l-nav':25,'l-orders':26,'l-fleet':27,'l-routes':28,'l-money':29,'l-biz':30,
-      'p-enter':31,'p-wizard':32,'p-nav':33,'p-cases':34,'p-timelog':35,'p-leads':36,'p-docs':37,'p-content':38
+      'p-enter':31,'p-wizard':32,'p-nav':33,'p-cases':34,'p-timelog':35,'p-leads':36,'p-docs':37,'p-content':38,
+      'b-enter':39,'b-wizard':40,'b-nav':41,'b-calendar':42,'b-practitioners':43,'b-services':44,'b-subscriptions':45,'b-clients':46,'b-inventory':47,'b-commissions':48,'b-rfq':49
     };
     const i = map[e.target.id];
     if (i !== undefined && btns[i]) btns[i].classList.add('on');
@@ -2691,7 +3095,8 @@ const obs = new IntersectionObserver(entries => {
   's-enter','s-wizard','s-nav','s-schedule','s-trainers','s-team','s-equip','s-money',
   'm-enter','m-wizard','m-nav','m-calls','m-stock','m-team','m-money',
   'l-enter','l-wizard','l-nav','l-orders','l-fleet','l-routes','l-money','l-biz',
-  'p-enter','p-wizard','p-nav','p-cases','p-timelog','p-leads','p-docs','p-content'
+  'p-enter','p-wizard','p-nav','p-cases','p-timelog','p-leads','p-docs','p-content',
+  'b-enter','b-wizard','b-nav','b-calendar','b-practitioners','b-services','b-subscriptions','b-clients','b-inventory','b-commissions','b-rfq'
 ].forEach(id => {
   const el = document.getElementById(id);
   if (el) obs.observe(el);
