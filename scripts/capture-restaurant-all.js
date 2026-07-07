@@ -28,7 +28,7 @@ async function shot(page, filename, desc) {
 
 (async () => {
   const browser = await chromium.launch({
-    executablePath: '/opt/pw-browsers/chromium',
+    executablePath: process.platform === 'linux' ? '/opt/pw-browsers/chromium' : undefined,
     headless: true
   });
 
