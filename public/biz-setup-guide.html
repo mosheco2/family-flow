@@ -2305,7 +2305,344 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   </div>
 
 </div>
-<div id="professional" class="page"><div class="cs"><div class="cs-i">👔</div><h2>מקצועי / ייעוץ</h2><p>המדריך בהכנה — יתווסף בקרוב</p></div></div>
+<div id="professional" class="page">
+
+  <div class="subnav">
+    <button class="sn on" onclick="goTo('p-enter')">כניסה</button>
+    <button class="sn" onclick="goTo('p-wizard')">ויזארד</button>
+    <button class="sn" onclick="goTo('p-nav')">ניווט</button>
+    <button class="sn" onclick="goTo('p-cases')">תיקים</button>
+    <button class="sn" onclick="goTo('p-timelog')">שעות</button>
+    <button class="sn" onclick="goTo('p-leads')">לידים</button>
+    <button class="sn" onclick="goTo('p-docs')">מסמכים</button>
+    <button class="sn" onclick="goTo('p-content')">אתר תדמית</button>
+  </div>
+
+  <!-- ─── כניסה ראשונה ─── -->
+  <div class="chapter" id="p-enter">
+    <h2>👔 מקצועי / ייעוץ — כניסה ראשונה</h2>
+    <p>סוג עסק זה מתאים לכל מי שמוכר ידע, זמן או מומחיות: עורכי דין, רואי חשבון, יועצי עסקים, מהנדסים, אדריכלים, פסיכולוגים, קואצ׳רים, רופאים, יועצי מס ועוד. המערכת מותאמת לניהול <strong>תיקי לקוח</strong>, <strong>יומן שעות עבודה</strong> ו<strong>מסמכים מקצועיים</strong> — במקום קופה, מלאי ומשלוחים.</p>
+
+    <div class="box">
+      <strong>🔤 שפה מותאמת לסוג העסק</strong>
+      <table class="field-table" style="margin-top:.5rem">
+        <tr><th>מונח כללי</th><th>מה רואים בממשק</th></tr>
+        <tr><td>קונה</td><td>לקוח</td></tr>
+        <tr><td>מוצר</td><td>שירות</td></tr>
+        <tr><td>הזמנה</td><td>פגישה</td></tr>
+        <tr><td>קריאת שירות</td><td>תיק</td></tr>
+        <tr><td>ספק</td><td>קבלן חיצוני</td></tr>
+        <tr><td>תמחור</td><td>תמחור שירותים</td></tr>
+      </table>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">מה צריך לעשות לפני שמתחילים?</div>
+      <ol class="steps">
+        <li class="step">וודא שמנהל ה-Super Admin הגדיר את סוג העסק שלך כ<strong>מקצועי / ייעוץ</strong>. זה נעשה בהגדרות המערכת — לא אתה עושה את זה בעצמך.</li>
+        <li class="step">כנס לאפליקציה הראשית. אם מופיע ויזארד הקמה — עבור את שלביו (ראה פרק הבא). אם לא — הכל מוכן לשימוש.</li>
+        <li class="step">הגדר את שם העסק, הלוגו ואנשי הצוות בהגדרות (כרטיסייה <strong>הגדרות</strong> בתפריט <em>עוד</em>).</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ─── ויזארד הקמה ─── -->
+  <div class="chapter" id="p-wizard">
+    <h2>🧙 ויזארד ההקמה</h2>
+    <p>בכניסה הראשונה לחשבון חדש מופיע ויזארד שמנחה שלב-שלב. לעסק מקצועי בחר באפשרות <strong>מומחים 👔</strong>.</p>
+
+    <div class="mod">
+      <div class="mod-t">שלבי הויזארד</div>
+      <ol class="steps">
+        <li class="step"><strong>בחירת סוג עסק</strong> — לחץ על הכרטיס <em>מומחים 👔</em> ולחץ המשך.</li>
+        <li class="step"><strong>פרטי העסק</strong> — הכנס שם עסק, תיאור קצר (מה אתה מציע ללקוחות), כתובת.</li>
+        <li class="step"><strong>פרטי יצירת קשר</strong> — טלפון, דוא״ל עסקי, קישור לאתר קיים (לא חובה).</li>
+        <li class="step"><strong>בחירת תחומי עיסוק</strong> — תוכל לסמן את תחומי המומחיות שלך (ניתן להוסיף עוד אחר-כך בכרטיסייה <em>תוכן</em>).</li>
+      </ol>
+    </div>
+
+    <div class="box">
+      <strong>⚠️ שים לב</strong><br>
+      בחירת סוג העסק בויזארד מגדירה את כל ממשק המערכת. אם טעית בבחירה — פנה ל-Super Admin לתיקון, לא ניתן לשנות לבד.
+    </div>
+  </div>
+
+  <!-- ─── ניווט וממשק ─── -->
+  <div class="chapter" id="p-nav">
+    <h2>🗺️ ניווט וממשק</h2>
+    <p>התפריט הראשי בעסק מקצועי מכיל <strong>4 קבוצות</strong>. שים לב: קבוצת <em>מלאי</em> לא קיימת — עסק מקצועי לא מנהל מוצרים פיזיים.</p>
+
+    <div class="auto-grid">
+      <div class="auto-card">
+        <div style="font-size:1.4rem;margin-bottom:.3rem">👥 צוות</div>
+        <ul>
+          <li><strong>שעון נוכחות</strong> — כניסה/יציאה של עובדים</li>
+          <li><strong>יומן</strong> — פגישות עם לקוחות, פנימיות</li>
+          <li><strong>משימות</strong> — מטלות לצוות</li>
+          <li><strong>חברים</strong> — ניהול אנשי הצוות</li>
+        </ul>
+      </div>
+      <div class="auto-card">
+        <div style="font-size:1.4rem;margin-bottom:.3rem">💼 מכירות</div>
+        <ul>
+          <li><strong>מכירות</strong> — חשבוניות והצעות מחיר</li>
+          <li><strong>לקוחות</strong> — כרטיסי לקוח</li>
+          <li><strong>תיקים</strong> — ניהול תיקי עבודה פעילים</li>
+          <li><strong>לידים</strong> — פניות חדשות מהאתר</li>
+        </ul>
+      </div>
+      <div class="auto-card">
+        <div style="font-size:1.4rem;margin-bottom:.3rem">💰 כספים</div>
+        <ul>
+          <li><strong>בנק</strong> — חשבון בנק ותנועות</li>
+          <li><strong>תזרים</strong> — הכנסות מול הוצאות</li>
+          <li><strong>תקציב</strong> — תכנון תקציבי</li>
+          <li><strong>שעות עבודה</strong> — יומן השעות לחיוב</li>
+          <li><strong>דוחות</strong> — סיכומים פיננסיים</li>
+        </ul>
+      </div>
+      <div class="auto-card">
+        <div style="font-size:1.4rem;margin-bottom:.3rem">⚙️ עוד</div>
+        <ul>
+          <li><strong>תוכן</strong> — ניהול אתר התדמית</li>
+          <li><strong>פרסום</strong> — מודעות ושיווק</li>
+          <li><strong>הגדרות</strong> — פרטי העסק, תפקידים</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">תפקידי עובדים ועלויות</div>
+      <table class="field-table">
+        <tr><th>תפקיד</th><th>מה הוא עושה</th><th>עלות חודשית</th></tr>
+        <tr><td>יועץ / מומחה</td><td>נותן שירות ישיר ללקוחות, מנהל תיקים</td><td>₪29</td></tr>
+        <tr><td>עוזר / אסיסטנט</td><td>תמיכה אדמיניסטרטיבית, שיבוצים, מסמכים</td><td>₪19</td></tr>
+        <tr><td>שותף בכיר</td><td>גישה מורחבת, ניהול כולל</td><td>₪39</td></tr>
+        <tr><td>מנהל סניף</td><td>ניהול כלל העסק, כולל פיננסים</td><td>₪39</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ─── תיקי לקוח ─── -->
+  <div class="chapter" id="p-cases">
+    <h2>📁 תיקי לקוח</h2>
+    <p>הלב של העסק המקצועי. כל עבודה עם לקוח — תיק משפטי, פרויקט ייעוץ, טיפול — מנוהלת כ<strong>תיק</strong>. התיק מאגד: פרטי הלקוח, משתתפי הצוות, ביומן, שעות עבודה, מסמכים ותשלומים — הכל במקום אחד.</p>
+
+    <div class="mod">
+      <div class="mod-t">יצירת תיק חדש</div>
+      <ol class="steps">
+        <li class="step">לחץ על הכרטיסייה <strong>תיקים</strong> בתפריט <em>מכירות</em>.</li>
+        <li class="step">לחץ על הכפתור הכחול <strong>+ תיק חדש</strong>. המערכת יוצרת תיק ריק אוטומטית ופותחת אותו.</li>
+        <li class="step">מלא את שם הלקוח, כותרת התיק (מה בדיוק העבודה) ותיאור.</li>
+        <li class="step">קבע סטטוס ראשוני: <em>בטיפול</em>.</li>
+      </ol>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">לשוניות התיק</div>
+      <table class="field-table">
+        <tr><th>לשונית</th><th>מה יש שם</th></tr>
+        <tr><td>סקירה</td><td>שם לקוח, כותרת, סטטוס, הערות לתיק</td></tr>
+        <tr><td>משתתפים 👥</td><td>אנשי הצוות המשויכים לתיק — לחץ <em>הוסף משתתף</em></td></tr>
+        <tr><td>תשלומים</td><td>חיובים, תשלומים שהתקבלו, יתרה פתוחה</td></tr>
+        <tr><td>יומן</td><td>תזמון פגישה הקשורה לתיק — תופיע גם ביומן הכללי</td></tr>
+        <tr><td>היסטוריה 📋</td><td>יומן שינויים מלא: מי עשה מה ומתי</td></tr>
+      </table>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">סטטוסי תיק</div>
+      <div class="actions">
+        <span class="tag" style="background:#dbeafe;color:#1d4ed8">בטיפול</span>
+        <span class="tag" style="background:#fef9c3;color:#854d0e">מתוזמן</span>
+        <span class="tag" style="background:#dcfce7;color:#166534">הושלם — ממתין לתשלום</span>
+        <span class="tag" style="background:#f0fdf4;color:#15803d">סגור ✓</span>
+        <span class="tag" style="background:#fee2e2;color:#dc2626">בוטל</span>
+      </div>
+      <p style="margin-top:.5rem;font-size:.85rem">עבור בין סטטוסים על-ידי לחיצה על הרשימה הנפתחת בראש התיק.</p>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">סינון ומעקב</div>
+      <p>בראש כרטיסיית <em>תיקים</em> יש שורת סינון: <strong>הכל / חדש / בטיפול / הושלם</strong>. לחץ על קטגוריה לסינון מיידי. לחיצה על כרטיס תיק פותחת אותו.</p>
+    </div>
+  </div>
+
+  <!-- ─── יומן שעות ─── -->
+  <div class="chapter" id="p-timelog">
+    <h2>⏱️ יומן שעות עבודה</h2>
+    <p>הכרטיסייה <strong>שעות עבודה</strong> (בתפריט <em>כספים</em>) מאפשרת לעקוב בדיוק כמה שעות הושקעו בכל לקוח — ולהפוך אותן לחשבונית בלחיצה אחת.</p>
+
+    <div class="mod">
+      <div class="mod-t">טיימר חי</div>
+      <ol class="steps">
+        <li class="step">לחץ <strong>▶ התחל</strong> כשאתה מתחיל לעבוד. הטיימר רץ גם אם תחזור לדף אחר.</li>
+        <li class="step">כשסיימת לחץ <strong>⏹ עצור</strong>. המערכת שואלת: לאיזה לקוח ואיזה תיק שייכת העבודה?</li>
+        <li class="step">מלא תיאור קצר ולחץ <strong>שמור</strong>. הרשומה מתווספת לרשימה.</li>
+      </ol>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">הכנסת שעות ידנית</div>
+      <table class="field-table">
+        <tr><th>שדה</th><th>מה למלא</th></tr>
+        <tr><td>תיאור</td><td>מה עשית? לדוג׳: ״כתיבת חוות דעת משפטית״</td></tr>
+        <tr><td>דקות</td><td>כמה דקות עבדת (המערכת ממירה לשעות)</td></tr>
+        <tr><td>₪ לשעה</td><td>תעריף השעה שלך — ישפיע על ערך החיוב</td></tr>
+        <tr><td>לקוח</td><td>שם הלקוח (לא חובה אבל מומלץ)</td></tr>
+        <tr><td>תאריך</td><td>מתי התבצעה העבודה</td></tr>
+        <tr><td>קשר לתיק</td><td>שיוך לתיק ספציפי (לא חובה)</td></tr>
+      </table>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">סיכום ופעולות</div>
+      <p>בראש המסך מוצגים 3 מדדים חשובים:</p>
+      <div class="auto-grid">
+        <div class="auto-card"><strong>שעות לחיוב</strong><br>שעות שטרם הופקה עליהן חשבונית</div>
+        <div class="auto-card"><strong>שווי לחיוב ₪</strong><br>כמה כסף מגיע לך על השעות האלו</div>
+        <div class="auto-card"><strong>סה״כ רשומות</strong><br>כמות כל הרשומות שנשמרו</div>
+      </div>
+      <div class="actions" style="margin-top:.7rem">
+        <span class="tag" style="background:#dcfce7;color:#166534">חויב</span>
+        <span style="font-size:.85rem">— תג ירוק מופיע על רשומות שכבר נכללו בחשבונית</span>
+      </div>
+      <div class="box" style="margin-top:.7rem">
+        <strong>💡 ייצוא ויצירת חשבונית</strong><br>
+        לחץ <strong>ייצא CSV</strong> לקבלת קובץ לאקסל. כאשר יש שעות שטרם חויבו — מופיע הכפתור <strong>צור חשבונית מהשעות</strong> שיוצר חשבונית אוטומטית מכל השעות הפתוחות.
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── לידים ─── -->
+  <div class="chapter" id="p-leads">
+    <h2>📥 לידים — פניות חדשות מהאתר</h2>
+    <p>כאשר לקוח פוטנציאלי ממלא טופס צור-קשר באתר התדמית שלך, הפנייה מגיעה אוטומטית לכרטיסייה <strong>לידים</strong> בתפריט <em>מכירות</em>. ניתן לעקוב אחרי כל ליד עד שהופך ללקוח.</p>
+
+    <div class="mod">
+      <div class="mod-t">סטטוסי ליד</div>
+      <div class="actions">
+        <span class="tag" style="background:#dbeafe;color:#1d4ed8">חדש</span>
+        <span class="tag" style="background:#fef9c3;color:#854d0e">ביצירת קשר</span>
+        <span class="tag" style="background:#dcfce7;color:#166534">הומר ללקוח</span>
+        <span class="tag" style="background:#f3f4f6;color:#374151">נסגר</span>
+      </div>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">פעולות על ליד</div>
+      <table class="field-table">
+        <tr><th>כפתור</th><th>מה קורה</th></tr>
+        <tr><td>📅 קבע פגישה</td><td>פותח את יומן העסק לתיאום פגישה עם הליד</td></tr>
+        <tr><td>✅ המר ללקוח</td><td>יוצר כרטיס לקוח חדש מפרטי הליד ומציג אישור. הסטטוס עובר ל<em>הומר ללקוח</em></td></tr>
+      </table>
+    </div>
+
+    <div class="box">
+      <strong>💡 טיפ</strong><br>
+      לאחר המרה ללקוח, עבור לכרטיסיית <em>לקוחות</em> ופתח תיק חדש עבורו — כך כל הפעילות נשמרת יחד.
+    </div>
+  </div>
+
+  <!-- ─── מסמכים ─── -->
+  <div class="chapter" id="p-docs">
+    <h2>📄 מסמכים</h2>
+    <p>כרטיסיית <strong>מסמכים</strong> (בתפריט <em>מכירות</em>) מאפשרת לייצר, לנהל ולעקוב אחרי כל המסמכים המקצועיים שלך — חוזים, הצעות מחיר, מכתבים ודוחות.</p>
+
+    <div class="mod">
+      <div class="mod-t">סוגי מסמכים</div>
+      <div class="actions">
+        <span class="tag">📃 מסמך</span>
+        <span class="tag">🤝 חוזה</span>
+        <span class="tag">💬 הצעת מחיר</span>
+        <span class="tag">✉️ מכתב</span>
+        <span class="tag">📊 דוח</span>
+        <span class="tag" style="background:#f3f4f6;color:#374151">+ מותאם אישית</span>
+      </div>
+      <p style="margin-top:.4rem;font-size:.85rem">ניתן ליצור סוגי מסמכים מותאמים אישית עם אייקון ושם לפי הצורך.</p>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">סטטוסי מסמך</div>
+      <div class="actions">
+        <span class="tag" style="background:#f3f4f6;color:#374151">טיוטה</span>
+        <span class="tag" style="background:#dbeafe;color:#1d4ed8">נשלח</span>
+        <span class="tag" style="background:#dcfce7;color:#166534">חתום</span>
+        <span class="tag" style="background:#fef9c3;color:#854d0e">מאושר</span>
+        <span class="tag" style="background:#fee2e2;color:#dc2626">בוטל</span>
+      </div>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">עבודה עם תבניות</div>
+      <ol class="steps">
+        <li class="step">עבור לסעיף <strong>ספריית תבניות</strong> בחלק העליון של הכרטיסייה.</li>
+        <li class="step">לחץ <strong>+ תבנית חדשה</strong> — צור מסמך בסיסי שישמש כמסגרת (לדוג׳: חוזה ייעוץ סטנדרטי).</li>
+        <li class="step">כשצריך מסמך חדש ללקוח — בחר תבנית ולחץ <strong>צור מסמך מהתבנית</strong>. המערכת יוצרת עותק עם פרטי הלקוח.</li>
+        <li class="step">ניתן לקשר את המסמך לתיק ספציפי כדי שיופיע גם שם.</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ─── אתר תדמית ─── -->
+  <div class="chapter" id="p-content">
+    <h2>🌐 אתר תדמית וניהול תוכן</h2>
+    <p>כרטיסיית <strong>תוכן</strong> (בתפריט <em>עוד</em>) מאפשרת לך לנהל אתר תדמית מקצועי שלקוחות פוטנציאליים יכולים למצוא. האתר כולל דף ראשי, תחומי עיסוק, מאמרים ועמוד אודות.</p>
+
+    <div class="box">
+      <strong>🔗 צפייה באתר הציבורי</strong><br>
+      בראש הכרטיסייה יש כפתור <em>צפה באתר הציבורי</em>. לחץ עליו כדי לראות את האתר שלך בעיני הלקוח — ממש כפי שהוא נראה מבחוץ.
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">לשוניות הניהול</div>
+      <table class="field-table">
+        <tr><th>לשונית</th><th>מה מנהלים שם</th></tr>
+        <tr><td>Hero / כותרת</td><td>הכותרת הראשית שמופיעה בדף הבית של האתר שלך</td></tr>
+        <tr><td>תחומי עיסוק</td><td>רשימת ההתמחויות שלך שמוצגות ללקוחות</td></tr>
+        <tr><td>מאמרים</td><td>תוכן מקצועי: בלוג, טיפים, מאמרים שמושכים לקוחות</td></tr>
+        <tr><td>אודות</td><td>הסיפור של העסק שלך, הניסיון והגישה</td></tr>
+      </table>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">עריכת כותרת ראשית (Hero)</div>
+      <table class="field-table">
+        <tr><th>שדה</th><th>לדוגמה</th></tr>
+        <tr><td>כותרת ראשית עברית</td><td>משרד רואי חשבון כהן ושות׳</td></tr>
+        <tr><td>כותרת ראשית אנגלית</td><td>Cohen & Partners CPA</td></tr>
+        <tr><td>תת-כותרת עברית</td><td>ייעוץ פיננסי ומס לעסקים קטנים ובינוניים</td></tr>
+        <tr><td>תת-כותרת אנגלית</td><td>Financial and tax consulting for SMEs</td></tr>
+        <tr><td>כפתור CTA עברית</td><td>צור קשר לייעוץ</td></tr>
+        <tr><td>כפתור CTA אנגלית</td><td>Contact Us</td></tr>
+      </table>
+      <div class="actions" style="margin-top:.5rem">
+        <span class="tag" style="background:#f3e8ff;color:#7c3aed">✨ צור עם AI</span>
+        <span style="font-size:.85rem"> — לחץ כדי שה-AI יכתוב עבורך כותרת מותאמת לשם העסק</span>
+      </div>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">ניהול תחומי עיסוק</div>
+      <ol class="steps">
+        <li class="step">לחץ <strong>הוסף ידנית</strong> — מלא: אייקון, שם בעברית, שם באנגלית, תיאור קצר.</li>
+        <li class="step">לחלופין לחץ <strong>✨ הצע עם AI</strong> — ה-AI יציע תחומי עיסוק מתאימים לסוג העסק שלך.</li>
+        <li class="step">כל תחום מוצג ברשימה עם אפשרויות עריכה (עיפרון) ומחיקה (פח). לחץ לשמירה.</li>
+      </ol>
+    </div>
+
+    <div class="mod">
+      <div class="mod-t">פרסום מאמרים</div>
+      <ol class="steps">
+        <li class="step">לחץ <strong>+ מאמר חדש</strong>.</li>
+        <li class="step">כתוב כותרת, תוכן, קטגוריה — ולחץ פרסם.</li>
+        <li class="step">המאמר מופיע באתר שלך מיד לאחר השמירה.</li>
+      </ol>
+      <p style="font-size:.85rem">מאמרים מקצועיים שיתפרסמו באתר מגדילים את הנראות שלך במנועי חיפוש ומביאים לידים חדשים.</p>
+    </div>
+  </div>
+
+</div>
 <div id="beauty" class="page"><div class="cs"><div class="cs-i">💅</div><h2>יופי / קוסמטיקה</h2><p>המדריך בהכנה — יתווסף בקרוב</p></div></div>
 
 <script>
@@ -2342,7 +2679,8 @@ const obs = new IntersectionObserver(entries => {
       'r-enter':0,'r-wizard':1,'r-nav':2,'r-sales':3,'r-stock':4,'r-team':5,'r-money':6,'r-auto':7,
       's-enter':8,'s-wizard':9,'s-nav':10,'s-schedule':11,'s-trainers':12,'s-team':13,'s-equip':14,'s-money':15,
       'm-enter':16,'m-wizard':17,'m-nav':18,'m-calls':19,'m-stock':20,'m-team':21,'m-money':22,
-      'l-enter':23,'l-wizard':24,'l-nav':25,'l-orders':26,'l-fleet':27,'l-routes':28,'l-money':29,'l-biz':30
+      'l-enter':23,'l-wizard':24,'l-nav':25,'l-orders':26,'l-fleet':27,'l-routes':28,'l-money':29,'l-biz':30,
+      'p-enter':31,'p-wizard':32,'p-nav':33,'p-cases':34,'p-timelog':35,'p-leads':36,'p-docs':37,'p-content':38
     };
     const i = map[e.target.id];
     if (i !== undefined && btns[i]) btns[i].classList.add('on');
@@ -2352,7 +2690,8 @@ const obs = new IntersectionObserver(entries => {
   'r-enter','r-wizard','r-nav','r-sales','r-stock','r-team','r-money','r-auto',
   's-enter','s-wizard','s-nav','s-schedule','s-trainers','s-team','s-equip','s-money',
   'm-enter','m-wizard','m-nav','m-calls','m-stock','m-team','m-money',
-  'l-enter','l-wizard','l-nav','l-orders','l-fleet','l-routes','l-money','l-biz'
+  'l-enter','l-wizard','l-nav','l-orders','l-fleet','l-routes','l-money','l-biz',
+  'p-enter','p-wizard','p-nav','p-cases','p-timelog','p-leads','p-docs','p-content'
 ].forEach(id => {
   const el = document.getElementById(id);
   if (el) obs.observe(el);
