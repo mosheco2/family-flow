@@ -164,6 +164,9 @@ ul,ol{list-style:none}
 /* DIVIDER */
 .divider{height:1px;background:var(--border);margin:24px 0;}
 h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--border);}
+
+/* MODULE TITLE (text-only header inside .mod) */
+.mod-t{padding:12px 18px;font-size:.9rem;font-weight:800;background:var(--surface2);border-bottom:1px solid var(--border);}
 </style>
 </head>
 <body>
@@ -178,6 +181,14 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     <button class="nb" onclick="show('logistics')">🚚 לוגיסטיקה</button>
     <button class="nb" onclick="show('professional')">👔 מקצועי</button>
     <button class="nb" onclick="show('beauty')">💅 יופי</button>
+    <button class="nb" onclick="show('retail')">🛍️ קמעונאי</button>
+    <button class="nb" onclick="show('services')">🔩 שירותים</button>
+    <button class="nb" onclick="show('construction')">🏗️ בנייה</button>
+    <button class="nb" onclick="show('healthcare')">🏥 בריאות</button>
+    <button class="nb" onclick="show('education')">🎓 חינוך</button>
+    <button class="nb" onclick="show('events')">🎉 אירועים</button>
+    <button class="nb" onclick="show('food_production')">🏭 ייצור מזון</button>
+    <button class="nb" onclick="show('other')">🏢 כללי</button>
     <div class="tn-sep"></div>
     <button class="tn-theme" onclick="toggleTheme()">🌙</button>
   </div>
@@ -196,6 +207,14 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     <div class="biz-tile" onclick="show('logistics')"><div class="ti">🚚</div><div class="tn2">לוגיסטיקה / הפצה</div><div class="ts">הזמנות · נהגים · מסלולים</div></div>
     <div class="biz-tile" onclick="show('professional')"><div class="ti">👔</div><div class="tn2">מקצועי / ייעוץ</div><div class="ts">תיקים · לידים · שעות</div></div>
     <div class="biz-tile" onclick="show('beauty')"><div class="ti">💅</div><div class="tn2">יופי / קוסמטיקה</div><div class="ts">תורים · מטפלות · מנויים</div></div>
+    <div class="biz-tile" onclick="show('retail')"><div class="ti">🛍️</div><div class="tn2">קמעונאי / חנות</div><div class="ts">קופה · מלאי · לקוחות</div></div>
+    <div class="biz-tile" onclick="show('services')"><div class="ti">🔩</div><div class="tn2">שירותים מקצועיים</div><div class="ts">קריאות שירות · יומן · פרויקטים</div></div>
+    <div class="biz-tile" onclick="show('construction')"><div class="ti">🏗️</div><div class="tn2">בנייה / קבלנות</div><div class="ts">פרויקטים · ציוד · פקודות עבודה</div></div>
+    <div class="biz-tile" onclick="show('healthcare')"><div class="ti">🏥</div><div class="tn2">בריאות / קליניקה</div><div class="ts">תורים · מטופלים · צוות רפואי</div></div>
+    <div class="biz-tile" onclick="show('education')"><div class="ti">🎓</div><div class="tn2">חינוך / הדרכה</div><div class="ts">יומן שיעורים · תלמידים · צוות</div></div>
+    <div class="biz-tile" onclick="show('events')"><div class="ti">🎉</div><div class="tn2">אירועים / הפקות</div><div class="ts">יומן אירועים · ציוד · מזמינים</div></div>
+    <div class="biz-tile" onclick="show('food_production')"><div class="ti">🏭</div><div class="tn2">ייצור מזון</div><div class="ts">ייצור · מלאי · הפצה</div></div>
+    <div class="biz-tile" onclick="show('other')"><div class="ti">🏢</div><div class="tn2">כללי / אחר</div><div class="ts">כל המודולים · גמישות מלאה</div></div>
   </div>
 </div>
 
@@ -3048,6 +3067,987 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
 </div>
 
+<!-- ═══ RETAIL ═══ -->
+<div id="retail" class="page">
+  <div class="sec-top">
+    <div class="s-icon">🛍️</div>
+    <h1>קמעונאי / חנות</h1>
+    <p>מדריך לניהול חנות קמעונאית עם OneFlow BIZ — קופה, מלאי, לקוחות וכספים במקום אחד</p>
+  </div>
+  <nav class="subnav">
+    <div class="sn-inner">
+      <button class="sn on" onclick="goTo('rt-enter')">כניסה</button>
+      <button class="sn" onclick="goTo('rt-wizard')">הקמה</button>
+      <button class="sn" onclick="goTo('rt-nav')">ניווט</button>
+      <button class="sn" onclick="goTo('rt-sales')">מכירות וקופה</button>
+      <button class="sn" onclick="goTo('rt-stock')">מלאי ורכש</button>
+      <button class="sn" onclick="goTo('rt-team')">צוות</button>
+      <button class="sn" onclick="goTo('rt-money')">כספים</button>
+      <button class="sn" onclick="goTo('rt-reports')">דוחות</button>
+    </div>
+  </nav>
+  <div class="wrap">
+
+    <div class="chapter" id="rt-enter">
+      <div class="ch-head"><div class="ch-num">1</div><div class="ch-title">כניסה למערכת</div></div>
+      <p style="font-size:.9rem;color:var(--text2);">כניסה זהה לכל סוגי העסקים — קוד עסק (6 תווים), שם משתמש וסיסמה. ניתן להשתמש מכל דפדפן, ללא התקנה.</p>
+      <div class="mod">
+        <div class="mod-t">פרטי כניסה</div>
+        <div class="field-table">
+          <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>קוד עסק</div><div class="fr-val">6 תווים שנוצרו עם פתיחת החנות — לדוגמה <code>RT3KQ2</code>. מנהל רואה אותו ב"פרטי העסק".</div></div>
+          <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם משתמש</div><div class="fr-val">השם שנרשם בחשבון (לא מייל).</div></div>
+          <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>סיסמה</div><div class="fr-val">הסיסמה האישית. לאיפוס — פנה למנהל.</div></div>
+        </div>
+      </div>
+      <div class="box box-tip"><div class="box-icon">💡</div><div>סוג עסק "קמעונאי" הוא ברירת המחדל של המערכת — אם לא נבחר סוג עסק, ממשק הקמעונאי מופיע אוטומטית.</div></div>
+    </div>
+
+    <div class="chapter" id="rt-wizard">
+      <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית</div></div>
+      <p style="font-size:.9rem;color:var(--text2);">סוג עסק "קמעונאי" אינו מופיע בויזארד ההקמה הרגיל. סוג זה נבחר על-ידי ה-Super Admin בלבד בהגדרות המערכת.</p>
+      <div class="mod">
+        <div class="mod-t">צעדים ראשונים</div>
+        <ol class="steps">
+          <li class="step"><strong>Super Admin מגדיר סוג עסק</strong> — בממשק ה-Super Admin, בוחרים "קמעונאי / חנות" עבור הקבוצה.</li>
+          <li class="step"><strong>הגדרת פרטי החנות</strong> — שם, לוגו, כתובת, טלפון ושעות פעילות בכרטיסיית <em>הגדרות</em>.</li>
+          <li class="step"><strong>הוספת מוצרים לקטלוג</strong> — נכנסים לקופה (POS) ← <em>הגדרות</em> ← <em>קטלוג</em> ומוסיפים מוצרים עם מחיר וקטגוריה.</li>
+          <li class="step"><strong>הגדרת אזורי משלוח</strong> — ב<em>הגדרות</em> מוסיפים אזורי משלוח ומחיר משלוח (אם רלוונטי).</li>
+          <li class="step"><strong>הוספת עובדים</strong> — ב<em>ניהול צוות</em> מוסיפים עובדים ומגדירים תפקידים (קופאי, איש מכירות וכו׳).</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="chapter" id="rt-nav">
+      <div class="ch-head"><div class="ch-num">3</div><div class="ch-title">ניווט ותפריטים</div></div>
+      <p style="font-size:.9rem;color:var(--text2);">הניווט הראשי מחולק ל-5 קבוצות. לחיצה על כל קבוצה פותחת את הכרטיסיות שבתוכה.</p>
+      <div class="gnav-wrap">
+        <div class="gnav-card"><div class="gnav-card-title">👥 צוות</div><div class="gnav-items"><div class="gnav-item">⏱️ נוכחות</div><div class="gnav-item">✅ פרויקטים ומשימות</div><div class="gnav-item">👥 ניהול צוות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">🛍️ מכירות</div><div class="gnav-items"><div class="gnav-item">💳 קופה (POS)</div><div class="gnav-item">🛍️ מכירות וחנות</div><div class="gnav-item">🤝 לקוחות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">📦 מלאי</div><div class="gnav-items"><div class="gnav-item">🛒 רכש מספק</div><div class="gnav-item">🥕 ניהול מלאי</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">💰 כספים</div><div class="gnav-items"><div class="gnav-item">💳 כספים/הלוואות</div><div class="gnav-item">💸 תזרים מזומנים</div><div class="gnav-item">🎯 תקציב</div><div class="gnav-item">📈 דוחות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">⋯ עוד</div><div class="gnav-items"><div class="gnav-item">📣 פרסום FLOW</div></div></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="rt-sales">
+      <div class="ch-head"><div class="ch-num">4</div><div class="ch-title">מכירות וקופה</div></div>
+      <div class="mod">
+        <div class="mod-t">קופה — POS 💳</div>
+        <div class="mod-body">
+          <p>הקופה מציגה את קטלוג המוצרים לפי קטגוריות. לוחצים על מוצר להוספה לעגלה, ניתן לחפש לפי שם לקוח/טלפון, ולסיים בתשלום (מזומן/כרטיס/ביט/שיק). לחנות — ניתן להפעיל גם אפשרות משלוח.</p>
+        </div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">מכירות וחנות 🛍️</div>
+        <div class="mod-body">
+          <p>מציג את כל ההזמנות הפתוחות והסגורות. כרטיסיית <strong>הצעות מחיר</strong> מאפשרת לשלוח ללקוח הצעה לפני סגירת עסקה. <strong>פקודות עבודה</strong> — לניהול הזמנות מורכבות שדורשות ביצוע שטחי.</p>
+          <div class="wys">
+            <div class="wys-title">תתי-כרטיסיות</div>
+            <div class="wys-list">
+              <div class="wys-item">הזמנות — רשימת כל ההזמנות עם סטטוס ותשלום</div>
+              <div class="wys-item">הצעות מחיר — יצירה ושליחה ללקוח</div>
+              <div class="wys-item">פקודות עבודה — הזמנות שדורשות ביצוע שטחי</div>
+              <div class="wys-item">קטלוג — ניהול מוצרים ומחירים</div>
+              <div class="wys-item">שיווק — קמפיינים ומבצעים</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">לקוחות 🤝</div>
+        <div class="mod-body">
+          <p>כרטיס לקוח עם היסטוריית רכישות, פרטי קשר ואפשרות מעקב. מונחה על-ידי מינוח: <em>לקוח / לקוחות</em>.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="chapter" id="rt-stock">
+      <div class="ch-head"><div class="ch-num">5</div><div class="ch-title">מלאי ורכש</div></div>
+      <div class="mod">
+        <div class="mod-t">ניהול מלאי 🥕</div>
+        <div class="mod-body">
+          <p>רשימת פריטים עם כמות נוכחית, כמות מינימום ויחידות לאריזה. כשמלאי יורד מתחת לסף — מופיעה התראה בדשבורד. ניתן לספור מלאי ידנית, לקבל סחורה ולשלוח מחסן.</p>
+        </div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">רכש מספק 🛒</div>
+        <div class="mod-body">
+          <p>יצירת הזמנות רכש לספקים/יצרנים, מעקב אחר סטטוס ההזמנה וקבלת הסחורה למחסן. ספקים מוגדרים תחת מינוח: <em>ספק/יצרן</em>.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="chapter" id="rt-team">
+      <div class="ch-head"><div class="ch-num">6</div><div class="ch-title">צוות ותפקידים</div></div>
+      <p style="font-size:.9rem;color:var(--text2);">תפקידי עובד בחנות קמעונאית — כל תפקיד מפעיל ממשק ייעודי שמותאם לעבודתו.</p>
+      <div class="roles">
+        <div class="role">💼 איש מכירות — ₪29/חודש</div>
+        <div class="role">🛵 שליח / נהג — ₪19/חודש</div>
+        <div class="role">📦 מחסנאי — ₪19/חודש</div>
+        <div class="role">🧹 מנקה / אחזקה — ₪15/חודש</div>
+        <div class="role">💰 קופאי — ₪19/חודש</div>
+        <div class="role">📋 מנהל משמרת — ₪29/חודש</div>
+        <div class="role">🏢 מנהל סניף — ₪39/חודש</div>
+      </div>
+      <div class="mod" style="margin-top:16px;">
+        <div class="mod-t">מה רואה כל תפקיד?</div>
+        <div class="mod-body">
+          <p><strong>קופאי</strong> — פתיחה/סגירת קופה עם ספירת מזומן, מכירות היום, עסקאות לפי אמצעי תשלום, גישה מהירה לקופה ותזרים.</p>
+          <p><strong>איש מכירות</strong> — משימות פתוחות, רשימת לקוחות אחרונים, קישור מהיר ללקוחות/מכירות/יומן.</p>
+          <p><strong>מחסנאי</strong> — פריטים במלאי נמוך, כפתורים מהירים: קבלת סחורה, שליחת מחסן, ספירת מלאי, הזמנה מספק.</p>
+          <p><strong>מנהל משמרת</strong> — נוכחות עובדים, גישה מהירה לנוכחות/משמרות/תזרים.</p>
+          <p><strong>מנהל סניף</strong> — KPIs יומיים (מכירות, עסקאות, נוכחות), פקודות עבודה, הצעות מחיר, דוחות, צוות, משימות.</p>
+        </div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">נוכחות ⏱️</div>
+        <div class="mod-body"><p>כניסה/יציאה ידנית או קוד QR. כל עובד רואה שעות עצמו; מנהל רואה את כולם עם אפשרות עריכה.</p></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="rt-money">
+      <div class="ch-head"><div class="ch-num">7</div><div class="ch-title">כספים</div></div>
+      <div class="mod">
+        <div class="mod-t">תזרים מזומנים 💸</div>
+        <div class="mod-body"><p>רישום הכנסות והוצאות. מאזן נטו מוצג בדשבורד. ניתן להוסיף פריטים ידנית ולסנן לפי תאריך וקטגוריה.</p></div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">תקציב 🎯</div>
+        <div class="mod-body"><p>הגדרת תקציבים לפי קטגוריה לעומת ביצוע בפועל. חיוני לניהול עלויות חנות.</p></div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">כספים / הלוואות 💳</div>
+        <div class="mod-body"><p>עובדים יכולים לבקש מקדמות. מנהל מאשר/דוחה. תיעוד מלא של כל הבקשות.</p></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="rt-reports">
+      <div class="ch-head"><div class="ch-num">8</div><div class="ch-title">דוחות</div></div>
+      <p style="font-size:.9rem;color:var(--text2);">לחנות קמעונאית יש דוח מיוחד הכולל נתונים ספציפיים לסוג העסק בנוסף לדוחות הכלליים.</p>
+      <div class="mod">
+        <div class="mod-t">דוח קמעונאי מיוחד</div>
+        <div class="mod-body">
+          <div class="wys-list">
+            <div class="wys-item">סיכום הזמנות — סה"כ הזמנות, הכנסה כוללת, הזמנה ממוצעת</div>
+            <div class="wys-item">מוצרים מובילים — טבלה עם כמות מכירות והכנסה לפי מוצר</div>
+            <div class="wys-item">סטטוס הזמנות — פילוח לפי מוכן/ממתין/בוטל</div>
+            <div class="wys-item">הכנסה לפי יום — גרף עמודות שבועי/חודשי</div>
+            <div class="wys-item">KPIs כלליים — הכנסה היום, מספר עסקאות, צוות פעיל</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ SERVICES ═══ -->
+<div id="services" class="page">
+  <div class="sec-top">
+    <div class="s-icon">🔩</div>
+    <h1>שירותים מקצועיים</h1>
+    <p>מדריך לניהול עסק שירות ומתקינים עם OneFlow BIZ — יומן שירות, ניהול קריאות ולקוחות</p>
+  </div>
+  <nav class="subnav">
+    <div class="sn-inner">
+      <button class="sn on" onclick="goTo('sv-enter')">כניסה</button>
+      <button class="sn" onclick="goTo('sv-wizard')">הקמה</button>
+      <button class="sn" onclick="goTo('sv-nav')">ניווט</button>
+      <button class="sn" onclick="goTo('sv-schedule')">יומן שירות</button>
+      <button class="sn" onclick="goTo('sv-clients')">לקוחות</button>
+      <button class="sn" onclick="goTo('sv-sales')">מכירות</button>
+      <button class="sn" onclick="goTo('sv-team')">צוות</button>
+      <button class="sn" onclick="goTo('sv-money')">כספים</button>
+    </div>
+  </nav>
+  <div class="wrap">
+
+    <div class="chapter" id="sv-enter">
+      <div class="ch-head"><div class="ch-num">1</div><div class="ch-title">כניסה למערכת</div></div>
+      <p style="font-size:.9rem;color:var(--text2);">כניסה דרך הדפדפן עם קוד עסק (6 תווים), שם משתמש וסיסמה. אין צורך בהתקנה.</p>
+      <div class="box box-good"><div class="box-icon">🔧</div><div>בויזארד ההקמה הראשוני בוחרים <strong>שירות / מתקינים 🔧</strong> — זהו סוג העסק היחיד מסוג "שירותים" שמופיע בויזארד.</div></div>
+    </div>
+
+    <div class="chapter" id="sv-wizard">
+      <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">ויזארד הקמה</div></div>
+      <p style="font-size:.9rem;color:var(--text2);">בויזארד ההקמה הראשוני בחרו <strong>שירות / מתקינים 🔧</strong>. לאחר מכן:</p>
+      <div class="mod">
+        <div class="mod-t">שלבי הויזארד</div>
+        <ol class="steps">
+          <li class="step"><strong>בחירת סוג עסק</strong> — לחצו על הכרטיס <em>שירות / מתקינים 🔧</em>.</li>
+          <li class="step"><strong>פרטי העסק</strong> — שם, תיאור (מה אתם מציעים), כתובת.</li>
+          <li class="step"><strong>פרטי יצירת קשר</strong> — טלפון, דוא"ל, אתר (לא חובה).</li>
+          <li class="step"><strong>סוגי שירות</strong> — הגדירו את סוגי השירות שאתם מציעים ומחירי מינימום.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="chapter" id="sv-nav">
+      <div class="ch-head"><div class="ch-num">3</div><div class="ch-title">ניווט ותפריטים</div></div>
+      <div class="gnav-wrap">
+        <div class="gnav-card"><div class="gnav-card-title">👥 צוות</div><div class="gnav-items"><div class="gnav-item">⏱️ נוכחות</div><div class="gnav-item">🌐 יומן ציבורי</div><div class="gnav-item">✅ פרויקטים ומשימות</div><div class="gnav-item">👥 ניהול צוות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">🛍️ מכירות</div><div class="gnav-items"><div class="gnav-item">💳 קופה (POS)</div><div class="gnav-item">🛍️ מכירות</div><div class="gnav-item">🤝 לקוחות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">📦 מלאי</div><div class="gnav-items"><div class="gnav-item" style="color:var(--text3)">— אין מלאי —</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">💰 כספים</div><div class="gnav-items"><div class="gnav-item">💳 כספים/הלוואות</div><div class="gnav-item">💸 תזרים מזומנים</div><div class="gnav-item">🎯 תקציב</div><div class="gnav-item">📈 דוחות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">⋯ עוד</div><div class="gnav-items"><div class="gnav-item">📣 פרסום FLOW</div></div></div>
+      </div>
+      <div class="box box-tip"><div class="box-icon">🔧</div><div>בדשבורד הראשי מופיע פאנל מיוחד — <strong>קריאות שירות ממשפחות</strong> — שמציג עד 5 קריאות פתוחות שהגיעו מלקוחות דרך אפליקציית OneFlow LIFE.</div></div>
+    </div>
+
+    <div class="chapter" id="sv-schedule">
+      <div class="ch-head"><div class="ch-num">4</div><div class="ch-title">יומן שירות</div></div>
+      <div class="mod">
+        <div class="mod-t">יומן ציבורי 🌐</div>
+        <div class="mod-body">
+          <p>יומן ניהול תורים ופגישות שירות. מציג תצוגת יום/שבוע/חודש. כל ביקור שירות מוצג בצבע כתום עם אייקון 🔧.</p>
+          <div class="wys">
+            <div class="wys-title">תתי-כרטיסיות</div>
+            <div class="wys-list">
+              <div class="wys-item">יומן — תצוגת לוח עם פגישות ותורים</div>
+              <div class="wys-item">בקשות — בקשות המתנה לאישור</div>
+              <div class="wys-item">הגדרות — סוגי שירות, משך וזמינות</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">קריאות מתוזמנות 📅</div>
+        <div class="mod-body">
+          <p>פאנל מעל היומן המציג קריאות שירות ממתינות לביצוע. לאנשי שטח מוצגות רק הקריאות שהוקצו להם. קריאות מסונכרנות אוטומטית מ-OneFlow LIFE.</p>
+        </div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">הזמנה עצמית ללקוח</div>
+        <div class="mod-body">
+          <p>המערכת יוצרת כתובת URL ציבורית (<code>storefront.html?store=קוד_עסק</code>) שבה לקוחות יכולים לקבוע תור בעצמם בלי לצלצל.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="chapter" id="sv-clients">
+      <div class="ch-head"><div class="ch-num">5</div><div class="ch-title">לקוחות</div></div>
+      <div class="mod">
+        <div class="mod-t">כרטיס לקוח</div>
+        <div class="mod-body">
+          <p>כרטיס כולל פרטי קשר, היסטוריית שירות ולוגים. ניתן לראות את כל קריאות השירות לפי לקוח עם ציר זמן. מינוח: <em>לקוח / לקוחות</em>. הזמנה נקראת <em>פרויקט</em>.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="chapter" id="sv-sales">
+      <div class="ch-head"><div class="ch-num">6</div><div class="ch-title">מכירות ופקודות עבודה</div></div>
+      <div class="mod">
+        <div class="mod-t">פקודת עבודה 🔨</div>
+        <div class="mod-body">
+          <p>לכל קריאת שירות נוצרת "פקודת עבודה" המכילה: תיאור הבעיה, חלקים שהשתמשו, שעות עבודה ואבני דרך לתשלום. כרטיסיית <strong>גבייה</strong> בתזרים מציגה אבני דרך ממתינות לתשלום לפי פרויקט.</p>
+        </div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">הצעות מחיר 📄</div>
+        <div class="mod-body"><p>שולחים ללקוח הצעת מחיר לפני ביצוע עבודה. לאחר אישור — הופכת לפקודת עבודה.</p></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="sv-team">
+      <div class="ch-head"><div class="ch-num">7</div><div class="ch-title">צוות ותפקידים</div></div>
+      <div class="roles">
+        <div class="role">💼 איש מכירות — ₪29/חודש</div>
+        <div class="role">🎧 נציג שירות — ₪19/חודש</div>
+        <div class="role">🏢 מנהל סניף — ₪39/חודש</div>
+      </div>
+      <div class="mod" style="margin-top:16px;">
+        <div class="mod-t">מה רואה כל תפקיד?</div>
+        <div class="mod-body">
+          <p><strong>נציג שירות</strong> — חיפוש/הוספת לקוח, פניות חדשות, שיחות היום, גישה למשימות ויומן.</p>
+          <p><strong>איש מכירות</strong> — משימות פתוחות, לקוחות אחרונים, קישור מהיר לקופה/מכירות/יומן.</p>
+          <p><strong>מנהל סניף</strong> — KPIs יומיים, פקודות עבודה, הצעות מחיר, דוחות, ניהול צוות.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="chapter" id="sv-money">
+      <div class="ch-head"><div class="ch-num">8</div><div class="ch-title">כספים</div></div>
+      <div class="mod">
+        <div class="mod-t">תזרים + גבייה 💸</div>
+        <div class="mod-body">
+          <p>תזרים מזומנים רגיל + כרטיסיית <strong>גבייה</strong> מיוחדת לעסקי שירות: מציגה אבני דרך ממתינות לתשלום לפי פרויקט, עם מחיר, אמצעי תשלום, תאריך יעד וכפתור "גבה ✓". כך ניתן לנהל גבייה שלבית בפרויקטים מורכבים.</p>
+        </div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">תקציב ודוחות</div>
+        <div class="mod-body"><p>הגדרת תקציב פרויקטלי וצפייה בדוחות הכנסה/הוצאה מצטברים.</p></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ CONSTRUCTION ═══ -->
+<div id="construction" class="page">
+  <div class="sec-top">
+    <div class="s-icon">🏗️</div>
+    <h1>בנייה / קבלנות</h1>
+    <p>מדריך לניהול עסק בנייה וקבלנות עם OneFlow BIZ — פרויקטים, ציוד, פקודות עבודה וצוות שטח</p>
+  </div>
+  <nav class="subnav">
+    <div class="sn-inner">
+      <button class="sn on" onclick="goTo('cn-enter')">כניסה</button>
+      <button class="sn" onclick="goTo('cn-wizard')">הקמה</button>
+      <button class="sn" onclick="goTo('cn-nav')">ניווט</button>
+      <button class="sn" onclick="goTo('cn-projects')">פרויקטים</button>
+      <button class="sn" onclick="goTo('cn-wo')">פקודות עבודה</button>
+      <button class="sn" onclick="goTo('cn-equip')">ציוד ומלאי</button>
+      <button class="sn" onclick="goTo('cn-team')">צוות</button>
+      <button class="sn" onclick="goTo('cn-money')">כספים</button>
+    </div>
+  </nav>
+  <div class="wrap">
+
+    <div class="chapter" id="cn-enter">
+      <div class="ch-head"><div class="ch-num">1</div><div class="ch-title">כניסה למערכת</div></div>
+      <p style="font-size:.9rem;color:var(--text2);">כניסה דרך הדפדפן — קוד עסק (6 תווים), שם משתמש וסיסמה. סוג עסק "בנייה" מוגדר על-ידי Super Admin (אינו בויזארד הרגיל).</p>
+    </div>
+
+    <div class="chapter" id="cn-wizard">
+      <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית</div></div>
+      <p style="font-size:.9rem;color:var(--text2);">סוג עסק "בנייה / קבלנות" אינו בויזארד. ה-Super Admin מגדיר אותו בהגדרות המערכת.</p>
+      <div class="mod">
+        <div class="mod-t">מינוח ייחודי לבנייה</div>
+        <div class="field-table">
+          <div class="field-row"><div class="fr-label">לקוח</div><div class="fr-val">מזמין (הצד שמזמין את הבנייה)</div></div>
+          <div class="field-row"><div class="fr-label">מוצר/שירות</div><div class="fr-val">חומר (חומרי בנייה)</div></div>
+          <div class="field-row"><div class="fr-label">פגישה</div><div class="fr-val">פגישת אתר</div></div>
+          <div class="field-row"><div class="fr-label">הזמנה</div><div class="fr-val">פרויקט</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chapter" id="cn-nav">
+      <div class="ch-head"><div class="ch-num">3</div><div class="ch-title">ניווט ותפריטים</div></div>
+      <div class="gnav-wrap">
+        <div class="gnav-card"><div class="gnav-card-title">👥 צוות</div><div class="gnav-items"><div class="gnav-item">⏱️ נוכחות</div><div class="gnav-item">📅 משמרות</div><div class="gnav-item">✅ פרויקטים ומשימות</div><div class="gnav-item">👥 ניהול צוות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">🛍️ מכירות</div><div class="gnav-items"><div class="gnav-item">🤝 מזמינים (לקוחות)</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">📦 מלאי</div><div class="gnav-items"><div class="gnav-item">🛒 רכש מספק</div><div class="gnav-item">🥕 ניהול חומרים</div><div class="gnav-item">🔧 ציוד</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">💰 כספים</div><div class="gnav-items"><div class="gnav-item">💳 כספים/הלוואות</div><div class="gnav-item">💸 תזרים מזומנים</div><div class="gnav-item">🎯 תקציב</div><div class="gnav-item">📈 דוחות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">⋯ עוד</div><div class="gnav-items"><div class="gnav-item">📣 פרסום FLOW</div></div></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="cn-projects">
+      <div class="ch-head"><div class="ch-num">4</div><div class="ch-title">ניהול פרויקטים</div></div>
+      <div class="mod">
+        <div class="mod-t">פרויקטים ומשימות ✅</div>
+        <div class="mod-body">
+          <p>כל פרויקט בנייה מנוהל כמשימה. עובדים מדווחים על ביצוע עם אפשרות צילום תמונת הוכחה. מנהל רואה את כל הפרויקטים עם סטטוס (ממתין / בביצוע / הושלם). ניתן להגדיר בונוס לעובד על השלמה במועד.</p>
+        </div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">מזמינים (לקוחות) 🤝</div>
+        <div class="mod-body"><p>כרטיס מזמין עם פרטי קשר, היסטוריית פרויקטים ואפשרות מעקב. הזמנה לפרויקט — "פגישת אתר" ביומן.</p></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="cn-wo">
+      <div class="ch-head"><div class="ch-num">5</div><div class="ch-title">פקודות עבודה</div></div>
+      <div class="mod">
+        <div class="mod-t">מה זה פקודת עבודה?</div>
+        <div class="mod-body">
+          <p>פקודת עבודה היא מסמך פנימי שמפרט: מה לעשות, מי אחראי, חומרים נדרשים ועלות. נגישה מכרטיסיית <strong>מכירות</strong> ← <strong>פקודות עבודה</strong>. לעסקי בנייה — כל פרויקט מקבל פקודת עבודה ייעודית.</p>
+          <div class="wys">
+            <div class="wys-title">שדות פקודת עבודה</div>
+            <div class="wys-list">
+              <div class="wys-item">מזמין (לקוח) — שם ופרטי קשר</div>
+              <div class="wys-item">תיאור העבודה — מה יש לבצע באתר</div>
+              <div class="wys-item">חומרים — רשימת חומרי בנייה שנדרשים</div>
+              <div class="wys-item">הקצאת עובד — מי מבצע בשטח</div>
+              <div class="wys-item">אבני דרך לתשלום — פיצול לפרוייקט שלבי</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chapter" id="cn-equip">
+      <div class="ch-head"><div class="ch-num">6</div><div class="ch-title">ציוד וחומרים</div></div>
+      <div class="mod">
+        <div class="mod-t">ניהול ציוד 🔧</div>
+        <div class="mod-body"><p>מעקב אחר ציוד בנייה — מאיפה בא, היכן נמצא, מתי זמין. הוצאת ציוד לאתר ובדיקה עם החזרה.</p></div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">ניהול חומרים 🥕</div>
+        <div class="mod-body"><p>מלאי חומרי בנייה (חול, ציפוי, ברזל וכו'). כמות, סף מינימום והתראה על מלאי נמוך. רכש מספק דרך כרטיסיית רכש.</p></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="cn-team">
+      <div class="ch-head"><div class="ch-num">7</div><div class="ch-title">צוות ותפקידים</div></div>
+      <div class="roles">
+        <div class="role">💼 איש מכירות — ₪29/חודש</div>
+        <div class="role">🔨 טכנאי שטח — ₪29/חודש</div>
+        <div class="role">📦 מחסנאי — ₪19/חודש</div>
+        <div class="role">🏢 מנהל סניף — ₪39/חודש</div>
+      </div>
+      <div class="mod" style="margin-top:16px;">
+        <div class="mod-t">נוכחות ומשמרות</div>
+        <div class="mod-body"><p>קבלני בנייה עובדים לרוב במשמרות בשטח — נוכחות מנוהלת עם שעות כניסה/יציאה לאתר. מנהל רואה נוכחות כוללת לפי יום/שבוע.</p></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="cn-money">
+      <div class="ch-head"><div class="ch-num">8</div><div class="ch-title">כספים</div></div>
+      <div class="mod">
+        <div class="mod-t">תזרים ותקציב</div>
+        <div class="mod-body"><p>מעקב הכנסות/הוצאות לפי פרויקט. תקציב מול ביצוע. כספים/הלוואות לניהול מקדמות עובדים. דוחות כספיים מפורטים.</p></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ HEALTHCARE ═══ -->
+<div id="healthcare" class="page">
+  <div class="sec-top">
+    <div class="s-icon">🏥</div>
+    <h1>בריאות / קליניקה</h1>
+    <p>מדריך לניהול קליניקה, מרפאה או מרכז רפואי עם OneFlow BIZ — יומן תורים, מטופלים וצוות רפואי</p>
+  </div>
+  <nav class="subnav">
+    <div class="sn-inner">
+      <button class="sn on" onclick="goTo('hc-enter')">כניסה</button>
+      <button class="sn" onclick="goTo('hc-wizard')">הקמה</button>
+      <button class="sn" onclick="goTo('hc-nav')">ניווט</button>
+      <button class="sn" onclick="goTo('hc-calendar')">יומן תורים</button>
+      <button class="sn" onclick="goTo('hc-patients')">מטופלים</button>
+      <button class="sn" onclick="goTo('hc-team')">צוות רפואי</button>
+      <button class="sn" onclick="goTo('hc-money')">כספים</button>
+    </div>
+  </nav>
+  <div class="wrap">
+
+    <div class="chapter" id="hc-enter">
+      <div class="ch-head"><div class="ch-num">1</div><div class="ch-title">כניסה למערכת</div></div>
+      <p style="font-size:.9rem;color:var(--text2);">כניסה דרך הדפדפן — קוד עסק, שם משתמש וסיסמה. סוג עסק "בריאות" מוגדר ע"י Super Admin (אינו בויזארד הרגיל).</p>
+      <div class="box box-tip"><div class="box-icon">🏥</div><div>המערכת מתאימה את המינוח: <strong>לקוח</strong> הופך ל<strong>מטופל</strong>, <strong>יומן</strong> הופך ל<strong>יומן תורים</strong>, <strong>ניהול צוות</strong> הופך ל<strong>צוות רפואי</strong>.</div></div>
+    </div>
+
+    <div class="chapter" id="hc-wizard">
+      <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית</div></div>
+      <div class="mod">
+        <div class="mod-t">מינוח ייחודי לבריאות</div>
+        <div class="field-table">
+          <div class="field-row"><div class="fr-label">לקוח</div><div class="fr-val">מטופל</div></div>
+          <div class="field-row"><div class="fr-label">מוצר/שירות</div><div class="fr-val">טיפול</div></div>
+          <div class="field-row"><div class="fr-label">פגישה</div><div class="fr-val">תור</div></div>
+          <div class="field-row"><div class="fr-label">הזמנה</div><div class="fr-val">הפניה</div></div>
+        </div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">הגדרות ראשוניות</div>
+        <ol class="steps">
+          <li class="step">Super Admin מגדיר סוג עסק "בריאות / קליניקה" בהגדרות המערכת.</li>
+          <li class="step">הוספת אנשי הצוות הרפואי בכרטיסיית <em>צוות רפואי</em>.</li>
+          <li class="step">הגדרת סוגי טיפולים וזמני תור בכרטיסיית <em>יומן תורים ← הגדרות</em>.</li>
+          <li class="step">קביעת מחירי טיפולים בקופה (POS) ← <em>קטלוג</em>.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="chapter" id="hc-nav">
+      <div class="ch-head"><div class="ch-num">3</div><div class="ch-title">ניווט ותפריטים</div></div>
+      <div class="gnav-wrap">
+        <div class="gnav-card"><div class="gnav-card-title">👥 צוות</div><div class="gnav-items"><div class="gnav-item">⏱️ נוכחות</div><div class="gnav-item">📅 יומן תורים</div><div class="gnav-item">✅ פרויקטים ומשימות</div><div class="gnav-item">👥 צוות רפואי</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">🛍️ מכירות</div><div class="gnav-items"><div class="gnav-item">💳 קופה (POS)</div><div class="gnav-item">🤝 מטופלים</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">📦 מלאי</div><div class="gnav-items"><div class="gnav-item">🥕 ניהול חומרים/תרופות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">💰 כספים</div><div class="gnav-items"><div class="gnav-item">💳 כספים/הלוואות</div><div class="gnav-item">💸 תזרים מזומנים</div><div class="gnav-item">📈 דוחות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">⋯ עוד</div><div class="gnav-items"><div class="gnav-item">📣 פרסום FLOW</div></div></div>
+      </div>
+      <div class="box box-tip"><div class="box-icon">🏥</div><div>בדשבורד הראשי מופיע פאנל <strong>קריאות שירות ממשפחות</strong> — פניות רפואיות שהגיעו ממשתמשי OneFlow LIFE.</div></div>
+    </div>
+
+    <div class="chapter" id="hc-calendar">
+      <div class="ch-head"><div class="ch-num">4</div><div class="ch-title">יומן תורים</div></div>
+      <div class="mod">
+        <div class="mod-t">ניהול תורים 📅</div>
+        <div class="mod-body">
+          <p>יומן תורים מלא בתצוגת יום/שבוע/חודש. כל תור מוצג עם שם מטופל, סוג טיפול ומשך. ניתן לקבוע תור ידנית או לאפשר למטופל לקבוע בעצמו דרך כתובת URL ציבורית.</p>
+          <div class="wys">
+            <div class="wys-title">תתי-כרטיסיות</div>
+            <div class="wys-list">
+              <div class="wys-item">יומן — לוח תורים יומי/שבועי/חודשי</div>
+              <div class="wys-item">בקשות — תורים ממתינים לאישור</div>
+              <div class="wys-item">הגדרות — סוגי טיפולים, משך ומחיר</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chapter" id="hc-patients">
+      <div class="ch-head"><div class="ch-num">5</div><div class="ch-title">מטופלים</div></div>
+      <div class="mod">
+        <div class="mod-t">כרטיס מטופל</div>
+        <div class="mod-body"><p>פרטי קשר, היסטוריית ביקורים, הפניות ותשלומים. ניתן לראות את ציר הזמן הרפואי של כל מטופל. מינוח: <em>מטופל / מטופלים</em>. תשלום — דרך הקופה (POS).</p></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="hc-team">
+      <div class="ch-head"><div class="ch-num">6</div><div class="ch-title">צוות רפואי</div></div>
+      <div class="roles">
+        <div class="role">🎧 נציג שירות — ₪19/חודש</div>
+        <div class="role">🏢 מנהל סניף — ₪39/חודש</div>
+      </div>
+      <div class="mod" style="margin-top:16px;">
+        <div class="mod-t">ניהול צוות רפואי</div>
+        <div class="mod-body"><p>כרטיסיית <em>צוות רפואי</em> (TAB_RENAME של "ניהול צוות") מאפשרת ניהול רופאים, אחיות ואנשי צוות. כל איש צוות מקושר לתורים ביומן. נוכחות מנוהלת בכרטיסיית <em>נוכחות</em>.</p></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="hc-money">
+      <div class="ch-head"><div class="ch-num">7</div><div class="ch-title">כספים</div></div>
+      <div class="mod">
+        <div class="mod-t">גביית תשלומים</div>
+        <div class="mod-body"><p>תשלום על טיפול מתבצע דרך הקופה (POS). תזרים מזומנים מציג את כל ההכנסות וההוצאות. דוחות כספיים כוללים סיכום הכנסות לפי תקופה.</p></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ EDUCATION ═══ -->
+<div id="education" class="page">
+  <div class="sec-top">
+    <div class="s-icon">🎓</div>
+    <h1>חינוך / הדרכה</h1>
+    <p>מדריך לניהול מוסד חינוכי, חוגים או מרכז הדרכה עם OneFlow BIZ — שיעורים, תלמידים וצוות מדריכים</p>
+  </div>
+  <nav class="subnav">
+    <div class="sn-inner">
+      <button class="sn on" onclick="goTo('ed-enter')">כניסה</button>
+      <button class="sn" onclick="goTo('ed-wizard')">הקמה</button>
+      <button class="sn" onclick="goTo('ed-nav')">ניווט</button>
+      <button class="sn" onclick="goTo('ed-calendar')">יומן שיעורים</button>
+      <button class="sn" onclick="goTo('ed-students')">תלמידים</button>
+      <button class="sn" onclick="goTo('ed-team')">צוות</button>
+      <button class="sn" onclick="goTo('ed-money')">כספים</button>
+    </div>
+  </nav>
+  <div class="wrap">
+
+    <div class="chapter" id="ed-enter">
+      <div class="ch-head"><div class="ch-num">1</div><div class="ch-title">כניסה למערכת</div></div>
+      <p style="font-size:.9rem;color:var(--text2);">כניסה דרך הדפדפן — קוד עסק, שם משתמש וסיסמה. סוג עסק "חינוך" מוגדר ע"י Super Admin (אינו בויזארד הרגיל).</p>
+      <div class="box box-tip"><div class="box-icon">🎓</div><div>המינוח מותאם: <em>לקוח</em> = <strong>תלמיד</strong>, <em>מוצר</em> = <strong>שיעור/קורס</strong>, <em>פגישה</em> = <strong>שיעור</strong>, <em>הזמנה</em> = <strong>הרשמה</strong>.</div></div>
+    </div>
+
+    <div class="chapter" id="ed-wizard">
+      <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית</div></div>
+      <div class="mod">
+        <div class="mod-t">צעדים ראשוניים</div>
+        <ol class="steps">
+          <li class="step">Super Admin מגדיר סוג עסק "חינוך / הדרכה" בהגדרות המערכת.</li>
+          <li class="step">הוספת מדריכים/מורים בכרטיסיית <em>ניהול צוות</em>.</li>
+          <li class="step">הגדרת שיעורים וקורסים בכרטיסיית <em>יומן ← הגדרות</em>.</li>
+          <li class="step">הוספת שיעורים לקטלוג הקופה עם מחיר ורישום.</li>
+        </ol>
+      </div>
+      <div class="box box-warn"><div class="box-icon">⚠️</div><div>כרטיסיית <strong>אקדמיה (Academy)</strong> עבור עסקי חינוך היא מרכז ההדרכה הפנימי של <em>הצוות</em> — לא מרכז קורסים לתלמידים חיצוניים. שם מנהל מעלה חומרי הדרכה לעובדים.</div></div>
+    </div>
+
+    <div class="chapter" id="ed-nav">
+      <div class="ch-head"><div class="ch-num">3</div><div class="ch-title">ניווט ותפריטים</div></div>
+      <div class="gnav-wrap">
+        <div class="gnav-card"><div class="gnav-card-title">👥 צוות</div><div class="gnav-items"><div class="gnav-item">⏱️ נוכחות</div><div class="gnav-item">📅 יומן שיעורים</div><div class="gnav-item">🎓 אקדמיה (הדרכת צוות)</div><div class="gnav-item">✅ פרויקטים ומשימות</div><div class="gnav-item">👥 ניהול צוות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">🛍️ מכירות</div><div class="gnav-items"><div class="gnav-item">💳 קופה (POS)</div><div class="gnav-item">🤝 תלמידים (לקוחות)</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">📦 מלאי</div><div class="gnav-items"><div class="gnav-item" style="color:var(--text3)">— אין מלאי —</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">💰 כספים</div><div class="gnav-items"><div class="gnav-item">💸 תזרים מזומנים</div><div class="gnav-item">📈 דוחות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">⋯ עוד</div><div class="gnav-items"><div class="gnav-item">📣 פרסום FLOW</div></div></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="ed-calendar">
+      <div class="ch-head"><div class="ch-num">4</div><div class="ch-title">יומן שיעורים</div></div>
+      <div class="mod">
+        <div class="mod-t">ניהול לוח שיעורים 📅</div>
+        <div class="mod-body">
+          <p>יומן לתזמון שיעורים, חוגים וקורסים. תצוגת יום/שבוע/חודש. כל שיעור מוצג עם שם המדריך, נושא ומשך. ניתן לאפשר הרשמה עצמית דרך URL ציבורי.</p>
+          <div class="wys">
+            <div class="wys-title">תתי-כרטיסיות</div>
+            <div class="wys-list">
+              <div class="wys-item">יומן — לוח שיעורים לפי יום/שבוע/חודש</div>
+              <div class="wys-item">בקשות — הרשמות ממתינות לאישור</div>
+              <div class="wys-item">הגדרות — סוגי שיעורים, משך ומחיר</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chapter" id="ed-students">
+      <div class="ch-head"><div class="ch-num">5</div><div class="ch-title">תלמידים</div></div>
+      <div class="mod">
+        <div class="mod-t">כרטיס תלמיד</div>
+        <div class="mod-body"><p>פרטי קשר, היסטוריית שיעורים, הרשמות ותשלומים. תשלום שכ"ל/חוג מתבצע דרך הקופה (POS). מינוח: <em>תלמיד / תלמידים</em>.</p></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="ed-team">
+      <div class="ch-head"><div class="ch-num">6</div><div class="ch-title">צוות מדריכים</div></div>
+      <div class="roles">
+        <div class="role">🎧 נציג שירות — ₪19/חודש</div>
+        <div class="role">🏢 מנהל סניף — ₪39/חודש</div>
+      </div>
+      <div class="mod" style="margin-top:16px;">
+        <div class="mod-t">אקדמיה — הדרכת הצוות 🎓</div>
+        <div class="mod-body"><p>כרטיסיית <em>אקדמיה</em> מיועדת להדרכה פנימית של העובדים. מנהל מעלה חומרי לימוד, מצגות ונהלים. עובדים רואים את החומרים ומסמנים השלמה.</p></div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">נוכחות מדריכים</div>
+        <div class="mod-body"><p>מעקב שעות הוראה של כל מדריך. נוכחות מנוהלת בכרטיסיית <em>נוכחות</em>.</p></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="ed-money">
+      <div class="ch-head"><div class="ch-num">7</div><div class="ch-title">כספים</div></div>
+      <div class="mod">
+        <div class="mod-t">גביית שכ"ל</div>
+        <div class="mod-body"><p>גביית תשלומים דרך הקופה. תזרים מזומנים מציג הכנסות מחוגים, קורסים ותשלומי שכ"ל. דוחות מאפשרים ניתוח הכנסה לפי תקופה.</p></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ EVENTS ═══ -->
+<div id="events" class="page">
+  <div class="sec-top">
+    <div class="s-icon">🎉</div>
+    <h1>אירועים / הפקות</h1>
+    <p>מדריך לניהול חברת הפקות ואירועים עם OneFlow BIZ — יומן אירועים, ציוד הפקה ומזמינים</p>
+  </div>
+  <nav class="subnav">
+    <div class="sn-inner">
+      <button class="sn on" onclick="goTo('ev-enter')">כניסה</button>
+      <button class="sn" onclick="goTo('ev-wizard')">הקמה</button>
+      <button class="sn" onclick="goTo('ev-nav')">ניווט</button>
+      <button class="sn" onclick="goTo('ev-calendar')">יומן אירועים</button>
+      <button class="sn" onclick="goTo('ev-clients')">מזמינים</button>
+      <button class="sn" onclick="goTo('ev-equip')">ציוד</button>
+      <button class="sn" onclick="goTo('ev-team')">צוות</button>
+      <button class="sn" onclick="goTo('ev-money')">כספים</button>
+    </div>
+  </nav>
+  <div class="wrap">
+
+    <div class="chapter" id="ev-enter">
+      <div class="ch-head"><div class="ch-num">1</div><div class="ch-title">כניסה למערכת</div></div>
+      <p style="font-size:.9rem;color:var(--text2);">כניסה דרך הדפדפן — קוד עסק, שם משתמש וסיסמה. סוג עסק "אירועים" מוגדר ע"י Super Admin (אינו בויזארד הרגיל).</p>
+      <div class="box box-tip"><div class="box-icon">🎉</div><div>המינוח: <em>לקוח</em> = <strong>מזמין</strong>, <em>פגישה</em> = <strong>אירוע</strong>, <em>מוצר</em> = <strong>שירות הפקה</strong>, <em>הזמנה</em> = <strong>הזמנה</strong>.</div></div>
+    </div>
+
+    <div class="chapter" id="ev-wizard">
+      <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית</div></div>
+      <div class="mod">
+        <div class="mod-t">צעדים ראשוניים</div>
+        <ol class="steps">
+          <li class="step">Super Admin מגדיר סוג עסק "אירועים / הפקות" בהגדרות המערכת.</li>
+          <li class="step">הגדרת שירותי ההפקה בקטלוג (במה, תאורה, צלמים, כייטרינג).</li>
+          <li class="step">רישום ציוד ההפקה בכרטיסיית <em>ציוד</em>.</li>
+          <li class="step">הוספת צוות ההפקה בכרטיסיית <em>ניהול צוות</em>.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="chapter" id="ev-nav">
+      <div class="ch-head"><div class="ch-num">3</div><div class="ch-title">ניווט ותפריטים</div></div>
+      <div class="gnav-wrap">
+        <div class="gnav-card"><div class="gnav-card-title">👥 צוות</div><div class="gnav-items"><div class="gnav-item">⏱️ נוכחות</div><div class="gnav-item">📅 משמרות</div><div class="gnav-item">🎉 יומן אירועים</div><div class="gnav-item">✅ פרויקטים ומשימות</div><div class="gnav-item">👥 ניהול צוות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">🛍️ מכירות</div><div class="gnav-items"><div class="gnav-item">🤝 מזמינים (לקוחות)</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">📦 מלאי</div><div class="gnav-items"><div class="gnav-item">🛒 רכש ציוד</div><div class="gnav-item">🔧 ניהול ציוד</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">💰 כספים</div><div class="gnav-items"><div class="gnav-item">💸 תזרים מזומנים</div><div class="gnav-item">🎯 תקציב</div><div class="gnav-item">📈 דוחות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">⋯ עוד</div><div class="gnav-items"><div class="gnav-item">📣 פרסום FLOW</div></div></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="ev-calendar">
+      <div class="ch-head"><div class="ch-num">4</div><div class="ch-title">יומן אירועים</div></div>
+      <div class="mod">
+        <div class="mod-t">יומן אירועים 🎉</div>
+        <div class="mod-body">
+          <p>יומן הפקה בתצוגת יום/שבוע/חודש. כל אירוע מוצג עם שם מזמין, מיקום ומשך. ניתן לשייך ציוד ועובדים לכל אירוע.</p>
+          <div class="wys">
+            <div class="wys-title">תתי-כרטיסיות</div>
+            <div class="wys-list">
+              <div class="wys-item">יומן — לוח אירועים</div>
+              <div class="wys-item">בקשות — בקשות אירוע ממתינות</div>
+              <div class="wys-item">הגדרות — סוגי אירועים ומחירים</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chapter" id="ev-clients">
+      <div class="ch-head"><div class="ch-num">5</div><div class="ch-title">מזמינים</div></div>
+      <div class="mod">
+        <div class="mod-t">כרטיס מזמין</div>
+        <div class="mod-body"><p>פרטי קשר, אירועים מאורגנים ותשלומים. מינוח: <em>מזמין / לקוחות</em>. מעקב אחר כל ההזמנות לפי מזמין.</p></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="ev-equip">
+      <div class="ch-head"><div class="ch-num">6</div><div class="ch-title">ציוד הפקה</div></div>
+      <div class="mod">
+        <div class="mod-t">ניהול ציוד 🔧</div>
+        <div class="mod-body"><p>מעקב אחר ציוד הפקה — מאגים, כבלים, גנרטורים, ריהוט. מצב ציוד (זמין/מושאל/תיקון), מיקום ותאריך החזרה. שיוך ציוד לאירוע ספציפי.</p></div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">רכש ציוד 🛒</div>
+        <div class="mod-body"><p>רכש ציוד חדש מספקים. הזמנות רכש ומעקב.</p></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="ev-team">
+      <div class="ch-head"><div class="ch-num">7</div><div class="ch-title">צוות ותפקידים</div></div>
+      <div class="roles">
+        <div class="role">🧹 מנקה / אחזקה — ₪15/חודש</div>
+        <div class="role">🏢 מנהל סניף — ₪39/חודש</div>
+      </div>
+      <div class="mod" style="margin-top:16px;">
+        <div class="mod-t">ניהול צוות הפקה</div>
+        <div class="mod-body"><p>ניהול אנשי צוות (מנהלי הפקה, טכנאים, מאבטחים). שיבוץ למשמרות ולאירועים. נוכחות מדוקדקת לפי שעה עם אישור מנהל.</p></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="ev-money">
+      <div class="ch-head"><div class="ch-num">8</div><div class="ch-title">כספים</div></div>
+      <div class="mod">
+        <div class="mod-t">תקציב לפי אירוע</div>
+        <div class="mod-body"><p>ניהול תקציב לכל אירוע — עלויות מול הכנסות. תזרים מזומנים מציג עסקאות כולל מקדמות שהתקבלו. דוחות מפורטים לפי תקופה.</p></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ FOOD PRODUCTION ═══ -->
+<div id="food_production" class="page">
+  <div class="sec-top">
+    <div class="s-icon">🏭</div>
+    <h1>ייצור מזון</h1>
+    <p>מדריך לניהול מפעל ייצור מזון עם OneFlow BIZ — ייצור, מלאי חומרי גלם, תמחור ומכירות B2B</p>
+  </div>
+  <nav class="subnav">
+    <div class="sn-inner">
+      <button class="sn on" onclick="goTo('fp-enter')">כניסה</button>
+      <button class="sn" onclick="goTo('fp-wizard')">הקמה</button>
+      <button class="sn" onclick="goTo('fp-nav')">ניווט</button>
+      <button class="sn" onclick="goTo('fp-production')">ייצור</button>
+      <button class="sn" onclick="goTo('fp-stock')">מלאי</button>
+      <button class="sn" onclick="goTo('fp-sales')">מכירות</button>
+      <button class="sn" onclick="goTo('fp-team')">צוות</button>
+      <button class="sn" onclick="goTo('fp-money')">כספים</button>
+    </div>
+  </nav>
+  <div class="wrap">
+
+    <div class="chapter" id="fp-enter">
+      <div class="ch-head"><div class="ch-num">1</div><div class="ch-title">כניסה למערכת</div></div>
+      <p style="font-size:.9rem;color:var(--text2);">כניסה דרך הדפדפן — קוד עסק, שם משתמש וסיסמה. סוג עסק "ייצור מזון" מוגדר ע"י Super Admin.</p>
+      <div class="box box-tip"><div class="box-icon">🏭</div><div>המינוח: <em>לקוח</em> = <strong>לקוח B2B</strong>, <em>ספק</em> = <strong>ספק חומרי גלם</strong>, <em>פגישה</em> = <strong>הזמנת ייצור</strong>.</div></div>
+    </div>
+
+    <div class="chapter" id="fp-wizard">
+      <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית</div></div>
+      <div class="mod">
+        <div class="mod-t">צעדים ראשוניים</div>
+        <ol class="steps">
+          <li class="step">Super Admin מגדיר סוג עסק "ייצור מזון" בהגדרות המערכת.</li>
+          <li class="step">הוספת חומרי גלם לקטלוג המלאי עם יחידות מידה וספי מינימום.</li>
+          <li class="step">הגדרת מוצרי הייצור (תפריטים/קווי מוצרים) עם תמחור (Foodcost).</li>
+          <li class="step">רישום לקוחות B2B בכרטיסיית <em>לקוחות</em>.</li>
+          <li class="step">הגדרת אזורי הפצה ונהגים.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="chapter" id="fp-nav">
+      <div class="ch-head"><div class="ch-num">3</div><div class="ch-title">ניווט ותפריטים</div></div>
+      <div class="gnav-wrap">
+        <div class="gnav-card"><div class="gnav-card-title">👥 צוות</div><div class="gnav-items"><div class="gnav-item">⏱️ נוכחות</div><div class="gnav-item">📅 משמרות</div><div class="gnav-item">✅ פרויקטים ומשימות</div><div class="gnav-item">👥 ניהול צוות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">🛍️ מכירות</div><div class="gnav-items"><div class="gnav-item">🛍️ מכירות</div><div class="gnav-item">🤝 לקוחות B2B</div><div class="gnav-item">🛵 שליחויות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">📦 מלאי</div><div class="gnav-items"><div class="gnav-item">🥕 ניהול מלאי</div><div class="gnav-item">🛒 רכש חומרים</div><div class="gnav-item">🔧 ציוד מפעל</div><div class="gnav-item">📐 Foodcost (תמחור)</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">💰 כספים</div><div class="gnav-items"><div class="gnav-item">💸 תזרים מזומנים</div><div class="gnav-item">📈 דוחות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">⋯ עוד</div><div class="gnav-items"><div class="gnav-item">📣 פרסום FLOW</div></div></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="fp-production">
+      <div class="ch-head"><div class="ch-num">4</div><div class="ch-title">ניהול ייצור</div></div>
+      <div class="mod">
+        <div class="mod-t">תמחור ייצור — Foodcost 📐</div>
+        <div class="mod-body">
+          <p>מגדירים מתכון לכל מוצר עם רשימת חומרי הגלם וכמויות. המערכת מחשבת עלות ייצור אוטומטית ומציגה אחוז רווח. עיקרי:</p>
+          <div class="wys-list">
+            <div class="wys-item">מתכון — חומרי גלם + כמויות</div>
+            <div class="wys-item">עלות חישוב — עלות לכל מנה/יחידה</div>
+            <div class="wys-item">מחיר מכירה — ומה אחוז הרווח</div>
+          </div>
+        </div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">משמרות ייצור</div>
+        <div class="mod-body"><p>ניהול משמרות עובדי ייצור — בוקר/ערב/לילה. שיבוץ עובדים לקווי ייצור לפי משמרת.</p></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="fp-stock">
+      <div class="ch-head"><div class="ch-num">5</div><div class="ch-title">מלאי וחומרי גלם</div></div>
+      <div class="mod">
+        <div class="mod-t">ניהול מלאי חומרי גלם 🥕</div>
+        <div class="mod-body"><p>כל חומר גלם (קמח, שמן, בשר וכו') עם כמות נוכחית, סף מינימום ויחידות מידה. התראה אוטומטית כשמלאי יורד מתחת לסף.</p></div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">רכש מספקי גלם 🛒</div>
+        <div class="mod-body"><p>הזמנות רכש לספקי חומרי גלם. מעקב על מצב ההזמנה וקבלת הסחורה למחסן.</p></div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">ציוד מפעל 🔧</div>
+        <div class="mod-body"><p>ניהול ציוד הייצור — מכונות, פסי ייצור, קירור. מעקב תקינות ותאריכי תחזוקה.</p></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="fp-sales">
+      <div class="ch-head"><div class="ch-num">6</div><div class="ch-title">מכירות והפצה</div></div>
+      <div class="mod">
+        <div class="mod-t">מכירות B2B 🛍️</div>
+        <div class="mod-body"><p>מכירות לקמעונאים, מסעדות ועסקים. הזמנות B2B עם מחיר מיוחד לפי לקוח. מסמכי הובלה וחשבוניות.</p></div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">שליחויות והפצה 🛵</div>
+        <div class="mod-body"><p>ניהול הפצה — שיוך הזמנות לנהגים, מסלולי חלוקה וסטטוס אספקה בזמן אמת.</p></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="fp-team">
+      <div class="ch-head"><div class="ch-num">7</div><div class="ch-title">צוות ותפקידים</div></div>
+      <div class="roles">
+        <div class="role">💼 איש מכירות — ₪29/חודש</div>
+        <div class="role">🛵 שליח / נהג — ₪19/חודש</div>
+        <div class="role">📦 מחסנאי — ₪19/חודש</div>
+        <div class="role">🍳 טבח / עובד ייצור — ₪15/חודש</div>
+        <div class="role">📋 מנהל משמרת — ₪29/חודש</div>
+        <div class="role">🏢 מנהל סניף — ₪39/חודש</div>
+      </div>
+    </div>
+
+    <div class="chapter" id="fp-money">
+      <div class="ch-head"><div class="ch-num">8</div><div class="ch-title">כספים</div></div>
+      <div class="mod">
+        <div class="mod-t">תזרים ודוחות</div>
+        <div class="mod-body"><p>תזרים מזומנים מציג הכנסות ממכירות B2B מול עלויות חומרי גלם. דוחות כוללים ניתוח רווחיות לפי מוצר וקו ייצור.</p></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ OTHER ═══ -->
+<div id="other" class="page">
+  <div class="sec-top">
+    <div class="s-icon">🏢</div>
+    <h1>כללי / אחר</h1>
+    <p>מדריך לעסק כללי עם OneFlow BIZ — כל המודולים זמינים, גמישות מלאה לכל סוג עסק</p>
+  </div>
+  <nav class="subnav">
+    <div class="sn-inner">
+      <button class="sn on" onclick="goTo('ot-enter')">כניסה</button>
+      <button class="sn" onclick="goTo('ot-wizard')">הקמה</button>
+      <button class="sn" onclick="goTo('ot-nav')">ניווט</button>
+      <button class="sn" onclick="goTo('ot-team')">צוות</button>
+      <button class="sn" onclick="goTo('ot-money')">כספים</button>
+    </div>
+  </nav>
+  <div class="wrap">
+
+    <div class="chapter" id="ot-enter">
+      <div class="ch-head"><div class="ch-num">1</div><div class="ch-title">כניסה למערכת</div></div>
+      <p style="font-size:.9rem;color:var(--text2);">כניסה דרך הדפדפן — קוד עסק, שם משתמש וסיסמה. בויזארד ההקמה — בחרו <strong>לא מוצא את הסוג שלי — בחר כללי</strong>.</p>
+      <div class="box box-good"><div class="box-icon">🏢</div><div>סוג "כללי" פותח את <strong>כל</strong> מודולי המערכת ואת כל תפקידי העובדים — ללא הגבלה. מתאים לעסקים שלא משתייכים לאחד הסוגים הספציפיים.</div></div>
+    </div>
+
+    <div class="chapter" id="ot-wizard">
+      <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית</div></div>
+      <div class="mod">
+        <div class="mod-t">בחירה בויזארד</div>
+        <div class="mod-body">
+          <p>בויזארד ההקמה הראשוני — לחצו על הקישור <em>לא מוצא את הסוג שלי — בחר כללי</em> בתחתית המסך. המערכת תפתח עם כל המודולים.</p>
+          <p>לאחר הכניסה הגדירו: שם עסק, לוגו, כתובת, אנשי קשר ועובדים בכרטיסיית <em>הגדרות</em>.</p>
+        </div>
+      </div>
+      <div class="mod">
+        <div class="mod-t">מינוח ברירת מחדל</div>
+        <div class="field-table">
+          <div class="field-row"><div class="fr-label">לקוח</div><div class="fr-val">לקוח / לקוחות</div></div>
+          <div class="field-row"><div class="fr-label">מוצר</div><div class="fr-val">מוצר/שירות</div></div>
+          <div class="field-row"><div class="fr-label">פגישה</div><div class="fr-val">תור/פגישה</div></div>
+          <div class="field-row"><div class="fr-label">הזמנה</div><div class="fr-val">הזמנה</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chapter" id="ot-nav">
+      <div class="ch-head"><div class="ch-num">3</div><div class="ch-title">ניווט — כל המודולים פתוחים</div></div>
+      <p style="font-size:.9rem;color:var(--text2);">בסוג "כללי" כל 5 קבוצות הניווט פתוחות עם כל הכרטיסיות הזמינות. אין הגבלה.</p>
+      <div class="gnav-wrap">
+        <div class="gnav-card"><div class="gnav-card-title">👥 צוות</div><div class="gnav-items"><div class="gnav-item">⏱️ נוכחות</div><div class="gnav-item">📅 משמרות</div><div class="gnav-item">🌐 יומן</div><div class="gnav-item">✅ משימות</div><div class="gnav-item">🎓 אקדמיה</div><div class="gnav-item">👥 ניהול צוות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">🛍️ מכירות</div><div class="gnav-items"><div class="gnav-item">💳 קופה</div><div class="gnav-item">🛍️ מכירות</div><div class="gnav-item">🤝 לקוחות</div><div class="gnav-item">📂 תיקים</div><div class="gnav-item">💡 לידים</div><div class="gnav-item">🛵 שליחויות</div><div class="gnav-item">⭐ ביקורות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">📦 מלאי</div><div class="gnav-items"><div class="gnav-item">🛒 רכש</div><div class="gnav-item">🥕 מלאי</div><div class="gnav-item">🔧 ציוד</div><div class="gnav-item">📐 Foodcost</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">💰 כספים</div><div class="gnav-items"><div class="gnav-item">💳 כספים</div><div class="gnav-item">💸 תזרים</div><div class="gnav-item">🎯 תקציב</div><div class="gnav-item">⏱️ שעות עבודה (timelog)</div><div class="gnav-item">🔮 תחזית</div><div class="gnav-item">📈 דוחות</div></div></div>
+        <div class="gnav-card"><div class="gnav-card-title">⋯ עוד</div><div class="gnav-items"><div class="gnav-item">👥 קהילה</div><div class="gnav-item">📊 סקרים</div><div class="gnav-item">📝 תוכן</div><div class="gnav-item">📄 מסמכים</div><div class="gnav-item">📣 פרסום FLOW</div></div></div>
+      </div>
+    </div>
+
+    <div class="chapter" id="ot-team">
+      <div class="ch-head"><div class="ch-num">4</div><div class="ch-title">צוות — כל התפקידים זמינים</div></div>
+      <p style="font-size:.9rem;color:var(--text2);">בסוג "כללי" — כל תפקידי העובד הנוספים (Add-on) זמינים לרכישה, ללא הגבלה לפי סוג עסק.</p>
+      <div class="roles">
+        <div class="role">💼 איש מכירות — ₪29</div>
+        <div class="role">🎧 נציג שירות — ₪19</div>
+        <div class="role">🔨 טכנאי שטח — ₪29</div>
+        <div class="role">🛵 שליח / נהג — ₪19</div>
+        <div class="role">📦 מחסנאי — ₪19</div>
+        <div class="role">🧹 מנקה / אחזקה — ₪15</div>
+        <div class="role">💰 קופאי — ₪19</div>
+        <div class="role">🍽️ מלצר — ₪19</div>
+        <div class="role">🍳 טבח — ₪15</div>
+        <div class="role">📋 מנהל משמרת — ₪29</div>
+        <div class="role">🏢 מנהל סניף — ₪39</div>
+        <div class="role">💆 מטפל — ₪29</div>
+        <div class="role">💅 מטפל בכיר — ₪39</div>
+        <div class="role">💅 טכנאית ציפורניים — ₪29</div>
+        <div class="role">💄 איפור — ₪29</div>
+        <div class="role">🏃 מדריך ספורט — ₪29</div>
+        <div class="role">💼 יועץ — ₪39</div>
+        <div class="role">📋 עמית — ₪29</div>
+        <div class="role">⚖️ שותף — ₪49</div>
+        <div class="role">🏥 רופא/מדיק — ₪49</div>
+        <div class="role">📞 רסספשן — ₪19</div>
+      </div>
+    </div>
+
+    <div class="chapter" id="ot-money">
+      <div class="ch-head"><div class="ch-num">5</div><div class="ch-title">כספים</div></div>
+      <div class="mod">
+        <div class="mod-t">כל מודולי הכספים זמינים</div>
+        <div class="mod-body">
+          <p>תזרים מזומנים, תקציב, timelog (רישום שעות לחיוב לקוח), תחזית פיננסית ודוחות — כולם פתוחים בסוג "כללי". ניתן לנהל עסק בצורה הגמישה ביותר.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <script>
 function show(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
@@ -3084,7 +4084,15 @@ const obs = new IntersectionObserver(entries => {
       'm-enter':16,'m-wizard':17,'m-nav':18,'m-calls':19,'m-stock':20,'m-team':21,'m-money':22,
       'l-enter':23,'l-wizard':24,'l-nav':25,'l-orders':26,'l-fleet':27,'l-routes':28,'l-money':29,'l-biz':30,
       'p-enter':31,'p-wizard':32,'p-nav':33,'p-cases':34,'p-timelog':35,'p-leads':36,'p-docs':37,'p-content':38,
-      'b-enter':39,'b-wizard':40,'b-nav':41,'b-calendar':42,'b-practitioners':43,'b-services':44,'b-subscriptions':45,'b-clients':46,'b-inventory':47,'b-commissions':48,'b-rfq':49
+      'b-enter':39,'b-wizard':40,'b-nav':41,'b-calendar':42,'b-practitioners':43,'b-services':44,'b-subscriptions':45,'b-clients':46,'b-inventory':47,'b-commissions':48,'b-rfq':49,
+      'rt-enter':50,'rt-wizard':51,'rt-nav':52,'rt-sales':53,'rt-stock':54,'rt-team':55,'rt-money':56,'rt-reports':57,
+      'sv-enter':58,'sv-wizard':59,'sv-nav':60,'sv-schedule':61,'sv-clients':62,'sv-sales':63,'sv-team':64,'sv-money':65,
+      'cn-enter':66,'cn-wizard':67,'cn-nav':68,'cn-projects':69,'cn-wo':70,'cn-equip':71,'cn-team':72,'cn-money':73,
+      'hc-enter':74,'hc-wizard':75,'hc-nav':76,'hc-calendar':77,'hc-patients':78,'hc-team':79,'hc-money':80,
+      'ed-enter':81,'ed-wizard':82,'ed-nav':83,'ed-calendar':84,'ed-students':85,'ed-team':86,'ed-money':87,
+      'ev-enter':88,'ev-wizard':89,'ev-nav':90,'ev-calendar':91,'ev-clients':92,'ev-equip':93,'ev-team':94,'ev-money':95,
+      'fp-enter':96,'fp-wizard':97,'fp-nav':98,'fp-production':99,'fp-stock':100,'fp-sales':101,'fp-team':102,'fp-money':103,
+      'ot-enter':104,'ot-wizard':105,'ot-nav':106,'ot-team':107,'ot-money':108
     };
     const i = map[e.target.id];
     if (i !== undefined && btns[i]) btns[i].classList.add('on');
@@ -3096,7 +4104,15 @@ const obs = new IntersectionObserver(entries => {
   'm-enter','m-wizard','m-nav','m-calls','m-stock','m-team','m-money',
   'l-enter','l-wizard','l-nav','l-orders','l-fleet','l-routes','l-money','l-biz',
   'p-enter','p-wizard','p-nav','p-cases','p-timelog','p-leads','p-docs','p-content',
-  'b-enter','b-wizard','b-nav','b-calendar','b-practitioners','b-services','b-subscriptions','b-clients','b-inventory','b-commissions','b-rfq'
+  'b-enter','b-wizard','b-nav','b-calendar','b-practitioners','b-services','b-subscriptions','b-clients','b-inventory','b-commissions','b-rfq',
+  'rt-enter','rt-wizard','rt-nav','rt-sales','rt-stock','rt-team','rt-money','rt-reports',
+  'sv-enter','sv-wizard','sv-nav','sv-schedule','sv-clients','sv-sales','sv-team','sv-money',
+  'cn-enter','cn-wizard','cn-nav','cn-projects','cn-wo','cn-equip','cn-team','cn-money',
+  'hc-enter','hc-wizard','hc-nav','hc-calendar','hc-patients','hc-team','hc-money',
+  'ed-enter','ed-wizard','ed-nav','ed-calendar','ed-students','ed-team','ed-money',
+  'ev-enter','ev-wizard','ev-nav','ev-calendar','ev-clients','ev-equip','ev-team','ev-money',
+  'fp-enter','fp-wizard','fp-nav','fp-production','fp-stock','fp-sales','fp-team','fp-money',
+  'ot-enter','ot-wizard','ot-nav','ot-team','ot-money'
 ].forEach(id => {
   const el = document.getElementById(id);
   if (el) obs.observe(el);
