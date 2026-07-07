@@ -1814,7 +1814,497 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
   </div><!-- /wrap -->
 </div><!-- /maintenance -->
-<div id="logistics" class="page"><div class="cs"><div class="cs-i">🚚</div><h2>לוגיסטיקה / הפצה</h2><p>המדריך בהכנה — יתווסף בקרוב</p></div></div>
+<div id="logistics" class="page">
+
+  <!-- subnav -->
+  <nav class="subnav">
+    <button class="sn on" onclick="goTo('l-enter')">כניסה למערכת</button>
+    <button class="sn" onclick="goTo('l-wizard')">הקמה ראשונית</button>
+    <button class="sn" onclick="goTo('l-nav')">ניווט</button>
+    <button class="sn" onclick="goTo('l-orders')">קנבן משלוחים</button>
+    <button class="sn" onclick="goTo('l-fleet')">נהגים ורכבים</button>
+    <button class="sn" onclick="goTo('l-routes')">מסלולים ומעקב</button>
+    <button class="sn" onclick="goTo('l-money')">מחירון וגבייה</button>
+    <button class="sn" onclick="goTo('l-biz')">לקוחות ודוחות</button>
+  </nav>
+
+  <!-- ── פרק 1: כניסה ── -->
+  <div class="chapter" id="l-enter">
+    <div class="mod">
+      <h2>🚚 לוגיסטיקה / הפצה — כניסה למערכת</h2>
+      <p>מערכת ניהול משלוחים מקצה לקצה: קנבן הזמנות, ניהול נהגים וצי רכבים, מעקב בזמן אמת, גבייה בשטח (COD), הצעות מחיר ודוחות ביצוע.</p>
+    </div>
+
+    <div class="mod">
+      <h3>כניסה — בעל עסק / מנהל</h3>
+      <p>כתובת: <strong>business.html</strong></p>
+      <div class="field-table">
+        <div class="field-row"><span>אימייל</span><span>כתובת המייל שנרשמת איתה</span></div>
+        <div class="field-row"><span>סיסמה</span><span>הסיסמה שבחרת</span></div>
+        <div class="field-row"><span>כפתור "כניסה"</span><span>פותח את לוח הבקרה הראשי</span></div>
+      </div>
+    </div>
+
+    <div class="mod">
+      <h3>רישום עסק חדש</h3>
+      <p>לחץ על "הצטרף עכשיו" / "התחל בחינם" בדף הכניסה.</p>
+      <div class="field-table">
+        <div class="field-row"><span>שם העסק *</span><span>שם חברת ההפצה / הלוגיסטיקה</span></div>
+        <div class="field-row"><span>שמך המלא *</span><span>שם בעל העסק</span></div>
+        <div class="field-row"><span>אימייל *</span><span>ישמש לכניסה</span></div>
+        <div class="field-row"><span>סיסמה *</span><span>לפחות 6 תווים</span></div>
+        <div class="field-row"><span>טלפון</span><span>לאימות וקשר</span></div>
+        <div class="field-row"><span>עיר</span><span>אזור פעילות ראשי</span></div>
+      </div>
+      <div class="box">סוג העסק "לוגיסטיקה / הפצה" מוגדר דרך לוח הניהול העליון (Super Admin) לאחר הרישום. פנה לתמיכה כדי להפעיל את מודולי הלוגיסטיקה.</div>
+    </div>
+
+    <div class="mod">
+      <h3>הצטרפות עובד / נהג</h3>
+      <p>המנהל שולח קישור הזמנה. הנהג לוחץ על הקישור ומזין:</p>
+      <div class="field-table">
+        <div class="field-row"><span>שם מלא *</span><span>שם הנהג</span></div>
+        <div class="field-row"><span>אימייל *</span><span>לכניסה למערכת</span></div>
+        <div class="field-row"><span>סיסמה *</span><span>לפחות 6 תווים</span></div>
+        <div class="field-row"><span>טלפון</span><span>לזיהוי בשדה</span></div>
+        <div class="field-row"><span>קוד הזמנה</span><span>מופיע בקישור שנשלח</span></div>
+      </div>
+      <p>לאחר הצטרפות, הנהג רואה את תצוגת "נהג" (Driver Companion) — רשימת המשלוחים שלו בלבד.</p>
+    </div>
+  </div>
+
+  <!-- ── פרק 2: הקמה ראשונית ── -->
+  <div class="chapter" id="l-wizard">
+    <div class="mod">
+      <h2>⚙️ הקמה ראשונית — לוגיסטיקה</h2>
+      <p>סוג העסק "לוגיסטיקה / הפצה" מופעל על ידי מנהל מערכת (Super Admin). לאחר הפעלה, ממשיכים ב-4 שלבי ויזארד:</p>
+    </div>
+
+    <div class="mod">
+      <h3>שלב 1 — פרופיל העסק</h3>
+      <div class="field-table">
+        <div class="field-row"><span>שם החברה</span><span>שם עסק ההפצה / השינוע</span></div>
+        <div class="field-row"><span>לוגו</span><span>מוצג בדוחות וחשבוניות</span></div>
+        <div class="field-row"><span>טלפון</span><span>מספר טלפון לתיאום</span></div>
+        <div class="field-row"><span>כתובת</span><span>כתובת מחסן / בסיס הפעולות</span></div>
+        <div class="field-row"><span>מטבע</span><span>ברירת מחדל: ₪</span></div>
+      </div>
+    </div>
+
+    <div class="mod">
+      <h3>שלב 2 — תקציב ויעדים</h3>
+      <div class="field-table">
+        <div class="field-row"><span>יעד משלוחים יומי</span><span>כמה משלוחים אתם מכוונים ליום</span></div>
+        <div class="field-row"><span>יעד הכנסה חודשי</span><span>הכנסה חודשית מטרה</span></div>
+        <div class="field-row"><span>עמלת COD</span><span>% שגובים על גבייה בשטח (אופציונלי)</span></div>
+      </div>
+    </div>
+
+    <div class="mod">
+      <h3>שלב 3 — הגדרת מחירון ראשוני</h3>
+      <p>הגדרת אזורי מחיר בסיסיים. ניתן להוסיף עוד בכרטיסיית "מחירון" בהמשך.</p>
+      <div class="field-table">
+        <div class="field-row"><span>שם אזור</span><span>לדוגמה: "מרכז תל אביב", "פריפריה"</span></div>
+        <div class="field-row"><span>מחיר בסיס ₪</span><span>עלות משלוח בסיסית לאזור</span></div>
+        <div class="field-row"><span>₪ לק"מ</span><span>תוספת לפי מרחק (אם רלוונטי)</span></div>
+        <div class="field-row"><span>₪ לק"ג</span><span>תוספת לפי משקל (אם רלוונטי)</span></div>
+        <div class="field-row"><span>מחיר מינימום ₪</span><span>הרצפה שמתחתיה לא ניתן לרדת</span></div>
+      </div>
+    </div>
+
+    <div class="mod">
+      <h3>שלב 4 — הזמנת צוות ראשוני</h3>
+      <p>שלח הזמנות לנהגים ולצוות הניהול. לחץ על "הזמן עובד חדש", הכנס מייל — ישלח SMS / אימייל עם קישור הצטרפות.</p>
+      <div class="box">לאחר ויזארד — המערכת פותחת את <strong>לוח הבקרה של המנהל</strong> עם כל מודולי הלוגיסטיקה.</div>
+    </div>
+  </div>
+
+  <!-- ── פרק 3: ניווט ── -->
+  <div class="chapter" id="l-nav">
+    <div class="mod">
+      <h2>🧭 ניווט במערכת — לוגיסטיקה</h2>
+      <p>סרגל הניווט בחלק העליון (GNAV) מחולק לקבוצות. הכרטיסיות הלוגיסטיות הייחודיות נמצאות ישירות בסרגל.</p>
+    </div>
+
+    <div class="mod">
+      <h3>כרטיסיות לוגיסטיות (ייחודיות לסוג עסק זה)</h3>
+      <div class="auto-grid">
+        <div class="auto-card"><strong>📦 קנבן הזמנות</strong><br/>לוח קנבן עם 13 סטטוסים, פילטר נהג, בחירת תאריך</div>
+        <div class="auto-card"><strong>🚗 נהגים</strong><br/>ניהול פרופיל נהג, סטטוס, שיוך רכב</div>
+        <div class="auto-card"><strong>🚚 צי רכבים</strong><br/>ניהול כלי רכב, ביטוח, טסט, קיבולת</div>
+        <div class="auto-card"><strong>💰 מחירון</strong><br/>אזורי מחיר לפי אזור גאוגרפי</div>
+        <div class="auto-card"><strong>💵 גבייה COD</strong><br/>מעקב Cash on Delivery יומי לפי נהג</div>
+        <div class="auto-card"><strong>📋 הצעות מחיר</strong><br/>RFQ — בקשות הצעת מחיר ממשלוחים חד פעמיים</div>
+        <div class="auto-card"><strong>🗺️ מסלולי חלוקה</strong><br/>תכנון מסלול יומי + עצירות לפי סדר</div>
+        <div class="auto-card"><strong>🔗 לינקי מעקב</strong><br/>לינק ציבורי ללקוח לעקוב אחרי המשלוח שלו</div>
+        <div class="auto-card"><strong>📊 דוחות לוגיסטיקה</strong><br/>KPIs: משלוחים, הכנסה, COD, ביצועי נהגים</div>
+        <div class="auto-card"><strong>🤝 מזמינים ונמענים</strong><br/>לקוחות B2B קבועים עם כתובת ברירת מחדל</div>
+        <div class="auto-card"><strong>🧾 חשבוניות</strong><br/>חשבוניות שנוצרות אוטומטית בסיום משלוח</div>
+      </div>
+    </div>
+
+    <div class="mod">
+      <h3>קבוצות GNAV — כרטיסיות כלליות</h3>
+      <div class="field-table">
+        <div class="field-row"><span>👥 צוות</span><span>שעון נוכחות, משימות, חברי צוות</span></div>
+        <div class="field-row"><span>💳 כספים</span><span>תזרים מזומנים, דוחות</span></div>
+        <div class="field-row"><span>⋯ עוד</span><span>פרסום (biz-ads), הגדרות</span></div>
+      </div>
+      <p class="note">שים לב: לוגיסטיקה אינה כוללת POS, חנות, מזון, לוח שנה, או מלאי.</p>
+    </div>
+
+    <div class="mod">
+      <h3>לוח בקרה — מנהל (Admin)</h3>
+      <p>כניסה לכרטיסיית <strong>פיד (ראשי)</strong> פותחת את לוח הבקרה של המנהל עם KPIs בזמן אמת:</p>
+      <div class="field-table">
+        <div class="field-row"><span>📥 משלוחים חדשים</span><span>הזמנות שעוד לא שויכו לנהג</span></div>
+        <div class="field-row"><span>✅ נמסרו היום</span><span>מספר משלוחים שהושלמו היום</span></div>
+        <div class="field-row"><span>🚚 בדרך כעת</span><span>כמה משלוחים נמצאים בסטטוס "בדרך"</span></div>
+        <div class="field-row"><span>📵 לא ענו</span><span>כמה לקוחות לא ענו — מוצג באדום אם קיים</span></div>
+        <div class="field-row"><span>💵 COD ממתין</span><span>סכום כסף שהנהגים גבו ועדיין לא הפקידו</span></div>
+      </div>
+      <p>+ 6 כפתורי קיצור מהירים לכרטיסיות: קנבן, נהגים, רכבים, מחירון, COD, הצעות מחיר.</p>
+    </div>
+
+    <div class="mod">
+      <h3>לוח בקרה — נהג / עובד (Driver Companion)</h3>
+      <p>נהג שנכנס רואה תצוגה אישית בלבד — רשימת המשלוחים שלו ליום הנוכחי:</p>
+      <div class="field-table">
+        <div class="field-row"><span>כותרת</span><span>שם הנהג + יום השבוע הנוכחי</span></div>
+        <div class="field-row"><span>סיכום</span><span>סה"כ משלוחים / נמסרו / COD לגבייה</span></div>
+        <div class="field-row"><span>🚚 פעיל עכשיו</span><span>משלוחים בסטטוס "בדרך" + "נאסף" / "שויך"</span></div>
+        <div class="field-row"><span>📵 לא ענה</span><span>ניסיונות כושלים שהנהג דיווח עליהם</span></div>
+        <div class="field-row"><span>✅ הושלמו</span><span>משלוחים שנמסרו היום</span></div>
+      </div>
+      <p>כל כרטיסיית משלוח כוללת: כפתור 📞 שיחה, כפתור 🗺 Waze ניווט, כפתורי עדכון סטטוס (נאסף ← בדרך ← הגעתי ← נמסר ✓).</p>
+      <div class="box">אם הנהג לא מקושר לפרופיל נהג — הוא רואה הודעה "לא נמצא פרופיל נהג, פנה למנהל".</div>
+    </div>
+  </div>
+
+  <!-- ── פרק 4: קנבן משלוחים ── -->
+  <div class="chapter" id="l-orders">
+    <div class="mod">
+      <h2>📦 קנבן משלוחים</h2>
+      <p>לב המערכת. כל משלוח הוא כרטיסייה שזזה בין עמודות הסטטוס. ניתן לסנן לפי נהג ולפי תאריך.</p>
+    </div>
+
+    <div class="mod">
+      <h3>13 סטטוסי משלוח</h3>
+      <div class="field-table">
+        <div class="field-row"><span>📥 חדש</span><span>הזמנה נכנסה, טרם אושרה</span></div>
+        <div class="field-row"><span>💬 ממתין להצעה</span><span>הלקוח ביקש הצעת מחיר לפני אישור</span></div>
+        <div class="field-row"><span>📄 הצעה נשלחה</span><span>נשלחה הצעה, מחכים לאישור לקוח</span></div>
+        <div class="field-row"><span>✅ אושר</span><span>המשלוח אושר, טרם שויך לנהג</span></div>
+        <div class="field-row"><span>👤 שויך</span><span>נהג מסוים שויך למשלוח</span></div>
+        <div class="field-row"><span>📦 נאסף</span><span>הנהג אסף את החבילה</span></div>
+        <div class="field-row"><span>🚚 בדרך</span><span>הנהג בדרך לנמען</span></div>
+        <div class="field-row"><span>📍 הגיע</span><span>הנהג הגיע לכתובת, עדיין לא מסר</span></div>
+        <div class="field-row"><span>✅ נמסר</span><span>המשלוח נמסר בהצלחה</span></div>
+        <div class="field-row"><span>⚠️ נמסר חלקית</span><span>חלק מהפריטים נמסרו</span></div>
+        <div class="field-row"><span>📵 לא ענה</span><span>הלקוח לא ענה, מוצג כניסיון כושל</span></div>
+        <div class="field-row"><span>↩️ הוחזר</span><span>המשלוח חזר למחסן</span></div>
+        <div class="field-row"><span>❌ בוטל</span><span>הזמנה בוטלה</span></div>
+      </div>
+      <p class="note">ברירת מחדל מציגה רק "פעיל" (9 עמודות). לחץ "הצג הכל" לצפייה ב-13 עמודות.</p>
+    </div>
+
+    <div class="mod">
+      <h3>יצירת משלוח חדש</h3>
+      <p>לחץ על כפתור הכתום <strong>"+ משלוח חדש"</strong>:</p>
+      <div class="field-table">
+        <div class="field-row"><span>שם לקוח *</span><span>שם הנמען או שם החברה</span></div>
+        <div class="field-row"><span>טלפון</span><span>טלפון הנמען לתיאום</span></div>
+        <div class="field-row"><span>כתובת מסירה *</span><span>כתובת מלאה לניווט</span></div>
+        <div class="field-row"><span>כתובת איסוף</span><span>אם האיסוף אינו מהמחסן הראשי</span></div>
+        <div class="field-row"><span>תאריך</span><span>תאריך המשלוח המתוכנן</span></div>
+        <div class="field-row"><span>שעה / חלון</span><span>לדוגמה: "08:00-12:00" — חלון זמן למסירה</span></div>
+        <div class="field-row"><span>COD ₪</span><span>סכום לגבייה במזומן / כרטיס בשטח (0 אם אין)</span></div>
+        <div class="field-row"><span>דמי משלוח ₪</span><span>מחיר המשלוח ללקוח</span></div>
+        <div class="field-row"><span>משקל ק"ג</span><span>לחישוב עלות לפי משקל (אופציונלי)</span></div>
+        <div class="field-row"><span>שיוך נהג</span><span>ניתן לשייך עכשיו או מאוחר יותר</span></div>
+        <div class="field-row"><span>הערות לנהג</span><span>הנחיות מיוחדות: "קומה 4", "שמור בקור" וכו'</span></div>
+      </div>
+      <p>לחץ <strong>"צור משלוח"</strong> — הכרטיסייה מופיעה בעמודת "חדש".</p>
+    </div>
+
+    <div class="mod">
+      <h3>פרטי משלוח — לחיצה על כרטיסייה</h3>
+      <p>לחיצה על כרטיסיית משלוח בקנבן פותחת חלון פרטים מלא:</p>
+      <div class="field-table">
+        <div class="field-row"><span>כתובת + טלפון</span><span>לחיצה על הטלפון מתקשרת ישירות</span></div>
+        <div class="field-row"><span>🗺 Waze</span><span>לחיצה פותחת ניווט לכתובת המסירה</span></div>
+        <div class="field-row"><span>שיוך נהג ורכב</span><span>בחירה מרשימה + לחץ "שייך"</span></div>
+        <div class="field-row"><span>עדכון סטטוס</span><span>10 כפתורי סטטוס לבחירה ישירה</span></div>
+        <div class="field-row"><span>🔗 לינק מעקב</span><span>צור קישור ציבורי לשלוח ללקוח</span></div>
+        <div class="field-row"><span>📵 לא ענה</span><span>מוצג כשהמשלוח בסטטוס "בדרך" / "הגיע"</span></div>
+        <div class="field-row"><span>🔗 ONEFLOW</span><span>הוסף את הלקוח למאגר ONEFLOW</span></div>
+        <div class="field-row"><span>ביטול הזמנה</span><span>כפתור אדום בתחתית הפרטים</span></div>
+      </div>
+
+      <h4 style="margin-top:1rem">גבייה בשטח (COD) בתוך כרטיסיית פרטי משלוח</h4>
+      <p>כאשר יש COD ממתין — מוצג בלוק גבייה:</p>
+      <div class="field-table">
+        <div class="field-row"><span>💵 מזומן</span><span>הנהג קיבל מזומן</span></div>
+        <div class="field-row"><span>💳 אשראי</span><span>הנהג גבה בכרטיס</span></div>
+        <div class="field-row"><span>📱 QR</span><span>הלקוח שילם בסריקת QR</span></div>
+      </div>
+      <p>לאחר גבייה — הסכום עובר לדף "גבייה COD" כ"נגבה" ומוצג כירוק.</p>
+
+      <h4 style="margin-top:1rem">ניסיון כושל (לא ענה)</h4>
+      <div class="field-table">
+        <div class="field-row"><span>📵 לא ענה</span><span>לחיצה דורשת הוספת הערה (אופציונלי)</span></div>
+        <div class="field-row"><span>מונה ניסיונות</span><span>מספר הניסיונות הכושלים מוצג על הכרטיסייה</span></div>
+        <div class="field-row"><span>🚪 אישר השארה</span><span>אם הלקוח אישר — מוצג "אישר השארה בדלת"</span></div>
+      </div>
+    </div>
+
+    <div class="mod">
+      <h3>סינון וצפייה בקנבן</h3>
+      <div class="field-table">
+        <div class="field-row"><span>פילטר תאריך</span><span>בחר תאריך לצפייה בהזמנות של אותו יום</span></div>
+        <div class="field-row"><span>פילטר נהג</span><span>הצג רק הזמנות של נהג ספציפי</span></div>
+        <div class="field-row"><span>פעיל / הכל</span><span>פעיל = 9 עמודות | הכל = 13 עמודות כולל הוחזר/נמסר</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── פרק 5: נהגים ורכבים ── -->
+  <div class="chapter" id="l-fleet">
+    <div class="mod">
+      <h2>🚗 נהגים ורכבים</h2>
+      <p>ניהול הצוות הנייד: פרופילי נהגים, צי הרכבים ומעקב אחרי תקינות הרכב.</p>
+    </div>
+
+    <div class="mod">
+      <h3>כרטיסיית "נהגים" 🚗</h3>
+      <p>כרטיס לכל נהג עם סטטוס חי וכפתורי פעולה:</p>
+      <div class="field-table">
+        <div class="field-row"><span>פעיל</span><span>הנהג זמין לקבל משלוחים</span></div>
+        <div class="field-row"><span>במסלול</span><span>הנהג נמצא כרגע בחלוקה</span></div>
+        <div class="field-row"><span>הפסקה</span><span>הנהג בהפסקה</span></div>
+        <div class="field-row"><span>לא פעיל</span><span>הנהג לא עובד היום</span></div>
+      </div>
+      <p>+ מציג: מספר הזמנות פעילות, שם הרכב המשויך, כפתורי 📞 שיחה ו-✏️ עריכה.</p>
+
+      <h4 style="margin-top:1rem">הוספת נהג חדש — שדות</h4>
+      <div class="field-table">
+        <div class="field-row"><span>שם *</span><span>שם הנהג</span></div>
+        <div class="field-row"><span>טלפון</span><span>טלפון לתיאום ולניווט</span></div>
+        <div class="field-row"><span>אימייל</span><span>לכניסה למערכת</span></div>
+        <div class="field-row"><span>רכב ברירת מחדל</span><span>הרכב שהנהג נוהג בו בדרך כלל</span></div>
+        <div class="field-row"><span>סטטוס</span><span>פעיל / במסלול / הפסקה / לא פעיל</span></div>
+        <div class="field-row"><span>הערות</span><span>מידע פנימי על הנהג</span></div>
+      </div>
+    </div>
+
+    <div class="mod">
+      <h3>כרטיסיית "צי רכבים" 🚚</h3>
+      <p>כל רכב בצי מנוהל עם תאריכי תפוגה לביטוח ולטסט. <strong>התראה אוטומטית</strong> מוצגת כאשר תאריך הביטוח או הטסט מתקרב תוך 14 יום.</p>
+
+      <h4>הוספת רכב חדש — שדות</h4>
+      <div class="field-table">
+        <div class="field-row"><span>שם הרכב *</span><span>לדוגמה: "שלי קטנוע 1", "משאית גדולה"</span></div>
+        <div class="field-row"><span>לוחית</span><span>מספר רישוי הרכב</span></div>
+        <div class="field-row"><span>סוג</span><span>קטנוע / אסטייט-מסחרית / משאית / אופניים / חשמלי</span></div>
+        <div class="field-row"><span>קיבולת ק"ג</span><span>עומס מרבי שהרכב יכול לשאת</span></div>
+        <div class="field-row"><span>ביטוח עד</span><span>תאריך תפוגת הביטוח — ייצבע אדום כשמתקרב</span></div>
+        <div class="field-row"><span>טסט עד</span><span>תאריך הטסט הבא — ייצבע אדום כשמתקרב</span></div>
+        <div class="field-row"><span>הערות</span><span>מידע נוסף על הרכב</span></div>
+      </div>
+      <div class="box">⚠️ כאשר ביטוח או טסט פגי תוקף תוך 14 יום — מוצגת התראה בלוח הבקרה הראשי.</div>
+    </div>
+
+    <div class="mod">
+      <h3>תפקידי עובדים ברישיון (Add-on)</h3>
+      <p>לוגיסטיקה תומכת בתפקידים נוספים בתשלום חודשי:</p>
+      <div class="field-table">
+        <div class="field-row"><span>🛵 שליח / נהג — ₪19/חודש</span><span>גישה לתצוגת Driver Companion האישית</span></div>
+        <div class="field-row"><span>📦 מחסנאי — ₪19/חודש</span><span>גישה למלאי ולמשלוחים ממוינים לפי מחסן</span></div>
+        <div class="field-row"><span>🔧 טכנאי שטח — ₪29/חודש</span><span>גישה למשלוחים עם קריאות שירות</span></div>
+        <div class="field-row"><span>📋 מנהל משמרת — ₪29/חודש</span><span>גישה לניהול נהגים ושיוך משלוחים</span></div>
+        <div class="field-row"><span>🏢 מנהל סניף — ₪39/חודש</span><span>גישה מלאה לכל מודולי הלוגיסטיקה</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── פרק 6: מסלולים ומעקב ── -->
+  <div class="chapter" id="l-routes">
+    <div class="mod">
+      <h2>🗺️ מסלולי חלוקה ולינקי מעקב</h2>
+      <p>תכנן מסלול יומי עם סדר עצירות וה ETA לכל נמען — ושלח ללקוח קישור מעקב בזמן אמת.</p>
+    </div>
+
+    <div class="mod">
+      <h3>כרטיסיית "מסלולי חלוקה" 🗺️</h3>
+      <p>יצירת מסלול — לחץ "+ מסלול חדש":</p>
+      <div class="field-table">
+        <div class="field-row"><span>שם המסלול</span><span>לדוגמה: "מרכז ת"א — בוקר"</span></div>
+        <div class="field-row"><span>תאריך</span><span>תאריך יום החלוקה</span></div>
+        <div class="field-row"><span>שיוך נהג</span><span>בחר נהג מהרשימה (אופציונלי)</span></div>
+        <div class="field-row"><span>שיוך רכב</span><span>בחר רכב מהצי (אופציונלי)</span></div>
+        <div class="field-row"><span>הערות</span><span>הנחיות מיוחדות למסלול</span></div>
+      </div>
+
+      <h4 style="margin-top:1rem">סטטוסי מסלול</h4>
+      <div class="field-table">
+        <div class="field-row"><span>מתוכנן</span><span>המסלול תוכנן, טרם התחיל — לחץ "הפעל"</span></div>
+        <div class="field-row"><span>פעיל</span><span>הנהג יצא לחלוקה — לחץ "סיים" בסיום</span></div>
+        <div class="field-row"><span>הסתיים</span><span>המסלול הושלם</span></div>
+      </div>
+
+      <h4 style="margin-top:1rem">הוספת עצירות למסלול</h4>
+      <p>לחץ "פרטים" על מסלול ← בתחתית הכנס מזהה הזמנה + ETA משוער:</p>
+      <div class="field-table">
+        <div class="field-row"><span>מס' הזמנה / ID</span><span>מספר ההזמנה מהקנבן</span></div>
+        <div class="field-row"><span>ETA</span><span>שעה משוערת לאותה עצירה: "14:30"</span></div>
+      </div>
+      <p>העצירות מוצגות ממוספרות לפי סדר עם שם הלקוח, כתובת, סטטוס וCOD.</p>
+    </div>
+
+    <div class="mod">
+      <h3>כרטיסיית "לינקי מעקב" 🔗</h3>
+      <p>כל הזמנה יכולה לקבל קישור ציבורי שמציג ללקוח את מצב המשלוח שלו בזמן אמת.</p>
+      <div class="steps">
+        <div class="step"><span>1</span><div>לחץ על הזמנה בכרטיסיית "לינקי מעקב"</div></div>
+        <div class="step"><span>2</span><div>לחץ "🔗 צור לינק מעקב" — נוצר לינק ייחודי</div></div>
+        <div class="step"><span>3</span><div>לחץ "📋 העתק לינק" — שלח ללקוח בWhatsApp / SMS</div></div>
+        <div class="step"><span>4</span><div>הלקוח פותח את הלינק ורואה: סטטוס, כתובת, שם נהג</div></div>
+      </div>
+      <div class="box">הלינק פתוח לציבור ואינו דורש כניסה למערכת. כתובת הלינק: <code>/track/{token}</code></div>
+      <p>ניתן ליצור לינק גם ישירות מחלון פרטי ההזמנה בקנבן.</p>
+    </div>
+  </div>
+
+  <!-- ── פרק 7: מחירון וגבייה ── -->
+  <div class="chapter" id="l-money">
+    <div class="mod">
+      <h2>💰 מחירון, גבייה COD והצעות מחיר</h2>
+    </div>
+
+    <div class="mod">
+      <h3>כרטיסיית "מחירון" 💰</h3>
+      <p>הגדרת אזורי מחיר גאוגרפיים. כל שורה = אזור עם מבנה תמחור:</p>
+      <div class="field-table">
+        <div class="field-row"><span>שם האזור *</span><span>לדוגמה: "מרכז תל אביב", "פריפריה צפון"</span></div>
+        <div class="field-row"><span>מחיר בסיס ₪</span><span>עלות קבועה לכל משלוח באזור</span></div>
+        <div class="field-row"><span>מינימום ₪</span><span>הסכום הנמוך ביותר שניתן לגבות</span></div>
+        <div class="field-row"><span>₪ לק"מ</span><span>תוספת לפי מרחק (0 אם לא רלוונטי)</span></div>
+        <div class="field-row"><span>₪ לק"ג</span><span>תוספת לפי משקל (0 אם לא רלוונטי)</span></div>
+      </div>
+      <p>ניתן להוסיף, לערוך ולמחוק אזורים. האזורים משמשים כתייחסות בהכנסת דמי משלוח בהזמנה.</p>
+    </div>
+
+    <div class="mod">
+      <h3>כרטיסיית "גבייה COD" 💵</h3>
+      <p>COD = Cash on Delivery — גבייה בשטח מהלקוח. הדף מציג סיכום יומי לכל נהג:</p>
+      <div class="field-table">
+        <div class="field-row"><span>לגבות ₪</span><span>הסכום שהנהג היה אמור לגבות</span></div>
+        <div class="field-row"><span>נגבה ₪</span><span>הסכום שאכן גבה (מזומן / כרטיס / QR)</span></div>
+        <div class="field-row"><span>להפקדה ₪</span><span>מה שהנהג טרם הפקיד — מוצג בכתום</span></div>
+      </div>
+      <p>בסיום יום — לחץ <strong>"סגור יום"</strong> על הנהג, הכנס את הסכום שהופקד, ולחץ אישור.</p>
+      <div class="box">בראש הדף מוצג סיכום כללי: סה"כ נגבה + סה"כ ממתין להפקדה עבור כל הנהגים.</div>
+    </div>
+
+    <div class="mod">
+      <h3>כרטיסיית "הצעות מחיר" 📋 (RFQ)</h3>
+      <p>לקוחות חד-פעמיים שביקשו הצעת מחיר לפני הזמנה. 5 סטטוסים:</p>
+      <div class="field-table">
+        <div class="field-row"><span>חדש</span><span>בקשה נכנסה, טרם טופלה</span></div>
+        <div class="field-row"><span>הוצע מחיר</span><span>שלחת הצעת מחיר ללקוח</span></div>
+        <div class="field-row"><span>אושר</span><span>הלקוח אישר את ההצעה</span></div>
+        <div class="field-row"><span>הושלם</span><span>המשלוח בוצע</span></div>
+        <div class="field-row"><span>נדחה</span><span>הלקוח לא מעוניין</span></div>
+      </div>
+
+      <h4 style="margin-top:1rem">יצירת בקשת הצעת מחיר</h4>
+      <div class="field-table">
+        <div class="field-row"><span>שם לקוח *</span><span>שם הפונה</span></div>
+        <div class="field-row"><span>טלפון</span><span>לחזרה ללקוח</span></div>
+        <div class="field-row"><span>תיאור הפריטים / הובלה</span><span>מה שצריך לשנע</span></div>
+        <div class="field-row"><span>כתובת איסוף</span><span>מאיפה לאסוף</span></div>
+        <div class="field-row"><span>כתובת יעד</span><span>לאן לספק</span></div>
+        <div class="field-row"><span>תאריך מועדף</span><span>מתי הלקוח צריך</span></div>
+      </div>
+
+      <h4 style="margin-top:1rem">טיפול בבקשה</h4>
+      <p>לחץ על הבקשה → בחלון פרטים:</p>
+      <div class="field-table">
+        <div class="field-row"><span>שלח הודעה</span><span>שיחת צ'אט עם הלקוח בתוך המערכת</span></div>
+        <div class="field-row"><span>קבע מחיר</span><span>הכנס הצעת מחיר ₪ ומקדמה ₪</span></div>
+        <div class="field-row"><span>שנה סטטוס</span><span>עדכן את מצב הבקשה</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── פרק 8: לקוחות ודוחות ── -->
+  <div class="chapter" id="l-biz">
+    <div class="mod">
+      <h2>🤝 לקוחות, חשבוניות ודוחות</h2>
+    </div>
+
+    <div class="mod">
+      <h3>כרטיסיית "מזמינים ונמענים" 🤝</h3>
+      <p>מאגר לקוחות B2B קבועים — חוסך הקלדה חוזרת בכל הזמנה.</p>
+      <h4>הוספת לקוח חדש — שדות</h4>
+      <div class="field-table">
+        <div class="field-row"><span>שם מלא / שם עסק *</span><span>זיהוי הלקוח</span></div>
+        <div class="field-row"><span>טלפון</span><span>לתיאום ולכפתור שיחה ישיר</span></div>
+        <div class="field-row"><span>מייל</span><span>לשליחת חשבוניות אוטומטית</span></div>
+        <div class="field-row"><span>כתובת ברירת מחדל</span><span>מוצעת אוטומטית בהזמנה חדשה</span></div>
+        <div class="field-row"><span>סוג לקוח</span><span>פרטי / עסקי / מנוי / חיוב שוטף</span></div>
+        <div class="field-row"><span>% הנחה</span><span>הנחה קבועה לאותו לקוח (0 אם אין)</span></div>
+        <div class="field-row"><span>הוראות מסירה</span><span>לדוגמה: "לעזוב אצל השכן", "פעמון ימין"</span></div>
+      </div>
+      <p>מכרטיס הלקוח: 📞 שיחה ישירה, ✏️ עריכה, 🗑️ מחיקה.</p>
+    </div>
+
+    <div class="mod">
+      <h3>כרטיסיית "חשבוניות" 🧾</h3>
+      <p>חשבוניות נוצרות <strong>אוטומטית</strong> כאשר משלוח מסומן כ"נמסר". 4 סטטוסים:</p>
+      <div class="field-table">
+        <div class="field-row"><span>ממתין</span><span>חשבונית נוצרה, טרם נשלחה</span></div>
+        <div class="field-row"><span>נשלח</span><span>חשבונית נשלחה ללקוח — לחץ "סמן כנשלח"</span></div>
+        <div class="field-row"><span>שולם</span><span>הלקוח שילם — לחץ "סמן כשולם"</span></div>
+        <div class="field-row"><span>בוטל</span><span>חשבונית בוטלה</span></div>
+      </div>
+      <p>בראש הדף: סה"כ גבוי (ממתין לתשלום ← שולם) ומספר חשבוניות ממתינות.</p>
+    </div>
+
+    <div class="mod">
+      <h3>כרטיסיית "דוחות לוגיסטיקה" 📊</h3>
+      <p>סינון לפי: <strong>היום / השבוע / החודש</strong></p>
+      <div class="field-table">
+        <div class="field-row"><span>📦 סה"כ משלוחים</span><span>כמה הזמנות נוצרו בתקופה</span></div>
+        <div class="field-row"><span>✅ נמסרו</span><span>מספר ואחוז הצלחה</span></div>
+        <div class="field-row"><span>💰 הכנסה משלוחים</span><span>סה"כ דמי משלוח שנגבו</span></div>
+        <div class="field-row"><span>💵 COD שנגבה</span><span>סה"כ כסף שנגבה בשטח</span></div>
+      </div>
+      <h4 style="margin-top:1rem">טבלת ביצועי נהגים</h4>
+      <p>לכל נהג: מספר משלוחים, אחוז הצלחה, הכנסה.</p>
+      <div class="box">⚠️ אם יש COD ממתין לגבייה — מוצגת התראה כתומה עם קישור מהיר לדף הגבייה.</div>
+    </div>
+
+    <div class="mod">
+      <h3>ניהול צוות</h3>
+      <div class="field-table">
+        <div class="field-row"><span>חברי צוות (Members)</span><span>הזמנת עובדים, הגדרת תפקיד, הרשאות</span></div>
+        <div class="field-row"><span>שעון נוכחות (Timeclock)</span><span>כניסה/יציאה לכל עובד, סיכום שעות</span></div>
+        <div class="field-row"><span>משימות (Tasks)</span><span>מטלות לצוות עם תאריך יעד ואחראי</span></div>
+      </div>
+    </div>
+
+    <div class="mod">
+      <h3>כספים ופרסום</h3>
+      <div class="field-table">
+        <div class="field-row"><span>תזרים מזומנים</span><span>הכנסות, הוצאות, יתרה — מקושר לחשבוניות</span></div>
+        <div class="field-row"><span>פרסום (biz-ads)</span><span>מבצעים ומסרים ללקוחות קיימים</span></div>
+        <div class="field-row"><span>הגדרות</span><span>פרופיל עסק, עובדים, ניהול מנויים</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
 <div id="professional" class="page"><div class="cs"><div class="cs-i">👔</div><h2>מקצועי / ייעוץ</h2><p>המדריך בהכנה — יתווסף בקרוב</p></div></div>
 <div id="beauty" class="page"><div class="cs"><div class="cs-i">💅</div><h2>יופי / קוסמטיקה</h2><p>המדריך בהכנה — יתווסף בקרוב</p></div></div>
 
@@ -1851,7 +2341,8 @@ const obs = new IntersectionObserver(entries => {
     const map = {
       'r-enter':0,'r-wizard':1,'r-nav':2,'r-sales':3,'r-stock':4,'r-team':5,'r-money':6,'r-auto':7,
       's-enter':8,'s-wizard':9,'s-nav':10,'s-schedule':11,'s-trainers':12,'s-team':13,'s-equip':14,'s-money':15,
-      'm-enter':16,'m-wizard':17,'m-nav':18,'m-calls':19,'m-stock':20,'m-team':21,'m-money':22
+      'm-enter':16,'m-wizard':17,'m-nav':18,'m-calls':19,'m-stock':20,'m-team':21,'m-money':22,
+      'l-enter':23,'l-wizard':24,'l-nav':25,'l-orders':26,'l-fleet':27,'l-routes':28,'l-money':29,'l-biz':30
     };
     const i = map[e.target.id];
     if (i !== undefined && btns[i]) btns[i].classList.add('on');
@@ -1860,7 +2351,8 @@ const obs = new IntersectionObserver(entries => {
 [
   'r-enter','r-wizard','r-nav','r-sales','r-stock','r-team','r-money','r-auto',
   's-enter','s-wizard','s-nav','s-schedule','s-trainers','s-team','s-equip','s-money',
-  'm-enter','m-wizard','m-nav','m-calls','m-stock','m-team','m-money'
+  'm-enter','m-wizard','m-nav','m-calls','m-stock','m-team','m-money',
+  'l-enter','l-wizard','l-nav','l-orders','l-fleet','l-routes','l-money','l-biz'
 ].forEach(id => {
   const el = document.getElementById(id);
   if (el) obs.observe(el);
