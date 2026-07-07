@@ -852,8 +852,583 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   </div><!-- /wrap -->
 </div><!-- /restaurant -->
 
-<!-- ═══ COMING SOON SECTIONS ═══ -->
-<div id="sport" class="page"><div class="cs"><div class="cs-i">🏋️</div><h2>ספורט / כושר</h2><p>המדריך בהכנה — יתווסף בקרוב</p></div></div>
+<!-- ═══ SPORT ═══ -->
+<div id="sport" class="page">
+
+  <div class="sec-top">
+    <div class="s-icon">🏋️</div>
+    <h1>ספורט / כושר / חוגים</h1>
+    <p>מדריך מלא לניהול מרכז כושר, אולפן ריקוד, חוגי ילדים, קרוספיט, יוגה — כל עסק ספורטיבי — עם OneFlow BIZ</p>
+  </div>
+
+  <nav class="subnav">
+    <div class="sn-inner">
+      <button class="sn on" onclick="goTo('s-enter')">כניסה למערכת</button>
+      <button class="sn" onclick="goTo('s-wizard')">הקמה ראשונית</button>
+      <button class="sn" onclick="goTo('s-nav')">ניווט</button>
+      <button class="sn" onclick="goTo('s-schedule')">שיעורים ומנויים</button>
+      <button class="sn" onclick="goTo('s-trainers')">מאמנים</button>
+      <button class="sn" onclick="goTo('s-team')">צוות</button>
+      <button class="sn" onclick="goTo('s-equip')">ציוד</button>
+      <button class="sn" onclick="goTo('s-money')">כספים</button>
+    </div>
+  </nav>
+
+  <div class="wrap">
+
+    <!-- ── 1. כניסה למערכת ── -->
+    <div class="chapter" id="s-enter">
+      <div class="ch-head"><div class="ch-num">1</div><div class="ch-title">כניסה למערכת</div></div>
+
+      <p style="font-size:.9rem;color:var(--text2);">OneFlow BIZ עובדת דרך הדפדפן — אין צורך להוריד אפליקציה. פותחים את הכתובת ומגיעים לדף הכניסה.</p>
+
+      <!-- LOGIN -->
+      <h2 class="sec">א. כניסה לחשבון קיים</h2>
+      <div class="field-table">
+        <div class="field-row">
+          <div class="fr-label"><span class="tag tag-r">חובה</span>קוד כניסה</div>
+          <div class="fr-val">קוד בן 6 תווים שנוצר בפתיחת העסק — לדוגמה <code>FT7XKQ</code>. מנהל מרכז הכושר רואה אותו בהגדרות תחת "פרטי העסק".</div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label"><span class="tag tag-r">חובה</span>שם משתמש</div>
+          <div class="fr-val">השם שנבחר בעת ההרשמה. לא כתובת מייל — השם האישי שבחרתם.</div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label"><span class="tag tag-r">חובה</span>סיסמה</div>
+          <div class="fr-val">הסיסמה האישית. שכחתם? — פנו למנהל שיאפס אותה.</div>
+        </div>
+      </div>
+
+      <!-- REGISTER -->
+      <h2 class="sec">ב. פתיחת עסק חדש (הרשמה ראשונה)</h2>
+      <p style="font-size:.87rem;color:var(--text2);">לוחצים <strong>"פתיחת עסק חדש"</strong> ומגיעים לטופס הרשמה:</p>
+
+      <div class="box box-imp" style="margin-top:10px;">
+        <div class="box-icon">⚠️</div>
+        <div>בחרו <strong>עסקים</strong> — לא "משפחה". זה קריטי כדי שהמערכת תפתח בסביבת הניהול הנכונה.</div>
+      </div>
+
+      <div class="field-table" style="margin-top:14px;">
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם העסק</div><div class="fr-val">שם מרכז הכושר / החוג כפי שיופיע לחברים. לדוגמה: <code>FitZone סניף הצפון</code>.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>מייל מנהל</div><div class="fr-val">המייל שלכם — לשחזור סיסמה ועדכונים חשובים.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>טלפון</div><div class="fr-val">מספר נייד, לדוגמה <code>0501234567</code>. נדרש מגיל 10.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם מנהל</div><div class="fr-val">השם שלכם כמנהל/ת.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שנת לידה</div><div class="fr-val">שנת הלידה של המנהל — לדוגמה <code>1990</code>.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>סיסמה</div><div class="fr-val">לפחות 6 תווים. בחרו משהו שתזכרו.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>אימות סיסמה</div><div class="fr-val">הקלידו את הסיסמה שוב בדיוק.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>קוד הזמנה</div><div class="fr-val">אם קיבלתם קוד מיוחד ממפיץ OneFlow — הכניסו אותו כאן.</div></div>
+      </div>
+
+      <div class="box box-good" style="margin-top:12px;">
+        <div class="box-icon">✅</div>
+        <div>לאחר ההרשמה — תועברו ישירות לאשף ההקמה שיגדיר את מרכז הכושר שלכם.</div>
+      </div>
+
+      <!-- JOIN -->
+      <h2 class="sec">ג. הצטרפות עובד קיים</h2>
+      <p style="font-size:.87rem;color:var(--text2);">מאמן, מוקדניסט, מנהל קבלה — שמוסיפים אותם למערכת — ממלאים טופס הצטרפות:</p>
+
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>קוד עסק</div><div class="fr-val">קוד ה-6 תווים של מרכז הכושר. המנהל שולח להם אותו.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם</div><div class="fr-val">שם העובד כפי שיופיע בלוחות ומשמרות.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שנת לידה</div><div class="fr-val">לאימות גיל.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>סיסמה</div><div class="fr-val">סיסמה אישית לחשבון.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>טלפון</div><div class="fr-val">נדרש אם העובד מגיל 10.</div></div>
+      </div>
+
+      <div class="box box-tip" style="margin-top:12px;">
+        <div class="box-icon">💡</div>
+        <div>אחרי שהעובד הצטרף — המנהל מאשר ומגדיר תפקיד: קופאי, נציג שירות, מנהל משמרת, מנקה, מנהל סניף.</div>
+      </div>
+    </div>
+
+    <!-- ── 2. ויזארד הקמה ── -->
+    <div class="chapter" id="s-wizard">
+      <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית — אשף 4 שלבים</div></div>
+
+      <p style="font-size:.9rem;color:var(--text2);">מיד לאחר ההרשמה מופיע "אשף ההקמה" — מדריך מובנה שמכין את כל המערכת בצעדים קצרים. אי-אפשר לדלג עליו — הוא חובה לפתיחה תקינה.</p>
+
+      <div class="box box-tip" style="margin-bottom:14px;">
+        <div class="box-icon">💡</div>
+        <div>לפני האשף עצמו — מופיעה שאלה: <strong>"מה סוג העסק שלך?"</strong>. בחרו <strong>ספורט וחוגים 🏋️</strong> — זה פותח את כל הכלים הנכונים.</div>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-n">1</div>
+          <div class="step-body">
+            <strong>פרופיל העסק</strong>
+            <span>שם מרכז הכושר, לוגו (אופציונלי), תמונת באנר (אופציונלי), סלוגן קצר. הלוגו יופיע בחשבוניות ובפורטל החברים.</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-n">2</div>
+          <div class="step-body">
+            <strong>הגדרת תקציב ראשוני</strong>
+            <span>מה ההוצאות החודשיות הקבועות שלכם — שכ"ד, חשמל, שכר מאמנים. זה ישמש בסיס לניתוח תזרים ורווחיות.</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-n">3</div>
+          <div class="step-body">
+            <strong>בניית קטלוג מנויים ושירותים</strong>
+            <span>הוסיפו את סוגי המנויים והשירותים שלכם — מנוי חודשי, שנתי, כניסה בודדת, שיעור פרטי. ניתן לייבא מאקסל, לבנות עם AI, או ידנית.</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-n">4</div>
+          <div class="step-body">
+            <strong>הזמנת הצוות</strong>
+            <span>שלחו קישור הצטרפות לעובדים דרך WhatsApp — כל אחד מצטרף עם הקוד שלכם ומגיע ל"ממתינים לאישור". אתם מאשרים ומגדירים תפקיד.</span>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="sec" style="margin-top:28px;">הגדרות ספורט מיוחדות (מופיעות בהגדרות)</h2>
+      <p style="font-size:.87rem;color:var(--text2);">לאחר ההקמה הראשונית, תחת <strong>הגדרות → הגדרות חנות</strong> — תמצאו הגדרות ייחודיות לעסק ספורט:</p>
+
+      <div class="field-table" style="margin-top:14px;">
+        <div class="field-row"><div class="fr-label"><span class="tag tag-c">הגדרה</span>מנוי ניסיון</div><div class="fr-val">האם לאפשר מנוי ניסיון לחברים חדשים? — כאשר מפעילים זאת, ניתן להגדיר מחיר ומשך ניסיון.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-c">הגדרה</span>מדיניות ביטול</div><div class="fr-val">הטקסט שיופיע לחבר בעת ביטול מנוי — לדוגמה: <em>"ניתן לבטל מנוי עד 14 ימים לפני תחילתו"</em>. רשמו בבירור.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-c">הגדרה</span>מדיניות הקפאה</div><div class="fr-val">האם ניתן להקפיא מנוי? — לדוגמה: <em>"הקפאה אחת בשנה, עד 30 יום"</em>.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-c">הגדרה</span>הצהרת ויתור</div><div class="fr-val">טקסט הצהרה שחבר חדש חייב לאשר בעת הרשמה — כגון: <em>"אני מצהיר/ה כי אני מתאמן/ת מרצוני..."</em>.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-c">הגדרה</span>גיל מינימום</div><div class="fr-val">הגיל המינימלי להצטרפות עצמאית — לדוגמה: <code>16</code>. מתחת לגיל זה ידרש אישור הורים.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-c">הגדרה</span>ימי התראה לביטול</div><div class="fr-label"><span class="tag tag-c">הגדרה</span>ימי הודעה מראש</div><div class="fr-val">כמה ימים מראש חייבים להודיע על ביטול — לדוגמה: <code>14</code> ימים.</div></div>
+      </div>
+
+      <div class="box box-tip" style="margin-top:12px;">
+        <div class="box-icon">💡</div>
+        <div>את ההגדרות הללו ניתן לשנות בכל עת מ<strong>הגדרות → הגדרות חנות</strong> — הן לא נעולות לאחר ההקמה.</div>
+      </div>
+    </div>
+
+    <!-- ── 3. ניווט ── -->
+    <div class="chapter" id="s-nav">
+      <div class="ch-head"><div class="ch-num">3</div><div class="ch-title">ניווט — איך מתמצאים במערכת</div></div>
+
+      <p style="font-size:.9rem;color:var(--text2);">בתחתית המסך יש סרגל ניווט עם 5 קבוצות. כל קבוצה פותחת תפריט עם טאבים רלוונטיים. ברשימה הבאה — <strong>רק הטאבים שקיימים במרכז כושר</strong>.</p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">👥</div><div><div class="mod-name">קבוצה 1 — צוות</div><div class="mod-tag">סמל: אנשים</div></div></div>
+        <div class="mod-body">
+          <div class="actions">
+            <span class="action">⏱️ נוכחות — שעות כניסה/יציאה</span>
+            <span class="action">🗓️ משמרות — לוח שיבוץ עובדים</span>
+            <span class="action">🌐 יומן — לוח שיעורים ציבורי</span>
+            <span class="action">✅ משימות — רשימת מטלות לצוות</span>
+            <span class="action">👥 ניהול צוות — עובדים ותפקידים</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🛍️</div><div><div class="mod-name">קבוצה 2 — מכירות</div><div class="mod-tag">סמל: שקית</div></div></div>
+        <div class="mod-body">
+          <div class="actions">
+            <span class="action">💰 קופה (POS) — מכירת מנויים ואימונים בודדים</span>
+            <span class="action">🛍️ היסטוריית מכירות — כל המכירות שנעשו</span>
+            <span class="action">🤝 חברים — ניהול כל חברי המרכז</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📦</div><div><div class="mod-name">קבוצה 3 — מלאי</div><div class="mod-tag">סמל: קופסה</div></div></div>
+        <div class="mod-body">
+          <div class="actions">
+            <span class="action">🔧 תחזוקת ציוד — מכשירים, תקלות, תחזוקה שוטפת</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">💸</div><div><div class="mod-name">קבוצה 4 — כספים</div><div class="mod-tag">סמל: שטר</div></div></div>
+        <div class="mod-body">
+          <div class="actions">
+            <span class="action">💸 תזרים מזומנים — הכנסות מול הוצאות</span>
+            <span class="action">📊 דוחות — סטטיסטיקות עסקיות</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">⋯</div><div><div class="mod-name">קבוצה 5 — עוד</div><div class="mod-tag">סמל: שלוש נקודות</div></div></div>
+        <div class="mod-body">
+          <div class="actions">
+            <span class="action">📢 פרסום FLOW — פרסום לחברי OneFlow</span>
+            <span class="action">⚙️ הגדרות — פרטי עסק והגדרות מתקדמות</span>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="sec" style="margin-top:28px;">לוח הבקרה הראשי (מסך ראשי)</h2>
+      <p style="font-size:.87rem;color:var(--text2);">מנהל מרכז הכושר רואה בלוח הבקרה נתונים מרכזיים ו-5 לשוניות:</p>
+
+      <div class="field-table" style="margin-top:10px;margin-bottom:14px;">
+        <div class="field-row"><div class="fr-label">🏃 מנויים פעילים</div><div class="fr-val">כמה חברים עם מנוי תקף כרגע.</div></div>
+        <div class="field-row"><div class="fr-label">⏳ פג תוקף בקרוב</div><div class="fr-val">חברים שמנויים פוגים ב-7 הימים הקרובים — לפנות אליהם לחידוש.</div></div>
+        <div class="field-row"><div class="fr-label">🚪 כניסות היום</div><div class="fr-val">כמה צ'ק-אינים נרשמו היום.</div></div>
+        <div class="field-row"><div class="fr-label">👥 בפנים כרגע</div><div class="fr-val">כמה חברים נמצאים פיזית במרכז עכשיו.</div></div>
+        <div class="field-row"><div class="fr-label">😴 לא אימנו 30 יום</div><div class="fr-val">חברים שלא הגיעו חודש — בסיכון לאיבוד. כדאי לפנות אליהם.</div></div>
+        <div class="field-row"><div class="fr-label">💰 הכנסה החודש</div><div class="fr-val">סך כל המכירות והמנויים שנמכרו החודש.</div></div>
+      </div>
+
+      <div class="actions">
+        <span class="action">👥 חברים — לשונית ניהול חברים</span>
+        <span class="action">📅 לוח שיעורים — שיעורי היום/השבוע</span>
+        <span class="action">🔔 התראות — מנויים שפגים, ציוד לתחזוקה</span>
+        <span class="action">💳 תשלומים — חיובים ממתינים</span>
+        <span class="action">👨‍🏫 מאמנים — שעות ושכר</span>
+      </div>
+
+      <h2 class="sec" style="margin-top:20px;">פעולות מהירות מלוח הבקרה</h2>
+      <div class="actions">
+        <span class="action">🚪 צ'ק-אין — רשמו כניסת חבר</span>
+        <span class="action">👥 חברים — כרטיסי חברים</span>
+        <span class="action">🗓️ שיעורים — לוח שיעורים</span>
+        <span class="action">👨‍🏫 מאמנים — ניהול מאמנים</span>
+        <span class="action">🎯 לידים — פניות חדשות</span>
+        <span class="action">🔔 התראות — כל ההתראות</span>
+        <span class="action">📋 הצהרות — ניהול הצהרות ויתור</span>
+        <span class="action">📊 דוחות — דוחות מהירים</span>
+      </div>
+    </div>
+
+    <!-- ── 4. שיעורים ומנויים ── -->
+    <div class="chapter" id="s-schedule">
+      <div class="ch-head"><div class="ch-num">4</div><div class="ch-title">שיעורים, מנויים וחברים</div></div>
+
+      <!-- CALENDAR / CLASSES -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📅</div><div><div class="mod-name">לוח שיעורים (יומן ציבורי)</div><div class="mod-tag">צוות › יומן</div></div></div>
+        <div class="mod-body">
+          <p>כאן מנהלים את כל השיעורים הקבוצתיים — יוגה, קרוספיט, אירובי, ריקוד — וחברים יכולים להרשם אונליין.</p>
+
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>פתיחת שיעור חדש</strong><span>לחצו על תאריך/שעה ביומן → "הוסף שיעור". הזינו: שם השיעור (לדוגמה: "יוגה — מתחילים"), שם המאמן, שעת התחלה, שעת סיום, מספר משתתפים מקסימלי.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>חבר נרשם</strong><span>חבר נכנס לפורטל האישי שלו ובוחר שיעור. כשכל המקומות תפוסים — הוא נכנס לרשימת המתנה אוטומטית. אם מישהו מבטל — הבא ברשימה מקבל הודעה.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>עדכון נוכחות</strong><span>בזמן השיעור — לחצו על השיעור ← "עדכן נוכחות". סמנו מי הגיע ומי לא. המידע עובר לדוחות ולחשבון המאמן.</span></div></div>
+          </div>
+
+          <div class="box box-tip">
+            <div class="box-icon">💡</div>
+            <div>ניתן לקבוע שיעורים חוזרים שבועיים — לדוגמה: "יוגה כל ראשון ושלישי ב-09:00". פעולה אחת ממלאת את כל החודש.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- POS -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">💰</div><div><div class="mod-name">קופה — מכירת מנויים ואימונים</div><div class="mod-tag">מכירות › קופה</div></div></div>
+        <div class="mod-body">
+          <p>כאן מבצעים מכירה בפועל — חבר חדש בא לדלפק ורוצה מנוי, שיעור בודד, מוצר (בקבוק, ביגוד, תוסף תזונה).</p>
+
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>בחרו מה מוכרים</strong><span>לחצו על סוג האימון / המנוי — לדוגמה "מנוי חודשי ₪250". המחיר מתמלא אוטומטית.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>שייכו לחבר</strong><span>חפשו את שם החבר ושייכו את הרכישה לחשבון שלו — כך המנוי יעקוב אחריו.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>סיכום וסגירה</strong><span>בחרו אמצעי תשלום — מזומן, כרטיס, העברה בנקאית — ולחצו "סגור עסקה". קבלה מופקת אוטומטית.</span></div></div>
+          </div>
+
+          <div class="box box-warn">
+            <div class="box-icon">💡</div>
+            <div>הוסיפו את סוגי המנויים שלכם מראש תחת <strong>הגדרות → מוצרים / שירותים</strong> כדי שיופיעו בקופה. כל מנוי מוגדר: שם, מחיר, משך (חודשי / שנתי / כניסות).</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHECKIN -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🚪</div><div><div class="mod-name">צ'ק-אין — כניסת חבר למרכז</div><div class="mod-tag">מלוח הבקרה הראשי</div></div></div>
+        <div class="mod-body">
+          <p>כשחבר מגיע למרכז הכושר — מבצעים צ'ק-אין לרישום הכניסה. זה נפרד מהשיעורים — מתאים גם לאימון חופשי.</p>
+
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו "צ'ק-אין"</strong><span>בלוח הבקרה הראשי ← לחצו על הפעולה המהירה "צ'ק-אין".</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>חפשו חבר</strong><span>הקלידו שם או טלפון. המערכת מאמתת שיש לו מנוי פעיל.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>אשרו כניסה</strong><span>לחצו "אשר כניסה" — הכניסה נרשמת. הכרטיס של החבר מתעדכן בזמן אמת.</span></div></div>
+          </div>
+
+          <div class="box box-warn">
+            <div class="box-icon">⚠️</div>
+            <div>חבר עם מנוי שפג — המערכת תתריע ולא תאפשר צ'ק-אין עד לחידוש המנוי.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SALES HISTORY -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🛍️</div><div><div class="mod-name">היסטוריית מכירות</div><div class="mod-tag">מכירות › מכירות</div></div></div>
+        <div class="mod-body">
+          <p>כאן רואים את כל העסקאות שנעשו — מי קנה, מה קנה, מתי, ובאיזה מחיר.</p>
+          <div class="actions">
+            <span class="action">סינון לפי תאריך</span>
+            <span class="action">סינון לפי חבר</span>
+            <span class="action">סינון לפי סוג מנוי</span>
+            <span class="action">ייצוא לאקסל</span>
+            <span class="action">הצגת קבלה</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CUSTOMERS / MEMBERS -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🤝</div><div><div class="mod-name">ניהול חברים</div><div class="mod-tag">מכירות › חברים</div></div></div>
+        <div class="mod-body">
+          <p>כרטיס אישי לכל חבר — סטטוס מנוי, היסטוריית שיעורים, תשלומים, פרטי קשר.</p>
+
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הוספת חבר חדש</strong><span>לחצו "+ חבר חדש" ← מלאו: שם, טלפון, מייל, תאריך לידה. המערכת תיצור כרטיס חבר ייחודי.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הקצאת מנוי</strong><span>בכרטיס החבר ← "הוסף מנוי" ← בחרו סוג וקבעו תאריך התחלה. המנוי יפקע אוטומטית בתאריך הנכון.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>מעקב נוכחות</strong><span>לחצו על שם חבר ← "היסטוריית כניסות" — ראו לאיזה שיעורים הגיע, מתי הגיע לאחרונה.</span></div></div>
+          </div>
+
+          <div class="box box-warn" style="margin-top:14px;">
+            <div class="box-icon">⚠️</div>
+            <div>חברים שמנויים פגים מוסמנים אוטומטית — תקבלו התראה כדי לפנות אליהם לחידוש.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── 5. מאמנים ── -->
+    <div class="chapter" id="s-trainers">
+      <div class="ch-head"><div class="ch-num">5</div><div class="ch-title">ניהול מאמנים</div></div>
+
+      <p style="font-size:.9rem;color:var(--text2);">המאמנים מנוהלים בלשונית <strong>"מאמנים"</strong> בלוח הבקרה הראשי — מערכת נפרדת ייעודית לניהול מאמנים חיצוניים ופנימיים, שכרם והשיעורים שנתנו.</p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">👨‍🏫</div><div><div class="mod-name">הוספת מאמן</div></div></div>
+        <div class="mod-body">
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו "+ הוסף מאמן"</strong><span>הזינו: שם המאמן, טלפון, מייל (אופציונלי), התמחות (לדוגמה: יוגה, פילאטיס, קרוספיט).</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הגדרת שכר</strong><span>הגדירו תעריף לשעה או לשיעור. המערכת תחשב שכר אוטומטית לפי מספר השיעורים שנתן.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>שיוך לשיעורים</strong><span>כשיוצרים שיעור ביומן — בחרו את שם המאמן מהרשימה. כל שיעור ייזקף לחשבונו.</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">💰</div><div><div class="mod-name">שכר מאמנים</div></div></div>
+        <div class="mod-body">
+          <p>בלשונית <strong>"שכר"</strong> (תחת מאמנים) — רואים לכל מאמן: כמה שיעורים נתן החודש, מה הסכום לתשלום, ומה כבר שולם.</p>
+
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>רשמו שיעור</strong><span>לחצו "רשום שיעור" על כרטיס המאמן — מלאו תאריך, שעות, סוג שיעור. המערכת מחשבת את הסכום.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>אם מאמן החליף</strong><span>לחצו "החלפה" — רשמו שיעור החלפה, המסומן כשונה משיעור רגיל.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>סמנו תשלום</strong><span>לאחר ששילמתם למאמן — לחצו "שלם" ← אשרו הסכום. הרישום נשמר לדוחות.</span></div></div>
+          </div>
+
+          <div class="box box-good">
+            <div class="box-icon">✅</div>
+            <div>בסוף חודש — הדוח מראה בדיוק כמה חייבים לכל מאמן. אפס ניירת, אפס חישובים ידניים.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 6. צוות ── -->
+    <div class="chapter" id="s-team">
+      <div class="ch-head"><div class="ch-num">6</div><div class="ch-title">ניהול צוות</div></div>
+
+      <h2 class="sec">תפקידי עובדים במרכז כושר</h2>
+      <p style="font-size:.87rem;color:var(--text2);">אלה התפקידים שניתן להקצות לעובדים. לכל תפקיד יש הרשאות שונות ולוח בקרה מותאם:</p>
+
+      <div class="field-table" style="margin-top:10px;">
+        <div class="field-row"><div class="fr-label">💰 קופאי</div><div class="fr-val">גישה לקופה (POS), מכירות ותשלומים בלבד. לא רואה מידע ניהולי.</div></div>
+        <div class="field-row"><div class="fr-label">🎧 נציג שירות</div><div class="fr-val">מטפל בפניות חברים, רואה כרטיסי חברים ומנויים. אין גישה לכספים.</div></div>
+        <div class="field-row"><div class="fr-label">📋 מנהל משמרת</div><div class="fr-val">אחראי על המשמרת: שיבוץ, נוכחות, משימות. רואה יותר מעובד רגיל.</div></div>
+        <div class="field-row"><div class="fr-label">🧹 מנקה / אחזקה</div><div class="fr-val">רואה רק נוכחות ומשמרות. לא נחשף לנתוני חברים או כספים.</div></div>
+        <div class="field-row"><div class="fr-label">🏢 מנהל סניף</div><div class="fr-val">גישה כמעט מלאה — ניהול צוות, חברים, מלאי, כספים. אין גישה להגדרות חשבון.</div></div>
+      </div>
+
+      <div class="box box-tip" style="margin-top:14px;">
+        <div class="box-icon">💡</div>
+        <div><strong>מאמנים</strong> מנוהלים בנפרד (ראו פרק 5) ולא דרך ניהול הצוות.</div>
+      </div>
+
+      <!-- MEMBERS -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">👥</div><div><div class="mod-name">ניהול עובדים</div><div class="mod-tag">צוות › ניהול צוות</div></div></div>
+        <div class="mod-body">
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הצטרפות עובד</strong><span>העובד מצטרף עם קוד העסק (ראו פרק 1). הוא מופיע ברשימת "ממתינים לאישור".</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>אישור ותפקיד</strong><span>לחצו "אשר" ← בחרו תפקיד (קופאי / נציג שירות / מנהל משמרת / מנקה / מנהל סניף).</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>הוספת פרטים</strong><span>שכר שעתי, טלפון, מידע נוסף — אופציונלי אך עוזר לדוחות שכר.</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SHIFTS -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🗓️</div><div><div class="mod-name">משמרות</div><div class="mod-tag">צוות › משמרות</div></div></div>
+        <div class="mod-body">
+          <p>לוח שיבוץ שבועי — מי עובד מתי, באיזה שעות, באיזה תחנה.</p>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הוסיפו משמרת</strong><span>לחצו על תא ריק בלוח ← בחרו עובד, שעת התחלה, שעת סיום.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>שכפול שבוע</strong><span>לחצו "שכפל שבוע" ← המשמרות הקיימות מועתקות לשבוע הבא. חוסך זמן ניהול.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>עובד רואה את המשמרת שלו</strong><span>כל עובד רואה ישירות בנייד את המשמרות שלו — ללא צורך לשלוח הודעות ידניות.</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TIMECLOCK -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">⏱️</div><div><div class="mod-name">נוכחות</div><div class="mod-tag">צוות › נוכחות</div></div></div>
+        <div class="mod-body">
+          <p>עובד מגיע לעבודה — לוחץ "כניסה". עוזב — לוחץ "יציאה". כל שעה נרשמת אוטומטית.</p>
+          <div class="actions">
+            <span class="action">דוח שעות לחודש</span>
+            <span class="action">תיקון שעה ידנית (מנהל בלבד)</span>
+            <span class="action">ייצוא לחישוב שכר</span>
+          </div>
+          <div class="box box-warn" style="margin-top:10px;">
+            <div class="box-icon">⚠️</div>
+            <div>עובד שלא יצא ("שכח לצאת") — תקבלו התראה ותוכלו לתקן ידנית את שעת היציאה.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TASKS -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">✅</div><div><div class="mod-name">משימות</div><div class="mod-tag">צוות › משימות</div></div></div>
+        <div class="mod-body">
+          <p>שייכו משימות לעובדים — ניקיון ציוד, הכנת חדר ל-spin, הזמנת חומרי ניקוי, כל מה שצריך לעקוב אחריו.</p>
+          <div class="actions">
+            <span class="action">יצירת משימה + שיוך לעובד</span>
+            <span class="action">תאריך יעד</span>
+            <span class="action">עדיפות: דחוף / רגיל / נמוך</span>
+            <span class="action">סטטוס: פתוח / בביצוע / סגור</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 7. ציוד ── -->
+    <div class="chapter" id="s-equip">
+      <div class="ch-head"><div class="ch-num">7</div><div class="ch-title">תחזוקת ציוד</div></div>
+
+      <p style="font-size:.9rem;color:var(--text2);">מרכז כושר מלא ציוד — הליכונים, מכשירי כוח, אופניים, חבלים. טאב הציוד מנהל את כל המכשירים ומתריע על תקלות ותחזוקה.</p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🔧</div><div><div class="mod-name">ניהול פריטי ציוד</div><div class="mod-tag">מלאי › תחזוקת ציוד</div></div></div>
+        <div class="mod-body">
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הוסיפו ציוד</strong><span>לחצו "+ ציוד חדש" ← שם, סוג, מספר סידורי, תאריך רכישה. כל מכשיר מקבל כרטיס דיגיטלי.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>תזמנו תחזוקה</strong><span>כל ציוד יכול לקבל תאריך תחזוקה קבוע — לדוגמה: שמן הליכון כל 3 חודשים. המערכת תתריע כשמתקרבים לתאריך.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>דיווח תקלה</strong><span>עובד או חבר מדווח שהליכון 3 לא עובד — לחצו "דווח תקלה" על הציוד. התקלה נפתחת ועוברת לטיפול.</span></div></div>
+          </div>
+
+          <div class="box box-warn" style="margin-top:14px;">
+            <div class="box-icon">⚠️</div>
+            <div>ציוד עם תקלה פתוחה מסומן בצבע אדום — לא תחמיצו את זה. החברים לא צריכים לבוא לדלפק כדי לדווח תקלה.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📋</div><div><div class="mod-name">מה רואים בטאב הציוד</div></div></div>
+        <div class="mod-body">
+          <div class="actions">
+            <span class="action">רשימת כל הציוד</span>
+            <span class="action">מכשירים עם תחזוקה קרובה</span>
+            <span class="action">תקלות פתוחות</span>
+            <span class="action">היסטוריית תחזוקות</span>
+            <span class="action">כמה ימים/חודשים מאז תחזוקה אחרונה</span>
+          </div>
+          <div class="box box-good" style="margin-top:10px;">
+            <div class="box-icon">✅</div>
+            <div>לוח הבקרה הראשי מתריע על ציוד שדורש תחזוקה — תמיד תהיו מוקדים לפני שחבר יבוא ויגלה בעצמו.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 8. כספים ── -->
+    <div class="chapter" id="s-money">
+      <div class="ch-head"><div class="ch-num">8</div><div class="ch-title">כספים ודוחות</div></div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">💸</div><div><div class="mod-name">תזרים מזומנים</div><div class="mod-tag">כספים › תזרים</div></div></div>
+        <div class="mod-body">
+          <p>מסך שמסכם את כל הכסף שנכנס ויוצא — מנויים, שכר מאמנים, שכ"ד, ציוד.</p>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הכנסות</strong><span>מנויים שנמכרו ← נרשמים אוטומטית מהקופה. כל תשלום שמתבצע מתווסף לתזרים.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הוצאות</strong><span>הוסיפו ידנית: שכ"ד, חשמל, שכר מאמנים, ציוד חדש. ניתן לקטלג לפי קטגוריות.</span></div></div>
+          </div>
+
+          <div class="box box-tip">
+            <div class="box-icon">💡</div>
+            <div>תזרים מציג גרף חודשי — ראו בעין אחת אם החודש מסתיים ברווח או הפסד.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">דוחות</div><div class="mod-tag">כספים › דוחות</div></div></div>
+        <div class="mod-body">
+          <p>דוחות מפורטים שעוזרים להבין מה קורה בעסק — מה מוכר, מי הכי פעיל, מה כדאי לשנות.</p>
+          <div class="actions">
+            <span class="action">הכנסות לפי סוג מנוי</span>
+            <span class="action">חברים לפי סטטוס (פעיל / פגה / הוקפא)</span>
+            <span class="action">כניסות לשיעורים</span>
+            <span class="action">שכר מאמנים לחודש</span>
+            <span class="action">ייצוא לאקסל</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📢</div><div><div class="mod-name">פרסום FLOW</div><div class="mod-tag">עוד › פרסום FLOW</div></div></div>
+        <div class="mod-body">
+          <p>פרסמו מנויים, שיעורים ומבצעים לחברי רשת OneFlow — גולשים שמחפשים פעילות גופנית באזור.</p>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>צרו מודעה</strong><span>כותרת, תיאור קצר, תמונה, מחיר. לדוגמה: "מנוי ניסיון שבוע חינם!".</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>בחרו קהל</strong><span>לפי אזור מגורים, גיל, תחומי עניין (כושר, יוגה, ריקוד). מגיעים בדיוק לאנשים המתאימים.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>פנייה נכנסת</strong><span>מי שמתעניין שולח הודעה דרך האפליקציה — תקבלו התראה ותחזרו אליו.</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AUTOMATIONS -->
+      <h2 class="sec" style="margin-top:28px;">אוטומציות — מה קורה לבד</h2>
+      <div class="auto-grid">
+        <div class="auto-card">
+          <div class="auto-icon">🔔</div>
+          <div class="auto-title">התראת מנוי שפג</div>
+          <div class="auto-desc">3 ימים לפני שמנוי פוקע — החבר מקבל תזכורת לחידוש. אתם מקבלים את הרשימה.</div>
+        </div>
+        <div class="auto-card">
+          <div class="auto-icon">📋</div>
+          <div class="auto-title">רשימת המתנה אוטומטית</div>
+          <div class="auto-desc">שיעור מלא? — חבר שביטל מפנה מקום אוטומטי לבא ברשימה עם הודעה.</div>
+        </div>
+        <div class="auto-card">
+          <div class="auto-icon">🔧</div>
+          <div class="auto-title">תזכורת תחזוקת ציוד</div>
+          <div class="auto-desc">מכשיר מתקרב לתאריך תחזוקה — התראה אוטומטית נשלחת למנהל.</div>
+        </div>
+        <div class="auto-card">
+          <div class="auto-icon">⏰</div>
+          <div class="auto-title">עובד שלא יצא</div>
+          <div class="auto-desc">עובד שנכנס לשעון נוכחות ולא יצא בסוף משמרת — מקבלים התראה לתיקון.</div>
+        </div>
+        <div class="auto-card">
+          <div class="auto-icon">📊</div>
+          <div class="auto-title">דוח חודשי שכר מאמנים</div>
+          <div class="auto-desc">בסוף חודש — דוח שכר מוכן לכל מאמן לפי שיעורים שנתן.</div>
+        </div>
+        <div class="auto-card">
+          <div class="auto-icon">🚫</div>
+          <div class="auto-title">חסימת כניסה</div>
+          <div class="auto-desc">חבר שמנויו פג לא יוכל להרשם לשיעורים עד שיחדש — המערכת חוסמת אוטומטית.</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- /wrap -->
+</div><!-- /sport -->
 <div id="maintenance" class="page"><div class="cs"><div class="cs-i">🔧</div><h2>תחזוקה ותיקונים</h2><p>המדריך בהכנה — יתווסף בקרוב</p></div></div>
 <div id="logistics" class="page"><div class="cs"><div class="cs-i">🚚</div><h2>לוגיסטיקה / הפצה</h2><p>המדריך בהכנה — יתווסף בקרוב</p></div></div>
 <div id="professional" class="page"><div class="cs"><div class="cs-i">👔</div><h2>מקצועי / ייעוץ</h2><p>המדריך בהכנה — יתווסף בקרוב</p></div></div>
@@ -889,12 +1464,18 @@ const obs = new IntersectionObserver(entries => {
     if (!e.isIntersecting) return;
     const btns = document.querySelectorAll('.sn');
     btns.forEach(b => b.classList.remove('on'));
-    const map = {'r-enter':0,'r-wizard':1,'r-nav':2,'r-sales':3,'r-stock':4,'r-team':5,'r-money':6,'r-auto':7};
+    const map = {
+      'r-enter':0,'r-wizard':1,'r-nav':2,'r-sales':3,'r-stock':4,'r-team':5,'r-money':6,'r-auto':7,
+      's-enter':8,'s-wizard':9,'s-nav':10,'s-schedule':11,'s-trainers':12,'s-team':13,'s-equip':14,'s-money':15
+    };
     const i = map[e.target.id];
     if (i !== undefined && btns[i]) btns[i].classList.add('on');
   });
 }, {threshold:.15, rootMargin:'-60px 0px -50% 0px'});
-['r-enter','r-wizard','r-nav','r-sales','r-stock','r-team','r-money','r-auto'].forEach(id => {
+[
+  'r-enter','r-wizard','r-nav','r-sales','r-stock','r-team','r-money','r-auto',
+  's-enter','s-wizard','s-nav','s-schedule','s-trainers','s-team','s-equip','s-money'
+].forEach(id => {
   const el = document.getElementById(id);
   if (el) obs.observe(el);
 });
