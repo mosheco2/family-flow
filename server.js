@@ -20100,6 +20100,23 @@ app.post('/api/biz/billing/:id/confirm', async (req, res) => {
     } catch(e) { res.status(500).json({error:e.message}); }
 });
 
+// ── Guide screenshot upload (admin tool) ──────────────────────────────────
+app.post('/api/guide/upload-screenshot', (req, res) => {
+    try {
+        const { filename, dataUrl } = req.body;
+        if (!filename || !dataUrl) return res.status(400).json({ error: 'missing fields' });
+        // אבטחה: שם קובץ בלבד, ללא נתיב
+        const safe = path.basename(filename).replace(/[^a-zA-Z0-9_\-\.]/g, '');
+        if (!safe.endsWith('.png') && !safe.endsWith('.jpg') && !safe.endsWith('.webp'))
+            return res.status(400).json({ error: 'invalid file type' });
+        const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+        const buf = Buffer.from(base64, 'base64');
+        const dest = path.join(__dirname, 'public', 'screenshots', 'guide', safe);
+        fs.writeFileSync(dest, buf);
+        res.json({ ok: true, path: `/screenshots/guide/${safe}` });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // הפעלת השרת
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);

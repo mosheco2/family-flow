@@ -1227,7 +1227,104 @@ a{color:inherit;text-decoration:none}
   </div>
 </section>
 
+<!-- ── Admin upload bar (hidden by default) ── -->
+<div id="admin-bar" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#1e1b4b;color:#fff;padding:10px 20px;display:none;align-items:center;gap:12px;font-family:'Heebo',sans-serif;font-size:.85rem;">
+  <span style="font-weight:700;">✏️ מצב עריכת תמונות</span>
+  <span style="color:#a5b4fc;">לחץ על כל מסגרת תמונה כדי להעלות תמונה חדשה</span>
+  <div style="flex:1"></div>
+  <button onclick="lockEditMode()" style="background:#4f46e5;color:#fff;border:none;padding:6px 18px;border-radius:20px;font-weight:700;cursor:pointer;font-size:.85rem;">🔒 סיום ונעילה</button>
+</div>
+<input type="file" id="guide-file-input" accept="image/*" style="display:none">
+
 <script>
+// ── Admin upload logic ──────────────────────────────────────
+let _editMode = false;
+let _pendingFrame = null;
+
+function enableEditMode() {
+  _editMode = true;
+  document.getElementById('admin-bar').style.display = 'flex';
+  document.querySelectorAll('.phone-frame').forEach(frame => {
+    frame.style.cursor = 'pointer';
+    frame.title = 'לחץ להעלאת תמונה';
+    frame.addEventListener('click', _frameClick);
+    // overlay hint
+    const ov = document.createElement('div');
+    ov.className = 'upload-overlay';
+    ov.innerHTML = '📤 לחץ להעלאת תמונה';
+    ov.style.cssText = 'position:absolute;inset:0;background:rgba(79,70,229,.7);border-radius:20px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.85rem;opacity:0;transition:opacity .2s;pointer-events:none;';
+    frame.style.position = 'relative';
+    frame.appendChild(ov);
+    frame.addEventListener('mouseenter', () => ov.style.opacity = '1');
+    frame.addEventListener('mouseleave', () => ov.style.opacity = '0');
+  });
+}
+
+function lockEditMode() {
+  _editMode = false;
+  document.getElementById('admin-bar').style.display = 'none';
+  document.querySelectorAll('.phone-frame').forEach(frame => {
+    frame.style.cursor = '';
+    frame.title = '';
+    frame.removeEventListener('click', _frameClick);
+    const ov = frame.querySelector('.upload-overlay');
+    if (ov) ov.remove();
+  });
+  alert('✅ מצב עריכה נסגר. עכשיו הריצו:\ngit add public/screenshots/guide/\ngit commit -m "feat: צילומי מסך מסעדה"\ngit push');
+}
+
+function _frameClick(e) {
+  if (!_editMode) return;
+  _pendingFrame = this;
+  document.getElementById('guide-file-input').click();
+}
+
+document.getElementById('guide-file-input').addEventListener('change', async function() {
+  const file = this.files[0];
+  if (!file || !_pendingFrame) return;
+
+  // קבל את שם הקובץ מה-img בתוך המסגרת
+  const img = _pendingFrame.querySelector('img');
+  if (!img) { alert('לא נמצאה תמונה במסגרת זו'); return; }
+  const filename = img.src.split('/').pop();
+
+  // קרא את הקובץ
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    const dataUrl = ev.target.result;
+    try {
+      const res = await fetch('/api/guide/upload-screenshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename, dataUrl })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        // עדכן את התמונה מיידית
+        img.src = data.path + '?t=' + Date.now();
+        // הבהוב ירוק
+        _pendingFrame.style.boxShadow = '0 0 0 3px #22c55e';
+        setTimeout(() => _pendingFrame.style.boxShadow = '', 1500);
+      } else {
+        alert('שגיאה: ' + data.error);
+      }
+    } catch(e) {
+      alert('שגיאת רשת: ' + e.message);
+    }
+  };
+  reader.readAsDataURL(file);
+  this.value = ''; // reset
+});
+
+// הפעלה: Ctrl+Shift+E
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.shiftKey && e.key === 'E') {
+    if (!_editMode) enableEditMode();
+    else lockEditMode();
+  }
+});
+
+// ── Navigation ────────────────────────────────────────────
 function showSection(id, scrollToId) {
   document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
