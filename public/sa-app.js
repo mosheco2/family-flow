@@ -1545,9 +1545,10 @@ window.addLoginSlideImage = function(event) {
             else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
             canvas.width = width; canvas.height = height;
             const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
             ctx.drawImage(img, 0, 0, width, height);
             const base64 = canvas.toDataURL('image/png');
-            
+
             window.loginSlidesCache.push({ id: 'slide_' + Date.now(), image: base64, active: true });
             if(typeof window.renderLoginSlidesAdmin === 'function') window.renderLoginSlidesAdmin();
             event.target.value = '';
@@ -2650,8 +2651,8 @@ window.handleCommImageUpload = function(event, type) {
         img.onload = () => {
             const canvas = document.createElement('canvas'); let width = img.width; let height = img.height; const maxSize = 600;
             if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
-            canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
-            const base64 = canvas.toDataURL('image/jpeg', 0.8);
+            canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(img, 0, 0, width, height);
+            const base64 = canvas.toDataURL('image/jpeg', 0.88);
             if (type === 'create') {
                 getEl('sa-comm-image-base64').value = base64; getEl('sa-comm-img-preview').src = base64; getEl('sa-comm-img-preview-container').classList.remove('hidden');
             } else {
@@ -2668,16 +2669,28 @@ window.handleBannerImageUpload = function(event, targetInputId, previewId) {
     const file = event.target.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = (e) => {
+        const originalDataUrl = e.target.result;
         const img = new Image();
         img.onload = () => {
-            const canvas = document.createElement('canvas'); let width = img.width; let height = img.height; const maxWidth = 1200; 
-            if (width > maxWidth) { height = Math.round(height * (maxWidth / width)); width = maxWidth; }
-            canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
-            const base64 = canvas.toDataURL('image/jpeg', 0.85);
+            const maxWidth = 1200;
+            let base64;
+            if (img.width <= maxWidth) {
+                // no resize needed — use original data as-is, zero quality loss
+                base64 = originalDataUrl;
+            } else {
+                const canvas = document.createElement('canvas');
+                let width = maxWidth; let height = Math.round(img.height * (maxWidth / img.width));
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, width, height);
+                base64 = canvas.toDataURL('image/jpeg', 0.92);
+            }
             const targetInput = document.getElementById(targetInputId); if (targetInput) targetInput.value = base64;
             const previewImg = document.getElementById(previewId); if (previewImg) { previewImg.src = base64; previewImg.classList.remove('hidden'); }
         };
-        img.src = e.target.result;
+        img.src = originalDataUrl;
     };
     reader.readAsDataURL(file);
 }
