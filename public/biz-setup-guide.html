@@ -1429,7 +1429,391 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
   </div><!-- /wrap -->
 </div><!-- /sport -->
-<div id="maintenance" class="page"><div class="cs"><div class="cs-i">🔧</div><h2>תחזוקה ותיקונים</h2><p>המדריך בהכנה — יתווסף בקרוב</p></div></div>
+<!-- ═══ MAINTENANCE ═══ -->
+<div id="maintenance" class="page">
+
+  <div class="sec-top">
+    <div class="s-icon">🔧</div>
+    <h1>תחזוקה ותיקונים</h1>
+    <p>מדריך מלא לניהול עסק תחזוקה — מזגנים, אינסטלציה, חשמל, מכשירי חשמל, כל עסק שירות ותיקונים — עם OneFlow BIZ</p>
+  </div>
+
+  <nav class="subnav">
+    <div class="sn-inner">
+      <button class="sn on" onclick="goTo('m-enter')">כניסה למערכת</button>
+      <button class="sn" onclick="goTo('m-wizard')">הקמה ראשונית</button>
+      <button class="sn" onclick="goTo('m-nav')">ניווט</button>
+      <button class="sn" onclick="goTo('m-calls')">קריאות שירות</button>
+      <button class="sn" onclick="goTo('m-stock')">לקוחות וחלקים</button>
+      <button class="sn" onclick="goTo('m-team')">צוות</button>
+      <button class="sn" onclick="goTo('m-money')">כספים</button>
+    </div>
+  </nav>
+
+  <div class="wrap">
+
+    <!-- ── 1. כניסה ── -->
+    <div class="chapter" id="m-enter">
+      <div class="ch-head"><div class="ch-num">1</div><div class="ch-title">כניסה למערכת</div></div>
+
+      <p style="font-size:.9rem;color:var(--text2);">OneFlow BIZ עובדת דרך הדפדפן — אין צורך להוריד אפליקציה. פותחים את הכתובת ומגיעים לדף הכניסה.</p>
+
+      <h2 class="sec">א. כניסה לחשבון קיים</h2>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>קוד כניסה</div><div class="fr-val">קוד בן 6 תווים של העסק — לדוגמה <code>TK3RBM</code>. מנהל העסק רואה אותו ב"פרטי העסק".</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם משתמש</div><div class="fr-val">השם שנבחר בעת ההרשמה — לא מייל.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>סיסמה</div><div class="fr-val">הסיסמה האישית. שכחתם? — פנו למנהל לאיפוס.</div></div>
+      </div>
+
+      <h2 class="sec">ב. פתיחת עסק חדש (הרשמה ראשונה)</h2>
+      <div class="box box-imp" style="margin-top:8px;margin-bottom:12px;">
+        <div class="box-icon">⚠️</div>
+        <div>בחרו <strong>עסקים</strong> — לא "משפחה". זה חיוני לפתיחת סביבת הניהול הנכונה.</div>
+      </div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם העסק</div><div class="fr-val">שם חברת השירות. לדוגמה: <code>נגה מיזוג אוויר — סניף דרום</code>.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>מייל מנהל</div><div class="fr-val">המייל שלכם — לשחזור סיסמה ועדכונים.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>טלפון</div><div class="fr-val">מספר נייד — <code>0501234567</code>. נדרש מגיל 10.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם מנהל</div><div class="fr-val">השם שלכם כמנהל/ת.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שנת לידה</div><div class="fr-val">לאימות גיל בלבד.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>סיסמה + אימות</div><div class="fr-val">לפחות 6 תווים, הקלידו פעמיים.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>קוד הזמנה</div><div class="fr-val">אם קיבלתם קוד ממפיץ OneFlow.</div></div>
+      </div>
+
+      <h2 class="sec">ג. הצטרפות עובד — טכנאי שטח</h2>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>קוד עסק</div><div class="fr-val">קוד ה-6 תווים של החברה. המנהל שולח לטכנאי.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם</div><div class="fr-val">שם הטכנאי — כפי שיופיע בקריאות ובדוחות.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שנת לידה</div><div class="fr-val">לאימות גיל.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>סיסמה</div><div class="fr-val">סיסמה אישית.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>טלפון</div><div class="fr-val">נדרש מגיל 10.</div></div>
+      </div>
+      <div class="box box-tip" style="margin-top:10px;">
+        <div class="box-icon">💡</div>
+        <div>אחרי שהטכנאי הצטרף — המנהל מגדיר תפקיד: <strong>טכנאי שטח</strong> או <strong>מנהל סניף</strong>. לכל תפקיד לוח בקרה ייחודי.</div>
+      </div>
+    </div>
+
+    <!-- ── 2. ויזארד ── -->
+    <div class="chapter" id="m-wizard">
+      <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית — אשף 4 שלבים</div></div>
+
+      <div class="box box-tip" style="margin-bottom:14px;">
+        <div class="box-icon">💡</div>
+        <div>לפני האשף — מופיעה שאלה <strong>"מה סוג העסק שלך?"</strong>. בחרו <strong>שירות / מתקינים 🔧</strong> — המערכת מתאימה את עצמה לעסק תחזוקה.</div>
+      </div>
+
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>פרופיל העסק</strong><span>שם החברה, לוגו (אופציונלי), תמונת באנר, סלוגן. הלוגו יופיע בהצעות מחיר ובקריאות שירות.</span></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>תקציב ראשוני</strong><span>עלויות חודשיות קבועות — רכבים, ביטוח, שכר. נקודת הבסיס לניתוח רווחיות.</span></div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>קטלוג שירותים וחלקים</strong><span>הוסיפו את סוגי השירותים — "תיקון מזגן ₪350", "בדיקה תקופתית ₪150". ניתן לייבא מאקסל, לבנות עם AI, או ידנית. מוסיפים גם חלקי חילוף נפוצים.</span></div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>הזמנת הצוות</strong><span>שלחו קישור הצטרפות לטכנאים דרך WhatsApp — כל אחד מצטרף, המנהל מאשר ומגדיר תפקיד "טכנאי שטח".</span></div></div>
+      </div>
+    </div>
+
+    <!-- ── 3. ניווט ── -->
+    <div class="chapter" id="m-nav">
+      <div class="ch-head"><div class="ch-num">3</div><div class="ch-title">ניווט — איך מתמצאים במערכת</div></div>
+
+      <p style="font-size:.9rem;color:var(--text2);">בתחתית המסך — סרגל ניווט עם 5 קבוצות. <strong>רק הטאבים הרלוונטיים לתחזוקה ותיקונים:</strong></p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">👥</div><div><div class="mod-name">קבוצה 1 — צוות</div></div></div>
+        <div class="mod-body"><div class="actions">
+          <span class="action">⏱️ נוכחות — שעות עבודה</span>
+          <span class="action">🌐 יומן — לוח פגישות וביקורים</span>
+          <span class="action">✅ משימות — מטלות פנימיות</span>
+          <span class="action">👥 ניהול צוות — עובדים ותפקידים</span>
+        </div></div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🛍️</div><div><div class="mod-name">קבוצה 2 — מכירות</div></div></div>
+        <div class="mod-body"><div class="actions">
+          <span class="action">🤝 לקוחות — היסטוריית שירות לכל לקוח</span>
+        </div></div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📦</div><div><div class="mod-name">קבוצה 3 — מלאי</div></div></div>
+        <div class="mod-body"><div class="actions">
+          <span class="action">🛒 רכש — הזמנת חלקי חילוף מספקים</span>
+          <span class="action">📦 ניהול מלאי — מעקב חלקים במחסן</span>
+        </div></div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">💸</div><div><div class="mod-name">קבוצה 4 — כספים</div></div></div>
+        <div class="mod-body"><div class="actions">
+          <span class="action">💸 תזרים מזומנים</span>
+          <span class="action">📊 דוחות — ביצועי טכנאים וקריאות</span>
+        </div></div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">⋯</div><div><div class="mod-name">קבוצה 5 — עוד</div></div></div>
+        <div class="mod-body"><div class="actions">
+          <span class="action">📢 פרסום FLOW</span>
+          <span class="action">⚙️ הגדרות</span>
+        </div></div>
+      </div>
+
+      <h2 class="sec" style="margin-top:24px;">לוח בקרה — מנהל סניף</h2>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">🔧 קריאות פתוחות</div><div class="fr-val">כמה קריאות שירות פתוחות ממתינות לטיפול.</div></div>
+        <div class="field-row"><div class="fr-label">⚠️ ממתין לסיווג</div><div class="fr-val">קריאות שהגיעו מלקוח (ONEFLOW LIFE) ועדיין לא שויכו לטכנאי.</div></div>
+        <div class="field-row"><div class="fr-label">🚨 דחופות</div><div class="fr-val">קריאות עם עדיפות "דחוף" שדורשות טיפול מיידי.</div></div>
+        <div class="field-row"><div class="fr-label">👷 טכנאים</div><div class="fr-val">כמה טכנאי שטח פעילים בחברה.</div></div>
+      </div>
+      <div class="actions" style="margin-top:10px;">
+        <span class="action">🔨 פקודות עבודה</span>
+        <span class="action">📋 הצעות מחיר</span>
+        <span class="action">📊 דוחות</span>
+        <span class="action">👥 הצוות</span>
+        <span class="action">📅 יומן</span>
+      </div>
+
+      <h2 class="sec" style="margin-top:20px;">לוח בקרה — טכנאי שטח</h2>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">🔧 הקריאות שלי</div><div class="fr-val">קריאות שהוקצו לטכנאי זה — פתוחות ובביצוע.</div></div>
+        <div class="field-row"><div class="fr-label">✅ הושלמו היום</div><div class="fr-val">כמה קריאות סגר הטכנאי היום.</div></div>
+        <div class="field-row"><div class="fr-label">🚨 דחופות</div><div class="fr-val">קריאות דחופות שמוקצות לטכנאי זה.</div></div>
+        <div class="field-row"><div class="fr-label">⏳ ממתין לחלקים</div><div class="fr-val">קריאות שנעצרו כי חלק הזמנה עדיין לא הגיע.</div></div>
+      </div>
+    </div>
+
+    <!-- ── 4. קריאות שירות ── -->
+    <div class="chapter" id="m-calls">
+      <div class="ch-head"><div class="ch-num">4</div><div class="ch-title">קריאות שירות — הלב של המערכת</div></div>
+
+      <p style="font-size:.9rem;color:var(--text2);">קריאת שירות היא הדרך לנהל כל תקלה מרגע הפנייה ועד הסגירה — מי הלקוח, מה הבעיה, מי מטפל, ומה הסטטוס.</p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">פתיחת קריאה חדשה</div></div></div>
+        <div class="mod-body">
+          <p>לחצו <strong>"קריאת שירות חדשה"</strong> ממסך הניהול הראשי:</p>
+          <div class="field-table" style="margin-top:12px;">
+            <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>כותרת</div><div class="fr-val">תיאור קצר של הבעיה — לדוגמה: <code>תיקון מזגן — לא מקרר</code>.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>שם לקוח</div><div class="fr-val">הקלידו שם — ניתן לחפש ב-OneFlow Life ולקשר לחשבון לקוח קיים.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>טלפון לקוח</div><div class="fr-val">לשיחה ישירה מהמסך.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>כתובת</div><div class="fr-val">כתובת הטיפול — הטכנאי רואה אותה בניייד.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>תיאור התקלה</div><div class="fr-val">פירוט הבעיה — יעזור לטכנאי להגיע מוכן.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>עדיפות</div><div class="fr-val"><strong>דחוף</strong> — צריך היום. <strong>גבוה</strong> — עד מחר. <strong>רגיל</strong> — תוך כמה ימים. <strong>נמוך</strong> — אין לחץ.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>שיוך לטכנאי</div><div class="fr-val">בחרו טכנאי מהרשימה. רק מנהל ומנהל סניף רואים שדה זה.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-c">תיבה</span>העבר לסיווג</div><div class="fr-val">סמנו אם הקריאה צריכה אישור מנהל לפני שיוך לטכנאי.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">סטטוסים של קריאה</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);">כל קריאה עוברת בין סטטוסים — כך יודעים בדיוק איפה עומד כל טיפול:</p>
+          <div class="field-table" style="margin-top:10px;">
+            <div class="field-row"><div class="fr-label">🔵 חדשה</div><div class="fr-val">נפתחה ועדיין לא טופלה.</div></div>
+            <div class="field-row"><div class="fr-label">🟣 נצפתה</div><div class="fr-val">הטכנאי ראה את הקריאה.</div></div>
+            <div class="field-row"><div class="fr-label">🟡 בטיפול</div><div class="fr-val">הטכנאי עובד עליה עכשיו.</div></div>
+            <div class="field-row"><div class="fr-label">🟣 ממתין לחלקים</div><div class="fr-val">הזמינו חלק — ממתינים לאספקה. יש גם חלקים לאיסוף כשהגיעו.</div></div>
+            <div class="field-row"><div class="fr-label">🟠 ממתין לתשלום</div><div class="fr-val">הטיפול הושלם — ממתינים לתשלום מהלקוח.</div></div>
+            <div class="field-row"><div class="fr-label">🟢 הושלם</div><div class="fr-val">קריאה סגורה בהצלחה.</div></div>
+            <div class="field-row"><div class="fr-label">⚫ בוטל</div><div class="fr-val">הקריאה בוטלה.</div></div>
+          </div>
+          <div class="box box-warn" style="margin-top:12px;">
+            <div class="box-icon">⚠️</div>
+            <div>קריאה <strong>"ממתין לסיווג"</strong> (needs_triage) — פנייה שהגיעה מלקוח דרך ONEFLOW LIFE ועדיין לא שויכה לטכנאי. מנהל צריך לאשר ולשייך.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🔗</div><div><div class="mod-name">קישור לקוח ל-OneFlow Life</div></div></div>
+        <div class="mod-body">
+          <p>לקוח יכול לפתוח קריאת שירות בעצמו דרך האפליקציה המשפחתית OneFlow Life — ללא צורך להתקשר. המנהל מקבל התראה.</p>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>חפשו לקוח</strong><span>בטופס קריאה חדשה — לחצו "🔍 ONEFLOW LIFE" ← חפשו לפי שם / טלפון / מייל.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>קשרו לקוח קיים</strong><span>בחרו לקוח מהרשימה ← הקריאה מקושרת לחשבון שלו. הוא מקבל הודעה.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>צרו חשבון חדש</strong><span>לקוח שאין לו עדיין חשבון — לחצו "צור חשבון חדש" ← הוזן שם + טלפון ← המערכת שולחת לו WhatsApp עם קוד כניסה.</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 5. לקוחות וחלקים ── -->
+    <div class="chapter" id="m-stock">
+      <div class="ch-head"><div class="ch-num">5</div><div class="ch-title">לקוחות, מלאי וחלקי חילוף</div></div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🤝</div><div><div class="mod-name">כרטיסי לקוחות</div><div class="mod-tag">מכירות › לקוחות</div></div></div>
+        <div class="mod-body">
+          <p>כרטיס אישי לכל לקוח — כל קריאות השירות שלו, פרטי קשר, כתובות.</p>
+          <div class="actions">
+            <span class="action">רשימת כל הלקוחות</span>
+            <span class="action">לחיצה על לקוח → היסטוריית קריאות</span>
+            <span class="action">לשונית 🔧 קריאות — לקוחות בעסק תחזוקה</span>
+            <span class="action">הוספת לקוח חדש ידנית</span>
+            <span class="action">חיפוש לפי שם / טלפון</span>
+          </div>
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div>לחיצה על לקוח → לשונית <strong>"קריאות"</strong> — מראה את כל הקריאות שנפתחו עבורו, עם סטטוסים ותאריכים.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📦</div><div><div class="mod-name">ניהול מלאי חלקי חילוף</div><div class="mod-tag">מלאי › ניהול מלאי</div></div></div>
+        <div class="mod-body">
+          <p>עקבו אחרי חלקים שיש לכם במחסן — פילטרים, גזים, חלקי חשמל. כשמלאי נמוך — תקבלו התראה.</p>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הוסיפו פריט</strong><span>שם החלק, יצרן, מספר קטלוג, כמות מינימלית (סף להתראה), מחיר.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>עדכנו כמות</strong><span>כשמשתמשים בחלק בקריאה — הפחיתו מהמלאי. כשמגיעה אספקה — הוסיפו.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>התראת מלאי נמוך</strong><span>כשכמות יורדת מתחת לסף — התראה אוטומטית להזמנה מחדש.</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🛒</div><div><div class="mod-name">הזמנת חלקים מספקים</div><div class="mod-tag">מלאי › רכש</div></div></div>
+        <div class="mod-body">
+          <p>כשצריך לרכוש חלקים מחברות האספקה — פותחים הזמנת רכש ישירות מהמערכת.</p>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>בחרו פריטים</strong><span>בחרו מה צריך להזמין ובאיזה כמות.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>שלחו לספק</strong><span>ניתן להוציא הזמנה ולשלוח למייל / WhatsApp של הספק.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>אישור הגעה</strong><span>כשהחלקים מגיעים — אשרו קבלה. המלאי מתעדכן אוטומטית.</span></div></div>
+          </div>
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div>הזמנת רכש יכולה להיות מקושרת לקריאת שירות ספציפית — כך ידוע לאיזה טיפול הוזמן כל חלק.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 6. צוות ── -->
+    <div class="chapter" id="m-team">
+      <div class="ch-head"><div class="ch-num">6</div><div class="ch-title">ניהול צוות</div></div>
+
+      <h2 class="sec">תפקידי עובדים בחברת תחזוקה</h2>
+      <div class="field-table" style="margin-top:10px;">
+        <div class="field-row"><div class="fr-label">🔧 טכנאי שטח</div><div class="fr-val">רואה את הקריאות שלו, מעדכן סטטוס, יומן, נוכחות. לוח בקרה ייעודי עם כל הקריאות שהוקצו לו.</div></div>
+        <div class="field-row"><div class="fr-label">🏢 מנהל סניף</div><div class="fr-val">גישה לכל הקריאות, לצוות, להזמנות רכש, לתזרים ולדוחות. מנהל את כל פעילות הסניף.</div></div>
+      </div>
+
+      <div class="box box-tip" style="margin-top:12px;margin-bottom:18px;">
+        <div class="box-icon">💡</div>
+        <div>אין תפקיד "מנהל משמרת", "קופאי" או "נציג שירות" בחברת תחזוקה — רק טכנאי שטח ומנהל סניף.</div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">👥</div><div><div class="mod-name">ניהול עובדים</div><div class="mod-tag">צוות › ניהול צוות</div></div></div>
+        <div class="mod-body">
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הצטרפות</strong><span>הטכנאי מצטרף עם קוד העסק. מופיע ב"ממתינים לאישור".</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>אישור ותפקיד</strong><span>לחצו "אשר" ← בחרו: טכנאי שטח / מנהל סניף.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>שיוך קריאות</strong><span>מכאן ניתן לשייך קריאות חדשות לטכנאי זה בקלות.</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">⏱️</div><div><div class="mod-name">נוכחות</div><div class="mod-tag">צוות › נוכחות</div></div></div>
+        <div class="mod-body">
+          <p>כל טכנאי מסמן כניסה/יציאה. דוח שעות מלא לשכר בסוף חודש.</p>
+          <div class="actions">
+            <span class="action">דוח שעות חודשי</span>
+            <span class="action">תיקון שעה ידנית (מנהל)</span>
+            <span class="action">ייצוא לאקסל</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📅</div><div><div class="mod-name">יומן</div><div class="mod-tag">צוות › יומן</div></div></div>
+        <div class="mod-body">
+          <p>לוח פגישות וביקורים — ניתן לקבוע מועד לקריאה ולשייך לטכנאי. הטכנאי רואה בנייד את המשימות שלו ליום.</p>
+          <div class="actions">
+            <span class="action">תצוגה יומית / שבועית / חודשית</span>
+            <span class="action">יצירת ביקור + שיוך לטכנאי</span>
+            <span class="action">לקוחות רואים זמינות לתיאום</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">✅</div><div><div class="mod-name">משימות</div><div class="mod-tag">צוות › משימות</div></div></div>
+        <div class="mod-body">
+          <p>משימות פנימיות שאינן קריאות שירות — לדוגמה: "לבדוק מלאי גזים", "לחדש ביטוח רכבים".</p>
+          <div class="actions">
+            <span class="action">יצירת משימה + שיוך לעובד</span>
+            <span class="action">תאריך יעד ועדיפות</span>
+            <span class="action">סטטוס: פתוח / בביצוע / סגור</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 7. כספים ── -->
+    <div class="chapter" id="m-money">
+      <div class="ch-head"><div class="ch-num">7</div><div class="ch-title">כספים ודוחות</div></div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">💸</div><div><div class="mod-name">תזרים מזומנים</div><div class="mod-tag">כספים › תזרים</div></div></div>
+        <div class="mod-body">
+          <p>הכנסות מקריאות שירות מול הוצאות — דלק, חלקים, שכר.</p>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הכנסות</strong><span>תשלומים מלקוחות נרשמים ← נכנסים אוטומטית כהכנסה.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הוצאות</strong><span>הוסיפו ידנית: דלק, חלקים שנרכשו, ביטוחים. ניתן לקטלג לפי קטגוריות.</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">דוחות ביצועים</div><div class="mod-tag">כספים › דוחות</div></div></div>
+        <div class="mod-body">
+          <p>ניתוח מלא של הצוות והקריאות — לפי טכנאי, לפי תקופה.</p>
+          <div class="actions">
+            <span class="action">קריאות פתוחות</span>
+            <span class="action">הושלמו החודש / השבוע / היום</span>
+            <span class="action">דחופות פתוחות</span>
+            <span class="action">זמן ממוצע לסגירת קריאה (שעות)</span>
+            <span class="action">הכנסות החודש / סה"כ</span>
+            <span class="action">סינון לפי טכנאי</span>
+            <span class="action">ייצוא לאקסל</span>
+          </div>
+          <div class="box box-good" style="margin-top:10px;">
+            <div class="box-icon">✅</div>
+            <div>הדוח מראה זמן תגובה ממוצע לכל טכנאי — ניתן לזהות מי מטפל מהר ומי עם פיגורים.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📢</div><div><div class="mod-name">פרסום FLOW</div><div class="mod-tag">עוד › פרסום FLOW</div></div></div>
+        <div class="mod-body">
+          <p>פרסמו שירותים ומבצעים לחברי רשת OneFlow — גולשים שמחפשים שירות תחזוקה באזור.</p>
+          <div class="actions">
+            <span class="action">צרו מודעה עם תיאור + מחיר</span>
+            <span class="action">בחרו קהל לפי אזור ותחום</span>
+            <span class="action">פנייה נכנסת → קבלו התראה</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- AUTOMATIONS -->
+      <h2 class="sec" style="margin-top:28px;">אוטומציות — מה קורה לבד</h2>
+      <div class="auto-grid">
+        <div class="auto-card"><div class="auto-icon">🔔</div><div class="auto-title">קריאה חדשה → התראה</div><div class="auto-desc">ברגע שנפתחת קריאת שירות — המנהל מקבל התראה.</div></div>
+        <div class="auto-card"><div class="auto-icon">⚠️</div><div class="auto-title">קריאה לסיווג</div><div class="auto-desc">קריאה שהגיעה מלקוח דרך ONEFLOW LIFE עוברת אוטומטית לסיווג ממנהל.</div></div>
+        <div class="auto-card"><div class="auto-icon">📦</div><div class="auto-title">מלאי נמוך</div><div class="auto-desc">כמות חלק יורדת מתחת לסף — התראה להזמנה מחדש.</div></div>
+        <div class="auto-card"><div class="auto-icon">🚨</div><div class="auto-title">קריאה לא מטופלת</div><div class="auto-desc">קריאה שלא קיבלה טיפול תוך 30 דקות — התראה אוטומטית למנהל.</div></div>
+        <div class="auto-card"><div class="auto-icon">📅</div><div class="auto-title">התראת תאריך ביקור</div><div class="auto-desc">יום לפני ביקור מתוזמן — הטכנאי מקבל תזכורת.</div></div>
+        <div class="auto-card"><div class="auto-icon">⏰</div><div class="auto-title">עובד שלא יצא</div><div class="auto-desc">טכנאי שנכנס לשעון ולא יצא — התראה לתיקון.</div></div>
+      </div>
+
+    </div>
+
+  </div><!-- /wrap -->
+</div><!-- /maintenance -->
 <div id="logistics" class="page"><div class="cs"><div class="cs-i">🚚</div><h2>לוגיסטיקה / הפצה</h2><p>המדריך בהכנה — יתווסף בקרוב</p></div></div>
 <div id="professional" class="page"><div class="cs"><div class="cs-i">👔</div><h2>מקצועי / ייעוץ</h2><p>המדריך בהכנה — יתווסף בקרוב</p></div></div>
 <div id="beauty" class="page"><div class="cs"><div class="cs-i">💅</div><h2>יופי / קוסמטיקה</h2><p>המדריך בהכנה — יתווסף בקרוב</p></div></div>
@@ -1466,7 +1850,8 @@ const obs = new IntersectionObserver(entries => {
     btns.forEach(b => b.classList.remove('on'));
     const map = {
       'r-enter':0,'r-wizard':1,'r-nav':2,'r-sales':3,'r-stock':4,'r-team':5,'r-money':6,'r-auto':7,
-      's-enter':8,'s-wizard':9,'s-nav':10,'s-schedule':11,'s-trainers':12,'s-team':13,'s-equip':14,'s-money':15
+      's-enter':8,'s-wizard':9,'s-nav':10,'s-schedule':11,'s-trainers':12,'s-team':13,'s-equip':14,'s-money':15,
+      'm-enter':16,'m-wizard':17,'m-nav':18,'m-calls':19,'m-stock':20,'m-team':21,'m-money':22
     };
     const i = map[e.target.id];
     if (i !== undefined && btns[i]) btns[i].classList.add('on');
@@ -1474,7 +1859,8 @@ const obs = new IntersectionObserver(entries => {
 }, {threshold:.15, rootMargin:'-60px 0px -50% 0px'});
 [
   'r-enter','r-wizard','r-nav','r-sales','r-stock','r-team','r-money','r-auto',
-  's-enter','s-wizard','s-nav','s-schedule','s-trainers','s-team','s-equip','s-money'
+  's-enter','s-wizard','s-nav','s-schedule','s-trainers','s-team','s-equip','s-money',
+  'm-enter','m-wizard','m-nav','m-calls','m-stock','m-team','m-money'
 ].forEach(id => {
   const el = document.getElementById(id);
   if (el) obs.observe(el);
