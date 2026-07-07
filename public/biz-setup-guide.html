@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OneFlow Life — מדריך הקמת עסק</title>
+<style>
+/* ── Reset & base ─────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;font-size:16px}
+body{font-family:'Segoe UI',Arial,'Arial Hebrew',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;-webkit-font-smoothing:antialiased}
+img{max-width:100%;display:block}
+a{color:inherit;text-decoration:none}
+
+/* ── Tokens ───────────────────────────────────────────────────── */
+:root{
+  --bg:#F7F6FF;--surface:#FFFFFF;--surface2:#EFECFF;
+  --text:#1A1630;--text2:#4B4668;--text3:#8B87A8;
+  --border:#E0DCF5;--shadow:0 2px 12px rgba(30,27,75,.08);
+  --brand:#1E1B4B;--brand-mid:#3730A3;--brand-light:#EEF2FF;
+  --accent:#F43F5E;
+  --radius:16px;--radius-sm:10px;
+  /* בiz-type accents */
+  --sport:#EA580C;--restaurant:#DC2626;--repairs:#475569;
+  --logistics:#059669;--professional:#4F46E5;--beauty:#DB2777;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#0F0E1A;--surface:#1A1830;--surface2:#231F3A;
+  --text:#EDE9FF;--text2:#B8B2D8;--text3:#6B6788;
+  --border:#2E2A4A;--shadow:0 2px 12px rgba(0,0,0,.4);
+  --brand-light:#1E1B4B;
+}}
+:root[data-theme="light"]{
+  --bg:#F7F6FF;--surface:#FFFFFF;--surface2:#EFECFF;
+  --text:#1A1630;--text2:#4B4668;--text3:#8B87A8;
+  --border:#E0DCF5;--shadow:0 2px 12px rgba(30,27,75,.08);--brand-light:#EEF2FF;
+}
+:root[data-theme="dark"]{
+  --bg:#0F0E1A;--surface:#1A1830;--surface2:#231F3A;
+  --text:#EDE9FF;--text2:#B8B2D8;--text3:#6B6788;
+  --border:#2E2A4A;--shadow:0 2px 12px rgba(0,0,0,.4);--brand-light:#1E1B4B;
+}
+
+/* ── Utility ──────────────────────────────────────────────────── */
+.hidden{display:none!important}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.container{max-width:960px;margin:0 auto;padding:0 20px}
+.flex{display:flex}.gap-2{gap:.5rem}.gap-4{gap:1rem}.gap-6{gap:1.5rem}
+.items-center{align-items:center}.justify-between{justify-content:space-between}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem}
+@media(max-width:640px){.grid-2,.grid-3{grid-template-columns:1fr}.grid-2-force{grid-template-columns:1fr 1fr}}
+.text-center{text-align:center}
+
+/* ── Top bar ──────────────────────────────────────────────────── */
+#topbar{
+  position:sticky;top:0;z-index:100;
+  background:var(--brand);
+  box-shadow:0 2px 12px rgba(30,27,75,.3);
+}
+.topbar-inner{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.75rem 1.25rem;gap:1rem;
+}
+.logo-mark{
+  display:flex;align-items:center;gap:.5rem;
+  font-weight:800;font-size:1.1rem;color:#fff;letter-spacing:-.02em;white-space:nowrap;
+}
+.logo-mark span{color:#a5b4fc}
+
+/* ── Biz type tab nav ─────────────────────────────────────────── */
+#biznav{
+  background:var(--brand);border-top:1px solid rgba(255,255,255,.08);
+  overflow-x:auto;scrollbar-width:none;
+}
+#biznav::-webkit-scrollbar{display:none}
+.biznav-inner{
+  display:flex;gap:0;min-width:max-content;padding:0 1rem;
+}
+.bnav-btn{
+  display:flex;align-items:center;gap:.35rem;
+  padding:.6rem 1.1rem;border:none;background:transparent;
+  color:rgba(255,255,255,.55);font-size:.82rem;font-weight:600;
+  cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;
+  transition:color .15s,border-color .15s;
+}
+.bnav-btn:first-child{
+  color:#fff;border-bottom-color:#a5b4fc;
+}
+.bnav-btn:hover{color:rgba(255,255,255,.85)}
+.bnav-btn.active{color:#fff;border-bottom-color:#a5b4fc}
+.bnav-icon{font-size:1rem}
+
+/* ── Hero ─────────────────────────────────────────────────────── */
+#section-home{
+  background:linear-gradient(135deg,var(--brand) 0%,#312E81 60%,#1E1B4B 100%);
+  color:#fff;padding:4rem 1.5rem 3rem;position:relative;overflow:hidden;
+}
+#section-home::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(99,102,241,.35) 0%,transparent 70%);
+  pointer-events:none;
+}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:.4rem;
+  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
+  border-radius:999px;padding:.3rem .9rem;font-size:.78rem;font-weight:700;
+  margin-bottom:1.5rem;letter-spacing:.04em;text-transform:uppercase;
+}
+.hero-title{
+  font-size:clamp(2rem,5vw,3.2rem);font-weight:900;line-height:1.1;
+  letter-spacing:-.03em;margin-bottom:.75rem;
+}
+.hero-title em{color:#a5b4fc;font-style:normal}
+.hero-sub{font-size:1.05rem;color:rgba(255,255,255,.7);max-width:560px;line-height:1.65;margin-bottom:2.5rem}
+
+/* ── Triangle ─────────────────────────────────────────────────── */
+.triangle-wrap{
+  max-width:680px;margin:0 auto 3rem;
+  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:1rem;
+}
+.tri-node{
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  border-radius:var(--radius);padding:1.25rem 1rem;text-align:center;
+  backdrop-filter:blur(4px);
+}
+.tri-node-icon{font-size:2rem;margin-bottom:.4rem}
+.tri-node-title{font-size:.95rem;font-weight:800;margin-bottom:.3rem}
+.tri-node-desc{font-size:.75rem;color:rgba(255,255,255,.65);line-height:1.5}
+.tri-center{
+  display:flex;flex-direction:column;align-items:center;gap:.5rem;font-size:.7rem;
+  color:rgba(255,255,255,.45);font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+}
+.tri-arrow{font-size:1.4rem;color:rgba(255,255,255,.3)}
+@media(max-width:500px){.triangle-wrap{grid-template-columns:1fr;}.tri-center{flex-direction:row}}
+
+/* ── Value columns ────────────────────────────────────────────── */
+.value-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;
+  max-width:800px;margin:0 auto 2.5rem;
+}
+@media(max-width:600px){.value-grid{grid-template-columns:1fr;max-width:100%}}
+.value-card{
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);
+  border-radius:var(--radius);padding:1.5rem 1.25rem;
+}
+.value-card-tag{
+  font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  color:rgba(255,255,255,.45);margin-bottom:.6rem;
+}
+.value-card h3{font-size:1.05rem;font-weight:800;margin-bottom:.5rem}
+.value-card ul{list-style:none;display:flex;flex-direction:column;gap:.3rem}
+.value-card ul li{font-size:.82rem;color:rgba(255,255,255,.7);padding-right:1.1rem;position:relative}
+.value-card ul li::before{content:'←';position:absolute;right:0;color:rgba(255,255,255,.3);font-size:.75rem}
+
+/* ── Auto-flows ───────────────────────────────────────────────── */
+.autoflows{display:flex;flex-direction:column;gap:.75rem;max-width:640px;margin:0 auto 2.5rem}
+.autoflow{
+  display:flex;align-items:center;gap:.75rem;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);
+  border-radius:var(--radius-sm);padding:.85rem 1rem;
+}
+.autoflow-icon{font-size:1.5rem;flex-shrink:0}
+.autoflow-text{font-size:.84rem;line-height:1.5}
+.autoflow-text strong{color:#a5b4fc}
+
+/* ── CTA ──────────────────────────────────────────────────────── */
+.cta-row{display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;margin-top:2rem}
+.cta-btn{
+  display:inline-flex;align-items:center;gap:.5rem;
+  padding:.75rem 1.75rem;border-radius:999px;font-size:.9rem;font-weight:700;
+  cursor:pointer;border:none;transition:transform .15s,box-shadow .15s;
+}
+.cta-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.cta-primary{background:#F43F5E;color:#fff}
+.cta-secondary{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25)}
+
+/* ── Section headers ──────────────────────────────────────────── */
+.section-header{
+  text-align:center;padding:3rem 1.5rem 1.5rem;
+  border-bottom:1px solid var(--border);
+  background:var(--surface);
+}
+.biz-badge{
+  display:inline-flex;align-items:center;gap:.5rem;
+  border-radius:999px;padding:.35rem 1rem;font-size:.8rem;font-weight:800;
+  margin-bottom:.75rem;letter-spacing:.03em;
+}
+.section-title{font-size:1.75rem;font-weight:900;letter-spacing:-.03em;margin-bottom:.4rem}
+.section-sub{font-size:.95rem;color:var(--text2);max-width:480px;margin:0 auto}
+
+/* ── Setup steps ─────────────────────────────────────────────── */
+.steps-section{padding:2rem 1.25rem;background:var(--bg)}
+.steps-title{font-size:1.1rem;font-weight:800;margin-bottom:1.25rem;color:var(--text)}
+.steps{display:flex;flex-direction:column;gap:.75rem}
+.step{
+  display:flex;gap:1rem;align-items:flex-start;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:1rem 1.25rem;
+}
+.step-num{
+  width:2rem;height:2rem;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:.85rem;font-weight:900;flex-shrink:0;margin-top:.1rem;
+}
+.step-body h4{font-size:.9rem;font-weight:800;margin-bottom:.25rem}
+.step-body p{font-size:.82rem;color:var(--text2);line-height:1.55}
+
+/* ── Modules grid ─────────────────────────────────────────────── */
+.modules-section{padding:1.5rem 1.25rem 2.5rem;background:var(--surface2)}
+.modules-title{font-size:1.1rem;font-weight:800;margin-bottom:1.25rem;color:var(--text)}
+.modules-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;
+}
+.module-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-sm);overflow:hidden;
+  transition:box-shadow .15s,transform .15s;
+}
+.module-card:hover{box-shadow:var(--shadow);transform:translateY(-2px)}
+.module-screen{
+  aspect-ratio:9/16;background:var(--surface2);position:relative;
+  overflow:hidden;
+}
+.module-screen img{
+  width:100%;height:100%;object-fit:cover;object-position:top;
+}
+.module-placeholder{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:.5rem;
+  color:var(--text3);font-size:.7rem;text-align:center;padding:.5rem;
+}
+.module-placeholder-icon{font-size:1.8rem}
+.module-info{padding:.6rem .75rem}
+.module-name{font-size:.8rem;font-weight:800;color:var(--text)}
+.module-desc{font-size:.7rem;color:var(--text2);margin-top:.2rem;line-height:1.4}
+
+/* ── Automations section ──────────────────────────────────────── */
+.automations-section{
+  padding:2rem 1.25rem;background:var(--brand);color:#fff;
+}
+.automations-section .steps-title{color:#fff}
+.auto-card{
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+  border-radius:var(--radius-sm);padding:1rem 1.25rem;display:flex;gap:.75rem;align-items:flex-start;
+}
+.auto-card-icon{font-size:1.4rem;flex-shrink:0}
+.auto-card-body h4{font-size:.88rem;font-weight:800;margin-bottom:.25rem;color:#e0e7ff}
+.auto-card-body p{font-size:.78rem;color:rgba(255,255,255,.6);line-height:1.5}
+
+/* ── Footer ───────────────────────────────────────────────────── */
+footer{
+  background:var(--brand);color:rgba(255,255,255,.55);
+  text-align:center;padding:2rem;font-size:.82rem;
+}
+footer strong{color:#fff}
+
+/* ── Biz sections ─────────────────────────────────────────────── */
+.biz-section{display:none}
+.biz-section.active{display:block}
+#section-home{display:block}
+
+/* ── Theme toggle ─────────────────────────────────────────────── */
+.theme-btn{
+  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
+  color:#fff;border-radius:999px;padding:.3rem .75rem;font-size:.75rem;font-weight:700;
+  cursor:pointer;flex-shrink:0;
+}
+
+/* ── Screenshot frame (phone mockup) ─────────────────────────── */
+.phone-wrap{
+  width:160px;height:284px; /* 9:16 at 160px */
+  border-radius:18px;overflow:hidden;border:3px solid var(--border);
+  box-shadow:var(--shadow);background:var(--surface2);position:relative;
+  margin:0 auto;
+}
+.phone-wrap img{width:100%;height:100%;object-fit:cover;object-position:top}
+.phone-placeholder{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:.4rem;
+  color:var(--text3);font-size:.68rem;text-align:center;padding:.5rem;
+}
+.phone-placeholder .ph-icon{font-size:1.6rem}
+.phone-placeholder .ph-name{font-weight:700;color:var(--text2);font-size:.72rem}
+.phone-placeholder .ph-hint{color:var(--text3);font-size:.62rem}
+</style>
+</head>
+<body>
+
+<!-- ── TOP BAR ──────────────────────────────────────────────────── -->
+<nav id="topbar" aria-label="ניווט ראשי">
+  <div class="topbar-inner">
+    <div class="logo-mark">OneFlow <span>Life</span></div>
+    <button class="theme-btn" onclick="toggleTheme()" aria-label="החלף ערכת נושא">🌙 / ☀️</button>
+  </div>
+  <div id="biznav" role="tablist" aria-label="סוגי עסקים">
+    <div class="biznav-inner">
+      <button class="bnav-btn active" role="tab" aria-selected="true"  onclick="showSection('home','this')" data-id="home">
+        <span class="bnav-icon">🏠</span> ראשי
+      </button>
+      <button class="bnav-btn" role="tab" aria-selected="false" onclick="showSection('sport','this')" data-id="sport">
+        <span class="bnav-icon">🏋️</span> ספורט
+      </button>
+      <button class="bnav-btn" role="tab" aria-selected="false" onclick="showSection('restaurant','this')" data-id="restaurant">
+        <span class="bnav-icon">🍕</span> מסעדה
+      </button>
+      <button class="bnav-btn" role="tab" aria-selected="false" onclick="showSection('repairs','this')" data-id="repairs">
+        <span class="bnav-icon">🔧</span> תיקונים
+      </button>
+      <button class="bnav-btn" role="tab" aria-selected="false" onclick="showSection('logistics','this')" data-id="logistics">
+        <span class="bnav-icon">🚚</span> לוגיסטיקה
+      </button>
+      <button class="bnav-btn" role="tab" aria-selected="false" onclick="showSection('professional','this')" data-id="professional">
+        <span class="bnav-icon">👔</span> מומחים
+      </button>
+      <button class="bnav-btn" role="tab" aria-selected="false" onclick="showSection('beauty','this')" data-id="beauty">
+        <span class="bnav-icon">💅</span> יופי
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ════════════════════════════════════════════════════════════════
+     HOME — דף בית שיווקי
+════════════════════════════════════════════════════════════════════ -->
+<section id="section-home" class="biz-section active">
+
+  <!-- HERO -->
+  <div style="background:linear-gradient(135deg,#1E1B4B 0%,#312E81 55%,#1E1B4B 100%);color:#fff;padding:3.5rem 1.5rem 3rem;position:relative;overflow:hidden;">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(99,102,241,.4),transparent 70%);pointer-events:none"></div>
+    <div class="container" style="position:relative;text-align:center">
+      <div class="hero-badge">🔗 מערכת הניהול המשפחתית-עסקית-קהילתית</div>
+      <h1 class="hero-title" style="max-width:680px;margin:0 auto .75rem">
+        ניהול עסק לא היה<br><em>פשוט וחכם</em> כל כך
+      </h1>
+      <p class="hero-sub" style="margin:0 auto 2.5rem;text-align:center">
+        OneFlow Life מחברת את העסק שלך, את המשפחות שסביבך ואת הקהילה — במערכת אחת שעובדת אוטומטית.
+        פחות עבודה ידנית, יותר תוצאות.
+      </p>
+
+      <!-- TRIANGLE -->
+      <div class="triangle-wrap" style="margin-bottom:2.5rem">
+        <div class="tri-node">
+          <div class="tri-node-icon">🏪</div>
+          <div class="tri-node-title">עסק</div>
+          <div class="tri-node-desc">CRM, ניהול צוות, קופה, תזרים, לוח זמנים</div>
+        </div>
+        <div class="tri-center">
+          <div class="tri-arrow">⟷</div>
+          <div>אוטומציה</div>
+          <div class="tri-arrow">⟷</div>
+        </div>
+        <div class="tri-node">
+          <div class="tri-node-icon">👨‍👩‍👧</div>
+          <div class="tri-node-title">משפחה</div>
+          <div class="tri-node-desc">תקציב, קניות, משימות, מטבע FLOW, PayDay</div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:center;margin-bottom:2.5rem">
+        <div class="tri-node" style="max-width:280px">
+          <div class="tri-node-icon">🏘️</div>
+          <div class="tri-node-title">קהילה</div>
+          <div class="tri-node-desc">מבצעים מקומיים, פרסום ממוקד, לידים חמים</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VALUE COLUMNS -->
+  <div style="background:#0F0E1A;color:#fff;padding:2.5rem 1.5rem">
+    <div class="container">
+      <h2 style="text-align:center;font-size:1.4rem;font-weight:900;margin-bottom:1.5rem;letter-spacing:-.02em">ערך לכל סביבה בנפרד</h2>
+      <div class="value-grid">
+        <div class="value-card" style="border-top:3px solid #6366F1">
+          <div class="value-card-tag">🏪 עסק</div>
+          <h3>ניהול מלא תחת קורת גג אחת</h3>
+          <ul>
+            <li>קופה + POS למכירות</li>
+            <li>CRM לקוחות ולידים</li>
+            <li>שעון נוכחות + משמרות</li>
+            <li>תזרים מזומנים חי</li>
+            <li>דוחות והשוואות</li>
+          </ul>
+        </div>
+        <div class="value-card" style="border-top:3px solid #F43F5E">
+          <div class="value-card-tag">👨‍👩‍👧 משפחה</div>
+          <h3>כלכלת הבית בשליטה מלאה</h3>
+          <ul>
+            <li>ניהול תקציב ותזרים</li>
+            <li>רשימת קניות חכמה</li>
+            <li>מטבע FLOW להטבות</li>
+            <li>PayDay אוטומטי לילדים</li>
+            <li>משימות ואקדמיה</li>
+          </ul>
+        </div>
+        <div class="value-card" style="border-top:3px solid #F59E0B">
+          <div class="value-card-tag">🏘️ קהילה</div>
+          <h3>חיבור אמיתי לשוק המקומי</h3>
+          <ul>
+            <li>מבצעים לחברי הקהילה</li>
+            <li>פרסום ממוקד בשטחי מדיה</li>
+            <li>לידים מהקהילה לעסק</li>
+            <li>בניית מוניטין מקומי</li>
+            <li>אירועים ומבצעים</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTOMATIONS -->
+  <div style="background:#1E1B4B;color:#fff;padding:2.5rem 1.5rem">
+    <div class="container">
+      <h2 style="text-align:center;font-size:1.3rem;font-weight:900;margin-bottom:1.5rem;letter-spacing:-.02em">
+        החיבור האוטומטי — כך זה עובד
+      </h2>
+      <div class="autoflows">
+        <div class="autoflow">
+          <div class="autoflow-icon">💸</div>
+          <div class="autoflow-text">
+            <strong>שכר עובד → ארנק משפחה</strong><br>
+            העסק מאשר משכורת → הכסף מגיע ישירות לארנק הדיגיטלי של העובד — ללא העברות, ללא הפתעות
+          </div>
+        </div>
+        <div class="autoflow">
+          <div class="autoflow-icon">🪙</div>
+          <div class="autoflow-text">
+            <strong>קנייה בעסק → מטבעות FLOW לאישה / לילד</strong><br>
+            לקוח שקנה אצלך → זכה במטבעות FLOW → הילדים שלו מקבלים הטבה → הם חוזרים אליך
+          </div>
+        </div>
+        <div class="autoflow">
+          <div class="autoflow-icon">📢</div>
+          <div class="autoflow-text">
+            <strong>מבצע בעסק → פרסום אוטומטי לקהילה</strong><br>
+            הגדרת מבצע → הוא מופיע בפיד של כל משפחות הקהילה שהגדרת → לידים חמים חוזרים אליך
+          </div>
+        </div>
+        <div class="autoflow">
+          <div class="autoflow-icon">📊</div>
+          <div class="autoflow-text">
+            <strong>הוצאת עסק → תזרים משפחתי מעודכן</strong><br>
+            בעל עסק שמוציא על ציוד → ההוצאה נרשמת גם בתזרים העסקי וגם בתקציב המשפחתי אוטומטית
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div style="background:var(--surface);padding:3rem 1.5rem;text-align:center;border-top:1px solid var(--border)">
+    <h2 style="font-size:1.5rem;font-weight:900;margin-bottom:.5rem;color:var(--text)">בחר את סוג העסק שלך</h2>
+    <p style="color:var(--text2);margin-bottom:1.5rem;font-size:.9rem">קבל מדריך הקמה מותאם אישית לעסק שלך</p>
+    <div class="cta-row">
+      <button class="cta-btn" style="background:#EA580C;color:#fff" onclick="showSection('sport')">🏋️ ספורט</button>
+      <button class="cta-btn" style="background:#DC2626;color:#fff" onclick="showSection('restaurant')">🍕 מסעדה</button>
+      <button class="cta-btn" style="background:#475569;color:#fff" onclick="showSection('repairs')">🔧 תיקונים</button>
+      <button class="cta-btn" style="background:#059669;color:#fff" onclick="showSection('logistics')">🚚 לוגיסטיקה</button>
+      <button class="cta-btn" style="background:#4F46E5;color:#fff" onclick="showSection('professional')">👔 מומחים</button>
+      <button class="cta-btn" style="background:#DB2777;color:#fff" onclick="showSection('beauty')">💅 יופי</button>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SPORT ─ ספורט וכושר
+════════════════════════════════════════════════════════════════════ -->
+<section id="section-sport" class="biz-section">
+  <div class="section-header">
+    <div class="biz-badge" style="background:#FFF7ED;color:#EA580C">🏋️ מדריך הקמה</div>
+    <h2 class="section-title">מועדון ספורט / חדר כושר</h2>
+    <p class="section-sub">ניהול מנויים, שיעורים, ציוד ולוח אימונים — הכל במקום אחד</p>
+  </div>
+
+  <!-- STEPS -->
+  <div class="steps-section" style="background:#FFF7ED">
+    <div class="container">
+      <div class="steps-title" style="color:#9A3412">שלבי הקמה — 6 צעדים לעסק פעיל</div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num" style="background:#FED7AA;color:#9A3412">1</div>
+          <div class="step-body">
+            <h4>הגדרת המועדון</h4>
+            <p>בחר "ספורט / כושר" באשף ההקמה. הזן שם המועדון, לוגו וכתובת. קבל קוד ייחודי לשיתוף עם החברים.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num" style="background:#FED7AA;color:#9A3412">2</div>
+          <div class="step-body">
+            <h4>הגדרת שיעורים ופעילויות</h4>
+            <p>כנס ל"מוצרים ושירותים" וצור את רשימת השיעורים: יוגה, ספינינג, כוח — עם מחיר לשיעור בודד ולמנוי.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num" style="background:#FED7AA;color:#9A3412">3</div>
+          <div class="step-body">
+            <h4>פתיחת יומן אימונים</h4>
+            <p>בטאב "יומן" צור אירועי שיעור חוזרים (שבועי, דו-שבועי). החברים יוכלו לרשום את עצמם דרך הקישור.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num" style="background:#FED7AA;color:#9A3412">4</div>
+          <div class="step-body">
+            <h4>הזמנת הצוות</h4>
+            <p>ב"ניהול צוות" הוסף מאמנים ועוזרים. הגדר תפקידים (מנהל / מאמן / קבלן). שלח הזמנה בלחיצה.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num" style="background:#FED7AA;color:#9A3412">5</div>
+          <div class="step-body">
+            <h4>הגדרת מנויים וקופה</h4>
+            <p>בטאב "קופה" הגדר חבילות מנוי (חודשי / 3 חודשים / שנתי). כשחבר משלם — הרשמה אוטומטית לרשימת הפעילים.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num" style="background:#FED7AA;color:#9A3412">6</div>
+          <div class="step-body">
+            <h4>חיבור לקהילה — לידים אוטומטיים</h4>
+            <p>הצטרף לקהילה המקומית בממשק "פרסום FLOW". פרסם מבצע פתיחה — וחברי הקהילה יראו אותו ב-feed שלהם.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULES -->
+  <div class="modules-section">
+    <div class="container">
+      <div class="modules-title">המסכים המרכזיים שלך</div>
+      <div class="modules-grid">
+        <div class="module-card">
+          <div class="module-screen">
+            <img src="screenshots/guide/dashboard.png" alt="לוח בקרה" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="module-placeholder" style="display:none">
+              <div class="module-placeholder-icon">📊</div>
+              <div style="font-weight:700;font-size:.72rem;color:var(--text2)">לוח בקרה</div>
+              <div style="font-size:.6rem;color:var(--text3)">סיכום יומי: הכנסות, אימונים, חברים פעילים</div>
+            </div>
+          </div>
+          <div class="module-info"><div class="module-name">לוח בקרה</div><div class="module-desc">סיכום יומי: הכנסות, אימונים, חברים פעילים</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-screen">
+            <img src="screenshots/guide/calendar.png" alt="יומן" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">📅</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">יומן אימונים</div><div style="font-size:.6rem;color:var(--text3)">שיעורים חוזרים, נרשמים, תזכורות</div></div>
+          </div>
+          <div class="module-info"><div class="module-name">יומן אימונים</div><div class="module-desc">שיעורים חוזרים, נרשמים, תזכורות</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-screen">
+            <img src="screenshots/guide/customers.png" alt="חברים" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">👥</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">חברי המועדון</div><div style="font-size:.6rem;color:var(--text3)">מנוי, היסטוריית ביקורים, חיוב</div></div>
+          </div>
+          <div class="module-info"><div class="module-name">חברי המועדון</div><div class="module-desc">מנוי, היסטוריית ביקורים, חיוב</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-screen">
+            <img src="screenshots/guide/pos.png" alt="קופה" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">💳</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">קופה</div><div style="font-size:.6rem;color:var(--text3)">מנויים, ציוד, קורסים</div></div>
+          </div>
+          <div class="module-info"><div class="module-name">קופה</div><div class="module-desc">מנויים, ציוד, קורסים</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-screen">
+            <img src="screenshots/guide/equipment.png" alt="ציוד" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">🏋️</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">ניהול ציוד</div><div style="font-size:.6rem;color:var(--text3)">מצב, תחזוקה, השאלה</div></div>
+          </div>
+          <div class="module-info"><div class="module-name">ניהול ציוד</div><div class="module-desc">מצב, תחזוקה, השאלה</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-screen">
+            <img src="screenshots/guide/cashflow.png" alt="תזרים" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">📈</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">תזרים מזומנים</div><div style="font-size:.6rem;color:var(--text3)">הכנסות לעומת הוצאות</div></div>
+          </div>
+          <div class="module-info"><div class="module-name">תזרים מזומנים</div><div class="module-desc">הכנסות לעומת הוצאות</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTOMATIONS -->
+  <div class="automations-section">
+    <div class="container">
+      <div class="steps-title">🔗 כך ספורט מתחבר למשפחה ולקהילה</div>
+      <div class="steps" style="gap:.75rem">
+        <div class="auto-card">
+          <div class="auto-card-icon">🪙</div>
+          <div class="auto-card-body"><h4>חבר משלם מנוי ← מקבל מטבעות FLOW</h4><p>כל תשלום מנוי צובר מטבעות שמשפחתו יכולה להשתמש בהם בקניות יומיות — מה שמגביר נאמנות.</p></div>
+        </div>
+        <div class="auto-card">
+          <div class="auto-card-icon">📢</div>
+          <div class="auto-card-body"><h4>מבצע שיעור ← מופיע בקהילה אוטומטית</h4><p>"שיעור ניסיון חינם לנרשמים חדשים" — מפורסם לכל משפחות הקהילה בלחיצה אחת.</p></div>
+        </div>
+        <div class="auto-card">
+          <div class="auto-card-icon">💸</div>
+          <div class="auto-card-body"><h4>שכר מאמן ← מועבר ישירות לארנקו</h4><p>אישרת שכר? הכסף עובר אוטומטית — ללא העברות בנקאיות, ללא טעויות.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     RESTAURANT ─ מסעדה / בית קפה
+════════════════════════════════════════════════════════════════════ -->
+<section id="section-restaurant" class="biz-section">
+  <div class="section-header">
+    <div class="biz-badge" style="background:#FEF2F2;color:#DC2626">🍕 מדריך הקמה</div>
+    <h2 class="section-title">מסעדה / בית קפה</h2>
+    <p class="section-sub">הזמנות שולחן, מטבח דיגיטלי, משלוחים וניהול עלויות — בלחיצת אצבע</p>
+  </div>
+
+  <div class="steps-section" style="background:#FEF2F2">
+    <div class="container">
+      <div class="steps-title" style="color:#991B1B">שלבי הקמה — 6 צעדים לפתיחה</div>
+      <div class="steps">
+        <div class="step"><div class="step-num" style="background:#FECACA;color:#991B1B">1</div><div class="step-body"><h4>הגדרת המסעדה</h4><p>בחר "מסעדה / בית קפה" באשף. הגדר שם, לוגו וסוג (מסעדת שבת, קפה, פסט-פוד). קבל קוד QR לשולחנות.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#FECACA;color:#991B1B">2</div><div class="step-body"><h4>בניית תפריט</h4><p>ב"מוצרים ושירותים" הוסף מנות עם מחיר, קטגוריה ותמונה. תפריט הדיגיטלי נוצר אוטומטית.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#FECACA;color:#991B1B">3</div><div class="step-body"><h4>פתיחת KDS — מסך מטבח</h4><p>מסך המטבח מציג הזמנות בזמן אמת. כשמלצר שולח הזמנה — הטבח רואה אותה מיידית.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#FECACA;color:#991B1B">4</div><div class="step-body"><h4>הגדרת שולחנות ויומן</h4><p>הגדר מספר שולחנות. לקוחות יכולים לקבוע שולחן דרך הלינק שתשלח — הכל נכנס ליומן אוטומטית.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#FECACA;color:#991B1B">5</div><div class="step-body"><h4>הגדרת משלוחים</h4><p>בטאב "משלוחים" הגדר אזורי חלוקה ועלות. שיוך שליחים לאזורים — וניהול מסלולים אוטומטי.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#FECACA;color:#991B1B">6</div><div class="step-body"><h4>חיבור לקהילה</h4><p>פרסם מבצע שבת לחברי הקהילה. משפחות שהגדירו "מסעדה אהובה" יקבלו הודעה אוטומטית.</p></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modules-section">
+    <div class="container">
+      <div class="modules-title">המסכים המרכזיים שלך</div>
+      <div class="modules-grid">
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/pos.png" alt="קופה" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">🍽️</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">קופה + הזמנות</div><div style="font-size:.6rem;color:var(--text3)">קליטת הזמנות בשולחן ו-Take Away</div></div></div><div class="module-info"><div class="module-name">קופה + הזמנות</div><div class="module-desc">קליטת הזמנות בשולחן ו-Take Away</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/dashboard.png" alt="KDS" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">👨‍🍳</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">מסך מטבח (KDS)</div><div style="font-size:.6rem;color:var(--text3)">הזמנות פעילות לפי סדר קדימות</div></div></div><div class="module-info"><div class="module-name">מסך מטבח (KDS)</div><div class="module-desc">הזמנות פעילות לפי סדר קדימות</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/calendar.png" alt="יומן" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">🗓️</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">הזמנות שולחן</div><div style="font-size:.6rem;color:var(--text3)">הזמנות שולחן עם מספר סועדים</div></div></div><div class="module-info"><div class="module-name">הזמנות שולחן</div><div class="module-desc">הזמנות שולחן עם מספר סועדים</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/deliveries.png" alt="משלוחים" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">🛵</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">ניהול משלוחים</div><div style="font-size:.6rem;color:var(--text3)">שליחים, אזורים, מסלולים</div></div></div><div class="module-info"><div class="module-name">ניהול משלוחים</div><div class="module-desc">שליחים, אזורים, מסלולים</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/pantry.png" alt="מחסן" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">📦</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">מחסן חומרי גלם</div><div style="font-size:.6rem;color:var(--text3)">מלאי, ספקים, עלות מנה</div></div></div><div class="module-info"><div class="module-name">מחסן חומרי גלם</div><div class="module-desc">מלאי, ספקים, עלות מנה</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/shifts.png" alt="משמרות" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">⏰</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">משמרות</div><div style="font-size:.6rem;color:var(--text3)">לוח משמרות שבועי לכל הצוות</div></div></div><div class="module-info"><div class="module-name">משמרות</div><div class="module-desc">לוח משמרות שבועי לכל הצוות</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="automations-section">
+    <div class="container">
+      <div class="steps-title">🔗 כך המסעדה מתחברת לקהילה</div>
+      <div class="steps" style="gap:.75rem">
+        <div class="auto-card"><div class="auto-card-icon">🎁</div><div class="auto-card-body"><h4>ארוחת שבת ← הנחה לחברי קהילה</h4><p>הגדר הנחה אוטומטית לחברים בקהילה. הם מציגים קוד — ומקבלים 10% הנחה מיידית.</p></div></div>
+        <div class="auto-card"><div class="auto-card-icon">🍕</div><div class="auto-card-body"><h4>מבצע שבועי ← push לכל המשפחות</h4><p>יצרת מבצע "פיצה ב-49 ש"ח"? הוא מופיע ב-feed של כל הקהילה — ומשפחות מזמינות ישירות.</p></div></div>
+        <div class="auto-card"><div class="auto-card-icon">⭐</div><div class="auto-card-body"><h4>ביקורת לקוח ← ציון קהילתי</h4><p>לקוחות מדרגים את החוויה — הציון מצטבר ומוצג בפרופיל העסק בקהילה, בונה מוניטין.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     REPAIRS ─ תחזוקה ותיקונים
+════════════════════════════════════════════════════════════════════ -->
+<section id="section-repairs" class="biz-section">
+  <div class="section-header">
+    <div class="biz-badge" style="background:#F1F5F9;color:#475569">🔧 מדריך הקמה</div>
+    <h2 class="section-title">תחזוקה ותיקונים</h2>
+    <p class="section-sub">קריאות שירות, שיוך טכנאים, מעקב תקלות וחלקים — ניהול שלם מהטלפון</p>
+  </div>
+
+  <div class="steps-section" style="background:#F1F5F9">
+    <div class="container">
+      <div class="steps-title" style="color:#1E293B">שלבי הקמה — 6 צעדים</div>
+      <div class="steps">
+        <div class="step"><div class="step-num" style="background:#CBD5E1;color:#1E293B">1</div><div class="step-body"><h4>הגדרת עסק התיקונים</h4><p>בחר "תחזוקה ותיקונים". הגדר התמחות (מכשירי חשמל, אינסטלציה, מזגנים). קבל קוד לשיתוף לקוחות.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#CBD5E1;color:#1E293B">2</div><div class="step-body"><h4>הגדרת שירותים ומחירים</h4><p>ב"מוצרים ושירותים" הגדר: אבחון, תיקון בסיסי, התקנה מלאה. הגדר מחיר בסיס לכל שירות.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#CBD5E1;color:#1E293B">3</div><div class="step-body"><h4>פתיחת יומן קריאות שירות</h4><p>כל קריאה שמגיעה נרשמת ביומן עם כתובת, תיאור תקלה ורמת דחיפות. שיוך לטכנאי — בלחיצה.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#CBD5E1;color:#1E293B">4</div><div class="step-body"><h4>הוספת טכנאים לצוות</h4><p>ב"ניהול צוות" הוסף טכנאים עם תחום התמחות. הם מקבלים הודעה על קריאה שהוקצתה להם.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#CBD5E1;color:#1E293B">5</div><div class="step-body"><h4>ניהול מלאי חלקים</h4><p>ב"מחסן" הגדר חלקי חילוף נפוצים עם מחיר. כשטכנאי משתמש בחלק — הוא מנוכה אוטומטית מהמלאי.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#CBD5E1;color:#1E293B">6</div><div class="step-body"><h4>פרסום בקהילה</h4><p>הצטרף לקהילה המקומית. כשמשפחה צריכה תיקון — היא מוצאת אותך ישירות בפיד הקהילה.</p></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modules-section">
+    <div class="container">
+      <div class="modules-title">המסכים המרכזיים שלך</div>
+      <div class="modules-grid">
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/calendar.png" alt="קריאות" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">📋</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">קריאות שירות</div><div style="font-size:.6rem;color:var(--text3)">יומן קריאות לפי טכנאי ותאריך</div></div></div><div class="module-info"><div class="module-name">קריאות שירות</div><div class="module-desc">יומן קריאות לפי טכנאי ותאריך</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/customers.png" alt="לקוחות" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">👤</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">לקוחות</div><div style="font-size:.6rem;color:var(--text3)">היסטוריית תיקונים, כתובות</div></div></div><div class="module-info"><div class="module-name">לקוחות</div><div class="module-desc">היסטוריית תיקונים, כתובות</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/tasks.png" alt="משימות" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">✅</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">משימות</div><div style="font-size:.6rem;color:var(--text3)">מעקב סטטוס לכל קריאה</div></div></div><div class="module-info"><div class="module-name">משימות</div><div class="module-desc">מעקב סטטוס לכל קריאה</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/pantry.png" alt="מלאי" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">🔩</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">מלאי חלקים</div><div style="font-size:.6rem;color:var(--text3)">חלקי חילוף, ספקים, רכש</div></div></div><div class="module-info"><div class="module-name">מלאי חלקים</div><div class="module-desc">חלקי חילוף, ספקים, רכש</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/members.png" alt="טכנאים" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">👷</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">טכנאים</div><div style="font-size:.6rem;color:var(--text3)">עומס עבודה, מיקום, ביצועים</div></div></div><div class="module-info"><div class="module-name">טכנאים</div><div class="module-desc">עומס עבודה, מיקום, ביצועים</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/cashflow.png" alt="תזרים" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">💰</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">הכנסות ותזרים</div><div style="font-size:.6rem;color:var(--text3)">הכנסות לפי טכנאי וסוג שירות</div></div></div><div class="module-info"><div class="module-name">הכנסות ותזרים</div><div class="module-desc">הכנסות לפי טכנאי וסוג שירות</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="automations-section">
+    <div class="container">
+      <div class="steps-title">🔗 כך תיקונים מתחבר לקהילה</div>
+      <div class="steps" style="gap:.75rem">
+        <div class="auto-card"><div class="auto-card-icon">🏘️</div><div class="auto-card-body"><h4>משפחה מבקשת תיקון ← מוצאת אותך</h4><p>כשמשפחה כותבת "מחפשת אינסטלטור" בקהילה — המערכת מציגה אותך כעסק מאומת בקהילה.</p></div></div>
+        <div class="auto-card"><div class="auto-card-icon">⭐</div><div class="auto-card-body"><h4>לקוח מרוצה ← ביקורת ← לקוחות חדשים</h4><p>לאחר סיום קריאה, הלקוח מקבל בקשה לדירוג. ביקורת טובה = פרופיל חזק יותר בקהילה.</p></div></div>
+        <div class="auto-card"><div class="auto-card-icon">📱</div><div class="auto-card-body"><h4>כרטיס שירות ← משפחה מקבלת עדכון</h4><p>פתחת "קריאת שירות"? הלקוח מקבל עדכון SMS אוטומטי על סטטוס ושעת הגעה משוערת.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     LOGISTICS ─ לוגיסטיקה / הפצה
+════════════════════════════════════════════════════════════════════ -->
+<section id="section-logistics" class="biz-section">
+  <div class="section-header">
+    <div class="biz-badge" style="background:#ECFDF5;color:#059669">🚚 מדריך הקמה</div>
+    <h2 class="section-title">לוגיסטיקה / הפצה</h2>
+    <p class="section-sub">ניהול צי רכבים, נהגים, מסלולים ומעקב הזמנות בזמן אמת</p>
+  </div>
+
+  <div class="steps-section" style="background:#ECFDF5">
+    <div class="container">
+      <div class="steps-title" style="color:#064E3B">שלבי הקמה — 6 צעדים</div>
+      <div class="steps">
+        <div class="step"><div class="step-num" style="background:#A7F3D0;color:#064E3B">1</div><div class="step-body"><h4>הגדרת חברת ההפצה</h4><p>בחר "לוגיסטיקה / הפצה". הגדר אזורי חלוקה ראשיים, שעות פעילות ומדיניות COD (תשלום במסירה).</p></div></div>
+        <div class="step"><div class="step-num" style="background:#A7F3D0;color:#064E3B">2</div><div class="step-body"><h4>הוספת צי הרכבים</h4><p>ב"ניהול רכבים" הוסף כל רכב: לוחית, סוג, קיבולת. כל רכב מקבל מספר ייחודי למעקב.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#A7F3D0;color:#064E3B">3</div><div class="step-body"><h4>הוספת נהגים</h4><p>ב"ניהול נהגים" הוסף כל נהג: אזור אחריות, רכב קבוע, שעות עבודה. קשר נהג ← רכב ← אזור.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#A7F3D0;color:#064E3B">4</div><div class="step-body"><h4>הגדרת מחירון הפצה</h4><p>ב"תמחור" הגדר מחיר לפי משקל / נפח / אזור / מרחק. המחיר מחושב אוטומטית לכל הזמנה.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#A7F3D0;color:#064E3B">5</div><div class="step-body"><h4>קליטת הזמנות ראשונות</h4><p>ב"הזמנות" הוסף לקוח ב-B2B ראשון. שייך הזמנה לנהג ← מסלול ← רכב. שלח אישור ללקוח.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#A7F3D0;color:#064E3B">6</div><div class="step-body"><h4>הפעלת מעקב הזמנות</h4><p>הלקוחות מקבלים לינק מעקב חי. הם רואים את הנהג על המפה ואת שעת הגעה משוערת.</p></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modules-section">
+    <div class="container">
+      <div class="modules-title">המסכים המרכזיים שלך</div>
+      <div class="modules-grid">
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/logistics-orders.png" alt="הזמנות" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">📦</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">הזמנות</div><div style="font-size:.6rem;color:var(--text3)">סטטוס כל הזמנה בזמן אמת</div></div></div><div class="module-info"><div class="module-name">הזמנות</div><div class="module-desc">סטטוס כל הזמנה בזמן אמת</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/logistics-drivers.png" alt="נהגים" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">🧑‍✈️</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">נהגים</div><div style="font-size:.6rem;color:var(--text3)">עומס, ביצועים, מיקום חי</div></div></div><div class="module-info"><div class="module-name">נהגים</div><div class="module-desc">עומס, ביצועים, מיקום חי</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/logistics-vehicles.png" alt="רכבים" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">🚛</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">צי רכבים</div><div style="font-size:.6rem;color:var(--text3)">מצב, ק"מ, תחזוקה</div></div></div><div class="module-info"><div class="module-name">צי רכבים</div><div class="module-desc">מצב, ק"מ, תחזוקה</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/logistics-routes.png" alt="מסלולים" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">🗺️</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">מסלולים</div><div style="font-size:.6rem;color:var(--text3)">אופטימיזציית נסיעה לפי כתובות</div></div></div><div class="module-info"><div class="module-name">מסלולים</div><div class="module-desc">אופטימיזציית נסיעה לפי כתובות</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/logistics-tracking.png" alt="מעקב" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">📍</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">מעקב חי</div><div style="font-size:.6rem;color:var(--text3)">לקוחות עוקבים אחרי ההזמנה</div></div></div><div class="module-info"><div class="module-name">מעקב חי</div><div class="module-desc">לקוחות עוקבים אחרי ההזמנה</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/logistics-invoices.png" alt="חשבוניות" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">🧾</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">חשבוניות</div><div style="font-size:.6rem;color:var(--text3)">חשבוניות אוטומטיות ללקוחות B2B</div></div></div><div class="module-info"><div class="module-name">חשבוניות</div><div class="module-desc">חשבוניות אוטומטיות ללקוחות B2B</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="automations-section">
+    <div class="container">
+      <div class="steps-title">🔗 כך לוגיסטיקה מתחברת לקהילה</div>
+      <div class="steps" style="gap:.75rem">
+        <div class="auto-card"><div class="auto-card-icon">📦</div><div class="auto-card-body"><h4>משפחה מזמינה ← נהג יוצא ← משפחה מקבלת מעקב</h4><p>משפחה הזמינה מוצר דרך הקהילה? הנהג מקבל כתובת — המשפחה מקבלת לינק מעקב חי.</p></div></div>
+        <div class="auto-card"><div class="auto-card-icon">💰</div><div class="auto-card-body"><h4>COD אוטומטי — תשלום במסירה</h4><p>נהג גובה מזומן? מדווח בטלפון — הכסף מתעדכן בקופה אוטומטית ללא טפסים ידניים.</p></div></div>
+        <div class="auto-card"><div class="auto-card-icon">🏘️</div><div class="auto-card-body"><h4>הפצה לקהילות ← לקוחות B2C חדשים</h4><p>הצטרף לקהילה כ"שירות הפצה". משפחות שקנו אונליין ורוצות משלוח — מוצאות אותך.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     PROFESSIONAL ─ מקצועי / ייעוץ / מומחים
+════════════════════════════════════════════════════════════════════ -->
+<section id="section-professional" class="biz-section">
+  <div class="section-header">
+    <div class="biz-badge" style="background:#EEF2FF;color:#4F46E5">👔 מדריך הקמה</div>
+    <h2 class="section-title">מקצועי / ייעוץ / מומחים</h2>
+    <p class="section-sub">ניהול תיקי לקוחות, לידים, שעות עבודה ומסמכים — לרו"ח, עו"ד, יועצים ומומחים</p>
+  </div>
+
+  <div class="steps-section" style="background:#EEF2FF">
+    <div class="container">
+      <div class="steps-title" style="color:#312E81">שלבי הקמה — 6 צעדים</div>
+      <div class="steps">
+        <div class="step"><div class="step-num" style="background:#C7D2FE;color:#312E81">1</div><div class="step-body"><h4>הגדרת המשרד</h4><p>בחר "מקצועי / ייעוץ". הגדר תחום (משפטי / חשבונאי / ייעוץ עסקי / ריפוי). קבל כרטיס ביקור דיגיטלי.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#C7D2FE;color:#312E81">2</div><div class="step-body"><h4>הגדרת שירותים ותעריפים</h4><p>הגדר שירותים עם תעריף לשעה / לפרויקט. כל שירות מוצג בפרופיל הקהילה שלך.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#C7D2FE;color:#312E81">3</div><div class="step-body"><h4>פתיחת תיקי לקוחות</h4><p>ב"תיקים" פתח תיק לכל לקוח: שם, נושא, מסמכים, היסטוריית תשלומים. הכל במקום אחד.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#C7D2FE;color:#312E81">4</div><div class="step-body"><h4>מעקב שעות עבודה</h4><p>ב"יומן שעות" תעד שעות עבודה לכל לקוח. דוח שעות מוכן לחיוב נוצר אוטומטית.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#C7D2FE;color:#312E81">5</div><div class="step-body"><h4>ניהול לידים</h4><p>ב"לידים" תעד פניות חדשות: מקור, פוטנציאל, סטטוס. כל פנייה עוברת מסע — מליד ללקוח.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#C7D2FE;color:#312E81">6</div><div class="step-body"><h4>נוכחות בקהילה</h4><p>הפרופיל שלך מופיע כ"מומחה מקומי" בקהילה. פניות מגיעות ישירות ל-CRM ללא שאלות.</p></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modules-section">
+    <div class="container">
+      <div class="modules-title">המסכים המרכזיים שלך</div>
+      <div class="modules-grid">
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/cases.png" alt="תיקים" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">📁</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">תיקי לקוחות</div><div style="font-size:.6rem;color:var(--text3)">מסמכים, תשלומים, סטטוס תיק</div></div></div><div class="module-info"><div class="module-name">תיקי לקוחות</div><div class="module-desc">מסמכים, תשלומים, סטטוס תיק</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/leads.png" alt="לידים" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">🎯</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">לידים</div><div style="font-size:.6rem;color:var(--text3)">פנייה ← הצעה ← לקוח</div></div></div><div class="module-info"><div class="module-name">לידים</div><div class="module-desc">פנייה ← הצעה ← לקוח</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/timelog.png" alt="שעות" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">⏱️</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">יומן שעות</div><div style="font-size:.6rem;color:var(--text3)">תיעוד שעות לפי לקוח ופרויקט</div></div></div><div class="module-info"><div class="module-name">יומן שעות</div><div class="module-desc">תיעוד שעות לפי לקוח ופרויקט</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/documents.png" alt="מסמכים" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">📄</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">מסמכים</div><div style="font-size:.6rem;color:var(--text3)">חוזים, הצעות מחיר, אישורים</div></div></div><div class="module-info"><div class="module-name">מסמכים</div><div class="module-desc">חוזים, הצעות מחיר, אישורים</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/calendar.png" alt="יומן" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">📅</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">יומן פגישות</div><div style="font-size:.6rem;color:var(--text3)">פגישות, שיחות, ווידאו</div></div></div><div class="module-info"><div class="module-name">יומן פגישות</div><div class="module-desc">פגישות, שיחות, ווידאו</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/cashflow.png" alt="תזרים" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">📊</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">חיוב ותזרים</div><div style="font-size:.6rem;color:var(--text3)">הכנסות לפי לקוח ופרויקט</div></div></div><div class="module-info"><div class="module-name">חיוב ותזרים</div><div class="module-desc">הכנסות לפי לקוח ופרויקט</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="automations-section">
+    <div class="container">
+      <div class="steps-title">🔗 כך מומחים מתחברים לקהילה</div>
+      <div class="steps" style="gap:.75rem">
+        <div class="auto-card"><div class="auto-card-icon">🏘️</div><div class="auto-card-body"><h4>קהילה מחפשת מומחה ← מוצאת אותך</h4><p>משפחה שצריכה "יועץ מס" — המערכת מציגה אותך כמומחה מאומת בקהילה עם ביקורות.</p></div></div>
+        <div class="auto-card"><div class="auto-card-icon">📋</div><div class="auto-card-body"><h4>פנייה חדשה ← נכנסת ישירות לCRM</h4><p>לקוח פוטנציאלי לחץ "צור קשר" בפרופיל הקהילה → ליד נוצר אוטומטית בטאב "לידים" שלך.</p></div></div>
+        <div class="auto-card"><div class="auto-card-icon">💸</div><div class="auto-card-body"><h4>שכר שותף ← מועבר לארנקו</h4><p>יש לך שותפים? אשרת חלוקת רווח — כל אחד מקבל לארנקו הדיגיטלי אוטומטית.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     BEAUTY ─ יופי / קוסמטיקה
+════════════════════════════════════════════════════════════════════ -->
+<section id="section-beauty" class="biz-section">
+  <div class="section-header">
+    <div class="biz-badge" style="background:#FDF2F8;color:#DB2777">💅 מדריך הקמה</div>
+    <h2 class="section-title">יופי / קוסמטיקה / ספא</h2>
+    <p class="section-sub">יומן תורים חכם, ניהול מטפלות, מנויים ועמלות — כל מה שסלון צריך</p>
+  </div>
+
+  <div class="steps-section" style="background:#FDF2F8">
+    <div class="container">
+      <div class="steps-title" style="color:#831843">שלבי הקמה — 6 צעדים</div>
+      <div class="steps">
+        <div class="step"><div class="step-num" style="background:#FBCFE8;color:#831843">1</div><div class="step-body"><h4>הגדרת הסלון</h4><p>בחר "יופי / קוסמטיקה". הגדר שם, לוגו, כתובת וסוג (סלון שיער / ניקיון פנים / ספא / ציפורניים). קבל קוד QR לתלייה.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#FBCFE8;color:#831843">2</div><div class="step-body"><h4>הוספת מטפלות</h4><p>ב"מטפלות" הוסף כל מטפלת: שם, תמונה, התמחות (שיער / ציפורניים / עיסוי), שעות עבודה. כל מטפלת מקבלת יומן נפרד.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#FBCFE8;color:#831843">3</div><div class="step-body"><h4>הגדרת שירותים ומחירים</h4><p>ב"שירותים" הוסף טיפולים עם משך זמן ומחיר. שייך כל שירות למטפלת המתאימה — ותיאום תורים אוטומטי.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#FBCFE8;color:#831843">4</div><div class="step-body"><h4>פתיחת קביעת תורים</h4><p>הלקוחות קובעות תור דרך לינק ישיר ← בוחרות מטפלת ← בוחרות שירות ← בוחרות שעה פנויה. אישור אוטומטי ב-SMS.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#FBCFE8;color:#831843">5</div><div class="step-body"><h4>מנויים ומנות טיפולים</h4><p>ב"מנויים" הגדר חבילות: "10 טיפולי פנים ב-₪800". הלקוחה קונה — השימושים מנוכים אוטומטית.</p></div></div>
+        <div class="step"><div class="step-num" style="background:#FBCFE8;color:#831843">6</div><div class="step-body"><h4>עמלות אוטומטיות למטפלות</h4><p>הגדר אחוז עמלה לכל מטפלת. בסוף חודש — דוח עמלות מוכן לתשלום. ללא חישובים ידניים.</p></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modules-section">
+    <div class="container">
+      <div class="modules-title">המסכים המרכזיים שלך</div>
+      <div class="modules-grid">
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/beauty-calendar.png" alt="יומן" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">🗓️</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">יומן תורים</div><div style="font-size:.6rem;color:var(--text3)">תצוגת תורים לפי מטפלת ושעה</div></div></div><div class="module-info"><div class="module-name">יומן תורים</div><div class="module-desc">תצוגת תורים לפי מטפלת ושעה</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/beauty-practitioners.png" alt="מטפלות" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">💆</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">מטפלות</div><div style="font-size:.6rem;color:var(--text3)">זמינות, עומס, ביצועים</div></div></div><div class="module-info"><div class="module-name">מטפלות</div><div class="module-desc">זמינות, עומס, ביצועים</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/beauty-services.png" alt="שירותים" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">✨</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">שירותים</div><div style="font-size:.6rem;color:var(--text3)">רשימת טיפולים, מחיר, משך</div></div></div><div class="module-info"><div class="module-name">שירותים</div><div class="module-desc">רשימת טיפולים, מחיר, משך</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/beauty-clients.png" alt="לקוחות" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">👩</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">כרטיס לקוחה</div><div style="font-size:.6rem;color:var(--text3)">היסטוריה, העדפות, מנוי</div></div></div><div class="module-info"><div class="module-name">כרטיס לקוחה</div><div class="module-desc">היסטוריה, העדפות, מנוי</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/beauty-subscriptions.png" alt="מנויים" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">🎟️</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">מנויים וחבילות</div><div style="font-size:.6rem;color:var(--text3)">חבילות טיפולים, ניהול שימושים</div></div></div><div class="module-info"><div class="module-name">מנויים וחבילות</div><div class="module-desc">חבילות טיפולים, ניהול שימושים</div></div></div>
+        <div class="module-card"><div class="module-screen"><img src="screenshots/guide/beauty-commissions.png" alt="עמלות" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="module-placeholder" style="display:none"><div class="module-placeholder-icon">💰</div><div style="font-weight:700;font-size:.72rem;color:var(--text2)">עמלות מטפלות</div><div style="font-size:.6rem;color:var(--text3)">חישוב אוטומטי לפי הכנסות</div></div></div><div class="module-info"><div class="module-name">עמלות מטפלות</div><div class="module-desc">חישוב אוטומטי לפי הכנסות</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="automations-section">
+    <div class="container">
+      <div class="steps-title">🔗 כך יופי מתחבר למשפחה ולקהילה</div>
+      <div class="steps" style="gap:.75rem">
+        <div class="auto-card"><div class="auto-card-icon">💌</div><div class="auto-card-body"><h4>תור שנקבע ← תזכורת SMS אוטומטית</h4><p>24 שעות לפני התור — הלקוחה מקבלת SMS עם פרטי התור ואפשרות ביטול ללא טלפון.</p></div></div>
+        <div class="auto-card"><div class="auto-card-icon">🪙</div><div class="auto-card-body"><h4>טיפול בוצע ← FLOW לחשבון הלקוחה</h4><p>כל ביקור צובר מטבעות FLOW. הלקוחה משתמשת בהם לטיפול הבא — מה שמגביר חזרות.</p></div></div>
+        <div class="auto-card"><div class="auto-card-icon">👑</div><div class="auto-card-body"><h4>מבצע סלון ← חברות הקהילה רואות</h4><p>"צבע שורשים ב-99 ₪ לחברות הקהילה בלבד" — פרסם מבצע, ותורים מגיעים מהקהילה.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ─────────────────────────────────────────────────────── -->
+<footer>
+  <strong>OneFlow Life</strong> — מערכת ניהול חכמה לעסקים, משפחות וקהילות<br>
+  <span style="font-size:.75rem;margin-top:.3rem;display:block">כל הזכויות שמורות · oneflowlife.co.il</span>
+</footer>
+
+<script>
+// ── Tab navigation ────────────────────────────────────────────────
+function showSection(id, btnCtx) {
+  // hide all sections
+  document.querySelectorAll('.biz-section').forEach(s => s.classList.remove('active'));
+  // show target
+  const target = document.getElementById('section-' + id);
+  if (target) target.classList.add('active');
+  // update nav buttons
+  document.querySelectorAll('.bnav-btn').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
+  const activeBtn = document.querySelector(`.bnav-btn[data-id="${id}"]`);
+  if (activeBtn) {
+    activeBtn.classList.add('active');
+    activeBtn.setAttribute('aria-selected', 'true');
+    activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }
+  // scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Theme toggle ──────────────────────────────────────────────────
+function toggleTheme() {
+  const r = document.documentElement;
+  const cur = r.getAttribute('data-theme');
+  r.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+  localStorage.setItem('ofl-guide-theme', r.getAttribute('data-theme'));
+}
+
+// Init theme from OS / storage
+(function() {
+  const saved = localStorage.getItem('ofl-guide-theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.setAttribute('data-theme', saved || (prefersDark ? 'dark' : 'light'));
+})();
+</script>
+</body>
+</html>
