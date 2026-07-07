@@ -195,6 +195,13 @@ async function fetchBanners() {
 }
 
 let _adsCache = null;
+
+// מוסיף טרנספורמציה של Cloudinary לאיכות מיטבית בגודל מתאים לתצוגה
+function cldOptimize(url, { w = 800, q = 'auto:best' } = {}) {
+    if (!url || !url.includes('res.cloudinary.com')) return url;
+    return url.replace(/\/upload\/(?!.*\/upload\/)/, `/upload/c_fit,w_${w},q_${q}/`);
+}
+
 async function fetchAds() {
     try {
         // טען כיתוב preloader מ-cache
@@ -211,13 +218,13 @@ async function fetchAds() {
     } catch(e) {}
 }
 
-function renderAdSlot(slotKey, imgEl, linkEl, wrapEl, placeholderEl) {
+function renderAdSlot(slotKey, imgEl, linkEl, wrapEl, placeholderEl, cldW) {
     const slot = _adsCache && _adsCache[slotKey];
     const hasAd = slot && slot.active && slot.img;
     // container always visible
     if(wrapEl) wrapEl.classList.remove('hidden');
     if(hasAd) {
-        if(imgEl) imgEl.src = slot.img;
+        if(imgEl) imgEl.src = cldOptimize(slot.img, { w: cldW || 800 });
         if(linkEl) { linkEl.href = slot.link || '#'; linkEl.classList.remove('hidden'); }
         if(placeholderEl) placeholderEl.classList.add('hidden');
     } else {
@@ -237,7 +244,7 @@ function applyAdsToDOM(slots) {
         const spinnerWrap = getEl('preloader-spinner-wrap');
         if(spinnerWrap) spinnerWrap.classList.remove('hidden');
         const si = getEl('preloader-splash-img');
-        if(si && si.getAttribute('src') !== slots.splash.img) { si.src = slots.splash.img; }
+        if(si && si.getAttribute('src') !== slots.splash.img) { si.src = cldOptimize(slots.splash.img, {w:900}); }
         requestAnimationFrame(() => {
             const bar = getEl('preloader-splash-bar');
             if(bar) { bar.style.width = '0%'; requestAnimationFrame(() => { bar.style.width = '100%'; }); }
@@ -248,25 +255,25 @@ function applyAdsToDOM(slots) {
         const defB = getEl('preloader-default-biz'); if(defB) defB.classList.add('hidden');
         const splashB = getEl('preloader-splash-biz'); if(splashB) { splashB.href = slots.splash_biz.link || '#'; splashB.classList.remove('hidden'); }
         const spinB = getEl('preloader-spinner-biz'); if(spinB) spinB.classList.remove('hidden');
-        const siB = getEl('preloader-splash-biz-img'); if(siB && siB.getAttribute('src') !== slots.splash_biz.img) siB.src = slots.splash_biz.img;
+        const siB = getEl('preloader-splash-biz-img'); if(siB && siB.getAttribute('src') !== slots.splash_biz.img) siB.src = cldOptimize(slots.splash_biz.img, {w:900});
         requestAnimationFrame(() => { const b = getEl('preloader-splash-biz-bar'); if(b) { b.style.width='0%'; requestAnimationFrame(()=>{ b.style.width='100%'; }); } });
     }
-    // balance side
-    renderAdSlot('balance_side', getEl('ad-slot-balance-side-img'), getEl('ad-slot-balance-side'), getEl('ad-slot-balance-side'), getEl('ad-slot-balance-side-placeholder'));
-    // flow
-    renderAdSlot('flow', getEl('ad-slot-flow-img'), getEl('ad-slot-flow-link'), getEl('ad-slot-flow'), getEl('ad-slot-flow-ph'));
-    // shop top
-    renderAdSlot('shop_top', getEl('ad-slot-shop-top-img'), getEl('ad-slot-shop-top-link'), getEl('ad-slot-shop-top'), getEl('ad-slot-shop-top-ph'));
+    // balance side (w-2/3 of ~370px ≈ 247px → serve 600px for 2× sharpness)
+    renderAdSlot('balance_side', getEl('ad-slot-balance-side-img'), getEl('ad-slot-balance-side'), getEl('ad-slot-balance-side'), getEl('ad-slot-balance-side-placeholder'), 600);
+    // flow (full-width banner, serve 900px)
+    renderAdSlot('flow', getEl('ad-slot-flow-img'), getEl('ad-slot-flow-link'), getEl('ad-slot-flow'), getEl('ad-slot-flow-ph'), 900);
+    // shop top (full-width, serve 900px)
+    renderAdSlot('shop_top', getEl('ad-slot-shop-top-img'), getEl('ad-slot-shop-top-link'), getEl('ad-slot-shop-top'), getEl('ad-slot-shop-top-ph'), 900);
     // supermarket splash — only show when active
     const smSplash = slots.supermarket_splash;
     if(smSplash && smSplash.active && smSplash.img) {
-        const si = getEl('ad-slot-supermarket-splash-img'); if(si) si.src = smSplash.img;
+        const si = getEl('ad-slot-supermarket-splash-img'); if(si) si.src = cldOptimize(smSplash.img, {w:900});
         const sl = getEl('ad-slot-supermarket-splash-link'); if(sl) sl.href = smSplash.link || '#';
     }
-    // page tops
+    // page tops (full-width, serve 900px)
     ['pantry_top','home_maint_top','bank_top','cashflow_top','budget_top','forecast_top','tasks_top','academy_top','community_top'].forEach(key => {
         const slug = key.replace(/_/g, '-');
-        renderAdSlot(key, getEl(`ad-slot-${slug}-img`), getEl(`ad-slot-${slug}-link`), getEl(`ad-slot-${slug}`), getEl(`ad-slot-${slug}-ph`));
+        renderAdSlot(key, getEl(`ad-slot-${slug}-img`), getEl(`ad-slot-${slug}-link`), getEl(`ad-slot-${slug}`), getEl(`ad-slot-${slug}-ph`), 900);
     });
 }
 

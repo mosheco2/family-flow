@@ -7759,6 +7759,13 @@ window.savePreloaderText = async function() {
     } catch(e) { if(statusEl){statusEl.textContent='❌ שגיאה'; statusEl.className='text-xs font-bold text-red-600'; statusEl.classList.remove('hidden');} }
 };
 
+// ─── Cloudinary URL optimizer — מחדיר טרנספורמציות איכות לכל URL של Cloudinary ────
+function cldOptimize(url, { w = 900, q = 'auto:best' } = {}) {
+    if (!url || !url.includes('res.cloudinary.com')) return url;
+    // מוסיף טרנספורמציה לפני גרסה (v123) או לפני תיקיית היעד
+    return url.replace(/\/upload\/(?!.*\/upload\/)/, `/upload/c_fit,w_${w},q_${q}/`);
+}
+
 // ─── דחיסת תמונה בצד הלקוח לפני העלאה ─────────────────────────────────────
 async function compressImage(file, { maxWidth = 1200, quality = 0.82 } = {}) {
     return new Promise((resolve) => {
@@ -7815,7 +7822,7 @@ window.openCldUpload = function(slotKey) {
                 if (isVideo) {
                     previewEl.outerHTML = `<video id="ad-preview-${slotKey}" src="${data.secure_url}" class="w-full max-h-28 rounded-xl mb-2 border border-slate-200 bg-slate-100" autoplay muted loop playsinline></video>`;
                 } else {
-                    previewEl.src = data.secure_url; previewEl.classList.remove('hidden');
+                    previewEl.src = cldOptimize(data.secure_url, {w:800}); previewEl.classList.remove('hidden');
                 }
             }
             if (statusEl) { statusEl.textContent = `✅ עלה! (${origSize}KB)`; statusEl.className = 'block text-center text-xs font-bold mt-2 text-green-600'; setTimeout(() => statusEl.classList.add('hidden'), 3000); }
@@ -7848,7 +7855,7 @@ window.renderAdSlotsPanel = async function() {
                         <span class="text-xs text-slate-500 font-bold">פעיל</span>
                     </label>
                 </div>
-                ${imgVal ? `<img id="ad-preview-${def.key}" src="${imgVal}" class="w-full max-h-28 object-contain rounded-xl mb-2 border border-slate-200 bg-slate-100">` : `<img id="ad-preview-${def.key}" src="" class="w-full max-h-28 object-contain rounded-xl mb-2 border border-slate-200 bg-slate-100 hidden">`}
+                ${imgVal ? `<img id="ad-preview-${def.key}" src="${cldOptimize(imgVal, {w:800})}" class="w-full max-h-28 object-contain rounded-xl mb-2 border border-slate-200 bg-slate-100">` : `<img id="ad-preview-${def.key}" src="" class="w-full max-h-28 object-contain rounded-xl mb-2 border border-slate-200 bg-slate-100 hidden">`}
                 <button onclick="openCldUpload('${def.key}')" class="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold px-4 py-2 rounded-xl transition mb-2 flex items-center justify-center gap-2"><i class="fa-solid fa-cloud-arrow-up"></i> העלה תמונה</button>
                 <input type="text" id="ad-img-${def.key}" value="${imgVal}" placeholder="או הדבק URL תמונה ישירות" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-2 focus:outline-none focus:border-pink-400">
                 <input type="text" id="ad-link-${def.key}" value="${linkVal}" placeholder="URL קישור (אופציונלי)" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-3 focus:outline-none focus:border-pink-400">
