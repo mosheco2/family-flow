@@ -5629,38 +5629,60 @@ window.sendSAAIMessage = async function(e) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
     try {
-        const activeTickets = (typeof saTicketsCache !== 'undefined' ? saTicketsCache : []).map(t => ({
-            id: t.id, title: t.title, status: t.status, priority: t.priority,
-            creator: t.creator_name, created_at: t.created_at
-        }));
-        const activeCommunities = (typeof saCommunitiesCache !== 'undefined' ? saCommunitiesCache : []).map(c => ({ id: c.id, name: c.name, type: c.type }));
-        const activeBusinesses = (typeof saBusinessesCache !== 'undefined' ? saBusinessesCache : []).map(b => ({ id: b.id, name: b.name, type: b.type }));
-        const totalUsers = typeof saAllUsers !== 'undefined' ? saAllUsers.length : 0;
+        const currentTab = document.querySelector('.sa-nav-btn.active')?.dataset?.tab || '';
+        const currentViewTab = document.querySelector('.sa-view-tab-btn.active')?.dataset?.vtab || '';
 
-        const systemContextData = { total_users: totalUsers, communities: activeCommunities, businesses: activeBusinesses, tickets: activeTickets };
-
-        const enrichedMessage = `--- מידע פנימי בזמן אמת --- ${JSON.stringify(systemContextData)} --- שאלה: ${text}`;
-
-        const res = await fetch(`${API}/ai/chat`, {
+        const res = await fetch(`${API}/sa/ai/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ message: enrichedMessage })
+            body: JSON.stringify({
+                message: text,
+                context: { currentTab, currentViewTab }
+            })
         });
-        
+
         const data = await res.json();
         const typingEl = getEl(typingId);
         if(typingEl) typingEl.remove();
-        
+
         if (data.success) {
-            let reply = data.reply.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b class="text-indigo-700">$1</b>');
+            let reply = data.reply
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<b class="text-indigo-700">$1</b>');
+
+            // בניית כפתורי פעולה
+            const actionBtns = (data.actions || []).map(a => {
+                if (a.type === 'TAB') return `<button onclick="switchSATab('${safeStr(a.payload)}')" class="ai-action-btn bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold px-3 py-1.5 rounded-xl transition"><i class="fa-solid fa-arrow-right-to-bracket ml-1"></i>${safeStr(a.label||a.payload)}</button>`;
+                if (a.type === 'SUBTAB') {
+                    const [tab, sub] = (a.payload||'').split('|');
+                    return `<button onclick="switchSATab('${safeStr(tab)}');setTimeout(()=>switchViewTab('${safeStr(tab)}','${safeStr(sub)}'),200)" class="ai-action-btn bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold px-3 py-1.5 rounded-xl transition"><i class="fa-solid fa-arrow-right ml-1"></i>${safeStr(a.label||sub)}</button>`;
+                }
+                if (a.type === 'LEDGER') return `<button onclick="switchSATab('customers');setTimeout(()=>openCustomerLedger('${safeStr(a.payload)}'),300)" class="ai-action-btn bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 text-xs font-bold px-3 py-1.5 rounded-xl transition"><i class="fa-solid fa-book ml-1"></i>${safeStr(a.label||'כרטסת')}</button>`;
+                return '';
+            }).filter(Boolean).join(' ');
+
+            const actionsHtml = actionBtns ? `<div class="flex flex-wrap gap-1.5 mt-2">${actionBtns}</div>` : '';
+
             chatMessages.innerHTML += `
                 <div class="flex gap-2 fade-in">
                     <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 shadow-sm"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
-                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-700 shadow-sm text-xs leading-relaxed font-medium max-w-[85%]">${reply}</div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-700 shadow-sm text-xs leading-relaxed font-medium max-w-[85%]">
+                        ${reply}
+                        ${actionsHtml}
+                    </div>
                 </div>
             `;
+
+            // הצגת הצעות כ-chips
+            const suggestions = data.suggestions || [];
+            if (suggestions.length) {
+                const chipsHtml = suggestions.map(s =>
+                    `<button onclick="document.getElementById('sa-ai-input').value=${JSON.stringify(s)};sendSAAIMessage({preventDefault:()=>{}})" class="bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 border border-slate-200 hover:border-indigo-200 text-slate-600 text-xs font-medium px-3 py-1.5 rounded-xl transition whitespace-nowrap">${safeStr(s)}</button>`
+                ).join('');
+                chatMessages.innerHTML += `<div class="flex flex-wrap gap-1.5 px-1 pb-1 fade-in">${chipsHtml}</div>`;
+            }
         } else {
-            chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאה: ${safeStr(data.error)}</div>`;
+            chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאה: ${safeStr(data.error||'')}</div>`;
         }
     } catch(err) {
         const typingEl = getEl(typingId);
@@ -7760,10 +7782,9 @@ window.savePreloaderText = async function() {
 };
 
 // ─── Cloudinary URL optimizer — מחדיר טרנספורמציות איכות לכל URL של Cloudinary ────
-function cldOptimize(url, { w = 900, q = 'auto:best' } = {}) {
+function cldOptimize(url, { w = 900, q = 'auto:best', mode = 'limit' } = {}) {
     if (!url || !url.includes('res.cloudinary.com')) return url;
-    // מוסיף טרנספורמציה לפני גרסה (v123) או לפני תיקיית היעד
-    return url.replace(/\/upload\/(?!.*\/upload\/)/, `/upload/c_fit,w_${w},q_${q}/`);
+    return url.replace(/\/upload\/(?!.*\/upload\/)/, `/upload/c_${mode},w_${w},q_${q}/`);
 }
 
 // ─── דחיסת תמונה בצד הלקוח לפני העלאה ─────────────────────────────────────
@@ -7822,7 +7843,7 @@ window.openCldUpload = function(slotKey) {
                 if (isVideo) {
                     previewEl.outerHTML = `<video id="ad-preview-${slotKey}" src="${data.secure_url}" class="w-full max-h-28 rounded-xl mb-2 border border-slate-200 bg-slate-100" autoplay muted loop playsinline></video>`;
                 } else {
-                    previewEl.src = cldOptimize(data.secure_url, {w:800}); previewEl.classList.remove('hidden');
+                    previewEl.src = cldOptimize(data.secure_url, {w:800, mode:'limit'}); previewEl.classList.remove('hidden');
                 }
             }
             if (statusEl) { statusEl.textContent = `✅ עלה! (${origSize}KB)`; statusEl.className = 'block text-center text-xs font-bold mt-2 text-green-600'; setTimeout(() => statusEl.classList.add('hidden'), 3000); }
@@ -7855,7 +7876,7 @@ window.renderAdSlotsPanel = async function() {
                         <span class="text-xs text-slate-500 font-bold">פעיל</span>
                     </label>
                 </div>
-                ${imgVal ? `<img id="ad-preview-${def.key}" src="${cldOptimize(imgVal, {w:800})}" class="w-full max-h-28 object-contain rounded-xl mb-2 border border-slate-200 bg-slate-100">` : `<img id="ad-preview-${def.key}" src="" class="w-full max-h-28 object-contain rounded-xl mb-2 border border-slate-200 bg-slate-100 hidden">`}
+                ${imgVal ? `<img id="ad-preview-${def.key}" src="${cldOptimize(imgVal, {w:800, mode:'limit'})}" class="w-full max-h-28 object-contain rounded-xl mb-2 border border-slate-200 bg-slate-100">` : `<img id="ad-preview-${def.key}" src="" class="w-full max-h-28 object-contain rounded-xl mb-2 border border-slate-200 bg-slate-100 hidden">`}
                 <button onclick="openCldUpload('${def.key}')" class="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold px-4 py-2 rounded-xl transition mb-2 flex items-center justify-center gap-2"><i class="fa-solid fa-cloud-arrow-up"></i> העלה תמונה</button>
                 <input type="text" id="ad-img-${def.key}" value="${imgVal}" placeholder="או הדבק URL תמונה ישירות" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-2 focus:outline-none focus:border-pink-400">
                 <input type="text" id="ad-link-${def.key}" value="${linkVal}" placeholder="URL קישור (אופציונלי)" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-3 focus:outline-none focus:border-pink-400">
