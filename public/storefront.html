@@ -1361,54 +1361,47 @@
             requestAnimationFrame(() => { lb.style.opacity = '1'; });
             lb.addEventListener('click', e => { if (e.target === lb) lb.remove(); });
 
-            // slider-based zoom + drag to pan
-            // slider 0 = fit, 1-100 → 55vw..300vw linear
-            let _lbSizePct = 0; // 0 = fit
+            // scale-based zoom: slider 0-100 → scale 1.0 .. 5.0
+            let _lbScale = 1.0;
 
-            function _sliderToPct(v) {
-                if (v <= 0) return 0;
-                return Math.round(55 + (v / 100) * (300 - 55));
+            function _sliderToScale(v) {
+                // linear: 0→1.0, 100→5.0
+                return 1.0 + (v / 100) * 4.0;
             }
-            function _pctToSlider(pct) {
-                if (pct <= 0) return 0;
-                return Math.round(((pct - 55) / (300 - 55)) * 100);
+            function _scaleToSlider(s) {
+                return Math.round(((s - 1.0) / 4.0) * 100);
             }
 
-            function _lbApplySize(pct) {
-                _lbSizePct = pct;
+            const wrap = document.getElementById('lb-img-wrap');
+
+            function _lbApplyScale(scale) {
+                _lbScale = Math.max(1, Math.min(5, scale));
                 const img = document.getElementById('lb-img');
-                const wrap = document.getElementById('lb-img-wrap');
                 const label = document.getElementById('lb-zoom-label');
                 const slider = document.getElementById('lb-size-slider');
-                if (slider) slider.value = _pctToSlider(pct);
-                if (pct <= 0) {
-                    img.style.width = 'auto'; img.style.height = 'auto';
-                    img.style.maxWidth = '92vw'; img.style.maxHeight = '80vh';
-                    wrap.style.overflow = 'hidden'; wrap.style.cursor = 'grab';
-                    if (label) label.textContent = 'התאם';
-                } else {
-                    img.style.maxWidth = 'none'; img.style.maxHeight = 'none';
-                    img.style.width = pct + 'vw'; img.style.height = 'auto';
-                    wrap.style.overflow = 'auto'; wrap.style.cursor = 'grab';
-                    if (label) label.textContent = Math.round(pct) + '%';
-                }
+                // always keep image contained, then scale with transform
+                img.style.maxWidth = '92vw'; img.style.maxHeight = '80vh';
+                img.style.width = 'auto'; img.style.height = 'auto';
+                img.style.transformOrigin = 'center center';
+                img.style.transform = `scale(${_lbScale.toFixed(2)})`;
+                // overflow auto when zoomed so user can scroll/drag
+                wrap.style.overflow = _lbScale > 1.05 ? 'auto' : 'hidden';
+                wrap.style.cursor = 'grab';
+                if (label) label.textContent = _lbScale <= 1.01 ? 'התאם' : _lbScale.toFixed(1) + '×';
+                if (slider) slider.value = _scaleToSlider(_lbScale);
             }
 
-            // slider 0 = fit, 1-100 → 55vw..300vw linear
             window.lbSliderChange = function(val) {
-                const v = Number(val);
-                _lbApplySize(v === 0 ? 0 : _sliderToPct(v));
+                _lbApplyScale(_sliderToScale(Number(val)));
             };
 
             window.lbToggleZoom = function() {
-                const steps = [0, 75, 100, 150, 200, 300];
-                const idx = steps.findIndex(s => s > _lbSizePct);
-                const next = idx === -1 ? steps[0] : steps[idx];
-                _lbApplySize(next);
+                const steps = [1, 1.5, 2, 3, 5];
+                const idx = steps.findIndex(s => s > _lbScale + 0.05);
+                _lbApplyScale(idx === -1 ? steps[0] : steps[idx]);
             };
 
             // drag to pan
-            const wrap = document.getElementById('lb-img-wrap');
             let _drag = false, _dx = 0, _dy = 0;
             wrap.addEventListener('mousedown', e => {
                 if (e.target.id !== 'lb-img') return;
@@ -1428,31 +1421,29 @@
                 current = (current + dir + imgs.length) % imgs.length;
                 const img = document.getElementById('lb-img');
                 img.style.opacity = '0';
-                _lbApplySize(0);
+                _lbApplyScale(1);
                 setTimeout(() => { img.src = imgs[current].image_url; img.style.opacity = '1'; }, 150);
                 document.getElementById('lb-caption').textContent = imgs[current].caption || '';
                 document.getElementById('lb-counter').textContent = `${current+1} / ${imgs.length}`;
             };
 
             // pinch-to-zoom mobile
-            let _ptStart = null, _ptSizeStart = 0;
+            let _ptStart = null, _ptScaleStart = 1;
             lb.addEventListener('touchstart', e => {
                 if (e.touches.length === 2) {
                     _ptStart = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-                    _ptSizeStart = _lbSizePct;
+                    _ptScaleStart = _lbScale;
                 }
             }, {passive:true});
             lb.addEventListener('touchend', () => { _ptStart = null; }, {passive:true});
             lb.addEventListener('touchmove', e => {
                 if (e.touches.length === 2 && _ptStart) {
                     const dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-                    const base = _ptSizeStart <= 0 ? 55 : _ptSizeStart;
-                    const newPct = Math.max(0, Math.min(300, base * (dist / _ptStart)));
-                    _lbApplySize(newPct);
+                    _lbApplyScale(_ptScaleStart * (dist / _ptStart));
                 }
             }, {passive:true});
 
-            _lbApplySize(0);
+            _lbApplyScale(1);
         };
 
         window.toggleSideMenu = function(isOpen) {
