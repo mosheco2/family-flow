@@ -153,6 +153,182 @@ window.updateSADashboard = async function() {
     } catch(e) { console.error('Error updating dashboard', e); }
 };
 
+// ─── SA Comprehensive Dashboard ───────────────────────────────────────────────
+window.loadSADashboard = async function() {
+    try {
+        const r = await fetch(`${API}/sa/dashboard`, { headers: { 'Authorization': saToken } });
+        const d = await r.json();
+        if (!d.success) return;
+
+        const s = d.stats || {};
+        const p = d.pending || {};
+        const fin = d.finance || {};
+        const zm = d.zm || {};
+        const flow = d.flow || {};
+
+        // ── KPI Row 1 ──
+        const setT = (id, v) => { const el = getEl(id); if (el) el.textContent = v; };
+        setT('d2-businesses', s.businesses ?? '--');
+        setT('d2-biz-24h', s.biz_24h ?? 0);
+        setT('d2-families', s.families ?? '--');
+        setT('d2-fam-24h', s.fam_24h ?? 0);
+        setT('d2-communities', s.communities ?? '--');
+        setT('d2-connections', s.connections ?? 0);
+        setT('d2-total-users', s.total_users ?? '--');
+        setT('d2-online-now', s.online_now ?? 0);
+        setT('kpi-online-users', s.online_now ?? 0);
+
+        const aiTotal = (d.ai_top || []).reduce((acc, r2) => acc + (parseInt(r2.calls)||0), 0);
+        setT('d2-ai-calls', aiTotal || '--');
+        const mc = parseFloat(fin.month_commission)||0;
+        const mch = parseFloat(fin.month_cashback)||0;
+        setT('d2-month-commission', mc > 0 ? `₪${Math.round(mc).toLocaleString()}` : '--');
+        setT('d2-month-cashback', mch > 0 ? Math.round(mch) : 0);
+
+        // ── KPI Row 2 ──
+        setT('dash-open-tickets', p.open_tickets ?? '--');
+        setT('d2-urgent-tickets', p.urgent_tickets ?? 0);
+        setT('d2-unpaid-count', p.unpaid_billing ?? '--');
+        const debt = parseFloat(fin.unpaid_amount)||0;
+        setT('d2-debt-amount', debt > 0 ? Math.round(debt).toLocaleString() : 0);
+        setT('d2-banner-pending', p.banner_orders ?? '--');
+        setT('d2-zm-active', parseInt(zm.active_count)||'--');
+        setT('d2-zm-pending', p.zone_managers ?? 0);
+        const issued = parseFloat(flow.total_issued)||0;
+        const redeemed = parseFloat(flow.total_redeemed)||0;
+        const circulating = Math.max(0, issued - redeemed);
+        setT('d2-flow-issued', circulating > 0 ? Math.round(circulating).toLocaleString() : '--');
+
+        // ── Finance bars ──
+        const tc = parseFloat(fin.total_commission)||0;
+        const tcb = parseFloat(fin.total_cashback)||0;
+        const maxFin = Math.max(tc, tcb, debt, 1);
+        setT('d2-total-commission', `₪${Math.round(tc).toLocaleString()}`);
+        setT('d2-total-cashback', `₪${Math.round(tcb).toLocaleString()}`);
+        setT('d2-total-debt-fin', `₪${Math.round(debt).toLocaleString()}`);
+        const bComm = getEl('d2-bar-commission'); if (bComm) bComm.style.width = `${Math.round(tc/maxFin*100)}%`;
+        const bCash = getEl('d2-bar-cashback'); if (bCash) bCash.style.width = `${Math.round(tcb/maxFin*100)}%`;
+        const bDebt = getEl('d2-bar-debt'); if (bDebt) bDebt.style.width = `${Math.round(debt/maxFin*100)}%`;
+
+        const zmEarned = parseFloat(zm.total_earned)||0;
+        const zmPaid = parseFloat(zm.total_paid)||0;
+        setT('d2-zm-earned', `₪${Math.round(zmEarned).toLocaleString()}`);
+        setT('d2-zm-paid', `₪${Math.round(zmPaid).toLocaleString()}`);
+        setT('d2-zm-balance', `₪${Math.round(Math.max(0, zmEarned-zmPaid)).toLocaleString()}`);
+
+        // ── Debtors list ──
+        const debtEl = getEl('d2-debtors-list');
+        if (debtEl) {
+            if (!d.debtors || !d.debtors.length) {
+                debtEl.innerHTML = '<p class="text-emerald-500 text-[10px] text-center py-3 font-bold">✓ אין חובות פתוחים</p>';
+            } else {
+                const maxD = Math.max(...d.debtors.map(x => parseFloat(x.debt)||0), 1);
+                debtEl.innerHTML = d.debtors.map(x => {
+                    const pct = Math.round((parseFloat(x.debt)||0)/maxD*100);
+                    return `<div>
+                        <div class="flex justify-between mb-0.5">
+                            <span class="text-slate-600 truncate max-w-[120px]" title="${safeStr(x.biz_name)}">${safeStr(x.biz_name)}</span>
+                            <span class="font-black text-red-500 text-[10px]">₪${Math.round(parseFloat(x.debt)||0).toLocaleString()}</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-1"><div class="bg-red-400 h-1 rounded-full" style="width:${pct}%"></div></div>
+                    </div>`;
+                }).join('');
+            }
+        }
+
+        // ── AI Top Users ──
+        const aiEl = getEl('d2-ai-list');
+        if (aiEl) {
+            if (!d.ai_top || !d.ai_top.length) {
+                aiEl.innerHTML = '<p class="text-slate-300 text-[10px] text-center py-3">אין נתוני שימוש</p>';
+            } else {
+                const maxAI = Math.max(...d.ai_top.map(x => parseInt(x.calls)||0), 1);
+                aiEl.innerHTML = d.ai_top.map((x, i) => {
+                    const pct = Math.round((parseInt(x.calls)||0)/maxAI*100);
+                    const colors = ['bg-purple-500','bg-purple-400','bg-purple-300','bg-purple-200','bg-purple-100'];
+                    return `<div>
+                        <div class="flex justify-between mb-0.5">
+                            <span class="text-slate-600 text-[10px] truncate max-w-[130px]">${safeStr(x.name)}</span>
+                            <span class="font-black text-purple-600 text-[10px]">${x.calls}</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-1"><div class="${colors[i]||'bg-purple-100'} h-1 rounded-full" style="width:${pct}%"></div></div>
+                    </div>`;
+                }).join('');
+            }
+        }
+
+        // ── 7-day growth bar chart ──
+        const growthEl = getEl('d2-growth-chart');
+        if (growthEl && d.growth && d.growth.length) {
+            const maxG = Math.max(...d.growth.flatMap(g => [parseInt(g.biz)||0, parseInt(g.fam)||0]), 1);
+            const H = 72;
+            growthEl.innerHTML = d.growth.map(g => {
+                const bh = Math.max(2, Math.round((parseInt(g.biz)||0)/maxG*H));
+                const fh = Math.max(2, Math.round((parseInt(g.fam)||0)/maxG*H));
+                const day = g.day ? new Date(g.day).toLocaleDateString('he-IL', {day:'numeric',month:'numeric'}) : '';
+                return `<div class="flex flex-col items-center gap-0.5 flex-1 min-w-0">
+                    <div class="flex items-end gap-0.5 w-full justify-center">
+                        <div class="w-2.5 rounded-t bg-amber-400 transition-all" style="height:${bh}px" title="${g.biz||0} עסקים"></div>
+                        <div class="w-2.5 rounded-t bg-emerald-400 transition-all" style="height:${fh}px" title="${g.fam||0} משפחות"></div>
+                    </div>
+                    <span class="text-[7px] text-slate-400 leading-none">${day}</span>
+                </div>`;
+            }).join('');
+        } else if (growthEl) {
+            growthEl.innerHTML = '<p class="text-slate-300 text-[10px] text-center w-full self-center">אין נתוני גידול לשבוע האחרון</p>';
+        }
+
+        // ── Community Wallets ──
+        const wallEl = getEl('d2-wallets-list');
+        if (wallEl) {
+            if (!d.wallets_top || !d.wallets_top.length) {
+                wallEl.innerHTML = '<p class="text-slate-300 text-[10px] text-center py-3">אין ארנקי קהילות</p>';
+            } else {
+                const maxW = Math.max(...d.wallets_top.map(w => parseFloat(w.balance)||0), 1);
+                wallEl.innerHTML = d.wallets_top.map(w => {
+                    const pct = Math.round((parseFloat(w.balance)||0)/maxW*100);
+                    return `<div>
+                        <div class="flex justify-between mb-0.5">
+                            <span class="text-slate-600 text-[10px] truncate max-w-[130px]">${safeStr(w.name)}</span>
+                            <span class="font-black text-pink-600 text-[10px]">${Math.round(parseFloat(w.balance)||0).toLocaleString()} 🪙</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-1"><div class="bg-pink-400 h-1 rounded-full" style="width:${pct}%"></div></div>
+                    </div>`;
+                }).join('');
+            }
+        }
+
+        // ── Pending Actions Bar ──
+        const pendBar = getEl('dash-pending-bar');
+        if (pendBar) {
+            const chips = [];
+            if (p.open_tickets > 0) chips.push({ label: `🎫 ${p.open_tickets} קריאות פתוחות`, color: 'bg-red-50 border-red-200 text-red-700', fn: `switchSATab('support')`, urgent: p.urgent_tickets > 0 });
+            if (p.biz_joins > 0) chips.push({ label: `🏪 ${p.biz_joins} בקשות הצטרפות עסקים`, color: 'bg-orange-50 border-orange-200 text-orange-700', fn: `switchSATab('comm')` });
+            if (p.fam_joins > 0) chips.push({ label: `🏠 ${p.fam_joins} הצטרפויות משפחות`, color: 'bg-amber-50 border-amber-200 text-amber-700', fn: `switchSATab('comm')` });
+            if (p.banner_orders > 0) chips.push({ label: `📢 ${p.banner_orders} הזמנות פרסום`, color: 'bg-indigo-50 border-indigo-200 text-indigo-700', fn: `switchSATab('adslots')` });
+            if (p.zone_managers > 0) chips.push({ label: `🗺️ ${p.zone_managers} מנהלי אזור ממתינים`, color: 'bg-teal-50 border-teal-200 text-teal-700', fn: `switchSATab('partners')` });
+            if (p.unpaid_billing > 0) chips.push({ label: `💰 ${p.unpaid_billing} חשבוניות לא שולמו`, color: 'bg-yellow-50 border-yellow-200 text-yellow-700', fn: `switchSATab('finance')` });
+
+            if (chips.length) {
+                pendBar.classList.remove('hidden');
+                pendBar.innerHTML = `<div class="flex gap-2 overflow-x-auto pb-1 items-center">
+                    <span class="text-[9px] font-black text-slate-400 uppercase shrink-0">פעולות נדרשות</span>
+                    ${chips.map(c => `<button onclick="${c.fn}" class="flex-shrink-0 border rounded-xl px-3 py-1.5 text-[10px] font-bold transition hover:opacity-80 ${c.color} ${c.urgent ? 'animate-pulse' : ''}">${c.label}</button>`).join('')}
+                </div>`;
+            } else {
+                pendBar.classList.add('hidden');
+            }
+        }
+
+        // update timestamp
+        const tsEl = getEl('pulse-last-update');
+        if (tsEl) tsEl.textContent = `עודכן ${new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`;
+
+    } catch(e) {
+        console.error('[loadSADashboard]', e.message);
+    }
+};
+
 function showToast(t, m) {
     const el = getEl('toast');
     const icon = getEl('toast-icon');
@@ -215,7 +391,7 @@ window.switchSATab = function(tabId) {
     }
 
     window._currentSATab = tabId;
-    if (tabId === 'pulse') updateSADashboard();
+    if (tabId === 'pulse') { updateSADashboard(); loadSADashboard(); }
     if (tabId === 'stats') loadSAData();
     if (tabId === 'finance') loadSAFinanceData();
     if (tabId === 'legal') loadLegalDocs();

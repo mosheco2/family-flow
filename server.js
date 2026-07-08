@@ -3266,6 +3266,98 @@ app.get('/api/superadmin/online-count', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ─── SA: Comprehensive Dashboard endpoint ─────────────────────────────────────
+app.get('/api/sa/dashboard', verifySA, async (req, res) => {
+    try {
+        const safe = (q, def) => pool.query(q).catch(() => ({ rows: def }));
+        const [
+            statsR, pendBizR, pendFamR, pendBannerR, pendZMR,
+            ticketsR, financeR, zmR, flowR, aiTopR, growthR, debtorsR, walletsR
+        ] = await Promise.all([
+            pool.query(`SELECT
+                (SELECT COUNT(*) FROM family_groups WHERE type='FAMILY' AND member_type!='member') as families,
+                (SELECT COUNT(*) FROM family_groups WHERE type='BUSINESS') as businesses,
+                (SELECT COUNT(*) FROM communities WHERE status='active') as communities,
+                (SELECT COUNT(*) FROM users WHERE last_seen > NOW()-INTERVAL '3 minutes') as online_now,
+                (SELECT COUNT(*) FROM users) as total_users,
+                (SELECT COUNT(*) FROM community_businesses WHERE status='approved') as connections,
+                (SELECT COUNT(*) FROM family_groups WHERE type='FAMILY' AND created_at > NOW()-INTERVAL '24 hours') as fam_24h,
+                (SELECT COUNT(*) FROM family_groups WHERE type='BUSINESS' AND created_at > NOW()-INTERVAL '24 hours') as biz_24h
+            `),
+            safe(`SELECT COUNT(*) as cnt FROM community_businesses WHERE status IN ('pending','zm_pending')`, [{ cnt: 0 }]),
+            safe(`SELECT COUNT(*) as cnt FROM family_communities WHERE status='pending'`, [{ cnt: 0 }]),
+            safe(`SELECT COUNT(*) as cnt FROM banner_orders WHERE status='pending'`, [{ cnt: 0 }]),
+            safe(`SELECT COUNT(*) as cnt FROM zone_managers WHERE status='pending'`, [{ cnt: 0 }]),
+            safe(`SELECT
+                COUNT(*) FILTER (WHERE status='open') as open_cnt,
+                COUNT(*) FILTER (WHERE status='open' AND priority='high') as urgent_cnt,
+                COUNT(*) FILTER (WHERE status='closed' AND updated_at > NOW()-INTERVAL '24 hours') as closed_24h
+                FROM support_tickets`, [{ open_cnt: 0, urgent_cnt: 0, closed_24h: 0 }]),
+            safe(`SELECT
+                COALESCE(SUM(amount_ils) FILTER (WHERE payment_status='paid'),0) as total_commission,
+                COALESCE(SUM(amount_ils) FILTER (WHERE payment_status='paid' AND created_at > NOW()-INTERVAL '30 days'),0) as month_commission,
+                COALESCE(SUM(cash_amount) FILTER (WHERE payment_status='paid'),0) as total_cashback,
+                COALESCE(SUM(cash_amount) FILTER (WHERE payment_status='paid' AND created_at > NOW()-INTERVAL '30 days'),0) as month_cashback,
+                COALESCE(SUM(amount_ils) FILTER (WHERE payment_status!='paid'),0) as unpaid_amount,
+                COUNT(*) FILTER (WHERE payment_status!='paid') as unpaid_count
+                FROM billing_records`, [{ total_commission: 0, month_commission: 0, total_cashback: 0, month_cashback: 0, unpaid_amount: 0, unpaid_count: 0 }]),
+            safe(`SELECT
+                COALESCE(SUM(total_commissions),0) as total_earned,
+                COALESCE(SUM(total_paid),0) as total_paid,
+                COUNT(*) as manager_count,
+                COUNT(*) FILTER (WHERE status='active') as active_count
+                FROM zone_managers`, [{ total_earned: 0, total_paid: 0, manager_count: 0, active_count: 0 }]),
+            safe(`SELECT
+                COALESCE(SUM(amount) FILTER (WHERE amount>0),0) as total_issued,
+                COALESCE(SUM(ABS(amount)) FILTER (WHERE amount<0),0) as total_redeemed,
+                (SELECT COUNT(*) FROM flow_wallets) as wallet_count
+                FROM flow_transactions`, [{ total_issued: 0, total_redeemed: 0, wallet_count: 0 }]),
+            safe(`SELECT fg.name, COALESCE(SUM(al.calls),0) as calls
+                FROM family_groups fg
+                JOIN (SELECT group_id, COUNT(*) as calls FROM ai_usage_log WHERE created_at > NOW()-INTERVAL '30 days' GROUP BY group_id) al ON al.group_id=fg.id
+                ORDER BY calls DESC LIMIT 5`, []),
+            safe(`SELECT DATE(created_at) as day,
+                COUNT(*) FILTER (WHERE type='BUSINESS') as biz,
+                COUNT(*) FILTER (WHERE type='FAMILY') as fam
+                FROM family_groups WHERE created_at > NOW()-INTERVAL '7 days'
+                GROUP BY day ORDER BY day`, []),
+            safe(`SELECT fg.name as biz_name, COALESCE(SUM(br.amount_ils),0) as debt
+                FROM billing_records br JOIN family_groups fg ON fg.id=br.business_id
+                WHERE br.payment_status!='paid'
+                GROUP BY fg.id,fg.name ORDER BY debt DESC LIMIT 5`, []),
+            safe(`SELECT c.name, fw.balance
+                FROM communities c JOIN flow_wallets fw ON fw.entity_type='community' AND fw.entity_id=c.id
+                WHERE fw.balance>0 ORDER BY fw.balance DESC LIMIT 6`, [])
+        ]);
+
+        res.json({
+            success: true,
+            stats: statsR.rows[0],
+            pending: {
+                biz_joins: parseInt(pendBizR.rows[0]?.cnt) || 0,
+                fam_joins: parseInt(pendFamR.rows[0]?.cnt) || 0,
+                banner_orders: parseInt(pendBannerR.rows[0]?.cnt) || 0,
+                zone_managers: parseInt(pendZMR.rows[0]?.cnt) || 0,
+                open_tickets: parseInt(ticketsR.rows[0]?.open_cnt) || 0,
+                urgent_tickets: parseInt(ticketsR.rows[0]?.urgent_cnt) || 0,
+                closed_24h: parseInt(ticketsR.rows[0]?.closed_24h) || 0,
+                unpaid_billing: parseInt(financeR.rows[0]?.unpaid_count) || 0,
+                debt_amount: parseFloat(financeR.rows[0]?.unpaid_amount) || 0
+            },
+            finance: financeR.rows[0],
+            zm: zmR.rows[0],
+            flow: flowR.rows[0],
+            ai_top: aiTopR.rows,
+            growth: growthR.rows,
+            debtors: debtorsR.rows,
+            wallets_top: walletsR.rows
+        });
+    } catch(e) {
+        console.error('[SA Dashboard]', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 app.post('/api/superadmin/banners', verifySA, async (req, res) => {
     const { topText, topLink, topImg, bottomText, bottomLink, bottomImg, bizTopText, bizTopLink, bizTopImg, bizBottomText, bizBottomLink, bizBottomImg, globalAiLogo, loginSlides } = req.body;
     const items = [ 
