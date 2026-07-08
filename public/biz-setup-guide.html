@@ -1853,58 +1853,65 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 </div><!-- /maintenance -->
 <div id="logistics" class="page">
 
-  <!-- subnav -->
+  <div class="sec-top">
+    <div class="s-icon">🚚</div>
+    <h1>לוגיסטיקה / הפצה</h1>
+    <p>מדריך מלא לניהול משלוחים מקצה לקצה — קנבן הזמנות, צי רכבים, מעקב בזמן אמת וגבייה בשטח</p>
+  </div>
+
   <nav class="subnav">
-    <button class="sn on" onclick="goTo('l-enter')">כניסה למערכת</button>
-    <button class="sn" onclick="goTo('l-wizard')">הקמה ראשונית</button>
-    <button class="sn" onclick="goTo('l-nav')">ניווט</button>
-    <button class="sn" onclick="goTo('l-orders')">קנבן משלוחים</button>
-    <button class="sn" onclick="goTo('l-fleet')">נהגים ורכבים</button>
-    <button class="sn" onclick="goTo('l-routes')">מסלולים ומעקב</button>
-    <button class="sn" onclick="goTo('l-money')">מחירון וגבייה</button>
-    <button class="sn" onclick="goTo('l-biz')">לקוחות ודוחות</button>
+    <div class="sn-inner">
+      <button class="sn on" onclick="goTo('l-enter')">כניסה למערכת</button>
+      <button class="sn" onclick="goTo('l-wizard')">הקמה ראשונית</button>
+      <button class="sn" onclick="goTo('l-nav')">ניווט</button>
+      <button class="sn" onclick="goTo('l-orders')">קנבן משלוחים</button>
+      <button class="sn" onclick="goTo('l-fleet')">נהגים ורכבים</button>
+      <button class="sn" onclick="goTo('l-routes')">מסלולים ומעקב</button>
+      <button class="sn" onclick="goTo('l-money')">מחירון וגבייה</button>
+      <button class="sn" onclick="goTo('l-biz')">לקוחות ודוחות</button>
+    </div>
   </nav>
+
+  <div class="wrap">
 
   <!-- ── פרק 1: כניסה ── -->
   <div class="chapter" id="l-enter">
-    <div class="mod">
-      <h2>🚚 לוגיסטיקה / הפצה — כניסה למערכת</h2>
-      <p>מערכת ניהול משלוחים מקצה לקצה: קנבן הזמנות, ניהול נהגים וצי רכבים, מעקב בזמן אמת, גבייה בשטח (COD), הצעות מחיר ודוחות ביצוע.</p>
-    </div>
+    <div class="ch-head"><div class="ch-num">1</div><div class="ch-title">כניסה למערכת</div></div>
+    <p style="font-size:.9rem;color:var(--text2);">מערכת ניהול משלוחים מקצה לקצה: קנבן הזמנות, ניהול נהגים וצי רכבים, מעקב בזמן אמת, גבייה בשטח (COD), הצעות מחיר ודוחות ביצוע.</p>
 
     <div class="mod">
-      <h3>כניסה — בעל עסק / מנהל</h3>
+      <div class="mod-head"><div class="mod-icon">🔑</div><div><div class="mod-name">כניסה — בעל עסק / מנהל</div><div class="mod-tag">business.html</div></div></div>
       <p>כתובת: <strong>business.html</strong></p>
       <div class="field-table">
-        <div class="field-row"><span>אימייל</span><span>כתובת המייל שנרשמת איתה</span></div>
-        <div class="field-row"><span>סיסמה</span><span>הסיסמה שבחרת</span></div>
-        <div class="field-row"><span>כפתור "כניסה"</span><span>פותח את לוח הבקרה הראשי</span></div>
+        <div class="field-row"><div class="fr-label">אימייל</div><div class="fr-val">כתובת המייל שנרשמת איתה</div></div>
+        <div class="field-row"><div class="fr-label">סיסמה</div><div class="fr-val">הסיסמה שבחרת</div></div>
+        <div class="field-row"><div class="fr-label">כפתור "כניסה"</div><div class="fr-val">פותח את לוח הבקרה הראשי</div></div>
       </div>
     </div>
 
     <div class="mod">
-      <h3>רישום עסק חדש</h3>
+      <div class="mod-head"><div class="mod-icon">📝</div><div><div class="mod-name">רישום עסק חדש</div></div></div>
       <p>לחץ על "הצטרף עכשיו" / "התחל בחינם" בדף הכניסה.</p>
       <div class="field-table">
-        <div class="field-row"><span>שם העסק *</span><span>שם חברת ההפצה / הלוגיסטיקה</span></div>
-        <div class="field-row"><span>שמך המלא *</span><span>שם בעל העסק</span></div>
-        <div class="field-row"><span>אימייל *</span><span>ישמש לכניסה</span></div>
-        <div class="field-row"><span>סיסמה *</span><span>לפחות 6 תווים</span></div>
-        <div class="field-row"><span>טלפון</span><span>לאימות וקשר</span></div>
-        <div class="field-row"><span>עיר</span><span>אזור פעילות ראשי</span></div>
+        <div class="field-row"><div class="fr-label">שם העסק *</div><div class="fr-val">שם חברת ההפצה / הלוגיסטיקה</div></div>
+        <div class="field-row"><div class="fr-label">שמך המלא *</div><div class="fr-val">שם בעל העסק</div></div>
+        <div class="field-row"><div class="fr-label">אימייל *</div><div class="fr-val">ישמש לכניסה</div></div>
+        <div class="field-row"><div class="fr-label">סיסמה *</div><div class="fr-val">לפחות 6 תווים</div></div>
+        <div class="field-row"><div class="fr-label">טלפון</div><div class="fr-val">לאימות וקשר</div></div>
+        <div class="field-row"><div class="fr-label">עיר</div><div class="fr-val">אזור פעילות ראשי</div></div>
       </div>
-      <div class="box">סוג העסק "לוגיסטיקה / הפצה" מוגדר דרך לוח הניהול העליון (Super Admin) לאחר הרישום. פנה לתמיכה כדי להפעיל את מודולי הלוגיסטיקה.</div>
+      <div class="box box-imp"><div class="box-icon">⚙️</div><div>סוג העסק "לוגיסטיקה / הפצה" מוגדר דרך לוח הניהול העליון (Super Admin) לאחר הרישום. פנה לתמיכה כדי להפעיל את מודולי הלוגיסטיקה.</div></div>
     </div>
 
     <div class="mod">
-      <h3>הצטרפות עובד / נהג</h3>
+      <div class="mod-head"><div class="mod-icon">👤</div><div><div class="mod-name">הצטרפות עובד / נהג</div></div></div>
       <p>המנהל שולח קישור הזמנה. הנהג לוחץ על הקישור ומזין:</p>
       <div class="field-table">
-        <div class="field-row"><span>שם מלא *</span><span>שם הנהג</span></div>
-        <div class="field-row"><span>אימייל *</span><span>לכניסה למערכת</span></div>
-        <div class="field-row"><span>סיסמה *</span><span>לפחות 6 תווים</span></div>
-        <div class="field-row"><span>טלפון</span><span>לזיהוי בשדה</span></div>
-        <div class="field-row"><span>קוד הזמנה</span><span>מופיע בקישור שנשלח</span></div>
+        <div class="field-row"><div class="fr-label">שם מלא *</div><div class="fr-val">שם הנהג</div></div>
+        <div class="field-row"><div class="fr-label">אימייל *</div><div class="fr-val">לכניסה למערכת</div></div>
+        <div class="field-row"><div class="fr-label">סיסמה *</div><div class="fr-val">לפחות 6 תווים</div></div>
+        <div class="field-row"><div class="fr-label">טלפון</div><div class="fr-val">לזיהוי בשדה</div></div>
+        <div class="field-row"><div class="fr-label">קוד הזמנה</div><div class="fr-val">מופיע בקישור שנשלח</div></div>
       </div>
       <p>לאחר הצטרפות, הנהג רואה את תצוגת "נהג" (Driver Companion) — רשימת המשלוחים שלו בלבד.</p>
     </div>
@@ -1912,59 +1919,55 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
   <!-- ── פרק 2: הקמה ראשונית ── -->
   <div class="chapter" id="l-wizard">
-    <div class="mod">
-      <h2>⚙️ הקמה ראשונית — לוגיסטיקה</h2>
-      <p>סוג העסק "לוגיסטיקה / הפצה" מופעל על ידי מנהל מערכת (Super Admin). לאחר הפעלה, ממשיכים ב-4 שלבי ויזארד:</p>
-    </div>
+    <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית</div></div>
+    <p style="font-size:.9rem;color:var(--text2);">סוג העסק "לוגיסטיקה / הפצה" מופעל על ידי מנהל מערכת (Super Admin). לאחר הפעלה, ממשיכים ב-4 שלבי ויזארד:</p>
 
     <div class="mod">
-      <h3>שלב 1 — פרופיל העסק</h3>
+      <div class="mod-head"><div class="mod-icon">1️⃣</div><div><div class="mod-name">שלב 1 — פרופיל העסק</div></div></div>
       <div class="field-table">
-        <div class="field-row"><span>שם החברה</span><span>שם עסק ההפצה / השינוע</span></div>
-        <div class="field-row"><span>לוגו</span><span>מוצג בדוחות וחשבוניות</span></div>
-        <div class="field-row"><span>טלפון</span><span>מספר טלפון לתיאום</span></div>
-        <div class="field-row"><span>כתובת</span><span>כתובת מחסן / בסיס הפעולות</span></div>
-        <div class="field-row"><span>מטבע</span><span>ברירת מחדל: ₪</span></div>
+        <div class="field-row"><div class="fr-label">שם החברה</div><div class="fr-val">שם עסק ההפצה / השינוע</div></div>
+        <div class="field-row"><div class="fr-label">לוגו</div><div class="fr-val">מוצג בדוחות וחשבוניות</div></div>
+        <div class="field-row"><div class="fr-label">טלפון</div><div class="fr-val">מספר טלפון לתיאום</div></div>
+        <div class="field-row"><div class="fr-label">כתובת</div><div class="fr-val">כתובת מחסן / בסיס הפעולות</div></div>
+        <div class="field-row"><div class="fr-label">מטבע</div><div class="fr-val">ברירת מחדל: ₪</div></div>
       </div>
     </div>
 
     <div class="mod">
-      <h3>שלב 2 — תקציב ויעדים</h3>
+      <div class="mod-head"><div class="mod-icon">2️⃣</div><div><div class="mod-name">שלב 2 — תקציב ויעדים</div></div></div>
       <div class="field-table">
-        <div class="field-row"><span>יעד משלוחים יומי</span><span>כמה משלוחים אתם מכוונים ליום</span></div>
-        <div class="field-row"><span>יעד הכנסה חודשי</span><span>הכנסה חודשית מטרה</span></div>
-        <div class="field-row"><span>עמלת COD</span><span>% שגובים על גבייה בשטח (אופציונלי)</span></div>
+        <div class="field-row"><div class="fr-label">יעד משלוחים יומי</div><div class="fr-val">כמה משלוחים אתם מכוונים ליום</div></div>
+        <div class="field-row"><div class="fr-label">יעד הכנסה חודשי</div><div class="fr-val">הכנסה חודשית מטרה</div></div>
+        <div class="field-row"><div class="fr-label">עמלת COD</div><div class="fr-val">% שגובים על גבייה בשטח (אופציונלי)</div></div>
       </div>
     </div>
 
     <div class="mod">
-      <h3>שלב 3 — הגדרת מחירון ראשוני</h3>
+      <div class="mod-head"><div class="mod-icon">3️⃣</div><div><div class="mod-name">שלב 3 — הגדרת מחירון ראשוני</div></div></div>
       <p>הגדרת אזורי מחיר בסיסיים. ניתן להוסיף עוד בכרטיסיית "מחירון" בהמשך.</p>
       <div class="field-table">
-        <div class="field-row"><span>שם אזור</span><span>לדוגמה: "מרכז תל אביב", "פריפריה"</span></div>
-        <div class="field-row"><span>מחיר בסיס ₪</span><span>עלות משלוח בסיסית לאזור</span></div>
-        <div class="field-row"><span>₪ לק"מ</span><span>תוספת לפי מרחק (אם רלוונטי)</span></div>
-        <div class="field-row"><span>₪ לק"ג</span><span>תוספת לפי משקל (אם רלוונטי)</span></div>
-        <div class="field-row"><span>מחיר מינימום ₪</span><span>הרצפה שמתחתיה לא ניתן לרדת</span></div>
+        <div class="field-row"><div class="fr-label">שם אזור</div><div class="fr-val">לדוגמה: "מרכז תל אביב", "פריפריה"</div></div>
+        <div class="field-row"><div class="fr-label">מחיר בסיס ₪</div><div class="fr-val">עלות משלוח בסיסית לאזור</div></div>
+        <div class="field-row"><div class="fr-label">₪ לק"מ</div><div class="fr-val">תוספת לפי מרחק (אם רלוונטי)</div></div>
+        <div class="field-row"><div class="fr-label">₪ לק"ג</div><div class="fr-val">תוספת לפי משקל (אם רלוונטי)</div></div>
+        <div class="field-row"><div class="fr-label">מחיר מינימום ₪</div><div class="fr-val">הרצפה שמתחתיה לא ניתן לרדת</div></div>
       </div>
     </div>
 
     <div class="mod">
-      <h3>שלב 4 — הזמנת צוות ראשוני</h3>
+      <div class="mod-head"><div class="mod-icon">4️⃣</div><div><div class="mod-name">שלב 4 — הזמנת צוות ראשוני</div></div></div>
       <p>שלח הזמנות לנהגים ולצוות הניהול. לחץ על "הזמן עובד חדש", הכנס מייל — ישלח SMS / אימייל עם קישור הצטרפות.</p>
-      <div class="box">לאחר ויזארד — המערכת פותחת את <strong>לוח הבקרה של המנהל</strong> עם כל מודולי הלוגיסטיקה.</div>
+      <div class="box box-good"><div class="box-icon">✅</div><div>לאחר ויזארד — המערכת פותחת את <strong>לוח הבקרה של המנהל</strong> עם כל מודולי הלוגיסטיקה.</div></div>
     </div>
   </div>
 
   <!-- ── פרק 3: ניווט ── -->
   <div class="chapter" id="l-nav">
-    <div class="mod">
-      <h2>🧭 ניווט במערכת — לוגיסטיקה</h2>
-      <p>סרגל הניווט בחלק העליון (GNAV) מחולק לקבוצות. הכרטיסיות הלוגיסטיות הייחודיות נמצאות ישירות בסרגל.</p>
-    </div>
+    <div class="ch-head"><div class="ch-num">3</div><div class="ch-title">ניווט במערכת</div></div>
+    <p style="font-size:.9rem;color:var(--text2);">סרגל הניווט בחלק העליון (GNAV) מחולק לקבוצות. הכרטיסיות הלוגיסטיות הייחודיות נמצאות ישירות בסרגל.</p>
 
     <div class="mod">
-      <h3>כרטיסיות לוגיסטיות (ייחודיות לסוג עסק זה)</h3>
+      <div class="mod-head"><div class="mod-icon">📦</div><div><div class="mod-name">כרטיסיות לוגיסטיות</div><div class="mod-tag">ייחודיות לסוג עסק זה</div></div></div>
       <div class="auto-grid">
         <div class="auto-card"><strong>📦 קנבן הזמנות</strong><br/>לוח קנבן עם 13 סטטוסים, פילטר נהג, בחירת תאריך</div>
         <div class="auto-card"><strong>🚗 נהגים</strong><br/>ניהול פרופיל נהג, סטטוס, שיוך רכב</div>
@@ -1981,441 +1984,437 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     </div>
 
     <div class="mod">
-      <h3>קבוצות GNAV — כרטיסיות כלליות</h3>
+      <div class="mod-head"><div class="mod-icon">🧭</div><div><div class="mod-name">קבוצות GNAV</div><div class="mod-tag">כרטיסיות כלליות</div></div></div>
       <div class="field-table">
-        <div class="field-row"><span>👥 צוות</span><span>שעון נוכחות, משימות, חברי צוות</span></div>
-        <div class="field-row"><span>💳 כספים</span><span>תזרים מזומנים, דוחות</span></div>
-        <div class="field-row"><span>⋯ עוד</span><span>פרסום (biz-ads), הגדרות</span></div>
+        <div class="field-row"><div class="fr-label">👥 צוות</div><div class="fr-val">שעון נוכחות, משימות, חברי צוות</div></div>
+        <div class="field-row"><div class="fr-label">💳 כספים</div><div class="fr-val">תזרים מזומנים, דוחות</div></div>
+        <div class="field-row"><div class="fr-label">⋯ עוד</div><div class="fr-val">פרסום (biz-ads), הגדרות</div></div>
       </div>
       <p class="note">שים לב: לוגיסטיקה אינה כוללת POS, חנות, מזון, לוח שנה, או מלאי.</p>
     </div>
 
     <div class="mod">
-      <h3>לוח בקרה — מנהל (Admin)</h3>
+      <div class="mod-head"><div class="mod-icon">👔</div><div><div class="mod-name">לוח בקרה — מנהל</div><div class="mod-tag">Admin</div></div></div>
       <p>כניסה לכרטיסיית <strong>פיד (ראשי)</strong> פותחת את לוח הבקרה של המנהל עם KPIs בזמן אמת:</p>
       <div class="field-table">
-        <div class="field-row"><span>📥 משלוחים חדשים</span><span>הזמנות שעוד לא שויכו לנהג</span></div>
-        <div class="field-row"><span>✅ נמסרו היום</span><span>מספר משלוחים שהושלמו היום</span></div>
-        <div class="field-row"><span>🚚 בדרך כעת</span><span>כמה משלוחים נמצאים בסטטוס "בדרך"</span></div>
-        <div class="field-row"><span>📵 לא ענו</span><span>כמה לקוחות לא ענו — מוצג באדום אם קיים</span></div>
-        <div class="field-row"><span>💵 COD ממתין</span><span>סכום כסף שהנהגים גבו ועדיין לא הפקידו</span></div>
+        <div class="field-row"><div class="fr-label">📥 משלוחים חדשים</div><div class="fr-val">הזמנות שעוד לא שויכו לנהג</div></div>
+        <div class="field-row"><div class="fr-label">✅ נמסרו היום</div><div class="fr-val">מספר משלוחים שהושלמו היום</div></div>
+        <div class="field-row"><div class="fr-label">🚚 בדרך כעת</div><div class="fr-val">כמה משלוחים נמצאים בסטטוס "בדרך"</div></div>
+        <div class="field-row"><div class="fr-label">📵 לא ענו</div><div class="fr-val">כמה לקוחות לא ענו — מוצג באדום אם קיים</div></div>
+        <div class="field-row"><div class="fr-label">💵 COD ממתין</div><div class="fr-val">סכום כסף שהנהגים גבו ועדיין לא הפקידו</div></div>
       </div>
       <p>+ 6 כפתורי קיצור מהירים לכרטיסיות: קנבן, נהגים, רכבים, מחירון, COD, הצעות מחיר.</p>
     </div>
 
     <div class="mod">
-      <h3>לוח בקרה — נהג / עובד (Driver Companion)</h3>
+      <div class="mod-head"><div class="mod-icon">🚚</div><div><div class="mod-name">לוח בקרה — נהג / עובד</div><div class="mod-tag">Driver Companion</div></div></div>
       <p>נהג שנכנס רואה תצוגה אישית בלבד — רשימת המשלוחים שלו ליום הנוכחי:</p>
       <div class="field-table">
-        <div class="field-row"><span>כותרת</span><span>שם הנהג + יום השבוע הנוכחי</span></div>
-        <div class="field-row"><span>סיכום</span><span>סה"כ משלוחים / נמסרו / COD לגבייה</span></div>
-        <div class="field-row"><span>🚚 פעיל עכשיו</span><span>משלוחים בסטטוס "בדרך" + "נאסף" / "שויך"</span></div>
-        <div class="field-row"><span>📵 לא ענה</span><span>ניסיונות כושלים שהנהג דיווח עליהם</span></div>
-        <div class="field-row"><span>✅ הושלמו</span><span>משלוחים שנמסרו היום</span></div>
+        <div class="field-row"><div class="fr-label">כותרת</div><div class="fr-val">שם הנהג + יום השבוע הנוכחי</div></div>
+        <div class="field-row"><div class="fr-label">סיכום</div><div class="fr-val">סה"כ משלוחים / נמסרו / COD לגבייה</div></div>
+        <div class="field-row"><div class="fr-label">🚚 פעיל עכשיו</div><div class="fr-val">משלוחים בסטטוס "בדרך" + "נאסף" / "שויך"</div></div>
+        <div class="field-row"><div class="fr-label">📵 לא ענה</div><div class="fr-val">ניסיונות כושלים שהנהג דיווח עליהם</div></div>
+        <div class="field-row"><div class="fr-label">✅ הושלמו</div><div class="fr-val">משלוחים שנמסרו היום</div></div>
       </div>
       <p>כל כרטיסיית משלוח כוללת: כפתור 📞 שיחה, כפתור 🗺 Waze ניווט, כפתורי עדכון סטטוס (נאסף ← בדרך ← הגעתי ← נמסר ✓).</p>
-      <div class="box">אם הנהג לא מקושר לפרופיל נהג — הוא רואה הודעה "לא נמצא פרופיל נהג, פנה למנהל".</div>
+      <div class="box box-warn"><div class="box-icon">⚠️</div><div>אם הנהג לא מקושר לפרופיל נהג — הוא רואה הודעה "לא נמצא פרופיל נהג, פנה למנהל".</div></div>
     </div>
   </div>
 
   <!-- ── פרק 4: קנבן משלוחים ── -->
   <div class="chapter" id="l-orders">
-    <div class="mod">
-      <h2>📦 קנבן משלוחים</h2>
-      <p>לב המערכת. כל משלוח הוא כרטיסייה שזזה בין עמודות הסטטוס. ניתן לסנן לפי נהג ולפי תאריך.</p>
-    </div>
+    <div class="ch-head"><div class="ch-num">4</div><div class="ch-title">קנבן משלוחים</div></div>
+    <p style="font-size:.9rem;color:var(--text2);">לב המערכת. כל משלוח הוא כרטיסייה שזזה בין עמודות הסטטוס. ניתן לסנן לפי נהג ולפי תאריך.</p>
 
     <div class="mod">
-      <h3>13 סטטוסי משלוח</h3>
+      <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">13 סטטוסי משלוח</div></div></div>
       <div class="field-table">
-        <div class="field-row"><span>📥 חדש</span><span>הזמנה נכנסה, טרם אושרה</span></div>
-        <div class="field-row"><span>💬 ממתין להצעה</span><span>הלקוח ביקש הצעת מחיר לפני אישור</span></div>
-        <div class="field-row"><span>📄 הצעה נשלחה</span><span>נשלחה הצעה, מחכים לאישור לקוח</span></div>
-        <div class="field-row"><span>✅ אושר</span><span>המשלוח אושר, טרם שויך לנהג</span></div>
-        <div class="field-row"><span>👤 שויך</span><span>נהג מסוים שויך למשלוח</span></div>
-        <div class="field-row"><span>📦 נאסף</span><span>הנהג אסף את החבילה</span></div>
-        <div class="field-row"><span>🚚 בדרך</span><span>הנהג בדרך לנמען</span></div>
-        <div class="field-row"><span>📍 הגיע</span><span>הנהג הגיע לכתובת, עדיין לא מסר</span></div>
-        <div class="field-row"><span>✅ נמסר</span><span>המשלוח נמסר בהצלחה</span></div>
-        <div class="field-row"><span>⚠️ נמסר חלקית</span><span>חלק מהפריטים נמסרו</span></div>
-        <div class="field-row"><span>📵 לא ענה</span><span>הלקוח לא ענה, מוצג כניסיון כושל</span></div>
-        <div class="field-row"><span>↩️ הוחזר</span><span>המשלוח חזר למחסן</span></div>
-        <div class="field-row"><span>❌ בוטל</span><span>הזמנה בוטלה</span></div>
+        <div class="field-row"><div class="fr-label">📥 חדש</div><div class="fr-val">הזמנה נכנסה, טרם אושרה</div></div>
+        <div class="field-row"><div class="fr-label">💬 ממתין להצעה</div><div class="fr-val">הלקוח ביקש הצעת מחיר לפני אישור</div></div>
+        <div class="field-row"><div class="fr-label">📄 הצעה נשלחה</div><div class="fr-val">נשלחה הצעה, מחכים לאישור לקוח</div></div>
+        <div class="field-row"><div class="fr-label">✅ אושר</div><div class="fr-val">המשלוח אושר, טרם שויך לנהג</div></div>
+        <div class="field-row"><div class="fr-label">👤 שויך</div><div class="fr-val">נהג מסוים שויך למשלוח</div></div>
+        <div class="field-row"><div class="fr-label">📦 נאסף</div><div class="fr-val">הנהג אסף את החבילה</div></div>
+        <div class="field-row"><div class="fr-label">🚚 בדרך</div><div class="fr-val">הנהג בדרך לנמען</div></div>
+        <div class="field-row"><div class="fr-label">📍 הגיע</div><div class="fr-val">הנהג הגיע לכתובת, עדיין לא מסר</div></div>
+        <div class="field-row"><div class="fr-label">✅ נמסר</div><div class="fr-val">המשלוח נמסר בהצלחה</div></div>
+        <div class="field-row"><div class="fr-label">⚠️ נמסר חלקית</div><div class="fr-val">חלק מהפריטים נמסרו</div></div>
+        <div class="field-row"><div class="fr-label">📵 לא ענה</div><div class="fr-val">הלקוח לא ענה, מוצג כניסיון כושל</div></div>
+        <div class="field-row"><div class="fr-label">↩️ הוחזר</div><div class="fr-val">המשלוח חזר למחסן</div></div>
+        <div class="field-row"><div class="fr-label">❌ בוטל</div><div class="fr-val">הזמנה בוטלה</div></div>
       </div>
       <p class="note">ברירת מחדל מציגה רק "פעיל" (9 עמודות). לחץ "הצג הכל" לצפייה ב-13 עמודות.</p>
     </div>
 
     <div class="mod">
-      <h3>יצירת משלוח חדש</h3>
+      <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">יצירת משלוח חדש</div></div></div>
       <p>לחץ על כפתור הכתום <strong>"+ משלוח חדש"</strong>:</p>
       <div class="field-table">
-        <div class="field-row"><span>שם לקוח *</span><span>שם הנמען או שם החברה</span></div>
-        <div class="field-row"><span>טלפון</span><span>טלפון הנמען לתיאום</span></div>
-        <div class="field-row"><span>כתובת מסירה *</span><span>כתובת מלאה לניווט</span></div>
-        <div class="field-row"><span>כתובת איסוף</span><span>אם האיסוף אינו מהמחסן הראשי</span></div>
-        <div class="field-row"><span>תאריך</span><span>תאריך המשלוח המתוכנן</span></div>
-        <div class="field-row"><span>שעה / חלון</span><span>לדוגמה: "08:00-12:00" — חלון זמן למסירה</span></div>
-        <div class="field-row"><span>COD ₪</span><span>סכום לגבייה במזומן / כרטיס בשטח (0 אם אין)</span></div>
-        <div class="field-row"><span>דמי משלוח ₪</span><span>מחיר המשלוח ללקוח</span></div>
-        <div class="field-row"><span>משקל ק"ג</span><span>לחישוב עלות לפי משקל (אופציונלי)</span></div>
-        <div class="field-row"><span>שיוך נהג</span><span>ניתן לשייך עכשיו או מאוחר יותר</span></div>
-        <div class="field-row"><span>הערות לנהג</span><span>הנחיות מיוחדות: "קומה 4", "שמור בקור" וכו'</span></div>
+        <div class="field-row"><div class="fr-label">שם לקוח *</div><div class="fr-val">שם הנמען או שם החברה</div></div>
+        <div class="field-row"><div class="fr-label">טלפון</div><div class="fr-val">טלפון הנמען לתיאום</div></div>
+        <div class="field-row"><div class="fr-label">כתובת מסירה *</div><div class="fr-val">כתובת מלאה לניווט</div></div>
+        <div class="field-row"><div class="fr-label">כתובת איסוף</div><div class="fr-val">אם האיסוף אינו מהמחסן הראשי</div></div>
+        <div class="field-row"><div class="fr-label">תאריך</div><div class="fr-val">תאריך המשלוח המתוכנן</div></div>
+        <div class="field-row"><div class="fr-label">שעה / חלון</div><div class="fr-val">לדוגמה: "08:00-12:00" — חלון זמן למסירה</div></div>
+        <div class="field-row"><div class="fr-label">COD ₪</div><div class="fr-val">סכום לגבייה במזומן / כרטיס בשטח (0 אם אין)</div></div>
+        <div class="field-row"><div class="fr-label">דמי משלוח ₪</div><div class="fr-val">מחיר המשלוח ללקוח</div></div>
+        <div class="field-row"><div class="fr-label">משקל ק"ג</div><div class="fr-val">לחישוב עלות לפי משקל (אופציונלי)</div></div>
+        <div class="field-row"><div class="fr-label">שיוך נהג</div><div class="fr-val">ניתן לשייך עכשיו או מאוחר יותר</div></div>
+        <div class="field-row"><div class="fr-label">הערות לנהג</div><div class="fr-val">הנחיות מיוחדות: "קומה 4", "שמור בקור" וכו'</div></div>
       </div>
       <p>לחץ <strong>"צור משלוח"</strong> — הכרטיסייה מופיעה בעמודת "חדש".</p>
     </div>
 
     <div class="mod">
-      <h3>פרטי משלוח — לחיצה על כרטיסייה</h3>
+      <div class="mod-head"><div class="mod-icon">📋</div><div><div class="mod-name">פרטי משלוח</div><div class="mod-tag">לחיצה על כרטיסייה</div></div></div>
       <p>לחיצה על כרטיסיית משלוח בקנבן פותחת חלון פרטים מלא:</p>
       <div class="field-table">
-        <div class="field-row"><span>כתובת + טלפון</span><span>לחיצה על הטלפון מתקשרת ישירות</span></div>
-        <div class="field-row"><span>🗺 Waze</span><span>לחיצה פותחת ניווט לכתובת המסירה</span></div>
-        <div class="field-row"><span>שיוך נהג ורכב</span><span>בחירה מרשימה + לחץ "שייך"</span></div>
-        <div class="field-row"><span>עדכון סטטוס</span><span>10 כפתורי סטטוס לבחירה ישירה</span></div>
-        <div class="field-row"><span>🔗 לינק מעקב</span><span>צור קישור ציבורי לשלוח ללקוח</span></div>
-        <div class="field-row"><span>📵 לא ענה</span><span>מוצג כשהמשלוח בסטטוס "בדרך" / "הגיע"</span></div>
-        <div class="field-row"><span>🔗 ONEFLOW</span><span>הוסף את הלקוח למאגר ONEFLOW</span></div>
-        <div class="field-row"><span>ביטול הזמנה</span><span>כפתור אדום בתחתית הפרטים</span></div>
+        <div class="field-row"><div class="fr-label">כתובת + טלפון</div><div class="fr-val">לחיצה על הטלפון מתקשרת ישירות</div></div>
+        <div class="field-row"><div class="fr-label">🗺 Waze</div><div class="fr-val">לחיצה פותחת ניווט לכתובת המסירה</div></div>
+        <div class="field-row"><div class="fr-label">שיוך נהג ורכב</div><div class="fr-val">בחירה מרשימה + לחץ "שייך"</div></div>
+        <div class="field-row"><div class="fr-label">עדכון סטטוס</div><div class="fr-val">10 כפתורי סטטוס לבחירה ישירה</div></div>
+        <div class="field-row"><div class="fr-label">🔗 לינק מעקב</div><div class="fr-val">צור קישור ציבורי לשלוח ללקוח</div></div>
+        <div class="field-row"><div class="fr-label">📵 לא ענה</div><div class="fr-val">מוצג כשהמשלוח בסטטוס "בדרך" / "הגיע"</div></div>
+        <div class="field-row"><div class="fr-label">🔗 ONEFLOW</div><div class="fr-val">הוסף את הלקוח למאגר ONEFLOW</div></div>
+        <div class="field-row"><div class="fr-label">ביטול הזמנה</div><div class="fr-val">כפתור אדום בתחתית הפרטים</div></div>
       </div>
 
       <h4 style="margin-top:1rem">גבייה בשטח (COD) בתוך כרטיסיית פרטי משלוח</h4>
       <p>כאשר יש COD ממתין — מוצג בלוק גבייה:</p>
       <div class="field-table">
-        <div class="field-row"><span>💵 מזומן</span><span>הנהג קיבל מזומן</span></div>
-        <div class="field-row"><span>💳 אשראי</span><span>הנהג גבה בכרטיס</span></div>
-        <div class="field-row"><span>📱 QR</span><span>הלקוח שילם בסריקת QR</span></div>
+        <div class="field-row"><div class="fr-label">💵 מזומן</div><div class="fr-val">הנהג קיבל מזומן</div></div>
+        <div class="field-row"><div class="fr-label">💳 אשראי</div><div class="fr-val">הנהג גבה בכרטיס</div></div>
+        <div class="field-row"><div class="fr-label">📱 QR</div><div class="fr-val">הלקוח שילם בסריקת QR</div></div>
       </div>
       <p>לאחר גבייה — הסכום עובר לדף "גבייה COD" כ"נגבה" ומוצג כירוק.</p>
 
       <h4 style="margin-top:1rem">ניסיון כושל (לא ענה)</h4>
       <div class="field-table">
-        <div class="field-row"><span>📵 לא ענה</span><span>לחיצה דורשת הוספת הערה (אופציונלי)</span></div>
-        <div class="field-row"><span>מונה ניסיונות</span><span>מספר הניסיונות הכושלים מוצג על הכרטיסייה</span></div>
-        <div class="field-row"><span>🚪 אישר השארה</span><span>אם הלקוח אישר — מוצג "אישר השארה בדלת"</span></div>
+        <div class="field-row"><div class="fr-label">📵 לא ענה</div><div class="fr-val">לחיצה דורשת הוספת הערה (אופציונלי)</div></div>
+        <div class="field-row"><div class="fr-label">מונה ניסיונות</div><div class="fr-val">מספר הניסיונות הכושלים מוצג על הכרטיסייה</div></div>
+        <div class="field-row"><div class="fr-label">🚪 אישר השארה</div><div class="fr-val">אם הלקוח אישר — מוצג "אישר השארה בדלת"</div></div>
       </div>
     </div>
 
     <div class="mod">
-      <h3>סינון וצפייה בקנבן</h3>
+      <div class="mod-head"><div class="mod-icon">🔍</div><div><div class="mod-name">סינון וצפייה בקנבן</div></div></div>
       <div class="field-table">
-        <div class="field-row"><span>פילטר תאריך</span><span>בחר תאריך לצפייה בהזמנות של אותו יום</span></div>
-        <div class="field-row"><span>פילטר נהג</span><span>הצג רק הזמנות של נהג ספציפי</span></div>
-        <div class="field-row"><span>פעיל / הכל</span><span>פעיל = 9 עמודות | הכל = 13 עמודות כולל הוחזר/נמסר</span></div>
+        <div class="field-row"><div class="fr-label">פילטר תאריך</div><div class="fr-val">בחר תאריך לצפייה בהזמנות של אותו יום</div></div>
+        <div class="field-row"><div class="fr-label">פילטר נהג</div><div class="fr-val">הצג רק הזמנות של נהג ספציפי</div></div>
+        <div class="field-row"><div class="fr-label">פעיל / הכל</div><div class="fr-val">פעיל = 9 עמודות | הכל = 13 עמודות כולל הוחזר/נמסר</div></div>
       </div>
     </div>
   </div>
 
   <!-- ── פרק 5: נהגים ורכבים ── -->
   <div class="chapter" id="l-fleet">
-    <div class="mod">
-      <h2>🚗 נהגים ורכבים</h2>
-      <p>ניהול הצוות הנייד: פרופילי נהגים, צי הרכבים ומעקב אחרי תקינות הרכב.</p>
-    </div>
+    <div class="ch-head"><div class="ch-num">5</div><div class="ch-title">נהגים ורכבים</div></div>
+    <p style="font-size:.9rem;color:var(--text2);">ניהול הצוות הנייד: פרופילי נהגים, צי הרכבים ומעקב אחרי תקינות הרכב.</p>
 
     <div class="mod">
-      <h3>כרטיסיית "נהגים" 🚗</h3>
+      <div class="mod-head"><div class="mod-icon">🚗</div><div><div class="mod-name">כרטיסיית נהגים</div><div class="mod-tag">ניהול צוות נהגים</div></div></div>
       <p>כרטיס לכל נהג עם סטטוס חי וכפתורי פעולה:</p>
       <div class="field-table">
-        <div class="field-row"><span>פעיל</span><span>הנהג זמין לקבל משלוחים</span></div>
-        <div class="field-row"><span>במסלול</span><span>הנהג נמצא כרגע בחלוקה</span></div>
-        <div class="field-row"><span>הפסקה</span><span>הנהג בהפסקה</span></div>
-        <div class="field-row"><span>לא פעיל</span><span>הנהג לא עובד היום</span></div>
+        <div class="field-row"><div class="fr-label">פעיל</div><div class="fr-val">הנהג זמין לקבל משלוחים</div></div>
+        <div class="field-row"><div class="fr-label">במסלול</div><div class="fr-val">הנהג נמצא כרגע בחלוקה</div></div>
+        <div class="field-row"><div class="fr-label">הפסקה</div><div class="fr-val">הנהג בהפסקה</div></div>
+        <div class="field-row"><div class="fr-label">לא פעיל</div><div class="fr-val">הנהג לא עובד היום</div></div>
       </div>
       <p>+ מציג: מספר הזמנות פעילות, שם הרכב המשויך, כפתורי 📞 שיחה ו-✏️ עריכה.</p>
 
       <h4 style="margin-top:1rem">הוספת נהג חדש — שדות</h4>
       <div class="field-table">
-        <div class="field-row"><span>שם *</span><span>שם הנהג</span></div>
-        <div class="field-row"><span>טלפון</span><span>טלפון לתיאום ולניווט</span></div>
-        <div class="field-row"><span>אימייל</span><span>לכניסה למערכת</span></div>
-        <div class="field-row"><span>רכב ברירת מחדל</span><span>הרכב שהנהג נוהג בו בדרך כלל</span></div>
-        <div class="field-row"><span>סטטוס</span><span>פעיל / במסלול / הפסקה / לא פעיל</span></div>
-        <div class="field-row"><span>הערות</span><span>מידע פנימי על הנהג</span></div>
+        <div class="field-row"><div class="fr-label">שם *</div><div class="fr-val">שם הנהג</div></div>
+        <div class="field-row"><div class="fr-label">טלפון</div><div class="fr-val">טלפון לתיאום ולניווט</div></div>
+        <div class="field-row"><div class="fr-label">אימייל</div><div class="fr-val">לכניסה למערכת</div></div>
+        <div class="field-row"><div class="fr-label">רכב ברירת מחדל</div><div class="fr-val">הרכב שהנהג נוהג בו בדרך כלל</div></div>
+        <div class="field-row"><div class="fr-label">סטטוס</div><div class="fr-val">פעיל / במסלול / הפסקה / לא פעיל</div></div>
+        <div class="field-row"><div class="fr-label">הערות</div><div class="fr-val">מידע פנימי על הנהג</div></div>
       </div>
     </div>
 
     <div class="mod">
-      <h3>כרטיסיית "צי רכבים" 🚚</h3>
+      <div class="mod-head"><div class="mod-icon">🚚</div><div><div class="mod-name">כרטיסיית צי רכבים</div><div class="mod-tag">ניהול כלי רכב</div></div></div>
       <p>כל רכב בצי מנוהל עם תאריכי תפוגה לביטוח ולטסט. <strong>התראה אוטומטית</strong> מוצגת כאשר תאריך הביטוח או הטסט מתקרב תוך 14 יום.</p>
 
       <h4>הוספת רכב חדש — שדות</h4>
       <div class="field-table">
-        <div class="field-row"><span>שם הרכב *</span><span>לדוגמה: "שלי קטנוע 1", "משאית גדולה"</span></div>
-        <div class="field-row"><span>לוחית</span><span>מספר רישוי הרכב</span></div>
-        <div class="field-row"><span>סוג</span><span>קטנוע / אסטייט-מסחרית / משאית / אופניים / חשמלי</span></div>
-        <div class="field-row"><span>קיבולת ק"ג</span><span>עומס מרבי שהרכב יכול לשאת</span></div>
-        <div class="field-row"><span>ביטוח עד</span><span>תאריך תפוגת הביטוח — ייצבע אדום כשמתקרב</span></div>
-        <div class="field-row"><span>טסט עד</span><span>תאריך הטסט הבא — ייצבע אדום כשמתקרב</span></div>
-        <div class="field-row"><span>הערות</span><span>מידע נוסף על הרכב</span></div>
+        <div class="field-row"><div class="fr-label">שם הרכב *</div><div class="fr-val">לדוגמה: "שלי קטנוע 1", "משאית גדולה"</div></div>
+        <div class="field-row"><div class="fr-label">לוחית</div><div class="fr-val">מספר רישוי הרכב</div></div>
+        <div class="field-row"><div class="fr-label">סוג</div><div class="fr-val">קטנוע / אסטייט-מסחרית / משאית / אופניים / חשמלי</div></div>
+        <div class="field-row"><div class="fr-label">קיבולת ק"ג</div><div class="fr-val">עומס מרבי שהרכב יכול לשאת</div></div>
+        <div class="field-row"><div class="fr-label">ביטוח עד</div><div class="fr-val">תאריך תפוגת הביטוח — ייצבע אדום כשמתקרב</div></div>
+        <div class="field-row"><div class="fr-label">טסט עד</div><div class="fr-val">תאריך הטסט הבא — ייצבע אדום כשמתקרב</div></div>
+        <div class="field-row"><div class="fr-label">הערות</div><div class="fr-val">מידע נוסף על הרכב</div></div>
       </div>
-      <div class="box">⚠️ כאשר ביטוח או טסט פגי תוקף תוך 14 יום — מוצגת התראה בלוח הבקרה הראשי.</div>
+      <div class="box box-warn"><div class="box-icon">⚠️</div><div>כאשר ביטוח או טסט פגי תוקף תוך 14 יום — מוצגת התראה בלוח הבקרה הראשי.</div></div>
     </div>
 
     <div class="mod">
-      <h3>תפקידי עובדים ברישיון (Add-on)</h3>
+      <div class="mod-head"><div class="mod-icon">💼</div><div><div class="mod-name">תפקידי עובדים</div><div class="mod-tag">Add-on — תשלום חודשי</div></div></div>
       <p>לוגיסטיקה תומכת בתפקידים נוספים בתשלום חודשי:</p>
       <div class="field-table">
-        <div class="field-row"><span>🛵 שליח / נהג — ₪19/חודש</span><span>גישה לתצוגת Driver Companion האישית</span></div>
-        <div class="field-row"><span>📦 מחסנאי — ₪19/חודש</span><span>גישה למלאי ולמשלוחים ממוינים לפי מחסן</span></div>
-        <div class="field-row"><span>🔧 טכנאי שטח — ₪29/חודש</span><span>גישה למשלוחים עם קריאות שירות</span></div>
-        <div class="field-row"><span>📋 מנהל משמרת — ₪29/חודש</span><span>גישה לניהול נהגים ושיוך משלוחים</span></div>
-        <div class="field-row"><span>🏢 מנהל סניף — ₪39/חודש</span><span>גישה מלאה לכל מודולי הלוגיסטיקה</span></div>
+        <div class="field-row"><div class="fr-label">🛵 שליח / נהג — ₪19/חודש</div><div class="fr-val">גישה לתצוגת Driver Companion האישית</div></div>
+        <div class="field-row"><div class="fr-label">📦 מחסנאי — ₪19/חודש</div><div class="fr-val">גישה למלאי ולמשלוחים ממוינים לפי מחסן</div></div>
+        <div class="field-row"><div class="fr-label">🔧 טכנאי שטח — ₪29/חודש</div><div class="fr-val">גישה למשלוחים עם קריאות שירות</div></div>
+        <div class="field-row"><div class="fr-label">📋 מנהל משמרת — ₪29/חודש</div><div class="fr-val">גישה לניהול נהגים ושיוך משלוחים</div></div>
+        <div class="field-row"><div class="fr-label">🏢 מנהל סניף — ₪39/חודש</div><div class="fr-val">גישה מלאה לכל מודולי הלוגיסטיקה</div></div>
       </div>
     </div>
   </div>
 
   <!-- ── פרק 6: מסלולים ומעקב ── -->
   <div class="chapter" id="l-routes">
-    <div class="mod">
-      <h2>🗺️ מסלולי חלוקה ולינקי מעקב</h2>
-      <p>תכנן מסלול יומי עם סדר עצירות וה ETA לכל נמען — ושלח ללקוח קישור מעקב בזמן אמת.</p>
-    </div>
+    <div class="ch-head"><div class="ch-num">6</div><div class="ch-title">מסלולים ומעקב</div></div>
+    <p style="font-size:.9rem;color:var(--text2);">תכנן מסלול יומי עם סדר עצירות ו-ETA לכל נמען — ושלח ללקוח קישור מעקב בזמן אמת.</p>
 
     <div class="mod">
-      <h3>כרטיסיית "מסלולי חלוקה" 🗺️</h3>
+      <div class="mod-head"><div class="mod-icon">🗺️</div><div><div class="mod-name">כרטיסיית מסלולי חלוקה</div></div></div>
       <p>יצירת מסלול — לחץ "+ מסלול חדש":</p>
       <div class="field-table">
-        <div class="field-row"><span>שם המסלול</span><span>לדוגמה: "מרכז ת"א — בוקר"</span></div>
-        <div class="field-row"><span>תאריך</span><span>תאריך יום החלוקה</span></div>
-        <div class="field-row"><span>שיוך נהג</span><span>בחר נהג מהרשימה (אופציונלי)</span></div>
-        <div class="field-row"><span>שיוך רכב</span><span>בחר רכב מהצי (אופציונלי)</span></div>
-        <div class="field-row"><span>הערות</span><span>הנחיות מיוחדות למסלול</span></div>
+        <div class="field-row"><div class="fr-label">שם המסלול</div><div class="fr-val">לדוגמה: "מרכז ת"א — בוקר"</div></div>
+        <div class="field-row"><div class="fr-label">תאריך</div><div class="fr-val">תאריך יום החלוקה</div></div>
+        <div class="field-row"><div class="fr-label">שיוך נהג</div><div class="fr-val">בחר נהג מהרשימה (אופציונלי)</div></div>
+        <div class="field-row"><div class="fr-label">שיוך רכב</div><div class="fr-val">בחר רכב מהצי (אופציונלי)</div></div>
+        <div class="field-row"><div class="fr-label">הערות</div><div class="fr-val">הנחיות מיוחדות למסלול</div></div>
       </div>
 
       <h4 style="margin-top:1rem">סטטוסי מסלול</h4>
       <div class="field-table">
-        <div class="field-row"><span>מתוכנן</span><span>המסלול תוכנן, טרם התחיל — לחץ "הפעל"</span></div>
-        <div class="field-row"><span>פעיל</span><span>הנהג יצא לחלוקה — לחץ "סיים" בסיום</span></div>
-        <div class="field-row"><span>הסתיים</span><span>המסלול הושלם</span></div>
+        <div class="field-row"><div class="fr-label">מתוכנן</div><div class="fr-val">המסלול תוכנן, טרם התחיל — לחץ "הפעל"</div></div>
+        <div class="field-row"><div class="fr-label">פעיל</div><div class="fr-val">הנהג יצא לחלוקה — לחץ "סיים" בסיום</div></div>
+        <div class="field-row"><div class="fr-label">הסתיים</div><div class="fr-val">המסלול הושלם</div></div>
       </div>
 
       <h4 style="margin-top:1rem">הוספת עצירות למסלול</h4>
       <p>לחץ "פרטים" על מסלול ← בתחתית הכנס מזהה הזמנה + ETA משוער:</p>
       <div class="field-table">
-        <div class="field-row"><span>מס' הזמנה / ID</span><span>מספר ההזמנה מהקנבן</span></div>
-        <div class="field-row"><span>ETA</span><span>שעה משוערת לאותה עצירה: "14:30"</span></div>
+        <div class="field-row"><div class="fr-label">מס' הזמנה / ID</div><div class="fr-val">מספר ההזמנה מהקנבן</div></div>
+        <div class="field-row"><div class="fr-label">ETA</div><div class="fr-val">שעה משוערת לאותה עצירה: "14:30"</div></div>
       </div>
       <p>העצירות מוצגות ממוספרות לפי סדר עם שם הלקוח, כתובת, סטטוס וCOD.</p>
     </div>
 
     <div class="mod">
-      <h3>כרטיסיית "לינקי מעקב" 🔗</h3>
+      <div class="mod-head"><div class="mod-icon">🔗</div><div><div class="mod-name">כרטיסיית לינקי מעקב</div></div></div>
       <p>כל הזמנה יכולה לקבל קישור ציבורי שמציג ללקוח את מצב המשלוח שלו בזמן אמת.</p>
       <div class="steps">
-        <div class="step"><span>1</span><div>לחץ על הזמנה בכרטיסיית "לינקי מעקב"</div></div>
-        <div class="step"><span>2</span><div>לחץ "🔗 צור לינק מעקב" — נוצר לינק ייחודי</div></div>
-        <div class="step"><span>3</span><div>לחץ "📋 העתק לינק" — שלח ללקוח בWhatsApp / SMS</div></div>
-        <div class="step"><span>4</span><div>הלקוח פותח את הלינק ורואה: סטטוס, כתובת, שם נהג</div></div>
+        <div class="step"><div class="step-n">1</div><div class="step-body">לחץ על הזמנה בכרטיסיית "לינקי מעקב"</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body">לחץ "🔗 צור לינק מעקב" — נוצר לינק ייחודי</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body">לחץ "📋 העתק לינק" — שלח ללקוח בWhatsApp / SMS</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body">הלקוח פותח את הלינק ורואה: סטטוס, כתובת, שם נהג</div></div>
       </div>
-      <div class="box">הלינק פתוח לציבור ואינו דורש כניסה למערכת. כתובת הלינק: <code>/track/{token}</code></div>
+      <div class="box box-tip"><div class="box-icon">🔗</div><div>הלינק פתוח לציבור ואינו דורש כניסה למערכת. כתובת הלינק: <code>/track/{token}</code></div></div>
       <p>ניתן ליצור לינק גם ישירות מחלון פרטי ההזמנה בקנבן.</p>
     </div>
   </div>
 
   <!-- ── פרק 7: מחירון וגבייה ── -->
   <div class="chapter" id="l-money">
-    <div class="mod">
-      <h2>💰 מחירון, גבייה COD והצעות מחיר</h2>
-    </div>
+    <div class="ch-head"><div class="ch-num">7</div><div class="ch-title">מחירון וגבייה</div></div>
 
     <div class="mod">
-      <h3>כרטיסיית "מחירון" 💰</h3>
+      <div class="mod-head"><div class="mod-icon">💰</div><div><div class="mod-name">כרטיסיית מחירון</div><div class="mod-tag">אזורי מחיר גאוגרפיים</div></div></div>
       <p>הגדרת אזורי מחיר גאוגרפיים. כל שורה = אזור עם מבנה תמחור:</p>
       <div class="field-table">
-        <div class="field-row"><span>שם האזור *</span><span>לדוגמה: "מרכז תל אביב", "פריפריה צפון"</span></div>
-        <div class="field-row"><span>מחיר בסיס ₪</span><span>עלות קבועה לכל משלוח באזור</span></div>
-        <div class="field-row"><span>מינימום ₪</span><span>הסכום הנמוך ביותר שניתן לגבות</span></div>
-        <div class="field-row"><span>₪ לק"מ</span><span>תוספת לפי מרחק (0 אם לא רלוונטי)</span></div>
-        <div class="field-row"><span>₪ לק"ג</span><span>תוספת לפי משקל (0 אם לא רלוונטי)</span></div>
+        <div class="field-row"><div class="fr-label">שם האזור *</div><div class="fr-val">לדוגמה: "מרכז תל אביב", "פריפריה צפון"</div></div>
+        <div class="field-row"><div class="fr-label">מחיר בסיס ₪</div><div class="fr-val">עלות קבועה לכל משלוח באזור</div></div>
+        <div class="field-row"><div class="fr-label">מינימום ₪</div><div class="fr-val">הסכום הנמוך ביותר שניתן לגבות</div></div>
+        <div class="field-row"><div class="fr-label">₪ לק"מ</div><div class="fr-val">תוספת לפי מרחק (0 אם לא רלוונטי)</div></div>
+        <div class="field-row"><div class="fr-label">₪ לק"ג</div><div class="fr-val">תוספת לפי משקל (0 אם לא רלוונטי)</div></div>
       </div>
       <p>ניתן להוסיף, לערוך ולמחוק אזורים. האזורים משמשים כתייחסות בהכנסת דמי משלוח בהזמנה.</p>
     </div>
 
     <div class="mod">
-      <h3>כרטיסיית "גבייה COD" 💵</h3>
+      <div class="mod-head"><div class="mod-icon">💵</div><div><div class="mod-name">כרטיסיית גבייה COD</div><div class="mod-tag">Cash on Delivery</div></div></div>
       <p>COD = Cash on Delivery — גבייה בשטח מהלקוח. הדף מציג סיכום יומי לכל נהג:</p>
       <div class="field-table">
-        <div class="field-row"><span>לגבות ₪</span><span>הסכום שהנהג היה אמור לגבות</span></div>
-        <div class="field-row"><span>נגבה ₪</span><span>הסכום שאכן גבה (מזומן / כרטיס / QR)</span></div>
-        <div class="field-row"><span>להפקדה ₪</span><span>מה שהנהג טרם הפקיד — מוצג בכתום</span></div>
+        <div class="field-row"><div class="fr-label">לגבות ₪</div><div class="fr-val">הסכום שהנהג היה אמור לגבות</div></div>
+        <div class="field-row"><div class="fr-label">נגבה ₪</div><div class="fr-val">הסכום שאכן גבה (מזומן / כרטיס / QR)</div></div>
+        <div class="field-row"><div class="fr-label">להפקדה ₪</div><div class="fr-val">מה שהנהג טרם הפקיד — מוצג בכתום</div></div>
       </div>
       <p>בסיום יום — לחץ <strong>"סגור יום"</strong> על הנהג, הכנס את הסכום שהופקד, ולחץ אישור.</p>
-      <div class="box">בראש הדף מוצג סיכום כללי: סה"כ נגבה + סה"כ ממתין להפקדה עבור כל הנהגים.</div>
+      <div class="box box-tip"><div class="box-icon">💡</div><div>בראש הדף מוצג סיכום כללי: סה"כ נגבה + סה"כ ממתין להפקדה עבור כל הנהגים.</div></div>
     </div>
 
     <div class="mod">
-      <h3>כרטיסיית "הצעות מחיר" 📋 (RFQ)</h3>
+      <div class="mod-head"><div class="mod-icon">📋</div><div><div class="mod-name">כרטיסיית הצעות מחיר</div><div class="mod-tag">RFQ</div></div></div>
       <p>לקוחות חד-פעמיים שביקשו הצעת מחיר לפני הזמנה. 5 סטטוסים:</p>
       <div class="field-table">
-        <div class="field-row"><span>חדש</span><span>בקשה נכנסה, טרם טופלה</span></div>
-        <div class="field-row"><span>הוצע מחיר</span><span>שלחת הצעת מחיר ללקוח</span></div>
-        <div class="field-row"><span>אושר</span><span>הלקוח אישר את ההצעה</span></div>
-        <div class="field-row"><span>הושלם</span><span>המשלוח בוצע</span></div>
-        <div class="field-row"><span>נדחה</span><span>הלקוח לא מעוניין</span></div>
+        <div class="field-row"><div class="fr-label">חדש</div><div class="fr-val">בקשה נכנסה, טרם טופלה</div></div>
+        <div class="field-row"><div class="fr-label">הוצע מחיר</div><div class="fr-val">שלחת הצעת מחיר ללקוח</div></div>
+        <div class="field-row"><div class="fr-label">אושר</div><div class="fr-val">הלקוח אישר את ההצעה</div></div>
+        <div class="field-row"><div class="fr-label">הושלם</div><div class="fr-val">המשלוח בוצע</div></div>
+        <div class="field-row"><div class="fr-label">נדחה</div><div class="fr-val">הלקוח לא מעוניין</div></div>
       </div>
 
       <h4 style="margin-top:1rem">יצירת בקשת הצעת מחיר</h4>
       <div class="field-table">
-        <div class="field-row"><span>שם לקוח *</span><span>שם הפונה</span></div>
-        <div class="field-row"><span>טלפון</span><span>לחזרה ללקוח</span></div>
-        <div class="field-row"><span>תיאור הפריטים / הובלה</span><span>מה שצריך לשנע</span></div>
-        <div class="field-row"><span>כתובת איסוף</span><span>מאיפה לאסוף</span></div>
-        <div class="field-row"><span>כתובת יעד</span><span>לאן לספק</span></div>
-        <div class="field-row"><span>תאריך מועדף</span><span>מתי הלקוח צריך</span></div>
+        <div class="field-row"><div class="fr-label">שם לקוח *</div><div class="fr-val">שם הפונה</div></div>
+        <div class="field-row"><div class="fr-label">טלפון</div><div class="fr-val">לחזרה ללקוח</div></div>
+        <div class="field-row"><div class="fr-label">תיאור הפריטים / הובלה</div><div class="fr-val">מה שצריך לשנע</div></div>
+        <div class="field-row"><div class="fr-label">כתובת איסוף</div><div class="fr-val">מאיפה לאסוף</div></div>
+        <div class="field-row"><div class="fr-label">כתובת יעד</div><div class="fr-val">לאן לספק</div></div>
+        <div class="field-row"><div class="fr-label">תאריך מועדף</div><div class="fr-val">מתי הלקוח צריך</div></div>
       </div>
 
       <h4 style="margin-top:1rem">טיפול בבקשה</h4>
       <p>לחץ על הבקשה → בחלון פרטים:</p>
       <div class="field-table">
-        <div class="field-row"><span>שלח הודעה</span><span>שיחת צ'אט עם הלקוח בתוך המערכת</span></div>
-        <div class="field-row"><span>קבע מחיר</span><span>הכנס הצעת מחיר ₪ ומקדמה ₪</span></div>
-        <div class="field-row"><span>שנה סטטוס</span><span>עדכן את מצב הבקשה</span></div>
+        <div class="field-row"><div class="fr-label">שלח הודעה</div><div class="fr-val">שיחת צ'אט עם הלקוח בתוך המערכת</div></div>
+        <div class="field-row"><div class="fr-label">קבע מחיר</div><div class="fr-val">הכנס הצעת מחיר ₪ ומקדמה ₪</div></div>
+        <div class="field-row"><div class="fr-label">שנה סטטוס</div><div class="fr-val">עדכן את מצב הבקשה</div></div>
       </div>
     </div>
   </div>
 
   <!-- ── פרק 8: לקוחות ודוחות ── -->
   <div class="chapter" id="l-biz">
-    <div class="mod">
-      <h2>🤝 לקוחות, חשבוניות ודוחות</h2>
-    </div>
+    <div class="ch-head"><div class="ch-num">8</div><div class="ch-title">לקוחות ודוחות</div></div>
 
     <div class="mod">
-      <h3>כרטיסיית "מזמינים ונמענים" 🤝</h3>
+      <div class="mod-head"><div class="mod-icon">🤝</div><div><div class="mod-name">כרטיסיית מזמינים ונמענים</div><div class="mod-tag">לקוחות B2B קבועים</div></div></div>
       <p>מאגר לקוחות B2B קבועים — חוסך הקלדה חוזרת בכל הזמנה.</p>
       <h4>הוספת לקוח חדש — שדות</h4>
       <div class="field-table">
-        <div class="field-row"><span>שם מלא / שם עסק *</span><span>זיהוי הלקוח</span></div>
-        <div class="field-row"><span>טלפון</span><span>לתיאום ולכפתור שיחה ישיר</span></div>
-        <div class="field-row"><span>מייל</span><span>לשליחת חשבוניות אוטומטית</span></div>
-        <div class="field-row"><span>כתובת ברירת מחדל</span><span>מוצעת אוטומטית בהזמנה חדשה</span></div>
-        <div class="field-row"><span>סוג לקוח</span><span>פרטי / עסקי / מנוי / חיוב שוטף</span></div>
-        <div class="field-row"><span>% הנחה</span><span>הנחה קבועה לאותו לקוח (0 אם אין)</span></div>
-        <div class="field-row"><span>הוראות מסירה</span><span>לדוגמה: "לעזוב אצל השכן", "פעמון ימין"</span></div>
+        <div class="field-row"><div class="fr-label">שם מלא / שם עסק *</div><div class="fr-val">זיהוי הלקוח</div></div>
+        <div class="field-row"><div class="fr-label">טלפון</div><div class="fr-val">לתיאום ולכפתור שיחה ישיר</div></div>
+        <div class="field-row"><div class="fr-label">מייל</div><div class="fr-val">לשליחת חשבוניות אוטומטית</div></div>
+        <div class="field-row"><div class="fr-label">כתובת ברירת מחדל</div><div class="fr-val">מוצעת אוטומטית בהזמנה חדשה</div></div>
+        <div class="field-row"><div class="fr-label">סוג לקוח</div><div class="fr-val">פרטי / עסקי / מנוי / חיוב שוטף</div></div>
+        <div class="field-row"><div class="fr-label">% הנחה</div><div class="fr-val">הנחה קבועה לאותו לקוח (0 אם אין)</div></div>
+        <div class="field-row"><div class="fr-label">הוראות מסירה</div><div class="fr-val">לדוגמה: "לעזוב אצל השכן", "פעמון ימין"</div></div>
       </div>
       <p>מכרטיס הלקוח: 📞 שיחה ישירה, ✏️ עריכה, 🗑️ מחיקה.</p>
     </div>
 
     <div class="mod">
-      <h3>כרטיסיית "חשבוניות" 🧾</h3>
+      <div class="mod-head"><div class="mod-icon">🧾</div><div><div class="mod-name">כרטיסיית חשבוניות</div></div></div>
       <p>חשבוניות נוצרות <strong>אוטומטית</strong> כאשר משלוח מסומן כ"נמסר". 4 סטטוסים:</p>
       <div class="field-table">
-        <div class="field-row"><span>ממתין</span><span>חשבונית נוצרה, טרם נשלחה</span></div>
-        <div class="field-row"><span>נשלח</span><span>חשבונית נשלחה ללקוח — לחץ "סמן כנשלח"</span></div>
-        <div class="field-row"><span>שולם</span><span>הלקוח שילם — לחץ "סמן כשולם"</span></div>
-        <div class="field-row"><span>בוטל</span><span>חשבונית בוטלה</span></div>
+        <div class="field-row"><div class="fr-label">ממתין</div><div class="fr-val">חשבונית נוצרה, טרם נשלחה</div></div>
+        <div class="field-row"><div class="fr-label">נשלח</div><div class="fr-val">חשבונית נשלחה ללקוח — לחץ "סמן כנשלח"</div></div>
+        <div class="field-row"><div class="fr-label">שולם</div><div class="fr-val">הלקוח שילם — לחץ "סמן כשולם"</div></div>
+        <div class="field-row"><div class="fr-label">בוטל</div><div class="fr-val">חשבונית בוטלה</div></div>
       </div>
       <p>בראש הדף: סה"כ גבוי (ממתין לתשלום ← שולם) ומספר חשבוניות ממתינות.</p>
     </div>
 
     <div class="mod">
-      <h3>כרטיסיית "דוחות לוגיסטיקה" 📊</h3>
+      <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">כרטיסיית דוחות לוגיסטיקה</div></div></div>
       <p>סינון לפי: <strong>היום / השבוע / החודש</strong></p>
       <div class="field-table">
-        <div class="field-row"><span>📦 סה"כ משלוחים</span><span>כמה הזמנות נוצרו בתקופה</span></div>
-        <div class="field-row"><span>✅ נמסרו</span><span>מספר ואחוז הצלחה</span></div>
-        <div class="field-row"><span>💰 הכנסה משלוחים</span><span>סה"כ דמי משלוח שנגבו</span></div>
-        <div class="field-row"><span>💵 COD שנגבה</span><span>סה"כ כסף שנגבה בשטח</span></div>
+        <div class="field-row"><div class="fr-label">📦 סה"כ משלוחים</div><div class="fr-val">כמה הזמנות נוצרו בתקופה</div></div>
+        <div class="field-row"><div class="fr-label">✅ נמסרו</div><div class="fr-val">מספר ואחוז הצלחה</div></div>
+        <div class="field-row"><div class="fr-label">💰 הכנסה משלוחים</div><div class="fr-val">סה"כ דמי משלוח שנגבו</div></div>
+        <div class="field-row"><div class="fr-label">💵 COD שנגבה</div><div class="fr-val">סה"כ כסף שנגבה בשטח</div></div>
       </div>
       <h4 style="margin-top:1rem">טבלת ביצועי נהגים</h4>
       <p>לכל נהג: מספר משלוחים, אחוז הצלחה, הכנסה.</p>
-      <div class="box">⚠️ אם יש COD ממתין לגבייה — מוצגת התראה כתומה עם קישור מהיר לדף הגבייה.</div>
+      <div class="box box-warn"><div class="box-icon">⚠️</div><div>אם יש COD ממתין לגבייה — מוצגת התראה כתומה עם קישור מהיר לדף הגבייה.</div></div>
     </div>
 
     <div class="mod">
-      <h3>ניהול צוות</h3>
+      <div class="mod-head"><div class="mod-icon">👥</div><div><div class="mod-name">ניהול צוות</div></div></div>
       <div class="field-table">
-        <div class="field-row"><span>חברי צוות (Members)</span><span>הזמנת עובדים, הגדרת תפקיד, הרשאות</span></div>
-        <div class="field-row"><span>שעון נוכחות (Timeclock)</span><span>כניסה/יציאה לכל עובד, סיכום שעות</span></div>
-        <div class="field-row"><span>משימות (Tasks)</span><span>מטלות לצוות עם תאריך יעד ואחראי</span></div>
+        <div class="field-row"><div class="fr-label">חברי צוות (Members)</div><div class="fr-val">הזמנת עובדים, הגדרת תפקיד, הרשאות</div></div>
+        <div class="field-row"><div class="fr-label">שעון נוכחות (Timeclock)</div><div class="fr-val">כניסה/יציאה לכל עובד, סיכום שעות</div></div>
+        <div class="field-row"><div class="fr-label">משימות (Tasks)</div><div class="fr-val">מטלות לצוות עם תאריך יעד ואחראי</div></div>
       </div>
-      <h4 style="margin-top:1rem">תפקידי עובדים ועלויות</h4>
-      <table class="field-table">
-        <tr><th>תפקיד</th><th>מה הוא עושה</th><th>עלות חודשית</th></tr>
-        <tr><td>טכנאי שטח</td><td>שינוע ואחסון, ניהול מחסן בשטח</td><td>₪29</td></tr>
-        <tr><td>שליח / נהג</td><td>מסירת משלוחים, עדכון סטטוס בשטח</td><td>₪19</td></tr>
-        <tr><td>עובד מחסן</td><td>קבלה, מיון וטיוב מוצרים במחסן</td><td>₪19</td></tr>
-        <tr><td>מנהל משמרת</td><td>פיקוח על הפצה ומשמרת נהגים</td><td>₪29</td></tr>
-        <tr><td>מנהל סניף</td><td>גישה מלאה לכל מודולי הלוגיסטיקה</td><td>₪39</td></tr>
-      </table>
+      <p style="font-weight:600;margin-top:.8rem">תפקידי עובדים ועלויות</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">טכנאי שטח — ₪29/חודש</div><div class="fr-val">שינוע ואחסון, ניהול מחסן בשטח</div></div>
+        <div class="field-row"><div class="fr-label">שליח / נהג — ₪19/חודש</div><div class="fr-val">מסירת משלוחים, עדכון סטטוס בשטח</div></div>
+        <div class="field-row"><div class="fr-label">עובד מחסן — ₪19/חודש</div><div class="fr-val">קבלה, מיון וטיוב מוצרים במחסן</div></div>
+        <div class="field-row"><div class="fr-label">מנהל משמרת — ₪29/חודש</div><div class="fr-val">פיקוח על הפצה ומשמרת נהגים</div></div>
+        <div class="field-row"><div class="fr-label">מנהל סניף — ₪39/חודש</div><div class="fr-val">גישה מלאה לכל מודולי הלוגיסטיקה</div></div>
+      </div>
     </div>
 
     <div class="mod">
-      <h3>כספים ופרסום</h3>
+      <div class="mod-head"><div class="mod-icon">💳</div><div><div class="mod-name">כספים ופרסום</div></div></div>
       <div class="field-table">
-        <div class="field-row"><span>תזרים מזומנים</span><span>הכנסות, הוצאות, יתרה — מקושר לחשבוניות</span></div>
-        <div class="field-row"><span>פרסום (biz-ads)</span><span>מבצעים ומסרים ללקוחות קיימים</span></div>
-        <div class="field-row"><span>הגדרות</span><span>פרופיל עסק, עובדים, ניהול מנויים</span></div>
+        <div class="field-row"><div class="fr-label">תזרים מזומנים</div><div class="fr-val">הכנסות, הוצאות, יתרה — מקושר לחשבוניות</div></div>
+        <div class="field-row"><div class="fr-label">פרסום (biz-ads)</div><div class="fr-val">מבצעים ומסרים ללקוחות קיימים</div></div>
+        <div class="field-row"><div class="fr-label">הגדרות</div><div class="fr-val">פרופיל עסק, עובדים, ניהול מנויים</div></div>
       </div>
     </div>
   </div>
 
+  </div><!-- /wrap -->
 </div>
 <div id="professional" class="page">
 
-  <div class="subnav">
-    <button class="sn on" onclick="goTo('p-enter')">כניסה</button>
-    <button class="sn" onclick="goTo('p-wizard')">ויזארד</button>
-    <button class="sn" onclick="goTo('p-nav')">ניווט</button>
-    <button class="sn" onclick="goTo('p-cases')">תיקים</button>
-    <button class="sn" onclick="goTo('p-timelog')">שעות</button>
-    <button class="sn" onclick="goTo('p-leads')">לידים</button>
-    <button class="sn" onclick="goTo('p-docs')">מסמכים</button>
-    <button class="sn" onclick="goTo('p-content')">אתר תדמית</button>
+  <div class="sec-top">
+    <div class="s-icon">👔</div>
+    <h1>מקצועי / ייעוץ</h1>
+    <p>מדריך לניהול עסק מומחים — יועצים, עורכי דין, רואי חשבון ונותני שירותים מקצועיים</p>
   </div>
+
+  <nav class="subnav">
+    <div class="sn-inner">
+      <button class="sn on" onclick="goTo('p-enter')">כניסה למערכת</button>
+      <button class="sn" onclick="goTo('p-wizard')">הקמה ראשונית</button>
+      <button class="sn" onclick="goTo('p-nav')">ניווט</button>
+      <button class="sn" onclick="goTo('p-cases')">תיקים</button>
+      <button class="sn" onclick="goTo('p-timelog')">יומן שעות</button>
+      <button class="sn" onclick="goTo('p-leads')">לידים</button>
+      <button class="sn" onclick="goTo('p-docs')">מסמכים</button>
+      <button class="sn" onclick="goTo('p-content')">אתר תדמית</button>
+    </div>
+  </nav>
+
+  <div class="wrap">
 
   <!-- ─── כניסה ראשונה ─── -->
   <div class="chapter" id="p-enter">
-    <h2>👔 מקצועי / ייעוץ — כניסה ראשונה</h2>
+    <div class="ch-head"><div class="ch-num">1</div><div class="ch-title">כניסה למערכת</div></div>
     <p>סוג עסק זה מתאים לכל מי שמוכר ידע, זמן או מומחיות: עורכי דין, רואי חשבון, יועצי עסקים, מהנדסים, אדריכלים, פסיכולוגים, קואצ׳רים, רופאים, יועצי מס ועוד. המערכת מותאמת לניהול <strong>תיקי לקוח</strong>, <strong>יומן שעות עבודה</strong> ו<strong>מסמכים מקצועיים</strong> — במקום קופה, מלאי ומשלוחים.</p>
 
-    <div class="box">
-      <strong>🔤 שפה מותאמת לסוג העסק</strong>
-      <table class="field-table" style="margin-top:.5rem">
-        <tr><th>מונח כללי</th><th>מה רואים בממשק</th></tr>
-        <tr><td>קונה</td><td>לקוח</td></tr>
-        <tr><td>מוצר</td><td>שירות</td></tr>
-        <tr><td>הזמנה</td><td>פגישה</td></tr>
-        <tr><td>קריאת שירות</td><td>תיק</td></tr>
-        <tr><td>ספק</td><td>קבלן חיצוני</td></tr>
-        <tr><td>תמחור</td><td>תמחור שירותים</td></tr>
-      </table>
-    </div>
+    <div class="box box-tip"><div class="box-icon">🔤</div><div>
+      <strong>שפה מותאמת לסוג העסק</strong>
+      <div class="field-table" style="margin-top:.5rem">
+        <div class="field-row"><div class="fr-label">קונה</div><div class="fr-val">לקוח</div></div>
+        <div class="field-row"><div class="fr-label">מוצר</div><div class="fr-val">שירות</div></div>
+        <div class="field-row"><div class="fr-label">הזמנה</div><div class="fr-val">פגישה</div></div>
+        <div class="field-row"><div class="fr-label">קריאת שירות</div><div class="fr-val">תיק</div></div>
+        <div class="field-row"><div class="fr-label">ספק</div><div class="fr-val">קבלן חיצוני</div></div>
+        <div class="field-row"><div class="fr-label">תמחור</div><div class="fr-val">תמחור שירותים</div></div>
+      </div>
+    </div></div>
 
     <div class="mod">
-      <div class="mod-t">מה צריך לעשות לפני שמתחילים?</div>
-      <ol class="steps">
-        <li class="step">וודא שמנהל ה-Super Admin הגדיר את סוג העסק שלך כ<strong>מקצועי / ייעוץ</strong>. זה נעשה בהגדרות המערכת — לא אתה עושה את זה בעצמך.</li>
-        <li class="step">כנס לאפליקציה הראשית. אם מופיע ויזארד הקמה — עבור את שלביו (ראה פרק הבא). אם לא — הכל מוכן לשימוש.</li>
-        <li class="step">הגדר את שם העסק, הלוגו ואנשי הצוות בהגדרות (כרטיסייה <strong>הגדרות</strong> בתפריט <em>עוד</em>).</li>
-      </ol>
+      <div class="mod-head"><div class="mod-icon">✅</div><div><div class="mod-name">לפני שמתחילים</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body">וודא שמנהל ה-Super Admin הגדיר את סוג העסק שלך כ<strong>מקצועי / ייעוץ</strong>. זה נעשה בהגדרות המערכת — לא אתה עושה את זה בעצמך.</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body">כנס לאפליקציה הראשית. אם מופיע ויזארד הקמה — עבור את שלביו (ראה פרק הבא). אם לא — הכל מוכן לשימוש.</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body">הגדר את שם העסק, הלוגו ואנשי הצוות בהגדרות (כרטיסייה <strong>הגדרות</strong> בתפריט <em>עוד</em>).</div></div>
+      </div>
     </div>
   </div>
 
   <!-- ─── ויזארד הקמה ─── -->
   <div class="chapter" id="p-wizard">
-    <h2>🧙 ויזארד ההקמה</h2>
+    <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית</div></div>
     <p>בכניסה הראשונה לחשבון חדש מופיע ויזארד שמנחה שלב-שלב. לעסק מקצועי בחר באפשרות <strong>מומחים 👔</strong>.</p>
 
     <div class="mod">
-      <div class="mod-t">שלבי הויזארד</div>
-      <ol class="steps">
-        <li class="step"><strong>בחירת סוג עסק</strong> — לחץ על הכרטיס <em>מומחים 👔</em> ולחץ המשך.</li>
-        <li class="step"><strong>פרטי העסק</strong> — הכנס שם עסק, תיאור קצר (מה אתה מציע ללקוחות), כתובת.</li>
-        <li class="step"><strong>פרטי יצירת קשר</strong> — טלפון, דוא״ל עסקי, קישור לאתר קיים (לא חובה).</li>
-        <li class="step"><strong>בחירת תחומי עיסוק</strong> — תוכל לסמן את תחומי המומחיות שלך (ניתן להוסיף עוד אחר-כך בכרטיסייה <em>תוכן</em>).</li>
-      </ol>
+      <div class="mod-head"><div class="mod-icon">🧙</div><div><div class="mod-name">שלבי הויזארד</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>בחירת סוג עסק</strong> — לחץ על הכרטיס <em>מומחים 👔</em> ולחץ המשך.</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>פרטי העסק</strong> — הכנס שם עסק, תיאור קצר (מה אתה מציע ללקוחות), כתובת.</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>פרטי יצירת קשר</strong> — טלפון, דוא״ל עסקי, קישור לאתר קיים (לא חובה).</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>בחירת תחומי עיסוק</strong> — תוכל לסמן את תחומי המומחיות שלך (ניתן להוסיף עוד אחר-כך בכרטיסייה <em>תוכן</em>).</div></div>
+      </div>
     </div>
 
-    <div class="box">
-      <strong>⚠️ שים לב</strong><br>
-      בחירת סוג העסק בויזארד מגדירה את כל ממשק המערכת. אם טעית בבחירה — פנה ל-Super Admin לתיקון, לא ניתן לשנות לבד.
-    </div>
+    <div class="box box-warn"><div class="box-icon">⚠️</div><div>בחירת סוג העסק בויזארד מגדירה את כל ממשק המערכת. אם טעית בבחירה — פנה ל-Super Admin לתיקון, לא ניתן לשנות לבד.</div></div>
   </div>
 
   <!-- ─── ניווט וממשק ─── -->
   <div class="chapter" id="p-nav">
-    <h2>🗺️ ניווט וממשק</h2>
+    <div class="ch-head"><div class="ch-num">3</div><div class="ch-title">ניווט וממשק</div></div>
     <p>התפריט הראשי בעסק מקצועי מכיל <strong>4 קבוצות</strong>. שים לב: קבוצת <em>מלאי</em> לא קיימת — עסק מקצועי לא מנהל מוצרים פיזיים.</p>
 
     <div class="auto-grid">
@@ -2459,46 +2458,44 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     </div>
 
     <div class="mod">
-      <div class="mod-t">תפקידי עובדים ועלויות</div>
-      <table class="field-table">
-        <tr><th>תפקיד</th><th>מה הוא עושה</th><th>עלות חודשית</th></tr>
-        <tr><td>יועץ / מומחה</td><td>נותן שירות ישיר ללקוחות, מנהל תיקים</td><td>₪29</td></tr>
-        <tr><td>עוזר / אסיסטנט</td><td>תמיכה אדמיניסטרטיבית, שיבוצים, מסמכים</td><td>₪19</td></tr>
-        <tr><td>שותף בכיר</td><td>גישה מורחבת, ניהול כולל</td><td>₪39</td></tr>
-        <tr><td>מנהל סניף</td><td>ניהול כלל העסק, כולל פיננסים</td><td>₪39</td></tr>
-      </table>
+      <div class="mod-head"><div class="mod-icon">💼</div><div><div class="mod-name">תפקידי עובדים ועלויות</div></div></div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">יועץ / מומחה — ₪29/חודש</div><div class="fr-val">נותן שירות ישיר ללקוחות, מנהל תיקים</div></div>
+        <div class="field-row"><div class="fr-label">עוזר / אסיסטנט — ₪19/חודש</div><div class="fr-val">תמיכה אדמיניסטרטיבית, שיבוצים, מסמכים</div></div>
+        <div class="field-row"><div class="fr-label">שותף בכיר — ₪39/חודש</div><div class="fr-val">גישה מורחבת, ניהול כולל</div></div>
+        <div class="field-row"><div class="fr-label">מנהל סניף — ₪39/חודש</div><div class="fr-val">ניהול כלל העסק, כולל פיננסים</div></div>
+      </div>
     </div>
   </div>
 
   <!-- ─── תיקי לקוח ─── -->
   <div class="chapter" id="p-cases">
-    <h2>📁 תיקי לקוח</h2>
+    <div class="ch-head"><div class="ch-num">4</div><div class="ch-title">תיקי לקוח</div></div>
     <p>הלב של העסק המקצועי. כל עבודה עם לקוח — תיק משפטי, פרויקט ייעוץ, טיפול — מנוהלת כ<strong>תיק</strong>. התיק מאגד: פרטי הלקוח, משתתפי הצוות, ביומן, שעות עבודה, מסמכים ותשלומים — הכל במקום אחד.</p>
 
     <div class="mod">
-      <div class="mod-t">יצירת תיק חדש</div>
-      <ol class="steps">
-        <li class="step">לחץ על הכרטיסייה <strong>תיקים</strong> בתפריט <em>מכירות</em>.</li>
-        <li class="step">לחץ על הכפתור הכחול <strong>+ תיק חדש</strong>. המערכת יוצרת תיק ריק אוטומטית ופותחת אותו.</li>
-        <li class="step">מלא את שם הלקוח, כותרת התיק (מה בדיוק העבודה) ותיאור.</li>
-        <li class="step">קבע סטטוס ראשוני: <em>בטיפול</em>.</li>
-      </ol>
+      <div class="mod-head"><div class="mod-icon">📁</div><div><div class="mod-name">יצירת תיק חדש</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body">לחץ על הכרטיסייה <strong>תיקים</strong> בתפריט <em>מכירות</em>.</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body">לחץ על הכפתור הכחול <strong>+ תיק חדש</strong>. המערכת יוצרת תיק ריק אוטומטית ופותחת אותו.</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body">מלא את שם הלקוח, כותרת התיק (מה בדיוק העבודה) ותיאור.</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body">קבע סטטוס ראשוני: <em>בטיפול</em>.</div></div>
+      </div>
     </div>
 
     <div class="mod">
-      <div class="mod-t">לשוניות התיק</div>
-      <table class="field-table">
-        <tr><th>לשונית</th><th>מה יש שם</th></tr>
-        <tr><td>סקירה</td><td>שם לקוח, כותרת, סטטוס, הערות לתיק</td></tr>
-        <tr><td>משתתפים 👥</td><td>אנשי הצוות המשויכים לתיק — לחץ <em>הוסף משתתף</em></td></tr>
-        <tr><td>תשלומים</td><td>חיובים, תשלומים שהתקבלו, יתרה פתוחה</td></tr>
-        <tr><td>יומן</td><td>תזמון פגישה הקשורה לתיק — תופיע גם ביומן הכללי</td></tr>
-        <tr><td>היסטוריה 📋</td><td>יומן שינויים מלא: מי עשה מה ומתי</td></tr>
-      </table>
+      <div class="mod-head"><div class="mod-icon">📋</div><div><div class="mod-name">לשוניות התיק</div></div></div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">סקירה</div><div class="fr-val">שם לקוח, כותרת, סטטוס, הערות לתיק</div></div>
+        <div class="field-row"><div class="fr-label">משתתפים 👥</div><div class="fr-val">אנשי הצוות המשויכים לתיק — לחץ <em>הוסף משתתף</em></div></div>
+        <div class="field-row"><div class="fr-label">תשלומים</div><div class="fr-val">חיובים, תשלומים שהתקבלו, יתרה פתוחה</div></div>
+        <div class="field-row"><div class="fr-label">יומן</div><div class="fr-val">תזמון פגישה הקשורה לתיק — תופיע גם ביומן הכללי</div></div>
+        <div class="field-row"><div class="fr-label">היסטוריה 📋</div><div class="fr-val">יומן שינויים מלא: מי עשה מה ומתי</div></div>
+      </div>
     </div>
 
     <div class="mod">
-      <div class="mod-t">סטטוסי תיק</div>
+      <div class="mod-head"><div class="mod-icon">🏷️</div><div><div class="mod-name">סטטוסי תיק</div></div></div>
       <div class="actions">
         <span class="tag" style="background:#dbeafe;color:#1d4ed8">בטיפול</span>
         <span class="tag" style="background:#fef9c3;color:#854d0e">מתוזמן</span>
@@ -2510,40 +2507,39 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     </div>
 
     <div class="mod">
-      <div class="mod-t">סינון ומעקב</div>
+      <div class="mod-head"><div class="mod-icon">🔍</div><div><div class="mod-name">סינון ומעקב</div></div></div>
       <p>בראש כרטיסיית <em>תיקים</em> יש שורת סינון: <strong>הכל / חדש / בטיפול / הושלם</strong>. לחץ על קטגוריה לסינון מיידי. לחיצה על כרטיס תיק פותחת אותו.</p>
     </div>
   </div>
 
   <!-- ─── יומן שעות ─── -->
   <div class="chapter" id="p-timelog">
-    <h2>⏱️ יומן שעות עבודה</h2>
+    <div class="ch-head"><div class="ch-num">5</div><div class="ch-title">יומן שעות עבודה</div></div>
     <p>הכרטיסייה <strong>שעות עבודה</strong> (בתפריט <em>כספים</em>) מאפשרת לעקוב בדיוק כמה שעות הושקעו בכל לקוח — ולהפוך אותן לחשבונית בלחיצה אחת.</p>
 
     <div class="mod">
-      <div class="mod-t">טיימר חי</div>
-      <ol class="steps">
-        <li class="step">לחץ <strong>▶ התחל</strong> כשאתה מתחיל לעבוד. הטיימר רץ גם אם תחזור לדף אחר.</li>
-        <li class="step">כשסיימת לחץ <strong>⏹ עצור</strong>. המערכת שואלת: לאיזה לקוח ואיזה תיק שייכת העבודה?</li>
-        <li class="step">מלא תיאור קצר ולחץ <strong>שמור</strong>. הרשומה מתווספת לרשימה.</li>
-      </ol>
+      <div class="mod-head"><div class="mod-icon">▶️</div><div><div class="mod-name">טיימר חי</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body">לחץ <strong>▶ התחל</strong> כשאתה מתחיל לעבוד. הטיימר רץ גם אם תחזור לדף אחר.</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body">כשסיימת לחץ <strong>⏹ עצור</strong>. המערכת שואלת: לאיזה לקוח ואיזה תיק שייכת העבודה?</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body">מלא תיאור קצר ולחץ <strong>שמור</strong>. הרשומה מתווספת לרשימה.</div></div>
+      </div>
     </div>
 
     <div class="mod">
-      <div class="mod-t">הכנסת שעות ידנית</div>
-      <table class="field-table">
-        <tr><th>שדה</th><th>מה למלא</th></tr>
-        <tr><td>תיאור</td><td>מה עשית? לדוג׳: ״כתיבת חוות דעת משפטית״</td></tr>
-        <tr><td>דקות</td><td>כמה דקות עבדת (המערכת ממירה לשעות)</td></tr>
-        <tr><td>₪ לשעה</td><td>תעריף השעה שלך — ישפיע על ערך החיוב</td></tr>
-        <tr><td>לקוח</td><td>שם הלקוח (לא חובה אבל מומלץ)</td></tr>
-        <tr><td>תאריך</td><td>מתי התבצעה העבודה</td></tr>
-        <tr><td>קשר לתיק</td><td>שיוך לתיק ספציפי (לא חובה)</td></tr>
-      </table>
+      <div class="mod-head"><div class="mod-icon">✏️</div><div><div class="mod-name">הכנסת שעות ידנית</div></div></div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">תיאור</div><div class="fr-val">מה עשית? לדוג׳: ״כתיבת חוות דעת משפטית״</div></div>
+        <div class="field-row"><div class="fr-label">דקות</div><div class="fr-val">כמה דקות עבדת (המערכת ממירה לשעות)</div></div>
+        <div class="field-row"><div class="fr-label">₪ לשעה</div><div class="fr-val">תעריף השעה שלך — ישפיע על ערך החיוב</div></div>
+        <div class="field-row"><div class="fr-label">לקוח</div><div class="fr-val">שם הלקוח (לא חובה אבל מומלץ)</div></div>
+        <div class="field-row"><div class="fr-label">תאריך</div><div class="fr-val">מתי התבצעה העבודה</div></div>
+        <div class="field-row"><div class="fr-label">קשר לתיק</div><div class="fr-val">שיוך לתיק ספציפי (לא חובה)</div></div>
+      </div>
     </div>
 
     <div class="mod">
-      <div class="mod-t">סיכום ופעולות</div>
+      <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">סיכום ופעולות</div></div></div>
       <p>בראש המסך מוצגים 3 מדדים חשובים:</p>
       <div class="auto-grid">
         <div class="auto-card"><strong>שעות לחיוב</strong><br>שעות שטרם הופקה עליהן חשבונית</div>
@@ -2554,20 +2550,17 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
         <span class="tag" style="background:#dcfce7;color:#166534">חויב</span>
         <span style="font-size:.85rem">— תג ירוק מופיע על רשומות שכבר נכללו בחשבונית</span>
       </div>
-      <div class="box" style="margin-top:.7rem">
-        <strong>💡 ייצוא ויצירת חשבונית</strong><br>
-        לחץ <strong>ייצא CSV</strong> לקבלת קובץ לאקסל. כאשר יש שעות שטרם חויבו — מופיע הכפתור <strong>צור חשבונית מהשעות</strong> שיוצר חשבונית אוטומטית מכל השעות הפתוחות.
-      </div>
+      <div class="box box-tip" style="margin-top:.7rem"><div class="box-icon">💡</div><div><strong>ייצוא ויצירת חשבונית</strong><br>לחץ <strong>ייצא CSV</strong> לקבלת קובץ לאקסל. כאשר יש שעות שטרם חויבו — מופיע הכפתור <strong>צור חשבונית מהשעות</strong> שיוצר חשבונית אוטומטית מכל השעות הפתוחות.</div></div>
     </div>
   </div>
 
   <!-- ─── לידים ─── -->
   <div class="chapter" id="p-leads">
-    <h2>📥 לידים — פניות חדשות מהאתר</h2>
+    <div class="ch-head"><div class="ch-num">6</div><div class="ch-title">לידים — פניות מהאתר</div></div>
     <p>כאשר לקוח פוטנציאלי ממלא טופס צור-קשר באתר התדמית שלך, הפנייה מגיעה אוטומטית לכרטיסייה <strong>לידים</strong> בתפריט <em>מכירות</em>. ניתן לעקוב אחרי כל ליד עד שהופך ללקוח.</p>
 
     <div class="mod">
-      <div class="mod-t">סטטוסי ליד</div>
+      <div class="mod-head"><div class="mod-icon">🏷️</div><div><div class="mod-name">סטטוסי ליד</div></div></div>
       <div class="actions">
         <span class="tag" style="background:#dbeafe;color:#1d4ed8">חדש</span>
         <span class="tag" style="background:#fef9c3;color:#854d0e">ביצירת קשר</span>
@@ -2577,27 +2570,23 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     </div>
 
     <div class="mod">
-      <div class="mod-t">פעולות על ליד</div>
-      <table class="field-table">
-        <tr><th>כפתור</th><th>מה קורה</th></tr>
-        <tr><td>📅 קבע פגישה</td><td>פותח את יומן העסק לתיאום פגישה עם הליד</td></tr>
-        <tr><td>✅ המר ללקוח</td><td>יוצר כרטיס לקוח חדש מפרטי הליד ומציג אישור. הסטטוס עובר ל<em>הומר ללקוח</em></td></tr>
-      </table>
+      <div class="mod-head"><div class="mod-icon">⚡</div><div><div class="mod-name">פעולות על ליד</div></div></div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">📅 קבע פגישה</div><div class="fr-val">פותח את יומן העסק לתיאום פגישה עם הליד</div></div>
+        <div class="field-row"><div class="fr-label">✅ המר ללקוח</div><div class="fr-val">יוצר כרטיס לקוח חדש מפרטי הליד ומציג אישור. הסטטוס עובר ל<em>הומר ללקוח</em></div></div>
+      </div>
     </div>
 
-    <div class="box">
-      <strong>💡 טיפ</strong><br>
-      לאחר המרה ללקוח, עבור לכרטיסיית <em>לקוחות</em> ופתח תיק חדש עבורו — כך כל הפעילות נשמרת יחד.
-    </div>
+    <div class="box box-tip"><div class="box-icon">💡</div><div>לאחר המרה ללקוח, עבור לכרטיסיית <em>לקוחות</em> ופתח תיק חדש עבורו — כך כל הפעילות נשמרת יחד.</div></div>
   </div>
 
   <!-- ─── מסמכים ─── -->
   <div class="chapter" id="p-docs">
-    <h2>📄 מסמכים</h2>
+    <div class="ch-head"><div class="ch-num">7</div><div class="ch-title">מסמכים</div></div>
     <p>כרטיסיית <strong>מסמכים</strong> (בתפריט <em>מכירות</em>) מאפשרת לייצר, לנהל ולעקוב אחרי כל המסמכים המקצועיים שלך — חוזים, הצעות מחיר, מכתבים ודוחות.</p>
 
     <div class="mod">
-      <div class="mod-t">סוגי מסמכים</div>
+      <div class="mod-head"><div class="mod-icon">📄</div><div><div class="mod-name">סוגי מסמכים</div></div></div>
       <div class="actions">
         <span class="tag">📃 מסמך</span>
         <span class="tag">🤝 חוזה</span>
@@ -2610,7 +2599,7 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     </div>
 
     <div class="mod">
-      <div class="mod-t">סטטוסי מסמך</div>
+      <div class="mod-head"><div class="mod-icon">🏷️</div><div><div class="mod-name">סטטוסי מסמך</div></div></div>
       <div class="actions">
         <span class="tag" style="background:#f3f4f6;color:#374151">טיוטה</span>
         <span class="tag" style="background:#dbeafe;color:#1d4ed8">נשלח</span>
@@ -2621,48 +2610,43 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     </div>
 
     <div class="mod">
-      <div class="mod-t">עבודה עם תבניות</div>
-      <ol class="steps">
-        <li class="step">עבור לסעיף <strong>ספריית תבניות</strong> בחלק העליון של הכרטיסייה.</li>
-        <li class="step">לחץ <strong>+ תבנית חדשה</strong> — צור מסמך בסיסי שישמש כמסגרת (לדוג׳: חוזה ייעוץ סטנדרטי).</li>
-        <li class="step">כשצריך מסמך חדש ללקוח — בחר תבנית ולחץ <strong>צור מסמך מהתבנית</strong>. המערכת יוצרת עותק עם פרטי הלקוח.</li>
-        <li class="step">ניתן לקשר את המסמך לתיק ספציפי כדי שיופיע גם שם.</li>
-      </ol>
+      <div class="mod-head"><div class="mod-icon">📝</div><div><div class="mod-name">עבודה עם תבניות</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body">עבור לסעיף <strong>ספריית תבניות</strong> בחלק העליון של הכרטיסייה.</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body">לחץ <strong>+ תבנית חדשה</strong> — צור מסמך בסיסי שישמש כמסגרת (לדוג׳: חוזה ייעוץ סטנדרטי).</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body">כשצריך מסמך חדש ללקוח — בחר תבנית ולחץ <strong>צור מסמך מהתבנית</strong>. המערכת יוצרת עותק עם פרטי הלקוח.</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body">ניתן לקשר את המסמך לתיק ספציפי כדי שיופיע גם שם.</div></div>
+      </div>
     </div>
   </div>
 
   <!-- ─── אתר תדמית ─── -->
   <div class="chapter" id="p-content">
-    <h2>🌐 אתר תדמית וניהול תוכן</h2>
+    <div class="ch-head"><div class="ch-num">8</div><div class="ch-title">אתר תדמית וניהול תוכן</div></div>
     <p>כרטיסיית <strong>תוכן</strong> (בתפריט <em>עוד</em>) מאפשרת לך לנהל אתר תדמית מקצועי שלקוחות פוטנציאליים יכולים למצוא. האתר כולל דף ראשי, תחומי עיסוק, מאמרים ועמוד אודות.</p>
 
-    <div class="box">
-      <strong>🔗 צפייה באתר הציבורי</strong><br>
-      בראש הכרטיסייה יש כפתור <em>צפה באתר הציבורי</em>. לחץ עליו כדי לראות את האתר שלך בעיני הלקוח — ממש כפי שהוא נראה מבחוץ.
+    <div class="box box-tip"><div class="box-icon">🔗</div><div>בראש הכרטיסייה יש כפתור <em>צפה באתר הציבורי</em>. לחץ עליו כדי לראות את האתר שלך בעיני הלקוח — ממש כפי שהוא נראה מבחוץ.</div></div>
+
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🌐</div><div><div class="mod-name">לשוניות הניהול</div></div></div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">Hero / כותרת</div><div class="fr-val">הכותרת הראשית שמופיעה בדף הבית של האתר שלך</div></div>
+        <div class="field-row"><div class="fr-label">תחומי עיסוק</div><div class="fr-val">רשימת ההתמחויות שלך שמוצגות ללקוחות</div></div>
+        <div class="field-row"><div class="fr-label">מאמרים</div><div class="fr-val">תוכן מקצועי: בלוג, טיפים, מאמרים שמושכים לקוחות</div></div>
+        <div class="field-row"><div class="fr-label">אודות</div><div class="fr-val">הסיפור של העסק שלך, הניסיון והגישה</div></div>
+      </div>
     </div>
 
     <div class="mod">
-      <div class="mod-t">לשוניות הניהול</div>
-      <table class="field-table">
-        <tr><th>לשונית</th><th>מה מנהלים שם</th></tr>
-        <tr><td>Hero / כותרת</td><td>הכותרת הראשית שמופיעה בדף הבית של האתר שלך</td></tr>
-        <tr><td>תחומי עיסוק</td><td>רשימת ההתמחויות שלך שמוצגות ללקוחות</td></tr>
-        <tr><td>מאמרים</td><td>תוכן מקצועי: בלוג, טיפים, מאמרים שמושכים לקוחות</td></tr>
-        <tr><td>אודות</td><td>הסיפור של העסק שלך, הניסיון והגישה</td></tr>
-      </table>
-    </div>
-
-    <div class="mod">
-      <div class="mod-t">עריכת כותרת ראשית (Hero)</div>
-      <table class="field-table">
-        <tr><th>שדה</th><th>לדוגמה</th></tr>
-        <tr><td>כותרת ראשית עברית</td><td>משרד רואי חשבון כהן ושות׳</td></tr>
-        <tr><td>כותרת ראשית אנגלית</td><td>Cohen & Partners CPA</td></tr>
-        <tr><td>תת-כותרת עברית</td><td>ייעוץ פיננסי ומס לעסקים קטנים ובינוניים</td></tr>
-        <tr><td>תת-כותרת אנגלית</td><td>Financial and tax consulting for SMEs</td></tr>
-        <tr><td>כפתור CTA עברית</td><td>צור קשר לייעוץ</td></tr>
-        <tr><td>כפתור CTA אנגלית</td><td>Contact Us</td></tr>
-      </table>
+      <div class="mod-head"><div class="mod-icon">✏️</div><div><div class="mod-name">עריכת כותרת ראשית (Hero)</div></div></div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">כותרת ראשית עברית</div><div class="fr-val">משרד רואי חשבון כהן ושות׳</div></div>
+        <div class="field-row"><div class="fr-label">כותרת ראשית אנגלית</div><div class="fr-val">Cohen & Partners CPA</div></div>
+        <div class="field-row"><div class="fr-label">תת-כותרת עברית</div><div class="fr-val">ייעוץ פיננסי ומס לעסקים קטנים ובינוניים</div></div>
+        <div class="field-row"><div class="fr-label">תת-כותרת אנגלית</div><div class="fr-val">Financial and tax consulting for SMEs</div></div>
+        <div class="field-row"><div class="fr-label">כפתור CTA עברית</div><div class="fr-val">צור קשר לייעוץ</div></div>
+        <div class="field-row"><div class="fr-label">כפתור CTA אנגלית</div><div class="fr-val">Contact Us</div></div>
+      </div>
       <div class="actions" style="margin-top:.5rem">
         <span class="tag" style="background:#f3e8ff;color:#7c3aed">✨ צור עם AI</span>
         <span style="font-size:.85rem"> — לחץ כדי שה-AI יכתוב עבורך כותרת מותאמת לשם העסק</span>
@@ -2670,60 +2654,70 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     </div>
 
     <div class="mod">
-      <div class="mod-t">ניהול תחומי עיסוק</div>
-      <ol class="steps">
-        <li class="step">לחץ <strong>הוסף ידנית</strong> — מלא: אייקון, שם בעברית, שם באנגלית, תיאור קצר.</li>
-        <li class="step">לחלופין לחץ <strong>✨ הצע עם AI</strong> — ה-AI יציע תחומי עיסוק מתאימים לסוג העסק שלך.</li>
-        <li class="step">כל תחום מוצג ברשימה עם אפשרויות עריכה (עיפרון) ומחיקה (פח). לחץ לשמירה.</li>
-      </ol>
+      <div class="mod-head"><div class="mod-icon">🎯</div><div><div class="mod-name">ניהול תחומי עיסוק</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body">לחץ <strong>הוסף ידנית</strong> — מלא: אייקון, שם בעברית, שם באנגלית, תיאור קצר.</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body">לחלופין לחץ <strong>✨ הצע עם AI</strong> — ה-AI יציע תחומי עיסוק מתאימים לסוג העסק שלך.</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body">כל תחום מוצג ברשימה עם אפשרויות עריכה (עיפרון) ומחיקה (פח). לחץ לשמירה.</div></div>
+      </div>
     </div>
 
     <div class="mod">
-      <div class="mod-t">פרסום מאמרים</div>
-      <ol class="steps">
-        <li class="step">לחץ <strong>+ מאמר חדש</strong>.</li>
-        <li class="step">כתוב כותרת, תוכן, קטגוריה — ולחץ פרסם.</li>
-        <li class="step">המאמר מופיע באתר שלך מיד לאחר השמירה.</li>
-      </ol>
+      <div class="mod-head"><div class="mod-icon">📰</div><div><div class="mod-name">פרסום מאמרים</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body">לחץ <strong>+ מאמר חדש</strong>.</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body">כתוב כותרת, תוכן, קטגוריה — ולחץ פרסם.</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body">המאמר מופיע באתר שלך מיד לאחר השמירה.</div></div>
+      </div>
       <p style="font-size:.85rem">מאמרים מקצועיים שיתפרסמו באתר מגדילים את הנראות שלך במנועי חיפוש ומביאים לידים חדשים.</p>
     </div>
   </div>
 
+  </div><!-- /wrap -->
 </div>
 <div id="beauty" class="page">
 
-  <div class="subnav">
-    <button class="sn on" onclick="goTo('b-enter')">כניסה</button>
-    <button class="sn" onclick="goTo('b-wizard')">ויזארד</button>
-    <button class="sn" onclick="goTo('b-nav')">ניווט</button>
-    <button class="sn" onclick="goTo('b-calendar')">יומן תורים</button>
-    <button class="sn" onclick="goTo('b-practitioners')">מטפלות</button>
-    <button class="sn" onclick="goTo('b-services')">שירותים</button>
-    <button class="sn" onclick="goTo('b-subscriptions')">מנויים</button>
-    <button class="sn" onclick="goTo('b-clients')">לקוחות</button>
-    <button class="sn" onclick="goTo('b-inventory')">מלאי</button>
-    <button class="sn" onclick="goTo('b-commissions')">עמלות</button>
-    <button class="sn" onclick="goTo('b-rfq')">ייעוץ</button>
+  <div class="sec-top">
+    <div class="s-icon">💅</div>
+    <h1>יופי / קוסמטיקה</h1>
+    <p>מדריך לניהול מכון יופי, סלון שיער, ספא וקליניקות אסתטיקה — תורים, מטפלות, מנויים ועמלות</p>
   </div>
+
+  <nav class="subnav">
+    <div class="sn-inner">
+      <button class="sn on" onclick="goTo('b-enter')">כניסה למערכת</button>
+      <button class="sn" onclick="goTo('b-wizard')">הקמה ראשונית</button>
+      <button class="sn" onclick="goTo('b-nav')">ניווט</button>
+      <button class="sn" onclick="goTo('b-calendar')">יומן תורים</button>
+      <button class="sn" onclick="goTo('b-practitioners')">מטפלות</button>
+      <button class="sn" onclick="goTo('b-services')">שירותים</button>
+      <button class="sn" onclick="goTo('b-subscriptions')">מנויים</button>
+      <button class="sn" onclick="goTo('b-clients')">לקוחות</button>
+      <button class="sn" onclick="goTo('b-inventory')">מלאי</button>
+      <button class="sn" onclick="goTo('b-commissions')">עמלות</button>
+      <button class="sn" onclick="goTo('b-rfq')">ייעוץ ובקשות</button>
+    </div>
+  </nav>
+
+  <div class="wrap">
 
   <!-- ─── כניסה ראשונה ─── -->
   <div class="chapter" id="b-enter">
-    <h2>💅 יופי / קוסמטיקה — כניסה ראשונה</h2>
+    <div class="ch-head"><div class="ch-num">1</div><div class="ch-title">כניסה למערכת</div></div>
     <p>סוג עסק זה מיועד למכוני יופי, ספא, סלוני שיער, קליניקות לייזר, קוסמטיקאיות ועסקי יופי מכל הסוגים. המערכת בנויה לניהול <strong>תורים לפי מטפלת</strong>, <strong>תיקי לקוחות</strong>, <strong>מנויים</strong>, <strong>מלאי מקצועי</strong> ו<strong>עמלות אוטומטיות</strong>.</p>
 
-    <div class="box">
-      <strong>🔤 שפה מותאמת ליופי</strong>
-      <table class="field-table" style="margin-top:.5rem">
-        <tr><th>מונח כללי</th><th>מה רואים בממשק</th></tr>
-        <tr><td>לקוח</td><td>לקוחה</td></tr>
-        <tr><td>מוצר</td><td>טיפול / מוצר</td></tr>
-        <tr><td>הזמנה</td><td>תור</td></tr>
-        <tr><td>ספק</td><td>ספק קוסמטיקה</td></tr>
-      </table>
-    </div>
+    <div class="box box-tip"><div class="box-icon">🔤</div><div>
+      <strong>שפה מותאמת ליופי</strong>
+      <div class="field-table" style="margin-top:.5rem">
+        <div class="field-row"><div class="fr-label">לקוח</div><div class="fr-val">לקוחה</div></div>
+        <div class="field-row"><div class="fr-label">מוצר</div><div class="fr-val">טיפול / מוצר</div></div>
+        <div class="field-row"><div class="fr-label">הזמנה</div><div class="fr-val">תור</div></div>
+        <div class="field-row"><div class="fr-label">ספק</div><div class="fr-val">ספק קוסמטיקה</div></div>
+      </div>
+    </div></div>
 
     <div class="mod">
-      <div class="mod-t">לוח הבקרה של מנהל יופי</div>
+      <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">לוח הבקרה של מנהל יופי</div></div></div>
       <p>ברגע שנכנסים, מוצג דשבורד ייחודי עם 6 מדדים שמתעדכנים בזמן אמת:</p>
       <div class="auto-grid">
         <div class="auto-card">📅 <strong>תורים היום</strong><br>כמה תורים קבועו להיום</div>
@@ -2733,33 +2727,30 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
         <div class="auto-card">💸 <strong>עמלות לתשלום</strong><br>כמה חייבים למטפלות</div>
         <div class="auto-card">📊 <strong>הכנסה החודש</strong><br>סיכום כל הכנסות החודש</div>
       </div>
-      <div class="box" style="margin-top:.7rem">
-        <strong>🔔 התראות אוטומטיות</strong><br>
-        אם יש מוצרים שמלאי שלהם נמוך, או לקוחות שלא הגיעו לתור — מופיע באנר כתום בראש הדשבורד.
-      </div>
+      <div class="box box-warn" style="margin-top:.7rem"><div class="box-icon">🔔</div><div>אם יש מוצרים שמלאי שלהם נמוך, או לקוחות שלא הגיעו לתור — מופיע באנר כתום בראש הדשבורד.</div></div>
     </div>
   </div>
 
   <!-- ─── ויזארד הקמה ─── -->
   <div class="chapter" id="b-wizard">
-    <h2>🧙 ויזארד ההקמה</h2>
+    <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית</div></div>
     <p>בכניסה הראשונה לחשבון חדש מופיע ויזארד הקמה. לעסק יופי בחר באפשרות <strong>יופי ואסטטיקה 💅</strong>.</p>
 
     <div class="mod">
-      <div class="mod-t">שלבי הויזארד</div>
-      <ol class="steps">
-        <li class="step"><strong>בחירת סוג עסק</strong> — לחץ על הכרטיס <em>יופי ואסטטיקה 💅</em> ולחץ המשך.</li>
-        <li class="step"><strong>פרטי העסק</strong> — שם המכון/הסלון, כתובת, תיאור קצר.</li>
-        <li class="step"><strong>פרטי יצירת קשר</strong> — טלפון, דוא"ל, אתר אינטרנט קיים (לא חובה).</li>
-        <li class="step"><strong>הגדרות ראשוניות</strong> — שעות פעילות, שירותים ראשיים.</li>
-      </ol>
+      <div class="mod-head"><div class="mod-icon">🧙</div><div><div class="mod-name">שלבי הויזארד</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>בחירת סוג עסק</strong> — לחץ על הכרטיס <em>יופי ואסטטיקה 💅</em> ולחץ המשך.</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>פרטי העסק</strong> — שם המכון/הסלון, כתובת, תיאור קצר.</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>פרטי יצירת קשר</strong> — טלפון, דוא"ל, אתר אינטרנט קיים (לא חובה).</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>הגדרות ראשוניות</strong> — שעות פעילות, שירותים ראשיים.</div></div>
+      </div>
       <p style="font-size:.85rem">לאחר הויזארד: הוסף <strong>מטפלות</strong> (ראה פרק מטפלות) ואחר-כך <strong>שירותים</strong> (ראה פרק שירותים). רק אז ניתן להתחיל לקבוע תורים.</p>
     </div>
   </div>
 
   <!-- ─── ניווט ─── -->
   <div class="chapter" id="b-nav">
-    <h2>🗺️ ניווט וממשק</h2>
+    <div class="ch-head"><div class="ch-num">3</div><div class="ch-title">ניווט וממשק</div></div>
     <p>לאחר הגדרת העסק כ<em>יופי / קוסמטיקה</em>, מופיעות בתפריט כרטיסיות ייחודיות שאינן קיימות בשאר סוגי העסקים.</p>
 
     <div class="auto-grid">
@@ -2800,28 +2791,27 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     </div>
 
     <div class="mod">
-      <div class="mod-t">תפקידי עובדים ועלויות</div>
-      <table class="field-table">
-        <tr><th>תפקיד</th><th>מה הוא עושה</th><th>עלות חודשית</th></tr>
-        <tr><td>מטפלת</td><td>מטפלת בסיסית עם גישה ליומן ותיקי לקוחות</td><td>₪19</td></tr>
-        <tr><td>מטפלת בכירה</td><td>הרשאות מורחבות, עמלה גבוהה יותר</td><td>₪29</td></tr>
-        <tr><td>טכנאית ציפורניים</td><td>מתמחה בטיפולי ציפורניים</td><td>₪19</td></tr>
-        <tr><td>איפורנית</td><td>מתמחה באיפור ועיצוב</td><td>₪19</td></tr>
-        <tr><td>קבלנית</td><td>קביעת תורים, ניהול יומן</td><td>₪15</td></tr>
-        <tr><td>קופאי</td><td>גביית תשלום בקופה</td><td>₪19</td></tr>
-        <tr><td>מנקה / אחזקה</td><td>גישה מוגבלת לדיווח נוכחות בלבד</td><td>₪15</td></tr>
-        <tr><td>מנהל סניף</td><td>גישה מלאה לניהול העסק</td><td>₪39</td></tr>
-      </table>
+      <div class="mod-head"><div class="mod-icon">💼</div><div><div class="mod-name">תפקידי עובדים ועלויות</div></div></div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">מטפלת — ₪19/חודש</div><div class="fr-val">מטפלת בסיסית עם גישה ליומן ותיקי לקוחות</div></div>
+        <div class="field-row"><div class="fr-label">מטפלת בכירה — ₪29/חודש</div><div class="fr-val">הרשאות מורחבות, עמלה גבוהה יותר</div></div>
+        <div class="field-row"><div class="fr-label">טכנאית ציפורניים — ₪19/חודש</div><div class="fr-val">מתמחה בטיפולי ציפורניים</div></div>
+        <div class="field-row"><div class="fr-label">איפורנית — ₪19/חודש</div><div class="fr-val">מתמחה באיפור ועיצוב</div></div>
+        <div class="field-row"><div class="fr-label">קבלנית — ₪15/חודש</div><div class="fr-val">קביעת תורים, ניהול יומן</div></div>
+        <div class="field-row"><div class="fr-label">קופאי — ₪19/חודש</div><div class="fr-val">גביית תשלום בקופה</div></div>
+        <div class="field-row"><div class="fr-label">מנקה / אחזקה — ₪15/חודש</div><div class="fr-val">גישה מוגבלת לדיווח נוכחות בלבד</div></div>
+        <div class="field-row"><div class="fr-label">מנהל סניף — ₪39/חודש</div><div class="fr-val">גישה מלאה לניהול העסק</div></div>
+      </div>
     </div>
   </div>
 
   <!-- ─── יומן תורים ─── -->
   <div class="chapter" id="b-calendar">
-    <h2>📅 יומן תורים</h2>
+    <div class="ch-head"><div class="ch-num">4</div><div class="ch-title">יומן תורים</div></div>
     <p>כרטיסיית <strong>יומן מטפלות</strong> (בתפריט <em>צוות</em>) היא לב העסק. כל מטפלת מוצגת כעמודה נפרדת, ותורים מוצגים כקלפים צבעוניים לפי שעה — ממש כמו יומן גוגל.</p>
 
     <div class="mod">
-      <div class="mod-t">תצוגות היומן</div>
+      <div class="mod-head"><div class="mod-icon">📅</div><div><div class="mod-name">תצוגות היומן</div><div class="mod-tag">צוות › יומן מטפלות</div></div></div>
       <div class="actions">
         <span class="tag">יום</span>
         <span class="tag">שבוע</span>
@@ -2831,66 +2821,64 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     </div>
 
     <div class="mod">
-      <div class="mod-t">מקורות תור</div>
-      <table class="field-table">
-        <tr><th>סמל</th><th>מקור</th><th>הסבר</th></tr>
-        <tr><td>🌐</td><td>אתר ציבורי</td><td>לקוחה קבעה תור באתר העסק</td></tr>
-        <tr><td>📅</td><td>ידני</td><td>נקבע על-ידי הצוות מהממשק</td></tr>
-        <tr><td>📋</td><td>בקשת ייעוץ</td><td>הגיע מכרטיסיית <em>ייעוץ ובקשות</em></td></tr>
-      </table>
+      <div class="mod-head"><div class="mod-icon">🌐</div><div><div class="mod-name">מקורות תור</div><div class="mod-tag">צוות › יומן מטפלות</div></div></div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">🌐 אתר ציבורי</div><div class="fr-val">לקוחה קבעה תור באתר העסק</div></div>
+        <div class="field-row"><div class="fr-label">📅 ידני</div><div class="fr-val">נקבע על-ידי הצוות מהממשק</div></div>
+        <div class="field-row"><div class="fr-label">📋 בקשת ייעוץ</div><div class="fr-val">הגיע מכרטיסיית <em>ייעוץ ובקשות</em></div></div>
+      </div>
     </div>
 
     <div class="mod">
-      <div class="mod-t">קביעת תור חדש</div>
-      <ol class="steps">
-        <li class="step">לחץ על שעה פנויה בעמודת המטפלת הרצויה — נפתח חלון קביעת תור.</li>
-        <li class="step">בחר לקוחה (מהרשימה הקיימת או הוסף חדשה), שירות, ותאריך/שעה.</li>
-        <li class="step">אם ללקוחה יש מנוי פעיל — המערכת מציגה אותו אוטומטית ומאפשרת מימוש כניסה.</li>
-        <li class="step">לחץ <strong>שמור</strong>. התור מופיע בעמודת המטפלת מיידית.</li>
-      </ol>
+      <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">קביעת תור חדש</div><div class="mod-tag">צוות › יומן מטפלות</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><span>לחץ על שעה פנויה בעמודת המטפלת הרצויה — נפתח חלון קביעת תור.</span></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><span>בחר לקוחה (מהרשימה הקיימת או הוסף חדשה), שירות, ותאריך/שעה.</span></div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><span>אם ללקוחה יש מנוי פעיל — המערכת מציגה אותו אוטומטית ומאפשרת מימוש כניסה.</span></div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>לחץ שמור.</strong><span> התור מופיע בעמודת המטפלת מיידית.</span></div></div>
+      </div>
     </div>
 
-    <div class="box">
-      <strong>⏳ תורים ממתינים לאישור</strong><br>
-      לקוחות שקבעו תור מהאתר הציבורי מופיעות כ<em>ממתינות לאישור</em>. אשר או בטל כל בקשה מתוך היומן.
+    <div class="box box-warn">
+      <div class="box-icon">⏳</div>
+      <div><strong>תורים ממתינים לאישור</strong><br>לקוחות שקבעו תור מהאתר הציבורי מופיעות כ<em>ממתינות לאישור</em>. אשר או בטל כל בקשה מתוך היומן.</div>
     </div>
   </div>
 
   <!-- ─── מטפלות ─── -->
   <div class="chapter" id="b-practitioners">
-    <h2>💆 מטפלות וצוות יופי</h2>
+    <div class="ch-head"><div class="ch-num">5</div><div class="ch-title">מטפלות וצוות יופי</div></div>
     <p>כרטיסיית <strong>מטפלות</strong> (בתפריט <em>צוות</em>) מאפשרת להגדיר כל מטפלת עם הפרטים שישפיעו על היומן ועל חישוב העמלות.</p>
 
     <div class="mod">
-      <div class="mod-t">הוספת מטפלת חדשה</div>
-      <ol class="steps">
-        <li class="step">לחץ <strong>+ מטפלת חדשה</strong>.</li>
-        <li class="step">מלא את הפרטים הבאים:</li>
-      </ol>
-      <table class="field-table">
-        <tr><th>שדה</th><th>הסבר</th></tr>
-        <tr><td>שם מלא *</td><td>השם שיופיע ביומן ובדוחות</td></tr>
-        <tr><td>דרגה</td><td>ג׳וניור / מטפלת / בכירה / מנהלת טיפולים — משפיע על עמלה</td></tr>
-        <tr><td>צבע זיהוי</td><td>הצבע של עמודת המטפלת ביומן — בחר צבע שונה לכל מטפלת</td></tr>
-        <tr><td>עמלת שירות %</td><td>כמה אחוז מכל טיפול מקבלת המטפלת</td></tr>
-        <tr><td>עמלת קמעונאות %</td><td>כמה אחוז ממכירת מוצרים מקבלת המטפלת</td></tr>
-        <tr><td>התמחויות</td><td>פנים / גוף / ציפורניים / שיער / הסרת שיער / עיסוי / איפור / ריסים</td></tr>
-      </table>
+      <div class="mod-head"><div class="mod-icon">👩</div><div><div class="mod-name">הוספת מטפלת חדשה</div><div class="mod-tag">צוות › מטפלות</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחץ + מטפלת חדשה.</strong></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><span>מלא את הפרטים הבאים:</span></div></div>
+      </div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם מלא</div><div class="fr-val">השם שיופיע ביומן ובדוחות</div></div>
+        <div class="field-row"><div class="fr-label">דרגה</div><div class="fr-val">ג׳וניור / מטפלת / בכירה / מנהלת טיפולים — משפיע על עמלה</div></div>
+        <div class="field-row"><div class="fr-label">צבע זיהוי</div><div class="fr-val">הצבע של עמודת המטפלת ביומן — בחר צבע שונה לכל מטפלת</div></div>
+        <div class="field-row"><div class="fr-label">עמלת שירות %</div><div class="fr-val">כמה אחוז מכל טיפול מקבלת המטפלת</div></div>
+        <div class="field-row"><div class="fr-label">עמלת קמעונאות %</div><div class="fr-val">כמה אחוז ממכירת מוצרים מקבלת המטפלת</div></div>
+        <div class="field-row"><div class="fr-label">התמחויות</div><div class="fr-val">פנים / גוף / ציפורניים / שיער / הסרת שיער / עיסוי / איפור / ריסים</div></div>
+      </div>
     </div>
 
     <div class="mod">
-      <div class="mod-t">השבתת מטפלת</div>
+      <div class="mod-head"><div class="mod-icon">🔕</div><div><div class="mod-name">השבתת מטפלת</div><div class="mod-tag">צוות › מטפלות</div></div></div>
       <p>לחץ <strong>השבת</strong> על כרטיס המטפלת — היא נעלמת מהיומן אבל הנתונים שלה נשמרים. לחץ <strong>הפעל</strong> כדי להחזיר אותה.</p>
     </div>
   </div>
 
   <!-- ─── שירותים ─── -->
   <div class="chapter" id="b-services">
-    <h2>💎 שירותים וטיפולים</h2>
+    <div class="ch-head"><div class="ch-num">6</div><div class="ch-title">שירותים וטיפולים</div></div>
     <p>כרטיסיית <strong>שירותים וטיפולים</strong> (בתפריט <em>מכירות</em>) מכילה את כל הטיפולים שניתן לקבוע תור עבורם. חובה להגדיר שירותים לפני שניתן לקבוע תורים.</p>
 
     <div class="mod">
-      <div class="mod-t">קטגוריות שירות</div>
+      <div class="mod-head"><div class="mod-icon">📂</div><div><div class="mod-name">קטגוריות שירות</div><div class="mod-tag">מכירות › שירותים</div></div></div>
       <div class="actions">
         <span class="tag">💇 שיער</span>
         <span class="tag">💅 ציפורניים</span>
@@ -2904,78 +2892,76 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     </div>
 
     <div class="mod">
-      <div class="mod-t">הוספת שירות חדש</div>
-      <ol class="steps">
-        <li class="step">לחץ <strong>+ שירות חדש</strong>.</li>
-        <li class="step">מלא את הפרטים:</li>
-      </ol>
-      <table class="field-table">
-        <tr><th>שדה</th><th>הסבר</th></tr>
-        <tr><td>שם השירות *</td><td>לדוג׳: "טיפול פנים קלאסי", "מניקור ג׳ל"</td></tr>
-        <tr><td>קטגוריה</td><td>בחר מהרשימה למעלה — ישפיע על המיון ביומן</td></tr>
-        <tr><td>משך בדקות *</td><td>כמה זמן נמשך הטיפול — ישמש לחסימת הזמן ביומן</td></tr>
-        <tr><td>מחיר ₪ *</td><td>מחיר הטיפול ללקוחה</td></tr>
-        <tr><td>צבע</td><td>הצבע של קלף התור ביומן</td></tr>
-        <tr><td>תיאור</td><td>הסבר קצר על הטיפול (מוצג גם באתר הציבורי)</td></tr>
-        <tr><td>⚠️ Patch Test נדרש</td><td>סמן אם הטיפול דורש בדיקת עור מוקדמת — יוצג תג אדום בכרטיס</td></tr>
-      </table>
+      <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">הוספת שירות חדש</div><div class="mod-tag">מכירות › שירותים</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחץ + שירות חדש.</strong></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><span>מלא את הפרטים:</span></div></div>
+      </div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם השירות</div><div class="fr-val">לדוג׳: "טיפול פנים קלאסי", "מניקור ג׳ל"</div></div>
+        <div class="field-row"><div class="fr-label">קטגוריה</div><div class="fr-val">בחר מהרשימה למעלה — ישפיע על המיון ביומן</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>משך בדקות</div><div class="fr-val">כמה זמן נמשך הטיפול — ישמש לחסימת הזמן ביומן</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>מחיר ₪</div><div class="fr-val">מחיר הטיפול ללקוחה</div></div>
+        <div class="field-row"><div class="fr-label">צבע</div><div class="fr-val">הצבע של קלף התור ביומן</div></div>
+        <div class="field-row"><div class="fr-label">תיאור</div><div class="fr-val">הסבר קצר על הטיפול (מוצג גם באתר הציבורי)</div></div>
+        <div class="field-row"><div class="fr-label">⚠️ Patch Test נדרש</div><div class="fr-val">סמן אם הטיפול דורש בדיקת עור מוקדמת — יוצג תג אדום בכרטיס</div></div>
+      </div>
     </div>
   </div>
 
   <!-- ─── מנויים ─── -->
   <div class="chapter" id="b-subscriptions">
-    <h2>🎁 מנויים וחבילות</h2>
+    <div class="ch-head"><div class="ch-num">7</div><div class="ch-title">מנויים וחבילות</div></div>
     <p>כרטיסיית <strong>מנויים וחבילות</strong> (בתפריט <em>מכירות</em>) מאפשרת ליצור חבילות כניסות מוגבלות שלקוחות רוכשות מראש ומממשות בכל ביקור.</p>
 
     <div class="mod">
-      <div class="mod-t">יצירת חבילה חדשה</div>
-      <ol class="steps">
-        <li class="step">לחץ <strong>+ חבילה חדשה</strong>.</li>
-        <li class="step">מלא: שם החבילה, כמות כניסות, מחיר, תוקף בימים (ברירת מחדל 365), תיאור.</li>
-        <li class="step">לחץ שמור. החבילה מופיעה ברשימה ומוכנה למכירה.</li>
-      </ol>
+      <div class="mod-head"><div class="mod-icon">📦</div><div><div class="mod-name">יצירת חבילה חדשה</div><div class="mod-tag">מכירות › מנויים</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחץ + חבילה חדשה.</strong></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><span>מלא: שם החבילה, כמות כניסות, מחיר, תוקף בימים (ברירת מחדל 365), תיאור.</span></div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><span>לחץ שמור. החבילה מופיעה ברשימה ומוכנה למכירה.</span></div></div>
+      </div>
     </div>
 
     <div class="mod">
-      <div class="mod-t">מכירת מנוי ללקוחה</div>
-      <ol class="steps">
-        <li class="step">עבור לכרטיסיית <strong>תיקי לקוחות</strong> ופתח את תיק הלקוחה.</li>
-        <li class="step">לחץ <strong>מכור מנוי</strong> ← בחר את החבילה הרצויה ← גבה תשלום.</li>
-        <li class="step">המנוי מופיע בתיק הלקוחה עם מונה כניסות.</li>
-      </ol>
+      <div class="mod-head"><div class="mod-icon">🛒</div><div><div class="mod-name">מכירת מנוי ללקוחה</div><div class="mod-tag">מכירות › מנויים</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><span>עבור לכרטיסיית <strong>תיקי לקוחות</strong> ופתח את תיק הלקוחה.</span></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>לחץ מכור מנוי</strong><span> ← בחר את החבילה הרצויה ← גבה תשלום.</span></div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><span>המנוי מופיע בתיק הלקוחה עם מונה כניסות.</span></div></div>
+      </div>
     </div>
 
-    <div class="box">
-      <strong>💡 מימוש כניסה בקביעת תור</strong><br>
-      כשקובעים תור ללקוחה שיש לה מנוי פעיל — המערכת מציגה אוטומטית את המנוי ומאפשרת לסמן "מימוש כניסה" מבלי לגבות תשלום נוסף.
+    <div class="box box-tip">
+      <div class="box-icon">💡</div>
+      <div><strong>מימוש כניסה בקביעת תור</strong><br>כשקובעים תור ללקוחה שיש לה מנוי פעיל — המערכת מציגה אוטומטית את המנוי ומאפשרת לסמן "מימוש כניסה" מבלי לגבות תשלום נוסף.</div>
     </div>
   </div>
 
   <!-- ─── תיקי לקוחות ─── -->
   <div class="chapter" id="b-clients">
-    <h2>📋 תיקי לקוחות</h2>
+    <div class="ch-head"><div class="ch-num">8</div><div class="ch-title">תיקי לקוחות</div></div>
     <p>כרטיסיית <strong>תיקי לקוחות</strong> (בתפריט <em>מכירות</em>) שומרת כרטיס מפורט לכל לקוחה — היסטוריית טיפולים, מנויים פעילים, הערות ואלרגיות.</p>
 
     <div class="mod">
-      <div class="mod-t">הוספת לקוחה חדשה</div>
-      <ol class="steps">
-        <li class="step">לחץ <strong>+ לקוח חדש</strong>.</li>
-        <li class="step">מלא את הפרטים:</li>
-      </ol>
-      <table class="field-table">
-        <tr><th>שדה</th><th>הסבר</th></tr>
-        <tr><td>שם מלא *</td><td>שם הלקוחה</td></tr>
-        <tr><td>מספר ת.ז *</td><td>9 ספרות — נדרש לזיהוי ולמניעת כפילויות</td></tr>
-        <tr><td>טלפון</td><td>לשליחת תזכורות ולתיאום</td></tr>
-        <tr><td>ONEFLOW LIFE</td><td>לחץ <em>בדוק</em> אחרי מילוי טלפון — המערכת מחפשת אם הלקוחה רשומה בקהילת ONEFLOW ומקשרת אוטומטית</td></tr>
-        <tr><td>אימייל</td><td>לשליחת אישורי תור</td></tr>
-        <tr><td>תאריך לידה</td><td>לשליחת ברכות ומבצעי יום הולדת</td></tr>
-        <tr><td>הערות / אלרגיות</td><td>מידע רפואי/קוסמטי חשוב לטיפול</td></tr>
-      </table>
+      <div class="mod-head"><div class="mod-icon">👤</div><div><div class="mod-name">הוספת לקוחה חדשה</div><div class="mod-tag">מכירות › תיקי לקוחות</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחץ + לקוח חדש.</strong></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><span>מלא את הפרטים:</span></div></div>
+      </div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם מלא</div><div class="fr-val">שם הלקוחה</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>מספר ת.ז</div><div class="fr-val">9 ספרות — נדרש לזיהוי ולמניעת כפילויות</div></div>
+        <div class="field-row"><div class="fr-label">טלפון</div><div class="fr-val">לשליחת תזכורות ולתיאום</div></div>
+        <div class="field-row"><div class="fr-label">ONEFLOW LIFE</div><div class="fr-val">לחץ <em>בדוק</em> אחרי מילוי טלפון — המערכת מחפשת אם הלקוחה רשומה בקהילת ONEFLOW ומקשרת אוטומטית</div></div>
+        <div class="field-row"><div class="fr-label">אימייל</div><div class="fr-val">לשליחת אישורי תור</div></div>
+        <div class="field-row"><div class="fr-label">תאריך לידה</div><div class="fr-val">לשליחת ברכות ומבצעי יום הולדת</div></div>
+        <div class="field-row"><div class="fr-label">הערות / אלרגיות</div><div class="fr-val">מידע רפואי/קוסמטי חשוב לטיפול</div></div>
+      </div>
     </div>
 
     <div class="mod">
-      <div class="mod-t">Patch Test — בדיקת עור</div>
+      <div class="mod-head"><div class="mod-icon">🧪</div><div><div class="mod-name">Patch Test — בדיקת עור</div><div class="mod-tag">מכירות › תיקי לקוחות</div></div></div>
       <p>שירותים מסוימים (כמו לייזר, צבע שיער) מחייבים בדיקת עור מוקדמת. בתיק הלקוחה מופיע תג מצב הבדיקה:</p>
       <div class="actions">
         <span class="tag" style="background:#dcfce7;color:#166534">פאץ׳ תקין</span>
@@ -2985,15 +2971,15 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
       </div>
     </div>
 
-    <div class="box">
-      <strong>📊 ממוצע ביקור</strong><br>
-      בכרטיס הלקוחה ברשימה מוצג אוטומטית "ממוצע ביקור: כל X ימים". זה מאפשר לזהות לקוחות שלא ביקרו זמן רב ולפנות אליהן.
+    <div class="box box-tip">
+      <div class="box-icon">📊</div>
+      <div><strong>ממוצע ביקור</strong><br>בכרטיס הלקוחה ברשימה מוצג אוטומטית "ממוצע ביקור: כל X ימים". זה מאפשר לזהות לקוחות שלא ביקרו זמן רב ולפנות אליהן.</div>
     </div>
   </div>
 
   <!-- ─── מלאי ─── -->
   <div class="chapter" id="b-inventory">
-    <h2>🧴 מלאי מקצועי</h2>
+    <div class="ch-head"><div class="ch-num">9</div><div class="ch-title">מלאי מקצועי</div></div>
     <p>כרטיסיית <strong>מלאי מקצועי</strong> (בתפריט <em>מלאי</em>) מנהלת שני סוגי מוצרים. חשוב להבין את ההבדל ביניהם:</p>
 
     <div class="auto-grid">
@@ -3008,46 +2994,45 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     </div>
 
     <div class="mod">
-      <div class="mod-t">שדות פריט מלאי</div>
-      <table class="field-table">
-        <tr><th>שדה</th><th>הסבר</th></tr>
-        <tr><td>שם מוצר</td><td>שם המוצר כפי שיופיע ברשימה</td></tr>
-        <tr><td>מותג / SKU</td><td>מזהה לתיאום עם ספק</td></tr>
-        <tr><td>כמות במלאי</td><td>כמה יחידות יש כרגע</td></tr>
-        <tr><td>סף הזמנה מחדש</td><td>כשהמלאי יורד מתחת לסף זה — מופיעה התראה אדומה</td></tr>
-        <tr><td>מחיר עלות ₪</td><td>כמה שילמתם לספק (לחישוב רווח)</td></tr>
-        <tr><td>יחידת מידה</td><td>יח׳ / מ"ל / גרם</td></tr>
-      </table>
+      <div class="mod-head"><div class="mod-icon">📋</div><div><div class="mod-name">שדות פריט מלאי</div><div class="mod-tag">מלאי › מלאי מקצועי</div></div></div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">שם מוצר</div><div class="fr-val">שם המוצר כפי שיופיע ברשימה</div></div>
+        <div class="field-row"><div class="fr-label">מותג / SKU</div><div class="fr-val">מזהה לתיאום עם ספק</div></div>
+        <div class="field-row"><div class="fr-label">כמות במלאי</div><div class="fr-val">כמה יחידות יש כרגע</div></div>
+        <div class="field-row"><div class="fr-label">סף הזמנה מחדש</div><div class="fr-val">כשהמלאי יורד מתחת לסף זה — מופיעה התראה אדומה</div></div>
+        <div class="field-row"><div class="fr-label">מחיר עלות ₪</div><div class="fr-val">כמה שילמתם לספק (לחישוב רווח)</div></div>
+        <div class="field-row"><div class="fr-label">יחידת מידה</div><div class="fr-val">יח׳ / מ"ל / גרם</div></div>
+      </div>
     </div>
 
     <div class="mod">
-      <div class="mod-t">עדכון מלאי ידני</div>
+      <div class="mod-head"><div class="mod-icon">✏️</div><div><div class="mod-name">עדכון מלאי ידני</div><div class="mod-tag">מלאי › מלאי מקצועי</div></div></div>
       <p>לכל פריט יש כפתורי <strong>+</strong> (קיבלנו סחורה) ו-<strong>−</strong> (שימוש בטיפול). לחץ לשינוי הכמות. ניתן לסנן בין <em>הכל / קמעונאי / Back-Bar</em>.</p>
     </div>
 
-    <div class="box">
-      <strong>🔔 התראת מלאי נמוך</strong><br>
-      כשפריט יורד מתחת לסף ההזמנה מחדש — מופיעה רצועה אדומה בראש המסך עם שמות הפריטים. גם הדשבורד הראשי מציג את מספר הפריטים בסכנה.
+    <div class="box box-warn">
+      <div class="box-icon">🔔</div>
+      <div><strong>התראת מלאי נמוך</strong><br>כשפריט יורד מתחת לסף ההזמנה מחדש — מופיעה רצועה אדומה בראש המסך עם שמות הפריטים. גם הדשבורד הראשי מציג את מספר הפריטים בסכנה.</div>
     </div>
   </div>
 
   <!-- ─── עמלות ─── -->
   <div class="chapter" id="b-commissions">
-    <h2>💰 עמלות ושכר</h2>
+    <div class="ch-head"><div class="ch-num">10</div><div class="ch-title">עמלות ושכר</div></div>
     <p>כרטיסיית <strong>עמלות ושכר</strong> (בתפריט <em>כספים</em>) מחשבת אוטומטית את העמלה המגיעה לכל מטפלת לפי אחוז שהוגדר בפרופיל שלה — ללא צורך בחישוב ידני.</p>
 
     <div class="mod">
-      <div class="mod-t">איך עמלות עובדות?</div>
-      <ol class="steps">
-        <li class="step">כשטיפול מסומן כ<strong>הושלם</strong> ביומן — המערכת מחשבת אוטומטית את העמלה (אחוז מהמחיר).</li>
-        <li class="step">אם המטפלת גם מכרה מוצר קמעונאי — מחושבת עמלת קמעונאות נוספת.</li>
-        <li class="step">כל העמלות מצטברות לכרטיס "לא שולם" של המטפלת.</li>
-        <li class="step">בסוף תקופת שכר: לחץ <strong>שלם ₪X</strong> ← העמלות מסומנות כ"שולמו ✅".</li>
-      </ol>
+      <div class="mod-head"><div class="mod-icon">💰</div><div><div class="mod-name">איך עמלות עובדות?</div><div class="mod-tag">כספים › עמלות ושכר</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><span>כשטיפול מסומן כ<strong>הושלם</strong> ביומן — המערכת מחשבת אוטומטית את העמלה (אחוז מהמחיר).</span></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><span>אם המטפלת גם מכרה מוצר קמעונאי — מחושבת עמלת קמעונאות נוספת.</span></div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><span>כל העמלות מצטברות לכרטיס "לא שולם" של המטפלת.</span></div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><span>בסוף תקופת שכר: לחץ <strong>שלם ₪X</strong> ← העמלות מסומנות כ"שולמו ✅".</span></div></div>
+      </div>
     </div>
 
     <div class="mod">
-      <div class="mod-t">סיכום תקופה</div>
+      <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">סיכום תקופה</div><div class="mod-tag">כספים › עמלות ושכר</div></div></div>
       <p>בראש המסך מוצגים 3 מדדים:</p>
       <div class="auto-grid">
         <div class="auto-card"><strong>סה"כ עמלות</strong><br>כל העמלות בתקופה (שולמו + לא שולמו)</div>
@@ -3059,22 +3044,22 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
   <!-- ─── ייעוץ ובקשות ─── -->
   <div class="chapter" id="b-rfq">
-    <h2>💬 ייעוץ ובקשות מ-ONEFLOW LIFE</h2>
+    <div class="ch-head"><div class="ch-num">11</div><div class="ch-title">ייעוץ ובקשות מ-ONEFLOW LIFE</div></div>
     <p>כרטיסיית <strong>ייעוץ ובקשות</strong> (בתפריט <em>מכירות</em>) מציגה בקשות טיפול שלקוחות שלחו מאפליקציית ONEFLOW LIFE הקהילתית. זהו ערוץ לקוחות חדש מובנה במערכת.</p>
 
     <div class="mod">
-      <div class="mod-t">תהליך הבקשה</div>
-      <ol class="steps">
-        <li class="step"><strong>חדש</strong> — לקוחה שלחה בקשה לטיפול. שלח לה שאלון ראשוני.</li>
-        <li class="step"><strong>שאלון נשלח</strong> — ממתינים לתשובות. שלח בקשה לתמונות אם נדרש.</li>
-        <li class="step"><strong>ממתין לתמונות</strong> — הלקוחה צריכה לשלוח תמונות (לדוג׳: מצב עור/שיער). שלח תוכנית טיפול.</li>
-        <li class="step"><strong>תוכנית נשלחה</strong> — ממתינים לאישור הלקוחה.</li>
-        <li class="step"><strong>אושר</strong> — הלקוחה אישרה. קבע תורים — הסטטוס עובר ל<em>תורים נקבעו</em>.</li>
-      </ol>
+      <div class="mod-head"><div class="mod-icon">🔄</div><div><div class="mod-name">תהליך הבקשה</div><div class="mod-tag">מכירות › ייעוץ ובקשות</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>חדש</strong><span> — לקוחה שלחה בקשה לטיפול. שלח לה שאלון ראשוני.</span></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>שאלון נשלח</strong><span> — ממתינים לתשובות. שלח בקשה לתמונות אם נדרש.</span></div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>ממתין לתמונות</strong><span> — הלקוחה צריכה לשלוח תמונות (לדוג׳: מצב עור/שיער). שלח תוכנית טיפול.</span></div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>תוכנית נשלחה</strong><span> — ממתינים לאישור הלקוחה.</span></div></div>
+        <div class="step"><div class="step-n">5</div><div class="step-body"><strong>אושר</strong><span> — הלקוחה אישרה. קבע תורים — הסטטוס עובר ל<em>תורים נקבעו</em>.</span></div></div>
+      </div>
     </div>
 
     <div class="mod">
-      <div class="mod-t">סטטוסי בקשה</div>
+      <div class="mod-head"><div class="mod-icon">🏷️</div><div><div class="mod-name">סטטוסי בקשה</div><div class="mod-tag">מכירות › ייעוץ ובקשות</div></div></div>
       <div class="actions">
         <span class="tag" style="background:#e0f2fe;color:#0369a1">🆕 חדש</span>
         <span class="tag" style="background:#e0e7ff;color:#3730a3">📋 שאלון נשלח</span>
@@ -3086,11 +3071,13 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
       </div>
     </div>
 
-    <div class="box">
-      <strong>💡 מה זה ONEFLOW LIFE?</strong><br>
-      ONEFLOW LIFE היא האפליקציה הקהילתית של המשפחה — לקוחות שמשתמשות בה יכולות לשלוח בקשות ישירות לעסקי היופי המחוברים. כל בקשה מגיעה אוטומטית לכרטיסייה זו.
+    <div class="box box-tip">
+      <div class="box-icon">💡</div>
+      <div><strong>מה זה ONEFLOW LIFE?</strong><br>ONEFLOW LIFE היא האפליקציה הקהילתית של המשפחה — לקוחות שמשתמשות בה יכולות לשלוח בקשות ישירות לעסקי היופי המחוברים. כל בקשה מגיעה אוטומטית לכרטיסייה זו.</div>
     </div>
   </div>
+
+</div><!-- /wrap -->
 
 </div>
 
