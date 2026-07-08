@@ -2582,7 +2582,7 @@ function filterSACommunities() { renderSACommunitiesTable(); }
 async function approveSACommunity(id) {
     if (!confirm('לאשר את הקהילה ולהפוך אותה לפעילה?')) return;
     try {
-        const r = await fetch(`${API}/api/sa/communities/${id}/approve`, { method: 'PUT', headers: { Authorization: `Bearer ${saToken}` } });
+        const r = await fetch(`${API}/sa/communities/${id}/approve`, { method: 'PUT', headers: { Authorization: `Bearer ${saToken}` } });
         const d = await r.json();
         if (d.success) {
             showToast('הקהילה אושרה בהצלחה ✅');
