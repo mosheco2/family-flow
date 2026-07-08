@@ -1615,7 +1615,7 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
       <div class="box box-tip" style="margin-bottom:14px;">
         <div class="box-icon">💡</div>
-        <div>סוג העסק <strong>"תחזוקה ותיקונים"</strong> מופעל על ידי מנהל מערכת (Super Admin) לאחר הרישום. בשלב הויזארד ניתן לבחור <strong>שירות / מתקינים 🔧</strong> כנקודת פתיחה — ה-Super Admin יעדכן את הסוג המדויק ומודולי תחזוקה יופעלו.</div>
+        <div>לפני האשף עצמו מופיעה שאלה: <strong>"מה סוג העסק שלך?"</strong>. בחרו <strong>שירות / מתקינים 🔧</strong> — זה פותח את כל מודולי התחזוקה הרלוונטיים.</div>
       </div>
 
       <div class="steps">
@@ -1978,7 +1978,7 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
         <div class="field-row"><div class="fr-label">טלפון</div><div class="fr-val">לאימות וקשר</div></div>
         <div class="field-row"><div class="fr-label">עיר</div><div class="fr-val">אזור פעילות ראשי</div></div>
       </div>
-      <div class="box box-imp"><div class="box-icon">⚙️</div><div>סוג העסק "לוגיסטיקה / הפצה" מוגדר דרך לוח הניהול העליון (Super Admin) לאחר הרישום. פנה לתמיכה כדי להפעיל את מודולי הלוגיסטיקה.</div></div>
+      <div class="box box-tip"><div class="box-icon">💡</div><div>בסיום ההרשמה תועברו לויזארד הקמה — בחרו <strong>לוגיסטיקה / הפצה</strong> כדי להפעיל את מודולי הלוגיסטיקה.</div></div>
     </div>
 
     <div class="mod">
@@ -1998,7 +1998,7 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   <!-- ── פרק 2: הקמה ראשונית ── -->
   <div class="chapter" id="l-wizard">
     <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית</div></div>
-    <p style="font-size:.9rem;color:var(--text2);">סוג העסק "לוגיסטיקה / הפצה" מופעל על ידי מנהל מערכת (Super Admin). לאחר הפעלה, ממשיכים ב-4 שלבי ויזארד:</p>
+    <p style="font-size:.9rem;color:var(--text2);">בכניסה הראשונה לחשבון חדש מופיע ויזארד הקמה. כאשר נשאלים "מה סוג העסק שלך?" — בחרו <strong>לוגיסטיקה / הפצה 🚚</strong> כדי להפעיל את כל המודולים הרלוונטיים. לאחר מכן ממשיכים ב-4 שלבי הויזארד:</p>
 
     <div class="mod">
       <div class="mod-head"><div class="mod-icon">1️⃣</div><div><div class="mod-name">שלב 1 — פרופיל העסק</div></div></div>
@@ -2462,13 +2462,30 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
       </div>
     </div></div>
 
-    <div class="mod">
-      <div class="mod-head"><div class="mod-icon">✅</div><div><div class="mod-name">לפני שמתחילים</div></div></div>
-      <div class="steps">
-        <div class="step"><div class="step-n">1</div><div class="step-body">וודא שמנהל ה-Super Admin הגדיר את סוג העסק שלך כ<strong>מקצועי / ייעוץ</strong>. זה נעשה בהגדרות המערכת — לא אתה עושה את זה בעצמך.</div></div>
-        <div class="step"><div class="step-n">2</div><div class="step-body">כנס לאפליקציה הראשית. אם מופיע ויזארד הקמה — עבור את שלביו (ראה פרק הבא). אם לא — הכל מוכן לשימוש.</div></div>
-        <div class="step"><div class="step-n">3</div><div class="step-body">הגדר את שם העסק, הלוגו ואנשי הצוות בהגדרות (כרטיסייה <strong>הגדרות</strong> בתפריט <em>עוד</em>).</div></div>
-      </div>
+    <h2 class="sec">א. כניסה לחשבון קיים</h2>
+    <div class="field-table">
+      <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>קוד כניסה</div><div class="fr-val">קוד בן 6 תווים שנוצר בפתיחת העסק. מנהל העסק רואה אותו ב"פרטי העסק".</div></div>
+      <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם משתמש</div><div class="fr-val">השם שנבחר בעת ההרשמה — לא כתובת מייל.</div></div>
+      <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>סיסמה</div><div class="fr-val">הסיסמה האישית. שכחתם? — פנו למנהל לאיפוס.</div></div>
+    </div>
+
+    <h2 class="sec">ב. פתיחת עסק חדש (הרשמה ראשונה)</h2>
+    <div class="box box-imp" style="margin-top:8px;margin-bottom:12px;">
+      <div class="box-icon">⚠️</div>
+      <div>בחרו <strong>עסקים</strong> — לא "משפחה". זה חיוני לפתיחת סביבת הניהול הנכונה.</div>
+    </div>
+    <div class="field-table">
+      <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם העסק</div><div class="fr-val">שם המשרד / הפרקטיקה. לדוגמה: <code>עו"ד דוד לוי — נדל"ן</code>.</div></div>
+      <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>מייל מנהל</div><div class="fr-val">המייל שלכם — לשחזור סיסמה ועדכונים.</div></div>
+      <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>טלפון</div><div class="fr-val">מספר נייד — <code>0501234567</code>. נדרש מגיל 10.</div></div>
+      <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם מנהל</div><div class="fr-val">השם שלכם כמנהל/ת.</div></div>
+      <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שנת לידה</div><div class="fr-val">לאימות גיל בלבד.</div></div>
+      <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>סיסמה + אימות</div><div class="fr-val">לפחות 6 תווים, הקלידו פעמיים.</div></div>
+    </div>
+    <div class="steps" style="margin-top:16px;">
+      <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו על "סיום והרשמה"</strong><span>המערכת מייצרת את הסביבה שלכם תוך כמה שניות.</span></div></div>
+      <div class="step"><div class="step-n">2</div><div class="step-body"><strong>קבלו את קוד הכניסה</strong><span>מיד לאחר ההרשמה יופיע קוד ייחודי בן 6 תווים. שמרו אותו — תצטרכו לתת אותו לכל עובד שמצטרף.</span></div></div>
+      <div class="step"><div class="step-n">3</div><div class="step-body"><strong>תועברו לויזארד הקמה</strong><span>המערכת תנחה אתכם לבחור סוג עסק ולהשלים את הפרטים הראשוניים.</span></div></div>
     </div>
   </div>
 
