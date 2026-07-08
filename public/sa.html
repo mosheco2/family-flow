@@ -1628,6 +1628,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
           <button id="vtnav-hr-teams" onclick="switchViewTab('hr','teams')" style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-user-shield" style="font-size:11px;"></i>צוותים</button>
           <button id="vtnav-hr-staff" onclick="switchViewTab('hr','staff')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-user-tie" style="font-size:11px;"></i>נציגים</button>
           <button id="vtnav-hr-master" onclick="switchViewTab('hr','master')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-key" style="font-size:11px;"></i>מאסטר אדמין</button>
+          <button id="vtnav-hr-docs" onclick="switchViewTab('hr','docs')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-book-open" style="font-size:11px;"></i>מצגות ומדריכים</button>
         </div>
                 <div id="vt-hr-teams" class="vt-hr">
                     <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
@@ -1676,6 +1677,177 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
                 </div><!-- /vt-hr-master -->
+
+                <div id="vt-hr-docs" class="vt-hr hidden">
+                  <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
+                    <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                      <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-book-open text-teal-500 mr-2"></i> מצגות ומדריכים</h2>
+                      <span class="text-xs text-slate-400">כל קבצי המידע של המערכת</span>
+                    </div>
+
+                    <!-- מצגות -->
+                    <div class="mb-6">
+                      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><i class="fa-solid fa-presentation-screen text-orange-400"></i> מצגות</h3>
+                      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <a href="/launch-presentation.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-orange-100 bg-orange-50 hover:bg-orange-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-rocket text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-orange-700">מצגת ערב השקה</div><div class="text-xs text-slate-400 mt-0.5">launch-presentation.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-orange-400 mr-auto text-xs"></i>
+                        </a>
+                      </div>
+                    </div>
+
+                    <!-- מדריכי עסקים לפי סוג -->
+                    <div class="mb-6">
+                      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><i class="fa-solid fa-store text-indigo-400"></i> מדריכי עסקים לפי סוג</h3>
+                      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <a href="/biz-setup-guide.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-indigo-100 bg-indigo-50 hover:bg-indigo-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-map text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-indigo-700">מדריך הקמה — כל סוגי העסקים</div><div class="text-xs text-slate-400 mt-0.5">biz-setup-guide.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-indigo-400 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/restaurant-guide.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-utensils text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-red-700">מדריך מסעדה / בית קפה</div><div class="text-xs text-slate-400 mt-0.5">restaurant-guide.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-red-400 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/sport-guide.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-dumbbell text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-green-700">מדריך ספורט וחוגים</div><div class="text-xs text-slate-400 mt-0.5">sport-guide.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-green-400 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/maintenance-guide.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-screwdriver-wrench text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-yellow-700">מדריך תחזוקה ותיקונים</div><div class="text-xs text-slate-400 mt-0.5">maintenance-guide.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-yellow-400 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/logistics-guide.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-truck text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-blue-700">מדריך לוגיסטיקה והפצה</div><div class="text-xs text-slate-400 mt-0.5">logistics-guide.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-blue-400 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/professional-guide.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-violet-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-briefcase text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-violet-700">מדריך מומחים ויועצים</div><div class="text-xs text-slate-400 mt-0.5">professional-guide.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-violet-400 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/beauty-guide.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-pink-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-scissors text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-pink-700">מדריך יופי ואסטטיקה</div><div class="text-xs text-slate-400 mt-0.5">beauty-guide.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-pink-400 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/services-guide.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-cyan-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-concierge-bell text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-cyan-700">מדריך שירותים מקצועיים</div><div class="text-xs text-slate-400 mt-0.5">services-guide.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-cyan-400 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/retail-guide.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-shop text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-amber-700">מדריך קמעונאות</div><div class="text-xs text-slate-400 mt-0.5">retail-guide.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-amber-400 mr-auto text-xs"></i>
+                        </a>
+                      </div>
+                    </div>
+
+                    <!-- מדריכים כלליים -->
+                    <div class="mb-6">
+                      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><i class="fa-solid fa-book text-teal-400"></i> מדריכים כלליים</h3>
+                      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <a href="/biz-guide.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-slate-700 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-building text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-slate-700">מדריך עסקי כללי</div><div class="text-xs text-slate-400 mt-0.5">biz-guide.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-slate-500 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/guide.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-teal-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-house text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-teal-700">מדריך למשתמש — סביבת משפחה</div><div class="text-xs text-slate-400 mt-0.5">guide.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-teal-400 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/community-guide.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-people-group text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-emerald-700">מדריך ניהול קהילות</div><div class="text-xs text-slate-400 mt-0.5">community-guide.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-emerald-400 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/flowpool-guide.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-water text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-sky-700">מדריך FlowPool</div><div class="text-xs text-slate-400 mt-0.5">flowpool-guide.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-sky-400 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/flow-guide.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-indigo-400 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-coins text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-indigo-700">מדריך מטבע Flw</div><div class="text-xs text-slate-400 mt-0.5">flow-guide.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-indigo-400 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/marketing-guide.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-rose-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-bullhorn text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-rose-700">המדריך השיווקי המלא</div><div class="text-xs text-slate-400 mt-0.5">marketing-guide.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-rose-400 mr-auto text-xs"></i>
+                        </a>
+                      </div>
+                    </div>
+
+                    <!-- מסמכי אפיון ופיתוח -->
+                    <div class="mb-6">
+                      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><i class="fa-solid fa-file-code text-slate-400"></i> מסמכי אפיון ופיתוח</h3>
+                      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <a href="/SPECIFICATION.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-slate-600 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-file-lines text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-slate-700">אפיון מלא של המערכת</div><div class="text-xs text-slate-400 mt-0.5">SPECIFICATION.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-slate-500 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/docs/spec-biz-environment.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-slate-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-store text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-slate-700">אפיון סביבת עסקים</div><div class="text-xs text-slate-400 mt-0.5">docs/spec-biz-environment.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-slate-500 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/docs/spec-family-environment.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-slate-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-house text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-slate-700">אפיון סביבת משפחה</div><div class="text-xs text-slate-400 mt-0.5">docs/spec-family-environment.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-slate-500 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/docs/spec-super-admin.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-slate-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-shield-halved text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-slate-700">אפיון Super Admin</div><div class="text-xs text-slate-400 mt-0.5">docs/spec-super-admin.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-slate-500 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/docs/spec-zone-community.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-slate-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-map-location-dot text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-slate-700">אפיון Zone Manager וקהילה</div><div class="text-xs text-slate-400 mt-0.5">docs/spec-zone-community.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-slate-500 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/qa-book.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-slate-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-vial text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-slate-700">ספר בדיקות QA</div><div class="text-xs text-slate-400 mt-0.5">qa-book.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-slate-500 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/ux-mockup.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-slate-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-laptop-code text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-slate-700">הדמיית מסכים UX</div><div class="text-xs text-slate-400 mt-0.5">ux-mockup.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-slate-500 mr-auto text-xs"></i>
+                        </a>
+                      </div>
+                    </div>
+
+                    <!-- שיווק -->
+                    <div>
+                      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><i class="fa-solid fa-rectangle-ad text-rose-400"></i> שיווק ומכירות</h3>
+                      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <a href="/campaign.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-rose-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-chart-bar text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-rose-700">דף קמפיין שיווקי</div><div class="text-xs text-slate-400 mt-0.5">campaign.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-rose-400 mr-auto text-xs"></i>
+                        </a>
+                        <a href="/storefront.html" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100 hover:shadow-md transition group">
+                          <div class="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-bag-shopping text-white text-sm"></i></div>
+                          <div><div class="font-bold text-slate-800 text-sm group-hover:text-amber-700">חנות ראווה לעסקים</div><div class="text-xs text-slate-400 mt-0.5">storefront.html</div></div>
+                          <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 group-hover:text-amber-400 mr-auto text-xs"></i>
+                        </a>
+                      </div>
+                    </div>
+
+                  </div>
+                </div><!-- /vt-hr-docs -->
+
                 </div><!-- /sa-view-hr -->
 
                 <div id="sa-view-devops" class="hidden space-y-8 fade-in">
