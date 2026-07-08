@@ -7036,6 +7036,61 @@ app.delete('/api/sa/articles/:id', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ===== ZM ARTICLES =====
+app.get('/api/zm/articles', verifyZoneManager, async (req, res) => {
+    try {
+        const managerId = req.zmSession.managerId;
+        const result = await pool.query(
+            `SELECT ca.*, c.name as community_name FROM community_articles ca
+             LEFT JOIN communities c ON ca.community_id = c.id
+             WHERE ca.author_type='zone_manager' AND ca.author_id=$1
+             ORDER BY ca.published_at DESC LIMIT 50`,
+            [managerId]
+        );
+        res.json({ articles: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/zm/articles', verifyZoneManager, async (req, res) => {
+    try {
+        const managerId = req.zmSession.managerId;
+        const { title, body, image_url, community_id } = req.body;
+        if (!title || !body) return res.status(400).json({ error: 'title and body required' });
+        const result = await pool.query(
+            'INSERT INTO community_articles (community_id, author_type, author_id, title, body, image_url) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+            [community_id || null, 'zone_manager', managerId, title, body, image_url || null]
+        );
+        res.json({ article: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/zm/articles/:id', verifyZoneManager, async (req, res) => {
+    try {
+        const managerId = req.zmSession.managerId;
+        await pool.query('DELETE FROM community_articles WHERE id=$1 AND author_type=$2 AND author_id=$3', [req.params.id, 'zone_manager', managerId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== COMMUNITY MANAGER ARTICLES =====
+app.post('/api/community/manager/articles', async (req, res) => {
+    try {
+        const { community_id, group_id, title, body, image_url } = req.body;
+        if (!title || !body || !community_id) return res.status(400).json({ error: 'missing fields' });
+        // verify that group_id is indeed community manager of community_id
+        const check = await pool.query(
+            `SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND is_community_manager=TRUE`,
+            [group_id, community_id]
+        );
+        if (!check.rows.length) return res.status(403).json({ error: 'Not a community manager' });
+        const result = await pool.query(
+            'INSERT INTO community_articles (community_id, author_type, author_id, title, body, image_url) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+            [community_id, 'community_manager', group_id, title, body, image_url || null]
+        );
+        res.json({ article: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/store/ai-desc', async (req, res) => {
     try {
         const { productName, groupId } = req.body;

@@ -256,7 +256,7 @@ async function loadDashboard() {
 }
 
 function zmSwitchTab(tab) {
-    ['zones','biz-requests','marketing','leads','inbox','commissions'].forEach(t => {
+    ['zones','biz-requests','marketing','leads','inbox','commissions','content'].forEach(t => {
         const view = document.getElementById(`zmview-${t}`);
         const btn = document.getElementById(`zmtab-${t}`);
         if (view) view.classList.add('hidden');
@@ -271,6 +271,7 @@ function zmSwitchTab(tab) {
     if (tab === 'leads') loadLeadsTab();
     if (tab === 'inbox') loadInbox();
     if (tab === 'biz-requests') zmLoadPendingBiz();
+    if (tab === 'content') zmLoadContent();
 }
 
 async function zmLoadPendingBiz() {
@@ -1537,4 +1538,72 @@ function showZMToast(msg, type='success') {
     el.textContent = msg;
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 3000);
+}
+
+// ===== ZM CONTENT / ARTICLES =====
+async function zmLoadContent() {
+    const token = localStorage.getItem('zm_token');
+    // populate community dropdown
+    const commSel = document.getElementById('zm-article-community');
+    if (commSel && commSel.options.length === 1) {
+        try {
+            const r = await fetch(`${API}/zm/zones`, { headers: { Authorization: `Bearer ${token}` } });
+            const d = await r.json();
+            (d.communities || []).forEach(c => {
+                const o = document.createElement('option');
+                o.value = c.id; o.textContent = c.name;
+                commSel.appendChild(o);
+            });
+        } catch(e) {}
+    }
+    // load articles
+    const list = document.getElementById('zm-articles-list');
+    try {
+        const r = await fetch(`${API}/zm/articles`, { headers: { Authorization: `Bearer ${token}` } });
+        const d = await r.json();
+        const articles = d.articles || [];
+        if (!articles.length) { list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">לא פרסמת מאמרים עדיין</p>'; return; }
+        list.innerHTML = articles.map(a => `
+            <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 flex justify-between items-start gap-2">
+                <button onclick="zmDeleteArticle(${a.id})" class="text-red-400 hover:text-red-600 mt-1 flex-shrink-0"><i class="fa-solid fa-trash text-xs"></i></button>
+                <div class="text-right flex-1">
+                    <p class="font-bold text-slate-800 text-sm">${a.title}</p>
+                    <p class="text-xs text-slate-400 mt-0.5">${a.community_name || 'כל הקהילות באזור'} · ${new Date(a.published_at).toLocaleDateString('he-IL')}</p>
+                </div>
+            </div>`).join('');
+    } catch(e) { list.innerHTML = '<p class="text-center text-red-400 py-4 text-sm">שגיאה בטעינה</p>'; }
+}
+
+async function zmPublishArticle() {
+    const token = localStorage.getItem('zm_token');
+    const title = document.getElementById('zm-article-title').value.trim();
+    const body = document.getElementById('zm-article-body').value.trim();
+    const image_url = document.getElementById('zm-article-image').value.trim();
+    const community_id = document.getElementById('zm-article-community').value || null;
+    if (!title || !body) { zmShowToast('error', 'כותרת ותוכן הם שדות חובה'); return; }
+    try {
+        const r = await fetch(`${API}/zm/articles`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ title, body, image_url: image_url || null, community_id })
+        });
+        const d = await r.json();
+        if (d.article) {
+            zmShowToast('success', 'המאמר פורסם!');
+            document.getElementById('zm-article-title').value = '';
+            document.getElementById('zm-article-body').value = '';
+            document.getElementById('zm-article-image').value = '';
+            document.getElementById('zm-article-community').value = '';
+            zmLoadContent();
+        } else { zmShowToast('error', d.error || 'שגיאה'); }
+    } catch(e) { zmShowToast('error', 'שגיאת רשת'); }
+}
+
+async function zmDeleteArticle(id) {
+    if (!confirm('למחוק את המאמר?')) return;
+    const token = localStorage.getItem('zm_token');
+    try {
+        await fetch(`${API}/zm/articles/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+        zmLoadContent();
+    } catch(e) { zmShowToast('error', 'שגיאה'); }
 }

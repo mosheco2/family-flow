@@ -6148,6 +6148,18 @@ async function openCommunityManagerPanel(commId) {
                 </button>
             </div>
 
+            <!-- פרסום תוכן -->
+            <div class="mb-5">
+                <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-newspaper text-indigo-500"></i> פרסום תוכן לקהילה</h4>
+                <div class="space-y-2">
+                    <input type="text" id="cm-article-title-${commId}" placeholder="כותרת המאמר *" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-400 bg-slate-50">
+                    <textarea id="cm-article-body-${commId}" rows="3" placeholder="תוכן המאמר *" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-400 bg-slate-50 resize-none"></textarea>
+                    <input type="url" id="cm-article-image-${commId}" placeholder="קישור תמונה (אופציונלי)" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-400 bg-slate-50">
+                    <button onclick="cmPublishArticle(${commId})" class="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition text-sm"><i class="fa-solid fa-paper-plane ml-1"></i>פרסם מאמר</button>
+                </div>
+                <div id="cm-articles-${commId}" class="mt-3 space-y-2"></div>
+            </div>
+
             <!-- תנועות ארנק -->
             <div>
                 <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-emerald-500"></i> היסטוריית קאשבק</h4>
@@ -6156,6 +6168,34 @@ async function openCommunityManagerPanel(commId) {
         </div>`;
         modal.classList.remove('hidden');
     } catch(e) { showToast('error', 'שגיאה בטעינת פאנל קהילה'); }
+}
+
+async function cmPublishArticle(commId) {
+    const title = document.getElementById(`cm-article-title-${commId}`)?.value.trim();
+    const body = document.getElementById(`cm-article-body-${commId}`)?.value.trim();
+    const image_url = document.getElementById(`cm-article-image-${commId}`)?.value.trim() || null;
+    if (!title || !body) { showToast('error', 'כותרת ותוכן הם שדות חובה'); return; }
+    try {
+        const r = await fetch(`${API}/community/manager/articles`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+            body: JSON.stringify({ community_id: commId, title, body, image_url, group_id: currentGroup?.id })
+        });
+        const d = await r.json();
+        if (d.article) {
+            showToast('success', 'המאמר פורסם בהצלחה!');
+            document.getElementById(`cm-article-title-${commId}`).value = '';
+            document.getElementById(`cm-article-body-${commId}`).value = '';
+            document.getElementById(`cm-article-image-${commId}`).value = '';
+            const list = document.getElementById(`cm-articles-${commId}`);
+            if (list) {
+                const div = document.createElement('div');
+                div.className = 'bg-indigo-50 border border-indigo-100 rounded-xl p-2.5 text-sm font-bold text-indigo-800';
+                div.textContent = `✓ "${title}" פורסם`;
+                list.prepend(div);
+            }
+        } else { showToast('error', d.error || 'שגיאה בפרסום'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 async function saApproveBizFromManager(communityId, businessId) {
