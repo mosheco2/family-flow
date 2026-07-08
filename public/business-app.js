@@ -847,6 +847,7 @@ window.injectBusinessUI = function() {
                         <button id="btn-sales-reviews" onclick="window.switchSalesTab('reviews')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-star text-sm"></i>דירוגים ⭐</button>
                         <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-gear text-sm"></i>הגדרות</button>
                         <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="hidden flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-chart-bar text-sm"></i>אנליטיקה</button>
+                        <button id="btn-sales-gallery" onclick="window.switchSalesTab('gallery')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-images text-sm"></i>גלריה</button>
                     </div>
                     
                     <div id="sales-view-orders" class="space-y-4">
@@ -1293,6 +1294,18 @@ window.injectBusinessUI = function() {
                         </div>
                         <div id="reviews-root" class="space-y-4 pb-8"></div>
                     </div>
+
+                    <div id="sales-view-gallery" class="hidden space-y-5 pb-8">
+                        <div class="bg-purple-50 border border-purple-100 rounded-2xl p-5">
+                            <h4 class="font-bold text-slate-800 mb-1 flex items-center gap-2"><i class="fa-solid fa-images text-purple-500"></i> גלריית תמונות לחנות</h4>
+                            <p class="text-xs text-slate-500 mb-4">תמונות אלו יוצגו בעמוד החנות הציבורי שלך. עד 12 תמונות.</p>
+                            <div id="biz-gallery-grid" class="grid grid-cols-3 gap-3 mb-4"></div>
+                            <input type="file" id="gallery-file-input" accept="image/*" multiple class="hidden" onchange="window.uploadGalleryImages(this.files)">
+                            <button onclick="document.getElementById('gallery-file-input').click()" class="w-full bg-purple-600 text-white py-3 rounded-xl font-bold hover:bg-purple-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-plus"></i> הוסף תמונות</button>
+                            <p id="gallery-upload-status" class="text-xs text-slate-400 mt-2 text-center hidden"></p>
+                        </div>
+                    </div>
+
                 </div>
             </div>`);
     }
