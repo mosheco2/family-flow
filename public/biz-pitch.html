@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OneFlow Life BIZ — מצגת שיווקית</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:#060612;color:#fff}
+
+/* ===== SLIDE ENGINE ===== */
+.slide{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;
+  transition:opacity .55s cubic-bezier(.4,0,.2,1), transform .55s cubic-bezier(.4,0,.2,1);
+  transform:translateX(-50px);
+  padding:4vw 6vw;
+  overflow:hidden;
+}
+.slide.active{opacity:1;pointer-events:all;transform:translateX(0)}
+.slide.out{opacity:0;transform:translateX(50px)}
+
+/* noise overlay */
+.slide::before{
+  content:'';position:absolute;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;opacity:.4;
+}
+
+/* ===== NAV ===== */
+#nav{
+  position:fixed;bottom:1.8rem;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:.8rem;
+  background:rgba(255,255,255,0.07);backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:9999px;padding:.55rem 1.3rem;
+  z-index:100;
+}
+.nav-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.25);cursor:pointer;transition:all .3s}
+.nav-dot.active{background:#7c3aed;transform:scale(1.5)}
+.nav-btn{background:none;border:none;color:rgba(255,255,255,0.5);font-size:1rem;cursor:pointer;padding:.2rem .4rem;transition:color .2s}
+.nav-btn:hover{color:#fff}
+#slide-num{font-size:.72rem;color:rgba(255,255,255,0.35);min-width:38px;text-align:center}
+
+/* ===== PROGRESS ===== */
+#progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#7c3aed,#06b6d4);transition:width .4s ease;z-index:200}
+
+/* ===== ORB ===== */
+.orb{position:absolute;border-radius:50%;filter:blur(90px);pointer-events:none}
+
+/* ===== UTILITIES ===== */
+.tag{display:inline-flex;align-items:center;gap:.4rem;background:rgba(124,58,237,.18);border:1px solid rgba(124,58,237,.35);border-radius:9999px;padding:.28rem .9rem;font-size:.78rem;font-weight:700;color:#c4b5fd;margin-bottom:1.2rem}
+.big{font-size:clamp(2rem,4.5vw,3.8rem);font-weight:900;line-height:1.1;margin-bottom:.8rem}
+.sub{font-size:clamp(.9rem,1.8vw,1.25rem);font-weight:400;color:rgba(255,255,255,.6);line-height:1.65;max-width:600px}
+.grad{background:linear-gradient(135deg,#7c3aed,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.grad2{background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.cyan{color:#22d3ee}
+.pill{display:inline-flex;align-items:center;gap:.35rem;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:9999px;padding:.3rem .85rem;font-size:.8rem;font-weight:600}
+.chip{display:inline-flex;align-items:center;gap:.3rem;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.25);border-radius:.5rem;padding:.4rem .75rem;font-size:.75rem;font-weight:700;color:#c4b5fd}
+
+/* ===== ANIMATE IN ===== */
+.slide.active .anim{animation:fadeUp .5s ease both}
+.slide.active .anim-1{animation-delay:.08s}
+.slide.active .anim-2{animation-delay:.18s}
+.slide.active .anim-3{animation-delay:.3s}
+.slide.active .anim-4{animation-delay:.44s}
+.slide.active .anim-5{animation-delay:.58s}
+.slide.active .anim-6{animation-delay:.72s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+
+/* ===== SLIDE 1 — OPENER ===== */
+#s1{background:linear-gradient(135deg,#0d0620,#060c1a)}
+#s1 .center{text-align:center;position:relative;z-index:1}
+.logo-ring{
+  width:90px;height:90px;border-radius:22px;
+  background:linear-gradient(135deg,#7c3aed,#06b6d4);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 1.8rem;
+  box-shadow:0 0 70px rgba(124,58,237,.5);
+  animation:pulse-glow 3s ease-in-out infinite;
+}
+@keyframes pulse-glow{0%,100%{box-shadow:0 0 40px rgba(124,58,237,.4)}50%{box-shadow:0 0 90px rgba(6,182,212,.6)}}
+.logo-ring img{width:58px;height:58px;object-fit:contain;border-radius:14px}
+.opener-pills{display:flex;align-items:center;justify-content:center;gap:1.2rem;margin-top:1.5rem;flex-wrap:wrap}
+
+/* ===== SLIDE 2 — PAIN ===== */
+#s2{background:linear-gradient(135deg,#150811,#1a0c0c)}
+.pain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;width:100%;max-width:780px;margin-top:1.5rem}
+.pain-stat{background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2);border-radius:1rem;padding:1.2rem;text-align:center}
+.pain-stat .num{font-size:2.4rem;font-weight:900;color:#f87171;line-height:1}
+.pain-stat .lbl{font-size:.75rem;color:rgba(255,255,255,.5);margin-top:.3rem}
+.pain-items{display:flex;flex-direction:column;gap:.6rem;margin-top:1.2rem;max-width:580px;width:100%}
+.pain-row{display:flex;align-items:center;gap:.85rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:.8rem;padding:.8rem 1rem}
+.pain-ico{width:34px;height:34px;border-radius:9px;background:rgba(248,113,113,.12);display:flex;align-items:center;justify-content:center;color:#f87171;flex-shrink:0;font-size:.9rem}
+
+/* ===== SLIDE 3 — SOLUTION ===== */
+#s3{background:linear-gradient(135deg,#060f15,#050d1a)}
+.sol-cols{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;max-width:900px;width:100%}
+.mod-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.65rem}
+.mod-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:.85rem;padding:.85rem;text-align:center;transition:.2s}
+.mod-card:hover{background:rgba(124,58,237,.15);transform:translateY(-3px)}
+.mod-card .e{font-size:1.35rem;margin-bottom:.35rem}
+.mod-card .n{font-size:.7rem;font-weight:700;color:rgba(255,255,255,.8)}
+
+/* ===== SLIDE 4 — HOW IT WORKS ===== */
+#s4{background:linear-gradient(135deg,#08060f,#050c18)}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2rem;max-width:860px;width:100%;margin-top:1.8rem;position:relative}
+.steps::before{content:'';position:absolute;top:36px;right:12%;left:12%;height:2px;background:linear-gradient(90deg,#7c3aed,#06b6d4);opacity:.3}
+.step-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:1rem;padding:1.3rem 1rem;text-align:center;position:relative;z-index:1}
+.step-num{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#06b6d4);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:900;margin:0 auto .8rem}
+.step-title{font-size:.82rem;font-weight:800;margin-bottom:.3rem}
+.step-desc{font-size:.7rem;color:rgba(255,255,255,.5);line-height:1.5}
+
+/* ===== SLIDE 5 — MODULES DEEP DIVE ===== */
+#s5{background:linear-gradient(135deg,#060612,#080e1a)}
+.tabs-layout{display:grid;grid-template-columns:1fr 1.3fr;gap:2rem;align-items:center;max-width:920px;width:100%}
+.ftabs{display:flex;flex-direction:column;gap:.5rem}
+.ftab{display:flex;align-items:center;gap:.7rem;padding:.75rem .9rem;border-radius:.75rem;cursor:pointer;border:1px solid transparent;transition:.2s}
+.ftab.active{background:rgba(124,58,237,.18);border-color:rgba(124,58,237,.35)}
+.ftab:hover:not(.active){background:rgba(255,255,255,.04)}
+.ftab .fi{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
+.ftab .fn{font-size:.8rem;font-weight:700}
+.ftab .fd{font-size:.67rem;color:rgba(255,255,255,.45);margin-top:.08rem}
+.screen-frame{background:#0d1117;border-radius:1.1rem;overflow:hidden;border:1px solid rgba(255,255,255,.08);box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.screen-bar{background:#161b22;padding:.55rem .9rem;display:flex;align-items:center;gap:.45rem}
+.sdot{width:9px;height:9px;border-radius:50%}
+.screen-img{width:100%;height:300px;object-fit:cover;object-position:top;display:block}
+.screen-ph{width:100%;height:300px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1e293b,#0f172a);font-size:.8rem;color:rgba(255,255,255,.25)}
+
+/* ===== SLIDE 6 — ROBOT / AI ===== */
+#s6{background:linear-gradient(135deg,#060d1a,#08060f)}
+.robot-cols{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;max-width:900px;width:100%}
+.robot-img-wrap{display:flex;justify-content:center;position:relative}
+.robot-img-wrap img{width:260px;max-width:100%;filter:drop-shadow(0 0 60px rgba(6,182,212,.35));animation:float 4s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+.ai-features{display:flex;flex-direction:column;gap:.75rem;margin-top:1.2rem}
+.ai-row{display:flex;align-items:flex-start;gap:.8rem;background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.15);border-radius:.85rem;padding:.85rem 1rem}
+.ai-ico{width:36px;height:36px;border-radius:9px;background:rgba(6,182,212,.12);display:flex;align-items:center;justify-content:center;color:#22d3ee;flex-shrink:0;font-size:.9rem}
+.ai-title{font-size:.82rem;font-weight:800;margin-bottom:.15rem}
+.ai-desc{font-size:.7rem;color:rgba(255,255,255,.5);line-height:1.45}
+
+/* ===== SLIDE 7 — COMMUNITY ===== */
+#s7{background:linear-gradient(135deg,#060612,#0a0a20)}
+.vision-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.3rem;max-width:840px;width:100%;margin-top:1.5rem}
+.vc{border-radius:1.2rem;padding:1.6rem 1.2rem;text-align:center;position:relative}
+.vc.biz{background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(124,58,237,.04));border:1px solid rgba(124,58,237,.3)}
+.vc.fam{background:linear-gradient(135deg,rgba(6,182,212,.15),rgba(6,182,212,.03));border:1px solid rgba(6,182,212,.2)}
+.vc.com{background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(245,158,11,.03));border:1px solid rgba(245,158,11,.2)}
+.vc .badge{position:absolute;top:.65rem;left:.65rem;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:white;font-size:.6rem;font-weight:800;padding:.18rem .55rem;border-radius:9999px}
+.vi{font-size:2.2rem;margin-bottom:.7rem}
+.vt{font-size:.95rem;font-weight:800;margin-bottom:.35rem}
+.vd{font-size:.73rem;color:rgba(255,255,255,.55);line-height:1.55}
+
+/* ===== SLIDE 8 — TESTIMONIALS ===== */
+#s8{background:linear-gradient(135deg,#07050f,#050c14)}
+.test-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;max-width:860px;width:100%;margin-top:1.5rem}
+.tcard{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:1.1rem;padding:1.3rem 1.2rem}
+.tcard .stars{color:#f59e0b;font-size:.85rem;margin-bottom:.7rem}
+.tcard .quote{font-size:.8rem;color:rgba(255,255,255,.75);line-height:1.6;margin-bottom:.9rem;font-style:italic}
+.tcard .author{font-size:.72rem;font-weight:800;color:rgba(255,255,255,.5)}
+.tcard .biz-type{font-size:.65rem;color:rgba(124,58,237,.8);font-weight:700;margin-top:.15rem}
+
+/* ===== SLIDE 9 — PRICING ===== */
+#s9{background:linear-gradient(135deg,#0a0518,#050b1a)}
+.price-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;max-width:820px;width:100%;margin-top:1.5rem}
+.pcard{border-radius:1.3rem;padding:1.6rem 1.3rem;text-align:center;position:relative;transition:.2s}
+.pcard.free{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.pcard.pro{background:linear-gradient(135deg,rgba(124,58,237,.25),rgba(6,182,212,.1));border:2px solid rgba(124,58,237,.5);transform:scale(1.04)}
+.pcard.ent{background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2)}
+.pcard .badge-top{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#7c3aed,#06b6d4);color:white;font-size:.65rem;font-weight:800;padding:.25rem 1rem;border-radius:9999px;white-space:nowrap}
+.pcard .price{font-size:2.4rem;font-weight:900;line-height:1;margin:.6rem 0 .2rem}
+.pcard .period{font-size:.8rem;color:rgba(255,255,255,.45);margin-bottom:1rem}
+.pcard .plist{list-style:none;display:flex;flex-direction:column;gap:.45rem;margin-bottom:1.2rem}
+.pcard .plist li{font-size:.73rem;color:rgba(255,255,255,.65);display:flex;align-items:center;gap:.4rem}
+.pcard .plist li i{color:#22d3ee;font-size:.65rem}
+.pcard .pbtn{display:block;padding:.65rem;border-radius:9999px;font-size:.8rem;font-weight:800;text-decoration:none;transition:.2s}
+.pcard.free .pbtn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:white}
+.pcard.pro .pbtn{background:linear-gradient(135deg,#7c3aed,#06b6d4);color:white;box-shadow:0 6px 20px rgba(124,58,237,.4)}
+.pcard.ent .pbtn{background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fbbf24}
+.pcard .pbtn:hover{transform:translateY(-2px)}
+
+/* ===== SLIDE 10 — CTA ===== */
+#s10{background:linear-gradient(135deg,#0d0620,#05101f)}
+.cta-center{text-align:center;position:relative;z-index:1;max-width:680px;width:100%}
+.cta-big{font-size:clamp(2.5rem,5vw,4.2rem);font-weight:900;line-height:1.05;margin-bottom:1rem}
+.launch-box{display:inline-flex;flex-direction:column;align-items:center;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:1.4rem;padding:1.8rem 2.8rem;margin:1.5rem 0;position:relative}
+.launch-tag{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#f59e0b,#ef4444);color:white;font-size:.7rem;font-weight:800;padding:.25rem 1.1rem;border-radius:9999px;white-space:nowrap}
+.cta-price{font-size:3.2rem;font-weight:900;line-height:1}
+.cta-perks{display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem}
+.cta-perk{display:flex;align-items:center;gap:.35rem;font-size:.8rem;color:rgba(255,255,255,.65)}
+.cta-btns{display:flex;gap:.9rem;justify-content:center;flex-wrap:wrap}
+.btn-p{display:inline-flex;align-items:center;gap:.55rem;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:white;font-weight:800;font-size:.95rem;padding:.85rem 2rem;border-radius:9999px;text-decoration:none;box-shadow:0 8px 28px rgba(124,58,237,.4);transition:.2s}
+.btn-p:hover{transform:translateY(-2px)}
+.btn-s{display:inline-flex;align-items:center;gap:.55rem;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);color:white;font-weight:700;font-size:.95rem;padding:.85rem 2rem;border-radius:9999px;text-decoration:none;transition:.2s}
+.btn-s:hover{background:rgba(255,255,255,.13)}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<!-- ============================  SLIDE 1 — OPENER  ============================ -->
+<div class="slide active" id="s1">
+  <div class="orb" style="width:500px;height:500px;background:rgba(124,58,237,.15);top:-20%;right:-15%"></div>
+  <div class="orb" style="width:400px;height:400px;background:rgba(6,182,212,.1);bottom:-20%;left:-10%"></div>
+  <div class="center">
+    <div class="logo-ring anim anim-1">
+      <img src="/images/oneflow-logo.png" alt="OneFlow" onerror="this.parentElement.innerHTML='<span style=font-size:2rem>⚡</span>'">
+    </div>
+    <div class="tag anim anim-2"><i class="fa-solid fa-bolt"></i> מערכת ניהול עסקית מהדור הבא</div>
+    <div class="big anim anim-3">
+      עסק שלך.<br>
+      <span class="grad">בשליטה מלאה.</span>
+    </div>
+    <div class="sub anim anim-4" style="margin:0 auto">
+      קופה · מלאי · עובדים · לקוחות · כספים · AI — הכל מהטלפון, בעברית, בזמן אמת.
+    </div>
+    <div class="opener-pills anim anim-5">
+      <span class="pill"><i class="fa-solid fa-mobile-screen-button" style="color:#7c3aed"></i> 100% מהנייד</span>
+      <span class="pill"><i class="fa-solid fa-language" style="color:#06b6d4"></i> בעברית</span>
+      <span class="pill"><i class="fa-solid fa-bolt" style="color:#f59e0b"></i> ניסיון חינם</span>
+      <span class="pill"><i class="fa-solid fa-headset" style="color:#22c55e"></i> תמיכה 24/7</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 2 — PAIN  ============================ -->
+<div class="slide" id="s2">
+  <div class="orb" style="width:450px;height:450px;background:rgba(239,68,68,.07);top:-10%;right:-8%"></div>
+  <div style="text-align:center;position:relative;z-index:1;width:100%;max-width:800px">
+    <div class="tag anim anim-1" style="background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3);color:#fca5a5"><i class="fa-solid fa-triangle-exclamation"></i> הבעיה שעסקים מכירים</div>
+    <div class="big anim anim-2">בעל עסק ממוצע<br>משתמש ב<span class="grad2">7+ כלים</span> שונים.</div>
+    <div class="pain-grid anim anim-3">
+      <div class="pain-stat"><div class="num">₪3,000+</div><div class="lbl">תשלום חודשי על תוכנות</div></div>
+      <div class="pain-stat"><div class="num">7</div><div class="lbl">אפליקציות שאינן מדברות</div></div>
+      <div class="pain-stat"><div class="num">4 שעות</div><div class="lbl">שבועי על ניהול ידני</div></div>
+    </div>
+    <div class="pain-items anim anim-4" style="margin:0 auto">
+      <div class="pain-row"><div class="pain-ico"><i class="fa-solid fa-cash-register"></i></div><div>קופה בתוכנה אחת, הנהלת חשבונות בשנייה, שכר עובדים בשלישית — ניהול מפוצל</div></div>
+      <div class="pain-row"><div class="pain-ico"><i class="fa-solid fa-link-slash"></i></div><div>אין חיבור בין המערכות — לא רואים תמונה אחת, מפספסים הזדמנויות</div></div>
+      <div class="pain-row"><div class="pain-ico"><i class="fa-solid fa-mobile-screen-button"></i></div><div>רוב הכלים לא עובדים מהנייד — הניהול תקוע במשרד, לא בשטח</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 3 — SOLUTION  ============================ -->
+<div class="slide" id="s3">
+  <div class="orb" style="width:500px;height:500px;background:rgba(6,182,212,.07);top:-15%;left:-10%"></div>
+  <div class="sol-cols">
+    <div>
+      <div class="tag anim anim-1" style="background:rgba(6,182,212,.12);border-color:rgba(6,182,212,.3);color:#67e8f9"><i class="fa-solid fa-lightbulb"></i> הפתרון</div>
+      <div class="big anim anim-2">הכל<br><span class="grad">במקום אחד.</span></div>
+      <div class="sub anim anim-3">OneFlow Life BIZ — מערכת ניהול עסקית מלאה. ממשק אחד, טלפון אחד, תמונה אחת.</div>
+      <div class="anim anim-4" style="margin-top:1.2rem;display:flex;gap:.5rem;flex-wrap:wrap">
+        <span class="pill">✅ קופה וחנות</span>
+        <span class="pill">✅ מלאי חכם</span>
+        <span class="pill">✅ עובדים ונוכחות</span>
+        <span class="pill">✅ כספים ותזרים</span>
+        <span class="pill">✅ לקוחות CRM</span>
+        <span class="pill">✅ בינה מלאכותית</span>
+      </div>
+    </div>
+    <div class="mod-grid anim anim-3">
+      <div class="mod-card"><div class="e">📊</div><div class="n">לוח בקרה</div></div>
+      <div class="mod-card"><div class="e">💰</div><div class="n">קופה</div></div>
+      <div class="mod-card"><div class="e">🛍️</div><div class="n">חנות</div></div>
+      <div class="mod-card"><div class="e">📦</div><div class="n">מלאי</div></div>
+      <div class="mod-card"><div class="e">🛒</div><div class="n">רכש</div></div>
+      <div class="mod-card"><div class="e">🍽️</div><div class="n">פוד קוסט</div></div>
+      <div class="mod-card"><div class="e">👥</div><div class="n">לקוחות</div></div>
+      <div class="mod-card"><div class="e">💳</div><div class="n">כספים</div></div>
+      <div class="mod-card"><div class="e">⏱️</div><div class="n">נוכחות</div></div>
+      <div class="mod-card"><div class="e">📅</div><div class="n">תורים</div></div>
+      <div class="mod-card"><div class="e">🎓</div><div class="n">הכשרות</div></div>
+      <div class="mod-card"><div class="e">🤖</div><div class="n">AI</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 4 — HOW IT WORKS  ============================ -->
+<div class="slide" id="s4">
+  <div class="orb" style="width:600px;height:600px;background:rgba(124,58,237,.08);top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+  <div style="text-align:center;position:relative;z-index:1;width:100%;max-width:880px">
+    <div class="tag anim anim-1"><i class="fa-solid fa-map-signs"></i> איך מתחילים?</div>
+    <div class="big anim anim-2">מ<span class="grad">0 לניהול מלא</span><br>תוך 24 שעות.</div>
+    <div class="steps anim anim-3">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <div class="step-title">נרשמים חינם</div>
+        <div class="step-desc">5 דקות. ללא כרטיס אשראי. ללא התחייבות.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <div class="step-title">מגדירים את העסק</div>
+        <div class="step-desc">אשף הקמה מודרך — מוצרים, עובדים, קטגוריות.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <div class="step-title">מתחברים ללקוחות</div>
+        <div class="step-desc">חנות ציבורית, תורים, נאמנות — הכל אוטומטי.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">4</div>
+        <div class="step-title">צומחים עם נתונים</div>
+        <div class="step-desc">דוחות, AI, תובנות — ניהול חכם יום יום.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 5 — FEATURES  ============================ -->
+<div class="slide" id="s5">
+  <div style="width:100%;max-width:940px">
+    <div class="tag anim anim-1"><i class="fa-solid fa-star"></i> יכולות מרכזיות</div>
+    <div class="tabs-layout">
+      <div class="ftabs anim anim-2" id="ftabs">
+        <div class="ftab active" data-img="guide-biz-pos.png" onclick="selectF(this)">
+          <div class="fi" style="background:rgba(234,88,12,.12);color:#fb923c">💰</div>
+          <div><div class="fn">קופה וקטלוג</div><div class="fd">מכירה מהירה, ברקוד, הנחות, חשבוניות</div></div>
+        </div>
+        <div class="ftab" data-img="guide-biz-inventory.png" onclick="selectF(this)">
+          <div class="fi" style="background:rgba(16,185,129,.12);color:#34d399">📦</div>
+          <div><div class="fn">מלאי חכם</div><div class="fd">מעקב בזמן אמת, התראות, AI מתכונים</div></div>
+        </div>
+        <div class="ftab" data-img="guide-biz-dashboard.png" onclick="selectF(this)">
+          <div class="fi" style="background:rgba(99,102,241,.12);color:#818cf8">📊</div>
+          <div><div class="fn">לוח בקרה ודוחות</div><div class="fd">KPI, גרפים, אנליטיקה מתקדמת</div></div>
+        </div>
+        <div class="ftab" data-img="guide-biz-procurement.png" onclick="selectF(this)">
+          <div class="fi" style="background:rgba(236,72,153,.12);color:#f472b6">🛒</div>
+          <div><div class="fn">רכש וספקים</div><div class="fd">הזמנות, הצעות מחיר, ספקים</div></div>
+        </div>
+        <div class="ftab" data-img="guide-biz-intro.png" onclick="selectF(this)">
+          <div class="fi" style="background:rgba(245,158,11,.12);color:#fbbf24">👥</div>
+          <div><div class="fn">עובדים ונוכחות</div><div class="fd">שעון נוכחות, משמרות, שכר</div></div>
+        </div>
+      </div>
+      <div class="screen-frame anim anim-3">
+        <div class="screen-bar">
+          <div class="sdot" style="background:#ef4444"></div>
+          <div class="sdot" style="background:#f59e0b"></div>
+          <div class="sdot" style="background:#22c55e"></div>
+          <div style="flex:1;text-align:center;font-size:.68rem;color:#6b7280">oneflowlife.co.il/business</div>
+        </div>
+        <img id="fimg" src="guide-biz-pos.png" class="screen-img" alt="צילום מסך" onerror="this.style.display='none';document.getElementById('fph').style.display='flex'">
+        <div id="fph" class="screen-ph" style="display:none"><i class="fa-solid fa-mobile-screen-button" style="font-size:3rem;opacity:.25"></i></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 6 — AI / ROBOT  ============================ -->
+<div class="slide" id="s6">
+  <div class="orb" style="width:500px;height:500px;background:rgba(6,182,212,.09);top:50%;right:-5%;transform:translateY(-50%)"></div>
+  <div class="robot-cols">
+    <div>
+      <div class="tag anim anim-1" style="background:rgba(6,182,212,.12);border-color:rgba(6,182,212,.3);color:#67e8f9"><i class="fa-solid fa-robot"></i> בינה מלאכותית</div>
+      <div class="big anim anim-2">הEsq AI שלך<br><span class="cyan">עובד 24/7.</span></div>
+      <div class="sub anim anim-3">המערכת לומדת את העסק שלך ומייצרת תובנות, המלצות ואוטומציות בזמן אמת.</div>
+      <div class="ai-features anim anim-4">
+        <div class="ai-row">
+          <div class="ai-ico"><i class="fa-solid fa-chart-line"></i></div>
+          <div><div class="ai-title">תחזיות מכירות</div><div class="ai-desc">AI מנתח מגמות ומנבא ביקוש — תמיד עם המלאי הנכון</div></div>
+        </div>
+        <div class="ai-row">
+          <div class="ai-ico"><i class="fa-solid fa-utensils"></i></div>
+          <div><div class="ai-title">חישוב פוד קוסט חכם</div><div class="ai-desc">מחשב עלויות מתכון אוטומטית לפי מחירי ספקים עדכניים</div></div>
+        </div>
+        <div class="ai-row">
+          <div class="ai-ico"><i class="fa-solid fa-bullhorn"></i></div>
+          <div><div class="ai-title">שיווק ממוקד</div><div class="ai-desc">זיהוי לקוחות רדומים ושליחת הצעות מותאמות אישית</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="robot-img-wrap anim anim-3">
+      <img src="/images/oneflow-bot1.png" alt="OneFlow AI Bot" onerror="this.src='/images/oneflow-bot.png'" style="width:280px;max-width:100%">
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 7 — ECOSYSTEM  ============================ -->
+<div class="slide" id="s7">
+  <div class="orb" style="width:500px;height:500px;background:rgba(124,58,237,.1);top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+  <div style="text-align:center;position:relative;z-index:1;width:100%;max-width:860px">
+    <div class="tag anim anim-1"><i class="fa-solid fa-compass"></i> האקוסיסטם</div>
+    <div class="big anim anim-2">עסק. משפחה. קהילה.<br><span class="grad">פלטפורמה אחת.</span></div>
+    <div class="vision-grid anim anim-3">
+      <div class="vc biz">
+        <div class="badge">⭐ הפוקוס שלנו</div>
+        <div class="vi">🏪</div>
+        <div class="vt">עסק BIZ</div>
+        <div class="vd">קופה, מלאי, עובדים, כספים, לקוחות, AI — ניהול עסקי מלא</div>
+      </div>
+      <div class="vc fam">
+        <div class="vi">👨‍👩‍👧</div>
+        <div class="vt">משפחה FAMILY</div>
+        <div class="vd">תקציב, משימות, חסכונות, קניות, ילדים ומטרות משפחתיות</div>
+      </div>
+      <div class="vc com">
+        <div class="vi">🤝</div>
+        <div class="vt">קהילה</div>
+        <div class="vd">ניהול קהילות, מאמרים, סקרים, תקשורת ושייכות</div>
+      </div>
+    </div>
+    <div class="sub anim anim-4" style="margin:1.2rem auto 0;font-size:.88rem">
+      הלקוח שלך גם מנהל עסק וגם משפחה — OneFlow מכסה את הכל מאפליקציה אחת.
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 8 — TESTIMONIALS  ============================ -->
+<div class="slide" id="s8">
+  <div style="text-align:center;position:relative;z-index:1;width:100%;max-width:860px">
+    <div class="tag anim anim-1"><i class="fa-solid fa-quote-right"></i> עסקים שכבר משתמשים</div>
+    <div class="big anim anim-2">הם <span class="grad">כבר שם.</span><br>מה מחכים?</div>
+    <div class="test-grid anim anim-3">
+      <div class="tcard">
+        <div class="stars">★★★★★</div>
+        <div class="quote">"מאז שעברנו ל-OneFlow חסכנו שעות כל שבוע. הקופה, המלאי וחשבוניות הכל בטלפון אחד."</div>
+        <div class="author">מיכל כ.</div>
+        <div class="biz-type">מסעדה • תל אביב</div>
+      </div>
+      <div class="tcard">
+        <div class="stars">★★★★★</div>
+        <div class="quote">"הדוחות האוטומטיים חסכו לי רואה חשבון. לוח הבקרה נותן לי תמונה מלאה כל בוקר."</div>
+        <div class="author">דניאל ל.</div>
+        <div class="biz-type">מרכז כושר • חיפה</div>
+      </div>
+      <div class="tcard">
+        <div class="stars">★★★★★</div>
+        <div class="quote">"ניהול המלאי השתנה לחלוטין. התראות מלאי נמוך, הזמנות אוטומטיות — אפס חוסרים."</div>
+        <div class="author">רונן מ.</div>
+        <div class="biz-type">סלון יופי • ירושלים</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 9 — PRICING  ============================ -->
+<div class="slide" id="s9">
+  <div class="orb" style="width:500px;height:500px;background:rgba(124,58,237,.08);top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+  <div style="text-align:center;position:relative;z-index:1;width:100%;max-width:840px">
+    <div class="tag anim anim-1"><i class="fa-solid fa-tags"></i> תמחור שקוף</div>
+    <div class="big anim anim-2">מחיר <span class="grad">הוגן.</span><br>ערך עצום.</div>
+    <div class="price-cols anim anim-3">
+      <div class="pcard free">
+        <div class="price">חינם</div>
+        <div class="period">3 חודשי ניסיון</div>
+        <ul class="plist">
+          <li><i class="fa-solid fa-check"></i> קופה וחנות בסיסיים</li>
+          <li><i class="fa-solid fa-check"></i> עד 100 מוצרים</li>
+          <li><i class="fa-solid fa-check"></i> לוח בקרה</li>
+          <li><i class="fa-solid fa-check"></i> ללא כרטיס אשראי</li>
+        </ul>
+        <a href="/business.html" class="pbtn">התחל חינם</a>
+      </div>
+      <div class="pcard pro">
+        <div class="badge-top">🔥 הנפוץ ביותר</div>
+        <div class="price grad">₪149</div>
+        <div class="period">לחודש · ביטול בכל עת</div>
+        <ul class="plist">
+          <li><i class="fa-solid fa-check"></i> כל המודולים</li>
+          <li><i class="fa-solid fa-check"></i> מוצרים ועובדים ללא הגבלה</li>
+          <li><i class="fa-solid fa-check"></i> AI ותובנות מתקדמות</li>
+          <li><i class="fa-solid fa-check"></i> חנות ציבורית + תורים</li>
+          <li><i class="fa-solid fa-check"></i> תמיכה 24/7 בעברית</li>
+        </ul>
+        <a href="/business.html" class="pbtn">בחר תוכנית זו</a>
+      </div>
+      <div class="pcard ent">
+        <div class="price" style="color:#f59e0b">בהתאמה</div>
+        <div class="period">רשת / ארגון / רב-סניפי</div>
+        <ul class="plist">
+          <li><i class="fa-solid fa-check"></i> ריבוי סניפים</li>
+          <li><i class="fa-solid fa-check"></i> ממשק API מותאם</li>
+          <li><i class="fa-solid fa-check"></i> אינטגרציות מיוחדות</li>
+          <li><i class="fa-solid fa-check"></i> מנהל לקוח ייעודי</li>
+        </ul>
+        <a href="#" onclick="return false" class="pbtn">צרו קשר</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 10 — CTA  ============================ -->
+<div class="slide" id="s10">
+  <div class="orb" style="width:700px;height:700px;background:rgba(124,58,237,.12);top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+  <div class="cta-center">
+    <div class="logo-ring anim anim-1" style="width:70px;height:70px;border-radius:17px">
+      <img src="/images/oneflow-logo.png" alt="OneFlow" onerror="this.parentElement.innerHTML='<span style=font-size:1.5rem>⚡</span>'" style="width:45px;height:45px">
+    </div>
+    <div class="tag anim anim-2"><i class="fa-solid fa-rocket"></i> התחל עכשיו</div>
+    <div class="cta-big anim anim-3"><span class="grad">3 חודשים חינם.</span><br>אפס סיכון.</div>
+    <div class="launch-box anim anim-4">
+      <div class="launch-tag">🎁 מבצע השקה בלעדי</div>
+      <div style="font-size:.9rem;color:rgba(255,255,255,.45);margin-bottom:.4rem">3 חודשי פיילוט מלא</div>
+      <div class="cta-price grad">חינם</div>
+      <div style="font-size:.8rem;color:rgba(255,255,255,.4);margin-top:.4rem">לאחר מכן ₪149.90/חודש בלבד</div>
+      <div style="font-size:.72rem;color:rgba(255,255,255,.25);margin-top:.2rem">ללא התחייבות · ביטול בכל עת</div>
+    </div>
+    <div class="cta-perks anim anim-5">
+      <div class="cta-perk"><i class="fa-solid fa-check" style="color:#22d3ee"></i> ללא כרטיס אשראי</div>
+      <div class="cta-perk"><i class="fa-solid fa-check" style="color:#22d3ee"></i> התקנה תוך 5 דקות</div>
+      <div class="cta-perk"><i class="fa-solid fa-check" style="color:#22d3ee"></i> תמיכה בעברית 24/7</div>
+      <div class="cta-perk"><i class="fa-solid fa-check" style="color:#22d3ee"></i> מדריך הטמעה מלא</div>
+    </div>
+    <div class="cta-btns anim anim-6">
+      <a href="/business.html" target="_blank" class="btn-p"><i class="fa-solid fa-rocket"></i> הרשמה עסקית חינם</a>
+      <a href="https://wa.me/972500000000" target="_blank" class="btn-s"><i class="fa-brands fa-whatsapp" style="color:#22c55e"></i> שאלות? WhatsApp</a>
+    </div>
+    <p style="margin-top:1.2rem;font-size:.72rem;color:rgba(255,255,255,.25)">oneflowlife.co.il</p>
+  </div>
+</div>
+
+<!-- ============================  NAV  ============================ -->
+<div id="nav">
+  <button class="nav-btn" onclick="go(-1)"><i class="fa-solid fa-chevron-right"></i></button>
+  <div id="dots"></div>
+  <span id="slide-num">1 / 10</span>
+  <button class="nav-btn" onclick="go(1)"><i class="fa-solid fa-chevron-left"></i></button>
+</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const dotsEl = document.getElementById('dots');
+const numEl  = document.getElementById('slide-num');
+const progEl = document.getElementById('progress');
+let cur = 0;
+
+slides.forEach((_,i) => {
+  const d = document.createElement('div');
+  d.className = 'nav-dot' + (i===0?' active':'');
+  d.onclick = () => { const delta = i - cur; if (delta !== 0) go(delta); };
+  dotsEl.appendChild(d);
+});
+
+function go(delta) {
+  const next = Math.max(0, Math.min(slides.length - 1, cur + delta));
+  if (next === cur) return;
+  slides[cur].classList.remove('active');
+  slides[cur].classList.add('out');
+  setTimeout(() => slides[cur].classList.remove('out'), 600);
+  cur = next;
+  slides[cur].classList.add('active');
+  document.querySelectorAll('.nav-dot').forEach((d,i) => d.classList.toggle('active', i===cur));
+  numEl.textContent = `${cur+1} / ${slides.length}`;
+  progEl.style.width = `${((cur+1)/slides.length)*100}%`;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key==='ArrowRight'||e.key==='ArrowUp') go(-1);
+  if (e.key==='ArrowLeft'||e.key==='ArrowDown'||e.key===' ') { e.preventDefault(); go(1); }
+});
+
+let tx = 0;
+document.addEventListener('touchstart', e => tx = e.touches[0].clientX, {passive:true});
+document.addEventListener('touchend', e => {
+  const dx = tx - e.changedTouches[0].clientX;
+  if (Math.abs(dx) > 50) go(dx > 0 ? 1 : -1);
+});
+
+function selectF(el) {
+  document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  const img = document.getElementById('fimg');
+  const ph  = document.getElementById('fph');
+  img.src = el.dataset.img;
+  img.style.display = 'block';
+  ph.style.display = 'none';
+}
+
+progEl.style.width = `${(1/slides.length)*100}%`;
+</script>
+</body>
+</html>
