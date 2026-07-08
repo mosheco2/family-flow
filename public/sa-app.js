@@ -5652,12 +5652,9 @@ window.sendSAAIMessage = async function(e) {
 
             // בניית כפתורי פעולה
             const actionBtns = (data.actions || []).map(a => {
-                if (a.type === 'TAB') return `<button onclick="switchSATab('${safeStr(a.payload)}')" class="ai-action-btn bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold px-3 py-1.5 rounded-xl transition"><i class="fa-solid fa-arrow-right-to-bracket ml-1"></i>${safeStr(a.label||a.payload)}</button>`;
-                if (a.type === 'SUBTAB') {
-                    const [tab, sub] = (a.payload||'').split('|');
-                    return `<button onclick="switchSATab('${safeStr(tab)}');setTimeout(()=>switchViewTab('${safeStr(tab)}','${safeStr(sub)}'),200)" class="ai-action-btn bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold px-3 py-1.5 rounded-xl transition"><i class="fa-solid fa-arrow-right ml-1"></i>${safeStr(a.label||sub)}</button>`;
-                }
-                if (a.type === 'LEDGER') return `<button onclick="switchSATab('customers');setTimeout(()=>openCustomerLedger('${safeStr(a.payload)}'),300)" class="ai-action-btn bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 text-xs font-bold px-3 py-1.5 rounded-xl transition"><i class="fa-solid fa-book ml-1"></i>${safeStr(a.label||'כרטסת')}</button>`;
+                if (a.type === 'tab') return `<button onclick="switchSATab('${safeStr(a.tab)}')" class="ai-action-btn bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold px-3 py-1.5 rounded-xl transition"><i class="fa-solid fa-arrow-right-to-bracket ml-1"></i>${safeStr(a.tab)}</button>`;
+                if (a.type === 'subtab') return `<button onclick="switchSATab('${safeStr(a.tab)}');setTimeout(()=>switchViewTab('${safeStr(a.tab)}','${safeStr(a.sub)}'),200)" class="ai-action-btn bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold px-3 py-1.5 rounded-xl transition"><i class="fa-solid fa-arrow-right ml-1"></i>${safeStr(a.sub)}</button>`;
+                if (a.type === 'ledger') return `<button onclick="switchSATab('clients');setTimeout(()=>openCustomerLedger('${safeStr(a.id)}'),300)" class="ai-action-btn bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 text-xs font-bold px-3 py-1.5 rounded-xl transition"><i class="fa-solid fa-book ml-1"></i>כרטסת</button>`;
                 return '';
             }).filter(Boolean).join(' ');
 
@@ -5676,10 +5673,19 @@ window.sendSAAIMessage = async function(e) {
             // הצגת הצעות כ-chips
             const suggestions = data.suggestions || [];
             if (suggestions.length) {
-                const chipsHtml = suggestions.map(s =>
-                    `<button onclick="document.getElementById('sa-ai-input').value=${JSON.stringify(s)};sendSAAIMessage({preventDefault:()=>{}})" class="bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 border border-slate-200 hover:border-indigo-200 text-slate-600 text-xs font-medium px-3 py-1.5 rounded-xl transition whitespace-nowrap">${safeStr(s)}</button>`
-                ).join('');
-                chatMessages.innerHTML += `<div class="flex flex-wrap gap-1.5 px-1 pb-1 fade-in">${chipsHtml}</div>`;
+                const chipsDiv = document.createElement('div');
+                chipsDiv.className = 'flex flex-wrap gap-1.5 px-1 pb-1 fade-in';
+                suggestions.forEach(s => {
+                    const btn = document.createElement('button');
+                    btn.className = 'bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 border border-slate-200 hover:border-indigo-200 text-slate-600 text-xs font-medium px-3 py-1.5 rounded-xl transition whitespace-nowrap';
+                    btn.textContent = s;
+                    btn.addEventListener('click', () => {
+                        const inp = document.getElementById('sa-ai-input');
+                        if (inp) { inp.value = s; sendSAAIMessage({ preventDefault: () => {} }); }
+                    });
+                    chipsDiv.appendChild(btn);
+                });
+                chatMessages.appendChild(chipsDiv);
             }
         } else {
             chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאה: ${safeStr(data.error||'')}</div>`;
