@@ -1348,7 +1348,7 @@
                 <div style="padding:0.25rem 1.5rem 0.5rem;width:100%;max-width:420px;box-sizing:border-box;">
                     <div style="display:flex;align-items:center;gap:0.7rem;">
                         <i class="fa-solid fa-magnifying-glass-minus" style="color:rgba(255,255,255,0.4);font-size:0.75rem;"></i>
-                        <input id="lb-size-slider" type="range" min="0" max="100" value="20" step="1" style="flex:1;accent-color:#a78bfa;cursor:pointer;" oninput="window.lbSliderChange(this.value)">
+                        <input id="lb-size-slider" type="range" min="0" max="100" value="0" step="1" style="flex:1;accent-color:#a78bfa;cursor:pointer;" oninput="window.lbSliderChange(this.value)">
                         <i class="fa-solid fa-magnifying-glass-plus" style="color:rgba(255,255,255,0.4);font-size:0.75rem;"></i>
                     </div>
                 </div>
@@ -1362,7 +1362,17 @@
             lb.addEventListener('click', e => { if (e.target === lb) lb.remove(); });
 
             // slider-based zoom + drag to pan
-            let _lbSizePct = 70; // 70 = fit mode (max 92vw/80vh), >70 = explicit vw %
+            // slider 0 = fit, 1-100 → 55vw..300vw linear
+            let _lbSizePct = 0; // 0 = fit
+
+            function _sliderToPct(v) {
+                if (v <= 0) return 0;
+                return Math.round(55 + (v / 100) * (300 - 55));
+            }
+            function _pctToSlider(pct) {
+                if (pct <= 0) return 0;
+                return Math.round(((pct - 55) / (300 - 55)) * 100);
+            }
 
             function _lbApplySize(pct) {
                 _lbSizePct = pct;
@@ -1370,9 +1380,8 @@
                 const wrap = document.getElementById('lb-img-wrap');
                 const label = document.getElementById('lb-zoom-label');
                 const slider = document.getElementById('lb-size-slider');
-                // convert pct back to slider 0-100 (inverse of log mapping)
-                if (slider) slider.value = pct <= 70 ? 20 : Math.round(20 + (Math.log(pct/70) / Math.log(300/70)) * 80);
-                if (pct <= 70) {
+                if (slider) slider.value = _pctToSlider(pct);
+                if (pct <= 0) {
                     img.style.width = 'auto'; img.style.height = 'auto';
                     img.style.maxWidth = '92vw'; img.style.maxHeight = '80vh';
                     wrap.style.overflow = 'hidden'; wrap.style.cursor = 'grab';
@@ -1385,17 +1394,14 @@
                 }
             }
 
-            // logarithmic mapping: slider 0-20 = fit, 20-100 → 70-300vw
+            // slider 0 = fit, 1-100 → 55vw..300vw linear
             window.lbSliderChange = function(val) {
                 const v = Number(val);
-                if (v <= 20) { _lbApplySize(70); return; }
-                const t = (v - 20) / 80; // 0..1
-                const pct = Math.round(70 * Math.pow(300/70, t)); // log scale 70→300
-                _lbApplySize(pct);
+                _lbApplySize(v === 0 ? 0 : _sliderToPct(v));
             };
 
             window.lbToggleZoom = function() {
-                const steps = [70, 90, 120, 160, 220, 300];
+                const steps = [0, 75, 100, 150, 200, 300];
                 const idx = steps.findIndex(s => s > _lbSizePct);
                 const next = idx === -1 ? steps[0] : steps[idx];
                 _lbApplySize(next);
@@ -1422,14 +1428,14 @@
                 current = (current + dir + imgs.length) % imgs.length;
                 const img = document.getElementById('lb-img');
                 img.style.opacity = '0';
-                _lbApplySize(70);
+                _lbApplySize(0);
                 setTimeout(() => { img.src = imgs[current].image_url; img.style.opacity = '1'; }, 150);
                 document.getElementById('lb-caption').textContent = imgs[current].caption || '';
                 document.getElementById('lb-counter').textContent = `${current+1} / ${imgs.length}`;
             };
 
             // pinch-to-zoom mobile
-            let _ptStart = null, _ptSizeStart = 70;
+            let _ptStart = null, _ptSizeStart = 0;
             lb.addEventListener('touchstart', e => {
                 if (e.touches.length === 2) {
                     _ptStart = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
@@ -1440,12 +1446,13 @@
             lb.addEventListener('touchmove', e => {
                 if (e.touches.length === 2 && _ptStart) {
                     const dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-                    const newPct = Math.max(30, Math.min(300, _ptSizeStart * (dist / _ptStart)));
+                    const base = _ptSizeStart <= 0 ? 55 : _ptSizeStart;
+                    const newPct = Math.max(0, Math.min(300, base * (dist / _ptStart)));
                     _lbApplySize(newPct);
                 }
             }, {passive:true});
 
-            _lbApplySize(70);
+            _lbApplySize(0);
         };
 
         window.toggleSideMenu = function(isOpen) {
