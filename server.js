@@ -6950,14 +6950,14 @@ app.get('/api/storefront/:code', async (req, res) => {
 // --- BUSINESS GALLERY ENDPOINTS ---
 // ============================================================
 
-app.get('/api/store/gallery/:groupId', verifyToken, async (req, res) => {
+app.get('/api/store/gallery/:groupId', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM business_gallery WHERE group_id=$1 ORDER BY sort_order ASC, created_at ASC', [req.params.groupId]);
         res.json({ success: true, images: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/store/gallery/:groupId', verifyToken, async (req, res) => {
+app.post('/api/store/gallery/:groupId', async (req, res) => {
     try {
         const { image_url, caption } = req.body;
         const count = await pool.query('SELECT COUNT(*) FROM business_gallery WHERE group_id=$1', [req.params.groupId]);
@@ -6967,14 +6967,14 @@ app.post('/api/store/gallery/:groupId', verifyToken, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/store/gallery/:groupId/:imageId', verifyToken, async (req, res) => {
+app.delete('/api/store/gallery/:groupId/:imageId', async (req, res) => {
     try {
         await pool.query('DELETE FROM business_gallery WHERE id=$1 AND group_id=$2', [req.params.imageId, req.params.groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/store/gallery/:groupId/reorder', verifyToken, async (req, res) => {
+app.put('/api/store/gallery/:groupId/reorder', async (req, res) => {
     try {
         const { order } = req.body;
         if (Array.isArray(order)) {
