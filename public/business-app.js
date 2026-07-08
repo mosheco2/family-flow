@@ -1297,8 +1297,17 @@ window.injectBusinessUI = function() {
 
                     <div id="sales-view-gallery" class="hidden space-y-5 pb-8">
                         <div class="bg-purple-50 border border-purple-100 rounded-2xl p-5">
-                            <h4 class="font-bold text-slate-800 mb-1 flex items-center gap-2"><i class="fa-solid fa-images text-purple-500"></i> גלריית תמונות לחנות</h4>
-                            <p class="text-xs text-slate-500 mb-4">תמונות אלו יוצגו בעמוד החנות הציבורי שלך. עד 12 תמונות.</p>
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-images text-purple-500"></i> גלריית תמונות לחנות</h4>
+                                <label class="flex items-center gap-2 cursor-pointer select-none">
+                                    <span class="text-xs font-bold text-slate-600" id="gallery-toggle-label">כבוי</span>
+                                    <div class="relative" onclick="window.toggleGalleryEnabled()">
+                                        <div id="gallery-toggle-track" class="w-10 h-5 rounded-full bg-slate-300 transition-colors duration-200"></div>
+                                        <div id="gallery-toggle-thumb" class="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200"></div>
+                                    </div>
+                                </label>
+                            </div>
+                            <p class="text-xs text-slate-500 mb-4">כשהגלריה פעילה, כפתור "גלריית תמונות" יופיע בדף החנות הציבורי שלך. עד 12 תמונות.</p>
                             <div id="biz-gallery-grid" class="grid grid-cols-3 gap-3 mb-4"></div>
                             <input type="file" id="gallery-file-input" accept="image/*" multiple class="hidden" onchange="window.uploadGalleryImages(this.files)">
                             <button onclick="document.getElementById('gallery-file-input').click()" class="w-full bg-purple-600 text-white py-3 rounded-xl font-bold hover:bg-purple-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-plus"></i> הוסף תמונות</button>
@@ -20279,12 +20288,33 @@ window.switchSalesTab = function(subTab) {
     if(subTab === 'gallery') { window.loadBusinessGallery(); }
 };
 
+window._galleryEnabled = false;
+
+function _syncGalleryToggle(enabled) {
+    window._galleryEnabled = !!enabled;
+    const track = document.getElementById('gallery-toggle-track');
+    const thumb = document.getElementById('gallery-toggle-thumb');
+    const label = document.getElementById('gallery-toggle-label');
+    if (track) track.style.background = enabled ? '#7c3aed' : '';
+    if (thumb) thumb.style.transform = enabled ? 'translateX(-1.25rem)' : '';
+    if (label) label.textContent = enabled ? 'פעיל' : 'כבוי';
+}
+
+window.toggleGalleryEnabled = async function() {
+    const gid = currentGroup?.id || currentGroupId;
+    const newVal = !window._galleryEnabled;
+    _syncGalleryToggle(newVal);
+    await fetch(`${API}/store/gallery/${gid}/toggle`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: newVal }) });
+};
+
 window.loadBusinessGallery = async function() {
     const grid = document.getElementById('biz-gallery-grid');
     if (!grid) return;
     const gid = currentGroup?.id || currentGroupId;
     grid.innerHTML = '<p class="col-span-3 text-center text-slate-400 text-xs py-4"><i class="fa-solid fa-spinner fa-spin mr-1"></i> טוען...</p>';
     try {
+        const settingsR = await fetch(`${API}/store/settings/${gid}`).then(r=>r.json()).catch(()=>({}));
+        if (settingsR.success && settingsR.settings) _syncGalleryToggle(settingsR.settings.gallery_enabled);
         const r = await fetch(`${API}/store/gallery/${gid}`);
         const d = await r.json();
         if (!d.success || !d.images || !d.images.length) {

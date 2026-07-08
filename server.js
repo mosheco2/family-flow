@@ -506,6 +506,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
      try { await client.query(`CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS delivery_zones (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, min_order DECIMAL(10,2) DEFAULT 0, delivery_fee DECIMAL(10,2) DEFAULT 0, sort_order INT DEFAULT 0, created_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS business_gallery (id SERIAL PRIMARY KEY, group_id INT NOT NULL, image_url TEXT NOT NULL, caption TEXT, sort_order INT DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS gallery_enabled BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS community_articles (id SERIAL PRIMARY KEY, community_id INT, author_type VARCHAR(20) NOT NULL, author_id INT, title TEXT NOT NULL, body TEXT NOT NULL, image_url TEXT, published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
 
       // טבלאות מערכת היומן והתורים
@@ -6990,6 +6991,14 @@ app.get('/api/public/gallery/:groupId', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM business_gallery WHERE group_id=$1 ORDER BY sort_order ASC, created_at ASC', [req.params.groupId]);
         res.json({ success: true, images: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/gallery/:groupId/toggle', async (req, res) => {
+    try {
+        const { enabled } = req.body;
+        await pool.query('INSERT INTO store_settings (group_id, gallery_enabled) VALUES ($1,$2) ON CONFLICT (group_id) DO UPDATE SET gallery_enabled=$2', [req.params.groupId, !!enabled]);
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
