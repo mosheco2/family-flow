@@ -302,15 +302,15 @@ window.loadSADashboard = async function() {
         const pendBar = getEl('dash-pending-bar');
         if (pendBar) {
             const chips = [];
-            if (p.open_tickets > 0) chips.push({ label: `🎫 ${p.open_tickets} קריאות פתוחות`, color: 'bg-red-50 border-red-200 text-red-700', fn: `switchSATab('support')`, urgent: p.urgent_tickets > 0 });
-            if (p.biz_joins > 0) chips.push({ label: `🏪 ${p.biz_joins} בקשות הצטרפות עסקים`, color: 'bg-orange-50 border-orange-200 text-orange-700', fn: `switchSATab('comm')` });
-            if (p.fam_joins > 0) chips.push({ label: `🏠 ${p.fam_joins} הצטרפויות משפחות`, color: 'bg-amber-50 border-amber-200 text-amber-700', fn: `switchSATab('comm')` });
-            if (p.banner_orders > 0) chips.push({ label: `📢 ${p.banner_orders} הזמנות פרסום`, color: 'bg-indigo-50 border-indigo-200 text-indigo-700', fn: `switchSATab('adslots')` });
-            if (p.zone_managers > 0) chips.push({ label: `🗺️ ${p.zone_managers} מנהלי אזור ממתינים`, color: 'bg-teal-50 border-teal-200 text-teal-700', fn: `switchSATab('partners')` });
-            if (p.unpaid_billing > 0) chips.push({ label: `💰 ${p.unpaid_billing} חשבוניות לא שולמו`, color: 'bg-yellow-50 border-yellow-200 text-yellow-700', fn: `switchSATab('finance')` });
-            if (p.promos > 0) chips.push({ label: `🎟️ ${p.promos} פרסומות קהילה ממתינות`, color: 'bg-pink-50 border-pink-200 text-pink-700', fn: `switchSATab('comm')` });
-            if (p.pending_communities > 0) chips.push({ label: `🌍 ${p.pending_communities} קהילות לאישור`, color: 'bg-teal-50 border-teal-200 text-teal-700', fn: `switchSATab('comm')` });
-            if (p.pending_billing > 0) chips.push({ label: `⏳ ${p.pending_billing} תשלומים ממתינים לאישור`, color: 'bg-orange-50 border-orange-200 text-orange-700', fn: `switchSATab('finance')` });
+            if (p.open_tickets > 0) chips.push({ label: `🎫 ${p.open_tickets} קריאות פתוחות`, color: 'bg-red-50 border-red-200 text-red-700', fn: `switchSATab('support');setTimeout(()=>{const el=document.getElementById('sa-tickets-open');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},300)`, urgent: p.urgent_tickets > 0 });
+            if (p.biz_joins > 0) chips.push({ label: `🏪 ${p.biz_joins} בקשות הצטרפות עסקים`, color: 'bg-orange-50 border-orange-200 text-orange-700', fn: `switchSATab('comm');setTimeout(()=>{switchViewTab('comm','manage');setTimeout(()=>{const el=document.getElementById('sa-pending-biz-container');if(el){el.classList.remove('hidden');el.scrollIntoView({behavior:'smooth',block:'start'})}},150)},200)` });
+            if (p.fam_joins > 0) chips.push({ label: `🏠 ${p.fam_joins} הצטרפויות משפחות`, color: 'bg-amber-50 border-amber-200 text-amber-700', fn: `switchSATab('families');setTimeout(()=>{const el=document.getElementById('sa-pending-fam-container');if(el){el.classList.remove('hidden');el.scrollIntoView({behavior:'smooth',block:'start'})}},300)` });
+            if (p.banner_orders > 0) chips.push({ label: `📢 ${p.banner_orders} הזמנות פרסום`, color: 'bg-indigo-50 border-indigo-200 text-indigo-700', fn: `switchSATab('adslots');setTimeout(()=>switchViewTab('adslots','orders'),200)` });
+            if (p.zone_managers > 0) chips.push({ label: `🗺️ ${p.zone_managers} מנהלי אזור ממתינים`, color: 'bg-teal-50 border-teal-200 text-teal-700', fn: `switchSATab('partners');setTimeout(()=>{const el=document.getElementById('sa-pending-zm-list');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},300)` });
+            if (p.unpaid_billing > 0) chips.push({ label: `💰 ${p.unpaid_billing} חשבוניות לא שולמו`, color: 'bg-yellow-50 border-yellow-200 text-yellow-700', fn: `switchSATab('finance');setTimeout(()=>switchViewTab('finance','dues'),200)` });
+            if (p.promos > 0) chips.push({ label: `🎟️ ${p.promos} פרסומות קהילה ממתינות`, color: 'bg-pink-50 border-pink-200 text-pink-700', fn: `switchSATab('comm');setTimeout(()=>{switchViewTab('comm','manage');setTimeout(()=>{const el=document.getElementById('sa-pending-promos-container');if(el){el.classList.remove('hidden');el.scrollIntoView({behavior:'smooth',block:'start'})}},150)},200)` });
+            if (p.pending_communities > 0) chips.push({ label: `🌍 ${p.pending_communities} קהילות לאישור`, color: 'bg-teal-50 border-teal-200 text-teal-700', fn: `switchSATab('comm');setTimeout(()=>switchViewTab('comm','table'),200)` });
+            if (p.pending_billing > 0) chips.push({ label: `⏳ ${p.pending_billing} תשלומים ממתינים לאישור`, color: 'bg-orange-50 border-orange-200 text-orange-700', fn: `switchSATab('finance');setTimeout(()=>switchViewTab('finance','adsbilling'),200)` });
 
             if (chips.length) {
                 pendBar.classList.remove('hidden');
