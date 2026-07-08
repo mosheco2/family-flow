@@ -1906,7 +1906,163 @@ initDB();
         res.status(500).json({ success: false, error: `תקלת תקשורת מול גוגל: ${e.message}` }); 
     }
 });
-// הוספת קריאת שירות יזומה על ידי מנהל המערכת (סופר אדמין)
+// ============================================================
+// SA AI ASSISTANT — full-capability endpoint
+// ============================================================
+app.post('/api/sa/ai/chat', verifySA, async (req, res) => {
+    try {
+        const { message, context = {} } = req.body;
+        if (!genAI) return res.status(500).json({ success: false, error: 'מפתח Gemini אינו מוגדר' });
+
+        // ── auto-fetch relevant data based on keywords ──
+        const msg = (message || '').toLowerCase();
+        const fetchedData = {};
+
+        const needsTickets     = /קריא|תמיכ|ticket|פני|support|שירות/.test(msg);
+        const needsBanner      = /פרסו|באנר|banner|slot|שטח/.test(msg);
+        const needsBilling     = /גביי|חוב|תשלו|billing|חשבו|שולם|paid/.test(msg);
+        const needsCommunities = /קהיל|communit/.test(msg);
+        const needsBusinesses  = /עסק|business|לקוח/.test(msg);
+        const needsUsers       = /משתמש|user|רשו/.test(msg);
+        const needsWallet      = /מטבע|ארנק|wallet|flow|coin/.test(msg);
+        const needsAll         = /סיכום|דשבורד|כלל|הכל|overview|summary/.test(msg);
+
+        await Promise.all([
+            (needsTickets || needsAll) && pool.query(
+                `SELECT id,subject,status,priority,created_at,
+                 (SELECT name FROM family_groups WHERE id=support_tickets.group_id) as biz_name
+                 FROM support_tickets ORDER BY created_at DESC LIMIT 20`
+            ).then(r => { fetchedData.tickets = r.rows; }).catch(()=>{}),
+
+            (needsBanner || needsAll) && pool.query(
+                `SELECT bo.id,bo.status,bo.duration_days,bo.coins_used,bo.cash_amount,
+                 bo.start_date,bo.end_date,bo.community_ids,
+                 fg.name as business_name, bs.name as slot_name
+                 FROM banner_orders bo
+                 LEFT JOIN family_groups fg ON fg.id=bo.business_id
+                 LEFT JOIN banner_slots bs ON bs.id=bo.slot_id
+                 ORDER BY bo.created_at DESC LIMIT 30`
+            ).then(r => { fetchedData.banner_orders = r.rows; }).catch(()=>{}),
+
+            (needsBilling || needsAll) && pool.query(
+                `SELECT br.id,br.description,br.amount_ils,br.cash_amount,br.payment_status,
+                 br.due_date,br.paid_at,fg.name as business_name
+                 FROM billing_records br
+                 LEFT JOIN family_groups fg ON fg.id=br.business_id
+                 ORDER BY br.created_at DESC LIMIT 30`
+            ).then(r => { fetchedData.billing = r.rows; }).catch(()=>{}),
+
+            (needsCommunities || needsAll) && pool.query(
+                `SELECT id,name,city,code,created_at FROM communities ORDER BY name LIMIT 50`
+            ).then(r => { fetchedData.communities = r.rows; }).catch(()=>{}),
+
+            (needsBusinesses || needsAll) && pool.query(
+                `SELECT fg.id,fg.name,fg.group_type,fg.created_at,
+                 (SELECT COUNT(*) FROM support_tickets WHERE group_id=fg.id AND status='open') as open_tickets
+                 FROM family_groups fg WHERE fg.group_type NOT IN ('family','community')
+                 ORDER BY fg.created_at DESC LIMIT 50`
+            ).then(r => { fetchedData.businesses = r.rows; }).catch(()=>{}),
+
+            (needsUsers || needsAll) && pool.query(
+                `SELECT COUNT(*) as total_users FROM users`
+            ).then(r => { fetchedData.users_count = r.rows[0].total_users; }).catch(()=>{}),
+
+            (needsWallet || needsAll) && pool.query(
+                `SELECT fw.entity_type,fw.balance,
+                 COALESCE(fg.name,u.name) as owner_name
+                 FROM flow_wallets fw
+                 LEFT JOIN family_groups fg ON fw.entity_type='business' AND fg.id=fw.entity_id
+                 LEFT JOIN users u ON fw.entity_type='user' AND u.id=fw.entity_id
+                 ORDER BY fw.balance DESC LIMIT 20`
+            ).then(r => { fetchedData.wallets = r.rows; }).catch(()=>{}),
+        ]);
+
+        // ── system prompt ──
+        const systemPrompt = `אתה "FLOW AI" — עוזרת AI מקצועית ורב-יכולת של מנהל-על (Super Admin) במערכת Oneflow Life.
+הנך יודעת הכל על המערכת ויכולה: לשלוף נתונים, לנתח, לחזות, לבצע פעולות, ולהדריך.
+
+## יכולות ופעולות זמינות בסופר-אדמין:
+
+### 🎫 תמיכה — קריאות שירות
+- צפייה בכל הקריאות (סטטוס: open/closed/pending)
+- מענה ללקוח, שיוך לנציג, סגירת קריאה
+- ניווט: [ACTION:TAB|tickets]
+
+### 🏘️ קהילות
+- רשימת קהילות, עריכה, הוספה
+- אישור עסקים ממתינים לקהילה
+- ניווט: [ACTION:TAB|communities]
+
+### 🏪 עסקים ולקוחות
+- רשימת עסקים, כרטסת לקוח, עריכה
+- ניהול מנוי ומודולים
+- ניווט: [ACTION:TAB|clients] | כרטסת: [ACTION:LEDGER|BUSINESS_ID]
+
+### 📢 שטחי פרסום
+- הזמנות פרסום ממתינות לאישור
+- שיבוץ תאריכים, לוח תפוסות
+- ניווט: [ACTION:TAB|adslots] | הזמנות: [ACTION:SUBTAB|adslots|orders]
+
+### 💰 גביה ותשלומים
+- חובות פתוחים, סימון כשולם
+- ניווט: [ACTION:TAB|billing]
+
+### 🪙 Flow Wallet — מטבעות
+- יתרות עסקים ומשתמשים, העברות
+- ניווט: [ACTION:TAB|flow]
+
+### ⚙️ הגדרות מערכת
+- באנרים, Cloudinary, כיתוב טעינה
+- ניווט: [ACTION:TAB|settings]
+
+## כללי תשובה:
+- ענה בעברית, קצר ולעניין
+- כשתדריך — תן שלבים ממוספרים
+- כשתציע ניווט — השתמש בקודי ACTION בלבד (אל תסביר את הקוד)
+- כשיש נתונים — הצג בטבלה או רשימה מסודרת
+- בסוף כל תשובה הוסף JSON בין תגיות: <SUGGESTIONS>["הצעה1","הצעה2","הצעה3"]</SUGGESTIONS>
+- אם נדרשת פעולה בלתי הפיכה (מחיקה/ביטול), בקש אישור תחילה`;
+
+        const dataBlock = Object.keys(fetchedData).length
+            ? `\n\n## נתונים עדכניים מהמערכת:\n${JSON.stringify(fetchedData, null, 1)}`
+            : '';
+
+        const contextBlock = context.currentTab
+            ? `\n\n## הקשר נוכחי: טאב="${context.currentTab}"${context.extra ? ', ' + context.extra : ''}`
+            : '';
+
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const result = await model.generateContent(systemPrompt + dataBlock + contextBlock + `\n\n## שאלת המנהל:\n${message}`);
+        const rawReply = result.response.text();
+
+        // ── parse suggestions ──
+        let suggestions = [];
+        const sugMatch = rawReply.match(/<SUGGESTIONS>([\s\S]*?)<\/SUGGESTIONS>/);
+        if (sugMatch) {
+            try { suggestions = JSON.parse(sugMatch[1]); } catch(_) {}
+        }
+        const reply = rawReply.replace(/<SUGGESTIONS>[\s\S]*?<\/SUGGESTIONS>/g, '').trim();
+
+        // ── parse inline actions ──
+        const actions = [];
+        const actionRe = /\[ACTION:(TAB|SUBTAB|LEDGER)\|([^\]]+)\]/g;
+        let m;
+        while ((m = actionRe.exec(reply)) !== null) {
+            if (m[1] === 'TAB') actions.push({ type: 'tab', tab: m[2] });
+            else if (m[1] === 'SUBTAB') { const p = m[2].split('|'); actions.push({ type: 'subtab', tab: p[0], sub: p[1] }); }
+            else if (m[1] === 'LEDGER') actions.push({ type: 'ledger', id: m[2] });
+        }
+        // clean action codes from reply
+        const cleanReply = reply.replace(/\[ACTION:[^\]]+\]/g, '').trim();
+
+        res.json({ success: true, reply: cleanReply, actions, suggestions });
+    } catch(e) {
+        console.error('[SA AI]', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+
 async function postToInternalChat(message, senderName) {
     try {
         await pool.query(
