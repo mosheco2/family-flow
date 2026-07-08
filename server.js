@@ -2036,9 +2036,18 @@ app.post('/api/sa/ai/chat', verifySA, async (req, res) => {
             ? `\n\n## הקשר נוכחי: טאב="${context.currentTab}"${context.extra ? ', ' + context.extra : ''}`
             : '';
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-        const result = await model.generateContent(systemPrompt + dataBlock + contextBlock + `\n\n## שאלת המנהל:\n${message}`);
-        const rawReply = result.response.text();
+        const prompt = systemPrompt + dataBlock + contextBlock + `\n\n## שאלת המנהל:\n${message}`;
+        let rawReply;
+        for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']) {
+            try {
+                const result = await genAI.getGenerativeModel({ model: modelName }).generateContent(prompt);
+                rawReply = result.response.text();
+                break;
+            } catch(e) {
+                if (e.message && e.message.includes('503') && modelName !== 'gemini-1.5-flash') continue;
+                throw e;
+            }
+        }
 
         // ── parse suggestions ──
         let suggestions = [];
