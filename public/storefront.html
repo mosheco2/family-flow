@@ -1339,7 +1339,7 @@
                     <button onclick="document.getElementById('gallery-lightbox').remove()" style="color:white;background:rgba(255,255,255,0.12);border:none;border-radius:50%;width:2.4rem;height:2.4rem;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
                     <button id="lb-zoom-btn" onclick="window.lbToggleZoom()" style="color:white;background:rgba(255,255,255,0.12);border:none;border-radius:50%;width:2.4rem;height:2.4rem;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="הגדל"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
                 </div>
-                <div id="lb-img-wrap" style="flex:1;width:100%;overflow:auto;display:flex;align-items:center;justify-content:center;padding:3.5rem 0.5rem 0.5rem;cursor:zoom-in;">
+                <div id="lb-img-wrap" style="flex:1;width:100%;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:3.5rem 0.5rem 0.5rem;cursor:zoom-in;">
                     <img id="lb-img" src="${images[current].image_url}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:0.5rem;transition:opacity 0.15s ease,transform 0.25s ease;transform-origin:center center;">
                 </div>
                 <div id="lb-caption" style="color:rgba(255,255,255,0.75);font-size:0.82rem;padding:0.4rem 1rem;text-align:center;min-height:1.4em;">${images[current].caption || ''}</div>
@@ -1360,13 +1360,15 @@
                 _lbZoomed = !_lbZoomed;
                 if (_lbZoomed) {
                     img.style.maxWidth = 'none'; img.style.maxHeight = 'none';
-                    img.style.transform = 'scale(2)'; img.style.transformOrigin = 'center center';
-                    wrap.style.cursor = 'zoom-out'; wrap.style.alignItems = 'flex-start';
+                    img.style.width = '200%'; img.style.height = 'auto';
+                    img.style.transform = 'none';
+                    wrap.style.cursor = 'zoom-out'; wrap.style.alignItems = 'center'; wrap.style.overflow = 'auto';
                     btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-minus"></i>';
                 } else {
+                    img.style.width = ''; img.style.height = '';
                     img.style.maxWidth = '100%'; img.style.maxHeight = '100%';
                     img.style.transform = 'scale(1)';
-                    wrap.style.cursor = 'zoom-in'; wrap.style.alignItems = 'center';
+                    wrap.style.cursor = 'zoom-in'; wrap.style.alignItems = 'center'; wrap.style.overflow = 'hidden';
                     btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-plus"></i>';
                 }
             };
@@ -1375,13 +1377,15 @@
             });
 
             window.lbNav = function(dir) {
-                if (_lbZoomed) { _lbZoomed = true; window.lbToggleZoom(); window.lbToggleZoom(); }
                 const imgs = window._galleryImages || [];
                 current = (current + dir + imgs.length) % imgs.length;
                 const img = document.getElementById('lb-img');
+                const wrap = document.getElementById('lb-img-wrap');
                 img.style.opacity = '0';
                 _lbZoomed = false;
-                img.style.transform = 'scale(1)'; img.style.maxWidth = '100%'; img.style.maxHeight = '100%';
+                img.style.width = ''; img.style.height = '';
+                img.style.maxWidth = '100%'; img.style.maxHeight = '100%'; img.style.transform = '';
+                if (wrap) { wrap.style.overflow = 'hidden'; wrap.style.cursor = 'zoom-in'; wrap.style.alignItems = 'center'; }
                 const btn = document.getElementById('lb-zoom-btn');
                 if (btn) btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-plus"></i>';
                 setTimeout(() => { img.src = imgs[current].image_url; img.style.opacity = '1'; }, 150);
