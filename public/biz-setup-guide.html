@@ -161,6 +161,14 @@ ul,ol{list-style:none}
 .cs h2{font-size:1.5rem;font-weight:800;margin-bottom:6px;}
 .cs p{color:var(--text2);}
 
+/* INACTIVE TILE */
+.biz-tile.cs-tile{opacity:.55;cursor:not-allowed;position:relative;}
+.biz-tile.cs-tile:hover{border-color:var(--border);box-shadow:none;}
+.cs-badge{display:inline-block;margin-top:5px;padding:2px 8px;border-radius:10px;background:var(--gold-l);color:var(--gold);font-size:.68rem;font-weight:700;}
+/* INACTIVE NAV BUTTON */
+.nb.cs-nb{opacity:.5;}
+.nb.cs-nb::after{content:'בקרוב';font-size:.62rem;background:var(--gold-l);color:var(--gold);border-radius:6px;padding:1px 5px;margin-right:4px;font-weight:700;}
+
 /* DIVIDER */
 .divider{height:1px;background:var(--border);margin:24px 0;}
 h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--border);}
@@ -177,18 +185,18 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     <button class="nb on" onclick="show('home')">ראשי</button>
     <button class="nb" onclick="show('restaurant')">🍕 מסעדה</button>
     <button class="nb" onclick="show('sport')">🏋️ ספורט</button>
-    <button class="nb" onclick="show('maintenance')">🔧 תחזוקה</button>
+    <button class="nb cs-nb" onclick="show('maintenance')">🔧 תחזוקה</button>
     <button class="nb" onclick="show('logistics')">🚚 לוגיסטיקה</button>
     <button class="nb" onclick="show('professional')">👔 מקצועי</button>
     <button class="nb" onclick="show('beauty')">💅 יופי</button>
-    <button class="nb" onclick="show('retail')">🛍️ קמעונאי</button>
-    <button class="nb" onclick="show('services')">🔩 שירותים</button>
-    <button class="nb" onclick="show('construction')">🏗️ בנייה</button>
-    <button class="nb" onclick="show('healthcare')">🏥 בריאות</button>
-    <button class="nb" onclick="show('education')">🎓 חינוך</button>
-    <button class="nb" onclick="show('events')">🎉 אירועים</button>
-    <button class="nb" onclick="show('food_production')">🏭 ייצור מזון</button>
-    <button class="nb" onclick="show('other')">🏢 כללי</button>
+    <button class="nb cs-nb" onclick="show('retail')">🛍️ קמעונאי</button>
+    <button class="nb cs-nb" onclick="show('services')">🔩 שירותים</button>
+    <button class="nb cs-nb" onclick="show('construction')">🏗️ בנייה</button>
+    <button class="nb cs-nb" onclick="show('healthcare')">🏥 בריאות</button>
+    <button class="nb cs-nb" onclick="show('education')">🎓 חינוך</button>
+    <button class="nb cs-nb" onclick="show('events')">🎉 אירועים</button>
+    <button class="nb cs-nb" onclick="show('food_production')">🏭 ייצור מזון</button>
+    <button class="nb cs-nb" onclick="show('other')">🏢 כללי</button>
     <div class="tn-sep"></div>
     <button class="tn-theme" onclick="toggleTheme()">🌙</button>
   </div>
@@ -203,18 +211,28 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   <div class="biz-grid">
     <div class="biz-tile" onclick="show('restaurant')"><div class="ti">🍕</div><div class="tn2">מסעדה / בית קפה</div><div class="ts">קופה · שליחויות · מטבח</div></div>
     <div class="biz-tile" onclick="show('sport')"><div class="ti">🏋️</div><div class="tn2">ספורט / כושר</div><div class="ts">מנויים · אימונים · ציוד</div></div>
-    <div class="biz-tile" onclick="show('maintenance')"><div class="ti">🔧</div><div class="tn2">תחזוקה ותיקונים</div><div class="ts">קריאות שירות · לוח זמנים</div></div>
+    <div class="biz-tile cs-tile"><div class="ti">🔧</div><div class="tn2">תחזוקה ותיקונים</div><div class="ts">קריאות שירות · לוח זמנים</div><div class="cs-badge">בקרוב</div></div>
     <div class="biz-tile" onclick="show('logistics')"><div class="ti">🚚</div><div class="tn2">לוגיסטיקה / הפצה</div><div class="ts">הזמנות · נהגים · מסלולים</div></div>
     <div class="biz-tile" onclick="show('professional')"><div class="ti">👔</div><div class="tn2">מקצועי / ייעוץ</div><div class="ts">תיקים · לידים · שעות</div></div>
     <div class="biz-tile" onclick="show('beauty')"><div class="ti">💅</div><div class="tn2">יופי / קוסמטיקה</div><div class="ts">תורים · מטפלות · מנויים</div></div>
-    <div class="biz-tile" onclick="show('retail')"><div class="ti">🛍️</div><div class="tn2">קמעונאי / חנות</div><div class="ts">קופה · מלאי · לקוחות</div></div>
-    <div class="biz-tile" onclick="show('services')"><div class="ti">🔩</div><div class="tn2">שירותים מקצועיים</div><div class="ts">קריאות שירות · יומן · פרויקטים</div></div>
-    <div class="biz-tile" onclick="show('construction')"><div class="ti">🏗️</div><div class="tn2">בנייה / קבלנות</div><div class="ts">פרויקטים · ציוד · פקודות עבודה</div></div>
-    <div class="biz-tile" onclick="show('healthcare')"><div class="ti">🏥</div><div class="tn2">בריאות / קליניקה</div><div class="ts">תורים · מטופלים · צוות רפואי</div></div>
-    <div class="biz-tile" onclick="show('education')"><div class="ti">🎓</div><div class="tn2">חינוך / הדרכה</div><div class="ts">יומן שיעורים · תלמידים · צוות</div></div>
-    <div class="biz-tile" onclick="show('events')"><div class="ti">🎉</div><div class="tn2">אירועים / הפקות</div><div class="ts">יומן אירועים · ציוד · מזמינים</div></div>
-    <div class="biz-tile" onclick="show('food_production')"><div class="ti">🏭</div><div class="tn2">ייצור מזון</div><div class="ts">ייצור · מלאי · הפצה</div></div>
-    <div class="biz-tile" onclick="show('other')"><div class="ti">🏢</div><div class="tn2">כללי / אחר</div><div class="ts">כל המודולים · גמישות מלאה</div></div>
+    <div class="biz-tile cs-tile"><div class="ti">🛍️</div><div class="tn2">קמעונאי / חנות</div><div class="ts">קופה · מלאי · לקוחות</div><div class="cs-badge">בקרוב</div></div>
+    <div class="biz-tile cs-tile"><div class="ti">🔩</div><div class="tn2">שירותים מקצועיים</div><div class="ts">קריאות שירות · יומן · פרויקטים</div><div class="cs-badge">בקרוב</div></div>
+    <div class="biz-tile cs-tile"><div class="ti">🏗️</div><div class="tn2">בנייה / קבלנות</div><div class="ts">פרויקטים · ציוד · פקודות עבודה</div><div class="cs-badge">בקרוב</div></div>
+    <div class="biz-tile cs-tile"><div class="ti">🏥</div><div class="tn2">בריאות / קליניקה</div><div class="ts">תורים · מטופלים · צוות רפואי</div><div class="cs-badge">בקרוב</div></div>
+    <div class="biz-tile cs-tile"><div class="ti">🎓</div><div class="tn2">חינוך / הדרכה</div><div class="ts">יומן שיעורים · תלמידים · צוות</div><div class="cs-badge">בקרוב</div></div>
+    <div class="biz-tile cs-tile"><div class="ti">🎉</div><div class="tn2">אירועים / הפקות</div><div class="ts">יומן אירועים · ציוד · מזמינים</div><div class="cs-badge">בקרוב</div></div>
+    <div class="biz-tile cs-tile"><div class="ti">🏭</div><div class="tn2">ייצור מזון</div><div class="ts">ייצור · מלאי · הפצה</div><div class="cs-badge">בקרוב</div></div>
+    <div class="biz-tile cs-tile"><div class="ti">🏢</div><div class="tn2">כללי / אחר</div><div class="ts">כל המודולים · גמישות מלאה</div><div class="cs-badge">בקרוב</div></div>
+  </div>
+</div>
+
+<!-- ═══ COMING SOON ═══ -->
+<div id="coming-soon" class="page">
+  <div class="cs">
+    <div class="cs-i">🚧</div>
+    <h2>המדריך בדרך</h2>
+    <p>סוג עסק זה עדיין בהכנה — המדריך יפורסם בקרוב.</p>
+    <button class="nb" style="margin-top:24px;border:1.5px solid var(--border);" onclick="show('home')">חזרה לדף הראשי</button>
   </div>
 </div>
 
@@ -4046,9 +4064,11 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 </div>
 
 <script>
+const INACTIVE_TYPES = ['maintenance','retail','services','construction','healthcare','education','events','food_production','other'];
 function show(id) {
+  const target = INACTIVE_TYPES.includes(id) ? 'coming-soon' : id;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
-  document.getElementById(id).classList.add('on');
+  document.getElementById(target).classList.add('on');
   document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
   document.querySelectorAll('.nb').forEach(b => {
     if (b.getAttribute('onclick') === `show('${id}')`) b.classList.add('on');
