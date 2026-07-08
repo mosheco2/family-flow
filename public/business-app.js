@@ -20180,7 +20180,7 @@ setInterval(() => {
 
 window.switchSalesTab = function(subTab) {
     window._currentBizSubTab = 'sales.' + subTab;
-    ['pos', 'orders', 'catalog', 'complex', 'marketing', 'settings', 'quotes', 'analytics', 'reviews', 'work-orders'].forEach(t => {
+    ['pos', 'orders', 'catalog', 'complex', 'marketing', 'settings', 'quotes', 'analytics', 'reviews', 'work-orders', 'gallery'].forEach(t => {
         const view = document.getElementById(`sales-view-${t}`); if(view) view.classList.add('hidden');
         const btn = document.getElementById(`btn-sales-${t}`); if(btn) btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
     });
@@ -20263,6 +20263,61 @@ window.switchSalesTab = function(subTab) {
         if (typeof window.loadReviews === 'function') window.loadReviews();
     }
     if(subTab === 'work-orders') { if (typeof window.fetchWorkOrders === 'function') window.fetchWorkOrders(); }
+    if(subTab === 'gallery') { window.loadBusinessGallery(); }
+};
+
+window.loadBusinessGallery = async function() {
+    const grid = document.getElementById('biz-gallery-grid');
+    if (!grid) return;
+    grid.innerHTML = '<p class="col-span-3 text-center text-slate-400 text-xs py-4"><i class="fa-solid fa-spinner fa-spin mr-1"></i> טוען...</p>';
+    try {
+        const r = await fetch(`${API}/store/gallery/${currentGroupId}`, { headers: authHeaders() });
+        const d = await r.json();
+        if (!d.success || !d.images.length) {
+            grid.innerHTML = '<p class="col-span-3 text-center text-slate-400 text-xs py-4">אין תמונות בגלריה עדיין.</p>';
+            return;
+        }
+        grid.innerHTML = d.images.map(img => `
+            <div class="relative group rounded-xl overflow-hidden border border-slate-200 shadow-sm aspect-square">
+                <img src="${img.image_url}" class="w-full h-full object-cover">
+                ${img.caption ? `<div class="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-2 py-1 truncate">${img.caption}</div>` : ''}
+                <button onclick="window.deleteGalleryImage(${img.id})" class="absolute top-1 left-1 bg-red-500 text-white w-6 h-6 rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow"><i class="fa-solid fa-trash"></i></button>
+            </div>`).join('');
+    } catch(e) { grid.innerHTML = '<p class="col-span-3 text-center text-red-400 text-xs py-4">שגיאה בטעינה.</p>'; }
+};
+
+window.uploadGalleryImages = async function(files) {
+    if (!files || !files.length) return;
+    const status = document.getElementById('gallery-upload-status');
+    const existing = await fetch(`${API}/store/gallery/${currentGroupId}`, { headers: authHeaders() }).then(r=>r.json()).catch(()=>({images:[]}));
+    const count = existing.images ? existing.images.length : 0;
+    const allowed = Math.min(files.length, 12 - count);
+    if (allowed <= 0) { showToast('error', 'הגלריה מלאה (מקסימום 12 תמונות)'); return; }
+    if (status) { status.textContent = `מעלה ${allowed} תמונות...`; status.classList.remove('hidden'); }
+    let uploaded = 0;
+    for (let i = 0; i < allowed; i++) {
+        const file = files[i];
+        const caption = '';
+        const base64 = await new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target.result);
+            reader.readAsDataURL(file);
+        });
+        const r = await fetch(`${API}/store/gallery/${currentGroupId}`, { method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ image_url: base64, caption }) });
+        const d = await r.json();
+        if (d.success) uploaded++;
+    }
+    if (status) { status.textContent = `הועלו ${uploaded} תמונות בהצלחה`; setTimeout(() => status.classList.add('hidden'), 3000); }
+    document.getElementById('gallery-file-input').value = '';
+    window.loadBusinessGallery();
+};
+
+window.deleteGalleryImage = async function(id) {
+    if (!confirm('למחוק תמונה זו?')) return;
+    const r = await fetch(`${API}/store/gallery/${currentGroupId}/${id}`, { method: 'DELETE', headers: authHeaders() });
+    const d = await r.json();
+    if (d.success) window.loadBusinessGallery();
+    else showToast('error', 'שגיאה במחיקה');
 };
 
 // עדכון טאב נבחר אוטומטית ברקע
