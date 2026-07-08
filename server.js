@@ -1957,11 +1957,11 @@ app.post('/api/sa/ai/chat', verifySA, async (req, res) => {
             ).then(r => { fetchedData.communities = r.rows; }).catch(()=>{}),
 
             (needsBusinesses || needsAll) && pool.query(
-                `SELECT fg.id,fg.name,fg.group_type,fg.created_at,
+                `SELECT fg.id,fg.name,fg.type as group_type,fg.business_type,fg.created_at,
                  (SELECT COUNT(*) FROM support_tickets WHERE group_id=fg.id AND status='open') as open_tickets
-                 FROM family_groups fg WHERE fg.group_type NOT IN ('family','community')
-                 ORDER BY fg.created_at DESC LIMIT 50`
-            ).then(r => { fetchedData.businesses = r.rows; }).catch(()=>{}),
+                 FROM family_groups fg WHERE fg.type='BUSINESS'
+                 ORDER BY fg.created_at DESC LIMIT 100`
+            ).then(r => { fetchedData.businesses = r.rows; fetchedData.businesses_count = r.rows.length; }).catch(()=>{}),
 
             (needsUsers || needsAll) && pool.query(
                 `SELECT COUNT(*) as total_users FROM users`
@@ -2021,7 +2021,12 @@ app.post('/api/sa/ai/chat', verifySA, async (req, res) => {
 - כשתציע ניווט — השתמש בקודי ACTION בלבד (אל תסביר את הקוד)
 - כשיש נתונים — הצג בטבלה או רשימה מסודרת
 - בסוף כל תשובה הוסף JSON בין תגיות: <SUGGESTIONS>["הצעה1","הצעה2","הצעה3"]</SUGGESTIONS>
-- אם נדרשת פעולה בלתי הפיכה (מחיקה/ביטול), בקש אישור תחילה`;
+- אם נדרשת פעולה בלתי הפיכה (מחיקה/ביטול), בקש אישור תחילה
+
+## ⚠️ חשוב מאוד:
+- ספירות ומספרים — דווח **אך ורק** על בסיס הנתונים שקיבלת בבלוק "נתונים עדכניים". אל תמציא ואל תנחש מספרים.
+- אם לא קיבלת נתונים רלוונטיים — אמור "אין לי גישה לנתון זה כעת" ולא תנחש.
+- אם קיבלת רשימה חלקית (LIMIT) — ציין "מוצגים X מתוך Y שנמצאו".\``;
 
         const dataBlock = Object.keys(fetchedData).length
             ? `\n\n## נתונים עדכניים מהמערכת:\n${JSON.stringify(fetchedData, null, 1)}`
