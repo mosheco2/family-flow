@@ -308,6 +308,9 @@ window.loadSADashboard = async function() {
             if (p.banner_orders > 0) chips.push({ label: `📢 ${p.banner_orders} הזמנות פרסום`, color: 'bg-indigo-50 border-indigo-200 text-indigo-700', fn: `switchSATab('adslots')` });
             if (p.zone_managers > 0) chips.push({ label: `🗺️ ${p.zone_managers} מנהלי אזור ממתינים`, color: 'bg-teal-50 border-teal-200 text-teal-700', fn: `switchSATab('partners')` });
             if (p.unpaid_billing > 0) chips.push({ label: `💰 ${p.unpaid_billing} חשבוניות לא שולמו`, color: 'bg-yellow-50 border-yellow-200 text-yellow-700', fn: `switchSATab('finance')` });
+            if (p.promos > 0) chips.push({ label: `🎟️ ${p.promos} פרסומות קהילה ממתינות`, color: 'bg-pink-50 border-pink-200 text-pink-700', fn: `switchSATab('comm')` });
+            if (p.pending_communities > 0) chips.push({ label: `🌍 ${p.pending_communities} קהילות לאישור`, color: 'bg-teal-50 border-teal-200 text-teal-700', fn: `switchSATab('comm')` });
+            if (p.pending_billing > 0) chips.push({ label: `⏳ ${p.pending_billing} תשלומים ממתינים לאישור`, color: 'bg-orange-50 border-orange-200 text-orange-700', fn: `switchSATab('finance')` });
 
             if (chips.length) {
                 pendBar.classList.remove('hidden');

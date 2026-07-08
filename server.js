@@ -3271,7 +3271,7 @@ app.get('/api/sa/dashboard', verifySA, async (req, res) => {
     try {
         const safe = (q, def) => pool.query(q).catch(() => ({ rows: def }));
         const [
-            statsR, pendBizR, pendFamR, pendBannerR, pendZMR,
+            statsR, pendBizR, pendFamR, pendBannerR, pendZMR, pendPromosR, pendCommR, pendBillingR,
             ticketsR, financeR, zmR, flowR, aiTopR, growthR, debtorsR, walletsR
         ] = await Promise.all([
             pool.query(`SELECT
@@ -3288,6 +3288,9 @@ app.get('/api/sa/dashboard', verifySA, async (req, res) => {
             safe(`SELECT COUNT(*) as cnt FROM family_communities WHERE status='pending'`, [{ cnt: 0 }]),
             safe(`SELECT COUNT(*) as cnt FROM banner_orders WHERE status='pending'`, [{ cnt: 0 }]),
             safe(`SELECT COUNT(*) as cnt FROM zone_managers WHERE status='pending'`, [{ cnt: 0 }]),
+            safe(`SELECT COUNT(*) as cnt FROM community_promotions WHERE status='pending'`, [{ cnt: 0 }]),
+            safe(`SELECT COUNT(*) as cnt FROM communities WHERE status='pending'`, [{ cnt: 0 }]),
+            safe(`SELECT COUNT(*) as cnt FROM billing_records WHERE payment_status='pending'`, [{ cnt: 0 }]),
             safe(`SELECT
                 COUNT(*) FILTER (WHERE status='open') as open_cnt,
                 COUNT(*) FILTER (WHERE status='open' AND priority='high') as urgent_cnt,
@@ -3338,6 +3341,9 @@ app.get('/api/sa/dashboard', verifySA, async (req, res) => {
                 fam_joins: parseInt(pendFamR.rows[0]?.cnt) || 0,
                 banner_orders: parseInt(pendBannerR.rows[0]?.cnt) || 0,
                 zone_managers: parseInt(pendZMR.rows[0]?.cnt) || 0,
+                promos: parseInt(pendPromosR.rows[0]?.cnt) || 0,
+                pending_communities: parseInt(pendCommR.rows[0]?.cnt) || 0,
+                pending_billing: parseInt(pendBillingR.rows[0]?.cnt) || 0,
                 open_tickets: parseInt(ticketsR.rows[0]?.open_cnt) || 0,
                 urgent_tickets: parseInt(ticketsR.rows[0]?.urgent_cnt) || 0,
                 closed_24h: parseInt(ticketsR.rows[0]?.closed_24h) || 0,
