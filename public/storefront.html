@@ -1337,13 +1337,22 @@
             lb.innerHTML = `
                 <div style="position:absolute;top:0.75rem;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:0 0.9rem;z-index:2;">
                     <button onclick="document.getElementById('gallery-lightbox').remove()" style="color:white;background:rgba(255,255,255,0.12);border:none;border-radius:50%;width:2.4rem;height:2.4rem;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
-                    <button id="lb-zoom-btn" onclick="window.lbToggleZoom()" style="color:white;background:rgba(255,255,255,0.12);border:none;border-radius:50%;width:2.4rem;height:2.4rem;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="הגדל"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                    <div style="display:flex;align-items:center;gap:0.6rem;">
+                        <button id="lb-zoom-btn" onclick="window.lbToggleZoom()" style="color:white;background:rgba(255,255,255,0.12);border:none;border-radius:1.2rem;padding:0 0.7rem;height:2.4rem;font-size:0.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.3rem;white-space:nowrap;" title="הגדל"><i class="fa-solid fa-magnifying-glass-plus"></i> <span id="lb-zoom-label">התאם</span></button>
+                    </div>
                 </div>
                 <div id="lb-img-wrap" style="flex:1;width:100%;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:3.5rem 0.5rem 0.5rem;cursor:zoom-in;">
-                    <img id="lb-img" src="${images[current].image_url}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:0.5rem;transition:opacity 0.15s ease,transform 0.25s ease;transform-origin:center center;">
+                    <img id="lb-img" src="${images[current].image_url}" style="max-width:92vw;max-height:80vh;width:auto;height:auto;object-fit:contain;border-radius:0.5rem;transition:opacity 0.15s ease;user-select:none;-webkit-user-drag:none;">
                 </div>
-                <div id="lb-caption" style="color:rgba(255,255,255,0.75);font-size:0.82rem;padding:0.4rem 1rem;text-align:center;min-height:1.4em;">${images[current].caption || ''}</div>
-                <div style="display:flex;gap:2rem;padding:0.5rem 1rem 1.25rem;align-items:center;">
+                <div id="lb-caption" style="color:rgba(255,255,255,0.75);font-size:0.82rem;padding:0.25rem 1rem;text-align:center;min-height:1.4em;">${images[current].caption || ''}</div>
+                <div style="padding:0.25rem 1.5rem 0.5rem;width:100%;max-width:420px;box-sizing:border-box;">
+                    <div style="display:flex;align-items:center;gap:0.7rem;">
+                        <i class="fa-solid fa-magnifying-glass-minus" style="color:rgba(255,255,255,0.4);font-size:0.75rem;"></i>
+                        <input id="lb-size-slider" type="range" min="30" max="300" value="70" style="flex:1;accent-color:#a78bfa;cursor:pointer;" oninput="window.lbSliderChange(this.value)">
+                        <i class="fa-solid fa-magnifying-glass-plus" style="color:rgba(255,255,255,0.4);font-size:0.75rem;"></i>
+                    </div>
+                </div>
+                <div style="display:flex;gap:2rem;padding:0.25rem 1rem 1rem;align-items:center;">
                     <button onclick="window.lbNav(-1)" style="color:white;background:rgba(255,255,255,0.12);border:none;border-radius:50%;width:3rem;height:3rem;font-size:1.5rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">‹</button>
                     <span id="lb-counter" style="color:rgba(255,255,255,0.5);font-size:0.8rem;">${current+1} / ${images.length}</span>
                     <button onclick="window.lbNav(1)" style="color:white;background:rgba(255,255,255,0.12);border:none;border-radius:50%;width:3rem;height:3rem;font-size:1.5rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">›</button>
@@ -1352,58 +1361,84 @@
             requestAnimationFrame(() => { lb.style.opacity = '1'; });
             lb.addEventListener('click', e => { if (e.target === lb) lb.remove(); });
 
-            // zoom steps: 0=fit, 1=100vw/vh, 2=150%, 3=200%, 4=300%
-            const _lbZoomLabels = ['התאם', '1×', '1.5×', '2×', '3×'];
-            let _lbZoomStep = 0;
-            function _lbApplyZoom() {
+            // slider-based zoom + drag to pan
+            let _lbSizePct = 70; // 70 = fit mode (max 92vw/80vh), >70 = explicit vw %
+
+            function _lbApplySize(pct) {
+                _lbSizePct = pct;
                 const img = document.getElementById('lb-img');
                 const wrap = document.getElementById('lb-img-wrap');
-                const btn = document.getElementById('lb-zoom-btn');
-                if (_lbZoomStep === 0) {
-                    // fit inside lightbox with padding
+                const label = document.getElementById('lb-zoom-label');
+                const slider = document.getElementById('lb-size-slider');
+                if (slider) slider.value = pct;
+                if (pct <= 70) {
                     img.style.width = 'auto'; img.style.height = 'auto';
-                    img.style.maxWidth = '92vw'; img.style.maxHeight = '80vh'; img.style.transform = '';
-                    wrap.style.overflow = 'hidden'; wrap.style.cursor = 'zoom-in'; wrap.style.alignItems = 'center'; wrap.style.justifyContent = 'center';
+                    img.style.maxWidth = '92vw'; img.style.maxHeight = '80vh';
+                    wrap.style.overflow = 'hidden'; wrap.style.cursor = 'grab';
+                    if (label) label.textContent = 'התאם';
                 } else {
-                    const pcts = [null, 100, 150, 200, 300];
-                    const pct = pcts[_lbZoomStep];
                     img.style.maxWidth = 'none'; img.style.maxHeight = 'none';
-                    img.style.width = pct + 'vw'; img.style.height = 'auto'; img.style.transform = 'none';
-                    wrap.style.overflow = 'auto'; wrap.style.cursor = 'zoom-in'; wrap.style.alignItems = 'flex-start'; wrap.style.justifyContent = 'flex-start';
+                    img.style.width = pct + 'vw'; img.style.height = 'auto';
+                    wrap.style.overflow = 'auto'; wrap.style.cursor = 'grab';
+                    if (label) label.textContent = Math.round(pct) + '%';
                 }
-                btn.innerHTML = `<span style="font-size:0.7rem;font-weight:700;letter-spacing:-0.5px">${_lbZoomLabels[_lbZoomStep]}</span>`;
             }
+
+            window.lbSliderChange = function(val) { _lbApplySize(Number(val)); };
+
             window.lbToggleZoom = function() {
-                _lbZoomStep = (_lbZoomStep + 1) % _lbZoomLabels.length;
-                _lbApplyZoom();
+                // cycle: fit → 100 → 150 → 200 → fit
+                const steps = [70, 100, 150, 200];
+                const idx = steps.findIndex(s => s >= _lbSizePct);
+                const next = steps[(idx + 1) % steps.length];
+                _lbApplySize(next);
             };
-            document.getElementById('lb-img-wrap').addEventListener('click', e => {
-                if (e.target.id === 'lb-img') window.lbToggleZoom();
+
+            // drag to pan
+            const wrap = document.getElementById('lb-img-wrap');
+            let _drag = false, _dx = 0, _dy = 0;
+            wrap.addEventListener('mousedown', e => {
+                if (e.target.id !== 'lb-img') return;
+                _drag = true; _dx = e.clientX + wrap.scrollLeft; _dy = e.clientY + wrap.scrollTop;
+                wrap.style.cursor = 'grabbing'; e.preventDefault();
             });
+            document.addEventListener('mousemove', e => {
+                if (!_drag) return;
+                wrap.scrollLeft = _dx - e.clientX; wrap.scrollTop = _dy - e.clientY;
+            });
+            document.addEventListener('mouseup', () => { if (_drag) { _drag = false; wrap.style.cursor = 'grab'; } });
+
+            wrap.addEventListener('click', e => { if (e.target.id === 'lb-img' && !_drag) window.lbToggleZoom(); });
 
             window.lbNav = function(dir) {
                 const imgs = window._galleryImages || [];
                 current = (current + dir + imgs.length) % imgs.length;
                 const img = document.getElementById('lb-img');
                 img.style.opacity = '0';
-                _lbZoomStep = 0;
-                _lbApplyZoom();
+                _lbApplySize(70);
                 setTimeout(() => { img.src = imgs[current].image_url; img.style.opacity = '1'; }, 150);
                 document.getElementById('lb-caption').textContent = imgs[current].caption || '';
                 document.getElementById('lb-counter').textContent = `${current+1} / ${imgs.length}`;
             };
 
             // pinch-to-zoom mobile
-            let _ptStart = null;
-            lb.addEventListener('touchstart', e => { if (e.touches.length === 2) { _ptStart = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); } }, {passive:true});
-            lb.addEventListener('touchend', e => { if (_ptStart !== null && e.changedTouches.length) { _ptStart = null; } }, {passive:true});
+            let _ptStart = null, _ptSizeStart = 70;
+            lb.addEventListener('touchstart', e => {
+                if (e.touches.length === 2) {
+                    _ptStart = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+                    _ptSizeStart = _lbSizePct;
+                }
+            }, {passive:true});
+            lb.addEventListener('touchend', () => { _ptStart = null; }, {passive:true});
             lb.addEventListener('touchmove', e => {
                 if (e.touches.length === 2 && _ptStart) {
                     const dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-                    if (dist > _ptStart + 20 && _lbZoomStep < _lbZoomLabels.length - 1) { _lbZoomStep++; _lbApplyZoom(); _ptStart = dist; }
-                    if (dist < _ptStart - 20 && _lbZoomStep > 0) { _lbZoomStep--; _lbApplyZoom(); _ptStart = dist; }
+                    const newPct = Math.max(30, Math.min(300, _ptSizeStart * (dist / _ptStart)));
+                    _lbApplySize(newPct);
                 }
             }, {passive:true});
+
+            _lbApplySize(70);
         };
 
         window.toggleSideMenu = function(isOpen) {
