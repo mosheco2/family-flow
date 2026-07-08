@@ -2632,8 +2632,9 @@ async function loadDashboard() {
         const aiAssistant = document.querySelector('.fixed.bottom-40.right-6.animate-pulse'); if(aiAssistant) aiAssistant.classList.remove('hidden');
         const waButton = document.querySelector('a[href^="https://wa.me/"]'); if(waButton) waButton.classList.remove('hidden');
         
-        fetchBanners(); 
+        fetchBanners();
         try { if(typeof fetchStoreSettings === 'function') fetchStoreSettings(); } catch(e){}
+        try { if(typeof window.loadBusinessGallery === 'function') window.loadBusinessGallery(); } catch(e){}
         
         const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.textContent = safeStr(currentGroup.name);
         const headerOrgCode = document.getElementById('header-org-code'); if(headerOrgCode) headerOrgCode.textContent = currentGroup.group_code ? `קוד ארגון: ${currentGroup.group_code}` : '';
@@ -11927,6 +11928,72 @@ window.handleStoreBannerUpload = function(event) {
         };
         reader.readAsDataURL(file);
     }
+};
+
+window.loadBusinessGallery = async function() {
+    const grid = document.getElementById('biz-gallery-grid');
+    if (!grid || !currentGroup) return;
+    try {
+        const res = await fetch(`${API}/store/gallery/${currentGroup.id}`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const data = await res.json();
+        if (!data.success) return;
+        const images = data.images || [];
+        if (images.length === 0) {
+            grid.innerHTML = '<p class="col-span-3 text-xs text-slate-400 text-center py-2">אין תמונות בגלריה</p>';
+            return;
+        }
+        grid.innerHTML = images.map(img => `
+            <div class="relative group rounded-xl overflow-hidden border border-slate-200 bg-white" style="aspect-ratio:1">
+                <img src="${safeStr(img.image_url)}" class="w-full h-full object-cover">
+                ${img.caption ? `<div class="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[9px] px-1 py-0.5 truncate">${safeStr(img.caption)}</div>` : ''}
+                <button onclick="deleteGalleryImage(${img.id})" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>`).join('');
+    } catch(e) { console.error('loadBusinessGallery error:', e); }
+};
+
+window.uploadGalleryImages = async function() {
+    const fileInput = document.getElementById('biz-gallery-file');
+    const caption = (document.getElementById('biz-gallery-caption')?.value || '').trim();
+    if (!fileInput || !fileInput.files.length) { showToast('error', 'בחרו קובץ תמונה תחילה'); return; }
+    const files = Array.from(fileInput.files).slice(0, 12);
+    showToast('info', `מעלה ${files.length} תמונה/ות...`);
+    let uploaded = 0;
+    for (const file of files) {
+        await new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const res = await fetch(`${API}/store/gallery/${currentGroup.id}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
+                        body: JSON.stringify({ image_url: e.target.result, caption })
+                    });
+                    const data = await res.json();
+                    if (data.success) uploaded++;
+                    else if (data.error) showToast('error', data.error);
+                } catch(err) { showToast('error', 'שגיאה בהעלאה'); }
+                resolve();
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+    fileInput.value = '';
+    if (document.getElementById('biz-gallery-caption')) document.getElementById('biz-gallery-caption').value = '';
+    showToast('success', `הועלו ${uploaded} תמונות לגלריה`);
+    window.loadBusinessGallery();
+};
+
+window.deleteGalleryImage = async function(id) {
+    if (!await window._uiConfirm('למחוק תמונה זו מהגלריה?', { danger: true, okLabel: 'מחק' })) return;
+    try {
+        const res = await fetch(`${API}/store/gallery/${currentGroup.id}/${id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${currentUser?.token}` }
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'התמונה נמחקה'); window.loadBusinessGallery(); }
+        else showToast('error', data.error || 'שגיאה במחיקה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
 window.clearImage = function(targetIdPrefix) {

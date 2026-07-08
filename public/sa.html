@@ -837,6 +837,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                   <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;" id="vtnav-comm">
           <button id="vtnav-comm-manage" onclick="switchViewTab('comm','manage')" style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-plus-circle" style="font-size:11px;"></i>הקמה ושיוך</button>
           <button id="vtnav-comm-table" onclick="switchViewTab('comm','table')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-list" style="font-size:11px;"></i>טבלת קהילות</button>
+          <button id="vtnav-comm-articles" onclick="switchViewTab('comm','articles');loadSAArticles()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-newspaper" style="font-size:11px;"></i>📰 מאמרים</button>
         </div>
                 <div id="vt-comm-manage" class="vt-comm space-y-8">
                     <div id="sa-pending-biz-container" class="hidden bg-orange-100/50 p-6 rounded-2xl border border-orange-200 shadow-sm">
@@ -959,6 +960,40 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
                 </div><!-- /vt-comm-table -->
+
+                <div id="vt-comm-articles" class="vt-comm hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <h3 class="font-bold text-slate-800 mb-4 text-sm border-b border-slate-100 pb-2">פרסום מאמר חדש</h3>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">כותרת</label>
+                                    <input type="text" id="sa-article-title" class="modern-input py-2 text-sm w-full" placeholder="כותרת המאמר">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">תוכן</label>
+                                    <textarea id="sa-article-body" rows="5" class="modern-input py-2 text-sm w-full resize-none" placeholder="תוכן המאמר..."></textarea>
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">קישור תמונה (אופציונלי)</label>
+                                    <input type="text" id="sa-article-image" class="modern-input py-2 text-sm w-full" placeholder="https://...">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">קהילה (ריק = כל הקהילות)</label>
+                                    <select id="sa-article-community" class="modern-input py-2 text-sm bg-white w-full">
+                                        <option value="">כל הקהילות</option>
+                                    </select>
+                                </div>
+                                <button onclick="publishSAArticle()" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-indigo-700 transition">פרסם מאמר</button>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800 mb-4 text-sm">מאמרים שפורסמו</h3>
+                            <div id="sa-articles-list" class="space-y-3"></div>
+                        </div>
+                    </div>
+                </div><!-- /vt-comm-articles -->
+
                 </div><!-- /sa-view-comm -->
 
                 <div id="sa-view-finance" class="hidden fade-in">
@@ -3248,7 +3283,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
       </div>
     </div>
 
-    <script src="sa-app.js?v=43"></script>
+    <script src="sa-app.js?v=44"></script>
     <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">

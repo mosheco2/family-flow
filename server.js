@@ -505,6 +505,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_order_items (id SERIAL PRIMARY KEY, order_id INT REFERENCES store_orders(id) ON DELETE CASCADE, catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL, item_name VARCHAR(100), quantity DECIMAL(10,2), price_at_order DECIMAL(10,2))`); } catch(e) {}
      try { await client.query(`CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS delivery_zones (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, min_order DECIMAL(10,2) DEFAULT 0, delivery_fee DECIMAL(10,2) DEFAULT 0, sort_order INT DEFAULT 0, created_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS business_gallery (id SERIAL PRIMARY KEY, group_id INT NOT NULL, image_url TEXT NOT NULL, caption TEXT, sort_order INT DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS community_articles (id SERIAL PRIMARY KEY, community_id INT, author_type VARCHAR(20) NOT NULL, author_id INT, title TEXT NOT NULL, body TEXT NOT NULL, image_url TEXT, published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
 
       // טבלאות מערכת היומן והתורים
       try { 
@@ -6941,6 +6943,87 @@ app.get('/api/storefront/:code', async (req, res) => {
         }
 
         res.json({ success: true, groupId, groupName, businessType, settings, catalog: cRes.rows, communityData });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- BUSINESS GALLERY ENDPOINTS ---
+// ============================================================
+
+app.get('/api/store/gallery/:groupId', verifyToken, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM business_gallery WHERE group_id=$1 ORDER BY sort_order ASC, created_at ASC', [req.params.groupId]);
+        res.json({ success: true, images: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/gallery/:groupId', verifyToken, async (req, res) => {
+    try {
+        const { image_url, caption } = req.body;
+        const count = await pool.query('SELECT COUNT(*) FROM business_gallery WHERE group_id=$1', [req.params.groupId]);
+        if (parseInt(count.rows[0].count) >= 12) return res.status(400).json({ error: 'מקסימום 12 תמונות בגלריה' });
+        const result = await pool.query('INSERT INTO business_gallery (group_id, image_url, caption) VALUES ($1, $2, $3) RETURNING *', [req.params.groupId, image_url, caption || null]);
+        res.json({ success: true, image: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/store/gallery/:groupId/:imageId', verifyToken, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM business_gallery WHERE id=$1 AND group_id=$2', [req.params.imageId, req.params.groupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/store/gallery/:groupId/reorder', verifyToken, async (req, res) => {
+    try {
+        const { order } = req.body;
+        if (Array.isArray(order)) {
+            for (let i = 0; i < order.length; i++) {
+                await pool.query('UPDATE business_gallery SET sort_order=$1 WHERE id=$2 AND group_id=$3', [i, order[i], req.params.groupId]);
+            }
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/public/gallery/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM business_gallery WHERE group_id=$1 ORDER BY sort_order ASC, created_at ASC', [req.params.groupId]);
+        res.json({ success: true, images: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- COMMUNITY ARTICLES ENDPOINTS ---
+// ============================================================
+
+app.get('/api/community/articles/:communityId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM community_articles WHERE community_id=$1 OR community_id IS NULL ORDER BY published_at DESC LIMIT 20', [req.params.communityId]);
+        res.json({ success: true, articles: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sa/articles', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`SELECT ca.*, c.name as community_name FROM community_articles ca LEFT JOIN communities c ON ca.community_id = c.id ORDER BY ca.published_at DESC`);
+        res.json({ success: true, articles: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/articles', verifySA, async (req, res) => {
+    try {
+        const { community_id, title, body, image_url } = req.body;
+        const result = await pool.query('INSERT INTO community_articles (community_id, author_type, author_id, title, body, image_url) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [community_id || null, 'sa', null, title, body, image_url || null]);
+        res.json({ success: true, article: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/articles/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM community_articles WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

@@ -1263,6 +1263,61 @@
                 showContactRow = true;
             }
             if(showContactRow) getEl('store-contact-info').classList.remove('hidden');
+
+            if (storeData.groupId) {
+                fetch(`${API}/public/gallery/${storeData.groupId}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.success || !data.images || data.images.length === 0) return;
+                        const section = document.createElement('div');
+                        section.className = 'px-4 pb-4';
+                        section.innerHTML = `
+                            <h3 class="font-bold text-slate-700 text-sm mb-3"><i class="fa-solid fa-images text-indigo-500 mr-1"></i> גלריה</h3>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                ${data.images.map((img, i) => `
+                                    <div class="relative rounded-xl overflow-hidden cursor-pointer bg-slate-100" style="aspect-ratio:1" onclick="openGalleryLightbox(${i})">
+                                        <img src="${img.image_url.replace(/"/g,'&quot;')}" class="w-full h-full object-cover hover:scale-105 transition duration-300" loading="lazy">
+                                        ${img.caption ? `<div class="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-2 py-1 truncate">${img.caption.replace(/</g,'&lt;')}</div>` : ''}
+                                    </div>`).join('')}
+                            </div>`;
+                        const catalogSection = getEl('categories-container') || getEl('store-catalog-section');
+                        if (catalogSection && catalogSection.parentNode) {
+                            catalogSection.parentNode.insertBefore(section, catalogSection);
+                        } else {
+                            document.querySelector('#store-main-content, main, body').appendChild(section);
+                        }
+                        window._galleryImages = data.images;
+                    }).catch(() => {});
+            }
+        };
+
+        window.openGalleryLightbox = function(index) {
+            const images = window._galleryImages || [];
+            if (!images.length) return;
+            let current = index;
+            const existing = document.getElementById('gallery-lightbox');
+            if (existing) existing.remove();
+            const lb = document.createElement('div');
+            lb.id = 'gallery-lightbox';
+            lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;';
+            lb.innerHTML = `
+                <button onclick="document.getElementById('gallery-lightbox').remove()" style="position:absolute;top:1rem;left:1rem;color:white;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:2.5rem;height:2.5rem;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+                <div id="lb-img-wrap" style="max-width:90vw;max-height:80vh;display:flex;align-items:center;justify-content:center;">
+                    <img id="lb-img" src="${images[current].image_url}" style="max-width:90vw;max-height:75vh;object-fit:contain;border-radius:0.75rem;">
+                </div>
+                <div id="lb-caption" style="color:rgba(255,255,255,0.8);font-size:0.85rem;margin-top:0.75rem;text-align:center;min-height:1.2em;">${images[current].caption || ''}</div>
+                <div style="display:flex;gap:1rem;margin-top:1rem;">
+                    <button id="lb-prev" onclick="lbNav(-1)" style="color:white;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:2.5rem;height:2.5rem;font-size:1.2rem;cursor:pointer;">‹</button>
+                    <button id="lb-next" onclick="lbNav(1)" style="color:white;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:2.5rem;height:2.5rem;font-size:1.2rem;cursor:pointer;">›</button>
+                </div>`;
+            document.body.appendChild(lb);
+            lb.addEventListener('click', e => { if (e.target === lb) lb.remove(); });
+            window.lbNav = function(dir) {
+                const imgs = window._galleryImages || [];
+                current = (current + dir + imgs.length) % imgs.length;
+                document.getElementById('lb-img').src = imgs[current].image_url;
+                document.getElementById('lb-caption').textContent = imgs[current].caption || '';
+            };
         };
 
         window.toggleSideMenu = function(isOpen) {

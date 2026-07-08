@@ -2315,6 +2315,73 @@ async function loadSACommunityData() {
     } catch(e) { console.error('General error in loadSACommunityData:', e); }
 }
 
+window.loadSAArticles = async function() {
+    const listEl = getEl('sa-articles-list');
+    if (!listEl) return;
+    listEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">טוען...</p>';
+    try {
+        const res = await fetch(`${API}/sa/articles`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        const articles = data.articles || [];
+        if (!articles.length) { listEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">אין מאמרים</p>'; return; }
+        listEl.innerHTML = articles.map(a => {
+            const date = new Date(a.published_at).toLocaleDateString('he-IL');
+            return `<div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+                <div class="flex justify-between items-start gap-2">
+                    <div class="flex-1 min-w-0">
+                        <p class="font-bold text-slate-800 text-sm truncate">${safeStr(a.title)}</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">${date} · ${a.community_name ? safeStr(a.community_name) : 'כל הקהילות'}</p>
+                        <p class="text-xs text-slate-600 mt-1 line-clamp-2">${safeStr(a.body)}</p>
+                    </div>
+                    <button onclick="deleteSAArticle(${a.id})" class="bg-red-50 text-red-500 border border-red-100 px-2 py-1 rounded-lg text-[10px] font-bold hover:bg-red-100 transition shrink-0">מחק</button>
+                </div>
+            </div>`;
+        }).join('');
+        const sel = getEl('sa-article-community');
+        if (sel && sel.options.length <= 1) {
+            saCommunitiesCache.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name;
+                sel.appendChild(opt);
+            });
+        }
+    } catch(e) { if (listEl) listEl.innerHTML = '<p class="text-xs text-red-400 text-center py-4">שגיאה</p>'; }
+};
+
+window.publishSAArticle = async function() {
+    const title = (getEl('sa-article-title')?.value || '').trim();
+    const body = (getEl('sa-article-body')?.value || '').trim();
+    const image_url = (getEl('sa-article-image')?.value || '').trim() || null;
+    const community_id = getEl('sa-article-community')?.value || null;
+    if (!title || !body) { showToast('error', 'כותרת ותוכן הם שדות חובה'); return; }
+    try {
+        const res = await fetch(`${API}/sa/articles`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ title, body, image_url, community_id: community_id || null })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'המאמר פורסם בהצלחה!');
+            getEl('sa-article-title').value = '';
+            getEl('sa-article-body').value = '';
+            getEl('sa-article-image').value = '';
+            window.loadSAArticles();
+        } else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.deleteSAArticle = async function(id) {
+    if (!confirm('למחוק מאמר זה?')) return;
+    try {
+        const res = await fetch(`${API}/sa/articles/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'המאמר נמחק'); window.loadSAArticles(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
 function handleSmartCommSearch() {
     const input = getEl('sa-smart-comm-search');
     const resultsContainer = getEl('sa-smart-comm-results');

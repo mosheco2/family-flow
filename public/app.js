@@ -4112,6 +4112,49 @@ function switchFamCommunityTab(tab) {
     if (tab === 'manage') switchFamCommSubTab('join');
     if (tab === 'promos') loadCommunityFeed();
     if (tab === 'benefits') renderFamCommunityBenefits();
+    if (tab === 'news') {
+        const communityId = myConnectedCommunitiesCache?.[0]?.id;
+        if (communityId) loadCommunityArticles(communityId);
+    }
+}
+
+async function loadCommunityArticles(communityId) {
+    const container = document.getElementById('comm-articles-list');
+    if (!container) return;
+    container.innerHTML = '<p class="text-sm text-slate-400 text-center py-4">טוען מאמרים...</p>';
+    try {
+        const res = await fetch(`${API}/community/articles/${communityId}`);
+        const data = await res.json();
+        const articles = data.articles || [];
+        if (!articles.length) {
+            container.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">אין מאמרים עדיין</p>';
+            return;
+        }
+        container.innerHTML = articles.map(a => {
+            const date = new Date(a.published_at).toLocaleDateString('he-IL');
+            const isLong = (a.body || '').length > 200;
+            const shortBody = isLong ? a.body.slice(0, 200) + '...' : a.body;
+            const id = `article-body-${a.id}`;
+            return `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                ${a.image_url ? `<img src="${safeStr(a.image_url)}" class="w-full h-36 object-cover">` : ''}
+                <div class="p-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(a.title)}</h4>
+                        <span class="text-[10px] text-slate-400 shrink-0 ml-2">${date}</span>
+                    </div>
+                    <p id="${id}" class="text-xs text-slate-600 leading-relaxed">${safeStr(shortBody)}</p>
+                    ${isLong ? `<button onclick="
+                        const el=document.getElementById('${id}');
+                        const btn=this;
+                        if(btn.dataset.expanded){el.textContent='${safeStr(shortBody)}';delete btn.dataset.expanded;btn.textContent='קרא עוד'}
+                        else{el.textContent='${safeStr(a.body)}';btn.dataset.expanded=1;btn.textContent='הצג פחות'}"
+                        class="text-xs text-indigo-600 font-bold mt-1 hover:underline">קרא עוד</button>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) {
+        container.innerHTML = '<p class="text-sm text-red-400 text-center py-4">שגיאה בטעינת מאמרים</p>';
+    }
 }
 
 function switchFamCommSubTab(sub) {

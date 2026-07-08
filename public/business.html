@@ -1756,6 +1756,20 @@
                                     </div>
                                 </div>
 
+                                <!-- Gallery Section -->
+                                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                    <label class="text-xs font-bold text-slate-700 block mb-3"><i class="fa-solid fa-images text-indigo-500"></i> גלריית תמונות (עד 12)</label>
+                                    <div id="biz-gallery-grid" class="grid grid-cols-3 gap-2 mb-3"></div>
+                                    <div class="space-y-2">
+                                        <input type="text" id="biz-gallery-caption" class="modern-input py-2 text-sm" placeholder="כיתוב לתמונות (אופציונלי)">
+                                        <div class="flex gap-2">
+                                            <button type="button" onclick="document.getElementById('biz-gallery-file').click()" class="flex-1 bg-indigo-50 text-indigo-700 px-3 py-2 rounded-xl text-xs font-bold border border-indigo-100 hover:bg-indigo-100 transition"><i class="fa-solid fa-upload"></i> בחר תמונות</button>
+                                            <button type="button" onclick="uploadGalleryImages()" class="flex-1 bg-slate-800 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition"><i class="fa-solid fa-cloud-upload-alt"></i> העלה תמונות</button>
+                                        </div>
+                                        <input type="file" id="biz-gallery-file" accept="image/*" multiple class="hidden">
+                                    </div>
+                                </div>
+
                                 <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
                                     <label class="text-xs font-bold text-blue-800 block mb-1.5">קישור לחנות הציבורית שלכם:</label>
                                     <div class="flex gap-2">
@@ -3834,7 +3848,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=141" defer></script>
+    <script src="business-app.js?v=142" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
