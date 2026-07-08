@@ -8097,6 +8097,13 @@ app.put('/api/sa/communities/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.put('/api/sa/communities/:id/approve', verifySA, async (req, res) => {
+    try {
+        await pool.query("UPDATE communities SET status='active' WHERE id=$1", [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.delete('/api/sa/communities/:id', async (req, res) => {
     try {
         await pool.query('UPDATE family_groups SET community_id = NULL WHERE community_id = $1', [req.params.id]);

@@ -928,6 +928,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                                <select id="sa-filter-comm-count" onchange="filterSACommunities()" class="modern-input py-2 text-sm bg-slate-50 border-slate-200 shadow-sm w-full sm:w-auto outline-none focus:border-blue-500">
                                 <option value="all">כל הקהילות</option>
+                                <option value="pending">⏳ ממתינות לאישור</option>
                                 <option value="with_families">עם משפחות מחוברות</option>
                                 <option value="empty">ללא משפחות בכלל</option>
                                 <option value="sort_desc">לפי כמות (מהגבוה לנמוך)</option>
@@ -3247,7 +3248,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
       </div>
     </div>
 
-    <script src="sa-app.js?v=41"></script>
+    <script src="sa-app.js?v=42"></script>
     <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">

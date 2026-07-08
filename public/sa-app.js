@@ -309,7 +309,7 @@ window.loadSADashboard = async function() {
             if (p.zone_managers > 0) chips.push({ label: `🗺️ ${p.zone_managers} מנהלי אזור ממתינים`, color: 'bg-teal-50 border-teal-200 text-teal-700', fn: `switchSATab('partners');setTimeout(()=>{const el=document.getElementById('sa-pending-zm-list');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},300)` });
             if (p.unpaid_billing > 0) chips.push({ label: `💰 ${p.unpaid_billing} חשבוניות לא שולמו`, color: 'bg-yellow-50 border-yellow-200 text-yellow-700', fn: `switchSATab('finance');setTimeout(()=>switchViewTab('finance','dues'),200)` });
             if (p.promos > 0) chips.push({ label: `🎟️ ${p.promos} פרסומות קהילה ממתינות`, color: 'bg-pink-50 border-pink-200 text-pink-700', fn: `switchSATab('comm');setTimeout(()=>{switchViewTab('comm','manage');setTimeout(()=>{const el=document.getElementById('sa-pending-promos-container');if(el){el.classList.remove('hidden');el.scrollIntoView({behavior:'smooth',block:'start'})}},150)},200)` });
-            if (p.pending_communities > 0) chips.push({ label: `🌍 ${p.pending_communities} קהילות לאישור`, color: 'bg-teal-50 border-teal-200 text-teal-700', fn: `switchSATab('comm');setTimeout(()=>switchViewTab('comm','table'),200)` });
+            if (p.pending_communities > 0) chips.push({ label: `🌍 ${p.pending_communities} קהילות לאישור`, color: 'bg-teal-50 border-teal-200 text-teal-700', fn: `switchSATab('comm');setTimeout(()=>{switchViewTab('comm','table');setTimeout(()=>{const sel=document.getElementById('sa-filter-comm-count');if(sel){sel.value='pending';filterSACommunities();}},150)},200)` });
             if (p.pending_billing > 0) chips.push({ label: `⏳ ${p.pending_billing} תשלומים ממתינים לאישור`, color: 'bg-orange-50 border-orange-200 text-orange-700', fn: `switchSATab('finance');setTimeout(()=>switchViewTab('finance','adsbilling'),200)` });
 
             if (chips.length) {
@@ -2540,18 +2540,25 @@ function renderSACommunitiesTable() {
     let filtered = [...saCommunitiesCache];
     
     if (query) filtered = filtered.filter(c => (c.name && c.name.toLowerCase().includes(query)) || (c.code && c.code.toLowerCase().includes(query)) || (c.city && c.city.toLowerCase().includes(query)));
-    if (countFilter === 'with_families') filtered = filtered.filter(c => parseInt(c.family_count || 0) > 0);
+    if (countFilter === 'pending') filtered = filtered.filter(c => c.status === 'pending');
+    else if (countFilter === 'with_families') filtered = filtered.filter(c => parseInt(c.family_count || 0) > 0);
     else if (countFilter === 'empty') filtered = filtered.filter(c => parseInt(c.family_count || 0) === 0);
     else if (countFilter === 'sort_desc') filtered.sort((a, b) => parseInt(b.family_count || 0) - parseInt(a.family_count || 0));
     if (multiFilter) filtered = filtered.filter(c => c.city && c.city.split(',').filter(x => x.trim()).length >= 2);
     
     if (filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">לא נמצאו קהילות.</td></tr>`; return; }
     
-    tbody.innerHTML = filtered.map(c => `
-        <tr class="hover:bg-slate-50 transition border-b border-slate-50 last:border-0">
+    tbody.innerHTML = filtered.map(c => {
+        const isPending = c.status === 'pending';
+        const rowClass = isPending ? 'bg-amber-50 hover:bg-amber-100 border-b border-amber-100' : 'hover:bg-slate-50 border-b border-slate-50';
+        return `
+        <tr class="${rowClass} transition last:border-0">
             <td class="px-4 py-4 font-bold text-slate-800 text-right flex items-center gap-3">
                 ${c.image_url ? `<img src="${c.image_url}" class="w-8 h-8 rounded-lg object-cover shadow-sm shrink-0">` : `<div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-300 shrink-0"><i class="fa-solid fa-users"></i></div>`}
-                <div>${safeStr(c.name || 'ללא שם')}<div class="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-1 max-w-[200px] overflow-hidden">${(c.city || 'לא הוגדר').split(',').map(city => `<span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-500"><i class="fa-solid fa-location-dot text-orange-400"></i> ${city.trim()}</span>`).join('')}</div></div>
+                <div>
+                    <div class="flex items-center gap-2">${safeStr(c.name || 'ללא שם')}${isPending ? `<span class="bg-amber-200 text-amber-800 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase">⏳ ממתין לאישור</span>` : ''}</div>
+                    <div class="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-1 max-w-[200px] overflow-hidden">${(c.city || 'לא הוגדר').split(',').map(city => `<span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-500"><i class="fa-solid fa-location-dot text-orange-400"></i> ${city.trim()}</span>`).join('')}</div>
+                </div>
             </td>
             <td class="px-4 py-4 font-mono text-orange-600 font-bold tracking-widest text-right">${safeStr(c.code || '---')}</td>
             <td class="px-4 py-4 text-right"><div class="text-xs text-slate-600 mb-1"><span class="text-slate-400 font-bold ml-1">מייל:</span> ${safeStr(c.manager_email || '---')}</div><div class="text-xs text-slate-600"><span class="text-slate-400 font-bold ml-1">סיסמה:</span> ${safeStr(c.manager_password || '---')}</div></td>
@@ -2561,15 +2568,30 @@ function renderSACommunitiesTable() {
             </td>
             <td class="px-4 py-4 text-center">
                 <div class="flex flex-wrap gap-1.5 justify-center">
+                    ${isPending ? `<button onclick="approveSACommunity(${c.id})" class="bg-green-500 text-white hover:bg-green-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-check"></i> אשר</button>` : ''}
                     <button onclick="openSACommunityModal(${c.id})" class="bg-blue-100 text-blue-600 hover:bg-blue-200 px-2.5 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול</button>
                     <button onclick="openInterestTagsModal(${c.id},'${safeStr(c.name).replace(/'/g,"\\'")}')" class="bg-teal-100 text-teal-700 hover:bg-teal-200 px-2.5 py-1.5 rounded-lg text-xs font-bold transition" title="תגיות עניין">🏷️</button>
                 </div>
             </td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
 }
 
 function filterSACommunities() { renderSACommunitiesTable(); }
+
+async function approveSACommunity(id) {
+    if (!confirm('לאשר את הקהילה ולהפוך אותה לפעילה?')) return;
+    try {
+        const r = await fetch(`${API}/api/sa/communities/${id}/approve`, { method: 'PUT', headers: { Authorization: `Bearer ${saToken}` } });
+        const d = await r.json();
+        if (d.success) {
+            showToast('הקהילה אושרה בהצלחה ✅');
+            const c = saCommunitiesCache.find(x => x.id == id);
+            if (c) c.status = 'active';
+            renderSACommunitiesTable();
+        } else showToast('שגיאה באישור', 'error');
+    } catch(e) { showToast('שגיאת רשת', 'error'); }
+}
 
 async function openSACommunityModal(id) {
     const comm = saCommunitiesCache.find(c => c.id == id); if(!comm) return;
