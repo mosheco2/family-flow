@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OneFlow Life — אקוסיסטם עסקי</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:#04060f;color:#fff}
+
+/* ===== SLIDE ENGINE ===== */
+.slide{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;
+  transition:opacity .6s cubic-bezier(.4,0,.2,1), transform .6s cubic-bezier(.4,0,.2,1);
+  transform:translateX(-60px);
+  padding:4vw 6vw;
+  overflow:hidden;
+}
+.slide.active{opacity:1;pointer-events:all;transform:translateX(0)}
+.slide.out{opacity:0;transform:translateX(60px)}
+.slide::before{
+  content:'';position:absolute;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;opacity:.45;
+}
+
+/* ===== PROGRESS ===== */
+#progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#7c3aed,#10b981,#06b6d4);transition:width .4s ease;z-index:200}
+
+/* ===== NAV ===== */
+#nav{
+  position:fixed;bottom:1.8rem;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:.75rem;
+  background:rgba(255,255,255,.07);backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,.1);border-radius:9999px;
+  padding:.5rem 1.2rem;z-index:100;
+}
+.nav-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.22);cursor:pointer;transition:all .3s}
+.nav-dot.active{background:#7c3aed;transform:scale(1.6)}
+.nav-btn{background:none;border:none;color:rgba(255,255,255,.45);font-size:.95rem;cursor:pointer;padding:.2rem .4rem;transition:color .2s}
+.nav-btn:hover{color:#fff}
+#slide-num{font-size:.7rem;color:rgba(255,255,255,.32);min-width:42px;text-align:center}
+
+/* ===== ORB ===== */
+.orb{position:absolute;border-radius:50%;filter:blur(100px);pointer-events:none}
+
+/* ===== TYPOGRAPHY ===== */
+.tag{display:inline-flex;align-items:center;gap:.4rem;background:rgba(124,58,237,.18);border:1px solid rgba(124,58,237,.35);border-radius:9999px;padding:.28rem .9rem;font-size:.78rem;font-weight:700;color:#c4b5fd;margin-bottom:1.2rem}
+.tag.green{background:rgba(16,185,129,.15);border-color:rgba(16,185,129,.3);color:#6ee7b7}
+.tag.cyan{background:rgba(6,182,212,.15);border-color:rgba(6,182,212,.3);color:#67e8f9}
+.tag.amber{background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.3);color:#fcd34d}
+.tag.red{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3);color:#fca5a5}
+.big{font-size:clamp(1.9rem,4.2vw,3.6rem);font-weight:900;line-height:1.1;margin-bottom:.9rem}
+.sub{font-size:clamp(.87rem,1.7vw,1.22rem);font-weight:400;color:rgba(255,255,255,.58);line-height:1.7;max-width:620px}
+.grad{background:linear-gradient(135deg,#7c3aed,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.grad-g{background:linear-gradient(135deg,#10b981,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.grad-a{background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.pill{display:inline-flex;align-items:center;gap:.35rem;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:9999px;padding:.3rem .85rem;font-size:.8rem;font-weight:600}
+
+/* ===== ANIMATE IN ===== */
+.slide.active .anim{animation:fadeUp .5s ease both}
+.slide.active .anim-1{animation-delay:.07s}
+.slide.active .anim-2{animation-delay:.17s}
+.slide.active .anim-3{animation-delay:.28s}
+.slide.active .anim-4{animation-delay:.42s}
+.slide.active .anim-5{animation-delay:.56s}
+.slide.active .anim-6{animation-delay:.7s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+@keyframes pulse-glow{0%,100%{box-shadow:0 0 40px rgba(124,58,237,.4)}50%{box-shadow:0 0 100px rgba(6,182,212,.6)}}
+@keyframes spin-slow{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes coin-pop{0%{transform:scale(.8) translateY(10px);opacity:0}60%{transform:scale(1.1) translateY(-4px)}100%{transform:scale(1) translateY(0);opacity:1}}
+
+/* ============================  SLIDE 1 — OPENER  ============================ */
+#s1{background:radial-gradient(ellipse at 60% 40%,#14063a 0%,#04060f 70%)}
+.logo-wrap{width:88px;height:88px;border-radius:22px;background:linear-gradient(135deg,#7c3aed,#06b6d4);display:flex;align-items:center;justify-content:center;margin:0 auto 1.8rem;animation:pulse-glow 3s ease-in-out infinite}
+.logo-wrap img{width:56px;height:56px;object-fit:contain;border-radius:14px}
+
+/* ============================  SLIDE 2 — VISION  ============================ */
+#s2{background:linear-gradient(135deg,#070c18,#04060f)}
+.three-worlds{display:grid;grid-template-columns:repeat(3,1fr);gap:1.4rem;max-width:840px;width:100%;margin-top:1.8rem}
+.world-card{border-radius:1.4rem;padding:1.8rem 1.3rem;text-align:center;position:relative;transition:.25s}
+.world-card:hover{transform:translateY(-4px)}
+.world-biz{background:linear-gradient(135deg,rgba(124,58,237,.22),rgba(124,58,237,.05));border:1px solid rgba(124,58,237,.35)}
+.world-fam{background:linear-gradient(135deg,rgba(6,182,212,.18),rgba(6,182,212,.04));border:1px solid rgba(6,182,212,.25)}
+.world-com{background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(16,185,129,.03));border:1px solid rgba(16,185,129,.22)}
+.world-ico{font-size:2.4rem;margin-bottom:.8rem}
+.world-title{font-size:1rem;font-weight:800;margin-bottom:.4rem}
+.world-desc{font-size:.73rem;color:rgba(255,255,255,.55);line-height:1.6}
+.center-badge{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#7c3aed,#06b6d4);color:white;font-size:.6rem;font-weight:800;padding:.22rem .75rem;border-radius:9999px;white-space:nowrap}
+.connector-line{display:flex;align-items:center;justify-content:center;gap:.2rem;margin-top:1.4rem}
+.cline{height:2px;background:linear-gradient(90deg,transparent,rgba(124,58,237,.5),rgba(6,182,212,.5),transparent);flex:1;max-width:140px}
+
+/* ============================  SLIDE 3 — BIZ MODULES  ============================ */
+#s3{background:linear-gradient(135deg,#060612,#08101a)}
+.mod-masonry{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;max-width:820px;width:100%;margin-top:1.4rem}
+.mcard{border-radius:1rem;padding:1rem .85rem;text-align:center;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);transition:.2s;cursor:default}
+.mcard:hover{background:rgba(124,58,237,.18);border-color:rgba(124,58,237,.4);transform:translateY(-3px)}
+.mcard .mc-ico{font-size:1.4rem;margin-bottom:.4rem}
+.mcard .mc-name{font-size:.72rem;font-weight:800;margin-bottom:.18rem}
+.mcard .mc-desc{font-size:.62rem;color:rgba(255,255,255,.42);line-height:1.4}
+
+/* ============================  SLIDE 4 — COIN ECONOMY  ============================ */
+#s4{background:radial-gradient(ellipse at 50% 80%,#1a1100 0%,#04060f 70%)}
+.coin-cols{display:grid;grid-template-columns:1fr 1.1fr;gap:3rem;align-items:center;max-width:920px;width:100%}
+.coin-visual{display:flex;flex-direction:column;align-items:center;gap:1.2rem}
+.big-coin{width:130px;height:130px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#fbbf24,#d97706);display:flex;align-items:center;justify-content:center;font-size:3rem;box-shadow:0 0 60px rgba(245,158,11,.4),inset 0 4px 12px rgba(255,255,255,.2);animation:float 3.5s ease-in-out infinite}
+.coin-flow{display:flex;flex-direction:column;gap:.55rem;width:100%}
+.coin-row{display:flex;align-items:center;gap:.75rem;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.18);border-radius:.85rem;padding:.75rem 1rem}
+.coin-ico{width:34px;height:34px;border-radius:9px;background:rgba(245,158,11,.15);display:flex;align-items:center;justify-content:center;color:#fbbf24;flex-shrink:0;font-size:.9rem}
+.coin-title{font-size:.82rem;font-weight:800;margin-bottom:.1rem}
+.coin-desc{font-size:.68rem;color:rgba(255,255,255,.48);line-height:1.4}
+
+/* ============================  SLIDE 5 — BANNER ADS  ============================ */
+#s5{background:linear-gradient(135deg,#040c18,#04060f)}
+.banner-layout{display:grid;grid-template-columns:1.2fr 1fr;gap:2.5rem;align-items:center;max-width:920px;width:100%}
+.banner-preview{background:#0d1117;border-radius:1.3rem;border:1px solid rgba(255,255,255,.1);overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.banner-preview-bar{background:#161b22;padding:.5rem .9rem;display:flex;align-items:center;gap:.4rem}
+.bpdot{width:9px;height:9px;border-radius:50%}
+.fake-feed{padding:1rem}
+.fake-post{background:rgba(255,255,255,.04);border-radius:.85rem;padding:.8rem;margin-bottom:.7rem;border:1px solid rgba(255,255,255,.06);font-size:.68rem;color:rgba(255,255,255,.5)}
+.fake-banner-slot{background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(6,182,212,.1));border:2px dashed rgba(124,58,237,.4);border-radius:.85rem;padding:1rem;text-align:center;margin-bottom:.7rem}
+.fake-banner-slot .fb-tag{font-size:.6rem;color:#c4b5fd;font-weight:800;margin-bottom:.4rem}
+.fake-banner-slot .fb-biz{font-size:.8rem;font-weight:800;color:#fff}
+.fake-banner-slot .fb-sub{font-size:.65rem;color:rgba(255,255,255,.55);margin-top:.15rem}
+.fake-banner-slot .fb-cta{display:inline-block;margin-top:.5rem;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:white;font-size:.65rem;font-weight:800;padding:.28rem .85rem;border-radius:9999px}
+.banner-info{display:flex;flex-direction:column;gap:.85rem}
+.bi-row{display:flex;align-items:flex-start;gap:.75rem;background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.13);border-radius:.85rem;padding:.85rem 1rem}
+.bi-ico{width:36px;height:36px;border-radius:9px;background:rgba(6,182,212,.12);display:flex;align-items:center;justify-content:center;color:#22d3ee;flex-shrink:0;font-size:.9rem}
+.bi-title{font-size:.82rem;font-weight:800;margin-bottom:.1rem}
+.bi-desc{font-size:.68rem;color:rgba(255,255,255,.48);line-height:1.45}
+
+/* ============================  SLIDE 6 — PRICING MAP  ============================ */
+#s6{background:linear-gradient(135deg,#08060f,#050c18)}
+.price-table-wrap{width:100%;max-width:860px;margin-top:1.4rem}
+.price-tbl{width:100%;border-collapse:collapse;font-size:.78rem}
+.price-tbl th{background:rgba(124,58,237,.2);padding:.7rem 1rem;font-weight:800;font-size:.72rem;border-bottom:1px solid rgba(124,58,237,.25)}
+.price-tbl td{padding:.65rem 1rem;border-bottom:1px solid rgba(255,255,255,.05);color:rgba(255,255,255,.75)}
+.price-tbl tr:hover td{background:rgba(255,255,255,.03)}
+.price-tbl .loc{font-weight:700;color:#fff}
+.price-tbl .coins{color:#fbbf24;font-weight:700}
+.price-tbl .cash{color:#34d399;font-weight:700}
+.tbl-wrap{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:1.1rem;overflow:hidden}
+.calc-note{display:flex;align-items:center;gap:.7rem;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.18);border-radius:.85rem;padding:.8rem 1.1rem;margin-top:1rem;font-size:.75rem;color:rgba(255,255,255,.7)}
+.calc-note i{color:#fbbf24;font-size:1rem;flex-shrink:0}
+
+/* ============================  SLIDE 7 — REDEMPTION FLOW  ============================ */
+#s7{background:linear-gradient(135deg,#060c14,#04060f)}
+.flow-cols{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start;max-width:920px;width:100%}
+.flow-steps{display:flex;flex-direction:column;gap:.75rem}
+.fstep{display:flex;align-items:flex-start;gap:.9rem;padding:.9rem 1rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:.9rem;position:relative}
+.fstep-num{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#06b6d4);display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:900;flex-shrink:0}
+.fstep-title{font-size:.82rem;font-weight:800;margin-bottom:.1rem}
+.fstep-desc{font-size:.68rem;color:rgba(255,255,255,.5);line-height:1.45}
+.payment-opts{display:flex;flex-direction:column;gap:.75rem}
+.popt{border-radius:1rem;padding:1.1rem 1.2rem;position:relative}
+.popt.coins{background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(245,158,11,.04));border:1px solid rgba(245,158,11,.3)}
+.popt.mixed{background:linear-gradient(135deg,rgba(124,58,237,.15),rgba(6,182,212,.05));border:1px solid rgba(124,58,237,.25)}
+.popt.cash{background:linear-gradient(135deg,rgba(16,185,129,.13),rgba(16,185,129,.03));border:1px solid rgba(16,185,129,.22)}
+.popt-title{font-size:.85rem;font-weight:800;margin-bottom:.25rem;display:flex;align-items:center;gap:.5rem}
+.popt-desc{font-size:.7rem;color:rgba(255,255,255,.52);line-height:1.5}
+.popt-badge{display:inline-block;font-size:.6rem;font-weight:800;padding:.18rem .6rem;border-radius:9999px;margin-right:.3rem}
+.badge-coins{background:rgba(245,158,11,.2);color:#fbbf24}
+.badge-cash{background:rgba(16,185,129,.18);color:#34d399}
+.badge-mixed{background:rgba(124,58,237,.2);color:#c4b5fd}
+
+/* ============================  SLIDE 8 — LEDGER / REPORTS  ============================ */
+#s8{background:linear-gradient(135deg,#040c10,#04060f)}
+.ledger-cols{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;max-width:920px;width:100%;align-items:start}
+.ledger-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:1.2rem;padding:1.3rem;overflow:hidden}
+.ledger-title-bar{display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;padding-bottom:.7rem;border-bottom:1px solid rgba(255,255,255,.07)}
+.ledger-title-bar .lti{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
+.ledger-title-bar .ltitle{font-size:.85rem;font-weight:800}
+.ledger-row{display:flex;justify-content:space-between;align-items:center;padding:.45rem 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.72rem}
+.ledger-row:last-child{border:none}
+.lr-label{color:rgba(255,255,255,.55)}
+.lr-val{font-weight:700}
+.lr-green{color:#34d399}
+.lr-amber{color:#fbbf24}
+.lr-blue{color:#60a5fa}
+.report-kpis{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-top:.8rem}
+.rkpi{background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:.85rem;padding:.9rem;text-align:center}
+.rkpi .rv{font-size:1.6rem;font-weight:900;line-height:1}
+.rkpi .rl{font-size:.65rem;color:rgba(255,255,255,.45);margin-top:.2rem}
+.sig-box{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:.85rem;padding:.9rem 1rem;margin-top:.8rem;display:flex;align-items:center;gap:.75rem;font-size:.72rem}
+.sig-ico{font-size:1.4rem}
+
+/* ============================  SLIDE 9 — ZONE MANAGER  ============================ */
+#s9{background:linear-gradient(135deg,#040e10,#04060f)}
+.zone-layout{display:grid;grid-template-columns:1.1fr 1fr;gap:2.5rem;align-items:start;max-width:920px;width:100%}
+.zone-map{background:#0d1117;border-radius:1.2rem;border:1px solid rgba(6,182,212,.15);padding:1.3rem;position:relative}
+.zone-title{font-size:.8rem;font-weight:800;margin-bottom:1rem;color:#22d3ee;display:flex;align-items:center;gap:.4rem}
+.community-chips{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.8rem}
+.cc{display:inline-flex;align-items:center;gap:.35rem;border-radius:.6rem;padding:.4rem .7rem;font-size:.68rem;font-weight:700;cursor:default;transition:.2s}
+.cc:hover{transform:scale(1.05)}
+.cc-a{background:rgba(124,58,237,.2);border:1px solid rgba(124,58,237,.3);color:#c4b5fd}
+.cc-b{background:rgba(6,182,212,.15);border:1px solid rgba(6,182,212,.25);color:#67e8f9}
+.cc-c{background:rgba(16,185,129,.13);border:1px solid rgba(16,185,129,.22);color:#6ee7b7}
+.cc-d{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.2);color:#fcd34d}
+.zone-stat-row{display:flex;gap:.6rem;margin-top:.8rem}
+.zs{flex:1;background:rgba(255,255,255,.04);border-radius:.75rem;padding:.7rem;text-align:center}
+.zs .zv{font-size:1.3rem;font-weight:900}
+.zs .zl{font-size:.62rem;color:rgba(255,255,255,.42);margin-top:.1rem}
+.zone-features{display:flex;flex-direction:column;gap:.7rem}
+.zf{display:flex;align-items:flex-start;gap:.75rem;background:rgba(6,182,212,.05);border:1px solid rgba(6,182,212,.12);border-radius:.85rem;padding:.8rem 1rem}
+.zf-ico{width:34px;height:34px;border-radius:9px;background:rgba(6,182,212,.1);display:flex;align-items:center;justify-content:center;color:#22d3ee;flex-shrink:0;font-size:.85rem}
+.zf-title{font-size:.8rem;font-weight:800;margin-bottom:.1rem}
+.zf-desc{font-size:.67rem;color:rgba(255,255,255,.48);line-height:1.4}
+
+/* ============================  SLIDE 10 — COMMUNITY CONTENT  ============================ */
+#s10{background:linear-gradient(135deg,#060f0a,#04060f)}
+.content-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;max-width:860px;width:100%;margin-top:1.5rem}
+.cg-card{border-radius:1.2rem;padding:1.4rem 1.2rem;text-align:center;transition:.22s}
+.cg-card:hover{transform:translateY(-4px)}
+.cg-a{background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(124,58,237,.04));border:1px solid rgba(124,58,237,.3)}
+.cg-b{background:linear-gradient(135deg,rgba(6,182,212,.17),rgba(6,182,212,.04));border:1px solid rgba(6,182,212,.22)}
+.cg-c{background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(16,185,129,.04));border:1px solid rgba(16,185,129,.22)}
+.cg-ico{font-size:2.2rem;margin-bottom:.75rem}
+.cg-title{font-size:.9rem;font-weight:800;margin-bottom:.35rem}
+.cg-sub{font-size:.7rem;color:rgba(255,255,255,.52);line-height:1.6;margin-bottom:.8rem}
+.cg-roles{display:flex;flex-wrap:wrap;gap:.3rem;justify-content:center}
+.role-tag{font-size:.6rem;font-weight:800;padding:.18rem .55rem;border-radius:9999px}
+.role-sa{background:rgba(124,58,237,.2);color:#c4b5fd}
+.role-zm{background:rgba(6,182,212,.15);color:#67e8f9}
+.role-cm{background:rgba(16,185,129,.15);color:#6ee7b7}
+
+/* ============================  SLIDE 11 — SUPER ADMIN  ============================ */
+#s11{background:linear-gradient(135deg,#0a0420,#04060f)}
+.sa-cols{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;align-items:start;max-width:920px;width:100%}
+.sa-features{display:flex;flex-direction:column;gap:.75rem}
+.sa-row{display:flex;align-items:flex-start;gap:.8rem;background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.15);border-radius:.85rem;padding:.85rem 1rem}
+.sa-ico{width:36px;height:36px;border-radius:9px;background:rgba(124,58,237,.15);display:flex;align-items:center;justify-content:center;color:#a78bfa;flex-shrink:0;font-size:.9rem}
+.sa-title{font-size:.82rem;font-weight:800;margin-bottom:.1rem}
+.sa-desc{font-size:.68rem;color:rgba(255,255,255,.48);line-height:1.45}
+.sa-panel-preview{background:#0d1117;border-radius:1.2rem;border:1px solid rgba(124,58,237,.2);overflow:hidden}
+.sa-panel-bar{background:#161b22;padding:.5rem .9rem;display:flex;align-items:center;gap:.4rem;font-size:.65rem;color:#6b7280}
+.sa-panel-inner{padding:1rem}
+.sa-stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem;margin-bottom:.8rem}
+.sa-stat{background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.2);border-radius:.75rem;padding:.7rem;text-align:center}
+.sa-stat .sv{font-size:1.4rem;font-weight:900;color:#c4b5fd}
+.sa-stat .sl{font-size:.6rem;color:rgba(255,255,255,.4);margin-top:.1rem}
+.sa-ledger-item{display:flex;justify-content:space-between;align-items:center;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.68rem}
+.sa-ledger-item:last-child{border:none}
+
+/* ============================  SLIDE 12 — CTA  ============================ */
+#s12{background:radial-gradient(ellipse at 40% 60%,#14063a 0%,#04060f 70%)}
+.cta-wrap{text-align:center;position:relative;z-index:1;max-width:700px;width:100%}
+.cta-big{font-size:clamp(2.4rem,4.8vw,4rem);font-weight:900;line-height:1.08;margin-bottom:1rem}
+.ecosystem-pills{display:flex;align-items:center;justify-content:center;gap:.75rem;flex-wrap:wrap;margin:1.4rem 0 1.8rem}
+.ep{display:inline-flex;align-items:center;gap:.4rem;border-radius:9999px;padding:.38rem .95rem;font-size:.78rem;font-weight:700;border:1px solid}
+.ep-biz{background:rgba(124,58,237,.15);border-color:rgba(124,58,237,.35);color:#c4b5fd}
+.ep-fam{background:rgba(6,182,212,.12);border-color:rgba(6,182,212,.25);color:#67e8f9}
+.ep-com{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.22);color:#6ee7b7}
+.ep-coin{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.22);color:#fcd34d}
+.cta-btn-primary{display:inline-flex;align-items:center;gap:.6rem;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:white;font-weight:800;font-size:1rem;padding:.9rem 2.2rem;border-radius:9999px;text-decoration:none;box-shadow:0 10px 35px rgba(124,58,237,.45);transition:.2s;margin:.4rem}
+.cta-btn-primary:hover{transform:translateY(-3px);box-shadow:0 14px 45px rgba(124,58,237,.6)}
+.cta-btn-sec{display:inline-flex;align-items:center;gap:.6rem;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.2);color:white;font-weight:700;font-size:1rem;padding:.9rem 2.2rem;border-radius:9999px;text-decoration:none;transition:.2s;margin:.4rem}
+.cta-btn-sec:hover{background:rgba(255,255,255,.12)}
+.cta-sub{font-size:.82rem;color:rgba(255,255,255,.4);margin-top:1.2rem}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<!-- ============================  SLIDE 1 — OPENER  ============================ -->
+<div class="slide active" id="s1">
+  <div class="orb" style="width:600px;height:600px;background:rgba(124,58,237,.12);top:-20%;right:-10%"></div>
+  <div class="orb" style="width:450px;height:450px;background:rgba(6,182,212,.08);bottom:-20%;left:-5%"></div>
+  <div style="text-align:center;position:relative;z-index:1;max-width:740px">
+    <div class="logo-wrap anim anim-1">
+      <img src="/images/oneflow-logo.png" alt="OneFlow" onerror="this.parentElement.innerHTML='<span style=font-size:2rem>⚡</span>'">
+    </div>
+    <div class="tag anim anim-2"><i class="fa-solid fa-network-wired"></i> פלטפורמת אקוסיסטם עסקי</div>
+    <div class="big anim anim-3">
+      OneFlow Life<br>
+      <span class="grad">האקוסיסטם שמחבר הכל.</span>
+    </div>
+    <div class="sub anim anim-4" style="margin:0 auto 1.4rem">
+      עסקים · משפחות · קהילות — פלטפורמה חכמה אחת עם כלכלת מטבעות, פרסום ממוקד, וניהול אזורי מלא.
+    </div>
+    <div class="anim anim-5" style="display:flex;justify-content:center;gap:.75rem;flex-wrap:wrap">
+      <span class="pill"><i class="fa-solid fa-store" style="color:#7c3aed"></i> BIZ</span>
+      <span class="pill"><i class="fa-solid fa-house-heart" style="color:#06b6d4"></i> FAMILY</span>
+      <span class="pill"><i class="fa-solid fa-people-group" style="color:#10b981"></i> קהילה</span>
+      <span class="pill"><i class="fa-solid fa-coins" style="color:#f59e0b"></i> מטבעות</span>
+      <span class="pill"><i class="fa-solid fa-rectangle-ad" style="color:#ec4899"></i> פרסום</span>
+      <span class="pill"><i class="fa-solid fa-robot" style="color:#a78bfa"></i> AI</span>
+    </div>
+    <div class="anim anim-6" style="margin-top:1.2rem;font-size:.75rem;color:rgba(255,255,255,.3)">
+      לחץ ← → לניווט · swipe במובייל
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 2 — VISION  ============================ -->
+<div class="slide" id="s2">
+  <div class="orb" style="width:500px;height:500px;background:rgba(124,58,237,.09);top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+  <div style="text-align:center;position:relative;z-index:1;width:100%;max-width:880px">
+    <div class="tag anim anim-1"><i class="fa-solid fa-earth-asia"></i> הוויזיה</div>
+    <div class="big anim anim-2">שלושה עולמות.<br><span class="grad">פלטפורמה אחת.</span></div>
+    <div class="sub anim anim-3" style="margin:0 auto .8rem">הלקוח שלך הוא גם בעל עסק, גם ראש משפחה, וגם חבר קהילה — OneFlow נותן מענה לכל מעגלי החיים שלו.</div>
+    <div class="three-worlds anim anim-4">
+      <div class="world-card world-biz">
+        <div class="center-badge">⭐ הלב</div>
+        <div class="world-ico">🏪</div>
+        <div class="world-title">BIZ — ניהול עסקי</div>
+        <div class="world-desc">קופה, מלאי, עובדים, לקוחות, כספים, פרסום — ניהול עסקי מלא מהנייד</div>
+      </div>
+      <div class="world-card world-fam">
+        <div class="world-ico">👨‍👩‍👧‍👦</div>
+        <div class="world-title">FAMILY — ניהול משפחה</div>
+        <div class="world-desc">תקציב, חיסכון, משימות, קניות, לוח שנה — חיי משפחה מאורגנים</div>
+      </div>
+      <div class="world-card world-com">
+        <div class="world-ico">🤝</div>
+        <div class="world-title">COMMUNITY — קהילה</div>
+        <div class="world-desc">ניהול קהילות, תוכן, אירועים, מטבעות חברתיים, ניהול אזורי</div>
+      </div>
+    </div>
+    <div class="connector-line anim anim-5">
+      <div class="cline"></div>
+      <span style="font-size:.72rem;color:rgba(255,255,255,.3);padding:0 .5rem">מחוברים דרך מטבעות ופרסום חכם</span>
+      <div class="cline"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 3 — BIZ MODULES  ============================ -->
+<div class="slide" id="s3">
+  <div class="orb" style="width:400px;height:400px;background:rgba(6,182,212,.07);top:-10%;left:-8%"></div>
+  <div style="text-align:center;position:relative;z-index:1;width:100%;max-width:860px">
+    <div class="tag anim anim-1"><i class="fa-solid fa-grid-2"></i> מודולי BIZ</div>
+    <div class="big anim anim-2">12 מודולים.<br><span class="grad">עסק אחד שלם.</span></div>
+    <div class="mod-masonry anim anim-3">
+      <div class="mcard"><div class="mc-ico">📊</div><div class="mc-name">לוח בקרה</div><div class="mc-desc">KPI ואנליטיקה בזמן אמת</div></div>
+      <div class="mcard"><div class="mc-ico">💰</div><div class="mc-name">קופה</div><div class="mc-desc">מכירה מהירה, ברקוד, חשבוניות</div></div>
+      <div class="mcard"><div class="mc-ico">🛍️</div><div class="mc-name">חנות ציבורית</div><div class="mc-desc">חנות אונליין, תצוגת מוצרים</div></div>
+      <div class="mcard"><div class="mc-ico">📦</div><div class="mc-name">מלאי חכם</div><div class="mc-desc">מעקב, התראות, AI מתכונים</div></div>
+      <div class="mcard"><div class="mc-ico">🛒</div><div class="mc-name">רכש</div><div class="mc-desc">הזמנות ספקים, הצעות מחיר</div></div>
+      <div class="mcard"><div class="mc-ico">🍽️</div><div class="mc-name">פוד קוסט</div><div class="mc-desc">חישוב עלות מנה אוטומטי</div></div>
+      <div class="mcard"><div class="mc-ico">👥</div><div class="mc-name">לקוחות CRM</div><div class="mc-desc">תיקי לקוחות, נאמנות, תורים</div></div>
+      <div class="mcard"><div class="mc-ico">💳</div><div class="mc-name">כספים</div><div class="mc-desc">תזרים, הוצאות, דוחות</div></div>
+      <div class="mcard"><div class="mc-ico">⏱️</div><div class="mc-name">נוכחות</div><div class="mc-desc">שעון, משמרות, שכר עובדים</div></div>
+      <div class="mcard"><div class="mc-ico">📅</div><div class="mc-name">תורים</div><div class="mc-desc">הזמנה עצמית, תזכורות SMS</div></div>
+      <div class="mcard"><div class="mc-ico">🎓</div><div class="mc-name">הכשרות</div><div class="mc-desc">קורסים פנימיים לעובדים</div></div>
+      <div class="mcard" style="background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(6,182,212,.08));border-color:rgba(124,58,237,.35)"><div class="mc-ico">🤖</div><div class="mc-name">AI</div><div class="mc-desc">תחזיות, שיווק, ייעוץ חכם</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 4 — COIN ECONOMY  ============================ -->
+<div class="slide" id="s4">
+  <div class="orb" style="width:450px;height:450px;background:rgba(245,158,11,.08);bottom:-15%;right:-10%"></div>
+  <div class="coin-cols">
+    <div>
+      <div class="tag amber anim anim-1"><i class="fa-solid fa-coins"></i> כלכלת מטבעות</div>
+      <div class="big anim anim-2">מטבעות שיוצרים<br><span class="grad-a">נאמנות אמיתית.</span></div>
+      <div class="sub anim anim-3">לקוחות צוברים מטבעות על כל רכישה, ביקור, המלצה — ומממשים אותם בעסקים ובפרסום.</div>
+      <div class="coin-flow anim anim-4">
+        <div class="coin-row">
+          <div class="coin-ico"><i class="fa-solid fa-plus"></i></div>
+          <div><div class="coin-title">צבירה</div><div class="coin-desc">רכישות, ביקורים, המלצות, אירועי קהילה — כל פעולה מצברת מטבעות</div></div>
+        </div>
+        <div class="coin-row">
+          <div class="coin-ico"><i class="fa-solid fa-rotate"></i></div>
+          <div><div class="coin-title">מחזוריות</div><div class="coin-desc">מטבעות זורמים בין עסקים, משפחות וקהילות — כלכלה מקומית חיה</div></div>
+        </div>
+        <div class="coin-row">
+          <div class="coin-ico"><i class="fa-solid fa-fire"></i></div>
+          <div><div class="coin-title">מימוש</div><div class="coin-desc">הנחות, פרסים, פרסום עסקי, שירותים — מימוש גמיש ומיידי</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="coin-visual anim anim-3">
+      <div class="big-coin">🪙</div>
+      <div style="text-align:center">
+        <div style="font-size:2.4rem;font-weight:900;color:#fbbf24">1 מטבע</div>
+        <div style="font-size:.8rem;color:rgba(255,255,255,.5);margin-top:.3rem">= ערך ריאלי בתוך האקוסיסטם</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;width:100%;margin-top:.5rem">
+        <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:.85rem;padding:.85rem;text-align:center">
+          <div style="font-size:1.5rem;font-weight:900;color:#fbbf24">∞</div>
+          <div style="font-size:.65rem;color:rgba(255,255,255,.45);margin-top:.2rem">לא פג תוקף</div>
+        </div>
+        <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:.85rem;padding:.85rem;text-align:center">
+          <div style="font-size:1.5rem;font-weight:900;color:#fbbf24">🔒</div>
+          <div style="font-size:.65rem;color:rgba(255,255,255,.45);margin-top:.2rem">בלוקצ'יין מאובטח</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 5 — BANNER ADS  ============================ -->
+<div class="slide" id="s5">
+  <div class="orb" style="width:400px;height:400px;background:rgba(6,182,212,.08);top:-15%;left:-5%"></div>
+  <div class="banner-layout">
+    <div>
+      <div class="tag cyan anim anim-1"><i class="fa-solid fa-rectangle-ad"></i> פרסום עסקי בבאנרים</div>
+      <div class="big anim anim-2">פרסום ממוקד<br><span class="grad">לקהילה שלך.</span></div>
+      <div class="sub anim anim-3">עסקים רוכשים שטחי פרסום בחדשות הקהילה — ממוקד לאזור, לקהל, לתקופה.</div>
+      <div class="banner-info anim anim-4">
+        <div class="bi-row">
+          <div class="bi-ico"><i class="fa-solid fa-map-pin"></i></div>
+          <div><div class="bi-title">ממוקד לפי אזור וקהילה</div><div class="bi-desc">בחר אזורים, קהילות ומשפחות ספציפיות — הבאנר מופיע בפיד הרלוונטי בלבד</div></div>
+        </div>
+        <div class="bi-row">
+          <div class="bi-ico"><i class="fa-solid fa-calendar-days"></i></div>
+          <div><div class="bi-title">תמחור לפי מיקום ותקופה</div><div class="bi-desc">בחירת פרמיום (ראש הפיד), סטנדרט, ספוט — מחיר משתנה לפי ביקוש</div></div>
+        </div>
+        <div class="bi-row">
+          <div class="bi-ico"><i class="fa-solid fa-coins"></i></div>
+          <div><div class="bi-title">תשלום במטבעות / כסף / שילוב</div><div class="bi-desc">גמישות מלאה: מטבעות, כסף, או שילוב — מחשבון עלויות מובנה</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="banner-preview anim anim-3">
+      <div class="banner-preview-bar">
+        <div class="bpdot" style="background:#ef4444"></div>
+        <div class="bpdot" style="background:#f59e0b"></div>
+        <div class="bpdot" style="background:#22c55e"></div>
+        <span style="margin-right:auto;font-size:.62rem;color:#4b5563">חדשות הקהילה</span>
+      </div>
+      <div class="fake-feed">
+        <div class="fake-post">📢 <strong>עדכון קהילה:</strong> אסיפת דיירים ביום ג׳ בשעה 19:00...</div>
+        <div class="fake-banner-slot">
+          <div class="fb-tag">✨ מומלץ לקהילה שלך</div>
+          <div class="fb-biz">🍕 פיצה ג׳ובאני</div>
+          <div class="fb-sub">פיצה אמיתית · כרמיאל · שינוי</div>
+          <div class="fb-cta">הזמן עכשיו →</div>
+        </div>
+        <div class="fake-post">🎉 <strong>סוכרייה בהצלחה</strong> לנועה ויוני על...</div>
+        <div class="fake-post" style="border:1px dashed rgba(6,182,212,.3);color:rgba(6,182,212,.6);font-size:.65rem;text-align:center;padding:.6rem">⬜ שטח פרסום פנוי — ₪290/שבוע</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 6 — PRICING MAP  ============================ -->
+<div class="slide" id="s6">
+  <div style="text-align:center;position:relative;z-index:1;width:100%;max-width:880px">
+    <div class="tag amber anim anim-1"><i class="fa-solid fa-tags"></i> מפת עלויות פרסום</div>
+    <div class="big anim anim-2">מחירון שקוף.<br><span class="grad-a">ערך ברור לעסק.</span></div>
+    <div class="price-table-wrap anim anim-3">
+      <div class="tbl-wrap">
+        <table class="price-tbl">
+          <thead>
+            <tr>
+              <th>מיקום באנר</th>
+              <th>קהילה / אזור</th>
+              <th>תקופה</th>
+              <th>🪙 מטבעות</th>
+              <th>💵 כסף</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="loc">🥇 פרמיום — ראש הפיד</td>
+              <td>עד 500 משפחות</td>
+              <td>שבוע</td>
+              <td class="coins">1,200</td>
+              <td class="cash">₪490</td>
+            </tr>
+            <tr>
+              <td class="loc">🥈 סטנדרט — אמצע הפיד</td>
+              <td>עד 500 משפחות</td>
+              <td>שבוע</td>
+              <td class="coins">700</td>
+              <td class="cash">₪290</td>
+            </tr>
+            <tr>
+              <td class="loc">🥉 ספוט — תחתית הפיד</td>
+              <td>עד 500 משפחות</td>
+              <td>שבוע</td>
+              <td class="coins">400</td>
+              <td class="cash">₪160</td>
+            </tr>
+            <tr style="background:rgba(124,58,237,.05)">
+              <td class="loc">🥇 פרמיום — אזור שלם</td>
+              <td>כל הקהילות באזור</td>
+              <td>חודש</td>
+              <td class="coins">8,000</td>
+              <td class="cash">₪2,900</td>
+            </tr>
+            <tr style="background:rgba(124,58,237,.05)">
+              <td class="loc">🥈 סטנדרט — אזור שלם</td>
+              <td>כל הקהילות באזור</td>
+              <td>חודש</td>
+              <td class="coins">4,500</td>
+              <td class="cash">₪1,600</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="calc-note anim anim-4">
+        <i class="fa-solid fa-calculator"></i>
+        <div><strong>מחשבון מובנה:</strong> בחר אזור + תקופה + יתרת מטבעות — המערכת מציגה מיד את עלות הפרסום ואפשרויות המימוש</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 7 — REDEMPTION FLOW  ============================ -->
+<div class="slide" id="s7">
+  <div class="orb" style="width:450px;height:450px;background:rgba(124,58,237,.08);top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+  <div style="width:100%;max-width:920px">
+    <div class="tag anim anim-1"><i class="fa-solid fa-rotate-right"></i> תהליך מימוש ופרסום</div>
+    <div class="big anim anim-2" style="margin-bottom:1.4rem">3 צעדים.<br><span class="grad">עסק מפורסם.</span></div>
+    <div class="flow-cols">
+      <div class="flow-steps anim anim-3">
+        <div class="fstep">
+          <div class="fstep-num">1</div>
+          <div><div class="fstep-title">בחירת שטח פרסום</div><div class="fstep-desc">העסק בוחר אזור, קהילות ספציפיות, מיקום בפיד ותקופת פרסום</div></div>
+        </div>
+        <div class="fstep">
+          <div class="fstep-num">2</div>
+          <div><div class="fstep-title">מחשבון עלויות</div><div class="fstep-desc">המערכת מחשבת: עלות כוללת, יתרת מטבעות, כמה יש לשלם בכסף</div></div>
+        </div>
+        <div class="fstep">
+          <div class="fstep-num">3</div>
+          <div><div class="fstep-title">אישור ופרסום</div><div class="fstep-desc">אישור תשלום + חתימה דיגיטלית — הבאנר עולה מיידית לפיד הקהילה</div></div>
+        </div>
+      </div>
+      <div class="payment-opts anim anim-4">
+        <div class="popt coins">
+          <div class="popt-title"><span class="popt-badge badge-coins">🪙 מטבעות</span> מימוש מלא</div>
+          <div class="popt-desc">יש מספיק מטבעות? ממש הכל — אפס הוצאה בכסף</div>
+        </div>
+        <div class="popt mixed">
+          <div class="popt-title"><span class="popt-badge badge-mixed">⚡ שילוב</span> מימוש חלקי</div>
+          <div class="popt-desc">משתמש במטבעות שיש + משלים את היתרה בכסף. הכי גמיש.</div>
+        </div>
+        <div class="popt cash">
+          <div class="popt-title"><span class="popt-badge badge-cash">💵 כסף</span> תשלום כספי</div>
+          <div class="popt-desc">תשלום מלא בכסף — ללא שימוש במטבעות בכלל</div>
+        </div>
+        <div style="background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:1rem;padding:.9rem 1rem;font-size:.72rem;color:rgba(255,255,255,.6)">
+          <strong style="color:#c4b5fd;display:block;margin-bottom:.35rem">✍️ חתימה דיגיטלית</strong>
+          כל עסקת פרסום מאושרת ע״י העסק בחתימה דיגיטלית ונשמרת בכרטסת הלקוח לצמיתות
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 8 — LEDGER / REPORTS  ============================ -->
+<div class="slide" id="s8">
+  <div class="orb" style="width:400px;height:400px;background:rgba(16,185,129,.06);bottom:-10%;left:-5%"></div>
+  <div style="width:100%;max-width:920px">
+    <div class="tag green anim anim-1"><i class="fa-solid fa-file-invoice-dollar"></i> כרטסת וגביה</div>
+    <div class="big anim anim-2">שקיפות מלאה.<br><span class="grad-g">כל שקל מתועד.</span></div>
+    <div class="ledger-cols anim anim-3">
+      <div>
+        <div class="ledger-card" style="margin-bottom:1rem">
+          <div class="ledger-title-bar">
+            <div class="lti" style="background:rgba(124,58,237,.15);color:#c4b5fd"><i class="fa-solid fa-user-tie"></i></div>
+            <div class="ltitle">כרטסת לקוח עסקי</div>
+          </div>
+          <div class="ledger-row"><span class="lr-label">פרסום ינואר — פרמיום</span><span class="lr-val lr-green">✓ שולם</span></div>
+          <div class="ledger-row"><span class="lr-label">פרסום פברואר — סטנדרט</span><span class="lr-val lr-amber">⏳ ממתין</span></div>
+          <div class="ledger-row"><span class="lr-label">רכישת מטבעות (×500)</span><span class="lr-val lr-blue">🪙 500</span></div>
+          <div class="ledger-row"><span class="lr-label">מימוש מטבעות — מרץ</span><span class="lr-val" style="color:#f87171">−300</span></div>
+          <div class="ledger-row"><span class="lr-label">יתרת מטבעות</span><span class="lr-val lr-amber" style="font-size:1rem">🪙 200</span></div>
+        </div>
+        <div class="sig-box">
+          <div class="sig-ico">✍️</div>
+          <div><strong style="display:block;margin-bottom:.2rem;color:#6ee7b7">חתימה דיגיטלית שמורה</strong>
+          כל אישור עסקה נשמר עם חתימת העסק, תאריך וסכום — ראיה מחייבת ברורה</div>
+        </div>
+      </div>
+      <div>
+        <div class="report-kpis" style="margin-bottom:.9rem">
+          <div class="rkpi"><div class="rv" style="color:#34d399">₪12,400</div><div class="rl">הכנסות פרסום — חודש</div></div>
+          <div class="rkpi"><div class="rv" style="color:#60a5fa">47</div><div class="rl">עסקים פעילים</div></div>
+          <div class="rkpi"><div class="rv" style="color:#fbbf24">🪙 8,300</div><div class="rl">מטבעות מומשו</div></div>
+          <div class="rkpi"><div class="rv" style="color:#f472b6">94%</div><div class="rl">שביעות רצון עסקים</div></div>
+        </div>
+        <div class="ledger-card">
+          <div class="ledger-title-bar">
+            <div class="lti" style="background:rgba(16,185,129,.15);color:#6ee7b7"><i class="fa-solid fa-chart-bar"></i></div>
+            <div class="ltitle">מרכז גביה — דיווח כללי</div>
+          </div>
+          <div class="ledger-row"><span class="lr-label">עסקים עם חוב פתוח</span><span class="lr-val" style="color:#f87171">3</span></div>
+          <div class="ledger-row"><span class="lr-label">חוב כולל לגבייה</span><span class="lr-val" style="color:#f87171">₪2,100</span></div>
+          <div class="ledger-row"><span class="lr-label">גבייה מוצלחת השבוע</span><span class="lr-val lr-green">₪8,750</span></div>
+          <div class="ledger-row"><span class="lr-label">מטבעות בהמתנה למימוש</span><span class="lr-val lr-amber">🪙 3,200</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 9 — ZONE MANAGER  ============================ -->
+<div class="slide" id="s9">
+  <div class="orb" style="width:400px;height:400px;background:rgba(6,182,212,.07);top:-10%;right:-8%"></div>
+  <div style="width:100%;max-width:920px">
+    <div class="tag cyan anim anim-1"><i class="fa-solid fa-map-location-dot"></i> ניהול אזור</div>
+    <div class="big anim anim-2">מנהל אזור.<br><span class="grad">שולט בכל הקהילות.</span></div>
+    <div class="zone-layout">
+      <div class="anim anim-3">
+        <div class="zone-map">
+          <div class="zone-title"><i class="fa-solid fa-map"></i> אזור צפון — קהילות</div>
+          <div class="community-chips">
+            <span class="cc cc-a">🏘️ קרית ביאליק</span>
+            <span class="cc cc-b">🏙️ חיפה מרכז</span>
+            <span class="cc cc-c">🌳 קרית מוצקין</span>
+            <span class="cc cc-d">🏖️ עכו</span>
+            <span class="cc cc-a">🏡 קרית אתא</span>
+            <span class="cc cc-b">🌿 נשר</span>
+            <span class="cc cc-c">🎓 טירת כרמל</span>
+            <span class="cc cc-d">⛪ קרית חיים</span>
+          </div>
+          <div class="zone-stat-row">
+            <div class="zs"><div class="zv" style="color:#22d3ee">8</div><div class="zl">קהילות</div></div>
+            <div class="zs"><div class="zv" style="color:#c4b5fd">1,240</div><div class="zl">משפחות</div></div>
+            <div class="zs"><div class="zv" style="color:#fbbf24">47</div><div class="zl">עסקים</div></div>
+            <div class="zs"><div class="zv" style="color:#34d399">₪12k</div><div class="zl">הכנסה/חודש</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="zone-features anim anim-4">
+        <div class="zf">
+          <div class="zf-ico"><i class="fa-solid fa-rectangle-ad"></i></div>
+          <div><div class="zf-title">ניהול שטחי פרסום</div><div class="zf-desc">שיוך באנרים לקהילות, ניהול לוח זמנים, אישור עסקאות פרסום</div></div>
+        </div>
+        <div class="zf">
+          <div class="zf-ico"><i class="fa-solid fa-coins"></i></div>
+          <div><div class="zf-title">עמלות ומטבעות</div><div class="zf-desc">הגדרת עמלות לעסקים ולקהילות, מעקב יתרות ומימושים</div></div>
+        </div>
+        <div class="zf">
+          <div class="zf-ico"><i class="fa-solid fa-newspaper"></i></div>
+          <div><div class="zf-title">פרסום תוכן</div><div class="zf-desc">פרסום מאמרים ועדכונים לכל קהילות האזור במכה אחת</div></div>
+        </div>
+        <div class="zf">
+          <div class="zf-ico"><i class="fa-solid fa-chart-pie"></i></div>
+          <div><div class="zf-title">דוחות אזוריים</div><div class="zf-desc">ריכוז ביצועים, הכנסות, גידול משתמשים לכל האזור</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 10 — COMMUNITY CONTENT  ============================ -->
+<div class="slide" id="s10">
+  <div class="orb" style="width:450px;height:450px;background:rgba(16,185,129,.07);top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+  <div style="text-align:center;position:relative;z-index:1;width:100%;max-width:860px">
+    <div class="tag green anim anim-1"><i class="fa-solid fa-newspaper"></i> תוכן קהילתי</div>
+    <div class="big anim anim-2">תוכן רלוונטי.<br><span class="grad-g">קהילה פעילה.</span></div>
+    <div class="sub anim anim-3" style="margin:0 auto 1.2rem">שלוש רמות ניהול תוכן — כל אחת עם גישה מותאמת לפרסום וניהול תוכן קהילתי</div>
+    <div class="content-grid anim anim-4">
+      <div class="cg-card cg-a">
+        <div class="cg-ico">👑</div>
+        <div class="cg-title">Super Admin</div>
+        <div class="cg-sub">פרסום לכל הקהילות במערכת, עריכה, מחיקה, אישור תוכן, ניהול כולל</div>
+        <div class="cg-roles"><span class="role-tag role-sa">Super Admin</span></div>
+      </div>
+      <div class="cg-card cg-b">
+        <div class="cg-ico">🗺️</div>
+        <div class="cg-title">מנהל אזור</div>
+        <div class="cg-sub">פרסום לקהילות האזור שלו, ניהול תוכן אזורי, דוחות ועדכונים</div>
+        <div class="cg-roles"><span class="role-tag role-zm">Zone Manager</span></div>
+      </div>
+      <div class="cg-card cg-c">
+        <div class="cg-ico">🏘️</div>
+        <div class="cg-title">מנהל קהילה</div>
+        <div class="cg-sub">פרסום לקהילה הספציפית שלו, תיאום אירועים, עדכונים שכונתיים</div>
+        <div class="cg-roles"><span class="role-tag role-cm">Community Manager</span></div>
+      </div>
+    </div>
+    <div class="anim anim-5" style="margin-top:1.1rem;display:flex;justify-content:center;gap:1rem;flex-wrap:wrap">
+      <span class="pill"><i class="fa-solid fa-pen-nib" style="color:#a78bfa"></i> כתיבת מאמרים</span>
+      <span class="pill"><i class="fa-solid fa-image" style="color:#22d3ee"></i> תמונות מוטמעות</span>
+      <span class="pill"><i class="fa-solid fa-calendar-check" style="color:#34d399"></i> פרסום מתוזמן</span>
+      <span class="pill"><i class="fa-solid fa-poll" style="color:#fbbf24"></i> סקרים</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 11 — SUPER ADMIN  ============================ -->
+<div class="slide" id="s11">
+  <div class="orb" style="width:400px;height:400px;background:rgba(124,58,237,.09);top:-10%;right:-5%"></div>
+  <div style="width:100%;max-width:920px">
+    <div class="tag anim anim-1"><i class="fa-solid fa-crown"></i> Super Admin — מרכז שליטה</div>
+    <div class="big anim anim-2">תמונה מלאה<br><span class="grad">של כל האקוסיסטם.</span></div>
+    <div class="sa-cols">
+      <div class="sa-features anim anim-3">
+        <div class="sa-row">
+          <div class="sa-ico"><i class="fa-solid fa-users-gear"></i></div>
+          <div><div class="sa-title">ניהול כל העסקים</div><div class="sa-desc">לוח שליטה לכל עסק במערכת, כרטסות, יתרות, היסטוריה</div></div>
+        </div>
+        <div class="sa-row">
+          <div class="sa-ico"><i class="fa-solid fa-building"></i></div>
+          <div><div class="sa-title">ניהול קהילות ואזורים</div><div class="sa-desc">הגדרת אזורים, קהילות, שיוך מנהלים, הגדרת שטחי פרסום</div></div>
+        </div>
+        <div class="sa-row">
+          <div class="sa-ico"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+          <div><div class="sa-title">מרכז גביה כולל</div><div class="sa-desc">דיווח על כל העסקאות, חובות, גביות, עסקים בפיגור</div></div>
+        </div>
+        <div class="sa-row">
+          <div class="sa-ico"><i class="fa-solid fa-sliders"></i></div>
+          <div><div class="sa-title">הגדרות מערכת</div><div class="sa-desc">ערך מטבע, עמלות, תמחור פרסום, הגדרות גלובליות</div></div>
+        </div>
+      </div>
+      <div class="sa-panel-preview anim anim-4">
+        <div class="sa-panel-bar">
+          <div class="bpdot" style="background:#ef4444"></div>
+          <div class="bpdot" style="background:#f59e0b"></div>
+          <div class="bpdot" style="background:#22c55e"></div>
+          <span style="margin-right:auto">Super Admin Dashboard</span>
+        </div>
+        <div class="sa-panel-inner">
+          <div class="sa-stat-grid">
+            <div class="sa-stat"><div class="sv">234</div><div class="sl">עסקים</div></div>
+            <div class="sa-stat"><div class="sv">18</div><div class="sl">אזורים</div></div>
+            <div class="sa-stat"><div class="sv">8,400</div><div class="sl">משפחות</div></div>
+            <div class="sa-stat"><div class="sv">₪48k</div><div class="sl">הכנסה/חודש</div></div>
+          </div>
+          <div style="font-size:.68rem;font-weight:800;color:rgba(255,255,255,.5);margin-bottom:.5rem">עסקאות אחרונות</div>
+          <div class="sa-ledger-item"><span style="color:rgba(255,255,255,.6)">פיצה ג׳ובאני — פרמיום אזור צפון</span><span style="color:#34d399">₪490</span></div>
+          <div class="sa-ledger-item"><span style="color:rgba(255,255,255,.6)">מרכז כושר גולד — 500 מטבעות</span><span style="color:#fbbf24">🪙−500</span></div>
+          <div class="sa-ledger-item"><span style="color:rgba(255,255,255,.6)">קפה חם — ספוט ×2 שבועות</span><span style="color:#60a5fa">₪320</span></div>
+          <div class="sa-ledger-item"><span style="color:rgba(255,255,255,.6)">ספא רויאל — מימוש מעורב</span><span style="color:#a78bfa">🪙350+₪80</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================  SLIDE 12 — CTA  ============================ -->
+<div class="slide" id="s12">
+  <div class="orb" style="width:600px;height:600px;background:rgba(124,58,237,.12);top:-20%;right:-10%"></div>
+  <div class="orb" style="width:400px;height:400px;background:rgba(16,185,129,.08);bottom:-15%;left:-5%"></div>
+  <div class="cta-wrap anim anim-1" style="margin:0 auto;text-align:center">
+    <div style="width:70px;height:70px;border-radius:18px;background:linear-gradient(135deg,#7c3aed,#06b6d4);display:flex;align-items:center;justify-content:center;margin:0 auto 1.4rem;animation:pulse-glow 3s ease-in-out infinite">
+      <img src="/images/oneflow-logo.png" alt="OneFlow" width="44" onerror="this.parentElement.innerHTML='⚡'" style="border-radius:10px;object-fit:contain">
+    </div>
+    <div class="tag anim anim-2" style="margin-bottom:1rem"><i class="fa-solid fa-rocket"></i> הצטרפו לאקוסיסטם</div>
+    <div class="cta-big anim anim-2">
+      הצטרפו ל<span class="grad">OneFlow</span><br>
+      ותהיו חלק מהמהפכה.
+    </div>
+    <div class="ecosystem-pills anim anim-3">
+      <span class="ep ep-biz">🏪 ניהול עסקי BIZ</span>
+      <span class="ep ep-fam">👨‍👩‍👧 FAMILY חיי משפחה</span>
+      <span class="ep ep-com">🤝 קהילה מחוברת</span>
+      <span class="ep ep-coin">🪙 כלכלת מטבעות</span>
+    </div>
+    <div class="anim anim-4" style="display:flex;justify-content:center;flex-wrap:wrap">
+      <a href="#" class="cta-btn-primary"><i class="fa-solid fa-play"></i> התחל ניסיון חינם</a>
+      <a href="#" class="cta-btn-sec"><i class="fa-solid fa-calendar"></i> קבע הדגמה</a>
+    </div>
+    <div class="cta-sub anim anim-5">
+      ✅ 30 יום ניסיון ללא עלות &nbsp;·&nbsp; ✅ ללא כרטיס אשראי &nbsp;·&nbsp; ✅ תמיכה בעברית 24/7
+    </div>
+    <div style="margin-top:1.2rem;font-size:.72rem;color:rgba(255,255,255,.22)" class="anim anim-6">
+      <img src="/images/oneflow-bot1.png" alt="bot" style="width:32px;vertical-align:middle;margin-left:.4rem;opacity:.5" onerror="this.remove()">
+      AI מלווה אותך בכל צעד
+    </div>
+  </div>
+</div>
+
+<!-- ============================  NAVIGATION  ============================ -->
+<div id="nav">
+  <button class="nav-btn" onclick="go(-1)"><i class="fa-solid fa-chevron-right"></i></button>
+  <div id="dots"></div>
+  <button class="nav-btn" onclick="go(1)"><i class="fa-solid fa-chevron-left"></i></button>
+  <span id="slide-num"></span>
+</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const N = slides.length;
+let cur = 0;
+
+function buildNav(){
+  const d = document.getElementById('dots');
+  d.innerHTML = '';
+  for(let i=0;i<N;i++){
+    const dot = document.createElement('div');
+    dot.className = 'nav-dot' + (i===cur?' active':'');
+    dot.onclick = ()=>goTo(i);
+    d.appendChild(dot);
+  }
+}
+
+function goTo(idx, dir){
+  if(idx<0||idx>=N||idx===cur) return;
+  const prev = cur;
+  slides[prev].classList.remove('active');
+  slides[prev].classList.add('out');
+  setTimeout(()=>{ slides[prev].classList.remove('out'); },650);
+  cur = idx;
+  slides[cur].classList.add('active');
+  document.getElementById('progress').style.width = ((cur+1)/N*100)+'%';
+  document.getElementById('slide-num').textContent = (cur+1)+' / '+N;
+  buildNav();
+}
+
+function go(d){ goTo(cur+d); }
+
+buildNav();
+document.getElementById('progress').style.width = (1/N*100)+'%';
+document.getElementById('slide-num').textContent = '1 / '+N;
+
+// keyboard
+document.addEventListener('keydown', e=>{
+  if(e.key==='ArrowLeft'||e.key==='ArrowDown') go(1);
+  else if(e.key==='ArrowRight'||e.key==='ArrowUp') go(-1);
+  else if(e.key===' ') { e.preventDefault(); go(1); }
+});
+
+// touch swipe
+let tx=0, ty=0;
+document.addEventListener('touchstart', e=>{ tx=e.touches[0].clientX; ty=e.touches[0].clientY; },{passive:true});
+document.addEventListener('touchend', e=>{
+  const dx = tx-e.changedTouches[0].clientX;
+  const dy = ty-e.changedTouches[0].clientY;
+  if(Math.abs(dx)>Math.abs(dy) && Math.abs(dx)>40){
+    go(dx>0?1:-1);
+  }
+},{passive:true});
+</script>
+</body>
+</html>
