@@ -551,20 +551,166 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
       </div>
 
       <h2 class="sec">לוח הבקרה — המסך הראשי</h2>
-      <p style="font-size:.87rem;color:var(--text2);">לוח הבקרה הוא הדף שנפתח בכל כניסה. הוא נותן מבט מהיר על מה שקורה עכשיו במסעדה:</p>
-      <div class="wys"><div class="wys-list">
-        <div class="wys-item">סיכום מכירות של היום — כמה הכנסנו עד עכשיו</div>
-        <div class="wys-item">הזמנות שממתינות לאישור או הכנה</div>
-        <div class="wys-item">התראות על מלאי נמוך — חומרי גלם שנגמרים</div>
-        <div class="wys-item">עובדים שנמצאים עכשיו במסעדה (ממנגנון הנוכחות)</div>
-        <div class="wys-item">ביקורות חדשות מאורחים</div>
-        <div class="wys-item">עדכונים ומשימות פתוחות</div>
-      </div></div>
+      <p style="font-size:.87rem;color:var(--text2);">לוח הבקרה הוא הדף הראשון שנפתח בכל כניסה למערכת. המראה שלו שונה לפי מי נכנס — מנהל רואה תמונה מלאה של המסעדה, ועובד רגיל רואה את הפרטים הנוגעים רק אליו.</p>
 
-      <div class="box box-tip" style="margin-top:12px;">
-        <div class="box-icon">💡</div>
-        <div>עובדים רגילים (לא מנהלים) רואים גרסה מצומצמת של לוח הבקרה — רק את המשמרות שלהם, הנוכחות האישית, והמשימות שהוקצו להם.</div>
+      <!-- ═══ מנהל ═══ -->
+      <h2 class="sec" style="margin-top:20px;">תצוגת מנהל (ADMIN)</h2>
+
+      <!-- כרטיס גיבור -->
+      <div class="mod" style="margin-top:10px;">
+        <div class="mod-head"><div class="mod-icon">💰</div><div><div class="mod-name">כרטיס סיכום עליון</div><div class="mod-tag">גלוי רק למנהל</div></div></div>
+        <div class="mod-body">
+          <p>בחלק העליון של הדף מופיע כרטיס כהה גדול עם נתוני המסעדה ברגע זה:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">יתרה נוכחית</div><div class="fr-val">סכום הכסף שנצבר היום עד עכשיו (הכנסות פחות תשלומים)</div></div>
+            <div class="field-row"><div class="fr-label">תאריך</div><div class="fr-val">היום לפי שעון המערכת</div></div>
+            <div class="field-row"><div class="fr-label">מכירות החודש</div><div class="fr-val">סכום כולל לחודש הנוכחי</div></div>
+            <div class="field-row"><div class="fr-label">כפתור רענון 🔄</div><div class="fr-val">לחיצה עליו מרעננת את הנתונים ומביאה את המספרים המעודכנים ביותר</div></div>
+          </div>
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div>אם רואים מספר שנראה שגוי — לחצו על כפתור הרענון לפני שמסיקים מסקנות. הנתונים מתעדכנים בזמן אמת, אך לפעמים דרוש רענון ידני.</div>
+          </div>
+        </div>
       </div>
+
+      <!-- אריחים מהירים -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">⚡</div><div><div class="mod-name">7 אריחים מהירים (Quick Tiles)</div><div class="mod-tag">פעולות המסעדה בלחיצה אחת</div></div></div>
+        <div class="mod-body">
+          <p>מתחת לכרטיס הסיכום מופיעות 7 קיצורי דרך. כל אחד פותח מסך ייעודי ישירות, ללא צורך בניווט בתפריט. מספר קטן (badge) מופיע על חלקם כשיש פריטים שמחכים לטיפול.</p>
+
+          <div class="steps">
+
+            <div class="step"><div class="step-n">1</div><div class="step-body">
+              <strong>שולחנות 🪑</strong>
+              <span>לחיצה פותחת מפת שולחנות בגודל מסך מלא. כל שולחן מוצג עם הסטטוס שלו (פנוי / תפוס / מחכה לחשבון). המסך מתרענן אוטומטית כל 10 שניות — אין צורך ללחוץ רענון ידנית. לסגירת המסך לחצו X בפינה.</span>
+            </div></div>
+
+            <div class="step"><div class="step-n">2</div><div class="step-body">
+              <strong>יומן 📅</strong>
+              <span>לחיצה פותחת את יומן ההזמנות והמשמרות. ניתן לראות אירועים לפי יום / שבוע, לבדוק מי עובד מתי, ולהוסיף הזמנות עתידיות לשולחן.</span>
+            </div></div>
+
+            <div class="step"><div class="step-n">3</div><div class="step-body">
+              <strong>KDS — מסך מטבח 🍳</strong>
+              <span>לחיצה פותחת את מסך המטבח בגודל מסך מלא על רקע שחור (מיועד לתנאי תאורה נמוכה). המסך מחולק ל-5 תחנות:</span>
+              <div class="field-table" style="margin-top:8px;">
+                <div class="field-row"><div class="fr-label">🔥 חם</div><div class="fr-val">מנות חמות — מרקים, בשרים, פסטות</div></div>
+                <div class="field-row"><div class="fr-label">🥗 קר</div><div class="fr-val">סלטים, קינוחים קרים</div></div>
+                <div class="field-row"><div class="fr-label">🥤 שתייה</div><div class="fr-val">משקאות וקוקטיילים</div></div>
+                <div class="field-row"><div class="fr-label">🍞 לחם</div><div class="fr-val">לחמים, פיתות, כריכים</div></div>
+                <div class="field-row"><div class="fr-label">📦 אחר</div><div class="fr-val">כל מה שלא משתייך לתחנה ספציפית</div></div>
+              </div>
+              <span style="display:block;margin-top:6px;">המסך מתרענן אוטומטית כל 30 שניות. כל הזמנה שנשלחת מהקופה מופיעה כאן תחת התחנה הנכונה. לסגירה לחצו X.</span>
+            </div></div>
+
+            <div class="step"><div class="step-n">4</div><div class="step-body">
+              <strong>מלאי 📦</strong>
+              <span>לחיצה עוברת ישירות לדף ניהול המלאי. ניתן לראות כמות קיימת, לעדכן אחסון, ולבדוק פריטים שעומדים להיגמר. פריטים עם מלאי נמוך יסומנו באדום.</span>
+            </div></div>
+
+            <div class="step"><div class="step-n">5</div><div class="step-body">
+              <strong>הזמנות 🛒</strong>
+              <span>לחיצה פותחת את רשימת כל ההזמנות הפתוחות. הספרה על הכפתור מראה כמה הזמנות ממתינות לטיפול. לחצו על הזמנה לפרטים המלאים שלה.</span>
+            </div></div>
+
+            <div class="step"><div class="step-n">6</div><div class="step-body">
+              <strong>פקודות עבודה 🔧</strong>
+              <span>לחיצה פותחת את רשימת המשימות הטכניות הפתוחות — תיקונים, בדיקות, תחזוקה. ניתן לראות מה פתוח, מה הושלם, ומי אחראי לכל פקודה.</span>
+            </div></div>
+
+            <div class="step"><div class="step-n">7</div><div class="step-body">
+              <strong>דוח יום 📊</strong>
+              <span>לחיצה פותחת חלון סיכום יומי עם:</span>
+              <div class="field-table" style="margin-top:8px;">
+                <div class="field-row"><div class="fr-label">KPIs יומיים</div><div class="fr-val">מספר עסקאות, סכום כולל, ממוצע לעסקה</div></div>
+                <div class="field-row"><div class="fr-label">פירוט תשלומים</div><div class="fr-val">כמה הגיע ממזומן, כרטיס, ביט, אפליקציה וכו'</div></div>
+                <div class="field-row"><div class="fr-label">Top 5 מנות</div><div class="fr-val">5 המנות שנמכרו הכי הרבה היום</div></div>
+                <div class="field-row"><div class="fr-label">ייצוא לאקסל ⬇️</div><div class="fr-val">לחצו על כפתור האקסל לשמירת הדוח כקובץ שאפשר לפתוח ב-Excel</div></div>
+              </div>
+            </div></div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI כרטיסי -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📈</div><div><div class="mod-name">כרטיסי KPI — מדדים עסקיים</div><div class="mod-tag">גלוי רק למנהל</div></div></div>
+        <div class="mod-body">
+          <p>מתחת לאריחים מופיעות שתי שורות של כרטיסי מדדים. לחיצה על כל כרטיס מנווטת לדף המלא הרלוונטי.</p>
+
+          <p style="font-weight:600;margin-top:12px;font-size:.88rem;">שורה ראשונה — מדדים כלליים (4 כרטיסים):</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">לקוחות</div><div class="fr-val">מספר הלקוחות הרשומים — לחיצה → מסך לקוחות</div></div>
+            <div class="field-row"><div class="fr-label">עובדים</div><div class="fr-val">מספר העובדים הפעילים — לחיצה → מסך עובדים</div></div>
+            <div class="field-row"><div class="fr-label">מוצרים / מנות</div><div class="fr-val">כמות הפריטים בתפריט — לחיצה → מסך תפריט</div></div>
+            <div class="field-row"><div class="fr-label">הכנסה חודשית</div><div class="fr-val">סה"כ מכירות החודש — לחיצה → דוחות</div></div>
+          </div>
+
+          <p style="font-weight:600;margin-top:16px;font-size:.88rem;">שורה שנייה — מדדי מסעדה ספציפיים (6 כרטיסים):</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">הזמנות היום</div><div class="fr-val">כמה הזמנות נפתחו היום — לחיצה → רשימת הזמנות</div></div>
+            <div class="field-row"><div class="fr-label">שולחנות תפוסים</div><div class="fr-val">כמה שולחנות בשימוש עכשיו — לחיצה → מפת שולחנות</div></div>
+            <div class="field-row"><div class="fr-label">ממוצע לעסקה</div><div class="fr-val">הסכום הממוצע לפר-הזמנה היום</div></div>
+            <div class="field-row"><div class="fr-label">פריטי מלאי נמוך</div><div class="fr-val">כמה חומרי גלם מתחת לסף — לחיצה → מלאי</div></div>
+            <div class="field-row"><div class="fr-label">פקודות עבודה פתוחות</div><div class="fr-val">משימות טכניות שממתינות — לחיצה → פקודות עבודה</div></div>
+            <div class="field-row"><div class="fr-label">עובדים ביומן היום</div><div class="fr-val">כמה עובדים מתוכננים לעבוד היום — לחיצה → יומן</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- התראות מלאי -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">⚠️</div><div><div class="mod-name">התראת מלאי נמוך</div><div class="mod-tag">מופיעה אוטומטית</div></div></div>
+        <div class="mod-body">
+          <p>אם יש חומרי גלם שירדו מתחת לסף המינימום שהוגדר — תופיע בלוח הבקרה קופסה כתומה / אדומה עם רשימת הפריטים. זוהי התראה אוטומטית שלא צריך לבקש — המערכת מציגה אותה מיד.</p>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>ראיתם קופסה כתומה "מלאי נמוך"?</strong><span>לחצו עליה — תועברו ישירות לרשימת הפריטים הבעייתיים במסך המלאי.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>עדכנו כמות</strong><span>בחרו פריט → הזינו כמות שהתקבלה → שמרו. ההתראה תיעלם ברגע שהכמות חזרה מעל הסף.</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ עובד ═══ -->
+      <h2 class="sec" style="margin-top:24px;">תצוגת עובד (MEMBER / SENIOR)</h2>
+      <p style="font-size:.87rem;color:var(--text2);">עובד שנכנס למערכת רואה מסך אחר לחלוטין — מותאם אישית רק לו. אין נתוני כסף, אין KPIs עסקיים.</p>
+
+      <div class="mod" style="margin-top:10px;">
+        <div class="mod-head"><div class="mod-icon">👋</div><div><div class="mod-name">המסך האישי של העובד</div><div class="mod-tag">גלוי רק לעובד שנכנס</div></div></div>
+        <div class="mod-body">
+
+          <p style="font-weight:600;margin-bottom:6px;font-size:.88rem;">מה מופיע על המסך:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">ברכת שלום</div><div class="fr-val">הודעת פתיחה עם שם העובד ושם המסעדה</div></div>
+            <div class="field-row"><div class="fr-label">סטטוס נוכחות</div><div class="fr-val">האם העובד כרגע "בפנים" (נרשמה כניסה) או "בחוץ"</div></div>
+            <div class="field-row"><div class="fr-label">לוח המשמרות</div><div class="fr-val">המשמרות שתוכננו לעובד לימים הקרובים</div></div>
+            <div class="field-row"><div class="fr-label">משימות אישיות</div><div class="fr-val">עד 6 משימות שהוקצו לעובד, עם סמל סטטוס (✅ בוצע / 🕐 פתוח / ❌ בעיה)</div></div>
+            <div class="field-row"><div class="fr-label">3 קישורים מהירים</div><div class="fr-val">קיצורי דרך לפעולות שכיחות לפי תפקיד העובד</div></div>
+          </div>
+
+          <p style="font-weight:600;margin-top:16px;margin-bottom:6px;font-size:.88rem;">איך מבצעים כניסה / יציאה מהמשמרת:</p>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הגעתם לעבודה?</strong><span>לחצו על כפתור "כניסה" (גדול, בולט, בצבע ירוק). המערכת תרשום את שעת הכניסה המדויקת אוטומטית.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>סיימתם משמרת?</strong><span>לחצו על כפתור "יציאה" (שהופיע במקום "כניסה"). המערכת תרשום את שעת היציאה ותחשב את שעות המשמרת.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>שכחתם לרשום כניסה?</strong><span>פנו למנהל — רק מנהל יכול לתקן רישום נוכחות באופן ידני.</span></div></div>
+          </div>
+
+          <p style="font-weight:600;margin-top:16px;margin-bottom:6px;font-size:.88rem;">איך לסמן משימה כבוצעה:</p>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>ראו משימה ברשימה?</strong><span>לחצו על שם המשימה — תיפתח חלונית עם פרטי המשימה.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>בצעתם אותה?</strong><span>לחצו "סמן כבוצע" — הסמל לצד המשימה ישתנה ל-✅.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>יש בעיה?</strong><span>לחצו "דווח על בעיה" — המנהל יקבל התראה אוטומטית.</span></div></div>
+          </div>
+
+          <div class="box box-tip" style="margin-top:12px;">
+            <div class="box-icon">💡</div>
+            <div>עובד בתפקיד SENIOR (ראש צוות) רואה מסך דומה לעובד רגיל, אבל עם מעט יותר אפשרויות — כגון צפייה בלוח המשמרות של הצוות שלו.</div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- ── 4. מכירות ── -->
