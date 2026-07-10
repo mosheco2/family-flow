@@ -721,42 +721,109 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
       <div class="mod">
         <div class="mod-head"><div class="mod-icon">💳</div><div><div class="mod-name">קופה — POS</div><div class="mod-tag">מכירות › קופה</div></div></div>
         <div class="mod-body">
-          <p>מסך הקופה הוא המקום שממנו מבצעים את כל המכירות — בדלפק, בשולחנות, או בטייק-אווי. כאן בונים את ההזמנה, מוסיפים מנות, ומסיימים בתשלום.</p>
+          <p>מסך הקופה הוא הלב התפעולי של המסעדה — כאן מקבלים הזמנות, שולחים למטבח, וסוגרים תשלום. הוא עובד הן בדלפק, הן בשולחנות, והן בטייק-אווי. כדי להגיע אליו: <strong>מכירות ← קופה</strong>.</p>
 
-          <h2 class="sec" style="margin-top:14px;">איך מבצעים מכירה?</h2>
+          <h2 class="sec" style="margin-top:16px;">א. מכירה רגילה — שלב אחר שלב</h2>
           <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>בחרו מנות</strong><span>לחצו על מנה בתפריט — היא מתווספת לסל. ניתן לחפש לפי שם בשורת החיפוש בחלק העליון.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>זיהוי אורח (אופציונלי)</strong><span>רשמו את מספר הטלפון של האורח בשדה המיוחד — המערכת תמצא אותו אוטומטית ותציג את ההיסטוריה שלו. שימושי למעקב נאמנות ולקוחות קבועים.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>שייכו לשולחן (אם רלוונטי)</strong><span>בחרו מספר שולחן — ההזמנה תופיע גם במסך המטבח (KDS) תחת אותו שולחן.</span></div></div>
-            <div class="step"><div class="step-n">4</div><div class="step-body"><strong>הוסיפו הנחה / קופון (אם יש)</strong><span>ניתן להפחית אחוז מהסכום הכולל או סכום קבוע.</span></div></div>
-            <div class="step"><div class="step-n">5</div><div class="step-body"><strong>בחרו אמצעי תשלום</strong><span>מזומן / כרטיס אשראי / ביט / אפליקציה — ניתן לפצל בין מספר אמצעים.</span></div></div>
-            <div class="step"><div class="step-n">6</div><div class="step-body"><strong>סיימו את העסקה</strong><span>לחצו "אשר תשלום" — ניתן להדפיס קבלה, לשלוח למייל, או לסגור בלי קבלה.</span></div></div>
+
+            <div class="step"><div class="step-n">1</div><div class="step-body">
+              <strong>בחרו מנות מהתפריט</strong>
+              <span>המסך מחולק: בצד שמאל — תפריט המנות לפי קטגוריות (קדש, עיקריות, קינוחים וכו'). לחצו על קטגוריה לסינון, או השתמשו בשורת החיפוש בחלק העליון (הקלידו שם מנה). לחיצה על מנה מוסיפה אותה לסל שמימין. לחיצה נוספת מגדילה את הכמות. כדי להוריד כמות — לחצו על ➖ ליד המנה בסל.</span>
+            </div></div>
+
+            <div class="step"><div class="step-n">2</div><div class="step-body">
+              <strong>שייכו לשולחן (אם יש)</strong>
+              <span>כדי שהמנות יופיעו במסך המטבח (KDS) תחת שולחן נכון — לחצו על "בחר שולחן" (מתחת לסל) ובחרו מספר שולחן. שולחנות תפוסים יסומנו כמעומעמים. אם מדובר בטייק-אווי — אין צורך לבחור שולחן.</span>
+            </div></div>
+
+            <div class="step"><div class="step-n">3</div><div class="step-body">
+              <strong>זיהוי לקוח (אופציונלי)</strong>
+              <span>הזינו את מספר הטלפון של הלקוח בשדה "מספר טלפון לזיהוי לקוח". אם הלקוח מוכר — תיראו ✅ ושם הלקוח יופיע בירוק. אם יש ללקוח חוב פתוח — תיראו ⚠️ בצבע אדום עם סכום החוב. שימוש בזיהוי מאפשר מעקב נאמנות, היסטוריית הזמנות, והקפה (תשלום מאוחר).</span>
+            </div></div>
+
+            <div class="step"><div class="step-n">4</div><div class="step-body">
+              <strong>הוסיפו הנחה (אופציונלי)</strong>
+              <span>לחצו על כפתור "הנחה" (בצהוב-כתום, מתחת לסל). ייפתח חלון שמאפשר:</span>
+              <div class="field-table" style="margin-top:6px;">
+                <div class="field-row"><div class="fr-label">אחוז %</div><div class="fr-val">לחצו "אחוז %" ← הזינו מספר (לדוגמה: 10 לעשרה אחוז) ← לחצו "החל הנחה"</div></div>
+                <div class="field-row"><div class="fr-label">סכום ₪</div><div class="fr-val">לחצו "סכום ₪" ← הזינו את הסכום להפחתה ← לחצו "החל הנחה"</div></div>
+              </div>
+              <span style="display:block;margin-top:6px;">לביטול הנחה קיימת — לחצו שוב על "הנחה" ← לחצו ✕ שמופיע ליד ההנחה.</span>
+            </div></div>
+
+            <div class="step"><div class="step-n">5</div><div class="step-body">
+              <strong>לחצו "תשלום" לפתיחת מסך הסליקה</strong>
+              <span>הכפתור הגדול בתחתית הסל. אם העגלה ריקה — הכפתור לא יפתח את הסליקה (תיראו הודעת שגיאה "העגלה ריקה"). אם הלקוח מזוהה ויש לו חוב — תקבלו חלון אזהרה. ניתן להמשיך או לסגת ולגבות קודם את החוב.</span>
+            </div></div>
+
+            <div class="step"><div class="step-n">6</div><div class="step-body">
+              <strong>בחרו אמצעי תשלום</strong>
+              <span>במסך הסליקה בחרו אחת מהאפשרויות:</span>
+              <div class="field-table" style="margin-top:6px;">
+                <div class="field-row"><div class="fr-label">מזומן 💵</div><div class="fr-val">הזינו כמה הלקוח נתן — המערכת מחשבת עודף</div></div>
+                <div class="field-row"><div class="fr-label">כרטיס 💳</div><div class="fr-val">אשראי / דביט</div></div>
+                <div class="field-row"><div class="fr-label">ביט 📱</div><div class="fr-val">תשלום דיגיטלי</div></div>
+                <div class="field-row"><div class="fr-label">PayBox 📱</div><div class="fr-val">תשלום דיגיטלי</div></div>
+                <div class="field-row"><div class="fr-label">הקפה (חשבון) 📋</div><div class="fr-val">זמין רק אם הלקוח זוהה — רושם חוב על שמו לתשלום מאוחר</div></div>
+              </div>
+            </div></div>
+
+            <div class="step"><div class="step-n">7</div><div class="step-body">
+              <strong>פיצול תשלום (אופציונלי)</strong>
+              <span>אם הלקוח משלם חלקית בכרטיס וחלקית במזומן: בחרו את האמצעי הראשון ← הזינו סכום חלקי ← לחצו "הוסף לפיצול". חזרו על הפעולה עם האמצעי השני. הסכום המצטבר מוצג בזמן אמת.</span>
+            </div></div>
+
+            <div class="step"><div class="step-n">8</div><div class="step-body">
+              <strong>הוסיפו טיפ (מסעדה בלבד)</strong>
+              <span>בשורת "טיפ" הזינו את הסכום שהלקוח הוסיף כטיפ — הוא יתווסף לסכום הכולל ויופיע בדוחות בנפרד.</span>
+            </div></div>
+
+            <div class="step"><div class="step-n">9</div><div class="step-body">
+              <strong>לחצו "סיום והפקת קבלה"</strong>
+              <span>ההזמנה נשמרת, מסומנת כ"סופק" אוטומטית, וקבלה מוכנה להדפסה. תיראו הודעת הצלחה בצבע ירוק וקונפטי. הסל יתרוקן והמסך מוכן לעסקה הבאה.</span>
+            </div></div>
+
           </div>
 
-          <div class="box box-tip">
+          <h2 class="sec" style="margin-top:20px;">ב. ריקון הסל</h2>
+          <p>לחצו על "נקה הכל" (בחלק העליון של הסל) ← אשרו בחלון האישור. כל המנות יוסרו. שימושי אם הלקוח ביטל לפני התשלום.</p>
+
+          <h2 class="sec" style="margin-top:16px;">ג. מסך מלא (Full Screen)</h2>
+          <p>לחצו על כפתור ⛶ (פינה עליונה של הקופה) לעבור למצב מסך מלא — שימושי על טאבלט ייעודי בדלפק. ללחיצה על Escape יוצאים ממסך מלא.</p>
+
+          <div class="box box-tip" style="margin-top:14px;">
             <div class="box-icon">💡</div>
-            <div>אם טעיתם — ניתן לבטל עסקה תוך דקה מהסיום. מעבר לכך, הביטול מחייב אישור מנהל.</div>
+            <div>מסעדה עם מע"מ — אם הוגדר מע"מ בהגדרות, מסך הסליקה יציג את הסכום נטו ואת סכום המע"מ בנפרד לנוחיותכם לפני הסיום.</div>
           </div>
         </div>
       </div>
 
       <!-- SALES HISTORY -->
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">📋</div><div><div class="mod-name">היסטוריית הזמנות</div><div class="mod-tag">מכירות › הזמנות</div></div></div>
+        <div class="mod-head"><div class="mod-icon">📋</div><div><div class="mod-name">הזמנות</div><div class="mod-tag">מכירות › הזמנות</div></div></div>
         <div class="mod-body">
-          <p>כל ההזמנות שבוצעו במסעדה מכל הערוצים — קופה, משלוח, הזמנה טלפונית — מופיעות כאן ברשימה מסודרת.</p>
-          <div class="wys"><div class="wys-title">מה תראו ברשימה?</div><div class="wys-list">
-            <div class="wys-item">מספר הזמנה, תאריך ושעה</div>
-            <div class="wys-item">שם האורח (אם זוהה)</div>
-            <div class="wys-item">סכום הזמנה ואמצעי התשלום</div>
-            <div class="wys-item">סטטוס: בהכנה / הושלם / בוטל</div>
-          </div></div>
-          <div class="actions">
-            <span class="action">חיפוש לפי שם / טלפון / מספר הזמנה</span>
-            <span class="action">פילטר לפי תאריך</span>
-            <span class="action">צפייה בפרטי הזמנה</span>
-            <span class="action r">ביטול הזמנה</span>
+          <p>כל ההזמנות שנוצרו — מהקופה, מהאתר, או ממשלוח — מופיעות כאן ברשימה אחת. ניגשים לכאן דרך <strong>מכירות ← הזמנות</strong>.</p>
+
+          <h2 class="sec" style="margin-top:14px;">א. סטטוסי הזמנה</h2>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🚨 חדשה</div><div class="fr-val">הזמנה שנכנסה ועדיין לא טופלה — מסומנת באדום</div></div>
+            <div class="field-row"><div class="fr-label">⏳ ממתין לאישור</div><div class="fr-val">הזמנה שמחכה לאישור מנהל לפני ההכנה</div></div>
+            <div class="field-row"><div class="fr-label">📦 בהכנה</div><div class="fr-val">המטבח קיבל ומכין</div></div>
+            <div class="field-row"><div class="fr-label">🛍️ מוכן</div><div class="fr-val">ההזמנה מוכנה — ממתינה לאיסוף / הוצאה לשליח</div></div>
+            <div class="field-row"><div class="fr-label">🚚 במשלוח</div><div class="fr-val">השליח יצא עם ההזמנה</div></div>
+            <div class="field-row"><div class="fr-label">✅ סופק</div><div class="fr-val">הושלם — נמסר ללקוח</div></div>
+            <div class="field-row"><div class="fr-label">❌ בוטל</div><div class="fr-val">ההזמנה בוטלה</div></div>
           </div>
+
+          <h2 class="sec" style="margin-top:16px;">ב. איך מוצאים הזמנה ספציפית?</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>חיפוש</strong><span>בשורת החיפוש העליונה הזינו מספר הזמנה, שם לקוח, או טלפון — הרשימה מסתננת בזמן אמת.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>פילטר לפי סטטוס</strong><span>בתפריט הנפתח "כל הסטטוסים" — בחרו סטטוס ספציפי (לדוגמה: "בהכנה") לראות רק הזמנות רלוונטיות.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>לחצו על הזמנה לפרטים</strong><span>כל כרטיס הזמנה ניתן ללחיצה — נפתחת חלונית עם כל הפרטים: מנות, תשלום, לקוח, כתובת.</span></div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ג. הדפסת קבלה מחדש</h2>
+          <p>על כל כרטיס הזמנה מופיע כפתור 🖨️ (מדפסת) — לחיצה מדפיסה מחדש את הקבלה. שימושי אם הלקוח ביקש עותק.</p>
         </div>
       </div>
 
@@ -764,15 +831,31 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
       <div class="mod">
         <div class="mod-head"><div class="mod-icon">🧑‍🤝‍🧑</div><div><div class="mod-name">אורחים (לקוחות)</div><div class="mod-tag">מכירות › אורחים</div></div></div>
         <div class="mod-body">
-          <p>במסעדה, "לקוח" נקרא <strong>אורח</strong>. כל מי שזוהה בקופה לפי מספר טלפון נשמר כאן אוטומטית.</p>
-          <div class="wys"><div class="wys-title">מה תוכלו לראות לכל אורח?</div><div class="wys-list">
-            <div class="wys-item">שם, טלפון, ומייל</div>
-            <div class="wys-item">כמה פעמים ביקר</div>
-            <div class="wys-item">סה"כ הוצאות</div>
-            <div class="wys-item">המנות האהובות עליו</div>
-            <div class="wys-item">ביקורות שהשאיר</div>
-            <div class="wys-item">הערות מנהל (לדוגמה: "אלרגי לגלוטן")</div>
-          </div></div>
+          <p>כל לקוח שזוהה בקופה לפי מספר טלפון נשמר כאן אוטומטית. במסעדה הוא נקרא <strong>אורח</strong>.</p>
+
+          <h2 class="sec" style="margin-top:14px;">א. מה רואים לכל אורח?</h2>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">פרטים אישיים</div><div class="fr-val">שם, טלפון, מייל</div></div>
+            <div class="field-row"><div class="fr-label">ביקורים</div><div class="fr-val">כמה פעמים ביקר</div></div>
+            <div class="field-row"><div class="fr-label">הוצאות</div><div class="fr-val">סה"כ כסף שהוציא</div></div>
+            <div class="field-row"><div class="fr-label">מנות אהובות</div><div class="fr-val">המנות שהזמין הכי הרבה</div></div>
+            <div class="field-row"><div class="fr-label">ביקורות</div><div class="fr-val">דירוגים שהשאיר</div></div>
+            <div class="field-row"><div class="fr-label">הערות מנהל</div><div class="fr-val">למשל "אלרגי לגלוטן", "לקוח VIP", "מעדיף שולחן שקט"</div></div>
+            <div class="field-row"><div class="fr-label">חוב פתוח</div><div class="fr-val">אם שילם בהקפה — מוצג החוב שנותר לסגירה</div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ב. איך גובים חוב הקפה?</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>בקופה — הזינו את הטלפון של הלקוח</strong><span>תיראו הודעה אדומה "לקוח מזוהה (חוב: ₪XX)".</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>לחצו "תשלום"</strong><span>תיראו חלון אזהרה עם סכום החוב. לחצו "המשך סליקה" להמשיך לתשלום.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>בחרו אמצעי תשלום</strong><span>כרגיל — מזומן, כרטיס, ביט. אחרי אישור, החוב מתאפס אוטומטית.</span></div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ג. הוספת הערה לאורח</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>מצאו את האורח</strong><span>חפשו לפי שם או טלפון ← לחצו על שמו.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הזינו הערה</strong><span>בשדה "הערות" כתבו את ההערה ← לחצו שמור.</span></div></div>
+          </div>
         </div>
       </div>
 
@@ -780,19 +863,26 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
       <div class="mod">
         <div class="mod-head"><div class="mod-icon">🛵</div><div><div class="mod-name">שליחויות</div><div class="mod-tag">מכירות › שליחויות</div></div></div>
         <div class="mod-body">
-          <p>ניהול הזמנות משלוח מרגע קבלת ההזמנה ועד הגעה ללקוח. כל הזמנת משלוח עוברת כאן.</p>
+          <p>כאן מנהלים את כל הזמנות המשלוח — מרגע שהלקוח הזמין ועד שהשליח חזר. נגישות: <strong>מכירות ← שליחויות</strong>.</p>
 
+          <h2 class="sec" style="margin-top:14px;">תהליך שליחות שלב אחר שלב</h2>
           <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הזמנה נכנסת</strong><span>מופיעה ב"ממתינות" עם פרטי הלקוח, הכתובת, והמנות.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>שייכו לשליח</strong><span>בחרו איזה שליח יישא את ההזמנה — השליח מקבל התראה בנייד שלו.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>מעקב</strong><span>הסטטוס מתעדכן: "בהכנה" ← "ביציאה" ← "נמסר".</span></div></div>
-          </div>
-
-          <div class="actions" style="margin-top:10px;">
-            <span class="action">תשלום במסירה (COD)</span>
-            <span class="action">התקשרות ישירה ללקוח</span>
-            <span class="action">וואטסאפ ישיר לשליח</span>
-            <span class="action">היסטוריית שליחויות</span>
+            <div class="step"><div class="step-n">1</div><div class="step-body">
+              <strong>הזמנה נכנסת</strong>
+              <span>הזמנה חדשה מהאתר או מהקופה (עם סימון "משלוח") מופיעה בסטטוס "חדשה" עם כתובת הלקוח, מנות, ומספר טלפון. ניתן לחייג ישירות מהמסך ללקוח.</span>
+            </div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body">
+              <strong>הכינו את ההזמנה</strong>
+              <span>שנו סטטוס ל"בהכנה" — ההזמנה מועברת למסך המטבח (KDS).</span>
+            </div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body">
+              <strong>שייכו לשליח</strong>
+              <span>לחצו "שלח עם שליח" ← בחרו שליח מהרשימה. השליח מקבל התראה בנייד.</span>
+            </div></div>
+            <div class="step"><div class="step-n">4</div><div class="step-body">
+              <strong>עדכון סטטוסים</strong>
+              <span>לחצו "📦 ממתין לשליח" לסמן מוכן ← "🚚 משלוח" כשהשליח יצא ← "✅ נמסר" כשהגיע ללקוח.</span>
+            </div></div>
           </div>
         </div>
       </div>
@@ -801,29 +891,49 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
       <div class="mod">
         <div class="mod-head"><div class="mod-icon">⭐</div><div><div class="mod-name">ביקורות</div><div class="mod-tag">מכירות › ביקורות</div></div></div>
         <div class="mod-body">
-          <p>ביקורות שאורחים השאירו על המסעדה — מהמערכת או מרשת OneFlow. רואים דירוג ממוצע ומגמה לאורך זמן.</p>
-          <div class="wys"><div class="wys-list">
-            <div class="wys-item">ביקורות אחרונות עם תאריך וציון</div>
-            <div class="wys-item">דירוג ממוצע כולל</div>
-            <div class="wys-item">ניתן להגיב לכל ביקורת</div>
-          </div></div>
+          <p>ביקורות שאורחים השאירו לאחר ביקור. מגיעות ממערכת OneFlow. נגישות: <strong>מכירות ← ביקורות</strong>.</p>
+
+          <div class="field-table" style="margin-top:10px;">
+            <div class="field-row"><div class="fr-label">דירוג ממוצע</div><div class="fr-val">ציון ממוצע מכלל הביקורות שהתקבלו</div></div>
+            <div class="field-row"><div class="fr-label">ביקורות אחרונות</div><div class="fr-val">כל ביקורת עם תאריך, ציון, ושם הלקוח</div></div>
+            <div class="field-row"><div class="fr-label">תגובה</div><div class="fr-val">ניתן לכתוב תגובה לכל ביקורת — שתיראה ללקוח</div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:14px;">איך מגיבים לביקורת?</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>בחרו ביקורת</strong><span>לחצו עליה מהרשימה.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>כתבו תגובה</strong><span>הזינו טקסט בשדה התגובה.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>לחצו שלח</strong><span>הלקוח יוכל לראות את תגובתכם.</span></div></div>
+          </div>
         </div>
       </div>
 
       <!-- KDS -->
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">🖥️</div><div><div class="mod-name">מסך מטבח — KDS</div><div class="mod-tag">מסך ייעודי</div></div></div>
+        <div class="mod-head"><div class="mod-icon">🖥️</div><div><div class="mod-name">מסך מטבח — KDS</div><div class="mod-tag">מכירות › KDS</div></div></div>
         <div class="mod-body">
-          <p>KDS הוא מסך שמיועד להיות פתוח <strong>כל הזמן במטבח</strong> — על טאבלט או מסך קבוע. כל הזמנה שנפתחת בקופה מגיעה אוטומטית לכאן.</p>
-          <div class="wys"><div class="wys-title">מה הטבח רואה?</div><div class="wys-list">
-            <div class="wys-item">הזמנות פעילות לפי שולחן / מספר</div>
-            <div class="wys-item">המנות הנדרשות לכל הזמנה</div>
-            <div class="wys-item">כמה זמן עברה כל הזמנה</div>
-            <div class="wys-item">כפתור "מוכן" לסימון כל מנה</div>
-          </div></div>
-          <div class="box box-tip">
+          <p>KDS (Kitchen Display System) הוא מסך שמיועד להיות פתוח <strong>כל הזמן במטבח</strong> — על טאבלט ייעודי או מסך קבוע. כל הזמנה שנסגרת בקופה מגיעה אוטומטית לכאן, ממוינת לפי תחנת עבודה. נגישות: <strong>מכירות ← KDS</strong>, או מהאריח המהיר בדף הבית.</p>
+
+          <h2 class="sec" style="margin-top:14px;">א. מבנה המסך</h2>
+          <p>המסך על רקע שחור מחולק ל-5 תחנות:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🔥 חם</div><div class="fr-val">מנות חמות — בשרים, פסטות, מרקים</div></div>
+            <div class="field-row"><div class="fr-label">🥗 קר</div><div class="fr-val">סלטים, קינוחים קרים</div></div>
+            <div class="field-row"><div class="fr-label">🥤 שתייה</div><div class="fr-val">משקאות, קוקטיילים</div></div>
+            <div class="field-row"><div class="fr-label">🍞 לחם</div><div class="fr-val">לחמים, פיתות, כריכים</div></div>
+            <div class="field-row"><div class="fr-label">📦 אחר</div><div class="fr-val">פריטים שלא שויכו לתחנה ספציפית</div></div>
+          </div>
+          <p style="margin-top:8px;font-size:.85rem;color:var(--text2);">המסך מתרענן אוטומטית כל 30 שניות — אין צורך בריענון ידני.</p>
+
+          <h2 class="sec" style="margin-top:16px;">ב. מה הטבח עושה כשמגיעה הזמנה?</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הזמנה מופיעה בתחנה הרלוונטית</strong><span>כל כרטיס הזמנה מציג: מספר שולחן, רשימת מנות, וכמה זמן עברה מאז ההזמנה (שעון עצר).</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הכינו את המנה</strong><span>כשמנה מוכנה — לחצו "✅ נאסף" / "✅ נמסר" על הכרטיס המתאים. ההזמנה תיסגר ותיעלם מהמסך.</span></div></div>
+          </div>
+
+          <div class="box box-tip" style="margin-top:12px;">
             <div class="box-icon">💡</div>
-            <div>מומלץ להשאיר KDS פתוח על טאבלט ייעודי במטבח לאורך כל שעות הפעילות.</div>
+            <div>מנה שלא שויכה לתחנה בתפריט תגיע לתחנת "אחר". כדי שמנות תמיד יגיעו לתחנה הנכונה — ודאו ששייכתם כל מנה לתחנת מטבח בהגדרות הקטלוג.</div>
           </div>
         </div>
       </div>
