@@ -945,52 +945,139 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
       <!-- PANTRY -->
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">🥕</div><div><div class="mod-name">ניהול מלאי (מחסן)</div><div class="mod-tag">מלאי › ניהול מלאי</div></div></div>
+        <div class="mod-head"><div class="mod-icon">🥕</div><div><div class="mod-name">ניהול מלאי</div><div class="mod-tag">מלאי › ניהול מלאי</div></div></div>
         <div class="mod-body">
-          <p>כאן עוקבים אחר כמות של כל חומר גלם ומוצר במסעדה — קמח, עגבניות, שמן, אריזות, ועוד. המערכת מתריעה כשמשהו עומד להיגמר.</p>
+          <p>כאן עוקבים אחר כמות של כל חומר גלם ומוצר במסעדה — קמח, עגבניות, שמן, אריזות ועוד. המערכת מתריעה כשפריט עומד להיגמר. נגישות: <strong>מלאי ← ניהול מלאי</strong>.</p>
 
+          <h2 class="sec" style="margin-top:14px;">א. הוספת פריט למלאי (בפעם הראשונה)</h2>
           <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הוסיפו פריט מלאי</strong><span>שם הפריט, יחידת מידה (ק"ג / ליטר / יחידה), כמות נוכחית, וכמות מינימום שמתחתיה תקבלו התראה.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>עדכנו כמות</strong><span>כשמגיע אספקה — מכניסים כמות שהתקבלה. כשמשתמשים — מוציאים. ניתן לעשות ספירת מלאי שבועית.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>שייכו לספק</strong><span>לכל פריט ניתן לשייך ספק — מה שמאפשר להזמין ממנו בלחיצה.</span></div></div>
+            <div class="step"><div class="step-n">1</div><div class="step-body">
+              <strong>לחצו "+ הוסף פריט"</strong>
+              <span>ייפתח חלון הוספה עם שדות:</span>
+              <div class="field-table" style="margin-top:6px;">
+                <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם המוצר / פריט</div><div class="fr-val">לדוגמה: "קמח לבן", "שמן זית", "עגבניות"</div></div>
+                <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>כמות התחלתית</div><div class="fr-val">כמה יש לכם כרגע</div></div>
+                <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>סוג יחידה</div><div class="fr-val">יח' / ק"ג / גרם / מארז / קרטון / ליטר</div></div>
+                <div class="field-row"><div class="fr-label">יחידות בחבילה</div><div class="fr-val">רק אם בחרתם "מארז" או "קרטון" — כמה יחידות בתוך כל אחד</div></div>
+              </div>
+            </div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body">
+              <strong>לחצו "הוסף למאגר"</strong>
+              <span>הפריט יופיע ברשימת המלאי. תיראו הודעת אישור בירוק "המוצר נקלט במלאי בהצלחה!"</span>
+            </div></div>
           </div>
 
-          <div class="box box-warn">
+          <h2 class="sec" style="margin-top:16px;">ב. עדכון כמות — כשמגיעה אספקה</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>מצאו את הפריט ברשימה</strong><span>כל פריט מוצג עם הכמות הנוכחית גדולה ובולטת, ותאריך עדכון אחרון.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>לחצו ➕ להוספת כמות</strong><span>כל לחיצה מוסיפה יחידה אחת (או חלק יחידה לפי יחידת המידה). לחיצה חוזרת ממשיכה להוסיף. הכמות מתעדכנת אוטומטית בשרת.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>לחצו ➖ להורדת כמות</strong><span>כל לחיצה מורידה יחידה אחת. אם הכמות מגיעה לאפס — המערכת שואלת האם למחוק את הפריט. כדי לא למחוק — ניתן להעביר לרכש במקום.</span></div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ג. דיווח שימוש</h2>
+          <p>כשהשתמשתם בפריט במהלך העבודה (ולא דרך הזמנה) — לחצו <strong>"דיווח שימוש"</strong> על הפריט הרלוונטי ← הזינו כמה יחידות הוצאתם ← לחצו "אשר שימוש". הכמות במלאי תרד בהתאם.</p>
+
+          <h2 class="sec" style="margin-top:16px;">ד. העברה לרכש</h2>
+          <p>כשפריט עומד להיגמר ורוצים להזמין ממנו — לחצו <strong>"העבר לרכש"</strong> על הפריט. הוא יעבור אוטומטית לרשימת דרישות הרכש ממתין לשיוך לספק.</p>
+
+          <h2 class="sec" style="margin-top:16px;">ה. התראות מלאי נמוך</h2>
+          <p>המערכת בודקת רמות מלאי ומתריעה כשפריטים קרובים למינימום. תוכלו להגדיר שני סף (בהגדרות מלאי בראש הדף):</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">% מאגר (Buffer)</div><div class="fr-val">אחוז מהמלאי שנשמר לשימוש שוטף ולא לשריון פקודות עבודה</div></div>
+            <div class="field-row"><div class="fr-label">% התראה (Warning)</div><div class="fr-val">כשהמלאי הזמין יורד מתחת לאחוז זה — תקבלו הודעת ⚠️ ומייל למנהל</div></div>
+          </div>
+
+          <div class="box box-warn" style="margin-top:12px;">
             <div class="box-icon">⚠️</div>
-            <div>פריט שהגיע לכמות המינימום — מופיע בצבע אדום בלוח הבקרה ומשלח התראה למנהל.</div>
+            <div>פריטים עם שריון פקודות עבודה פתוחות (reserved) — מסומנים בצהוב. לא ניתן להוריד את כמותם מתחת לסכום השריון. כדי לשחרר — סיימו את פקודות העבודה הקשורות.</div>
           </div>
         </div>
       </div>
 
-      <!-- SHOP -->
+      <!-- SHOP / PROCUREMENT -->
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">🛒</div><div><div class="mod-name">הזמנות מספק</div><div class="mod-tag">מלאי › הזמנות מספק</div></div></div>
+        <div class="mod-head"><div class="mod-icon">🛒</div><div><div class="mod-name">הזמנות מספק (רכש)</div><div class="mod-tag">מלאי › הזמנות מספק</div></div></div>
         <div class="mod-body">
-          <p>הזמינו חומרי גלם ישירות מהספקים שלכם — מבלי לצלצל. המערכת שולחת הזמנה, ואתם עוקבים אחר הסטטוס.</p>
+          <p>כאן מנהלים את כל הזמנות הרכש — מהוספת דרישה ועד שליחת הזמנה לספק וקבלת הסחורה. נגישות: <strong>מלאי ← הזמנות מספק</strong>.</p>
 
+          <h2 class="sec" style="margin-top:14px;">א. הוספת דרישת רכש</h2>
           <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>בחרו ספק</strong><span>בחרו מרשימת הספקים שהגדרתם (ספק חומרי גלם, ספק בשר, ספק ירקות וכו').</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>בחרו פריטים וכמויות</strong><span>הוסיפו מה שאתם צריכים לסל ההזמנה.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>שלחו הזמנה</strong><span>הספק מקבל הודעה (מייל / וואטסאפ). לאחר קבלת הסחורה — אשרו "קיבלתי" והמלאי מתעדכן אוטומטית.</span></div></div>
+            <div class="step"><div class="step-n">1</div><div class="step-body">
+              <strong>לחצו "+ הוסף פריט לרכש"</strong>
+              <span>ייפתח חלון עם שדות:</span>
+              <div class="field-table" style="margin-top:6px;">
+                <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם המוצר</div><div class="fr-val">הקלידו שם — תופיע רשימת הצעות אוטומטיות ממאגר המוצרים. לחצו על הצעה לבחירה מהירה.</div></div>
+                <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>כמות</div><div class="fr-val">כמה יחידות / ק"ג / ליטר תרצו להזמין</div></div>
+                <div class="field-row"><div class="fr-label">יחידה</div><div class="fr-val">יח' / ק"ג / ליטר / מארז וכו'</div></div>
+                <div class="field-row"><div class="fr-label">מחיר משוער</div><div class="fr-val">מה אתם מצפים לשלם (לצורך תכנון תקציב)</div></div>
+                <div class="field-row"><div class="fr-label">יחידות במארז</div><div class="fr-val">אם ההזמנה היא של מארזים</div></div>
+              </div>
+            </div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>לחצו "הוסף"</strong><span>הפריט נוסף לרשימת דרישות הרכש הממתינות.</span></div></div>
           </div>
+
+          <h2 class="sec" style="margin-top:16px;">ב. הוספת ספק ושליחת הזמנה</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>שייכו דרישות לספק</strong><span>על כל דרישה ממתינה — לחצו "שייך לספק" ← בחרו ספק מהרשימה. ניתן לשייך מספר דרישות לאותו ספק.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>פתחו קטלוג הספק</strong><span>לחצו על "קטלוג מוצרים" בכרטיס הספק — תוכלו לראות את מוצריו ומחיריהם ולהוסיף לסל ישירות.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>שלחו הזמנה</strong><span>לחצו "שלח הזמנה לספק" — ההזמנה נשלחת לספק (מייל / וואטסאפ). ניתן לראות את כל ההזמנות שנשלחו בלשונית "הזמנות".</span></div></div>
+            <div class="step"><div class="step-n">4</div><div class="step-body"><strong>קבלת הסחורה</strong><span>כשהסחורה הגיעה — מצאו את ההזמנה בסטטוס "שנשלחה" ← לחצו "אשר קבלה". המלאי מתעדכן אוטומטית.</span></div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ג. ניהול ספקים</h2>
+          <p>לכל ספק ניתן להגדיר: שם, טלפון, מינימום הזמנה, שעת Cut-off (מועד אחרון לביצוע הזמנה ליום זה), ימי חלוקה, ומספר לקוח אצל הספק. לעריכה — לחצו על ✏️ בכרטיס הספק.</p>
         </div>
       </div>
 
       <!-- FOODCOST -->
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">📐</div><div><div class="mod-name">תמחור מנות (Foodcost)</div><div class="mod-tag">מלאי › תמחור מנות</div></div></div>
+        <div class="mod-head"><div class="mod-icon">📐</div><div><div class="mod-name">תמחור מנות (Food Cost)</div><div class="mod-tag">מלאי › תמחור ורווחיות</div></div></div>
         <div class="mod-body">
-          <p>כלי לחישוב <strong>כמה עולה לכם לייצר כל מנה</strong> — ומה אחוז הרווח שלכם ממנה. מסעדות מצליחות עוקבות אחר זה בקפידה.</p>
+          <p>כלי שמחשב <strong>כמה עולה לכם לייצר כל מנה</strong> ומה אחוז הרווח ממנה. ניתן לראות בבת-אחת את כל התפריט ולזהות מנות לא רווחיות. נגישות: <strong>מלאי ← תמחור ורווחיות</strong>.</p>
 
-          <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>בחרו מנה</strong><span>כל מנה שהוגדרתה בתפריט מופיעה כאן.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הגדירו מתכון</strong><span>הוסיפו את כל חומרי הגלם ואת הכמויות — 200 גרם בשר, 50 גרם גבינה וכו'. המחיר לכל מרכיב נלקח אוטומטית מהמלאי.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>קבלו ניתוח</strong><span>המערכת מחשבת: עלות ייצור, מחיר מכירה, ואחוז Foodcost. עלות גבוהה מ-30% מצביעה על בעיה ברווחיות.</span></div></div>
+          <h2 class="sec" style="margin-top:14px;">א. קריאת מסך ה-Food Cost</h2>
+          <p>כל מנה מהתפריט מוצגת בכרטיס עם:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">% Food Cost</div><div class="fr-val">יחס עלות הייצור למחיר המכירה. מוצג בצבע לפי רמת הרווחיות:</div></div>
+          </div>
+          <div class="field-table" style="margin-top:6px;">
+            <div class="field-row"><div class="fr-label" style="color:#16a34a;">✅ ירוק — רווחי</div><div class="fr-val">Food Cost עד 35% — המנה מרוויחה טוב</div></div>
+            <div class="field-row"><div class="fr-label" style="color:#d97706;">⚖️ כתום — גבולי</div><div class="fr-val">Food Cost 35%–40% — שווה לבחון את המתכון</div></div>
+            <div class="field-row"><div class="fr-label" style="color:#dc2626;">📉 אדום — הפסדי</div><div class="fr-val">Food Cost מעל 40% — המנה עולה יותר ממה שמרוויחים</div></div>
+            <div class="field-row"><div class="fr-label" style="color:#64748b;">⚠️ אפור — לא חושב</div><div class="fr-val">לא הוגדר מתכון לאותה מנה</div></div>
+          </div>
+          <div class="field-table" style="margin-top:8px;">
+            <div class="field-row"><div class="fr-label">עלות ייצור</div><div class="fr-val">סכום עלות כל חומרי הגלם שבמתכון</div></div>
+            <div class="field-row"><div class="fr-label">רווח גולמי</div><div class="fr-val">מחיר מכירה פחות עלות ייצור</div></div>
           </div>
 
-          <div class="box box-tip">
+          <h2 class="sec" style="margin-top:16px;">ב. הגדרת מתכון למנה (עץ מוצר)</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>מצאו מנה ← לחצו "עץ מוצר"</strong><span>ייפתח בנאי המתכון. כאן מגדירים את חומרי הגלם של המנה.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body">
+              <strong>הוסיפו רכיב</strong>
+              <span>בשדות "הוספת רכיב" — הזינו:</span>
+              <div class="field-table" style="margin-top:6px;">
+                <div class="field-row"><div class="fr-label">שם הרכיב</div><div class="fr-val">לדוגמה: "בשר טחון", "גבינה צהובה", "קמח"</div></div>
+                <div class="field-row"><div class="fr-label">כמות</div><div class="fr-val">כמה מהרכיב הזה נכנס למנה אחת</div></div>
+                <div class="field-row"><div class="fr-label">יחידה</div><div class="fr-val">גרם / ק"ג / מ"ל / יח'</div></div>
+              </div>
+              <span style="display:block;margin-top:6px;">אם הרכיב קיים במלאי — המחיר שלו יתמלא אוטומטית. אחרת — הכניסו מחיר ידנית.</span>
+            </div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>ראו את ה-Food Cost מתעדכן בזמן אמת</strong><span>בסרגל הצבעוני מעל — ה-% Food Cost מוצג ומשתנה כל פעם שמוסיפים רכיב. כשמגיעים לאחוז שמאושר אצלכם — ניתן לשמור.</span></div></div>
+            <div class="step"><div class="step-n">4</div><div class="step-body"><strong>לחצו "שמור מנה לחנות"</strong><span>המתכון נשמר. בפעם הבאה שמחיר ספק של אחד הרכיבים ישתנה — ה-% Food Cost של המנה יתעדכן אוטומטית.</span></div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ג. יצירת מנה חדשה לתפריט מתוך Food Cost</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו "✨ הוסף מנה חדשה לחנות ותמחר מאפס"</strong><span>הכפתור מופיע בראש דף ה-Food Cost.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הזינו שם, מחיר מכירה וקטגוריה</strong><span>אלו יהיו הפרטים של המנה בתפריט.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>הוסיפו רכיבים ← שמרו</strong><span>המנה תתווסף גם לתפריט הקופה וגם למעקב ה-Food Cost.</span></div></div>
+          </div>
+
+          <div class="box box-tip" style="margin-top:12px;">
             <div class="box-icon">💡</div>
-            <div>כשמחיר ספק עולה — עלות המנה מתעדכנת אוטומטית, ומקבלים התראה על מנות שהפכו ללא רווחיות.</div>
+            <div>מנה ב-Food Cost שמוצגת ללא אחוז (⚠️ "לא חושב") — עדיין אין לה מתכון מוגדר. לחצו "עץ מוצר" ← הוסיפו רכיבים כדי לראות כמה היא באמת עולה לכם.</div>
           </div>
         </div>
       </div>
