@@ -6195,40 +6195,193 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   <!-- ─── יומן תורים ─── -->
   <div class="chapter" id="b-calendar">
     <div class="ch-head"><div class="ch-num">4</div><div class="ch-title">יומן תורים</div></div>
-    <p>כרטיסיית <strong>יומן מטפלות</strong> (בתפריט <em>צוות</em>) היא לב העסק. כל מטפלת מוצגת כעמודה נפרדת, ותורים מוצגים כקלפים צבעוניים לפי שעה — ממש כמו יומן גוגל.</p>
+    <p>כרטיסיית <strong>יומן מטפלות 💆</strong> (בתפריט <em>צוות</em>) היא לב העסק. היומן מציג את כל המטפלות לפי עמודות, כל תור מופיע כקלף צבעוני במיקום מדויק לפי שעה, ומהיומן מבצעים כל הפעולות — מקביעת תור חדש ועד סיום טיפול וחישוב עמלה. הגישה ליומן: <strong>תפריט צוות ← יומן מטפלות</strong>.</p>
 
+    <!-- א. מבנה המסך -->
     <div class="mod">
-      <div class="mod-head"><div class="mod-icon">📅</div><div><div class="mod-name">תצוגות היומן</div><div class="mod-tag">צוות › יומן מטפלות</div></div></div>
-      <div class="actions">
-        <span class="tag">יום</span>
-        <span class="tag">שבוע</span>
-        <span class="tag">חודש</span>
-      </div>
-      <p style="font-size:.85rem;margin-top:.4rem">לחץ על אחת מהתצוגות בחלק העליון של היומן. תצוגת <em>יום</em> הכי שימושית לניהול שוטף — רואים כל מטפלת בעמודה נפרדת עם כל התורים שלה באותו יום.</p>
-    </div>
-
-    <div class="mod">
-      <div class="mod-head"><div class="mod-icon">🌐</div><div><div class="mod-name">מקורות תור</div><div class="mod-tag">צוות › יומן מטפלות</div></div></div>
+      <div class="mod-head"><div class="mod-icon">🖥️</div><div><div class="mod-name">מבנה המסך</div><div class="mod-tag">צוות › יומן מטפלות</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">המסך בנוי משלושה אזורים קבועים:</p>
       <div class="field-table">
-        <div class="field-row"><div class="fr-label">🌐 אתר ציבורי</div><div class="fr-val">לקוחה קבעה תור באתר העסק</div></div>
-        <div class="field-row"><div class="fr-label">📅 ידני</div><div class="fr-val">נקבע על-ידי הצוות מהממשק</div></div>
-        <div class="field-row"><div class="fr-label">📋 בקשת ייעוץ</div><div class="fr-val">הגיע מכרטיסיית <em>ייעוץ ובקשות</em></div></div>
+        <div class="field-row"><div class="fr-label">סרגל כלים עליון</div><div class="fr-val">ניווט תאריך (‹ ›), כפתור <strong>היום</strong>, בחירת תצוגה (יום / שבוע / חודש), <strong>+ תור חדש</strong>, <strong>מטפלות</strong> (מנהל מטפלות). הרקע — גרדיאנט ורוד–סגול.</div></div>
+        <div class="field-row"><div class="fr-label">באנר ממתינות</div><div class="fr-val">מופיע מתחת לסרגל הכלים כשיש בקשות תור פתוחות מהאתר הציבורי — רקע ענברי, ומאפשר אישור/ביטול ישיר.</div></div>
+        <div class="field-row"><div class="fr-label">אזור התוכן</div><div class="fr-val">משתנה לפי תצוגה שנבחרה: עמודות מטפלות (יום), שורות ימים (שבוע), גריד (חודש).</div></div>
       </div>
     </div>
 
+    <!-- ב. תצוגת יום -->
     <div class="mod">
-      <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">קביעת תור חדש</div><div class="mod-tag">צוות › יומן מטפלות</div></div></div>
-      <div class="steps">
-        <div class="step"><div class="step-n">1</div><div class="step-body"><span>לחץ על שעה פנויה בעמודת המטפלת הרצויה — נפתח חלון קביעת תור.</span></div></div>
-        <div class="step"><div class="step-n">2</div><div class="step-body"><span>בחר לקוחה (מהרשימה הקיימת או הוסף חדשה), שירות, ותאריך/שעה.</span></div></div>
-        <div class="step"><div class="step-n">3</div><div class="step-body"><span>אם ללקוחה יש מנוי פעיל — המערכת מציגה אותו אוטומטית ומאפשרת מימוש כניסה.</span></div></div>
-        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>לחץ שמור.</strong><span> התור מופיע בעמודת המטפלת מיידית.</span></div></div>
+      <div class="mod-head"><div class="mod-icon">📅</div><div><div class="mod-name">תצוגת יום — עמודות מטפלות</div><div class="mod-tag">צוות › יומן מטפלות › יום</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">זוהי התצוגה המרכזית לניהול שוטף. בוחרים אותה בלחיצה על <strong>יום</strong> בסרגל הכלים.</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">טווח שעות</div><div class="fr-val">08:00 עד 20:00 — 13 שעות עבודה. ציר הזמן מוצג בצד ימין כגאטר, שעה אחת לשורה.</div></div>
+        <div class="field-row"><div class="fr-label">עמודות מטפלות</div><div class="fr-val">כל מטפלת פעילה מקבלת עמודה נפרדת. הכותרת של כל עמודה — שם המטפלת עם הצבע האישי שלה (color_hex). רוחב מינימלי לעמודה: 140px. יש גלילה אופקית אם יש הרבה מטפלות.</div></div>
+        <div class="field-row"><div class="fr-label">עמודת "לא משויך"</div><div class="fr-val">מופיעה אוטומטית (צבע אפור) אם קיימים תורים שלא שויכו לאף מטפלת. מאפשרת לזהות ולתקן תורים "תלויים".</div></div>
+        <div class="field-row"><div class="fr-label">אגדה (Legend)</div><div class="fr-val">בתחתית המסך — שורת Pills בצבע כל מטפלת לפי שמה. מאפשרת זיהוי מהיר של מי מי ביומן עמוס.</div></div>
+      </div>
+
+      <p style="font-size:.85rem;margin:.6rem 0 .3rem"><strong>קלף תור (Appointment Card)</strong> — כל תור מוצג כקלף ממוקם בדיוק:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">מיקום אנכי</div><div class="fr-val">מחושב לפי שעת ההתחלה ביחס ל-08:00 (אחוז מתוך 13 שעות). תור ב-10:00 יופיע ב-15% מהגובה.</div></div>
+        <div class="field-row"><div class="fr-label">גובה הקלף</div><div class="fr-val">מחושב לפי משך הטיפול (דקות ÷ 780 דקות × 100%). תור של 60 דקות תופס ≈ 7.7% מהגובה.</div></div>
+        <div class="field-row"><div class="fr-label">צבע הקלף</div><div class="fr-val">צבע אישי של המטפלת (color_hex) — מאפשר זיהוי מיידי של מי מטפלת במי.</div></div>
+        <div class="field-row"><div class="fr-label">תוכן הקלף</div><div class="fr-val">שם השירות (או שם הלקוחה אם אין שירות), שם הלקוחה, שעת תחילה, ובאדג׳ מקור (<strong>🌐</strong> / <strong>📅</strong> / <strong>📋</strong>).</div></div>
+        <div class="field-row"><div class="fr-label">לחיצה על קלף</div><div class="fr-val">פותח את חלון פרטי התור עם כל המידע ואפשרויות הפעולה.</div></div>
       </div>
     </div>
 
-    <div class="box box-warn">
-      <div class="box-icon">⏳</div>
-      <div><strong>תורים ממתינים לאישור</strong><br>לקוחות שקבעו תור מהאתר הציבורי מופיעות כ<em>ממתינות לאישור</em>. אשר או בטל כל בקשה מתוך היומן.</div>
+    <!-- ג. תצוגת שבוע -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">📆</div><div><div class="mod-name">תצוגת שבוע — ₇ ימים בשורה</div><div class="mod-tag">צוות › יומן מטפלות › שבוע</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">לחץ <strong>שבוע</strong> בסרגל הכלים. מציגה שבעה ימים כשורות רשימה, ובכל שורה את כל התורים של אותו יום כ-Chips קטנים.</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">שורת יום</div><div class="fr-val">כותרת: יום השבוע + תאריך. מתחתיה — Chips של תורים (שם שירות + שעת התחלה).</div></div>
+        <div class="field-row"><div class="fr-label">לחיצה על Chip</div><div class="fr-val">פותח מיידית את חלון פרטי התור הספציפי.</div></div>
+        <div class="field-row"><div class="fr-label">מעבר לתצוגת יום</div><div class="fr-val">לחץ על כותרת היום (הטקסט עם התאריך) — עוברים לתצוגת יום של אותו יום לפירוט מלא.</div></div>
+        <div class="field-row"><div class="fr-label">ניווט שבועות</div><div class="fr-val">לחץ ‹ / › בסרגל הכלים לשבוע הקודם/הבא. לחץ <strong>היום</strong> לחזרה לשבוע הנוכחי.</div></div>
+      </div>
+      <div class="box box-tip">
+        <div class="box-icon">💡</div>
+        <div>תצוגת שבוע אידיאלית להתרשמות מהיומן לטווח הקרוב — מה עמוס, מה פנוי. לניהול תור ספציפי — עדיף לעבור לתצוגת יום.</div>
+      </div>
+    </div>
+
+    <!-- ד. תצוגת חודש -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🗓️</div><div><div class="mod-name">תצוגת חודש — גריד כללי</div><div class="mod-tag">צוות › יומן מטפלות › חודש</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">לחץ <strong>חודש</strong> בסרגל הכלים. מציגה את כל ימי החודש כגריד (7 עמודות × N שורות), כל תא מראה את <em>מספר התורים</em> של אותו יום.</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">תא יום</div><div class="fr-val">התאריך + ספירת תורים ("3 תורים"). אם אין תורים — התא ריק.</div></div>
+        <div class="field-row"><div class="fr-label">לחיצה על תא יום</div><div class="fr-val">עוברים אוטומטית לתצוגת <em>יום</em> של אותו תאריך לפירוט מלא.</div></div>
+        <div class="field-row"><div class="fr-label">ניווט חודשים</div><div class="fr-val">לחץ ‹ / › לחודש הקודם/הבא. לחץ <strong>היום</strong> לחזרה לחודש הנוכחי.</div></div>
+      </div>
+      <div class="box box-tip">
+        <div class="box-icon">💡</div>
+        <div>תצוגת חודש שימושית לתכנון קיבולת — לזהות ימים עמוסים ויחסית ריקים לשיבוץ קמפיינים או חופשות צוות.</div>
+      </div>
+    </div>
+
+    <!-- ה. מקורות תור -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">📌</div><div><div class="mod-name">מקורות תור — מאיפה הגיע כל תור</div><div class="mod-tag">צוות › יומן מטפלות</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">בכל קלף תור מופיע <strong>באדג׳ מקור</strong> בפינה — מסמן מאיפה הגיע התור. שלושה מקורות אפשריים:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">🌐 אתר ציבורי (storefront)</div><div class="fr-val">הלקוחה קבעה בעצמה תור דרך עמוד העסק הציבורי (Storefront). תורים כאלה נכנסים תחילה כ<em>ממתינות לאישור</em> (<code>pending_client</code>) ודורשים אישור ידני מהצוות לפני שהם "נכנסים ליומן" באופן מלא.</div></div>
+        <div class="field-row"><div class="fr-label">📅 ידני (biz)</div><div class="fr-val">נקבע ידנית על-ידי אחד מאנשי הצוות ישירות מממשק הניהול (BIZ). נכנס מיידית לסטטוס <em>מתוכנן</em> (<code>scheduled</code>) — ללא צורך באישור נוסף.</div></div>
+        <div class="field-row"><div class="fr-label">📋 ייעוץ/בקשה (rfq)</div><div class="fr-val">הגיע מכרטיסיית <em>ייעוץ ובקשות</em> — לקוחה הגישה בקשת ייעוץ ובעקבותיה נקבע תור. מאפשר מעקב אחרי המסע של לקוחה מבקשה ראשונית ועד טיפול.</div></div>
+      </div>
+    </div>
+
+    <!-- ו. באנר בקשות ממתינות -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">⏳</div><div><div class="mod-name">באנר בקשות ממתינות לאישור</div><div class="mod-tag">צוות › יומן מטפלות › בקשות ממתינות</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">כשיש בקשות פתוחות מהאתר הציבורי (<code>pending_client</code>), מופיע <strong>באנר ענברי</strong> מתחת לסרגל הכלים. כל בקשה מוצגת בשורה נפרדת עם שם הלקוחה, השירות, התאריך והשעה הרצויים.</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">✓ אשר</div><div class="fr-val">לחץ על הכפתור הירוק <strong>✓ אשר</strong> לצד הבקשה — הסטטוס משתנה מ-<code>pending_client</code> ל-<code>confirmed</code>, הבקשה נעלמת מהבאנר ומופיעה כתור מאושר ביומן.</div></div>
+        <div class="field-row"><div class="fr-label">✕ בטל</div><div class="fr-val">לחץ על <strong>✕</strong> לצד הבקשה — הבקשה מבוטלת (<code>cancelled</code>) ונעלמת מהבאנר. הלקוחה לא מקבלת הודעה אוטומטית (כרגע) — מומלץ ליצור קשר ידנית.</div></div>
+      </div>
+      <div class="box box-warn">
+        <div class="box-icon">⚠️</div>
+        <div><strong>בדוק בקשות ממתינות בתחילת כל יום עבודה.</strong> בקשות שלא אושרו לא נכנסות ליומן — הלקוחה עשויה לחכות לאישור ולא לדעת אם התור שריר.</div>
+      </div>
+    </div>
+
+    <!-- ז. קביעת תור חדש -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">קביעת תור חדש</div><div class="mod-tag">צוות › יומן מטפלות › + תור חדש</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">לחץ <strong>+ תור חדש</strong> בסרגל הכלים (או לחץ על שעה פנויה בעמודת מטפלת בתצוגת יום). נפתח חלון קביעת תור עם השדות הבאים:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label"><span class="tag tag-o">חיפוש לקוחה</span></div><div class="fr-val">תיבת חיפוש autocomplete — הקלד שם או טלפון, מוצגות עד 8 לקוחות תואמות. בחר מהרשימה למילוי אוטומטי של שם + טלפון.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span> שם לקוח/ה</div><div class="fr-val">שם הלקוחה שיופיע על הקלף ביומן ובתיק הלקוחה. מחויב — לא ניתן לשמור תור ללא שם.</div></div>
+        <div class="field-row"><div class="fr-label">טלפון</div><div class="fr-val">מספר טלפון — נשמר בתיק הלקוחה לצורך תזכורות ויצירת קשר.</div></div>
+        <div class="field-row"><div class="fr-label">מטפלת</div><div class="fr-val">רשימה נפתחת של כל המטפלות הפעילות. אם לא בוחרים — התור ילך לעמודת "לא משויך" ביומן.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span> תאריך</div><div class="fr-val">תאריך הטיפול. ברירת המחדל — היום. מחויב.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span> שעת התחלה</div><div class="fr-val">שעת תחילת הטיפול (פורמט 24 שעות). מחויבת — בלעדיה לא ניתן לשמור.</div></div>
+        <div class="field-row"><div class="fr-label">שירות</div><div class="fr-val">רשימה נפתחת של כל השירותים הפעילים (מכרטיסיית <em>שירותים וטיפולים</em>). בחירת שירות ממלאת <strong>אוטומטית</strong> את שדות המשך והמחיר.</div></div>
+        <div class="field-row"><div class="fr-label">משך</div><div class="fr-val">משך הטיפול בדקות. ברירת מחדל: 60. ניתן לשנות ידנית. ערך זה קובע את גובה הקלף ביומן.</div></div>
+        <div class="field-row"><div class="fr-label">מחיר</div><div class="fr-val">מחיר הטיפול בש"ח. ברירת מחדל: ₪0. ממולא אוטומטית אם נבחר שירות. ניתן לשנות לתור ספציפי.</div></div>
+        <div class="field-row"><div class="fr-label">הערות</div><div class="fr-val">הערות פנימיות לתור (לא גלויות ללקוחה). לדוגמה: "מגיעה עם בת — נא להכין מקום".</div></div>
+      </div>
+      <div class="steps" style="margin-top:.7rem">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><span>חפשי לקוחה קיימת בתיבת החיפוש, או הקלידי שם חדש ישירות בשדה שם לקוח/ה.</span></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><span>בחרי מטפלת, תאריך ושעת התחלה. אלו שלושת השדות המחויבים.</span></div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><span>בחרי שירות מהרשימה — משך ומחיר יתמלאו אוטומטית. ניתן לשנות לאחר מכן.</span></div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>לחץ שמור.</strong><span> התור נשמר בסטטוס <em>מתוכנן</em> ומופיע מיידית בעמודת המטפלת ביומן.</span></div></div>
+      </div>
+    </div>
+
+    <!-- ח. חלון פרטי תור -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🔍</div><div><div class="mod-name">חלון פרטי תור</div><div class="mod-tag">צוות › יומן מטפלות › לחיצה על תור</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">לחץ על קלף תור (בכל תצוגה) — נפתח חלון פרטים מלא עם כותרת ורוד–סגול ותמונת המטפלת.</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">פרטים מוצגים</div><div class="fr-val">שם לקוחה, שם שירות, תאריך ושעה, שם מטפלת (עם אווטאר), מחיר, משך, הערות, מקור תור (באדג׳), ותג סטטוס.</div></div>
+        <div class="field-row"><div class="fr-label">✏️ ערוך</div><div class="fr-val">מופיע <strong>תמיד</strong> — פותח את חלון עריכת התור עם כל השדות הניתנים לשינוי.</div></div>
+        <div class="field-row"><div class="fr-label">✅ אשר תור</div><div class="fr-val">מופיע רק אם הסטטוס הוא <strong>pending_client</strong> (ממתין לאישור). לחיצה משנה ל-<code>confirmed</code>.</div></div>
+        <div class="field-row"><div class="fr-label">✅ השלם</div><div class="fr-val">מופיע אם הסטטוס הוא <strong>scheduled</strong> (מתוכנן) או <strong>confirmed</strong> (מאושר). פעולת ה"השלמה" עדכנת מלאי + מחשבת עמלות המטפלת.</div></div>
+        <div class="field-row"><div class="fr-label">😞 לא הגיע</div><div class="fr-val">מופיע יחד עם "השלם" — לסטטוסים scheduled ו-confirmed. רושם <em>no_show</em> ומעדכן את הדוחות.</div></div>
+      </div>
+
+      <p style="font-size:.85rem;margin:.6rem 0 .3rem"><strong>סטטוסי תור וצבעיהם:</strong></p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">מתוכנן (scheduled)</div><div class="fr-val">סטטוס ברירת מחדל לתורים ידניים. תור קיים ומתוכנן.</div></div>
+        <div class="field-row"><div class="fr-label">מאושר (confirmed)</div><div class="fr-val">תור אושר בצוות (בין אם הגיע מהאתר ואושר, או עודכן ידנית).</div></div>
+        <div class="field-row"><div class="fr-label">הושלם (completed)</div><div class="fr-val">הטיפול בוצע. מלאי עודכן ועמלות חושבו.</div></div>
+        <div class="field-row"><div class="fr-label">בוטל (cancelled)</div><div class="fr-val">התור בוטל — לא מחויב בעמלה.</div></div>
+        <div class="field-row"><div class="fr-label">לא הגיע (no_show)</div><div class="fr-val">הלקוחה לא הגיעה לתור. נרשם בתיק הלקוחה ומוצג בדוחות.</div></div>
+        <div class="field-row"><div class="fr-label">ממתין לאישור (pending_client)</div><div class="fr-val">תור שהגיע מהאתר הציבורי וטרם אושר על-ידי הצוות.</div></div>
+      </div>
+    </div>
+
+    <!-- ט. עריכת תור -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">✏️</div><div><div class="mod-name">עריכת תור קיים</div><div class="mod-tag">צוות › יומן מטפלות › ✏️ ערוך</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">לחץ <strong>✏️ ערוך</strong> מחלון הפרטים. נפתח חלון עריכה עם שבעה שדות הניתנים לשינוי:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">שירות</div><div class="fr-val">רשימה נפתחת של כל השירותים + אפשרות <em>אחר</em> לשירות חופשי שאינו ברשימה.</div></div>
+        <div class="field-row"><div class="fr-label">תאריך</div><div class="fr-val">שינוי תאריך הטיפול — התור יזוז ביומן בהתאם.</div></div>
+        <div class="field-row"><div class="fr-label">שעה</div><div class="fr-val">שינוי שעת תחילת הטיפול — מיקום הקלף ביומן מתעדכן.</div></div>
+        <div class="field-row"><div class="fr-label">משך</div><div class="fr-val">שינוי משך הטיפול בדקות — גובה הקלף ביומן מתעדכן.</div></div>
+        <div class="field-row"><div class="fr-label">מטפלת</div><div class="fr-val">שינוי שיוך המטפלת — הקלף יזוז לעמודה המתאימה בתצוגת יום.</div></div>
+        <div class="field-row"><div class="fr-label">סטטוס</div><div class="fr-val">בחירה מבין 5 סטטוסים: מתוכנן / מאושר / הושלם / בוטל / לא הגיע. ניתן לשנות ידנית בכל שלב.</div></div>
+        <div class="field-row"><div class="fr-label">הערות</div><div class="fr-val">עדכון הערות פנימיות לתור.</div></div>
+      </div>
+      <p style="font-size:.85rem;margin-top:.5rem">לחץ <strong>שמור שינויים</strong> — השינויים נשמרים מיידית ביומן מבלי לרענן את הדף.</p>
+    </div>
+
+    <!-- י. פעולות סיום -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">✅</div><div><div class="mod-name">פעולות סיום טיפול</div><div class="mod-tag">צוות › יומן מטפלות › חלון פרטי תור</div></div></div>
+
+      <p style="font-size:.85rem;margin-bottom:.5rem"><strong>השלם טיפול:</strong></p>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><span>פתח את חלון פרטי התור ← לחץ <strong>✅ השלם</strong>.</span></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><span>המערכת מבצעת שלוש פעולות אוטומטיות בו-זמנית: <strong>(א)</strong> משנה סטטוס ל-<em>הושלם</em>, <strong>(ב)</strong> מורידה מלאי מוצרים שנצרכו בטיפול, <strong>(ג)</strong> מחשבת עמלה למטפלת לפי אחוז העמלה שלה.</span></div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><span>העמלה מופיעה בכרטיסיית <em>עמלות ושכר</em> כ"עמלה שטרם שולמה".</span></div></div>
+      </div>
+
+      <p style="font-size:.85rem;margin:.7rem 0 .5rem"><strong>רישום אי-הגעה (no_show):</strong></p>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><span>פתח חלון פרטי התור ← לחץ <strong>😞 לא הגיע</strong>.</span></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><span>סטטוס התור משתנה ל-<em>לא הגיע</em>. <strong>לא</strong> מתבצע עדכון מלאי ו<strong>לא</strong> מחושבת עמלה.</span></div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><span>ה-no_show נרשם בתיק הלקוחה ומופיע בדוחות — עוזר לזהות לקוחות לא-אמינות לצורך תזכורות אוטומטיות מוגברות.</span></div></div>
+      </div>
+
+      <div class="box box-warn">
+        <div class="box-icon">⚠️</div>
+        <div><strong>השלמה היא בלתי הפיכה</strong> — ברגע שלוחצים "השלם", המלאי יורד והעמלה נרשמת. לא ניתן לבטל אוטומטית. אם הושלמה בטעות, יש לתקן ידנית במלאי ובעמלות.</div>
+      </div>
+    </div>
+
+    <!-- יא. סצנריו מלא -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">📖</div><div><div class="mod-name">סצנריו — מחיוג ראשון ועד עמלה</div><div class="mod-tag">דוגמה מלאה</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לקוחה חדשה מתקשרת</strong> — לוחצים <strong>+ תור חדש</strong> ביומן. מקלידים "דנה כהן", טלפון 050-1234567, בוחרים מטפלת "שירה", תאריך מחר, שעה 10:00, שירות "פנינג פנים 60 דק׳" (משך ומחיר מתמלאים אוטומטית). שומרים — התור מופיע בעמודת שירה ב-10:00.</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>דנה ביטלה ושינתה ל-11:30</strong> — לוחצים על הקלף ← <strong>✏️ ערוך</strong> ← שינוי שעה ל-11:30 ← שומרים. הקלף זזה אוטומטית ביומן.</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>בוקר יום הטיפול</strong> — בתצוגת יום רואים את הקלף של דנה אצל שירה ב-11:30. מגיעה הלקוחה — שירה מתחילה לטפל.</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>סיום הטיפול</strong> — לוחצים על קלף דנה ← <strong>✅ השלם</strong>. הסטטוס משתנה ל"הושלם", המלאי יורד אוטומטית, ועמלת שירה מחושבת ומופיעה בכרטיסיית <em>עמלות ושכר</em>.</div></div>
+        <div class="step"><div class="step-n">5</div><div class="step-body"><strong>לקוחה חדשה קבעה מהאתר</strong> — מופיעה הודעה בבאנר הענברי. לוחצים <strong>✓ אשר</strong> — הסטטוס עובר מ-<em>ממתין</em> ל-<em>מאושר</em> ביומן.</div></div>
+      </div>
     </div>
   </div>
 
