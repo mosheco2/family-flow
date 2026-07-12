@@ -18640,7 +18640,13 @@ window.updateWizardUIV2 = function updateWizardUIV2() {
     if (contentEl) contentEl.innerHTML = _renderWizardV2StepContent(stepName);
 
     const btnPrev = document.getElementById('wizard-v2-btn-prev');
-    if (btnPrev) btnPrev.classList.toggle('hidden', currentWizardStepV2 === 0);
+    if (btnPrev) {
+        btnPrev.classList.toggle('hidden', currentWizardStepV2 === 0);
+        btnPrev.onclick = () => { currentWizardStepV2--; updateWizardUIV2(); };
+    }
+
+    const btnSkip = document.getElementById('wizard-v2-btn-skip');
+    if (btnSkip) btnSkip.onclick = () => { currentWizardStepV2++; updateWizardUIV2(); };
 
     const btnNext = document.getElementById('wizard-v2-btn-next');
     if (btnNext) {
@@ -18651,7 +18657,10 @@ window.updateWizardUIV2 = function updateWizardUIV2() {
 
 window.showOnboardingWizardV2 = function showOnboardingWizardV2() {
     if (document.getElementById('onboarding-wizard-v2-modal')) {
+        currentWizardStepV2 = 0;
+        wizardV2Data = {};
         document.getElementById('onboarding-wizard-v2-modal').classList.remove('hidden');
+        updateWizardUIV2();
         return;
     }
 
@@ -18677,10 +18686,10 @@ window.showOnboardingWizardV2 = function showOnboardingWizardV2() {
             </div>
 
             <div class="p-4 bg-white border-t border-slate-100 flex justify-between items-center shrink-0">
-                <button id="wizard-v2-btn-skip" onclick="currentWizardStepV2++; updateWizardUIV2();" class="text-xs text-slate-400 font-bold hover:text-slate-600 transition underline px-2">דלג על שלב זה</button>
+                <button id="wizard-v2-btn-skip" class="text-xs text-slate-400 font-bold hover:text-slate-600 transition underline px-2">דלג על שלב זה</button>
                 <div class="flex gap-2">
-                    <button id="wizard-v2-btn-prev" onclick="currentWizardStepV2--; updateWizardUIV2();" class="px-4 sm:px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-100 rounded-xl transition hidden">חזור</button>
-                    <button id="wizard-v2-btn-next" onclick="currentWizardStepV2++; updateWizardUIV2();" class="px-6 sm:px-8 py-2.5 bg-slate-800 text-white font-bold rounded-xl shadow-md hover:bg-slate-700 transition">המשך</button>
+                    <button id="wizard-v2-btn-prev" class="px-4 sm:px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-100 rounded-xl transition hidden">חזור</button>
+                    <button id="wizard-v2-btn-next" class="px-6 sm:px-8 py-2.5 bg-slate-800 text-white font-bold rounded-xl shadow-md hover:bg-slate-700 transition">המשך</button>
                 </div>
             </div>
         </div>
