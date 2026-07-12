@@ -19236,6 +19236,47 @@ function _renderWizardV2StepContent(stepName) {
             </button>
         </div>`;
     }
+    if (stepName === 'catalog') {
+        const PROD_CATS = [
+            { value: 'חלקי חילוף',        icon: '🔧' },
+            { value: 'ציוד מיזוג',         icon: '❄️' },
+            { value: 'אביזרי אינסטלציה',  icon: '🚿' },
+            { value: 'ציוד חשמל',          icon: '💡' },
+            { value: 'חומרים מתכלים',      icon: '📦' },
+            { value: 'אחר',                icon: '🛒' },
+        ];
+        const selCats = wizardV2Data.productCategories || [];
+        const catCards = PROD_CATS.map(c => `
+            <button type="button" onclick="_wiz2ToggleProdCat('${c.value}')"
+                id="wiz-v2-prodcat-${c.value.replace(/[\s]/g,'_')}"
+                class="wiz-v2-prodcat-card flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition active:scale-95 text-center w-full
+                    ${selCats.includes(c.value) ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-200'}"
+                style="touch-action:manipulation;cursor:pointer;">
+                <span class="text-2xl">${c.icon}</span>
+                <span class="text-xs font-bold text-slate-700">${c.value}</span>
+            </button>`).join('');
+        const prods = wizardV2Data.catalogProducts || [];
+        const prodRows = prods.map((p, i) => `
+            <div class="flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl">
+                <span class="flex-1 text-sm font-medium text-slate-700">${p.name}</span>
+                <span class="text-sm font-bold text-indigo-600">${p.price} ₪</span>
+                <button type="button" onclick="_wiz2RemoveProd(${i})" class="text-red-400 hover:text-red-600 px-1">✕</button>
+            </div>`).join('');
+        return `
+        <div class="max-w-md mx-auto space-y-5">
+            <div>
+                <p class="text-base font-bold text-slate-700 mb-1">מה אתם מוכרים?</p>
+                <p class="text-xs text-slate-500 mb-3">ציוד, חלקים, או מוצרים נלווים</p>
+                <div class="grid grid-cols-3 gap-2">${catCards}</div>
+            </div>
+            <div id="wiz-v2-prod-result">
+                ${prods.length > 0 ? `<div class="space-y-2 mb-2">${prodRows}</div>
+                <button type="button" onclick="_wiz2AddProd()"
+                    class="w-full border-2 border-dashed border-indigo-300 text-indigo-500 rounded-xl py-2 text-sm hover:bg-indigo-50">+ הוסף מוצר</button>`
+                : '<p class="text-xs text-slate-400 text-center py-4">בחרו קטגוריה כדי לייצר קטלוג אוטומטי</p>'}
+            </div>
+        </div>`;
+    }
     return `<div class="text-center text-slate-500 py-8">שלב: ${stepName}</div>`;
 }
 
@@ -19361,6 +19402,129 @@ window._wiz2AddRepairSvc = function() {
     if (!wizardV2Data.repairServices) wizardV2Data.repairServices = [];
     wizardV2Data.repairServices.push({ name: '', price_from: 0, price_to: 0, duration_hours: 1, category: (wizardV2Data.serviceTypes||[])[0] || '' });
     updateWizardUIV2();
+};
+
+window._wiz2ToggleProdCat = function(value) {
+    if (!wizardV2Data.productCategories) wizardV2Data.productCategories = [];
+    const idx = wizardV2Data.productCategories.indexOf(value);
+    if (idx === -1) wizardV2Data.productCategories.push(value);
+    else wizardV2Data.productCategories.splice(idx, 1);
+    const isNow = wizardV2Data.productCategories.includes(value);
+    const btn = document.getElementById(`wiz-v2-prodcat-${value.replace(/[\s]/g,'_')}`);
+    if (btn) {
+        btn.className = btn.className
+            .replace(/border-indigo-500 bg-indigo-50|border-slate-200 bg-white hover:border-indigo-200/g, '')
+            + (isNow ? ' border-indigo-500 bg-indigo-50' : ' border-slate-200 bg-white hover:border-indigo-200');
+    }
+    wizardV2Data.catalogProducts = [];
+    _generateRepairProducts();
+};
+
+let _repairProductsAbort = null;
+window._generateRepairProducts = async function() {
+    if (!wizardV2Data.productCategories || wizardV2Data.productCategories.length === 0) return;
+    if (_repairProductsAbort) { _repairProductsAbort.abort(); }
+    _repairProductsAbort = new AbortController();
+    const signal = _repairProductsAbort.signal;
+
+    let resultEl = document.getElementById('wiz-v2-prod-result');
+    if (!resultEl) return;
+    resultEl.innerHTML = `<div class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה קטלוג מוצרים...</p></div>`;
+    const snapTypes = (wizardV2Data.serviceTypes || []).join(', ') || 'שירותים';
+    const snapCats  = [...wizardV2Data.productCategories];
+    try {
+        const res = await fetch(`${API}/ai/generate-catalog`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            signal,
+            body: JSON.stringify({
+                promptText: `צור קטלוג מוצרים למכירה עבור עסק ${snapTypes} בקטגוריות: ${snapCats.join(', ')}. צור 5 מוצרים נפוצים. החזר JSON בלבד: {"items": [{"name": "string", "price": number, "category": "string"}]} מחירים ריאליים בשקלים. ללא טקסט נוסף.`,
+                type: 'BUSINESS', groupId: currentGroup.id
+            })
+        });
+        if (signal.aborted) return;
+        const responseText = await res.text();
+        if (signal.aborted) return;
+        let outer;
+        try { outer = JSON.parse(responseText); } catch(e) {
+            resultEl = document.getElementById('wiz-v2-prod-result');
+            if (resultEl) resultEl.innerHTML = '<p class="text-center text-red-500 py-4">שגיאה בבניית הקטלוג. נסה שנית.</p>';
+            return;
+        }
+        if (outer.error === 'BATTERY_EMPTY') {
+            resultEl = document.getElementById('wiz-v2-prod-result');
+            if (resultEl) resultEl.innerHTML = _wizBatteryEmptyHTML(i => `
+                <div class="flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl mb-2">
+                    <input type="text" placeholder="שם מוצר" class="modern-input py-1.5 text-sm flex-1"
+                        oninput="if(!wizardV2Data.catalogProducts)wizardV2Data.catalogProducts=[];if(!wizardV2Data.catalogProducts[${i}])wizardV2Data.catalogProducts[${i}]={name:'',price:0,category:''};wizardV2Data.catalogProducts[${i}].name=this.value">
+                    <input type="number" placeholder="₪" min="0" class="modern-input py-1.5 text-xs w-24 text-center"
+                        oninput="if(wizardV2Data.catalogProducts&&wizardV2Data.catalogProducts[${i}])wizardV2Data.catalogProducts[${i}].price=parseFloat(this.value)||0">
+                    <button type="button" onclick="_wiz2RemoveProd(${i})" class="text-red-400 hover:text-red-600 px-1">✕</button>
+                </div>`);
+            return;
+        }
+        let items = (outer.success && outer.items) ? outer.items : null;
+        if (!items && outer.result) { try { const p = JSON.parse(outer.result); items = p.items || p; } catch(e) {} }
+        wizardV2Data.catalogProducts = (items || []).map(it => ({
+            name: it.name || '', price: it.price || 0, category: it.category || snapCats[0] || ''
+        }));
+    } catch(e) {
+        if (e.name === 'AbortError') return;
+        resultEl = document.getElementById('wiz-v2-prod-result');
+        if (resultEl) resultEl.innerHTML = '<p class="text-center text-red-500 py-4">שגיאה בבניית הקטלוג. נסה שנית.</p>';
+        return;
+    }
+    resultEl = document.getElementById('wiz-v2-prod-result');
+    if (!resultEl) return;
+    const prods = wizardV2Data.catalogProducts || [];
+    if (prods.length === 0) {
+        resultEl.innerHTML = '<p class="text-center text-slate-400 py-4">לא נמצאו מוצרים, נסה שנית.</p>';
+        return;
+    }
+    const rows = prods.map((p, i) => `
+        <div class="flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl">
+            <span class="flex-1 text-sm font-medium text-slate-700">${p.name}</span>
+            <span class="text-sm font-bold text-indigo-600">${p.price} ₪</span>
+            <button type="button" onclick="_wiz2RemoveProd(${i})" class="text-red-400 hover:text-red-600 px-1">✕</button>
+        </div>`).join('');
+    resultEl.innerHTML = `<div class="space-y-2 mb-2">${rows}</div>
+        <button type="button" onclick="_wiz2AddProd()"
+            class="w-full border-2 border-dashed border-indigo-300 text-indigo-500 rounded-xl py-2 text-sm hover:bg-indigo-50">+ הוסף מוצר</button>`;
+};
+
+window._wiz2RemoveProd = function(idx) {
+    if (wizardV2Data.catalogProducts) wizardV2Data.catalogProducts.splice(idx, 1);
+    const el = document.getElementById('wiz-v2-prod-result');
+    if (!el) return;
+    const prods = wizardV2Data.catalogProducts || [];
+    if (prods.length === 0) { el.innerHTML = '<p class="text-center text-slate-400 py-4">אין מוצרים</p>'; return; }
+    const rows = prods.map((p, i) => `
+        <div class="flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl">
+            <span class="flex-1 text-sm font-medium text-slate-700">${p.name}</span>
+            <span class="text-sm font-bold text-indigo-600">${p.price} ₪</span>
+            <button type="button" onclick="_wiz2RemoveProd(${i})" class="text-red-400 hover:text-red-600 px-1">✕</button>
+        </div>`).join('');
+    el.innerHTML = `<div class="space-y-2 mb-2">${rows}</div>
+        <button type="button" onclick="_wiz2AddProd()"
+            class="w-full border-2 border-dashed border-indigo-300 text-indigo-500 rounded-xl py-2 text-sm hover:bg-indigo-50">+ הוסף מוצר</button>`;
+};
+
+window._wiz2AddProd = function() {
+    if (!wizardV2Data.catalogProducts) wizardV2Data.catalogProducts = [];
+    const idx = wizardV2Data.catalogProducts.length;
+    wizardV2Data.catalogProducts.push({ name: '', price: 0, category: (wizardV2Data.productCategories || [])[0] || '' });
+    const el = document.getElementById('wiz-v2-prod-result');
+    if (!el) return;
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl mt-2';
+    row.innerHTML = `
+        <input type="text" placeholder="שם מוצר" class="modern-input py-1.5 text-sm flex-1"
+            oninput="wizardV2Data.catalogProducts[${idx}].name=this.value">
+        <input type="number" placeholder="₪" min="0" class="modern-input py-1.5 text-xs w-24 text-center"
+            oninput="wizardV2Data.catalogProducts[${idx}].price=parseFloat(this.value)||0">
+        <button type="button" onclick="_wiz2RemoveProd(${idx})" class="text-red-400 hover:text-red-600 px-1">✕</button>`;
+    const addBtn = el.querySelector('button');
+    if (addBtn) el.insertBefore(row, addBtn);
+    else el.appendChild(row);
 };
 
 window._wiz2ToggleBilling = function(value) {
@@ -19963,6 +20127,24 @@ async function _nextWizardV2Step() {
                 });
             }
         } catch(e) {}
+    }
+
+    if (stepName === 'catalog') {
+        const prods = (wizardV2Data.catalogProducts || []).filter(p => p.name && p.name.trim());
+        if (prods.length > 0) {
+            const btnNext = document.getElementById('wizard-v2-btn-next');
+            if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
+            try {
+                await Promise.all(prods.map(p => fetch(`${API}/store/catalog`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        groupId: currentGroup.id,
+                        name: p.name, price: p.price, category: p.category || '',
+                        isAvailable: true, productType: 'retail'
+                    })
+                })));
+            } catch(e) {}
+        }
     }
 
     if (stepName === 'food_type') {
