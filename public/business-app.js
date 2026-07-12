@@ -19257,7 +19257,11 @@ window._wiz2ToggleSvcType = function(value) {
 
 let _repairServicesAbort = null;
 window._generateRepairServices = async function() {
-    if (!wizardV2Data.serviceTypes || wizardV2Data.serviceTypes.length === 0) return;
+    console.log('repair types:', wizardV2Data.serviceTypes);
+    if (!wizardV2Data.serviceTypes || wizardV2Data.serviceTypes.length === 0) {
+        console.log('repair: no service types selected, aborting');
+        return;
+    }
     // ביטול בקשה קודמת אם קיימת
     if (_repairServicesAbort) { _repairServicesAbort.abort(); }
     _repairServicesAbort = new AbortController();
@@ -19280,9 +19284,10 @@ window._generateRepairServices = async function() {
                 type: 'BUSINESS', groupId: currentGroup.id
             })
         });
-        if (signal.aborted) return;
+        if (signal.aborted) { console.log('repair: aborted after fetch'); return; }
         const responseText = await res.text();
-        if (signal.aborted) return;
+        console.log('raw response:', responseText);
+        if (signal.aborted) { console.log('repair: aborted after text()'); return; }
         let outer;
         try { outer = JSON.parse(responseText); } catch(e) {
             resultEl = document.getElementById('wiz-v2-repair-result');
