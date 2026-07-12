@@ -18560,6 +18560,73 @@ const WIZARD_STEPS_BY_TYPE_V2 = {
 
 let wizardStepsV2 = [];
 let currentWizardStepV2 = 0;
+let wizardV2Data = {};
+
+function _renderWizardV2StepContent(stepName) {
+    if (stepName === 'identity') {
+        return `
+        <div class="max-w-md mx-auto space-y-6">
+            <h3 class="font-bold text-slate-800 text-lg text-center"><i class="fa-solid fa-store text-indigo-500 mr-2"></i>פרטי זיהוי העסק</h3>
+
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">מספר טלפון העסק <span class="text-red-500">*</span></label>
+                <input type="tel" id="wiz-v2-phone" dir="ltr"
+                    class="modern-input py-3 w-full bg-white"
+                    placeholder="050-0000000"
+                    value="${wizardV2Data.phone || ''}">
+            </div>
+
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-2">לוגו העסק <span class="text-slate-400 font-normal">(אופציונלי)</span></label>
+                <div class="flex items-center gap-4">
+                    <button type="button"
+                        onclick="document.getElementById('wiz-v2-logo-upload').click()"
+                        class="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 shadow-sm transition">
+                        <i class="fa-solid fa-upload mr-1"></i> העלה לוגו
+                    </button>
+                    <div class="relative w-14 h-14 bg-white rounded-2xl border-2 border-dashed border-indigo-200 flex items-center justify-center overflow-hidden shrink-0">
+                        <img id="wizard-logo-preview"
+                            class="absolute inset-0 w-full h-full object-cover hidden"
+                            onclick="openStoreImageModal(this.src)" title="לחץ להגדלה">
+                        <i id="wizard-logo-icon" class="fa-solid fa-camera text-indigo-300 text-lg"></i>
+                    </div>
+                    <input type="file" id="wiz-v2-logo-upload" accept="image/*" class="hidden"
+                        onchange="handleWizardLogo(event)">
+                    <input type="hidden" id="wizard-logo-base64">
+                </div>
+            </div>
+        </div>`;
+    }
+    return `<div class="text-center text-slate-500 py-8">שלב: ${stepName}</div>`;
+}
+
+async function _nextWizardV2Step() {
+    const stepName = wizardStepsV2[currentWizardStepV2] || '';
+
+    if (stepName === 'identity') {
+        const phone = (document.getElementById('wiz-v2-phone')?.value || '').trim();
+        if (!phone) { alert('נא להזין מספר טלפון'); return; }
+        wizardV2Data.phone = phone;
+        const btnNext = document.getElementById('wizard-v2-btn-next');
+        if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        try {
+            await fetch(`${API}/store/settings`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    groupId: currentGroup.id,
+                    isActive: true,
+                    phone: wizardV2Data.phone,
+                    logoUrl: document.getElementById('wizard-logo-base64')?.value || ''
+                })
+            });
+        } catch(e) {}
+    }
+
+    if (currentWizardStepV2 < wizardStepsV2.length - 1) {
+        currentWizardStepV2++;
+        updateWizardUIV2();
+    }
+}
 
 window.updateWizardUIV2 = function updateWizardUIV2() {
     const stepName = wizardStepsV2[currentWizardStepV2] || '';
@@ -18570,13 +18637,16 @@ window.updateWizardUIV2 = function updateWizardUIV2() {
     if (progressEl) progressEl.style.width = `${progressPct}%`;
 
     const contentEl = document.getElementById('wizard-v2-content');
-    if (contentEl) contentEl.innerHTML = `<div>שלב: ${stepName}</div>`;
+    if (contentEl) contentEl.innerHTML = _renderWizardV2StepContent(stepName);
 
     const btnPrev = document.getElementById('wizard-v2-btn-prev');
     if (btnPrev) btnPrev.classList.toggle('hidden', currentWizardStepV2 === 0);
 
     const btnNext = document.getElementById('wizard-v2-btn-next');
-    if (btnNext) btnNext.innerText = currentWizardStepV2 === total - 1 ? 'סיום 🚀' : 'המשך';
+    if (btnNext) {
+        btnNext.innerText = currentWizardStepV2 === total - 1 ? 'סיום 🚀' : 'המשך';
+        btnNext.onclick = _nextWizardV2Step;
+    }
 }
 
 window.showOnboardingWizardV2 = function showOnboardingWizardV2() {
