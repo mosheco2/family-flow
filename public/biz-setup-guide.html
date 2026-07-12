@@ -4439,51 +4439,198 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     <div class="chapter" id="m-stock">
       <div class="ch-head"><div class="ch-num">5</div><div class="ch-title">לקוחות, מלאי וחלקי חילוף</div></div>
 
+      <p style="font-size:.9rem;color:var(--text2);">
+        שלושת הטאבים בפרק זה — <strong>לקוחות</strong> (קבוצת מכירות), <strong>מלאי חלקים</strong> ו<strong>רכש ארגוני</strong> (קבוצת מלאי) — מהווים את תשתית הגב של העסק: מי הלקוחות שלנו, מה יש במחסן, ואיך מזמינים עוד.
+      </p>
+
+      <!-- ─── א. לקוחות ─── -->
+      <h2 class="sec">א. כרטיסי לקוחות — קבוצת מכירות › לקוחות</h2>
+      <p style="font-size:.9rem;color:var(--text2);">
+        רשימת כל הלקוחות שנשמרו בחשבון. לחיצה על לקוח פותחת <strong>כרטיס לקוח</strong> עם 4 לשוניות — הלשונית <strong>🔧 קריאות</strong> קיימת <strong>רק בסוג עסק תחזוקה ותיקונים</strong>.
+      </p>
+
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">🤝</div><div><div class="mod-name">כרטיסי לקוחות</div><div class="mod-tag">מכירות › לקוחות</div></div></div>
+        <div class="mod-head"><div class="mod-icon">🔍</div><div><div class="mod-name">רשימת הלקוחות — חיפוש וסינון</div></div></div>
         <div class="mod-body">
-          <p>כרטיס אישי לכל לקוח — כל קריאות השירות שלו, פרטי קשר, כתובות.</p>
-          <div class="actions">
-            <span class="action">רשימת כל הלקוחות</span>
-            <span class="action">לחיצה על לקוח → היסטוריית קריאות</span>
-            <span class="action">לשונית 🔧 קריאות — לקוחות בעסק תחזוקה</span>
-            <span class="action">הוספת לקוח חדש ידנית</span>
-            <span class="action">חיפוש לפי שם / טלפון</span>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🔎 חיפוש</div><div class="fr-val">חיפוש בו-זמני לפי <strong>שם, טלפון, ח"פ/ע"מ, אימייל</strong>. הרשימה מסתננת בזמן אמת.</div></div>
+            <div class="field-row"><div class="fr-label">🔘 סינון סוג</div><div class="fr-val">3 אפשרויות: <strong>הכל</strong> (כל הלקוחות), <strong>הזמנות</strong> (לקוחות שהיו להם עסקאות), <strong>הצעות מחיר</strong> (לקוחות עם הצעת מחיר שאושרה).</div></div>
+            <div class="field-row"><div class="fr-label">+ לקוח חדש</div><div class="fr-val">כפתור בפינה — פותח את אותו כרטיס לקוח בחלק "פרטים" ריק, מוכן להזנה.</div></div>
           </div>
-          <div class="box box-tip" style="margin-top:10px;">
-            <div class="box-icon">💡</div>
-            <div>לחיצה על לקוח → לשונית <strong>"קריאות"</strong> — מראה את כל הקריאות שנפתחו עבורו, עם סטטוסים ותאריכים.</div>
+          <p style="font-size:.83rem;color:var(--text2);margin-top:8px;">כל כרטיס ברשימה מציג: ראשית שם (אות ראשונה בעיגול), שם מלא, טלפון, ח"פ/ע"מ, אימייל, הערה קצרה. 3 כפתורי פעולה: ✏️ עריכה, 🗑️ מחיקה, 🔗 קישור ONEFLOW.</p>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🤝</div><div><div class="mod-name">כרטיס לקוח — 4 לשוניות</div><div class="mod-sub">נפתח בלחיצה על לקוח מהרשימה</div></div></div>
+        <div class="mod-body">
+
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;"><strong>לשונית 1 — פרטים ומאזן</strong> (ברירת מחדל לכרטיס לקוח קיים):</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">📊 3 כרטיסי כסף</div><div class="fr-val">שורה עליונה בכרטיס לקוח קיים: <strong>סה"כ עסקאות</strong> (סכום כולל שחויב), <strong>סה"כ הכנסות</strong> (שולם בפועל — ירוק), <strong>חבות פתוחה</strong> (נותר לשלם — כתום). מחושבים מכל עסקאות/הזמנות הקשורות לאותו טלפון.</div></div>
+            <div class="field-row"><div class="fr-label">🔴 חוב פתוח</div><div class="fr-val">אם יש חוב מהקפות — מוצג banner אדום עם הסכום וכפתור "תשלום חוב". אם אין חוב — banner ירוק "יתרת זכות / אין חוב".</div></div>
+          </div>
+          <p style="font-size:.87rem;color:var(--text2);margin:10px 0 6px;"><strong>שדות פרטים לעדכון:</strong></p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם איש קשר</div><div class="fr-val">שם הלקוח כפי שיוצג ברשימה ובדוחות. שינוי שם מסנכרן את רשימת ההיסטוריה.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>שם משפחה / חברה</div><div class="fr-val">שם חשבון OneFlow אם הלקוח קיים שם — מוצג בסוגריים ליד שם הלקוח. שדה כפוי עם חיפוש.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>טלפון + איתור ONEFLOW</div><div class="fr-val">הטלפון משמש כ<strong>מזהה ראשי לחובות והקפות</strong>. כפתור "איתור ONEFLOW" מחפש את הלקוח בממשק הצרכני ומקשר אותו לחשבון.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>אימייל</div><div class="fr-val">לצורך שליחת הצעות מחיר ומסמכים.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>ח"פ / ע"מ</div><div class="fr-val">מספר עוסק/חברה — מוצג בכרטיס ומשמש לסינון.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>הערות</div><div class="fr-val">טקסט חופשי — לדוגמה "לקוח VIP", "לא לחייג אחרי 18:00", "מזגן שנת 2019 מדגם X".</div></div>
+          </div>
+          <p style="font-size:.83rem;color:var(--text2);margin-top:8px;">לחיצה על <strong>"שמור לקוח"</strong> ← שמירה בשרת ← רשימת הלקוחות מתרענת.</p>
+
+          <p style="font-size:.87rem;color:var(--text2);margin:12px 0 6px;"><strong>לשונית 2 — היסטוריית הזמנות</strong>:</p>
+          <p style="font-size:.84rem;color:var(--text2);">כל ההזמנות והעסקאות שנשמרו עבור לקוח זה — ניתן לחפש בהיסטוריה ולסנכרן מחדש.</p>
+
+          <p style="font-size:.87rem;color:var(--text2);margin:12px 0 6px;"><strong>לשונית 3 — 🔧 קריאות (ייחודית לסוג עסק תחזוקה ותיקונים)</strong>:</p>
+          <p style="font-size:.84rem;color:var(--text2);">
+            כל קריאות השירות שנפתחו עבור לקוח זה — <strong>חיפוש לפי שם הלקוח</strong> (GET /api/service-calls/by-customer/{groupId}?name=...).
+            כל קריאה מוצגת עם: אייקון סטטוס/עדיפות, כותרת, תאריך, סטטוס, הצעת מחיר (אם קיימת).
+            <strong>לחיצה על קריאה פותחת את מסך הקריאה המלא</strong> ישירות מתוך כרטיס הלקוח.
+          </p>
+
+          <p style="font-size:.87rem;color:var(--text2);margin:12px 0 6px;"><strong>לשונית 4 — גביה</strong>:</p>
+          <p style="font-size:.84rem;color:var(--text2);">ניהול חובות וגביה — חיובים פתוחים שעדיין לא שולמו, לפי שם/טלפון לקוח.</p>
+        </div>
+      </div>
+
+      <!-- ─── ב. מלאי חלקים ─── -->
+      <h2 class="sec">ב. מלאי חלקים — קבוצת מלאי › מלאי חלקים (pantry)</h2>
+      <p style="font-size:.9rem;color:var(--text2);">
+        מעקב אחר מלאי פיזי של חלקים וציוד במחסן — כמה יחידות יש מכל פריט, מה השמור לקריאות שירות פתוחות, ומה זמין באמת.
+      </p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">הוספת פריט למלאי</div><div class="mod-sub">כפתור "+ הוספת פריט למלאי" ← modal</div></div></div>
+        <div class="mod-body">
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם המוצר / פריט</div><div class="fr-val">שם החלק כפי שיוצג ברשימה — לדוגמה: "מסנן מזגן", "פרפר גז R32", "ממסר 10A".</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>כמות התחלתית</div><div class="fr-val">כמה יחידות (או מארזים/ק"ג) יש עכשיו במחסן. ניתן לשנות בכל עת דרך כפתורי + / − בפריט.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>סוג יחידה</div><div class="fr-val">6 אפשרויות: <strong>יח'</strong> (ברירת מחדל), <strong>ק"ג</strong>, <strong>גרם</strong>, <strong>מארז</strong>, <strong>קרטון</strong>, <strong>ליטר</strong>. בחירת "מארז" / "קרטון" מאפשרת הגדרת כמות יחידות בתוך כל מארז.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">מארז/קרטון בלבד</span>יחידות בתוך מארז</div><div class="fr-val">כמה יחידות בודדות יש בתוך כל מארז — המערכת מחשבת ומציגה גם את סה"כ היחידות (לדוגמה: 3 קרטונים × 12 יח' = 36 יח').</div></div>
+          </div>
+          <p style="font-size:.83rem;color:var(--text2);margin-top:8px;">לחיצה על <strong>"הוסף למאגר"</strong> ← POST /pantry/add ← הפריט מופיע ברשימת המלאי.</p>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📦</div><div><div class="mod-name">כרטיס פריט מלאי — ניהול שוטף</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);">כל פריט במלאי מוצג בכרטיס עם המידע הבא:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">📦 שם + תאריך עדכון</div><div class="fr-val">שם הפריט, תאריך עדכון אחרון, וגודל מארז.</div></div>
+            <div class="field-row"><div class="fr-label">🔢 כמות נוכחית</div><div class="fr-val">מספר גדול בולט = כמות הנוכחית. אם יחידות-למארז > 1, מוצג גם סה"כ יחידות (לדוגמה: 3.00 קרטונים = 36 יחידות).</div></div>
+            <div class="field-row"><div class="fr-label">🟢 זמין לפקודות</div><div class="fr-val">מוצג אם יש שריונות (reserved) או buffer — הכמות שניתן לשריין לקריאת שירות חדשה. = כמות כוללת − שמור לשימוש שוטף (buffer%) − שריון קיים.</div></div>
+            <div class="field-row"><div class="fr-label">⚠️ משוריין לפקודות</div><div class="fr-val">אם קיים שריון — banner כתום "⚠️ משוריין לפקודות עבודה: X יח'" + כפתור "ראה פקודות" שמציג את קריאות השירות שמחזיקות את השריון.</div></div>
+            <div class="field-row"><div class="fr-label">− / + כפתורים</div><div class="fr-val">עדכון מהיר של כמות — לחיצה על − מפחיתה ביחידה אחת (או 1/upp), לחיצה על + מוסיפה. PATCH /pantry/{id}. אם הפחתה תחת שריון — מוצגת התראה.</div></div>
+          </div>
+          <p style="font-size:.87rem;color:var(--text2);margin:10px 0 6px;"><strong>2 כפתורי פעולה בתחתית כל כרטיס:</strong></p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🚚 דיווח שימוש</div><div class="fr-val">פותח modal לרישום כמה יחידות נלקחו מהמחסן — לאיזה מטרה ועל ידי מי. מפחית מהכמות הכוללת. מתאים לשימוש שוטף שאינו דרך קריאת שירות.</div></div>
+            <div class="field-row"><div class="fr-label">🛒 העבר לרכש</div><div class="fr-val">מוחק את הפריט מהמלאי ומעביר אותו לרשימת "בקשות רכש ממתינות" בטאב הרכש — שם ניתן לשייך אותו לספק ולהפוך אותו להזמנה.</div></div>
           </div>
         </div>
       </div>
 
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">📦</div><div><div class="mod-name">ניהול מלאי חלקי חילוף</div><div class="mod-tag">מלאי › ניהול מלאי</div></div></div>
+        <div class="mod-head"><div class="mod-icon">⚙️</div><div><div class="mod-name">הגדרות אחוז buffer והתראת מלאי נמוך</div></div></div>
         <div class="mod-body">
-          <p>עקבו אחרי חלקים שיש לכם במחסן — פילטרים, גזים, חלקי חשמל. כשמלאי נמוך — תקבלו התראה.</p>
-          <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הוסיפו פריט</strong><span>שם החלק, יצרן, מספר קטלוג, כמות מינימלית (סף להתראה), מחיר.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>עדכנו כמות</strong><span>כשמשתמשים בחלק בקריאה — הפחיתו מהמלאי. כשמגיעה אספקה — הוסיפו.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>התראת מלאי נמוך</strong><span>כשכמות יורדת מתחת לסף — התראה אוטומטית להזמנה מחדש.</span></div></div>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🔒 Buffer % (שמור לשימוש שוטף)</div><div class="fr-val">אחוז מהמלאי שמוצא ממחשוב הזמינות לשריון — מובטח לשימוש שוטף. לדוגמה: buffer 10% על 20 יחידות = 2 יח' שמורות, 18 יח' זמינות לשריון.</div></div>
+            <div class="field-row"><div class="fr-label">⚠️ Warning % (סף התראה)</div><div class="fr-val">כשהמלאי הזמין יורד מתחת ל-(buffer% + warning%) מהכמות הכוללת — המערכת שולחת: toast "⚠️ מלאי נמוך: [שם הפריט]" + התראה ב-POST /alerts/notifications. נשלחת פעם אחת ביום.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── ג. רכש ארגוני ─── -->
+      <h2 class="sec">ג. רכש ארגוני — קבוצת מלאי › רכש ארגוני (shop)</h2>
+      <p style="font-size:.9rem;color:var(--text2);">
+        ניהול כל הרכש מול ספקי חלקים — מרשימת בקשות ממתינות, דרך יצירת הזמנה, ועד לקבלת סחורה ועדכון מלאי.
+        הטאב מחולק ל-3 לשוניות פנימיות: <strong>קטלוג / בקשות</strong>, <strong>הזמנות</strong>, <strong>ספקים</strong>.
+      </p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📋</div><div><div class="mod-name">לשונית 1 — קטלוג / בקשות (list)</div><div class="mod-sub">נטען בכניסה לטאב</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);">מציגה <strong>בקשות רכש ממתינות לשיוך</strong> — פריטים שנוצרו ידנית או הועברו מהמלאי ("העבר לרכש") ועדיין לא שויכו לספק.</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">📄 בקשה ממתינה</div><div class="fr-val">מוצגת עם: שם הפריט, שם המבקש, כמות + יחידה. כפתור "🚚 שיוך לספק" ← פותח modal לבחירת ספק → "אשר והעבר לטיוטה".</div></div>
+            <div class="field-row"><div class="fr-label">שיוך לספק</div><div class="fr-val">בחירת ספק מהרשימה ← לחיצה "אשר והעבר לטיוטה" ← הפריט הופך לשורה בהזמנת רכש חדשה בסטטוס "טיוטה" ← עובר ללשונית "הזמנות" ← ניתן להוסיף עוד פריטים לאותה הזמנה לפני שליחה.</div></div>
           </div>
         </div>
       </div>
 
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">🛒</div><div><div class="mod-name">הזמנת חלקים מספקים</div><div class="mod-tag">מלאי › רכש</div></div></div>
+        <div class="mod-head"><div class="mod-icon">📦</div><div><div class="mod-name">לשונית 2 — הזמנות (rfq)</div><div class="mod-sub">היסטוריית כל הזמנות הרכש</div></div></div>
         <div class="mod-body">
-          <p>כשצריך לרכוש חלקים מחברות האספקה — פותחים הזמנת רכש ישירות מהמערכת.</p>
-          <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>בחרו פריטים</strong><span>בחרו מה צריך להזמין ובאיזה כמות.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>שלחו לספק</strong><span>ניתן להוציא הזמנה ולשלוח למייל / WhatsApp של הספק.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>אישור הגעה</strong><span>כשהחלקים מגיעים — אשרו קבלה. המלאי מתעדכן אוטומטית.</span></div></div>
+          <p style="font-size:.87rem;color:var(--text2);">רשימת כל הזמנות הרכש — ניתן לסנן לפי <strong>ספק, סטטוס, תקופה (30/90 יום)</strong>.</p>
+
+          <p style="font-size:.85rem;color:var(--text2);margin:8px 0 6px;"><strong>8 סטטוסים של הזמנת רכש:</strong></p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">📝 טיוטה</div><div class="fr-val">הזמנה שנוצרה אך טרם אושרה לשליחה — ניתן לערוך ולהוסיף פריטים נוספים (כפתור "ערוך ומלא חוסרים בעגלה").</div></div>
+            <div class="field-row"><div class="fr-label">⏳ ממתין לאישור</div><div class="fr-val">ההזמנה מחכה לאישור פנימי לפני שליחה לספק.</div></div>
+            <div class="field-row"><div class="fr-label">✅ אושר</div><div class="fr-val">אושרה פנימית — מוכנה לשליחה לספק.</div></div>
+            <div class="field-row"><div class="fr-label">📨 נשלח לספק</div><div class="fr-val">נשלחה למייל / WhatsApp של הספק.</div></div>
+            <div class="field-row"><div class="fr-label">🔄 בטיפול אצל הספק</div><div class="fr-val">הספק מאשר וממלא את ההזמנה.</div></div>
+            <div class="field-row"><div class="fr-label">🚚 בדרך אלינו</div><div class="fr-val">הסחורה שוגרה, ממתינים להגעה.</div></div>
+            <div class="field-row"><div class="fr-label">🟢 סופק במלואו</div><div class="fr-val">כל הפריטים התקבלו ואושרו — המלאי עודכן.</div></div>
+            <div class="field-row"><div class="fr-label">❌ בוטל</div><div class="fr-val">ההזמנה בוטלה.</div></div>
           </div>
-          <div class="box box-tip" style="margin-top:10px;">
-            <div class="box-icon">💡</div>
-            <div>הזמנת רכש יכולה להיות מקושרת לקריאת שירות ספציפית — כך ידוע לאיזה טיפול הוזמן כל חלק.</div>
+
+          <p style="font-size:.85rem;color:var(--text2);margin:10px 0 6px;"><strong>פעולות על כרטיס הזמנה:</strong></p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">📞 WhatsApp / חייג לספק</div><div class="fr-val">כפתורי תקשורת ישירה עם הספק — מוצגים אם הספק הוגדר עם טלפון.</div></div>
+            <div class="field-row"><div class="fr-label">📋 עדכון סטטוס (ADMIN בלבד)</div><div class="fr-val">רשימה נפתחת לשינוי סטטוס ההזמנה — מוצגת רק למשתמש ADMIN.</div></div>
+            <div class="field-row"><div class="fr-label">📦 קבלת סחורה ועדכון מלאי</div><div class="fr-val">כפתור ירוק בולט — מוצג לכל הסטטוסים פרט ל-draft/pending/delivered/cancelled. פותח modal לאישור פרטי הסחורה שהגיעה ← מעדכן את המלאי (pantry) אוטומטית ← מחזיר "ממתין לחלקים" בקריאת השירות המקושרת ל-"חלקים לאיסוף".</div></div>
+            <div class="field-row"><div class="fr-label">👁️ צפה והורד PDF</div><div class="fr-val">יצירת PDF של הזמנת הרכש — ניתן להוריד ולשלוח ידנית.</div></div>
+            <div class="field-row"><div class="fr-label">💬 שלח ב-WhatsApp</div><div class="fr-val">שליחת קישור ל-PDF ישירות ל-WhatsApp של הספק — מוצג אם הספק הוגדר עם טלפון.</div></div>
           </div>
+          <div class="tip-box">🔗 <strong>הזמנה מקושרת לקריאת שירות:</strong> אם ההזמנה נפתחה מתוך קריאת שירות (סטטוס "ממתין לחלקים" ← "פתח הזמנת רכש"), היא שמורה עם <code>service_call_id</code> — לאחר אישור קבלת סחורה, הקריאה עוברת אוטומטית לסטטוס "חלקים לאיסוף".</div>
         </div>
       </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🏭</div><div><div class="mod-name">לשונית 3 — ספקים (suppliers)</div><div class="mod-sub">ניהול רשימת ספקי החלקים</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);">כל ספק שמוגדר כאן זמין לבחירה בעת יצירת הזמנת רכש. כרטיס ספק מציג:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🏭 שם הספק</div><div class="fr-val">שם החברה / ספק החלקים. כפתור ✏️ לעריכה.</div></div>
+            <div class="field-row"><div class="fr-label">📞 טלפון</div><div class="fr-val">טלפון הספק — מוצג עם כפתורי WhatsApp ✆ חייג ישירות מהכרטיס.</div></div>
+            <div class="field-row"><div class="fr-label">💰 מינימום הזמנה</div><div class="fr-val">סכום מינימלי להזמנה (₪). אם לא הוגדר — "ללא מינימום".</div></div>
+            <div class="field-row"><div class="fr-label">⏰ Cut-off time</div><div class="fr-val">שעת הנחתום — הזמנות שנשלחות לפני שעה זו יסופקו ביום המחרת. לאחר שעה זו — ביום שלמחרת.</div></div>
+            <div class="field-row"><div class="fr-label">📅 ימי אספקה</div><div class="fr-val">ימי השבוע שבהם הספק מספק (א/ב/ג/ד/ה/ו/ש) — מוצגים כ-badge ים.</div></div>
+          </div>
+          <p style="font-size:.83rem;color:var(--text2);margin-top:8px;">לחיצה על <strong>"+ ספק חדש"</strong> ← modal עם שדות: שם, טלפון, מייל, מינימום הזמנה, cut-off, ימי אספקה, מספר לקוח אצל הספק.</p>
+        </div>
+      </div>
+
+      <!-- ─── ד. תרחיש מלא ─── -->
+      <h2 class="sec">ד. תרחיש מלא — מגילוי מלאי נמוך עד קבלת חלקים</h2>
+      <div class="scenario">
+        <div class="sc-step">
+          <div class="sc-num">1</div>
+          <div class="sc-body"><strong>גילוי מלאי נמוך:</strong> שרה פותחת קבוצת <strong>מלאי 📦</strong> ← <strong>מלאי חלקים</strong> ← רואה toast: "⚠️ מלאי נמוך: מסנן מזגן (2.0 יח')" ← בכרטיס הפריט מוצג "זמין לפקודות: 0" (הכל שריון). לוחצת <strong>🛒 העבר לרכש</strong>.</div>
+        </div>
+        <div class="sc-step">
+          <div class="sc-num">2</div>
+          <div class="sc-body"><strong>יצירת הזמנה:</strong> עוברת ללשונית <strong>רכש ארגוני 🛒</strong> ← לשונית <strong>קטלוג / בקשות</strong> ← רואה "מסנן מזגן — כמות: 2 יח'" ← לוחצת <strong>"🚚 שיוך לספק"</strong> ← בוחרת "Tadiran Parts" ← לוחצת <strong>"אשר והעבר לטיוטה"</strong> ← ההזמנה נוצרת בסטטוס "טיוטה".</div>
+        </div>
+        <div class="sc-step">
+          <div class="sc-num">3</div>
+          <div class="sc-body"><strong>עריכה ושליחה:</strong> שרה עוברת ללשונית <strong>הזמנות</strong> ← לוחצת <strong>"ערוך ומלא חוסרים בעגלה"</strong> ← מוסיפה גם "פרפר גז R32 × 3" ← שומרת ← משנה סטטוס ל"אושר" ← לוחצת <strong>"שלח ב-WhatsApp"</strong> ← HS Parts מקבל את ההזמנה.</div>
+        </div>
+        <div class="sc-step">
+          <div class="sc-num">4</div>
+          <div class="sc-body"><strong>עדכון מצב:</strong> שרה מעדכנת סטטוס ל"בדרך אלינו" כשהספק מאשר משלוח. למחרת מגיעה הסחורה ← לוחצת <strong>"📦 קבלת סחורה ועדכון מלאי"</strong> ← מאשרת קבלת 10 מסננים + 3 פרפרי גז ← המלאי מתעדכן אוטומטית. הזמנה עוברת ל"סופק במלואו".</div>
+        </div>
+        <div class="sc-step">
+          <div class="sc-num">5</div>
+          <div class="sc-body"><strong>לקוח חדש נשמר:</strong> אחרי קריאת שירות שנסגרה ← שרה עוברת ל<strong>לקוחות</strong> ← מוצאת את יוסי כהן שנשמר ← לוחצת עליו ← עוברת ללשונית <strong>🔧 קריאות</strong> ← רואה את כל 3 הקריאות שנפתחו עבורו, כולל הצעות מחיר וסטטוסים.</div>
+        </div>
+      </div>
+
     </div>
 
     <!-- ── 6. צוות ── -->
