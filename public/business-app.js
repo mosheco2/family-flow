@@ -18642,7 +18642,7 @@ const WIZARD_STEPS_BY_TYPE_V2 = {
     restaurant:   ['identity', 'food_type', 'menu', 'team'],
     beauty:       ['identity', 'practitioners', 'services', 'team'],
     sport:        ['identity', 'trainer', 'subscriptions', 'schedule', 'team'],
-    services:     ['identity', 'service_types', 'billing_flow', 'team'],
+    services:     ['identity', 'service_types', 'billing_flow', 'first_customer', 'team'],
     professional: ['identity', 'case_type', 'first_case', 'portfolio', 'team'],
     other:        ['identity', 'catalog', 'team'],
 };
@@ -18987,6 +18987,135 @@ function _renderWizardV2StepContent(stepName) {
             ${svcSection}
         </div>`;
     }
+    if (stepName === 'service_types') {
+        const SVC_TYPES = [
+            { value: 'מיזוג אוויר',       icon: '❄️' },
+            { value: 'אינסטלציה',          icon: '🚿' },
+            { value: 'חשמל',               icon: '⚡' },
+            { value: 'מנעולנות',           icon: '🔑' },
+            { value: 'סלולר ומחשבים',      icon: '📱' },
+            { value: 'ציוד וכללי',         icon: '🔧' },
+            { value: 'בנייה ושיפוצים',     icon: '🏠' },
+            { value: 'אחר',                icon: '📋' },
+        ];
+        const selTypes = wizardV2Data.serviceTypes || [];
+        const typeCards = SVC_TYPES.map(t => `
+            <button type="button" onclick="_wiz2ToggleSvcType('${t.value}')"
+                id="wiz-v2-svctype-${t.value.replace(/[\s]/g,'_')}"
+                class="wiz-v2-svctype-card flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition active:scale-95 text-center w-full
+                    ${selTypes.includes(t.value) ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-200'}"
+                style="touch-action:manipulation;cursor:pointer;">
+                <span class="text-2xl">${t.icon}</span>
+                <span class="text-xs font-bold text-slate-700 leading-tight">${t.value}</span>
+            </button>`).join('');
+
+        const repairSvcs = wizardV2Data.repairServices || [];
+        const svcRows = repairSvcs.map((s, i) => `
+            <div class="flex items-center gap-1.5 bg-white border border-slate-200 p-2 rounded-xl text-xs">
+                <span class="flex-1 font-bold text-slate-700 truncate">${safeStr(s.name)}</span>
+                <span class="text-slate-400 shrink-0">מ-</span>
+                <input type="number" value="${s.price_from||0}" min="0"
+                    class="modern-input py-1 text-center font-bold text-indigo-600 dir-ltr w-16 bg-indigo-50"
+                    onchange="wizardV2Data.repairServices[${i}].price_from=parseFloat(this.value)||0">
+                <span class="text-slate-400 shrink-0">עד-</span>
+                <input type="number" value="${s.price_to||0}" min="0"
+                    class="modern-input py-1 text-center font-bold text-indigo-600 dir-ltr w-16 bg-indigo-50"
+                    onchange="wizardV2Data.repairServices[${i}].price_to=parseFloat(this.value)||0">
+                <input type="number" value="${s.duration_hours||1}" min="0.5" step="0.5"
+                    class="modern-input py-1 text-center text-slate-600 dir-ltr w-14 bg-slate-50"
+                    onchange="wizardV2Data.repairServices[${i}].duration_hours=parseFloat(this.value)||1">
+                <span class="text-slate-400 shrink-0">ש׳</span>
+                <button onclick="_wiz2RemoveRepairSvc(${i})"
+                    class="text-red-400 hover:text-red-600 w-6 h-6 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>`).join('');
+
+        const svcSection = selTypes.length > 0 ? `
+            <div id="wiz-v2-repair-result" class="space-y-2">
+                ${svcRows || '<div id="wiz-v2-repair-spinner" class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה רשימת שירותים...</p></div>'}
+            </div>
+            <button type="button" onclick="_wiz2AddRepairSvc()"
+                class="w-full border-2 border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:border-indigo-300 hover:text-indigo-500 transition">
+                + הוסף שירות
+            </button>` : '';
+
+        return `
+        <div class="max-w-md mx-auto space-y-5">
+            <h3 class="font-bold text-slate-800 text-lg text-center">אילו שירותים אתם נותנים?</h3>
+            <div>
+                <p class="text-xs font-bold text-slate-500 mb-2">בחר תחום (ניתן לבחור כמה):</p>
+                <div class="grid grid-cols-4 gap-2">${typeCards}</div>
+            </div>
+            ${svcSection}
+        </div>`;
+    }
+
+    if (stepName === 'billing_flow') {
+        const BILLING_OPTIONS = [
+            { value: 'quote_first', icon: '📋', title: 'הצעת מחיר קודם',
+              desc: 'הצעת מחיר → אישור לקוח → ביצוע → חשבונית',
+              fit: 'מתאים ל: עבודות בינוניות-גדולות' },
+            { value: 'immediate',   icon: '⚡', title: 'ביצוע מיידי',
+              desc: 'ביצוע → חשבונית בסוף',
+              fit: 'מתאים ל: עבודות קטנות ומהירות' },
+            { value: 'deposit',     icon: '💰', title: 'מקדמה + יתרה',
+              desc: 'מקדמה → ביצוע → תשלום יתרה',
+              fit: 'מתאים ל: עבודות גדולות ומורכבות' },
+        ];
+        const sel = wizardV2Data.billingFlow || '';
+        const cards = BILLING_OPTIONS.map(o => `
+            <button type="button" onclick="_wiz2SelectBilling('${o.value}')"
+                id="wiz-v2-billing-${o.value}"
+                class="wiz-v2-billing-card flex flex-col items-start gap-1.5 p-4 rounded-2xl border-2 transition active:scale-95 w-full text-right
+                    ${sel === o.value ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-200'}"
+                style="touch-action:manipulation;cursor:pointer;">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">${o.icon}</span>
+                    <span class="text-sm font-black text-slate-800">${o.title}</span>
+                </div>
+                <p class="text-xs text-slate-500 leading-snug">${o.desc}</p>
+                <p class="text-[11px] text-indigo-500 font-bold">${o.fit}</p>
+            </button>`).join('');
+        return `
+        <div class="max-w-md mx-auto space-y-4">
+            <h3 class="font-bold text-slate-800 text-lg text-center">איך תהליך הגבייה שלכם?</h3>
+            <p class="text-xs text-slate-400 text-center">ניתן לשנות בכל עת</p>
+            <div class="space-y-3">${cards}</div>
+        </div>`;
+    }
+
+    if (stepName === 'first_customer') {
+        return `
+        <div class="max-w-md mx-auto space-y-5">
+            <h3 class="font-bold text-slate-800 text-lg text-center"><i class="fa-solid fa-user-plus text-indigo-500 mr-2"></i>בואו ניצור לקוח ראשון</h3>
+            <p class="text-xs text-slate-400 text-center">זה יעזור לכם לראות איך קריאת שירות נראית</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">שם לקוח <span class="text-red-500">*</span></label>
+                    <input type="text" id="wiz-v2-customer-name"
+                        class="modern-input py-3 w-full bg-white"
+                        placeholder="ישראל ישראלי"
+                        value="${safeStr(wizardV2Data.firstCustomer?.name||'')}">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">טלפון <span class="text-slate-400 font-normal">(אופציונלי)</span></label>
+                    <input type="tel" id="wiz-v2-customer-phone" dir="ltr"
+                        class="modern-input py-3 w-full bg-white"
+                        placeholder="050-0000000"
+                        value="${safeStr(wizardV2Data.firstCustomer?.phone||'')}">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">כתובת <span class="text-slate-400 font-normal">(אופציונלי)</span></label>
+                    <input type="text" id="wiz-v2-customer-address"
+                        class="modern-input py-3 w-full bg-white"
+                        placeholder="רחוב הדוגמה 1, תל אביב"
+                        value="${safeStr(wizardV2Data.firstCustomer?.address||'')}">
+                </div>
+            </div>
+        </div>`;
+    }
+
     if (stepName === 'practitioners') {
         const PRACT_COLORS = [
             { value: '#8b5cf6', label: 'סגול' },
@@ -19059,6 +19188,80 @@ function _renderWizardV2StepContent(stepName) {
     }
     return `<div class="text-center text-slate-500 py-8">שלב: ${stepName}</div>`;
 }
+
+window._wiz2ToggleSvcType = function(value) {
+    if (!wizardV2Data.serviceTypes) wizardV2Data.serviceTypes = [];
+    const idx = wizardV2Data.serviceTypes.indexOf(value);
+    if (idx === -1) wizardV2Data.serviceTypes.push(value);
+    else wizardV2Data.serviceTypes.splice(idx, 1);
+    const isNow = wizardV2Data.serviceTypes.includes(value);
+    const btn = document.getElementById(`wiz-v2-svctype-${value.replace(/[\s]/g,'_')}`);
+    if (btn) {
+        btn.className = btn.className
+            .replace(/border-indigo-500 bg-indigo-50|border-slate-200 bg-white hover:border-indigo-200/g, '')
+            + (isNow ? ' border-indigo-500 bg-indigo-50' : ' border-slate-200 bg-white hover:border-indigo-200');
+    }
+    wizardV2Data.repairServices = [];
+    _generateRepairServices();
+};
+
+window._generateRepairServices = async function() {
+    if (!wizardV2Data.serviceTypes || wizardV2Data.serviceTypes.length === 0) return;
+    let resultEl = document.getElementById('wiz-v2-repair-result');
+    if (!resultEl) {
+        updateWizardUIV2();
+        resultEl = document.getElementById('wiz-v2-repair-result');
+        if (!resultEl) return;
+    }
+    resultEl.innerHTML = `<div id="wiz-v2-repair-spinner" class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה רשימת שירותים...</p></div>`;
+    try {
+        const res = await fetch(`${API}/ai/generate-catalog`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                promptText: `צור רשימת שירותי תיקון עבור: ${wizardV2Data.serviceTypes.join(', ')}. צור בדיוק 6 שירותים נפוצים. החזר JSON בלבד: {"items": [{"name": "string", "price_from": number, "price_to": number, "duration_hours": number, "category": "string"}]} מחירים ריאליים בשקלים ישראליים. ללא טקסט נוסף.`,
+                type: 'BUSINESS', groupId: currentGroup.id
+            })
+        });
+        const responseText = await res.text();
+        console.log('raw repair response:', responseText);
+        let outer;
+        try { outer = JSON.parse(responseText); } catch(e) {
+            console.error('JSON parse error:', e);
+            resultEl.innerHTML = '<p style="color:red">שגיאה בבניית הרשימה. נסה שנית.</p>'; return;
+        }
+        let items = (outer.success && outer.items) ? outer.items : null;
+        if (!items && outer.result) { try { const p = JSON.parse(outer.result); items = p.items || p; } catch(e) {} }
+        wizardV2Data.repairServices = (items || []).map(it => ({
+            name: it.name || '', price_from: it.price_from || 0, price_to: it.price_to || 0,
+            duration_hours: it.duration_hours || 1, category: it.category || wizardV2Data.serviceTypes[0] || ''
+        }));
+    } catch(e) {
+        console.error('fetch error:', e);
+        resultEl.innerHTML = '<p style="color:red">שגיאה בבניית הרשימה. נסה שנית.</p>'; return;
+    }
+    updateWizardUIV2();
+};
+
+window._wiz2RemoveRepairSvc = function(idx) {
+    if (wizardV2Data.repairServices) wizardV2Data.repairServices.splice(idx, 1);
+    updateWizardUIV2();
+};
+
+window._wiz2AddRepairSvc = function() {
+    if (!wizardV2Data.repairServices) wizardV2Data.repairServices = [];
+    wizardV2Data.repairServices.push({ name: '', price_from: 0, price_to: 0, duration_hours: 1, category: (wizardV2Data.serviceTypes||[])[0] || '' });
+    updateWizardUIV2();
+};
+
+window._wiz2SelectBilling = function(value) {
+    wizardV2Data.billingFlow = value;
+    document.querySelectorAll('.wiz-v2-billing-card').forEach(b => {
+        const isThis = b.id === `wiz-v2-billing-${value}`;
+        b.className = b.className
+            .replace(/border-indigo-500 bg-indigo-50|border-slate-200 bg-white hover:border-indigo-200/g, '')
+            + (isThis ? ' border-indigo-500 bg-indigo-50' : ' border-slate-200 bg-white hover:border-indigo-200');
+    });
+};
 
 window._wiz2AddTrainer = function() {
     if (!wizardV2Data.trainers) wizardV2Data.trainers = [{ name: '', specialty: 'כושר כללי' }];
@@ -19485,6 +19688,48 @@ async function _nextWizardV2Step() {
             await fetch(`${API}/calendar/classes`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ groupId: currentGroup.id, name, days, time, duration, capacity, trainer: document.getElementById('wiz-v2-class-trainer')?.value || '' })
+            });
+        } catch(e) {}
+    }
+
+    if (stepName === 'service_types') {
+        const svcs = wizardV2Data.repairServices || [];
+        if (svcs.length === 0) { alert('נא לבחור תחום ולהמתין לבניית הרשימה'); return; }
+        const valid = svcs.filter(s => s.name && s.name.trim());
+        if (valid.length === 0) { alert('נא להוסיף לפחות שירות אחד'); return; }
+        wizardV2Data.repairServices = valid;
+        const btnNext = document.getElementById('wizard-v2-btn-next');
+        if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
+        try {
+            for (const s of valid) {
+                await fetch(`${API}/store/catalog`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        groupId: currentGroup.id, name: s.name.trim(), price: s.price_from || 0,
+                        category: s.category || '', isAvailable: true, productType: 'retail',
+                        description: `מחיר: ₪${s.price_from}-₪${s.price_to}`
+                    })
+                });
+            }
+        } catch(e) {}
+    }
+
+    if (stepName === 'billing_flow') {
+        if (!wizardV2Data.billingFlow) { alert('נא לבחור תהליך גבייה'); return; }
+    }
+
+    if (stepName === 'first_customer') {
+        const name = (document.getElementById('wiz-v2-customer-name')?.value || '').trim();
+        if (!name) { alert('נא להזין שם לקוח'); return; }
+        const phone = (document.getElementById('wiz-v2-customer-phone')?.value || '').trim();
+        const address = (document.getElementById('wiz-v2-customer-address')?.value || '').trim();
+        wizardV2Data.firstCustomer = { name, phone, address };
+        const btnNext = document.getElementById('wizard-v2-btn-next');
+        if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
+        try {
+            await fetch(`${API}/customers`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ groupId: currentGroup.id, name, phone, address })
             });
         } catch(e) {}
     }
