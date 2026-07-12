@@ -4152,56 +4152,287 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     <div class="chapter" id="m-calls">
       <div class="ch-head"><div class="ch-num">4</div><div class="ch-title">קריאות שירות — הלב של המערכת</div></div>
 
-      <p style="font-size:.9rem;color:var(--text2);">קריאת שירות היא הדרך לנהל כל תקלה מרגע הפנייה ועד הסגירה — מי הלקוח, מה הבעיה, מי מטפל, ומה הסטטוס.</p>
+      <p style="font-size:.9rem;color:var(--text2);">
+        קריאת שירות (<strong>service call</strong>) היא הדרך לנהל כל תקלה מרגע פנייה ראשונה ועד סגירה מלאה — מי הלקוח, מה הבעיה, מי הטכנאי, מה הסטטוס, מה הומלץ, כמה עולה, ומתי שולם.
+        כל פעולה בתחום זה מתחילה מלוח הבקרה הראשי (<strong>🏠 ראשי</strong>) או מכפתור <strong>"קריאות שירות"</strong> בתפריט.
+      </p>
+
+      <!-- ─── א. פתיחת קריאה חדשה ─── -->
+      <h2 class="sec">א. פתיחת קריאת שירות חדשה</h2>
+      <p style="font-size:.9rem;color:var(--text2);">
+        ניתן לפתוח קריאה מ-3 נקודות: לחיצה על כפתור <strong>"+ חדשה"</strong> בחלון כל הקריאות, לחיצה על <strong>🔧 קריאות שירות</strong> בלוח הבקרה, או מתוך מסך כל הקריאות.
+        מופיע טופס עם 8 שדות:
+      </p>
 
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">פתיחת קריאה חדשה</div></div></div>
+        <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">טופס קריאה חדשה — 🔧 קריאת שירות חדשה</div><div class="mod-sub">נפתח מלמטה כ-bottom sheet</div></div></div>
         <div class="mod-body">
-          <p>לחצו <strong>"קריאת שירות חדשה"</strong> ממסך הניהול הראשי:</p>
-          <div class="field-table" style="margin-top:12px;">
-            <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>כותרת</div><div class="fr-val">תיאור קצר של הבעיה — לדוגמה: <code>תיקון מזגן — לא מקרר</code>.</div></div>
-            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>שם לקוח</div><div class="fr-val">הקלידו שם — ניתן לחפש ב-OneFlow Life ולקשר לחשבון לקוח קיים.</div></div>
-            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>טלפון לקוח</div><div class="fr-val">לשיחה ישירה מהמסך.</div></div>
-            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>כתובת</div><div class="fr-val">כתובת הטיפול — הטכנאי רואה אותה בניייד.</div></div>
-            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>תיאור התקלה</div><div class="fr-val">פירוט הבעיה — יעזור לטכנאי להגיע מוכן.</div></div>
-            <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>עדיפות</div><div class="fr-val"><strong>דחוף</strong> — צריך היום. <strong>גבוה</strong> — עד מחר. <strong>רגיל</strong> — תוך כמה ימים. <strong>נמוך</strong> — אין לחץ.</div></div>
-            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>שיוך לטכנאי</div><div class="fr-val">בחרו טכנאי מהרשימה. רק מנהל ומנהל סניף רואים שדה זה.</div></div>
-            <div class="field-row"><div class="fr-label"><span class="tag tag-c">תיבה</span>העבר לסיווג</div><div class="fr-val">סמנו אם הקריאה צריכה אישור מנהל לפני שיוך לטכנאי.</div></div>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>כותרת</div><div class="fr-val">תיאור קצר של הבעיה — לדוגמה: <code>תיקון מזגן — לא מקרר</code> או <code>תיקון ברז דולף, שירות B</code>. הכותרת תוצג בכל המסכים ובכרטיס הקריאה.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>שם לקוח</div><div class="fr-val">
+              הקלדת שם הלקוח + כפתור <strong>🔍 ONEFLOW LIFE</strong> — חיפוש בו-זמנית ב-2 מקורות:
+              <br>• <strong>לקוחות עסק</strong> (כחום) — לקוחות שנשמרו בחשבון העסק שלך
+              <br>• <strong>OneFlow Life</strong> (אפור) — חשבונות משפחה באפליקציה הצרכנית
+              <br>בחירת לקוח ממלאת אוטומטית כתובת וטלפון.
+            </div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>טלפון לקוח</div><div class="fr-val">מספר טלפון הלקוח — יאפשר התקשרות ישירה ושליחת WhatsApp מתוך קריאת השירות לאחר יצירתה.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>כתובת</div><div class="fr-val">כתובת מלאה של מקום הטיפול. לאחר יצירת הקריאה, תוצג כפתור <strong>Waze</strong> ישיר לניווט לכתובת זו.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>תיאור התקלה</div><div class="fr-val">טקסט חופשי בן מספר שורות — פרטים נוספים שיעזרו לטכנאי להגיע מוכן: "המזגן מספר 2 בחדר שינה, גיל: 4 שנים, מותג: Tadiran".</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-r">ברירת מחדל</span>עדיפות</div><div class="fr-val">
+              4 אפשרויות (בחירה מרשימה):
+              <br>• <strong>רגיל</strong> — ברירת מחדל, לא דחוף
+              <br>• <strong>גבוה</strong> — דורש טיפול בקרוב
+              <br>• <strong>דחוף</strong> — מופיע ב-KPI "🚨 דחופות" בלוח הבקרה, מוצג עם אייקון 🚨 בכרטיס
+              <br>• <strong>נמוך</strong> — אפשר לדחות
+            </div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">מנהל בלבד</span>שיוך לטכנאי</div><div class="fr-val">
+              <strong>שדה זה מוצג רק ל-ADMIN ומנהל סניף — טכנאי שטח אינו רואה אותו.</strong>
+              רשימה נפתחת עם כל הטכנאים (עובדים עם תפקיד field_tech) בחשבון + אפשרות "ללא שיוך".
+              אם לא בוחרים טכנאי — הקריאה נשארת בלתי משויכת עד שמנהל ישייך אותה מאוחר יותר.
+            </div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-c">תיבת סימון</span>⚠️ העבר למנהל לסיווג</div><div class="fr-val">
+              סימון תיבה זו מציין שהקריאה דורשת אישור מנהל לפני הטיפול (<code>needsTriage=true</code>).
+              הקריאה נפתחת ללא שיוך טכנאי — אפילו אם נבחר טכנאי בשדה למעלה.
+              מנהל יראה אותה בקריאות "⚠️ ממתין לסיווג" בלוח הבקרה.
+            </div></div>
           </div>
+          <p style="font-size:.85rem;color:var(--text2);margin-top:10px;">
+            לאחר מילוי השדות — לחץ <strong>"פתח קריאה 🔧"</strong> ← הקריאה נשלחת לשרת ← מסך כל הקריאות מתרענן ← הקריאה מופיעה ברשימה עם סטטוס "חדשה".
+          </p>
         </div>
       </div>
 
+      <!-- ─── ב. סטטוסים ועדיפויות ─── -->
+      <h2 class="sec">ב. סטטוסים ועדיפויות</h2>
+
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">סטטוסים של קריאה</div></div></div>
+        <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">7 סטטוסים של קריאת שירות</div><div class="mod-sub">ניתן לשנות מהמסך הפנימי של הקריאה</div></div></div>
         <div class="mod-body">
-          <p style="font-size:.87rem;color:var(--text2);">כל קריאה עוברת בין סטטוסים — כך יודעים בדיוק איפה עומד כל טיפול:</p>
+          <p style="font-size:.87rem;color:var(--text2);">כל קריאה נמצאת תמיד באחד מהסטטוסים הבאים. הסטטוס מוצג כ-badge על כל כרטיס קריאה:</p>
           <div class="field-table" style="margin-top:10px;">
-            <div class="field-row"><div class="fr-label">🔵 חדשה</div><div class="fr-val">נפתחה ועדיין לא טופלה.</div></div>
-            <div class="field-row"><div class="fr-label">🟣 נצפתה</div><div class="fr-val">הטכנאי ראה את הקריאה.</div></div>
-            <div class="field-row"><div class="fr-label">🟡 בטיפול</div><div class="fr-val">הטכנאי עובד עליה עכשיו.</div></div>
-            <div class="field-row"><div class="fr-label">🟣 ממתין לחלקים</div><div class="fr-val">הזמינו חלק — ממתינים לאספקה. יש גם חלקים לאיסוף כשהגיעו.</div></div>
-            <div class="field-row"><div class="fr-label">🟠 ממתין לתשלום</div><div class="fr-val">הטיפול הושלם — ממתינים לתשלום מהלקוח.</div></div>
-            <div class="field-row"><div class="fr-label">🟢 הושלם</div><div class="fr-val">קריאה סגורה בהצלחה.</div></div>
-            <div class="field-row"><div class="fr-label">⚫ בוטל</div><div class="fr-val">הקריאה בוטלה.</div></div>
+            <div class="field-row"><div class="fr-label">🔵 חדשה (new)</div><div class="fr-val">הקריאה נפתחה — עדיין לא נצפתה ולא הוקצה טכנאי, או שהוקצה טכנאי אך טרם נגע בה. זו נקודת ההתחלה של כל קריאה.</div></div>
+            <div class="field-row"><div class="fr-label">🟣 נצפתה (seen)</div><div class="fr-val">הטכנאי פתח את הקריאה וראה אותה — אך טרם החל בטיפול. גם קריאה שהוחזרה למנהל (לאחר ביטול שיוך) חוזרת לסטטוס זה.</div></div>
+            <div class="field-row"><div class="fr-label">🟡 בטיפול (in_progress)</div><div class="fr-val">הטכנאי החל בטיפול פעיל בשטח. אפשר לעדכן את הסטטוס ידנית לפי מה שקורה.</div></div>
+            <div class="field-row"><div class="fr-label">🟣 ממתין לחלקים (pending_parts)</div><div class="fr-val">
+              הטכנאי גילה שדרוש חלק שאינו בידיו — עודכן הסטטוס ← המערכת מציעה לפתוח הזמנת רכש מקושרת.
+              כשהסטטוס הוא pending_parts, מופיע בלוק "📦 סטטוס חלקים" בתוך הקריאה עם 2 תת-מצבים:
+              <br>• <strong>📦 ממתין לאספקה מהספק (waiting_delivery)</strong> — ההזמנה נשלחה, ממתינים להגעת הסחורה
+              <br>• <strong>✅ חלקים לאיסוף (parts_ready)</strong> — החלק הגיע ומחכה שהטכנאי יאסוף אותו
+            </div></div>
+            <div class="field-row"><div class="fr-label">🟠 ממתין לתשלום (pending_payment)</div><div class="fr-val">הטיפול הטכני הושלם — ממתינים לתשלום מהלקוח. ניתן לנהל תחנות תשלום ולרשום תשלומים שהתקבלו.</div></div>
+            <div class="field-row"><div class="fr-label">🟢 הושלם (done)</div><div class="fr-val">הקריאה סגורה לחלוטין — הטיפול הסתיים ותשלום (אם היה) התקבל. לחיצה על "✅ סמן כהושלם" מעבירה לסטטוס זה ישירות.</div></div>
+            <div class="field-row"><div class="fr-label">⚫ בוטל (cancelled)</div><div class="fr-val">הקריאה בוטלה — לא מוצגת בפילטר ברירת מחדל. ניתן לראות אותה בחיפוש ידני.</div></div>
           </div>
-          <div class="box box-warn" style="margin-top:12px;">
-            <div class="box-icon">⚠️</div>
-            <div>קריאה <strong>"ממתין לסיווג"</strong> (needs_triage) — פנייה שהגיעה מלקוח דרך ONEFLOW LIFE ועדיין לא שויכה לטכנאי. מנהל צריך לאשר ולשייך.</div>
+          <div class="tip-box">
+            ⚠️ <strong>קריאה "ממתין לסיווג"</strong> (needsTriage): אינה סטטוס נפרד — אלא דגל פנימי. קריאה כזו נפתחה עם תיבת "⚠️ העבר למנהל לסיווג" מסומנת, ולכן אינה משויכת לטכנאי. היא מוצגת ב-KPI "⚠️ ממתין לסיווג" בלוח הבקרה של המנהל עד שישייך אותה לטכנאי.
           </div>
         </div>
       </div>
 
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">🔗</div><div><div class="mod-name">קישור לקוח ל-OneFlow Life</div></div></div>
+        <div class="mod-head"><div class="mod-icon">🚦</div><div><div class="mod-name">4 רמות עדיפות</div><div class="mod-sub">מוצגות כ-badge על כל קריאה</div></div></div>
         <div class="mod-body">
-          <p>לקוח יכול לפתוח קריאת שירות בעצמו דרך האפליקציה המשפחתית OneFlow Life — ללא צורך להתקשר. המנהל מקבל התראה.</p>
-          <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>חפשו לקוח</strong><span>בטופס קריאה חדשה — לחצו "🔍 ONEFLOW LIFE" ← חפשו לפי שם / טלפון / מייל.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>קשרו לקוח קיים</strong><span>בחרו לקוח מהרשימה ← הקריאה מקושרת לחשבון שלו. הוא מקבל הודעה.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>צרו חשבון חדש</strong><span>לקוח שאין לו עדיין חשבון — לחצו "צור חשבון חדש" ← הוזן שם + טלפון ← המערכת שולחת לו WhatsApp עם קוד כניסה.</span></div></div>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🚨 דחוף (urgent)</div><div class="fr-val">מוצג עם אייקון 🚨 בכרטיס הקריאה ונספר ב-KPI "🚨 דחופות" בלוח הבקרה. מומלץ לקריאות שחייב לטפל בהן מיידית (נזק מים, חשמל, בטיחות).</div></div>
+            <div class="field-row"><div class="fr-label">🔴 גבוה (high)</div><div class="fr-val">מצב לא דחוף אך חשוב — טיפול מועדף לפני "רגיל". מוצג כ-badge על הכרטיס.</div></div>
+            <div class="field-row"><div class="fr-label">⚪ רגיל (normal)</div><div class="fr-val">ברירת מחדל — לא מוצג badge עדיפות על הכרטיס (רק הסטטוס מוצג).</div></div>
+            <div class="field-row"><div class="fr-label">🟢 נמוך (low)</div><div class="fr-val">ניתן לדחות — מוצג כ-badge על הכרטיס. מתאים לתחזוקה מונעת שניתן לתכנן מראש.</div></div>
           </div>
         </div>
       </div>
+
+      <!-- ─── ג. צפייה וניהול קריאות ─── -->
+      <h2 class="sec">ג. מסך "כל קריאות השירות" — ניהול מלא</h2>
+      <p style="font-size:.9rem;color:var(--text2);">
+        לחיצה על <strong>"קריאות שירות"</strong> מלוח הבקרה פותחת מסך מלא (full-screen) עם כל הקריאות.
+        <strong>טכנאי שטח רואה רק קריאות שהוקצו לו אישית</strong> — מנהל ומנהל סניף רואים את כולן.
+      </p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🔍</div><div><div class="mod-name">כלי חיפוש וסינון</div></div></div>
+        <div class="mod-body">
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🔎 שדה חיפוש חופשי</div><div class="fr-val">חיפוש בו-זמני לפי: <strong>כותרת, שם לקוח, כתובת, שם טכנאי, טלפון לקוח, תיאור התקלה</strong>. הרשימה מסתננת בזמן אמת בעת הקלדה.</div></div>
+            <div class="field-row"><div class="fr-label">🔘 טאבי סטטוס</div><div class="fr-val">5 כפתורי פילטר בשורה אופקית: <strong>הכל / חדשה / בטיפול / ממתין לחלקים / הושלם</strong>. לחיצה מסננת את הרשימה לפי הסטטוס הנבחר.</div></div>
+          </div>
+          <p style="font-size:.85rem;color:var(--text2);margin-top:8px;">כל כרטיס קריאה מציג: אייקון סטטוס/עדיפות, כותרת, שם לקוח + כתובת, badge סטטוס, badge עדיפות (אם לא רגיל), badge מחיר (אם הוזנה הצעת מחיר), badge "⚠️ ללא תאריך" (אם קריאה פעילה ואין תזמון), badge חלקים (📦 ממתין / ✅ חלקים לאיסוף).</p>
+        </div>
+      </div>
+
+      <!-- ─── ד. מסך פנימי של קריאה ─── -->
+      <h2 class="sec">ד. מסך קריאה פנימי — ניהול מלא של קריאה בודדת</h2>
+      <p style="font-size:.9rem;color:var(--text2);">
+        לחיצה על כרטיס קריאה פותחת מסך מלא (full-screen) עם כל פרטיה. המסך מחולק לקטעים — לפי תפקיד המשתמש חלק מהם מוצגים בצורה שונה.
+      </p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📋</div><div><div class="mod-name">קטע 1 — פרטי הקריאה</div><div class="mod-sub">גלוי לכל התפקידים</div></div></div>
+        <div class="mod-body">
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">👤 לקוח</div><div class="fr-val">שם הלקוח ושם משפחה/חשבון OneFlow (אם משויך). מוצג בכותרת המסך ובגוף הקריאה.</div></div>
+            <div class="field-row"><div class="fr-label">📝 תיאור בעיה</div><div class="fr-val">הכותרת + תיאור התקלה הנרחב, מוצגים בתיבה לבנה.</div></div>
+            <div class="field-row"><div class="fr-label">📅 תאריך מבוקש</div><div class="fr-val">אם הלקוח ביקש תאריך ספציפי (דרך OneFlow Life) — מוצג כ-banner כתום "תאריך מבוקש ע"י לקוח".</div></div>
+            <div class="field-row"><div class="fr-label">📍 כתובת + Waze</div><div class="fr-val">הכתובת מוצגת עם כפתור <strong>🚗 Waze</strong> שמפעיל ניווט ישיר — טכנאי לוחץ ומגיע.</div></div>
+            <div class="field-row"><div class="fr-label">📞 טלפון לקוח</div><div class="fr-val">מוצג עם 2 כפתורים: <strong>📞 התקשר</strong> (tel:) ו<strong>💬 וואצאפ</strong> (wa.me/). כפתור שלישי "🔗 קשר ל-ONEFLOW LIFE" — מוצג <strong>רק</strong> אם הקריאה עדיין לא מקושרת לחשבון לקוח.</div></div>
+            <div class="field-row"><div class="fr-label">🚦 עדיפות + תאריכים</div><div class="fr-val">badge עדיפות, תאריך יצירה, ותאריך תזמון (אם קיים) — בשורה אחת.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">⚙️</div><div><div class="mod-name">קטע 2 — עדכון סטטוס ושיוך טכנאי</div><div class="mod-sub">מוצג בצורה שונה לפי תפקיד</div></div></div>
+        <div class="mod-body">
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">👑 ADMIN / מנהל סניף</div><div class="fr-val">
+              שני שדות זה לצד זה:
+              <br>• <strong>סטטוס</strong> — רשימה נפתחת עם כל הסטטוסים (פרט לבוטל)
+              <br>• <strong>שיוך לטכנאי</strong> — רשימה נפתחת עם כל הטכנאים (field_tech) + "ללא שיוך"
+            </div></div>
+            <div class="field-row"><div class="fr-label">🔧 טכנאי שטח</div><div class="fr-val">
+              שני שדות זה לצד זה:
+              <br>• <strong>סטטוס</strong> — רשימה נפתחת לעדכון עצמאי (הטכנאי יכול לשנות לבד)
+              <br>• <strong>↩ החזר למנהל</strong> — כפתור שמבטל את השיוך ומחזיר את הקריאה למנהל (status→seen, assignedMemberId→null)
+            </div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📅</div><div><div class="mod-name">קטע 3 — תזמון והצעת מחיר</div><div class="mod-sub">גלוי לכל התפקידים</div></div></div>
+        <div class="mod-body">
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">📅 תזמון (תאריך + שעה)</div><div class="fr-val">שדה datetime-local — קביעת מועד הטיפול. לאחר שמירה, הקריאה תופיע ביומן (🗓️) בתאריך ובשעה שנבחרו.</div></div>
+            <div class="field-row"><div class="fr-label">💰 הצעת מחיר ₪</div><div class="fr-val">שדה מספרי — הצעת מחיר ראשונית ללקוח. מוצגת כ-badge על כרטיס הקריאה ברשימה.</div></div>
+          </div>
+          <p style="font-size:.85rem;color:var(--text2);margin-top:8px;">לחיצה על <strong>"שמור עדכון"</strong> שומרת את הסטטוס + שיוך טכנאי + תזמון + הצעת מחיר בבת אחת (PATCH /api/service-calls/{id}).</p>
+          <div class="tip-box">📌 <strong>שמירה אוטומטית ל-pending_parts:</strong> כאשר שומרים עם סטטוס "ממתין לחלקים", המערכת מציעה מיד לפתוח הזמנת רכש מקושרת לקריאה זו.</div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📝</div><div><div class="mod-name">קטע 4 — יומן טיפול (הערות)</div><div class="mod-sub">גלוי לכל התפקידים</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);">
+            הערות פנימיות שמתווספות לקריאה — <strong>אינן גלויות ללקוח</strong>, רק לצוות.
+            כל הערה מוצגת עם שם הכותב ותאריך.
+          </p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">📝 הוספת הערה</div><div class="fr-val">שדה טקסט + כפתור <strong>+</strong> ← ההערה נשמרת (POST /api/service-calls/{id}/notes) ← מוצגת מיד ביומן הטיפול.</div></div>
+          </div>
+          <p style="font-size:.83rem;color:var(--text2);margin-top:6px;">לדוגמה: "החלפתי מסנן, נדרש גם ניקוי קומפרסור — יקח עוד 30 דקות" / "דיברתי עם הלקוח, אשתו תשלם בביט בסוף הטיפול".</p>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">💬</div><div><div class="mod-name">קטע 5 — צ'אט עם הלקוח</div><div class="mod-sub">גלוי לכל התפקידים</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);">
+            אם הקריאה מקושרת ל-ONEFLOW LIFE — לקוח יכול לראות ולהגיב ישירות מהאפליקציה שלו.
+            הצ'אט מתרענן אוטומטית כל 10 שניות כל עוד המסך פתוח.
+          </p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">📨 הודעות עסק</div><div class="fr-val">מוצגות בצד שמאל בבועה אפורה — כתובות על ידי הצוות (sender_type=business).</div></div>
+            <div class="field-row"><div class="fr-label">📩 הודעות לקוח</div><div class="fr-val">מוצגות בצד ימין בבועה כתומה — כתובות על ידי הלקוח מ-ONEFLOW LIFE (sender_type=customer).</div></div>
+            <div class="field-row"><div class="fr-label">✏️ שליחת הודעה</div><div class="fr-val">שדה טקסט + כפתור שלח (שלח כ-"business") ← נשלח ל-POST /api/service-calls/{id}/messages.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📦</div><div><div class="mod-name">קטע 6 — ניהול חלקים (pending_parts)</div><div class="mod-sub">מוצג רק כאשר סטטוס = ממתין לחלקים</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);">כשסטטוס הקריאה הוא "ממתין לחלקים", מופיע בלוק סגול עם 3 אפשרויות:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">📦 ממתין לאספקה</div><div class="fr-val">הוזמן חלק מספק והוא בדרך — badge "📦 ממתין לאספקה מהספק". מוצג רשימת המוצרים שהוזמנו בהזמנת הרכש המקושרת (שם + כמות + יחידה).</div></div>
+            <div class="field-row"><div class="fr-label">✅ חלקים לאיסוף</div><div class="fr-val">החלק הגיע — badge "✅ חלקים הגיעו — ממתינים לאיסוף". הטכנאי יודע שהחלק זמין.</div></div>
+            <div class="field-row"><div class="fr-label">🛒 פתח הזמנת רכש</div><div class="fr-val">אם עדיין לא הוזמן חלק — כפתור <strong>"🛒 פתח הזמנת רכש"</strong> ← מעביר את המשתמש למסך הרכש ← לאחר שמירת ההזמנה, היא מקושרת אוטומטית לקריאה זו.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">💳</div><div><div class="mod-name">קטע 7 — תחנות תשלום</div><div class="mod-sub">גלוי לכל התפקידים</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);">
+            ניהול תשלומים מפוצלים — לדוגמה: 30% מקדמה בתחילת עבודה, 70% יתרה בסיום.
+            ניתן להוסיף כמה תחנות תשלום לקריאה אחת.
+          </p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">+ הוסף תחנה</div><div class="fr-val">פותח פאנל הוספה עם 5 שדות: <strong>שם התחנה</strong> (למשל "מקדמה"), <strong>סכום ₪</strong>, <strong>תאריך יעד</strong>, <strong>אמצעי תשלום</strong> (מזומן / כרטיס / העברה / שיק / ביט), <strong>סכום עסקה כוללת ₪</strong>.</div></div>
+            <div class="field-row"><div class="fr-label">📊 סיכום תשלומים</div><div class="fr-val">מוצגות 3 נתוני סיכום: <strong>עסקה</strong> (סכום כולל), <strong>שולם</strong> (סכום שהתקבל), <strong>נותר</strong> (הפרש). בצבעים: ירוק = שולם, כתום = נותר.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">✅</div><div><div class="mod-name">קטע 8 — סגירת קריאה ושמירת לקוח</div><div class="mod-sub">2 כפתורי פעולה בתחתית</div></div></div>
+        <div class="mod-body">
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">✅ סמן כהושלם</div><div class="fr-val">מעביר את הקריאה לסטטוס "הושלם" (PATCH status=done) ← סוגר את המסך ← מרענן את לוח הבקרה. <strong>פעולה חד-כיוונית</strong> — לא ניתן לבטל דרך כפתור זה (אפשר לשנות סטטוס בחזרה ידנית).</div></div>
+            <div class="field-row"><div class="fr-label">💾 שמור כלקוח</div><div class="fr-val">יוצר כרטיס לקוח חדש בטאב "לקוחות" — ממלא את שם הלקוח מהקריאה ואת הכתובת כ-notes (POST /api/store/customers). שימושי כדי לא לאבד את פרטי הלקוח לעתיד.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── ה. קישור ל-ONEFLOW LIFE ─── -->
+      <h2 class="sec">ה. קישור קריאה ל-OneFlow Life</h2>
+      <p style="font-size:.9rem;color:var(--text2);">
+        ONEFLOW LIFE היא אפליקציית הצרכנים של המערכת. כשלקוח מקושר — הוא רואה את קריאת השירות שלו, יכול לשלוח הודעות ולבדוק סטטוס בלי להתקשר.
+        קישור מתבצע בשני מצבים: <strong>בעת פתיחת קריאה</strong> (חיפוש ONEFLOW LIFE בטופס) ו<strong>מתוך קריאה קיימת</strong> (כפתור "🔗 קשר ל-ONEFLOW LIFE").
+      </p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🔗</div><div><div class="mod-name">2 דרכי קישור לקוח</div></div></div>
+        <div class="mod-body">
+          <div class="steps">
+            <div class="step">
+              <div class="step-n">1</div>
+              <div class="step-body">
+                <strong>קישור לקוח קיים</strong>
+                <span>חפש לפי שם / טלפון / מייל ← בחר מהרשימה ← לחץ "קשר" ← הקריאה מקושרת לחשבון שלו. הלקוח מקבל הודעה שיש לו קריאה חדשה ← לוחץ "אישור" ← יכול לצפות ולשלוח הודעות.</span>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-n">2</div>
+              <div class="step-body">
+                <strong>יצירת חשבון חדש ללקוח</strong>
+                <span>לקוח שאין לו עדיין חשבון OneFlow — הקלד שם + טלפון ← לחץ "צור חשבון OneFlow חדש" ← המערכת יוצרת חשבון ← מקשרת את הקריאה ← מציגה קוד כניסה + סיסמה ← כפתור WhatsApp שולח ללקוח הודעה עם כל פרטי הכניסה.</span>
+              </div>
+            </div>
+          </div>
+          <div class="tip-box">💡 לאחר קישור מוצלח — כפתור "🔗 קשר ל-ONEFLOW LIFE" נעלם מהקריאה (כי הקריאה כבר מקושרת).</div>
+        </div>
+      </div>
+
+      <!-- ─── ו. תרחיש מלא ─── -->
+      <h2 class="sec">ו. תרחיש מלא — קריאה מהפנייה עד לתשלום</h2>
+      <div class="scenario">
+        <div class="sc-step">
+          <div class="sc-num">1</div>
+          <div class="sc-body"><strong>לקוח מתקשר:</strong> "המזגן שלי לא מקרר". שרה (מנהלת סניף) לוחצת 🏠 ← <strong>קריאות שירות</strong> ← <strong>+ חדשה</strong> ← ממלאת: כותרת "תיקון מזגן — לא מקרר", שם לקוח "יוסי כהן", טלפון 050-1234567, כתובת "רחוב הרצל 12 תל אביב", עדיפות "גבוה", מייחסת לדני הטכנאי ← <strong>פתח קריאה 🔧</strong>.</div>
+        </div>
+        <div class="sc-step">
+          <div class="sc-num">2</div>
+          <div class="sc-body"><strong>דני הטכנאי מקבל:</strong> בלוח הבקרה שלו מופיעה הקריאה החדשה. לוחץ על הקריאה ← רואה את הכתובת ← לוחץ <strong>🚗 Waze</strong> ← מגיע לכתובת.</div>
+        </div>
+        <div class="sc-step">
+          <div class="sc-num">3</div>
+          <div class="sc-body"><strong>דני בשטח:</strong> משנה סטטוס ל<strong>"בטיפול"</strong> ← מגלה שנדרש חלק ← משנה סטטוס ל<strong>"ממתין לחלקים"</strong> ← לוחץ <strong>"פתח הזמנת רכש"</strong> ← בוחר "מסנן מזגן 12000 BTU" ← שומר ← ההזמנה מקושרת לקריאה.</div>
+        </div>
+        <div class="sc-step">
+          <div class="sc-num">4</div>
+          <div class="sc-body"><strong>החלק מגיע:</strong> שרה מעדכנת את תת-הסטטוס ל<strong>"חלקים לאיסוף"</strong> ← כותבת הערה "החלק הגיע למחסן, איסוף מחר בבוקר" ← דני רואה בלוח הבקרה שלו את הקריאה עם badge "✅ חלקים לאיסוף".</div>
+        </div>
+        <div class="sc-step">
+          <div class="sc-num">5</div>
+          <div class="sc-body"><strong>טיפול מחדש:</strong> דני מגיע עם החלק ← מתקן ← מעדכן סטטוס ל<strong>"ממתין לתשלום"</strong> ← מוסיף הערה "החלפתי מסנן + ניקוי קומפרסור. הכל תקין" ← לוחץ <strong>+ הוסף תחנה</strong> ← מכניס "תשלום מלא, ₪350, ביט" ← שומר.</div>
+        </div>
+        <div class="sc-step">
+          <div class="sc-num">6</div>
+          <div class="sc-body"><strong>סגירה:</strong> יוסי הלקוח שולח ביט ← דני מאשר תשלום ← לוחץ <strong>"✅ סמן כהושלם"</strong> ← הקריאה עוברת לסטטוס "הושלם" ← לוחץ <strong>"💾 שמור כלקוח"</strong> ← יוסי נשמר ברשימת הלקוחות לשיחות עתידיות.</div>
+        </div>
+      </div>
+
     </div>
 
     <!-- ── 5. לקוחות וחלקים ── -->
