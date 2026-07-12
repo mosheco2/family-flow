@@ -1598,6 +1598,18 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_transactions_group_id ON transactions(group_id)`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)`); } catch(e) {}
 
+      // רשימת המתנה — פיילוט נקדים
+      try { await client.query(`CREATE TABLE IF NOT EXISTS pilot_waitlist (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(200) NOT NULL,
+          phone VARCHAR(30) NOT NULL,
+          email VARCHAR(200),
+          source VARCHAR(100) DEFAULT 'nikdim-pilot',
+          status VARCHAR(20) DEFAULT 'new',
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -2712,6 +2724,61 @@ function verifySA(req, res, next) {
     }
     next();
 }
+
+// ============================================================
+// --- PILOT WAITLIST (נקדים) ---
+// ============================================================
+
+// שמירת ליד חדש — ציבורי (ללא auth)
+app.post('/api/pilot-waitlist', async (req, res) => {
+    try {
+        const { name, phone, email, source } = req.body;
+        if (!name || !phone) return res.status(400).json({ error: 'שם וטלפון הם שדות חובה' });
+        const result = await pool.query(
+            `INSERT INTO pilot_waitlist (name, phone, email, source) VALUES ($1,$2,$3,$4) RETURNING id, created_at`,
+            [name.trim(), phone.trim(), (email || '').trim(), source || 'nikdim-pilot']
+        );
+        res.json({ success: true, id: result.rows[0].id, created_at: result.rows[0].created_at });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// קבלת כל הלידים + סטטיסטיקות — SA בלבד
+app.get('/api/sa/pilot-waitlist', verifySA, async (req, res) => {
+    try {
+        const leads = await pool.query(
+            `SELECT * FROM pilot_waitlist ORDER BY created_at DESC`
+        );
+        const stats = await pool.query(
+            `SELECT status, COUNT(*) as count FROM pilot_waitlist GROUP BY status`
+        );
+        const statsMap = {};
+        stats.rows.forEach(r => { statsMap[r.status] = parseInt(r.count); });
+        res.json({ success: true, leads: leads.rows, stats: statsMap, total: leads.rows.length });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עדכון סטטוס / הערות ליד — SA בלבד
+app.patch('/api/sa/pilot-waitlist/:id', verifySA, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, notes } = req.body;
+        const fields = [], vals = [];
+        if (status !== undefined) { fields.push(`status=$${fields.length+1}`); vals.push(status); }
+        if (notes !== undefined) { fields.push(`notes=$${fields.length+1}`); vals.push(notes); }
+        if (!fields.length) return res.status(400).json({ error: 'אין שדות לעדכון' });
+        vals.push(id);
+        await pool.query(`UPDATE pilot_waitlist SET ${fields.join(',')} WHERE id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מחיקת ליד — SA בלבד
+app.delete('/api/sa/pilot-waitlist/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query(`DELETE FROM pilot_waitlist WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
 // ============================================================
 // --- SMS OTP LOGIN (SUPER ADMIN MASTER) ---

@@ -2967,6 +2967,7 @@ async function loadSAPartners() {
     setTimeout(() => { renderSAPartnersTable(); }, 300);
     loadZoneManagers();
     loadPartnersKPI();
+    loadPilotLeads();
 }
 
 async function loadPartnersKPI() {
@@ -3026,6 +3027,111 @@ function renderSAPartnersTable() {
         </tr>
     `).join('');
 }
+
+// ── PILOT WAITLIST ──────────────────────────────────────────────────────
+let _pilotLeadsCache = [];
+
+async function loadPilotLeads() {
+    try {
+        const res = await fetch(`${API}/sa/pilot-waitlist`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        if (!data.success) return;
+        _pilotLeadsCache = data.leads || [];
+        // KPI
+        const s = data.stats || {};
+        const setK = (id, v) => { const el = getEl(id); if (el) el.textContent = v ?? 0; };
+        setK('pilot-kpi-new',       s.new       || 0);
+        setK('pilot-kpi-contacted', s.contacted || 0);
+        setK('pilot-kpi-joined',    s.joined    || 0);
+        setK('pilot-kpi-declined',  s.declined  || 0);
+        setK('sa-partners-kpi-leads', data.total || 0);
+        renderPilotLeads();
+    } catch(e) {}
+}
+
+function renderPilotLeads() {
+    const tbody = getEl('pilot-leads-table-body');
+    if (!tbody) return;
+    const filterEl = getEl('pilot-filter-status');
+    const filter = filterEl ? filterEl.value : '';
+    const leads = filter ? _pilotLeadsCache.filter(l => l.status === filter) : _pilotLeadsCache;
+    if (!leads.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-10 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed">אין לידים${filter ? ' בסטטוס זה' : ''}.</td></tr>`;
+        return;
+    }
+    const STATUS_MAP = {
+        new:       { label: 'חדש',          bg: 'bg-amber-100',   text: 'text-amber-700' },
+        contacted: { label: 'נוצר קשר',     bg: 'bg-blue-100',    text: 'text-blue-700'  },
+        joined:    { label: 'הצטרף',        bg: 'bg-emerald-100', text: 'text-emerald-700'},
+        declined:  { label: 'לא מעוניין',   bg: 'bg-slate-100',   text: 'text-slate-500' }
+    };
+    tbody.innerHTML = leads.map(l => {
+        const st = STATUS_MAP[l.status] || STATUS_MAP.new;
+        const date = new Date(l.created_at).toLocaleDateString('he-IL');
+        return `
+        <tr class="hover:bg-slate-50 transition" data-lead-id="${l.id}">
+            <td class="px-4 py-3 font-bold text-slate-800">${safeStr(l.name)}</td>
+            <td class="px-4 py-3 text-slate-600 dir-ltr font-mono text-sm">${safeStr(l.phone)}</td>
+            <td class="px-4 py-3 text-slate-500 text-xs">${safeStr(l.email || '—')}</td>
+            <td class="px-4 py-3 text-center text-slate-500 text-xs">${date}</td>
+            <td class="px-4 py-3 text-center">
+                <select onchange="updatePilotLeadStatus(${l.id}, this.value)" class="text-xs font-bold border-0 rounded-lg px-2 py-1 cursor-pointer ${st.bg} ${st.text}">
+                    <option value="new"       ${l.status==='new'?'selected':''}>חדש</option>
+                    <option value="contacted" ${l.status==='contacted'?'selected':''}>נוצר קשר</option>
+                    <option value="joined"    ${l.status==='joined'?'selected':''}>הצטרף</option>
+                    <option value="declined"  ${l.status==='declined'?'selected':''}>לא מעוניין</option>
+                </select>
+            </td>
+            <td class="px-4 py-3">
+                <input type="text" value="${safeStr(l.notes || '')}" placeholder="הוסף הערה..." onblur="updatePilotLeadNotes(${l.id}, this.value)"
+                    class="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 focus:border-indigo-400 focus:outline-none">
+            </td>
+            <td class="px-4 py-3 text-center">
+                <button onclick="deletePilotLead(${l.id})" class="text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded-lg shadow-sm transition inline-flex items-center justify-center" title="מחק ליד">
+                    <i class="fa-solid fa-trash text-xs"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function updatePilotLeadStatus(id, status) {
+    try {
+        await fetch(`${API}/sa/pilot-waitlist/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ status })
+        });
+        const lead = _pilotLeadsCache.find(l => l.id === id);
+        if (lead) lead.status = status;
+        loadPilotLeads();
+    } catch(e) {}
+}
+
+async function updatePilotLeadNotes(id, notes) {
+    try {
+        await fetch(`${API}/sa/pilot-waitlist/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ notes })
+        });
+        const lead = _pilotLeadsCache.find(l => l.id === id);
+        if (lead) lead.notes = notes;
+    } catch(e) {}
+}
+
+async function deletePilotLead(id) {
+    if (!confirm('למחוק ליד זה לצמיתות?')) return;
+    try {
+        await fetch(`${API}/sa/pilot-waitlist/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': saToken }
+        });
+        _pilotLeadsCache = _pilotLeadsCache.filter(l => l.id !== id);
+        loadPilotLeads();
+    } catch(e) {}
+}
+// ────────────────────────────────────────────────────────────────────────
 
 function openSAAddPartnerModal() {
     let modal = getEl('sa-add-partner-modal');

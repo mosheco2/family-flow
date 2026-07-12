@@ -261,6 +261,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                   <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;" id="vtnav-partners">
           <button id="vtnav-partners-overview" onclick="switchViewTab('partners','overview')" style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-chart-bar" style="font-size:11px;"></i>סקירה</button>
           <button id="vtnav-partners-managers" onclick="switchViewTab('partners','managers')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-map-location-dot" style="font-size:11px;"></i>מנהלי אזורים</button>
+          <button id="vtnav-partners-pilot" onclick="switchViewTab('partners','pilot')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-house-heart" style="font-size:11px;"></i>פיילוט נקדים 🏡</button>
         </div>
                 <div id="vt-partners-overview" class="vt-partners space-y-6">
 
@@ -419,6 +420,71 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
                 </div><!-- /vt-partners-managers -->
+
+                <div id="vt-partners-pilot" class="vt-partners hidden">
+                    <!-- סטטיסטיקות לידים -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-amber-50 border border-amber-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-clock text-2xl text-amber-500 mb-2"></i>
+                            <span class="text-2xl font-black text-amber-700" id="pilot-kpi-new">--</span>
+                            <span class="text-[10px] text-amber-600 font-bold mt-1">חדשים</span>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-phone text-2xl text-blue-500 mb-2"></i>
+                            <span class="text-2xl font-black text-blue-700" id="pilot-kpi-contacted">--</span>
+                            <span class="text-[10px] text-blue-600 font-bold mt-1">נוצר קשר</span>
+                        </div>
+                        <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-circle-check text-2xl text-emerald-500 mb-2"></i>
+                            <span class="text-2xl font-black text-emerald-700" id="pilot-kpi-joined">--</span>
+                            <span class="text-[10px] text-emerald-600 font-bold mt-1">הצטרפו</span>
+                        </div>
+                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-xmark text-2xl text-slate-400 mb-2"></i>
+                            <span class="text-2xl font-black text-slate-600" id="pilot-kpi-declined">--</span>
+                            <span class="text-[10px] text-slate-500 font-bold mt-1">לא מעוניינים</span>
+                        </div>
+                    </div>
+
+                    <!-- טבלת לידים -->
+                    <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-md">
+                        <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-4 flex-wrap gap-3">
+                            <div>
+                                <h2 class="text-lg font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-house-heart text-rose-500"></i> לידים — פיילוט נקדים</h2>
+                                <p class="text-xs text-slate-500 mt-1">כל מי שנרשם לרשימת ההמתנה דרך עמוד הנחיתה.</p>
+                            </div>
+                            <div class="flex gap-2 flex-wrap">
+                                <select id="pilot-filter-status" onchange="renderPilotLeads()" class="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white font-bold text-slate-700">
+                                    <option value="">כל הסטטוסים</option>
+                                    <option value="new">חדש</option>
+                                    <option value="contacted">נוצר קשר</option>
+                                    <option value="joined">הצטרף</option>
+                                    <option value="declined">לא מעוניין</option>
+                                </select>
+                                <button onclick="loadPilotLeads()" class="bg-slate-100 text-slate-700 px-4 py-2 rounded-xl font-bold hover:bg-slate-200 transition text-sm"><i class="fa-solid fa-rotate-right mr-1"></i>רענן</button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-right">
+                                <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
+                                    <tr>
+                                        <th class="px-4 py-3 rounded-tr-lg">שם</th>
+                                        <th class="px-4 py-3">טלפון</th>
+                                        <th class="px-4 py-3">אימייל</th>
+                                        <th class="px-4 py-3 text-center">תאריך הרשמה</th>
+                                        <th class="px-4 py-3 text-center">סטטוס</th>
+                                        <th class="px-4 py-3">הערות</th>
+                                        <th class="px-4 py-3 text-center rounded-tl-lg">פעולות</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pilot-leads-table-body" class="divide-y divide-slate-100">
+                                    <tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">טוען נתונים...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div><!-- /vt-partners-pilot -->
+
                 </div><!-- /sa-view-partners -->
 
                 <div id="sa-view-pulse" class="hidden fade-in">
