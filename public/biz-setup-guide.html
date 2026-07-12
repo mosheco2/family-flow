@@ -1348,24 +1348,111 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     <div class="chapter" id="r-money">
       <div class="ch-head"><div class="ch-num">7</div><div class="ch-title">כספים ודוחות</div></div>
 
-      <!-- CASHFLOW -->
-      <div class="mod">
-        <div class="mod-head"><div class="mod-icon">💵</div><div><div class="mod-name">תזרים מזומנים</div><div class="mod-tag">כספים › תזרים</div></div></div>
-        <div class="mod-body">
-          <p>מעקב אחר <strong>כל הכסף שנכנס ויוצא</strong> מהמסעדה. הכנסות ממכירות מתווספות אוטומטית — הוצאות נרשמות ידנית.</p>
+      <p style="font-size:.9rem;color:var(--text2);">קבוצת הניווט <strong>כספים</strong> כוללת: כספים (יתרות עובדים), תזרים מזומנים, תקציב, תשקיף. כולן נגישות ל-ADMIN בלבד.</p>
 
-          <h2 class="sec">איך רושמים הוצאה?</h2>
-          <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו "הוסף הוצאה"</strong><span>הגדירו: סכום, תיאור, קטגוריה (שכר / מצרכים / שכירות / שיווק / אחר) ותאריך.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>שמרו קבלה</strong><span>ניתן לצלם קבלה ולצרף לרישום — שימושי לרואה חשבון.</span></div></div>
+      <!-- BANK -->
+      <div class="mod" style="margin-top:20px;">
+        <div class="mod-head"><div class="mod-icon">💳</div><div><div class="mod-name">כספים — יתרות עובדים</div><div class="mod-tag">כספים › כספים</div></div></div>
+        <div class="mod-body">
+          <p>מסך שמציג את <strong>היתרה הפנימית של כל עובד</strong> — סכום שנצבר משכר, תגמולי משימות, ובונוסים. כאן ניתן לבצע תיקונים ובונוסים ידניים. נגישות: <strong>כספים ← כספים</strong>.</p>
+
+          <h2 class="sec">מה מוצג בכרטיס עובד?</h2>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">שם העובד</div><div class="fr-val">שם + אות ראשונה כאייקון</div></div>
+            <div class="field-row"><div class="fr-label">תעריף</div><div class="fr-val">₪XX/שעה • מינימום: XX שעות (כפי שהוגדר בהגדרות שכר)</div></div>
+            <div class="field-row"><div class="fr-label">תקציב נוכחי</div><div class="fr-val">היתרה הנוכחית שנצברה לאותו עובד (₪)</div></div>
           </div>
 
-          <div class="wys" style="margin-top:12px;"><div class="wys-title">מה המסך מציג?</div><div class="wys-list">
-            <div class="wys-item">גרף הכנסות מול הוצאות לחודש הנוכחי</div>
-            <div class="wys-item">יתרה נוכחית (הכנסות פחות הוצאות)</div>
-            <div class="wys-item">רשימת כל הפעולות לפי תאריך</div>
-            <div class="wys-item">אפשרות ייצוא לאקסל / PDF</div>
-          </div></div>
+          <h2 class="sec" style="margin-top:16px;">כפתורי פעולה בכרטיס העובד (admin בלבד)</h2>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🛡️ הרשאות</div><div class="fr-val">פתיחת מסך הרשאות לשינוי רמת גישה</div></div>
+            <div class="field-row"><div class="fr-label">💸 תיקון/בונוס</div><div class="fr-val">פתיחת מודאל "תיקון מאזן תקציבי" — ראו פירוט למטה</div></div>
+            <div class="field-row"><div class="fr-label">⚙️ שכר</div><div class="fr-val">הגדרות שכר לשעה ומינימום שעות בחודש</div></div>
+            <div class="field-row"><div class="fr-label">🗑️ מחיקה</div><div class="fr-val">הסרת העובד מהמערכת</div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">תיקון מאזן — בונוס או קנס</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו 💸 על כרטיס העובד</strong><span>ייפתח חלון "תיקון מאזן תקציבי".</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body">
+              <strong>בחרו סוג פעולה</strong>
+              <div class="field-table" style="margin-top:6px;">
+                <div class="field-row"><div class="fr-label">הפחתה / קנס</div><div class="fr-val">יורד מהיתרה של העובד — לדוגמה: כשנוכחה טעות בקופה</div></div>
+                <div class="field-row"><div class="fr-label">בונוס / תוספת</div><div class="fr-val">נוסף ליתרה של העובד — שי, בונוס יומי, תוספת מיוחדת</div></div>
+              </div>
+            </div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body">
+              <strong>הזינו סכום וסיבה</strong>
+              <div class="field-table" style="margin-top:6px;">
+                <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>סכום (₪)</div><div class="fr-val">כמה להוסיף / להפחית</div></div>
+                <div class="field-row"><div class="fr-label">סיבה / הערה</div><div class="fr-val">טקסט חופשי שיופיע בתזרים — לדוגמה: "בונוס יום שישי עמוס"</div></div>
+              </div>
+            </div></div>
+            <div class="step"><div class="step-n">4</div><div class="step-body"><strong>לחצו "אשר ועדכן יתרה"</strong><span>היתרה של העובד מתעדכנת מיד. הפעולה נרשמת גם בתזרים המזומנים.</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CASHFLOW -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">💸</div><div><div class="mod-name">תזרים מזומנים</div><div class="mod-tag">כספים › תזרים מזומנים</div></div></div>
+        <div class="mod-body">
+          <p>רשימה מלאה של <strong>כל ההכנסות וההוצאות</strong> שנרשמו במסעדה — ממכירות הקופה ועד הוצאות ידניות. נגישות: <strong>כספים ← תזרים מזומנים</strong>.</p>
+
+          <h2 class="sec">א. קריאת מסך התזרים</h2>
+          <p>כל פעולה מוצגת בכרטיס עם:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label" style="color:#16a34a;">↗ ירוק — הכנסה</div><div class="fr-val">סכום בירוק עם + — מכירה, השקעה, זיכוי, או הכנסה ידנית</div></div>
+            <div class="field-row"><div class="fr-label" style="color:#dc2626;">↘ אדום — הוצאה</div><div class="fr-val">סכום באדום עם - — הוצאה תפעולית שנרשמה ידנית</div></div>
+            <div class="field-row"><div class="fr-label">תיאור + שם עובד</div><div class="fr-val">מי רשם את הפעולה ומה תיאורה</div></div>
+            <div class="field-row"><div class="fr-label">תאריך ושעה</div><div class="fr-val">מועד ביצוע הפעולה</div></div>
+            <div class="field-row"><div class="fr-label">תג קטגוריה</div><div class="fr-val">הקטגוריה שנבחרה (שיווק, שכירות, מכירות…)</div></div>
+          </div>
+          <p style="margin-top:8px;">סינון: Admin רואה כל העובדים (תפריט בחירה). סינון לפי טווח זמן: חודש אחרון / 3 חודשים / 6 חודשים / הכל.</p>
+
+          <h2 class="sec" style="margin-top:16px;">ב. רישום הכנסה ידנית</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו "הוסף הכנסה"</strong><span>ייפתח חלון עם השדות:</span>
+              <div class="field-table" style="margin-top:6px;">
+                <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>סכום (₪)</div><div class="fr-val">כמה כסף נכנס</div></div>
+                <div class="field-row"><div class="fr-label">תיאור</div><div class="fr-val">לדוגמה: "פירעון חוב מאירוע", "חלק מהשקעה"</div></div>
+                <div class="field-row"><div class="fr-label">קטגוריה</div><div class="fr-val">📈 מכירות והכנסות / 💰 השקעה ומימון / 🔄 זיכוי והחזר / 💸 אחר</div></div>
+                <div class="field-row"><div class="fr-label">תאריך</div><div class="fr-val">ברירת מחדל: היום. ניתן לשנות לתאריך אחר.</div></div>
+                <div class="field-row"><div class="fr-label">הכנסה חוזרת</div><div class="fr-val">אם מסמנים — יש לקבוע גם "עד חודש" (מועד סיום ההכנסה הקבועה)</div></div>
+              </div>
+            </div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>לחצו "רשום פעולה"</strong><span>הפעולה נשמרת ומוצגת ברשימה. תוסט: "נרשם בהצלחה!"</span></div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ג. רישום הוצאה ידנית</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו "הוסף הוצאה"</strong><span>אותו חלון — עם קטגוריות הוצאה:</span>
+              <div class="field-table" style="margin-top:6px;">
+                <div class="field-row"><div class="fr-label">📎 ציוד משרדי</div><div class="fr-val">ציוד למשרד ולתפעול</div></div>
+                <div class="field-row"><div class="fr-label">💻 תוכנה ושירותים</div><div class="fr-val">תוכנות, מנויים, שירותים דיגיטליים</div></div>
+                <div class="field-row"><div class="fr-label">🎯 שיווק ופרסום</div><div class="fr-val">פרסומות, פרינט, קמפיינים</div></div>
+                <div class="field-row"><div class="fr-label">💼 משכורות</div><div class="fr-val">תשלום שכר לעובדים</div></div>
+                <div class="field-row"><div class="fr-label">✈️ נסיעות ורכבים</div><div class="fr-val">דלק, תחזוקת רכב, חנייה</div></div>
+                <div class="field-row"><div class="fr-label">🏢 שכירות ותחזוקה</div><div class="fr-val">שכירות מקום, תיקונים</div></div>
+                <div class="field-row"><div class="fr-label">☕ כיבוד ומטבחון</div><div class="fr-val">אוכל ושתייה לצוות</div></div>
+                <div class="field-row"><div class="fr-label">💸 הוצאה תפעולית אחרת</div><div class="fr-val">כל מה שלא מתאים לקטגוריות לעיל</div></div>
+              </div>
+            </div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>לחצו "רשום פעולה"</strong><span>תוסט: "נרשם בהצלחה!"</span></div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ד. סריקת קבלה (Admin)</h2>
+          <p>לחצו על כפתור הסריקה (📷) בראש הדף — הצלמת קבלה → AI מזהה את הסכום והפרטים ומוסיף את ההוצאה אוטומטית לתזרים.</p>
+
+          <h2 class="sec" style="margin-top:16px;">ה. עריכה ומחיקה של פעולה (Admin)</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו ✏️ על הפעולה</strong><span>ייפתח חלון עריכה עם שדות: סכום, תיאור, קטגוריה.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>לחצו "שמור שינויים"</strong><span>תוסט: "הפעולה עודכנה!"</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>למחיקה — לחצו "מחק"</strong><span>אישור: "האם אתה בטוח שברצונך למחוק פעולה זו לחלוטין? היתרה תתעדכן בהתאם." ← "מחק" → תוסט: "הפעולה נמחקה!"</span></div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ו. ייצוא תזרים לאקסל</h2>
+          <p>לחצו "הורד דוח תזרים (Excel)" — קובץ CSV יורד עם כל פעולות התזרים. תוסט: "מכין קובץ ייצוא..." ← "הקובץ הורד בהצלחה!"</p>
         </div>
       </div>
 
@@ -1373,50 +1460,118 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
       <div class="mod">
         <div class="mod-head"><div class="mod-icon">🎯</div><div><div class="mod-name">תקציב</div><div class="mod-tag">כספים › תקציב</div></div></div>
         <div class="mod-body">
-          <p>הגדירו <strong>תקרת הוצאות לכל קטגוריה</strong> ועקבו בזמן אמת עד כמה הגעתם.</p>
+          <p>הגדירו <strong>תקרת הוצאות לכל קטגוריה</strong> וראו בזמן אמת כמה מהתקציב כבר נוצל. נגישות: <strong>כספים ← תקציב</strong>.</p>
 
-          <div class="wys"><div class="wys-list">
-            <div class="wys-item">תקציב שכר עובדים — לדוגמה: 20,000 ש"ח בחודש</div>
-            <div class="wys-item">תקציב מצרכים — לדוגמה: 15,000 ש"ח</div>
-            <div class="wys-item">תקציב שיווק — לדוגמה: 3,000 ש"ח</div>
-          </div></div>
-
-          <div class="box box-warn" style="margin-top:10px;">
-            <div class="box-icon">⚠️</div>
-            <div>כשהוצאה בקטגוריה מגיעה ל-80% מהתקציב — מקבלים התראה. כשחורגים — התראה אדומה.</div>
+          <h2 class="sec">א. קריאת מסך התקציב</h2>
+          <p>כל קטגוריה מוצגת עם סרגל אחוז צבעוני:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label" style="color:#475569;">⬛ אפור — בשליטה</div><div class="fr-val">ניצול מתחת ל-80% מהתקציב</div></div>
+            <div class="field-row"><div class="fr-label" style="color:#f97316;">🟠 כתום — התראה</div><div class="fr-val">ניצול 80%–100% — מתקרבים לתקרה</div></div>
+            <div class="field-row"><div class="fr-label" style="color:#dc2626;">🔴 אדום — חריגה</div><div class="fr-val">חרגתם מהתקציב שהוגדר</div></div>
           </div>
-        </div>
-      </div>
+          <p style="margin-top:8px;">מתחת לסרגל מוצג: <strong>₪XX נוצל / ₪YY תקרה</strong>. אם לא הוגדרה תקרה — מוצג "ללא יעד".</p>
 
-      <!-- REPORTS -->
-      <div class="mod">
-        <div class="mod-head"><div class="mod-icon">📈</div><div><div class="mod-name">דוחות</div><div class="mod-tag">כספים › דוחות</div></div></div>
-        <div class="mod-body">
-          <p>דוחות מקיפים לניתוח ביצועי המסעדה — שבועי, חודשי, שנתי.</p>
-          <div class="wys"><div class="wys-list">
-            <div class="wys-item">דוח מכירות — מה נמכר, מתי, ובכמה</div>
-            <div class="wys-item">מנות הנמכרות ביותר וחלשות ביותר</div>
-            <div class="wys-item">שעות השיא — מתי המסעדה הכי עמוסה</div>
-            <div class="wys-item">דוח נוכחות עובדים ושעות עבודה</div>
-            <div class="wys-item">דוח רווח / הפסד</div>
-            <div class="wys-item">ייצוא PDF לשיתוף עם רואה חשבון</div>
-          </div></div>
-        </div>
-      </div>
-
-      <!-- BIZ ADS -->
-      <div class="mod">
-        <div class="mod-head"><div class="mod-icon">📣</div><div><div class="mod-name">פרסום FLOW</div><div class="mod-tag">עוד › פרסום</div></div></div>
-        <div class="mod-body">
-          <p>פרסמו את המסעדה ברשת OneFlow — הגיעו לאנשים באזור שלכם שמחפשים מקום לאכול.</p>
+          <h2 class="sec" style="margin-top:16px;">ב. עדכון תקציב לקטגוריה</h2>
           <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>צרו מודעה</strong><span>הוסיפו תמונה, כותרת, ותיאור קצר של המסעדה / מבצע מיוחד.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>בחרו אזור פרסום</strong><span>הגדירו איזה רדיוס גיאוגרפי — לדוגמה: 5 ק"מ סביב המסעדה.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>הוסיפו קישור</strong><span>קישור ישיר להזמנת שולחן או לתפריט המסעדה.</span></div></div>
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו "עדכון תקציב" על הקטגוריה הרצויה</strong><span>ייפתח חלון "עדכון יעד תקציב".</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הזינו תקציב מקסימלי מוקצה (₪)</strong><span>לדוגמה: 15,000 לקטגוריית משכורות.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>לחצו "עדכן יעד"</strong><span>הסרגל מתעדכן מיד.</span></div></div>
           </div>
-          <div class="box box-tip">
+
+          <h2 class="sec" style="margin-top:16px;">ג. קטגוריות ברירת מחדל</h2>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">📎 ציוד משרדי</div><div class="fr-val">ציוד ומשרד</div></div>
+            <div class="field-row"><div class="fr-label">💻 תוכנה ורישיונות</div><div class="fr-val">מנויים ותוכנות</div></div>
+            <div class="field-row"><div class="fr-label">🎯 שיווק</div><div class="fr-val">קמפיינים ופרסום</div></div>
+            <div class="field-row"><div class="fr-label">💼 שכר ובונוסים</div><div class="fr-val">משכורות לעובדים</div></div>
+            <div class="field-row"><div class="fr-label">✈️ נסיעות</div><div class="fr-val">רכב ונסיעות</div></div>
+            <div class="field-row"><div class="fr-label">🏢 שכירות</div><div class="fr-val">דמי שכירות ותחזוקה</div></div>
+            <div class="field-row"><div class="fr-label">☕ מטבחון</div><div class="fr-val">כיבוד צוות</div></div>
+            <div class="field-row"><div class="fr-label">💸 שונות</div><div class="fr-val">הוצאות שלא מתאימות לקטגוריות אחרות</div></div>
+            <div class="field-row"><div class="fr-label">✅ תגמול פרויקטים</div><div class="fr-val">תקציב תגמול עובדים ממשימות</div></div>
+            <div class="field-row"><div class="fr-label">🎓 הכשרות</div><div class="fr-val">תקציב לומדות ואקדמיה</div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ד. הוספת קטגוריה מותאמת אישית</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו "קטגוריה חדשה"</strong><span>ייפתח חלון "קטגוריה חדשה לתקציב".</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הקלידו שם הקטגוריה</strong><span>לדוגמה: "חומרי גלם", "ציוד מטבח".</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>לחצו "הוסף לתקציב"</strong><span>הקטגוריה מופיעה ברשימה עם סרגל ריק. הגדירו תקרה דרך "עדכון תקציב".</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FORECAST -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📅</div><div><div class="mod-name">תשקיף עתידי</div><div class="mod-tag">כספים › תשקיף</div></div></div>
+        <div class="mod-body">
+          <p>מסך שמציג <strong>פעולות עתידיות וקבועות</strong> — מה צפוי להיכנס ולצאת בחודש/שנה הבאים. עוזר לתכנן תזרים מראש. נגישות: <strong>כספים ← תשקיף</strong>.</p>
+
+          <h2 class="sec">א. מה מוצג?</h2>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">שינוי נטו צפוי</div><div class="fr-val">סה"כ הכנסות צפויות פחות הוצאות צפויות לתקופה — מוצג בירוק (חיובי) או אדום (שלילי)</div></div>
+            <div class="field-row"><div class="fr-label">יתרה צפויה</div><div class="fr-val">היתרה הנוכחית + השינוי הנטו הצפוי</div></div>
+            <div class="field-row"><div class="fr-label">רשימת פעולות</div><div class="fr-val">כל הפעולות הצפויות — כל פעולה חוזרת מסומנת בתג "קבועה 🔄"</div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ב. מצבי תצוגה</h2>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">תצוגה חודשית</div><div class="fr-val">תשקיף לחודש ספציפי — בחרו חודש מהתפריט הנפתח</div></div>
+            <div class="field-row"><div class="fr-label">תצוגה שנתית</div><div class="fr-val">תשקיף לשנה שלמה — הפעולות החוזרות מוכפלות לפי מספר חודשי פעילות</div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ג. הוספת פעולה עתידית / קבועה</h2>
+          <p>כדי שפעולה תופיע בתשקיף — בעת רישום הכנסה/הוצאה בתזרים, סמנו <strong>"הכנסה/הוצאה חוזרת"</strong> ← הזינו תאריך עתידי ← הגדירו "עד חודש" (מועד הפסקה). הפעולה תופיע בכל חודש רלוונטי בתשקיף.</p>
+
+          <div class="box box-tip" style="margin-top:12px;">
             <div class="box-icon">💡</div>
-            <div>ניתן לעקוב אחר כמה אנשים ראו את המודעה ולחצו על הקישור.</div>
+            <div>רשמו כהוצאה קבועה: שכירות, ארנונה, ביטוחים, תוכנות — וראו בתשקיף כמה "כבד" כל חודש עוד לפני שהוא מגיע.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DAILY CLOSE REPORT -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">דוח סגירת יום</div><div class="mod-tag">דף הבית › פעולות מהירות</div></div></div>
+        <div class="mod-body">
+          <p>דוח יומי שנפתח בלחיצה על "📊 דוח סגירת יום" בפעולות המהירות בדף הבית. מציג את <strong>סיכום יום המכירות שעבר</strong> בזמן אמת.</p>
+
+          <h2 class="sec">א. מה מוצג בדוח?</h2>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">הכנסות</div><div class="fr-val">סה"כ מכירות היום (₪) — כל הזמנות היום שלא בוטלו</div></div>
+            <div class="field-row"><div class="fr-label">הזמנות</div><div class="fr-val">מספר ההזמנות שנסגרו היום</div></div>
+            <div class="field-row"><div class="fr-label">ממוצע להזמנה</div><div class="fr-val">הכנסות / מספר הזמנות</div></div>
+            <div class="field-row"><div class="fr-label">טיפים (אם היו)</div><div class="fr-val">סה"כ טיפים שנגבו היום</div></div>
+            <div class="field-row"><div class="fr-label">הנחות (אם היו)</div><div class="fr-val">סה"כ הנחות שניתנו — קופון + הנחה ידנית</div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ב. פירוט לפי אמצעי תשלום</h2>
+          <p>טבלה שמפרטת כמה נגבה בכל אמצעי תשלום: מזומן / אשראי / ביט / פייבוקס / חשבון.</p>
+
+          <h2 class="sec" style="margin-top:16px;">ג. מנות מובילות היום</h2>
+          <p>רשימת 5 המנות שנמכרו הכי הרבה יחידות היום — ממוספרות 1–5.</p>
+
+          <h2 class="sec" style="margin-top:16px;">ד. ייצוא הדוח</h2>
+          <p>לחצו <strong>"📥 ייצא דוח יומי לאקסל"</strong> — קובץ CSV עם כל הזמנות היום יורד מיידית.</p>
+        </div>
+      </div>
+
+      <!-- EXPORT REPORTS -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📥</div><div><div class="mod-name">ייצוא דוחות לאקסל</div><div class="mod-tag">כספים / מלאי / צוות</div></div></div>
+        <div class="mod-body">
+          <p>בכל אחד מהמסכים הבאים — מופיע כפתור ייצוא ירוק <strong>"הורד דוח ... (Excel)"</strong>. לחיצה מורידה קובץ CSV מוכן לפתיחה באקסל.</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">הזמנות</div><div class="fr-val">כל ההזמנות עם פרטי לקוח, סכום, סטטוס, ותאריך</div></div>
+            <div class="field-row"><div class="fr-label">לקוחות</div><div class="fr-val">רשימת לקוחות עם טלפון, יתרת חוב, מספר הזמנות</div></div>
+            <div class="field-row"><div class="fr-label">תזרים</div><div class="fr-val">כל תנועות ההכנסה וההוצאה</div></div>
+            <div class="field-row"><div class="fr-label">מלאי</div><div class="fr-val">פריטי מחסן עם כמויות ומחירים</div></div>
+            <div class="field-row"><div class="fr-label">צוות</div><div class="fr-val">עובדים עם שעות עבודה ויתרות</div></div>
+            <div class="field-row"><div class="fr-label">Food Cost</div><div class="fr-val">כל המנות עם אחוז עלות ורווחיות</div></div>
+          </div>
+          <div class="box box-tip" style="margin-top:12px;">
+            <div class="box-icon">💡</div>
+            <div>תוסט בעת לחיצה: "מכין קובץ ייצוא..." ← כשמוכן: "הקובץ הורד בהצלחה!"</div>
           </div>
         </div>
       </div>
