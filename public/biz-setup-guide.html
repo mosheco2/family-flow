@@ -2438,97 +2438,250 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     <div class="chapter" id="s-schedule">
       <div class="ch-head"><div class="ch-num">4</div><div class="ch-title">שיעורים, מנויים וחברים</div></div>
 
-      <!-- CALENDAR / CLASSES -->
-      <div class="mod">
-        <div class="mod-head"><div class="mod-icon">📅</div><div><div class="mod-name">לוח שיעורים (יומן ציבורי)</div><div class="mod-tag">צוות › יומן</div></div></div>
+      <p style="font-size:.9rem;color:var(--text2);">זהו הלב של מערכת הספורט. הפרק מכסה ארבעה תחומים מרכזיים: ניהול חברים ומנויים, צ'ק-אין, לוח שיעורים וסוגי מנויים. כולם נגישים ישירות מלוח הבקרה דרך הפעולות המהירות — אין צורך לנווט בתפריטים.</p>
+
+      <!-- ═══ א. סוגי מנויים — SETUP ═══ -->
+      <h2 class="sec">א. הגדרת סוגי מנויים — לפני הכל</h2>
+      <p style="font-size:.87rem;color:var(--text2);">לפני שמוסיפים חברים, חשוב להגדיר את סוגי המנויים שהמועדון מציע. סוגי המנויים משמשים גם להוספת חברים וגם בקופה (POS). ניתן לגשת אליהם מתוך מסך "חברים" — אם לא הוגדרו, המערכת תציג הודעה עם קישור ישיר להוספה.</p>
+
+      <div class="mod" style="margin-top:10px;">
+        <div class="mod-head"><div class="mod-icon">🏷️</div><div><div class="mod-name">ניהול סוגי מנויים</div><div class="mod-tag">מלוח הבקרה ← חברים ← + חדש (אם לא קיים) / מתוך אזהרה</div></div></div>
         <div class="mod-body">
-          <p>כאן מנהלים את כל השיעורים הקבוצתיים — יוגה, קרוספיט, אירובי, ריקוד — וחברים יכולים להרשם אונליין.</p>
+          <p>מסך "סוגי מנויים" מציג את כל סוגי המנויים שהוגדרו, ומאפשר להוסיף, לערוך ולמחוק.</p>
 
-          <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>פתיחת שיעור חדש</strong><span>לחצו על תאריך/שעה ביומן → "הוסף שיעור". הזינו: שם השיעור (לדוגמה: "יוגה — מתחילים"), שם המאמן, שעת התחלה, שעת סיום, מספר משתתפים מקסימלי.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>חבר נרשם</strong><span>חבר נכנס לפורטל האישי שלו ובוחר שיעור. כשכל המקומות תפוסים — הוא נכנס לרשימת המתנה אוטומטית. אם מישהו מבטל — הבא ברשימה מקבל הודעה.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>עדכון נוכחות</strong><span>בזמן השיעור — לחצו על השיעור ← "עדכן נוכחות". סמנו מי הגיע ומי לא. המידע עובר לדוחות ולחשבון המאמן.</span></div></div>
+          <h3 style="font-size:.87rem;font-weight:700;margin:12px 0 6px;">הוספת סוג מנוי חדש — שדות הטופס:</h3>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">שם המנוי</div><div class="fr-val">שדה חובה. תיאור חופשי — לדוגמה: "מנוי חודשי", "כרטיסייה 10 כניסות", "מנוי שנתי VIP", "כניסה יומית".</div></div>
+            <div class="field-row">
+              <div class="fr-label">סוג (type)</div>
+              <div class="fr-val">
+                בחירה מרשימה קבועה בקוד — 5 אפשרויות:
+                <div class="field-table" style="margin-top:6px;">
+                  <div class="field-row"><div class="fr-label">חודשי</div><div class="fr-val">תוקף 30 ימים מתאריך ההתחלה.</div></div>
+                  <div class="field-row"><div class="fr-label">שנתי</div><div class="fr-val">תוקף 365 ימים מתאריך ההתחלה.</div></div>
+                  <div class="field-row"><div class="fr-label">כרטיסייה</div><div class="fr-val">מבוסס כניסות — תוקף נגמר כשנגמרות הכניסות (לא לפי תאריך). שדה "כניסות" הופך חובה.</div></div>
+                  <div class="field-row"><div class="fr-label">כניסה יומית</div><div class="fr-val">תוקף יום אחד בלבד — לכניסה חד-פעמית.</div></div>
+                  <div class="field-row"><div class="fr-label">אימונים אישיים (PT)</div><div class="fr-val">מבוסס מספר סשנים עם מאמן אישי. שדה "כניסות" = מספר סשנים.</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="field-row"><div class="fr-label">מחיר ₪</div><div class="fr-val">מחיר המנוי בשקלים. מספר בלבד — ללא סימן ₪. לדוגמה: 250, 1200, 45.</div></div>
+            <div class="field-row"><div class="fr-label">כניסות</div><div class="fr-val">מספר הכניסות/סשנים (רלוונטי רק לסוג "כרטיסייה" ו"אימונים אישיים"). לסוגים אחרים — מתעלמים מהשדה הזה.</div></div>
           </div>
 
-          <div class="box box-tip">
-            <div class="box-icon">💡</div>
-            <div>ניתן לקבוע שיעורים חוזרים שבועיים — לדוגמה: "יוגה כל ראשון ושלישי ב-09:00". פעולה אחת ממלאת את כל החודש.</div>
-          </div>
-        </div>
-      </div>
+          <p style="font-size:.85rem;margin-top:12px;">לאחר מילוי השדות לחצו <strong>"הוסף ➕"</strong> — הסוג נוסף לרשימה מיד. כל סוג ברשימה מציג: שם, מחיר, סוג, ומספר כניסות (אם רלוונטי). ניתן ללחוץ ✏️ לעריכה או 🗑️ למחיקה.</p>
 
-      <!-- POS -->
-      <div class="mod">
-        <div class="mod-head"><div class="mod-icon">💰</div><div><div class="mod-name">קופה — מכירת מנויים ואימונים</div><div class="mod-tag">מכירות › קופה</div></div></div>
-        <div class="mod-body">
-          <p>כאן מבצעים מכירה בפועל — חבר חדש בא לדלפק ורוצה מנוי, שיעור בודד, מוצר (בקבוק, ביגוד, תוסף תזונה).</p>
-
-          <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>בחרו מה מוכרים</strong><span>לחצו על סוג האימון / המנוי — לדוגמה "מנוי חודשי ₪250". המחיר מתמלא אוטומטית.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>שייכו לחבר</strong><span>חפשו את שם החבר ושייכו את הרכישה לחשבון שלו — כך המנוי יעקוב אחריו.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>סיכום וסגירה</strong><span>בחרו אמצעי תשלום — מזומן, כרטיס, העברה בנקאית — ולחצו "סגור עסקה". קבלה מופקת אוטומטית.</span></div></div>
-          </div>
-
-          <div class="box box-warn">
-            <div class="box-icon">💡</div>
-            <div>הוסיפו את סוגי המנויים שלכם מראש תחת <strong>הגדרות → מוצרים / שירותים</strong> כדי שיופיעו בקופה. כל מנוי מוגדר: שם, מחיר, משך (חודשי / שנתי / כניסות).</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- CHECKIN -->
-      <div class="mod">
-        <div class="mod-head"><div class="mod-icon">🚪</div><div><div class="mod-name">צ'ק-אין — כניסת חבר למרכז</div><div class="mod-tag">מלוח הבקרה הראשי</div></div></div>
-        <div class="mod-body">
-          <p>כשחבר מגיע למרכז הכושר — מבצעים צ'ק-אין לרישום הכניסה. זה נפרד מהשיעורים — מתאים גם לאימון חופשי.</p>
-
-          <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו "צ'ק-אין"</strong><span>בלוח הבקרה הראשי ← לחצו על הפעולה המהירה "צ'ק-אין".</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>חפשו חבר</strong><span>הקלידו שם או טלפון. המערכת מאמתת שיש לו מנוי פעיל.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>אשרו כניסה</strong><span>לחצו "אשר כניסה" — הכניסה נרשמת. הכרטיס של החבר מתעדכן בזמן אמת.</span></div></div>
-          </div>
-
-          <div class="box box-warn">
+          <div class="box box-warn" style="margin-top:10px;">
             <div class="box-icon">⚠️</div>
-            <div>חבר עם מנוי שפג — המערכת תתריע ולא תאפשר צ'ק-אין עד לחידוש המנוי.</div>
+            <div>מחיקת סוג מנוי אפשרית רק אם אין חברים פעילים עם אותו סוג. אם מנסים למחוק סוג בשימוש — תופיע הודעת שגיאה.</div>
           </div>
         </div>
       </div>
 
-      <!-- SALES HISTORY -->
-      <div class="mod">
-        <div class="mod-head"><div class="mod-icon">🛍️</div><div><div class="mod-name">היסטוריית מכירות</div><div class="mod-tag">מכירות › מכירות</div></div></div>
+      <!-- ═══ ב. הוספת חבר חדש ═══ -->
+      <h2 class="sec" style="margin-top:28px;">ב. הוספת חבר חדש</h2>
+      <p style="font-size:.87rem;color:var(--text2);">כניסה: לוח הבקרה ← כפתור "👥 חברים" ← "+ חדש" (בפינה השמאלית העליונה של מסך המנויים).</p>
+
+      <div class="mod" style="margin-top:10px;">
+        <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">הוספת מנוי חדש — טופס מלא</div><div class="mod-tag">לוח בקרה ← חברים ← + חדש</div></div></div>
         <div class="mod-body">
-          <p>כאן רואים את כל העסקאות שנעשו — מי קנה, מה קנה, מתי, ובאיזה מחיר.</p>
-          <div class="actions">
-            <span class="action">סינון לפי תאריך</span>
-            <span class="action">סינון לפי חבר</span>
-            <span class="action">סינון לפי סוג מנוי</span>
-            <span class="action">ייצוא לאקסל</span>
-            <span class="action">הצגת קבלה</span>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">שם מלא <span style="color:var(--danger)">*</span></div><div class="fr-val">שדה חובה. שם החבר/ה כפי שיופיע בכל הרשימות. לדוגמה: "יוסי כהן".</div></div>
+            <div class="field-row"><div class="fr-label">טלפון</div><div class="fr-val">אופציונלי. מספר טלפון — מוצג בכרטיס החבר ומאפשר חיפוש לפי טלפון ולחיצת חיוג ישיר.</div></div>
+            <div class="field-row"><div class="fr-label">אימייל</div><div class="fr-val">אופציונלי. כתובת אימייל — שדה בכיוון LTR (שמאל לימין).</div></div>
+            <div class="field-row"><div class="fr-label">סוג מנוי <span style="color:var(--danger)">*</span></div><div class="fr-val">שדה חובה. בחירה מהרשימה הנפתחת של סוגי המנויים שהוגדרו. כל אפשרות מוצגת בפורמט: "₪250 — מנוי חודשי (monthly)". אם אין סוגי מנויים — מופיעה הודעת אזהרה עם קישור ל"הוסף סוג מנוי".</div></div>
+            <div class="field-row"><div class="fr-label">תאריך התחלה</div><div class="fr-val">ברירת המחדל: היום. ניתן לשנות לתאריך עתידי (למשל: המנוי מתחיל בחודש הבא) או עבר (למשל: רישום רטרואקטיבי).</div></div>
+            <div class="field-row"><div class="fr-label">תעודת זהות</div><div class="fr-val">אופציונלי. מספר ת"ז — שדה בכיוון LTR. משמש לזיהוי חבר.</div></div>
+            <div class="field-row"><div class="fr-label">הערות</div><div class="fr-val">אופציונלי. שדה טקסט חופשי — לדוגמה: "לא יכול לבוא בשישי", "פציעה בברך — להימנע מריצה".</div></div>
+          </div>
+
+          <p style="font-size:.85rem;margin-top:12px;">לאחר מילוי השדות לחצו <strong>"שמור מנוי ✅"</strong> — החבר נוסף לרשימה מיד עם סטטוס "פעיל". תאריך הסיום מחושב אוטומטית לפי סוג המנוי:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">חודשי</div><div class="fr-val">תאריך התחלה + 30 ימים.</div></div>
+            <div class="field-row"><div class="fr-label">שנתי</div><div class="fr-val">תאריך התחלה + 365 ימים.</div></div>
+            <div class="field-row"><div class="fr-label">כרטיסייה / PT</div><div class="fr-val">אין תאריך סיום — הסטטוס משתנה לפי ניצול הכניסות.</div></div>
+            <div class="field-row"><div class="fr-label">יומי</div><div class="fr-val">תאריך התחלה + 1 יום.</div></div>
+          </div>
+
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div><strong>חבר עם כרטיסייה:</strong> בכרטיס החבר ובמסך הצ'ק-אין יוצג המונה "X כניסות נותרו" שמתעדכן בכל צ'ק-אין. כשנגמרות הכניסות — סטטוס החבר משתנה אוטומטית.</div>
           </div>
         </div>
       </div>
 
-      <!-- CUSTOMERS / MEMBERS -->
-      <div class="mod">
-        <div class="mod-head"><div class="mod-icon">🤝</div><div><div class="mod-name">ניהול חברים</div><div class="mod-tag">מכירות › חברים</div></div></div>
+      <!-- ═══ ג. מסך מנויים — ניהול חברים ═══ -->
+      <h2 class="sec" style="margin-top:28px;">ג. מסך "מנויים 👥" — ניהול כל החברים</h2>
+      <p style="font-size:.87rem;color:var(--text2);">כניסה: לוח הבקרה ← כפתור "👥 חברים". מציג את כל חברי המועדון עם אפשרות לסינון, חיפוש ופעולות ישירות.</p>
+
+      <div class="mod" style="margin-top:10px;">
+        <div class="mod-head"><div class="mod-icon">👥</div><div><div class="mod-name">מסך רשימת מנויים</div><div class="mod-tag">לוח בקרה ← חברים</div></div></div>
         <div class="mod-body">
-          <p>כרטיס אישי לכל חבר — סטטוס מנוי, היסטוריית שיעורים, תשלומים, פרטי קשר.</p>
+
+          <h3 style="font-size:.87rem;font-weight:700;margin-bottom:8px;">שורת סינון (5 כרטיסיות):</h3>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">הכל</div><div class="fr-val">מציג את כל החברים — ללא קשר לסטטוס.</div></div>
+            <div class="field-row"><div class="fr-label">פעיל</div><div class="fr-val">חברים עם מנוי תקף בלבד.</div></div>
+            <div class="field-row"><div class="fr-label">פג בקרוב</div><div class="fr-val">חברים שמנויים שלהם פגים ב-30 הימים הקרובים.</div></div>
+            <div class="field-row"><div class="fr-label">מוקפא</div><div class="fr-val">חברים שביצעו הקפאת מנוי.</div></div>
+            <div class="field-row"><div class="fr-label">פג</div><div class="fr-val">חברים שמנויים שלהם פגו ולא חודשו.</div></div>
+          </div>
+
+          <h3 style="font-size:.87rem;font-weight:700;margin-top:14px;margin-bottom:8px;">שדה חיפוש:</h3>
+          <p style="font-size:.85rem;">חיפוש חופשי לפי שם או טלפון — המסך מתסנן בזמן אמת תוך כדי הקלדה.</p>
+
+          <h3 style="font-size:.87rem;font-weight:700;margin-top:14px;margin-bottom:8px;">כרטיס חבר — מה מוצג:</h3>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">אות ראשונה</div><div class="fr-val">עיגול סגול עם האות הראשונה של שם החבר (אווטאר אוטומטי).</div></div>
+            <div class="field-row"><div class="fr-label">שם + טלפון + סוג מנוי</div><div class="fr-val">שם מלא בשחור, טלפון ושם סוג המנוי בקטן.</div></div>
+            <div class="field-row"><div class="fr-label">סטטוס</div><div class="fr-val">תג צבעוני: ירוק = "פעיל" / כחול = "מוקפא" / אדום = "פג תוקף" / אפור = "בוטל".</div></div>
+            <div class="field-row"><div class="fr-label">כניסות נותרות</div><div class="fr-val">מוצג רק לכרטיסייה/PT — "X/Y כניסות" (נותרו / סה"כ).</div></div>
+            <div class="field-row"><div class="fr-label">תאריך סיום</div><div class="fr-val">"עד DD/MM/YYYY" — מתי המנוי פג.</div></div>
+            <div class="field-row"><div class="fr-label">סיבת הקפאה</div><div class="fr-val">מוצגת בכחול קטן מתחת לשם — רק אם הסטטוס "מוקפא".</div></div>
+          </div>
+
+          <h3 style="font-size:.87rem;font-weight:700;margin-top:14px;margin-bottom:8px;">כפתורי פעולה בכרטיס (לפי סטטוס):</h3>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">כניסה ✅</div><div class="fr-val">מופיע רק לחברים פעילים. לחיצה מבצעת צ'ק-אין מיידי ישירות מהכרטיס — ללא פתיחת מסך נפרד. מציג toast עם כניסות נותרות (אם כרטיסייה).</div></div>
+            <div class="field-row"><div class="fr-label">הקפא ❄️</div><div class="fr-val">מופיע רק לחברים פעילים. לחיצה פותחת דיאלוג הקפאה (ראו פירוט בהמשך).</div></div>
+            <div class="field-row"><div class="fr-label">הפשר ☀️</div><div class="fr-val">מופיע רק לחברים מוקפאים. לחיצה מפשירה את המנוי מיידית ומחזירה לסטטוס "פעיל".</div></div>
+            <div class="field-row"><div class="fr-label">🔗 ONEFLOW</div><div class="fr-val">לחיצה מקשרת את החבר לרשת OneFlow — מאפשרת שיתוף מידע בין מועדונים ברשת.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- הקפאת מנוי -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">❄️</div><div><div class="mod-name">הקפאת מנוי</div><div class="mod-tag">ברשימת חברים ← "הקפא ❄️"</div></div></div>
+        <div class="mod-body">
+          <p>הקפאת מנוי מתאימה לחבר שנפצע, יצא לחופשה ממושכת, או צריך הפסקה זמנית. המנוי "קופא" — הוא לא פג, אך לא ניתן לבצע צ'ק-אין עד להפשרה.</p>
+
+          <h3 style="font-size:.87rem;font-weight:700;margin:10px 0 6px;">שדות דיאלוג ההקפאה:</h3>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">סיבת הקפאה</div><div class="fr-val">שדה טקסט חופשי. placeholder: "לדוג': טיול, פציעה, חופשה...". אופציונלי — ניתן להשאיר ריק.</div></div>
+            <div class="field-row"><div class="fr-label">מספר ימים</div><div class="fr-val">אופציונלי. placeholder: "30". טווח: 1 עד 365. אם לא מוזן — ההקפאה פתוחה ללא תאריך סיום אוטומטי.</div></div>
+          </div>
+
+          <p style="font-size:.85rem;margin-top:10px;">לחצו <strong>"הקפא מנוי ❄️"</strong> — סטטוס החבר משתנה ל"מוקפא" מיידית. כפתור הפשרה ☀️ מופיע בכרטיס. להפשרה: לחצו "הפשר ☀️" — המנוי חוזר לפעיל ללא שאלות נוספות.</p>
+
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div>ניתן לראות כל המוקפאים בבת אחת: בסינון "מוקפא" ברשימת החברים, או בסעיף "מוקפאים ❄️" במסך התראות.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ ד. צ'ק-אין ═══ -->
+      <h2 class="sec" style="margin-top:28px;">ד. צ'ק-אין — רישום כניסת חבר למועדון</h2>
+      <p style="font-size:.87rem;color:var(--text2);">כניסה: לוח הבקרה ← כפתור "🚪 צ'ק-אין". זהו הפעולה הנפוצה ביותר — מתבצעת בכל כניסת חבר.</p>
+
+      <div class="mod" style="margin-top:10px;">
+        <div class="mod-head"><div class="mod-icon">🚪</div><div><div class="mod-name">מסך צ'ק-אין — כניסה למועדון</div><div class="mod-tag">לוח בקרה ← צ'ק-אין</div></div></div>
+        <div class="mod-body">
+          <p>המסך נפתח עם שדה חיפוש פעיל (הפוקוס נמצא שם אוטומטית). תהליך הצ'ק-אין:</p>
 
           <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הוספת חבר חדש</strong><span>לחצו "+ חבר חדש" ← מלאו: שם, טלפון, מייל, תאריך לידה. המערכת תיצור כרטיס חבר ייחודי.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הקצאת מנוי</strong><span>בכרטיס החבר ← "הוסף מנוי" ← בחרו סוג וקבעו תאריך התחלה. המנוי יפקע אוטומטית בתאריך הנכון.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>מעקב נוכחות</strong><span>לחצו על שם חבר ← "היסטוריית כניסות" — ראו לאיזה שיעורים הגיע, מתי הגיע לאחרונה.</span></div></div>
+            <div class="step"><div class="step-n">1</div><div class="step-body">
+              <strong>חפשו את החבר</strong>
+              <span>הקלידו לפחות 2 תווים משם החבר או מספר הטלפון שלו. המערכת מחפשת רק בין חברים פעילים ומציגה תוצאות בזמן אמת. כל תוצאה מציגה: אות ראשונה (אווטאר), שם מלא, טלפון, שם המנוי, תג סטטוס (פעיל/מוקפא/פג), ומספר כניסות נותרות (אם כרטיסייה).</span>
+            </div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body">
+              <strong>לחצו על שם החבר</strong>
+              <span>לחיצה על אחד מהתוצאות מבצעת את הצ'ק-אין מיידית — אין צורך לאשר שוב. המערכת שולחת בקשה לשרת ומציגה toast הצלחה: "✅ יוסי כהן נרשמ/ה בהצלחה! — נותרו X כניסות" (לכרטיסייה), או "✅ יוסי כהן נרשמ/ה בהצלחה!" (למנוי לפי תאריך).</span>
+            </div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body">
+              <strong>מה קורה אחרי הצ'ק-אין</strong>
+              <span>שדה החיפוש מתנקה אוטומטית לצ'ק-אין הבא. רשימת "כניסות היום" שבתחתית המסך מתעדכנת ומציגה את כל הכניסות שנרשמו היום עם שעה מדויקת. KPI "כניסות היום" ו"בפנים כרגע" בלוח הבקרה יתעדכנו בטעינה הבאה.</span>
+            </div></div>
           </div>
 
-          <div class="box box-warn" style="margin-top:14px;">
-            <div class="box-icon">⚠️</div>
-            <div>חברים שמנויים פגים מוסמנים אוטומטית — תקבלו התראה כדי לפנות אליהם לחידוש.</div>
+          <h3 style="font-size:.87rem;font-weight:700;margin-top:14px;margin-bottom:6px;">מקרים מיוחדים:</h3>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">חבר מוקפא</div><div class="fr-val">לחיצה עליו מציגה toast שגיאה: "לא ניתן לרשום כניסה — מנוי מוקפא". הצ'ק-אין לא מתבצע.</div></div>
+            <div class="field-row"><div class="fr-label">חבר עם מנוי פג</div><div class="fr-val">מופיע בתוצאות עם תג "פג תוקף" (אדום). לחיצה מציגה toast שגיאה: "לא ניתן לרשום כניסה — מנוי לא פעיל".</div></div>
+            <div class="field-row"><div class="fr-label">כרטיסייה מנוצלת</div><div class="fr-val">אם נותרו 0 כניסות — toast: "✅ ... — כרטיסייה מנוצלת 🔔". הכניסה עדיין נרשמת אם המנוי פעיל.</div></div>
+            <div class="field-row"><div class="fr-label">חבר לא נמצא</div><div class="fr-val">לאחר 2+ תווים בחיפוש — אם אין תוצאות: "לא נמצאו חברים". ניתן ללחוץ X לסגירה ולהוסיף חבר חדש.</div></div>
+          </div>
+
+          <h3 style="font-size:.87rem;font-weight:700;margin-top:14px;margin-bottom:6px;">רשימת כניסות היום:</h3>
+          <p style="font-size:.85rem;">בתחתית מסך הצ'ק-אין מוצגת הרשימה "כניסות היום (X)" עם כל הצ'ק-אינים שנרשמו מהיום: שם החבר ושעת הכניסה המדויקת. אם אין כניסות — מוצגת ההודעה "אין כניסות היום עדיין".</p>
+        </div>
+      </div>
+
+      <!-- ═══ ה. לוח שיעורים ═══ -->
+      <h2 class="sec" style="margin-top:28px;">ה. לוח שיעורים 🗓️</h2>
+      <p style="font-size:.87rem;color:var(--text2);">כניסה: לוח הבקרה ← כפתור "🗓️ שיעורים". מציג את כל השיעורים המתוכננים ל-14 הימים הקרובים (מהיום ועד שבועיים קדימה).</p>
+
+      <div class="mod" style="margin-top:10px;">
+        <div class="mod-head"><div class="mod-icon">🗓️</div><div><div class="mod-name">מסך לוח שיעורים</div><div class="mod-tag">לוח בקרה ← שיעורים</div></div></div>
+        <div class="mod-body">
+          <p>השיעורים מוצגים לפי ימים — כל יום בנפרד עם הכותרת "יום X D/M" (היום הנוכחי מסומן "📍 היום — "). לכל שיעור:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">שם השיעור</div><div class="fr-val">שם מלא בגופן מודגש — לדוגמה: "יוגה", "ספינינג", "קרוספיט".</div></div>
+            <div class="field-row"><div class="fr-label">שעות + מאמן</div><div class="fr-val">פורמט: "09:00–10:00 · שם המאמן". אם אין מאמן — מוצגת שעה בלבד.</div></div>
+            <div class="field-row"><div class="fr-label">מד מילוי</div><div class="fr-val">מספר נרשמים / קיבולת (לדוגמה: "8/20"). כשמלא — מוצג "🔴 מלא" ושורת הפרוגרס הופכת אדומה.</div></div>
+            <div class="field-row"><div class="fr-label">כפתור "נוכחות"</div><div class="fr-val">פותחת מסך עדכון נוכחות עם רשימת הנרשמים לאותו שיעור.</div></div>
+            <div class="field-row"><div class="fr-label">כפתור 🗑️</div><div class="fr-val">מחיקת השיעור — מציג בקשת אישור לפני מחיקה.</div></div>
+          </div>
+
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div>אם לא קיימים שיעורים — מוצגת הודעה עם קישור "הוסף שיעור ראשון". כפתור "+ שיעור" גם נמצא בפינה השמאלית העליונה של המסך.</div>
           </div>
         </div>
       </div>
 
+      <!-- הוספת שיעור חדש -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">הוספת שיעור חדש</div><div class="mod-tag">לוח שיעורים ← "+ שיעור"</div></div></div>
+        <div class="mod-body">
+          <p>לחיצה על "+ שיעור" פותחת מסך הוספת שיעור. שדות הטופס:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">שם השיעור <span style="color:var(--danger)">*</span></div><div class="fr-val">שדה חובה. שם חופשי. placeholder: "לדוג' יוגה, ספינינג...".</div></div>
+            <div class="field-row"><div class="fr-label">סוג שיעור</div><div class="fr-val">אופציונלי. רשימה נפתחת של סוגי שיעורים שהוגדרו (אם קיימים). אם לא הוגדרו — השדה לא מופיע.</div></div>
+            <div class="field-row"><div class="fr-label">מאמן/ת</div><div class="fr-val">שם המאמן/ת שמנהל את השיעור — טקסט חופשי. אינו מקושר לרשימת המאמנים.</div></div>
+            <div class="field-row"><div class="fr-label">תאריך <span style="color:var(--danger)">*</span></div><div class="fr-val">שדה חובה. ברירת מחדל: היום.</div></div>
+            <div class="field-row"><div class="fr-label">שעת התחלה</div><div class="fr-val">שעה בפורמט HH:MM (24 שעות). אופציונלי.</div></div>
+            <div class="field-row"><div class="fr-label">שעת סיום</div><div class="fr-val">שעה בפורמט HH:MM (24 שעות). אופציונלי.</div></div>
+            <div class="field-row"><div class="fr-label">קיבולת</div><div class="fr-val">מספר מקסימום המשתתפים. ברירת מחדל: 20.</div></div>
+          </div>
+
+          <p style="font-size:.85rem;margin-top:12px;">לחיצה על <strong>"שמור שיעור ✅"</strong> — השיעור נשמר ומופיע בלוח השיעורים מיידית. לחיצה "←" בכותרת → חזרה ללוח השיעורים ללא שמירה.</p>
+
+          <div class="box box-warn" style="margin-top:10px;">
+            <div class="box-icon">⚠️</div>
+            <div>שם שיעור ותאריך הם שדות חובה. ניסיון לשמור ללא אחד מהם — מציג toast שגיאה "שם ותאריך הם שדות חובה".</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- עדכון נוכחות שיעור -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">✅</div><div><div class="mod-name">נוכחות בשיעור — רישום מי הגיע</div><div class="mod-tag">לוח שיעורים ← "נוכחות" על שיעור</div></div></div>
+        <div class="mod-body">
+          <p>לחיצה על "נוכחות" בשיעור ספציפי פותחת מסך עם רשימת הנרשמים לאותו שיעור.</p>
+
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body">
+              <strong>רשימת נרשמים עם checkboxes</strong>
+              <span>כל נרשם מוצג עם checkbox משמאל. סמנו ✓ מי שהגיע בפועל.</span>
+            </div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body">
+              <strong>הוספת נרשם — "+ הוסף"</strong>
+              <span>לחיצה על "+ הוסף" פותחת דיאלוג "שם חבר לרישום". הזינו שם — המערכת מחפשת ומוצאת את החבר הראשון שמתאים (חבר הראשון בתוצאות), ורושמת אותו לשיעור. הודעת הצלחה: "שם נרשם/ה ✅".</span>
+            </div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body">
+              <strong>"שמור נוכחות ✅"</strong>
+              <span>לחיצה שומרת את הנוכחות (מי סומן כנוכח). הודעת הצלחה: "נוכחות נשמרה ✅ (X נוכחים)". החזרה ללוח השיעורים.</span>
+            </div></div>
+          </div>
+
+          <div class="box box-info" style="margin-top:10px;">
+            <div class="box-icon">ℹ️</div>
+            <div>אם לא קיימים נרשמים לשיעור — מוצגת ההודעה "אין נרשמים לשיעור זה" עם כפתור "הוסף נרשם ➕" בלבד.</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ── 5. מאמנים ── -->
