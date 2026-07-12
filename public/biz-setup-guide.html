@@ -7010,27 +7010,113 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   <!-- ─── עמלות ─── -->
   <div class="chapter" id="b-commissions">
     <div class="ch-head"><div class="ch-num">10</div><div class="ch-title">עמלות ושכר</div></div>
-    <p>כרטיסיית <strong>עמלות ושכר</strong> (בתפריט <em>כספים</em>) מחשבת אוטומטית את העמלה המגיעה לכל מטפלת לפי אחוז שהוגדר בפרופיל שלה — ללא צורך בחישוב ידני.</p>
+    <p>כרטיסיית <strong>עמלות ושכר</strong> מרכזת את כל העמלות המגיעות לכל מטפלת בסלון. העמלות נוצרות <strong>אוטומטית</strong> על-ידי המערכת בעת השלמת טיפולים — ללא כל הזנה ידנית. הכרטיסייה נגישה דרך תפריט <strong>כספים ← עמלות ושכר</strong>.</p>
 
+    <!-- א. שני סוגי עמלות -->
     <div class="mod">
-      <div class="mod-head"><div class="mod-icon">💰</div><div><div class="mod-name">איך עמלות עובדות?</div><div class="mod-tag">כספים › עמלות ושכר</div></div></div>
-      <div class="steps">
-        <div class="step"><div class="step-n">1</div><div class="step-body"><span>כשטיפול מסומן כ<strong>הושלם</strong> ביומן — המערכת מחשבת אוטומטית את העמלה (אחוז מהמחיר).</span></div></div>
-        <div class="step"><div class="step-n">2</div><div class="step-body"><span>אם המטפלת גם מכרה מוצר קמעונאי — מחושבת עמלת קמעונאות נוספת.</span></div></div>
-        <div class="step"><div class="step-n">3</div><div class="step-body"><span>כל העמלות מצטברות לכרטיס "לא שולם" של המטפלת.</span></div></div>
-        <div class="step"><div class="step-n">4</div><div class="step-body"><span>בסוף תקופת שכר: לחץ <strong>שלם ₪X</strong> ← העמלות מסומנות כ"שולמו ✅".</span></div></div>
-      </div>
-    </div>
-
-    <div class="mod">
-      <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">סיכום תקופה</div><div class="mod-tag">כספים › עמלות ושכר</div></div></div>
-      <p>בראש המסך מוצגים 3 מדדים:</p>
+      <div class="mod-head"><div class="mod-icon">⚙️</div><div><div class="mod-name">א. שני סוגי עמלות</div><div class="mod-tag">כספים › עמלות ושכר</div></div></div>
+      <p>המערכת מכירה בשני סוגי עמלות. ערך <code>commission_type</code> בכל רשומה קובע את סוג העמלה, וגם את התיוג שיוצג ברשימת הפריטים של המטפלת:</p>
       <div class="auto-grid">
-        <div class="auto-card"><strong>סה"כ עמלות</strong><br>כל העמלות בתקופה (שולמו + לא שולמו)</div>
-        <div class="auto-card"><strong>לא שולם ₪</strong><br>כמה חייבים כרגע למטפלות</div>
-        <div class="auto-card"><strong>מספר מטפלות</strong><br>כמה מטפלות יש עמלות בתקופה</div>
+        <div class="auto-card" style="border-top:3px solid #10b981">
+          <div style="font-weight:700;font-size:1rem;margin-bottom:.4rem">🛠️ עמלת שירות (service)</div>
+          <p style="font-size:.85rem">נוצרת אוטומטית כאשר תור מסומן כ<strong>הושלם</strong> ביומן. הסכום מחושב לפי אחוז מהמחיר הכולל של הטיפול. מוצגת ברשימת הפריטים כ<strong>"שירות"</strong></p>
+        </div>
+        <div class="auto-card" style="border-top:3px solid #6366f1">
+          <div style="font-weight:700;font-size:1rem;margin-bottom:.4rem">🛍️ עמלת קמעונאות (retail)</div>
+          <p style="font-size:.85rem">נוצרת כאשר מטפלת מוכרת מוצר קמעונאי (retail) ללקוחה. הסכום מחושב לפי אחוז מהמחיר הקמעונאי של המוצר. מוצגת ברשימת הפריטים כ<strong>"קמעונאי"</strong></p>
+        </div>
       </div>
     </div>
+
+    <!-- ב. היררכיית אחוזי עמלה -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">📐</div><div><div class="mod-name">ב. היררכיית אחוזי עמלה</div><div class="mod-tag">כספים › עמלות ושכר</div></div></div>
+      <p>אחוז העמלה לטיפול מסוים נקבע לפי היררכיה ברורה: הגדרה ברמת השירות גוברת על הגדרה ברמת המטפלת. כך ניתן לקבוע אחוז כללי למטפלת ולעקוף אותו לשירותים ספציפיים:</p>
+      <div class="field-table">
+        <div class="field-row">
+          <div class="fr-label">עדיפות גבוהה — רמת שירות</div>
+          <div class="fr-val">שדה <code>commission_pct</code> בהגדרת השירות (מסך שירותים, פרק 6). אם מוגדר ערך — הוא ישמש לחישוב העמלה לכל מטפלת שתבצע שירות זה, ללא קשר לאחוז האישי שלה. מאפשר לתמחר שירותים מסוימים בצורה שונה</div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label">עדיפות רגילה — רמת מטפלת</div>
+          <div class="fr-val">שדה <code>commission_rate_svc</code> בפרופיל המטפלת (מסך מטפלות, פרק 5). ישמש כברירת מחדל לכל הטיפולים שהמטפלת מבצעת, <strong>פרט לשירותים שיש בהם הגדרה ספציפית</strong></div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label">ללא הגדרה</div>
+          <div class="fr-val">אם שדה העמלה ריק הן בשירות והן במטפלת — לא תיווצר עמלה עבור אותו טיפול</div>
+        </div>
+      </div>
+      <div class="box box-tip" style="margin-top:.6rem">
+        <div class="box-icon">💡</div>
+        <div><strong>דוגמה:</strong> למטפלת יש 20% ברמת מטפלת. שירות "לייזר פנים" מוגדר עם 15% ברמת שירות. כאשר המטפלת מבצעת "לייזר פנים" — העמלה תחושב לפי 15% (ורמת השירות גוברת). עבור כל שירות אחר — תחושב לפי 20%.</div>
+      </div>
+    </div>
+
+    <!-- ג. מבנה המסך -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🖥️</div><div><div class="mod-name">ג. מבנה המסך</div><div class="mod-tag">כספים › עמלות ושכר</div></div></div>
+      <p>מסך עמלות ושכר בנוי משלושה אזורים:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">כותרת עליונה</div><div class="fr-val">רצועה בגרדיאנט ענבר-צהוב (amber-50 to yellow-50), גבול amber-200. אייקון 💰 על רקע amber-500, כיתוב "עמלות ושכר". בצד שמאל: תג מצב כולל — אם יש חוב כולל: <span style="background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:999px;font-size:.8rem">לא שולם: ₪X</span> אדום. אם הכל שולם: <span style="background:#dcfce7;color:#166534;padding:1px 6px;border-radius:999px;font-size:.8rem">הכל שולם ✅</span> ירוק</div></div>
+        <div class="field-row"><div class="fr-label">כרטיס סיכום תקופה</div><div class="fr-val">מוצג רק כאשר יש עמלות במערכת (לפחות מטפלת אחת עם רשומות). מציג 3 מדדים בגריד 3 עמודות: סה"כ עמלות (שחור), לא שולם (אדום), מספר מטפלות עם עמלות (ירוק)</div></div>
+        <div class="field-row"><div class="fr-label">כרטיסי מטפלות</div><div class="fr-val">כרטיס נפרד לכל מטפלת שיש לה עמלות. כוללים: אווטאר, שם, סיכום כספי, כפתור תשלום, ו-3 הפריטים האחרונים</div></div>
+      </div>
+    </div>
+
+    <!-- ד. כרטיס עמלות למטפלת -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🃏</div><div><div class="mod-name">ד. כרטיס עמלות למטפלת</div><div class="mod-tag">כספים › עמלות ושכר</div></div></div>
+      <p>כל מטפלת שיש לה עמלות מקבלת כרטיס ייעודי. הכרטיס מכיל שני חלקים:</p>
+      <p><strong>חלק עליון — זהות ומצב:</strong></p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">אווטאר</div><div class="fr-val">עיגול (10×10) בצבע <code>color_hex</code> של המטפלת (הצבע שהוגדר בפרופיל שלה), עם האות הראשונה של שמה בלבן</div></div>
+        <div class="field-row"><div class="fr-label">שם המטפלת</div><div class="fr-val">שם מלא בגופן מודגש. מתחתיו: <em>"סה"כ: ₪X · לא שולם: ₪Y"</em> — X הוא סך כל העמלות בתקופה (כולל ששולמו), Y הוא הסכום שעדיין לא שולם</div></div>
+        <div class="field-row"><div class="fr-label">כפתור תשלום / תג שולם</div><div class="fr-val">אם יש עמלות לא שולמו (unpaid > 0): כפתור ירוק <strong>"שלם ₪X"</strong> (X מעוגל למספר שלם). אם הכל שולם: תג ירוק-בהיר "<strong>שולם ✅</strong>" קטן. אין כפתור ביניים — רק אחד מהשניים</div></div>
+      </div>
+      <p style="margin-top:.6rem"><strong>חלק תחתון — 3 פריטי העמלה האחרונים:</strong></p>
+      <p>מוצגת רשימת עד 3 העמלות האחרונות של המטפלת (בסדר כרונולוגי הפוך — החדשות ראשונות). כל שורה מכילה:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">שמאל — תאריך וסוג</div><div class="fr-val">תאריך יצירת העמלה (מפורמט) + נקודה תיכונה + סוג: "שירות" (כאשר commission_type = 'service') או "קמעונאי" (כל ערך אחר)</div></div>
+        <div class="field-row"><div class="fr-label">ימין — סכום ומצב</div><div class="fr-val">סכום העמלה. <strong>ירוק</strong> אם טרם שולמה (paid_at = null). <strong>אפור עם ✓</strong> אם שולמה (paid_at מכיל תאריך)</div></div>
+      </div>
+    </div>
+
+    <!-- ה. תשלום עמלות -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">💸</div><div><div class="mod-name">ה. תשלום עמלות למטפלת</div><div class="mod-tag">כספים › עמלות ושכר › שלם ₪X</div></div></div>
+      <p>לחיצה על <strong>שלם ₪X</strong> בכרטיס מטפלת מבצעת תשלום מיידי ללא מודאל אישור נוסף. הפעולה מסמנת <strong>את כל</strong> העמלות הלא-שולמות של אותה מטפלת כשולמות בבת אחת — לא ניתן לשלם עמלות בודדות בנפרד.</p>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body">לחץ <strong>שלם ₪X</strong> בכרטיס המטפלת הרצויה</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body">נשלח <code>POST /api/beauty/{biz}/commissions/pay</code> עם גוף: <code>{"practitioner_id": X}</code></div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body">הודעת הצלחה: <em>"עמלות סומנו כשולמו ✅"</em>. המסך מתרענן אוטומטית</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body">כפתור <strong>שלם</strong> מתחלף לתג <strong>שולם ✅</strong> ירוק. כל הסכומים ברשימת הפריטים עוברים מירוק לאפור עם ✓. הסכום בשדה "לא שולם" יורד לאפס. אם לכל המטפלות שולם — התג הכולל בכותרת עובר ל"הכל שולם ✅"</div></div>
+      </div>
+      <div class="box box-warn" style="margin-top:.6rem">
+        <div class="box-icon">⚠️</div>
+        <div><strong>שימו לב — תשלום אחד לכל</strong><br>כפתור "שלם" מסמן את כל העמלות הפתוחות של המטפלת ביחד. לא קיימת אפשרות לסמן עמלות בודדות. אם רוצים לנהל תשלומים חלקיים — יש לעשות זאת מחוץ למערכת ולסמן "שולם" רק כאשר שולם הכל.</div>
+      </div>
+    </div>
+
+    <!-- ו. מצב ריק -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🪙</div><div><div class="mod-name">ו. מצב ריק — אין עמלות עדיין</div><div class="mod-tag">כספים › עמלות ושכר</div></div></div>
+      <p>כאשר אין עמלות כלל במערכת (עסק חדש, או לפני שיפול השלם הראשון), המסך מציג:</p>
+      <p style="text-align:center;padding:.6rem 0"><span style="font-size:2rem;opacity:.3">🪙</span><br><em style="color:#94a3b8;font-size:.85rem">אין עמלות עדיין — הן יווצרו אוטומטית עם השלמת טיפולים</em></p>
+      <p>גם כרטיס "סיכום תקופה" לא מוצג כאשר אין נתונים — הוא מוצג רק כאשר יש לפחות מטפלת אחת עם עמלות רשומות.</p>
+    </div>
+
+    <!-- ז. סצנריו מלא -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">📖</div><div><div class="mod-name">ז. סצנריו מלא — מסיום טיפול עד תשלום שכר</div><div class="mod-tag">כספים › עמלות ושכר</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>שבוע עבודה:</strong> מטפלת "מיכל ל׳" (צבע: #8b5cf6) ביצעה 4 טיפולים שהסתיימו ביומן. עמלות נוצרו אוטומטית: קרטין (₪80, 20%), צביעה (₪120, 20%), טיפול פנים (₪60, 15%), גלי רדיו (₪50, 15%)</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body">נכנסת למסך <strong>עמלות ושכר</strong>. הכותרת מציגה <span style="background:#fee2e2;color:#dc2626;padding:0 5px;border-radius:4px;font-size:.85rem">לא שולם: ₪310</span>. סיכום תקופה: סה"כ ₪310, לא שולם ₪310, 1 מטפלת</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body">כרטיס "מיכל ל׳": אווטאר סגול עם "מ". "סה"כ: ₪310.00 · לא שולם: ₪310.00". כפתור ירוק <strong>שלם ₪310</strong>. מתחת: 3 שורות ירוקות עם עמלות</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body">בנוסף, מיכל מכרה ספריי לתיקון שיער ב-₪85 (עמלה 10% = ₪8.5). הכרטיס עתה מציג גם שורה "קמעונאי — ₪8.50" ירוק. הכפתור מציג: <strong>שלם ₪319</strong></div></div>
+        <div class="step"><div class="step-n">5</div><div class="step-body">בסוף החודש: לחצי <strong>שלם ₪319</strong>. הודעה: "עמלות סומנו כשולמו ✅". כל הסכומות עוברים לאפור עם ✓, הכפתור הופך לתג "שולם ✅", הכותרת מציגה "הכל שולם ✅" ירוק</div></div>
+      </div>
+    </div>
+
   </div>
 
   <!-- ─── ייעוץ ובקשות ─── -->
