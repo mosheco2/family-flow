@@ -17508,6 +17508,7 @@ function showBusinessTypeWizardV2(afterSave) {
         { id: 'sport',        icon: '🏋️', name: 'ספורט וחוגים',          sub: 'מנויים, מאמנים, לוח אימונים, צ׳ק-אין' },
         { id: 'services',     icon: '🔧', name: 'תיקונים ושירותים',      sub: 'קריאות שירות, הצעות מחיר, לקוחות, גבייה' },
         { id: 'professional', icon: '👔', name: 'מומחים וייעוץ',         sub: 'תיקים, פגישות, מסמכים, אתר תדמית' },
+        { id: 'other',        icon: '🏢', name: 'כללי / אחר',             sub: 'כל המודולים פתוחים, גמישות מלאה' },
     ];
 
     const cards = TYPES_V2.map(t => `
@@ -17531,13 +17532,8 @@ function showBusinessTypeWizardV2(afterSave) {
                 <h2 class="text-xl font-black mb-1">מה סוג העסק שלך?</h2>
                 <p class="text-white/70 text-xs">הבחירה תתאים את המערכת לצרכי העסק שלך</p>
             </div>
-            <div class="flex-1 overflow-y-auto modal-scroll p-5 space-y-3">
+            <div class="flex-1 overflow-y-auto modal-scroll p-5">
                 <div class="grid grid-cols-2 gap-3">${cards}</div>
-                <button type="button" onclick="btWizV2SelectOther()"
-                    class="w-full text-center text-xs text-slate-400 py-2 hover:text-slate-600 transition"
-                    style="touch-action:manipulation;cursor:pointer;">
-                    לא מוצא את הסוג שלי — בחר כללי
-                </button>
             </div>
             <div class="px-5 py-4 border-t border-slate-100 shrink-0">
                 <button type="button" id="bt-wiz-v2-confirm" onclick="btWizV2Confirm()"
@@ -19034,8 +19030,15 @@ window.updateWizardUIV2 = function updateWizardUIV2() {
 
     const btnPrev = document.getElementById('wizard-v2-btn-prev');
     if (btnPrev) {
-        btnPrev.classList.toggle('hidden', currentWizardStepV2 === 0);
-        btnPrev.onclick = () => { currentWizardStepV2--; updateWizardUIV2(); };
+        btnPrev.classList.remove('hidden');
+        if (currentWizardStepV2 === 0) {
+            btnPrev.onclick = () => {
+                document.getElementById('onboarding-wizard-v2')?.classList.add('hidden');
+                showBusinessTypeWizardV2();
+            };
+        } else {
+            btnPrev.onclick = () => { currentWizardStepV2--; updateWizardUIV2(); };
+        }
     }
 
     const btnSkip = document.getElementById('wizard-v2-btn-skip');
