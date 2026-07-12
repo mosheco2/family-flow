@@ -4819,58 +4819,164 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     <div class="chapter" id="m-money">
       <div class="ch-head"><div class="ch-num">7</div><div class="ch-title">כספים ודוחות</div></div>
 
-      <div class="mod">
-        <div class="mod-head"><div class="mod-icon">💸</div><div><div class="mod-name">תזרים מזומנים</div><div class="mod-tag">כספים › תזרים</div></div></div>
-        <div class="mod-body">
-          <p>הכנסות מקריאות שירות מול הוצאות — דלק, חלקים, שכר.</p>
-          <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הכנסות</strong><span>תשלומים מלקוחות נרשמים ← נכנסים אוטומטית כהכנסה.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הוצאות</strong><span>הוסיפו ידנית: דלק, חלקים שנרכשו, ביטוחים. ניתן לקטלג לפי קטגוריות.</span></div></div>
-          </div>
-        </div>
+      <!-- א. תזרים מזומנים -->
+      <h2 class="sec">א. טאב "תזרים 💸" — מבנה ותת-טאבים</h2>
+      <p>טאב התזרים מכיל שני תת-טאבים. בטעינה נפתח תמיד תת-טאב <strong>תזרים</strong>:</p>
+      <div class="field-table" style="margin-bottom:16px;">
+        <div class="field-row"><div class="fr-label">תזרים</div><div class="fr-val">כל תנועות ההכנסה וההוצאה של העסק. רישום ידני, עריכה, מחיקה, פילטרים.</div></div>
+        <div class="field-row"><div class="fr-label">גביה</div><div class="fr-val">תחנות גביה מקושרות לקריאות שירות — תשלומים לפי שלבים שהוגדרו בכרטיסית הקריאה. ניהול מרוכז של מה ממתין לתשלום ומה כבר התקבל.</div></div>
       </div>
 
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">דוחות ביצועים</div><div class="mod-tag">כספים › דוחות</div></div></div>
+        <div class="mod-head"><div class="mod-icon">💸</div><div><div class="mod-name">תת-טאב: תזרים מזומנים</div><div class="mod-tag">כספים › תזרים</div></div></div>
         <div class="mod-body">
-          <p>ניתוח מלא של הצוות והקריאות — לפי טכנאי, לפי תקופה.</p>
-          <div class="actions">
-            <span class="action">קריאות פתוחות</span>
-            <span class="action">הושלמו החודש / השבוע / היום</span>
-            <span class="action">דחופות פתוחות</span>
-            <span class="action">זמן ממוצע לסגירת קריאה (שעות)</span>
-            <span class="action">הכנסות החודש / סה"כ</span>
-            <span class="action">סינון לפי טכנאי</span>
-            <span class="action">ייצוא לאקסל</span>
+
+          <h4 style="font-weight:700;font-size:13px;margin-bottom:8px;">הוספת תנועה ידנית — הכנסה</h4>
+          <p>לחצו <em>+ הכנסה</em> (כפתור ירוק) ← מודל "הכנסה" נפתח עם 4 שדות:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>סכום (₪)</div><div class="fr-val">סכום ההכנסה. אם הוזן 0 — תוצג שגיאה.</div></div>
+            <div class="field-row"><div class="fr-label">תיאור</div><div class="fr-val">תיאור חופשי — מה מקור ההכנסה (לדוגמה: "תשלום קריאה #1042 — לקוח אבי כהן"). אם לא הוזן, יישמר "פעולה".</div></div>
+            <div class="field-row"><div class="fr-label">קטגוריה</div><div class="fr-val">רשימה קבועה לבחירה: <strong>📈 מכירות והכנסות</strong> / <strong>💰 השקעה / מימון</strong> / <strong>🔄 זיכוי / החזר</strong> / <strong>💸 אחר</strong>. הקטגוריה מוצגת כתג אפור קטן על כל שורה ברשימת התזרים.</div></div>
+            <div class="field-row"><div class="fr-label">תאריך</div><div class="fr-val">ברירת מחדל: היום. ניתן לשנות לתאריך אחר.</div></div>
           </div>
-          <div class="box box-good" style="margin-top:10px;">
-            <div class="box-icon">✅</div>
-            <div>הדוח מראה זמן תגובה ממוצע לכל טכנאי — ניתן לזהות מי מטפל מהר ומי עם פיגורים.</div>
+          <p style="margin-top:8px;">לחצו "רשום פעולה" ← התנועה נשמרת ומוצגת מיד ברשימה.</p>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">הוספת תנועה ידנית — הוצאה</h4>
+          <p>לחצו <em>+ הוצאה</em> (כפתור אדום) ← אותו מודל עם קטגוריות שונות:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">קטגוריות הוצאה</div><div class="fr-val"><strong>📎 ציוד משרדי</strong> / <strong>💻 תוכנה ושירותים</strong> / <strong>🎯 שיווק ופרסום</strong> / <strong>💼 משכורות</strong> / <strong>✈️ נסיעות ורכבים</strong> / <strong>🏢 שכירות ותחזוקה</strong> / <strong>☕ כיבוד ומטבחון</strong> / <strong>💸 הוצאה תפעולית אחרת</strong></div></div>
           </div>
+          <p style="margin-top:8px;"><em>דוגמאות לחברת תחזוקה:</em> דלק לרכבי טכנאים → "✈️ נסיעות ורכבים" | ביטוח עסקי → "🏢 שכירות ותחזוקה" | חלקים שנרכשו → "💸 הוצאה תפעולית אחרת" | משכורת טכנאים → "💼 משכורות".</p>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">פילטרים ותצוגת הרשימה</h4>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">פילטר עובד (ADMIN)</div><div class="fr-val">"כלל העובדים" (ברירת מחדל) או בחירת עובד ספציפי. מנהל סניף ועובד רגיל רואים רק את התנועות שלהם — הפילטר מוסתר.</div></div>
+            <div class="field-row"><div class="fr-label">פילטר תקופה</div><div class="fr-val">"כל הזמנים" / "חודש אחרון" / "3 חודשים" / "6 חודשים".</div></div>
+          </div>
+          <p style="margin-top:8px;">כל שורה ברשימה מציגה: אייקון כיוון (📈 ירוק להכנסה / 📉 אדום להוצאה), תיאור, שם עובד (אם Admin), תאריך ושעה, תג קטגוריה, סכום (+/- ₪). לחיצה על ✏️ (ADMIN בלבד) פותחת עריכה — ניתן לשנות סכום/תיאור/קטגוריה. לחיצה על "מחק" (בתוך עריכה) מסירה את השורה לחלוטין.</p>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">הוצאה / הכנסה חוזרת (recurring)</h4>
+          <p>בתוך מודל ההוספה ניתן לסמן <em>חוזרת</em> ← המערכת רושמת את הסכום מדי חודש אוטומטית עד לחודש הסיום שנבחר.</p>
+
         </div>
       </div>
 
+      <!-- ב. גביה -->
+      <h2 class="sec">ב. תת-טאב "גביה" — ניהול תחנות תשלום מקריאות</h2>
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">💰</div><div><div class="mod-name">גביה</div><div class="mod-tag">כספים › גביה</div></div></div>
+        <div class="mod-body">
+
+          <div class="box box-tip" style="margin-bottom:12px;">
+            <div class="box-icon">🔗</div>
+            <div>תחנות הגביה נוצרות מתוך כרטיסיות קריאות שירות (בסקשן "עמדות תשלום"). כאן מרכזים את כל מה שממתין לגביה מכל הקריאות הפתוחות.</div>
+          </div>
+
+          <h4 style="font-weight:700;font-size:13px;margin-bottom:8px;">סרגל סיכום (בראש)</h4>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">ממתין לגביה</div><div class="fr-val">סכום כל התשלומים שעוד לא נגבו (₪). מצטבר מכל עמדות הגביה הפתוחות.</div></div>
+            <div class="field-row"><div class="fr-label">התקבל</div><div class="fr-val">סכום כל מה שכבר נגבה (₪) — עמדות עם סטטוס "התקבל ✅".</div></div>
+            <div class="field-row"><div class="fr-label">סה"כ</div><div class="fr-val">סך כל עמדות הגביה (ממתין + התקבל) ← ניתן לוודא שסכום מסמכים שווה לסכום הכולל.</div></div>
+          </div>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">כרטיסיית עמדת גביה</h4>
+          <p>לכל עמדת גביה מוצגים:</p>
+          <ul style="margin-right:16px;font-size:13px;line-height:1.8;">
+            <li><strong>שם לקוח</strong> + <strong>מספר קריאה</strong> (לדוגמה: #WO-1042)</li>
+            <li><strong>שם עמדה</strong> (שם השלב — לדוגמה: "מקדמה", "תשלום סופי")</li>
+            <li><strong>סכום עמדה</strong> + <strong>סכום כולל קריאה</strong> — ניתן לראות כמה מהעסקה הכוללת מייצגת עמדה זו</li>
+            <li>אם יש מספר עמדות לקריאה: תג <strong>"תשלום N/M"</strong> (לדוגמה: תשלום 1/3)</li>
+            <li><strong>אמצעי תשלום</strong> (מזומן / כרטיס / העברה / שיק / ביט) — אם הוגדר</li>
+            <li><strong>תאריך יעד לגביה</strong></li>
+          </ul>
+          <p style="margin-top:8px;"><strong>סטטוסים:</strong></p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label" style="background:#fef9c3;">🟡 ממתין</div><div class="fr-val">טרם נגבה. מוצגת רקע לבן עם כפתור <strong>"גבה ✓"</strong> בירוק.</div></div>
+            <div class="field-row"><div class="fr-label" style="background:#fef2f2;">🔴 באיחור</div><div class="fr-val">תאריך היעד עבר והתשלום לא התקבל. רקע אדום בהיר + תג "באיחור ⚠️". כפתור "גבה ✓" עדיין זמין.</div></div>
+            <div class="field-row"><div class="fr-label" style="background:#f0fdf4;">🟢 התקבל</div><div class="fr-val">נגבה. רקע ירוק בהיר + תג "התקבל ✅". מוצג הסכום שנגבה בפועל.</div></div>
+          </div>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">גביית תשלום</h4>
+          <p>לחצו <em>גבה ✓</em> על עמדת גביה ממתינה ← מודל שאלה נפתח: "סכום שהתקבל (ריק = סכום מלא)" ← אם לקוח שילם סכום חלקי — הזינו אותו; אם שילם מלא — השאירו ריק ← לחצו אישור. הסטטוס מתעדכן מיד ל"התקבל ✅" ויתרת "ממתין לגביה" בסרגל הסיכום יורדת בהתאם.</p>
+
+        </div>
+      </div>
+
+      <!-- ג. דוחות -->
+      <h2 class="sec">ג. טאב "דוחות 📊" — ניתוח ביצועים</h2>
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">דוחות</div><div class="mod-tag">כספים › דוחות</div></div></div>
+        <div class="mod-body">
+
+          <h4 style="font-weight:700;font-size:13px;margin-bottom:8px;">פילטר תקופה</h4>
+          <p>בפינה הימנית עליונה — בוחרים את טווח הנתונים:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">היום</div><div class="fr-val">נתונים מתחילת היום הנוכחי בלבד.</div></div>
+            <div class="field-row"><div class="fr-label">השבוע</div><div class="fr-val">7 הימים האחרונים.</div></div>
+            <div class="field-row"><div class="fr-label">החודש</div><div class="fr-val">החודש הנוכחי מהיום הראשון (ברירת מחדל).</div></div>
+            <div class="field-row"><div class="fr-label">השנה</div><div class="fr-val">12 החודשים האחרונים.</div></div>
+          </div>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">בלוקי KPI — הכנסות והוצאות</h4>
+          <p>שני בלוקים עגולים בראש הדוח:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🟢 הכנסות [תקופה]</div><div class="fr-val">סך כל ההכנסות שנרשמו בטווח שנבחר (₪). כולל תשלומים שנגבו ידנית בתזרים.</div></div>
+            <div class="field-row"><div class="fr-label">🔴 הוצאות [תקופה]</div><div class="fr-val">סך כל ההוצאות שנרשמו בטווח שנבחר (₪).</div></div>
+          </div>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">גרף מגמת הכנסות</h4>
+          <p>גרף עמודות אנכי עם עד 14 ימים אחרונים. כל עמודה = יום אחד, הגובה יחסי להכנסה המקסימלית בטווח. תאריכים מופיעים מתחת (MM-DD). מאפשר לראות אילו ימים עמוסים בהכנסות ואילו חלשים.</p>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">בלוק ייחודי לתחזוקה ותיקונים: "קריאות שירות"</h4>
+          <p>בלוק זה מופיע <strong>רק בעסקי תחזוקה ותיקונים</strong> — אינו קיים בסוגי עסקים אחרים:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">כותרת הבלוק</div><div class="fr-val">שם "קריאות שירות" + מימין: <strong>₪XXX הושלם</strong> — סך ההכנסה מקריאות שסטטוסן "הושלמה" בתקופה שנבחרה.</div></div>
+            <div class="field-row"><div class="fr-label">שורות לפי סטטוס</div><div class="fr-val">לכל סטטוס קריאה שורה נפרדת עם: שם הסטטוס בעברית, <strong>מספר קריאות</strong>, <strong>הכנסה (₪)</strong> מאותן קריאות. הסטטוסים שמופיעים: פתוחה / בטיפול / הושלמה / בוטלה.</div></div>
+          </div>
+          <p style="margin-top:8px;"><em>דוגמה לקריאה:</em> "בטיפול — 12 קריאות — ₪8,400" (12 קריאות שעדיין בביצוע עם תשלומים חלקיים שכבר הוקלדו).</p>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">ייצוא דוחות</h4>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">ייצוא PDF</div><div class="fr-val">לחיצה מייצרת קובץ PDF של הדוח המלא (כולל גרפים וטבלאות) ומוריד אותו למכשיר.</div></div>
+            <div class="field-row"><div class="fr-label">ייצוא CSV</div><div class="fr-val">לחיצה מייצרת קובץ CSV עם כל נתוני הדוח — ניתן לפתוח ב-Excel או Google Sheets לניתוח מעמיק.</div></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ד. פרסום FLOW -->
+      <h2 class="sec">ד. טאב "פרסום FLOW 📢" — פרסום לרשת OneFlow</h2>
       <div class="mod">
         <div class="mod-head"><div class="mod-icon">📢</div><div><div class="mod-name">פרסום FLOW</div><div class="mod-tag">עוד › פרסום FLOW</div></div></div>
         <div class="mod-body">
-          <p>פרסמו שירותים ומבצעים לחברי רשת OneFlow — גולשים שמחפשים שירות תחזוקה באזור.</p>
-          <div class="actions">
-            <span class="action">צרו מודעה עם תיאור + מחיר</span>
-            <span class="action">בחרו קהל לפי אזור ותחום</span>
-            <span class="action">פנייה נכנסת → קבלו התראה</span>
+          <p>מאפשר לפרסם מודעות לחברי רשת OneFlow LIFE — גולשים שמחפשים שירות תחזוקה ותיקונים באזורם. מודעה שאושרה מופיעה בפיד OneFlow הרלוונטי.</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">יצירת מודעה</div><div class="fr-val">כותרת, תיאור שירות, מחיר (₪ / "לפי הצעת מחיר"), קטגוריית שירות.</div></div>
+            <div class="field-row"><div class="fr-label">קהל יעד</div><div class="fr-val">בחירת אזור גיאוגרפי ותחום מקצועי (אינסטלציה / חשמל / מיזוג / כללי וכו').</div></div>
+            <div class="field-row"><div class="fr-label">פניות נכנסות</div><div class="fr-val">לקוח שלוחץ "פנה אליי" — מגיעה פנייה כקריאת שירות חדשה (עם תג "FLOW") לאישור ושיוך.</div></div>
           </div>
         </div>
       </div>
 
-      <!-- AUTOMATIONS -->
-      <h2 class="sec" style="margin-top:28px;">אוטומציות — מה קורה לבד</h2>
+      <!-- ה. אוטומציות -->
+      <h2 class="sec">ה. אוטומציות — מה קורה ללא פעולה ידנית</h2>
       <div class="auto-grid">
-        <div class="auto-card"><div class="auto-icon">🔔</div><div class="auto-title">קריאה חדשה → התראה</div><div class="auto-desc">ברגע שנפתחת קריאת שירות — המנהל מקבל התראה.</div></div>
-        <div class="auto-card"><div class="auto-icon">⚠️</div><div class="auto-title">קריאה לסיווג</div><div class="auto-desc">קריאה שהגיעה מלקוח דרך ONEFLOW LIFE עוברת אוטומטית לסיווג ממנהל.</div></div>
-        <div class="auto-card"><div class="auto-icon">📦</div><div class="auto-title">מלאי נמוך</div><div class="auto-desc">כמות חלק יורדת מתחת לסף — התראה להזמנה מחדש.</div></div>
-        <div class="auto-card"><div class="auto-icon">🚨</div><div class="auto-title">קריאה לא מטופלת</div><div class="auto-desc">קריאה שלא קיבלה טיפול תוך 30 דקות — התראה אוטומטית למנהל.</div></div>
-        <div class="auto-card"><div class="auto-icon">📅</div><div class="auto-title">התראת תאריך ביקור</div><div class="auto-desc">יום לפני ביקור מתוזמן — הטכנאי מקבל תזכורת.</div></div>
-        <div class="auto-card"><div class="auto-icon">⏰</div><div class="auto-title">עובד שלא יצא</div><div class="auto-desc">טכנאי שנכנס לשעון ולא יצא — התראה לתיקון.</div></div>
+        <div class="auto-card"><div class="auto-icon">🔔</div><div class="auto-title">קריאה חדשה → התראה</div><div class="auto-desc">ברגע שנפתחת קריאת שירות (ידנית או מ-FLOW) — המנהל מקבל התראה מיידית.</div></div>
+        <div class="auto-card"><div class="auto-icon">⚠️</div><div class="auto-title">קריאה לסיווג</div><div class="auto-desc">קריאה שהגיעה מלקוח דרך OneFlow LIFE עוברת ל"ממתין לסיווג" ומחכה לאישור ושיוך מנהל.</div></div>
+        <div class="auto-card"><div class="auto-icon">📦</div><div class="auto-title">מלאי נמוך → רכש</div><div class="auto-desc">כמות חלק יורדת מתחת לאחוז הסף שהוגדר — התראה אוטומטית והצעת העברה לרכש.</div></div>
+        <div class="auto-card"><div class="auto-icon">💳</div><div class="auto-title">תשלום מקריאה → תזרים</div><div class="auto-desc">כשמסמנים "גבה ✓" על עמדת גביה — הסכום נרשם אוטומטית כהכנסה בתזרים.</div></div>
+        <div class="auto-card"><div class="auto-icon">📅</div><div class="auto-title">קריאה מתוזמנת → יומן</div><div class="auto-desc">כל קריאה שנקבע לה מועד מופיעה אוטומטית ביומן כאירוע — הטכנאי רואה אותה בנייד.</div></div>
+        <div class="auto-card"><div class="auto-icon">⏰</div><div class="auto-title">עובד שלא יצא</div><div class="auto-desc">טכנאי שהחתים כניסה ולא יצא בסוף היום — התראה אוטומטית לתיקון שעות.</div></div>
+      </div>
+
+      <!-- ו. תרחיש מלא -->
+      <h2 class="sec">ו. תרחיש מלא — מסגירת קריאה ועד ניתוח דוחות חודשי</h2>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>סגירת קריאה ותשלום מלקוח</strong><span>הטכנאי סיים עבודה ← עדכן קריאה לסטטוס <strong>"הושלם"</strong> ← לחץ "סגור + שמור לקוח". המנהל פותח הקריאה ← בסקשן "עמדות תשלום" רואה: "מקדמה ₪500 — <strong>ממתין</strong>" ו"תשלום סופי ₪1,200 — <strong>ממתין</strong>".</span></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>גביית תשלום</strong><span>המנהל עובר לטאב <em>תזרים</em> ← לוחץ <em>גביה</em> ← רואה שני שורות ללקוח אבי כהן: "מקדמה" (ממתין) + "תשלום סופי" (ממתין). לוחץ <em>גבה ✓</em> על המקדמה ← מזין ₪500 ← "התקבל ✅". לוחץ <em>גבה ✓</em> על הסופי ← ריק (סכום מלא) ← "התקבל ✅". סרגל הסיכום מתעדכן: "ממתין: ₪0" / "התקבל: ₪1,700".</span></div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>רישום הוצאות</strong><span>המנהל לוחץ <em>+ הוצאה</em> ← מזין ₪200 "חלקי חילוף לקריאה #1042" ← קטגוריה "💸 הוצאה תפעולית אחרת" ← רשום פעולה. לוחץ שוב ← ₪80 "דלק רוני שישי" ← "✈️ נסיעות ורכבים" ← רשום.</span></div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>צפייה בדוחות חודשיים</strong><span>המנהל עובר לטאב <em>דוחות</em> ← בוחר "החודש" ← רואה: הכנסות ₪24,500 / הוצאות ₪8,300. בגרף: שני שיאים — ב-12 וב-21 לחודש (ימי ביקורים עמוסים). בבלוק "קריאות שירות": "הושלמה — 18 קריאות — ₪21,000".</span></div></div>
+        <div class="step"><div class="step-n">5</div><div class="step-body"><strong>ייצוא לחשבון</strong><span>לחיצה <em>ייצוא CSV</em> ← מוריד קובץ עם כל עסקאות החודש. המנהל שולח לרואה חשבון דרך מייל.</span></div></div>
       </div>
 
     </div>
