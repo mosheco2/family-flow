@@ -2750,14 +2750,7 @@ async function loadDashboard() {
 
         // הפעלת אשף ההקמה (Onboarding) למנהלים בכניסה הראשונה
         if (currentUser.role === 'ADMIN' && currentGroup.is_onboarded === false) {
-            // אם מהות העסק לא הוגדרה — פתח wizard בחירת מהות לפני ה-onboarding
-            const bizType = currentGroup.business_type || 'other';
-            if (!bizType || bizType === 'other') {
-                setTimeout(showBusinessTypeWizardV2, 800);
-            } else {
-                const _wizFn = bizType === 'other' ? showOnboardingWizard : showOnboardingWizardV2;
-                setTimeout(_wizFn, 1000);
-            }
+            setTimeout(showBusinessTypeWizardV2, 800);
         }
 
     } catch (e) {
