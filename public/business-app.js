@@ -18799,26 +18799,44 @@ function _renderWizardV2StepContent(stepName) {
     }
     if (stepName === 'trainer') {
         const TRAINER_SPECS = ['כושר כללי','יוגה','פילאטיס','ריצה','שחייה','אומנויות לחימה','ריקוד','אחר'];
-        const t = wizardV2Data.trainer || {};
-        return `
-        <div class="max-w-md mx-auto space-y-5">
-            <h3 class="font-bold text-slate-800 text-lg text-center"><i class="fa-solid fa-person-running text-indigo-500 mr-2"></i>מי המאמן הראשי?</h3>
-            <p class="text-xs text-slate-400 text-center">יכול להיות אתה עצמך</p>
-            <div class="space-y-4">
+        const trainers = wizardV2Data.trainers?.length
+            ? wizardV2Data.trainers
+            : [{ name: '', specialty: 'כושר כללי' }];
+        const trainerCards = trainers.map((t, i) => `
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 space-y-3" id="wiz-v2-trainer-block-${i}">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-black text-slate-500">מאמן ${i + 1}</span>
+                    ${trainers.length > 1 ? `<button type="button" onclick="_wiz2RemoveTrainer(${i})"
+                        class="text-red-400 hover:text-red-600 text-xs font-bold"
+                        style="touch-action:manipulation;cursor:pointer;">הסר</button>` : ''}
+                </div>
                 <div>
                     <label class="text-xs font-bold text-slate-600 block mb-1">שם מאמן <span class="text-red-500">*</span></label>
-                    <input type="text" id="wiz-v2-trainer-name"
-                        class="modern-input py-3 w-full bg-white"
+                    <input type="text" id="wiz-v2-trainer-name-${i}"
+                        class="modern-input py-2.5 w-full bg-white"
                         placeholder="למשל: דני כהן"
-                        value="${safeStr(t.name||'')}">
+                        value="${safeStr(t.name||'')}"
+                        oninput="(wizardV2Data.trainers=wizardV2Data.trainers||[])[${i}]=(wizardV2Data.trainers[${i}]||{});wizardV2Data.trainers[${i}].name=this.value">
                 </div>
                 <div>
                     <label class="text-xs font-bold text-slate-600 block mb-1">התמחות</label>
-                    <select id="wiz-v2-trainer-specialty" class="modern-input py-3 w-full bg-white">
+                    <select id="wiz-v2-trainer-specialty-${i}" class="modern-input py-2.5 w-full bg-white"
+                        onchange="(wizardV2Data.trainers=wizardV2Data.trainers||[])[${i}]=(wizardV2Data.trainers[${i}]||{});wizardV2Data.trainers[${i}].specialty=this.value">
                         ${TRAINER_SPECS.map(s=>`<option value="${s}" ${t.specialty===s?'selected':''}>${s}</option>`).join('')}
                     </select>
                 </div>
-            </div>
+            </div>`).join('');
+        return `
+        <div class="max-w-md mx-auto space-y-4">
+            <h3 class="font-bold text-slate-800 text-lg text-center"><i class="fa-solid fa-person-running text-indigo-500 mr-2"></i>מי המאמנים שלכם?</h3>
+            <p class="text-xs text-slate-400 text-center">ניתן להוסיף עוד מאוחר יותר</p>
+            <div id="wiz-v2-trainer-list" class="space-y-3">${trainerCards}</div>
+            <button type="button" onclick="_wiz2AddTrainer()"
+                id="wiz-v2-trainer-add-btn"
+                class="w-full border-2 border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:border-indigo-300 hover:text-indigo-500 transition"
+                style="touch-action:manipulation;cursor:pointer;">
+                + הוסף מאמן נוסף
+            </button>
         </div>`;
     }
 
@@ -19031,6 +19049,19 @@ function _renderWizardV2StepContent(stepName) {
     }
     return `<div class="text-center text-slate-500 py-8">שלב: ${stepName}</div>`;
 }
+
+window._wiz2AddTrainer = function() {
+    if (!wizardV2Data.trainers) wizardV2Data.trainers = [{ name: '', specialty: 'כושר כללי' }];
+    if (wizardV2Data.trainers.length >= 10) return;
+    wizardV2Data.trainers.push({ name: '', specialty: 'כושר כללי' });
+    updateWizardUIV2();
+};
+
+window._wiz2RemoveTrainer = function(idx) {
+    if (!wizardV2Data.trainers || wizardV2Data.trainers.length <= 1) return;
+    wizardV2Data.trainers.splice(idx, 1);
+    updateWizardUIV2();
+};
 
 window._wiz2ToggleDay = function(day) {
     if (!wizardV2Data.scheduleClass) wizardV2Data.scheduleClass = {};
@@ -19390,10 +19421,17 @@ async function _nextWizardV2Step() {
     }
 
     if (stepName === 'trainer') {
-        const name = (document.getElementById('wiz-v2-trainer-name')?.value || '').trim();
-        if (!name) { alert('נא להזין שם מאמן'); return; }
-        const specialty = document.getElementById('wiz-v2-trainer-specialty')?.value || 'כושר כללי';
-        wizardV2Data.trainer = { name, specialty };
+        const raw = wizardV2Data.trainers || [];
+        const filled = raw.filter(t => t && t.name && t.name.trim());
+        if (filled.length === 0) {
+            const firstName = (document.getElementById('wiz-v2-trainer-name-0')?.value || '').trim();
+            if (!firstName) { alert('נא להזין שם מאמן אחד לפחות'); return; }
+            filled.push({
+                name: firstName,
+                specialty: document.getElementById('wiz-v2-trainer-specialty-0')?.value || 'כושר כללי'
+            });
+        }
+        wizardV2Data.trainers = filled;
     }
 
     if (stepName === 'subscriptions') {
