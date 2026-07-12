@@ -7122,36 +7122,132 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   <!-- ─── ייעוץ ובקשות ─── -->
   <div class="chapter" id="b-rfq">
     <div class="ch-head"><div class="ch-num">11</div><div class="ch-title">ייעוץ ובקשות מ-ONEFLOW LIFE</div></div>
-    <p>כרטיסיית <strong>ייעוץ ובקשות</strong> (בתפריט <em>מכירות</em>) מציגה בקשות טיפול שלקוחות שלחו מאפליקציית ONEFLOW LIFE הקהילתית. זהו ערוץ לקוחות חדש מובנה במערכת.</p>
-
-    <div class="mod">
-      <div class="mod-head"><div class="mod-icon">🔄</div><div><div class="mod-name">תהליך הבקשה</div><div class="mod-tag">מכירות › ייעוץ ובקשות</div></div></div>
-      <div class="steps">
-        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>חדש</strong><span> — לקוחה שלחה בקשה לטיפול. שלח לה שאלון ראשוני.</span></div></div>
-        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>שאלון נשלח</strong><span> — ממתינים לתשובות. שלח בקשה לתמונות אם נדרש.</span></div></div>
-        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>ממתין לתמונות</strong><span> — הלקוחה צריכה לשלוח תמונות (לדוג׳: מצב עור/שיער). שלח תוכנית טיפול.</span></div></div>
-        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>תוכנית נשלחה</strong><span> — ממתינים לאישור הלקוחה.</span></div></div>
-        <div class="step"><div class="step-n">5</div><div class="step-body"><strong>אושר</strong><span> — הלקוחה אישרה. קבע תורים — הסטטוס עובר ל<em>תורים נקבעו</em>.</span></div></div>
-      </div>
-    </div>
-
-    <div class="mod">
-      <div class="mod-head"><div class="mod-icon">🏷️</div><div><div class="mod-name">סטטוסי בקשה</div><div class="mod-tag">מכירות › ייעוץ ובקשות</div></div></div>
-      <div class="actions">
-        <span class="tag" style="background:#e0f2fe;color:#0369a1">🆕 חדש</span>
-        <span class="tag" style="background:#e0e7ff;color:#3730a3">📋 שאלון נשלח</span>
-        <span class="tag" style="background:#fef3c7;color:#92400e">📸 ממתין לתמונות</span>
-        <span class="tag" style="background:#f3e8ff;color:#6b21a8">📄 תוכנית נשלחה</span>
-        <span class="tag" style="background:#dcfce7;color:#166534">✅ אושר</span>
-        <span class="tag" style="background:#fce7f3;color:#9d174d">📅 תורים נקבעו</span>
-        <span class="tag" style="background:#fee2e2;color:#dc2626">❌ נדחה</span>
-      </div>
-    </div>
+    <p>כרטיסיית <strong>ייעוץ ובקשות</strong> מציגה בקשות טיפול שלקוחות שלחו מאפליקציית ONEFLOW LIFE הקהילתית. זהו ערוץ ייחודי שמאפשר ללקוחות ליצור קשר ראשוני עם הסלון, לשלוח שאלות ותמונות, ולקבל תוכנית טיפולים מותאמת — לפני שאפילו נקבע תור. הכרטיסייה נגישה דרך תפריט <strong>מכירות ← ייעוץ ובקשות</strong>.</p>
 
     <div class="box box-tip">
       <div class="box-icon">💡</div>
-      <div><strong>מה זה ONEFLOW LIFE?</strong><br>ONEFLOW LIFE היא האפליקציה הקהילתית של המשפחה — לקוחות שמשתמשות בה יכולות לשלוח בקשות ישירות לעסקי היופי המחוברים. כל בקשה מגיעה אוטומטית לכרטיסייה זו.</div>
+      <div><strong>מה זה ONEFLOW LIFE?</strong><br>ONEFLOW LIFE היא האפליקציה הקהילתית של הפלטפורמה. לקוחות שמחוברות אליה יכולות לשלוח בקשות ייעוץ ישירות לסלונים הרשומים במערכת, ללא צורך ליצור קשר טלפוני. כל בקשה מגיעה אוטומטית לכרטיסייה זו וניתן לנהל את כל התקשורת מתוכה.</div>
     </div>
+
+    <!-- א. מבנה המסך -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🖥️</div><div><div class="mod-name">א. מבנה המסך</div><div class="mod-tag">מכירות › ייעוץ ובקשות</div></div></div>
+      <p>מסך ייעוץ ובקשות בנוי משני אזורים:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">פאנל סטטיסטיקה עליון</div><div class="fr-val">כרטיס גרדיאנט ורוד-אדום (pink-600 to rose-700) עם כיתוב "💬 ייעוץ ובקשות" ותת-כותרת "בקשות טיפול שהגיעו מלקוחות ONEFLOW LIFE". מתחתיו גריד 3 עמודות עם מדדים שקופים:<br>• <strong>פתוחות</strong> — כל הבקשות שסטטוסן אינו accepted/rejected/booked<br>• <strong>ממתינות לתגובה</strong> — בקשות בסטטוס questionnaire_sent או photos_requested (הסלון צריך לפעול)<br>• <strong>הפכו לתורים</strong> — בקשות בסטטוס booked</div></div>
+        <div class="field-row"><div class="fr-label">רשימת בקשות</div><div class="fr-val">כרטיסים לכל בקשה, מסודרים בסדר הגעה. כל כרטיס כולל סטטוס, פרטי הלקוחה, תוכן הבקשה, תשובות שאלון, תמונות, והיסטוריית שיחה</div></div>
+      </div>
+    </div>
+
+    <!-- ב. 7 סטטוסי בקשה -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🏷️</div><div><div class="mod-name">ב. שבעת סטטוסי הבקשה</div><div class="mod-tag">מכירות › ייעוץ ובקשות</div></div></div>
+      <p>כל בקשה עוברת מסלול סטטוסים. הסטטוס מציג תג צבעוני בכרטיס הבקשה. הסטטוסים מוגדרים בקוד כ-<code>RFQ_STATUS</code>:</p>
+      <div class="field-table">
+        <div class="field-row">
+          <div class="fr-label"><span class="tag" style="background:#e0f2fe;color:#0369a1">🆕 חדש</span></div>
+          <div class="fr-val">ערך: <code>new</code>. בקשה הגיעה מהלקוחה — עדיין לא בוצעה שום פעולה. <strong>פעולה זמינה: שלח שאלון</strong></div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label"><span class="tag" style="background:#e0e7ff;color:#3730a3">📋 שאלון נשלח</span></div>
+          <div class="fr-val">ערך: <code>questionnaire_sent</code>. השאלון נשלח ללקוחה — הסלון ממתין לתשובות. <strong>פעולה זמינה: שלח תוכנית טיפולים</strong></div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label"><span class="tag" style="background:#fef3c7;color:#92400e">📸 ממתין לתמונות</span></div>
+          <div class="fr-val">ערך: <code>photos_requested</code>. הסלון ביקש מהלקוחה לשלוח תמונות של מצב העור/שיער. <strong>פעולה זמינה: שלח תוכנית טיפולים</strong></div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label"><span class="tag" style="background:#f3e8ff;color:#6b21a8">📄 תוכנית נשלחה</span></div>
+          <div class="fr-val">ערך: <code>plan_sent</code>. תוכנית הטיפולים נשלחה ללקוחה — ממתינים לאישורה. אין כפתורי פעולה ייעודיים, רק צ'אט</div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label"><span class="tag" style="background:#dcfce7;color:#166534">✅ אושר</span></div>
+          <div class="fr-val">ערך: <code>accepted</code>. הלקוחה אישרה את תוכנית הטיפולים. הבקשה <strong>אינה</strong> נחשבת "פתוחה". הסלון יכול לקבוע תורים</div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label"><span class="tag" style="background:#fee2e2;color:#dc2626">❌ נדחה</span></div>
+          <div class="fr-val">ערך: <code>rejected</code>. הלקוחה דחתה את ההצעה, או הסלון דחה את הבקשה. הבקשה <strong>אינה</strong> נחשבת "פתוחה"</div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label"><span class="tag" style="background:#dcfce7;color:#166534">📅 תורים נקבעו</span></div>
+          <div class="fr-val">ערך: <code>booked</code>. נקבעו תורים ביומן בעקבות הבקשה. הבקשה <strong>אינה</strong> נחשבת "פתוחה" — נכנסת לספירת "הפכו לתורים" בפאנל העליון</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ג. כרטיס בקשה -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🃏</div><div><div class="mod-name">ג. כרטיס בקשה — מה מוצג</div><div class="mod-tag">מכירות › ייעוץ ובקשות</div></div></div>
+      <p>כל בקשה מוצגת בכרטיס לבן. הכרטיס מכיל עד 6 אזורים (חלקם מותנים):</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">כותרת — סטטוס ותאריך</div><div class="fr-val">תג סטטוס צבעוני + תאריך יצירת הבקשה (מפורמט לעברית). מוצגים תמיד</div></div>
+        <div class="field-row"><div class="fr-label">תיאור הבקשה</div><div class="fr-val">השדה <code>service_description</code> — מה הלקוחה ביקשה, בלשונה. לדוגמה: "מחפשת שיקום לשיער פגום אחרי צביעות חוזרות". מוצג תמיד (מוצג "—" אם ריק)</div></div>
+        <div class="field-row"><div class="fr-label">שם הלקוחה</div><div class="fr-val">👤 שם הלקוחה. מוצג רק אם השדה <code>client_name</code> קיים</div></div>
+        <div class="field-row"><div class="fr-label">הודעה אחרונה</div><div class="fr-val">ההודעה האחרונה בצ'אט, ברקע אפור-בהיר. מציג מי שלח: "הסלון" (כאשר <code>from === 'biz'</code>) או "לקוחה". מוצג רק אם יש היסטוריית שיחה</div></div>
+        <div class="field-row"><div class="fr-label">תשובות שאלון</div><div class="fr-val">ברקע indigo-50 כחול-סגלגל. כיתוב "📋 תשובות שאלון" ומתחתיו כל זוגות שאלה-תשובה. מוצג רק אם <code>questionnaire_data</code> קיים (הלקוחה ענתה על השאלון)</div></div>
+        <div class="field-row"><div class="fr-label">תמונות הלקוחה</div><div class="fr-val">עד 4 תמונות בשורה אופקית גלילה. כל תמונה 16×16. מוצג רק אם <code>client_photos</code> מכיל תמונות</div></div>
+        <div class="field-row"><div class="fr-label">כפתורי פעולה</div><div class="fr-val">תלויים בסטטוס הנוכחי — ראה סעיף ד׳ לפירוט מלא</div></div>
+      </div>
+    </div>
+
+    <!-- ד. כפתורי פעולה -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">▶️</div><div><div class="mod-name">ד. כפתורי פעולה לפי סטטוס</div><div class="mod-tag">מכירות › ייעוץ ובקשות</div></div></div>
+      <p>בתחתית כל כרטיס יש כפתורים. הכפתורים הזמינים משתנים לפי הסטטוס הנוכחי של הבקשה:</p>
+      <div class="field-table">
+        <div class="field-row">
+          <div class="fr-label">📋 שלח שאלון<br><small style="font-weight:400;color:#6366f1">(indigo, רק בסטטוס new)</small></div>
+          <div class="fr-val">מופיע <strong>רק</strong> כאשר הסטטוס הוא <code>new</code>. לחיצה פותחת חלון קלט (uiPrompt) עם הטקסט <em>"הכנס שאלות לשאלון (מופרדות בפסיק):"</em> וערך ברירת מחדל: <code>האם יש אלרגיות?,האם בוצע Patch Test בעבר?,תאר את מצב העור/שיער הנוכחי</code>. ניתן לערוך ולהוסיף שאלות. לאחר אישור: שאלות מומרות לאובייקט {"שאלה 1": "...", "שאלה 2": "..."} ונשלחות ב-<code>PATCH /api/beauty/rfq/{rfqId}/questionnaire</code> עם גוף <code>{"questions": {...}}</code>. הודעת הצלחה: <em>"השאלון נשלח ללקוחה"</em></div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label">📄 שלח תוכנית טיפולים<br><small style="font-weight:400;color:#059669">(emerald, בסטטוס questionnaire_sent או photos_requested)</small></div>
+          <div class="fr-val">מופיע כאשר הסטטוס הוא <code>questionnaire_sent</code> <strong>או</strong> <code>photos_requested</code>. לחיצה פותחת מודאל "📄 שלח תוכנית טיפולים" עם 5 שדות — ראה סעיף ה׳ לפירוט מלא</div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label">💬 צ'אט<br><small style="font-weight:400;color:#475569">(slate, תמיד זמין)</small></div>
+          <div class="fr-val">מופיע <strong>תמיד</strong> בכל בקשה ללא תלות בסטטוס. לחיצה פותחת חלון קלט (uiPrompt) עם הטקסט <em>"הכנס הודעה ללקוחה:"</em>. לאחר הזנה: נשלח <code>POST /api/beauty/rfq/{rfqId}/message</code> עם גוף <code>{"text": "...", "from": "biz"}</code>. הודעת הצלחה: <em>"ההודעה נשלחה"</em>. ההודעה תופיע בכרטיס כ"הסלון: ..."</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ה. מודאל תוכנית טיפולים -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">📄</div><div><div class="mod-name">ה. מודאל שליחת תוכנית טיפולים</div><div class="mod-tag">מכירות › ייעוץ ובקשות › שלח תוכנית</div></div></div>
+      <p>לחיצה על <strong>📄 שלח תוכנית טיפולים</strong> פותחת מודאל ייעודי ב-5 שדות:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>כותרת התוכנית</div><div class="fr-val">שם קצר ותמציתי לתוכנית. placeholder: <em>"למשל: שיקום עור פנים מלא"</em>. שגיאת ולידציה: <em>"כותרת חובה"</em></div></div>
+        <div class="field-row"><div class="fr-label">תיאור הטיפולים</div><div class="fr-val">תיבת טקסט (3 שורות). placeholder: <em>"תיאור מפורט של הטיפולים המוצעים..."</em>. תוכן מלא של התוכנית: מה כלול, ממה מורכב, מספר מפגשים וכו׳</div></div>
+        <div class="field-row"><div class="fr-label">מחיר כולל (₪)</div><div class="fr-val">שדה מספרי. עלות כוללת של כל תוכנית הטיפולים. ברירת מחדל: ריק</div></div>
+        <div class="field-row"><div class="fr-label">מקדמה נדרשת (₪)</div><div class="fr-val">שדה מספרי. סכום המקדמה לאישור הבקשה. ברירת מחדל: 0. 0 = אין מקדמה נדרשת</div></div>
+        <div class="field-row"><div class="fr-label">הודעה ללקוחה</div><div class="fr-val">תיבת טקסט (2 שורות). אופציונלי. placeholder: <em>"הסבר נוסף, שאלות, הנחיות..."</em>. הודעה אישית נלווית לתוכנית</div></div>
+      </div>
+      <div class="steps" style="margin-top:.6rem">
+        <div class="step"><div class="step-n">1</div><div class="step-body">לחץ <strong>📄 שלח תוכנית טיפולים</strong> בכרטיס הבקשה</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body">מלא <strong>כותרת התוכנית</strong> (חובה), <strong>תיאור הטיפולים</strong>, <strong>מחיר</strong>, <strong>מקדמה</strong>, והודעה נלווית</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body">לחץ <strong>שלח תוכנית ✉️</strong> — נשלח <code>POST /api/beauty/rfq/{rfqId}/plan</code> עם גוף: <code>{"treatment_plan": {"title": "...", "description": "...", "total_price": X, "deposit_amount": Y}, "message": "..."}</code>. במהלך השליחה הכפתור מציג "שולח..." ומושבת. הודעת הצלחה: <em>"תוכנית הטיפולים נשלחה ללקוחה"</em>. המסך מתרענן</div></div>
+      </div>
+    </div>
+
+    <!-- ו. מצב ריק -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">💬</div><div><div class="mod-name">ו. מצב ריק — אין בקשות</div><div class="mod-tag">מכירות › ייעוץ ובקשות</div></div></div>
+      <p>כאשר אין בקשות כלל (עסק חדש, או לפני שלקוחה ONEFLOW פנתה), המסך מציג:</p>
+      <p style="text-align:center;padding:.6rem 0"><span style="font-size:2rem">💬</span><br><strong style="color:#475569">אין בקשות ייעוץ עדיין</strong><br><em style="color:#94a3b8;font-size:.85rem">לקוחות ONEFLOW LIFE יכולות לשלוח בקשות טיפול מהאפליקציה הקהילתית</em></p>
+      <p>פאנל הסטטיסטיקה העליון עדיין מוצג (עם ערכי אפס בכל המדדים) — הוא מוצג תמיד, גם כשאין בקשות.</p>
+    </div>
+
+    <!-- ז. סצנריו מלא -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">📖</div><div><div class="mod-name">ז. סצנריו מלא — מבקשה ראשונית עד תור</div><div class="mod-tag">מכירות › ייעוץ ובקשות</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לקוחה שולחת בקשה:</strong> "רונית" שלחה מ-ONEFLOW LIFE: "מחפשת טיפול לייזר להסרת שיער בגפיים". בקשה חדשה מופיעה בכרטיסייה עם תג <span class="tag" style="background:#e0f2fe;color:#0369a1;font-size:.75rem">🆕 חדש</span>. פאנל: פתוחות=1, ממתינות=0, הפכו לתורים=0</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>שליחת שאלון:</strong> לחצי <strong>📋 שלח שאלון</strong>. בחלון הקלט הוספת שאלה: "האם יש אלרגיות?,האם בוצע Patch Test בעבר?,תאר את מצב העור/שיער הנוכחי,האם את בהריון?". לחצי אשר — PATCH נשלח, הודעה: "השאלון נשלח ללקוחה". הסטטוס עובר ל-<span class="tag" style="background:#e0e7ff;color:#3730a3;font-size:.75rem">📋 שאלון נשלח</span>. פאנל: ממתינות=1</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>לקוחה ענתה:</strong> בכרטיס מוצג אזור "📋 תשובות שאלון" עם: "שאלה 1: לא. שאלה 2: כן, לפני שנה. שאלה 3: עור רגיש. שאלה 4: לא". הסטטוס עדיין questionnaire_sent, כפתור <strong>שלח תוכנית</strong> זמין</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>שליחת תוכנית:</strong> לחצי <strong>📄 שלח תוכנית טיפולים</strong>. מילאת: כותרת "הסרת שיער לייזר — גפיים", תיאור "6 טיפולי לייזר Nd:YAG במרווחים של 6 שבועות", מחיר ₪1800, מקדמה ₪200, הודעה "תצרכי ביוא מקדים 24 שעות לפני כל טיפול". לחצי <strong>שלח תוכנית ✉️</strong>. הודעה: "תוכנית הטיפולים נשלחה ללקוחה". סטטוס עובר ל-<span class="tag" style="background:#f3e8ff;color:#6b21a8;font-size:.75rem">📄 תוכנית נשלחה</span></div></div>
+        <div class="step"><div class="step-n">5</div><div class="step-body"><strong>לקוחה אישרה:</strong> רונית אישרה מ-ONEFLOW. סטטוס עובר ל-<span class="tag" style="background:#dcfce7;color:#166534;font-size:.75rem">✅ אושר</span>. הבקשה יוצאת מספירת "פתוחות". קבעת תור ביומן — סטטוס עובר ל-<span class="tag" style="background:#dcfce7;color:#166534;font-size:.75rem">📅 תורים נקבעו</span>. פאנל: פתוחות=0, הפכו לתורים=1</div></div>
+      </div>
+    </div>
+
   </div>
 
 </div><!-- /wrap -->
