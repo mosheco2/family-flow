@@ -1900,61 +1900,209 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
     <!-- ── 2. ויזארד הקמה ── -->
     <div class="chapter" id="s-wizard">
-      <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית — אשף 4 שלבים</div></div>
+      <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית — בחירת סוג עסק + אשף 4 שלבים</div></div>
 
-      <p style="font-size:.9rem;color:var(--text2);">מיד לאחר ההרשמה מופיע "אשף ההקמה" — מדריך מובנה שמכין את כל המערכת בצעדים קצרים. אי-אפשר לדלג עליו — הוא חובה לפתיחה תקינה.</p>
+      <p style="font-size:.9rem;color:var(--text2);">מיד לאחר ההרשמה מופיעות שתי חלונות בזו אחר זו: <strong>בחירת סוג עסק</strong> ואחריה <strong>אשף ההקמה</strong> בן 4 שלבים. ניתן לדלג על כל שלב ולחזור אליו מאוחר יותר. ניתן גם לפתוח שוב את האשף בכל עת מ<strong>הגדרות → פרופיל עסק → "פתיחת אשף הקמה"</strong>.</p>
 
-      <div class="box box-tip" style="margin-bottom:14px;">
+      <!-- בחירת סוג עסק -->
+      <h2 class="sec">שלב מקדים — בחירת סוג העסק</h2>
+      <p style="font-size:.87rem;color:var(--text2);">לפני האשף עצמו — מופיעה חלונית <strong>"מה סוג העסק שלך?"</strong> עם 5 אפשרויות ועוד אפשרות "כללי":</p>
+
+      <div class="field-table" style="margin-top:8px;">
+        <div class="field-row"><div class="fr-label">🍕 מסעדה</div><div class="fr-val">מסעדה, בית קפה, מזנון, קייטרינג</div></div>
+        <div class="field-row"><div class="fr-label">🔧 שירות / מתקינים</div><div class="fr-val">תחזוקה, תיקונים, שירותי שטח</div></div>
+        <div class="field-row"><div class="fr-label" style="font-weight:800;color:var(--accent);">🏋️ ספורט וחוגים ← בחרו זאת</div><div class="fr-val">מרכז כושר, חוגים, יוגה, קרוספיט, ריקוד, שחייה</div></div>
+        <div class="field-row"><div class="fr-label">👔 מומחים</div><div class="fr-val">עורכי דין, רואי חשבון, יועצים, מטפלים</div></div>
+        <div class="field-row"><div class="fr-label">💅 יופי ואסטטיקה</div><div class="fr-val">מספרה, קוסמטיקה, ציפורניים, עיסוי</div></div>
+      </div>
+
+      <div class="scenario" style="margin-top:12px;">
+        <div class="sc-title">איך בוחרים</div>
+        <div class="sc-step"><span class="sc-num">1</span>לוחצים על הכרטיס <strong>"ספורט וחוגים 🏋️"</strong> — הכרטיס מסומן בגבול סגול</div>
+        <div class="sc-step"><span class="sc-num">2</span>הכפתור בתחתית משתנה ל-<strong>"המשך →"</strong> (כחול, לחיץ)</div>
+        <div class="sc-step"><span class="sc-num">3</span>לוחצים "המשך →" — הסגירה את חלונית הבחירה ופותחת את אשף ה-4 שלבים</div>
+      </div>
+
+      <div class="box box-warn" style="margin-top:10px;">
+        <div class="box-icon">⚠️</div>
+        <div>אם בחרתם סוג עסק שגוי, ניתן לשנות מאוחר יותר רק דרך מנהל המערכת (Super Admin). בחרו <strong>ספורט וחוגים</strong> בוודאות לפני המשך.</div>
+      </div>
+
+      <!-- שלב 1 -->
+      <h2 class="sec" style="margin-top:24px;">שלב 1 / 4 — פרופיל העסק</h2>
+      <p style="font-size:.87rem;color:var(--text2);">כאן מגדירים את הפנים החיצוניות של מרכז הכושר — מה שחברים יראו. כל השדות אופציונליים ואפשר לדלג.</p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🖼️</div><div><div class="mod-name">עיצוב ומיתוג (אופציונלי)</div><div class="mod-tag">לוגו ובאנר</div></div></div>
+        <div class="mod-body">
+          <div class="field-table">
+            <div class="field-row">
+              <div class="fr-label">לוגו העסק</div>
+              <div class="fr-val">לוחצים <strong>"העלה מהמחשב"</strong> — בוחרים קובץ תמונה (JPG/PNG). הלוגו יופיע בראש הפורטל ובחשבוניות. ניתן למחוק עם כפתור האשפה 🗑️.</div>
+            </div>
+            <div class="field-row">
+              <div class="fr-label">באנר / רקע ראשי</div>
+              <div class="fr-val">תמונת רקע רחבה למסך הכניסה של הפורטל. לוחצים <strong>"העלה קיים"</strong> לתמונה מהמחשב. ניתן גם ליצור עם AI (מופיע לאחר אישור).</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="field-table" style="margin-top:10px;">
+        <div class="field-row">
+          <div class="fr-label">טלפון ראשי (להזמנות)</div>
+          <div class="fr-val">מספר הטלפון של מרכז הכושר שיופיע לחברים. לדוגמה: <code>03-5556789</code>. אופציונלי.</div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label">סלוגן / משפט מפתח</div>
+          <div class="fr-val">משפט קצר שמופיע מתחת לשם מרכז הכושר — לדוגמה: <em>"מתאמנים, מצטיינים, מצליחים"</em>. אופציונלי.</div>
+        </div>
+      </div>
+
+      <div class="box box-tip" style="margin-top:10px;">
         <div class="box-icon">💡</div>
-        <div>לפני האשף עצמו — מופיעה שאלה: <strong>"מה סוג העסק שלך?"</strong>. בחרו <strong>ספורט וחוגים 🏋️</strong> — זה פותח את כל הכלים הנכונים.</div>
+        <div>לחצו <strong>"המשך"</strong> — המערכת שומרת את הפרופיל אוטומטית ועוברת לשלב הבא. גם אם לא העליתם כלום — ניתן להמשיך.</div>
       </div>
 
-      <div class="steps">
-        <div class="step">
-          <div class="step-n">1</div>
-          <div class="step-body">
-            <strong>פרופיל העסק</strong>
-            <span>שם מרכז הכושר, לוגו (אופציונלי), תמונת באנר (אופציונלי), סלוגן קצר. הלוגו יופיע בחשבוניות ובפורטל החברים.</span>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-n">2</div>
-          <div class="step-body">
-            <strong>הגדרת תקציב ראשוני</strong>
-            <span>מה ההוצאות החודשיות הקבועות שלכם — שכ"ד, חשמל, שכר מאמנים. זה ישמש בסיס לניתוח תזרים ורווחיות.</span>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-n">3</div>
-          <div class="step-body">
-            <strong>בניית קטלוג מנויים ושירותים</strong>
-            <span>הוסיפו את סוגי המנויים והשירותים שלכם — מנוי חודשי, שנתי, כניסה בודדת, שיעור פרטי. ניתן לייבא מאקסל, לבנות עם AI, או ידנית.</span>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-n">4</div>
-          <div class="step-body">
-            <strong>הזמנת הצוות</strong>
-            <span>שלחו קישור הצטרפות לעובדים דרך WhatsApp — כל אחד מצטרף עם הקוד שלכם ומגיע ל"ממתינים לאישור". אתם מאשרים ומגדירים תפקיד.</span>
-          </div>
+      <!-- שלב 2 -->
+      <h2 class="sec" style="margin-top:24px;">שלב 2 / 4 — תקציב ראשוני</h2>
+      <p style="font-size:.87rem;color:var(--text2);">כאן מכניסים את ההון ההתחלתי הקיים — קופת המזומנים, יתרה בחשבון הבנק שמיועדת לעסק, או כל סכום פתיחה אחר.</p>
+
+      <div class="field-table">
+        <div class="field-row">
+          <div class="fr-label">מסגרת / הון קיים (₪)</div>
+          <div class="fr-val">רשמו את סכום הפתיחה בשקלים. ברירת מחדל: <code>0</code>. לדוגמה: <code>15000</code>. אם אתם מתחילים ללא יתרה — השאירו 0.</div>
         </div>
       </div>
 
-      <h2 class="sec" style="margin-top:28px;">הגדרות ספורט מיוחדות (מופיעות בהגדרות)</h2>
-      <p style="font-size:.87rem;color:var(--text2);">לאחר ההקמה הראשונית, תחת <strong>הגדרות → הגדרות חנות</strong> — תמצאו הגדרות ייחודיות לעסק ספורט:</p>
+      <div class="box box-tip" style="margin-top:8px;">
+        <div class="box-icon">💡</div>
+        <div>הסכום שתרשמו ייכנס אוטומטית לתזרים המזומנים כפעולת הכנסה עם התיאור <strong>"תקציב / מסגרת התחלתית"</strong>. ניתן לדלג ולהכניס אחר כך ידנית מ<strong>כספים → תזרים</strong>.</div>
+      </div>
 
-      <div class="field-table" style="margin-top:14px;">
-        <div class="field-row"><div class="fr-label"><span class="tag tag-c">הגדרה</span>מנוי ניסיון</div><div class="fr-val">האם לאפשר מנוי ניסיון לחברים חדשים? — כאשר מפעילים זאת, ניתן להגדיר מחיר ומשך ניסיון.</div></div>
-        <div class="field-row"><div class="fr-label"><span class="tag tag-c">הגדרה</span>מדיניות ביטול</div><div class="fr-val">הטקסט שיופיע לחבר בעת ביטול מנוי — לדוגמה: <em>"ניתן לבטל מנוי עד 14 ימים לפני תחילתו"</em>. רשמו בבירור.</div></div>
-        <div class="field-row"><div class="fr-label"><span class="tag tag-c">הגדרה</span>מדיניות הקפאה</div><div class="fr-val">האם ניתן להקפיא מנוי? — לדוגמה: <em>"הקפאה אחת בשנה, עד 30 יום"</em>.</div></div>
-        <div class="field-row"><div class="fr-label"><span class="tag tag-c">הגדרה</span>הצהרת ויתור</div><div class="fr-val">טקסט הצהרה שחבר חדש חייב לאשר בעת הרשמה — כגון: <em>"אני מצהיר/ה כי אני מתאמן/ת מרצוני..."</em>.</div></div>
-        <div class="field-row"><div class="fr-label"><span class="tag tag-c">הגדרה</span>גיל מינימום</div><div class="fr-val">הגיל המינימלי להצטרפות עצמאית — לדוגמה: <code>16</code>. מתחת לגיל זה ידרש אישור הורים.</div></div>
-        <div class="field-row"><div class="fr-label"><span class="tag tag-c">הגדרה</span>ימי התראה לביטול</div><div class="fr-label"><span class="tag tag-c">הגדרה</span>ימי הודעה מראש</div><div class="fr-val">כמה ימים מראש חייבים להודיע על ביטול — לדוגמה: <code>14</code> ימים.</div></div>
+      <!-- שלב 3 -->
+      <h2 class="sec" style="margin-top:24px;">שלב 3 / 4 — בניית קטלוג ראשוני (עד 25 פריטים)</h2>
+      <p style="font-size:.87rem;color:var(--text2);">כאן בונים את רשימת המנויים, השיעורים והמוצרים שמרכז הכושר מוכר. הפריטים יופיעו בקופה (POS). יש 3 דרכים להוסיף:</p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">✨</div><div><div class="mod-name">דרך א׳ — בניה אוטומטית עם AI</div><div class="mod-tag">הדרך המהירה ביותר</div></div></div>
+        <div class="mod-body">
+          <div class="scenario">
+            <div class="sc-title">תרחיש — בניית קטלוג עם AI</div>
+            <div class="sc-step"><span class="sc-num">1</span>בשדה הטקסט כותבים תיאור של העסק — לדוגמה: <em>"מרכז כושר לנשים עם שיעורים קבוצתיים, יוגה ופילאטיס"</em></div>
+            <div class="sc-step"><span class="sc-num">2</span>לוחצים <strong>"בנה תפריט"</strong></div>
+            <div class="sc-step"><span class="sc-num">3</span>AI יוצר עד 25 פריטים: שמות, קטגוריות, מחירים מוצעים</div>
+            <div class="sc-step"><span class="sc-num">4</span>הפריטים מופיעים ברשימה — ניתן לערוך, למחוק, להוסיף עוד ידנית</div>
+            <div class="sc-step"><span class="sc-num">5</span>תוסט: <strong>"התפריט נוצר בהצלחה!"</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">דרך ב׳ — ייבוא מאקסל</div><div class="mod-tag">אם יש לכם רשימה קיימת</div></div></div>
+        <div class="mod-body">
+          <p>3 תת-שלבים:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">1. סוג עסק</div><div class="fr-val">בחרו <strong>שירותים</strong> (מתאים לספורט) — לחצו על הכפתור הירוק המתאים</div></div>
+            <div class="field-row"><div class="fr-label">2. סוג פריטים</div><div class="fr-val">בחרו <strong>שירותים</strong> או <strong>מוצרים</strong> — לפי מה שאתם מייבאים</div></div>
+            <div class="field-row"><div class="fr-label">3. טעינת קובץ</div><div class="fr-val">לחצו <strong>"בחר קובץ Excel"</strong> ← בחרו קובץ .xlsx / .xls / .csv ← הפריטים נטענים לרשימה</div></div>
+          </div>
+          <div class="box box-tip" style="margin-top:8px;">
+            <div class="box-icon">💡</div>
+            <div>אין לכם קובץ מוכן? לחצו <strong>"תבנית"</strong> (כפתור הורדה ירוק) — הורידו את תבנית האקסל, מלאו אותה ואז ייבאו.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">✍️</div><div><div class="mod-name">דרך ג׳ — הוספה ידנית</div><div class="mod-tag">פריט אחד בכל פעם</div></div></div>
+        <div class="mod-body">
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">שם מוצר</div><div class="fr-val">שם השירות / המנוי — לדוגמה: <code>מנוי חודשי כולל</code></div></div>
+            <div class="field-row"><div class="fr-label">קטגוריה</div><div class="fr-val">קבוצה — לדוגמה: <code>מנויים</code> / <code>שיעורים פרטיים</code> / <code>ציוד</code></div></div>
+            <div class="field-row"><div class="fr-label">מחיר (₪)</div><div class="fr-val">מחיר בשקלים — לדוגמה: <code>280</code></div></div>
+            <div class="field-row"><div class="fr-label">תיאור קצר</div><div class="fr-val">שורת הסבר קצרה — לדוגמה: <em>"גישה לכל מתקני המרכז"</em>. אופציונלי.</div></div>
+          </div>
+          <p style="font-size:.84rem;margin-top:8px;">לאחר מילוי השדות — לוחצים <strong>"הוסף"</strong>. הפריט מופיע ברשימה. ניתן להוסיף עד <strong>25 פריטים</strong>. ניתן לנקות את כל הרשימה בלחיצה על <strong>"נקה הכל"</strong>.</p>
+        </div>
+      </div>
+
+      <div class="box box-tip">
+        <div class="box-icon">💡</div>
+        <div>לא חייבים להוסיף עכשיו — ניתן לדלג ולהוסיף מוצרים לאחר ההקמה מ<strong>מכירות → קטלוג</strong>. ניתן להוסיף כמות בלתי מוגבלת שם.</div>
+      </div>
+
+      <!-- שלב 4 -->
+      <h2 class="sec" style="margin-top:24px;">שלב 4 / 4 — הזמנת הצוות</h2>
+      <p style="font-size:.87rem;color:var(--text2);">השלב האחרון — שליחת קישורי הצטרפות לצוות דרך WhatsApp. שני כפתורים:</p>
+
+      <div class="field-table">
+        <div class="field-row">
+          <div class="fr-label" style="color:#25D366;font-weight:800;">WhatsApp — שלח הזמנה לעובדים</div>
+          <div class="fr-val">שולח לינק הצטרפות עם הגדרת תפקיד <strong>עובד רגיל (MEMBER)</strong>. שלחו לכל מאמן ואיש צוות. מי שנכנס בקישור זה ימלא טופס הצטרפות ויופיע ב"ממתינים לאישור".</div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label">הוספת שותף / מנהל ראשי</div>
+          <div class="fr-val">שולח לינק הצטרפות עם הגדרת תפקיד <strong>מנהל ראשי (ADMIN)</strong>. שלחו רק לשותף עסקי שצריך גישה מלאה — לא לכל מאמן.</div>
+        </div>
+      </div>
+
+      <div class="scenario" style="margin-top:12px;">
+        <div class="sc-title">מה קורה אחרי שעובד לוחץ על הלינק</div>
+        <div class="sc-step"><span class="sc-num">1</span>הדפדפן נפתח עם טופס הצטרפות — הקוד ממולא אוטומטית</div>
+        <div class="sc-step"><span class="sc-num">2</span>העובד ממלא שם, שנת לידה, סיסמה ומאשר תקנון</div>
+        <div class="sc-step"><span class="sc-num">3</span>הבקשה מגיעה לרשימת "ממתינים לאישור" בטאב <strong>חברי מועדון</strong></div>
+        <div class="sc-step"><span class="sc-num">4</span>אתם לוחצים "אשר" — העובד מקבל גישה למערכת</div>
+      </div>
+
+      <div class="box box-good" style="margin-top:10px;">
+        <div class="box-icon">✅</div>
+        <div>לאחר לחיצה על <strong>"סיום והתחלת עבודה 🚀"</strong> — אשף ההקמה נסגר, מוזרמת אנימציית קונפטי ומרכז הכושר מוכן לעבודה!</div>
+      </div>
+
+      <!-- ניווט בתוך האשף -->
+      <h2 class="sec" style="margin-top:24px;">ניווט בתוך האשף</h2>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">המשך</div><div class="fr-val">עובר לשלב הבא ושומר את מה שמילאתם</div></div>
+        <div class="field-row"><div class="fr-label">חזור</div><div class="fr-val">חוזר לשלב הקודם (מופיע משלב 2 ואילך)</div></div>
+        <div class="field-row"><div class="fr-label">דלג על שלב זה</div><div class="fr-val">עובר לשלב הבא <em>ללא שמירה</em> — שימושי אם תרצו לחזור מאוחר יותר</div></div>
+        <div class="field-row"><div class="fr-label">פס ההתקדמות</div><div class="fr-val">בראש החלונית — מתמלא בכחול: 25% / 50% / 75% / 100%</div></div>
+      </div>
+
+      <!-- הגדרות ספורט ייחודיות -->
+      <h2 class="sec" style="margin-top:24px;">הגדרות ספורט ייחודיות — הגדרות → הגדרות חנות</h2>
+      <p style="font-size:.87rem;color:var(--text2);">לאחר סיום האשף, תחת <strong>הגדרות → הגדרות חנות</strong> תמצאו בלוק <strong>"הגדרות ספורט"</strong> — ייחודי לסוג עסק זה. כל הגדרה נשמרת בלחיצה על <strong>"שמור הגדרות חנות"</strong> בתחתית הדף.</p>
+
+      <div class="field-table">
+        <div class="field-row">
+          <div class="fr-label"><span class="tag tag-c">הגדרה</span>שיעור ניסיון חינם</div>
+          <div class="fr-val">תיבת סימון: <strong>"אפשר שיעור ניסיון חינם לחברים חדשים"</strong>. כשמסומנת — חברים חדשים יכולים לרשום שיעור ניסיון. כשלא מסומנת — כולם צריכים מנוי לפני כניסה.</div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label"><span class="tag tag-c">הגדרה</span>מדיניות ביטול מנוי</div>
+          <div class="fr-val">שדה טקסט חופשי שמוצג לחבר בעת בקשת ביטול — כתבו בבירור: <em>"ניתן לבטל מנוי עד 14 ימים לפני תחילתו, ללא עלות"</em>.</div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label"><span class="tag tag-c">הגדרה</span>מדיניות הקפאת מנוי</div>
+          <div class="fr-val">שדה טקסט חופשי — תנאי הקפאה: <em>"ניתן להקפיא מנוי פעם אחת בשנה, עד 30 יום"</em>. השאירו ריק אם לא מאפשרים הקפאה.</div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label"><span class="tag tag-c">הגדרה</span>הצהרת כשירות גופנית / כתב ויתור</div>
+          <div class="fr-val">טקסט שחבר חדש חייב לקרוא ולאשר בעת הרשמה. לדוגמה: <em>"אני מצהיר/ה כי אני בריא/ה ומסוגל/ת להתאמן ועושה זאת מרצוני החופשי"</em>. השאירו ריק אם אין הצהרה.</div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label"><span class="tag tag-c">הגדרה</span>גיל מינימלי לחברות</div>
+          <div class="fr-val">מספר — הגיל המינימלי להצטרפות עצמאית. ברירת מחדל: <code>16</code>. מתחת לגיל זה ידרש אישור הורה.</div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label"><span class="tag tag-c">הגדרה</span>ימי הודעה מוקדמת לביטול</div>
+          <div class="fr-val">מספר ימים שחבר חייב להודיע מראש לפני ביטול. ברירת מחדל: <code>14</code>. לדוגמה — <code>30</code> אם אתם דורשים חודש הודעה מראש.</div>
+        </div>
       </div>
 
       <div class="box box-tip" style="margin-top:12px;">
         <div class="box-icon">💡</div>
-        <div>את ההגדרות הללו ניתן לשנות בכל עת מ<strong>הגדרות → הגדרות חנות</strong> — הן לא נעולות לאחר ההקמה.</div>
+        <div>את כל ההגדרות הללו ניתן לשנות בכל עת — לא נעולות לאחר ההקמה. גישה: <strong>הגדרות ← גלילה ל"הגדרות חנות" ← הגדרות ספורט</strong>.</div>
       </div>
     </div>
 
