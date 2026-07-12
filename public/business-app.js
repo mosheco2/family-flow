@@ -18735,6 +18735,7 @@ window._generateWizardMenu = async function() {
     const resultEl = document.getElementById('wiz-v2-menu-result');
     if (!resultEl) { updateWizardUIV2(); return; }
     resultEl.innerHTML = `<div id="wiz-v2-menu-spinner" class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה תפריט...</p></div>`;
+    console.log('generating menu for:', wizardV2Data.cuisineTypes);
     try {
         const res = await fetch(`${API}/ai/generate-catalog`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -18744,10 +18745,35 @@ window._generateWizardMenu = async function() {
                 groupId: currentGroup.id
             })
         });
-        const data = await res.json();
-        wizardV2Data.menuItems = (data.success && data.items) ? data.items : [];
+        const responseText = await res.text();
+        console.log('raw response:', responseText);
+        let outerData;
+        try {
+            outerData = JSON.parse(responseText);
+        } catch(e) {
+            console.error('JSON parse error:', e, responseText);
+            resultEl.innerHTML = '<p style="color:red">שגיאה בבניית התפריט. נסה שנית.</p>';
+            return;
+        }
+        const items = (outerData.success && outerData.items) ? outerData.items : null;
+        if (items) {
+            wizardV2Data.menuItems = items;
+        } else if (outerData.result) {
+            try {
+                const parsed = JSON.parse(outerData.result);
+                wizardV2Data.menuItems = parsed.items || parsed;
+            } catch(e) {
+                console.error('JSON parse error (result field):', e, outerData.result);
+                resultEl.innerHTML = '<p style="color:red">שגיאה בבניית התפריט. נסה שנית.</p>';
+                return;
+            }
+        } else {
+            wizardV2Data.menuItems = [];
+        }
     } catch(e) {
-        wizardV2Data.menuItems = [];
+        console.error('fetch error:', e);
+        resultEl.innerHTML = '<p style="color:red">שגיאה בבניית התפריט. נסה שנית.</p>';
+        return;
     }
     updateWizardUIV2();
 };
