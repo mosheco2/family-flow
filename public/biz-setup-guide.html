@@ -2108,93 +2108,329 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
     <!-- ── 3. ניווט ── -->
     <div class="chapter" id="s-nav">
-      <div class="ch-head"><div class="ch-num">3</div><div class="ch-title">ניווט — איך מתמצאים במערכת</div></div>
+      <div class="ch-head"><div class="ch-num">3</div><div class="ch-title">ניווט במערכת</div></div>
 
-      <p style="font-size:.9rem;color:var(--text2);">בתחתית המסך יש סרגל ניווט עם 5 קבוצות. כל קבוצה פותחת תפריט עם טאבים רלוונטיים. ברשימה הבאה — <strong>רק הטאבים שקיימים במרכז כושר</strong>.</p>
+      <p style="font-size:.9rem;color:var(--text2);">הניווט הראשי נמצא בסרגל העליון של המסך. הוא מחולק ל-5 קבוצות. <strong>לחיצה על כל קבוצה פותחת תפריט</strong> עם כל הטאבים שבתוכה. שמות הטאבים במרכז הכושר/ספורט שונים במקצת משמות ברירת המחדל — המערכת מתאימה אותם אוטומטית לסוג העסק.</p>
 
-      <div class="mod">
-        <div class="mod-head"><div class="mod-icon">👥</div><div><div class="mod-name">קבוצה 1 — צוות</div><div class="mod-tag">סמל: אנשים</div></div></div>
-        <div class="mod-body">
-          <div class="actions">
-            <span class="action">⏱️ נוכחות — שעות כניסה/יציאה</span>
-            <span class="action">🗓️ משמרות — לוח שיבוץ עובדים</span>
-            <span class="action">🌐 לוח אימונים 📅 — לוח שיעורים ציבורי</span>
-            <span class="action">✅ משימות — רשימת מטלות לצוות</span>
-            <span class="action">👥 חברי מועדון 👥 — ניהול עובדי המועדון</span>
+      <!-- ═══ מפת הניווט ═══ -->
+      <div class="gnav-wrap">
+        <div class="gnav-card">
+          <div class="gnav-card-title">👥 צוות</div>
+          <div class="gnav-items">
+            <div class="gnav-item">נוכחות ⏱️</div>
+            <div class="gnav-item">משמרות 🗓️</div>
+            <div class="gnav-item">לוח אימונים 📅</div>
+            <div class="gnav-item">פרויקטים ומשימות ✅</div>
+            <div class="gnav-item">חברי מועדון 👥</div>
+          </div>
+        </div>
+        <div class="gnav-card">
+          <div class="gnav-card-title">🛒 מכירות</div>
+          <div class="gnav-items">
+            <div class="gnav-item">קופה (POS) 💰</div>
+            <div class="gnav-item">מכירות / חנות 🛍️</div>
+            <div class="gnav-item">חברים 🤝</div>
+          </div>
+        </div>
+        <div class="gnav-card">
+          <div class="gnav-card-title">📦 מלאי</div>
+          <div class="gnav-items">
+            <div class="gnav-item">תחזוקת ציוד 🔧</div>
+          </div>
+        </div>
+        <div class="gnav-card">
+          <div class="gnav-card-title">💰 כספים</div>
+          <div class="gnav-items">
+            <div class="gnav-item">תזרים מזומנים 💸</div>
+            <div class="gnav-item">דוחות 📊</div>
+          </div>
+        </div>
+        <div class="gnav-card">
+          <div class="gnav-card-title">⋯ עוד</div>
+          <div class="gnav-items">
+            <div class="gnav-item">פרסום FLOW 📢</div>
+            <div class="gnav-item">הגדרות ⚙️</div>
           </div>
         </div>
       </div>
 
+      <!-- ═══ פירוט כל קבוצה ═══ -->
+      <h2 class="sec" style="margin-top:28px;">פירוט כל קבוצת ניווט</h2>
+
+      <!-- צוות -->
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">🛍️</div><div><div class="mod-name">קבוצה 2 — מכירות</div><div class="mod-tag">סמל: שקית</div></div></div>
+        <div class="mod-head"><div class="mod-icon">👥</div><div><div class="mod-name">קבוצה 1 — צוות</div><div class="mod-tag">כולל badge: מספר משימות פתוחות</div></div></div>
         <div class="mod-body">
-          <div class="actions">
-            <span class="action">💰 קופה (POS) — מכירת מנויים ואימונים בודדים</span>
-            <span class="action">🛍️ היסטוריית מכירות — כל המכירות שנעשו</span>
-            <span class="action">🤝 חברים — ניהול כל חברי המרכז</span>
+          <p>על כפתור "צוות" מופיע badge (עיגול אדום קטן) כשיש משימות שממתינות לטיפול. המספר מתעדכן אוטומטית בכל פעם שמשימה נוצרת או נסגרת.</p>
+          <div class="field-table" style="margin-top:10px;">
+            <div class="field-row"><div class="fr-label">נוכחות ⏱️</div><div class="fr-val">שעון נוכחות דיגיטלי. כל עובד מקיש כניסה ויציאה. המנהל רואה מי נמצא כרגע ומי עזב. הנתונים נשמרים ומשמשים לחישוב שכר ודוחות.</div></div>
+            <div class="field-row"><div class="fr-label">משמרות 🗓️</div><div class="fr-val">לוח שיבוץ עובדים לפי ימים ושעות. יוצרים כאן את מי עובד מתי, וכל עובד רואה את המשמרות שלו.</div></div>
+            <div class="field-row"><div class="fr-label">לוח אימונים 📅</div><div class="fr-val">שם מותאם לספורט (במקום "יומן ציבורי"). לוח השיעורים הגלוי לכל החברים: יוגה, קרוספיט, ספינינג וכד'. חבר יכול להירשם לשיעור ישירות מכאן.</div></div>
+            <div class="field-row"><div class="fr-label">פרויקטים ומשימות ✅</div><div class="fr-val">רשימת מטלות לצוות — תיקון ציוד, הכנת חוברת מנויים, ניקיון עמוק, כל מה שצריך לבצע. ניתן להקצות לאחראי ולהגדיר תאריך יעד.</div></div>
+            <div class="field-row"><div class="fr-label">חברי מועדון 👥</div><div class="fr-val">שם מותאם לספורט (במקום "ניהול צוות"). כרטיסי החברים הרשומים במועדון — שם, סטטוס מנוי, תאריך פקיעה, היסטוריית כניסות. זהו לב המערכת לניהול המנויים.</div></div>
+          </div>
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div>הטאב "חברי מועדון" הוא ניהול חברים (Members) — לא ניהול עובדים. עובדים מנוהלים דרך "נוכחות" ו"משמרות".</div>
           </div>
         </div>
       </div>
 
+      <!-- מכירות -->
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">📦</div><div><div class="mod-name">קבוצה 3 — מלאי</div><div class="mod-tag">סמל: קופסה</div></div></div>
+        <div class="mod-head"><div class="mod-icon">🛒</div><div><div class="mod-name">קבוצה 2 — מכירות</div><div class="mod-tag">כולל badge: הזמנות חדשות שממתינות</div></div></div>
         <div class="mod-body">
-          <div class="actions">
-            <span class="action">🔧 תחזוקת ציוד — מכשירים, תקלות, תחזוקה שוטפת</span>
+          <p>על כפתור "מכירות" מופיע badge כשיש הזמנות חדשות שטרם טופלו. המספר קופץ ברגע שנכנסת הזמנה חדשה.</p>
+          <div class="field-table" style="margin-top:10px;">
+            <div class="field-row"><div class="fr-label">קופה (POS) 💰</div><div class="fr-val">קופה מלאה לביצוע עסקאות: מכירת מנויים חדשים, אימון בודד, מוצרי חנות (חולצות, בקבוקים, ספורט-בר). בוחרים פריטים, מוסיפים לסל, גובים תשלום במזומן / כרטיס / ביט.</div></div>
+            <div class="field-row"><div class="fr-label">מכירות / חנות 🛍️</div><div class="fr-val">היסטוריית כל המכירות שנעשו — כל עסקה עם תאריך, סכום, שם הקונה ואמצעי תשלום. ניתן לחפש, לסנן ולייצא לאקסל.</div></div>
+            <div class="field-row"><div class="fr-label">חברים 🤝</div><div class="fr-val">שם מותאם לספורט (במקום "לקוחות"). רשימת כל החברים הרשומים עם סטטוס מנוי, תאריך פקיעה ואפשרות לחידוש ישיר. אפשר לחפש לפי שם, טלפון, או סוג מנוי.</div></div>
           </div>
         </div>
       </div>
 
+      <!-- מלאי -->
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">💸</div><div><div class="mod-name">קבוצה 4 — כספים</div><div class="mod-tag">סמל: שטר</div></div></div>
+        <div class="mod-head"><div class="mod-icon">📦</div><div><div class="mod-name">קבוצה 3 — מלאי</div><div class="mod-tag">פריט אחד בלבד לספורט</div></div></div>
         <div class="mod-body">
-          <div class="actions">
-            <span class="action">💸 תזרים מזומנים — הכנסות מול הוצאות</span>
-            <span class="action">📊 דוחות — סטטיסטיקות עסקיות</span>
+          <p>בסוג עסק ספורט/כושר, קבוצת המלאי מכילה טאב אחד בלבד. אין ניהול מלאי כמו מסעדה — הדגש הוא על מצב הציוד הפיזי.</p>
+          <div class="field-table" style="margin-top:10px;">
+            <div class="field-row"><div class="fr-label">תחזוקת ציוד 🔧</div><div class="fr-val">ניהול מכשירי הכושר ותשתיות המועדון: הוספת ציוד חדש לרשימה, תיעוד תקלות, פתיחת קריאת שירות, מעקב אחר ספק התחזוקה, וסימון תיקון שהושלם.</div></div>
+          </div>
+          <div class="box box-info" style="margin-top:10px;">
+            <div class="box-icon">ℹ️</div>
+            <div>אם קבוצת "מלאי" לא מופיעה לעובד — זה תקין. SENIOR ו-MEMBER לא רואים אותה אלא אם הבעלים הוסיף להם הרשאה ידנית לטאב תחזוקת ציוד.</div>
           </div>
         </div>
       </div>
 
+      <!-- כספים -->
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">⋯</div><div><div class="mod-name">קבוצה 5 — עוד</div><div class="mod-tag">סמל: שלוש נקודות</div></div></div>
+        <div class="mod-head"><div class="mod-icon">💸</div><div><div class="mod-name">קבוצה 4 — כספים</div><div class="mod-tag">גלוי לבעלים ומנהל ראשי בלבד כברירת מחדל</div></div></div>
         <div class="mod-body">
-          <div class="actions">
-            <span class="action">📢 פרסום FLOW — פרסום לחברי OneFlow</span>
-            <span class="action">⚙️ הגדרות — פרטי עסק והגדרות מתקדמות</span>
+          <p>קבוצת הכספים אינה מוצגת לעובדים (SENIOR ו-MEMBER) כל עוד הבעלים לא מעניק להם הרשאה מפורשת. זה מונע חשיפת נתונים פיננסיים רגישים.</p>
+          <div class="field-table" style="margin-top:10px;">
+            <div class="field-row"><div class="fr-label">תזרים מזומנים 💸</div><div class="fr-val">כל ההכנסות וההוצאות של המועדון בציר זמן: הכנסות ממנויים, תשלומים לספקי ציוד, שכר מאמנים, הוצאות שוטפות. ניתן להוסיף הוצאות ידניות ולראות תמונה חודשית/שנתית.</div></div>
+            <div class="field-row"><div class="fr-label">דוחות 📊</div><div class="fr-val">דוחות עסקיים מפורטים: מכירות לפי חודש, ממוצע עסקה, מספר מנויים לאורך זמן, כניסות לפי שעה/יום, ועוד. ניתן לייצא לאקסל.</div></div>
           </div>
         </div>
       </div>
 
-      <h2 class="sec" style="margin-top:28px;">לוח הבקרה הראשי (מסך ראשי)</h2>
-      <p style="font-size:.87rem;color:var(--text2);">מנהל מרכז הכושר רואה בלוח הבקרה נתונים מרכזיים ו-5 לשוניות:</p>
-
-      <div class="field-table" style="margin-top:10px;margin-bottom:14px;">
-        <div class="field-row"><div class="fr-label">🏃 מנויים פעילים</div><div class="fr-val">כמה חברים עם מנוי תקף כרגע.</div></div>
-        <div class="field-row"><div class="fr-label">⏳ פג תוקף בקרוב</div><div class="fr-val">חברים שמנויים פוגים ב-7 הימים הקרובים — לפנות אליהם לחידוש.</div></div>
-        <div class="field-row"><div class="fr-label">🚪 כניסות היום</div><div class="fr-val">כמה צ'ק-אינים נרשמו היום.</div></div>
-        <div class="field-row"><div class="fr-label">👥 בפנים כרגע</div><div class="fr-val">כמה חברים נמצאים פיזית במרכז עכשיו.</div></div>
-        <div class="field-row"><div class="fr-label">😴 לא אימנו 30 יום</div><div class="fr-val">חברים שלא הגיעו חודש — בסיכון לאיבוד. כדאי לפנות אליהם.</div></div>
-        <div class="field-row"><div class="fr-label">💰 הכנסה החודש</div><div class="fr-val">סך כל המכירות והמנויים שנמכרו החודש.</div></div>
+      <!-- עוד -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">⋯</div><div><div class="mod-name">קבוצה 5 — עוד</div><div class="mod-tag">כלים נוספים ופרסום</div></div></div>
+        <div class="mod-body">
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">פרסום FLOW 📢</div><div class="fr-val">שליחת מבצעים ומסרים לחברי רשת OneFlow. משתמשים ב-AI כדי ליצור טקסט שיווקי, מגדירים קהל יעד, ומפרסמים. גלוי לכל התפקידים — אך בעלי תפקיד נמוך לא יכולים לפרסם ללא אישור.</div></div>
+            <div class="field-row"><div class="fr-label">הגדרות ⚙️</div><div class="fr-val">הגדרות העסק, לוגו, שעות פעילות, הגדרות ספורט ייחודיות (גיל מינימום, מדיניות ביטול, מדיניות הקפאה, טופס ויתור). גלוי לבעלים/מנהל ראשי (ADMIN) בלבד.</div></div>
+          </div>
+        </div>
       </div>
 
-      <div class="actions">
-        <span class="action">👥 חברים — לשונית ניהול חברים</span>
-        <span class="action">📅 לוח שיעורים — שיעורי היום/השבוע</span>
-        <span class="action">🔔 התראות — מנויים שפגים, ציוד לתחזוקה</span>
-        <span class="action">💳 תשלומים — חיובים ממתינים</span>
-        <span class="action">👨‍🏫 מאמנים — שעות ושכר</span>
+      <!-- ═══ הרשאות לפי תפקיד ═══ -->
+      <h2 class="sec" style="margin-top:28px;">הרשאות גישה לפי תפקיד — ספורט</h2>
+      <p style="font-size:.87rem;color:var(--text2);">כל תפקיד מקבל ברירת מחדל קבועה בקוד. הבעלים יכול לשנות הרשאות בנפרד לכל עובד דרך "חברי מועדון". טאבים שאינם בהרשאת העובד מופיעים אפורים עם 🔒 ואינם לחיצים. לגבי SENIOR ו-MEMBER — קבוצות כספים ומלאי לא מוצגות כלל אלא אם יש להם הרשאה מפורשת לאחד הטאבים שבתוכן.</p>
+
+      <div class="field-table" style="margin-top:12px;">
+        <div class="field-row">
+          <div class="fr-label" style="min-width:140px;">בעלים / מנהל ראשי<br><span style="font-size:.75rem;color:var(--text3);">ADMIN</span></div>
+          <div class="fr-val">
+            גישה לכל 13 טאבי הספורט ללא הגבלה, כולל הגדרות ⚙️.<br>
+            <strong>כל הקבוצות גלויות: צוות, מכירות, מלאי, כספים, עוד.</strong><br>
+            <span style="font-size:.8rem;color:var(--text3);">טאבים: ראשי, נוכחות, משמרות, לוח אימונים, פרויקטים ומשימות, חברי מועדון, קופה, מכירות/חנות, חברים, תחזוקת ציוד, תזרים מזומנים, דוחות, פרסום FLOW, הגדרות.</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label" style="min-width:140px;">מנהל משמרת (אחמ"ש)<br><span style="font-size:.75rem;color:var(--text3);">MANAGER</span></div>
+          <div class="fr-val">
+            גישה לכל מודולי הספורט — עוקף את פילטר סוג העסק כמו ADMIN, אך מוגבל לטאבים שבפרמטרי ברירת המחדל שלו.<br>
+            <strong>טאבים נגישים:</strong> ראשי, נוכחות, משמרות, לוח אימונים, פרויקטים ומשימות, מכירות/חנות, קופה, חברים, תחזוקת ציוד.<br>
+            <strong>טאבים נעולים 🔒:</strong> חברי מועדון, תזרים מזומנים, דוחות, פרסום FLOW, הגדרות — מוצגים אפורים ולא לחיצים.<br>
+            <span style="font-size:.8rem;color:var(--text3);">קבוצות כספים, עוד — נעולות (כל הטאבים שבהן אינם בהרשאתו).</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label" style="min-width:140px;">עובד בכיר / אחראי<br><span style="font-size:.75rem;color:var(--text3);">SENIOR</span></div>
+          <div class="fr-val">
+            <strong>טאבים נגישים:</strong> ראשי, נוכחות, משמרות, פרויקטים ומשימות, קופה (POS).<br>
+            <strong>קבוצות שנסתרות לחלוטין:</strong> מלאי, כספים (כולל תזרים ודוחות).<br>
+            <strong>טאבים שנסתרים בקבוצת צוות:</strong> לוח אימונים, חברי מועדון — לא ניתנים לגישה ללא הרשאה מיוחדת.<br>
+            <strong>קבוצת מכירות:</strong> מוצגת אך רק קופה נגישה — מכירות/חנות וחברים נעולים 🔒.
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="fr-label" style="min-width:140px;">עובד רגיל / איש צוות<br><span style="font-size:.75rem;color:var(--text3);">MEMBER</span></div>
+          <div class="fr-val">
+            <strong>טאבים נגישים:</strong> ראשי, נוכחות, משמרות, פרויקטים ומשימות.<br>
+            <strong>קבוצות שנסתרות לחלוטין:</strong> מכירות, מלאי, כספים — לא מוצגות כלל.<br>
+            <strong>קבוצת צוות:</strong> מוצגת אך לוח אימונים וחברי מועדון נסתרים ← גישה רק לנוכחות, משמרות ומשימות.
+          </div>
+        </div>
       </div>
 
-      <h2 class="sec" style="margin-top:20px;">פעולות מהירות מלוח הבקרה</h2>
-      <div class="actions">
-        <span class="action">🚪 צ'ק-אין — רשמו כניסת חבר</span>
-        <span class="action">👥 חברים — כרטיסי חברים</span>
-        <span class="action">🗓️ שיעורים — לוח שיעורים</span>
-        <span class="action">👨‍🏫 מאמנים — ניהול מאמנים</span>
-        <span class="action">🎯 לידים — פניות חדשות</span>
-        <span class="action">🔔 התראות — כל ההתראות</span>
-        <span class="action">📋 הצהרות — ניהול הצהרות ויתור</span>
-        <span class="action">📊 דוחות — דוחות מהירים</span>
+      <div class="box box-tip" style="margin-top:12px;">
+        <div class="box-icon">💡</div>
+        <div>הבעלים יכול לשנות הרשאות לכל עובד בנפרד: כנסו לטאב "חברי מועדון" ← לחצו על שם העובד ← ערכו הרשאות. שינוי בהרשאה נכנס לתוקף בכניסה הבאה של העובד למערכת.</div>
+      </div>
+
+      <!-- ═══ לוח הבקרה — מנהל ═══ -->
+      <h2 class="sec" style="margin-top:28px;">לוח הבקרה — מסך ראשי (תצוגת מנהל)</h2>
+      <p style="font-size:.87rem;color:var(--text2);">לוח הבקרה נטען אוטומטית בכל כניסה למערכת. המראה שלו שונה לפי תפקיד: מנהל (ADMIN / MANAGER) רואה את לוח הבקרה הייעודי לספורט — שאר התפקידים רואים לוח עובד.</p>
+
+      <!-- כרטיס גיבור -->
+      <div class="mod" style="margin-top:10px;">
+        <div class="mod-head"><div class="mod-icon">🏋️</div><div><div class="mod-name">כותרת לוח הבקרה</div><div class="mod-tag">גלוי למנהל בלבד</div></div></div>
+        <div class="mod-body">
+          <p>בחלק העליון של הדף מופיעה כותרת "ממשק מנהל מועדון" על רקע מעבר צבע סגול-כחול (indigo→violet). מתחתיה — באנר התראה כתום (אם קיים) ולאחריו 6 כרטיסי KPI.</p>
+        </div>
+      </div>
+
+      <!-- באנר התראה אורנג' -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🔔</div><div><div class="mod-name">באנר התראת מנויים פגים</div><div class="mod-tag">מופיע אוטומטית — רק כשרלוונטי</div></div></div>
+        <div class="mod-body">
+          <p>אם קיימים חברים שמנויים שלהם פגים <strong>תוך 7 ימים</strong> — מופיע באנר כתום מעל ה-KPIs. הוא כולל:</p>
+          <div class="field-table" style="margin-top:8px;">
+            <div class="field-row"><div class="fr-label">כמה מנויים פגים</div><div class="fr-val">מספר החברים שהמנוי שלהם פוקע תוך 7 ימים — מחושב בזמן אמת.</div></div>
+            <div class="field-row"><div class="fr-label">שמות ראשונים</div><div class="fr-val">עד 2 שמות מוצגים בבאנר (ו"עוד X") — לדוגמה: "יוסי לוי, רחל כהן ועוד 3".</div></div>
+            <div class="field-row"><div class="fr-label">לחיצה על הבאנר</div><div class="fr-val">פותחת מסך התראות מלא עם רשימת כל המנויים הפגים ואפשרות לחידוש בלחיצה אחת.</div></div>
+          </div>
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div>אם הבאנר לא מופיע — אין מנויים שפגים בשבוע הקרוב. זה מצב תקין ורצוי. הבאנר נעלם אוטומטית כשכל המנויים שחודשו.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6 KPIs -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📈</div><div><div class="mod-name">6 כרטיסי KPI — מדדי מועדון</div><div class="mod-tag">גלוי למנהל בלבד — לחיצה פותחת מסך מפורט</div></div></div>
+        <div class="mod-body">
+          <p>מיד אחרי הכותרת (ולאחר הבאנר, אם קיים) מופיעות 6 כרטיסיות KPI בגריד 3×2 עמודות. <strong>לחיצה על כל כרטיס פותחת מסך ייעודי</strong> — לא צריך לנווט בתפריט.</p>
+          <div class="field-table" style="margin-top:10px;">
+            <div class="field-row">
+              <div class="fr-label">🏃 מנויים פעילים</div>
+              <div class="fr-val">
+                מספר החברים שיש להם מנוי תקף ברגע זה (לא פג, לא מוקפא). הצבע: כחול-סגול (indigo) תמיד.<br>
+                <strong>לחיצה →</strong> פותחת מסך "חברי מועדון" ומסננת לחברים עם סטטוס "פעיל" בלבד.
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="fr-label">⏳ פג תוקף בקרוב</div>
+              <div class="fr-val">
+                חברים שמנויים שלהם פגים ב-30 הימים הקרובים (לא רק 7 כמו הבאנר). כשהמספר גדול מ-0 — הכרטיס הופך כתום.<br>
+                <strong>לחיצה →</strong> פותחת מסך התראות עם 3 רשימות: פגים בקרוב, לא אימנו 30 יום, ומוקפאים.
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="fr-label">✅ כניסות היום</div>
+              <div class="fr-val">
+                מספר הצ'ק-אינים שנרשמו היום (מתאפס בחצות). הצבע: ירוק (emerald) תמיד.<br>
+                <strong>לחיצה →</strong> פותחת מסך צ'ק-אין עם רשימת הכניסות של היום בתחתית.
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="fr-label">🔴 בפנים כרגע</div>
+              <div class="fr-val">
+                חברים שעשו צ'ק-אין היום אך עדיין לא יצאו — נמצאים פיזית במועדון ברגע זה. כשהמספר גדול מ-0 — הכרטיס הופך אדום.<br>
+                <strong>לחיצה →</strong> פותחת מסך צ'ק-אין כדי לראות מי בפנים.
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="fr-label">⚠️ לא אימנו 30 יום</div>
+              <div class="fr-val">
+                חברים עם מנוי פעיל שלא ביצעו אפילו כניסה אחת ב-30 הימים האחרונים — בסיכון לנטישה. כשהמספר גדול מ-0 — הכרטיס הופך אדום. כשהוא 0 — הכרטיס ירוק (חיובי).<br>
+                <strong>לחיצה →</strong> פותחת מסך התראות בחלק "לא אימנו 30 יום+" עם כפתור חיוג לכל אחד.
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="fr-label">💰 הכנסה החודש</div>
+              <div class="fr-val">
+                סה"כ הכנסות מתחילת החודש הנוכחי (מנויים + קופה + מכירות) — מוצג בפורמט ₪1,500 וכד'. הצבע: ירוק (emerald) תמיד.<br>
+                <strong>לחיצה →</strong> פותחת מסך דוחות ספורט עם פירוט מלא.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8 פעולות מהירות -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">⚡</div><div><div class="mod-name">8 פעולות מהירות (Quick Actions)</div><div class="mod-tag">פתיחה ישירה ללא ניווט בתפריט</div></div></div>
+        <div class="mod-body">
+          <p>מתחת ל-KPIs מופיעות 8 כפתורי פעולה מהירה בגריד 4×2. כל אחד פותח מסך ייעודי (modal) בלי לעזוב את לוח הבקרה. הם מיועדים לפעולות השגרתיות שהמנהל עושה כל יום.</p>
+          <div class="steps" style="margin-top:10px;">
+            <div class="step"><div class="step-n">1</div><div class="step-body">
+              <strong>🚪 צ'ק-אין</strong>
+              <span>פותחת מסך לרישום כניסה של חבר. חיפוש לפי שם או טלפון — בחירת חבר מהרשימה — לחיצה "כניסה ✅". המסך מציג בתחתיתו גם את רשימת הכניסות של היום. יש גם אפשרות לרשום יציאה ידנית (צ'ק-אאוט) אם הנוכחות "בפנים" לא עודכנה.</span>
+            </div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body">
+              <strong>👥 חברים</strong>
+              <span>פותחת מסך ניהול חברים המלא: רשימת כל החברים עם סטטוס מנוי, אפשרות לחפש לפי שם/טלפון, לסנן לפי "פעיל / פג / מוקפא / הכל", ולהוסיף חבר חדש. לחיצה על חבר פותחת את כרטיס החבר המלא עם היסטוריה מלאה.</span>
+            </div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body">
+              <strong>🗓️ שיעורים</strong>
+              <span>פותחת את לוח השיעורים הפנימי: שיעורים לפי ימים, מי המאמן, כמה נרשמו, כמה מקומות פנויים. ניתן ללחוץ על שיעור לצפייה ברשומים, לערוך פרטים, או למחוק. ניתן גם להוסיף שיעור חדש ישירות מכאן.</span>
+            </div></div>
+            <div class="step"><div class="step-n">4</div><div class="step-body">
+              <strong>👨‍🏫 מאמנים</strong>
+              <span>פותחת רשימת המאמנים הרשומים במערכת: שם, טלפון, סוגי שיעורים, מספר שיעורים פעיל. ניתן להוסיף מאמן חדש, לערוך פרטים, ולמחוק. לכל מאמן ניתן להוסיף פרופיל קצר וצילום.</span>
+            </div></div>
+            <div class="step"><div class="step-n">5</div><div class="step-body">
+              <strong>🎯 לידים</strong>
+              <span>פותחת רשימת לידים — אנשים שהתעניינו אך טרם הצטרפו. ניתן להוסיף ליד ידנית (שם + טלפון + הערה), לסמן אותו כ"טופל", ולעקוב אחרי המעקב. כל ליד שמגיע דרך הטופס האונליין נוחת כאן אוטומטית.</span>
+            </div></div>
+            <div class="step"><div class="step-n">6</div><div class="step-body">
+              <strong>🔔 התראות</strong>
+              <span>פותחת מסך ההתראות המלא עם 3 חלקים: (א) מנויים פגים בקרוב — לחיצת "חדש" לחידוש מנוי ישיר; (ב) לא אימנו 30 יום — לחיצת "📞" לחיוג ישיר; (ג) מוקפאים — לחיצת "הפשר" להפשרת מנוי. בנוסף: אם יש ממתינים ברשימת המתנה לשיעור — מופיע גם כרזת "ממתינים לאישור מקום".</span>
+            </div></div>
+            <div class="step"><div class="step-n">7</div><div class="step-body">
+              <strong>📋 הצהרות</strong>
+              <span>פותחת ניהול טופס הויתור (waiver): עריכת תוכן טופס הויתור שחברים חותמים בהצטרפות, צפייה ברשימת חברים שחתמו ומי שטרם חתם. מחובר להגדרת טקסט הויתור שנקבע בהגדרות החנות.</span>
+            </div></div>
+            <div class="step"><div class="step-n">8</div><div class="step-body">
+              <strong>📊 דוחות</strong>
+              <span>פותחת דוחות ספורט ייעודיים: הכנסות לפי חודש בגרף, טבלת מנויים פעילים לאורך זמן, כניסות לפי יום בשבוע (מי ה"שעות השיא"), ממוצע כניסות לחבר. ניתן לייצא לאקסל.</span>
+            </div></div>
+          </div>
+
+          <div class="box box-tip" style="margin-top:14px;">
+            <div class="box-icon">💡</div>
+            <div><strong>כפתור "תפריט מלא ←"</strong> — נמצא מתחת לפעולות המהירות. לחיצה עליו מרחיבה את לוח הבקרה לתצוגת הניווט המלאה של כל הטאבים, ללא הסתרה. שימושי כשרוצים להגיע לטאב שאינו בפעולות המהירות (כגון תזרים מזומנים).</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ לוח הבקרה — עובד ═══ -->
+      <h2 class="sec" style="margin-top:28px;">לוח הבקרה — תצוגת עובד (SENIOR / MEMBER)</h2>
+      <p style="font-size:.87rem;color:var(--text2);">כשעובד (SENIOR או MEMBER) נכנס למערכת — הוא רואה לוח עובד שונה לחלוטין מלוח המנהל. הוא מתמקד רק במה שרלוונטי אליו ישירות.</p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">👤</div><div><div class="mod-name">רכיבי לוח הבקרה לעובד</div><div class="mod-tag">אוטומטי לפי תפקיד</div></div></div>
+        <div class="mod-body">
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body">
+              <strong>ברכה ותאריך</strong>
+              <span>בראש המסך מופיעה ברכה אישית "שלום [שם החבר]" + התאריך של היום ושם היום בשבוע.</span>
+            </div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body">
+              <strong>שעון נוכחות</strong>
+              <span>כפתור גדול ובולט — "כניסה ✅" או "יציאה 🏁" — בהתאם לסטטוס הנוכחות הנוכחי. לחיצה מבצעת תיעוד כניסה/יציאה ישירות.</span>
+            </div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body">
+              <strong>משמרות קרובות</strong>
+              <span>רשימת 3 המשמרות הקרובות ביותר שהעובד משובץ אליהן — תאריך, שעת תחילה וסיום.</span>
+            </div></div>
+            <div class="step"><div class="step-n">4</div><div class="step-body">
+              <strong>המשימות שלי</strong>
+              <span>משימות שהוקצו לעובד הספציפי הזה שטרם הושלמו — שם המשימה ותאריך יעד. לחיצה על משימה פותחת פרטים ואפשרות לסמן הושלמה.</span>
+            </div></div>
+          </div>
+          <div class="box box-info" style="margin-top:12px;">
+            <div class="box-icon">ℹ️</div>
+            <div>עובד לא רואה את ה-KPIs, לא רואה את הפעולות המהירות ולא רואה נתונים כספיים — אלה מוסתרים לחלוטין. זה מכוון ונשלט על ידי הקוד ולא ניתן לשנותו ללא שינוי תפקיד.</div>
+          </div>
+        </div>
       </div>
     </div>
 
