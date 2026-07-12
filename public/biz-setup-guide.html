@@ -2920,75 +2920,263 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     <div class="chapter" id="s-team">
       <div class="ch-head"><div class="ch-num">6</div><div class="ch-title">ניהול צוות</div></div>
 
-      <h2 class="sec">תפקידי עובדים במרכז כושר</h2>
-      <p style="font-size:.87rem;color:var(--text2);">אלה התפקידים שניתן להקצות לעובדים. לכל תפקיד יש הרשאות שונות ולוח בקרה מותאם:</p>
-
-      <div class="field-table" style="margin-top:10px;">
-        <div class="field-row"><div class="fr-label">💰 קופאי</div><div class="fr-val">גישה לקופה (POS), מכירות ותשלומים בלבד. לא רואה מידע ניהולי.</div></div>
-        <div class="field-row"><div class="fr-label">🎧 נציג שירות</div><div class="fr-val">מטפל בפניות חברים, רואה כרטיסי חברים ומנויים. אין גישה לכספים.</div></div>
-        <div class="field-row"><div class="fr-label">📋 מנהל משמרת</div><div class="fr-val">אחראי על המשמרת: שיבוץ, נוכחות, משימות. רואה יותר מעובד רגיל.</div></div>
-        <div class="field-row"><div class="fr-label">🧹 מנקה / אחזקה</div><div class="fr-val">רואה רק נוכחות ומשמרות. לא נחשף לנתוני חברים או כספים.</div></div>
-        <div class="field-row"><div class="fr-label">🏢 מנהל סניף</div><div class="fr-val">גישה כמעט מלאה — ניהול צוות, חברים, מלאי, כספים. אין גישה להגדרות חשבון.</div></div>
+      <!-- א. מי רואה את הטאב -->
+      <h2 class="sec">א. מי רואה את טאב "חברי מועדון 👥"</h2>
+      <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">
+        הטאב נקרא <strong>חברי מועדון 👥</strong> בסביבת ספורט (בניגוד לעסקים אחרים שם הוא "עובדים"). הטאב גלוי רק לשני סוגי משתמשים:
+      </p>
+      <div class="field-table" style="margin-bottom:14px;">
+        <div class="field-row"><div class="fr-label">👑 ADMIN (בעלים / מנהל ראשי)</div><div class="fr-val">תמיד רואה את הטאב — גם אם ההרשאה הוסרה ידנית. הקוד אוכף זאת בנוקשות.</div></div>
+        <div class="field-row"><div class="fr-label">🔑 בעל חשבון (account owner)</div><div class="fr-val">הראשון שפתח את העסק במערכת — גם הוא תמיד רואה את הטאב ללא קשר לתפקיד שהוגדר לו.</div></div>
+        <div class="field-row"><div class="fr-label">🚫 שאר התפקידים</div><div class="fr-val">MEMBER / SENIOR / MANAGER לא רואים את הטאב כברירת מחדל, אלא אם ניתנה להם הרשאה מפורשת ב"הגדרות הרשאות".</div></div>
       </div>
-
-      <div class="box box-tip" style="margin-top:14px;">
+      <div class="box box-tip">
         <div class="box-icon">💡</div>
-        <div><strong>מאמנים</strong> מנוהלים בנפרד (ראו פרק 5) ולא דרך ניהול הצוות.</div>
+        <div>גם לקבוצת ניווט "כספים" ו"מלאי" — אחרים מוסתרות אוטומטית מ-MEMBER ו-SENIOR אלא אם ניתנה הרשאה ספציפית לכל טאב.</div>
       </div>
 
-      <!-- MEMBERS -->
+      <!-- ב. ארבעת תפקידי המערכת -->
+      <h2 class="sec" style="margin-top:22px;">ב. ארבעת תפקידי המערכת</h2>
+      <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">
+        המערכת מכירה בדיוק ארבעה תפקידים. שמות אלה מופיעים כך בכל מקום — בהזמנה, בהרשאות, בתג ליד השם:
+      </p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">🔴 ADMIN<br><small>בעלים / מנהל ראשי</small></div><div class="fr-val">גישה מלאה לכל המערכת ללא יוצא מן הכלל. יכול לאשר/לסרב משמרות, לראות את כל דוחות הכספים, לערוך הרשאות לאחרים, למחוק עובדים. התג שלו מוצג <strong>בסגול</strong> ברשימת חברי הצוות.</div></div>
+        <div class="field-row"><div class="fr-label">🟠 MANAGER<br><small>מנהל משמרת (אחמ"ש)</small></div><div class="fr-val">ברירת מחדל: נוכחות ⏱️, משמרות 🗓️, לוח אימונים 📅, חנות, מחסן, ציוד, משימות, אקדמיה, מכירות, קופה, חברים. לא רואה כספים ותקציב אלא אם ניתנה הרשאה. תג <strong>כתום</strong>.</div></div>
+        <div class="field-row"><div class="fr-label">🟡 SENIOR<br><small>עובד בכיר / אחראי</small></div><div class="fr-val">ברירת מחדל: נוכחות ⏱️, משמרות 🗓️, מחסן, משימות, אקדמיה, קופה. לא רואה חברים, כספים, מכירות. תג <strong>צהוב</strong>.</div></div>
+        <div class="field-row"><div class="fr-label">🟢 MEMBER<br><small>עובד רגיל / איש צוות</small></div><div class="fr-val">ברירת מחדל: נוכחות ⏱️, משמרות 🗓️, משימות, אקדמיה בלבד. ה"תג" שלו מוצג בירוק ברשימה. הרשאות מינימליות — אידיאלי לעובד חדש או לאיש צוות ביצועי.</div></div>
+      </div>
+      <div class="box box-tip" style="margin-top:12px;">
+        <div class="box-icon">💡</div>
+        <div><strong>אין "קופאי", "נציג שירות" או "מנקה"</strong> כתפקידי מערכת. אלה הם <em>ארבעת</em> התפקידים היחידים שקיימים. אם אתם רוצים ש"מנקה" יראה רק משמרות — צרו אותו כ-MEMBER ובטלו ידנית את הטאבים שאינם רלוונטיים בהגדרות הרשאות.</div>
+      </div>
+
+      <!-- ג. רשימת הצוות -->
+      <h2 class="sec" style="margin-top:22px;">ג. רשימת חברי הצוות — מה רואים</h2>
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">👥</div><div><div class="mod-name">ניהול עובדים</div><div class="mod-tag">צוות › ניהול צוות</div></div></div>
+        <div class="mod-head"><div class="mod-icon">👥</div><div><div class="mod-name">רשימת הצוות</div><div class="mod-tag">חברי מועדון 👥</div></div></div>
         <div class="mod-body">
-          <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הצטרפות עובד</strong><span>העובד מצטרף עם קוד העסק (ראו פרק 1). הוא מופיע ברשימת "ממתינים לאישור".</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>אישור ותפקיד</strong><span>לחצו "אשר" ← בחרו תפקיד (קופאי / נציג שירות / מנהל משמרת / מנקה / מנהל סניף).</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>הוספת פרטים</strong><span>שכר שעתי, טלפון, מידע נוסף — אופציונלי אך עוזר לדוחות שכר.</span></div></div>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">כל עובד שמחובר לעסק מופיע בשורה. כל שורה מכילה:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🔤 אות ראשונה (אווטאר)</div><div class="fr-val">עיגול עם האות הראשונה של כינוי העובד — נוצר אוטומטית.</div></div>
+            <div class="field-row"><div class="fr-label">📛 שם + תפקיד</div><div class="fr-val">כינוי העובד + תג צבעוני לפי התפקיד (מנהל / עובד בכיר / מנהל משמרת / עובד).</div></div>
+            <div class="field-row"><div class="fr-label">💰 יתרה</div><div class="fr-val">סכום בשקלים — יתרת חוב/זכות שצברה בסביבת הספורט (לדוגמה: תשלומים, עמלות).</div></div>
+            <div class="field-row"><div class="fr-label">⚙️ הגדרות שכר</div><div class="fr-val"><strong>ADMIN בלבד.</strong> פותח חלון "הגדרות שכר" — שכר שעתי ויעד שעות מינימום. ראו סעיף ה.</div></div>
+            <div class="field-row"><div class="fr-label">🛡️ הרשאות</div><div class="fr-val"><strong>ADMIN בלבד.</strong> פותח חלון "סיווג וגישה למערכת". ראו סעיף ד.</div></div>
+            <div class="field-row"><div class="fr-label">🗑️ מחיקה</div><div class="fr-val"><strong>ADMIN בלבד.</strong> מסיר את העובד מהעסק. לא מופיע על החשבון שלכם עצמכם.</div></div>
+            <div class="field-row"><div class="fr-label">💚 הזמן WhatsApp</div><div class="fr-val"><strong>ADMIN בלבד.</strong> כפתור ירוק — פותח מודל הזמנה. ראו סעיף ג2.</div></div>
           </div>
         </div>
       </div>
 
-      <!-- SHIFTS -->
+      <!-- ג2. הזמנת עובד -->
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">🗓️</div><div><div class="mod-name">משמרות</div><div class="mod-tag">צוות › משמרות</div></div></div>
+        <div class="mod-head"><div class="mod-icon">💚</div><div><div class="mod-name">הזמנת עובד חדש — WhatsApp</div><div class="mod-tag">כפתור "הזמן עובד" › ADMIN בלבד</div></div></div>
         <div class="mod-body">
-          <p>לוח שיבוץ שבועי — מי עובד מתי, באיזה שעות, באיזה תחנה.</p>
-          <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הוסיפו משמרת</strong><span>לחצו על תא ריק בלוח ← בחרו עובד, שעת התחלה, שעת סיום.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>שכפול שבוע</strong><span>לחצו "שכפל שבוע" ← המשמרות הקיימות מועתקות לשבוע הבא. חוסך זמן ניהול.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>עובד רואה את המשמרת שלו</strong><span>כל עובד רואה ישירות בנייד את המשמרות שלו — ללא צורך לשלוח הודעות ידניות.</span></div></div>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">
+            לחיצה על הכפתור הירוק פותחת מודל הזמנה עם בורר תפקיד. בחרו את התפקיד הרצוי:
+          </p>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">עובד רגיל / איש צוות</div><div class="fr-val">ייצור קישור עם <code>role=MEMBER</code></div></div>
+            <div class="field-row"><div class="fr-label">עובד בכיר / אחראי</div><div class="fr-val">ייצור קישור עם <code>role=SENIOR</code></div></div>
+            <div class="field-row"><div class="fr-label">מנהל משמרת (אחמ"ש)</div><div class="fr-val">ייצור קישור עם <code>role=MANAGER</code></div></div>
+            <div class="field-row"><div class="fr-label">בעלים / מנהל ראשי</div><div class="fr-val">ייצור קישור עם <code>role=ADMIN</code></div></div>
+          </div>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">לאחר לחיצת "שלח הזמנה" — WhatsApp נפתח אוטומטית עם הודעה מוכנה שמכילה קישור הצטרפות בפורמט:</p>
+          <div class="code-block" style="direction:ltr;text-align:left;background:var(--bg2);border-radius:6px;padding:8px 12px;font-size:.82rem;margin-bottom:12px;">
+            https://[domain]/business.html?code=XXXX&role=MEMBER
+          </div>
+          <p style="font-size:.87rem;color:var(--text2);">העובד לוחץ על הקישור, נרשם, ומצטרף ישירות עם הרשאות ברירת המחדל של אותו תפקיד — <strong>ללא צורך בהגדרה ידנית</strong>.</p>
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div>אפשר לשלוח את הקישור גם ב-SMS, מייל, או כל ערוץ אחר — הוא עובד לכל אורכם. תוקף הקוד ב-URL הוא קוד הצטרפות קבוע של הקבוצה.</div>
           </div>
         </div>
       </div>
 
-      <!-- TIMECLOCK -->
+      <!-- ד. הרשאות -->
+      <h2 class="sec" style="margin-top:22px;">ד. חלון "סיווג וגישה למערכת 🔐" — הרשאות</h2>
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">⏱️</div><div><div class="mod-name">נוכחות</div><div class="mod-tag">צוות › נוכחות</div></div></div>
+        <div class="mod-head"><div class="mod-icon">🛡️</div><div><div class="mod-name">הגדרת הרשאות לעובד</div><div class="mod-tag">כפתור 🛡️ ← ADMIN בלבד</div></div></div>
         <div class="mod-body">
-          <p>עובד מגיע לעבודה — לוחץ "כניסה". עוזב — לוחץ "יציאה". כל שעה נרשמת אוטומטית.</p>
-          <div class="actions">
-            <span class="action">דוח שעות לחודש</span>
-            <span class="action">תיקון שעה ידנית (מנהל בלבד)</span>
-            <span class="action">ייצוא לחישוב שכר</span>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:12px;">לחיצה על 🛡️ ליד עובד פותחת את מודל ההרשאות. הוא מחולק לשלושה חלקים:</p>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:6px;">חלק 1 — בחירת תפקיד</h3>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:8px;">
+            תפריט נפתח עם ארבעת התפקידים. <strong>ברגע שמשנים תפקיד — המערכת בוחרת אוטומטית את תיבות הסימון של ברירת המחדל לאותו תפקיד</strong>. לדוגמה: בחרתם MANAGER ← המערכת מסמנת אוטומטית: נוכחות, משמרות, לוח אימונים, חנות, מחסן, ציוד, משימות, אקדמיה, מכירות, קופה, חברים.
+          </p>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:6px;margin-top:12px;">חלק 2 — כרטיסיות גישה (checkboxes)</h3>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:8px;">
+            רשת תיבות סימון לכל הטאבים במערכת (חוץ מ-feed שתמיד גלוי לכולם). תוכלו לסמן/לבטל סימון ידנית <strong>אחרי</strong> בחירת תפקיד — כך יוצרים הרשאות מותאמות אישית מעבר לברירות המחדל.
+          </p>
+          <div class="box box-tip" style="margin-bottom:12px;">
+            <div class="box-icon">💡</div>
+            <div>אם אתם רוצים שמנהל משמרת <em>לא</em> יראה את טאב הכספים — בחרו MANAGER ואז בטלו את הסימון של "תזרים מזומנים". השמירה תשמור בדיוק את הבחירה הזו.</div>
           </div>
-          <div class="box box-warn" style="margin-top:10px;">
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:6px;">חלק 3 — סוג תפקיד עובד (אופציונלי)</h3>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:12px;">
+            שדה נוסף שמאפשר לסמן תת-קטגוריה של תפקיד (לדוגמה: cleaner / support / cashier / shift_manager / branch_manager). זהו שדה פנימי — אינו משפיע על הטאבים הגלויים, אך ניתן לסנן לפיו בדוחות.
+          </p>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:6px;">לחיצת "שמור הרשאות"</h3>
+          <p style="font-size:.87rem;color:var(--text2);">
+            שולח שתי קריאות: (1) עדכון הרשאות טאבים לשרת — <code>PUT /users/:id/permissions</code>; (2) עדכון סוג תפקיד — <code>PATCH /users/:id/role-type</code>. ההגדרות נכנסות לתוקף מיידית — בפעם הבאה שהעובד יכנס, הוא יראה בדיוק את הטאבים שסימנתם.
+          </p>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;margin-top:14px;">ברירות מחדל לפי תפקיד — ספורט</h3>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">ADMIN</div><div class="fr-val">כל הטאבים ללא יוצא מן הכלל</div></div>
+            <div class="field-row"><div class="fr-label">MANAGER</div><div class="fr-val">נוכחות ⏱️ · משמרות 🗓️ · לוח אימונים 📅 · חנות · מחסן · ציוד · משימות · אקדמיה · מכירות · קופה · חברים 🤝</div></div>
+            <div class="field-row"><div class="fr-label">SENIOR</div><div class="fr-val">נוכחות ⏱️ · משמרות 🗓️ · מחסן · משימות · אקדמיה · קופה</div></div>
+            <div class="field-row"><div class="fr-label">MEMBER</div><div class="fr-val">נוכחות ⏱️ · משמרות 🗓️ · משימות · אקדמיה בלבד</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ה. הגדרות שכר -->
+      <h2 class="sec" style="margin-top:22px;">ה. הגדרות שכר לעובד</h2>
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">⚙️</div><div><div class="mod-name">הגדרות שכר</div><div class="mod-tag">כפתור ⚙️ ← ADMIN בלבד</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">לחיצה על ⚙️ ליד עובד פותחת חלון קטן עם שני שדות בלבד:</p>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">💵 תעריף שכר לשעה (₪)</div><div class="fr-val">ציינו את שכר השעה של העובד. לדוגמה: 50. המערכת תשתמש בערך הזה כדי לחשב את עלות השכר לפי שעות נוכחות בדוחות.</div></div>
+            <div class="field-row"><div class="fr-label">🎯 יעד שעות מינימום בחודש</div><div class="fr-val">אופציונלי. לדוגמה: 100 שעות בחודש. אם הוגדר — ניתן לראות בדוחות הנוכחות אם העובד עמד ביעד.</div></div>
+          </div>
+          <p style="font-size:.87rem;color:var(--text2);">לחיצת "שמור" שולחת <code>POST /admin/update-settings</code> ומעדכנת את הנתונים.</p>
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div>הגדרות שכר הן <em>לכל עובד בנפרד</em>. עובד שלא הוגדר לו שכר שעתי לא ייכנס לחישוב שכר בדוחות.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ו. נוכחות / שעון נוכחות -->
+      <h2 class="sec" style="margin-top:22px;">ו. טאב נוכחות ⏱️ — שעון נוכחות</h2>
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">⏱️</div><div><div class="mod-name">שעון נוכחות</div><div class="mod-tag">נוכחות ⏱️ — כל התפקידים</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">כל עובד שיש לו הרשאה לטאב "נוכחות" (ברירת מחדל: כולם) רואה את שעון הנוכחות. הטאב מתנהג אחרת בהתאם לתפקיד:</p>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">עובד — כניסה ויציאה</h3>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>כפתור "כניסה" — כחול</strong><span>המצב ההתחלתי. כאשר העובד מגיע לעבודה — לוחץ "כניסה". המערכת מבקשת אישור GPS.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>אישור מיקום GPS</strong><span>הדפדפן/נייד שואל "האם לאפשר מיקום?" — העובד חייב ללחוץ "אשר". אם GPS חסום, נעול, לא זמין, או אם חורג יותר מ-150 מטר מהעסק (אם הוגדרה נעילת מיקום) — הכניסה נחסמת עם הודעת שגיאה.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>כפתור "יציאה (HH:MM:SS)" — אדום</strong><span>לאחר כניסה, הכפתור הופך לאדום ומציג שעון עולה בזמן אמת (שעות:דקות:שניות). בסוף המשמרת — לוחץ "יציאה". הרשומה נשמרת.</span></div></div>
+          </div>
+
+          <div class="box box-warn" style="margin-top:12px;margin-bottom:12px;">
             <div class="box-icon">⚠️</div>
-            <div>עובד שלא יצא ("שכח לצאת") — תקבלו התראה ותוכלו לתקן ידנית את שעת היציאה.</div>
+            <div><strong>GPS חובה.</strong> אם GPS לא פועל — הכניסה לא תתאפשר. כמו כן, אם הבעלים הגדיר "נעילת מיקום" — העובד חייב להיות פיזית בתחום 150 מטר מהעסק. כל ניסיון לדווח ממיקום שגוי ייחסם.</div>
+          </div>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">ADMIN — ניהול נוכחות כל הצוות</h3>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:8px;">בנוסף לכפתור הכניסה/יציאה שלו, ADMIN רואה ממשק ניהולי מלא:</p>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">📅 סינון חודש</div><div class="fr-val">תפריט נפתח לבחירת חודש — מציג את כל רישומי הנוכחות של כל הצוות לאותו חודש.</div></div>
+            <div class="field-row"><div class="fr-label">📄 ייצא PDF</div><div class="fr-val">כפתור "ייצא PDF" — יוצר דוח נוכחות מלא לחודש הנבחר בפורמט PDF מוכן להדפסה / שליחה לרואה חשבון.</div></div>
+            <div class="field-row"><div class="fr-label">✍️ דיווח נוכחות ידני</div><div class="fr-val">כפתור "דיווח נוכחות ידני" — פותח מודל שבו ADMIN מזין: עובד (תפריט נפתח), תאריך, שעת כניסה, שעת יציאה. לוחץ "שמור דיווח" → <code>POST /timeclock/manual</code>. כלי זה מיועד לתיקון מקרים שבהם עובד שכח לדווח.</div></div>
+          </div>
+
+          <div class="box box-good">
+            <div class="box-icon">✅</div>
+            <div><strong>תרחיש נפוץ:</strong> עובד שכח ללחוץ "יציאה" — ADMIN פותח "דיווח ידני", בוחר את העובד, מזין את התאריך והשעות הנכונות, ושומר. הרשומה מתעדכנת בדוח הנוכחות.</div>
           </div>
         </div>
       </div>
 
-      <!-- TASKS -->
+      <!-- ז. משמרות -->
+      <h2 class="sec" style="margin-top:22px;">ז. טאב משמרות 🗓️ — שיבוץ</h2>
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">✅</div><div><div class="mod-name">משימות</div><div class="mod-tag">צוות › משימות</div></div></div>
+        <div class="mod-head"><div class="mod-icon">🗓️</div><div><div class="mod-name">ניהול משמרות</div><div class="mod-tag">משמרות 🗓️ — כל התפקידים לפי הרשאה</div></div></div>
         <div class="mod-body">
-          <p>שייכו משימות לעובדים — ניקיון ציוד, הכנת חדר ל-spin, הזמנת חומרי ניקוי, כל מה שצריך לעקוב אחריו.</p>
-          <div class="actions">
-            <span class="action">יצירת משימה + שיוך לעובד</span>
-            <span class="action">תאריך יעד</span>
-            <span class="action">עדיפות: דחוף / רגיל / נמוך</span>
-            <span class="action">סטטוס: פתוח / בביצוע / סגור</span>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">תצוגות הטאב</h3>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">📋 רשימה</div><div class="fr-val">כל המשמרות כרשימה מסוננת — תאריך, שם עובד, שעות, סטטוס. ADMIN רואה את כולם; כל שאר התפקידים רואים רק את המשמרות שלהם.</div></div>
+            <div class="field-row"><div class="fr-label">📆 יום</div><div class="fr-val">תצוגת יום — כל המשמרות של יום אחד לפי שעות. מאפשרת לראות חפיפות ופערים.</div></div>
+            <div class="field-row"><div class="fr-label">🗓️ שבוע</div><div class="fr-val">לוח שבועי — שבעת הימים עם עמודה לכל יום. המבט המלא לשיבוץ שבועי.</div></div>
           </div>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">סטטוסי משמרת</h3>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">🟠 ממתין לאישור</div><div class="fr-val">משמרת שנוצרה על ידי עובד שאינו ADMIN — מחכה לאישור מנהל. מוצגת בכתום.</div></div>
+            <div class="field-row"><div class="fr-label">🟢 מאושרת</div><div class="fr-val">משמרת שאושרה על ידי ADMIN (או נוצרה ישירות על ידי ADMIN). מוצגת בירוק.</div></div>
+          </div>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">אישור / סירוב — ADMIN בלבד</h3>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">על כל משמרת בסטטוס "ממתין" — ADMIN יכול ללחוץ "אשר" (הופכת לירוק) או "דחה" (נמחקת).</p>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">הוספת משמרת — מה קורה</h3>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו "+ הוסף משמרת"</strong><span>נפתח מודל הוספת משמרת.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>בחרו עובד</strong><span>ADMIN רואה רשימה של <em>כל</em> העובדים (שאינם ADMIN). עובד שאינו ADMIN רואה רק את עצמו — לא יכול לשבץ אחרים.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>בחרו תאריך</strong><span>שדה תאריך רגיל.</span></div></div>
+            <div class="step"><div class="step-n">4</div><div class="step-body"><strong>בחרו תבנית שעות</strong><span>כפתורי תבנית מוכנה מהזיכרון המקומי (localStorage) של הדפדפן. ברירות המחדל: <strong>בוקר 08:00–16:00</strong> ו-<strong>ערב 16:00–23:00</strong>. לחיצה על תבנית ממלאת אוטומטית את שעות ההתחלה והסיום.</span></div></div>
+            <div class="step"><div class="step-n">5</div><div class="step-body"><strong>שעות מותאמות אישית</strong><span>ניתן לכתוב ידנית שעת התחלה ושעת סיום בשדות "שעת התחלה" ו-"שעת סיום" לכל ציר שעה שתרצו.</span></div></div>
+            <div class="step"><div class="step-n">6</div><div class="step-body"><strong>לחצו "שמור"</strong><span>אם ADMIN שמר — המשמרת מאושרת ישירות (<strong>"המשמרת שובצה!"</strong>). אם עובד שאינו ADMIN שמר — נוצרת בקשה בסטטוס "ממתין לאישור" (<strong>"הבקשה נשלחה למנהל!"</strong>).</span></div></div>
+          </div>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:6px;margin-top:14px;">תבניות משמרת</h3>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:8px;">
+            ADMIN יכול להוסיף תבניות שמיות (לדוגמה: "לילה 23:00–07:00") ולמחוק תבניות קיימות. התבניות נשמרות ב-localStorage של הדפדפן לפי מזהה הקבוצה — כלומר, תבניות שנוצרו בדפדפן אחד לא יועברו אוטומטית לדפדפן אחר.
+          </p>
+
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div><strong>מבנה פנימי:</strong> משמרות נשמרות כ<em>משימות</em> בבסיס הנתונים עם שם שמתחיל בפרפיקס <code>SHIFT|תאריך|שעת-התחלה|שעת-סיום|שם-תבנית</code>. לכן ב"משימות" לא תראו את המשמרות — הן מסוננות החוצה שם.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ח. משימות -->
+      <h2 class="sec" style="margin-top:22px;">ח. טאב משימות ✅</h2>
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">✅</div><div><div class="mod-name">משימות צוות</div><div class="mod-tag">משימות ✅ — כל התפקידים לפי הרשאה</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">
+            טאב המשימות מאפשר לשייך משימות ספציפיות לעובדים. לדוגמה: ניקיון הליכונים, הכנת חדר ה-spin לפני השיעור, הזמנת חומרי ניקוי.
+          </p>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">זרימת משימה</h3>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>ADMIN יוצר משימה</strong><span>כותב כותרת, תיאור, בוחר עובד יעד, מגדיר עדיפות ותאריך יעד.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>העובד רואה את המשימה שלו</strong><span>עובד שאינו ADMIN רואה <em>רק</em> את המשימות שהוקצו לו — לא משימות של עובדים אחרים.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>ביצוע + הוכחת צילום</strong><span>העובד מבצע, מצלם הוכחה (תמונה), ומעלה אותה למשימה.</span></div></div>
+            <div class="step"><div class="step-n">4</div><div class="step-body"><strong>אימות AI</strong><span>המערכת יכולה לאמת אוטומטית שהתמונה מתאימה למשימה (לדוגמה: תמונת מקלחות נקיות = ניקיון).</span></div></div>
+            <div class="step"><div class="step-n">5</div><div class="step-body"><strong>ADMIN מאשר</strong><span>סטטוס: ממתין ← בוצע ← אושר. ADMIN לוחץ "אשר" לסגירת המשימה.</span></div></div>
+          </div>
+
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div>משמרות <strong>לא</strong> מופיעות ברשימת המשימות למרות שמאחורי הקלעים הן נשמרות באותו מבנה נתונים — הן מסוננות החוצה אוטומטית.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ט. תרחיש מלא -->
+      <h2 class="sec" style="margin-top:22px;">ט. תרחיש מלא — ניהול עובד חדש מאפס</h2>
+      <div class="box box-scenario" style="margin-top:4px;">
+        <div class="box-icon">🎬</div>
+        <div>
+          <strong>הסצנה:</strong> גייסתם עובד שיפה חדש בשם "שחר" שיעבוד בדלפק ובמשמרות. אתם רוצים שיראה: נוכחות, משמרות, לוח אימונים וקופה — אבל לא כספים או ניהול חברים.
+          <ol style="margin-top:8px;margin-right:14px;font-size:.87rem;line-height:1.9;">
+            <li>נכנסים לטאב <strong>"חברי מועדון 👥"</strong>.</li>
+            <li>לוחצים על הכפתור הירוק <strong>"הזמן עובד"</strong>.</li>
+            <li>בוחרים תפקיד: <strong>עובד רגיל / איש צוות (MEMBER)</strong>.</li>
+            <li>לוחצים "שלח הזמנה" — WhatsApp נפתח עם קישור. שולחים לשחר.</li>
+            <li>שחר לוחץ על הקישור, נרשם, ומצטרף כ-MEMBER.</li>
+            <li>הוא מופיע ברשימה. לוחצים על 🛡️ ליד שמו.</li>
+            <li>בחלון ההרשאות: בוחרים MEMBER (ממלא אוטומטית: נוכחות, משמרות, משימות, אקדמיה).</li>
+            <li>מוסיפים ידנית סימון ל-<strong>לוח אימונים 📅</strong> ו-<strong>קופה</strong>.</li>
+            <li>לוחצים "שמור הרשאות". ✅</li>
+            <li>לוחצים על ⚙️ ליד שמו — מזינים שכר שעתי 52₪. לוחצים "שמור".</li>
+            <li>לשבץ משמרת: עוברים לטאב <strong>משמרות 🗓️</strong>, לוחצים "+ הוסף משמרת", בוחרים שחר, תאריך מחר, לוחצים על תבנית "בוקר". שומרים → "המשמרת שובצה!" ✅</li>
+            <li>מחר שחר מגיע, נכנס לטאב נוכחות, לוחץ "כניסה", מאשר GPS. בסיום לוחץ "יציאה". השעות נרשמות.</li>
+            <li>בסוף החודש: טאב נוכחות → סינון חודש → "ייצא PDF" → שולחים לרואה חשבון.</li>
+          </ol>
         </div>
       </div>
     </div>
