@@ -5968,18 +5968,117 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   <!-- ─── ויזארד הקמה ─── -->
   <div class="chapter" id="b-wizard">
     <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית</div></div>
-    <p>בכניסה הראשונה לחשבון חדש מופיע ויזארד הקמה. לעסק יופי בחר באפשרות <strong>יופי ואסטטיקה 💅</strong>.</p>
 
+    <p>כשנוצר חשבון חדש ב-Oneflow BIZ, פועלים <strong>שני שלבי הקמה עוקבים</strong>: ראשית חלון בחירת סוג העסק, ואחריו ויזארד הגדרות הבסיס בן 4 שלבים. ניתן לדלג על כל שלב ולחזור אליו מאוחר יותר מהגדרות.</p>
+
+    <!-- א. בחירת סוג עסק -->
     <div class="mod">
-      <div class="mod-head"><div class="mod-icon">🧙</div><div><div class="mod-name">שלבי הויזארד</div></div></div>
-      <div class="steps">
-        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>בחירת סוג עסק</strong> — לחץ על הכרטיס <em>יופי ואסטטיקה 💅</em> ולחץ המשך.</div></div>
-        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>פרטי העסק</strong> — שם המכון/הסלון, כתובת, תיאור קצר.</div></div>
-        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>פרטי יצירת קשר</strong> — טלפון, דוא"ל, אתר אינטרנט קיים (לא חובה).</div></div>
-        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>הגדרות ראשוניות</strong> — שעות פעילות, שירותים ראשיים.</div></div>
+      <div class="mod-head"><div class="mod-icon">🏢</div><div><div class="mod-name">א. חלון בחירת סוג עסק</div></div></div>
+      <p>החלון הראשון שנפתח הוא <strong>biz-type-wizard</strong> — בחירת מהות העסק. מציג 5 כרטיסי עסק:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">🍕 מסעדה</div><div class="fr-val">מסעדה / בית קפה / קייטרינג</div></div>
+        <div class="field-row"><div class="fr-label">🔧 שירות / מתקינים</div><div class="fr-val">טכנאים, אינסטלציה, תחזוקה</div></div>
+        <div class="field-row"><div class="fr-label">🏋️ ספורט וחוגים</div><div class="fr-val">חוגים, פיטנס, קבוצות</div></div>
+        <div class="field-row"><div class="fr-label">👔 מומחים</div><div class="fr-val">ייעוץ, רואי חשבון, עורכי דין</div></div>
+        <div class="field-row"><div class="fr-label">💅 יופי ואסטטיקה</div><div class="fr-val"><strong>← זו הבחירה לסלון יופי</strong></div></div>
       </div>
-      <p style="font-size:.85rem">לאחר הויזארד: הוסף <strong>מטפלות</strong> (ראה פרק מטפלות) ואחר-כך <strong>שירותים</strong> (ראה פרק שירותים). רק אז ניתן להתחיל לקבוע תורים.</p>
+      <p style="font-size:.85rem">מתחת לכרטיסים קיים קישור "לא מוצא את הסוג שלי — בחר כללי" שבוחר <code>other</code> ומדלג ישירות. לסלון יופי — לחץ <strong>💅 יופי ואסטטיקה</strong>, הכרטיס יהיה מודגש בגבול כחול-סגול, ואז לחץ <strong>המשך ←</strong>.</p>
+      <div class="box box-tip" style="margin-top:.6rem"><div class="box-icon">💡</div><div>לאחר לחיצת "המשך" הבחירה נשמרת ל-API (<code>PATCH /api/groups/:id/business-settings</code>) ומיד מופעל המסנן שמציג רק את הכרטיסיות הרלוונטיות ליופי — 8 כרטיסיות ייחודיות + 8 משותפות.</div></div>
     </div>
+
+    <!-- ב. ויזארד הגדרות הבסיס -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🧙</div><div><div class="mod-name">ב. ויזארד הגדרות הבסיס — 4 שלבים</div></div></div>
+      <p>מיד אחרי בחירת סוג העסק נפתח <strong>Onboarding Wizard</strong> עם סרגל התקדמות (25% / 50% / 75% / 100%). ניתן ללחוץ <em>דלג על שלב זה</em> (כפתור אפור שמאלי) בכל שלב, או <em>חזור</em> לשלב הקודם.</p>
+
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body">
+          <strong>פרופיל העסק (25%)</strong><br>
+          <em>עיצוב ומיתוג (אופציונלי):</em><br>
+          • <strong>לוגו</strong> — כפתור "העלה מהמחשב" (ditor-logo-upload) + כפתור "מחק" אדום. התמונה מוצגת בתצוגה מקדימה עגולה 64×64px. הלוגו נשמר כ-base64 ומתכווץ אוטומטית ל-300×300px.<br>
+          • <strong>באנר / רקע ראשי</strong> — "העלה קיים" (wizard-banner-upload). אחרי העלאת לוגו מופיע כפתור סגול נסתר "התאם רקע ב-AI" שיוצר באנר מותאם אוטומטית.<br>
+          • <strong>טלפון ראשי להזמנות</strong> (שדה: wizard-phone) — חובה עבור קישורי WhatsApp ותורים מקוונים.<br>
+          • <strong>סלוגן / משפט מפתח</strong> (שדה: wizard-slogan) — מופיע בחלון העסק ובחנות המקוונת.<br>
+          לחיצת "המשך" שומרת ל-API: <code>POST /api/store/settings</code> עם logoUrl, bannerUrl, phone, slogan.
+        </div></div>
+
+        <div class="step"><div class="step-n">2</div><div class="step-body">
+          <strong>תקציב ראשוני (50%)</strong><br>
+          • שדה אחד בלבד: <strong>מסגרת / הון קיים (₪)</strong> — ברירת מחדל: 0.<br>
+          • לחיצת "המשך" יוצרת אוטומטית <strong>רשומת הכנסה</strong> בתזרים עם תיאור "תקציב / מסגרת התחלתית" וקטגוריה <code>business</code>.<br>
+          • אם הסכום הוא 0 — לא נוצרת רשומה. ניתן להזין את הסכום מאוחר יותר ידנית בכרטיסיית תזרים.<br>
+          • <em>טיפ:</em> הכנס כאן את הסכום הנזיל הפנוי לסלון — הוא יהווה נקודת האפס של מעקב ההוצאות.
+        </div></div>
+
+        <div class="step"><div class="step-n">3</div><div class="step-body">
+          <strong>בניית קטלוג ראשוני (75%)</strong> — <em>עד 25 פריטים</em><br>
+          שלוש דרכים להוספת טיפולים/מוצרים לקטלוג:<br><br>
+          <strong>✨ בניה אוטומטית עם AI:</strong> הקלד תיאור ("סלון שיער / ספא / קליניקת לייזר") ולחץ <em>בנה תפריט</em> — ה-AI יוצר עד 25 פריטים עם קטגוריות ומחירים.<br><br>
+          <strong>📊 ייבוא מ-Excel:</strong> 3 שלבים:<br>
+          (א) בחר סוג עסק: מסעדה / חנות / שירותים<br>
+          (ב) בחר סוג פריטים: מנות / מוצרים / שירותים<br>
+          (ג) טען קובץ .xlsx/.xls/.csv — או לחץ "תבנית" להורדת קובץ דוגמה<br><br>
+          <strong>✍️ הוספה ידנית:</strong> 4 שדות:<br>
+          • שם מוצר (col-span-2)<br>
+          • קטגוריה (למשל: "טיפולי פנים", "תסרוקות")<br>
+          • מחיר בש"ח<br>
+          • תיאור קצר (אופציונלי)<br>
+          לחץ <em>הוסף</em> — מוצג ברשימה. ניתן ללחוץ <em>נקה הכל</em> לאיפוס.<br><br>
+          לחיצת "המשך" שומרת כל פריט ל-API: <code>POST /api/store/catalog</code> עם name, price, category, description, isAvailable: true, productType: 'retail'.
+        </div></div>
+
+        <div class="step"><div class="step-n">4</div><div class="step-body">
+          <strong>הזמנת צוות (100%) — "סיום והתחלת עבודה 🚀"</strong><br>
+          שני כפתורי שליחה:<br>
+          • <strong>שלח הזמנה לעובדים (ירוק WhatsApp)</strong> — פותח WhatsApp עם קישור הצטרפות לתפקיד MEMBER. הטמפלט כולל את שם העסק ולינק ייחודי.<br>
+          • <strong>הוספת שותף / מנהל ראשי (אפור)</strong> — שולח הזמנה לתפקיד ADMIN.<br><br>
+          לחיצת "סיום" קוראת ל-API: <code>POST /api/groups/onboard</code> — מסמן את העסק כ-<code>is_onboarded: true</code> ושומר ב-localStorage. הויזארד נסגר, נפתחת קונפטי 🎉, ונטענים הנתונים המלאים.
+        </div></div>
+      </div>
+
+      <div class="box box-warn" style="margin-top:.7rem"><div class="box-icon">⚠️</div><div>
+        <strong>הקטלוג שנוצר בויזארד הוא קטלוג החנות המקוונת</strong> (shop/catalog), לא רשימת השירותים ביומן התורים. שירותים ביומן (beauty_services) מנוהלים בנפרד בפרק השירותים.
+      </div></div>
+    </div>
+
+    <!-- ג. פתיחת הויזארד מחדש -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🔄</div><div><div class="mod-name">ג. פתיחת הויזארד מחדש בכל עת</div></div></div>
+      <p>לאחר סגירת הויזארד ניתן לחזור אליו בשתי דרכים:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">מפרופיל העסק</div><div class="fr-val">הגדרות → פרופיל → כפתור "פתיחת אשף הקמה (Wizard)" — מופיע רק למנהלים (ADMIN)</div></div>
+        <div class="field-row"><div class="fr-label">מהגדרות</div><div class="fr-val">הגדרות → כפתור "פתיחת אשף הקמה (Wizard)" בתחתית הדף</div></div>
+        <div class="field-row"><div class="fr-label">שינוי סוג עסק</div><div class="fr-val">Super Admin בלבד — דרך ממשק SA → בחירת קבוצה → "שמור שינוי מהות"</div></div>
+      </div>
+      <p style="font-size:.85rem">שינוי סוג העסק על ידי Super Admin (מ-sa.html) מפעיל את <code>PATCH /api/groups/:id/business-settings</code> ומוגבל לאדמינים בלבד — לא ניתן לשינוי מתוך ממשק BIZ הרגיל.</p>
+    </div>
+
+    <!-- ד. מה לעשות מיד אחרי הויזארד -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">✅</div><div><div class="mod-name">ד. סדר ההגדרות המומלץ לאחר הויזארד</div></div></div>
+      <p>לאחר סיום הויזארד, <strong>חובה</strong> להגדיר את הבסיס לפני שניתן לקבוע תורים:</p>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הוספת מטפלות</strong> (beauty_practitioners) — לפחות מטפלת אחת חייבת להיות קיימת לפני יצירת תור. ראה פרק <em>מטפלות</em>.</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הגדרת שירותים</strong> (beauty_services) — כל שירות מוגדר עם שם, מחיר, משך דקות וקטגוריה. ראה פרק <em>שירותים</em>.</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>שיוך שירותים למטפלות</strong> — בפרק המטפלות מוגדר אילו שירותים כל מטפלת מבצעת. זה קובע מה אפשר לקבוע לכל מטפלת ביומן.</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>הוספת לקוחות</strong> (beauty_clients) — ניתן להוסיף לקוחות ידנית או שיצטרפו עצמאית דרך קישור ציבורי. ראה פרק <em>לקוחות</em>.</div></div>
+        <div class="step"><div class="step-n">5</div><div class="step-body"><strong>קביעת תורים ראשונים</strong> — רק לאחר שלבים 1–2 ניתן לפתוח את יומן התורים ולקבוע תורים בפועל.</div></div>
+      </div>
+    </div>
+
+    <!-- ה. סצנריו — הקמת סלון חדש מאפס -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🆕</div><div><div class="mod-name">ה. סצנריו — הקמת סלון יופי חדש מאפס</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>בחירת סוג</strong> — המנהלת פותחת את האפליקציה לראשונה. מופיע חלון 5 כרטיסים. לוחצת על <em>💅 יופי ואסטטיקה</em> → כרטיס מודגש בכחול → לוחצת "המשך ←".</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>פרופיל</strong> — מעלה לוגו של הסלון (JPG, 64×64px תצוגה מקדימה), מזינה טלפון "052-1234567" וסלוגן "יופי שמתחיל מבפנים". לוחצת "המשך" — הנתונים נשמרים.</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>תקציב</strong> — מזינה ₪15,000 (הון פתיחה). לחיצת "המשך" → נוצרת רשומת הכנסה "תקציב / מסגרת התחלתית: ₪15,000" בתזרים.</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>קטלוג</strong> — לוחצת "✨ בנה תפריט" עם התיאור "ספא ויופי". ה-AI מחזיר 25 שירותים: פנים, שיער, ציפורניים, עיסוי. עורכת מחירים ולוחצת "המשך".</div></div>
+        <div class="step"><div class="step-n">5</div><div class="step-body"><strong>הזמנת צוות</strong> — לוחצת "שלח הזמנה לעובדים" → WhatsApp נפתח עם קישור. שולחת ל-3 מטפלות. לוחצת "סיום והתחלת עבודה 🚀" → קונפטי 🎉, העסק חי.</div></div>
+        <div class="step"><div class="step-n">6</div><div class="step-body"><strong>אחרי הויזארד</strong> — עוברת ל-beauty_practitioners, מוסיפה את 3 המטפלות ידנית עם השירותים שלהן. עוברת ל-beauty_services, מוסיפה "ניקוי פנים — 60 דקות — ₪250". עכשיו ניתן לקבוע תור ראשון.</div></div>
+      </div>
+    </div>
+
   </div>
 
   <!-- ─── ניווט ─── -->
