@@ -5853,31 +5853,116 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   <!-- ─── כניסה ראשונה ─── -->
   <div class="chapter" id="b-enter">
     <div class="ch-head"><div class="ch-num">1</div><div class="ch-title">כניסה למערכת</div></div>
-    <p>סוג עסק זה מיועד למכוני יופי, ספא, סלוני שיער, קליניקות לייזר, קוסמטיקאיות ועסקי יופי מכל הסוגים. המערכת בנויה לניהול <strong>תורים לפי מטפלת</strong>, <strong>תיקי לקוחות</strong>, <strong>מנויים</strong>, <strong>מלאי מקצועי</strong> ו<strong>עמלות אוטומטיות</strong>.</p>
 
-    <div class="box box-tip"><div class="box-icon">🔤</div><div>
-      <strong>שפה מותאמת ליופי</strong>
-      <div class="field-table" style="margin-top:.5rem">
-        <div class="field-row"><div class="fr-label">לקוח</div><div class="fr-val">לקוחה</div></div>
-        <div class="field-row"><div class="fr-label">מוצר</div><div class="fr-val">טיפול / מוצר</div></div>
-        <div class="field-row"><div class="fr-label">הזמנה</div><div class="fr-val">תור</div></div>
-        <div class="field-row"><div class="fr-label">ספק</div><div class="fr-val">ספק קוסמטיקה</div></div>
-      </div>
-    </div></div>
+    <p>סוג עסק <strong>יופי / קוסמטיקה 💅</strong> מיועד למכוני יופי, ספא, סלוני שיער, קליניקות לייזר, קוסמטיקאיות, מניקוריסטיות, מאפרות ועסקי אסתטיקה מכל הסוגים. המערכת בנויה במיוחד לניהול <strong>תורים לפי מטפלת</strong>, <strong>תיקי לקוחות עם היסטוריית טיפולים</strong>, <strong>מנויים חודשיים</strong>, <strong>מלאי מקצועי</strong> ו<strong>עמלות אוטומטיות לכל מטפלת</strong>. כל הכלים הללו ייחודיים לסוג עסק זה ואינם קיימים בסוגי עסק אחרים.</p>
 
+    <!-- א. שפת המערכת -->
     <div class="mod">
-      <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">לוח הבקרה של מנהל יופי</div></div></div>
-      <p>ברגע שנכנסים, מוצג דשבורד ייחודי עם 6 מדדים שמתעדכנים בזמן אמת:</p>
-      <div class="auto-grid">
-        <div class="auto-card">📅 <strong>תורים היום</strong><br>כמה תורים קבועו להיום</div>
-        <div class="auto-card">💰 <strong>הכנסה היום</strong><br>סכום גבוי עד עכשיו היום</div>
-        <div class="auto-card">⏳ <strong>תורים עתידיים</strong><br>תורים שכבר קבועו לימים הבאים</div>
-        <div class="auto-card">👥 <strong>לקוחות מקושרות</strong><br>סה"כ לקוחות ברשימה</div>
-        <div class="auto-card">💸 <strong>עמלות לתשלום</strong><br>כמה חייבים למטפלות</div>
-        <div class="auto-card">📊 <strong>הכנסה החודש</strong><br>סיכום כל הכנסות החודש</div>
+      <div class="mod-head"><div class="mod-icon">🔤</div><div><div class="mod-name">א. שפת המערכת — מינוח מותאם ליופי</div></div></div>
+      <p>המערכת מתאימה את שמות השדות והפעולות לעולם היופי. המיפוי המלא מהקוד:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">לקוח (כללי)</div><div class="fr-val">לקוחה</div></div>
+        <div class="field-row"><div class="fr-label">לקוחות (רבים)</div><div class="fr-val">לקוחות</div></div>
+        <div class="field-row"><div class="fr-label">מוצר</div><div class="fr-val">טיפול / מוצר</div></div>
+        <div class="field-row"><div class="fr-label">תור / פגישה</div><div class="fr-val">תור</div></div>
+        <div class="field-row"><div class="fr-label">ספק</div><div class="fr-val">ספק קוסמטיקה</div></div>
+        <div class="field-row"><div class="fr-label">תמחור</div><div class="fr-val">תמחור טיפולים</div></div>
+        <div class="field-row"><div class="fr-label">הזמנה</div><div class="fr-val">הזמנה</div></div>
       </div>
-      <div class="box box-warn" style="margin-top:.7rem"><div class="box-icon">🔔</div><div>אם יש מוצרים שמלאי שלהם נמוך, או לקוחות שלא הגיעו לתור — מופיע באנר כתום בראש הדשבורד.</div></div>
+      <p style="font-size:.85rem">שינויי המינוח מופיעים בכותרות חלונות, תוויות שדות, כפתורים ובפידים — בכל מקום שכתוב "לקוח" בסוג עסק כללי, כאן יופיע "לקוחה".</p>
     </div>
+
+    <!-- ב. מודולים ייחודיים -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🧩</div><div><div class="mod-name">ב. מודולים ייחודיים לסוג עסק יופי</div></div></div>
+      <p>לאחר הגדרת העסק כ<em>יופי / קוסמטיקה</em>, מופעלים 16 מודולים — 8 מהם ייחודיים לסוג עסק זה:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">beauty_calendar</div><div class="fr-val">יומן תורים לפי מטפלת — ייחודי</div></div>
+        <div class="field-row"><div class="fr-label">beauty_practitioners</div><div class="fr-val">ניהול מטפלות — ייחודי</div></div>
+        <div class="field-row"><div class="fr-label">beauty_services</div><div class="fr-val">קטלוג שירותים וטיפולים — ייחודי</div></div>
+        <div class="field-row"><div class="fr-label">beauty_subscriptions</div><div class="fr-val">מנויים וחבילות — ייחודי</div></div>
+        <div class="field-row"><div class="fr-label">beauty_clients</div><div class="fr-val">תיקי לקוחות עם היסטוריה — ייחודי</div></div>
+        <div class="field-row"><div class="fr-label">beauty_inventory</div><div class="fr-val">מלאי מוצרי קוסמטיקה — ייחודי</div></div>
+        <div class="field-row"><div class="fr-label">beauty_commissions</div><div class="fr-val">עמלות מטפלות אוטומטיות — ייחודי</div></div>
+        <div class="field-row"><div class="fr-label">beauty_rfq</div><div class="fr-val">בקשות ייעוץ והצעות מחיר — ייחודי</div></div>
+        <div class="field-row"><div class="fr-label">pos</div><div class="fr-val">קופה — משותף</div></div>
+        <div class="field-row"><div class="fr-label">timeclock</div><div class="fr-val">שעון נוכחות — משותף</div></div>
+        <div class="field-row"><div class="fr-label">cashflow</div><div class="fr-val">תזרים מזומנים — משותף</div></div>
+        <div class="field-row"><div class="fr-label">tasks</div><div class="fr-val">משימות — משותף</div></div>
+        <div class="field-row"><div class="fr-label">shop</div><div class="fr-val">חנות מקוונת — משותף</div></div>
+        <div class="field-row"><div class="fr-label">biz-ads</div><div class="fr-val">פרסום ולידים — משותף</div></div>
+        <div class="field-row"><div class="fr-label">reports</div><div class="fr-val">דוחות — משותף</div></div>
+        <div class="field-row"><div class="fr-label">feed</div><div class="fr-val">פיד עדכונים — משותף</div></div>
+      </div>
+    </div>
+
+    <!-- ג. תפקידי עובדים -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">👥</div><div><div class="mod-name">ג. תפקידי עובדים ייחודיים לסלון יופי</div></div></div>
+      <p>בעסק מסוג יופי מוצגים 5 תפקידים ייחודיים (בנוסף ל-branch_manager, cashier ו-cleaner המשותפים):</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">💆 מטפלת (therapist)</div><div class="fr-val">מטפלת בסיסית — ₪19/חודש</div></div>
+        <div class="field-row"><div class="fr-label">⭐ מטפלת בכירה (senior_therapist)</div><div class="fr-val">מטפלת עם הרשאות מורחבות — ₪29/חודש</div></div>
+        <div class="field-row"><div class="fr-label">💅 טכנאית ציפורניים (nail_tech)</div><div class="fr-val">מומחית מניקור/פדיקור — ₪19/חודש</div></div>
+        <div class="field-row"><div class="fr-label">💄 איפורנית (makeup_artist)</div><div class="fr-val">מאפרת מקצועית — ₪19/חודש</div></div>
+        <div class="field-row"><div class="fr-label">🗓️ קבלנית (reception)</div><div class="fr-val">קבלת קהל וניהול תורים — ₪15/חודש</div></div>
+        <div class="field-row"><div class="fr-label">🏢 מנהל סניף (branch_manager)</div><div class="fr-val">מנהל עם גישה לכל מודולים — ₪39/חודש</div></div>
+        <div class="field-row"><div class="fr-label">💰 קופאי (cashier)</div><div class="fr-val">גישה לקופה ומכירות — ₪19/חודש</div></div>
+        <div class="field-row"><div class="fr-label">🧹 מנקה / אחזקה (cleaner)</div><div class="fr-val">משימות וניקיון — ₪15/חודש</div></div>
+      </div>
+      <div class="box box-tip" style="margin-top:.7rem"><div class="box-icon">💡</div><div>תפקידי therapist, senior_therapist, nail_tech, makeup_artist ו-reception מופיעים <strong>אך ורק</strong> בסוגי עסק יופי — אינם קיימים בשאר סוגי העסקים.</div></div>
+    </div>
+
+    <!-- ד. לוח הבקרה של מנהל -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">ד. לוח הבקרה של מנהל יופי (Admin/Owner)</div></div></div>
+      <p>כשמנהל (תפקיד ADMIN) נכנס לחשבון מסוג יופי, מופיע <strong>דשבורד ייחודי</strong> בגוון ורוד-אדום (<code>from-pink-500 to-rose-600</code>) עם כותרת <em>"ממשק מנהל יופי — תורים, לקוחות ו-KPIs יומיים"</em>. הדשבורד מחליף את הפיד הרגיל ומתרענן אוטומטית כל 30 שניות.</p>
+      <p><strong>6 כרטיסי KPI — לחיץ לניווט ישיר:</strong></p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">📅 תורים היום</div><div class="fr-val">מספר תורים שנקבעו להיום (שדה: <code>appt_today</code>) — לחיצה → יומן תורים</div></div>
+        <div class="field-row"><div class="fr-label">💰 הכנסה היום</div><div class="fr-val">סכום הכנסות היום בש"ח (שדה: <code>revenue_today</code>) — לחיצה → עמלות</div></div>
+        <div class="field-row"><div class="fr-label">⏳ תורים עתידיים</div><div class="fr-val">תורים שקבועו לימים הבאים (שדה: <code>appt_pending</code>) — לחיצה → יומן תורים</div></div>
+        <div class="field-row"><div class="fr-label">👥 לקוחות מקושרים</div><div class="fr-val">סה"כ לקוחות בתיק (שדה: <code>total_clients</code>) — לחיצה → לקוחות</div></div>
+        <div class="field-row"><div class="fr-label">💸 עמלות לתשלום</div><div class="fr-val">סכום עמלות שטרם שולמו (שדה: <code>unpaid_comm_sum</code>) — כתום אם יש חוב, אפור אם אפס — לחיצה → עמלות</div></div>
+        <div class="field-row"><div class="fr-label">📊 הכנסה החודש</div><div class="fr-val">סיכום הכנסות חודש שוטף (שדה: <code>revenue_month</code>) — לחיצה → קופה/מכירות</div></div>
+      </div>
+      <div class="box box-warn" style="margin-top:.7rem"><div class="box-icon">🔔</div><div>
+        <strong>באנר התראות כתום</strong> מופיע מיד מעל ה-KPIs אם מתקיים לפחות אחד מהתנאים:<br>
+        • <strong>מלאי נמוך</strong> (שדה: <code>low_inventory</code> &gt; 0) — מציג "X פריטי מלאי מתחת לסף" עם כפתור <em>צפה</em> שמנווט ל-beauty_inventory<br>
+        • <strong>לא הגיעו היום</strong> (שדה: <code>no_show_today</code> &gt; 0) — מציג "X לא הגיעו היום" בצבע אדום<br>
+        אם אין שתי ההתראות — הבאנר נעלם לחלוטין.
+      </div></div>
+    </div>
+
+    <!-- ה. כפתורי פעולה מהירה -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">⚡</div><div><div class="mod-name">ה. פעולות מהירות בדשבורד</div></div></div>
+      <p>מתחת ל-KPIs מופיעים <strong>8 כפתורי פעולה מהירה</strong> שמנווטים ישירות למודול הרלוונטי:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">📅 יומן תורים</div><div class="fr-val">beauty_calendar — ניהול כל התורים לפי מטפלת</div></div>
+        <div class="field-row"><div class="fr-label">👤 לקוחות</div><div class="fr-val">beauty_clients — תיקי לקוחות עם היסטוריה</div></div>
+        <div class="field-row"><div class="fr-label">💆 מטפלות</div><div class="fr-val">beauty_practitioners — רשימת המטפלות</div></div>
+        <div class="field-row"><div class="fr-label">💎 שירותים</div><div class="fr-val">beauty_services — קטלוג טיפולים ומחירים</div></div>
+        <div class="field-row"><div class="fr-label">🎁 מנויים</div><div class="fr-val">beauty_subscriptions — חבילות וכרטיסיות</div></div>
+        <div class="field-row"><div class="fr-label">💸 עמלות</div><div class="fr-val">beauty_commissions — עמלות לכל מטפלת</div></div>
+        <div class="field-row"><div class="fr-label">💳 קופה</div><div class="fr-val">pos — קופה רושמת וחיובים</div></div>
+        <div class="field-row"><div class="fr-label">📋 משימות</div><div class="fr-val">tasks — מטלות לצוות</div></div>
+      </div>
+      <p style="font-size:.85rem">בנוסף לפעולות המהירות, קיים כפתור <strong>"תפריט מלא"</strong> שפותח את כל 16 המודולים הזמינים לסוג עסק זה.</p>
+    </div>
+
+    <!-- ו. סצנריו: כניסה ראשונה בוקר -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🌅</div><div><div class="mod-name">ו. סצנריו — שגרת בוקר של מנהל סלון</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>פתיחת האפליקציה</strong> — המנהלת נכנסת לחשבון. הדשבורד נטען תוך שנייה ומציג: "📅 תורים היום: 12", "💰 הכנסה היום: ₪0" (הבוקר עוד לא התחיל), "⏳ תורים עתידיים: 38".</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>באנר כתום</strong> — מופיע "3 פריטי מלאי מתחת לסף". המנהלת לוחצת <em>צפה</em> ועוברת ל-beauty_inventory כדי לבדוק אילו מוצרים נגמרים ולהזמין.</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>בדיקת עמלות</strong> — כרטיס "💸 עמלות לתשלום" מציג ₪1,200 בכתום. המנהלת לוחצת עליו ועוברת לפרק העמלות לראות לאיזו מטפלת חייבים.</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>הוספת תור חדש</strong> — לקוחה מתקשרת. המנהלת לוחצת "📅 יומן תורים" → בוחרת מטפלת ושעה פנויה → קובעת תור ישירות מהדשבורד.</div></div>
+        <div class="step"><div class="step-n">5</div><div class="step-body"><strong>ריענון אוטומטי</strong> — לאחר 30 שניות הדשבורד מתרענן לבד. ה-KPIs מתעדכנים בלי צורך ברענון ידני.</div></div>
+      </div>
+    </div>
+
   </div>
 
   <!-- ─── ויזארד הקמה ─── -->
