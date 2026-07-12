@@ -6388,27 +6388,108 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   <!-- ─── מטפלות ─── -->
   <div class="chapter" id="b-practitioners">
     <div class="ch-head"><div class="ch-num">5</div><div class="ch-title">מטפלות וצוות יופי</div></div>
-    <p>כרטיסיית <strong>מטפלות</strong> (בתפריט <em>צוות</em>) מאפשרת להגדיר כל מטפלת עם הפרטים שישפיעו על היומן ועל חישוב העמלות.</p>
+    <p>כרטיסיית <strong>מטפלות 💆</strong> (בתפריט <em>צוות</em>) היא הבסיס לכל מנגנון היומן והעמלות. כל מטפלת שמוגדרת כאן מקבלת עמודה משלה ביומן התורים ואחוז עמלה שמחושב אוטומטית בכל השלמת טיפול. ללא מטפלות מוגדרות — לא ניתן לשייך תורים ולא ניתן לחשב עמלות. הגישה: <strong>תפריט צוות ← מטפלות</strong>, או לחיצה על <strong>מטפלות</strong> בסרגל הכלים של יומן התורים.</p>
 
+    <!-- א. מבנה מסך המטפלות -->
     <div class="mod">
-      <div class="mod-head"><div class="mod-icon">👩</div><div><div class="mod-name">הוספת מטפלת חדשה</div><div class="mod-tag">צוות › מטפלות</div></div></div>
-      <div class="steps">
-        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחץ + מטפלת חדשה.</strong></div></div>
-        <div class="step"><div class="step-n">2</div><div class="step-body"><span>מלא את הפרטים הבאים:</span></div></div>
-      </div>
+      <div class="mod-head"><div class="mod-icon">🖥️</div><div><div class="mod-name">מבנה מסך המטפלות</div><div class="mod-tag">צוות › מטפלות</div></div></div>
       <div class="field-table">
-        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם מלא</div><div class="fr-val">השם שיופיע ביומן ובדוחות</div></div>
-        <div class="field-row"><div class="fr-label">דרגה</div><div class="fr-val">ג׳וניור / מטפלת / בכירה / מנהלת טיפולים — משפיע על עמלה</div></div>
-        <div class="field-row"><div class="fr-label">צבע זיהוי</div><div class="fr-val">הצבע של עמודת המטפלת ביומן — בחר צבע שונה לכל מטפלת</div></div>
-        <div class="field-row"><div class="fr-label">עמלת שירות %</div><div class="fr-val">כמה אחוז מכל טיפול מקבלת המטפלת</div></div>
-        <div class="field-row"><div class="fr-label">עמלת קמעונאות %</div><div class="fr-val">כמה אחוז ממכירת מוצרים מקבלת המטפלת</div></div>
-        <div class="field-row"><div class="fr-label">התמחויות</div><div class="fr-val">פנים / גוף / ציפורניים / שיער / הסרת שיער / עיסוי / איפור / ריסים</div></div>
+        <div class="field-row"><div class="fr-label">כותרת + כפתור הוספה</div><div class="fr-val">בראש המסך: כותרת "מטפלות 💆" בצד שמאל, וכפתור <strong>+ מטפלת חדשה</strong> (ורוד) בצד ימין.</div></div>
+        <div class="field-row"><div class="fr-label">מצב ריק</div><div class="fr-val">אם אין מטפלות עדיין — מופיע אזור ורוד בהיר עם אמוג׳י 💆, הכיתוב "אין מטפלות מוגדרות עדיין", ותיאור "הוסף מטפלת ראשונה להתחלת עבודה" + כפתור "הוסף מטפלת".</div></div>
+        <div class="field-row"><div class="fr-label">רשימת מטפלות</div><div class="fr-val">כרטיסים לבנים — כרטיס אחד לכל מטפלת, ממוינים לפי סדר הוספה. כל כרטיס בשורה אחת עם כל הפרטים ושני כפתורי פעולה.</div></div>
       </div>
     </div>
 
+    <!-- ב. כרטיס מטפלת -->
     <div class="mod">
-      <div class="mod-head"><div class="mod-icon">🔕</div><div><div class="mod-name">השבתת מטפלת</div><div class="mod-tag">צוות › מטפלות</div></div></div>
-      <p>לחץ <strong>השבת</strong> על כרטיס המטפלת — היא נעלמת מהיומן אבל הנתונים שלה נשמרים. לחץ <strong>הפעל</strong> כדי להחזיר אותה.</p>
+      <div class="mod-head"><div class="mod-icon">🪪</div><div><div class="mod-name">כרטיס מטפלת — מה מוצג</div><div class="mod-tag">צוות › מטפלות › רשימה</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">כל כרטיס מטפלת מציג בשורה אחת את הפרטים הבאים:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">עיגול אווטאר</div><div class="fr-val">עיגול בצבע האישי של המטפלת (<code>color_hex</code>), עם האות הראשונה של שמה. זהו אותו צבע שמופיע ביומן התורים בעמודת המטפלת.</div></div>
+        <div class="field-row"><div class="fr-label">שם מלא</div><div class="fr-val">שם המטפלת (<code>display_name</code>) בגופן מודגש — כפי שיופיע ביומן, בתורים ובדוחות.</div></div>
+        <div class="field-row"><div class="fr-label">שורת פרטים</div><div class="fr-val">דרגה (tier) · עמלת שירות: X% · עמלת קמעונאות: X%. אם שדה אינו מוגדר — לא מוצג.</div></div>
+        <div class="field-row"><div class="fr-label">התמחויות</div><div class="fr-val">רשימת ההתמחויות בוורוד מתחת לשורת הפרטים — מופיעות רק אם הוגדרו, מופרדות ב-· (נקודה). לדוגמה: "פנים · גוף · ריסים".</div></div>
+        <div class="field-row"><div class="fr-label">כפתור עריכה</div><div class="fr-val">כפתור אפור "<strong>עריכה</strong>" — פותח את חלון עריכת הפרטים עם כל הנתונים הקיימים טעונים מראש.</div></div>
+        <div class="field-row"><div class="fr-label">כפתור השבת / הפעל</div><div class="fr-val">כפתור "<strong>השבת</strong>" (אדום בהיר) אם המטפלת פעילה, או "<strong>הפעל</strong>" (ירוק בהיר) אם השבותה.</div></div>
+      </div>
+    </div>
+
+    <!-- ג. הוספת מטפלת חדשה -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">הוספת מטפלת חדשה</div><div class="mod-tag">צוות › מטפלות › + מטפלת חדשה</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">לחץ <strong>+ מטפלת חדשה</strong> — נפתח חלון מהתחתית של המסך עם ששה שדות:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span> שם מלא</div><div class="fr-val">השם שיופיע ביומן, בתורים, בדוחות ובחלון בחירת מטפלת. ללא שם — לא ניתן לשמור. שגיאה: "נא להזין שם מטפלת".</div></div>
+        <div class="field-row"><div class="fr-label">דרגה</div><div class="fr-val">רשימה נפתחת עם 4 אפשרויות קבועות: <strong>מטפלת ג׳וניור / מטפלת / מטפלת בכירה / מנהלת טיפולים</strong>. הדרגה מוצגת בכרטיס לצד שיעורי העמלה (לתיעוד בלבד — אינה משנה את אחוז העמלה אוטומטית).</div></div>
+        <div class="field-row"><div class="fr-label">צבע זיהוי</div><div class="fr-val">בוחר צבע (Color Picker). ברירת מחדל: ורוד <code>#ec4899</code>. צבע זה קובע את: (א) צבע עמודת המטפלת ביומן יום, (ב) צבע קלפי התורים שלה, (ג) צבע האווטאר בכרטיס. חשוב לתת לכל מטפלת צבע ייחודי.</div></div>
+        <div class="field-row"><div class="fr-label">% עמלת שירות</div><div class="fr-val">אחוז מתוך מחיר כל <em>טיפול</em> שמגיע למטפלת. טווח: 0–100. צעד: 0.5 (ניתן להגדיר 17.5% למשל). אחוז זה מחושב אוטומטית בלחיצת "השלם" בכל תור.</div></div>
+        <div class="field-row"><div class="fr-label">% עמלת קמעונאות</div><div class="fr-val">אחוז מתוך כל <em>מכירת מוצר</em> (קמעונאות) שמגיע למטפלת. טווח: 0–100. צעד: 0.5. נפרד לחלוטין מעמלת השירות.</div></div>
+        <div class="field-row"><div class="fr-label">התמחויות</div><div class="fr-val">8 תיבות סימון עצמאיות — ניתן לסמן כמה שרוצים: <strong>פנים · גוף · ציפורניים · שיער · הסרת שיער · עיסוי · איפור · ריסים</strong>. מוצגות בכרטיס המטפלת ועוזרות לניהול ידע פנימי.</div></div>
+      </div>
+      <div class="steps" style="margin-top:.7rem">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><span>לחץ <strong>+ מטפלת חדשה</strong> — נפתח החלון מהתחתית.</span></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><span>הזן שם מלא (חובה), בחר דרגה וצבע זיהוי ייחודי.</span></div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><span>הגדר אחוזי עמלה — שירות וקמעונאות בנפרד.</span></div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><span>סמן את התמחויות המטפלת.</span></div></div>
+        <div class="step"><div class="step-n">5</div><div class="step-body"><strong>לחץ "הוסף מטפלת".</strong><span> הודעה: "מטפלת נוספה בהצלחה". החלון נסגר, הרשימה מתרעננת, והמטפלת מופיעה מיידית כעמודה ביומן התורים.</span></div></div>
+      </div>
+      <div class="box box-tip">
+        <div class="box-icon">💡</div>
+        <div>ניתן לסגור את חלון ההוספה גם בלחיצה על <strong>✕</strong> בפינה, או בלחיצה מחוץ לחלון — ללא שמירה.</div>
+      </div>
+    </div>
+
+    <!-- ד. עריכת פרטי מטפלת -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">✏️</div><div><div class="mod-name">עריכת פרטי מטפלת קיימת</div><div class="mod-tag">צוות › מטפלות › עריכה</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">לחץ <strong>עריכה</strong> בכרטיס המטפלת — נפתח אותו חלון כמו הוספה, אך הכותרת היא "עריכת מטפלת" וכל הפרטים הקיימים טעונים מראש בשדות.</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">שם מלא</div><div class="fr-val">ניתן לעדכן את שם המטפלת — השינוי יתעדכן בכל התורים הבאים ובכרטיס.</div></div>
+        <div class="field-row"><div class="fr-label">דרגה</div><div class="fr-val">ניתן לשנות דרגה — לדוגמה מ"מטפלת" ל"מטפלת בכירה" עם קידום.</div></div>
+        <div class="field-row"><div class="fr-label">צבע זיהוי</div><div class="fr-val">שינוי צבע ישנה את עמודת המטפלת ביומן וקלפי התורים שלה מיידית.</div></div>
+        <div class="field-row"><div class="fr-label">% עמלת שירות</div><div class="fr-val">שינוי האחוז ישפיע רק על תורים חדשים שיסתיימו <em>מכאן והלאה</em> — תורים שכבר הושלמו לא מחושבים מחדש.</div></div>
+        <div class="field-row"><div class="fr-label">% עמלת קמעונאות</div><div class="fr-val">אותו עקרון — תוקף רק להמשך.</div></div>
+        <div class="field-row"><div class="fr-label">התמחויות</div><div class="fr-val">ניתן להוסיף או להסיר התמחויות בכל עת.</div></div>
+      </div>
+      <p style="font-size:.85rem;margin-top:.5rem">לחץ <strong>"שמור שינויים"</strong> — הודעה: "פרטי המטפלת עודכנו". החלון נסגר והכרטיס מתרענן.</p>
+    </div>
+
+    <!-- ה. השבתה והפעלה מחדש -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🔕</div><div><div class="mod-name">השבתת מטפלת והפעלה מחדש</div><div class="mod-tag">צוות › מטפלות › השבת / הפעל</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">לחץ <strong>השבת</strong> בכרטיס המטפלת — מופיע חלון אישור: <em>"להשבית מטפלת זו?"</em>.</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">אחרי אישור ההשבתה</div><div class="fr-val">המטפלת נעלמת מיומן התורים (אין לה עמודה), נעלמת מרשימת המטפלות בחלון קביעת תור חדש, ונעלמת מחלון עריכת תור. נתוניה וההיסטוריה שלה נשמרים במלואם.</div></div>
+        <div class="field-row"><div class="fr-label">הפעלה מחדש</div><div class="fr-val">לחץ <strong>הפעל</strong> (ירוק) בכרטיס — מופיע חלון אישור: <em>"להפעיל מטפלת זו מחדש?"</em>. לאחר אישור — המטפלת חוזרת לכל הרשימות והיומן. הודעה: "המטפלת הופעלה".</div></div>
+        <div class="field-row"><div class="fr-label">תורים קיימים</div><div class="fr-val">תורים שכבר נקבעו למטפלת מושבתת — נשארים בבסיס הנתונים ומוצגים בדוחות, אך לא יופיעו ביומן עד שהמטפלת תופעל מחדש.</div></div>
+      </div>
+      <div class="box box-warn">
+        <div class="box-icon">⚠️</div>
+        <div><strong>השבתה אינה מחיקה.</strong> לעולם אל תמחק מטפלת מהמערכת — השבת אותה. מחיקה תגרום לאובדן היסטוריית תורים ועמלות.</div>
+      </div>
+    </div>
+
+    <!-- ו. קשר בין מטפלות ליומן -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🔗</div><div><div class="mod-name">הקשר בין מטפלות ליומן ועמלות</div><div class="mod-tag">מידע חשוב</div></div></div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">יומן תורים</div><div class="fr-val">כל מטפלת פעילה יוצרת עמודה ביומן יום, בצבעה האישי. שינוי צבע בכרטיס = שינוי מיידי ביומן.</div></div>
+        <div class="field-row"><div class="fr-label">קביעת תור חדש</div><div class="fr-val">ברשימה הנפתחת של "מטפלת" בחלון קביעת תור — מופיעות רק המטפלות הפעילות. יש גם קישור <strong>+ הוסף מטפלת</strong> המעביר ישירות לכרטיסיית מטפלות.</div></div>
+        <div class="field-row"><div class="fr-label">עמלות</div><div class="fr-val">בלחיצת "השלם" בכל תור — המערכת מכפילה את מחיר הטיפול ב-% עמלת השירות של המטפלת ורושמת בכרטיסיית <em>עמלות ושכר</em>. אחוז עמלת שירות = 0 פירושו שלא תיווצר עמלה לאותה מטפלת.</div></div>
+        <div class="field-row"><div class="fr-label">מטמון (Cache)</div><div class="fr-val">רשימת המטפלות נטענת לזיכרון בפתיחת כרטיסיית <em>שירותים וטיפולים</em> ומשמשת גם שם. אם הוספת מטפלת חדשה ואינה מופיעה ברשימות — רענן את הדף.</div></div>
+      </div>
+    </div>
+
+    <!-- ז. סצנריו מלא -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">📖</div><div><div class="mod-name">סצנריו — הקמת צוות מטפלות מאפס</div><div class="mod-tag">דוגמה מלאה</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>כניסה לכרטיסיית מטפלות</strong> — תפריט צוות ← מטפלות. רואים "אין מטפלות מוגדרות עדיין".</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>מטפלת ראשונה: שירה</strong> — לחץ "+ מטפלת חדשה" ← שם: "שירה לוי", דרגה: מטפלת, צבע: ורוד #ec4899, עמלת שירות: 25%, עמלת קמעונאות: 10%, התמחויות: פנים + ריסים. לחץ "הוסף מטפלת".</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>מטפלת שנייה: ריבה</strong> — לחץ "+ מטפלת חדשה" ← שם: "ריבה כהן", דרגה: מטפלת ג׳וניור, צבע: סגול #a855f7, עמלת שירות: 20%, התמחויות: ציפורניים + איפור. לחץ "הוסף מטפלת".</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>בדיקה ביומן</strong> — עוברים לכרטיסיית יומן מטפלות בתצוגת יום — שירה (ורוד) וריבה (סגול) מופיעות כעמודות נפרדות.</div></div>
+        <div class="step"><div class="step-n">5</div><div class="step-body"><strong>ריבה עוזבת</strong> — לאחר חודשיים, ריבה עוזבת. לוחצים "השבת" על הכרטיס שלה ← מאשרים. עמודת ריבה נעלמת מהיומן. ההיסטוריה, העמלות שלה ותוריה הקודמים — שמורים במערכת.</div></div>
+      </div>
     </div>
   </div>
 
