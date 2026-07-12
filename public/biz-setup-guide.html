@@ -6496,36 +6496,122 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   <!-- ─── שירותים ─── -->
   <div class="chapter" id="b-services">
     <div class="ch-head"><div class="ch-num">6</div><div class="ch-title">שירותים וטיפולים</div></div>
-    <p>כרטיסיית <strong>שירותים וטיפולים</strong> (בתפריט <em>מכירות</em>) מכילה את כל הטיפולים שניתן לקבוע תור עבורם. חובה להגדיר שירותים לפני שניתן לקבוע תורים.</p>
+    <p>כרטיסיית <strong>שירותים וטיפולים 💎</strong> (בתפריט <em>מכירות</em>) היא קטלוג הטיפולים של העסק. כל תור ביומן מתבסס על שירות מהקטלוג — בחירת שירות ממלאת אוטומטית משך ומחיר בכל קביעת תור. ללא שירותים מוגדרים, לא ניתן לקבוע תורים עם מחיר ומשך ולא ניתן להציג שירותים באתר הציבורי. הגישה: <strong>תפריט מכירות ← שירותים וטיפולים</strong>.</p>
 
+    <!-- א. מבנה המסך -->
     <div class="mod">
-      <div class="mod-head"><div class="mod-icon">📂</div><div><div class="mod-name">קטגוריות שירות</div><div class="mod-tag">מכירות › שירותים</div></div></div>
-      <div class="actions">
-        <span class="tag">💇 שיער</span>
-        <span class="tag">💅 ציפורניים</span>
-        <span class="tag">✨ טיפולי פנים</span>
-        <span class="tag">🧖 טיפולי גוף</span>
-        <span class="tag">🌸 ספא / עיסוי</span>
-        <span class="tag">⚡ לייזר / IPL</span>
-        <span class="tag">💄 איפור</span>
-        <span class="tag">💎 כללי</span>
+      <div class="mod-head"><div class="mod-icon">🖥️</div><div><div class="mod-name">מבנה מסך השירותים</div><div class="mod-tag">מכירות › שירותים וטיפולים</div></div></div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">כותרת + ספירה</div><div class="fr-val">"שירותים וטיפולים 💎" + ספירה: "X שירותים פעילים" מתחת. כפתור <strong>+ שירות חדש</strong> (ורוד) בצד שמאל.</div></div>
+        <div class="field-row"><div class="fr-label">מצב ריק</div><div class="fr-val">אמוג׳י 💎, "אין שירותים עדיין", "הגדר שירותים כדי שיופיעו ביומן ובחנות הציבורית", וכפתור "+ הוסף שירות ראשון".</div></div>
+        <div class="field-row"><div class="fr-label">מיון לקטגוריות</div><div class="fr-val">השירותים מקובצים לפי קטגוריה. כל קטגוריה שיש בה שירותים מוצגת עם כותרת (אמוג׳י + שם + עיגול עם ספירה), ומתחתיה כרטיסי השירותים שלה. קטגוריות ריקות אינן מוצגות.</div></div>
       </div>
     </div>
 
+    <!-- ב. קטגוריות -->
     <div class="mod">
-      <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">הוספת שירות חדש</div><div class="mod-tag">מכירות › שירותים</div></div></div>
-      <div class="steps">
-        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחץ + שירות חדש.</strong></div></div>
-        <div class="step"><div class="step-n">2</div><div class="step-body"><span>מלא את הפרטים:</span></div></div>
-      </div>
+      <div class="mod-head"><div class="mod-icon">📂</div><div><div class="mod-name">8 קטגוריות שירות</div><div class="mod-tag">מכירות › שירותים וטיפולים</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">לכל קטגוריה יש <strong>צבע ברירת מחדל</strong> לפס הצבע בכרטיס השירות (אם לא הוגדר צבע ספציפי לשירות):</p>
       <div class="field-table">
-        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם השירות</div><div class="fr-val">לדוג׳: "טיפול פנים קלאסי", "מניקור ג׳ל"</div></div>
-        <div class="field-row"><div class="fr-label">קטגוריה</div><div class="fr-val">בחר מהרשימה למעלה — ישפיע על המיון ביומן</div></div>
-        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>משך בדקות</div><div class="fr-val">כמה זמן נמשך הטיפול — ישמש לחסימת הזמן ביומן</div></div>
-        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>מחיר ₪</div><div class="fr-val">מחיר הטיפול ללקוחה</div></div>
-        <div class="field-row"><div class="fr-label">צבע</div><div class="fr-val">הצבע של קלף התור ביומן</div></div>
-        <div class="field-row"><div class="fr-label">תיאור</div><div class="fr-val">הסבר קצר על הטיפול (מוצג גם באתר הציבורי)</div></div>
-        <div class="field-row"><div class="fr-label">⚠️ Patch Test נדרש</div><div class="fr-val">סמן אם הטיפול דורש בדיקת עור מוקדמת — יוצג תג אדום בכרטיס</div></div>
+        <div class="field-row"><div class="fr-label">💇 שיער</div><div class="fr-val">צבע ברירת מחדל: צהוב-ענברי <code>#fbbf24</code>. לדוגמה: צביעה, תסרוקת, קרטין.</div></div>
+        <div class="field-row"><div class="fr-label">💅 ציפורניים</div><div class="fr-val">ורוד <code>#f472b6</code>. לדוגמה: מניקור ג׳ל, פדיקור, nail art.</div></div>
+        <div class="field-row"><div class="fr-label">✨ טיפולי פנים</div><div class="fr-val">סגול <code>#a78bfa</code>. לדוגמה: פנינג, ניקוי עמוק, פיגמנטציה.</div></div>
+        <div class="field-row"><div class="fr-label">🧖 טיפולי גוף</div><div class="fr-val">ירוק <code>#34d399</code>. לדוגמה: עיצוב גוף, טיפול סלוליט.</div></div>
+        <div class="field-row"><div class="fr-label">🌸 ספא / עיסוי</div><div class="fr-val">כחול <code>#60a5fa</code>. לדוגמה: עיסוי שוודי, עיסוי רקמות עמוק.</div></div>
+        <div class="field-row"><div class="fr-label">⚡ לייזר / IPL</div><div class="fr-val">אדום <code>#f87171</code>. לדוגמה: הסרת שיער בלייזר, פוטו-ריג׳ובנציה.</div></div>
+        <div class="field-row"><div class="fr-label">💄 איפור</div><div class="fr-val">כתום <code>#fb923c</code>. לדוגמה: איפור כלה, איפור ערב.</div></div>
+        <div class="field-row"><div class="fr-label">💎 כללי</div><div class="fr-val">אפור <code>#94a3b8</code>. לשירותים שאינם נופלים בקטגוריה ספציפית.</div></div>
+      </div>
+    </div>
+
+    <!-- ג. כרטיס שירות -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🪪</div><div><div class="mod-name">כרטיס שירות — מה מוצג</div><div class="mod-tag">מכירות › שירותים וטיפולים › רשימה</div></div></div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">פס צבע אנכי</div><div class="fr-val">פס צר (3px) ב-40px גובה בצד ימין הכרטיס. הצבע: <code>color_hex</code> אם הוגדר לשירות, אחרת צבע ברירת המחדל של הקטגוריה.</div></div>
+        <div class="field-row"><div class="fr-label">שם השירות</div><div class="fr-val">בגופן מודגש. לצדו — תג <span style="background:#fee2e2;color:#dc2626;font-size:.75rem;padding:1px 5px;border-radius:999px;font-weight:700">⚠️ Patch Test</span> אדום אם הסימון מופעל.</div></div>
+        <div class="field-row"><div class="fr-label">שורת פרטים</div><div class="fr-val">משך בדקות + מחיר. לדוגמה: "60 דק׳ · ₪250".</div></div>
+        <div class="field-row"><div class="fr-label">תיאור</div><div class="fr-val">שורת תיאור (אם הוזן) — מוצגת חתוכה אם ארוכה (truncate).</div></div>
+        <div class="field-row"><div class="fr-label">כפתור עריכה ✏️</div><div class="fr-val">בצד שמאל הכרטיס — עיגול אפור עם אייקון עט. לחיצה פותחת את חלון עריכת השירות.</div></div>
+      </div>
+    </div>
+
+    <!-- ד. הוספת שירות חדש -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">הוספת שירות חדש</div><div class="mod-tag">מכירות › שירותים וטיפולים › + שירות חדש</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">לחץ <strong>+ שירות חדש</strong> — נפתח חלון עם 9 שדות:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span> שם השירות</div><div class="fr-val">שם הטיפול שיופיע ביומן, בתור חדש ובאתר הציבורי. לדוגמה: <em>"פנינג פנים 60 דק׳"</em>, <em>"מניקור ג׳ל עם ריינסטון"</em>. ללא שם — שמירה חסומה, הודעה: "שם שירות הוא שדה חובה".</div></div>
+        <div class="field-row"><div class="fr-label">קטגוריה</div><div class="fr-val">רשימה נפתחת מ-8 הקטגוריות (מוצגות עם האמוג׳י שלהן). ברירת מחדל: 💎 כללי. הקטגוריה קובעת את קבוצת המיון ברשימה ואת צבע פס ברירת המחדל.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span> משך (דקות)</div><div class="fr-val">מספר דקות שהטיפול נמשך. מינימום: 5 דקות. צעד: 5 (כלומר 5, 10, 15 ... 60, 90, 120 וכו׳). ברירת מחדל: 60. ערך זה קובע את גובה קלף התור ביומן ואת חסימת הזמן של המטפלת.</div></div>
+        <div class="field-row"><div class="fr-label">מחיר (₪)</div><div class="fr-val">מחיר הטיפול בש"ח. מינימום: 0. ברירת מחדל: 0. ניתן לשנות לתור ספציפי בחלון קביעת תור. ערך זה מחושב לבסיס עמלת המטפלת.</div></div>
+        <div class="field-row"><div class="fr-label">% עמלה לשירות</div><div class="fr-val">אחוז עמלה ייחודי לשירות זה — <strong>דורס</strong> את % עמלת השירות של המטפלת. טווח: 0–100, צעד: 0.5. <strong>ריק = ברירת מחדל מטפלת</strong> — המערכת תשתמש ב-<code>commission_rate_svc</code> של המטפלת שביצעה את הטיפול.</div></div>
+        <div class="field-row"><div class="fr-label">צבע ביומן</div><div class="fr-val">בוחר צבע. ברירת מחדל: אינדיגו <code>#6366f1</code>. צבע זה מחליף את צבע הקטגוריה בפס הכרטיס ואינו משנה את צבע עמודת המטפלת ביומן (שאת הצבע שלה קובע color_hex של המטפלת).</div></div>
+        <div class="field-row"><div class="fr-label">תיאור (אופציונלי)</div><div class="fr-val">תיבת טקסט חופשית (2 שורות). מוצג בכרטיס השירות ובאתר הציבורי ללקוחות. מומלץ לכלול פירוט קצר כדי לעזור ללקוחות לבחור.</div></div>
+        <div class="field-row"><div class="fr-label">מטפלות מאושרות</div><div class="fr-val">מופיע <strong>רק אם קיימות מטפלות במערכת.</strong> תיבות סימון לכל מטפלת. <strong>ריק (ללא סימון) = כל המטפלות מאושרות לשירות.</strong> סימון מטפלות ספציפיות — רק הן יוכלו לבצע שירות זה ולהופיע בבחירה בחלון קביעת תור.</div></div>
+        <div class="field-row"><div class="fr-label">⚠️ Patch Test מוקדם</div><div class="fr-val">תיבת סימון. כאשר מסומן — מוצג תג ⚠️ Patch Test אדום על כרטיס השירות. שימושי לשירותי לייזר, צביעה, טיפולים כימיים — כתזכורת שנדרש בדיקת רגישות ראשונית.</div></div>
+      </div>
+      <div class="steps" style="margin-top:.7rem">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><span>לחץ <strong>+ שירות חדש</strong> — החלון נפתח ממרכז המסך.</span></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><span>הזן שם שירות (חובה), קטגוריה ומשך.</span></div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><span>הגדר מחיר, צבע ותיאור. השאר % עמלה ריק אם תרצה שתחושב לפי המטפלת.</span></div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><span>אם יש מטפלות — בחר מי מורשית לבצע שירות זה. אם לא סומן דבר — כולן מורשות.</span></div></div>
+        <div class="step"><div class="step-n">5</div><div class="step-body"><strong>לחץ "הוסף שירות ✓".</strong><span> הודעה: "השירות נוסף". החלון נסגר, הרשימה מתרעננת, והשירות זמין לבחירה בכל קביעת תור חדש.</span></div></div>
+      </div>
+    </div>
+
+    <!-- ה. עריכת שירות -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">✏️</div><div><div class="mod-name">עריכת שירות קיים</div><div class="mod-tag">מכירות › שירותים וטיפולים › ✏️</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">לחץ על עיגול <strong>✏️</strong> בכרטיס השירות — נפתח אותו חלון כמו הוספה, עם כותרת "✏️ עריכת שירות" וכל הנתונים הקיימים טעונים.</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">כל השדות</div><div class="fr-val">ניתנים לעריכה — שם, קטגוריה, משך, מחיר, % עמלה, צבע, תיאור, מטפלות מאושרות, Patch Test.</div></div>
+        <div class="field-row"><div class="fr-label">שמור שינויים ✓</div><div class="fr-val">שולח PATCH לשרת. הודעה: "השירות עודכן". החלון נסגר, הרשימה מתרעננת. שינוי מחיר ישפיע על תורים חדשים בלבד.</div></div>
+        <div class="field-row"><div class="fr-label">הסר שירות</div><div class="fr-val">כפתור אדום בהיר בתחתית החלון — מופיע <strong>רק בעריכה</strong> (לא בהוספה). לחיצה פותחת חלון אישור: <em>"להסיר שירות זה מהרשימה?"</em>. לאחר אישור — השירות מוסתר (soft delete: <code>is_active: false</code>), אינו מוצג ברשימה ואינו ניתן לבחירה בתורים חדשים. ניתן לשחזור על-ידי Super Admin. הודעה: "השירות הוסר".</div></div>
+      </div>
+      <div class="box box-warn">
+        <div class="box-icon">⚠️</div>
+        <div><strong>הסרת שירות אינה מוחקת תורים קיימים.</strong> תורים שכבר נקבעו עם שירות זה ממשיכים להיות גלויים בהיסטוריה ובדוחות — רק השירות עצמו נעלם מהקטלוג.</div>
+      </div>
+    </div>
+
+    <!-- ו. עמלת שירות vs עמלת מטפלת -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">💡</div><div><div class="mod-name">עמלה לפי שירות מול עמלה לפי מטפלת</div><div class="mod-tag">הסבר חשוב</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">המערכת תומכת בשני רבדי עמלה — ורד עדיפות:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">עמלת שירות (ספציפית)</div><div class="fr-val">אם הוגדר % עמלה בכרטיס השירות — ערך זה דורס את כל השאר. שימושי כשטיפול מסוים מזכה בעמלה שונה מהרגיל, לדוגמה: טיפול VIP בעמלה 40% לכולן.</div></div>
+        <div class="field-row"><div class="fr-label">עמלת מטפלת (ברירת מחדל)</div><div class="fr-val">אם שדה % העמלה בשירות ריק — נלקחת % עמלת השירות מכרטיס המטפלת שביצעה את הטיפול. כל מטפלת יכולה להיות באחוז שונה.</div></div>
+      </div>
+      <div class="box box-tip">
+        <div class="box-icon">💡</div>
+        <div><strong>המלצה:</strong> השאר את שדה % העמלה בשירות ריק לרוב השירותים — כך העמלה מחושבת לפי המטפלת ולא צריך לעדכן כל שירות כשמשנים תנאי מטפלת. הגדר עמלה ספציפית לשירות רק כשיש טיפול ייחודי עם תנאי שונים לכולן.</div>
+      </div>
+    </div>
+
+    <!-- ז. מטפלות מאושרות לשירות -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🔒</div><div><div class="mod-name">מטפלות מאושרות לשירות — הגבלת גישה</div><div class="mod-tag">מכירות › שירותים וטיפולים › עריכה</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">השדה "מטפלות מאושרות" מאפשר להגביל אילו מטפלות יכולות לבצע שירות ספציפי:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">ריק (ללא סימון)</div><div class="fr-val">כל המטפלות הפעילות מוצגות ברשימת המטפלות בחלון קביעת תור עבור שירות זה — <em>כולן מאושרות</em>.</div></div>
+        <div class="field-row"><div class="fr-label">עם סימון</div><div class="fr-val">רק המטפלות המסומנות יוצגו ברשימה בחלון קביעת תור. מטפלת שאינה מסומנת — לא תופיע כאפשרות לשירות זה.</div></div>
+      </div>
+      <div class="box box-tip">
+        <div class="box-icon">💡</div>
+        <div>שימושי לשירותי לייזר או טיפולים מיוחדים שרק מטפלת מוסמכת מורשית לבצע — מונע שיבוץ שגוי מבלי לחסום ידנית.</div>
+      </div>
+    </div>
+
+    <!-- ח. סצנריו -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">📖</div><div><div class="mod-name">סצנריו — בניית קטלוג שירותים מאפס</div><div class="mod-tag">דוגמה מלאה</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>כניסה</strong> — תפריט מכירות ← שירותים וטיפולים. מסך מציג "אין שירותים עדיין".</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>שירות ראשון</strong> — "+ שירות חדש" ← שם: "פנינג פנים קלאסי", קטגוריה: ✨ טיפולי פנים, משך: 60, מחיר: ₪250, % עמלה: <em>ריק</em> (ייקח מהמטפלת), צבע: סגול, Patch Test: לא. לחץ "הוסף שירות ✓".</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>שירות שני עם הגבלה</strong> — "+ שירות חדש" ← שם: "הסרת שיער בלייזר", קטגוריה: ⚡ לייזר/IPL, משך: 30, מחיר: ₪350, % עמלה: ריק, Patch Test: ✓ <strong>מסומן</strong>. מטפלות מאושרות: סמן רק "שירה" (המוסמכת). לחץ "הוסף שירות ✓".</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>בדיקה ביומן</strong> — בקביעת תור חדש, בבחירת שירות "הסרת שיער בלייזר" — ברשימת המטפלות מופיעה רק "שירה". קלף התור מציג "⚠️ Patch Test" כתזכורת.</div></div>
+        <div class="step"><div class="step-n">5</div><div class="step-body"><strong>שינוי מחיר</strong> — לאחר חודשיים מייקרים את "פנינג פנים" ל-₪280. לחץ ✏️ ← שנה מחיר ל-280 ← "שמור שינויים ✓". תורים שכבר נקבעו לפני הייקור לא מושפעים.</div></div>
       </div>
     </div>
   </div>
