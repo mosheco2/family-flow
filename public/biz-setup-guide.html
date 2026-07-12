@@ -3759,16 +3759,119 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     <div class="chapter" id="m-wizard">
       <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית — אשף 4 שלבים</div></div>
 
-      <div class="box box-tip" style="margin-bottom:14px;">
-        <div class="box-icon">💡</div>
-        <div>לפני האשף עצמו מופיעה שאלה: <strong>"מה סוג העסק שלך?"</strong>. בחרו <strong>שירות / מתקינים 🔧</strong> — זה פותח את כל מודולי התחזוקה הרלוונטיים.</div>
+      <p style="font-size:.9rem;color:var(--text2);">לאחר הרשמה ראשונה ובחירת סוג עסק — המערכת פותחת אוטומטית את אשף ההקמה. האשף מלווה אתכם ב-4 שלבים לסיום ההגדרה הבסיסית. ניתן גם לפתוח אותו מחדש מאוחר יותר דרך ⚙️ הגדרות ← "פתיחת אשף הקמה (Wizard)".</p>
+
+      <div class="box box-imp" style="margin:12px 0;">
+        <div class="box-icon">⚠️</div>
+        <div>לפני האשף עצמו — מופיעה שאלת <strong>"מה סוג העסק שלך?"</strong>. חובה לבחור <strong>שירות / מתקינים 🔧</strong>. בחירה זו קובעת את ממשק קריאות השירות, קטלוג שירותים/חלקים, ניתוב טכנאים ועוד. <strong>לאחר הבחירה לא ניתן לשנות לבד — רק Super Admin יכול לשנות</strong>.</div>
       </div>
 
+      <p style="font-size:.87rem;color:var(--text2);margin-bottom:16px;">בחלק העליון של האשף — <strong>פס התקדמות</strong> (25% / 50% / 75% / 100%) שמציג את המיקום הנוכחי. בתחתית: כפתור <strong>"המשך"</strong> (שמור והמשך לשלב הבא), כפתור <strong>"חזור"</strong> (מוסתר בשלב 1), וקישור <strong>"דלג על שלב זה"</strong> לדילוג ללא שמירה.</p>
+
+      <!-- שלב 1 -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🏪</div><div><div class="mod-name">שלב 1 — פרופיל העסק</div><div class="mod-tag">POST /store/settings</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">מיתוג החברה — הפרטים שיופיעו בקריאות שירות, בהצעות מחיר ובממשק הלקוח:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>לוגו העסק</div><div class="fr-val">לחצו "העלה מהמחשב" ← בחרו תמונה מהמחשב (JPG/PNG). המערכת מכווצת אוטומטית ל-300×300 פיקסלים. אחרי העלאה ← תמונה מוצגת בתצוגה מקדימה עגולה. לחיצה על התמונה — מגדילה אותה. לחיצה על 🗑️ — מוחקת. הלוגו מופיע בכל מסמך שנשלח ללקוח.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>באנר / רקע ראשי</div><div class="fr-val">תמונת רקע ראשית לממשק. לחצו "העלה קיים" ← מכווצת ל-800×400 פיקסלים. לאחר העלאת לוגו — מופיע כפתור <strong>"התאם רקע ב-AI"</strong> (כחול-סגול) שיוצר באנר תואם אוטומטית.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>טלפון ראשי</div><div class="fr-val">מספר הטלפון הראשי של החברה — לדוגמה <code>03-1234567</code> או <code>052-0000000</code>. יופיע בכל פנייה ללקוח.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>סלוגן / משפט מפתח</div><div class="fr-val">משפט שמחזק את מיתוג החברה — לדוגמה: <code>"שירות מהיר, איכות מקצועית"</code>. מוצג בממשק הלקוח ובהצעות מחיר.</div></div>
+          </div>
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div>לחיצה על <strong>"המשך"</strong> שומרת את הפרופיל (POST /store/settings) גם אם לא הועלה לוגו — אפשר להוסיף מאוחר יותר בהגדרות.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- שלב 2 -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">💰</div><div><div class="mod-name">שלב 2 — תקציב ראשוני</div><div class="mod-tag">POST /transaction</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">הזינו את מסגרת ההון ההתחלתי של החברה — סכום זה ייכנס אוטומטית לתזרים המזומנים כ<strong>"הכנסה התחלתית"</strong>:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>מסגרת / הון קיים (₪)</div><div class="fr-val">שדה מספרי — הזינו את היתרה הפתיחה של העסק. לדוגמה: <code>15000</code>. ברירת מחדל: <code>0</code>. אם הזנתם סכום גדול מ-0 — "המשך" שולח POST /transaction עם הסכום, תיאור "תקציב / מסגרת התחלתית", קטגוריה "business", סוג "income".</div></div>
+          </div>
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div>ניתן לדלג על שלב זה ולהזין ידנית פעולות תזרים בהמשך. הסכום שמזינים כאן הוא נקודת האפס של תזרים המזומנים.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- שלב 3 -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📋</div><div><div class="mod-name">שלב 3 — קטלוג שירותים וחלקי חילוף</div><div class="mod-tag">POST /store/catalog (עד 25 פריטים)</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:12px;">בניית קטלוג ראשוני של שירותים וחלקים — ישמש בקריאות שירות, בהצעות מחיר ובחשבוניות. ניתן לבחור בין 3 שיטות (ניתן לשלב):</p>
+
+          <h2 class="sec">שיטה א — בניה אוטומטית בעזרת AI</h2>
+          <div class="field-table" style="margin-bottom:10px;">
+            <div class="field-row"><div class="fr-label">תיאור העסק</div><div class="fr-val">כתבו בשפה חופשית מה העסק עושה — לדוגמה: <code>חברת מיזוג אוויר — תיקון, התקנה ותחזוקה שוטפת</code>. או: <code>שירות קירור ומיזוג — מכשירי מדף ומסחריים</code>.</div></div>
+          </div>
+          <div class="steps" style="margin-bottom:14px;">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הזינו תיאור</strong><span>כתבו בשדה "תאר את העסק" — הקצר והמדויק יותר, כך יהיה הקטלוג מוצלח יותר.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>לחצו "בנה תפריט"</strong><span>ה-AI יוצר עד 25 שירותים וחלקים בהתאם לתיאור — עם שמות, קטגוריות ומחירים מוצעים.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>בדקו ועדכנו</strong><span>הפריטים שנוצרו מופיעים ברשימה — ניתן למחוק כל פריט לא רלוונטי לפני השמירה.</span></div></div>
+          </div>
+
+          <h2 class="sec">שיטה ב — ייבוא מאקסל</h2>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:8px;">אם כבר יש לכם רשימת שירותים/חלקים בגיליון — ייבאו ישירות:</p>
+          <div class="steps" style="margin-bottom:14px;">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>בחרו סוג עסק</strong><span>לחצו על <strong>🔧 שירותים</strong> (עבור חברת תחזוקה/תיקונים).</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>בחרו סוג פריטים</strong><span>לחצו על <strong>שירותים</strong> — כך יווצרו כותרות הנכונות בקובץ.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>הורידו תבנית (אופציונלי)</strong><span>לחצו "תבנית" ← מוריד קובץ Excel עם הכותרות הנכונות: שם, קטגוריה, מחיר, תיאור. מלאו את הגיליון.</span></div></div>
+            <div class="step"><div class="step-n">4</div><div class="step-body"><strong>טענו קובץ</strong><span>לחצו "בחר קובץ Excel" ← בחרו את הקובץ (xlsx / xls / csv) ← המערכת מייבאת אוטומטית עד 25 שורות.</span></div></div>
+          </div>
+
+          <h2 class="sec">שיטה ג — הוספה ידנית</h2>
+          <div class="field-table" style="margin-bottom:10px;">
+            <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם שירות/חלק</div><div class="fr-val">שם מלא שיופיע בקריאות שירות ובחשבוניות. לדוגמה: <code>תיקון מזגן — לא מקרר</code>, <code>פילטר HEPA 10 אינץ'</code>.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>קטגוריה</div><div class="fr-val">לדוגמה: <code>תיקונים</code>, <code>תחזוקה</code>, <code>חלפים</code>, <code>התקנות</code>. מאפשר סינון ומיון בקטלוג.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>מחיר (₪)</div><div class="fr-val">מחיר בסיס — לדוגמה: <code>350</code>. ניתן לשנות בכל קריאה ספציפית.</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-o">אופציונלי</span>תיאור קצר</div><div class="fr-val">פרטים נוספים — לדוגמה: <code>כולל ניקוי פילטרים ובדיקת לחצים</code>. שורה נפרדת מתחת לשדות הראשיים.</div></div>
+          </div>
+          <p style="font-size:.87rem;color:var(--text2);">לחצו <strong>"הוסף"</strong> — הפריט מתווסף לרשימה. מונה <strong>X/25</strong> מוצג מעל הרשימה. לחצו 🗑️ על פריט למחיקתו. לחצו "נקה הכל" למחיקת כל הרשימה ותחילה מחדש. <strong>"המשך"</strong> שולח POST /store/catalog עבור כל פריט ברשימה.</p>
+
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div>ניתן לשלב את שלושת השיטות — לדוגמה: AI בונה בסיס, ואז מוסיפים ידנית חלקי חילוף ייחודיים. המקסימום הוא 25 פריטים בשלב ההקמה. קטלוג מלא ניתן לבנות לאחר מכן בהגדרות העסק.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- שלב 4 -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">👥</div><div><div class="mod-name">שלב 4 — הזמנת הצוות</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:12px;">השלב האחרון — שליחת הזמנות לצוות ב-WhatsApp. שני סוגי הזמנות:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">📗 הזמנה לעובדים</div><div class="fr-val">לחיצה על <strong>"שלח הזמנה לעובדים"</strong> (ירוק WhatsApp) — פותח WhatsApp עם הודעה מוכנה הכוללת: קוד הארגון שלכם + קישור הצטרפות ישיר כ-MEMBER. הטכנאי לוחץ על הקישור, נרשם, ומופיע ב"ממתינים לאישור". שלחו לכל טכנאי שטח.</div></div>
+            <div class="field-row"><div class="fr-label">👔 הזמנת שותף / מנהל ראשי</div><div class="fr-val">לחיצה על <strong>"הוספת שותף/מנהל ראשי"</strong> (אפור) — פותח WhatsApp עם הודעה אחרת: "הוגדרת כמנהל/ת במערכת" + קישור הצטרפות כ-ADMIN. הוא יצטרף ישירות עם הרשאות מנהל ראשי. שלחו למנהל סניף שמקבל גישה מלאה.</div></div>
+          </div>
+          <p style="font-size:.87rem;color:var(--text2);margin:10px 0;">בשלב 4 — כפתור "המשך" משתנה ל-<strong>"סיום והתחלת עבודה 🚀"</strong> (כחול). לחיצה עליו:</p>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>POST /groups/onboard</strong><span>המערכת מסמנת את העסק כ"הוגדר" (is_onboarded = true) — האשף לא ייפתח אוטומטית שוב.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>קונפטי 🎉</strong><span>אנימציית ברכה — ולאחריה טעינה מחדש של נתוני העסק (fetchData, fetchStoreCatalog).</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>לוח בקרה ראשי</strong><span>חוזרים ללוח הבקרה המרכזי עם כל הנתונים שהזנתם — מוכנים לפתוח קריאת שירות ראשונה.</span></div></div>
+          </div>
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div>ניתן לדלג על שלחו הזמנות ולשלוח בהמשך דרך "ניהול צוות". לחצו "דלג על שלב זה" ← המערכת מסיימת את האשף בלי לשלוח הזמנות.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- תרחיש מלא -->
+      <h2 class="sec" style="margin-top:24px;">תרחיש מלא — הקמת חברת קריירול שירות מאפס</h2>
       <div class="steps">
-        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>פרופיל העסק</strong><span>שם החברה, לוגו (אופציונלי), תמונת באנר, סלוגן. הלוגו יופיע בהצעות מחיר ובקריאות שירות.</span></div></div>
-        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>תקציב ראשוני</strong><span>עלויות חודשיות קבועות — רכבים, ביטוח, שכר. נקודת הבסיס לניתוח רווחיות.</span></div></div>
-        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>קטלוג שירותים וחלקים</strong><span>הוסיפו את סוגי השירותים — "תיקון מזגן ₪350", "בדיקה תקופתית ₪150". ניתן לייבא מאקסל, לבנות עם AI, או ידנית. מוסיפים גם חלקי חילוף נפוצים.</span></div></div>
-        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>הזמנת הצוות</strong><span>שלחו קישור הצטרפות לטכנאים דרך WhatsApp — כל אחד מצטרף, המנהל מאשר ומגדיר תפקיד "טכנאי שטח".</span></div></div>
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>שלב 1 — פרופיל</strong><span>מנהל החברה מעלה לוגו ← מכניס טלפון <code>050-0000000</code> וסלוגן <code>"מהיר, מקצועי, אמין"</code> ← לוחץ "המשך". הלוגו נשמר.</span></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>שלב 2 — תקציב</strong><span>מזין <code>12000</code> כהון פתיחה ← לוחץ "המשך". רשומת הכנסה נכנסת לתזרים: "תקציב / מסגרת התחלתית — 12,000₪".</span></div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>שלב 3 — קטלוג (AI)</strong><span>כותב <code>"חברת מיזוג אוויר — תיקון, התקנה ותחזוקה"</code> ← לוחץ "בנה תפריט". AI מייצר: "תיקון מזגן ₪350", "התקנת מזגן ₪800", "בדיקה תקופתית ₪150", "ניקוי פילטרים ₪80", ו-10 פריטים נוספים. מוחק 3 שאינם רלוונטיים ← מוסיף ידנית: "פילטר HEPA ₪120". לוחץ "המשך" — 12 פריטים נשמרים.</span></div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>שלב 4 — הזמנת הצוות</strong><span>לוחץ "שלח הזמנה לעובדים" ← WhatsApp נפתח עם הודעה ← שולח לרוני וגלית. לוחץ "סיום והתחלת עבודה 🚀" ← קונפטי, לוח בקרה מוכן.</span></div></div>
+        <div class="step"><div class="step-n">5</div><div class="step-body"><strong>רוני מצטרף</strong><span>לוחץ על הקישור שקיבל ב-WhatsApp ← מוזן אוטומטית קוד העסק ← ממלא שמו וסיסמה ← מצטרף. המנהל אשר ← בחר "טכנאי שטח 🔧".</span></div></div>
       </div>
     </div>
 
