@@ -4637,63 +4637,182 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     <div class="chapter" id="m-team">
       <div class="ch-head"><div class="ch-num">6</div><div class="ch-title">ניהול צוות</div></div>
 
-      <h2 class="sec">תפקידי עובדים בחברת תחזוקה</h2>
+      <!-- א. תפקידי עובדים -->
+      <h2 class="sec">א. תפקידי עובדים בחברת תחזוקה ותיקונים</h2>
+      <p>בחברת תחזוקה קיימים שני תפקידי עובד ייעודיים. לכל תפקיד ממשק בקרה נפרד שנפתח אוטומטית בכניסה לטאב <strong>עדכונים</strong>:</p>
       <div class="field-table" style="margin-top:10px;">
-        <div class="field-row"><div class="fr-label">🔧 טכנאי שטח</div><div class="fr-val">רואה את הקריאות שלו, מעדכן סטטוס, יומן, נוכחות. לוח בקרה ייעודי עם כל הקריאות שהוקצו לו.</div></div>
-        <div class="field-row"><div class="fr-label">🏢 מנהל סניף</div><div class="fr-val">גישה לכל הקריאות, לצוות, להזמנות רכש, לתזרים ולדוחות. מנהל את כל פעילות הסניף.</div></div>
+        <div class="field-row"><div class="fr-label">🔧 טכנאי שטח<br><span style="font-size:10px;font-weight:400;color:#64748b;">field_tech</span></div><div class="fr-val">לוח בקרה ייעודי עם: קריאות שירות שהוקצו לו (בלבד), כפתור החתמת נוכחות עם ספירת שעות, קישור ישיר ליומן ולמשימות. <strong>אינו</strong> רואה קריאות של טכנאים אחרים, אינו ניגש לתזרים/לקוחות/רכש. הטאבים שנפתחים לו: עדכונים, קריאות שירות, יומן, נוכחות.</div></div>
+        <div class="field-row"><div class="fr-label">🏢 מנהל סניף<br><span style="font-size:10px;font-weight:400;color:#64748b;">branch_manager</span></div><div class="fr-val">לוח בקרה ניהולי עם: KPIs של סניף (קריאות פתוחות, הכנסה חודשית), ניהול כל הקריאות וכל הטכנאים, הזמנות רכש, תזרים. הטאבים שנפתחים לו: עדכונים, קריאות שירות, משימות, ניהול צוות, נוכחות, לקוחות, תזרים, תקציב, מחסן.</div></div>
+      </div>
+      <div class="box box-warn" style="margin-top:10px;margin-bottom:18px;">
+        <div class="box-icon">⚠️</div>
+        <div>אין תפקיד "קופאי", "נציג שירות" או "מנהל משמרת" בחברת תחזוקה. אם בחרת תפקיד שגוי לעובד — ניתן לתקן בכל עת מ<strong>ניהול צוות › לחיצה על מגן ההרשאות 🛡️</strong>.</div>
       </div>
 
-      <div class="box box-tip" style="margin-top:12px;margin-bottom:18px;">
-        <div class="box-icon">💡</div>
-        <div>אין תפקיד "מנהל משמרת", "קופאי" או "נציג שירות" בחברת תחזוקה — רק טכנאי שטח ומנהל סניף.</div>
-      </div>
-
+      <!-- ב. ניהול צוות — הוספה, הרשאות, שכר -->
+      <h2 class="sec">ב. טאב "ניהול צוות" — הצטרפות, אישור ותפריט עובד</h2>
       <div class="mod">
         <div class="mod-head"><div class="mod-icon">👥</div><div><div class="mod-name">ניהול עובדים</div><div class="mod-tag">צוות › ניהול צוות</div></div></div>
         <div class="mod-body">
+
+          <h4 style="font-weight:700;font-size:13px;margin-bottom:8px;">שלבי הצטרפות עובד חדש</h4>
           <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הצטרפות</strong><span>הטכנאי מצטרף עם קוד העסק. מופיע ב"ממתינים לאישור".</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>אישור ותפקיד</strong><span>לחצו "אשר" ← בחרו: טכנאי שטח / מנהל סניף.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>שיוך קריאות</strong><span>מכאן ניתן לשייך קריאות חדשות לטכנאי זה בקלות.</span></div></div>
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>שליחת הזמנה</strong><span>לחצו <em>הזמן עובד בווצאפ 📲</em> (כפתור ירוק בראש הרשימה) ← בחרו תפקיד: <strong>טכנאי שטח 🔧</strong> או <strong>מנהל סניף 🏢</strong> ← לחצו "שלח הזמנה בווצאפ". העובד מקבל הודעה עם קישור הרשמה וקוד העסק.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הרשמה ע"י העובד</strong><span>העובד לוחץ על הקישור ← מגיע לדף ההרשמה של OneFlow BIZ ← מזין מספר טלפון ← נרשם. בסיום הרשמה מופיע ב"ממתינים לאישור" אצל המנהל.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>אישור המנהל</strong><span>ב<em>ניהול צוות</em> מופיע שם העובד עם כפתור אישור. לחצו <em>מגן הרשאות 🛡️</em> ← בחרו תפקיד (<strong>טכנאי שטח 🔧</strong> / <strong>מנהל סניף 🏢</strong>) ← סמנו את הטאבים שהוא צריך לראות ← לחצו "שמור". העובד רואה מיד את הממשק המותאם לתפקידו.</span></div></div>
+            <div class="step"><div class="step-n">4</div><div class="step-body"><strong>הגדרת שכר</strong><span>לחצו <em>גלגל שיניים ⚙️</em> ← הזינו: <strong>תעריף לשעה (₪)</strong> — ישמש לחישוב עלות בדוח נוכחות, <strong>מינימום שעות</strong> — מספר שעות חובה בחודש (אם לא הושלמו יופיע אזהרה בדוח) ← לחצו "שמור".</span></div></div>
           </div>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">כרטיס עובד — פעולות זמינות</h4>
+          <p>בכל שורת עובד ברשימה מופיעות 3 כפתורים:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">⚙️ הגדרות שכר</div><div class="fr-val">פתיחת מודל עם שני שדות: <strong>תעריף לשעה (₪)</strong> — כמה מרוויח העובד לכל שעת עבודה; <strong>מינימום שעות</strong> — מינימום חובה לחודש (0 = ללא הגבלה). הנתונים נשמרים ומחושבים בדוח נוכחות.</div></div>
+            <div class="field-row"><div class="fr-label">🛡️ סיווג והרשאות</div><div class="fr-val">פתיחת מודל הרשאות: בחירת <strong>תפקיד מערכת</strong> (MEMBER / ADMIN), בחירת <strong>תפקיד ייעודי</strong> (🚫 ללא / 🔧 טכנאי שטח / 🏢 מנהל סניף), סימון <strong>טאבים</strong> שגלויים לו. בעת בחירת תפקיד ייעודי — הטאבים המתאימים מסומנים אוטומטית. לחצו "שמור הרשאות" ← ההשפעה מיידית.</div></div>
+            <div class="field-row"><div class="fr-label">🗑️ מחיקת עובד</div><div class="fr-val">הסרת העובד מהמערכת (דרושה אישור). <strong>שימו לב:</strong> מחיקה לא מוחקת היסטוריית נוכחות וקריאות שכבר בוצעו על ידו.</div></div>
+          </div>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">שליחת פרטי גישה למייל</h4>
+          <p>לחצו <em>שלח סיסמאות לכולם במייל</em> (כפתור בראש לוח ניהול העובדים) ← המערכת שולחת למייל המנהל קובץ עם שמות המשתמשים וסיסמאות הכניסה של כל העובדים.</p>
+
         </div>
       </div>
 
+      <!-- ג. נוכחות -->
+      <h2 class="sec">ג. טאב "נוכחות ⏱️" — החתמות ודוח שעות</h2>
       <div class="mod">
         <div class="mod-head"><div class="mod-icon">⏱️</div><div><div class="mod-name">נוכחות</div><div class="mod-tag">צוות › נוכחות</div></div></div>
         <div class="mod-body">
-          <p>כל טכנאי מסמן כניסה/יציאה. דוח שעות מלא לשכר בסוף חודש.</p>
-          <div class="actions">
-            <span class="action">דוח שעות חודשי</span>
-            <span class="action">תיקון שעה ידנית (מנהל)</span>
-            <span class="action">ייצוא לאקסל</span>
+
+          <h4 style="font-weight:700;font-size:13px;margin-bottom:8px;">ממשק עובד (טכנאי שטח / מנהל סניף)</h4>
+          <p>כשנכנסים לטאב <em>נוכחות</em> רואים כפתור עגול גדול במרכז המסך:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🔵 כפתור "כניסה"</div><div class="fr-val">מצב כחול — העובד עדיין לא החתים. לחיצה מפעילה איתור GPS (הדפדפן מבקש הרשאת מיקום). אם המיקום בטווח הפעולה — נרשמת כניסה עם חותמת שעה ותאריך מדויקים. אם המיקום מחוץ לטווח — מוצגת הודעת שגיאה.</div></div>
+            <div class="field-row"><div class="fr-label">🔴 כפתור "יציאה (HH:MM:SS)"</div><div class="fr-val">מצב אדום — העובד בפנים. הכפתור מציג ספירת שעות חיה (שעות:דקות:שניות שחלפו מאז הכניסה). לחיצה נוספת רושמת יציאה ומחשבת סך שעות המשמרת.</div></div>
           </div>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">ממשק מנהל (ADMIN) — תצוגת דוח</h4>
+          <p>מנהל רואה מעל הכפתור האישי גם כלי ניהול צוות:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">פילטר עובד</div><div class="fr-val">רשימה נגללת — "כלל העובדים" (ברירת מחדל) או שם ספציפי. הדוח מתעדכן מיד.</div></div>
+            <div class="field-row"><div class="fr-label">פילטר חודש</div><div class="fr-val">"כל החודשים" או בחירת חודש/שנה ספציפיים (YYYY-MM). הדוח מסתנן לתקופה שנבחרה.</div></div>
+            <div class="field-row"><div class="fr-label">סיכום תקופה</div><div class="fr-val">קוביה כחולה בראש הדוח: <strong>סה"כ שעות</strong> (HH:MM) + <strong>סה"כ עלות שכר (₪)</strong> לתקופה שנבחרה. מתחת — פירוט לכל עובד: שעות + עלות + אזהרה אם לא השלים מינימום.</div></div>
+            <div class="field-row"><div class="fr-label">שורות דוח</div><div class="fr-val">כל שורה: שם עובד | תאריך | כניסה-יציאה | עלות משמרת (₪) | סך שעות משמרת. אם העובד עדיין בפנים — יציאה מוצגת כ-<strong>"פעיל"</strong> עם אנימציה מהבהבת.</div></div>
+          </div>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">הזנה ידנית — תיקון שכחה (מנהל בלבד)</h4>
+          <p>לחצו <em>הזן שעות ידנית</em> ← מודל נפתח עם 4 שדות:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">עובד</div><div class="fr-val">רשימה עם כל העובדים (לא כולל ADMIN). בחרו את מי ששכח להחתים.</div></div>
+            <div class="field-row"><div class="fr-label">תאריך</div><div class="fr-val">תאריך המשמרת (picker).</div></div>
+            <div class="field-row"><div class="fr-label">שעת כניסה</div><div class="fr-val">HH:MM.</div></div>
+            <div class="field-row"><div class="fr-label">שעת יציאה</div><div class="fr-val">HH:MM — חייבת להיות אחרי שעת הכניסה, אחרת מופיעה שגיאה.</div></div>
+          </div>
+          <p style="margin-top:8px;">לחצו "שמור" ← השורה מתווספת לדוח ומחושבת בסיכום השכר.</p>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">מיקום GPS לנוכחות (אופציונלי)</h4>
+          <p>ניתן לנעול מיקום גיאוגרפי — טכנאים יוכלו להחתים רק בטווח מסוים מהמשרד/מחסן. ההגדרה ב<em>הגדרות</em> (גלגל שיניים) ← <em>מיקום GPS לנוכחות</em> ← "נעל מיקום מכאן". כל עוד לא הוגדר מיקום — ניתן להחתים מכל מקום.</p>
+
         </div>
       </div>
 
+      <!-- ד. יומן -->
+      <h2 class="sec">ד. טאב "יומן 📅" — קריאות מתוזמנות וניהול לוח</h2>
       <div class="mod">
         <div class="mod-head"><div class="mod-icon">📅</div><div><div class="mod-name">יומן</div><div class="mod-tag">צוות › יומן</div></div></div>
         <div class="mod-body">
-          <p>לוח פגישות וביקורים — ניתן לקבוע מועד לקריאה ולשייך לטכנאי. הטכנאי רואה בנייד את המשימות שלו ליום.</p>
-          <div class="actions">
-            <span class="action">תצוגה יומית / שבועית / חודשית</span>
-            <span class="action">יצירת ביקור + שיוך לטכנאי</span>
-            <span class="action">לקוחות רואים זמינות לתיאום</span>
+
+          <div class="box box-tip" style="margin-bottom:12px;">
+            <div class="box-icon">🔗</div>
+            <div>היומן בחברת תחזוקה מסונכרן עם מודול קריאות השירות — כל קריאה שקובעים לה מועד (<em>תאריך ושעה</em>) מופיעה אוטומטית ביומן כאירוע כחול, ניתנת ללחיצה לפתיחת הקריאה.</div>
           </div>
+
+          <h4 style="font-weight:700;font-size:13px;margin-bottom:8px;">תצוגות יומן</h4>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">יום</div><div class="fr-val">ציר שעות ליום אחד. הקריאות מוצגות בתוך תאי שעה. ניתן לגלול קדימה/אחורה יום-יום.</div></div>
+            <div class="field-row"><div class="fr-label">שבוע</div><div class="fr-val">7 עמודות ימים. ניתן לעבור שבוע קדימה/אחורה. מתאים לתכנון שבועי של הטכנאים.</div></div>
+            <div class="field-row"><div class="fr-label">חודש</div><div class="fr-val">תצוגת לוח חודשי עם כל האירועים. לחיצה על נקודה פותחת תצוגת יום.</div></div>
+            <div class="field-row"><div class="fr-label">אג'נדה</div><div class="fr-val">רשימה כרונולוגית של כל האירועים הקרובים. קופץ 30 יום קדימה/אחורה בלחיצה. מתאים לסקירה מהירה של עומס עבודה.</div></div>
+          </div>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">קריאות מתוזמנות — סקשן ייחודי לתחזוקה</h4>
+          <p>מעל לוח השנה מוצג <strong>"📅 קריאות מתוזמנות (N)"</strong> — רשימת כל הקריאות שיש להן תאריך מתוזמן ועדיין פתוחות (לא הושלמו/בוטלו). כל כרטיסית מציגה:</p>
+          <ul style="margin-right:16px;font-size:13px;line-height:1.8;">
+            <li>שם הקריאה + כתובת לקוח</li>
+            <li>תאריך ושעה מדויקים (יום, תאריך, חודש, שעה:דקה)</li>
+            <li>תג סטטוס (חדשה / בטיפול / ממתין לחלקים וכו')</li>
+          </ul>
+          <p><strong>לטכנאי שטח</strong> — מוצגות רק הקריאות שהוקצו <em>לו</em> אישית. <strong>למנהל / Admin</strong> — מוצגות כל קריאות הסניף. לחיצה על כרטיסית פותחת את הקריאה המלאה לצפייה ועדכון.</p>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">בקשות תיאום (מלקוחות)</h4>
+          <p>לקוחות יכולים לשלוח בקשת ביקור דרך הדף הציבורי של העסק. בקשות אלו מופיעות בסקשן <strong>"בקשות ממתינות"</strong> ביומן עם כפתורי:</p>
+          <div class="actions">
+            <span class="action">✅ אשר — ממיר לאירוע מאושר ביומן</span>
+            <span class="action">📋 הפוך להצעת מחיר — פותח הצעת מחיר מקושרת</span>
+            <span class="action">✕ בטל — דחיית הבקשה</span>
+          </div>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">הגדרות יומן (ADMIN בלבד)</h4>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">שעת פתיחה</div><div class="fr-val">שעת התחלת יום עבודה (ברירת מחדל 09:00). קובעת את תחילת ציר השעות בתצוגת יום/שבוע.</div></div>
+            <div class="field-row"><div class="fr-label">שעת סגירה</div><div class="fr-val">שעת סיום יום עבודה (ברירת מחדל 18:00).</div></div>
+            <div class="field-row"><div class="fr-label">מרווח זמן</div><div class="fr-val">כל כמה דקות מוצגים תאים ביומן (ברירת מחדל 30 דקות). אפשרויות: 15 / 30 / 60 דקות.</div></div>
+          </div>
+
         </div>
       </div>
 
+      <!-- ה. משימות -->
+      <h2 class="sec">ה. טאב "פרויקטים ומשימות ✅" — ניהול מטלות פנימיות</h2>
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">✅</div><div><div class="mod-name">משימות</div><div class="mod-tag">צוות › משימות</div></div></div>
+        <div class="mod-head"><div class="mod-icon">✅</div><div><div class="mod-name">פרויקטים ומשימות</div><div class="mod-tag">צוות › פרויקטים ומשימות</div></div></div>
         <div class="mod-body">
-          <p>משימות פנימיות שאינן קריאות שירות — לדוגמה: "לבדוק מלאי גזים", "לחדש ביטוח רכבים".</p>
-          <div class="actions">
-            <span class="action">יצירת משימה + שיוך לעובד</span>
-            <span class="action">תאריך יעד ועדיפות</span>
-            <span class="action">סטטוס: פתוח / בביצוע / סגור</span>
+
+          <div class="box box-tip" style="margin-bottom:12px;">
+            <div class="box-icon">💡</div>
+            <div>המשימות כאן הן <strong>מטלות פנימיות</strong> שאינן קריאות שירות — לדוגמה: "לבדוק מלאי חלקים", "לחדש ביטוח רכב מספר X", "לשלוח חשבונית ללקוח Y". קריאות שירות מנוהלות בטאב נפרד.</div>
           </div>
+
+          <h4 style="font-weight:700;font-size:13px;margin-bottom:8px;">יצירת משימה (ADMIN / מנהל סניף בלבד)</h4>
+          <p>לחצו <em>+ משימה חדשה</em> (כפתור + בפינה) ← מודל "מטלה חדשה / פרויקט" נפתח:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>כותרת משימה</div><div class="fr-val">תיאור קצר וברור של מה שצריך לעשות — לדוגמה: "בדיקת לחץ מים במחסן".</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שיוך עובד</div><div class="fr-val">רשימה עם כל העובדים (לא ADMIN). בחרו את מי שצריך לבצע. אם לא בחרתם — תוצג שגיאה.</div></div>
+            <div class="field-row"><div class="fr-label">ימים לביצוע</div><div class="fr-val">מספר ימים עד לתאריך יעד (אופציונלי). המערכת מחשבת תאריך סיום ומציגה ספירת ימים שנשארו או "חריגה!" באדום אם עבר הזמן.</div></div>
+            <div class="field-row"><div class="fr-label">בונוס (₪)</div><div class="fr-val">תגמול כספי שהעובד מקבל בסיום מוצלח. אם הוזן סכום — מוצג תג <strong>"בונוס ₪XX"</strong> ירוק על הכרטיסית. אם לא הוזן — מוצג "שגרה".</div></div>
+          </div>
+          <p style="margin-top:8px;">לחצו "הקצה משימה" ← המשימה נשמרת ומופיעה מיד בלוח המשימות.</p>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">AI — יצירת תכנית עבודה</h4>
+          <p>בלחיצה על <em>✨ הצע תכנית עבודה</em>: בחרו עובד, כתבו נושא (לדוגמה: "טיפול רבעוני בדוד שמש"), ולחצו. ה-AI מחזיר רשימת משימות מוצעות — לחצו על כל אחת שתרצו לייבא, הפרטים ימולאו אוטומטית בשדות המודל.</p>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">מחזור חיים של משימה</h4>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🔵 ממתין לעובד</div><div class="fr-val">המשימה נפתחה על ידי המנהל, עדיין לא בוצעה. העובד שהוקצה רואה כפתור <strong>"📷 דיווח סיום"</strong>.</div></div>
+            <div class="field-row"><div class="fr-label">📷 דיווח סיום</div><div class="fr-val">העובד לוחץ "דיווח סיום" ← מצלמה נפתחת ← צלום תמונה כהוכחת ביצוע. ה-AI סורק את התמונה ומאמת שהיא רלוונטית למשימה (QA אוטומטי). אם עבר — הסטטוס עובר ל"בבקרת מנהל".</div></div>
+            <div class="field-row"><div class="fr-label">🟡 בבקרת מנהל</div><div class="fr-val">המנהל רואה כפתור <strong>"✅✅ אישור סופי"</strong> ← לחיצה פותחת מודל אישור עם סכום הבונוס (ניתן לשנות) ← "אשר ושחרר בונוס". העובד מקבל הבונוס בארנק הדיגיטלי שלו.</div></div>
+            <div class="field-row"><div class="fr-label">✅ סגור</div><div class="fr-val">המשימה אושרה. כרטיסית מוצגת באפור שקוף עם "✅✅ סגור". ניתן למחוק בלחיצה על 🗑️.</div></div>
+          </div>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">דיווח עצמי (לטכנאי)</h4>
+          <p>טכנאי יכול לדווח על פעולה שביצע מיוזמתו (ללא משימה שנפתחה על ידי מנהל). לחצו <em>דווח על ביצוע / יוזמה</em> ← כתבו מה עשיתם ← הכניסו "תמריץ מבוקש (₪)" ← שלחו. הדיווח עובר לאישור המנהל בדיוק כמו משימה רגילה.</p>
+
+          <h4 style="font-weight:700;font-size:13px;margin-top:16px;margin-bottom:8px;">נוהלי עבודה (SOP)</h4>
+          <p>ניתן ליצור "נוהל עבודה" — רשימת צ'קליסט עם שלבים. בעת ביצוע הנוהל, העובד מסמן שלב אחרי שלב. המנהל רואה סרגל התקדמות (N/M) בכרטיסית.</p>
+
         </div>
       </div>
+
+      <!-- ו. סנריו מלא -->
+      <h2 class="sec">ו. תרחיש מלא — מרגע הצטרפות טכנאי ועד אישור עבודה יומית</h2>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הצטרפות רוני הטכנאי</strong><span>המנהל פותח <em>ניהול צוות</em> ← לוחץ <em>הזמן עובד בווצאפ 📲</em> ← בוחר "טכנאי שטח 🔧" ← שולח הודעת WhatsApp לרוני. רוני לוחץ על הקישור, נרשם עם הטלפון שלו. שמו מופיע אצל המנהל ב"ממתינים לאישור".</span></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הגדרת הרשאות ושכר</strong><span>המנהל לוחץ על 🛡️ ← בוחר "🔧 טכנאי שטח" ← הטאבים: עדכונים, קריאות שירות, יומן, נוכחות — מסומנים אוטומטית ← לחיצת "שמור". לחצו ⚙️ ← הזינו תעריף 65 ₪/שעה, מינימום 160 שעות/חודש ← שמור.</span></div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>החתמת בוקר</strong><span>רוני מגיע לעבודה, פותח את האפליקציה בנייד ← נכנס לטאב <em>נוכחות</em> ← כפתור עגול כחול עם "כניסה" ← לוחץ ← המערכת מאתרת מיקום GPS ← "נרשמה כניסה למשמרת! עבודה נעימה 🎉" ← הכפתור הפך לאדום ומציג "יציאה (00:00:00)" שמתקתק.</span></div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>בדיקת יומן ומשימות</strong><span>רוני נכנס ל<em>יומן</em> ← רואה ב"📅 קריאות מתוזמנות": "החלפת מד מים — רחוב הרצל 12, 10:00". לוחץ עליה ← פותחת הקריאה המלאה. עוצר גם ב<em>משימות</em> ← רואה משימה "להזמין חיפוי צינור ← בונוס ₪30".</span></div></div>
+        <div class="step"><div class="step-n">5</div><div class="step-body"><strong>דיווח סיום משימה</strong><span>רוני הזמין את החיפוי ← לוחץ "📷 דיווח סיום" ← מצלם את אישור ההזמנה ← ה-AI מאמת ← הסטטוס עובר ל"בבקרת מנהל". המנהל רואה הודעה, לוחץ "✅✅ אישור סופי" ← מאשר בונוס ₪30 ← רוני מקבל את הסכום בארנק.</span></div></div>
+        <div class="step"><div class="step-n">6</div><div class="step-body"><strong>יציאה בסוף יום + דוח שכר</strong><span>בסיום היום רוני לוחץ שוב על הכפתור האדום ← יציאה נרשמת: 08:30–17:00 = 8.5 שעות × 65 ₪ = 552.50 ₪. המנהל בסוף החודש פותח <em>נוכחות</em> ← מסנן לפי רוני + החודש ← רואה סיכום: 172 שעות, ₪11,180, "12 שעות מעל המינימום".</span></div></div>
+      </div>
+
     </div>
 
     <!-- ── 7. כספים ── -->
