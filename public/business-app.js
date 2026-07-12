@@ -18599,18 +18599,17 @@ function _renderWizardV2StepContent(stepName) {
     }
     if (stepName === 'food_type') {
         const options = [
-            { value: 'tables',    icon: '🪑', label: 'שולחנות', sub: 'מסעדה / בית קפה' },
-            { value: 'takeaway',  icon: '🥡', label: 'טייק אווי בלבד', sub: '' },
-            { value: 'delivery',  icon: '🛵', label: 'משלוחים', sub: 'פודטראק / קייטרינג / בית' },
-            { value: 'mixed',     icon: '🔀', label: 'שילוב של כמה', sub: '' },
+            { value: 'tables',   icon: '🪑', label: 'שולחנות',       sub: 'מסעדה / בית קפה' },
+            { value: 'takeaway', icon: '🥡', label: 'טייק אווי בלבד', sub: '' },
+            { value: 'delivery', icon: '🛵', label: 'משלוחים',        sub: 'פודטראק / קייטרינג / בית' },
         ];
-        const selected = wizardV2Data.serviceType || '';
+        const selectedArr = wizardV2Data.serviceTypes || [];
         const cards = options.map(o => `
             <button type="button"
-                onclick="_selectWizardV2FoodType('${o.value}')"
+                onclick="_toggleWizardV2FoodType('${o.value}')"
                 id="wiz-v2-ft-${o.value}"
                 class="wiz-v2-ft-card flex flex-col items-center gap-1.5 p-4 rounded-2xl border-2 transition active:scale-95 text-center w-full
-                    ${selected === o.value ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-200'}"
+                    ${selectedArr.includes(o.value) ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-200'}"
                 style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-3xl">${o.icon}</span>
                 <span class="text-sm font-bold text-slate-700">${o.label}</span>
@@ -18620,8 +18619,9 @@ function _renderWizardV2StepContent(stepName) {
         return `
         <div class="max-w-md mx-auto space-y-5">
             <h3 class="font-bold text-slate-800 text-lg text-center">איך העסק שלך מוכר?</h3>
-            <div class="grid grid-cols-2 gap-3">${cards}</div>
-            <div id="wiz-v2-table-count-wrap" class="${selected === 'tables' ? '' : 'hidden'} bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
+            <p class="text-xs text-slate-400 text-center">ניתן לבחור יותר מאחד</p>
+            <div class="grid grid-cols-3 gap-3">${cards}</div>
+            <div id="wiz-v2-table-count-wrap" class="${selectedArr.includes('tables') ? '' : 'hidden'} bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
                 <label class="text-xs font-bold text-indigo-800 block mb-2">כמה שולחנות יש לך?</label>
                 <input type="number" id="wiz-v2-table-count" min="1" max="50" value="${wizardV2Data.tableCount || 8}"
                     class="modern-input py-3 text-center text-xl font-black text-indigo-600 bg-white w-full dir-ltr">
@@ -18631,24 +18631,29 @@ function _renderWizardV2StepContent(stepName) {
     return `<div class="text-center text-slate-500 py-8">שלב: ${stepName}</div>`;
 }
 
-window._selectWizardV2FoodType = function(value) {
-    wizardV2Data.serviceType = value;
-    document.querySelectorAll('.wiz-v2-ft-card').forEach(btn => {
-        const isSelected = btn.id === `wiz-v2-ft-${value}`;
+window._toggleWizardV2FoodType = function(value) {
+    if (!wizardV2Data.serviceTypes) wizardV2Data.serviceTypes = [];
+    const idx = wizardV2Data.serviceTypes.indexOf(value);
+    if (idx === -1) wizardV2Data.serviceTypes.push(value);
+    else wizardV2Data.serviceTypes.splice(idx, 1);
+
+    const isNowSelected = wizardV2Data.serviceTypes.includes(value);
+    const btn = document.getElementById(`wiz-v2-ft-${value}`);
+    if (btn) {
         btn.className = btn.className
             .replace(/border-indigo-500 bg-indigo-50|border-slate-200 bg-white hover:border-indigo-200/g, '')
-            + (isSelected ? ' border-indigo-500 bg-indigo-50' : ' border-slate-200 bg-white hover:border-indigo-200');
-    });
+            + (isNowSelected ? ' border-indigo-500 bg-indigo-50' : ' border-slate-200 bg-white hover:border-indigo-200');
+    }
     const wrap = document.getElementById('wiz-v2-table-count-wrap');
-    if (wrap) wrap.classList.toggle('hidden', value !== 'tables');
+    if (wrap) wrap.classList.toggle('hidden', !wizardV2Data.serviceTypes.includes('tables'));
 };
 
 async function _nextWizardV2Step() {
     const stepName = wizardStepsV2[currentWizardStepV2] || '';
 
     if (stepName === 'food_type') {
-        if (!wizardV2Data.serviceType) { alert('נא לבחור סוג פעילות'); return; }
-        if (wizardV2Data.serviceType === 'tables') {
+        if (!wizardV2Data.serviceTypes || wizardV2Data.serviceTypes.length === 0) { alert('נא לבחור סוג פעילות'); return; }
+        if (wizardV2Data.serviceTypes.includes('tables')) {
             wizardV2Data.tableCount = parseInt(document.getElementById('wiz-v2-table-count')?.value) || 8;
         }
     }
