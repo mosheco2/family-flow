@@ -1581,40 +1581,169 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     <div class="chapter" id="r-auto">
       <div class="ch-head"><div class="ch-num">8</div><div class="ch-title">אוטומציות — מה שהמערכת עושה לבד</div></div>
 
-      <p style="font-size:.9rem;color:var(--text2);">אחד היתרונות הגדולים של ONEFLOW LIFE BIZ — המערכת עושה הרבה דברים אוטומטית, בלי שתצטרכו לזכור:</p>
+      <p style="font-size:.9rem;color:var(--text2);">המערכת מחולקת לשניים: <strong>אוטומציות קבועות</strong> שפועלות תמיד ברקע ללא כל הגדרה, ו<strong>כללי התראה</strong> שאתם מגדירים פעם אחת ואחר כך המערכת שולחת push לנייד אוטומטית.</p>
 
-      <div class="auto-grid">
-        <div class="auto-card">
-          <div class="auto-icon">📦</div>
-          <div class="auto-title">הזמנת מלאי אוטומטית</div>
-          <div class="auto-desc">כשחומר גלם יורד מתחת לכמות המינימום — המערכת שולחת הזמנה לספק הרלוונטי</div>
-        </div>
-        <div class="auto-card">
-          <div class="auto-icon">🛵</div>
-          <div class="auto-title">שיוך שליח לפי זמינות</div>
-          <div class="auto-desc">הזמנת משלוח נשלחת אוטומטית לשליח הזמין — לא צריך לחפש מי פנוי</div>
-        </div>
-        <div class="auto-card">
-          <div class="auto-icon">⭐</div>
-          <div class="auto-title">בקשת ביקורת</div>
-          <div class="auto-desc">שעה לאחר הארוחה — האורח מקבל הודעה עם בקשה לדרג את החוויה</div>
-        </div>
-        <div class="auto-card">
-          <div class="auto-icon">⏰</div>
-          <div class="auto-title">תזכורת משמרת לעובד</div>
-          <div class="auto-desc">כל עובד מקבל הודעה 2 שעות לפני תחילת המשמרת שלו</div>
-        </div>
-        <div class="auto-card">
-          <div class="auto-icon">📊</div>
-          <div class="auto-title">דוח יומי למנהל</div>
-          <div class="auto-desc">בסוף כל יום — מייל עם סיכום: מכירות, נוכחות עובדים, ומלאי נמוך</div>
-        </div>
-        <div class="auto-card">
-          <div class="auto-icon">🔔</div>
-          <div class="auto-title">התראת חריגת תקציב</div>
-          <div class="auto-desc">ברגע שהוצאה חודשית חוצה 80% מהתקציב — קבלו התראה לנייד</div>
+      <!-- א. אוטומציות קבועות -->
+      <h2 class="sec">א. אוטומציות קבועות — פועלות מיד מהיום הראשון</h2>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📦</div><div><div class="mod-name">התראת מלאי נמוך — Push אוטומטי</div><div class="mod-tag">מחסן / מלאי</div></div></div>
+        <div class="mod-body">
+          <p>בכל פעם שכמות של חומר גלם במחסן יורדת מתחת לאחוז ה<strong>אזהרה</strong> שהגדרתם בפריט — המערכת שולחת התראת push לנייד של כל מי שהרשאתו ADMIN או MANAGER.</p>
+          <div class="scenario">
+            <div class="sc-title">דוגמה — מה קורה בפועל</div>
+            <div class="sc-step"><span class="sc-num">1</span>שמתם פריט "שמן זית 5 ליטר" עם כמות מינימום 2 יחידות</div>
+            <div class="sc-step"><span class="sc-num">2</span>המלצר רשם ב-POS שתי מנות שמחייבות שמן — הכמות ירדה ל-1</div>
+            <div class="sc-step"><span class="sc-num">3</span>המערכת מזהה שחצינו את סף האזהרה ושולחת push: <em>"מלאי נמוך: שמן זית 5 ליטר"</em></div>
+            <div class="sc-step"><span class="sc-num">4</span>אתם נכנסים למסך מחסן ומבצעים הזמנה מהספק בעצמכם</div>
+          </div>
+          <div class="box box-warn">
+            <div class="box-icon">⚠️</div>
+            <div>ההתראה נשלחת כ-push לנייד — לא נשלחת הזמנה אוטומטית לספק. ההזמנה מהספק היא פעולה ידנית שאתם עושים לאחר קבלת ההתראה.</div>
+          </div>
         </div>
       </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🔄</div><div><div class="mod-name">רענון נתונים בזמן אמת</div><div class="mod-tag">כל המסכים</div></div></div>
+        <div class="mod-body">
+          <p>המערכת מתעדכנת אוטומטית ברקע — לא צריך ללחוץ רענון:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">נתוני עסק כלליים</div><div class="fr-val">כל <strong>30 שניות</strong> — הזמנות, מכירות, פידים, לידים</div></div>
+            <div class="field-row"><div class="fr-label">פעמון הודעות 🔔</div><div class="fr-val">כל <strong>30 שניות</strong> — מספר ההתראות החדשות מתעדכן</div></div>
+            <div class="field-row"><div class="fr-label">KDS — מסך מטבח</div><div class="fr-val">כל <strong>30 שניות</strong> בזמן שהKDS פתוח — הזמנות חדשות מופיעות לבד</div></div>
+            <div class="field-row"><div class="fr-label">פאנל שולחנות 🪑</div><div class="fr-val">כל <strong>10 שניות</strong> בזמן שפאנל השולחנות פתוח — סטטוס שולחנות מתעדכן</div></div>
+            <div class="field-row"><div class="fr-label">מבצעי POS</div><div class="fr-val">כל <strong>2 שניות</strong> בזמן שה-POS פתוח — בדיקה אם מבצע חדש הופעל</div></div>
+            <div class="field-row"><div class="fr-label">הצעות מחיר</div><div class="fr-val">כל <strong>20 שניות</strong> כשמסך הצעות מחיר פתוח</div></div>
+          </div>
+          <div class="box box-tip">
+            <div class="box-icon">💡</div>
+            <div>בגלל הרענון האוטומטי — כשמלצר בשולחן 3 רושם הזמנה ב-POS שלו, המטבח רואה אותה ב-KDS תוך 30 שניות לכל היותר, בלי שאף אחד לוחץ כלום.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🤖</div><div><div class="mod-name">בינה מלאכותית — סריקה ואימות אוטומטיים</div><div class="mod-tag">מלאי / משימות</div></div></div>
+        <div class="mod-body">
+          <p>שני תהליכי AI פועלים אוטומטית כשאתם מצרפים תמונה:</p>
+
+          <h3 style="font-size:.9rem;font-weight:700;margin:12px 0 6px;">סריקת חשבונית ספק (מחסן → רכש)</h3>
+          <div class="scenario">
+            <div class="sc-title">תרחיש — קבלתם חשבונית מהספק</div>
+            <div class="sc-step"><span class="sc-num">1</span>נכנסים למחסן ← רכש ← לוחצים <strong>"סרוק חשבונית"</strong></div>
+            <div class="sc-step"><span class="sc-num">2</span>מצלמים או מעלים תמונה של החשבונית</div>
+            <div class="sc-step"><span class="sc-num">3</span>AI קורא את הטקסט — מזהה פריטים, כמויות ומחירים</div>
+            <div class="sc-step"><span class="sc-num">4</span>מציג טבלה מוכנה לאישור — אתם בודקים ולוחצים <strong>"אשר"</strong></div>
+            <div class="sc-step"><span class="sc-num">5</span>המערכת מעדכנת כמויות במחסן ומחירי עלות לחישוב Food Cost</div>
+          </div>
+
+          <h3 style="font-size:.9rem;font-weight:700;margin:16px 0 6px;">אימות הוכחת ביצוע משימה (משימות)</h3>
+          <div class="scenario">
+            <div class="sc-title">תרחיש — עובד סיים משימת ניקיון</div>
+            <div class="sc-step"><span class="sc-num">1</span>עובד לוחץ "סמן כבוצע" במשימה ומצרף תמונת הוכחה</div>
+            <div class="sc-step"><span class="sc-num">2</span>AI בודק שהתמונה מראה את מה שנדרש (ניקיון, ציוד, מיקום)</div>
+            <div class="sc-step"><span class="sc-num">3</span>אם התמונה תקינה — המשימה מסומנת "בוצע ✓"</div>
+            <div class="sc-step"><span class="sc-num">4</span>אם התמונה לא מתאימה — המשימה נשארת פתוחה ומתקבלת הודעה</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">עדכון Food Cost אוטומטי</div><div class="mod-tag">Food Cost / מחסן</div></div></div>
+        <div class="mod-body">
+          <p>כל פעם שמחיר של חומר גלם משתנה (עדכון חשבונית ספק) — המערכת מחשבת מחדש את אחוז ה-Food Cost של <strong>כל המנות</strong> שמשתמשות בחומר הגלם הזה, בלי שתצטרכו לעשות כלום.</p>
+          <div class="box box-tip">
+            <div class="box-icon">💡</div>
+            <div>עלה מחיר השמן? כל המנות שכוללות שמן יציגו אוטומטית אחוז Food Cost מעודכן — תראו בדיוק אילו מנות הפכו פחות רווחיות.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ב. כללי התראה -->
+      <h2 class="sec">ב. כללי התראה — הגדרה חד-פעמית, התראה אוטומטית</h2>
+      <p style="font-size:.9rem;color:var(--text2);">כללי התראה מאפשרים לכם להחליט: <em>"כשקורה X — שלח לי push לנייד"</em>. מגדירים פעם אחת ואז המערכת עושה הכל לבד.</p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🔔</div><div><div class="mod-name">פתיחת מסך כללי התראה</div><div class="mod-tag">כל סוגי העסק</div></div></div>
+        <div class="mod-body">
+          <div class="scenario">
+            <div class="sc-title">איך מגיעים לכללי ההתראה</div>
+            <div class="sc-step"><span class="sc-num">1</span>לוחצים על פעמון ההתראות 🔔 בפינה העליונה</div>
+            <div class="sc-step"><span class="sc-num">2</span>בתחתית החלונית — לוחצים <strong>"כללי התראה ⚙️"</strong></div>
+            <div class="sc-step"><span class="sc-num">3</span>נפתח פאנל <strong>"כללי התראה"</strong> עם רשימת הכללים הקיימים</div>
+            <div class="sc-step"><span class="sc-num">4</span>ללחיצת <strong>"+ הוסף כלל"</strong> — נפתח חלון הגדרת כלל חדש</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">הוספת כלל התראה</div><div class="mod-tag">הגדרה חד-פעמית</div></div></div>
+        <div class="mod-body">
+          <p>לכל כלל התראה אפשר לבחור <strong>שם, טריגר ותיאור</strong>. ניתן גם לתאר בשפה חופשית ו-AI מייצר את הכלל אוטומטית.</p>
+
+          <h3 style="font-size:.9rem;font-weight:700;margin:10px 0 6px;">שדות הטופס</h3>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם הכלל</div><div class="fr-val">שם תיאורי לכלל — לדוגמה "הזמנה לא מטופלת"</div></div>
+            <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>טריגר</div><div class="fr-val">האירוע שמפעיל את ההתראה — ראו רשימה למטה</div></div>
+            <div class="field-row"><div class="fr-label">תיאור</div><div class="fr-val">הסבר אישי למה הכלל הזה קיים</div></div>
+          </div>
+
+          <h3 style="font-size:.9rem;font-weight:700;margin:16px 0 6px;">טריגרים זמינים למסעדה</h3>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">הזמנה חדשה</div><div class="fr-val">בכל פעם שמתקבלת הזמנת מסעדה חדשה — push מיידי</div></div>
+            <div class="field-row"><div class="fr-label">הזמנה לא מטופלת 15 דקות</div><div class="fr-val">אם הזמנה נשארת ב"ממתינה" מעל 15 דקות — push אזהרה</div></div>
+            <div class="field-row"><div class="fr-label">הזמנה לא מטופלת 30 דקות</div><div class="fr-val">אם הזמנה נשארת ב"ממתינה" מעל 30 דקות — push דחוף</div></div>
+            <div class="field-row"><div class="fr-label">ליד חדש</div><div class="fr-val">כשפונה לקוח פוטנציאלי חדש דרך הטופס — push מיידי</div></div>
+            <div class="field-row"><div class="fr-label">הזמנה ביומן חדשה</div><div class="fr-val">כשנקבעת הזמנת שולחן חדשה ביומן — push מיידי</div></div>
+            <div class="field-row"><div class="fr-label">קריאת שירות חדשה</div><div class="fr-val">כשנפתחת קריאת שירות חדשה — push מיידי</div></div>
+            <div class="field-row"><div class="fr-label">תשלום התקבל</div><div class="fr-val">כשנסגרת עסקה ותשלום נרשם — push אישור</div></div>
+            <div class="field-row"><div class="fr-label">מלאי נמוך</div><div class="fr-val">כשחומר גלם יורד מתחת לאחוז האזהרה — push (נוסף על האוטומטי הקבוע)</div></div>
+          </div>
+
+          <h3 style="font-size:.9rem;font-weight:700;margin:16px 0 6px;">יצירה חכמה עם AI</h3>
+          <div class="scenario">
+            <div class="sc-title">תרחיש — יצירת כלל עם AI</div>
+            <div class="sc-step"><span class="sc-num">1</span>בחלון "הוסף כלל" לוחצים <strong>"✨ צור עם AI"</strong></div>
+            <div class="sc-step"><span class="sc-num">2</span>כותבים בשפה חופשית: <em>"תתריע לי אם הזמנה ממתינה יותר מ-20 דקות"</em></div>
+            <div class="sc-step"><span class="sc-num">3</span>AI בוחר את הטריגר המתאים ממלא שם ותיאור</div>
+            <div class="sc-step"><span class="sc-num">4</span>בודקים את הכלל שנוצר ולוחצים <strong>"שמור כלל"</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📋</div><div><div class="mod-name">ניהול כללים קיימים</div><div class="mod-tag">הפעלה / כיבוי / מחיקה</div></div></div>
+        <div class="mod-body">
+          <p>בפאנל "כללי התראה" מוצגים כל הכללים שהגדרתם:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">הפעלה / כיבוי</div><div class="fr-val">כל כלל מציג מתג — כיבוי מפסיק את ההתראה מבלי למחוק את הכלל</div></div>
+            <div class="field-row"><div class="fr-label">עריכה</div><div class="fr-val">לחיצה על הכלל פותחת את פרטיו לעריכה</div></div>
+            <div class="field-row"><div class="fr-label">מחיקה</div><div class="fr-val">כפתור מחיקה — מסיר את הכלל לצמיתות</div></div>
+          </div>
+          <div class="box box-tip">
+            <div class="box-icon">💡</div>
+            <div>מומלץ להתחיל עם 2-3 כללים קריטיים: <strong>הזמנה חדשה</strong> + <strong>הזמנה לא מטופלת 15 דקות</strong> + <strong>מלאי נמוך</strong>. אחר כך מוסיפים לפי הצורך.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ג. מה לא אוטומטי -->
+      <h2 class="sec">ג. מה לא קורה אוטומטית — חשוב לדעת</h2>
+      <div class="box box-warn" style="margin-bottom:16px;">
+        <div class="box-icon">⚠️</div>
+        <div>
+          <strong>אלה הדברים שה<em>מדריך</em> לא יכתוב לכם שנעשים לבד — כי הם לא נעשים לבד:</strong>
+          <ul style="margin:8px 0 0 16px;line-height:1.9;">
+            <li><strong>הזמנה מהספק</strong> — המערכת <em>מתריעה</em> על מלאי נמוך, אבל ההזמנה מהספק היא ידנית</li>
+            <li><strong>שיוך שליח</strong> — שיוך שליח להזמנת משלוח הוא פעולה ידנית</li>
+            <li><strong>תזכורת משמרת לעובד</strong> — אין שליחת תזכורת אוטומטית לפני משמרת</li>
+            <li><strong>בקשת ביקורת אחרי הארוחה</strong> — אין שליחת בקשת דירוג אוטומטית לאורחים</li>
+            <li><strong>דוח יומי במייל</strong> — דוח סגירת יום הוא ידני (כפתור בתוך המערכת)</li>
+          </ul>
+        </div>
+      </div>
+
     </div>
 
   </div><!-- /wrap -->
