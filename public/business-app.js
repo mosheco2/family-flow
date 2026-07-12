@@ -18547,6 +18547,79 @@ function skipWizardStep() {
     if (currentWizardStep === 4) nextWizardStep(); // סיום
     else { currentWizardStep++; updateWizardUI(); }
 }
+// --- ONBOARDING WIZARD V2 (שלבים מותאמי סוג עסק) ---
+
+const WIZARD_STEPS_BY_TYPE_V2 = {
+    restaurant:   ['identity', 'food_type', 'menu', 'team'],
+    beauty:       ['identity', 'practitioners', 'services', 'team'],
+    sport:        ['identity', 'subscriptions', 'trainer', 'team'],
+    services:     ['identity', 'service_types', 'billing_flow', 'team'],
+    professional: ['identity', 'case_type', 'first_case', 'portfolio', 'team'],
+    other:        ['identity', 'catalog', 'team'],
+};
+
+let wizardStepsV2 = [];
+let currentWizardStepV2 = 0;
+
+window.updateWizardUIV2 = function updateWizardUIV2() {
+    const stepName = wizardStepsV2[currentWizardStepV2] || '';
+    const total = wizardStepsV2.length;
+    const progressPct = total > 0 ? ((currentWizardStepV2 + 1) / total) * 100 : 0;
+
+    const progressEl = document.getElementById('wizard-v2-progress');
+    if (progressEl) progressEl.style.width = `${progressPct}%`;
+
+    const contentEl = document.getElementById('wizard-v2-content');
+    if (contentEl) contentEl.innerHTML = `<div>שלב: ${stepName}</div>`;
+
+    const btnPrev = document.getElementById('wizard-v2-btn-prev');
+    if (btnPrev) btnPrev.classList.toggle('hidden', currentWizardStepV2 === 0);
+
+    const btnNext = document.getElementById('wizard-v2-btn-next');
+    if (btnNext) btnNext.innerText = currentWizardStepV2 === total - 1 ? 'סיום 🚀' : 'המשך';
+}
+
+window.showOnboardingWizardV2 = function showOnboardingWizardV2() {
+    if (document.getElementById('onboarding-wizard-v2-modal')) {
+        document.getElementById('onboarding-wizard-v2-modal').classList.remove('hidden');
+        return;
+    }
+
+    const bizType = currentGroup?.business_type || 'other';
+    wizardStepsV2 = WIZARD_STEPS_BY_TYPE_V2[bizType] || WIZARD_STEPS_BY_TYPE_V2['other'];
+    currentWizardStepV2 = 0;
+
+    const modalHtml = `
+    <div id="onboarding-wizard-v2-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
+
+            <div class="w-full bg-slate-100 h-1.5 shrink-0">
+                <div id="wizard-v2-progress" class="bg-indigo-600 h-1.5 transition-all duration-500" style="width: 0%;"></div>
+            </div>
+
+            <div class="bg-indigo-50 p-4 sm:p-6 text-center border-b border-indigo-100 shrink-0">
+                <h2 class="text-xl sm:text-2xl font-black text-indigo-900 mb-1">ברוכים הבאים ל-Oneflow BIZ! 🎉</h2>
+                <p class="text-indigo-600 text-xs sm:text-sm font-bold">בואו נקים את העסק שלכם ב-${wizardStepsV2.length} צעדים מהירים</p>
+            </div>
+
+            <div class="flex-1 overflow-y-auto modal-scroll p-4 sm:p-6 bg-slate-50/50">
+                <div id="wizard-v2-content" class="fade-in max-w-md mx-auto"></div>
+            </div>
+
+            <div class="p-4 bg-white border-t border-slate-100 flex justify-between items-center shrink-0">
+                <button id="wizard-v2-btn-skip" onclick="currentWizardStepV2++; updateWizardUIV2();" class="text-xs text-slate-400 font-bold hover:text-slate-600 transition underline px-2">דלג על שלב זה</button>
+                <div class="flex gap-2">
+                    <button id="wizard-v2-btn-prev" onclick="currentWizardStepV2--; updateWizardUIV2();" class="px-4 sm:px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-100 rounded-xl transition hidden">חזור</button>
+                    <button id="wizard-v2-btn-next" onclick="currentWizardStepV2++; updateWizardUIV2();" class="px-6 sm:px-8 py-2.5 bg-slate-800 text-white font-bold rounded-xl shadow-md hover:bg-slate-700 transition">המשך</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    updateWizardUIV2();
+}
+
 // --- מנגנון מחשבון תמחיר מנה (Food Cost) ---
 let fcIngredients = [];
 
