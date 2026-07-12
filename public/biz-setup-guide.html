@@ -2688,35 +2688,231 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     <div class="chapter" id="s-trainers">
       <div class="ch-head"><div class="ch-num">5</div><div class="ch-title">ניהול מאמנים</div></div>
 
-      <p style="font-size:.9rem;color:var(--text2);">המאמנים מנוהלים בלשונית <strong>"מאמנים"</strong> בלוח הבקרה הראשי — מערכת נפרדת ייעודית לניהול מאמנים חיצוניים ופנימיים, שכרם והשיעורים שנתנו.</p>
+      <p style="font-size:.9rem;color:var(--text2);">מודול ייעודי לניהול מאמנים חיצוניים ופנימיים: פרופיל אישי, תנאי שכר, רישום שיעורים ידני, עקיבה אחר חובות, וסגירת שכר חודשי — הכול במקום אחד. מאמנים מנוהלים בנפרד ממערכת הצוות (ראו פרק 6).</p>
+
+      <!-- כניסה למודול -->
+      <h2 class="sec">א. כיצד מגיעים למסך המאמנים?</h2>
+      <p style="font-size:.87rem;color:var(--text2);">יש שתי נקודות כניסה למסך המאמנים:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">פעולות מהירות בלוח הבקרה</div><div class="fr-val">בלוח הבקרה של ADMIN (מנהל ראשי / בעלים) — לחצו על <strong>👨‍🏫 מאמנים</strong> ברשת 8 הפעולות המהירות. זה מפתח את מסך המאמנים מעל כל תוכן אחר.</div></div>
+        <div class="field-row"><div class="fr-label">מתוך לוח השיעורים</div><div class="fr-val">פתחו את לוח השיעורים (🗓️ שיעורים מהפעולות המהירות) — בכותרת המסך תראו כפתור <strong>👨‍🏫 מאמנים</strong> (בצבע תכלת). לחיצה עליו עוברת ישירות למסך המאמנים.</div></div>
+      </div>
+
+      <div class="box box-tip">
+        <div class="box-icon">💡</div>
+        <div>מסך המאמנים נפתח <strong>בתוך אותו חלון</strong> — הוא מחליף את תצוגת הפיד הראשי ומציג ממשק מלא עם כותרת, לשוניות ותוכן גלילה. לחיצה על <strong>✕</strong> בפינה הימנית העליונה מחזירה ללוח הבקרה.</div>
+      </div>
+
+      <!-- מסך ראשי -->
+      <h2 class="sec">ב. מבנה מסך המאמנים</h2>
+      <p style="font-size:.87rem;color:var(--text2);">לאחר הכניסה, המסך מוצג כמבנה עם כותרת ושתי לשוניות:</p>
 
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">👨‍🏫</div><div><div class="mod-name">הוספת מאמן</div></div></div>
+        <div class="mod-head"><div class="mod-icon">🏋️</div><div><div class="mod-name">מאמנים 🏋️ — כותרת ולשוניות</div></div></div>
         <div class="mod-body">
-          <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו "+ הוסף מאמן"</strong><span>הזינו: שם המאמן, טלפון, מייל (אופציונלי), התמחות (לדוגמה: יוגה, פילאטיס, קרוספיט).</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הגדרת שכר</strong><span>הגדירו תעריף לשעה או לשיעור. המערכת תחשב שכר אוטומטית לפי מספר השיעורים שנתן.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>שיוך לשיעורים</strong><span>כשיוצרים שיעור ביומן — בחרו את שם המאמן מהרשימה. כל שיעור ייזקף לחשבונו.</span></div></div>
+          <p>בראש המסך:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">✕ (שמאל)</div><div class="fr-val">סגירת המסך וחזרה ללוח הבקרה.</div></div>
+            <div class="field-row"><div class="fr-label">מאמנים 🏋️ (מרכז)</div><div class="fr-val">כותרת המסך.</div></div>
+            <div class="field-row"><div class="fr-label">+ מאמן (ימין)</div><div class="fr-val">כפתור כחול — פותח טופס הוספת מאמן חדש (ראו סעיף ג').</div></div>
+          </div>
+          <p style="margin-top:10px;">מתחת לכותרת — שתי <strong>לשוניות</strong>:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">👥 מאמנים (ברירת מחדל)</div><div class="fr-val">רשימת כל המאמנים הרשומים — כרטיס לכל מאמן עם פרטים ומצב חוב. ברירת המחדל בפתיחה.</div></div>
+            <div class="field-row"><div class="fr-label">💰 שכר</div><div class="fr-val">סיכום שכר חודשי — כמה שולם, כמה נשאר לתשלום, שורה לכל מאמן עם כפתור תשלום. ניתן לעבור בין חודשים.</div></div>
           </div>
         </div>
       </div>
 
-      <div class="mod">
-        <div class="mod-head"><div class="mod-icon">💰</div><div><div class="mod-name">שכר מאמנים</div></div></div>
-        <div class="mod-body">
-          <p>בלשונית <strong>"שכר"</strong> (תחת מאמנים) — רואים לכל מאמן: כמה שיעורים נתן החודש, מה הסכום לתשלום, ומה כבר שולם.</p>
+      <!-- לשונית מאמנים -->
+      <h2 class="sec">ג. לשונית 👥 מאמנים — רשימת המאמנים</h2>
 
-          <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>רשמו שיעור</strong><span>לחצו "רשום שיעור" על כרטיס המאמן — מלאו תאריך, שעות, סוג שיעור. המערכת מחשבת את הסכום.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>אם מאמן החליף</strong><span>לחצו "החלפה" — רשמו שיעור החלפה, המסומן כשונה משיעור רגיל.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>סמנו תשלום</strong><span>לאחר ששילמתם למאמן — לחצו "שלם" ← אשרו הסכום. הרישום נשמר לדוחות.</span></div></div>
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">👥</div><div><div class="mod-name">כרטיס מאמן ברשימה</div></div></div>
+        <div class="mod-body">
+          <p>כל מאמן מוצג בכרטיס נפרד. הכרטיס מכיל:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">שם המאמן (ימין למעלה)</div><div class="fr-val">שם מלא, מודגש.</div></div>
+            <div class="field-row"><div class="fr-label">טלפון + התמחויות (מתחת לשם)</div><div class="fr-val">מספר טלפון. אם הוגדרו התמחויות — מופיעות אחרי נקודה: "054-1234567 · יוגה, קרוספיט".</div></div>
+            <div class="field-row"><div class="fr-label">כפתור "פרטים" (כחול)</div><div class="fr-val">פותח את פרופיל המאמן המלא עם היסטוריית שיעורים (ראו סעיף ד').</div></div>
+            <div class="field-row"><div class="fr-label">כפתור ✏️ (אפור)</div><div class="fr-val">פותח טופס עריכת פרטי המאמן — שם, טלפון, שכר, הערות.</div></div>
+            <div class="field-row"><div class="fr-label">₪XX לתשלום (אדום)</div><div class="fr-val">מופיע <strong>רק אם</strong> יש לאותו מאמן שיעורים שטרם שולמו. מציג את הסכום הכולל המצטבר.</div></div>
+            <div class="field-row"><div class="fr-label">X שיעורים</div><div class="fr-val">מספר שיעורים כולל שנרשמו למאמן מאז הצטרפותו.</div></div>
+            <div class="field-row"><div class="fr-label">סוג שכר</div><div class="fr-val">מציג את שיטת החישוב שהוגדרה: שעתי / לשיעור / % הכנסות / בונוס.</div></div>
           </div>
 
-          <div class="box box-good">
-            <div class="box-icon">✅</div>
-            <div>בסוף חודש — הדוח מראה בדיוק כמה חייבים לכל מאמן. אפס ניירת, אפס חישובים ידניים.</div>
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div>אם אין מאמנים כלל — המסך מציג "<strong>אין מאמנים עדיין</strong>" וכפתור כחול "<strong>הוסף מאמן ראשון ➕</strong>" שפותח ישירות את טופס ההוספה.</div>
           </div>
         </div>
+      </div>
+
+      <!-- הוספת מאמן -->
+      <h2 class="sec">ד. הוספת מאמן חדש</h2>
+      <p style="font-size:.87rem;color:var(--text2);">לחצו על <strong>+ מאמן</strong> בראש המסך (או "הוסף מאמן ראשון ➕" אם הרשימה ריקה). יופיע טופס עם השדות הבאים:</p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📋</div><div><div class="mod-name">טופס הוספת / עריכת מאמן</div></div></div>
+        <div class="mod-body">
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">שם מלא <span style="color:var(--danger)">*</span></div><div class="fr-val">שדה חובה. placeholder: "שם המאמן". אם תנסו לשמור ללא שם — תופיע הודעת שגיאה "שם חובה".</div></div>
+            <div class="field-row"><div class="fr-label">טלפון</div><div class="fr-val">כתיבה משמאל לימין (dir=ltr). אופציונלי. לדוגמה: 0541234567.</div></div>
+            <div class="field-row"><div class="fr-label">אימייל</div><div class="fr-val">כתיבה משמאל לימין (dir=ltr). אופציונלי. לדוגמה: trainer@gmail.com.</div></div>
+            <div class="field-row"><div class="fr-label">התמחויות</div><div class="fr-val">טקסט חופשי, מופרד בפסיקים. placeholder: "יוגה, קרוספיט, שחייה...". אופציונלי. מוצג בכרטיס המאמן ברשימה.</div></div>
+          </div>
+
+          <p style="margin-top:12px;font-weight:bold;font-size:.9rem;">סוג שכר — 4 אפשרויות (radio):</p>
+          <p style="font-size:.85rem;color:var(--text2);margin-bottom:6px;">ברירת מחדל: <strong>לשיעור</strong>. כשמחליפים בחירה — השדות שמתחת משתנים בהתאם.</p>
+
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">לשיעור (ברירת מחדל)</div><div class="fr-val">"סכום קבוע לכל שיעור" — לאחר הבחירה מופיע שדה: <strong>תשלום לשיעור (₪)</strong>, ברירת מחדל: 150.</div></div>
+            <div class="field-row"><div class="fr-label">שעתי</div><div class="fr-val">"תעריף לפי שעות עבודה" — מופיע שדה: <strong>תעריף לשעה (₪)</strong>, ברירת מחדל: 80.</div></div>
+            <div class="field-row"><div class="fr-label">אחוז הכנסות</div><div class="fr-val">"% מהכנסות השיעור" — מופיע שדה: <strong>אחוז מהכנסות (%)</strong>, ברירת מחדל: 20 (מינימום 0, מקסימום 100).</div></div>
+            <div class="field-row"><div class="fr-label">בסיס + בונוס</div><div class="fr-val">"בסיס + תוספת לכל מתאמן מעל X" — מופיעים 3 שדות:<br>
+              • <strong>בסיס לשיעור (₪)</strong> — ברירת מחדל: 100<br>
+              • <strong>מספר מתאמנים בסיס</strong> — ברירת מחדל: 10 (כמות המתאמנים שמתחתיה לא מחושב בונוס)<br>
+              • <strong>בונוס לכל מתאמן מעל הבסיס (₪)</strong> — ברירת מחדל: 15<br>
+              <em>לדוגמה: בסיס 100₪, בסיס מתאמנים 10, בונוס 15₪ — שיעור עם 14 מתאמנים = 100 + (4 × 15) = 160₪.</em>
+            </div></div>
+          </div>
+
+          <div class="field-table" style="margin-top:10px;">
+            <div class="field-row"><div class="fr-label">הערות</div><div class="fr-val">שטח טקסט חופשי, 2 שורות. אופציונלי. לפרטים נוספים: שם הבנק, מספר חשבון, הגבלות שיעורים וכדומה.</div></div>
+          </div>
+
+          <div class="steps" style="margin-top:12px;">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>שמור ✅</strong><span>שומר את המאמן ומחזיר לרשימת המאמנים. API: POST /sport/trainers (הוספה) / PUT /sport/trainers/:id (עריכה). toast: "נוסף ✅" / "עודכן ✅".</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>מחק מאמן 🗑️</strong><span>מופיע <strong>רק במצב עריכה</strong>. לחיצה פותחת חלון אישור: "למחוק מאמן זה?" — אישור מוחק את המאמן מהמערכת. API: DELETE /sport/trainers/:id.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>← חזרה</strong><span>כפתור ← בשמאל הכותרת — מחזיר לרשימת המאמנים ללא שמירה.</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- פרופיל מאמן -->
+      <h2 class="sec">ה. פרופיל מאמן — היסטוריה ושכר</h2>
+      <p style="font-size:.87rem;color:var(--text2);">לחיצה על <strong>"פרטים"</strong> בכרטיס מאמן כלשהו — פותחת את פרופיל המאמן המלא. API: GET /sport/trainers/:id/detail.</p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">👤</div><div><div class="mod-name">מרכיבי פרופיל המאמן</div></div></div>
+        <div class="mod-body">
+          <p><strong>כרטיס פרופיל כחול (ראש המסך):</strong></p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">שם</div><div class="fr-val">שם מלא, מודגש, גדול.</div></div>
+            <div class="field-row"><div class="fr-label">טלפון + אימייל</div><div class="fr-val">מופיעים בשורה אחת, מופרדים בנקודה.</div></div>
+            <div class="field-row"><div class="fr-label">🎯 התמחויות</div><div class="fr-val">אם הוגדרו — שורה נפרדת עם אייקון 🎯.</div></div>
+          </div>
+
+          <p style="margin-top:10px;font-weight:bold;">3 כרטיסי KPI:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">שיעורים (אפור)</div><div class="fr-val">מספר שיעורים כולל שנרשמו למאמן.</div></div>
+            <div class="field-row"><div class="fr-label">לתשלום (אדום)</div><div class="fr-val">₪XX — סכום כולל שטרם שולם. אם 0 — מוצג 0 ללא כפתור תשלום.</div></div>
+            <div class="field-row"><div class="fr-label">שולם (ירוק)</div><div class="fr-val">₪XX — סכום כולל שכבר שולם לאותו מאמן.</div></div>
+          </div>
+
+          <p style="margin-top:10px;font-weight:bold;">כפתורי פעולה (מתחת לכרטיסי KPI):</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">+ רשום שיעור (כחול)</div><div class="fr-val">פותח מסך רישום שיעור רגיל עבור אותו מאמן (ראו סעיף ו').</div></div>
+            <div class="field-row"><div class="fr-label">🔄 החלפה (כתום)</div><div class="fr-val">פותח מסך רישום <strong>שיעור החלפה</strong> — מאמן זה החליף מאמן אחר. רישום זה מסומן "מחליף" בהיסטוריה.</div></div>
+            <div class="field-row"><div class="fr-label">💰 שלם ₪XX (ירוק)</div><div class="fr-val">מופיע <strong>רק אם</strong> יש חוב לתשלום. לחיצה פותחת חלון אישור: "לסמן תשלום של ₪XX ל[שם]?" — אישור מסמן את כל השיעורים הלא-משולמים כשולם. toast: "תשלום ₪XX ל[שם] סומן ✅". API: POST /sport/trainer-sessions/mark-paid.</div></div>
+          </div>
+
+          <p style="margin-top:10px;font-weight:bold;">היסטוריית שיעורים (עד 20 שיעורים אחרונים):</p>
+          <p style="font-size:.85rem;color:var(--text2);margin-bottom:6px;">רשימה כרונולוגית של שיעורים שנרשמו. כל שורה מכילה:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">שם שיעור / הערה</div><div class="fr-val">מה שהוזן בשדה ההערות בעת הרישום (או "שיעור" אם לא הוזן שם).</div></div>
+            <div class="field-row"><div class="fr-label">תאריך</div><div class="fr-val">תאריך השיעור בפורמט ישראלי.</div></div>
+            <div class="field-row"><div class="fr-label">מתאמנים</div><div class="fr-val">מספר המתאמנים שנרשמו באותו שיעור.</div></div>
+            <div class="field-row"><div class="fr-label">שעות (אם מעל 1)</div><div class="fr-val">מספר שעות שנרשמו, מוצג רק אם ≥1 שעה.</div></div>
+            <div class="field-row"><div class="fr-label">תגית "מחליף" (כתום)</div><div class="fr-val">מופיעה רק אם השיעור נרשם כהחלפה (🔄 החלפה).</div></div>
+            <div class="field-row"><div class="fr-label">₪XX (אדום)</div><div class="fr-val">סכום שכר לאותו שיעור — מוצג באדום אם <strong>טרם שולם</strong>.</div></div>
+            <div class="field-row"><div class="fr-label">שולם (ירוק)</div><div class="fr-val">מוצג אם שכר השיעור <strong>כבר שולם</strong>.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- רישום שיעור -->
+      <h2 class="sec">ו. רישום שיעור למאמן</h2>
+      <p style="font-size:.87rem;color:var(--text2);">רישום שיעור הוא הדרך שבה המערכת מחשבת כמה מגיע למאמן. כל שיעור = רשומה חשבונאית. <strong>חשוב:</strong> שיעורים ביומן (לוח שיעורים) ורשומות מאמן הן נפרדות — לא מקושרות אוטומטית.</p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📝</div><div><div class="mod-name">טופס רישום שיעור</div></div></div>
+        <div class="mod-body">
+          <p>פתחו את פרופיל המאמן (כפתור "פרטים") ← לחצו <strong>"+ רשום שיעור"</strong> (שיעור רגיל) או <strong>"🔄 החלפה"</strong> (שיעור חלופי):</p>
+
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">שם המאמן (כחול)</div><div class="fr-val">מוצג בראש הטופס לאישור זהות — לא ניתן לעריכה.</div></div>
+            <div class="field-row"><div class="fr-label">תאריך</div><div class="fr-val">שדה תאריך. ברירת מחדל: היום. אפשר לשנות לתאריך כלשהו בעבר.</div></div>
+            <div class="field-row"><div class="fr-label">שעות עבודה</div><div class="fr-val">מספר. מינימום 0.5, קפיצות של 0.5, ברירת מחדל: 1. רלוונטי לחישוב שכר שעתי. שיעור של שעה וחצי — הזינו 1.5.</div></div>
+            <div class="field-row"><div class="fr-label">מספר מתאמנים</div><div class="fr-val">מספר. מינימום 0, ברירת מחדל: 10. רלוונטי לחישוב שכר לפי בונוס.</div></div>
+            <div class="field-row"><div class="fr-label">מחליף את... (הכלחפה בלבד)</div><div class="fr-val">מופיע <strong>רק אם</strong> בחרתם "🔄 החלפה". טקסט חופשי — הזינו את שם המאמן המקורי שהוחלף. לדוגמה: "דני לוי".</div></div>
+            <div class="field-row"><div class="fr-label">הערות</div><div class="fr-val">placeholder: "שם שיעור / הערה...". כאן אפשר לרשום שם השיעור (ספינינג, יוגה, קרוספיט) כדי שיופיע בהיסטוריה. אופציונלי.</div></div>
+          </div>
+
+          <div class="steps" style="margin-top:12px;">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>שמור שיעור ✅</strong><span>שולח בקשה ל-API (POST /sport/trainer-sessions) עם כל הפרטים. המערכת מחשבת שכר לפי שיטת התשלום שהוגדרה למאמן ומחזירה את הסכום.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>toast אישור</strong><span>מיד לאחר שמירה מוצגת הודעה: "שיעור נרשם ✅ שכר: ₪XX" — ה-XX הוא הסכום שחושב עבור אותו שיעור.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>חזרה לפרופיל</strong><span>לאחר השמירה — חוזרים אוטומטית לפרופיל המאמן. ה-KPI "לתשלום" יתעדכן בסכום שנוסף.</span></div></div>
+          </div>
+
+          <div class="box box-warn" style="margin-top:10px;">
+            <div class="box-icon">⚠️</div>
+            <div>אם לא הכנסתם תאריך — תופיע שגיאה "תאריך חובה" והטופס לא יישמר. כל שאר השדות אופציונליים.</div>
+          </div>
+
+          <p style="margin-top:12px;font-size:.88rem;"><strong>כיצד מחושב השכר לפי כל שיטה:</strong></p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">לשיעור (per_class)</div><div class="fr-val">סכום קבוע לכל שיעור — ללא קשר למספר מתאמנים או שעות. לדוגמה: 150₪ לשיעור.</div></div>
+            <div class="field-row"><div class="fr-label">שעתי (hourly)</div><div class="fr-val">תעריף × שעות. לדוגמה: 80₪/שעה × 1.5 שעות = 120₪.</div></div>
+            <div class="field-row"><div class="fr-label">אחוז הכנסות (revenue_percent)</div><div class="fr-val">אחוז מסכום ההכנסות של השיעור (בהתאם לנתוני המכירות). אם אין נתוני הכנסה — יחושב 0.</div></div>
+            <div class="field-row"><div class="fr-label">בסיס + בונוס (bonus)</div><div class="fr-val">בסיס לשיעור + (מתאמנים מעל הבסיס × בונוס לכל מתאמן). לדוגמה: בסיס 100₪, בסיס-מתאמנים 10, בונוס 15₪ — שיעור עם 13 מתאמנים = 100 + (3 × 15) = 145₪.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- לשונית שכר -->
+      <h2 class="sec">ז. לשונית 💰 שכר — סגירה חודשית</h2>
+      <p style="font-size:.87rem;color:var(--text2);">לשונית השכר מציגה סיכום כספי של <strong>החודש הנוכחי</strong> לכל המאמנים. כאן מתבצעת סגירת השכר בסוף כל חודש.</p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">💰</div><div><div class="mod-name">מסך לשונית שכר</div></div></div>
+        <div class="mod-body">
+          <p><strong>2 כרטיסי סיכום בראש המסך:</strong></p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">₪XX לתשלום (כרטיס אדום)</div><div class="fr-val">סה"כ כמה חייבים לכלל המאמנים בגין שיעורים שטרם שולמו — בחודש שנבחר.</div></div>
+            <div class="field-row"><div class="fr-label">₪XX שולם החודש (כרטיס ירוק)</div><div class="fr-val">סה"כ כמה שולם לכלל המאמנים עבור החודש הנבחר.</div></div>
+          </div>
+
+          <p style="margin-top:10px;font-weight:bold;">שורה לכל מאמן:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">שם המאמן</div><div class="fr-val">מימין, מודגש.</div></div>
+            <div class="field-row"><div class="fr-label">פירוט שיעורים</div><div class="fr-val">X שיעורים · Y מתאמנים · סה"כ ₪ZZ. לדוגמה: "8 שיעורים · 94 מתאמנים · סה"כ ₪1,200".</div></div>
+            <div class="field-row"><div class="fr-label">כפתור "שלם ₪XX" (ירוק)</div><div class="fr-val">מופיע אם יש סכום לתשלום. לחיצה פותחת אישור → אחרי אישור: כל שיעורי אותו מאמן שטרם שולמו מסומנים כשולמו. toast: "תשלום ₪XX ל[שם] סומן ✅".</div></div>
+            <div class="field-row"><div class="fr-label">"שולם ✅" (ירוק)</div><div class="fr-val">מוצג במקום כפתור התשלום אם כל השיעורים כבר שולמו.</div></div>
+          </div>
+
+          <p style="margin-top:10px;font-weight:bold;">בחירת חודש (תחתית הלשונית):</p>
+          <p style="font-size:.85rem;color:var(--text2);">רשימה נפתחת המכילה שלושה חודשים: <strong>2 חודשים אחורה, החודש שעבר, והחודש הנוכחי</strong>. כאשר מחליפים חודש — כרטיסי הסיכום (לתשלום / שולם) מתעדכנים אוטומטית.</p>
+        </div>
+      </div>
+
+      <!-- תרחיש מעשי -->
+      <h2 class="sec">ח. תרחיש מלא — מהוספת מאמן עד תשלום שכר</h2>
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🔄</div><div><div class="mod-name">תרחיש: מאמן יוגה חדש — רישום + תשלום חודשי</div></div></div>
+        <div class="mod-body">
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הוספת המאמן</strong><span>לחצו "+ מאמן" ← הזינו שם "מיכל כהן", טלפון 052-9876543, התמחויות "יוגה, מדיטציה" ← בחרו שכר "לשיעור" ← שנו ל-180₪ לשיעור ← שמרו. המאמן מופיע ברשימה.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>רישום שיעורים</strong><span>בסוף כל שבוע: פתחו פרופיל מיכל (כפתור "פרטים") ← לחצו "+ רשום שיעור" ← תאריך: יום שלישי האחרון, שעות: 1, מתאמנים: 12, הערות: "יוגה בוקר" ← שמרו. toast: "שיעור נרשם ✅ שכר: ₪180". חזרו כך לכל שיעור שנתנה.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>שיעור החלפה</strong><span>אחת לחודש מיכל החליפה את דני לוי: לחצו "🔄 החלפה" ← תאריך: תאריך ההחלפה, שעות: 1.5, מתאמנים: 8, "מחליף את": "דני לוי", הערות: "פילאטיס" ← שמרו. השיעור יסומן "מחליף" בהיסטוריה.</span></div></div>
+            <div class="step"><div class="step-n">4</div><div class="step-body"><strong>סגירת חודש ותשלום</strong><span>בסוף החודש: פתחו לשונית "💰 שכר". ראו לדוגמה: כרטיס אדום "₪1,440 לתשלום". בשורה של מיכל: "8 שיעורים · 96 מתאמנים · סה"כ ₪1,440". לחצו "שלם ₪1,440" ← אשרו. toast: "תשלום ₪1,440 למיכל כהן סומן ✅". הכרטיס האדום עבר לכרטיס ירוק "שולם החודש".</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="box box-tip" style="margin-top:14px;">
+        <div class="box-icon">💡</div>
+        <div><strong>הבדל חשוב:</strong> שם המאמן בשיעור ביומן (לוח שיעורים, פרק 4) הוא <strong>טקסט חופשי</strong> ואינו מקושר לפרופיל המאמן במודול זה. שני המערכות עובדות במקביל ובאופן עצמאי. רישום ידני בפרופיל המאמן הוא מה שמחשב שכר.</div>
       </div>
     </div>
 
