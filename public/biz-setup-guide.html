@@ -6084,58 +6084,112 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   <!-- ─── ניווט ─── -->
   <div class="chapter" id="b-nav">
     <div class="ch-head"><div class="ch-num">3</div><div class="ch-title">ניווט וממשק</div></div>
-    <p>לאחר הגדרת העסק כ<em>יופי / קוסמטיקה</em>, מופיעות בתפריט כרטיסיות ייחודיות שאינן קיימות בשאר סוגי העסקים.</p>
 
-    <div class="auto-grid">
-      <div class="auto-card">
-        <div style="font-size:1.3rem;margin-bottom:.3rem">👥 צוות</div>
-        <ul>
-          <li><strong>שעון נוכחות</strong> — כניסה/יציאה עובדים</li>
-          <li><strong>יומן מטפלות 💆</strong> — יומן תורים לפי מטפלת</li>
-          <li><strong>מטפלות 💆</strong> — ניהול צוות המטפלות</li>
-          <li><strong>משימות</strong> — מטלות לצוות</li>
-        </ul>
-      </div>
-      <div class="auto-card">
-        <div style="font-size:1.3rem;margin-bottom:.3rem">💼 מכירות</div>
-        <ul>
-          <li><strong>קופה</strong> — גביית תשלום בקופה</li>
-          <li><strong>שירותים וטיפולים 💎</strong> — רשימת הטיפולים</li>
-          <li><strong>מנויים וחבילות 🎁</strong> — חבילות כניסות</li>
-          <li><strong>תיקי לקוחות 📋</strong> — כרטיסי לקוחות</li>
-          <li><strong>ייעוץ ובקשות 💬</strong> — מ-ONEFLOW LIFE</li>
-        </ul>
-      </div>
-      <div class="auto-card">
-        <div style="font-size:1.3rem;margin-bottom:.3rem">📦 מלאי</div>
-        <ul>
-          <li><strong>מלאי מקצועי 🧴</strong> — back-bar + מכירה לצרכן</li>
-          <li><strong>חנות</strong> — מוצרים לחנות האונליין</li>
-        </ul>
-      </div>
-      <div class="auto-card">
-        <div style="font-size:1.3rem;margin-bottom:.3rem">💰 כספים</div>
-        <ul>
-          <li><strong>תזרים</strong> — הכנסות והוצאות</li>
-          <li><strong>עמלות ושכר 💰</strong> — עמלות מטפלות</li>
-          <li><strong>דוחות</strong> — סיכומים פיננסיים</li>
-        </ul>
-      </div>
-    </div>
+    <p>לאחר הגדרת העסק כ<em>יופי / קוסמטיקה</em>, פונקציית <code>applyBusinessTypeFilter()</code> רצה אוטומטית ומציגה/מסתירה כרטיסיות לפי מערך המודולים של beauty. בנוסף, שמות כמה כרטיסיות משתנים לשפת יופי (<code>TAB_RENAME</code>). מנהל (ADMIN) רואה את <strong>כל 16 המודולים</strong> — עובדים רואים רק מה שהמנהל הקצה להם.</p>
 
+    <!-- א. סרגל ניווט עליון — 5 קבוצות -->
     <div class="mod">
-      <div class="mod-head"><div class="mod-icon">💼</div><div><div class="mod-name">תפקידי עובדים ועלויות</div></div></div>
+      <div class="mod-head"><div class="mod-icon">🗂️</div><div><div class="mod-name">א. סרגל ניווט עליון — 5 קבוצות (GNAV_GROUPS)</div></div></div>
+      <p>הניווט מאורגן ב-5 כפתורי קבוצה. לחיצה על כל כפתור פותחת תפריט נפתח. עבור beauty מוצגים המודולים הרלוונטיים בלבד בתוך כל קבוצה:</p>
+
       <div class="field-table">
-        <div class="field-row"><div class="fr-label">מטפלת — ₪19/חודש</div><div class="fr-val">מטפלת בסיסית עם גישה ליומן ותיקי לקוחות</div></div>
-        <div class="field-row"><div class="fr-label">מטפלת בכירה — ₪29/חודש</div><div class="fr-val">הרשאות מורחבות, עמלה גבוהה יותר</div></div>
-        <div class="field-row"><div class="fr-label">טכנאית ציפורניים — ₪19/חודש</div><div class="fr-val">מתמחה בטיפולי ציפורניים</div></div>
-        <div class="field-row"><div class="fr-label">איפורנית — ₪19/חודש</div><div class="fr-val">מתמחה באיפור ועיצוב</div></div>
-        <div class="field-row"><div class="fr-label">קבלנית — ₪15/חודש</div><div class="fr-val">קביעת תורים, ניהול יומן</div></div>
-        <div class="field-row"><div class="fr-label">קופאי — ₪19/חודש</div><div class="fr-val">גביית תשלום בקופה</div></div>
-        <div class="field-row"><div class="fr-label">מנקה / אחזקה — ₪15/חודש</div><div class="fr-val">גישה מוגבלת לדיווח נוכחות בלבד</div></div>
-        <div class="field-row"><div class="fr-label">מנהל סניף — ₪39/חודש</div><div class="fr-val">גישה מלאה לניהול העסק</div></div>
+        <div class="field-row"><div class="fr-label">👥 צוות (team)</div><div class="fr-val">נוכחות ⏱️ · יומן מטפלות 💆 · מטפלות 💆 · משימות ✅</div></div>
+        <div class="field-row"><div class="fr-label">💼 מכירות (sales)</div><div class="fr-val">קופה (POS) 💰 · שירותים וטיפולים 💎 · מנויים וחבילות 🎁 · תיקי לקוחות 📋 · ייעוץ ובקשות 💬</div></div>
+        <div class="field-row"><div class="fr-label">📦 מלאי (inventory)</div><div class="fr-val">מלאי מקצועי 🧴 · רכש ארגוני 🛒</div></div>
+        <div class="field-row"><div class="fr-label">💰 כספים (finance)</div><div class="fr-val">תזרים מזומנים 💸 · עמלות ושכר 💰 · דוחות 📊</div></div>
+        <div class="field-row"><div class="fr-label">⋯ עוד (more)</div><div class="fr-val">פרסום FLOW 📢 · הגדרות ⚙️</div></div>
+      </div>
+      <div class="box box-tip" style="margin-top:.6rem"><div class="box-icon">💡</div><div>קבוצת "עוד" מכילה תמיד <strong>פרסום FLOW</strong> (<code>biz-ads</code>) ו<strong>הגדרות</strong> — הם מוצגים לכל סוגי העסקים ללא יוצא מן הכלל (<code>ALWAYS_VISIBLE_TABS</code>).</div></div>
+    </div>
+
+    <!-- ב. כרטיסיות ייחודיות ליופי -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">💅</div><div><div class="mod-name">ב. כרטיסיות ייחודיות לסוג עסק יופי</div></div></div>
+      <p>8 כרטיסיות אלו מופיעות <strong>אך ורק</strong> כשסוג העסק הוא beauty — בשאר סוגי העסקים הן מוסתרות לחלוטין:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">יומן מטפלות 💆</div><div class="fr-val"><code>beauty_calendar</code> — בקבוצה צוות — לב מערך התורים לפי מטפלת</div></div>
+        <div class="field-row"><div class="fr-label">מטפלות 💆</div><div class="fr-val"><code>beauty_practitioners</code> — בקבוצה צוות — ניהול רשימת המטפלות</div></div>
+        <div class="field-row"><div class="fr-label">שירותים וטיפולים 💎</div><div class="fr-val"><code>beauty_services</code> — בקבוצה מכירות — קטלוג הטיפולים ומחירים</div></div>
+        <div class="field-row"><div class="fr-label">מנויים וחבילות 🎁</div><div class="fr-val"><code>beauty_subscriptions</code> — בקבוצה מכירות — חבילות כרטיסיות ומנויים</div></div>
+        <div class="field-row"><div class="fr-label">תיקי לקוחות 📋</div><div class="fr-val"><code>beauty_clients</code> — בקבוצה מכירות — תיק לקוח עם היסטוריית טיפולים</div></div>
+        <div class="field-row"><div class="fr-label">ייעוץ ובקשות 💬</div><div class="fr-val"><code>beauty_rfq</code> — בקבוצה מכירות — בקשות ייעוץ נכנסות</div></div>
+        <div class="field-row"><div class="fr-label">מלאי מקצועי 🧴</div><div class="fr-val"><code>beauty_inventory</code> — בקבוצה מלאי — מוצרי back-bar ומוצרי מכירה</div></div>
+        <div class="field-row"><div class="fr-label">עמלות ושכר 💰</div><div class="fr-val"><code>beauty_commissions</code> — בקבוצה כספים — עמלות מחושבות לכל מטפלת</div></div>
       </div>
     </div>
+
+    <!-- ג. שינויי שמות כרטיסיות -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🔤</div><div><div class="mod-name">ג. שינויי שמות כרטיסיות (TAB_RENAME)</div></div></div>
+      <p>עבור beauty, 2 כרטיסיות <em>משותפות</em> משנות את שמן האוטומטי:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label"><code>customers</code></div><div class="fr-val">"לקוחות 🤝" — שם גנרי, לא משתנה ב-beauty (לקוחות הוא גם הביטוי הנכון)</div></div>
+        <div class="field-row"><div class="fr-label"><code>calendar</code></div><div class="fr-val">"יומן תורים 📅" — השם הכללי "יומן ציבורי 🌐" הופך ל-"יומן תורים 📅" בממשק</div></div>
+      </div>
+      <p style="font-size:.85rem">שימו לב: ביופי לא קיים מודול <code>calendar</code> הכללי בין מודולי beauty — כרטיסיית <code>beauty_calendar</code> היא יומן התורים הייחודי. <code>calendar</code> הכללי מוסתר מהניווט ולא מופיע.</p>
+    </div>
+
+    <!-- ד. הרשאות לפי תפקיד -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🔐</div><div><div class="mod-name">ד. הרשאות לפי תפקיד — מה כל עובד רואה</div></div></div>
+      <p>המנגנון עובד בשתי שכבות: <strong>שכבה 1 — סינון לפי מודולי beauty</strong> (עסקיים), <strong>שכבה 2 — הרשאות פרטניות</strong> לפי תפקיד + הגדרות ידניות של מנהל.</p>
+
+      <p><strong>מנהל (ADMIN) / בעל עסק:</strong> רואה את כל 16 מודולי beauty ללא הגבלה. גם כפתורי ממשק פנימיים של מנהל (bank-admin-view, timeclock-admin-view, admin-members-tools) גלויים.</p>
+
+      <p><strong>branch_manager (מנהל סניף) 🏢:</strong></p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">כרטיסיות בסיס (ROLE_TYPE_TABS)</div><div class="fr-val">pos · sales · tasks · members · timeclock · shifts · customers · cashflow · budget · pantry · reviews</div></div>
+        <div class="field-row"><div class="fr-label">כרטיסיות beauty ייחודיות</div><div class="fr-val">רק מה שהמנהל (ADMIN) הוסיף ידנית בחלון ההרשאות</div></div>
+      </div>
+
+      <p style="margin-top:.7rem"><strong>cashier (קופאי) 💰:</strong></p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">כרטיסיות בסיס</div><div class="fr-val">pos · sales · tasks · timeclock · shifts</div></div>
+        <div class="field-row"><div class="fr-label">beauty ייחודיות</div><div class="fr-val">לא אוטומטי — ניתן להוסיף ידנית</div></div>
+      </div>
+
+      <p style="margin-top:.7rem"><strong>cleaner (מנקה) 🧹:</strong></p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">כרטיסיות בסיס</div><div class="fr-val">tasks · timeclock · shifts</div></div>
+      </div>
+
+      <p style="margin-top:.7rem"><strong>therapist / senior_therapist / nail_tech / makeup_artist / reception — תפקידים ייחודיים ליופי:</strong></p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">ברירת מחדל (MEMBER)</div><div class="fr-val">feed · timeclock · shifts · tasks · academy</div></div>
+        <div class="field-row"><div class="fr-label">הגדרה מומלצת</div><div class="fr-val">מנהל פותח חלון הרשאות ומוסיף: beauty_calendar, beauty_clients, beauty_services, beauty_commissions לפי צורך</div></div>
+      </div>
+
+      <div class="box box-warn" style="margin-top:.7rem"><div class="box-icon">🔒</div><div>כרטיסייה שהעובד לא מורשה לה מוצגת עם אייקון מנעול 🔒 ואטומות 40% — לחיצה עליה מציגה הודעת "אין הרשאה" ולא פותחת את התוכן. כרטיסייה שמנהל המערכת לא הפעיל כלל (feature flag כבוי) מוצגת עם מנעול אדום 🔴 ועם אפשרות שליחת "בקשה לפתיחה" ל-Super Admin.</div></div>
+    </div>
+
+    <!-- ה. שינוי הרשאות עובד -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">⚙️</div><div><div class="mod-name">ה. שינוי הרשאות עובד בזמן אמת</div></div></div>
+      <p>מנהל (ADMIN) יכול להוסיף/להסיר כרטיסיות מכל עובד בכמה צעדים:</p>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>כרטיסיית ניהול צוות</strong> (members) → לחץ על 🛡️ (מגן) בכרטיס העובד הרצוי.</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>חלון הרשאות</strong> נפתח עם כל ה-ALL_TABS. בראש החלון יש בחירת תפקיד — בחירת תפקיד (למשל therapist) מסמנת אוטומטית את כל הכרטיסיות המתאימות לאותו תפקיד.</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>סמן/בטל</strong> כרטיסיות ספציפיות ידנית — למשל הוסף <code>beauty_calendar</code> ו-<code>beauty_clients</code> למטפלת.</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>שמור</strong> — ההרשאות נשמרות מיידית. בפעם הבאה שהעובד מרענן את האפליקציה, כרטיסיות ייחודיות לו יהיו גלויות.</div></div>
+      </div>
+    </div>
+
+    <!-- ו. סצנריו — התחברות לפי תפקיד -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">👁️</div><div><div class="mod-name">ו. סצנריו — מה כל תפקיד רואה בכניסה</div></div></div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">💅 מנהל/בעל עסק (ADMIN)</div><div class="fr-val">דשבורד KPI ייחודי (ורוד-אדום) + 8 פעולות מהירות + כל 16 כרטיסיות בתפריט</div></div>
+        <div class="field-row"><div class="fr-label">💆 מטפלת (therapist)</div><div class="fr-val">פיד עדכונים רגיל + רק כרטיסיות שהמנהל פתח לה (לדוגמה: beauty_calendar, timeclock, tasks)</div></div>
+        <div class="field-row"><div class="fr-label">⭐ מטפלת בכירה (senior_therapist)</div><div class="fr-val">פיד עדכונים + כרטיסיות מורחבות שהמנהל הגדיר (אפשר לכלול גם beauty_commissions)</div></div>
+        <div class="field-row"><div class="fr-label">💅 טכנאית ציפורניים (nail_tech)</div><div class="fr-val">פיד עדכונים + כרטיסיות שהוגדרו לה (לרוב: beauty_calendar, timeclock, tasks)</div></div>
+        <div class="field-row"><div class="fr-label">💄 איפורנית (makeup_artist)</div><div class="fr-val">פיד עדכונים + כרטיסיות שהוגדרו לה (לרוב: beauty_calendar, timeclock, tasks)</div></div>
+        <div class="field-row"><div class="fr-label">🗓️ קבלנית (reception)</div><div class="fr-val">פיד עדכונים + beauty_calendar, beauty_clients, timeclock, tasks (מומלץ לפתוח ידנית)</div></div>
+        <div class="field-row"><div class="fr-label">🏢 מנהל סניף (branch_manager)</div><div class="fr-val">פיד + pos, sales, tasks, members, timeclock, cashflow + כרטיסיות beauty שנוספו ידנית</div></div>
+        <div class="field-row"><div class="fr-label">💰 קופאי (cashier)</div><div class="fr-val">פיד + pos, sales, tasks, timeclock</div></div>
+        <div class="field-row"><div class="fr-label">🧹 מנקה (cleaner)</div><div class="fr-val">פיד + tasks, timeclock — גישה מינימלית</div></div>
+      </div>
+    </div>
+
   </div>
 
   <!-- ─── יומן תורים ─── -->
