@@ -18892,6 +18892,16 @@ function _renderWizardV2StepContent(stepName) {
                         value="${safeStr(cls.name||'')}">
                 </div>
                 <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">מאמן אחראי</label>
+                    ${(wizardV2Data.trainers && wizardV2Data.trainers.length > 0)
+                        ? `<select id="wiz-v2-class-trainer" class="modern-input py-2.5 w-full bg-white">
+                            <option value="">-- בחר מאמן --</option>
+                            ${wizardV2Data.trainers.map(t => `<option value="${safeStr(t.name)}" ${cls.trainer===t.name?'selected':''}>${safeStr(t.name)} — ${safeStr(t.specialty)}</option>`).join('')}
+                           </select>`
+                        : `<p class="text-xs text-slate-400 py-2">לא הוגדרו מאמנים בשלב הקודם</p><input type="hidden" id="wiz-v2-class-trainer" value="">`
+                    }
+                </div>
+                <div>
                     <label class="text-xs font-bold text-slate-600 block mb-2">ימים בשבוע</label>
                     <div class="flex gap-1.5 justify-center">${dayBtns}</div>
                 </div>
@@ -19474,7 +19484,7 @@ async function _nextWizardV2Step() {
         try {
             await fetch(`${API}/calendar/classes`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ groupId: currentGroup.id, name, days, time, duration, capacity, trainer: wizardV2Data.trainer?.name || '' })
+                body: JSON.stringify({ groupId: currentGroup.id, name, days, time, duration, capacity, trainer: document.getElementById('wiz-v2-class-trainer')?.value || '' })
             });
         } catch(e) {}
     }
