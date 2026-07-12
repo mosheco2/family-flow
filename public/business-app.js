@@ -18655,18 +18655,22 @@ window.updateWizardUIV2 = function updateWizardUIV2() {
     }
 }
 
+function _initWizardV2State() {
+    const bizType = currentGroup?.business_type || 'other';
+    wizardStepsV2 = WIZARD_STEPS_BY_TYPE_V2[bizType] || WIZARD_STEPS_BY_TYPE_V2['other'];
+    currentWizardStepV2 = 0;
+    wizardV2Data = {};
+}
+
 window.showOnboardingWizardV2 = function showOnboardingWizardV2() {
     if (document.getElementById('onboarding-wizard-v2-modal')) {
-        currentWizardStepV2 = 0;
-        wizardV2Data = {};
+        _initWizardV2State();
         document.getElementById('onboarding-wizard-v2-modal').classList.remove('hidden');
         updateWizardUIV2();
         return;
     }
 
-    const bizType = currentGroup?.business_type || 'other';
-    wizardStepsV2 = WIZARD_STEPS_BY_TYPE_V2[bizType] || WIZARD_STEPS_BY_TYPE_V2['other'];
-    currentWizardStepV2 = 0;
+    _initWizardV2State();
 
     const modalHtml = `
     <div id="onboarding-wizard-v2-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-2 sm:p-4">
