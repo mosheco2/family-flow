@@ -2753,7 +2753,7 @@ async function loadDashboard() {
             // אם מהות העסק לא הוגדרה — פתח wizard בחירת מהות לפני ה-onboarding
             const bizType = currentGroup.business_type || 'other';
             if (!bizType || bizType === 'other') {
-                setTimeout(showBusinessTypeWizard, 800);
+                setTimeout(showBusinessTypeWizardV2, 800);
             } else {
                 const _wizFn = bizType === 'other' ? showOnboardingWizard : showOnboardingWizardV2;
                 setTimeout(_wizFn, 1000);
@@ -17501,6 +17501,104 @@ window.btWizConfirm = async function() {
             setTimeout(_wizFn, 300);
         } else {
             showToast('success', `מהות העסק עודכנה ל-${BUSINESS_TYPES.find(b=>b.id===typeId)?.name||typeId}`);
+        }
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+};
+
+function showBusinessTypeWizardV2(afterSave) {
+    if (document.getElementById('biz-type-wizard-v2')) return;
+    let selected = currentGroup?.business_type || null;
+
+    const TYPES_V2 = [
+        { id: 'restaurant',   icon: '🍕', name: 'מסעדה / אוכל',         sub: 'קופה, תפריט, שולחנות, משלוחים' },
+        { id: 'beauty',       icon: '💅', name: 'יופי ואסטטיקה',         sub: 'תורים, מטפלות, שירותים, מנויים' },
+        { id: 'sport',        icon: '🏋️', name: 'ספורט וחוגים',          sub: 'מנויים, מאמנים, לוח אימונים, צ׳ק-אין' },
+        { id: 'services',     icon: '🔧', name: 'תיקונים ושירותים',      sub: 'קריאות שירות, הצעות מחיר, לקוחות, גבייה' },
+        { id: 'professional', icon: '👔', name: 'מומחים וייעוץ',         sub: 'תיקים, פגישות, מסמכים, אתר תדמית' },
+    ];
+
+    const cards = TYPES_V2.map(t => `
+        <button type="button" onclick="btWizV2Select('${t.id}',this)"
+            class="bt-wiz-v2-card flex flex-col items-start gap-1.5 p-4 rounded-2xl border-2 transition active:scale-95 w-full text-right
+                ${selected === t.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-200'}"
+            data-btype="${t.id}" style="touch-action:manipulation;cursor:pointer;">
+            <span class="text-3xl">${t.icon}</span>
+            <span class="text-sm font-black text-slate-800 leading-tight">${t.name}</span>
+            <span class="text-[11px] text-slate-400 leading-snug">${t.sub}</span>
+        </button>`).join('');
+
+    const confirmClass = selected
+        ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+        : 'bg-slate-200 text-slate-400 cursor-not-allowed';
+
+    const html = `<div id="biz-type-wizard-v2" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-700 rounded-t-[2rem] px-6 py-5 text-white text-center">
+                <div class="text-3xl mb-2">🏢</div>
+                <h2 class="text-xl font-black mb-1">מה סוג העסק שלך?</h2>
+                <p class="text-white/70 text-xs">הבחירה תתאים את המערכת לצרכי העסק שלך</p>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-scroll p-5 space-y-3">
+                <div class="grid grid-cols-2 gap-3">${cards}</div>
+                <button type="button" onclick="btWizV2SelectOther()"
+                    class="w-full text-center text-xs text-slate-400 py-2 hover:text-slate-600 transition"
+                    style="touch-action:manipulation;cursor:pointer;">
+                    לא מוצא את הסוג שלי — בחר כללי
+                </button>
+            </div>
+            <div class="px-5 py-4 border-t border-slate-100 shrink-0">
+                <button type="button" id="bt-wiz-v2-confirm" onclick="btWizV2Confirm()"
+                    class="w-full py-3.5 rounded-xl font-bold shadow transition ${confirmClass}"
+                    ${selected ? '' : 'disabled'}>
+                    ${selected ? 'המשך ←' : 'בחר סוג עסק להמשך'}
+                </button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    window._btWizV2Selected = selected;
+    window._btWizV2AfterSave = afterSave || null;
+}
+
+window.btWizV2Select = function(typeId, btn) {
+    window._btWizV2Selected = typeId;
+    document.querySelectorAll('.bt-wiz-v2-card').forEach(b => {
+        b.className = b.className.replace(/border-indigo-500 bg-indigo-50|border-slate-200 bg-white hover:border-indigo-200/g, '');
+        b.className += b.dataset.btype === typeId ? ' border-indigo-500 bg-indigo-50' : ' border-slate-200 bg-white hover:border-indigo-200';
+    });
+    const confirmBtn = document.getElementById('bt-wiz-v2-confirm');
+    if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.className = confirmBtn.className.replace('bg-slate-200 text-slate-400 cursor-not-allowed', 'bg-indigo-600 text-white hover:bg-indigo-700');
+        confirmBtn.textContent = 'המשך ←';
+    }
+};
+
+window.btWizV2SelectOther = function() {
+    window._btWizV2Selected = 'other';
+    btWizV2Confirm();
+};
+
+window.btWizV2Confirm = async function() {
+    const typeId = window._btWizV2Selected;
+    if (!typeId) return;
+    const confirmBtn = document.getElementById('bt-wiz-v2-confirm');
+    if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+    try {
+        await fetch(`/api/groups/${currentGroup.id}/business-settings`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ business_type: typeId, licensed_features: currentGroup.licensed_features || {} })
+        });
+        currentGroup.business_type = typeId;
+        applyBusinessTypeFilter();
+        document.getElementById('biz-type-wizard-v2')?.remove();
+        if (window._btWizV2AfterSave) { window._btWizV2AfterSave(); return; }
+        if (currentGroup.is_onboarded === false) {
+            const _wizFn = typeId === 'other' ? showOnboardingWizard : showOnboardingWizardV2;
+            setTimeout(_wizFn, 300);
+        } else {
+            showToast('success', `מהות העסק עודכנה ל-${BUSINESS_TYPES.find(b => b.id === typeId)?.name || typeId}`);
         }
     } catch(e) { showToast('error', 'שגיאה בשמירה'); }
 };
