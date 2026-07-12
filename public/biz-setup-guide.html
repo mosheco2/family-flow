@@ -3183,40 +3183,182 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
     <!-- ── 7. ציוד ── -->
     <div class="chapter" id="s-equip">
-      <div class="ch-head"><div class="ch-num">7</div><div class="ch-title">תחזוקת ציוד</div></div>
+      <div class="ch-head"><div class="ch-num">7</div><div class="ch-title">תחזוקת ציוד 🔧</div></div>
 
-      <p style="font-size:.9rem;color:var(--text2);">מרכז כושר מלא ציוד — הליכונים, מכשירי כוח, אופניים, חבלים. טאב הציוד מנהל את כל המכשירים ומתריע על תקלות ותחזוקה.</p>
+      <!-- א. סקירה כללית -->
+      <h2 class="sec">א. מה זה טאב תחזוקת ציוד ומי רואה אותו</h2>
+      <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">
+        מרכז כושר מלא ציוד — הליכונים, מכשירי כוח, אופניים, חבלים, מכשירי חשמל. טאב <strong>תחזוקת ציוד 🔧</strong> הוא המקום המרכזי לניהול כל הציוד: רישום, תחזוקות תקופתיות, תקלות, ואנשי שירות חיצוניים.
+      </p>
+      <p style="font-size:.87rem;color:var(--text2);margin-bottom:12px;">
+        הטאב נמצא בקבוצת הניווט <strong>מלאי</strong>. ברירת מחדל לפי תפקיד: ADMIN וMANAGER רואים את הטאב; SENIOR ו-MEMBER לא רואים אותו אלא אם ניתנה הרשאה מפורשת.
+      </p>
 
+      <div class="box box-tip">
+        <div class="box-icon">💡</div>
+        <div><strong>תג מספר על הטאב:</strong> אם יש תחזוקות שדחופות (עברו את המועד או בתוך 7 ימים) ו/או תקלות פתוחות — מספר כתום מופיע על הטאב עצמו כהתראה ויזואלית. המספר מתעדכן בכל כניסה לטאב.</div>
+      </div>
+
+      <!-- ב. 4 לשוניות -->
+      <h2 class="sec" style="margin-top:22px;">ב. ארבע הלשוניות הפנימיות של הטאב</h2>
+      <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">כניסה לטאב "תחזוקת ציוד" פותחת ממשק עם ארבע לשוניות פנימיות שמתחלפות:</p>
+      <div class="field-table" style="margin-bottom:16px;">
+        <div class="field-row"><div class="fr-label">📦 פריטים</div><div class="fr-val">רשימת כל פריטי הציוד שנרשמו. כל פריט מראה שם, קטגוריה, סטטוס, כמה תחזוקות פתוחות, כמה תקלות פתוחות. לחיצה על "עריכה" (עיפרון) פותחת עריכת הפריט. לחיצה על "היסטוריה" (שעון חזרה) פותחת את כל הרקורד ההיסטורי של הפריט.</div></div>
+        <div class="field-row"><div class="fr-label">🔧 תחזוקה</div><div class="fr-val">כל רשומות התחזוקה של כל הציוד. סינון לפי סטטוס: הכל / ממתין / בוצע / איחור. תחזוקה שעברה את מועד הביצוע מסומנת בבגבול אדום ונכנסת לספירת ההתראות.</div></div>
+        <div class="field-row"><div class="fr-label">⚠️ תקלות</div><div class="fr-val">כל התקלות של כל הציוד. סינון לפי סטטוס: הכל / פתוח / בטיפול / נסגר. לכל תקלה: שם הציוד, תאריך דיווח, רמת חומרה (נמוכה / בינונית / גבוהה / קריטית), כפתורי WhatsApp ומייל לטכנאי (גלויים רק אם הוגדרו פרטי טכנאי לאותו ציוד).</div></div>
+        <div class="field-row"><div class="fr-label">👷 טכנאים</div><div class="fr-val">פנקס אנשי שירות חיצוניים — טכנאי הליכונים, חברת מזגנים, חשמלאי וכד'. כל טכנאי רשום עם שם, חברה, טלפון, מייל והתמחות. ניתן לשייך כל פריט ציוד לטכנאי ספציפי ← כשיש תקלה — שליחת WhatsApp/מייל ישירות מהמסך.</div></div>
+      </div>
+
+      <!-- ג. רישום ציוד חדש -->
+      <h2 class="sec" style="margin-top:18px;">ג. רישום פריט ציוד חדש</h2>
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">🔧</div><div><div class="mod-name">ניהול פריטי ציוד</div><div class="mod-tag">מלאי › תחזוקת ציוד</div></div></div>
+        <div class="mod-head"><div class="mod-icon">📦</div><div><div class="mod-name">הוספת / עריכת ציוד</div><div class="mod-tag">פריטים › "+ הוסף ציוד"</div></div></div>
         <div class="mod-body">
-          <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הוסיפו ציוד</strong><span>לחצו "+ ציוד חדש" ← שם, סוג, מספר סידורי, תאריך רכישה. כל מכשיר מקבל כרטיס דיגיטלי.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>תזמנו תחזוקה</strong><span>כל ציוד יכול לקבל תאריך תחזוקה קבוע — לדוגמה: שמן הליכון כל 3 חודשים. המערכת תתריע כשמתקרבים לתאריך.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>דיווח תקלה</strong><span>עובד או חבר מדווח שהליכון 3 לא עובד — לחצו "דווח תקלה" על הציוד. התקלה נפתחת ועוברת לטיפול.</span></div></div>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">לחיצת "+ הוסף ציוד" פותחת מודל עם השדות הבאים:</p>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">📛 שם הציוד *</div><div class="fr-val">שם חובה. לדוגמה: "הליכון BH G6380" / "אופני ספינינג STAGES". הוא יופיע בכל הממשקים — תחזוקות, תקלות, דוחות.</div></div>
+            <div class="field-row"><div class="fr-label">🏷️ קטגוריה</div><div class="fr-val">תפריט נפתח: <strong>קירור / אפייה / כלים / חשמל / רכב / כללי</strong> (ברירת מחדל: כללי). הקטגוריות אלה קבועות בקוד — אין אפשרות להוסיף קטגוריות חדשות.</div></div>
+            <div class="field-row"><div class="fr-label">🔢 מספר סידורי / דגם</div><div class="fr-val">אופציונלי. מספר מזהה ייחודי — שימושי לאחריות ולשירות.</div></div>
+            <div class="field-row"><div class="fr-label">📅 תאריך רכישה</div><div class="fr-val">אופציונלי. תאריך הקנייה של הפריט — שימושי לחישוב גיל הציוד ולאחריות.</div></div>
+            <div class="field-row"><div class="fr-label">⏳ פקיעת אחריות</div><div class="fr-val">אופציונלי. תאריך סיום האחריות של הציוד מהיצרן/ספק.</div></div>
+            <div class="field-row"><div class="fr-label">🟢 סטטוס</div><div class="fr-val">תפריט נפתח: <strong>פעיל</strong> (Operational) / <strong>לא פעיל</strong> (Out of Service) / <strong>הושלך</strong> (Disposed). רק ציוד פעיל מופיע בתפריט ה"ציוד" בטפסי תחזוקה. ציוד לא פעיל עדיין מופיע בתפריט ה"ציוד" בטפסי תקלות.</div></div>
+            <div class="field-row"><div class="fr-label">👷 טכנאי / חברת שירות</div><div class="fr-val">תפריט נפתח מרשימת הטכנאים (לשונית "טכנאים"). שיוך טכנאי לפריט מאפשר: (1) בתקלה — כפתורי WhatsApp/מייל לטכנאי; (2) בתחזוקה — הצעה "שלח לטכנאי המשויך" שממלאת אוטומטית את שם הטכנאי וטלפונו.</div></div>
+            <div class="field-row"><div class="fr-label">📝 הערות</div><div class="fr-val">שדה חופשי לכל הערה — מיקום הציוד, ספק, מידע נוסף.</div></div>
           </div>
+          <p style="font-size:.87rem;color:var(--text2);">לחיצת <strong>"שמור"</strong> שולחת <code>POST /equipment/items</code>. אם העורכים פריט קיים — אותה נקודת קצה עם מזהה הפריט → מחזירה "ציוד עודכן" / "ציוד נוסף".</p>
 
-          <div class="box box-warn" style="margin-top:14px;">
+          <div class="box box-warn" style="margin-top:12px;">
             <div class="box-icon">⚠️</div>
-            <div>ציוד עם תקלה פתוחה מסומן בצבע אדום — לא תחמיצו את זה. החברים לא צריכים לבוא לדלפק כדי לדווח תקלה.</div>
+            <div><strong>מחיקת פריט:</strong> לחצו על "מחק" בעריכת הפריט — תופיע אזהרה: <em>"למחוק ציוד זה? כל נתוני התחזוקה והתקלות שלו יימחקו."</em> אין אפשרות שחזור — כל ההיסטוריה נמחקת לצמיתות.</div>
           </div>
         </div>
       </div>
 
+      <!-- ד. תחזוקה -->
+      <h2 class="sec" style="margin-top:22px;">ד. ניהול תחזוקות</h2>
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">📋</div><div><div class="mod-name">מה רואים בטאב הציוד</div></div></div>
+        <div class="mod-head"><div class="mod-icon">🔧</div><div><div class="mod-name">הוספת / עריכת רשומת תחזוקה</div><div class="mod-tag">תחזוקה › "+ הוסף תחזוקה"</div></div></div>
         <div class="mod-body">
-          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">טאב הציוד כולל 4 לשוניות פנימיות:</p>
-          <div class="field-table">
-            <div class="field-row"><div class="fr-label">📦 פריטים</div><div class="fr-val">כל הציוד: שם, קטגוריה, מספר סידורי, אחריות, כמה תחזוקות/תקלות פתוחות.</div></div>
-            <div class="field-row"><div class="fr-label">🔧 תחזוקה</div><div class="fr-val">תיעוד תחזוקות — תקופתי, תיקון, בדיקה. תחזוקה שעברה את המועד מוצגת בגבול אדום.</div></div>
-            <div class="field-row"><div class="fr-label">⚠️ תקלות</div><div class="fr-val">תקלות פתוחות לפי חומרה (נמוכה / בינונית / גבוהה / קריטית). אפשר לשלוח WhatsApp / מייל ישירות לטכנאי.</div></div>
-            <div class="field-row"><div class="fr-label">📞 אנשי שירות</div><div class="fr-val">פנקס אנשי קשר חיצוניים לתיקונים — חברת שירות הליכונים, טכנאי מזגן וכד'. כל ציוד יכול להיות מקושר לאיש קשר — כשתקלה נפתחת, שולחים WhatsApp/מייל ישירות מהמסך.</div></div>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">לחיצת "+ הוסף תחזוקה" בלשונית "תחזוקה" פותחת מודל עם השדות הבאים:</p>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">📦 ציוד *</div><div class="fr-val">תפריט נפתח — מציג רק פריטים בסטטוס "פעיל". חובה לבחור. בחירת ציוד שיש לו טכנאי משויך מציגה אוטומטית שורה כחולה "שלח לטכנאי המשויך: [שם]" עם checkbox מסומן.</div></div>
+            <div class="field-row"><div class="fr-label">✅ שלח לטכנאי המשויך</div><div class="fr-val">Checkbox שמופיע רק אם לציוד יש טכנאי משויך. כשמסומן — שדות "שם טכנאי" ו"טלפון" מתמלאים אוטומטית מרשומת הטכנאי ונעשים לקריאה בלבד. ביטול הסימון מאפשר הזנה ידנית.</div></div>
+            <div class="field-row"><div class="fr-label">🔧 סוג תחזוקה</div><div class="fr-val">תפריט נפתח: <strong>תקופתי</strong> (PM שגרתי) / <strong>תיקון</strong> (תיקון תקלה) / <strong>בדיקה</strong> (בדיקת מצב).</div></div>
+            <div class="field-row"><div class="fr-label">📝 תיאור</div><div class="fr-val">תיאור חופשי של העבודה. לדוגמה: "שימון חגורת הליכון", "בדיקת בלאי רולרים".</div></div>
+            <div class="field-row"><div class="fr-label">📅 תאריך מתוכנן</div><div class="fr-val">תאריך שבו התחזוקה צריכה להתבצע. תחזוקה שתאריכה עבר ולא סומנה כ"בוצע" — מסומנת בגבול אדום ומתווספת לתג ההתראה על הטאב.</div></div>
+            <div class="field-row"><div class="fr-label">👤 שם טכנאי + טלפון</div><div class="fr-val">ניתן להזין ידנית או למלא מהטכנאי המשויך (ראו למעלה). שדות אופציונליים.</div></div>
+            <div class="field-row"><div class="fr-label">💰 עלות (₪)</div><div class="fr-val">עלות הטיפול. אופציונלי — מאפשר מעקב עלויות תחזוקה לאורך זמן.</div></div>
+            <div class="field-row"><div class="fr-label">🔄 תזכורת חוזרת</div><div class="fr-val">תפריט נפתח: <strong>ללא חזרה / שבועי (7 יום) / כל שבועיים (14) / חודשי (30) / כל חודשיים (60) / רבעוני (90) / חצי שנתי (180) / שנתי (365)</strong>. כאשר מוגדרת תזכורת חוזרת ומסמנים "בוצע" — המערכת יוצרת אוטומטית רשומת תחזוקה חדשה עם התאריך הבא.</div></div>
+            <div class="field-row"><div class="fr-label">📝 הערות</div><div class="fr-val">שדה חופשי נוסף.</div></div>
           </div>
-          <div class="box box-good" style="margin-top:10px;">
+          <p style="font-size:.87rem;color:var(--text2);">לחיצת <strong>"שמור"</strong> → <code>POST /equipment/maintenance</code>.</p>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-top:14px;margin-bottom:8px;">סימון תחזוקה כ"בוצע"</h3>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:8px;">
+            ברשימת התחזוקות — כל רשומה פתוחה מציגה כפתור <strong>"בוצע ✓"</strong>. לחיצה עליו שולחת <code>PUT /equipment/maintenance/:id/complete</code>. אם לרשומה יש תזכורת חוזרת — מוצגת ההודעה: <em>"בוצע ✓ — תזכורת הבאה נוצרה אוטומטית 🔄"</em>, ורשומה חדשה נוצרת עם תאריך מחושב לפי מרווח הימים.
+          </p>
+          <div class="box box-good">
             <div class="box-icon">✅</div>
-            <div>לוח הבקרה הראשי מתריע על ציוד שדורש תחזוקה — תמיד תהיו מוקדמים לפני שחבר יבוא ויגלה בעצמו.</div>
+            <div><strong>דוגמה:</strong> הגדרתם "תזכורת חוזרת: רבעוני (90 יום)" לשימון הליכון. לחצתם "בוצע" ב-1.1.2026 ← המערכת יוצרת אוטומטית את רשומת התחזוקה הבאה ל-1.4.2026. אף פעם לא תשכחו שימון הליכון שוב.</div>
           </div>
+        </div>
+      </div>
+
+      <!-- ה. תקלות -->
+      <h2 class="sec" style="margin-top:22px;">ה. ניהול תקלות</h2>
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">⚠️</div><div><div class="mod-name">דיווח תקלה חדשה</div><div class="mod-tag">תקלות › "+ דווח תקלה"</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">לחיצת "+ דווח תקלה" בלשונית "תקלות" פותחת מודל עם השדות הבאים:</p>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">📦 ציוד *</div><div class="fr-val">תפריט נפתח — מציג <em>כל</em> הפריטים (כולל "לא פעיל"), כי ייתכן שהפריט יצא מכלל שימוש בגלל תקלה. חובה לבחור.</div></div>
+            <div class="field-row"><div class="fr-label">📛 כותרת התקלה *</div><div class="fr-val">שדה חובה. תיאור קצר וברור. לדוגמה: "הליכון לא מתניע", "רולר ימני חרוק".</div></div>
+            <div class="field-row"><div class="fr-label">📝 פירוט</div><div class="fr-val">אופציונלי. תיאור מורחב — מה קורה בדיוק, מתי, אילו תסמינים. יישלח גם לטכנאי אם תשלחו WhatsApp/מייל.</div></div>
+            <div class="field-row"><div class="fr-label">🔴 חומרה</div><div class="fr-val">תפריט נפתח: <strong>נמוכה</strong> (לא דחוף) / <strong>בינונית</strong> (ברירת מחדל) / <strong>גבוהה</strong> (פוגע בפעילות) / <strong>קריטית</strong> (הציוד לא ניתן לשימוש).</div></div>
+            <div class="field-row"><div class="fr-label">📊 סטטוס</div><div class="fr-val">תפריט נפתח: <strong>פתוח</strong> (ברירת מחדל) / <strong>בטיפול</strong> / <strong>נסגר</strong>. כשבוחרים "נסגר" — מופיע שדה נוסף "פתרון / הערות סגירה" לתיעוד מה בוצע.</div></div>
+            <div class="field-row"><div class="fr-label">📸 צילום</div><div class="fr-val">כפתור "הוסף תמונה" — פותח בחירת תמונה מהמכשיר. תמונה מוצגת בתצוגה מקדימה בתוך המודל. שימושי לתיעוד ויזואלי של התקלה לטכנאי.</div></div>
+          </div>
+          <p style="font-size:.87rem;color:var(--text2);">כפתור <strong>"שמור"</strong> בצבע אדום — מדגיש את חומרת הפעולה. שולח <code>POST /equipment/faults</code>. הצלחה → "תקלה נרשמה".</p>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-top:14px;margin-bottom:8px;">עדכון סטטוס תקלה — popup מהיר</h3>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:8px;">
+            ברשימת התקלות כל כרטיס מציג כפתור "שנה סטטוס". לחיצה פותחת popup קטן עם:
+          </p>
+          <div class="field-table" style="margin-bottom:10px;">
+            <div class="field-row"><div class="fr-label">📊 סטטוס חדש</div><div class="fr-val">תפריט: <strong>פתוח / בטיפול / טופל</strong>.</div></div>
+            <div class="field-row"><div class="fr-label">📝 הערה</div><div class="fr-val">שדה טקסט — תתועד בגוף התקלה כרשומת לוג. לדוגמה: "פנינו לטכנאי, מחכים לחלק חילוף...".</div></div>
+          </div>
+          <p style="font-size:.87rem;color:var(--text2);">"עדכן סטטוס" → <code>PATCH /equipment/faults/:id/status</code>. הערה נשמרת כnote על התקלה וגלויה בלשונית ה-notes של אותה תקלה.</p>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-top:14px;margin-bottom:8px;">שליחה לטכנאי</h3>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:8px;">אם לציוד שדווחה עליו תקלה <em>יש טכנאי משויך</em> עם טלפון/מייל — מופיעים כפתורים:</p>
+          <div class="field-table" style="margin-bottom:8px;">
+            <div class="field-row"><div class="fr-label">💚 וואצאפ לטכנאי</div><div class="fr-val">גלוי רק אם יש טלפון לטכנאי המשויך. לחיצה פותחת WhatsApp עם הודעה מוכנה הכוללת: שם העסק, שם הציוד, כותרת התקלה, רמת חומרה, פירוט. הטכנאי מקבל את כל המידע בהודעה אחת.</div></div>
+            <div class="field-row"><div class="fr-label">📧 מייל לטכנאי</div><div class="fr-val">גלוי רק אם יש מייל לטכנאי המשויך. לחיצה פותחת תוכנת מייל עם נושא מוכן: "קריאת שירות: [כותרת תקלה] — [שם ציוד]" וגוף הודעה מלא.</div></div>
+          </div>
+          <div class="box box-tip">
+            <div class="box-icon">💡</div>
+            <div>אם לציוד אין טכנאי משויך — כפתורי WhatsApp ומייל <strong>לא מופיעים כלל</strong>. לכן חשוב לשייך טכנאי לכל פריט ציוד קריטי מראש.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ו. טכנאים -->
+      <h2 class="sec" style="margin-top:22px;">ו. לשונית טכנאים — פנקס אנשי שירות</h2>
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">👷</div><div><div class="mod-name">ניהול טכנאים וחברות שירות</div><div class="mod-tag">טכנאים › "+ הוסף טכנאי"</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">
+            הלשונית "טכנאים" היא פנקס איש הקשר לאנשי שירות חיצוניים. כאן רושמים: טכנאי הליכונים, חברת המזגנים, חשמלאי, טכנאי הספינינג וכד'. לאחר רישום — ניתן לשייך כל פריט ציוד לאיש שירות ולשלוח אליו ישירות מרשימת התקלות.
+          </p>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">לחיצת "+ הוסף טכנאי" פותחת מודל עם השדות:</p>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">👤 שם איש קשר *</div><div class="fr-val">שם מלא — חובה. לדוגמה: "רון כהן".</div></div>
+            <div class="field-row"><div class="fr-label">🏢 שם חברה</div><div class="fr-val">אופציונלי. לדוגמה: "טכנאי הליכונים בע"מ". אם קיים — מופיע ליד השם בכל הרשימות.</div></div>
+            <div class="field-row"><div class="fr-label">📞 טלפון</div><div class="fr-val">אופציונלי. מאפשר לחיצה ישירה לחיוג ו-WhatsApp מרשימת הטכנאים ומרשימת התקלות.</div></div>
+            <div class="field-row"><div class="fr-label">📧 אימייל</div><div class="fr-val">אופציונלי. מאפשר שליחת מייל ישירות מרשימת התקלות.</div></div>
+            <div class="field-row"><div class="fr-label">🔩 התמחות</div><div class="fr-val">אופציונלי. לדוגמה: "מזגנים", "הליכונים", "חשמל". מוצגת כתג צבעוני על כרטיס הטכנאי.</div></div>
+            <div class="field-row"><div class="fr-label">📝 הערות</div><div class="fr-val">שדה חופשי נוסף — שעות זמינות, מחיר שעת עבודה, הערות שיתוף פעולה.</div></div>
+          </div>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">"שמור" → <code>POST /equipment/technicians</code>.</p>
+
+          <p style="font-size:.87rem;color:var(--text2);">כרטיס הטכנאי ברשימה מציג: שם, חברה, תג התמחות, קישורי חיוג/WhatsApp/מייל, ומספר פריטי הציוד שמשויכים אליו ("משויך ל-3 פריטי ציוד"). כפתורי עריכה (עיפרון) ומחיקה (פח).</p>
+        </div>
+      </div>
+
+      <!-- ז. היסטוריית פריט -->
+      <h2 class="sec" style="margin-top:22px;">ז. היסטוריית פריט</h2>
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🕐</div><div><div class="mod-name">היסטוריית טיפול בפריט</div><div class="mod-tag">פריטים › כפתור "היסטוריה"</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">
+            בלשונית "פריטים" — לצד כל פריט ציוד יש כפתור שעון-חזרה (🕐). לחיצה עליו פותחת <strong>מודל היסטוריה</strong> שמציג את כל רקורד הפריט: תחזוקות שבוצעו (עם תאריכים, סוג, עלות), תקלות שדווחו (עם פתרון), ציר זמן מלא. זהו כלי מצוין לפני קנייה של ציוד חדש — לראות כמה כסף הושקע בפריט לאורך השנים.
+          </p>
+          <p style="font-size:.87rem;color:var(--text2);">הנתונים נטענים מ-<code>GET /equipment/items/:id/history</code>.</p>
+        </div>
+      </div>
+
+      <!-- ח. תרחיש מלא -->
+      <h2 class="sec" style="margin-top:22px;">ח. תרחיש מלא — מהליכון תקול ועד תיקון</h2>
+      <div class="box box-scenario" style="margin-top:4px;">
+        <div class="box-icon">🎬</div>
+        <div>
+          <strong>הסצנה:</strong> הליכון מס' 4 התחיל לחרוק. עובד מדווח. אתם רוצים לנהל את כל התהליך — מדיווח ועד סגירה.
+          <ol style="margin-top:8px;margin-right:14px;font-size:.87rem;line-height:1.9;">
+            <li>נכנסים לטאב <strong>תחזוקת ציוד 🔧</strong> → לשונית <strong>פריטים</strong>.</li>
+            <li>הליכון 4 כבר רשום? ← לחצו "עריכה" ← ודאו שהוא משויך לטכנאי הליכונים "רון כהן" (חברת ספורטק). אם לא — שייכו. שמרו.</li>
+            <li>עוברים ללשונית <strong>תקלות</strong> → "+ דווח תקלה".</li>
+            <li>בוחרים ציוד: "הליכון 4 — BH G6380".</li>
+            <li>כותרת: "חריקה חזקה בחגורה בזמן ריצה".</li>
+            <li>פירוט: "חריקה מתחילה לאחר 5 דקות ריצה. מחמירה בקצב מעל 10 קמ"ש."</li>
+            <li>חומרה: <strong>גבוהה</strong> (פוגע בחוויה).</li>
+            <li>מצלמים תמונה של אזור החגורה → מעלים.</li>
+            <li>לוחצים "שמור" (כפתור אדום). ✅</li>
+            <li>ברשימת התקלות מופיע כפתור ירוק <strong>"וואצאפ לטכנאי"</strong> ← לחיצה פותחת WhatsApp לרון כהן עם כל הפרטים. שולחים.</li>
+            <li>לאחר שרון מגיב: לוחצים "שנה סטטוס" ← <strong>בטיפול</strong> + הערה "רון יגיע ב-14.7". ✅</li>
+            <li>רון מגיע, מחליף חגורה. לאחר תיקון: "שנה סטטוס" ← <strong>טופל</strong> + הערה "הוחלפה חגורה — חלק BH-47891. עלות 280₪". ✅</li>
+            <li>כעת: לחצו "+ הוסף תחזוקה" ← בחרו "הליכון 4" ← סוג: <strong>תקופתי</strong> ← תיאור "שימון חגורה" ← תאריך מתוכנן: 3 חודשים קדימה ← תזכורת חוזרת: <strong>רבעוני (90 יום)</strong>. שמרו. ✅ — מעכשיו המערכת תזכיר לכם שימון כל 3 חודשים.</li>
+          </ol>
         </div>
       </div>
     </div>
