@@ -19053,34 +19053,28 @@ function _renderWizardV2StepContent(stepName) {
 
     if (stepName === 'billing_flow') {
         const BILLING_OPTIONS = [
-            { value: 'quote_first', icon: '📋', title: 'הצעת מחיר קודם',
-              desc: 'הצעת מחיר → אישור לקוח → ביצוע → חשבונית',
-              fit: 'מתאים ל: עבודות בינוניות-גדולות' },
-            { value: 'immediate',   icon: '⚡', title: 'ביצוע מיידי',
-              desc: 'ביצוע → חשבונית בסוף',
-              fit: 'מתאים ל: עבודות קטנות ומהירות' },
-            { value: 'deposit',     icon: '💰', title: 'מקדמה + יתרה',
-              desc: 'מקדמה → ביצוע → תשלום יתרה',
-              fit: 'מתאים ל: עבודות גדולות ומורכבות' },
+            { value: 'immediate', icon: '⚡', title: 'עבודות קטנות ומהירות', desc: 'תיקון בסיסי, עד שעתיים עבודה' },
+            { value: 'quote',     icon: '📋', title: 'עבודות בינוניות',       desc: 'הצעת מחיר + אישור לקוח לפני ביצוע' },
+            { value: 'deposit',   icon: '💰', title: 'פרויקטים גדולים',       desc: 'מקדמה, ביצוע שלבי, תשלום יתרה' },
+            { value: 'sales',     icon: '🛒', title: 'מכירת ציוד / חלקים',   desc: 'מכירה ישירה של מוצרים ללקוח' },
         ];
-        const sel = wizardV2Data.billingFlow || '';
+        const selArr = wizardV2Data.billingFlows || [];
         const cards = BILLING_OPTIONS.map(o => `
-            <button type="button" onclick="_wiz2SelectBilling('${o.value}')"
+            <button type="button" onclick="_wiz2ToggleBilling('${o.value}')"
                 id="wiz-v2-billing-${o.value}"
-                class="wiz-v2-billing-card flex flex-col items-start gap-1.5 p-4 rounded-2xl border-2 transition active:scale-95 w-full text-right
-                    ${sel === o.value ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-200'}"
+                class="wiz-v2-billing-card flex flex-col items-start gap-1 p-4 rounded-2xl border-2 transition active:scale-95 w-full text-right
+                    ${selArr.includes(o.value) ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-200'}"
                 style="touch-action:manipulation;cursor:pointer;">
                 <div class="flex items-center gap-2">
                     <span class="text-2xl">${o.icon}</span>
                     <span class="text-sm font-black text-slate-800">${o.title}</span>
                 </div>
                 <p class="text-xs text-slate-500 leading-snug">${o.desc}</p>
-                <p class="text-[11px] text-indigo-500 font-bold">${o.fit}</p>
             </button>`).join('');
         return `
         <div class="max-w-md mx-auto space-y-4">
-            <h3 class="font-bold text-slate-800 text-lg text-center">איך תהליך הגבייה שלכם?</h3>
-            <p class="text-xs text-slate-400 text-center">ניתן לשנות בכל עת</p>
+            <h3 class="font-bold text-slate-800 text-lg text-center">איזה סוג עבודות אתם עושים?</h3>
+            <p class="text-xs text-slate-400 text-center">ניתן לבחור יותר מאחד</p>
             <div class="space-y-3">${cards}</div>
         </div>`;
     }
@@ -19253,14 +19247,18 @@ window._wiz2AddRepairSvc = function() {
     updateWizardUIV2();
 };
 
-window._wiz2SelectBilling = function(value) {
-    wizardV2Data.billingFlow = value;
-    document.querySelectorAll('.wiz-v2-billing-card').forEach(b => {
-        const isThis = b.id === `wiz-v2-billing-${value}`;
-        b.className = b.className
+window._wiz2ToggleBilling = function(value) {
+    if (!wizardV2Data.billingFlows) wizardV2Data.billingFlows = [];
+    const idx = wizardV2Data.billingFlows.indexOf(value);
+    if (idx === -1) wizardV2Data.billingFlows.push(value);
+    else wizardV2Data.billingFlows.splice(idx, 1);
+    const isNow = wizardV2Data.billingFlows.includes(value);
+    const btn = document.getElementById(`wiz-v2-billing-${value}`);
+    if (btn) {
+        btn.className = btn.className
             .replace(/border-indigo-500 bg-indigo-50|border-slate-200 bg-white hover:border-indigo-200/g, '')
-            + (isThis ? ' border-indigo-500 bg-indigo-50' : ' border-slate-200 bg-white hover:border-indigo-200');
-    });
+            + (isNow ? ' border-indigo-500 bg-indigo-50' : ' border-slate-200 bg-white hover:border-indigo-200');
+    }
 };
 
 window._wiz2AddTrainer = function() {
@@ -19715,7 +19713,7 @@ async function _nextWizardV2Step() {
     }
 
     if (stepName === 'billing_flow') {
-        if (!wizardV2Data.billingFlow) { alert('נא לבחור תהליך גבייה'); return; }
+        if (!wizardV2Data.billingFlows || wizardV2Data.billingFlows.length === 0) { alert('נא לבחור לפחות סוג עבודה אחד'); return; }
     }
 
     if (stepName === 'first_customer') {
