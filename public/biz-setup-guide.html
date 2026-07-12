@@ -6894,40 +6894,117 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   <!-- ─── מלאי ─── -->
   <div class="chapter" id="b-inventory">
     <div class="ch-head"><div class="ch-num">9</div><div class="ch-title">מלאי מקצועי</div></div>
-    <p>כרטיסיית <strong>מלאי מקצועי</strong> (בתפריט <em>מלאי</em>) מנהלת שני סוגי מוצרים. חשוב להבין את ההבדל ביניהם:</p>
+    <p>כרטיסיית <strong>מלאי מקצועי</strong> מנהלת את כל המוצרים בסלון — הן חומרים מקצועיים לשימוש פנימי בטיפולים, והן מוצרים למכירה ללקוחות. הכרטיסייה נגישה דרך תפריט <strong>מלאי ← מלאי מקצועי</strong>. המערכת טוענת במקביל את רשימת הפריטים ואת התראות המלאי הנמוך.</p>
 
-    <div class="auto-grid">
-      <div class="auto-card">
-        <div style="font-size:1.5rem;margin-bottom:.3rem">🛍️ קמעונאי (Retail)</div>
-        <p style="font-size:.85rem">מוצרים שמוכרים ללקוחות לשימוש ביתי. לדוג׳: קרמים, שמפו, ציפורניים.</p>
-      </div>
-      <div class="auto-card">
-        <div style="font-size:1.5rem;margin-bottom:.3rem">🧴 Back-Bar</div>
-        <p style="font-size:.85rem">חומרים מקצועיים לשימוש פנימי בטיפולים. לדוג׳: חומצות, צבעים, שמנים.</p>
+    <!-- א. שני סוגי המוצרים -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">📦</div><div><div class="mod-name">א. שני סוגי מוצרים</div><div class="mod-tag">מלאי › מלאי מקצועי</div></div></div>
+      <p>כל פריט במלאי משויך לאחד משני סוגים. ההבדל משפיע על האייקון שיוצג בכרטיס וכן על שימוש עתידי במכירות ובדיווחי רווחיות:</p>
+      <div class="auto-grid">
+        <div class="auto-card" style="border-top:3px solid #10b981">
+          <div style="font-size:1.4rem;margin-bottom:.5rem">🛍️ מכירה ללקוח (Retail)</div>
+          <p style="font-size:.85rem">מוצרים שנמכרים ישירות ללקוחות לשימוש ביתי. ערך ה-<code>inventory_type</code>: <strong>retail</strong>. רקע האייקון: ירוק (emerald-100). לדוגמה: קרמים, שמפו, טיפוח ציפורניים, מסכות פנים לשימוש ביתי.</p>
+        </div>
+        <div class="auto-card" style="border-top:3px solid #8b5cf6">
+          <div style="font-size:1.4rem;margin-bottom:.5rem">🧴 Back-bar (מקצועי)</div>
+          <p style="font-size:.85rem">חומרים מקצועיים המשמשים את הטכנאיות בזמן הטיפולים — לא נמכרים ישירות. ערך ה-<code>inventory_type</code>: <strong>backbar</strong>. רקע האייקון: סגול (purple-100). לדוגמה: חומצות, צבעי שיער, שמנים, חומרי לייזר.</p>
+        </div>
       </div>
     </div>
 
+    <!-- ב. מבנה המסך -->
     <div class="mod">
-      <div class="mod-head"><div class="mod-icon">📋</div><div><div class="mod-name">שדות פריט מלאי</div><div class="mod-tag">מלאי › מלאי מקצועי</div></div></div>
+      <div class="mod-head"><div class="mod-icon">🖥️</div><div><div class="mod-name">ב. מבנה המסך</div><div class="mod-tag">מלאי › מלאי מקצועי</div></div></div>
+      <p>מסך המלאי בנוי מארבעה אזורים:</p>
       <div class="field-table">
-        <div class="field-row"><div class="fr-label">שם מוצר</div><div class="fr-val">שם המוצר כפי שיופיע ברשימה</div></div>
-        <div class="field-row"><div class="fr-label">מותג / SKU</div><div class="fr-val">מזהה לתיאום עם ספק</div></div>
-        <div class="field-row"><div class="fr-label">כמות במלאי</div><div class="fr-val">כמה יחידות יש כרגע</div></div>
-        <div class="field-row"><div class="fr-label">סף הזמנה מחדש</div><div class="fr-val">כשהמלאי יורד מתחת לסף זה — מופיעה התראה אדומה</div></div>
-        <div class="field-row"><div class="fr-label">מחיר עלות ₪</div><div class="fr-val">כמה שילמתם לספק (לחישוב רווח)</div></div>
-        <div class="field-row"><div class="fr-label">יחידת מידה</div><div class="fr-val">יח׳ / מ"ל / גרם</div></div>
+        <div class="field-row"><div class="fr-label">כותרת עליונה</div><div class="fr-val">רצועה בגרדיאנט ירוק-טיל (emerald-to-teal), עם כיתוב "מלאי מקצועי" ואייקון 🧴, וכפתור <strong>הוסף מוצר</strong> בגרדיאנט זהה בצד שמאל</div></div>
+        <div class="field-row"><div class="fr-label">רצועת התראות</div><div class="fr-val">מופיעה רק כאשר יש פריטים במלאי נמוך. רצועה אדומה (red-50/border-red-200) עם אייקון 🔔, ספירת הפריטים החסרים, ושמות עד 3 הפריטים הראשונים (אם יש יותר — מוצגות נקודות "...")</div></div>
+        <div class="field-row"><div class="fr-label">כפתורי סינון</div><div class="fr-val">שלושה כפתורי מסנן: <strong>הכל</strong> / <strong>מכירה 🛍️</strong> / <strong>Back-bar 🧴</strong>. הכפתור הפעיל מקבל רקע slate-800 לבן, השאר לבנים עם גבול. לחיצה מסננת את הרשימה בזמן אמת</div></div>
+        <div class="field-row"><div class="fr-label">רשימת פריטים</div><div class="fr-val">כרטיסי פריטים המסודרים בעמודה. פריט עם מלאי נמוך מקבל גבול אדום (border-red-200). פריט תקין מקבל גבול אפור (border-slate-100)</div></div>
       </div>
     </div>
 
+    <!-- ג. כרטיס פריט מלאי -->
     <div class="mod">
-      <div class="mod-head"><div class="mod-icon">✏️</div><div><div class="mod-name">עדכון מלאי ידני</div><div class="mod-tag">מלאי › מלאי מקצועי</div></div></div>
-      <p>לכל פריט יש כפתורי <strong>+</strong> (קיבלנו סחורה) ו-<strong>−</strong> (שימוש בטיפול). לחץ לשינוי הכמות. ניתן לסנן בין <em>הכל / קמעונאי / Back-Bar</em>.</p>
+      <div class="mod-head"><div class="mod-icon">🃏</div><div><div class="mod-name">ג. כרטיס פריט במלאי</div><div class="mod-tag">מלאי › מלאי מקצועי</div></div></div>
+      <p>כל פריט מוצג בכרטיס המכיל את האלמנטים הבאים:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">אייקון סוג</div><div class="fr-val">עיגול 9×9 עם אייקון: 🛍️ על רקע ירוק לפריט retail, 🧴 על רקע סגול לפריט backbar</div></div>
+        <div class="field-row"><div class="fr-label">שם המוצר + תג</div><div class="fr-val">שם המוצר בגופן מודגש. אם הכמות ≤ מינימום מלאי — מוצג תג אדום קטן "<strong>מלאי נמוך</strong>" לצד השם</div></div>
+        <div class="field-row"><div class="fr-label">מותג ו-SKU</div><div class="fr-val">שורה שנייה בצבע אפור-בהיר. מוצג שם המותג, ואם קיים SKU — מוצג לאחר נקודה תיכונה "·"</div></div>
+        <div class="field-row"><div class="fr-label">פס מלאי חזותי</div><div class="fr-val">פס צר (h-1.5) המציג את אחוז המלאי ביחס לפי-3 מהמינימום. ירוק (bg-green-400) כשהמלאי תקין, אדום (bg-red-400) כשבמלאי נמוך. מתחתיו: "X יח׳ · מינ׳ Y"</div></div>
+        <div class="field-row"><div class="fr-label">מחיר עלות</div><div class="fr-val">מוצג בצד שמאל הכרטיס כ-"₪X" בגופן מודגש. זהו המחיר שהעסק שילם לספק</div></div>
+        <div class="field-row"><div class="fr-label">כפתורי עדכון</div><div class="fr-val">שני כפתורים עגולים (7×7) בצד ימין: <strong>+</strong> ירוק להוספת מלאי, <strong>−</strong> אדום להסרת מלאי. לחיצה פותחת מודאל עדכון</div></div>
+      </div>
     </div>
 
-    <div class="box box-warn">
-      <div class="box-icon">🔔</div>
-      <div><strong>התראת מלאי נמוך</strong><br>כשפריט יורד מתחת לסף ההזמנה מחדש — מופיעה רצועה אדומה בראש המסך עם שמות הפריטים. גם הדשבורד הראשי מציג את מספר הפריטים בסכנה.</div>
+    <!-- ד. הוספת מוצר חדש -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">ד. הוספת מוצר חדש למלאי</div><div class="mod-tag">מלאי › מלאי מקצועי › הוסף מוצר</div></div></div>
+      <p>לחיצה על <strong>הוסף מוצר</strong> פותחת מודאל עם כותרת "מוצר חדש 🧴" על רקע גרדיאנט ירוק-טיל. המודאל כולל 7 שדות:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם מוצר</div><div class="fr-val">שם המוצר כפי שיופיע בכרטיס ובהתראות. שגיאת ולידציה: <em>"שם מוצר הוא שדה חובה"</em></div></div>
+        <div class="field-row"><div class="fr-label">מותג</div><div class="fr-val">שם היצרן או המותג (לדוגמה: "Wella", "OPI", "Holy Land"). מוצג מתחת לשם המוצר בכרטיס</div></div>
+        <div class="field-row"><div class="fr-label">סוג</div><div class="fr-val">תפריט בחירה עם שתי אפשרויות בלבד:<br>• <strong>Back-bar (מקצועי) 🧴</strong> — ברירת מחדל<br>• <strong>מכירה ללקוח 🛍️</strong></div></div>
+        <div class="field-row"><div class="fr-label">כמות בארגז</div><div class="fr-val">כמות ההתחלתית שנמצאת כרגע במלאי. ערך ברירת מחדל: 1. מינימום: 0</div></div>
+        <div class="field-row"><div class="fr-label">מינימום מלאי</div><div class="fr-val">סף ההזמנה מחדש — כאשר הכמות יורדת עד לסף זה או מתחתיו, מופיעה התראת "מלאי נמוך". ערך ברירת מחדל: 2. מינימום: 0</div></div>
+        <div class="field-row"><div class="fr-label">מחיר עלות (₪)</div><div class="fr-val">המחיר ששולם לספק. שדה עשרוני (step 0.01). ברירת מחדל: 0. משמש לחישוב רווחיות</div></div>
+        <div class="field-row"><div class="fr-label">מחיר קמעונאי (₪)</div><div class="fr-val">מחיר המכירה ללקוח (רלוונטי בעיקר לפריטי retail). שדה עשרוני (step 0.01). ברירת מחדל: 0</div></div>
+        <div class="field-row"><div class="fr-label">יחידת מידה</div><div class="fr-val">טקסט חופשי לסוג היחידה. ברירת מחדל: <em>יח׳</em>. לדוגמה: מ"ל, גרם, בקבוק, שקית</div></div>
+      </div>
+      <div class="steps" style="margin-top:.8rem">
+        <div class="step"><div class="step-n">1</div><div class="step-body">לחץ <strong>הוסף מוצר</strong> בכותרת המסך</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body">הזן <strong>שם מוצר</strong> (חובה), בחר <strong>סוג</strong>, מלא <strong>כמות</strong>, <strong>מינימום מלאי</strong>, ושאר פרטים רלוונטיים</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body">לחץ <strong>הוסף מוצר ✅</strong> — נשלח <code>POST /api/beauty/{biz}/inventory</code> עם: product_name, brand, inventory_type, stock_qty, reorder_threshold, cost_price, retail_price, unit. הודעת הצלחה: <em>"[שם מוצר] נוסף למלאי ✅"</em></div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body">הפריט מופיע מיד ברשימה תחת הסינון הנכון</div></div>
+      </div>
     </div>
+
+    <!-- ה. עדכון כמות מלאי -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🔄</div><div><div class="mod-name">ה. עדכון כמות מלאי קיים</div><div class="mod-tag">מלאי › מלאי מקצועי › כפתורי + / −</div></div></div>
+      <p>לכל פריט קיים שני כפתורים לעדכון כמות: <strong>+</strong> (ירוק — להוספת יחידות) ו-<strong>−</strong> (אדום — להסרת יחידות). לחיצה על כל אחד פותחת מודאל עדכון ייעודי עם השם המלא של הפריט בכותרת.</p>
+      <p>מודאל העדכון כולל שני שדות:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">כמות</div><div class="fr-val">מספר היחידות להוסיף או להסיר. שדה מספרי, ערך ברירת מחדל: 1, מינימום: 1</div></div>
+        <div class="field-row"><div class="fr-label">סיבה</div><div class="fr-val">תפריט סיבה שמשתנה לפי כיוון הפעולה:<br><strong>בהוספה (+):</strong> קנייה / החזרה / תיקון ספירה<br><strong>בהסרה (−):</strong> שימוש / פסולת/שבירה / תיקון ספירה</div></div>
+      </div>
+      <div class="steps" style="margin-top:.6rem">
+        <div class="step"><div class="step-n">1</div><div class="step-body">לחץ <strong>+</strong> (הוספה) או <strong>−</strong> (הסרה) בכרטיס הפריט הרצוי</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body">הזן <strong>כמות</strong> ובחר <strong>סיבה</strong> מהתפריט</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body">לחץ <strong>אשר</strong> (ירוק/אדום בהתאמה) — נשלח <code>POST /api/beauty/{biz}/inventory/{itemId}/adjust</code> עם: qty_change (חיובי להוספה, שלילי להסרה), reason. הודעת הצלחה: <em>"מלאי עודכן ✅"</em></div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body">המסך מתרענן אוטומטית — הפס החזותי ומספר הכמות מתעדכנים, ואם הפריט חצה את סף המינימום — מופיע תג "מלאי נמוך" בכרטיס ונוסף לרצועת ההתראות</div></div>
+      </div>
+    </div>
+
+    <!-- ו. התראות מלאי נמוך -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🔔</div><div><div class="mod-name">ו. התראות מלאי נמוך</div><div class="mod-tag">מלאי › מלאי מקצועי</div></div></div>
+      <p>המערכת טוענת בנפרד, במקביל לרשימת הפריטים, שאילתת התראות (<code>GET /api/beauty/{biz}/inventory/alerts</code>). כאשר מוחזרות התראות:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">רצועת ההתראה</div><div class="fr-val">מופיעה מתחת לכותרת העליונה. רקע red-50 עם גבול red-200, אייקון 🔔 אדום, הכיתוב "<strong>X מוצרים במלאי נמוך</strong>" בפונט מודגש, ומתחתיו עד 3 שמות פריטים מופרדים בפסיק (אם יש יותר — "...")</div></div>
+        <div class="field-row"><div class="fr-label">תג בכרטיס</div><div class="fr-val">פריט שהכמות שלו ≤ reorder_threshold מקבל תג "<strong>מלאי נמוך</strong>" אדום (bg-red-100 text-red-600) לצד שמו, וגבול אדום לכרטיס כולו</div></div>
+        <div class="field-row"><div class="fr-label">פס מלאי</div><div class="fr-val">הפס המחשותי הופך מירוק לאדום (bg-red-400) עבור פריטים בסכנה</div></div>
+      </div>
+      <div class="box box-warn" style="margin-top:.6rem">
+        <div class="box-icon">📊</div>
+        <div><strong>חישוב הפס החזותי</strong><br>הפס מציג אחוז: <code>Math.min(100, round((stock_qty / (reorder_threshold × 3)) × 100))</code>. כלומר כאשר הכמות שווה לפי-3 מהמינימום — הפס מלא 100%. כאשר הכמות יורדת מתחת לפי-3 — הפס מתקצר. כאשר הכמות ≤ מינימום — הפס אדום. אם אין סף מינימום מוגדר (0) — הפס מוצג ב-50% כברירת מחדל.</div>
+      </div>
+    </div>
+
+    <!-- ז. סצנריו מלא -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">📖</div><div><div class="mod-name">ז. סצנריו מלא — מהוספת מוצר עד התראה</div><div class="mod-tag">מלאי › מלאי מקצועי</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הוספת חומר צבע חדש:</strong> לחצי <strong>הוסף מוצר</strong>. שם: "Wella Koleston 7/0", מותג: "Wella", סוג: Back-bar 🧴, כמות: 10, מינימום: 3, עלות: ₪45, יחידה: "בקבוק". לחצי <strong>הוסף מוצר ✅</strong></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body">הפריט מופיע ברשימה עם אייקון 🧴 סגול, פס ירוק (10 מתוך 9 = 100%+), וטקסט "10 בקבוק · מינ׳ 3"</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>שימוש בטיפולים:</strong> לאחר 5 טיפולים השתמשתם ב-8 בקבוקים. לחצי <strong>−</strong> על הפריט. כמות: 8, סיבה: "שימוש". אשרי — נשלח qty_change: -8</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body">הכמות ירדה ל-2, שנמצאת מתחת למינימום 3. <strong>מיד מופיע:</strong> תג "מלאי נמוך" בכרטיס, הגבול הופך אדום, הפס הופך אדום, ורצועת ההתראות מופיעה בראש המסך: <em>"1 מוצרים במלאי נמוך · Wella Koleston 7/0"</em></div></div>
+        <div class="step"><div class="step-n">5</div><div class="step-body"><strong>קניית מלאי חדש:</strong> הזמנתן 12 בקבוקים מהספק. לחצי <strong>+</strong>. כמות: 12, סיבה: "קנייה". אשרי. המלאי עולה ל-14, ההתראה נעלמת, הפס חוזר לירוק</div></div>
+        <div class="step"><div class="step-n">6</div><div class="step-body"><strong>סינון:</strong> לחצי <strong>Back-bar 🧴</strong> — רואים רק את פריטי המקצועיים. לחצי <strong>מכירה 🛍️</strong> — רואים רק מוצרי קמעונאות</div></div>
+      </div>
+    </div>
+
   </div>
 
   <!-- ─── עמלות ─── -->
