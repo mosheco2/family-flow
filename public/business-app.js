@@ -18628,8 +18628,134 @@ function _renderWizardV2StepContent(stepName) {
             </div>
         </div>`;
     }
+    if (stepName === 'menu') {
+        const cuisineOptions = [
+            { value: 'pizza',    icon: '🍕', label: 'פיצה ומאפים' },
+            { value: 'mideast',  icon: '🥙', label: 'מזון מזרח תיכוני' },
+            { value: 'burger',   icon: '🍔', label: 'המבורגר ופסט פוד' },
+            { value: 'healthy',  icon: '🥗', label: 'בריאות וסלטים' },
+            { value: 'cafe',     icon: '☕', label: 'בית קפה' },
+            { value: 'catering', icon: '🍱', label: 'קייטרינג / אוכל מהבית' },
+        ];
+        const selCuisine = wizardV2Data.cuisineType || '';
+        const cuisineCards = cuisineOptions.map(o => `
+            <button type="button" onclick="_selectWizardV2Cuisine('${o.value}')"
+                id="wiz-v2-cuisine-${o.value}"
+                class="wiz-v2-cuisine-card flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition active:scale-95 text-center w-full
+                    ${selCuisine === o.value ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-200'}"
+                style="touch-action:manipulation;cursor:pointer;">
+                <span class="text-2xl">${o.icon}</span>
+                <span class="text-xs font-bold text-slate-700 leading-tight">${o.label}</span>
+            </button>`).join('');
+
+        const menuItems = wizardV2Data.menuItems || [];
+        const menuRows = menuItems.map((item, idx) => `
+            <div class="flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl">
+                <span class="flex-1 text-sm font-bold text-slate-700 truncate">${safeStr(item.name)}</span>
+                <input type="number" value="${item.price}" min="0"
+                    class="modern-input py-1.5 text-center text-sm font-bold text-indigo-600 dir-ltr w-20 bg-indigo-50"
+                    onchange="wizardV2Data.menuItems[${idx}].price = parseFloat(this.value)||0">
+                <button onclick="_removeWizardV2MenuItem(${idx})"
+                    class="text-red-400 hover:text-red-600 w-7 h-7 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>`).join('');
+
+        const menuSection = selCuisine ? `
+            <div id="wiz-v2-menu-result" class="space-y-2">
+                ${menuRows || '<div id="wiz-v2-menu-spinner" class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה תפריט...</p></div>'}
+            </div>
+            <button type="button" onclick="_addWizardV2MenuItem()"
+                class="w-full border-2 border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:border-indigo-300 hover:text-indigo-500 transition">
+                + הוסף מנה
+            </button>` : '';
+
+        return `
+        <div class="max-w-md mx-auto space-y-5">
+            <h3 class="font-bold text-slate-800 text-lg text-center">בואו נבנה את התפריט שלך</h3>
+            <div>
+                <p class="text-xs font-bold text-slate-500 mb-2">בחר סוג מטבח:</p>
+                <div class="grid grid-cols-3 gap-2">${cuisineCards}</div>
+            </div>
+            ${menuSection}
+        </div>`;
+    }
     return `<div class="text-center text-slate-500 py-8">שלב: ${stepName}</div>`;
 }
+
+window._selectWizardV2Cuisine = function(value) {
+    wizardV2Data.cuisineType = value;
+    wizardV2Data.menuItems = [];
+    document.querySelectorAll('.wiz-v2-cuisine-card').forEach(btn => {
+        const isSelected = btn.id === `wiz-v2-cuisine-${value}`;
+        btn.className = btn.className
+            .replace(/border-indigo-500 bg-indigo-50|border-slate-200 bg-white hover:border-indigo-200/g, '')
+            + (isSelected ? ' border-indigo-500 bg-indigo-50' : ' border-slate-200 bg-white hover:border-indigo-200');
+    });
+    _generateWizardMenu();
+};
+
+window._generateWizardMenu = async function() {
+    const resultEl = document.getElementById('wiz-v2-menu-result');
+    if (!resultEl) { updateWizardUIV2(); return; }
+    resultEl.innerHTML = `<div id="wiz-v2-menu-spinner" class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה תפריט...</p></div>`;
+    try {
+        const res = await fetch(`${API}/ai/generate-catalog`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                promptText: `אתה יוצר תפריט לעסק מסוג ${wizardV2Data.cuisineType}. צור בדיוק 6 פריטים. החזר JSON בלבד במבנה הזה: {"items": [{"name": "string", "price": number, "category": "string"}]} מחירים ריאליים בשקלים ישראליים. ללא טקסט נוסף.`,
+                type: 'BUSINESS',
+                groupId: currentGroup.id
+            })
+        });
+        const data = await res.json();
+        wizardV2Data.menuItems = (data.success && data.items) ? data.items : [];
+    } catch(e) {
+        wizardV2Data.menuItems = [];
+    }
+    updateWizardUIV2();
+};
+
+window._removeWizardV2MenuItem = function(idx) {
+    if (wizardV2Data.menuItems) wizardV2Data.menuItems.splice(idx, 1);
+    const resultEl = document.getElementById('wiz-v2-menu-result');
+    if (resultEl) {
+        const rows = (wizardV2Data.menuItems || []).map((item, i) => `
+            <div class="flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl">
+                <span class="flex-1 text-sm font-bold text-slate-700 truncate">${safeStr(item.name)}</span>
+                <input type="number" value="${item.price}" min="0"
+                    class="modern-input py-1.5 text-center text-sm font-bold text-indigo-600 dir-ltr w-20 bg-indigo-50"
+                    onchange="wizardV2Data.menuItems[${i}].price = parseFloat(this.value)||0">
+                <button onclick="_removeWizardV2MenuItem(${i})"
+                    class="text-red-400 hover:text-red-600 w-7 h-7 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>`).join('');
+        resultEl.innerHTML = rows || '<p class="text-xs text-slate-400 text-center py-2">אין פריטים</p>';
+    }
+};
+
+window._addWizardV2MenuItem = function() {
+    if (!wizardV2Data.menuItems) wizardV2Data.menuItems = [];
+    wizardV2Data.menuItems.push({ name: '', price: 0, category: 'כללי' });
+    const idx = wizardV2Data.menuItems.length - 1;
+    const resultEl = document.getElementById('wiz-v2-menu-result');
+    if (resultEl) {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl';
+        row.innerHTML = `
+            <input type="text" placeholder="שם מנה" class="modern-input py-1.5 text-sm flex-1"
+                oninput="wizardV2Data.menuItems[${idx}].name = this.value">
+            <input type="number" value="0" min="0"
+                class="modern-input py-1.5 text-center text-sm font-bold text-indigo-600 dir-ltr w-20 bg-indigo-50"
+                onchange="wizardV2Data.menuItems[${idx}].price = parseFloat(this.value)||0">
+            <button onclick="_removeWizardV2MenuItem(${idx})"
+                class="text-red-400 hover:text-red-600 w-7 h-7 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-xmark text-xs"></i>
+            </button>`;
+        resultEl.appendChild(row);
+    }
+};
 
 window._toggleWizardV2FoodType = function(value) {
     if (!wizardV2Data.serviceTypes) wizardV2Data.serviceTypes = [];
@@ -18650,6 +18776,28 @@ window._toggleWizardV2FoodType = function(value) {
 
 async function _nextWizardV2Step() {
     const stepName = wizardStepsV2[currentWizardStepV2] || '';
+
+    if (stepName === 'menu') {
+        const items = (wizardV2Data.menuItems || []).filter(i => i.name);
+        if (items.length === 0) { alert('נא להוסיף לפחות מנה אחת'); return; }
+        const btnNext = document.getElementById('wizard-v2-btn-next');
+        if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
+        try {
+            for (const item of items) {
+                await fetch(`${API}/store/catalog`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        groupId: currentGroup.id,
+                        name: item.name,
+                        price: item.price || 0,
+                        category: item.category || 'כללי',
+                        isAvailable: true,
+                        productType: 'retail'
+                    })
+                });
+            }
+        } catch(e) {}
+    }
 
     if (stepName === 'food_type') {
         if (!wizardV2Data.serviceTypes || wizardV2Data.serviceTypes.length === 0) { alert('נא לבחור סוג פעילות'); return; }
