@@ -19080,32 +19080,88 @@ function _renderWizardV2StepContent(stepName) {
     }
 
     if (stepName === 'first_customer') {
+        const flows = wizardV2Data.billingFlows || [];
+        const fc = wizardV2Data.firstCustomer || {};
+        const extraSections = [];
+
+        if (flows.includes('immediate')) {
+            extraSections.push(`
+                <label class="flex items-center gap-2 cursor-pointer bg-indigo-50 border border-indigo-100 rounded-xl p-3">
+                    <input type="checkbox" id="wiz-v2-fc-create-call" class="w-4 h-4 accent-indigo-600"
+                        ${fc.createCall !== false ? 'checked' : ''}>
+                    <span class="text-xs font-bold text-indigo-800">✓ צור קריאת שירות ראשונה לדוגמה</span>
+                </label>`);
+        }
+        if (flows.includes('quote')) {
+            extraSections.push(`
+                <label class="flex items-center gap-2 cursor-pointer bg-indigo-50 border border-indigo-100 rounded-xl p-3">
+                    <input type="checkbox" id="wiz-v2-fc-create-quote" class="w-4 h-4 accent-indigo-600"
+                        ${fc.createQuote !== false ? 'checked' : ''}>
+                    <span class="text-xs font-bold text-indigo-800">✓ צור הצעת מחיר לדוגמה</span>
+                </label>`);
+        }
+        if (flows.includes('deposit')) {
+            extraSections.push(`
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+                    <label class="text-xs font-bold text-slate-600 block">מקדמה רגילה שאתם גובים:</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="wiz-v2-fc-deposit-amount" min="0"
+                            class="modern-input py-2 text-center font-bold text-indigo-600 dir-ltr w-24 bg-white"
+                            placeholder="500" value="${fc.depositAmount||''}">
+                        <span class="text-xs text-slate-500">₪ או</span>
+                        <input type="number" id="wiz-v2-fc-deposit-pct" min="0" max="100"
+                            class="modern-input py-2 text-center font-bold text-indigo-600 dir-ltr w-20 bg-white"
+                            placeholder="30" value="${fc.depositPct||''}">
+                        <span class="text-xs text-slate-500">%</span>
+                    </div>
+                </div>`);
+        }
+        if (flows.includes('sales')) {
+            extraSections.push(`
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <p class="text-xs font-bold text-slate-700 mb-2">האם יש לכם קטלוג מוצרים/חלקים למכירה?</p>
+                    <div class="flex gap-3">
+                        <button type="button" onclick="_wiz2SetHasCatalog(true)"
+                            id="wiz-v2-fc-catalog-yes"
+                            class="flex-1 py-2 rounded-xl border-2 text-xs font-bold transition
+                                ${fc.hasCatalog === true ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300'}"
+                            style="touch-action:manipulation;cursor:pointer;">כן</button>
+                        <button type="button" onclick="_wiz2SetHasCatalog(false)"
+                            id="wiz-v2-fc-catalog-no"
+                            class="flex-1 py-2 rounded-xl border-2 text-xs font-bold transition
+                                ${fc.hasCatalog === false ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300'}"
+                            style="touch-action:manipulation;cursor:pointer;">לא</button>
+                    </div>
+                </div>`);
+        }
+
         return `
-        <div class="max-w-md mx-auto space-y-5">
+        <div class="max-w-md mx-auto space-y-4">
             <h3 class="font-bold text-slate-800 text-lg text-center"><i class="fa-solid fa-user-plus text-indigo-500 mr-2"></i>בואו ניצור לקוח ראשון</h3>
             <p class="text-xs text-slate-400 text-center">זה יעזור לכם לראות איך קריאת שירות נראית</p>
-            <div class="space-y-4">
+            <div class="space-y-3">
                 <div>
                     <label class="text-xs font-bold text-slate-600 block mb-1">שם לקוח <span class="text-red-500">*</span></label>
                     <input type="text" id="wiz-v2-customer-name"
                         class="modern-input py-3 w-full bg-white"
                         placeholder="ישראל ישראלי"
-                        value="${safeStr(wizardV2Data.firstCustomer?.name||'')}">
+                        value="${safeStr(fc.name||'')}">
                 </div>
                 <div>
                     <label class="text-xs font-bold text-slate-600 block mb-1">טלפון <span class="text-slate-400 font-normal">(אופציונלי)</span></label>
                     <input type="tel" id="wiz-v2-customer-phone" dir="ltr"
                         class="modern-input py-3 w-full bg-white"
                         placeholder="050-0000000"
-                        value="${safeStr(wizardV2Data.firstCustomer?.phone||'')}">
+                        value="${safeStr(fc.phone||'')}">
                 </div>
                 <div>
                     <label class="text-xs font-bold text-slate-600 block mb-1">כתובת <span class="text-slate-400 font-normal">(אופציונלי)</span></label>
                     <input type="text" id="wiz-v2-customer-address"
                         class="modern-input py-3 w-full bg-white"
                         placeholder="רחוב הדוגמה 1, תל אביב"
-                        value="${safeStr(wizardV2Data.firstCustomer?.address||'')}">
+                        value="${safeStr(fc.address||'')}">
                 </div>
+                ${extraSections.join('')}
             </div>
         </div>`;
     }
@@ -19259,6 +19315,17 @@ window._wiz2ToggleBilling = function(value) {
             .replace(/border-indigo-500 bg-indigo-50|border-slate-200 bg-white hover:border-indigo-200/g, '')
             + (isNow ? ' border-indigo-500 bg-indigo-50' : ' border-slate-200 bg-white hover:border-indigo-200');
     }
+};
+
+window._wiz2SetHasCatalog = function(val) {
+    if (!wizardV2Data.firstCustomer) wizardV2Data.firstCustomer = {};
+    wizardV2Data.firstCustomer.hasCatalog = val;
+    const yes = document.getElementById('wiz-v2-fc-catalog-yes');
+    const no  = document.getElementById('wiz-v2-fc-catalog-no');
+    const ON  = ' border-indigo-500 bg-indigo-50 text-indigo-700';
+    const OFF = ' border-slate-200 bg-white text-slate-600 hover:border-indigo-300';
+    if (yes) yes.className = yes.className.replace(/border-indigo-500 bg-indigo-50 text-indigo-700|border-slate-200 bg-white text-slate-600 hover:border-indigo-300/g, '') + (val ? ON : OFF);
+    if (no)  no.className  = no.className.replace(/border-indigo-500 bg-indigo-50 text-indigo-700|border-slate-200 bg-white text-slate-600 hover:border-indigo-300/g, '') + (!val ? ON : OFF);
 };
 
 window._wiz2AddTrainer = function() {
@@ -19721,13 +19788,37 @@ async function _nextWizardV2Step() {
         if (!name) { alert('נא להזין שם לקוח'); return; }
         const phone = (document.getElementById('wiz-v2-customer-phone')?.value || '').trim();
         const address = (document.getElementById('wiz-v2-customer-address')?.value || '').trim();
-        wizardV2Data.firstCustomer = { name, phone, address };
+        const flows = wizardV2Data.billingFlows || [];
+        const createCall  = flows.includes('immediate') ? (document.getElementById('wiz-v2-fc-create-call')?.checked !== false) : false;
+        const createQuote = flows.includes('quote')     ? (document.getElementById('wiz-v2-fc-create-quote')?.checked !== false) : false;
+        const depositAmount = parseFloat(document.getElementById('wiz-v2-fc-deposit-amount')?.value) || 0;
+        const depositPct    = parseFloat(document.getElementById('wiz-v2-fc-deposit-pct')?.value) || 0;
+        const hasCatalog = wizardV2Data.firstCustomer?.hasCatalog ?? null;
+        wizardV2Data.firstCustomer = { name, phone, address, createCall, createQuote, depositAmount, depositPct, hasCatalog };
+        if (depositAmount || depositPct) wizardV2Data.defaultDeposit = { amount: depositAmount, pct: depositPct };
+
+        // הוסף שלב catalog דינמית אם נבחר 'sales' + hasCatalog
+        if (flows.includes('sales') && hasCatalog === true) {
+            const nextIdx = currentWizardStepV2 + 1;
+            if (!wizardStepsV2.includes('catalog')) {
+                wizardStepsV2.splice(nextIdx, 0, 'catalog');
+            }
+        }
+
         const btnNext = document.getElementById('wizard-v2-btn-next');
         if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
         try {
             await fetch(`${API}/customers`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ groupId: currentGroup.id, name, phone, address })
+            });
+            if (createCall) await fetch(`${API}/service-calls`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ groupId: currentGroup.id, customerName: name, title: 'קריאת שירות ראשונה', status: 'new' })
+            });
+            if (createQuote) await fetch(`${API}/quotes`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ groupId: currentGroup.id, customerName: name, title: 'הצעת מחיר לדוגמה', status: 'draft' })
             });
         } catch(e) {}
     }
