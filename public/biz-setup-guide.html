@@ -3879,71 +3879,273 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     <div class="chapter" id="m-nav">
       <div class="ch-head"><div class="ch-num">3</div><div class="ch-title">ניווט — איך מתמצאים במערכת</div></div>
 
-      <p style="font-size:.9rem;color:var(--text2);">בתחתית המסך — סרגל ניווט עם 5 קבוצות. <strong>רק הטאבים הרלוונטיים לתחזוקה ותיקונים:</strong></p>
+      <p style="font-size:.9rem;color:var(--text2);">
+        כל הפעולות בעסק נגישות דרך <strong>סרגל ניווט תחתון</strong> שמחולק ל-6 מקטעים: כפתור <strong>ראשי 🏠</strong> + 5 קבוצות נושאיות.
+        לחיצה על קבוצה פותחת רשימת טאבים — <strong>רק הטאבים שהופעלו לסוג עסק זה מוצגים</strong>. לחיצה חוזרת על אותה קבוצה סוגרת אותה.
+        הטאבים שמוצגים תלויים גם ב<strong>תפקיד המשתמש</strong> — מנהל, מנהל סניף, וטכנאי שטח רואים מסכים שונים.
+      </p>
+
+      <!-- ─── א. כפתור ראשי ─── -->
+      <h2 class="sec">א. כפתור ראשי 🏠 — לוח הבקרה</h2>
+      <p style="font-size:.9rem;color:var(--text2);">
+        לחיצה על <strong>🏠 ראשי</strong> (הכפתור הראשון בסרגל) מחזירה תמיד לדף הבית — <strong>לוח הבקרה</strong>.
+        המסך שמוצג תלוי בתפקיד המחובר:
+      </p>
 
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">👥</div><div><div class="mod-name">קבוצה 1 — צוות</div></div></div>
-        <div class="mod-body"><div class="actions">
-          <span class="action">⏱️ נוכחות — שעות עבודה</span>
-          <span class="action">🌐 יומן — לוח פגישות וביקורים</span>
-          <span class="action">✅ משימות — מטלות פנימיות</span>
-          <span class="action">👥 ניהול צוות — עובדים ותפקידים</span>
-        </div></div>
-      </div>
-
-      <div class="mod">
-        <div class="mod-head"><div class="mod-icon">🛍️</div><div><div class="mod-name">קבוצה 2 — מכירות</div></div></div>
-        <div class="mod-body"><div class="actions">
-          <span class="action">🤝 לקוחות — היסטוריית שירות לכל לקוח</span>
-        </div></div>
-      </div>
-
-      <div class="mod">
-        <div class="mod-head"><div class="mod-icon">📦</div><div><div class="mod-name">קבוצה 3 — מלאי</div></div></div>
-        <div class="mod-body"><div class="actions">
-          <span class="action">🛒 רכש — הזמנת חלקי חילוף מספקים</span>
-          <span class="action">📦 ניהול מלאי — מעקב חלקים במחסן</span>
-        </div></div>
-      </div>
-
-      <div class="mod">
-        <div class="mod-head"><div class="mod-icon">💸</div><div><div class="mod-name">קבוצה 4 — כספים</div></div></div>
-        <div class="mod-body"><div class="actions">
-          <span class="action">💸 תזרים מזומנים</span>
-          <span class="action">📊 דוחות — ביצועי טכנאים וקריאות</span>
-        </div></div>
+        <div class="mod-head"><div class="mod-icon">👑</div><div><div class="mod-name">לוח בקרה — מנהל (ADMIN)</div><div class="mod-sub">מוצג למנהל הראשי של החשבון</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.85rem;color:var(--text2);margin-bottom:8px;">4 כרטיסי KPI בשורה עליונה:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🔧 קריאות פתוחות</div><div class="fr-val">סך כל קריאות השירות שטרם הושלמו ברמת החשבון כולו — מצב חדשה / בטיפול / ממתין לחלקים / ממתין לתשלום</div></div>
+            <div class="field-row"><div class="fr-label">⚠️ ממתין לסיווג</div><div class="fr-val">קריאות שנפתחו (למשל ע"י לקוח דרך ONEFLOW LIFE) ועדיין לא שויכו לטכנאי ולא שונה סטטוסן</div></div>
+            <div class="field-row"><div class="fr-label">🚨 דחופות</div><div class="fr-val">קריאות שסומנו בעדיפות "דחוף" ועדיין פתוחות — דורשות תשומת לב מיידית</div></div>
+            <div class="field-row"><div class="fr-label">👷 טכנאים</div><div class="fr-val">מספר עובדי צוות (members) פעילים בחשבון</div></div>
+          </div>
+          <p style="font-size:.85rem;color:var(--text2);margin:10px 0 6px;">כפתורי פעולה מהירה:</p>
+          <div class="actions">
+            <span class="action">🔧 קריאות שירות — פתיחת מסך כל הקריאות</span>
+            <span class="action">📅 יומן — מעבר לטאב היומן</span>
+            <span class="action">📊 דוחות — מעבר לטאב הדוחות</span>
+            <span class="action">👥 הצוות — מעבר לניהול עובדים</span>
+          </div>
+        </div>
       </div>
 
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">⋯</div><div><div class="mod-name">קבוצה 5 — עוד</div></div></div>
-        <div class="mod-body"><div class="actions">
-          <span class="action">📢 פרסום FLOW</span>
-          <span class="action">⚙️ הגדרות</span>
-        </div></div>
+        <div class="mod-head"><div class="mod-icon">🏢</div><div><div class="mod-name">לוח בקרה — מנהל סניף 🏢</div><div class="mod-sub">מוצג לעובד עם תפקיד branch_manager</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.85rem;color:var(--text2);margin-bottom:8px;">4 כרטיסי KPI זהים למנהל הראשי:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🔧 קריאות פתוחות</div><div class="fr-val">כל הקריאות הפתוחות ברמת הסניף / החשבון</div></div>
+            <div class="field-row"><div class="fr-label">⚠️ ממתין לסיווג</div><div class="fr-val">קריאות חדשות שטרם שויכו לטכנאי</div></div>
+            <div class="field-row"><div class="fr-label">🚨 דחופות</div><div class="fr-val">קריאות פתוחות עם עדיפות "דחוף"</div></div>
+            <div class="field-row"><div class="fr-label">👷 טכנאים</div><div class="fr-val">מספר אנשי הצוות הפעילים</div></div>
+          </div>
+          <p style="font-size:.85rem;color:var(--text2);margin:10px 0 6px;">כפתורי פעולה מהירה:</p>
+          <div class="actions">
+            <span class="action">🔧 קריאות שירות</span>
+            <span class="action">📅 יומן</span>
+            <span class="action">📊 דוחות</span>
+            <span class="action">👥 הצוות</span>
+          </div>
+        </div>
       </div>
 
-      <h2 class="sec" style="margin-top:24px;">לוח בקרה — מנהל סניף</h2>
-      <div class="field-table">
-        <div class="field-row"><div class="fr-label">🔧 קריאות פתוחות</div><div class="fr-val">כמה קריאות שירות פתוחות ממתינות לטיפול.</div></div>
-        <div class="field-row"><div class="fr-label">⚠️ ממתין לסיווג</div><div class="fr-val">קריאות שהגיעו מלקוח (ONEFLOW LIFE) ועדיין לא שויכו לטכנאי.</div></div>
-        <div class="field-row"><div class="fr-label">🚨 דחופות</div><div class="fr-val">קריאות עם עדיפות "דחוף" שדורשות טיפול מיידי.</div></div>
-        <div class="field-row"><div class="fr-label">👷 טכנאים</div><div class="fr-val">כמה טכנאי שטח פעילים בחברה.</div></div>
-      </div>
-      <div class="actions" style="margin-top:10px;">
-        <span class="action">🔨 פקודות עבודה</span>
-        <span class="action">📋 הצעות מחיר</span>
-        <span class="action">📊 דוחות</span>
-        <span class="action">👥 הצוות</span>
-        <span class="action">📅 יומן</span>
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🔧</div><div><div class="mod-name">לוח בקרה — טכנאי שטח 🔧</div><div class="mod-sub">מוצג לעובד עם תפקיד field_tech</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.85rem;color:var(--text2);margin-bottom:8px;">
+            הטכנאי רואה <strong>רק את הקריאות שהוקצו לו אישית</strong> — או קריאות שהוא עצמו פתח. קריאות של טכנאים אחרים אינן מוצגות.
+          </p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🔧 הקריאות שלי</div><div class="fr-val">קריאות פתוחות שהוקצו לטכנאי זה (סטטוס: חדשה / בטיפול / ממתין לחלקים / ממתין לתשלום)</div></div>
+            <div class="field-row"><div class="fr-label">✅ הושלמו היום</div><div class="fr-val">כמה קריאות שלו נסגרו בסטטוס "הושלם" ביום הנוכחי</div></div>
+            <div class="field-row"><div class="fr-label">🚨 דחופות</div><div class="fr-val">קריאות פתוחות שלו עם עדיפות "דחוף"</div></div>
+            <div class="field-row"><div class="fr-label">⏳ ממתין לחלקים</div><div class="fr-val">קריאות שלו שנעצרו כי חלק הנדרש טרם הגיע (סטטוס "ממתין לחלקים")</div></div>
+          </div>
+          <p style="font-size:.85rem;color:var(--text2);margin:10px 0 6px;">כפתורי פעולה מהירה:</p>
+          <div class="actions">
+            <span class="action">🔧 הקריאות שלי — פתיחת הקריאות המוקצות לי</span>
+            <span class="action">📅 יומן — הצגת הלו"ז שלי</span>
+            <span class="action">✅ משימות — המשימות שהוקצו לי</span>
+          </div>
+        </div>
       </div>
 
-      <h2 class="sec" style="margin-top:20px;">לוח בקרה — טכנאי שטח</h2>
-      <div class="field-table">
-        <div class="field-row"><div class="fr-label">🔧 הקריאות שלי</div><div class="fr-val">קריאות שהוקצו לטכנאי זה — פתוחות ובביצוע.</div></div>
-        <div class="field-row"><div class="fr-label">✅ הושלמו היום</div><div class="fr-val">כמה קריאות סגר הטכנאי היום.</div></div>
-        <div class="field-row"><div class="fr-label">🚨 דחופות</div><div class="fr-val">קריאות דחופות שמוקצות לטכנאי זה.</div></div>
-        <div class="field-row"><div class="fr-label">⏳ ממתין לחלקים</div><div class="fr-val">קריאות שנעצרו כי חלק הזמנה עדיין לא הגיע.</div></div>
+      <!-- ─── ב. קבוצות הניווט ─── -->
+      <h2 class="sec">ב. 5 קבוצות הניווט — טאבים פעילים לתחזוקה ותיקונים</h2>
+      <p style="font-size:.9rem;color:var(--text2);">
+        מתוך כל הטאבים הקיימים במערכת, לסוג עסק <strong>תחזוקה ותיקונים</strong> פעילים 11 טאבים בלבד: feed, calendar, tasks, customers, members, timeclock, cashflow, pantry, shop, biz-ads, reports.
+        שאר הטאבים (pos, sales, shifts, equipment, bank, budget וכו') לא מופעלים ולא מוצגים.
+      </p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">👥</div><div><div class="mod-name">קבוצה 1 — צוות</div><div class="mod-sub">4 טאבים פעילים</div></div></div>
+        <div class="mod-body">
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">⏱️ שעון נוכחות</div><div class="fr-val">כניסה ויציאה מהעבודה לכל עובד — כולל מיקום GPS, שעות עבודה יומיות/שבועיות, דוח נוכחות חודשי. הטכנאי מבצע כאן "כניסה לעבודה" בתחילת היום.</div></div>
+            <div class="field-row"><div class="fr-label">🗓️ יומן</div><div class="fr-val">לוח שנה שבועי/חודשי — כל קריאת שירות שיש לה תאריך ושעה מופיעה כאן. מנהל יכול לגרור קריאות בין ימים. במינוח תחזוקה: "קריאת שירות" = appointment.</div></div>
+            <div class="field-row"><div class="fr-label">✅ משימות</div><div class="fr-val">מטלות פנימיות שאינן קריאות שירות ללקוח — לדוגמה: "להזמין חלפים", "לבדוק רכב X", "פגישה עם ספק". ניתן להקצות משימה לטכנאי ספציפי ולהגדיר תאריך יעד.</div></div>
+            <div class="field-row"><div class="fr-label">👥 אנשי צוות</div><div class="fr-val">רשימת כל העובדים בחשבון — שם, תפקיד (מנהל סניף / טכנאי שטח / ADMIN), סטטוס חבר, קישור WhatsApp. מכאן מנהל יכול להוסיף עובד חדש ולשנות הרשאות.</div></div>
+          </div>
+          <div class="tip-box">💡 טאבים שאינם פעילים לסוג עסק זה: <strong>משמרות (shifts)</strong> ו<strong>אקדמיה (academy)</strong> — אינם מוצגים בתפריט.</div>
+        </div>
       </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🛍️</div><div><div class="mod-name">קבוצה 2 — מכירות</div><div class="mod-sub">טאב אחד פעיל</div></div></div>
+        <div class="mod-body">
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🤝 לקוחות</div><div class="fr-val">
+              כרטיסיית לקוח מלאה: שם, טלפון, כתובת, <strong>היסטוריית כל קריאות השירות</strong> שנפתחו עבורו (עם סטטוסים, תאריכים וסכומים).
+              ניתן ליצור לקוח חדש ישירות מהטאב הזה, או לחפש לקוח קיים ולראות את כל ההיסטוריה שלו.
+              בלשון המערכת: "לקוח" = customer.
+            </div></div>
+          </div>
+          <div class="tip-box">💡 טאבים שאינם פעילים לסוג עסק זה: pos, sales, leads, deliveries, reviews — אינם מוצגים.</div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📦</div><div><div class="mod-name">קבוצה 3 — מלאי</div><div class="mod-sub">2 טאבים פעילים</div></div></div>
+        <div class="mod-body">
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">🛒 רכש ארגוני (shop)</div><div class="fr-val">
+              הזמנת חלקי חילוף וציוד מספקים — יצירת הזמנת רכש, מעקב אחר הזמנות שבדרך, קבלת סחורה.
+              בלשון המערכת: "ספק חלקים" = supplier, "שירות/חלק" = product.
+            </div></div>
+            <div class="field-row"><div class="fr-label">📦 מלאי חלקים (pantry)</div><div class="fr-val">
+              ניהול מלאי הפנימי — מה יש במחסן, כמה יחידות מכל חלק, ערכי מינימום להתראה ("חלק X אזל!").
+              כשחלק מוצא מהמחסן לצורך קריאת שירות — ניתן לרשום זאת כאן כדי לעדכן את הכמות.
+            </div></div>
+          </div>
+          <div class="tip-box">💡 טאבים שאינם פעילים לסוג עסק זה: equipment, foodcost — אינם מוצגים.</div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">💸</div><div><div class="mod-name">קבוצה 4 — כספים</div><div class="mod-sub">2 טאבים פעילים</div></div></div>
+        <div class="mod-body">
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">💸 תזרים מזומנים (cashflow)</div><div class="fr-val">
+              כל תנועת כסף שנרשמה — הכנסות מקריאות שירות ששולמו, הוצאות רכש חלקים, הוצאות שכר, הוצאות דלק ועוד.
+              מוצג כגרף וכטבלה. ניתן לפלטר לפי תאריך וקטגוריה.
+            </div></div>
+            <div class="field-row"><div class="fr-label">📊 דוחות (reports)</div><div class="fr-val">
+              דוחות סיכום: כמה קריאות טופלו לפי טכנאי, כמה הושלמו לעומת בוטלו, ממוצע זמן סגירה, הכנסות לפי תקופה.
+              מנהל יכול לייצא את הנתונים.
+            </div></div>
+          </div>
+          <div class="tip-box">💡 טאבים שאינם פעילים לסוג עסק זה: bank, budget, timelog, forecast — אינם מוצגים.</div>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">⋯</div><div><div class="mod-name">קבוצה 5 — עוד</div><div class="mod-sub">2 פריטים קבועים</div></div></div>
+        <div class="mod-body">
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">📢 פרסום FLOW (biz-ads)</div><div class="fr-val">
+              פרסום מודעות ומבצעים לחברי הקהילה באפליקציית ONEFLOW LIFE — לדוגמה: "חינם בדיקת מזגן לחברי FLOW". המודעה מגיעה ללקוחות פוטנציאליים באזור.
+            </div></div>
+            <div class="field-row"><div class="fr-label">⚙️ הגדרות</div><div class="fr-val">
+              הגדרות החשבון: פרופיל העסק, לוגו, באנר, טלפון, סיסמת כניסה, העלאת קטלוג, ניהול הרשאות עובדים, פתיחת אשף הקמה מחדש ועוד.
+              <strong>גלוי לכולם</strong> — אך פעולות רגישות (שינוי סיסמה, מחיקת נתונים) דורשות הרשאת ADMIN.
+            </div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── ג. הרשאות לפי תפקיד ─── -->
+      <h2 class="sec">ג. מה כל תפקיד רואה — טאבים לפי הרשאה</h2>
+      <p style="font-size:.9rem;color:var(--text2);">
+        לכל עובד בחשבון יש <strong>תפקיד</strong> שקובע אילו טאבים יוצגו לו בסרגל הניווט. עובד לא יכול לראות טאבים שאינם ברשימת ההרשאות שלו.
+      </p>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">👑</div><div><div class="mod-name">ADMIN — מנהל ראשי</div><div class="mod-sub">רואה את כל הטאבים הפעילים</div></div></div>
+        <div class="mod-body">
+          <div class="actions">
+            <span class="action">🏠 ראשי (לוח בקרה)</span>
+            <span class="action">⏱️ שעון נוכחות</span>
+            <span class="action">🗓️ יומן</span>
+            <span class="action">✅ משימות</span>
+            <span class="action">👥 אנשי צוות</span>
+            <span class="action">🤝 לקוחות</span>
+            <span class="action">📦 מלאי חלקים</span>
+            <span class="action">🛒 רכש ארגוני</span>
+            <span class="action">💸 תזרים מזומנים</span>
+            <span class="action">📊 דוחות</span>
+            <span class="action">📢 פרסום FLOW</span>
+            <span class="action">⚙️ הגדרות</span>
+          </div>
+          <p style="font-size:.82rem;color:var(--text2);margin-top:8px;">סה"כ: 11 טאבים פעילים + הגדרות</p>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🏢</div><div><div class="mod-name">מנהל סניף 🏢 (branch_manager)</div><div class="mod-sub">רואה מודולי ניהול — ללא shop, biz-ads, reports</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.85rem;color:var(--text2);margin-bottom:8px;">
+            טאבים ש-branch_manager מורשה לפי המערכת, בהצלבה עם המודולים הפעילים לסוג עסק זה:
+          </p>
+          <div class="actions">
+            <span class="action">🏠 ראשי (לוח בקרה)</span>
+            <span class="action">⏱️ שעון נוכחות</span>
+            <span class="action">✅ משימות</span>
+            <span class="action">👥 אנשי צוות</span>
+            <span class="action">🤝 לקוחות</span>
+            <span class="action">📦 מלאי חלקים</span>
+            <span class="action">💸 תזרים מזומנים</span>
+          </div>
+          <p style="font-size:.82rem;color:var(--text2);margin-top:8px;">
+            <strong>אינו רואה:</strong> יומן, shop, biz-ads, reports — אינם ברשימת הרשאות תפקיד branch_manager.
+          </p>
+        </div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">🔧</div><div><div class="mod-name">טכנאי שטח 🔧 (field_tech)</div><div class="mod-sub">רואה רק את מה שדרוש לעבודה שוטפת בשטח</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.85rem;color:var(--text2);margin-bottom:8px;">
+            טאבים ש-field_tech מורשה לפי המערכת, בהצלבה עם המודולים הפעילים לסוג עסק זה:
+          </p>
+          <div class="actions">
+            <span class="action">🏠 ראשי (לוח בקרה — הקריאות שלי)</span>
+            <span class="action">⏱️ שעון נוכחות</span>
+            <span class="action">🗓️ יומן</span>
+            <span class="action">✅ משימות</span>
+          </div>
+          <p style="font-size:.82rem;color:var(--text2);margin-top:8px;">
+            <strong>אינו רואה:</strong> לקוחות, אנשי צוות, מלאי, רכש, תזרים, דוחות, פרסום — מחוץ להרשאות תפקיד field_tech.
+          </p>
+          <div class="tip-box">
+            🔐 <strong>חשוב:</strong> הטכנאי יכול לפתוח קריאת שירות חדשה דרך לוח הבקרה — אבל <strong>לא יכול</strong> לשייך אותה לטכנאי אחר (רק מנהל יכול). הוא רואה אך ורק את הקריאות שהוקצו לו אישית או שהוא פתח.
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── ד. הגדרת הרשאות ─── -->
+      <h2 class="sec">ד. שינוי הרשאות טאבים לעובד</h2>
+      <p style="font-size:.9rem;color:var(--text2);">
+        מנהל (ADMIN) יכול להרחיב או לצמצם את הטאבים שכל עובד רואה, מעבר לברירת המחדל של התפקיד:
+      </p>
+      <ol style="font-size:.88rem;color:var(--text2);line-height:1.9;padding-right:18px;">
+        <li>לחץ על <strong>👥 אנשי צוות</strong> בקבוצת "צוות"</li>
+        <li>לחץ על שם העובד → לחץ על <strong>⚙️ הרשאות</strong></li>
+        <li>יפתח מסך עם כל הטאבים הפעילים — סמן / בטל סימון לכל טאב</li>
+        <li>לחץ <strong>שמור</strong> — השינוי נכנס לתוקף מיידית בפעם הבאה שהעובד יפתח את האפליקציה</li>
+      </ol>
+
+      <!-- ─── ה. תרחיש מלא ─── -->
+      <h2 class="sec">ה. תרחיש מלא — יום ראשון בעבודה</h2>
+      <div class="scenario">
+        <div class="sc-step">
+          <div class="sc-num">1</div>
+          <div class="sc-body"><strong>טכנאי שטח — דני נכנס לאפליקציה:</strong> רואה לוח בקרה עם 3 קריאות פתוחות שלו, אחת מהן סומנה "דחוף". לוחץ 🏠 ← רואה מיד את ה-KPIs האישיים שלו.</div>
+        </div>
+        <div class="sc-step">
+          <div class="sc-num">2</div>
+          <div class="sc-body"><strong>רישום נוכחות:</strong> דני לוחץ על קבוצת <strong>צוות 👥</strong> ← בוחר <strong>⏱️ שעון נוכחות</strong> ← לוחץ "כניסה לעבודה". השעה והמיקום נרשמים.</div>
+        </div>
+        <div class="sc-step">
+          <div class="sc-num">3</div>
+          <div class="sc-body"><strong>בדיקת לו"ז:</strong> דני לוחץ על קבוצת <strong>צוות 👥</strong> ← <strong>🗓️ יומן</strong> ← רואה את שתי הקריאות שמתוזמנות להיום (השעה 09:00 ו-13:00).</div>
+        </div>
+        <div class="sc-step">
+          <div class="sc-num">4</div>
+          <div class="sc-body"><strong>מנהל סניף — שרה פותחת את האפליקציה:</strong> רואה לוח בקרה מנהלי — 7 קריאות פתוחות, 2 ממתינות לסיווג. לוחץ על כפתור "קריאות שירות" כדי לשייך אותן לטכנאים.</div>
+        </div>
+        <div class="sc-step">
+          <div class="sc-num">5</div>
+          <div class="sc-body"><strong>שרה בודקת מלאי:</strong> לוחץ קבוצת <strong>מלאי 📦</strong> ← <strong>📦 מלאי חלקים</strong> ← רואה שחלק "מסנן מזגן" ירד ל-2 יחידות. עוברת ל-<strong>🛒 רכש ארגוני</strong> ← יוצרת הזמנה ל-10 מסננים מהספק.</div>
+        </div>
+        <div class="sc-step">
+          <div class="sc-num">6</div>
+          <div class="sc-body"><strong>בסוף היום — מנהל ראשי בודק ביצועים:</strong> לוחץ קבוצת <strong>כספים 💸</strong> ← <strong>📊 דוחות</strong> ← בוחר "דוח יומי" ← רואה שדני סגר 3 קריאות, שרה עדכנה 2 לקוחות, סה"כ הכנסה: ₪1,850.</div>
+        </div>
+      </div>
+
     </div>
 
     <!-- ── 4. קריאות שירות ── -->
