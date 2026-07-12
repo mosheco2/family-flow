@@ -18797,8 +18797,108 @@ function _renderWizardV2StepContent(stepName) {
             <p class="text-[11px] text-slate-400">ניתן לדלג — תוכלו להזמין צוות מאוחר יותר</p>
         </div>`;
     }
+    if (stepName === 'practitioners') {
+        const PRACT_COLORS = [
+            { value: '#8b5cf6', label: 'סגול' },
+            { value: '#ec4899', label: 'ורוד' },
+            { value: '#3b82f6', label: 'כחול' },
+            { value: '#22c55e', label: 'ירוק' },
+            { value: '#f97316', label: 'כתום' },
+            { value: '#ef4444', label: 'אדום' },
+        ];
+        const PRACT_SPECIALTIES = ['שיער', 'ציפורניים', 'פנים וגוף', 'איפור', 'הכל'];
+        const practitioners = wizardV2Data.practitioners?.length
+            ? wizardV2Data.practitioners
+            : [{ name: '', specialty: 'הכל', color: '#8b5cf6' }];
+
+        function _practForm(p, i) {
+            const colorDots = PRACT_COLORS.map(c => `
+                <button type="button" onclick="_wiz2PractColor(${i},'${c.value}')"
+                    title="${c.label}"
+                    class="w-7 h-7 rounded-full border-2 transition active:scale-90 shrink-0
+                        ${p.color === c.value ? 'border-slate-700 scale-110' : 'border-transparent hover:border-slate-400'}"
+                    style="background:${c.value};touch-action:manipulation;cursor:pointer;">
+                </button>`).join('');
+            const specialtyOpts = PRACT_SPECIALTIES.map(s =>
+                `<option value="${s}" ${p.specialty === s ? 'selected' : ''}>${s}</option>`).join('');
+            return `
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 space-y-3" id="wiz-v2-pract-block-${i}">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-black text-slate-500">מטפלת ${i + 1}</span>
+                    ${i > 0 ? `<button type="button" onclick="_wiz2RemovePract(${i})"
+                        class="text-red-400 hover:text-red-600 text-xs font-bold"
+                        style="touch-action:manipulation;cursor:pointer;">הסר</button>` : ''}
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">שם מטפלת <span class="text-red-500">*</span></label>
+                    <input type="text" id="wiz-v2-pract-name-${i}"
+                        class="modern-input py-2.5 w-full bg-white"
+                        placeholder="למשל: רחל כהן"
+                        value="${safeStr(p.name)}"
+                        oninput="(wizardV2Data.practitioners=wizardV2Data.practitioners||[])[${i}]=(wizardV2Data.practitioners[${i}]||{});wizardV2Data.practitioners[${i}].name=this.value">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">התמחות</label>
+                    <select id="wiz-v2-pract-specialty-${i}"
+                        class="modern-input py-2.5 w-full bg-white"
+                        onchange="(wizardV2Data.practitioners=wizardV2Data.practitioners||[])[${i}]=(wizardV2Data.practitioners[${i}]||{});wizardV2Data.practitioners[${i}].specialty=this.value">
+                        ${specialtyOpts}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">צבע ביומן</label>
+                    <div id="wiz-v2-pract-color-${i}" class="flex gap-2">${colorDots}</div>
+                </div>
+            </div>`;
+        }
+
+        const practForms = practitioners.map((p, i) => _practForm(p, i)).join('');
+
+        return `
+        <div class="max-w-md mx-auto space-y-4">
+            <h3 class="font-bold text-slate-800 text-lg text-center"><i class="fa-solid fa-scissors text-indigo-500 mr-2"></i>מי נותנת את הטיפולים?</h3>
+            <p class="text-xs text-slate-400 text-center">ניתן להוסיף עוד מטפלות מאוחר יותר</p>
+            <div id="wiz-v2-pract-list" class="space-y-3">${practForms}</div>
+            <button type="button" onclick="_wiz2AddPract()"
+                id="wiz-v2-pract-add-btn"
+                class="w-full border-2 border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:border-indigo-300 hover:text-indigo-500 transition"
+                style="touch-action:manipulation;cursor:pointer;">
+                + הוסף מטפלת נוספת
+            </button>
+        </div>`;
+    }
     return `<div class="text-center text-slate-500 py-8">שלב: ${stepName}</div>`;
 }
+
+const _PRACT_COLORS_V2 = ['#8b5cf6','#ec4899','#3b82f6','#22c55e','#f97316','#ef4444'];
+
+window._wiz2PractColor = function(idx, color) {
+    if (!wizardV2Data.practitioners) wizardV2Data.practitioners = [];
+    if (!wizardV2Data.practitioners[idx]) wizardV2Data.practitioners[idx] = {};
+    wizardV2Data.practitioners[idx].color = color;
+    const wrap = document.getElementById(`wiz-v2-pract-color-${idx}`);
+    if (!wrap) return;
+    wrap.querySelectorAll('button').forEach(btn => {
+        const isSelected = btn.style.background === color || btn.style.backgroundColor === color;
+        btn.className = btn.className
+            .replace(/border-slate-700 scale-110|border-transparent hover:border-slate-400/g, '')
+            + (isSelected ? ' border-slate-700 scale-110' : ' border-transparent hover:border-slate-400');
+    });
+};
+
+window._wiz2AddPract = function() {
+    if (!wizardV2Data.practitioners) wizardV2Data.practitioners = [];
+    if (wizardV2Data.practitioners.length >= 5) return;
+    const idx = wizardV2Data.practitioners.length;
+    wizardV2Data.practitioners.push({ name: '', specialty: 'הכל', color: _PRACT_COLORS_V2[idx % _PRACT_COLORS_V2.length] });
+    updateWizardUIV2();
+};
+
+window._wiz2RemovePract = function(idx) {
+    if (!wizardV2Data.practitioners) return;
+    wizardV2Data.practitioners.splice(idx, 1);
+    updateWizardUIV2();
+};
 
 window._toggleWizardV2Cuisine = function(value) {
     if (!wizardV2Data.cuisineTypes) wizardV2Data.cuisineTypes = [];
@@ -18961,6 +19061,31 @@ async function _nextWizardV2Step() {
                         isAvailable: true,
                         productType: 'retail'
                     })
+                });
+            }
+        } catch(e) {}
+    }
+
+    if (stepName === 'practitioners') {
+        const practsRaw = wizardV2Data.practitioners || [];
+        const filled = practsRaw.filter(p => p && p.name && p.name.trim());
+        if (filled.length === 0) {
+            const firstName = (document.getElementById('wiz-v2-pract-name-0')?.value || '').trim();
+            if (!firstName) { alert('נא להזין שם מטפלת אחת לפחות'); return; }
+            filled.push({
+                name: firstName,
+                specialty: document.getElementById('wiz-v2-pract-specialty-0')?.value || 'הכל',
+                color: practsRaw[0]?.color || '#8b5cf6'
+            });
+        }
+        wizardV2Data.practitioners = filled;
+        const btnNext = document.getElementById('wizard-v2-btn-next');
+        if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
+        try {
+            for (const p of filled) {
+                await fetch(`${API}/beauty/practitioners`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ groupId: currentGroup.id, name: p.name.trim(), specialty: p.specialty || 'הכל', color: p.color || '#8b5cf6' })
                 });
             }
         } catch(e) {}
