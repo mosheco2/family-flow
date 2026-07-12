@@ -19255,41 +19255,72 @@ window._wiz2ToggleSvcType = function(value) {
     _generateRepairServices();
 };
 
+let _repairServicesAbort = null;
 window._generateRepairServices = async function() {
     if (!wizardV2Data.serviceTypes || wizardV2Data.serviceTypes.length === 0) return;
+    // ביטול בקשה קודמת אם קיימת
+    if (_repairServicesAbort) { _repairServicesAbort.abort(); }
+    _repairServicesAbort = new AbortController();
+    const signal = _repairServicesAbort.signal;
+
     let resultEl = document.getElementById('wiz-v2-repair-result');
     if (!resultEl) {
         updateWizardUIV2();
         resultEl = document.getElementById('wiz-v2-repair-result');
         if (!resultEl) return;
     }
-    resultEl.innerHTML = `<div id="wiz-v2-repair-spinner" class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה רשימת שירותים...</p></div>`;
+    resultEl.innerHTML = `<div class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה רשימת שירותים...</p></div>`;
+    const snapshot = [...wizardV2Data.serviceTypes];
     try {
         const res = await fetch(`${API}/ai/generate-catalog`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
+            signal,
             body: JSON.stringify({
-                promptText: `צור רשימת שירותי תיקון עבור: ${wizardV2Data.serviceTypes.join(', ')}. צור בדיוק 6 שירותים נפוצים. החזר JSON בלבד: {"items": [{"name": "string", "price_from": number, "price_to": number, "duration_hours": number, "category": "string"}]} מחירים ריאליים בשקלים ישראליים. ללא טקסט נוסף.`,
+                promptText: `צור רשימת שירותי תיקון עבור: ${snapshot.join(', ')}. צור בדיוק 6 שירותים נפוצים. החזר JSON בלבד: {"items": [{"name": "string", "price_from": number, "price_to": number, "duration_hours": number, "category": "string"}]} מחירים ריאליים בשקלים ישראליים. ללא טקסט נוסף.`,
                 type: 'BUSINESS', groupId: currentGroup.id
             })
         });
+        if (signal.aborted) return;
         const responseText = await res.text();
-        console.log('raw repair response:', responseText);
+        if (signal.aborted) return;
         let outer;
         try { outer = JSON.parse(responseText); } catch(e) {
-            console.error('JSON parse error:', e);
-            resultEl.innerHTML = '<p style="color:red">שגיאה בבניית הרשימה. נסה שנית.</p>'; return;
+            resultEl = document.getElementById('wiz-v2-repair-result');
+            if (resultEl) resultEl.innerHTML = '<p class="text-center text-red-500 py-4">שגיאה בבניית הרשימה. נסה שנית.</p>';
+            return;
         }
         let items = (outer.success && outer.items) ? outer.items : null;
         if (!items && outer.result) { try { const p = JSON.parse(outer.result); items = p.items || p; } catch(e) {} }
         wizardV2Data.repairServices = (items || []).map(it => ({
             name: it.name || '', price_from: it.price_from || 0, price_to: it.price_to || 0,
-            duration_hours: it.duration_hours || 1, category: it.category || wizardV2Data.serviceTypes[0] || ''
+            duration_hours: it.duration_hours || 1, category: it.category || snapshot[0] || ''
         }));
     } catch(e) {
-        console.error('fetch error:', e);
-        resultEl.innerHTML = '<p style="color:red">שגיאה בבניית הרשימה. נסה שנית.</p>'; return;
+        if (e.name === 'AbortError') return;
+        resultEl = document.getElementById('wiz-v2-repair-result');
+        if (resultEl) resultEl.innerHTML = '<p class="text-center text-red-500 py-4">שגיאה בבניית הרשימה. נסה שנית.</p>';
+        return;
     }
-    updateWizardUIV2();
+    // רנדור התוצאה ישירות בלי updateWizardUIV2 כולל כדי למנוע stale references
+    resultEl = document.getElementById('wiz-v2-repair-result');
+    if (!resultEl) return;
+    if (!wizardV2Data.repairServices || wizardV2Data.repairServices.length === 0) {
+        resultEl.innerHTML = '<p class="text-center text-slate-400 py-4">לא נמצאו שירותים, נסה שנית.</p>';
+        return;
+    }
+    const rows = wizardV2Data.repairServices.map((s, i) => `
+        <div class="flex gap-2 items-center bg-white rounded-xl border border-slate-200 p-2 text-sm">
+            <span class="flex-1 font-medium text-slate-700">${s.name}</span>
+            <span class="text-slate-400 text-xs">${s.price_from}–${s.price_to} ₪</span>
+            <span class="text-slate-400 text-xs">${s.duration_hours}ש'</span>
+            <button type="button" onclick="_wiz2RemoveRepairSvc(${i})" class="text-red-400 hover:text-red-600 px-1">✕</button>
+        </div>`).join('');
+    resultEl.innerHTML = `
+        <div class="space-y-2 mb-3">${rows}</div>
+        <button type="button" onclick="_wiz2AddRepairSvc()"
+            class="w-full border-2 border-dashed border-indigo-300 text-indigo-500 rounded-xl py-2 text-sm hover:bg-indigo-50">
+            + הוסף שירות
+        </button>`;
 };
 
 window._wiz2RemoveRepairSvc = function(idx) {
