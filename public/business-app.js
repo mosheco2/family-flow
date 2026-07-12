@@ -18797,6 +18797,64 @@ function _renderWizardV2StepContent(stepName) {
             <p class="text-[11px] text-slate-400">ניתן לדלג — תוכלו להזמין צוות מאוחר יותר</p>
         </div>`;
     }
+    if (stepName === 'services') {
+        const BEAUTY_CATS = [
+            { value: 'שיער',        icon: '💇' },
+            { value: 'ציפורניים',   icon: '💅' },
+            { value: 'פנים וגוף',   icon: '✨' },
+            { value: 'ספא ועיסוי',  icon: '🧖' },
+            { value: 'איפור',       icon: '💄' },
+        ];
+        const selCats = wizardV2Data.serviceCategories || [];
+        const catCards = BEAUTY_CATS.map(c => `
+            <button type="button" onclick="_wiz2ToggleBeautyCat('${c.value}')"
+                id="wiz-v2-bcat-${c.value.replace(/[\s]/g,'_')}"
+                class="wiz-v2-bcat-card flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition active:scale-95 text-center w-full
+                    ${selCats.includes(c.value) ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-200'}"
+                style="touch-action:manipulation;cursor:pointer;">
+                <span class="text-2xl">${c.icon}</span>
+                <span class="text-xs font-bold text-slate-700 leading-tight">${c.value}</span>
+            </button>`).join('');
+
+        const DURATION_OPTS = [30, 45, 60, 90, 120];
+        const _durSel = (svc, idx) => `<select class="modern-input py-1.5 text-xs w-20 bg-white text-center"
+            onchange="wizardV2Data.services[${idx}].duration_minutes=parseInt(this.value)">
+            ${DURATION_OPTS.map(d => `<option value="${d}" ${svc.duration_minutes==d?'selected':''}>${d}′</option>`).join('')}
+        </select>`;
+        const _svcRow = (svc, idx) => `
+            <div class="flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl">
+                <span class="flex-1 text-sm font-bold text-slate-700 truncate">${safeStr(svc.name)}</span>
+                ${_durSel(svc, idx)}
+                <input type="number" value="${svc.price||0}" min="0"
+                    class="modern-input py-1.5 text-center text-sm font-bold text-indigo-600 dir-ltr w-20 bg-indigo-50"
+                    onchange="wizardV2Data.services[${idx}].price=parseFloat(this.value)||0">
+                <button onclick="_wiz2RemoveSvc(${idx})"
+                    class="text-red-400 hover:text-red-600 w-7 h-7 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>`;
+
+        const services = wizardV2Data.services || [];
+        const svcRows = services.map((s, i) => _svcRow(s, i)).join('');
+        const svcSection = selCats.length > 0 ? `
+            <div id="wiz-v2-svc-result" class="space-y-2">
+                ${svcRows || '<div id="wiz-v2-svc-spinner" class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה רשימת טיפולים...</p></div>'}
+            </div>
+            <button type="button" onclick="_wiz2AddSvc()"
+                class="w-full border-2 border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:border-indigo-300 hover:text-indigo-500 transition">
+                + הוסף טיפול
+            </button>` : '';
+
+        return `
+        <div class="max-w-md mx-auto space-y-5">
+            <h3 class="font-bold text-slate-800 text-lg text-center">אילו טיפולים אתם מציעים?</h3>
+            <div>
+                <p class="text-xs font-bold text-slate-500 mb-2">בחר קטגוריות (ניתן לבחור כמה):</p>
+                <div class="grid grid-cols-3 gap-2">${catCards}</div>
+            </div>
+            ${svcSection}
+        </div>`;
+    }
     if (stepName === 'practitioners') {
         const PRACT_COLORS = [
             { value: '#8b5cf6', label: 'סגול' },
@@ -18869,6 +18927,116 @@ function _renderWizardV2StepContent(stepName) {
     }
     return `<div class="text-center text-slate-500 py-8">שלב: ${stepName}</div>`;
 }
+
+window._wiz2ToggleBeautyCat = function(value) {
+    if (!wizardV2Data.serviceCategories) wizardV2Data.serviceCategories = [];
+    const idx = wizardV2Data.serviceCategories.indexOf(value);
+    if (idx === -1) wizardV2Data.serviceCategories.push(value);
+    else wizardV2Data.serviceCategories.splice(idx, 1);
+    const isNow = wizardV2Data.serviceCategories.includes(value);
+    const btn = document.getElementById(`wiz-v2-bcat-${value.replace(/[\s]/g,'_')}`);
+    if (btn) {
+        btn.className = btn.className
+            .replace(/border-indigo-500 bg-indigo-50|border-slate-200 bg-white hover:border-indigo-200/g, '')
+            + (isNow ? ' border-indigo-500 bg-indigo-50' : ' border-slate-200 bg-white hover:border-indigo-200');
+    }
+    wizardV2Data.services = [];
+    _generateBeautyServices();
+};
+
+window._generateBeautyServices = async function() {
+    if (!wizardV2Data.serviceCategories || wizardV2Data.serviceCategories.length === 0) return;
+    let resultEl = document.getElementById('wiz-v2-svc-result');
+    if (!resultEl) {
+        updateWizardUIV2();
+        resultEl = document.getElementById('wiz-v2-svc-result');
+        if (!resultEl) return;
+    }
+    resultEl.innerHTML = `<div id="wiz-v2-svc-spinner" class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה רשימת טיפולים...</p></div>`;
+    console.log('generating beauty services for:', wizardV2Data.serviceCategories);
+    try {
+        const res = await fetch(`${API}/ai/generate-catalog`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                promptText: `צור רשימת טיפולי יופי עבור: ${wizardV2Data.serviceCategories.join(', ')}. צור בדיוק 6 טיפולים. החזר JSON בלבד: {"items": [{"name": "string", "duration_minutes": number, "price": number, "category": "string"}]} משך ריאלי בדקות (30-120), מחירים ריאליים בשקלים. ללא טקסט נוסף.`,
+                type: 'BUSINESS',
+                groupId: currentGroup.id
+            })
+        });
+        const responseText = await res.text();
+        console.log('raw response:', responseText);
+        let outer;
+        try { outer = JSON.parse(responseText); } catch(e) {
+            console.error('JSON parse error:', e, responseText);
+            resultEl.innerHTML = '<p style="color:red">שגיאה בבניית הרשימה. נסה שנית.</p>';
+            return;
+        }
+        let items = (outer.success && outer.items) ? outer.items : null;
+        if (!items && outer.result) {
+            try { const p = JSON.parse(outer.result); items = p.items || p; } catch(e) {}
+        }
+        wizardV2Data.services = (items || []).map(it => ({
+            name: it.name || '',
+            duration_minutes: it.duration_minutes || 60,
+            price: it.price || 0,
+            category: it.category || wizardV2Data.serviceCategories[0] || ''
+        }));
+    } catch(e) {
+        console.error('fetch error:', e);
+        resultEl.innerHTML = '<p style="color:red">שגיאה בבניית הרשימה. נסה שנית.</p>';
+        return;
+    }
+    updateWizardUIV2();
+};
+
+window._wiz2RemoveSvc = function(idx) {
+    if (wizardV2Data.services) wizardV2Data.services.splice(idx, 1);
+    const el = document.getElementById('wiz-v2-svc-result');
+    if (el) {
+        const DURATION_OPTS = [30,45,60,90,120];
+        el.innerHTML = (wizardV2Data.services || []).map((s, i) => `
+            <div class="flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl">
+                <span class="flex-1 text-sm font-bold text-slate-700 truncate">${safeStr(s.name)}</span>
+                <select class="modern-input py-1.5 text-xs w-20 bg-white text-center"
+                    onchange="wizardV2Data.services[${i}].duration_minutes=parseInt(this.value)">
+                    ${DURATION_OPTS.map(d=>`<option value="${d}" ${s.duration_minutes==d?'selected':''}>${d}′</option>`).join('')}
+                </select>
+                <input type="number" value="${s.price||0}" min="0"
+                    class="modern-input py-1.5 text-center text-sm font-bold text-indigo-600 dir-ltr w-20 bg-indigo-50"
+                    onchange="wizardV2Data.services[${i}].price=parseFloat(this.value)||0">
+                <button onclick="_wiz2RemoveSvc(${i})"
+                    class="text-red-400 hover:text-red-600 w-7 h-7 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>`).join('') || '<p class="text-xs text-slate-400 text-center py-2">אין טיפולים</p>';
+    }
+};
+
+window._wiz2AddSvc = function() {
+    if (!wizardV2Data.services) wizardV2Data.services = [];
+    wizardV2Data.services.push({ name: '', duration_minutes: 60, price: 0, category: (wizardV2Data.serviceCategories || [])[0] || '' });
+    const idx = wizardV2Data.services.length - 1;
+    const el = document.getElementById('wiz-v2-svc-result');
+    if (el) {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl';
+        row.innerHTML = `
+            <input type="text" placeholder="שם טיפול" class="modern-input py-1.5 text-sm flex-1"
+                oninput="wizardV2Data.services[${idx}].name=this.value">
+            <select class="modern-input py-1.5 text-xs w-20 bg-white text-center"
+                onchange="wizardV2Data.services[${idx}].duration_minutes=parseInt(this.value)">
+                ${[30,45,60,90,120].map(d=>`<option value="${d}" ${d===60?'selected':''}>${d}′</option>`).join('')}
+            </select>
+            <input type="number" value="0" min="0"
+                class="modern-input py-1.5 text-center text-sm font-bold text-indigo-600 dir-ltr w-20 bg-indigo-50"
+                onchange="wizardV2Data.services[${idx}].price=parseFloat(this.value)||0">
+            <button onclick="_wiz2RemoveSvc(${idx})"
+                class="text-red-400 hover:text-red-600 w-7 h-7 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-xmark text-xs"></i>
+            </button>`;
+        el.appendChild(row);
+    }
+};
 
 const _PRACT_COLORS_V2 = ['#8b5cf6','#ec4899','#3b82f6','#22c55e','#f97316','#ef4444'];
 
@@ -19061,6 +19229,35 @@ async function _nextWizardV2Step() {
                         isAvailable: true,
                         productType: 'retail'
                     })
+                });
+            }
+        } catch(e) {}
+    }
+
+    if (stepName === 'services') {
+        const svcs = wizardV2Data.services || [];
+        if (svcs.length === 0) { alert('נא להוסיף לפחות טיפול אחד'); return; }
+        // אסוף ערכים עדכניים מה-DOM
+        document.querySelectorAll('#wiz-v2-svc-result > div').forEach((row, i) => {
+            const nameEl = row.querySelector('span');
+            const priceEl = row.querySelector('input[type="number"]');
+            const durEl = row.querySelector('select');
+            if (svcs[i]) {
+                if (nameEl) svcs[i].name = nameEl.textContent.trim();
+                if (priceEl) svcs[i].price = parseFloat(priceEl.value) || 0;
+                if (durEl) svcs[i].duration_minutes = parseInt(durEl.value) || 60;
+            }
+        });
+        const valid = svcs.filter(s => s.name && s.name.trim());
+        if (valid.length === 0) { alert('נא להוסיף לפחות טיפול אחד'); return; }
+        wizardV2Data.services = valid;
+        const btnNext = document.getElementById('wizard-v2-btn-next');
+        if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
+        try {
+            for (const s of valid) {
+                await fetch(`${API}/beauty/services`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ groupId: currentGroup.id, name: s.name.trim(), duration_minutes: s.duration_minutes || 60, price: s.price || 0, category: s.category || '' })
                 });
             }
         } catch(e) {}
