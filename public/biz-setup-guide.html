@@ -6619,29 +6619,100 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   <!-- ─── מנויים ─── -->
   <div class="chapter" id="b-subscriptions">
     <div class="ch-head"><div class="ch-num">7</div><div class="ch-title">מנויים וחבילות</div></div>
-    <p>כרטיסיית <strong>מנויים וחבילות</strong> (בתפריט <em>מכירות</em>) מאפשרת ליצור חבילות כניסות מוגבלות שלקוחות רוכשות מראש ומממשות בכל ביקור.</p>
+    <p>כרטיסיית <strong>מנויים וחבילות 🎁</strong> (בתפריט <em>מכירות</em>) היא המקום לניהול <em>סוגי</em> החבילות שהעסק מציע — כמה כניסות, מחיר כולל ותוקף. מכירת החבילה ללקוחה ספציפית ומימוש הכניסות נעשים <em>בתיק הלקוחה</em>. חשוב להבין את ההפרדה: כאן מגדירים את <strong>תבניות</strong> החבילות; בתיק הלקוחה קושרים חבילה ספציפית ללקוחה ספציפית. הגישה: <strong>תפריט מכירות ← מנויים וחבילות</strong>.</p>
 
+    <!-- א. מבנה המסך -->
     <div class="mod">
-      <div class="mod-head"><div class="mod-icon">📦</div><div><div class="mod-name">יצירת חבילה חדשה</div><div class="mod-tag">מכירות › מנויים</div></div></div>
-      <div class="steps">
-        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחץ + חבילה חדשה.</strong></div></div>
-        <div class="step"><div class="step-n">2</div><div class="step-body"><span>מלא: שם החבילה, כמות כניסות, מחיר, תוקף בימים (ברירת מחדל 365), תיאור.</span></div></div>
-        <div class="step"><div class="step-n">3</div><div class="step-body"><span>לחץ שמור. החבילה מופיעה ברשימה ומוכנה למכירה.</span></div></div>
+      <div class="mod-head"><div class="mod-icon">🖥️</div><div><div class="mod-name">מבנה מסך המנויים</div><div class="mod-tag">מכירות › מנויים וחבילות</div></div></div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">כותרת</div><div class="fr-val">"מנויים וחבילות 🎁" + "X חבילות פעילות · לניהול מנויי לקוחות — כנס לתיק הלקוחה". כפתור <strong>+ חבילה חדשה</strong> בסגול (violet) בצד שמאל.</div></div>
+        <div class="field-row"><div class="fr-label">מצב ריק</div><div class="fr-val">🎁, "אין חבילות מנוי עדיין", "צור חבילת כניסות ומכול אותה ללקוחות דרך הקופה", כפתור "+ צור חבילה ראשונה".</div></div>
+        <div class="field-row"><div class="fr-label">רשימת חבילות</div><div class="fr-val">כרטיס לבן לכל חבילה, ממוין לפי סדר יצירה. כל כרטיס מציג שם, כניסות, מחיר, תוקף, תיאור וכפתור עריכה. בתחתית כל כרטיס — רמז: "💡 למכירה ללקוחה: כנס לתיק הלקוחה → כפתור מכור מנוי".</div></div>
+        <div class="field-row"><div class="fr-label">תיבת הסבר סגולה</div><div class="fr-val">תמיד מוצגת בתחתית המסך — 3 שלבי תהליך המנוי מתיבת ההסבר המובנית בקוד.</div></div>
       </div>
     </div>
 
+    <!-- ב. כרטיס חבילה -->
     <div class="mod">
-      <div class="mod-head"><div class="mod-icon">🛒</div><div><div class="mod-name">מכירת מנוי ללקוחה</div><div class="mod-tag">מכירות › מנויים</div></div></div>
-      <div class="steps">
-        <div class="step"><div class="step-n">1</div><div class="step-body"><span>עבור לכרטיסיית <strong>תיקי לקוחות</strong> ופתח את תיק הלקוחה.</span></div></div>
-        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>לחץ מכור מנוי</strong><span> ← בחר את החבילה הרצויה ← גבה תשלום.</span></div></div>
-        <div class="step"><div class="step-n">3</div><div class="step-body"><span>המנוי מופיע בתיק הלקוחה עם מונה כניסות.</span></div></div>
+      <div class="mod-head"><div class="mod-icon">🎁</div><div><div class="mod-name">כרטיס חבילה — מה מוצג</div><div class="mod-tag">מכירות › מנויים וחבילות › רשימה</div></div></div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">אייקון 🎁</div><div class="fr-val">ריבוע סגול בהיר עם 🎁 — אחיד לכל החבילות.</div></div>
+        <div class="field-row"><div class="fr-label">שם החבילה</div><div class="fr-val">שם החבילה בגופן מודגש — כפי שייווצר ויוצג ללקוחה בתיק שלה.</div></div>
+        <div class="field-row"><div class="fr-label">שורת פרטים</div><div class="fr-val">X כניסות · ₪Y · תוקף Z יום. תוקף מוצג רק אם הוגדר (לא 0). לדוגמה: "5 כניסות · ₪500 · תוקף 180 יום".</div></div>
+        <div class="field-row"><div class="fr-label">תיאור</div><div class="fr-val">שורת תיאור חופשית — מופיעה מתחת לפרטים אם הוזנה.</div></div>
+        <div class="field-row"><div class="fr-label">כפתור עריכה ✏️</div><div class="fr-val">עיגול אפור בצד שמאל — פותח חלון עריכה עם כל הנתונים טעונים.</div></div>
+        <div class="field-row"><div class="fr-label">רמז ניווט</div><div class="fr-val">שורת הסבר בתחתית הכרטיס: "💡 למכירה ללקוחה: כנס לתיק הלקוחה → כפתור 'מכור מנוי'".</div></div>
       </div>
     </div>
 
-    <div class="box box-tip">
-      <div class="box-icon">💡</div>
-      <div><strong>מימוש כניסה בקביעת תור</strong><br>כשקובעים תור ללקוחה שיש לה מנוי פעיל — המערכת מציגה אוטומטית את המנוי ומאפשרת לסמן "מימוש כניסה" מבלי לגבות תשלום נוסף.</div>
+    <!-- ג. יצירת חבילה חדשה -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">יצירת חבילה חדשה</div><div class="mod-tag">מכירות › מנויים וחבילות › + חבילה חדשה</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">לחץ <strong>+ חבילה חדשה</strong> — נפתח חלון עם 5 שדות:</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span> שם החבילה</div><div class="fr-val">שם החבילה כפי שיופיע ברשימת הבחירה בתיק הלקוחה ובדוחות. ללא שם — שמירה חסומה, הודעה: "שם חבילה הוא שדה חובה". לדוגמה: <em>"חבילת 5 טיפולי פנים"</em>, <em>"מנוי ציפורניים חודשי"</em>.</div></div>
+        <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span> כמות כניסות</div><div class="fr-val">מספר פגישות/טיפולים שהחבילה כוללת. מינימום: 1. ברירת מחדל: 5. כל קביעת תור שמממשת כניסה מחבילה זו — מורידה את המונה ב-1.</div></div>
+        <div class="field-row"><div class="fr-label">מחיר כולל (₪)</div><div class="fr-val">המחיר הכולל שהלקוחה תשלם בעת רכישת החבילה. מינימום: 0. ברירת מחדל: 0. ניתן להגדיר חבילות ללא עלות (מנוי VIP מתנה).</div></div>
+        <div class="field-row"><div class="fr-label">תוקף (ימים)</div><div class="fr-val">מספר הימים שהחבילה תקפה מיום הרכישה. מינימום: 30. ברירת מחדל: 365 (שנה). לאחר תום התוקף — הכניסות שנותרו פוקעות. לדוגמה: 180 = חצי שנה.</div></div>
+        <div class="field-row"><div class="fr-label">תיאור (אופציונלי)</div><div class="fr-val">שדה טקסט חופשי — פירוט מה כלול בחבילה. לדוגמה: <em>"כולל גיל ניקוי + מסכה + קרם לחות"</em>. מוצג בכרטיס החבילה ובתיק הלקוחה.</div></div>
+      </div>
+      <div class="steps" style="margin-top:.7rem">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><span>לחץ <strong>+ חבילה חדשה</strong> — החלון נפתח.</span></div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><span>הזן שם (חובה) וכמות כניסות (חובה). הגדר מחיר ותוקף.</span></div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><span>הוסף תיאור אם רלוונטי.</span></div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>לחץ "צור חבילה ✓".</strong><span> הודעה: "החבילה נוצרה". החלון נסגר, הרשימה מתרעננת. החבילה מוכנה למכירה ללקוחות.</span></div></div>
+      </div>
+    </div>
+
+    <!-- ד. עריכה והסרה -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">✏️</div><div><div class="mod-name">עריכת חבילה קיימת והסרתה</div><div class="mod-tag">מכירות › מנויים וחבילות › ✏️</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">לחץ <strong>✏️</strong> בכרטיס החבילה — נפתח חלון "✏️ עריכת חבילה" עם כל 5 השדות טעונים.</p>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">שמור שינויים ✓</div><div class="fr-val">שולח PATCH לשרת. הודעה: "החבילה עודכנה". שינוי מחיר/כניסות ישפיע על חבילות חדשות שייכנסו — מנויים שכבר נרכשו ע"י לקוחות לא משתנים.</div></div>
+        <div class="field-row"><div class="fr-label">הסר חבילה</div><div class="fr-val">כפתור אדום בהיר — מופיע <strong>רק בעריכה</strong>. לחיצה: חלון אישור "להסיר חבילה זו?". לאחר אישור — soft delete (<code>is_active: false</code>). החבילה נעלמת מהרשימה ומאפשרויות הבחירה בתיק לקוחה. הודעה: "החבילה הוסרה".</div></div>
+      </div>
+      <div class="box box-warn">
+        <div class="box-icon">⚠️</div>
+        <div><strong>הסרה אינה ביטול מנויים פעילים.</strong> לקוחות שכבר רכשו חבילה זו ממשיכות לממש כניסות — הסרה רק מונעת מכירות חדשות של חבילה זו.</div>
+      </div>
+    </div>
+
+    <!-- ה. תהליך מכירה ומימוש מלא -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">🔄</div><div><div class="mod-name">תהליך המנוי המלא — מהגדרה עד מימוש</div><div class="mod-tag">3 שלבים</div></div></div>
+      <p style="font-size:.85rem;margin-bottom:.6rem">תהליך המנוי עובר בשלושה שלבים שמתרחשים בכרטיסיות שונות:</p>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הגדרת תבנית החבילה (כאן)</strong> — יצירת סוג החבילה: שם, כמות כניסות, מחיר ותוקף. זה נעשה פעם אחת בלבד ומשמש לכל הלקוחות.</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>מכירה ללקוחה ספציפית (תיק לקוחה)</strong> — עוברים לכרטיסיית <em>תיקי לקוחות</em> ← פותחים תיק לקוחה ← לוחצים <strong>"מכור מנוי"</strong> ← בוחרים חבילה מהרשימה ← גובים תשלום. המנוי נקשר ללקוחה עם מונה כניסות ותאריך תפוגה.</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>מימוש כניסה בקביעת תור</strong> — בחלון קביעת תור חדש, כשבוחרים לקוחה שיש לה מנוי פעיל — המערכת מציגה את המנוי ומאפשרת לסמן "מימוש כניסה". הכניסה נגרעת מהמונה מבלי לגבות תשלום נוסף לאותו תור.</div></div>
+      </div>
+      <div class="box box-tip">
+        <div class="box-icon">💡</div>
+        <div><strong>החבילה מוצגת אוטומטית בקביעת תור</strong> — לא צריך לחפש אותה ידנית. המערכת מזהה שיש ללקוחה מנוי פעיל ומציגה אותו כאפשרות.</div>
+      </div>
+    </div>
+
+    <!-- ו. דוגמאות לחבילות נפוצות -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">💡</div><div><div class="mod-name">דוגמאות לחבילות נפוצות</div><div class="mod-tag">השראה ורעיונות</div></div></div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">חבילת 5 טיפולי פנים</div><div class="fr-val">5 כניסות · ₪1,100 · תוקף 180 יום · תיאור: "חסכון של ₪150 לעומת מחיר רגיל"</div></div>
+        <div class="field-row"><div class="fr-label">מנוי ציפורניים חודשי</div><div class="fr-val">4 כניסות · ₪320 · תוקף 40 יום · תיאור: "מניקור + פדיקור, שבועי"</div></div>
+        <div class="field-row"><div class="fr-label">קורס לייזר 6 טיפולים</div><div class="fr-val">6 כניסות · ₪2,400 · תוקף 365 יום · Patch Test נדרש (מוגדר בשירות)</div></div>
+        <div class="field-row"><div class="fr-label">כרטיסיית כניסה × 10</div><div class="fr-val">10 כניסות · ₪0 · תוקף 730 יום · תיאור: "להשתמש לפי בחירת הלקוחה"</div></div>
+      </div>
+    </div>
+
+    <!-- ז. סצנריו מלא -->
+    <div class="mod">
+      <div class="mod-head"><div class="mod-icon">📖</div><div><div class="mod-name">סצנריו — מכירת חבילה עד מימוש</div><div class="mod-tag">דוגמה מלאה</div></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הגדרה (פעם אחת)</strong> — מכירות ← מנויים ← "+ חבילה חדשה" ← שם: "חבילת 5 פנינגים", כניסות: 5, מחיר: ₪1,000, תוקף: 180 יום, תיאור: "כולל ניקוי + טיפול + SPF". לחץ "צור חבילה ✓".</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-body"><strong>מכירה ללקוחה</strong> — מכירות ← תיקי לקוחות ← פותחים "דנה כהן" ← לחץ "מכור מנוי" ← בוחרים "חבילת 5 פנינגים" ← גובים ₪1,000 (בקופה או במזומן). מנוי מופיע בתיק דנה: "5/5 כניסות · תוקף עד 01/01/2026".</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-body"><strong>מימוש ראשון</strong> — קובעים תור לדנה ← בחלון קביעת תור, בחירת שירות "פנינג פנים" ← המערכת מציגה: "דנה יש מנוי פעיל: 5/5 כניסות". מסמנים "מימוש כניסה" ← שומרים. מונה המנוי יורד ל-4/5.</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-body"><strong>אחרי 5 ביקורים</strong> — המנוי מגיע ל-0/5 כניסות ואינו מוצג יותר כאפשרות מימוש. אם תוקף עדיין פעיל — ניתן לרכוש חבילה נוספת לדנה.</div></div>
+      </div>
     </div>
   </div>
 
