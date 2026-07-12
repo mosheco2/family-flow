@@ -18732,8 +18732,12 @@ window._toggleWizardV2Cuisine = function(value) {
 
 window._generateWizardMenu = async function() {
     if (!wizardV2Data.cuisineTypes || wizardV2Data.cuisineTypes.length === 0) return;
-    const resultEl = document.getElementById('wiz-v2-menu-result');
-    if (!resultEl) { updateWizardUIV2(); return; }
+    let resultEl = document.getElementById('wiz-v2-menu-result');
+    if (!resultEl) {
+        updateWizardUIV2();
+        resultEl = document.getElementById('wiz-v2-menu-result');
+        if (!resultEl) return;
+    }
     resultEl.innerHTML = `<div id="wiz-v2-menu-spinner" class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה תפריט...</p></div>`;
     console.log('generating menu for:', wizardV2Data.cuisineTypes);
     try {
