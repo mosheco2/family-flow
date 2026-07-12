@@ -1103,14 +1103,46 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
       <div class="mod" style="margin-top:20px;">
         <div class="mod-head"><div class="mod-icon">👥</div><div><div class="mod-name">ניהול עובדים</div><div class="mod-tag">צוות › ניהול עובדים</div></div></div>
         <div class="mod-body">
-          <p>רשימת כל עובדי המסעדה — פרטים, תפקיד, הרשאות, וסטטוס.</p>
+          <p>מסך זה מציג כרטיס לכל עובד ועובדת — שם, תפקיד, יתרת חשבון פנימי, וכפתורי פעולה. נגישות: <strong>צוות ← ניהול עובדים</strong>.</p>
 
-          <h2 class="sec">איך מוסיפים עובד חדש?</h2>
+          <h2 class="sec">א. הזמנת עובד חדש</h2>
           <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו "הוסף עובד" / שלחו הזמנה</strong><span>תוכלו לשלוח לעובד את קוד הכניסה לעסק שלכם, ולבקש ממנו לנרשם.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>העובד נרשם עצמאית</strong><span>העובד נכנס לאתר, בוחר "הצטרפות", מזין את הקוד שנתתם לו, ורושם שם וסיסמה.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>אתם מאשרים</strong><span>תקבלו התראה — לחצו "אשר" ובחרו את תפקיד העובד. מהרגע שאישרתם — העובד יכול להיכנס.</span></div></div>
-            <div class="step"><div class="step-n">4</div><div class="step-body"><strong>הגדירו הרשאות</strong><span>קבעו לאיזה מסכים העובד יוכל לגשת — מלצר לא צריך גישה לכספים, לדוגמה.</span></div></div>
+            <div class="step"><div class="step-n">1</div><div class="step-body">
+              <strong>לחצו "הזמן עובד בוואטסאפ" (כפתור ירוק)</strong>
+              <span>ייפתח וואטסאפ עם הודעה מוכנה הכוללת את קוד ההצטרפות לעסק שלכם. שלחו לעובד.</span>
+            </div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body">
+              <strong>העובד מתרשם עצמאית</strong>
+              <span>העובד נכנס לאפליקציה, בוחר "הצטרפות לעסק קיים", מזין את הקוד שקיבל, ורושם שם משתמש וסיסמה.</span>
+            </div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body">
+              <strong>אשרו את הצטרפות העובד</strong>
+              <span>עובד שהצטרף ועדיין לא אושר מופיע בכרטיס עם סטטוס "ממתין לאישור" ← לחצו <strong>"אשר"</strong>. אחרי האישור — הוא יכול להיכנס למערכת.</span>
+            </div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ב. כפתורי הפעולה על כרטיס עובד</h2>
+          <p>כל כרטיס עובד מכיל שלושה כפתורי ניהול (גלויים למנהל בלבד):</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">⚙️ (גלגל שיניים) — שכר</div><div class="fr-val">פותח חלון הגדרות שכר עובד. הגדירו שני ערכים:</div></div>
+            <div class="field-row"><div class="fr-label" style="padding-right:24px;">שכר לשעה (₪)</div><div class="fr-val">סכום שמתווסף לחשבון הפנימי של העובד לפי שעות עבודה</div></div>
+            <div class="field-row"><div class="fr-label" style="padding-right:24px;">מינימום שעות</div><div class="fr-val">מספר שעות מינימלי בחודש שמצופה מהעובד</div></div>
+            <div class="field-row"><div class="fr-label">🛡️ (מגן) — הרשאות</div><div class="fr-val">פותח חלון הרשאות — בחרו איזה לשוניות ותכונות מותרות לאותו עובד. ראו פירוט ברמות הרשאה למטה.</div></div>
+            <div class="field-row"><div class="fr-label">🗑️ (פח) — מחיקה</div><div class="fr-val">מסיר את העובד מהמערכת. לאחר אישור — הוא לא יוכל עוד להיכנס.</div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ג. רמות הרשאה</h2>
+          <p>לכל עובד מוקצית רמת הרשאה. הגדרה: לחצו 🛡️ על כרטיס העובד ← בחרו רמה:</p>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">ADMIN — מנהל</div><div class="fr-val">גישה מלאה לכל המסכים, הדוחות, ההגדרות, ועריכת עובדים אחרים</div></div>
+            <div class="field-row"><div class="fr-label">MANAGER — מנהל משמרת</div><div class="fr-val">פיד, שעון נוכחות, משמרות, יומן, הזמנות מספק, מחסן, ציוד, משימות, אקדמיה, מכירות, קופה, לקוחות</div></div>
+            <div class="field-row"><div class="fr-label">SENIOR — בכיר</div><div class="fr-val">פיד, שעון נוכחות, משמרות, מחסן, משימות, אקדמיה, קופה</div></div>
+            <div class="field-row"><div class="fr-label">MEMBER — עובד רגיל</div><div class="fr-val">פיד, שעון נוכחות, משמרות, משימות, אקדמיה</div></div>
+          </div>
+
+          <div class="box box-tip" style="margin-top:12px;">
+            <div class="box-icon">💡</div>
+            <div>מלצרים וטבחים בדרך כלל מקבלים MEMBER — הם רואים את המשמרות שלהם, מחתימים נוכחות ומסמנים משימות. קופאים וראשי משמרות — SENIOR כדי לגשת גם לקופה ולמחסן.</div>
           </div>
         </div>
       </div>
@@ -1119,38 +1151,94 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
       <div class="mod">
         <div class="mod-head"><div class="mod-icon">📅</div><div><div class="mod-name">משמרות</div><div class="mod-tag">צוות › משמרות</div></div></div>
         <div class="mod-body">
-          <p>תזמנו את לוח המשמרות השבועי — כל עובד רואה את המשמרות שלו בנייד ויכול לאשר.</p>
+          <p>תזמנו את לוח המשמרות — כל עובד רואה את המשמרות שלו בנייד. נגישות: <strong>צוות ← משמרות</strong>.</p>
 
+          <h2 class="sec">א. הוספת משמרת</h2>
           <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>פתחו את שבוע העבודה</strong><span>הציג בתצוגת לוח שבועי — ימים בעמודות, עובדים בשורות.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הוסיפו משמרת לעובד</strong><span>בחרו יום ועובד — הגדירו שעת התחלה, שעת סיום, ותפקיד במשמרת.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>פרסמו את הלוח</strong><span>כשמוכנים — לחצו "פרסם". כל עובד מקבל התראה בנייד עם המשמרות שלו.</span></div></div>
+            <div class="step"><div class="step-n">1</div><div class="step-body">
+              <strong>לחצו "+ הוסף משמרת"</strong>
+              <span>ייפתח חלון הוספת משמרת עם השדות:</span>
+              <div class="field-table" style="margin-top:6px;">
+                <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>עובד</div><div class="fr-val">בחרו מהרשימה את שם העובד שמשובץ</div></div>
+                <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>תאריך</div><div class="fr-val">יום המשמרת</div></div>
+                <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שעת התחלה</div><div class="fr-val">לדוגמה: 08:00</div></div>
+                <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שעת סיום</div><div class="fr-val">לדוגמה: 16:00</div></div>
+                <div class="field-row"><div class="fr-label">הערה</div><div class="fr-val">תפקיד מיוחד / הוראה ספציפית למשמרת זו</div></div>
+              </div>
+            </div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>לחצו "שמור"</strong><span>המשמרת נוספת ללוח. העובד רואה אותה מיד בנייד שלו.</span></div></div>
           </div>
 
-          <div class="box box-tip">
+          <h2 class="sec" style="margin-top:16px;">ב. תצוגת הלוח</h2>
+          <div class="field-table">
+            <div class="field-row"><div class="fr-label">תצוגת רשימה</div><div class="fr-val">כל המשמרות לפי תאריך — ניתן לסנן לפי עובד</div></div>
+            <div class="field-row"><div class="fr-label">תצוגת שבוע</div><div class="fr-val">ימים בעמודות, משמרות בתוכן — נוח לראות את הכיסוי היומי בבת-אחת</div></div>
+          </div>
+          <p style="margin-top:8px;">ניווט בין שבועות: לחצו על חצי "<strong>›</strong>" ו-"<strong>‹</strong>" כדי לעבור קדימה או אחורה בזמן.</p>
+
+          <div class="box box-tip" style="margin-top:12px;">
             <div class="box-icon">💡</div>
-            <div>ניתן להעתיק שבוע קודם ולשנות רק מה שצריך — חוסך זמן.</div>
+            <div>כשעובד פותח את האפליקציה — הוא רואה מיד את המשמרת הקרובה שלו בדף הבית שלו.</div>
           </div>
         </div>
       </div>
 
       <!-- TIMECLOCK -->
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">⏱️</div><div><div class="mod-name">נוכחות ושעות עבודה</div><div class="mod-tag">צוות › נוכחות</div></div></div>
+        <div class="mod-head"><div class="mod-icon">⏱️</div><div><div class="mod-name">נוכחות (שעון נוכחות)</div><div class="mod-tag">צוות › נוכחות</div></div></div>
         <div class="mod-body">
-          <p>כל עובד "מחתים" כניסה ויציאה מהנייד שלו. המנהל רואה מי נמצא עכשיו, ובסוף חודש — כמה שעות עבד כל אחד.</p>
+          <p>כל עובד מחתים כניסה ויציאה מהנייד שלו. המנהל רואה דוח שעות מסודר לפי עובד וחודש. נגישות: <strong>צוות ← נוכחות</strong>.</p>
 
-          <div class="wys"><div class="wys-title">מה העובד עושה?</div><div class="wys-list">
-            <div class="wys-item">בכניסה — לוחץ "כניסה למשמרת" — המערכת רושמת שעה</div>
-            <div class="wys-item">ביציאה — לוחץ "יציאה ממשמרת"</div>
+          <h2 class="sec">א. חתימת נוכחות — מה העובד עושה?</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>נכנס לאפליקציה בתחילת המשמרת</strong><span>בדף הבית שלו מוצגת תיבה כחולה גדולה עם כפתור "כניסה למשמרת".</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>לוחץ "כניסה למשמרת"</strong><span>המערכת רושמת את שעת הכניסה המדויקת. הכפתור משתנה ל-"יציאה ממשמרת".</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>לוחץ "יציאה ממשמרת" בסוף המשמרת</strong><span>המערכת רושמת שעת יציאה ומחשבת אוטומטית את משך המשמרת.</span></div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ב. דוח נוכחות — מה המנהל רואה?</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body">
+              <strong>פתחו "נוכחות" ← בחרו עובד וחודש</strong>
+              <span>בחלק העליון של הדף — בחרו עובד מהתפריט, ואז חודש מהרשימה הנפתחת (ינואר, פברואר…). הדוח יתרענן אוטומטית.</span>
+            </div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body">
+              <strong>ראו את סיכום השעות</strong>
+              <span>הדוח מציג: שעת כניסה, שעת יציאה ומשך לכל משמרת. בתחתית — סה"כ שעות לאותו חודש.</span>
+            </div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ג. תיקון ידני (רק מנהל)</h2>
+          <p>אם עובד שכח לחתום יציאה או נרשם שעה שגויה — ניתן לתקן:</p>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו "תיקון ידני" / "הוספת רשומה ידנית"</strong><span>ייפתח חלון עם שדות:</span>
+              <div class="field-table" style="margin-top:6px;">
+                <div class="field-row"><div class="fr-label">שעת כניסה</div><div class="fr-val">תאריך ושעה שהעובד נכנס בפועל</div></div>
+                <div class="field-row"><div class="fr-label">שעת יציאה</div><div class="fr-val">תאריך ושעה שהעובד יצא בפועל</div></div>
+                <div class="field-row"><div class="fr-label">דקות כולל</div><div class="fr-val">אם ידוע משך המשמרת בדקות — ניתן להזין ישירות</div></div>
+              </div>
+            </div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>לחצו "שמור"</strong><span>הרשומה מתווספת לדוח ומשתקפת בסיכום השעות של העובד.</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TIMELOG -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📋</div><div><div class="mod-name">שעות עבודה (יומן שעות)</div><div class="mod-tag">צוות › שעות עבודה</div></div></div>
+        <div class="mod-body">
+          <p>לשונית נפרדת שמציגה יומן מלא של כל רישומי הנוכחות לעסק — לא רק לעובד אחד. שימושי לסיכום שכר כולל ולהכנת דוח שכר חודשי. נגישות: <strong>צוות ← שעות עבודה</strong>.</p>
+
+          <div class="wys"><div class="wys-title">מה מוצג?</div><div class="wys-list">
+            <div class="wys-item">רשימת כל רישומי כניסה/יציאה לפי עובד ותאריך</div>
+            <div class="wys-item">שעות שנצברו לכל עובד — ניתן לסנן לפי חודש</div>
+            <div class="wys-item">הבדל בין שעות שתוזמנו (משמרות) לשעות שנחתמו בפועל (נוכחות)</div>
           </div></div>
 
-          <div class="wys" style="margin-top:10px;"><div class="wys-title">מה המנהל רואה?</div><div class="wys-list">
-            <div class="wys-item">מי נכנס ומי לא הגיע</div>
-            <div class="wys-item">סיכום שעות שבועי וחודשי לכל עובד</div>
-            <div class="wys-item">שעות נוספות מחושבות אוטומטית</div>
-            <div class="wys-item">עריכה ידנית אם יש טעות (רק מנהל)</div>
-          </div></div>
+          <div class="box box-tip" style="margin-top:12px;">
+            <div class="box-icon">💡</div>
+            <div>בסוף כל חודש — פתחו "שעות עבודה", בחרו את החודש, וייצאו את הרשימה לאקסל להכנת תלושי שכר.</div>
+          </div>
         </div>
       </div>
 
@@ -1158,13 +1246,53 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
       <div class="mod">
         <div class="mod-head"><div class="mod-icon">✅</div><div><div class="mod-name">פרויקטים ומשימות</div><div class="mod-tag">צוות › פרויקטים</div></div></div>
         <div class="mod-body">
-          <p>יצרו משימות לעובדים — ניקיון שבועי, בדיקת ציוד, הכנת תפריט, כל דבר שצריך לעשות ולמעקב.</p>
-          <div class="actions">
-            <span class="action">יצירת משימה + שיוך לעובד</span>
-            <span class="action">תאריך יעד</span>
-            <span class="action">עדיפות: דחוף / רגיל / נמוך</span>
-            <span class="action">סטטוס: פתוח / בביצוע / סגור</span>
-            <span class="action">הוספת הערות</span>
+          <p>הקצו משימות לעובדים עם תגמול, מועד יעד ואפשרות לאימות AI. כל משימה שסומנה כ"בוצעה" — אפשר לדרוש הוכחה. נגישות: <strong>צוות ← פרויקטים</strong>.</p>
+
+          <h2 class="sec">א. יצירת משימה ידנית</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body">
+              <strong>לחצו "+ צור משימה"</strong>
+              <span>ייפתח חלון עם השדות:</span>
+              <div class="field-table" style="margin-top:6px;">
+                <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>כותרת המשימה</div><div class="fr-val">לדוגמה: "ניקיון מקרר תחנת חם", "בדיקת תפוגות מוצרים", "סידור מחסן"</div></div>
+                <div class="field-row"><div class="fr-label">שיוך לעובד</div><div class="fr-val">בחרו שם עובד ספציפי — או השאירו ריק לביצוע עצמי על ידי מי שמסמן</div></div>
+                <div class="field-row"><div class="fr-label">תגמול (₪)</div><div class="fr-val">סכום שיתווסף לחשבון הפנימי של העובד כשיסמן "בוצע"</div></div>
+                <div class="field-row"><div class="fr-label">ימים לביצוע</div><div class="fr-val">מספר ימים מהיום עד מועד היעד (לדוגמה: 3)</div></div>
+                <div class="field-row"><div class="fr-label">בדיקת AI</div><div class="fr-val">כשמסומן — העובד חייב לצלם הוכחה (תמונה) שתיבדק על ידי AI לפני שהמשימה תיסגר כ"בוצעה"</div></div>
+              </div>
+            </div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body">
+              <strong>לחצו "שמור"</strong>
+              <span>המשימה נוצרת. אם שויכה לעובד — היא מופיעה אצלו בסטטוס "ממתין לביצוע". אם ביצוע עצמי — נכנסת לרשימה כ"זמינה לביצוע".</span>
+            </div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ב. יצירת משימות עם AI</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו "✨ צור משימות עם AI"</strong><span>ייפתח שדה טקסט חופשי.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body">
+              <strong>תארו נושא / פרויקט בכמה מילים</strong>
+              <span>לדוגמה: "הכנת המסעדה לפני פתיחה", "ניקיון שבועי יסודי", "הכשרת עובד חדש".</span>
+            </div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body">
+              <strong>לחצו "צור"</strong>
+              <span>ה-AI יייצר רשימת משימות מפורטת ומוכנה לביצוע. עברו עליהן, ערכו מה שצריך ← לחצו "שמור הכל".</span>
+            </div></div>
+          </div>
+
+          <h2 class="sec" style="margin-top:16px;">ג. איך עובד מסמן משימה כבוצעה?</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>העובד רואה את המשימות בדף הבית שלו</strong><span>כרטיסי המשימות הפתוחות שלו מוצגים ברשימה.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>לוחץ "סמן כבוצע"</strong><span>אם <strong>לא</strong> הופעל "בדיקת AI" — המשימה נסגרת מיד.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body">
+              <strong>אם "בדיקת AI" מופעל — יפתח מצלמה</strong>
+              <span>העובד מצלם הוכחה (לדוגמה: תמונת המקרר לאחר ניקיון). ה-AI בודק אם התמונה מראה ביצוע תקין ← רק אחרי אישור — המשימה נסגרת.</span>
+            </div></div>
+          </div>
+
+          <div class="box box-tip" style="margin-top:12px;">
+            <div class="box-icon">💡</div>
+            <div>תגמול כספי + "בדיקת AI" = שילוב חזק: העובדים רוצים לגמור — אבל לא יכולים לדמות ביצוע. מיועד במיוחד למשימות ניקיון ותחזוקה.</div>
           </div>
         </div>
       </div>
@@ -1173,17 +1301,44 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
       <div class="mod">
         <div class="mod-head"><div class="mod-icon">📆</div><div><div class="mod-name">יומן — הזמנת שולחנות</div><div class="mod-tag">צוות › יומן</div></div></div>
         <div class="mod-body">
-          <p>יומן ציבורי לניהול הזמנות שולחן וגישה לאורחים להזמין מקום מראש.</p>
+          <p>ניהול הזמנות שולחן — הזמנות שנכנסות מהאתר ואפשרות להזמנה ידנית מהמנהל. נגישות: <strong>צוות ← יומן</strong>.</p>
 
+          <h2 class="sec">א. הזמנה שמגיעה מהאתר</h2>
           <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הזמנה מגיעה</strong><span>מהאתר הציבורי של המסעדה — אורח בחר תאריך, שעה, מספר סועדים, ורשם את שמו.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>אתם מאשרים</strong><span>לחצו "אשר" ובחרו לאיזה שולחן לשייך — האורח מקבל אישור.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>הוסיפו הזמנה ידנית</strong><span>לקוח שצלצל — ניתן להוסיף הזמנה ישירות ממסך היומן.</span></div></div>
+            <div class="step"><div class="step-n">1</div><div class="step-body">
+              <strong>הזמנה חדשה מוצגת בסטטוס "ממתין לאישור"</strong>
+              <span>האורח ממלא באתר המסעדה: שם, טלפון, תאריך, שעה, מספר סועדים. ההזמנה מגיעה ישירות ליומן.</span>
+            </div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body">
+              <strong>לחצו "אשר" ← שייכו שולחן</strong>
+              <span>מרשימת הזמנות "ממתין לאישור" — לחצו "אשר", ובחרו שולחן פנוי ← לחצו "שמור". האורח מקבל אישור.</span>
+            </div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body">
+              <strong>ביטול / שינוי</strong>
+              <span>אם האורח ביטל — לחצו "בטל הזמנה". אם יש שינוי שעה — לחצו "ערוך" ועדכנו.</span>
+            </div></div>
           </div>
 
-          <div class="box box-tip">
+          <h2 class="sec" style="margin-top:16px;">ב. הוספת הזמנה ידנית (לקוח שצלצל)</h2>
+          <div class="steps">
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>לחצו "+ הוסף הזמנה"</strong><span>ייפתח טופס הזמנה.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body">
+              <strong>מלאו את הפרטים</strong>
+              <div class="field-table" style="margin-top:6px;">
+                <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>שם האורח</div><div class="fr-val">שם מלא לזיהוי</div></div>
+                <div class="field-row"><div class="fr-label">טלפון</div><div class="fr-val">לאישורים ושינויים</div></div>
+                <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>תאריך ושעה</div><div class="fr-val">מועד ההגעה</div></div>
+                <div class="field-row"><div class="fr-label"><span class="tag tag-r">חובה</span>מספר סועדים</div><div class="fr-val">כמה אנשים בקבוצה</div></div>
+                <div class="field-row"><div class="fr-label">שולחן</div><div class="fr-val">שייכו שולחן כבר בהוספה או לאחר מכן</div></div>
+                <div class="field-row"><div class="fr-label">הערות</div><div class="fr-val">לדוגמה: "יום הולדת", "ישיבת עסקים", "אלרגיה לגלוטן"</div></div>
+              </div>
+            </div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>לחצו "שמור"</strong><span>ההזמנה נוספת ליומן עם סטטוס "מאושר" (כי הוספתם אותה אתם — לא דרוש אישור נוסף).</span></div></div>
+          </div>
+
+          <div class="box box-tip" style="margin-top:12px;">
             <div class="box-icon">💡</div>
-            <div>ניתן לראות את היומן בתצוגה יומית / שבועית / חודשית.</div>
+            <div>לוח הזמנות מסודר לפי תאריך. השתמשו בו בפתיחת הדלת — ראו מי מגיע, לאיזה שולחן, ומה מספר הסועדים.</div>
           </div>
         </div>
       </div>
