@@ -2755,7 +2755,8 @@ async function loadDashboard() {
             if (!bizType || bizType === 'other') {
                 setTimeout(showBusinessTypeWizard, 800);
             } else {
-                setTimeout(showOnboardingWizard, 1000);
+                const _wizFn = bizType === 'other' ? showOnboardingWizard : showOnboardingWizardV2;
+                setTimeout(_wizFn, 1000);
             }
         }
 
@@ -17496,7 +17497,8 @@ window.btWizConfirm = async function() {
         if (window._btWizAfterSave) { window._btWizAfterSave(); return; }
         // For new businesses — continue to main onboarding wizard
         if (currentGroup.is_onboarded === false) {
-            setTimeout(showOnboardingWizard, 300);
+            const _wizFn = typeId === 'other' ? showOnboardingWizard : showOnboardingWizardV2;
+            setTimeout(_wizFn, 300);
         } else {
             showToast('success', `מהות העסק עודכנה ל-${BUSINESS_TYPES.find(b=>b.id===typeId)?.name||typeId}`);
         }
