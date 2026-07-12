@@ -19421,7 +19421,12 @@ window._wiz2ToggleProdCat = function(value) {
 };
 
 let _repairProductsAbort = null;
-window._generateRepairProducts = async function() {
+let _repairProductsDebounce = null;
+window._generateRepairProducts = function() {
+    if (_repairProductsDebounce) clearTimeout(_repairProductsDebounce);
+    _repairProductsDebounce = setTimeout(_generateRepairProductsNow, 800);
+};
+async function _generateRepairProductsNow() {
     if (!wizardV2Data.productCategories || wizardV2Data.productCategories.length === 0) return;
     if (_repairProductsAbort) { _repairProductsAbort.abort(); }
     _repairProductsAbort = new AbortController();
@@ -19432,6 +19437,14 @@ window._generateRepairProducts = async function() {
     resultEl.innerHTML = `<div class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה קטלוג מוצרים...</p></div>`;
     const snapTypes = (wizardV2Data.serviceTypes || []).join(', ') || 'שירותים';
     const snapCats  = [...wizardV2Data.productCategories];
+    const _showManualProdRows = () => _wizBatteryEmptyHTML(i => `
+        <div class="flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl mb-2">
+            <input type="text" placeholder="שם מוצר" class="modern-input py-1.5 text-sm flex-1"
+                oninput="if(!wizardV2Data.catalogProducts)wizardV2Data.catalogProducts=[];if(!wizardV2Data.catalogProducts[${i}])wizardV2Data.catalogProducts[${i}]={name:'',price:0,category:''};wizardV2Data.catalogProducts[${i}].name=this.value">
+            <input type="number" placeholder="₪" min="0" class="modern-input py-1.5 text-xs w-24 text-center"
+                oninput="if(wizardV2Data.catalogProducts&&wizardV2Data.catalogProducts[${i}])wizardV2Data.catalogProducts[${i}].price=parseFloat(this.value)||0">
+            <button type="button" onclick="_wiz2RemoveProd(${i})" class="text-red-400 hover:text-red-600 px-1">✕</button>
+        </div>`);
     try {
         const res = await fetch(`${API}/ai/generate-catalog`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -19442,6 +19455,12 @@ window._generateRepairProducts = async function() {
             })
         });
         if (signal.aborted) return;
+        if (res.status === 429) {
+            resultEl = document.getElementById('wiz-v2-prod-result');
+            if (resultEl) resultEl.innerHTML = `<div class="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-xl text-center text-sm text-orange-700">
+                <i class="fa-solid fa-clock ml-1"></i>יותר מדי בקשות, נסה שנית עוד רגע</div>${_showManualProdRows()}`;
+            return;
+        }
         const responseText = await res.text();
         if (signal.aborted) return;
         let outer;
@@ -19452,14 +19471,7 @@ window._generateRepairProducts = async function() {
         }
         if (outer.error === 'BATTERY_EMPTY') {
             resultEl = document.getElementById('wiz-v2-prod-result');
-            if (resultEl) resultEl.innerHTML = _wizBatteryEmptyHTML(i => `
-                <div class="flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl mb-2">
-                    <input type="text" placeholder="שם מוצר" class="modern-input py-1.5 text-sm flex-1"
-                        oninput="if(!wizardV2Data.catalogProducts)wizardV2Data.catalogProducts=[];if(!wizardV2Data.catalogProducts[${i}])wizardV2Data.catalogProducts[${i}]={name:'',price:0,category:''};wizardV2Data.catalogProducts[${i}].name=this.value">
-                    <input type="number" placeholder="₪" min="0" class="modern-input py-1.5 text-xs w-24 text-center"
-                        oninput="if(wizardV2Data.catalogProducts&&wizardV2Data.catalogProducts[${i}])wizardV2Data.catalogProducts[${i}].price=parseFloat(this.value)||0">
-                    <button type="button" onclick="_wiz2RemoveProd(${i})" class="text-red-400 hover:text-red-600 px-1">✕</button>
-                </div>`);
+            if (resultEl) resultEl.innerHTML = _showManualProdRows();
             return;
         }
         let items = (outer.success && outer.items) ? outer.items : null;
@@ -20060,15 +20072,15 @@ async function _nextWizardV2Step() {
         const btnNext = document.getElementById('wizard-v2-btn-next');
         if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
         try {
-            await fetch(`${API}/customers`, {
+            await fetch(`${API}/store/customers`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ groupId: currentGroup.id, name, phone, address })
+                body: JSON.stringify({ groupId: currentGroup.id, name, phone, address, businessId: currentGroup.id })
             });
             if (createCall) await fetch(`${API}/service-calls`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ groupId: currentGroup.id, customerName: name, title: 'קריאת שירות ראשונה', status: 'new' })
             });
-            if (createQuote) await fetch(`${API}/quotes`, {
+            if (createQuote) await fetch(`${API}/store/quotes`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ groupId: currentGroup.id, customerName: name, title: 'הצעת מחיר לדוגמה', status: 'draft' })
             });
