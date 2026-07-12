@@ -3365,52 +3365,190 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
     <!-- ── 8. כספים ── -->
     <div class="chapter" id="s-money">
-      <div class="ch-head"><div class="ch-num">8</div><div class="ch-title">כספים ודוחות</div></div>
+      <div class="ch-head"><div class="ch-num">8</div><div class="ch-title">כספים, דוחות ופרסום</div></div>
 
+      <!-- א. תזרים מזומנים -->
+      <h2 class="sec">א. טאב תזרים מזומנים 💸</h2>
+      <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">
+        הטאב נמצא בקבוצת הניווט <strong>כספים</strong>. הוא מציג את כל הפעולות הכספיות — הכנסות והוצאות — שנרשמו ידנית או אוטומטית מהקופה (POS) ומהמכירות (sales). הטאב מחולק לשתי לשוניות פנימיות:
+      </p>
+      <div class="field-table" style="margin-bottom:14px;">
+        <div class="field-row"><div class="fr-label">💸 תזרים</div><div class="fr-val">רשימת כל הפעולות הכספיות של העסק. כברירת מחדל — הלשונית הפעילה בכניסה לטאב.</div></div>
+        <div class="field-row"><div class="fr-label">📋 גביה</div><div class="fr-val">מעקב תשלומים ממתינים מלקוחות (אבני דרך של הזמנות עבודה). פחות שימושי לספורט אך קיים במערכת.</div></div>
+      </div>
+
+      <!-- לשונית תזרים -->
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">💸</div><div><div class="mod-name">תזרים מזומנים</div><div class="mod-tag">כספים › תזרים</div></div></div>
+        <div class="mod-head"><div class="mod-icon">💸</div><div><div class="mod-name">לשונית תזרים — מה רואים</div><div class="mod-tag">כספים › תזרים</div></div></div>
         <div class="mod-body">
-          <p>מסך שמסכם את כל הכסף שנכנס ויוצא — מנויים, שכר מאמנים, שכ"ד, ציוד.</p>
-          <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>הכנסות</strong><span>מנויים שנמכרו ← נרשמים אוטומטית מהקופה. כל תשלום שמתבצע מתווסף לתזרים.</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>הוצאות</strong><span>הוסיפו ידנית: שכ"ד, חשמל, שכר מאמנים, ציוד חדש. ניתן לקטלג לפי קטגוריות.</span></div></div>
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">הבדל לפי תפקיד</h3>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">👑 ADMIN</div><div class="fr-val">רואה <em>את כל</em> פעולות העסק. מוצג לו <strong>סינון לפי עובד</strong> (dropdown לבחירת עובד ספציפי) ו-<strong>סינון לפי תקופה</strong>. כמו כן, ליד כל שורה מופיע כפתור עריכה (עיפרון).</div></div>
+            <div class="field-row"><div class="fr-label">כל שאר התפקידים</div><div class="fr-val">רואים רק את הפעולות שנרשמו על שמם. סינון לפי עובד מוסתר אוטומטית.</div></div>
+          </div>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">מה מוצג בכל שורת פעולה</h3>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">📈 אייקון ירוק</div><div class="fr-val">חץ מעלה ירוק = הכנסה. סכום מוצג בירוק עם סימן +.</div></div>
+            <div class="field-row"><div class="fr-label">📉 אייקון אדום</div><div class="fr-val">חץ מטה אדום = הוצאה. סכום מוצג באדום עם סימן -.</div></div>
+            <div class="field-row"><div class="fr-label">📝 תיאור + שם עובד</div><div class="fr-val">טקסט תיאור הפעולה. אם ADMIN מסתכל — מופיע גם תג קטן עם שם העובד שרשם את הפעולה.</div></div>
+            <div class="field-row"><div class="fr-label">📅 תאריך + שעה</div><div class="fr-val">תאריך ושעת ביצוע הפעולה בפורמט עברי.</div></div>
+            <div class="field-row"><div class="fr-label">🏷️ תג קטגוריה</div><div class="fr-val">מוצגת הקטגוריה שנבחרה בעת הרישום (לדוגמה: "💼 משכורות", "🎯 שיווק ופרסום").</div></div>
+            <div class="field-row"><div class="fr-label">✏️ כפתור עריכה (ADMIN)</div><div class="fr-val">עיפרון בצד — פותח מודל עריכה. ניתן לשנות סכום, תיאור, קטגוריה. לחיצת "מחק" בתוך המודל → מחיקה עם אישור → "היתרה תתעדכן בהתאם".</div></div>
+          </div>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">סינון (ADMIN בלבד)</h3>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">👤 סינון לפי עובד</div><div class="fr-val">תפריט נפתח — "הכל" או שם עובד ספציפי. מסנן את הרשימה לפעולות של אותו עובד בלבד.</div></div>
+            <div class="field-row"><div class="fr-label">📅 סינון לפי תקופה</div><div class="fr-val">תפריט נפתח — "הכל" או מספר חודשים אחורה (1 / 3 / 6 / 12 חודשים). מסנן לפי תאריך הפעולה.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- הוספת פעולה -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">➕</div><div><div class="mod-name">הוספת פעולה כספית — הכנסה / הוצאה</div><div class="mod-tag">כפתורי "הכנסה" ו-"הוצאה" בטאב</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">
+            לחיצה על <strong>"הכנסה"</strong> או <strong>"הוצאה"</strong> פותחת את מודל רישום הפעולה. המודל זהה לשניהם אך הכותרת והקטגוריות משתנות.
+          </p>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">שני מצבים — toggle בראש המודל</h3>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">📌 פעולה בודדת</div><div class="fr-val">ברירת מחדל. פעולה חד-פעמית לתאריך מסוים — לדוגמה: תשלום שכ"ד לחודש ינואר.</div></div>
+            <div class="field-row"><div class="fr-label">🔄 הוצאה / הכנסה קבועה</div><div class="fr-val">פעולה חוזרת — כשבוחרים זאת, מופיע שדה נוסף <strong>"תאריך סיום (אופציונלי)"</strong> (בחירת חודש). לדוגמה: שכ"ד שמחויב כל חודש עד דצמבר 2026.</div></div>
+          </div>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">שדות המודל</h3>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">💰 סכום (₪)</div><div class="fr-val">שדה מספרי גדול עם סימן ₪ בצד. חובה — ללא סכום לא ניתן לשמור.</div></div>
+            <div class="field-row"><div class="fr-label">📝 תיאור</div><div class="fr-val">טקסט חופשי — "שכ"ד ינואר", "מנוי חדש — מוסי כהן", "תיקון מזגן". מוצג ברשימת התזרים.</div></div>
+            <div class="field-row"><div class="fr-label">🏷️ קטגוריה</div><div class="fr-val">תפריט נפתח — מאוכלס אוטומטית לפי סוג הפעולה (הכנסה / הוצאה). ראו רשימה מלאה למטה.</div></div>
+            <div class="field-row"><div class="fr-label">📅 תאריך ביצוע / התחלה</div><div class="fr-val">ברירת מחדל: היום. ניתן לשנות לתאריך עבר (לרישום רטרואקטיבי) או עתיד.</div></div>
+            <div class="field-row"><div class="fr-label">📅 תאריך סיום (רק בקבועה)</div><div class="fr-val">חודש סיום לפעולה חוזרת. אופציונלי — ללא סיום הפעולה חוזרת ללא הגבלה.</div></div>
+          </div>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">קטגוריות הכנסה</h3>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">📈 מכירות והכנסות</div><div class="fr-val">הכנסה עסקית רגילה — מנויים, כרטיסיות, אבזרים.</div></div>
+            <div class="field-row"><div class="fr-label">💰 השקעה / מימון</div><div class="fr-val">כספים שנכנסו כהשקעה חיצונית או הלוואה.</div></div>
+            <div class="field-row"><div class="fr-label">🔄 זיכוי / החזר</div><div class="fr-val">החזר מספק, זיכוי לקוח, ביטול עסקה.</div></div>
+            <div class="field-row"><div class="fr-label">💸 אחר</div><div class="fr-val">כל הכנסה שלא נכנסת לקטגוריות הנ"ל.</div></div>
+          </div>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">קטגוריות הוצאה</h3>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">📎 ציוד משרדי</div><div class="fr-val">נייר, דיו, ציוד כתיבה.</div></div>
+            <div class="field-row"><div class="fr-label">💻 תוכנה ושירותים</div><div class="fr-val">רישיונות תוכנה, שירותי ענן, מנויים דיגיטליים.</div></div>
+            <div class="field-row"><div class="fr-label">🎯 שיווק ופרסום</div><div class="fr-val">גוגל, פייסבוק, דפוס, שלטים, פרסום FLOW.</div></div>
+            <div class="field-row"><div class="fr-label">💼 משכורות</div><div class="fr-val">שכר עובדים, שכר מאמנים, בונוסים.</div></div>
+            <div class="field-row"><div class="fr-label">✈️ נסיעות ורכבים</div><div class="fr-val">דלק, חניה, תיקוני רכב, נסיעות עסקיות.</div></div>
+            <div class="field-row"><div class="fr-label">🏢 שכירות ותחזוקה</div><div class="fr-val">שכ"ד, ועד בית, תיקונים, ניקיון.</div></div>
+            <div class="field-row"><div class="fr-label">☕ כיבוד ומטבחון</div><div class="fr-val">קפה, מים, פינוקים לעובדים.</div></div>
+            <div class="field-row"><div class="fr-label">💸 הוצאה תפעולית אחרת</div><div class="fr-val">כל הוצאה שלא נכנסת לקטגוריות הנ"ל.</div></div>
+          </div>
+
+          <p style="font-size:.87rem;color:var(--text2);">לחיצת <strong>"רשום פעולה"</strong> → <code>POST /transaction</code>. הפעולה מופיעה מיידית ברשימת התזרים ומשפיעה על יתרה.</p>
+          <div class="box box-tip" style="margin-top:10px;">
+            <div class="box-icon">💡</div>
+            <div>פעולות שנרשמות <em>אוטומטית</em> מהקופה (POS) ומהמכירות (sales) גם מופיעות כאן ומגיעות עם תיאור ותאריך מדויקים. אין צורך לרשום אותן ידנית.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- לשונית גביה -->
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📋</div><div><div class="mod-name">לשונית גביה — מעקב תשלומים ממתינים</div><div class="mod-tag">כספים › תזרים › גביה</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">
+            הלשונית מציגה תשלומים ממתינים מהזמנות עבודה (work orders). כל שורה מייצגת "אבן דרך" של תשלום:
+          </p>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">👤 שם לקוח + מספר הזמנה</div><div class="fr-val">מזהה איזה לקוח ואיזו הזמנה.</div></div>
+            <div class="field-row"><div class="fr-label">💰 סכום לגביה</div><div class="fr-val">כמה צריך לגבות בתשלום זה מתוך סה"כ ההזמנה.</div></div>
+            <div class="field-row"><div class="fr-label">📅 תאריך יעד</div><div class="fr-val">מתי היה צריך להתשלם. שורה שעברה את התאריך מוצגת ברקע אדום + תג "באיחור ⚠️".</div></div>
+            <div class="field-row"><div class="fr-label">🟢 סטטוס</div><div class="fr-val">ממתין (כתום) / התקבל ✅ (ירוק) / באיחור ⚠️ (אדום).</div></div>
+            <div class="field-row"><div class="fr-label">✅ כפתור "גבה ✓"</div><div class="fr-val">מופיע רק על שורות "ממתין". לחיצה פותחת prompt: "סכום שהתקבל (ריק = סכום מלא)" ← מזינים ← שולח PATCH לשרת ← סטטוס הופך ל"התקבל".</div></div>
+          </div>
+          <p style="font-size:.87rem;color:var(--text2);">בחלק העליון: סרגל סיכום עם <strong>ממתין לגביה / סה"כ התקבל / סה"כ כולל</strong>.</p>
+        </div>
+      </div>
+
+      <!-- ב. דוחות ספורט -->
+      <h2 class="sec" style="margin-top:22px;">ב. דוחות ספורט 📊</h2>
+      <div class="mod">
+        <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">דוחות ספורט — כניסה ומה מוצג</div><div class="mod-tag">כפתור "דוחות 📊" בלוח הבקרה הראשי</div></div></div>
+        <div class="mod-body">
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">
+            הדוחות לסביבת ספורט נפתחים <strong>לא</strong> מטאב עצמאי אלא מלחיצה על כפתור <strong>"דוחות 📊"</strong> בלוח הבקרה המהיר של הספורט (הכרטיסיות המהירות של ADMIN). לחיצה פותחת מסך מלא עם:
+          </p>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">בורר תקופה</h3>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">📅 החודש</div><div class="fr-val">מציג נתוני החודש הנוכחי בלבד.</div></div>
+            <div class="field-row"><div class="fr-label">📆 השנה</div><div class="fr-val">מציג נתוני השנה הנוכחית בלבד. כרטיסי הסיכום מתאימים את הכותרת: "הכנסות השנה" / "הכנסות החודש".</div></div>
+          </div>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">4 חלקי הדוח (נטענים מ-GET /sport/reports/:id?period=X)</h3>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">💚 כרטיס הכנסות</div><div class="fr-val">סה"כ הכנסות לתקופה בצבע ירוק — מחושב מסכימת כל הכנסות לפי סוג מנוי.</div></div>
+            <div class="field-row"><div class="fr-label">💙 כרטיס חברים</div><div class="fr-val">סה"כ חברי מועדון רשומים (כולל כל הסטטוסים) בצבע כחול-סגול.</div></div>
+            <div class="field-row"><div class="fr-label">📈 הכנסות לפי סוג מנוי</div><div class="fr-val">טבלה: שם סוג המנוי | מספר המנויים שנמכרו | סה"כ הכנסה ₪. ממוין לפי גובה הכנסה. לדוגמה: "מנוי שנתי · 12 מנויים · ₪48,000".</div></div>
+            <div class="field-row"><div class="fr-label">👥 סטטוס חברים</div><div class="fr-val">טבלה: פעיל / מוקפא / פג תוקף / בוטל — עם ספירה לכל סטטוס. נותן תמונה מיידית על "בריאות" בסיס החברים.</div></div>
+            <div class="field-row"><div class="fr-label">📊 כניסות יומיות (14 ימים)</div><div class="fr-val">גרף עמודות אופקיות — 14 הימים האחרונים עם ספירת כניסות לכל יום. כל עמודה מוצגת באחוז מהיום עם הכי הרבה כניסות (= 100%).</div></div>
+            <div class="field-row"><div class="fr-label">💰 הכנסות לפי חודש</div><div class="fr-val">רשימה כרונולוגית: חודש/שנה | מספר עסקאות | סה"כ ₪. מאפשרת לראות מגמות עונתיות.</div></div>
           </div>
 
           <div class="box box-tip">
             <div class="box-icon">💡</div>
-            <div>תזרים מציג גרף חודשי — ראו בעין אחת אם החודש מסתיים ברווח או הפסד.</div>
+            <div>כניסה לדוח חודשי בתחילת כל חודש נותנת תמונה מהירה: כמה חברים פעילים, כמה מנויים חדשים, מה ימי השיא של הכניסות. שימושי לקבלת החלטות על שעות פתיחה, תוספת מאמנים, קמפיינים.</div>
           </div>
         </div>
       </div>
 
+      <!-- ג. פרסום FLOW -->
+      <h2 class="sec" style="margin-top:22px;">ג. טאב פרסום FLOW 📢</h2>
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">📊</div><div><div class="mod-name">דוחות</div><div class="mod-tag">כספים › דוחות</div></div></div>
+        <div class="mod-head"><div class="mod-icon">📢</div><div><div class="mod-name">פרסום ברשת OneFlow</div><div class="mod-tag">עוד › פרסום FLOW 📢</div></div></div>
         <div class="mod-body">
-          <p>דוחות מפורטים שעוזרים להבין מה קורה בעסק — מה מוכר, מי הכי פעיל, מה כדאי לשנות.</p>
-          <div class="actions">
-            <span class="action">הכנסות לפי סוג מנוי</span>
-            <span class="action">חברים לפי סטטוס (פעיל / פגה / הוקפא)</span>
-            <span class="action">כניסות לשיעורים</span>
-            <span class="action">שכר מאמנים לחודש</span>
-            <span class="action">ייצוא לאקסל</span>
-          </div>
-        </div>
-      </div>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:10px;">
+            טאב "פרסום FLOW 📢" נמצא בקבוצת הניווט <strong>עוד</strong>. זהו <strong>הטאב היחיד שתמיד גלוי</strong> לכל התפקידים ללא קשר להרשאות — המערכת אוכפת זאת מפורשות בקוד.
+          </p>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:12px;">
+            הטאב מאפשר לפרסם את העסק בקהילות המקומיות ברשת OneFlow — גולשים שמחפשים פעילות גופנית, מנויים, קורסים ושיעורים באזור.
+          </p>
 
-      <div class="mod">
-        <div class="mod-head"><div class="mod-icon">📢</div><div><div class="mod-name">פרסום FLOW</div><div class="mod-tag">עוד › פרסום FLOW</div></div></div>
-        <div class="mod-body">
-          <p>פרסמו מנויים, שיעורים ומבצעים לחברי רשת OneFlow — גולשים שמחפשים פעילות גופנית באזור.</p>
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">זרימת הגשת מודעה</h3>
           <div class="steps">
-            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>צרו מודעה</strong><span>כותרת, תיאור קצר, תמונה, מחיר. לדוגמה: "מנוי ניסיון שבוע חינם!".</span></div></div>
-            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>בחרו קהל</strong><span>לפי אזור מגורים, גיל, תחומי עניין (כושר, יוגה, ריקוד). מגיעים בדיוק לאנשים המתאימים.</span></div></div>
-            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>פנייה נכנסת</strong><span>מי שמתעניין שולח הודעה דרך האפליקציה — תקבלו התראה ותחזרו אליו.</span></div></div>
+            <div class="step"><div class="step-n">1</div><div class="step-body"><strong>בחרו שטח פרסום</strong><span>תפריט נפתח "בחר שטח פרסום" — מאוכלס בשטחי הפרסום הזמינים ברשת (לדוגמה: "באנר ראשי", "כרטיסית קהילה"). הרשימה נטענת לפי הקהילות שהעסק משתייך אליהן.</span></div></div>
+            <div class="step"><div class="step-n">2</div><div class="step-body"><strong>בחרו קהילות (Checkboxes)</strong><span>אם לשטח הפרסום יש קהילות מקושרות — מוצגת רשימת checkboxes. בחרו בכמה קהילות שאתם רוצים. המחיר עשוי להשתנות לפי מספר הקהילות שנבחרו.</span></div></div>
+            <div class="step"><div class="step-n">3</div><div class="step-body"><strong>בחרו תקופה</strong><span>תפריט נפתח עם אפשרויות לפי ימים (לדוגמה: "7 ימים — ₪150", "14 ימים — ₪250", "30 ימים — ₪450"). המחיר מחושב אוטומטית לפי שטח + תקופה + מספר קהילות.</span></div></div>
+            <div class="step"><div class="step-n">4</div><div class="step-body"><strong>ממשו מטבעות FLOW 🪙 (אופציונלי)</strong><span>אם יש לכם יתרת מטבעות FLOW (🪙) — מוצגת היתרה. הזינו כמה מטבעות לממש. כל 🪙10 = ₪1 (לפי שיעור ה-flow_rate שנטען מהשרת). המחושב מציג: מחיר כולל / ניכוי מטבעות / <strong>לתשלום כספי</strong>.</span></div></div>
+            <div class="step"><div class="step-n">5</div><div class="step-body"><strong>הוסיפו הערה (אופציונלי)</strong><span>שדה טקסט חופשי — הוראות מיוחדות, תוכן רצוי, קמפיין מסוים.</span></div></div>
+            <div class="step"><div class="step-n">6</div><div class="step-body"><strong>לחצו "שלח בקשת פרסום"</strong><span>הכפתור מוגבל בזמן לחיצה למניעת כפילות. שולח POST /biz/banner/orders עם כל הפרטים: שטח, תקופה, קהילות, מטבעות, סכום כסף, הערה. הצלחה → "בקשת פרסום נשלחה! נחזור אליך בקרוב."</span></div></div>
+          </div>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-top:14px;margin-bottom:8px;">שיטות תשלום אפשריות (נקבעות אוטומטית)</h3>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">💵 מזומן (cash)</div><div class="fr-val">כאשר לא השתמשתם במטבעות כלל.</div></div>
+            <div class="field-row"><div class="fr-label">🪙 מטבעות (coins)</div><div class="fr-val">כאשר המטבעות מכסים את <em>כל</em> המחיר (לתשלום = ₪0).</div></div>
+            <div class="field-row"><div class="fr-label">🔀 משולב (mixed)</div><div class="fr-val">כאשר מימשתם מטבעות חלקיים + תשלום כסף.</div></div>
+          </div>
+
+          <h3 style="font-size:.88rem;font-weight:700;margin-bottom:8px;">רשימת הזמנות קיימות</h3>
+          <p style="font-size:.87rem;color:var(--text2);margin-bottom:8px;">מתחת לטופס מופיעה רשימת ההזמנות שהגשתם. לכל הזמנה — שטח הפרסום, תאריכי פעילות, סטטוס:</p>
+          <div class="field-table" style="margin-bottom:12px;">
+            <div class="field-row"><div class="fr-label">🟡 ממתין לאישור</div><div class="fr-val">הבקשה נשלחה ומחכה לאישור צוות OneFlow.</div></div>
+            <div class="field-row"><div class="fr-label">🟢 פעיל</div><div class="fr-val">המודעה פעילה ברשת. מוצגת תחזית "נותרו X ימים" אם הפרסום קרוב לסיום.</div></div>
+            <div class="field-row"><div class="fr-label">⚫ הסתיים</div><div class="fr-val">תקופת הפרסום הסתיימה.</div></div>
+            <div class="field-row"><div class="fr-label">🔴 בוטל</div><div class="fr-val">ההזמנה בוטלה.</div></div>
+            <div class="field-row"><div class="fr-label">🔵 ממתין לתשלום</div><div class="fr-val">הבקשה אושרה אך טרם שולמה.</div></div>
           </div>
         </div>
       </div>
 
-      <!-- AUTOMATIONS -->
-      <h2 class="sec" style="margin-top:28px;">אוטומציות — מה קורה לבד</h2>
+      <!-- ד. אוטומציות -->
+      <h2 class="sec" style="margin-top:22px;">ד. אוטומציות — מה קורה לבד</h2>
       <div class="auto-grid">
         <div class="auto-card">
           <div class="auto-icon">🔔</div>
@@ -3441,6 +3579,28 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
           <div class="auto-icon">🚫</div>
           <div class="auto-title">חסימת כניסה</div>
           <div class="auto-desc">חבר שמנויו פג לא יוכל להרשם לשיעורים עד שיחדש — המערכת חוסמת אוטומטית.</div>
+        </div>
+      </div>
+
+      <!-- תרחיש מלא -->
+      <h2 class="sec" style="margin-top:22px;">ה. תרחיש מלא — מהוצאה שוטפת ועד פרסום</h2>
+      <div class="box box-scenario" style="margin-top:4px;">
+        <div class="box-icon">🎬</div>
+        <div>
+          <strong>הסצנה:</strong> סוף חודש. רוצים לרשום הוצאות, לראות דוח ביצוע ולהפעיל קמפיין פרסום.
+          <ol style="margin-top:8px;margin-right:14px;font-size:.87rem;line-height:1.9;">
+            <li>נכנסים לטאב <strong>תזרים מזומנים 💸</strong>.</li>
+            <li>לוחצים <strong>"הוצאה"</strong> ← מצב: "פעולה בודדת" ← סכום: 4,500 ← תיאור: "שכ"ד ינואר" ← קטגוריה: "שכירות ותחזוקה" ← תאריך: 1.1.2026 ← "רשום פעולה". ✅</li>
+            <li>שוב <strong>"הוצאה"</strong> ← סכום: 2,200 ← תיאור: "חשמל חודש ינואר" ← קטגוריה: "שכירות ותחזוקה". ✅</li>
+            <li>לוחצים <strong>"הכנסה"</strong> ← מצב: "הכנסה קבועה" ← סכום: 350 ← תיאור: "מנוי שנתי — יונתן לוי" ← קטגוריה: "מכירות והכנסות" ← תאריך התחלה: 1.1.2026 ← תאריך סיום: 12.2026. ✅</li>
+            <li>יוצאים לדשבורד הספורט ← לוחצים <strong>"דוחות 📊"</strong> ← בוחרים "החודש".</li>
+            <li>רואים: 18 חברים פעילים, הכנסה חודשית ₪12,300, 3 ימי שיא (ראשון/שלישי/חמישי), מנוי "חודשי" = המנוי הכי מוכר. ✅</li>
+            <li>סוגרים דוח. עוברים לטאב <strong>פרסום FLOW 📢</strong>.</li>
+            <li>בוחרים שטח פרסום: "כרטיסית קהילה" ← מסמנים שתי קהילות סמוכות ← תקופה: 14 ימים ← מחיר: ₪250.</li>
+            <li>יש לכם 🪙500 מטבעות ← מזינים 500 ← ניכוי: ₪50 ← <strong>לתשלום: ₪200</strong>.</li>
+            <li>הערה: "קמפיין מנוי ניסיון שבוע חינם לחברים חדשים" ← לוחצים "שלח בקשת פרסום". ✅</li>
+            <li>בימים הבאים: ברשימת ההזמנות הסטטוס עובר מ-"ממתין לאישור" ל-"פעיל 🟢". תחזית: "נותרו 14 ימים".</li>
+          </ol>
         </div>
       </div>
 
