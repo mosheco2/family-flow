@@ -18688,6 +18688,26 @@ function _renderWizardV2StepContent(stepName) {
             ${menuSection}
         </div>`;
     }
+    if (stepName === 'team') {
+        return `
+        <div class="max-w-md mx-auto space-y-6 text-center">
+            <h3 class="font-bold text-slate-800 text-lg"><i class="fa-solid fa-users text-indigo-500 mr-2"></i>הזמינו את הצוות שלכם</h3>
+            <p class="text-xs text-slate-400">תוכלו להוסיף עוד אנשים בכל עת מהגדרות</p>
+            <div class="space-y-3">
+                <button type="button"
+                    onclick="sendWhatsAppInvite('MEMBER')"
+                    class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-2xl text-sm font-bold transition shadow-sm flex items-center justify-center gap-2">
+                    <i class="fa-brands fa-whatsapp text-lg"></i> שלח הזמנה לעובדים 💬
+                </button>
+                <button type="button"
+                    onclick="sendWhatsAppInvite('ADMIN')"
+                    class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-2xl text-sm font-bold transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-user-tie"></i> הוסף שותף / מנהל ראשי
+                </button>
+            </div>
+            <p class="text-[11px] text-slate-400">ניתן לדלג — תוכלו להזמין צוות מאוחר יותר</p>
+        </div>`;
+    }
     return `<div class="text-center text-slate-500 py-8">שלב: ${stepName}</div>`;
 }
 
@@ -18851,6 +18871,25 @@ async function _nextWizardV2Step() {
                 })
             });
         } catch(e) {}
+    }
+
+    if (stepName === 'team') {
+        const btnNext = document.getElementById('wizard-v2-btn-next');
+        if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מסיים...';
+        try {
+            await fetch(`${API}/groups/onboard`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ groupId: currentGroup.id })
+            });
+        } catch(e) {}
+        if (currentGroup) currentGroup.is_onboarded = true;
+        const modal = document.getElementById('onboarding-wizard-v2');
+        if (modal) modal.classList.add('hidden');
+        triggerConfetti();
+        fetchData();
+        fetchStoreCatalog();
+        fetchStoreSettings();
+        return;
     }
 
     if (currentWizardStepV2 < wizardStepsV2.length - 1) {
