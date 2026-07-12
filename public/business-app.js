@@ -18641,7 +18641,7 @@ function skipWizardStep() {
 const WIZARD_STEPS_BY_TYPE_V2 = {
     restaurant:   ['identity', 'food_type', 'menu', 'team'],
     beauty:       ['identity', 'practitioners', 'services', 'team'],
-    sport:        ['identity', 'subscriptions', 'trainer', 'team'],
+    sport:        ['identity', 'trainer', 'subscriptions', 'schedule', 'team'],
     services:     ['identity', 'service_types', 'billing_flow', 'team'],
     professional: ['identity', 'case_type', 'first_case', 'portfolio', 'team'],
     other:        ['identity', 'catalog', 'team'],
@@ -18797,6 +18797,110 @@ function _renderWizardV2StepContent(stepName) {
             <p class="text-[11px] text-slate-400">ניתן לדלג — תוכלו להזמין צוות מאוחר יותר</p>
         </div>`;
     }
+    if (stepName === 'trainer') {
+        const TRAINER_SPECS = ['כושר כללי','יוגה','פילאטיס','ריצה','שחייה','אומנויות לחימה','ריקוד','אחר'];
+        const t = wizardV2Data.trainer || {};
+        return `
+        <div class="max-w-md mx-auto space-y-5">
+            <h3 class="font-bold text-slate-800 text-lg text-center"><i class="fa-solid fa-person-running text-indigo-500 mr-2"></i>מי המאמן הראשי?</h3>
+            <p class="text-xs text-slate-400 text-center">יכול להיות אתה עצמך</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">שם מאמן <span class="text-red-500">*</span></label>
+                    <input type="text" id="wiz-v2-trainer-name"
+                        class="modern-input py-3 w-full bg-white"
+                        placeholder="למשל: דני כהן"
+                        value="${safeStr(t.name||'')}">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">התמחות</label>
+                    <select id="wiz-v2-trainer-specialty" class="modern-input py-3 w-full bg-white">
+                        ${TRAINER_SPECS.map(s=>`<option value="${s}" ${t.specialty===s?'selected':''}>${s}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    if (stepName === 'subscriptions') {
+        const subs = wizardV2Data.subscriptions && wizardV2Data.subscriptions.length
+            ? wizardV2Data.subscriptions
+            : [
+                { name: 'מנוי חודשי',  price: 250,  unit: '₪/חודש' },
+                { name: 'מנוי שנתי',   price: 2400, unit: '₪/שנה' },
+                { name: 'כניסה בודדת', price: 50,   unit: '₪/כניסה' },
+            ];
+        const subRows = subs.map((s, i) => `
+            <div class="flex items-center gap-2 bg-white border border-slate-200 p-3 rounded-xl" id="wiz-v2-sub-row-${i}">
+                <span class="flex-1 text-sm font-bold text-slate-700">${safeStr(s.name)}</span>
+                <input type="number" value="${s.price}" min="0"
+                    class="modern-input py-1.5 text-center text-sm font-bold text-indigo-600 dir-ltr w-24 bg-indigo-50"
+                    id="wiz-v2-sub-price-${i}">
+                <span class="text-xs text-slate-400 shrink-0 w-16 text-right">${safeStr(s.unit||'')}</span>
+                ${i >= 3 ? `<button onclick="_wiz2RemoveSub(${i})" class="text-red-400 hover:text-red-600 w-6 h-6 flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark text-xs"></i></button>` : '<div class="w-6 shrink-0"></div>'}
+            </div>`).join('');
+        return `
+        <div class="max-w-md mx-auto space-y-4">
+            <h3 class="font-bold text-slate-800 text-lg text-center"><i class="fa-solid fa-id-card text-indigo-500 mr-2"></i>סוגי המנויים שלכם</h3>
+            <p class="text-xs text-slate-400 text-center">ערכי ברירת מחדל — ניתן לשנות</p>
+            <div id="wiz-v2-sub-list" class="space-y-2">${subRows}</div>
+            <button type="button" onclick="_wiz2AddSub()"
+                class="w-full border-2 border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:border-indigo-300 hover:text-indigo-500 transition">
+                + הוסף סוג מנוי
+            </button>
+        </div>`;
+    }
+
+    if (stepName === 'schedule') {
+        const cls = wizardV2Data.scheduleClass || {};
+        const DAYS = ['א','ב','ג','ד','ה','ו','ש'];
+        const selDays = cls.days || [];
+        const dayBtns = DAYS.map(d => `
+            <button type="button" onclick="_wiz2ToggleDay('${d}')"
+                id="wiz-v2-day-${d}"
+                class="w-9 h-9 rounded-full border-2 text-xs font-black transition active:scale-90
+                    ${selDays.includes(d) ? 'border-indigo-500 bg-indigo-500 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300'}"
+                style="touch-action:manipulation;cursor:pointer;">${d}</button>`).join('');
+        return `
+        <div class="max-w-md mx-auto space-y-5">
+            <h3 class="font-bold text-slate-800 text-lg text-center"><i class="fa-solid fa-calendar-days text-indigo-500 mr-2"></i>מתי האימונים?</h3>
+            <p class="text-xs text-slate-400 text-center">הוסיפו שיעור לדוגמה — ניתן להוסיף עוד אחר כך</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">שם השיעור</label>
+                    <input type="text" id="wiz-v2-class-name"
+                        class="modern-input py-2.5 w-full bg-white"
+                        placeholder="אימון בוקר"
+                        value="${safeStr(cls.name||'')}">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">ימים בשבוע</label>
+                    <div class="flex gap-1.5 justify-center">${dayBtns}</div>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">שעת התחלה</label>
+                        <input type="time" id="wiz-v2-class-time"
+                            class="modern-input py-2.5 w-full bg-white dir-ltr"
+                            value="${cls.time||'07:00'}">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">משך</label>
+                        <select id="wiz-v2-class-duration" class="modern-input py-2.5 w-full bg-white">
+                            ${[30,45,60,90].map(d=>`<option value="${d}" ${(cls.duration||60)==d?'selected':''}>${d} דק׳</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">קיבולת</label>
+                        <input type="number" id="wiz-v2-class-capacity"
+                            class="modern-input py-2.5 w-full bg-white text-center dir-ltr"
+                            value="${cls.capacity||15}" min="1">
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }
+
     if (stepName === 'services') {
         const BEAUTY_CATS = [
             { value: 'שיער',        icon: '💇' },
@@ -18927,6 +19031,57 @@ function _renderWizardV2StepContent(stepName) {
     }
     return `<div class="text-center text-slate-500 py-8">שלב: ${stepName}</div>`;
 }
+
+window._wiz2ToggleDay = function(day) {
+    if (!wizardV2Data.scheduleClass) wizardV2Data.scheduleClass = {};
+    if (!wizardV2Data.scheduleClass.days) wizardV2Data.scheduleClass.days = [];
+    const arr = wizardV2Data.scheduleClass.days;
+    const idx = arr.indexOf(day);
+    if (idx === -1) arr.push(day); else arr.splice(idx, 1);
+    const isNow = arr.includes(day);
+    const btn = document.getElementById(`wiz-v2-day-${day}`);
+    if (btn) {
+        btn.className = btn.className
+            .replace(/border-indigo-500 bg-indigo-500 text-white|border-slate-200 bg-white text-slate-600 hover:border-indigo-300/g, '')
+            + (isNow ? ' border-indigo-500 bg-indigo-500 text-white' : ' border-slate-200 bg-white text-slate-600 hover:border-indigo-300');
+    }
+};
+
+window._wiz2AddSub = function() {
+    if (!wizardV2Data.subscriptions) {
+        wizardV2Data.subscriptions = [
+            { name: 'מנוי חודשי', price: 250, unit: '₪/חודש' },
+            { name: 'מנוי שנתי',  price: 2400, unit: '₪/שנה' },
+            { name: 'כניסה בודדת', price: 50, unit: '₪/כניסה' },
+        ];
+    }
+    const idx = wizardV2Data.subscriptions.length;
+    wizardV2Data.subscriptions.push({ name: '', price: 0, unit: '' });
+    const list = document.getElementById('wiz-v2-sub-list');
+    if (list) {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2 bg-white border border-slate-200 p-3 rounded-xl';
+        row.id = `wiz-v2-sub-row-${idx}`;
+        row.innerHTML = `
+            <input type="text" placeholder="שם המנוי" class="modern-input py-1.5 text-sm flex-1"
+                oninput="wizardV2Data.subscriptions[${idx}].name=this.value">
+            <input type="number" value="0" min="0"
+                class="modern-input py-1.5 text-center text-sm font-bold text-indigo-600 dir-ltr w-24 bg-indigo-50"
+                id="wiz-v2-sub-price-${idx}"
+                onchange="wizardV2Data.subscriptions[${idx}].price=parseFloat(this.value)||0">
+            <input type="text" placeholder="יחידה" class="modern-input py-1.5 text-xs w-16"
+                oninput="wizardV2Data.subscriptions[${idx}].unit=this.value">
+            <button onclick="_wiz2RemoveSub(${idx})" class="text-red-400 hover:text-red-600 w-6 h-6 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-xmark text-xs"></i>
+            </button>`;
+        list.appendChild(row);
+    }
+};
+
+window._wiz2RemoveSub = function(idx) {
+    if (wizardV2Data.subscriptions) wizardV2Data.subscriptions.splice(idx, 1);
+    updateWizardUIV2();
+};
 
 window._wiz2ToggleBeautyCat = function(value) {
     if (!wizardV2Data.serviceCategories) wizardV2Data.serviceCategories = [];
@@ -19231,6 +19386,58 @@ async function _nextWizardV2Step() {
                     })
                 });
             }
+        } catch(e) {}
+    }
+
+    if (stepName === 'trainer') {
+        const name = (document.getElementById('wiz-v2-trainer-name')?.value || '').trim();
+        if (!name) { alert('נא להזין שם מאמן'); return; }
+        const specialty = document.getElementById('wiz-v2-trainer-specialty')?.value || 'כושר כללי';
+        wizardV2Data.trainer = { name, specialty };
+    }
+
+    if (stepName === 'subscriptions') {
+        const rows = document.querySelectorAll('#wiz-v2-sub-list > div');
+        const collected = [];
+        rows.forEach((row, i) => {
+            const nameEl = row.querySelector('span, input[type="text"]');
+            const priceEl = document.getElementById(`wiz-v2-sub-price-${i}`);
+            const unitEl = row.querySelectorAll('input[type="text"]')[1];
+            const name = nameEl ? (nameEl.value !== undefined ? nameEl.value : nameEl.textContent).trim() : '';
+            if (name) collected.push({
+                name,
+                price: parseFloat(priceEl?.value) || 0,
+                unit: unitEl?.value || ''
+            });
+        });
+        if (collected.length === 0) { alert('נא להגדיר לפחות סוג מנוי אחד'); return; }
+        wizardV2Data.subscriptions = collected;
+        const btnNext = document.getElementById('wizard-v2-btn-next');
+        if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
+        try {
+            for (const s of collected) {
+                await fetch(`${API}/store/catalog`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ groupId: currentGroup.id, name: s.name, price: s.price, category: 'מנויים', isAvailable: true, productType: 'retail' })
+                });
+            }
+        } catch(e) {}
+    }
+
+    if (stepName === 'schedule') {
+        const name = (document.getElementById('wiz-v2-class-name')?.value || '').trim() || 'אימון';
+        const days = wizardV2Data.scheduleClass?.days || [];
+        const time = document.getElementById('wiz-v2-class-time')?.value || '07:00';
+        const duration = parseInt(document.getElementById('wiz-v2-class-duration')?.value) || 60;
+        const capacity = parseInt(document.getElementById('wiz-v2-class-capacity')?.value) || 15;
+        wizardV2Data.scheduleClass = { name, days, time, duration, capacity };
+        const btnNext = document.getElementById('wizard-v2-btn-next');
+        if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
+        try {
+            await fetch(`${API}/calendar/classes`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ groupId: currentGroup.id, name, days, time, duration, capacity, trainer: wizardV2Data.trainer?.name || '' })
+            });
         } catch(e) {}
     }
 
