@@ -18860,7 +18860,7 @@ function _renderWizardV2StepContent(stepName) {
                 <span class="text-sm font-bold text-slate-700">${r}</span>
             </label>`;
         }).join('');
-        const joinLink = `https://oneflowlife.co.il/business.html?join=${currentGroup?.group_code || ''}`;
+        const joinLink = `https://oneflowlife.co.il/business.html?code=${currentGroup?.group_code || ''}&role=MEMBER`;
         const bizName = currentGroup?.name || 'העסק';
         return `
         <div class="max-w-md mx-auto space-y-5">
