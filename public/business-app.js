@@ -18758,14 +18758,17 @@ function _renderWizardV2StepContent(stepName) {
                 </button>
             </div>`).join('');
 
-        const menuSection = selCuisines.length > 0 ? `
-            <div id="wiz-v2-menu-result" class="space-y-2">
-                ${menuRows || '<div id="wiz-v2-menu-spinner" class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה תפריט...</p></div>'}
-            </div>
-            <button type="button" onclick="_addWizardV2MenuItem()"
+        const menuAddBtn = `<button type="button" onclick="_addWizardV2MenuItem()"
                 class="w-full border-2 border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:border-indigo-300 hover:text-indigo-500 transition">
                 + הוסף מנה
-            </button>` : '';
+            </button>`;
+        const menuSection = selCuisines.length > 0 ? (
+            wizardV2Data.useAI === null || wizardV2Data.useAI === undefined
+                ? _wiz2AiChoiceHTML('menu')
+                : `<div id="wiz-v2-menu-result" class="space-y-2">
+                ${menuRows || '<div id="wiz-v2-menu-spinner" class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה תפריט...</p></div>'}
+            </div>${menuAddBtn}`
+        ) : '';
 
         return `
         <div class="max-w-md mx-auto space-y-5">
@@ -19028,14 +19031,17 @@ function _renderWizardV2StepContent(stepName) {
 
         const services = wizardV2Data.services || [];
         const svcRows = services.map((s, i) => _svcRow(s, i)).join('');
-        const svcSection = selCats.length > 0 ? `
-            <div id="wiz-v2-svc-result" class="space-y-2">
-                ${svcRows || '<div id="wiz-v2-svc-spinner" class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה רשימת טיפולים...</p></div>'}
-            </div>
-            <button type="button" onclick="_wiz2AddSvc()"
+        const svcAddBtn = `<button type="button" onclick="_wiz2AddSvc()"
                 class="w-full border-2 border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:border-indigo-300 hover:text-indigo-500 transition">
                 + הוסף טיפול
-            </button>` : '';
+            </button>`;
+        const svcSection = selCats.length > 0 ? (
+            wizardV2Data.useAI === null || wizardV2Data.useAI === undefined
+                ? _wiz2AiChoiceHTML('services')
+                : `<div id="wiz-v2-svc-result" class="space-y-2">
+                ${svcRows || '<div id="wiz-v2-svc-spinner" class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה רשימת טיפולים...</p></div>'}
+            </div>${svcAddBtn}`
+        ) : '';
 
         return `
         <div class="max-w-md mx-auto space-y-5">
@@ -19091,14 +19097,17 @@ function _renderWizardV2StepContent(stepName) {
                 </button>
             </div>`).join('');
 
-        const svcSection = selTypes.length > 0 ? `
-            <div id="wiz-v2-repair-result" class="space-y-2">
-                ${svcRows || '<div id="wiz-v2-repair-spinner" class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה רשימת שירותים...</p></div>'}
-            </div>
-            <button type="button" onclick="_wiz2AddRepairSvc()"
+        const repairAddBtn = `<button type="button" onclick="_wiz2AddRepairSvc()"
                 class="w-full border-2 border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:border-indigo-300 hover:text-indigo-500 transition">
                 + הוסף שירות
-            </button>` : '';
+            </button>`;
+        const svcSection = selTypes.length > 0 ? (
+            wizardV2Data.useAI === null || wizardV2Data.useAI === undefined
+                ? _wiz2AiChoiceHTML('service_types')
+                : `<div id="wiz-v2-repair-result" class="space-y-2">
+                ${svcRows || '<div id="wiz-v2-repair-spinner" class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה רשימת שירותים...</p></div>'}
+            </div>${repairAddBtn}`
+        ) : '';
 
         return `
         <div class="max-w-md mx-auto space-y-5">
@@ -19318,10 +19327,23 @@ function _renderWizardV2StepContent(stepName) {
         const prods = wizardV2Data.catalogProducts || [];
         const prodRows = prods.map((p, i) => `
             <div class="flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl">
-                <span class="flex-1 text-sm font-medium text-slate-700">${p.name}</span>
-                <span class="text-sm font-bold text-indigo-600">${p.price} ₪</span>
+                <input type="text" value="${safeStr(p.name||'')}" placeholder="שם מוצר"
+                    class="modern-input py-1.5 text-sm flex-1"
+                    oninput="(wizardV2Data.catalogProducts=wizardV2Data.catalogProducts||[])[${i}]=(wizardV2Data.catalogProducts[${i}]||{});wizardV2Data.catalogProducts[${i}].name=this.value">
+                <input type="number" value="${p.price||0}" min="0" placeholder="₪"
+                    class="modern-input py-1.5 text-center text-sm font-bold text-indigo-600 dir-ltr w-20 bg-indigo-50"
+                    onchange="(wizardV2Data.catalogProducts=wizardV2Data.catalogProducts||[])[${i}]=(wizardV2Data.catalogProducts[${i}]||{});wizardV2Data.catalogProducts[${i}].price=parseFloat(this.value)||0">
                 <button type="button" onclick="_wiz2RemoveProd(${i})" class="text-red-400 hover:text-red-600 px-1">✕</button>
             </div>`).join('');
+        const prodAddBtn = `<button type="button" onclick="_wiz2AddProd()"
+                class="w-full border-2 border-dashed border-indigo-300 text-indigo-500 rounded-xl py-2 text-sm hover:bg-indigo-50">+ הוסף מוצר</button>`;
+        const catalogContentSection = selCats.length > 0 ? (
+            wizardV2Data.useAI === null || wizardV2Data.useAI === undefined
+                ? _wiz2AiChoiceHTML('catalog')
+                : `<div id="wiz-v2-prod-result" class="space-y-2">
+                ${prodRows || '<div class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">בונה קטלוג מוצרים...</p></div>'}
+            </div>${prodAddBtn}`
+        ) : '<p class="text-xs text-slate-400 text-center py-4">בחרו קטגוריה כדי להמשיך</p>';
         return `
         <div class="max-w-md mx-auto space-y-5">
             <div>
@@ -19329,12 +19351,7 @@ function _renderWizardV2StepContent(stepName) {
                 <p class="text-xs text-slate-500 mb-3">ציוד, חלקים, או מוצרים נלווים</p>
                 <div class="grid grid-cols-3 gap-2">${catCards}</div>
             </div>
-            <div id="wiz-v2-prod-result">
-                ${prods.length > 0 ? `<div class="space-y-2 mb-2">${prodRows}</div>
-                <button type="button" onclick="_wiz2AddProd()"
-                    class="w-full border-2 border-dashed border-indigo-300 text-indigo-500 rounded-xl py-2 text-sm hover:bg-indigo-50">+ הוסף מוצר</button>`
-                : '<p class="text-xs text-slate-400 text-center py-4">בחרו קטגוריה כדי לייצר קטלוג אוטומטי</p>'}
-            </div>
+            ${catalogContentSection}
         </div>`;
     }
     if (stepName === 'case_type') {
@@ -19455,7 +19472,48 @@ window._wiz2ToggleSvcType = function(value) {
             + (isNow ? ' border-indigo-500 bg-indigo-50' : ' border-slate-200 bg-white hover:border-indigo-200');
     }
     wizardV2Data.repairServices = [];
-    _generateRepairServices();
+    wizardV2Data.useAI = null;
+    updateWizardUIV2();
+};
+
+function _wiz2AiChoiceHTML(step) {
+    return `<div class="space-y-3 pt-1">
+        <p class="text-xs font-bold text-slate-500 text-center">איך תרצה לבנות את הרשימה?</p>
+        <div class="grid grid-cols-2 gap-3">
+            <button type="button" onclick="_wiz2SetBuildMode('${step}', true)"
+                class="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-indigo-200 bg-indigo-50 text-indigo-700 hover:border-indigo-400 transition active:scale-95"
+                style="touch-action:manipulation;cursor:pointer;">
+                <span class="text-2xl">✨</span>
+                <span class="text-xs font-black">בניה אוטומטית</span>
+                <span class="text-[10px] text-indigo-500 text-center">AI יבנה רשימה מותאמת</span>
+            </button>
+            <button type="button" onclick="_wiz2SetBuildMode('${step}', false)"
+                class="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-slate-200 bg-white text-slate-600 hover:border-slate-400 transition active:scale-95"
+                style="touch-action:manipulation;cursor:pointer;">
+                <span class="text-2xl">✏️</span>
+                <span class="text-xs font-black">ידנית בעצמי</span>
+                <span class="text-[10px] text-slate-500 text-center">אוסיף פריטים בעצמי</span>
+            </button>
+        </div>
+    </div>`;
+}
+
+window._wiz2SetBuildMode = function(step, useAI) {
+    wizardV2Data.useAI = useAI;
+    if (useAI) {
+        updateWizardUIV2();
+        if (step === 'menu')         { wizardV2Data.menuItems = [];       _generateWizardMenu(); }
+        else if (step === 'services')     { wizardV2Data.services = [];        _generateBeautyServices(); }
+        else if (step === 'service_types') { wizardV2Data.repairServices = []; _generateRepairServices(); }
+        else if (step === 'catalog')      { wizardV2Data.catalogProducts = []; _generateRepairProducts(); }
+    } else {
+        // manual: show 3 empty rows
+        if (step === 'menu')               wizardV2Data.menuItems = [{name:'',price:0,category:'מנות עיקריות'},{name:'',price:0,category:'מנות עיקריות'},{name:'',price:0,category:'מנות עיקריות'}];
+        else if (step === 'services')      wizardV2Data.services = [{name:'',price:0,duration_minutes:60},{name:'',price:0,duration_minutes:60},{name:'',price:0,duration_minutes:60}];
+        else if (step === 'service_types') wizardV2Data.repairServices = [{name:'',price_from:0,price_to:0,duration_hours:1},{name:'',price_from:0,price_to:0,duration_hours:1},{name:'',price_from:0,price_to:0,duration_hours:1}];
+        else if (step === 'catalog')       wizardV2Data.catalogProducts = [{name:'',price:0,category:''},{name:'',price:0,category:''},{name:'',price:0,category:''}];
+        updateWizardUIV2();
+    }
 };
 
 function _wizBatteryEmptyHTML(addRowsFn) {
@@ -19580,7 +19638,8 @@ window._wiz2ToggleProdCat = function(value) {
             + (isNow ? ' border-indigo-500 bg-indigo-50' : ' border-slate-200 bg-white hover:border-indigo-200');
     }
     wizardV2Data.catalogProducts = [];
-    _generateRepairProducts();
+    wizardV2Data.useAI = null;
+    updateWizardUIV2();
 };
 
 let _repairProductsAbort = null;
@@ -19880,7 +19939,8 @@ window._wiz2ToggleBeautyCat = function(value) {
             + (isNow ? ' border-indigo-500 bg-indigo-50' : ' border-slate-200 bg-white hover:border-indigo-200');
     }
     wizardV2Data.services = [];
-    _generateBeautyServices();
+    wizardV2Data.useAI = null;
+    updateWizardUIV2();
 };
 
 window._generateBeautyServices = async function() {
@@ -20026,7 +20086,6 @@ window._toggleWizardV2Cuisine = function(value) {
     const idx = wizardV2Data.cuisineTypes.indexOf(value);
     if (idx === -1) wizardV2Data.cuisineTypes.push(value);
     else wizardV2Data.cuisineTypes.splice(idx, 1);
-
     const isNowSelected = wizardV2Data.cuisineTypes.includes(value);
     const btn = document.getElementById(`wiz-v2-cuisine-${value}`);
     if (btn) {
@@ -20035,7 +20094,8 @@ window._toggleWizardV2Cuisine = function(value) {
             + (isNowSelected ? ' border-indigo-500 bg-indigo-50' : ' border-slate-200 bg-white hover:border-indigo-200');
     }
     wizardV2Data.menuItems = [];
-    _generateWizardMenu();
+    wizardV2Data.useAI = null;
+    updateWizardUIV2();
 };
 
 window._generateWizardMenu = async function() {
@@ -20182,7 +20242,9 @@ async function _nextWizardV2Step() {
     const stepName = wizardStepsV2[currentWizardStepV2] || '';
 
     if (stepName === 'menu') {
-        const items = (wizardV2Data.menuItems || []).filter(i => i.name);
+        if (!wizardV2Data.cuisineTypes || wizardV2Data.cuisineTypes.length === 0) { alert('נא לבחור לפחות סוג מטבח אחד'); return; }
+        if (wizardV2Data.useAI === null || wizardV2Data.useAI === undefined) { alert('נא לבחור: בניה אוטומטית עם AI או ידנית'); return; }
+        const items = (wizardV2Data.menuItems || []).filter(i => i.name && i.name.trim());
         if (items.length === 0) { alert('נא להוסיף לפחות מנה אחת'); return; }
         const btnNext = document.getElementById('wizard-v2-btn-next');
         if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
@@ -20263,8 +20325,9 @@ async function _nextWizardV2Step() {
     }
 
     if (stepName === 'service_types') {
+        if (!wizardV2Data.serviceTypes || wizardV2Data.serviceTypes.length === 0) { alert('נא לבחור לפחות תחום אחד'); return; }
+        if (wizardV2Data.useAI === null || wizardV2Data.useAI === undefined) { alert('נא לבחור: בניה אוטומטית עם AI או ידנית'); return; }
         const svcs = wizardV2Data.repairServices || [];
-        if (svcs.length === 0) { alert('נא לבחור תחום ולהמתין לבניית הרשימה'); return; }
         const valid = svcs.filter(s => s.name && s.name.trim());
         if (valid.length === 0) { alert('נא להוסיף לפחות שירות אחד'); return; }
         wizardV2Data.repairServices = valid;
@@ -20333,6 +20396,8 @@ async function _nextWizardV2Step() {
     }
 
     if (stepName === 'services') {
+        if (!wizardV2Data.serviceCategories || wizardV2Data.serviceCategories.length === 0) { alert('נא לבחור לפחות קטגוריה אחת'); return; }
+        if (wizardV2Data.useAI === null || wizardV2Data.useAI === undefined) { alert('נא לבחור: בניה אוטומטית עם AI או ידנית'); return; }
         const svcs = wizardV2Data.services || [];
         if (svcs.length === 0) { alert('נא להוסיף לפחות טיפול אחד'); return; }
         // אסוף ערכים עדכניים מה-DOM
@@ -20387,7 +20452,9 @@ async function _nextWizardV2Step() {
     }
 
     if (stepName === 'catalog') {
+        if (wizardV2Data.useAI === null || wizardV2Data.useAI === undefined) { alert('נא לבחור: בניה אוטומטית עם AI או ידנית'); return; }
         const prods = (wizardV2Data.catalogProducts || []).filter(p => p.name && p.name.trim());
+        if (wizardV2Data.useAI === false && prods.length === 0) { alert('נא להוסיף לפחות מוצר אחד'); return; }
         if (prods.length > 0) {
             const btnNext = document.getElementById('wizard-v2-btn-next');
             if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
