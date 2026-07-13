@@ -2814,7 +2814,7 @@ async function takeGroupSnapshot(groupId, snapshotType = 'auto') {
             [groupId]
         );
         return true;
-    } catch(e) { console.error('[SNAPSHOT]', e.message); return false; }
+    } catch(e) { console.error('[SNAPSHOT]', e.message); return { error: e.message }; }
 }
 
 // Daily auto-snapshot — רץ כל 24 שעות
@@ -2984,7 +2984,8 @@ app.post('/api/sa/snapshots/:id/restore', verifySA, async (req, res) => {
 app.post('/api/sa/groups/:id/snapshot', verifySA, async (req, res) => {
     try {
         const ok = await takeGroupSnapshot(parseInt(req.params.id), 'manual');
-        if (!ok) return res.status(404).json({ error: 'group not found' });
+        if (ok === null) return res.status(404).json({ error: 'group not found' });
+        if (ok && ok.error) return res.status(500).json({ error: ok.error });
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
