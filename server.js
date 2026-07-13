@@ -14019,6 +14019,20 @@ app.get('/c/q/:id/:token', async (req, res) => {
         const alreadyDone = !!order.customer_confirmed_at;
         if (!alreadyDone) {
             await pool.query('UPDATE store_orders SET customer_confirmed_at=NOW() WHERE id=$1', [req.params.id]);
+            // שלח notification לעסק על אישור הלקוח
+            try {
+                const updatedQ = await pool.query(
+                    'SELECT group_id, customer_name, quote_number FROM store_orders WHERE id=$1', [req.params.id]
+                );
+                const q = updatedQ.rows[0];
+                if (q) {
+                    await pool.query(
+                        `INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key, created_at)
+                         VALUES ($1, 'quote_response', $2, 'quote', NOW())`,
+                        [q.group_id, `${q.customer_name || 'לקוח'} אישר את הצעת המחיר ${q.quote_number || ''}`]
+                    );
+                }
+            } catch(notifErr) {}
         }
         const name = order.customer_name || 'לקוח';
         const num = order.quote_number || `#${order.id}`;
@@ -15187,6 +15201,21 @@ app.post('/api/work-orders/convert/:quoteId', async (req, res) => {
         );
         if (!r.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
         await addWorkOrderTimeline(quoteId, 'created', 'פקודת עבודה נוצרה מהצעת מחיר', userName || 'מנהל');
+        // שלח notification ללקוח אם יש family_group_id
+        try {
+            const updatedOrder = await pool.query(
+                'SELECT family_group_id, group_id FROM store_orders WHERE id=$1', [quoteId]
+            );
+            const order = updatedOrder.rows[0];
+            if (order?.family_group_id) {
+                const biz = await pool.query('SELECT name FROM family_groups WHERE id=$1', [order.group_id]);
+                await pool.query(
+                    `INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key, created_at)
+                     VALUES ($1, 'work_order_created', $2, 'work_order', NOW())`,
+                    [order.family_group_id, `${biz.rows[0]?.name || 'העסק'} פתח פקודת עבודה עבורך`]
+                );
+            }
+        } catch(notifErr) {}
         res.json({ success: true, workOrderId: quoteId });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -15265,6 +15294,24 @@ app.put('/api/work-orders/:id/status', async (req, res) => {
         await pool.query(`UPDATE store_orders SET status=$1 WHERE id=$2 AND call_type='work_order'`, [status, req.params.id]);
         const statusLabels = { processing: 'בתהליך', new: 'חדש', scheduled: 'מתוזמן', completed: 'הושלם', cancelled: 'בוטל' };
         await addWorkOrderTimeline(req.params.id, 'status_change', `סטטוס שונה ל: ${statusLabels[status] || status}`, userName);
+        // שלח notification ללקוח על שינוי סטטוס
+        try {
+            const woData = await pool.query(
+                'SELECT family_group_id, group_id, quote_title FROM store_orders WHERE id=$1', [req.params.id]
+            );
+            const wo = woData.rows[0];
+            if (wo?.family_group_id) {
+                const clientLabels = { processing: 'בטיפול', scheduled: 'מתוזמן', completed: 'הושלם ✅', cancelled: 'בוטל' };
+                const label = clientLabels[status];
+                if (label) {
+                    await pool.query(
+                        `INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key, created_at)
+                         VALUES ($1, 'work_order_status', $2, 'work_order', NOW())`,
+                        [wo.family_group_id, `עדכון סטטוס: ${wo.quote_title || 'פקודת עבודה'} — ${label}`]
+                    );
+                }
+            }
+        } catch(notifErr) {}
         if (status === 'cancelled') {
             const resItems = await pool.query(`SELECT * FROM work_order_inventory WHERE work_order_id=$1 AND status='reserved'`, [req.params.id]);
             for (const item of resItems.rows) {
