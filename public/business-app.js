@@ -24976,14 +24976,21 @@ function _wizRenderBody() {
           <p class="text-[10px] font-bold text-slate-500 mb-2.5">⚡ קיצורי דרך — לחץ כדי להוסיף קבוצה מוכנה:</p>
           <div class="grid grid-cols-1 gap-2">
             ${shortcuts.map(s => `
-              <button onclick="window._wizAddQuickMod(${JSON.stringify(s[0])},${JSON.stringify(s[1])},${JSON.stringify(s[2])})"
-                class="flex items-center justify-between bg-white border border-indigo-100 rounded-xl px-3 py-2.5 hover:border-indigo-400 hover:bg-indigo-50 transition shadow-sm text-right w-full group">
-                <i class="fa-solid fa-plus text-indigo-400 group-hover:text-indigo-600 text-xs shrink-0 ml-2"></i>
-                <div class="flex-1 text-right">
-                  <div class="text-xs font-black text-slate-700">${s[0]}</div>
-                  <div class="text-[10px] text-slate-400 mt-0.5">${s[2].map(o=>o.name).join(' · ')}</div>
-                </div>
-              </button>`).join('')}
+              <div class="flex gap-1.5 items-stretch">
+                <button onclick="window._wizAddQuickMod(${JSON.stringify(s[0])},${JSON.stringify(s[1])},${JSON.stringify(s[2])})"
+                  class="flex items-center justify-between bg-white border border-indigo-100 rounded-xl px-3 py-2.5 hover:border-indigo-400 hover:bg-indigo-50 transition shadow-sm text-right flex-1 group">
+                  <i class="fa-solid fa-plus text-indigo-400 group-hover:text-indigo-600 text-xs shrink-0 ml-2"></i>
+                  <div class="flex-1 text-right">
+                    <div class="text-xs font-black text-slate-700">${s[0]}</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5">${s[2].map(o=>o.name).join(' · ')}</div>
+                  </div>
+                </button>
+                <button onclick="window._wizSaveShortcutAsPreset(${JSON.stringify(s[0])},${JSON.stringify(s[1])},${JSON.stringify(s[2])},this)"
+                  title="שמור כתבנית קבועה"
+                  class="bg-white border border-green-200 text-green-500 hover:bg-green-50 hover:text-green-700 rounded-xl w-9 flex items-center justify-center transition shadow-sm shrink-0">
+                  <i class="fa-solid fa-floppy-disk text-xs"></i>
+                </button>
+              </div>`).join('')}
           </div>
         </div>
 
@@ -25155,6 +25162,22 @@ window._wizLoadPreset = function(idx) {
   if (!window.currentModifiersUI) window.currentModifiersUI = [];
   window.currentModifiersUI.push(JSON.parse(JSON.stringify(preset)));
   _wizRenderStep();
+};
+
+window._wizSaveShortcutAsPreset = async function(name, type, options, btn) {
+  if (!window.storeModifierPresets) window.storeModifierPresets = [];
+  if (storeModifierPresets.some(p => p.name === name)) return showToast('info', `התבנית "${name}" כבר קיימת`);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i>'; }
+  storeModifierPresets.push({ name, type, options: JSON.parse(JSON.stringify(options)) });
+  try {
+    await fetch(`${API}/store/settings/presets`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ groupId: currentGroup.id, presets: JSON.stringify(storeModifierPresets) })
+    });
+    showToast('success', `✅ "${name}" נשמרה כתבנית!`);
+    _wizRenderStep();
+  } catch(e) { showToast('error', 'שגיאה בשמירה'); storeModifierPresets.pop(); }
+  finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk text-xs"></i>'; } }
 };
 
 window._wizSavePreset = async function(gi) {
