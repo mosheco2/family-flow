@@ -191,8 +191,8 @@ window.onload = async () => {
     if(btnMonthly) btnMonthly.addEventListener('click', () => toggleForecastMode('monthly')); if(btnYearly) btnYearly.addEventListener('click', () => toggleForecastMode('yearly'));
 
     const failsafeTimer = setTimeout(() => { const preloader = getEl('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) { hidePreloaderAndShowAuth('login'); } }, 7000);
-    const urlParams = new URLSearchParams(window.location.search); const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
-    if (inviteCode) { getEl('join-code').value = inviteCode; if(inviteRole) getEl('join-role').value = inviteRole; clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; }
+    const urlParams = new URLSearchParams(window.location.search); const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role'); const inviteRoleType = urlParams.get('role_type');
+    if (inviteCode) { getEl('join-code').value = inviteCode; if(inviteRole) getEl('join-role').value = inviteRole; if(inviteRoleType) { const rtEl = document.getElementById('join-role-type'); if(rtEl) rtEl.value = inviteRoleType; } clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; }
     
     const savedSAToken = localStorage.getItem('ofl_sa_token');
     if (savedSAToken) {
@@ -1976,7 +1976,7 @@ async function handleJoin(e) {
     e.preventDefault(); if(!getEl('join-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך');
     const _jPhone = val('join-phone');
     if (_requiresPhone(val('join-year')) && !_jPhone.trim()) { showToast('error', 'מספר טלפון הוא שדה חובה מגיל 10'); return; }
-    const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password'), phone: _jPhone }) }); 
+    const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password'), phone: _jPhone, employee_role_type: (document.getElementById('join-role-type')?.value || null) || null }) });
     const d=await res.json(); 
     if(d.success) { showToast('success', 'בקשתך נשלחה בהצלחה! יש להמתין לאישור מנהל הסביבה.'); window.history.replaceState({}, document.title, window.location.pathname); switchView('login'); } else showToast('error', d.error); 
 }
@@ -3633,7 +3633,18 @@ window.submitBalanceAdjustment = async function() {
     }
 };
 
+const _ROLE_TYPE_OPTIONS = {
+    restaurant:   [{v:'waiter',label:'מלצר/ית'},{v:'cook',label:'טבח/ית'},{v:'cashier',label:'קופאי/ת'},{v:'delivery',label:'שליח/ה'},{v:'shift_manager',label:'אחמ"ש'},{v:'branch_manager',label:'מנהל/ת סניף'}],
+    beauty:       [{v:'therapist',label:'מטפל/ת'},{v:'makeup_artist',label:'איפור'},{v:'nail_tech',label:'טכנאית ציפורניים'},{v:'reception',label:'קבלה'},{v:'branch_manager',label:'מנהל/ת סניף'}],
+    sport:        [{v:'field_tech',label:'מדריך/ה'},{v:'cashier',label:'קופאי/ת'},{v:'shift_manager',label:'אחמ"ש'},{v:'branch_manager',label:'מנהל/ת סניף'}],
+    services:     [{v:'field_tech',label:'איש/ת שטח'},{v:'support',label:'תמיכה'},{v:'cashier',label:'קופאי/ת'},{v:'branch_manager',label:'מנהל/ת סניף'}],
+    professional: [{v:'consultant',label:'יועץ/ת'},{v:'associate',label:'שותף/ה זוטר/ה'},{v:'partner',label:'שותף/ה'}],
+    other:        [{v:'branch_manager',label:'מנהל/ת סניף'}],
+};
 window.openSmartInviteModal = function() {
+    const bType = currentGroup?.business_type || 'other';
+    const roleTypeOpts = _ROLE_TYPE_OPTIONS[bType] || _ROLE_TYPE_OPTIONS.other;
+    const roleTypeOptionsHTML = `<option value="">ללא שיוך תפקיד ספציפי</option>` + roleTypeOpts.map(o => `<option value="${o.v}">${o.label}</option>`).join('');
     if (!document.getElementById('smart-invite-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
         <div id="smart-invite-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4 fade-in">
@@ -3642,7 +3653,7 @@ window.openSmartInviteModal = function() {
                 <div class="w-16 h-16 bg-[#25D366]/10 text-[#25D366] rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner border border-[#25D366]/20"><i class="fa-brands fa-whatsapp"></i></div>
                 <h3 class="text-xl font-black text-slate-800 mb-2 text-center">הזמנת איש צוות חדש</h3>
                 <p class="text-xs text-slate-500 text-center mb-6">שלחו קישור אישי בווצאפ שייפתח ישירות במסך ההרשמה עם ההרשאה שבחרתם להלן.</p>
-                
+
                 <div class="space-y-4 mb-6">
                     <div>
                         <label class="text-xs font-bold text-slate-500 block mb-2">תפקיד / הרשאה בחברה:</label>
@@ -3653,34 +3664,49 @@ window.openSmartInviteModal = function() {
                             <option value="ADMIN">בעלים / שותף מנהל</option>
                         </select>
                     </div>
+                    <div id="smart-invite-role-type-wrap">
+                        <label class="text-xs font-bold text-slate-500 block mb-2">תפקיד מקצועי (אופציונלי):</label>
+                        <select id="smart-invite-role-type" class="modern-input py-3 text-sm bg-slate-50 text-slate-800 border-slate-200 w-full focus:bg-white focus:border-indigo-400 outline-none">${roleTypeOptionsHTML}</select>
+                    </div>
                 </div>
-                
+
                 <button onclick="window.sendSmartWhatsAppInvite()" class="w-full bg-[#25D366] text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-[#1ebd58] transition flex items-center justify-center gap-2">
                     שלח הזמנה עכשיו <i class="fa-brands fa-whatsapp text-lg ml-1"></i>
                 </button>
             </div>
         </div>
         `);
+    } else {
+        const rtSel = document.getElementById('smart-invite-role-type');
+        if (rtSel) rtSel.innerHTML = roleTypeOptionsHTML;
     }
     document.getElementById('smart-invite-role').value = 'MEMBER';
+    if (document.getElementById('smart-invite-role-type')) document.getElementById('smart-invite-role-type').value = '';
     document.getElementById('smart-invite-modal').classList.remove('hidden');
 };
 
 window.sendSmartWhatsAppInvite = function() {
-    const role = document.getElementById('smart-invite-role').value;
-    const roleName = document.getElementById('smart-invite-role').options[document.getElementById('smart-invite-role').selectedIndex].text;
-    
+    const roleSel = document.getElementById('smart-invite-role');
+    const role = roleSel.value;
+    const roleName = roleSel.options[roleSel.selectedIndex].text;
+    const roleTypeSel = document.getElementById('smart-invite-role-type');
+    const roleType = roleTypeSel ? roleTypeSel.value : '';
+    const roleTypeLabel = (roleTypeSel && roleType) ? roleTypeSel.options[roleTypeSel.selectedIndex].text : '';
+
     if (!currentGroup || !currentGroup.group_code) return showToast('error', 'קוד ארגון לא זמין. נסו לרענן.');
-    
+
     const url = window.location.origin;
-    const joinLink = `${url}/business.html?code=${currentGroup.group_code}&role=${role}`;
-    
+    const roleTypeParam = roleType ? `&role_type=${encodeURIComponent(roleType)}` : '';
+    const joinLink = `${url}/business.html?code=${currentGroup.group_code}&role=${role}${roleTypeParam}`;
+
     let text = `היי! פתחנו פורטל ארגוני חדש ב-Oneflow BIZ 🚀\n\n`;
-    text += `הוגדרת במערכת תחת תפקיד: *${roleName}*.\n`;
+    text += `הוגדרת במערכת תחת תפקיד: *${roleName}*`;
+    if (roleTypeLabel) text += ` — ${roleTypeLabel}`;
+    text += `.\n`;
     text += `קוד העסק שלנו הוא: ${currentGroup.group_code}\n\n`;
     text += `לחץ/י על הקישור הבא כדי להירשם ולהתחבר ישירות:\n🔗 ${joinLink}\n\n`;
     text += `📱 בהרשמה יש להכניס מספר טלפון (חובה מגיל 10).`;
-    
+
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
     document.getElementById('smart-invite-modal').classList.add('hidden');
 };

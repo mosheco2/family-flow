@@ -4083,7 +4083,7 @@ app.post('/api/admin/send-credentials', async (req, res) => {
 
 app.post('/api/join', async (req, res) => {
     try {
-        const { groupCode, nickname, birthYear, password, role, email } = req.body;
+        const { groupCode, nickname, birthYear, password, role, email, employee_role_type } = req.body;
         if (!groupCode || !nickname || !password || !email) return res.status(400).json({ error: 'חסרים נתונים חובה' });
         
         const gRes = await pool.query('SELECT id FROM family_groups WHERE group_code = $1', [groupCode.toUpperCase()]);
@@ -4101,8 +4101,8 @@ app.post('/api/join', async (req, res) => {
 
         const joinEmail = (email || '').trim().toLowerCase() || null;
         await pool.query(
-            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status, phone, email) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)`,
-            [group.id, nickname, bYear, password, reqRole, joinPhone, joinEmail]
+            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status, phone, email, employee_role_type) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8)`,
+            [group.id, nickname, bYear, password, reqRole, joinPhone, joinEmail, employee_role_type || null]
         );
         res.json({ success: true });
     } catch (e) { 

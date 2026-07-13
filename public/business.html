@@ -433,6 +433,7 @@
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2>
                 <form onsubmit="handleJoin(event)" class="space-y-4">
                     <input type="hidden" id="join-role" value="MEMBER">
+                    <input type="hidden" id="join-role-type" value="">
                     <input type="text" id="join-code" required placeholder="קוד כניסה (משפחה/עסק)" class="modern-input font-mono text-center tracking-widest uppercase text-blue-600 font-bold">
                     <input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input">
                     <input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input">
@@ -3863,7 +3864,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=187" defer></script>
+    <script src="business-app.js?v=188" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
