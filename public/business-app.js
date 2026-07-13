@@ -309,43 +309,16 @@ window._uiAlert = function(message, opts = {}) {
 };
 // ─────────────────────────────────────────────────────────────────────────────
 function toggleLoader(a,s) { const txt = getEl(`btn-${a}-text`); const ldr = getEl(`btn-${a}-loader`); if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); } }
-function triggerConfetti() { 
-    const typeEl = document.getElementById('store-type');
-    const type = typeEl ? typeEl.value : 'retail';
-    
-    let shapes = ['square', 'circle'];
-    let scalar = 1;
-
-    if (type === 'food') {
-        shapes = [
-            confetti.shapeFromText({ text: '🍕', scalar: 2 }),
-            confetti.shapeFromText({ text: '🍔', scalar: 2 }),
-            confetti.shapeFromText({ text: '🍟', scalar: 2 })
-        ];
-        scalar = 2;
-    } else if (type === 'services') {
-        shapes = [
-            confetti.shapeFromText({ text: '⭐', scalar: 2 }),
-            confetti.shapeFromText({ text: '💎', scalar: 2 }),
-            confetti.shapeFromText({ text: '✨', scalar: 2 })
-        ];
-        scalar = 2;
-    } else {
-        shapes = [
-            confetti.shapeFromText({ text: '🛍️', scalar: 2 }),
-            confetti.shapeFromText({ text: '📦', scalar: 2 }),
-            'circle'
-        ];
-        scalar = 1.5;
+function triggerConfetti() {
+    try {
+        if (typeof confetti !== 'function') return;
+        const shapes = (typeof confetti.shapeFromText === 'function')
+            ? [confetti.shapeFromText({ text: '🎉', scalar: 2 }), confetti.shapeFromText({ text: '🚀', scalar: 2 }), 'circle']
+            : ['square', 'circle'];
+        confetti({ particleCount: 80, spread: 100, origin: { y: 0.6 }, shapes, scalar: 2 });
+    } catch(e) {
+        try { confetti({ particleCount: 80, spread: 100, origin: { y: 0.6 } }); } catch(_) {}
     }
-
-    confetti({
-        particleCount: 50,
-        spread: 80,
-        origin: { y: 0.6 },
-        shapes: shapes,
-        scalar: scalar
-    }); 
 }
 async function handleSALogin(e) {
     e.preventDefault();
