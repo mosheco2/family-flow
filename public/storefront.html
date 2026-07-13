@@ -1701,6 +1701,7 @@ window.renderCatalog = function() {
                 if (pType === 'pizza_builder') btnText = 'הרכב פיצה';
                 else if (pType === 'service') btnText = 'הזמן שירות';
                 else if (pType === 'food') btnText = 'בחר מנה';
+                else if (pType === 'bundle') { btnText = 'הרכב סט'; }
                 else if (pType === 'complex_builder') {
                     btnText = 'צפייה במפרט';
                     onclickAction = `window.openComplexProductModal(${item.id}); event.stopPropagation();`;
@@ -1709,7 +1710,7 @@ window.renderCatalog = function() {
                 let actionHtml = `<button onclick="${onclickAction}" class="bg-slate-100 text-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold transition w-full border border-slate-200 shadow-sm">${btnText}</button>`;
 
                 // כפתור הוספה מהירה עם בקר כמות למוצרים רגילים
-                const canQuickAdd = pType !== 'pizza_builder' && pType !== 'complex_builder' && pType !== 'service';
+                const canQuickAdd = pType !== 'pizza_builder' && pType !== 'complex_builder' && pType !== 'service' && pType !== 'bundle';
                 if (canQuickAdd) {
                     const cartKey = `item_${item.id}`;
                     const qtyInCart = cart[cartKey]?.qty || 0;
@@ -1793,7 +1794,7 @@ window.renderCatalog = function() {
             else { imgPreview.classList.add('hidden'); placeholder.classList.remove('hidden'); }
 
             const pType = item.product_type || 'retail';
-            getEl('prod-btn-text').innerText = pType === 'pizza_builder' ? 'הוסף מגש לסל' : 'הוסף לסל';
+            getEl('prod-btn-text').innerText = pType === 'pizza_builder' ? 'הוסף מגש לסל' : pType === 'bundle' ? 'הוסף סט לסל' : 'הוסף לסל';
 
             let options = [];
             try { options = JSON.parse(item.options_text); } catch(e) { options = []; }
@@ -1825,8 +1826,36 @@ window.renderCatalog = function() {
                 pizzaState = {};
                 currentPizzaToppings.forEach(t => pizzaState[t.name] = [0, 0, 0, 0]);
                 activePizzaTopping = currentPizzaToppings.length > 0 ? currentPizzaToppings[0].name : null;
-                
+
                 html = `<div id="pizza-builder-wrapper"></div>`;
+            }
+            else if (options && options.isBundle && options.steps) {
+                window._bundleSteps = options.steps;
+                html = options.steps.map((step, sIdx) => {
+                    const availItems = storeData.catalog.filter(c => {
+                        if (!c.is_available) return false;
+                        if (step.selectionType === 'category') return c.category === step.category;
+                        return step.items && step.items.includes(c.id);
+                    });
+                    const inputType = step.qty === 1 ? 'radio' : 'checkbox';
+                    const optsHtml = availItems.length === 0
+                        ? '<p class="text-xs text-slate-400 text-center py-3 bg-white rounded-xl border border-dashed">אין פריטים זמינים בשלב זה</p>'
+                        : availItems.map((ai, aIdx) => `
+                            <label class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition shadow-sm mb-2 group">
+                                <div class="flex items-center gap-3">
+                                    <input type="${inputType}" name="bundle_sf_${sIdx}" value="${safeStr(ai.name)}" data-price="${ai.price}" class="w-4 h-4 accent-emerald-600 sf-bundle-step-${sIdx}" ${inputType==='radio'&&aIdx===0?'checked':''}>
+                                    <span class="text-sm font-bold text-slate-700 group-hover:text-emerald-800">${safeStr(ai.name)}</span>
+                                </div>
+                                ${ai.price > 0 ? `<span class="text-xs font-bold text-emerald-600">+₪${ai.price}</span>` : ''}
+                            </label>`).join('');
+                    return `<div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 mb-3">
+                        <div class="flex justify-between items-center mb-3 border-b border-slate-200 pb-2">
+                            <h4 class="font-bold text-slate-800 text-sm">${safeStr(step.name)}</h4>
+                            <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">בחר ${step.qty} ${step.qty===1?'פריט':'פריטים'}</span>
+                        </div>
+                        <div>${optsHtml}</div>
+                    </div>`;
+                }).join('');
             }
             else {
                 const mods = Array.isArray(options) ? options : [];
@@ -1860,7 +1889,15 @@ window.renderCatalog = function() {
                 let selections = [];
                 let totalPrice = currentModifierBasePrice;
 
-                if (isCurrentProductPizza) {
+                if (options && options.isBundle && options.steps) {
+                    let isValid = true;
+                    options.steps.forEach((step, sIdx) => {
+                        const checked = document.querySelectorAll(`input[name="bundle_sf_${sIdx}"]:checked`);
+                        if (checked.length === 0) { isValid = false; showToast('error', `חובה לבחור פריט בשלב: ${step.name}`); }
+                        else { checked.forEach(c => { selections.push(c.value); totalPrice += parseFloat(c.dataset.price) || 0; }); }
+                    });
+                    if (!isValid) return;
+                } else if (isCurrentProductPizza) {
                     currentPizzaToppings.forEach(t => {
                         const activeQuarters = pizzaState[t.name].reduce((sum, val) => sum + Number(val || 0), 0);
                         if (activeQuarters > 0) {

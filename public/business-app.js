@@ -9459,7 +9459,7 @@ window.openQuotePreview = function(quoteId) {
         if (i.options_text && i.options_text !== 'null' && i.options_text !== 'undefined') {
             try {
                 const parsed = JSON.parse(i.options_text);
-                if (parsed && parsed.isComplex && parsed.steps) {
+                if (parsed && (parsed.isComplex || parsed.isBundle) && parsed.steps) {
                     parsed.steps.forEach(step => {
                         let stepItemsHtml = '';
                         if (step.options) {
@@ -9828,7 +9828,7 @@ window.openStoreOrderModal = function(orderId) {
             if (i.options_text && i.options_text !== 'null' && i.options_text !== 'undefined') {
                 try {
                     const parsed = JSON.parse(i.options_text);
-                    if (parsed && parsed.isComplex && parsed.steps) {
+                    if (parsed && (parsed.isComplex || parsed.isBundle) && parsed.steps) {
                         parsed.steps.forEach(step => {
                             if (step.options) {
                                 step.options.forEach(opt => {
@@ -14098,7 +14098,7 @@ window.openStoreOrderModal = function(orderId) {
             if (i.options_text && i.options_text !== 'null' && i.options_text !== 'undefined') {
                 try {
                     const parsed = JSON.parse(i.options_text);
-                    if (parsed && parsed.isComplex && parsed.steps) {
+                    if (parsed && (parsed.isComplex || parsed.isBundle) && parsed.steps) {
                         parsed.steps.forEach(step => {
                             if (step.options) {
                                 step.options.forEach(opt => {
@@ -29976,7 +29976,7 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
         if (i.options_text && i.options_text !== 'null' && i.options_text !== 'undefined') {
             try {
                 const parsed = JSON.parse(i.options_text);
-                if (parsed && parsed.isComplex && parsed.steps) {
+                if (parsed && (parsed.isComplex || parsed.isBundle) && parsed.steps) {
                     parsed.steps.forEach(step => {
                         if (step.options) {
                             step.options.forEach(opt => {
