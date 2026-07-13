@@ -2063,7 +2063,31 @@ async function confirmRestoreSnapshot(snapId, dateLabel, groupName) {
     try {
         const res = await fetch(`${API}/sa/snapshots/${snapId}/restore`, { method: 'POST', headers: { 'Authorization': saToken } });
         const data = await res.json();
-        if (data.success) { showToast('success', `"${groupName}" שוחזר בהצלחה ✓`); getEl('sa-snapshots-modal')?.remove(); loadSAData(); }
+        if (data.success) {
+            getEl('sa-snapshots-modal')?.remove();
+            // הודעת הצלחה מרכזית
+            const overlay = document.createElement('div');
+            overlay.id = 'restore-success-overlay';
+            overlay.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4';
+            overlay.innerHTML = `
+                <div class="bg-white rounded-[2rem] shadow-2xl p-10 max-w-md w-full text-center animate-[slideUp_0.35s_ease-out]">
+                    <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-emerald-50 mb-5">
+                        <i class="fa-solid fa-rotate-left text-4xl text-emerald-500"></i>
+                    </div>
+                    <h2 class="text-2xl font-black text-slate-800 mb-2">השחזור הושלם בהצלחה!</h2>
+                    <p class="text-slate-600 mb-1 text-base font-bold">${safeStr(groupName)}</p>
+                    <p class="text-slate-500 text-sm mb-6">
+                        הסביבה שוחזרה למצב מ-<span class="font-bold text-indigo-600">${safeStr(dateLabel)}</span>.<br>
+                        המצב הקודם נשמר כ-snapshot "לפני שחזור".
+                    </p>
+                    <button onclick="document.getElementById('restore-success-overlay').remove(); loadSAData();"
+                        class="bg-slate-900 hover:bg-slate-700 text-white font-bold px-8 py-3 rounded-xl transition text-base">
+                        הבנתי ✓
+                    </button>
+                </div>`;
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', e => { if (e.target === overlay) { overlay.remove(); loadSAData(); } });
+        }
         else showToast('error', data.error || 'שגיאת שחזור');
     } catch(e) { showToast('error', e.message); }
 }
