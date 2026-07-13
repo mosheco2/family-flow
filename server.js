@@ -2808,12 +2808,12 @@ async function takeGroupSnapshot(groupId, snapshotType = 'auto') {
              VALUES ($1,$2,$3,$4, NOW() + INTERVAL '30 days')`,
             [groupId, group.name, snapshotType, JSON.stringify(snapshotData)]
         );
-        // שמירת 30 snapshots בלבד לכל סביבה
+        // שמירת 30 snapshots בלבד לכל סביבה (id SERIAL — תמיד קיים, גדל מונוטונית)
         await pool.query(
             `DELETE FROM group_snapshots WHERE group_id=$1 AND snapshot_type='auto'
              AND id NOT IN (
                SELECT id FROM group_snapshots WHERE group_id=$1 AND snapshot_type='auto'
-               ORDER BY created_at DESC LIMIT 30
+               ORDER BY id DESC LIMIT 30
              )`,
             [groupId]
         );
@@ -2830,8 +2830,8 @@ async function runDailySnapshots() {
             await takeGroupSnapshot(g.id, 'auto');
             await new Promise(r => setTimeout(r, 200)); // throttle
         }
-        // מחיקת snapshots שפגו תוקף
-        await pool.query(`DELETE FROM group_snapshots WHERE expires_at < NOW()`);
+        // מחיקת snapshots שפגו תוקף (גוארד אם expires_at עדיין לא קיים)
+        await pool.query(`DELETE FROM group_snapshots WHERE expires_at IS NOT NULL AND expires_at < NOW()`).catch(()=>{});
         console.log(`[SNAPSHOT] Daily snapshots done`);
     } catch(e) { console.error('[SNAPSHOT DAILY]', e.message); }
 }
@@ -2845,10 +2845,11 @@ setTimeout(() => {
 app.get('/api/sa/groups/:id/snapshots', verifySA, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT id, group_id, group_name, snapshot_type, created_at, expires_at,
+            `SELECT id, group_id, group_name, snapshot_type,
+                    created_at, expires_at,
                     pg_column_size(snapshot_data) as size_bytes
              FROM group_snapshots WHERE group_id=$1
-             ORDER BY created_at DESC LIMIT 60`,
+             ORDER BY id DESC LIMIT 60`,
             [req.params.id]
         );
         res.json({ success: true, snapshots: result.rows });
