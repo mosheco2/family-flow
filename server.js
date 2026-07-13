@@ -2894,14 +2894,14 @@ app.post('/api/sa/snapshots/:id/restore', verifySA, async (req, res) => {
         const groupId = snap.group_id;
         await client.query('BEGIN');
 
-        // שחזור נתוני הקבוצה עצמה (ללא group_code / id)
+        // שחזור נתוני הקבוצה עצמה (ללא group_code / id / admin_phone שלא קיים בטבלה)
         const g = d.group;
         if (g) {
             await client.query(
                 `UPDATE family_groups SET name=$1, admin_email=$2, city=$3, street_address=$4,
-                 business_type=$5, contact_name=$6, admin_phone=$7, is_deleted=false, deleted_at=NULL
-                 WHERE id=$8`,
-                [g.name, g.admin_email, g.city, g.street_address, g.business_type, g.contact_name, g.admin_phone, groupId]
+                 business_type=$5, contact_name=$6, is_deleted=false, deleted_at=NULL
+                 WHERE id=$7`,
+                [g.name, g.admin_email, g.city, g.street_address, g.business_type, g.contact_name, groupId]
             );
         }
 
@@ -3006,7 +3006,7 @@ app.post('/api/sa/groups/:id/snapshot', verifySA, async (req, res) => {
 app.get('/api/sa/groups/archived', verifySA, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT id, name, type, business_type, group_code, admin_email, admin_phone, deleted_at
+            `SELECT id, name, type, business_type, group_code, admin_email, deleted_at
              FROM family_groups WHERE is_deleted=true ORDER BY deleted_at DESC`
         );
         res.json({ success: true, groups: result.rows });
