@@ -20411,19 +20411,26 @@ async function _nextWizardV2Step() {
     if (stepName === 'team') {
         const btnNext = document.getElementById('wizard-v2-btn-next');
         if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מסיים...';
+        const _closeAndFinish = () => {
+            if (currentGroup) currentGroup.is_onboarded = true;
+            const modal = document.getElementById('onboarding-wizard-v2');
+            if (modal) modal.classList.add('hidden');
+            triggerConfetti();
+            fetchData();
+            try { fetchStoreCatalog(); } catch(e) {}
+            try { fetchStoreSettings(); } catch(e) {}
+        };
         try {
+            const ctrl = new AbortController();
+            const tid = setTimeout(() => ctrl.abort(), 8000);
             await fetch(`${API}/groups/onboard`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
+                signal: ctrl.signal,
                 body: JSON.stringify({ groupId: currentGroup.id })
             });
+            clearTimeout(tid);
         } catch(e) {}
-        if (currentGroup) currentGroup.is_onboarded = true;
-        const modal = document.getElementById('onboarding-wizard-v2');
-        if (modal) modal.classList.add('hidden');
-        triggerConfetti();
-        fetchData();
-        fetchStoreCatalog();
-        fetchStoreSettings();
+        _closeAndFinish();
         return;
     }
 
