@@ -24661,7 +24661,7 @@ window.submitStoreProduct = async function() {
 const _WIZ_ITEM_TYPES = {
   restaurant: [
     { key:'food', icon:'🍔', label:'מנה עם תוספות', desc:'מנה שמאפשרת בחירת תוספות/שדרוגים', ptype:'food' },
-    { key:'plain', icon:'🍽️', label:'מנה פשוטה', desc:'מנה ללא אפשרויות בחירה', ptype:'food' },
+    { key:'plain', icon:'🍽️', label:'מנה פשוטה', desc:'מנה ללא אפשרויות בחירה', ptype:'retail' },
     { key:'pizza_builder', icon:'🍕', label:'הרכבת פיצה', desc:'בנה פיצה עם תוספות ורבעים', ptype:'pizza_builder' },
     { key:'bundle', icon:'🍱', label:'קומבו / סט', desc:'ארוחה ממספר פריטים', ptype:'bundle' },
     { key:'drink', icon:'🥤', label:'שתיה', desc:'משקה / שתיה', ptype:'food' },
@@ -24702,7 +24702,11 @@ const _WIZ_ITEM_TYPES = {
 let _wizState = {};
 
 window.openProductWizard = function() {
-  _wizState = { step: 0, itemType: null, ptype: 'retail', name: '', price: '', category: '', desc: '', imageBase64: '', duration: '' };
+  _wizState = {
+    step: 0, itemType: null, ptype: 'retail',
+    name: '', price: '', category: '', desc: '', longDesc: '', imageBase64: '', duration: '',
+    badgeText: '', badgeColor: 'red', kitchenStation: 'other', isComplimentary: false
+  };
   window.currentModifiersUI = [];
   window.currentBundleStepsUI = [];
   window.currentPizzaToppingsUI = [];
@@ -24758,10 +24762,41 @@ function _wizRenderBody() {
       </div>`;
   } else if (_wizState.step === 1) {
     const bt = currentGroup?.business_type || '';
+    const isRest = bt === 'restaurant';
     const showDuration = (bt === 'beauty' || bt === 'sport') && (_wizState.ptype === 'service' || _wizState.ptype === 'food');
     const cats = storeCatalogCache ? [...new Set(storeCatalogCache.filter(p=>p.category).map(p=>p.category))] : [];
     body.innerHTML = `
       <div class="space-y-3">
+
+        <!-- תמונה עם AI -->
+        <div class="bg-white border border-slate-200 rounded-2xl p-3 shadow-sm">
+          <label class="text-xs font-bold text-slate-600 block mb-2">תמונת הפריט</label>
+          <div class="flex gap-2">
+            <div class="flex-1 relative">
+              <label class="flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-3 cursor-pointer hover:bg-slate-100 transition min-h-[80px]" id="wiz-img-upload-zone">
+                <span id="wiz-img-placeholder-inner" class="${_wizState.imageBase64 ? 'hidden' : ''}">
+                  <i class="fa-solid fa-cloud-arrow-up text-3xl text-indigo-400 mb-1"></i>
+                  <p class="text-xs font-bold text-slate-500 text-center">העלה תמונה</p>
+                </span>
+                <img id="wiz-img-preview" src="${_wizState.imageBase64||''}" class="${_wizState.imageBase64 ? '' : 'hidden'} h-16 w-full object-cover rounded-lg" style="cursor:pointer" onclick="if(_wizState.imageBase64) window.showProductImagePreview(_wizState.imageBase64)">
+                <input type="file" accept="image/*" class="hidden" onchange="window._wizLoadImage(this)">
+                <input type="hidden" id="sp-image-base64" value="${_wizState.imageBase64||''}">
+              </label>
+            </div>
+            <div class="flex flex-col gap-2 w-24 shrink-0">
+              <button type="button" onclick="window._wizGenImage()" id="wiz-btn-gen-img" class="flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-dashed border-purple-300 rounded-xl p-2 hover:bg-purple-100 transition flex-1">
+                <i class="fa-solid fa-wand-magic-sparkles text-xl text-purple-500 mb-0.5"></i>
+                <p class="text-[9px] font-bold text-purple-700 text-center leading-tight">צור עם AI</p>
+              </button>
+              <button type="button" onclick="_wizState.imageBase64='';document.getElementById('wiz-img-preview').classList.add('hidden');document.getElementById('wiz-img-placeholder-inner').classList.remove('hidden');document.getElementById('sp-image-base64').value=''" class="flex flex-col items-center justify-center bg-red-50 border-2 border-dashed border-red-200 rounded-xl p-1.5 hover:bg-red-100 transition">
+                <i class="fa-solid fa-trash text-red-400"></i>
+                <p class="text-[9px] font-bold text-red-400 text-center">מחק</p>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- שם + מחיר + קטגוריה -->
         <div>
           <label class="text-xs font-bold text-slate-600 block mb-1">שם הפריט / השירות <span class="text-red-500">*</span></label>
           <input id="wiz-name" type="text" value="${safeStr(_wizState.name)}" placeholder="הזן שם..." class="modern-input w-full text-sm py-3" oninput="_wizState.name=this.value">
@@ -24769,7 +24804,7 @@ function _wizRenderBody() {
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-xs font-bold text-slate-600 block mb-1">מחיר (₪) <span class="text-red-500">*</span></label>
-            <input id="wiz-price" type="number" min="0" step="0.5" value="${_wizState.price}" placeholder="0.00" class="modern-input w-full text-sm py-3" oninput="_wizState.price=this.value">
+            <input id="wiz-price" type="number" min="0" step="0.5" value="${_wizState.price}" placeholder="0.00" class="modern-input w-full text-sm py-3 text-center dir-ltr" oninput="_wizState.price=this.value">
           </div>
           <div>
             <label class="text-xs font-bold text-slate-600 block mb-1">קטגוריה</label>
@@ -24782,42 +24817,102 @@ function _wizRenderBody() {
           <label class="text-xs font-bold text-slate-600 block mb-1">משך זמן (דקות)</label>
           <input id="wiz-duration" type="number" min="5" step="5" value="${_wizState.duration}" placeholder="60" class="modern-input w-full text-sm py-3" oninput="_wizState.duration=this.value">
         </div>` : ''}
+
+        <!-- תיאור קצר + AI -->
         <div>
-          <label class="text-xs font-bold text-slate-600 block mb-1">תיאור קצר</label>
-          <textarea id="wiz-desc" rows="2" placeholder="תיאור קצר..." class="modern-input w-full text-sm py-2 resize-none" oninput="_wizState.desc=this.value">${safeStr(_wizState.desc)}</textarea>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs font-bold text-slate-600">תיאור קצר</label>
+            <button type="button" id="wiz-btn-ai-desc" onclick="window._wizGenDesc()" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg hover:bg-indigo-100 transition border border-indigo-100"><i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI</button>
+          </div>
+          <textarea id="wiz-desc" rows="2" placeholder="תיאור קצר (יופיע בחנות)..." class="modern-input w-full text-sm py-2 resize-none" oninput="_wizState.desc=this.value">${safeStr(_wizState.desc)}</textarea>
         </div>
+
+        <!-- תיאור מורחב + AI -->
         <div>
-          <label class="text-xs font-bold text-slate-600 block mb-1">תמונה (אופציונלי)</label>
-          <label class="flex items-center gap-2 cursor-pointer bg-slate-50 border border-dashed border-slate-300 rounded-xl p-3 hover:bg-slate-100 transition">
-            <i class="fa-solid fa-image text-slate-400"></i>
-            <span class="text-xs text-slate-500" id="wiz-img-label">${_wizState.imageBase64 ? 'תמונה נטענה ✓' : 'בחר תמונה...'}</span>
-            <input type="file" accept="image/*" class="hidden" onchange="window._wizLoadImage(this)">
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs font-bold text-slate-600">תיאור מורחב (עמוד מוצר)</label>
+            <button type="button" id="wiz-btn-ai-long" onclick="window._wizGenLongDesc()" class="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg hover:bg-purple-100 transition border border-purple-100"><i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI</button>
+          </div>
+          <textarea id="wiz-long-desc" rows="2" placeholder="מרכיבים, מפרט טכני, פרטים נוספים..." class="modern-input w-full text-sm py-2 resize-none" oninput="_wizState.longDesc=this.value">${safeStr(_wizState.longDesc)}</textarea>
+        </div>
+
+        <!-- תגית מיוחדת -->
+        <div class="bg-purple-50 border border-purple-100 rounded-xl p-3">
+          <label class="text-xs font-bold text-purple-800 block mb-2"><i class="fa-solid fa-tag mr-1"></i>תגית מיוחדת (אופציונלי)</label>
+          <div class="flex gap-2">
+            <input id="wiz-badge-text" type="text" value="${safeStr(_wizState.badgeText)}" maxlength="15" placeholder='למשל: חדש! / מומלץ' class="modern-input flex-1 text-sm py-2 bg-white" oninput="_wizState.badgeText=this.value">
+            <select id="wiz-badge-color" class="modern-input w-24 text-sm py-2 bg-white font-bold" onchange="_wizState.badgeColor=this.value">
+              <option value="red" ${_wizState.badgeColor==='red'?'selected':''}>אדום</option>
+              <option value="green" ${_wizState.badgeColor==='green'?'selected':''}>ירוק</option>
+              <option value="blue" ${_wizState.badgeColor==='blue'?'selected':''}>כחול</option>
+              <option value="yellow" ${_wizState.badgeColor==='yellow'?'selected':''}>צהוב</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- KDS + חינמי (מסעדות בלבד) -->
+        ${isRest ? `
+        <div class="bg-orange-50 border border-orange-100 rounded-xl p-3">
+          <label class="text-xs font-bold text-orange-800 block mb-2">🍳 פס מטבח (KDS)</label>
+          <select id="wiz-kds" class="modern-input w-full text-sm py-2 bg-white font-bold text-orange-700" onchange="_wizState.kitchenStation=this.value">
+            <option value="hot" ${_wizState.kitchenStation==='hot'?'selected':''}>🔥 פס חם — מנות חמות</option>
+            <option value="cold" ${_wizState.kitchenStation==='cold'?'selected':''}>❄️ פס קר — סלטים / קרים</option>
+            <option value="drinks" ${_wizState.kitchenStation==='drinks'?'selected':''}>🥤 שתיה</option>
+            <option value="bread" ${_wizState.kitchenStation==='bread'?'selected':''}>🍞 לחמים / מאפים</option>
+            <option value="other" ${_wizState.kitchenStation==='other'?'selected':''}>📋 אחר</option>
+          </select>
+          <label class="flex items-center gap-2 mt-2 cursor-pointer">
+            <input type="checkbox" id="wiz-complimentary" ${_wizState.isComplimentary?'checked':''} class="w-4 h-4 rounded text-orange-600" onchange="_wizState.isComplimentary=this.checked">
+            <span class="text-xs font-bold text-orange-700">פריט חינמי פנימי (ללא עלות — גלוי למלצרים בלבד)</span>
           </label>
-          ${_wizState.imageBase64 ? `<img src="${_wizState.imageBase64}" class="mt-2 h-20 w-full rounded-xl object-cover">` : ''}
-        </div>
+        </div>` : ''}
       </div>`;
   } else if (_wizState.step === 2) {
     if (_wizState.ptype === 'bundle') {
       if (!window.currentBundleStepsUI) window.currentBundleStepsUI = [];
-      const stepsHtml = window.currentBundleStepsUI.map((s,i) => `
-        <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+      const catalogProds = (storeCatalogCache||[]).filter(p => p.product_type !== 'bundle');
+      const catalogCats = [...new Set(catalogProds.filter(p=>p.category).map(p=>p.category))];
+      const stepsHtml = window.currentBundleStepsUI.map((s,i) => {
+        const isCat = s.selectionType === 'category';
+        const catOpts = catalogCats.map(c => `<option value="${safeStr(c)}" ${s.category===c?'selected':''}>${safeStr(c)}</option>`).join('');
+        const prodChecks = catalogProds.map(p => `
+          <label class="flex items-center justify-between gap-2 text-[10px] p-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer">
+            <div class="flex items-center gap-2">
+              <input type="checkbox" value="${p.id}" ${(s.items||[]).includes(p.id)?'checked':''} onchange="window._wizToggleBundleProd(${i},${p.id},this.checked)" class="w-3.5 h-3.5 accent-indigo-600">
+              <span class="font-medium text-slate-700 truncate max-w-[140px]">${safeStr(p.name)}</span>
+            </div>
+            <span class="text-[9px] text-slate-400 bg-slate-100 px-1.5 rounded">₪${p.price}</span>
+          </label>`).join('');
+        return `
+        <div class="bg-white border border-indigo-100 rounded-xl p-3 shadow-sm">
           <div class="flex gap-2 items-center mb-2">
-            <input type="text" value="${safeStr(s.name)}" placeholder="שם השלב..." class="flex-1 modern-input text-xs py-2" onchange="window.currentBundleStepsUI[${i}].name=this.value">
-            <button onclick="window._wizRemoveBundleStep(${i})" class="text-slate-300 hover:text-red-500 w-7 h-7 flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button>
+            <input type="text" value="${safeStr(s.name)}" placeholder="שם השלב (למשל: בחר עיקרית)..." class="flex-1 modern-input text-xs py-2 font-bold" onchange="window.currentBundleStepsUI[${i}].name=this.value">
+            <div class="flex items-center gap-1 shrink-0">
+              <span class="text-[9px] text-slate-400 font-bold">כמות:</span>
+              <input type="number" min="1" value="${s.qty||1}" class="w-12 modern-input text-xs py-2 text-center dir-ltr" onchange="window.currentBundleStepsUI[${i}].qty=parseInt(this.value)||1">
+            </div>
+            <button onclick="window._wizRemoveBundleStep(${i})" class="text-slate-300 hover:text-red-500 w-7 h-7 flex items-center justify-center transition shrink-0"><i class="fa-solid fa-times"></i></button>
           </div>
-          <div class="space-y-1">
-            ${(s.items||[]).map((it,j) => `
-              <div class="flex gap-2 items-center">
-                <input type="text" value="${safeStr(it.name)}" placeholder="שם פריט..." class="flex-1 modern-input text-[11px] py-1.5" onchange="window.currentBundleStepsUI[${i}].items[${j}].name=this.value">
-                <input type="number" value="${it.price||0}" class="w-16 modern-input text-[11px] py-1.5 text-center" onchange="window.currentBundleStepsUI[${i}].items[${j}].price=parseFloat(this.value)||0" placeholder="₪">
-                <button onclick="window._wizRemoveBundleItem(${i},${j})" class="text-slate-300 hover:text-red-400 w-6 h-6 flex items-center justify-center transition text-[10px]"><i class="fa-solid fa-minus"></i></button>
-              </div>`).join('')}
-            <button onclick="window._wizAddBundleItem(${i})" class="w-full text-[10px] text-indigo-500 font-bold border border-dashed border-indigo-200 rounded-lg py-1.5 hover:bg-indigo-50 transition mt-1">+ הוסף אפשרות לשלב זה</button>
+          <div class="bg-slate-50 rounded-lg p-2 border border-slate-100">
+            <label class="text-[10px] font-bold text-slate-500 block mb-1.5">הלקוח יבחר מתוך:</label>
+            <select class="modern-input text-[10px] py-1.5 w-full mb-2 bg-white font-bold text-indigo-700" onchange="window.currentBundleStepsUI[${i}].selectionType=this.value;_wizRenderStep()">
+              <option value="category" ${isCat?'selected':''}>קטגוריה שלמה מהקטלוג</option>
+              <option value="items" ${!isCat?'selected':''}>מוצרים ספציפיים</option>
+            </select>
+            ${isCat ? `
+              <select class="modern-input text-xs py-1.5 w-full bg-white" onchange="window.currentBundleStepsUI[${i}].category=this.value">
+                <option value="">בחר קטגוריה...</option>${catOpts}
+              </select>` : `
+              <div class="max-h-32 overflow-y-auto bg-white border border-slate-200 rounded-md">
+                ${catalogProds.length ? prodChecks : '<p class="text-[9px] text-slate-400 p-2 text-center">אין מוצרים בקטלוג עדיין</p>'}
+              </div>`}
           </div>
-        </div>`).join('');
+        </div>`;
+      }).join('');
       body.innerHTML = `
         <p class="text-sm font-bold text-slate-600">🍱 הגדרת שלבי הבחירה בחבילה</p>
-        <div id="wiz-bundle-steps" class="space-y-3">${stepsHtml || '<p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed">לחצו להוסיף שלב ראשון</p>'}</div>
+        <p class="text-[11px] text-slate-400">לדוגמה: "בחר מנה עיקרית אחת", "בחר 2 תוספות"</p>
+        <div id="wiz-bundle-steps" class="space-y-3">${stepsHtml || '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed">לחצו להוסיף שלב ראשון</p>'}</div>
         <button onclick="window._wizAddBundleStep()" class="w-full bg-indigo-50 border border-dashed border-indigo-300 text-indigo-600 font-bold text-sm py-2.5 rounded-xl hover:bg-indigo-100 transition">+ הוסף שלב בחירה</button>`;
     } else if (_wizState.ptype === 'pizza_builder') {
       if (!window.currentPizzaToppingsUI) window.currentPizzaToppingsUI = [];
@@ -24874,25 +24969,29 @@ function _wizRenderBody() {
     }
   } else {
     const typeObj = _wizGetItemTypes().find(t => t.key === _wizState.itemType) || {};
+    const badgeColors = {red:'bg-red-500',green:'bg-green-500',blue:'bg-blue-500',yellow:'bg-yellow-400'};
     body.innerHTML = `
-      <div class="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl p-5 text-center shadow-sm">
+      <div class="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl p-5 text-center shadow-sm relative">
+        ${_wizState.badgeText ? `<span class="absolute top-3 left-3 ${badgeColors[_wizState.badgeColor]||'bg-red-500'} text-white text-[10px] font-black px-2 py-0.5 rounded-full">${safeStr(_wizState.badgeText)}</span>` : ''}
         <div class="text-4xl mb-2">${typeObj.icon||'📦'}</div>
         <div class="text-lg font-black text-slate-800 mb-0.5">${safeStr(_wizState.name)}</div>
         <div class="text-2xl font-black text-indigo-600 mb-2">₪${parseFloat(_wizState.price||0).toFixed(2)}</div>
         ${_wizState.category ? `<span class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full">${safeStr(_wizState.category)}</span>` : ''}
       </div>
+      ${_wizState.imageBase64 ? `<img src="${_wizState.imageBase64}" class="w-full h-28 object-cover rounded-xl">` : ''}
       <div class="grid grid-cols-2 gap-3 text-xs">
         <div class="bg-white border border-slate-100 rounded-xl p-3 shadow-sm">
           <div class="text-slate-400 font-bold mb-0.5">סוג פריט</div>
           <div class="font-black text-slate-700">${typeObj.label||_wizState.ptype}</div>
         </div>
-        ${_wizState.duration ? `<div class="bg-white border border-slate-100 rounded-xl p-3 shadow-sm"><div class="text-slate-400 font-bold mb-0.5">משך</div><div class="font-black text-slate-700">${_wizState.duration} דקות</div></div>` : ''}
+        ${_wizState.duration ? `<div class="bg-white border border-slate-100 rounded-xl p-3 shadow-sm"><div class="text-slate-400 font-bold mb-0.5">משך</div><div class="font-black text-slate-700">${_wizState.duration} דק׳</div></div>` : ''}
         ${window.currentModifiersUI&&window.currentModifiersUI.length ? `<div class="bg-white border border-slate-100 rounded-xl p-3 shadow-sm"><div class="text-slate-400 font-bold mb-0.5">קבוצות תוספות</div><div class="font-black text-slate-700">${window.currentModifiersUI.length}</div></div>` : ''}
         ${window.currentBundleStepsUI&&window.currentBundleStepsUI.length ? `<div class="bg-white border border-slate-100 rounded-xl p-3 shadow-sm"><div class="text-slate-400 font-bold mb-0.5">שלבי בחירה</div><div class="font-black text-slate-700">${window.currentBundleStepsUI.length}</div></div>` : ''}
         ${window.currentPizzaToppingsUI&&window.currentPizzaToppingsUI.length ? `<div class="bg-white border border-slate-100 rounded-xl p-3 shadow-sm"><div class="text-slate-400 font-bold mb-0.5">תוספות פיצה</div><div class="font-black text-slate-700">${window.currentPizzaToppingsUI.length}</div></div>` : ''}
+        ${_wizState.badgeText ? `<div class="bg-white border border-slate-100 rounded-xl p-3 shadow-sm"><div class="text-slate-400 font-bold mb-0.5">תגית</div><div class="font-black text-slate-700">${safeStr(_wizState.badgeText)}</div></div>` : ''}
       </div>
-      ${_wizState.desc ? `<div class="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs text-slate-600">${safeStr(_wizState.desc)}</div>` : ''}
-      ${_wizState.imageBase64 ? `<img src="${_wizState.imageBase64}" class="w-full h-32 object-cover rounded-xl">` : ''}`;
+      ${_wizState.desc ? `<div class="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs text-slate-600"><div class="font-bold text-slate-400 mb-1 text-[10px]">תיאור קצר</div>${safeStr(_wizState.desc)}</div>` : ''}
+      ${_wizState.longDesc ? `<div class="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs text-slate-600"><div class="font-bold text-slate-400 mb-1 text-[10px]">תיאור מורחב</div>${safeStr(_wizState.longDesc)}</div>` : ''}`;
   }
 }
 
@@ -24922,7 +25021,12 @@ window._wizNext = function() {
     _wizState.price = document.getElementById('wiz-price')?.value || _wizState.price;
     _wizState.category = document.getElementById('wiz-cat')?.value || _wizState.category;
     _wizState.desc = document.getElementById('wiz-desc')?.value || _wizState.desc;
+    _wizState.longDesc = document.getElementById('wiz-long-desc')?.value || _wizState.longDesc;
     _wizState.duration = document.getElementById('wiz-duration')?.value || _wizState.duration;
+    _wizState.badgeText = document.getElementById('wiz-badge-text')?.value ?? _wizState.badgeText;
+    _wizState.badgeColor = document.getElementById('wiz-badge-color')?.value || _wizState.badgeColor;
+    _wizState.kitchenStation = document.getElementById('wiz-kds')?.value || _wizState.kitchenStation;
+    _wizState.isComplimentary = document.getElementById('wiz-complimentary')?.checked ?? _wizState.isComplimentary;
     if (!_wizState.name || !_wizState.price) return showToast('error', 'שם ומחיר הם שדות חובה');
   }
   _wizState.step = Math.min(_wizState.step + 1, 3);
@@ -24943,17 +25047,73 @@ window._wizLoadImage = function(input) {
   const reader = new FileReader();
   reader.onload = e => {
     _wizState.imageBase64 = e.target.result;
-    const lbl = document.getElementById('wiz-img-label');
-    if (lbl) lbl.textContent = 'תמונה נטענה ✓';
-    const prev = document.querySelector('#wiz-body img');
-    if (!prev) {
-      const img = document.createElement('img');
-      img.src = _wizState.imageBase64;
-      img.className = 'mt-2 h-20 w-full rounded-xl object-cover';
-      input.parentElement.parentElement.appendChild(img);
-    } else { prev.src = _wizState.imageBase64; }
+    const preview = document.getElementById('wiz-img-preview');
+    const placeholder = document.getElementById('wiz-img-placeholder-inner');
+    const b64el = document.getElementById('sp-image-base64');
+    if (preview) { preview.src = _wizState.imageBase64; preview.classList.remove('hidden'); }
+    if (placeholder) placeholder.classList.add('hidden');
+    if (b64el) b64el.value = _wizState.imageBase64;
   };
   reader.readAsDataURL(input.files[0]);
+};
+
+window._wizGenImage = async function() {
+  const name = document.getElementById('wiz-name')?.value || _wizState.name;
+  const desc = document.getElementById('wiz-desc')?.value || _wizState.desc;
+  const cat = document.getElementById('wiz-cat')?.value || _wizState.category;
+  if (!name || !desc) return showToast('error', 'יש למלא שם ותיאור קצר לפני יצירת תמונה');
+  const btn = document.getElementById('wiz-btn-gen-img');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-purple-500"></i><p class="text-[9px] font-bold text-purple-700 mt-0.5">יוצר...</p>'; }
+  showToast('info', 'מייצר תמונה עם AI... עשוי לקחת ~20 שניות');
+  try {
+    const res = await fetch(`${API}/store/catalog/generate-image`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, productName: name, description: desc, category: cat }) });
+    const data = await res.json();
+    if (!data.success) return showToast('error', data.error || 'שגיאה ביצירת תמונה');
+    _wizState.imageBase64 = data.imageUrl;
+    const preview = document.getElementById('wiz-img-preview');
+    const placeholder = document.getElementById('wiz-img-placeholder-inner');
+    const b64el = document.getElementById('sp-image-base64');
+    if (preview) { preview.src = data.imageUrl; preview.classList.remove('hidden'); preview.style.cursor='pointer'; preview.onclick = () => window.showProductImagePreview(data.imageUrl); }
+    if (placeholder) placeholder.classList.add('hidden');
+    if (b64el) b64el.value = data.imageUrl;
+    showToast('success', 'תמונה נוצרה! לחץ עליה לתצוגה מלאה');
+  } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+  finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles text-xl text-purple-500 mb-0.5"></i><p class="text-[9px] font-bold text-purple-700 text-center leading-tight">צור עם AI</p>'; } }
+};
+
+window._wizGenDesc = async function() {
+  const name = document.getElementById('wiz-name')?.value || _wizState.name;
+  if (!name) return showToast('error', 'נא להזין קודם את שם הפריט');
+  const btn = document.getElementById('wiz-btn-ai-desc');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מנסח...'; }
+  try {
+    const res = await fetch(`${API}/store/ai-desc`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ productName: name, groupId: currentGroup.id }) });
+    const data = await res.json();
+    if (data.success && data.description) {
+      const ta = document.getElementById('wiz-desc');
+      if (ta) { ta.value = data.description; _wizState.desc = data.description; }
+      showToast('success', 'ה-AI ניסח תיאור!');
+    } else { showToast('error', data.error || 'שגיאה בניסוח'); }
+  } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+  finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI'; } }
+};
+
+window._wizGenLongDesc = async function() {
+  const name = document.getElementById('wiz-name')?.value || _wizState.name;
+  if (!name) return showToast('error', 'נא להזין קודם את שם הפריט');
+  const btn = document.getElementById('wiz-btn-ai-long');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מנסח...'; }
+  try {
+    const shortDesc = document.getElementById('wiz-desc')?.value || _wizState.desc || '';
+    const res = await fetch(`${API}/store/ai-long-desc`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ productName: name, shortDesc, groupId: currentGroup.id }) });
+    const data = await res.json();
+    if (data.success && data.description) {
+      const ta = document.getElementById('wiz-long-desc');
+      if (ta) { ta.value = data.description; _wizState.longDesc = data.description; }
+      showToast('success', 'ה-AI ניסח תיאור מורחב!');
+    } else { showToast('error', data.error || 'שגיאה בניסוח'); }
+  } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+  finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI'; } }
 };
 
 window._wizLoadPreset = function(idx) {
@@ -24980,12 +25140,17 @@ window._wizAddQuickMod = function(name, type, options) {
 
 window._wizAddBundleStep = function() {
   if (!window.currentBundleStepsUI) window.currentBundleStepsUI = [];
-  window.currentBundleStepsUI.push({ name: '', items: [{ name: '', price: 0 }] });
+  window.currentBundleStepsUI.push({ name: '', qty: 1, selectionType: 'category', category: '', items: [] });
   _wizRenderStep();
 };
 window._wizRemoveBundleStep = function(i) { window.currentBundleStepsUI.splice(i, 1); _wizRenderStep(); };
-window._wizAddBundleItem = function(si) { window.currentBundleStepsUI[si].items.push({ name: '', price: 0 }); _wizRenderStep(); };
-window._wizRemoveBundleItem = function(si, ii) { window.currentBundleStepsUI[si].items.splice(ii, 1); _wizRenderStep(); };
+window._wizToggleBundleProd = function(stepIdx, prodId, checked) {
+  const step = window.currentBundleStepsUI[stepIdx];
+  if (!step) return;
+  if (!step.items) step.items = [];
+  if (checked) { if (!step.items.includes(prodId)) step.items.push(prodId); }
+  else { step.items = step.items.filter(id => id !== prodId); }
+};
 
 window._wizAddPizzaTop = function() {
   if (!window.currentPizzaToppingsUI) window.currentPizzaToppingsUI = [];
@@ -24997,7 +25162,7 @@ window._wizRemovePizzaTop = function(i) { window.currentPizzaToppingsUI.splice(i
 window._wizSubmit = async function() {
   const btn = document.getElementById('wiz-submit-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'שומר...'; }
-  const ptype = _wizState.ptype;
+  let ptype = _wizState.ptype;
   let finalOptionsText = '';
   if (ptype === 'bundle') {
     const validSteps = (window.currentBundleStepsUI||[]).filter(s => s.name.trim());
@@ -25006,16 +25171,25 @@ window._wizSubmit = async function() {
     finalOptionsText = JSON.stringify({ isPizza: true, toppings: window.currentPizzaToppingsUI||[] });
   } else {
     const validMods = (window.currentModifiersUI||[]).filter(m => m.name.trim() && m.options.some(o=>o.name.trim()));
-    if (validMods.length) { finalOptionsText = JSON.stringify(validMods); if (ptype === 'service') _wizState.ptype = 'food'; }
+    if (validMods.length) { finalOptionsText = JSON.stringify(validMods); if (ptype === 'service') ptype = 'food'; }
   }
   let finalDesc = _wizState.desc || '';
-  if (_wizState.duration) finalDesc = `[משך: ${_wizState.duration} דק\'] ${finalDesc}`.trim();
+  if (_wizState.duration) finalDesc = `[משך: ${_wizState.duration} דק׳] ${finalDesc}`.trim();
   try {
     const payload = {
-      groupId: currentGroup.id, name: _wizState.name, price: _wizState.price,
-      category: _wizState.category || 'כללי', description: finalDesc,
-      optionsText: finalOptionsText, imageUrl: _wizState.imageBase64 || null,
-      productType: ptype, longDescription: '', kitchenStation: 'other', isComplimentary: false
+      groupId: currentGroup.id,
+      name: _wizState.name,
+      price: _wizState.price,
+      category: _wizState.category || 'כללי',
+      description: finalDesc,
+      optionsText: finalOptionsText,
+      imageUrl: _wizState.imageBase64 || null,
+      productType: ptype,
+      longDescription: _wizState.longDesc || '',
+      kitchenStation: _wizState.kitchenStation || 'other',
+      isComplimentary: !!_wizState.isComplimentary,
+      badgeText: _wizState.badgeText || '',
+      badgeColor: _wizState.badgeColor || 'red'
     };
     const res = await fetch(`${API}/store/catalog`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
     const data = await res.json();
