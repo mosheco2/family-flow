@@ -20034,14 +20034,18 @@ async function _nextWizardV2Step() {
         if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
         try {
             for (const s of valid) {
-                await fetch(`${API}/store/catalog`, {
+                const r = await fetch(`${API}/calendar/services`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        groupId: currentGroup.id, name: s.name.trim(), price: s.price_from || 0,
-                        category: s.category || '', isAvailable: true, productType: 'retail',
-                        description: `מחיר: ₪${s.price_from}-₪${s.price_to}`
+                        groupId: currentGroup.id, name: s.name.trim(),
+                        durationMins: (s.duration_hours || 1) * 60,
+                        price: s.price_from || 0
                     })
                 });
+                if (!r.ok) {
+                    const err = await r.json().catch(() => ({}));
+                    if (err.error) { showToast('error', err.error); break; }
+                }
             }
         } catch(e) {}
     }
