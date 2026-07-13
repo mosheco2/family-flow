@@ -473,7 +473,7 @@ const SA_GROUPS = {
     supportdev: { tabs: ['support', 'devops'],          labels: ['קריאות שירות', 'פיתוח ומוצר'],    icons: ['fa-headset', 'fa-code'],                  default: 'support' },
     contentmkt: { tabs: ['content', 'inbox', 'legal', 'adslots'],  labels: ['מיתוג ותוכן', 'שיווק', 'משפטי', 'שטחי פרסום'], icons: ['fa-image', 'fa-bullhorn', 'fa-file-contract', 'fa-rectangle-ad'], default: 'content' },
     partners:   { tabs: ['partners'],                   labels: [],                                  icons: [],                                         default: 'partners' },
-    system:     { tabs: ['hr', 'sysmap'],               labels: ['צוות ונציגים', 'מפת המערכת'],     icons: ['fa-user-tie', 'fa-map'],                  default: 'hr' },
+    system:     { tabs: ['hr', 'sysmap', 'auditlog'],    labels: ['צוות ונציגים', 'מפת המערכת', 'לוג אירועים'], icons: ['fa-user-tie', 'fa-map', 'fa-shield-halved'], default: 'hr' },
     templates:  { tabs: ['templates'],                  labels: ['תבניות עסקים'],                    icons: ['fa-layer-group'],                          default: 'templates' },
 };
 
@@ -565,6 +565,7 @@ window.switchViewTab = function(viewId, tabId) {
     if (viewId === 'adslots' && tabId === 'manage') { try { loadBannerSlotsPanel(); loadBannerTimeline(); } catch(e) {} }
     if (viewId === 'adslots' && tabId === 'orders') { try { loadBannerOrders(); } catch(e) {} }
     if (viewId === 'finance' && tabId === 'adsbilling') { try { loadBillingOverview(); } catch(e) {} }
+    if (viewId === 'system' && tabId === 'auditlog') { try { loadAuditLog(); } catch(e) {} }
 };
 
 // Close mobile sidebar after navigating (on mobile widths)
@@ -8851,3 +8852,92 @@ window.openClientLedger = async function(bizId, bizName) {
         }).join('');
     } catch(e) { content.innerHTML = `<p class="text-red-500 text-xs text-center py-4">שגיאה: ${e.message}</p>`; }
 };
+
+// ── AUDIT LOG ──────────────────────────────────────────────────────────────
+let _auditCache = [];
+
+const AUDIT_LABELS = {
+    DELETE_GROUP:  { label: 'מחיקת קבוצה/עסק', color: 'bg-red-100 text-red-700',     icon: 'fa-trash' },
+    DELETE_USER:   { label: 'מחיקת משתמש',      color: 'bg-red-50 text-red-600',      icon: 'fa-user-minus' },
+    CHANGE_PLAN:   { label: 'שינוי פלאן',        color: 'bg-amber-100 text-amber-700', icon: 'fa-award' },
+    CREATE_GROUP:  { label: 'יצירת קבוצה',       color: 'bg-emerald-100 text-emerald-700', icon: 'fa-plus' },
+    CREATE_USER:   { label: 'יצירת משתמש',       color: 'bg-blue-100 text-blue-700',   icon: 'fa-user-plus' },
+};
+
+async function loadAuditLog() {
+    const tbody = getEl('audit-log-tbody');
+    const statsEl = getEl('audit-stats-bar');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">טוען...</td></tr>`;
+
+    const typeFilter = getEl('audit-filter-type')?.value || '';
+    const fromFilter = getEl('audit-filter-from')?.value || '';
+    const toFilter   = getEl('audit-filter-to')?.value   || '';
+    const params = new URLSearchParams();
+    if (typeFilter) params.set('action_type', typeFilter);
+    if (fromFilter) params.set('from', fromFilter);
+    if (toFilter)   params.set('to', toFilter);
+
+    try {
+        const res  = await fetch(`${API}/sa/audit-log?${params}`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        _auditCache = data.logs || [];
+
+        // סרגל סטטיסטיקות
+        if (statsEl) {
+            statsEl.innerHTML = (data.stats || []).map(s => {
+                const def = AUDIT_LABELS[s.action_type] || { label: s.action_type, color: 'bg-slate-100 text-slate-600', icon: 'fa-circle' };
+                return `<span class="inline-flex items-center gap-1.5 ${def.color} px-3 py-1 rounded-full text-xs font-bold border border-white/50">
+                    <i class="fa-solid ${def.icon} text-[10px]"></i>${def.label}: ${s.cnt}
+                </span>`;
+            }).join('') || '<span class="text-slate-400 text-xs">אין אירועים עדיין</span>';
+        }
+
+        renderAuditLog();
+    } catch(e) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-red-400">שגיאה: ${e.message}</td></tr>`;
+    }
+}
+
+function renderAuditLog() {
+    const tbody = getEl('audit-log-tbody');
+    if (!tbody) return;
+    if (!_auditCache.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-12 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed">אין אירועים מתאימים.</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = _auditCache.map(log => {
+        const def = AUDIT_LABELS[log.action_type] || { label: log.action_type, color: 'bg-slate-100 text-slate-600', icon: 'fa-circle' };
+        const date = new Date(log.created_at);
+        const dateStr = date.toLocaleDateString('he-IL');
+        const timeStr = date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+        const details = log.details || {};
+        let detailsHtml = '';
+        if (log.action_type === 'CHANGE_PLAN' && details.from && details.to) {
+            detailsHtml = `<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[10px] font-mono">${details.from}</span>
+                <i class="fa-solid fa-arrow-left text-slate-300 text-[9px] mx-1"></i>
+                <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-mono font-bold">${details.to}</span>`;
+        } else if (details.email) {
+            detailsHtml = `<span class="text-slate-400 text-[10px] font-mono">${details.email}</span>`;
+        } else if (details.group_type) {
+            detailsHtml = `<span class="text-slate-400 text-[10px]">סוג: ${details.group_type}</span>`;
+        }
+        return `
+        <tr class="hover:bg-slate-50 transition border-b border-slate-50 last:border-0">
+            <td class="px-4 py-3 text-right">
+                <div class="text-xs font-bold text-slate-700">${dateStr}</div>
+                <div class="text-[10px] text-slate-400">${timeStr}</div>
+            </td>
+            <td class="px-4 py-3">
+                <span class="inline-flex items-center gap-1.5 ${def.color} px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap">
+                    <i class="fa-solid ${def.icon} text-[10px]"></i>${def.label}
+                </span>
+            </td>
+            <td class="px-4 py-3 font-bold text-slate-800 text-sm">${safeStr(log.target_name || '—')}</td>
+            <td class="px-4 py-3 text-slate-500 text-xs">${safeStr(log.target_type || '—')}</td>
+            <td class="px-4 py-3 text-xs">${detailsHtml}</td>
+            <td class="px-4 py-3 text-xs text-slate-400">${safeStr(log.actor || 'super-admin')}</td>
+        </tr>`;
+    }).join('');
+}
+// ──────────────────────────────────────────────────────────────────────────

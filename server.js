@@ -1598,6 +1598,18 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_transactions_group_id ON transactions(group_id)`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)`); } catch(e) {}
 
+      // לוג ביקורת — פעולות קריטיות על ידי SA
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_audit_log (
+          id SERIAL PRIMARY KEY,
+          action_type VARCHAR(50) NOT NULL,
+          actor VARCHAR(100) DEFAULT 'super-admin',
+          target_type VARCHAR(50),
+          target_id INT,
+          target_name VARCHAR(255),
+          details JSONB DEFAULT '{}'::jsonb,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+
       // רשימת המתנה — פיילוט נקדים
       try { await client.query(`CREATE TABLE IF NOT EXISTS pilot_waitlist (
           id SERIAL PRIMARY KEY,
@@ -2726,6 +2738,40 @@ function verifySA(req, res, next) {
 }
 
 // ============================================================
+// --- SA AUDIT LOG ---
+// ============================================================
+
+async function logAudit(actionType, targetType, targetId, targetName, details = {}) {
+    try {
+        await pool.query(
+            `INSERT INTO sa_audit_log (action_type, target_type, target_id, target_name, details)
+             VALUES ($1,$2,$3,$4,$5)`,
+            [actionType, targetType, targetId || null, targetName || null, JSON.stringify(details)]
+        );
+    } catch(e) {}
+}
+
+app.get('/api/sa/audit-log', verifySA, async (req, res) => {
+    try {
+        const { action_type, target_type, from, to, limit: lim = 200 } = req.query;
+        const conds = []; const vals = [];
+        if (action_type) { vals.push(action_type); conds.push(`action_type=$${vals.length}`); }
+        if (target_type) { vals.push(target_type); conds.push(`target_type=$${vals.length}`); }
+        if (from)        { vals.push(from);         conds.push(`created_at>=$${vals.length}::date`); }
+        if (to)          { vals.push(to);           conds.push(`created_at<($${vals.length}::date + interval '1 day')`); }
+        const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+        vals.push(parseInt(lim) || 200);
+        const result = await pool.query(
+            `SELECT * FROM sa_audit_log ${where} ORDER BY created_at DESC LIMIT $${vals.length}`,
+            vals
+        );
+        // סיכום לפי סוג פעולה
+        const statsRes = await pool.query(`SELECT action_type, COUNT(*) as cnt FROM sa_audit_log GROUP BY action_type ORDER BY cnt DESC`);
+        res.json({ success: true, logs: result.rows, stats: statsRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
 // --- PILOT WAITLIST (נקדים) ---
 // ============================================================
 
@@ -3084,11 +3130,16 @@ app.delete('/api/superadmin/groups/:id', verifySA, async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
+        // שמירת פרטי הקבוצה לפני המחיקה לצורך הלוג
+        const groupRow = await client.query('SELECT name, type FROM family_groups WHERE id=$1', [gid]);
+        const groupName = groupRow.rows[0]?.name || `#${gid}`;
+        const groupType = groupRow.rows[0]?.type || 'UNKNOWN';
         // NULL-ify FK refs that lack ON DELETE CASCADE/SET NULL
         await client.query('UPDATE inbox_messages    SET customer_group_id = NULL WHERE customer_group_id = $1', [gid]);
         await client.query('UPDATE calendar_events   SET customer_group_id = NULL WHERE customer_group_id = $1', [gid]);
         await client.query('DELETE FROM family_groups WHERE id = $1', [gid]);
         await client.query('COMMIT');
+        await logAudit('DELETE_GROUP', groupType, parseInt(gid), groupName, { group_id: gid, group_type: groupType });
         res.json({ success: true });
     } catch(e) {
         await client.query('ROLLBACK');
@@ -3100,7 +3151,13 @@ app.delete('/api/superadmin/groups/:id', verifySA, async (req, res) => {
 });
 
 app.delete('/api/superadmin/users/:id', verifySA, async (req, res) => {
-    try { await pool.query('DELETE FROM users WHERE id=$1', [req.params.id]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
+    try {
+        const userRow = await pool.query('SELECT nickname, email, role FROM users WHERE id=$1', [req.params.id]);
+        const u = userRow.rows[0];
+        await pool.query('DELETE FROM users WHERE id=$1', [req.params.id]);
+        await logAudit('DELETE_USER', 'USER', parseInt(req.params.id), u?.nickname || u?.email || `#${req.params.id}`, { email: u?.email, role: u?.role });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.patch('/api/superadmin/users/:id', verifySA, async (req, res) => {
@@ -3149,8 +3206,12 @@ app.post('/api/superadmin/groups/:id/plan', verifySA, async (req, res) => {
     try {
         const plan = req.body.plan;
         if (!['standard', 'premium', 'enterprise'].includes(plan)) return res.status(400).json({ error: 'תוכנית לא תקינה' });
+        const gid = req.params.id;
+        const prevRow = await pool.query('SELECT name, plan FROM family_groups WHERE id=$1', [gid]);
+        const prev = prevRow.rows[0];
         const isPremium = plan === 'enterprise';
-        await pool.query('UPDATE family_groups SET plan = $1, is_premium = $2 WHERE id = $3', [plan, isPremium, req.params.id]);
+        await pool.query('UPDATE family_groups SET plan = $1, is_premium = $2 WHERE id = $3', [plan, isPremium, gid]);
+        await logAudit('CHANGE_PLAN', 'GROUP', parseInt(gid), prev?.name || `#${gid}`, { from: prev?.plan || 'unknown', to: plan });
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

@@ -2445,6 +2445,64 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 </div>
                 </div>
 
+                <!-- לוג אירועים -->
+                <div id="sa-view-auditlog" class="hidden space-y-6 fade-in">
+                    <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
+                        <div class="flex flex-wrap justify-between items-start gap-4 mb-6 border-b border-slate-100 pb-5">
+                            <div>
+                                <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2">
+                                    <i class="fa-solid fa-shield-halved text-indigo-500"></i> לוג אירועים קריטיים
+                                </h2>
+                                <p class="text-sm text-slate-500 mt-1">תיעוד כל פעולות המחיקה, שינויי פלאן ויצירות ממשק הסופר אדמין.</p>
+                            </div>
+                            <button onclick="loadAuditLog()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2">
+                                <i class="fa-solid fa-rotate-right"></i> רענן
+                            </button>
+                        </div>
+
+                        <!-- סרגל סטטיסטיקות לפי סוג -->
+                        <div id="audit-stats-bar" class="flex flex-wrap gap-2 mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 min-h-[44px]">
+                            <span class="text-slate-400 text-xs">טוען...</span>
+                        </div>
+
+                        <!-- פילטרים -->
+                        <div class="flex flex-wrap gap-3 mb-5">
+                            <select id="audit-filter-type" onchange="loadAuditLog()"
+                                class="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white font-bold text-slate-700 focus:border-indigo-400 outline-none">
+                                <option value="">כל סוגי האירועים</option>
+                                <option value="DELETE_GROUP">מחיקת קבוצה/עסק</option>
+                                <option value="DELETE_USER">מחיקת משתמש</option>
+                                <option value="CHANGE_PLAN">שינוי פלאן</option>
+                                <option value="CREATE_GROUP">יצירת קבוצה</option>
+                                <option value="CREATE_USER">יצירת משתמש</option>
+                            </select>
+                            <input type="date" id="audit-filter-from" onchange="loadAuditLog()"
+                                class="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:border-indigo-400 outline-none" title="מתאריך">
+                            <input type="date" id="audit-filter-to" onchange="loadAuditLog()"
+                                class="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:border-indigo-400 outline-none" title="עד תאריך">
+                        </div>
+
+                        <!-- טבלת לוג -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-right">
+                                <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
+                                    <tr>
+                                        <th class="px-4 py-3 rounded-tr-lg">תאריך ושעה</th>
+                                        <th class="px-4 py-3">סוג אירוע</th>
+                                        <th class="px-4 py-3">שם היעד</th>
+                                        <th class="px-4 py-3">סוג יעד</th>
+                                        <th class="px-4 py-3">פרטים</th>
+                                        <th class="px-4 py-3 rounded-tl-lg">מבצע</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="audit-log-tbody" class="divide-y divide-slate-50">
+                                    <tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">לחץ על "לוג אירועים" לטעינה</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div><!-- /sa-view-auditlog -->
+
                 <!-- מסמכים משפטיים -->
                 <div id="sa-view-legal" class="hidden space-y-8 fade-in">
                     <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
