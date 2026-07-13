@@ -24935,6 +24935,8 @@ function _wizRenderBody() {
         : bt === 'beauty'
         ? [['צבע שיער','single',[{name:'בלונד',price:0},{name:'שחור',price:0},{name:'חום',price:0}]],['אורך שיער','single',[{name:'קצר',price:0},{name:'בינוני',price:50},{name:'ארוך',price:100}]]]
         : [['גודל','single',[{name:'קטן',price:0},{name:'בינוני',price:0},{name:'גדול',price:30}]],['צבע','single',[{name:'שחור',price:0},{name:'לבן',price:0},{name:'אחר',price:0}]]];
+      // store shortcuts in global so onclick can reference by index (avoids JSON/quote issues)
+      window._wizShortcuts = shortcuts;
       const modHtml = window.currentModifiersUI.length > 0 ? window.currentModifiersUI.map((mod,gi) => `
         <div class="bg-white border border-indigo-100 rounded-xl p-3 shadow-sm">
           <div class="flex gap-2 items-center mb-2">
@@ -24955,6 +24957,44 @@ function _wizRenderBody() {
           <button onclick="window._wizAddModOption(${gi})" class="w-full text-[10px] text-indigo-500 font-bold border border-dashed border-indigo-200 rounded-lg py-1 hover:bg-indigo-50 mt-1 transition">+ הוסף אפשרות</button>
         </div>`).join('') : '';
 
+      const shortcutsHtml = shortcuts.map((s,si) => {
+        const editing = window._wizShortcutEditing === si;
+        const opts = (window._wizShortcutEdits && window._wizShortcutEdits[si]) || s[2];
+        const sname = (window._wizShortcutNames && window._wizShortcutNames[si] !== undefined) ? window._wizShortcutNames[si] : s[0];
+        if (editing) {
+          return `<div class="bg-white border-2 border-indigo-300 rounded-xl p-3 shadow-sm">
+            <div class="flex gap-2 items-center mb-2">
+              <input type="text" value="${safeStr(sname)}" placeholder="שם קבוצה..." class="flex-1 modern-input text-xs py-1.5 font-bold" onchange="if(!window._wizShortcutNames)window._wizShortcutNames={};window._wizShortcutNames[${si}]=this.value">
+              <button onclick="window._wizShortcutEditing=null;_wizRenderStep()" class="text-slate-400 hover:text-slate-600 text-xs px-2 py-1 border rounded-lg">סגור</button>
+            </div>
+            <div id="wiz-sc-opts-${si}" class="space-y-1 mb-2">
+              ${opts.map((o,oi) => `<div class="flex gap-2 items-center">
+                <input type="text" value="${safeStr(o.name)}" placeholder="אפשרות..." class="flex-1 modern-input text-[11px] py-1" onchange="window._wizShortcutEdits[${si}][${oi}].name=this.value">
+                <input type="number" value="${o.price||0}" class="w-14 modern-input text-[11px] py-1 text-center" onchange="window._wizShortcutEdits[${si}][${oi}].price=parseFloat(this.value)||0" placeholder="₪">
+                <button onclick="window._wizShortcutEdits[${si}].splice(${oi},1);_wizRenderStep()" class="text-slate-200 hover:text-red-400 w-5 h-5 flex items-center justify-center text-[9px] transition"><i class="fa-solid fa-minus"></i></button>
+              </div>`).join('')}
+            </div>
+            <button onclick="window._wizShortcutEdits[${si}].push({name:'',price:0});_wizRenderStep()" class="text-[10px] text-indigo-500 font-bold border border-dashed border-indigo-200 rounded-lg py-1 px-3 hover:bg-indigo-50 transition">+ הוסף אפשרות</button>
+            <div class="flex gap-2 mt-2 pt-2 border-t border-slate-100">
+              <button onclick="window._wizAddQuickModByIdx(${si})" class="flex-1 bg-indigo-600 text-white text-xs font-bold py-1.5 rounded-lg hover:bg-indigo-700 transition">+ הוסף למוצר</button>
+              <button onclick="window._wizSaveShortcutAsPresetByIdx(${si},this)" class="flex-1 bg-green-50 border border-green-200 text-green-700 text-xs font-bold py-1.5 rounded-lg hover:bg-green-100 transition"><i class="fa-solid fa-floppy-disk ml-1"></i>שמור כתבנית</button>
+            </div>
+          </div>`;
+        }
+        return `<div class="flex gap-1.5 items-stretch">
+          <button onclick="window._wizAddQuickModByIdx(${si})"
+            class="flex items-center justify-between bg-white border border-indigo-100 rounded-xl px-3 py-2.5 hover:border-indigo-400 hover:bg-indigo-50 transition shadow-sm text-right flex-1 group">
+            <i class="fa-solid fa-plus text-indigo-400 group-hover:text-indigo-600 text-xs shrink-0 ml-2"></i>
+            <div class="flex-1 text-right">
+              <div class="text-xs font-black text-slate-700">${safeStr(sname)}</div>
+              <div class="text-[10px] text-slate-400 mt-0.5">${opts.map(o=>safeStr(o.name)).join(' · ')}</div>
+            </div>
+          </button>
+          <button onclick="window._wizEditShortcut(${si})" title="ערוך" class="bg-white border border-amber-200 text-amber-500 hover:bg-amber-50 rounded-xl w-9 flex items-center justify-center transition shadow-sm shrink-0"><i class="fa-solid fa-pen text-xs"></i></button>
+          <button onclick="window._wizSaveShortcutAsPresetByIdx(${si},this)" title="שמור כתבנית" class="bg-white border border-green-200 text-green-500 hover:bg-green-50 hover:text-green-700 rounded-xl w-9 flex items-center justify-center transition shadow-sm shrink-0"><i class="fa-solid fa-floppy-disk text-xs"></i></button>
+        </div>`;
+      }).join('');
+
       body.innerHTML = `
         <p class="text-sm font-bold text-slate-600">🔧 תוספות / אפשרויות <span class="text-slate-400 font-normal text-xs">(אופציונלי)</span></p>
 
@@ -24973,25 +25013,8 @@ function _wizRenderBody() {
 
         <!-- קיצורי דרך — קבוצות מוכנות מראש -->
         <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
-          <p class="text-[10px] font-bold text-slate-500 mb-2.5">⚡ קיצורי דרך — לחץ כדי להוסיף קבוצה מוכנה:</p>
-          <div class="grid grid-cols-1 gap-2">
-            ${shortcuts.map(s => `
-              <div class="flex gap-1.5 items-stretch">
-                <button onclick="window._wizAddQuickMod(${JSON.stringify(s[0])},${JSON.stringify(s[1])},${JSON.stringify(s[2])})"
-                  class="flex items-center justify-between bg-white border border-indigo-100 rounded-xl px-3 py-2.5 hover:border-indigo-400 hover:bg-indigo-50 transition shadow-sm text-right flex-1 group">
-                  <i class="fa-solid fa-plus text-indigo-400 group-hover:text-indigo-600 text-xs shrink-0 ml-2"></i>
-                  <div class="flex-1 text-right">
-                    <div class="text-xs font-black text-slate-700">${s[0]}</div>
-                    <div class="text-[10px] text-slate-400 mt-0.5">${s[2].map(o=>o.name).join(' · ')}</div>
-                  </div>
-                </button>
-                <button onclick="window._wizSaveShortcutAsPreset(${JSON.stringify(s[0])},${JSON.stringify(s[1])},${JSON.stringify(s[2])},this)"
-                  title="שמור כתבנית קבועה"
-                  class="bg-white border border-green-200 text-green-500 hover:bg-green-50 hover:text-green-700 rounded-xl w-9 flex items-center justify-center transition shadow-sm shrink-0">
-                  <i class="fa-solid fa-floppy-disk text-xs"></i>
-                </button>
-              </div>`).join('')}
-          </div>
+          <p class="text-[10px] font-bold text-slate-500 mb-2.5">⚡ קיצורי דרך — לחץ + להוסיף, ✏️ לערוך, 💾 לשמור כתבנית:</p>
+          <div class="grid grid-cols-1 gap-2">${shortcutsHtml}</div>
         </div>
 
         <!-- קבוצות שנוספו -->
@@ -25162,6 +25185,45 @@ window._wizLoadPreset = function(idx) {
   if (!window.currentModifiersUI) window.currentModifiersUI = [];
   window.currentModifiersUI.push(JSON.parse(JSON.stringify(preset)));
   _wizRenderStep();
+};
+
+window._wizEditShortcut = function(si) {
+  const s = window._wizShortcuts[si];
+  if (!window._wizShortcutEdits) window._wizShortcutEdits = {};
+  if (!window._wizShortcutEdits[si]) window._wizShortcutEdits[si] = JSON.parse(JSON.stringify(s[2]));
+  window._wizShortcutEditing = si;
+  _wizRenderStep();
+};
+
+window._wizAddQuickModByIdx = function(si) {
+  const s = window._wizShortcuts[si];
+  const name = (window._wizShortcutNames && window._wizShortcutNames[si] !== undefined) ? window._wizShortcutNames[si] : s[0];
+  const type = s[1];
+  const options = (window._wizShortcutEdits && window._wizShortcutEdits[si]) ? window._wizShortcutEdits[si] : s[2];
+  if (!window.currentModifiersUI) window.currentModifiersUI = [];
+  window.currentModifiersUI.push({ name, type, options: JSON.parse(JSON.stringify(options)) });
+  window._wizShortcutEditing = null;
+  _wizRenderStep();
+};
+
+window._wizSaveShortcutAsPresetByIdx = async function(si, btn) {
+  const s = window._wizShortcuts[si];
+  const name = (window._wizShortcutNames && window._wizShortcutNames[si] !== undefined) ? window._wizShortcutNames[si] : s[0];
+  const type = s[1];
+  const options = (window._wizShortcutEdits && window._wizShortcutEdits[si]) ? window._wizShortcutEdits[si] : s[2];
+  if (!window.storeModifierPresets) window.storeModifierPresets = [];
+  if (storeModifierPresets.some(p => p.name === name)) return showToast('info', `התבנית "${name}" כבר קיימת`);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i>'; }
+  storeModifierPresets.push({ name, type, options: JSON.parse(JSON.stringify(options)) });
+  try {
+    await fetch(`${API}/store/settings/presets`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ groupId: currentGroup.id, presets: JSON.stringify(storeModifierPresets) })
+    });
+    showToast('success', `✅ "${name}" נשמרה כתבנית!`);
+    _wizRenderStep();
+  } catch(e) { showToast('error', 'שגיאה בשמירה'); storeModifierPresets.pop(); }
+  finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk text-xs"></i>'; } }
 };
 
 window._wizSaveShortcutAsPreset = async function(name, type, options, btn) {
