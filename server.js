@@ -1610,6 +1610,10 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           created_at TIMESTAMP DEFAULT NOW(),
           expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '30 days'
       )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE group_snapshots ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()`); } catch(e) {}
+      try { await client.query(`ALTER TABLE group_snapshots ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '30 days'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE group_snapshots ADD COLUMN IF NOT EXISTS group_name VARCHAR(255)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE group_snapshots ADD COLUMN IF NOT EXISTS snapshot_type VARCHAR(20) DEFAULT 'auto'`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_group_snapshots_group_id ON group_snapshots(group_id, created_at DESC)`); } catch(e) {}
 
       // לוג ביקורת — פעולות קריטיות על ידי SA
