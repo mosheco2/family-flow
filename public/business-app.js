@@ -20147,14 +20147,20 @@ async function _nextWizardV2Step() {
             const btnNext = document.getElementById('wizard-v2-btn-next');
             if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
             try {
-                await Promise.all(prods.map(p => fetch(`${API}/store/catalog`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        groupId: currentGroup.id,
-                        name: p.name, price: p.price, category: p.category || '',
-                        isAvailable: true, productType: 'retail'
-                    })
-                })));
+                for (const p of prods) {
+                    const r = await fetch(`${API}/store/catalog`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            groupId: currentGroup.id,
+                            name: p.name, price: p.price, category: p.category || '',
+                            description: '', productType: 'retail', isAvailable: true
+                        })
+                    });
+                    if (!r.ok) {
+                        const err = await r.json().catch(() => ({}));
+                        if (err.error) { showToast('error', err.error); break; }
+                    }
+                }
             } catch(e) {}
         }
     }
