@@ -1601,6 +1601,10 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       // Soft Delete + Snapshots
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP`); } catch(e) {}
+      // החלפת UNIQUE(admin_email,type) ב-partial index — מאפשר רישום מחדש אחרי מחיקה רכה
+      try { await client.query(`ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_type_key CASCADE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_pkey1`); } catch(e) {}
+      try { await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_family_groups_email_type_active ON family_groups (LOWER(admin_email), type) WHERE (is_deleted=false OR is_deleted IS NULL)`); } catch(e) { console.warn('[MIGRATION] partial index:', e.message); }
       try { await client.query(`CREATE TABLE IF NOT EXISTS group_snapshots (
           id SERIAL PRIMARY KEY,
           group_id INT NOT NULL,
@@ -1761,7 +1765,7 @@ async function resolveOneFlowGroupIds(pool, businessGroupId, customers) {
             }
         }
         if (!gid && c.email) {
-            const er = await pool.query("SELECT id FROM family_groups WHERE LOWER(admin_email)=LOWER($1) AND type='FAMILY' LIMIT 1", [c.email]);
+            const er = await pool.query("SELECT id FROM family_groups WHERE LOWER(admin_email)=LOWER($1) AND type='FAMILY' AND (is_deleted=false OR is_deleted IS NULL) LIMIT 1", [c.email]);
             if (er.rows.length) gid = er.rows[0].id;
         }
         if (gid && gid !== parseInt(businessGroupId)) result.add(gid);
@@ -3896,7 +3900,7 @@ app.post('/api/groups', async (req, res) => {
 
         // 2. אכיפת מגבלת 2 סביבות ללקוח רגיל (שאינו הסופר אדמין)
         if (reqEmail !== saEmail && saEmail !== '') {
-            const countRes = await dbClient.query('SELECT COUNT(*) FROM family_groups WHERE LOWER(admin_email) = $1', [reqEmail]);
+            const countRes = await dbClient.query('SELECT COUNT(*) FROM family_groups WHERE LOWER(admin_email) = $1 AND (is_deleted=false OR is_deleted IS NULL)', [reqEmail]);
             if (parseInt(countRes.rows[0].count) >= 2) {
                 await dbClient.query('ROLLBACK');
                 return res.status(400).json({ error: 'ניתן לפתוח עד 2 סביבות (משפחות או עסקים) תחת אותה כתובת מייל.' });
