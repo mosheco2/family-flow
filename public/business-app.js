@@ -18639,12 +18639,12 @@ function skipWizardStep() {
 // --- ONBOARDING WIZARD V2 (שלבים מותאמי סוג עסק) ---
 
 const WIZARD_STEPS_BY_TYPE_V2 = {
-    restaurant:   ['identity', 'food_type', 'menu', 'team'],
-    beauty:       ['identity', 'practitioners', 'services', 'team'],
-    sport:        ['identity', 'trainer', 'subscriptions', 'schedule', 'team'],
-    services:     ['identity', 'service_types', 'billing_flow', 'first_customer', 'team'],
-    professional: ['identity', 'case_type', 'first_case', 'portfolio', 'team'],
-    other:        ['identity', 'catalog', 'team'],
+    restaurant:   ['identity', 'food_type', 'menu', 'my_role', 'team'],
+    beauty:       ['identity', 'practitioners', 'services', 'my_role', 'team'],
+    sport:        ['identity', 'trainer', 'subscriptions', 'schedule', 'my_role', 'team'],
+    services:     ['identity', 'service_types', 'billing_flow', 'first_customer', 'my_role', 'team'],
+    professional: ['identity', 'case_type', 'first_case', 'document_template', 'my_role', 'team'],
+    other:        ['identity', 'catalog', 'my_role', 'team'],
 };
 
 let wizardStepsV2 = [];
@@ -18775,6 +18775,66 @@ function _renderWizardV2StepContent(stepName) {
                 <div class="grid grid-cols-3 gap-2">${cuisineCards}</div>
             </div>
             ${menuSection}
+        </div>`;
+    }
+    if (stepName === 'my_role') {
+        const bizType = currentGroup?.business_type || 'other';
+        const ROLE_OPTIONS = {
+            restaurant:   [
+                { value: 'branch_manager', label: 'מנהל סניף',    icon: 'fa-user-tie' },
+                { value: 'cashier',        label: 'קופאי/ת',       icon: 'fa-cash-register' },
+                { value: 'waiter',         label: 'מלצר/ית',       icon: 'fa-utensils' },
+                { value: 'cook',           label: 'טבח/ית',        icon: 'fa-fire-burner' },
+                { value: 'delivery',       label: 'שליח/ה',        icon: 'fa-motorcycle' },
+            ],
+            beauty: [
+                { value: 'branch_manager', label: 'מנהל/ת סניף',  icon: 'fa-user-tie' },
+                { value: 'therapist',      label: 'מטפל/ת',        icon: 'fa-spa' },
+                { value: 'makeup_artist',  label: 'איפרגן/ית',     icon: 'fa-wand-sparkles' },
+                { value: 'nail_tech',      label: 'טכנאי/ת ציפורניים', icon: 'fa-hand-sparkles' },
+                { value: 'reception',      label: 'קבלן/ית',       icon: 'fa-headset' },
+            ],
+            sport: [
+                { value: 'branch_manager', label: 'מנהל/ת סניף',  icon: 'fa-user-tie' },
+                { value: 'field_tech',     label: 'מדריך/ה',       icon: 'fa-dumbbell' },
+                { value: 'cashier',        label: 'קופאי/ת',       icon: 'fa-cash-register' },
+                { value: 'shift_manager',  label: 'מנהל/ת משמרת',  icon: 'fa-clock' },
+            ],
+            services: [
+                { value: 'branch_manager', label: 'מנהל/ת סניף',  icon: 'fa-user-tie' },
+                { value: 'field_tech',     label: 'טכנאי/ת שטח',  icon: 'fa-screwdriver-wrench' },
+                { value: 'support',        label: 'תמיכה / שירות', icon: 'fa-headset' },
+                { value: 'cashier',        label: 'קופאי/ת',       icon: 'fa-cash-register' },
+            ],
+            professional: [
+                { value: 'partner',        label: 'שותף/ה',        icon: 'fa-handshake' },
+                { value: 'consultant',     label: 'יועץ/ת',        icon: 'fa-briefcase' },
+                { value: 'associate',      label: 'עמית/ה',        icon: 'fa-user-graduate' },
+            ],
+            other: [
+                { value: 'branch_manager', label: 'מנהל/ת סניף',  icon: 'fa-user-tie' },
+                { value: 'cashier',        label: 'קופאי/ת',       icon: 'fa-cash-register' },
+                { value: 'field_tech',     label: 'טכנאי/ת שטח',  icon: 'fa-screwdriver-wrench' },
+            ],
+        };
+        const roles = ROLE_OPTIONS[bizType] || ROLE_OPTIONS['other'];
+        if (!wizardV2Data.myRoleType) wizardV2Data.myRoleType = roles[0].value;
+        const cards = roles.map(r => {
+            const sel = wizardV2Data.myRoleType === r.value;
+            return `<button type="button" onclick="_wiz2SelectMyRole('${r.value}')"
+                class="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition cursor-pointer ${sel ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300'}"
+                style="touch-action:manipulation;">
+                <i class="fa-solid ${r.icon} text-2xl"></i>
+                <span class="text-xs font-bold text-center leading-tight">${r.label}</span>
+            </button>`;
+        }).join('');
+        return `
+        <div class="max-w-md mx-auto space-y-5">
+            <div class="text-center">
+                <h3 class="font-bold text-slate-800 text-lg">מה התפקיד שלך בעסק?</h3>
+                <p class="text-xs text-slate-400 mt-1">נתאים את המסך שלך בהתאם</p>
+            </div>
+            <div class="grid grid-cols-3 gap-3">${cards}</div>
         </div>`;
     }
     if (stepName === 'team') {
@@ -19657,6 +19717,16 @@ window._wiz2SelectProfession = function(value) {
         + ' border-indigo-500 bg-indigo-50';
 };
 
+window._wiz2SelectMyRole = function(value) {
+    wizardV2Data.myRoleType = value;
+    document.querySelectorAll('#wizard-v2-content button[onclick^="_wiz2SelectMyRole"]').forEach(btn => {
+        const isSelected = btn.getAttribute('onclick') === `_wiz2SelectMyRole('${value}')`;
+        btn.className = btn.className
+            .replace(/border-indigo-500 bg-indigo-50 text-indigo-700|border-slate-200 bg-white text-slate-600 hover:border-indigo-300/g, '')
+            + (isSelected ? ' border-indigo-500 bg-indigo-50 text-indigo-700' : ' border-slate-200 bg-white text-slate-600 hover:border-indigo-300');
+    });
+};
+
 window._wiz2SelectDocType = function(value) {
     wizardV2Data.docTemplateType = value;
     wizardV2Data.docTemplateContent = '';
@@ -20406,6 +20476,18 @@ async function _nextWizardV2Step() {
                 })
             });
         } catch(e) {}
+    }
+
+    if (stepName === 'my_role') {
+        const roleType = wizardV2Data.myRoleType;
+        if (roleType) {
+            try {
+                await fetch(`${API}/users/me/role-type`, {
+                    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ employee_role_type: roleType })
+                });
+            } catch(e) {}
+        }
     }
 
     if (stepName === 'team') {
