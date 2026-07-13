@@ -24942,11 +24942,12 @@ function _wizRenderBody() {
         <div class="bg-white border border-indigo-100 rounded-xl p-3 shadow-sm">
           <div class="flex gap-2 items-center mb-2">
             <input type="text" value="${safeStr(mod.name)}" placeholder="שם קבוצת תוספות..." class="flex-1 modern-input text-xs py-2 font-bold" onchange="window.currentModifiersUI[${gi}].name=this.value">
-            <select class="modern-input text-[10px] py-2 w-28" onchange="window.currentModifiersUI[${gi}].type=this.value">
+            <select class="modern-input text-[10px] py-2 w-24" onchange="window.currentModifiersUI[${gi}].type=this.value">
               <option value="single" ${mod.type==='single'?'selected':''}>בחירה יחידה</option>
               <option value="multi" ${mod.type==='multi'?'selected':''}>מרובה</option>
             </select>
-            <button onclick="window._wizRemoveModGroup(${gi})" class="text-slate-300 hover:text-red-500 w-7 h-7 flex items-center justify-center transition"><i class="fa-solid fa-times text-xs"></i></button>
+            <button title="שמור כתבנית" onclick="window._wizSavePreset(${gi})" id="wiz-save-preset-${gi}" class="text-slate-400 hover:text-green-600 w-7 h-7 flex items-center justify-center transition shrink-0" title="שמור קבוצה זו כתבנית לשימוש עתידי"><i class="fa-solid fa-floppy-disk text-xs"></i></button>
+            <button onclick="window._wizRemoveModGroup(${gi})" class="text-slate-300 hover:text-red-500 w-7 h-7 flex items-center justify-center transition shrink-0"><i class="fa-solid fa-times text-xs"></i></button>
           </div>
           ${mod.options.map((opt,oi) => `
             <div class="flex gap-2 items-center mb-1">
@@ -24955,17 +24956,21 @@ function _wizRenderBody() {
               <button onclick="window._wizRemoveModOption(${gi},${oi})" class="text-slate-200 hover:text-red-400 w-5 h-5 flex items-center justify-center text-[10px] transition"><i class="fa-solid fa-minus"></i></button>
             </div>`).join('')}
           <button onclick="window._wizAddModOption(${gi})" class="w-full text-[10px] text-indigo-500 font-bold border border-dashed border-indigo-200 rounded-lg py-1 hover:bg-indigo-50 mt-1 transition">+ אפשרות</button>
-        </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed">לא הוגדרו תוספות — לחצו למטה להוסיף, או המשיכו לשלב הבא</p>';
+        </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed">לא הוגדרו תוספות — לחצו להוסיף קבוצה, או המשיכו לשלב הבא</p>';
       body.innerHTML = `
         <div class="flex items-center justify-between">
           <p class="text-sm font-bold text-slate-600">🔧 תוספות / אפשרויות (אופציונלי)</p>
           <select class="modern-input text-[10px] py-1.5 w-36" onchange="window._wizLoadPreset(this.value)">${presetOptions}</select>
         </div>
-        <div class="flex flex-wrap gap-2">
-          ${shortcuts.map(s => `<button onclick="window._wizAddQuickMod(${JSON.stringify(s[0])},${JSON.stringify(s[1])},${JSON.stringify(s[2])})" class="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-200 px-2 py-1 rounded-lg font-bold hover:bg-indigo-100 transition">+ ${s[0]}</button>`).join('')}
-        </div>
+        ${shortcuts.length ? `
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+          <p class="text-[10px] font-bold text-slate-500 mb-2">הוסף קבוצה מוכנה במהירות:</p>
+          <div class="flex flex-wrap gap-2">
+            ${shortcuts.map(s => `<button onclick="window._wizAddQuickMod(${JSON.stringify(s[0])},${JSON.stringify(s[1])},${JSON.stringify(s[2])})" class="text-[10px] bg-white text-indigo-600 border border-indigo-200 px-2.5 py-1.5 rounded-lg font-bold hover:bg-indigo-50 transition shadow-sm">＋ ${s[0]}</button>`).join('')}
+          </div>
+        </div>` : ''}
         <div id="wiz-modifiers" class="space-y-3">${modHtml}</div>
-        <button onclick="window._wizAddModGroup()" class="w-full bg-indigo-50 border border-dashed border-indigo-300 text-indigo-600 font-bold text-sm py-2.5 rounded-xl hover:bg-indigo-100 transition">+ הוסף קבוצת תוספות</button>`;
+        <button onclick="window._wizAddModGroup()" class="w-full bg-indigo-50 border border-dashed border-indigo-300 text-indigo-600 font-bold text-sm py-2.5 rounded-xl hover:bg-indigo-100 transition">+ הוסף קבוצת תוספות ריקה</button>`;
     }
   } else {
     const typeObj = _wizGetItemTypes().find(t => t.key === _wizState.itemType) || {};
@@ -25119,9 +25124,30 @@ window._wizGenLongDesc = async function() {
 window._wizLoadPreset = function(idx) {
   if (idx === '' || typeof storeModifierPresets === 'undefined') return;
   const preset = storeModifierPresets[parseInt(idx)];
-  if (!preset || !preset.groups) return;
-  window.currentModifiersUI = JSON.parse(JSON.stringify(preset.groups));
+  if (!preset) return;
+  // each preset is a single modifier group: { name, type, options }
+  if (!window.currentModifiersUI) window.currentModifiersUI = [];
+  window.currentModifiersUI.push(JSON.parse(JSON.stringify(preset)));
   _wizRenderStep();
+};
+
+window._wizSavePreset = async function(gi) {
+  const mod = window.currentModifiersUI[gi];
+  if (!mod || !mod.name.trim() || !mod.options.some(o => o.name.trim())) {
+    return showToast('error', 'מלא שם וגם לפחות אפשרות אחת לפני השמירה');
+  }
+  const btn = document.getElementById(`wiz-save-preset-${gi}`);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i>'; }
+  if (!window.storeModifierPresets) window.storeModifierPresets = [];
+  storeModifierPresets.push(JSON.parse(JSON.stringify(mod)));
+  try {
+    await fetch(`${API}/store/settings/presets`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ groupId: currentGroup.id, presets: JSON.stringify(storeModifierPresets) })
+    });
+    showToast('success', `✅ התבנית "${mod.name}" נשמרה!`);
+  } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+  finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk text-xs"></i>'; } }
 };
 
 window._wizAddModGroup = function() {
