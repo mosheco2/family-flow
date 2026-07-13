@@ -8337,19 +8337,9 @@ window.assignAndSendQuote = async function(quoteId, familyGroupId, familyName) {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
-// המרה לפקודת עבודה
+// המרה לפקודת עבודה — מואחד: מעביר ל-convertToWorkOrder
 window.convertQuoteToWorkOrder = async function(quoteId) {
-    const isPro = currentGroup?.business_type === 'professional';
-    if (!await window._uiConfirm(isPro ? 'להמיר הצעה זו לתיק?' : 'להמיר הצעת מחיר זו לפקודת עבודה?')) return;
-    try {
-        const r = await fetch(`${API}/store/quotes/${quoteId}/to-work-order`, { method:'POST', headers:{'Content-Type':'application/json'} });
-        const d = await r.json();
-        if (d.success) {
-            showToast('success', isPro ? `תיק נפתח! #${d.workOrderId}` : `פקודת עבודה נפתחה! #${d.workOrderId}`);
-            window.fetchStoreQuotes();
-            if (typeof window.fetchWorkOrders === 'function') window.fetchWorkOrders();
-        } else showToast('error', d.error || 'שגיאה');
-    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+    if (typeof window.convertToWorkOrder === 'function') return window.convertToWorkOrder(quoteId);
 };
 
 // =================== ניהול פקודות עבודה ===================
@@ -38055,6 +38045,8 @@ async function saToggleLicense(groupId, featureKey, isActive) {
     </div>
     <div class="flex items-center gap-2 shrink-0 mr-2">
       <select id="wo-status-select" onchange="window.updateWorkOrderStatus(this.value)" class="modern-input py-1 px-2 text-xs font-bold bg-slate-50 border-slate-200 rounded-lg outline-none focus:border-indigo-400">
+        <option value="open">פתוח</option>
+        <option value="new">חדש</option>
         <option value="processing">בתהליך</option>
         <option value="scheduled">מתוזמן</option>
         <option value="pending_payment">בוצע — ממתין לתשלום</option>
@@ -38075,6 +38067,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
     <button onclick="window.switchWoTab('purchase')" id="wo-tab-purchase" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">רכש</button>
     <button onclick="window.switchWoTab('costs')" id="wo-tab-costs" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">עלויות</button>
     <button onclick="window.switchWoTab('payments')" id="wo-tab-payments" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">💳 תשלום</button>
+    <button onclick="window.switchWoTab('timelogs')" id="wo-tab-timelogs" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">⏱ שעות</button>
   </div>
   <div class="flex-1 overflow-y-auto p-4" id="wo-modal-body">
     <div id="wo-view-overview">
@@ -38253,6 +38246,10 @@ async function saToggleLicense(groupId, featureKey, isActive) {
         </div>
       </div>
     </div>
+    <div id="wo-view-timelogs" class="hidden pb-20">
+      <h4 class="font-bold text-slate-700 text-sm mb-3">⏱ רישום שעות לפקודה</h4>
+      <div id="wo-timelogs-list" class="space-y-1"></div>
+    </div>
   </div>
 </div>`;
         document.body.appendChild(modal);
@@ -38263,7 +38260,7 @@ window._currentWoId = null;
 window._currentWoData = null;
 
 window.switchWoTab = function(tab) {
-    ['overview','team','inventory','chat','notes','timeline','calendar','purchase','costs','payments'].forEach(t => {
+    ['overview','team','inventory','chat','notes','timeline','calendar','purchase','costs','payments','timelogs'].forEach(t => {
         const v = document.getElementById(`wo-view-${t}`); if(v) v.classList.add('hidden');
         const b = document.getElementById(`wo-tab-${t}`);
         if(b) b.className = 'wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700';
@@ -38276,6 +38273,7 @@ window.switchWoTab = function(tab) {
     if(tab === 'purchase') window.loadWoPurchaseOrders();
     if(tab === 'payments') window.loadWoPayments();
     if(tab === 'costs') { if(window._currentWoData) window.renderWoCosts(window._currentWoData); }
+    if(tab === 'timelogs') window.loadWoTimeLogs();
 };
 
 window.convertToWorkOrder = async function(quoteId) {
@@ -38345,7 +38343,7 @@ window.renderWorkOrdersList = function(workOrders) {
         list.innerHTML = `<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">${_isPro ? 'לא נמצאו תיקים. לחץ <strong>🔨 המר לתיק</strong> בכרטיס הצעה.' : 'לא נמצאו פקודות עבודה. לחץ <strong>🔨 המר לפקודת עבודה</strong> בכרטיס הצעת מחיר.'}</p>`;
         return;
     }
-    const statusLabels = { processing: { label: 'בתהליך', cls: 'bg-blue-100 text-blue-700 border-blue-200' }, scheduled: { label: 'מתוזמן', cls: 'bg-purple-100 text-purple-700 border-purple-200' }, completed: { label: 'הושלם', cls: 'bg-green-100 text-green-700 border-green-200' }, cancelled: { label: 'בוטל', cls: 'bg-red-100 text-red-700 border-red-200' }, new: { label: 'חדש', cls: 'bg-slate-100 text-slate-600 border-slate-200' } };
+    const statusLabels = { open: { label: 'פתוח', cls: 'bg-orange-100 text-orange-700 border-orange-200' }, new: { label: 'חדש', cls: 'bg-slate-100 text-slate-600 border-slate-200' }, processing: { label: 'בתהליך', cls: 'bg-blue-100 text-blue-700 border-blue-200' }, scheduled: { label: 'מתוזמן', cls: 'bg-purple-100 text-purple-700 border-purple-200' }, pending_payment: { label: 'ממתין לתשלום', cls: 'bg-yellow-100 text-yellow-700 border-yellow-200' }, completed: { label: 'הושלם', cls: 'bg-green-100 text-green-700 border-green-200' }, cancelled: { label: 'בוטל', cls: 'bg-red-100 text-red-700 border-red-200' } };
     const fmtM = n => parseFloat(parseFloat(n || 0).toFixed(2));
     list.innerHTML = workOrders.map(wo => {
         const st = statusLabels[wo.status] || statusLabels.new;
@@ -38908,6 +38906,53 @@ window.renderWoTimeline = function(timeline) {
             </div>
         </div>`;
     }).join('');
+};
+
+window.loadWoTimeLogs = async function() {
+    const list = document.getElementById('wo-timelogs-list');
+    if (!list) return;
+    list.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">טוען...</p>';
+    try {
+        const r = await fetch(`${API}/timelog/${currentGroup.id}`);
+        const data = await r.json();
+        const woLogs = (data.entries || []).filter(e => String(e.wo_id) === String(window._currentWoId));
+        if (!woLogs.length) {
+            list.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">אין רישומי שעות לפקודה זו</p>';
+            return;
+        }
+        const totalMins = woLogs.reduce((s, e) => s + (parseInt(e.minutes) || 0), 0);
+        const totalCost = woLogs.reduce((s, e) => s + ((parseInt(e.minutes) || 0) / 60 * (parseFloat(e.hourly_rate) || 0)), 0);
+        const fmtTime = m => `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;
+        list.innerHTML = `
+          <div class="flex justify-between items-center px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl mb-3 text-xs font-bold text-slate-600">
+            <span>סה"כ: ${fmtTime(totalMins)} ש'</span>
+            <span>עלות: ₪${totalCost.toFixed(2)}</span>
+          </div>
+          ${woLogs.map(e => `
+            <div class="flex items-center gap-3 py-2 border-b border-slate-100 last:border-0">
+              <div class="flex-1 min-w-0">
+                <p class="text-sm text-slate-700 font-medium">${safeStr(e.description || 'ללא תיאור')}</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">${safeStr(e.customer_name || '')} ${e.logged_date ? '• ' + new Date(e.logged_date).toLocaleDateString('he-IL') : ''}</p>
+              </div>
+              <div class="text-xs text-slate-500 text-left min-w-max">
+                <div class="font-bold">${fmtTime(parseInt(e.minutes)||0)} ש'</div>
+                ${e.hourly_rate ? `<div class="text-slate-400">₪${(((parseInt(e.minutes)||0)/60)*(parseFloat(e.hourly_rate)||0)).toFixed(0)}</div>` : ''}
+              </div>
+              ${e.is_billed
+                ? '<span class="text-[10px] text-green-600 font-bold bg-green-50 border border-green-200 rounded-full px-2 py-0.5">✓ חויב</span>'
+                : `<button onclick="window.markTimeLogBilled(${e.id})" class="text-[10px] text-slate-400 hover:text-indigo-600 border border-slate-200 hover:border-indigo-300 rounded-full px-2 py-0.5 transition">סמן כחויב</button>`}
+            </div>
+          `).join('')}
+        `;
+    } catch(e) { list.innerHTML = '<p class="text-red-400 text-xs text-center py-4">שגיאה בטעינה</p>'; }
+};
+
+window.markTimeLogBilled = async function(logId) {
+    try {
+        await fetch(`${API}/timelog/entry/${logId}/bill`, { method: 'PATCH' });
+        showToast('success', 'סומן כחויב');
+        window.loadWoTimeLogs();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
 window.updateWorkOrderStatus = async function(newStatus) {

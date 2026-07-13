@@ -840,6 +840,9 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE work_order_payments ALTER COLUMN work_order_id DROP NOT NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE work_order_payments ADD COLUMN IF NOT EXISTS service_call_id INT REFERENCES service_calls(id) ON DELETE CASCADE`); } catch(e) {}
       try { await client.query(`ALTER TABLE work_order_payments ADD COLUMN IF NOT EXISTS total_amount DECIMAL(10,2)`); } catch(e) {}
+      // נקה רשומות יתומות (ללא work_order_id וללא service_call_id) לפני הוספת constraint
+      try { await client.query(`DELETE FROM work_order_payments WHERE work_order_id IS NULL AND service_call_id IS NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE work_order_payments ADD CONSTRAINT chk_wop_has_ref CHECK (work_order_id IS NOT NULL OR service_call_id IS NOT NULL)`); } catch(e) {}
       try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS payment_status VARCHAR(30) DEFAULT NULL`); } catch(e) {}
       // ===== END WORK ORDER PAYMENTS MODULE =====
 
@@ -937,6 +940,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
       try { await client.query(`ALTER TABLE professional_documents ADD COLUMN IF NOT EXISTS work_order_id INT`); } catch(e) {}
+      // הוסף FK constraint עם ON DELETE SET NULL — בטוח אפילו עם שורות קיימות
+      try { await client.query(`ALTER TABLE professional_documents ADD CONSTRAINT fk_pd_work_order FOREIGN KEY (work_order_id) REFERENCES store_orders(id) ON DELETE SET NULL`); } catch(e) {}
       // ===== END PROFESSIONAL WEBSITE CONTENT MODULE =====
 
       // ===== SPORT / FITNESS MODULE =====
@@ -7205,7 +7210,9 @@ app.post('/api/store/quotes/:id/business-message', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- שליפת פקודות עבודה לעסק ---
+// --- [LEGACY] שליפת פקודות עבודה מ-service_calls (טבלה ישנה) ---
+// endpoint זה אינו בשימוש פעיל — המערכת עברה ל-/api/work-orders/list/:groupId
+// ניתן להסיר לאחר וידוא שאין קריאות אליו
 app.get('/api/work-orders/:businessGroupId', async (req, res) => {
     try {
         const r = await pool.query(`SELECT sc.*, fg.name as family_name
@@ -15284,6 +15291,21 @@ app.post('/api/work-orders/:id/assignees', async (req, res) => {
             [req.params.id, userId, userName, assignedBy]
         );
         await addWorkOrderTimeline(req.params.id, 'assignee_added', `שויך עובד: ${userName}`, assignedBy);
+        // שלח התראה לעובד שמושייך — לא חסום אם נכשל
+        try {
+            const woRes = await pool.query('SELECT group_id, quote_title, quote_number FROM store_orders WHERE id=$1', [req.params.id]);
+            if (woRes.rows.length) {
+                const wo = woRes.rows[0];
+                const uRes = await pool.query('SELECT family_group_id FROM users WHERE id=$1', [userId]);
+                const targetGroupId = uRes.rows[0]?.family_group_id || wo.group_id;
+                const woLabel = wo.quote_title || wo.quote_number || `פקודה #${req.params.id}`;
+                await pool.query(
+                    `INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
+                     VALUES ($1,'work_order_assigned','שויכת לפקודת עבודה',$2,$3,'work_order',NOW())`,
+                    [targetGroupId, `${assignedBy || 'מנהל'} שייך אותך ל: ${woLabel}`, req.params.id]
+                );
+            }
+        } catch(notifErr) {} // התראה לא חיונית
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
