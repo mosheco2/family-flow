@@ -24928,10 +24928,7 @@ function _wizRenderBody() {
         <button onclick="window._wizAddPizzaTop()" class="w-full bg-red-50 border border-dashed border-red-200 text-red-600 font-bold text-sm py-2.5 rounded-xl hover:bg-red-100 transition">+ הוסף תוספת</button>`;
     } else {
       if (!window.currentModifiersUI) window.currentModifiersUI = [];
-      let presetOptions = '<option value="">טען תבנית...</option>';
-      if (typeof storeModifierPresets !== 'undefined' && storeModifierPresets.length > 0) {
-        storeModifierPresets.forEach((p,i) => { presetOptions += `<option value="${i}">${safeStr(p.name)}</option>`; });
-      }
+      const hasPresets = typeof storeModifierPresets !== 'undefined' && storeModifierPresets.length > 0;
       const bt = currentGroup?.business_type || '';
       const shortcuts = bt === 'restaurant'
         ? [['מידת בישול','single',[{name:'בינוני',price:0},{name:'Well Done',price:0},{name:'Medium Rare',price:0}]],['סוגי לחם','single',[{name:'לחם לבן',price:0},{name:'לחם שחור',price:0},{name:'ללא לחם',price:0}]]]
@@ -24946,7 +24943,7 @@ function _wizRenderBody() {
               <option value="single" ${mod.type==='single'?'selected':''}>בחירה יחידה</option>
               <option value="multi" ${mod.type==='multi'?'selected':''}>מרובה</option>
             </select>
-            <button title="שמור כתבנית" onclick="window._wizSavePreset(${gi})" id="wiz-save-preset-${gi}" class="text-slate-400 hover:text-green-600 w-7 h-7 flex items-center justify-center transition shrink-0" title="שמור קבוצה זו כתבנית לשימוש עתידי"><i class="fa-solid fa-floppy-disk text-xs"></i></button>
+            <button onclick="window._wizSavePreset(${gi})" id="wiz-save-preset-${gi}" title="שמור קבוצה זו כתבנית לשימוש עתידי" class="text-slate-400 hover:text-green-600 w-7 h-7 flex items-center justify-center transition shrink-0"><i class="fa-solid fa-floppy-disk text-xs"></i></button>
             <button onclick="window._wizRemoveModGroup(${gi})" class="text-slate-300 hover:text-red-500 w-7 h-7 flex items-center justify-center transition shrink-0"><i class="fa-solid fa-times text-xs"></i></button>
           </div>
           ${mod.options.map((opt,oi) => `
@@ -24955,22 +24952,51 @@ function _wizRenderBody() {
               <input type="number" value="${opt.price||0}" class="w-14 modern-input text-[11px] py-1.5 text-center" onchange="window.currentModifiersUI[${gi}].options[${oi}].price=parseFloat(this.value)||0" placeholder="₪">
               <button onclick="window._wizRemoveModOption(${gi},${oi})" class="text-slate-200 hover:text-red-400 w-5 h-5 flex items-center justify-center text-[10px] transition"><i class="fa-solid fa-minus"></i></button>
             </div>`).join('')}
-          <button onclick="window._wizAddModOption(${gi})" class="w-full text-[10px] text-indigo-500 font-bold border border-dashed border-indigo-200 rounded-lg py-1 hover:bg-indigo-50 mt-1 transition">+ אפשרות</button>
-        </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed">לא הוגדרו תוספות — לחצו להוסיף קבוצה, או המשיכו לשלב הבא</p>';
+          <button onclick="window._wizAddModOption(${gi})" class="w-full text-[10px] text-indigo-500 font-bold border border-dashed border-indigo-200 rounded-lg py-1 hover:bg-indigo-50 mt-1 transition">+ הוסף אפשרות</button>
+        </div>`).join('') : '';
+
       body.innerHTML = `
-        <div class="flex items-center justify-between">
-          <p class="text-sm font-bold text-slate-600">🔧 תוספות / אפשרויות (אופציונלי)</p>
-          <select class="modern-input text-[10px] py-1.5 w-36" onchange="window._wizLoadPreset(this.value)">${presetOptions}</select>
-        </div>
-        ${shortcuts.length ? `
-        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
-          <p class="text-[10px] font-bold text-slate-500 mb-2">הוסף קבוצה מוכנה במהירות:</p>
+        <p class="text-sm font-bold text-slate-600">🔧 תוספות / אפשרויות <span class="text-slate-400 font-normal text-xs">(אופציונלי)</span></p>
+
+        <!-- תבניות שמורות -->
+        ${hasPresets ? `
+        <div class="bg-blue-50 border border-blue-100 rounded-xl p-3">
+          <p class="text-[10px] font-bold text-blue-700 mb-2">📋 תבניות שמורות — לחץ להוסיף לרשימה:</p>
           <div class="flex flex-wrap gap-2">
-            ${shortcuts.map(s => `<button onclick="window._wizAddQuickMod(${JSON.stringify(s[0])},${JSON.stringify(s[1])},${JSON.stringify(s[2])})" class="text-[10px] bg-white text-indigo-600 border border-indigo-200 px-2.5 py-1.5 rounded-lg font-bold hover:bg-indigo-50 transition shadow-sm">＋ ${s[0]}</button>`).join('')}
+            ${storeModifierPresets.map((p,i) => `
+              <button onclick="window._wizLoadPreset('${i}')" class="text-[10px] bg-white text-blue-700 border border-blue-200 rounded-lg px-2.5 py-1.5 font-bold hover:bg-blue-100 transition shadow-sm flex items-center gap-1">
+                <i class="fa-solid fa-plus text-[8px]"></i> ${safeStr(p.name)}
+                <span class="text-blue-400 font-normal">(${(p.options||[]).length} אפשרויות)</span>
+              </button>`).join('')}
           </div>
         </div>` : ''}
-        <div id="wiz-modifiers" class="space-y-3">${modHtml}</div>
-        <button onclick="window._wizAddModGroup()" class="w-full bg-indigo-50 border border-dashed border-indigo-300 text-indigo-600 font-bold text-sm py-2.5 rounded-xl hover:bg-indigo-100 transition">+ הוסף קבוצת תוספות ריקה</button>`;
+
+        <!-- קיצורי דרך — קבוצות מוכנות מראש -->
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+          <p class="text-[10px] font-bold text-slate-500 mb-2.5">⚡ קיצורי דרך — לחץ כדי להוסיף קבוצה מוכנה:</p>
+          <div class="grid grid-cols-1 gap-2">
+            ${shortcuts.map(s => `
+              <button onclick="window._wizAddQuickMod(${JSON.stringify(s[0])},${JSON.stringify(s[1])},${JSON.stringify(s[2])})"
+                class="flex items-center justify-between bg-white border border-indigo-100 rounded-xl px-3 py-2.5 hover:border-indigo-400 hover:bg-indigo-50 transition shadow-sm text-right w-full group">
+                <i class="fa-solid fa-plus text-indigo-400 group-hover:text-indigo-600 text-xs shrink-0 ml-2"></i>
+                <div class="flex-1 text-right">
+                  <div class="text-xs font-black text-slate-700">${s[0]}</div>
+                  <div class="text-[10px] text-slate-400 mt-0.5">${s[2].map(o=>o.name).join(' · ')}</div>
+                </div>
+              </button>`).join('')}
+          </div>
+        </div>
+
+        <!-- קבוצות שנוספו -->
+        ${window.currentModifiersUI.length > 0 ? `
+        <div>
+          <p class="text-[10px] font-bold text-slate-500 mb-2">קבוצות שהוגדרו (לחץ 💾 לשמור כתבנית):</p>
+          <div id="wiz-modifiers" class="space-y-3">${modHtml}</div>
+        </div>` : `<div id="wiz-modifiers"></div>`}
+
+        <button onclick="window._wizAddModGroup()" class="w-full bg-white border-2 border-dashed border-slate-300 text-slate-500 font-bold text-sm py-2.5 rounded-xl hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition">
+          + הוסף קבוצת תוספות ריקה
+        </button>`;
     }
   } else {
     const typeObj = _wizGetItemTypes().find(t => t.key === _wizState.itemType) || {};
