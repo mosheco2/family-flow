@@ -19343,20 +19343,21 @@ window._generateRepairServices = async function() {
             if (resultEl) resultEl.innerHTML = '<p class="text-center text-red-500 py-4">שגיאה בבניית הרשימה. נסה שנית.</p>';
             return;
         }
-        if (outer.error === 'BATTERY_EMPTY') {
+        const _repairManualRows = () => _wizBatteryEmptyHTML(i => `
+            <div class="flex gap-2 items-center bg-white rounded-xl border border-slate-200 p-2 mb-2">
+                <input type="text" placeholder="שם שירות" class="modern-input py-1.5 text-sm flex-1"
+                    oninput="if(!wizardV2Data.repairServices)wizardV2Data.repairServices=[];if(!wizardV2Data.repairServices[${i}])wizardV2Data.repairServices[${i}]={name:'',price_from:0,price_to:0,duration_hours:1,category:''};wizardV2Data.repairServices[${i}].name=this.value">
+                <input type="number" placeholder="מ-₪" min="0" class="modern-input py-1.5 text-xs w-16 text-center"
+                    oninput="if(wizardV2Data.repairServices&&wizardV2Data.repairServices[${i}])wizardV2Data.repairServices[${i}].price_from=parseFloat(this.value)||0">
+                <input type="number" placeholder="עד-₪" min="0" class="modern-input py-1.5 text-xs w-16 text-center"
+                    oninput="if(wizardV2Data.repairServices&&wizardV2Data.repairServices[${i}])wizardV2Data.repairServices[${i}].price_to=parseFloat(this.value)||0">
+                <input type="number" placeholder="ש'" min="0.5" step="0.5" class="modern-input py-1.5 text-xs w-14 text-center"
+                    oninput="if(wizardV2Data.repairServices&&wizardV2Data.repairServices[${i}])wizardV2Data.repairServices[${i}].duration_hours=parseFloat(this.value)||1">
+                <button type="button" onclick="_wiz2RemoveRepairSvc(${i})" class="text-red-400 hover:text-red-600 px-1">✕</button>
+            </div>`);
+        if (!outer.success || outer.error) {
             resultEl = document.getElementById('wiz-v2-repair-result');
-            if (resultEl) resultEl.innerHTML = _wizBatteryEmptyHTML(i => `
-                <div class="flex gap-2 items-center bg-white rounded-xl border border-slate-200 p-2 mb-2">
-                    <input type="text" placeholder="שם שירות" class="modern-input py-1.5 text-sm flex-1"
-                        oninput="if(!wizardV2Data.repairServices)wizardV2Data.repairServices=[];if(!wizardV2Data.repairServices[${i}])wizardV2Data.repairServices[${i}]={name:'',price_from:0,price_to:0,duration_hours:1,category:''};wizardV2Data.repairServices[${i}].name=this.value">
-                    <input type="number" placeholder="מ-₪" min="0" class="modern-input py-1.5 text-xs w-16 text-center"
-                        oninput="if(wizardV2Data.repairServices&&wizardV2Data.repairServices[${i}])wizardV2Data.repairServices[${i}].price_from=parseFloat(this.value)||0">
-                    <input type="number" placeholder="עד-₪" min="0" class="modern-input py-1.5 text-xs w-16 text-center"
-                        oninput="if(wizardV2Data.repairServices&&wizardV2Data.repairServices[${i}])wizardV2Data.repairServices[${i}].price_to=parseFloat(this.value)||0">
-                    <input type="number" placeholder="ש'" min="0.5" step="0.5" class="modern-input py-1.5 text-xs w-14 text-center"
-                        oninput="if(wizardV2Data.repairServices&&wizardV2Data.repairServices[${i}])wizardV2Data.repairServices[${i}].duration_hours=parseFloat(this.value)||1">
-                    <button type="button" onclick="_wiz2RemoveRepairSvc(${i})" class="text-red-400 hover:text-red-600 px-1">✕</button>
-                </div>`);
+            if (resultEl) resultEl.innerHTML = _repairManualRows();
             return;
         }
         let items = (outer.success && outer.items) ? outer.items : null;
@@ -19469,7 +19470,7 @@ async function _generateRepairProductsNow() {
             if (resultEl) resultEl.innerHTML = '<p class="text-center text-red-500 py-4">שגיאה בבניית הקטלוג. נסה שנית.</p>';
             return;
         }
-        if (outer.error === 'BATTERY_EMPTY') {
+        if (!outer.success || outer.error) {
             resultEl = document.getElementById('wiz-v2-prod-result');
             if (resultEl) resultEl.innerHTML = _showManualProdRows();
             return;
@@ -19671,17 +19672,18 @@ window._generateBeautyServices = async function() {
             resultEl.innerHTML = '<p style="color:red">שגיאה בבניית הרשימה. נסה שנית.</p>';
             return;
         }
-        if (outer.error === 'BATTERY_EMPTY') {
-            resultEl.innerHTML = _wizBatteryEmptyHTML(i => `
-                <div class="flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl mb-2">
-                    <input type="text" placeholder="שם טיפול" class="modern-input py-1.5 text-sm flex-1"
-                        oninput="if(!wizardV2Data.services)wizardV2Data.services=[];if(!wizardV2Data.services[${i}])wizardV2Data.services[${i}]={name:'',duration_minutes:60,price:0,category:''};wizardV2Data.services[${i}].name=this.value">
-                    <input type="number" placeholder="דק'" min="0" step="15" class="modern-input py-1.5 text-xs w-16 text-center"
-                        oninput="if(wizardV2Data.services&&wizardV2Data.services[${i}])wizardV2Data.services[${i}].duration_minutes=parseInt(this.value)||60">
-                    <input type="number" placeholder="₪" min="0" class="modern-input py-1.5 text-xs w-20 text-center"
-                        oninput="if(wizardV2Data.services&&wizardV2Data.services[${i}])wizardV2Data.services[${i}].price=parseFloat(this.value)||0">
-                    <button type="button" onclick="_wiz2RemoveSvc(${i})" class="text-red-400 hover:text-red-600 px-1">✕</button>
-                </div>`);
+        const _beautyManualRows = () => _wizBatteryEmptyHTML(i => `
+            <div class="flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl mb-2">
+                <input type="text" placeholder="שם טיפול" class="modern-input py-1.5 text-sm flex-1"
+                    oninput="if(!wizardV2Data.services)wizardV2Data.services=[];if(!wizardV2Data.services[${i}])wizardV2Data.services[${i}]={name:'',duration_minutes:60,price:0,category:''};wizardV2Data.services[${i}].name=this.value">
+                <input type="number" placeholder="דק'" min="0" step="15" class="modern-input py-1.5 text-xs w-16 text-center"
+                    oninput="if(wizardV2Data.services&&wizardV2Data.services[${i}])wizardV2Data.services[${i}].duration_minutes=parseInt(this.value)||60">
+                <input type="number" placeholder="₪" min="0" class="modern-input py-1.5 text-xs w-20 text-center"
+                    oninput="if(wizardV2Data.services&&wizardV2Data.services[${i}])wizardV2Data.services[${i}].price=parseFloat(this.value)||0">
+                <button type="button" onclick="_wiz2RemoveSvc(${i})" class="text-red-400 hover:text-red-600 px-1">✕</button>
+            </div>`);
+        if (!outer.success || outer.error) {
+            resultEl.innerHTML = _beautyManualRows();
             return;
         }
         let items = (outer.success && outer.items) ? outer.items : null;
@@ -19827,19 +19829,20 @@ window._generateWizardMenu = async function() {
             resultEl.innerHTML = '<p style="color:red">שגיאה בבניית התפריט. נסה שנית.</p>';
             return;
         }
-        if (outerData.error === 'BATTERY_EMPTY') {
-            resultEl.innerHTML = _wizBatteryEmptyHTML(i => `
-                <div class="flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl mb-2">
-                    <input type="text" placeholder="שם מנה" class="modern-input py-1.5 text-sm flex-1"
-                        oninput="if(!wizardV2Data.menuItems)wizardV2Data.menuItems=[];if(!wizardV2Data.menuItems[${i}])wizardV2Data.menuItems[${i}]={name:'',price:0,category:'מנות עיקריות'};wizardV2Data.menuItems[${i}].name=this.value">
-                    <select class="modern-input py-1.5 text-xs w-28 bg-white"
-                        onchange="if(wizardV2Data.menuItems&&wizardV2Data.menuItems[${i}])wizardV2Data.menuItems[${i}].category=this.value">
-                        ${['מנות עיקריות','סלטים','תוספות','שתייה','קינוחים'].map(c=>`<option>${c}</option>`).join('')}
-                    </select>
-                    <input type="number" placeholder="₪" min="0" class="modern-input py-1.5 text-xs w-20 text-center"
-                        oninput="if(wizardV2Data.menuItems&&wizardV2Data.menuItems[${i}])wizardV2Data.menuItems[${i}].price=parseFloat(this.value)||0">
-                    <button type="button" onclick="_removeWizardV2MenuItem(${i})" class="text-red-400 hover:text-red-600 px-1">✕</button>
-                </div>`);
+        const _menuManualRows = () => _wizBatteryEmptyHTML(i => `
+            <div class="flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl mb-2">
+                <input type="text" placeholder="שם מנה" class="modern-input py-1.5 text-sm flex-1"
+                    oninput="if(!wizardV2Data.menuItems)wizardV2Data.menuItems=[];if(!wizardV2Data.menuItems[${i}])wizardV2Data.menuItems[${i}]={name:'',price:0,category:'מנות עיקריות'};wizardV2Data.menuItems[${i}].name=this.value">
+                <select class="modern-input py-1.5 text-xs w-28 bg-white"
+                    onchange="if(wizardV2Data.menuItems&&wizardV2Data.menuItems[${i}])wizardV2Data.menuItems[${i}].category=this.value">
+                    ${['מנות עיקריות','סלטים','תוספות','שתייה','קינוחים'].map(c=>`<option>${c}</option>`).join('')}
+                </select>
+                <input type="number" placeholder="₪" min="0" class="modern-input py-1.5 text-xs w-20 text-center"
+                    oninput="if(wizardV2Data.menuItems&&wizardV2Data.menuItems[${i}])wizardV2Data.menuItems[${i}].price=parseFloat(this.value)||0">
+                <button type="button" onclick="_removeWizardV2MenuItem(${i})" class="text-red-400 hover:text-red-600 px-1">✕</button>
+            </div>`);
+        if (!outerData.success || outerData.error) {
+            resultEl.innerHTML = _menuManualRows();
             return;
         }
         const items = (outerData.success && outerData.items) ? outerData.items : null;
