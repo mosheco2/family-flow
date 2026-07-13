@@ -20416,9 +20416,7 @@ async function _nextWizardV2Step() {
             const modal = document.getElementById('onboarding-wizard-v2');
             if (modal) modal.classList.add('hidden');
             triggerConfetti();
-            fetchData();
-            try { fetchStoreCatalog(); } catch(e) {}
-            try { fetchStoreSettings(); } catch(e) {}
+            setTimeout(() => location.reload(), 1200);
         };
         try {
             const ctrl = new AbortController();
