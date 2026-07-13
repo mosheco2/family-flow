@@ -20246,8 +20246,6 @@ async function _nextWizardV2Step() {
         if (wizardV2Data.useAI === null || wizardV2Data.useAI === undefined) { alert('נא לבחור: בניה אוטומטית עם AI או ידנית'); return; }
         const items = (wizardV2Data.menuItems || []).filter(i => i.name && i.name.trim());
         if (items.length === 0) { alert('נא להוסיף לפחות מנה אחת'); return; }
-        const btnNext = document.getElementById('wizard-v2-btn-next');
-        if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
         try {
             for (const item of items) {
                 const r = await fetch(`${API}/store/catalog`, {
@@ -20261,7 +20259,11 @@ async function _nextWizardV2Step() {
                         productType: 'retail'
                     })
                 });
-                if (!r.ok) break;
+                if (!r.ok) {
+                    const err = await r.json().catch(() => ({}));
+                    if (err.error) showToast('info', err.error);
+                    break;
+                }
             }
         } catch(e) {}
     }
