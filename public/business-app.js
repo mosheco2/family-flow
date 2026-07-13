@@ -18100,8 +18100,291 @@ function importExcelToWizard(input) {
 function importExcelToCatalog(input) {
     const file = input.files[0]; if (!file) return;
     input.value = '';
-    _readExcelFile(file, 'catalog');
+    if (!window.XLSX) { showToast('error', 'ספריית Excel לא נטענה'); return; }
+    const reader = new FileReader();
+    reader.onerror = () => showToast('error', 'לא הצלחנו לקרוא את הקובץ — נסה פורמט אחר');
+    reader.onload = e => {
+        try {
+            const wb = XLSX.read(e.target.result, { type: 'binary' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+            if (!rawRows || rawRows.length < 2) { showToast('error', 'לא הצלחנו לקרוא את הקובץ — נסה פורמט אחר'); return; }
+            _excelCatOpenModal(rawRows);
+        } catch(err) { showToast('error', 'לא הצלחנו לקרוא את הקובץ — נסה פורמט אחר'); }
+    };
+    reader.readAsBinaryString(file);
 }
+
+// ══════════════════════════════════════════════════════════════════════
+// CATALOG EXCEL IMPORT — NEW FLOW (AI mapping → preview → bulk-import)
+// ══════════════════════════════════════════════════════════════════════
+window._excelCatRows = []; // [{name,price,category,description,sku,selected}]
+
+async function _excelCatOpenModal(rawRows) {
+    document.getElementById('excel-import-modal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="excel-import-modal" class="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 p-4">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col" style="max-height:93vh">
+        <div class="flex items-center justify-between px-5 pt-5 pb-3 border-b border-slate-100 shrink-0">
+          <div>
+            <h2 class="text-lg font-black text-slate-800"><i class="fa-solid fa-file-excel text-emerald-500 mr-2"></i>ייבוא קטלוג מ-Excel</h2>
+            <p class="text-xs text-slate-400 mt-0.5">תומך ב-.xlsx, .xls, .csv — כל פורמט</p>
+          </div>
+          <button onclick="document.getElementById('excel-import-modal')?.remove()" class="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full text-lg"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="excel-cat-body" class="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center gap-3 min-h-[200px]">
+          <div class="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+          <p class="text-sm font-bold text-slate-600">מזהה עמודות...</p>
+        </div>
+        <div id="excel-cat-footer" class="p-4 border-t border-slate-100 shrink-0 hidden"></div>
+      </div>
+    </div>`);
+
+    const headers = rawRows[0].map(c => String(c).trim());
+    const sample = rawRows.slice(0, 6);
+
+    try {
+        const res = await fetch(`${API}/ai/generate-catalog`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                promptText: `יש לי טבלת Excel עם הנתונים הבאים (5 שורות ראשונות):\n${JSON.stringify(sample)}\n\nזהה אילו עמודות מכילות: שם מוצר, מחיר, קטגוריה, תיאור, מקט.\nהחזר JSON בלבד:\n{"mapping": {"name": "שם העמודה", "price": "שם העמודה", "category": "שם העמודה או null", "description": "שם העמודה או null", "sku": "שם העמודה או null"}}\nאם עמודה לא קיימת — החזר null עבורה. ללא טקסט נוסף.`,
+                type: 'BUSINESS',
+                groupId: currentGroup.id
+            })
+        });
+        const data = await res.json();
+        const mapping = _excelCatExtractMapping(data);
+        if (mapping && mapping.name) {
+            _excelCatShowPreview(rawRows, _excelCatApplyMapping(rawRows, headers, mapping));
+        } else {
+            _excelCatShowManualMapping(rawRows, headers);
+        }
+    } catch(e) {
+        _excelCatShowManualMapping(rawRows, headers);
+    }
+}
+
+function _excelCatExtractMapping(data) {
+    if (!data) return null;
+    if (data.mapping) return data.mapping;
+    // Try to find JSON mapping embedded in text
+    const str = typeof data === 'string' ? data : JSON.stringify(data);
+    const m = str.match(/"mapping"\s*:\s*(\{[^}]+\})/);
+    if (m) { try { return JSON.parse(m[1]); } catch(e) {} }
+    return null;
+}
+
+function _excelCatApplyMapping(rawRows, headers, mapping) {
+    const col = field => {
+        if (!mapping[field] || mapping[field] === 'null') return -1;
+        const idx = headers.indexOf(mapping[field]);
+        return idx >= 0 ? idx : headers.findIndex(h => h.includes(mapping[field]) || mapping[field].includes(h));
+    };
+    const nameCol = col('name') >= 0 ? col('name') : 0;
+    const priceCol = col('price');
+    const catCol = col('category');
+    const descCol = col('description');
+    const skuCol = col('sku');
+
+    return rawRows.slice(1).map(row => {
+        const cells = row.map(c => String(c).trim());
+        const name = cells[nameCol] || '';
+        const rawPrice = priceCol >= 0 ? cells[priceCol] : '';
+        const price = parseFloat(String(rawPrice).replace(/[^\d.]/g, '')) || 0;
+        return {
+            name,
+            price,
+            category: catCol >= 0 ? (cells[catCol] || 'כללי') : 'כללי',
+            description: descCol >= 0 ? (cells[descCol] || '') : '',
+            sku: skuCol >= 0 ? (cells[skuCol] || '') : '',
+            selected: !!name
+        };
+    }).filter(r => r.name || r.price);
+}
+
+function _excelCatShowManualMapping(rawRows, headers) {
+    const body = document.getElementById('excel-cat-body');
+    const footer = document.getElementById('excel-cat-footer');
+    if (!body) return;
+    const fields = [
+        { key: 'name', label: 'שם מוצר', required: true },
+        { key: 'price', label: 'מחיר', required: false },
+        { key: 'category', label: 'קטגוריה', required: false },
+        { key: 'description', label: 'תיאור', required: false },
+        { key: 'sku', label: 'מקט', required: false },
+    ];
+    const opts = ['— לא קיים —', ...headers].map(h => `<option value="${safeStr(h)}">${safeStr(h)}</option>`).join('');
+    body.innerHTML = `
+    <div class="w-full space-y-3">
+      <div class="flex items-center gap-2 mb-2">
+        <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
+        <p class="text-sm font-bold text-slate-700">לא הצלחנו לזהות אוטומטית — בחר את העמודות ידנית:</p>
+      </div>
+      ${fields.map(f => `
+      <div class="flex items-center gap-3">
+        <label class="w-28 text-xs font-bold text-slate-600 text-right shrink-0">${f.label}${f.required?' <span class="text-red-400">*</span>':''}:</label>
+        <select id="excel-map-${f.key}" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm text-right bg-white">
+          ${opts}
+        </select>
+      </div>`).join('')}
+    </div>`;
+    if (footer) {
+        footer.classList.remove('hidden');
+        footer.innerHTML = `
+        <button onclick="_excelCatApplyManual(${JSON.stringify(rawRows).replace(/"/g,'&quot;')}, ${JSON.stringify(headers).replace(/"/g,'&quot;')})"
+          class="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold text-sm hover:bg-indigo-700 transition">
+          המשך לתצוגה מקדימה ←
+        </button>`;
+        // fix: use closure instead of inline to avoid encoding issues
+        footer.querySelector('button').onclick = () => _excelCatApplyManual(rawRows, headers);
+    }
+    // pre-select best guesses
+    fields.forEach(f => {
+        const sel = document.getElementById(`excel-map-${f.key}`);
+        if (!sel) return;
+        const keywords = { name:['שם','name','מנה','מוצר'], price:['מחיר','price','עלות'], category:['קטגוריה','category','סוג'], description:['תיאור','description','הערות'], sku:['מקט','sku','קוד'] };
+        const match = headers.find(h => keywords[f.key]?.some(k => h.includes(k)));
+        if (match) sel.value = match;
+    });
+}
+
+function _excelCatApplyManual(rawRows, headers) {
+    const get = key => { const el = document.getElementById(`excel-map-${key}`); return el ? el.value : '— לא קיים —'; };
+    const mapping = { name: get('name'), price: get('price'), category: get('category'), description: get('description'), sku: get('sku') };
+    if (!mapping.name || mapping.name === '— לא קיים —') { showToast('error', 'יש לבחור עמודת שם מוצר'); return; }
+    _excelCatShowPreview(rawRows, _excelCatApplyMapping(rawRows, headers, mapping));
+}
+
+function _excelCatShowPreview(rawRows, rows) {
+    window._excelCatRows = rows;
+    const body = document.getElementById('excel-cat-body');
+    const footer = document.getElementById('excel-cat-footer');
+    if (!body) return;
+    const total = rows.filter(r => r.name).length;
+    body.innerHTML = `
+    <div class="w-full">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-sm font-bold text-slate-700">נמצאו <span class="text-indigo-600">${total}</span> מוצרים — בדקו לפני ייבוא</p>
+        <div class="flex gap-3">
+          <button onclick="_excelCatSelectAll(true)" class="text-xs text-indigo-600 hover:underline font-bold">בחר הכל</button>
+          <button onclick="_excelCatSelectAll(false)" class="text-xs text-slate-500 hover:underline">בטל הכל</button>
+        </div>
+      </div>
+      <div class="overflow-x-auto rounded-2xl border border-slate-200">
+        <table class="w-full text-sm border-collapse">
+          <thead>
+            <tr class="bg-slate-50 text-xs text-slate-500 font-bold">
+              <th class="px-2 py-2 w-8 text-center">☐</th>
+              <th class="px-3 py-2 text-right">שם מוצר</th>
+              <th class="px-3 py-2 text-right w-20">מחיר ₪</th>
+              <th class="px-3 py-2 text-right w-28">קטגוריה</th>
+              <th class="px-3 py-2 text-right">תיאור</th>
+              <th class="px-3 py-2 text-right w-20">מקט</th>
+            </tr>
+          </thead>
+          <tbody id="excel-cat-tbody"></tbody>
+        </table>
+      </div>
+      <p id="excel-cat-count" class="text-xs text-slate-400 mt-2 text-left"></p>
+    </div>`;
+    if (footer) {
+        footer.classList.remove('hidden');
+        footer.innerHTML = `
+        <button onclick="_excelCatDoImport()" id="excel-cat-import-btn"
+          class="w-full bg-emerald-600 text-white py-3 rounded-2xl font-bold text-sm hover:bg-emerald-700 transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-file-import"></i> <span id="excel-cat-import-label">ייבא מוצרים נבחרים</span>
+        </button>`;
+    }
+    _excelCatRenderRows();
+}
+
+function _excelCatRenderRows() {
+    const tbody = document.getElementById('excel-cat-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = window._excelCatRows.map((row, idx) => {
+        const missingName = !row.name.trim();
+        const missingPrice = !row.price || row.price <= 0;
+        let rowCls = 'border-b border-slate-100 hover:bg-slate-50 transition';
+        let tooltip = '';
+        if (missingName) { rowCls += ' bg-red-50'; tooltip = 'שם חסר — לא ניתן לייבא'; }
+        else if (missingPrice) { rowCls += ' bg-amber-50'; tooltip = 'נא להזין מחיר'; }
+        const canSelect = !missingName;
+        return `<tr class="${rowCls}" title="${tooltip}">
+          <td class="px-2 py-1.5 text-center">
+            <input type="checkbox" class="excel-cat-cb w-3.5 h-3.5 accent-indigo-600" data-idx="${idx}"
+              ${row.selected && canSelect ? 'checked' : ''} ${!canSelect ? 'disabled' : ''}
+              onchange="window._excelCatRows[${idx}].selected=this.checked; _excelCatUpdateCount()">
+          </td>
+          <td class="px-3 py-1 ${missingName?'text-red-400 font-bold':'text-slate-800'}"
+              contenteditable="true" onblur="window._excelCatRows[${idx}].name=this.innerText.trim(); _excelCatUpdateCount()">${safeStr(row.name)}</td>
+          <td class="px-3 py-1 text-emerald-700 font-bold ${missingPrice?'text-amber-500':''}"
+              contenteditable="true" onblur="window._excelCatRows[${idx}].price=parseFloat(this.innerText)||0; _excelCatUpdateCount()">${row.price || ''}</td>
+          <td class="px-3 py-1 text-indigo-500"
+              contenteditable="true" onblur="window._excelCatRows[${idx}].category=this.innerText.trim()||'כללי'">${safeStr(row.category)}</td>
+          <td class="px-3 py-1 text-slate-400"
+              contenteditable="true" onblur="window._excelCatRows[${idx}].description=this.innerText.trim()">${safeStr(row.description)}</td>
+          <td class="px-3 py-1 text-slate-400"
+              contenteditable="true" onblur="window._excelCatRows[${idx}].sku=this.innerText.trim()">${safeStr(row.sku)}</td>
+        </tr>`;
+    }).join('');
+    _excelCatUpdateCount();
+}
+
+function _excelCatUpdateCount() {
+    const sel = window._excelCatRows.filter(r => r.selected && r.name.trim()).length;
+    const lbl = document.getElementById('excel-cat-import-label');
+    if (lbl) lbl.textContent = `ייבא ${sel} מוצרים נבחרים`;
+    const cnt = document.getElementById('excel-cat-count');
+    if (cnt) cnt.textContent = `${sel} נבחרו לייבוא`;
+}
+
+function _excelCatSelectAll(val) {
+    window._excelCatRows.forEach((r, i) => { if (r.name.trim()) r.selected = val; });
+    document.querySelectorAll('.excel-cat-cb').forEach(cb => {
+        const idx = parseInt(cb.dataset.idx);
+        if (!cb.disabled) cb.checked = val;
+    });
+    _excelCatUpdateCount();
+}
+
+async function _excelCatDoImport() {
+    const selected = window._excelCatRows.filter(r => r.selected && r.name.trim());
+    if (!selected.length) { showToast('error', 'לא נבחרו מוצרים לייבוא'); return; }
+    const btn = document.getElementById('excel-cat-import-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מייבא מוצרים...'; }
+    try {
+        const res = await fetch(`${API}/store/catalog/bulk-import`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                groupId: currentGroup.id,
+                products: selected.map(r => ({ name: r.name, price: parseFloat(r.price) || 0, category: r.category || 'כללי', description: r.description || '', sku: r.sku || '' }))
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            const body = document.getElementById('excel-cat-body');
+            const footer = document.getElementById('excel-cat-footer');
+            if (body) body.innerHTML = `
+            <div class="flex flex-col items-center gap-4 py-8">
+              <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center text-3xl">✅</div>
+              <p class="text-lg font-black text-slate-800">יובאו ${data.imported} מוצרים בהצלחה!</p>
+              ${data.skipped ? `<p class="text-sm text-slate-400">דולגו ${data.skipped} פריטים (מגבלת תוכנית)</p>` : ''}
+            </div>`;
+            if (footer) footer.innerHTML = `
+            <button onclick="document.getElementById('excel-import-modal')?.remove(); fetchStoreCatalog();"
+              class="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold text-sm hover:bg-indigo-700 transition">
+              סגור וצפה בקטלוג <i class="fa-solid fa-arrow-left mr-1"></i>
+            </button>`;
+        } else {
+            showToast('error', data.error || 'שגיאה בייבוא');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-file-import"></i> ייבא מוצרים נבחרים'; }
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת רשת בייבוא');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-file-import"></i> ייבא מוצרים נבחרים'; }
+    }
+}
+// ══════════════════════════════════════════════════════════════════════
 
 function _readExcelFile(file, context) {
     _excelImportCtx = context;
