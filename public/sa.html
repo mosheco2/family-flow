@@ -2475,6 +2475,9 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                 <option value="CHANGE_PLAN">שינוי פלאן</option>
                                 <option value="CREATE_GROUP">יצירת קבוצה</option>
                                 <option value="CREATE_USER">יצירת משתמש</option>
+                                <option value="RESTORE_SNAPSHOT">שחזור snapshot</option>
+                                <option value="RESTORE_GROUP">שחזור מהארכיון</option>
+                                <option value="PERMANENT_DELETE">מחיקה לצמיתות</option>
                             </select>
                             <input type="date" id="audit-filter-from" onchange="loadAuditLog()"
                                 class="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:border-indigo-400 outline-none" title="מתאריך">
@@ -2502,6 +2505,40 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
                 </div><!-- /sa-view-auditlog -->
+
+                <!-- ארכיון סביבות מחוקות -->
+                <div id="sa-view-archive" class="hidden space-y-6 fade-in">
+                    <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
+                        <div class="flex flex-wrap justify-between items-start gap-4 mb-6 border-b border-slate-100 pb-5">
+                            <div>
+                                <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2">
+                                    <i class="fa-solid fa-box-archive text-amber-500"></i> ארכיון סביבות מחוקות
+                                </h2>
+                                <p class="text-sm text-slate-500 mt-1">סביבות שנמחקו בצורה רכה — ניתן לשחזר, לצפות בגיבויים, או למחוק לצמיתות.</p>
+                            </div>
+                            <button onclick="loadArchive()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2">
+                                <i class="fa-solid fa-rotate-right"></i> רענן
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-right">
+                                <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
+                                    <tr>
+                                        <th class="px-4 py-3 rounded-tr-lg">שם הסביבה</th>
+                                        <th class="px-4 py-3">סוג</th>
+                                        <th class="px-4 py-3">קוד</th>
+                                        <th class="px-4 py-3">אדמין</th>
+                                        <th class="px-4 py-3">תאריך מחיקה</th>
+                                        <th class="px-4 py-3 rounded-tl-lg">פעולות</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sa-archive-tbody" class="divide-y divide-slate-50">
+                                    <tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">לחץ על "ארכיון מחוקים" לטעינה</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div><!-- /sa-view-archive -->
 
                 <!-- מסמכים משפטיים -->
                 <div id="sa-view-legal" class="hidden space-y-8 fade-in">

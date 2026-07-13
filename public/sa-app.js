@@ -400,7 +400,7 @@ window.switchSATab = function(tabId) {
     if (tabId === 'legal') loadLegalDocs();
 
     if (tabId === 'adslots') window.renderAdSlotsPanel && window.renderAdSlotsPanel();
-    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots'];
+    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive'];
     let activeTabTitle = 'לוח בקרה';
 
     allTabs.forEach(t => {
@@ -430,7 +430,8 @@ window.switchSATab = function(tabId) {
         comm:'קהילות', biz:'עסקים', clients:'קבוצות',
         inbox:'שיווק והשקות', content:'מיתוג ותוכן',
         hr:'נציגים וצוותים', partners:'שותפים', finance:'פיננסים',
-        sysmap:'מפת המערכת', legal:'מסמכים משפטיים', templates:'ניהול תבניות עסקים', adslots:'שטחי פרסום'
+        sysmap:'מפת המערכת', legal:'מסמכים משפטיים', templates:'ניהול תבניות עסקים', adslots:'שטחי פרסום',
+        auditlog:'לוג אירועים קריטיים', archive:'ארכיון סביבות מחוקות'
     };
     activeTabTitle = _tabTitles[tabId] || tabId;
 
@@ -473,7 +474,7 @@ const SA_GROUPS = {
     supportdev: { tabs: ['support', 'devops'],          labels: ['קריאות שירות', 'פיתוח ומוצר'],    icons: ['fa-headset', 'fa-code'],                  default: 'support' },
     contentmkt: { tabs: ['content', 'inbox', 'legal', 'adslots'],  labels: ['מיתוג ותוכן', 'שיווק', 'משפטי', 'שטחי פרסום'], icons: ['fa-image', 'fa-bullhorn', 'fa-file-contract', 'fa-rectangle-ad'], default: 'content' },
     partners:   { tabs: ['partners'],                   labels: [],                                  icons: [],                                         default: 'partners' },
-    system:     { tabs: ['hr', 'sysmap', 'auditlog'],    labels: ['צוות ונציגים', 'מפת המערכת', 'לוג אירועים'], icons: ['fa-user-tie', 'fa-map', 'fa-shield-halved'], default: 'hr' },
+    system:     { tabs: ['hr', 'sysmap', 'auditlog', 'archive'], labels: ['צוות ונציגים', 'מפת המערכת', 'לוג אירועים', 'ארכיון מחוקים'], icons: ['fa-user-tie', 'fa-map', 'fa-shield-halved', 'fa-box-archive'], default: 'hr' },
     templates:  { tabs: ['templates'],                  labels: ['תבניות עסקים'],                    icons: ['fa-layer-group'],                          default: 'templates' },
 };
 
@@ -566,6 +567,7 @@ window.switchViewTab = function(viewId, tabId) {
     if (viewId === 'adslots' && tabId === 'orders') { try { loadBannerOrders(); } catch(e) {} }
     if (viewId === 'finance' && tabId === 'adsbilling') { try { loadBillingOverview(); } catch(e) {} }
     if (viewId === 'system' && tabId === 'auditlog') { try { loadAuditLog(); } catch(e) {} }
+    if (viewId === 'system' && tabId === 'archive')   { try { loadArchive();  } catch(e) {} }
 };
 
 // Close mobile sidebar after navigating (on mobile widths)
@@ -1870,6 +1872,7 @@ function renderSAGroups() {
                         ${upgradeBtn}
                         <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(g.name)}', '${safeStr(g.admin_email)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך פרטים</button>
                         ${planSelector}
+                        <button onclick="openSnapshotsModal(${g.id},'${safeStr(g.name)}')" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-clock-rotate-left"></i> גיבויים</button>
                         <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
                     </div>
                 </div>
@@ -1958,11 +1961,189 @@ async function saDeleteUser(id) {
 }
 
 async function saDeleteGroup(id) {
-    if (!confirm('האם למחוק סביבה זו לצמיתות?')) return;
-    await fetch(`${API}/superadmin/groups/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken } });
-    showToast('success', 'הסביבה נמחקה לחלוטין');
-    loadSAData();
+    const group = [...(saAllGroups||[])].find(g => g.id === id) || { name: `#${id}` };
+    const isBiz = group.type === 'BUSINESS';
+    const msg = isBiz
+        ? `העסק "${group.name}" יועבר לארכיון.\nניתן לשחזרו תוך 30 יום.\n\nלמחיקה לצמיתות — השתמש ב"מחק לצמיתות" בארכיון.`
+        : `הסביבה "${group.name}" תועבר לארכיון.\nניתן לשחזרה תוך 30 יום.`;
+    if (!confirm(msg)) return;
+    const res = await fetch(`${API}/superadmin/groups/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken } });
+    const data = await res.json();
+    if (data.success) { showToast('success', `"${group.name}" הועברה לארכיון ✓`); loadSAData(); }
+    else showToast('error', data.error || 'שגיאה');
 }
+
+async function openSnapshotsModal(groupId, groupName) {
+    let modal = getEl('sa-snapshots-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'sa-snapshots-modal';
+        modal.className = 'fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4';
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+        <div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center p-6 border-b border-slate-100">
+                <div>
+                    <h3 class="text-xl font-black text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> היסטוריית Snapshots
+                    </h3>
+                    <p class="text-sm text-slate-500 mt-0.5">${safeStr(groupName)}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="takeManualSnapshot(${groupId})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-camera"></i> צלם עכשיו
+                    </button>
+                    <button onclick="getEl('sa-snapshots-modal').remove()" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-9 h-9 rounded-full flex items-center justify-center transition text-lg">✕</button>
+                </div>
+            </div>
+            <div id="snapshots-list" class="flex-1 overflow-y-auto p-6 space-y-2">
+                <div class="text-center text-slate-400 py-8">טוען snapshots...</div>
+            </div>
+        </div>`;
+    modal.style.display = 'flex';
+    await loadSnapshotsList(groupId);
+}
+
+async function loadSnapshotsList(groupId) {
+    const el = getEl('snapshots-list');
+    if (!el) return;
+    try {
+        const res  = await fetch(`${API}/sa/groups/${groupId}/snapshots`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        if (!data.success || !data.snapshots.length) {
+            el.innerHTML = `<div class="text-center text-slate-400 py-10 bg-slate-50 rounded-2xl border border-dashed">אין snapshots עדיין.<br><span class="text-xs mt-1 block">ה-snapshot הראשון יצולם בלילה הקרוב.</span></div>`;
+            return;
+        }
+        const TYPE_LABELS = { auto: { label: 'אוטומטי', color: 'bg-slate-100 text-slate-600' }, manual: { label: 'ידני', color: 'bg-indigo-100 text-indigo-700' }, pre_delete: { label: 'לפני מחיקה', color: 'bg-red-100 text-red-700' }, pre_restore: { label: 'לפני שחזור', color: 'bg-amber-100 text-amber-700' } };
+        el.innerHTML = data.snapshots.map(s => {
+            const t = TYPE_LABELS[s.snapshot_type] || { label: s.snapshot_type, color: 'bg-slate-100 text-slate-600' };
+            const dt = new Date(s.created_at);
+            const dateStr = dt.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' });
+            const timeStr = dt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+            const kb = s.size_bytes ? Math.round(s.size_bytes / 1024) + ' KB' : '';
+            return `
+            <div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-indigo-200 transition group">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex flex-col items-center justify-center shadow-sm">
+                        <span class="text-[10px] font-black text-slate-700 leading-none">${dateStr.split('/').slice(0,2).join('/')}</span>
+                        <span class="text-[9px] text-slate-400 leading-none mt-0.5">${timeStr}</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-bold text-slate-800">${dateStr} · ${timeStr}</span>
+                            <span class="${t.color} text-[9px] font-bold px-2 py-0.5 rounded-full">${t.label}</span>
+                        </div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">${kb}</div>
+                    </div>
+                </div>
+                <button onclick="confirmRestoreSnapshot(${s.id}, '${dateStr} ${timeStr}', '${safeStr(s.group_name)}')"
+                    class="bg-white border border-slate-200 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm">
+                    <i class="fa-solid fa-rotate-left ml-1"></i> שחזר
+                </button>
+            </div>`;
+        }).join('');
+    } catch(e) { el.innerHTML = `<div class="text-center text-red-400 py-8">שגיאה: ${e.message}</div>`; }
+}
+
+async function takeManualSnapshot(groupId) {
+    const btn = document.querySelector('#sa-snapshots-modal button[onclick*="takeManualSnapshot"]');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מצלם...'; }
+    try {
+        const res = await fetch(`${API}/sa/groups/${groupId}/snapshot`, { method: 'POST', headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'Snapshot נלקח בהצלחה ✓'); await loadSnapshotsList(groupId); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', e.message); }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-camera"></i> צלם עכשיו'; }
+}
+
+async function confirmRestoreSnapshot(snapId, dateLabel, groupName) {
+    if (!confirm(`שחזר את "${groupName}" למצב מ-${dateLabel}?\n\nפעולה זו תחזיר את הנתונים הבאים למצב ה-snapshot:\nמשתמשים, קטלוג, הגדרות, לקוחות, מלאי, פריטי לוח שנה.\n\nמצב נוכחי יישמר כ-snapshot "לפני שחזור".`)) return;
+    try {
+        const res = await fetch(`${API}/sa/snapshots/${snapId}/restore`, { method: 'POST', headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        if (data.success) { showToast('success', `"${groupName}" שוחזר בהצלחה ✓`); getEl('sa-snapshots-modal')?.remove(); loadSAData(); }
+        else showToast('error', data.error || 'שגיאת שחזור');
+    } catch(e) { showToast('error', e.message); }
+}
+
+// ── ARCHIVE (soft-deleted groups) ──────────────────────────────────────────
+let _archiveCache = [];
+
+async function loadArchive() {
+    const tbody = getEl('sa-archive-tbody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">טוען...</td></tr>`;
+    try {
+        const res  = await fetch(`${API}/sa/groups/archived`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        _archiveCache = data.groups || [];
+        renderArchive();
+    } catch(e) { if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center text-red-400 py-6">שגיאה</td></tr>`; }
+}
+
+function renderArchive() {
+    const tbody = getEl('sa-archive-tbody');
+    if (!tbody) return;
+    if (!_archiveCache.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-10 text-center text-slate-400 bg-slate-50 border border-dashed rounded-xl">הארכיון ריק — אין סביבות שנמחקו.</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = _archiveCache.map(g => {
+        const deletedDate = g.deleted_at ? new Date(g.deleted_at).toLocaleDateString('he-IL') : '—';
+        const isBiz = g.type === 'BUSINESS';
+        return `
+        <tr class="hover:bg-red-50/30 transition border-b border-slate-50 last:border-0">
+            <td class="px-4 py-3 font-bold text-slate-800 flex items-center gap-2">
+                <i class="fa-solid ${isBiz ? 'fa-store' : 'fa-house'} text-${isBiz ? 'blue' : 'emerald'}-400 text-sm"></i>
+                ${safeStr(g.name)}
+            </td>
+            <td class="px-4 py-3 text-xs text-slate-500">${safeStr(g.business_type || g.type || '—')}</td>
+            <td class="px-4 py-3 font-mono text-xs text-slate-400">${safeStr(g.group_code)}</td>
+            <td class="px-4 py-3 text-xs text-slate-500">${safeStr(g.admin_email || '—')}</td>
+            <td class="px-4 py-3 text-xs text-red-500 font-bold">${deletedDate}</td>
+            <td class="px-4 py-3">
+                <div class="flex gap-2 justify-end">
+                    <button onclick="openSnapshotsModal(${g.id},'${safeStr(g.name)}')"
+                        class="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1">
+                        <i class="fa-solid fa-clock-rotate-left text-[10px]"></i> snapshots
+                    </button>
+                    <button onclick="restoreArchivedGroup(${g.id},'${safeStr(g.name)}')"
+                        class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1">
+                        <i class="fa-solid fa-rotate-left text-[10px]"></i> שחזר
+                    </button>
+                    <button onclick="permanentDeleteGroup(${g.id},'${safeStr(g.name)}')"
+                        class="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1">
+                        <i class="fa-solid fa-skull text-[10px]"></i> מחק לצמיתות
+                    </button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function restoreArchivedGroup(id, name) {
+    if (!confirm(`שחזר את "${name}" למצב פעיל?`)) return;
+    const res = await fetch(`${API}/sa/groups/${id}/restore`, { method: 'POST', headers: { 'Authorization': saToken } });
+    const data = await res.json();
+    if (data.success) { showToast('success', `"${name}" שוחזר בהצלחה ✓`); loadArchive(); loadSAData(); }
+    else showToast('error', data.error || 'שגיאה');
+}
+
+async function permanentDeleteGroup(id, name) {
+    const typed = prompt(`מחיקה לצמיתות — אין דרך חזרה!\n\nהקלד את שם הסביבה בדיוק כדי לאשר:\n"${name}"`);
+    if (typed === null) return;
+    if (typed !== name) { alert('השם אינו תואם — המחיקה בוטלה.'); return; }
+    const res = await fetch(`${API}/sa/groups/${id}/permanent`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+        body: JSON.stringify({ confirm_name: name })
+    });
+    const data = await res.json();
+    if (data.success) { showToast('success', `"${name}" נמחקה לצמיתות`); loadArchive(); }
+    else showToast('error', data.error || 'שגיאה');
+}
+// ──────────────────────────────────────────────────────────────────────────
 
 async function saTogglePremium(id, enable) {
     try {

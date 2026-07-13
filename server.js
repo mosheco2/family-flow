@@ -1598,6 +1598,20 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_transactions_group_id ON transactions(group_id)`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)`); } catch(e) {}
 
+      // Soft Delete + Snapshots
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS group_snapshots (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          group_name VARCHAR(255),
+          snapshot_type VARCHAR(20) DEFAULT 'auto',
+          snapshot_data JSONB NOT NULL,
+          created_at TIMESTAMP DEFAULT NOW(),
+          expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '30 days'
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_group_snapshots_group_id ON group_snapshots(group_id, created_at DESC)`); } catch(e) {}
+
       // לוג ביקורת — פעולות קריטיות על ידי SA
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_audit_log (
           id SERIAL PRIMARY KEY,
@@ -2738,6 +2752,285 @@ function verifySA(req, res, next) {
 }
 
 // ============================================================
+// --- GROUP SNAPSHOTS & RESTORE ---
+// ============================================================
+
+async function takeGroupSnapshot(groupId, snapshotType = 'auto') {
+    try {
+        const [
+            groupRes, usersRes, storeSettingsRes, catalogRes, ordersRes,
+            calSettingsRes, calServicesRes, calEventsRes,
+            practitionersRes, resourcesRes, apptRes, clientRecordsRes,
+            inventoryRes, commissionsRes, rfqRes
+        ] = await Promise.all([
+            pool.query('SELECT * FROM family_groups WHERE id=$1', [groupId]),
+            pool.query('SELECT id,nickname,email,phone,role,status,balance,birth_year,id_number,created_at FROM users WHERE group_id=$1', [groupId]),
+            pool.query('SELECT * FROM store_settings WHERE group_id=$1', [groupId]).catch(()=>({rows:[]})),
+            pool.query('SELECT * FROM store_catalog WHERE group_id=$1', [groupId]).catch(()=>({rows:[]})),
+            pool.query(`SELECT * FROM store_orders WHERE group_id=$1 AND created_at > NOW() - INTERVAL '30 days'`, [groupId]).catch(()=>({rows:[]})),
+            pool.query('SELECT * FROM calendar_settings WHERE group_id=$1', [groupId]).catch(()=>({rows:[]})),
+            pool.query('SELECT * FROM calendar_services WHERE group_id=$1', [groupId]).catch(()=>({rows:[]})),
+            pool.query(`SELECT * FROM calendar_events WHERE group_id=$1 AND event_date >= CURRENT_DATE - 30`, [groupId]).catch(()=>({rows:[]})),
+            pool.query('SELECT * FROM beauty_practitioners WHERE business_group_id=$1', [groupId]).catch(()=>({rows:[]})),
+            pool.query('SELECT * FROM beauty_resources WHERE business_group_id=$1', [groupId]).catch(()=>({rows:[]})),
+            pool.query(`SELECT * FROM beauty_appointments WHERE business_group_id=$1 AND created_at > NOW() - INTERVAL '30 days'`, [groupId]).catch(()=>({rows:[]})),
+            pool.query('SELECT * FROM beauty_client_records WHERE business_group_id=$1', [groupId]).catch(()=>({rows:[]})),
+            pool.query('SELECT * FROM beauty_inventory WHERE business_group_id=$1', [groupId]).catch(()=>({rows:[]})),
+            pool.query(`SELECT * FROM beauty_commissions WHERE business_group_id=$1 AND status='unpaid'`, [groupId]).catch(()=>({rows:[]})),
+            pool.query(`SELECT * FROM beauty_rfq WHERE business_group_id=$1 AND created_at > NOW() - INTERVAL '30 days'`, [groupId]).catch(()=>({rows:[]})),
+        ]);
+        const group = groupRes.rows[0];
+        if (!group) return null;
+        const snapshotData = {
+            v: 1,
+            group,
+            users:              usersRes.rows,
+            store_settings:     storeSettingsRes.rows[0] || null,
+            catalog:            catalogRes.rows,
+            orders:             ordersRes.rows,
+            calendar_settings:  calSettingsRes.rows[0] || null,
+            calendar_services:  calServicesRes.rows,
+            calendar_events:    calEventsRes.rows,
+            beauty_practitioners: practitionersRes.rows,
+            beauty_resources:     resourcesRes.rows,
+            beauty_appointments:  apptRes.rows,
+            beauty_client_records: clientRecordsRes.rows,
+            beauty_inventory:     inventoryRes.rows,
+            beauty_commissions:   commissionsRes.rows,
+            beauty_rfq:           rfqRes.rows,
+        };
+        await pool.query(
+            `INSERT INTO group_snapshots (group_id, group_name, snapshot_type, snapshot_data, expires_at)
+             VALUES ($1,$2,$3,$4, NOW() + INTERVAL '30 days')`,
+            [groupId, group.name, snapshotType, JSON.stringify(snapshotData)]
+        );
+        // שמירת 30 snapshots בלבד לכל סביבה
+        await pool.query(
+            `DELETE FROM group_snapshots WHERE group_id=$1 AND snapshot_type='auto'
+             AND id NOT IN (
+               SELECT id FROM group_snapshots WHERE group_id=$1 AND snapshot_type='auto'
+               ORDER BY created_at DESC LIMIT 30
+             )`,
+            [groupId]
+        );
+        return true;
+    } catch(e) { console.error('[SNAPSHOT]', e.message); return false; }
+}
+
+// Daily auto-snapshot — רץ כל 24 שעות
+async function runDailySnapshots() {
+    try {
+        const groups = await pool.query(`SELECT id FROM family_groups WHERE is_deleted=false OR is_deleted IS NULL`);
+        console.log(`[SNAPSHOT] Starting daily snapshots for ${groups.rows.length} groups`);
+        for (const g of groups.rows) {
+            await takeGroupSnapshot(g.id, 'auto');
+            await new Promise(r => setTimeout(r, 200)); // throttle
+        }
+        // מחיקת snapshots שפגו תוקף
+        await pool.query(`DELETE FROM group_snapshots WHERE expires_at < NOW()`);
+        console.log(`[SNAPSHOT] Daily snapshots done`);
+    } catch(e) { console.error('[SNAPSHOT DAILY]', e.message); }
+}
+// הפעלה 10 שניות אחרי עליית השרת, ואז כל 24 שעות
+setTimeout(() => {
+    runDailySnapshots();
+    setInterval(runDailySnapshots, 24 * 60 * 60 * 1000);
+}, 10000);
+
+// רשימת snapshots לסביבה מסוימת
+app.get('/api/sa/groups/:id/snapshots', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, group_id, group_name, snapshot_type, created_at, expires_at,
+                    pg_column_size(snapshot_data) as size_bytes
+             FROM group_snapshots WHERE group_id=$1
+             ORDER BY created_at DESC LIMIT 60`,
+            [req.params.id]
+        );
+        res.json({ success: true, snapshots: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Preview snapshot — מה יש בו
+app.get('/api/sa/snapshots/:id/preview', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, group_name, snapshot_type, created_at,
+                    snapshot_data->'group' as group_info,
+                    jsonb_array_length(snapshot_data->'users') as users_count,
+                    jsonb_array_length(snapshot_data->'catalog') as catalog_count,
+                    jsonb_array_length(snapshot_data->'orders') as orders_count,
+                    jsonb_array_length(snapshot_data->'beauty_client_records') as clients_count,
+                    jsonb_array_length(snapshot_data->'beauty_appointments') as appointments_count,
+                    jsonb_array_length(snapshot_data->'calendar_events') as cal_events_count
+             FROM group_snapshots WHERE id=$1`,
+            [req.params.id]
+        );
+        if (!result.rows.length) return res.status(404).json({ error: 'snapshot not found' });
+        res.json({ success: true, preview: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שחזור מ-snapshot
+app.post('/api/sa/snapshots/:id/restore', verifySA, async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const snapRes = await client.query(`SELECT * FROM group_snapshots WHERE id=$1`, [req.params.id]);
+        if (!snapRes.rows.length) return res.status(404).json({ error: 'snapshot not found' });
+        const snap = snapRes.rows[0];
+        const d = snap.snapshot_data;
+        const groupId = snap.group_id;
+        await client.query('BEGIN');
+
+        // שחזור נתוני הקבוצה עצמה (ללא group_code / id)
+        const g = d.group;
+        if (g) {
+            await client.query(
+                `UPDATE family_groups SET name=$1, admin_email=$2, city=$3, street_address=$4,
+                 business_type=$5, contact_name=$6, admin_phone=$7, is_deleted=false, deleted_at=NULL
+                 WHERE id=$8`,
+                [g.name, g.admin_email, g.city, g.street_address, g.business_type, g.contact_name, g.admin_phone, groupId]
+            );
+        }
+
+        // שחזור users — update אם קיים, insert אם לא
+        for (const u of (d.users || [])) {
+            const exists = await client.query(`SELECT id FROM users WHERE id=$1`, [u.id]);
+            if (exists.rows.length) {
+                await client.query(
+                    `UPDATE users SET nickname=$1, email=$2, phone=$3, role=$4, status=$5, balance=$6 WHERE id=$7`,
+                    [u.nickname, u.email, u.phone, u.role, u.status, u.balance, u.id]
+                );
+            } else {
+                await client.query(
+                    `INSERT INTO users (id, group_id, nickname, email, phone, role, status, balance, created_at)
+                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (id) DO NOTHING`,
+                    [u.id, groupId, u.nickname, u.email, u.phone, u.role, u.status||'active', u.balance||0, u.created_at]
+                );
+            }
+        }
+
+        // שחזור store_settings
+        if (d.store_settings) {
+            await client.query(
+                `INSERT INTO store_settings (group_id, is_active, welcome_message, phone, min_order, slogan)
+                 VALUES ($1,$2,$3,$4,$5,$6)
+                 ON CONFLICT (group_id) DO UPDATE SET
+                   is_active=$2, welcome_message=$3, phone=$4, min_order=$5, slogan=$6`,
+                [groupId, d.store_settings.is_active, d.store_settings.welcome_message,
+                 d.store_settings.phone, d.store_settings.min_order, d.store_settings.slogan]
+            );
+        }
+
+        // שחזור קטלוג — upsert לפי id
+        for (const item of (d.catalog || [])) {
+            await client.query(
+                `INSERT INTO store_catalog (id, group_id, name, description, price, category, is_available)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7)
+                 ON CONFLICT (id) DO UPDATE SET name=$3, description=$4, price=$5, category=$6, is_available=$7`,
+                [item.id, groupId, item.name, item.description, item.price, item.category, item.is_available]
+            );
+        }
+
+        // שחזור beauty_practitioners
+        for (const p of (d.beauty_practitioners || [])) {
+            await client.query(
+                `INSERT INTO beauty_practitioners (id, business_group_id, display_name, tier, color_hex, commission_rate_svc, commission_rate_retail, is_active)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+                 ON CONFLICT (id) DO UPDATE SET display_name=$3, tier=$4, color_hex=$5, commission_rate_svc=$6, commission_rate_retail=$7, is_active=$8`,
+                [p.id, groupId, p.display_name, p.tier, p.color_hex, p.commission_rate_svc, p.commission_rate_retail, p.is_active]
+            );
+        }
+
+        // שחזור beauty_client_records
+        for (const c of (d.beauty_client_records || [])) {
+            await client.query(
+                `INSERT INTO beauty_client_records (id, business_group_id, full_name, phone, email, notes, created_at)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7)
+                 ON CONFLICT (id) DO UPDATE SET full_name=$3, phone=$4, email=$5, notes=$6`,
+                [c.id, groupId, c.full_name, c.phone, c.email, c.notes, c.created_at]
+            );
+        }
+
+        // שחזור beauty_inventory
+        for (const item of (d.beauty_inventory || [])) {
+            await client.query(
+                `INSERT INTO beauty_inventory (id, business_group_id, product_name, inventory_type, brand, stock_qty, unit_price, reorder_threshold, is_active)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+                 ON CONFLICT (id) DO UPDATE SET product_name=$3, inventory_type=$4, brand=$5, stock_qty=$6, unit_price=$7, reorder_threshold=$8, is_active=$9`,
+                [item.id, groupId, item.product_name, item.inventory_type, item.brand,
+                 item.stock_qty, item.unit_price, item.reorder_threshold, item.is_active]
+            );
+        }
+
+        await client.query('COMMIT');
+
+        // לוג ביקורת
+        await logAudit('RESTORE_SNAPSHOT', g?.business_type === 'FAMILY' ? 'FAMILY' : 'BUSINESS',
+            groupId, g?.name || snap.group_name,
+            { snapshot_id: snap.id, snapshot_type: snap.snapshot_type, snapshot_at: snap.created_at });
+
+        // snapshot של המצב לפני השחזור (לפני שינוי)
+        await takeGroupSnapshot(groupId, 'pre_restore');
+
+        res.json({ success: true, group_id: groupId, group_name: snap.group_name });
+    } catch(e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    } finally { client.release(); }
+});
+
+// snapshot ידני מה-SA
+app.post('/api/sa/groups/:id/snapshot', verifySA, async (req, res) => {
+    try {
+        const ok = await takeGroupSnapshot(parseInt(req.params.id), 'manual');
+        if (!ok) return res.status(404).json({ error: 'group not found' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// רשימת סביבות ב-archive (soft deleted)
+app.get('/api/sa/groups/archived', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, name, type, business_type, group_code, admin_email, admin_phone, deleted_at
+             FROM family_groups WHERE is_deleted=true ORDER BY deleted_at DESC`
+        );
+        res.json({ success: true, groups: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שחזור סביבה ממצב soft-deleted
+app.post('/api/sa/groups/:id/restore', verifySA, async (req, res) => {
+    try {
+        const row = await pool.query(`SELECT name FROM family_groups WHERE id=$1`, [req.params.id]);
+        await pool.query(`UPDATE family_groups SET is_deleted=false, deleted_at=NULL WHERE id=$1`, [req.params.id]);
+        await logAudit('RESTORE_GROUP', 'GROUP', parseInt(req.params.id), row.rows[0]?.name, {});
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מחיקה לצמיתות (irreversible)
+app.delete('/api/sa/groups/:id/permanent', verifySA, async (req, res) => {
+    const gid = req.params.id;
+    const { confirm_name } = req.body;
+    const client = await pool.connect();
+    try {
+        const row = await client.query(`SELECT name FROM family_groups WHERE id=$1`, [gid]);
+        const name = row.rows[0]?.name;
+        if (!name || confirm_name !== name) return res.status(400).json({ error: 'שם לא תואם — מחיקה בוטלה' });
+        await client.query('BEGIN');
+        await client.query('UPDATE inbox_messages SET customer_group_id=NULL WHERE customer_group_id=$1', [gid]);
+        await client.query('UPDATE calendar_events SET customer_group_id=NULL WHERE customer_group_id=$1', [gid]);
+        await client.query('DELETE FROM family_groups WHERE id=$1', [gid]);
+        await client.query('COMMIT');
+        await logAudit('PERMANENT_DELETE', 'GROUP', parseInt(gid), name, { permanent: true });
+        res.json({ success: true });
+    } catch(e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
+    finally { client.release(); }
+});
+
+// ============================================================
 // --- SA AUDIT LOG ---
 // ============================================================
 
@@ -3127,26 +3420,19 @@ app.get('/api/superadmin/group-360/:id', verifySA, async (req, res) => {
 
 app.delete('/api/superadmin/groups/:id', verifySA, async (req, res) => {
     const gid = req.params.id;
-    const client = await pool.connect();
     try {
-        await client.query('BEGIN');
-        // שמירת פרטי הקבוצה לפני המחיקה לצורך הלוג
-        const groupRow = await client.query('SELECT name, type FROM family_groups WHERE id=$1', [gid]);
-        const groupName = groupRow.rows[0]?.name || `#${gid}`;
-        const groupType = groupRow.rows[0]?.type || 'UNKNOWN';
-        // NULL-ify FK refs that lack ON DELETE CASCADE/SET NULL
-        await client.query('UPDATE inbox_messages    SET customer_group_id = NULL WHERE customer_group_id = $1', [gid]);
-        await client.query('UPDATE calendar_events   SET customer_group_id = NULL WHERE customer_group_id = $1', [gid]);
-        await client.query('DELETE FROM family_groups WHERE id = $1', [gid]);
-        await client.query('COMMIT');
-        await logAudit('DELETE_GROUP', groupType, parseInt(gid), groupName, { group_id: gid, group_type: groupType });
+        const row = await pool.query(`SELECT name, type, business_type FROM family_groups WHERE id=$1`, [gid]);
+        if (!row.rows.length) return res.status(404).json({ error: 'not found' });
+        const { name, type, business_type } = row.rows[0];
+        // snapshot לפני המחיקה
+        await takeGroupSnapshot(parseInt(gid), 'pre_delete');
+        // soft delete
+        await pool.query(`UPDATE family_groups SET is_deleted=true, deleted_at=NOW() WHERE id=$1`, [gid]);
+        await logAudit('DELETE_GROUP', type || business_type || 'GROUP', parseInt(gid), name, { soft: true });
         res.json({ success: true });
     } catch(e) {
-        await client.query('ROLLBACK');
         console.error('[DELETE GROUP]', e.message);
         res.status(500).json({ error: e.message });
-    } finally {
-        client.release();
     }
 });
 
@@ -3330,7 +3616,7 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
     try {
         await pool.query(`UPDATE family_groups SET ai_tokens = 10, last_token_reset = CURRENT_DATE WHERE last_token_reset IS NULL OR last_token_reset < CURRENT_DATE`);
         
-        const groups = await pool.query('SELECT * FROM family_groups ORDER BY created_at DESC');
+        const groups = await pool.query('SELECT * FROM family_groups WHERE is_deleted=false OR is_deleted IS NULL ORDER BY created_at DESC');
         const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
         const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
         const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'business_welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_img_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_img_bottom', 'business_ad_banner_text_top', 'business_ad_banner_link_top', 'business_ad_banner_img_top', 'business_ad_banner_text_bottom', 'business_ad_banner_link_bottom', 'business_ad_banner_img_bottom', 'sa_email', 'sa_username', 'global_ai_logo', 'login_slides', 'sms_login_enabled', 'member_welcome_enabled', 'member_welcome_text', 'member_welcome_img', 'member_module_settings', 'pwa_install_prompt_enabled', 'smtp_from_email', 'smtp_from_name', 'admin_notification_email')");
