@@ -31360,11 +31360,13 @@ function renderQuickTiles() {
     { fa:'fa-flask',             label:'מלאי מקצועי',    badge: null,            tab:'beauty_inventory',   bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0f766e)', badge_bg:'#0d9488' },
     { fa:'fa-hand-holding-dollar',label:'עמלות',         badge: null,            tab:'beauty_commissions', bg:'#fffbeb', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
     { fa:'fa-cash-register',     label:'קופה',           badge: storeOrderCount, tab:'pos',                bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
+    { fa:'fa-book-open',         label:'קטלוג',          badge: null,            tab:'__catalog__',        bg:'#f0fdf4', grad:'linear-gradient(135deg,#4ade80,#16a34a)', badge_bg:'#166534' },
     { fa:'fa-clock-rotate-left', label:'נוכחות',         badge: null,            tab:'timeclock',          bg:'#f8fafc', grad:'linear-gradient(135deg,#64748b,#334155)', badge_bg:'#475569' },
   ] : (['restaurant','cafe'].includes(currentGroup?.business_type) ? [
     { fa:'fa-table-cells-large',   label:'שולחנות 🍽️',  badge: occupiedCount||null,              tab:'__tables__',      bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
     { fa:'fa-calendar-check',      label:'יומן הזמנות', badge: window._pendingCalCount||0,        tab:'calendar',        bg:'#fff7ed', grad:'linear-gradient(135deg,#fb923c,#ea580c)', badge_bg:'#c2410c' },
     { fa:'fa-utensils',            label:'KDS מטבח',    badge: kdsCount||null,                   tab:'kds',             bg:'#faf5ff', grad:'linear-gradient(135deg,#a78bfa,#7c3aed)', badge_bg:'#6d28d9' },
+    { fa:'fa-book-open',           label:'קטלוג',       badge: null,                             tab:'__catalog__',     bg:'#f0fdf4', grad:'linear-gradient(135deg,#4ade80,#16a34a)', badge_bg:'#166534' },
     { fa:'fa-box',                 label:'מלאי',        badge: window._pantryLowStockCount||null, tab:'pantry',          bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0f766e)', badge_bg:'#dc2626' },
     { fa:'fa-bag-shopping',        label:'הזמנות',      badge: storeOrderCount,                  tab:'sales',           bg:'#fffbeb', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
     { fa:'fa-screwdriver-wrench',  label:'פקודות עבודה',badge: openWoCount||null,                tab:'__work_orders__', bg:'#eef2ff', grad:'linear-gradient(135deg,#818cf8,#4f46e5)', badge_bg:'#4338ca' },
@@ -31374,6 +31376,7 @@ function renderQuickTiles() {
     { fa:'fa-calendar-days',           label:'משמרות',          badge: null,            tab:'shifts',             bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
     { fa:'fa-calendar-check',          label:'יומן ציבורי',     badge: null,            tab:'calendar',           bg:'#faf5ff', grad:'linear-gradient(135deg,#a78bfa,#7c3aed)', badge_bg:'#6d28d9' },
     { fa:'fa-bag-shopping',            label:'מכירות וחנות',    badge: storeOrderCount, tab:'sales',              bg:'#fffbeb', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
+    { fa:'fa-book-open',               label:'קטלוג',           badge: null,            tab:'__catalog__',        bg:'#f0fdf4', grad:'linear-gradient(135deg,#4ade80,#16a34a)', badge_bg:'#166534' },
     { fa:'fa-screwdriver-wrench',      label:'פקודות עבודה',    badge: openWoCount||null, tab:'__work_orders__',  bg:'#eef2ff', grad:'linear-gradient(135deg,#818cf8,#4f46e5)', badge_bg:'#4338ca' },
     { fa:'fa-chart-line',              label:'כספים',           badge: null,            tab:'bank',               bg:'#fff1f2', grad:'linear-gradient(135deg,#f43f5e,#be123c)', badge_bg:'#9f1239' },
   ]);
@@ -31382,6 +31385,7 @@ function renderQuickTiles() {
                         t.tab === 'kds'             ? "window.openAdminKDSPanel()" :
                         t.tab === '__tables__'      ? "window.openAdminTablesPanel()" :
                         t.tab === '__work_orders__' ? "switchTab('sales');setTimeout(()=>{if(typeof window.switchSalesTab==='function')window.switchSalesTab('work-orders');},150)" :
+                        t.tab === '__catalog__'     ? "switchTab('sales');setTimeout(()=>{if(typeof window.switchSalesTab==='function')window.switchSalesTab('catalog');},150)" :
                         `switchTab('${t.tab}')`;
     return `<button onclick="${clickAction}"
       style="background:${t.bg};border:1.5px solid rgba(0,0,0,0.06)"
