@@ -6600,6 +6600,29 @@ function sendWhatsAppInvite(role) {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); getEl('invite-modal').classList.add('hidden'); 
 }
 
+window._wiz2ToggleTeamRole = function(role, checked) {
+    if (!wizardV2Data.teamRoles) wizardV2Data.teamRoles = [];
+    if (checked) { if (!wizardV2Data.teamRoles.includes(role)) wizardV2Data.teamRoles.push(role); }
+    else { wizardV2Data.teamRoles = wizardV2Data.teamRoles.filter(r => r !== role); }
+};
+
+window._wiz2SendTeamInvites = function(joinLink) {
+    const roles = wizardV2Data.teamRoles || [];
+    if (roles.length === 0) { showToast('info', 'סמנו לפחות תפקיד אחד כדי לשלוח הזמנות'); return; }
+    const bizName = currentGroup?.name || 'העסק';
+    const msgs = roles.map(role =>
+        `היי! 👋\n${bizName} מזמין/ת אותך להצטרף למערכת Oneflow\nבתפקיד: ${role}\nלחץ/י להצטרפות: ${joinLink}`
+    );
+    msgs.forEach((msg, i) => {
+        setTimeout(() => window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank'), i * 400);
+    });
+};
+
+window._wiz2SendAdminInvite = function(joinLink, bizName) {
+    const msg = `היי! 👋\n${bizName} מזמין/ת אותך להצטרף למערכת Oneflow\nבתפקיד: שותף/ה – מנהל/ת ראשי/ת\nלחץ/י להצטרפות: ${joinLink}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+};
+
 function toggleFab() { getEl('fab-container').classList.toggle('fab-open'); }
 
 async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = getEl('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${safeStr(i.item_name)} (x${i.quantity} ${safeStr(i.unit || "יח'")})</span><span class="font-bold">₪${i.price_per_unit || 0}/${safeStr(i.unit || "יח'")}</span></div>`); list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div onclick="document.getElementById('trip-items-${t.id}').classList.toggle('hidden')" class="flex justify-between items-center cursor-pointer"><div><h4 class="font-bold text-slate-800">${safeStr(t.store_name)} ${t.branch_name ? `(${safeStr(t.branch_name)})` : ''}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • אישור: ${safeStr(t.nickname)}</p></div><span class="font-bold text-blue-600 text-lg">₪${t.total_amount} <i class="fa-solid fa-chevron-down text-xs ml-1"></i></span></div><div id="trip-items-${t.id}" class="hidden mt-3 pt-3 border-t border-slate-50">${itemsHtml}<button onclick="copyList(${t.id})" class="w-full mt-2 bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700">יבא דרישה שוב</button></div></div>`; }); getEl('history-modal').classList.remove('hidden'); }
@@ -18841,23 +18864,52 @@ function _renderWizardV2StepContent(stepName) {
         </div>`;
     }
     if (stepName === 'team') {
+        const bizType = currentGroup?.business_type || 'other';
+        const TEAM_ROLES_BY_TYPE = {
+            restaurant:   ['מלצר/ית','טבח/ית','קופאי/ת','שליח/ה','מנהל/ת משמרת'],
+            beauty:       ['מטפלת','איפורנית','טכנאית ציפורניים','קבלנית'],
+            sport:        ['מאמן/ת','קופאי/ת','מנהל/ת משמרת'],
+            services:     ['טכנאי/ת שטח','נציג/ת שירות','קופאי/ת'],
+            professional: ['יועץ/ת','עוזר/ת אדמיניסטרטיב/ית','שותף/ה'],
+            other:        [],
+        };
+        const COMMON_ROLES = ['מנהל/ת סניף','שותף/ה עסקי/ת'];
+        const bizRoles = TEAM_ROLES_BY_TYPE[bizType] || [];
+        const allRoles = [...bizRoles, ...COMMON_ROLES];
+        const selRoles = wizardV2Data.teamRoles || [];
+        const checkboxes = allRoles.map(r => {
+            const checked = selRoles.includes(r);
+            return `<label class="flex items-center gap-3 p-3 bg-white border rounded-xl cursor-pointer hover:border-indigo-300 transition ${checked ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200'}"
+                style="touch-action:manipulation;">
+                <input type="checkbox" class="w-4 h-4 accent-indigo-600 shrink-0"
+                    ${checked ? 'checked' : ''}
+                    onchange="_wiz2ToggleTeamRole('${r.replace(/'/g,"\\'")}', this.checked)">
+                <span class="text-sm font-bold text-slate-700">${r}</span>
+            </label>`;
+        }).join('');
+        const joinLink = `https://oneflowlife.co.il/business.html?join=${currentGroup?.group_code || ''}`;
+        const bizName = currentGroup?.name || 'העסק';
         return `
-        <div class="max-w-md mx-auto space-y-6 text-center">
-            <h3 class="font-bold text-slate-800 text-lg"><i class="fa-solid fa-users text-indigo-500 mr-2"></i>הזמינו את הצוות שלכם</h3>
-            <p class="text-xs text-slate-400">תוכלו להוסיף עוד אנשים בכל עת מהגדרות</p>
-            <div class="space-y-3">
-                <button type="button"
-                    onclick="sendWhatsAppInvite('MEMBER')"
+        <div class="max-w-md mx-auto space-y-5">
+            <div class="text-center">
+                <h3 class="font-bold text-slate-800 text-lg">מי עוד עובד אצלכם?</h3>
+                <p class="text-xs text-slate-400 mt-1">סמנו תפקידים — נשלח הזמנה מותאמת לכל אחד</p>
+            </div>
+            <div class="space-y-2">${checkboxes}</div>
+            <div class="space-y-2 pt-1">
+                <button type="button" onclick="_wiz2SendTeamInvites('${joinLink.replace(/'/g,"\\'")}')"
                     class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-2xl text-sm font-bold transition shadow-sm flex items-center justify-center gap-2">
-                    <i class="fa-brands fa-whatsapp text-lg"></i> שלח הזמנה לעובדים 💬
+                    <i class="fa-brands fa-whatsapp text-lg"></i> שלח הזמנות בוואטסאפ
                 </button>
-                <button type="button"
-                    onclick="sendWhatsAppInvite('ADMIN')"
+                <button type="button" onclick="_wiz2SendAdminInvite('${joinLink.replace(/'/g,"\\'")}', '${bizName.replace(/'/g,"\\'")}')"
                     class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-2xl text-sm font-bold transition flex items-center justify-center gap-2">
                     <i class="fa-solid fa-user-tie"></i> הוסף שותף / מנהל ראשי
                 </button>
+                <button type="button" onclick="_nextWizardV2Step()"
+                    class="w-full text-slate-400 hover:text-slate-600 py-2 text-xs font-bold transition">
+                    דלג — אוסיף צוות מאוחר יותר
+                </button>
             </div>
-            <p class="text-[11px] text-slate-400">ניתן לדלג — תוכלו להזמין צוות מאוחר יותר</p>
         </div>`;
     }
     if (stepName === 'trainer') {
