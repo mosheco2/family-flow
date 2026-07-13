@@ -20250,7 +20250,7 @@ async function _nextWizardV2Step() {
         if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
         try {
             for (const item of items) {
-                await fetch(`${API}/store/catalog`, {
+                const r = await fetch(`${API}/store/catalog`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         groupId: currentGroup.id,
@@ -20261,6 +20261,7 @@ async function _nextWizardV2Step() {
                         productType: 'retail'
                     })
                 });
+                if (!r.ok) break;
             }
         } catch(e) {}
     }
@@ -20547,9 +20548,9 @@ async function _nextWizardV2Step() {
 
     if (stepName === 'my_role') {
         const roleType = wizardV2Data.myRoleType;
-        if (roleType) {
+        if (roleType && currentUser?.id) {
             try {
-                await fetch(`${API}/users/me/role-type`, {
+                await fetch(`${API}/users/${currentUser.id}/role-type`, {
                     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ employee_role_type: roleType })
                 });
