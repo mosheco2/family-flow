@@ -6382,11 +6382,11 @@ app.get('/api/store/employee-popups/:groupId', async (req, res) => {
 // --- הצעות מחיר (Quotes) ---
 app.post('/api/store/quotes', async (req, res) => {
     try {
-        const { groupId, customerName, customerPhone, items, totalAmount, notes } = req.body;
+        const { groupId, customerName, customerPhone, items, totalAmount, notes, familyGroupId } = req.body;
         const result = await pool.query(
-            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, notes, items, created_at)
-             VALUES ($1, $2, $3, $4, 'quote', $5, $6, CURRENT_TIMESTAMP) RETURNING id`,
-            [groupId, customerName, customerPhone, totalAmount, notes, JSON.stringify(items)]
+            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, notes, items, family_group_id, created_at)
+             VALUES ($1, $2, $3, $4, 'quote', $5, $6, $7, CURRENT_TIMESTAMP) RETURNING id`,
+            [groupId, customerName, customerPhone, totalAmount, notes, JSON.stringify(items), familyGroupId || null]
         );
         const quoteId = result.rows[0].id;
         const quoteNumber = `QT-${String(quoteId).padStart(6, '0')}`;
@@ -21042,6 +21042,46 @@ app.post('/api/guide/upload-screenshot', (req, res) => {
         res.json({ ok: true, path: `/screenshots/guide/${safe}` });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
+// ─── DEBUG endpoint (safe — read-only, no auth required) ─────────────────────
+app.get('/api/debug/notification-columns', async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_name = 'alert_notifications'
+            ORDER BY ordinal_position
+        `);
+        res.json(r.rows.map(c => ({ name: c.column_name, type: c.data_type })));
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/debug/order/:id', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT id, status, call_type, quote_status, family_group_id, group_id,
+                    quote_title, quote_number, customer_name
+             FROM store_orders WHERE id=$1`,
+            [req.params.id]
+        );
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/debug/notifications/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT id, trigger_type, message, reference_key, created_at
+             FROM alert_notifications
+             WHERE group_id=$1
+             ORDER BY created_at DESC LIMIT 20`,
+            [req.params.groupId]
+        );
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+// ─── END DEBUG ────────────────────────────────────────────────────────────────
 
 // הפעלת השרת
 app.listen(port, () => {
