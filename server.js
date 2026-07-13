@@ -2761,19 +2761,24 @@ function verifySA(req, res, next) {
 
 async function takeGroupSnapshot(groupId, snapshotType = 'auto') {
     try {
+        const groupRes = await pool.query('SELECT * FROM family_groups WHERE id=$1', [groupId]);
+        const group = groupRes.rows[0];
+        if (!group) return null;
+
+        // כל שאר השאילתות — כישלון שקט אם טבלה/עמודה לא קיימת
+        const safe = q => pool.query(q, [groupId]).catch(() => ({ rows: [] }));
         const [
-            groupRes, usersRes, storeSettingsRes, catalogRes, ordersRes,
+            usersRes, storeSettingsRes, catalogRes, ordersRes,
             calSettingsRes, calServicesRes, calEventsRes,
             practitionersRes, resourcesRes, apptRes, clientRecordsRes,
             inventoryRes, commissionsRes, rfqRes
         ] = await Promise.all([
-            pool.query('SELECT * FROM family_groups WHERE id=$1', [groupId]),
-            pool.query('SELECT id,nickname,email,phone,role,status,balance,birth_year,id_number,created_at FROM users WHERE group_id=$1', [groupId]),
-            pool.query('SELECT * FROM store_settings WHERE group_id=$1', [groupId]).catch(()=>({rows:[]})),
-            pool.query('SELECT * FROM store_catalog WHERE group_id=$1', [groupId]).catch(()=>({rows:[]})),
+            pool.query('SELECT id,nickname,email,phone,role,status,balance,birth_year,id_number FROM users WHERE group_id=$1', [groupId]).catch(()=>({rows:[]})),
+            safe('SELECT * FROM store_settings WHERE group_id=$1'),
+            safe('SELECT * FROM store_catalog WHERE group_id=$1'),
             pool.query(`SELECT * FROM store_orders WHERE group_id=$1 AND created_at > NOW() - INTERVAL '30 days'`, [groupId]).catch(()=>({rows:[]})),
-            pool.query('SELECT * FROM calendar_settings WHERE group_id=$1', [groupId]).catch(()=>({rows:[]})),
-            pool.query('SELECT * FROM calendar_services WHERE group_id=$1', [groupId]).catch(()=>({rows:[]})),
+            safe('SELECT * FROM calendar_settings WHERE group_id=$1'),
+            safe('SELECT * FROM calendar_services WHERE group_id=$1'),
             pool.query(`SELECT * FROM calendar_events WHERE group_id=$1 AND event_date >= CURRENT_DATE - 30`, [groupId]).catch(()=>({rows:[]})),
             pool.query('SELECT * FROM beauty_practitioners WHERE business_group_id=$1', [groupId]).catch(()=>({rows:[]})),
             pool.query('SELECT * FROM beauty_resources WHERE business_group_id=$1', [groupId]).catch(()=>({rows:[]})),
@@ -2783,18 +2788,16 @@ async function takeGroupSnapshot(groupId, snapshotType = 'auto') {
             pool.query(`SELECT * FROM beauty_commissions WHERE business_group_id=$1 AND status='unpaid'`, [groupId]).catch(()=>({rows:[]})),
             pool.query(`SELECT * FROM beauty_rfq WHERE business_group_id=$1 AND created_at > NOW() - INTERVAL '30 days'`, [groupId]).catch(()=>({rows:[]})),
         ]);
-        const group = groupRes.rows[0];
-        if (!group) return null;
+
         const snapshotData = {
-            v: 1,
-            group,
-            users:              usersRes.rows,
-            store_settings:     storeSettingsRes.rows[0] || null,
-            catalog:            catalogRes.rows,
-            orders:             ordersRes.rows,
-            calendar_settings:  calSettingsRes.rows[0] || null,
-            calendar_services:  calServicesRes.rows,
-            calendar_events:    calEventsRes.rows,
+            v: 1, group,
+            users:                usersRes.rows,
+            store_settings:       storeSettingsRes.rows[0] || null,
+            catalog:              catalogRes.rows,
+            orders:               ordersRes.rows,
+            calendar_settings:    calSettingsRes.rows[0] || null,
+            calendar_services:    calServicesRes.rows,
+            calendar_events:      calEventsRes.rows,
             beauty_practitioners: practitionersRes.rows,
             beauty_resources:     resourcesRes.rows,
             beauty_appointments:  apptRes.rows,
@@ -2803,20 +2806,24 @@ async function takeGroupSnapshot(groupId, snapshotType = 'auto') {
             beauty_commissions:   commissionsRes.rows,
             beauty_rfq:           rfqRes.rows,
         };
+
+        // INSERT — ללא עמודות שעשויות להיות חסרות (created_at מוגדר DEFAULT)
         await pool.query(
-            `INSERT INTO group_snapshots (group_id, group_name, snapshot_type, snapshot_data, expires_at)
-             VALUES ($1,$2,$3,$4, NOW() + INTERVAL '30 days')`,
-            [groupId, group.name, snapshotType, JSON.stringify(snapshotData)]
+            `INSERT INTO group_snapshots (group_id, snapshot_type, snapshot_data)
+             VALUES ($1,$2,$3)`,
+            [groupId, snapshotType, JSON.stringify(snapshotData)]
         );
-        // שמירת 30 snapshots בלבד לכל סביבה (id SERIAL — תמיד קיים, גדל מונוטונית)
-        await pool.query(
+
+        // ניקוי snapshot ישנים — בלוק נפרד כדי שכישלון לא יבטל את ה-INSERT
+        pool.query(
             `DELETE FROM group_snapshots WHERE group_id=$1 AND snapshot_type='auto'
              AND id NOT IN (
                SELECT id FROM group_snapshots WHERE group_id=$1 AND snapshot_type='auto'
                ORDER BY id DESC LIMIT 30
              )`,
             [groupId]
-        );
+        ).catch(e => console.warn('[SNAPSHOT CLEANUP]', e.message));
+
         return true;
     } catch(e) { console.error('[SNAPSHOT]', e.message); return { error: e.message }; }
 }
