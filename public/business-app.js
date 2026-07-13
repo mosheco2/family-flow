@@ -19277,6 +19277,108 @@ function _renderWizardV2StepContent(stepName) {
             </div>
         </div>`;
     }
+    if (stepName === 'case_type') {
+        const PROFESSIONS = [
+            { value: 'משפטי',                 icon: '⚖️', sub: 'תיקים, חוזים, ייצוג לקוחות' },
+            { value: 'ייעוץ עסקי',            icon: '💼', sub: 'אסטרטגיה, תוכניות עסקיות, ליווי' },
+            { value: 'כלכלה ומיסים',          icon: '💰', sub: 'הנהלת חשבונות, דוחות, מיסוי' },
+            { value: 'הנדסה ואדריכלות',       icon: '🏗️', sub: 'תכנון, פיקוח, היתרים' },
+            { value: 'פסיכולוגיה וקואצ\'ינג', icon: '🧠', sub: 'טיפול, ייעוץ, הדרכה' },
+            { value: 'אחר',                    icon: '📋', sub: 'כל מקצוע מומחה אחר' },
+        ];
+        const sel = wizardV2Data.profession || '';
+        const cards = PROFESSIONS.map(p => `
+            <button type="button" onclick="_wiz2SelectProfession('${p.value.replace(/'/g,"\\\'")}')"
+                id="wiz-v2-prof-${PROFESSIONS.indexOf(p)}"
+                class="flex items-start gap-3 p-4 rounded-2xl border-2 transition active:scale-95 w-full text-right
+                    ${sel === p.value ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-200'}"
+                style="touch-action:manipulation;cursor:pointer;">
+                <span class="text-2xl mt-0.5">${p.icon}</span>
+                <div>
+                    <p class="font-bold text-slate-800 text-sm">${p.value}</p>
+                    <p class="text-xs text-slate-500 mt-0.5">${p.sub}</p>
+                </div>
+            </button>`).join('');
+        return `
+        <div class="max-w-md mx-auto space-y-5">
+            <div>
+                <p class="text-base font-bold text-slate-700 mb-3">מה תחום המומחיות שלכם?</p>
+                <div class="space-y-2">${cards}</div>
+            </div>
+        </div>`;
+    }
+    if (stepName === 'first_case') {
+        const prof = wizardV2Data.profession || 'אחר';
+        const placeholders = {
+            'משפטי':                 'תיק נדל"ן / ירושה / גירושין',
+            'ייעוץ עסקי':            'ליווי עסקי — [שם חברה]',
+            'כלכלה ומיסים':          'דוח שנתי — [שם לקוח]',
+            'הנדסה ואדריכלות':       'פרויקט תכנון — [כתובת]',
+            'פסיכולוגיה וקואצ\'ינג': 'ליווי טיפולי',
+        };
+        const titlePh = placeholders[prof] || 'תיק ראשון';
+        const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+        return `
+        <div class="max-w-md mx-auto space-y-5">
+            <div>
+                <p class="text-base font-bold text-slate-700">בואו ניצור תיק לקוח לדוגמה</p>
+                <p class="text-xs text-slate-500 mt-1 mb-4">כך תראו איך המערכת עובדת</p>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">שם לקוח</label>
+                        <input id="wiz-v2-case-client" type="text" value="לקוח לדוגמה"
+                            class="modern-input w-full py-2.5" placeholder="לקוח לדוגמה">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">כותרת התיק</label>
+                        <input id="wiz-v2-case-title" type="text"
+                            class="modern-input w-full py-2.5" placeholder="${titlePh}">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">מתי הפגישה הראשונה?</label>
+                        <input id="wiz-v2-case-meeting" type="date" value="${tomorrowStr}"
+                            class="modern-input w-full py-2.5 dir-ltr">
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }
+    if (stepName === 'document_template') {
+        const DOC_TYPES = [
+            { value: 'הסכם שירות',   icon: '📄' },
+            { value: 'הצעת מחיר',    icon: '📋' },
+            { value: 'מכתב מקצועי',  icon: '✉️' },
+            { value: 'דוח',          icon: '📊' },
+            { value: 'חוזה',         icon: '🤝' },
+        ];
+        const selDoc = wizardV2Data.docTemplateType || '';
+        const docCards = DOC_TYPES.map(d => `
+            <button type="button" onclick="_wiz2SelectDocType('${d.value}')"
+                id="wiz-v2-doc-${d.value.replace(/\s/g,'_')}"
+                class="flex items-center gap-3 p-3 rounded-2xl border-2 transition active:scale-95 w-full text-right
+                    ${selDoc === d.value ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-200'}"
+                style="touch-action:manipulation;cursor:pointer;">
+                <span class="text-xl">${d.icon}</span>
+                <span class="font-bold text-slate-700 text-sm">${d.value}</span>
+            </button>`).join('');
+        const tmpl = wizardV2Data.docTemplateContent || '';
+        return `
+        <div class="max-w-md mx-auto space-y-5">
+            <div>
+                <p class="text-base font-bold text-slate-700">איזה מסמך אתם הכי הרבה מפיקים?</p>
+                <p class="text-xs text-slate-500 mt-1 mb-3">ניצור תבנית מוכנה לשימוש</p>
+                <div class="space-y-2 mb-4">${docCards}</div>
+            </div>
+            <div id="wiz-v2-doc-result">
+                ${tmpl ? `<textarea id="wiz-v2-doc-textarea" rows="10"
+                    class="modern-input w-full text-sm leading-relaxed"
+                    oninput="wizardV2Data.docTemplateContent=this.value">${tmpl}</textarea>`
+                : selDoc ? '<div class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">יוצר תבנית מסמך...</p></div>'
+                : '<p class="text-xs text-slate-400 text-center py-4">בחרו סוג מסמך כדי לייצר תבנית אוטומטית</p>'}
+            </div>
+        </div>`;
+    }
     return `<div class="text-center text-slate-500 py-8">שלב: ${stepName}</div>`;
 }
 
@@ -19538,6 +19640,72 @@ window._wiz2AddProd = function() {
     const addBtn = el.querySelector('button');
     if (addBtn) el.insertBefore(row, addBtn);
     else el.appendChild(row);
+};
+
+window._wiz2SelectProfession = function(value) {
+    wizardV2Data.profession = value;
+    document.querySelectorAll('[id^="wiz-v2-prof-"]').forEach(btn => {
+        btn.className = btn.className
+            .replace(/border-indigo-500 bg-indigo-50|border-slate-200 bg-white hover:border-indigo-200/g, '')
+            + ' border-slate-200 bg-white hover:border-indigo-200';
+    });
+    const PROFESSIONS = ['משפטי','ייעוץ עסקי','כלכלה ומיסים','הנדסה ואדריכלות','פסיכולוגיה וקואצ\'ינג','אחר'];
+    const idx = PROFESSIONS.indexOf(value);
+    const btn = document.getElementById(`wiz-v2-prof-${idx}`);
+    if (btn) btn.className = btn.className
+        .replace(/border-slate-200 bg-white hover:border-indigo-200/g, '')
+        + ' border-indigo-500 bg-indigo-50';
+};
+
+window._wiz2SelectDocType = function(value) {
+    wizardV2Data.docTemplateType = value;
+    wizardV2Data.docTemplateContent = '';
+    document.querySelectorAll('[id^="wiz-v2-doc-"]').forEach(btn => {
+        btn.className = btn.className
+            .replace(/border-indigo-500 bg-indigo-50|border-slate-200 bg-white hover:border-indigo-200/g, '')
+            + ' border-slate-200 bg-white hover:border-indigo-200';
+    });
+    const btn = document.getElementById(`wiz-v2-doc-${value.replace(/\s/g,'_')}`);
+    if (btn) btn.className = btn.className
+        .replace(/border-slate-200 bg-white hover:border-indigo-200/g, '')
+        + ' border-indigo-500 bg-indigo-50';
+    _generateDocTemplate();
+};
+
+window._generateDocTemplate = async function() {
+    const docType = wizardV2Data.docTemplateType;
+    const prof    = wizardV2Data.profession || 'מקצוע מומחה';
+    if (!docType) return;
+    let resultEl = document.getElementById('wiz-v2-doc-result');
+    if (!resultEl) return;
+    resultEl.innerHTML = `<div class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i><p class="text-xs mt-2 font-bold">יוצר תבנית מסמך...</p></div>`;
+    try {
+        const res = await fetch(`${API}/ai/generate-catalog`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                promptText: `צור תבנית ${docType} מקצועית בעברית עבור ${prof}. כלול: כותרת, 4-5 סעיפים עיקריים עם תוכן לדוגמה, שדות למילוי בסוגריים מרובעים כמו [שם לקוח]. טקסט בלבד, ללא JSON.`,
+                type: 'BUSINESS', groupId: currentGroup.id
+            })
+        });
+        const responseText = await res.text();
+        resultEl = document.getElementById('wiz-v2-doc-result');
+        if (!resultEl) return;
+        let outer;
+        try { outer = JSON.parse(responseText); } catch(e) {
+            resultEl.innerHTML = `<textarea id="wiz-v2-doc-textarea" rows="10" class="modern-input w-full text-sm leading-relaxed" oninput="wizardV2Data.docTemplateContent=this.value" placeholder="כתבו את תבנית המסמך כאן..."></textarea>`;
+            return;
+        }
+        if (!outer.success || outer.error) {
+            resultEl.innerHTML = `<textarea id="wiz-v2-doc-textarea" rows="10" class="modern-input w-full text-sm leading-relaxed" oninput="wizardV2Data.docTemplateContent=this.value" placeholder="מכסת ה-AI אזלה — כתבו את תבנית המסמך כאן..."></textarea>`;
+            return;
+        }
+        const text = outer.text || outer.result || outer.content || '';
+        wizardV2Data.docTemplateContent = text;
+        resultEl.innerHTML = `<textarea id="wiz-v2-doc-textarea" rows="10" class="modern-input w-full text-sm leading-relaxed" oninput="wizardV2Data.docTemplateContent=this.value">${text}</textarea>`;
+    } catch(e) {
+        resultEl = document.getElementById('wiz-v2-doc-result');
+        if (resultEl) resultEl.innerHTML = `<textarea id="wiz-v2-doc-textarea" rows="10" class="modern-input w-full text-sm leading-relaxed" oninput="wizardV2Data.docTemplateContent=this.value" placeholder="שגיאה — כתבו את תבנית המסמך כאן..."></textarea>`;
+    }
 };
 
 window._wiz2ToggleBilling = function(value) {
@@ -20172,6 +20340,48 @@ async function _nextWizardV2Step() {
         }
     }
 
+    if (stepName === 'case_type') {
+        if (!wizardV2Data.profession) { alert('נא לבחור תחום מומחיות'); return; }
+    }
+
+    if (stepName === 'first_case') {
+        const clientName = (document.getElementById('wiz-v2-case-client')?.value || '').trim() || 'לקוח לדוגמה';
+        const title      = (document.getElementById('wiz-v2-case-title')?.value || '').trim() || 'תיק ראשון';
+        const meetDate   = document.getElementById('wiz-v2-case-meeting')?.value || '';
+        wizardV2Data.firstCase = { clientName, title, meetDate };
+        const btnNext = document.getElementById('wizard-v2-btn-next');
+        if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
+        try {
+            const caseRes = await fetch(`${API}/cases`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ groupId: currentGroup.id, clientName, title, status: 'active' })
+            });
+            const caseData = await caseRes.json().catch(() => ({}));
+            if (meetDate) {
+                await fetch(`${API}/calendar/events`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ groupId: currentGroup.id, title: `פגישה — ${clientName}`, date: meetDate, type: 'meeting' })
+                });
+            }
+            if (!caseData.success) console.warn('case create:', caseData);
+        } catch(e) {}
+    }
+
+    if (stepName === 'document_template') {
+        const docType = wizardV2Data.docTemplateType || '';
+        const content = (document.getElementById('wiz-v2-doc-textarea')?.value || wizardV2Data.docTemplateContent || '').trim();
+        if (docType && content) {
+            const btnNext = document.getElementById('wizard-v2-btn-next');
+            if (btnNext) btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
+            try {
+                await fetch(`${API}/documents/templates`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ groupId: currentGroup.id, title: docType, content, profession: wizardV2Data.profession || '' })
+                });
+            } catch(e) {}
+        }
+    }
+
     if (stepName === 'food_type') {
         if (!wizardV2Data.serviceTypes || wizardV2Data.serviceTypes.length === 0) { alert('נא לבחור סוג פעילות'); return; }
         if (wizardV2Data.serviceTypes.includes('tables')) {
@@ -20248,7 +20458,11 @@ window.updateWizardUIV2 = function updateWizardUIV2() {
     }
 
     const btnSkip = document.getElementById('wizard-v2-btn-skip');
-    if (btnSkip) btnSkip.onclick = () => { currentWizardStepV2++; updateWizardUIV2(); };
+    if (btnSkip) {
+        const skippable = ['first_case', 'document_template'];
+        btnSkip.classList.toggle('hidden', !skippable.includes(stepName));
+        btnSkip.onclick = () => { currentWizardStepV2++; updateWizardUIV2(); };
+    }
 
     const btnNext = document.getElementById('wizard-v2-btn-next');
     if (btnNext) {
