@@ -64,7 +64,7 @@ window.applyUserPermissions = function() {
         'pulse': 'open', 'dashboard': 'open', 'clients': 'open', 'sysmap': 'open', 'legal': 'open', 'templates': 'open',
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
         'comm': 'comm', 'biz': 'biz', 'content': 'content',
-        'hr': 'users', 'inbox': 'marketing', 'partners': 'all', 'finance': 'all'
+        'hr': 'users', 'inbox': 'marketing', 'partners': 'all', 'finance': 'finance'
     };
 
     function canAccessTab(tab) {
