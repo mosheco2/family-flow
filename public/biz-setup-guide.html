@@ -8641,19 +8641,23 @@ const obs = new IntersectionObserver(entries => {
   }
 
   function getCurrentContext() {
-    // find visible section with data-business attribute
-    const sections = document.querySelectorAll('[data-business]');
-    for (const s of sections) {
-      const rect = s.getBoundingClientRect();
-      if (rect.top < window.innerHeight * 0.6 && rect.bottom > 0) {
-        return {
-          business: s.dataset.business || '',
-          topic: s.dataset.topic || '',
-          role: s.dataset.role || ''
-        };
-      }
+    // מצא את הסקשן הגלוי כרגע
+    const visibleSection = Array.from(
+      document.querySelectorAll('[data-business]')
+    ).find(el => !el.classList.contains('hidden') &&
+                 el.offsetParent !== null);
+
+    if (!visibleSection) {
+      // אם לא נמצא סקשן ספציפי — קח את כל המדריך
+      return document.getElementById('restaurant')?.innerText?.slice(0, 4000)
+          || document.body.innerText.slice(0, 4000);
     }
-    return { business: '', topic: '', role: '' };
+
+    // קח את טקסט הסקשן הנוכחי
+    const text = visibleSection.innerText;
+    console.log('קונטקסט:', visibleSection.dataset.business,
+                text.length, 'תווים');
+    return text.slice(0, 4000);
   }
 
   function updateChatContext(sectionId) {
@@ -8721,9 +8725,33 @@ const obs = new IntersectionObserver(entries => {
       return;
     }
 
-    const ctx = _guideCtx.business
-      ? `אתה עוזר למדריך שימוש של ONEFLOW LIFE BIZ עבור סוג עסק: ${_guideCtx.business}. נושא: ${_guideCtx.topic || 'כללי'}. ענה בעברית, קצר ומעשי.`
-      : 'אתה עוזר למדריך שימוש של ONEFLOW LIFE BIZ. ענה בעברית, קצר ומעשי.';
+    const context = getCurrentContext();
+    console.log('קונטקסט שנשלח:', (typeof context === 'string' ? context : JSON.stringify(context)).slice(0, 200));
+
+    const msg = text;
+    const prompt = `
+אתה עוזר תמיכה של מערכת OneFlow Life BIZ.
+
+חוקים מחייבים:
+1. ענה אך ורק על בסיס המדריך שמופיע למטה
+2. אל תשתמש במידע כללי שלך על מערכות אחרות
+3. כל המונחים חייבים להיות בעברית בדיוק כפי שמופיעים במדריך
+   - לא "Products" — כתוב "מוצרים" או "מנות"
+   - לא "Add New" — כתוב "הוסף חדש"
+   - לא "Save" — כתוב "שמור"
+   - לא "Dashboard" — כתוב "לוח הבקרה"
+4. אם השאלה לא קשורה למדריך — אמור "שאלה זו מחוץ לתחום המדריך"
+5. ענה בעברית בלבד
+6. תן הוראות צעד אחר צעד עם מספרים
+7. היה קצר וברור — עד 150 מילה
+
+המדריך:
+---
+${typeof context === 'string' ? context : JSON.stringify(context)}
+---
+
+שאלת המשתמש: ${msg}
+`;
 
     try {
       const res = await fetch(
@@ -8732,8 +8760,7 @@ const obs = new IntersectionObserver(entries => {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify({
-            system_instruction: { parts: [{ text: ctx }] },
-            contents: [{ role: 'user', parts: [{ text }] }]
+            contents: [{ role: 'user', parts: [{ text: prompt }] }]
           })
         }
       );
