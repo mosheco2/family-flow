@@ -276,7 +276,8 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
 #guide-chat-modal{
   position:fixed;bottom:90px;right:22px;z-index:8999;
-  width:380px;max-width:calc(100vw - 32px);height:500px;
+  width:380px;max-width:calc(100vw - 32px);
+  height:min(500px, calc(100vh - 110px));
   background:var(--surface);border:1px solid var(--border);
   border-radius:20px;box-shadow:0 16px 60px -12px rgba(0,0,0,.28),0 2px 12px rgba(0,0,0,.12);
   display:flex;flex-direction:column;overflow:hidden;
@@ -8639,7 +8640,7 @@ const obs = new IntersectionObserver(entries => {
   function getActiveBizId() {
     for (const id of BIZ_IDS) {
       const el = document.getElementById(id);
-      if (el && !el.classList.contains('hidden')) return id;
+      if (el && el.classList.contains('on')) return id;
     }
     return null;
   }
@@ -8655,12 +8656,12 @@ const obs = new IntersectionObserver(entries => {
   function getCurrentContext() {
     for (const id of BIZ_IDS) {
       const el = document.getElementById(id);
-      if (el && !el.classList.contains('hidden')) {
+      if (el && el.classList.contains('on')) {
         console.log('קונטקסט:', id);
         return el.innerText.slice(0, 6000);
       }
     }
-    console.log('קונטקסט: כל המדריך');
+    console.log('קונטקסט: דף ראשי');
     return BIZ_IDS.map(id => document.getElementById(id)?.innerText || '').join('\n\n').slice(0, 6000);
   }
 
@@ -8682,7 +8683,7 @@ const obs = new IntersectionObserver(entries => {
       logistics:  ['איך מוסיפים נהג?','איך יוצרים משלוח?','איך עוקבים אחרי הזמנה?'],
       default:    ['איזה סוג עסק יש לך?','איך מתחילים עם המערכת?','איך מוסיפים עובד?']
     };
-    const activeId = getActiveBizId() || 'default';
+    const activeId = getActiveBizId() || 'default'; // getActiveBizId checks .on class
     const qs = questions[activeId] || questions.default;
     const container = document.getElementById('guide-quick-questions');
     if (container) {
