@@ -197,19 +197,19 @@ async function captureRestaurant(page) {
   await capture(page, 'restaurant-09-pos-product');
   await clearAnnotations(page);
 
-  // KDS (מכירות → KDS)
-  await clickNavGroup(page, 'sales');
-  await clickNavItem(page, 'kds');
+  // KDS — קריאה ישירה ל-switchTab (לא בתפריט, רק טייל)
+  await page.evaluate(() => window.switchTab && window.switchTab('kds'));
+  await page.waitForTimeout(2000);
   await capture(page, 'restaurant-10-kds');
 
-  // שולחנות (מכירות → שולחנות)
-  await clickNavGroup(page, 'sales');
-  await clickNavItem(page, 'tables');
+  // שולחנות — קריאה ישירה
+  await page.evaluate(() => window.switchTab && window.switchTab('tables'));
+  await page.waitForTimeout(2000);
   await capture(page, 'restaurant-11-tables');
 
-  // קטלוג — מלאי → קטלוג
-  await clickNavGroup(page, 'inventory');
-  await clickNavItem(page, 'catalog');
+  // קטלוג — קריאה ישירה
+  await page.evaluate(() => window.switchTab && window.switchTab('catalog'));
+  await page.waitForTimeout(2000);
   await capture(page, 'restaurant-12-catalog');
 
   // הדגש כפתור הוסף מנה
@@ -217,9 +217,9 @@ async function captureRestaurant(page) {
   await capture(page, 'restaurant-13-catalog-add');
   await clearAnnotations(page);
 
-  // מלאי מחסן (מלאי → מלאי מחסן)
-  await clickNavGroup(page, 'inventory');
-  await clickNavItem(page, 'pantry');
+  // מלאי מחסן
+  await page.evaluate(() => window.switchTab && window.switchTab('pantry'));
+  await page.waitForTimeout(2000);
   await capture(page, 'restaurant-14-inventory');
 
   // צוות — ניהול צוות
