@@ -24,34 +24,42 @@ async function login(page, { code, user, pass }) {
 }
 
 async function annotate(page, selector, label) {
-  await page.evaluate(({ sel, lbl }) => {
-    const el = document.querySelector(sel);
+  try {
+    const locator = page.locator(selector).first();
+    const el = await locator.elementHandle({ timeout: 2000 });
     if (!el) return;
-    el.style.outline = '3px solid #FF3B30';
-    el.style.outlineOffset = '3px';
-    el.style.borderRadius = '6px';
-    const tag = document.createElement('div');
-    tag.innerText = lbl;
-    tag.style.cssText = `
-      position: absolute;
-      background: #FF3B30;
-      color: white;
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: bold;
-      font-family: Arial, sans-serif;
-      z-index: 99999;
-      white-space: nowrap;
-      direction: rtl;
-    `;
-    const rect = el.getBoundingClientRect();
-    tag.style.top = (rect.top + window.scrollY - 34) + 'px';
-    tag.style.left = (rect.left + window.scrollX) + 'px';
-    tag.dataset.annotation = 'true';
-    document.body.appendChild(tag);
-    el.dataset.annotated = 'true';
-  }, { sel: selector, lbl: label });
+    await page.evaluate(({ lbl }) => {
+      // marks the first element matching the handle
+    }, { lbl: label });
+    await el.evaluate((node, lbl) => {
+      node.style.outline = '3px solid #FF3B30';
+      node.style.outlineOffset = '3px';
+      node.style.borderRadius = '6px';
+      const tag = document.createElement('div');
+      tag.innerText = lbl;
+      tag.style.cssText = `
+        position: absolute;
+        background: #FF3B30;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: bold;
+        font-family: Arial, sans-serif;
+        z-index: 99999;
+        white-space: nowrap;
+        direction: rtl;
+      `;
+      const rect = node.getBoundingClientRect();
+      tag.style.top = (rect.top + window.scrollY - 34) + 'px';
+      tag.style.left = (rect.left + window.scrollX) + 'px';
+      tag.dataset.annotation = 'true';
+      document.body.appendChild(tag);
+      node.dataset.annotated = 'true';
+    }, label);
+  } catch {
+    console.log(`  ⚠️ annotate לא מצא: ${selector}`);
+  }
 }
 
 async function clearAnnotations(page) {
