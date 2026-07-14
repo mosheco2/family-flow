@@ -8724,13 +8724,37 @@ const obs = new IntersectionObserver(entries => {
   }
 
   function getCurrentContext() {
-    const id = getActiveBizId();
-    if (id) {
-      const el = document.getElementById(id);
-      console.log('קונטקסט:', id);
+    // זהה עסק מתוך היסטוריית השיחה תחילה
+    const historyText = conversationHistory.map(m => m.text).join(' ').toLowerCase();
+    const businessKeywords = {
+      restaurant: ['מסעדה','קפה','אוכל','מטבח','מנה','תפריט','שולחן','מלצר','טבח','קופה','פיצה'],
+      beauty:     ['יופי','ציפורניים','שיער','מטפלת','טיפול','סלון','תור','עמלות','מניקור','פדיקור'],
+      sport:      ['ספורט','מאמן','מנוי','אימון','חוג','כושר','שיעור','חבר מועדון','צ\'ק-אין'],
+      maintenance:['תיקון','טכנאי','קריאת שירות','תקלה','אינסטלציה','חשמל','מזגן','הצעת מחיר'],
+      professional:['עורך דין','יועץ','תיק','מסמך','שעות','ייעוץ','מומחה'],
+      logistics:  ['הובלה','נהג','משלוח','רכב','מסלול']
+    };
+
+    let detectedBusiness = null;
+    for (const [biz, keywords] of Object.entries(businessKeywords)) {
+      if (keywords.some(k => historyText.includes(k))) {
+        detectedBusiness = biz;
+        break;
+      }
+    }
+
+    // אם לא זוהה מהשיחה — קח את הסקשן הגלוי
+    if (!detectedBusiness) detectedBusiness = getActiveBizId();
+
+    window._currentDetectedBusiness = detectedBusiness;
+
+    if (detectedBusiness) {
+      const el = document.getElementById(detectedBusiness);
+      console.log('קונטקסט:', detectedBusiness);
       return el ? el.innerText.slice(0, 6000) : '';
     }
-    console.log('קונטקסט: דף ראשי');
+
+    console.log('קונטקסט: כל המדריך');
     return BIZ_IDS.map(id => document.getElementById(id)?.innerText || '').join('\n\n').slice(0, 6000);
   }
 
@@ -8744,15 +8768,15 @@ const obs = new IntersectionObserver(entries => {
 
   function updateQuickQuestions() {
     const questions = {
-      restaurant: ['איך מוסיפים מנה חדשה?','איך פותחים קופה?','איך רואים דוח יום?'],
-      beauty:     ['איך מוסיפים מטפלת?','איך קובעים תור?','איך רואים עמלות?'],
-      sport:      ['איך מוסיפים חבר מועדון?','איך מנהלים מנויים?','איך עושים צ\'ק-אין?'],
-      maintenance:['איך פותחים קריאת שירות?','איך שולחים הצעת מחיר?','איך סוגרים עבודה?'],
+      restaurant:  ['איך מוסיפים מנה חדשה?','איך מגדירים תפקיד לעובד?','איך פותחים קופה?'],
+      beauty:      ['איך מוסיפים מטפלת?','איך משייכים טיפול למטפלת?','איך קובעים תור?'],
+      sport:       ['איך מוסיפים מאמן?','איך משייכים מאמן לשיעור?','איך מנהלים מנויים?'],
+      maintenance: ['איך מגדירים טכנאי?','איך פותחים קריאת שירות?','איך שולחים הצעת מחיר?'],
       professional:['איך פותחים תיק לקוח?','איך מתעדים שעות?','איך שולחים מסמך?'],
-      logistics:  ['איך מוסיפים נהג?','איך יוצרים משלוח?','איך עוקבים אחרי הזמנה?'],
-      default:    ['איזה סוג עסק יש לך?','איך מתחילים עם המערכת?','איך מוסיפים עובד?']
+      logistics:   ['איך מוסיפים נהג?','איך יוצרים משלוח?','איך עוקבים אחרי הזמנה?'],
+      default:     ['איזה סוג עסק יש לך?','איך מתחילים עם המערכת?','איך מזמינים עובד?']
     };
-    const activeId = getActiveBizId() || 'default'; // getActiveBizId checks .on class
+    const activeId = window._currentDetectedBusiness || getActiveBizId() || 'default';
     const qs = questions[activeId] || questions.default;
     const container = document.getElementById('guide-quick-questions');
     if (container) {
@@ -8807,59 +8831,63 @@ const obs = new IntersectionObserver(entries => {
     const context = getCurrentContext();
     console.log('קונטקסט שנשלח:', context.slice(0, 200));
 
-    const activeBusiness = getActiveBizId();
+    const detectedBiz = window._currentDetectedBusiness;
     const historyText = conversationHistory.map(m =>
       m.role === 'user' ? `משתמש: ${m.text}` : `עוזר: ${m.text}`
     ).join('\n');
 
     const prompt = `אתה עוזר תמיכה של מערכת OneFlow Life BIZ.
 שמך "עוזר OneFlow".
-המשתמש שלך הוא בעל עסק קטן שלא בהכרח טכנולוגי.
-המטרה שלך: להוביל אותו לפתרון בצורה פשוטה וברורה.
+המשתמש הוא בעל עסק קטן שלא בהכרח טכנולוגי.
+המטרה: להוביל אותו לפתרון בצורה פשוטה וברורה.
 
-${activeBusiness ? `סוג העסק הנוכחי: ${BIZ_NAMES[activeBusiness]}` : 'סוג העסק: לא ידוע עדיין'}
+${detectedBiz ? `סוג העסק שזוהה: ${BIZ_NAMES[detectedBiz]}` : 'סוג העסק: לא זוהה עדיין — שאל בשאלה הראשונה'}
 
-${historyText ? `היסטוריית השיחה עד כה:\n${historyText}\n` : ''}
+${historyText ? `היסטוריית השיחה:\n${historyText}\n` : ''}
 כללי התנהגות מחייבים:
 
-1. תמיד תוביל לפתרון — אל תשאיר את המשתמש בלי כיוון
-   ✅ "הנה איך עושים זאת: 1. לחצו על... 2. בחרו..."
+1. זהה סוג עסק מהשיחה — ענה לפי הסקשן הרלוונטי במדריך
+   אם לא ברור — שאל: "איזה סוג עסק יש לך?"
+   אל תשיב לפי הסקשן הגלוי במסך אם המשתמש אמר משהו אחר
+
+2. תמיד תוביל לפתרון — אל תשאיר את המשתמש בלי כיוון
+   ✅ "הנה איך עושים זאת: 1... 2... 3..."
    ❌ "שאלה זו מחוץ לתחום" — אסור לומר זאת
 
-2. אם לא ברור מה המשתמש צריך — שאל שאלה מנחה אחת בלבד:
+3. אם לא ברור מה המשתמש צריך — שאל שאלה מנחה אחת בלבד:
    - "איזה סוג עסק יש לך?" (אם לא ידוע)
    - "באיזה מסך אתה נמצא כרגע?"
    - "מה בדיוק אתה מנסה לעשות?"
 
-3. אם השאלה על נושא שיש במדריך — ענה מיד עם צעדים
+4. אם השאלה ברורה — ענה מיד ללא שאלות מיותרות
 
-4. כל מונח — בעברית בדיוק כפי שכתוב במדריך:
+5. כל מונח — בעברית בדיוק כפי שכתוב במדריך:
    "קופה" לא POS | "לוח הבקרה" לא Dashboard
    "הוסף" לא Add | "שמור" לא Save
    "מסך מטבח" לא KDS | "קיצורי דרך מהירים" לא Quick Tiles
+   "מטפלות מאושרות" לא assigned practitioners
 
-5. ענה בעברית בלבד — תמיד
+6. ענה בעברית בלבד — תמיד
 
-6. תן הוראות צעד אחר צעד עם מספרים
+7. צעדים ממוספרים — ברורים וקצרים
 
-7. היה קצר וממוקד — עד 120 מילה
+8. עד 120 מילה — אל תאריך
 
-8. בסוף כל תשובה — הוסף שאלה אחת שמקדמת:
-   "האם זה עזר? רוצה שאסביר על [נושא קשור]?"
+9. זכור את כל השיחה — אל תחזור על מידע שנאמר
+   אם שאלת "איזה סוג עסק יש לך?" והמשתמש ענה — אל תשאל שוב לעולם
 
-9. אם המשתמש תקוע — הצע:
-   "אם אתה עדיין תקוע, נסה: [צעד אלטרנטיבי]"
+10. בסוף כל תשובה — הוסף שאלת המשך אחת:
+    "רוצה שאסביר על [נושא קשור]?"
 
-10. זכור את כל השיחה — אל תחזור על שאלות שכבר נשאלו ונענו
-    אם שאלת "איזה סוג עסק יש לך?" והמשתמש ענה — אל תשאל שוב לעולם
-    אם שאלת כל שאלה אחרת והמשתמש ענה — אל תשאל אותה שוב
+11. אם המשתמש עדיין תקוע — הצע:
+    "אם לא הצלחת, נסה: [נתיב אלטרנטיבי]"
 
-המדריך המלא:
+המדריך הרלוונטי:
 ---
 ${context}
 ---
 
-שאלה נוכחית: ${msg}
+שאלה: ${msg}
 
 ענה עכשיו — תוביל לפתרון.`;
 
@@ -8880,6 +8908,7 @@ ${context}
       conversationHistory.push({ role: 'user', text: msg });
       conversationHistory.push({ role: 'ai', text: answer });
       if (conversationHistory.length > 6) conversationHistory = conversationHistory.slice(-6);
+      updateQuickQuestions();
     } catch(e) {
       updateMessage(aiEl, 'שגיאה בחיבור ל-AI. נסה שוב.');
     }
