@@ -197,19 +197,25 @@ async function captureRestaurant(page) {
   await capture(page, 'restaurant-09-pos-product');
   await clearAnnotations(page);
 
-  // KDS — קריאה ישירה ל-switchTab (לא בתפריט, רק טייל)
-  await page.evaluate(() => window.switchTab && window.switchTab('kds'));
+  // KDS — פונקציה אמיתית מהטייל
+  await page.evaluate(() => window.openAdminKDSPanel && window.openAdminKDSPanel());
   await page.waitForTimeout(2000);
   await capture(page, 'restaurant-10-kds');
+  // סגור overlay אם פתוח
+  try { await page.keyboard.press('Escape'); await page.waitForTimeout(500); } catch {}
 
-  // שולחנות — קריאה ישירה
-  await page.evaluate(() => window.switchTab && window.switchTab('tables'));
+  // שולחנות — פונקציה אמיתית מהטייל
+  await page.evaluate(() => window.openAdminTablesPanel && window.openAdminTablesPanel());
   await page.waitForTimeout(2000);
   await capture(page, 'restaurant-11-tables');
+  try { await page.keyboard.press('Escape'); await page.waitForTimeout(500); } catch {}
 
-  // קטלוג — קריאה ישירה
-  await page.evaluate(() => window.switchTab && window.switchTab('catalog'));
-  await page.waitForTimeout(2000);
+  // קטלוג — sales → switchSalesTab catalog
+  await page.evaluate(() => {
+    window.switchTab && window.switchTab('sales');
+    setTimeout(() => { window.switchSalesTab && window.switchSalesTab('catalog'); }, 200);
+  });
+  await page.waitForTimeout(2500);
   await capture(page, 'restaurant-12-catalog');
 
   // הדגש כפתור הוסף מנה
