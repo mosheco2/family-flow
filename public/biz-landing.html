@@ -20,7 +20,7 @@ html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:
 /* ── SLIDER ── */
 #slider{
   display:flex;
-  width:calc(9 * 100vw);
+  width:calc(10 * 100vw);
   height:100dvh;
   transition:transform .48s cubic-bezier(.4,0,.2,1);
   will-change:transform;
@@ -222,7 +222,34 @@ html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:
 .fc-desc{font-size:.64rem;color:var(--muted);line-height:1.4}
 
 /* ══════════════════════════════════════
-   SLIDE 5 — RADAR
+   SLIDE 5 — AUTOMATIONS
+══════════════════════════════════════ */
+#slide-auto{background:var(--bg);justify-content:flex-start;padding-top:2rem}
+.auto-header{width:100%;max-width:560px;margin-bottom:.5rem;flex-shrink:0}
+.auto-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);
+  gap:.5rem;width:100%;max-width:560px;
+}
+.auto-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:.85rem;padding:.65rem .75rem;
+  display:flex;align-items:flex-start;gap:.6rem;
+}
+.auto-card:hover{border-color:rgba(0,212,170,.3)}
+.auto-icon{font-size:1.35rem;flex-shrink:0;margin-top:.05rem}
+.auto-body{}
+.auto-title{font-size:.74rem;font-weight:700;margin-bottom:.15rem;line-height:1.3}
+.auto-desc{font-size:.64rem;color:var(--muted);line-height:1.4}
+.auto-note{
+  width:100%;max-width:560px;flex-shrink:0;margin-top:.5rem;
+  background:linear-gradient(135deg,rgba(0,212,170,.07),rgba(0,153,255,.07));
+  border:1px solid rgba(0,212,170,.25);border-radius:.85rem;
+  padding:.6rem .9rem;font-size:.74rem;color:var(--muted);line-height:1.6;text-align:center;
+}
+.auto-note strong{color:var(--text)}
+
+/* ══════════════════════════════════════
+   SLIDE 6 — RADAR
 ══════════════════════════════════════ */
 #slide-radar{background:var(--bg);text-align:center;justify-content:flex-start;padding-top:2rem}
 .radar-header{flex-shrink:0;width:100%;max-width:560px;margin-bottom:.3rem}
@@ -420,7 +447,26 @@ html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:
     <div class="features-grid" id="features-grid"></div>
   </div>
 
-  <!-- 5: RADAR -->
+  <!-- 5: AUTOMATIONS -->
+  <div class="slide" id="slide-auto">
+    <div class="auto-header">
+      <div class="tag">אוטומציה חכמה</div>
+      <h2 class="stitle">המערכת עובדת — גם כשאתם לא.</h2>
+    </div>
+    <div class="auto-grid">
+      <div class="auto-card"><div class="auto-icon">🤖</div><div class="auto-body"><div class="auto-title">AI סריקת קבלות</div><div class="auto-desc">מצלמים קבלה — AI מחלץ סכום ופרטים אוטומטית</div></div></div>
+      <div class="auto-card"><div class="auto-icon">✅</div><div class="auto-body"><div class="auto-title">משימות עם AI</div><div class="auto-desc">עובד שולח תמונת ביצוע — AI מאמת אוטומטית</div></div></div>
+      <div class="auto-card"><div class="auto-icon">⏰</div><div class="auto-body"><div class="auto-title">שעון נוכחות חכם</div><div class="auto-desc">התראה למנהל אם עובד שכח לצאת</div></div></div>
+      <div class="auto-card"><div class="auto-icon">🔔</div><div class="auto-body"><div class="auto-title">תזכורות אוטומטיות</div><div class="auto-desc">חידוש מנוי, תור, תחזוקת ציוד — בזמן</div></div></div>
+      <div class="auto-card"><div class="auto-icon">📉</div><div class="auto-body"><div class="auto-title">התראות מלאי</div><div class="auto-desc">פריט הגיע למינימום — ההודעה מגיעה אוטומטית</div></div></div>
+      <div class="auto-card"><div class="auto-icon">🔄</div><div class="auto-body"><div class="auto-title">Food Cost חי</div><div class="auto-desc">מחיר ספק השתנה — Food Cost מתעדכן לבד</div></div></div>
+      <div class="auto-card"><div class="auto-icon">⏳</div><div class="auto-body"><div class="auto-title">רשימת המתנה</div><div class="auto-desc">ביטול שיעור — הבא בתור מקבל הודעה אוטומטית</div></div></div>
+      <div class="auto-card"><div class="auto-icon">📢</div><div class="auto-body"><div class="auto-title">פרסום ברשת FLOW</div><div class="auto-desc">מבצעים ועדכונים ישירות לקהילה המקומית</div></div></div>
+    </div>
+    <div class="auto-note"><strong>כל אוטומציה שמור זמן — עשרות שעות עבודה בשנה לכל עסק.</strong></div>
+  </div>
+
+  <!-- 6: RADAR -->
   <div class="slide" id="slide-radar">
     <div class="radar-header">
       <div class="tag">הייחוד</div>
@@ -546,8 +592,11 @@ const BIZ_DATA = {
       {i:'🍳',t:'מסך מטבח (KDS)',d:'הזמנות לפי תחנה בזמן אמת'},
       {i:'🪑',t:'מפת שולחנות',d:'סטטוס, תפיסה, המתנה'},
       {i:'🛵',t:'ניהול משלוחים',d:'שיוך שליחים ומעקב'},
-      {i:'📐',t:'Food Cost',d:'עלות מנה מול מחיר מכירה'},
-      {i:'⭐',t:'ביקורות לקוחות',d:'איסוף וניהול'}
+      {i:'📐',t:'Food Cost',d:'עלות מנה מול מחיר — מתעדכן אוטומטית'},
+      {i:'📦',t:'מלאי מרכיבים',d:'מינימום והתראות חוסר'},
+      {i:'🧑‍💼',t:'ניהול ספקים',d:'פרופיל, הזמנות רכש, זמני חיתוך'},
+      {i:'📅',t:'הזמנות שולחן',d:'מהאתר ומהמנהל ידנית'},
+      {i:'📊',t:'דוח סגירה יומי',d:'לפי אמצעי תשלום ומנות מובילות'}
     ]
   },
   beauty:{
@@ -561,10 +610,13 @@ const BIZ_DATA = {
     features:[
       {i:'📅',t:'יומן תורים',d:'לפי מטפלת, שירות וזמן'},
       {i:'💅',t:'ניהול מטפלות',d:'פרופיל, התמחות, עמלות'},
-      {i:'💰',t:'מעקב עמלות',d:'חישוב אוטומטי'},
-      {i:'📦',t:'מלאי קוסמטיקה',d:'בקרה והתראות'},
-      {i:'🎫',t:'מנויי טיפולים',d:'חבילות ללקוח'},
-      {i:'📋',t:'הצעות מחיר',d:'שליחה ואישור דיגיטלי'}
+      {i:'💰',t:'מעקב עמלות',d:'חישוב אוטומטי + תשלום'},
+      {i:'📦',t:'מלאי קוסמטיקה',d:'מוצרי שימוש ומכירה'},
+      {i:'🎫',t:'מנויי טיפולים',d:'חבילות + מעקב מימוש'},
+      {i:'🧴',t:'פורמולת טיפול',d:'יחסי צבע וחומרים לכל לקוחה'},
+      {i:'📸',t:'גלריית לפני/אחרי',d:'תמונות לכל לקוחה'},
+      {i:'🩺',t:'ניהול Patch Test',d:'תיוג רגישות עור + מעקב'},
+      {i:'🤝',t:'בקשות ייעוץ',d:'מ-ONEFLOW LIFE ישירות לסלון'}
     ]
   },
   sport:{
@@ -577,10 +629,13 @@ const BIZ_DATA = {
     ],
     features:[
       {i:'🎫',t:'ניהול מנויים',d:'חודשי / שנתי / כניסות'},
-      {i:'✅',t:"צ'ק-אין חברים",d:'סריקה ולחיצה'},
+      {i:'✅',t:"צ'ק-אין חברים",d:'חסימה אוטומטית למנוי פג'},
       {i:'📅',t:'לוח אימונים',d:'שיעורים, מאמנים, קיבולת'},
-      {i:'💪',t:'פרופיל חבר',d:'היסטוריה ומנוי'},
-      {i:'🔧',t:'ניהול ציוד',d:'מעקב תקינות'},
+      {i:'💪',t:'פרופיל חבר',d:'היסטוריה, מנוי, נוכחות'},
+      {i:'❄️',t:'הקפאת מנוי',d:'השהיה זמנית ללא ביטול'},
+      {i:'🔧',t:'ניהול ציוד',d:'תחזוקה מתוזמנת + התראות'},
+      {i:'💵',t:'שכר מאמנים',d:'דוח חודשי אוטומטי לפי שיעורים'},
+      {i:'⏳',t:'רשימת המתנה',d:'ביטול → הודעה אוטומטית לבא בתור'},
       {i:'💳',t:'קופה',d:'מכירת מנויים וציוד'}
     ]
   },
@@ -593,12 +648,15 @@ const BIZ_DATA = {
       {i:'💰',t:'גבייה',l:'תוכנה רביעית'}
     ],
     features:[
-      {i:'📞',t:'קריאות שירות',d:'פתיחה, שיוך, מעקב'},
-      {i:'📋',t:'הצעות מחיר',d:'יצירה, שליחה, אישור לקוח'},
-      {i:'🔧',t:'ניהול טכנאים',d:'שיוך לקריאה ומעקב שטח'},
-      {i:'📦',t:'מלאי חלקים',d:'בקרה והתראות'},
+      {i:'📞',t:'קריאות שירות',d:'7 סטטוסים, 4 רמות עדיפות'},
+      {i:'📋',t:'הצעות מחיר',d:'יצירה ישירות מהקריאה'},
+      {i:'🔧',t:'ניהול טכנאים',d:'שיוך, לוח זמנים, מעקב שטח'},
+      {i:'💬',t:'צ׳אט עם לקוח',d:'תקשורת מתוך כרטיס הקריאה'},
+      {i:'👤',t:'כרטיס לקוח',d:'היסטוריה, קריאות, מסמכים, הערות'},
+      {i:'📦',t:'מלאי חלקים',d:'בקרה, התראות, הזמנת ספק'},
+      {i:'🛒',t:'זרימת רכש',d:'בקשה ← הצ"מ ← הזמנה לספק'},
       {i:'💰',t:'גבייה',d:'מיילסטונים, מקדמות, יתרות'},
-      {i:'📅',t:'יומן',d:'תיאום הגעות פיזיות'}
+      {i:'📅',t:'יומן טכנאים',d:'תיאום הגעות ומסלולי שטח'}
     ]
   },
   professional:{
@@ -612,10 +670,13 @@ const BIZ_DATA = {
     features:[
       {i:'📂',t:'ניהול תיקים',d:'פתיחה, סטטוס, היסטוריה'},
       {i:'📅',t:'יומן פגישות',d:'תיאום ותזכורות'},
-      {i:'📄',t:'מסמכים ותבניות',d:'יצירה וחתימה דיגיטלית'},
-      {i:'⏱️',t:'רישום שעות',d:'לחיוב לקוח'},
-      {i:'💡',t:'ניהול לידים',d:'מעקב פניות'},
-      {i:'💰',t:'חיוב',d:'חשבוניות לפי שעות/פרויקט'}
+      {i:'📄',t:'מסמכים ותבניות',d:'חוזה, הצ"מ, חתימה דיגיטלית'},
+      {i:'⏲️',t:'טיימר חי',d:'שעון פועל בזמן עבודה על תיק'},
+      {i:'⏱️',t:'רישום שעות',d:'ידני + אוטומטי לחיוב לקוח'},
+      {i:'💡',t:'ניהול לידים',d:'מהאתר → המרה להצ"מ'},
+      {i:'🌐',t:'אתר פרופיל',d:'תחומי מומחיות ומאמרים'},
+      {i:'💰',t:'חיוב',d:'חשבוניות לפי שעות/פרויקט'},
+      {i:'👤',t:'כרטיס לקוח',d:'תיקים, מסמכים, הערות'}
     ]
   },
   logistics:{
@@ -627,17 +688,20 @@ const BIZ_DATA = {
       {i:'💵',t:'גבייה COD',l:'תוכנה רביעית'}
     ],
     features:[
-      {i:'📦',t:'ניהול הזמנות',d:'קבלה, עיבוד, שיוך'},
-      {i:'🚛',t:'ניהול נהגים',d:'שיבוץ וביצועים'},
+      {i:'📋',t:'קנבן 13 סטטוסים',d:'כל המשלוחים בתצוגה ויזואלית'},
+      {i:'📦',t:'ניהול הזמנות',d:'קבלה, עיבוד, שיוך לנהג'},
+      {i:'🚛',t:'ניהול נהגים',d:'שיבוץ, מעקב, ביצועים'},
       {i:'🗺️',t:'תכנון מסלולים',d:'אופטימיזציה וניווט'},
-      {i:'📍',t:'מעקב בזמן אמת',d:'GPS וסטטוס'},
+      {i:'📍',t:'מעקב בזמן אמת',d:'GPS וסטטוס לכל משלוח'},
+      {i:'🔗',t:'קישורי מעקב ללקוח',d:'לקוח עוקב בזמן אמת'},
+      {i:'🚗',t:'ניהול ציי רכבים',d:'רשומות לכל רכב'},
       {i:'💵',t:'גבייה COD',d:'מזומן, דיווח, העברה'},
       {i:'📊',t:'דוחות',d:'ביצועים ורווחיות'}
     ]
   }
 };
 
-const TOTAL = 9;
+const TOTAL = 10;
 let current = 0;
 let selectedBiz = null;
 
