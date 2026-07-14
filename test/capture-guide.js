@@ -111,23 +111,28 @@ async function clickTab(page, ...selectors) {
   return false;
 }
 
-// לחץ על קבוצת ניווט ראשית (ראשי/צוות/מכירות/מלאי/כספים/עוד)
-async function clickNavGroup(page, groupText) {
+// לחץ על כפתור ניווט לפי ID מדויק
+async function clickNavGroup(page, groupId) {
   try {
-    await page.click(`nav button:has-text("${groupText}"), [class*="gnav"] button:has-text("${groupText}"), button[data-group]:has-text("${groupText}")`, { timeout: 3000 });
-    await page.waitForTimeout(1500);
+    await page.click(`#gnav-btn-${groupId}`, { timeout: 3000 });
+    await page.waitForTimeout(1200);
     return true;
-  } catch {}
-  // fallback — כל הכפתורים בסרגל הניווט
+  } catch {
+    console.log(`  ⚠️ לא נמצאה קבוצת ניווט: gnav-btn-${groupId}`);
+    return false;
+  }
+}
+
+// לחץ על פריט dropdown לפי ID מדויק
+async function clickNavItem(page, itemId) {
   try {
-    const btns = await page.locator(`button:has-text("${groupText}")`).all();
-    for (const btn of btns) {
-      const box = await btn.boundingBox();
-      if (box && box.y < 120) { await btn.click(); await page.waitForTimeout(1500); return true; }
-    }
-  } catch {}
-  console.log(`  ⚠️ לא נמצאה קבוצת ניווט: ${groupText}`);
-  return false;
+    await page.click(`#gdrop-${itemId}`, { timeout: 3000 });
+    await page.waitForTimeout(2000);
+    return true;
+  } catch {
+    console.log(`  ⚠️ לא נמצא פריט: gdrop-${itemId}`);
+    return false;
+  }
 }
 
 // לחץ על טייל בלוח הבקרה לפי טקסט
@@ -181,24 +186,30 @@ async function captureRestaurant(page) {
   await capture(page, 'restaurant-07-kpi-foodcost');
   await clearAnnotations(page);
 
-  // חזור למעלה ולחץ על מטבח KDS מהטיילים
+  // חזור למעלה — קופה POS (מכירות → קופה)
   await scrollTo(page, 0);
-  await clickDashTile(page, 'KDS');
+  await clickNavGroup(page, 'sales');
+  await clickNavItem(page, 'pos');
+  await capture(page, 'restaurant-08-pos');
+
+  // הדגש מוצר בקופה
+  await annotate(page, '[class*="item"], [class*="product"], [class*="menu-item"]', 'לחץ למוצר');
+  await capture(page, 'restaurant-09-pos-product');
+  await clearAnnotations(page);
+
+  // KDS (מכירות → KDS)
+  await clickNavGroup(page, 'sales');
+  await clickNavItem(page, 'kds');
   await capture(page, 'restaurant-10-kds');
 
-  // לחץ ראשי לחזרה
-  await clickNavGroup(page, 'ראשי');
-  await scrollTo(page, 0);
-
-  // לחץ על שולחנות מהטיילים
-  await clickDashTile(page, 'שולחנות');
+  // שולחנות (מכירות → שולחנות)
+  await clickNavGroup(page, 'sales');
+  await clickNavItem(page, 'tables');
   await capture(page, 'restaurant-11-tables');
 
-  await clickNavGroup(page, 'ראשי');
-  await scrollTo(page, 0);
-
-  // לחץ על קטלוג מהטיילים
-  await clickDashTile(page, 'קטלוג');
+  // קטלוג — מלאי → קטלוג
+  await clickNavGroup(page, 'inventory');
+  await clickNavItem(page, 'catalog');
   await capture(page, 'restaurant-12-catalog');
 
   // הדגש כפתור הוסף מנה
@@ -206,29 +217,19 @@ async function captureRestaurant(page) {
   await capture(page, 'restaurant-13-catalog-add');
   await clearAnnotations(page);
 
-  // קופה — דרך ניווט מכירות
-  await clickNavGroup(page, 'מכירות');
-  await clickTab(page, 'button:has-text("קופה")', 'a:has-text("קופה")', '[id*="pos"]');
-  await capture(page, 'restaurant-08-pos');
-
-  // הדגש מוצר בקופה
-  await annotate(page, 'button:has-text("שניצל"), [class*="item"], [class*="product"], [class*="menu"]', 'לחץ למוצר');
-  await capture(page, 'restaurant-09-pos-product');
-  await clearAnnotations(page);
-
-  // מלאי — דרך ניווט
-  await clickNavGroup(page, 'מלאי');
-  await page.waitForTimeout(1000);
+  // מלאי מחסן (מלאי → מלאי מחסן)
+  await clickNavGroup(page, 'inventory');
+  await clickNavItem(page, 'pantry');
   await capture(page, 'restaurant-14-inventory');
 
-  // צוות — דרך ניווט
-  await clickNavGroup(page, 'צוות');
-  await page.waitForTimeout(1000);
+  // צוות — ניהול צוות
+  await clickNavGroup(page, 'team');
+  await clickNavItem(page, 'members');
   await capture(page, 'restaurant-15-team');
 
   // כספים / תזרים
-  await clickNavGroup(page, 'כספים');
-  await clickTab(page, 'button:has-text("תזרים")', 'a:has-text("תזרים")', '[id*="cashflow"]');
+  await clickNavGroup(page, 'finance');
+  await clickNavItem(page, 'cashflow');
   await capture(page, 'restaurant-16-cashflow');
 
   console.log('  ✅ מסעדה — סיום');
