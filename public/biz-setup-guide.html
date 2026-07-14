@@ -8718,9 +8718,11 @@ const obs = new IntersectionObserver(entries => {
   async function loadGuideConfig() {
     try {
       const r = await fetch('/api/guide-config');
-      const d = await r.json();
-      _guideKey = d.key || '';
-    } catch(e) { _guideKey = ''; }
+      const config = await r.json();
+      console.log('guide config:', config.key ? 'key קיים' : 'key חסר!');
+      _guideKey = config.key || '';
+      window.GUIDE_AI_KEY = _guideKey;
+    } catch(e) { _guideKey = ''; console.error('loadGuideConfig error:', e); }
   }
 
   function getCurrentContext() {
@@ -8892,8 +8894,12 @@ ${context}
 ענה עכשיו — תוביל לפתרון.`;
 
     try {
+      console.log('שולח ל-Gemini...');
+      console.log('API Key:', _guideKey ? 'קיים (' + _guideKey.length + ' תווים)' : 'חסר!');
+      console.log('prompt length:', prompt.length);
+
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${_guideKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${_guideKey}`,
         {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
@@ -8902,15 +8908,28 @@ ${context}
           })
         }
       );
+
+      console.log('status:', res.status);
       const data = await res.json();
-      const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'לא הצלחתי לקבל תשובה.';
+      console.log('response:', JSON.stringify(data).slice(0, 200));
+
+      const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      console.log('answer:', answer);
+
+      if (!answer) {
+        console.error('אין תשובה! data:', data);
+        updateMessage(aiEl, 'שגיאה טכנית זמנית. נסה שוב עוד רגע.');
+        return;
+      }
+
       updateMessage(aiEl, answer);
       conversationHistory.push({ role: 'user', text: msg });
       conversationHistory.push({ role: 'ai', text: answer });
       if (conversationHistory.length > 6) conversationHistory = conversationHistory.slice(-6);
       updateQuickQuestions();
-    } catch(e) {
-      updateMessage(aiEl, 'שגיאה בחיבור ל-AI. נסה שוב.');
+    } catch(err) {
+      console.error('שגיאת fetch:', err);
+      updateMessage(aiEl, 'בעיית תקשורת. נסה לרענן את הדף.');
     }
   };
 
