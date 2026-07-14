@@ -9,6 +9,19 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org","@type":"HowTo",
+  "name":"מדריך ONEFLOW LIFE BIZ","description":"מדריך שימוש מלא לניהול עסק עם ONEFLOW LIFE BIZ","totalTime":"PT3M",
+  "step":[
+    {"@type":"HowToStep","name":"כניסה למערכת","text":"פתחו oneflowlife.co.il, הכניסו קוד עסק, שם וסיסמה ולחצו כניסה"},
+    {"@type":"HowToStep","name":"בחירת סוג עסק","text":"בחרו את סוג העסק שלכם מהרשימה"},
+    {"@type":"HowToStep","name":"ויזארד הקמה","text":"ענו על 4-5 שאלות קצרות — המערכת מתכוננת אוטומטית תוך 3 דקות"},
+    {"@type":"HowToStep","name":"הגדרת תפקיד","text":"בחרו את התפקיד שלכם — המסך מתאים את עצמו אוטומטית"},
+    {"@type":"HowToStep","name":"הזמנת צוות","text":"שלחו הזמנה לכל עובד בוואטסאפ — כל אחד מקבל מסך מותאם לתפקידו"}
+  ]
+}
+</script>
 <style>
 :root{
   --bg:#EDF8F8;--surface:#fff;--surface2:#E6F5F5;--border:#C8E8E8;
@@ -252,20 +265,20 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     <div class="tn-logo"><img src="images/oneflow-logo.png" alt="ONEFLOW LIFE BIZ" style="height:32px;width:auto;object-fit:contain;vertical-align:middle;"> <em style="font-size:.72rem;font-weight:700;letter-spacing:.02em;margin-right:2px;">BIZ</em></div>
     <button class="nb on" onclick="show('home')">ראשי</button>
     <button class="nb" onclick="show('restaurant')">🍕 מסעדה</button>
-    <button class="nb" onclick="show('sport')">🏋️ ספורט</button>
-    <button class="nb" onclick="show('maintenance')">🔧 תחזוקה</button>
-    <button class="nb" onclick="show('logistics')">🚚 לוגיסטיקה</button>
-    <button class="nb" onclick="show('professional')">👔 מקצועי</button>
     <button class="nb" onclick="show('beauty')">💅 יופי</button>
-    <button class="nb cs-nb" onclick="show('retail')">🛍️ קמעונאי</button>
-    <button class="nb cs-nb" onclick="show('services')">🔩 שירותים</button>
-    <button class="nb cs-nb" onclick="show('construction')">🏗️ בנייה</button>
-    <button class="nb cs-nb" onclick="show('healthcare')">🏥 בריאות</button>
-    <button class="nb cs-nb" onclick="show('education')">🎓 חינוך</button>
-    <button class="nb cs-nb" onclick="show('events')">🎉 אירועים</button>
-    <button class="nb cs-nb" onclick="show('food_production')">🏭 ייצור מזון</button>
-    <button class="nb cs-nb" onclick="show('other')">🏢 כללי</button>
+    <button class="nb" onclick="show('sport')">🏋️ ספורט</button>
+    <button class="nb" onclick="show('maintenance')">🔧 תיקונים</button>
+    <button class="nb" onclick="show('professional')">👔 מומחים</button>
+    <button class="nb" onclick="show('logistics')">🚚 לוגיסטיקה</button>
+    <button class="nb cs-nb" onclick="show('coming-soon')">🛍️ קמעונאי</button>
+    <button class="nb cs-nb" onclick="show('coming-soon')">🏗️ בנייה</button>
+    <button class="nb cs-nb" onclick="show('coming-soon')">🏥 בריאות</button>
+    <button class="nb cs-nb" onclick="show('coming-soon')">🎓 חינוך</button>
+    <button class="nb cs-nb" onclick="show('coming-soon')">🎉 אירועים</button>
+    <button class="nb cs-nb" onclick="show('coming-soon')">🏭 ייצור מזון</button>
+    <button class="nb cs-nb" onclick="show('coming-soon')">🏢 כללי</button>
     <div class="tn-sep"></div>
+    <button class="nb" onclick="show('glossary')" style="font-size:.77rem;">📖 מילון</button>
     <button class="tn-theme" onclick="toggleTheme()">🌙</button>
   </div>
 </nav>
@@ -278,25 +291,22 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
     <p>הסבר שלב אחר שלב — מהרגע הראשון שפותחים את האפליקציה ועד לניהול יומי שוטף. בחרו את סוג העסק שלכם:</p>
     <img src="images/oneflow-bot.png" alt="ONEFLOW Bot" style="width:420px;height:auto;margin:0 auto 8px;display:block;filter:drop-shadow(0 8px 24px rgba(42,188,190,.25));">
     <div class="home-stats">
-      <div class="hs-i"><span class="hs-n">14</span><span class="hs-l">סוגי עסק</span></div>
-      <div class="hs-s"></div>
-      <div class="hs-i"><span class="hs-n">6</span><span class="hs-l">מדריכים פעילים</span></div>
+      <div class="hs-i"><span class="hs-n">6</span><span class="hs-l">סוגי עסק פעילים</span></div>
       <div class="hs-s"></div>
       <div class="hs-i"><span class="hs-n">40+</span><span class="hs-l">מודולים</span></div>
       <div class="hs-s"></div>
-      <div class="hs-i"><span class="hs-n">4</span><span class="hs-l">שלבי הקמה</span></div>
+      <div class="hs-i"><span class="hs-n">3</span><span class="hs-l">דקות להקמה</span></div>
     </div>
   </div>
   <div class="biz-eyebrow">בחרו את סוג העסק שלכם</div>
   <div class="biz-grid">
-    <div class="biz-tile" onclick="show('restaurant')"><div class="ti">🍕</div><div class="tn2">מסעדה / בית קפה</div><div class="ts">קופה · שליחויות · מטבח</div></div>
-    <div class="biz-tile" onclick="show('sport')"><div class="ti">🏋️</div><div class="tn2">ספורט / כושר</div><div class="ts">מנויים · אימונים · ציוד</div></div>
-    <div class="biz-tile" onclick="show('maintenance')"><div class="ti">🔧</div><div class="tn2">תחזוקה ותיקונים</div><div class="ts">קריאות שירות · לוח זמנים</div></div>
-    <div class="biz-tile" onclick="show('logistics')"><div class="ti">🚚</div><div class="tn2">לוגיסטיקה / הפצה</div><div class="ts">הזמנות · נהגים · מסלולים</div></div>
-    <div class="biz-tile" onclick="show('professional')"><div class="ti">👔</div><div class="tn2">מקצועי / ייעוץ</div><div class="ts">תיקים · לידים · שעות</div></div>
-    <div class="biz-tile" onclick="show('beauty')"><div class="ti">💅</div><div class="tn2">יופי / קוסמטיקה</div><div class="ts">תורים · מטפלות · מנויים</div></div>
+    <div class="biz-tile" onclick="show('restaurant')"><div class="ti">🍕</div><div class="tn2">מסעדה / אוכל</div><div class="ts">קופה (POS) · מסך מטבח · שולחנות · שליחויות</div></div>
+    <div class="biz-tile" onclick="show('beauty')"><div class="ti">💅</div><div class="tn2">יופי ואסטטיקה</div><div class="ts">יומן תורים · מטפלות · מנויים · עמלות</div></div>
+    <div class="biz-tile" onclick="show('sport')"><div class="ti">🏋️</div><div class="tn2">ספורט וחוגים</div><div class="ts">מנויים · לוח אימונים · מאמנים</div></div>
+    <div class="biz-tile" onclick="show('maintenance')"><div class="ti">🔧</div><div class="tn2">תיקונים ושירותים</div><div class="ts">קריאות שירות · הצעות מחיר · פקודות עבודה</div></div>
+    <div class="biz-tile" onclick="show('professional')"><div class="ti">👔</div><div class="tn2">מומחים וייעוץ</div><div class="ts">תיקי לקוח · מסמכים · שעות עבודה</div></div>
+    <div class="biz-tile" onclick="show('logistics')"><div class="ti">🚚</div><div class="tn2">לוגיסטיקה והובלות</div><div class="ts">קנבן הזמנות · נהגים · מסלולים · מעקב</div></div>
     <div class="biz-tile cs-tile"><div class="ti">🛍️</div><div class="tn2">קמעונאי / חנות</div><div class="ts">קופה · מלאי · לקוחות</div><div class="cs-badge">בקרוב</div></div>
-    <div class="biz-tile cs-tile"><div class="ti">🔩</div><div class="tn2">שירותים מקצועיים</div><div class="ts">קריאות שירות · יומן · פרויקטים</div><div class="cs-badge">בקרוב</div></div>
     <div class="biz-tile cs-tile"><div class="ti">🏗️</div><div class="tn2">בנייה / קבלנות</div><div class="ts">פרויקטים · ציוד · פקודות עבודה</div><div class="cs-badge">בקרוב</div></div>
     <div class="biz-tile cs-tile"><div class="ti">🏥</div><div class="tn2">בריאות / קליניקה</div><div class="ts">תורים · מטופלים · צוות רפואי</div><div class="cs-badge">בקרוב</div></div>
     <div class="biz-tile cs-tile"><div class="ti">🎓</div><div class="tn2">חינוך / הדרכה</div><div class="ts">יומן שיעורים · תלמידים · צוות</div><div class="cs-badge">בקרוב</div></div>
@@ -327,8 +337,8 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
   <nav class="subnav">
     <div class="sn-inner">
-      <button class="sn on" onclick="goTo('r-enter')">כניסה למערכת</button>
-      <button class="sn" onclick="goTo('r-wizard')">הקמה ראשונית</button>
+      <button class="sn on" onclick="goTo('r-start')">התחל כאן ⚡</button>
+      <button class="sn" onclick="goTo('r-enter')">כניסה</button>
       <button class="sn" onclick="goTo('r-nav')">ניווט</button>
       <button class="sn" onclick="goTo('r-sales')">מכירות</button>
       <button class="sn" onclick="goTo('r-stock')">מלאי</button>
@@ -339,6 +349,76 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   </nav>
 
   <div class="wrap">
+
+    <!-- ── 0. התחל כאן ── -->
+    <section data-business="restaurant" data-topic="start" data-role="all">
+    <div class="chapter" id="r-start">
+      <div class="ch-head"><div class="ch-num" style="background:var(--grad-brand)">⚡</div><div class="ch-title">3 דקות להקמה — התחל כאן</div></div>
+
+      <div class="box box-good" style="margin-bottom:16px;">
+        <div class="box-icon">✅</div>
+        <div>5 צעדים פשוטים — בסוף המסעדה שלכם פעילה ומוכנה לשימוש</div>
+      </div>
+
+      <ol class="guide-steps steps">
+
+        <li class="step" data-level="beginner">
+          <div class="step-n">1</div>
+          <div class="step-body">
+            <strong>כניסה ראשונה</strong>
+            <p>פתחו את <strong>oneflowlife.co.il</strong> בדפדפן.<br>
+            הכניסו את קוד העסק שקיבלתם (6 תווים), השם שלכם והסיסמה.<br>
+            לחצו <strong>כניסה</strong>.</p>
+          </div>
+        </li>
+
+        <li class="step" data-level="beginner">
+          <div class="step-n">2</div>
+          <div class="step-body">
+            <strong>בחירת סוג עסק</strong>
+            <p>המערכת שואלת מה סוג העסק שלכם.<br>
+            בחרו <strong>מסעדה / בית קפה</strong>.<br>
+            הבחירה מתאימה את המערכת לכם — "לקוח" הופך ל<strong>אורח</strong>, "מוצר" הופך ל<strong>מנה</strong>.</p>
+          </div>
+        </li>
+
+        <li class="step" data-level="beginner">
+          <div class="step-n">3</div>
+          <div class="step-body">
+            <strong>ויזארד הקמה — 4 שאלות</strong>
+            <div class="field-table" style="margin-top:10px;">
+              <div class="field-row"><div class="fr-label">שאלה 1</div><div class="fr-val"><strong>איך אתם מוכרים?</strong> — בחרו: שולחנות / טייק אווי / משלוחים (ניתן לבחור יותר מאחד). אם בחרתם שולחנות — הכניסו כמה שולחנות יש לכם (ברירת מחדל: 8).</div></div>
+              <div class="field-row"><div class="fr-label">שאלה 2</div><div class="fr-val"><strong>מה סוג המטבח?</strong> — בחרו: פיצה / מזרח תיכוני / המבורגר / בריאות / קפה / קייטרינג וכו'. המערכת בונה תפריט ראשוני אוטומטי לפי הבחירה (ניתן לערוך אחר כך).</div></div>
+              <div class="field-row"><div class="fr-label">שאלה 3</div><div class="fr-val"><strong>מה התפקיד שלכם?</strong> — בחרו: מנהל סניף / קופאי / מלצר / טבח / שליח. המסך שלכם יתאים את עצמו לתפקיד.</div></div>
+              <div class="field-row"><div class="fr-label">שאלה 4</div><div class="fr-val"><strong>מי בצוות?</strong> — לחצו <strong>שלח הזמנה בוואטסאפ</strong> לכל עובד. ניתן לדלג ולהזמין מאוחר יותר.</div></div>
+            </div>
+          </div>
+        </li>
+
+        <li class="step" data-level="beginner">
+          <div class="step-n">4</div>
+          <div class="step-body">
+            <strong>הגדרת תפקיד אישי</strong>
+            <p>בסוף הויזארד בחרתם תפקיד — לוח הבקרה נפתח ומותאם אוטומטית. מנהל רואה את כל הנתונים, מלצר רואה שולחנות ותפריט, טבח רואה את מסך המטבח.</p>
+          </div>
+        </li>
+
+        <li class="step" data-level="beginner">
+          <div class="step-n">5</div>
+          <div class="step-body">
+            <strong>הזמנת צוות</strong>
+            <p>לכל עובד שלחו הזמנה בוואטסאפ. העובד לוחץ על הקישור, נרשם עם שמו וסיסמה, ומיד מקבל מסך מותאם לתפקידו.</p>
+          </div>
+        </li>
+
+      </ol>
+
+      <div class="box box-tip" style="margin-top:16px;">
+        <div class="box-icon">💡</div>
+        <div>ניתן לדלג על כל שאלה בויזארד ולחזור אליה מהגדרות. התפריט שנוצר אוטומטית ניתן לעריכה מלאה בכל עת.</div>
+      </div>
+    </div>
+    </section>
 
     <!-- ── 1. כניסה למערכת ── -->
     <div class="chapter" id="r-enter">
@@ -453,52 +533,7 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
       </div>
     </div>
 
-    <!-- ── 2. ויזארד הקמה ── -->
-    <div class="chapter" id="r-wizard">
-      <div class="ch-head"><div class="ch-num">2</div><div class="ch-title">הקמה ראשונית של המסעדה</div></div>
-
-      <p style="font-size:.9rem;color:var(--text2);">מיד לאחר ההרשמה, המערכת מנחה אתכם בתהליך הקמה קצר. תוכלו לדלג על כל שלב ולחזור אליו אחר כך מהגדרות. <strong>4 שלבים:</strong></p>
-
-      <div class="steps">
-        <div class="step">
-          <div class="step-n">1</div>
-          <div class="step-body">
-            <strong>בחירת סוג העסק</strong>
-            <span>המערכת מציגה רשימת סוגי עסקים — בחרו <strong>מסעדה / בית קפה</strong>. הבחירה הזו מאפשרת למערכת להציג לכם את הכלים המתאימים: מסך מטבח, תמחור מנות, ניהול שולחנות וכו'.</span>
-            <div class="box box-warn" style="margin-top:8px;">
-              <div class="box-icon">⚠️</div>
-              <div>בחירת סוג העסק חשובה — היא משנה את שפת הממשק (לדוגמה: "לקוח" הופך ל-<strong>אורח</strong>, "מוצר" הופך ל-<strong>מנה</strong>). ניתן לשנות מאוחר יותר רק דרך מנהל המערכת.</div>
-            </div>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-n">2</div>
-          <div class="step-body">
-            <strong>פרופיל עסקי</strong>
-            <span>הוסיפו: שם המסעדה המלא, כתובת, מספר טלפון לעסק (שיופיע ללקוחות), לוגו/תמונה, ותיאור קצר. פרטים אלה יופיעו בדף הציבורי של המסעדה ברשת OneFlow.</span>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-n">3</div>
-          <div class="step-body">
-            <strong>הגדרת תקציב ראשוני</strong>
-            <span>הגדירו כמה אתם מתכננים להוציא בחודש — חלוקה לקטגוריות כמו שכר עובדים, מצרכים, שכירות, שיווק. המערכת תעקוב אחר ההוצאות ותתריע כשמתקרבים לתקרה.</span>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-n">4</div>
-          <div class="step-body">
-            <strong>הוספת מנות ראשוניות לתפריט</strong>
-            <span>הוסיפו כמה מנות לדוגמה: שם המנה, קטגוריה (מנה ראשונה / עיקרית / קינוח), מחיר, ותמונה. ניתן להוסיף ולערוך מנות בכל עת מהמלאי.</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="box box-good" style="margin-top:14px;">
-        <div class="box-icon">✅</div>
-        <div>לאחר השלמת הויזארד — המסעדה שלכם מוכנה לשימוש. המסך הראשי שנפתח הוא <strong>לוח הבקרה</strong>.</div>
-      </div>
-    </div>
+    <!-- ── 2. לוח הבקרה ── (מוסבר בפרק הניווט) -->
 
     <!-- ── 3. ניווט ── -->
     <div class="chapter" id="r-nav">
@@ -556,7 +591,7 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
       <p style="font-size:.87rem;color:var(--text2);">לוח הבקרה הוא הדף הראשון שנפתח בכל כניסה למערכת. המראה שלו שונה לפי מי נכנס — מנהל רואה תמונה מלאה של המסעדה, ועובד רגיל רואה את הפרטים הנוגעים רק אליו.</p>
 
       <!-- ═══ מנהל ═══ -->
-      <h2 class="sec" style="margin-top:20px;">תצוגת מנהל (ADMIN)</h2>
+      <h2 class="sec" style="margin-top:20px;">תצוגת מנהל</h2>
 
       <!-- כרטיס גיבור -->
       <div class="mod" style="margin-top:10px;">
@@ -578,9 +613,9 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
       <!-- אריחים מהירים -->
       <div class="mod">
-        <div class="mod-head"><div class="mod-icon">⚡</div><div><div class="mod-name">7 אריחים מהירים (Quick Tiles)</div><div class="mod-tag">פעולות המסעדה בלחיצה אחת</div></div></div>
+        <div class="mod-head"><div class="mod-icon">⚡</div><div><div class="mod-name">קיצורי דרך מהירים</div><div class="mod-tag">פעולות המסעדה בלחיצה אחת</div></div></div>
         <div class="mod-body">
-          <p>מתחת לכרטיס הסיכום מופיעות 7 קיצורי דרך. כל אחד פותח מסך ייעודי ישירות, ללא צורך בניווט בתפריט. מספר קטן (badge) מופיע על חלקם כשיש פריטים שמחכים לטיפול.</p>
+          <p>מתחת לכרטיס הסיכום מופיעים קיצורי דרך. כל אחד פותח מסך ייעודי ישירות, ללא צורך בניווט בתפריט. מספר קטן מופיע על חלקם כשיש פריטים שמחכים לטיפול.</p>
 
           <div class="steps">
 
@@ -1762,8 +1797,8 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
   <nav class="subnav">
     <div class="sn-inner">
-      <button class="sn on" onclick="goTo('s-enter')">כניסה למערכת</button>
-      <button class="sn" onclick="goTo('s-wizard')">הקמה ראשונית</button>
+      <button class="sn on" onclick="goTo('s-start')">התחל כאן ⚡</button>
+      <button class="sn" onclick="goTo('s-enter')">כניסה</button>
       <button class="sn" onclick="goTo('s-nav')">ניווט</button>
       <button class="sn" onclick="goTo('s-schedule')">שיעורים ומנויים</button>
       <button class="sn" onclick="goTo('s-trainers')">מאמנים</button>
@@ -1774,6 +1809,29 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   </nav>
 
   <div class="wrap">
+
+    <!-- ── 0. התחל כאן ── -->
+    <section data-business="sport" data-topic="start" data-role="all">
+    <div class="chapter" id="s-start">
+      <div class="ch-head"><div class="ch-num" style="background:var(--grad-brand)">⚡</div><div class="ch-title">3 דקות להקמה — התחל כאן</div></div>
+      <div class="box box-good" style="margin-bottom:16px;"><div class="box-icon">✅</div><div>5 צעדים — בסוף לוח האימונים, המנויים והמאמנים מוכנים לשימוש</div></div>
+      <ol class="guide-steps steps">
+        <li class="step"><div class="step-n">1</div><div class="step-body"><strong>כניסה ראשונה</strong><p>פתחו <strong>oneflowlife.co.il</strong>, הכניסו קוד עסק, שם וסיסמה, לחצו <strong>כניסה</strong>.</p></div></li>
+        <li class="step"><div class="step-n">2</div><div class="step-body"><strong>בחירת סוג עסק</strong><p>בחרו <strong>ספורט / כושר</strong>. הקטלוג הופך לרשימת <strong>מנויים</strong>, "לקוח" הופך ל<strong>חבר</strong>, "יומן" הופך ל<strong>לוח אימונים</strong>.</p></div></li>
+        <li class="step"><div class="step-n">3</div><div class="step-body">
+          <strong>ויזארד הקמה — 4 שאלות</strong>
+          <div class="field-table" style="margin-top:10px;">
+            <div class="field-row"><div class="fr-label">שאלה 1</div><div class="fr-val"><strong>מי המאמנים?</strong> — הוסיפו שם והתמחות לכל מאמן (כושר כללי / יוגה / פילאטיס / ריצה / שחייה / אומנויות לחימה / ריקוד / אחר).</div></div>
+            <div class="field-row"><div class="fr-label">שאלה 2</div><div class="fr-val"><strong>סוגי מנויים</strong> — ברירת מחדל: מנוי חודשי ₪250 / שנתי ₪2,400 / כניסה בודדת ₪50. ערכו את המחירים לפי העסק שלכם.</div></div>
+            <div class="field-row"><div class="fr-label">שאלה 3</div><div class="fr-val"><strong>שיעור ראשון לדוגמה</strong> — שם השיעור, מאמן, ימים בשבוע, שעת התחלה, משך (30/45/60/90 דקות) וקיבולת (ברירת מחדל 15).</div></div>
+            <div class="field-row"><div class="fr-label">שאלה 4</div><div class="fr-val"><strong>מי בצוות?</strong> — הזמינו בוואטסאפ. ניתן לדלג.</div></div>
+          </div>
+        </div></li>
+        <li class="step"><div class="step-n">4</div><div class="step-body"><strong>הגדרת תפקיד</strong><p>בחרו: מנהל / מדריך / קופאי / מנהל משמרת.</p></div></li>
+        <li class="step"><div class="step-n">5</div><div class="step-body"><strong>הזמנת צוות</strong><p>כל מאמן/עובד שנרשם מקבל מסך מותאם לתפקידו.</p></div></li>
+      </ol>
+    </div>
+    </section>
 
     <!-- ── 1. כניסה למערכת ── -->
     <div class="chapter" id="s-enter">
@@ -3615,14 +3673,14 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
   <div class="sec-top">
     <div class="s-icon">🔧</div>
-    <h1>תחזוקה ותיקונים</h1>
-    <p>מדריך מלא לניהול עסק תחזוקה — מזגנים, אינסטלציה, חשמל, מכשירי חשמל, כל עסק שירות ותיקונים — עם ONEFLOW LIFE BIZ</p>
+    <h1>תיקונים ושירותים</h1>
+    <p>מדריך מלא לניהול עסק תיקונים ושירותים — מזגנים, אינסטלציה, חשמל, סלולר, מנעולנות, שיפוצים ועוד — עם ONEFLOW LIFE BIZ</p>
   </div>
 
   <nav class="subnav">
     <div class="sn-inner">
-      <button class="sn on" onclick="goTo('m-enter')">כניסה למערכת</button>
-      <button class="sn" onclick="goTo('m-wizard')">הקמה ראשונית</button>
+      <button class="sn on" onclick="goTo('m-start')">התחל כאן ⚡</button>
+      <button class="sn" onclick="goTo('m-enter')">כניסה</button>
       <button class="sn" onclick="goTo('m-nav')">ניווט</button>
       <button class="sn" onclick="goTo('m-calls')">קריאות שירות</button>
       <button class="sn" onclick="goTo('m-stock')">לקוחות וחלקים</button>
@@ -3632,6 +3690,29 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   </nav>
 
   <div class="wrap">
+
+    <!-- ── 0. התחל כאן ── -->
+    <section data-business="maintenance" data-topic="start" data-role="all">
+    <div class="chapter" id="m-start">
+      <div class="ch-head"><div class="ch-num" style="background:var(--grad-brand)">⚡</div><div class="ch-title">3 דקות להקמה — התחל כאן</div></div>
+      <div class="box box-good" style="margin-bottom:16px;"><div class="box-icon">✅</div><div>5 צעדים — בסוף המערכת שלכם מוכנה לקבל קריאות שירות ולנהל טכנאים</div></div>
+      <ol class="guide-steps steps">
+        <li class="step"><div class="step-n">1</div><div class="step-body"><strong>כניסה ראשונה</strong><p>פתחו <strong>oneflowlife.co.il</strong>, הכניסו קוד עסק, שם וסיסמה, לחצו <strong>כניסה</strong>.</p></div></li>
+        <li class="step"><div class="step-n">2</div><div class="step-body"><strong>בחירת סוג עסק</strong><p>בחרו <strong>תחזוקה ותיקונים</strong> או <strong>שירותים מקצועיים</strong> (שניהם מתאימים). המערכת פותחת: יומן קריאות, פקודות עבודה, הצעות מחיר ומעקב טכנאים.</p></div></li>
+        <li class="step"><div class="step-n">3</div><div class="step-body">
+          <strong>ויזארד הקמה — 4 שאלות</strong>
+          <div class="field-table" style="margin-top:10px;">
+            <div class="field-row"><div class="fr-label">שאלה 1</div><div class="fr-val"><strong>אילו שירותים אתם נותנים?</strong> — בחרו: מיזוג אוויר / אינסטלציה / חשמל / מנעולנות / סלולר ומחשבים / ציוד וכללי / בנייה ושיפוצים / אחר. המערכת בונה רשימת שירותים אוטומטית עם שם, טווח מחיר ומשך.</div></div>
+            <div class="field-row"><div class="fr-label">שאלה 2</div><div class="fr-val"><strong>סוג העבודות שלכם</strong> — בחרו: עבודות קטנות (תשלום מיידי) / בינוניות (הצעת מחיר) / פרויקטים גדולים (מקדמה) / מכירת ציוד וחלקים.</div></div>
+            <div class="field-row"><div class="fr-label">שאלה 3</div><div class="fr-val"><strong>לקוח ראשון לדוגמה</strong> — שם, טלפון וכתובת. המערכת יוצרת את הלקוח ואופציונלית קריאת שירות ראשונה או הצעת מחיר.</div></div>
+            <div class="field-row"><div class="fr-label">שאלה 4</div><div class="fr-val"><strong>מי בצוות?</strong> — הזמינו טכנאים בוואטסאפ. ניתן לדלג.</div></div>
+          </div>
+        </div></li>
+        <li class="step"><div class="step-n">4</div><div class="step-body"><strong>הגדרת תפקיד</strong><p>בחרו: מנהל / טכנאי שטח / נציג שירות / קופאי.</p></div></li>
+        <li class="step"><div class="step-n">5</div><div class="step-body"><strong>הזמנת צוות</strong><p>כל טכנאי שנרשם מקבל גישה לקריאות השירות שלו ויכול לעדכן מהשטח.</p></div></li>
+      </ol>
+    </div>
+    </section>
 
     <!-- ── 1. כניסה ── -->
     <div class="chapter" id="m-enter">
@@ -4995,8 +5076,8 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
   <nav class="subnav">
     <div class="sn-inner">
-      <button class="sn on" onclick="goTo('l-enter')">כניסה למערכת</button>
-      <button class="sn" onclick="goTo('l-wizard')">הקמה ראשונית</button>
+      <button class="sn on" onclick="goTo('l-start')">התחל כאן ⚡</button>
+      <button class="sn" onclick="goTo('l-enter')">כניסה</button>
       <button class="sn" onclick="goTo('l-nav')">ניווט</button>
       <button class="sn" onclick="goTo('l-orders')">קנבן משלוחים</button>
       <button class="sn" onclick="goTo('l-fleet')">נהגים ורכבים</button>
@@ -5007,6 +5088,21 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   </nav>
 
   <div class="wrap">
+
+  <!-- ── 0. התחל כאן ── -->
+  <section data-business="logistics" data-topic="start" data-role="all">
+  <div class="chapter" id="l-start">
+    <div class="ch-head"><div class="ch-num" style="background:var(--grad-brand)">⚡</div><div class="ch-title">התחל כאן — הקמת מערכת לוגיסטיקה</div></div>
+    <div class="box box-good" style="margin-bottom:16px;"><div class="box-icon">✅</div><div>מערכת הלוגיסטיקה מוגדרת על ידי מנהל המערכת. פנו אלינו לקבלת הגדרה ראשונית מותאמת לכם.</div></div>
+    <ol class="guide-steps steps">
+      <li class="step"><div class="step-n">1</div><div class="step-body"><strong>יצירת קשר עם מנהל המערכת</strong><p>שלחו לנו פרטים בסיסיים: שם החברה, מספר נהגים, אזורי פעילות. נגדיר עבורכם את המערכת ונשלח קוד כניסה.</p></div></li>
+      <li class="step"><div class="step-n">2</div><div class="step-body"><strong>קבלת קוד עסק וכניסה</strong><p>פתחו <strong>oneflowlife.co.il</strong>, הכניסו קוד עסק, שם וסיסמה.</p></div></li>
+      <li class="step"><div class="step-n">3</div><div class="step-body"><strong>הגדרת נהגים ורכבים</strong><p>הוסיפו נהגים בכרטיסיית <strong>נהגים</strong> ורכבים בכרטיסיית <strong>צי רכבים</strong>. כל נהג מקבל מסך ייעודי לשטח.</p></div></li>
+      <li class="step"><div class="step-n">4</div><div class="step-body"><strong>הגדרת מחירון</strong><p>הגדירו מחירי משלוח לפי אזור, משקל וסוג שירות בכרטיסיית <strong>מחירון</strong>.</p></div></li>
+      <li class="step"><div class="step-n">5</div><div class="step-body"><strong>הזמנת הצוות</strong><p>שלחו הזמנה לנהגים ולמנהלי לוגיסטיקה בוואטסאפ. כל אחד מקבל מסך מותאם לתפקידו.</p></div></li>
+    </ol>
+  </div>
+  </section>
 
   <!-- ── פרק 1: כניסה ── -->
   <div class="chapter" id="l-enter">
@@ -5488,8 +5584,8 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
   <nav class="subnav">
     <div class="sn-inner">
-      <button class="sn on" onclick="goTo('p-enter')">כניסה למערכת</button>
-      <button class="sn" onclick="goTo('p-wizard')">הקמה ראשונית</button>
+      <button class="sn on" onclick="goTo('p-start')">התחל כאן ⚡</button>
+      <button class="sn" onclick="goTo('p-enter')">כניסה</button>
       <button class="sn" onclick="goTo('p-nav')">ניווט</button>
       <button class="sn" onclick="goTo('p-cases')">תיקים</button>
       <button class="sn" onclick="goTo('p-timelog')">יומן שעות</button>
@@ -5500,6 +5596,30 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   </nav>
 
   <div class="wrap">
+
+  <!-- ─── 0. התחל כאן ─── -->
+  <section data-business="professional" data-topic="start" data-role="all">
+  <div class="chapter" id="p-start">
+    <div class="ch-head"><div class="ch-num" style="background:var(--grad-brand)">⚡</div><div class="ch-title">3 דקות להקמה — התחל כאן</div></div>
+    <div class="box box-good" style="margin-bottom:16px;"><div class="box-icon">✅</div><div>5 צעדים — בסוף המערכת מוכנה לניהול תיקי לקוח, שעות עבודה ומסמכים</div></div>
+    <ol class="guide-steps steps">
+      <li class="step"><div class="step-n">1</div><div class="step-body"><strong>כניסה ראשונה</strong><p>פתחו <strong>oneflowlife.co.il</strong>, הכניסו קוד עסק, שם וסיסמה, לחצו <strong>כניסה</strong>.</p></div></li>
+      <li class="step"><div class="step-n">2</div><div class="step-body"><strong>בחירת סוג עסק</strong><p>בחרו <strong>מקצועי / ייעוץ</strong>. "מכירות" הופכות ל<strong>לידים ומכירות</strong>, "עבודות" הופכות ל<strong>תיקים</strong>, "הצעות" הן <strong>הצעות מחיר</strong>.</p></div></li>
+      <li class="step"><div class="step-n">3</div><div class="step-body">
+        <strong>ויזארד הקמה — 5 שאלות</strong>
+        <div class="field-table" style="margin-top:10px;">
+          <div class="field-row"><div class="fr-label">שאלה 1</div><div class="fr-val"><strong>תחום המומחיות</strong> — משפטי / עסקי / כלכלה / שיווק / הנדסה / רפואה / אחר.</div></div>
+          <div class="field-row"><div class="fr-label">שאלה 2</div><div class="fr-val"><strong>תיק לקוח ראשון</strong> — המערכת יוצרת תיק ריק לדוגמה שתוכלו למלא.</div></div>
+          <div class="field-row"><div class="fr-label">שאלה 3</div><div class="fr-val"><strong>המסמך שאתם הכי הרבה מפיקים</strong> — המערכת יוצרת תבנית אוטומטית בעזרת AI (לדוגמה: חוזה, הצעת מחיר, דוח ייעוץ).</div></div>
+          <div class="field-row"><div class="fr-label">שאלה 4</div><div class="fr-val"><strong>מה התפקיד שלכם?</strong> — שותף / יועץ / עוזר. המסך מותאם לתפקיד.</div></div>
+          <div class="field-row"><div class="fr-label">שאלה 5</div><div class="fr-val"><strong>מי בצוות?</strong> — הזמינו בוואטסאפ. ניתן לדלג.</div></div>
+        </div>
+      </div></li>
+      <li class="step"><div class="step-n">4</div><div class="step-body"><strong>הגדרת תפקיד</strong><p>שותף רואה את כל התיקים, יועץ רואה את תיקיו שלו, עוזר רואה משימות שהוגדרו לו.</p></div></li>
+      <li class="step"><div class="step-n">5</div><div class="step-body"><strong>הזמנת צוות</strong><p>כל עובד מקבל גישה מותאמת לתפקידו.</p></div></li>
+    </ol>
+  </div>
+  </section>
 
   <!-- ─── כניסה ראשונה ─── -->
   <div class="chapter" id="p-enter">
@@ -5836,8 +5956,8 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
 
   <nav class="subnav">
     <div class="sn-inner">
-      <button class="sn on" onclick="goTo('b-enter')">כניסה למערכת</button>
-      <button class="sn" onclick="goTo('b-wizard')">הקמה ראשונית</button>
+      <button class="sn on" onclick="goTo('b-start')">התחל כאן ⚡</button>
+      <button class="sn" onclick="goTo('b-enter')">כניסה</button>
       <button class="sn" onclick="goTo('b-nav')">ניווט</button>
       <button class="sn" onclick="goTo('b-calendar')">יומן תורים</button>
       <button class="sn" onclick="goTo('b-practitioners')">מטפלות</button>
@@ -5851,6 +5971,29 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   </nav>
 
   <div class="wrap">
+
+  <!-- ─── 0. התחל כאן ─── -->
+  <section data-business="beauty" data-topic="start" data-role="all">
+  <div class="chapter" id="b-start">
+    <div class="ch-head"><div class="ch-num" style="background:var(--grad-brand)">⚡</div><div class="ch-title">3 דקות להקמה — התחל כאן</div></div>
+    <div class="box box-good" style="margin-bottom:16px;"><div class="box-icon">✅</div><div>5 צעדים — בסוף מכון היופי שלכם מוכן עם יומן תורים, מטפלות ורשימת טיפולים</div></div>
+    <ol class="guide-steps steps">
+      <li class="step" data-level="beginner"><div class="step-n">1</div><div class="step-body"><strong>כניסה ראשונה</strong><p>פתחו <strong>oneflowlife.co.il</strong> בדפדפן, הכניסו קוד עסק, שם וסיסמה, לחצו <strong>כניסה</strong>.</p></div></li>
+      <li class="step" data-level="beginner"><div class="step-n">2</div><div class="step-body"><strong>בחירת סוג עסק</strong><p>בחרו <strong>יופי / קוסמטיקה</strong>. המערכת פותחת מודולים ייחודיים: יומן תורים למטפלות, תיקי לקוחות, מנויים ועמלות.</p></div></li>
+      <li class="step" data-level="beginner"><div class="step-n">3</div><div class="step-body">
+        <strong>ויזארד הקמה — 4 שאלות</strong>
+        <div class="field-table" style="margin-top:10px;">
+          <div class="field-row"><div class="fr-label">שאלה 1</div><div class="fr-val"><strong>מי המטפלות?</strong> — הוסיפו לכל מטפלת: שם, התמחות (שיער / ציפורניים / פנים וגוף / איפור / הכל) וצבע ביומן. ניתן להוסיף מספר מטפלות.</div></div>
+          <div class="field-row"><div class="fr-label">שאלה 2</div><div class="fr-val"><strong>אילו טיפולים?</strong> — בחרו קטגוריות: שיער / ציפורניים / פנים וגוף / ספא ועיסוי / איפור. המערכת בונה רשימת טיפולים אוטומטית עם שם, משך (30/45/60/90/120 דקות) ומחיר.</div></div>
+          <div class="field-row"><div class="fr-label">שאלה 3</div><div class="fr-val"><strong>מה התפקיד שלכם?</strong> — מנהל / מטפלת / מאפרת / מניקוריסטית / קבלה. המסך מותאם לתפקיד.</div></div>
+          <div class="field-row"><div class="fr-label">שאלה 4</div><div class="fr-val"><strong>מי בצוות?</strong> — שלחו הזמנה בוואטסאפ. ניתן לדלג ולהזמין מאוחר יותר.</div></div>
+        </div>
+      </div></li>
+      <li class="step" data-level="beginner"><div class="step-n">4</div><div class="step-body"><strong>הגדרת תפקיד אישי</strong><p>לוח הבקרה נפתח ומותאם לתפקיד שלכם. מנהל רואה את כל הנתונים, מטפלת רואה את התורים שלה בלבד.</p></div></li>
+      <li class="step" data-level="beginner"><div class="step-n">5</div><div class="step-body"><strong>הזמנת צוות</strong><p>כל מטפלת שנרשמת מקבלת מסך עם התורים שלה, יכולת לסמן השלמת טיפול ולעדכן ממצאים.</p></div></li>
+    </ol>
+  </div>
+  </section>
 
   <!-- ─── כניסה ראשונה ─── -->
   <div class="chapter" id="b-enter">
@@ -8225,12 +8368,45 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   </div>
 </div>
 
+<!-- ═══ GLOSSARY ═══ -->
+<div id="glossary" class="page">
+  <div class="sec-top">
+    <div class="s-icon">📖</div>
+    <h1>מילון מונחים</h1>
+    <p>הסבר למונחים הנפוצים במערכת ONEFLOW LIFE BIZ — משותף לכל סוגי העסק</p>
+  </div>
+  <div class="wrap">
+    <section data-business="all" data-topic="glossary" data-role="all">
+    <div class="chapter">
+      <div class="ch-head"><div class="ch-num">📖</div><div class="ch-title">מושגים בסיסיים</div></div>
+      <div class="field-table">
+        <div class="field-row"><div class="fr-label">קוד עסק</div><div class="fr-val">קוד בן 6 תווים שמזהה את הסביבה שלכם. כמו כתובת. ניתן למצוא בהגדרות ← פרטי העסק. מנהל שולח אותו לכל עובד שמצטרף.</div></div>
+        <div class="field-row"><div class="fr-label">ויזארד הקמה</div><div class="fr-val">תהליך הקמה מודרך בכניסה הראשונה — שאלות קצרות שמגדירות את המערכת תוך כ-3 דקות. ניתן לדלג על שאלות ולחזור אליהן מהגדרות.</div></div>
+        <div class="field-row"><div class="fr-label">לוח הבקרה</div><div class="fr-val">המסך הראשי שנפתח בכל כניסה. מציג יתרה, מכירות, KPIs, קיצורי דרך מהירים והתראות. משתנה לפי תפקיד הנכנס.</div></div>
+        <div class="field-row"><div class="fr-label">קיצורי דרך מהירים</div><div class="fr-val">כפתורים בלוח הבקרה לפעולות הנפוצות ביותר. לחיצה אחת מובילה ישירות לפעולה ללא ניווט בתפריט. מספר אדום מציין פריטים הממתינים לטיפול.</div></div>
+        <div class="field-row"><div class="fr-label">קופה (POS)</div><div class="fr-val">מסך לביצוע מכירות ותשלומים. בוחרים מוצרים/מנות מהקטלוג, מוסיפים לסל, מעבירים לתשלום. ניתן לגשת מהניווט: מכירות ← קופה.</div></div>
+        <div class="field-row"><div class="fr-label">מסך מטבח (KDS)</div><div class="fr-val">מסך גדול על רקע שחור שמציג הזמנות לצוות המטבח בזמן אמת. מחולק ל-5 תחנות: פס חם, פס קר, שתייה, לחמים, אחר. רלוונטי למסעדות בלבד.</div></div>
+        <div class="field-row"><div class="fr-label">תפקיד</div><div class="fr-val">ההגדרה שקובעת מה כל עובד רואה במסך שלו. מנהל רואה הכל, עובד רואה רק את מה שרלוונטי לו. מוגדר בויזארד או בניהול צוות.</div></div>
+        <div class="field-row"><div class="fr-label">פקודת עבודה</div><div class="fr-val">משימה טכנית עם לקוח, תאריך, עובד אחראי ופירוט העבודה. בשירותים ותיקונים — קריאת שירות. ניתן לפתוח, לעדכן ולסגור עם חתימת לקוח.</div></div>
+        <div class="field-row"><div class="fr-label">לקוח חבר</div><div class="fr-val">לקוח שיש לו גישה לסביבת הלקוחות (family.html). יכול לראות הזמנות, להגיש בקשות ולעקוב אחר פקודות עבודה שנפתחו עבורו.</div></div>
+        <div class="field-row"><div class="fr-label">תזרים מזומנים</div><div class="fr-val">רשימת כל ההכנסות וההוצאות של העסק עם קטגוריות, תאריכים ומשתמש. מנהל יכול לסנן לפי עובד ותקופה. נמצא בניווט: כספים ← תזרים מזומנים.</div></div>
+        <div class="field-row"><div class="fr-label">Food Cost</div><div class="fr-val">אחוז עלות חומרי הגלם מתוך מחיר המכירה. לדוגמה: מנה שעולה ₪10 לייצור ונמכרת ב-₪40 — Food Cost היא 25%. מחושב אוטומטית למסעדות.</div></div>
+        <div class="field-row"><div class="fr-label">קנבן משלוחים</div><div class="fr-val">לוח ניהול משלוחים ויזואלי — הזמנות עוברות בין עמודות: ממתין / בדרך / הושלם / COD. רלוונטי לעסקי לוגיסטיקה.</div></div>
+        <div class="field-row"><div class="fr-label">COD</div><div class="fr-val">Cash On Delivery — גבייה במזומן בעת המסירה בשטח. הנהג מסמן תשלום שהתקבל, המנהל רואה את הסיכום בכרטיסיית גבייה.</div></div>
+        <div class="field-row"><div class="fr-label">פרסום FLOW</div><div class="fr-val">מערכת פרסום פנימית ברשת OneFlow. מאפשרת ליצור מודעות ובאנרים שיוצגו לחברי הקהילה. נמצאת בניווט: עוד ← פרסום FLOW.</div></div>
+      </div>
+    </div>
+    </section>
+  </div>
+</div>
+
 <script>
-const INACTIVE_TYPES = ['retail','services','construction','healthcare','education','events','food_production','other'];
+const INACTIVE_TYPES = [];
 function show(id) {
-  const target = INACTIVE_TYPES.includes(id) ? 'coming-soon' : id;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
-  document.getElementById(target).classList.add('on');
+  const el = document.getElementById(id);
+  if (el) el.classList.add('on');
+  else document.getElementById('coming-soon').classList.add('on');
   document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
   document.querySelectorAll('.nb').forEach(b => {
     if (b.getAttribute('onclick') === `show('${id}')`) b.classList.add('on');
