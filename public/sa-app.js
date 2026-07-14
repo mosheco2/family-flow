@@ -64,7 +64,7 @@ window.applyUserPermissions = function() {
         'pulse': 'open', 'dashboard': 'open', 'clients': 'open', 'sysmap': 'open', 'legal': 'open', 'templates': 'open',
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
         'comm': 'comm', 'biz': 'biz', 'content': 'content',
-        'hr': 'users', 'inbox': 'marketing', 'partners': 'all', 'finance': 'finance'
+        'hr': 'users', 'inbox': 'marketing', 'partners': 'all', 'finance': 'stats'
     };
 
     function canAccessTab(tab) {
@@ -99,7 +99,7 @@ window.checkTabAccess = function(tabId) {
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
         'comm': 'comm', 'biz': 'biz', 'content': 'content',
         'hr': 'users', 'inbox': 'marketing', 'partners': 'all',
-        'finance': 'finance', 'adslots': 'content', 'legal': 'content'
+        'finance': 'stats', 'adslots': 'content', 'legal': 'content'
     };
 
     if (req[tabId] && !perms.includes(req[tabId])) return false;
