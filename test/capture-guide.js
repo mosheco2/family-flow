@@ -20,6 +20,17 @@ async function login(page, { code, user, pass }) {
   await page.fill('input[type="password"]', pass);
   await page.click('button:has-text("כניסה"), button[type="submit"]');
   await page.waitForTimeout(5000);
+
+  // סגור modal מדריך קצר אם מופיע (כפתור "דלג" או X)
+  for (const sel of ['button:has-text("דלג")', 'button:has-text("✕")', 'button:has-text("×")', 'button[class*="close"]', 'button[class*="skip"]']) {
+    try {
+      await page.click(sel, { timeout: 2000 });
+      await page.waitForTimeout(1000);
+      console.log(`  ℹ️ סגרתי modal (${sel})`);
+      break;
+    } catch {}
+  }
+
   console.log(`  ✅ כניסה בוצעה`);
 }
 
