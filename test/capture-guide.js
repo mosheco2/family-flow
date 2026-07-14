@@ -201,14 +201,15 @@ async function captureRestaurant(page) {
   await page.evaluate(() => window.openAdminKDSPanel && window.openAdminKDSPanel());
   await page.waitForTimeout(2000);
   await capture(page, 'restaurant-10-kds');
-  // סגור overlay אם פתוח
-  try { await page.keyboard.press('Escape'); await page.waitForTimeout(500); } catch {}
+  // סגור overlay — כפתור חזרה
+  try { await page.click('button:has-text("חזרה")', { timeout: 2000 }); await page.waitForTimeout(800); } catch {}
 
   // שולחנות — פונקציה אמיתית מהטייל
   await page.evaluate(() => window.openAdminTablesPanel && window.openAdminTablesPanel());
   await page.waitForTimeout(2000);
   await capture(page, 'restaurant-11-tables');
-  try { await page.keyboard.press('Escape'); await page.waitForTimeout(500); } catch {}
+  // סגור overlay — כפתור חזרה
+  try { await page.click('button:has-text("חזרה")', { timeout: 2000 }); await page.waitForTimeout(800); } catch {}
 
   // קטלוג — sales → switchSalesTab catalog
   await page.evaluate(() => {
@@ -229,13 +230,13 @@ async function captureRestaurant(page) {
   await capture(page, 'restaurant-14-inventory');
 
   // צוות — ניהול צוות
-  await clickNavGroup(page, 'team');
-  await clickNavItem(page, 'members');
+  await page.evaluate(() => window.switchTab && window.switchTab('members'));
+  await page.waitForTimeout(2000);
   await capture(page, 'restaurant-15-team');
 
   // כספים / תזרים
-  await clickNavGroup(page, 'finance');
-  await clickNavItem(page, 'cashflow');
+  await page.evaluate(() => window.switchTab && window.switchTab('cashflow'));
+  await page.waitForTimeout(2000);
   await capture(page, 'restaurant-16-cashflow');
 
   console.log('  ✅ מסעדה — סיום');
