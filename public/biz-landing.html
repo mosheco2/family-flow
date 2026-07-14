@@ -9,280 +9,290 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0A0F1E;--bg2:#0F1628;--bg3:#141C35;
+  --bg:#0A0F1E;--bg2:#0F1628;
   --accent:#00D4AA;--accent2:#0099FF;
   --text:#F0F4FF;--muted:#7A8AAA;
   --card:#1A2340;--border:#1E2D50;
+  --nav-h:56px;
 }
-html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text)}
+html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);line-height:1.4}
 
 /* ── SLIDER ── */
 #slider{
   display:flex;
-  width:calc(8 * 100vw);   /* 8 slides */
+  width:calc(8 * 100vw);
   height:100dvh;
-  transition:transform .5s cubic-bezier(.4,0,.2,1);
+  transition:transform .48s cubic-bezier(.4,0,.2,1);
   will-change:transform;
 }
 .slide{
   width:100vw;height:100dvh;
-  overflow-y:auto;overflow-x:hidden;
+  overflow:hidden;
   flex-shrink:0;
-  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
-  padding:1.5rem 1.25rem 6rem;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:.75rem 1.1rem var(--nav-h);
+  position:relative;
 }
-.slide.center{justify-content:center}
 
 /* ── NAV BAR ── */
 #nav-bar{
-  position:fixed;bottom:0;left:0;right:0;z-index:100;
-  display:none;
-  align-items:center;justify-content:space-between;
-  padding:.85rem 1.25rem;
-  background:rgba(10,15,30,.92);
-  backdrop-filter:blur(12px);
+  position:fixed;bottom:0;left:0;right:0;z-index:200;
+  height:var(--nav-h);
+  display:none;align-items:center;justify-content:space-between;
+  padding:0 1rem;
+  background:rgba(10,15,30,.95);
+  backdrop-filter:blur(14px);
   border-top:1px solid var(--border);
 }
 #nav-bar.visible{display:flex}
 .nav-btn{
-  width:44px;height:44px;border-radius:50%;border:1px solid var(--border);
-  background:var(--card);color:var(--text);font-size:1.2rem;
+  width:40px;height:40px;border-radius:50%;
+  border:1px solid var(--border);background:var(--card);
+  color:var(--text);font-size:1.1rem;
   display:flex;align-items:center;justify-content:center;
-  cursor:pointer;transition:background .2s,border-color .2s;
-  flex-shrink:0;
+  cursor:pointer;transition:background .2s,border-color .2s;flex-shrink:0;
 }
-.nav-btn:hover{background:#253060;border-color:var(--accent)}
-.nav-btn:disabled{opacity:.25;cursor:default}
-#dots{display:flex;gap:.45rem;align-items:center}
-.dot{
-  width:7px;height:7px;border-radius:50%;
-  background:var(--border);transition:all .25s;cursor:pointer;
-}
-.dot.active{background:var(--accent);width:20px;border-radius:4px}
+.nav-btn:hover:not(:disabled){background:#253060;border-color:var(--accent)}
+.nav-btn:disabled{opacity:.2;cursor:default}
+#dots{display:flex;gap:.4rem;align-items:center}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--border);transition:all .25s;cursor:pointer}
+.dot.active{background:var(--accent);width:18px;border-radius:3px}
 
-/* ── BACK TO PICKER ── */
+/* ── BACK BTN ── */
 #back-btn{
-  position:fixed;top:1rem;right:1rem;z-index:200;
-  display:none;
+  position:fixed;top:.7rem;right:.8rem;z-index:300;display:none;
   background:var(--card);border:1px solid var(--border);
-  color:var(--muted);font-size:.78rem;font-weight:700;
-  border-radius:2rem;padding:.4rem .9rem;cursor:pointer;
-  font-family:'Heebo',sans-serif;
-  transition:color .2s,border-color .2s;
+  color:var(--muted);font-size:.72rem;font-weight:700;
+  border-radius:2rem;padding:.32rem .8rem;cursor:pointer;
+  font-family:'Heebo',sans-serif;transition:color .2s,border-color .2s;
 }
 #back-btn:hover{color:var(--accent);border-color:var(--accent)}
 #back-btn.visible{display:block}
 
-/* ── BIZ PICKER (slide 0) ── */
-#slide-picker{background:var(--bg)}
-#slide-picker h1{
-  font-size:clamp(1.6rem,5vw,2.4rem);font-weight:900;
-  text-align:center;margin-bottom:.5rem;margin-top:2rem;
+/* ── TAG ── */
+.tag{
+  display:inline-block;
+  background:rgba(0,212,170,.12);border:1px solid rgba(0,212,170,.3);
+  color:var(--accent);font-size:.68rem;font-weight:700;
+  border-radius:2rem;padding:.22rem .75rem;
+  margin-bottom:.4rem;letter-spacing:.04em;flex-shrink:0;
 }
-#slide-picker p{color:var(--muted);text-align:center;margin-bottom:2rem;font-size:1rem}
+
+/* ══════════════════════════════════════
+   SLIDE 0 — BIZ PICKER
+══════════════════════════════════════ */
+#slide-picker{background:var(--bg);padding:.75rem 1.1rem}
+.picker-title{font-size:clamp(1.4rem,5vw,2rem);font-weight:900;text-align:center;margin-bottom:.2rem}
+.picker-sub{color:var(--muted);text-align:center;font-size:.82rem;margin-bottom:1.1rem}
 .biz-grid{
-  display:grid;grid-template-columns:repeat(2,1fr);
-  gap:.85rem;width:100%;max-width:480px;
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:.6rem;width:100%;max-width:480px;
 }
 .biz-card{
   background:var(--card);border:2px solid var(--border);
-  border-radius:1.25rem;padding:1.4rem 1rem;
+  border-radius:1rem;padding:.9rem .5rem .75rem;
   text-align:center;cursor:pointer;
   transition:border-color .2s,transform .15s,background .2s;
 }
-.biz-card:hover,.biz-card:active{border-color:var(--accent);background:#1d2d4a;transform:scale(1.03)}
-.biz-card .icon{font-size:2.2rem;margin-bottom:.5rem;display:block}
-.biz-card .label{font-size:.95rem;font-weight:700}
+.biz-card:hover,.biz-card:active{border-color:var(--accent);background:#1d2d4a;transform:scale(1.04)}
+.biz-card .icon{font-size:1.7rem;display:block;margin-bottom:.3rem}
+.biz-card .label{font-size:.72rem;font-weight:700;line-height:1.3}
 
-/* ── SECTION SHARED ── */
-.slide-inner{width:100%;max-width:680px;padding-top:3rem}
-.section-tag{
-  display:inline-block;
-  background:rgba(0,212,170,.12);border:1px solid rgba(0,212,170,.3);
-  color:var(--accent);font-size:.75rem;font-weight:700;
-  border-radius:2rem;padding:.3rem .9rem;margin-bottom:1rem;
-}
-h2.stitle{font-size:clamp(1.6rem,5vw,2.4rem);font-weight:900;line-height:1.2;margin-bottom:.75rem}
-.ssub{color:var(--muted);font-size:.95rem;line-height:1.7}
-
-/* ── HERO (slide 1) ── */
-#slide-hero{
-  background:var(--bg);text-align:center;
-  position:relative;overflow:hidden;
-}
+/* ══════════════════════════════════════
+   SLIDE 1 — HERO
+══════════════════════════════════════ */
+#slide-hero{background:var(--bg);text-align:center;overflow:hidden}
 #slide-hero::before{
   content:'';position:absolute;top:50%;left:50%;
   transform:translate(-50%,-50%);
-  width:500px;height:500px;border-radius:50%;
+  width:420px;height:420px;border-radius:50%;
   background:radial-gradient(circle,rgba(0,212,170,.1) 0%,transparent 70%);
-  animation:pulse-bg 4s ease-in-out infinite;pointer-events:none;
+  animation:pbg 4s ease-in-out infinite;pointer-events:none;
 }
-@keyframes pulse-bg{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.2)}}
+@keyframes pbg{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.2)}}
 .hero-badge{
-  display:inline-flex;align-items:center;gap:.5rem;
+  display:inline-flex;align-items:center;gap:.4rem;
   background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.25);
-  border-radius:2rem;padding:.35rem 1rem;font-size:.8rem;color:var(--accent);font-weight:700;
-  margin-bottom:1.25rem;
+  border-radius:2rem;padding:.28rem .85rem;font-size:.72rem;
+  color:var(--accent);font-weight:700;margin-bottom:.6rem;
 }
-.hero-badge span{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:blink 1.5s ease-in-out infinite}
+.hero-badge span{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:blink 1.5s ease-in-out infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 #slide-hero h1{
-  font-size:clamp(2.6rem,9vw,5rem);font-weight:900;line-height:1;
-  margin-bottom:1.25rem;
+  font-size:clamp(2.4rem,10vw,4.5rem);font-weight:900;line-height:1;
+  margin-bottom:.7rem;
   background:linear-gradient(135deg,#fff 30%,var(--accent));
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
 }
-#hero-sub{font-size:clamp(.95rem,2.5vw,1.15rem);color:var(--muted);max-width:520px;margin:0 auto 2rem}
-.cta-btn{
-  display:inline-flex;align-items:center;gap:.6rem;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
-  color:#0A0F1E;font-size:1rem;font-weight:900;
-  border:none;border-radius:3rem;padding:.9rem 2rem;
-  cursor:pointer;text-decoration:none;
-  box-shadow:0 0 30px rgba(0,212,170,.4);
-  transition:transform .2s,box-shadow .2s;
-  animation:pulse-cta 2.5s ease-in-out infinite;
+#hero-sub{
+  font-size:clamp(.82rem,2.5vw,1rem);color:var(--muted);
+  max-width:440px;margin:0 auto .9rem;line-height:1.55;
 }
-.cta-btn:hover{transform:scale(1.04);box-shadow:0 0 50px rgba(0,212,170,.6)}
-@keyframes pulse-cta{0%,100%{box-shadow:0 0 30px rgba(0,212,170,.4)}50%{box-shadow:0 0 60px rgba(0,212,170,.7)}}
+.cta-btn{
+  display:inline-flex;align-items:center;gap:.5rem;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#0A0F1E;font-size:.92rem;font-weight:900;
+  border:none;border-radius:3rem;padding:.7rem 1.7rem;
+  cursor:pointer;text-decoration:none;
+  box-shadow:0 0 28px rgba(0,212,170,.4);
+  animation:pcta 2.5s ease-in-out infinite;
+  transition:transform .2s;
+}
+.cta-btn:hover{transform:scale(1.04)}
+@keyframes pcta{0%,100%{box-shadow:0 0 28px rgba(0,212,170,.4)}50%{box-shadow:0 0 55px rgba(0,212,170,.7)}}
 
-/* ── PAIN (slide 2) ── */
-#slide-pain{background:var(--bg2)}
-.pain-list{display:flex;flex-direction:column;gap:.65rem;margin-top:1.5rem}
+/* ══════════════════════════════════════
+   SLIDE 2 — PAIN
+══════════════════════════════════════ */
+#slide-pain{background:var(--bg2);justify-content:flex-start;padding-top:2.2rem}
+.pain-header{width:100%;max-width:560px;margin-bottom:.75rem;flex-shrink:0}
+.stitle{font-size:clamp(1.35rem,5vw,2rem);font-weight:900;line-height:1.15;margin-bottom:.3rem}
+.ssub{color:var(--muted);font-size:.78rem}
+.pain-list{display:flex;flex-direction:column;gap:.45rem;width:100%;max-width:560px}
 .pain-item{
-  display:flex;align-items:center;gap:1rem;
+  display:flex;align-items:center;gap:.8rem;
   background:var(--card);border:1px solid var(--border);
-  border-radius:1rem;padding:.9rem 1.1rem;
+  border-radius:.8rem;padding:.6rem .9rem;flex-shrink:0;
 }
 .pain-num{
-  min-width:30px;height:30px;border-radius:50%;
+  min-width:26px;height:26px;border-radius:50%;
   background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.3);
-  color:#ff6b6b;font-weight:900;font-size:.8rem;
+  color:#ff6b6b;font-weight:900;font-size:.72rem;
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
 }
-.pain-text{font-size:.9rem;color:var(--muted)}
+.pain-text{font-size:.82rem;color:var(--muted)}
 .pain-text strong{color:var(--text)}
 
-/* ── SOLUTION (slide 3) ── */
+/* ══════════════════════════════════════
+   SLIDE 3 — SOLUTION
+══════════════════════════════════════ */
 #slide-solution{background:var(--bg);text-align:center}
-.funnel{max-width:360px;margin:1.5rem auto 0;width:100%}
-.funnel-items{display:flex;flex-direction:column;gap:.45rem;margin-bottom:1.25rem}
+.funnel{width:100%;max-width:340px;margin-top:.6rem}
+.funnel-items{display:flex;flex-direction:column;gap:.35rem;margin-bottom:.8rem}
 .funnel-item{
   background:var(--card);border:1px solid var(--border);
-  border-radius:.65rem;padding:.55rem .9rem;font-size:.82rem;color:var(--muted);
+  border-radius:.55rem;padding:.42rem .8rem;font-size:.76rem;color:var(--muted);
 }
-.funnel-arrow{width:2px;height:40px;background:linear-gradient(to bottom,var(--accent),transparent);margin:0 auto;position:relative}
-.funnel-arrow::after{content:'▼';position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);color:var(--accent);font-size:.9rem}
+.farrow{width:2px;height:32px;background:linear-gradient(to bottom,var(--accent),transparent);margin:0 auto;position:relative}
+.farrow::after{content:'▼';position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);color:var(--accent);font-size:.8rem}
 .funnel-result{
   background:linear-gradient(135deg,rgba(0,212,170,.15),rgba(0,153,255,.15));
-  border:2px solid var(--accent);border-radius:1.25rem;padding:1.1rem;margin-top:1.25rem;
+  border:2px solid var(--accent);border-radius:1rem;padding:.9rem;margin-top:.9rem;
 }
-.funnel-result .big{font-size:1.4rem;font-weight:900;color:var(--accent)}
-.funnel-result .sub{font-size:.82rem;color:var(--muted);margin-top:.2rem}
+.funnel-result .big{font-size:1.25rem;font-weight:900;color:var(--accent)}
+.funnel-result .sub{font-size:.75rem;color:var(--muted);margin-top:.15rem}
 
-/* ── FEATURES (slide 4) ── */
-#slide-features{background:var(--bg2)}
-.features-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.85rem;margin-top:1.5rem}
+/* ══════════════════════════════════════
+   SLIDE 4 — FEATURES
+══════════════════════════════════════ */
+#slide-features{background:var(--bg2);justify-content:flex-start;padding-top:2.2rem}
+.feat-header{width:100%;max-width:560px;margin-bottom:.6rem;flex-shrink:0}
+.features-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:.5rem;width:100%;max-width:560px;
+}
 .feature-card{
   background:var(--card);border:1px solid var(--border);
-  border-radius:1.1rem;padding:1.1rem .9rem;
+  border-radius:.85rem;padding:.65rem .55rem;
   transition:border-color .2s;
 }
 .feature-card:hover{border-color:rgba(0,212,170,.4)}
-.fc-icon{font-size:1.5rem;margin-bottom:.4rem}
-.fc-title{font-size:.85rem;font-weight:700;margin-bottom:.2rem}
-.fc-desc{font-size:.75rem;color:var(--muted);line-height:1.5}
+.fc-icon{font-size:1.3rem;margin-bottom:.25rem}
+.fc-title{font-size:.72rem;font-weight:700;margin-bottom:.15rem;line-height:1.3}
+.fc-desc{font-size:.64rem;color:var(--muted);line-height:1.4}
 
-/* ── RADAR (slide 5) ── */
-#slide-radar{background:var(--bg);text-align:center}
-.radar-container{position:relative;width:180px;height:180px;margin:1.5rem auto 1.25rem;flex-shrink:0}
-.radar-ring{
-  position:absolute;border-radius:50%;
-  border:1px solid rgba(0,212,170,.25);
+/* ══════════════════════════════════════
+   SLIDE 5 — RADAR
+══════════════════════════════════════ */
+#slide-radar{background:var(--bg);text-align:center;justify-content:flex-start;padding-top:2rem}
+.radar-header{flex-shrink:0;width:100%;max-width:560px;margin-bottom:.4rem}
+.radar-ssub{font-size:.75rem;color:var(--muted);line-height:1.55;max-width:420px;margin:.3rem auto .5rem}
+.radar-wrap{position:relative;width:130px;height:130px;margin:.1rem auto .5rem;flex-shrink:0}
+.rring{
+  position:absolute;border-radius:50%;border:1px solid rgba(0,212,170,.25);
   top:50%;left:50%;transform:translate(-50%,-50%);
-  animation:expand 3s ease-out infinite;
+  animation:rexpand 3s ease-out infinite;
 }
-.radar-ring:nth-child(1){width:50px;height:50px;animation-delay:0s}
-.radar-ring:nth-child(2){width:100px;height:100px;animation-delay:.8s}
-.radar-ring:nth-child(3){width:150px;height:150px;animation-delay:1.6s}
-.radar-ring:nth-child(4){width:180px;height:180px;animation-delay:2.4s}
-@keyframes expand{0%{opacity:.8}100%{opacity:0;transform:translate(-50%,-50%) scale(1.08)}}
-.radar-center{
+.rring:nth-child(1){width:38px;height:38px;animation-delay:0s}
+.rring:nth-child(2){width:76px;height:76px;animation-delay:.8s}
+.rring:nth-child(3){width:110px;height:110px;animation-delay:1.6s}
+.rring:nth-child(4){width:130px;height:130px;animation-delay:2.4s}
+@keyframes rexpand{0%{opacity:.8}100%{opacity:0;transform:translate(-50%,-50%) scale(1.08)}}
+.rcenter{
   position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  width:36px;height:36px;border-radius:50%;
+  width:28px;height:28px;border-radius:50%;
   background:radial-gradient(circle,var(--accent),var(--accent2));
-  display:flex;align-items:center;justify-content:center;font-size:1rem;z-index:2;
-  box-shadow:0 0 20px rgba(0,212,170,.6);
+  display:flex;align-items:center;justify-content:center;font-size:.8rem;z-index:2;
+  box-shadow:0 0 14px rgba(0,212,170,.6);
 }
-.radar-dot{
-  position:absolute;width:9px;height:9px;border-radius:50%;
-  background:var(--accent2);box-shadow:0 0 6px var(--accent2);
-  animation:dpulse 2s ease-in-out infinite;
-}
+.rdot{position:absolute;width:7px;height:7px;border-radius:50%;background:var(--accent2);box-shadow:0 0 5px var(--accent2);animation:dpulse 2s ease-in-out infinite}
 @keyframes dpulse{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:1;transform:scale(1.4)}}
-.radar-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;width:100%;margin-top:1rem}
-.radar-col{
-  background:var(--card);border:1px solid var(--border);
-  border-radius:1rem;padding:1rem .6rem;text-align:center;
-}
-.rc-icon{font-size:1.5rem;margin-bottom:.35rem}
-.rc-title{font-size:.8rem;font-weight:700;margin-bottom:.3rem}
-.rc-desc{font-size:.7rem;color:var(--muted);line-height:1.5}
+.radar-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;width:100%;max-width:560px;flex-shrink:0}
+.radar-col{background:var(--card);border:1px solid var(--border);border-radius:.85rem;padding:.65rem .5rem;text-align:center}
+.rc-icon{font-size:1.2rem;margin-bottom:.2rem}
+.rc-title{font-size:.72rem;font-weight:700;margin-bottom:.2rem}
+.rc-desc{font-size:.62rem;color:var(--muted);line-height:1.4}
 .radar-promise{
   background:linear-gradient(135deg,rgba(0,212,170,.08),rgba(0,153,255,.08));
-  border:1px solid rgba(0,212,170,.3);border-radius:1rem;
-  padding:1.1rem;margin-top:1rem;font-size:.88rem;color:var(--muted);line-height:1.7;
+  border:1px solid rgba(0,212,170,.3);border-radius:.85rem;
+  padding:.7rem .9rem;margin-top:.5rem;font-size:.75rem;color:var(--muted);line-height:1.6;
+  width:100%;max-width:560px;flex-shrink:0;
 }
 .radar-promise strong{color:var(--text)}
 
-/* ── PROOF (slide 6) ── */
-#slide-proof{background:var(--bg2)}
-.proof-list{display:flex;flex-direction:column;gap:.85rem;margin-top:1.5rem}
-.proof-card{background:var(--card);border:1px solid var(--border);border-radius:1.1rem;padding:1.2rem}
-.proof-stars{color:#f59e0b;font-size:.9rem;margin-bottom:.6rem}
-.proof-text{font-size:.88rem;color:var(--text);line-height:1.7;margin-bottom:.85rem;font-style:italic}
-.proof-author{display:flex;align-items:center;gap:.65rem}
+/* ══════════════════════════════════════
+   SLIDE 6 — PROOF
+══════════════════════════════════════ */
+#slide-proof{background:var(--bg2);justify-content:flex-start;padding-top:2.2rem}
+.proof-header{width:100%;max-width:560px;margin-bottom:.65rem;flex-shrink:0}
+.proof-list{display:flex;flex-direction:column;gap:.5rem;width:100%;max-width:560px}
+.proof-card{background:var(--card);border:1px solid var(--border);border-radius:.85rem;padding:.75rem .9rem;flex-shrink:0}
+.proof-stars{color:#f59e0b;font-size:.75rem;margin-bottom:.4rem}
+.proof-text{
+  font-size:.76rem;color:var(--text);line-height:1.6;margin-bottom:.5rem;font-style:italic;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.proof-author{display:flex;align-items:center;gap:.5rem}
 .proof-avatar{
-  width:34px;height:34px;border-radius:50%;
+  width:28px;height:28px;border-radius:50%;
   background:linear-gradient(135deg,var(--accent),var(--accent2));
-  display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0;
 }
-.proof-name{font-size:.82rem;font-weight:700}
-.proof-role{font-size:.72rem;color:var(--muted)}
+.proof-name{font-size:.72rem;font-weight:700}
+.proof-role{font-size:.62rem;color:var(--muted)}
 
-/* ── CTA (slide 7) ── */
-#slide-cta{background:radial-gradient(ellipse at 50% 0%,rgba(0,212,170,.12) 0%,transparent 70%), var(--bg);text-align:center}
-.perks{display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem;width:100%;margin:1.5rem 0}
-.perk{background:var(--card);border:1px solid var(--border);border-radius:1rem;padding:.9rem .7rem;text-align:center}
-.perk-icon{font-size:1.5rem;margin-bottom:.3rem;display:block}
-.perk-label{font-size:.82rem;font-weight:700}
-.perk-sub{font-size:.72rem;color:var(--muted);margin-top:.15rem}
+/* ══════════════════════════════════════
+   SLIDE 7 — CTA
+══════════════════════════════════════ */
+#slide-cta{
+  background:radial-gradient(ellipse at 50% 0%,rgba(0,212,170,.1) 0%,transparent 65%),var(--bg);
+  text-align:center;
+}
+#slide-cta .stitle{margin-bottom:.35rem}
+#slide-cta .ssub{font-size:.8rem;color:var(--muted);margin-bottom:.8rem}
+.perks{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;width:100%;max-width:440px;margin:0 auto .85rem}
+.perk{background:var(--card);border:1px solid var(--border);border-radius:.85rem;padding:.65rem .55rem;text-align:center}
+.perk-icon{font-size:1.3rem;display:block;margin-bottom:.2rem}
+.perk-label{font-size:.75rem;font-weight:700}
+.perk-sub{font-size:.62rem;color:var(--muted);margin-top:.12rem}
 .slots-badge{
-  display:inline-block;margin-top:1.1rem;
+  display:inline-block;margin-top:.65rem;
   background:rgba(255,100,100,.1);border:1px solid rgba(255,100,100,.3);
-  color:#ff8080;border-radius:2rem;padding:.3rem 1rem;font-size:.8rem;font-weight:700;
-}
-
-/* ── MOBILE ── */
-@media(max-width:400px){
-  .features-grid{grid-template-columns:1fr}
-  .radar-cols{grid-template-columns:1fr}
-  .biz-grid{grid-template-columns:repeat(2,1fr)}
+  color:#ff8080;border-radius:2rem;padding:.28rem .9rem;font-size:.75rem;font-weight:700;
 }
 </style>
 </head>
 <body>
 
-<!-- חזרה לבחירה -->
 <button id="back-btn" onclick="goToSlide(0)">← שנה סוג עסק</button>
 
-<!-- ══ SLIDER ══ -->
 <div id="slider">
 
-  <!-- 0: BIZ PICKER -->
-  <div class="slide center" id="slide-picker">
-    <h1>מה סוג העסק שלך?</h1>
-    <p>נתאים את ההצגה בדיוק בשבילך</p>
+  <!-- 0: PICKER -->
+  <div class="slide" id="slide-picker" style="background:var(--bg)">
+    <p class="picker-title">מה סוג העסק שלך?</p>
+    <p class="picker-sub">נתאים את ההצגה בדיוק בשבילך</p>
     <div class="biz-grid">
       <div class="biz-card" onclick="selectBiz('restaurant')"><span class="icon">🍕</span><div class="label">מסעדה / אוכל</div></div>
       <div class="biz-card" onclick="selectBiz('beauty')"><span class="icon">💅</span><div class="label">יופי ואסטטיקה</div></div>
@@ -294,8 +304,8 @@ h2.stitle{font-size:clamp(1.6rem,5vw,2.4rem);font-weight:900;line-height:1.2;mar
   </div>
 
   <!-- 1: HERO -->
-  <div class="slide center" id="slide-hero">
-    <div style="text-align:center;width:100%;max-width:600px">
+  <div class="slide" id="slide-hero">
+    <div style="text-align:center;width:100%;max-width:520px;position:relative;z-index:1">
       <div class="hero-badge"><span></span> פיילוט פעיל — מקומות מוגבלים</div>
       <h1>חזון.<br>שליטה.</h1>
       <p id="hero-sub"></p>
@@ -305,22 +315,22 @@ h2.stitle{font-size:clamp(1.6rem,5vw,2.4rem);font-weight:900;line-height:1.2;mar
 
   <!-- 2: PAIN -->
   <div class="slide" id="slide-pain">
-    <div class="slide-inner">
-      <div class="section-tag">הכאב שאתם מכירים</div>
-      <h2 class="stitle">עושים סוף<br>לכאוס התפעולי.</h2>
-      <p class="ssub">כמה תוכנות שונות משלמים כל חודש?<br>מחר — אחת.</p>
-      <div class="pain-list" id="pain-list"></div>
+    <div class="pain-header">
+      <div class="tag">הכאב שאתם מכירים</div>
+      <h2 class="stitle">עושים סוף לכאוס התפעולי.</h2>
+      <p class="ssub">כמה תוכנות שונות? מחר — אחת.</p>
     </div>
+    <div class="pain-list" id="pain-list"></div>
   </div>
 
   <!-- 3: SOLUTION -->
-  <div class="slide center" id="slide-solution">
-    <div class="slide-inner" style="text-align:center">
-      <div class="section-tag">הפתרון</div>
-      <h2 class="stitle">מגדל פיקוח אחד<br>לכל העסק שלך.</h2>
+  <div class="slide" id="slide-solution">
+    <div style="text-align:center;width:100%;max-width:380px">
+      <div class="tag">הפתרון</div>
+      <h2 class="stitle">מגדל פיקוח אחד לכל העסק.</h2>
       <div class="funnel">
         <div class="funnel-items" id="funnel-items"></div>
-        <div class="funnel-arrow"></div>
+        <div class="farrow"></div>
         <div class="funnel-result">
           <div class="big">OneFlow Life BIZ</div>
           <div class="sub">3 דקות ואתם חיים</div>
@@ -331,73 +341,72 @@ h2.stitle{font-size:clamp(1.6rem,5vw,2.4rem);font-weight:900;line-height:1.2;mar
 
   <!-- 4: FEATURES -->
   <div class="slide" id="slide-features">
-    <div class="slide-inner">
-      <div class="section-tag">מה תקבלו</div>
-      <h2 class="stitle">בדיוק למה<br>שאתם צריכים.</h2>
-      <div class="features-grid" id="features-grid"></div>
+    <div class="feat-header">
+      <div class="tag">מה תקבלו</div>
+      <h2 class="stitle">בדיוק למה שאתם צריכים.</h2>
     </div>
+    <div class="features-grid" id="features-grid"></div>
   </div>
 
   <!-- 5: RADAR -->
   <div class="slide" id="slide-radar">
-    <div class="slide-inner" style="text-align:center">
-      <div class="section-tag">הייחוד</div>
-      <h2 class="stitle">הרדאר —<br>חיבור לקהילות.</h2>
-      <p class="ssub">המערכת מאתרת קהילות רלוונטיות לפי אזור ותחום.<br>משפחות מגלות אתכם. אתם גדלים.</p>
-      <div class="radar-container">
-        <div class="radar-ring"></div><div class="radar-ring"></div>
-        <div class="radar-ring"></div><div class="radar-ring"></div>
-        <div class="radar-center">🎯</div>
-        <div class="radar-dot" style="top:18%;left:68%"></div>
-        <div class="radar-dot" style="top:72%;left:22%;animation-delay:.7s"></div>
-        <div class="radar-dot" style="top:28%;left:14%;animation-delay:1.2s"></div>
-        <div class="radar-dot" style="top:65%;left:72%;animation-delay:.4s"></div>
-      </div>
-      <div class="radar-cols">
-        <div class="radar-col"><div class="rc-icon">🏪</div><div class="rc-title">העסק שלך</div><div class="rc-desc">נרשמים ומגדירים פרופיל</div></div>
-        <div class="radar-col"><div class="rc-icon">🤖</div><div class="rc-title">הרדאר</div><div class="rc-desc">מאתר קהילות ומחבר אוטומטית</div></div>
-        <div class="radar-col"><div class="rc-icon">👨‍👩‍👧‍👦</div><div class="rc-title">המשפחות</div><div class="rc-desc">מגלות, מזמינות, חוזרות</div></div>
-      </div>
-      <div class="radar-promise">
-        <strong>הלקוחות הבאים שלך כבר נמצאים במערכת.</strong><br>
-        הארנקים הדיגיטליים שלהם טעונים ומחכים לך.
-      </div>
+    <div class="radar-header">
+      <div class="tag">הייחוד</div>
+      <h2 class="stitle">הרדאר — חיבור לקהילות.</h2>
+    </div>
+    <p class="radar-ssub">המערכת מאתרת קהילות רלוונטיות לפי אזור ותחום. משפחות מגלות אתכם. אתם גדלים.</p>
+    <div class="radar-wrap">
+      <div class="rring"></div><div class="rring"></div><div class="rring"></div><div class="rring"></div>
+      <div class="rcenter">🎯</div>
+      <div class="rdot" style="top:16%;left:65%;animation-delay:0s"></div>
+      <div class="rdot" style="top:70%;left:20%;animation-delay:.7s"></div>
+      <div class="rdot" style="top:25%;left:12%;animation-delay:1.3s"></div>
+      <div class="rdot" style="top:62%;left:70%;animation-delay:.4s"></div>
+    </div>
+    <div class="radar-cols">
+      <div class="radar-col"><div class="rc-icon">🏪</div><div class="rc-title">העסק שלך</div><div class="rc-desc">נרשמים ומגדירים פרופיל</div></div>
+      <div class="radar-col"><div class="rc-icon">🤖</div><div class="rc-title">הרדאר</div><div class="rc-desc">מאתר קהילות אוטומטית</div></div>
+      <div class="radar-col"><div class="rc-icon">👨‍👩‍👧‍👦</div><div class="rc-title">המשפחות</div><div class="rc-desc">מגלות, מזמינות, חוזרות</div></div>
+    </div>
+    <div class="radar-promise">
+      <strong>הלקוחות הבאים שלך כבר נמצאים במערכת.</strong><br>
+      הארנקים הדיגיטליים שלהם טעונים ומחכים לך.
     </div>
   </div>
 
   <!-- 6: PROOF -->
   <div class="slide" id="slide-proof">
-    <div class="slide-inner">
-      <div class="section-tag">כבר איתנו</div>
+    <div class="proof-header">
+      <div class="tag">כבר איתנו</div>
       <h2 class="stitle">כבר איתנו בפיילוט.</h2>
-      <div class="proof-list">
-        <!-- PLACEHOLDER — יש להחליף בציטוטים אמיתיים -->
-        <div class="proof-card">
-          <div class="proof-stars">★★★★★</div>
-          <p class="proof-text">"פעם ניהלתי קופה בתוכנה אחת ונוכחות בשנייה. היום הכל בלחיצה אחת. חסכתי שעתיים ביום לפחות."</p>
-          <div class="proof-author"><div class="proof-avatar">🍕</div><div><div class="proof-name">שלמה כהן</div><div class="proof-role">בעלים, רשת שניצלונים</div></div></div>
-        </div>
-        <div class="proof-card">
-          <div class="proof-stars">★★★★★</div>
-          <p class="proof-text">"הפסקתי לשלוח ווטסאפים לתזכורות תורים. המערכת עושה הכל לבד. המטפלות שמחות, הלקוחות שמחות."</p>
-          <div class="proof-author"><div class="proof-avatar">💅</div><div><div class="proof-name">מיכל אברהם</div><div class="proof-role">מנהלת, סלון Beauty Zone</div></div></div>
-        </div>
-        <div class="proof-card">
-          <div class="proof-stars">★★★★★</div>
-          <p class="proof-text">"הצעות המחיר שלחתי פעם ב-Word. עכשיו הלקוח רואה, חותם דיגיטלית ואני מקבל אישור תוך דקות."</p>
-          <div class="proof-author"><div class="proof-avatar">🔧</div><div><div class="proof-name">דוד לוי</div><div class="proof-role">בעלים, Fix-It שירותי תיקונים</div></div></div>
-        </div>
-        <!-- END PLACEHOLDER -->
+    </div>
+    <div class="proof-list">
+      <!-- PLACEHOLDER — יש להחליף בציטוטים אמיתיים -->
+      <div class="proof-card">
+        <div class="proof-stars">★★★★★</div>
+        <p class="proof-text">"פעם ניהלתי קופה בתוכנה אחת ונוכחות בשנייה. היום הכל בלחיצה אחת. חסכתי שעתיים ביום לפחות."</p>
+        <div class="proof-author"><div class="proof-avatar">🍕</div><div><div class="proof-name">שלמה כהן</div><div class="proof-role">בעלים, רשת שניצלונים</div></div></div>
       </div>
+      <div class="proof-card">
+        <div class="proof-stars">★★★★★</div>
+        <p class="proof-text">"הפסקתי לשלוח ווטסאפים לתזכורות תורים. המערכת עושה הכל לבד. המטפלות שמחות, הלקוחות שמחות."</p>
+        <div class="proof-author"><div class="proof-avatar">💅</div><div><div class="proof-name">מיכל אברהם</div><div class="proof-role">מנהלת, סלון Beauty Zone</div></div></div>
+      </div>
+      <div class="proof-card">
+        <div class="proof-stars">★★★★★</div>
+        <p class="proof-text">"הצעות המחיר שלחתי פעם ב-Word. עכשיו הלקוח חותם דיגיטלית ואני מקבל אישור תוך דקות."</p>
+        <div class="proof-author"><div class="proof-avatar">🔧</div><div><div class="proof-name">דוד לוי</div><div class="proof-role">בעלים, Fix-It שירותי תיקונים</div></div></div>
+      </div>
+      <!-- END PLACEHOLDER -->
     </div>
   </div>
 
-  <!-- 7: CTA FINAL -->
-  <div class="slide center" id="slide-cta">
-    <div class="slide-inner" style="text-align:center">
-      <div class="section-tag">הצטרפו עכשיו</div>
+  <!-- 7: CTA -->
+  <div class="slide" id="slide-cta">
+    <div style="width:100%;max-width:440px;text-align:center">
+      <div class="tag">הצטרפו עכשיו</div>
       <h2 class="stitle">העסק בכף ידך.<br>הצטרפו לפיילוט.</h2>
-      <p class="ssub" style="margin:0 auto">3 חודשים חינם. ליווי אישי. ביטול בכל עת.</p>
+      <p class="ssub">3 חודשים חינם. ליווי אישי. ביטול בכל עת.</p>
       <div class="perks">
         <div class="perk"><span class="perk-icon">🆓</span><div class="perk-label">3 חודשים חינם</div><div class="perk-sub">ללא כרטיס אשראי</div></div>
         <div class="perk"><span class="perk-icon">🤝</span><div class="perk-label">ליווי אישי צמוד</div><div class="perk-sub">עם הקמה מלאה</div></div>
@@ -411,101 +420,93 @@ h2.stitle{font-size:clamp(1.6rem,5vw,2.4rem);font-weight:900;line-height:1.2;mar
 
 </div><!-- /slider -->
 
-<!-- NAV BAR -->
+<!-- NAV -->
 <div id="nav-bar">
-  <button class="nav-btn" id="btn-prev" onclick="prevSlide()" title="הקודם">→</button>
+  <button class="nav-btn" id="btn-prev" onclick="prevSlide()">→</button>
   <div id="dots"></div>
-  <button class="nav-btn" id="btn-next" onclick="nextSlide()" title="הבא">←</button>
+  <button class="nav-btn" id="btn-next" onclick="nextSlide()">←</button>
 </div>
 
 <script>
-// ─── DATA ───────────────────────────────────────────────────────────────────
 const BIZ_DATA = {
   restaurant:{
     heroSub:'ניהול המסעדה שלך — קופה, מטבח, שולחנות ומשלוחים — ממקום אחד',
     pain:[{n:'1',t:'<strong>קופה</strong> בתוכנה אחת'},{n:'2',t:'<strong>שעון נוכחות</strong> בשנייה'},{n:'3',t:'<strong>מלאי ו-Food Cost</strong> בשלישית'},{n:'4',t:'<strong>הזמנות שולחן</strong> ברביעית'},{n:'5',t:'<strong>דוחות</strong> בחמישית'}],
-    features:[{i:'🍕',t:'קופה חכמה',d:'מכירות, תשלומים, הנחות וסגירת יום'},{i:'🍳',t:'מסך מטבח חי',d:'הזמנות לפי תחנה בזמן אמת'},{i:'🪑',t:'מפת שולחנות',d:'סטטוס כל שולחן, תפיסה, המתנה'},{i:'🛵',t:'ניהול משלוחים',d:'שיוך שליחים, מעקב, אספקה'},{i:'📐',t:'Food Cost',d:'עלות מנה מול מחיר מכירה'},{i:'⭐',t:'ביקורות',d:'איסוף וניהול משוב לקוחות'}]
+    features:[{i:'🍕',t:'קופה חכמה',d:'מכירות, תשלומים, הנחות'},{i:'🍳',t:'מסך מטבח',d:'הזמנות לפי תחנה'},{i:'🪑',t:'מפת שולחנות',d:'סטטוס, תפיסה, המתנה'},{i:'🛵',t:'משלוחים',d:'שיוך שליחים ומעקב'},{i:'📐',t:'Food Cost',d:'עלות מנה מול מכירה'},{i:'⭐',t:'ביקורות',d:'איסוף משוב לקוחות'}]
   },
   beauty:{
     heroSub:'ניהול הסלון שלך — תורים, מטפלות, עמלות ומנויים — ממקום אחד',
     pain:[{n:'1',t:'<strong>יומן תורים</strong> בתוכנה אחת'},{n:'2',t:'<strong>ניהול מטפלות</strong> בשנייה'},{n:'3',t:'<strong>מעקב עמלות</strong> בשלישית'},{n:'4',t:'<strong>מלאי מוצרים</strong> ברביעית'}],
-    features:[{i:'📅',t:'יומן תורים חכם',d:'לפי מטפלת, שירות וזמן'},{i:'💅',t:'ניהול מטפלות',d:'פרופיל, התמחות ועמלות'},{i:'💰',t:'מעקב עמלות',d:'חישוב אוטומטי לכל מטפלת'},{i:'📦',t:'מלאי מוצרים',d:'בקרת מוצרי קוסמטיקה'},{i:'🎫',t:'מנויים',d:'חבילות טיפולים לפי לקוח'},{i:'📋',t:'הצעות מחיר',d:'שליחה ואישור דיגיטלי'}]
+    features:[{i:'📅',t:'יומן תורים',d:'לפי מטפלת, שירות, זמן'},{i:'💅',t:'מטפלות',d:'פרופיל, התמחות, עמלות'},{i:'💰',t:'עמלות',d:'חישוב אוטומטי'},{i:'📦',t:'מלאי',d:'בקרת מוצרי קוסמטיקה'},{i:'🎫',t:'מנויים',d:'חבילות טיפולים'},{i:'📋',t:'הצעות מחיר',d:'שליחה ואישור דיגיטלי'}]
   },
   sport:{
     heroSub:"ניהול המועדון שלך — מנויים, אימונים, מאמנים וצ'ק-אין — ממקום אחד",
     pain:[{n:'1',t:'<strong>ניהול מנויים</strong> בתוכנה אחת'},{n:'2',t:'<strong>יומן אימונים</strong> בשנייה'},{n:'3',t:'<strong>שעון נוכחות</strong> בשלישית'},{n:'4',t:'<strong>גבייה</strong> ברביעית'}],
-    features:[{i:'🎫',t:'ניהול מנויים',d:'חודשי / שנתי / כניסות'},{i:'✅',t:"צ'ק-אין",d:'כניסת חברים בסריקה או לחיצה'},{i:'📅',t:'לוח אימונים',d:'שיעורים, מאמנים, קיבולת'},{i:'💪',t:'פרופיל חבר',d:'היסטוריה, מנוי, נוכחות'},{i:'🔧',t:'ציוד',d:'מעקב תקינות ושיוך לשיעורים'},{i:'💳',t:'קופה',d:'מכירת מנויים וציוד'}]
+    features:[{i:'🎫',t:'מנויים',d:'חודשי / שנתי / כניסות'},{i:'✅',t:"צ'ק-אין",d:'סריקה או לחיצה'},{i:'📅',t:'לוח אימונים',d:'שיעורים, מאמנים, קיבולת'},{i:'💪',t:'פרופיל חבר',d:'היסטוריה ונוכחות'},{i:'🔧',t:'ציוד',d:'מעקב תקינות'},{i:'💳',t:'קופה',d:'מכירת מנויים וציוד'}]
   },
   maintenance:{
     heroSub:'ניהול העסק שלך — קריאות שירות, הצעות מחיר, טכנאים וגבייה — ממקום אחד',
     pain:[{n:'1',t:'<strong>קריאות שירות</strong> בתוכנה אחת'},{n:'2',t:'<strong>הצעות מחיר</strong> בשנייה'},{n:'3',t:'<strong>מעקב טכנאים</strong> בשלישית'},{n:'4',t:'<strong>גבייה</strong> ברביעית'}],
-    features:[{i:'📞',t:'קריאות שירות',d:'פתיחה, שיוך ומעקב'},{i:'📋',t:'הצעות מחיר',d:'יצירה, שליחה ואישור לקוח'},{i:'🔧',t:'ניהול טכנאים',d:'שיוך לקריאה ומעקב שטח'},{i:'📦',t:'מלאי חלקים',d:'בקרת חלקי חילוף וציוד'},{i:'💰',t:'גבייה',d:'מיילסטונים, מקדמות, יתרות'},{i:'📅',t:'יומן',d:'תיאום הגעות פיזיות'}]
+    features:[{i:'📞',t:'קריאות שירות',d:'פתיחה, שיוך, מעקב'},{i:'📋',t:'הצעות מחיר',d:'יצירה, שליחה, אישור'},{i:'🔧',t:'טכנאים',d:'שיוך ומעקב שטח'},{i:'📦',t:'מלאי חלקים',d:'בקרת חלקי חילוף'},{i:'💰',t:'גבייה',d:'מיילסטונים ויתרות'},{i:'📅',t:'יומן',d:'תיאום הגעות'}]
   },
   professional:{
     heroSub:'ניהול המשרד שלך — תיקים, פגישות, מסמכים ושעות — ממקום אחד',
     pain:[{n:'1',t:'<strong>ניהול תיקים</strong> בתוכנה אחת'},{n:'2',t:'<strong>יומן פגישות</strong> בשנייה'},{n:'3',t:'<strong>מסמכים ושעות</strong> בשלישית'},{n:'4',t:'<strong>חיוב לקוחות</strong> ברביעית'}],
-    features:[{i:'📂',t:'ניהול תיקים',d:'פתיחה, סטטוס, היסטוריה'},{i:'📅',t:'יומן פגישות',d:'תיאום, תזכורות, וידאו'},{i:'📄',t:'מסמכים',d:'תבניות וחתימה דיגיטלית'},{i:'⏱️',t:'רישום שעות',d:'לחיוב לקוח אוטומטי'},{i:'💡',t:'לידים',d:'מעקב פניות והמרה ללקוחות'},{i:'💰',t:'חיוב',d:'חשבוניות לפי שעות / פרויקט'}]
+    features:[{i:'📂',t:'ניהול תיקים',d:'פתיחה, סטטוס, היסטוריה'},{i:'📅',t:'יומן פגישות',d:'תיאום ותזכורות'},{i:'📄',t:'מסמכים',d:'חתימה דיגיטלית'},{i:'⏱️',t:'רישום שעות',d:'לחיוב אוטומטי'},{i:'💡',t:'לידים',d:'מעקב והמרה'},{i:'💰',t:'חיוב',d:'חשבוניות לפי שעות'}]
   },
   logistics:{
     heroSub:'ניהול ההובלות שלך — נהגים, משלוחים, מסלולים ומעקב — ממקום אחד',
     pain:[{n:'1',t:'<strong>ניהול הזמנות</strong> בתוכנה אחת'},{n:'2',t:'<strong>שיבוץ נהגים</strong> בשנייה'},{n:'3',t:'<strong>מעקב משלוחים</strong> בשלישית'},{n:'4',t:'<strong>גבייה COD</strong> ברביעית'}],
-    features:[{i:'📦',t:'ניהול הזמנות',d:'קבלה, עיבוד ושיוך'},{i:'🚛',t:'ניהול נהגים',d:'שיבוץ, מעקב, ביצועים'},{i:'🗺️',t:'מסלולים',d:'תכנון, אופטימיזציה, ניווט'},{i:'📍',t:'מעקב בזמן אמת',d:'GPS, סטטוס ועדכון לקוח'},{i:'💵',t:'COD',d:'גבייה במזומן, דיווח, העברה'},{i:'📊',t:'דוחות',d:'ביצועים, זמני אספקה, רווחיות'}]
+    features:[{i:'📦',t:'הזמנות',d:'קבלה, עיבוד, שיוך'},{i:'🚛',t:'נהגים',d:'שיבוץ, מעקב, ביצועים'},{i:'🗺️',t:'מסלולים',d:'תכנון ואופטימיזציה'},{i:'📍',t:'מעקב GPS',d:'סטטוס ועדכון לקוח'},{i:'💵',t:'COD',d:'גבייה ודיווח'},{i:'📊',t:'דוחות',d:'ביצועים ורווחיות'}]
   }
 };
 
-// ─── STATE ────────────────────────────────────────────────────────────────
-const TOTAL = 8; // slides 0-7
+const TOTAL = 8;
 let current = 0;
 let selectedBiz = null;
 
-// ─── INIT ─────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   buildDots();
   goToSlide(0);
 
-  // touch/swipe
+  // swipe
   let tx = 0;
-  const sl = document.getElementById('slider');
-  sl.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, {passive:true});
-  sl.addEventListener('touchend', e => {
+  document.getElementById('slider').addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, {passive:true});
+  document.getElementById('slider').addEventListener('touchend', e => {
     const dx = e.changedTouches[0].clientX - tx;
-    if (Math.abs(dx) < 40) return;
-    if (dx < 0) nextSlide(); // swipe left = next (RTL: forward)
-    else prevSlide();
+    if (Math.abs(dx) < 40 || current === 0) return;
+    if (dx < 0) nextSlide(); else prevSlide();
   }, {passive:true});
 
-  // slots counter
+  // slots
   const el = document.getElementById('slots-count');
-  if (el) setTimeout(() => { el.textContent = Math.floor(Math.random()*3)+5; }, 1800);
+  if (el) setTimeout(() => { el.textContent = Math.floor(Math.random()*3)+5; }, 1600);
 });
 
-// ─── DOTS ─────────────────────────────────────────────────────────────────
 function buildDots() {
-  const container = document.getElementById('dots');
-  container.innerHTML = '';
-  for (let i = 1; i < TOTAL; i++) { // dots for slides 1-7 only
+  const c = document.getElementById('dots');
+  c.innerHTML = '';
+  for (let i = 1; i < TOTAL; i++) {
     const d = document.createElement('div');
-    d.className = 'dot' + (i === current ? ' active' : '');
+    d.className = 'dot';
     d.onclick = () => { if (selectedBiz) goToSlide(i); };
-    container.appendChild(d);
+    c.appendChild(d);
   }
 }
 
 function updateDots() {
-  document.querySelectorAll('.dot').forEach((d, i) => {
-    d.classList.toggle('active', i + 1 === current);
-  });
+  document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i+1 === current));
 }
 
-// ─── NAVIGATION ───────────────────────────────────────────────────────────
 function goToSlide(n) {
-  current = Math.max(0, Math.min(TOTAL - 1, n));
-  document.getElementById('slider').style.transform =
-    `translateX(${current * 100}vw)`; // RTL: positive = move right (to later slides)
+  current = Math.max(0, Math.min(TOTAL-1, n));
+  // RTL: slides are positioned left-to-right in DOM but we want RTL visual order
+  // Slide 0 is at right, slide 7 is at left
+  // translateX positive moves left in LTR, so we use positive for forward
+  document.getElementById('slider').style.transform = `translateX(${current * 100}vw)`;
 
   const navBar = document.getElementById('nav-bar');
   const backBtn = document.getElementById('back-btn');
-
   if (current === 0) {
     navBar.classList.remove('visible');
     backBtn.classList.remove('visible');
@@ -513,37 +514,26 @@ function goToSlide(n) {
     navBar.classList.add('visible');
     backBtn.classList.add('visible');
   }
-
-  document.getElementById('btn-prev').disabled = (current <= 1);
-  document.getElementById('btn-next').disabled = (current >= TOTAL - 1);
+  document.getElementById('btn-prev').disabled = current <= 1;
+  document.getElementById('btn-next').disabled = current >= TOTAL-1;
   updateDots();
 }
 
-function nextSlide() { if (current < TOTAL - 1) goToSlide(current + 1); }
-function prevSlide() { if (current > 1) goToSlide(current - 1); }
+function nextSlide() { if (current < TOTAL-1) goToSlide(current+1); }
+function prevSlide() { if (current > 1) goToSlide(current-1); }
 
-// ─── SELECT BIZ ───────────────────────────────────────────────────────────
 function selectBiz(type) {
   if (!BIZ_DATA[type]) return;
   selectedBiz = type;
-  applyBiz(type);
-  goToSlide(1);
-}
-
-// ─── APPLY CONTENT ────────────────────────────────────────────────────────
-function applyBiz(type) {
   const d = BIZ_DATA[type];
-
   document.getElementById('hero-sub').textContent = d.heroSub;
-
-  document.getElementById('pain-list').innerHTML =
-    d.pain.map(p => `<div class="pain-item"><div class="pain-num">${p.n}</div><div class="pain-text">${p.t}</div></div>`).join('');
-
-  document.getElementById('funnel-items').innerHTML =
-    d.pain.map(p => `<div class="funnel-item">${p.t.replace(/<[^>]+>/g,'')}</div>`).join('');
-
-  document.getElementById('features-grid').innerHTML =
-    d.features.map(f => `<div class="feature-card"><div class="fc-icon">${f.i}</div><div class="fc-title">${f.t}</div><div class="fc-desc">${f.d}</div></div>`).join('');
+  document.getElementById('pain-list').innerHTML = d.pain.map(p =>
+    `<div class="pain-item"><div class="pain-num">${p.n}</div><div class="pain-text">${p.t}</div></div>`).join('');
+  document.getElementById('funnel-items').innerHTML = d.pain.map(p =>
+    `<div class="funnel-item">${p.t.replace(/<[^>]+>/g,'')}</div>`).join('');
+  document.getElementById('features-grid').innerHTML = d.features.map(f =>
+    `<div class="feature-card"><div class="fc-icon">${f.i}</div><div class="fc-title">${f.t}</div><div class="fc-desc">${f.d}</div></div>`).join('');
+  goToSlide(1);
 }
 </script>
 </body>
