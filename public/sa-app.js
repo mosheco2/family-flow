@@ -93,7 +93,7 @@ window.checkTabAccess = function(tabId) {
     const perms = window.currentSAUser.permissions || [];
     
     // מעודכן לאפשר גישה גם לדשבורד
-    if (perms.includes('all') || tabId === 'pulse' || tabId === 'dashboard' || tabId === 'clients' || tabId === 'templates') return true;
+    if (perms.includes('all') || tabId === 'pulse' || tabId === 'dashboard' || tabId === 'clients' || tabId === 'templates' || tabId === 'partners') return true;
     
     const req = {
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
