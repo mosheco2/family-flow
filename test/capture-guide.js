@@ -100,6 +100,37 @@ async function clickTab(page, ...selectors) {
   return false;
 }
 
+// לחץ על קבוצת ניווט ראשית (ראשי/צוות/מכירות/מלאי/כספים/עוד)
+async function clickNavGroup(page, groupText) {
+  try {
+    await page.click(`nav button:has-text("${groupText}"), [class*="gnav"] button:has-text("${groupText}"), button[data-group]:has-text("${groupText}")`, { timeout: 3000 });
+    await page.waitForTimeout(1500);
+    return true;
+  } catch {}
+  // fallback — כל הכפתורים בסרגל הניווט
+  try {
+    const btns = await page.locator(`button:has-text("${groupText}")`).all();
+    for (const btn of btns) {
+      const box = await btn.boundingBox();
+      if (box && box.y < 120) { await btn.click(); await page.waitForTimeout(1500); return true; }
+    }
+  } catch {}
+  console.log(`  ⚠️ לא נמצאה קבוצת ניווט: ${groupText}`);
+  return false;
+}
+
+// לחץ על טייל בלוח הבקרה לפי טקסט
+async function clickDashTile(page, text) {
+  try {
+    await page.locator(`div:has-text("${text}")`).first().click({ timeout: 3000 });
+    await page.waitForTimeout(2000);
+    return true;
+  } catch {
+    console.log(`  ⚠️ לא נמצא טייל: ${text}`);
+    return false;
+  }
+}
+
 // --- מסעדה ---
 
 async function captureRestaurant(page) {
@@ -115,13 +146,13 @@ async function captureRestaurant(page) {
   await capture(page, 'restaurant-02-dashboard-balance');
   await clearAnnotations(page);
 
-  // הדגש Quick Tiles
-  await annotate(page, '[class*="quick-tile"], [class*="tile-btn"], .grid a', 'קיצורי דרך מהירים');
+  // הדגש Quick Tiles — הטיילים על לוח הבקרה
+  await annotate(page, 'div:has-text("KDS")', 'קיצורי דרך מהירים');
   await capture(page, 'restaurant-03-dashboard-tiles');
   await clearAnnotations(page);
 
   // גלול ל-KPIs
-  await scrollTo(page, 600);
+  await scrollTo(page, 400);
   await capture(page, 'restaurant-04-kpis');
 
   // הדגש מכירות היום
@@ -135,77 +166,58 @@ async function captureRestaurant(page) {
   await clearAnnotations(page);
 
   // הדגש Food Cost
-  await annotate(page, 'div:has-text("Food Cost"), div:has-text("עלות מזון")', 'Food Cost %');
+  await annotate(page, 'div:has-text("Food Cost")', 'Food Cost %');
   await capture(page, 'restaurant-07-kpi-foodcost');
   await clearAnnotations(page);
 
-  // חזור למעלה
+  // חזור למעלה ולחץ על מטבח KDS מהטיילים
   await scrollTo(page, 0);
-
-  // קופה POS
-  await clickTab(page,
-    'button:has-text("קופה")',
-    '[id*="pos"]',
-    'a:has-text("קופה")'
-  );
-  await capture(page, 'restaurant-08-pos');
-
-  // הדגש כפתור מוצר בקופה
-  await annotate(page, '.pos-item, [class*="catalog-item"], [class*="product"]', 'לחץ למוצר');
-  await capture(page, 'restaurant-09-pos-product');
-  await clearAnnotations(page);
-
-  // מסך מטבח KDS
-  await clickTab(page,
-    'button:has-text("KDS")',
-    'button:has-text("מטבח")',
-    '[id*="kds"]'
-  );
+  await clickDashTile(page, 'KDS');
   await capture(page, 'restaurant-10-kds');
 
-  // שולחנות
-  await clickTab(page,
-    'button:has-text("שולחנות")',
-    '[id*="table"]'
-  );
+  // לחץ ראשי לחזרה
+  await clickNavGroup(page, 'ראשי');
+  await scrollTo(page, 0);
+
+  // לחץ על שולחנות מהטיילים
+  await clickDashTile(page, 'שולחנות');
   await capture(page, 'restaurant-11-tables');
 
-  // קטלוג
-  await clickTab(page,
-    'button:has-text("קטלוג")',
-    'button:has-text("תפריט")',
-    '[id*="catalog"]'
-  );
+  await clickNavGroup(page, 'ראשי');
+  await scrollTo(page, 0);
+
+  // לחץ על קטלוג מהטיילים
+  await clickDashTile(page, 'קטלוג');
   await capture(page, 'restaurant-12-catalog');
 
   // הדגש כפתור הוסף מנה
-  await annotate(page,
-    'button:has-text("מנה חדשה"), button:has-text("הוסף"), [id*="add-product"]',
-    'הוסף מנה חדשה'
-  );
+  await annotate(page, 'button:has-text("מנה"), button:has-text("הוסף"), button:has-text("חדש")', 'הוסף מנה חדשה');
   await capture(page, 'restaurant-13-catalog-add');
   await clearAnnotations(page);
 
-  // מלאי
-  await clickTab(page,
-    'button:has-text("מלאי")',
-    '[id*="pantry"]',
-    '[id*="inventory"]'
-  );
+  // קופה — דרך ניווט מכירות
+  await clickNavGroup(page, 'מכירות');
+  await clickTab(page, 'button:has-text("קופה")', 'a:has-text("קופה")', '[id*="pos"]');
+  await capture(page, 'restaurant-08-pos');
+
+  // הדגש מוצר בקופה
+  await annotate(page, 'button:has-text("שניצל"), [class*="item"], [class*="product"], [class*="menu"]', 'לחץ למוצר');
+  await capture(page, 'restaurant-09-pos-product');
+  await clearAnnotations(page);
+
+  // מלאי — דרך ניווט
+  await clickNavGroup(page, 'מלאי');
+  await page.waitForTimeout(1000);
   await capture(page, 'restaurant-14-inventory');
 
-  // צוות
-  await clickTab(page,
-    'button:has-text("עובדים"), button:has-text("צוות")',
-    '[id*="members"]'
-  );
+  // צוות — דרך ניווט
+  await clickNavGroup(page, 'צוות');
+  await page.waitForTimeout(1000);
   await capture(page, 'restaurant-15-team');
 
-  // תזרים
-  await clickTab(page,
-    'button:has-text("תזרים")',
-    '[id*="cashflow"]'
-  );
+  // כספים / תזרים
+  await clickNavGroup(page, 'כספים');
+  await clickTab(page, 'button:has-text("תזרים")', 'a:has-text("תזרים")', '[id*="cashflow"]');
   await capture(page, 'restaurant-16-cashflow');
 
   console.log('  ✅ מסעדה — סיום');
