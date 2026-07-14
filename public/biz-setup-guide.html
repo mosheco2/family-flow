@@ -8622,6 +8622,7 @@ const obs = new IntersectionObserver(entries => {
   let _guideKey = '';
   let _chatOpen = false;
   let conversationHistory = [];
+  let _activePageId = null; // מעודכן ישירות מ-show(id)
 
   const BIZ_IDS = ['restaurant','beauty','sport','maintenance','professional','logistics'];
   const BIZ_NAMES = {
@@ -8638,10 +8639,8 @@ const obs = new IntersectionObserver(entries => {
   };
 
   function getActiveBizId() {
-    for (const id of BIZ_IDS) {
-      const el = document.getElementById(id);
-      if (el && el.classList.contains('on')) return id;
-    }
+    // משתמש ב-_activePageId שמעודכן ישירות מ-show(id) — אמין יותר מסריקת DOM
+    if (_activePageId && BIZ_IDS.includes(_activePageId)) return _activePageId;
     return null;
   }
 
@@ -8654,12 +8653,11 @@ const obs = new IntersectionObserver(entries => {
   }
 
   function getCurrentContext() {
-    for (const id of BIZ_IDS) {
+    const id = getActiveBizId();
+    if (id) {
       const el = document.getElementById(id);
-      if (el && el.classList.contains('on')) {
-        console.log('קונטקסט:', id);
-        return el.innerText.slice(0, 6000);
-      }
+      console.log('קונטקסט:', id);
+      return el ? el.innerText.slice(0, 6000) : '';
     }
     console.log('קונטקסט: דף ראשי');
     return BIZ_IDS.map(id => document.getElementById(id)?.innerText || '').join('\n\n').slice(0, 6000);
@@ -8831,6 +8829,7 @@ ${context}
   };
 
   window.updateChatContext = function(sectionId) {
+    _activePageId = sectionId; // שמור את ה-ID שהגיע ישירות מ-show()
     updateContextLabel();
     updateQuickQuestions();
   };
