@@ -19065,7 +19065,7 @@ async function runRetentionCron() {
                   WHERE ba.business_group_id = bcr.business_group_id
                     AND ba.client_phone = bcr.client_phone
                     AND ba.status IN ('scheduled','confirmed')
-                    AND ba.start_time > NOW()
+                    AND EXISTS (SELECT 1 FROM beauty_appointment_segments s WHERE s.appointment_id = ba.id AND s.start_time > NOW())
               )
         `);
         for (const client of overdueClients.rows) {
