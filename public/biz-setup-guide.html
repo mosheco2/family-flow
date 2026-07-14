@@ -8753,11 +8753,11 @@ const obs = new IntersectionObserver(entries => {
     if (detectedBusiness) {
       const el = document.getElementById(detectedBusiness);
       console.log('קונטקסט:', detectedBusiness);
-      return el ? el.innerText.slice(0, 6000) : '';
+      return el ? el.innerText.slice(0, 2500) : '';
     }
 
     console.log('קונטקסט: כל המדריך');
-    return BIZ_IDS.map(id => document.getElementById(id)?.innerText || '').join('\n\n').slice(0, 6000);
+    return BIZ_IDS.map(id => document.getElementById(id)?.innerText || '').join('\n\n').slice(0, 2500);
   }
 
   function getOpeningMessage() {
@@ -8912,6 +8912,11 @@ ${context}
       console.log('status:', res.status);
       const data = await res.json();
       console.log('response:', JSON.stringify(data).slice(0, 200));
+
+      if (res.status === 429) {
+        updateMessage(aiEl, '⚠️ מפתח ה-AI חצה את המכסה החודשית. יש לעדכן את מפתח GEMINI_API_KEY בהגדרות השרת.');
+        return;
+      }
 
       const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       console.log('answer:', answer);
