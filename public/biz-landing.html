@@ -195,12 +195,17 @@ html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:
 }
 .funnel-result .big{font-size:1.2rem;font-weight:900;color:var(--accent)}
 .funnel-result .sub{font-size:.72rem;color:var(--muted);margin-top:.1rem}
-.sol-value{
-  width:100%;max-width:400px;flex-shrink:0;margin-top:.6rem;
-  background:rgba(0,153,255,.07);border:1px solid rgba(0,153,255,.2);
-  border-radius:.85rem;padding:.65rem .9rem;font-size:.75rem;color:var(--muted);line-height:1.6;
+.sol-pillars{
+  width:100%;max-width:400px;flex-shrink:0;margin-top:.55rem;
+  display:flex;flex-direction:column;gap:.32rem;
 }
-.sol-value strong{color:var(--text)}
+.sol-pillar{
+  display:flex;align-items:flex-start;gap:.55rem;
+  background:rgba(0,153,255,.06);border:1px solid rgba(0,153,255,.15);
+  border-radius:.65rem;padding:.42rem .7rem;font-size:.72rem;color:var(--muted);line-height:1.4;
+}
+.sol-pillar>span:first-child{flex-shrink:0;font-size:.95rem}
+.sol-pillar strong{color:var(--text)}
 
 /* ══════════════════════════════════════
    SLIDE 4 — FEATURES
@@ -433,8 +438,12 @@ html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:
         <div class="sub">3 דקות ואתם חיים</div>
       </div>
     </div>
-    <div class="sol-value">
-      <strong>פלטפורמה מודולרית</strong> — אתם בוחרים ומפעילים רק את הכלים שרלוונטיים לסוג העסק שלכם.<br>בלי עומס. בלי מסכים מיותרים.
+    <div class="sol-pillars">
+      <div class="sol-pillar"><span>📋</span><span>הצעות מחיר דיגיטליות — חתימה, אישור, הכל בתוך המערכת</span></div>
+      <div class="sol-pillar"><span>🗂️</span><span>אפס ניירת וקבצים — כל מסמך, חוזה ותמונה — שמורים ומאורגנים</span></div>
+      <div class="sol-pillar"><span>📁</span><span>ניהול פרויקטים ואירועים — מעקב שלבים, משימות וצוות</span></div>
+      <div class="sol-pillar"><span>💸</span><span>תזרים מזומנים — הכנסות, הוצאות ותחזית קדימה</span></div>
+      <div class="sol-pillar"><span>🔁</span><span>כל התהליכים מול הלקוח — בתוך המערכת, מהפנייה עד הגבייה</span></div>
     </div>
   </div>
 
