@@ -192,9 +192,9 @@ async function captureRestaurant(page) {
   await clickNavItem(page, 'pos');
   await capture(page, 'restaurant-08-pos');
 
-  // הדגש מוצר בקופה
-  await annotate(page, '[class*="item"], [class*="product"], [class*="menu-item"]', 'לחץ למוצר');
-  await capture(page, 'restaurant-09-pos-product');
+  // הדגש אזור סל / סיכום הזמנה בקופה
+  await annotate(page, '[class*="cart"], [class*="order-summary"], [class*="total"], #cart-total, #pos-total', 'סל ההזמנה');
+  await capture(page, 'restaurant-09-pos-cart');
   await clearAnnotations(page);
 
   // KDS — פונקציה אמיתית מהטייל
@@ -219,16 +219,16 @@ async function captureRestaurant(page) {
   });
   await page.waitForTimeout(500);
 
-  // קטלוג — sales → switchSalesTab catalog
-  await page.evaluate(() => {
-    window.switchTab && window.switchTab('sales');
-    setTimeout(() => { window.switchSalesTab && window.switchSalesTab('catalog'); }, 200);
-  });
-  await page.waitForTimeout(2500);
+  // קטלוג — כניסה דרך sales → catalog ואז גלילה לרשימת המנות
+  await page.evaluate(() => window.switchTab && window.switchTab('sales'));
+  await page.waitForTimeout(1000);
+  await page.evaluate(() => window.switchSalesTab && window.switchSalesTab('catalog'));
+  await page.waitForTimeout(3000);
+  await scrollTo(page, 0);
   await capture(page, 'restaurant-12-catalog');
 
-  // הדגש כפתור הוסף מנה
-  await annotate(page, 'button:has-text("מנה"), button:has-text("הוסף"), button:has-text("חדש")', 'הוסף מנה חדשה');
+  // הדגש כפתור הוסף מנה — מחפש לפי מספר קריטריונים
+  await annotate(page, 'button[onclick*="add"], button[onclick*="new"], button[onclick*="create"], [class*="add-item"], [class*="new-item"]', 'הוסף מנה חדשה');
   await capture(page, 'restaurant-13-catalog-add');
   await clearAnnotations(page);
 
