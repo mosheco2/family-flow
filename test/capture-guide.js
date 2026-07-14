@@ -201,15 +201,23 @@ async function captureRestaurant(page) {
   await page.evaluate(() => window.openAdminKDSPanel && window.openAdminKDSPanel());
   await page.waitForTimeout(2000);
   await capture(page, 'restaurant-10-kds');
-  // סגור overlay — כפתור חזרה
-  try { await page.click('button:has-text("חזרה")', { timeout: 2000 }); await page.waitForTimeout(800); } catch {}
+  // סגור overlay לפי ID
+  await page.evaluate(() => {
+    document.getElementById('admin-kds-panel')?.remove();
+    if (window._kdsAutoRefreshInterval) { clearInterval(window._kdsAutoRefreshInterval); window._kdsAutoRefreshInterval = null; }
+  });
+  await page.waitForTimeout(500);
 
   // שולחנות — פונקציה אמיתית מהטייל
   await page.evaluate(() => window.openAdminTablesPanel && window.openAdminTablesPanel());
   await page.waitForTimeout(2000);
   await capture(page, 'restaurant-11-tables');
-  // סגור overlay — כפתור חזרה
-  try { await page.click('button:has-text("חזרה")', { timeout: 2000 }); await page.waitForTimeout(800); } catch {}
+  // סגור overlay לפי ID
+  await page.evaluate(() => {
+    document.getElementById('admin-tables-panel')?.remove();
+    if (window._adminTablesPollingInterval) { clearInterval(window._adminTablesPollingInterval); window._adminTablesPollingInterval = null; }
+  });
+  await page.waitForTimeout(500);
 
   // קטלוג — sales → switchSalesTab catalog
   await page.evaluate(() => {
