@@ -289,6 +289,7 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   padding:14px 16px;
   background:linear-gradient(135deg,#6366f1,#4f46e5 55%,#2ABCBE);
   color:#fff;flex-shrink:0;
+  direction:rtl;
 }
 #guide-chat-header .gc-avatar{
   width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.22);
@@ -314,17 +315,18 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   display:flex;flex-direction:column;gap:10px;
   scrollbar-width:thin;scrollbar-color:var(--border) transparent;
 }
-.ai-message,.user-message{
+.ai-message,.user-message,.guide-msg-ai,.guide-msg-user{
   max-width:86%;padding:10px 13px;border-radius:14px;
   font-size:.84rem;line-height:1.65;white-space:pre-wrap;word-break:break-word;
   animation:slide-up .22s cubic-bezier(.22,.9,.3,1);
+  direction:rtl;text-align:right;
 }
-.ai-message{
+.ai-message,.guide-msg-ai{
   background:var(--surface2);color:var(--text);
   border:1px solid var(--border);
   border-bottom-right-radius:4px;align-self:flex-start;
 }
-.user-message{
+.user-message,.guide-msg-user{
   background:linear-gradient(135deg,#6366f1,#4f46e5);
   color:#fff;border-bottom-left-radius:4px;align-self:flex-end;
 }
@@ -334,6 +336,7 @@ h2.sec{font-size:1.05rem;font-weight:800;margin:28px 0 12px;padding-bottom:8px;b
   display:flex;flex-wrap:wrap;gap:5px;
   padding:6px 14px 8px;flex-shrink:0;
   border-top:1px solid var(--border);
+  direction:rtl;
 }
 .gq-btn{
   padding:4px 10px;border-radius:12px;
