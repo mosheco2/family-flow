@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OneFlow Life BIZ — הצטרפו לפיילוט</title>
+<meta name="description" content="מערכת ניהול עסק חכמה — קופה, עובדים, לקוחות, גבייה — הכל במקום אחד. הצטרפו לפיילוט חינם.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0A0F1E;
+  --bg2:#0F1628;
+  --bg3:#141C35;
+  --accent:#00D4AA;
+  --accent2:#0099FF;
+  --text:#F0F4FF;
+  --muted:#7A8AAA;
+  --card:#1A2340;
+  --border:#1E2D50;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Heebo',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  font-weight:400;
+  overflow-x:hidden;
+  line-height:1.6;
+}
+
+/* ── UTILS ── */
+.hidden{display:none!important}
+.fade-in{animation:fadeIn .6s ease forwards}
+.fade-out{animation:fadeOut .4s ease forwards}
+@keyframes fadeIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0;pointer-events:none}}
+
+/* ── BIZ PICKER ── */
+#biz-picker{
+  position:fixed;inset:0;z-index:999;
+  background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:1.5rem;
+  min-height:100dvh;
+}
+#biz-picker h1{
+  font-size:clamp(1.6rem,5vw,2.4rem);font-weight:900;
+  text-align:center;margin-bottom:.5rem;
+}
+#biz-picker p{color:var(--muted);text-align:center;margin-bottom:2rem;font-size:1rem}
+.biz-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:.85rem;
+  width:100%;max-width:500px;
+}
+.biz-card{
+  background:var(--card);border:2px solid var(--border);
+  border-radius:1.25rem;padding:1.4rem 1rem;
+  text-align:center;cursor:pointer;
+  transition:border-color .2s,transform .15s,background .2s;
+  user-select:none;
+}
+.biz-card:hover,.biz-card:active{
+  border-color:var(--accent);background:#1d2d4a;transform:scale(1.03);
+}
+.biz-card .icon{font-size:2.2rem;margin-bottom:.5rem;display:block}
+.biz-card .label{font-size:.95rem;font-weight:700;color:var(--text)}
+
+/* ── LANDING (hidden until biz chosen) ── */
+#landing{opacity:0;pointer-events:none}
+#landing.visible{opacity:1;pointer-events:auto;animation:fadeIn .6s ease forwards}
+
+/* ── SECTIONS ── */
+section{padding:5rem 1.25rem}
+.container{max-width:800px;margin:0 auto}
+.section-tag{
+  display:inline-block;
+  background:rgba(0,212,170,.12);border:1px solid rgba(0,212,170,.3);
+  color:var(--accent);font-size:.75rem;font-weight:700;
+  border-radius:2rem;padding:.3rem .9rem;margin-bottom:1rem;letter-spacing:.05em;
+}
+h2.section-title{
+  font-size:clamp(1.6rem,5vw,2.6rem);font-weight:900;line-height:1.2;
+  margin-bottom:1rem;
+}
+.section-sub{color:var(--muted);font-size:1rem;max-width:600px}
+
+/* ── HERO ── */
+#hero{
+  background:var(--bg);
+  padding:6rem 1.25rem 5rem;
+  position:relative;overflow:hidden;
+  text-align:center;
+}
+#hero::before{
+  content:'';position:absolute;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  width:600px;height:600px;border-radius:50%;
+  background:radial-gradient(circle,rgba(0,212,170,.12) 0%,transparent 70%);
+  animation:pulse-bg 4s ease-in-out infinite;
+  pointer-events:none;
+}
+@keyframes pulse-bg{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.15)}}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:.5rem;
+  background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.25);
+  border-radius:2rem;padding:.35rem 1rem;font-size:.8rem;
+  color:var(--accent);font-weight:700;margin-bottom:1.5rem;
+}
+.hero-badge span{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:blink 1.5s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+#hero h1{
+  font-size:clamp(2.4rem,8vw,4.5rem);font-weight:900;
+  line-height:1.05;margin-bottom:1.25rem;
+  background:linear-gradient(135deg,#fff 30%,var(--accent));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+#hero .hero-sub{
+  font-size:clamp(1rem,3vw,1.25rem);color:var(--muted);
+  max-width:560px;margin:0 auto 2.5rem;
+}
+.cta-btn{
+  display:inline-flex;align-items:center;gap:.6rem;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#0A0F1E;font-size:1.05rem;font-weight:900;
+  border:none;border-radius:3rem;padding:1rem 2.2rem;
+  cursor:pointer;text-decoration:none;
+  box-shadow:0 0 30px rgba(0,212,170,.4);
+  transition:transform .2s,box-shadow .2s;
+  animation:pulse-cta 2.5s ease-in-out infinite;
+}
+.cta-btn:hover{transform:scale(1.04);box-shadow:0 0 50px rgba(0,212,170,.6)}
+@keyframes pulse-cta{0%,100%{box-shadow:0 0 30px rgba(0,212,170,.4)}50%{box-shadow:0 0 60px rgba(0,212,170,.7)}}
+
+/* ── PAIN ── */
+#pain{background:var(--bg2)}
+.pain-chaos{
+  display:flex;flex-direction:column;gap:.75rem;margin-top:2rem;
+}
+.pain-item{
+  display:flex;align-items:center;gap:1rem;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:1rem;padding:1rem 1.25rem;
+  opacity:0;transform:translateX(30px);
+  transition:opacity .5s,transform .5s;
+}
+.pain-item.revealed{opacity:1;transform:none}
+.pain-num{
+  min-width:32px;height:32px;border-radius:50%;
+  background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.3);
+  color:#ff6b6b;font-weight:900;font-size:.8rem;
+  display:flex;align-items:center;justify-content:center;
+}
+.pain-text{font-size:.95rem;color:var(--muted)}
+.pain-text strong{color:var(--text)}
+
+/* ── SOLUTION ── */
+#solution{background:var(--bg);text-align:center}
+.funnel{
+  position:relative;margin:2.5rem auto;max-width:380px;
+}
+.funnel-items{
+  display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.5rem;
+}
+.funnel-item{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:.75rem;padding:.65rem 1rem;
+  font-size:.85rem;color:var(--muted);
+  opacity:0;transition:opacity .5s,transform .5s;
+  transform:translateY(-10px);
+}
+.funnel-item.revealed{opacity:1;transform:none}
+.funnel-arrow{
+  width:2px;height:48px;background:linear-gradient(to bottom,var(--accent),transparent);
+  margin:0 auto;position:relative;
+}
+.funnel-arrow::after{
+  content:'▼';position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);
+  color:var(--accent);font-size:1rem;
+}
+.funnel-result{
+  background:linear-gradient(135deg,rgba(0,212,170,.15),rgba(0,153,255,.15));
+  border:2px solid var(--accent);border-radius:1.25rem;
+  padding:1.25rem;text-align:center;
+}
+.funnel-result .big{font-size:1.5rem;font-weight:900;color:var(--accent)}
+.funnel-result .sub{font-size:.85rem;color:var(--muted)}
+
+/* ── FEATURES ── */
+#features{background:var(--bg2)}
+.features-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-top:2rem;
+}
+.feature-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:1.25rem;padding:1.25rem 1rem;
+  opacity:0;transform:translateY(20px);
+  transition:opacity .4s,transform .4s,border-color .2s;
+}
+.feature-card.revealed{opacity:1;transform:none}
+.feature-card:hover{border-color:rgba(0,212,170,.4)}
+.feature-card .fc-icon{font-size:1.6rem;margin-bottom:.5rem}
+.feature-card .fc-title{font-size:.9rem;font-weight:700;margin-bottom:.25rem}
+.feature-card .fc-desc{font-size:.78rem;color:var(--muted);line-height:1.5}
+
+/* ── RADAR ── */
+#radar{background:var(--bg);text-align:center}
+.radar-container{
+  position:relative;width:220px;height:220px;
+  margin:2.5rem auto 2rem;
+}
+.radar-ring{
+  position:absolute;border-radius:50%;
+  border:1px solid rgba(0,212,170,.25);
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  animation:expand 3s ease-out infinite;
+}
+.radar-ring:nth-child(1){width:60px;height:60px;animation-delay:0s}
+.radar-ring:nth-child(2){width:120px;height:120px;animation-delay:.8s}
+.radar-ring:nth-child(3){width:180px;height:180px;animation-delay:1.6s}
+.radar-ring:nth-child(4){width:220px;height:220px;animation-delay:2.4s}
+@keyframes expand{0%{opacity:.8}100%{opacity:0;transform:translate(-50%,-50%) scale(1.1)}}
+.radar-center{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:40px;height:40px;border-radius:50%;
+  background:radial-gradient(circle,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;z-index:2;
+  box-shadow:0 0 20px rgba(0,212,170,.6);
+}
+.radar-dot{
+  position:absolute;width:10px;height:10px;border-radius:50%;
+  background:var(--accent2);box-shadow:0 0 8px var(--accent2);
+  animation:dot-pulse 2s ease-in-out infinite;
+}
+@keyframes dot-pulse{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:1;transform:scale(1.4)}}
+.radar-cols{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;
+  margin:2rem 0;
+}
+.radar-col{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:1.25rem;padding:1.25rem .75rem;text-align:center;
+}
+.radar-col .rc-icon{font-size:1.8rem;margin-bottom:.5rem}
+.radar-col .rc-title{font-size:.85rem;font-weight:700;margin-bottom:.4rem}
+.radar-col .rc-desc{font-size:.75rem;color:var(--muted);line-height:1.5}
+.radar-promise{
+  background:linear-gradient(135deg,rgba(0,212,170,.08),rgba(0,153,255,.08));
+  border:1px solid var(--accent);border-radius:1.25rem;
+  padding:1.5rem;margin-top:1rem;
+}
+.radar-promise p{color:var(--muted);font-size:.95rem;line-height:1.8}
+.radar-promise strong{color:var(--text)}
+
+/* ── SOCIAL PROOF ── */
+#proof{background:var(--bg2)}
+.proof-grid{
+  display:grid;gap:1rem;margin-top:2rem;
+}
+.proof-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:1.25rem;padding:1.4rem;
+  opacity:0;transition:opacity .5s;
+}
+.proof-card.revealed{opacity:1}
+.proof-stars{color:#f59e0b;font-size:1rem;margin-bottom:.75rem}
+.proof-text{font-size:.95rem;color:var(--text);line-height:1.7;margin-bottom:1rem;font-style:italic}
+.proof-author{display:flex;align-items:center;gap:.75rem}
+.proof-avatar{
+  width:38px;height:38px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;font-size:1rem;
+}
+.proof-name{font-size:.85rem;font-weight:700}
+.proof-role{font-size:.75rem;color:var(--muted)}
+
+/* ── CTA FINAL ── */
+#cta-final{
+  background:radial-gradient(ellipse at 50% 0%,rgba(0,212,170,.12) 0%,transparent 70%), var(--bg);
+  text-align:center;padding:5rem 1.25rem;
+}
+.perks{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:.85rem;
+  max-width:480px;margin:2rem auto;
+}
+.perk{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:1rem;padding:1rem .75rem;text-align:center;
+  font-size:.85rem;
+}
+.perk .perk-icon{font-size:1.6rem;margin-bottom:.4rem;display:block}
+.perk .perk-text{color:var(--muted);font-size:.8rem;margin-top:.2rem}
+.slots-badge{
+  display:inline-block;
+  background:rgba(255,100,100,.1);border:1px solid rgba(255,100,100,.3);
+  color:#ff8080;border-radius:2rem;padding:.35rem 1.1rem;
+  font-size:.82rem;font-weight:700;margin-top:1.25rem;
+}
+
+/* ── FOOTER ── */
+footer{
+  background:var(--bg2);border-top:1px solid var(--border);
+  text-align:center;padding:1.5rem;
+  font-size:.8rem;color:var(--muted);
+}
+
+/* ── SCROLL REVEAL ── */
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .6s,transform .6s}
+.reveal.revealed{opacity:1;transform:none}
+
+/* ── MOBILE ── */
+@media(max-width:500px){
+  .biz-grid{grid-template-columns:repeat(2,1fr)}
+  .features-grid{grid-template-columns:1fr}
+  .radar-cols{grid-template-columns:1fr;gap:.75rem}
+  .perks{grid-template-columns:repeat(2,1fr)}
+  section{padding:3.5rem 1rem}
+  .radar-container{width:180px;height:180px}
+}
+@media(max-width:360px){
+  .biz-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════ -->
+<!--  STEP 0: BIZ PICKER                        -->
+<!-- ══════════════════════════════════════════ -->
+<div id="biz-picker">
+  <h1>מה סוג העסק שלך?</h1>
+  <p>נתאים את ההצגה בדיוק בשבילך</p>
+  <div class="biz-grid">
+    <div class="biz-card" onclick="selectBiz('restaurant')">
+      <span class="icon">🍕</span>
+      <div class="label">מסעדה / אוכל</div>
+    </div>
+    <div class="biz-card" onclick="selectBiz('beauty')">
+      <span class="icon">💅</span>
+      <div class="label">יופי ואסטטיקה</div>
+    </div>
+    <div class="biz-card" onclick="selectBiz('sport')">
+      <span class="icon">🏋️</span>
+      <div class="label">ספורט וחוגים</div>
+    </div>
+    <div class="biz-card" onclick="selectBiz('maintenance')">
+      <span class="icon">🔧</span>
+      <div class="label">תיקונים ושירותים</div>
+    </div>
+    <div class="biz-card" onclick="selectBiz('professional')">
+      <span class="icon">👔</span>
+      <div class="label">מומחים וייעוץ</div>
+    </div>
+    <div class="biz-card" onclick="selectBiz('logistics')">
+      <span class="icon">🚚</span>
+      <div class="label">לוגיסטיקה והובלות</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!--  LANDING (revealed after biz chosen)       -->
+<!-- ══════════════════════════════════════════ -->
+<div id="landing">
+
+<!-- ── S1: HERO ── -->
+<section id="hero">
+  <div class="container">
+    <div class="hero-badge"><span></span> פיילוט פעיל — מקומות מוגבלים</div>
+    <h1>חזון. שליטה.</h1>
+    <p id="hero-sub" class="hero-sub"></p>
+    <a href="https://oneflowlife.co.il/business.html" class="cta-btn">
+      הצטרפו לפיילוט חינם &nbsp;→
+    </a>
+  </div>
+</section>
+
+<!-- ── S2: PAIN ── -->
+<section id="pain">
+  <div class="container">
+    <span class="section-tag reveal">הכאב שאתם מכירים</span>
+    <h2 class="section-title reveal">עושים סוף לכאוס התפעולי.</h2>
+    <p class="section-sub reveal">כמה תוכנות שונות משלמים כל חודש? מחר — אחת.</p>
+    <div class="pain-chaos" id="pain-list"></div>
+  </div>
+</section>
+
+<!-- ── S3: SOLUTION ── -->
+<section id="solution">
+  <div class="container">
+    <span class="section-tag reveal">הפתרון</span>
+    <h2 class="section-title reveal">מגדל פיקוח אחד לכל העסק שלך.</h2>
+    <div class="funnel reveal">
+      <div class="funnel-items" id="funnel-items"></div>
+      <div class="funnel-arrow"></div>
+      <div class="funnel-result">
+        <div class="big">OneFlow Life BIZ</div>
+        <div class="sub">3 דקות ואתם חיים</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── S4: FEATURES ── -->
+<section id="features">
+  <div class="container">
+    <span class="section-tag reveal">מה תקבלו</span>
+    <h2 class="section-title reveal">בדיוק למה שאתם צריכים.</h2>
+    <div class="features-grid" id="features-grid"></div>
+  </div>
+</section>
+
+<!-- ── S5: RADAR ── -->
+<section id="radar">
+  <div class="container">
+    <span class="section-tag reveal">הייחוד</span>
+    <h2 class="section-title reveal">הרדאר — חיבור לקהילות מרובות.</h2>
+    <p class="section-sub reveal" style="margin:0 auto">
+      המערכת מאתרת קהילות רלוונטיות לעסק שלך לפי אזור ותחום.
+      משפחות מהאזור מגלות אתכם. אתם מגלים קהילות חדשות. כולם מרוויחים.
+    </p>
+    <div class="radar-container reveal">
+      <div class="radar-ring"></div>
+      <div class="radar-ring"></div>
+      <div class="radar-ring"></div>
+      <div class="radar-ring"></div>
+      <div class="radar-center">🎯</div>
+      <div class="radar-dot" style="top:18%;left:68%"></div>
+      <div class="radar-dot" style="top:72%;left:22%;animation-delay:.7s"></div>
+      <div class="radar-dot" style="top:30%;left:15%;animation-delay:1.2s"></div>
+      <div class="radar-dot" style="top:65%;left:72%;animation-delay:.4s"></div>
+      <div class="radar-dot" style="top:10%;left:40%;animation-delay:1.8s"></div>
+    </div>
+    <div class="radar-cols reveal">
+      <div class="radar-col">
+        <div class="rc-icon">🏪</div>
+        <div class="rc-title">העסק שלך</div>
+        <div class="rc-desc">נרשמים, מגדירים פרופיל ומחיר קהילה</div>
+      </div>
+      <div class="radar-col">
+        <div class="rc-icon">🤖</div>
+        <div class="rc-title">הרדאר</div>
+        <div class="rc-desc">מאתר קהילות רלוונטיות ומחבר אוטומטית</div>
+      </div>
+      <div class="radar-col">
+        <div class="rc-icon">👨‍👩‍👧‍👦</div>
+        <div class="rc-title">המשפחות</div>
+        <div class="rc-desc">מגלות, מזמינות, משלמות וחוזרות</div>
+      </div>
+    </div>
+    <div class="radar-promise reveal">
+      <p>
+        <strong>הלקוחות הבאים שלך כבר נמצאים במערכת שלנו.</strong><br>
+        הארנקים הדיגיטליים שלהם טעונים ומחכים לך.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ── S6: SOCIAL PROOF ── -->
+<section id="proof">
+  <div class="container">
+    <span class="section-tag reveal">כבר איתנו</span>
+    <h2 class="section-title reveal">כבר איתנו בפיילוט.</h2>
+    <div class="proof-grid">
+      <!-- PLACEHOLDER — ציטוטים אלו הם placeholder ויש להחליפם בציטוטים אמיתיים -->
+      <div class="proof-card reveal">
+        <div class="proof-stars">★★★★★</div>
+        <p class="proof-text">"פעם ניהלתי את הקופה בתוכנה אחת, הנוכחות בשנייה, המלאי בשלישית. היום הכל בלחיצה אחת. חיסכתי שעתיים ביום לפחות."</p>
+        <div class="proof-author">
+          <div class="proof-avatar">🍕</div>
+          <div>
+            <div class="proof-name">שלמה כהן</div>
+            <div class="proof-role">בעלים, רשת שניצלונים</div>
+          </div>
+        </div>
+      </div>
+      <div class="proof-card reveal">
+        <div class="proof-stars">★★★★★</div>
+        <p class="proof-text">"הפסקתי לשלוח הודעות ווטסאפ לתזכורות תורים. המערכת עושה הכל לבד. המטפלות שמחות, הלקוחות שמחות, ואני לבסוף נושמת."</p>
+        <div class="proof-author">
+          <div class="proof-avatar">💅</div>
+          <div>
+            <div class="proof-name">מיכל אברהם</div>
+            <div class="proof-role">מנהלת, סלון Beauty Zone</div>
+          </div>
+        </div>
+      </div>
+      <div class="proof-card reveal">
+        <div class="proof-stars">★★★★★</div>
+        <p class="proof-text">"הצעות המחיר שלחתי פעם ב-Word ומייל. עכשיו הלקוח מקבל לינק, רואה, חותם דיגיטלית ואני מקבל אישור תוך דקות. מקצועי לגמרי."</p>
+        <div class="proof-author">
+          <div class="proof-avatar">🔧</div>
+          <div>
+            <div class="proof-name">דוד לוי</div>
+            <div class="proof-role">בעלים, Fix-It שירותי תיקונים</div>
+          </div>
+        </div>
+      </div>
+      <!-- END PLACEHOLDER -->
+    </div>
+  </div>
+</section>
+
+<!-- ── S7: CTA FINAL ── -->
+<section id="cta-final">
+  <div class="container">
+    <span class="section-tag reveal">הצטרפו עכשיו</span>
+    <h2 class="section-title reveal">העסק בכף ידך.<br>הצטרפו לפיילוט.</h2>
+    <p class="section-sub reveal" style="margin:0 auto">3 חודשים חינם. ליווי אישי. ביטול בכל עת.</p>
+    <div class="perks reveal">
+      <div class="perk">
+        <span class="perk-icon">🆓</span>
+        <div style="font-weight:700">3 חודשים חינם</div>
+        <div class="perk-text">ללא כרטיס אשראי</div>
+      </div>
+      <div class="perk">
+        <span class="perk-icon">🤝</span>
+        <div style="font-weight:700">ליווי אישי צמוד</div>
+        <div class="perk-text">מישהו ענין עם הקמה</div>
+      </div>
+      <div class="perk">
+        <span class="perk-icon">⚡</span>
+        <div style="font-weight:700">הקמה ב-3 דקות</div>
+        <div class="perk-text">מוכנים מרגע הראשון</div>
+      </div>
+      <div class="perk">
+        <span class="perk-icon">🏘️</span>
+        <div style="font-weight:700">קהילה מקומית</div>
+        <div class="perk-text">לקוחות מוכנים מחכים</div>
+      </div>
+    </div>
+    <a href="https://oneflowlife.co.il/business.html" class="cta-btn reveal">
+      אני רוצה להצטרף &nbsp;→
+    </a>
+    <div class="slots-badge reveal" id="slots-badge">⚡ נותרו <span id="slots-count">8</span> מקומות בלבד</div>
+  </div>
+</section>
+
+</div><!-- /landing -->
+
+<footer>
+  <p>OneFlow Life BIZ &copy; 2026 · <a href="https://oneflowlife.co.il" style="color:var(--accent);text-decoration:none">oneflowlife.co.il</a></p>
+</footer>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────────
+const BIZ_DATA = {
+  restaurant: {
+    heroSub: 'ניהול המסעדה שלך — קופה, מטבח, שולחנות ומשלוחים — ממקום אחד',
+    pain: [
+      { n:'1', text: '<strong>קופה</strong> בתוכנה אחת' },
+      { n:'2', text: '<strong>שעון נוכחות</strong> בתוכנה שנייה' },
+      { n:'3', text: '<strong>מלאי ו-Food Cost</strong> בשלישית' },
+      { n:'4', text: '<strong>הזמנות שולחן</strong> ברביעית' },
+      { n:'5', text: '<strong>דוחות</strong> בחמישית' },
+    ],
+    features: [
+      { icon:'🍕', title:'קופה חכמה', desc:'מכירות, תשלומים, הנחות וסגירת יום' },
+      { icon:'🍳', title:'מסך מטבח חי', desc:'הזמנות לפי תחנה בזמן אמת' },
+      { icon:'🪑', title:'מפת שולחנות', desc:'סטטוס כל שולחן, תפיסה, המתנה' },
+      { icon:'🛵', title:'ניהול משלוחים', desc:'שיוך שליחים, מעקב, אספקה' },
+      { icon:'📐', title:'Food Cost', desc:'עלות מנה מול מחיר מכירה' },
+      { icon:'⭐', title:'ביקורות', desc:'איסוף וניהול משוב לקוחות' },
+    ]
+  },
+  beauty: {
+    heroSub: 'ניהול הסלון שלך — תורים, מטפלות, עמלות ומנויים — ממקום אחד',
+    pain: [
+      { n:'1', text: '<strong>יומן תורים</strong> בתוכנה אחת' },
+      { n:'2', text: '<strong>ניהול מטפלות</strong> בשנייה' },
+      { n:'3', text: '<strong>מעקב עמלות</strong> בשלישית' },
+      { n:'4', text: '<strong>מלאי מוצרים</strong> ברביעית' },
+    ],
+    features: [
+      { icon:'📅', title:'יומן תורים חכם', desc:'לפי מטפלת, שירות וזמן' },
+      { icon:'💅', title:'ניהול מטפלות', desc:'פרופיל, התמחות ועמלות' },
+      { icon:'💰', title:'מעקב עמלות', desc:'חישוב אוטומטי לכל מטפלת' },
+      { icon:'📦', title:'מלאי מוצרים', desc:'בקרת מוצרי קוסמטיקה' },
+      { icon:'🎫', title:'מנויים', desc:'חבילות טיפולים לפי לקוח' },
+      { icon:'📋', title:'הצעות מחיר', desc:'שליחה ואישור דיגיטלי' },
+    ]
+  },
+  sport: {
+    heroSub: "ניהול המועדון שלך — מנויים, אימונים, מאמנים וצ'ק-אין — ממקום אחד",
+    pain: [
+      { n:'1', text: '<strong>ניהול מנויים</strong> בתוכנה אחת' },
+      { n:'2', text: '<strong>יומן אימונים</strong> בשנייה' },
+      { n:'3', text: '<strong>שעון נוכחות</strong> בשלישית' },
+      { n:'4', text: '<strong>גבייה</strong> ברביעית' },
+    ],
+    features: [
+      { icon:'🎫', title:'ניהול מנויים', desc:'חודשי / שנתי / כניסות' },
+      { icon:'✅', title:"צ'ק-אין", desc:'כניסת חברים בסריקה או לחיצה' },
+      { icon:'📅', title:'לוח אימונים', desc:'שיעורים, מאמנים, קיבולת' },
+      { icon:'💪', title:'פרופיל חבר', desc:'היסטוריה, מנוי, נוכחות' },
+      { icon:'🔧', title:'ציוד', desc:'מעקב תקינות ושיוך לשיעורים' },
+      { icon:'💳', title:'קופה', desc:'מכירת מנויים וציוד' },
+    ]
+  },
+  maintenance: {
+    heroSub: 'ניהול העסק שלך — קריאות שירות, הצעות מחיר, טכנאים וגבייה — ממקום אחד',
+    pain: [
+      { n:'1', text: '<strong>קריאות שירות</strong> בתוכנה אחת' },
+      { n:'2', text: '<strong>הצעות מחיר</strong> בשנייה' },
+      { n:'3', text: '<strong>מעקב טכנאים</strong> בשלישית' },
+      { n:'4', text: '<strong>גבייה</strong> ברביעית' },
+    ],
+    features: [
+      { icon:'📞', title:'קריאות שירות', desc:'פתיחה, שיוך ומעקב' },
+      { icon:'📋', title:'הצעות מחיר', desc:'יצירה, שליחה ואישור לקוח' },
+      { icon:'🔧', title:'ניהול טכנאים', desc:'שיוך לקריאה ומעקב שטח' },
+      { icon:'📦', title:'מלאי חלקים', desc:'בקרת חלקי חילוף וציוד' },
+      { icon:'💰', title:'גבייה', desc:'מיילסטונים, מקדמות, יתרות' },
+      { icon:'📅', title:'יומן', desc:'תיאום הגעות פיזיות' },
+    ]
+  },
+  professional: {
+    heroSub: 'ניהול המשרד שלך — תיקים, פגישות, מסמכים ושעות — ממקום אחד',
+    pain: [
+      { n:'1', text: '<strong>ניהול תיקים</strong> בתוכנה אחת' },
+      { n:'2', text: '<strong>יומן פגישות</strong> בשנייה' },
+      { n:'3', text: '<strong>מסמכים ושעות</strong> בשלישית' },
+      { n:'4', text: '<strong>חיוב לקוחות</strong> ברביעית' },
+    ],
+    features: [
+      { icon:'📂', title:'ניהול תיקים', desc:'פתיחה, סטטוס, היסטוריה' },
+      { icon:'📅', title:'יומן פגישות', desc:'תיאום, תזכורות, וידאו' },
+      { icon:'📄', title:'מסמכים', desc:'תבניות וחתימה דיגיטלית' },
+      { icon:'⏱️', title:'רישום שעות', desc:'לחיוב לקוח אוטומטי' },
+      { icon:'💡', title:'לידים', desc:'מעקב פניות והמרה ללקוחות' },
+      { icon:'💰', title:'חיוב', desc:'חשבוניות לפי שעות / פרויקט' },
+    ]
+  },
+  logistics: {
+    heroSub: 'ניהול ההובלות שלך — נהגים, משלוחים, מסלולים ומעקב — ממקום אחד',
+    pain: [
+      { n:'1', text: '<strong>ניהול הזמנות</strong> בתוכנה אחת' },
+      { n:'2', text: '<strong>שיבוץ נהגים</strong> בשנייה' },
+      { n:'3', text: '<strong>מעקב משלוחים</strong> בשלישית' },
+      { n:'4', text: '<strong>גבייה COD</strong> ברביעית' },
+    ],
+    features: [
+      { icon:'📦', title:'ניהול הזמנות', desc:'קבלה, עיבוד ושיוך' },
+      { icon:'🚛', title:'ניהול נהגים', desc:'שיבוץ, מעקב, ביצועים' },
+      { icon:'🗺️', title:'מסלולים', desc:'תכנון, אופטימיזציה, ניווט' },
+      { icon:'📍', title:'מעקב בזמן אמת', desc:'GPS, סטטוס ועדכון לקוח' },
+      { icon:'💵', title:'COD', desc:'גבייה במזומן, דיווח, העברה' },
+      { icon:'📊', title:'דוחות', desc:'ביצועים, זמני אספקה, רווחיות' },
+    ]
+  }
+};
+
+// ─── STATE ──────────────────────────────────────────────────────────────────
+let selectedBiz = sessionStorage.getItem('ofl_landing_biz') || null;
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  if (selectedBiz && BIZ_DATA[selectedBiz]) {
+    document.getElementById('biz-picker').classList.add('hidden');
+    applyBiz(selectedBiz);
+    document.getElementById('landing').classList.add('visible');
+  }
+  initScrollReveal();
+  animateSlots();
+});
+
+// ─── SELECT BIZ ─────────────────────────────────────────────────────────────
+function selectBiz(type) {
+  if (!BIZ_DATA[type]) return;
+  selectedBiz = type;
+  sessionStorage.setItem('ofl_landing_biz', type);
+
+  const picker = document.getElementById('biz-picker');
+  picker.classList.add('fade-out');
+  setTimeout(() => {
+    picker.classList.add('hidden');
+    applyBiz(type);
+    const landing = document.getElementById('landing');
+    landing.classList.add('visible');
+  }, 380);
+}
+
+// ─── APPLY BIZ CONTENT ───────────────────────────────────────────────────────
+function applyBiz(type) {
+  const d = BIZ_DATA[type];
+
+  // Hero subtitle
+  document.getElementById('hero-sub').textContent = d.heroSub;
+
+  // Pain list
+  const painList = document.getElementById('pain-list');
+  painList.innerHTML = d.pain.map((p, i) =>
+    `<div class="pain-item" style="transition-delay:${i * 0.08}s">
+       <div class="pain-num">${p.n}</div>
+       <div class="pain-text">${p.text}</div>
+     </div>`
+  ).join('');
+
+  // Funnel items (same as pain labels)
+  const funnelItems = document.getElementById('funnel-items');
+  funnelItems.innerHTML = d.pain.map((p, i) =>
+    `<div class="funnel-item" style="transition-delay:${i * 0.08}s">${p.text.replace(/<[^>]+>/g, '')}</div>`
+  ).join('');
+
+  // Features grid
+  const grid = document.getElementById('features-grid');
+  grid.innerHTML = d.features.map((f, i) =>
+    `<div class="feature-card" style="transition-delay:${i * 0.06}s">
+       <div class="fc-icon">${f.icon}</div>
+       <div class="fc-title">${f.title}</div>
+       <div class="fc-desc">${f.desc}</div>
+     </div>`
+  ).join('');
+
+  // Re-init scroll reveal for newly injected elements
+  setTimeout(initScrollReveal, 50);
+}
+
+// ─── SCROLL REVEAL ───────────────────────────────────────────────────────────
+function initScrollReveal() {
+  const targets = document.querySelectorAll(
+    '.reveal, .pain-item, .funnel-item, .feature-card, .proof-card'
+  );
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('revealed'); obs.unobserve(e.target); }
+    });
+  }, { threshold: 0.15 });
+  targets.forEach(el => obs.observe(el));
+}
+
+// ─── DYNAMIC SLOTS ───────────────────────────────────────────────────────────
+function animateSlots() {
+  const el = document.getElementById('slots-count');
+  if (!el) return;
+  let count = 8;
+  const stored = sessionStorage.getItem('ofl_slots');
+  if (stored) { el.textContent = stored; return; }
+  setTimeout(() => {
+    count = Math.floor(Math.random() * 3) + 5; // 5–7
+    el.textContent = count;
+    sessionStorage.setItem('ofl_slots', count);
+  }, 2000);
+}
+</script>
+</body>
+</html>
