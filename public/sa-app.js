@@ -99,9 +99,9 @@ window.checkTabAccess = function(tabId) {
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
         'comm': 'comm', 'biz': 'biz', 'content': 'content',
         'hr': 'users', 'inbox': 'marketing', 'partners': 'all',
-        'finance': 'all', 'adslots': 'content', 'legal': 'content'
+        'finance': 'finance', 'adslots': 'content', 'legal': 'content'
     };
-    
+
     if (req[tabId] && !perms.includes(req[tabId])) return false;
     return true;
 };
