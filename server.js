@@ -5700,6 +5700,10 @@ app.post('/api/academy/tutor', async (req, res) => {
     } catch (e) { handleAIError(e, res, 'שגיאה בהבאת ההסבר'); }
 });
 
+app.get('/api/guide-config', (req, res) => {
+    res.json({ key: process.env.GEMINI_API_KEY || '' });
+});
+
 app.post('/api/guide/chat', async (req, res) => {
     try {
         const { question, guideType } = req.body;
