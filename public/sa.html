@@ -2781,6 +2781,161 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             </div>
 
             <!-- ══════════════════════════════════════════════════ -->
+            <!-- משחקי ילדים view                                   -->
+            <!-- ══════════════════════════════════════════════════ -->
+            <div id="sa-view-games" class="hidden space-y-6 fade-in">
+
+              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                <h2 class="text-2xl font-black text-slate-800 flex items-center gap-3 mb-1">
+                  <i class="fa-solid fa-gamepad text-purple-500"></i> משחקי ילדים
+                </h2>
+                <p class="text-sm text-slate-500">ניהול קטלוג משחקים, דמות גלובלית וסטטיסטיקות</p>
+              </div>
+
+              <!-- Sub-nav -->
+              <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;" id="vtnav-games">
+                <button id="vtnav-games-list"   onclick="switchViewTab('games','list')"   style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-list" style="font-size:11px;"></i>רשימת משחקים</button>
+                <button id="vtnav-games-edit"   onclick="switchViewTab('games','edit')"   style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-pen" style="font-size:11px;"></i>הוספה / עריכה</button>
+                <button id="vtnav-games-global" onclick="switchViewTab('games','global')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-robot" style="font-size:11px;"></i>דמות גלובלית</button>
+                <button id="vtnav-games-stats"  onclick="switchViewTab('games','stats');loadSAGamesStats()"  style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-chart-bar" style="font-size:11px;"></i>סטטיסטיקות</button>
+              </div>
+
+              <!-- רשימת משחקים -->
+              <div id="vt-games-list" class="vt-games bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                <div class="flex justify-between items-center mb-4">
+                  <h3 class="text-lg font-bold text-slate-800">קטלוג משחקים</h3>
+                  <button onclick="switchViewTab('games','edit');resetGameForm()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> הוסף משחק חדש
+                  </button>
+                </div>
+                <div class="flex gap-3 mb-4 flex-wrap">
+                  <select id="games-filter-subject" onchange="renderSAGamesTableFiltered()" class="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:border-purple-400 outline-none font-bold">
+                    <option value="">כל הנושאים</option>
+                    <option value="english">🇬🇧 אנגלית</option>
+                    <option value="math">🔢 מתמטיקה</option>
+                    <option value="hebrew">📖 עברית</option>
+                    <option value="science">🔬 מדעים</option>
+                    <option value="general">🌟 כללי</option>
+                  </select>
+                  <select id="games-filter-status" onchange="renderSAGamesTableFiltered()" class="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:border-purple-400 outline-none font-bold">
+                    <option value="">הכל</option>
+                    <option value="active">✅ פעיל בלבד</option>
+                    <option value="inactive">🔴 חסום בלבד</option>
+                  </select>
+                </div>
+                <div id="sa-games-table"><div class="text-center text-slate-400 py-8">טוען...</div></div>
+              </div>
+
+              <!-- הוספה / עריכה -->
+              <div id="vt-games-edit" class="vt-games hidden bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                <h3 class="text-lg font-bold text-slate-800 mb-6" id="game-form-title">הוספת משחק חדש</h3>
+                <form onsubmit="saveGame(event)" class="space-y-4 max-w-2xl">
+                  <input type="hidden" id="game-edit-id">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-sm font-bold text-slate-600 mb-1">שם המשחק *</label>
+                      <input id="game-title" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-purple-400 outline-none" placeholder="לדוגמה: מילים באנגלית — רמה 1" required>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-bold text-slate-600 mb-1">אמוג'י תצוגה</label>
+                      <input id="game-emoji" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-purple-400 outline-none" placeholder="🎮" maxlength="2">
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label class="block text-sm font-bold text-slate-600 mb-1">נושא *</label>
+                      <select id="game-subject" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-purple-400 outline-none" required>
+                        <option value="english">🇬🇧 אנגלית</option>
+                        <option value="math">🔢 מתמטיקה</option>
+                        <option value="hebrew">📖 עברית</option>
+                        <option value="science">🔬 מדעים</option>
+                        <option value="general">🌟 כללי</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-bold text-slate-600 mb-1">גיל מינימום</label>
+                      <input id="game-age-min" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-purple-400 outline-none" min="3" max="18" value="5">
+                    </div>
+                    <div>
+                      <label class="block text-sm font-bold text-slate-600 mb-1">גיל מקסימום</label>
+                      <input id="game-age-max" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-purple-400 outline-none" min="3" max="18" value="12">
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-sm font-bold text-slate-600 mb-1">רמת קושי</label>
+                      <select id="game-difficulty" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-purple-400 outline-none">
+                        <option value="1">⭐ קל</option>
+                        <option value="2">⭐⭐ בינוני</option>
+                        <option value="3">⭐⭐⭐ קשה</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-bold text-slate-600 mb-1">FLW לזכייה</label>
+                      <input id="game-flw" type="number" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-purple-400 outline-none" min="1" max="100" value="10">
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-bold text-slate-600 mb-1">נתיב קובץ HTML *</label>
+                    <input id="game-filepath" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-purple-400 outline-none" placeholder="games/english-words-1.html" required>
+                    <p class="text-xs text-slate-400 mt-1">הקובץ צריך להיות ב-public/games/</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-bold text-slate-600 mb-1">דמות מיוחדת למשחק זה (אופציונלי)</label>
+                    <div class="flex gap-2">
+                      <input id="game-character-url" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-purple-400 outline-none" placeholder="URL לתמונה">
+                      <button type="button" onclick="clearGameCharacter()" class="px-3 py-2 text-sm border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition">אפס</button>
+                    </div>
+                    <input type="file" id="game-character-upload" accept="image/*" class="mt-2 text-sm" onchange="previewGameCharacterUpload(this)">
+                    <div id="game-character-preview" class="mt-2 hidden">
+                      <img id="game-character-img" class="w-20 h-20 object-contain rounded-xl border border-slate-200">
+                    </div>
+                  </div>
+                  <div class="flex gap-3 pt-2">
+                    <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2">
+                      <i class="fa-solid fa-floppy-disk"></i> שמור משחק
+                    </button>
+                    <button type="button" onclick="switchViewTab('games','list')" class="px-5 py-2.5 border border-slate-200 rounded-xl font-bold text-sm text-slate-600 hover:bg-slate-50 transition">ביטול</button>
+                    <button type="button" id="game-preview-btn" onclick="previewGame()" class="hidden px-5 py-2.5 border border-slate-200 rounded-xl font-bold text-sm text-slate-600 hover:bg-slate-50 transition flex items-center gap-2">
+                      <i class="fa-solid fa-eye"></i> תצוגה מקדימה
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- דמות גלובלית -->
+              <div id="vt-games-global" class="vt-games hidden bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                <h3 class="text-lg font-bold text-slate-800 mb-6">דמות ברירת מחדל לכל המשחקים</h3>
+                <div class="max-w-md space-y-4">
+                  <div id="global-character-current" class="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50">
+                    <div class="text-slate-400 text-sm">טוען...</div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-bold text-slate-600 mb-1">URL לדמות חדשה</label>
+                    <input id="global-character-url" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-purple-400 outline-none" placeholder="https://...">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-bold text-slate-600 mb-1">או העלה קובץ</label>
+                    <input type="file" id="global-character-upload" accept="image/*" class="text-sm" onchange="uploadGlobalCharacter(this)">
+                  </div>
+                  <button onclick="saveGlobalCharacter()" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-robot"></i> עדכן דמות לכל המשחקים
+                  </button>
+                  <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-800">
+                    ⚠️ שינוי זה ישפיע על כל המשחקים שאין להם דמות פרטנית משלהם.
+                  </div>
+                </div>
+              </div>
+
+              <!-- סטטיסטיקות -->
+              <div id="vt-games-stats" class="vt-games hidden bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                <h3 class="text-lg font-bold text-slate-800 mb-6">סטטיסטיקות משחקים</h3>
+                <div id="sa-games-stats-content" class="text-center text-slate-400 py-8">טוען...</div>
+              </div>
+
+            </div><!-- /sa-view-games -->
+
+            <!-- ══════════════════════════════════════════════════ -->
             <!-- תבניות עסקים view                                  -->
             <!-- ══════════════════════════════════════════════════ -->
             <div id="sa-view-templates" class="hidden space-y-6 fade-in">

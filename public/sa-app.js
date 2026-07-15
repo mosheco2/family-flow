@@ -431,7 +431,8 @@ window.switchSATab = function(tabId) {
         inbox:'שיווק והשקות', content:'מיתוג ותוכן',
         hr:'נציגים וצוותים', partners:'שותפים', finance:'פיננסים',
         sysmap:'מפת המערכת', legal:'מסמכים משפטיים', templates:'ניהול תבניות עסקים', adslots:'שטחי פרסום',
-        auditlog:'לוג אירועים קריטיים', archive:'ארכיון סביבות מחוקות'
+        auditlog:'לוג אירועים קריטיים', archive:'ארכיון סביבות מחוקות',
+        games:'משחקי ילדים'
     };
     activeTabTitle = _tabTitles[tabId] || tabId;
 
@@ -460,6 +461,7 @@ window.switchSATab = function(tabId) {
     if (tabId === 'partners') loadSAPartners();
     if (tabId === 'comm') loadSACommunityData();
     if (tabId === 'templates') window.loadBizTemplates && window.loadBizTemplates();
+    if (tabId === 'games') loadSAGames();
 
     // Update group button active state + sub-nav bar
     _updateSAGroupNav(tabId);
@@ -472,7 +474,7 @@ const SA_GROUPS = {
     customers:  { tabs: ['comm', 'biz', 'clients'],     labels: ['קהילות', 'עסקים', 'קבוצות'],      icons: ['fa-users-rays', 'fa-store', 'fa-users'],  default: 'comm' },
     finance:    { tabs: ['finance'],                    labels: [],                                  icons: [],                                         default: 'finance' },
     supportdev: { tabs: ['support', 'devops'],          labels: ['קריאות שירות', 'פיתוח ומוצר'],    icons: ['fa-headset', 'fa-code'],                  default: 'support' },
-    contentmkt: { tabs: ['content', 'inbox', 'legal', 'adslots'],  labels: ['מיתוג ותוכן', 'שיווק', 'משפטי', 'שטחי פרסום'], icons: ['fa-image', 'fa-bullhorn', 'fa-file-contract', 'fa-rectangle-ad'], default: 'content' },
+    contentmkt: { tabs: ['content', 'inbox', 'legal', 'adslots', 'games'],  labels: ['מיתוג ותוכן', 'שיווק', 'משפטי', 'שטחי פרסום', 'משחקי ילדים'], icons: ['fa-image', 'fa-bullhorn', 'fa-file-contract', 'fa-rectangle-ad', 'fa-gamepad'], default: 'content' },
     partners:   { tabs: ['partners'],                   labels: [],                                  icons: [],                                         default: 'partners' },
     system:     { tabs: ['hr', 'sysmap', 'auditlog', 'archive'], labels: ['צוות ונציגים', 'מפת המערכת', 'לוג אירועים', 'ארכיון מחוקים'], icons: ['fa-user-tie', 'fa-map', 'fa-shield-halved', 'fa-box-archive'], default: 'hr' },
     templates:  { tabs: ['templates'],                  labels: ['תבניות עסקים'],                    icons: ['fa-layer-group'],                          default: 'templates' },
@@ -9146,3 +9148,244 @@ function renderAuditLog() {
     }).join('');
 }
 // ──────────────────────────────────────────────────────────────────────────
+
+// ─── GAMES MANAGEMENT ─────────────────────────────────────────────────────────
+
+let _saGamesData = [];
+let _saGlobalConfig = {};
+
+async function loadSAGames() {
+    try {
+        const res = await fetch(`${API}/sa/games`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        _saGamesData = data.games || [];
+        _saGlobalConfig = data.globalConfig || {};
+        renderSAGamesTableFiltered();
+        updateGlobalCharacterPreview();
+    } catch(e) { console.error('loadSAGames', e); }
+}
+
+function renderSAGamesTableFiltered() {
+    const subject = document.getElementById('games-filter-subject')?.value;
+    const status  = document.getElementById('games-filter-status')?.value;
+    let filtered  = _saGamesData;
+    if (subject) filtered = filtered.filter(g => g.subject === subject);
+    if (status === 'active')   filtered = filtered.filter(g => g.is_active);
+    if (status === 'inactive') filtered = filtered.filter(g => !g.is_active);
+    renderSAGamesTable(filtered);
+}
+
+function renderSAGamesTable(games) {
+    const subjectLabels = { english:'🇬🇧 אנגלית', math:'🔢 מתמטיקה', hebrew:'📖 עברית', science:'🔬 מדעים', general:'🌟 כללי' };
+    const diffLabels    = { 1:'⭐ קל', 2:'⭐⭐ בינוני', 3:'⭐⭐⭐ קשה' };
+
+    const html = games.length === 0
+        ? '<div class="text-center text-slate-400 py-12 text-sm">אין משחקים עדיין. לחץ "הוסף משחק חדש" כדי להתחיל.</div>'
+        : `<div class="overflow-x-auto"><table class="w-full text-sm">
+            <thead><tr class="border-b border-slate-100 text-slate-500 text-right">
+              <th class="pb-3 font-semibold pr-2">משחק</th>
+              <th class="pb-3 font-semibold">נושא</th>
+              <th class="pb-3 font-semibold">גילאים</th>
+              <th class="pb-3 font-semibold">קושי</th>
+              <th class="pb-3 font-semibold">FLW</th>
+              <th class="pb-3 font-semibold">סשנים</th>
+              <th class="pb-3 font-semibold">סטטוס</th>
+              <th class="pb-3 font-semibold">פעולות</th>
+            </tr></thead>
+            <tbody>
+              ${games.map(g => `
+                <tr class="border-b border-slate-50 hover:bg-slate-50 transition ${!g.is_active ? 'opacity-50' : ''}">
+                  <td class="py-3 pr-2">
+                    <div class="flex items-center gap-2">
+                      <span class="text-2xl leading-none">${g.thumbnail_emoji || '🎮'}</span>
+                      <div>
+                        <div class="font-semibold text-slate-800">${g.title}</div>
+                        <div class="text-xs text-slate-400">${g.file_path}</div>
+                      </div>
+                      ${g.character_url ? '<span class="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-bold">דמות פרטנית</span>' : ''}
+                    </div>
+                  </td>
+                  <td class="py-3 text-slate-600">${subjectLabels[g.subject] || g.subject}</td>
+                  <td class="py-3 text-slate-600">${g.age_min}–${g.age_max}</td>
+                  <td class="py-3">${diffLabels[g.difficulty] || g.difficulty}</td>
+                  <td class="py-3 font-bold text-yellow-600">${g.flw_reward}</td>
+                  <td class="py-3 text-slate-400">${g.total_sessions || 0}</td>
+                  <td class="py-3">
+                    <button onclick="toggleGame(${g.id})" class="text-xs px-2.5 py-1 rounded-full border font-bold transition
+                      ${g.is_active ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'}">
+                      ${g.is_active ? '✅ פעיל' : '🔴 חסום'}
+                    </button>
+                  </td>
+                  <td class="py-3">
+                    <button onclick="editGame(${g.id})" class="text-xs px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-200 hover:bg-indigo-100 transition font-bold">✏️ ערוך</button>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table></div>`;
+
+    document.getElementById('sa-games-table').innerHTML = html;
+}
+
+async function toggleGame(gameId) {
+    try {
+        await fetch(`${API}/sa/games/${gameId}/toggle`, { method: 'PUT', headers: { 'Authorization': saToken } });
+        await loadSAGames();
+    } catch(e) { console.error('toggleGame', e); }
+}
+
+function editGame(gameId) {
+    const game = _saGamesData.find(g => g.id === gameId);
+    if (!game) return;
+    document.getElementById('game-form-title').textContent = 'עריכת משחק';
+    document.getElementById('game-edit-id').value        = game.id;
+    document.getElementById('game-title').value          = game.title;
+    document.getElementById('game-emoji').value          = game.thumbnail_emoji || '🎮';
+    document.getElementById('game-subject').value        = game.subject;
+    document.getElementById('game-age-min').value        = game.age_min;
+    document.getElementById('game-age-max').value        = game.age_max;
+    document.getElementById('game-difficulty').value     = game.difficulty;
+    document.getElementById('game-flw').value            = game.flw_reward;
+    document.getElementById('game-filepath').value       = game.file_path;
+    document.getElementById('game-character-url').value  = game.character_url || '';
+    document.getElementById('game-preview-btn').classList.remove('hidden');
+    const prev = document.getElementById('game-character-preview');
+    const img  = document.getElementById('game-character-img');
+    if (game.character_url) { prev.classList.remove('hidden'); img.src = game.character_url; }
+    else { prev.classList.add('hidden'); }
+    switchViewTab('games', 'edit');
+}
+
+window.resetGameForm = function() {
+    document.getElementById('game-form-title').textContent = 'הוספת משחק חדש';
+    document.getElementById('game-edit-id').value       = '';
+    document.getElementById('game-title').value         = '';
+    document.getElementById('game-emoji').value         = '🎮';
+    document.getElementById('game-subject').value       = 'english';
+    document.getElementById('game-age-min').value       = 5;
+    document.getElementById('game-age-max').value       = 12;
+    document.getElementById('game-difficulty').value    = 1;
+    document.getElementById('game-flw').value           = 10;
+    document.getElementById('game-filepath').value      = '';
+    document.getElementById('game-character-url').value = '';
+    document.getElementById('game-character-preview').classList.add('hidden');
+    document.getElementById('game-preview-btn').classList.add('hidden');
+};
+
+window.saveGame = async function(e) {
+    e.preventDefault();
+    const id   = document.getElementById('game-edit-id').value;
+    const body = {
+        title:        document.getElementById('game-title').value,
+        subject:      document.getElementById('game-subject').value,
+        ageMin:       parseInt(document.getElementById('game-age-min').value),
+        ageMax:       parseInt(document.getElementById('game-age-max').value),
+        difficulty:   parseInt(document.getElementById('game-difficulty').value),
+        flwReward:    parseInt(document.getElementById('game-flw').value),
+        filePath:     document.getElementById('game-filepath').value,
+        thumbnailEmoji: document.getElementById('game-emoji').value || '🎮',
+        characterUrl: document.getElementById('game-character-url').value
+    };
+    try {
+        const res  = await fetch(`${API}/sa/games${id ? '/'+id : ''}`, {
+            method: id ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', id ? '✅ המשחק עודכן!' : '✅ המשחק נוסף!');
+            await loadSAGames();
+            switchViewTab('games', 'list');
+        }
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+};
+
+window.clearGameCharacter = function() {
+    document.getElementById('game-character-url').value = '';
+    document.getElementById('game-character-preview').classList.add('hidden');
+};
+
+window.previewGame = function() {
+    const fp = document.getElementById('game-filepath').value;
+    if (fp) window.open('/' + fp, '_blank');
+};
+
+window.previewGameCharacterUpload = function(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        document.getElementById('game-character-url').value = e.target.result;
+        document.getElementById('game-character-preview').classList.remove('hidden');
+        document.getElementById('game-character-img').src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+function updateGlobalCharacterPreview() {
+    const el  = document.getElementById('global-character-current');
+    if (!el) return;
+    const url = _saGlobalConfig?.default_character_url;
+    el.innerHTML = url
+        ? `<img src="${url}" class="w-32 h-32 object-contain mx-auto rounded-2xl mb-2">
+           <p class="text-sm text-slate-500">דמות נוכחית</p>`
+        : `<i class="fa-solid fa-robot text-4xl text-slate-300 mb-2"></i>
+           <p class="text-slate-400 text-sm">לא הוגדרה דמות גלובלית</p>`;
+    const urlInput = document.getElementById('global-character-url');
+    if (urlInput && url) urlInput.value = url;
+}
+
+window.uploadGlobalCharacter = function(input) {
+    const reader = new FileReader();
+    reader.onload = e => {
+        document.getElementById('global-character-url').value = e.target.result;
+        document.getElementById('global-character-current').innerHTML =
+            `<img src="${e.target.result}" class="w-32 h-32 object-contain mx-auto rounded-2xl mb-2">
+             <p class="text-sm text-slate-500">תצוגה מקדימה (טרם נשמר)</p>`;
+    };
+    reader.readAsDataURL(input.files[0]);
+};
+
+window.saveGlobalCharacter = async function() {
+    const url = document.getElementById('global-character-url').value?.trim();
+    if (!url) return showToast('error', 'נא להזין URL או להעלות קובץ');
+    try {
+        const res  = await fetch(`${API}/sa/games/global-config`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ defaultCharacterUrl: url, updatedBy: window.currentSAUser?.name || 'SA' })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', '✅ הדמות הגלובלית עודכנה!');
+            await loadSAGames();
+        }
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+};
+
+window.loadSAGamesStats = async function() {
+    const el = document.getElementById('sa-games-stats-content');
+    if (!el) return;
+    el.innerHTML = '<div class="text-center text-slate-400 py-8 text-sm">טוען...</div>';
+    try {
+        const res  = await fetch(`${API}/sa/games/stats`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        const subjectLabels = { english:'🇬🇧 אנגלית', math:'🔢 מתמטיקה', hebrew:'📖 עברית', science:'🔬 מדעים', general:'🌟 כללי' };
+
+        el.innerHTML = !data.stats?.length
+            ? '<p class="text-slate-400 text-sm text-center py-8">אין נתונים עדיין — ממתין לשחקנים ראשונים.</p>'
+            : `<div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                ${data.stats.map(s => `
+                  <div class="bg-slate-50 border border-slate-100 rounded-2xl p-5 text-center">
+                    <div class="text-2xl mb-2">${subjectLabels[s.subject] || s.subject}</div>
+                    <div class="text-3xl font-black text-indigo-600 mb-1">${s.total_sessions}</div>
+                    <div class="text-xs text-slate-400 mb-3">סשנים</div>
+                    <div class="text-sm font-bold text-yellow-600 mb-1">${s.total_flw_given} FLW חולקו</div>
+                    <div class="text-xs text-slate-400">ציון ממוצע: ${s.avg_score || '—'}</div>
+                    <div class="text-xs text-slate-400">${s.unique_players} שחקנים</div>
+                  </div>`).join('')}
+               </div>`;
+    } catch(e) { el.innerHTML = '<p class="text-red-400 text-sm text-center py-4">שגיאה בטעינת נתונים</p>'; }
+};
+
+// ─── END GAMES MANAGEMENT ─────────────────────────────────────────────────────
