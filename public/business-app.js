@@ -24174,7 +24174,86 @@ setInterval(() => {
 }, 1500);
 
 window.openModifierTemplatesModal = function() {
-    showToast('info', 'מערכת התבניות זמינה כעת בתוך עריכת המוצר!');
+  let el = document.getElementById('modifier-templates-modal');
+  if (el) el.remove();
+  el = document.createElement('div');
+  el.id = 'modifier-templates-modal';
+  el.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end justify-center z-[350] p-0 sm:items-center sm:p-4';
+  el.innerHTML = `
+    <div class="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-lg flex flex-col" style="max-height:90vh">
+      <div class="flex items-center justify-between p-5 border-b border-slate-100 shrink-0">
+        <div>
+          <h2 class="text-lg font-black text-slate-800">🗂️ ניהול תבניות</h2>
+          <div class="text-xs text-slate-400 mt-0.5">קבוצות תוספות לשימוש חוזר</div>
+        </div>
+        <button onclick="document.getElementById('modifier-templates-modal').remove()" class="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition text-lg font-bold">✕</button>
+      </div>
+      <div id="mod-tmpl-list" class="flex-1 overflow-y-auto p-5 space-y-3"></div>
+      <div class="p-4 border-t border-slate-100 shrink-0 flex gap-3">
+        <button onclick="document.getElementById('modifier-templates-modal').remove(); window._wizOpenTemplateMode();"
+          class="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-black text-sm py-3 rounded-xl transition shadow-md">+ הוסף תבנית חדשה</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  _renderModTemplateList();
+};
+
+window._wizOpenTemplateMode = function() {
+  window.openProductWizard();
+  window._wizSelectType('template', 'template');
+  window._wizNext();
+};
+
+function _renderModTemplateList() {
+  const listEl = document.getElementById('mod-tmpl-list');
+  if (!listEl) return;
+  const presets = Array.isArray(storeModifierPresets) ? storeModifierPresets : [];
+  if (!presets.length) {
+    listEl.innerHTML = `<div class="text-center py-10 text-slate-400">
+      <div class="text-4xl mb-3">🗂️</div>
+      <p class="font-bold text-sm">אין תבניות עדיין</p>
+      <p class="text-xs mt-1">לחץ "הוסף תבנית חדשה" כדי ליצור את הראשונה</p>
+    </div>`;
+    return;
+  }
+  listEl.innerHTML = presets.map((p, i) => `
+    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col gap-2">
+      <div class="flex items-center gap-2">
+        <input type="text" value="${safeStr(p.name)}" id="tmpl-name-${i}"
+          class="flex-1 modern-input text-sm font-bold py-2"
+          onchange="storeModifierPresets[${i}].name=this.value">
+        <span class="text-[10px] bg-slate-200 text-slate-500 rounded-lg px-2 py-1 font-bold">${p.type === 'multi' ? 'מרובה' : 'יחיד'}</span>
+        <button onclick="window._deleteTmplPreset(${i})" class="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+          <i class="fa-solid fa-trash text-xs"></i>
+        </button>
+      </div>
+      <div class="flex flex-wrap gap-1">
+        ${(p.options||[]).map(o => `<span class="text-[10px] bg-white border border-slate-200 rounded-lg px-2 py-0.5 text-slate-600">${safeStr(o.name)}${o.price ? ` +₪${o.price}` : ''}</span>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+window._deleteTmplPreset = async function(i) {
+  if (!confirm('למחוק תבנית זו?')) return;
+  storeModifierPresets.splice(i, 1);
+  try {
+    await fetch(`${API}/store/settings/presets`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ groupId: currentGroup.id, presets: JSON.stringify(storeModifierPresets) })
+    });
+  } catch(e) {}
+  _renderModTemplateList();
+  showToast('success', 'התבנית נמחקה');
+};
+
+window._saveTmplPresetName = async function() {
+  try {
+    await fetch(`${API}/store/settings/presets`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ groupId: currentGroup.id, presets: JSON.stringify(storeModifierPresets) })
+    });
+    showToast('success', 'שם התבנית עודכן');
+  } catch(e) { showToast('error', 'שגיאה בשמירה'); }
 };
 
 window.addModifierGroup = function() { 
@@ -24674,6 +24753,8 @@ window.submitStoreProduct = async function() {
 // MODULE: PRODUCT WIZARD (הוספת מוצר חדש)
 // ==========================================
 
+const _WIZ_TEMPLATE_TILE = { key:'template', icon:'🗂️', label:'הוספת תבנית', desc:'קבוצת תוספות לשימוש חוזר בכל מוצר', ptype:'template' };
+
 const _WIZ_ITEM_TYPES = {
   restaurant: [
     { key:'food', icon:'🍔', label:'מנה עם תוספות', desc:'מנה שמאפשרת בחירת תוספות/שדרוגים', ptype:'food' },
@@ -24682,36 +24763,42 @@ const _WIZ_ITEM_TYPES = {
     { key:'bundle', icon:'🍱', label:'קומבו / סט', desc:'ארוחה ממספר פריטים', ptype:'bundle' },
     { key:'drink', icon:'🥤', label:'שתיה', desc:'משקה / שתיה', ptype:'food' },
     { key:'retail', icon:'🛍️', label:'מוצר פיזי', desc:'מוצר למכירה', ptype:'retail' },
+    _WIZ_TEMPLATE_TILE,
   ],
   beauty: [
     { key:'service', icon:'💅', label:'טיפול / שירות', desc:'טיפול אישי בסלון', ptype:'service' },
     { key:'food', icon:'✨', label:'טיפול עם אפשרויות', desc:'טיפול עם גרסאות / תוספות', ptype:'food' },
     { key:'bundle', icon:'🎁', label:'חבילת טיפולים', desc:'מספר טיפולים בחבילה', ptype:'bundle' },
     { key:'retail', icon:'🛍️', label:'מוצר למכירה', desc:'קוסמטיקה / מוצרי יופי', ptype:'retail' },
+    _WIZ_TEMPLATE_TILE,
   ],
   sport: [
     { key:'service', icon:'🏋️', label:'שיעור / אימון', desc:'שיעור בודד', ptype:'service' },
     { key:'bundle', icon:'📋', label:'מנוי / חבילה', desc:'חבילת שיעורים / מנוי חודשי', ptype:'bundle' },
     { key:'food', icon:'⚙️', label:'פעילות עם אפשרויות', desc:'פעילות עם גרסאות / אפשרויות', ptype:'food' },
     { key:'retail', icon:'🛍️', label:'ציוד / מוצר', desc:'ציוד ספורט למכירה', ptype:'retail' },
+    _WIZ_TEMPLATE_TILE,
   ],
   retail: [
     { key:'retail', icon:'🛍️', label:'מוצר', desc:'מוצר פיזי למכירה', ptype:'retail' },
     { key:'food', icon:'⚙️', label:'מוצר עם אפשרויות', desc:'מוצר עם גרסאות / צבעים', ptype:'food' },
     { key:'service', icon:'✅', label:'שירות', desc:'שירות ללקוח', ptype:'service' },
     { key:'bundle', icon:'🎁', label:'חבילה', desc:'חבילת מוצרים / שירותים', ptype:'bundle' },
+    _WIZ_TEMPLATE_TILE,
   ],
   services: [
     { key:'service', icon:'🔧', label:'שירות', desc:'עבודה / שירות מקצועי', ptype:'service' },
     { key:'food', icon:'📋', label:'שירות עם אפשרויות', desc:'שירות עם גרסאות / אפשרויות', ptype:'food' },
     { key:'bundle', icon:'🎁', label:'חבילת שירותים', desc:'מספר שירותים בחבילה', ptype:'bundle' },
     { key:'retail', icon:'🛍️', label:'מוצר', desc:'מוצר פיזי למכירה', ptype:'retail' },
+    _WIZ_TEMPLATE_TILE,
   ],
   professional: [
     { key:'service', icon:'💼', label:'שירות מקצועי', desc:'ייעוץ / עבודה', ptype:'service' },
     { key:'food', icon:'📋', label:'שירות עם אפשרויות', desc:'שירות עם גרסאות', ptype:'food' },
     { key:'bundle', icon:'🎁', label:'חבילת שירותים', desc:'מספר שירותים', ptype:'bundle' },
     { key:'retail', icon:'🛍️', label:'מוצר', desc:'מוצר פיזי', ptype:'retail' },
+    _WIZ_TEMPLATE_TILE,
   ],
 };
 
@@ -24755,9 +24842,15 @@ function _wizGetItemTypes() {
 function _wizRenderStep() {
   _wizRenderBody();
   _wizRenderFooter();
-  const steps = ['שלב 1 — בחירת סוג','שלב 2 — פרטים בסיסיים','שלב 3 — אפשרויות','שלב 4 — סיכום ואישור'];
   const ind = document.getElementById('wiz-step-indicator');
-  if (ind) ind.textContent = steps[_wizState.step] || '';
+  if (!ind) return;
+  if (_wizState.ptype === 'template') {
+    const tSteps = { 0: 'שלב 1 — בחירת סוג', 2: 'שלב 2 — הגדרת קבוצות התבנית' };
+    ind.textContent = tSteps[_wizState.step] || '';
+  } else {
+    const steps = ['שלב 1 — בחירת סוג','שלב 2 — פרטים בסיסיים','שלב 3 — אפשרויות','שלב 4 — סיכום ואישור'];
+    ind.textContent = steps[_wizState.step] || '';
+  }
 }
 
 function _wizRenderBody() {
@@ -24765,17 +24858,31 @@ function _wizRenderBody() {
   if (!body) return;
   if (_wizState.step === 0) {
     const types = _wizGetItemTypes();
+    const productTypes = types.filter(t => t.key !== 'template');
+    const templateTile = types.find(t => t.key === 'template');
     body.innerHTML = `
       <p class="text-sm font-bold text-slate-600 mb-1">מה תרצה להוסיף לקטלוג?</p>
       <div class="grid grid-cols-2 gap-3">
-        ${types.map(t => `
+        ${productTypes.map(t => `
           <button onclick="window._wizSelectType('${t.key}','${t.ptype}')"
             class="p-4 rounded-2xl border-2 text-right transition hover:shadow-md ${_wizState.itemType === t.key ? 'border-indigo-500 bg-indigo-50 shadow-md' : 'border-slate-200 bg-slate-50 hover:border-indigo-300'}">
             <div class="text-2xl mb-1">${t.icon}</div>
             <div class="font-black text-sm text-slate-800">${t.label}</div>
             <div class="text-[10px] text-slate-400 mt-0.5 leading-tight">${t.desc}</div>
           </button>`).join('')}
-      </div>`;
+      </div>
+      ${templateTile ? `
+      <div class="border-t border-dashed border-slate-200 pt-3 mt-1">
+        <p class="text-[10px] font-bold text-slate-400 mb-2">כלים</p>
+        <button onclick="window._wizSelectType('template','template')"
+          class="w-full p-3 rounded-2xl border-2 text-right transition hover:shadow-md flex items-center gap-3 ${_wizState.itemType === 'template' ? 'border-amber-400 bg-amber-50 shadow-md' : 'border-slate-200 bg-slate-50 hover:border-amber-300'}">
+          <div class="text-2xl">${templateTile.icon}</div>
+          <div>
+            <div class="font-black text-sm text-slate-800">${templateTile.label}</div>
+            <div class="text-[10px] text-slate-400 leading-tight">${templateTile.desc}</div>
+          </div>
+        </button>
+      </div>` : ''}`;
   } else if (_wizState.step === 1) {
     const bt = currentGroup?.business_type || '';
     const isRest = bt === 'restaurant';
@@ -25076,23 +25183,35 @@ function _wizRenderFooter() {
   const footer = document.getElementById('wiz-footer');
   if (!footer) return;
   const showBack = _wizState.step > 0;
-  const isLast = _wizState.step === 3;
+  const isTemplateMode = _wizState.ptype === 'template';
+  const isLast = isTemplateMode ? _wizState.step === 2 : _wizState.step === 3;
   footer.innerHTML = `
     ${showBack ? `<button onclick="window._wizBack()" class="flex-1 bg-slate-100 text-slate-600 font-bold text-sm py-3 rounded-xl hover:bg-slate-200 transition">◀ חזרה</button>` : ''}
     ${isLast
-      ? `<button onclick="window._wizSubmit()" id="wiz-submit-btn" class="flex-1 bg-indigo-600 text-white font-black text-sm py-3 rounded-xl hover:bg-indigo-700 transition shadow-md">✅ הוסף לקטלוג</button>`
+      ? `<button onclick="window._wizSubmit()" id="wiz-submit-btn" class="flex-1 ${isTemplateMode ? 'bg-amber-500 hover:bg-amber-600' : 'bg-indigo-600 hover:bg-indigo-700'} text-white font-black text-sm py-3 rounded-xl transition shadow-md">${isTemplateMode ? '🗂️ שמור תבנית' : '✅ הוסף לקטלוג'}</button>`
       : `<button onclick="window._wizNext()" class="flex-1 bg-indigo-600 text-white font-black text-sm py-3 rounded-xl hover:bg-indigo-700 transition shadow-md">${_wizState.step === 0 ? 'המשך ▶' : 'הבא ▶'}</button>`}`;
 }
 
 window._wizSelectType = function(key, ptype) {
   _wizState.itemType = key;
   _wizState.ptype = ptype;
+  const titleEl = document.querySelector('#product-wizard-modal h2');
+  if (titleEl) {
+    titleEl.textContent = ptype === 'template' ? '🗂️ יצירת תבנית חדשה' : '➕ מוצר / שירות חדש';
+  }
   _wizRenderBody();
   _wizRenderFooter();
 };
 
 window._wizNext = function() {
   if (_wizState.step === 0 && !_wizState.itemType) return showToast('error', 'בחר סוג פריט תחילה');
+  if (_wizState.step === 0 && _wizState.ptype === 'template') {
+    _wizState.step = 2;
+    _wizRenderStep();
+    const body = document.getElementById('wiz-body');
+    if (body) body.scrollTop = 0;
+    return;
+  }
   if (_wizState.step === 1) {
     _wizState.name = document.getElementById('wiz-name')?.value || _wizState.name;
     _wizState.price = document.getElementById('wiz-price')?.value || _wizState.price;
@@ -25113,7 +25232,11 @@ window._wizNext = function() {
 };
 
 window._wizBack = function() {
-  _wizState.step = Math.max(_wizState.step - 1, 0);
+  if (_wizState.ptype === 'template' && _wizState.step === 2) {
+    _wizState.step = 0;
+  } else {
+    _wizState.step = Math.max(_wizState.step - 1, 0);
+  }
   _wizRenderStep();
   const body = document.getElementById('wiz-body');
   if (body) body.scrollTop = 0;
@@ -25315,6 +25438,36 @@ window._wizRemovePizzaTop = function(i) { window.currentPizzaToppingsUI.splice(i
 window._wizSubmit = async function() {
   const btn = document.getElementById('wiz-submit-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'שומר...'; }
+
+  if (_wizState.ptype === 'template') {
+    const validMods = (window.currentModifiersUI||[]).filter(m => m.name.trim() && m.options.some(o=>o.name.trim()));
+    if (!validMods.length) {
+      showToast('error', 'יש להוסיף לפחות קבוצת תוספות אחת עם שם ואפשרות');
+      if (btn) { btn.disabled = false; btn.textContent = '🗂️ שמור תבנית'; }
+      return;
+    }
+    if (!Array.isArray(storeModifierPresets)) window.storeModifierPresets = [];
+    validMods.forEach(m => storeModifierPresets.push(JSON.parse(JSON.stringify(m))));
+    try {
+      const res = await fetch(`${API}/store/settings/presets`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ groupId: currentGroup.id, presets: JSON.stringify(storeModifierPresets) })
+      });
+      const data = await res.json();
+      if (data.success || data.ok) {
+        document.getElementById('product-wizard-modal')?.remove();
+        showToast('success', `✅ ${validMods.length} קבוצות נשמרו כתבניות!`);
+      } else {
+        showToast('error', data.error || 'שגיאה בשמירת התבנית');
+        if (btn) { btn.disabled = false; btn.textContent = '🗂️ שמור תבנית'; }
+      }
+    } catch(e) {
+      showToast('error', 'שגיאה בתקשורת מול השרת');
+      if (btn) { btn.disabled = false; btn.textContent = '🗂️ שמור תבנית'; }
+    }
+    return;
+  }
+
   let ptype = _wizState.ptype;
   let finalOptionsText = '';
   if (ptype === 'bundle') {
