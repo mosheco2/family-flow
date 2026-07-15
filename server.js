@@ -1649,6 +1649,68 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
 
+      // ─── KIDS GAMES INFRASTRUCTURE ────────────────────────────────────────
+      try { await client.query(`CREATE TABLE IF NOT EXISTS games_global_config (
+          id SERIAL PRIMARY KEY,
+          default_character_url TEXT DEFAULT '',
+          updated_at TIMESTAMP DEFAULT NOW(),
+          updated_by VARCHAR(100)
+      )`); } catch(e) {}
+
+      try { await client.query(`
+          INSERT INTO games_global_config (default_character_url)
+          SELECT '' WHERE NOT EXISTS (SELECT 1 FROM games_global_config)
+      `); } catch(e) {}
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS games_catalog (
+          id SERIAL PRIMARY KEY,
+          title VARCHAR(200) NOT NULL,
+          subject VARCHAR(50) NOT NULL,
+          age_min INT DEFAULT 5,
+          age_max INT DEFAULT 12,
+          difficulty INT DEFAULT 1,
+          flw_reward INT DEFAULT 10,
+          file_path VARCHAR(200) NOT NULL,
+          is_active BOOLEAN DEFAULT true,
+          thumbnail_emoji VARCHAR(10) DEFAULT '🎮',
+          character_url TEXT DEFAULT '',
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS flw_kid_wallets (
+          id SERIAL PRIMARY KEY,
+          child_user_id INT REFERENCES users(id) ON DELETE CASCADE,
+          family_group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          balance_flw DECIMAL(10,2) DEFAULT 0,
+          lifetime_flw DECIMAL(10,2) DEFAULT 0,
+          redeemed_flw DECIMAL(10,2) DEFAULT 0,
+          updated_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(child_user_id)
+      )`); } catch(e) {}
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS flw_kid_config (
+          id SERIAL PRIMARY KEY,
+          family_group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          child_user_id INT REFERENCES users(id) ON DELETE CASCADE,
+          flw_value_ils DECIMAL(6,4) DEFAULT 0.10,
+          max_daily_flw INT DEFAULT 50,
+          auto_approve BOOLEAN DEFAULT false,
+          updated_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(child_user_id)
+      )`); } catch(e) {}
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS game_sessions (
+          id SERIAL PRIMARY KEY,
+          child_user_id INT REFERENCES users(id) ON DELETE CASCADE,
+          game_id INT REFERENCES games_catalog(id) ON DELETE SET NULL,
+          score INT DEFAULT 0,
+          flw_earned DECIMAL(10,2) DEFAULT 0,
+          duration_seconds INT DEFAULT 0,
+          played_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      // ─── END KIDS GAMES INFRASTRUCTURE ───────────────────────────────────
+
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -21139,6 +21201,260 @@ app.delete('/api/page-images/:page/:slot', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 // ─── END PAGE IMAGES ──────────────────────────────────────────────────────────
+
+// ─── KIDS GAMES API ───────────────────────────────────────────────────────────
+
+// רשימת משחקים לפי גיל הילד
+app.get('/api/kids/games', async (req, res) => {
+    try {
+        const { userId } = req.query;
+        const userRes = await pool.query('SELECT birth_year FROM users WHERE id=$1', [userId]);
+        const age = userRes.rows[0]?.birth_year
+            ? new Date().getFullYear() - userRes.rows[0].birth_year
+            : 8;
+
+        const games = await pool.query(`
+            SELECT g.*,
+                gc.default_character_url,
+                CASE WHEN g.character_url != ''
+                     THEN g.character_url
+                     ELSE gc.default_character_url END as active_character_url
+            FROM games_catalog g
+            CROSS JOIN games_global_config gc
+            WHERE g.is_active = true
+              AND g.age_min <= $1
+              AND g.age_max >= $1
+            ORDER BY g.subject, g.difficulty
+        `, [age]);
+
+        res.json({ success: true, games: games.rows, childAge: age });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// יתרת FLW + היסטוריה לילד
+app.get('/api/kids/wallet/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        await pool.query(`
+            INSERT INTO flw_kid_wallets (child_user_id, family_group_id)
+            SELECT $1, group_id FROM users WHERE id=$1
+            ON CONFLICT (child_user_id) DO NOTHING
+        `, [userId]);
+
+        const wallet  = await pool.query('SELECT * FROM flw_kid_wallets WHERE child_user_id=$1', [userId]);
+        const history = await pool.query(`
+            SELECT gs.*, g.title as game_title, g.subject, g.thumbnail_emoji
+            FROM game_sessions gs
+            LEFT JOIN games_catalog g ON g.id = gs.game_id
+            WHERE gs.child_user_id = $1
+            ORDER BY gs.played_at DESC LIMIT 20
+        `, [userId]);
+        const config  = await pool.query('SELECT * FROM flw_kid_config WHERE child_user_id=$1', [userId]);
+
+        res.json({
+            success: true,
+            wallet:  wallet.rows[0],
+            history: history.rows,
+            config:  config.rows[0] || { flw_value_ils: 0.10, max_daily_flw: 50 }
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// זיכוי FLW אחרי משחק
+app.post('/api/kids/award-flw', async (req, res) => {
+    try {
+        const { userId, gameId, score, flwEarned, durationSeconds } = req.body;
+        if (!userId || !flwEarned) return res.status(400).json({ error: 'חסרים פרטים' });
+
+        const todayEarned = await pool.query(`
+            SELECT COALESCE(SUM(flw_earned), 0) as total
+            FROM game_sessions
+            WHERE child_user_id=$1 AND DATE(played_at) = CURRENT_DATE
+        `, [userId]);
+
+        const config    = await pool.query('SELECT max_daily_flw FROM flw_kid_config WHERE child_user_id=$1', [userId]);
+        const maxDaily  = config.rows[0]?.max_daily_flw || 50;
+        const already   = parseFloat(todayEarned.rows[0].total);
+        const actualFlw = Math.min(flwEarned, maxDaily - already);
+
+        if (actualFlw <= 0) {
+            return res.json({
+                success: true, flwEarned: 0,
+                message: 'הגעת למקסימום הצבירה היומי! 🌟', limitReached: true
+            });
+        }
+
+        await pool.query(`
+            INSERT INTO game_sessions (child_user_id, game_id, score, flw_earned, duration_seconds)
+            VALUES ($1, $2, $3, $4, $5)
+        `, [userId, gameId, score, actualFlw, durationSeconds || 0]);
+
+        await pool.query(`
+            INSERT INTO flw_kid_wallets (child_user_id, family_group_id, balance_flw, lifetime_flw)
+            SELECT $1, group_id, $2, $2 FROM users WHERE id=$1
+            ON CONFLICT (child_user_id) DO UPDATE SET
+                balance_flw  = flw_kid_wallets.balance_flw  + $2,
+                lifetime_flw = flw_kid_wallets.lifetime_flw + $2,
+                updated_at   = NOW()
+        `, [userId, actualFlw]);
+
+        const newWallet = await pool.query('SELECT balance_flw FROM flw_kid_wallets WHERE child_user_id=$1', [userId]);
+
+        res.json({
+            success: true, flwEarned: actualFlw,
+            newBalance: newWallet.rows[0]?.balance_flw,
+            message: `כל הכבוד! קיבלת ${actualFlw} FLW! 🎉`
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הגדרות הורה לילד
+app.get('/api/kids/config/:childId', async (req, res) => {
+    try {
+        const config = await pool.query('SELECT * FROM flw_kid_config WHERE child_user_id=$1', [req.params.childId]);
+        res.json({ success: true, config: config.rows[0] || { flw_value_ils: 0.10, max_daily_flw: 50 } });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עדכון הגדרות הורה
+app.post('/api/kids/config', async (req, res) => {
+    try {
+        const { familyGroupId, childUserId, flwValueIls, maxDailyFlw, autoApprove } = req.body;
+        await pool.query(`
+            INSERT INTO flw_kid_config (family_group_id, child_user_id, flw_value_ils, max_daily_flw, auto_approve)
+            VALUES ($1,$2,$3,$4,$5)
+            ON CONFLICT (child_user_id) DO UPDATE SET
+                flw_value_ils = $3, max_daily_flw = $4, auto_approve = $5, updated_at = NOW()
+        `, [familyGroupId, childUserId, flwValueIls, maxDailyFlw, autoApprove]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מימוש FLW לכסף (הורה מאשר)
+app.post('/api/kids/redeem', async (req, res) => {
+    try {
+        const { childUserId, flwAmount, parentUserId } = req.body;
+        const wallet = await pool.query('SELECT * FROM flw_kid_wallets WHERE child_user_id=$1', [childUserId]);
+        if (!wallet.rows[0] || wallet.rows[0].balance_flw < flwAmount)
+            return res.status(400).json({ error: 'יתרה לא מספיקה' });
+
+        const config    = await pool.query('SELECT flw_value_ils FROM flw_kid_config WHERE child_user_id=$1', [childUserId]);
+        const valueIls  = config.rows[0]?.flw_value_ils || 0.10;
+        const ilsAmount = (flwAmount * valueIls).toFixed(2);
+
+        await pool.query(`
+            UPDATE flw_kid_wallets SET
+                balance_flw  = balance_flw  - $1,
+                redeemed_flw = redeemed_flw + $1,
+                updated_at   = NOW()
+            WHERE child_user_id = $2
+        `, [flwAmount, childUserId]);
+
+        await pool.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [ilsAmount, childUserId]);
+
+        await pool.query(`
+            INSERT INTO transactions (user_id, group_id, amount, type, category, description)
+            SELECT $1, group_id, $2, 'income', 'allowance', $3 FROM users WHERE id=$1
+        `, [childUserId, ilsAmount, `מימוש ${flwAmount} FLW = ₪${ilsAmount}`]);
+
+        res.json({
+            success: true, flwRedeemed: flwAmount, ilsEarned: ilsAmount,
+            message: `מומשו ${flwAmount} FLW = ₪${ilsAmount}! 🎊`
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── KIDS GAMES — SA ENDPOINTS ────────────────────────────────────────────────
+
+// כל המשחקים
+app.get('/api/sa/games', verifySA, async (req, res) => {
+    try {
+        const games = await pool.query(`
+            SELECT g.*,
+                COUNT(gs.id) as total_sessions,
+                ROUND(AVG(gs.score), 1) as avg_score,
+                COALESCE(SUM(gs.flw_earned), 0) as total_flw_given
+            FROM games_catalog g
+            LEFT JOIN game_sessions gs ON gs.game_id = g.id
+            GROUP BY g.id
+            ORDER BY g.subject, g.difficulty
+        `);
+        const globalConfig = await pool.query('SELECT * FROM games_global_config LIMIT 1');
+        res.json({ success: true, games: games.rows, globalConfig: globalConfig.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הוספת משחק
+app.post('/api/sa/games', verifySA, async (req, res) => {
+    try {
+        const { title, subject, ageMin, ageMax, difficulty, flwReward, filePath, thumbnailEmoji, characterUrl } = req.body;
+        const result = await pool.query(`
+            INSERT INTO games_catalog
+                (title, subject, age_min, age_max, difficulty, flw_reward, file_path, thumbnail_emoji, character_url)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *
+        `, [title, subject, ageMin, ageMax, difficulty, flwReward, filePath, thumbnailEmoji || '🎮', characterUrl || '']);
+        res.json({ success: true, game: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עריכת משחק
+app.put('/api/sa/games/:id', verifySA, async (req, res) => {
+    try {
+        const { title, subject, ageMin, ageMax, difficulty, flwReward, filePath, thumbnailEmoji, characterUrl } = req.body;
+        await pool.query(`
+            UPDATE games_catalog SET
+                title=$1, subject=$2, age_min=$3, age_max=$4, difficulty=$5,
+                flw_reward=$6, file_path=$7, thumbnail_emoji=$8, character_url=$9, updated_at=NOW()
+            WHERE id=$10
+        `, [title, subject, ageMin, ageMax, difficulty, flwReward, filePath, thumbnailEmoji, characterUrl, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// פתיחה/חסימה
+app.put('/api/sa/games/:id/toggle', verifySA, async (req, res) => {
+    try {
+        await pool.query(`
+            UPDATE games_catalog SET is_active = NOT is_active, updated_at = NOW() WHERE id=$1
+        `, [req.params.id]);
+        const updated = await pool.query('SELECT id, title, is_active FROM games_catalog WHERE id=$1', [req.params.id]);
+        res.json({ success: true, game: updated.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עדכון דמות גלובלית
+app.put('/api/sa/games/global-config', verifySA, async (req, res) => {
+    try {
+        const { defaultCharacterUrl, updatedBy } = req.body;
+        await pool.query(`
+            UPDATE games_global_config SET
+                default_character_url = $1, updated_at = NOW(), updated_by = $2
+        `, [defaultCharacterUrl, updatedBy]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// סטטיסטיקות משחקים
+app.get('/api/sa/games/stats', verifySA, async (req, res) => {
+    try {
+        const stats = await pool.query(`
+            SELECT
+                g.subject,
+                COUNT(DISTINCT gs.child_user_id) as unique_players,
+                COUNT(gs.id) as total_sessions,
+                ROUND(AVG(gs.score), 1) as avg_score,
+                COALESCE(SUM(gs.flw_earned), 0) as total_flw_given
+            FROM games_catalog g
+            LEFT JOIN game_sessions gs ON gs.game_id = g.id
+            GROUP BY g.subject
+            ORDER BY total_sessions DESC
+        `);
+        res.json({ success: true, stats: stats.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── END KIDS GAMES API ───────────────────────────────────────────────────────
 
 // הפעלת השרת
 app.listen(port, () => {
