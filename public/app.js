@@ -2631,6 +2631,37 @@ function renderAdminAcademy() {
             html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center"><div><p class="font-bold text-slate-700 text-sm">${safeStr(b.title)}</p><p class="text-[10px] text-slate-500 mt-0.5">הוקצה ל: <span class="font-bold text-slate-700">${safeStr(b.assignee_name)}</span> ב-${aDate}</p></div><span class="text-[10px] font-bold ${statusColor} bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">${statusText}</span></div>`;
         }); html += '</div>';
     } list.innerHTML = html;
+
+    // ── כרטיסי הקצאת משחק וקווסט — נוספים אחרי ספריית המבחנים הקיימת ──
+    const academyCards = getEl('academy-new-cards');
+    if(!academyCards) {
+        const cardsDiv = document.createElement('div');
+        cardsDiv.id = 'academy-new-cards';
+        cardsDiv.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;margin-top:1.2rem;';
+        cardsDiv.innerHTML = `
+          <div onclick="openAssignGameModal()" style="
+            background:linear-gradient(135deg,#EDE9FE,#DDD6FE);
+            border:2px solid #7C3AED;border-radius:20px;padding:1.2rem;
+            cursor:pointer;transition:transform 0.2s;text-align:center;
+          " onmouseover="this.style.transform='scale(1.02)'"
+             onmouseout="this.style.transform='scale(1)'">
+            <div style="font-size:2.5rem;margin-bottom:0.4rem">🎮</div>
+            <div style="font-weight:700;font-size:0.9rem;color:#5B21B6">הקצה משחק לילד</div>
+            <div style="font-size:0.78rem;color:#7C3AED;margin-top:0.2rem">בחר משחק וקבע סיבובים</div>
+          </div>
+          <div onclick="openQuestWizard()" style="
+            background:linear-gradient(135deg,#FEF3C7,#FDE68A);
+            border:2px solid #F59E0B;border-radius:20px;padding:1.2rem;
+            cursor:pointer;transition:transform 0.2s;text-align:center;
+          " onmouseover="this.style.transform='scale(1.02)'"
+             onmouseout="this.style.transform='scale(1)'">
+            <div style="font-size:2.5rem;margin-bottom:0.4rem">✏️</div>
+            <div style="font-weight:700;font-size:0.9rem;color:#92400E">בנה קווסט ידני</div>
+            <div style="font-size:0.78rem;color:#B45309;margin-top:0.2rem">שאלות ותשובות בנושא שתבחר</div>
+          </div>
+        `;
+        if(list) list.parentElement.appendChild(cardsDiv);
+    }
 }
 
 function renderLibrary() {
@@ -13371,4 +13402,807 @@ window._openQuoteFromActivity = async function(quoteId) {
         showToast('error', 'שגיאה בטעינת ההצעה');
     }
 };
+
+// ============================================================
+// GAME IFRAME HANDLER
+// ============================================================
+
+let _activeAssignmentId = null;
+
+function openGame(assignmentId, gameFilePath, childName, flwPerRound, gameId) {
+  _activeAssignmentId = assignmentId;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'game-overlay';
+  overlay.style.cssText = `
+    position:fixed; top:0; left:0; right:0; bottom:0;
+    background:#0A0F1E; z-index:9999;
+    display:flex; flex-direction:column;
+  `;
+
+  overlay.innerHTML = `
+    <div style="
+      background:linear-gradient(135deg,#00A896,#007A6E);
+      padding:0.7rem 1rem;
+      display:flex; align-items:center; justify-content:space-between;
+    ">
+      <span style="color:white;font-weight:700;font-size:1rem">🎮 Oneflow Kids</span>
+      <button onclick="closeGame()" style="
+        background:rgba(255,255,255,0.2); border:none; color:white;
+        border-radius:50px; padding:0.3rem 0.9rem; cursor:pointer; font-size:0.85rem;
+      ">✕ סגור</button>
+    </div>
+    <iframe id="game-iframe" src="/${gameFilePath}"
+      style="flex:1; border:none; width:100%;" allow="autoplay"></iframe>
+  `;
+
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+
+  const iframe = document.getElementById('game-iframe');
+  iframe.onload = () => {
+    iframe.contentWindow.postMessage({
+      type: 'INIT',
+      userId: currentUser?.id,
+      childName: childName || currentUser?.nickname,
+      flwReward: flwPerRound || 10,
+      gameId: gameId,
+      assignmentId: assignmentId,
+      token: localStorage.getItem('family_token') || ''
+    }, '*');
+  };
+}
+
+function closeGame() {
+  const overlay = document.getElementById('game-overlay');
+  if(overlay) overlay.remove();
+  document.body.style.overflow = '';
+  _activeAssignmentId = null;
+}
+
+window.addEventListener('message', async (event) => {
+  const data = event.data;
+  if(!data?.type) return;
+
+  if(data.type === 'GAME_COMPLETE') {
+    if(_activeAssignmentId) {
+      try {
+        const res = await fetch('/api/kids/use-round', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assignmentId: _activeAssignmentId,
+            childUserId: currentUser?.id,
+            score: data.score || 0,
+            flwEarned: data.flwEarned || 0
+          })
+        });
+        const result = await res.json();
+        showGameCompleteMessage(data, result);
+      } catch(err) {
+        console.error('use-round error:', err);
+      }
+    }
+  }
+
+  if(data.type === 'CLOSE_GAME') {
+    closeGame();
+    if(typeof loadKidAcademy === 'function') loadKidAcademy();
+  }
+});
+
+function showGameCompleteMessage(gameData, roundResult) {
+  const msg = document.createElement('div');
+  msg.style.cssText = `
+    position:fixed; top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    background:white; border-radius:20px; padding:2rem; text-align:center;
+    z-index:10000; box-shadow:0 20px 60px rgba(0,0,0,0.3); min-width:280px;
+  `;
+
+  const exhausted = roundResult.exhausted;
+  const roundsLeft = roundResult.roundsLeft || 0;
+
+  msg.innerHTML = `
+    <div style="font-size:3rem;margin-bottom:0.5rem">${exhausted ? '🏁' : '🎉'}</div>
+    <div style="font-size:1.3rem;font-weight:900;margin-bottom:0.3rem">
+      ${exhausted ? 'כל הסיבובים הושלמו!' : 'כל הכבוד!'}
+    </div>
+    <div style="color:#7A9EA8;font-size:0.9rem;margin-bottom:1rem">
+      ${exhausted ? 'ההורה יכול להקצות סיבובים נוספים' : `נשארו עוד ${roundsLeft} סיבובים`}
+    </div>
+    <div style="
+      background:linear-gradient(135deg,#FF6B2B,#FF4500); color:white;
+      border-radius:50px; padding:0.5rem 1.5rem;
+      font-size:1.2rem; font-weight:900;
+      display:inline-block; margin-bottom:1.2rem;
+    ">+${gameData.flwEarned || 0} 🪙 FLW</div>
+    <br>
+    <button onclick="this.parentElement.remove();${exhausted ? 'closeGame()' : ''}"
+      style="
+        background:linear-gradient(135deg,#00A896,#007A6E);
+        color:white; border:none; border-radius:50px;
+        padding:0.7rem 2rem; font-size:1rem; cursor:pointer; font-weight:700;
+      ">${exhausted ? '🏠 חזרה' : '🎮 המשך לשחק'}</button>
+  `;
+
+  document.body.appendChild(msg);
+  setTimeout(() => { if(msg.parentElement) msg.remove(); }, 5000);
+}
+
+// ============================================================
+// ASSIGN GAME MODAL (הורה)
+// ============================================================
+
+let _selectedGameId = null;
+let _selectedRounds = 3;
+
+async function openAssignGameModal() {
+  try {
+    const [gamesRes, membersRes] = await Promise.all([
+      fetch(`/api/kids/games?userId=${currentUser?.id}`),
+      fetch(`/api/family/members/${currentGroup?.id}`)
+    ]);
+    const gamesData   = await gamesRes.json();
+    const membersData = await membersRes.json();
+    const games    = gamesData.games || [];
+    const children = (membersData.members || []).filter(m =>
+      m.role === 'CHILD' || (new Date().getFullYear() - (m.birth_year || 2010)) <= 13
+    );
+
+    _selectedGameId = null;
+    _selectedRounds = 3;
+
+    const modal = document.createElement('div');
+    modal.id = 'assign-game-modal';
+    modal.style.cssText = `
+      position:fixed; inset:0; background:rgba(0,0,0,0.5);
+      z-index:5000; display:flex; align-items:center; justify-content:center; padding:1rem;
+    `;
+
+    modal.innerHTML = `
+      <div style="
+        background:white; border-radius:24px; padding:2rem;
+        max-width:420px; width:100%; max-height:90vh; overflow-y:auto;
+      ">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+          <h2 style="font-size:1.3rem;font-weight:900">🎮 הקצה משחק לילד</h2>
+          <button onclick="document.getElementById('assign-game-modal').remove()"
+            style="background:none;border:none;font-size:1.5rem;cursor:pointer">✕</button>
+        </div>
+
+        <label style="font-size:0.85rem;font-weight:700;color:#555;display:block;margin-bottom:0.4rem">לאיזה ילד?</label>
+        <select id="assign-child-select" style="
+          width:100%;padding:0.8rem;border:2px solid #E0E0E0;
+          border-radius:12px;font-size:1rem;margin-bottom:1rem;
+        ">
+          <option value="">בחר ילד...</option>
+          ${children.map(c => `<option value="${c.id}">${c.nickname}</option>`).join('')}
+        </select>
+
+        <label style="font-size:0.85rem;font-weight:700;color:#555;display:block;margin-bottom:0.4rem">איזה משחק?</label>
+        <div id="games-picker" style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:1rem">
+          ${games.length === 0
+            ? '<p style="color:#999;text-align:center;grid-column:1/-1">אין משחקים פעילים</p>'
+            : games.map(g => `
+              <div onclick="selectGameForAssign(this,'${g.id}')" data-game-id="${g.id}"
+                style="border:2px solid #E0E0E0;border-radius:14px;padding:0.8rem;
+                       text-align:center;cursor:pointer;transition:all 0.2s;background:white">
+                <div style="font-size:2rem">${g.thumbnail_emoji || '🎮'}</div>
+                <div style="font-size:0.8rem;font-weight:700;margin-top:0.3rem">${g.title}</div>
+                <div style="font-size:0.7rem;color:#999">${g.subject}</div>
+              </div>
+            `).join('')}
+        </div>
+
+        <label style="font-size:0.85rem;font-weight:700;color:#555;display:block;margin-bottom:0.4rem">כמה סיבובים?</label>
+        <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
+          ${[1,2,3,5,10].map(n => `
+            <button onclick="setRounds(this,${n})" class="rounds-btn"
+              style="flex:1;padding:0.6rem 0;border:2px solid #E0E0E0;
+                     border-radius:10px;font-size:1rem;font-weight:700;
+                     cursor:pointer;background:white;transition:all 0.2s;
+                     ${n===3?'border-color:#7C3AED;background:#7C3AED;color:white;':''}">${n}</button>
+          `).join('')}
+        </div>
+        <input type="hidden" id="assign-rounds" value="3">
+
+        <label style="font-size:0.85rem;font-weight:700;color:#555;display:block;margin-bottom:0.4rem">FLW לסיבוב מוצלח</label>
+        <input type="number" id="assign-flw" value="10" min="1" max="50"
+          style="width:100%;padding:0.8rem;border:2px solid #E0E0E0;
+                 border-radius:12px;font-size:1rem;margin-bottom:1.5rem;">
+
+        <button onclick="submitGameAssignment()"
+          style="width:100%;background:linear-gradient(135deg,#7C3AED,#5B21B6);
+                 color:white;border:none;border-radius:50px;
+                 padding:1rem;font-size:1.1rem;font-weight:700;cursor:pointer">
+          🎮 הקצה משחק
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
+  } catch(e) {
+    showToast('error', 'שגיאה בטעינת הנתונים');
+  }
+}
+
+function selectGameForAssign(el, gameId) {
+  document.querySelectorAll('#games-picker > div').forEach(d => {
+    d.style.border = '2px solid #E0E0E0';
+    d.style.background = 'white';
+  });
+  el.style.border = '2px solid #7C3AED';
+  el.style.background = '#F5F3FF';
+  _selectedGameId = gameId;
+}
+
+function setRounds(el, n) {
+  document.querySelectorAll('.rounds-btn').forEach(b => {
+    b.style.border = '2px solid #E0E0E0';
+    b.style.background = 'white';
+    b.style.color = '#333';
+  });
+  el.style.border = '2px solid #7C3AED';
+  el.style.background = '#7C3AED';
+  el.style.color = 'white';
+  _selectedRounds = n;
+  const inp = document.getElementById('assign-rounds');
+  if(inp) inp.value = n;
+}
+
+async function submitGameAssignment() {
+  const childId = document.getElementById('assign-child-select')?.value;
+  const flw     = document.getElementById('assign-flw')?.value;
+
+  if(!childId) return alert('נא לבחור ילד');
+  if(!_selectedGameId) return alert('נא לבחור משחק');
+
+  try {
+    const res = await fetch('/api/kids/assign-game', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        familyGroupId: currentGroup?.id,
+        childUserId: parseInt(childId),
+        gameId: parseInt(_selectedGameId),
+        roundsTotal: _selectedRounds,
+        flwPerRound: parseInt(flw) || 10,
+        parentUserId: currentUser?.id
+      })
+    });
+    const data = await res.json();
+    if(data.success) {
+      document.getElementById('assign-game-modal')?.remove();
+      showToast('success', `✅ המשחק הוקצה! ${_selectedRounds} סיבובים מחכים לילד 🎮`);
+    } else {
+      showToast('error', data.error || 'שגיאה בהקצאה');
+    }
+  } catch(e) {
+    showToast('error', 'שגיאה בתקשורת');
+  }
+}
+
+// ============================================================
+// QUEST WIZARD (הורה — בניית קווסט ידני)
+// ============================================================
+
+function openQuestWizard() {
+  let questQuestions = [];
+  let wizardStep = 1;
+  let questData = {};
+  let _selectedChildIdForQuest = null;
+
+  const modal = document.createElement('div');
+  modal.id = 'quest-wizard-modal';
+  modal.style.cssText = `
+    position:fixed; inset:0; background:rgba(0,0,0,0.5);
+    z-index:5000; display:flex; align-items:center; justify-content:center; padding:1rem;
+  `;
+
+  function renderStep() {
+    const inner = document.getElementById('quest-wizard-inner');
+    if(!inner) return;
+
+    if(wizardStep === 1) {
+      inner.innerHTML = `
+        <h3 style="font-size:1.1rem;font-weight:900;margin-bottom:1.2rem">שלב 1 — פרטי הקווסט</h3>
+
+        <label style="font-size:0.82rem;font-weight:700;color:#555;display:block;margin-bottom:0.3rem">שם הקווסט *</label>
+        <input id="qw-title" placeholder="לדוגמה: חשבון פרק 3" value="${questData.title||''}"
+          style="width:100%;padding:0.8rem;border:2px solid #E0E0E0;border-radius:12px;font-size:1rem;margin-bottom:0.8rem">
+
+        <label style="font-size:0.82rem;font-weight:700;color:#555;display:block;margin-bottom:0.3rem">נושא</label>
+        <select id="qw-subject"
+          style="width:100%;padding:0.8rem;border:2px solid #E0E0E0;border-radius:12px;font-size:1rem;margin-bottom:0.8rem">
+          <option value="math" ${questData.subject==='math'?'selected':''}>🔢 מתמטיקה</option>
+          <option value="hebrew" ${questData.subject==='hebrew'?'selected':''}>📖 עברית</option>
+          <option value="english" ${questData.subject==='english'?'selected':''}>🇬🇧 אנגלית</option>
+          <option value="science" ${questData.subject==='science'?'selected':''}>🔬 מדעים</option>
+          <option value="general" ${questData.subject==='general'?'selected':''}>🌟 כללי</option>
+        </select>
+
+        <label style="font-size:0.82rem;font-weight:700;color:#555;display:block;margin-bottom:0.3rem">הוראות לילד (אופציונלי)</label>
+        <textarea id="qw-desc" placeholder="הוראות, רמזים או הקשר..."
+          style="width:100%;padding:0.8rem;border:2px solid #E0E0E0;border-radius:12px;
+                 font-size:0.95rem;height:80px;resize:none;margin-bottom:0.8rem"
+        >${questData.description||''}</textarea>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:1.2rem">
+          <div>
+            <label style="font-size:0.82rem;font-weight:700;color:#555;display:block;margin-bottom:0.3rem">FLW לזכייה</label>
+            <input type="number" id="qw-flw" value="${questData.flwReward||15}" min="1" max="100"
+              style="width:100%;padding:0.8rem;border:2px solid #E0E0E0;border-radius:12px;font-size:1rem">
+          </div>
+          <div>
+            <label style="font-size:0.82rem;font-weight:700;color:#555;display:block;margin-bottom:0.3rem">ציון מינימום</label>
+            <input type="number" id="qw-pass" value="${questData.passScore||70}" min="50" max="100"
+              style="width:100%;padding:0.8rem;border:2px solid #E0E0E0;border-radius:12px;font-size:1rem">
+          </div>
+        </div>
+
+        <button onclick="wizardNext1()"
+          style="width:100%;background:linear-gradient(135deg,#F59E0B,#D97706);
+                 color:white;border:none;border-radius:50px;padding:0.9rem;
+                 font-size:1.1rem;font-weight:700;cursor:pointer">
+          הבא — הוסף שאלות →
+        </button>
+      `;
+    }
+
+    else if(wizardStep === 2) {
+      inner.innerHTML = `
+        <h3 style="font-size:1.1rem;font-weight:900;margin-bottom:0.5rem">שלב 2 — שאלות (${questQuestions.length} כרגע)</h3>
+        <div style="font-size:0.82rem;color:#999;margin-bottom:1rem">מינימום שאלה אחת</div>
+
+        <div id="qw-questions-list" style="max-height:250px;overflow-y:auto;margin-bottom:1rem">
+          ${questQuestions.map((q,i) => `
+            <div style="
+              background:#F9FAFB;border:1px solid #E0E0E0;border-radius:12px;
+              padding:0.8rem;margin-bottom:0.5rem;
+              display:flex;justify-content:space-between;align-items:flex-start;
+            ">
+              <div style="flex:1">
+                <div style="font-size:0.9rem;font-weight:700">${i+1}. ${q.question}</div>
+                <div style="font-size:0.78rem;color:#22C55E;margin-top:0.2rem">✓ ${q.correct}</div>
+              </div>
+              <button onclick="removeQuestion(${i})"
+                style="background:none;border:none;color:#EF4444;font-size:1.2rem;cursor:pointer;padding:0 0.3rem">✕</button>
+            </div>
+          `).join('')}
+        </div>
+
+        <div style="background:#F0FDF4;border:2px solid #86EFAC;border-radius:16px;padding:1rem;margin-bottom:1rem">
+          <div style="font-size:0.85rem;font-weight:700;margin-bottom:0.5rem">➕ שאלה חדשה</div>
+          <input id="qw-q-text" placeholder="כתוב את השאלה..."
+            style="width:100%;padding:0.7rem;border:1.5px solid #D0D0D0;
+                   border-radius:10px;font-size:0.95rem;margin-bottom:0.5rem">
+          <select id="qw-q-type"
+            onchange="document.getElementById('qw-options-area').style.display=this.value==='multiple_choice'?'block':'none'"
+            style="width:100%;padding:0.7rem;border:1.5px solid #D0D0D0;
+                   border-radius:10px;font-size:0.95rem;margin-bottom:0.5rem">
+            <option value="multiple_choice">בחירה מרובה (4 אפשרויות)</option>
+            <option value="number">תשובה מספרית</option>
+            <option value="open_text">תשובה חופשית</option>
+          </select>
+          <div id="qw-options-area">
+            ${['א','ב','ג','ד'].map((letter,i) => `
+              <input id="qw-opt-${i}" placeholder="אפשרות ${letter}"
+                style="width:100%;padding:0.6rem;border:1.5px solid #D0D0D0;
+                       border-radius:10px;font-size:0.9rem;margin-bottom:0.4rem">
+            `).join('')}
+          </div>
+          <input id="qw-q-correct" placeholder="תשובה נכונה *"
+            style="width:100%;padding:0.7rem;border:1.5px solid #22C55E;
+                   border-radius:10px;font-size:0.95rem;margin-bottom:0.5rem">
+          <button onclick="addQuestion()"
+            style="width:100%;background:#22C55E;color:white;border:none;
+                   border-radius:50px;padding:0.7rem;font-size:0.95rem;font-weight:700;cursor:pointer">
+            ✅ הוסף שאלה
+          </button>
+        </div>
+
+        <div style="display:flex;gap:0.7rem">
+          <button onclick="wizardStep=1;renderStep()"
+            style="flex:1;background:#F3F4F6;color:#555;border:none;
+                   border-radius:50px;padding:0.8rem;cursor:pointer;font-weight:700">← חזרה</button>
+          <button onclick="wizardNext2()"
+            style="flex:2;background:linear-gradient(135deg,#F59E0B,#D97706);
+                   color:white;border:none;border-radius:50px;
+                   padding:0.8rem;font-size:1rem;font-weight:700;cursor:pointer">
+            הבא — בחר ילד →
+          </button>
+        </div>
+      `;
+    }
+
+    else if(wizardStep === 3) {
+      inner.innerHTML = `
+        <h3 style="font-size:1.1rem;font-weight:900;margin-bottom:1.2rem">שלב 3 — לאיזה ילד?</h3>
+        <div id="qw-children-list" style="margin-bottom:1.5rem">טוען ילדים...</div>
+        <div style="background:#FEF3C7;border-radius:16px;padding:1rem;margin-bottom:1.5rem;font-size:0.88rem;color:#92400E">
+          <strong>סיכום:</strong><br>
+          📝 ${questData.title}<br>
+          ❓ ${questQuestions.length} שאלות<br>
+          🪙 ${questData.flwReward} FLW לזכייה<br>
+          🎯 ציון מינימום: ${questData.passScore}%
+        </div>
+        <div style="display:flex;gap:0.7rem">
+          <button onclick="wizardStep=2;renderStep()"
+            style="flex:1;background:#F3F4F6;color:#555;border:none;
+                   border-radius:50px;padding:0.8rem;cursor:pointer;font-weight:700">← חזרה</button>
+          <button onclick="submitQuest()"
+            style="flex:2;background:linear-gradient(135deg,#F59E0B,#D97706);
+                   color:white;border:none;border-radius:50px;
+                   padding:0.8rem;font-size:1rem;font-weight:700;cursor:pointer">
+            🚀 שלח קווסט!
+          </button>
+        </div>
+      `;
+
+      fetch(`/api/family/members/${currentGroup?.id}`)
+        .then(r => r.json())
+        .then(data => {
+          const children = (data.members || []).filter(m =>
+            m.role === 'CHILD' || (new Date().getFullYear() - (m.birth_year || 2010)) <= 13
+          );
+          const el = document.getElementById('qw-children-list');
+          if(!el) return;
+          el.innerHTML = children.length === 0
+            ? '<p style="color:#999;text-align:center">אין ילדים במשפחה</p>'
+            : children.map(c => `
+                <div onclick="selectQuestChild(this,'${c.id}','${c.nickname}')"
+                  style="border:2px solid #E0E0E0;border-radius:14px;padding:1rem;
+                         cursor:pointer;display:flex;align-items:center;gap:0.8rem;
+                         margin-bottom:0.5rem;transition:all 0.2s;background:white">
+                  <span style="font-size:1.8rem">👦</span>
+                  <span style="font-weight:700">${c.nickname}</span>
+                </div>
+              `).join('');
+        }).catch(() => {
+          const el = document.getElementById('qw-children-list');
+          if(el) el.innerHTML = '<p style="color:#999">שגיאה בטעינת ילדים</p>';
+        });
+    }
+  }
+
+  window.wizardNext1 = function() {
+    const title = document.getElementById('qw-title')?.value.trim();
+    if(!title) return alert('נא להזין שם לקווסט');
+    questData = {
+      title,
+      subject: document.getElementById('qw-subject')?.value || 'general',
+      description: document.getElementById('qw-desc')?.value || '',
+      flwReward: parseInt(document.getElementById('qw-flw')?.value) || 15,
+      passScore: parseInt(document.getElementById('qw-pass')?.value) || 70
+    };
+    wizardStep = 2;
+    renderStep();
+  };
+
+  window.addQuestion = function() {
+    const text    = document.getElementById('qw-q-text')?.value.trim();
+    const correct = document.getElementById('qw-q-correct')?.value.trim();
+    const type    = document.getElementById('qw-q-type')?.value || 'multiple_choice';
+    if(!text || !correct) return alert('נא למלא שאלה ותשובה נכונה');
+    const options = type === 'multiple_choice'
+      ? [0,1,2,3].map(i => document.getElementById(`qw-opt-${i}`)?.value.trim()).filter(Boolean)
+      : [];
+    questQuestions.push({ question: text, type, correct, options });
+    renderStep();
+  };
+
+  window.removeQuestion = function(i) {
+    questQuestions.splice(i, 1);
+    renderStep();
+  };
+
+  window.wizardNext2 = function() {
+    if(questQuestions.length === 0) return alert('נא להוסיף לפחות שאלה אחת');
+    wizardStep = 3;
+    renderStep();
+  };
+
+  window.selectQuestChild = function(el, childId) {
+    document.querySelectorAll('#qw-children-list > div').forEach(d => {
+      d.style.border = '2px solid #E0E0E0';
+      d.style.background = 'white';
+    });
+    el.style.border = '2px solid #F59E0B';
+    el.style.background = '#FFFBEB';
+    _selectedChildIdForQuest = childId;
+  };
+
+  window.submitQuest = async function() {
+    if(!_selectedChildIdForQuest) return alert('נא לבחור ילד');
+    try {
+      const res = await fetch('/api/kids/quests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          familyGroupId: currentGroup?.id,
+          childUserId: parseInt(_selectedChildIdForQuest),
+          title: questData.title,
+          subject: questData.subject,
+          description: questData.description,
+          flwReward: questData.flwReward,
+          passScore: questData.passScore,
+          questions: questQuestions,
+          createdBy: currentUser?.id
+        })
+      });
+      const data = await res.json();
+      if(data.success) {
+        modal.remove();
+        showToast('success', `✅ הקווסט "${questData.title}" נשלח לילד! 🎯`);
+      } else {
+        showToast('error', data.error || 'שגיאה ביצירת הקווסט');
+      }
+    } catch(e) {
+      showToast('error', 'שגיאה בתקשורת');
+    }
+  };
+
+  modal.innerHTML = `
+    <div style="
+      background:white; border-radius:24px; padding:1.5rem;
+      max-width:420px; width:100%; max-height:90vh; overflow-y:auto;
+    ">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <h2 style="font-size:1.2rem;font-weight:900">✏️ בניית קווסט</h2>
+        <button onclick="document.getElementById('quest-wizard-modal').remove()"
+          style="background:none;border:none;font-size:1.5rem;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;gap:0.4rem;margin-bottom:1.2rem">
+        ${[1,2,3].map(s => `
+          <div style="flex:1;height:4px;border-radius:50px;
+            background:${wizardStep>=s?'#F59E0B':'#E0E0E0'};transition:background 0.3s"></div>
+        `).join('')}
+      </div>
+      <div id="quest-wizard-inner"></div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
+  renderStep();
+}
+
+// ============================================================
+// KID ACADEMY — טעינת משחקים וקווסטים מוקצים לילד
+// ============================================================
+
+async function loadKidAcademy() {
+  const userId = currentUser?.id;
+  if(!userId) return;
+
+  const container = document.getElementById('kid-academy-content');
+  if(!container) return;
+
+  try {
+    const [assignRes, questRes] = await Promise.all([
+      fetch(`/api/kids/assignments/${userId}`),
+      fetch(`/api/kids/quests/${userId}`)
+    ]);
+    const assignData = await assignRes.json();
+    const questData  = await questRes.json();
+
+    const assignments = assignData.assignments || [];
+    const quests      = questData.quests || [];
+
+    let html = '';
+
+    if(assignments.length > 0) {
+      html += `<div style="font-weight:700;font-size:1rem;margin-bottom:0.7rem">🎮 המשחקים שלי</div>`;
+      assignments.forEach(a => {
+        html += `
+          <div style="
+            background:linear-gradient(135deg,#EDE9FE,#DDD6FE);
+            border:2px solid #7C3AED;border-radius:16px;
+            padding:1rem;margin-bottom:0.7rem;
+            display:flex;align-items:center;gap:0.8rem;
+          ">
+            <span style="font-size:2.5rem">${a.thumbnail_emoji || '🎮'}</span>
+            <div style="flex:1">
+              <div style="font-weight:700;font-size:0.95rem">${a.title}</div>
+              <div style="font-size:0.8rem;color:#7C3AED">
+                נשארו ${a.rounds_left} סיבובים · ${a.flw_per_round} FLW לסיבוב
+              </div>
+            </div>
+            <button onclick="openGame(${a.id},'${a.file_path}','${currentUser?.nickname}',${a.flw_per_round},${a.game_id})"
+              ${a.rounds_left <= 0 ? 'disabled' : ''}
+              style="
+                background:${a.rounds_left > 0 ? '#7C3AED' : '#9CA3AF'};
+                color:white;border:none;border-radius:50px;
+                padding:0.5rem 1rem;font-size:0.85rem;font-weight:700;
+                cursor:${a.rounds_left > 0 ? 'pointer' : 'default'};
+              ">${a.rounds_left > 0 ? '🎮 שחק' : 'נגמר'}</button>
+          </div>
+        `;
+      });
+    }
+
+    if(quests.length > 0) {
+      html += `<div style="font-weight:700;font-size:1rem;margin-top:1rem;margin-bottom:0.7rem">🎯 הקווסטים שלי</div>`;
+      quests.forEach(q => {
+        html += `
+          <div style="
+            background:linear-gradient(135deg,#FEF3C7,#FDE68A);
+            border:2px solid #F59E0B;border-radius:16px;
+            padding:1rem;margin-bottom:0.7rem;
+          ">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">
+              <div style="font-weight:700">${q.title}</div>
+              <span style="background:#F59E0B;color:white;border-radius:50px;
+                           padding:0.2rem 0.7rem;font-size:0.75rem;font-weight:700">
+                🪙 ${q.flw_reward} FLW
+              </span>
+            </div>
+            ${q.description ? `<div style="font-size:0.82rem;color:#92400E;margin-bottom:0.7rem">${q.description}</div>` : ''}
+            <button onclick="startQuest(${q.id},'${q.title}',${q.flw_reward},${q.pass_score})"
+              style="width:100%;background:#F59E0B;color:white;border:none;border-radius:50px;
+                     padding:0.6rem;font-weight:700;cursor:pointer;font-size:0.9rem">
+              🎯 התחל קווסט (${q.question_count} שאלות)
+            </button>
+          </div>
+        `;
+      });
+    }
+
+    if(assignments.length === 0 && quests.length === 0) {
+      html = `
+        <div style="text-align:center;padding:2rem;color:#999">
+          <div style="font-size:3rem;margin-bottom:0.5rem">🎮</div>
+          <div style="font-size:0.95rem">
+            אין משחקים או קווסטים כרגע<br>
+            <span style="font-size:0.85rem">ההורה יקצה לך בקרוב!</span>
+          </div>
+        </div>
+      `;
+    }
+
+    container.innerHTML = html;
+  } catch(e) {
+    console.error('loadKidAcademy error:', e);
+  }
+}
+
+async function startQuest(questId, title, flwReward, passScore) {
+  try {
+    const res = await fetch(`/api/kids/quests/${questId}/questions`);
+    const data = await res.json();
+    const questions = data.questions || [];
+    if(questions.length === 0) return alert('הקווסט ריק');
+    openQuestPlayer(questId, title, questions, flwReward, passScore);
+  } catch(e) {
+    showToast('error', 'שגיאה בטעינת הקווסט');
+  }
+}
+
+function openQuestPlayer(questId, title, questions, flwReward, passScore) {
+  let currentQ = 0;
+  let answers = [];
+
+  const overlay = document.createElement('div');
+  overlay.id = 'quest-player';
+  overlay.style.cssText = `
+    position:fixed; inset:0; background:#F0FAFA;
+    z-index:9999; display:flex; flex-direction:column;
+  `;
+
+  function renderQ() {
+    const q = questions[currentQ];
+    const opts = q.options_json || [];
+    const pct = Math.round((currentQ / questions.length) * 100);
+
+    overlay.innerHTML = `
+      <div style="
+        background:linear-gradient(135deg,#F59E0B,#D97706);
+        padding:0.8rem 1rem;
+        display:flex;align-items:center;justify-content:space-between;
+      ">
+        <span style="color:white;font-weight:700">${title}</span>
+        <span style="color:white;font-size:0.85rem">${currentQ+1}/${questions.length}</span>
+      </div>
+      <div style="height:4px;background:#FDE68A">
+        <div style="height:100%;width:${pct}%;background:#D97706;transition:width 0.4s"></div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:1.2rem;max-width:500px;margin:0 auto;width:100%">
+        <div style="background:white;border-radius:20px;padding:1.5rem;text-align:center;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.08);margin-bottom:1rem">
+          <div style="font-size:1.1rem;font-weight:700;line-height:1.5">${q.question_text}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem">
+          ${opts.length > 0
+            ? opts.map((opt, i) => `
+                <button onclick="selectAnswer(this,'${opt.replace(/'/g, "\\'")}',${i})"
+                  class="quest-opt-btn"
+                  style="background:white;border:3px solid #E0E0E0;border-radius:16px;
+                         padding:1rem 0.5rem;font-size:1rem;font-weight:700;cursor:pointer;
+                         transition:all 0.2s;">${opt}</button>
+              `).join('')
+            : `<input id="quest-open-ans"
+                 placeholder="${q.answer_type === 'number' ? 'הכנס מספר...' : 'כתוב תשובה...'}"
+                 type="${q.answer_type === 'number' ? 'number' : 'text'}"
+                 style="grid-column:1/-1;padding:1rem;border:3px solid #E0E0E0;
+                        border-radius:16px;font-size:1.1rem;text-align:center;">`
+          }
+        </div>
+        <button id="quest-next-btn" onclick="nextQuestQ()" style="display:none;
+          width:100%;margin-top:1rem;
+          background:linear-gradient(135deg,#F59E0B,#D97706);
+          color:white;border:none;border-radius:50px;
+          padding:0.9rem;font-size:1.1rem;font-weight:700;cursor:pointer">
+          ${currentQ < questions.length - 1 ? 'הבא ←' : '🏆 סיום!'}
+        </button>
+      </div>
+    `;
+  }
+
+  window.selectAnswer = function(btn, val) {
+    document.querySelectorAll('.quest-opt-btn').forEach(b => {
+      b.style.border = '3px solid #E0E0E0';
+      b.style.background = 'white';
+    });
+    btn.style.border = '3px solid #F59E0B';
+    btn.style.background = '#FEF3C7';
+    answers[currentQ] = val;
+    const nb = document.getElementById('quest-next-btn');
+    if(nb) nb.style.display = 'block';
+  };
+
+  window.nextQuestQ = async function() {
+    const openInput = document.getElementById('quest-open-ans');
+    if(openInput) answers[currentQ] = openInput.value;
+    if(!answers[currentQ]) return alert('נא לענות על השאלה');
+
+    currentQ++;
+    if(currentQ >= questions.length) {
+      try {
+        const res = await fetch(`/api/kids/quests/${questId}/submit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ childUserId: currentUser?.id, answers })
+        });
+        const result = await res.json();
+        showQuestResult(result);
+      } catch(e) {
+        showToast('error', 'שגיאה בשליחת התוצאות');
+      }
+    } else {
+      renderQ();
+    }
+  };
+
+  function showQuestResult(result) {
+    overlay.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+                  min-height:100vh;padding:2rem;text-align:center;">
+        <div style="font-size:4rem;margin-bottom:0.5rem">${result.passed ? '🏆' : '💪'}</div>
+        <div style="font-size:1.8rem;font-weight:900;margin-bottom:0.5rem;
+                    color:${result.passed ? '#F59E0B' : '#EF4444'}">
+          ${result.passed ? 'כל הכבוד! עברת!' : 'ניסיון טוב!'}
+        </div>
+        <div style="font-size:1rem;color:#666;margin-bottom:1.5rem">
+          ${result.correct} מתוך ${result.total} נכון (${result.score}%)
+        </div>
+        <div style="background:white;border-radius:20px;padding:1.5rem 2rem;
+                    margin-bottom:1.5rem;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
+          <div style="font-size:0.85rem;color:#999;margin-bottom:0.3rem">FLW שצברת</div>
+          <div style="font-size:3rem;font-weight:900;color:#F59E0B">+${result.flwEarned} 🪙</div>
+        </div>
+        <button onclick="document.getElementById('quest-player').remove();if(typeof loadKidAcademy==='function')loadKidAcademy();"
+          style="background:linear-gradient(135deg,#F59E0B,#D97706);color:white;border:none;
+                 border-radius:50px;padding:1rem 3rem;font-size:1.2rem;font-weight:700;cursor:pointer">
+          🏠 חזרה לאקדמיה
+        </button>
+      </div>
+    `;
+  }
+
+  document.body.appendChild(overlay);
+  renderQ();
+}
+// ─── END KIDS GAMES & QUESTS UI ──────────────────────────────────────────────
 
