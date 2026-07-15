@@ -8630,6 +8630,8 @@ window.openEditQuoteModal = async function(quoteId) {
             desc: i.item_name || i.name || '',
             qty: parseFloat(i.quantity) || 1,
             price: parseFloat(i.price_at_order || i.price) || 0,
+            unit: i.unit || "יח'",
+            boxSize: i.boxSize || '',
             catalogId: (i.catalogId && i.catalogId !== 0) ? i.catalogId : null,
             note: i.note || ''
         });
@@ -10829,7 +10831,7 @@ window.showCustomerQuoteModal = function(customerId, options = {}) {
                         </div>
                     </div>
                     <div class="grid grid-cols-12 gap-1 text-[10px] font-bold text-slate-400 mb-1 px-1">
-                        <span class="col-span-5">תיאור</span><span class="col-span-2 text-center">כמות</span><span class="col-span-2 text-center">מחיר</span><span class="col-span-2 text-center">סה"כ</span><span class="col-span-1"></span>
+                        <span class="col-span-4">תיאור</span><span class="col-span-2 text-center">כמות</span><span class="col-span-2 text-center">יחידה</span><span class="col-span-2 text-center">מחיר</span><span class="col-span-1 text-center">סה"כ</span><span class="col-span-1"></span>
                     </div>
                     <div id="cq-lines" class="space-y-1.5"></div>
                     <div class="border-t border-slate-200 mt-3 pt-2 space-y-1">
@@ -10990,7 +10992,7 @@ window._cqBuildSavePayload = function() {
     const q = window.cqGetQuoteData();
     const lines = q.lines.filter(l => l.desc || l.total > 0);
     if (q.myCompanyId) localStorage.setItem('ofl_my_company_id', q.myCompanyId);
-    const items = lines.map(l => ({ name: l.desc, quantity: l.qty, price: l.price, catalogId: l.catalogId || null, note: l.note || undefined }));
+    const items = lines.map(l => ({ name: l.desc, quantity: l.qty, unit: l.unit || "יח'", boxSize: l.boxSize || undefined, price: l.price, catalogId: l.catalogId || null, note: l.note || undefined }));
     items.push({ is_quote_metadata: true, data: JSON.stringify({
         title: q.title, companyId: q.companyId, myCompanyId: q.myCompanyId,
         validity: q.validity, notes: q.notes, internalNote: q.internalNote,
@@ -11055,17 +11057,39 @@ window.cqAddLine = function(prefill = {}) {
     const div = document.createElement('div');
     div.className = 'space-y-0.5 border-b border-slate-100 pb-1.5 mb-1';
     div.dataset.catalogId = prefill.catalogId || '';
+    const unitVal = prefill.unit || 'יח\'';
+    const boxSize = prefill.boxSize || '';
     div.innerHTML = `
         <div class="grid grid-cols-12 gap-1 items-center">
-            <input type="text" value="${safeStr(prefill.desc||'')}" placeholder="תיאור עבודה..." class="col-span-5 border border-slate-200 rounded-lg px-2 py-1.5 text-xs cq-desc">
-            <input type="number" value="${prefill.qty||1}" min="0" oninput="window.cqCalcTotal()" class="col-span-2 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center cq-qty">
+            <input type="text" value="${safeStr(prefill.desc||'')}" placeholder="תיאור עבודה..." class="col-span-4 border border-slate-200 rounded-lg px-2 py-1.5 text-xs cq-desc">
+            <input type="number" value="${prefill.qty||1}" min="0" step="0.01" oninput="window.cqCalcTotal()" class="col-span-2 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center cq-qty">
+            <select onchange="window.cqToggleBoxSize(this)" class="col-span-2 border border-slate-200 rounded-lg px-1 py-1.5 text-[10px] bg-white cq-unit">
+                <option value="יח'" ${unitVal==="יח'"?'selected':''}>יח'</option>
+                <option value="ק&quot;ג" ${unitVal==='ק"ג'?'selected':''}>ק"ג</option>
+                <option value="גרם" ${unitVal==='גרם'?'selected':''}>גרם</option>
+                <option value="טון" ${unitVal==='טון'?'selected':''}>טון</option>
+                <option value="מטר" ${unitVal==='מטר'?'selected':''}>מטר</option>
+                <option value="ס&quot;מ" ${unitVal==='ס"מ'?'selected':''}>ס"מ</option>
+                <option value="אריזה" ${unitVal==='אריזה'?'selected':''}>אריזה</option>
+                <option value="קופסא" ${unitVal==='קופסא'?'selected':''}>קופסא</option>
+            </select>
             <input type="number" value="${prefill.price||0}" min="0" step="0.01" oninput="window.cqCalcTotal()" class="col-span-2 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center dir-ltr cq-price">
-            <span class="col-span-2 text-xs font-bold text-slate-700 text-center cq-line-total">₪${((prefill.qty||1)*(prefill.price||0)).toFixed(0)}</span>
+            <span class="col-span-1 text-xs font-bold text-slate-700 text-center cq-line-total">₪${((prefill.qty||1)*(prefill.price||0)).toFixed(0)}</span>
             <button onclick="this.closest('.space-y-0\\.5').remove();window.cqCalcTotal()" class="col-span-1 text-slate-300 hover:text-red-400 text-center text-xs"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="cq-box-wrap flex items-center gap-1 mt-0.5 ${unitVal==='קופסא'?'':'hidden'}">
+            <span class="text-[10px] text-slate-400">יח' בקופסא:</span>
+            <input type="number" value="${boxSize}" min="1" placeholder="כמות" class="w-16 border border-slate-200 rounded-lg px-2 py-1 text-[10px] text-center cq-box-size">
+            <span class="text-[10px] text-slate-400">יח' לקופסא סגורה</span>
         </div>
         <input type="text" value="${safeStr(prefill.note||'')}" placeholder="הערה לשורה (לא חובה)..." class="w-full border border-slate-100 bg-slate-50 rounded-lg px-2 py-1 text-[10px] text-slate-500 placeholder-slate-300 cq-line-note">`;
     container.appendChild(div);
     window.cqCalcTotal();
+};
+
+window.cqToggleBoxSize = function(sel) {
+    const wrap = sel.closest('.space-y-0\\.5')?.querySelector('.cq-box-wrap');
+    if (wrap) wrap.classList.toggle('hidden', sel.value !== 'קופסא');
 };
 
 window.cqCalcTotal = function() {
@@ -11105,8 +11129,10 @@ window.cqGetQuoteData = function() {
         const desc = line.querySelector('.cq-desc')?.value?.trim();
         const qty = parseFloat(line.querySelector('.cq-qty')?.value || 0);
         const price = parseFloat(line.querySelector('.cq-price')?.value || 0);
+        const unit = line.querySelector('.cq-unit')?.value || "יח'";
+        const boxSize = unit === 'קופסא' ? (parseInt(line.querySelector('.cq-box-size')?.value) || null) : null;
         const note = line.querySelector('.cq-line-note')?.value?.trim() || '';
-        if (desc || qty || price) lines.push({ desc: desc||'', qty, price, total: qty*price, catalogId: line.dataset?.catalogId || null, note: note || undefined });
+        if (desc || qty || price) lines.push({ desc: desc||'', qty, price, unit, boxSize, total: qty*price, catalogId: line.dataset?.catalogId || null, note: note || undefined });
     });
     const { subtotal, discount, discountAmount, beforeVat, vatRate, vatAmount, total } = window.cqCalcTotal();
     return {
