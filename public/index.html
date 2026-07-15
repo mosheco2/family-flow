@@ -433,6 +433,30 @@
                         </div>
                     </header>
 
+                <!-- ★ CHILD NAV BAR — פשוט לילדים -->
+                <div id="child-nav-bar" class="hidden bg-violet-700 px-2 py-2 flex items-center justify-around border-b border-violet-600 relative z-30">
+                  <button onclick="switchTab('feed')" id="cnav-feed" class="child-nav-btn flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-white opacity-80 hover:opacity-100 transition">
+                    <i class="fa-solid fa-house text-base"></i>
+                    <span class="text-[10px] font-bold">ראשי</span>
+                  </button>
+                  <button onclick="switchTab('academy')" id="cnav-academy" class="child-nav-btn flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-white opacity-80 hover:opacity-100 transition">
+                    <i class="fa-solid fa-graduation-cap text-base"></i>
+                    <span class="text-[10px] font-bold">אקדמיה</span>
+                  </button>
+                  <button onclick="switchTab('tasks')" id="cnav-tasks" class="child-nav-btn flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-white opacity-80 hover:opacity-100 transition">
+                    <i class="fa-solid fa-list-check text-base"></i>
+                    <span class="text-[10px] font-bold">משימות</span>
+                  </button>
+                  <button onclick="switchTab('shop')" id="cnav-shop" class="child-nav-btn flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-white opacity-80 hover:opacity-100 transition">
+                    <i class="fa-solid fa-cart-shopping text-base"></i>
+                    <span class="text-[10px] font-bold">קניות</span>
+                  </button>
+                  <button onclick="switchTab('bank')" id="cnav-bank" class="child-nav-btn flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-white opacity-80 hover:opacity-100 transition">
+                    <i class="fa-solid fa-piggy-bank text-base"></i>
+                    <span class="text-[10px] font-bold">חיסכון</span>
+                  </button>
+                </div>
+
                 <!-- ★ FAMILY GROUP NAV — 3 קבוצות -->
                 <div id="family-group-nav" class="bg-slate-900 px-2 py-1.5 flex items-center gap-0.5 border-b border-slate-800 relative z-30 overflow-x-auto" style="scrollbar-width:none">
 
@@ -675,7 +699,7 @@
                         <!-- ★ CHILD HOME HEADER -->
                         <div id="child-home-header" class="hidden px-2 mb-4">
                           <div class="bg-gradient-to-br from-violet-500 to-indigo-600 rounded-2xl p-5 text-white shadow-lg shadow-violet-200 relative overflow-hidden">
-                            <i class="fa-solid fa-star absolute -right-4 -bottom-4 text-[5rem] text-white opacity-10 rotate-12"></i>
+                            <i class="fa-solid fa-star absolute -right-4 -bottom-4 text-[5rem] text-white opacity-10 rotate-12 pointer-events-none"></i>
                             <p class="text-violet-100 text-xs font-medium mb-0.5 opacity-80">היתרה שלי</p>
                             <h1 class="text-3xl font-bold tracking-tight" dir="ltr" id="child-balance-display">₪0</h1>
                             <p class="text-violet-100 text-sm mt-3 mb-4 opacity-90" id="child-greeting-text">שלום! 👋</p>
