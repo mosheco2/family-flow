@@ -3106,6 +3106,7 @@ app.delete('/api/sa/groups/:id/permanent', verifySA, async (req, res) => {
         await client.query('BEGIN');
         await client.query('UPDATE inbox_messages SET customer_group_id=NULL WHERE customer_group_id=$1', [gid]);
         await client.query('UPDATE calendar_events SET customer_group_id=NULL WHERE customer_group_id=$1', [gid]);
+        await client.query('UPDATE store_settings SET store_alias=NULL WHERE group_id=$1', [gid]);
         await client.query('DELETE FROM family_groups WHERE id=$1', [gid]);
         await client.query('COMMIT');
         await logAudit('PERMANENT_DELETE', 'GROUP', parseInt(gid), name, { permanent: true });
@@ -3510,6 +3511,8 @@ app.delete('/api/superadmin/groups/:id', verifySA, async (req, res) => {
         const { name, type, business_type } = row.rows[0];
         // snapshot לפני המחיקה
         await takeGroupSnapshot(parseInt(gid), 'pre_delete');
+        // שחרור כינוי החנות כדי לאפשר שימוש חוזר בו
+        await pool.query(`UPDATE store_settings SET store_alias=NULL WHERE group_id=$1`, [gid]);
         // soft delete
         await pool.query(`UPDATE family_groups SET is_deleted=true, deleted_at=NOW() WHERE id=$1`, [gid]);
         await logAudit('DELETE_GROUP', type || business_type || 'GROUP', parseInt(gid), name, { soft: true });
@@ -5942,8 +5945,22 @@ app.post('/api/store/settings', async (req, res) => {
         const aliasVal = storeAlias && storeAlias.trim() !== '' ? storeAlias.trim().toLowerCase() : null;
 
         if (aliasVal) {
-            const aliasCheck = await pool.query('SELECT group_id FROM store_settings WHERE store_alias = $1 AND group_id != $2', [aliasVal, groupId]);
+            const aliasCheck = await pool.query(
+                `SELECT ss.group_id FROM store_settings ss
+                 JOIN family_groups fg ON fg.id = ss.group_id
+                 WHERE ss.store_alias = $1 AND ss.group_id != $2
+                   AND (fg.is_deleted = false OR fg.is_deleted IS NULL)`,
+                [aliasVal, groupId]
+            );
             if (aliasCheck.rows.length > 0) return res.status(400).json({ error: 'הכינוי הזה כבר תפוס ע"י חנות אחרת, אנא בחרו כינוי אחר.' });
+            // נקה aliases עתיקים של קבוצות מחוקות עם אותו שם
+            await pool.query(
+                `UPDATE store_settings ss SET store_alias=NULL
+                 FROM family_groups fg
+                 WHERE ss.group_id = fg.id AND ss.store_alias = $1
+                   AND fg.is_deleted = true AND ss.group_id != $2`,
+                [aliasVal, groupId]
+            );
         }
         
         const enableTableBookingVal = (enableTableBooking === true || String(enableTableBooking) === 'true');
