@@ -1711,6 +1711,21 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       )`); } catch(e) {}
       // ─── END KIDS GAMES INFRASTRUCTURE ───────────────────────────────────
 
+      // עדכון default_character_url + הוספת משחק ראשון
+      try { await client.query(`
+          UPDATE games_global_config
+          SET default_character_url = '/games/assets/images/robot-default.svg'
+          WHERE default_character_url = ''
+      `); } catch(e) {}
+
+      try { await client.query(`
+          INSERT INTO games_catalog
+            (title, subject, age_min, age_max, difficulty, flw_reward, file_path, thumbnail_emoji, is_active)
+          VALUES
+            ('אנגלית — מהאלף-בית למילים', 'english', 5, 8, 1, 20, 'games/english-alphabet-1.html', '🔤', true)
+          ON CONFLICT DO NOTHING
+      `); } catch(e) {}
+
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
