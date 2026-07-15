@@ -1709,6 +1709,63 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           duration_seconds INT DEFAULT 0,
           played_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
+      // ─── GAME ASSIGNMENTS & QUESTS INFRASTRUCTURE ───────────────────────────
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS game_assignments (
+          id SERIAL PRIMARY KEY,
+          family_group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          child_user_id INT REFERENCES users(id) ON DELETE CASCADE,
+          game_id INT REFERENCES games_catalog(id) ON DELETE CASCADE,
+          rounds_total INT DEFAULT 3,
+          rounds_used INT DEFAULT 0,
+          flw_per_round INT DEFAULT 10,
+          status VARCHAR(20) DEFAULT 'active',
+          assigned_by INT REFERENCES users(id),
+          assigned_at TIMESTAMP DEFAULT NOW(),
+          expires_at TIMESTAMP
+        )
+      `); } catch(e) {}
+
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS kid_quests (
+          id SERIAL PRIMARY KEY,
+          family_group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          child_user_id INT REFERENCES users(id) ON DELETE CASCADE,
+          title VARCHAR(200) NOT NULL,
+          subject VARCHAR(50) DEFAULT 'general',
+          description TEXT,
+          flw_reward INT DEFAULT 10,
+          pass_score INT DEFAULT 70,
+          status VARCHAR(20) DEFAULT 'active',
+          created_by INT REFERENCES users(id),
+          created_at TIMESTAMP DEFAULT NOW(),
+          due_date TIMESTAMP
+        )
+      `); } catch(e) {}
+
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS kid_quest_questions (
+          id SERIAL PRIMARY KEY,
+          quest_id INT REFERENCES kid_quests(id) ON DELETE CASCADE,
+          question_text TEXT NOT NULL,
+          answer_type VARCHAR(30) DEFAULT 'multiple_choice',
+          correct_answer TEXT NOT NULL,
+          options_json JSONB,
+          order_index INT DEFAULT 0
+        )
+      `); } catch(e) {}
+
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS kid_quest_results (
+          id SERIAL PRIMARY KEY,
+          quest_id INT REFERENCES kid_quests(id) ON DELETE CASCADE,
+          child_user_id INT REFERENCES users(id) ON DELETE CASCADE,
+          score INT DEFAULT 0,
+          answers_json JSONB,
+          flw_earned INT DEFAULT 0,
+          completed_at TIMESTAMP DEFAULT NOW()
+        )
+      `); } catch(e) {}
       // ─── END KIDS GAMES INFRASTRUCTURE ───────────────────────────────────
 
       // עדכון default_character_url + הוספת משחק ראשון
@@ -21487,6 +21544,307 @@ app.get('/api/sa/games/stats', verifySA, async (req, res) => {
         `);
         res.json({ success: true, stats: stats.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── GAME ASSIGNMENTS API ─────────────────────────────────────────────────────
+
+// הקצה משחק לילד (הורה)
+app.post('/api/kids/assign-game', async (req, res) => {
+  try {
+    const { familyGroupId, childUserId, gameId,
+            roundsTotal, flwPerRound, expiresAt } = req.body;
+
+    const game = await pool.query(
+      'SELECT id, title FROM games_catalog WHERE id=$1 AND is_active=true',
+      [gameId]
+    );
+    if(!game.rows[0])
+      return res.status(404).json({ error: 'משחק לא נמצא או לא פעיל' });
+
+    await pool.query(`
+      UPDATE game_assignments SET status='cancelled'
+      WHERE child_user_id=$1 AND game_id=$2 AND status='active'
+    `, [childUserId, gameId]);
+
+    const result = await pool.query(`
+      INSERT INTO game_assignments
+        (family_group_id, child_user_id, game_id,
+         rounds_total, rounds_used, flw_per_round,
+         status, assigned_by, expires_at)
+      VALUES ($1,$2,$3,$4,0,$5,'active',$6,$7)
+      RETURNING *
+    `, [familyGroupId, childUserId, gameId,
+        roundsTotal||3, flwPerRound||10,
+        req.body.parentUserId||null, expiresAt||null]);
+
+    try {
+      await pool.query(`
+        INSERT INTO alert_notifications
+          (group_id, trigger_type, message, reference_key, created_at)
+        VALUES ($1,'game_assigned','משחק חדש מחכה לך! 🎮','game',NOW())
+      `, [familyGroupId]);
+    } catch(e) {}
+
+    res.json({ success: true, assignment: result.rows[0] });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// משחקים מוקצים לילד
+app.get('/api/kids/assignments/:childId', async (req, res) => {
+  try {
+    const assignments = await pool.query(`
+      SELECT ga.*, g.title, g.subject, g.thumbnail_emoji,
+             g.file_path, g.difficulty,
+             (ga.rounds_total - ga.rounds_used) as rounds_left
+      FROM game_assignments ga
+      JOIN games_catalog g ON g.id = ga.game_id
+      WHERE ga.child_user_id = $1
+        AND ga.status = 'active'
+        AND (ga.expires_at IS NULL OR ga.expires_at > NOW())
+      ORDER BY ga.assigned_at DESC
+    `, [req.params.childId]);
+
+    res.json({ success: true, assignments: assignments.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// סיום סיבוב משחק — ניכוי סיבוב
+app.post('/api/kids/use-round', async (req, res) => {
+  try {
+    const { assignmentId, childUserId, score, flwEarned } = req.body;
+
+    const asgn = await pool.query(
+      'SELECT * FROM game_assignments WHERE id=$1 AND child_user_id=$2',
+      [assignmentId, childUserId]
+    );
+    if(!asgn.rows[0])
+      return res.status(404).json({ error: 'הקצאה לא נמצאה' });
+
+    const a = asgn.rows[0];
+    if(a.rounds_used >= a.rounds_total)
+      return res.status(400).json({ error: 'נגמרו הסיבובים', exhausted: true });
+
+    const newUsed = a.rounds_used + 1;
+    const newStatus = newUsed >= a.rounds_total ? 'exhausted' : 'active';
+
+    await pool.query(`
+      UPDATE game_assignments SET rounds_used=$1, status=$2 WHERE id=$3
+    `, [newUsed, newStatus, assignmentId]);
+
+    if(flwEarned > 0) {
+      await pool.query(`
+        INSERT INTO flw_kid_wallets
+          (child_user_id, family_group_id, balance_flw, lifetime_flw)
+        SELECT $1, group_id, $2, $2 FROM users WHERE id=$1
+        ON CONFLICT (child_user_id) DO UPDATE SET
+          balance_flw = flw_kid_wallets.balance_flw + $2,
+          lifetime_flw = flw_kid_wallets.lifetime_flw + $2,
+          updated_at = NOW()
+      `, [childUserId, flwEarned]);
+
+      await pool.query(`
+        INSERT INTO game_sessions (child_user_id, game_id, score, flw_earned)
+        VALUES ($1,$2,$3,$4)
+      `, [childUserId, a.game_id, score||0, flwEarned]);
+    }
+
+    res.json({
+      success: true,
+      roundsLeft: a.rounds_total - newUsed,
+      exhausted: newStatus === 'exhausted',
+      message: newStatus === 'exhausted'
+        ? 'כל הסיבובים נוצלו! 🎯'
+        : `נשארו עוד ${a.rounds_total - newUsed} סיבובים`
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// חידוש הקצאה (הורה)
+app.post('/api/kids/renew-assignment/:id', async (req, res) => {
+  try {
+    const { roundsTotal } = req.body;
+
+    await pool.query(`
+      UPDATE game_assignments SET
+        rounds_used = 0,
+        rounds_total = COALESCE($1, rounds_total),
+        status = 'active',
+        assigned_at = NOW()
+      WHERE id = $2
+    `, [roundsTotal||null, req.params.id]);
+
+    res.json({ success: true, message: 'ההקצאה חודשה!' });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── QUESTS API ───────────────────────────────────────────────────────────────
+
+// יצירת קווסט (הורה)
+app.post('/api/kids/quests', async (req, res) => {
+  try {
+    const { familyGroupId, childUserId, title, subject,
+            description, flwReward, passScore,
+            dueDate, questions, createdBy } = req.body;
+
+    if(!questions?.length)
+      return res.status(400).json({ error: 'נדרשת לפחות שאלה אחת' });
+
+    const quest = await pool.query(`
+      INSERT INTO kid_quests
+        (family_group_id, child_user_id, title, subject,
+         description, flw_reward, pass_score,
+         status, created_by, due_date)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,'active',$8,$9)
+      RETURNING *
+    `, [familyGroupId, childUserId, title, subject||'general',
+        description||null, flwReward||10, passScore||70,
+        createdBy||null, dueDate||null]);
+
+    const questId = quest.rows[0].id;
+
+    for(let i=0; i<questions.length; i++){
+      const q = questions[i];
+      await pool.query(`
+        INSERT INTO kid_quest_questions
+          (quest_id, question_text, answer_type,
+           correct_answer, options_json, order_index)
+        VALUES ($1,$2,$3,$4,$5,$6)
+      `, [questId, q.question, q.type||'multiple_choice',
+          q.correct, JSON.stringify(q.options||[]), i]);
+    }
+
+    try {
+      await pool.query(`
+        INSERT INTO alert_notifications
+          (group_id, trigger_type, message, reference_key, created_at)
+        VALUES ($1,'quest_assigned','קווסט חדש מחכה לך! 🎯','quest',NOW())
+      `, [familyGroupId]);
+    } catch(e) {}
+
+    res.json({ success: true, quest: quest.rows[0], questId });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// קווסטים פעילים לילד
+app.get('/api/kids/quests/:childId', async (req, res) => {
+  try {
+    const quests = await pool.query(`
+      SELECT q.*, COUNT(qq.id) as question_count
+      FROM kid_quests q
+      LEFT JOIN kid_quest_questions qq ON qq.quest_id = q.id
+      WHERE q.child_user_id = $1
+        AND q.status = 'active'
+        AND (q.due_date IS NULL OR q.due_date > NOW())
+      GROUP BY q.id
+      ORDER BY q.created_at DESC
+    `, [req.params.childId]);
+
+    res.json({ success: true, quests: quests.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שאלות קווסט
+app.get('/api/kids/quests/:questId/questions', async (req, res) => {
+  try {
+    const questions = await pool.query(`
+      SELECT * FROM kid_quest_questions
+      WHERE quest_id = $1
+      ORDER BY order_index
+    `, [req.params.questId]);
+
+    res.json({ success: true, questions: questions.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליחת תוצאות קווסט
+app.post('/api/kids/quests/:questId/submit', async (req, res) => {
+  try {
+    const { childUserId, answers } = req.body;
+    const questId = req.params.questId;
+
+    const questRow = await pool.query('SELECT * FROM kid_quests WHERE id=$1', [questId]);
+    if(!questRow.rows[0])
+      return res.status(404).json({ error: 'קווסט לא נמצא' });
+
+    const q = questRow.rows[0];
+
+    const questionsRow = await pool.query(
+      'SELECT * FROM kid_quest_questions WHERE quest_id=$1 ORDER BY order_index',
+      [questId]
+    );
+
+    let correct = 0;
+    const results = questionsRow.rows.map((question, i) => {
+      const userAns = answers[i];
+      const isCorrect = userAns?.toString().trim().toLowerCase() ===
+                        question.correct_answer.toString().trim().toLowerCase();
+      if(isCorrect) correct++;
+      return { questionId: question.id, userAnswer: userAns, correct: isCorrect };
+    });
+
+    const score = Math.round((correct / questionsRow.rows.length) * 100);
+    const passed = score >= q.pass_score;
+    const flwEarned = passed ? q.flw_reward : Math.round(q.flw_reward * score / 100);
+
+    await pool.query(`
+      INSERT INTO kid_quest_results
+        (quest_id, child_user_id, score, answers_json, flw_earned)
+      VALUES ($1,$2,$3,$4,$5)
+    `, [questId, childUserId, score, JSON.stringify(results), flwEarned]);
+
+    await pool.query("UPDATE kid_quests SET status='completed' WHERE id=$1", [questId]);
+
+    if(flwEarned > 0) {
+      await pool.query(`
+        INSERT INTO flw_kid_wallets
+          (child_user_id, family_group_id, balance_flw, lifetime_flw)
+        SELECT $1, $2, $3, $3
+        ON CONFLICT (child_user_id) DO UPDATE SET
+          balance_flw = flw_kid_wallets.balance_flw + $3,
+          lifetime_flw = flw_kid_wallets.lifetime_flw + $3,
+          updated_at = NOW()
+      `, [childUserId, q.family_group_id, flwEarned]);
+    }
+
+    try {
+      await pool.query(`
+        INSERT INTO alert_notifications
+          (group_id, trigger_type, message, reference_key, created_at)
+        VALUES ($1,'quest_completed',$2,'quest',NOW())
+      `, [q.family_group_id,
+          `${passed?'✅':'📊'} קווסט הושלם — ציון: ${score}%`]);
+    } catch(e) {}
+
+    res.json({
+      success: true, score, passed,
+      correct, total: questionsRow.rows.length,
+      flwEarned,
+      message: passed
+        ? `כל הכבוד! עברת ב-${score}%! 🎉`
+        : `ציון: ${score}% — המשך להתאמן! 💪`
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// קווסטים שהורה יצר
+app.get('/api/kids/parent-quests/:parentId', async (req, res) => {
+  try {
+    const quests = await pool.query(`
+      SELECT q.*, u.nickname as child_name,
+        COUNT(qq.id) as question_count,
+        qr.score as last_score,
+        qr.completed_at as last_completed
+      FROM kid_quests q
+      LEFT JOIN users u ON u.id = q.child_user_id
+      LEFT JOIN kid_quest_questions qq ON qq.quest_id = q.id
+      LEFT JOIN kid_quest_results qr ON qr.quest_id = q.id
+      WHERE q.created_by = $1
+      GROUP BY q.id, u.nickname, qr.score, qr.completed_at
+      ORDER BY q.created_at DESC
+    `, [req.params.parentId]);
+
+    res.json({ success: true, quests: quests.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ─── END KIDS GAMES API ───────────────────────────────────────────────────────
