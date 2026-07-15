@@ -2440,6 +2440,25 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                 <div class="w-9 h-9 rounded-xl bg-pink-500 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-pen-ruler text-white text-xs"></i></div>
                                 <div><p class="font-bold text-slate-800 group-hover:text-pink-700 transition text-sm">UX Mockup <i class="fa-solid fa-arrow-up-right-from-square text-xs text-pink-400 mr-1"></i></p><p class="text-xs text-slate-400">/ux-mockup.html</p></div>
                             </a>
+                            <div class="flex items-start gap-3 p-4 bg-cyan-50 rounded-2xl border border-cyan-200">
+                                <div class="w-9 h-9 rounded-xl bg-cyan-600 flex items-center justify-center flex-shrink-0 flex-shrink-0"><i class="fa-solid fa-briefcase text-white text-xs"></i></div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <a href="/biz-landing.html" target="_blank" class="font-bold text-slate-800 hover:text-cyan-700 transition text-sm">דף שיווקי עסקים <i class="fa-solid fa-arrow-up-right-from-square text-xs text-cyan-400 mr-1"></i></a>
+                                        <button onclick="toggleBizLandingPanel()" class="text-xs bg-cyan-600 hover:bg-cyan-700 text-white px-2 py-0.5 rounded-lg font-bold transition"><i class="fa-solid fa-image ml-1"></i>ניהול תמונות</button>
+                                    </div>
+                                    <p class="text-xs text-slate-400">/biz-landing.html</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ניהול תמונות דף שיווקי -->
+                        <div id="biz-landing-panel" class="hidden mt-4 bg-white border border-cyan-200 rounded-2xl overflow-hidden">
+                            <div class="flex items-center justify-between px-5 py-3 bg-cyan-50 border-b border-cyan-100">
+                                <h4 class="font-black text-cyan-800 text-sm flex items-center gap-2"><i class="fa-solid fa-image text-cyan-600"></i> ניהול תמונות — דף שיווקי לעסקים</h4>
+                                <button onclick="toggleBizLandingPanel()" class="text-slate-400 hover:text-slate-700 text-lg leading-none">&times;</button>
+                            </div>
+                            <div class="p-4 space-y-3" id="biz-img-rows"></div>
                         </div>
                     </div>
                 </div>
@@ -3981,6 +4000,101 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
         }
     } catch(e) {}
 })();
+</script>
+
+<script>
+// ─── ניהול תמונות דף שיווקי ───────────────────────────────────────────
+const BIZ_LANDING_SLOTS = [
+  {key:'hero',      label:'1 — Hero (כותרת ראשית)'},
+  {key:'pain',      label:'2 — Pain (הכאב)'},
+  {key:'solution',  label:'3 — Solution (הפתרון)'},
+  {key:'features',  label:'4 — Features (יכולות)'},
+  {key:'auto',      label:'5 — Automations (אוטומציה)'},
+  {key:'radar',     label:'6 — Radar (הרדאר)'},
+  {key:'winwin',    label:'7 — Win-Win (כלכלה מעגלית)'},
+  {key:'proof',     label:'8 — Proof (עדויות)'},
+  {key:'cta',       label:'9 — CTA (הצטרפות)'},
+];
+
+let _bizImgData = {};
+
+function toggleBizLandingPanel() {
+  const panel = document.getElementById('biz-landing-panel');
+  if (!panel) return;
+  const opening = panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) loadBizLandingImages();
+}
+
+async function loadBizLandingImages() {
+  try {
+    const r = await fetch('/api/page-images/biz-landing');
+    _bizImgData = r.ok ? await r.json() : {};
+  } catch(e) { _bizImgData = {}; }
+  renderBizImgRows();
+}
+
+function renderBizImgRows() {
+  const cont = document.getElementById('biz-img-rows');
+  if (!cont) return;
+  cont.innerHTML = BIZ_LANDING_SLOTS.map(s => {
+    const info = _bizImgData[s.key] || {};
+    const hasImg = !!info.url;
+    const enabled = hasImg && info.enabled !== false;
+    return `<div class="border border-slate-100 rounded-xl p-3" id="bizimg-row-${s.key}">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xs font-bold text-slate-600 flex-1">${s.label}</span>
+        ${hasImg ? `
+          <label class="flex items-center gap-1 cursor-pointer">
+            <input type="checkbox" onchange="bizImgToggle('${s.key}',this.checked)" ${enabled?'checked':''} class="accent-cyan-600">
+            <span class="text-xs text-slate-500">${enabled?'מוצג':'מוסתר'}</span>
+          </label>
+          <button onclick="bizImgDelete('${s.key}')" class="text-xs text-red-500 hover:text-red-700 font-bold px-2 py-0.5 rounded border border-red-200 hover:bg-red-50 transition">מחק</button>
+        ` : ''}
+      </div>
+      ${hasImg ? `<div class="flex items-center gap-3 mb-2">
+        <img src="${info.url}" alt="" class="w-24 h-12 object-contain rounded-lg border border-slate-200 bg-slate-50">
+        <span class="text-xs text-slate-400 break-all flex-1">${info.url}</span>
+      </div>` : ''}
+      <div class="flex gap-2">
+        <input id="bizimg-url-${s.key}" type="url" placeholder="URL לתמונה (jpg/png/webp)" value="${info.url||''}"
+          class="flex-1 text-xs border border-slate-200 rounded-lg px-3 py-2 focus:border-cyan-400 outline-none">
+        <button onclick="bizImgSave('${s.key}')" class="text-xs bg-cyan-600 hover:bg-cyan-700 text-white px-3 py-1.5 rounded-lg font-bold transition whitespace-nowrap">שמור</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function bizImgSave(slot) {
+  const url = document.getElementById('bizimg-url-'+slot)?.value?.trim();
+  if (!url) return alert('נא להכניס URL לתמונה');
+  try {
+    const r = await fetch(`/api/page-images/biz-landing/${slot}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({image_url: url})
+    });
+    if (!r.ok) throw new Error();
+    await loadBizLandingImages();
+  } catch(e) { alert('שגיאה בשמירה'); }
+}
+
+async function bizImgToggle(slot, enabled) {
+  try {
+    await fetch(`/api/page-images/biz-landing/${slot}/toggle`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({enabled})
+    });
+    await loadBizLandingImages();
+  } catch(e) { alert('שגיאה בעדכון'); }
+}
+
+async function bizImgDelete(slot) {
+  if (!confirm('למחוק את התמונה לצמיתות?')) return;
+  try {
+    await fetch(`/api/page-images/biz-landing/${slot}`, {method:'DELETE'});
+    await loadBizLandingImages();
+  } catch(e) { alert('שגיאה במחיקה'); }
+}
+// ─── END ניהול תמונות ───────────────────────────────────────────────────
 </script>
 
 <!-- modal גביה מעסק — מחוץ לכל container כדי ש-fixed יעבוד נכון -->

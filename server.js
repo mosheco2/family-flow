@@ -21087,6 +21087,59 @@ app.get('/api/debug/notifications/:groupId', async (req, res) => {
 });
 // ─── END DEBUG ────────────────────────────────────────────────────────────────
 
+// ─── PAGE IMAGES ──────────────────────────────────────────────────────────────
+pool.query(`CREATE TABLE IF NOT EXISTS page_images (
+    id SERIAL PRIMARY KEY,
+    page VARCHAR(100) NOT NULL,
+    slot VARCHAR(100) NOT NULL,
+    image_url TEXT NOT NULL,
+    enabled BOOLEAN DEFAULT TRUE,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(page, slot)
+)`).catch(e => console.error('page_images table error:', e.message));
+
+app.get('/api/page-images/:page', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT slot, image_url, enabled FROM page_images WHERE page=$1', [req.params.page]);
+        const result = {};
+        r.rows.forEach(row => { result[row.slot] = { url: row.image_url, enabled: row.enabled }; });
+        res.json(result);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/page-images/:page/:slot', async (req, res) => {
+    const { image_url } = req.body;
+    if (!image_url) return res.status(400).json({ error: 'image_url required' });
+    try {
+        await pool.query(
+            `INSERT INTO page_images (page, slot, image_url, enabled, updated_at)
+             VALUES ($1,$2,$3,TRUE,NOW())
+             ON CONFLICT (page, slot) DO UPDATE SET image_url=$3, enabled=TRUE, updated_at=NOW()`,
+            [req.params.page, req.params.slot, image_url]
+        );
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/page-images/:page/:slot/toggle', async (req, res) => {
+    const { enabled } = req.body;
+    try {
+        await pool.query(
+            'UPDATE page_images SET enabled=$3, updated_at=NOW() WHERE page=$1 AND slot=$2',
+            [req.params.page, req.params.slot, enabled]
+        );
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/page-images/:page/:slot', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM page_images WHERE page=$1 AND slot=$2', [req.params.page, req.params.slot]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+// ─── END PAGE IMAGES ──────────────────────────────────────────────────────────
+
 // הפעלת השרת
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);

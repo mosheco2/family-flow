@@ -70,6 +70,11 @@ html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:
 #back-btn:hover{color:var(--accent);border-color:var(--accent)}
 #back-btn.visible{display:block}
 
+/* ── SLIDE IMAGE AREA ── */
+.slide-img-area{width:100%;display:flex;justify-content:center;flex-shrink:0;margin-bottom:.5rem}
+.slide-img{max-width:100%;max-height:80px;object-fit:contain;border-radius:10px;box-shadow:0 2px 16px rgba(0,0,0,.35)}
+@media(min-width:480px){.slide-img{max-height:150px}}
+
 /* ── TAG ── */
 .tag{
   display:inline-block;
@@ -412,6 +417,7 @@ html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:
 
   <!-- 1: HERO -->
   <div class="slide" id="slide-hero">
+    <div class="slide-img-area" id="img-hero" style="display:none"><img src="" alt="" class="slide-img" id="img-hero-tag"></div>
     <div style="text-align:center;width:100%;max-width:520px;position:relative;z-index:1">
       <div class="hero-badge"><span></span> ONE flow LIFE BIZ</div>
       <h1>חזון.<br>שליטה.</h1>
@@ -422,6 +428,7 @@ html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:
 
   <!-- 2: PAIN -->
   <div class="slide" id="slide-pain">
+    <div class="slide-img-area" id="img-pain" style="display:none"><img src="" alt="" class="slide-img" id="img-pain-tag"></div>
     <div class="pain-header">
       <div class="tag">הכאב שאתם מכירים</div>
       <h2 class="stitle">עושים סוף לכאוס התפעולי.</h2>
@@ -436,6 +443,7 @@ html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:
 
   <!-- 3: SOLUTION -->
   <div class="slide" id="slide-solution">
+    <div class="slide-img-area" id="img-solution" style="display:none"><img src="" alt="" class="slide-img" id="img-solution-tag"></div>
     <div class="sol-header">
       <div class="tag">הפתרון</div>
       <h2 class="stitle">מגדל פיקוח אחד לכל העסק שלך.</h2>
@@ -465,6 +473,7 @@ html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:
 
   <!-- 4: FEATURES -->
   <div class="slide" id="slide-features">
+    <div class="slide-img-area" id="img-features" style="display:none"><img src="" alt="" class="slide-img" id="img-features-tag"></div>
     <div class="feat-header">
       <div class="tag">מה תקבלו</div>
       <h2 class="stitle">בדיוק למה שאתם צריכים.</h2>
@@ -474,6 +483,7 @@ html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:
 
   <!-- 5: AUTOMATIONS -->
   <div class="slide" id="slide-auto">
+    <div class="slide-img-area" id="img-auto" style="display:none"><img src="" alt="" class="slide-img" id="img-auto-tag"></div>
     <div class="auto-header">
       <div class="tag">אוטומציה חכמה</div>
       <h2 class="stitle">המערכת עובדת — גם כשאתם לא.</h2>
@@ -493,6 +503,7 @@ html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:
 
   <!-- 6: RADAR -->
   <div class="slide" id="slide-radar">
+    <div class="slide-img-area" id="img-radar" style="display:none"><img src="" alt="" class="slide-img" id="img-radar-tag"></div>
     <div class="radar-header">
       <div class="tag">הייחוד</div>
       <h2 class="stitle">"הרדאר" — חיבור לקהילות מרובות.</h2>
@@ -518,8 +529,9 @@ html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:
     </div>
   </div>
 
-  <!-- 6: WIN-WIN -->
+  <!-- 7: WIN-WIN -->
   <div class="slide" id="slide-winwin">
+    <div class="slide-img-area" id="img-winwin" style="display:none"><img src="" alt="" class="slide-img" id="img-winwin-tag"></div>
     <div class="winwin-header">
       <div class="tag">כלכלה מעגלית</div>
       <h2 class="stitle">כלכלה מעגלית שבה כולם מרוויחים.</h2>
@@ -549,8 +561,9 @@ html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:
     </div>
   </div>
 
-  <!-- 7: PROOF -->
+  <!-- 8: PROOF -->
   <div class="slide" id="slide-proof">
+    <div class="slide-img-area" id="img-proof" style="display:none"><img src="" alt="" class="slide-img" id="img-proof-tag"></div>
     <div class="proof-header">
       <div class="tag">כבר איתנו</div>
       <h2 class="stitle">כבר איתנו בפיילוט.</h2>
@@ -574,8 +587,9 @@ html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:
     </div>
   </div>
 
-  <!-- 8: CTA -->
+  <!-- 9: CTA -->
   <div class="slide" id="slide-cta">
+    <div class="slide-img-area" id="img-cta" style="display:none"><img src="" alt="" class="slide-img" id="img-cta-tag"></div>
     <div style="width:100%;max-width:440px;text-align:center">
       <div class="tag">הצטרפו עכשיו</div>
       <h2 class="stitle">העסק בכף ידך.<br>הצטרפו לפיילוט.</h2>
@@ -761,7 +775,28 @@ document.addEventListener('DOMContentLoaded', () => {
   // slots
   const el = document.getElementById('slots-count');
   if (el) setTimeout(() => { el.textContent = Math.floor(Math.random()*3)+5; }, 1600);
+
+  // טעינת תמונות סליידים מה-API
+  loadSlideImages();
 });
+
+function loadSlideImages() {
+  fetch('/api/page-images/biz-landing')
+    .then(r => r.ok ? r.json() : {})
+    .then(data => {
+      const slots = ['hero','pain','solution','features','auto','radar','winwin','proof','cta'];
+      slots.forEach(slot => {
+        const info = data[slot];
+        if (!info || !info.enabled || !info.url) return;
+        const wrap = document.getElementById('img-'+slot);
+        const img  = document.getElementById('img-'+slot+'-tag');
+        if (!wrap || !img) return;
+        img.src = info.url;
+        wrap.style.display = 'flex';
+      });
+    })
+    .catch(() => {});
+}
 
 function buildDots() {
   const c = document.getElementById('dots');
