@@ -5953,12 +5953,15 @@ app.post('/api/store/settings', async (req, res) => {
                 [aliasVal, groupId]
             );
             if (aliasCheck.rows.length > 0) return res.status(400).json({ error: 'הכינוי הזה כבר תפוס ע"י חנות אחרת, אנא בחרו כינוי אחר.' });
-            // נקה aliases עתיקים של קבוצות מחוקות עם אותו שם
+            // נקה aliases של קבוצות מחוקות (soft) או יתומות (permanently deleted, cascade failed)
             await pool.query(
-                `UPDATE store_settings ss SET store_alias=NULL
-                 FROM family_groups fg
-                 WHERE ss.group_id = fg.id AND ss.store_alias = $1
-                   AND fg.is_deleted = true AND ss.group_id != $2`,
+                `UPDATE store_settings SET store_alias=NULL
+                 WHERE store_alias = $1 AND group_id != $2
+                   AND NOT EXISTS (
+                     SELECT 1 FROM family_groups
+                     WHERE id = store_settings.group_id
+                       AND (is_deleted = false OR is_deleted IS NULL)
+                   )`,
                 [aliasVal, groupId]
             );
         }
