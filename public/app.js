@@ -637,6 +637,7 @@ function switchTab(t) { 
         } catch(e) {}
     }
     if (t === 'home-maintenance') try { loadHomeMaintenance(); } catch(e) {}
+    if (t === 'academy' && currentUser && currentUser.role !== 'ADMIN') try { loadKidAcademy(); } catch(e) {}
 }
 
 let myOrdersCache = [];
@@ -1727,7 +1728,7 @@ async function fetchData() {
         window.communityUpdatesCache = Array.isArray(data.community_updates) ? data.community_updates : [];
         window.communityBusinessesCache = Array.isArray(data.community_businesses) ? data.community_businesses : [];
 
-        try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
+        try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); loadKidAcademy(); } } catch(e) {}
         try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
         try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
         try { if (data.group) renderSmBanner(data.group); } catch(e) {}
