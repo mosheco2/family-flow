@@ -206,6 +206,17 @@ html,body{height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:
 }
 .sol-pillar>span:first-child{flex-shrink:0;font-size:.88rem;margin-top:.05rem}
 .sol-pillar strong{color:var(--text)}
+/* מובייל — עמודה אחת, גלילה פנימית רק לרשימה */
+@media(max-width:479px){
+  .sol-pillars{
+    grid-template-columns:1fr;
+    max-height:38dvh;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    padding-left:.1rem;
+  }
+  .sol-pillar{font-size:.72rem;padding:.4rem .65rem}
+}
 
 /* ══════════════════════════════════════
    SLIDE 4 — FEATURES
