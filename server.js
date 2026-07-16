@@ -4316,6 +4316,15 @@ app.get('/api/data/:userId', async (req, res) => {
         ]);
         group.admin_total_balance = adminBalRes.rows[0].total;
 
+        // Child balance: compute from transactions (income - expense) for non-ADMIN
+        if (user.role !== 'ADMIN') {
+            const childBalRes = await pool.query(
+                "SELECT COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE -amount END),0) as total FROM transactions WHERE user_id=$1",
+                [user.id]
+            );
+            user.computed_balance = childBalRes.rows[0].total;
+        }
+
         // Best-price lookup: parallel individual queries (avoids slow DISTINCT ON + full-scan)
         if (shoppingList.rows.length > 0) {
             await Promise.all(shoppingList.rows.map(async (item) => {

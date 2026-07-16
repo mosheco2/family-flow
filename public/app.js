@@ -1536,7 +1536,7 @@ async function loadDashboard() {
         const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
         getEl('card-name').innerText = (currentUser.nickname || '').toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}%`;
         const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
-        ['tab-members','tab-budget'].forEach(id => { const el=getEl(id); if(el) el.classList.add('hidden'); });
+        ['tab-members'].forEach(id => { const el=getEl(id); if(el) el.classList.add('hidden'); });
     }
     const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); updateBatteryUI();
     
@@ -1727,7 +1727,12 @@ async function fetchData() {
                 balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${realBalance >= 0 ? 'text-green-500' : 'text-red-500'}`;
             }
         } else {
-            const balEl = getEl('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance || 0}`;
+            const balEl = getEl('user-balance');
+            if (balEl) {
+                const childBal = parseFloat(data.user.computed_balance ?? currentUser.balance ?? 0);
+                balEl.innerText = `₪${childBal.toFixed(2)}`;
+                balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${childBal >= 0 ? 'text-green-500' : 'text-red-500'}`;
+            }
         }
         
         allTasks = Array.isArray(data.tasks) ? data.tasks : []; bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
