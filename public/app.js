@@ -1775,6 +1775,7 @@ async function fetchData() {
         try { renderQuickTiles(); } catch(e) {}
         try { renderFamilyUrgentItems(); } catch(e) {}
         try { renderChildDashboard(); } catch(e) {}
+        try { enforcePermissions(); } catch(e) {}
         try { updateFamilyNavBadges(); } catch(e) {}
     } catch(e) {}
 }
@@ -7171,7 +7172,7 @@ function enforcePermissions() {
     let userTabs = [];
     try {
         const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
-        userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
+        userTabs = (perms.tabs && perms.tabs.length > 0) ? perms.tabs : (ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']);
     } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
 
     // קריאת הרשאות הפיצ'רים מהסופר-אדמין (Feature Flags)
