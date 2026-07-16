@@ -5136,6 +5136,25 @@ app.post('/api/tasks/update', async (req, res) => {
 // --- ACADEMY ENDPOINTS ---
 // ============================================================
 
+app.post('/api/academy/request-challenge', async (req, res) => {
+    try {
+        const { userId, bundleId, groupId } = req.body;
+        // אם bundle_id נשלח — הקצה אותו ספציפית, אחרת הגרל מהמאגר
+        let targetBundleId = bundleId;
+        if (!targetBundleId) {
+            // מצא לומדה שהמשתמש עדיין לא השלים
+            const done = await pool.query(`SELECT bundle_id FROM user_assignments WHERE user_id=$1 AND status IN ('completed','assigned')`, [userId]);
+            const doneIds = done.rows.map(r => r.bundle_id);
+            const allBundles = await pool.query('SELECT id FROM quiz_bundles ORDER BY RANDOM() LIMIT 20');
+            const available = allBundles.rows.filter(r => !doneIds.includes(r.id));
+            if (available.length === 0) return res.json({ success: false, error: 'כל הלומדות כבר הוקצו!' });
+            targetBundleId = available[0].id;
+        }
+        await pool.query('INSERT INTO user_assignments (user_id, bundle_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [userId, targetBundleId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/academy/assign', async (req, res) => {
     try {
         const { userId, bundleId, reward, days, groupId } = req.body;

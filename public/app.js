@@ -1480,7 +1480,8 @@ async function loadDashboard() {
     const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
     const mw = getEl('main-wrapper'); if (mw) mw.classList.add('hidden');
 
-    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
+    getEl('dashboard-container').classList.remove('hidden');
+    if (currentUser && currentUser.role !== 'CHILD') getEl('fab-container').classList.remove('hidden');
     const _isMember = currentGroup?.member_type === 'member';
 
     // --- הזרקת באנר השתלטות דינמי ישירות ל-Body (בטוח 100%) ---
@@ -2307,6 +2308,17 @@ function renderChildDashboard() {
     const childBal = getEl('child-balance-display');
     if (childBal && mainBal) childBal.innerText = mainBal.innerText;
 
+    // ילד לא רואה "אני בסופר", עגלת קניות, או FAB
+    if (currentUser.role === 'CHILD') {
+        // כפתור "אני בסופר" ורשימות שמורות (השורה ב-shop)
+        const shopTopBtns = getEl('shop-supermarket-btns');
+        if (shopTopBtns) shopTopBtns.classList.add('hidden');
+        const cartFooter = getEl('cart-footer');
+        if (cartFooter) cartFooter.classList.add('hidden');
+        const fabContainer = getEl('fab-container');
+        if (fabContainer) fabContainer.classList.add('hidden');
+    }
+
     // Greeting
     const greetEl = getEl('child-greeting-text');
     if (greetEl && currentUser.name) {
@@ -2999,7 +3011,8 @@ function renderShopList() {
         return; 
     }
     
-    if (isShopTabActive) { const f = getEl('cart-footer'); if(f) f.classList.remove('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.add('fab-lifted'); } 
+    const isChild = currentUser && currentUser.role === 'CHILD';
+    if (isShopTabActive && !isChild) { const f = getEl('cart-footer'); if(f) f.classList.remove('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.add('fab-lifted'); }
     else { const f = getEl('cart-footer'); if(f) f.classList.add('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); }
     
     const getCatScore = (name, normalized) => {
