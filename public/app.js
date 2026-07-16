@@ -637,7 +637,7 @@ function switchTab(t) { 
         } catch(e) {}
     }
     if (t === 'home-maintenance') try { loadHomeMaintenance(); } catch(e) {}
-    if (t === 'academy' && currentUser && currentUser.role !== 'ADMIN') try { loadKidAcademy(); } catch(e) {}
+    if (t === 'academy' && currentUser && currentUser.role === 'CHILD') try { loadKidAcademy(); } catch(e) {}
     // עדכון הדגשה בסרגל ניווט ילד
     try {
         document.querySelectorAll('.child-nav-btn').forEach(b => {
@@ -1537,9 +1537,11 @@ async function loadDashboard() {
         getEl('card-name').innerText = (currentUser.nickname || '').toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}%`;
         const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
         ['tab-members','tab-budget'].forEach(id => { const el=getEl(id); if(el) el.classList.add('hidden'); });
-        // הצג סרגל ניווט ילד במקום הניווט המבוגר
-        const fgnav = getEl('family-group-nav'); if(fgnav) fgnav.classList.add('hidden');
-        const cnav = getEl('child-nav-bar'); if(cnav) cnav.classList.remove('hidden');
+        // הצג סרגל ניווט ילד רק לילדים (CHILD), לא לבני משפחה מבוגרים
+        if(currentUser.role === 'CHILD') {
+            const fgnav = getEl('family-group-nav'); if(fgnav) fgnav.classList.add('hidden');
+            const cnav = getEl('child-nav-bar'); if(cnav) cnav.classList.remove('hidden');
+        }
     }
     const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); updateBatteryUI();
     
@@ -1740,7 +1742,7 @@ async function fetchData() {
         window.communityUpdatesCache = Array.isArray(data.community_updates) ? data.community_updates : [];
         window.communityBusinessesCache = Array.isArray(data.community_businesses) ? data.community_businesses : [];
 
-        try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); loadKidAcademy(); } } catch(e) {}
+        try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); if(currentUser.role === 'CHILD') loadKidAcademy(); } } catch(e) {}
         try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
         try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
         try { if (data.group) renderSmBanner(data.group); } catch(e) {}
