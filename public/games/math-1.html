@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>מתמטיקה | Oneflow Kids</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&family=Fredoka+One&display=swap');
+:root{
+  --green:#22C55E;--red:#EF4444;--yellow:#FFD600;
+  --orange:#FF6B2B;--blue:#3B82F6;--purple:#7C3AED;
+  --teal:#00A896;--pink:#EC4899;
+  --bg:#F0F9FF;--text:#1A2E35;--muted:#7A9EA8;--radius:20px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;color:var(--text);overflow:hidden}
+
+/* HEADER */
+.hdr{background:linear-gradient(135deg,#1D4ED8,#1E40AF);padding:0.6rem 1rem;
+  display:flex;align-items:center;justify-content:space-between;
+  position:relative;z-index:100;box-shadow:0 2px 12px rgba(29,78,216,0.4)}
+.hdr-title{font-family:'Fredoka One',sans-serif;color:white;font-size:1rem}
+.flw-pill{display:flex;align-items:center;gap:0.3rem;background:rgba(255,255,255,0.2);
+  border-radius:50px;padding:0.25rem 0.7rem;color:white;font-weight:700;font-size:0.9rem}
+.coin-sm{width:20px;height:20px;background:var(--yellow);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:900;color:#333}
+.prog-wrap{background:rgba(255,255,255,0.2);border-radius:50px;height:5px;width:70px;overflow:hidden}
+.prog-fill{height:100%;background:var(--yellow);border-radius:50px;transition:width 0.5s ease}
+
+/* SCREENS */
+.scr{display:none;width:100%;height:calc(100vh - 48px)}
+.scr.on{display:flex;flex-direction:column;align-items:center}
+
+/* INTRO */
+#scr-intro{justify-content:center;padding:1.5rem;text-align:center;
+  background:linear-gradient(180deg,#EFF6FF 0%,#F0F9FF 100%)}
+.intro-robot{width:200px;filter:drop-shadow(0 10px 30px rgba(29,78,216,0.3));
+  animation:intro-bounce 2s ease-in-out infinite}
+@keyframes intro-bounce{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-15px) rotate(3deg)}}
+.bubble{background:white;border-radius:20px;padding:1rem 1.5rem;
+  box-shadow:0 4px 20px rgba(0,0,0,0.1);font-size:1rem;line-height:1.6;
+  max-width:280px;position:relative;margin:0.8rem 0;text-align:center}
+.bubble::before{content:'';position:absolute;top:-10px;right:50%;transform:translateX(50%);
+  border:5px solid transparent;border-bottom-color:white}
+.intro-title{font-family:'Fredoka One',sans-serif;font-size:2rem;color:#1D4ED8;margin:0.3rem 0}
+.btn-blue{background:linear-gradient(135deg,#1D4ED8,#1E40AF);color:white;border:none;
+  padding:1rem 2.5rem;border-radius:50px;font-family:'Fredoka One',sans-serif;font-size:1.2rem;
+  cursor:pointer;box-shadow:0 6px 20px rgba(29,78,216,0.4);transition:transform 0.15s}
+.btn-blue:active{transform:scale(0.96)}
+.btn-ghost{background:transparent;color:var(--muted);border:2px solid #E0E0E0;
+  padding:0.6rem 1.2rem;border-radius:50px;font-family:'Heebo',sans-serif;font-size:0.9rem;cursor:pointer}
+.btn-orange{background:linear-gradient(135deg,var(--orange),#FF4500);color:white;border:none;
+  padding:1rem 2.5rem;border-radius:50px;font-family:'Fredoka One',sans-serif;font-size:1.2rem;
+  cursor:pointer;box-shadow:0 6px 20px rgba(255,107,43,0.4);transition:transform 0.15s}
+.btn-orange:active{transform:scale(0.96)}
+
+/* MAP */
+#scr-map{overflow-y:auto;padding:1rem;background:var(--bg)}
+.map-title{font-family:'Fredoka One',sans-serif;font-size:1.3rem;color:#1D4ED8;
+  margin:0.5rem 0 0.8rem;text-align:center}
+.level-map{width:100%;max-width:360px;display:flex;flex-direction:column;gap:0.6rem}
+.lvl-node{display:flex;align-items:center;gap:0.8rem;background:white;border-radius:var(--radius);
+  padding:0.9rem 1.1rem;box-shadow:0 3px 12px rgba(0,0,0,0.06);border:3px solid transparent;transition:all 0.2s}
+.lvl-node.unlocked{border-color:#1D4ED8;cursor:pointer}
+.lvl-node.unlocked:active{transform:scale(0.97)}
+.lvl-node.locked{opacity:0.4}
+.lvl-node.done{border-color:var(--green)}
+.lvl-icon{font-size:2rem;width:44px;text-align:center}
+.lvl-info .lvl-name{font-weight:700;font-size:0.9rem}
+.lvl-info .lvl-sub{font-size:0.78rem;color:var(--muted)}
+.lvl-badge{margin-right:auto;font-size:0.72rem;font-weight:700;padding:0.2rem 0.7rem;border-radius:50px}
+.bd-done{background:#DCFCE7;color:#16A34A}
+.bd-lock{background:#F3F4F6;color:#9CA3AF}
+.bd-go{background:rgba(29,78,216,0.1);color:#1D4ED8}
+.bd-test{background:rgba(239,68,68,0.1);color:var(--red)}
+
+/* ARENA */
+#scr-arena{position:relative;overflow:hidden;
+  background:linear-gradient(180deg,#0F172A 0%,#1E1B4B 40%,#1E3A5F 100%)}
+
+/* stars background */
+#scr-arena::before{content:'';position:absolute;inset:0;
+  background-image:radial-gradient(1px 1px at 20% 30%,white,transparent),
+    radial-gradient(1px 1px at 50% 60%,white,transparent),
+    radial-gradient(1px 1px at 80% 20%,white,transparent),
+    radial-gradient(1px 1px at 30% 80%,white,transparent),
+    radial-gradient(1px 1px at 70% 50%,rgba(255,255,255,0.5),transparent),
+    radial-gradient(1px 1px at 10% 50%,rgba(255,255,255,0.5),transparent),
+    radial-gradient(1px 1px at 90% 70%,rgba(255,255,255,0.5),transparent);
+  opacity:0.6;pointer-events:none}
+
+.arena-top{position:absolute;top:0;left:0;right:0;padding:0.5rem 0.8rem;
+  display:flex;align-items:center;justify-content:space-between;z-index:20}
+.q-counter{background:rgba(255,255,255,0.15);border-radius:50px;
+  padding:0.2rem 0.8rem;color:white;font-size:0.82rem;font-weight:700}
+.streak-badge{background:var(--orange);border-radius:50px;
+  padding:0.2rem 0.8rem;color:white;font-size:0.82rem;font-weight:700;
+  opacity:0;transition:opacity 0.3s}
+.streak-badge.show{opacity:1}
+.q-dots{display:flex;gap:0.25rem;justify-content:center;flex-wrap:wrap}
+.q-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.2)}
+.q-dot.ok{background:var(--green)}.q-dot.no{background:var(--red)}.q-dot.cur{background:white}
+
+/* QUESTION AREA */
+.arena-question{position:absolute;top:48px;left:0;right:0;text-align:center;z-index:20;padding:0 0.5rem}
+.q-badge{display:inline-block;background:rgba(255,255,255,0.15);color:white;
+  border-radius:50px;padding:0.2rem 0.8rem;font-size:0.72rem;font-weight:700;margin-bottom:0.3rem}
+
+/* COUNTING OBJECTS */
+.count-objects{display:flex;flex-wrap:wrap;gap:0.3rem;justify-content:center;
+  max-width:280px;margin:0.3rem auto;min-height:50px;align-items:center}
+.count-obj{font-size:2rem;animation:obj-pop 0.3s cubic-bezier(0.175,0.885,0.32,1.275) both}
+@keyframes obj-pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* EQUATION */
+.equation{font-family:'Fredoka One',sans-serif;font-size:4rem;color:white;line-height:1;
+  text-shadow:0 4px 20px rgba(0,0,0,0.4);animation:q-pop 0.4s cubic-bezier(0.175,0.885,0.32,1.275)}
+@keyframes q-pop{from{transform:scale(0.3);opacity:0}to{transform:scale(1);opacity:1}}
+.q-text-main{font-size:0.9rem;color:rgba(255,255,255,0.7);font-weight:700;margin-top:0.2rem}
+
+/* ROBOT */
+#arena-robot{position:absolute;width:140px;z-index:30;
+  transition:left 0.4s cubic-bezier(0.34,1.56,0.64,1),top 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  filter:drop-shadow(0 8px 20px rgba(0,0,0,0.4));pointer-events:none}
+#arena-robot.idle{animation:robot-idle 3s ease-in-out infinite}
+#arena-robot.throw{animation:robot-throw 0.6s ease}
+#arena-robot.happy{animation:robot-happy 0.7s ease}
+#arena-robot.sad{animation:robot-sad 0.6s ease}
+@keyframes robot-idle{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-8px) rotate(2deg)}}
+@keyframes robot-throw{0%{transform:rotate(0) scale(1)}30%{transform:rotate(-20deg) scale(1.1)}60%{transform:rotate(15deg) scale(0.95)}100%{transform:rotate(0) scale(1)}}
+@keyframes robot-happy{0%,100%{transform:scale(1)}20%{transform:scale(1.2) rotate(-10deg)}40%{transform:scale(1.2) rotate(10deg)}60%{transform:scale(1.1) rotate(-5deg)}80%{transform:scale(1.1) rotate(5deg)}}
+@keyframes robot-sad{0%,100%{transform:translateY(0)}30%{transform:translateY(8px) rotate(-5deg)}60%{transform:translateY(4px) rotate(5deg)}}
+
+/* BALL */
+.ball{position:absolute;width:30px;height:30px;border-radius:50%;
+  z-index:25;pointer-events:none;display:flex;align-items:center;justify-content:center;font-size:1.2rem}
+
+/* BUCKETS */
+.bucket-zone{position:absolute;bottom:3%;z-index:10;
+  display:flex;flex-direction:column;align-items:center;gap:0.2rem;
+  cursor:pointer;transition:transform 0.15s;width:22%}
+.bucket-zone:active{transform:scale(0.95)}
+.bucket-zone.correct .bucket-body{border-color:var(--green);background:rgba(34,197,94,0.3);animation:bucket-correct 0.5s ease}
+.bucket-zone.wrong   .bucket-body{border-color:var(--red);background:rgba(239,68,68,0.3);animation:bucket-wrong 0.4s ease}
+.bucket-zone.reveal  .bucket-body{border-color:var(--green);background:rgba(34,197,94,0.2)}
+@keyframes bucket-correct{0%,100%{transform:scale(1)}40%{transform:scale(1.08)}70%{transform:scale(0.96)}}
+@keyframes bucket-wrong{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+.bucket-body{width:100%;min-height:60px;border-radius:8px 8px 14px 14px;
+  border:3px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.1);
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(4px);transition:all 0.2s;padding:0.4rem}
+.bucket-num{font-family:'Fredoka One',sans-serif;font-size:2.2rem;color:white;line-height:1}
+.bucket-text{font-size:0.75rem;color:rgba(255,255,255,0.8);font-weight:700;
+  text-align:center;line-height:1.2;padding:0.1rem}
+/* bucket handle */
+.bucket-top{width:50%;height:8px;border:3px solid rgba(255,255,255,0.3);
+  border-bottom:none;border-radius:50px 50px 0 0;margin-bottom:-3px}
+
+.bk-0{left:1%}.bk-1{left:26%}.bk-2{left:51%}.bk-3{right:1%}
+
+/* TOAST */
+#arena-toast{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%);
+  background:white;border-radius:14px;padding:0.6rem 1.2rem;font-size:1rem;font-weight:700;
+  z-index:50;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,0.3);
+  opacity:0;transition:opacity 0.2s;pointer-events:none;white-space:nowrap}
+#arena-toast.show{opacity:1}
+
+/* PARTICLES */
+.coin-p{position:fixed;pointer-events:none;z-index:9999;font-size:1.5rem;animation:coin-fly 1.2s ease-out forwards}
+@keyframes coin-fly{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-120px) scale(0.3);opacity:0}}
+.combo{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--orange);
+  color:white;border-radius:50px;padding:0.4rem 1.2rem;font-family:'Fredoka One',sans-serif;
+  font-size:1rem;z-index:200;box-shadow:0 4px 15px rgba(255,107,43,0.5);animation:combo-pop 1.5s ease forwards}
+@keyframes combo-pop{0%{transform:translateX(-50%) scale(0);opacity:0}20%{transform:translateX(-50%) scale(1.2);opacity:1}70%{transform:translateX(-50%) scale(1);opacity:1}100%{transform:translateX(-50%) scale(0.8);opacity:0}}
+
+/* RESULTS */
+#scr-result,#scr-test-result{justify-content:center;padding:1.5rem;text-align:center;
+  background:linear-gradient(180deg,#EFF6FF,#F0F9FF);overflow-y:auto}
+.result-robot{width:160px;animation:res-bounce 1s ease-in-out infinite alternate}
+@keyframes res-bounce{from{transform:translateY(0) rotate(-4deg)}to{transform:translateY(-14px) rotate(4deg)}}
+.result-title{font-family:'Fredoka One',sans-serif;font-size:2rem;color:#1D4ED8;margin:0.5rem 0}
+.flw-box{background:white;border-radius:var(--radius);padding:1.2rem 2rem;text-align:center;
+  box-shadow:0 4px 20px rgba(0,0,0,0.08);margin:0.8rem 0;width:100%;max-width:260px}
+.flw-big{font-family:'Fredoka One',sans-serif;font-size:2.8rem;color:var(--orange);
+  display:flex;align-items:center;justify-content:center;gap:0.5rem;animation:count-up 0.8s ease}
+@keyframes count-up{from{transform:scale(0.5);opacity:0}to{transform:scale(1);opacity:1}}
+.big-coin{width:46px;height:46px;background:var(--yellow);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:900;
+  color:#333;box-shadow:0 4px 12px rgba(255,214,0,0.4)}
+.test-result-box{border-radius:var(--radius);padding:1.2rem;text-align:center;width:100%;max-width:320px;margin:0.6rem 0}
+.test-pass{background:#DCFCE7;border:2px solid var(--green)}
+.test-fail{background:#FEE2E2;border:2px solid var(--red)}
+.test-res-title{font-family:'Fredoka One',sans-serif;font-size:1.7rem}
+.test-res-sub{font-size:0.88rem;color:var(--muted);margin-top:0.2rem}
+
+/* LEVEL BADGE */
+.level-intro-card{background:white;border-radius:var(--radius);padding:1.2rem 1.5rem;
+  text-align:center;width:100%;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,0.08);
+  margin:0.8rem 0}
+.level-intro-card h2{font-family:'Fredoka One',sans-serif;font-size:1.5rem;margin-bottom:0.4rem}
+.level-intro-card p{color:var(--muted);font-size:0.9rem;margin-bottom:0.8rem}
+.level-intro-card .big-icon{font-size:3rem;margin-bottom:0.5rem}
+
+@media(max-width:380px){.equation{font-size:3rem}#arena-robot{width:110px}.bucket-num{font-size:1.8rem}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-title">🔢 מתמטיקה</div>
+  <div style="display:flex;align-items:center;gap:0.6rem">
+    <div class="prog-wrap"><div class="prog-fill" id="main-prog" style="width:0%"></div></div>
+    <div class="flw-pill"><div class="coin-sm">FLW</div><span id="flw-count">0</span></div>
+  </div>
+</div>
+
+<!-- INTRO -->
+<div class="scr on" id="scr-intro">
+  <img src="/games/assets/images/ROBOTAI.png" alt="רובוט" class="intro-robot" onerror="this.style.display='none'">
+  <div class="bubble" id="intro-bubble">שלום! אני OF! 🤖<br>היום נלמד מתמטיקה<br>ונרוויח מטבעות FLW! 🪙✨</div>
+  <div class="intro-title">מתמטיקה עם OF!</div>
+  <div style="color:var(--muted);font-size:0.88rem;margin-bottom:1.5rem;text-align:center">
+    3 רמות מתגברות · זרוק לדלי הנכון!
+  </div>
+  <button class="btn-blue" onclick="showMap()">🚀 בואו נתחיל!</button>
+</div>
+
+<!-- MAP -->
+<div class="scr" id="scr-map">
+  <div class="map-title">בחר רמה 🗺️</div>
+  <div class="level-map" id="level-map"></div>
+  <div style="font-size:0.78rem;color:var(--muted);text-align:center;margin-top:0.5rem;padding-bottom:1rem">
+    🪙 כל תשובה נכונה = 2 FLW · מבחן = 10 FLW בונוס
+  </div>
+</div>
+
+<!-- LEVEL INTRO -->
+<div class="scr" id="scr-level-intro">
+  <img src="/games/assets/images/ROBOTAI.png" alt="רובוט"
+       style="width:150px;animation:intro-bounce 2s ease-in-out infinite;margin-top:1rem"
+       onerror="this.style.display='none'">
+  <div class="level-intro-card">
+    <div class="big-icon" id="li-icon">🔢</div>
+    <h2 id="li-title">ספירה</h2>
+    <p id="li-desc">ספור את האובייקטים ובחר את המספר הנכון</p>
+    <p style="font-size:0.8rem;color:var(--orange);font-weight:700;margin-bottom:0.8rem" id="li-tip"></p>
+    <button class="btn-blue" onclick="startCurrentLevel()">🎯 בואו נתחיל!</button>
+  </div>
+  <button class="btn-ghost" style="margin-top:0.8rem" onclick="showMap()">← חזרה למפה</button>
+</div>
+
+<!-- ARENA -->
+<div class="scr" id="scr-arena">
+  <div class="arena-top">
+    <div class="q-counter" id="arena-q-counter">1/10</div>
+    <div class="q-dots" id="arena-dots"></div>
+    <div class="streak-badge" id="streak-badge">🔥 x0</div>
+  </div>
+  <div class="arena-question">
+    <div class="q-badge" id="arena-q-badge">ספור!</div>
+    <div id="arena-q-content"></div>
+    <div class="q-text-main" id="arena-q-text"></div>
+  </div>
+  <img src="/games/assets/images/ROBOTAI.png" alt="רובוט"
+       id="arena-robot" class="idle" onerror="this.style.display='none'">
+  <!-- 4 buckets -->
+  <div class="bucket-zone bk-0" id="bk-0" onclick="handleBucket(0)">
+    <div class="bucket-top"></div>
+    <div class="bucket-body"><div class="bucket-num" id="bk0-num">1</div></div>
+  </div>
+  <div class="bucket-zone bk-1" id="bk-1" onclick="handleBucket(1)">
+    <div class="bucket-top"></div>
+    <div class="bucket-body"><div class="bucket-num" id="bk1-num">2</div></div>
+  </div>
+  <div class="bucket-zone bk-2" id="bk-2" onclick="handleBucket(2)">
+    <div class="bucket-top"></div>
+    <div class="bucket-body"><div class="bucket-num" id="bk2-num">3</div></div>
+  </div>
+  <div class="bucket-zone bk-3" id="bk-3" onclick="handleBucket(3)">
+    <div class="bucket-top"></div>
+    <div class="bucket-body"><div class="bucket-num" id="bk3-num">4</div></div>
+  </div>
+  <div id="arena-toast"></div>
+</div>
+
+<!-- TEST RESULT -->
+<div class="scr" id="scr-test-result">
+  <img src="/games/assets/images/ROBOTAI.png" alt="רובוט"
+       style="width:130px;margin:0.5rem 0;animation:res-bounce 1s ease-in-out infinite alternate"
+       onerror="this.style.display='none'">
+  <div class="test-result-box" id="test-result-box">
+    <div class="test-res-title" id="test-res-title">🎉 עברת!</div>
+    <div class="test-res-sub" id="test-res-sub"></div>
+  </div>
+  <div class="flw-box" style="max-width:230px;padding:0.9rem">
+    <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.3rem">FLW שצברת</div>
+    <div class="flw-big" style="font-size:1.8rem">
+      <div class="big-coin" style="width:34px;height:34px;font-size:0.62rem">FLW</div>
+      <span id="test-flw-earned">0</span>
+    </div>
+  </div>
+  <button class="btn-orange" id="test-continue-btn" style="padding:0.8rem 2.5rem">המשך →</button>
+</div>
+
+<!-- FINAL RESULT -->
+<div class="scr" id="scr-result">
+  <img src="/games/assets/images/ROBOTAI.png" alt="רובוט" class="result-robot" onerror="this.style.display='none'">
+  <div class="result-title" id="final-title">אלוף מתמטיקה! 🏆</div>
+  <div style="color:var(--muted);font-size:0.88rem;margin-bottom:0.5rem" id="final-sub"></div>
+  <div style="font-size:2.5rem;margin:0.3rem 0" id="final-stars"></div>
+  <div class="flw-box">
+    <div style="font-size:0.82rem;color:var(--muted);margin-bottom:0.3rem">סה"כ FLW שצברת</div>
+    <div class="flw-big"><div class="big-coin">FLW</div><span id="final-flw">0</span></div>
+  </div>
+  <button class="btn-orange" style="width:100%;max-width:280px;margin-bottom:0.8rem" onclick="playAgain()">🔄 שחק שוב</button>
+  <button class="btn-ghost" style="width:100%;max-width:280px" onclick="goHome()">🏠 חזרה לאקדמיה</button>
+</div>
+
+<script>
+// ============================================================
+// QUESTION GENERATORS
+// ============================================================
+
+const EMOJIS = ['🍎','🌟','🐶','🍕','⚽','🌈','🦋','🐸','🍦','🚀','❤️','🎈'];
+
+function rnd(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
+function shuffle(a){return[...a].sort(()=>Math.random()-.5);}
+
+// רמה 1: ספירה (1-10)
+function genCounting(){
+  const count = rnd(1,10);
+  const emoji = EMOJIS[rnd(0,EMOJIS.length-1)];
+  const correct = count;
+  let wrong = new Set();
+  while(wrong.size<3){
+    let w=rnd(Math.max(1,count-3),count+3);
+    if(w!==correct && w>=1 && w<=15) wrong.add(w);
+  }
+  const opts = shuffle([correct,...wrong]).slice(0,4);
+  return {
+    type:'counting', badge:'כמה יש?',
+    emoji, count, correct,
+    opts: opts.map(o=>({val:o,correct:o===correct})),
+    text:`ספור את ה${emoji} וזרוק לדלי הנכון!`
+  };
+}
+
+// רמה 2: חיבור/חיסור
+function genAddSub(){
+  const op = Math.random()>.4 ? '+' : '-';
+  let a,b,correct;
+  if(op==='+'){
+    a=rnd(1,12); b=rnd(1,12-Math.min(a,5));
+    correct=a+b;
+  } else {
+    a=rnd(2,15); b=rnd(1,a);
+    correct=a-b;
+  }
+  let wrong=new Set();
+  while(wrong.size<3){
+    let w=correct+rnd(-3,3);
+    if(w!==correct&&w>=0&&w<=20) wrong.add(w);
+  }
+  const opts=shuffle([correct,...wrong]).slice(0,4);
+  return {
+    type:'calc', badge:op==='+'?'חיבור!':'חיסור!',
+    equation:`${a} ${op} ${b} = ?`, correct,
+    opts:opts.map(o=>({val:o,correct:o===correct})),
+    text:`כמה זה?`
+  };
+}
+
+// רמה 3: כפל/חילוק
+function genMulDiv(){
+  const op = Math.random()>.5 ? '×' : '÷';
+  let a,b,correct;
+  if(op==='×'){
+    a=rnd(2,9); b=rnd(2,9);
+    correct=a*b;
+  } else {
+    b=rnd(2,9); correct=rnd(2,9);
+    a=b*correct;
+  }
+  let wrong=new Set();
+  while(wrong.size<3){
+    let w=correct+rnd(-4,4)*rnd(1,2);
+    if(w!==correct&&w>=1&&w<=81) wrong.add(w);
+  }
+  const opts=shuffle([correct,...wrong]).slice(0,4);
+  return {
+    type:'calc', badge:op==='×'?'כפל!':'חילוק!',
+    equation:`${a} ${op} ${b} = ?`, correct,
+    opts:opts.map(o=>({val:o,correct:o===correct})),
+    text:`כמה זה?`
+  };
+}
+
+// מבחן: מעורב
+function genTest(level){
+  const qs=[];
+  const n = level===3?15:10;
+  for(let i=0;i<n;i++){
+    if(level===1) qs.push(genCounting());
+    else if(level===2) qs.push(Math.random()>.3?genAddSub():genCounting());
+    else qs.push(Math.random()>.4?genMulDiv():genAddSub());
+  }
+  return qs;
+}
+
+// ============================================================
+// STATE
+// ============================================================
+let childName='';
+const GS={
+  flw:0, streak:0,
+  levelsUnlocked:[true,false,false],
+  levelsDone:[false,false,false],
+  testsDone:[false,false,false],
+  questions:[], qIdx:0, qScore:0, answered:false,
+  qDots:[], currentBuckets:[], correctBucketIdx:0,
+  mode:'quiz', // 'quiz' | 'test'
+  currentLevel:1, testFLW:0, testNum:1,
+  userId:null, gameId:null, flwPerWin:2,
+  startTime:Date.now()
+};
+
+const ROBOT_HOME={x:0.5, y:0.42};
+const BUCKET_X=[0.12,0.37,0.62,0.88];
+const BUCKET_Y=0.88;
+
+// ============================================================
+// postMessage
+// ============================================================
+window.addEventListener('message',e=>{
+  if(e.data?.type==='INIT'){
+    GS.userId=e.data.userId; GS.gameId=e.data.gameId;
+    GS.flwPerWin=e.data.flwReward?Math.max(1,Math.floor(e.data.flwReward/10)):2;
+    if(e.data.childName){childName=e.data.childName;updateChildName();}
+    if(e.data.characterUrl) document.querySelectorAll('img[alt="רובוט"]').forEach(i=>i.src=e.data.characterUrl);
+  }
+});
+function updateChildName(){
+  const b=document.getElementById('intro-bubble');
+  if(b&&childName) b.innerHTML=`שלום <strong>${childName}</strong>! אני OF! 🤖<br>היום נלמד מתמטיקה<br>ונרוויח מטבעות FLW! 🪙✨`;
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function showScreen(id){document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));document.getElementById(id).classList.add('on');window.scrollTo(0,0);}
+function addFLW(n){GS.flw+=n;const el=document.getElementById('flw-count');el.textContent=GS.flw;el.style.animation='none';el.offsetHeight;el.style.animation='flw-pop 0.4s ease';}
+function spawnCoins(x,y){for(let i=0;i<4;i++){const c=document.createElement('div');c.className='coin-p';c.textContent='🪙';c.style.left=(x+(Math.random()-.5)*40)+'px';c.style.top=y+'px';c.style.animationDelay=(i*.1)+'s';document.body.appendChild(c);setTimeout(()=>c.remove(),1400);}}
+function showCombo(n){const ex=document.querySelector('.combo');if(ex)ex.remove();const b=document.createElement('div');b.className='combo';b.textContent=`🔥 קומבו x${n}!`;document.body.appendChild(b);setTimeout(()=>b.remove(),1600);}
+function showToast(msg,color){const el=document.getElementById('arena-toast');el.textContent=msg;el.style.color=color||'#333';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1200);}
+function updateMainProg(){const done=GS.levelsDone.filter(Boolean).length+GS.testsDone.filter(Boolean).length;document.getElementById('main-prog').style.width=(done/6*100)+'%';}
+
+// ============================================================
+// ROBOT
+// ============================================================
+function placeRobot(xPct,yPct,anim){
+  const arena=document.getElementById('scr-arena');
+  const W=arena.offsetWidth,H=arena.offsetHeight;
+  const r=document.getElementById('arena-robot');if(!r)return;
+  const rW=r.offsetWidth||140,rH=r.offsetHeight||200;
+  r.style.left=(W*xPct-rW/2)+'px';
+  r.style.top=(H*yPct-rH/2)+'px';
+  r.className=anim||'idle';
+}
+
+// זרוק כדור מהרובוט לדלי הנכון
+function throwBall(bucketIdx, onLand){
+  const arena=document.getElementById('scr-arena');
+  const W=arena.offsetWidth,H=arena.offsetHeight;
+  const r=document.getElementById('arena-robot');if(!r)return;
+  const rW=r.offsetWidth||140,rH=r.offsetHeight||200;
+  const rx=parseFloat(r.style.left)+rW/2;
+  const ry=parseFloat(r.style.top)+rH*0.3;
+  const tx=W*BUCKET_X[bucketIdx];
+  const ty=H*BUCKET_Y-40;
+
+  r.className='throw';
+
+  const ball=document.createElement('div');
+  ball.className='ball';
+  ball.textContent='⚽';
+  ball.style.left=rx+'px';
+  ball.style.top=ry+'px';
+  arena.appendChild(ball);
+
+  const duration=500;
+  const startTime=performance.now();
+
+  function animate(now){
+    const t=(now-startTime)/duration;
+    if(t>=1){
+      ball.style.left=tx+'px';
+      ball.style.top=ty+'px';
+      setTimeout(()=>{ball.remove();if(onLand)onLand();},100);
+      return;
+    }
+    const cx=rx+(tx-rx)*t;
+    const cy=ry+(ty-ry)*t - 4*(-80)*(t-t*t);
+    ball.style.left=cx+'px';
+    ball.style.top=cy+'px';
+    ball.style.transform=`rotate(${t*360}deg)`;
+    requestAnimationFrame(animate);
+  }
+  requestAnimationFrame(animate);
+}
+
+// ============================================================
+// MAP
+// ============================================================
+function showMap(){updateMainProg();renderMap();showScreen('scr-map');}
+
+function renderMap(){
+  const levels=[
+    {name:'רמה 1 — ספירה',sub:'סופרים עצמים (1-10)',icon:'🔢',idx:0,testIdx:0,testLabel:'מבחן 1 — ספירה'},
+    {name:'רמה 2 — חיבור וחיסור',sub:'חישובים בסיסיים',icon:'➕',idx:1,testIdx:1,testLabel:'מבחן 2 — חישובים'},
+    {name:'רמה 3 — כפל וחילוק',sub:'לוח הכפל',icon:'✖️',idx:2,testIdx:2,testLabel:'מבחן גדול — הכל'},
+  ];
+  let html='';
+  levels.forEach((lv,i)=>{
+    const unlocked=GS.levelsUnlocked[i],done=GS.levelsDone[i];
+    const cls=done?'done':unlocked?'unlocked':'locked';
+    const badge=done?`<span class="lvl-badge bd-done">✓ הושלם</span>`:unlocked?`<span class="lvl-badge bd-go">לחץ להתחיל</span>`:`<span class="lvl-badge bd-lock">🔒 נעול</span>`;
+    html+=`<div class="lvl-node ${cls}" ${unlocked?`onclick="showLevelIntro(${i})"`:''}><div class="lvl-icon">${lv.icon}</div><div class="lvl-info"><div class="lvl-name">${lv.name}</div><div class="lvl-sub">${lv.sub}</div></div>${badge}</div>`;
+    const tdone=GS.testsDone[lv.testIdx],tavail=GS.levelsDone[i];
+    const tcls=tdone?'done':tavail?'unlocked':'locked';
+    const tbadge=tdone?`<span class="lvl-badge bd-done">✓ עבר</span>`:tavail?`<span class="lvl-badge bd-test">מבחן!</span>`:`<span class="lvl-badge bd-lock">🔒</span>`;
+    html+=`<div class="lvl-node ${tcls}" style="background:linear-gradient(135deg,#FEF2F2,#FEE2E2)" ${tavail?`onclick="startTest(${i+1})"`:''}><div class="lvl-icon">🎯</div><div class="lvl-info"><div class="lvl-name">${lv.testLabel}</div><div class="lvl-sub">עבור 80% להמשיך</div></div>${tbadge}</div>`;
+  });
+  document.getElementById('level-map').innerHTML=html;
+}
+
+// ============================================================
+// LEVEL INTRO
+// ============================================================
+const LEVEL_INFO=[
+  {icon:'🔢',title:'ספירה',desc:'ספור את האובייקטים ובחר את המספר הנכון',tip:'רמה לגילאי 4-6'},
+  {icon:'➕',title:'חיבור וחיסור',desc:'פתור את התרגיל וזרוק לדלי הנכון',tip:'רמה לגילאי 6-8'},
+  {icon:'✖️',title:'כפל וחילוק',desc:'לוח הכפל ותרגילי חילוק',tip:'רמה לגילאי 8-12'},
+];
+
+function showLevelIntro(idx){
+  GS.currentLevel=idx+1;
+  const info=LEVEL_INFO[idx];
+  document.getElementById('li-icon').textContent=info.icon;
+  document.getElementById('li-title').textContent=info.title;
+  document.getElementById('li-desc').textContent=info.desc;
+  document.getElementById('li-tip').textContent=info.tip;
+  showScreen('scr-level-intro');
+}
+
+function startCurrentLevel(){startQuiz(GS.currentLevel);}
+
+// ============================================================
+// QUIZ
+// ============================================================
+function startQuiz(level){
+  GS.currentLevel=level;GS.qIdx=0;GS.qScore=0;GS.answered=false;GS.streak=0;GS.mode='quiz';
+  const qs=[];
+  for(let i=0;i<10;i++){
+    if(level===1) qs.push(genCounting());
+    else if(level===2) qs.push(genAddSub());
+    else qs.push(genMulDiv());
+  }
+  GS.questions=qs;GS.qDots=new Array(10).fill('');
+  showScreen('scr-arena');
+  setTimeout(()=>{placeRobot(ROBOT_HOME.x,ROBOT_HOME.y,'idle');renderQ();},120);
+}
+
+function renderQ(){
+  const q=GS.questions[GS.qIdx];GS.answered=false;
+  document.getElementById('arena-q-counter').textContent=`${GS.qIdx+1}/${GS.questions.length}`;
+  let dots='';GS.qDots.forEach((d,i)=>{const cls=i<GS.qIdx?GS.qDots[i]:i===GS.qIdx?'cur':'';dots+=`<div class="q-dot ${cls}"></div>`;});
+  document.getElementById('arena-dots').innerHTML=dots;
+  document.getElementById('arena-q-badge').textContent=q.badge;
+  document.getElementById('arena-q-text').textContent=q.text;
+
+  const content=document.getElementById('arena-q-content');
+  if(q.type==='counting'){
+    let objHtml='<div class="count-objects">';
+    for(let i=0;i<q.count;i++) objHtml+=`<span class="count-obj" style="animation-delay:${i*0.05}s">${q.emoji}</span>`;
+    objHtml+='</div>';
+    content.innerHTML=objHtml;
+  } else {
+    content.innerHTML=`<div class="equation">${q.equation}</div>`;
+  }
+
+  const sb=document.getElementById('streak-badge');sb.textContent=`🔥 x${GS.streak}`;sb.className='streak-badge'+(GS.streak>=3?' show':'');
+
+  // buckets
+  GS.currentBuckets=shuffle([...q.opts]);
+  GS.correctBucketIdx=GS.currentBuckets.findIndex(o=>o.correct);
+  for(let i=0;i<4;i++){
+    const bk=document.getElementById(`bk-${i}`);
+    bk.className=`bucket-zone bk-${i}`;
+    const opt=GS.currentBuckets[i]||{val:'',correct:false};
+    const numEl=document.getElementById(`bk${i}-num`);
+    numEl.textContent=opt.val;
+    numEl.style.fontSize=opt.val>99?'1.4rem':'2.2rem';
+    bk.dataset.correct=opt.correct;
+  }
+}
+
+function handleBucket(bucketIdx){
+  if(GS.answered)return;GS.answered=true;
+  const opt=GS.currentBuckets[bucketIdx];const correct=opt?.correct||false;
+  const ci=GS.correctBucketIdx;
+
+  // הרובוט תמיד זורק לדלי הנכון
+  throwBall(ci,()=>{
+    const bk=document.getElementById(`bk-${bucketIdx}`);
+    const correctBk=document.getElementById(`bk-${ci}`);
+    const rect=correctBk.getBoundingClientRect();
+    if(correct){
+      bk.className=`bucket-zone bk-${bucketIdx} correct`;
+      GS.qScore++;GS.streak++;addFLW(GS.flwPerWin);
+      spawnCoins(rect.left+rect.width/2,rect.top);
+      if(GS.streak>=3)showCombo(GS.streak);
+      document.getElementById('arena-robot').className='happy';
+      const msgs=['מעולה! 🌟','נכון! ⭐','כל הכבוד! 🎉','גאון! 💫','אלוף! 🏆'];
+      showToast(msgs[Math.floor(Math.random()*msgs.length)],'#16A34A');
+      GS.qDots[GS.qIdx]='ok';
+    } else {
+      bk.className=`bucket-zone bk-${bucketIdx} wrong`;
+      correctBk.className=`bucket-zone bk-${ci} reveal`;
+      GS.streak=0;
+      document.getElementById('arena-robot').className='sad';
+      showToast('לא נורא! ננסה שוב 💪','#EF4444');
+      GS.qDots[GS.qIdx]='no';
+    }
+    setTimeout(()=>{
+      placeRobot(ROBOT_HOME.x,ROBOT_HOME.y,'idle');
+      GS.qIdx++;
+      if(GS.qIdx>=GS.questions.length){
+        if(GS.mode==='quiz') endQuiz();
+        else showTestResult();
+      } else renderQ();
+    },1400);
+  });
+}
+
+function endQuiz(){
+  GS.levelsDone[GS.currentLevel-1]=true;
+  if(GS.currentLevel===3){endGame();return;}
+  addFLW(5);showMap();
+}
+
+// ============================================================
+// TEST
+// ============================================================
+function startTest(level){
+  GS.testNum=level;GS.qIdx=0;GS.qScore=0;GS.answered=false;GS.testFLW=0;GS.streak=0;GS.mode='test';
+  GS.questions=genTest(level);GS.qDots=new Array(GS.questions.length).fill('');
+  showScreen('scr-arena');
+  document.getElementById('scr-arena').style.background='linear-gradient(180deg,#1A0A2E 0%,#2D1B69 40%,#1A1060 100%)';
+  setTimeout(()=>{placeRobot(ROBOT_HOME.x,ROBOT_HOME.y,'idle');renderQ();},120);
+}
+
+function showTestResult(){
+  document.getElementById('scr-arena').style.background='';
+  const total=GS.questions.length,pct=Math.round(GS.qScore/total*100),passed=pct>=80;
+  const box=document.getElementById('test-result-box');
+  box.className='test-result-box '+(passed?'test-pass':'test-fail');
+  document.getElementById('test-res-title').textContent=passed?'🎉 כל הכבוד! עברת!':'😔 לא עברת הפעם';
+  document.getElementById('test-res-sub').textContent=`${GS.qScore} מתוך ${total} נכון (${pct}%) — נדרש 80%`;
+  if(passed){addFLW(10);GS.testFLW+=10;GS.testsDone[GS.testNum-1]=true;if(GS.testNum<3)GS.levelsUnlocked[GS.testNum]=true;}
+  document.getElementById('test-flw-earned').textContent=GS.testFLW;
+  const btn=document.getElementById('test-continue-btn');
+  btn.textContent=passed?'🚀 המשך!':'🔄 נסה שוב';
+  btn.onclick=passed?()=>showMap():()=>startTest(GS.testNum);
+  showScreen('scr-test-result');
+}
+
+// ============================================================
+// END
+// ============================================================
+function endGame(){
+  document.getElementById('scr-arena').style.background='';
+  addFLW(20);
+  const total=GS.questions.length,pct=total>0?Math.round(GS.qScore/total*100):100;
+  const name=childName||'';
+  let title,stars;
+  if(pct>=90){title=`${name?name+' — ':''}אלוף מתמטיקה! 🏆`;stars='⭐⭐⭐';}
+  else if(pct>=70){title='כל הכבוד! 🎉';stars='⭐⭐';}
+  else{title='ניסיון טוב! 💪';stars='⭐';}
+  document.getElementById('final-title').textContent=title;
+  document.getElementById('final-sub').textContent=`השלמת את כל רמות המתמטיקה! +20 FLW בונוס!`;
+  document.getElementById('final-stars').textContent=stars;
+  document.getElementById('final-flw').textContent=GS.flw;
+  const duration=Math.round((Date.now()-GS.startTime)/1000);
+  const payload={type:'GAME_COMPLETE',userId:GS.userId,gameId:GS.gameId,score:pct,flwEarned:GS.flw,durationSeconds:duration,gameName:'מתמטיקה — ספירה עד כפל'};
+  if(window.parent!==window)window.parent.postMessage(payload,'*');
+  if(GS.userId)fetch('/api/kids/award-flw',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:GS.userId,gameId:GS.gameId,score:pct,flwEarned:GS.flw,durationSeconds:duration})}).catch(()=>{});
+  showScreen('scr-result');
+}
+
+function playAgain(){
+  GS.flw=0;GS.streak=0;document.getElementById('scr-arena').style.background='';
+  GS.levelsUnlocked=[true,false,false];GS.levelsDone=[false,false,false];GS.testsDone=[false,false,false];
+  document.getElementById('flw-count').textContent='0';document.getElementById('main-prog').style.width='0%';
+  showMap();
+}
+function goHome(){if(window.parent!==window)window.parent.postMessage({type:'CLOSE_GAME'},'*');else window.history.back();}
+
+const st=document.createElement('style');
+st.textContent=`@keyframes flw-pop{0%{transform:scale(1)}50%{transform:scale(1.4)}100%{transform:scale(1)}}`;
+document.head.appendChild(st);
+GS.startTime=Date.now();
+</script>
+</body>
+</html>

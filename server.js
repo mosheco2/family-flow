@@ -1791,7 +1791,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
             (title, subject, age_min, age_max, difficulty, flw_reward, file_path, thumbnail_emoji, is_active)
           VALUES
             ('אנגלית — מהאלף-בית למילים', 'english', 5, 8, 1, 20, 'games/english-alphabet-1.html', '🔤', true),
-            ('עברית — מהאלף-בית למילים', 'hebrew', 5, 8, 1, 20, 'games/hebrew-letters-1.html', '🔤', true)
+            ('עברית — מהאלף-בית למילים', 'hebrew', 5, 8, 1, 20, 'games/hebrew-letters-1.html', '🔤', true),
+            ('מתמטיקה — ספירה עד כפל', 'math', 4, 12, 2, 20, 'games/math-1.html', '🔢', true)
           ON CONFLICT DO NOTHING
       `); } catch(e) {}
 
