@@ -680,11 +680,11 @@
                             <h1 class="text-3xl font-bold tracking-tight" dir="ltr" id="child-balance-display">₪0</h1>
                             <p class="text-violet-100 text-sm mt-3 mb-4 opacity-90" id="child-greeting-text">שלום! 👋</p>
                             <div class="grid grid-cols-2 gap-3">
-                              <button onclick="switchTab('shop')" class="bg-white/20 hover:bg-white/30 backdrop-blur rounded-xl py-3 px-2 text-center transition active:scale-95">
+                              <button ontouchend="event.preventDefault();switchTab('shop')" onclick="switchTab('shop')" style="touch-action:manipulation" class="bg-white/20 hover:bg-white/30 backdrop-blur rounded-xl py-3 px-2 text-center transition active:scale-95">
                                 <div class="text-2xl mb-1">🛒</div>
                                 <div class="text-xs font-bold">בקשת קניה</div>
                               </button>
-                              <button onclick="switchTab('academy')" class="bg-white/20 hover:bg-white/30 backdrop-blur rounded-xl py-3 px-2 text-center transition active:scale-95">
+                              <button ontouchend="event.preventDefault();switchTab('academy')" onclick="switchTab('academy')" style="touch-action:manipulation" class="bg-white/20 hover:bg-white/30 backdrop-blur rounded-xl py-3 px-2 text-center transition active:scale-95">
                                 <div class="text-2xl mb-1">🎓</div>
                                 <div class="text-xs font-bold">אתגר אקדמיה</div>
                               </button>
@@ -697,15 +697,15 @@
                         <div id="child-home-footer" class="hidden px-2 mb-6">
                           <h3 class="font-bold text-slate-600 text-sm mb-3 px-1">קישורים מהירים</h3>
                           <div class="grid grid-cols-3 gap-3">
-                            <button onclick="switchTab('bank')" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col items-center gap-2 hover:bg-violet-50 active:scale-95 transition">
+                            <button ontouchend="event.preventDefault();switchTab('bank')" onclick="switchTab('bank')" style="touch-action:manipulation" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col items-center gap-2 hover:bg-violet-50 active:scale-95 transition">
                               <span class="text-2xl">🐷</span>
                               <span class="text-xs font-bold text-slate-700">חיסכון</span>
                             </button>
-                            <button onclick="switchTab('cashflow')" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col items-center gap-2 hover:bg-violet-50 active:scale-95 transition">
+                            <button ontouchend="event.preventDefault();switchTab('cashflow')" onclick="switchTab('cashflow')" style="touch-action:manipulation" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col items-center gap-2 hover:bg-violet-50 active:scale-95 transition">
                               <span class="text-2xl">📜</span>
                               <span class="text-xs font-bold text-slate-700">היסטוריה</span>
                             </button>
-                            <button onclick="switchTab('community')" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col items-center gap-2 hover:bg-violet-50 active:scale-95 transition">
+                            <button ontouchend="event.preventDefault();switchTab('community')" onclick="switchTab('community')" style="touch-action:manipulation" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col items-center gap-2 hover:bg-violet-50 active:scale-95 transition">
                               <span class="text-2xl">👥</span>
                               <span class="text-xs font-bold text-slate-700">קהילה</span>
                             </button>
@@ -2453,7 +2453,7 @@
             document.getElementById('btn-adj-add').className = isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-green-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-green-600 rounded-lg transition';
         }
     </script>
-    <script src="app.js?v=48" defer></script>
+    <script src="app.js?v=49" defer></script>
     <script src="community-help.js?v=1" defer></script>
     <script>
         if ('serviceWorker' in navigator) {

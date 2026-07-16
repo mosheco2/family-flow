@@ -7212,8 +7212,10 @@ function enforcePermissions() {
     // 2. אכיפת מנעולים (Feature Flags) שנסגרו ע"י הסופר-אדמין לכלל המשפחה
     const enforceModule = (flag, tabId, moduleName) => {
         const btn = getEl(`tab-${tabId}`);
-        if (!btn || btn.style.display === 'none') return; 
-        
+        if (!btn || btn.style.display === 'none') return;
+        // ילד לא נחסם על טאבים שמותרים לו לפי תפקידו
+        if (currentUser.role === 'CHILD' && userTabs.includes(tabId)) return;
+
         const isModuleActive = flag !== undefined ? flag : true;
 
         if (!isModuleActive) {
