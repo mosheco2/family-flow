@@ -13595,7 +13595,7 @@ async function openAssignGameModal() {
         </div>
 
         <label style="font-size:0.85rem;font-weight:700;color:#555;display:block;margin-bottom:0.4rem">לאיזה ילד?</label>
-        <select id="assign-child-select" style="
+        <select id="game-assign-child-select" style="
           width:100%;padding:0.8rem;border:2px solid #E0E0E0;
           border-radius:12px;font-size:1rem;margin-bottom:1rem;
         ">
@@ -13676,7 +13676,7 @@ function setRounds(el, n) {
 }
 
 async function submitGameAssignment() {
-  const childId = document.getElementById('assign-child-select')?.value;
+  const childId = document.getElementById('game-assign-child-select')?.value;
   const flw     = document.getElementById('assign-flw')?.value;
 
   if(!childId) return alert('נא לבחור ילד');
