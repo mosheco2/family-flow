@@ -638,15 +638,6 @@ function switchTab(t) { 
     }
     if (t === 'home-maintenance') try { loadHomeMaintenance(); } catch(e) {}
     if (t === 'academy' && currentUser && currentUser.role === 'CHILD') try { loadKidAcademy(); } catch(e) {}
-    // עדכון הדגשה בסרגל ניווט ילד
-    try {
-        document.querySelectorAll('.child-nav-btn').forEach(b => {
-            b.style.background = '';
-            b.style.opacity = '0.7';
-        });
-        const activeTabId = t === 'feed' ? 'cnav-feed' : t === 'academy' ? 'cnav-academy' : t === 'tasks' ? 'cnav-tasks' : t === 'shop' ? 'cnav-shop' : t === 'bank' ? 'cnav-bank' : null;
-        if(activeTabId) { const btn = document.getElementById(activeTabId); if(btn) { btn.style.background = 'rgba(255,255,255,0.2)'; btn.style.opacity = '1'; } }
-    } catch(e) {}
 }
 
 let myOrdersCache = [];
@@ -1537,11 +1528,6 @@ async function loadDashboard() {
         getEl('card-name').innerText = (currentUser.nickname || '').toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}%`;
         const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
         ['tab-members','tab-budget'].forEach(id => { const el=getEl(id); if(el) el.classList.add('hidden'); });
-        // הצג סרגל ניווט ילד רק לילדים (CHILD), לא לבני משפחה מבוגרים
-        if(currentUser.role === 'CHILD') {
-            const fgnav = getEl('family-group-nav'); if(fgnav) fgnav.classList.add('hidden');
-            const cnav = getEl('child-nav-bar'); if(cnav) cnav.classList.remove('hidden');
-        }
     }
     const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); updateBatteryUI();
     
