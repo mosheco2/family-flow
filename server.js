@@ -21324,23 +21324,20 @@ app.get('/api/kids/games', async (req, res) => {
             ? new Date().getFullYear() - userRes.rows[0].birth_year
             : 8;
 
-        // הורה (גיל >= 18) רואה את כל המשחקים הפעילים ללא סינון גיל
-        const gamesQuery = age >= 18
-            ? `SELECT g.*, gc.default_character_url,
-                CASE WHEN g.character_url != '' THEN g.character_url ELSE gc.default_character_url END as active_character_url
-               FROM games_catalog g CROSS JOIN (SELECT * FROM games_global_config LIMIT 1) gc
-               WHERE g.is_active = true ORDER BY g.subject, g.difficulty`
-            : `SELECT g.*, gc.default_character_url,
-                CASE WHEN g.character_url != '' THEN g.character_url ELSE gc.default_character_url END as active_character_url
-               FROM games_catalog g CROSS JOIN (SELECT * FROM games_global_config LIMIT 1) gc
-               WHERE g.is_active = true AND g.age_min <= $1 AND g.age_max >= $1
-               ORDER BY g.subject, g.difficulty`;
+        const configRes = await pool.query('SELECT default_character_url FROM games_global_config LIMIT 1');
+        const defaultCharUrl = configRes.rows[0]?.default_character_url || '';
 
-        const games = age >= 18
-            ? await pool.query(gamesQuery)
-            : await pool.query(gamesQuery, [age]);
+        const gamesRes2 = age >= 18
+            ? await pool.query(`SELECT * FROM games_catalog WHERE is_active = true ORDER BY subject, difficulty`)
+            : await pool.query(`SELECT * FROM games_catalog WHERE is_active = true AND age_min <= $1 AND age_max >= $1 ORDER BY subject, difficulty`, [age]);
 
-        res.json({ success: true, games: games.rows, childAge: age });
+        const games2 = gamesRes2.rows.map(g => ({
+            ...g,
+            default_character_url: defaultCharUrl,
+            active_character_url: (g.character_url && g.character_url !== '') ? g.character_url : defaultCharUrl
+        }));
+
+        res.json({ success: true, games: games2, childAge: age });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
