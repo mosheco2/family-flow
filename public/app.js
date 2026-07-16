@@ -536,11 +536,14 @@ async function handleLogin(e) {
     try { 
         const res = await fetch(`${API}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('login-code'), nickname: val('login-nickname'), password: val('login-password') }) }); 
         const data = await res.json(); 
-        if(data.success) { 
-            currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
-            if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; } 
+        if(data.success) {
+            currentUser = data.user; currentGroup = data.group;
+            // לוגין רגיל — מנקים SA token כדי שבאנר ההשתלטות לא יופיע
+            localStorage.removeItem('ofl_sa_token');
+            localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup}));
+            if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; }
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
-            await loadDashboard(); 
+            await loadDashboard();
         } else showToast('error', data.error); 
     } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
 }
