@@ -7161,7 +7161,8 @@ const ROLE_DEFAULTS = {
     'ADMIN': ALL_TABS.map(t => t.id),
     'MANAGER': ['feed', 'tasks', 'shop', 'pantry', 'academy', 'recipes', 'home-maintenance'],
     'SENIOR': ['feed', 'tasks', 'shop', 'pantry', 'academy'],
-    'MEMBER': ['feed', 'tasks', 'shop', 'academy']
+    'MEMBER': ['feed', 'tasks', 'shop', 'academy'],
+    'CHILD': ['feed', 'tasks', 'shop', 'academy', 'bank', 'cashflow', 'community']
 };
 
 function enforcePermissions() {
