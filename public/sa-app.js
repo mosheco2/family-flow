@@ -9154,6 +9154,16 @@ function renderAuditLog() {
 let _saGamesData = [];
 let _saGlobalConfig = {};
 
+async function dedupSAGames() {
+    if (!confirm('זה ימחק משחקים כפולים וישאיר רק עותק אחד מכל משחק. להמשיך?')) return;
+    try {
+        const res = await fetch(`${API}/sa/games/dedup`, { method: 'POST', headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        alert(`נמחקו ${data.deleted} כפילויות`);
+        await loadSAGames();
+    } catch(e) { alert('שגיאה בניקוי כפילויות'); }
+}
+
 async function loadSAGames() {
     try {
         const res = await fetch(`${API}/sa/games`, { headers: { 'Authorization': saToken } });

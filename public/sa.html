@@ -2804,9 +2804,14 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
               <div id="vt-games-list" class="vt-games bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
                 <div class="flex justify-between items-center mb-4">
                   <h3 class="text-lg font-bold text-slate-800">קטלוג משחקים</h3>
-                  <button onclick="switchViewTab('games','edit');resetGameForm()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2">
-                    <i class="fa-solid fa-plus"></i> הוסף משחק חדש
-                  </button>
+                  <div class="flex gap-2">
+                    <button onclick="dedupSAGames()" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2">
+                      <i class="fa-solid fa-broom"></i> נקה כפילויות
+                    </button>
+                    <button onclick="switchViewTab('games','edit');resetGameForm()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2">
+                      <i class="fa-solid fa-plus"></i> הוסף משחק חדש
+                    </button>
+                  </div>
                 </div>
                 <div class="flex gap-3 mb-4 flex-wrap">
                   <select id="games-filter-subject" onchange="renderSAGamesTableFiltered()" class="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:border-purple-400 outline-none font-bold">
