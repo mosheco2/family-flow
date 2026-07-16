@@ -5089,6 +5089,8 @@ app.post('/api/admin/payday', async (req, res) => {
             if(toAdd > 0) {
                 await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [toAdd, u.id]);
                 await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'שכר / חלוקת קצבה ותמריצים', 'allowance', 'income')`, [u.id, groupId, toAdd]);
+                // הוצאה מנקודת מבט ההורה לחישוב יתרה ותקציב
+                await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) SELECT id, $1, $2, $3, 'allowance', 'expense', FALSE FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1`, [groupId, toAdd, `דמי כיס ל${u.nickname || 'ילד'}`]);
                 totalDistributed += toAdd;
             }
         }
@@ -5121,6 +5123,7 @@ app.post('/api/tasks/update', async (req, res) => {
         if (status === 'approved') {
             await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [rew, t.assigned_to]);
             await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'tasks', 'income')`, [t.assigned_to, t.group_id, rew, 'תגמול משימה: ' + t.title]);
+            await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) SELECT id, $1, $2, $3, 'tasks', 'expense', FALSE FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1`, [t.group_id, rew, 'תגמול משימה: ' + t.title]);
         }
         await pool.query('COMMIT');
         if (status === 'done') await logActivity(t.group_id, t.assigned_to, null, 'task', 'task_done', `משימה הושלמה: ${t.title}`);
@@ -5187,6 +5190,7 @@ app.post('/api/academy/submit', async (req, res) => {
                 const rew = parseFloat(ua.rows[0].custom_reward) || parseFloat(b.rows[0].default_reward) || 0;
                 await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [rew, userId]);
                 await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'בונוס למידה מ-AI', 'academy', 'income')`, [userId, groupId, rew]);
+                await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) SELECT id, $1, $2, 'בונוס אקדמיה', 'academy', 'expense', FALSE FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1`, [groupId, rew]);
             }
         }
         await pool.query('COMMIT'); res.json({success:true});
@@ -5661,6 +5665,7 @@ app.post('/api/tasks/vision-verify', async (req, res) => {
 
             await pool.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [total, t.assigned_to]);
             await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'tasks', 'income', FALSE)`, [t.assigned_to, t.group_id, total, `תגמול משימה (אושר ע"י AI) + בונוס: ${t.title}`]);
+            await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) SELECT id, $1, $2, $3, 'tasks', 'expense', FALSE FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1`, [t.group_id, total, 'תגמול משימה (AI): ' + t.title]);
             await pool.query('UPDATE tasks SET status = $1, reward = $2 WHERE id = $3', ['approved', total, taskId]);
             
             if(bonus > 0) feedback.message += ` (איזה יופי! קיבלת גם בונוס AI של ₪${bonus}!)`;
@@ -21477,6 +21482,12 @@ app.post('/api/kids/redeem', async (req, res) => {
             INSERT INTO transactions (user_id, group_id, amount, type, category, description)
             SELECT $1, group_id, $2, 'income', 'allowance', $3 FROM users WHERE id=$1
         `, [childUserId, ilsAmount, `מימוש ${flwAmount} FLW = ₪${ilsAmount}`]);
+
+        // הוצאה מנקודת מבט ההורה
+        const childGroupRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [childUserId]);
+        if (childGroupRes.rows[0]) {
+            await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) SELECT id, $1, $2, $3, 'allowance', 'expense', FALSE FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1`, [childGroupRes.rows[0].group_id, ilsAmount, `מימוש FLW לילד`]);
+        }
 
         // מחיקת הבקשה שאושרה (אם קיימת)
         if (req.body.requestId) {
