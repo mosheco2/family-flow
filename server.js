@@ -21324,19 +21324,21 @@ app.get('/api/kids/games', async (req, res) => {
             ? new Date().getFullYear() - userRes.rows[0].birth_year
             : 8;
 
-        const games = await pool.query(`
-            SELECT g.*,
-                gc.default_character_url,
-                CASE WHEN g.character_url != ''
-                     THEN g.character_url
-                     ELSE gc.default_character_url END as active_character_url
-            FROM games_catalog g
-            CROSS JOIN games_global_config gc
-            WHERE g.is_active = true
-              AND g.age_min <= $1
-              AND g.age_max >= $1
-            ORDER BY g.subject, g.difficulty
-        `, [age]);
+        // הורה (גיל >= 18) רואה את כל המשחקים הפעילים ללא סינון גיל
+        const gamesQuery = age >= 18
+            ? `SELECT g.*, gc.default_character_url,
+                CASE WHEN g.character_url != '' THEN g.character_url ELSE gc.default_character_url END as active_character_url
+               FROM games_catalog g CROSS JOIN games_global_config gc
+               WHERE g.is_active = true ORDER BY g.subject, g.difficulty`
+            : `SELECT g.*, gc.default_character_url,
+                CASE WHEN g.character_url != '' THEN g.character_url ELSE gc.default_character_url END as active_character_url
+               FROM games_catalog g CROSS JOIN games_global_config gc
+               WHERE g.is_active = true AND g.age_min <= $1 AND g.age_max >= $1
+               ORDER BY g.subject, g.difficulty`;
+
+        const games = age >= 18
+            ? await pool.query(gamesQuery)
+            : await pool.query(gamesQuery, [age]);
 
         res.json({ success: true, games: games.rows, childAge: age });
     } catch(e) { res.status(500).json({ error: e.message }); }

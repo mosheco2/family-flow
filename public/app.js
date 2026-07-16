@@ -13867,7 +13867,8 @@ function openQuestWizard() {
       fetch(`/api/group/members?groupId=${currentGroup?.id}`)
         .then(r => r.json())
         .then(data => {
-          const children = (data.members || []).filter(m =>
+          const allMembers = Array.isArray(data) ? data : (data.members || []);
+          const children = allMembers.filter(m =>
             m.role === 'CHILD' || (new Date().getFullYear() - (m.birth_year || 2010)) <= 13
           );
           const el = document.getElementById('qw-children-list');
