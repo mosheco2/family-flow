@@ -13849,15 +13849,18 @@ async function openAssignGameModal() {
         <div id="games-picker" style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:1rem">
           ${games.length === 0
             ? '<p style="color:#999;text-align:center;grid-column:1/-1">אין משחקים פעילים</p>'
-            : games.map(g => `
+            : games.map(g => {
+                const isNew = g.created_at && (Date.now() - new Date(g.created_at).getTime()) < 30*24*60*60*1000;
+                return `
               <div onclick="selectGameForAssign(this,'${g.id}')" data-game-id="${g.id}"
                 style="border:2px solid #E0E0E0;border-radius:14px;padding:0.8rem;
-                       text-align:center;cursor:pointer;transition:all 0.2s;background:white">
+                       text-align:center;cursor:pointer;transition:all 0.2s;background:white;position:relative">
+                ${isNew ? `<span style="position:absolute;top:6px;right:6px;background:linear-gradient(135deg,#FF6B2B,#F59E0B);color:white;font-size:0.58rem;font-weight:900;padding:2px 6px;border-radius:20px;letter-spacing:0.03em">חדש ✨</span>` : ''}
                 <div style="font-size:2rem">${g.thumbnail_emoji || '🎮'}</div>
                 <div style="font-size:0.8rem;font-weight:700;margin-top:0.3rem">${g.title}</div>
                 <div style="font-size:0.7rem;color:#999">${g.subject}</div>
-              </div>
-            `).join('')}
+              </div>`;
+              }).join('')}
         </div>
 
         <div id="age-level-section" style="display:none;margin-bottom:1rem">
