@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>עברית מהאלף-בית | Oneflow Kids</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&family=Fredoka+One&display=swap');
+:root{
+  --teal:#00A896;--orange:#FF6B2B;--yellow:#FFD600;
+  --purple:#7C3AED;--green:#22C55E;--red:#EF4444;
+  --bg:#FFF8F0;--text:#1A2E35;--muted:#7A9EA8;--radius:20px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;color:var(--text);overflow:hidden}
+
+/* HEADER */
+.hdr{background:linear-gradient(135deg,#7C3AED,#5B21B6);padding:0.6rem 1rem;
+  display:flex;align-items:center;justify-content:space-between;
+  position:relative;z-index:100;box-shadow:0 2px 12px rgba(124,58,237,0.3)}
+.hdr-title{font-family:'Fredoka One',sans-serif;color:white;font-size:1rem}
+.flw-pill{display:flex;align-items:center;gap:0.3rem;background:rgba(255,255,255,0.2);
+  border-radius:50px;padding:0.25rem 0.7rem;color:white;font-weight:700;font-size:0.9rem}
+.coin-sm{width:20px;height:20px;background:var(--yellow);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:900;color:#333}
+.prog-wrap{background:rgba(255,255,255,0.2);border-radius:50px;height:5px;width:70px;overflow:hidden}
+.prog-fill{height:100%;background:var(--yellow);border-radius:50px;transition:width 0.5s ease}
+
+/* SCREENS */
+.scr{display:none;width:100%;height:calc(100vh - 48px)}
+.scr.on{display:flex;flex-direction:column;align-items:center}
+
+/* INTRO */
+#scr-intro{justify-content:center;padding:1.5rem;text-align:center;
+  background:linear-gradient(180deg,#F5F3FF 0%,#FFF8F0 100%)}
+.intro-robot{width:200px;filter:drop-shadow(0 10px 30px rgba(124,58,237,0.3));
+  animation:intro-bounce 2s ease-in-out infinite}
+@keyframes intro-bounce{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-15px) rotate(3deg)}}
+.bubble{background:white;border-radius:20px;padding:1rem 1.5rem;
+  box-shadow:0 4px 20px rgba(0,0,0,0.1);font-size:1rem;line-height:1.6;
+  max-width:280px;position:relative;margin:0.8rem 0}
+.bubble::before{content:'';position:absolute;top:-10px;right:50%;transform:translateX(50%);
+  border:5px solid transparent;border-bottom-color:white}
+.intro-title{font-family:'Fredoka One',sans-serif;font-size:2rem;color:var(--purple);margin:0.3rem 0}
+.btn-orange{background:linear-gradient(135deg,var(--orange),#FF4500);color:white;border:none;
+  padding:1rem 2.5rem;border-radius:50px;font-family:'Fredoka One',sans-serif;font-size:1.2rem;
+  cursor:pointer;box-shadow:0 6px 20px rgba(255,107,43,0.4);transition:transform 0.15s}
+.btn-orange:active{transform:scale(0.96)}
+
+/* MAP */
+#scr-map{overflow-y:auto;padding:1rem;background:var(--bg)}
+.map-title{font-family:'Fredoka One',sans-serif;font-size:1.3rem;color:var(--purple);
+  margin:0.5rem 0 0.8rem;text-align:center}
+.level-map{width:100%;max-width:360px;display:flex;flex-direction:column;gap:0.6rem}
+.lvl-node{display:flex;align-items:center;gap:0.8rem;background:white;border-radius:var(--radius);
+  padding:0.9rem 1.1rem;box-shadow:0 3px 12px rgba(0,0,0,0.06);border:3px solid transparent;transition:all 0.2s}
+.lvl-node.unlocked{border-color:var(--purple);cursor:pointer}
+.lvl-node.unlocked:active{transform:scale(0.97)}
+.lvl-node.locked{opacity:0.4}
+.lvl-node.done{border-color:var(--green)}
+.lvl-icon{font-size:2rem;width:44px;text-align:center}
+.lvl-info .lvl-name{font-weight:700;font-size:0.9rem}
+.lvl-info .lvl-sub{font-size:0.78rem;color:var(--muted)}
+.lvl-badge{margin-right:auto;font-size:0.72rem;font-weight:700;padding:0.2rem 0.7rem;border-radius:50px}
+.bd-done{background:#DCFCE7;color:#16A34A}
+.bd-lock{background:#F3F4F6;color:#9CA3AF}
+.bd-go{background:rgba(124,58,237,0.1);color:var(--purple)}
+.bd-test{background:rgba(239,68,68,0.1);color:var(--red)}
+
+/* LEARN */
+#scr-learn{justify-content:flex-start;overflow-y:auto;padding:0.8rem;
+  background:linear-gradient(180deg,#F5F3FF,#FFF8F0)}
+.learn-top{font-family:'Fredoka One',sans-serif;font-size:1rem;color:var(--purple);
+  margin-bottom:0.4rem;text-align:center}
+.dot-row{display:flex;gap:0.4rem;justify-content:center;margin-bottom:0.6rem}
+.dot{width:8px;height:8px;border-radius:50%;background:#E0E0E0;transition:background 0.3s}
+.dot.active{background:var(--purple)}.dot.done{background:var(--green)}
+.learn-card{background:white;border-radius:var(--radius);padding:1.5rem;text-align:center;
+  width:100%;max-width:340px;box-shadow:0 4px 20px rgba(0,0,0,0.08);margin:0 auto}
+.big-heb{font-family:'Heebo',sans-serif;font-weight:900;font-size:9rem;color:var(--purple);
+  line-height:1;animation:letter-pop 0.5s cubic-bezier(0.175,0.885,0.32,1.275)}
+@keyframes letter-pop{from{transform:scale(0.3) rotate(-10deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
+.letter-name{font-family:'Fredoka One',sans-serif;font-size:1.8rem;color:var(--orange);margin:0.2rem 0}
+.letter-pron{display:inline-block;background:rgba(124,58,237,0.08);color:var(--purple);
+  border-radius:50px;padding:0.2rem 0.8rem;font-size:0.9rem;font-weight:700;margin-bottom:0.4rem}
+.letter-example{font-size:3rem;margin:0.3rem 0}
+.letter-word{font-size:1rem;color:var(--muted);line-height:1.7}
+.letter-word strong{color:var(--purple);font-size:1.2rem}
+.word-tr{color:var(--orange);font-weight:700}
+.learn-nav{display:flex;gap:0.7rem;margin-top:0.8rem;justify-content:center}
+.btn-ghost{background:transparent;color:var(--muted);border:2px solid #E0E0E0;
+  padding:0.6rem 1.2rem;border-radius:50px;font-family:'Heebo',sans-serif;font-size:0.9rem;cursor:pointer}
+.btn-purple{background:linear-gradient(135deg,var(--purple),#5B21B6);color:white;border:none;
+  padding:0.7rem 1.5rem;border-radius:50px;font-family:'Fredoka One',sans-serif;font-size:1rem;
+  cursor:pointer;box-shadow:0 4px 15px rgba(124,58,237,0.3);transition:transform 0.15s}
+.btn-purple:active{transform:scale(0.96)}
+
+/* ARENA */
+#scr-arena{position:relative;overflow:hidden;
+  background:linear-gradient(180deg,#1A1A2E 0%,#16213E 50%,#0F3460 100%)}
+.arena-top{position:absolute;top:0;left:0;right:0;padding:0.5rem 0.8rem;
+  display:flex;align-items:center;justify-content:space-between;z-index:20}
+.q-counter{background:rgba(255,255,255,0.15);border-radius:50px;
+  padding:0.2rem 0.8rem;color:white;font-size:0.82rem;font-weight:700}
+.streak-badge{background:var(--orange);border-radius:50px;padding:0.2rem 0.8rem;
+  color:white;font-size:0.82rem;font-weight:700;opacity:0;transition:opacity 0.3s}
+.streak-badge.show{opacity:1}
+.arena-question{position:absolute;top:48px;left:0;right:0;text-align:center;z-index:20;padding:0 0.8rem}
+.q-type-badge{display:inline-block;background:rgba(255,255,255,0.15);color:white;
+  border-radius:50px;padding:0.2rem 0.8rem;font-size:0.72rem;font-weight:700;margin-bottom:0.3rem}
+.q-show-letter{font-family:'Heebo',sans-serif;font-weight:900;font-size:5rem;color:white;
+  line-height:1;text-shadow:0 4px 20px rgba(0,0,0,0.4);
+  animation:q-pop 0.4s cubic-bezier(0.175,0.885,0.32,1.275)}
+@keyframes q-pop{from{transform:scale(0.3);opacity:0}to{transform:scale(1);opacity:1}}
+.q-show-emoji{font-size:4rem;line-height:1;animation:q-pop 0.4s cubic-bezier(0.175,0.885,0.32,1.275)}
+.q-show-word{font-family:'Heebo',sans-serif;font-weight:900;font-size:2.5rem;color:white;
+  line-height:1.2;animation:q-pop 0.4s cubic-bezier(0.175,0.885,0.32,1.275)}
+.q-text{font-size:0.95rem;color:rgba(255,255,255,0.8);margin-top:0.2rem;font-weight:700}
+.q-hint{font-size:0.82rem;color:rgba(255,255,255,0.5)}
+
+/* ROBOT */
+#arena-robot{position:absolute;width:140px;z-index:30;
+  transition:left 0.5s cubic-bezier(0.34,1.56,0.64,1),top 0.5s cubic-bezier(0.34,1.56,0.64,1);
+  filter:drop-shadow(0 8px 20px rgba(0,0,0,0.4));pointer-events:none;transform-origin:center bottom}
+#arena-robot.idle{animation:robot-idle 3s ease-in-out infinite}
+#arena-robot.running{animation:robot-run 0.5s ease}
+#arena-robot.happy{animation:robot-happy 0.7s ease}
+#arena-robot.sad{animation:robot-sad 0.6s ease}
+@keyframes robot-idle{0%,100%{transform:translateY(0) rotate(-2deg)}33%{transform:translateY(-8px) rotate(2deg)}66%{transform:translateY(-4px) rotate(-1deg)}}
+@keyframes robot-run{0%{transform:scale(0.9) rotate(-5deg)}50%{transform:scale(1.1) rotate(5deg)}100%{transform:scale(1) rotate(0)}}
+@keyframes robot-happy{0%,100%{transform:scale(1) rotate(0)}20%{transform:scale(1.15) rotate(-10deg)}40%{transform:scale(1.15) rotate(10deg)}60%{transform:scale(1.1) rotate(-5deg)}80%{transform:scale(1.1) rotate(5deg)}}
+@keyframes robot-sad{0%,100%{transform:translateY(0)}30%{transform:translateY(8px) rotate(-5deg)}60%{transform:translateY(4px) rotate(5deg)}}
+
+/* ANSWER ZONES */
+.ans-zone{position:absolute;width:42%;height:22%;border-radius:18px;
+  border:3px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;transition:all 0.2s;z-index:10;backdrop-filter:blur(4px);padding:0.5rem}
+.ans-zone:active{transform:scale(0.96)}
+.ans-zone.correct{border-color:var(--green);background:rgba(34,197,94,0.25);animation:zone-correct 0.6s ease}
+.ans-zone.wrong{border-color:var(--red);background:rgba(239,68,68,0.25);animation:zone-wrong 0.4s ease}
+.ans-zone.reveal{border-color:var(--green);background:rgba(34,197,94,0.2)}
+@keyframes zone-correct{0%,100%{transform:scale(1)}40%{transform:scale(1.06)}70%{transform:scale(0.97)}}
+@keyframes zone-wrong{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+.zone-tl{top:54%;right:4%}.zone-tr{top:54%;left:4%}
+.zone-bl{bottom:3%;right:4%}.zone-br{bottom:3%;left:4%}
+.ans-letter{font-family:'Heebo',sans-serif;font-weight:900;font-size:2.8rem;color:white;line-height:1}
+.ans-text{font-size:0.82rem;color:rgba(255,255,255,0.9);font-weight:700;text-align:center;line-height:1.3;margin-top:0.15rem}
+.ans-sub{font-size:0.68rem;color:rgba(255,255,255,0.55);margin-top:0.1rem}
+
+/* TOAST */
+#arena-toast{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);
+  background:white;border-radius:14px;padding:0.6rem 1.2rem;font-size:1rem;font-weight:700;
+  z-index:50;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,0.3);
+  opacity:0;transition:opacity 0.2s;pointer-events:none;white-space:nowrap}
+#arena-toast.show{opacity:1}
+
+/* PARTICLES */
+.coin-p{position:fixed;pointer-events:none;z-index:9999;font-size:1.5rem;animation:coin-fly 1.2s ease-out forwards}
+@keyframes coin-fly{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-120px) scale(0.3);opacity:0}}
+.combo{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--orange);
+  color:white;border-radius:50px;padding:0.4rem 1.2rem;font-family:'Fredoka One',sans-serif;
+  font-size:1rem;z-index:200;box-shadow:0 4px 15px rgba(255,107,43,0.5);animation:combo-pop 1.5s ease forwards}
+@keyframes combo-pop{0%{transform:translateX(-50%) scale(0);opacity:0}20%{transform:translateX(-50%) scale(1.2);opacity:1}70%{transform:translateX(-50%) scale(1);opacity:1}100%{transform:translateX(-50%) scale(0.8);opacity:0}}
+
+/* Q DOTS */
+.q-dots{display:flex;gap:0.25rem;justify-content:center;flex-wrap:wrap}
+.q-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.2)}
+.q-dot.ok{background:var(--green)}.q-dot.no{background:var(--red)}.q-dot.cur{background:white}
+
+/* TEST */
+.test-banner{background:linear-gradient(135deg,var(--red),#B91C1C);padding:0.8rem;text-align:center;color:white}
+.test-banner h2{font-family:'Fredoka One',sans-serif;font-size:1.3rem}
+.test-banner p{font-size:0.82rem;opacity:0.8}
+
+/* RESULTS */
+#scr-result,#scr-test-result{justify-content:center;padding:1.5rem;text-align:center;
+  background:linear-gradient(180deg,#F5F3FF,#FFF8F0);overflow-y:auto}
+.result-robot{width:160px;animation:res-bounce 1s ease-in-out infinite alternate}
+@keyframes res-bounce{from{transform:translateY(0) rotate(-4deg)}to{transform:translateY(-14px) rotate(4deg)}}
+.result-title{font-family:'Fredoka One',sans-serif;font-size:2rem;color:var(--purple);margin:0.5rem 0}
+.flw-box{background:white;border-radius:var(--radius);padding:1.2rem 2rem;text-align:center;
+  box-shadow:0 4px 20px rgba(0,0,0,0.08);margin:0.8rem 0;width:100%;max-width:260px}
+.flw-big{font-family:'Fredoka One',sans-serif;font-size:2.8rem;color:var(--orange);
+  display:flex;align-items:center;justify-content:center;gap:0.5rem;animation:count-up 0.8s ease}
+@keyframes count-up{from{transform:scale(0.5);opacity:0}to{transform:scale(1);opacity:1}}
+.big-coin{width:46px;height:46px;background:var(--yellow);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:900;
+  color:#333;box-shadow:0 4px 12px rgba(255,214,0,0.4)}
+.test-result-box{border-radius:var(--radius);padding:1.2rem;text-align:center;width:100%;max-width:320px;margin:0.6rem 0}
+.test-pass{background:#DCFCE7;border:2px solid var(--green)}
+.test-fail{background:#FEE2E2;border:2px solid var(--red)}
+.test-res-title{font-family:'Fredoka One',sans-serif;font-size:1.7rem}
+.test-res-sub{font-size:0.88rem;color:var(--muted);margin-top:0.2rem}
+@media(max-width:380px){.big-heb{font-size:7rem}.q-show-letter{font-size:4rem}.ans-letter{font-size:2.2rem}#arena-robot{width:110px}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-title">🔤 עברית מהאלף-בית</div>
+  <div style="display:flex;align-items:center;gap:0.6rem">
+    <div class="prog-wrap"><div class="prog-fill" id="main-prog" style="width:0%"></div></div>
+    <div class="flw-pill"><div class="coin-sm">FLW</div><span id="flw-count">0</span></div>
+  </div>
+</div>
+
+<!-- INTRO -->
+<div class="scr on" id="scr-intro">
+  <img src="/games/assets/images/ROBOTAI.png" alt="רובוט" class="intro-robot" onerror="this.style.display='none'">
+  <div class="bubble" id="intro-bubble">שלום! אני OF! 🤖<br>היום נלמד את האלף-בית העברי<br>ונרוויח מטבעות FLW! 🪙✨</div>
+  <div class="intro-title">עברית מהאות הראשונה!</div>
+  <div style="color:var(--muted);font-size:0.88rem;margin-bottom:1.5rem;text-align:center">4 רמות · 3 מבחנים · גרור אותי לתשובה!</div>
+  <button class="btn-orange" onclick="showMap()">🚀 בואו נתחיל!</button>
+</div>
+
+<!-- MAP -->
+<div class="scr" id="scr-map">
+  <div class="map-title">המסע שלך 🗺️</div>
+  <div class="level-map" id="level-map"></div>
+  <div style="font-size:0.78rem;color:var(--muted);text-align:center;margin-top:0.5rem;padding-bottom:1rem">🪙 כל תשובה נכונה = 2 FLW · מבחן = 10 FLW בונוס</div>
+</div>
+
+<!-- LEARN -->
+<div class="scr" id="scr-learn">
+  <div class="learn-top" id="learn-title">רמה 1 — אות 1 מתוך 6</div>
+  <div class="dot-row" id="learn-dots"></div>
+  <div class="learn-card">
+    <div class="big-heb" id="learn-big">א</div>
+    <div class="letter-name" id="learn-name">אלף</div>
+    <div class="letter-pron" id="learn-pron">(אָלֶף)</div>
+    <div class="letter-example" id="learn-emoji">🍉</div>
+    <div class="letter-word" id="learn-word"></div>
+  </div>
+  <div class="learn-nav">
+    <button class="btn-ghost" onclick="learnPrev()">← הקודמת</button>
+    <button class="btn-purple" id="learn-next-btn" onclick="learnNext()">הבאה →</button>
+  </div>
+</div>
+
+<!-- ARENA -->
+<div class="scr" id="scr-arena">
+  <div class="arena-top">
+    <div class="q-counter" id="arena-q-counter">1/10</div>
+    <div class="q-dots" id="arena-dots"></div>
+    <div class="streak-badge" id="streak-badge">🔥 x0</div>
+  </div>
+  <div class="arena-question">
+    <div class="q-type-badge" id="arena-q-badge">שאלה</div>
+    <div id="arena-q-show"></div>
+    <div class="q-text" id="arena-q-text"></div>
+    <div class="q-hint" id="arena-q-hint"></div>
+  </div>
+  <img src="/games/assets/images/ROBOTAI.png" alt="רובוט" id="arena-robot" class="idle" onerror="this.style.display='none'">
+  <div class="ans-zone zone-tl" id="zone-0" onclick="handleZoneClick(0)">
+    <div class="ans-letter" id="z0-letter"></div>
+    <div class="ans-text" id="z0-text"></div>
+    <div class="ans-sub" id="z0-sub"></div>
+  </div>
+  <div class="ans-zone zone-tr" id="zone-1" onclick="handleZoneClick(1)">
+    <div class="ans-letter" id="z1-letter"></div>
+    <div class="ans-text" id="z1-text"></div>
+    <div class="ans-sub" id="z1-sub"></div>
+  </div>
+  <div class="ans-zone zone-bl" id="zone-2" onclick="handleZoneClick(2)">
+    <div class="ans-letter" id="z2-letter"></div>
+    <div class="ans-text" id="z2-text"></div>
+    <div class="ans-sub" id="z2-sub"></div>
+  </div>
+  <div class="ans-zone zone-br" id="zone-3" onclick="handleZoneClick(3)">
+    <div class="ans-letter" id="z3-letter"></div>
+    <div class="ans-text" id="z3-text"></div>
+    <div class="ans-sub" id="z3-sub"></div>
+  </div>
+  <div id="arena-toast"></div>
+</div>
+
+<!-- TEST -->
+<div class="scr" id="scr-test">
+  <div class="test-banner"><h2>🎯 מבחן!</h2><p id="test-sub">בואו נבדוק מה למדת</p></div>
+  <div style="position:relative;flex:1;overflow:hidden;background:linear-gradient(180deg,#1A1A2E,#0F3460)">
+    <div class="arena-top">
+      <div class="q-counter" id="test-q-counter">1/8</div>
+      <div class="q-dots" id="test-dots"></div>
+      <div></div>
+    </div>
+    <div class="arena-question" style="top:44px">
+      <div class="q-type-badge" id="tq-badge">מבחן</div>
+      <div id="tq-show"></div>
+      <div class="q-text" id="tq-text"></div>
+      <div class="q-hint" id="tq-hint"></div>
+    </div>
+    <img src="/games/assets/images/ROBOTAI.png" alt="רובוט" id="test-robot" class="idle"
+         style="position:absolute;width:130px;z-index:30;pointer-events:none;
+                filter:drop-shadow(0 8px 20px rgba(0,0,0,0.4));
+                transition:left 0.5s cubic-bezier(0.34,1.56,0.64,1),top 0.5s cubic-bezier(0.34,1.56,0.64,1)"
+         onerror="this.style.display='none'">
+    <div class="ans-zone zone-tl" id="tzone-0" onclick="handleTestZone(0)">
+      <div class="ans-letter" id="tz0-letter"></div><div class="ans-text" id="tz0-text"></div>
+    </div>
+    <div class="ans-zone zone-tr" id="tzone-1" onclick="handleTestZone(1)">
+      <div class="ans-letter" id="tz1-letter"></div><div class="ans-text" id="tz1-text"></div>
+    </div>
+    <div class="ans-zone zone-bl" id="tzone-2" onclick="handleTestZone(2)">
+      <div class="ans-letter" id="tz2-letter"></div><div class="ans-text" id="tz2-text"></div>
+    </div>
+    <div class="ans-zone zone-br" id="tzone-3" onclick="handleTestZone(3)">
+      <div class="ans-letter" id="tz3-letter"></div><div class="ans-text" id="tz3-text"></div>
+    </div>
+    <div id="test-toast" style="position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);
+      background:white;border-radius:14px;padding:0.6rem 1.2rem;font-size:1rem;font-weight:700;
+      z-index:50;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,0.3);
+      opacity:0;transition:opacity 0.2s;pointer-events:none;white-space:nowrap"></div>
+  </div>
+</div>
+
+<!-- TEST RESULT -->
+<div class="scr" id="scr-test-result">
+  <img src="/games/assets/images/ROBOTAI.png" alt="רובוט"
+       style="width:130px;margin:0.5rem 0;animation:res-bounce 1s ease-in-out infinite alternate"
+       onerror="this.style.display='none'">
+  <div class="test-result-box" id="test-result-box">
+    <div class="test-res-title" id="test-res-title">🎉 עברת!</div>
+    <div class="test-res-sub" id="test-res-sub"></div>
+  </div>
+  <div class="flw-box" style="max-width:230px;padding:0.9rem">
+    <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.3rem">FLW שצברת במבחן</div>
+    <div class="flw-big" style="font-size:1.8rem">
+      <div class="big-coin" style="width:34px;height:34px;font-size:0.62rem">FLW</div>
+      <span id="test-flw-earned">0</span>
+    </div>
+  </div>
+  <button class="btn-orange" id="test-continue-btn" style="padding:0.8rem 2.5rem">המשך →</button>
+</div>
+
+<!-- FINAL RESULT -->
+<div class="scr" id="scr-result">
+  <img src="/games/assets/images/ROBOTAI.png" alt="רובוט" class="result-robot" onerror="this.style.display='none'">
+  <div class="result-title" id="final-title">אלוף עברית! 🏆</div>
+  <div style="color:var(--muted);font-size:0.88rem;margin-bottom:0.5rem" id="final-sub"></div>
+  <div style="font-size:2.5rem;margin:0.3rem 0" id="final-stars"></div>
+  <div class="flw-box">
+    <div style="font-size:0.82rem;color:var(--muted);margin-bottom:0.3rem">סה"כ FLW שצברת</div>
+    <div class="flw-big"><div class="big-coin">FLW</div><span id="final-flw">0</span></div>
+  </div>
+  <button class="btn-orange" style="width:100%;max-width:280px;margin-bottom:0.8rem" onclick="playAgain()">🔄 שחק שוב</button>
+  <button class="btn-ghost" style="width:100%;max-width:280px" onclick="goHome()">🏠 חזרה לאקדמיה</button>
+</div>
+
+<script>
+// DATA
+const LETTERS=[
+  {l:'א',name:'אלף', pron:'אָלֶף', emoji:'🍉',word:'אֲבַטִּיחַ',tr:'Watermelon',level:1},
+  {l:'ב',name:'בית',  pron:'בֵּית',  emoji:'🏠',word:'בַּיִת',   tr:'House',     level:1},
+  {l:'ג',name:'גימל',pron:'גִּימֶל',emoji:'🍦',word:'גְּלִידָה',tr:'Ice cream', level:1},
+  {l:'ד',name:'דלת', pron:'דָּלֶת', emoji:'🐟',word:'דָּג',     tr:'Fish',      level:1},
+  {l:'ה',name:'הא',  pron:'הֵא',   emoji:'🦔',word:'קִיפּוֹד', tr:'Hedgehog',  level:1},
+  {l:'ו',name:'וו',  pron:'וָו',   emoji:'🌹',word:'וֶרֶד',    tr:'Rose',      level:1},
+  {l:'ז',name:'זין', pron:'זַיִן', emoji:'🪰',word:'זְבוּב',   tr:'Fly',       level:2},
+  {l:'ח',name:'חית', pron:'חֵית',  emoji:'🐱',word:'חָתוּל',   tr:'Cat',       level:2},
+  {l:'ט',name:'טית', pron:'טֵית',  emoji:'🦚',word:'טַווָּס',  tr:'Peacock',   level:2},
+  {l:'י',name:'יוד', pron:'יוֹד',  emoji:'🌊',word:'יָם',      tr:'Sea',       level:2},
+  {l:'כ',name:'כף',  pron:'כַּף',  emoji:'🐶',word:'כֶּלֶב',   tr:'Dog',       level:2},
+  {l:'ל',name:'למד', pron:'לָמֶד', emoji:'🌙',word:'לַיְלָה',  tr:'Night',     level:2},
+  {l:'מ',name:'מם',  pron:'מֵם',   emoji:'🗺️',word:'מַפָּה',   tr:'Map',       level:3},
+  {l:'נ',name:'נון', pron:'נוּן',  emoji:'🕯️',word:'נֵר',      tr:'Candle',    level:3},
+  {l:'ס',name:'סמך', pron:'סָמֶך', emoji:'סוּס',word:'סוּס',   tr:'Horse',     level:3},
+  {l:'ע',name:'עין', pron:'עַיִן', emoji:'🌳',word:'עֵץ',      tr:'Tree',      level:3},
+  {l:'פ',name:'פא',  pron:'פֵּא',  emoji:'🐘',word:'פִּיל',    tr:'Elephant',  level:3},
+  {l:'צ',name:'צדי', pron:'צָדִי', emoji:'🐸',word:'צְפַרְדֵּעַ',tr:'Frog',   level:3},
+  {l:'ק',name:'קוף', pron:'קוֹף',  emoji:'🐒',word:'קוֹף',     tr:'Monkey',    level:3},
+  {l:'ר',name:'ריש', pron:'רֵישׁ', emoji:'🌈',word:'רַדְיוּס', tr:'Rainbow',   level:3},
+  {l:'ש',name:'שין', pron:'שִׁין', emoji:'☀️',word:'שֶׁמֶשׁ',  tr:'Sun',       level:3},
+  {l:'ת',name:'תו',  pron:'תָּו',  emoji:'🍓',word:'תּוּת',    tr:'Strawberry',level:3},
+];
+
+const WORDS4=[
+  {word:'כֶּלֶב',  emoji:'🐶',tr:'Dog',       opts:['כֶּלֶב','חָתוּל','פִּיל','דָּג']},
+  {word:'בַּיִת',  emoji:'🏠',tr:'House',     opts:['בַּיִת','עֵץ','דָּג','יָם']},
+  {word:'שֶׁמֶשׁ', emoji:'☀️',tr:'Sun',       opts:['יָרֵחַ','כּוֹכָב','שֶׁמֶשׁ','עָנָן']},
+  {word:'יָם',    emoji:'🌊',tr:'Sea',        opts:['נָהָר','יָם','אֲגַם','בְּרֵכָה']},
+  {word:'פִּיל',  emoji:'🐘',tr:'Elephant',  opts:['פִּיל','אַרְיֵה','קוֹף','נָחָשׁ']},
+  {word:'עֵץ',    emoji:'🌳',tr:'Tree',       opts:['פֶּרַח','עֵץ','עָשָׂב','שִׂיחַ']},
+  {word:'חָתוּל', emoji:'🐱',tr:'Cat',        opts:['כֶּלֶב','חָתוּל','צִיפּוֹר','דָּג']},
+  {word:'גְּלִידָה',emoji:'🍦',tr:'Ice cream',opts:['עוּגָה','גְּלִידָה','עוּגִיָּה','פִּיצָה']},
+  {word:'כּוֹכָב',emoji:'⭐',tr:'Star',       opts:['יָרֵחַ','שֶׁמֶשׁ','כּוֹכָב','עָנָן']},
+  {word:'תּוּת',  emoji:'🍓',tr:'Strawberry', opts:['תַּפּוּחַ','תּוּת','בַּנָנָה','עֵנָב']},
+];
+
+let childName='';
+const GS={
+  flw:0,streak:0,
+  levelsUnlocked:[true,false,false,false],
+  levelsDone:[false,false,false,false],
+  testsDone:[false,false,false],
+  learnLevel:1,learnIdx:0,learnLetters:[],
+  quizQuestions:[],quizIdx:0,quizScore:0,quizAnswered:false,quizLevel:1,quizDots:[],
+  testQuestions:[],testIdx:0,testScore:0,testAnswered:false,testFLW:0,testNum:1,testDots:[],
+  currentZones:[],userId:null,gameId:null,flwPerWin:2,startTime:Date.now()
+};
+
+// ROBOT ZONE POSITIONS (fraction of arena W/H)
+const ZONE_POS=[{x:0.25,y:0.65},{x:0.75,y:0.65},{x:0.25,y:0.87},{x:0.75,y:0.87}];
+const HOME={x:0.5,y:0.47};
+
+window.addEventListener('message',e=>{
+  if(e.data?.type==='INIT'){
+    GS.userId=e.data.userId;GS.gameId=e.data.gameId;
+    GS.flwPerWin=e.data.flwReward?Math.max(1,Math.floor(e.data.flwReward/10)):2;
+    if(e.data.childName){childName=e.data.childName;updateChildName();}
+    if(e.data.characterUrl) document.querySelectorAll('img[alt="רובוט"]').forEach(i=>i.src=e.data.characterUrl);
+  }
+});
+function updateChildName(){
+  const b=document.getElementById('intro-bubble');
+  if(b&&childName) b.innerHTML=`שלום <strong>${childName}</strong>! אני OF! 🤖<br>היום נלמד את האלף-בית העברי<br>ונרוויח מטבעות FLW! 🪙✨`;
+}
+function shuffle(a){return[...a].sort(()=>Math.random()-.5);}
+function getOtherLetters(l,n){return shuffle(LETTERS.filter(x=>x.l!==l).map(x=>x.l)).slice(0,n);}
+function getOtherNames(n,num){return shuffle(LETTERS.filter(x=>x.name!==n).map(x=>x.name)).slice(0,num);}
+function getOtherEmojis(e,n){return shuffle(LETTERS.filter(x=>x.emoji!==e).map(x=>x.emoji)).slice(0,n);}
+function showScreen(id){document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));document.getElementById(id).classList.add('on');window.scrollTo(0,0);}
+function addFLW(n){GS.flw+=n;const el=document.getElementById('flw-count');el.textContent=GS.flw;el.style.animation='none';el.offsetHeight;el.style.animation='flw-pop 0.4s ease';}
+function spawnCoins(x,y){for(let i=0;i<4;i++){const c=document.createElement('div');c.className='coin-p';c.textContent='🪙';c.style.left=(x+(Math.random()-.5)*40)+'px';c.style.top=y+'px';c.style.animationDelay=(i*.1)+'s';document.body.appendChild(c);setTimeout(()=>c.remove(),1400);}}
+function showCombo(n){const ex=document.querySelector('.combo');if(ex)ex.remove();const b=document.createElement('div');b.className='combo';b.textContent=`🔥 קומבו x${n}!`;document.body.appendChild(b);setTimeout(()=>b.remove(),1600);}
+function showToast(id,msg,color){const el=document.getElementById(id);el.textContent=msg;el.style.color=color||'#333';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1200);}
+function updateMainProg(){const done=GS.levelsDone.filter(Boolean).length+GS.testsDone.filter(Boolean).length;document.getElementById('main-prog').style.width=(done/7*100)+'%';}
+
+// ROBOT
+function placeRobot(robotId,xPct,yPct,anim,containerSel){
+  const cont=containerSel?document.querySelector(containerSel):document.getElementById('scr-arena');
+  if(!cont)return;
+  const W=cont.offsetWidth,H=cont.offsetHeight;
+  const r=document.getElementById(robotId);if(!r)return;
+  const rW=r.offsetWidth||140,rH=r.offsetHeight||200;
+  r.style.left=(W*xPct-rW/2)+'px';
+  r.style.top=(H*yPct-rH/2)+'px';
+  r.className=anim||'idle';
+}
+function moveRobotToZone(robotId,zoneIdx,cb,containerSel){
+  const pos=ZONE_POS[zoneIdx];
+  const cont=containerSel?document.querySelector(containerSel):document.getElementById('scr-arena');
+  if(!cont)return;
+  const W=cont.offsetWidth,H=cont.offsetHeight;
+  const r=document.getElementById(robotId);if(!r)return;
+  const rW=r.offsetWidth||140,rH=r.offsetHeight||200;
+  r.className='running';
+  r.style.left=(W*pos.x-rW/2)+'px';
+  r.style.top=(H*pos.y-rH/2)+'px';
+  setTimeout(()=>{if(cb)cb();},520);
+}
+function moveRobotHome(robotId,containerSel){
+  const cont=containerSel?document.querySelector(containerSel):document.getElementById('scr-arena');
+  if(!cont)return;
+  const W=cont.offsetWidth,H=cont.offsetHeight;
+  const r=document.getElementById(robotId);if(!r)return;
+  const rW=r.offsetWidth||140,rH=r.offsetHeight||200;
+  r.className='running';
+  r.style.left=(W*HOME.x-rW/2)+'px';
+  r.style.top=(H*HOME.y-rH/2)+'px';
+  setTimeout(()=>{r.className='idle';},520);
+}
+
+// MAP
+function showMap(){updateMainProg();renderMap();showScreen('scr-map');}
+function renderMap(){
+  const levels=[
+    {name:'רמה 1 — אותיות א עד ו',sub:'6 אותיות · חידון',icon:'א',idx:0,testIdx:0,testLabel:'מבחן 1 (א-ו)'},
+    {name:'רמה 2 — אותיות ז עד ל',sub:'6 אותיות · חידון',icon:'ז',idx:1,testIdx:1,testLabel:'מבחן 2 (א-ל)'},
+    {name:'רמה 3 — אותיות מ עד ת',sub:'10 אותיות · חידון',icon:'מ',idx:2,testIdx:2,testLabel:'מבחן גדול (א-ת)'},
+    {name:'רמה 4 — מילים בעברית',sub:'10 מילים עם תמונות',icon:'🔤',idx:3},
+  ];
+  let html='';
+  levels.forEach((lv,i)=>{
+    const unlocked=GS.levelsUnlocked[i],done=GS.levelsDone[i];
+    const cls=done?'done':unlocked?'unlocked':'locked';
+    const badge=done?`<span class="lvl-badge bd-done">✓ הושלם</span>`:unlocked?`<span class="lvl-badge bd-go">לחץ להתחיל</span>`:`<span class="lvl-badge bd-lock">🔒 נעול</span>`;
+    html+=`<div class="lvl-node ${cls}" ${unlocked?`onclick="startLevel(${i})"`:''}><div class="lvl-icon" style="font-family:'Heebo',sans-serif;font-weight:900;font-size:${i<3?'1.8rem':'1.5rem'}">${lv.icon}</div><div class="lvl-info"><div class="lvl-name">${lv.name}</div><div class="lvl-sub">${lv.sub}</div></div>${badge}</div>`;
+    if(lv.testIdx!==undefined){
+      const tdone=GS.testsDone[lv.testIdx],tavail=GS.levelsDone[i];
+      const tcls=tdone?'done':tavail?'unlocked':'locked';
+      const tbadge=tdone?`<span class="lvl-badge bd-done">✓ עבר</span>`:tavail?`<span class="lvl-badge bd-test">מבחן!</span>`:`<span class="lvl-badge bd-lock">🔒</span>`;
+      html+=`<div class="lvl-node ${tcls}" style="background:linear-gradient(135deg,#FEF2F2,#FEE2E2)" ${tavail?`onclick="startTest(${lv.testIdx+1})"`:''}><div class="lvl-icon">🎯</div><div class="lvl-info"><div class="lvl-name">${lv.testLabel}</div><div class="lvl-sub">עבור 80% להמשיך</div></div>${tbadge}</div>`;
+    }
+  });
+  document.getElementById('level-map').innerHTML=html;
+}
+
+// LEARN
+function startLevel(idx){
+  if(idx===3){startWordsLevel();return;}
+  GS.learnLevel=idx+1;GS.learnLetters=LETTERS.filter(l=>l.level===GS.learnLevel);GS.learnIdx=0;renderLearn();showScreen('scr-learn');
+}
+function renderLearn(){
+  const lt=GS.learnLetters[GS.learnIdx],total=GS.learnLetters.length;
+  document.getElementById('learn-title').textContent=`רמה ${GS.learnLevel} — אות ${GS.learnIdx+1} מתוך ${total}`;
+  let dots='';for(let i=0;i<total;i++)dots+=`<div class="dot ${i<GS.learnIdx?'done':i===GS.learnIdx?'active':''}"></div>`;
+  document.getElementById('learn-dots').innerHTML=dots;
+  const bigEl=document.getElementById('learn-big');bigEl.textContent=lt.l;bigEl.style.animation='none';bigEl.offsetHeight;bigEl.style.animation='letter-pop 0.5s cubic-bezier(0.175,0.885,0.32,1.275)';
+  document.getElementById('learn-name').textContent=lt.name;
+  document.getElementById('learn-pron').textContent=`(${lt.pron})`;
+  document.getElementById('learn-emoji').textContent=lt.emoji;
+  document.getElementById('learn-word').innerHTML=`<strong>${lt.l}</strong> — ${lt.word} — <span class="word-tr">${lt.tr}</span>`;
+  document.getElementById('learn-next-btn').textContent=GS.learnIdx>=total-1?'✅ לחידון!':'הבאה →';
+}
+function learnNext(){if(GS.learnIdx>=GS.learnLetters.length-1)startQuiz(GS.learnLevel);else{GS.learnIdx++;renderLearn();}}
+function learnPrev(){if(GS.learnIdx>0){GS.learnIdx--;renderLearn();}else showMap();}
+
+// BUILD QUESTIONS
+function buildLetterQs(letters){
+  const qs=[];
+  letters.forEach(lt=>{
+    qs.push({badge:'מה שם האות?',showType:'letter',show:lt.l,text:`מה שם האות הזו?`,hint:'',
+      correct:lt.name,opts:shuffle([lt.name,...getOtherNames(lt.name,3)]).map(o=>({t:o,correct:o===lt.name}))});
+    qs.push({badge:'מה האות הראשונה?',showType:'emoji',show:lt.emoji,text:`מה האות הראשונה של: ${lt.word}?`,hint:lt.tr,
+      correct:lt.l,opts:shuffle([lt.l,...getOtherLetters(lt.l,3)]).map(o=>{const f=LETTERS.find(x=>x.l===o);return{t:o,sub:f?.name||'',correct:o===lt.l};})});
+  });
+  return qs;
+}
+
+// ARENA RENDER
+function renderArenaZones(opts){
+  for(let i=0;i<4;i++){
+    const z=document.getElementById(`zone-${i}`);
+    z.className='ans-zone '+(i===0?'zone-tl':i===1?'zone-tr':i===2?'zone-bl':'zone-br');
+    const opt=opts[i]||{t:'',sub:'',correct:false};
+    const isShort=opt.t.length<=2;
+    document.getElementById(`z${i}-letter`).textContent=isShort?opt.t:'';
+    document.getElementById(`z${i}-text`).textContent=isShort?'':opt.t;
+    document.getElementById(`z${i}-sub`).textContent=opt.sub||'';
+    z.dataset.correct=opt.correct;
+  }
+}
+
+// QUIZ
+function startQuiz(level){
+  GS.quizLevel=level;GS.quizIdx=0;GS.quizScore=0;GS.quizAnswered=false;GS.streak=0;
+  const letters=LETTERS.filter(l=>l.level===level);
+  GS.quizQuestions=shuffle(buildLetterQs(letters)).slice(0,10);
+  GS.quizDots=new Array(GS.quizQuestions.length).fill('');
+  showScreen('scr-arena');
+  setTimeout(()=>{placeRobot('arena-robot',HOME.x,HOME.y,'idle');renderArenaQ();},120);
+}
+
+function renderArenaQ(){
+  const q=GS.quizQuestions[GS.quizIdx];GS.quizAnswered=false;
+  document.getElementById('arena-q-counter').textContent=`${GS.quizIdx+1}/${GS.quizQuestions.length}`;
+  let dots='';GS.quizDots.forEach((d,i)=>{const cls=i<GS.quizIdx?GS.quizDots[i]:i===GS.quizIdx?'cur':'';dots+=`<div class="q-dot ${cls}"></div>`;});
+  document.getElementById('arena-dots').innerHTML=dots;
+  document.getElementById('arena-q-badge').textContent=q.badge;
+  const showEl=document.getElementById('arena-q-show');
+  if(q.showType==='letter') showEl.innerHTML=`<div class="q-show-letter">${q.show}</div>`;
+  else if(q.showType==='emoji') showEl.innerHTML=`<div class="q-show-emoji">${q.show}</div>`;
+  else showEl.innerHTML=`<div class="q-show-word">${q.show}</div>`;
+  document.getElementById('arena-q-text').textContent=q.text;
+  document.getElementById('arena-q-hint').textContent=q.hint;
+  const sb=document.getElementById('streak-badge');sb.textContent=`🔥 x${GS.streak}`;sb.className='streak-badge'+(GS.streak>=3?' show':'');
+  const shuffled=shuffle([...q.opts]);GS.currentZones=shuffled;
+  renderArenaZones(shuffled);
+}
+
+function handleZoneClick(zoneIdx){
+  if(GS.quizAnswered)return;GS.quizAnswered=true;
+  const opt=GS.currentZones[zoneIdx];const correct=opt?.correct||false;
+  moveRobotToZone('arena-robot',zoneIdx,()=>{
+    const zone=document.getElementById(`zone-${zoneIdx}`);
+    const rect=zone.getBoundingClientRect();
+    if(correct){
+      zone.className='ans-zone '+(zoneIdx===0?'zone-tl':zoneIdx===1?'zone-tr':zoneIdx===2?'zone-bl':'zone-br')+' correct';
+      GS.quizScore++;GS.streak++;addFLW(GS.flwPerWin);spawnCoins(rect.left+rect.width/2,rect.top+rect.height/2);
+      if(GS.streak>=3)showCombo(GS.streak);
+      document.getElementById('arena-robot').className='happy';
+      const msgs=['מעולה! 🌟','נכון! ⭐','כל הכבוד! 🎉','אלוף! 💫'];
+      showToast('arena-toast',msgs[Math.floor(Math.random()*msgs.length)],'#16A34A');
+      GS.quizDots[GS.quizIdx]='ok';
+    } else {
+      zone.className='ans-zone '+(zoneIdx===0?'zone-tl':zoneIdx===1?'zone-tr':zoneIdx===2?'zone-bl':'zone-br')+' wrong';
+      GS.streak=0;
+      const ci=GS.currentZones.findIndex(o=>o.correct);
+      if(ci>=0){const cz=document.getElementById(`zone-${ci}`);cz.className='ans-zone '+(ci===0?'zone-tl':ci===1?'zone-tr':ci===2?'zone-bl':'zone-br')+' reveal';}
+      document.getElementById('arena-robot').className='sad';
+      showToast('arena-toast','לא נורא! ננסה שוב 💪','#EF4444');
+      GS.quizDots[GS.quizIdx]='no';
+    }
+    setTimeout(()=>{moveRobotHome('arena-robot');GS.quizIdx++;if(GS.quizIdx>=GS.quizQuestions.length)endQuiz();else renderArenaQ();},1400);
+  });
+}
+
+function endQuiz(){
+  GS.levelsDone[GS.quizLevel-1]=true;
+  if(GS.quizLevel===4){endGame();return;}
+  addFLW(5);showMap();
+}
+
+// LEVEL 4
+function startWordsLevel(){
+  GS.quizLevel=4;GS.quizIdx=0;GS.quizScore=0;GS.quizAnswered=false;GS.streak=0;
+  GS.quizQuestions=shuffle(WORDS4).slice(0,10).map(w=>({
+    badge:'מה המילה בעברית?',showType:'emoji',show:w.emoji,
+    text:`מה המילה בעברית של: ${w.tr}?`,hint:'',correct:w.word,
+    opts:shuffle([w.word,...shuffle(WORDS4.filter(x=>x.word!==w.word)).slice(0,3).map(x=>x.word)]).map(o=>({t:o,correct:o===w.word}))
+  }));
+  GS.quizDots=new Array(GS.quizQuestions.length).fill('');
+  showScreen('scr-arena');
+  setTimeout(()=>{placeRobot('arena-robot',HOME.x,HOME.y,'idle');renderArenaQ();},120);
+}
+
+// TEST
+function startTest(num){
+  GS.testNum=num;GS.testIdx=0;GS.testScore=0;GS.testAnswered=false;GS.testFLW=0;GS.streak=0;
+  const letters=num===1?LETTERS.filter(l=>l.level===1):num===2?LETTERS.filter(l=>l.level<=2):LETTERS;
+  GS.testQuestions=shuffle(buildLetterQs(letters)).slice(0,num===3?15:8);
+  GS.testDots=new Array(GS.testQuestions.length).fill('');
+  document.getElementById('test-sub').textContent=`${GS.testQuestions.length} שאלות — עבור 80% להמשיך`;
+  showScreen('scr-test');
+  setTimeout(()=>{
+    const cont=document.querySelector('#scr-test > div');
+    if(!cont)return;
+    const W=cont.offsetWidth,H=cont.offsetHeight,r=document.getElementById('test-robot');
+    if(!r)return;const rW=r.offsetWidth||130,rH=r.offsetHeight||180;
+    r.style.left=(W*HOME.x-rW/2)+'px';r.style.top=(H*HOME.y-rH/2)+'px';r.className='idle';
+    renderTestQ();
+  },120);
+}
+
+function renderTestQ(){
+  const q=GS.testQuestions[GS.testIdx];GS.testAnswered=false;
+  document.getElementById('test-q-counter').textContent=`${GS.testIdx+1}/${GS.testQuestions.length}`;
+  let dots='';GS.testDots.forEach((d,i)=>{const cls=i<GS.testIdx?GS.testDots[i]:i===GS.testIdx?'cur':'';dots+=`<div class="q-dot ${cls}"></div>`;});
+  document.getElementById('test-dots').innerHTML=dots;
+  document.getElementById('tq-badge').textContent=q.badge;
+  const showEl=document.getElementById('tq-show');
+  if(q.showType==='letter') showEl.innerHTML=`<div class="q-show-letter">${q.show}</div>`;
+  else if(q.showType==='emoji') showEl.innerHTML=`<div class="q-show-emoji">${q.show}</div>`;
+  else showEl.innerHTML=`<div class="q-show-word">${q.show}</div>`;
+  document.getElementById('tq-text').textContent=q.text;
+  document.getElementById('tq-hint').textContent=q.hint;
+  const shuffled=shuffle([...q.opts]);GS.currentZones=shuffled;
+  for(let i=0;i<4;i++){
+    const z=document.getElementById(`tzone-${i}`);
+    z.className='ans-zone '+(i===0?'zone-tl':i===1?'zone-tr':i===2?'zone-bl':'zone-br');
+    const opt=shuffled[i]||{t:'',correct:false};const isShort=opt.t.length<=2;
+    document.getElementById(`tz${i}-letter`).textContent=isShort?opt.t:'';
+    document.getElementById(`tz${i}-text`).textContent=isShort?'':opt.t;
+    z.dataset.correct=opt.correct;
+  }
+}
+
+function handleTestZone(zoneIdx){
+  if(GS.testAnswered)return;GS.testAnswered=true;
+  const opt=GS.currentZones[zoneIdx];const correct=opt?.correct||false;
+  const cont=document.querySelector('#scr-test > div');const r=document.getElementById('test-robot');
+  if(!cont||!r)return;
+  const W=cont.offsetWidth,H=cont.offsetHeight,pos=ZONE_POS[zoneIdx];
+  const rW=r.offsetWidth||130,rH=r.offsetHeight||180;
+  r.className='running';r.style.left=(W*pos.x-rW/2)+'px';r.style.top=(H*pos.y-rH/2)+'px';
+  setTimeout(()=>{
+    const zone=document.getElementById(`tzone-${zoneIdx}`);const rect=zone.getBoundingClientRect();
+    if(correct){
+      zone.className='ans-zone '+(zoneIdx===0?'zone-tl':zoneIdx===1?'zone-tr':zoneIdx===2?'zone-bl':'zone-br')+' correct';
+      GS.testScore++;GS.testFLW+=GS.flwPerWin;addFLW(GS.flwPerWin);spawnCoins(rect.left+rect.width/2,rect.top+rect.height/2);
+      r.className='happy';showToast('test-toast','נכון! 🌟','#16A34A');GS.testDots[GS.testIdx]='ok';
+    } else {
+      zone.className='ans-zone '+(zoneIdx===0?'zone-tl':zoneIdx===1?'zone-tr':zoneIdx===2?'zone-bl':'zone-br')+' wrong';
+      const ci=GS.currentZones.findIndex(o=>o.correct);
+      if(ci>=0){const cz=document.getElementById(`tzone-${ci}`);cz.className='ans-zone '+(ci===0?'zone-tl':ci===1?'zone-tr':ci===2?'zone-bl':'zone-br')+' reveal';}
+      r.className='sad';showToast('test-toast','לא נורא! 💪','#EF4444');GS.testDots[GS.testIdx]='no';
+    }
+    setTimeout(()=>{
+      r.className='running';r.style.left=(W*HOME.x-rW/2)+'px';r.style.top=(H*HOME.y-rH/2)+'px';
+      setTimeout(()=>{r.className='idle';},520);
+      GS.testIdx++;if(GS.testIdx>=GS.testQuestions.length)showTestResult();else renderTestQ();
+    },1400);
+  },520);
+}
+
+function showTestResult(){
+  const total=GS.testQuestions.length,pct=Math.round(GS.testScore/total*100),passed=pct>=80;
+  const box=document.getElementById('test-result-box');
+  box.className='test-result-box '+(passed?'test-pass':'test-fail');
+  document.getElementById('test-res-title').textContent=passed?'🎉 כל הכבוד! עברת!':'😔 לא עברת הפעם';
+  document.getElementById('test-res-sub').textContent=`${GS.testScore} מתוך ${total} נכון (${pct}%) — נדרש 80%`;
+  if(passed){addFLW(10);GS.testFLW+=10;GS.testsDone[GS.testNum-1]=true;if(GS.testNum<=3)GS.levelsUnlocked[GS.testNum]=true;}
+  document.getElementById('test-flw-earned').textContent=GS.testFLW;
+  const btn=document.getElementById('test-continue-btn');
+  btn.textContent=passed?'🚀 המשך!':'🔄 נסה שוב';
+  btn.onclick=passed?()=>showMap():()=>startTest(GS.testNum);
+  showScreen('scr-test-result');
+}
+
+// END GAME
+function endGame(){
+  addFLW(20);
+  const total=GS.quizQuestions.length,pct=total>0?Math.round(GS.quizScore/total*100):100;
+  const name=childName||'';
+  let title,stars;
+  if(pct>=90){title=`${name?name+' — ':''}אלוף עברית! 🏆`;stars='⭐⭐⭐';}
+  else if(pct>=70){title='כל הכבוד! 🎉';stars='⭐⭐';}
+  else{title='ניסיון טוב! 💪';stars='⭐';}
+  document.getElementById('final-title').textContent=title;
+  document.getElementById('final-sub').textContent=`למדת את האלף-בית העברי! +20 FLW בונוס!`;
+  document.getElementById('final-stars').textContent=stars;
+  document.getElementById('final-flw').textContent=GS.flw;
+  const duration=Math.round((Date.now()-GS.startTime)/1000);
+  const payload={type:'GAME_COMPLETE',userId:GS.userId,gameId:GS.gameId,score:pct,flwEarned:GS.flw,durationSeconds:duration,gameName:'עברית — מהאלף-בית'};
+  if(window.parent!==window)window.parent.postMessage(payload,'*');
+  if(GS.userId)fetch('/api/kids/award-flw',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:GS.userId,gameId:GS.gameId,score:pct,flwEarned:GS.flw,durationSeconds:duration})}).catch(()=>{});
+  showScreen('scr-result');
+}
+function playAgain(){GS.flw=0;GS.streak=0;GS.levelsUnlocked=[true,false,false,false];GS.levelsDone=[false,false,false,false];GS.testsDone=[false,false,false];document.getElementById('flw-count').textContent='0';document.getElementById('main-prog').style.width='0%';showMap();}
+function goHome(){if(window.parent!==window)window.parent.postMessage({type:'CLOSE_GAME'},'*');else window.history.back();}
+const st=document.createElement('style');st.textContent=`@keyframes flw-pop{0%{transform:scale(1)}50%{transform:scale(1.4)}100%{transform:scale(1)}}`;document.head.appendChild(st);
+GS.startTime=Date.now();
+</script>
+</body>
+</html>
