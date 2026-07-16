@@ -13563,12 +13563,13 @@ async function openAssignGameModal() {
   try {
     const [gamesRes, membersRes] = await Promise.all([
       fetch(`/api/kids/games?userId=${currentUser?.id}`),
-      fetch(`/api/family/members/${currentGroup?.id}`)
+      fetch(`/api/group/members?groupId=${currentGroup?.id}`)
     ]);
     const gamesData   = await gamesRes.json();
     const membersData = await membersRes.json();
     const games    = gamesData.games || [];
-    const children = (membersData.members || []).filter(m =>
+    const allMembers = Array.isArray(membersData) ? membersData : (membersData.members || []);
+    const children = allMembers.filter(m =>
       m.role === 'CHILD' || (new Date().getFullYear() - (m.birth_year || 2010)) <= 13
     );
 
@@ -13863,7 +13864,7 @@ function openQuestWizard() {
         </div>
       `;
 
-      fetch(`/api/family/members/${currentGroup?.id}`)
+      fetch(`/api/group/members?groupId=${currentGroup?.id}`)
         .then(r => r.json())
         .then(data => {
           const children = (data.members || []).filter(m =>
