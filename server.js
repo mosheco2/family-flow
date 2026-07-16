@@ -21477,6 +21477,19 @@ app.post('/api/kids/redeem', async (req, res) => {
 
 // ─── KIDS GAMES — SA ENDPOINTS ────────────────────────────────────────────────
 
+// מחיקת כפילויות ב-games_catalog (שמור רק id מינימלי לכל title)
+app.post('/api/sa/games/dedup', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            DELETE FROM games_catalog
+            WHERE id NOT IN (
+                SELECT MIN(id) FROM games_catalog GROUP BY title
+            )
+        `);
+        res.json({ success: true, deleted: result.rowCount });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // כל המשחקים
 app.get('/api/sa/games', verifySA, async (req, res) => {
     try {

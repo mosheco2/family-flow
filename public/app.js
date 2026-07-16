@@ -13569,7 +13569,7 @@ async function openAssignGameModal() {
     const gamesData   = await gamesRes.json();
     const membersData = await membersRes.json();
     const gamesRaw = gamesData.games || [];
-    const games    = gamesRaw.filter((g, i, arr) => arr.findIndex(x => x.id === g.id) === i);
+    const games    = gamesRaw.filter((g, i, arr) => arr.findIndex(x => x.title === g.title) === i);
     const allMembers = Array.isArray(membersData) ? membersData : (membersData.members || []);
     const children = allMembers.filter(m =>
       m.role === 'CHILD' || (new Date().getFullYear() - (m.birth_year || 2010)) <= 13
