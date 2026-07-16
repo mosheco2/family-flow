@@ -1680,6 +1680,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           updated_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
       try { await client.query(`ALTER TABLE games_catalog ADD CONSTRAINT games_catalog_file_path_key UNIQUE (file_path)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE games_catalog ADD COLUMN IF NOT EXISTS badge VARCHAR(30) DEFAULT NULL`); } catch(e) {}
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS flw_kid_wallets (
           id SERIAL PRIMARY KEY,
@@ -21577,12 +21578,12 @@ app.get('/api/sa/games', verifySA, async (req, res) => {
 // הוספת משחק
 app.post('/api/sa/games', verifySA, async (req, res) => {
     try {
-        const { title, subject, ageMin, ageMax, difficulty, flwReward, filePath, thumbnailEmoji, characterUrl } = req.body;
+        const { title, subject, ageMin, ageMax, difficulty, flwReward, filePath, thumbnailEmoji, characterUrl, badge } = req.body;
         const result = await pool.query(`
             INSERT INTO games_catalog
-                (title, subject, age_min, age_max, difficulty, flw_reward, file_path, thumbnail_emoji, character_url)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *
-        `, [title, subject, ageMin, ageMax, difficulty, flwReward, filePath, thumbnailEmoji || '🎮', characterUrl || '']);
+                (title, subject, age_min, age_max, difficulty, flw_reward, file_path, thumbnail_emoji, character_url, badge)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *
+        `, [title, subject, ageMin, ageMax, difficulty, flwReward, filePath, thumbnailEmoji || '🎮', characterUrl || '', badge || null]);
         res.json({ success: true, game: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -21590,13 +21591,13 @@ app.post('/api/sa/games', verifySA, async (req, res) => {
 // עריכת משחק
 app.put('/api/sa/games/:id', verifySA, async (req, res) => {
     try {
-        const { title, subject, ageMin, ageMax, difficulty, flwReward, filePath, thumbnailEmoji, characterUrl } = req.body;
+        const { title, subject, ageMin, ageMax, difficulty, flwReward, filePath, thumbnailEmoji, characterUrl, badge } = req.body;
         await pool.query(`
             UPDATE games_catalog SET
                 title=$1, subject=$2, age_min=$3, age_max=$4, difficulty=$5,
-                flw_reward=$6, file_path=$7, thumbnail_emoji=$8, character_url=$9, updated_at=NOW()
-            WHERE id=$10
-        `, [title, subject, ageMin, ageMax, difficulty, flwReward, filePath, thumbnailEmoji, characterUrl, req.params.id]);
+                flw_reward=$6, file_path=$7, thumbnail_emoji=$8, character_url=$9, badge=$10, updated_at=NOW()
+            WHERE id=$11
+        `, [title, subject, ageMin, ageMax, difficulty, flwReward, filePath, thumbnailEmoji, characterUrl, badge || null, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

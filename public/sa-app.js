@@ -9243,6 +9243,10 @@ async function toggleGame(gameId) {
     } catch(e) { console.error('toggleGame', e); }
 }
 
+window.setBadge = function(val) {
+    document.getElementById('game-badge').value = val;
+};
+
 function editGame(gameId) {
     const game = _saGamesData.find(g => g.id === gameId);
     if (!game) return;
@@ -9250,6 +9254,7 @@ function editGame(gameId) {
     document.getElementById('game-edit-id').value        = game.id;
     document.getElementById('game-title').value          = game.title;
     document.getElementById('game-emoji').value          = game.thumbnail_emoji || '🎮';
+    document.getElementById('game-badge').value          = game.badge || '';
     document.getElementById('game-subject').value        = game.subject;
     document.getElementById('game-age-min').value        = game.age_min;
     document.getElementById('game-age-max').value        = game.age_max;
@@ -9276,6 +9281,7 @@ window.resetGameForm = function() {
     document.getElementById('game-difficulty').value    = 1;
     document.getElementById('game-flw').value           = 10;
     document.getElementById('game-filepath').value      = '';
+    document.getElementById('game-badge').value         = '';
     document.getElementById('game-character-url').value = '';
     document.getElementById('game-character-preview').classList.add('hidden');
     document.getElementById('game-preview-btn').classList.add('hidden');
@@ -9293,6 +9299,7 @@ window.saveGame = async function(e) {
         flwReward:    parseInt(document.getElementById('game-flw').value),
         filePath:     document.getElementById('game-filepath').value,
         thumbnailEmoji: document.getElementById('game-emoji').value || '🎮',
+        badge: document.getElementById('game-badge').value.trim() || null,
         characterUrl: document.getElementById('game-character-url').value
     };
     try {

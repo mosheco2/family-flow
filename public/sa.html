@@ -2847,6 +2847,18 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                       <input id="game-emoji" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-purple-400 outline-none" placeholder="🎮" maxlength="2">
                     </div>
                   </div>
+                  <div>
+                    <label class="block text-sm font-bold text-slate-600 mb-1">תגית על הבאנר (אופציונלי)</label>
+                    <div class="flex gap-2 flex-wrap mb-2" id="badge-presets">
+                      <button type="button" onclick="setBadge('')"       class="badge-preset-btn px-3 py-1 rounded-full border border-slate-200 text-xs font-bold text-slate-500 hover:bg-slate-50 transition">ללא תגית</button>
+                      <button type="button" onclick="setBadge('חדש ✨')"  class="badge-preset-btn px-3 py-1 rounded-full text-xs font-bold text-white transition" style="background:linear-gradient(135deg,#FF6B2B,#F59E0B)">חדש ✨</button>
+                      <button type="button" onclick="setBadge('מומלץ ⭐')" class="badge-preset-btn px-3 py-1 rounded-full text-xs font-bold text-white transition" style="background:linear-gradient(135deg,#7C3AED,#5B21B6)">מומלץ ⭐</button>
+                      <button type="button" onclick="setBadge('פופולרי 🔥')" class="badge-preset-btn px-3 py-1 rounded-full text-xs font-bold text-white transition" style="background:linear-gradient(135deg,#EF4444,#DC2626)">פופולרי 🔥</button>
+                      <button type="button" onclick="setBadge('בטא 🧪')"  class="badge-preset-btn px-3 py-1 rounded-full text-xs font-bold text-white transition" style="background:linear-gradient(135deg,#0EA5E9,#0284C7)">בטא 🧪</button>
+                    </div>
+                    <input id="game-badge" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-purple-400 outline-none" placeholder="טקסט חופשי — לדוגמה: עדכון חדש 🎉" maxlength="20">
+                    <p class="text-xs text-slate-400 mt-1">מקסימום 20 תווים · ריק = ללא תגית</p>
+                  </div>
                   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label class="block text-sm font-bold text-slate-600 mb-1">נושא *</label>
