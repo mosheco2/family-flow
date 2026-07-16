@@ -1677,6 +1677,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           created_at TIMESTAMP DEFAULT NOW(),
           updated_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE games_catalog ADD CONSTRAINT games_catalog_file_path_key UNIQUE (file_path)`); } catch(e) {}
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS flw_kid_wallets (
           id SERIAL PRIMARY KEY,
