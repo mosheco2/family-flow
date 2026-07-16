@@ -470,43 +470,68 @@ function placeRobot(xPct,yPct,anim){
   r.className=anim||'idle';
 }
 
-// זרוק כדור מהרובוט לדלי הנכון
-function throwBall(bucketIdx, onLand, content){
+// ה-emoji/אלמנט מהשאלה עף לדלי הנכון
+function throwFromQuestion(bucketIdx, onLand){
   const arena=document.getElementById('scr-arena');
+  const arenaRect=arena.getBoundingClientRect();
+
+  // מציאת אלמנט המקור בשאלה
+  const q=GS.questions[GS.qIdx];
+  let srcEl;
+  if(q.type==='counting'){
+    // לקחת את ה-emoji הראשון מרשימת האובייקטים
+    srcEl=document.querySelector('#arena-q-content .count-obj');
+  } else {
+    srcEl=document.querySelector('#arena-q-content .equation');
+  }
+
+  // מיקום המקור יחסית ל-arena
+  let sx,sy;
+  if(srcEl){
+    const r=srcEl.getBoundingClientRect();
+    sx=r.left-arenaRect.left+r.width/2;
+    sy=r.top-arenaRect.top+r.height/2;
+  } else {
+    // fallback: מרכז אזור השאלה
+    sx=arena.offsetWidth/2;
+    sy=arena.offsetHeight*0.3;
+  }
+
+  // מיקום היעד (הדלי הנכון)
   const W=arena.offsetWidth,H=arena.offsetHeight;
-  const r=document.getElementById('arena-robot');if(!r)return;
-  const rW=r.offsetWidth||140,rH=r.offsetHeight||200;
-  const rx=parseFloat(r.style.left)+rW/2;
-  const ry=parseFloat(r.style.top)+rH*0.3;
   const tx=W*BUCKET_X[bucketIdx];
   const ty=H*BUCKET_Y-40;
 
-  r.className='throw';
+  // יצירת clone שמתחיל מהמיקום של האלמנט בשאלה
+  const clone=document.createElement('div');
+  clone.className='ball';
+  clone.textContent=q.type==='counting'?q.emoji:q.equation.replace(' = ?','');
+  clone.style.cssText=`position:absolute;left:${sx}px;top:${sy}px;z-index:40;pointer-events:none;
+    font-size:${q.type==='counting'?'2rem':'1.4rem'};font-family:'Fredoka One',sans-serif;
+    font-weight:900;color:white;text-shadow:0 2px 8px rgba(0,0,0,0.5);
+    width:auto;height:auto;border-radius:12px;padding:4px 8px;
+    background:rgba(255,255,255,0.15);backdrop-filter:blur(2px);
+    transform:translate(-50%,-50%);transition:none`;
+  arena.appendChild(clone);
 
-  const ball=document.createElement('div');
-  ball.className='ball';
-  ball.textContent=content||'⚽';
-  ball.style.left=rx+'px';
-  ball.style.top=ry+'px';
-  arena.appendChild(ball);
+  // הרובוט מבצע אנימציית זריקה
+  const robot=document.getElementById('arena-robot');
+  if(robot) robot.className='throw';
 
-  const duration=500;
+  const duration=550;
   const startTime=performance.now();
 
   function animate(now){
-    const t=(now-startTime)/duration;
-    if(t>=1){
-      ball.style.left=tx+'px';
-      ball.style.top=ty+'px';
-      setTimeout(()=>{ball.remove();if(onLand)onLand();},100);
-      return;
-    }
-    const cx=rx+(tx-rx)*t;
-    const cy=ry+(ty-ry)*t - 4*(-80)*(t-t*t);
-    ball.style.left=cx+'px';
-    ball.style.top=cy+'px';
-    ball.style.transform=`rotate(${t*360}deg)`;
-    requestAnimationFrame(animate);
+    const t=Math.min((now-startTime)/duration,1);
+    const ease=t<0.5?2*t*t:(4-2*t)*t-1; // easeInOut
+    const cx=sx+(tx-sx)*ease;
+    const arc=Math.sin(Math.PI*t)*90;
+    const cy=sy+(ty-sy)*ease-arc;
+    clone.style.left=cx+'px';
+    clone.style.top=cy+'px';
+    clone.style.transform=`translate(-50%,-50%) scale(${1+0.3*Math.sin(Math.PI*t)})`;
+    if(t<1){requestAnimationFrame(animate);}
+    else{setTimeout(()=>{clone.remove();if(onLand)onLand();},80);}
   }
   requestAnimationFrame(animate);
 }
@@ -611,12 +636,9 @@ function handleBucket(bucketIdx){
   if(GS.answered)return;GS.answered=true;
   const opt=GS.currentBuckets[bucketIdx];const correct=opt?.correct||false;
   const ci=GS.correctBucketIdx;
-  const q=GS.questions[GS.qIdx];
-  // האלמנט הנזרק = emoji בשאלת ספירה, מספר התשובה הנכונה בחישוב
-  const throwContent=q.type==='counting'?q.emoji:String(q.correct);
 
-  // הרובוט תמיד זורק לדלי הנכון
-  throwBall(ci,()=>{
+  // ה-emoji/משוואה עפה ממיקומה בשאלה לדלי הנכון תמיד
+  throwFromQuestion(ci,()=>{
     const bk=document.getElementById(`bk-${bucketIdx}`);
     const correctBk=document.getElementById(`bk-${ci}`);
     const rect=correctBk.getBoundingClientRect();
@@ -645,7 +667,7 @@ function handleBucket(bucketIdx){
         else showTestResult();
       } else renderQ();
     },1400);
-  },throwContent);
+  });
 }
 
 function endQuiz(){
