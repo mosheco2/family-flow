@@ -132,8 +132,10 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;color:
 @keyframes robot-sad{0%,100%{transform:translateY(0)}30%{transform:translateY(8px) rotate(-5deg)}60%{transform:translateY(4px) rotate(5deg)}}
 
 /* BALL */
-.ball{position:absolute;width:30px;height:30px;border-radius:50%;
-  z-index:25;pointer-events:none;display:flex;align-items:center;justify-content:center;font-size:1.2rem}
+.ball{position:absolute;width:42px;height:42px;border-radius:50%;
+  z-index:25;pointer-events:none;display:flex;align-items:center;justify-content:center;
+  font-size:1.6rem;font-family:'Fredoka One',sans-serif;font-weight:900;color:white;
+  background:rgba(255,255,255,0.15);backdrop-filter:blur(2px)}
 
 /* BUCKETS */
 .bucket-zone{position:absolute;bottom:3%;z-index:10;
@@ -469,7 +471,7 @@ function placeRobot(xPct,yPct,anim){
 }
 
 // זרוק כדור מהרובוט לדלי הנכון
-function throwBall(bucketIdx, onLand){
+function throwBall(bucketIdx, onLand, content){
   const arena=document.getElementById('scr-arena');
   const W=arena.offsetWidth,H=arena.offsetHeight;
   const r=document.getElementById('arena-robot');if(!r)return;
@@ -483,7 +485,7 @@ function throwBall(bucketIdx, onLand){
 
   const ball=document.createElement('div');
   ball.className='ball';
-  ball.textContent='⚽';
+  ball.textContent=content||'⚽';
   ball.style.left=rx+'px';
   ball.style.top=ry+'px';
   arena.appendChild(ball);
@@ -609,6 +611,9 @@ function handleBucket(bucketIdx){
   if(GS.answered)return;GS.answered=true;
   const opt=GS.currentBuckets[bucketIdx];const correct=opt?.correct||false;
   const ci=GS.correctBucketIdx;
+  const q=GS.questions[GS.qIdx];
+  // האלמנט הנזרק = emoji בשאלת ספירה, מספר התשובה הנכונה בחישוב
+  const throwContent=q.type==='counting'?q.emoji:String(q.correct);
 
   // הרובוט תמיד זורק לדלי הנכון
   throwBall(ci,()=>{
@@ -640,7 +645,7 @@ function handleBucket(bucketIdx){
         else showTestResult();
       } else renderQ();
     },1400);
-  });
+  },throwContent);
 }
 
 function endQuiz(){
