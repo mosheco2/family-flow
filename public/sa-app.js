@@ -9243,9 +9243,13 @@ async function toggleGame(gameId) {
     } catch(e) { console.error('toggleGame', e); }
 }
 
-window.setBadge = function(val) {
-    document.getElementById('game-badge').value = val;
-};
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('#badge-presets .badge-preset-btn');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    document.getElementById('game-badge').value = btn.dataset.badge || '';
+});
 
 function editGame(gameId) {
     const game = _saGamesData.find(g => g.id === gameId);
