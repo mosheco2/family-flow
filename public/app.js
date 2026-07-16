@@ -13442,7 +13442,7 @@ window._openQuoteFromActivity = async function(quoteId) {
 
 let _activeAssignmentId = null;
 
-function openGame(assignmentId, gameFilePath, childName, flwPerRound, gameId, startLevel) {
+function openGame(assignmentId, gameFilePath, childName, flwPerRound, gameId, startLevel, financeAge) {
   _activeAssignmentId = assignmentId;
 
   const overlay = document.createElement('div');
@@ -13482,6 +13482,7 @@ function openGame(assignmentId, gameFilePath, childName, flwPerRound, gameId, st
       gameId: gameId,
       assignmentId: assignmentId,
       startLevel: startLevel || 1,
+      age: financeAge || null,
       token: localStorage.getItem('family_token') || ''
     }, '*');
   };
@@ -13876,6 +13877,16 @@ async function openAssignGameModal() {
         </div>
         <input type="hidden" id="assign-rounds" value="3">
 
+        <div id="finance-age-wrap" style="display:none;margin-bottom:1rem">
+          <label style="font-size:0.82rem;font-weight:700;color:#555;display:block;margin-bottom:0.4rem">🎓 רמת גיל למשחק הכלכלה</label>
+          <select id="finance-age-select" style="width:100%;padding:0.8rem;border:2px solid #E0E0E0;border-radius:12px;font-size:0.95rem">
+            <option value="10">גיל 10-11 — כסף בסיסי</option>
+            <option value="12">גיל 11-12 — תקציב חכם</option>
+            <option value="13">גיל 13-14 — כסף עובד</option>
+            <option value="15">גיל 15-16 — חשיבה פיננסית</option>
+          </select>
+        </div>
+
         <label style="font-size:0.85rem;font-weight:700;color:#555;display:block;margin-bottom:0.4rem">FLW לסיבוב מוצלח</label>
         <input type="number" id="assign-flw" value="10" min="1" max="50"
           style="width:100%;padding:0.8rem;border:2px solid #E0E0E0;
@@ -13913,6 +13924,9 @@ function selectGameForAssign(el, gameId) {
   const section = document.getElementById('age-level-section');
   const picker = document.getElementById('age-level-picker');
   if(!section || !picker) return;
+
+  const financeWrap = document.getElementById('finance-age-wrap');
+  if(financeWrap) financeWrap.style.display = (game && game.subject === 'finance') ? 'block' : 'none';
 
   if(levels.length === 0) { section.style.display = 'none'; return; }
 
@@ -13981,7 +13995,8 @@ async function submitGameAssignment() {
         roundsTotal: _selectedRounds,
         flwPerRound: parseInt(flw) || 10,
         parentUserId: currentUser?.id,
-        startLevel: _selectedLevel || 1
+        startLevel: _selectedLevel || 1,
+        financeAge: parseInt(document.getElementById('finance-age-select')?.value) || null
       })
     });
     const data = await res.json();
@@ -14323,7 +14338,7 @@ async function loadKidAcademy() {
                 נשארו ${a.rounds_left} סיבובים · ${a.flw_per_round} FLW לסיבוב
               </div>
             </div>
-            <button onclick="openGame(${a.id},'${a.file_path}','${currentUser?.nickname}',${a.flw_per_round},${a.game_id},${a.start_level||1})"
+            <button onclick="openGame(${a.id},'${a.file_path}','${currentUser?.nickname}',${a.flw_per_round},${a.game_id},${a.start_level||1},${a.finance_age||'null'})"
               ${a.rounds_left <= 0 ? 'disabled' : ''}
               style="
                 background:${a.rounds_left > 0 ? '#7C3AED' : '#9CA3AF'};

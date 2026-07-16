@@ -127,6 +127,7 @@ pool.connect()
       
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
       try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS start_level INTEGER DEFAULT 1`); } catch(e) {}
+      try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS finance_age INT DEFAULT NULL`); } catch(e) {}
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS target_datetime VARCHAR(50)'); } catch(e) {}
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'); } catch(e) {}
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS quote_status VARCHAR(50) DEFAULT \'draft\''); } catch(e) {}
@@ -1793,7 +1794,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           VALUES
             ('אנגלית — מהאלף-בית למילים', 'english', 5, 8, 1, 20, 'games/english-alphabet-1.html', '🔤', true),
             ('עברית — מהאלף-בית למילים', 'hebrew', 5, 8, 1, 20, 'games/hebrew-letters-1.html', '🔤', true),
-            ('מתמטיקה — ספירה עד כפל', 'math', 4, 12, 2, 20, 'games/math-1.html', '🔢', true)
+            ('מתמטיקה — ספירה עד כפל', 'math', 4, 12, 2, 20, 'games/math-1.html', '🔢', true),
+            ('העיר שלי — כלכלה חכמה', 'finance', 10, 16, 3, 30, 'games/finance-city-1.html', '🏙️', true)
           ON CONFLICT DO NOTHING
       `); } catch(e) {}
 
@@ -21661,17 +21663,18 @@ app.post('/api/kids/assign-game', async (req, res) => {
       WHERE child_user_id=$1 AND game_id=$2 AND status='active'
     `, [childUserId, gameId]);
 
+    const financeAge = req.body.financeAge || null;
     const result = await pool.query(`
       INSERT INTO game_assignments
         (family_group_id, child_user_id, game_id,
          rounds_total, rounds_used, flw_per_round,
-         status, assigned_by, expires_at, start_level)
-      VALUES ($1,$2,$3,$4,0,$5,'active',$6,$7,$8)
+         status, assigned_by, expires_at, start_level, finance_age)
+      VALUES ($1,$2,$3,$4,0,$5,'active',$6,$7,$8,$9)
       RETURNING *
     `, [familyGroupId, childUserId, gameId,
         roundsTotal||3, flwPerRound||10,
         req.body.parentUserId||null, expiresAt||null,
-        startLevel||1]);
+        startLevel||1, financeAge]);
 
     try {
       await pool.query(`

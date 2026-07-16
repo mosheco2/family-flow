@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>העיר שלי | Oneflow Kids</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&family=Fredoka+One&display=swap');
+:root{
+  --green:#22C55E;--red:#EF4444;--yellow:#FFD600;
+  --orange:#FF6B2B;--blue:#3B82F6;--teal:#00A896;
+  --purple:#7C3AED;--ground:#2D5016;--road:#374151;
+  --muted:#7A9EA8;--radius:16px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+body{font-family:'Heebo',sans-serif;background:#1A1A2E;min-height:100vh;color:white;overflow:hidden}
+.scr{display:none;width:100%;height:100vh;flex-direction:column}
+.scr.on{display:flex}
+
+/* INTRO */
+#scr-intro{align-items:center;justify-content:center;padding:1.2rem;text-align:center;
+  background:linear-gradient(180deg,#0F172A,#1E1B4B,#0F3460);overflow-y:auto}
+.intro-robot{width:150px;filter:drop-shadow(0 10px 30px rgba(0,168,150,0.4));
+  animation:intro-float 2.5s ease-in-out infinite}
+@keyframes intro-float{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-12px) rotate(2deg)}}
+.intro-title{font-family:'Fredoka One',sans-serif;font-size:2rem;
+  background:linear-gradient(135deg,#FFD600,#FF6B2B);-webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;background-clip:text;margin:0.3rem 0}
+.intro-sub{color:rgba(255,255,255,0.6);font-size:0.85rem;margin-bottom:1rem;line-height:1.5}
+.age-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;width:100%;max-width:320px;margin-bottom:1rem}
+.age-card{background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.15);
+  border-radius:14px;padding:0.8rem;text-align:center;cursor:pointer;transition:all 0.2s}
+.age-card:active{transform:scale(0.96)}
+.age-card.sel{border-color:var(--yellow);background:rgba(255,214,0,0.15)}
+.age-card .age-icon{font-size:1.6rem;margin-bottom:0.2rem}
+.age-card .age-label{font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.9)}
+.age-card .age-sub{font-size:0.68rem;color:rgba(255,255,255,0.5);margin-top:0.1rem}
+.age-card .age-topics{font-size:0.62rem;color:rgba(255,255,255,0.35);margin-top:0.2rem;line-height:1.4}
+.btn-start{background:linear-gradient(135deg,var(--yellow),var(--orange));color:#1A1A2E;
+  border:none;border-radius:50px;padding:0.9rem 2.5rem;font-family:'Fredoka One',sans-serif;
+  font-size:1.1rem;cursor:pointer;box-shadow:0 6px 20px rgba(255,214,0,0.4);
+  transition:transform 0.15s;opacity:0.5;pointer-events:none;width:100%;max-width:280px}
+.btn-start.ready{opacity:1;pointer-events:all}
+.btn-start:active{transform:scale(0.96)}
+
+/* CITY */
+#scr-city{position:relative;overflow:hidden;background:#1A1A2E}
+.sky{position:absolute;inset:0;background:linear-gradient(180deg,#0A0A1A 0%,#1A1A3E 40%,#1A3A5F 70%,#2D5016 100%)}
+.ground{position:absolute;bottom:0;left:0;right:0;height:35%;background:linear-gradient(180deg,var(--ground),#1A3A0A);z-index:4}
+.road{position:absolute;bottom:28%;left:0;right:0;height:8px;background:var(--road);z-index:5}
+.road-line{position:absolute;top:50%;left:0;right:0;height:2px;
+  background:repeating-linear-gradient(90deg,var(--yellow) 0,var(--yellow) 20px,transparent 20px,transparent 40px);
+  transform:translateY(-50%)}
+#city-svg{position:absolute;bottom:28%;left:0;right:0;z-index:6;width:100%;height:45%}
+#street-robot{position:absolute;bottom:30%;left:50%;transform:translateX(-50%);
+  width:75px;z-index:8;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.5));
+  animation:street-idle 3s ease-in-out infinite}
+@keyframes street-idle{0%,100%{transform:translateX(-50%) rotate(-2deg)}50%{transform:translateX(-50%) translateY(-5px) rotate(2deg)}}
+
+/* HUD */
+.hud{position:absolute;top:0;left:0;right:0;z-index:20;padding:0.5rem 0.7rem;
+  display:flex;align-items:center;gap:0.4rem;
+  background:linear-gradient(180deg,rgba(0,0,0,0.75),transparent)}
+.hud-budget{display:flex;align-items:center;gap:0.3rem;background:rgba(255,255,255,0.12);
+  border-radius:50px;padding:0.2rem 0.7rem;font-weight:700;font-size:0.85rem}
+.hud-budget .amt{color:var(--yellow);font-family:'Fredoka One',sans-serif;font-size:1rem}
+.hud-month{background:rgba(255,255,255,0.12);border-radius:50px;padding:0.2rem 0.7rem;font-size:0.78rem;font-weight:700}
+.hud-happiness{font-size:0.9rem}
+.hud-flw{display:flex;align-items:center;gap:0.2rem;background:rgba(255,214,0,0.2);
+  border-radius:50px;padding:0.2rem 0.6rem;font-weight:700;font-size:0.82rem;color:var(--yellow);margin-right:auto}
+.coin-mini{width:16px;height:16px;background:var(--yellow);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:0.5rem;font-weight:900;color:#333}
+.budget-bar-wrap{position:absolute;top:44px;left:0.7rem;right:0.7rem;z-index:20}
+.budget-bar-bg{background:rgba(255,255,255,0.1);border-radius:50px;height:5px;overflow:hidden}
+.budget-bar-fill{height:100%;border-radius:50px;transition:width 0.8s ease,background 0.5s}
+
+/* MONTH OVERLAY */
+#month-overlay{position:absolute;inset:0;z-index:50;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;background:rgba(0,0,0,0.88);
+  opacity:0;pointer-events:none;transition:opacity 0.5s}
+#month-overlay.show{opacity:1;pointer-events:all}
+.month-title{font-family:'Fredoka One',sans-serif;font-size:2.8rem;
+  background:linear-gradient(135deg,var(--yellow),var(--orange));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.month-income{font-size:1.1rem;color:rgba(255,255,255,0.8);margin-top:0.4rem}
+.month-income .amt{color:var(--green);font-weight:900;font-size:1.4rem}
+
+/* SCENARIO PANEL */
+#scenario-panel{position:absolute;bottom:0;left:0;right:0;z-index:30;
+  background:linear-gradient(180deg,rgba(8,8,25,0.97),rgba(8,8,30,0.99));
+  border-radius:22px 22px 0 0;padding:0.9rem 0.9rem 1.3rem;
+  transform:translateY(100%);transition:transform 0.4s cubic-bezier(0.34,1.2,0.64,1)}
+#scenario-panel.show{transform:translateY(0)}
+.scenario-who{display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem}
+.scenario-avatar{font-size:1.8rem;width:40px;height:40px;background:rgba(255,255,255,0.1);
+  border-radius:50%;display:flex;align-items:center;justify-content:center}
+.scenario-name{font-weight:700;font-size:0.88rem}
+.scenario-ctx{font-size:0.72rem;color:rgba(255,255,255,0.45)}
+.scenario-text{font-size:0.95rem;font-weight:700;line-height:1.5;color:white;margin-bottom:0.25rem}
+.scenario-cost{display:inline-block;background:rgba(239,68,68,0.2);color:#FCA5A5;
+  border-radius:50px;padding:0.12rem 0.6rem;font-size:0.75rem;font-weight:700;margin-bottom:0.7rem}
+.scenario-options{display:flex;flex-direction:column;gap:0.4rem}
+.opt-btn{background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.1);
+  border-radius:12px;padding:0.65rem 0.9rem;text-align:right;cursor:pointer;
+  transition:all 0.2s;color:white;font-family:'Heebo',sans-serif;font-size:0.88rem;font-weight:700;
+  display:flex;align-items:center;gap:0.5rem}
+.opt-btn:active{transform:scale(0.98)}
+.opt-btn.good{border-color:rgba(34,197,94,0.35);background:rgba(34,197,94,0.08)}
+.opt-btn.ok  {border-color:rgba(255,214,0,0.25);background:rgba(255,214,0,0.06)}
+.opt-btn.bad {border-color:rgba(239,68,68,0.25);background:rgba(239,68,68,0.06)}
+.opt-icon{font-size:1.2rem;flex-shrink:0}
+.opt-effect{font-size:0.67rem;color:rgba(255,255,255,0.4);font-weight:400;margin-top:0.05rem}
+
+/* FEEDBACK POPUP */
+#feedback-popup{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);
+  z-index:40;background:white;border-radius:20px;padding:1.1rem 1.3rem;
+  max-width:290px;width:90%;text-align:center;color:#1A2E35;
+  box-shadow:0 20px 60px rgba(0,0,0,0.5);transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1)}
+#feedback-popup.show{transform:translate(-50%,-50%) scale(1)}
+.fb-icon{font-size:2.5rem;margin-bottom:0.3rem}
+.fb-title{font-family:'Fredoka One',sans-serif;font-size:1.3rem;margin-bottom:0.2rem}
+.fb-text{font-size:0.85rem;color:var(--muted);line-height:1.5;margin-bottom:0.5rem}
+.fb-effect{font-weight:700;font-size:0.85rem;margin-bottom:0.7rem}
+.fb-btn{background:linear-gradient(135deg,var(--teal),#007A6E);color:white;border:none;
+  border-radius:50px;padding:0.65rem 2rem;font-family:'Fredoka One',sans-serif;
+  font-size:0.95rem;cursor:pointer;width:100%}
+
+/* EVENT */
+#event-overlay{position:absolute;inset:0;z-index:45;background:rgba(0,0,0,0.82);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity 0.3s}
+#event-overlay.show{opacity:1;pointer-events:all}
+.event-card{background:linear-gradient(135deg,#1E1B4B,#1A3A5F);border:2px solid rgba(255,255,255,0.15);
+  border-radius:22px;padding:1.3rem;max-width:290px;width:90%;text-align:center}
+.event-icon{font-size:3rem;margin-bottom:0.4rem}
+.event-title{font-family:'Fredoka One',sans-serif;font-size:1.3rem;color:var(--yellow);margin-bottom:0.3rem}
+.event-text{font-size:0.85rem;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:0.8rem}
+.event-cost{font-family:'Fredoka One',sans-serif;font-size:1.4rem;color:var(--red);margin-bottom:0.8rem}
+.event-btn{background:linear-gradient(135deg,var(--orange),#FF4500);color:white;border:none;
+  border-radius:50px;padding:0.65rem 2rem;font-family:'Fredoka One',sans-serif;font-size:0.95rem;cursor:pointer;width:100%}
+
+/* RESULT */
+#scr-result{align-items:center;justify-content:center;padding:1.2rem;text-align:center;
+  background:linear-gradient(180deg,#0F172A,#1E1B4B);overflow-y:auto}
+.result-title{font-family:'Fredoka One',sans-serif;font-size:1.9rem;
+  background:linear-gradient(135deg,var(--yellow),var(--orange));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0.3rem 0}
+.result-stats{background:rgba(255,255,255,0.06);border-radius:14px;padding:0.9rem;
+  width:100%;max-width:290px;margin:0.6rem 0;text-align:right}
+.stat-row{display:flex;justify-content:space-between;align-items:center;
+  padding:0.35rem 0;border-bottom:1px solid rgba(255,255,255,0.07);font-size:0.88rem}
+.stat-row:last-child{border-bottom:none}
+.stat-val{font-weight:700;color:var(--yellow)}
+.flw-box-dark{background:rgba(255,214,0,0.1);border:2px solid rgba(255,214,0,0.3);
+  border-radius:14px;padding:0.9rem 2rem;text-align:center;margin:0.5rem 0}
+.flw-big{font-family:'Fredoka One',sans-serif;font-size:2.4rem;color:var(--yellow);
+  display:flex;align-items:center;justify-content:center;gap:0.4rem}
+.big-coin{width:42px;height:42px;background:var(--yellow);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:900;color:#333}
+
+/* PARTICLES */
+.coin-p{position:fixed;pointer-events:none;z-index:9999;font-size:1.4rem;animation:coin-fly 1.2s ease-out forwards}
+@keyframes coin-fly{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-110px) scale(0.3);opacity:0}}
+.budget-toast{position:absolute;top:55px;left:50%;transform:translateX(-50%);
+  font-family:'Fredoka One',sans-serif;font-size:1.1rem;z-index:25;
+  pointer-events:none;animation:budget-float 1.5s ease-out forwards;white-space:nowrap}
+@keyframes budget-float{0%{transform:translateX(-50%) translateY(0);opacity:1}100%{transform:translateX(-50%) translateY(-50px);opacity:0}}
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div class="scr on" id="scr-intro">
+  <img src="/games/assets/images/ROBOTAI.png" alt="רובוט" class="intro-robot" onerror="this.style.display='none'">
+  <div class="intro-title">העיר שלי 🏙️</div>
+  <div class="intro-sub">קבל משכורת, קבל החלטות חכמות<br>ובנה את העיר שלך לאורך 5 חודשים!<br><span style="color:var(--yellow)">⚠️ כל החלטה משפיעה על העתיד שלך</span></div>
+  <div class="age-grid" id="age-grid">
+    <div class="age-card" onclick="selectAge(this,10)" data-age="10">
+      <div class="age-icon">🏫</div>
+      <div class="age-label">גיל 10-11</div>
+      <div class="age-sub">כסף בסיסי</div>
+      <div class="age-topics">חיסכון · עבודה · צורך vs רצון</div>
+    </div>
+    <div class="age-card" onclick="selectAge(this,12)" data-age="12">
+      <div class="age-icon">💡</div>
+      <div class="age-label">גיל 11-12</div>
+      <div class="age-sub">תקציב חכם</div>
+      <div class="age-topics">תקציב · תרמיות · השוואת מחירים</div>
+    </div>
+    <div class="age-card" onclick="selectAge(this,13)" data-age="13">
+      <div class="age-icon">📈</div>
+      <div class="age-label">גיל 13-14</div>
+      <div class="age-sub">כסף עובד</div>
+      <div class="age-topics">ריבית · אשראי · השקעות ראשונות</div>
+    </div>
+    <div class="age-card" onclick="selectAge(this,15)" data-age="15">
+      <div class="age-icon">🎯</div>
+      <div class="age-label">גיל 15-16</div>
+      <div class="age-sub">חשיבה פיננסית</div>
+      <div class="age-topics">יזמות · תכנון · ריבית דריבית</div>
+    </div>
+  </div>
+  <button class="btn-start" id="btn-start" onclick="startGame()">🚀 בנה את העיר שלך!</button>
+</div>
+
+<!-- CITY -->
+<div class="scr" id="scr-city">
+  <div class="sky" id="sky"></div>
+  <canvas id="stars-canvas" style="position:absolute;inset:0;z-index:1;pointer-events:none"></canvas>
+  <div id="clouds"></div>
+  <div class="ground"></div>
+  <div class="road"><div class="road-line"></div></div>
+  <svg id="city-svg" viewBox="0 0 400 200" preserveAspectRatio="xMidYMax meet">
+    <g id="buildings"></g>
+  </svg>
+  <img src="/games/assets/images/ROBOTAI.png" alt="רובוט" id="street-robot" onerror="this.style.display='none'">
+  <div class="hud">
+    <div class="hud-budget">💰 <span class="amt" id="hud-budget">₪500</span></div>
+    <div class="hud-month" id="hud-month">📅 חודש 1/5</div>
+    <div class="hud-happiness" id="hud-happiness">❤️❤️❤️</div>
+    <div class="hud-flw"><div class="coin-mini">FLW</div><span id="hud-flw">0</span></div>
+  </div>
+  <div class="budget-bar-wrap">
+    <div class="budget-bar-bg"><div class="budget-bar-fill" id="budget-bar" style="width:50%;background:var(--green)"></div></div>
+  </div>
+  <div id="month-overlay">
+    <div class="month-title" id="mo-title">חודש 1 🌅</div>
+    <div class="month-income">קיבלת <span class="amt" id="mo-income">₪500</span> דמי כיס!</div>
+    <div style="color:rgba(255,255,255,0.45);font-size:0.8rem;margin-top:0.4rem" id="mo-tip"></div>
+    <div style="margin-top:1.2rem;font-size:0.75rem;color:rgba(255,255,255,0.25)">ממשיך בעוד שנייה...</div>
+  </div>
+  <div id="scenario-panel">
+    <div class="scenario-who">
+      <div class="scenario-avatar" id="sc-avatar">👤</div>
+      <div><div class="scenario-name" id="sc-who">שם</div><div class="scenario-ctx" id="sc-ctx">הקשר</div></div>
+    </div>
+    <div class="scenario-text" id="sc-text"></div>
+    <div class="scenario-cost" id="sc-cost" style="display:none">עלות: ₪0</div>
+    <div class="scenario-options" id="sc-options"></div>
+  </div>
+  <div id="feedback-popup">
+    <div class="fb-icon" id="fb-icon">✅</div>
+    <div class="fb-title" id="fb-title">כל הכבוד!</div>
+    <div class="fb-text" id="fb-text"></div>
+    <div class="fb-effect" id="fb-effect"></div>
+    <button class="fb-btn" onclick="closeFeedback()">המשך →</button>
+  </div>
+  <div id="event-overlay">
+    <div class="event-card">
+      <div class="event-icon" id="ev-icon">⚡</div>
+      <div class="event-title" id="ev-title">אירוע בלתי צפוי!</div>
+      <div class="event-text" id="ev-text"></div>
+      <div class="event-cost" id="ev-cost">-₪0</div>
+      <button class="event-btn" onclick="closeEvent()">מבין... המשך</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div class="scr" id="scr-result">
+  <div style="font-size:3.5rem;margin:0.3rem 0" id="result-city">🏙️</div>
+  <div class="result-title" id="result-title">עיר מדהימה!</div>
+  <div style="color:rgba(255,255,255,0.5);font-size:0.85rem;margin-bottom:0.4rem" id="result-sub"></div>
+  <div style="font-size:2rem;margin:0.2rem 0" id="result-stars"></div>
+  <div class="result-stats" id="result-stats"></div>
+  <div class="flw-box-dark">
+    <div style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin-bottom:0.3rem">סה"כ FLW שצברת</div>
+    <div class="flw-big"><div class="big-coin">FLW</div><span id="result-flw">0</span></div>
+  </div>
+  <button class="btn-start ready" style="margin-bottom:0.6rem" onclick="playAgain()">🔄 שחק שוב</button>
+  <button style="background:transparent;color:rgba(255,255,255,0.35);border:2px solid rgba(255,255,255,0.12);
+    border-radius:50px;padding:0.65rem 1.5rem;font-family:'Heebo',sans-serif;font-size:0.88rem;
+    cursor:pointer;width:100%;max-width:280px" onclick="goHome()">🏠 חזרה לאקדמיה</button>
+</div>
+
+<script>
+// ============================================================
+// SCENARIOS — 12+ per age group
+// ============================================================
+const SCENARIOS={
+  // ===== גיל 10-11: כסף בסיסי =====
+  10:[
+    {who:'👧',name:'חברה',ctx:'הזמנה לסרט',
+     text:'חברה מזמינה אותך לסרט ופיצה. עולה ₪60.',cost:60,
+     opts:[
+      {icon:'🎬',text:'לך לכל הבילוי',eff:-60,q:'bad',
+       fb:'₪60 = 12% מהתקציב החודשי שלך. כלל מומלץ: בילוי לא יעלה יותר מ-10% מהתקציב. לפני כל הוצאה שאל: האם אני יכול לבלות את אותו הכיף בפחות כסף?'},
+      {icon:'🎬',text:'רק לסרט (₪30)',eff:-30,q:'ok',
+       fb:'פשרה טובה! ₪30 = 6% מהתקציב — סביר לבילוי. הכלל: תהנה מהחיים, אבל תשאל תמיד "האם אני יכול ליהנות באותה מידה בפחות?"'},
+      {icon:'🏠',text:'הזמן אותה הביתה',eff:0,q:'good',
+       fb:'חכמה פיננסית אמיתית! עלות: ₪0. חוויה: זהה. כלל זהב: בילוי לא חייב לעלות כסף. לפעמים החלופה החינמית טובה יותר.'},
+     ]},
+    {who:'👨',name:'אבא',ctx:'הצעת עבודה',
+     text:'אבא מציע: תשטוף את הרכב ותקבל ₪30.',cost:0,
+     opts:[
+      {icon:'🚗',text:'כן, אשטוף!',eff:30,q:'good',
+       fb:'עבודה = הדרך היחידה להרוויח כסף. ₪30 לשעת עבודה = תגמול הוגן. עיקרון: לפני שמוציאים, חושבים כמה שעות עבודה זה שווה.'},
+      {icon:'😴',text:'עייף, לא עכשיו',eff:0,q:'bad',
+       fb:'החמצת ₪30! חשוב על זה: אם חוסך ₪5 בשבוע לוקח לך 6 שבועות להגיע ל-₪30. עבודה = הדרך הכי מהירה לכסף. לפני שאומרים "לא" לעבודה — שואלים "כמה זמן ייקח לי לחסוך את הסכום הזה?"'},
+      {icon:'🤝',text:'כן, אבל רוצה ₪40',eff:35,q:'ok',
+       fb:'ניסית לנהל מו"מ — מיומנות פיננסית חשובה! קיבלת ₪35 (פשרה). כלל: תמיד אפשר לנסות לבקש יותר, אבל היה הוגן ועשה עבודה טובה.'},
+     ]},
+    {who:'🏪',name:'חנות',ctx:'מכירה מיוחדת',
+     text:'אוזניות שרצית — ₪80 במקום ₪150.',cost:80,
+     opts:[
+      {icon:'🎧',text:'קנה עכשיו!',eff:-80,q:'bad',
+       fb:'לפני קנייה שאל 3 שאלות: 1) האם אני צריך את זה? 2) האם אני יכול לחיות בלעדיו? 3) האם יש לי את הכסף בלי לפגוע בחיסכון? ₪80 = 16% מהתקציב — הרבה מאוד לאביזר.'},
+      {icon:'⏳',text:'חכה לחודש הבא',eff:0,q:'good',
+       fb:'כלל ה-30 יום: לפני קנייה שאינה דחופה, חכה 30 יום. אם עדיין רוצה — זה כנראה שווה. הרבה פעמים הרצון עובר לבד וחוסכים כסף.'},
+      {icon:'🔍',text:'חפש מחיר זול יותר',eff:-55,q:'ok',
+       fb:'השוואת מחירים = חיסכון מיידי! חסכת ₪25 על אותו מוצר. כלל: לעולם לא לקנות מהחנות הראשונה. בדוק ב-3 מקומות לפחות — אונליין וחנויות.'},
+     ]},
+    {who:'🎮',name:'חנות גיימינג',ctx:'משחק חדש',
+     text:'משחק חדש שכולם מדברים עליו — ₪50.',cost:50,
+     opts:[
+      {icon:'🎮',text:'קנה מיד!',eff:-50,q:'bad',
+       fb:'FOMO (פחד לפספס) הוא אחד האויבים הכי גדולים של הכסף. שאל: "האם אני קונה כי אני רוצה, או כי כולם קנו?" משחק שקנית בגלל לחץ חברתי — תמיד מאכזב.'},
+      {icon:'📺',text:'שאל חבר תחילה',eff:0,q:'good',
+       fb:'קבלת "דעת שנייה" לפני קנייה = הגנה על הכסף שלך. כלל: לעולם לא לקנות משהו שאתה לא מכיר. נסה, שאל, בדוק ביקורות — אחרי זה קנה.'},
+      {icon:'💰',text:'חסוך שבוע ואז קנה',eff:-50,q:'ok',
+       fb:'המתנת שבוע — טוב! אבל שאל גם: "מה הייתי מעדיף — המשחק הזה, או ₪50 שנשמרים לדבר גדול יותר?" תרגיל: כתוב מה אתה רוצה לקנות ותעדף לפי חשיבות.'},
+     ]},
+    {who:'👩',name:'אמא',ctx:'עזרה בבית',
+     text:'אמא מציעה ₪20 על שטיפת כלים ₪15 על ניקיון חדר.',cost:0,
+     opts:[
+      {icon:'✨',text:'שתי המשימות!',eff:35,q:'good',
+       fb:'₪35 על ~45 דקות עבודה = ₪47/שעה! זה יותר ממה שמרוויחים הרבה מבוגרים לשעה. כלל: כל הזדמנות להרוויח כסף כשיש לך זמן — נצל אותה.'},
+      {icon:'🍽️',text:'רק כלים (₪20)',eff:20,q:'ok',
+       fb:'הרווחת ₪20 — טוב! אבל החמצת ₪15 נוספים על 15 דקות עבודה. חשבון: ₪15 ל-15 דקות = ₪60/שעה. שווה מאוד! תמיד בדוק אם אפשר להרוויח יותר.'},
+      {icon:'😒',text:'אין לי כוח',eff:0,q:'bad',
+       fb:'החמצת ₪35! הזמן עבר בכל מקרה — אז מה עשית במקום? אם הייתה רק בטלפון או בטלויזיה, יכולת לעשות את שתי המשימות ולקבל ₪35. כלל פשוט: כסף מגיע ממאמץ. אין קיצורי דרך.'},
+     ]},
+    {who:'🏫',name:'בית ספר',ctx:'טיול שנתי',
+     text:'טיול שנתי עולה ₪120. יש לשלם השבוע.',cost:120,
+     opts:[
+      {icon:'🎒',text:'שלם מהחיסכון',eff:-120,q:'ok',
+       fb:'שימוש בחיסכון לחוויות = לגיטימי. אבל כלל חשוב: תכנן קדימה! ₪120 ÷ 12 חודשים = ₪10/חודש. אם חוסך ₪10 בחודש מהתחלת השנה, הטיול מכוסה בלי כאב ראש.'},
+      {icon:'💪',text:'עבד להרוויח חלק',eff:-80,q:'good',
+       fb:'מעולה! עבדת להרוויח חלק = אחריות פיננסית אמיתית. ₪40 שהרווחת חסכו לך מהחיסכון. עיקרון: לפני שמוציאים כסף גדול, שאל "מה אני יכול לעבוד כדי לממן חלק?"'},
+      {icon:'❌',text:'לא הולך, אין כסף',eff:0,q:'bad',
+       fb:'חוויות חד-פעמיות שוות להשקיע בהן. הבעיה היא היעדר תכנון. כלל: כשיודעים על הוצאה מראש — שומרים ₪X בחודש. ₪120 ÷ 6 חודשים = ₪20/חודש בלבד!'},
+     ]},
+    {who:'🍕',name:'חנות',ctx:'רעב בדרך',
+     text:'רעב בדרך הביתה. פיצה ₪25 או חטיף ₪5.',cost:25,
+     opts:[
+      {icon:'🍕',text:'פיצה! מגיע לי',eff:-25,q:'bad',
+       fb:'₪25 על אוכל "מתוך רעב" = קנייה אימפולסיבית. כלל: לעולם לא לקנות אוכל כשאתה רעב מאוד — תמיד תוציא יותר. ₪25 × 20 פעמים בחודש = ₪500! תכנן ארוחות מראש.'},
+      {icon:'🍫',text:'חטיף קטן (₪5)',eff:-5,q:'ok',
+       fb:'פשרה סבירה. ₪5 במקום ₪25 = חיסכון של ₪20. אבל חשוב: גם ₪5 × 20 פעמים = ₪100 בחודש על חטיפים. הפתרון האמיתי: קח אוכל מהבית.'},
+      {icon:'🏠',text:'מחכה לבית',eff:0,q:'good',
+       fb:'מושלם! חסכת ₪25 בכוח רצון. עיקרון: הרעב עובר תוך 20 דקות. לפני כל קנייה של אוכל בחוץ שאל: "האם אני יכול לחכות עד הבית?" התשובה כמעט תמיד — כן.'},
+     ]},
+    {who:'🎪',name:'קרנבל',ctx:'בילוי סופ"ש',
+     text:'קרנבל בשכונה! כניסה ₪15, משחקים ₪40, אוכל ₪30.',cost:85,
+     opts:[
+      {icon:'🎪',text:'הכל! נהנים!',eff:-85,q:'bad',
+       fb:'₪85 = 17% מהתקציב על יום אחד! הדרך הנכונה: קבע תקציב בילוי לפני שאתה יוצא. "היום יש לי ₪40 לבלות" — ואחכה לפי זה. בלי תקציב מוגדר = תמיד יוצאים מגבול.'},
+      {icon:'🎡',text:'רק כניסה ומשחקים',eff:-55,q:'ok',
+       fb:'✅ ₪55 = 11% מהתקציב — סביר לבילוי מיוחד. אכלת לפני = חסכת ₪30. כלל: לאכול לפני יציאה לאירועים תמיד חוסך 20-30% מהעלות הכוללת.'},
+      {icon:'🎠',text:'רק כניסה (₪15)',eff:-15,q:'good',
+       fb:'חכמה פיננסית! ₪15 = 3% מהתקציב. נהנית בעיקר מהאווירה. כלל: רוב ההנאה בבילויים היא חינמית — האנשים, האווירה, החוויה. לא האוכל והמשחקים.'},
+     ]},
+    {who:'📦',name:'חבר',ctx:'מכירת חפצים',
+     text:'חבר מציע לקנות את המשחק הישן שלו ב-₪40.',cost:40,
+     opts:[
+      {icon:'🎮',text:'קנה! הוא נחמד',eff:-40,q:'bad',
+       fb:'קנייה מרחמים = בזבוז. שאל את עצמך: "האם הייתי קונה את המשחק הזה בחנות ב-₪40?" אם התשובה לא — אל תקנה. חברות ועסקים הם שני דברים נפרדים.'},
+      {icon:'💬',text:'בקש לנסות קודם',eff:0,q:'good',
+       fb:'מבריק! לנסות לפני לקנות = חוסך הרבה כסף על פי עסקאות רעות. כלל: "לא קונים חתול בשק" — תמיד לבדוק, לנסות, לשאול לפני כל קנייה.'},
+      {icon:'🤝',text:'התמקח עד ₪25',eff:-25,q:'ok',
+       fb:'מו"מ מוצלח! חסכת ₪15 על אותו מוצר. עיקרון: מחיר הוא נקודת התחלה, לא עובדה. תמיד אפשר לנסות להוריד. הגרוע שיכול לקרות: יגיד לא.'},
+     ]},
+    {who:'🌟',name:'שכן',ctx:'הזדמנות עבודה',
+     text:'שכן מציע ₪50 לעזרה בגינה בסופ"ש.',cost:0,
+     opts:[
+      {icon:'🌱',text:'כן, אגיע!',eff:50,q:'good',
+       fb:'₪50 לעבודת סוף שבוע — מעולה! חשוב על זה: אם עושה עבודה כזו פעם בחודש = ₪600 לשנה! כלל: כל הזדמנות לעבוד ולהרוויח שדוחים = כסף שפשוט הולך לאיבוד. תמיד כדאי לנסות.'},
+      {icon:'😴',text:'יש לי תוכניות',eff:0,q:'bad',
+       fb:'שאל עצמך: "מה אני עושה במקום?" אם התשובה היא "כלום חשוב" — החמצת ₪50 לריק. הרגל מנצח: תמיד שאל "האם יש לי הזדמנות להרוויח עכשיו?" לפני שאומרים לא.'},
+      {icon:'👥',text:'אביא חבר ונחלק',eff:25,q:'ok',
+       fb:'₪25 ₪25 — עזרת לחבר להרוויח וגם הרווחת. טוב! אבל בדוק: האם באמת צריך עזרה, או שיכולת לעשות לבד ולקבל ₪50? לפעמים לעבוד לבד = להרוויח כפול.'},
+     ]},
+    {who:'🎁',name:'סבתא',ctx:'מתנת יום הולדת',
+     text:'סבתא נתנה ₪100 ליום הולדת. מה עושים?',cost:0,
+     opts:[
+      {icon:'🏦',text:'חסוך הכל!',eff:100,q:'good',
+       fb:'מדהים! כסף בבנק גדל לאט לאט מעצמו. ₪100 שחוסכים היום = יותר כסף בעתיד בלי לעשות כלום. כלל זהב: כל כסף שמקבלים במתנה — חסוך לפחות חציו. הכסף ישמח אותך הרבה יותר בעוד שנה.'},
+      {icon:'🛍️',text:'קנה משהו שרצית',eff:-100,q:'bad',
+       fb:'קניתם משהו — כיף! אבל בעוד יומיים השמחה עוברת, והכסף כבר הלך. שאל את עצמך לפני קנייה: "האם עוד שבוע ארצה את זה באותה מידה?" אם כן — אולי שווה. אם לא — חסוך לדבר גדול יותר.'},
+      {icon:'💰',text:'חסוך ₪70, הוצא ₪30',eff:70,q:'ok',
+       fb:'פשרה נבונה! 70% חיסכון + 30% הנאה = גישה מאוזנת. כלל "50-30-20": 50% צרכים, 30% רצונות, 20% חיסכון. כאן עשית אפילו טוב יותר — 70% חיסכון!'},
+     ]},
+    {who:'🧹',name:'שכן חדש',ctx:'עבודה חד פעמית',
+     text:'שכן מבקש עזרה בהעברת קופסאות — מציע ₪60.',cost:0,
+     opts:[
+      {icon:'📦',text:'כן! אעזור',eff:60,q:'good',
+       fb:'₪60 לשעה-שעתיים = ₪30-60/שעה. תגמול מצוין! עיקרון: כסף מגיע מעבודה. ככל שמוכן לעבוד יותר ולהתאמץ — כך מרוויחים יותר. זה הסוד הפשוט ביותר של עושר.'},
+      {icon:'🤔',text:'שאל הורים קודם',eff:60,q:'good',
+       fb:'בטיחות + עבודה = שילוב מנצח! שאלת, אישרו, עבדת. ₪60 שלך. כלל: תמיד נכון לשאול הורים על עבודות עם אנשים זרים — זה חכמה, לא חולשה.'},
+      {icon:'😬',text:'מביך לבקש כסף',eff:0,q:'bad',
+       fb:'עבודה תמורת שכר = דבר מכובד! אף אחד לא מצפה שתעבוד בחינם. החמצת ₪60 בגלל מבוכה מיותרת. כלל: ערך העבודה שלך = מה שאחרים מוכנים לשלם. מי שמציע — בא שכרו בצדו.'},
+     ]},
+  ],
+
+  // ===== גיל 11-12: תקציב חכם =====
+  12:[
+    {who:'💳',name:'חנות',ctx:'תשלומים',
+     text:'ביגוד חדש ב-₪180. מציעים "3 תשלומים בלי ריבית".',cost:180,
+     opts:[
+      {icon:'💳',text:'3 תשלומים',eff:-60,q:'ok',
+       fb:'3 תשלומים בלי ריבית = לא רע. אבל זכור: התחייבת ל-₪60 בחודש הבא ומחרתיים. שאל: "האם ב-3 החודשים הקרובים יש לי הוצאות אחרות?" אל תסתבך עם הרבה התחייבויות במקביל.'},
+      {icon:'💰',text:'שלם הכל עכשיו',eff:-180,q:'bad',
+       fb:'₪180 בבת אחת = 30% מהתקציב החודשי נעלם מיד. תשלומים בלי ריבית הם דרך חכמה לפזר עלות גדולה. כלל: הוצאה שמעל 20% מהתקציב — שקול תשלומים כדי לא לרוקן את הקופה.'},
+      {icon:'🔍',text:'חפש מחיר זול יותר',eff:-120,q:'good',
+       fb:'השוואת מחירים חסכה ₪60! זה 33% הנחה. כלל: לעולם לא לקנות ביגוד במחיר מלא. תמיד יש מכירות, אאוטלטים, מחירים טובים יותר. ₪60 שחסכת × 12 חודשים = ₪720 לשנה!'},
+     ]},
+    {who:'🤑',name:'יוטיובר',ctx:'פרסומת',
+     text:'"השקע ₪100 וקבל ₪1,000 תוך שבוע!"',cost:100,
+     opts:[
+      {icon:'💸',text:'השקע! נשמע מדהים',eff:-100,q:'bad',
+       fb:'כלל ברזל: לא קיים "₪100 → ₪1,000 בשבוע" בצורה חוקית. ריבית 900% = הונאה. לפני כל השקעה שאל: "מה הריבית השנתית הממוצעת בבנק?" (3-7%). כל מי שמבטיח יותר מ-20% לשנה — בדוק מאוד.'},
+      {icon:'🚫',text:'תרמית! לא נוגע',eff:0,q:'good',
+       fb:'נכון! סימני אזהרה לתרמיות: 1) תשואה "מובטחת" 2) לחץ זמן 3) "רק לחברים" 4) תשואה לא ריאלית. כלל: אם נשמע טוב מדי — זה לא אמיתי. תמיד.'},
+      {icon:'❓',text:'שאל מבוגר מהימן',eff:0,q:'good',
+       fb:'מעולה! מומחה פיננסי ייגיד לך מיד שזו הונאה. כלל: לפני כל השקעה שאל מישהו שאין לו אינטרס בהחלטה שלך. מי שמציע את ההשקעה — יש לו אינטרס. מי שמייעץ בלי עמלה — לא.'},
+     ]},
+    {who:'📱',name:'אפליקציה',ctx:'רכישה בתוך משחק',
+     text:'אפשר לקנות "עור נדיר" במשחק ב-₪75.',cost:75,
+     opts:[
+      {icon:'🎮',text:'קנה, זה שווה!',eff:-75,q:'bad',
+       fb:'עורות במשחק שווים ₪0 מחוץ למשחק. שאל: "מה הערך האמיתי של זה בעוד שנה?" ₪75 × 12 רכישות כאלה בשנה = ₪900 שנעלמו. תרגיל: לפני קנייה דיגיטלית שאל "האם הייתי קונה את זה בחנות פיזית?'},
+      {icon:'🎯',text:'השג אותו בחינם',eff:0,q:'good',
+       fb:'סבלנות = חיסכון! רוב המשחקים מאפשרים להשיג פרסים בחינם עם מאמץ. כלל: לפני כל רכישה דיגיטלית בדוק אם יש דרך חינמית. 80% מהפעמים — יש.'},
+      {icon:'💭',text:'חשוב 24 שעות',eff:0,q:'ok',
+       fb:'כלל ה-24 שעות: לא לקנות שום דבר שאינו דחוף ברגע ההחלטה. לאחר 24 שעות, 70% מהרכישות הדחופות כבר לא נראות דחופות. ₪75 שחסכת על ידי המתנה = ₪75 לדבר שיש לו ערך אמיתי.'},
+     ]},
+    {who:'📚',name:'קורס אונליין',ctx:'השקעה בעצמך',
+     text:'קורס ציור שתמיד רצית — ₪90 לחודשיים.',cost:90,
+     opts:[
+      {icon:'🎨',text:'השקע בעצמך!',eff:-90,q:'good',
+       fb:'השקעה בכישורים = ההשקעה הכי רווחית! ₪90 על קורס שיכול להכניס לך ₪1,000+ בעתיד = תשואה של 1,000%. כלל: כל הוצאה שמגדילה את יכולת ההשתכרות שלך = השקעה, לא הוצאה.'},
+      {icon:'🆓',text:'חפש קורס חינמי',eff:0,q:'good',
+       fb:'חכם! בדוק קודם: YouTube, Coursera, Khan Academy, אפליקציות חינמיות. 80% מהידע בעולם זמין חינם. שלב: תמיד נסה חינמי קודם. אם הגעת לתקרה — שלם לרמה הבאה.'},
+      {icon:'⏳',text:'לא עכשיו, אחר כך',eff:0,q:'ok',
+       fb:'"אחר כך" הוא הדרך הבטוחה לא לעשות כלום. כלל: אם אתה ממשיך לדחות — אולי זה לא מה שאתה באמת רוצה. אבל אם כן רוצה — קבע תאריך ספציפי: "אלמד בחודש הבא." לא "יום אחד."'},
+     ]},
+    {who:'👧',name:'חברה',ctx:'חופשה קצרה',
+     text:'חופשה עם המשפחה של חברה — ₪200. כדאי?',cost:200,
+     opts:[
+      {icon:'✈️',text:'כן! הולך',eff:-200,q:'bad',
+       fb:'₪200 = 33% מהתקציב החודשי בפעם אחת. כלל: הוצאה חד פעמית לא תעלה על 20% מהתקציב החודשי. אם רוצה לחסוך לחופשה — שמור ₪40/חודש × 5 חודשים = ₪200 בלי כאב ראש.'},
+      {icon:'💬',text:'בקש מההורים לעזור',eff:-100,q:'ok',
+       fb:'שיתוף הורים = לגיטימי אבל שאל את עצמך: "כמה מזה יכולתי לממן עצמאי?" כלל: ככל שמממן יותר מכיסו — כך מרגיש יותר ערך לכסף. הורים יכולים לעזור בחצי, אתה תממן חצי.'},
+      {icon:'📅',text:'תכנן לחג הבא',eff:0,q:'good',
+       fb:'תכנון מראש = הכי חשוב בניהול כסף! ₪200 ÷ 6 חודשים = ₪33/חודש. כמעט לא מורגש. כלל זהב: כל הוצאה גדולה שיודעים עליה מראש — מתחילים לחסוך מיד, כמה שיותר מוקדם.'},
+     ]},
+    {who:'🛒',name:'סופרמרקט',ctx:'קניות לבית',
+     text:'אמא ביקשה לקנות ₪5 לחם. ראית עוד המון דברים מפתים.',cost:5,
+     opts:[
+      {icon:'🍞',text:'רק לחם — זה כל!',eff:-5,q:'good',
+       fb:'שליטה עצמית במצבי פיתוי = מיומנות פיננסית ממדרגה ראשונה! קניות בסופר ללא רשימה עולות בממוצע 40% יותר. כלל: קניות תמיד עם רשימה, ולעולם לא רעב.'},
+      {icon:'🛍️',text:'הוספת עוד כמה דברים',eff:-35,q:'bad',
+       fb:'הוצאת ₪35 כשביקשו ₪5 = פי 7 מהמתוכנן! זה נקרא "קנייה אימפולסיבית בסופר." כלל: לפני שמוסיפים פריט לסל שאל: "האם זה ברשימה?" אם לא — החזר למדף.'},
+      {icon:'📝',text:'שאלת לפני קנייה נוספת',eff:-5,q:'good',
+       fb:'מעולה! שאלת = בדקת אם יש אישור. כלל: כסף של אחרים = כסף שצריך לשמור כמו שלך. מי ששולט בכסף של אחרים בצורה טובה — יתנו לו יותר אחריות ועצמאות.'},
+     ]},
+    {who:'🎭',name:'אירוע',ctx:'מסיבת יום הולדת',
+     text:'יש מסיבה — מתנה "צריכה לעלות לפחות ₪80".',cost:80,
+     opts:[
+      {icon:'🎁',text:'קנה מתנה ב-₪80',eff:-80,q:'ok',
+       fb:'עמדת בלחץ חברתי, אבל שאל: "האם המחיר קובע את ערך המתנה?" בחיים האמיתיים — לא. כלל: לעולם לא לתת מתנה שלא יכול להרשות לעצמך בגלל לחץ חברתי.'},
+      {icon:'🎨',text:'עשה מתנה בעצמך',eff:-15,q:'good',
+       fb:'מתנה בעבודת יד = בדרך כלל מוערכת יותר ממתנה קנויה. כלל: ערך מתנה ≠ מחיר מתנה. המאמץ, המחשבה, היצירתיות — אלה מה שחברים אמיתיים מעריכים. חסכת ₪65 והרשמת יותר!'},
+      {icon:'👥',text:'קנה ביחד עם חברים',eff:-30,q:'good',
+       fb:'חכמה קולקטיבית! ₪30 כל אחד × 3 חברים = ₪90 מתנה = יותר ממתנה של ₪80 לבד. כלל: "ביחד" חוסך כסף. בקניות, בבילויים, בהשקעות — שיתוף פעולה = חיסכון.'},
+     ]},
+    {who:'🏦',name:'בנק ילדים',ctx:'חיסכון ראשון',
+     text:'יש לך ₪200. הבנק מציע 3% ריבית שנתית.',cost:200,
+     opts:[
+      {icon:'🏦',text:'פתח חיסכון!',eff:-200,q:'good',
+       fb:'₪200 בחיסכון בריבית 3% = הבנק ייתן לך ₪6 בחינם בסוף השנה. כל שנה קצת יותר. כלל: כסף בבנק גדל לאט, כסף בכיס מתאדה מהר. תמיד עדיף לשמור בבנק מאשר בכיס.'},
+      {icon:'💸',text:'שמור בכיס',eff:0,q:'bad',
+       fb:'כסף בכיס לא צומח, מתכווץ! אינפלציה (עליית מחירים) = ₪200 היום שווים פחות בעוד שנה. כלל: לפחות 80% מהחיסכון תמיד בבנק/חיסכון. לא מתחת לכרית.'},
+      {icon:'💰',text:'חסוך ₪100, שמור ₪100',eff:-100,q:'ok',
+       fb:'פשרה סבירה! אבל חשוב: ₪100 בחיסכון + ₪100 "בכיס" = הכסף בכיס נוטה להתאדות. שאל: "לאיזו מטרה ספציפית אני שומר ₪100 בכיס?" מטרה ספציפית = פחות סיכוי לבזבז.'},
+     ]},
+    {who:'📺',name:'מודעה',ctx:'מבצע לזמן מוגבל',
+     text:'"מבצע לזמן מוגבל! עוד שעה ואז נגמר!"',cost:0,
+     opts:[
+      {icon:'⏰',text:'קנה! כמעט נגמר!',eff:-80,q:'bad',
+       fb:'לחץ זמן = טריק שיווקי מספר אחד! כלל: אם "המבצע נגמר" — תמיד יהיה מבצע חדש. חברות משתמשות בדחיפות מלאכותית כדי לגרום לך לקנות בלי לחשוב. המתן 24 שעות — המבצע כמעט תמיד עדיין שם.'},
+      {icon:'🤔',text:'חכה — אם נגמר, בסדר',eff:0,q:'good',
+       fb:'חכמה! "מבצע לזמן מוגבל" שחוזר כל שבוע = לא מוגבל. כלל: לעולם לא לקנות תחת לחץ זמן. אם מוצר טוב — יהיה שם גם מחר. אם נגמר — יגיע מוצר אחר טוב.'},
+      {icon:'🔍',text:'בדוק ביקורות קודם',eff:0,q:'good',
+       fb:'ביקורות = הגנה הטובה ביותר מקניות רעות! כלל: לפני כל קנייה מעל ₪50 — קרא לפחות 10 ביקורות. חפש ביקורות שליליות במיוחד — הן אומרות יותר מחיוביות.'},
+     ]},
+    {who:'🎓',name:'מורה',ctx:'ספר לימוד',
+     text:'ספר לימוד נדרש — עולה ₪85. יש ספרייה בבית הספר.',cost:85,
+     opts:[
+      {icon:'📚',text:'קנה מיד',eff:-85,q:'bad',
+       fb:'לפני כל קנייה שאל: "האם יש חלופה חינמית או זולה יותר?" ספרייה, שאלה מחבר, PDF חינמי — בדוק קודם. ₪85 על ספר שאפשר להשיג בחינם = כסף שהלך לאיבוד.'},
+      {icon:'📖',text:'שאל מהספרייה',eff:0,q:'good',
+       fb:'חשיבה לפני הוצאה! ₪85 נשארו בכיס. כלל "4 שלבים לפני קנייה": 1) יש חינם? 2) יש השאלה? 3) יש יד שנייה? 4) יש אפשרות לשתף? רק אם כל 4 = לא → קנה.'},
+      {icon:'👥',text:'שתף ספר עם חבר',eff:-42,q:'ok',
+       fb:'שיתוף = חצי מחיר! ₪42 במקום ₪85. עיקרון "כלכלת שיתוף": רוב הדברים שצריכים לא חייבים להיות בבעלות. שאל: "כמה פעמים אשתמש בזה?" אם מעט — שאל, שכור, שתף.'},
+     ]},
+    {who:'🌐',name:'אינטרנט',ctx:'מנוי אונליין',
+     text:'מנוי לשירות סרטים ₪40/חודש. "חודש ראשון חינם!"',cost:40,
+     opts:[
+      {icon:'📺',text:'להירשם!',eff:-40,q:'bad',
+       fb:'מנוי ₪40/חודש = ₪480/שנה. שאל: "כמה פעמים אשתמש בחודש?" 80% מהמנויים משתמשים בהם פחות ממה שצפו. כלל: לפני כל מנוי קבע יעד מינימום שימוש. לא הגעת? בטל מיד.'},
+      {icon:'⏰',text:'נרשם ומבטל לפני תשלום',eff:0,q:'good',
+       fb:'מחשבה חכמה! ניצלת חודש חינם ויצאת בזמן. כלל: תמיד לשים תזכורת ביומן 3 ימים לפני סיום תקופת הניסיון. 90% מהאנשים ששמים תזכורת — מבטלים בזמן.'},
+      {icon:'👨‍👩‍👧',text:'מנוי משפחתי ביחד',eff:-10,q:'good',
+       fb:'שיתוף = חיסכון של 75%! ₪10 לאדם במקום ₪40. כלל: כל שירות שמאפשר שיתוף — שתף! Netflix, Spotify, מנויים לעיתונים — כולם יכולים להיות בחצי מחיר עם שיתוף חכם.'},
+     ]},
+    {who:'📰',name:'שכונה',ctx:'עסק קטן',
+     text:'שכנים מוכנים לשלם ₪15 לעזרה בקניות.',cost:0,
+     opts:[
+      {icon:'🛍️',text:'אתחיל עסק קטן!',eff:60,q:'good',
+       fb:'4 לקוחות × ₪15 = ₪60! זה ₪30+/שעה. עיקרון: עסק מתחיל בזיהוי בעיה + פתרון. כאן: שכנים צריכים עזרה, אתה מציע עזרה = עסק. כל עסק גדול התחיל מרעיון פשוט.'},
+      {icon:'🤔',text:'נשמע מסובך',eff:0,q:'bad',
+       fb:'עסק "קטן" = אחת מהמילים המטעות. עסק = לזהות מה אנשים צריכים, לתת להם את זה, לבקש תשלום. זה הכל. ₪60 לשעתיים עבודה = הכנסה מצוינת. פשוט.'},
+      {icon:'👥',text:'ארגן חברים לעזור',eff:40,q:'ok',
+       fb:'ניהלת צוות! ₪40 לך + ₪20 לחברים = כולם הרוויחו. כלל: לפעמים כדאי לחלוק הכנסה כדי לגדול יחד. מנהל טוב = מי שמסוגל לגרום לאחרים לעבוד איתו בשמחה.'},
+     ]},
+  ],
+
+  // ===== גיל 13-14: כסף עובד =====
+  13:[
+    {who:'🏦',name:'בנק נוער',ctx:'חיסכון',
+     text:'אפשר לשים ₪200 בחיסכון ולקבל 5% ריבית לחודש.',cost:200,
+     opts:[
+      {icon:'🏦',text:'חסוך ₪200',eff:-200,q:'good',
+       fb:'₪200 × 5%/חודש = ₪10 בחינם בחודש. בעוד שנה (ריבית דריבית): ₪200 → ₪266! הנוסחה: קרן × (1 + ריבית)^תקופה. זה נקרא "כסף עובד" — הכסף מרוויח כסף בזמן שאתה ישן.'},
+      {icon:'💸',text:'שמור מזומן בבית',eff:0,q:'bad',
+       fb:'כסף מזומן = מפסיד! אינפלציה שנתית ~3% = ₪200 היום שווים ₪194 בעוד שנה בכוח קנייה. כלל: כסף שלא עובד = כסף שמפסיד. תמיד לשים לעבוד: חיסכון, השקעה, לפחות בנק.'},
+      {icon:'🤔',text:'חסוך רק ₪100',eff:-100,q:'ok',
+       fb:'₪100 בחיסכון טוב יותר מכלום. אבל חשב: ₪200 יביאו ₪10/חודש ריבית, ₪100 יביאו ₪5/חודש. ההבדל = ₪60 לשנה. כלל: יותר כסף בחיסכון = יותר ריבית = כסף גדל מהר יותר.'},
+     ]},
+    {who:'💳',name:'בנק',ctx:'הצעת כרטיס',
+     text:'מציעים כרטיס אשראי עם 20% ריבית חודשית על חוב.',cost:0,
+     opts:[
+      {icon:'✅',text:'לקח! נוח לשלם אחר כך',eff:0,q:'bad',
+       fb:'חישוב: ₪100 חוב × 20%/חודש = ₪120 בחודש הבא. × ₪144 בחודשיים. × ₪207 בחמישה חודשים. זה נקרא "ריבית דריבית הפוכה" — עובדת נגדך. כרטיס אשראי עם ריבית = אחת המלכודות הכי יקרות.'},
+      {icon:'❌',text:'לא תודה',eff:0,q:'good',
+       fb:'מעולה! כלל: כרטיס אשראי אפשר להשתמש בו רק אם משלמים את היתרה המלאה בכל חודש. אם לא — עדיף לא להחזיק. ריבית 20%/חודש = 240%/שנה = כסף שנשרף.'},
+      {icon:'📖',text:'קרא תנאים קודם',eff:0,q:'good',
+       fb:'תמיד לקרוא "האותיות הקטנות"! שאל: 1) מה הריבית? 2) מה עמלת האיחור? 3) מתי התשלום? 4) מה קורה אם אאחר? מי שמבין את התנאים — שולט בכסף שלו.'},
+     ]},
+    {who:'👫',name:'חבר',ctx:'בקשת הלוואה',
+     text:'חבר מבקש ₪150 בהלוואה. "אחזיר בעוד חודש".',cost:150,
+     opts:[
+      {icon:'🤝',text:'הלווה בשמחה',eff:-150,q:'bad',
+       fb:'כלל: לעולם להלוות רק כסף שמוכן לאבד. אם ₪150 יהרסו לך את החודש — אל תלווה. הלוואה לחבר = לעתים קרובות תחילת הסוף של החברות. "לא" בנחמדות עדיף ל"כן" שמסתיים ברגשות קשים.'},
+      {icon:'📝',text:'הלווה עם כתב',eff:-150,q:'ok',
+       fb:'הסכם בכתב מגן על שניכם! ציין: הסכום, תאריך החזר, ומה קורה אם לא יחזיר בזמן. כלל: כסף שמלווים ללא כתב = מתנה. כסף שמלווים עם כתב = הלוואה. ההבדל = ₪150 שאתה רוצה לראות חזרה.'},
+      {icon:'🚫',text:'סרב בנימוס',eff:0,q:'good',
+       fb:'"אני מצטער, כרגע אני לא יכול" = תשובה לגיטימית ומוקפת. חבר אמיתי יכבד גבולות פיננסיים. כלל: לשמור על גבולות פיננסיים = לשמור על חברויות בריאות. כסף שמשאיל = חברות שמסכן.'},
+     ]},
+    {who:'📈',name:'אפליקציית השקעות',ctx:'השקעה ראשונה',
+     text:'אפשר להשקיע ₪100 במניות. אפשר להרוויח — אבל גם להפסיד.',cost:100,
+     opts:[
+      {icon:'📈',text:'השקע! אני מאמין',eff:50,q:'ok',
+       fb:'הפעם עלו +50% — מזל! אבל זכור: גם אפשר לרדת 50%. כלל: לעולם לא להשקיע כסף שאי אפשר להרשות להפסיד. השקעות במניות = לטווח ארוך (5+ שנים), לא לטווח קצר.'},
+      {icon:'📚',text:'למד קודם, אז השקע',eff:0,q:'good',
+       fb:'ידע = ההגנה הטובה ביותר! לפני השקעה ראשונה למד: 1) מה זה מניה? 2) מה זה תיק מפוזר? 3) מה זה P/E ratio? 4) מה זה דיבידנד? 2 שבועות לימוד = הבדל בין רווח להפסד.'},
+      {icon:'🏦',text:'עדיף חיסכון בטוח',eff:0,q:'ok',
+       fb:'חיסכון = בטוח אבל מרוויח פחות. מניות = מסוכן יותר אבל פוטנציאל גבוה יותר. כלל: בגיל 13 — בסדר להתחיל עם חיסכון ולהוסיף השקעות קטנות ללמידה. אל תשים את כל הביצים בסל אחד.'},
+     ]},
+    {who:'🛒',name:'קניות אונליין',ctx:'סייל ענק',
+     text:'סייל 11.11 — הכל ב-50% הנחה! ₪300 קניות.',cost:300,
+     opts:[
+      {icon:'🛒',text:'קנה הכל!',eff:-300,q:'bad',
+       fb:'הנחה של 50% על דברים שלא צריך = הוצאה של 50%. חשבון: אם קנית ₪300 בסייל על דברים שלא תכננת לקנות — לא חסכת ₪300, הוצאת ₪300. כלל: הנחה = חיסכון רק אם תכננת לקנות ממילא.'},
+      {icon:'📝',text:'קנה רק מה שברשימה',eff:-150,q:'good',
+       fb:'רשימה = ההגנה הטובה ביותר מסיילים! קנית ₪150 על דברים שצריך ב-50% הנחה = חסכת ₪150 אמיתיים. כלל: לפני כל סייל — כתוב רשימה ספציפית. קנה רק מהרשימה. סגור את הדפדפן.'},
+      {icon:'⏰',text:'המתן לסייל הבא',eff:0,q:'ok',
+       fb:'תמיד יהיה סייל אחר! 11.11, בלאק פריידאי, סוף עונה... כלל: אם אין מוצרים ספציפיים שאתה צריך ושוות לקנות בסייל — אל תיכנס בכלל לאתר. הכניסה לסייל = פיתוי מיד.'},
+     ]},
+    {who:'💼',name:'עסק קטן',ctx:'רעיון יזמי',
+     text:'רעיון: מכירת עוגות לשכנים. עלות חומרים ₪80.',cost:80,
+     opts:[
+      {icon:'🎂',text:'מתחיל מחר!',eff:120,q:'good',
+       fb:'חישוב עסקי: עלות ₪80, הכנסה ₪200, רווח ₪120 = תשואה 150%! כלל עסקי: לפני כל עסק חשב ROI (תשואה על ההשקעה). רווח ÷ השקעה × 100 = % תשואה. כאן 150% = מצוין!'},
+      {icon:'📋',text:'כתוב תכנית קודם',eff:0,q:'good',
+       fb:'תכנית עסקית בסיסית: 1) מה המוצר? 2) מי הלקוחות? 3) כמה עולה לייצר? 4) כמה תמכור? 5) מה הרווח? תכנית = פחות הפתעות רעות. אל תקפוץ לתוך עסק בלי לחשב קדימה.'},
+      {icon:'😨',text:'מסוכן מדי',eff:0,q:'bad',
+       fb:'כל עסק כולל סיכון — זה חלק מהמשחק. אבל כאן הסיכון = ₪80. שאל: "מה הגרוע שיכול לקרות?" לא מכרת כלום = הפסדת ₪80. האם ₪80 יהרסו אותך? כנראה לא. ללכת על זה!'},
+     ]},
+    {who:'📊',name:'ריבית דריבית',ctx:'שיעור מתמטיקה',
+     text:'₪500 בריבית 6% לשנה — בעוד 5 שנים כמה יהיה?',cost:0,
+     opts:[
+      {icon:'🎯',text:'₪669 בערך',eff:0,q:'good',
+       fb:'נכון! ₪500 × (1.06)^5 = ₪669. הרווחת ₪169 בלי לעשות כלום! זה נקרא ריבית דריבית — ריבית שמרוויחה ריבית על עצמה. ₪500 × 1.06 = ₪530 × 1.06 = ₪562 × 1.06... ממשיך לגדול.'},
+      {icon:'💭',text:'₪650 בערך',eff:0,q:'ok',
+       fb:'קרוב! הנכון: ₪669. ריבית דריבית תמיד גדולה יותר ממה שמצפים. חישוב מהיר: 6% × 5 שנים = 30% ריבית פשוטה = ₪650. אבל ריבית דריבית מוסיפה עוד ₪19 כי כל שנה הריבית חלה על סכום גדול יותר.'},
+      {icon:'🤷',text:'לא יודע לחשב',eff:0,q:'bad',
+       fb:'זה החישוב החשוב ביותר בחיים הפיננסיים! נוסחה: קרן × (1 + ריבית)^שנים. ₪500 × (1.06)^5 = ₪669. תרגיל: חשב כמה יהיה ₪1,000 בעוד 10 שנים בריבית 7%. תשובה: ₪1,967.'},
+     ]},
+    {who:'🎓',name:'מלגה',ctx:'הזדמנות',
+     text:'יש מלגה ₪500 — דורשת 2 שעות עבודה וולונטרית.',cost:0,
+     opts:[
+      {icon:'🌟',text:'הגש מועמדות!',eff:500,q:'good',
+       fb:'₪500 ÷ 2 שעות = ₪250/שעה! זה שיעור ההשתכרות הכי גבוה שתראה. כלל: מלגות, פרסים, הגרלות חוקיות = כסף שאנשים מחכים שתבוא לקחת. 80% מהמלגות לא ממומשות כי אנשים לא מגישים.'},
+      {icon:'😴',text:'יש לי מה לעשות',eff:0,q:'bad',
+       fb:'₪500 על 2 שעות = ₪250/שעה. חשב: כמה שעות עבודה רגילה = ₪500? ~14 שעות ב-₪35/שעה. 2 שעות וולונטריות vs 14 שעות עבודה — איזה עדיף? מלגות = אחד הכלים הכי חסרי ניצול.'},
+      {icon:'🤔',text:'בדוק אם אתה מתאים',eff:500,q:'good',
+       fb:'בדיקה = חכמה! הגשת, התאמת, קיבלת ₪500. כלל: לא לדחות הזדמנויות כספיות מבלי לבדוק אם מתאים. הגרוע שיכול לקרות = לא לקבל. הטוב = ₪500. שווה 5 דקות בדיקה.'},
+     ]},
+    {who:'🏡',name:'שכונה',ctx:'שיפוץ קטן',
+     text:'שכנים משלמים ₪200 לעבודת שיפוץ — ₪25/שעה.',cost:0,
+     opts:[
+      {icon:'🔨',text:'כן! 8 שעות עבודה',eff:200,q:'good',
+       fb:'₪25/שעה = שיעור הוגן מאוד לעבודה ידנית. ₪200 ל-8 שעות. חשב: אם עושה זאת פעם בחודש = ₪2,400 לשנה! עיקרון: כישורים ידניים + זמינות = הכנסה עקבית וגדולה יותר ממה שחושבים.'},
+      {icon:'💰',text:'תמקח על ₪30/שעה',eff:180,q:'ok',
+       fb:'מו"מ תמיד לגיטימי! ביקשת ₪30, קיבלת ₪22.5 (פשרה). ₪180 במקום ₪200 — ניסית, לא הלכת לאיבוד. כלל: תמיד אפשר לנסות לנהל מו"מ. הגרוע = יגיד לא ויישאר ₪25 המקורי.'},
+      {icon:'😓',text:'קשה מדי',eff:0,q:'bad',
+       fb:'עבודה פיזית קשה + תגמול כספי טוב = עסקה מצוינת. כלל: קושי זמני + תגמול קבוע = ערך. מי שמוכן להתאמץ יותר מאחרים = מרוויח יותר מאחרים. זה הבסיס של ניהול כסף.'},
+     ]},
+    {who:'💡',name:'האינטרנט',ctx:'הכנסה פסיבית',
+     text:'יש לך כישרון צילום. אפשר למכור תמונות אונליין.',cost:0,
+     opts:[
+      {icon:'📸',text:'אנסה! מה יש להפסיד?',eff:80,q:'good',
+       fb:'הכנסה פסיבית = כסף שמגיע גם כשאתה ישן! מכרת 4 תמונות = ₪80. ואותן תמונות יכולות להימכר שוב ושוב. כלל: הכנסה פסיבית > הכנסה פעילה. השקעה אחת = הכנסות חוזרות.'},
+      {icon:'🤔',text:'מי יקנה תמונות שלי?',eff:0,q:'bad',
+       fb:'מאות אתרי stock photography קונים תמונות מאנשים רגילים! עלויות כניסה = ₪0. כלל: לעולם לא לסנן ספק עצמי לפני שמנסים. הדרך היחידה לדעת אם משהו עובד = לנסות. ספק עצמי = מניעה מהצלחה.'},
+      {icon:'📚',text:'למד קודם כיצד',eff:50,q:'ok',
+       fb:'הכנה שיפרה את האיכות! מכרת פחות (₪50) אבל תמונות טובות יותר = בסיס להכנסה גדולה יותר בעתיד. כלל: השקעה בלמידה לפני תחילה = פחות טעויות + הצלחה מהירה יותר לטווח ארוך.'},
+     ]},
+    {who:'🎮',name:'טורניר',ctx:'תחרות גיימינג',
+     text:'כניסה לטורניר ₪50 — פרס ראשון ₪500.',cost:50,
+     opts:[
+      {icon:'🏆',text:'נכנס! אני טוב!',eff:100,q:'ok',
+       fb:'סיכון: ₪50. פוטנציאל: ₪500. יחס סיכון/תגמול = 1:10 — מצוין! הגעת שני = ₪100. כלל: לפני כל "הימור" (לגיטימי) חשב יחס סיכון/תגמול. מעל 1:3 = שווה לשקול. תמיד דע מה מקסימום ההפסד.'},
+      {icon:'🎮',text:'תרגל קודם שבוע',eff:150,q:'good',
+       fb:'הכנה = יתרון! תרגלת, שיפרת, זכית ב-₪150 = תשואה 200% על ₪50 ההשקעה. עיקרון: בכל תחרות, ראיון, הזדמנות — מי שמתכונן יותר מנצח. הכנה = השקעה שמחזירה את עצמה.'},
+      {icon:'😨',text:'מסוכן להפסיד ₪50',eff:0,q:'bad',
+       fb:'חישוב הסיכון: הפסדת ₪50 = 10% מהתקציב. רווח אפשרי: ₪450. כלל: פחד מהפסד קטן לא צריך למנוע הזדמנות גדולה. אם ₪50 לא יהרסו אותך — ולמדת טוב — שווה לנסות.'},
+     ]},
+    {who:'👩‍💼',name:'מנטורית',ctx:'ייעוץ חינמי',
+     text:'מנטורית מציעה 3 מפגשים חינמיים על ניהול כסף.',cost:0,
+     opts:[
+      {icon:'📚',text:'כן! אשמח ללמוד',eff:0,q:'good',
+       fb:'ידע פיננסי = ההשקעה הכי רווחית שקיימת! 3 שעות לימוד עם מומחה = ידע לכל החיים. כלל: כשמישהו מוכשר מציע ידע בחינם — קח. ידע לא "נגמר" ולא נגנב. זה הנכס שגדל עם הזמן.'},
+      {icon:'😒',text:'לא צריך, אני יודע',eff:0,q:'bad',
+       fb:'הדבר היחיד שמונע ממך ללמוד = להאמין שכבר יודע. כלל: Warren Buffett, אחד העשירים בעולם, קורא 5-6 שעות ביום. אם הוא לא "יודע הכל" — אתה גם לא. תמיד יש מה ללמוד.'},
+      {icon:'👥',text:'הבאת חברים גם',eff:0,q:'good',
+       fb:'מנהיגות! לא רק למדת — גרמת לאחרים ללמוד. ידע שמשתף = ידע שמתחזק. כלל: הדרך הטובה ביותר לחזק ידע = ללמד אותו לאחרים. כשמסביר לחבר — מבין עמוק יותר בעצמך.'},
+     ]},
+  ],
+
+  // ===== גיל 15-16: חשיבה פיננסית מתקדמת =====
+  15:[
+    {who:'💼',name:'מעסיק',ctx:'עבודה ראשונה',
+     text:'עבודה ב-₪35/שעה, 5 שעות בשבוע. לקחת?',cost:0,
+     opts:[
+      {icon:'✅',text:'כן! מתחיל מחר',eff:200,q:'good',
+       fb:'₪35 × 5 שעות = ₪175/שבוע = ₪700/חודש. חישוב שנתי: ₪8,400! מלבד הכסף — קורות חיים, ניסיון, ממליצים. כלל: עבודה ראשונה = לא רק כסף. זה בניית הבסיס לקריירה.'},
+      {icon:'📚',text:'אחרי הבחינות',eff:0,q:'ok',
+       fb:'עדיפות ללימודים = נכון. אבל שאל: "5 שעות בשבוע = כמה זמן ביום?" = פחות משעה! רוב הסטודנטים מוצאים שניתן לאזן. כלל: אם לא מנסים — לא יודעים. תנסה ותראה אם עובד.'},
+      {icon:'💰',text:'כן, אבל רוצה ₪40',eff:180,q:'ok',
+       fb:'מו"מ לגיטימי! ביקשת ₪40, קיבלת ₪36 (פשרה). כלל: תמיד אפשר לנהל מו"מ על שכר. מחקר: מי שמנהל מו"מ על שכר מרוויח בממוצע 7-14% יותר לאורך הקריירה. מיומנות ששווה ללמוד.'},
+     ]},
+    {who:'🏦',name:'יועץ פיננסי',ctx:'כלל ה-20%',
+     text:'יועץ מציע: חסוך 20% מכל הכנסה — תמיד.',cost:0,
+     opts:[
+      {icon:'✅',text:'אאמץ את הכלל',eff:0,q:'good',
+       fb:'מי שמתחיל לחסוך 20% בגיל 15 ולא עוצר: על ₪700/חודש × 20% = ₪140/חודש × 12 = ₪1,680/שנה. בעוד 10 שנים בריבית 7% = ₪23,000+! כלל: "חסוך קודם, הוצא אחר כך" = ההרגל הכי חשוב.'},
+      {icon:'😅',text:'אחסוך מה שנשאר',eff:0,q:'bad',
+       fb:'"מה שנשאר" תמיד = ₪0. כי הוצאות תמיד גדלות למלא את ההכנסה. זה נקרא "Parkinson\'s Law of Money". כלל: הוצאת חיסכון קודם (כמו חשבון קבוע) = הדרך היחידה שעובדת לרוב האנשים.'},
+      {icon:'💡',text:'10% — יותר מציאותי',eff:0,q:'ok',
+       fb:'10% קבוע > 20% שלא מתקיים. כלל: עדיף להתחיל קטן ולהתמיד. ₪70/חודש × 12 × 10 שנים בריבית 7% = ₪11,500+. הצעד הקטן הראשון = הכי חשוב. הגדלה תבוא אחר כך.'},
+     ]},
+    {who:'🏠',name:'חלום',ctx:'יעד עתידי',
+     text:'רוצה לנסוע לאירופה בעוד שנה — עולה ₪4,000.',cost:0,
+     opts:[
+      {icon:'📅',text:'חסוך ₪333/חודש',eff:0,q:'good',
+       fb:'₪333/חודש × 12 = ₪3,996 ≈ ₪4,000. מדויק! זו חשיבה לאחור: מה היעד → מתי → כמה לחסוך בחודש. כלל: כל יעד כספי גדול = חלק אותו ל-12 חודשים. פתאום נראה אפשרי.'},
+      {icon:'💸',text:'לבקש מהורים',eff:0,q:'bad',
+       fb:'הורים יכולים לעזור — אבל כסף שהרווחת עצמאי שווה יותר (פסיכולוגית וחינוכית). כלל: קבע מטרה להרוויח לפחות 50% בעצמך. ₪2,000 מהורים + ₪2,000 שעבדת = הרבה יותר מספק מ-₪4,000 ממתנה.'},
+      {icon:'💼',text:'עבוד עוד שעות לחיסכון',eff:200,q:'good',
+       fb:'יוזמה = להגדיל הכנסות כדי להגיע ליעד מהר יותר. כלל: יש 2 דרכים לחסוך יותר: 1) להוציא פחות 2) להרוויח יותר. רוב האנשים מתמקדים ב-1 ומפספסים את 2. שניהם יחד = הכי מהיר.'},
+     ]},
+    {who:'📊',name:'ריבית דריבית',ctx:'כוח הזמן',
+     text:'₪1,000 בריבית 7% לשנה — בעוד 10 שנים?',cost:0,
+     opts:[
+      {icon:'🎯',text:'₪1,967 — כמעט כפול!',eff:0,q:'good',
+       fb:'נכון! ₪1,000 × (1.07)^10 = ₪1,967. בעוד 20 שנים: ₪3,870. בעוד 30 שנים: ₪7,612! אינשטיין קרא לריבית דריבית "הפלא השמיני של העולם". כלל: הזמן = הנכס הכי חשוב. התחל לחסוך מוקדם ככל האפשר.'},
+      {icon:'💭',text:'₪1,700 בערך',eff:0,q:'ok',
+       fb:'קרוב! הנכון: ₪1,967. ריבית דריבית מפתיעה תמיד כלפי מעלה. תרגיל: ₪1,000 × 1.07 = ₪1,070 × 1.07 = ₪1,145 × 1.07... המספר גדל מהר יותר מכפי שמצפים כי כל שנה הריבית חלה על סכום גדול יותר.'},
+      {icon:'🤷',text:'לא יודע',eff:0,q:'bad',
+       fb:'הנוסחה: קרן × (1 + ריבית)^שנים = ₪1,000 × (1.07)^10 = ₪1,967. תדע את הנוסחה הזו בעל פה — תשתמש בה לכל החיים. דגל אזהרה: כל מי שלא מבין ריבית דריבית = עלול לשלם אותה לאחרים במקום לקבל.'},
+     ]},
+    {who:'💡',name:'הזדמנות',ctx:'עסק קטן',
+     text:'רעיון לעסק: שיעורי עזר — ₪80/שעה.',cost:0,
+     opts:[
+      {icon:'🎓',text:'מתחיל השבוע!',eff:240,q:'good',
+       fb:'3 שעות/שבוע × ₪80 = ₪240/שבוע = ₪960/חודש! שיעורי עזר = אחד העסקים הקלים ביותר להתחיל. עלויות: ₪0. כישורים: מה שלמדת בבית ספר. תשואה: 100% רווח נקי. מה מחכה?'},
+      {icon:'📋',text:'בנה תכנית ומחיר',eff:280,q:'good',
+       fb:'תכנית מקצועית = לקוחות יותר ותגמול יותר! ₪280 = 3.5 שעות × ₪80. הגדרת מחיר נכון = אמצעות בין זול מדי (פוגע בעצמך) לקר מדי (פחות לקוחות). מחקר שוק קטן = הבנה של מה מקובל.'},
+      {icon:'😨',text:'מי ישלם לי?',eff:0,q:'bad',
+       fb:'עובדה: בישראל שיעורי עזר = שוק של מיליארדים. הורים משלמים ₪60-150/שעה למורה פרטי. כלל: ספק עצמי = מחסום מיותר. הדרך היחידה לדעת = לנסות. שאל 5 הורים בשכונה — סטטיסטית לפחות אחד יגיד כן.'},
+     ]},
+    {who:'📱',name:'השקעה דיגיטלית',ctx:'מניות וקריפטו',
+     text:'חבר ממליץ להשקיע ₪500 בקריפטו. "יכפיל בחודש!"',cost:500,
+     opts:[
+      {icon:'💰',text:'מושלם! אשקיע!',eff:-200,q:'bad',
+       fb:'קריפטו ירד 40% = הפסד ₪200. "יכפיל בחודש" = 1,200% לשנה. מציאות: S&P 500 ממוצע 10%/שנה. מי שמבטיח 1,200% = מוכר חלום. כלל: ככל שהתשואה המובטחת גבוהה יותר — כך הסיכון גבוה יותר, ולא להפך.'},
+      {icon:'📚',text:'קודם אחקור לבד',eff:0,q:'good',
+       fb:'מחקר עצמאי = הגנה מספר אחד! שאל: 1) מה הסיכון המקסימלי? 2) מה ההיסטוריה של הנכס? 3) האם אני יכול להרשות להפסיד את כל ₪500? 4) האם יש מניע לחבר שממליץ? מחקר = כוח.'},
+      {icon:'🔀',text:'פזר: ₪250 מניות + ₪250 חיסכון',eff:50,q:'ok',
+       fb:'פיזור = עיקרון ההשקעה החשוב ביותר! "לא לשים כל הביצים בסל אחד." ₪250 מניות עלו קצת + ₪250 חיסכון בטוח = ₪50 רווח כולל, אפס הפסד. תיק מפוזר = פחות סיכון, תשואה יציבה יותר.'},
+     ]},
+    {who:'🏡',name:'נדל"ן',ctx:'להשקיע בנדל"ן?',
+     text:'דוד מציע: הכנס ₪1,000 לעסקת נדל"ן — "רווח מובטח".',cost:1000,
+     opts:[
+      {icon:'🤝',text:'אמין לדוד! אשקיע',eff:-200,q:'bad',
+       fb:'"רווח מובטח" לא קיים בשום השקעה חוקית. גם ממשפחה. כלל: ככל שהבטחה נשמעת טובה יותר — בדוק יותר. נדל"ן כולל סיכונים: מחיר ירד, שוכר לא שילם, עלויות תחזוקה. ₪200 הפסדת = שיעור חשוב ב-₪200.'},
+      {icon:'📋',text:'בקש חוזה ויועץ',eff:0,q:'good',
+       fb:'מקצועי! יועץ עצמאי = עיניים ניטרליות. חוזה = הגנה חוקית. כלל: בכל השקעה מעל ₪500: 1) ייעוץ עצמאי 2) חוזה כתוב 3) הבנה מלאה של כל סיכון. מי שממהר לחתום = לא רוצה שתשאל שאלות.'},
+      {icon:'❌',text:'לא משקיע מבלי להבין',eff:0,q:'good',
+       fb:'Warren Buffett: "לעולם לא להשקיע בעסק שלא מבינים." כלל: הבנה מלאה = תנאי סף לכל השקעה. שאל עד שמבין הכל. אם לא יכולים להסביר בפשטות = כנראה לא ברורים גם להם.'},
+     ]},
+    {who:'💼',name:'ראיון עבודה',ctx:'קידום',
+     text:'ראיון לעבודה ₪50/שעה. איך מתכונן?',cost:0,
+     opts:[
+      {icon:'📚',text:'חקר את החברה',eff:200,q:'good',
+       fb:'הכנה = הכפלת הסיכוי לקבל! הרווחת ₪200/שבוע נוספים. חישוב: ₪50 vs ₪35 = ₪15 יותר לשעה × 5 שעות × 52 שבועות = ₪3,900 יותר לשנה! כלל: שעה הכנה לראיון = ₪3,900 השקעה. ROI מדהים.'},
+      {icon:'😎',text:'אני טוב! אבוא כמו שאני',eff:0,q:'bad',
+       fb:'ביטחון עצמי ≠ אי הכנה. מחקר: מועמדים מוכנים מקבלים 50% יותר הצעות עבודה. כלל: גם אם אתה הטוב ביותר — מי שמול ך מוכן יותר = יקבל את העבודה. הכנה = הדרך להוכיח שאתה רציני.'},
+      {icon:'🤝',text:'תרגל עם חבר',eff:150,q:'ok',
+       fb:'תרגול = הכנה מעשית. קיבלת ₪150/שבוע נוספים. כלל: תרגול ראיון עם חבר = זיהוי חולשות לפני הראיון האמיתי. שאל חבר "למה לקחת אותך?" ותן תשובה ב-2 דקות. חזור עד שזה נשמע טוב.'},
+     ]},
+    {who:'📈',name:'מנהל תיק',ctx:'השקעה מפוזרת',
+     text:'₪2,000 לחלק: 50% מניות, 30% אג"ח, 20% מזומן?',cost:2000,
+     opts:[
+      {icon:'📊',text:'אאמץ את הפיזור',eff:150,q:'good',
+       fb:'פיזור קלאסי: מניות (סיכון גבוה/תשואה גבוהה) + אג"ח (יציב/תשואה בינונית) + מזומן (ביטחון). רווח 7.5% = ₪150. כלל: פיזור לא ממקסם רווחים אבל ממזער הפסדים. בשוק ירידות — ניצחת!'},
+      {icon:'🚀',text:'כל הכסף במניות!',eff:300,q:'ok',
+       fb:'הפעם עלו = ₪300! אבל: אם ירדו 30% = הפסד ₪600. בלי פיזור = בלי רשת ביטחון. כלל: 100% מניות מתאים לטווח ארוך (10+ שנים). לטווח קצר יותר — פיזור הכרחי. גיל + יעד = קובע פיזור.'},
+      {icon:'🏦',text:'כל הכסף בחיסכון',eff:20,q:'ok',
+       fb:'₪20 בטוח. אבל: בעוד 10 שנים עם אינפלציה 3% — ₪2,000 שלך שווים ₪1,488 בכוח קנייה! כלל: חיסכון לבד = בטוח אבל לא מספיק. לטווח ארוך חייב לשלב השקעות שמנצחות את האינפלציה.'},
+     ]},
+    {who:'🌍',name:'פרויקט חברתי',ctx:'עסק עם ערכים',
+     text:'פרויקט: מכירת תוצרת בעבודת כפיים — 10% לצדקה.',cost:0,
+     opts:[
+      {icon:'🤝',text:'כן! עסק עם ערכים',eff:180,q:'good',
+       fb:'עסק עם ערכים = לקוחות נאמנים + מוניטין + סיפוק אישי. הרווחת ₪200, תרמת ₪20. כלל: צרכנים מודרניים משלמים יותר לעסקים עם ערכים. 10% לצדקה = השקעה שיווקית חכמה, לא רק אלטרואיזם.'},
+      {icon:'💰',text:'למה לתת? כסף = שלי',eff:200,q:'ok',
+       fb:'הרווחת יותר = ₪200. אבל החמצת: מוניטין, לקוחות נאמנים, תחושת משמעות. כלל: רווח לא תמיד = כסף. רווח = מה שנשאר כולל: כסף + קשרים + מוניטין + שביעות רצון. חשב את כולם.'},
+      {icon:'💡',text:'העלה ל-20% לצדקה',eff:160,q:'good',
+       fb:'נדיבות + עסק = שילוב מנצח. ₪160 רווח + ₪40 לצדקה. כלל: עסקים שתורמים בלב שלם — מושכים לקוחות שמשלמים יותר ועובדים שעובדים קשה יותר. נדיבות = השקעה, לא רק הוצאה.'},
+     ]},
+    {who:'🎓',name:'מלגה גדולה',ctx:'תכנון לימודים',
+     text:'מלגה ₪5,000 — מצריכה עבודה קהילתית 20 שעות.',cost:0,
+     opts:[
+      {icon:'✅',text:'בהחלט! אגיש',eff:5000,q:'good',
+       fb:'₪5,000 ÷ 20 שעות = ₪250/שעה! זה אחד הכסף המשתלם ביותר שתראה. חישוב: מה השכר הרגיל שלך? ₪35/שעה. פה קבלת 7× יותר. כלל: מלגות ופרסים = הכי גבוהות ROI בחיים. אנשים לא מגישים = הפסד שלהם.'},
+      {icon:'⏰',text:'אין לי זמן',eff:0,q:'bad',
+       fb:'20 שעות = פחות מ-2 שעות/שבוע לחודש וחצי. ₪5,000 ÷ 20 שעות = ₪250/שעה. שאל: "איפה אחר כך 20 שעות?" אם התשובה כוללת נטפליקס, סושיאל מדיה — יש זמן. אין "אין זמן" ל-₪5,000.'},
+      {icon:'📋',text:'קרא תנאים לפני',eff:5000,q:'good',
+       fb:'מקצועי! קריאת תנאים = לא להסתפק ב"₪5,000 בחינם". מה ה-ROI הכולל: זמן (20 שעות) + מה שמקבלים (₪5,000) + בונוסים (קורות חיים, ממליצים). תמיד לחשב את כל הערכים, לא רק הכסף.'},
+     ]},
+    {who:'💻',name:'פרילנסר',ctx:'עבודה מהבית',
+     text:'הזדמנות לעבודה פרילנס — ₪120/משימה.',cost:0,
+     opts:[
+      {icon:'💻',text:'מתחיל מיד!',eff:360,q:'good',
+       fb:'3 משימות × ₪120 = ₪360/חודש! פרילנס = העתיד של עבודה. כלל: ₪120/משימה vs ₪35/שעה — מה עדיף? תלוי כמה זמן לוקחת משימה. אם פחות מ-3.5 שעות — פרילנס עדיף לשעה.'},
+      {icon:'📚',text:'למד קודם את הכלים',eff:240,q:'ok',
+       fb:'הכנה שיפרה את האיכות! ₪240 על עבודה טובה יותר. כלל: לקוחות מרוצים = לקוחות חוזרים = הכנסה יציבה. עדיף לעשות פחות בצורה מצוינת מלעשות הרבה בצורה בינונית.'},
+      {icon:'🤔',text:'נשמע מסובך מדי',eff:0,q:'bad',
+       fb:'פרילנס = לקוח + עבודה + תשלום. זה הכל. הכישורים שיש לך כבר שווים כסף — מישהו שם בחוץ צריך אותם. כלל: "מסובך" לרוב = לא מוכר, לא לא אפשרי. הצעד הראשון = הכי קשה. אחריו הכל זורם.'},
+     ]},
+  ]
+};
+// אירועים בלתי צפויים
+const EVENTS={
+  10:[
+    {icon:'🤒',title:'חלית!',text:'ביקרת רופא ב-₪80. לפעמים בריאות עולה כסף — שמור "קרן חירום"!',cost:80},
+    {icon:'📱',title:'נשבר הטלפון!',text:'מסך סדוק — תיקון ₪120. ביטוח על מכשיר שווה מדי פעם.',cost:120},
+    {icon:'🌟',title:'בונוס עבודה!',text:'עבדת מעבר לרגיל — קיבלת בונוס ₪50! עבודה קשה משתלמת.',cost:-50},
+    {icon:'🎉',title:'הגרלה קטנה!',text:'זכית ב-₪30 בהגרלה שכונתית! מזל טוב!',cost:-30},
+  ],
+  12:[
+    {icon:'🚲',title:'אופניים נגנבו!',text:'צריך מנעול חדש ₪60. ביטוח על חפצים = כדאי לפעמים.',cost:60},
+    {icon:'🎂',title:'שכחת יום הולדת!',text:'קניית מתנה דחופה ₪75. יומן + תכנון = פחות הפתעות יקרות.',cost:75},
+    {icon:'💡',title:'זכית בפרס!',text:'קיבלת פרס בתחרות ₪100. כישרון + השקעה = תגמול!',cost:-100},
+    {icon:'🎓',title:'מלגת ספרים!',text:'קיבלת מלגה ₪80 לספרים. תמיד לחפש מלגות!',cost:-80},
+  ],
+  13:[
+    {icon:'💻',title:'מחשב קרס!',text:'תיקון דחוף ₪250. קרן חירום = 3 חודשי הוצאות. בנה אחת!',cost:250},
+    {icon:'🎓',title:'קורס חינמי!',text:'זכית בקורס ₪150 חינם. השקעה בידע = הנכס הגדול ביותר.',cost:-80},
+    {icon:'📈',title:'מניה עלתה!',text:'השקעה שעשית עלתה ₪120. המחקר שעשית לפני — שילם!',cost:-120},
+    {icon:'🔧',title:'תקלה בבית!',text:'תיקון דחוף ₪180. ניסיון לתקן לבד חסך ₪100 נוספים!',cost:180},
+  ],
+  15:[
+    {icon:'📉',title:'מניה ירדה!',text:'השקעה ירדה ₪150. שוק ההון מסוכן — לעולם לא להשקיע מה שאי אפשר להפסיד.',cost:150},
+    {icon:'💡',title:'הכנסה פסיבית!',text:'מכרת ידע ב-₪300. כישרון שלך + האינטרנט = הכנסה פסיבית.',cost:-300},
+    {icon:'🏆',title:'בונוס עבודה!',text:'המעסיק מרוצה — בונוס ₪400! איכות עבודה תמיד מתוגמלת.',cost:-400},
+    {icon:'🚗',title:'תאונה קטנה!',text:'תיקון אופניים/קטנוע ₪350. ביטוח — לא מותרות, הכרח.',cost:350},
+  ]
+};
+
+const INCOME={10:500,12:600,13:750,15:1000};
+const AGE_TIPS={
+  10:'כלל חשוב: חסוך לפחות 10% מכל כסף שמגיע!',
+  12:'כלל תקציב: צורך > רצון. קודם הצרכים, אחר כך הרצונות.',
+  13:'כסף בחיסכון צובר ריבית — הוא עובד גם כשאתה ישן!',
+  15:'20% חיסכון + 50% הוצאות + 30% בילוי = תקציב מאוזן'
+};
+
+// STATE
+let childName='';
+const GS={
+  age:10,budget:500,maxBudget:1000,
+  month:1,totalMonths:5,
+  happiness:3,maxHappiness:5,
+  flw:0,scenarioIdx:0,
+  scenariosThisMonth:0,maxScenariosPerMonth:3,
+  goodDecisions:0,totalDecisions:0,
+  monthlyIncome:500,savings:0,
+  userId:null,gameId:null,flwPerWin:3,
+  startTime:Date.now(),selectedAge:null,
+  currentScenarios:[],eventShown:false
+};
+
+window.addEventListener('message',e=>{
+  if(e.data?.type==='INIT'){
+    GS.userId=e.data.userId;GS.gameId=e.data.gameId;
+    GS.flwPerWin=e.data.flwReward?Math.max(1,Math.floor(e.data.flwReward/5)):3;
+    if(e.data.childName)childName=e.data.childName;
+    if(e.data.age){
+      const a=parseInt(e.data.age);
+      autoSelectAge(a<=11?10:a<=12?12:a<=14?13:15);
+    }
+    if(e.data.characterUrl)
+      document.querySelectorAll('img[alt="רובוט"]').forEach(i=>i.src=e.data.characterUrl);
+  }
+});
+
+function autoSelectAge(age){
+  document.querySelectorAll('.age-card').forEach(c=>{
+    if(parseInt(c.dataset.age)===age){
+      c.classList.add('sel');GS.selectedAge=age;
+      document.getElementById('btn-start').classList.add('ready');
+    }
+  });
+}
+function selectAge(el,age){
+  document.querySelectorAll('.age-card').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');GS.selectedAge=age;
+  document.getElementById('btn-start').classList.add('ready');
+}
+
+function startGame(){
+  if(!GS.selectedAge)return;
+  GS.age=GS.selectedAge;
+  GS.monthlyIncome=INCOME[GS.age]||500;
+  GS.budget=GS.monthlyIncome;
+  GS.maxBudget=GS.monthlyIncome*2;
+  GS.month=1;GS.happiness=3;GS.flw=0;
+  GS.goodDecisions=0;GS.totalDecisions=0;GS.savings=0;
+  GS.currentScenarios=[...(SCENARIOS[GS.age]||SCENARIOS[10])].sort(()=>Math.random()-.5);
+  GS.scenarioIdx=0;GS.scenariosThisMonth=0;GS.eventShown=false;
+  showScreen('scr-city');
+  initStars();updateCity();updateHUD();
+  setTimeout(()=>showMonthOverlay(1),300);
+}
+
+function initStars(){
+  const c=document.getElementById('stars-canvas');
+  c.width=window.innerWidth;c.height=window.innerHeight;
+  const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);
+  for(let i=0;i<80;i++){
+    ctx.beginPath();ctx.arc(Math.random()*c.width,Math.random()*c.height*0.6,Math.random()*1.5,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,255,${Math.random()*0.7+0.3})`;ctx.fill();
+  }
+}
+
+function showMonthOverlay(month){
+  const ov=document.getElementById('month-overlay');
+  document.getElementById('mo-title').textContent=`חודש ${month} 🌅`;
+  document.getElementById('mo-income').textContent=`₪${GS.monthlyIncome}`;
+  document.getElementById('mo-tip').textContent=AGE_TIPS[GS.age]||'';
+  ov.classList.add('show');
+  setTimeout(()=>{ov.classList.remove('show');setTimeout(()=>showNextScenario(),400);},2500);
+}
+
+function showNextScenario(){
+  if(GS.scenariosThisMonth>=GS.maxScenariosPerMonth){
+    if(!GS.eventShown&&Math.random()>0.35){GS.eventShown=true;showUnexpectedEvent();return;}
+    endMonth();return;
+  }
+  if(GS.scenarioIdx>=GS.currentScenarios.length){
+    GS.currentScenarios=[...(SCENARIOS[GS.age]||SCENARIOS[10])].sort(()=>Math.random()-.5);
+    GS.scenarioIdx=0;
+  }
+  const sc=GS.currentScenarios[GS.scenarioIdx++];GS.scenariosThisMonth++;
+  document.getElementById('sc-avatar').textContent=sc.who;
+  document.getElementById('sc-who').textContent=sc.name;
+  document.getElementById('sc-ctx').textContent=sc.ctx;
+  document.getElementById('sc-text').textContent=sc.text;
+  const ce=document.getElementById('sc-cost');
+  if(sc.cost>0){ce.style.display='inline';ce.textContent=`עלות: ₪${sc.cost}`;}
+  else ce.style.display='none';
+  const optsEl=document.getElementById('sc-options');optsEl.innerHTML='';
+  sc.opts.forEach(opt=>{
+    const btn=document.createElement('div');
+    btn.className='opt-btn '+(opt.q==='good'?'good':opt.q==='bad'?'bad':'ok');
+    btn.innerHTML=`<span class="opt-icon">${opt.icon}</span>
+      <div><div>${opt.text}</div>
+      <div class="opt-effect">${opt.eff>0?'+ ₪'+opt.eff:opt.eff<0?'- ₪'+Math.abs(opt.eff):''}</div></div>`;
+    btn.onclick=()=>chooseOption(opt,sc);
+    optsEl.appendChild(btn);
+  });
+  setTimeout(()=>document.getElementById('scenario-panel').classList.add('show'),100);
+}
+
+function chooseOption(opt,sc){
+  document.getElementById('scenario-panel').classList.remove('show');
+  GS.totalDecisions++;
+  GS.budget=Math.max(0,Math.min(GS.maxBudget,GS.budget+opt.eff));
+  if(opt.q==='good'){GS.goodDecisions++;GS.happiness=Math.min(GS.maxHappiness,GS.happiness+1);addFLW(GS.flwPerWin);}
+  else if(opt.q==='ok'){addFLW(Math.floor(GS.flwPerWin/2));}
+  else{GS.happiness=Math.max(0,GS.happiness-1);}
+  showBudgetToast(opt.eff);updateHUD();updateCity();
+  setTimeout(()=>{
+    document.getElementById('fb-icon').textContent=opt.q==='good'?'✅':opt.q==='bad'?'❌':'⚠️';
+    document.getElementById('fb-title').textContent=opt.q==='good'?'החלטה חכמה!':opt.q==='bad'?'אפשר לשפר...':'סביר!';
+    document.getElementById('fb-text').textContent=opt.fb;
+    const fe=document.getElementById('fb-effect');
+    if(opt.eff!==0){fe.textContent=opt.eff>0?`✅ +₪${opt.eff} לתקציב`:`❌ -₪${Math.abs(opt.eff)} מהתקציב`;fe.style.color=opt.eff>0?'#22C55E':'#EF4444';}
+    else{fe.textContent='💡 ללא עלות כספית';fe.style.color='#7A9EA8';}
+    document.getElementById('feedback-popup').classList.add('show');
+  },350);
+}
+
+function closeFeedback(){
+  document.getElementById('feedback-popup').classList.remove('show');
+  setTimeout(()=>showNextScenario(),300);
+}
+
+function showUnexpectedEvent(){
+  const pool=EVENTS[GS.age]||EVENTS[10];
+  const ev=pool[Math.floor(Math.random()*pool.length)];
+  document.getElementById('ev-icon').textContent=ev.icon;
+  document.getElementById('ev-title').textContent=ev.title;
+  document.getElementById('ev-text').textContent=ev.text;
+  const ec=document.getElementById('ev-cost');
+  if(ev.cost<0){
+    ec.textContent=`+₪${Math.abs(ev.cost)}`;ec.style.color='#22C55E';
+    GS.budget=Math.min(GS.maxBudget,GS.budget+Math.abs(ev.cost));addFLW(GS.flwPerWin);
+  } else {
+    ec.textContent=`-₪${Math.min(ev.cost,GS.budget)}`;ec.style.color='#EF4444';
+    GS.budget=Math.max(0,GS.budget-ev.cost);showBudgetToast(-ev.cost);
+  }
+  updateHUD();updateCity();
+  document.getElementById('event-overlay').classList.add('show');
+}
+function closeEvent(){document.getElementById('event-overlay').classList.remove('show');endMonth();}
+
+function endMonth(){
+  GS.savings+=Math.max(0,GS.budget-GS.monthlyIncome*0.3);
+  if(GS.month>=GS.totalMonths){setTimeout(()=>endGame(),400);return;}
+  GS.month++;GS.scenariosThisMonth=0;GS.eventShown=false;
+  let income=GS.monthlyIncome;
+  if(GS.age>=13&&GS.savings>0)income+=Math.round(GS.savings*0.05);
+  GS.budget=Math.min(GS.maxBudget,GS.budget+income);
+  updateHUD();updateCity();
+  setTimeout(()=>showMonthOverlay(GS.month),300);
+}
+
+function addFLW(n){GS.flw+=n;document.getElementById('hud-flw').textContent=GS.flw;}
+
+function updateHUD(){
+  document.getElementById('hud-budget').textContent=`₪${GS.budget}`;
+  document.getElementById('hud-month').textContent=`📅 חודש ${GS.month}/${GS.totalMonths}`;
+  let hap='';for(let i=0;i<GS.maxHappiness;i++)hap+=i<GS.happiness?'❤️':'🖤';
+  document.getElementById('hud-happiness').textContent=hap;
+  const pct=Math.min(100,(GS.budget/GS.maxBudget)*100);
+  const bar=document.getElementById('budget-bar');
+  bar.style.width=pct+'%';bar.style.background=pct>60?'#22C55E':pct>30?'#F59E0B':'#EF4444';
+}
+
+function showBudgetToast(amount){
+  if(amount===0)return;
+  const t=document.createElement('div');t.className='budget-toast';
+  t.textContent=amount>=0?`+₪${amount} 💰`:`-₪${Math.abs(amount)} 💸`;
+  t.style.color=amount>=0?'#22C55E':'#EF4444';
+  document.getElementById('scr-city').appendChild(t);
+  setTimeout(()=>t.remove(),1600);
+}
+
+function updateCity(){
+  const ratio=GS.budget/GS.maxBudget;
+  const sky=document.getElementById('sky');
+  if(ratio<0.2)sky.style.background='linear-gradient(180deg,#1A0A0A 0%,#2A0A0A 40%,#1A1A0A 70%,#1A1A0A 100%)';
+  else if(ratio<0.5)sky.style.background='linear-gradient(180deg,#0A0A1A 0%,#1A1A3E 40%,#1A2A4F 70%,#1A3A0A 100%)';
+  else sky.style.background='linear-gradient(180deg,#0A0A1A 0%,#0A1A3E 40%,#0F3460 70%,#2D5016 100%)';
+  const svg=document.getElementById('buildings');
+  if(ratio<0.15){
+    svg.innerHTML=`<rect x="30" y="130" width="40" height="70" fill="#374151" rx="2"/>
+      <rect x="80" y="110" width="35" height="90" fill="#4B5563" rx="2"/>
+      <text x="200" y="150" fill="rgba(255,100,100,0.5)" font-size="12" text-anchor="middle">😟 משבר כלכלי</text>`;
+  } else if(ratio<0.35){
+    svg.innerHTML=`<rect x="20" y="130" width="50" height="70" fill="#4B5563" rx="3"/>
+      <rect x="90" y="110" width="45" height="90" fill="#374151" rx="3"/>
+      <polygon points="90,110 112,90 135,110" fill="#1F2937"/>
+      <rect x="200" y="120" width="55" height="80" fill="#4B5563" rx="3"/>
+      <rect x="310" y="125" width="60" height="75" fill="#374151" rx="3"/>`;
+  } else if(ratio<0.55){
+    svg.innerHTML=`<rect x="10" y="100" width="55" height="100" fill="#1D4ED8" rx="4"/>
+      <rect x="15" y="108" width="12" height="10" fill="#93C5FD"/>
+      <rect x="32" y="108" width="12" height="10" fill="#93C5FD"/>
+      <rect x="80" y="80" width="60" height="120" fill="#1E40AF" rx="4"/>
+      <polygon points="80,80 110,55 140,80" fill="#1D4ED8"/>
+      <rect x="160" y="95" width="70" height="105" fill="#7C3AED" rx="4"/>
+      <rect x="165" y="103" width="14" height="12" fill="#C4B5FD"/>
+      <rect x="260" y="110" width="55" height="90" fill="#059669" rx="4"/>
+      <rect x="330" y="90" width="65" height="110" fill="#1D4ED8" rx="4"/>`;
+  } else if(ratio<0.75){
+    svg.innerHTML=`<rect x="5" y="85" width="58" height="115" fill="#1D4ED8" rx="4"/>
+      <rect x="8" y="90" width="14" height="12" fill="#93C5FD"/>
+      <rect x="27" y="90" width="14" height="12" fill="#93C5FD"/>
+      <rect x="75" y="60" width="68" height="140" fill="#7C3AED" rx="5"/>
+      <polygon points="75,60 109,30 143,60" fill="#6D28D9"/>
+      <rect x="103" y="30" width="12" height="30" fill="#4C1D95"/>
+      <rect x="155" y="75" width="75" height="125" fill="#059669" rx="5"/>
+      <rect x="160" y="82" width="16" height="13" fill="#6EE7B7"/>
+      <rect x="181" y="82" width="16" height="13" fill="#6EE7B7"/>
+      <rect x="245" y="65" width="62" height="135" fill="#DC2626" rx="5"/>
+      <rect x="320" y="80" width="75" height="120" fill="#1D4ED8" rx="5"/>
+      <circle cx="270" cy="198" r="12" fill="#15803D"/>
+      <rect x="268" y="198" width="4" height="15" fill="#713F12"/>`;
+  } else {
+    svg.innerHTML=`<rect x="2" y="70" width="62" height="130" fill="#1D4ED8" rx="5"/>
+      <rect x="6" y="76" width="15" height="13" fill="#93C5FD"/>
+      <rect x="26" y="76" width="15" height="13" fill="#93C5FD"/>
+      <rect x="46" y="76" width="15" height="13" fill="#93C5FD"/>
+      <rect x="6" y="97" width="15" height="13" fill="#93C5FD"/>
+      <rect x="26" y="97" width="15" height="13" fill="#93C5FD"/>
+      <rect x="74" y="30" width="75" height="170" fill="#7C3AED" rx="6"/>
+      <polygon points="74,30 111,5 149,30" fill="#6D28D9"/>
+      <rect x="108" y="5" width="8" height="30" fill="#8B5CF6"/>
+      <circle cx="112" cy="5" r="5" fill="#F59E0B"/>
+      <rect x="80" y="40" width="18" height="14" fill="#C4B5FD"/>
+      <rect x="103" y="40" width="18" height="14" fill="#C4B5FD"/>
+      <rect x="126" y="40" width="18" height="14" fill="#C4B5FD"/>
+      <rect x="160" y="55" width="70" height="145" fill="#059669" rx="5"/>
+      <rect x="166" y="63" width="16" height="13" fill="#6EE7B7"/>
+      <rect x="187" y="63" width="16" height="13" fill="#6EE7B7"/>
+      <rect x="240" y="45" width="68" height="155" fill="#DC2626" rx="5"/>
+      <rect x="246" y="53" width="16" height="13" fill="#FCA5A5"/>
+      <rect x="267" y="53" width="16" height="13" fill="#FCA5A5"/>
+      <rect x="318" y="60" width="78" height="140" fill="#0891B2" rx="5"/>
+      <polygon points="318,60 357,35 396,60" fill="#0E7490"/>
+      <rect x="325" y="68" width="17" height="13" fill="#67E8F9"/>
+      <circle cx="38" cy="196" r="14" fill="#15803D"/>
+      <rect x="35" y="196" width="5" height="18" fill="#713F12"/>
+      <circle cx="290" cy="196" r="16" fill="#166534"/>
+      <rect x="287" y="196" width="5" height="20" fill="#713F12"/>`;
+  }
+  const clouds=document.getElementById('clouds');
+  if(ratio<0.3)clouds.innerHTML=`<div style="position:absolute;background:rgba(100,50,50,0.3);width:120px;height:40px;top:15%;left:10%;border-radius:50px;opacity:0.7"></div>`;
+  else clouds.innerHTML='';
+}
+
+function endGame(){
+  const ratio=GS.budget/GS.maxBudget;
+  const decRatio=GS.goodDecisions/Math.max(1,GS.totalDecisions);
+  const hapRatio=GS.happiness/GS.maxHappiness;
+  const overall=(ratio*0.4+decRatio*0.4+hapRatio*0.2);
+  let title,city,stars;
+  if(overall>=0.75){title='עיר מדהימה! 🏆';city='🏙️✨';stars='⭐⭐⭐';}
+  else if(overall>=0.5){title='עיר טובה! 🎉';city='🏘️';stars='⭐⭐';}
+  else if(overall>=0.3){title='עיר בהתפתחות 📈';city='🏚️';stars='⭐';}
+  else{title='צריך להשתפר 💪';city='🏗️';stars='';}
+  const bonusFlw=Math.round(overall*30);GS.flw+=bonusFlw;
+  document.getElementById('result-city').textContent=city;
+  document.getElementById('result-title').textContent=title;
+  document.getElementById('result-sub').textContent=`ניהלת את העיר שלך במשך ${GS.totalMonths} חודשים`;
+  document.getElementById('result-stars').textContent=stars;
+  document.getElementById('result-flw').textContent=GS.flw;
+  document.getElementById('result-stats').innerHTML=`
+    <div class="stat-row"><span>💰 יתרה סופית</span><span class="stat-val">₪${GS.budget}</span></div>
+    <div class="stat-row"><span>✅ החלטות טובות</span><span class="stat-val">${GS.goodDecisions}/${GS.totalDecisions}</span></div>
+    <div class="stat-row"><span>😊 אושר</span><span class="stat-val">${'❤️'.repeat(GS.happiness)}</span></div>
+    <div class="stat-row"><span>🏦 חיסכון כולל</span><span class="stat-val">₪${GS.savings}</span></div>
+    <div class="stat-row"><span>🎁 בונוס FLW</span><span class="stat-val">+${bonusFlw}</span></div>`;
+  const duration=Math.round((Date.now()-GS.startTime)/1000);
+  const score=Math.round(overall*100);
+  const payload={type:'GAME_COMPLETE',userId:GS.userId,gameId:GS.gameId,score,flwEarned:GS.flw,durationSeconds:duration,gameName:'העיר שלי — כלכלה חכמה'};
+  if(window.parent!==window)window.parent.postMessage(payload,'*');
+  if(GS.userId)fetch('/api/kids/award-flw',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({userId:GS.userId,gameId:GS.gameId,score,flwEarned:GS.flw,durationSeconds:duration})}).catch(()=>{});
+  showScreen('scr-result');
+}
+
+function playAgain(){
+  GS.budget=500;GS.month=1;GS.happiness=3;GS.flw=0;
+  GS.goodDecisions=0;GS.totalDecisions=0;GS.savings=0;
+  GS.scenarioIdx=0;GS.scenariosThisMonth=0;GS.eventShown=false;
+  GS.selectedAge=null;
+  document.querySelectorAll('.age-card').forEach(c=>c.classList.remove('sel'));
+  document.getElementById('btn-start').classList.remove('ready');
+  showScreen('scr-intro');
+}
+function goHome(){if(window.parent!==window)window.parent.postMessage({type:'CLOSE_GAME'},'*');else window.history.back();}
+function showScreen(id){document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));document.getElementById(id).classList.add('on');}
+</script>
+</body>
+</html>
