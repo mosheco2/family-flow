@@ -1528,6 +1528,7 @@ async function loadDashboard() {
         if (profileUp && currentGroup && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
     } else {
         ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
+        setTimeout(loadChildFlwWallet, 500);
         const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
         getEl('card-name').innerText = (currentUser.nickname || '').toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}%`;
         const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
@@ -3832,6 +3833,9 @@ async function fetchMembers() {
                 });
             }
         } catch (err) {}
+
+        // FLW KID פאנל הורה
+        try { if (currentUser.role === 'ADMIN') loadFlwKidParentPanel(); } catch(e) {}
 
         // חשבונות בנק של הילדים — גלוי להורה בלבד
         try {
@@ -13550,6 +13554,199 @@ function showGameCompleteMessage(gameData, roundResult) {
 
   document.body.appendChild(msg);
   setTimeout(() => { if(msg.parentElement) msg.remove(); }, 5000);
+}
+
+// ============================================================
+// FLW KID — מטבעות ילד (ארנק, מימוש, הגדרות הורה)
+// ============================================================
+
+let _kidFlwConfig = {}; // flw_value_ils per child
+
+async function loadChildFlwWallet() {
+    if (!currentUser || currentUser.role !== 'CHILD') return;
+    try {
+        const [walletRes, configRes] = await Promise.all([
+            fetch(`/api/kids/wallet/${currentUser.id}`),
+            fetch(`/api/kids/config/${currentUser.id}`)
+        ]);
+        const walletData = await walletRes.json();
+        const configData = await configRes.json();
+        const w = walletData.wallet || {};
+        const cfg = configData.config || {};
+        const valueIls = parseFloat(cfg.flw_value_ils || 0.10);
+        const balance = parseFloat(w.balance_flw || 0);
+
+        const el = id => document.getElementById(id);
+        if (el('kid-flw-balance')) el('kid-flw-balance').textContent = Math.floor(balance);
+        if (el('kid-flw-lifetime')) el('kid-flw-lifetime').textContent = Math.floor(w.lifetime_flw || 0);
+        if (el('kid-flw-redeemed')) el('kid-flw-redeemed').textContent = Math.floor(w.redeemed_flw || 0);
+        if (el('kid-flw-value-ils')) el('kid-flw-value-ils').textContent = `₪${(balance * valueIls).toFixed(2)}`;
+
+        window._kidFlwBalance = balance;
+        window._kidFlwValueIls = valueIls;
+    } catch(e) {}
+}
+
+function openKidRedeemModal() {
+    const balance = window._kidFlwBalance || 0;
+    const el = id => document.getElementById(id);
+    if (el('kid-redeem-balance-display')) el('kid-redeem-balance-display').textContent = Math.floor(balance);
+    if (el('kid-redeem-amount')) el('kid-redeem-amount').value = '';
+    if (el('kid-redeem-ils-preview')) el('kid-redeem-ils-preview').textContent = '₪0';
+    document.getElementById('kid-redeem-modal').classList.remove('hidden');
+}
+
+function updateKidRedeemPreview(val) {
+    const amt = parseFloat(val) || 0;
+    const rate = window._kidFlwValueIls || 0.10;
+    const el = document.getElementById('kid-redeem-ils-preview');
+    if (el) el.textContent = `₪${(amt * rate).toFixed(2)}`;
+}
+
+async function submitKidRedeem() {
+    const amt = parseFloat(document.getElementById('kid-redeem-amount')?.value);
+    if (!amt || amt <= 0) return showToast('error', 'נא להזין כמות');
+    const balance = window._kidFlwBalance || 0;
+    if (amt > balance) return showToast('error', 'יתרה לא מספיקה');
+    try {
+        // שמירת בקשת מימוש בטבלת notifications/transactions - נשתמש ב-redeem endpoint
+        const res = await fetch('/api/kids/redeem-request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ childUserId: currentUser.id, flwAmount: amt, groupId: currentGroup?.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('kid-redeem-modal').classList.add('hidden');
+            showToast('success', `בקשה נשלחה! ₪${(amt * (window._kidFlwValueIls || 0.10)).toFixed(2)} ממתינים לאישור ההורה`);
+            loadChildFlwWallet();
+        } else {
+            showToast('error', data.error || 'שגיאה בשליחת בקשה');
+        }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+// ─── הורה: טעינת פאנל FLW KID ───────────────────────────────
+
+async function loadFlwKidParentPanel() {
+    if (!currentUser || currentUser.role !== 'ADMIN') return;
+    const panel = document.getElementById('flw-kid-parent-panel');
+    const list  = document.getElementById('flw-kid-children-list');
+    if (!panel || !list) return;
+
+    const children = (membersCache || []).filter(m => m.role === 'CHILD');
+    if (children.length === 0) { panel.classList.add('hidden'); return; }
+    panel.classList.remove('hidden');
+
+    // טעינת ארנקים וקונפיגים לכל הילדים במקביל
+    const rows = await Promise.all(children.map(async c => {
+        try {
+            const [wRes, cfRes, reqRes] = await Promise.all([
+                fetch(`/api/kids/wallet/${c.id}`),
+                fetch(`/api/kids/config/${c.id}`),
+                fetch(`/api/kids/redeem-requests?childId=${c.id}&groupId=${currentGroup?.id}`)
+            ]);
+            const w   = (await wRes.json()).wallet || {};
+            const cfg = (await cfRes.json()).config || { flw_value_ils: 0.10 };
+            const reqs = (await reqRes.json()).requests || [];
+            return { child: c, wallet: w, config: cfg, pendingRequests: reqs };
+        } catch { return { child: c, wallet: {}, config: { flw_value_ils: 0.10 }, pendingRequests: [] }; }
+    }));
+
+    list.innerHTML = rows.map(({ child, wallet, config, pendingRequests }) => {
+        const balance  = parseFloat(wallet.balance_flw || 0);
+        const lifetime = parseFloat(wallet.lifetime_flw || 0);
+        const valueIls = parseFloat(config.flw_value_ils || 0.10);
+        const ini      = child.nickname.charAt(0).toUpperCase();
+        const pendingHtml = pendingRequests.length > 0
+            ? pendingRequests.map(r => `
+                <div class="flex items-center justify-between bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2 mt-2">
+                    <span class="text-xs text-yellow-800">בקשת מימוש: <strong>${r.flw_amount} FLW</strong> = ₪${(r.flw_amount * valueIls).toFixed(2)}</span>
+                    <button onclick="openApproveKidRedeem(${child.id},'${child.nickname}',${r.flw_amount},${r.id},${valueIls})"
+                        class="text-xs bg-green-500 text-white px-3 py-1 rounded-full font-bold">אשר</button>
+                </div>`).join('')
+            : '';
+        return `
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center font-black text-lg">${ini}</div>
+                    <div>
+                        <p class="font-bold text-slate-800 text-sm">${child.nickname}</p>
+                        <p class="text-xs text-purple-600">₪${valueIls.toFixed(2)} למטבע</p>
+                    </div>
+                </div>
+                <button onclick="openFlwKidConfig(${child.id},'${child.nickname}',${valueIls},${config.max_daily_flw||50})"
+                    class="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition">
+                    <i class="fa-solid fa-gear text-sm"></i>
+                </button>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="bg-purple-50 rounded-xl py-2"><p class="text-xs text-purple-500 font-bold">יתרה</p><p class="font-black text-purple-700 text-lg">${Math.floor(balance)}</p></div>
+                <div class="bg-slate-50 rounded-xl py-2"><p class="text-xs text-slate-400 font-bold">שווי</p><p class="font-black text-slate-700">₪${(balance*valueIls).toFixed(2)}</p></div>
+                <div class="bg-green-50 rounded-xl py-2"><p class="text-xs text-green-500 font-bold">נצבר סה"כ</p><p class="font-black text-green-700">${Math.floor(lifetime)}</p></div>
+            </div>
+            ${pendingHtml}
+        </div>`;
+    }).join('');
+}
+
+function openFlwKidConfig(childId, childName, valueIls, maxDaily) {
+    document.getElementById('flw-kid-config-child-id').value = childId;
+    document.getElementById('flw-kid-config-child-name').textContent = `הגדרות עבור: ${childName}`;
+    document.getElementById('flw-kid-config-value').value = valueIls;
+    document.getElementById('flw-kid-config-max').value   = maxDaily;
+    document.getElementById('flw-kid-config-modal').classList.remove('hidden');
+}
+
+async function saveFlwKidConfig() {
+    const childId  = document.getElementById('flw-kid-config-child-id')?.value;
+    const valueIls = parseFloat(document.getElementById('flw-kid-config-value')?.value);
+    const maxDaily = parseInt(document.getElementById('flw-kid-config-max')?.value);
+    if (!childId || isNaN(valueIls) || valueIls <= 0) return showToast('error', 'ערך לא תקין');
+    try {
+        const res = await fetch('/api/kids/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ familyGroupId: currentGroup?.id, childUserId: parseInt(childId), flwValueIls: valueIls, maxDailyFlw: maxDaily || 50, autoApprove: false })
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('flw-kid-config-modal').classList.add('hidden');
+            showToast('success', 'הגדרות נשמרו');
+            loadFlwKidParentPanel();
+        } else { showToast('error', data.error || 'שגיאה'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+function openApproveKidRedeem(childId, childName, flwAmount, requestId, valueIls) {
+    document.getElementById('flw-approve-child-id').value    = childId;
+    document.getElementById('flw-approve-flw-amount').value  = flwAmount;
+    document.getElementById('flw-approve-child-name').textContent = `ילד/ה: ${childName}`;
+    document.getElementById('flw-approve-amount').textContent = `${flwAmount} 🪙 FLW`;
+    document.getElementById('flw-approve-ils').textContent   = `= ₪${(flwAmount * valueIls).toFixed(2)}`;
+    window._flwApproveRequestId = requestId;
+    document.getElementById('flw-kid-approve-modal').classList.remove('hidden');
+}
+
+async function approveKidRedeem() {
+    const childId   = document.getElementById('flw-approve-child-id')?.value;
+    const flwAmount = parseFloat(document.getElementById('flw-approve-flw-amount')?.value);
+    const requestId = window._flwApproveRequestId;
+    try {
+        const res = await fetch('/api/kids/redeem', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ childUserId: parseInt(childId), flwAmount, parentUserId: currentUser.id, requestId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('flw-kid-approve-modal').classList.add('hidden');
+            showToast('success', `מימוש אושר! ₪${data.ilsAmount} הועבר לחשבון הילד`);
+            loadFlwKidParentPanel();
+            fetchData();
+        } else { showToast('error', data.error || 'שגיאה במימוש'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
 // ============================================================

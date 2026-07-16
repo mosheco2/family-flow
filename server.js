@@ -1700,6 +1700,16 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           UNIQUE(child_user_id)
       )`); } catch(e) {}
 
+      try { await client.query(`CREATE TABLE IF NOT EXISTS flw_kid_redeem_requests (
+          id SERIAL PRIMARY KEY,
+          child_user_id INT REFERENCES users(id) ON DELETE CASCADE,
+          family_group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          flw_amount DECIMAL(10,2) NOT NULL,
+          status VARCHAR(20) DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT NOW(),
+          approved_at TIMESTAMP
+      )`); } catch(e) {}
+
       try { await client.query(`CREATE TABLE IF NOT EXISTS game_sessions (
           id SERIAL PRIMARY KEY,
           child_user_id INT REFERENCES users(id) ON DELETE CASCADE,
@@ -21468,10 +21478,42 @@ app.post('/api/kids/redeem', async (req, res) => {
             SELECT $1, group_id, $2, 'income', 'allowance', $3 FROM users WHERE id=$1
         `, [childUserId, ilsAmount, `מימוש ${flwAmount} FLW = ₪${ilsAmount}`]);
 
+        // מחיקת הבקשה שאושרה (אם קיימת)
+        if (req.body.requestId) {
+            await pool.query('UPDATE flw_kid_redeem_requests SET status=$1, approved_at=NOW() WHERE id=$2', ['approved', req.body.requestId]);
+        }
+
         res.json({
-            success: true, flwRedeemed: flwAmount, ilsEarned: ilsAmount,
+            success: true, flwRedeemed: flwAmount, ilsAmount,
             message: `מומשו ${flwAmount} FLW = ₪${ilsAmount}! 🎊`
         });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ילד שולח בקשת מימוש להורה
+app.post('/api/kids/redeem-request', async (req, res) => {
+    try {
+        const { childUserId, flwAmount, groupId } = req.body;
+        const wallet = await pool.query('SELECT balance_flw FROM flw_kid_wallets WHERE child_user_id=$1', [childUserId]);
+        if (!wallet.rows[0] || wallet.rows[0].balance_flw < flwAmount)
+            return res.status(400).json({ error: 'יתרה לא מספיקה' });
+        await pool.query(
+            'INSERT INTO flw_kid_redeem_requests (child_user_id, family_group_id, flw_amount) VALUES ($1,$2,$3)',
+            [childUserId, groupId, flwAmount]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הורה מביא בקשות מימוש פתוחות של ילד
+app.get('/api/kids/redeem-requests', async (req, res) => {
+    try {
+        const { childId, groupId } = req.query;
+        const rows = await pool.query(
+            `SELECT * FROM flw_kid_redeem_requests WHERE child_user_id=$1 AND family_group_id=$2 AND status='pending' ORDER BY created_at DESC`,
+            [childId, groupId]
+        );
+        res.json({ success: true, requests: rows.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

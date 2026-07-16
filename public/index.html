@@ -758,6 +758,13 @@
                                 <i class="fa-solid fa-coins absolute -left-4 -bottom-4 text-7xl text-emerald-500/10 rotate-12"></i>
                             </div>
                             <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3><div id="bank-accounts-list" class="space-y-3"></div></div>
+                            <!-- FLW KID - מטבעות ילדים - גלוי להורה בלבד -->
+                            <div id="flw-kid-parent-panel" class="hidden">
+                                <div class="flex items-center justify-between mb-3 px-2">
+                                    <h3 class="font-bold text-slate-700 text-lg">🪙 מטבעות FLW ילדים</h3>
+                                </div>
+                                <div id="flw-kid-children-list" class="space-y-3"></div>
+                            </div>
                             <div id="admin-loans-panel" class="hidden bg-orange-50 rounded-[2rem] p-5 border border-orange-100 shadow-sm">
                                 <h3 class="font-bold text-orange-800 mb-3 flex items-center gap-2"><i class="fa-solid fa-hand-holding-dollar text-orange-500"></i> בקשות הלוואה ממתינות</h3>
                                 <div id="admin-loans-list" class="space-y-2"></div>
@@ -765,6 +772,24 @@
                             <div><div class="flex justify-between items-center mb-3 px-2"><h3 class="font-bold text-slate-700 text-lg">יעדי חיסכון במעקב</h3></div><div id="admin-goals-list" class="space-y-3 pb-20"></div></div>
                         </div>
                         <div id="bank-child-view" class="hidden space-y-6">
+                            <!-- FLW KID ארנק מטבעות ילד -->
+                            <div id="flw-kid-card" class="rounded-3xl p-5 text-white shadow-xl" style="background:linear-gradient(135deg,#7C3AED,#5B21B6)">
+                                <div class="flex justify-between items-center mb-3">
+                                    <span class="font-bold text-lg">🪙 מטבעות FLW שלי</span>
+                                    <span class="text-xs bg-white/20 rounded-full px-3 py-1 font-mono">FLW KID</span>
+                                </div>
+                                <div class="flex items-end gap-4 mb-4">
+                                    <div><p class="text-xs opacity-70 mb-0.5">יתרה נוכחית</p><p class="text-4xl font-black" id="kid-flw-balance">0</p><p class="text-xs opacity-60">מטבעות</p></div>
+                                    <div class="mr-auto text-left"><p class="text-xs opacity-70 mb-0.5">שווי מוערך</p><p class="text-xl font-bold text-yellow-300" id="kid-flw-value-ils">₪0</p></div>
+                                </div>
+                                <div class="flex gap-2 text-center text-xs mb-4">
+                                    <div class="flex-1 bg-white/10 rounded-xl py-2"><p class="text-white/60 mb-0.5">נצבר בחיים</p><p class="font-bold text-base" id="kid-flw-lifetime">0</p></div>
+                                    <div class="flex-1 bg-white/10 rounded-xl py-2"><p class="text-white/60 mb-0.5">מומש</p><p class="font-bold text-base" id="kid-flw-redeemed">0</p></div>
+                                </div>
+                                <button onclick="openKidRedeemModal()" class="w-full bg-white text-purple-700 font-bold py-2.5 rounded-2xl text-sm shadow hover:bg-yellow-100 transition">
+                                    💸 בקש מימוש מההורה
+                                </button>
+                            </div>
                             <div class="credit-card p-6 text-white shadow-xl shadow-slate-300 transform transition hover:scale-[1.02]">
                                 <div class="flex justify-between items-start mb-8"><i class="fa-solid fa-wifi text-2xl opacity-50"></i><span class="font-mono text-sm opacity-70">FAMILY CARD</span></div>
                                 <div class="mb-6"><p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p><div class="flex gap-6"><div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">דמי כיס</span></div><div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">ריבית</span></div></div></div>
@@ -2191,6 +2216,77 @@
         </div>
     </div>
     
+    <!-- FLW KID - modal בקשת מימוש (ילד) -->
+    <div id="kid-redeem-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-5">
+                <h2 class="font-black text-lg text-slate-800">💸 בקשת מימוש מטבעות</h2>
+                <button onclick="document.getElementById('kid-redeem-modal').classList.add('hidden')" class="text-slate-400 text-2xl leading-none">&times;</button>
+            </div>
+            <p class="text-sm text-slate-500 mb-4">בחר/י כמה מטבעות FLW לממש. ההורה יאשר ויעביר לחשבון שלך.</p>
+            <div class="bg-purple-50 rounded-2xl p-4 mb-4 text-center">
+                <p class="text-xs text-purple-600 font-bold mb-1">יתרה זמינה</p>
+                <p class="text-3xl font-black text-purple-700" id="kid-redeem-balance-display">0</p>
+                <p class="text-xs text-purple-400">מטבעות FLW</p>
+            </div>
+            <label class="text-xs font-bold text-slate-500 block mb-2">כמה מטבעות לממש?</label>
+            <input type="number" id="kid-redeem-amount" min="1" placeholder="הכנס כמות" oninput="updateKidRedeemPreview(this.value)"
+                class="w-full border-2 border-purple-200 rounded-2xl px-4 py-3 text-lg font-bold text-center mb-2 focus:border-purple-500 outline-none">
+            <p class="text-center text-sm text-slate-500 mb-5">= <span class="font-bold text-green-600" id="kid-redeem-ils-preview">₪0</span></p>
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('kid-redeem-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
+                <button onclick="submitKidRedeem()" class="flex-1 bg-purple-600 text-white py-3 rounded-xl font-bold shadow-lg">שלח בקשה</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FLW KID - modal הגדרת ערך מטבע (הורה) -->
+    <div id="flw-kid-config-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-5">
+                <h2 class="font-black text-lg text-slate-800">⚙️ הגדרות מטבעות</h2>
+                <button onclick="document.getElementById('flw-kid-config-modal').classList.add('hidden')" class="text-slate-400 text-2xl leading-none">&times;</button>
+            </div>
+            <p class="text-sm font-bold text-slate-600 mb-4" id="flw-kid-config-child-name"></p>
+            <input type="hidden" id="flw-kid-config-child-id">
+            <label class="text-xs font-bold text-slate-500 block mb-2">ערך מטבע FLW (בשקלים)</label>
+            <div class="flex items-center gap-2 mb-4">
+                <span class="text-slate-500 font-bold">₪</span>
+                <input type="number" id="flw-kid-config-value" min="0.01" max="10" step="0.01" value="0.10"
+                    class="flex-1 border-2 border-slate-200 rounded-2xl px-4 py-3 text-lg font-bold focus:border-purple-500 outline-none">
+                <span class="text-xs text-slate-400">לכל מטבע</span>
+            </div>
+            <label class="text-xs font-bold text-slate-500 block mb-2">מקסימום מטבעות ליום</label>
+            <input type="number" id="flw-kid-config-max" min="1" max="500" value="50"
+                class="w-full border-2 border-slate-200 rounded-2xl px-4 py-3 text-lg font-bold mb-5 focus:border-purple-500 outline-none">
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('flw-kid-config-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
+                <button onclick="saveFlwKidConfig()" class="flex-1 bg-purple-600 text-white py-3 rounded-xl font-bold shadow-lg">שמור</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FLW KID - modal אישור מימוש (הורה) -->
+    <div id="flw-kid-approve-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-5">
+                <h2 class="font-black text-lg text-slate-800">✅ אישור מימוש מטבעות</h2>
+                <button onclick="document.getElementById('flw-kid-approve-modal').classList.add('hidden')" class="text-slate-400 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="bg-green-50 rounded-2xl p-4 mb-4 text-center">
+                <p class="text-sm text-slate-600 mb-1" id="flw-approve-child-name"></p>
+                <p class="text-3xl font-black text-purple-700" id="flw-approve-amount"></p>
+                <p class="text-sm text-green-600 font-bold" id="flw-approve-ils"></p>
+            </div>
+            <input type="hidden" id="flw-approve-child-id">
+            <input type="hidden" id="flw-approve-flw-amount">
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('flw-kid-approve-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
+                <button onclick="approveKidRedeem()" class="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold shadow-lg">אשר ושלם</button>
+            </div>
+        </div>
+    </div>
+
     <div id="budget-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
             <h3 class="text-lg font-bold mb-4 text-center">הגדרת יעד תקציבי</h3>
@@ -2453,7 +2549,7 @@
             document.getElementById('btn-adj-add').className = isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-green-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-green-600 rounded-lg transition';
         }
     </script>
-    <script src="app.js?v=56" defer></script>
+    <script src="app.js?v=57" defer></script>
     <script src="community-help.js?v=1" defer></script>
     <script>
         if ('serviceWorker' in navigator) {
