@@ -559,14 +559,19 @@ function renderArenaQ(){
   renderArenaZones(shuffled);
 }
 
+function zoneClass(i){return'ans-zone '+(i===0?'zone-tl':i===1?'zone-tr':i===2?'zone-bl':'zone-br');}
 function handleZoneClick(zoneIdx){
   if(GS.quizAnswered)return;GS.quizAnswered=true;
   const opt=GS.currentZones[zoneIdx];const correct=opt?.correct||false;
-  moveRobotToZone('arena-robot',zoneIdx,()=>{
-    const zone=document.getElementById(`zone-${zoneIdx}`);
-    const rect=zone.getBoundingClientRect();
+  const ci=GS.currentZones.findIndex(o=>o.correct);
+  // סמן את הלחיצה של המשתמש
+  const clickedZone=document.getElementById(`zone-${zoneIdx}`);
+  clickedZone.className=zoneClass(zoneIdx)+(correct?' correct':' wrong');
+  // הרובוט תמיד הולך לתשובה הנכונה
+  moveRobotToZone('arena-robot',ci,()=>{
+    const correctZone=document.getElementById(`zone-${ci}`);
+    const rect=correctZone.getBoundingClientRect();
     if(correct){
-      zone.className='ans-zone '+(zoneIdx===0?'zone-tl':zoneIdx===1?'zone-tr':zoneIdx===2?'zone-bl':'zone-br')+' correct';
       GS.quizScore++;GS.streak++;addFLW(GS.flwPerWin);spawnCoins(rect.left+rect.width/2,rect.top+rect.height/2);
       if(GS.streak>=3)showCombo(GS.streak);
       document.getElementById('arena-robot').className='happy';
@@ -574,10 +579,8 @@ function handleZoneClick(zoneIdx){
       showToast('arena-toast',msgs[Math.floor(Math.random()*msgs.length)],'#16A34A');
       GS.quizDots[GS.quizIdx]='ok';
     } else {
-      zone.className='ans-zone '+(zoneIdx===0?'zone-tl':zoneIdx===1?'zone-tr':zoneIdx===2?'zone-bl':'zone-br')+' wrong';
+      correctZone.className=zoneClass(ci)+' reveal';
       GS.streak=0;
-      const ci=GS.currentZones.findIndex(o=>o.correct);
-      if(ci>=0){const cz=document.getElementById(`zone-${ci}`);cz.className='ans-zone '+(ci===0?'zone-tl':ci===1?'zone-tr':ci===2?'zone-bl':'zone-br')+' reveal';}
       document.getElementById('arena-robot').className='sad';
       showToast('arena-toast','לא נורא! ננסה שוב 💪','#EF4444');
       GS.quizDots[GS.quizIdx]='no';
@@ -649,21 +652,23 @@ function renderTestQ(){
 function handleTestZone(zoneIdx){
   if(GS.testAnswered)return;GS.testAnswered=true;
   const opt=GS.currentZones[zoneIdx];const correct=opt?.correct||false;
+  const ci=GS.currentZones.findIndex(o=>o.correct);
   const cont=document.querySelector('#scr-test > div');const r=document.getElementById('test-robot');
   if(!cont||!r)return;
-  const W=cont.offsetWidth,H=cont.offsetHeight,pos=ZONE_POS[zoneIdx];
+  const W=cont.offsetWidth,H=cont.offsetHeight;
   const rW=r.offsetWidth||130,rH=r.offsetHeight||180;
-  r.className='running';r.style.left=(W*pos.x-rW/2)+'px';r.style.top=(H*pos.y-rH/2)+'px';
+  // סמן לחיצת משתמש
+  document.getElementById(`tzone-${zoneIdx}`).className=zoneClass(zoneIdx)+(correct?' correct':' wrong');
+  // רובוט תמיד הולך לתשובה הנכונה
+  const correctPos=ZONE_POS[ci];
+  r.className='running';r.style.left=(W*correctPos.x-rW/2)+'px';r.style.top=(H*correctPos.y-rH/2)+'px';
   setTimeout(()=>{
-    const zone=document.getElementById(`tzone-${zoneIdx}`);const rect=zone.getBoundingClientRect();
+    const correctZone=document.getElementById(`tzone-${ci}`);const rect=correctZone.getBoundingClientRect();
     if(correct){
-      zone.className='ans-zone '+(zoneIdx===0?'zone-tl':zoneIdx===1?'zone-tr':zoneIdx===2?'zone-bl':'zone-br')+' correct';
       GS.testScore++;GS.testFLW+=GS.flwPerWin;addFLW(GS.flwPerWin);spawnCoins(rect.left+rect.width/2,rect.top+rect.height/2);
       r.className='happy';showToast('test-toast','נכון! 🌟','#16A34A');GS.testDots[GS.testIdx]='ok';
     } else {
-      zone.className='ans-zone '+(zoneIdx===0?'zone-tl':zoneIdx===1?'zone-tr':zoneIdx===2?'zone-bl':'zone-br')+' wrong';
-      const ci=GS.currentZones.findIndex(o=>o.correct);
-      if(ci>=0){const cz=document.getElementById(`tzone-${ci}`);cz.className='ans-zone '+(ci===0?'zone-tl':ci===1?'zone-tr':ci===2?'zone-bl':'zone-br')+' reveal';}
+      correctZone.className=zoneClass(ci)+' reveal';
       r.className='sad';showToast('test-toast','לא נורא! 💪','#EF4444');GS.testDots[GS.testIdx]='no';
     }
     setTimeout(()=>{
