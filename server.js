@@ -21328,11 +21328,11 @@ app.get('/api/kids/games', async (req, res) => {
         const gamesQuery = age >= 18
             ? `SELECT g.*, gc.default_character_url,
                 CASE WHEN g.character_url != '' THEN g.character_url ELSE gc.default_character_url END as active_character_url
-               FROM games_catalog g CROSS JOIN games_global_config gc
+               FROM games_catalog g CROSS JOIN (SELECT * FROM games_global_config LIMIT 1) gc
                WHERE g.is_active = true ORDER BY g.subject, g.difficulty`
             : `SELECT g.*, gc.default_character_url,
                 CASE WHEN g.character_url != '' THEN g.character_url ELSE gc.default_character_url END as active_character_url
-               FROM games_catalog g CROSS JOIN games_global_config gc
+               FROM games_catalog g CROSS JOIN (SELECT * FROM games_global_config LIMIT 1) gc
                WHERE g.is_active = true AND g.age_min <= $1 AND g.age_max >= $1
                ORDER BY g.subject, g.difficulty`;
 

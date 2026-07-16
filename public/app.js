@@ -13558,6 +13558,7 @@ function showGameCompleteMessage(gameData, roundResult) {
 
 let _selectedGameId = null;
 let _selectedRounds = 3;
+let _selectedChildIdForGame = null;
 
 async function openAssignGameModal() {
   try {
@@ -13575,6 +13576,7 @@ async function openAssignGameModal() {
 
     _selectedGameId = null;
     _selectedRounds = 3;
+    _selectedChildIdForGame = null;
 
     const modal = document.createElement('div');
     modal.id = 'assign-game-modal';
@@ -13595,7 +13597,7 @@ async function openAssignGameModal() {
         </div>
 
         <label style="font-size:0.85rem;font-weight:700;color:#555;display:block;margin-bottom:0.4rem">לאיזה ילד?</label>
-        <select id="game-assign-child-select" style="
+        <select id="game-assign-child-select" onchange="_selectedChildIdForGame=this.value" style="
           width:100%;padding:0.8rem;border:2px solid #E0E0E0;
           border-radius:12px;font-size:1rem;margin-bottom:1rem;
         ">
@@ -13676,8 +13678,8 @@ function setRounds(el, n) {
 }
 
 async function submitGameAssignment() {
-  const childId = document.getElementById('game-assign-child-select')?.value;
-  const flw     = document.getElementById('assign-flw')?.value;
+  const childId = _selectedChildIdForGame;
+  const flw     = document.getElementById('assign-flw')?.value || 10;
 
   if(!childId) return alert('נא לבחור ילד');
   if(!_selectedGameId) return alert('נא לבחור משחק');
