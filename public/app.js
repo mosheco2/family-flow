@@ -7172,7 +7172,8 @@ function enforcePermissions() {
     let userTabs = [];
     try {
         const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
-        userTabs = (perms.tabs && perms.tabs.length > 0) ? perms.tabs : (ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']);
+        const hasCustomTabs = perms.tabs && perms.tabs.length > 1;
+        userTabs = hasCustomTabs ? perms.tabs : (ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']);
     } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
 
     // קריאת הרשאות הפיצ'רים מהסופר-אדמין (Feature Flags)
