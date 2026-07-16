@@ -641,6 +641,10 @@ function switchTab(t) { 
     }
     if (t === 'home-maintenance') try { loadHomeMaintenance(); } catch(e) {}
     if (t === 'academy' && currentUser && currentUser.role === 'CHILD') try { loadKidAcademy(); } catch(e) {}
+    if (t === 'bank') {
+        if (currentUser && currentUser.role === 'CHILD') try { loadChildFlwWallet(); } catch(e) {}
+        if (currentUser && currentUser.role === 'ADMIN') try { loadFlwKidParentPanel(); } catch(e) {}
+    }
 }
 
 let myOrdersCache = [];
@@ -13634,6 +13638,14 @@ async function loadFlwKidParentPanel() {
     const list  = document.getElementById('flw-kid-children-list');
     if (!panel || !list) return;
 
+    // אם membersCache ריק — טען קודם
+    if (!membersCache || membersCache.length === 0) {
+        try {
+            const r = await fetch(`/api/group/members?groupId=${currentGroup?.id}`);
+            membersCache = await r.json();
+            if (!Array.isArray(membersCache)) membersCache = [];
+        } catch(e) {}
+    }
     const children = (membersCache || []).filter(m => m.role === 'CHILD');
     if (children.length === 0) { panel.classList.add('hidden'); return; }
     panel.classList.remove('hidden');
