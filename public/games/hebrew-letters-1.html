@@ -387,12 +387,27 @@ const WORDS4=[
   {word:'תּוּת',  emoji:'🍓',tr:'Strawberry', opts:['תַּפּוּחַ','תּוּת','בַּנָנָה','עֵנָב']},
 ];
 
+const GRAMMAR_QUESTIONS = [
+  {q:'מה שורש המילה "כָּתַב"?',opts:[{t:'כ-ת-ב',correct:true},{t:'כ-ת-ו',correct:false},{t:'ק-ת-ב',correct:false},{t:'כ-ט-ב',correct:false}],hint:'שורשים ב-3 אותיות'},
+  {q:'מה שורש המילה "לָמַד"?',opts:[{t:'ל-מ-ד',correct:true},{t:'ל-מ-ו',correct:false},{t:'ל-נ-ד',correct:false},{t:'ל-מ-ת',correct:false}],hint:'שורשים ב-3 אותיות'},
+  {q:'איזו מילה היא שם עצם?',opts:[{t:'רץ',correct:false},{t:'יפה',correct:false},{t:'ספר',correct:true},{t:'ממהר',correct:false}],hint:'שם עצם = דבר/בעל חיים/מקום'},
+  {q:'מה הזמן של הפועל "ילמד"?',opts:[{t:'עבר',correct:false},{t:'הווה',correct:false},{t:'עתיד',correct:true},{t:'ציווי',correct:false}],hint:'מי ילמד? — בעתיד'},
+  {q:'מה ריבוי של "ספר"?',opts:[{t:'ספרות',correct:false},{t:'ספרים',correct:true},{t:'ספרן',correct:false},{t:'ספרי',correct:false}],hint:'ריבוי זכר: ים'},
+  {q:'מה נקבה של "מורה" (גבר)?',opts:[{t:'מורות',correct:false},{t:'מורה',correct:true},{t:'מוריה',correct:false},{t:'מורית',correct:false}],hint:'מורה משמש לשניהם'},
+  {q:'מה שורש המילה "שמירה"?',opts:[{t:'ש-מ-ר',correct:true},{t:'ש-מ-ה',correct:false},{t:'ש-ר-מ',correct:false},{t:'ש-מ-ו',correct:false}],hint:'שמירה ← לשמור'},
+  {q:'איזו מילה היא תואר?',opts:[{t:'לרוץ',correct:false},{t:'גדול',correct:true},{t:'ילד',correct:false},{t:'בבית',correct:false}],hint:'תואר = מתאר שם עצם'},
+  {q:'מה שורש המילה "אהבה"?',opts:[{t:'א-ה-ב',correct:true},{t:'א-ו-ב',correct:false},{t:'א-ה-ו',correct:false},{t:'ה-ב-ה',correct:false}],hint:'אהבה ← לאהוב'},
+  {q:'מה הזמן של "כתב" (הוא)?',opts:[{t:'עבר',correct:true},{t:'הווה',correct:false},{t:'עתיד',correct:false},{t:'ציווי',correct:false}],hint:'מה שכבר קרה'},
+  {q:'מה ריבוי של "עיר"?',opts:[{t:'עירות',correct:false},{t:'עירים',correct:false},{t:'ערים',correct:true},{t:'עירין',correct:false}],hint:'ע-י-ר → ע-ר...'},
+  {q:'מה שורש המילה "בישול"?',opts:[{t:'ב-ש-ל',correct:true},{t:'ב-י-ש',correct:false},{t:'ב-ש-ו',correct:false},{t:'ב-ו-ל',correct:false}],hint:'בישול ← לבשל'},
+];
+
 let childName='';
 const GS={
   flw:0,streak:0,
   levelsUnlocked:[true,false,false,false],
   levelsDone:[false,false,false,false],
-  testsDone:[false,false,false],
+  testsDone:[false,false,false,false],
   learnLevel:1,learnIdx:0,learnLetters:[],
   quizQuestions:[],quizIdx:0,quizScore:0,quizAnswered:false,quizLevel:1,quizDots:[],
   testQuestions:[],testIdx:0,testScore:0,testAnswered:false,testFLW:0,testNum:1,testDots:[],
@@ -427,7 +442,7 @@ function addFLW(n){GS.flw+=n;const el=document.getElementById('flw-count');el.te
 function spawnCoins(x,y){for(let i=0;i<4;i++){const c=document.createElement('div');c.className='coin-p';c.textContent='🪙';c.style.left=(x+(Math.random()-.5)*40)+'px';c.style.top=y+'px';c.style.animationDelay=(i*.1)+'s';document.body.appendChild(c);setTimeout(()=>c.remove(),1400);}}
 function showCombo(n){const ex=document.querySelector('.combo');if(ex)ex.remove();const b=document.createElement('div');b.className='combo';b.textContent=`🔥 קומבו x${n}!`;document.body.appendChild(b);setTimeout(()=>b.remove(),1600);}
 function showToast(id,msg,color){const el=document.getElementById(id);el.textContent=msg;el.style.color=color||'#333';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1200);}
-function updateMainProg(){const done=GS.levelsDone.filter(Boolean).length+GS.testsDone.filter(Boolean).length;document.getElementById('main-prog').style.width=(done/7*100)+'%';}
+function updateMainProg(){const done=GS.levelsDone.filter(Boolean).length+GS.testsDone.filter(Boolean).length;document.getElementById('main-prog').style.width=(done/8*100)+'%';}
 
 // ROBOT
 function placeRobot(robotId,xPct,yPct,anim,containerSel){
@@ -471,7 +486,7 @@ function renderMap(){
     {name:'רמה 1 — אותיות א עד ו',sub:'6 אותיות · חידון',icon:'א',idx:0,testIdx:0,testLabel:'מבחן 1 (א-ו)'},
     {name:'רמה 2 — אותיות ז עד ל',sub:'6 אותיות · חידון',icon:'ז',idx:1,testIdx:1,testLabel:'מבחן 2 (א-ל)'},
     {name:'רמה 3 — אותיות מ עד ת',sub:'10 אותיות · חידון',icon:'מ',idx:2,testIdx:2,testLabel:'מבחן גדול (א-ת)'},
-    {name:'רמה 4 — מילים בעברית',sub:'10 מילים עם תמונות',icon:'🔤',idx:3},
+    {name:'רמה 4 — שורשים ודקדוק',sub:'שורשים, חלקי דיבר, זמנים',icon:'📖',idx:3,testIdx:3,testLabel:'מבחן 4 — דקדוק'},
   ];
   let html='';
   levels.forEach((lv,i)=>{
@@ -491,7 +506,7 @@ function renderMap(){
 
 // LEARN
 function startLevel(idx){
-  if(idx===3){startWordsLevel();return;}
+  if(idx===3){startGrammarLevel();return;}
   GS.learnLevel=idx+1;GS.learnLetters=LETTERS.filter(l=>l.level===GS.learnLevel);GS.learnIdx=0;renderLearn();showScreen('scr-learn');
 }
 function renderLearn(){
@@ -598,24 +613,35 @@ function endQuiz(){
   addFLW(5);showMap();
 }
 
-// LEVEL 4
-function startWordsLevel(){
+// LEVEL 4 — שורשים ודקדוק
+function startGrammarLevel(){
   GS.quizLevel=4;GS.quizIdx=0;GS.quizScore=0;GS.quizAnswered=false;GS.streak=0;
-  GS.quizQuestions=shuffle(WORDS4).slice(0,10).map(w=>({
-    badge:'מה המילה בעברית?',showType:'emoji',show:w.emoji,
-    text:`מה המילה בעברית של: ${w.tr}?`,hint:'',correct:w.word,
-    opts:shuffle([w.word,...shuffle(WORDS4.filter(x=>x.word!==w.word)).slice(0,3).map(x=>x.word)]).map(o=>({t:o,correct:o===w.word}))
+  GS.quizQuestions=shuffle(GRAMMAR_QUESTIONS).slice(0,10).map(gq=>({
+    badge:'דקדוק עברי',showType:'word',show:gq.q,
+    text:'בחר את התשובה הנכונה',hint:gq.hint,correct:gq.opts.find(o=>o.correct).t,
+    opts:shuffle(gq.opts)
   }));
   GS.quizDots=new Array(GS.quizQuestions.length).fill('');
   showScreen('scr-arena');
   setTimeout(()=>{placeRobot('arena-robot',HOME.x,HOME.y,'idle');renderArenaQ();},120);
 }
 
+// LEVEL 4 — מילים (ישן, נשמר לתאימות)
+function startWordsLevel(){startGrammarLevel();}
+
 // TEST
 function startTest(num){
   GS.testNum=num;GS.testIdx=0;GS.testScore=0;GS.testAnswered=false;GS.testFLW=0;GS.streak=0;
-  const letters=num===1?LETTERS.filter(l=>l.level===1):num===2?LETTERS.filter(l=>l.level<=2):LETTERS;
-  GS.testQuestions=shuffle(buildLetterQs(letters)).slice(0,num===3?15:8);
+  if(num===4){
+    GS.testQuestions=shuffle(GRAMMAR_QUESTIONS).slice(0,12).map(gq=>({
+      badge:'דקדוק עברי',showType:'word',show:gq.q,
+      text:'בחר את התשובה הנכונה',hint:gq.hint,correct:gq.opts.find(o=>o.correct).t,
+      opts:shuffle(gq.opts)
+    }));
+  } else {
+    const letters=num===1?LETTERS.filter(l=>l.level===1):num===2?LETTERS.filter(l=>l.level<=2):LETTERS;
+    GS.testQuestions=shuffle(buildLetterQs(letters)).slice(0,num===3?15:8);
+  }
   GS.testDots=new Array(GS.testQuestions.length).fill('');
   document.getElementById('test-sub').textContent=`${GS.testQuestions.length} שאלות — עבור 80% להמשיך`;
   showScreen('scr-test');
@@ -688,7 +714,7 @@ function showTestResult(){
   box.className='test-result-box '+(passed?'test-pass':'test-fail');
   document.getElementById('test-res-title').textContent=passed?'🎉 כל הכבוד! עברת!':'😔 לא עברת הפעם';
   document.getElementById('test-res-sub').textContent=`${GS.testScore} מתוך ${total} נכון (${pct}%) — נדרש 80%`;
-  if(passed){addFLW(10);GS.testFLW+=10;GS.testsDone[GS.testNum-1]=true;if(GS.testNum<=3)GS.levelsUnlocked[GS.testNum]=true;}
+  if(passed){addFLW(10);GS.testFLW+=10;GS.testsDone[GS.testNum-1]=true;if(GS.testNum<=4)GS.levelsUnlocked[GS.testNum]=true;}
   document.getElementById('test-flw-earned').textContent=GS.testFLW;
   const btn=document.getElementById('test-continue-btn');
   btn.textContent=passed?'🚀 המשך!':'🔄 נסה שוב';
@@ -715,7 +741,7 @@ function endGame(){
   if(GS.userId)fetch('/api/kids/award-flw',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:GS.userId,gameId:GS.gameId,score:pct,flwEarned:GS.flw,durationSeconds:duration})}).catch(()=>{});
   showScreen('scr-result');
 }
-function playAgain(){GS.flw=0;GS.streak=0;GS.levelsUnlocked=[true,false,false,false];GS.levelsDone=[false,false,false,false];GS.testsDone=[false,false,false];document.getElementById('flw-count').textContent='0';document.getElementById('main-prog').style.width='0%';showMap();}
+function playAgain(){GS.flw=0;GS.streak=0;GS.levelsUnlocked=[true,false,false,false];GS.levelsDone=[false,false,false,false];GS.testsDone=[false,false,false,false];document.getElementById('flw-count').textContent='0';document.getElementById('main-prog').style.width='0%';showMap();}
 function goHome(){if(window.parent!==window)window.parent.postMessage({type:'CLOSE_GAME'},'*');else window.history.back();}
 const st=document.createElement('style');st.textContent=`@keyframes flw-pop{0%{transform:scale(1)}50%{transform:scale(1.4)}100%{transform:scale(1)}}`;document.head.appendChild(st);
 GS.startTime=Date.now();

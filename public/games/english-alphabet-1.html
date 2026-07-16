@@ -545,6 +545,19 @@ const LETTERS = [
   { l:'X', s:'x', emoji:'🎸', word:'Xylophone',tr:'קסילופון',pronunciation:'אֶקְס',     wordPronunciation:'זַיְלוֹפוֹן',  level:3 },
   { l:'Y', s:'y', emoji:'🍋', word:'Yellow',   tr:'צהוב',    pronunciation:'וַואי',     wordPronunciation:'יֶלוֹ',         level:3 },
   { l:'Z', s:'z', emoji:'🦓', word:'Zebra',    tr:'זברה',    pronunciation:'זֶד',       wordPronunciation:'זִיבְּרָה',     level:3 },
+  { l:'A', s:'a', emoji:'🔬', word:'Analysis',   tr:'ניתוח',      pronunciation:'אֵי',  wordPronunciation:'אַנַלִיסִיס', level:4 },
+  { l:'B', s:'b', emoji:'🏛️', word:'Brilliant',  tr:'מבריק',     pronunciation:'בִּי',  wordPronunciation:'בְּרִילְיַנְט', level:4 },
+  { l:'C', s:'c', emoji:'🧪', word:'Chemistry',  tr:'כימיה',      pronunciation:'סִי',  wordPronunciation:'קֶמִיסְטְרִי', level:4 },
+  { l:'D', s:'d', emoji:'📐', word:'Dimension',  tr:'מימד',       pronunciation:'דִּי',  wordPronunciation:'דִיְמֶנְשַׁן', level:4 },
+  { l:'E', s:'e', emoji:'⚡', word:'Electric',   tr:'חשמלי',      pronunciation:'אִי',  wordPronunciation:'אִילֶקְטְרִיק', level:4 },
+  { l:'F', s:'f', emoji:'🧬', word:'Formula',    tr:'נוסחה',      pronunciation:'אֶף',  wordPronunciation:'פוֹרְמְיוּלָה', level:4 },
+  { l:'G', s:'g', emoji:'🌐', word:'Geography',  tr:'גיאוגרפיה',  pronunciation:'גִ׳י', wordPronunciation:'גִ׳יאוֹגְרַפִי', level:4 },
+  { l:'H', s:'h', emoji:'🏥', word:'Hospital',   tr:'בית חולים',  pronunciation:'אֵיי׳צ',wordPronunciation:'הוֹסְפִּיטַל', level:4 },
+  { l:'I', s:'i', emoji:'💡', word:'Invention',  tr:'המצאה',      pronunciation:'אַי',  wordPronunciation:'אִינְוֶנְשַׁן', level:4 },
+  { l:'J', s:'j', emoji:'⚖️', word:'Justice',    tr:'צדק',        pronunciation:'גֵ׳י', wordPronunciation:'גַ׳סְטִיס', level:4 },
+  { l:'K', s:'k', emoji:'🔑', word:'Knowledge',  tr:'ידע',        pronunciation:'קֵי',  wordPronunciation:'נוֹלֶג׳', level:4 },
+  { l:'L', s:'l', emoji:'📚', word:'Literature', tr:'ספרות',      pronunciation:'אֶל',  wordPronunciation:'לִיטֶרַצ׳ָר', level:4 },
+  { l:'M', s:'m', emoji:'🔭', word:'Microscope', tr:'מיקרוסקופ',  pronunciation:'אֶם',  wordPronunciation:'מַיְקְרוֹסְקוֹפ', level:4 },
 ];
 
 // מילים לרמה 4
@@ -568,7 +581,7 @@ const GS = {
   flw: 0, streak: 0,
   levelsUnlocked: [true, false, false, false],
   levelsDone: [false, false, false, false],
-  testsDone: [false, false, false],
+  testsDone: [false, false, false, false],
   learnLevel: 1, learnIdx: 0, learnLetters: [],
   quizQuestions: [], quizIdx: 0, quizScore: 0,
   quizAnswered: false, quizLevel: 1, quizDots: [],
@@ -669,7 +682,7 @@ function showCombo(n) {
 
 function updateMainProgress() {
   const done = GS.levelsDone.filter(Boolean).length + GS.testsDone.filter(Boolean).length;
-  document.getElementById('main-prog').style.width = (done/7*100) + '%';
+  document.getElementById('main-prog').style.width = (done/8*100) + '%';
 }
 
 // ============================================================
@@ -686,7 +699,7 @@ function renderMap() {
     { name:'רמה 1 — אותיות A עד F', sub:'6 אותיות · חידון 10 שאלות', icon:'🅰️', idx:0, testIdx:0, testLabel:'מבחן 1 (A-F)' },
     { name:'רמה 2 — אותיות G עד M', sub:'7 אותיות · חידון 10 שאלות', icon:'🔤', idx:1, testIdx:1, testLabel:'מבחן 2 (A-M)' },
     { name:'רמה 3 — אותיות N עד Z', sub:'13 אותיות · חידון 10 שאלות',icon:'📖', idx:2, testIdx:2, testLabel:'מבחן גדול (A-Z)' },
-    { name:'רמה 4 — מילים ראשונות', sub:'10 מילים עם תמונות',         icon:'📚', idx:3 },
+    { name:'Level 4 — Advanced Vocab', sub:'מילים מתקדמות', icon:'📚', idx:3, testIdx:3, testLabel:'Final Test — Advanced' },
   ];
 
   let html = '';
@@ -735,7 +748,6 @@ function renderMap() {
 // LEARN
 // ============================================================
 function startLevel(idx) {
-  if(idx === 3) { startWordsLevel(); return; }
   GS.learnLevel   = idx + 1;
   GS.learnLetters = LETTERS.filter(l => l.level === GS.learnLevel);
   GS.learnIdx     = 0;
@@ -982,6 +994,18 @@ function buildTest2() {
   }));
 }
 
+function buildTest4() {
+  return shuffle(LETTERS.filter(l=>l.level===4)).slice(0,10).map(lt=>({
+    badge:'🔤 מה האות?',
+    showType:'emoji', show:lt.emoji,
+    text:`מה האות הראשונה של: ${lt.word} (${lt.wordPronunciation})?`,
+    hint: lt.tr,
+    correct: lt.l,
+    opts: shuffle([lt.l,...getOtherLetters(lt.l,3)])
+            .map(o=>{ const f=LETTERS.find(x=>x.l===o); return {t:`${o}\n(${f?.pronunciation||''})`,correct:o===lt.l}; })
+  }));
+}
+
 function buildBigTest() {
   return shuffle(LETTERS).slice(0,15).map(lt=>{
     const type = Math.random()>.5 ? 'a' : 'b';
@@ -1018,6 +1042,7 @@ function startTest(num) {
 
   if(num===1)      GS.testQuestions = buildTest1();
   else if(num===2) GS.testQuestions = buildTest2();
+  else if(num===4) GS.testQuestions = buildTest4();
   else             GS.testQuestions = buildBigTest();
 
   GS.testDots = new Array(GS.testQuestions.length).fill('');
@@ -1096,7 +1121,7 @@ function showTestResult() {
     addFLW(10);
     GS.testFLW += 10;
     GS.testsDone[GS.testNum-1] = true;
-    if(GS.testNum<=3) GS.levelsUnlocked[GS.testNum] = true;
+    if(GS.testNum<=4) GS.levelsUnlocked[GS.testNum] = true;
   }
 
   document.getElementById('test-flw-earned').textContent = GS.testFLW;
@@ -1152,7 +1177,7 @@ function playAgain() {
   GS.flw=0; GS.streak=0;
   GS.levelsUnlocked=[true,false,false,false];
   GS.levelsDone=[false,false,false,false];
-  GS.testsDone=[false,false,false];
+  GS.testsDone=[false,false,false,false];
   document.getElementById('flw-count').textContent='0';
   document.getElementById('main-prog').style.width='0%';
   showMap();

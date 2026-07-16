@@ -398,14 +398,51 @@ function genMulDiv(){
   };
 }
 
+// רמה 4: שברים, אחוזים, אלגברה בסיסית
+function genAdvancedMath(){
+  const type = rnd(1,3);
+  if(type===1){
+    const denoms=[2,3,4,5,6];
+    const d=denoms[rnd(0,4)];
+    const n1=rnd(1,d-1),n2=rnd(1,d-1);
+    const correct=n1+n2;
+    let wrong=new Set();
+    while(wrong.size<3){let w=correct+rnd(-2,2);if(w!==correct&&w>=1&&w<=d*2)wrong.add(w);}
+    const opts=shuffle([correct,...wrong]).slice(0,4);
+    return{type:'calc',badge:'שברים!',equation:`${n1}/${d} + ${n2}/${d} = ?/${d}`,correct,
+      opts:opts.map(o=>({val:o,correct:o===correct})),text:'מה המונה?'};
+  } else if(type===2){
+    const pcts=[10,20,25,50];
+    const pct=pcts[rnd(0,3)];
+    const nums=[20,40,60,80,100,120,200];
+    const n=nums[rnd(0,6)];
+    const correct=pct*n/100;
+    let wrong=new Set();
+    while(wrong.size<3){let w=correct+rnd(-3,3)*rnd(1,3);if(w!==correct&&w>=1)wrong.add(w);}
+    const opts=shuffle([correct,...wrong]).slice(0,4);
+    return{type:'calc',badge:'אחוזים!',equation:`${pct}% מ-${n} = ?`,correct,
+      opts:opts.map(o=>({val:o,correct:o===correct})),text:'כמה זה?'};
+  } else {
+    const a=rnd(2,15),x=rnd(1,20);
+    const b=x+a;
+    const correct=x;
+    let wrong=new Set();
+    while(wrong.size<3){let w=correct+rnd(-4,4);if(w!==correct&&w>=0)wrong.add(w);}
+    const opts=shuffle([correct,...wrong]).slice(0,4);
+    return{type:'calc',badge:'אלגברה!',equation:`X + ${a} = ${b}`,correct,
+      opts:opts.map(o=>({val:o,correct:o===correct})),text:'מה X?'};
+  }
+}
+
 // מבחן: מעורב
 function genTest(level){
   const qs=[];
-  const n = level===3?15:10;
+  const n = level>=3?15:10;
   for(let i=0;i<n;i++){
     if(level===1) qs.push(genCounting());
     else if(level===2) qs.push(Math.random()>.3?genAddSub():genCounting());
-    else qs.push(Math.random()>.4?genMulDiv():genAddSub());
+    else if(level===3) qs.push(Math.random()>.4?genMulDiv():genAddSub());
+    else qs.push(Math.random()>.3?genAdvancedMath():genMulDiv());
   }
   return qs;
 }
@@ -416,9 +453,9 @@ function genTest(level){
 let childName='';
 const GS={
   flw:0, streak:0,
-  levelsUnlocked:[true,false,false],
-  levelsDone:[false,false,false],
-  testsDone:[false,false,false],
+  levelsUnlocked:[true,false,false,false],
+  levelsDone:[false,false,false,false],
+  testsDone:[false,false,false,false],
   questions:[], qIdx:0, qScore:0, answered:false,
   qDots:[], currentBuckets:[], correctBucketIdx:0,
   mode:'quiz', // 'quiz' | 'test'
@@ -458,7 +495,7 @@ function addFLW(n){GS.flw+=n;const el=document.getElementById('flw-count');el.te
 function spawnCoins(x,y){for(let i=0;i<4;i++){const c=document.createElement('div');c.className='coin-p';c.textContent='🪙';c.style.left=(x+(Math.random()-.5)*40)+'px';c.style.top=y+'px';c.style.animationDelay=(i*.1)+'s';document.body.appendChild(c);setTimeout(()=>c.remove(),1400);}}
 function showCombo(n){const ex=document.querySelector('.combo');if(ex)ex.remove();const b=document.createElement('div');b.className='combo';b.textContent=`🔥 קומבו x${n}!`;document.body.appendChild(b);setTimeout(()=>b.remove(),1600);}
 function showToast(msg,color){const el=document.getElementById('arena-toast');el.textContent=msg;el.style.color=color||'#333';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1200);}
-function updateMainProg(){const done=GS.levelsDone.filter(Boolean).length+GS.testsDone.filter(Boolean).length;document.getElementById('main-prog').style.width=(done/6*100)+'%';}
+function updateMainProg(){const done=GS.levelsDone.filter(Boolean).length+GS.testsDone.filter(Boolean).length;document.getElementById('main-prog').style.width=(done/8*100)+'%';}
 
 // ============================================================
 // ROBOT
@@ -549,6 +586,7 @@ function renderMap(){
     {name:'רמה 1 — ספירה',sub:'סופרים עצמים (1-10)',icon:'🔢',idx:0,testIdx:0,testLabel:'מבחן 1 — ספירה'},
     {name:'רמה 2 — חיבור וחיסור',sub:'חישובים בסיסיים',icon:'➕',idx:1,testIdx:1,testLabel:'מבחן 2 — חישובים'},
     {name:'רמה 3 — כפל וחילוק',sub:'לוח הכפל',icon:'✖️',idx:2,testIdx:2,testLabel:'מבחן גדול — הכל'},
+    {name:'רמה 4 — שברים ואחוזים',sub:'אחוזים, שברים ואלגברה',icon:'🔣',idx:3,testIdx:3,testLabel:'מבחן 4 — מתקדם'},
   ];
   let html='';
   levels.forEach((lv,i)=>{
@@ -571,6 +609,7 @@ const LEVEL_INFO=[
   {icon:'🔢',title:'ספירה',desc:'ספור את האובייקטים ובחר את המספר הנכון',tip:'רמה לגילאי 4-6'},
   {icon:'➕',title:'חיבור וחיסור',desc:'פתור את התרגיל וזרוק לדלי הנכון',tip:'רמה לגילאי 6-8'},
   {icon:'✖️',title:'כפל וחילוק',desc:'לוח הכפל ותרגילי חילוק',tip:'רמה לגילאי 8-12'},
+  {icon:'🔣',title:'שברים ואחוזים',desc:'שברים, אחוזים ואלגברה בסיסית',tip:'רמה לגילאי 12-14'},
 ];
 
 function showLevelIntro(idx){
@@ -594,7 +633,8 @@ function startQuiz(level){
   for(let i=0;i<10;i++){
     if(level===1) qs.push(genCounting());
     else if(level===2) qs.push(genAddSub());
-    else qs.push(genMulDiv());
+    else if(level===3) qs.push(genMulDiv());
+    else qs.push(genAdvancedMath());
   }
   GS.questions=qs;GS.qDots=new Array(10).fill('');
   showScreen('scr-arena');
@@ -675,7 +715,7 @@ function handleBucket(bucketIdx){
 
 function endQuiz(){
   GS.levelsDone[GS.currentLevel-1]=true;
-  if(GS.currentLevel===3){endGame();return;}
+  if(GS.currentLevel===4){endGame();return;}
   addFLW(5);showMap();
 }
 
@@ -697,7 +737,7 @@ function showTestResult(){
   box.className='test-result-box '+(passed?'test-pass':'test-fail');
   document.getElementById('test-res-title').textContent=passed?'🎉 כל הכבוד! עברת!':'😔 לא עברת הפעם';
   document.getElementById('test-res-sub').textContent=`${GS.qScore} מתוך ${total} נכון (${pct}%) — נדרש 80%`;
-  if(passed){addFLW(10);GS.testFLW+=10;GS.testsDone[GS.testNum-1]=true;if(GS.testNum<3)GS.levelsUnlocked[GS.testNum]=true;}
+  if(passed){addFLW(10);GS.testFLW+=10;GS.testsDone[GS.testNum-1]=true;if(GS.testNum<4)GS.levelsUnlocked[GS.testNum]=true;}
   document.getElementById('test-flw-earned').textContent=GS.testFLW;
   const btn=document.getElementById('test-continue-btn');
   btn.textContent=passed?'🚀 המשך!':'🔄 נסה שוב';
@@ -730,7 +770,7 @@ function endGame(){
 
 function playAgain(){
   GS.flw=0;GS.streak=0;document.getElementById('scr-arena').style.background='';
-  GS.levelsUnlocked=[true,false,false];GS.levelsDone=[false,false,false];GS.testsDone=[false,false,false];
+  GS.levelsUnlocked=[true,false,false,false];GS.levelsDone=[false,false,false,false];GS.testsDone=[false,false,false,false];
   document.getElementById('flw-count').textContent='0';document.getElementById('main-prog').style.width='0%';
   showMap();
 }
