@@ -21485,8 +21485,6 @@ app.post('/api/kids/redeem', async (req, res) => {
             WHERE child_user_id = $2
         `, [flwAmount, childUserId]);
 
-        await pool.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [ilsAmount, childUserId]);
-
         await pool.query(`
             INSERT INTO transactions (user_id, group_id, amount, type, category, description)
             SELECT $1, group_id, $2, 'income', 'allowance', $3 FROM users WHERE id=$1

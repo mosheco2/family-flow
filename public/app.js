@@ -1488,7 +1488,7 @@ async function loadDashboard() {
     const mw = getEl('main-wrapper'); if (mw) mw.classList.add('hidden');
 
     getEl('dashboard-container').classList.remove('hidden');
-    if (currentUser && currentUser.role !== 'CHILD') getEl('fab-container').classList.remove('hidden');
+    if (currentUser) getEl('fab-container').classList.remove('hidden');
     const _isMember = currentGroup?.member_type === 'member';
 
     // --- הזרקת באנר השתלטות דינמי ישירות ל-Body (בטוח 100%) ---
@@ -2321,15 +2321,13 @@ function renderChildDashboard() {
     const childBal = getEl('child-balance-display');
     if (childBal && mainBal) childBal.innerText = mainBal.innerText;
 
-    // ילד לא רואה "אני בסופר", עגלת קניות, או FAB
+    // ילד לא רואה "אני בסופר" ועגלת קניות
     if (currentUser.role === 'CHILD') {
         // כפתור "אני בסופר" ורשימות שמורות (השורה ב-shop)
         const shopTopBtns = getEl('shop-supermarket-btns');
         if (shopTopBtns) shopTopBtns.classList.add('hidden');
         const cartFooter = getEl('cart-footer');
         if (cartFooter) cartFooter.classList.add('hidden');
-        const fabContainer = getEl('fab-container');
-        if (fabContainer) fabContainer.classList.add('hidden');
     }
 
     // Greeting
