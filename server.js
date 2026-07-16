@@ -126,6 +126,7 @@ pool.connect()
       console.log('✅ Connected to DB (Pool)');
       
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
+      try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS start_level INTEGER DEFAULT 1`); } catch(e) {}
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS target_datetime VARCHAR(50)'); } catch(e) {}
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'); } catch(e) {}
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS quote_status VARCHAR(50) DEFAULT \'draft\''); } catch(e) {}
@@ -21646,7 +21647,7 @@ app.get('/api/sa/games/stats', verifySA, async (req, res) => {
 app.post('/api/kids/assign-game', async (req, res) => {
   try {
     const { familyGroupId, childUserId, gameId,
-            roundsTotal, flwPerRound, expiresAt } = req.body;
+            roundsTotal, flwPerRound, expiresAt, startLevel } = req.body;
 
     const game = await pool.query(
       'SELECT id, title FROM games_catalog WHERE id=$1 AND is_active=true',
@@ -21664,12 +21665,13 @@ app.post('/api/kids/assign-game', async (req, res) => {
       INSERT INTO game_assignments
         (family_group_id, child_user_id, game_id,
          rounds_total, rounds_used, flw_per_round,
-         status, assigned_by, expires_at)
-      VALUES ($1,$2,$3,$4,0,$5,'active',$6,$7)
+         status, assigned_by, expires_at, start_level)
+      VALUES ($1,$2,$3,$4,0,$5,'active',$6,$7,$8)
       RETURNING *
     `, [familyGroupId, childUserId, gameId,
         roundsTotal||3, flwPerRound||10,
-        req.body.parentUserId||null, expiresAt||null]);
+        req.body.parentUserId||null, expiresAt||null,
+        startLevel||1]);
 
     try {
       await pool.query(`

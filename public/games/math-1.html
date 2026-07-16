@@ -440,6 +440,9 @@ window.addEventListener('message',e=>{
     GS.flwPerWin=e.data.flwReward?Math.max(1,Math.floor(e.data.flwReward/10)):2;
     if(e.data.childName){childName=e.data.childName;updateChildName();}
     if(e.data.characterUrl) document.querySelectorAll('img[alt="רובוט"]').forEach(i=>i.src=e.data.characterUrl);
+    if(e.data.startLevel && e.data.startLevel > 1) {
+      for(let i=0;i<e.data.startLevel-1;i++) { if(i<GS.levelsUnlocked.length) GS.levelsUnlocked[i]=true; }
+    }
   }
 });
 function updateChildName(){

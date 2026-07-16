@@ -13442,7 +13442,7 @@ window._openQuoteFromActivity = async function(quoteId) {
 
 let _activeAssignmentId = null;
 
-function openGame(assignmentId, gameFilePath, childName, flwPerRound, gameId) {
+function openGame(assignmentId, gameFilePath, childName, flwPerRound, gameId, startLevel) {
   _activeAssignmentId = assignmentId;
 
   const overlay = document.createElement('div');
@@ -13481,6 +13481,7 @@ function openGame(assignmentId, gameFilePath, childName, flwPerRound, gameId) {
       flwReward: flwPerRound || 10,
       gameId: gameId,
       assignmentId: assignmentId,
+      startLevel: startLevel || 1,
       token: localStorage.getItem('family_token') || ''
     }, '*');
   };
@@ -13771,6 +13772,26 @@ async function approveKidRedeem() {
 let _selectedGameId = null;
 let _selectedRounds = 3;
 let _selectedChildIdForGame = null;
+let _selectedLevel = 1;
+let _assignGames = [];
+
+const GAME_LEVELS_BY_PATH = {
+  'games/english-alphabet-1.html': [
+    { level: 1, label: 'אותיות בסיסיות', ages: '4–6' },
+    { level: 2, label: 'צלילים ומילים', ages: '6–8' },
+    { level: 3, label: 'מילים ומשפטים', ages: '8–10' },
+  ],
+  'games/hebrew-letters-1.html': [
+    { level: 1, label: 'אותיות בסיסיות', ages: '4–6' },
+    { level: 2, label: 'אותיות ומילים', ages: '6–8' },
+    { level: 3, label: 'קריאה ומשמעות', ages: '8–10' },
+  ],
+  'games/math-1.html': [
+    { level: 1, label: 'ספירה', ages: '4–6' },
+    { level: 2, label: 'חיבור וחיסור', ages: '6–8' },
+    { level: 3, label: 'כפל וחילוק', ages: '8–12' },
+  ],
+};
 
 async function openAssignGameModal() {
   try {
@@ -13790,6 +13811,8 @@ async function openAssignGameModal() {
     _selectedGameId = null;
     _selectedRounds = 3;
     _selectedChildIdForGame = null;
+    _selectedLevel = 1;
+    _assignGames = games;
 
     const modal = document.createElement('div');
     modal.id = 'assign-game-modal';
@@ -13833,6 +13856,11 @@ async function openAssignGameModal() {
             `).join('')}
         </div>
 
+        <div id="age-level-section" style="display:none;margin-bottom:1rem">
+          <label style="font-size:0.85rem;font-weight:700;color:#555;display:block;margin-bottom:0.4rem">רמה לפי גיל</label>
+          <div id="age-level-picker" style="display:flex;flex-direction:column;gap:0.5rem"></div>
+        </div>
+
         <label style="font-size:0.85rem;font-weight:700;color:#555;display:block;margin-bottom:0.4rem">כמה סיבובים?</label>
         <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
           ${[1,2,3,5,10].map(n => `
@@ -13874,6 +13902,48 @@ function selectGameForAssign(el, gameId) {
   el.style.border = '2px solid #7C3AED';
   el.style.background = '#F5F3FF';
   _selectedGameId = gameId;
+  _selectedLevel = 1;
+
+  // הצג רמות לפי גיל
+  const game = _assignGames.find(g => String(g.id) === String(gameId));
+  const levels = game ? (GAME_LEVELS_BY_PATH[game.file_path] || []) : [];
+  const section = document.getElementById('age-level-section');
+  const picker = document.getElementById('age-level-picker');
+  if(!section || !picker) return;
+
+  if(levels.length === 0) { section.style.display = 'none'; return; }
+
+  section.style.display = 'block';
+  picker.innerHTML = levels.map((lv, i) => `
+    <div onclick="selectLevelForAssign(this,${lv.level})" data-level="${lv.level}"
+      style="border:2px solid ${i===0?'#7C3AED':'#E0E0E0'};border-radius:12px;padding:0.6rem 1rem;
+             cursor:pointer;display:flex;align-items:center;justify-content:space-between;
+             background:${i===0?'#F5F3FF':'white'};transition:all 0.2s">
+      <div>
+        <div style="font-weight:700;font-size:0.9rem">רמה ${lv.level} — ${lv.label}</div>
+        <div style="font-size:0.75rem;color:#999">גיל ${lv.ages}</div>
+      </div>
+      ${i===0?'<span style="color:#7C3AED;font-size:1.1rem">✓</span>':''}
+    </div>
+  `).join('');
+}
+
+function selectLevelForAssign(el, level) {
+  document.querySelectorAll('#age-level-picker > div').forEach(d => {
+    d.style.border = '2px solid #E0E0E0';
+    d.style.background = 'white';
+    const check = d.querySelector('span');
+    if(check) check.remove();
+  });
+  el.style.border = '2px solid #7C3AED';
+  el.style.background = '#F5F3FF';
+  if(!el.querySelector('span')) {
+    const chk = document.createElement('span');
+    chk.style.cssText = 'color:#7C3AED;font-size:1.1rem';
+    chk.textContent = '✓';
+    el.appendChild(chk);
+  }
+  _selectedLevel = level;
 }
 
 function setRounds(el, n) {
@@ -13907,7 +13977,8 @@ async function submitGameAssignment() {
         gameId: parseInt(_selectedGameId),
         roundsTotal: _selectedRounds,
         flwPerRound: parseInt(flw) || 10,
-        parentUserId: currentUser?.id
+        parentUserId: currentUser?.id,
+        startLevel: _selectedLevel || 1
       })
     });
     const data = await res.json();
@@ -14249,7 +14320,7 @@ async function loadKidAcademy() {
                 נשארו ${a.rounds_left} סיבובים · ${a.flw_per_round} FLW לסיבוב
               </div>
             </div>
-            <button onclick="openGame(${a.id},'${a.file_path}','${currentUser?.nickname}',${a.flw_per_round},${a.game_id})"
+            <button onclick="openGame(${a.id},'${a.file_path}','${currentUser?.nickname}',${a.flw_per_round},${a.game_id},${a.start_level||1})"
               ${a.rounds_left <= 0 ? 'disabled' : ''}
               style="
                 background:${a.rounds_left > 0 ? '#7C3AED' : '#9CA3AF'};
