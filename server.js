@@ -21421,12 +21421,19 @@ app.get('/api/kids/parent-overview/:groupId', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// העלאת תמונת פרופיל לילד
+// העלאת תמונת פרופיל לילד — שמירה לדיסק
 app.post('/api/kids/profile-image/:userId', async (req, res) => {
   try {
-    const { imageUrl } = req.body;
-    await pool.query('UPDATE users SET profile_image=$1 WHERE id=$2', [imageUrl, req.params.userId]);
-    res.json({ success: true });
+    const { dataUrl } = req.body;
+    if (!dataUrl || !dataUrl.startsWith('data:image/')) return res.status(400).json({ error: 'invalid image' });
+    const ext = dataUrl.match(/^data:image\/(\w+);/)?.[1] || 'jpg';
+    const filename = `avatar_${req.params.userId}_${Date.now()}.${ext}`;
+    const dest = path.join(__dirname, 'public', 'uploads', 'avatars', filename);
+    const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+    fs.writeFileSync(dest, Buffer.from(base64, 'base64'));
+    const url = `/uploads/avatars/${filename}`;
+    await pool.query('UPDATE users SET profile_image=$1 WHERE id=$2', [url, req.params.userId]);
+    res.json({ success: true, url });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

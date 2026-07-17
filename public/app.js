@@ -2740,7 +2740,7 @@ async function uploadKidProfileImage(kidId, input) {
       const res = await fetch(`${API}/kids/profile-image/${kidId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl: e.target.result })
+        body: JSON.stringify({ dataUrl: e.target.result })
       });
       if ((await res.json()).success) {
         showToast('success', '✅ תמונת פרופיל עודכנה');
