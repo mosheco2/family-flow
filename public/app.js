@@ -2645,7 +2645,7 @@ async function loadKidsOverview() {
   try {
     const res = await fetch(`${API}/kids/parent-overview/${currentGroup.id}`);
     const data = await res.json();
-    if (!data.success) return;
+    if (!data.success) { wrap.innerHTML = `<p class="text-xs text-red-400 p-2">שגיאה בטעינת סקירת ילדים: ${data.error||''}</p>`; return; }
 
     const totalOpen = data.totalOpen || 0;
     const kids = data.kids || [];
@@ -2718,7 +2718,7 @@ async function loadKidsOverview() {
           </div>`;
       }).join('');
     }
-  } catch(e) { console.error('loadKidsOverview', e); }
+  } catch(e) { console.error('loadKidsOverview', e); if(wrap) wrap.innerHTML = `<p class="text-xs text-red-400 p-2">שגיאה: ${e.message}</p>`; }
 }
 
 function toggleQuestActivity() {
