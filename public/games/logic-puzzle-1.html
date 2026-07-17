@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>OF בונה פאזל | Oneflow Kids</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&family=Fredoka+One&display=swap');
+:root{
+  --blue:#3B82F6;--teal:#00A896;--orange:#FF6B2B;
+  --yellow:#FFD600;--green:#22C55E;--red:#EF4444;
+  --purple:#7C3AED;--pink:#EC4899;
+  --bg:#F0F9FF;--dark:#0F172A;--muted:#7A9EA8;
+  --radius:16px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overflow:hidden}
+.scr{display:none;width:100%;height:100vh;flex-direction:column}
+.scr.on{display:flex}
+
+/* ===== INTRO ===== */
+#scr-intro{align-items:center;justify-content:center;padding:1.2rem;text-align:center;
+  background:linear-gradient(180deg,#0F172A,#1E1B4B,#0F3460)}
+.intro-robot{width:160px;filter:drop-shadow(0 10px 30px rgba(124,58,237,0.4));
+  animation:float 2.5s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-12px) rotate(2deg)}}
+.intro-title{font-family:'Fredoka One',sans-serif;font-size:2rem;color:white;margin:0.4rem 0}
+.intro-sub{color:rgba(255,255,255,0.6);font-size:0.85rem;margin-bottom:1rem;line-height:1.5}
+.age-row{display:flex;gap:0.5rem;width:100%;max-width:320px;margin-bottom:1rem}
+.age-card{flex:1;background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.15);
+  border-radius:12px;padding:0.7rem 0.3rem;text-align:center;cursor:pointer;transition:all 0.2s}
+.age-card:active{transform:scale(0.96)}
+.age-card.sel{border-color:var(--yellow);background:rgba(255,214,0,0.15)}
+.age-card .ac-icon{font-size:1.5rem}
+.age-card .ac-label{font-size:0.8rem;font-weight:700;color:white;margin-top:0.2rem}
+.age-card .ac-sub{font-size:0.62rem;color:rgba(255,255,255,0.45);margin-top:0.1rem}
+.btn-go{background:linear-gradient(135deg,var(--yellow),var(--orange));color:#1A1A2E;
+  border:none;border-radius:50px;padding:0.9rem 2rem;font-family:'Fredoka One',sans-serif;
+  font-size:1.1rem;cursor:pointer;width:100%;max-width:280px;
+  opacity:0.5;pointer-events:none;transition:all 0.2s}
+.btn-go.ready{opacity:1;pointer-events:all}
+.btn-go:active{transform:scale(0.96)}
+
+/* ===== GAME ===== */
+#scr-game{background:linear-gradient(180deg,#0F172A 0%,#1E1B4B 50%,#0F3460 100%)}
+
+/* HUD */
+.hud{display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.7rem;
+  background:rgba(0,0,0,0.3);backdrop-filter:blur(8px)}
+.hud-prog-wrap{flex:1}
+.hud-prog-label{font-size:0.62rem;font-weight:700;color:rgba(255,255,255,0.5);margin-bottom:0.1rem}
+.hud-prog-bar{height:4px;background:rgba(255,255,255,0.1);border-radius:50px;overflow:hidden}
+.hud-prog-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--teal));
+  border-radius:50px;transition:width 0.5s ease}
+.hud-streak{font-size:0.85rem;font-weight:700;color:var(--orange)}
+.hud-flw{display:flex;align-items:center;gap:0.2rem;background:rgba(255,214,0,0.15);
+  border-radius:50px;padding:0.15rem 0.5rem;font-weight:700;font-size:0.8rem;color:var(--yellow)}
+.coin-mini{width:15px;height:15px;background:var(--yellow);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:0.48rem;font-weight:900;color:#333}
+.hud-score{font-size:0.82rem;font-weight:700;color:white}
+
+/* MACHINE AREA */
+.machine-area{flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:0.5rem;position:relative;max-height:55vh}
+
+/* MACHINE */
+.machine{background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.12);
+  border-radius:20px;padding:1rem;width:100%;max-width:340px;position:relative}
+.machine-top{display:flex;align-items:center;gap:0.5rem;margin-bottom:0.8rem}
+.machine-lights{display:flex;gap:0.3rem}
+.ml{width:8px;height:8px;border-radius:50%;animation:blink 1.5s ease-in-out infinite}
+.ml-r{background:#EF4444;animation-delay:0s}
+.ml-y{background:#FFD600;animation-delay:0.3s}
+.ml-g{background:#22C55E;animation-delay:0.6s}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.machine-title{font-size:0.7rem;color:rgba(255,255,255,0.4);font-weight:700;font-family:'Fredoka One',sans-serif}
+
+/* QUESTION DISPLAY */
+.q-display{background:rgba(0,0,0,0.3);border-radius:14px;padding:0.8rem;margin-bottom:0.7rem;
+  min-height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.q-type-tag{display:inline-block;background:rgba(124,58,237,0.3);color:#C4B5FD;
+  border-radius:50px;padding:0.12rem 0.6rem;font-size:0.65rem;font-weight:700;margin-bottom:0.4rem}
+.q-sequence{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
+  gap:0.3rem;font-size:1.6rem;line-height:1.2}
+.q-seq-item{display:flex;align-items:center;justify-content:center;
+  min-width:36px;min-height:36px;border-radius:10px;
+  background:rgba(255,255,255,0.08);font-size:1.3rem;padding:0.2rem}
+.q-seq-item.missing{background:rgba(255,214,0,0.2);border:2px dashed var(--yellow);
+  font-size:1.5rem;animation:pulse-missing 1.2s ease-in-out infinite}
+@keyframes pulse-missing{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.05);opacity:0.7}}
+.q-text-display{font-size:0.95rem;font-weight:700;color:white;text-align:center;line-height:1.5}
+.q-sub-text{font-size:0.78rem;color:rgba(255,255,255,0.5);text-align:center;margin-top:0.3rem}
+
+/* ROBOT AREA */
+.robot-stage{display:flex;align-items:flex-end;justify-content:center;
+  margin-top:0.4rem;position:relative;height:80px}
+.robot-img{width:65px;position:relative;z-index:2}
+.robot-img.idle{animation:r-idle 2.5s ease-in-out infinite}
+.robot-img.building{animation:r-build 0.6s ease}
+.robot-img.happy{animation:r-happy 0.7s ease}
+.robot-img.sad{animation:r-sad 0.5s ease}
+@keyframes r-idle{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes r-build{0%{transform:translateX(0)}20%{transform:translateX(15px) rotate(10deg)}60%{transform:translateX(-5px) rotate(-5deg)}100%{transform:translateX(0) rotate(0)}}
+@keyframes r-happy{0%,100%{transform:scale(1) rotate(0)}25%{transform:scale(1.2) rotate(-12deg)}75%{transform:scale(1.2) rotate(12deg)}}
+@keyframes r-sad{0%,100%{transform:translateY(0)}30%{transform:translateY(5px) rotate(-8deg)}70%{transform:translateY(3px) rotate(8deg)}}
+
+/* CONVEYOR */
+.conveyor{height:10px;background:rgba(255,255,255,0.1);border-radius:50px;
+  overflow:hidden;margin-top:0.3rem}
+.conveyor-belt{height:100%;background:repeating-linear-gradient(
+    90deg, rgba(255,255,255,0.15) 0, rgba(255,255,255,0.15) 10px,
+    transparent 10px, transparent 20px);
+  animation:belt-move 1s linear infinite}
+@keyframes belt-move{from{background-position:0 0}to{background-position:20px 0}}
+
+/* PIECE ANIMATION */
+.flying-piece{position:fixed;pointer-events:none;z-index:200;
+  font-size:1.5rem;animation:piece-fly 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards}
+@keyframes piece-fly{0%{transform:scale(0.5) translateY(20px);opacity:0}60%{transform:scale(1.2) translateY(-10px);opacity:1}100%{transform:scale(1) translateY(0);opacity:1}}
+
+/* EXPLOSION */
+.explosion{position:fixed;pointer-events:none;z-index:200;font-size:2rem;
+  animation:explode 0.8s ease-out forwards}
+@keyframes explode{0%{transform:scale(0);opacity:1}50%{transform:scale(1.5);opacity:1}100%{transform:scale(2);opacity:0}}
+
+/* OPTIONS */
+.options-area{padding:0.5rem 0.7rem 0.8rem;display:flex;flex-direction:column;gap:0.4rem}
+.options-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.4rem}
+.opt{background:rgba(255,255,255,0.07);border:2px solid rgba(255,255,255,0.12);
+  border-radius:14px;padding:0.7rem 0.5rem;text-align:center;cursor:pointer;
+  transition:all 0.2s;color:white;font-family:'Heebo',sans-serif;
+  font-size:0.95rem;font-weight:700;display:flex;align-items:center;
+  justify-content:center;gap:0.3rem;min-height:52px}
+.opt:active{transform:scale(0.97)}
+.opt.correct{border-color:var(--green);background:rgba(34,197,94,0.2);animation:opt-pop 0.4s ease}
+.opt.wrong{border-color:var(--red);background:rgba(239,68,68,0.2);animation:opt-shake 0.4s ease}
+.opt.reveal{border-color:var(--green);background:rgba(34,197,94,0.1)}
+.opt.disabled{pointer-events:none}
+@keyframes opt-pop{0%,100%{transform:scale(1)}40%{transform:scale(1.05)}}
+@keyframes opt-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* FEEDBACK */
+#feedback{position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%) scale(0);z-index:100;
+  background:white;border-radius:22px;padding:1.2rem 1.4rem;
+  max-width:300px;width:92%;text-align:center;color:var(--dark);
+  box-shadow:0 20px 60px rgba(0,0,0,0.4);
+  transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1)}
+#feedback.show{transform:translate(-50%,-50%) scale(1)}
+.fb-emoji{font-size:2.8rem;margin-bottom:0.3rem}
+.fb-title{font-family:'Fredoka One',sans-serif;font-size:1.3rem;margin-bottom:0.2rem}
+.fb-text{font-size:0.85rem;color:var(--muted);line-height:1.5;margin-bottom:0.5rem}
+.fb-explain{background:#F5F3FF;border-radius:12px;padding:0.5rem 0.8rem;
+  font-size:0.8rem;color:#5B21B6;font-weight:700;margin-bottom:0.7rem;line-height:1.4}
+.fb-btn{background:linear-gradient(135deg,var(--purple),#5B21B6);color:white;border:none;
+  border-radius:50px;padding:0.7rem 2rem;font-family:'Fredoka One',sans-serif;
+  font-size:1rem;cursor:pointer;width:100%}
+
+/* COMBO */
+.combo{position:fixed;top:70px;left:50%;transform:translateX(-50%);
+  background:var(--orange);color:white;border-radius:50px;
+  padding:0.35rem 1.2rem;font-family:'Fredoka One',sans-serif;
+  font-size:1rem;z-index:150;box-shadow:0 4px 15px rgba(255,107,43,0.5);
+  animation:combo-pop 1.5s ease forwards}
+@keyframes combo-pop{0%{transform:translateX(-50%) scale(0);opacity:0}
+  20%{transform:translateX(-50%) scale(1.2);opacity:1}
+  70%{transform:translateX(-50%) scale(1);opacity:1}
+  100%{transform:translateX(-50%) scale(0.8);opacity:0}}
+
+/* STARS */
+.star-p{position:fixed;pointer-events:none;z-index:9999;
+  font-size:1.3rem;animation:star-fly 1s ease-out forwards}
+@keyframes star-fly{0%{transform:translateY(0) scale(1);opacity:1}
+  100%{transform:translateY(-90px) scale(0.2);opacity:0}}
+
+/* LEVEL UP */
+.level-up{position:fixed;inset:0;z-index:80;
+  background:rgba(0,0,0,0.7);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s}
+.level-up.show{opacity:1;pointer-events:all}
+.lu-card{background:white;border-radius:24px;padding:1.5rem 2rem;text-align:center;
+  animation:lu-pop 0.5s cubic-bezier(0.34,1.56,0.64,1)}
+@keyframes lu-pop{from{transform:scale(0.3)}to{transform:scale(1)}}
+.lu-icon{font-size:3.5rem;margin-bottom:0.4rem}
+.lu-title{font-family:'Fredoka One',sans-serif;font-size:1.7rem;color:var(--purple);margin-bottom:0.2rem}
+.lu-sub{font-size:0.9rem;color:var(--muted);margin-bottom:1rem}
+.lu-btn{background:linear-gradient(135deg,var(--purple),#5B21B6);color:white;border:none;
+  border-radius:50px;padding:0.8rem 2.5rem;font-family:'Fredoka One',sans-serif;
+  font-size:1.1rem;cursor:pointer}
+
+/* RESULT */
+#scr-result{align-items:center;justify-content:center;padding:1.5rem;text-align:center;
+  background:linear-gradient(180deg,#0F172A,#1E1B4B);overflow-y:auto}
+.result-title{font-family:'Fredoka One',sans-serif;font-size:1.9rem;
+  background:linear-gradient(135deg,var(--yellow),var(--orange));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:0.3rem 0}
+.result-stats{background:rgba(255,255,255,0.07);border-radius:14px;padding:0.9rem;
+  width:100%;max-width:280px;margin:0.6rem 0;text-align:right}
+.stat-row{display:flex;justify-content:space-between;padding:0.35rem 0;
+  border-bottom:1px solid rgba(255,255,255,0.07);font-size:0.88rem;color:white}
+.stat-row:last-child{border-bottom:none}
+.stat-val{font-weight:700;color:var(--yellow)}
+.flw-box{background:rgba(255,214,0,0.1);border:2px solid rgba(255,214,0,0.3);
+  border-radius:14px;padding:0.9rem 2rem;margin:0.5rem 0}
+.flw-big{font-family:'Fredoka One',sans-serif;font-size:2.3rem;color:var(--yellow);
+  display:flex;align-items:center;justify-content:center;gap:0.4rem}
+.big-coin{width:40px;height:40px;background:var(--yellow);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:900;color:#333}
+.btn-replay{background:linear-gradient(135deg,var(--yellow),var(--orange));color:#1A1A2E;
+  border:none;border-radius:50px;padding:0.85rem 2rem;font-family:'Fredoka One',sans-serif;
+  font-size:1rem;cursor:pointer;width:100%;max-width:260px;margin-bottom:0.6rem}
+.btn-home{background:transparent;color:rgba(255,255,255,0.4);
+  border:2px solid rgba(255,255,255,0.15);border-radius:50px;
+  padding:0.65rem 1.5rem;font-family:'Heebo',sans-serif;font-size:0.88rem;
+  cursor:pointer;width:100%;max-width:260px}
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div class="scr on" id="scr-intro">
+  <img src="/games/assets/images/ROBOTAI.png" alt="רובוט" class="intro-robot" onerror="this.style.display='none'">
+  <div class="intro-title">🧩 OF בונה פאזל</div>
+  <div class="intro-sub">
+    חידות לוגיות, סדרות ואנלוגיות<br>
+    בחר את החלק החסר ו-OF יבנה את הפאזל! 🤖✨
+  </div>
+  <div class="age-row">
+    <div class="age-card" onclick="selectAge(this,5)" data-age="5">
+      <div class="ac-icon">🌱</div>
+      <div class="ac-label">5-7</div>
+      <div class="ac-sub">צורות וצבעים</div>
+    </div>
+    <div class="age-card" onclick="selectAge(this,8)" data-age="8">
+      <div class="ac-icon">⚡</div>
+      <div class="ac-label">8-11</div>
+      <div class="ac-sub">מספרים והגיון</div>
+    </div>
+    <div class="age-card" onclick="selectAge(this,12)" data-age="12">
+      <div class="ac-icon">🎯</div>
+      <div class="ac-label">12-16</div>
+      <div class="ac-sub">חשיבה מופשטת</div>
+    </div>
+  </div>
+  <button class="btn-go" id="btn-go" onclick="startGame()">🧩 בוא נבנה!</button>
+</div>
+
+<!-- GAME -->
+<div class="scr" id="scr-game">
+
+  <div class="hud">
+    <div class="hud-prog-wrap">
+      <div class="hud-prog-label" id="hud-label">שאלה 1 מתוך 15</div>
+      <div class="hud-prog-bar"><div class="hud-prog-fill" id="hud-prog" style="width:0%"></div></div>
+    </div>
+    <div class="hud-score">✅<span id="hud-score">0</span></div>
+    <div class="hud-streak" id="hud-streak"></div>
+    <div class="hud-flw"><div class="coin-mini">FLW</div><span id="hud-flw">0</span></div>
+  </div>
+
+  <div class="machine-area">
+    <div class="machine">
+      <div class="machine-top">
+        <div class="machine-lights">
+          <div class="ml ml-r"></div>
+          <div class="ml ml-y"></div>
+          <div class="ml ml-g"></div>
+        </div>
+        <div class="machine-title" id="machine-title">🔧 מכונת הלוגיקה של OF</div>
+      </div>
+      <div class="q-display" id="q-display">
+        <div class="q-type-tag" id="q-tag">סדרה</div>
+        <div id="q-content"></div>
+        <div class="q-sub-text" id="q-sub"></div>
+      </div>
+      <div class="robot-stage">
+        <img src="/games/assets/images/ROBOTAI.png" alt="רובוט"
+             class="robot-img idle" id="game-robot" onerror="this.style.display='none'">
+      </div>
+      <div class="conveyor"><div class="conveyor-belt"></div></div>
+    </div>
+  </div>
+
+  <div class="options-area">
+    <div class="options-grid" id="options-grid"></div>
+  </div>
+
+  <!-- FEEDBACK -->
+  <div id="feedback">
+    <div class="fb-emoji" id="fb-emoji">🎉</div>
+    <div class="fb-title" id="fb-title">מעולה!</div>
+    <div class="fb-text" id="fb-text"></div>
+    <div class="fb-explain" id="fb-explain"></div>
+    <button class="fb-btn" onclick="closeFeedback()">המשך 🧩</button>
+  </div>
+
+  <!-- LEVEL UP -->
+  <div class="level-up" id="level-up">
+    <div class="lu-card">
+      <div class="lu-icon" id="lu-icon">🏆</div>
+      <div class="lu-title" id="lu-title">רמה חדשה!</div>
+      <div class="lu-sub" id="lu-sub">עוברים לאתגר הבא</div>
+      <button class="lu-btn" onclick="closeLevelUp()">המשך!</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- RESULT -->
+<div class="scr" id="scr-result">
+  <div style="font-size:3rem;margin:0.4rem 0" id="result-emoji">🏆</div>
+  <div class="result-title" id="result-title">אלוף לוגיקה!</div>
+  <div style="color:rgba(255,255,255,0.5);font-size:0.85rem;margin-bottom:0.4rem" id="result-sub"></div>
+  <div style="font-size:2rem;margin:0.2rem 0" id="result-stars"></div>
+  <div class="result-stats" id="result-stats"></div>
+  <div class="flw-box">
+    <div style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin-bottom:0.3rem">FLW שצברת</div>
+    <div class="flw-big"><div class="big-coin">FLW</div><span id="result-flw">0</span></div>
+  </div>
+  <button class="btn-replay" onclick="playAgain()">🔄 שחק שוב</button>
+  <button class="btn-home" onclick="goHome()">🏠 חזרה לאקדמיה</button>
+</div>
+
+<script>
+// ============================================================
+// QUESTIONS DATABASE
+// ============================================================
+const QUESTIONS = {
+
+  // ===== גיל 5-7: צורות, צבעים, קבוצות =====
+  5: [
+    {tag:'🎨 סדרת צבעים', type:'seq',
+     display:['🔴','🔵','🔴','🔵','❓'],
+     correct:'🔴', opts:['🔴','🟡','🟢','🟣'],
+     explain:'אדום-כחול-אדום-כחול... הסדרה חוזרת! הבא תמיד אדום.'},
+    {tag:'🎨 סדרת צבעים', type:'seq',
+     display:['🟡','🟡','🔵','🟡','🟡','❓'],
+     correct:'🔵', opts:['🔴','🔵','🟢','🟡'],
+     explain:'צהוב-צהוב-כחול-צהוב-צהוב-כחול! כל שלישי הוא כחול.'},
+    {tag:'🎨 סדרת צבעים', type:'seq',
+     display:['🔴','🟡','🟢','🔴','🟡','❓'],
+     correct:'🟢', opts:['🔴','🔵','🟢','🟣'],
+     explain:'אדום-צהוב-ירוק חוזר! אחרי צהוב תמיד בא ירוק.'},
+    {tag:'🔷 סדרת צורות', type:'seq',
+     display:['⭐','⭐','🔷','⭐','⭐','❓'],
+     correct:'🔷', opts:['⭐','🔷','🔶','🟥'],
+     explain:'כוכב-כוכב-יהלום חוזר! כל שלישי הוא יהלום כחול.'},
+    {tag:'🔷 סדרת צורות', type:'seq',
+     display:['🟥','🔵','🟥','🔵','❓'],
+     correct:'🟥', opts:['🔵','🟥','🟨','🟩'],
+     explain:'ריבוע-עיגול-ריבוע-עיגול... הסדרה מתחלפת! הבא הוא ריבוע.'},
+    {tag:'🔷 סדרת צורות', type:'seq',
+     display:['🔺','🔺','🔺','🔵','🔵','❓'],
+     correct:'🔵', opts:['🔺','🔵','🟥','⭐'],
+     explain:'שלושה משולשים ואז שני עיגולים. לפי הדפוס — עיגול נוסף!'},
+    {tag:'🏠 מה שייך?', type:'group',
+     text:'כלב, חתול, ארנב — מה עוד שייך?',
+     correct:'🐹 אוגר', opts:['🐹 אוגר','🚗 מכונית','🍕 פיצה','✏️ עיפרון'],
+     explain:'כלב, חתול, ארנב ואוגר הם כולם חיות מחמד! מכונית, פיצה ועיפרון לא.'},
+    {tag:'🍎 מה שייך?', type:'group',
+     text:'תפוח, בננה, תות — מה עוד שייך?',
+     correct:'🍇 ענבים', opts:['🍇 ענבים','🥕 גזר','🪑 כיסא','🌧️ גשם'],
+     explain:'תפוח, בננה, תות וענבים הם כולם פירות! גזר הוא ירק, לא פרי.'},
+    {tag:'✏️ מה שייך?', type:'group',
+     text:'עיפרון, עט, מחק — מה עוד שייך?',
+     correct:'📏 סרגל', opts:['📏 סרגל','🚀 רקטה','🐸 צפרדע','🌈 קשת'],
+     explain:'עיפרון, עט, מחק וסרגל הם כולם כלי כתיבה ולימוד!'},
+    {tag:'🚫 מה לא שייך?', type:'odd',
+     text:'איזה אחד לא מתאים?',
+     display:['🍕','🍔','🌮','✏️'],
+     correct:'✏️', opts:['🍕','🍔','🌮','✏️'],
+     explain:'פיצה, המבורגר וטאקו הם אוכל. עיפרון הוא כלי כתיבה — לא שייך!'},
+    {tag:'🚫 מה לא שייך?', type:'odd',
+     text:'איזה אחד לא מתאים?',
+     display:['🐶','🐱','🚗','🐰'],
+     correct:'🚗', opts:['🐶','🐱','🚗','🐰'],
+     explain:'כלב, חתול וארנב הם חיות. מכונית היא כלי רכב — לא שייך!'},
+    {tag:'🚫 מה לא שייך?', type:'odd',
+     text:'איזה אחד לא מתאים?',
+     display:['🔴','🔵','🟢','🍎'],
+     correct:'🍎', opts:['🔴','🔵','🟢','🍎'],
+     explain:'אדום, כחול וירוק הם צבעים. תפוח הוא פרי — לא שייך!'},
+    {tag:'📏 גדול מהקטן', type:'compare',
+     text:'מה הכי גדול?',
+     correct:'🐘 פיל', opts:['🐭 עכבר','🐕 כלב','🐘 פיל','🐇 ארנב'],
+     explain:'פיל הוא החיה הגדולה ביותר ברשימה. עכבר וארנב קטנים הרבה יותר!'},
+    {tag:'📏 מה מגיע קודם?', type:'compare',
+     text:'מה מגיע ראשון ביום?',
+     correct:'🌅 בוקר', opts:['🌙 לילה','🌆 ערב','🌅 בוקר','☀️ צהריים'],
+     explain:'סדר היום: בוקר ← צהריים ← ערב ← לילה. הבוקר תמיד ראשון!'},
+    {tag:'📏 יותר או פחות?', type:'compare',
+     text:'5 + 3 = ? בחר את המספר הנכון',
+     correct:'8', opts:['6','7','8','9'],
+     explain:'5 + 3 = 8! ספור: 5... 6, 7, 8. נכון!'},
+    {tag:'📏 יותר או פחות?', type:'compare',
+     text:'יש 4 תפוחים, אכלת 2. כמה נשארו?',
+     correct:'2', opts:['1','2','3','4'],
+     explain:'4 - 2 = 2. היו 4, הלכו 2, נשארו 2!'},
+  ],
+
+  // ===== גיל 8-11: מספרים, הגיון, אנלוגיות =====
+  8: [
+    {tag:'🔢 סדרת מספרים', type:'numseq',
+     display:['2','4','6','8','❓'],
+     correct:'10', opts:['9','10','11','12'],
+     explain:'כל פעם מוסיפים 2. 8+2=10. סדרת המספרים הזוגיים!'},
+    {tag:'🔢 סדרת מספרים', type:'numseq',
+     display:['1','3','5','7','❓'],
+     correct:'9', opts:['8','9','10','11'],
+     explain:'כל פעם מוסיפים 2. 7+2=9. סדרת המספרים האי-זוגיים!'},
+    {tag:'🔢 סדרת מספרים', type:'numseq',
+     display:['1','2','4','8','❓'],
+     correct:'16', opts:['12','14','16','18'],
+     explain:'כל פעם מכפילים ב-2! 1→2→4→8→16. כפול כפול כפול!'},
+    {tag:'🔢 סדרת מספרים', type:'numseq',
+     display:['100','90','80','70','❓'],
+     correct:'60', opts:['50','60','65','75'],
+     explain:'כל פעם מחסירים 10. 70-10=60. ספירה לאחור בקפיצות של 10!'},
+    {tag:'🔢 סדרת מספרים', type:'numseq',
+     display:['3','6','9','12','❓'],
+     correct:'15', opts:['13','14','15','16'],
+     explain:'לוח 3! 3×1=3, 3×2=6... 3×5=15. כל פעם מוסיפים 3.'},
+    {tag:'🔢 סדרת מספרים', type:'numseq',
+     display:['2','5','8','11','❓'],
+     correct:'14', opts:['12','13','14','15'],
+     explain:'כל פעם מוסיפים 3! 11+3=14.'},
+    {tag:'🔗 אנלוגיה', type:'analogy',
+     text:'כלב : נביחה = חתול : ?',
+     correct:'מיאו', opts:['נביחה','מיאו','נהימה','צייץ'],
+     explain:'כלב — נביחה. חתול — מיאו! כל חיה מוציאה קול שונה.'},
+    {tag:'🔗 אנלוגיה', type:'analogy',
+     text:'עין : ראייה = אוזן : ?',
+     correct:'שמיעה', opts:['ריח','טעם','שמיעה','מגע'],
+     explain:'עיניים משמשות לראות. אוזניים משמשות לשמוע!'},
+    {tag:'🔗 אנלוגיה', type:'analogy',
+     text:'יום : שמש = לילה : ?',
+     correct:'ירח', opts:['ענן','שמש','ירח','כוכב'],
+     explain:'ביום — השמש מאירה. בלילה — הירח מאיר. אנלוגיה מושלמת!'},
+    {tag:'🔗 אנלוגיה', type:'analogy',
+     text:'ספר : קריאה = עיפרון : ?',
+     correct:'כתיבה', opts:['ציור','כתיבה','ספירה','שירה'],
+     explain:'ספר מיועד לקריאה. עיפרון מיועד לכתיבה!'},
+    {tag:'🔗 אנלוגיה', type:'analogy',
+     text:'חם : קר = גדול : ?',
+     correct:'קטן', opts:['בינוני','ארוך','קטן','גבוה'],
+     explain:'חם ↔ קר הם הפכים. גדול ↔ קטן הם הפכים! הגיון מושלם.'},
+    {tag:'🧠 חידת הגיון', type:'riddle',
+     text:'יש לי 8 ביצים. שברתי 3 ובישלתי אותן. כמה ביצים יש לי?',
+     correct:'8', opts:['5','8','3','6'],
+     explain:'שאלה מתחכמת! שברתי 3 ביצים — אבל הן עדיין ביצים (מבושלות). יש לי עדיין 8 ביצים!'},
+    {tag:'🧠 חידת הגיון', type:'riddle',
+     text:'אבא של דני הוא בן 40. דני צעיר מאביו ב-25 שנה. בן כמה דני?',
+     correct:'15', opts:['15','25','65','10'],
+     explain:'40 - 25 = 15. דני בן 15!'},
+    {tag:'🧠 חידת הגיון', type:'riddle',
+     text:'איזה מספר חסר? 7, __, 3 — הסכום הוא 15',
+     correct:'5', opts:['4','5','6','7'],
+     explain:'7 + ? + 3 = 15. 15 - 7 - 3 = 5. המספר החסר הוא 5!'},
+    {tag:'🧠 חידת הגיון', type:'riddle',
+     text:'יש 5 ברווזים על הגדה. 3 קופצים למים. כמה נשארו על הגדה?',
+     correct:'2', opts:['0','2','3','5'],
+     explain:'5 - 3 = 2 ברווזים על הגדה!'},
+    {tag:'🧠 חידת הגיון', type:'riddle',
+     text:'לעץ יש 5 ענפים. לכל ענף 5 עלים. כמה עלים בסה"כ?',
+     correct:'25', opts:['10','15','20','25'],
+     explain:'5 ענפים × 5 עלים = 25 עלים! כפל פשוט.'},
+  ],
+
+  // ===== גיל 12-16: מופשט, פיבונאצ'י, לוגיקה מתקדמת =====
+  12: [
+    {tag:'🔢 סדרה מורכבת', type:'numseq',
+     display:['1','1','2','3','5','8','❓'],
+     correct:'13', opts:['11','12','13','14'],
+     explain:'סדרת פיבונאצ\'י! כל מספר = שני הקודמים. 5+8=13. תמצא אותה בטבע בכל מקום!'},
+    {tag:'🔢 סדרה מורכבת', type:'numseq',
+     display:['1','4','9','16','25','❓'],
+     correct:'36', opts:['30','35','36','49'],
+     explain:'מספרים ריבועיים! 1²=1, 2²=4, 3²=9... 6²=36. כל מספר בריבוע.'},
+    {tag:'🔢 סדרה מורכבת', type:'numseq',
+     display:['2','3','5','7','11','❓'],
+     correct:'13', opts:['12','13','14','15'],
+     explain:'כולם מספרים ראשוניים! 2,3,5,7,11,13... מספרים שמתחלקים רק ב-1 ובעצמם.'},
+    {tag:'🔢 סדרה מורכבת', type:'numseq',
+     display:['1','8','27','64','❓'],
+     correct:'125', opts:['100','115','125','150'],
+     explain:'מספרים מעוקבים! 1³=1, 2³=8, 3³=27, 4³=64, 5³=125. כל מספר בחזקת 3.'},
+    {tag:'🔢 סדרה מורכבת', type:'numseq',
+     display:['3','7','13','21','31','❓'],
+     correct:'43', opts:['39','41','43','45'],
+     explain:'ההפרשים גדלים: +4,+6,+8,+10,+12. הבא: 31+12=43!'},
+    {tag:'🔗 אנלוגיה מופשטת', type:'analogy',
+     text:'ספר : ידע = כסף : ?',
+     correct:'כוח', opts:['עושר','כוח','קנייה','אושר'],
+     explain:'ספר = כלי לרכוש ידע. כסף = כלי לרכוש כוח/השפעה. אנלוגיה מופשטת!'},
+    {tag:'🔗 אנלוגיה מופשטת', type:'analogy',
+     text:'מצפן : כיוון = שעון : ?',
+     correct:'זמן', opts:['כסף','זמן','מרחק','מהירות'],
+     explain:'מצפן מודד כיוון. שעון מודד זמן. שניהם כלי מדידה לדברים שלא רואים.'},
+    {tag:'🔗 אנלוגיה מופשטת', type:'analogy',
+     text:'זרע : עץ = רעיון : ?',
+     correct:'המצאה', opts:['שינה','המצאה','ספר','חלום'],
+     explain:'זרע גדל לעץ. רעיון גדל להמצאה! שניהם מתחילים קטן ומסתיימים גדול.'},
+    {tag:'🔗 אנלוגיה מופשטת', type:'analogy',
+     text:'שגיאה : למידה = כישלון : ?',
+     correct:'הצלחה', opts:['עצב','הצלחה','ניסיון','פחד'],
+     explain:'מכל שגיאה לומדים. מכל כישלון מגיעים להצלחה. זה הדרך!'},
+    {tag:'🔗 אנלוגיה מופשטת', type:'analogy',
+     text:'שורש : עץ = יסוד : ?',
+     correct:'בניין', opts:['קיר','גג','בניין','חלון'],
+     explain:'שורש תומך בעץ. יסוד תומך בבניין. שניהם הבסיס שאנחנו לא רואים!'},
+    {tag:'🧠 לוגיקה', type:'riddle',
+     text:'אם 5 מכונות מייצרות 5 חלקים ב-5 דקות, כמה זמן ייקח ל-100 מכונות לייצר 100 חלקים?',
+     correct:'5 דקות', opts:['100 דקות','50 דקות','5 דקות','10 דקות'],
+     explain:'כל מכונה מייצרת חלק ב-5 דקות. 100 מכונות = 100 חלקים ב-5 דקות. אותו זמן!'},
+    {tag:'🧠 לוגיקה', type:'riddle',
+     text:'לאגם לוטוסים. מספרם מוכפל כל יום. ביום 48 מלאה המחצית. ביום כמה מלא כל האגם?',
+     correct:'49', opts:['96','50','49','72'],
+     explain:'אם ביום 48 מלאה המחצית, ומספר הלוטוסים מוכפל — ביום 49 מלא הכל!'},
+    {tag:'🧠 לוגיקה', type:'riddle',
+     text:'שלושה נרות דולקים. כבה 1. כמה נרות יש בסוף?',
+     correct:'3', opts:['0','1','2','3'],
+     explain:'שאלת מלכודת! כבית נר אחד — אבל עדיין יש 3 נרות. רק אחד כבה.'},
+    {tag:'🧠 לוגיקה', type:'riddle',
+     text:'כמה חודשים בשנה יש 28 יום?',
+     correct:'12', opts:['1','2','6','12'],
+     explain:'כל החודשים! לכולם יש לפחות 28 יום. פברואר הוא הקצר ביותר עם 28 (או 29).'},
+    {tag:'🧠 לוגיקה', type:'riddle',
+     text:'אני חצי מ-12. מה אני?',
+     correct:'6', opts:['4','6','7','24'],
+     explain:'חצי מ-12 = 6. 12÷2=6.'},
+    {tag:'🔢 % ויחסים', type:'riddle',
+     text:'בכיתה 30 תלמידים. 40% הם בנות. כמה בנות יש?',
+     correct:'12', opts:['10','12','15','18'],
+     explain:'40% מ-30 = 30 × 0.4 = 12. יש 12 בנות בכיתה!'},
+  ]
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let childName = '';
+const GS = {
+  age:5, questions:[], qIdx:0,
+  flw:0, score:0, streak:0, maxStreak:0,
+  correct:0, total:0, answered:false,
+  userId:null, gameId:null, flwPerWin:3,
+  startTime:Date.now(), selectedAge:null,
+  level:1,
+};
+
+// postMessage — קבלת נתונים מהאפליקציה (זהה לכל המשחקים)
+window.addEventListener('message', e => {
+  if(e.data?.type === 'INIT'){
+    GS.userId    = e.data.userId;
+    GS.gameId    = e.data.gameId;
+    GS.flwPerWin = e.data.flwReward ? Math.max(1, Math.floor(e.data.flwReward / 8)) : 3;
+    if(e.data.childName) childName = e.data.childName;
+    if(e.data.age){
+      const a = parseInt(e.data.age);
+      autoSelect(a <= 7 ? 5 : a <= 11 ? 8 : 12);
+    }
+    if(e.data.characterUrl)
+      document.querySelectorAll('img[alt="רובוט"]').forEach(i => i.src = e.data.characterUrl);
+  }
+});
+
+// ============================================================
+// HELPERS
+// ============================================================
+function showScreen(id){ document.querySelectorAll('.scr').forEach(s => s.classList.remove('on')); document.getElementById(id).classList.add('on'); }
+function shuffle(a){ return [...a].sort(() => Math.random() - .5); }
+function rnd(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+
+function spawnStars(){
+  for(let i = 0; i < 5; i++){
+    const s = document.createElement('div'); s.className = 'star-p';
+    s.textContent = ['⭐','✨','🌟','💫'][Math.floor(Math.random()*4)];
+    s.style.left  = (20 + Math.random()*60) + '%';
+    s.style.top   = (30 + Math.random()*30) + '%';
+    s.style.animationDelay = (i * .1) + 's';
+    document.body.appendChild(s); setTimeout(() => s.remove(), 1100);
+  }
+}
+
+function showCombo(n){
+  const ex = document.querySelector('.combo'); if(ex) ex.remove();
+  const b = document.createElement('div'); b.className = 'combo';
+  b.textContent = `🔥 קומבו x${n}!`; document.body.appendChild(b);
+  setTimeout(() => b.remove(), 1600);
+}
+
+function spawnPiece(text, correct){
+  const opts    = document.getElementById('options-grid');
+  const machine = document.querySelector('.machine');
+  if(!opts || !machine) return;
+  const fr = opts.getBoundingClientRect();
+  const tr = machine.getBoundingClientRect();
+  const p  = document.createElement('div'); p.className = 'flying-piece';
+  p.textContent = text;
+  p.style.left  = (fr.left + fr.width/2 - 20) + 'px';
+  p.style.top   = (fr.top  + fr.height/2 - 20) + 'px';
+  document.body.appendChild(p);
+  setTimeout(() => {
+    p.style.transition = 'all 0.5s cubic-bezier(0.34,1.56,0.64,1)';
+    p.style.left  = (tr.left + tr.width/2 - 20) + 'px';
+    p.style.top   = (tr.top  + tr.height/2) + 'px';
+    p.style.transform = 'scale(1.3)';
+  }, 50);
+  setTimeout(() => {
+    if(correct){
+      p.remove(); spawnStars();
+    } else {
+      const ex = document.createElement('div'); ex.className = 'explosion';
+      ex.textContent = '💨'; ex.style.left = p.style.left; ex.style.top = p.style.top;
+      document.body.appendChild(ex); p.remove(); setTimeout(() => ex.remove(), 900);
+    }
+  }, 600);
+}
+
+function robotAnim(type){
+  const r = document.getElementById('game-robot'); if(!r) return;
+  r.className = 'robot-img ' + type;
+  setTimeout(() => r.className = 'robot-img idle', 800);
+}
+
+// ============================================================
+// AGE SELECT
+// ============================================================
+function selectAge(el, age){
+  document.querySelectorAll('.age-card').forEach(c => c.classList.remove('sel'));
+  el.classList.add('sel'); GS.selectedAge = age;
+  document.getElementById('btn-go').classList.add('ready');
+}
+function autoSelect(age){
+  document.querySelectorAll('.age-card').forEach(c => {
+    if(parseInt(c.dataset.age) === age){
+      c.classList.add('sel'); GS.selectedAge = age;
+      document.getElementById('btn-go').classList.add('ready');
+    }
+  });
+}
+
+// ============================================================
+// GAME
+// ============================================================
+function startGame(){
+  if(!GS.selectedAge) return;
+  GS.age = GS.selectedAge;
+  const pool = QUESTIONS[GS.age] || QUESTIONS[5];
+  GS.questions = shuffle([...pool]);
+  GS.qIdx = 0; GS.flw = 0; GS.score = 0; GS.streak = 0; GS.maxStreak = 0;
+  GS.correct = 0; GS.total = pool.length; GS.answered = false;
+  GS.startTime = Date.now();
+  document.getElementById('hud-flw').textContent   = '0';
+  document.getElementById('hud-score').textContent = '0';
+  document.getElementById('hud-streak').textContent = '';
+  showScreen('scr-game');
+  setTimeout(() => renderQuestion(), 300);
+}
+
+function renderQuestion(){
+  if(GS.qIdx >= GS.questions.length){ endGame(); return; }
+  GS.answered = false;
+  const q     = GS.questions[GS.qIdx];
+  const total = GS.questions.length;
+
+  document.getElementById('hud-label').textContent = `שאלה ${GS.qIdx+1} מתוך ${total}`;
+  document.getElementById('hud-prog').style.width  = ((GS.qIdx/total)*100) + '%';
+  document.getElementById('q-tag').textContent = q.tag || 'שאלה';
+
+  const qContent = document.getElementById('q-content');
+  const qSub     = document.getElementById('q-sub');
+
+  if(q.type === 'seq' || q.type === 'numseq'){
+    const items = (q.display || []).map(item =>
+      item === '❓'
+        ? `<div class="q-seq-item missing">❓</div>`
+        : `<div class="q-seq-item">${item}</div>`
+    ).join('');
+    qContent.innerHTML = `<div class="q-sequence">${items}</div>`;
+    qSub.textContent = q.text || 'מה הבא בסדרה?';
+  } else if(q.type === 'odd'){
+    const items = (q.display || []).map(item => `<div class="q-seq-item">${item}</div>`).join('');
+    qContent.innerHTML = `<div class="q-sequence">${items}</div>`;
+    qSub.textContent = q.text || 'איזה אחד לא שייך?';
+  } else {
+    qContent.innerHTML = `<div class="q-text-display">${q.text || ''}</div>`;
+    qSub.textContent = '';
+  }
+
+  const grid = document.getElementById('options-grid');
+  grid.innerHTML = '';
+  const opts = (q.type === 'seq' || q.type === 'numseq') ? shuffle([...q.opts]) : q.opts;
+  opts.forEach(opt => {
+    const btn = document.createElement('div');
+    btn.className = 'opt';
+    btn.textContent = opt;
+    btn.onclick = () => handleAnswer(opt, q, btn);
+    grid.appendChild(btn);
+  });
+}
+
+function handleAnswer(chosen, q, btn){
+  if(GS.answered) return;
+  GS.answered = true;
+
+  const correct = chosen === q.correct;
+  document.querySelectorAll('.opt').forEach(o => {
+    o.classList.add('disabled');
+    const txt = o.textContent.trim();
+    if(txt === q.correct) o.classList.add(correct ? 'correct' : 'reveal');
+    else if(txt === chosen && !correct) o.classList.add('wrong');
+  });
+
+  spawnPiece(chosen, correct);
+
+  if(correct){
+    GS.correct++; GS.score++; GS.streak++;
+    if(GS.streak > GS.maxStreak) GS.maxStreak = GS.streak;
+    document.getElementById('hud-score').textContent  = GS.score;
+    document.getElementById('hud-streak').textContent = GS.streak >= 3 ? `🔥${GS.streak}` : '';
+    const bonus = GS.streak >= 5 ? 2 : GS.streak >= 3 ? 1 : 0;
+    addFLW(GS.flwPerWin + bonus);
+    if(GS.streak >= 3) showCombo(GS.streak);
+    robotAnim('building');
+    setTimeout(() => robotAnim('happy'), 650);
+    showFeedback(true, q);
+  } else {
+    GS.streak = 0;
+    document.getElementById('hud-streak').textContent = '';
+    robotAnim('sad');
+    showFeedback(false, q);
+  }
+}
+
+function addFLW(n){
+  GS.flw += n;
+  document.getElementById('hud-flw').textContent = GS.flw;
+}
+
+function showFeedback(correct, q){
+  const msgs = correct
+    ? ['מעולה! 🎉','נכון! ⭐','חכמה! 🧠','מדהים! 🏆','גאוני! 💡']
+    : ['לא הפעם 💪','נסה שוב! 🔄','אפשר טוב יותר!','קרוב! 💭'];
+  document.getElementById('fb-emoji').textContent = correct ? '🎉' : '🤔';
+  document.getElementById('fb-title').textContent = rnd(msgs);
+  document.getElementById('fb-text').textContent  = correct
+    ? `התשובה הנכונה היא: ${q.correct}`
+    : `התשובה הנכונה היתה: ${q.correct}`;
+  document.getElementById('fb-explain').textContent = q.explain || '';
+  document.getElementById('feedback').classList.add('show');
+}
+
+function closeFeedback(){
+  document.getElementById('feedback').classList.remove('show');
+  GS.qIdx++;
+  if(GS.qIdx > 0 && GS.qIdx % 5 === 0 && GS.qIdx < GS.questions.length){
+    showLevelUp();
+  } else {
+    setTimeout(() => renderQuestion(), 300);
+  }
+}
+
+// ============================================================
+// LEVEL UP
+// ============================================================
+function showLevelUp(){
+  GS.level++;
+  const icons  = ['🥉','🥈','🥇','🏆'];
+  const titles = ['רמה 2 — מתקדם!','רמה 3 — מומחה!','רמה 4 — אלוף!'];
+  document.getElementById('lu-icon').textContent  = icons[Math.min(GS.level-1, 3)];
+  document.getElementById('lu-title').textContent = titles[Math.min(GS.level-2, 2)] || 'המשך!';
+  document.getElementById('lu-sub').textContent   = `${GS.correct} נכון מתוך ${GS.qIdx} שאלות עד כה`;
+  document.getElementById('level-up').classList.add('show');
+}
+
+function closeLevelUp(){
+  document.getElementById('level-up').classList.remove('show');
+  setTimeout(() => renderQuestion(), 200);
+}
+
+// ============================================================
+// END GAME
+// ============================================================
+function endGame(){
+  const total = GS.questions.length;
+  const pct   = Math.round(GS.correct / total * 100);
+  let emoji, title, stars;
+  if(pct >= 87){ emoji='🏆'; title='אלוף לוגיקה! גאוני!'; stars='⭐⭐⭐'; }
+  else if(pct >= 65){ emoji='🧩'; title='חשיבה טובה! המשך!'; stars='⭐⭐'; }
+  else{ emoji='💪'; title='מתחיל לחשוב! ננסה שוב'; stars='⭐'; }
+
+  const bonus = Math.round(pct * 0.2);
+  GS.flw += bonus;
+
+  document.getElementById('result-emoji').textContent = emoji;
+  document.getElementById('result-title').textContent = title;
+  document.getElementById('result-sub').textContent   = `${total} חידות לוגיקה`;
+  document.getElementById('result-stars').textContent = stars;
+  document.getElementById('result-flw').textContent   = GS.flw;
+  document.getElementById('result-stats').innerHTML = `
+    <div class="stat-row"><span>✅ תשובות נכונות</span><span class="stat-val">${GS.correct}/${total}</span></div>
+    <div class="stat-row"><span>🎯 ציון</span><span class="stat-val">${pct}%</span></div>
+    <div class="stat-row"><span>🔥 רצף מקסימלי</span><span class="stat-val">${GS.maxStreak}</span></div>
+    <div class="stat-row"><span>🎁 בונוס FLW</span><span class="stat-val">+${bonus}</span></div>`;
+
+  const dur     = Math.round((Date.now() - GS.startTime) / 1000);
+  const payload = {
+    type:'GAME_COMPLETE', userId:GS.userId, gameId:GS.gameId,
+    score:pct, flwEarned:GS.flw, durationSeconds:dur, gameName:'OF בונה פאזל — לוגיקה'
+  };
+  if(window.parent !== window) window.parent.postMessage(payload, '*');
+  if(GS.userId){
+    fetch('/api/kids/award-flw', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({userId:GS.userId, gameId:GS.gameId, score:pct, flwEarned:GS.flw, durationSeconds:dur})
+    }).catch(() => {});
+  }
+
+  showScreen('scr-result');
+}
+
+function playAgain(){
+  GS.selectedAge = null; GS.flw = 0; GS.score = 0; GS.streak = 0; GS.level = 1;
+  document.querySelectorAll('.age-card').forEach(c => c.classList.remove('sel'));
+  document.getElementById('btn-go').classList.remove('ready');
+  showScreen('scr-intro');
+}
+
+function goHome(){
+  if(window.parent !== window) window.parent.postMessage({type:'CLOSE_GAME'}, '*');
+  else window.history.back();
+}
+</script>
+</body>
+</html>
