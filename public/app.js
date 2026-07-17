@@ -540,12 +540,21 @@ async function handleLogin(e) {
             currentUser = data.user; currentGroup = data.group;
             // לוגין רגיל — מנקים SA token כדי שבאנר ההשתלטות לא יופיע
             localStorage.removeItem('ofl_sa_token');
-            localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup}));
+            try {
+                localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup}));
+            } catch(lsErr) {
+                // localStorage מלא — נקה ונסה שוב
+                try {
+                    const keys = Object.keys(localStorage).filter(k => k !== 'ofl_sa_token');
+                    keys.forEach(k => { if (k !== 'ofl_session') localStorage.removeItem(k); });
+                    localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup}));
+                } catch(e2) { /* ממשיכים גם בלי localStorage */ }
+            }
             if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; }
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
             await loadDashboard();
         } else showToast('error', data.error); 
-    } catch(e) { console.error('LOGIN ERROR:', e); showToast('error', 'שגיאה בחיבור לשרת: ' + e.message); } finally { toggleLoader('login', false); }
+    } catch(e) { console.error('LOGIN ERROR:', e); showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); }
 }
 
 
