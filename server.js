@@ -21355,7 +21355,7 @@ app.get('/api/kids/parent-overview/:groupId', async (req, res) => {
     const kids = await pool.query(`
       SELECT u.id, u.nickname, u.role, u.birth_year,
         CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='profile_image') THEN u.profile_image ELSE NULL END as profile_image,
-        COALESCE(w.balance, 0) as flw_balance
+        COALESCE(w.balance_flw, 0) as flw_balance
       FROM users u
       LEFT JOIN flw_kid_wallets w ON w.child_user_id = u.id
       WHERE u.group_id = $1 AND u.role != 'ADMIN' AND u.status = 'active'
