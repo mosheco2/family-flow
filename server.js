@@ -21383,7 +21383,8 @@ app.get('/api/kids/parent-overview/:groupId', async (req, res) => {
     // משחקים מוקצים לכל ילד
     const gamesPerKid = await pool.query(`
       SELECT ga.child_user_id, gc.title as game_name, gc.thumbnail_emoji as icon,
-        ga.rounds_used, ga.rounds_total, ga.status, ga.flw_per_round
+        ga.rounds_used, ga.rounds_total, ga.status, ga.flw_per_round,
+        ga.assigned_at, ga.expires_at
       FROM game_assignments ga
       JOIN games_catalog gc ON gc.id = ga.game_id
       JOIN users u ON u.id = ga.child_user_id AND u.group_id = $1
@@ -21421,6 +21422,23 @@ app.get('/api/kids/parent-overview/:groupId', async (req, res) => {
       LIMIT 50
     `, [gid]);
 
+    // אתגרים מפורטים לכל ילד
+    const questsDetail = await pool.query(`
+      SELECT kq.child_user_id, kq.id, kq.title, kq.subject, kq.flw_reward,
+        kq.created_at,
+        kr.completed_at, kr.score
+      FROM kid_quests kq
+      LEFT JOIN kid_quest_results kr ON kr.quest_id = kq.id
+      JOIN users u ON u.id = kq.child_user_id AND u.group_id = $1
+      ORDER BY kq.created_at DESC
+    `, [gid]);
+
+    const questsMap = {};
+    questsDetail.rows.forEach(r => {
+      if (!questsMap[r.child_user_id]) questsMap[r.child_user_id] = [];
+      questsMap[r.child_user_id].push(r);
+    });
+
     const openQuestsMap = {};
     openQuests.rows.forEach(r => { openQuestsMap[r.child_user_id] = parseInt(r.open_count); });
     const openAcademyMap = {};
@@ -21435,7 +21453,8 @@ app.get('/api/kids/parent-overview/:groupId', async (req, res) => {
     const kidsData = kids.rows.map(k => ({
       ...k,
       open_quests: (openQuestsMap[k.id] || 0) + (openAcademyMap[k.id] || 0),
-      games: gamesMap[k.id] || []
+      games: gamesMap[k.id] || [],
+      quests: questsMap[k.id] || []
     }));
 
     res.json({

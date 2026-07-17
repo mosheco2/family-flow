@@ -2790,28 +2790,59 @@ function openKidDetailModal(kidId) {
     ? `<img src="${k.profile_image}" class="w-20 h-20 rounded-full object-cover border-4 border-purple-200 shadow-lg">`
     : `<div class="w-20 h-20 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white font-bold text-3xl shadow-lg border-4 border-purple-200">${initials}</div>`;
 
-  const gamesHtml = games.length === 0
-    ? `<p class="text-sm text-slate-400 text-center py-4">אין משחקים מוקצים</p>`
-    : games.map(g => {
-        const pct = g.rounds_total > 0 ? Math.round((g.rounds_used / g.rounds_total) * 100) : 0;
-        const isDone = g.status === 'completed';
-        return `
-          <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
-            <div class="flex justify-between items-center mb-2">
-              <span class="font-bold text-slate-700 text-sm">${g.icon || '🎮'} ${g.game_name}</span>
-              <span class="text-xs font-bold px-2 py-0.5 rounded-full ${isDone ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">
-                ${isDone ? '✅ הושלם' : '▶️ פעיל'}
-              </span>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="flex-1 bg-slate-200 rounded-full h-2">
-                <div class="${isDone ? 'bg-green-400' : 'bg-blue-400'} h-2 rounded-full" style="width:${pct}%"></div>
-              </div>
-              <span class="text-xs text-slate-500 font-bold whitespace-nowrap">${g.rounds_used}/${g.rounds_total} סיבובים</span>
-            </div>
-            <div class="text-[10px] text-yellow-600 mt-1">🪙 ${g.flw_per_round} FLW לסיבוב</div>
-          </div>`;
-      }).join('');
+  const fmtDate = d => d ? new Date(d).toLocaleDateString('he-IL', {day:'2-digit',month:'2-digit',year:'2-digit'}) : null;
+
+  const renderGame = g => {
+    const pct = g.rounds_total > 0 ? Math.round((g.rounds_used / g.rounds_total) * 100) : 0;
+    const isDone = g.status === 'completed';
+    const opened = fmtDate(g.assigned_at);
+    const closed  = fmtDate(g.expires_at);
+    return `
+      <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+        <div class="flex justify-between items-center mb-1.5">
+          <span class="font-bold text-slate-700 text-sm">${g.icon || '🎮'} ${g.game_name}</span>
+        </div>
+        <div class="flex items-center gap-2 mb-1.5">
+          <div class="flex-1 bg-slate-200 rounded-full h-2">
+            <div class="${isDone ? 'bg-green-400' : 'bg-blue-400'} h-2 rounded-full" style="width:${pct}%"></div>
+          </div>
+          <span class="text-xs text-slate-500 font-bold whitespace-nowrap">${g.rounds_used}/${g.rounds_total}</span>
+        </div>
+        <div class="flex gap-3 text-[10px] text-slate-500">
+          ${opened ? `<span>📅 נפתח: <b>${opened}</b></span>` : ''}
+          ${closed  ? `<span>🏁 סיום: <b>${closed}</b></span>`  : ''}
+          <span class="mr-auto text-yellow-600 font-bold">🪙 ${g.flw_per_round} FLW/סיבוב</span>
+        </div>
+      </div>`;
+  };
+
+  const renderQuest = q => {
+    const isDone = !!q.completed_at;
+    const opened = fmtDate(q.created_at);
+    const closed  = fmtDate(q.completed_at);
+    return `
+      <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+        <div class="flex justify-between items-center mb-1">
+          <span class="font-bold text-slate-700 text-sm">📋 ${q.title || 'אתגר'}</span>
+          ${isDone ? `<span class="text-[10px] text-green-700 font-bold">ציון ${q.score || 0}%</span>` : ''}
+        </div>
+        <div class="flex gap-3 text-[10px] text-slate-500">
+          ${opened ? `<span>📅 נפתח: <b>${opened}</b></span>` : ''}
+          ${closed  ? `<span>✅ בוצע: <b>${closed}</b></span>`  : '<span class="text-orange-500 font-bold">⏳ פתוח</span>'}
+          ${q.flw_reward ? `<span class="mr-auto text-yellow-600 font-bold">🪙 ${q.flw_reward} FLW</span>` : ''}
+        </div>
+      </div>`;
+  };
+
+  const activeGamesHtml  = activeGames.map(renderGame).join('') || `<p class="text-xs text-slate-400 text-center py-2">אין משחקים פעילים</p>`;
+  const doneGamesHtml    = doneGames.map(renderGame).join('');
+  const quests           = k.quests || [];
+  const activeQuests     = quests.filter(q => !q.completed_at);
+  const doneQuests       = quests.filter(q =>  q.completed_at);
+  const activeQuestsHtml = activeQuests.map(renderQuest).join('') || `<p class="text-xs text-slate-400 text-center py-2">אין אתגרים פעילים</p>`;
+  const doneQuestsHtml   = doneQuests.map(renderQuest).join('');
+
+  const gamesHtml = 'unused';
 
   const html = `
     <div id="kid-detail-modal" class="fixed inset-0 z-50 flex items-end justify-center" onclick="if(event.target===this)closeKidDetailModal()" style="background:rgba(0,0,0,0.45)">
@@ -2834,18 +2865,50 @@ function openKidDetailModal(kidId) {
           </div>
         </div>
         <!-- גוף -->
-        <div class="p-4 space-y-4">
-          <!-- משחקים -->
+        <div class="p-4 space-y-5">
+
+          <!-- משחקים פעילים -->
           <div>
-            <div class="flex justify-between items-center mb-2">
-              <h3 class="font-bold text-slate-700">🎮 משחקים</h3>
-              <div class="flex gap-2 text-xs">
-                ${activeGames.length > 0 ? `<span class="text-blue-600 font-bold">${activeGames.length} פעיל</span>` : ''}
-                ${doneGames.length > 0   ? `<span class="text-green-600 font-bold">${doneGames.length} הושלם</span>` : ''}
-              </div>
+            <div class="flex items-center gap-2 mb-2">
+              <span class="w-2 h-2 rounded-full bg-blue-400 inline-block"></span>
+              <h3 class="font-bold text-slate-700 text-sm">🎮 משחקים פעילים</h3>
+              <span class="text-xs text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-full">${activeGames.length}</span>
             </div>
-            <div class="space-y-2">${gamesHtml}</div>
+            <div class="space-y-2">${activeGamesHtml}</div>
           </div>
+
+          ${doneGames.length > 0 ? `
+          <!-- משחקים שהסתיימו -->
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span>
+              <h3 class="font-bold text-slate-700 text-sm">🏆 משחקים שהושלמו</h3>
+              <span class="text-xs text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-full">${doneGames.length}</span>
+            </div>
+            <div class="space-y-2">${doneGamesHtml}</div>
+          </div>` : ''}
+
+          <!-- אתגרים פעילים -->
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <span class="w-2 h-2 rounded-full bg-orange-400 inline-block"></span>
+              <h3 class="font-bold text-slate-700 text-sm">🎯 אתגרים פעילים</h3>
+              <span class="text-xs text-orange-600 font-bold bg-orange-50 px-2 py-0.5 rounded-full">${activeQuests.length}</span>
+            </div>
+            <div class="space-y-2">${activeQuestsHtml}</div>
+          </div>
+
+          ${doneQuests.length > 0 ? `
+          <!-- אתגרים שהסתיימו -->
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <span class="w-2 h-2 rounded-full bg-slate-400 inline-block"></span>
+              <h3 class="font-bold text-slate-700 text-sm">✅ אתגרים שהושלמו</h3>
+              <span class="text-xs text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-full">${doneQuests.length}</span>
+            </div>
+            <div class="space-y-2">${doneQuestsHtml}</div>
+          </div>` : ''}
+
         </div>
         <!-- כפתור סגירה -->
         <div class="px-4 pb-4">
