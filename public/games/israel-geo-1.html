@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>OF מגלה ישראל | Oneflow Kids</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&family=Fredoka+One&display=swap');
+:root{
+  --blue:#3B82F6;--teal:#00A896;--orange:#FF6B2B;
+  --yellow:#FFD600;--green:#22C55E;--red:#EF4444;
+  --purple:#7C3AED;--sand:#F5DEB3;--sea:#4FC3F7;
+  --muted:#7A9EA8;--radius:16px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+body{font-family:'Heebo',sans-serif;background:#E8F4F8;min-height:100vh;overflow:hidden}
+
+.scr{display:none;width:100%;height:100vh;flex-direction:column}
+.scr.on{display:flex}
+
+/* ===== INTRO ===== */
+#scr-intro{align-items:center;justify-content:center;padding:1.2rem;text-align:center;
+  background:linear-gradient(180deg,#0F172A,#1E3A5F,#0E5F3A)}
+.intro-robot{width:150px;filter:drop-shadow(0 10px 30px rgba(0,168,150,0.5));
+  animation:float 2.5s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-12px) rotate(2deg)}}
+.intro-title{font-family:'Fredoka One',sans-serif;font-size:2rem;color:white;margin:0.4rem 0}
+.intro-flag{font-size:2.5rem;margin:0.3rem 0}
+.intro-sub{color:rgba(255,255,255,0.6);font-size:0.85rem;margin-bottom:1rem;line-height:1.5}
+.age-row{display:flex;gap:0.5rem;width:100%;max-width:320px;margin-bottom:1rem}
+.age-card{flex:1;background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.15);
+  border-radius:12px;padding:0.7rem 0.3rem;text-align:center;cursor:pointer;transition:all 0.2s}
+.age-card:active{transform:scale(0.96)}
+.age-card.sel{border-color:var(--yellow);background:rgba(255,214,0,0.15)}
+.age-card .ac-icon{font-size:1.4rem}
+.age-card .ac-label{font-size:0.78rem;font-weight:700;color:white;margin-top:0.2rem}
+.age-card .ac-sub{font-size:0.62rem;color:rgba(255,255,255,0.45)}
+.btn-go{background:linear-gradient(135deg,var(--yellow),var(--orange));color:#1A1A2E;
+  border:none;border-radius:50px;padding:0.9rem 2rem;font-family:'Fredoka One',sans-serif;
+  font-size:1.1rem;cursor:pointer;width:100%;max-width:280px;
+  opacity:0.5;pointer-events:none;transition:all 0.2s}
+.btn-go.ready{opacity:1;pointer-events:all}
+.btn-go:active{transform:scale(0.96)}
+
+/* ===== GAME ===== */
+#scr-game{position:relative;overflow:hidden;background:#E8F4F8}
+
+/* HUD */
+.hud{position:absolute;top:0;left:0;right:0;z-index:30;
+  display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.6rem;
+  background:rgba(255,255,255,0.92);backdrop-filter:blur(8px);
+  border-bottom:1px solid rgba(0,0,0,0.07)}
+.hud-progress{flex:1}
+.hud-prog-label{font-size:0.62rem;font-weight:700;color:var(--muted);margin-bottom:0.15rem}
+.hud-prog-bar{height:5px;background:#E0E0E0;border-radius:50px;overflow:hidden}
+.hud-prog-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--green));
+  border-radius:50px;transition:width 0.5s ease}
+.hud-score{font-family:'Fredoka One',sans-serif;font-size:0.9rem;color:#1A2E35}
+.hud-flw{display:flex;align-items:center;gap:0.2rem;
+  background:rgba(255,214,0,0.15);border-radius:50px;
+  padding:0.15rem 0.5rem;font-weight:700;font-size:0.8rem;color:#B45309}
+.coin-mini{width:15px;height:15px;background:var(--yellow);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:0.48rem;font-weight:900;color:#333}
+.hud-streak{font-size:0.85rem;font-weight:700;color:var(--orange)}
+
+/* MAP SVG */
+#map-svg{position:absolute;top:46px;left:0;right:0;bottom:0;z-index:2}
+
+/* QUESTION PANEL */
+#q-panel{position:absolute;bottom:0;left:0;right:0;z-index:25;
+  background:linear-gradient(180deg,rgba(10,20,40,0.96),rgba(5,15,30,0.98));
+  border-radius:22px 22px 0 0;padding:0.9rem 0.9rem 1.2rem;
+  transform:translateY(100%);transition:transform 0.4s cubic-bezier(0.34,1.2,0.64,1)}
+#q-panel.show{transform:translateY(0)}
+.q-type-badge{display:inline-block;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);
+  border-radius:50px;padding:0.15rem 0.6rem;font-size:0.68rem;font-weight:700;margin-bottom:0.4rem}
+.q-text{font-size:1rem;font-weight:700;color:white;margin-bottom:0.7rem;line-height:1.4}
+.q-options{display:grid;grid-template-columns:1fr 1fr;gap:0.4rem}
+.q-opt{background:rgba(255,255,255,0.07);border:2px solid rgba(255,255,255,0.12);
+  border-radius:12px;padding:0.65rem 0.5rem;text-align:center;cursor:pointer;
+  transition:all 0.2s;color:white;font-family:'Heebo',sans-serif;font-size:0.9rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center;gap:0.3rem}
+.q-opt:active{transform:scale(0.97)}
+.q-opt.correct{border-color:var(--green);background:rgba(34,197,94,0.2);animation:opt-pop 0.4s ease}
+.q-opt.wrong{border-color:var(--red);background:rgba(239,68,68,0.2);animation:opt-shake 0.4s ease}
+.q-opt.reveal{border-color:var(--green);background:rgba(34,197,94,0.15)}
+@keyframes opt-pop{0%,100%{transform:scale(1)}40%{transform:scale(1.06)}}
+@keyframes opt-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+/* FEEDBACK POPUP */
+#feedback{position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%) scale(0);z-index:40;
+  background:white;border-radius:20px;padding:1.1rem 1.3rem;
+  max-width:280px;width:90%;text-align:center;color:#1A2E35;
+  box-shadow:0 20px 60px rgba(0,0,0,0.3);
+  transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1)}
+#feedback.show{transform:translate(-50%,-50%) scale(1)}
+.fb-icon{font-size:2.5rem;margin-bottom:0.3rem}
+.fb-title{font-family:'Fredoka One',sans-serif;font-size:1.2rem;margin-bottom:0.2rem}
+.fb-text{font-size:0.83rem;color:var(--muted);line-height:1.5;margin-bottom:0.6rem}
+.fb-fact{background:#F0F9FF;border-radius:10px;padding:0.5rem 0.7rem;
+  font-size:0.78rem;color:#0369A1;font-weight:700;margin-bottom:0.7rem;line-height:1.4}
+.fb-btn{background:linear-gradient(135deg,var(--teal),#007A6E);color:white;border:none;
+  border-radius:50px;padding:0.65rem 2rem;font-family:'Fredoka One',sans-serif;
+  font-size:0.95rem;cursor:pointer;width:100%}
+
+/* PARTICLES */
+.star-p{position:fixed;pointer-events:none;z-index:9999;
+  font-size:1.3rem;animation:star-fly 1s ease-out forwards}
+@keyframes star-fly{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-80px) scale(0.2);opacity:0}}
+
+/* RESULT */
+#scr-result{align-items:center;justify-content:center;padding:1.5rem;text-align:center;
+  background:linear-gradient(180deg,#0F172A,#1E3A5F);overflow-y:auto}
+.result-title{font-family:'Fredoka One',sans-serif;font-size:1.8rem;
+  background:linear-gradient(135deg,var(--yellow),var(--orange));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:0.3rem 0}
+.result-stats{background:rgba(255,255,255,0.07);border-radius:14px;padding:0.9rem;
+  width:100%;max-width:280px;margin:0.6rem 0;text-align:right}
+.stat-row{display:flex;justify-content:space-between;
+  padding:0.35rem 0;border-bottom:1px solid rgba(255,255,255,0.07);
+  font-size:0.88rem;color:white}
+.stat-row:last-child{border-bottom:none}
+.stat-val{font-weight:700;color:var(--yellow)}
+.flw-box{background:rgba(255,214,0,0.1);border:2px solid rgba(255,214,0,0.3);
+  border-radius:14px;padding:0.9rem 2rem;margin:0.5rem 0}
+.flw-big{font-family:'Fredoka One',sans-serif;font-size:2.2rem;color:var(--yellow);
+  display:flex;align-items:center;justify-content:center;gap:0.4rem}
+.big-coin{width:40px;height:40px;background:var(--yellow);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:900;color:#333}
+.btn-replay{background:linear-gradient(135deg,var(--yellow),var(--orange));color:#1A1A2E;
+  border:none;border-radius:50px;padding:0.85rem 2rem;font-family:'Fredoka One',sans-serif;
+  font-size:1rem;cursor:pointer;width:100%;max-width:260px;margin-bottom:0.6rem}
+.btn-home{background:transparent;color:rgba(255,255,255,0.4);
+  border:2px solid rgba(255,255,255,0.15);border-radius:50px;
+  padding:0.65rem 1.5rem;font-family:'Heebo',sans-serif;font-size:0.88rem;
+  cursor:pointer;width:100%;max-width:260px}
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div class="scr on" id="scr-intro">
+  <div class="intro-flag">🇮🇱</div>
+  <img src="/games/assets/images/ROBOTAI.png" alt="רובוט" class="intro-robot" onerror="this.style.display='none'">
+  <div class="intro-title">OF מגלה ישראל!</div>
+  <div class="intro-sub">OF עף על מפת ישראל ועוצר בערים.<br>עזרו לו לזהות איפה הוא נמצא! ✈️🗺️</div>
+  <div class="age-row">
+    <div class="age-card" onclick="selectAge(this,7)" data-age="7">
+      <div class="ac-icon">🌱</div>
+      <div class="ac-label">7-10</div>
+      <div class="ac-sub">ערים ראשיות</div>
+    </div>
+    <div class="age-card" onclick="selectAge(this,11)" data-age="11">
+      <div class="ac-icon">🗺️</div>
+      <div class="ac-label">11-13</div>
+      <div class="ac-sub">אזורים ואתרים</div>
+    </div>
+    <div class="age-card" onclick="selectAge(this,14)" data-age="14">
+      <div class="ac-icon">🎯</div>
+      <div class="ac-label">14-16</div>
+      <div class="ac-sub">הכל + סמלים</div>
+    </div>
+  </div>
+  <button class="btn-go" id="btn-go" onclick="startGame()">✈️ יוצאים לטיול!</button>
+</div>
+
+<!-- GAME -->
+<div class="scr" id="scr-game">
+
+  <div class="hud">
+    <div class="hud-progress">
+      <div class="hud-prog-label" id="hud-label">שאלה 1 מתוך 12</div>
+      <div class="hud-prog-bar"><div class="hud-prog-fill" id="hud-prog" style="width:0%"></div></div>
+    </div>
+    <div class="hud-score">✅ <span id="hud-score">0</span></div>
+    <div class="hud-streak" id="hud-streak"></div>
+    <div class="hud-flw"><div class="coin-mini">FLW</div><span id="hud-flw">0</span></div>
+  </div>
+
+  <!-- MAP SVG — Israel -->
+  <svg id="map-svg" viewBox="0 0 300 600" preserveAspectRatio="xMidYMid meet"
+       style="position:absolute;top:46px;left:0;right:0;bottom:0;width:100%;height:calc(100% - 46px)">
+
+    <!-- Sea / background -->
+    <rect width="300" height="600" fill="#B8E4F5"/>
+
+    <!-- Israel land shape (simplified) -->
+    <path id="israel-land" d="
+      M 120,10
+      L 180,10 L 200,30 L 210,55 L 215,80
+      L 220,110 L 215,140 L 220,160
+      L 225,190 L 220,220 L 215,250
+      L 210,270 L 200,290 L 195,320
+      L 190,350 L 185,380 L 175,410
+      L 165,440 L 155,460 L 148,480
+      L 142,500 L 138,520 L 134,540
+      L 130,560 L 128,580 L 125,595
+      L 122,580 L 118,560 L 112,540
+      L 106,520 L 100,500 L 95,480
+      L 88,460 L 80,440 L 72,415
+      L 65,390 L 60,360 L 58,330
+      L 55,300 L 58,270 L 60,245
+      L 65,220 L 68,195 L 70,165
+      L 72,135 L 68,110 L 65,85
+      L 70,60 L 80,35 L 95,18
+      Z
+    " fill="#C8E6C9" stroke="#81C784" stroke-width="1.5"/>
+
+    <!-- Negev desert tint -->
+    <path d="M 80,380 L 148,480 L 130,560 L 100,500 L 80,440 Z"
+          fill="#E8D5A3" opacity="0.5"/>
+    <path d="M 148,480 L 175,410 L 190,350 L 165,440 Z"
+          fill="#E8D5A3" opacity="0.5"/>
+
+    <!-- Galilee tint -->
+    <path d="M 95,18 L 180,10 L 215,80 L 200,110 L 130,115 L 80,105 L 65,85 Z"
+          fill="#A5D6A7" opacity="0.4"/>
+
+    <!-- Jordan River (simplified) -->
+    <path d="M 200,80 Q 210,120 215,160 Q 218,200 215,250 Q 210,290 200,320"
+          fill="none" stroke="#4FC3F7" stroke-width="2.5" stroke-dasharray="4,2" opacity="0.8"/>
+
+    <!-- Sea of Galilee / Kinneret -->
+    <ellipse cx="198" cy="155" rx="14" ry="18" fill="#4FC3F7" opacity="0.8"/>
+    <text x="200" y="152" font-size="5" fill="#0277BD" font-weight="bold" text-anchor="middle">כינרת</text>
+
+    <!-- Dead Sea -->
+    <ellipse cx="196" cy="265" rx="10" ry="22" fill="#90CAF9" opacity="0.7"/>
+    <text x="198" y="262" font-size="4.5" fill="#1565C0" font-weight="bold" text-anchor="middle">ים המלח</text>
+
+    <!-- Mediterranean Sea label -->
+    <text x="45" y="200" font-size="7" fill="#0288D1" font-weight="bold"
+          transform="rotate(-90, 45, 200)" text-anchor="middle" opacity="0.7">הים התיכון</text>
+
+    <!-- Red Sea label -->
+    <text x="140" y="590" font-size="6" fill="#0288D1" font-weight="bold" text-anchor="middle" opacity="0.7">ים סוף</text>
+
+    <!-- Negev label -->
+    <text x="130" y="430" font-size="8" fill="#8D6E63" font-weight="bold" text-anchor="middle" opacity="0.6">נגב</text>
+
+    <!-- City dots — rendered by JS -->
+    <g id="city-markers"></g>
+
+    <!-- Route path for robot -->
+    <path id="robot-path" d="" fill="none" stroke="rgba(255,107,43,0.3)" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+    <!-- Robot inside SVG -->
+    <g id="svg-robot-group" transform="translate(120,50)">
+      <image id="svg-robot" href="/games/assets/images/ROBOTAI.png"
+             x="-20" y="-40" width="40" height="55"
+             style="filter:drop-shadow(0 3px 8px rgba(0,0,0,0.4))"/>
+      <!-- speech bubble inside SVG -->
+      <g id="svg-speech" opacity="0">
+        <rect x="22" y="-55" width="80" height="22" rx="8" fill="white"
+              filter="drop-shadow(0 2px 4px rgba(0,0,0,0.2))"/>
+        <polygon points="22,-40 30,-40 26,-33" fill="white"/>
+        <text id="svg-speech-text" x="62" y="-40" font-size="6.5"
+              fill="#1A2E35" font-weight="bold" font-family="Heebo,sans-serif"
+              text-anchor="middle" dominant-baseline="middle">?</text>
+      </g>
+    </g>
+
+  </svg>
+
+  <!-- QUESTION PANEL -->
+  <div id="q-panel">
+    <div class="q-type-badge" id="q-badge">שאלה</div>
+    <div class="q-text" id="q-text">איפה אני?</div>
+    <div class="q-options" id="q-options"></div>
+  </div>
+
+  <!-- FEEDBACK -->
+  <div id="feedback">
+    <div class="fb-icon" id="fb-icon">✅</div>
+    <div class="fb-title" id="fb-title">כל הכבוד!</div>
+    <div class="fb-text" id="fb-text"></div>
+    <div class="fb-fact" id="fb-fact"></div>
+    <button class="fb-btn" onclick="closeFeedback()">המשך ✈️</button>
+  </div>
+
+</div>
+
+<!-- RESULT -->
+<div class="scr" id="scr-result">
+  <div style="font-size:3rem;margin:0.3rem 0" id="result-emoji">🏆</div>
+  <div class="result-title" id="result-title">סייר מעולה!</div>
+  <div style="color:rgba(255,255,255,0.5);font-size:0.85rem;margin-bottom:0.4rem">סיירת ישראל מקצה לקצה</div>
+  <div style="font-size:2rem;margin:0.2rem 0" id="result-stars"></div>
+  <div class="result-stats" id="result-stats"></div>
+  <div class="flw-box">
+    <div style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin-bottom:0.3rem">FLW שצברת</div>
+    <div class="flw-big"><div class="big-coin">FLW</div><span id="result-flw">0</span></div>
+  </div>
+  <button class="btn-replay" onclick="playAgain()">🗺️ סייר שוב</button>
+  <button class="btn-home" onclick="goHome()">🏠 חזרה לאקדמיה</button>
+</div>
+
+<script>
+// ============================================================
+// MAP DATA — city coordinates in SVG viewBox (300x600)
+// ============================================================
+const CITIES = {
+  'תל אביב':    {x:88, y:210, r:'מרכז', pop:'450,000', fact:'המטרופולין הגדול של ישראל. "העיר שלא נעצרת" — פעילה 24/7! עיר הסטארטאפים של המזרח התיכון.'},
+  'ירושלים':   {x:138,y:255, r:'מרכז', pop:'950,000', fact:'עיר הבירה של ישראל ואחת הערים הקדושות בעולם לשלוש דתות. ממוקמת בגובה 800 מטר!'},
+  'חיפה':      {x:100,y:128, r:'צפון', pop:'290,000', fact:'עיר הנמל הגדולה של ישראל, ממוקמת על הר הכרמל. ביתם של הגנים הבהאיים — אתר אונסקו!'},
+  'באר שבע':   {x:112,y:370, r:'דרום', pop:'210,000', fact:'בירת הנגב — "עיר האוהלים של אברהם אבינו". מרכז ה-Hi-Tech הגדול בדרום.'},
+  'אילת':      {x:130,y:577, r:'דרום', pop:'56,000',  fact:'עיר הנופש הדרומית ביותר — שוכנת על ים סוף. בתוך עיר אחת — 3 גבולות: ירדן, מצרים, ישראל!'},
+  'נצרת':      {x:148,y:145, r:'צפון', pop:'78,000',  fact:'העיר הערבית הגדולה בישראל. אחת הערים הקדושות לנצרות — אתר עלייה לרגל מרחבי העולם.'},
+  'טבריה':     {x:190,y:160, r:'צפון', pop:'45,000',  fact:'ממוקמת על גדות הכינרת — האגם הגדול בישראל. 212 מטר מתחת לפני הים — הנמוכה ביותר!'},
+  'אשדוד':     {x:78, y:245, r:'מרכז', pop:'240,000', fact:'הנמל הגדול ביותר בישראל — מעבר 60% מהסחורות הנכנסות לישראל. עיר עם חופים יפהפיים!'},
+  'נתניה':     {x:82, y:175, r:'מרכז', pop:'230,000', fact:'ידועה בחופיה הארוכים ובתעשיית היהלומים. "בירת השרון" — בין תל אביב לחיפה.'},
+  'רמת גן':    {x:92, y:208, r:'מרכז', pop:'165,000', fact:'מרכז היהלומים העולמי נמצא כאן — כ-70% מהיהלומים המלוטשים בעולם עוברים ברמת גן!'},
+  'ראשון לציון':{x:86,y:222, r:'מרכז', pop:'265,000', fact:'אחת הערים הגדולות בישראל. שמה = "ראשון לציון" כי הייתה מהמושבות הראשונות שהוקמו!'},
+  'פתח תקווה': {x:97, y:203, r:'מרכז', pop:'255,000', fact:'"אם המושבות" — המושבה העברית הראשונה שהוקמה בארץ ישראל המודרנית (1878).'},
+  'צפת':       {x:175,y:118, r:'צפון', pop:'34,000',  fact:'עיר הקבלה — מרכז המיסטיקה היהודית. ממוקמת בגובה 900 מטר — הגבוהה ביותר בישראל.'},
+  'עכו':       {x:103,y:112, r:'צפון', pop:'50,000',  fact:'עיר עתיקה בת אלפי שנים — אתר מורשת עולמי של אונסקו. חומות הצלבנים, האמפיתיאטרון הרומי ועוד.'},
+  'אשקלון':    {x:73, y:261, r:'מרכז', pop:'155,000', fact:'אחת הערים העתיקות בעולם — 5,000 שנה של היסטוריה! חוף הים יפה במיוחד.'},
+  'מודיעין':   {x:118,y:232, r:'מרכז', pop:'105,000', fact:'העיר החדשה ביותר בישראל — הוקמה בשנות ה-90. תוכננה מראש עם שבילי אופניים!'},
+  'קצרין':     {x:210,y:130, r:'צפון', pop:'15,000',  fact:'בירת רמת הגולן — הר הבזלת הגדול! עיר ארכיאולוגיה ויין מפורסם.'},
+  'דימונה':    {x:128,y:400, r:'דרום', pop:'36,000',  fact:'ממוקמת בנגב הפנימי. פסטיבל הרוק שלה מפורסם בכל הארץ!'},
+  'ערד':       {x:148,y:385, r:'דרום', pop:'26,000',  fact:'ממוקמת בגובה 600 מטר בנגב — אקלים ייחודי שטוב לנשמה. שער לים המלח.'},
+  'מצפה רמון': {x:118,y:450, r:'דרום', pop:'8,000',   fact:'שוכנת על שפת מכתש רמון — אחד מפלאי הגיאוגרפיה של ישראל! מכתש, לא בור מטאוריט.'},
+};
+
+const LANDMARKS = {
+  'כינרת':   {x:198,y:155, icon:'🌊', fact:'הכינרת היא האגם המתוק הגדול בישראל. מקור המים העיקרי! 212 מטר מתחת לפני הים.'},
+  'ים המלח': {x:196,y:265, icon:'🧂', fact:'הנקודה הנמוכה ביותר בעולם — 430 מטר מתחת לפני הים! 10 פעמים יותר מלח מהים הרגיל.'},
+  'נגב':     {x:118,y:430, icon:'🏜️', fact:'60% משטח ישראל הוא מדבר הנגב. אבל לא ריק — מלא חיים, מחצבים וטכנולוגיה!'},
+  'הגולן':   {x:205,y:120, icon:'🌋', fact:'רמת הגולן — רמת בזלת בגובה 1,200 מטר. נוף מדהים, יין מפורסם, ואתרי טבע ייחודיים.'},
+  'הכרמל':   {x:97, y:120, icon:'⛰️', fact:'הר הכרמל מגיע ל-546 מטר. רכבל, גנים, ויערות אורן עצומים. מקום ניסיון אליהו הנביא!'},
+};
+
+// ============================================================
+// QUESTIONS BY AGE
+// ============================================================
+function buildQuestions(age) {
+  const cityKeys = Object.keys(CITIES);
+  const qs = [];
+
+  if(age <= 10) {
+    const mainCities = ['תל אביב','ירושלים','חיפה','באר שבע','אילת','נצרת','טבריה','אשדוד','נתניה','עכו'];
+    shuffle(mainCities).forEach(city => {
+      if(qs.length >= 10) return;
+      const c = CITIES[city];
+      qs.push({
+        type:'city', badge:'🏙️ איזו עיר?',
+        text:'OF נחת כאן — איזו עיר זו?',
+        target:city, targetX:c.x, targetY:c.y,
+        correct:city,
+        opts:buildCityOpts(city, mainCities, 3),
+        fb:`${city}! ${c.fact}`,
+        fbWrong:`זו ${city}, לא {wrong}. ${city} נמצאת ב${c.r}.`,
+        fact:`📍 ${city} — אוכלוסייה: ${c.pop}`,
+      });
+    });
+    qs.push({
+      type:'water', badge:'🌊 מה זה?',
+      text:'OF גג ביצות הזה — מה שם האגם הגדול?',
+      target:'כינרת', targetX:198, targetY:155,
+      correct:'כינרת',
+      opts:[{icon:'🌊',text:'כינרת'},{icon:'🧂',text:'ים המלח'},{icon:'🌊',text:'ים סוף'},{icon:'💧',text:'נהר הירדן'}],
+      fb:'נכון! הכינרת — אגם המים המתוק הגדול בישראל. ' + LANDMARKS['כינרת'].fact,
+      fbWrong:'זוהי הכינרת — האגם הגדול בישראל! הירדן זורם ממנה.',
+      fact:'🌊 הכינרת — 21 ק"מ אורך, 53 מטר עומק מקסימלי',
+    });
+    qs.push({
+      type:'water', badge:'🧂 מה זה?',
+      text:'מה שם הים הכי מלוח בעולם שחצי ממנו כאן?',
+      target:'ים המלח', targetX:196, targetY:265,
+      correct:'ים המלח',
+      opts:[{icon:'🧂',text:'ים המלח'},{icon:'🌊',text:'כינרת'},{icon:'🌊',text:'הים התיכון'},{icon:'🌊',text:'ים סוף'}],
+      fb:'כן! ים המלח — הנמוך ביותר בעולם! ' + LANDMARKS['ים המלח'].fact,
+      fbWrong:'זהו ים המלח — הנקודה הנמוכה ביותר על פני כדור הארץ!',
+      fact:'🧂 ים המלח — 430 מטר מתחת לפני הים!',
+    });
+
+  } else if(age <= 13) {
+    shuffle(cityKeys).slice(0, 8).forEach(city => {
+      const c = CITIES[city];
+      qs.push({
+        type:'city', badge:'🏙️ איזו עיר?',
+        text:'OF עצר כאן — מה שם העיר?',
+        target:city, targetX:c.x, targetY:c.y,
+        correct:city,
+        opts:buildCityOpts(city, cityKeys, 3),
+        fb:`${city}! ${c.fact}`,
+        fbWrong:`זו ${city} — נמצאת ב${c.r} ישראל.`,
+        fact:`📍 ${city} | אזור: ${c.r} | אוכלוסייה: ${c.pop}`,
+      });
+    });
+    shuffle(cityKeys).slice(0, 4).forEach(city => {
+      const c = CITIES[city];
+      qs.push({
+        type:'region', badge:'🗺️ באיזה אזור?',
+        text:`${city} — באיזה אזור של ישראל?`,
+        target:city, targetX:c.x, targetY:c.y,
+        correct:c.r,
+        opts:[{icon:'🌲',text:'צפון'},{icon:'🏙️',text:'מרכז'},{icon:'🏜️',text:'דרום'},{icon:'🏔️',text:'ערבה'}],
+        fb:`נכון! ${city} נמצאת ב${c.r} ישראל. ${c.fact}`,
+        fbWrong:`${city} נמצאת ב${c.r}, לא שם. ${c.fact}`,
+        fact:`🗺️ ${city} — ${c.r} ישראל`,
+      });
+    });
+    Object.keys(LANDMARKS).forEach(name => {
+      const l = LANDMARKS[name];
+      qs.push({
+        type:'landmark', badge:'🌟 מה האתר?',
+        text:'מה שם המקום המיוחד הזה?',
+        target:name, targetX:l.x, targetY:l.y,
+        correct:name,
+        opts:buildLandmarkOpts(name),
+        fb:`${name}! ${l.fact}`,
+        fbWrong:`זה ${name} — מקום ייחודי מאוד בישראל!`,
+        fact:`${l.icon} ${name} — ${l.fact.slice(0,60)}...`,
+      });
+    });
+
+  } else {
+    shuffle(cityKeys).forEach(city => {
+      const c = CITIES[city];
+      qs.push({
+        type:'city', badge:'🏙️ זהה את העיר',
+        text:'OF נחת — מה העיר ומה האזור שלה?',
+        target:city, targetX:c.x, targetY:c.y,
+        correct:city,
+        opts:buildCityOpts(city, cityKeys, 3),
+        fb:`${city} — ${c.r} ישראל. ${c.fact}`,
+        fbWrong:`זו ${city} — ${c.r} ישראל. ${c.fact}`,
+        fact:`📍 ${city} | ${c.r} | ${c.pop} תושבים`,
+      });
+    });
+    qs.push({
+      type:'fact', badge:'🧠 שאלת עומק',
+      text:'איזה מקום בישראל הוא הנמוך ביותר בעולם?',
+      target:'ים המלח', targetX:196, targetY:265,
+      correct:'ים המלח',
+      opts:[{text:'ים המלח'},{text:'אילת'},{text:'טבריה'},{text:'יריחו'}],
+      fb:'ים המלח — 430 מטר מתחת לפני הים. ' + LANDMARKS['ים המלח'].fact,
+      fbWrong:'ים המלח הוא הנמוך ביותר — 430 מטר מתחת לפני הים!',
+      fact:'🌍 ים המלח = הנמוכה ביותר על כדור הארץ',
+    });
+    qs.push({
+      type:'fact', badge:'🧠 שאלת עומק',
+      text:'מהי העיר הגבוהה ביותר בישראל?',
+      target:'צפת', targetX:175, targetY:118,
+      correct:'צפת',
+      opts:[{text:'צפת'},{text:'ירושלים'},{text:'חיפה'},{text:'רמת גן'}],
+      fb:'צפת — 900 מטר מעל פני הים. עיר הקבלה הגבוהה ביותר!',
+      fbWrong:'צפת היא הגבוהה ביותר — 900 מטר. ירושלים ב-800 מטר.',
+      fact:'⛰️ צפת — 900 מטר מעל פני הים',
+    });
+    qs.push({
+      type:'fact', badge:'🧠 שאלת עומק',
+      text:'מהי בירת הנגב?',
+      target:'באר שבע', targetX:112, targetY:370,
+      correct:'באר שבע',
+      opts:[{text:'באר שבע'},{text:'אילת'},{text:'דימונה'},{text:'מצפה רמון'}],
+      fb:'באר שבע — בירת הנגב! ' + CITIES['באר שבע'].fact,
+      fbWrong:'באר שבע היא בירת הנגב.',
+      fact:'🏜️ באר שבע — בירת הנגב, ' + CITIES['באר שבע'].pop + ' תושבים',
+    });
+  }
+
+  return shuffle(qs).slice(0, 12);
+}
+
+function buildCityOpts(correct, pool, wrongCount) {
+  const others = pool.filter(c => c !== correct);
+  const wrongs = shuffle(others).slice(0, wrongCount);
+  return shuffle([correct, ...wrongs]).map(c => ({
+    icon: CITIES[c] ? (CITIES[c].r === 'צפון' ? '🌲' : CITIES[c].r === 'מרכז' ? '🏙️' : '🏜️') : '📍',
+    text: c
+  }));
+}
+
+function buildLandmarkOpts(correct) {
+  const others = Object.keys(LANDMARKS).filter(k => k !== correct);
+  const wrongs = shuffle(others).slice(0, 3);
+  return shuffle([correct, ...wrongs]).map(k => ({
+    icon: LANDMARKS[k]?.icon || '📍', text: k
+  }));
+}
+
+// ============================================================
+// STATE
+// ============================================================
+let childName = '';
+const GS = {
+  age:7, questions:[], qIdx:0,
+  flw:0, score:0, streak:0, answered:false,
+  userId:null, gameId:null, flwPerWin:3,
+  startTime:Date.now(), selectedAge:null,
+};
+
+// postMessage — קבלת נתונים מהאפליקציה (זהה לכל המשחקים)
+window.addEventListener('message', e => {
+  if(e.data?.type === 'INIT'){
+    GS.userId    = e.data.userId;
+    GS.gameId    = e.data.gameId;
+    GS.flwPerWin = e.data.flwReward ? Math.max(1, Math.floor(e.data.flwReward / 8)) : 3;
+    if(e.data.childName) childName = e.data.childName;
+    if(e.data.age){
+      const a = parseInt(e.data.age);
+      autoSelect(a <= 10 ? 7 : a <= 13 ? 11 : 14);
+    }
+    if(e.data.characterUrl)
+      document.querySelectorAll('img[alt="רובוט"]').forEach(i => i.src = e.data.characterUrl);
+  }
+});
+
+// ============================================================
+// HELPERS
+// ============================================================
+function showScreen(id){ document.querySelectorAll('.scr').forEach(s => s.classList.remove('on')); document.getElementById(id).classList.add('on'); }
+function shuffle(a){ return [...a].sort(() => Math.random() - .5); }
+
+function spawnStars(x, y){
+  for(let i=0;i<4;i++){
+    const s = document.createElement('div'); s.className='star-p';
+    s.textContent=['⭐','✨','🌟'][Math.floor(Math.random()*3)];
+    s.style.left=(x+(Math.random()-.5)*40)+'px'; s.style.top=y+'px';
+    s.style.animationDelay=(i*.08)+'s';
+    document.body.appendChild(s); setTimeout(()=>s.remove(),1100);
+  }
+}
+
+// ============================================================
+// AGE SELECT
+// ============================================================
+function selectAge(el, age){
+  document.querySelectorAll('.age-card').forEach(c => c.classList.remove('sel'));
+  el.classList.add('sel'); GS.selectedAge = age;
+  document.getElementById('btn-go').classList.add('ready');
+}
+function autoSelect(age){
+  document.querySelectorAll('.age-card').forEach(c => {
+    if(parseInt(c.dataset.age) === age){
+      c.classList.add('sel'); GS.selectedAge = age;
+      document.getElementById('btn-go').classList.add('ready');
+    }
+  });
+}
+
+// ============================================================
+// MAP RENDERING
+// ============================================================
+function renderCityMarkers(highlightCity){
+  const g = document.getElementById('city-markers');
+  g.innerHTML = '';
+  const cityList = GS.age <= 10
+    ? ['תל אביב','ירושלים','חיפה','באר שבע','אילת','נצרת','טבריה','אשדוד','נתניה','עכו']
+    : Object.keys(CITIES);
+
+  cityList.forEach(name => {
+    const c = CITIES[name];
+    const isTarget = name === highlightCity;
+    const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    dot.setAttribute('cx', c.x); dot.setAttribute('cy', c.y);
+    dot.setAttribute('r', isTarget ? 5 : 3);
+    dot.setAttribute('fill', isTarget ? '#FF6B2B' : '#E53E3E');
+    dot.setAttribute('stroke', 'white'); dot.setAttribute('stroke-width', isTarget ? 2 : 1.5);
+    g.appendChild(dot);
+
+    const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x', c.x+4); txt.setAttribute('y', c.y-4);
+    txt.setAttribute('font-size', isTarget ? 7 : 5.5);
+    txt.setAttribute('fill', isTarget ? '#FF6B2B' : '#333');
+    txt.setAttribute('font-weight', isTarget ? 'bold' : 'normal');
+    txt.setAttribute('font-family', 'Heebo, sans-serif');
+    txt.textContent = name;
+    g.appendChild(txt);
+  });
+
+  const style = document.getElementById('pulse-style') || document.createElement('style');
+  style.id='pulse-style';
+  style.textContent='@keyframes pulse-dot{0%,100%{r:5;opacity:1}50%{r:8;opacity:0.6}}';
+  document.head.appendChild(style);
+}
+
+// ============================================================
+// ROBOT MOVEMENT
+// ============================================================
+function flyRobotTo(svgX, svgY, callback){
+  const group = document.getElementById('svg-robot-group');
+  if(!group) return;
+  group.style.transition = 'transform 0.8s cubic-bezier(0.34,1.2,0.64,1)';
+  group.setAttribute('transform', `translate(${svgX},${svgY-20})`);
+  const img = document.getElementById('svg-robot');
+  if(img){ img.style.animation='none'; setTimeout(()=>{ img.style.animation=''; },50); }
+  setTimeout(() => { if(callback) callback(); }, 900);
+}
+
+function initRobot(){
+  const group = document.getElementById('svg-robot-group');
+  if(group) group.setAttribute('transform','translate(130,50)');
+}
+
+function robotHappy(){
+  const img = document.getElementById('svg-robot');
+  if(img){ img.style.filter='brightness(1.3)'; setTimeout(()=>{ img.style.filter=''; },700); }
+}
+
+function sayRobot(text){
+  const sp = document.getElementById('svg-speech');
+  const st = document.getElementById('svg-speech-text');
+  if(!sp||!st) return;
+  st.textContent = text.slice(0,20);
+  sp.setAttribute('opacity','1');
+  setTimeout(() => sp.setAttribute('opacity','0'), 2800);
+}
+
+// ============================================================
+// GAME
+// ============================================================
+function startGame(){
+  if(!GS.selectedAge) return;
+  GS.age = GS.selectedAge;
+  GS.questions = buildQuestions(GS.age);
+  GS.qIdx=0; GS.flw=0; GS.score=0; GS.streak=0; GS.answered=false;
+  GS.startTime = Date.now();
+  document.getElementById('hud-flw').textContent = '0';
+  document.getElementById('hud-score').textContent = '0';
+  document.getElementById('hud-streak').textContent = '';
+  showScreen('scr-game');
+  setTimeout(() => { initRobot(); renderCityMarkers(null); nextQuestion(); }, 400);
+}
+
+function nextQuestion(){
+  if(GS.qIdx >= GS.questions.length){ endGame(); return; }
+  GS.answered = false;
+  const q = GS.questions[GS.qIdx];
+  const total = GS.questions.length;
+
+  document.getElementById('hud-label').textContent = `שאלה ${GS.qIdx+1} מתוך ${total}`;
+  document.getElementById('hud-prog').style.width = ((GS.qIdx/total)*100)+'%';
+
+  renderCityMarkers(q.target);
+  document.getElementById('q-panel').classList.remove('show');
+  flyRobotTo(q.targetX, q.targetY, () => {
+    sayRobot('איפה אני? 🤔');
+    setTimeout(() => showQuestion(q), 600);
+  });
+}
+
+function showQuestion(q){
+  document.getElementById('q-badge').textContent = q.badge;
+  document.getElementById('q-text').textContent = q.text;
+
+  const optsEl = document.getElementById('q-options');
+  optsEl.innerHTML = '';
+  (q.opts || []).forEach(opt => {
+    const btn = document.createElement('div');
+    btn.className = 'q-opt';
+    btn.innerHTML = `${opt.icon ? opt.icon+' ' : ''}${opt.text}`;
+    btn.onclick = () => handleAnswer(opt.text, q);
+    optsEl.appendChild(btn);
+  });
+
+  document.getElementById('q-panel').classList.add('show');
+}
+
+function handleAnswer(chosen, q){
+  if(GS.answered) return;
+  GS.answered = true;
+  document.getElementById('q-panel').classList.remove('show');
+
+  const correct = chosen === q.correct;
+  document.querySelectorAll('.q-opt').forEach(btn => {
+    const txt = btn.textContent.replace(/[🌲🏙️🏜️🏔️📍🌟🌊🧂⛰️🌋]/g,'').trim();
+    if(txt === q.correct) btn.classList.add(correct ? 'correct' : 'reveal');
+    else if(txt === chosen && !correct) btn.classList.add('wrong');
+  });
+
+  if(correct){
+    GS.score++; GS.streak++;
+    document.getElementById('hud-score').textContent = GS.score;
+    document.getElementById('hud-streak').textContent = GS.streak >= 3 ? `🔥${GS.streak}` : '';
+    GS.flw += GS.flwPerWin + (GS.streak >= 3 ? 1 : 0);
+    document.getElementById('hud-flw').textContent = GS.flw;
+    robotHappy();
+    spawnStars(window.innerWidth/2, window.innerHeight/2);
+  } else {
+    GS.streak = 0;
+    document.getElementById('hud-streak').textContent = '';
+  }
+  showFeedback(correct, q, chosen);
+}
+
+function showFeedback(correct, q, chosen){
+  document.getElementById('fb-icon').textContent = correct ? '✅' : '❌';
+  document.getElementById('fb-title').textContent = correct
+    ? ['מצוין! 🌟','כל הכבוד! 🏆','נכון! ⭐','מדהים! 🎯'][Math.floor(Math.random()*4)]
+    : `זו ${q.correct}`;
+  document.getElementById('fb-text').textContent = correct
+    ? q.fb
+    : q.fbWrong.replace('{wrong}', chosen);
+  document.getElementById('fb-fact').textContent = q.fact;
+  document.getElementById('feedback').classList.add('show');
+}
+
+function closeFeedback(){
+  document.getElementById('feedback').classList.remove('show');
+  GS.qIdx++;
+  setTimeout(() => nextQuestion(), 300);
+}
+
+// ============================================================
+// END GAME
+// ============================================================
+function endGame(){
+  const total = GS.questions.length;
+  const pct = Math.round(GS.score/total*100);
+  let emoji, title, stars;
+  if(pct>=85){ emoji='🏆'; title='סייר מעולה! אלוף גיאוגרפיה!'; stars='⭐⭐⭐'; }
+  else if(pct>=65){ emoji='🗺️'; title='סייר טוב! יש עוד לגלות'; stars='⭐⭐'; }
+  else{ emoji='✈️'; title='מתחיל לגלות! המשך לסייר'; stars='⭐'; }
+
+  const bonus = Math.round(pct * 0.2);
+  GS.flw += bonus;
+
+  document.getElementById('result-emoji').textContent = emoji;
+  document.getElementById('result-title').textContent = title;
+  document.getElementById('result-stars').textContent = stars;
+  document.getElementById('result-flw').textContent = GS.flw;
+  document.getElementById('result-stats').innerHTML = `
+    <div class="stat-row"><span>✅ תשובות נכונות</span><span class="stat-val">${GS.score}/${total}</span></div>
+    <div class="stat-row"><span>🎯 ציון</span><span class="stat-val">${pct}%</span></div>
+    <div class="stat-row"><span>🔥 רצף מקסימום</span><span class="stat-val">${GS.streak}</span></div>
+    <div class="stat-row"><span>🎁 בונוס FLW</span><span class="stat-val">+${bonus}</span></div>`;
+
+  const dur = Math.round((Date.now() - GS.startTime) / 1000);
+  const payload = {
+    type:'GAME_COMPLETE', userId:GS.userId, gameId:GS.gameId,
+    score:pct, flwEarned:GS.flw, durationSeconds:dur, gameName:'OF מגלה ישראל'
+  };
+  if(window.parent !== window) window.parent.postMessage(payload, '*');
+  if(GS.userId){
+    fetch('/api/kids/award-flw', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({userId:GS.userId, gameId:GS.gameId, score:pct, flwEarned:GS.flw, durationSeconds:dur})
+    }).catch(()=>{});
+  }
+
+  showScreen('scr-result');
+}
+
+function playAgain(){
+  GS.selectedAge=null; GS.flw=0; GS.score=0; GS.streak=0;
+  document.querySelectorAll('.age-card').forEach(c => c.classList.remove('sel'));
+  document.getElementById('btn-go').classList.remove('ready');
+  showScreen('scr-intro');
+}
+
+function goHome(){
+  if(window.parent !== window) window.parent.postMessage({type:'CLOSE_GAME'}, '*');
+  else window.history.back();
+}
+</script>
+</body>
+</html>
