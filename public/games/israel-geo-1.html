@@ -43,13 +43,12 @@ body{font-family:'Heebo',sans-serif;background:#E8F4F8;min-height:100vh;overflow
 .btn-go:active{transform:scale(0.96)}
 
 /* ===== GAME ===== */
-#scr-game{position:relative;overflow:hidden;background:#E8F4F8}
+#scr-game{flex-direction:column;overflow:hidden;background:#E8F4F8}
 
 /* HUD */
-.hud{position:absolute;top:0;left:0;right:0;z-index:30;
-  display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.6rem;
+.hud{flex-shrink:0;display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.6rem;
   background:rgba(255,255,255,0.92);backdrop-filter:blur(8px);
-  border-bottom:1px solid rgba(0,0,0,0.07)}
+  border-bottom:1px solid rgba(0,0,0,0.07);z-index:30}
 .hud-progress{flex:1}
 .hud-prog-label{font-size:0.62rem;font-weight:700;color:var(--muted);margin-bottom:0.15rem}
 .hud-prog-bar{height:5px;background:#E0E0E0;border-radius:50px;overflow:hidden}
@@ -63,15 +62,19 @@ body{font-family:'Heebo',sans-serif;background:#E8F4F8;min-height:100vh;overflow
   display:flex;align-items:center;justify-content:center;font-size:0.48rem;font-weight:900;color:#333}
 .hud-streak{font-size:0.85rem;font-weight:700;color:var(--orange)}
 
-/* MAP SVG */
-#map-svg{position:absolute;top:46px;left:0;right:0;bottom:0;z-index:2}
+/* MAP AREA — fills space between HUD and question panel */
+#map-area{flex:1;position:relative;overflow:hidden;min-height:0}
 
-/* QUESTION PANEL */
-#q-panel{position:absolute;bottom:0;left:0;right:0;z-index:25;
+/* MAP SVG */
+#map-svg{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%}
+
+/* QUESTION PANEL — flex child, always in layout, slides content */
+#q-panel{flex-shrink:0;
   background:linear-gradient(180deg,rgba(10,20,40,0.96),rgba(5,15,30,0.98));
-  border-radius:22px 22px 0 0;padding:0.9rem 0.9rem 1.2rem;
-  transform:translateY(100%);transition:transform 0.4s cubic-bezier(0.34,1.2,0.64,1)}
-#q-panel.show{transform:translateY(0)}
+  border-radius:22px 22px 0 0;padding:0.8rem 0.9rem 1rem;
+  height:210px;overflow:hidden;position:relative}
+#q-panel-inner{transition:opacity 0.3s,transform 0.3s;opacity:0;transform:translateY(20px);pointer-events:none}
+#q-panel.show #q-panel-inner{opacity:1;transform:translateY(0);pointer-events:all}
 .q-type-badge{display:inline-block;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);
   border-radius:50px;padding:0.15rem 0.6rem;font-size:0.68rem;font-weight:700;margin-bottom:0.4rem}
 .q-text{font-size:1rem;font-weight:700;color:white;margin-bottom:0.7rem;line-height:1.4}
@@ -87,7 +90,7 @@ body{font-family:'Heebo',sans-serif;background:#E8F4F8;min-height:100vh;overflow
 @keyframes opt-pop{0%,100%{transform:scale(1)}40%{transform:scale(1.06)}}
 @keyframes opt-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 
-/* FEEDBACK POPUP */
+/* FEEDBACK POPUP — inside map-area */
 #feedback{position:absolute;top:50%;left:50%;
   transform:translate(-50%,-50%) scale(0);z-index:40;
   background:white;border-radius:20px;padding:1.1rem 1.3rem;
@@ -178,9 +181,12 @@ body{font-family:'Heebo',sans-serif;background:#E8F4F8;min-height:100vh;overflow
     <div class="hud-flw"><div class="coin-mini">FLW</div><span id="hud-flw">0</span></div>
   </div>
 
+  <!-- MAP AREA -->
+  <div id="map-area">
+
   <!-- MAP SVG — Israel -->
-  <svg id="map-svg" viewBox="0 0 300 600" preserveAspectRatio="xMidYMid meet"
-       style="position:absolute;top:46px;left:0;right:0;bottom:0;width:100%;height:calc(100% - 46px)">
+  <svg id="map-svg" viewBox="0 0 300 480" preserveAspectRatio="xMidYMid meet"
+       style="position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%">
 
     <!-- Sea / background -->
     <rect width="300" height="600" fill="#B8E4F5"/>
@@ -263,20 +269,24 @@ body{font-family:'Heebo',sans-serif;background:#E8F4F8;min-height:100vh;overflow
 
   </svg>
 
-  <!-- QUESTION PANEL -->
-  <div id="q-panel">
-    <div class="q-type-badge" id="q-badge">שאלה</div>
-    <div class="q-text" id="q-text">איפה אני?</div>
-    <div class="q-options" id="q-options"></div>
-  </div>
-
-  <!-- FEEDBACK -->
+  <!-- FEEDBACK (inside map-area so it overlays the map) -->
   <div id="feedback">
     <div class="fb-icon" id="fb-icon">✅</div>
     <div class="fb-title" id="fb-title">כל הכבוד!</div>
     <div class="fb-text" id="fb-text"></div>
     <div class="fb-fact" id="fb-fact"></div>
     <button class="fb-btn" onclick="closeFeedback()">המשך ✈️</button>
+  </div>
+
+  </div><!-- /map-area -->
+
+  <!-- QUESTION PANEL — below map, always in layout -->
+  <div id="q-panel">
+    <div id="q-panel-inner">
+      <div class="q-type-badge" id="q-badge">שאלה</div>
+      <div class="q-text" id="q-text">איפה אני?</div>
+      <div class="q-options" id="q-options"></div>
+    </div>
   </div>
 
 </div>
@@ -563,11 +573,14 @@ function renderCityMarkers(highlightCity){
     g.appendChild(dot);
 
     const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-    txt.setAttribute('x', c.x+4); txt.setAttribute('y', c.y-4);
-    txt.setAttribute('font-size', isTarget ? 7 : 5.5);
-    txt.setAttribute('fill', isTarget ? '#FF6B2B' : '#333');
-    txt.setAttribute('font-weight', isTarget ? 'bold' : 'normal');
+    txt.setAttribute('x', c.x+5); txt.setAttribute('y', c.y-5);
+    txt.setAttribute('font-size', isTarget ? 11 : 8);
+    txt.setAttribute('fill', isTarget ? '#FF6B2B' : '#1A2E35');
+    txt.setAttribute('font-weight', 'bold');
     txt.setAttribute('font-family', 'Heebo, sans-serif');
+    txt.setAttribute('stroke', 'white');
+    txt.setAttribute('stroke-width', '2');
+    txt.setAttribute('paint-order', 'stroke');
     txt.textContent = name;
     g.appendChild(txt);
   });
@@ -579,11 +592,40 @@ function renderCityMarkers(highlightCity){
 }
 
 // ============================================================
-// ROBOT MOVEMENT
+// VIEWBOX PAN ANIMATION
+// ============================================================
+let _vbY = 0;
+function animateViewBox(svg, targetY, winH, totalH){
+  const startY = _vbY;
+  const diff = targetY - startY;
+  if(Math.abs(diff) < 1){ svg.setAttribute('viewBox',`0 ${targetY} 300 ${winH}`); _vbY=targetY; return; }
+  const dur = 700;
+  const start = performance.now();
+  function step(now){
+    const t = Math.min((now - start) / dur, 1);
+    const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t; // easeInOut
+    const y = startY + diff * ease;
+    svg.setAttribute('viewBox', `0 ${y} 300 ${winH}`);
+    if(t < 1) requestAnimationFrame(step);
+    else _vbY = targetY;
+  }
+  requestAnimationFrame(step);
+}
+
+// ============================================================
+// ROBOT MOVEMENT + VIEWPORT PAN
 // ============================================================
 function flyRobotTo(svgX, svgY, callback){
   const group = document.getElementById('svg-robot-group');
+  const svg   = document.getElementById('map-svg');
   if(!group) return;
+
+  // Animate viewBox pan so target city is visible (upper-center)
+  const winH = 480;
+  let targetViewY = svgY - winH * 0.42;
+  targetViewY = Math.max(0, Math.min(600 - winH, targetViewY));
+  animateViewBox(svg, targetViewY, winH, 600);
+
   group.style.transition = 'transform 0.8s cubic-bezier(0.34,1.2,0.64,1)';
   group.setAttribute('transform', `translate(${svgX},${svgY-20})`);
   const img = document.getElementById('svg-robot');
@@ -592,8 +634,11 @@ function flyRobotTo(svgX, svgY, callback){
 }
 
 function initRobot(){
+  _vbY = 0;
   const group = document.getElementById('svg-robot-group');
   if(group) group.setAttribute('transform','translate(130,50)');
+  const svg = document.getElementById('map-svg');
+  if(svg) svg.setAttribute('viewBox','0 0 300 480');
 }
 
 function robotHappy(){
