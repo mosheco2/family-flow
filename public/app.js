@@ -2650,6 +2650,7 @@ async function loadKidsOverview() {
     const totalOpen = data.totalOpen || 0;
     const kids = data.kids || [];
     const history = data.history || [];
+    window._kidsOverviewData = kids;
 
     // כותרת עם סיכום כללי
     let html = `
@@ -2693,11 +2694,12 @@ async function loadKidsOverview() {
       }
 
       html += `
-        <div class="flex-shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm p-3 flex flex-col gap-2"
-             style="min-width:148px;max-width:160px;scroll-snap-align:start">
+        <div class="flex-shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm p-3 flex flex-col gap-2 active:scale-95 transition-transform"
+             style="min-width:148px;max-width:160px;scroll-snap-align:start;cursor:pointer"
+             onclick="openKidDetailModal(${k.id})">
           <!-- אווטאר + שם -->
           <div class="flex items-center gap-2">
-            <div class="relative flex-shrink-0" onclick="triggerKidImageUpload(${k.id},this)" style="cursor:pointer">
+            <div class="relative flex-shrink-0" onclick="event.stopPropagation();triggerKidImageUpload(${k.id},this)" style="cursor:pointer">
               ${k.profile_image
                 ? `<img src="${k.profile_image}" class="w-11 h-11 rounded-full object-cover border-2 border-purple-200 shadow-sm">`
                 : `<div class="w-11 h-11 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-sm border-2 border-purple-200">${initials}</div>`}
@@ -2770,6 +2772,101 @@ async function loadKidsOverview() {
 function toggleQuestActivity() {
   const sec = getEl('quest-activity-section');
   if (sec) sec.classList.toggle('hidden');
+}
+
+function openKidDetailModal(kidId) {
+  const kids = window._kidsOverviewData || [];
+  const k = kids.find(x => x.id === kidId);
+  if (!k) return;
+
+  const initials = (k.nickname || '?')[0].toUpperCase();
+  const flw = parseFloat(k.flw_balance || 0).toFixed(0);
+  const open = k.open_quests || 0;
+  const games = k.games || [];
+  const activeGames = games.filter(g => g.status === 'active');
+  const doneGames   = games.filter(g => g.status === 'completed');
+
+  const avatarHtml = k.profile_image
+    ? `<img src="${k.profile_image}" class="w-20 h-20 rounded-full object-cover border-4 border-purple-200 shadow-lg">`
+    : `<div class="w-20 h-20 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white font-bold text-3xl shadow-lg border-4 border-purple-200">${initials}</div>`;
+
+  const gamesHtml = games.length === 0
+    ? `<p class="text-sm text-slate-400 text-center py-4">אין משחקים מוקצים</p>`
+    : games.map(g => {
+        const pct = g.rounds_total > 0 ? Math.round((g.rounds_used / g.rounds_total) * 100) : 0;
+        const isDone = g.status === 'completed';
+        return `
+          <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+            <div class="flex justify-between items-center mb-2">
+              <span class="font-bold text-slate-700 text-sm">${g.icon || '🎮'} ${g.game_name}</span>
+              <span class="text-xs font-bold px-2 py-0.5 rounded-full ${isDone ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">
+                ${isDone ? '✅ הושלם' : '▶️ פעיל'}
+              </span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="flex-1 bg-slate-200 rounded-full h-2">
+                <div class="${isDone ? 'bg-green-400' : 'bg-blue-400'} h-2 rounded-full" style="width:${pct}%"></div>
+              </div>
+              <span class="text-xs text-slate-500 font-bold whitespace-nowrap">${g.rounds_used}/${g.rounds_total} סיבובים</span>
+            </div>
+            <div class="text-[10px] text-yellow-600 mt-1">🪙 ${g.flw_per_round} FLW לסיבוב</div>
+          </div>`;
+      }).join('');
+
+  const html = `
+    <div id="kid-detail-modal" class="fixed inset-0 z-50 flex items-end justify-center" onclick="if(event.target===this)closeKidDetailModal()" style="background:rgba(0,0,0,0.45)">
+      <div class="bg-white w-full max-w-lg rounded-t-3xl shadow-2xl overflow-y-auto" style="max-height:88vh;padding-bottom:env(safe-area-inset-bottom,16px)">
+        <!-- ידית -->
+        <div class="flex justify-center pt-3 pb-1"><div class="w-10 h-1 bg-slate-200 rounded-full"></div></div>
+        <!-- כותרת -->
+        <div class="flex flex-col items-center gap-2 pt-4 pb-5 border-b border-slate-100">
+          <div class="relative" onclick="event.stopPropagation();triggerKidImageUploadById(${k.id})" style="cursor:pointer">
+            ${avatarHtml}
+            <div class="absolute bottom-0 right-0 w-7 h-7 bg-white rounded-full border-2 border-slate-200 flex items-center justify-center text-sm shadow">📷</div>
+            <input type="file" accept="image/*" id="kid-modal-img-${k.id}" class="hidden" onchange="uploadKidProfileImage(${k.id},this)">
+          </div>
+          <h2 class="text-xl font-bold text-slate-800">${k.nickname}</h2>
+          <div class="flex gap-3">
+            <span class="bg-yellow-50 border border-yellow-100 text-yellow-700 font-bold text-sm px-3 py-1 rounded-full">🪙 ${flw} FLW</span>
+            ${open > 0
+              ? `<span class="bg-orange-50 border border-orange-100 text-orange-700 font-bold text-sm px-3 py-1 rounded-full">🎯 ${open} משימה פתוחה</span>`
+              : `<span class="bg-green-50 border border-green-100 text-green-700 font-bold text-sm px-3 py-1 rounded-full">✅ הכל בוצע</span>`}
+          </div>
+        </div>
+        <!-- גוף -->
+        <div class="p-4 space-y-4">
+          <!-- משחקים -->
+          <div>
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="font-bold text-slate-700">🎮 משחקים</h3>
+              <div class="flex gap-2 text-xs">
+                ${activeGames.length > 0 ? `<span class="text-blue-600 font-bold">${activeGames.length} פעיל</span>` : ''}
+                ${doneGames.length > 0   ? `<span class="text-green-600 font-bold">${doneGames.length} הושלם</span>` : ''}
+              </div>
+            </div>
+            <div class="space-y-2">${gamesHtml}</div>
+          </div>
+        </div>
+        <!-- כפתור סגירה -->
+        <div class="px-4 pb-4">
+          <button onclick="closeKidDetailModal()" class="w-full bg-slate-100 text-slate-600 font-bold py-3 rounded-2xl text-sm hover:bg-slate-200 transition">סגור</button>
+        </div>
+      </div>
+    </div>`;
+
+  const el = document.createElement('div');
+  el.innerHTML = html;
+  document.body.appendChild(el.firstElementChild);
+}
+
+function closeKidDetailModal() {
+  const m = document.getElementById('kid-detail-modal');
+  if (m) m.remove();
+}
+
+function triggerKidImageUploadById(kidId) {
+  const inp = document.getElementById(`kid-modal-img-${kidId}`);
+  if (inp) inp.click();
 }
 
 function triggerKidImageUpload(kidId, wrapper) {
