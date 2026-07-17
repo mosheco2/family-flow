@@ -2734,21 +2734,44 @@ function triggerKidImageUpload(kidId, wrapper) {
 async function uploadKidProfileImage(kidId, input) {
   const file = input.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async e => {
-    try {
-      const res = await fetch(`${API}/kids/profile-image/${kidId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dataUrl: e.target.result })
+  showToast('info', '⏳ מעלה תמונה...');
+  try {
+    // נסה Cloudinary קודם
+    const cfgRes = await fetch(`${API}/sa/settings/cloudinary_cloud_name,cloudinary_upload_preset`).catch(() => null);
+    const cfg = cfgRes ? await cfgRes.json().catch(() => ({})) : {};
+    const cloudName = cfg.cloudinary_cloud_name;
+    const preset = cfg.cloudinary_upload_preset;
+
+    let imageUrl;
+    if (cloudName && preset) {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('upload_preset', preset);
+      fd.append('folder', 'family-flow-avatars');
+      const upRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: fd });
+      const upData = await upRes.json();
+      if (!upData.secure_url) throw new Error(upData.error?.message || 'שגיאת Cloudinary');
+      imageUrl = upData.secure_url;
+    } else {
+      // fallback — שלח dataUrl לשרת
+      imageUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
       });
-      if ((await res.json()).success) {
-        showToast('success', '✅ תמונת פרופיל עודכנה');
-        loadKidsOverview();
-      }
-    } catch(err) { showToast('error', 'שגיאה בהעלאה'); }
-  };
-  reader.readAsDataURL(file);
+    }
+
+    const res = await fetch(`${API}/kids/profile-image/${kidId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageUrl })
+    });
+    if ((await res.json()).success) {
+      showToast('success', '✅ תמונת פרופיל עודכנה');
+      loadKidsOverview();
+    }
+  } catch(err) { showToast('error', 'שגיאה בהעלאה'); }
 }
 
 function renderAdminAcademy() {
