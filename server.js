@@ -21370,19 +21370,26 @@ app.get('/api/kids/parent-overview/:groupId', async (req, res) => {
       GROUP BY kq.child_user_id
     `, [gid]);
 
-    // אתגרים academy (bundle assignments) פתוחים
+    // אתגרים academy (user_assignments) פתוחים
     const openAcademy = await pool.query(`
-      SELECT ba.user_id, COUNT(*) as open_count
-      FROM bundle_assignments ba
-      WHERE ba.group_id = $1 AND ba.status = 'pending'
-      GROUP BY ba.user_id
+      SELECT ua.user_id, COUNT(*) as open_count
+      FROM user_assignments ua
+      JOIN users u ON u.id = ua.user_id AND u.group_id = $1
+      WHERE ua.status = 'assigned'
+      GROUP BY ua.user_id
     `, [gid]);
 
-    // סיכום כללי
+    // סיכום כללי — kid_quests + user_assignments
     const totalOpen = await pool.query(`
-      SELECT COUNT(*) as cnt FROM kid_quests kq
-      LEFT JOIN kid_quest_results kr ON kr.quest_id = kq.id
-      WHERE kq.family_group_id = $1 AND kr.id IS NULL
+      SELECT
+        (SELECT COUNT(*) FROM kid_quests kq
+         LEFT JOIN kid_quest_results kr ON kr.quest_id = kq.id
+         WHERE kq.family_group_id = $1 AND kr.id IS NULL)
+        +
+        (SELECT COUNT(*) FROM user_assignments ua
+         JOIN users u ON u.id = ua.user_id AND u.group_id = $1
+         WHERE ua.status = 'assigned')
+      AS cnt
     `, [gid]);
 
     // היסטוריית פעילות אתגרים
