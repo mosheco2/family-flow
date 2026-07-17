@@ -21380,6 +21380,17 @@ app.get('/api/kids/parent-overview/:groupId', async (req, res) => {
       GROUP BY ua.user_id
     `, [gid]);
 
+    // משחקים מוקצים לכל ילד
+    const gamesPerKid = await pool.query(`
+      SELECT ga.child_user_id, gc.name as game_name, gc.icon,
+        ga.rounds_used, ga.rounds_total, ga.status, ga.flw_per_round
+      FROM game_assignments ga
+      JOIN games_catalog gc ON gc.id = ga.game_id
+      JOIN users u ON u.id = ga.child_user_id AND u.group_id = $1
+      WHERE ga.status IN ('active','completed')
+      ORDER BY ga.assigned_at DESC
+    `, [gid]);
+
     // סיכום כללי — kid_quests + user_assignments
     const totalOpen = await pool.query(`
       SELECT
@@ -21415,9 +21426,16 @@ app.get('/api/kids/parent-overview/:groupId', async (req, res) => {
     const openAcademyMap = {};
     openAcademy.rows.forEach(r => { openAcademyMap[r.user_id] = parseInt(r.open_count); });
 
+    const gamesMap = {};
+    gamesPerKid.rows.forEach(r => {
+      if (!gamesMap[r.child_user_id]) gamesMap[r.child_user_id] = [];
+      gamesMap[r.child_user_id].push(r);
+    });
+
     const kidsData = kids.rows.map(k => ({
       ...k,
-      open_quests: (openQuestsMap[k.id] || 0) + (openAcademyMap[k.id] || 0)
+      open_quests: (openQuestsMap[k.id] || 0) + (openAcademyMap[k.id] || 0),
+      games: gamesMap[k.id] || []
     }));
 
     res.json({

@@ -2651,41 +2651,87 @@ async function loadKidsOverview() {
     const kids = data.kids || [];
     const history = data.history || [];
 
+    // כותרת עם סיכום כללי
     let html = `
-      <div class="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl p-4 mb-2">
-        <div class="flex justify-between items-center mb-3">
+      <div class="mb-2">
+        <div class="flex justify-between items-center mb-3 px-1">
           <h3 class="font-bold text-slate-800 text-sm">👨‍👩‍👧‍👦 סקירת ילדים</h3>
-          <span class="bg-purple-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">${totalOpen} אתגרים פתוחים</span>
+          <span class="bg-purple-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">${totalOpen} משימות פתוחות</span>
         </div>
-        <div class="flex gap-3 overflow-x-auto pb-2">`;
+        <div class="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1" style="scroll-snap-type:x mandatory">`;
 
     kids.forEach(k => {
       const initials = (k.nickname || '?')[0].toUpperCase();
       const flw = parseFloat(k.flw_balance || 0).toFixed(0);
       const open = k.open_quests || 0;
+      const games = k.games || [];
+      const activeGames = games.filter(g => g.status === 'active');
+      const doneGames   = games.filter(g => g.status === 'completed');
+
+      // רכיב משחקים
+      let gamesHtml = '';
+      if (games.length === 0) {
+        gamesHtml = `<div class="text-[10px] text-slate-400 text-center mt-1">אין משחקים</div>`;
+      } else {
+        gamesHtml = `<div class="mt-2 space-y-1">`;
+        games.slice(0, 3).forEach(g => {
+          const pct = g.rounds_total > 0 ? Math.round((g.rounds_used / g.rounds_total) * 100) : 0;
+          const barColor = g.status === 'completed' ? 'bg-green-400' : 'bg-blue-400';
+          gamesHtml += `
+            <div>
+              <div class="flex justify-between items-center mb-0.5">
+                <span class="text-[10px] text-slate-600 font-medium truncate max-w-[100px]">${g.icon || '🎮'} ${g.game_name}</span>
+                <span class="text-[9px] ${g.status === 'completed' ? 'text-green-600' : 'text-blue-600'} font-bold ml-1 whitespace-nowrap">${g.rounds_used}/${g.rounds_total}</span>
+              </div>
+              <div class="w-full bg-slate-100 rounded-full h-1.5">
+                <div class="${barColor} h-1.5 rounded-full transition-all" style="width:${pct}%"></div>
+              </div>
+            </div>`;
+        });
+        if (games.length > 3) gamesHtml += `<div class="text-[9px] text-slate-400 text-center">+${games.length - 3} נוספים</div>`;
+        gamesHtml += `</div>`;
+      }
+
       html += `
-        <div class="flex-shrink-0 flex flex-col items-center gap-1.5 min-w-[72px]">
-          <div class="relative" onclick="triggerKidImageUpload(${k.id},this)" style="cursor:pointer">
-            ${k.profile_image
-              ? `<img src="${k.profile_image}" class="w-14 h-14 rounded-full object-cover border-2 border-purple-300 shadow">`
-              : `<div class="w-14 h-14 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white font-bold text-xl shadow border-2 border-purple-300">${initials}</div>`}
-            <div class="absolute -bottom-1 -left-1 w-5 h-5 bg-white rounded-full border border-slate-200 flex items-center justify-center text-[9px] text-slate-500 shadow">📷</div>
-            <input type="file" accept="image/*" class="hidden kid-img-upload" data-kid-id="${k.id}" onchange="uploadKidProfileImage(${k.id},this)">
+        <div class="flex-shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm p-3 flex flex-col gap-2"
+             style="min-width:148px;max-width:160px;scroll-snap-align:start">
+          <!-- אווטאר + שם -->
+          <div class="flex items-center gap-2">
+            <div class="relative flex-shrink-0" onclick="triggerKidImageUpload(${k.id},this)" style="cursor:pointer">
+              ${k.profile_image
+                ? `<img src="${k.profile_image}" class="w-11 h-11 rounded-full object-cover border-2 border-purple-200 shadow-sm">`
+                : `<div class="w-11 h-11 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-sm border-2 border-purple-200">${initials}</div>`}
+              <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-white rounded-full border border-slate-200 flex items-center justify-center text-[8px] shadow">📷</div>
+              <input type="file" accept="image/*" class="hidden kid-img-upload" data-kid-id="${k.id}" onchange="uploadKidProfileImage(${k.id},this)">
+            </div>
+            <div class="min-w-0">
+              <div class="font-bold text-slate-800 text-xs truncate">${k.nickname}</div>
+              <div class="text-[10px] text-yellow-600 font-bold">🪙 ${flw} FLW</div>
+            </div>
           </div>
-          <div class="text-xs font-bold text-slate-700 text-center leading-tight">${k.nickname}</div>
-          <div class="flex flex-col items-center gap-0.5">
-            <span class="text-[10px] font-bold text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded-full">🪙 ${flw} FLW</span>
+          <!-- סטטוס אתגרים -->
+          <div class="flex gap-1 flex-wrap">
             ${open > 0
-              ? `<span class="text-[10px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full">🎯 ${open} פתוח</span>`
-              : `<span class="text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">✅ הכל בוצע</span>`}
+              ? `<span class="text-[10px] font-bold text-orange-600 bg-orange-50 border border-orange-100 px-1.5 py-0.5 rounded-full">🎯 ${open} אתגר</span>`
+              : `<span class="text-[10px] font-bold text-green-600 bg-green-50 border border-green-100 px-1.5 py-0.5 rounded-full">✅ הכל בוצע</span>`}
+            ${activeGames.length > 0
+              ? `<span class="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full">🎮 ${activeGames.length} פעיל</span>`
+              : ''}
+            ${doneGames.length > 0
+              ? `<span class="text-[10px] font-bold text-slate-500 bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded-full">🏆 ${doneGames.length} הושלם</span>`
+              : ''}
           </div>
+          <!-- פס התקדמות משחקים -->
+          ${gamesHtml}
         </div>`;
     });
 
     html += `</div>`;
 
     if (history.length > 0) {
-      html += `<button onclick="toggleQuestActivity()" class="mt-3 text-xs text-purple-600 font-bold hover:underline">📋 היסטוריית אתגרים (${history.length})</button>`;
+      html += `<button onclick="toggleQuestActivity()" class="mt-3 text-xs text-purple-600 font-bold flex items-center gap-1 hover:underline">
+        <span>📋 היסטוריית אתגרים</span><span class="bg-purple-100 text-purple-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">${history.length}</span>
+      </button>`;
     }
     html += `</div>`;
 
