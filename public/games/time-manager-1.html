@@ -247,7 +247,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overfl
       <div class="learn-text" id="lt-text"></div>
       <div class="learn-tip" id="lt-tip"></div>
       <div id="lt-demo"></div>
-      <button class="btn-next" id="lt-next" onclick="learnNext()">הבא →</button>
+      <button class="btn-next" id="lt-next" onclick="learnNext()">← הבא</button>
     </div>
   </div>
 </div>
@@ -331,7 +331,7 @@ const LEARN_STEPS = {
      demo:'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin:0.5rem 0;font-size:0.72rem"><div style="background:rgba(239,68,68,0.2);border-radius:8px;padding:0.4rem;text-align:center">🔥 דחוף+חשוב<br>עכשיו!</div><div style="background:rgba(59,130,246,0.2);border-radius:8px;padding:0.4rem;text-align:center">📋 חשוב<br>תכנן</div><div style="background:rgba(255,214,0,0.2);border-radius:8px;padding:0.4rem;text-align:center">⚡ דחוף<br>האצל</div><div style="background:rgba(156,163,175,0.2);border-radius:8px;padding:0.4rem;text-align:center">🗑️ לא חשוב<br>ויתור</div></div>'},
     {title:'אנרגיה — משאב מוגבל',
      text:'בכל יום יש לך כמות מסוימת של אנרגיה. כשמתאמצים — האנרגיה יורדת. כשנחים — עולה. צריך לנהל אותה חכם!',
-     tip:'🧠 מחקרים: המוח הכי חזק בבוקר. שיעורי בית קשים → בוקר. כיף וחברים → אחה"צ.',
+     tip:'🧠 מחקרים: המוח הכי חזק בבוקר. שיעורי בית קשים ← בוקר. כיף וחברים ← אחה"צ.',
      demo:'<div class="energy-demo">⚡⚡⚡⚡⚡</div><div style="font-size:0.75rem;color:rgba(255,255,255,0.5);text-align:center">100% אנרגיה בבוקר</div>'},
     {title:'זמן גנוב — הסכנה!',
      text:'גלילה בטלפון, טלויזיה רקע, "עוד דקה אחת" — אלה גנבי הזמן הכי גדולים. הם קורים בלי שמרגישים!',
@@ -595,7 +595,7 @@ function renderLearn(){
   document.getElementById('lt-text').textContent = cur.text;
   document.getElementById('lt-tip').textContent = cur.tip;
   document.getElementById('lt-demo').innerHTML = cur.demo || '';
-  document.getElementById('lt-next').textContent = GS.learnStep >= s.length-1 ? '🎮 לשחק!' : 'הבא →';
+  document.getElementById('lt-next').textContent = GS.learnStep >= s.length-1 ? '🎮 לשחק!' : '← הבא';
 }
 
 function learnNext(){
