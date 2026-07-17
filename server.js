@@ -21382,7 +21382,7 @@ app.get('/api/kids/parent-overview/:groupId', async (req, res) => {
 
     // משחקים מוקצים לכל ילד
     const gamesPerKid = await pool.query(`
-      SELECT ga.child_user_id, gc.name as game_name, gc.icon,
+      SELECT ga.child_user_id, gc.title as game_name, gc.thumbnail_emoji as icon,
         ga.rounds_used, ga.rounds_total, ga.status, ga.flw_per_round
       FROM game_assignments ga
       JOIN games_catalog gc ON gc.id = ga.game_id
