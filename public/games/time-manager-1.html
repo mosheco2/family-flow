@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>היום של OF | Oneflow Kids</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&family=Fredoka+One&display=swap');
+:root{
+  --blue:#3B82F6;--teal:#00A896;--orange:#FF6B2B;
+  --yellow:#FFD600;--green:#22C55E;--red:#EF4444;
+  --purple:#7C3AED;--pink:#EC4899;
+  --bg:#F0F9FF;--dark:#0F172A;--muted:#7A9EA8;
+  --radius:16px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overflow:hidden}
+
+/* SCREENS */
+.scr{display:none;width:100%;height:100vh;flex-direction:column}
+.scr.on{display:flex}
+
+/* ===== INTRO ===== */
+#scr-intro{align-items:center;justify-content:center;padding:1.2rem;text-align:center;
+  background:linear-gradient(180deg,#0F172A,#1E1B4B,#1A3A5F)}
+.intro-robot{width:160px;filter:drop-shadow(0 10px 30px rgba(0,168,150,0.4));
+  animation:float 2.5s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-12px) rotate(2deg)}}
+.intro-title{font-family:'Fredoka One',sans-serif;font-size:2rem;color:white;margin:0.4rem 0}
+.intro-sub{color:rgba(255,255,255,0.6);font-size:0.85rem;margin-bottom:1rem;line-height:1.5}
+.age-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;width:100%;max-width:340px;margin-bottom:1rem}
+.age-card{background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.15);
+  border-radius:12px;padding:0.7rem 0.4rem;text-align:center;cursor:pointer;transition:all 0.2s}
+.age-card:active{transform:scale(0.96)}
+.age-card.sel{border-color:var(--yellow);background:rgba(255,214,0,0.15)}
+.age-card .ac-icon{font-size:1.5rem;margin-bottom:0.2rem}
+.age-card .ac-label{font-size:0.78rem;font-weight:700;color:white}
+.age-card .ac-sub{font-size:0.62rem;color:rgba(255,255,255,0.45);margin-top:0.1rem}
+.btn-go{background:linear-gradient(135deg,var(--yellow),var(--orange));color:#1A1A2E;
+  border:none;border-radius:50px;padding:0.9rem 2rem;font-family:'Fredoka One',sans-serif;
+  font-size:1.1rem;cursor:pointer;width:100%;max-width:280px;
+  opacity:0.5;pointer-events:none;transition:all 0.2s}
+.btn-go.ready{opacity:1;pointer-events:all}
+.btn-go:active{transform:scale(0.96)}
+
+/* ===== LEARN ===== */
+#scr-learn{background:linear-gradient(180deg,#0F172A,#1E3A5F);align-items:center}
+.learn-hdr{width:100%;padding:0.6rem 1rem;background:rgba(0,0,0,0.3);
+  display:flex;align-items:center;justify-content:space-between}
+.learn-hdr-title{font-family:'Fredoka One',sans-serif;color:white;font-size:0.95rem}
+.learn-step-dots{display:flex;gap:0.3rem}
+.lsd{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.2)}
+.lsd.on{background:var(--yellow)}
+.lsd.done{background:var(--green)}
+.learn-card{background:rgba(255,255,255,0.07);border:2px solid rgba(255,255,255,0.12);
+  border-radius:20px;padding:1.2rem;margin:0.8rem;max-width:340px;width:calc(100% - 1.6rem);
+  text-align:center}
+.learn-robot{width:120px;margin:0 auto 0.6rem;animation:float 2s ease-in-out infinite}
+.learn-title{font-family:'Fredoka One',sans-serif;font-size:1.3rem;color:var(--yellow);margin-bottom:0.4rem}
+.learn-text{font-size:0.88rem;color:rgba(255,255,255,0.8);line-height:1.6;margin-bottom:0.8rem}
+.learn-tip{background:rgba(255,214,0,0.1);border:1px solid rgba(255,214,0,0.3);
+  border-radius:12px;padding:0.6rem 0.9rem;font-size:0.82rem;color:var(--yellow);
+  margin-bottom:0.9rem;line-height:1.5}
+.clock-demo{display:flex;align-items:center;justify-content:center;gap:0.4rem;
+  font-family:'Fredoka One',sans-serif;font-size:1.8rem;color:white;margin:0.5rem 0}
+.time-block{background:rgba(255,255,255,0.1);border-radius:8px;padding:0.2rem 0.5rem}
+.energy-demo{display:flex;gap:0.2rem;justify-content:center;margin:0.4rem 0;font-size:1.3rem}
+.btn-next{background:linear-gradient(135deg,var(--teal),#007A6E);color:white;border:none;
+  border-radius:50px;padding:0.8rem 2rem;font-family:'Fredoka One',sans-serif;
+  font-size:1rem;cursor:pointer;width:100%}
+
+/* ===== GAME ===== */
+#scr-game{position:relative;overflow:hidden;
+  background:linear-gradient(180deg,#87CEEB 0%,#B0E0FF 40%,#E8F8FF 70%,#90EE90 100%)}
+
+/* SUN/CLOUDS */
+#sun{position:absolute;top:8%;right:10%;font-size:2.5rem;animation:spin-slow 20s linear infinite;z-index:2}
+@keyframes spin-slow{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+.cloud{position:absolute;font-size:1.8rem;opacity:0.7;z-index:2;animation:drift 15s linear infinite}
+@keyframes drift{0%{transform:translateX(0)}50%{transform:translateX(20px)}100%{transform:translateX(0)}}
+
+/* HUD */
+.game-hud{position:absolute;top:0;left:0;right:0;z-index:20;
+  padding:0.4rem 0.7rem;display:flex;align-items:center;gap:0.4rem;
+  background:rgba(255,255,255,0.85);backdrop-filter:blur(8px);
+  border-bottom:1px solid rgba(0,0,0,0.08)}
+.hud-time{font-family:'Fredoka One',sans-serif;font-size:1rem;color:var(--dark)}
+.hud-energy-wrap{flex:1;margin:0 0.5rem}
+.hud-energy-label{font-size:0.65rem;font-weight:700;color:var(--muted);margin-bottom:0.1rem}
+.hud-energy-bar{height:6px;background:#E0E0E0;border-radius:50px;overflow:hidden}
+.hud-energy-fill{height:100%;border-radius:50px;transition:width 0.5s ease,background 0.3s}
+.hud-flw{display:flex;align-items:center;gap:0.2rem;background:rgba(255,214,0,0.15);
+  border-radius:50px;padding:0.15rem 0.5rem;font-weight:700;font-size:0.8rem;color:#B45309}
+.coin-mini{width:16px;height:16px;background:var(--yellow);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:0.5rem;font-weight:900;color:#333}
+.hud-score{font-size:0.8rem;font-weight:700;color:var(--dark)}
+
+/* TIMELINE */
+#timeline-wrap{position:absolute;bottom:0;left:0;right:0;z-index:10;
+  background:rgba(255,255,255,0.92);backdrop-filter:blur(8px);
+  border-top:2px solid rgba(0,0,0,0.08);padding:0.5rem 0.4rem 0.8rem}
+.timeline-label{font-size:0.7rem;font-weight:700;color:var(--muted);margin-bottom:0.3rem;text-align:center}
+.timeline-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:0.3rem}
+.timeline-inner{display:flex;align-items:flex-end;gap:0;position:relative;
+  height:70px;min-width:600px}
+.time-slot{flex:1;min-width:38px;height:100%;display:flex;flex-direction:column;
+  align-items:center;justify-content:flex-end;position:relative;border-right:1px solid rgba(0,0,0,0.06)}
+.time-slot-label{font-size:0.58rem;color:var(--muted);font-weight:700;position:absolute;bottom:2px}
+.time-slot-drop{width:32px;height:44px;border-radius:10px;border:2px dashed #D0D0D0;
+  background:rgba(0,0,0,0.02);margin-bottom:16px;
+  display:flex;align-items:center;justify-content:center;transition:all 0.2s;font-size:1.3rem}
+.time-slot-drop.highlight{border-color:var(--teal);background:rgba(0,168,150,0.1);transform:scale(1.05)}
+.time-slot-drop.filled{border-style:solid;border-color:transparent;background:white;
+  box-shadow:0 2px 8px rgba(0,0,0,0.12)}
+.time-slot-drop.correct{border-color:var(--green);background:rgba(34,197,94,0.1);animation:slot-pop 0.4s ease}
+.time-slot-drop.wrong{border-color:var(--red);background:rgba(239,68,68,0.1);animation:slot-shake 0.4s ease}
+@keyframes slot-pop{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+@keyframes slot-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+/* FALLING TASKS */
+#tasks-area{position:absolute;top:52px;left:0;right:0;bottom:160px;z-index:15;pointer-events:none}
+.falling-task{position:absolute;cursor:grab;pointer-events:all;
+  background:white;border-radius:14px;padding:0.4rem 0.7rem;
+  box-shadow:0 4px 16px rgba(0,0,0,0.15);
+  display:flex;flex-direction:column;align-items:center;gap:0.1rem;
+  min-width:60px;touch-action:none;z-index:16;
+  transition:box-shadow 0.2s}
+.falling-task:active,.falling-task.dragging{box-shadow:0 8px 30px rgba(0,0,0,0.25);transform:scale(1.05);z-index:50}
+.ft-icon{font-size:1.6rem;line-height:1}
+.ft-label{font-size:0.6rem;font-weight:700;color:var(--dark);text-align:center;line-height:1.2}
+.ft-time{font-size:0.55rem;color:var(--muted)}
+
+/* ROBOT ON TIMELINE */
+#game-robot{position:absolute;bottom:155px;z-index:18;width:65px;
+  filter:drop-shadow(0 4px 10px rgba(0,0,0,0.2));
+  transition:left 0.5s cubic-bezier(0.34,1.56,0.64,1)}
+#game-robot.happy{animation:r-happy 0.6s ease}
+#game-robot.warn{animation:r-warn 0.5s ease}
+#game-robot.idle{animation:r-idle 3s ease-in-out infinite}
+@keyframes r-happy{0%,100%{transform:rotate(0) scale(1)}30%{transform:rotate(-15deg) scale(1.15)}60%{transform:rotate(15deg) scale(1.15)}}
+@keyframes r-warn{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+@keyframes r-idle{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+
+/* SPEECH BUBBLE */
+#speech{position:absolute;bottom:225px;z-index:19;background:white;
+  border-radius:12px;padding:0.4rem 0.7rem;font-size:0.75rem;font-weight:700;
+  box-shadow:0 3px 12px rgba(0,0,0,0.15);max-width:160px;line-height:1.4;
+  color:var(--dark);opacity:0;transition:opacity 0.3s;pointer-events:none;text-align:center}
+#speech.show{opacity:1}
+#speech::after{content:'';position:absolute;bottom:-7px;right:20px;
+  border:4px solid transparent;border-top-color:white}
+
+/* FEEDBACK */
+#feedback{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);
+  z-index:40;background:white;border-radius:20px;padding:1.2rem 1.5rem;
+  max-width:280px;width:90%;text-align:center;color:var(--dark);
+  box-shadow:0 20px 60px rgba(0,0,0,0.2);transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1)}
+#feedback.show{transform:translate(-50%,-50%) scale(1)}
+.fb-icon{font-size:2.5rem;margin-bottom:0.3rem}
+.fb-title{font-family:'Fredoka One',sans-serif;font-size:1.2rem;margin-bottom:0.2rem}
+.fb-text{font-size:0.82rem;color:var(--muted);line-height:1.5;margin-bottom:0.3rem}
+.fb-energy{font-size:0.85rem;font-weight:700;margin-bottom:0.7rem}
+.fb-btn{background:linear-gradient(135deg,var(--teal),#007A6E);color:white;border:none;
+  border-radius:50px;padding:0.65rem 2rem;font-family:'Fredoka One',sans-serif;
+  font-size:0.95rem;cursor:pointer;width:100%}
+
+/* PARTICLES */
+.star-p{position:fixed;pointer-events:none;z-index:9999;font-size:1.2rem;animation:star-fly 1s ease-out forwards}
+@keyframes star-fly{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-80px) scale(0.2);opacity:0}}
+
+/* ===== RESULT ===== */
+#scr-result{align-items:center;justify-content:center;padding:1.5rem;text-align:center;
+  background:linear-gradient(180deg,#0F172A,#1E3A5F);overflow-y:auto}
+.result-title{font-family:'Fredoka One',sans-serif;font-size:1.9rem;
+  background:linear-gradient(135deg,var(--yellow),var(--orange));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:0.3rem 0}
+.result-stats{background:rgba(255,255,255,0.07);border-radius:14px;padding:1rem;
+  width:100%;max-width:280px;margin:0.6rem 0;text-align:right}
+.stat-row{display:flex;justify-content:space-between;align-items:center;
+  padding:0.35rem 0;border-bottom:1px solid rgba(255,255,255,0.07);font-size:0.88rem;color:white}
+.stat-row:last-child{border-bottom:none}
+.stat-val{font-weight:700;color:var(--yellow)}
+.flw-box{background:rgba(255,214,0,0.1);border:2px solid rgba(255,214,0,0.3);
+  border-radius:14px;padding:0.9rem 2rem;margin:0.5rem 0}
+.flw-big{font-family:'Fredoka One',sans-serif;font-size:2.3rem;color:var(--yellow);
+  display:flex;align-items:center;justify-content:center;gap:0.4rem}
+.big-coin{width:40px;height:40px;background:var(--yellow);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:900;color:#333}
+.btn-replay{background:linear-gradient(135deg,var(--yellow),var(--orange));color:#1A1A2E;
+  border:none;border-radius:50px;padding:0.85rem 2rem;font-family:'Fredoka One',sans-serif;
+  font-size:1rem;cursor:pointer;width:100%;max-width:260px;margin-bottom:0.6rem}
+.btn-home{background:transparent;color:rgba(255,255,255,0.4);
+  border:2px solid rgba(255,255,255,0.15);border-radius:50px;
+  padding:0.65rem 1.5rem;font-family:'Heebo',sans-serif;font-size:0.88rem;
+  cursor:pointer;width:100%;max-width:260px}
+
+/* ENERGY TOAST */
+.energy-toast{position:absolute;top:58px;left:50%;transform:translateX(-50%);
+  font-family:'Fredoka One',sans-serif;font-size:1rem;z-index:25;
+  pointer-events:none;animation:e-float 1.5s ease-out forwards;white-space:nowrap;
+  padding:0.2rem 0.7rem;border-radius:50px}
+@keyframes e-float{0%{transform:translateX(-50%) translateY(0);opacity:1}100%{transform:translateX(-50%) translateY(-45px);opacity:0}}
+
+@media(max-width:380px){.intro-title{font-size:1.7rem}.falling-task{min-width:52px}}
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div class="scr on" id="scr-intro">
+  <img src="/games/assets/images/ROBOTAI.png" alt="רובוט" class="intro-robot" onerror="this.style.display='none'">
+  <div class="intro-title">⏰ היום של OF</div>
+  <div class="intro-sub">
+    למד לנהל את הזמן שלך<br>
+    וסדר את היום כמו אלוף! 🏆
+  </div>
+  <div class="age-grid">
+    <div class="age-card" onclick="selectAge(this,6)" data-age="6">
+      <div class="ac-icon">🌱</div>
+      <div class="ac-label">6-9</div>
+      <div class="ac-sub">יום בסיסי</div>
+    </div>
+    <div class="age-card" onclick="selectAge(this,10)" data-age="10">
+      <div class="ac-icon">⚡</div>
+      <div class="ac-label">10-12</div>
+      <div class="ac-sub">תעדוף</div>
+    </div>
+    <div class="age-card" onclick="selectAge(this,13)" data-age="13">
+      <div class="ac-icon">🎯</div>
+      <div class="ac-label">13-16</div>
+      <div class="ac-sub">ניהול מלא</div>
+    </div>
+  </div>
+  <button class="btn-go" id="btn-go" onclick="startLearn()">🚀 בואו נתחיל!</button>
+</div>
+
+<!-- LEARN -->
+<div class="scr" id="scr-learn">
+  <div class="learn-hdr">
+    <div class="learn-hdr-title">📚 לומדים קודם</div>
+    <div class="learn-step-dots" id="learn-dots"></div>
+  </div>
+  <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:0.5rem">
+    <div class="learn-card">
+      <img src="/games/assets/images/ROBOTAI.png" alt="רובוט" class="learn-robot" onerror="this.style.display='none'">
+      <div class="learn-title" id="lt-title">מה זה ניהול זמן?</div>
+      <div class="learn-text" id="lt-text"></div>
+      <div class="learn-tip" id="lt-tip"></div>
+      <div id="lt-demo"></div>
+      <button class="btn-next" id="lt-next" onclick="learnNext()">הבא →</button>
+    </div>
+  </div>
+</div>
+
+<!-- GAME -->
+<div class="scr" id="scr-game">
+  <div id="sun">☀️</div>
+  <div class="cloud" style="top:18%;left:15%;animation-delay:-3s">☁️</div>
+  <div class="cloud" style="top:25%;right:20%;animation-delay:-7s;font-size:1.3rem">☁️</div>
+
+  <div class="game-hud">
+    <div class="hud-time" id="hud-time">⏰ 7:00</div>
+    <div class="hud-energy-wrap">
+      <div class="hud-energy-label">⚡ אנרגיה</div>
+      <div class="hud-energy-bar"><div class="hud-energy-fill" id="energy-bar" style="width:80%;background:#22C55E"></div></div>
+    </div>
+    <div class="hud-flw"><div class="coin-mini">FLW</div><span id="hud-flw">0</span></div>
+    <div class="hud-score">✅ <span id="hud-score">0</span></div>
+  </div>
+
+  <div id="tasks-area"></div>
+
+  <img src="/games/assets/images/ROBOTAI.png" alt="רובוט"
+       id="game-robot" class="idle" onerror="this.style.display='none'">
+  <div id="speech"></div>
+
+  <div id="timeline-wrap">
+    <div class="timeline-label" id="timeline-label">גרור את המשימה לשעה המתאימה</div>
+    <div class="timeline-scroll">
+      <div class="timeline-inner" id="timeline-inner"></div>
+    </div>
+  </div>
+
+  <div id="feedback">
+    <div class="fb-icon" id="fb-icon">✅</div>
+    <div class="fb-title" id="fb-title">כל הכבוד!</div>
+    <div class="fb-text" id="fb-text"></div>
+    <div class="fb-energy" id="fb-energy"></div>
+    <button class="fb-btn" onclick="closeFeedback()">המשך ⏰</button>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div class="scr" id="scr-result">
+  <div style="font-size:3rem;margin:0.3rem 0" id="result-emoji">🏆</div>
+  <div class="result-title" id="result-title">יום מושלם!</div>
+  <div style="color:rgba(255,255,255,0.5);font-size:0.85rem;margin-bottom:0.4rem" id="result-sub"></div>
+  <div style="font-size:1.8rem;margin:0.2rem 0" id="result-stars"></div>
+  <div class="result-stats" id="result-stats"></div>
+  <div class="flw-box">
+    <div style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin-bottom:0.3rem">FLW שצברת</div>
+    <div class="flw-big"><div class="big-coin">FLW</div><span id="result-flw">0</span></div>
+  </div>
+  <button class="btn-replay" onclick="playAgain()">🔄 שחק שוב</button>
+  <button class="btn-home" onclick="goHome()">🏠 חזרה לאקדמיה</button>
+</div>
+
+<script>
+// ============================================================
+// LEARN CONTENT BY AGE
+// ============================================================
+const LEARN_STEPS = {
+  6:[
+    {title:'מה זה זמן?',
+     text:'היום שלנו מתחיל בבוקר ומסתיים בלילה. בינתיים — יש הרבה דברים לעשות! ניהול זמן = לדעת מה לעשות ומתי.',
+     tip:'💡 טיפ: דברים חשובים — קודם! כיף — אחרי.',
+     demo:'<div class="clock-demo"><div class="time-block">🌅 7:00</div><span style="color:rgba(255,255,255,0.4)">עד</span><div class="time-block">🌙 21:00</div></div>'},
+    {title:'סדר הדברים חשוב!',
+     text:'אם תשחק לפני שתאכל — תהיה רעב ועצבני. אם תישן מאוחר — תהיה עייף בבוקר. לכל דבר יש שעה נכונה!',
+     tip:'🌟 קסם: כשמסדרים את היום — יש יותר זמן לכיף!',
+     demo:'<div style="display:flex;justify-content:center;gap:0.8rem;font-size:1.8rem;margin:0.4rem 0">🍳→📚→🎮→😴</div>'},
+    {title:'בוא ננהל יום!',
+     text:'OF צריך עזרה לסדר את היום שלו. גרור כל משימה לשעה הנכונה בציר הזמן!',
+     tip:'⚡ שים לב למד האנרגיה — שינה מוקדמת = יותר אנרגיה מחר!',
+     demo:'<div style="text-align:center;font-size:2rem;margin:0.4rem 0">🎯</div>'},
+  ],
+  10:[
+    {title:'תעדוף — מה קודם?',
+     text:'לא כל דבר שווה. יש דברים חשובים-דחופים, חשובים-לא-דחופים, ויש... בזבוז זמן. ניהול זמן טוב = לדעת מה קודם.',
+     tip:'💡 כלל: חשוב + דחוף → עכשיו. חשוב + לא דחוף → תכנן. לא חשוב → אחר כך או בכלל לא.',
+     demo:'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin:0.5rem 0;font-size:0.72rem"><div style="background:rgba(239,68,68,0.2);border-radius:8px;padding:0.4rem;text-align:center">🔥 דחוף+חשוב<br>עכשיו!</div><div style="background:rgba(59,130,246,0.2);border-radius:8px;padding:0.4rem;text-align:center">📋 חשוב<br>תכנן</div><div style="background:rgba(255,214,0,0.2);border-radius:8px;padding:0.4rem;text-align:center">⚡ דחוף<br>האצל</div><div style="background:rgba(156,163,175,0.2);border-radius:8px;padding:0.4rem;text-align:center">🗑️ לא חשוב<br>ויתור</div></div>'},
+    {title:'אנרגיה — משאב מוגבל',
+     text:'בכל יום יש לך כמות מסוימת של אנרגיה. כשמתאמצים — האנרגיה יורדת. כשנחים — עולה. צריך לנהל אותה חכם!',
+     tip:'🧠 מחקרים: המוח הכי חזק בבוקר. שיעורי בית קשים → בוקר. כיף וחברים → אחה"צ.',
+     demo:'<div class="energy-demo">⚡⚡⚡⚡⚡</div><div style="font-size:0.75rem;color:rgba(255,255,255,0.5);text-align:center">100% אנרגיה בבוקר</div>'},
+    {title:'זמן גנוב — הסכנה!',
+     text:'גלילה בטלפון, טלויזיה רקע, "עוד דקה אחת" — אלה גנבי הזמן הכי גדולים. הם קורים בלי שמרגישים!',
+     tip:'⏱️ כלל ה-25 דקות: עבוד 25 דקות ללא הפרעות, אז 5 דקות הפסקה. תנסה!',
+     demo:'<div style="text-align:center;font-size:1.6rem;margin:0.4rem 0">📱 "עוד דקה" = 45 דקות 😱</div>'},
+  ],
+  13:[
+    {title:'זמן = הנכס הכי יקר',
+     text:'כסף אפשר להרוויח חזרה. זמן — לא. כל שעה שעוברת לא חוזרת. מי שמנהל זמן טוב = מצליח יותר בחיים, לא כי הוא חכם יותר, אלא כי הוא ממקסם את השעות.',
+     tip:'📊 עובדה: בכל יום 24 שעות — לכולם. ההבדל = מה עושים איתן.',
+     demo:'<div style="font-size:1.8rem;text-align:center;margin:0.4rem 0">24h × 365 = 8,760 שעות/שנה</div>'},
+    {title:'מטריצת אייזנהאואר',
+     text:'נשיא ארה"ב השתמש בשיטה זו: חלק כל משימה ל-4 רבעים לפי דחיפות וחשיבות. זה המפתח לניהול יום מוצלח.',
+     tip:'🎯 סוד: רוב האנשים מבלים זמן על "דחוף-לא חשוב". מנצחים מבלים על "חשוב-לא דחוף".',
+     demo:'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin:0.5rem 0;font-size:0.72rem"><div style="background:rgba(239,68,68,0.2);border-radius:8px;padding:0.4rem;text-align:center">🔥 Q1: משבר<br>עכשיו</div><div style="background:rgba(34,197,94,0.2);border-radius:8px;padding:0.4rem;text-align:center">🌱 Q2: צמיחה<br>תכנן!</div><div style="background:rgba(255,214,0,0.2);border-radius:8px;padding:0.4rem;text-align:center">📞 Q3: הפרעות<br>האצל</div><div style="background:rgba(156,163,175,0.2);border-radius:8px;padding:0.4rem;text-align:center">📺 Q4: בזבוז<br>הפחת</div></div>'},
+    {title:'בלוק-טיים — שיטת המנצחים',
+     text:'במקום רשימת משימות — קבע "בלוקים" בלוח השנה. "8:00-10:00 = לימוד ביולוגיה". כשיש זמן שמור — עושים. בלי ויכוחים פנימיים.',
+     tip:'⚡ הרגל: כל לילה — תכנן 3 משימות הכרחיות למחרת. רק 3. לפני הכל.',
+     demo:'<div style="font-size:0.78rem;color:rgba(255,255,255,0.7);text-align:right;line-height:1.8;margin:0.3rem 0">📗 8:00-10:00 לימוד<br>🏃 16:00-17:00 ספורט<br>📱 20:00-21:00 חברים</div>'},
+  ]
+};
+
+// ============================================================
+// TASKS BY AGE
+// ============================================================
+const TASKS = {
+  6:[
+    {id:'breakfast',icon:'🍳',label:'ארוחת בוקר',time:'breakfast',bestSlot:[0,1],
+     slots:[7,8],energy:+10,flw:3,
+     fb:{good:'מושלם! ארוחת בוקר בשעה 7-8 = דלק למוח לכל היום!',bad:'ארוחת בוקר אחרי 9? המוח ייסבול מרעב בזמן הלימודים.'},
+     tip:'🍳 ארוחת בוקר = דלק למוח!'},
+    {id:'school',icon:'🏫',label:'בית ספר',time:'school',bestSlot:[2,3,4,5],
+     slots:[8,9,10,11,12,13],energy:-20,flw:5,
+     fb:{good:'בדיוק! בית ספר הוא בבוקר — המוח הכי ערני אז.',bad:'בית ספר לא מתחיל בשעה הזו. נסה בבוקר מוקדם יותר.'},
+     tip:'🏫 לימודים = בוקר!'},
+    {id:'lunch',icon:'🍱',label:'ארוחת צהריים',time:'lunch',bestSlot:[6,7],
+     slots:[13,14],energy:+15,flw:3,
+     fb:{good:'מיקמת בדיוק בשעה הנכונה! אחרי בית הספר הגוף צריך אנרגיה ומזון.',bad:'ארוחת הצהריים צריכה להגיע אחרי ארוחת הבוקר — לא לפניה! בדוק את הסדר.'},
+     tip:'🍱 אוכלים אחרי בי"ס!'},
+    {id:'homework',icon:'📚',label:'שיעורי בית',time:'homework',bestSlot:[7,8,9],
+     slots:[14,15,16],energy:-15,flw:5,
+     fb:{good:'כל הכבוד! שיעורי בית מוקדם = יותר זמן לכיף אחר כך!',bad:'שיעורי בית מאוחר מדי = עייפות + טעויות. נסה מוקדם יותר.'},
+     tip:'📚 שיעורי בית = אחה"צ מוקדם!'},
+    {id:'play',icon:'🎮',label:'משחק / כיף',time:'play',bestSlot:[9,10,11],
+     slots:[15,16,17,18],energy:-5,flw:4,
+     fb:{good:'נהדר! אחרי שיעורי בית — מגיע לך לשחק!',bad:'לשחק לפני שיעורי הבית? אחר כך יהיה קשה לחזור ללמוד.'},
+     tip:'🎮 כיף = אחרי שיעורים!'},
+    {id:'dinner',icon:'🍕',label:'ארוחת ערב',time:'dinner',bestSlot:[12,13],
+     slots:[18,19],energy:+10,flw:3,
+     fb:{good:'מצוין! ארוחת ערב ב-18-19 = זמן משפחתי מושלם.',bad:'ארוחת ערב בשעה הזו לא מתאימה. נסה 18-19.'},
+     tip:'🍕 ארוחת ערב = עם המשפחה!'},
+    {id:'bath',icon:'🛁',label:'מקלחת / אמבטיה',time:'bath',bestSlot:[13,14],
+     slots:[19,20],energy:+5,flw:3,
+     fb:{good:'מושלם! מקלחת לפני השינה = שינה טובה יותר.',bad:'מקלחת בזמן הזה? נסה קרוב לשינה.'},
+     tip:'🛁 מקלחת = לפני שינה!'},
+    {id:'sleep',icon:'😴',label:'שינה',time:'sleep',bestSlot:[14,15],
+     slots:[20,21],energy:+30,flw:6,
+     fb:{good:'מעולה! שינה ב-20-21 = 10 שעות שינה. המוח גדל בשינה!',bad:'כדאי לישון קצת יותר מוקדם — ילדים בגיל 6-9 צריכים 10 שעות שינה כדי לגדול ולהתרכז!'},
+     tip:'😴 שינה מוקדמת = גדילה + ריכוז!'},
+  ],
+  10:[
+    {id:'wake',icon:'⏰',label:'קום מוקדם',time:'morning',bestSlot:[0,1],
+     slots:[6,7],energy:+20,flw:4,
+     fb:{good:'מצוין! קימה מוקדמת = זמן רגוע לפני בית הספר. מפחיתה לחץ!',bad:'קום מוקדם לא אחרי 8. בוקר לחוץ = יום גרוע.'},
+     tip:'⏰ קום מוקדם = יום טוב יותר!'},
+    {id:'study',icon:'📖',label:'לימוד/שיעורי בית',time:'study',bestSlot:[2,3,4],
+     slots:[8,14,15,16],energy:-25,flw:6,
+     fb:{good:'חכם! הזמן הכי טוב ללימוד — בוקר (אחרי ארוחה) או מוקדם אחה"צ.',bad:'לימוד בשעה הזו פחות יעיל. נסה בוקר מוקדם או 14-16.'},
+     tip:'📖 מוח = הכי חזק בבוקר!'},
+    {id:'sport',icon:'🏃',label:'ספורט / פעילות',time:'sport',bestSlot:[7,8,9],
+     slots:[15,16,17,18],energy:-10,flw:5,
+     fb:{good:'מעולה! ספורט אחה"צ = פורק אנרגיה ומשפר ריכוז ללימוד אחר כך.',bad:'ספורט בשעה הזו לא אידיאלי. אחה"צ מוקדם עדיף.'},
+     tip:'🏃 ספורט = יותר ריכוז!'},
+    {id:'social',icon:'👫',label:'חברים / בילוי',time:'social',bestSlot:[8,9,10],
+     slots:[16,17,18,19],energy:-5,flw:4,
+     fb:{good:'נהדר! חברים אחרי שיעורי בית = ראש חופשי ליהנות!',bad:'חברים לפני שיעורי בית = קשה לחזור ללמוד אחר כך.'},
+     tip:'👫 חברים = אחרי שיעורים!'},
+    {id:'screen',icon:'📱',label:'מסך / טלפון',time:'screen',bestSlot:[10,11],
+     slots:[17,18,19],energy:-15,flw:3,
+     fb:{good:'טוב! מסך מוגבל ובשעות קבועות = שינה טובה יותר.',bad:'מסך לפני שינה פוגע בשינה. מסך לפני לימוד — מסיח דעת.'},
+     tip:'📱 מסך = בשעות קבועות בלבד!'},
+    {id:'sleep2',icon:'😴',label:'שינה',time:'sleep',bestSlot:[13,14,15],
+     slots:[21,22],energy:+35,flw:7,
+     fb:{good:'כל הכבוד! גיל 10-12 צריך 9-10 שעות שינה. ב-21-22 = מושלם.',bad:'כדאי לישון קצת מוקדם יותר — גיל 10-12 צריך 9-10 שעות שינה לריכוז ולמידה טובים.'},
+     tip:'😴 9-10 שעות שינה = חובה!'},
+    {id:'plan',icon:'📋',label:'תכנון המחרת',time:'plan',bestSlot:[12,13],
+     slots:[20,21],energy:0,flw:5,
+     fb:{good:'מעולה! 5 דקות תכנון = יום מחר הרבה יותר טוב. הרגל של מנצחים!',bad:'תכנון מחר מוקדם מדי — נסה בערב, לפני שינה.'},
+     tip:'📋 תכנן ערב = יום מנצח!'},
+    {id:'read',icon:'📗',label:'קריאה',time:'read',bestSlot:[11,12],
+     slots:[19,20,21],energy:+5,flw:4,
+     fb:{good:'נהדר! קריאה לפני שינה = הירדמות קלה יותר ומוח חזק יותר.',bad:'קריאה = תמיד טוב, אבל לפני שינה עדיף. מרגיע ומלמד.'},
+     tip:'📗 קרא לפני שינה!'},
+  ],
+  13:[
+    {id:'deep-work',icon:'🧠',label:'עבודה עמוקה',time:'deep',bestSlot:[0,1,2],
+     slots:[7,8,9,10],energy:-30,flw:7,
+     fb:{good:'מצוין! עבודה עמוקה בבוקר = הזמן שבו קורטיזול גבוה וריכוז מקסימלי.',bad:'עבודה עמוקה אחה"צ? אחרי 14:00 הקורטיזול יורד. קשה יותר להתרכז לטווח ארוך.'},
+     tip:'🧠 עבודה קשה = בוקר!'},
+    {id:'exercise',icon:'💪',label:'אימון / ספורט',time:'exercise',bestSlot:[4,5,6],
+     slots:[6,14,15,16,17],energy:-20,flw:5,
+     fb:{good:'מושלם! ספורט בבוקר = דופמין + אנדורפינים לכל היום. ספורט אחה"צ = פורק לחץ.',bad:'ספורט לפני שינה מפריע להירדמות. נסה קצת מוקדם יותר.'},
+     tip:'💪 ספורט = מגביר מוח!'},
+    {id:'admin',icon:'📧',label:'מיילים / מסרים',time:'admin',bestSlot:[3,4,7],
+     slots:[10,11,18,19],energy:-5,flw:3,
+     fb:{good:'חכם! מיילים ומסרים = פעילות "קלה". שמור לאחר עבודה עמוקה.',bad:'לפתוח מיילים/מסרים ראשון = להכנס להפרעות. קשה לצאת ולהתרכז.'},
+     tip:'📧 מסרים = לא ראשון!'},
+    {id:'learn-new',icon:'🎓',label:'למידה חדשה',time:'learn',bestSlot:[1,2,3],
+     slots:[8,9,10,14,15],energy:-25,flw:6,
+     fb:{good:'מעולה! למידת חומר חדש דורשת ריכוז מקסימלי — בוקר או אחה"צ מוקדם.',bad:'למידה חדשה בשעה הזו? העייפות תגרום לחזרה על אותו חומר שוב ושוב.'},
+     tip:'🎓 חומר חדש = כשאתה רענן!'},
+    {id:'social2',icon:'👥',label:'חברים / מדיה',time:'social',bestSlot:[8,9,10],
+     slots:[16,17,18,19,20],energy:+5,flw:4,
+     fb:{good:'טוב! חברים אחה"צ מאוחר = מרגע ומאזן את יום הלימודים.',bad:'חברים ומדיה חברתית בשעות הבוקר = הפרעה ליום. שמור לאחה"צ.'},
+     tip:'👥 חברים = אחה"צ מאוחר!'},
+    {id:'reflect',icon:'📓',label:'יומן / רפלקציה',time:'reflect',bestSlot:[11,12],
+     slots:[21,22],energy:+10,flw:5,
+     fb:{good:'מעולה! כתיבת יומן/רפלקציה לפני שינה = עיבוד היום ותכנון מחר. הרגל של מנצחים.',bad:'רפלקציה בשעה הזו? זה כלי של סוף היום — לפני שינה.'},
+     tip:'📓 יומן = מגביר הצלחה!'},
+    {id:'sleep3',icon:'😴',label:'שינה',time:'sleep',bestSlot:[13,14,15],
+     slots:[22,23],energy:+40,flw:8,
+     fb:{good:'כל הכבוד! גיל 13-16 צריך 8-9 שעות. ב-22-23 = יום מאוזן.',bad:'כדאי לישון מוקדם יותר — גיל 13-16 צריך 8-9 שעות. חוסר שינה גורם לירידה של 40% בריכוז!'},
+     tip:'😴 8-9 שעות = מוח חד!'},
+    {id:'nap',icon:'🛋️',label:'תנומת צהריים',time:'nap',bestSlot:[5,6],
+     slots:[13,14],energy:+20,flw:4,
+     fb:{good:'מדהים! 20 דקות תנומה ב-13-14 = הזנקת ביצועים של 34%. חברות גדולות כמו Google מעודדות זאת!',bad:'תנומה בשעה הזו לא אידיאלית. אחרי ארוחת הצהריים (13-14) = האפקטיבי ביותר.'},
+     tip:'🛋️ 20 דקות תנומה = +34% ריכוז!'},
+    {id:'plan2',icon:'🗓️',label:'תכנון יום מחר',time:'plan',bestSlot:[12,13],
+     slots:[21,22],energy:0,flw:5,
+     fb:{good:'מנצח! תכנון מחר = 10 דקות שחוסכות שעה. ראה את היום כתכנית, לא כתגובות.',bad:'תכנון מחר ראוי לסוף היום. כך תלך לישון בראש שקט.'},
+     tip:'🗓️ תכנן = שולט בזמן!'},
+  ]
+};
+
+// TIME SLOT HOURS
+const SLOT_HOURS_6  = [7,8,9,10,11,12,13,14,15,16,17,18,19,20,21];
+const SLOT_HOURS_10 = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22];
+const SLOT_HOURS_13 = [7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23];
+
+// ROBOT SAYINGS
+const ROBOT_SAYS = {
+  good:['מעולה! ✨','בדיוק! 🎯','חכם! ⭐','כל הכבוד! 🏆','מנצח! 💪'],
+  bad: ['נסה שוב 💭','לא בדיוק...','חשוב שוב ⏰','אפשר טוב יותר!'],
+  idle:['גרור אותי לשעה הנכונה! 😄','מה השעה הנכונה? 🤔','גרור לציר הזמן! ⏳','תגרור אותי! 🎯']
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let childName = '';
+const GS = {
+  age:6, learnStep:0, learnSteps:[],
+  tasks:[], currentTask:null, tasksDone:0,
+  energy:80, maxEnergy:100,
+  flw:0, score:0, goodCount:0,
+  userId:null, gameId:null, flwPerWin:3,
+  startTime:Date.now(), answered:false,
+  slotHours:[], dragTask:null,
+  idleSayTimer:null
+};
+
+// ============================================================
+// postMessage
+// ============================================================
+window.addEventListener('message', e => {
+  if(e.data?.type === 'INIT'){
+    GS.userId = e.data.userId;
+    GS.gameId = e.data.gameId;
+    GS.flwPerWin = e.data.flwReward ? Math.max(1, Math.floor(e.data.flwReward/8)) : 3;
+    if(e.data.childName){ childName = e.data.childName; }
+    if(e.data.age){
+      const a = parseInt(e.data.age);
+      const ageKey = a <= 9 ? 6 : a <= 12 ? 10 : 13;
+      autoSelectAge(ageKey);
+    }
+    if(e.data.characterUrl)
+      document.querySelectorAll('img[alt="רובוט"]').forEach(i => i.src = e.data.characterUrl);
+  }
+});
+
+// ============================================================
+// HELPERS
+// ============================================================
+function showScreen(id){ document.querySelectorAll('.scr').forEach(s => s.classList.remove('on')); document.getElementById(id).classList.add('on'); }
+function shuffle(a){ return [...a].sort(() => Math.random() - .5); }
+function rnd(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+
+function addFLW(n){
+  GS.flw += n;
+  document.getElementById('hud-flw').textContent = GS.flw;
+}
+
+function spawnStars(x, y){
+  for(let i=0;i<4;i++){
+    const s = document.createElement('div');
+    s.className = 'star-p';
+    s.textContent = ['⭐','✨','🌟'][Math.floor(Math.random()*3)];
+    s.style.left = (x + (Math.random()-.5)*40) + 'px';
+    s.style.top = y + 'px';
+    s.style.animationDelay = (i*.08)+'s';
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 1100);
+  }
+}
+
+function showEnergyToast(delta){
+  if(delta === 0) return;
+  const t = document.createElement('div');
+  t.className = 'energy-toast';
+  t.textContent = delta > 0 ? `+${delta} ⚡ אנרגיה` : `${delta} ⚡ אנרגיה`;
+  t.style.color = delta > 0 ? '#22C55E' : '#EF4444';
+  t.style.background = delta > 0 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)';
+  document.getElementById('scr-game').appendChild(t);
+  setTimeout(() => t.remove(), 1600);
+}
+
+function updateEnergy(delta){
+  GS.energy = Math.max(0, Math.min(GS.maxEnergy, GS.energy + delta));
+  const bar = document.getElementById('energy-bar');
+  bar.style.width = GS.energy + '%';
+  bar.style.background = GS.energy > 60 ? '#22C55E' : GS.energy > 30 ? '#F59E0B' : '#EF4444';
+  showEnergyToast(delta);
+}
+
+// ============================================================
+// AGE SELECT
+// ============================================================
+function selectAge(el, age){
+  document.querySelectorAll('.age-card').forEach(c => c.classList.remove('sel'));
+  el.classList.add('sel');
+  GS.age = age;
+  document.getElementById('btn-go').classList.add('ready');
+}
+function autoSelectAge(age){
+  document.querySelectorAll('.age-card').forEach(c => {
+    if(parseInt(c.dataset.age) === age){ c.classList.add('sel'); GS.age = age; document.getElementById('btn-go').classList.add('ready'); }
+  });
+}
+
+// ============================================================
+// LEARN
+// ============================================================
+function startLearn(){
+  if(!GS.age) return;
+  GS.learnStep = 0;
+  GS.learnSteps = LEARN_STEPS[GS.age] || LEARN_STEPS[6];
+  renderLearn();
+  showScreen('scr-learn');
+}
+
+function renderLearn(){
+  const s = GS.learnSteps;
+  const cur = s[GS.learnStep];
+  // dots
+  let dots = '';
+  s.forEach((_,i) => {
+    dots += `<div class="lsd ${i < GS.learnStep ? 'done' : i === GS.learnStep ? 'on' : ''}"></div>`;
+  });
+  document.getElementById('learn-dots').innerHTML = dots;
+  document.getElementById('lt-title').textContent = cur.title;
+  document.getElementById('lt-text').textContent = cur.text;
+  document.getElementById('lt-tip').textContent = cur.tip;
+  document.getElementById('lt-demo').innerHTML = cur.demo || '';
+  document.getElementById('lt-next').textContent = GS.learnStep >= s.length-1 ? '🎮 לשחק!' : 'הבא →';
+}
+
+function learnNext(){
+  if(GS.learnStep >= GS.learnSteps.length - 1){ startGame(); return; }
+  GS.learnStep++;
+  renderLearn();
+}
+
+// ============================================================
+// GAME SETUP
+// ============================================================
+function startGame(){
+  GS.tasks = shuffle([...(TASKS[GS.age] || TASKS[6])]);
+  GS.slotHours = GS.age <= 9 ? SLOT_HOURS_6 : GS.age <= 12 ? SLOT_HOURS_10 : SLOT_HOURS_13;
+  GS.energy = 80; GS.flw = 0; GS.score = 0; GS.goodCount = 0;
+  GS.tasksDone = 0; GS.answered = false;
+
+  updateEnergy(0);
+  document.getElementById('hud-flw').textContent = '0';
+  document.getElementById('hud-score').textContent = '0';
+
+  buildTimeline();
+  showScreen('scr-game');
+  initRobot();
+  setTimeout(() => showNextTask(), 600);
+  startIdleRobotSays();
+}
+
+// ============================================================
+// TIMELINE
+// ============================================================
+function buildTimeline(){
+  const inner = document.getElementById('timeline-inner');
+  inner.innerHTML = '';
+  GS.slotHours.forEach((h, i) => {
+    const slot = document.createElement('div');
+    slot.className = 'time-slot';
+    slot.innerHTML = `
+      <div class="time-slot-drop" id="slot-${h}" data-hour="${h}" data-idx="${i}"></div>
+      <div class="time-slot-label">${h}:00</div>`;
+    inner.appendChild(slot);
+    // drop zone listeners
+    const drop = slot.querySelector('.time-slot-drop');
+    drop.addEventListener('touchstart', onSlotTouch, {passive:false});
+    drop.addEventListener('click', () => onSlotClick(h));
+  });
+}
+
+// ============================================================
+// TASK DISPLAY
+// ============================================================
+function showNextTask(){
+  if(GS.tasksDone >= GS.tasks.length){ endGame(); return; }
+  GS.answered = false;
+  const task = GS.tasks[GS.tasksDone];
+  GS.currentTask = task;
+
+  // clear old task elements
+  document.getElementById('tasks-area').innerHTML = '';
+
+  // create falling task card
+  const el = document.createElement('div');
+  el.className = 'falling-task';
+  el.id = 'current-task';
+  el.innerHTML = `<div class="ft-icon">${task.icon}</div><div class="ft-label">${task.label}</div>`;
+
+  // position in center top
+  const area = document.getElementById('tasks-area');
+  const aW = area.offsetWidth;
+  el.style.left = (aW/2 - 40) + 'px';
+  el.style.top = '20px';
+
+  area.appendChild(el);
+
+  // animate drop in
+  el.style.animation = 'task-drop 0.5s cubic-bezier(0.34,1.56,0.64,1)';
+  const styleEl = document.createElement('style');
+  styleEl.textContent = `@keyframes task-drop{from{transform:translateY(-80px) scale(0.5);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}`;
+  document.head.appendChild(styleEl);
+
+  // update HUD time
+  const firstSlot = task.slots[0];
+  document.getElementById('hud-time').textContent = `⏰ ${firstSlot}:00`;
+
+  // speech
+  sayRobot(task.tip || '?');
+
+  // drag/touch
+  initDrag(el);
+
+  // highlight valid slots
+  highlightSlots(task.slots);
+}
+
+function highlightSlots(hours){
+  document.querySelectorAll('.time-slot-drop').forEach(s => s.classList.remove('highlight'));
+  hours.forEach(h => {
+    const el = document.getElementById(`slot-${h}`);
+    if(el) el.classList.add('highlight');
+  });
+  // scroll timeline to first slot
+  const firstEl = document.getElementById(`slot-${hours[0]}`);
+  if(firstEl) firstEl.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'});
+}
+
+// ============================================================
+// DRAG & TOUCH
+// ============================================================
+let _dragEl = null, _dragOffX = 0, _dragOffY = 0;
+
+function initDrag(el){
+  // touch
+  el.addEventListener('touchstart', e => {
+    e.preventDefault();
+    _dragEl = el;
+    el.classList.add('dragging');
+    const t = e.touches[0];
+    const r = el.getBoundingClientRect();
+    _dragOffX = t.clientX - r.left;
+    _dragOffY = t.clientY - r.top;
+  }, {passive:false});
+
+  document.addEventListener('touchmove', onTouchMove, {passive:false});
+  document.addEventListener('touchend', onTouchEnd, {passive:false});
+
+  // mouse (desktop)
+  el.addEventListener('mousedown', e => {
+    _dragEl = el;
+    el.classList.add('dragging');
+    _dragOffX = e.offsetX;
+    _dragOffY = e.offsetY;
+  });
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+}
+
+function onTouchMove(e){
+  if(!_dragEl) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  _dragEl.style.left = (t.clientX - _dragOffX) + 'px';
+  _dragEl.style.top  = (t.clientY - _dragOffY - document.getElementById('tasks-area').getBoundingClientRect().top) + 'px';
+}
+
+function onTouchEnd(e){
+  if(!_dragEl) return;
+  const t = e.changedTouches[0];
+  const dropTarget = findDropTarget(t.clientX, t.clientY);
+  if(dropTarget) handleDrop(parseInt(dropTarget.dataset.hour));
+  else snapBack();
+  _dragEl.classList.remove('dragging');
+  _dragEl = null;
+}
+
+function onMouseMove(e){
+  if(!_dragEl) return;
+  const area = document.getElementById('tasks-area').getBoundingClientRect();
+  _dragEl.style.left = (e.clientX - _dragOffX - area.left) + 'px';
+  _dragEl.style.top  = (e.clientY - _dragOffY - area.top) + 'px';
+}
+
+function onMouseUp(e){
+  if(!_dragEl) return;
+  const dropTarget = findDropTarget(e.clientX, e.clientY);
+  if(dropTarget) handleDrop(parseInt(dropTarget.dataset.hour));
+  else snapBack();
+  _dragEl.classList.remove('dragging');
+  _dragEl = null;
+}
+
+function findDropTarget(clientX, clientY){
+  // מחפש את ה-slot הכי קרוב ל-X של הגרירה בתחתית המסך
+  const slots = document.querySelectorAll('.time-slot-drop');
+  let best = null, bestDist = Infinity;
+  for(const slot of slots){
+    const r = slot.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const dist = Math.abs(clientX - cx);
+    // Y צריך להיות בתחום ה-timeline (200px אחרון)
+    const inY = clientY >= window.innerHeight - 220;
+    if(inY && dist < bestDist && dist < 50){
+      best = slot;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+
+function snapBack(){
+  if(!_dragEl) return;
+  const area = document.getElementById('tasks-area');
+  _dragEl.style.left = (area.offsetWidth/2 - 40) + 'px';
+  _dragEl.style.top = '20px';
+}
+
+// click on slot (alternative to drag)
+function onSlotClick(hour){
+  if(GS.answered || !GS.currentTask) return;
+  handleDrop(hour);
+}
+
+function onSlotTouch(e){
+  e.stopPropagation();
+}
+
+// ============================================================
+// HANDLE DROP
+// ============================================================
+function handleDrop(hour){
+  if(GS.answered || !GS.currentTask) return;
+  GS.answered = true;
+  const task = GS.currentTask;
+  document.querySelectorAll('.time-slot-drop').forEach(s => s.classList.remove('highlight'));
+
+  const slotIdx = GS.slotHours.indexOf(hour);
+  const isGood = task.bestSlot.includes(slotIdx);
+  const isValid = task.slots.includes(hour);
+  const slotEl = document.getElementById(`slot-${hour}`);
+
+  if(isValid){
+    const taskEl = document.getElementById('current-task');
+    if(taskEl && slotEl){
+      taskEl.style.animation = 'none';
+      slotEl.innerHTML = `<span style="font-size:1.3rem">${task.icon}</span>`;
+      slotEl.classList.add(isGood ? 'correct' : 'filled');
+      taskEl.remove();
+    }
+
+    if(isGood){
+      GS.goodCount++;
+      GS.score++;
+      document.getElementById('hud-score').textContent = GS.score;
+      addFLW(GS.flwPerWin);
+      updateEnergy(task.energy);
+      const rect = slotEl.getBoundingClientRect();
+      spawnStars(rect.left + rect.width/2, rect.top);
+      robotHappy();
+      showFeedback(true, task, hour);
+    } else {
+      updateEnergy(Math.round(task.energy * 0.5));
+      robotWarn();
+      showFeedback(false, task, hour);
+    }
+  } else {
+    GS.answered = false;
+    if(slotEl) slotEl.classList.add('wrong');
+    setTimeout(() => slotEl && slotEl.classList.remove('wrong'), 500);
+    snapBack();
+    sayRobot(`${hour}:00 לא מתאים ל${task.label}. נסה שעה אחרת! ⏰`);
+    return;
+  }
+}
+
+// ============================================================
+// FEEDBACK
+// ============================================================
+function buildDynamicFeedback(good, task, hour){
+  // מבנה פידבק דינמי לפי השעה שנבחרה ומה היה כדאי
+  const bestHours = task.bestSlot.map(i => GS.slotHours[i]).filter(Boolean);
+  const bestStr = bestHours.length ? bestHours.map(h => h+':00').join(' או ') : '';
+  if(good){
+    return task.fb.good + (task.energy > 0
+      ? ` השעה ${hour}:00 נותנת לך +${task.energy}⚡ אנרגיה!`
+      : task.energy < 0
+        ? ` בשעה ${hour}:00 תוציא ${Math.abs(task.energy)}⚡ — שים לב לאנרגיה.`
+        : '');
+  } else {
+    const better = bestStr ? ` השעה הטובה ביותר: ${bestStr}.` : '';
+    return `בחרת ${hour}:00 — ${task.fb.bad}${better}`;
+  }
+}
+
+function showFeedback(good, task, hour){
+  document.getElementById('fb-icon').textContent = good ? '✅' : '⚠️';
+  document.getElementById('fb-title').textContent = good ? rnd(ROBOT_SAYS.good) : `${hour}:00 — אפשר טוב יותר`;
+  document.getElementById('fb-text').textContent = buildDynamicFeedback(good, task, hour);
+
+  const ef = document.getElementById('fb-energy');
+  const energyVal = good ? task.energy : Math.round(task.energy * 0.5);
+  if(energyVal !== 0){
+    ef.textContent = energyVal > 0 ? `+${energyVal} ⚡ אנרגיה` : `${energyVal} ⚡ אנרגיה`;
+    ef.style.color = energyVal > 0 ? '#22C55E' : '#EF4444';
+  } else { ef.textContent = '⏰ ניהול זמן = כוח!'; ef.style.color = '#7A9EA8'; }
+
+  document.getElementById('feedback').classList.add('show');
+}
+
+function closeFeedback(){
+  document.getElementById('feedback').classList.remove('show');
+  GS.tasksDone++;
+  setTimeout(() => showNextTask(), 300);
+}
+
+// ============================================================
+// ROBOT
+// ============================================================
+function initRobot(){
+  const robot = document.getElementById('game-robot');
+  const game = document.getElementById('scr-game');
+  robot.style.left = (game.offsetWidth/2 - 32) + 'px';
+  robot.className = 'idle';
+}
+
+function robotHappy(){
+  const r = document.getElementById('game-robot');
+  r.className = 'happy';
+  setTimeout(() => r.className = 'idle', 800);
+}
+
+function robotWarn(){
+  const r = document.getElementById('game-robot');
+  r.className = 'warn';
+  setTimeout(() => r.className = 'idle', 700);
+}
+
+function sayRobot(text){
+  const sp = document.getElementById('speech');
+  const robot = document.getElementById('game-robot');
+  const rx = parseFloat(robot.style.left || '0');
+  sp.style.left = rx + 'px';
+  sp.textContent = text;
+  sp.classList.add('show');
+  setTimeout(() => sp.classList.remove('show'), 2800);
+}
+
+function startIdleRobotSays(){
+  if(GS.idleSayTimer) clearInterval(GS.idleSayTimer);
+  GS.idleSayTimer = setInterval(() => {
+    if(!GS.answered && GS.currentTask) sayRobot(rnd(ROBOT_SAYS.idle));
+  }, 5000);
+}
+
+// ============================================================
+// END GAME
+// ============================================================
+function endGame(){
+  if(GS.idleSayTimer) clearInterval(GS.idleSayTimer);
+  const total = GS.tasks.length;
+  const pct = Math.round(GS.goodCount / total * 100);
+  let emoji, title, stars;
+  if(pct >= 80){ emoji='🏆'; title='יום מושלם! אלוף ניהול זמן!'; stars='⭐⭐⭐'; }
+  else if(pct >= 60){ emoji='🎉'; title='יום טוב! יש מה לשפר'; stars='⭐⭐'; }
+  else{ emoji='💪'; title='ניסיון טוב! נתרגל עוד'; stars='⭐'; }
+
+  // bonus FLW
+  const bonus = Math.round(pct * 0.2);
+  GS.flw += bonus;
+
+  document.getElementById('result-emoji').textContent = emoji;
+  document.getElementById('result-title').textContent = title;
+  document.getElementById('result-sub').textContent = `סידרת ${total} משימות בהצלחה`;
+  document.getElementById('result-stars').textContent = stars;
+  document.getElementById('result-flw').textContent = GS.flw;
+  document.getElementById('result-stats').innerHTML = `
+    <div class="stat-row"><span>✅ מיקום נכון</span><span class="stat-val">${GS.goodCount}/${total}</span></div>
+    <div class="stat-row"><span>⚡ אנרגיה סופית</span><span class="stat-val">${GS.energy}%</span></div>
+    <div class="stat-row"><span>🎯 ציון</span><span class="stat-val">${pct}%</span></div>
+    <div class="stat-row"><span>🎁 בונוס FLW</span><span class="stat-val">+${bonus}</span></div>`;
+
+  const dur = Math.round((Date.now() - GS.startTime)/1000);
+  const payload = {type:'GAME_COMPLETE', userId:GS.userId, gameId:GS.gameId,
+    score:pct, flwEarned:GS.flw, durationSeconds:dur, gameName:'היום של OF — ניהול זמן'};
+  if(window.parent !== window) window.parent.postMessage(payload, '*');
+  if(GS.userId) fetch('/api/kids/award-flw', {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({userId:GS.userId, gameId:GS.gameId, score:pct, flwEarned:GS.flw, durationSeconds:dur})
+  }).catch(()=>{});
+
+  showScreen('scr-result');
+}
+
+function playAgain(){
+  GS.flw=0; GS.score=0; GS.energy=80; GS.goodCount=0; GS.tasksDone=0;
+  GS.age=null; GS.currentTask=null;
+  document.querySelectorAll('.age-card').forEach(c=>c.classList.remove('sel'));
+  document.getElementById('btn-go').classList.remove('ready');
+  showScreen('scr-intro');
+}
+function goHome(){
+  if(GS.idleSayTimer) clearInterval(GS.idleSayTimer);
+  if(window.parent !== window) window.parent.postMessage({type:'CLOSE_GAME'}, '*');
+  else window.history.back();
+}
+</script>
+</body>
+</html>
