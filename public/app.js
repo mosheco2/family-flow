@@ -545,7 +545,7 @@ async function handleLogin(e) {
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
             await loadDashboard();
         } else showToast('error', data.error); 
-    } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
+    } catch(e) { console.error('LOGIN ERROR:', e); showToast('error', 'שגיאה בחיבור לשרת: ' + e.message); } finally { toggleLoader('login', false); }
 }
 
 
