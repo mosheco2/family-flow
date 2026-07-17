@@ -128,6 +128,7 @@ pool.connect()
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
       try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS start_level INTEGER DEFAULT 1`); } catch(e) {}
       try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS finance_age INT DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image TEXT DEFAULT NULL`); } catch(e) {}
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS target_datetime VARCHAR(50)'); } catch(e) {}
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'); } catch(e) {}
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS quote_status VARCHAR(50) DEFAULT \'draft\''); } catch(e) {}
@@ -21344,6 +21345,90 @@ app.delete('/api/page-images/:page/:slot', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 // ─── END PAGE IMAGES ──────────────────────────────────────────────────────────
+
+// ─── KIDS OVERVIEW (parent dashboard) ────────────────────────────────────────
+app.get('/api/kids/parent-overview/:groupId', async (req, res) => {
+  try {
+    const gid = req.params.groupId;
+
+    // ילדים + יתרת FLW
+    const kids = await pool.query(`
+      SELECT u.id, u.nickname, u.role, u.birth_year, u.profile_image,
+        COALESCE(w.balance, 0) as flw_balance
+      FROM users u
+      LEFT JOIN flw_kid_wallets w ON w.child_user_id = u.id
+      WHERE u.group_id = $1 AND u.role != 'ADMIN' AND u.status = 'active'
+      ORDER BY u.nickname
+    `, [gid]);
+
+    // אתגרים (kid_quests) per child — פתוחים
+    const openQuests = await pool.query(`
+      SELECT kq.child_user_id, COUNT(*) as open_count
+      FROM kid_quests kq
+      LEFT JOIN kid_quest_results kr ON kr.quest_id = kq.id
+      WHERE kq.family_group_id = $1 AND kr.id IS NULL
+      GROUP BY kq.child_user_id
+    `, [gid]);
+
+    // אתגרים academy (bundle assignments) פתוחים
+    const openAcademy = await pool.query(`
+      SELECT ba.user_id, COUNT(*) as open_count
+      FROM bundle_assignments ba
+      WHERE ba.group_id = $1 AND ba.status = 'pending'
+      GROUP BY ba.user_id
+    `, [gid]);
+
+    // סיכום כללי
+    const totalOpen = await pool.query(`
+      SELECT COUNT(*) as cnt FROM kid_quests kq
+      LEFT JOIN kid_quest_results kr ON kr.quest_id = kq.id
+      WHERE kq.family_group_id = $1 AND kr.id IS NULL
+    `, [gid]);
+
+    // היסטוריית פעילות אתגרים
+    const history = await pool.query(`
+      SELECT
+        kq.id, kq.title, kq.subject, kq.created_at,
+        kq.flw_reward,
+        u.nickname as child_name,
+        cu.nickname as created_by_name,
+        kr.score, kr.completed_at
+      FROM kid_quests kq
+      LEFT JOIN users u ON u.id = kq.child_user_id
+      LEFT JOIN users cu ON cu.id = kq.created_by
+      LEFT JOIN kid_quest_results kr ON kr.quest_id = kq.id
+      WHERE kq.family_group_id = $1
+      ORDER BY COALESCE(kr.completed_at, kq.created_at) DESC
+      LIMIT 50
+    `, [gid]);
+
+    const openQuestsMap = {};
+    openQuests.rows.forEach(r => { openQuestsMap[r.child_user_id] = parseInt(r.open_count); });
+    const openAcademyMap = {};
+    openAcademy.rows.forEach(r => { openAcademyMap[r.user_id] = parseInt(r.open_count); });
+
+    const kidsData = kids.rows.map(k => ({
+      ...k,
+      open_quests: (openQuestsMap[k.id] || 0) + (openAcademyMap[k.id] || 0)
+    }));
+
+    res.json({
+      success: true,
+      kids: kidsData,
+      totalOpen: parseInt(totalOpen.rows[0]?.cnt || 0),
+      history: history.rows
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// העלאת תמונת פרופיל לילד
+app.post('/api/kids/profile-image/:userId', async (req, res) => {
+  try {
+    const { imageUrl } = req.body;
+    await pool.query('UPDATE users SET profile_image=$1 WHERE id=$2', [imageUrl, req.params.userId]);
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
 // ─── KIDS GAMES API ───────────────────────────────────────────────────────────
 

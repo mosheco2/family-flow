@@ -2638,8 +2638,122 @@ async function submitAssignQuiz() {
     if(data.success) { getEl('assign-quiz-modal').classList.add('hidden'); showToast('success', 'הוקצה בהצלחה'); fetchData(); } else showToast('error', data.error);
 }
 
+// ── KIDS OVERVIEW ────────────────────────────────────────────────────────────
+async function loadKidsOverview() {
+  const wrap = getEl('kids-overview-section');
+  if (!wrap || currentUser?.role !== 'ADMIN') return;
+  try {
+    const res = await fetch(`${API}/kids/parent-overview/${currentGroup.id}`);
+    const data = await res.json();
+    if (!data.success) return;
+
+    const totalOpen = data.totalOpen || 0;
+    const kids = data.kids || [];
+    const history = data.history || [];
+
+    let html = `
+      <div class="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl p-4 mb-2">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-bold text-slate-800 text-sm">👨‍👩‍👧‍👦 סקירת ילדים</h3>
+          <span class="bg-purple-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">${totalOpen} אתגרים פתוחים</span>
+        </div>
+        <div class="flex gap-3 overflow-x-auto pb-2">`;
+
+    kids.forEach(k => {
+      const initials = (k.nickname || '?')[0].toUpperCase();
+      const flw = parseFloat(k.flw_balance || 0).toFixed(0);
+      const open = k.open_quests || 0;
+      html += `
+        <div class="flex-shrink-0 flex flex-col items-center gap-1.5 min-w-[72px]">
+          <div class="relative" onclick="triggerKidImageUpload(${k.id},this)" style="cursor:pointer">
+            ${k.profile_image
+              ? `<img src="${k.profile_image}" class="w-14 h-14 rounded-full object-cover border-2 border-purple-300 shadow">`
+              : `<div class="w-14 h-14 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white font-bold text-xl shadow border-2 border-purple-300">${initials}</div>`}
+            <div class="absolute -bottom-1 -left-1 w-5 h-5 bg-white rounded-full border border-slate-200 flex items-center justify-center text-[9px] text-slate-500 shadow">📷</div>
+            <input type="file" accept="image/*" class="hidden kid-img-upload" data-kid-id="${k.id}" onchange="uploadKidProfileImage(${k.id},this)">
+          </div>
+          <div class="text-xs font-bold text-slate-700 text-center leading-tight">${k.nickname}</div>
+          <div class="flex flex-col items-center gap-0.5">
+            <span class="text-[10px] font-bold text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded-full">🪙 ${flw} FLW</span>
+            ${open > 0
+              ? `<span class="text-[10px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full">🎯 ${open} פתוח</span>`
+              : `<span class="text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">✅ הכל בוצע</span>`}
+          </div>
+        </div>`;
+    });
+
+    html += `</div>`;
+
+    if (history.length > 0) {
+      html += `<button onclick="toggleQuestActivity()" class="mt-3 text-xs text-purple-600 font-bold hover:underline">📋 היסטוריית אתגרים (${history.length})</button>`;
+    }
+    html += `</div>`;
+
+    wrap.innerHTML = html;
+
+    // עדכן היסטוריה
+    const actList = getEl('quest-activity-list');
+    if (actList && history.length > 0) {
+      actList.innerHTML = history.map(h => {
+        const created = h.created_at ? new Date(h.created_at).toLocaleDateString('he-IL') : '';
+        const completed = h.completed_at ? new Date(h.completed_at).toLocaleDateString('he-IL') : null;
+        return `
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-3 flex gap-3 items-start">
+            <div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-sm
+              ${completed ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-500'}">
+              ${completed ? '✅' : '⏳'}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-slate-700 text-sm truncate">${h.title || 'אתגר'}</div>
+              <div class="text-[10px] text-slate-500 mt-0.5">
+                ל: <span class="font-bold text-slate-600">${h.child_name || ''}</span>
+                ${h.created_by_name ? ` · נוצר ע"י ${h.created_by_name}` : ''}
+                · ${created}
+              </div>
+              ${completed ? `<div class="text-[10px] text-green-600 font-bold mt-0.5">בוצע: ${completed} · ציון ${h.score || 0}%</div>` : ''}
+            </div>
+            <div class="text-[10px] font-bold ${completed ? 'text-green-600' : 'text-orange-500'} whitespace-nowrap">
+              ${completed ? 'הושלם' : 'פתוח'}
+            </div>
+          </div>`;
+      }).join('');
+    }
+  } catch(e) { console.error('loadKidsOverview', e); }
+}
+
+function toggleQuestActivity() {
+  const sec = getEl('quest-activity-section');
+  if (sec) sec.classList.toggle('hidden');
+}
+
+function triggerKidImageUpload(kidId, wrapper) {
+  const inp = wrapper.querySelector('.kid-img-upload');
+  if (inp) inp.click();
+}
+
+async function uploadKidProfileImage(kidId, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const res = await fetch(`${API}/kids/profile-image/${kidId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: e.target.result })
+      });
+      if ((await res.json()).success) {
+        showToast('success', '✅ תמונת פרופיל עודכנה');
+        loadKidsOverview();
+      }
+    } catch(err) { showToast('error', 'שגיאה בהעלאה'); }
+  };
+  reader.readAsDataURL(file);
+}
+
 function renderAdminAcademy() {
     const list = getEl('admin-assignments-list'); if(!list || currentUser.role !== 'ADMIN') return;
+    loadKidsOverview();
     let html = '<h4 class="font-bold text-slate-700 mt-2 mb-3">📚 ספריית מבחנים למשפחה</h4>';
     if (!allBundles || allBundles.length === 0) { html += '<p class="text-sm text-slate-400 mb-6 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200 text-center">אין מבחנים זמינים. לחץ על "יצירת אתגר familAI" למעלה!</p>'; } else {
         html += '<div class="space-y-2 mb-8">';
