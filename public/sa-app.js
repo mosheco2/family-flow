@@ -9410,3 +9410,70 @@ window.loadSAGamesStats = async function() {
 };
 
 // ─── END GAMES MANAGEMENT ─────────────────────────────────────────────────────
+
+// ============================================================
+// QUEST LIBRARY — Super Admin
+// ============================================================
+
+async function loadSAQuestLib(){
+  const el = document.getElementById('sa-quest-lib-content');
+  if(!el) return;
+  el.innerHTML = '<div class="text-center text-slate-400 py-8">טוען...</div>';
+  try {
+    const res = await fetch(`${API}/sa/quest-library`, { headers: { 'Authorization': saToken } });
+    const data = await res.json();
+    const quests = data.quests || [];
+
+    el.innerHTML = `
+      <div style="font-weight:700;margin-bottom:0.7rem;font-size:1rem">
+        📚 ספריית קווסטים (${quests.length})
+      </div>
+      ${quests.length === 0 ? '<div class="text-center text-slate-400 py-8">אין קווסטים במאגר עדיין</div>' : quests.map(q=>`
+        <div style="background:#f8fafc;border-radius:12px;padding:0.8rem;
+          border:1px solid #E0E0E0;display:flex;align-items:center;
+          gap:0.7rem;margin-bottom:0.5rem">
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:0.88rem">${q.title}</div>
+            <div style="font-size:0.72rem;color:#999">
+              ${q.subject} · ${q.visibility} · ${q.use_count||0} שימושים
+              · ⭐${parseFloat(q.rating_avg||0).toFixed(1)} (${q.rating_count||0})
+              · 🚩 ${q.report_count||0} דיווחים
+              ${q.is_hidden?'· <span style="color:red">מוסתר</span>':''}
+              ${q.is_featured?'· <span style="color:#D97706">⭐ מומלץ</span>':''}
+            </div>
+          </div>
+          <div style="display:flex;gap:0.4rem;flex-shrink:0">
+            <button onclick="saToggleQHide(${q.id},${!q.is_hidden})"
+              style="background:${q.is_hidden?'#DCFCE7':'#FEE2E2'};border:none;
+              border-radius:8px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600">
+              ${q.is_hidden?'הצג':'הסתר'}
+            </button>
+            <button onclick="saToggleQFeatured(${q.id},${!q.is_featured})"
+              style="background:${q.is_featured?'#FEF3C7':'#F3F4F6'};border:none;
+              border-radius:8px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600">
+              ${q.is_featured?'הסר מומלץ':'⭐ מומלץ'}
+            </button>
+          </div>
+        </div>
+      `).join('')}
+    `;
+  } catch(e) {
+    el.innerHTML = '<div class="text-center text-red-400 py-8">שגיאה בטעינת המאגר</div>';
+  }
+}
+
+async function saToggleQHide(id, hide){
+  await fetch(`${API}/sa/quest-library/${id}/visibility`, {
+    method:'PATCH', headers:{'Content-Type':'application/json','Authorization':saToken},
+    body: JSON.stringify({ isHidden: hide })
+  });
+  loadSAQuestLib();
+}
+
+async function saToggleQFeatured(id, featured){
+  await fetch(`${API}/sa/quest-library/${id}/visibility`, {
+    method:'PATCH', headers:{'Content-Type':'application/json','Authorization':saToken},
+    body: JSON.stringify({ isFeatured: featured })
+  });
+  loadSAQuestLib();
+}
