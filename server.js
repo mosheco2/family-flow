@@ -2128,11 +2128,12 @@ app.get('/api/quest-library', async (req, res) => {
 // שאלות של קווסט
 app.get('/api/quest-library/:id/questions', async (req, res) => {
   try {
-    const qs = await pool.query(
-      'SELECT * FROM quest_library_questions WHERE quest_id=$1 ORDER BY order_index',
-      [req.params.id]
-    );
-    res.json({ success:true, questions: qs.rows });
+    const [qr, qs] = await Promise.all([
+      pool.query('SELECT * FROM quest_library WHERE id=$1', [req.params.id]),
+      pool.query('SELECT * FROM quest_library_questions WHERE quest_id=$1 ORDER BY order_index', [req.params.id])
+    ]);
+    if(!qr.rows[0]) return res.status(404).json({ error: 'קווסט לא נמצא' });
+    res.json({ success:true, quest: qr.rows[0], questions: qs.rows });
   } catch(e){ res.status(500).json({ error: e.message }); }
 });
 

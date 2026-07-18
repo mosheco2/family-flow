@@ -14373,10 +14373,18 @@ async function submitGameAssignment() {
 // ============================================================
 
 function openQuestWizard() {
-  let questQuestions = [];
+  const _prefill = window._prefillQuestData || null;
+  if(window._prefillQuestData) delete window._prefillQuestData;
+
+  let questQuestions = _prefill?.questions || [];
   let wizardStep = 1;
-  let questData = {};
+  let questData = _prefill ? {
+    title: _prefill.title, subject: _prefill.subject,
+    description: _prefill.description,
+    flwReward: _prefill.flw_reward, passScore: _prefill.pass_score
+  } : {};
   let _selectedChildIdForQuest = null;
+  let _shareChoice = 'private';
 
   const modal = document.createElement('div');
   modal.id = 'quest-wizard-modal';
@@ -14505,12 +14513,32 @@ function openQuestWizard() {
       inner.innerHTML = `
         <h3 style="font-size:1.1rem;font-weight:900;margin-bottom:1.2rem">שלב 3 — לאיזה ילד?</h3>
         <div id="qw-children-list" style="margin-bottom:1.5rem">טוען ילדים...</div>
-        <div style="background:#FEF3C7;border-radius:16px;padding:1rem;margin-bottom:1.5rem;font-size:0.88rem;color:#92400E">
+        <div style="background:#FEF3C7;border-radius:16px;padding:1rem;margin-bottom:1rem;font-size:0.88rem;color:#92400E">
           <strong>סיכום:</strong><br>
           📝 ${questData.title}<br>
           ❓ ${questQuestions.length} שאלות<br>
           🪙 ${questData.flwReward} FLW לזכייה<br>
           🎯 ציון מינימום: ${questData.passScore}%
+        </div>
+        <div id="qw-share-row" style="margin-bottom:1.2rem">
+          <div style="font-size:0.78rem;color:#888;margin-bottom:0.4rem;font-weight:600">שיתוף הקווסט</div>
+          <div style="display:flex;flex-direction:column;gap:0.4rem">
+            <button class="qw-share-btn" data-v="private"
+              style="background:#EDE9FE;color:#5B21B6;border:2px solid #7C3AED;
+                     border-radius:10px;padding:0.5rem 0.8rem;font-size:0.8rem;font-weight:700;cursor:pointer;text-align:right">
+              🔒 לשימוש אישי בלבד
+            </button>
+            ${communityId ? `<button class="qw-share-btn" data-v="community"
+              style="background:#F3F4F6;color:#374151;border:2px solid #E5E7EB;
+                     border-radius:10px;padding:0.5rem 0.8rem;font-size:0.8rem;font-weight:700;cursor:pointer;text-align:right">
+              🏘️ שתף לקהילה — ${communityName}
+            </button>` : ''}
+            <button class="qw-share-btn" data-v="public"
+              style="background:#F3F4F6;color:#374151;border:2px solid #E5E7EB;
+                     border-radius:10px;padding:0.5rem 0.8rem;font-size:0.8rem;font-weight:700;cursor:pointer;text-align:right">
+              🌍 שתף לכל המשפחות במערכת
+            </button>
+          </div>
         </div>
         <div style="display:flex;gap:0.7rem">
           <button onclick="wizardStep=2;renderStep()"
@@ -14525,30 +14553,46 @@ function openQuestWizard() {
         </div>
       `;
 
+      const communityId = currentGroup?.communityId || currentGroup?.community_id || null;
+      const communityName = currentGroup?.communityName || currentGroup?.community_name || 'הקהילה שלי';
+
       fetch(`/api/group/members?groupId=${currentGroup?.id}`)
         .then(r => r.json())
         .then(data => {
           const allMembers = Array.isArray(data) ? data : (data.members || []);
-          const children = allMembers.filter(m =>
-            m.role === 'CHILD' || (new Date().getFullYear() - (m.birth_year || 2010)) <= 13
-          );
+          const children = allMembers.filter(m => m.role === 'CHILD');
           const el = document.getElementById('qw-children-list');
           if(!el) return;
           el.innerHTML = children.length === 0
             ? '<p style="color:#999;text-align:center">אין ילדים במשפחה</p>'
             : children.map(c => `
                 <div onclick="selectQuestChild(this,'${c.id}','${c.nickname}')"
-                  style="border:2px solid #E0E0E0;border-radius:14px;padding:1rem;
+                  style="border:2px solid #E0E0E0;border-radius:14px;padding:0.8rem 1rem;
                          cursor:pointer;display:flex;align-items:center;gap:0.8rem;
                          margin-bottom:0.5rem;transition:all 0.2s;background:white">
-                  <span style="font-size:1.8rem">👦</span>
+                  <span style="font-size:1.6rem">${c.avatar_emoji||'👦'}</span>
                   <span style="font-weight:700">${c.nickname}</span>
                 </div>
               `).join('');
+
+          const shareEl = document.getElementById('qw-share-row');
+          if(shareEl) shareEl.style.display = '';
         }).catch(() => {
           const el = document.getElementById('qw-children-list');
           if(el) el.innerHTML = '<p style="color:#999">שגיאה בטעינת ילדים</p>';
         });
+
+      document.querySelectorAll('.qw-share-btn').forEach(btn => {
+        btn.onclick = function() {
+          document.querySelectorAll('.qw-share-btn').forEach(b => {
+            b.style.background = '#F3F4F6'; b.style.color = '#374151';
+            b.style.border = '2px solid #E5E7EB';
+          });
+          this.style.background = '#EDE9FE'; this.style.color = '#5B21B6';
+          this.style.border = '2px solid #7C3AED';
+          _shareChoice = this.dataset.v;
+        };
+      });
     }
   }
 
@@ -14619,8 +14663,14 @@ function openQuestWizard() {
       });
       const data = await res.json();
       if(data.success) {
-        if(data.questId){
-          setTimeout(()=>{ showQuestShareDialog(data.questId); }, 500);
+        if(data.questId && _shareChoice && _shareChoice !== 'private'){
+          const communityId = currentGroup?.communityId || currentGroup?.community_id || null;
+          fetch('/api/quest-library/share', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ questId:data.questId, visibility:_shareChoice,
+              communityId: _shareChoice==='community' ? communityId : null,
+              userId: currentUser?.id })
+          });
         }
         modal.remove();
         showToast('success', `✅ הקווסט "${questData.title}" נשלח לילד! 🎯`);
@@ -15021,27 +15071,33 @@ window.filterQLib = async function() {
     const quests = data.quests || [];
 
     if(!quests.length) {
-      listEl.innerHTML = '<div style="color:#999;text-align:center">לא נמצאו קווסטים</div>';
+      listEl.innerHTML = '<div style="color:#999;text-align:center;padding:2rem">לא נמצאו קווסטים</div>';
       return;
     }
 
+    const subjectEmoji = {math:'🔢',hebrew:'📖',english:'🇬🇧',science:'🔬',history:'🏛️',finance:'💰',geography:'🌍',values:'💎',music:'🎵',health:'🏃',technology:'💻',environment:'🌱',general:'🌟'};
+
     listEl.innerHTML = quests.map(q => `
-      <div style="border:2px solid #E0E0E0;border-radius:16px;padding:1rem;margin-bottom:0.8rem">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div style="font-weight:700;font-size:1rem">${q.title}</div>
-          <div style="font-size:0.8rem;color:#F59E0B;font-weight:700">⭐ ${parseFloat(q.rating_avg||0).toFixed(1)}</div>
-        </div>
-        <div style="font-size:0.82rem;color:#666;margin:0.3rem 0">${q.description||''}</div>
-        <div style="display:flex;gap:0.5rem;font-size:0.75rem;color:#999;margin-bottom:0.8rem">
-          <span>📚 ${q.subject}</span>
-          <span>🎯 ${q.use_count||0} שימושים</span>
-          <span>💰 ${q.flw_reward} FLW</span>
+      <div style="border:1px solid #E5E7EB;border-radius:14px;padding:0.85rem 1rem;
+                  margin-bottom:0.6rem;background:white;display:flex;align-items:center;gap:0.8rem">
+        <div style="font-size:1.8rem;flex-shrink:0">${subjectEmoji[q.subject]||'📚'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;font-size:0.92rem;color:#1e1b4b;
+                      white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${q.title}</div>
+          <div style="font-size:0.72rem;color:#6B7280;margin-top:0.15rem;
+                      white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${q.description||''}</div>
+          <div style="display:flex;gap:0.6rem;margin-top:0.3rem;font-size:0.7rem;color:#9CA3AF">
+            <span>⭐ ${parseFloat(q.rating_avg||0).toFixed(1)}</span>
+            <span>🎯 ${q.use_count||0}</span>
+            <span>🪙 ${q.flw_reward} FLW</span>
+            ${q.is_featured?'<span style="color:#D97706;font-weight:700">מומלץ</span>':''}
+          </div>
         </div>
         <button onclick="useLibQuest(${q.id})"
-          style="width:100%;background:linear-gradient(135deg,#F59E0B,#D97706);
-                 color:white;border:none;border-radius:50px;padding:0.6rem;
-                 font-size:0.9rem;font-weight:700;cursor:pointer">
-          ✅ השתמש בקווסט הזה
+          style="flex-shrink:0;background:linear-gradient(135deg,#7C3AED,#5B21B6);
+                 color:white;border:none;border-radius:50px;padding:0.5rem 1rem;
+                 font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap">
+          בחר ←
         </button>
       </div>
     `).join('');
@@ -15054,7 +15110,7 @@ async function useLibQuest(questId) {
   try {
     const res = await fetch(`/api/quest-library/${questId}/questions`);
     const data = await res.json();
-    if(!data.quest) return alert('שגיאה בטעינת הקווסט');
+    if(!data.quest) return showToast('error', 'שגיאה בטעינת הקווסט');
 
     await fetch(`/api/quest-library/${questId}/use`, { method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -15064,28 +15120,28 @@ async function useLibQuest(questId) {
     document.getElementById('quest-wizard-modal')?.remove();
 
     const quest = data.quest;
-    const questions = data.questions || [];
+    const rawQs = data.questions || [];
+
+    window._prefillQuestData = {
+      title: quest.title,
+      subject: quest.subject,
+      description: quest.description || '',
+      flw_reward: quest.flw_reward,
+      pass_score: quest.pass_score,
+      questions: rawQs.map(q => ({
+        question: q.question_text,
+        type: q.answer_type,
+        correct: q.correct_answer,
+        options: q.options_json ? (typeof q.options_json === 'string' ? JSON.parse(q.options_json) : q.options_json) : []
+      }))
+    };
 
     setTimeout(() => {
       openQuestWizard();
-      setTimeout(() => {
-        const inner = document.getElementById('quest-wizard-inner');
-        if(!inner) return;
-        const titleEl = document.getElementById('qw-title');
-        const subjectEl = document.getElementById('qw-subject');
-        const descEl = document.getElementById('qw-desc');
-        const flwEl = document.getElementById('qw-flw');
-        const passEl = document.getElementById('qw-pass');
-        if(titleEl) titleEl.value = quest.title;
-        if(subjectEl) subjectEl.value = quest.subject;
-        if(descEl) descEl.value = quest.description || '';
-        if(flwEl) flwEl.value = quest.flw_reward;
-        if(passEl) passEl.value = quest.pass_score;
-        showToast('success', `📚 הקווסט "${quest.title}" נטען מהמאגר — אפשר לערוך ולשלוח`);
-      }, 200);
+      showToast('success', `📚 "${quest.title}" נטען — בחר ילד ושלח`);
     }, 100);
   } catch(e) {
-    alert('שגיאה בטעינת הקווסט');
+    showToast('error', 'שגיאה בטעינת הקווסט');
   }
 }
 
