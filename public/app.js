@@ -14620,13 +14620,7 @@ function openQuestWizard() {
       const data = await res.json();
       if(data.success) {
         if(data.questId){
-          setTimeout(async ()=>{
-            const share = confirm('הקווסט נשלח! 🎯\n\nרוצה לשתף אותו עם כל משתמשי המערכת\nכדי שהורים אחרים יוכלו להשתמש בו?');
-            if(share){
-              await fetch('/api/quest-library/share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questId:data.questId,visibility:'public',userId:currentUser?.id})});
-              alert('🌟 תודה! הקווסט שותף לכלל המשתמשים!');
-            }
-          }, 500);
+          setTimeout(()=>{ showQuestShareDialog(data.questId); }, 500);
         }
         modal.remove();
         showToast('success', `✅ הקווסט "${questData.title}" נשלח לילד! 🎯`);
@@ -14909,6 +14903,63 @@ function openQuestPlayer(questId, title, questions, flwReward, passScore) {
   renderQ();
 }
 // ─── END KIDS GAMES & QUESTS UI ──────────────────────────────────────────────
+
+// ============================================================
+// QUEST SHARE DIALOG
+// ============================================================
+
+function showQuestShareDialog(questId) {
+  const dlg = document.createElement('div');
+  dlg.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:7000;
+    display:flex;align-items:center;justify-content:center;padding:1rem`;
+
+  const communityId = currentGroup?.communityId || currentGroup?.community_id || null;
+  const communityName = currentGroup?.communityName || currentGroup?.community_name || 'הקהילה שלי';
+
+  dlg.innerHTML = `
+    <div style="background:white;border-radius:24px;padding:1.6rem;max-width:380px;width:100%;text-align:center">
+      <div style="font-size:2rem;margin-bottom:0.5rem">🎯</div>
+      <h3 style="font-size:1.1rem;font-weight:900;margin-bottom:0.4rem">הקווסט נשלח בהצלחה!</h3>
+      <p style="font-size:0.85rem;color:#666;margin-bottom:1.2rem">רוצה לשתף אותו כדי שהורים נוספים יוכלו להשתמש בו?</p>
+      <div style="display:flex;flex-direction:column;gap:0.6rem">
+        <button id="qshare-private"
+          style="width:100%;background:#F3F4F6;color:#374151;border:2px solid #E5E7EB;
+                 border-radius:50px;padding:0.75rem;font-size:0.9rem;font-weight:700;cursor:pointer">
+          🔒 רק אני
+        </button>
+        ${communityId ? `
+        <button id="qshare-community"
+          style="width:100%;background:linear-gradient(135deg,#EDE9FE,#DDD6FE);color:#5B21B6;
+                 border:2px solid #7C3AED;border-radius:50px;padding:0.75rem;font-size:0.9rem;font-weight:700;cursor:pointer">
+          🏘️ לקהילה — ${communityName}
+        </button>` : ''}
+        <button id="qshare-public"
+          style="width:100%;background:linear-gradient(135deg,#FEF3C7,#FDE68A);color:#92400E;
+                 border:2px solid #F59E0B;border-radius:50px;padding:0.75rem;font-size:0.9rem;font-weight:700;cursor:pointer">
+          🌍 לכל המשפחות במערכת
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(dlg);
+
+  async function doShare(visibility, cid) {
+    dlg.remove();
+    if(visibility === 'private') return;
+    await fetch('/api/quest-library/share', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ questId, visibility, communityId: cid || null, userId: currentUser?.id })
+    });
+    showToast('success', visibility === 'community'
+      ? `🏘️ הקווסט שותף לקהילת ${communityName}!`
+      : '🌟 תודה! הקווסט שותף לכלל המשפחות!');
+  }
+
+  dlg.querySelector('#qshare-private').onclick = () => doShare('private');
+  if(communityId) dlg.querySelector('#qshare-community').onclick = () => doShare('community', communityId);
+  dlg.querySelector('#qshare-public').onclick = () => doShare('public');
+}
 
 // ============================================================
 // QUEST LIBRARY UI
