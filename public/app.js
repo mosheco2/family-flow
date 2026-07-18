@@ -14619,6 +14619,15 @@ function openQuestWizard() {
       });
       const data = await res.json();
       if(data.success) {
+        if(data.questId){
+          setTimeout(async ()=>{
+            const share = confirm('הקווסט נשלח! 🎯\n\nרוצה לשתף אותו עם כל משתמשי המערכת\nכדי שהורים אחרים יוכלו להשתמש בו?');
+            if(share){
+              await fetch('/api/quest-library/share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questId:data.questId,visibility:'public',userId:currentUser?.id})});
+              alert('🌟 תודה! הקווסט שותף לכלל המשתמשים!');
+            }
+          }, 500);
+        }
         modal.remove();
         showToast('success', `✅ הקווסט "${questData.title}" נשלח לילד! 🎯`);
       } else {
@@ -14634,6 +14643,16 @@ function openQuestWizard() {
       background:white; border-radius:24px; padding:1.5rem;
       max-width:420px; width:100%; max-height:90vh; overflow-y:auto;
     ">
+      <div style="margin-bottom:0.8rem;border-bottom:1px solid rgba(0,0,0,0.08);padding-bottom:0.8rem">
+        <div style="font-size:0.8rem;color:#999;margin-bottom:0.5rem">📚 בחר מהמאגר</div>
+        <button onclick="openQuestLibrary()" style="width:100%;
+          background:linear-gradient(135deg,#EDE9FE,#DDD6FE);
+          color:#5B21B6;border:2px solid #7C3AED;border-radius:50px;
+          padding:0.7rem;font-family:'Heebo',sans-serif;
+          font-size:0.9rem;font-weight:700;cursor:pointer">
+          🗂️ מאגר קווסטים מוכנים
+        </button>
+      </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
         <h2 style="font-size:1.2rem;font-weight:900">✏️ בניית קווסט</h2>
         <button onclick="document.getElementById('quest-wizard-modal').remove()"
@@ -14890,4 +14909,132 @@ function openQuestPlayer(questId, title, questions, flwReward, passScore) {
   renderQ();
 }
 // ─── END KIDS GAMES & QUESTS UI ──────────────────────────────────────────────
+
+// ============================================================
+// QUEST LIBRARY UI
+// ============================================================
+
+async function openQuestLibrary() {
+  const overlay = document.createElement('div');
+  overlay.id = 'quest-library-modal';
+  overlay.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:6000;
+    display:flex;align-items:center;justify-content:center;padding:1rem`;
+
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:24px;padding:1.5rem;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <h2 style="font-size:1.2rem;font-weight:900">🗂️ מאגר קווסטים מוכנים</h2>
+        <button onclick="document.getElementById('quest-library-modal').remove()"
+          style="background:none;border:none;font-size:1.5rem;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
+        <select id="qlib-subject" onchange="window.filterQLib()"
+          style="flex:1;padding:0.6rem;border:2px solid #E0E0E0;border-radius:12px;font-size:0.9rem">
+          <option value="">כל הנושאים</option>
+          <option value="math">🔢 מתמטיקה</option>
+          <option value="hebrew">📖 עברית</option>
+          <option value="english">🇬🇧 אנגלית</option>
+          <option value="science">🔬 מדעים</option>
+          <option value="general">🌟 כללי</option>
+        </select>
+        <select id="qlib-sort" onchange="window.filterQLib()"
+          style="flex:1;padding:0.6rem;border:2px solid #E0E0E0;border-radius:12px;font-size:0.9rem">
+          <option value="popular">הכי פופולרי</option>
+          <option value="rating">דירוג גבוה</option>
+          <option value="newest">חדש ביותר</option>
+        </select>
+      </div>
+      <div id="qlib-list" style="min-height:200px;display:flex;align-items:center;justify-content:center">
+        <div style="color:#999">טוען...</div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
+  window.filterQLib();
+}
+
+window.filterQLib = async function() {
+  const subject = document.getElementById('qlib-subject')?.value || '';
+  const sort = document.getElementById('qlib-sort')?.value || 'popular';
+  const listEl = document.getElementById('qlib-list');
+  if(!listEl) return;
+  listEl.innerHTML = '<div style="color:#999">טוען...</div>';
+
+  try {
+    const params = new URLSearchParams({ sort });
+    if(subject) params.set('subject', subject);
+    const res = await fetch('/api/quest-library?' + params.toString());
+    const data = await res.json();
+    const quests = data.quests || [];
+
+    if(!quests.length) {
+      listEl.innerHTML = '<div style="color:#999;text-align:center">לא נמצאו קווסטים</div>';
+      return;
+    }
+
+    listEl.innerHTML = quests.map(q => `
+      <div style="border:2px solid #E0E0E0;border-radius:16px;padding:1rem;margin-bottom:0.8rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="font-weight:700;font-size:1rem">${q.title}</div>
+          <div style="font-size:0.8rem;color:#F59E0B;font-weight:700">⭐ ${parseFloat(q.rating_avg||0).toFixed(1)}</div>
+        </div>
+        <div style="font-size:0.82rem;color:#666;margin:0.3rem 0">${q.description||''}</div>
+        <div style="display:flex;gap:0.5rem;font-size:0.75rem;color:#999;margin-bottom:0.8rem">
+          <span>📚 ${q.subject}</span>
+          <span>🎯 ${q.use_count||0} שימושים</span>
+          <span>💰 ${q.flw_reward} FLW</span>
+        </div>
+        <button onclick="useLibQuest(${q.id})"
+          style="width:100%;background:linear-gradient(135deg,#F59E0B,#D97706);
+                 color:white;border:none;border-radius:50px;padding:0.6rem;
+                 font-size:0.9rem;font-weight:700;cursor:pointer">
+          ✅ השתמש בקווסט הזה
+        </button>
+      </div>
+    `).join('');
+  } catch(e) {
+    listEl.innerHTML = '<div style="color:#e53e3e">שגיאה בטעינת המאגר</div>';
+  }
+};
+
+async function useLibQuest(questId) {
+  try {
+    const res = await fetch(`/api/quest-library/${questId}/questions`);
+    const data = await res.json();
+    if(!data.quest) return alert('שגיאה בטעינת הקווסט');
+
+    await fetch(`/api/quest-library/${questId}/use`, { method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ userId: currentUser?.id }) });
+
+    document.getElementById('quest-library-modal')?.remove();
+    document.getElementById('quest-wizard-modal')?.remove();
+
+    const quest = data.quest;
+    const questions = data.questions || [];
+
+    setTimeout(() => {
+      openQuestWizard();
+      setTimeout(() => {
+        const inner = document.getElementById('quest-wizard-inner');
+        if(!inner) return;
+        const titleEl = document.getElementById('qw-title');
+        const subjectEl = document.getElementById('qw-subject');
+        const descEl = document.getElementById('qw-desc');
+        const flwEl = document.getElementById('qw-flw');
+        const passEl = document.getElementById('qw-pass');
+        if(titleEl) titleEl.value = quest.title;
+        if(subjectEl) subjectEl.value = quest.subject;
+        if(descEl) descEl.value = quest.description || '';
+        if(flwEl) flwEl.value = quest.flw_reward;
+        if(passEl) passEl.value = quest.pass_score;
+        showToast('success', `📚 הקווסט "${quest.title}" נטען מהמאגר — אפשר לערוך ולשלוח`);
+      }, 200);
+    }, 100);
+  } catch(e) {
+    alert('שגיאה בטעינת הקווסט');
+  }
+}
 
