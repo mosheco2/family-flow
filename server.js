@@ -1804,9 +1804,273 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           ON CONFLICT DO NOTHING
       `); } catch(e) {}
 
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS quest_library (
+          id SERIAL PRIMARY KEY,
+          title VARCHAR(200) NOT NULL,
+          subject VARCHAR(50) NOT NULL,
+          description TEXT,
+          age_min INT DEFAULT 5,
+          age_max INT DEFAULT 16,
+          difficulty INT DEFAULT 1,
+          flw_reward INT DEFAULT 15,
+          pass_score INT DEFAULT 70,
+          visibility VARCHAR(20) DEFAULT 'private',
+          created_by INT REFERENCES users(id),
+          community_id INT REFERENCES family_groups(id),
+          use_count INT DEFAULT 0,
+          rating_avg NUMERIC(3,2) DEFAULT 0,
+          rating_count INT DEFAULT 0,
+          report_count INT DEFAULT 0,
+          is_hidden BOOLEAN DEFAULT false,
+          is_featured BOOLEAN DEFAULT false,
+          tags VARCHAR(200),
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `); } catch(e) {}
+
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS quest_library_questions (
+          id SERIAL PRIMARY KEY,
+          quest_id INT REFERENCES quest_library(id) ON DELETE CASCADE,
+          question_text TEXT NOT NULL,
+          answer_type VARCHAR(30) DEFAULT 'multiple_choice',
+          correct_answer TEXT NOT NULL,
+          options_json JSONB,
+          explanation TEXT,
+          order_index INT DEFAULT 0
+        )
+      `); } catch(e) {}
+
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS quest_library_ratings (
+          id SERIAL PRIMARY KEY,
+          quest_id INT REFERENCES quest_library(id) ON DELETE CASCADE,
+          user_id INT REFERENCES users(id) ON DELETE CASCADE,
+          rating INT CHECK (rating BETWEEN 1 AND 5),
+          created_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(quest_id, user_id)
+        )
+      `); } catch(e) {}
+
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS quest_library_reports (
+          id SERIAL PRIMARY KEY,
+          quest_id INT REFERENCES quest_library(id) ON DELETE CASCADE,
+          user_id INT REFERENCES users(id),
+          reason VARCHAR(200),
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `); } catch(e) {}
+
+      try { await client.query(`
+        ALTER TABLE kid_quests
+          ADD COLUMN IF NOT EXISTS shared_to_library VARCHAR(20),
+          ADD COLUMN IF NOT EXISTS library_source_id INT REFERENCES quest_library(id)
+      `); } catch(e) {}
+
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
+
+// ── QUEST LIBRARY ────────────────────────────────────────────────
+
+// רשימת קווסטים מהמאגר
+app.get('/api/quest-library', async (req, res) => {
+  try {
+    const { subject, ageMin, ageMax, groupId, search, sort='rating' } = req.query;
+    let where = `WHERE (ql.visibility='public' OR ql.visibility='builtin'`;
+    const params = [];
+    let pi = 1;
+    if(groupId){
+      where += ` OR (ql.visibility='community' AND ql.community_id=$${pi++})`;
+      params.push(groupId);
+    }
+    where += `) AND ql.is_hidden=false`;
+    if(subject){ where+=` AND ql.subject=$${pi++}`; params.push(subject); }
+    if(ageMin){ where+=` AND ql.age_max>=$${pi++}`; params.push(ageMin); }
+    if(ageMax){ where+=` AND ql.age_min<=$${pi++}`; params.push(ageMax); }
+    if(search){ where+=` AND ql.title ILIKE $${pi++}`; params.push('%'+search+'%'); }
+    const orderBy = sort==='popular' ? 'ql.use_count DESC'
+      : sort==='newest' ? 'ql.created_at DESC'
+      : 'ql.rating_avg DESC, ql.use_count DESC';
+    const result = await pool.query(`
+      SELECT ql.*, u.nickname as creator_name,
+        COUNT(qq.id) as question_count
+      FROM quest_library ql
+      LEFT JOIN users u ON u.id = ql.created_by
+      LEFT JOIN quest_library_questions qq ON qq.quest_id = ql.id
+      ${where}
+      GROUP BY ql.id, u.nickname
+      ORDER BY ql.visibility='builtin' DESC, ql.is_featured DESC, ${orderBy}
+      LIMIT 100
+    `, params);
+    res.json({ success:true, quests: result.rows });
+  } catch(e){ res.status(500).json({ error: e.message }); }
+});
+
+// שאלות של קווסט
+app.get('/api/quest-library/:id/questions', async (req, res) => {
+  try {
+    const qs = await pool.query(
+      'SELECT * FROM quest_library_questions WHERE quest_id=$1 ORDER BY order_index',
+      [req.params.id]
+    );
+    res.json({ success:true, questions: qs.rows });
+  } catch(e){ res.status(500).json({ error: e.message }); }
+});
+
+// שיתוף קווסט של הורה למאגר
+app.post('/api/quest-library/share', async (req, res) => {
+  try {
+    const { questId, visibility, communityId, userId } = req.body;
+    const quest = await pool.query(
+      'SELECT * FROM kid_quests WHERE id=$1 AND created_by=$2',
+      [questId, userId]
+    );
+    if(!quest.rows[0]) return res.status(404).json({ error: 'קווסט לא נמצא' });
+    const q = quest.rows[0];
+    const questions = await pool.query(
+      'SELECT * FROM kid_quest_questions WHERE quest_id=$1 ORDER BY order_index',
+      [questId]
+    );
+    const lib = await pool.query(`
+      INSERT INTO quest_library
+        (title, subject, description, age_min, age_max,
+         flw_reward, pass_score, visibility, created_by, community_id, tags)
+      VALUES ($1,$2,$3,6,16,$4,$5,$6,$7,$8,$9)
+      RETURNING id
+    `, [q.title, q.subject||'general', q.description,
+        q.flw_reward, q.pass_score, visibility, userId,
+        visibility==='community'?communityId:null, q.subject]);
+    const libId = lib.rows[0].id;
+    for(let i=0;i<questions.rows.length;i++){
+      const qq = questions.rows[i];
+      await pool.query(`
+        INSERT INTO quest_library_questions
+          (quest_id, question_text, answer_type, correct_answer, options_json, order_index)
+        VALUES ($1,$2,$3,$4,$5,$6)
+      `, [libId, qq.question_text, qq.answer_type, qq.correct_answer, qq.options_json, i]);
+    }
+    await pool.query(
+      'UPDATE kid_quests SET shared_to_library=$1 WHERE id=$2',
+      [visibility, questId]
+    );
+    res.json({ success:true, libraryId: libId });
+  } catch(e){ res.status(500).json({ error: e.message }); }
+});
+
+// שימוש בקווסט מהמאגר — שליחה לילד
+app.post('/api/quest-library/:id/use', async (req, res) => {
+  try {
+    const { childUserId, familyGroupId, parentId } = req.body;
+    const libId = req.params.id;
+    const quest = await pool.query('SELECT * FROM quest_library WHERE id=$1', [libId]);
+    if(!quest.rows[0]) return res.status(404).json({ error: 'לא נמצא' });
+    const q = quest.rows[0];
+    const questions = await pool.query(
+      'SELECT * FROM quest_library_questions WHERE quest_id=$1 ORDER BY order_index',
+      [libId]
+    );
+    const newQuest = await pool.query(`
+      INSERT INTO kid_quests
+        (family_group_id, child_user_id, title, subject,
+         description, flw_reward, pass_score, status, created_by, library_source_id)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,'active',$8,$9)
+      RETURNING id
+    `, [familyGroupId, childUserId, q.title, q.subject,
+        q.description, q.flw_reward, q.pass_score, parentId, libId]);
+    const newId = newQuest.rows[0].id;
+    for(let i=0;i<questions.rows.length;i++){
+      const qq = questions.rows[i];
+      await pool.query(`
+        INSERT INTO kid_quest_questions
+          (quest_id, question_text, answer_type, correct_answer, options_json, order_index)
+        VALUES ($1,$2,$3,$4,$5,$6)
+      `, [newId, qq.question_text, qq.answer_type, qq.correct_answer, qq.options_json, i]);
+    }
+    await pool.query(
+      'UPDATE quest_library SET use_count=use_count+1 WHERE id=$1', [libId]
+    );
+    res.json({ success:true, questId: newId });
+  } catch(e){ res.status(500).json({ error: e.message }); }
+});
+
+// דירוג קווסט
+app.post('/api/quest-library/:id/rate', async (req, res) => {
+  try {
+    const { userId, rating } = req.body;
+    const questId = req.params.id;
+    await pool.query(`
+      INSERT INTO quest_library_ratings (quest_id, user_id, rating)
+      VALUES ($1,$2,$3)
+      ON CONFLICT (quest_id, user_id) DO UPDATE SET rating=$3
+    `, [questId, userId, rating]);
+    const avg = await pool.query(
+      'SELECT AVG(rating)::NUMERIC(3,2) as avg, COUNT(*) as cnt FROM quest_library_ratings WHERE quest_id=$1',
+      [questId]
+    );
+    const { avg: newAvg, cnt } = avg.rows[0];
+    const shouldHide = parseFloat(newAvg) < 2.5 && parseInt(cnt) >= 5;
+    await pool.query(
+      'UPDATE quest_library SET rating_avg=$1, rating_count=$2, is_hidden=$3 WHERE id=$4',
+      [newAvg, cnt, shouldHide, questId]
+    );
+    res.json({ success:true, newAvg, count: cnt });
+  } catch(e){ res.status(500).json({ error: e.message }); }
+});
+
+// דיווח על קווסט
+app.post('/api/quest-library/:id/report', async (req, res) => {
+  try {
+    const { userId, reason } = req.body;
+    const questId = req.params.id;
+    await pool.query(
+      'INSERT INTO quest_library_reports (quest_id, user_id, reason) VALUES ($1,$2,$3)',
+      [questId, userId, reason]
+    );
+    const reports = await pool.query(
+      'SELECT COUNT(*) as cnt FROM quest_library_reports WHERE quest_id=$1', [questId]
+    );
+    if(parseInt(reports.rows[0].cnt) >= 3){
+      await pool.query('UPDATE quest_library SET is_hidden=true WHERE id=$1', [questId]);
+    }
+    res.json({ success:true });
+  } catch(e){ res.status(500).json({ error: e.message }); }
+});
+
+// סופר אדמין — כל הקווסטים
+app.get('/api/sa/quest-library', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT ql.*, u.nickname as creator_name,
+        COUNT(DISTINCT qq.id) as question_count,
+        COUNT(DISTINCT r.id) as report_count
+      FROM quest_library ql
+      LEFT JOIN users u ON u.id=ql.created_by
+      LEFT JOIN quest_library_questions qq ON qq.quest_id=ql.id
+      LEFT JOIN quest_library_reports r ON r.quest_id=ql.id
+      GROUP BY ql.id, u.nickname
+      ORDER BY report_count DESC, ql.created_at DESC
+    `);
+    res.json({ success:true, quests: result.rows });
+  } catch(e){ res.status(500).json({ error: e.message }); }
+});
+
+// סופר אדמין — הסתר/הצג/מומלץ
+app.patch('/api/sa/quest-library/:id/visibility', async (req, res) => {
+  try {
+    const { isHidden, isFeatured } = req.body;
+    await pool.query(
+      `UPDATE quest_library SET
+        is_hidden=COALESCE($1,is_hidden),
+        is_featured=COALESCE($2,is_featured)
+       WHERE id=$3`,
+      [isHidden, isFeatured, req.params.id]
+    );
+    res.json({ success:true });
+  } catch(e){ res.status(500).json({ error: e.message }); }
+});
 
 // ── ACTIVITY LOG HELPER ─────────────────────────────────────────
 async function logActivity(groupId, userId, userName, actionType, actionKey, description) {
