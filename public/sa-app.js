@@ -9502,6 +9502,7 @@ async function loadSAQuestLib(){
 }
 
 async function saEditQuest(questId){
+  try {
   // טען נתוני קווסט + שאלות
   const [qRes, qqRes] = await Promise.all([
     fetch(`${API}/sa/quest-library`, { headers:{'Authorization':saToken} }),
@@ -9637,6 +9638,7 @@ async function saEditQuest(questId){
     questions.push({text:'',correct:'',opts:['','','',''],ex:''});
     document.getElementById('sqe-questions-wrap').innerHTML=renderQEdit();
   };
+  } catch(e){ showToast('error', 'שגיאה בטעינת הקווסט: ' + e.message); }
 }
 
 async function saQuestEditSave(questId){
@@ -9690,17 +9692,25 @@ async function saQuestEditSave(questId){
 }
 
 async function saToggleQHide(id, hide){
-  await fetch(`${API}/sa/quest-library/${id}/visibility`, {
-    method:'PATCH', headers:{'Content-Type':'application/json','Authorization':saToken},
-    body: JSON.stringify({ isHidden: hide })
-  });
-  loadSAQuestLib();
+  try {
+    await fetch(`${API}/sa/quest-library/${id}/visibility`, {
+      method:'PATCH', headers:{'Content-Type':'application/json','Authorization':saToken},
+      body: JSON.stringify({ isHidden: hide })
+    });
+    loadSAQuestLib();
+  } catch(e){ showToast('error', e.message); }
 }
+window.saToggleQHide = saToggleQHide;
 
 async function saToggleQFeatured(id, featured){
-  await fetch(`${API}/sa/quest-library/${id}/visibility`, {
-    method:'PATCH', headers:{'Content-Type':'application/json','Authorization':saToken},
-    body: JSON.stringify({ isFeatured: featured })
-  });
-  loadSAQuestLib();
+  try {
+    await fetch(`${API}/sa/quest-library/${id}/visibility`, {
+      method:'PATCH', headers:{'Content-Type':'application/json','Authorization':saToken},
+      body: JSON.stringify({ isFeatured: featured })
+    });
+    loadSAQuestLib();
+  } catch(e){ showToast('error', e.message); }
 }
+window.saToggleQFeatured = saToggleQFeatured;
+window.saEditQuest = saEditQuest;
+window.saQuestEditSave = saQuestEditSave;
