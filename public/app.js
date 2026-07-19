@@ -15246,3 +15246,133 @@ async function useLibQuest(questId) {
         setTimeout(() => showPwaBanner('ios'), 3000);
     }
 })();
+
+// ─── WEEKLY REPORT ────────────────────────────────────────────
+async function openWeeklyReport(weeksAgo=0) {
+  const overlay = document.createElement('div');
+  overlay.id = 'weekly-report-overlay';
+  overlay.style.cssText = `position:fixed;inset:0;background:#F0F4FF;z-index:7000;overflow-y:auto;font-family:'Heebo',sans-serif`;
+
+  overlay.innerHTML = `
+    <div style="max-width:480px;margin:0 auto;padding:0 0 2rem">
+      <div style="background:linear-gradient(135deg,#1E40AF,#1D4ED8);padding:1rem;position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-family:'Fredoka One',sans-serif;color:white;font-size:1.1rem">📊 דוח שבועי</div>
+          <div id="report-period" style="font-size:0.72rem;color:rgba(255,255,255,0.6)">טוען...</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.4rem">
+          <button onclick="openWeeklyReport(${weeksAgo+1})" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:8px;padding:0.3rem 0.6rem;font-size:0.78rem;cursor:pointer">← שבוע קודם</button>
+          ${weeksAgo>0?`<button onclick="openWeeklyReport(${weeksAgo-1})" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:8px;padding:0.3rem 0.6rem;font-size:0.78rem;cursor:pointer">הבא →</button>`:''}
+          <button onclick="document.getElementById('weekly-report-overlay').remove()" style="background:rgba(255,255,255,0.2);border:none;color:white;border-radius:50%;width:32px;height:32px;font-size:1rem;cursor:pointer">✕</button>
+        </div>
+      </div>
+      <div id="report-content" style="padding:1rem">
+        <div style="text-align:center;padding:3rem;color:#94A3B8"><div style="font-size:2rem">⏳</div><div style="margin-top:0.5rem">טוען דוח...</div></div>
+      </div>
+    </div>`;
+
+  document.getElementById('weekly-report-overlay')?.remove();
+  document.body.appendChild(overlay);
+
+  try {
+    const res = await fetch(`/api/family/weekly-report/${currentGroup?.id}?weeks=${weeksAgo}`);
+    const data = await res.json();
+    if(!data.success) throw new Error(data.error);
+    const start = new Date(data.period.start);
+    const end   = new Date(data.period.end);
+    const fmt   = d=>`${d.getDate()}/${d.getMonth()+1}`;
+    document.getElementById('report-period').textContent = `${fmt(start)} — ${fmt(end)}${weeksAgo===0?' (השבוע)':''}`;
+    renderWeeklyReport(data.report);
+  } catch(e){
+    document.getElementById('report-content').innerHTML = `<div style="text-align:center;padding:2rem;color:#EF4444">שגיאה בטעינת הדוח</div>`;
+  }
+}
+
+function renderWeeklyReport(report) {
+  const subjectNames = {math:'מתמטיקה',hebrew:'עברית',english:'אנגלית',science:'מדעים',history:'היסטוריה',finance:'כלכלה',geography:'גיאוגרפיה',values:'ערכים',music:'מוזיקה',health:'בריאות',technology:'טכנולוגיה',environment:'סביבה',logic:'לוגיקה',life:'ניהול זמן',general:'כללי'};
+
+  if(!report.length){
+    document.getElementById('report-content').innerHTML = `<div style="text-align:center;padding:3rem;color:#94A3B8"><div style="font-size:3rem">👨‍👩‍👧</div><div style="margin-top:0.5rem">אין ילדים במשפחה עדיין</div></div>`;
+    return;
+  }
+
+  let html = report.map(r => {
+    const c = r.child;
+    const delta = r.flwDelta;
+    const deltaColor = delta>0?'#22C55E':delta<0?'#EF4444':'#94A3B8';
+    const allScores = [...r.games.map(g=>g.avg_score||0),...r.quests.map(q=>q.score||0)];
+    const avgScore = allScores.length ? Math.round(allScores.reduce((a,b)=>a+b,0)/allScores.length) : null;
+
+    return `
+    <div style="background:white;border-radius:20px;margin-bottom:1rem;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06)">
+      <div style="background:linear-gradient(135deg,#1E40AF,#4F46E5);padding:1rem;display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:0.6rem">
+          <div style="width:40px;height:40px;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem">👦</div>
+          <div>
+            <div style="font-weight:900;color:white;font-size:1rem">${c.nickname}</div>
+            <div style="font-size:0.72rem;color:rgba(255,255,255,0.6)">${r.games.length} משחקים · ${r.quests.length} קווסטים</div>
+          </div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-family:'Fredoka One',sans-serif;font-size:1.8rem;color:#FFD600;line-height:1">${r.flwWeek}</div>
+          <div style="font-size:0.65rem;color:rgba(255,255,255,0.6)">FLW השבוע</div>
+          <div style="font-size:0.72rem;font-weight:700;color:${deltaColor}">${delta>0?'+'+delta:delta} vs שבוע קודם</div>
+        </div>
+      </div>
+      <div style="padding:0.9rem">
+        ${avgScore!==null?`
+        <div style="display:flex;align-items:center;gap:0.5rem;background:#F8FAFF;border-radius:12px;padding:0.6rem 0.8rem;margin-bottom:0.8rem">
+          <div style="font-size:1.4rem">${avgScore>=80?'🏆':avgScore>=60?'⭐':'💪'}</div>
+          <div style="flex:1">
+            <div style="font-size:0.7rem;color:#94A3B8;font-weight:700">ציון ממוצע השבוע</div>
+            <div style="height:6px;background:#E0E0E0;border-radius:50px;margin-top:0.25rem;overflow:hidden">
+              <div style="height:100%;width:${avgScore}%;border-radius:50px;background:${avgScore>=80?'#22C55E':avgScore>=60?'#F59E0B':'#EF4444'}"></div>
+            </div>
+          </div>
+          <div style="font-family:'Fredoka One',sans-serif;font-size:1.2rem;color:${avgScore>=80?'#22C55E':avgScore>=60?'#F59E0B':'#EF4444'}">${avgScore}%</div>
+        </div>`:''}
+        ${r.games.length?`
+        <div style="margin-bottom:0.8rem">
+          <div style="font-size:0.72rem;font-weight:700;color:#64748B;margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:0.05em">🎮 משחקים</div>
+          ${r.games.map(g=>`
+          <div style="display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0;border-bottom:1px solid #F5F5F5">
+            <span style="font-size:1.2rem">${g.thumbnail_emoji||'🎮'}</span>
+            <div style="flex:1"><div style="font-size:0.82rem;font-weight:700">${g.title}</div><div style="font-size:0.68rem;color:#94A3B8">${g.plays} פעמים</div></div>
+            <div style="text-align:left"><div style="font-size:0.78rem;font-weight:700;color:${g.avg_score>=80?'#22C55E':g.avg_score>=60?'#F59E0B':'#EF4444'}">${g.avg_score||0}%</div><div style="font-size:0.65rem;color:#94A3B8">🪙${g.flw_earned||0}</div></div>
+          </div>`).join('')}
+        </div>`:`<div style="font-size:0.82rem;color:#94A3B8;text-align:center;padding:0.5rem;margin-bottom:0.8rem">לא שיחק השבוע</div>`}
+        ${r.quests.length?`
+        <div style="margin-bottom:0.8rem">
+          <div style="font-size:0.72rem;font-weight:700;color:#64748B;margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:0.05em">🎯 קווסטים</div>
+          ${r.quests.map(q=>`
+          <div style="display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0;border-bottom:1px solid #F5F5F5">
+            <span>${q.score>=80?'✅':'📊'}</span>
+            <div style="flex:1"><div style="font-size:0.82rem;font-weight:700">${q.title}</div><div style="font-size:0.68rem;color:#94A3B8">${subjectNames[q.subject]||q.subject}</div></div>
+            <div style="font-size:0.82rem;font-weight:700;color:${q.score>=80?'#22C55E':q.score>=60?'#F59E0B':'#EF4444'}">${q.score}%</div>
+          </div>`).join('')}
+        </div>`:''}
+        ${r.subjects.length?`
+        <div style="margin-bottom:0.8rem">
+          <div style="font-size:0.72rem;font-weight:700;color:#64748B;margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">📈 לפי נושא</div>
+          ${r.subjects.map(s=>`
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem">
+            <div style="font-size:0.72rem;color:#64748B;width:68px;text-align:right;flex-shrink:0">${subjectNames[s.subject]||s.subject}</div>
+            <div style="flex:1;height:6px;background:#F0F0F0;border-radius:50px;overflow:hidden"><div style="height:100%;width:${s.avg}%;border-radius:50px;background:${s.avg>=80?'#22C55E':s.avg>=60?'#F59E0B':'#EF4444'}"></div></div>
+            <div style="font-size:0.72rem;font-weight:700;width:28px;color:${s.avg>=80?'#22C55E':s.avg>=60?'#F59E0B':'#EF4444'}">${s.avg}%</div>
+          </div>`).join('')}
+        </div>`:''}
+        ${r.recommendations.length?`
+        <div style="border-top:1px solid #F0F0F0;padding-top:0.8rem">
+          <div style="font-size:0.72rem;font-weight:700;color:#64748B;margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">💡 המלצות לפעולה</div>
+          ${r.recommendations.map(rec=>`
+          <div style="display:flex;align-items:flex-start;gap:0.4rem;padding:0.5rem 0.7rem;border-radius:10px;margin-bottom:0.4rem;background:${rec.type==='good'?'#F0FDF4':rec.type==='warn'?'#FFF7ED':'#EFF6FF'}">
+            <span style="flex-shrink:0">${rec.type==='good'?'✅':rec.type==='warn'?'⚠️':'💡'}</span>
+            <div style="font-size:0.82rem;font-weight:700;color:${rec.type==='good'?'#16A34A':rec.type==='warn'?'#D97706':'#1D4ED8'}">${rec.text}</div>
+          </div>`).join('')}
+        </div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('report-content').innerHTML = html;
+}

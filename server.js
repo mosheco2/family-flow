@@ -22642,6 +22642,106 @@ app.get('/api/kids/parent-quests/:parentId', async (req, res) => {
 
 // ─── END KIDS GAMES API ───────────────────────────────────────────────────────
 
+// ─── FAMILY WEEKLY REPORT ─────────────────────────────────────────────────────
+app.get('/api/family/weekly-report/:groupId', async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+    const weeksAgo = parseInt(req.query.weeks||'0');
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() - weeksAgo*7);
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - 7);
+    const prevStart = new Date(startDate);
+    prevStart.setDate(prevStart.getDate() - 7);
+
+    const children = await pool.query(`
+      SELECT u.id, u.nickname, u.birth_year,
+        COALESCE(w.balance_flw,0) as balance_flw,
+        COALESCE(w.lifetime_flw,0) as lifetime_flw
+      FROM users u
+      LEFT JOIN flw_kid_wallets w ON w.child_user_id=u.id
+      WHERE u.group_id=$1
+        AND (u.employee_role_type='CHILD' OR
+             (EXTRACT(YEAR FROM NOW())-COALESCE(u.birth_year,2010))<=16)
+    `, [groupId]);
+
+    const report = [];
+
+    for(const child of children.rows){
+      const cid = child.id;
+
+      const flwWeek = await pool.query(`
+        SELECT COALESCE(SUM(flw_earned),0) as total FROM game_sessions
+        WHERE child_user_id=$1 AND created_at BETWEEN $2 AND $3
+      `, [cid, startDate, endDate]);
+
+      const flwPrev = await pool.query(`
+        SELECT COALESCE(SUM(flw_earned),0) as total FROM game_sessions
+        WHERE child_user_id=$1 AND created_at BETWEEN $2 AND $3
+      `, [cid, prevStart, startDate]);
+
+      const games = await pool.query(`
+        SELECT g.title, g.subject, g.thumbnail_emoji,
+          COUNT(*) as plays,
+          AVG(gs.score)::INT as avg_score,
+          SUM(gs.flw_earned) as flw_earned
+        FROM game_sessions gs
+        JOIN games_catalog g ON g.id=gs.game_id
+        WHERE gs.child_user_id=$1 AND gs.created_at BETWEEN $2 AND $3
+        GROUP BY g.id, g.title, g.subject, g.thumbnail_emoji
+        ORDER BY plays DESC
+      `, [cid, startDate, endDate]);
+
+      const quests = await pool.query(`
+        SELECT kq.title, kq.subject, kr.score, kr.flw_earned, kr.completed_at
+        FROM kid_quest_results kr
+        JOIN kid_quests kq ON kq.id=kr.quest_id
+        WHERE kr.child_user_id=$1 AND kr.completed_at BETWEEN $2 AND $3
+        ORDER BY kr.completed_at DESC
+      `, [cid, startDate, endDate]);
+
+      const subjects = {};
+      for(const g of games.rows){
+        if(!subjects[g.subject]) subjects[g.subject]={scores:[],emoji:g.thumbnail_emoji};
+        subjects[g.subject].scores.push(g.avg_score||0);
+      }
+      for(const q of quests.rows){
+        if(!subjects[q.subject]) subjects[q.subject]={scores:[],emoji:'📝'};
+        subjects[q.subject].scores.push(q.score||0);
+      }
+      const subjectSummary = Object.entries(subjects).map(([sub,data])=>({
+        subject:sub, emoji:data.emoji,
+        avg:Math.round(data.scores.reduce((a,b)=>a+b,0)/data.scores.length)
+      })).sort((a,b)=>b.avg-a.avg);
+
+      const recommendations = [];
+      const flwDelta = parseInt(flwWeek.rows[0].total)-parseInt(flwPrev.rows[0].total);
+      if(games.rows.length===0)
+        recommendations.push({type:'warn',text:`${child.nickname} לא שיחק השבוע — הקצה משחק חדש`});
+      if(quests.rows.length===0)
+        recommendations.push({type:'info',text:`שלח קווסט ל${child.nickname} כדי לעודד למידה`});
+      if(subjectSummary.length>0 && subjectSummary[subjectSummary.length-1].avg<60)
+        recommendations.push({type:'warn',text:`${child.nickname} מתקשה ב${subjectSummary[subjectSummary.length-1].subject} — נסה קווסט קל יותר`});
+      if(subjectSummary.length>0 && subjectSummary[0].avg>=85)
+        recommendations.push({type:'good',text:`${child.nickname} מצטיין ב${subjectSummary[0].subject}! נסה נושא חדש`});
+      if(flwDelta>0)
+        recommendations.push({type:'good',text:`${child.nickname} צבר ${flwDelta} FLW יותר מהשבוע שעבר 🚀`});
+      if(flwDelta<-20)
+        recommendations.push({type:'warn',text:`ירידה של ${Math.abs(flwDelta)} FLW — שאל איך אפשר לעזור`});
+
+      report.push({
+        child, flwWeek:parseInt(flwWeek.rows[0].total),
+        flwPrev:parseInt(flwPrev.rows[0].total), flwDelta,
+        games:games.rows, quests:quests.rows,
+        subjects:subjectSummary, recommendations
+      });
+    }
+
+    res.json({ success:true, report,
+      period:{ start:startDate, end:endDate, weeksAgo } });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
 // הפעלת השרת
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
