@@ -9478,7 +9478,8 @@ async function loadSAQuestLib(){
       `).join('')}
     `;
   } catch(e) {
-    el.innerHTML = '<div class="text-center text-red-400 py-8">שגיאה בטעינת המאגר</div>';
+    el.innerHTML = `<div class="text-center text-red-400 py-8">שגיאה: ${e.message}</div>`;
+    console.error('loadSAQuestLib error:', e);
   }
 }
 

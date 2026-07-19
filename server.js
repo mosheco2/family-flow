@@ -2100,8 +2100,7 @@ async function runQuestLibrarySeed() {
     const r = await pool.query(`
       INSERT INTO quest_library
         (title,subject,description,age_min,age_max,difficulty,flw_reward,pass_score,visibility,tags,is_featured)
-      SELECT $1::text,$2::text,$3::text,$4::int,$5::int,$6::int,$7::int,$8::int,'builtin',$9::text,true
-      WHERE NOT EXISTS (SELECT 1 FROM quest_library WHERE title=$1::text AND visibility='builtin')
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'builtin',$9,true)
       RETURNING id
     `,[q.title,q.subject,q.description,q.age_min,q.age_max,q.difficulty,q.flw_reward,q.pass_score,q.tags]);
     if(!r.rows[0]) continue;
@@ -2122,10 +2121,13 @@ async function runQuestLibrarySeed() {
 // הרצת seed ידנית — SA בלבד
 app.post('/api/sa/quest-library/run-seed', verifySA, async (req, res) => {
   try {
+    // מחק builtin ישנים כדי להימנע מכפילויות, ואז הוסף מחדש
+    await pool.query(`DELETE FROM quest_library_questions WHERE quest_id IN (SELECT id FROM quest_library WHERE visibility='builtin')`);
+    await pool.query(`DELETE FROM quest_library WHERE visibility='builtin'`);
     await runQuestLibrarySeed();
-    const count = await pool.query('SELECT COUNT(*) FROM quest_library');
+    const count = await pool.query(`SELECT COUNT(*) FROM quest_library WHERE visibility='builtin'`);
     res.json({ success: true, total: parseInt(count.rows[0].count) });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { console.error('run-seed error:', e.message); res.status(500).json({ error: e.message }); }
 });
 
 // רשימת קווסטים מהמאגר
@@ -2297,18 +2299,16 @@ app.post('/api/quest-library/:id/report', async (req, res) => {
 app.get('/api/sa/quest-library', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT ql.*, u.nickname as creator_name,
-        COUNT(DISTINCT qq.id) as question_count,
-        COUNT(DISTINCT r.id) as report_count
+      SELECT ql.*,
+        u.nickname as creator_name,
+        (SELECT COUNT(*) FROM quest_library_questions WHERE quest_id=ql.id) as question_count,
+        (SELECT COUNT(*) FROM quest_library_reports WHERE quest_id=ql.id) as report_count
       FROM quest_library ql
       LEFT JOIN users u ON u.id=ql.created_by
-      LEFT JOIN quest_library_questions qq ON qq.quest_id=ql.id
-      LEFT JOIN quest_library_reports r ON r.quest_id=ql.id
-      GROUP BY ql.id, u.nickname
-      ORDER BY report_count DESC, ql.created_at DESC
+      ORDER BY ql.created_at DESC
     `);
     res.json({ success:true, quests: result.rows });
-  } catch(e){ res.status(500).json({ error: e.message }); }
+  } catch(e){ console.error('SA quest-library error:', e.message); res.status(500).json({ error: e.message }); }
 });
 
 // סופר אדמין — הסתר/הצג/מומלץ
