@@ -5743,15 +5743,17 @@ async function loadFamilyFlowWallet() {
             flowBadge.classList.remove('hidden');
         }
 
-        // Update header FLW chip
-        const chip = getEl('header-flw-chip');
-        const numEl = getEl('header-flw-num');
-        if (chip) {
-            if (numEl) numEl.textContent = Math.floor(familyFlowBalance);
-            chip.classList.remove('hidden');
-            chip.classList.add('flex');
-            if (_flwBalInitialized && familyFlowBalance > prevBal) {
-                triggerCoinAnimation(familyFlowBalance);
+        // Update header FLW chip — לילדים ה-chip מנוהל ע"י loadChildFlwWallet בלבד
+        if (!currentUser || currentUser.role !== 'CHILD') {
+            const chip = getEl('header-flw-chip');
+            const numEl = getEl('header-flw-num');
+            if (chip) {
+                if (numEl) numEl.textContent = Math.floor(familyFlowBalance);
+                chip.classList.remove('hidden');
+                chip.classList.add('flex');
+                if (_flwBalInitialized && familyFlowBalance > prevBal) {
+                    triggerCoinAnimation(familyFlowBalance);
+                }
             }
         }
         _flwBalInitialized = true;
