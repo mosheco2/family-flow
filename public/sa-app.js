@@ -9418,6 +9418,18 @@ window.loadSAGamesStats = async function() {
 // QUEST LIBRARY — Super Admin
 // ============================================================
 
+async function runQuestLibSeed(){
+  const btn = document.getElementById('sa-quest-seed-btn');
+  if(btn) { btn.disabled=true; btn.textContent='מריץ...'; }
+  try {
+    const res = await fetch(`${API}/sa/quest-library/run-seed`, { method:'POST', headers:{'Authorization':saToken} });
+    const data = await res.json();
+    if(data.success) { showToast('success', `✅ נזרעו ${data.total} קווסטים!`); loadSAQuestLib(); }
+    else showToast('error', data.error || 'שגיאה');
+  } catch(e){ showToast('error','שגיאת רשת'); }
+  if(btn) { btn.disabled=false; btn.textContent='🌱 הרץ seed'; }
+}
+
 async function loadSAQuestLib(){
   const el = document.getElementById('sa-quest-lib-content');
   if(!el) return;
@@ -9428,8 +9440,13 @@ async function loadSAQuestLib(){
     const quests = data.quests || [];
 
     el.innerHTML = `
-      <div style="font-weight:700;margin-bottom:0.7rem;font-size:1rem">
-        📚 ספריית קווסטים (${quests.length})
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem">
+        <div style="font-weight:700;font-size:1rem">📚 ספריית קווסטים (${quests.length})</div>
+        <button id="sa-quest-seed-btn" onclick="runQuestLibSeed()"
+          style="background:#EDE9FE;color:#5B21B6;border:1px solid #7C3AED;border-radius:8px;
+                 padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:700;cursor:pointer">
+          🌱 הרץ seed
+        </button>
       </div>
       ${quests.length === 0 ? '<div class="text-center text-slate-400 py-8">אין קווסטים במאגר עדיין</div>' : quests.map(q=>`
         <div style="background:#f8fafc;border-radius:12px;padding:0.8rem;
