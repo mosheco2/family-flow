@@ -2090,6 +2090,89 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
         }
       } catch(e) { console.error('quest_library seed error:', e.message); }
 
+
+      // ===== COMMUNITY FEED SYSTEM =====
+      try { await pool.query(`
+        CREATE TABLE IF NOT EXISTS community_interest_groups (
+          id SERIAL PRIMARY KEY,
+          community_id INT REFERENCES communities(id) ON DELETE CASCADE,
+          name VARCHAR(100) NOT NULL,
+          description TEXT,
+          icon_emoji VARCHAR(10) DEFAULT '💬',
+          members_count INT DEFAULT 0,
+          posts_count INT DEFAULT 0,
+          created_by_family_id INT REFERENCES family_groups(id),
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `); } catch(e) { console.error('community_interest_groups:', e.message); }
+
+      try { await pool.query(`
+        CREATE TABLE IF NOT EXISTS community_posts (
+          id SERIAL PRIMARY KEY,
+          author_family_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          community_id INT REFERENCES communities(id) ON DELETE CASCADE,
+          group_id INT REFERENCES community_interest_groups(id) ON DELETE SET NULL,
+          post_type VARCHAR(20) DEFAULT 'general',
+          content TEXT NOT NULL,
+          image_url TEXT,
+          likes_count INT DEFAULT 0,
+          comments_count INT DEFAULT 0,
+          reports_count INT DEFAULT 0,
+          shares_count INT DEFAULT 0,
+          flw_earned INT DEFAULT 0,
+          score FLOAT DEFAULT 0,
+          is_hidden BOOLEAN DEFAULT false,
+          is_pinned BOOLEAN DEFAULT false,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `); } catch(e) { console.error('community_posts:', e.message); }
+
+      try { await pool.query(`
+        CREATE TABLE IF NOT EXISTS community_post_likes (
+          id SERIAL PRIMARY KEY,
+          post_id INT REFERENCES community_posts(id) ON DELETE CASCADE,
+          family_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          created_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(post_id, family_id)
+        )
+      `); } catch(e) { console.error('community_post_likes:', e.message); }
+
+      try { await pool.query(`
+        CREATE TABLE IF NOT EXISTS community_post_comments (
+          id SERIAL PRIMARY KEY,
+          post_id INT REFERENCES community_posts(id) ON DELETE CASCADE,
+          parent_comment_id INT REFERENCES community_post_comments(id) ON DELETE CASCADE,
+          author_family_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          content TEXT NOT NULL,
+          likes_count INT DEFAULT 0,
+          is_hidden BOOLEAN DEFAULT false,
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `); } catch(e) { console.error('community_post_comments:', e.message); }
+
+      try { await pool.query(`
+        CREATE TABLE IF NOT EXISTS community_post_reports (
+          id SERIAL PRIMARY KEY,
+          post_id INT REFERENCES community_posts(id) ON DELETE CASCADE,
+          family_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          reason VARCHAR(200),
+          created_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(post_id, family_id)
+        )
+      `); } catch(e) { console.error('community_post_reports:', e.message); }
+
+      try { await pool.query(`
+        CREATE TABLE IF NOT EXISTS community_group_members (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES community_interest_groups(id) ON DELETE CASCADE,
+          family_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          joined_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(group_id, family_id)
+        )
+      `); } catch(e) { console.error('community_group_members:', e.message); }
+      // ===== END COMMUNITY FEED SYSTEM =====
+
       client.release();
       runQuestLibrarySeed().catch(e => console.error('quest seed via function:', e.message));
   })
@@ -22752,6 +22835,338 @@ app.get('/api/family/weekly-report/:groupId', async (req, res) => {
       period:{ start:startDate, end:endDate, weeksAgo } });
   } catch(e){ res.status(500).json({ error:e.message }); }
 });
+
+// ===== COMMUNITY FEED API =====
+
+// שליפת פיד
+app.get('/api/community/feed', async (req, res) => {
+  try {
+    const { familyId, communityId, groupId, page=1, limit=20 } = req.query;
+    const offset = (parseInt(page)-1) * parseInt(limit);
+    let communityFilter = '';
+    const params = [];
+    let pi = 1;
+
+    if(communityId){
+      communityFilter = `AND cp.community_id=$${pi++}`;
+      params.push(communityId);
+    } else {
+      communityFilter = `AND cp.community_id IN (
+        SELECT community_id FROM family_communities
+        WHERE family_id=$${pi++} AND status='approved'
+      )`;
+      params.push(familyId);
+    }
+    if(groupId){ communityFilter += ` AND cp.group_id=$${pi++}`; params.push(groupId); }
+    params.push(parseInt(limit), offset, familyId);
+
+    const posts = await pool.query(`
+      SELECT
+        cp.*,
+        fg.name as author_name,
+        fg.avatar_url as author_avatar,
+        c.name as community_name,
+        cig.name as group_name,
+        cig.icon_emoji as group_icon,
+        EXISTS(
+          SELECT 1 FROM community_post_likes
+          WHERE post_id=cp.id AND family_id=$${pi}
+        ) as liked_by_me
+      FROM community_posts cp
+      JOIN family_groups fg ON fg.id = cp.author_family_id
+      JOIN communities c ON c.id = cp.community_id
+      LEFT JOIN community_interest_groups cig ON cig.id = cp.group_id
+      WHERE cp.is_hidden=false
+        ${communityFilter}
+      ORDER BY cp.is_pinned DESC,
+               (cp.likes_count*3 + cp.comments_count*5 + cp.shares_count*4
+                + 100.0/(EXTRACT(EPOCH FROM (NOW()-cp.created_at))/3600 + 2)) DESC
+      LIMIT $${pi-2} OFFSET $${pi-1}
+    `, params);
+
+    res.json({ success:true, posts: posts.rows, hasMore: posts.rows.length === parseInt(limit) });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// יצירת פוסט
+app.post('/api/community/posts', async (req, res) => {
+  try {
+    const { familyId, communityId, groupId, postType='general', content, imageUrl } = req.body;
+    if(!content?.trim()) return res.status(400).json({ error: 'תוכן ריק' });
+
+    const member = await pool.query(
+      `SELECT id FROM family_communities WHERE family_id=$1 AND community_id=$2 AND status='approved'`,
+      [familyId, communityId]
+    );
+    if(!member.rows[0]) return res.status(403).json({ error: 'לא חבר בקהילה' });
+
+    const post = await pool.query(`
+      INSERT INTO community_posts (author_family_id, community_id, group_id, post_type, content, image_url)
+      VALUES ($1,$2,$3,$4,$5,$6) RETURNING *
+    `, [familyId, communityId, groupId||null, postType, content.trim(), imageUrl||null]);
+
+    try { await pool.query(
+      `INSERT INTO flow_transactions (entity_id, entity_type, action_key, amount, community_id) VALUES ($1,'family','community_post',3,$2)`,
+      [familyId, communityId]
+    ); } catch(e){}
+    try { await pool.query(
+      `INSERT INTO flow_transactions (entity_id, entity_type, action_key, amount, community_id) VALUES ($1,'community','community_post_community',1,$1)`,
+      [communityId]
+    ); } catch(e){}
+
+    if(groupId){
+      await pool.query('UPDATE community_interest_groups SET posts_count=posts_count+1 WHERE id=$1', [groupId]);
+    }
+
+    res.json({ success:true, post: post.rows[0] });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// לייק / ביטול לייק
+app.post('/api/community/posts/:id/like', async (req, res) => {
+  try {
+    const { familyId } = req.body;
+    const postId = req.params.id;
+    const existing = await pool.query(
+      'SELECT id FROM community_post_likes WHERE post_id=$1 AND family_id=$2', [postId, familyId]
+    );
+    if(existing.rows[0]){
+      await pool.query('DELETE FROM community_post_likes WHERE post_id=$1 AND family_id=$2', [postId, familyId]);
+      await pool.query('UPDATE community_posts SET likes_count=GREATEST(0,likes_count-1) WHERE id=$1', [postId]);
+      res.json({ success:true, liked:false });
+    } else {
+      await pool.query('INSERT INTO community_post_likes (post_id, family_id) VALUES ($1,$2)', [postId, familyId]);
+      await pool.query('UPDATE community_posts SET likes_count=likes_count+1 WHERE id=$1', [postId]);
+      const p = (await pool.query('SELECT likes_count, author_family_id, community_id, flw_earned FROM community_posts WHERE id=$1', [postId])).rows[0];
+      if(p && p.likes_count === 10 && p.flw_earned === 0){
+        await pool.query('UPDATE community_posts SET flw_earned=5 WHERE id=$1', [postId]);
+        try { await pool.query(
+          `INSERT INTO flow_transactions (entity_id, entity_type, action_key, amount, community_id) VALUES ($1,'family','post_popular_bonus',5,$2)`,
+          [p.author_family_id, p.community_id]
+        ); } catch(e){}
+      }
+      res.json({ success:true, liked:true });
+    }
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// שליפת תגובות
+app.get('/api/community/posts/:id/comments', async (req, res) => {
+  try {
+    const comments = await pool.query(`
+      SELECT c.*, fg.name as author_name, fg.avatar_url as author_avatar
+      FROM community_post_comments c
+      JOIN family_groups fg ON fg.id=c.author_family_id
+      WHERE c.post_id=$1 AND c.parent_comment_id IS NULL AND c.is_hidden=false
+      ORDER BY c.created_at ASC
+    `, [req.params.id]);
+    res.json({ success:true, comments: comments.rows });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// הוספת תגובה
+app.post('/api/community/posts/:id/comments', async (req, res) => {
+  try {
+    const { familyId, content, parentCommentId } = req.body;
+    if(!content?.trim()) return res.status(400).json({ error: 'תוכן ריק' });
+    const comment = await pool.query(`
+      INSERT INTO community_post_comments (post_id, parent_comment_id, author_family_id, content)
+      VALUES ($1,$2,$3,$4) RETURNING *
+    `, [req.params.id, parentCommentId||null, familyId, content.trim()]);
+    await pool.query('UPDATE community_posts SET comments_count=comments_count+1 WHERE id=$1', [req.params.id]);
+    res.json({ success:true, comment: comment.rows[0] });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// דיווח על פוסט
+app.post('/api/community/posts/:id/report', async (req, res) => {
+  try {
+    const { familyId, reason } = req.body;
+    const postId = req.params.id;
+    await pool.query(
+      `INSERT INTO community_post_reports (post_id, family_id, reason) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
+      [postId, familyId, reason||'']
+    );
+    const cnt = parseInt((await pool.query('SELECT COUNT(*) as cnt FROM community_post_reports WHERE post_id=$1', [postId])).rows[0].cnt);
+    if(cnt >= 3){ await pool.query('UPDATE community_posts SET is_hidden=true WHERE id=$1', [postId]); }
+    await pool.query('UPDATE community_posts SET reports_count=reports_count+1 WHERE id=$1', [postId]);
+    res.json({ success:true });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// שיתוף פוסט לקהילה אחרת
+app.post('/api/community/posts/:id/share', async (req, res) => {
+  try {
+    const { familyId, targetCommunityId } = req.body;
+    const o = (await pool.query('SELECT * FROM community_posts WHERE id=$1', [req.params.id])).rows[0];
+    if(!o) return res.status(404).json({ error: 'לא נמצא' });
+    await pool.query(
+      `INSERT INTO community_posts (author_family_id, community_id, post_type, content, image_url) VALUES ($1,$2,$3,$4,$5)`,
+      [familyId, targetCommunityId, o.post_type, `[שותף] ${o.content}`, o.image_url]
+    );
+    await pool.query('UPDATE community_posts SET shares_count=shares_count+1 WHERE id=$1', [req.params.id]);
+    res.json({ success:true });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// קבוצות עניין — שליפה
+app.get('/api/community/:communityId/groups', async (req, res) => {
+  try {
+    const { familyId } = req.query;
+    const groups = await pool.query(`
+      SELECT cig.*,
+        EXISTS(SELECT 1 FROM community_group_members WHERE group_id=cig.id AND family_id=$1) as is_member
+      FROM community_interest_groups cig
+      WHERE cig.community_id=$2
+      ORDER BY cig.members_count DESC
+    `, [familyId, req.params.communityId]);
+    res.json({ success:true, groups: groups.rows });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// הצטרפות לקבוצת עניין
+app.post('/api/community/groups/:id/join', async (req, res) => {
+  try {
+    const { familyId } = req.body;
+    await pool.query(
+      `INSERT INTO community_group_members (group_id, family_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+      [req.params.id, familyId]
+    );
+    await pool.query('UPDATE community_interest_groups SET members_count=members_count+1 WHERE id=$1', [req.params.id]);
+    res.json({ success:true });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// ===== SUPER ADMIN — COMMUNITY FEED =====
+
+// כל הפוסטים
+app.get('/api/sa/community/posts', verifySA, async (req, res) => {
+  try {
+    const { communityId, postType, isHidden, page=1 } = req.query;
+    const limit = 30;
+    const offset = (parseInt(page)-1)*limit;
+    let where = 'WHERE 1=1';
+    const params = [];
+    let pi = 1;
+    if(communityId){ where+=` AND cp.community_id=$${pi++}`; params.push(communityId); }
+    if(postType){ where+=` AND cp.post_type=$${pi++}`; params.push(postType); }
+    if(isHidden!==undefined){ where+=` AND cp.is_hidden=$${pi++}`; params.push(isHidden==='true'); }
+    params.push(limit, offset);
+
+    const posts = await pool.query(`
+      SELECT cp.*, fg.name as author_name, c.name as community_name,
+        (SELECT COUNT(*) FROM community_post_reports WHERE post_id=cp.id) as report_count
+      FROM community_posts cp
+      JOIN family_groups fg ON fg.id=cp.author_family_id
+      JOIN communities c ON c.id=cp.community_id
+      ${where}
+      ORDER BY cp.reports_count DESC, cp.created_at DESC
+      LIMIT $${pi++} OFFSET $${pi}
+    `, params);
+    res.json({ success:true, posts: posts.rows });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// הסתרה/הצגה/נעיצה
+app.patch('/api/sa/community/posts/:id', verifySA, async (req, res) => {
+  try {
+    const { isHidden, isPinned } = req.body;
+    await pool.query(
+      `UPDATE community_posts SET is_hidden=COALESCE($1,is_hidden), is_pinned=COALESCE($2,is_pinned), updated_at=NOW() WHERE id=$3`,
+      [isHidden, isPinned, req.params.id]
+    );
+    res.json({ success:true });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// סטטיסטיקות פיד
+app.get('/api/sa/community/feed-stats', verifySA, async (req, res) => {
+  try {
+    const { days=7 } = req.query;
+    const since = new Date();
+    since.setDate(since.getDate() - parseInt(days));
+
+    const [posts, likes, comments, reports, byType, byCommunity, topPosts] = await Promise.all([
+      pool.query(`SELECT COUNT(*) as total, COUNT(*) FILTER(WHERE created_at>$1) as this_period FROM community_posts WHERE is_hidden=false`, [since]),
+      pool.query(`SELECT COUNT(*) as total FROM community_post_likes WHERE created_at>$1`, [since]),
+      pool.query(`SELECT COUNT(*) as total FROM community_post_comments WHERE created_at>$1 AND is_hidden=false`, [since]),
+      pool.query(`SELECT COUNT(*) as total FROM community_post_reports WHERE created_at>$1`, [since]),
+      pool.query(`SELECT post_type, COUNT(*) as cnt FROM community_posts WHERE created_at>$1 AND is_hidden=false GROUP BY post_type ORDER BY cnt DESC`, [since]),
+      pool.query(`SELECT c.name, COUNT(cp.id) as posts FROM community_posts cp JOIN communities c ON c.id=cp.community_id WHERE cp.created_at>$1 AND cp.is_hidden=false GROUP BY c.id, c.name ORDER BY posts DESC LIMIT 10`, [since]),
+      pool.query(`SELECT cp.*, fg.name as author_name, c.name as community_name FROM community_posts cp JOIN family_groups fg ON fg.id=cp.author_family_id JOIN communities c ON c.id=cp.community_id WHERE cp.created_at>$1 AND cp.is_hidden=false ORDER BY (cp.likes_count+cp.comments_count) DESC LIMIT 5`, [since]),
+    ]);
+
+    res.json({ success:true, stats:{
+      totalPosts: posts.rows[0].total, newPosts: posts.rows[0].this_period,
+      newLikes: likes.rows[0].total, newComments: comments.rows[0].total,
+      newReports: reports.rows[0].total,
+      byType: byType.rows, byCommunity: byCommunity.rows, topPosts: topPosts.rows,
+    }});
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// ניהול קבוצות עניין ע"י SA
+app.post('/api/sa/community/groups', verifySA, async (req, res) => {
+  try {
+    const { communityId, name, description, iconEmoji } = req.body;
+    const g = await pool.query(`
+      INSERT INTO community_interest_groups (community_id, name, description, icon_emoji)
+      VALUES ($1,$2,$3,$4) RETURNING *
+    `, [communityId, name, description||'', iconEmoji||'💬']);
+    res.json({ success:true, group: g.rows[0] });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// AI ניתוח פיד
+app.post('/api/sa/community/ai-analyze', verifySA, async (req, res) => {
+  try {
+    const { days=7, communityId } = req.body;
+    const since = new Date();
+    since.setDate(since.getDate() - parseInt(days));
+
+    let filter = 'WHERE cp.created_at>$1 AND cp.is_hidden=false';
+    const params = [since];
+    if(communityId){ filter+=' AND cp.community_id=$2'; params.push(communityId); }
+
+    const posts = await pool.query(`
+      SELECT cp.content, cp.post_type, cp.likes_count, cp.comments_count,
+        cp.reports_count, c.name as community_name, cp.created_at
+      FROM community_posts cp JOIN communities c ON c.id=cp.community_id
+      ${filter} ORDER BY (cp.likes_count+cp.comments_count) DESC LIMIT 50
+    `, params);
+
+    const reportedPosts = await pool.query(`
+      SELECT cp.content, cp.reports_count, cp.post_type, array_agg(cpr.reason) as reasons
+      FROM community_posts cp JOIN community_post_reports cpr ON cpr.post_id=cp.id
+      WHERE cp.created_at>$1${communityId?' AND cp.community_id=$2':''}
+      GROUP BY cp.id, cp.content, cp.reports_count, cp.post_type
+      HAVING COUNT(cpr.id)>0 ORDER BY cp.reports_count DESC LIMIT 20
+    `, params);
+
+    const analysisData = {
+      period: `${days} ימים אחרונים`,
+      totalPosts: posts.rows.length,
+      topPosts: posts.rows.slice(0,10).map(p=>({ type:p.post_type, community:p.community_name, preview:p.content.slice(0,100), engagement:p.likes_count+p.comments_count })),
+      reportedContent: reportedPosts.rows.map(p=>({ type:p.post_type, preview:p.content.slice(0,100), reports:p.reports_count, reasons:p.reasons })),
+      typeBreakdown: posts.rows.reduce((acc,p)=>{ acc[p.post_type]=(acc[p.post_type]||0)+1; return acc; },{}),
+    };
+
+    const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{ 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version':'2023-06-01', 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        model:'claude-sonnet-4-6', max_tokens:1500,
+        messages:[{ role:'user', content:`אתה מנתח פיד רשת חברתית קהילתית ישראלית. נתח את הנתונים הבאים ותן תובנות בעברית:\n\n${JSON.stringify(analysisData, null, 2)}\n\nתן לי:\n1. **מגמות עיקריות**\n2. **קהילות מובילות**\n3. **דגלים אדומים**\n4. **המלצות לפעולה** — 3 פעולות קונקרטיות\n5. **הזדמנויות**\n\nתשובה מובנית, קצרה וממוקדת בעברית.` }]
+      })
+    });
+    const aiData = await aiResponse.json();
+    const analysis = aiData.content?.[0]?.text || 'לא ניתן לנתח כרגע';
+    res.json({ success:true, analysis, rawData: analysisData });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// ===== END COMMUNITY FEED API =====
+
 
 // הפעלת השרת
 app.listen(port, () => {
