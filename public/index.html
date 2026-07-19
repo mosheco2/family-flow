@@ -1109,7 +1109,7 @@
                     <!-- View: Home (ברירת מחדל) -->
                     <div id="fam-comm-view-home" class="hidden">
                         <!-- 4 כפתורים compact -->
-                        <div class="grid grid-cols-4 gap-2 mb-4">
+                        <div class="grid grid-cols-5 gap-2 mb-4">
                             <button onclick="switchFamCommunityTab('manage')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition text-[11px] font-bold">
                                 <i class="fa-solid fa-people-group text-base text-orange-400"></i>ניהול קהילות
                             </button>
@@ -1122,6 +1122,9 @@
                             </button>
                             <button onclick="switchFamCommunityTab('benefits')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-teal-50 hover:text-teal-600 transition text-[11px] font-bold">
                                 <i class="fa-solid fa-tag text-base text-teal-400"></i>הטבות
+                            </button>
+                            <button onclick="switchFamCommunityTab('feed')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition text-[11px] font-bold">
+                                <i class="fa-solid fa-rss text-base text-blue-400"></i>פיד
                             </button>
                         </div>
                         <!-- הודעה למשפחה ללא קהילה -->
@@ -1276,6 +1279,79 @@
                             <div id="community-businesses-list" class="space-y-3"></div>
                         </div>
                     </div>
+
+                    <!-- View: Feed (פיד קהילתי) -->
+                    <div id="fam-comm-view-feed" class="hidden pb-20">
+
+                      <!-- סרגל כלים עליון -->
+                      <div id="feed-toolbar" style="padding:0.6rem;background:white;border-bottom:1px solid #F0F0F0;position:sticky;top:0;z-index:10">
+                        <!-- סינון קהילה -->
+                        <div id="feed-community-filter" style="display:flex;gap:0.4rem;overflow-x:auto;padding-bottom:0.4rem;margin-bottom:0.4rem;scrollbar-width:none">
+                          <button onclick="setFeedFilter('community',null)" class="feed-filter-btn" id="feed-filter-all"
+                            style="background:#1D4ED8;color:white;border:none;border-radius:50px;padding:0.25rem 0.8rem;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap">
+                            🌐 הכל
+                          </button>
+                        </div>
+                        <!-- סינון קבוצת עניין -->
+                        <div id="feed-group-filter" style="display:flex;gap:0.3rem;overflow-x:auto;scrollbar-width:none"></div>
+                      </div>
+
+                      <!-- כפתור פרסום -->
+                      <div style="padding:0.7rem">
+                        <button onclick="openNewPostModal()" style="width:100%;background:linear-gradient(135deg,#1D4ED8,#4F46E5);color:white;border:none;border-radius:14px;padding:0.75rem;font-family:'Heebo',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem">
+                          ✏️ פרסם פוסט לקהילה
+                        </button>
+                      </div>
+
+                      <!-- רשימת פוסטים -->
+                      <div id="feed-posts-list" style="padding:0 0.7rem 1rem"></div>
+
+                      <!-- טוען עוד -->
+                      <div id="feed-load-more" style="text-align:center;padding:1rem;display:none">
+                        <button onclick="loadMoreFeedPosts()" style="background:#F3F4F6;border:none;border-radius:50px;padding:0.5rem 1.5rem;font-size:0.85rem;cursor:pointer;color:#555">
+                          טען עוד פוסטים
+                        </button>
+                      </div>
+
+                    </div>
+
+                    <!-- מודל פרסום פוסט חדש -->
+                    <div id="new-post-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:5000;align-items:flex-end;justify-content:center">
+                      <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-width:480px;padding:1.2rem;max-height:90vh;overflow-y:auto">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+                          <h3 style="font-size:1rem;font-weight:900">✏️ פוסט חדש</h3>
+                          <button onclick="closeNewPostModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer">✕</button>
+                        </div>
+                        <!-- בחירת קהילה -->
+                        <div style="margin-bottom:0.7rem">
+                          <label style="font-size:0.78rem;font-weight:700;color:#555;display:block;margin-bottom:0.3rem">לאיזו קהילה?</label>
+                          <select id="new-post-community" style="width:100%;padding:0.7rem;border:1.5px solid #E0E0E0;border-radius:12px;font-size:0.9rem"></select>
+                        </div>
+                        <!-- סוג פוסט -->
+                        <div style="margin-bottom:0.7rem">
+                          <label style="font-size:0.78rem;font-weight:700;color:#555;display:block;margin-bottom:0.3rem">סוג פוסט</label>
+                          <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+                            <button onclick="selectPostType(this,'general')" class="post-type-btn" data-type="general" style="background:#EFF6FF;color:#1D4ED8;border:1.5px solid #1D4ED8;border-radius:50px;padding:0.3rem 0.7rem;font-size:0.78rem;font-weight:700;cursor:pointer">💬 כללי</button>
+                            <button onclick="selectPostType(this,'question')" class="post-type-btn" data-type="question" style="background:#F9FAFB;color:#555;border:1.5px solid #E0E0E0;border-radius:50px;padding:0.3rem 0.7rem;font-size:0.78rem;font-weight:700;cursor:pointer">❓ שאלה</button>
+                            <button onclick="selectPostType(this,'deal')" class="post-type-btn" data-type="deal" style="background:#F9FAFB;color:#555;border:1.5px solid #E0E0E0;border-radius:50px;padding:0.3rem 0.7rem;font-size:0.78rem;font-weight:700;cursor:pointer">🏷️ מבצע</button>
+                            <button onclick="selectPostType(this,'event')" class="post-type-btn" data-type="event" style="background:#F9FAFB;color:#555;border:1.5px solid #E0E0E0;border-radius:50px;padding:0.3rem 0.7rem;font-size:0.78rem;font-weight:700;cursor:pointer">📅 אירוע</button>
+                            <button onclick="selectPostType(this,'recommendation')" class="post-type-btn" data-type="recommendation" style="background:#F9FAFB;color:#555;border:1.5px solid #E0E0E0;border-radius:50px;padding:0.3rem 0.7rem;font-size:0.78rem;font-weight:700;cursor:pointer">⭐ המלצה</button>
+                          </div>
+                        </div>
+                        <!-- תוכן -->
+                        <textarea id="new-post-content" placeholder="מה אתם רוצים לשתף עם הקהילה?" style="width:100%;min-height:120px;padding:0.8rem;border:1.5px solid #E0E0E0;border-radius:12px;font-family:'Heebo',sans-serif;font-size:0.9rem;resize:vertical;margin-bottom:0.7rem;box-sizing:border-box"></textarea>
+                        <!-- תמונה -->
+                        <div style="margin-bottom:1rem">
+                          <label style="font-size:0.78rem;font-weight:700;color:#555;display:block;margin-bottom:0.3rem">תמונה (אופציונלי)</label>
+                          <input type="file" id="new-post-image" accept="image/*" onchange="previewPostImage(this)" style="font-size:0.82rem">
+                          <div id="post-image-preview" style="margin-top:0.4rem"></div>
+                        </div>
+                        <button onclick="submitNewPost()" style="width:100%;background:linear-gradient(135deg,#1D4ED8,#4F46E5);color:white;border:none;border-radius:14px;padding:0.85rem;font-family:'Heebo',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer">
+                          פרסם 🚀
+                        </button>
+                      </div>
+                    </div>
+
                     <!-- Modals -->
                     <div id="modal-create-pool" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onclick="if(event.target===this)closeCreatePoolModal()">
                         <div class="bg-white rounded-t-3xl w-full max-w-lg p-6 pb-10 max-h-[90vh] overflow-y-auto">
