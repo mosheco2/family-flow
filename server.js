@@ -22853,7 +22853,7 @@ app.get('/api/community/feed', async (req, res) => {
     } else {
       communityFilter = `AND cp.community_id IN (
         SELECT community_id FROM family_communities
-        WHERE family_id=$${pi++} AND status='approved'
+        WHERE group_id=$${pi++}
       )`;
       params.push(familyId);
     }
@@ -22863,11 +22863,12 @@ app.get('/api/community/feed', async (req, res) => {
     const posts = await pool.query(`
       SELECT
         cp.*,
-        fg.name as author_name,
+        CASE WHEN fg.family_nickname IS NOT NULL AND fg.family_nickname != '' THEN fg.name || ' (' || fg.family_nickname || ')' ELSE fg.name END as author_name,
         fg.avatar_url as author_avatar,
         c.name as community_name,
         cig.name as group_name,
         cig.icon_emoji as group_icon,
+        TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')) as publisher_name,
         EXISTS(
           SELECT 1 FROM community_post_likes
           WHERE post_id=cp.id AND family_id=$${pi}
@@ -22876,6 +22877,7 @@ app.get('/api/community/feed', async (req, res) => {
       JOIN family_groups fg ON fg.id = cp.author_family_id
       JOIN communities c ON c.id = cp.community_id
       LEFT JOIN community_interest_groups cig ON cig.id = cp.group_id
+      LEFT JOIN users u ON u.group_id = cp.author_family_id AND u.role = 'ADMIN'
       WHERE cp.is_hidden=false
         ${communityFilter}
       ORDER BY cp.is_pinned DESC,

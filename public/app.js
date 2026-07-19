@@ -15527,6 +15527,7 @@ function renderPostCard(post) {
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:700;font-size:0.85rem;color:#111">${post.is_pinned ? '📌 ' : ''}${escHtml(post.author_name)}</div>
+        ${post.publisher_name ? `<div style="font-size:0.72rem;color:#475569;font-weight:600">✍️ ${escHtml(post.publisher_name)}</div>` : ''}
         <div style="font-size:0.7rem;color:#94A3B8">${post.community_name} · ${timeAgo}${post.group_name ? ` · <span style="color:#7C3AED">${post.group_icon||''}${post.group_name}</span>` : ''}</div>
       </div>
       <div style="background:${t.color}15;color:${t.color};border-radius:50px;padding:0.15rem 0.5rem;font-size:0.68rem;font-weight:700;white-space:nowrap">${t.icon} ${t.label}</div>
@@ -15734,7 +15735,8 @@ async function submitNewPost() {
       const list = document.getElementById('feed-posts-list');
       if (list) list.insertAdjacentHTML('afterbegin', renderPostCard({
         ...data.post,
-        author_name: currentGroup?.name || 'המשפחה שלי',
+        author_name: fmtGroupName(currentGroup) || 'המשפחה שלי',
+        publisher_name: fmtUserName(currentUser) || currentUser?.nickname || '',
         community_name: comms.find(c => c.id == communityId)?.name || '',
         liked_by_me: false,
       }));
