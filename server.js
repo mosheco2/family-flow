@@ -22660,7 +22660,7 @@ app.get('/api/family/weekly-report/:groupId', async (req, res) => {
         COALESCE(w.lifetime_flw,0) as lifetime_flw
       FROM users u
       LEFT JOIN flw_kid_wallets w ON w.child_user_id=u.id
-      WHERE u.group_id=$1 AND u.role='CHILD'
+      WHERE u.group_id=$1 AND u.role != 'ADMIN'
     `, [groupId]);
 
     const report = [];
@@ -22669,13 +22669,23 @@ app.get('/api/family/weekly-report/:groupId', async (req, res) => {
       const cid = child.id;
 
       const flwWeek = await pool.query(`
-        SELECT COALESCE(SUM(flw_earned),0) as total FROM game_sessions
-        WHERE child_user_id=$1 AND played_at BETWEEN $2 AND $3
+        SELECT COALESCE(SUM(flw_earned),0) as total FROM (
+          SELECT flw_earned FROM game_sessions
+          WHERE child_user_id=$1 AND played_at BETWEEN $2 AND $3
+          UNION ALL
+          SELECT flw_earned FROM kid_quest_results
+          WHERE child_user_id=$1 AND completed_at BETWEEN $2 AND $3
+        ) t
       `, [cid, startDate, endDate]);
 
       const flwPrev = await pool.query(`
-        SELECT COALESCE(SUM(flw_earned),0) as total FROM game_sessions
-        WHERE child_user_id=$1 AND played_at BETWEEN $2 AND $3
+        SELECT COALESCE(SUM(flw_earned),0) as total FROM (
+          SELECT flw_earned FROM game_sessions
+          WHERE child_user_id=$1 AND played_at BETWEEN $2 AND $3
+          UNION ALL
+          SELECT flw_earned FROM kid_quest_results
+          WHERE child_user_id=$1 AND completed_at BETWEEN $2 AND $3
+        ) t
       `, [cid, prevStart, startDate]);
 
       const games = await pool.query(`
