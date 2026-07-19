@@ -2072,8 +2072,9 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           const res = await client.query(`
             INSERT INTO quest_library
               (title,subject,description,age_min,age_max,difficulty,flw_reward,pass_score,visibility,tags,is_featured)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'builtin',$9,true)
-            ON CONFLICT (title, visibility) DO NOTHING RETURNING id
+            SELECT $1,$2,$3,$4,$5,$6,$7,$8,'builtin',$9,true
+            WHERE NOT EXISTS (SELECT 1 FROM quest_library WHERE title=$1 AND visibility='builtin')
+            RETURNING id
           `,[q.title,q.subject,q.description,q.age_min,q.age_max,q.difficulty,q.flw_reward,q.pass_score,q.tags]);
           if(!res.rows[0]) continue;
           const qid = res.rows[0].id;
@@ -2220,8 +2221,9 @@ async function runQuestLibrarySeed() {
     const r = await pool.query(`
       INSERT INTO quest_library
         (title,subject,description,age_min,age_max,difficulty,flw_reward,pass_score,visibility,tags,is_featured)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'builtin',$9,true)
-      ON CONFLICT (title, visibility) DO NOTHING RETURNING id
+      SELECT $1,$2,$3,$4,$5,$6,$7,$8,'builtin',$9,true
+      WHERE NOT EXISTS (SELECT 1 FROM quest_library WHERE title=$1 AND visibility='builtin')
+      RETURNING id
     `,[q.title,q.subject,q.description,q.age_min,q.age_max,q.difficulty,q.flw_reward,q.pass_score,q.tags]);
     if(!r.rows[0]) continue;
     const qid = r.rows[0].id;
