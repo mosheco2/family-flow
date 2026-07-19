@@ -22660,7 +22660,7 @@ app.get('/api/family/weekly-report/:groupId', async (req, res) => {
         COALESCE(w.lifetime_flw,0) as lifetime_flw
       FROM users u
       LEFT JOIN flw_kid_wallets w ON w.child_user_id=u.id
-      WHERE u.group_id=$1 AND u.status='active' AND u.role='CHILD'
+      WHERE u.group_id=$1 AND u.role='CHILD'
     `, [groupId]);
 
     const report = [];
@@ -22684,9 +22684,9 @@ app.get('/api/family/weekly-report/:groupId', async (req, res) => {
           AVG(gs.score)::INT as avg_score,
           SUM(gs.flw_earned) as flw_earned
         FROM game_sessions gs
-        JOIN games_catalog g ON g.id=gs.game_id
+        LEFT JOIN games_catalog g ON g.id=gs.game_id
         WHERE gs.child_user_id=$1 AND gs.played_at BETWEEN $2 AND $3
-        GROUP BY g.id, g.title, g.subject, g.thumbnail_emoji
+        GROUP BY gs.game_id, g.title, g.subject, g.thumbnail_emoji
         ORDER BY plays DESC
       `, [cid, startDate, endDate]);
 
