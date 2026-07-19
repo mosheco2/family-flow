@@ -2336,6 +2336,8 @@ function renderChildDashboard() {
     if (header) header.classList.remove('hidden');
     if (footer) footer.classList.remove('hidden');
     if (balanceCard) balanceCard.classList.add('hidden');
+    const adminBalRow = getEl('admin-balance-row');
+    if (adminBalRow) adminBalRow.classList.add('hidden');
     if (quickTiles) quickTiles.classList.add('hidden');
 
     // Copy balance from the main balance element
