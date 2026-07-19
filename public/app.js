@@ -263,6 +263,8 @@ function applyAdsToDOM(slots) {
     }
     // balance side (w-2/3 of ~370px ≈ 247px → serve 600px for 2× sharpness)
     renderAdSlot('balance_side', getEl('ad-slot-balance-side-img'), getEl('ad-slot-balance-side'), getEl('ad-slot-balance-side'), getEl('ad-slot-balance-side-placeholder'), 600);
+    // child home ad (same slot, mirrored to child header)
+    renderAdSlot('balance_side', getEl('ad-slot-child-home-img'), getEl('ad-slot-child-home'), getEl('ad-slot-child-home'), getEl('ad-slot-child-home-placeholder'), 600);
     // flow (full-width banner, serve 900px)
     renderAdSlot('flow', getEl('ad-slot-flow-img'), getEl('ad-slot-flow-link'), getEl('ad-slot-flow'), getEl('ad-slot-flow-ph'), 900);
     // shop top (full-width, serve 900px)

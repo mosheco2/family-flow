@@ -673,22 +673,30 @@
                         </div>
 
                         <!-- ★ CHILD HOME HEADER -->
-                        <div id="child-home-header" class="hidden px-2 mb-4">
-                          <div class="bg-gradient-to-br from-violet-500 to-indigo-600 rounded-2xl p-5 text-white shadow-lg shadow-violet-200 relative overflow-hidden">
-                            <i class="fa-solid fa-star absolute -right-4 -bottom-4 text-[5rem] text-white opacity-10 rotate-12 pointer-events-none"></i>
-                            <p class="text-violet-100 text-xs font-medium mb-0.5 opacity-80">היתרה שלי</p>
-                            <h1 class="text-3xl font-bold tracking-tight" dir="ltr" id="child-balance-display">₪0</h1>
-                            <p class="text-violet-100 text-sm mt-3 mb-4 opacity-90" id="child-greeting-text">שלום! 👋</p>
-                            <div class="grid grid-cols-2 gap-3">
-                              <button ontouchend="event.preventDefault();switchTab('shop')" onclick="switchTab('shop')" style="touch-action:manipulation" class="bg-white/20 hover:bg-white/30 backdrop-blur rounded-xl py-3 px-2 text-center transition active:scale-95">
-                                <div class="text-2xl mb-1">🛒</div>
-                                <div class="text-xs font-bold">בקשת קניה</div>
-                              </button>
-                              <button ontouchend="event.preventDefault();switchTab('academy')" onclick="switchTab('academy')" style="touch-action:manipulation" class="bg-white/20 hover:bg-white/30 backdrop-blur rounded-xl py-3 px-2 text-center transition active:scale-95">
-                                <div class="text-2xl mb-1">🎓</div>
-                                <div class="text-xs font-bold">אתגר אקדמיה</div>
-                              </button>
+                        <div id="child-home-header" class="hidden px-2 mb-3">
+                          <!-- שורה 1: יתרה (1/3) + באנר פרסום (2/3) -->
+                          <div class="flex gap-2 mb-3">
+                            <div class="w-1/3 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-2xl p-3 text-white shadow-lg shadow-violet-200 relative overflow-hidden flex flex-col justify-center">
+                              <i class="fa-solid fa-star absolute -right-2 -bottom-2 text-3xl text-white opacity-10 rotate-12 pointer-events-none"></i>
+                              <p class="text-violet-100 text-[10px] font-medium mb-0.5 opacity-80">היתרה שלי</p>
+                              <h1 class="text-xl font-bold tracking-tight leading-tight" dir="ltr" id="child-balance-display">₪0</h1>
+                              <p class="text-violet-100 text-[10px] mt-1 opacity-80" id="child-greeting-text">שלום! 👋</p>
                             </div>
+                            <a id="ad-slot-child-home" href="#" target="_blank" class="w-2/3 rounded-2xl overflow-hidden hidden relative bg-slate-100 flex items-center justify-center" style="min-height:80px;max-height:120px;">
+                              <img id="ad-slot-child-home-img" src="" alt="" class="w-full h-auto object-contain" style="max-height:120px;">
+                            </a>
+                            <div id="ad-slot-child-home-placeholder" class="w-2/3 rounded-2xl bg-slate-100 border border-dashed border-slate-300 flex items-center justify-center text-slate-300 text-xs font-bold" style="min-height:80px;">פרסום</div>
+                          </div>
+                          <!-- שורה 2: כפתורי פעולה -->
+                          <div class="grid grid-cols-2 gap-3">
+                            <button ontouchend="event.preventDefault();switchTab('shop')" onclick="switchTab('shop')" style="touch-action:manipulation" class="bg-gradient-to-br from-violet-500 to-indigo-600 text-white rounded-2xl py-3 px-2 text-center transition active:scale-95 shadow-md shadow-violet-200">
+                              <div class="text-2xl mb-1">🛒</div>
+                              <div class="text-xs font-bold">בקשת קניה</div>
+                            </button>
+                            <button ontouchend="event.preventDefault();switchTab('academy')" onclick="switchTab('academy')" style="touch-action:manipulation" class="bg-gradient-to-br from-violet-500 to-indigo-600 text-white rounded-2xl py-3 px-2 text-center transition active:scale-95 shadow-md shadow-violet-200">
+                              <div class="text-2xl mb-1">🎓</div>
+                              <div class="text-xs font-bold">אתגר אקדמיה</div>
+                            </button>
                           </div>
                         </div>
 
