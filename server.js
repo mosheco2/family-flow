@@ -2121,7 +2121,8 @@ async function runQuestLibrarySeed() {
 // הרצת seed ידנית — SA בלבד
 app.post('/api/sa/quest-library/run-seed', verifySA, async (req, res) => {
   try {
-    // מחק builtin ישנים כדי להימנע מכפילויות, ואז הוסף מחדש
+    // אפס פניות לפני מחיקה (FK constraint)
+    await pool.query(`UPDATE kid_quests SET library_source_id=NULL WHERE library_source_id IN (SELECT id FROM quest_library WHERE visibility='builtin')`);
     await pool.query(`DELETE FROM quest_library_questions WHERE quest_id IN (SELECT id FROM quest_library WHERE visibility='builtin')`);
     await pool.query(`DELETE FROM quest_library WHERE visibility='builtin'`);
     await runQuestLibrarySeed();
