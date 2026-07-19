@@ -15403,10 +15403,12 @@ const feedState = {
   newPostImageUrl: null,
 };
 
-async function loadFeedSection() {
+async function loadFeedSection(forceReload = false) {
+  const list = document.getElementById('feed-posts-list');
+  // אם יש כבר פוסטים ולא ביקשו טעינה מחדש — לא מאפסים
+  if (!forceReload && list && list.children.length > 0) return;
   feedState.page = 1;
   feedState.hasMore = true;
-  const list = document.getElementById('feed-posts-list');
   if (list) list.innerHTML = '';
   renderFeedCommunityFilters();
   await fetchFeedPosts(true);
