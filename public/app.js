@@ -152,6 +152,7 @@ function triggerConfetti() { confetti({ particleCount: 100, spread: 70, origin: 
 function applyBannersToDOM(banners) {
     const appTop = getEl('app-banner-top'); const appBottom = getEl('app-banner-bottom');
     const placeholder = getEl('app-banner-placeholder');
+    const topWrap = getEl('app-banner-top-wrap');
     
     const renderBanner = (el, text, link, img, isTop = false) => {
         if(!el) return;
@@ -162,25 +163,25 @@ function applyBannersToDOM(banners) {
             return '/' + imgStr;
         };
 
-        if(text || img) { 
-            let html = ''; 
-            if(img) { 
-                const imgSrc = formatImgSrc(img); 
+        if(text || img) {
+            let html = '';
+            if(img) {
+                const imgSrc = formatImgSrc(img);
                 // Changed from object-cover to object-contain, adjusted sizes
-                html += `<img src="${imgSrc}" alt="Ad" class="absolute inset-0 w-full h-full object-contain opacity-100 z-0 block">`; 
+                html += `<img src="${imgSrc}" alt="Ad" class="absolute inset-0 w-full h-full object-contain opacity-100 z-0 block">`;
             }
             if(text) {
                 const bgStyle = img ? 'bg-slate-900/60 backdrop-blur-sm px-4 py-1.5 rounded-full text-white' : 'p-3 block w-full text-center text-slate-800';
-                html += `<div class="relative z-10 ${bgStyle}">${text}</div>`; 
+                html += `<div class="relative z-10 ${bgStyle}">${text}</div>`;
             }
-            el.innerHTML = html; 
-            el.href = link || '#'; 
-            if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } else { el.target = '_blank'; el.style.cursor = 'pointer'; } 
+            el.innerHTML = html;
+            el.href = link || '#';
+            if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } else { el.target = '_blank'; el.style.cursor = 'pointer'; }
             el.classList.remove('hidden'); el.classList.add('flex');
-            if(isTop && placeholder) placeholder.classList.add('hidden');
-        } else { 
-            el.classList.add('hidden'); el.classList.remove('flex'); 
-            if(isTop && placeholder) placeholder.classList.remove('hidden');
+            if(isTop) { if(placeholder) placeholder.classList.add('hidden'); if(topWrap) { topWrap.classList.remove('hidden'); topWrap.classList.add('flex'); } }
+        } else {
+            el.classList.add('hidden'); el.classList.remove('flex');
+            if(isTop) { if(topWrap) { topWrap.classList.add('hidden'); topWrap.classList.remove('flex'); } }
         }
     };
     renderBanner(appTop, banners.banner_top_text, banners.banner_top_link, banners.banner_top_img, true); 
