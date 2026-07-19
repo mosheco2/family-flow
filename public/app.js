@@ -4542,6 +4542,7 @@ let myInitiativesCache = [];
 let myCashbackCache = []; // [{community_id, community_name, balance, total_earned, is_community_manager}]
 
 function switchFamCommunityTab(tab) {
+    localStorage.setItem('ofl_comm_tab', tab);
     ['home', 'manage', 'benefits', 'promos', 'news', 'feed'].forEach(t => {
         const view = document.getElementById(`fam-comm-view-${t}`);
         if (view) view.classList.add('hidden');
@@ -5409,9 +5410,12 @@ function renderFamilyCommunities() {
     // הצגת עמוד הבית של עולם הקהילות
     const anyVisible = ['home','manage','benefits','promos','news','feed'].some(t => !getEl(`fam-comm-view-${t}`)?.classList.contains('hidden'));
     const requestedTab = localStorage.getItem('ofl_open_community_tab');
+    const savedCommTab = localStorage.getItem('ofl_comm_tab');
     if (requestedTab) {
         localStorage.removeItem('ofl_open_community_tab');
         switchFamCommunityTab(requestedTab);
+    } else if (savedCommTab && ['home','manage','benefits','promos','news','feed'].includes(savedCommTab)) {
+        switchFamCommunityTab(savedCommTab);
     } else if (!anyVisible) {
         switchFamCommunityTab('home');
     }
