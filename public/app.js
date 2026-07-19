@@ -15405,14 +15405,20 @@ const feedState = {
   hasMore: true,
   selectedPostType: 'general',
   newPostImageUrl: null,
+  cachedHTML: '',   // שמירת HTML הפוסטים בין מעברי טאבים
 };
 
 async function loadFeedSection(forceReload = false) {
   const list = document.getElementById('feed-posts-list');
-  // אם יש כבר פוסטים ולא ביקשו טעינה מחדש — לא מאפסים
-  if (!forceReload && list && list.children.length > 0) return;
+  // אם יש cache — שחזר מיד ואל תטעין מחדש
+  if (!forceReload && feedState.cachedHTML) {
+    if (list) list.innerHTML = feedState.cachedHTML;
+    renderFeedCommunityFilters();
+    return;
+  }
   feedState.page = 1;
   feedState.hasMore = true;
+  feedState.cachedHTML = '';
   if (list) list.innerHTML = '';
   renderFeedCommunityFilters();
   await fetchFeedPosts(true);
@@ -15503,6 +15509,7 @@ async function fetchFeedPosts(reset = false) {
     data.posts.forEach(post => list.insertAdjacentHTML('beforeend', renderPostCard(post)));
     feedState.hasMore = data.hasMore;
     feedState.page++;
+    feedState.cachedHTML = list.innerHTML;
     const loadMore = document.getElementById('feed-load-more');
     if (loadMore) loadMore.style.display = data.hasMore ? 'block' : 'none';
   } catch(e) { console.error('Feed error:', e); }
@@ -15739,13 +15746,16 @@ async function submitNewPost() {
       showToast('success', 'הפוסט פורסם! +3 Flw 🎉');
       const comms = myConnectedCommunitiesCache || currentCommunities || [];
       const list = document.getElementById('feed-posts-list');
-      if (list) list.insertAdjacentHTML('afterbegin', renderPostCard({
-        ...data.post,
-        author_name: fmtGroupName(currentGroup) || 'המשפחה שלי',
-        publisher_name: fmtUserName(currentUser) || currentUser?.nickname || '',
-        community_name: comms.find(c => c.id == communityId)?.name || '',
-        liked_by_me: false,
-      }));
+      if (list) {
+        list.insertAdjacentHTML('afterbegin', renderPostCard({
+          ...data.post,
+          author_name: fmtGroupName(currentGroup) || 'המשפחה שלי',
+          publisher_name: fmtUserName(currentUser) || currentUser?.nickname || '',
+          community_name: comms.find(c => c.id == communityId)?.name || '',
+          liked_by_me: false,
+        }));
+        feedState.cachedHTML = list.innerHTML;
+      }
     } else { showToast('error', data.error || 'שגיאה בפרסום'); }
   } catch(e) { showToast('error', 'שגיאה בפרסום'); }
 }
