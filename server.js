@@ -23167,6 +23167,92 @@ app.post('/api/sa/community/ai-analyze', verifySA, async (req, res) => {
 
 // ===== END COMMUNITY FEED API =====
 
+// ===== SA FEED API =====
+
+app.get('/api/sa/feed/stats', requireSAAuth, async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const days = parseInt(req.query.days) || 7;
+        const since = `NOW() - INTERVAL '${days} days'`;
+        const r = await client.query(`
+            SELECT
+                COUNT(*) FILTER (WHERE created_at > ${since}) AS total_posts,
+                COUNT(*) FILTER (WHERE created_at > ${since} AND is_hidden = false) AS active_posts,
+                COUNT(*) FILTER (WHERE created_at > ${since} AND reports_count >= 1) AS reported_posts,
+                (SELECT COUNT(*) FROM community_interest_groups) AS total_groups
+            FROM community_posts
+        `);
+        res.json(r.rows[0]);
+    } finally { client.release(); }
+});
+
+app.get('/api/sa/feed/posts', requireSAAuth, async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const hidden = req.query.hidden === '1';
+        const r = await client.query(`
+            SELECT cp.*, fg.name AS author_name, c.name AS community_name
+            FROM community_posts cp
+            LEFT JOIN family_groups fg ON fg.id = cp.author_family_id
+            LEFT JOIN communities c ON c.id = cp.community_id
+            ${hidden ? 'WHERE cp.is_hidden = true' : ''}
+            ORDER BY cp.created_at DESC LIMIT 50
+        `);
+        res.json(r.rows);
+    } finally { client.release(); }
+});
+
+app.get('/api/sa/feed/reported', requireSAAuth, async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const r = await client.query(`
+            SELECT cp.*, fg.name AS author_name
+            FROM community_posts cp
+            LEFT JOIN family_groups fg ON fg.id = cp.author_family_id
+            WHERE cp.reports_count > 0
+            ORDER BY cp.reports_count DESC, cp.created_at DESC LIMIT 50
+        `);
+        res.json(r.rows);
+    } finally { client.release(); }
+});
+
+app.post('/api/sa/feed/posts/:postId/toggle', requireSAAuth, async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { hidden } = req.body;
+        await client.query('UPDATE community_posts SET is_hidden=$1 WHERE id=$2', [!!hidden, req.params.postId]);
+        res.json({ success: true });
+    } finally { client.release(); }
+});
+
+app.get('/api/sa/feed/groups', requireSAAuth, async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const r = await client.query(`
+            SELECT g.*, c.name AS community_name
+            FROM community_interest_groups g
+            LEFT JOIN communities c ON c.id = g.community_id
+            ORDER BY g.created_at DESC
+        `);
+        res.json(r.rows);
+    } finally { client.release(); }
+});
+
+app.post('/api/sa/feed/groups', requireSAAuth, async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { name, community_id, icon_emoji } = req.body;
+        if (!name || !community_id) return res.status(400).json({ error: 'שם וקהילה נדרשים' });
+        await client.query(
+            'INSERT INTO community_interest_groups (community_id, name, icon_emoji, created_by_family_id) VALUES ($1,$2,$3,NULL)',
+            [community_id, name, icon_emoji || '📌']
+        );
+        res.json({ success: true });
+    } finally { client.release(); }
+});
+
+// ===== END SA FEED API =====
+
 
 // הפעלת השרת
 app.listen(port, () => {

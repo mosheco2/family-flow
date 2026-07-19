@@ -400,7 +400,7 @@ window.switchSATab = function(tabId) {
     if (tabId === 'legal') loadLegalDocs();
 
     if (tabId === 'adslots') window.renderAdSlotsPanel && window.renderAdSlotsPanel();
-    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games'];
+    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games', 'feed'];
     let activeTabTitle = 'לוח בקרה';
 
     allTabs.forEach(t => {
@@ -432,7 +432,7 @@ window.switchSATab = function(tabId) {
         hr:'נציגים וצוותים', partners:'שותפים', finance:'פיננסים',
         sysmap:'מפת המערכת', legal:'מסמכים משפטיים', templates:'ניהול תבניות עסקים', adslots:'שטחי פרסום',
         auditlog:'לוג אירועים קריטיים', archive:'ארכיון סביבות מחוקות',
-        games:'משחקי ילדים'
+        games:'משחקי ילדים', feed:'פיד קהילתי'
     };
     activeTabTitle = _tabTitles[tabId] || tabId;
 
@@ -462,6 +462,7 @@ window.switchSATab = function(tabId) {
     if (tabId === 'comm') loadSACommunityData();
     if (tabId === 'templates') window.loadBizTemplates && window.loadBizTemplates();
     if (tabId === 'games') loadSAGames();
+    if (tabId === 'feed') loadSACommunityFeed();
 
     // Update group button active state + sub-nav bar
     _updateSAGroupNav(tabId);
@@ -471,7 +472,7 @@ window.switchSATab = function(tabId) {
 
 const SA_GROUPS = {
     home:       { tabs: ['pulse', 'stats'],             labels: ['דופק מערכת', 'דוחות'],           icons: ['fa-heart-pulse', 'fa-chart-line'],       default: 'pulse' },
-    customers:  { tabs: ['comm', 'biz', 'clients'],     labels: ['קהילות', 'עסקים', 'קבוצות'],      icons: ['fa-users-rays', 'fa-store', 'fa-users'],  default: 'comm' },
+    customers:  { tabs: ['comm', 'biz', 'clients', 'feed'],  labels: ['קהילות', 'עסקים', 'קבוצות', 'פיד קהילתי'],  icons: ['fa-users-rays', 'fa-store', 'fa-users', 'fa-rss'],  default: 'comm' },
     finance:    { tabs: ['finance'],                    labels: [],                                  icons: [],                                         default: 'finance' },
     supportdev: { tabs: ['support', 'devops'],          labels: ['קריאות שירות', 'פיתוח ומוצר'],    icons: ['fa-headset', 'fa-code'],                  default: 'support' },
     contentmkt: { tabs: ['content', 'inbox', 'legal', 'adslots', 'games'],  labels: ['מיתוג ותוכן', 'שיווק', 'משפטי', 'שטחי פרסום', 'משחקי ילדים'], icons: ['fa-image', 'fa-bullhorn', 'fa-file-contract', 'fa-rectangle-ad', 'fa-gamepad'], default: 'content' },
@@ -9714,3 +9715,176 @@ async function saToggleQFeatured(id, featured){
 window.saToggleQFeatured = saToggleQFeatured;
 window.saEditQuest = saEditQuest;
 window.saQuestEditSave = saQuestEditSave;
+
+// ===== SA COMMUNITY FEED =====
+
+function escSA(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let _saFeedCurrentTab = 'posts';
+
+async function loadSACommunityFeed() {
+    refreshSAFeedStats();
+    switchSAFeedTab(_saFeedCurrentTab);
+}
+
+async function refreshSAFeedStats() {
+    const days = document.getElementById('sa-feed-days')?.value || '7';
+    try {
+        const r = await fetch(`/api/sa/feed/stats?days=${days}`, { headers: { Authorization: 'Bearer ' + saToken } });
+        const d = await r.json();
+        const el = id => document.getElementById(id);
+        if (el('sa-feed-stat-posts')) el('sa-feed-stat-posts').textContent = d.total_posts || 0;
+        if (el('sa-feed-stat-active')) el('sa-feed-stat-active').textContent = d.active_posts || 0;
+        if (el('sa-feed-stat-reported')) el('sa-feed-stat-reported').textContent = d.reported_posts || 0;
+        if (el('sa-feed-stat-groups')) el('sa-feed-stat-groups').textContent = d.total_groups || 0;
+    } catch(e) { /* silent */ }
+}
+
+window.switchSAFeedTab = function(tab) {
+    _saFeedCurrentTab = tab;
+    ['posts','reported','groups'].forEach(t => {
+        const btn = document.getElementById(`sa-feed-tab-${t}`);
+        if (btn) btn.className = t === tab
+            ? 'px-4 py-2 text-sm font-bold text-blue-700 border-b-2 border-blue-600 bg-blue-50 rounded-t-lg transition'
+            : 'px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent hover:border-slate-300 transition';
+    });
+    if (tab === 'posts') loadSAFeedPosts(false);
+    else if (tab === 'reported') loadSAReportedPosts();
+    else if (tab === 'groups') loadSAGroups();
+};
+
+async function loadSAFeedPosts(hiddenOnly = false) {
+    const cont = document.getElementById('sa-feed-tab-content');
+    if (!cont) return;
+    cont.innerHTML = '<div class="text-center py-8 text-slate-400">טוען...</div>';
+    try {
+        const r = await fetch(`/api/sa/feed/posts?hidden=${hiddenOnly ? 1 : 0}`, { headers: { Authorization: 'Bearer ' + saToken } });
+        const posts = await r.json();
+        if (!posts.length) { cont.innerHTML = '<div class="text-center py-8 text-slate-400">אין פוסטים להצגה</div>'; return; }
+        cont.innerHTML = posts.map(p => `
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-3">
+                <div class="flex items-start justify-between gap-2 mb-2">
+                    <div>
+                        <span class="font-bold text-slate-800 text-sm">${escSA(p.author_name)}</span>
+                        <span class="text-xs text-slate-400 mr-2">${escSA(p.community_name || '')}</span>
+                        ${p.is_pinned ? '<span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full mr-1">📌 מוצמד</span>' : ''}
+                        ${p.is_hidden ? '<span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full mr-1">🚫 מוסתר</span>' : ''}
+                    </div>
+                    <button onclick="saToggleFeedPost(${p.id}, ${p.is_hidden})" class="text-xs px-3 py-1 rounded-xl border font-medium transition ${p.is_hidden ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100' : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'}">${p.is_hidden ? 'הצג' : 'הסתר'}</button>
+                </div>
+                <p class="text-sm text-slate-700 mb-2 whitespace-pre-line">${escSA(p.content)}</p>
+                <div class="flex gap-4 text-xs text-slate-400">
+                    <span>👍 ${p.likes_count}</span>
+                    <span>💬 ${p.comments_count}</span>
+                    <span>🚩 ${p.reports_count}</span>
+                    <span>📤 ${p.shares_count}</span>
+                </div>
+            </div>`).join('');
+    } catch(e) { cont.innerHTML = `<div class="text-center py-8 text-red-400">${escSA(e.message)}</div>`; }
+}
+
+async function loadSAReportedPosts() {
+    await loadSAFeedPosts(false);
+    const cont = document.getElementById('sa-feed-tab-content');
+    if (!cont) return;
+    cont.innerHTML = '<div class="text-center py-8 text-slate-400">טוען דיווחים...</div>';
+    try {
+        const r = await fetch('/api/sa/feed/reported', { headers: { Authorization: 'Bearer ' + saToken } });
+        const posts = await r.json();
+        if (!posts.length) { cont.innerHTML = '<div class="text-center py-8 text-slate-400">אין פוסטים מדווחים</div>'; return; }
+        cont.innerHTML = posts.map(p => `
+            <div class="bg-white rounded-2xl shadow-sm border border-red-100 p-4 mb-3">
+                <div class="flex items-start justify-between gap-2 mb-2">
+                    <div>
+                        <span class="font-bold text-slate-800 text-sm">${escSA(p.author_name)}</span>
+                        <span class="text-xs text-red-500 mr-2">🚩 ${p.reports_count} דיווחים</span>
+                    </div>
+                    <button onclick="saToggleFeedPost(${p.id}, ${p.is_hidden})" class="text-xs px-3 py-1 rounded-xl border font-medium transition ${p.is_hidden ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}">${p.is_hidden ? 'הצג' : 'הסתר'}</button>
+                </div>
+                <p class="text-sm text-slate-700 mb-2">${escSA(p.content)}</p>
+                <div class="flex gap-4 text-xs text-slate-400">
+                    <span>👍 ${p.likes_count}</span><span>💬 ${p.comments_count}</span>
+                </div>
+            </div>`).join('');
+    } catch(e) { cont.innerHTML = `<div class="text-center py-8 text-red-400">${escSA(e.message)}</div>`; }
+}
+
+window.saToggleFeedPost = async function(postId, isHidden) {
+    try {
+        const r = await fetch(`/api/sa/feed/posts/${postId}/toggle`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + saToken },
+            body: JSON.stringify({ hidden: !isHidden })
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error || 'שגיאה');
+        showToast('success', isHidden ? 'הפוסט הוצג מחדש' : 'הפוסט הוסתר');
+        switchSAFeedTab(_saFeedCurrentTab);
+    } catch(e) { showToast('error', e.message); }
+};
+
+async function loadSAGroups() {
+    const cont = document.getElementById('sa-feed-tab-content');
+    if (!cont) return;
+    cont.innerHTML = '<div class="text-center py-8 text-slate-400">טוען קבוצות...</div>';
+    try {
+        const r = await fetch('/api/sa/feed/groups', { headers: { Authorization: 'Bearer ' + saToken } });
+        const groups = await r.json();
+        cont.innerHTML = `
+            <div class="mb-4 flex justify-end">
+                <button onclick="createSAGroup()" class="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition">+ קבוצה חדשה</button>
+            </div>
+            ${!groups.length ? '<div class="text-center py-8 text-slate-400">אין קבוצות עניין</div>' : groups.map(g => `
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-3 flex items-center justify-between">
+                <div>
+                    <span class="text-xl ml-2">${escSA(g.icon_emoji || '📌')}</span>
+                    <span class="font-bold text-slate-800">${escSA(g.name)}</span>
+                    <span class="text-xs text-slate-400 mr-2">${escSA(g.community_name || '')}</span>
+                </div>
+                <div class="text-xs text-slate-500 flex gap-3">
+                    <span>👥 ${g.members_count}</span>
+                    <span>📝 ${g.posts_count}</span>
+                </div>
+            </div>`).join('')}`;
+    } catch(e) { cont.innerHTML = `<div class="text-center py-8 text-red-400">${escSA(e.message)}</div>`; }
+}
+
+window.createSAGroup = async function() {
+    const name = prompt('שם הקבוצה:');
+    if (!name) return;
+    const communityId = prompt('מזהה קהילה (community_id):');
+    if (!communityId) return;
+    const icon = prompt('אמוג׳י לקבוצה (ברירת מחדל 📌):') || '📌';
+    try {
+        const r = await fetch('/api/sa/feed/groups', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + saToken },
+            body: JSON.stringify({ name, community_id: communityId, icon_emoji: icon })
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error || 'שגיאה');
+        showToast('success', 'קבוצה נוצרה בהצלחה');
+        loadSAGroups();
+    } catch(e) { showToast('error', e.message); }
+};
+
+window.runSAFeedAI = async function() {
+    const resultPanel = document.getElementById('sa-feed-ai-result');
+    const textEl = document.getElementById('sa-feed-ai-text');
+    if (!resultPanel || !textEl) return;
+    resultPanel.classList.remove('hidden');
+    textEl.textContent = 'מנתח נתוני פיד...';
+    const days = document.getElementById('sa-feed-days')?.value || '7';
+    try {
+        const r = await fetch(`/api/sa/feed/stats?days=${days}`, { headers: { Authorization: 'Bearer ' + saToken } });
+        const d = await r.json();
+        textEl.textContent = `ניתוח ${days} הימים האחרונים:\n• סה"כ פוסטים: ${d.total_posts || 0}\n• פוסטים פעילים: ${d.active_posts || 0}\n• מדווחים: ${d.reported_posts || 0}\n• קבוצות עניין: ${d.total_groups || 0}\n\n${(d.reported_posts || 0) > 5 ? '⚠️ ישנם פוסטים מדווחים רבים — מומלץ לבדוק.' : '✅ רמת הדיווחים תקינה.'}`;
+    } catch(e) { textEl.textContent = 'שגיאה בטעינת ניתוח'; }
+};
+
+window.refreshSAFeedStats = refreshSAFeedStats;
+window.loadSACommunityFeed = loadSACommunityFeed;
+window.switchSAFeedTab = window.switchSAFeedTab;

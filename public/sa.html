@@ -2968,6 +2968,56 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             </div><!-- /sa-view-games -->
 
             <!-- ══════════════════════════════════════════════════ -->
+            <!-- פיד קהילתי view                                    -->
+            <!-- ══════════════════════════════════════════════════ -->
+            <div id="sa-view-feed" class="hidden space-y-6 fade-in">
+              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+                  <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-rss text-blue-500"></i> ניהול פיד קהילתי</h2>
+                  <div class="flex items-center gap-2">
+                    <select id="sa-feed-days" onchange="refreshSAFeedStats()" class="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 outline-none">
+                      <option value="7">7 ימים אחרונים</option>
+                      <option value="14">14 ימים</option>
+                      <option value="30">30 ימים</option>
+                    </select>
+                    <button onclick="runSAFeedAI()" class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition flex items-center gap-2"><i class="fa-solid fa-brain"></i> ניתוח AI</button>
+                  </div>
+                </div>
+                <!-- מדדים -->
+                <div id="sa-feed-metrics" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+                  <div class="bg-blue-50 rounded-2xl p-4 text-center">
+                    <div id="sa-feed-stat-posts" class="text-3xl font-black text-blue-700">—</div>
+                    <div class="text-xs text-blue-500 font-semibold mt-1">סה"כ פוסטים</div>
+                  </div>
+                  <div class="bg-green-50 rounded-2xl p-4 text-center">
+                    <div id="sa-feed-stat-active" class="text-3xl font-black text-green-700">—</div>
+                    <div class="text-xs text-green-500 font-semibold mt-1">פוסטים פעילים</div>
+                  </div>
+                  <div class="bg-red-50 rounded-2xl p-4 text-center">
+                    <div id="sa-feed-stat-reported" class="text-3xl font-black text-red-700">—</div>
+                    <div class="text-xs text-red-500 font-semibold mt-1">מדווחים</div>
+                  </div>
+                  <div class="bg-purple-50 rounded-2xl p-4 text-center">
+                    <div id="sa-feed-stat-groups" class="text-3xl font-black text-purple-700">—</div>
+                    <div class="text-xs text-purple-500 font-semibold mt-1">קבוצות עניין</div>
+                  </div>
+                </div>
+                <!-- תוצאת AI -->
+                <div id="sa-feed-ai-result" class="hidden bg-indigo-50 border border-indigo-200 rounded-2xl p-4 mb-5">
+                  <h3 class="font-bold text-indigo-800 mb-2 flex items-center gap-2"><i class="fa-solid fa-brain"></i> ניתוח AI</h3>
+                  <pre id="sa-feed-ai-text" class="text-sm text-indigo-700 whitespace-pre-wrap"></pre>
+                </div>
+                <!-- סאב-טאבים -->
+                <div class="flex gap-1 border-b border-slate-100 mb-4">
+                  <button id="sa-feed-tab-posts" onclick="switchSAFeedTab('posts')" class="px-4 py-2 text-sm font-bold text-blue-700 border-b-2 border-blue-600 bg-blue-50 rounded-t-lg transition">כל הפוסטים</button>
+                  <button id="sa-feed-tab-reported" onclick="switchSAFeedTab('reported')" class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent hover:border-slate-300 transition">מדווחים</button>
+                  <button id="sa-feed-tab-groups" onclick="switchSAFeedTab('groups')" class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent hover:border-slate-300 transition">קבוצות עניין</button>
+                </div>
+                <div id="sa-feed-tab-content"></div>
+              </div>
+            </div><!-- /sa-view-feed -->
+
+            <!-- ══════════════════════════════════════════════════ -->
             <!-- תבניות עסקים view                                  -->
             <!-- ══════════════════════════════════════════════════ -->
             <div id="sa-view-templates" class="hidden space-y-6 fade-in">
