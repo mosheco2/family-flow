@@ -1,5 +1,16 @@
 // Oneflow Life - Family Logic Application
 
+function fmtGroupName(g) {
+  if (!g) return '';
+  const nickname = g.family_nickname || g.familyNickname || '';
+  return nickname ? `${g.name} (${nickname})` : (g.name || '');
+}
+function fmtUserName(u) {
+  if (!u) return '';
+  const full = [u.first_name, u.last_name].filter(Boolean).join(' ');
+  return full || u.nickname || '';
+}
+
 const introStyle = document.createElement('style');
 introStyle.innerHTML = `.introjs-showElement{z-index:9999998!important;transform:none!important;}.introjs-fixParent{z-index:auto!important;opacity:1.0!important;transform:none!important;filter:none!important;}body.introjs-active .slider-container,body.introjs-active .slider-scroll,body.introjs-active .overflow-hidden{overflow:visible!important;}body.introjs-active header.sticky{z-index:1!important;}.introjs-overlay{z-index:9999996!important;}.introjs-helperLayer{z-index:9999997!important;}.introjs-tooltipReferenceLayer{z-index:9999998!important;}.introjs-tooltip{z-index:9999999!important;}@media (max-width:768px){.introjs-tooltipReferenceLayer{position:fixed!important;top:50%!important;left:50%!important;transform:translate(-50%,-50%)!important;margin:0!important;right:auto!important;bottom:auto!important;width:90vw!important;}.introjs-tooltip{position:relative!important;max-width:350px!important;margin:0 auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;}.introjs-arrow{display:none!important;}}.introjs-tooltip{font-family:'Rubik',sans-serif!important;border-radius:2rem!important;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25)!important;padding:1.5rem!important;border:none!important;overflow:hidden!important;text-align:center!important;}.introjs-tooltip::before{content:'';position:absolute;top:0;left:0;right:0;height:8px;background:linear-gradient(to right,#3b82f6,#a855f7);}.introjs-tooltipbuttons{border-top:none!important;padding-top:1rem!important;display:flex;gap:0.5rem;justify-content:center;}.introjs-button{border-radius:0.75rem!important;text-shadow:none!important;font-weight:bold!important;font-family:'Rubik',sans-serif!important;padding:0.75rem 1.5rem!important;flex:1;text-align:center;}.introjs-nextbutton{background-color:#3b82f6!important;color:white!important;border:none!important;box-shadow:0 10px 15px -3px rgba(59,130,246,0.3)!important;}.introjs-prevbutton{color:#64748b!important;background:#f8fafc!important;border:1px solid #e2e8f0!important;}.introjs-skipbutton{color:#94a3b8!important;font-weight:500!important;background:transparent!important;}.introjs-bullets ul li a.active{background:#3b82f6!important;}`;
 document.head.appendChild(introStyle);
@@ -4531,7 +4542,7 @@ let myInitiativesCache = [];
 let myCashbackCache = []; // [{community_id, community_name, balance, total_earned, is_community_manager}]
 
 function switchFamCommunityTab(tab) {
-    ['home', 'manage', 'benefits', 'promos', 'news'].forEach(t => {
+    ['home', 'manage', 'benefits', 'promos', 'news', 'feed'].forEach(t => {
         const view = document.getElementById(`fam-comm-view-${t}`);
         if (view) view.classList.add('hidden');
     });
@@ -4541,6 +4552,7 @@ function switchFamCommunityTab(tab) {
     if (tab === 'manage') switchFamCommSubTab('join');
     if (tab === 'promos') loadCommunityFeed();
     if (tab === 'benefits') renderFamCommunityBenefits();
+    if (tab === 'feed') { loadFeedSection(); }
     if (tab === 'news') {
         const communityId = myConnectedCommunitiesCache?.[0]?.id;
         if (communityId) loadCommunityArticles(communityId);
@@ -15378,3 +15390,371 @@ function renderWeeklyReport(report) {
 
   document.getElementById('report-content').innerHTML = html;
 }
+
+// ===== COMMUNITY FEED =====
+
+const feedState = {
+  page: 1,
+  communityId: null,
+  groupId: null,
+  loading: false,
+  hasMore: true,
+  selectedPostType: 'general',
+  newPostImageUrl: null,
+};
+
+async function loadFeedSection() {
+  feedState.page = 1;
+  feedState.hasMore = true;
+  const list = document.getElementById('feed-posts-list');
+  if (list) list.innerHTML = '';
+  renderFeedCommunityFilters();
+  await fetchFeedPosts(true);
+}
+
+function renderFeedCommunityFilters() {
+  const container = document.getElementById('feed-community-filter');
+  if (!container) return;
+  const comms = myConnectedCommunitiesCache || currentCommunities || [];
+  if (!comms.length) return;
+
+  const allBtn = document.getElementById('feed-filter-all');
+  container.innerHTML = '';
+  if (allBtn) container.appendChild(allBtn);
+
+  comms.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'feed-filter-btn';
+    btn.textContent = c.name;
+    btn.style.cssText = 'background:#F3F4F6;color:#555;border:none;border-radius:50px;padding:0.25rem 0.8rem;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap';
+    btn.onclick = () => setFeedFilter('community', c.id);
+    container.appendChild(btn);
+    loadGroupFilters(c.id);
+  });
+}
+
+async function loadGroupFilters(communityId) {
+  try {
+    const res = await fetch(`${API}/community/${communityId}/groups?familyId=${currentGroup?.id}`);
+    const data = await res.json();
+    const container = document.getElementById('feed-group-filter');
+    if (!container || !data.groups?.length) return;
+    data.groups.forEach(g => {
+      if (document.getElementById(`gf-${g.id}`)) return;
+      const btn = document.createElement('button');
+      btn.id = `gf-${g.id}`;
+      btn.className = 'feed-filter-btn';
+      btn.textContent = `${g.icon_emoji} ${g.name}`;
+      btn.style.cssText = 'background:#F3F4F6;color:#555;border:none;border-radius:50px;padding:0.2rem 0.7rem;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap';
+      btn.onclick = () => setFeedFilter('group', g.id);
+      container.appendChild(btn);
+    });
+  } catch(e) {}
+}
+
+function setFeedFilter(type, id) {
+  if (type === 'community') {
+    feedState.communityId = id;
+    feedState.groupId = null;
+    document.querySelectorAll('.feed-filter-btn').forEach(b => {
+      b.style.background = '#F3F4F6';
+      b.style.color = '#555';
+    });
+    const comms = myConnectedCommunitiesCache || currentCommunities || [];
+    const btn = id
+      ? [...document.querySelectorAll('.feed-filter-btn')].find(b => b.textContent.trim() === comms.find(c => c.id == id)?.name)
+      : document.getElementById('feed-filter-all');
+    if (btn) { btn.style.background = '#1D4ED8'; btn.style.color = 'white'; }
+  } else {
+    feedState.groupId = id;
+  }
+  feedState.page = 1;
+  const list = document.getElementById('feed-posts-list');
+  if (list) list.innerHTML = '';
+  fetchFeedPosts(true);
+}
+
+async function fetchFeedPosts(reset = false) {
+  if (feedState.loading) return;
+  feedState.loading = true;
+  const params = new URLSearchParams({
+    familyId: currentGroup?.id,
+    page: feedState.page,
+    limit: 15,
+    ...(feedState.communityId ? { communityId: feedState.communityId } : {}),
+    ...(feedState.groupId ? { groupId: feedState.groupId } : {}),
+  });
+  try {
+    const res = await fetch(`${API}/community/feed?${params}`);
+    const data = await res.json();
+    if (!data.success) return;
+    const list = document.getElementById('feed-posts-list');
+    if (!list) return;
+    if (reset) list.innerHTML = '';
+    if (!data.posts.length && reset) {
+      list.innerHTML = '<div style="text-align:center;color:#94A3B8;padding:2rem 1rem;font-size:0.85rem">אין פוסטים בפיד עדיין.<br>היו ראשונים לפרסם! ✨</div>';
+    }
+    data.posts.forEach(post => list.insertAdjacentHTML('beforeend', renderPostCard(post)));
+    feedState.hasMore = data.hasMore;
+    feedState.page++;
+    const loadMore = document.getElementById('feed-load-more');
+    if (loadMore) loadMore.style.display = data.hasMore ? 'block' : 'none';
+  } catch(e) { console.error('Feed error:', e); }
+  finally { feedState.loading = false; }
+}
+
+function renderPostCard(post) {
+  const typeConfig = {
+    general:        { icon:'💬', color:'#64748B', label:'כללי' },
+    question:       { icon:'❓', color:'#2563EB', label:'שאלה' },
+    deal:           { icon:'🏷️', color:'#16A34A', label:'מבצע' },
+    event:          { icon:'📅', color:'#EA580C', label:'אירוע' },
+    recommendation: { icon:'⭐', color:'#7C3AED', label:'המלצה' },
+    promo:          { icon:'🏪', color:'#B45309', label:'מבצע עסקי' },
+  };
+  const t = typeConfig[post.post_type] || typeConfig.general;
+  const isPromo = post.post_type === 'promo';
+  const timeAgo = formatTimeAgo(post.created_at);
+
+  return `
+  <div class="feed-post-card" data-post-id="${post.id}"
+    style="background:white;border-radius:16px;margin-bottom:0.8rem;overflow:hidden;
+      box-shadow:0 1px 6px rgba(0,0,0,0.07);
+      ${isPromo ? 'border:2px solid #F59E0B;' : 'border:1px solid #F0F0F0;'}">
+    <div style="padding:0.8rem 0.9rem 0.4rem;display:flex;align-items:center;gap:0.5rem">
+      <div style="width:36px;height:36px;border-radius:50%;background:#EFF6FF;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">
+        ${post.author_avatar ? `<img src="${post.author_avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : '👨‍👩‍👧'}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:0.85rem;color:#111">${post.is_pinned ? '📌 ' : ''}${escHtml(post.author_name)}</div>
+        <div style="font-size:0.7rem;color:#94A3B8">${post.community_name} · ${timeAgo}${post.group_name ? ` · <span style="color:#7C3AED">${post.group_icon||''}${post.group_name}</span>` : ''}</div>
+      </div>
+      <div style="background:${t.color}15;color:${t.color};border-radius:50px;padding:0.15rem 0.5rem;font-size:0.68rem;font-weight:700;white-space:nowrap">${t.icon} ${t.label}</div>
+    </div>
+    <div style="padding:0.3rem 0.9rem 0.6rem;font-size:0.9rem;line-height:1.55;color:#1E293B">${escHtml(post.content)}</div>
+    ${post.image_url ? `<div style="padding:0 0.9rem 0.6rem"><img src="${post.image_url}" alt="" style="width:100%;border-radius:12px;max-height:280px;object-fit:cover"></div>` : ''}
+    <div style="padding:0.5rem 0.9rem 0.7rem;border-top:1px solid #F5F5F5;display:flex;align-items:center;gap:0">
+      <button onclick="toggleFeedLike(${post.id},this)" data-liked="${post.liked_by_me}"
+        style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:0.3rem;padding:0.4rem 0.6rem;border-radius:8px;color:${post.liked_by_me ? '#EF4444' : '#64748B'};font-size:0.82rem;font-weight:700;transition:all 0.15s">
+        ${post.liked_by_me ? '❤️' : '🤍'} ${post.likes_count}
+      </button>
+      <button onclick="openFeedComments(${post.id})"
+        style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:0.3rem;padding:0.4rem 0.6rem;border-radius:8px;color:#64748B;font-size:0.82rem;font-weight:700">
+        💬 ${post.comments_count}
+      </button>
+      <button onclick="shareFeedPost(${post.id})"
+        style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:0.3rem;padding:0.4rem 0.6rem;border-radius:8px;color:#64748B;font-size:0.82rem;font-weight:700">
+        ↗️ ${post.shares_count || 0}
+      </button>
+      <button onclick="reportFeedPost(${post.id})"
+        style="background:none;border:none;cursor:pointer;margin-right:auto;padding:0.4rem 0.5rem;color:#CBD5E1;font-size:0.82rem">
+        🚩
+      </button>
+    </div>
+  </div>`;
+}
+
+async function toggleFeedLike(postId, btn) {
+  try {
+    const res = await fetch(`${API}/community/posts/${postId}/like`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ familyId: currentGroup?.id })
+    });
+    const data = await res.json();
+    if (data.success) {
+      btn.dataset.liked = data.liked;
+      const count = parseInt(btn.textContent.match(/\d+/)?.[0] || 0);
+      btn.innerHTML = `${data.liked ? '❤️' : '🤍'} ${data.liked ? count + 1 : Math.max(0, count - 1)}`;
+      btn.style.color = data.liked ? '#EF4444' : '#64748B';
+    }
+  } catch(e) {}
+}
+
+async function openFeedComments(postId) {
+  const existing = document.getElementById('comments-modal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'comments-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:5500;display:flex;align-items:flex-end;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-width:480px;max-height:80vh;display:flex;flex-direction:column">
+      <div style="padding:0.9rem 1rem;border-bottom:1px solid #F0F0F0;display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:900;font-size:0.95rem">💬 תגובות</div>
+        <button onclick="document.getElementById('comments-modal').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer">✕</button>
+      </div>
+      <div id="comments-list" style="overflow-y:auto;flex:1;padding:0.8rem"><div style="text-align:center;color:#94A3B8;padding:1rem">טוען...</div></div>
+      <div style="padding:0.7rem;border-top:1px solid #F0F0F0;display:flex;gap:0.4rem">
+        <input id="comment-input" placeholder="כתוב תגובה..." style="flex:1;padding:0.6rem 0.9rem;border:1.5px solid #E0E0E0;border-radius:50px;font-family:'Heebo',sans-serif;font-size:0.88rem;outline:none">
+        <button onclick="submitComment(${postId})" style="background:#1D4ED8;color:white;border:none;border-radius:50px;padding:0.6rem 1rem;font-weight:700;cursor:pointer;font-size:0.85rem">שלח</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.onclick = e => { if (e.target === modal) modal.remove(); };
+  try {
+    const res = await fetch(`${API}/community/posts/${postId}/comments`);
+    const data = await res.json();
+    const list = document.getElementById('comments-list');
+    if (!list) return;
+    if (!data.comments?.length) {
+      list.innerHTML = '<div style="text-align:center;color:#94A3B8;padding:1rem">אין תגובות עדיין. היו ראשונים!</div>';
+      return;
+    }
+    list.innerHTML = data.comments.map(c => `
+      <div style="margin-bottom:0.8rem">
+        <div style="display:flex;gap:0.5rem;align-items:flex-start">
+          <div style="width:30px;height:30px;border-radius:50%;background:#EFF6FF;display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0">👤</div>
+          <div style="flex:1;background:#F8FAFF;border-radius:12px;padding:0.5rem 0.7rem">
+            <div style="font-weight:700;font-size:0.78rem;color:#1D4ED8;margin-bottom:0.15rem">${escHtml(c.author_name)}</div>
+            <div style="font-size:0.85rem;color:#1E293B">${escHtml(c.content)}</div>
+          </div>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    const list = document.getElementById('comments-list');
+    if (list) list.innerHTML = '<div style="text-align:center;color:#EF4444">שגיאה בטעינת תגובות</div>';
+  }
+}
+
+async function submitComment(postId) {
+  const input = document.getElementById('comment-input');
+  const content = input?.value?.trim();
+  if (!content) return;
+  try {
+    await fetch(`${API}/community/posts/${postId}/comments`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ familyId: currentGroup?.id, content })
+    });
+    input.value = '';
+    openFeedComments(postId);
+    const card = document.querySelector(`[data-post-id="${postId}"]`);
+    if (card) {
+      const commentBtn = [...card.querySelectorAll('button')].find(b => b.textContent.includes('💬'));
+      if (commentBtn) {
+        const n = parseInt(commentBtn.textContent.match(/\d+/)?.[0] || 0);
+        commentBtn.textContent = `💬 ${n + 1}`;
+      }
+    }
+  } catch(e) {}
+}
+
+async function shareFeedPost(postId) {
+  const comms = myConnectedCommunitiesCache || currentCommunities || [];
+  const other = comms.filter(c => c.id !== feedState.communityId);
+  if (!other.length) { showToast('info', 'אין קהילות נוספות לשתף אליהן'); return; }
+  const names = other.map((c, i) => `${i + 1}. ${c.name}`).join('\n');
+  const idx = parseInt(prompt(`לאיזו קהילה לשתף?\n${names}`));
+  if (!idx || idx < 1 || idx > other.length) return;
+  try {
+    await fetch(`${API}/community/posts/${postId}/share`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ familyId: currentGroup?.id, targetCommunityId: other[idx - 1].id })
+    });
+    showToast('success', 'הפוסט שותף בהצלחה! ↗️');
+  } catch(e) {}
+}
+
+async function reportFeedPost(postId) {
+  const reason = prompt('מה הסיבה לדיווח?\n(אופציונלי)');
+  if (reason === null) return;
+  try {
+    await fetch(`${API}/community/posts/${postId}/report`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ familyId: currentGroup?.id, reason })
+    });
+    showToast('info', 'הדיווח התקבל. נבדוק בהקדם.');
+  } catch(e) {}
+}
+
+function openNewPostModal() {
+  const modal = document.getElementById('new-post-modal');
+  if (!modal) return;
+  const sel = document.getElementById('new-post-community');
+  const comms = myConnectedCommunitiesCache || currentCommunities || [];
+  if (sel) sel.innerHTML = comms.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  feedState.selectedPostType = 'general';
+  feedState.newPostImageUrl = null;
+  const contentEl = document.getElementById('new-post-content');
+  if (contentEl) contentEl.value = '';
+  const preview = document.getElementById('post-image-preview');
+  if (preview) preview.innerHTML = '';
+  document.querySelectorAll('.post-type-btn').forEach((b, i) => {
+    b.style.background = i === 0 ? '#EFF6FF' : '#F9FAFB';
+    b.style.color = i === 0 ? '#1D4ED8' : '#555';
+    b.style.borderColor = i === 0 ? '#1D4ED8' : '#E0E0E0';
+  });
+  modal.style.display = 'flex';
+}
+
+function closeNewPostModal() {
+  const modal = document.getElementById('new-post-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function selectPostType(btn, type) {
+  feedState.selectedPostType = type;
+  document.querySelectorAll('.post-type-btn').forEach(b => {
+    b.style.background = '#F9FAFB'; b.style.color = '#555'; b.style.borderColor = '#E0E0E0';
+  });
+  btn.style.background = '#EFF6FF'; btn.style.color = '#1D4ED8'; btn.style.borderColor = '#1D4ED8';
+}
+
+function previewPostImage(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    feedState.newPostImageUrl = e.target.result;
+    const preview = document.getElementById('post-image-preview');
+    if (preview) preview.innerHTML = `<img src="${e.target.result}" style="max-height:120px;border-radius:8px;margin-top:0.3rem">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function submitNewPost() {
+  const content = document.getElementById('new-post-content')?.value?.trim();
+  const communityId = document.getElementById('new-post-community')?.value;
+  if (!content) { showToast('error', 'כתוב משהו לפני פרסום'); return; }
+  if (!communityId) { showToast('error', 'בחר קהילה'); return; }
+  try {
+    const res = await fetch(`${API}/community/posts`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        familyId: currentGroup?.id,
+        communityId: parseInt(communityId),
+        postType: feedState.selectedPostType,
+        content,
+        imageUrl: feedState.newPostImageUrl || null,
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      closeNewPostModal();
+      showToast('success', 'הפוסט פורסם! +3 Flw 🎉');
+      const comms = myConnectedCommunitiesCache || currentCommunities || [];
+      const list = document.getElementById('feed-posts-list');
+      if (list) list.insertAdjacentHTML('afterbegin', renderPostCard({
+        ...data.post,
+        author_name: currentGroup?.name || 'המשפחה שלי',
+        community_name: comms.find(c => c.id == communityId)?.name || '',
+        liked_by_me: false,
+      }));
+    } else { showToast('error', data.error || 'שגיאה בפרסום'); }
+  } catch(e) { showToast('error', 'שגיאה בפרסום'); }
+}
+
+function loadMoreFeedPosts() { fetchFeedPosts(false); }
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatTimeAgo(dateStr) {
+  const diff = (Date.now() - new Date(dateStr)) / 1000;
+  if (diff < 60) return 'עכשיו';
+  if (diff < 3600) return `לפני ${Math.floor(diff / 60)} דקות`;
+  if (diff < 86400) return `לפני ${Math.floor(diff / 3600)} שעות`;
+  return `לפני ${Math.floor(diff / 86400)} ימים`;
+}
+
+// ===== END COMMUNITY FEED =====
