@@ -4631,13 +4631,16 @@ app.post('/api/groups', async (req, res) => {
         
         const firstName = (req.body.firstName || req.body.adminNickname || '').trim();
         const lastName = (req.body.lastName || '').trim();
+        const city = (req.body.city || '').trim();
+        if (!lastName) return res.status(400).json({ error: 'שם משפחה הוא שדה חובה' });
+        if (!city) return res.status(400).json({ error: 'עיר היא שדה חובה' });
         const familyNickname = (req.body.familyNickname || '').trim() || null;
         const groupLastName = lastName || familyNickname || null;
         const adminNickname = lastName ? `${firstName} ${lastName}`.trim() : firstName;
 
         const gRes = await dbClient.query(
-            `INSERT INTO family_groups (type, name, admin_email, group_code, community_id, family_nickname, last_name) VALUES ($1, $2, LOWER($3), $4, $5, $6, $7) RETURNING *`, 
-            [req.body.type, req.body.groupName, reqEmail, code, commId, familyNickname, groupLastName]
+            `INSERT INTO family_groups (type, name, admin_email, group_code, community_id, family_nickname, last_name, city) VALUES ($1, $2, LOWER($3), $4, $5, $6, $7, $8) RETURNING *`, 
+            [req.body.type, req.body.groupName, reqEmail, code, commId, familyNickname, groupLastName, city]
         );
         const group = gRes.rows[0];
         const birthYear = parseInt(req.body.birthYear) || null;

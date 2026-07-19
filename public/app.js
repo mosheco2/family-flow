@@ -571,9 +571,11 @@ async function handleCreate(e) {
         if (_requiresPhone(_birthYear) && !_cPhone.trim()) { showToast('error', 'מספר טלפון הוא שדה חובה מגיל 10'); toggleLoader('login', false); return; }
         const _firstName = val('create-first-name') || '';
         const _lastName = val('create-last-name') || '';
+        const _city = val('create-city') || '';
         const _familyNickname = val('create-family-nickname') || '';
         const _adminNickname = _lastName ? `${_firstName} ${_lastName}`.trim() : _firstName;
-        const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type: _cType, groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: _adminNickname, firstName: _firstName, lastName: _lastName, familyNickname: _familyNickname, birthYear: _birthYear, password: val('create-password'), phone: _cPhone }) });
+        if (!_city.trim()) { showToast('error', 'עיר היא שדה חובה'); toggleLoader('login', false); return; }
+        const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type: _cType, groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: _adminNickname, firstName: _firstName, lastName: _lastName, city: _city, familyNickname: _familyNickname, birthYear: _birthYear, password: val('create-password'), phone: _cPhone }) });
         const data = await res.json(); 
         if(data.success) { 
             currentUser = data.user; currentGroup = data.group; 
