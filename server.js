@@ -2311,6 +2311,33 @@ app.get('/api/sa/quest-library', async (req, res) => {
   } catch(e){ console.error('SA quest-library error:', e.message); res.status(500).json({ error: e.message }); }
 });
 
+// סופר אדמין — עריכת קווסט מלאה
+app.put('/api/sa/quest-library/:id', verifySA, async (req, res) => {
+  try {
+    const { title, subject, difficulty, age_min, age_max, flw_reward, pass_score, description, tags, questions } = req.body;
+    const id = req.params.id;
+    await pool.query(`
+      UPDATE quest_library SET
+        title=$1, subject=$2, difficulty=$3, age_min=$4, age_max=$5,
+        flw_reward=$6, pass_score=$7, description=$8, tags=$9
+      WHERE id=$10
+    `, [title, subject, difficulty, age_min, age_max, flw_reward, pass_score, description||'', tags||'', id]);
+
+    if(questions && questions.length > 0) {
+      await pool.query('DELETE FROM quest_library_questions WHERE quest_id=$1', [id]);
+      for(let i=0; i<questions.length; i++){
+        const q = questions[i];
+        await pool.query(`
+          INSERT INTO quest_library_questions
+            (quest_id, question_text, answer_type, correct_answer, options_json, explanation, order_index)
+          VALUES ($1,$2,'multiple_choice',$3,$4,$5,$6)
+        `, [id, q.question_text, q.correct_answer, q.options_json, q.explanation||'', i]);
+      }
+    }
+    res.json({ success: true });
+  } catch(e){ console.error('quest edit error:', e.message); res.status(500).json({ error: e.message }); }
+});
+
 // סופר אדמין — הסתר/הצג/מומלץ
 app.patch('/api/sa/quest-library/:id/visibility', async (req, res) => {
   try {

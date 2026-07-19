@@ -9201,7 +9201,7 @@ function renderSAGamesTable(games) {
               <th class="pb-3 font-semibold">גילאים</th>
               <th class="pb-3 font-semibold">קושי</th>
               <th class="pb-3 font-semibold">FLW</th>
-              <th class="pb-3 font-semibold">סשנים</th>
+              <th class="pb-3 font-semibold">🔄 שימושים</th>
               <th class="pb-3 font-semibold">סטטוס</th>
               <th class="pb-3 font-semibold">פעולות</th>
             </tr></thead>
@@ -9222,7 +9222,7 @@ function renderSAGamesTable(games) {
                   <td class="py-3 text-slate-600">${g.age_min}–${g.age_max}</td>
                   <td class="py-3">${diffLabels[g.difficulty] || g.difficulty}</td>
                   <td class="py-3 font-bold text-yellow-600">${g.flw_reward}</td>
-                  <td class="py-3 text-slate-400">${g.total_sessions || 0}</td>
+                  <td class="py-3"><span class="font-bold text-slate-700">${g.total_sessions || 0}</span><span class="text-xs text-slate-400"> פעמים</span></td>
                   <td class="py-3">
                     <button onclick="toggleGame(${g.id})" class="text-xs px-2.5 py-1 rounded-full border font-bold transition
                       ${g.is_active ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'}">
@@ -9437,10 +9437,15 @@ async function loadSAQuestLib(){
   try {
     const res = await fetch(`${API}/sa/quest-library`, { headers: { 'Authorization': saToken } });
     const data = await res.json();
+    if(!data.success) throw new Error(data.error || 'שגיאת שרת');
     const quests = data.quests || [];
 
+    const subjectLabel = {math:'מתמטיקה',hebrew:'עברית',english:'אנגלית',science:'מדעים',
+      history:'היסטוריה',finance:'כסף',geography:'גיאוגרפיה',values:'ערכים',
+      health:'בריאות',technology:'טכנולוגיה',environment:'סביבה'};
+
     el.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.9rem">
         <div style="font-weight:700;font-size:1rem">📚 ספריית קווסטים (${quests.length})</div>
         <button id="sa-quest-seed-btn" onclick="runQuestLibSeed()"
           style="background:#EDE9FE;color:#5B21B6;border:1px solid #7C3AED;border-radius:8px;
@@ -9449,30 +9454,43 @@ async function loadSAQuestLib(){
         </button>
       </div>
       ${quests.length === 0 ? '<div class="text-center text-slate-400 py-8">אין קווסטים במאגר עדיין</div>' : quests.map(q=>`
-        <div style="background:#f8fafc;border-radius:12px;padding:0.8rem;
-          border:1px solid #E0E0E0;display:flex;align-items:center;
-          gap:0.7rem;margin-bottom:0.5rem">
-          <div style="flex:1">
-            <div style="font-weight:700;font-size:0.88rem">${q.title}</div>
-            <div style="font-size:0.72rem;color:#999">
-              ${q.subject} · ${q.visibility} · ${q.use_count||0} שימושים
-              · ⭐${parseFloat(q.rating_avg||0).toFixed(1)} (${q.rating_count||0})
-              · 🚩 ${q.report_count||0} דיווחים
-              ${q.is_hidden?'· <span style="color:red">מוסתר</span>':''}
-              ${q.is_featured?'· <span style="color:#D97706">⭐ מומלץ</span>':''}
+        <div style="background:#fff;border-radius:14px;padding:0.85rem 1rem;
+          border:1px solid #E5E7EB;margin-bottom:0.6rem;
+          ${q.is_hidden?'opacity:0.55;':''}">
+          <div style="display:flex;align-items:flex-start;gap:0.6rem">
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:0.9rem;margin-bottom:0.25rem">
+                ${q.title}
+                ${q.is_hidden?'<span style="background:#FEE2E2;color:#991B1B;font-size:0.65rem;padding:1px 6px;border-radius:6px;margin-right:4px">מוסתר</span>':''}
+                ${q.is_featured?'<span style="background:#FEF3C7;color:#92400E;font-size:0.65rem;padding:1px 6px;border-radius:6px;margin-right:4px">⭐ מומלץ</span>':''}
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.35rem">
+                <span style="background:#EFF6FF;color:#1D4ED8;font-size:0.7rem;padding:1px 7px;border-radius:20px;font-weight:600">${subjectLabel[q.subject]||q.subject}</span>
+                <span style="background:#F0FDF4;color:#166534;font-size:0.7rem;padding:1px 7px;border-radius:20px">📖 ${q.question_count||0} שאלות</span>
+                <span style="background:#FFF7ED;color:#C2410C;font-size:0.7rem;padding:1px 7px;border-radius:20px">🔄 ${q.use_count||0} שימושים</span>
+                <span style="background:#FDF4FF;color:#7E22CE;font-size:0.7rem;padding:1px 7px;border-radius:20px">⭐ ${parseFloat(q.rating_avg||0).toFixed(1)} (${q.rating_count||0})</span>
+                ${(q.report_count||0)>0?`<span style="background:#FEF2F2;color:#DC2626;font-size:0.7rem;padding:1px 7px;border-radius:20px">🚩 ${q.report_count} דיווחים</span>`:''}
+                <span style="background:#F1F5F9;color:#475569;font-size:0.7rem;padding:1px 7px;border-radius:20px">${q.visibility}</span>
+              </div>
+              ${q.description?`<div style="font-size:0.72rem;color:#94A3B8">${q.description}</div>`:''}
             </div>
-          </div>
-          <div style="display:flex;gap:0.4rem;flex-shrink:0">
-            <button onclick="saToggleQHide(${q.id},${!q.is_hidden})"
-              style="background:${q.is_hidden?'#DCFCE7':'#FEE2E2'};border:none;
-              border-radius:8px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600">
-              ${q.is_hidden?'הצג':'הסתר'}
-            </button>
-            <button onclick="saToggleQFeatured(${q.id},${!q.is_featured})"
-              style="background:${q.is_featured?'#FEF3C7':'#F3F4F6'};border:none;
-              border-radius:8px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600">
-              ${q.is_featured?'הסר מומלץ':'⭐ מומלץ'}
-            </button>
+            <div style="display:flex;flex-direction:column;gap:0.35rem;flex-shrink:0">
+              <button onclick="saEditQuest(${q.id})"
+                style="background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;
+                border-radius:8px;padding:0.3rem 0.65rem;font-size:0.75rem;cursor:pointer;font-weight:600">
+                ✏️ עריכה
+              </button>
+              <button onclick="saToggleQHide(${q.id},${!q.is_hidden})"
+                style="background:${q.is_hidden?'#DCFCE7':'#FEE2E2'};border:none;
+                border-radius:8px;padding:0.3rem 0.65rem;font-size:0.75rem;cursor:pointer;font-weight:600">
+                ${q.is_hidden?'👁 הצג':'🙈 הסתר'}
+              </button>
+              <button onclick="saToggleQFeatured(${q.id},${!q.is_featured})"
+                style="background:${q.is_featured?'#FEF3C7':'#F3F4F6'};border:none;
+                border-radius:8px;padding:0.3rem 0.65rem;font-size:0.75rem;cursor:pointer;font-weight:600">
+                ${q.is_featured?'★ הסר':'⭐ מומלץ'}
+              </button>
+            </div>
           </div>
         </div>
       `).join('')}
@@ -9480,6 +9498,194 @@ async function loadSAQuestLib(){
   } catch(e) {
     el.innerHTML = `<div class="text-center text-red-400 py-8">שגיאה: ${e.message}</div>`;
     console.error('loadSAQuestLib error:', e);
+  }
+}
+
+async function saEditQuest(questId){
+  // טען נתוני קווסט + שאלות
+  const [qRes, qqRes] = await Promise.all([
+    fetch(`${API}/sa/quest-library`, { headers:{'Authorization':saToken} }),
+    fetch(`${API}/quest-library/${questId}/questions`)
+  ]);
+  const qData = await qRes.json();
+  const qqData = await qqRes.json();
+  const quest = (qData.quests||[]).find(x=>x.id==questId);
+  if(!quest) return showToast('error','קווסט לא נמצא');
+  const rawQs = qqData.questions || [];
+
+  const subjectOpts = ['math','hebrew','english','science','history','finance','geography','values','health','technology','environment']
+    .map(s=>`<option value="${s}" ${quest.subject===s?'selected':''}>${{math:'מתמטיקה',hebrew:'עברית',english:'אנגלית',science:'מדעים',history:'היסטוריה',finance:'כסף',geography:'גיאוגרפיה',values:'ערכים',health:'בריאות',technology:'טכנולוגיה',environment:'סביבה'}[s]}</option>`).join('');
+
+  let questions = rawQs.map(q=>({
+    id: q.id, text: q.question_text, correct: q.correct_answer,
+    opts: q.options_json ? JSON.parse(q.options_json) : [], ex: q.explanation||''
+  }));
+
+  function renderQEdit(){
+    return questions.map((q,i)=>`
+      <div data-qi="${i}" style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:0.7rem;margin-bottom:0.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">
+          <span style="font-weight:700;font-size:0.8rem;color:#475569">שאלה ${i+1}</span>
+          <button onclick="saQEditRemove(${i})" style="background:#FEE2E2;border:none;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:0.75rem;color:#DC2626">✕ הסר</button>
+        </div>
+        <input data-field="text" data-qi="${i}" value="${(q.text||'').replace(/"/g,'&quot;')}" placeholder="טקסט השאלה"
+          style="width:100%;border:1px solid #CBD5E1;border-radius:8px;padding:0.35rem 0.5rem;font-size:0.8rem;margin-bottom:0.35rem;font-family:inherit;direction:rtl">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;margin-bottom:0.3rem">
+          ${(q.opts||[]).map((o,oi)=>`
+            <div style="display:flex;align-items:center;gap:0.3rem">
+              <input type="radio" name="correct_${i}" value="${oi}" ${q.correct==o?'checked':''} onchange="saQEditCorrect(${i},${oi})">
+              <input data-field="opt" data-qi="${i}" data-oi="${oi}" value="${(o||'').replace(/"/g,'&quot;')}" placeholder="אפשרות ${oi+1}"
+                style="flex:1;border:1px solid #CBD5E1;border-radius:6px;padding:0.25rem 0.4rem;font-size:0.75rem;font-family:inherit;direction:rtl">
+            </div>
+          `).join('')}
+        </div>
+        <input data-field="ex" data-qi="${i}" value="${(q.ex||'').replace(/"/g,'&quot;')}" placeholder="הסבר (אופציונלי)"
+          style="width:100%;border:1px solid #CBD5E1;border-radius:8px;padding:0.3rem 0.5rem;font-size:0.75rem;font-family:inherit;direction:rtl;color:#64748B">
+      </div>
+    `).join('')+`
+      <button onclick="saQEditAdd()" style="width:100%;background:#F0FDF4;color:#15803D;border:1px dashed #86EFAC;border-radius:10px;padding:0.5rem;font-size:0.8rem;cursor:pointer;font-weight:600">+ הוסף שאלה</button>
+    `;
+  }
+
+  // פתח מודאל
+  const existing = document.getElementById('sa-quest-edit-modal');
+  if(existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'sa-quest-edit-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto;backdrop-filter:blur(4px)';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:20px;width:100%;max-width:600px;padding:1.5rem;margin:auto;position:relative">
+      <button onclick="document.getElementById('sa-quest-edit-modal').remove()"
+        style="position:absolute;top:1rem;left:1rem;background:#F1F5F9;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem">✕</button>
+      <h2 style="font-weight:800;font-size:1.1rem;text-align:center;margin-bottom:1.2rem">✏️ עריכת קווסט</h2>
+      <div style="display:grid;gap:0.7rem;margin-bottom:1rem">
+        <div>
+          <label style="font-size:0.78rem;font-weight:700;color:#374151;display:block;margin-bottom:0.2rem">כותרת</label>
+          <input id="sqe-title" value="${(quest.title||'').replace(/"/g,'&quot;')}"
+            style="width:100%;border:1px solid #D1D5DB;border-radius:10px;padding:0.5rem 0.75rem;font-size:0.9rem;font-family:inherit;direction:rtl">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem">
+          <div>
+            <label style="font-size:0.78rem;font-weight:700;color:#374151;display:block;margin-bottom:0.2rem">נושא</label>
+            <select id="sqe-subject" style="width:100%;border:1px solid #D1D5DB;border-radius:10px;padding:0.5rem;font-size:0.85rem;font-family:inherit">${subjectOpts}</select>
+          </div>
+          <div>
+            <label style="font-size:0.78rem;font-weight:700;color:#374151;display:block;margin-bottom:0.2rem">קושי (1-3)</label>
+            <select id="sqe-diff" style="width:100%;border:1px solid #D1D5DB;border-radius:10px;padding:0.5rem;font-size:0.85rem;font-family:inherit">
+              <option value="1" ${quest.difficulty==1?'selected':''}>1 — קל</option>
+              <option value="2" ${quest.difficulty==2?'selected':''}>2 — בינוני</option>
+              <option value="3" ${quest.difficulty==3?'selected':''}>3 — קשה</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0.6rem">
+          <div>
+            <label style="font-size:0.75rem;font-weight:700;color:#374151;display:block;margin-bottom:0.2rem">גיל מינ׳</label>
+            <input id="sqe-agemin" type="number" value="${quest.age_min||6}" min="4" max="18"
+              style="width:100%;border:1px solid #D1D5DB;border-radius:10px;padding:0.4rem;font-size:0.85rem;text-align:center">
+          </div>
+          <div>
+            <label style="font-size:0.75rem;font-weight:700;color:#374151;display:block;margin-bottom:0.2rem">גיל מקס׳</label>
+            <input id="sqe-agemax" type="number" value="${quest.age_max||18}" min="4" max="18"
+              style="width:100%;border:1px solid #D1D5DB;border-radius:10px;padding:0.4rem;font-size:0.85rem;text-align:center">
+          </div>
+          <div>
+            <label style="font-size:0.75rem;font-weight:700;color:#374151;display:block;margin-bottom:0.2rem">FLW</label>
+            <input id="sqe-flw" type="number" value="${quest.flw_reward||20}" min="5" max="100"
+              style="width:100%;border:1px solid #D1D5DB;border-radius:10px;padding:0.4rem;font-size:0.85rem;text-align:center">
+          </div>
+          <div>
+            <label style="font-size:0.75rem;font-weight:700;color:#374151;display:block;margin-bottom:0.2rem">ציון מעבר %</label>
+            <input id="sqe-pass" type="number" value="${quest.pass_score||70}" min="50" max="100"
+              style="width:100%;border:1px solid #D1D5DB;border-radius:10px;padding:0.4rem;font-size:0.85rem;text-align:center">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:0.78rem;font-weight:700;color:#374151;display:block;margin-bottom:0.2rem">תיאור</label>
+          <input id="sqe-desc" value="${(quest.description||'').replace(/"/g,'&quot;')}"
+            style="width:100%;border:1px solid #D1D5DB;border-radius:10px;padding:0.5rem 0.75rem;font-size:0.85rem;font-family:inherit;direction:rtl">
+        </div>
+        <div>
+          <label style="font-size:0.78rem;font-weight:700;color:#374151;display:block;margin-bottom:0.2rem">תגיות (מופרדות בפסיק)</label>
+          <input id="sqe-tags" value="${(quest.tags||'').replace(/"/g,'&quot;')}"
+            style="width:100%;border:1px solid #D1D5DB;border-radius:10px;padding:0.5rem 0.75rem;font-size:0.85rem;font-family:inherit;direction:rtl">
+        </div>
+      </div>
+      <div style="font-weight:700;font-size:0.88rem;margin-bottom:0.5rem;color:#1E293B">❓ שאלות</div>
+      <div id="sqe-questions-wrap">${renderQEdit()}</div>
+      <button onclick="saQuestEditSave(${questId})"
+        style="width:100%;background:#1E293B;color:#fff;border:none;border-radius:12px;
+               padding:0.85rem;font-size:0.95rem;font-weight:700;cursor:pointer;margin-top:0.5rem">
+        💾 שמור שינויים
+      </button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // live sync
+  modal.addEventListener('input', e=>{
+    const t=e.target, qi=parseInt(t.dataset.qi);
+    if(isNaN(qi)) return;
+    if(t.dataset.field==='text') questions[qi].text=t.value;
+    else if(t.dataset.field==='ex') questions[qi].ex=t.value;
+    else if(t.dataset.field==='opt'){ questions[qi].opts[parseInt(t.dataset.oi)]=t.value; }
+  });
+
+  window.saQEditRemove = i => { questions.splice(i,1); document.getElementById('sqe-questions-wrap').innerHTML=renderQEdit(); };
+  window.saQEditCorrect = (qi,oi) => { questions[qi].correct = questions[qi].opts[oi]; };
+  window.saQEditAdd = () => {
+    questions.push({text:'',correct:'',opts:['','','',''],ex:''});
+    document.getElementById('sqe-questions-wrap').innerHTML=renderQEdit();
+  };
+}
+
+async function saQuestEditSave(questId){
+  const title = document.getElementById('sqe-title').value.trim();
+  const subject = document.getElementById('sqe-subject').value;
+  const difficulty = parseInt(document.getElementById('sqe-diff').value);
+  const age_min = parseInt(document.getElementById('sqe-agemin').value);
+  const age_max = parseInt(document.getElementById('sqe-agemax').value);
+  const flw_reward = parseInt(document.getElementById('sqe-flw').value);
+  const pass_score = parseInt(document.getElementById('sqe-pass').value);
+  const description = document.getElementById('sqe-desc').value.trim();
+  const tags = document.getElementById('sqe-tags').value.trim();
+
+  // collect questions from DOM
+  const qWrap = document.getElementById('sqe-questions-wrap');
+  const qBlocks = qWrap.querySelectorAll('[data-qi]');
+  const seenQi = new Set();
+  const questions = [];
+  qWrap.querySelectorAll('input[data-field="text"]').forEach(inp=>{
+    const i = parseInt(inp.dataset.qi);
+    if(seenQi.has(i)) return; seenQi.add(i);
+    const opts = [];
+    qWrap.querySelectorAll(`input[data-field="opt"][data-qi="${i}"]`).forEach(o=>opts.push(o.value));
+    const correctRadio = qWrap.querySelector(`input[type="radio"][name="correct_${i}"]:checked`);
+    const correct = correctRadio ? opts[parseInt(correctRadio.value)] : opts[0];
+    const ex = (qWrap.querySelector(`input[data-field="ex"][data-qi="${i}"]`)||{}).value||'';
+    questions.push({ question_text: inp.value.trim(), correct_answer: correct, options_json: JSON.stringify(opts), explanation: ex });
+  });
+
+  if(!title) return showToast('error','חסרה כותרת');
+  if(questions.length===0) return showToast('error','חסרות שאלות');
+
+  const btn = document.querySelector('#sa-quest-edit-modal button[onclick*="saQuestEditSave"]');
+  if(btn){ btn.disabled=true; btn.textContent='שומר...'; }
+
+  try {
+    const res = await fetch(`${API}/sa/quest-library/${questId}`, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json','Authorization':saToken},
+      body: JSON.stringify({title,subject,difficulty,age_min,age_max,flw_reward,pass_score,description,tags,questions})
+    });
+    const data = await res.json();
+    if(!data.success) throw new Error(data.error||'שגיאה');
+    showToast('success','✅ הקווסט עודכן!');
+    document.getElementById('sa-quest-edit-modal').remove();
+    loadSAQuestLib();
+  } catch(e){
+    showToast('error', e.message);
+    if(btn){ btn.disabled=false; btn.textContent='💾 שמור שינויים'; }
   }
 }
 
