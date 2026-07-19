@@ -3241,7 +3241,9 @@ let _pilotLeadsCache = [];
 
 async function loadPilotLeads() {
     try {
-        const res = await fetch(`${API}/sa/pilot-waitlist`, { headers: { 'Authorization': saToken } });
+        const yishuv = getEl('pilot-filter-yishuv')?.value || '';
+        const qs = yishuv ? `?yishuv=${encodeURIComponent(yishuv)}` : '';
+        const res = await fetch(`${API}/sa/pilot-waitlist${qs}`, { headers: { 'Authorization': saToken } });
         const data = await res.json();
         if (!data.success) return;
         _pilotLeadsCache = data.leads || [];
@@ -3264,7 +3266,7 @@ function renderPilotLeads() {
     const filter = filterEl ? filterEl.value : '';
     const leads = filter ? _pilotLeadsCache.filter(l => l.status === filter) : _pilotLeadsCache;
     if (!leads.length) {
-        tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-10 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed">אין לידים${filter ? ' בסטטוס זה' : ''}.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-10 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed">אין לידים${filter ? ' בסטטוס זה' : ''}.</td></tr>`;
         return;
     }
     const STATUS_MAP = {
@@ -3281,6 +3283,7 @@ function renderPilotLeads() {
             <td class="px-4 py-3 font-bold text-slate-800">${safeStr(l.name)}</td>
             <td class="px-4 py-3 text-slate-600 dir-ltr font-mono text-sm">${safeStr(l.phone)}</td>
             <td class="px-4 py-3 text-slate-500 text-xs">${safeStr(l.email || '—')}</td>
+            <td class="px-4 py-3 text-center text-xs font-bold text-indigo-700">${safeStr(l.yishuv || '—')}</td>
             <td class="px-4 py-3 text-center text-slate-500 text-xs">${date}</td>
             <td class="px-4 py-3 text-center">
                 <select onchange="updatePilotLeadStatus(${l.id}, this.value)" class="text-xs font-bold border-0 rounded-lg px-2 py-1 cursor-pointer ${st.bg} ${st.text}">

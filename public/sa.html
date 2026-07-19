@@ -454,6 +454,13 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                 <p class="text-xs text-slate-500 mt-1">כל מי שנרשם לרשימת ההמתנה דרך עמוד הנחיתה.</p>
                             </div>
                             <div class="flex gap-2 flex-wrap">
+                                <select id="pilot-filter-yishuv" onchange="loadPilotLeads()" class="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white font-bold text-slate-700">
+                                    <option value="">כל היישובים</option>
+                                    <option value="נוקדים">נוקדים</option>
+                                    <option value="כפר אלדד">כפר אלדד</option>
+                                    <option value="שדה בר">שדה בר</option>
+                                    <option value="תקוע">תקוע</option>
+                                </select>
                                 <select id="pilot-filter-status" onchange="renderPilotLeads()" class="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white font-bold text-slate-700">
                                     <option value="">כל הסטטוסים</option>
                                     <option value="new">חדש</option>
@@ -471,6 +478,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                         <th class="px-4 py-3 rounded-tr-lg">שם</th>
                                         <th class="px-4 py-3">טלפון</th>
                                         <th class="px-4 py-3">אימייל</th>
+                                        <th class="px-4 py-3 text-center">יישוב</th>
                                         <th class="px-4 py-3 text-center">תאריך הרשמה</th>
                                         <th class="px-4 py-3 text-center">סטטוס</th>
                                         <th class="px-4 py-3">הערות</th>
@@ -478,7 +486,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                     </tr>
                                 </thead>
                                 <tbody id="pilot-leads-table-body" class="divide-y divide-slate-100">
-                                    <tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">טוען נתונים...</td></tr>
+                                    <tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">טוען נתונים...</td></tr>
                                 </tbody>
                             </table>
                         </div>

@@ -1646,11 +1646,13 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           name VARCHAR(200) NOT NULL,
           phone VARCHAR(30) NOT NULL,
           email VARCHAR(200),
+          yishuv VARCHAR(100),
           source VARCHAR(100) DEFAULT 'nikdim-pilot',
           status VARCHAR(20) DEFAULT 'new',
           notes TEXT,
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE pilot_waitlist ADD COLUMN IF NOT EXISTS yishuv VARCHAR(100)`); } catch(e) {}
 
       // ─── KIDS GAMES INFRASTRUCTURE ────────────────────────────────────────
       try { await client.query(`CREATE TABLE IF NOT EXISTS games_global_config (
@@ -3730,11 +3732,12 @@ app.get('/api/sa/audit-log', verifySA, async (req, res) => {
 // שמירת ליד חדש — ציבורי (ללא auth)
 app.post('/api/pilot-waitlist', async (req, res) => {
     try {
-        const { name, phone, email, source } = req.body;
+        const { name, phone, email, yishuv, source } = req.body;
         if (!name || !phone) return res.status(400).json({ error: 'שם וטלפון הם שדות חובה' });
+        if (!yishuv) return res.status(400).json({ error: 'נא לבחור יישוב' });
         const result = await pool.query(
-            `INSERT INTO pilot_waitlist (name, phone, email, source) VALUES ($1,$2,$3,$4) RETURNING id, created_at`,
-            [name.trim(), phone.trim(), (email || '').trim(), source || 'nikdim-pilot']
+            `INSERT INTO pilot_waitlist (name, phone, email, yishuv, source) VALUES ($1,$2,$3,$4,$5) RETURNING id, created_at`,
+            [name.trim(), phone.trim(), (email || '').trim(), yishuv.trim(), source || 'nikdim-pilot']
         );
         res.json({ success: true, id: result.rows[0].id, created_at: result.rows[0].created_at });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -3743,11 +3746,14 @@ app.post('/api/pilot-waitlist', async (req, res) => {
 // קבלת כל הלידים + סטטיסטיקות — SA בלבד
 app.get('/api/sa/pilot-waitlist', verifySA, async (req, res) => {
     try {
+        const { yishuv } = req.query;
+        const where = yishuv ? `WHERE yishuv=$1` : '';
+        const params = yishuv ? [yishuv] : [];
         const leads = await pool.query(
-            `SELECT * FROM pilot_waitlist ORDER BY created_at DESC`
+            `SELECT * FROM pilot_waitlist ${where} ORDER BY created_at DESC`, params
         );
         const stats = await pool.query(
-            `SELECT status, COUNT(*) as count FROM pilot_waitlist GROUP BY status`
+            `SELECT status, COUNT(*) as count FROM pilot_waitlist ${where} GROUP BY status`, params
         );
         const statsMap = {};
         stats.rows.forEach(r => { statsMap[r.status] = parseInt(r.count); });
