@@ -5410,14 +5410,16 @@ function renderFamilyCommunities() {
     // הצגת עמוד הבית של עולם הקהילות
     const anyVisible = ['home','manage','benefits','promos','news','feed'].some(t => !getEl(`fam-comm-view-${t}`)?.classList.contains('hidden'));
     const requestedTab = localStorage.getItem('ofl_open_community_tab');
-    const savedCommTab = localStorage.getItem('ofl_comm_tab');
     if (requestedTab) {
         localStorage.removeItem('ofl_open_community_tab');
         switchFamCommunityTab(requestedTab);
-    } else if (savedCommTab && ['home','manage','benefits','promos','news','feed'].includes(savedCommTab)) {
-        switchFamCommunityTab(savedCommTab);
     } else if (!anyVisible) {
-        switchFamCommunityTab('home');
+        const savedCommTab = localStorage.getItem('ofl_comm_tab');
+        if (savedCommTab && ['home','manage','benefits','promos','news','feed'].includes(savedCommTab)) {
+            switchFamCommunityTab(savedCommTab);
+        } else {
+            switchFamCommunityTab('home');
+        }
     }
     // עדכון הודעת אין קהילה בבית
     const noCommunityEl = getEl('comm-home-no-community');
