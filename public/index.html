@@ -1353,9 +1353,12 @@
 
                         <div id="members-list" class="divide-y divide-slate-50 p-2"></div>
                         
-                        <div class="p-4 bg-white border-t border-slate-100 flex justify-center">
-                            <button onclick="open360Report(currentGroup.id)" class="w-full sm:w-auto bg-indigo-50 text-indigo-600 border border-indigo-100 py-2.5 px-6 rounded-xl font-bold hover:bg-indigo-100 transition shadow-sm flex justify-center items-center gap-2">
+                        <div class="p-4 bg-white border-t border-slate-100 flex flex-col gap-2">
+                            <button onclick="open360Report(currentGroup.id)" class="w-full bg-indigo-50 text-indigo-600 border border-indigo-100 py-2.5 px-6 rounded-xl font-bold hover:bg-indigo-100 transition shadow-sm flex justify-center items-center gap-2">
                                 <i class="fa-solid fa-chart-pie"></i> הפק דוח תמונת מצב (360) למשפחה
+                            </button>
+                            <button onclick="openWeeklyReport(0)" class="w-full bg-blue-50 text-blue-700 border border-blue-100 py-2.5 px-6 rounded-xl font-bold hover:bg-blue-100 transition shadow-sm flex justify-center items-center gap-2">
+                                <i class="fa-solid fa-chart-bar"></i> דוח שבועי — התקדמות ילדים
                             </button>
                         </div>
                         
