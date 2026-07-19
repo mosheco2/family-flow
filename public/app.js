@@ -103,6 +103,8 @@ window.onload = async () => {
             if(session && session.user && session.group) {
                 if (session.group.type === 'BUSINESS') { window.location.href = '/business.html'; return; }
                 currentUser = session.user; currentGroup = session.group;
+                // שחזור לוגו קבוצה ממפתח נפרד (למנוע ניפוח הסשן)
+                if (currentGroup.id) { const cl = localStorage.getItem(`ofl_logo_${currentGroup.id}`); if(cl) currentGroup.image_url = cl; }
                 // אם יש splash פעיל מ-cache — ממתינים לסיום האנימציה לפני מעבר לדאשבורד
                 if (window.__splashPreload) { await new Promise(r => setTimeout(r, 2800)); }
                 clearTimeout(failsafeTimer); loadDashboard(); return;
@@ -541,16 +543,7 @@ async function handleLogin(e) {
             currentUser = data.user; currentGroup = data.group;
             // לוגין רגיל — מנקים SA token כדי שבאנר ההשתלטות לא יופיע
             localStorage.removeItem('ofl_sa_token');
-            try {
-                localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup}));
-            } catch(lsErr) {
-                // localStorage מלא — נקה ונסה שוב
-                try {
-                    const keys = Object.keys(localStorage).filter(k => k !== 'ofl_sa_token');
-                    keys.forEach(k => { if (k !== 'ofl_session') localStorage.removeItem(k); });
-                    localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup}));
-                } catch(e2) { /* ממשיכים גם בלי localStorage */ }
-            }
+            saveSession(currentUser, currentGroup);
             if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; }
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
             await loadDashboard();
@@ -582,7 +575,7 @@ async function handleCreate(e) {
         const data = await res.json(); 
         if(data.success) { 
             currentUser = data.user; currentGroup = data.group; 
-            localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
+            saveSession(currentUser, currentGroup);
             if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; } 
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
             try {
@@ -619,6 +612,23 @@ async function handleJoin(e) {
     if(d.success) { showToast('success', 'בקשתך נשלחה בהצלחה! יש להמתין לאישור מנהל הסביבה.'); window.history.replaceState({}, document.title, window.location.pathname); switchView('login'); } else showToast('error', d.error); 
 }
 
+function _slimForSession(obj, ...dropKeys) { const r = Object.assign({}, obj); dropKeys.forEach(k => delete r[k]); return r; }
+function saveSession(u, g) {
+    const user = u || currentUser; const group = g || currentGroup;
+    const slim = {
+        user: _slimForSession(user, 'profile_image', 'password_hash'),
+        group: _slimForSession(group, 'logo', 'logo_url', 'image_url')
+    };
+    try {
+        localStorage.setItem('ofl_session', JSON.stringify(slim));
+    } catch(e) {
+        try {
+            Object.keys(localStorage).filter(k => !['ofl_sa_token','ofl_session'].includes(k)).forEach(k => localStorage.removeItem(k));
+            localStorage.setItem('ofl_session', JSON.stringify(slim));
+        } catch(e2) {}
+    }
+    if (group && group.id && group.image_url) { try { localStorage.setItem(`ofl_logo_${group.id}`, group.image_url); } catch(e) {} }
+}
 function logout() { localStorage.removeItem('ofl_session'); window.location.href = '/'; }
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
@@ -1682,7 +1692,7 @@ window._submitForcePassword = async function() {
                 if (idNum) s.user.id_number = idNum;
                 if (email) s.user.email = email;
                 if (year) s.user.birth_year = parseInt(year);
-                localStorage.setItem('ofl_session', JSON.stringify(s));
+                saveSession(s.user, s.group);
             }
             document.getElementById('force-pw-overlay')?.remove();
             showToast('success', 'הפרטים נשמרו בהצלחה! ✅');
@@ -1719,7 +1729,7 @@ async function fetchData() {
                 // הסר נעילות חבר
                 try { if(typeof applyMemberLocks === 'function') applyMemberLocks(); } catch(e) {}
                 // עדכן session
-                try { localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); } catch(e) {}
+                try { saveSession(); } catch(e) {}
                 // הצג מודל שדרוג (רק פעם אחת)
                 const upgradeKey = `ofl_upgrade_shown_${currentGroup.id}`;
                 if (!localStorage.getItem(upgradeKey)) {
@@ -4372,7 +4382,7 @@ async function saveFamilyAddress() {
             // Persist to localStorage so address survives page refresh
             try {
                 const session = JSON.parse(localStorage.getItem('ofl_session') || '{}');
-                if (session.group) { session.group.city = city; session.group.street_address = streetAddress; localStorage.setItem('ofl_session', JSON.stringify(session)); }
+                if (session.group) { session.group.city = city; session.group.street_address = streetAddress; saveSession(session.user, session.group); }
             } catch(e) {}
         } else showToast('error', 'שגיאה בשמירה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
@@ -7456,7 +7466,7 @@ async function nextWizardStep() {
         try {
             await fetch(`${API}/groups/onboard`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) });
             currentGroup.is_onboarded = true;
-            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); // <-- התיקון למניעת קפיצה!
+            saveSession(); // <-- התיקון למניעת קפיצה!
             getEl('onboarding-wizard-modal').classList.add('hidden');
             triggerConfetti(); fetchData();
         } catch(e) {}
@@ -8063,7 +8073,7 @@ window.saveUpgradeModal = async function() {
             await Promise.all(updates);
             if (nickname) currentGroup.family_nickname = nickname;
             if (window._upgradePhotoBase64) currentGroup.logo = window._upgradePhotoBase64;
-            localStorage.setItem('ofl_session', JSON.stringify({ user: currentUser, group: currentGroup }));
+            saveSession();
             try { window.renderGroupInfo(); } catch(e) {}
         }
         closeUpgradeModal();
@@ -8200,7 +8210,7 @@ window.saveFamilyPhoto = async function() {
             
             // גיבוי קשיח ואגרסיבי לזיכרון המקומי כדי שהתמונה תשרוד גם אם השרת לא מחזיר אותה
             localStorage.setItem(`ofl_hard_logo_${currentGroup.id}`, window.tempFamilyLogoBase64);
-            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+            saveSession();
             
             if (typeof window.renderGroupInfo === 'function') window.renderGroupInfo(); 
         } else {
@@ -9545,7 +9555,7 @@ if (_originalFetchDataForPermsAndLogo && !window.hookedPermsAndLogoFetch) {
                 // סידור הרשאות ילדים חיות
                 if (data && data.user && data.user.permissions !== undefined) {
                     currentUser.permissions = data.user.permissions;
-                    localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+                    saveSession();
                     if(typeof enforcePermissions === 'function') enforcePermissions();
                 }
             }
