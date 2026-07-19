@@ -5407,7 +5407,7 @@ function renderFamilyCommunities() {
 
 
     // הצגת עמוד הבית של עולם הקהילות
-    const anyVisible = ['home','manage','benefits','promos','news'].some(t => !getEl(`fam-comm-view-${t}`)?.classList.contains('hidden'));
+    const anyVisible = ['home','manage','benefits','promos','news','feed'].some(t => !getEl(`fam-comm-view-${t}`)?.classList.contains('hidden'));
     const requestedTab = localStorage.getItem('ofl_open_community_tab');
     if (requestedTab) {
         localStorage.removeItem('ofl_open_community_tab');
