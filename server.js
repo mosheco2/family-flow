@@ -2869,7 +2869,7 @@ app.post('/api/superadmin/tickets', verifySA, async (req, res) => {
 app.get('/api/superadmin/tickets', verifySA, async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT t.*, f.name as group_name, f.admin_email as group_email, f.group_code,
+            SELECT t.*, CASE WHEN f.family_nickname IS NOT NULL AND f.family_nickname != '' THEN f.name || ' (' || f.family_nickname || ')' ELSE f.name END as group_name, f.admin_email as group_email, f.group_code,
                    u.nickname as user_name,
                    sa_u.name as assigned_user_name, sa_t.name as assigned_team_name
             FROM support_tickets t
@@ -4348,7 +4348,7 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         
         const groups = await pool.query('SELECT * FROM family_groups WHERE is_deleted=false OR is_deleted IS NULL ORDER BY created_at DESC');
         const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
-        const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
+        const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, CASE WHEN f.family_nickname IS NOT NULL AND f.family_nickname != '' THEN f.name || ' (' || f.family_nickname || ')' ELSE f.name END as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
         const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'business_welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_img_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_img_bottom', 'business_ad_banner_text_top', 'business_ad_banner_link_top', 'business_ad_banner_img_top', 'business_ad_banner_text_bottom', 'business_ad_banner_link_bottom', 'business_ad_banner_img_bottom', 'sa_email', 'sa_username', 'global_ai_logo', 'login_slides', 'sms_login_enabled', 'member_welcome_enabled', 'member_welcome_text', 'member_welcome_img', 'member_module_settings', 'pwa_install_prompt_enabled', 'smtp_from_email', 'smtp_from_name', 'admin_notification_email')");
         
         let unifiedActivity = [];
@@ -4358,7 +4358,7 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
             const hasActivity = unifiedActivity.some(act => act.group_name === g.name);
             if (!hasActivity) {
                  const adminUser = users.rows.find(u => u.group_id === g.id && u.role === 'ADMIN');
-                 unifiedActivity.push({ date: g.created_at, group_name: g.name, user_name: adminUser ? adminUser.nickname : 'מנהל', description: '🎉 פתח/ה סביבה חדשה', amount: 0, is_financial: false });
+                 const gDisplayName = g.family_nickname ? `${g.name} (${g.family_nickname})` : g.name; unifiedActivity.push({ date: g.created_at, group_name: gDisplayName, user_name: adminUser ? (adminUser.first_name && adminUser.last_name ? `${adminUser.first_name} ${adminUser.last_name}` : adminUser.nickname) : 'מנהל', description: '🎉 פתח/ה סביבה חדשה', amount: 0, is_financial: false });
             }
         });
         
@@ -9587,7 +9587,7 @@ app.post('/api/sa/community-business/approve-direct', async (req, res) => {
 app.get('/api/sa/communities/pending-families', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT fc.group_id, fc.community_id, COALESCE(NULLIF(fg.family_nickname,''), fg.name) as family_name, c.name as comm_name, fc.joined_at
+            SELECT fc.group_id, fc.community_id, CASE WHEN fg.family_nickname IS NOT NULL AND fg.family_nickname != '' THEN fg.name || ' (' || fg.family_nickname || ')' ELSE fg.name END as family_name, c.name as comm_name, fc.joined_at
             FROM family_communities fc
             JOIN family_groups fg ON fc.group_id = fg.id
             JOIN communities c ON fc.community_id = c.id
@@ -10478,7 +10478,7 @@ app.get('/api/zone-manager/pending-families', verifyZoneManager, async (req, res
     try {
         const { managerId } = req.zmSession;
         const result = await pool.query(`
-            SELECT fc.group_id, fc.community_id, COALESCE(NULLIF(fg.family_nickname,''), fg.name) as family_name, c.name as comm_name, fc.joined_at
+            SELECT fc.group_id, fc.community_id, CASE WHEN fg.family_nickname IS NOT NULL AND fg.family_nickname != '' THEN fg.name || ' (' || fg.family_nickname || ')' ELSE fg.name END as family_name, c.name as comm_name, fc.joined_at
             FROM family_communities fc
             JOIN family_groups fg ON fc.group_id = fg.id
             JOIN communities c ON fc.community_id = c.id
@@ -10534,7 +10534,7 @@ app.get('/api/zone-manager/family-detail/:groupId', verifyZoneManager, async (re
              JOIN manager_zones mz ON c.zone_id=mz.id
              WHERE fc.group_id=$1 AND mz.manager_id=$2 LIMIT 1`, [groupId, managerId]);
         if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
-        const fg = await pool.query(`SELECT id, name, admin_email, group_code, created_at FROM family_groups WHERE id=$1`, [groupId]);
+        const fg = await pool.query(`SELECT id, name, family_nickname, admin_email, group_code, created_at FROM family_groups WHERE id=$1`, [groupId]);
         if (!fg.rows.length) return res.status(404).json({ error: 'לא נמצא' });
         const users = await pool.query(`SELECT nickname, role, email FROM users WHERE group_id=$1 ORDER BY role`, [groupId]);
         const comms = await pool.query(
@@ -10801,7 +10801,7 @@ app.get('/api/zone-manager/community-detail/:id', verifyZoneManager, async (req,
         // משפחות (approved + pending)
         const families = await pool.query(
             `SELECT fc.group_id, fc.status, fc.is_community_manager,
-                    fg.id, COALESCE(NULLIF(fg.family_nickname,''), fg.name) as name, fg.admin_email, fg.group_code
+                    fg.id, CASE WHEN fg.family_nickname IS NOT NULL AND fg.family_nickname != '' THEN fg.name || ' (' || fg.family_nickname || ')' ELSE fg.name END as name, fg.admin_email, fg.group_code
              FROM family_communities fc JOIN family_groups fg ON fg.id=fc.group_id
              WHERE fc.community_id=$1 ORDER BY fc.status DESC, fc.is_community_manager DESC, fg.name`, [commId]);
 
@@ -11381,7 +11381,7 @@ app.get('/api/community/manager-data/:groupId', async (req, res) => {
 
         // משפחות ממתינות לאישור
         const pendingFamiliesRes = await pool.query(
-            `SELECT fc.group_id, fc.community_id, COALESCE(NULLIF(fg.family_nickname,''), fg.name) as family_name, fc.joined_at
+            `SELECT fc.group_id, fc.community_id, CASE WHEN fg.family_nickname IS NOT NULL AND fg.family_nickname != '' THEN fg.name || ' (' || fg.family_nickname || ')' ELSE fg.name END as family_name, fc.joined_at
              FROM family_communities fc JOIN family_groups fg ON fc.group_id=fg.id
              WHERE fc.community_id=ANY($1) AND fc.status='pending'
              ORDER BY fc.joined_at DESC`, [commIds]);

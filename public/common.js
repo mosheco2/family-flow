@@ -564,3 +564,19 @@ function upgradeToPremium() {
     if(profileModal) profileModal.classList.add('hidden'); 
     openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); 
 }
+
+// ==========================================
+// Display Helpers — Group Names & User Names
+// ==========================================
+
+function fmtGroupName(g) {
+    if (!g) return '';
+    const nickname = g.family_nickname || g.familyNickname || '';
+    return nickname ? `${g.name} (${nickname})` : (g.name || '');
+}
+
+function fmtUserName(u) {
+    if (!u) return '';
+    const full = [u.first_name, u.last_name].filter(Boolean).join(' ');
+    return full || u.nickname || '';
+}

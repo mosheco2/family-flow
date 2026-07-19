@@ -2635,7 +2635,7 @@ async function loadDashboard() {
         
         const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.textContent = safeStr(currentGroup.name);
         const headerOrgCode = document.getElementById('header-org-code'); if(headerOrgCode) headerOrgCode.textContent = currentGroup.group_code ? `קוד ארגון: ${currentGroup.group_code}` : '';
-        const dashNick = getEl('dash-nickname'); if(dashNick) dashNick.innerText = currentUser.nickname; 
+        const dashNick = getEl('dash-nickname'); if(dashNick) dashNick.innerText = fmtUserName(currentUser) || currentUser.nickname; 
 
         // === תיקון סדר טאבים במובייל ובתפריט גלילה עליון: שליחויות מיד אחרי חנות ===
         setTimeout(() => {
@@ -2674,7 +2674,7 @@ async function loadDashboard() {
         } else {
             ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
             const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
-            const cardName = getEl('card-name'); if(cardName) cardName.innerText = currentUser.nickname.toUpperCase(); 
+            const cardName = getEl('card-name'); if(cardName) cardName.innerText = (fmtUserName(currentUser) || currentUser.nickname).toUpperCase(); 
             const cardAllowance = getEl('card-allowance'); if(cardAllowance) cardAllowance.innerText = `₪${currentUser.allowance_amount || 0}`; 
             const cardInt = getEl('card-interest'); if(cardInt) cardInt.innerText = `${currentUser.interest_rate || 0}`; 
             const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
@@ -2932,7 +2932,7 @@ window.handlePunch = async function() {
 window.openManualPunchModal = function() {
     document.getElementById('manual-punch-modal').classList.remove('hidden');
     const uSelect = document.getElementById('mp-user'); uSelect.innerHTML = '';
-    membersCache.forEach(m => { if(m.role !== 'ADMIN') uSelect.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; });
+    membersCache.forEach(m => { if(m.role !== 'ADMIN') uSelect.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`; });
 };
 
 window.submitManualPunch = async function() {
@@ -3724,9 +3724,9 @@ async function fetchMembers() {
         if (currentUser.role === 'ADMIN') { 
             try {
                 const bF = getEl('budget-filter'); const fF = getEl('feed-user-filter'); const gS = getEl('goal-target-user'); const cfF = getEl('cashflow-user-filter');
-                if (bF) { const cur = bF.value; bF.innerHTML = '<option value="all">כלל הארגון</option>'; membersCache.forEach(m => bF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if(cur) bF.value = cur; } 
-                if (fF) { const cur = fF.value; fF.innerHTML = '<option value="all">כל העובדים</option>'; membersCache.forEach(m => fF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if(cur) fF.value = cur; }
-                if (cfF) { const cur = cfF.value; cfF.innerHTML = '<option value="all">כל העובדים</option>'; membersCache.forEach(m => cfF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if(cur) cfF.value = cur; }
+                if (bF) { const cur = bF.value; bF.innerHTML = '<option value="all">כלל הארגון</option>'; membersCache.forEach(m => bF.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`); if(cur) bF.value = cur; } 
+                if (fF) { const cur = fF.value; fF.innerHTML = '<option value="all">כל העובדים</option>'; membersCache.forEach(m => fF.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`); if(cur) fF.value = cur; }
+                if (cfF) { const cur = cfF.value; cfF.innerHTML = '<option value="all">כל העובדים</option>'; membersCache.forEach(m => cfF.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`); if(cur) cfF.value = cur; }
                 if (gS) { const cur = gS.value; gS.innerHTML = '<option value="">עבור איזה צוות/עובד?</option>'; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { gS.innerHTML += `<option value="${m.id}">עבור ${safeStr(m.nickname)}</option>`; }); if(cur) gS.value = cur; }
                 
                 // --- הזרקת כפתור ההזמנה לווצאפ באופן אגרסיבי ובטוח ---
@@ -4022,7 +4022,7 @@ function openTaskModal(isSelf = false) {
         getEl('task-modal-title').innerText = 'מטלה חדשה / פרויקט'; toggles.classList.remove('hidden'); assigneeContainer.classList.remove('hidden'); rewardInput.placeholder = 'תגמול בונוס (₪) - אופציונלי';
         if(membersCache) {
             assigneeSelect.innerHTML = '<option value="" disabled selected>בחר/י עובד...</option>'; let hasChildren = false;
-            membersCache.forEach(m => { if (m.role !== 'ADMIN') { assigneeSelect.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; hasChildren = true; } });
+            membersCache.forEach(m => { if (m.role !== 'ADMIN') { assigneeSelect.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`; hasChildren = true; } });
             if (!hasChildren) assigneeSelect.innerHTML = '<option value="" disabled selected>אין אנשי צוות רשומים</option>';
         }
     } 
@@ -4487,7 +4487,7 @@ function openShiftModal() {
     if(userSel) {
         userSel.innerHTML = '';
         if(currentUser.role === 'ADMIN') { membersCache.forEach(m => { if(m.role !== 'ADMIN') userSel.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; }); }
-        else { userSel.innerHTML = `<option value="${currentUser.id}">${safeStr(currentUser.nickname)}</option>`; }
+        else { userSel.innerHTML = `<option value="${currentUser.id}">${safeStr(fmtUserName(currentUser) || currentUser.nickname)}</option>`; }
     }
     // render template buttons
     const wrap = getEl('shift-tpl-buttons');
@@ -4708,7 +4708,7 @@ async function renderEmployeeDashboard() {
     const now = new Date();
     const greet = document.getElementById('emp-greeting');
     const dateL  = document.getElementById('emp-date-label');
-    if (greet && currentUser) greet.textContent = `שלום, ${currentUser.nickname || currentUser.name} 👋`;
+    if (greet && currentUser) greet.textContent = `שלום, ${fmtUserName(currentUser) || currentUser.nickname || currentUser.name} 👋`;
     if (dateL) dateL.textContent = now.toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
 
     // ─ סטטוס החתמה ─
@@ -4972,7 +4972,7 @@ window.renderDashboard = async function(forceRefresh = false) {
         // Header
         const greetEl = document.getElementById('dash-greeting');
         const dateEl  = document.getElementById('dash-date');
-        if (greetEl && currentUser) greetEl.textContent = `שלום, ${currentUser.nickname || currentUser.name} 👋`;
+        if (greetEl && currentUser) greetEl.textContent = `שלום, ${fmtUserName(currentUser) || currentUser.nickname || currentUser.name} 👋`;
         if (dateEl) {
             const now = new Date();
             dateEl.textContent = now.toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });

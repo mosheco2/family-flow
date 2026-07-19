@@ -1499,11 +1499,11 @@ async function openZMFamilyDetail(groupId) {
         const data = await res.json();
         if (!data.success) { document.getElementById('zm-fam-detail-body').innerHTML = `<p class="text-red-400 text-center">${data.error}</p>`; return; }
         const g = data.group;
-        document.getElementById('zm-fam-detail-name').textContent = g.name;
+        document.getElementById('zm-fam-detail-name').textContent = fmtGroupName(g);
         const usersHtml = (data.users || []).map(u => `
             <div class="flex justify-between items-center text-xs py-1.5 border-b border-slate-50">
                 <span class="text-[10px] ${u.role==='ADMIN'?'text-blue-500 font-bold':'text-slate-400'}">${u.role==='ADMIN'?'מנהל/הורה':'חבר'}</span>
-                <span class="text-slate-700">${u.nickname || u.email || ''}</span>
+                <span class="text-slate-700">${fmtUserName(u) || u.nickname || u.email || ''}</span>
             </div>`).join('') || '<p class="text-xs text-slate-400">אין משתמשים</p>';
         const familyGroupId = g.id;
         const commsHtml = (data.communities || []).map(c => {

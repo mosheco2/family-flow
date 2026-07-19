@@ -1800,7 +1800,7 @@ function renderSAGroups() {
             const roleLabel = u.role === 'ADMIN' ? 'הורה/מנהל' : u.role === 'SENIOR' ? 'בכיר' : 'בן משפחה/עובד';
             return `
             <div class="flex justify-between items-center bg-slate-50 p-2 mt-1 rounded border border-slate-100 text-sm">
-                <span>${safeStr(u.nickname)} <span class="text-[10px] text-slate-400">(${roleLabel})</span> ${phoneBadge}</span>
+                <span>${safeStr(fmtUserName(u) || u.nickname)} <span class="text-[10px] text-slate-400">(${roleLabel})</span> ${phoneBadge}</span>
                 <div class="flex gap-1">
                     <button onclick="openSAEditUserModal(${u.id})" class="text-blue-400 hover:text-blue-600 bg-white p-1 rounded shadow-sm transition"><i class="fa-solid fa-pen"></i></button>
                     <button onclick="saDeleteUser(${u.id})" class="text-red-400 hover:text-red-600 bg-white p-1 rounded shadow-sm transition"><i class="fa-solid fa-trash"></i></button>
@@ -1860,7 +1860,7 @@ function renderSAGroups() {
                 <div class="flex items-center">
                     <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i></div>
                     <div>
-                        <h3 class="font-bold text-slate-800 text-sm flex items-center">${safeStr(g.name)} ${isPro} ${typeBadge}</h3>
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center">${safeStr(fmtGroupName(g))} ${isPro} ${typeBadge}</h3>
                         <p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p>
                     </div>
                 </div>
@@ -1872,9 +1872,9 @@ function renderSAGroups() {
                     <div class="flex gap-2">
                         ${impersonateBtn}
                         ${upgradeBtn}
-                        <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(g.name)}', '${safeStr(g.admin_email)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך פרטים</button>
+                        <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(fmtGroupName(g))}', '${safeStr(g.admin_email)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך פרטים</button>
                         ${planSelector}
-                        <button onclick="openSnapshotsModal(${g.id},'${safeStr(g.name)}')" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-clock-rotate-left"></i> גיבויים</button>
+                        <button onclick="openSnapshotsModal(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-clock-rotate-left"></i> גיבויים</button>
                         <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
                     </div>
                 </div>
@@ -1966,12 +1966,12 @@ async function saDeleteGroup(id) {
     const group = [...(saAllGroups||[])].find(g => g.id === id) || { name: `#${id}` };
     const isBiz = group.type === 'BUSINESS';
     const msg = isBiz
-        ? `העסק "${group.name}" יועבר לארכיון.\nניתן לשחזרו תוך 30 יום.\n\nלמחיקה לצמיתות — השתמש ב"מחק לצמיתות" בארכיון.`
-        : `הסביבה "${group.name}" תועבר לארכיון.\nניתן לשחזרה תוך 30 יום.`;
+        ? `העסק "${fmtGroupName(group)}" יועבר לארכיון.\nניתן לשחזרו תוך 30 יום.\n\nלמחיקה לצמיתות — השתמש ב"מחק לצמיתות" בארכיון.`
+        : `הסביבה "${fmtGroupName(group)}" תועבר לארכיון.\nניתן לשחזרה תוך 30 יום.`;
     if (!confirm(msg)) return;
     const res = await fetch(`${API}/superadmin/groups/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken } });
     const data = await res.json();
-    if (data.success) { showToast('success', `"${group.name}" הועברה לארכיון ✓`); loadSAData(); }
+    if (data.success) { showToast('success', `"${fmtGroupName(group)}" הועברה לארכיון ✓`); loadSAData(); }
     else showToast('error', data.error || 'שגיאה');
 }
 
@@ -2122,7 +2122,7 @@ function renderArchive() {
         <tr class="hover:bg-red-50/30 transition border-b border-slate-50 last:border-0">
             <td class="px-4 py-3 font-bold text-slate-800 flex items-center gap-2">
                 <i class="fa-solid ${isBiz ? 'fa-store' : 'fa-house'} text-${isBiz ? 'blue' : 'emerald'}-400 text-sm"></i>
-                ${safeStr(g.name)}
+                ${safeStr(fmtGroupName(g))}
             </td>
             <td class="px-4 py-3 text-xs text-slate-500">${safeStr(g.business_type || g.type || '—')}</td>
             <td class="px-4 py-3 font-mono text-xs text-slate-400">${safeStr(g.group_code)}</td>
@@ -2130,15 +2130,15 @@ function renderArchive() {
             <td class="px-4 py-3 text-xs text-red-500 font-bold">${deletedDate}</td>
             <td class="px-4 py-3">
                 <div class="flex gap-2 justify-end">
-                    <button onclick="openSnapshotsModal(${g.id},'${safeStr(g.name)}')"
+                    <button onclick="openSnapshotsModal(${g.id},'${safeStr(fmtGroupName(g))}')"
                         class="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1">
                         <i class="fa-solid fa-clock-rotate-left text-[10px]"></i> snapshots
                     </button>
-                    <button onclick="restoreArchivedGroup(${g.id},'${safeStr(g.name)}')"
+                    <button onclick="restoreArchivedGroup(${g.id},'${safeStr(fmtGroupName(g))}')"
                         class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1">
                         <i class="fa-solid fa-rotate-left text-[10px]"></i> שחזר
                     </button>
-                    <button onclick="permanentDeleteGroup(${g.id},'${safeStr(g.name)}')"
+                    <button onclick="permanentDeleteGroup(${g.id},'${safeStr(fmtGroupName(g))}')"
                         class="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1">
                         <i class="fa-solid fa-skull text-[10px]"></i> מחק לצמיתות
                     </button>
@@ -2390,7 +2390,7 @@ function openSAEditUserModal(id) {
     if (!u) return;
     const group = saAllGroups.find(g => g.id === u.group_id);
     getEl('sa-edit-user-id').value = id;
-    getEl('sa-edit-user-name').value = u.nickname || '';
+    getEl('sa-edit-user-name').value = fmtUserName(u) || u.nickname || '';
     getEl('sa-edit-user-phone').value = u.phone || '';
     getEl('sa-edit-user-phone').className = `w-full border ${u.phone ? 'border-slate-200' : 'border-red-200 bg-red-50'} rounded-xl px-3 py-2.5 text-sm focus:border-indigo-400 focus:outline-none`;
     getEl('sa-edit-user-id-number').value = u.id_number || '';
@@ -2402,7 +2402,7 @@ function openSAEditUserModal(id) {
     const statusEl = getEl('sa-edit-user-status');
     if (statusEl) { Array.from(statusEl.options).forEach(o => o.selected = o.value === u.status); }
     const infoEl = getEl('sa-edit-user-info');
-    if (infoEl) infoEl.innerHTML = `<div><strong>סביבה:</strong> ${safeStr(group?.name || '—')} (${group?.type === 'BUSINESS' ? 'עסק' : 'משפחה'})</div><div><strong>ID:</strong> ${u.id} | <strong>סטטוס:</strong> ${u.status || 'active'}</div>`;
+    if (infoEl) infoEl.innerHTML = `<div><strong>סביבה:</strong> ${safeStr(group ? fmtGroupName(group) : '—')} (${group?.type === 'BUSINESS' ? 'עסק' : 'משפחה'})</div><div><strong>ID:</strong> ${u.id} | <strong>סטטוס:</strong> ${u.status || 'active'}</div>`;
     getEl('sa-edit-user-modal').classList.remove('hidden');
 }
 
@@ -2899,7 +2899,7 @@ function renderSACommFamilies(query = '') {
     if (query) { const q = query.toLowerCase(); filtered = currentCommFamiliesCache.filter(f => (f.name && f.name.toLowerCase().includes(q)) || (f.group_code && f.group_code.toLowerCase().includes(q))); }
     if (filtered.length === 0) { famList.innerHTML = `<p class="text-xs text-slate-400 p-2 bg-slate-50 border border-dashed rounded-lg text-center mt-2">${query ? 'לא נמצאו משפחות' : 'אין משפחות'}</p>`; return; }
     famList.innerHTML = filtered.map(f => {
-        const usersHtml = f.users && f.users.length > 0 ? f.users.map(u => `<div class="text-[10px] text-slate-500 pl-2 pr-1 py-1.5 border-t border-slate-100 flex justify-between bg-slate-50/50"><span><i class="fa-solid ${u.role === 'ADMIN' ? 'fa-user-tie text-blue-400' : 'fa-user text-slate-400'} ml-1"></i> ${safeStr(u.nickname)}</span><span class="bg-white px-1.5 rounded shadow-sm">${u.role === 'ADMIN' ? 'מנהל/הורה' : 'חבר/ילד'}</span></div>`).join('') : '<div class="text-[10px] text-slate-400 pl-2 py-1.5 border-t border-slate-100 bg-slate-50/50">אין משתמשים.</div>';
+        const usersHtml = f.users && f.users.length > 0 ? f.users.map(u => `<div class="text-[10px] text-slate-500 pl-2 pr-1 py-1.5 border-t border-slate-100 flex justify-between bg-slate-50/50"><span><i class="fa-solid ${u.role === 'ADMIN' ? 'fa-user-tie text-blue-400' : 'fa-user text-slate-400'} ml-1"></i> ${safeStr(fmtUserName(u) || u.nickname)}</span><span class="bg-white px-1.5 rounded shadow-sm">${u.role === 'ADMIN' ? 'מנהל/הורה' : 'חבר/ילד'}</span></div>`).join('') : '<div class="text-[10px] text-slate-400 pl-2 py-1.5 border-t border-slate-100 bg-slate-50/50">אין משתמשים.</div>';
         const commId = getEl('sa-edit-comm-id') ? getEl('sa-edit-comm-id').value : '';
         const isManager = f.is_community_manager === true;
         const managerBtn = isManager
@@ -2917,7 +2917,7 @@ function renderSAUsersAppoint(query = '') {
     const el = getEl('sa-users-appoint-list'); if (!el) return;
     const commId = getEl('sa-edit-comm-id') ? getEl('sa-edit-comm-id').value : '';
     _saUsersAppointCache = currentCommFamiliesCache.flatMap(f =>
-        (f.users || []).map(u => ({ ...u, family_name: f.name, group_id: f.id, is_manager: f.is_community_manager }))
+        (f.users || []).map(u => ({ ...u, family_name: fmtGroupName(f), group_id: f.id, is_manager: f.is_community_manager }))
     );
     let filtered = _saUsersAppointCache;
     if (query) { const q = query.toLowerCase(); filtered = filtered.filter(u => (u.nickname||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q) || (u.family_name||'').toLowerCase().includes(q)); }
@@ -2926,7 +2926,7 @@ function renderSAUsersAppoint(query = '') {
         <div class="flex justify-between items-center bg-white rounded-lg px-3 py-2 border border-purple-100 text-xs">
             <button onclick="setSACommunityManager(${commId},${u.group_id},${!u.is_manager})" class="text-[10px] font-bold px-2 py-0.5 rounded-lg transition ${u.is_manager ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-purple-100 text-purple-700 hover:bg-purple-200'}">${u.is_manager ? 'הסר מנהל' : 'מנה כמנהל'}</button>
             <div class="text-right">
-                <span class="font-bold text-slate-700">${u.nickname || u.email || '—'}</span>
+                <span class="font-bold text-slate-700">${fmtUserName(u) || u.nickname || u.email || '—'}</span>
                 <span class="text-[10px] text-slate-400 mr-1">(${u.family_name || ''})</span>
                 ${u.is_manager ? '<span class="text-[10px] text-purple-600 font-bold mr-1">⭐ מנהל</span>' : ''}
             </div>
@@ -4566,9 +4566,9 @@ window.searchNewTicketGroup = function(query) {
     ).slice(0, 8);
     if (!matches.length) { resultsEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">לא נמצאו תוצאות</p>'; resultsEl.classList.remove('hidden'); return; }
     resultsEl.innerHTML = matches.map(g =>
-        `<div onclick="selectNewTicketGroup(${g.id}, '${safeStr(g.name).replace(/'/g,"\\'")}', '${(g.admin_email||'').replace(/'/g,"\\'")}', '${(g.group_code||'').replace(/'/g,"\\'")}'); return false;"
+        `<div onclick="selectNewTicketGroup(${g.id}, '${safeStr(fmtGroupName(g)).replace(/'/g,"\\'")}', '${(g.admin_email||'').replace(/'/g,"\\'")}', '${(g.group_code||'').replace(/'/g,"\\'")}'); return false;"
               class="px-3 py-2 text-xs cursor-pointer hover:bg-indigo-50 border-b border-slate-100 last:border-0">
-            <span class="font-bold text-indigo-600">${safeStr(g.name)}</span>
+            <span class="font-bold text-indigo-600">${safeStr(fmtGroupName(g))}</span>
             <span class="text-slate-400 mr-1 text-[10px]">קוד: ${g.group_code || '—'} | ${g.admin_email || ''}</span>
         </div>`
     ).join('');

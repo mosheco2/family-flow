@@ -1545,8 +1545,8 @@ async function loadDashboard() {
     // -----------------------------------------------------------
 
     const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">${currentGroup.group_code}</span>` : '';
-    const _groupDisplayName = currentGroup.family_nickname || currentGroup.name;
-    getEl('dash-group-name').innerHTML = `${safeStr(_groupDisplayName)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.first_name || currentUser.nickname;
+    const _groupDisplayName = fmtGroupName(currentGroup);
+    getEl('dash-group-name').innerHTML = `${safeStr(_groupDisplayName)} ${codeBadge}`; getEl('dash-nickname').innerText = fmtUserName(currentUser) || currentUser.nickname;
 
     const isAdmin = currentUser.role === 'ADMIN';
     if(isAdmin) { 
@@ -1965,7 +1965,7 @@ function openTaskModal(isSelf = false) {
         getEl('task-modal-title').innerText = 'יצירת משימה'; toggles.classList.remove('hidden'); assigneeContainer.classList.remove('hidden'); rewardInput.placeholder = 'תגמול (₪)';
         if(membersCache) {
             assigneeSelect.innerHTML = '<option value="" disabled selected>בחרו ילד/ה...</option>'; let hasChildren = false;
-            membersCache.forEach(m => { if (m.role !== 'ADMIN') { assigneeSelect.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; hasChildren = true; } });
+            membersCache.forEach(m => { if (m.role !== 'ADMIN') { assigneeSelect.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`; hasChildren = true; } });
             if (!hasChildren) assigneeSelect.innerHTML = '<option value="" disabled selected>אין ילדים רשומים</option>';
         }
     } 
@@ -2650,7 +2650,7 @@ async function deleteTransaction() {
 function updateAssignDetails() { const select = getEl('assign-bundle-select'); const bundleId = select.value; const bundle = allBundles.find(b => b.id == bundleId); if(bundle) { getEl('assign-reward').value = bundle.reward; } }
 function openAssignModal() {
     const cSelect = getEl('assign-child-select'); cSelect.innerHTML = '<option value="" disabled selected>בחר ילד...</option>';
-    if(membersCache) { membersCache.forEach(m => { if(m.role !== 'ADMIN') cSelect.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; }); }
+    if(membersCache) { membersCache.forEach(m => { if(m.role !== 'ADMIN') cSelect.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`; }); }
     const bSelect = getEl('assign-bundle-select'); bSelect.innerHTML = '<option value="" disabled selected>בחר אתגר...</option>';
     if (allBundles && allBundles.length > 0) { allBundles.forEach(b => { bSelect.innerHTML += `<option value="${b.id}">[${b.type === 'math' ? '🔢' : (b.type === 'reading' ? '📖' : '📈')}] ${safeStr(b.title)} (${b.age_group})</option>`; }); } else { bSelect.innerHTML = '<option disabled>אין מבחנים זמינים</option>'; }
     getEl('assign-reward').value = ''; getEl('assign-days').value = ''; getEl('assign-quiz-modal').classList.remove('hidden');
@@ -4150,9 +4150,9 @@ async function fetchMembers() {
                 const fF = getEl('feed-user-filter');
                 const gS = getEl('goal-target-user');
                 const cfF = getEl('cashflow-user-filter');
-                if (bF) { const cur = bF.value; bF.innerHTML = '<option value="all">כל המשפחה</option>'; membersCache.forEach(m => bF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if (cur) bF.value = cur; }
-                if (fF) { const cur = fF.value; fF.innerHTML = '<option value="all">כל בני המשפחה</option>'; membersCache.forEach(m => fF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if (cur) fF.value = cur; }
-                if (cfF) { const cur = cfF.value; cfF.innerHTML = '<option value="all">כל בני המשפחה</option>'; membersCache.forEach(m => cfF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if (cur) cfF.value = cur; }
+                if (bF) { const cur = bF.value; bF.innerHTML = '<option value="all">כל המשפחה</option>'; membersCache.forEach(m => bF.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`); if (cur) bF.value = cur; }
+                if (fF) { const cur = fF.value; fF.innerHTML = '<option value="all">כל בני המשפחה</option>'; membersCache.forEach(m => fF.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`); if (cur) fF.value = cur; }
+                if (cfF) { const cur = cfF.value; cfF.innerHTML = '<option value="all">כל בני המשפחה</option>'; membersCache.forEach(m => cfF.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`); if (cur) cfF.value = cur; }
                 if (gS) { const cur = gS.value; gS.innerHTML = '<option value="">עבור מי ביעד?</option>'; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { gS.innerHTML += `<option value="${m.id}">עבור ${safeStr(m.nickname)}</option>`; }); if (cur) gS.value = cur; }
             } catch (err) {}
         }
@@ -9460,9 +9460,9 @@ window.sendFamilaiChatMessage = async function() {
     try {
         const contextData = {
             family_name: currentGroup.name,
-            user_name: currentUser.nickname,
+            user_name: fmtUserName(currentUser) || currentUser.nickname,
             user_role: currentUser.role,
-            members: membersCache.map(m => ({name: m.nickname, role: m.role, balance: m.balance})),
+            members: membersCache.map(m => ({name: fmtUserName(m) || m.nickname, role: m.role, balance: m.balance})),
             pantry: pantryCache.map(p => ({item: p.item_name, qty: p.quantity, unit: p.unit, updated: p.updated_at})),
             shopping_list: shoppingListCache.map(s => ({item: s.item_name, qty: s.quantity, status: s.status})),
             tasks: allTasks.filter(t => t.status !== 'approved').map(t => ({title: t.title, assigned_to: t.assignee_name, reward: t.reward, status: t.status})),
@@ -11676,7 +11676,7 @@ async function renderMemberDashboard() {
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
             <button onclick="window._memberLogout()" style="background:#f1f5f9;border:none;border-radius:12px;padding:8px 14px;font-size:12px;font-weight:700;color:#64748b;cursor:pointer;">יציאה</button>
             <div style="text-align:right;">
-                <div style="font-size:18px;font-weight:900;color:#1e293b;">שלום, ${safeStr(currentUser.nickname)} 👋</div>
+                <div style="font-size:18px;font-weight:900;color:#1e293b;">שלום, ${safeStr(fmtUserName(currentUser) || currentUser.nickname)} 👋</div>
                 <div style="font-size:11px;color:#94a3b8;">החשבון האישי שלך ב-ONEFLOW</div>
             </div>
         </div>
