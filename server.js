@@ -22895,7 +22895,7 @@ app.post('/api/community/posts', async (req, res) => {
     if(!content?.trim()) return res.status(400).json({ error: 'תוכן ריק' });
 
     const member = await pool.query(
-      `SELECT id FROM family_communities WHERE family_id=$1 AND community_id=$2 AND status='approved'`,
+      `SELECT group_id FROM family_communities WHERE group_id=$1 AND community_id=$2`,
       [familyId, communityId]
     );
     if(!member.rows[0]) return res.status(403).json({ error: 'לא חבר בקהילה' });
