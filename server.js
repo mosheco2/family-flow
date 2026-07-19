@@ -1830,6 +1830,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           created_at TIMESTAMP DEFAULT NOW()
         )
       `); } catch(e) {}
+      try { await client.query(`ALTER TABLE quest_library ADD CONSTRAINT quest_library_title_vis_uniq UNIQUE (title, visibility)`); } catch(e) {}
 
       try { await client.query(`
         CREATE TABLE IF NOT EXISTS quest_library_questions (
@@ -2072,7 +2073,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
             INSERT INTO quest_library
               (title,subject,description,age_min,age_max,difficulty,flw_reward,pass_score,visibility,tags,is_featured)
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'builtin',$9,true)
-            ON CONFLICT DO NOTHING RETURNING id
+            ON CONFLICT (title, visibility) DO NOTHING RETURNING id
           `,[q.title,q.subject,q.description,q.age_min,q.age_max,q.difficulty,q.flw_reward,q.pass_score,q.tags]);
           if(!res.rows[0]) continue;
           const qid = res.rows[0].id;
