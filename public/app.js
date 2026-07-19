@@ -13956,6 +13956,17 @@ async function loadChildFlwWallet() {
 
         window._kidFlwBalance = balance;
         window._kidFlwValueIls = valueIls;
+
+        // עדכון chip כותרת עבור ילד — מציג יתרה אישית בלבד
+        const chip = document.getElementById('header-flw-chip');
+        const numEl = document.getElementById('header-flw-num');
+        if (chip) {
+            if (numEl) numEl.textContent = Math.floor(balance);
+            chip.onclick = openKidRedeemModal;
+            chip.title = 'ארנק מטבעות אישי';
+            chip.classList.remove('hidden');
+            chip.classList.add('flex');
+        }
     } catch(e) {}
 }
 
@@ -15156,3 +15167,76 @@ async function useLibQuest(questId) {
   }
 }
 
+
+// ─── PWA INSTALL PROMPT ───────────────────────────────────────
+(function initPwaInstall() {
+    let deferredPrompt = null;
+    const DISMISS_KEY = 'ofl_pwa_dismissed';
+
+    function isIos() {
+        return /iphone|ipad|ipod/i.test(navigator.userAgent);
+    }
+    function isInStandaloneMode() {
+        return window.navigator.standalone === true ||
+               window.matchMedia('(display-mode: standalone)').matches;
+    }
+    function showPwaBanner(mode) {
+        if (localStorage.getItem(DISMISS_KEY)) return;
+        if (document.getElementById('pwa-install-banner')) return;
+
+        let bodyHtml = '';
+        if (mode === 'android') {
+            bodyHtml = `<p class="text-sm text-slate-600 mb-4">הוסף את <strong>Family Flow</strong> למסך הבית כדי לגשת במהירות ולהשתמש גם ללא חיבור.</p>
+                <button onclick="window._pwaDoInstall()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-2xl text-sm transition mb-2">📲 התקן עכשיו</button>`;
+        } else {
+            bodyHtml = `<p class="text-sm text-slate-600 mb-3">כדי להוסיף את האפליקציה למסך הבית ב-iPhone / iPad:</p>
+                <ol class="text-sm text-slate-700 space-y-2 text-right mb-4">
+                    <li>1. לחץ על כפתור <strong>שתף</strong> <span class="text-blue-600">⎙</span> בסרגל Safari</li>
+                    <li>2. גלול ובחר <strong>"הוסף למסך הבית"</strong></li>
+                    <li>3. לחץ <strong>הוסף</strong> בפינה הימנית העליונה</li>
+                </ol>`;
+        }
+
+        const banner = document.createElement('div');
+        banner.id = 'pwa-install-banner';
+        banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99999;padding:16px;background:#fff;border-top:2px solid #e2e8f0;border-radius:20px 20px 0 0;box-shadow:0 -8px 32px rgba(0,0,0,0.18);max-width:480px;margin:0 auto;';
+        banner.innerHTML = `
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <img src="/logo.png" alt="" style="height:36px;border-radius:8px;" onerror="this.style.display='none'">
+                    <span class="font-black text-slate-800 text-base">Family Flow</span>
+                </div>
+                <button onclick="window._pwaDismiss()" style="font-size:20px;line-height:1;color:#94a3b8;background:none;border:none;cursor:pointer;">✕</button>
+            </div>
+            ${bodyHtml}
+            <button onclick="window._pwaDismiss()" class="w-full text-xs text-slate-400 py-1">לא עכשיו</button>
+        `;
+        document.body.appendChild(banner);
+    }
+
+    window._pwaDoInstall = async function() {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        if (outcome === 'accepted') localStorage.setItem(DISMISS_KEY, '1');
+        const b = document.getElementById('pwa-install-banner');
+        if (b) b.remove();
+    };
+
+    window._pwaDismiss = function() {
+        localStorage.setItem(DISMISS_KEY, '1');
+        const b = document.getElementById('pwa-install-banner');
+        if (b) b.remove();
+    };
+
+    window.addEventListener('beforeinstallprompt', e => {
+        e.preventDefault();
+        deferredPrompt = e;
+        setTimeout(() => showPwaBanner('android'), 3000);
+    });
+
+    if (isIos() && !isInStandaloneMode()) {
+        setTimeout(() => showPwaBanner('ios'), 3000);
+    }
+})();
