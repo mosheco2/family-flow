@@ -23169,7 +23169,7 @@ app.post('/api/sa/community/ai-analyze', verifySA, async (req, res) => {
 
 // ===== SA FEED API =====
 
-app.get('/api/sa/feed/stats', requireSAAuth, async (req, res) => {
+app.get('/api/sa/feed/stats', verifySA, async (req, res) => {
     const client = await pool.connect();
     try {
         const days = parseInt(req.query.days) || 7;
@@ -23186,7 +23186,7 @@ app.get('/api/sa/feed/stats', requireSAAuth, async (req, res) => {
     } finally { client.release(); }
 });
 
-app.get('/api/sa/feed/posts', requireSAAuth, async (req, res) => {
+app.get('/api/sa/feed/posts', verifySA, async (req, res) => {
     const client = await pool.connect();
     try {
         const hidden = req.query.hidden === '1';
@@ -23202,7 +23202,7 @@ app.get('/api/sa/feed/posts', requireSAAuth, async (req, res) => {
     } finally { client.release(); }
 });
 
-app.get('/api/sa/feed/reported', requireSAAuth, async (req, res) => {
+app.get('/api/sa/feed/reported', verifySA, async (req, res) => {
     const client = await pool.connect();
     try {
         const r = await client.query(`
@@ -23216,7 +23216,7 @@ app.get('/api/sa/feed/reported', requireSAAuth, async (req, res) => {
     } finally { client.release(); }
 });
 
-app.post('/api/sa/feed/posts/:postId/toggle', requireSAAuth, async (req, res) => {
+app.post('/api/sa/feed/posts/:postId/toggle', verifySA, async (req, res) => {
     const client = await pool.connect();
     try {
         const { hidden } = req.body;
@@ -23225,7 +23225,7 @@ app.post('/api/sa/feed/posts/:postId/toggle', requireSAAuth, async (req, res) =>
     } finally { client.release(); }
 });
 
-app.get('/api/sa/feed/groups', requireSAAuth, async (req, res) => {
+app.get('/api/sa/feed/groups', verifySA, async (req, res) => {
     const client = await pool.connect();
     try {
         const r = await client.query(`
@@ -23238,7 +23238,7 @@ app.get('/api/sa/feed/groups', requireSAAuth, async (req, res) => {
     } finally { client.release(); }
 });
 
-app.post('/api/sa/feed/groups', requireSAAuth, async (req, res) => {
+app.post('/api/sa/feed/groups', verifySA, async (req, res) => {
     const client = await pool.connect();
     try {
         const { name, community_id, icon_emoji } = req.body;
