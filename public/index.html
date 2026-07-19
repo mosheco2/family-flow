@@ -689,13 +689,17 @@
                           </div>
                           <!-- שורה 2: כפתורי פעולה -->
                           <div class="grid grid-cols-2 gap-3">
-                            <button ontouchend="event.preventDefault();switchTab('shop')" onclick="switchTab('shop')" style="touch-action:manipulation" class="bg-gradient-to-br from-violet-500 to-indigo-600 text-white rounded-2xl py-3 px-2 text-center transition active:scale-95 shadow-md shadow-violet-200">
-                              <div class="text-2xl mb-1">🛒</div>
-                              <div class="text-xs font-bold">בקשת קניה</div>
+                            <button ontouchend="event.preventDefault();switchTab('shop')" onclick="switchTab('shop')" style="touch-action:manipulation;background:linear-gradient(135deg,#f97316,#ef4444);box-shadow:0 6px 20px rgba(249,115,22,0.45);" class="rounded-3xl py-4 px-3 text-center transition active:scale-95 relative overflow-hidden text-white">
+                              <div style="position:absolute;inset:0;background:radial-gradient(circle at 20% 20%,rgba(255,255,255,0.18),transparent 60%);pointer-events:none;"></div>
+                              <div class="text-3xl mb-1.5">🛒</div>
+                              <div class="text-xs font-black tracking-wide">בקשת קניה</div>
+                              <div class="text-[10px] opacity-75 mt-0.5">רוצה משהו? בקש!</div>
                             </button>
-                            <button ontouchend="event.preventDefault();switchTab('academy')" onclick="switchTab('academy')" style="touch-action:manipulation" class="bg-gradient-to-br from-violet-500 to-indigo-600 text-white rounded-2xl py-3 px-2 text-center transition active:scale-95 shadow-md shadow-violet-200">
-                              <div class="text-2xl mb-1">🎓</div>
-                              <div class="text-xs font-bold">אתגר אקדמיה</div>
+                            <button ontouchend="event.preventDefault();switchTab('academy')" onclick="switchTab('academy')" style="touch-action:manipulation;background:linear-gradient(135deg,#10b981,#0ea5e9);box-shadow:0 6px 20px rgba(16,185,129,0.45);" class="rounded-3xl py-4 px-3 text-center transition active:scale-95 relative overflow-hidden text-white">
+                              <div style="position:absolute;inset:0;background:radial-gradient(circle at 20% 20%,rgba(255,255,255,0.18),transparent 60%);pointer-events:none;"></div>
+                              <div class="text-3xl mb-1.5">🎓</div>
+                              <div class="text-xs font-black tracking-wide">אתגר אקדמיה</div>
+                              <div class="text-[10px] opacity-75 mt-0.5">למד והרוויח!</div>
                             </button>
                           </div>
                         </div>
