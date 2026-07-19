@@ -22660,7 +22660,7 @@ app.get('/api/family/weekly-report/:groupId', async (req, res) => {
         COALESCE(w.lifetime_flw,0) as lifetime_flw
       FROM users u
       LEFT JOIN flw_kid_wallets w ON w.child_user_id=u.id
-      WHERE u.group_id=$1 AND u.role != 'ADMIN'
+      WHERE u.group_id=$1 AND u.role != 'ADMIN' AND u.status='active'
     `, [groupId]);
 
     const report = [];
