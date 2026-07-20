@@ -1,5 +1,13 @@
 // Oneflow life BIZ - Business Logic Application
 
+// פונקציות עזר בסיסיות (מוגדרות גם ב-common.js אך business.html לא טוען אותה)
+function fmtUserName(u) {
+    if (!u) return '';
+    const full = [u.first_name, u.last_name].filter(Boolean).join(' ');
+    return full || u.nickname || '';
+}
+
+
 // Oneflow Splash Tour — see showOnboardingTour()
 
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
