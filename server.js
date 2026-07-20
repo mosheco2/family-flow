@@ -116,9 +116,9 @@ async function sendSMSviaTwilio(to, body) {
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 20,
+  max: 5,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 5000,
 });
 
 // ── BUILTIN QUESTS DATA (shared between startup seed and manual seed endpoint) ──
@@ -3676,8 +3676,14 @@ async function runDailySnapshots() {
         const groups = await pool.query(`SELECT id FROM family_groups WHERE is_deleted=false OR is_deleted IS NULL`);
         console.log(`[SNAPSHOT] Starting daily snapshots for ${groups.rows.length} groups`);
         for (const g of groups.rows) {
+            // דלג אם כבר יש snapshot של היום
+            const todayCheck = await pool.query(
+                `SELECT id FROM group_snapshots WHERE group_id=$1 AND snapshot_type='auto' AND created_at > NOW() - INTERVAL '20 hours' LIMIT 1`,
+                [g.id]
+            ).catch(() => ({ rows: [] }));
+            if (todayCheck.rows.length > 0) continue;
             await takeGroupSnapshot(g.id, 'auto');
-            await new Promise(r => setTimeout(r, 2000)); // throttle — reduce memory pressure
+            await new Promise(r => setTimeout(r, 3000)); // throttle — reduce memory pressure
         }
         // מחיקת snapshots שפגו תוקף (גוארד אם expires_at עדיין לא קיים)
         await pool.query(`DELETE FROM group_snapshots WHERE expires_at IS NOT NULL AND expires_at < NOW()`).catch(()=>{});
