@@ -3209,6 +3209,19 @@ window.submitPermissions = async function() {
                 });
                 const m = membersCache.find(x => x.id == uid);
                 if (m) m.employee_role_type = roleTypeRadio.value || null;
+                // אם עדכנו את המשתמש הנוכחי — מרעננים את currentUser ואת הממשק מיד
+                if (currentUser && String(currentUser.id) === String(uid)) {
+                    currentUser.employee_role_type = roleTypeRadio.value || null;
+                }
+            }
+            // אם עדכנו תפקיד/הרשאות של המשתמש הנוכחי — מרעננים את ה-role גם
+            if (currentUser && String(currentUser.id) === String(uid)) {
+                currentUser.role = role;
+                // טוענים מחדש את הממשק עם ההגדרות החדשות
+                setTimeout(() => {
+                    try { enforcePermissions(); } catch(e) {}
+                    switchTab('feed');
+                }, 200);
             }
             showToast('success', 'הרשאות וסיווג עודכנו בהצלחה!');
             getEl('permissions-modal').classList.add('hidden');
