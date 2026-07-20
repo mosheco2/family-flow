@@ -51708,19 +51708,21 @@ async function loadBizFeedPosts() {
 async function populateBizCommunitySelect() {
     const sel = document.getElementById('biz-post-community');
     if (!sel || !currentGroup) return;
-    let comms = (window.myCommunityBusinessesCache || []).filter(c => c.status === 'approved');
-    if (!comms.length) {
-        try {
-            const r = await fetch(`${API}/biz/communities/my/${currentGroup.id}`);
-            const d = await r.json();
-            if (d.success && d.communities) {
-                window.myCommunityBusinessesCache = d.communities;
-                comms = d.communities.filter(c => c.status === 'approved');
-            }
-        } catch(e) {}
-    }
+    // טוען ישירות מה-API כדי להבטיח נתונים עדכניים
+    try {
+        const r = await fetch(`${API}/biz/communities/my/${currentGroup.id}`);
+        const d = await r.json();
+        if (d.success && d.communities && d.communities.length) {
+            myCommunityBusinessesCache = d.communities;
+            sel.innerHTML = '<option value="">כל הקהילות המחוברות</option>' +
+                d.communities.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+            return;
+        }
+    } catch(e) {}
+    // fallback: מהcache
+    const cached = (myCommunityBusinessesCache || []);
     sel.innerHTML = '<option value="">כל הקהילות המחוברות</option>' +
-        comms.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+        cached.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
 }
 
 window.openBizFeedPostModal = function() {
