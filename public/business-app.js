@@ -30529,7 +30529,7 @@ setInterval(() => {
 
 window.currentComplexStepsUI = [];
 
-window.openComplexBuilderModal = function(id = null) {
+window.openComplexBuilderModal = async function(id = null) {
     window.currentComplexStepsUI = [];
 
     let modal = document.getElementById('complex-builder-modal');
@@ -30641,8 +30641,14 @@ window.openComplexBuilderModal = function(id = null) {
 
     modal = document.getElementById('complex-builder-modal');
 
-    if (id && storeCatalogCache) {
-        const p = storeCatalogCache.find(item => item.id === id); 
+    if (id) {
+        if (!storeCatalogCache || !storeCatalogCache.length) {
+            try {
+                const res = await fetch(`${API}/store/catalog/${currentGroup.id}`);
+                storeCatalogCache = await res.json();
+            } catch(e) {}
+        }
+        const p = storeCatalogCache ? storeCatalogCache.find(item => item.id === id) : null;
         if(p) {
             document.getElementById('cx-id').value = p.id; 
             document.getElementById('cx-name').value = p.name || ''; 
@@ -30712,7 +30718,13 @@ window.clearComplexImage = function() {
     if (inp) inp.value = '';
 };
 
-window.openCatalogPickerForStep = function(stepIdx) {
+window.openCatalogPickerForStep = async function(stepIdx) {
+    if (!storeCatalogCache || !storeCatalogCache.length) {
+        try {
+            const res = await fetch(`${API}/store/catalog/${currentGroup.id}`);
+            storeCatalogCache = await res.json();
+        } catch(e) { showToast('error', 'שגיאה בטעינת קטלוג'); return; }
+    }
     const catalog = (storeCatalogCache || []).filter(p => p.product_type !== 'complex_builder' && p.is_available !== false);
     if (!catalog.length) { showToast('info', 'הקטלוג ריק'); return; }
     window._catalogPickerItems = catalog;
