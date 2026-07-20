@@ -16120,19 +16120,42 @@ let interestGroupsCache = {}; // communityId → groups[]
 let selectedGroupEmoji = '💬';
 let createGroupCommunityId = null;
 
+let interestPanelCommId = null;
+
 function openInterestGroupsPanel() {
   const panel = document.getElementById('interest-groups-panel');
   if (!panel) return;
-  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-  if (panel.style.display === 'block') {
-    const commId = feedState.communityId;
-    if (commId) loadInterestGroupsForComm(commId);
-    else {
-      document.getElementById('interest-groups-list').innerHTML =
-        '<p style="text-align:center;color:#9CA3AF;font-size:0.8rem;padding:0.5rem">בחר קהילה ספציפית בסינון למעלה לצפייה בתחומי עניין</p>';
-      document.getElementById('btn-create-group').style.display = 'none';
-    }
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) renderInterestCommSelector();
+}
+
+function renderInterestCommSelector() {
+  const selector = document.getElementById('interest-comm-selector');
+  if (!selector) return;
+  const comms = myConnectedCommunitiesCache || currentCommunities || [];
+  if (!comms.length) {
+    selector.innerHTML = '<p style="color:#9CA3AF;font-size:0.78rem">אין קהילות</p>';
+    return;
   }
+  // ברירת מחדל: קהילה שסוננה בפיד, או הראשונה
+  if (!interestPanelCommId) {
+    interestPanelCommId = feedState.communityId || comms[0]?.id;
+  }
+  selector.innerHTML = comms.map(c => {
+    const active = c.id == interestPanelCommId;
+    return `<button onclick="selectInterestComm(${c.id})"
+      style="white-space:nowrap;border:none;border-radius:50px;padding:0.3rem 0.85rem;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;
+             background:${active ? '#1D4ED8' : '#E5E7EB'};color:${active ? 'white' : '#374151'}">
+      ${escHtml(c.name)}
+    </button>`;
+  }).join('');
+  loadInterestGroupsForComm(interestPanelCommId);
+}
+
+function selectInterestComm(communityId) {
+  interestPanelCommId = communityId;
+  renderInterestCommSelector();
 }
 
 function closeInterestGroupsPanel() {
@@ -16149,7 +16172,7 @@ async function loadInterestGroupsForComm(communityId) {
     const res = await fetch(`${API}/community/${communityId}/groups?familyId=${currentGroup?.id}`);
     const data = await res.json();
     interestGroupsCache[communityId] = data.groups || [];
-    if (createBtn) createBtn.style.display = 'inline-block';
+    if (createBtn) { createBtn.style.display = 'inline-block'; interestPanelCommId = communityId; }
     if (!data.groups?.length) {
       listEl.innerHTML = '<p style="text-align:center;color:#9CA3AF;font-size:0.8rem;padding:0.5rem">אין עדיין תחומי עניין בקהילה זו. היה הראשון לפתוח! 🌟</p>';
       return;
