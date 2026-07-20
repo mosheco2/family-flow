@@ -15653,9 +15653,14 @@ async function toggleFeedLike(postId, btn) {
     const data = await res.json();
     if (data.success) {
       btn.dataset.liked = data.liked;
-      const count = parseInt(btn.textContent.match(/\d+/)?.[0] || 0);
-      btn.innerHTML = `${data.liked ? '❤️' : '🤍'} ${data.liked ? count + 1 : Math.max(0, count - 1)}`;
+      btn.innerHTML = data.liked ? '❤️' : '🤍';
       btn.style.color = data.liked ? '#EF4444' : '#64748B';
+      // עדכון כפתור הספירה הנפרד
+      const countBtn = btn.nextElementSibling;
+      if (countBtn) {
+        const count = parseInt(countBtn.textContent || 0);
+        countBtn.textContent = data.liked ? count + 1 : Math.max(0, count - 1);
+      }
     }
   } catch(e) {}
 }
