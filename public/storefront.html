@@ -583,6 +583,7 @@
     <script>
         // JS Globals
         const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+        function _sfImgErr(el) { el.outerHTML = '<div class="w-full h-full bg-slate-100 text-slate-300 rounded-xl flex items-center justify-center shadow-sm"><i class="fa-solid fa-image text-3xl"></i></div>'; }
         let storeData = null;
         let cart = {}; 
         let currentCategory = 'all';
@@ -1681,7 +1682,8 @@ window.renderCatalog = function() {
                 }
                 
                 const imgClasses = catalogViewMode === 'grid' ? 'w-full h-32 sm:h-40 mb-3 relative shrink-0' : 'w-24 h-24 relative shrink-0';
-                const imgInner = item.has_image ? `<img src="${API}/store/item-image/${item.id}" loading="lazy" onerror="this.style.display='none'" class="w-full h-full object-cover rounded-xl shadow-sm">` : `<div class="w-full h-full bg-slate-100 text-slate-300 rounded-xl flex items-center justify-center shadow-sm"><i class="fa-solid fa-image text-3xl"></i></div>`;
+                const imgPlaceholder = `<div class="w-full h-full bg-slate-100 text-slate-300 rounded-xl flex items-center justify-center shadow-sm"><i class="fa-solid fa-image text-3xl"></i></div>`;
+                const imgInner = item.has_image ? `<img src="${API}/store/item-image/${item.id}" onerror="_sfImgErr(this)" class="w-full h-full object-cover rounded-xl shadow-sm">` : imgPlaceholder;
                 const imgHtml = `<div class="${imgClasses}">${badgeHtml}${imgInner}</div>`;
                 
                 let priceHtml = '';
