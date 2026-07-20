@@ -30603,8 +30603,16 @@ window.openComplexBuilderModal = function(id = null) {
                         </div>
                     </div>
                     <div>
-                        <label class="text-xs font-bold text-slate-600 block mb-1">קישור לתמונה (אופציונלי):</label>
-                        <input type="url" id="cx-image-url" class="modern-input py-2.5 text-sm text-slate-700 shadow-sm bg-slate-50 focus:bg-white transition dir-ltr" placeholder="https://...">
+                        <label class="text-xs font-bold text-slate-600 block mb-2">תמונה לתפריט (אופציונלי):</label>
+                        <div class="flex gap-3 items-start">
+                            <div class="flex-1 flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-3 cursor-pointer hover:bg-slate-100 transition" onclick="document.getElementById('cx-image-upload').click()">
+                                <div id="cx-image-placeholder" class="text-center py-1"><i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 mb-1"></i><p class="text-xs font-bold text-slate-500">לחץ להעלאת תמונה</p></div>
+                                <img id="cx-image-preview" class="hidden h-24 w-full object-cover rounded-xl">
+                            </div>
+                            <button type="button" onclick="window.clearComplexImage()" class="text-[10px] font-bold text-red-400 bg-red-50 border border-red-100 rounded-xl px-2 py-2 hover:bg-red-100 transition shrink-0"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                        <input type="file" id="cx-image-upload" accept="image/*" class="hidden" onchange="window.handleComplexImageUpload(event)">
+                        <input type="hidden" id="cx-image-base64">
                     </div>
                     <div>
                         <label class="text-xs font-bold text-slate-600 block mb-1">תיאור קצר (יופיע ללקוח):</label>
@@ -30650,7 +30658,11 @@ window.openComplexBuilderModal = function(id = null) {
                             : parsed.complexType ? [parsed.complexType] : [];
                         types.forEach(t => { const el = document.getElementById(`cx-type-${t}`); if (el) el.checked = true; });
                         if (parsed.priceMode) { const el = document.getElementById('cx-price-mode'); if (el) el.value = parsed.priceMode; }
-                        if (parsed.imageUrl) { const el = document.getElementById('cx-image-url'); if (el) el.value = parsed.imageUrl; }
+                        if (parsed.imageUrl) {
+                            document.getElementById('cx-image-base64').value = parsed.imageUrl;
+                            const prev = document.getElementById('cx-image-preview');
+                            if (prev) { prev.src = parsed.imageUrl; prev.classList.remove('hidden'); document.getElementById('cx-image-placeholder').classList.add('hidden'); }
+                        }
                     }
                 } catch(e) { }
             }
@@ -30677,6 +30689,25 @@ window.removeComplexStep = async function(idx) {
 window.addComplexOption = function(stepIdx) {
     window.currentComplexStepsUI[stepIdx].options.push({name: '', price: 0, note: ''});
     window.renderComplexStepsUI();
+};
+
+window.handleComplexImageUpload = function(event) {
+    const file = event.target.files[0]; if (!file) return;
+    compressImage(file, 800, 600, 0.85, (dataUrl) => {
+        document.getElementById('cx-image-preview').src = dataUrl;
+        document.getElementById('cx-image-preview').classList.remove('hidden');
+        document.getElementById('cx-image-placeholder').classList.add('hidden');
+        document.getElementById('cx-image-base64').value = dataUrl;
+    });
+};
+
+window.clearComplexImage = function() {
+    document.getElementById('cx-image-base64').value = '';
+    document.getElementById('cx-image-preview').src = '';
+    document.getElementById('cx-image-preview').classList.add('hidden');
+    document.getElementById('cx-image-placeholder').classList.remove('hidden');
+    const inp = document.getElementById('cx-image-upload');
+    if (inp) inp.value = '';
 };
 
 window.openCatalogPickerForStep = function(stepIdx) {
@@ -30819,7 +30850,7 @@ window.submitComplexBuilder = async function() {
     const id = document.getElementById('cx-id').value;
     const complexTypes = ['event','catering','project','other'].filter(t => { const el = document.getElementById(`cx-type-${t}`); return el && el.checked; });
     const priceMode = document.getElementById('cx-price-mode')?.value || 'per_guest';
-    const imageUrl = (document.getElementById('cx-image-url')?.value || '').trim();
+    const imageUrl = (document.getElementById('cx-image-base64')?.value || '').trim();
     const name = document.getElementById('cx-name').value;
     const price = document.getElementById('cx-price').value;
     const category = document.getElementById('cx-category').value || 'פרויקטים וקייטרינג';

@@ -1447,7 +1447,7 @@
                                         <input type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="importExcelToCatalog(this)">
                                     </label>
                                         <button onclick="downloadCatalogTemplate()" class="bg-white border border-slate-200 text-slate-600 px-2 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-50 transition" title="הורד תבנית Excel"><i class="fa-solid fa-download"></i></button>
-                                        <button id="catalog-refresh-btn" onclick="window.refreshCatalog()" class="bg-white border border-slate-200 text-slate-600 px-2 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-50 transition" title="רענן קטלוג"><i class="fa-solid fa-rotate-right"></i></button>
+                                        <button id="catalog-refresh-btn" onclick="window.refreshCatalog()" class="bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-50 transition flex items-center gap-1" title="רענן קטלוג"><i class="fa-solid fa-rotate-right"></i> טען קטלוג</button>
                                         <button onclick="window.openProductWizard()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> מוצר חדש</button>
                                     </div>
                                 </div>
@@ -3956,7 +3956,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=208" defer></script>
+    <script src="business-app.js?v=209" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
