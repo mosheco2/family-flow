@@ -2131,6 +2131,18 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await pool.query(`ALTER TABLE community_posts ADD COLUMN IF NOT EXISTS author_user_id INT REFERENCES users(id) ON DELETE SET NULL`); } catch(e) {}
       try { await pool.query(`ALTER TABLE community_post_comments ADD COLUMN IF NOT EXISTS author_user_id INT REFERENCES users(id) ON DELETE SET NULL`); } catch(e) {}
 
+      // שלב 1 — עמודות פוסטים עסקיים
+      try { await pool.query(`
+        ALTER TABLE community_posts
+          ADD COLUMN IF NOT EXISTS business_id INT REFERENCES family_groups(id),
+          ADD COLUMN IF NOT EXISTS biz_post_status VARCHAR(20) DEFAULT NULL,
+          ADD COLUMN IF NOT EXISTS biz_rejection_reason TEXT DEFAULT NULL,
+          ADD COLUMN IF NOT EXISTS biz_promo_url TEXT DEFAULT NULL,
+          ADD COLUMN IF NOT EXISTS biz_valid_until DATE DEFAULT NULL
+      `); } catch(e) { console.error('biz_posts columns:', e.message); }
+      try { await pool.query(`CREATE INDEX IF NOT EXISTS idx_biz_posts_pending ON community_posts(biz_post_status) WHERE biz_post_status='pending'`); } catch(e) {}
+      try { await pool.query(`CREATE INDEX IF NOT EXISTS idx_biz_posts_approved ON community_posts(biz_post_status, community_id) WHERE biz_post_status='approved'`); } catch(e) {}
+
       try { await pool.query(`
         CREATE TABLE IF NOT EXISTS community_post_likes (
           id SERIAL PRIMARY KEY,
@@ -23699,6 +23711,177 @@ app.post('/api/sa/feed/groups', verifySA, async (req, res) => {
 
 // ===== END SA FEED API =====
 
+
+// ===== BIZ COMMUNITY FEED POSTS =====
+
+// שלב 2 — API צד עסק
+
+// יצירת פוסט עסקי בפיד
+app.post('/api/biz/community/feed-posts', async (req, res) => {
+  try {
+    const { businessId, communityId, postType, content, imageUrl, promoUrl, validUntil } = req.body;
+    if (!content?.trim()) return res.status(400).json({ error: 'תוכן ריק' });
+    if (!['deal','update'].includes(postType)) return res.status(400).json({ error: 'סוג פוסט לא תקין' });
+    if (postType === 'update') {
+      const lines = content.trim().split('\n').filter(l => l.trim());
+      if (lines.length > 3) return res.status(400).json({ error: 'עדכון קצר — עד 3 שורות בלבד' });
+    }
+    const member = await pool.query(
+      `SELECT id FROM community_businesses WHERE business_id=$1 AND community_id=$2 AND status='approved'`,
+      [businessId, communityId]);
+    if (!member.rows[0]) return res.status(403).json({ error: 'העסק אינו חבר מאושר בקהילה זו' });
+    const post = await pool.query(`
+      INSERT INTO community_posts
+        (author_family_id, community_id, post_type, content, image_url,
+         business_id, biz_post_status, biz_promo_url, biz_valid_until)
+      VALUES ($1,$2,$3,$4,$5,$6,'pending',$7,$8) RETURNING *
+    `, [businessId, communityId,
+        postType === 'deal' ? 'promo' : 'biz_update',
+        content.trim(), imageUrl||null,
+        businessId, promoUrl||null, validUntil||null]);
+    res.json({ success: true, post: post.rows[0] });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// פוסטים של עסק — כולל סטטוס + engagement
+app.get('/api/biz/community/feed-posts/:bizId', async (req, res) => {
+  try {
+    const posts = await pool.query(`
+      SELECT cp.*,
+        c.name as community_name,
+        cp.likes_count,
+        cp.comments_count,
+        CASE
+          WHEN cp.biz_valid_until IS NOT NULL
+               AND cp.biz_valid_until < CURRENT_DATE
+               AND cp.biz_post_status = 'approved'
+          THEN 'expired'
+          ELSE cp.biz_post_status
+        END as display_status
+      FROM community_posts cp
+      JOIN communities c ON c.id = cp.community_id
+      WHERE cp.business_id = $1 AND cp.biz_post_status IS NOT NULL
+      ORDER BY cp.created_at DESC LIMIT 50
+    `, [req.params.bizId]);
+    res.json({ success: true, posts: posts.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מחיקת פוסט עסקי (רק pending או rejected)
+app.delete('/api/biz/community/feed-posts/:id', async (req, res) => {
+  try {
+    const { businessId } = req.body;
+    const post = await pool.query(
+      `SELECT biz_post_status, business_id FROM community_posts WHERE id=$1`, [req.params.id]);
+    if (!post.rows[0]) return res.status(404).json({ error: 'לא נמצא' });
+    if (post.rows[0].business_id !== parseInt(businessId)) return res.status(403).json({ error: 'אין הרשאה' });
+    if (post.rows[0].biz_post_status === 'approved') return res.status(400).json({ error: 'לא ניתן למחוק פוסט מאושר' });
+    await pool.query('DELETE FROM community_posts WHERE id=$1', [req.params.id]);
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שלב 3 — API צד SA
+
+// ספירת ממתינים לbadge בsidebar
+app.get('/api/sa/community/biz-posts/pending-count', verifySA, async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT COUNT(*) as cnt FROM community_posts WHERE biz_post_status='pending'`);
+    res.json({ success: true, count: parseInt(r.rows[0].cnt) });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// רשימת פוסטים עסקיים לאישור / לפי סטטוס
+app.get('/api/sa/community/biz-posts', verifySA, async (req, res) => {
+  try {
+    const { status='pending', communityId, page=1 } = req.query;
+    const limit = 20;
+    const offset = (parseInt(page)-1) * limit;
+    let where = `WHERE cp.biz_post_status=$1`;
+    const params = [status];
+    let pi = 2;
+    if (communityId) { where += ` AND cp.community_id=$${pi++}`; params.push(communityId); }
+    params.push(limit, offset);
+    const posts = await pool.query(`
+      SELECT cp.*,
+        fg.name as business_name,
+        fg.logo_url as business_logo,
+        c.name as community_name,
+        cp.likes_count,
+        cp.comments_count
+      FROM community_posts cp
+      JOIN family_groups fg ON fg.id = cp.business_id
+      JOIN communities c ON c.id = cp.community_id
+      ${where}
+      ORDER BY cp.created_at ASC
+      LIMIT $${pi} OFFSET $${pi+1}
+    `, params);
+    const pending = await pool.query(`SELECT COUNT(*) as cnt FROM community_posts WHERE biz_post_status='pending'`);
+    res.json({
+      success: true,
+      posts: posts.rows,
+      pendingCount: parseInt(pending.rows[0].cnt),
+      hasMore: posts.rows.length === limit
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// אישור / דחייה של פוסט עסקי
+app.patch('/api/sa/community/biz-posts/:id', verifySA, async (req, res) => {
+  try {
+    const { status, rejectionReason } = req.body;
+    if (!['approved','rejected'].includes(status)) return res.status(400).json({ error: 'סטטוס לא תקין' });
+    if (status === 'rejected' && !rejectionReason) return res.status(400).json({ error: 'חובה לציין סיבת דחייה' });
+    await pool.query(`
+      UPDATE community_posts SET
+        biz_post_status = $1,
+        biz_rejection_reason = $2,
+        is_hidden = CASE WHEN $1='rejected' THEN true ELSE false END,
+        updated_at = NOW()
+      WHERE id = $3
+    `, [status, rejectionReason||null, req.params.id]);
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שלב 4 — קרוסלה בפיד
+app.get('/api/community/feed/biz-promos', async (req, res) => {
+  try {
+    const { communityId, familyId } = req.query;
+    let communityFilter;
+    const params = [];
+    let pi = 1;
+    if (communityId) {
+      communityFilter = `AND cp.community_id=$${pi++}`;
+      params.push(communityId);
+    } else {
+      communityFilter = `AND cp.community_id IN (
+        SELECT community_id FROM family_communities
+        WHERE group_id=$${pi++} AND status='approved'
+      )`;
+      params.push(familyId);
+    }
+    const promos = await pool.query(`
+      SELECT cp.*,
+        fg.name as business_name,
+        fg.logo_url as business_logo,
+        c.name as community_name
+      FROM community_posts cp
+      JOIN family_groups fg ON fg.id = cp.business_id
+      JOIN communities c ON c.id = cp.community_id
+      WHERE cp.biz_post_status = 'approved'
+        AND cp.is_hidden = false
+        AND cp.post_type = 'promo'
+        AND (cp.biz_valid_until IS NULL OR cp.biz_valid_until >= CURRENT_DATE)
+        ${communityFilter}
+      ORDER BY cp.created_at DESC
+      LIMIT 10
+    `, params);
+    res.json({ success: true, promos: promos.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== END BIZ COMMUNITY FEED POSTS =====
 
 // הפעלת השרת
 app.listen(port, () => {
