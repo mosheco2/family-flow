@@ -30665,6 +30665,7 @@ window.addComplexOption = function(stepIdx) {
 window.openCatalogPickerForStep = function(stepIdx) {
     const catalog = (storeCatalogCache || []).filter(p => p.product_type !== 'complex_builder' && p.is_available !== false);
     if (!catalog.length) { showToast('info', 'הקטלוג ריק'); return; }
+    window._catalogPickerItems = catalog;
 
     // קיבוץ לפי קטגוריה
     const byCategory = {};
@@ -30684,8 +30685,9 @@ window.openCatalogPickerForStep = function(stepIdx) {
 
     Object.entries(byCategory).forEach(([cat, items]) => {
         html += `<div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">${escHtml(cat)}</p><div class="flex flex-col gap-1.5">`;
-        items.forEach(p => {
-            html += `<button type="button" onclick="window.addCatalogItemToStep(${stepIdx}, ${JSON.stringify(JSON.stringify({name: p.name, price: p.price || 0}))})"
+        items.forEach((p, localIdx) => {
+            const globalIdx = catalog.indexOf(p);
+            html += `<button type="button" onclick="window.addCatalogItemToStep(${stepIdx}, ${globalIdx})"
                 class="flex items-center justify-between gap-3 w-full bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-xl px-3 py-2.5 transition group text-right">
                 <span class="font-bold text-slate-700 text-sm group-hover:text-emerald-700">${escHtml(p.name)}</span>
                 <span class="text-emerald-600 font-bold text-sm shrink-0">${p.price ? '₪' + Number(p.price).toLocaleString() : 'ללא מחיר'}</span>
@@ -30703,8 +30705,9 @@ window.closeCatalogPicker = function() {
     if (el) el.remove();
 };
 
-window.addCatalogItemToStep = function(stepIdx, itemJson) {
-    const item = JSON.parse(itemJson);
+window.addCatalogItemToStep = function(stepIdx, itemIdx) {
+    const item = (window._catalogPickerItems || [])[itemIdx];
+    if (!item) return;
     window.currentComplexStepsUI[stepIdx].options.push({ name: item.name, price: item.price || 0, note: '' });
     window.closeCatalogPicker();
     window.renderComplexStepsUI();
