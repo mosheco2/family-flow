@@ -3690,11 +3690,21 @@ async function runDailySnapshots() {
         console.log(`[SNAPSHOT] Daily snapshots done`);
     } catch(e) { console.error('[SNAPSHOT DAILY]', e.message); }
 }
-// הפעלה 120 שניות אחרי עליית השרת (לאחר שהשרת מתייצב), ואז כל 24 שעות
-setTimeout(() => {
-    runDailySnapshots();
-    setInterval(runDailySnapshots, 24 * 60 * 60 * 1000);
-}, 120000);
+// תזמון snapshot יומי ב-00:00 בדיוק (חצות)
+function scheduleNextMidnightSnapshot() {
+    const now = new Date();
+    const next = new Date(now);
+    next.setHours(24, 0, 30, 0); // חצות הלילה הבא + 30 שניות buffer
+    const msUntilMidnight = next.getTime() - now.getTime();
+    setTimeout(() => {
+        runDailySnapshots();
+        scheduleNextMidnightSnapshot(); // מתזמן מחדש ל-חצות הבא
+    }, msUntilMidnight);
+    const h = Math.floor(msUntilMidnight / 3600000);
+    const m = Math.floor((msUntilMidnight % 3600000) / 60000);
+    console.log(`[SNAPSHOT] Next auto-snapshot scheduled in ${h}h ${m}m (at midnight)`);
+}
+scheduleNextMidnightSnapshot();
 
 // רשימת snapshots לסביבה מסוימת
 app.get('/api/sa/groups/:id/snapshots', verifySA, async (req, res) => {
