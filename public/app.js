@@ -15880,6 +15880,30 @@ async function reportFeedPost(postId) {
   } catch(e) {}
 }
 
+async function onNewPostCommunityChange(communityId) {
+  const row = document.getElementById('new-post-group-row');
+  const sel = document.getElementById('new-post-group');
+  if (!row || !sel || !communityId) { if (row) row.style.display = 'none'; return; }
+  sel.innerHTML = '<option value="">ללא תחום ספציפי</option>';
+  try {
+    const res = await fetch(`${API}/community/${communityId}/groups?familyId=${currentGroup?.id}`);
+    const data = await res.json();
+    if (data.groups?.length) {
+      data.groups.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.id;
+        opt.textContent = `${g.icon_emoji || '💬'} ${g.name}`;
+        sel.appendChild(opt);
+      });
+      row.style.display = 'block';
+      // אם יש פילטר קבוצה פעיל — בחר אותה
+      if (feedState.groupId) sel.value = feedState.groupId;
+    } else {
+      row.style.display = 'none';
+    }
+  } catch(e) { row.style.display = 'none'; }
+}
+
 function openNewPostModal() {
   const modal = document.getElementById('new-post-modal');
   if (!modal) return;
@@ -15901,6 +15925,8 @@ function openNewPostModal() {
     b.style.borderColor = i === 0 ? '#1D4ED8' : '#E0E0E0';
   });
   modal.style.display = 'flex';
+  // טעינת תחומי עניין לפי הקהילה שנבחרה
+  onNewPostCommunityChange(sel?.value);
 }
 
 function closeNewPostModal() {
@@ -15931,6 +15957,8 @@ function previewPostImage(input) {
 async function submitNewPost() {
   const content = document.getElementById('new-post-content')?.value?.trim();
   const communityId = document.getElementById('new-post-community')?.value;
+  const groupIdRaw = document.getElementById('new-post-group')?.value;
+  const groupId = groupIdRaw ? parseInt(groupIdRaw) : null;
   if (!content) { showToast('error', 'כתוב משהו לפני פרסום'); return; }
   if (!communityId) { showToast('error', 'בחר קהילה'); return; }
   try {
@@ -15940,6 +15968,7 @@ async function submitNewPost() {
         familyId: currentGroup?.id,
         userId: currentUser?.id,
         communityId: parseInt(communityId),
+        groupId,
         postType: feedState.selectedPostType,
         content,
         imageUrl: feedState.newPostImageUrl || null,
@@ -15951,7 +15980,12 @@ async function submitNewPost() {
       showToast('success', 'הפוסט פורסם! +3 Flw 🎉');
       const comms = myConnectedCommunitiesCache || currentCommunities || [];
       const list = document.getElementById('feed-posts-list');
-      const postMatchesFilter = !feedState.communityId || feedState.communityId == parseInt(communityId);
+      const commMatch = !feedState.communityId || feedState.communityId == parseInt(communityId);
+      const grpMatch = !feedState.groupId || feedState.groupId == groupId;
+      const postMatchesFilter = commMatch && grpMatch;
+      const groups = interestGroupsCache[communityId] || [];
+      const groupName = groups.find(g => g.id == groupId)?.name || '';
+      const groupIcon = groups.find(g => g.id == groupId)?.icon_emoji || '';
       if (list && postMatchesFilter) {
         list.insertAdjacentHTML('afterbegin', renderPostCard({
           ...data.post,
@@ -15960,11 +15994,13 @@ async function submitNewPost() {
           author_user_name: fmtUserName(currentUser) || currentUser?.nickname || '',
           publisher_name: '',
           community_name: comms.find(c => c.id == communityId)?.name || '',
+          group_name: groupName,
+          group_icon: groupIcon,
           liked_by_me: false,
         }));
         feedState.cachedHTML = list.innerHTML;
       } else if (list) {
-        // הפוסט פורסם לקהילה אחרת מהמסנן הפעיל — טוען מחדש
+        // הפוסט פורסם לקהילה/קבוצה אחרת מהמסנן הפעיל — טוען מחדש
         loadFeedSection(true);
       }
     } else { showToast('error', data.error || 'שגיאה בפרסום'); }

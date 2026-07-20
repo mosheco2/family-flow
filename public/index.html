@@ -1367,7 +1367,14 @@
                         <!-- בחירת קהילה -->
                         <div style="margin-bottom:0.7rem">
                           <label style="font-size:0.78rem;font-weight:700;color:#555;display:block;margin-bottom:0.3rem">לאיזו קהילה?</label>
-                          <select id="new-post-community" style="width:100%;padding:0.7rem;border:1.5px solid #E0E0E0;border-radius:12px;font-size:0.9rem"></select>
+                          <select id="new-post-community" onchange="onNewPostCommunityChange(this.value)" style="width:100%;padding:0.7rem;border:1.5px solid #E0E0E0;border-radius:12px;font-size:0.9rem;font-family:'Heebo',sans-serif"></select>
+                        </div>
+                        <!-- בחירת תחום עניין -->
+                        <div id="new-post-group-row" style="margin-bottom:0.7rem;display:none">
+                          <label style="font-size:0.78rem;font-weight:700;color:#555;display:block;margin-bottom:0.3rem">תחום עניין (אופציונלי)</label>
+                          <select id="new-post-group" style="width:100%;padding:0.7rem;border:1.5px solid #E0E0E0;border-radius:12px;font-size:0.9rem;font-family:'Heebo',sans-serif">
+                            <option value="">ללא תחום ספציפי</option>
+                          </select>
                         </div>
                         <!-- סוג פוסט -->
                         <div style="margin-bottom:0.7rem">
