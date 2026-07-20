@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const compression = require('compression');
 const { Pool } = require('pg');
 const cors = require('cors');
 const path = require('path');
@@ -46,6 +47,7 @@ const smsService = {
 const app = express();
 const port = process.env.PORT || 3000;
 
+app.use(compression());
 app.use(cors());
 app.use(express.json({limit: '50mb'}));
 app.use(express.urlencoded({limit: '50mb', extended: true}));
@@ -5019,11 +5021,11 @@ app.get('/api/data/:userId', async (req, res) => {
         // Parallel fetch of all independent data (including admin balance)
         const [adminBalRes, tasks, pantry, shoppingList, goals, allBundles, userBundles] = await Promise.all([
             pool.query("SELECT COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id = $1 AND u.role = 'ADMIN'", [group.id]),
-            pool.query('SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1 ORDER BY t.created_at DESC', [group.id]),
+            pool.query('SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1 ORDER BY t.created_at DESC LIMIT 200', [group.id]),
             pool.query('SELECT * FROM pantry WHERE group_id = $1 ORDER BY updated_at DESC', [group.id]),
             pool.query('SELECT sl.*, u.nickname as requester_name FROM shopping_list sl LEFT JOIN users u ON sl.requester_id = u.id WHERE sl.group_id = $1 ORDER BY sl.added_at DESC', [group.id]),
             pool.query('SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id = $1 OR g.target_user_id = $1', [user.id]),
-            pool.query(`SELECT * FROM quiz_bundles WHERE created_by = $1 OR created_by = 'SYSTEM' ORDER BY created_at DESC`, [String(user.group_id)]),
+            pool.query(`SELECT id, title, type, age_group, threshold, reward, created_by FROM quiz_bundles WHERE created_by = $1 OR created_by = 'SYSTEM' ORDER BY created_at DESC LIMIT 50`, [String(user.group_id)]),
             pool.query(`SELECT ua.*, qb.title, qb.type, qb.age_group, qb.threshold, qb.text_content, qb.reward as default_reward, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id LEFT JOIN users u ON ua.user_id = u.id WHERE ua.user_id = $1 OR $2 = 'ADMIN'`, [user.id, user.role])
         ]);
         group.admin_total_balance = adminBalRes.rows[0].total;
@@ -5061,14 +5063,8 @@ app.get('/api/data/:userId', async (req, res) => {
             }));
         }
 
-        // Batch quiz questions (one query for all bundles, not N queries)
-        if (userBundles.rows.length > 0) {
-            const bundleIds = userBundles.rows.map(b => b.bundle_id);
-            const allQRes = await pool.query('SELECT * FROM quiz_questions WHERE bundle_id = ANY($1)', [bundleIds]);
-            const qByBundle = {};
-            for (const q of allQRes.rows) { (qByBundle[q.bundle_id] = qByBundle[q.bundle_id] || []).push(q); }
-            for (const b of userBundles.rows) { b.questions = qByBundle[b.bundle_id] || []; }
-        }
+        // Quiz questions are loaded on-demand (not in poll) to reduce payload size
+        // Each bundle gets an empty questions array; frontend loads questions separately when needed
 
         let weeklyStats = null;
         if (user.role !== 'ADMIN') {
