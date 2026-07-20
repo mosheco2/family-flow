@@ -529,6 +529,7 @@ pool.connect()
       try { await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)'); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS kiosk_password VARCHAR(100) DEFAULT '1234'`); } catch(e) {}
       try { await client.query('ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS stock_quantity INT DEFAULT NULL'); } catch(e) {}
+      try { await client.query('ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0'); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_popups (
           id SERIAL PRIMARY KEY,
           group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
@@ -6836,8 +6837,20 @@ app.post('/api/store/settings/presets', async (req, res) => {
 
 app.get('/api/store/catalog/:groupId', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM store_catalog WHERE group_id=$1 ORDER BY category, name', [req.params.groupId]);
+        const result = await pool.query('SELECT * FROM store_catalog WHERE group_id=$1 ORDER BY sort_order ASC, id ASC', [req.params.groupId]);
         res.json(result.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שמירת סדר גרירה לקטלוג
+app.patch('/api/store/catalog/:groupId/reorder', async (req, res) => {
+    try {
+        const { order } = req.body; // order = [id, id, id, ...]
+        if (!Array.isArray(order)) return res.status(400).json({ error: 'order array required' });
+        for (let i = 0; i < order.length; i++) {
+            await pool.query('UPDATE store_catalog SET sort_order=$1 WHERE id=$2 AND group_id=$3', [i, order[i], req.params.groupId]);
+        }
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

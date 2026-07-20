@@ -12245,10 +12245,8 @@ function renderStoreCatalog() {
             const bgClass = colors[p.badge_color] || 'bg-red-500';
             badgeHtml = `<div class="absolute -top-2 -right-2 ${bgClass} text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm z-10 border border-white">${safeStr(p.badge_text)}</div>`;
         }
-        
         const imgHtml = p.image_url ? `<div class="relative shrink-0">${badgeHtml}<img src="${p.image_url}" class="w-14 h-14 rounded-xl object-cover border border-slate-100 shadow-sm"></div>` : `<div class="relative shrink-0">${badgeHtml}<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center border border-slate-200 shadow-sm"><i class="fa-solid fa-box text-xl"></i></div></div>`;
         const activeColor = p.is_available ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
-        
         const stock = parseFloat(p.stock_quantity || 0);
         const reserved = parseFloat(p.reserved_qty || 0);
         const available = Math.max(0, stock - reserved);
@@ -12257,8 +12255,114 @@ function renderStoreCatalog() {
             ${reserved > 0 ? `<span class="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full font-bold cursor-pointer hover:bg-amber-100 transition" onclick="window.showCatalogWoReservations(${p.id}, '${safeStr(p.name)}')">🔒 ${reserved} משוריין לפ"ע</span>` : ''}
             ${reserved > 0 ? `<span class="text-[10px] text-green-600">פנוי: <strong>${available}</strong></span>` : ''}
         </div>` : '';
-        html += `<div class="bg-white p-3 rounded-2xl border ${reserved > 0 ? 'border-amber-200' : 'border-slate-200'} shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2"><div class="flex items-center gap-3 min-w-0 flex-1">${imgHtml}<div class="min-w-0 flex-1"><h4 class="font-bold text-slate-800 text-sm truncate pr-1">${safeStr(p.name)}${p.sku ? `<span class="bg-slate-100 text-slate-500 text-[9px] px-1.5 py-0.5 rounded font-bold dir-ltr inline-block ml-1">${safeStr(p.sku)}</span>` : ''}</h4><p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">(${safeStr(p.category || 'כללי')})</span></p>${stockHtml}</div></div><div class="flex items-center gap-2 self-start sm:self-auto shrink-0 bg-slate-50 p-1 rounded-xl border border-slate-100"><button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_available ? 'זמין' : 'מוסתר'}</button><button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button></div></div>`;
-    }); list.innerHTML = html;
+        html += `<div class="catalog-drag-item bg-white p-3 rounded-2xl border ${reserved > 0 ? 'border-amber-200' : 'border-slate-200'} shadow-sm flex items-center gap-2 mb-2 transition-opacity" data-id="${p.id}" draggable="true">
+            <div class="catalog-drag-handle flex flex-col gap-0.5 px-1 py-2 cursor-grab active:cursor-grabbing shrink-0 touch-none select-none" title="גרור לשינוי סדר">
+                <span class="w-4 h-0.5 bg-slate-300 rounded"></span>
+                <span class="w-4 h-0.5 bg-slate-300 rounded"></span>
+                <span class="w-4 h-0.5 bg-slate-300 rounded"></span>
+            </div>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-1 min-w-0">
+                <div class="flex items-center gap-3 min-w-0 flex-1">${imgHtml}<div class="min-w-0 flex-1"><h4 class="font-bold text-slate-800 text-sm truncate pr-1">${safeStr(p.name)}${p.sku ? `<span class="bg-slate-100 text-slate-500 text-[9px] px-1.5 py-0.5 rounded font-bold dir-ltr inline-block ml-1">${safeStr(p.sku)}</span>` : ''}</h4><p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">(${safeStr(p.category || 'כללי')})</span></p>${stockHtml}</div></div>
+                <div class="flex items-center gap-2 self-start sm:self-auto shrink-0 bg-slate-50 p-1 rounded-xl border border-slate-100"><button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_available ? 'זמין' : 'מוסתר'}</button><button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button></div>
+            </div>
+        </div>`;
+    });
+    list.innerHTML = html;
+    initCatalogDragSort(list);
+}
+
+function initCatalogDragSort(list) {
+    let dragEl = null, dropIndicator = null;
+
+    function getIndicator() {
+        if (!dropIndicator) {
+            dropIndicator = document.createElement('div');
+            dropIndicator.className = 'catalog-drop-indicator h-1 bg-indigo-400 rounded-full mx-2 my-0.5 transition-all';
+            dropIndicator.style.display = 'none';
+        }
+        return dropIndicator;
+    }
+
+    list.querySelectorAll('.catalog-drag-item').forEach(item => {
+        // Desktop drag
+        item.addEventListener('dragstart', e => {
+            dragEl = item;
+            setTimeout(() => item.classList.add('opacity-40'), 0);
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        item.addEventListener('dragend', () => {
+            item.classList.remove('opacity-40');
+            getIndicator().style.display = 'none';
+            dragEl = null;
+            saveCatalogOrder();
+        });
+        item.addEventListener('dragover', e => {
+            e.preventDefault();
+            if (!dragEl || dragEl === item) return;
+            const rect = item.getBoundingClientRect();
+            const mid = rect.top + rect.height / 2;
+            const ind = getIndicator();
+            ind.style.display = 'block';
+            if (e.clientY < mid) {
+                list.insertBefore(ind, item);
+                list.insertBefore(dragEl, ind);
+            } else {
+                list.insertBefore(ind, item.nextSibling);
+                list.insertBefore(dragEl, ind.nextSibling);
+            }
+        });
+
+        // Mobile touch drag
+        const handle = item.querySelector('.catalog-drag-handle');
+        if (!handle) return;
+        let touchStartY = 0, touchClone = null;
+        handle.addEventListener('touchstart', e => {
+            const touch = e.touches[0];
+            touchStartY = touch.clientY;
+            dragEl = item;
+            item.classList.add('opacity-40');
+            touchClone = item.cloneNode(true);
+            touchClone.style.cssText = `position:fixed;left:${item.getBoundingClientRect().left}px;top:${item.getBoundingClientRect().top}px;width:${item.offsetWidth}px;opacity:0.8;z-index:9999;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,0.15);transform:scale(1.02);`;
+            document.body.appendChild(touchClone);
+        }, { passive: true });
+        handle.addEventListener('touchmove', e => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            if (touchClone) touchClone.style.top = (touch.clientY - 30) + 'px';
+            const els = list.querySelectorAll('.catalog-drag-item:not(.opacity-40)');
+            els.forEach(el => {
+                const rect = el.getBoundingClientRect();
+                if (touch.clientY > rect.top && touch.clientY < rect.bottom) {
+                    const mid = rect.top + rect.height / 2;
+                    if (touch.clientY < mid) list.insertBefore(dragEl, el);
+                    else list.insertBefore(dragEl, el.nextSibling);
+                }
+            });
+        }, { passive: false });
+        handle.addEventListener('touchend', () => {
+            item.classList.remove('opacity-40');
+            if (touchClone) { touchClone.remove(); touchClone = null; }
+            dragEl = null;
+            saveCatalogOrder();
+        });
+    });
+}
+
+async function saveCatalogOrder() {
+    const list = getEl('store-catalog-list');
+    if (!list) return;
+    const order = [...list.querySelectorAll('.catalog-drag-item')].map(el => parseInt(el.dataset.id));
+    // update local cache order
+    const idxMap = {};
+    order.forEach((id, i) => idxMap[id] = i);
+    storeCatalogCache.sort((a, b) => (idxMap[a.id] ?? 999) - (idxMap[b.id] ?? 999));
+    try {
+        await fetch(`${API}/store/catalog/${currentGroup.id}/reorder`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order })
+        });
+    } catch(e) {}
 }
 window.showPantryWoReservations = async function(pantryId, itemName) {
     try {
