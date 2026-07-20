@@ -9742,17 +9742,18 @@ function renderQuickTiles() {
     { fa:'fa-people-group',   label:'הקהילה שלי',    badge: null,        tab:'community',        bg:'#faf5ff', grad:'linear-gradient(135deg,#c084fc,#db2777)', badge_bg:'#7c3aed' },
     { fa:'fa-list-check',     label:'משימות',        badge: taskCount,   tab:'tasks',            bg:'#f0fdf4', grad:'linear-gradient(135deg,#4ade80,#16a34a)', badge_bg:'#15803d' },
     { fa:'fa-wrench',         label:'ניהול הבית',    badge: null,        tab:'home-maintenance', bg:'#fefce8', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
-    { fa:'fa-clipboard-list', label:'הזמנות שלי',    badge: null,        tab:'myorders',         bg:'#fff1f2', grad:'linear-gradient(135deg,#fb7185,#e11d48)', badge_bg:'#be123c', fullWidth: true },
+    { fa:'fa-clipboard-list', label:'הזמנות שלי',    badge: null,        tab:'myorders',         bg:'#fff1f2', grad:'linear-gradient(135deg,#fb7185,#e11d48)', badge_bg:'#be123c', span2: true },
+    { fa:'fa-rss',            label:'פיד קהילתי',    badge: null,        tab:'community',        bg:'#f0fdf4', grad:'linear-gradient(135deg,#34d399,#059669)', badge_bg:'#047857', feedShortcut: true },
   ];
   const isMember = currentGroup?.member_type === 'member';
   const unlockedMods = currentGroup?.unlocked_modules || [];
   container.innerHTML = tiles.map(t => {
     const isMyOrders = t.tab === 'myorders';
-    const fullWidthStyle = t.fullWidth ? 'grid-column:1/-1;' : '';
+    const colStyle = t.span2 ? 'grid-column:span 2;' : '';
     const locked = isMember && !isMyOrders && !unlockedMods.includes(t.tab);
     if (locked) {
       return `<button onclick="showMemberModuleUpgrade('${t.tab}')"
-          style="background:#f8fafc;border:1.5px solid rgba(0,0,0,0.06);opacity:0.7;${fullWidthStyle}"
+          style="background:#f8fafc;border:1.5px solid rgba(0,0,0,0.06);opacity:0.7;${colStyle}"
           class="relative rounded-2xl p-3.5 flex flex-col items-center gap-2 shadow-sm cursor-pointer">
           <div style="background:linear-gradient(135deg,#94a3b8,#64748b)" class="w-11 h-11 rounded-xl flex items-center justify-center shadow-md mb-0.5">
             <i class="fa-solid fa-lock text-white text-lg"></i>
@@ -9760,14 +9761,17 @@ function renderQuickTiles() {
           <span class="text-[11px] font-bold text-slate-400 text-center leading-tight">${t.label}</span>
         </button>`;
     }
-    const fullWidthInner = t.fullWidth ? 'flex-row gap-3 justify-center' : 'flex-col';
-    return `<button onclick="switchTab('${t.tab}')"
-      style="background:${t.bg};border:1.5px solid rgba(0,0,0,0.06);${fullWidthStyle}"
-      class="relative rounded-2xl p-3.5 flex ${fullWidthInner} items-center gap-2 shadow-sm hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all duration-200 cursor-pointer">
-      <div style="background:${t.grad}" class="w-11 h-11 rounded-xl flex items-center justify-center shadow-md ${t.fullWidth ? 'flex-shrink-0' : 'mb-0.5'}">
+    const onclick = t.feedShortcut
+      ? `switchTab('community');setTimeout(()=>switchFamCommunityTab&&switchFamCommunityTab('feed'),300)`
+      : `switchTab('${t.tab}')`;
+    const innerClass = t.span2 ? 'flex-row gap-3 justify-center' : 'flex-col';
+    return `<button onclick="${onclick}"
+      style="background:${t.bg};border:1.5px solid rgba(0,0,0,0.06);${colStyle}"
+      class="relative rounded-2xl p-3.5 flex ${innerClass} items-center gap-2 shadow-sm hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all duration-200 cursor-pointer">
+      <div style="background:${t.grad}" class="w-11 h-11 rounded-xl flex items-center justify-center shadow-md ${t.span2 ? 'flex-shrink-0' : 'mb-0.5'}">
         <i class="fa-solid ${t.fa} text-white text-lg"></i>
       </div>
-      <span class="text-[11px] font-bold text-slate-600 ${t.fullWidth ? 'text-base' : 'text-center'} leading-tight">${t.label}</span>
+      <span class="text-[11px] font-bold text-slate-600 ${t.span2 ? 'text-base' : 'text-center'} leading-tight">${t.label}</span>
       ${t.badge !== null && t.badge > 0 ? `<span style="background:${t.badge_bg}" class="absolute -top-1.5 -right-1.5 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-md">${t.badge}</span>` : ''}
     </button>`;
   }).join('');
