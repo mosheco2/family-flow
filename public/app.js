@@ -16127,7 +16127,16 @@ function openInterestGroupsPanel() {
   if (!panel) return;
   const isOpen = panel.style.display !== 'none';
   panel.style.display = isOpen ? 'none' : 'block';
-  if (!isOpen) renderInterestCommSelector();
+  const postsList = document.getElementById('feed-posts-list');
+  const loadMore = document.getElementById('feed-load-more');
+  if (!isOpen) {
+    if (postsList) postsList.style.display = 'none';
+    if (loadMore) loadMore.style.display = 'none';
+    renderInterestCommSelector();
+  } else {
+    if (postsList) postsList.style.display = '';
+    if (loadMore && feedState.hasMore) loadMore.style.display = '';
+  }
 }
 
 function renderInterestCommSelector() {
@@ -16161,6 +16170,10 @@ function selectInterestComm(communityId) {
 function closeInterestGroupsPanel() {
   const panel = document.getElementById('interest-groups-panel');
   if (panel) panel.style.display = 'none';
+  const postsList = document.getElementById('feed-posts-list');
+  const loadMore = document.getElementById('feed-load-more');
+  if (postsList) postsList.style.display = '';
+  if (loadMore && feedState.hasMore) loadMore.style.display = '';
 }
 
 async function loadInterestGroupsForComm(communityId) {
