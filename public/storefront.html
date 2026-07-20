@@ -214,10 +214,13 @@
                     <div>
                         <h3 class="text-xl font-black text-slate-800" id="cx-modal-title">הרכבת תפריט</h3>
                         <p class="text-[10px] text-slate-500 font-bold" id="cx-modal-desc"></p>
+                        <div id="cx-modal-types" class="flex flex-wrap gap-1 mt-1"></div>
                     </div>
                 </div>
             </div>
-            
+            <div id="cx-modal-image-wrap" class="hidden shrink-0 mb-3 rounded-2xl overflow-hidden max-h-48">
+                <img id="cx-modal-image" src="" alt="" class="w-full h-full object-cover">
+            </div>
             <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4" id="cx-modal-steps-container"></div>
 
             <div class="pt-4 border-t border-slate-100 bg-white shrink-0">
@@ -1468,19 +1471,23 @@
             const complexBanner = getEl('complex-banner-container');
             if (!storeData.catalog) return;
             
-            const categories = new Set(); 
-            let hasComplexItems = false;
-            
-            storeData.catalog.forEach(item => { 
-                if (item.product_type === 'complex_builder') {
-                    hasComplexItems = true;
-                } else if (item.category) {
-                    categories.add(item.category.trim()); 
+            const categories = new Set();
+            const complexItems = storeData.catalog.filter(item => item.product_type === 'complex_builder');
+            const hasComplexItems = complexItems.length > 0;
+
+            storeData.catalog.forEach(item => {
+                if (item.product_type !== 'complex_builder' && item.category) {
+                    categories.add(item.category.trim());
                 }
             });
 
             if (hasComplexItems && complexBanner) {
-                complexBanner.innerHTML = `<button onclick="window.filterCategory('complex_view')" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black py-4 px-5 rounded-2xl shadow-[0_8px_20px_-6px_rgba(16,185,129,0.4)] hover:shadow-lg transition-all flex items-center justify-between group active:scale-95"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md text-xl"><i class="fa-solid fa-bell-concierge"></i></div><div class="text-right"><span class="block text-base leading-tight">אירועים, קייטרינג ופרויקטים</span><span class="block text-[10px] font-medium opacity-80 mt-0.5">תפריטים ומפרטים מיוחדים לבחירה</span></div></div><i class="fa-solid fa-chevron-left bg-white/10 w-8 h-8 rounded-full flex items-center justify-center group-hover:-translate-x-1 transition-transform"></i></button>`;
+                const _typeLabels = {event:'ארועים', catering:'קייטרינג', project:'פרויקטים', other:'שירותים'};
+                const _allTypes = [...new Set(complexItems.flatMap(ci => {
+                    try { const p = JSON.parse(ci.options_text||'{}'); return Array.isArray(p.complexTypes) ? p.complexTypes : p.complexType ? [p.complexType] : []; } catch(e) { return []; }
+                }))];
+                const _bannerLabel = _allTypes.length ? _allTypes.map(t => _typeLabels[t]||t).join(', ') : 'אירועים, קייטרינג ופרויקטים';
+                complexBanner.innerHTML = `<button onclick="window.filterCategory('complex_view')" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black py-4 px-5 rounded-2xl shadow-[0_8px_20px_-6px_rgba(16,185,129,0.4)] hover:shadow-lg transition-all flex items-center justify-between group active:scale-95"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md text-xl"><i class="fa-solid fa-bell-concierge"></i></div><div class="text-right"><span class="block text-base leading-tight">${_bannerLabel}</span><span class="block text-[10px] font-medium opacity-80 mt-0.5">תפריטים ומפרטים מיוחדים לבחירה</span></div></div><i class="fa-solid fa-chevron-left bg-white/10 w-8 h-8 rounded-full flex items-center justify-center group-hover:-translate-x-1 transition-transform"></i></button>`;
                 complexBanner.classList.remove('hidden');
             } else if (complexBanner) {
                 complexBanner.classList.add('hidden');
@@ -3551,27 +3558,52 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
         let currentComplexQty = 1;
         let currentComplexSteps = [];
 
+        let currentComplexPriceMode = 'per_guest';
+
         window.openComplexProductModal = function(itemId) {
-            const item = storeData.catalog.find(i => i.id === itemId); 
+            const item = storeData.catalog.find(i => i.id === itemId);
             if(!item) return;
-            
-            currentComplexProduct = item; 
+
+            currentComplexProduct = item;
             currentComplexBasePrice = parseFloat(item.price) || 0;
             currentComplexQty = 1;
             currentComplexSteps = [];
+            currentComplexPriceMode = 'per_guest';
 
             try {
                 const parsed = JSON.parse(item.options_text);
-                if (parsed && parsed.isComplex) currentComplexSteps = parsed.steps || [];
+                if (parsed && parsed.isComplex) {
+                    currentComplexSteps = parsed.steps || [];
+                    currentComplexPriceMode = parsed.priceMode || 'per_guest';
+                    // image
+                    const imgWrap = document.getElementById('cx-modal-image-wrap');
+                    const imgEl = document.getElementById('cx-modal-image');
+                    if (parsed.imageUrl && imgWrap && imgEl) {
+                        imgEl.src = parsed.imageUrl;
+                        imgWrap.classList.remove('hidden');
+                    } else if (imgWrap) {
+                        imgWrap.classList.add('hidden');
+                    }
+                    // type tags
+                    const typesEl = document.getElementById('cx-modal-types');
+                    const typeLabels = {event:'ארוע', catering:'קייטרינג', project:'פרויקט', other:'אחר'};
+                    const types = Array.isArray(parsed.complexTypes) ? parsed.complexTypes
+                        : parsed.complexType ? [parsed.complexType] : [];
+                    if (typesEl) typesEl.innerHTML = types.map(t => `<span class="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">${typeLabels[t] || t}</span>`).join('');
+                }
             } catch(e) {}
 
             document.getElementById('cx-modal-title').innerText = item.name;
             document.getElementById('cx-modal-desc').innerText = item.description || '';
             document.getElementById('cx-modal-qty').value = currentComplexQty;
-            
+
+            // qty label: per_total mode hides qty
+            const qtySection = document.getElementById('cx-modal-qty')?.closest('.flex.items-center.justify-between');
+            if (qtySection) qtySection.style.display = currentComplexPriceMode === 'per_total' ? 'none' : '';
+
             window.renderComplexStepsSelectionUI();
             window.calculateComplexTotal();
-            
+
             document.getElementById('complex-product-modal').classList.remove('hidden');
         };
 
@@ -3660,22 +3692,21 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
 
             currentComplexSteps.forEach((step, stepIdx) => {
                 const checked = document.querySelectorAll(`.cx-input-step-${stepIdx}:checked`);
-                if (checked.length > 0 && step.stepPrice > 0) {
-                    stepBaseTotals += parseFloat(step.stepPrice) || 0;
-                }
-                
-                checked.forEach(inp => {
-                    optionsTotal += parseFloat(inp.dataset.price) || 0;
-                });
+                if (checked.length > 0 && step.stepPrice > 0) stepBaseTotals += parseFloat(step.stepPrice) || 0;
+                checked.forEach(inp => { optionsTotal += parseFloat(inp.dataset.price) || 0; });
             });
 
-            const grandTotal = (currentComplexBasePrice + stepBaseTotals + optionsTotal) * currentComplexQty;
+            const subtotal = currentComplexBasePrice + stepBaseTotals + optionsTotal;
+            const grandTotal = currentComplexPriceMode === 'per_total'
+                ? subtotal
+                : subtotal * currentComplexQty;
             const displayEl = document.getElementById('cx-total-display');
             if (displayEl) displayEl.innerText = `(₪${grandTotal.toFixed(2)})`;
         };
 
         window.submitComplexProduct = function() {
-            let finalPrice = currentComplexBasePrice;
+            let optionsSum = 0;
+            let stepBaseSum = 0;
             let selectedTexts = [];
             let isValid = true;
 
@@ -3685,25 +3716,20 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                     showToast('error', `חובה לבחור לפחות ${step.min} אפשרויות ב: ${step.name}`);
                     isValid = false;
                 }
-                
                 let stepSelections = [];
-                
-                if (checked.length > 0 && step.stepPrice > 0) {
-                    finalPrice += parseFloat(step.stepPrice) || 0;
-                }
-
+                if (checked.length > 0 && step.stepPrice > 0) stepBaseSum += parseFloat(step.stepPrice) || 0;
                 checked.forEach(inp => {
                     const opt = step.options[parseInt(inp.value)];
-                    finalPrice += parseFloat(opt.price) || 0;
+                    optionsSum += parseFloat(opt.price) || 0;
                     stepSelections.push(opt.name);
                 });
-                
-                if (stepSelections.length > 0) {
-                    selectedTexts.push(`${step.name}: ${stepSelections.join(', ')}`);
-                }
+                if (stepSelections.length > 0) selectedTexts.push(`${step.name}: ${stepSelections.join(', ')}`);
             });
 
             if (!isValid) return;
+
+            const subtotal = currentComplexBasePrice + stepBaseSum + optionsSum;
+            const finalPrice = currentComplexPriceMode === 'per_total' ? subtotal : subtotal * currentComplexQty;
 
             const mappedModifiers = selectedTexts.map(txt => ({ name: txt, price: 0 }));
 

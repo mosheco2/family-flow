@@ -30540,19 +30540,12 @@ window.openComplexBuilderModal = function(id = null) {
         : _cxBizType === 'sport' ? 'בניית תוכנית אימון / חבילה'
         : _cxBizType === 'logistics' ? 'מפרט שינוע / חבילת הסכם'
         : 'מפרט שירות / חבילת פרויקט';
-    const _cxTypeOptions = _cxIsRestaurant
-        ? `<option value="catering">תפריט לאירוע (מחיר פר מנה × כמות מוזמנים)</option>
-           <option value="project">מפרט פרויקט (מחיר בסיס + תוספות)</option>`
-        : _cxBizType === 'beauty'
-        ? `<option value="project">חבילת טיפולים (מחיר בסיס + תוספות)</option>
-           <option value="catering">מנוי / סדרת ביקורים (פר ביקור × כמות)</option>`
-        : _cxBizType === 'sport'
-        ? `<option value="project">תוכנית אימון (מחיר בסיס + שלבים)</option>
-           <option value="catering">מנוי (מחיר פר אימון × כמות)</option>`
-        : `<option value="project">מפרט פרויקט (מחיר בסיס + תוספות)</option>
-           <option value="catering">חבילת שירות (מחיר פר יחידה × כמות)</option>`;
-    const _cxTypeLabel = _cxIsRestaurant ? 'סוג המפרט (קובע את אופן החישוב בסל):'
-        : 'סוג החבילה (קובע את אופן החישוב):';
+    const _cxTypeCheckboxes = [
+        {val:'event', label:'ארוע'},
+        {val:'catering', label:'קייטרינג'},
+        {val:'project', label:'פרויקט'},
+        {val:'other', label:'אחר'}
+    ].map(t => `<label class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 cursor-pointer hover:bg-emerald-50 hover:border-emerald-300 transition"><input type="checkbox" id="cx-type-${t.val}" value="${t.val}" class="accent-emerald-600 w-4 h-4"><span class="text-sm font-bold text-slate-700">${t.label}</span></label>`).join('');
     const _cxNameLabel = _cxIsRestaurant ? 'שם המפרט / התפריט (חובה):'
         : _cxBizType === 'beauty' ? 'שם החבילה / הסדרה (חובה):'
         : _cxBizType === 'sport' ? 'שם התוכנית / החבילה (חובה):'
@@ -30584,28 +30577,34 @@ window.openComplexBuilderModal = function(id = null) {
                 <input type="hidden" id="cx-id" value="">
                 
                 <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="text-xs font-bold text-slate-600 block mb-1">${_cxTypeLabel}</label>
-                            <select id="cx-type" class="modern-input py-2.5 text-sm font-bold text-emerald-700 shadow-sm bg-emerald-50 border-emerald-200 focus:bg-white transition outline-none cursor-pointer">
-                                ${_cxTypeOptions}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-600 block mb-1">${_cxNameLabel}</label>
-                            <input type="text" id="cx-name" class="modern-input py-2.5 text-sm font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white transition" placeholder="${_cxNamePlaceholder}">
-                        </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-2">סוג המפרט (ניתן לבחור מספר):</label>
+                        <div class="flex flex-wrap gap-2">${_cxTypeCheckboxes}</div>
                     </div>
-
-                    <div class="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 mt-2">
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">${_cxNameLabel}</label>
+                        <input type="text" id="cx-name" class="modern-input py-2.5 text-sm font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white transition" placeholder="${_cxNamePlaceholder}">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 border-t border-slate-100 pt-4">
                         <div>
                             <label class="text-xs font-bold text-slate-600 block mb-1" title="ניתן להשאיר 0 אם התמחור מבוסס רק על הרכיבים בפנים">${_cxBasePriceLabel}</label>
                             <input type="number" id="cx-price" class="modern-input py-2.5 text-base font-black text-slate-800 shadow-sm bg-slate-50 focus:bg-white transition text-center dir-ltr" placeholder="0.00">
                         </div>
                         <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">אופן חישוב מחיר:</label>
+                            <select id="cx-price-mode" class="modern-input py-2.5 text-sm font-bold text-slate-700 shadow-sm bg-slate-50 focus:bg-white transition outline-none cursor-pointer">
+                                <option value="per_guest">מחיר למנה × מוזמנים</option>
+                                <option value="per_total">מחיר לפי סך הבחירות</option>
+                            </select>
+                        </div>
+                        <div>
                             <label class="text-xs font-bold text-slate-600 block mb-1">קטגוריה בחנות:</label>
                             <input type="text" id="cx-category" class="modern-input py-2.5 text-sm font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white transition" placeholder="${_cxCategoryPlaceholder}">
                         </div>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">קישור לתמונה (אופציונלי):</label>
+                        <input type="url" id="cx-image-url" class="modern-input py-2.5 text-sm text-slate-700 shadow-sm bg-slate-50 focus:bg-white transition dir-ltr" placeholder="https://...">
                     </div>
                     <div>
                         <label class="text-xs font-bold text-slate-600 block mb-1">תיאור קצר (יופיע ללקוח):</label>
@@ -30642,13 +30641,16 @@ window.openComplexBuilderModal = function(id = null) {
             document.getElementById('cx-desc').value = p.description || ''; 
             
             if (p.options_text) {
-                try { 
-                    const parsed = JSON.parse(p.options_text); 
+                try {
+                    const parsed = JSON.parse(p.options_text);
                     if (parsed && parsed.isComplex) {
                         window.currentComplexStepsUI = parsed.steps || [];
-                        if(parsed.complexType) {
-                            document.getElementById('cx-type').value = parsed.complexType;
-                        }
+                        // types (new array format, or legacy string)
+                        const types = Array.isArray(parsed.complexTypes) ? parsed.complexTypes
+                            : parsed.complexType ? [parsed.complexType] : [];
+                        types.forEach(t => { const el = document.getElementById(`cx-type-${t}`); if (el) el.checked = true; });
+                        if (parsed.priceMode) { const el = document.getElementById('cx-price-mode'); if (el) el.value = parsed.priceMode; }
+                        if (parsed.imageUrl) { const el = document.getElementById('cx-image-url'); if (el) el.value = parsed.imageUrl; }
                     }
                 } catch(e) { }
             }
@@ -30814,9 +30816,11 @@ window.renderComplexStepsUI = function() {
 };
 
 window.submitComplexBuilder = async function() {
-    const id = document.getElementById('cx-id').value; 
-    const cxType = document.getElementById('cx-type').value; 
-    const name = document.getElementById('cx-name').value; 
+    const id = document.getElementById('cx-id').value;
+    const complexTypes = ['event','catering','project','other'].filter(t => { const el = document.getElementById(`cx-type-${t}`); return el && el.checked; });
+    const priceMode = document.getElementById('cx-price-mode')?.value || 'per_guest';
+    const imageUrl = (document.getElementById('cx-image-url')?.value || '').trim();
+    const name = document.getElementById('cx-name').value;
     const price = document.getElementById('cx-price').value;
     const category = document.getElementById('cx-category').value || 'פרויקטים וקייטרינג';
     const description = document.getElementById('cx-desc').value;
@@ -30832,11 +30836,12 @@ window.submitComplexBuilder = async function() {
         s.stepPrice = parseFloat(s.stepPrice) || 0; // וידוא מספריות
     });
 
-    // המרת הנתונים לאובייקט Options מתקדם
-    const finalOptionsText = JSON.stringify({ 
-        isComplex: true, 
-        complexType: cxType,
-        steps: validSteps 
+    const finalOptionsText = JSON.stringify({
+        isComplex: true,
+        complexTypes,
+        priceMode,
+        imageUrl,
+        steps: validSteps
     });
     
     const btn = document.getElementById('btn-submit-cx'); 
