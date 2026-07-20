@@ -2166,6 +2166,16 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       `); } catch(e) { console.error('community_post_reports:', e.message); }
 
       try { await pool.query(`
+        CREATE TABLE IF NOT EXISTS community_post_shares (
+          id SERIAL PRIMARY KEY,
+          post_id INT REFERENCES community_posts(id) ON DELETE CASCADE,
+          family_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          created_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(post_id, family_id)
+        )
+      `); } catch(e) { console.error('community_post_shares:', e.message); }
+
+      try { await pool.query(`
         CREATE TABLE IF NOT EXISTS community_group_members (
           id SERIAL PRIMARY KEY,
           group_id INT REFERENCES community_interest_groups(id) ON DELETE CASCADE,
@@ -23170,13 +23180,87 @@ app.post('/api/community/posts/:id/share', async (req, res) => {
     const { familyId, targetCommunityId } = req.body;
     const o = (await pool.query('SELECT * FROM community_posts WHERE id=$1', [req.params.id])).rows[0];
     if(!o) return res.status(404).json({ error: 'לא נמצא' });
-    await pool.query(
-      `INSERT INTO community_posts (author_family_id, community_id, post_type, content, image_url) VALUES ($1,$2,$3,$4,$5)`,
-      [familyId, targetCommunityId, o.post_type, `[שותף] ${o.content}`, o.image_url]
-    );
+    // רישום משפחה ששיתפה (לרשימת שיתופים)
+    if (familyId) {
+      try {
+        await pool.query(
+          'INSERT INTO community_post_shares (post_id, family_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
+          [req.params.id, familyId]
+        );
+      } catch(e2) {}
+    }
+    if (targetCommunityId) {
+      await pool.query(
+        `INSERT INTO community_posts (author_family_id, community_id, post_type, content, image_url) VALUES ($1,$2,$3,$4,$5)`,
+        [familyId, targetCommunityId, o.post_type, `[שותף] ${o.content}`, o.image_url]
+      );
+    }
     await pool.query('UPDATE community_posts SET shares_count=shares_count+1 WHERE id=$1', [req.params.id]);
     res.json({ success:true });
   } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// רשימת משפחות שנתנו לייק לפוסט
+app.get('/api/community/posts/:id/likers', async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT fg.name, fg.image_url,
+        (SELECT TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'')) FROM users WHERE group_id=fg.id AND role='ADMIN' LIMIT 1) as admin_name
+      FROM community_post_likes cpl
+      JOIN family_groups fg ON fg.id = cpl.family_id
+      WHERE cpl.post_id=$1
+      ORDER BY cpl.created_at DESC
+    `, [req.params.id]);
+    res.json({ success: true, likers: r.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// רשימת משפחות ששיתפו פוסט
+app.get('/api/community/posts/:id/sharers', async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT fg.name, fg.image_url,
+        (SELECT TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'')) FROM users WHERE group_id=fg.id AND role='ADMIN' LIMIT 1) as admin_name
+      FROM community_post_shares cps
+      JOIN family_groups fg ON fg.id = cps.family_id
+      WHERE cps.post_id=$1
+      ORDER BY cps.created_at DESC
+    `, [req.params.id]);
+    res.json({ success: true, sharers: r.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליפת פוסט ציבורי עם בדיקת חברות בקהילה (לשיתוף חיצוני)
+app.get('/api/community/posts/:id/public', async (req, res) => {
+  try {
+    const { familyId } = req.query;
+    const postRes = await pool.query(`
+      SELECT cp.*, c.name as community_name,
+        CASE WHEN fg.family_nickname IS NOT NULL AND fg.family_nickname != ''
+             THEN fg.name || ' (' || fg.family_nickname || ')'
+             ELSE fg.name END as author_name,
+        fg.image_url as author_avatar
+      FROM community_posts cp
+      JOIN communities c ON c.id = cp.community_id
+      JOIN family_groups fg ON fg.id = cp.author_family_id
+      WHERE cp.id=$1 AND cp.is_hidden=false
+    `, [req.params.id]);
+    if (!postRes.rows[0]) return res.status(404).json({ error: 'פוסט לא נמצא' });
+    const post = postRes.rows[0];
+    // בדיקה אם המשפחה חברה בקהילה
+    let isMember = false;
+    if (familyId) {
+      const memberCheck = await pool.query(
+        'SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2',
+        [parseInt(familyId), post.community_id]
+      );
+      isMember = memberCheck.rows.length > 0;
+    }
+    if (!isMember) {
+      return res.json({ success: true, gated: true, community_name: post.community_name, community_id: post.community_id });
+    }
+    res.json({ success: true, gated: false, post });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // קבוצות עניין — שליפה

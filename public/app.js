@@ -118,7 +118,7 @@ window.onload = async () => {
                 if (currentGroup.id) { const cl = localStorage.getItem(`ofl_logo_${currentGroup.id}`); if(cl) currentGroup.image_url = cl; }
                 // אם יש splash פעיל מ-cache — ממתינים לסיום האנימציה לפני מעבר לדאשבורד
                 if (window.__splashPreload) { await new Promise(r => setTimeout(r, 2800)); }
-                clearTimeout(failsafeTimer); loadDashboard(); return;
+                clearTimeout(failsafeTimer); loadDashboard(); checkPostDeepLink(); return;
             }
         } catch(e) { localStorage.removeItem('ofl_session'); }
     }
@@ -560,6 +560,7 @@ async function handleLogin(e) {
             if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; }
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
             await loadDashboard();
+            checkPostDeepLink();
         } else showToast('error', data.error); 
     } catch(e) { console.error('LOGIN ERROR:', e); showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); }
 }
@@ -15412,6 +15413,7 @@ const feedState = {
   selectedPostType: 'general',
   newPostImageUrl: null,
   cachedHTML: '',   // שמירת HTML הפוסטים בין מעברי טאבים
+  highlightPostId: null, // מזהה פוסט להדגשה לאחר ניווט מהתראה
 };
 
 async function loadFeedSection(forceReload = false) {
@@ -15575,6 +15577,8 @@ async function fetchFeedPosts(reset = false) {
     feedState.hasMore = data.hasMore;
     feedState.page++;
     feedState.cachedHTML = list.innerHTML;
+    // הדגשת פוסט אם הגענו מהתראה
+    if (feedState.highlightPostId) highlightFeedPost(feedState.highlightPostId);
     const loadMore = document.getElementById('feed-load-more');
     if (loadMore) loadMore.style.display = data.hasMore ? 'block' : 'none';
   } catch(e) { console.error('Feed error:', e); }
@@ -15614,16 +15618,23 @@ function renderPostCard(post) {
     ${post.image_url ? `<div style="padding:0 0.9rem 0.6rem"><img src="${post.image_url}" alt="" style="width:100%;border-radius:12px;max-height:280px;object-fit:cover"></div>` : ''}
     <div style="padding:0.5rem 0.9rem 0.7rem;border-top:1px solid #F5F5F5;display:flex;align-items:center;gap:0">
       <button onclick="toggleFeedLike(${post.id},this)" data-liked="${post.liked_by_me}"
-        style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:0.3rem;padding:0.4rem 0.6rem;border-radius:8px;color:${post.liked_by_me ? '#EF4444' : '#64748B'};font-size:0.82rem;font-weight:700;transition:all 0.15s">
-        ${post.liked_by_me ? '❤️' : '🤍'} ${post.likes_count}
+        style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:0.3rem;padding:0.4rem 0.4rem;border-radius:8px;color:${post.liked_by_me ? '#EF4444' : '#64748B'};font-size:0.82rem;font-weight:700;transition:all 0.15s">
+        ${post.liked_by_me ? '❤️' : '🤍'}
       </button>
+      <button onclick="showLikersList(${post.id})" style="background:none;border:none;cursor:pointer;color:#64748B;font-size:0.78rem;font-weight:700;padding:0.4rem 0.2rem">${post.likes_count || 0}</button>
       <button onclick="openFeedComments(${post.id})"
         style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:0.3rem;padding:0.4rem 0.6rem;border-radius:8px;color:#64748B;font-size:0.82rem;font-weight:700">
         💬 ${post.comments_count}
       </button>
       <button onclick="shareFeedPost(${post.id})"
-        style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:0.3rem;padding:0.4rem 0.6rem;border-radius:8px;color:#64748B;font-size:0.82rem;font-weight:700">
-        ↗️ ${post.shares_count || 0}
+        style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:0.3rem;padding:0.4rem 0.3rem;border-radius:8px;color:#64748B;font-size:0.82rem;font-weight:700">
+        ↗️
+      </button>
+      <button onclick="showSharersList(${post.id})" style="background:none;border:none;cursor:pointer;color:#64748B;font-size:0.78rem;font-weight:700;padding:0.4rem 0.2rem">${post.shares_count || 0}</button>
+      <button onclick="shareToWhatsApp(${post.id}, '${escHtml(post.community_name || '')}')"
+        title="שתף בוואטסאפ"
+        style="background:none;border:none;cursor:pointer;color:#25D366;font-size:1rem;padding:0.2rem 0.4rem">
+        <i class="fab fa-whatsapp"></i>
       </button>
       <button onclick="reportFeedPost(${post.id})"
         style="background:none;border:none;cursor:pointer;margin-right:auto;padding:0.4rem 0.5rem;color:#CBD5E1;font-size:0.82rem">
@@ -15649,7 +15660,32 @@ async function toggleFeedLike(postId, btn) {
   } catch(e) {}
 }
 
+// הדגשת פוסט ספציפי בפיד (למשל לאחר ניווט מהתראה)
+function highlightFeedPost(postId) {
+  if (!postId) return;
+  // הסרת הדגשות קודמות
+  document.querySelectorAll('.feed-post-highlighted').forEach(el => {
+    el.classList.remove('feed-post-highlighted');
+    el.style.border = '1px solid #F0F0F0';
+  });
+  const card = document.querySelector(`[data-post-id="${postId}"]`);
+  if (card) {
+    card.classList.add('feed-post-highlighted');
+    card.style.border = '2px solid #3B82F6';
+    card.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.2)';
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    feedState.highlightPostId = null;
+  }
+}
+
 async function openFeedComments(postId) {
+  // הסרת הדגשה בעת פתיחת תגובות
+  document.querySelectorAll('.feed-post-highlighted').forEach(el => {
+    el.classList.remove('feed-post-highlighted');
+    el.style.border = '1px solid #F0F0F0';
+    el.style.boxShadow = '';
+  });
+  feedState.highlightPostId = null;
   const existing = document.getElementById('comments-modal');
   if (existing) existing.remove();
   const modal = document.createElement('div');
@@ -15715,6 +15751,98 @@ async function submitComment(postId) {
       }
     }
   } catch(e) {}
+}
+
+// הצגת רשימת מי נתן לייק לפוסט
+async function showLikersList(postId) {
+  const modal = document.getElementById('likers-modal');
+  const title = document.getElementById('likers-modal-title');
+  const list = document.getElementById('likers-modal-list');
+  if (!modal) return;
+  title.textContent = '❤️ מי נתן לייק';
+  list.innerHTML = '<div style="text-align:center;color:#94A3B8;padding:1rem">טוען...</div>';
+  modal.style.display = 'flex';
+  try {
+    const res = await fetch(`${API}/community/posts/${postId}/likers`);
+    const data = await res.json();
+    if (!data.likers?.length) { list.innerHTML = '<div style="text-align:center;color:#94A3B8;padding:1rem">אין עדיין לייקים</div>'; return; }
+    list.innerHTML = data.likers.map(l => `
+      <div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;border-bottom:1px solid #F0F0F0">
+        <div style="width:34px;height:34px;border-radius:50%;background:#EFF6FF;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+          ${l.image_url ? `<img src="${l.image_url}" style="width:100%;height:100%;object-fit:cover">` : '👨‍👩‍👧'}
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:0.82rem">${escHtml(l.name)}</div>
+          ${l.admin_name ? `<div style="font-size:0.7rem;color:#64748B">${escHtml(l.admin_name)}</div>` : ''}
+        </div>
+      </div>`).join('');
+  } catch(e) { list.innerHTML = '<div style="color:#EF4444;text-align:center">שגיאה בטעינה</div>'; }
+}
+
+// הצגת רשימת מי שיתף את הפוסט
+async function showSharersList(postId) {
+  const modal = document.getElementById('likers-modal');
+  const title = document.getElementById('likers-modal-title');
+  const list = document.getElementById('likers-modal-list');
+  if (!modal) return;
+  title.textContent = '↗️ מי שיתף';
+  list.innerHTML = '<div style="text-align:center;color:#94A3B8;padding:1rem">טוען...</div>';
+  modal.style.display = 'flex';
+  try {
+    const res = await fetch(`${API}/community/posts/${postId}/sharers`);
+    const data = await res.json();
+    if (!data.sharers?.length) { list.innerHTML = '<div style="text-align:center;color:#94A3B8;padding:1rem">אין עדיין שיתופים</div>'; return; }
+    list.innerHTML = data.sharers.map(s => `
+      <div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;border-bottom:1px solid #F0F0F0">
+        <div style="width:34px;height:34px;border-radius:50%;background:#EFF6FF;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+          ${s.image_url ? `<img src="${s.image_url}" style="width:100%;height:100%;object-fit:cover">` : '👨‍👩‍👧'}
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:0.82rem">${escHtml(s.name)}</div>
+          ${s.admin_name ? `<div style="font-size:0.7rem;color:#64748B">${escHtml(s.admin_name)}</div>` : ''}
+        </div>
+      </div>`).join('');
+  } catch(e) { list.innerHTML = '<div style="color:#EF4444;text-align:center">שגיאה בטעינה</div>'; }
+}
+
+// שיתוף פוסט בווטסאפ
+function shareToWhatsApp(postId, communityName) {
+  const url = `${location.origin}/?post=${postId}`;
+  const text = `פוסט מקהילת "${communityName}" ב-OneFlow Life:\n${url}`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  // רישום השיתוף בשרת
+  try {
+    fetch(`${API}/community/posts/${postId}/share`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ familyId: currentGroup?.id })
+    });
+  } catch(e) {}
+}
+
+// בדיקת קישור עמוק לפוסט (?post=ID)
+async function checkPostDeepLink() {
+  const params = new URLSearchParams(location.search);
+  const postId = params.get('post');
+  if (!postId) return;
+  try {
+    const fid = currentGroup?.id || 0;
+    const res = await fetch(`${API}/community/posts/${postId}/public?familyId=${fid}`);
+    const data = await res.json();
+    if (!data.success) return;
+    if (data.gated) {
+      showToast('info', `התחבר לקהילת "${data.community_name}" כדי לראות ולהגיב לפוסטים`);
+      return;
+    }
+    const post = data.post;
+    feedState.communityId = post.community_id;
+    feedState.highlightPostId = post.id;
+    if (typeof switchTab === 'function') switchTab('community');
+    setTimeout(() => {
+      if (typeof switchFamCommunityTab === 'function') switchFamCommunityTab('feed');
+    }, 300);
+  } catch(e) {}
+  // ניקוי ה-URL ללא טעינה מחדש
+  history.replaceState({}, '', location.pathname);
 }
 
 async function shareFeedPost(postId) {
@@ -15920,6 +16048,8 @@ async function openNotif(notifId, communityId, postId) {
     feedState.page = 1;
     feedState.cachedHTML = '';
   }
+  // שמירת מזהה הפוסט להדגשה לאחר טעינת הפיד
+  if (postId) feedState.highlightPostId = postId;
   switchFamCommunityTab('feed');
 }
 
