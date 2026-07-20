@@ -12232,6 +12232,21 @@ async function fetchStoreCatalog() {
     try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); storeCatalogCache = await res.json(); renderStoreCatalog(); } catch(e) {}
 }
 
+window.refreshCatalog = async function() {
+    const btn = document.getElementById('catalog-refresh-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-rotate-right fa-spin"></i>'; }
+    try {
+        const res = await fetch(`${API}/store/catalog/${currentGroup.id}`);
+        storeCatalogCache = await res.json();
+        renderStoreCatalog();
+        showToast('success', 'הקטלוג עודכן');
+    } catch(e) {
+        showToast('error', 'שגיאה בטעינת הקטלוג');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i>'; }
+    }
+};
+
 function renderStoreCatalog() {
     const list = getEl('store-catalog-list');
     if(!storeCatalogCache || storeCatalogCache.length === 0) {
