@@ -22872,7 +22872,7 @@ app.get('/api/community/feed', async (req, res) => {
         CASE WHEN fg.family_nickname IS NOT NULL AND fg.family_nickname != ''
              THEN fg.name || ' (' || fg.family_nickname || ')'
              ELSE fg.name END as author_name,
-        fg.avatar_url as author_avatar,
+        fg.image_url as author_avatar,
         c.name as community_name,
         cig.name as group_name,
         cig.icon_emoji as group_icon,
@@ -22961,7 +22961,7 @@ app.post('/api/community/posts/:id/like', async (req, res) => {
 app.get('/api/community/posts/:id/comments', async (req, res) => {
   try {
     const comments = await pool.query(`
-      SELECT c.*, fg.name as author_name, fg.avatar_url as author_avatar
+      SELECT c.*, fg.name as author_name, fg.image_url as author_avatar
       FROM community_post_comments c
       JOIN family_groups fg ON fg.id=c.author_family_id
       WHERE c.post_id=$1 AND c.parent_comment_id IS NULL AND c.is_hidden=false
