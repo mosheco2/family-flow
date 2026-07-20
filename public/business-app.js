@@ -2399,7 +2399,7 @@ function switchTab(t) {
     const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active');
     window._currentBizTab = t;
     // Role dashboard: show instead of feed for role employees
-    if (t === 'feed' && currentUser && currentUser.employee_role_type && !window._suppressRoleDash) {
+    if (t === 'feed' && currentUser && currentUser.employee_role_type && currentUser.role !== 'ADMIN' && !window._suppressRoleDash) {
         const feed = getEl('content-feed'); if (feed) feed.classList.add('hidden');
         setTimeout(() => showRoleDashboard(currentUser.employee_role_type), 50);
     }
