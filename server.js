@@ -7357,14 +7357,19 @@ app.put('/api/store/quotes/:id', async (req, res) => {
     try {
         const { customerName, customerPhone, items, totalAmount, notes } = req.body;
         const orderId = req.params.id;
-        const catRes = await pool.query('SELECT id FROM store_catalog WHERE group_id=(SELECT group_id FROM store_orders WHERE id=$1)', [orderId]);
-        const catMap = {};
-        catRes.rows.forEach(p => { catMap[p.id] = p; });
+
+        // extract title from metadata item if present
+        let quoteTitle = null;
+        try {
+            const meta = (items || []).find(i => i.is_quote_metadata);
+            if (meta) { const d = JSON.parse(meta.data || '{}'); if (d.title) quoteTitle = d.title; }
+        } catch(e) {}
 
         // Update JSONB items
         await pool.query(
-            `UPDATE store_orders SET customer_name=$1, customer_phone=$2, total_amount=$3, notes=$4, items=$5 WHERE id=$6`,
-            [customerName, customerPhone, totalAmount, notes, JSON.stringify(items), orderId]
+            `UPDATE store_orders SET customer_name=$1, customer_phone=$2, total_amount=$3, notes=$4, items=$5${quoteTitle ? ', quote_title=$7' : ''} WHERE id=$6`,
+            quoteTitle ? [customerName, customerPhone, totalAmount, notes, JSON.stringify(items), orderId, quoteTitle]
+                       : [customerName, customerPhone, totalAmount, notes, JSON.stringify(items), orderId]
         );
 
         // Delete old store_order_items and insert new ones

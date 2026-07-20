@@ -7907,11 +7907,12 @@ window.fetchStoreQuotes = async function() {
 
         const fetchedQuotes = data.quotes;
         if (!window.storeQuotesCache) window.storeQuotesCache = [];
-        
+
+        // replace existing entries + add new ones
         fetchedQuotes.forEach(fq => {
-            if (!window.storeQuotesCache.find(q => q.id === fq.id)) {
-                window.storeQuotesCache.push(fq);
-            }
+            const idx = window.storeQuotesCache.findIndex(q => q.id === fq.id);
+            if (idx >= 0) window.storeQuotesCache[idx] = fq;
+            else window.storeQuotesCache.push(fq);
         });
         
         window.renderStoreQuotes();
@@ -7942,7 +7943,8 @@ window.fetchStoreQuotes = async function() {
 })();
 
 function _renderBizQuoteTimeline(historyRaw) {
-    const history = typeof historyRaw === 'string' ? JSON.parse(historyRaw || '[]') : (historyRaw || []);
+    let history;
+    try { history = typeof historyRaw === 'string' ? JSON.parse(historyRaw || '[]') : (historyRaw || []); } catch(e) { history = []; }
     if (!history.length) return '';
     const evMap = {
         sent_to_customer:        {icon:'fa-paper-plane',  label:'נשלחה ללקוח',              actorColor:'text-indigo-600'},
