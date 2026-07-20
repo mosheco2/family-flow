@@ -8264,7 +8264,7 @@ app.get('/api/storefront/:code', async (req, res) => {
 
         const [sRes, cRes, commRes] = await Promise.all([
             pool.query('SELECT * FROM store_settings WHERE group_id=$1', [groupId]),
-            pool.query('SELECT * FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY sort_order ASC, category, name', [groupId]),
+            pool.query('SELECT id, group_id, name, description, long_description, price, original_price, category, product_type, options_text, modifier_presets, badge_text, badge_color, sku, sort_order, (image_url IS NOT NULL AND image_url != \'\') as has_image FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY sort_order ASC, category, name', [groupId]),
             req.query.communityId
                 ? pool.query(`SELECT c.name, cb.discount_pct, c.min_families,
                                (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count
@@ -8285,6 +8285,24 @@ app.get('/api/storefront/:code', async (req, res) => {
 
         res.json({ success: true, groupId, groupName, businessType, settings, catalog: cRes.rows, communityData });
     } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Dedicated lightweight image endpoint — avoids sending base64 in catalog payload
+app.get('/api/store/item-image/:itemId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT image_url FROM store_catalog WHERE id=$1', [req.params.itemId]);
+        if (!r.rows.length || !r.rows[0].image_url) return res.status(404).end();
+        const imgUrl = r.rows[0].image_url;
+        if (imgUrl.startsWith('data:image/')) {
+            const [header, b64] = imgUrl.split(',');
+            const mime = header.replace('data:', '').replace(';base64', '');
+            const buf = Buffer.from(b64, 'base64');
+            res.set('Content-Type', mime);
+            res.set('Cache-Control', 'public, max-age=86400');
+            return res.send(buf);
+        }
+        res.redirect(imgUrl);
+    } catch(e) { res.status(500).end(); }
 });
 
 // ============================================================

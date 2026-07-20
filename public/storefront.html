@@ -1681,7 +1681,7 @@ window.renderCatalog = function() {
                 }
                 
                 const imgClasses = catalogViewMode === 'grid' ? 'w-full h-32 sm:h-40 mb-3 relative shrink-0' : 'w-24 h-24 relative shrink-0';
-                const imgInner = item.image_url ? `<img src="${item.image_url}" class="w-full h-full object-cover rounded-xl shadow-sm">` : `<div class="w-full h-full bg-slate-100 text-slate-300 rounded-xl flex items-center justify-center shadow-sm"><i class="fa-solid fa-image text-3xl"></i></div>`;
+                const imgInner = item.has_image ? `<img src="${API}/store/item-image/${item.id}" loading="lazy" onerror="this.style.display='none'" class="w-full h-full object-cover rounded-xl shadow-sm">` : `<div class="w-full h-full bg-slate-100 text-slate-300 rounded-xl flex items-center justify-center shadow-sm"><i class="fa-solid fa-image text-3xl"></i></div>`;
                 const imgHtml = `<div class="${imgClasses}">${badgeHtml}${imgInner}</div>`;
                 
                 let priceHtml = '';
@@ -1806,7 +1806,7 @@ window.renderCatalog = function() {
 
             const imgPreview = getEl('prod-modal-image');
             const placeholder = getEl('prod-modal-placeholder');
-            if (item.image_url) { imgPreview.src = item.image_url; imgPreview.classList.remove('hidden'); placeholder.classList.add('hidden'); } 
+            if (item.has_image) { imgPreview.src = `${API}/store/item-image/${item.id}`; imgPreview.classList.remove('hidden'); placeholder.classList.add('hidden'); }
             else { imgPreview.classList.add('hidden'); placeholder.classList.remove('hidden'); }
 
             const pType = item.product_type || 'retail';

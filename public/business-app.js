@@ -902,6 +902,7 @@ window.injectBusinessUI = function() {
                             <div class="flex items-center gap-2">
                                 <label class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 transition cursor-pointer flex items-center gap-1"><i class="fa-solid fa-file-excel"></i> ייבוא Excel<input type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="importExcelToCatalog(this)"></label>
                                 <button onclick="window.openPdfImportModal()" class="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100 transition"><i class="fa-solid fa-file-pdf mr-1"></i> ייבוא PDF</button>
+                                <button id="catalog-refresh-btn" onclick="window.refreshCatalog()" class="bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-50 transition flex items-center gap-1"><i class="fa-solid fa-rotate-right"></i> טען קטלוג</button>
                                 <button onclick="window.openProductWizard()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> מוצר חדש</button>
                                 <button onclick="window.openModifierTemplatesModal()" class="bg-white text-indigo-600 border border-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-50 transition"><i class="fa-solid fa-layer-group mr-1"></i> תבניות</button>
                             </div>
@@ -24318,6 +24319,7 @@ setInterval(() => {
             <div class="flex items-center gap-2">
                 <label class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 transition cursor-pointer flex items-center gap-1"><i class="fa-solid fa-file-excel"></i> ייבוא Excel<input type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="importExcelToCatalog(this)"></label>
                 <button onclick="window.openPdfImportModal()" class="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100 transition"><i class="fa-solid fa-file-pdf mr-1"></i> ייבוא PDF</button>
+                <button id="catalog-refresh-btn" onclick="window.refreshCatalog()" class="bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-50 transition flex items-center gap-1"><i class="fa-solid fa-rotate-right"></i> טען קטלוג</button>
                 <button onclick="window.openProductWizard()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> מוצר חדש</button>
                 <button id="btn-manage-modifiers" onclick="window.openModifierTemplatesModal()" class="bg-white text-indigo-600 border border-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-50 transition"><i class="fa-solid fa-layer-group mr-1"></i> תבניות הרכבה</button>
             </div>
