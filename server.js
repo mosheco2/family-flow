@@ -685,6 +685,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       // --- תוספות פוד-קוסט לחנות ---
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS overhead_details JSONB DEFAULT '[]'::jsonb`); } catch(err){}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS sku VARCHAR(100)`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS original_price DECIMAL(10,2) DEFAULT NULL`); } catch(err){}
       try { await client.query(`
           CREATE TABLE IF NOT EXISTS product_ingredients (
               id SERIAL PRIMARY KEY,
@@ -8264,7 +8265,7 @@ app.get('/api/storefront/:code', async (req, res) => {
 
         const [sRes, cRes, commRes] = await Promise.all([
             pool.query('SELECT * FROM store_settings WHERE group_id=$1', [groupId]),
-            pool.query('SELECT id, group_id, name, description, long_description, price, original_price, category, product_type, options_text, modifier_presets, badge_text, badge_color, sku, sort_order, (image_url IS NOT NULL AND image_url != \'\') as has_image FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY sort_order ASC, category, name', [groupId]),
+            pool.query('SELECT id, group_id, name, description, long_description, price, original_price, category, product_type, options_text, badge_text, badge_color, sku, sort_order, (image_url IS NOT NULL AND image_url != \'\') as has_image FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY sort_order ASC, category, name', [groupId]),
             req.query.communityId
                 ? pool.query(`SELECT c.name, cb.discount_pct, c.min_families,
                                (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count

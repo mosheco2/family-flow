@@ -12238,7 +12238,10 @@ window.refreshCatalog = async function() {
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-rotate-right fa-spin"></i>'; }
     try {
         const res = await fetch(`${API}/store/catalog/${currentGroup.id}`);
-        storeCatalogCache = await res.json();
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'שגיאת שרת');
+        if (!Array.isArray(data)) throw new Error('תגובה שגויה מהשרת');
+        storeCatalogCache = data;
         renderStoreCatalog();
         showToast('success', 'הקטלוג עודכן');
     } catch(e) {
