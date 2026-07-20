@@ -22902,7 +22902,7 @@ app.get('/api/community/feed', async (req, res) => {
         c.name as community_name,
         cig.name as group_name,
         cig.icon_emoji as group_icon,
-        (SELECT TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'') || CASE WHEN COALESCE(nickname,'')!='' THEN ' (' || nickname || ')' ELSE '' END)
+        (SELECT CASE WHEN TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'')) != '' THEN TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'')) ELSE COALESCE(nickname,'') END
          FROM users WHERE id=cp.author_user_id LIMIT 1) as author_user_name,
         (SELECT TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,''))
          FROM users WHERE group_id=cp.author_family_id AND role='ADMIN' LIMIT 1) as publisher_name,
@@ -23112,7 +23112,7 @@ app.get('/api/community/posts/:id/comments', async (req, res) => {
   try {
     const comments = await pool.query(`
       SELECT c.*, fg.name as author_name, fg.image_url as author_avatar,
-        (SELECT TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'') || CASE WHEN COALESCE(nickname,'')!='' THEN ' (' || nickname || ')' ELSE '' END)
+        (SELECT CASE WHEN TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'')) != '' THEN TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'')) ELSE COALESCE(nickname,'') END
          FROM users WHERE id=c.author_user_id LIMIT 1) as author_user_name
       FROM community_post_comments c
       JOIN family_groups fg ON fg.id=c.author_family_id
