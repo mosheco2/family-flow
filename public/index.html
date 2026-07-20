@@ -1292,6 +1292,13 @@
 
                       <!-- סרגל כלים עליון -->
                       <div id="feed-toolbar" style="padding:0.6rem;background:white;border-bottom:1px solid #F0F0F0;position:sticky;top:0;z-index:10">
+                        <!-- שורת חיפוש -->
+                        <div style="display:flex;gap:0.4rem;margin-bottom:0.5rem">
+                          <input id="feed-search-input" type="text" placeholder="🔍 חיפוש בפיד..." onkeydown="if(event.key==='Enter')runFeedSearch()"
+                            style="flex:1;border:1.5px solid #E5E7EB;border-radius:50px;padding:0.3rem 0.85rem;font-size:0.8rem;font-family:'Heebo',sans-serif;outline:none">
+                          <button onclick="runFeedSearch()" style="background:#1D4ED8;color:white;border:none;border-radius:50px;padding:0.3rem 0.9rem;font-size:0.8rem;font-weight:700;cursor:pointer">חפש</button>
+                          <button id="feed-search-clear" onclick="clearFeedSearch()" style="display:none;background:#F3F4F6;border:none;border-radius:50px;padding:0.3rem 0.7rem;font-size:0.8rem;cursor:pointer;color:#555">✕</button>
+                        </div>
                         <!-- סינון קהילה -->
                         <div id="feed-community-filter" style="display:flex;gap:0.4rem;overflow-x:auto;padding-bottom:0.4rem;margin-bottom:0.4rem;scrollbar-width:none">
                           <button onclick="setFeedFilter('community',null)" class="feed-filter-btn" id="feed-filter-all"
@@ -1303,11 +1310,28 @@
                         <div id="feed-group-filter" style="display:flex;gap:0.3rem;overflow-x:auto;scrollbar-width:none"></div>
                       </div>
 
-                      <!-- כפתור פרסום -->
-                      <div style="padding:0.7rem">
-                        <button onclick="openNewPostModal()" style="width:100%;background:linear-gradient(135deg,#1D4ED8,#4F46E5);color:white;border:none;border-radius:14px;padding:0.75rem;font-family:'Heebo',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem">
-                          ✏️ פרסם פוסט לקהילה
+                      <!-- כפתורים עליונים -->
+                      <div style="padding:0.7rem;display:flex;gap:0.5rem">
+                        <button onclick="openNewPostModal()" style="flex:1;background:linear-gradient(135deg,#1D4ED8,#4F46E5);color:white;border:none;border-radius:14px;padding:0.75rem;font-family:'Heebo',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem">
+                          ✏️ פרסם פוסט
                         </button>
+                        <button onclick="openInterestGroupsPanel()" style="background:#F0FDF4;color:#16A34A;border:2px solid #BBF7D0;border-radius:14px;padding:0.75rem 1rem;font-family:'Heebo',sans-serif;font-size:0.85rem;font-weight:700;cursor:pointer;white-space:nowrap">
+                          💬 תחומי עניין
+                        </button>
+                      </div>
+
+                      <!-- פאנל תחומי עניין (מוסתר כברירת מחדל) -->
+                      <div id="interest-groups-panel" style="display:none;background:#F8FAFF;border-bottom:1px solid #E5E7EB;padding:0.8rem 0.7rem">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+                          <span style="font-weight:800;font-size:0.9rem;color:#1D4ED8">💬 תחומי עניין בקהילה</span>
+                          <div style="display:flex;gap:0.4rem">
+                            <button onclick="openCreateGroupModal()" id="btn-create-group" style="display:none;background:#1D4ED8;color:white;border:none;border-radius:10px;padding:0.3rem 0.8rem;font-size:0.75rem;font-weight:700;cursor:pointer">+ חדש</button>
+                            <button onclick="closeInterestGroupsPanel()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#9CA3AF">✕</button>
+                          </div>
+                        </div>
+                        <div id="interest-groups-list" style="display:flex;flex-direction:column;gap:0.5rem">
+                          <p style="text-align:center;color:#9CA3AF;font-size:0.8rem;padding:0.5rem">בחר קהילה לצפייה בתחומי עניין</p>
+                        </div>
                       </div>
 
                       <!-- רשימת פוסטים -->
@@ -1378,6 +1402,60 @@
                           <button onclick="document.getElementById('likers-modal').style.display='none'" style="background:none;border:none;font-size:1.3rem;cursor:pointer">✕</button>
                         </div>
                         <div id="likers-modal-list"></div>
+                      </div>
+                    </div>
+
+                    <!-- מודל יצירת קבוצת עניין -->
+                    <div id="modal-create-interest-group" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:5100;align-items:flex-start;justify-content:center;padding-top:env(safe-area-inset-top,0)" onclick="if(event.target===this)closeCreateGroupModal()">
+                      <div style="background:white;border-radius:0 0 24px 24px;width:100%;max-width:480px;padding:1.3rem;max-height:90vh;overflow-y:auto">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+                          <h3 style="font-weight:900;font-size:1rem">✨ פתיחת תחום עניין חדש</h3>
+                          <button onclick="closeCreateGroupModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer">✕</button>
+                        </div>
+                        <p id="create-group-comm-label" style="font-size:0.78rem;color:#6B7280;margin-bottom:0.8rem"></p>
+                        <div style="margin-bottom:0.8rem">
+                          <label style="font-size:0.78rem;font-weight:700;color:#374151;display:block;margin-bottom:0.3rem">אייקון</label>
+                          <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+                            <span class="group-emoji-opt" onclick="selectGroupEmoji(this,'💬')" style="font-size:1.5rem;cursor:pointer;padding:0.2rem 0.3rem;border-radius:8px;border:2px solid #1D4ED8">💬</span>
+                            <span class="group-emoji-opt" onclick="selectGroupEmoji(this,'⚽')" style="font-size:1.5rem;cursor:pointer;padding:0.2rem 0.3rem;border-radius:8px;border:2px solid transparent">⚽</span>
+                            <span class="group-emoji-opt" onclick="selectGroupEmoji(this,'🍳')" style="font-size:1.5rem;cursor:pointer;padding:0.2rem 0.3rem;border-radius:8px;border:2px solid transparent">🍳</span>
+                            <span class="group-emoji-opt" onclick="selectGroupEmoji(this,'🎵')" style="font-size:1.5rem;cursor:pointer;padding:0.2rem 0.3rem;border-radius:8px;border:2px solid transparent">🎵</span>
+                            <span class="group-emoji-opt" onclick="selectGroupEmoji(this,'📚')" style="font-size:1.5rem;cursor:pointer;padding:0.2rem 0.3rem;border-radius:8px;border:2px solid transparent">📚</span>
+                            <span class="group-emoji-opt" onclick="selectGroupEmoji(this,'🌱')" style="font-size:1.5rem;cursor:pointer;padding:0.2rem 0.3rem;border-radius:8px;border:2px solid transparent">🌱</span>
+                            <span class="group-emoji-opt" onclick="selectGroupEmoji(this,'🐕')" style="font-size:1.5rem;cursor:pointer;padding:0.2rem 0.3rem;border-radius:8px;border:2px solid transparent">🐕</span>
+                            <span class="group-emoji-opt" onclick="selectGroupEmoji(this,'🏃')" style="font-size:1.5rem;cursor:pointer;padding:0.2rem 0.3rem;border-radius:8px;border:2px solid transparent">🏃</span>
+                            <span class="group-emoji-opt" onclick="selectGroupEmoji(this,'🎮')" style="font-size:1.5rem;cursor:pointer;padding:0.2rem 0.3rem;border-radius:8px;border:2px solid transparent">🎮</span>
+                            <span class="group-emoji-opt" onclick="selectGroupEmoji(this,'💡')" style="font-size:1.5rem;cursor:pointer;padding:0.2rem 0.3rem;border-radius:8px;border:2px solid transparent">💡</span>
+                          </div>
+                        </div>
+                        <div style="margin-bottom:0.8rem">
+                          <label style="font-size:0.78rem;font-weight:700;color:#374151;display:block;margin-bottom:0.3rem">שם התחום *</label>
+                          <input id="new-group-name" type="text" maxlength="60" placeholder="לדוגמה: כדורגל שכונתי, טבולה, הורים לגיל 3-6..."
+                            style="width:100%;border:1.5px solid #E5E7EB;border-radius:12px;padding:0.55rem 0.75rem;font-size:0.9rem;font-family:'Heebo',sans-serif;box-sizing:border-box;outline:none">
+                        </div>
+                        <div style="margin-bottom:1.2rem">
+                          <label style="font-size:0.78rem;font-weight:700;color:#374151;display:block;margin-bottom:0.3rem">תיאור (אופציונלי)</label>
+                          <textarea id="new-group-desc" rows="2" placeholder="על מה הקבוצה?"
+                            style="width:100%;border:1.5px solid #E5E7EB;border-radius:12px;padding:0.55rem 0.75rem;font-size:0.85rem;font-family:'Heebo',sans-serif;box-sizing:border-box;resize:none;outline:none"></textarea>
+                        </div>
+                        <button onclick="submitCreateGroup()" style="width:100%;background:linear-gradient(135deg,#1D4ED8,#4F46E5);color:white;border:none;border-radius:14px;padding:0.75rem;font-family:'Heebo',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer">
+                          פתח תחום עניין
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- מודל ניהול חברי קבוצת עניין -->
+                    <div id="modal-group-members" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:5100;align-items:flex-start;justify-content:center;padding-top:8vh" onclick="if(event.target===this)document.getElementById('modal-group-members').style.display='none'">
+                      <div style="background:white;border-radius:20px;width:92%;max-width:420px;max-height:82vh;overflow-y:auto;padding:1.2rem">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+                          <h3 id="group-members-title" style="font-weight:900;font-size:1rem"></h3>
+                          <button onclick="document.getElementById('modal-group-members').style.display='none'" style="background:none;border:none;font-size:1.3rem;cursor:pointer">✕</button>
+                        </div>
+                        <div id="group-members-add-section" style="display:none;margin-bottom:0.8rem">
+                          <p style="font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:0.4rem">הוסף משפחה מהקהילה:</p>
+                          <div id="group-addable-list" style="display:flex;flex-direction:column;gap:0.4rem;max-height:150px;overflow-y:auto"></div>
+                        </div>
+                        <div id="group-members-list" style="display:flex;flex-direction:column;gap:0.5rem"></div>
                       </div>
                     </div>
 

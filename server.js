@@ -23034,13 +23034,13 @@ app.get('/api/community/notifications', async (req, res) => {
     if (!familyId) return res.status(400).json({ error: 'familyId נדרש' });
     const result = await pool.query(`
       SELECT cn.*,
-        fg_actor.name as actor_family_name, fg_actor.image_url as actor_family_avatar,
+        COALESCE(fg_actor.name,'') as actor_family_name, fg_actor.image_url as actor_family_avatar,
         c.name as community_name,
         (SELECT TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,''))
          FROM users WHERE id=cn.actor_user_id LIMIT 1) as actor_user_name
       FROM community_notifications cn
-      JOIN family_groups fg_actor ON fg_actor.id = cn.actor_family_id
-      JOIN communities c ON c.id = cn.community_id
+      LEFT JOIN family_groups fg_actor ON fg_actor.id = cn.actor_family_id
+      LEFT JOIN communities c ON c.id = cn.community_id
       WHERE cn.target_family_id=$1
       ORDER BY cn.created_at DESC LIMIT $2
     `, [familyId, parseInt(limit)]);
@@ -23282,14 +23282,206 @@ app.get('/api/community/:communityId/groups', async (req, res) => {
 app.post('/api/community/groups/:id/join', async (req, res) => {
   try {
     const { familyId } = req.body;
-    await pool.query(
-      `INSERT INTO community_group_members (group_id, family_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+    // וידוא שהמשפחה חברה בקהילה
+    const grp = await pool.query('SELECT community_id FROM community_interest_groups WHERE id=$1', [req.params.id]);
+    if (!grp.rows.length) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
+    const isMember = await pool.query(
+      'SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND status=\'approved\'',
+      [familyId, grp.rows[0].community_id]);
+    if (!isMember.rows.length) return res.status(403).json({ error: 'לא חבר בקהילה' });
+    const ins = await pool.query(
+      `INSERT INTO community_group_members (group_id, family_id) VALUES ($1,$2) ON CONFLICT DO NOTHING RETURNING id`,
       [req.params.id, familyId]
     );
-    await pool.query('UPDATE community_interest_groups SET members_count=members_count+1 WHERE id=$1', [req.params.id]);
+    if (ins.rows.length) {
+      await pool.query('UPDATE community_interest_groups SET members_count=members_count+1 WHERE id=$1', [req.params.id]);
+    }
     res.json({ success:true });
   } catch(e){ res.status(500).json({ error:e.message }); }
 });
+
+// עזיבת קבוצת עניין
+app.post('/api/community/groups/:id/leave', async (req, res) => {
+  try {
+    const { familyId } = req.body;
+    const del = await pool.query(
+      'DELETE FROM community_group_members WHERE group_id=$1 AND family_id=$2 RETURNING id',
+      [req.params.id, familyId]);
+    if (del.rows.length) {
+      await pool.query('UPDATE community_interest_groups SET members_count=GREATEST(0,members_count-1) WHERE id=$1', [req.params.id]);
+    }
+    res.json({ success:true });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// יצירת קבוצת עניין חדשה
+app.post('/api/community/groups', async (req, res) => {
+  try {
+    const { communityId, name, description, iconEmoji, familyId } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'שם חובה' });
+    // וידוא שהמשפחה חברה בקהילה
+    const isMember = await pool.query(
+      'SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND status=\'approved\'',
+      [familyId, communityId]);
+    if (!isMember.rows.length) return res.status(403).json({ error: 'לא חבר בקהילה' });
+    // שם ייחודי באותה קהילה
+    const dup = await pool.query(
+      'SELECT 1 FROM community_interest_groups WHERE community_id=$1 AND LOWER(name)=LOWER($2)',
+      [communityId, name.trim()]);
+    if (dup.rows.length) return res.status(400).json({ error: 'כבר קיים תחום עניין עם שם זה בקהילה' });
+    const ins = await pool.query(
+      `INSERT INTO community_interest_groups (community_id, name, description, icon_emoji, members_count, created_by_family_id)
+       VALUES ($1,$2,$3,$4,1,$5) RETURNING *`,
+      [communityId, name.trim(), description || null, iconEmoji || '💬', familyId]);
+    const newGroup = ins.rows[0];
+    // הוספת היוצר כחבר
+    await pool.query(
+      'INSERT INTO community_group_members (group_id, family_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
+      [newGroup.id, familyId]);
+    // התראה לכל חברי הקהילה
+    const members = await pool.query(
+      'SELECT group_id FROM family_communities WHERE community_id=$1 AND status=\'approved\' AND group_id!=$2',
+      [communityId, familyId]);
+    if (members.rows.length) {
+      const commName = await pool.query('SELECT name FROM communities WHERE id=$1', [communityId]);
+      const cName = commName.rows[0]?.name || '';
+      // target_family_id=חבר הקהילה, actor_family_id=יוצר הקבוצה, action_type='group_new', post_id=null, ref_id=group id
+      const vals = members.rows.map((_,i) => `($${i*3+1},$${i*3+2},$${i*3+3},'group_new')`).join(',');
+      const params = members.rows.flatMap(m => [m.group_id, communityId, parseInt(familyId)]);
+      await pool.query(
+        `INSERT INTO community_notifications (target_family_id, community_id, actor_family_id, action_type) VALUES ${vals}`,
+        params);
+    }
+    res.json({ success:true, group: newGroup });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// הוספת משפחה לקבוצת עניין (על ידי היוצר)
+app.post('/api/community/groups/:id/add-family', async (req, res) => {
+  try {
+    const { familyId, targetFamilyId } = req.body;
+    const grp = await pool.query(
+      'SELECT * FROM community_interest_groups WHERE id=$1', [req.params.id]);
+    if (!grp.rows.length) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
+    if (grp.rows[0].created_by_family_id !== parseInt(familyId)) {
+      return res.status(403).json({ error: 'רק יוצר הקבוצה יכול להוסיף משפחות' });
+    }
+    // וידוא שהמשפחה המצורפת חברה בקהילה
+    const isMember = await pool.query(
+      'SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND status=\'approved\'',
+      [targetFamilyId, grp.rows[0].community_id]);
+    if (!isMember.rows.length) return res.status(400).json({ error: 'המשפחה אינה חברה בקהילה' });
+    const ins = await pool.query(
+      'INSERT INTO community_group_members (group_id, family_id) VALUES ($1,$2) ON CONFLICT DO NOTHING RETURNING id',
+      [req.params.id, targetFamilyId]);
+    if (ins.rows.length) {
+      await pool.query('UPDATE community_interest_groups SET members_count=members_count+1 WHERE id=$1', [req.params.id]);
+    }
+    res.json({ success:true });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// הסרת משפחה מקבוצת עניין (על ידי היוצר)
+app.delete('/api/community/groups/:id/remove-family', async (req, res) => {
+  try {
+    const { familyId, targetFamilyId } = req.body;
+    const grp = await pool.query(
+      'SELECT * FROM community_interest_groups WHERE id=$1', [req.params.id]);
+    if (!grp.rows.length) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
+    if (grp.rows[0].created_by_family_id !== parseInt(familyId)) {
+      return res.status(403).json({ error: 'רק יוצר הקבוצה יכול להסיר משפחות' });
+    }
+    const del = await pool.query(
+      'DELETE FROM community_group_members WHERE group_id=$1 AND family_id=$2 RETURNING id',
+      [req.params.id, targetFamilyId]);
+    if (del.rows.length) {
+      await pool.query('UPDATE community_interest_groups SET members_count=GREATEST(0,members_count-1) WHERE id=$1', [req.params.id]);
+    }
+    res.json({ success:true });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// רשימת חברים בקבוצה
+app.get('/api/community/groups/:id/members', async (req, res) => {
+  try {
+    const { familyId } = req.query;
+    const grp = await pool.query('SELECT * FROM community_interest_groups WHERE id=$1', [req.params.id]);
+    if (!grp.rows.length) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
+    const members = await pool.query(
+      `SELECT fg.id, fg.name, fg.image_url, fg.family_nickname,
+              cgm.joined_at,
+              (fg.id = $2) as is_creator
+       FROM community_group_members cgm
+       JOIN family_groups fg ON fg.id = cgm.family_id
+       WHERE cgm.group_id=$1
+       ORDER BY cgm.joined_at ASC`,
+      [req.params.id, grp.rows[0].created_by_family_id]);
+    // רשימת משפחות בקהילה שעדיין לא בקבוצה (לצורך הוספה)
+    let addable = [];
+    if (familyId && grp.rows[0].created_by_family_id === parseInt(familyId)) {
+      const addRes = await pool.query(
+        `SELECT fg.id, fg.name, fg.family_nickname, fg.image_url
+         FROM family_communities fc
+         JOIN family_groups fg ON fg.id=fc.group_id
+         WHERE fc.community_id=$1 AND fc.status='approved'
+           AND fg.id NOT IN (SELECT family_id FROM community_group_members WHERE group_id=$2)
+         ORDER BY fg.name`,
+        [grp.rows[0].community_id, req.params.id]);
+      addable = addRes.rows;
+    }
+    res.json({ success:true, group: grp.rows[0], members: members.rows, addable });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// חיפוש בפיד
+app.get('/api/community/feed/search', async (req, res) => {
+  try {
+    const { q, familyId, communityId, groupId, page=1 } = req.query;
+    if (!q || !q.trim()) return res.json({ success:true, posts:[], hasMore:false });
+    const fid = parseInt(familyId) || 0;
+    const lim = 20;
+    const off = (parseInt(page)-1) * lim;
+    const conditions = ['cp.is_hidden=false', 'cp.content ILIKE $1'];
+    const params = [`%${q.trim()}%`];
+    if (communityId) {
+      params.push(parseInt(communityId));
+      conditions.push(`cp.community_id=$${params.length}`);
+    } else if (fid) {
+      params.push(fid);
+      conditions.push(`cp.community_id IN (SELECT community_id FROM family_communities WHERE group_id=$${params.length} AND status='approved')`);
+    }
+    if (groupId) { params.push(parseInt(groupId)); conditions.push(`cp.group_id=$${params.length}`); }
+    params.push(fid, lim+1, off);
+    const pFid = params.length-2; const pLim = params.length-1; const pOff = params.length;
+    const result = await pool.query(`
+      SELECT cp.id, cp.content, cp.image_url, cp.post_type, cp.likes_count, cp.comments_count,
+             cp.shares_count, cp.created_at, cp.is_pinned, cp.author_family_id, cp.group_id,
+             fg.name as publisher_name, fg.image_url as publisher_avatar,
+             (SELECT CASE WHEN TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'')) != ''
+                          THEN TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,''))
+                          ELSE COALESCE(nickname,'') END
+              FROM users WHERE id=cp.author_user_id LIMIT 1) as author_user_name,
+             c.name as community_name,
+             cig.name as group_name, cig.icon_emoji as group_icon,
+             EXISTS(SELECT 1 FROM community_post_likes WHERE post_id=cp.id AND family_id=$${pFid}) as liked_by_me
+      FROM community_posts cp
+      JOIN family_groups fg ON fg.id=cp.author_family_id
+      JOIN communities c ON c.id=cp.community_id
+      LEFT JOIN community_interest_groups cig ON cig.id=cp.group_id
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY cp.created_at DESC
+      LIMIT $${pLim} OFFSET $${pOff}
+    `, params);
+    const hasMore = result.rows.length > lim;
+    res.json({ success:true, posts: result.rows.slice(0,lim), hasMore });
+  } catch(e){ res.status(500).json({ error:e.message }); }
+});
+
+// מיגרציה: הוספת עמודות חסרות
+(async () => {
+  try { await pool.query(`ALTER TABLE community_notifications ADD COLUMN IF NOT EXISTS ref_id INT`); } catch(e) {}
+  try { await pool.query(`ALTER TABLE community_interest_groups ADD COLUMN IF NOT EXISTS icon_emoji VARCHAR(10) DEFAULT '💬'`); } catch(e) {}
+})();
 
 // ===== SUPER ADMIN — COMMUNITY FEED =====
 

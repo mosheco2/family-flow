@@ -16019,23 +16019,31 @@ async function loadNotificationsTab() {
       like: '❤️ לייק על הפוסט שלכם',
       comment: '💬 תגובה על הפוסט שלכם',
       report: '🚩 דיווח על פוסט',
-      share: '↗️ שיתוף הפוסט שלכם'
+      share: '↗️ שיתוף הפוסט שלכם',
+      group_new: '✨ תחום עניין חדש נפתח'
     };
-    container.innerHTML = data.notifications.map(n => `
-      <div onclick="openNotif(${n.id},${n.community_id},${n.post_id})"
+    container.innerHTML = data.notifications.map(n => {
+      const isGroupNew = (n.notif_type || n.action_type) === 'group_new';
+      const onclick = isGroupNew
+        ? `setFeedFilter('community',${n.community_id});switchFamCommunityTab('feed');setTimeout(openInterestGroupsPanel,400)`
+        : `openNotif(${n.id},${n.community_id},${n.post_id})`;
+      const label = actionLabels[n.notif_type || n.action_type] || (n.notif_type || n.action_type);
+      return `
+      <div onclick="${onclick}"
            style="background:${n.is_read ? '#F8FAFF' : '#EFF6FF'};border-radius:12px;padding:0.75rem;margin-bottom:0.5rem;cursor:pointer;border:1px solid ${n.is_read ? '#E2E8F0' : '#BFDBFE'}">
         <div style="display:flex;gap:0.5rem;align-items:center">
           <div style="width:36px;height:36px;border-radius:50%;background:#DBEAFE;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center">
             ${n.actor_family_avatar ? `<img src="${escHtml(n.actor_family_avatar)}" style="width:100%;height:100%;object-fit:cover">` : '👥'}
           </div>
           <div style="flex:1;min-width:0">
-            <div style="font-weight:700;font-size:0.8rem;color:#1D4ED8">${actionLabels[n.action_type] || n.action_type}</div>
+            <div style="font-weight:700;font-size:0.8rem;color:#1D4ED8">${label}</div>
             <div style="font-size:0.75rem;color:#475569">${escHtml(n.actor_family_name)}${n.actor_user_name ? ` — ${escHtml(n.actor_user_name)}` : ''}</div>
             <div style="font-size:0.7rem;color:#94A3B8">${escHtml(n.community_name)} • ${formatTimeAgo(n.created_at)}</div>
           </div>
           ${!n.is_read ? '<div style="width:8px;height:8px;border-radius:50%;background:#3B82F6;flex-shrink:0"></div>' : ''}
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     // סמן הכל כנקרא
     await markAllNotifsRead();
   } catch(e) {
@@ -16068,6 +16076,260 @@ async function markAllNotifsRead() {
     });
     loadNotifCount();
   } catch(e) {}
+}
+
+// ===== תחומי עניין (INTEREST GROUPS) =====
+
+let interestGroupsCache = {}; // communityId → groups[]
+let selectedGroupEmoji = '💬';
+let createGroupCommunityId = null;
+
+function openInterestGroupsPanel() {
+  const panel = document.getElementById('interest-groups-panel');
+  if (!panel) return;
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  if (panel.style.display === 'block') {
+    const commId = feedState.communityId;
+    if (commId) loadInterestGroupsForComm(commId);
+    else {
+      document.getElementById('interest-groups-list').innerHTML =
+        '<p style="text-align:center;color:#9CA3AF;font-size:0.8rem;padding:0.5rem">בחר קהילה ספציפית בסינון למעלה לצפייה בתחומי עניין</p>';
+      document.getElementById('btn-create-group').style.display = 'none';
+    }
+  }
+}
+
+function closeInterestGroupsPanel() {
+  const panel = document.getElementById('interest-groups-panel');
+  if (panel) panel.style.display = 'none';
+}
+
+async function loadInterestGroupsForComm(communityId) {
+  const listEl = document.getElementById('interest-groups-list');
+  const createBtn = document.getElementById('btn-create-group');
+  if (!listEl) return;
+  listEl.innerHTML = '<p style="text-align:center;color:#9CA3AF;font-size:0.75rem">טוען...</p>';
+  try {
+    const res = await fetch(`${API}/community/${communityId}/groups?familyId=${currentGroup?.id}`);
+    const data = await res.json();
+    interestGroupsCache[communityId] = data.groups || [];
+    if (createBtn) createBtn.style.display = 'inline-block';
+    if (!data.groups?.length) {
+      listEl.innerHTML = '<p style="text-align:center;color:#9CA3AF;font-size:0.8rem;padding:0.5rem">אין עדיין תחומי עניין בקהילה זו. היה הראשון לפתוח! 🌟</p>';
+      return;
+    }
+    listEl.innerHTML = data.groups.map(g => `
+      <div style="background:white;border-radius:12px;padding:0.7rem 0.9rem;display:flex;align-items:center;gap:0.7rem;box-shadow:0 1px 4px rgba(0,0,0,0.07)">
+        <span style="font-size:1.4rem">${g.icon_emoji || '💬'}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;font-size:0.88rem;color:#1e293b">${escHtml(g.name)}</div>
+          ${g.description ? `<div style="font-size:0.72rem;color:#64748b;margin-top:0.1rem">${escHtml(g.description)}</div>` : ''}
+          <div style="font-size:0.7rem;color:#94a3b8;margin-top:0.2rem">👥 ${g.members_count} משפחות</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.3rem;align-items:flex-end">
+          ${g.is_member
+            ? `<button onclick="leaveInterestGroup(${g.id},${communityId})" style="background:#FEF2F2;color:#EF4444;border:none;border-radius:8px;padding:0.25rem 0.65rem;font-size:0.7rem;font-weight:700;cursor:pointer">עזוב</button>`
+            : `<button onclick="joinInterestGroup(${g.id},${communityId})" style="background:#EFF6FF;color:#1D4ED8;border:none;border-radius:8px;padding:0.25rem 0.65rem;font-size:0.7rem;font-weight:700;cursor:pointer">הצטרף</button>`}
+          <button onclick="setFeedFilter('group',${g.id});closeInterestGroupsPanel()" style="background:#F0FDF4;color:#16A34A;border:none;border-radius:8px;padding:0.25rem 0.65rem;font-size:0.7rem;font-weight:700;cursor:pointer">צפה בפוסטים</button>
+          ${g.created_by_family_id == currentGroup?.id ? `<button onclick="openGroupMembersModal(${g.id})" style="background:#FDF4FF;color:#9333EA;border:none;border-radius:8px;padding:0.25rem 0.65rem;font-size:0.7rem;font-weight:700;cursor:pointer">ניהול חברים</button>` : ''}
+        </div>
+      </div>
+    `).join('');
+    // עדכן גם את שורת הפילטר בפיד
+    loadGroupFilters(communityId);
+  } catch(e) {
+    listEl.innerHTML = '<p style="text-align:center;color:#EF4444;font-size:0.8rem">שגיאה בטעינה</p>';
+  }
+}
+
+async function joinInterestGroup(groupId, communityId) {
+  try {
+    const res = await fetch(`${API}/community/groups/${groupId}/join`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ familyId: currentGroup?.id })
+    });
+    const data = await res.json();
+    if (!data.success) { showToast('error', data.error || 'שגיאה'); return; }
+    showToast('success', 'הצטרפת לתחום העניין ✓');
+    loadInterestGroupsForComm(communityId);
+  } catch(e) { showToast('error', 'שגיאה'); }
+}
+
+async function leaveInterestGroup(groupId, communityId) {
+  if (!confirm('לעזוב תחום עניין זה?')) return;
+  try {
+    const res = await fetch(`${API}/community/groups/${groupId}/leave`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ familyId: currentGroup?.id })
+    });
+    const data = await res.json();
+    if (!data.success) { showToast('error', data.error || 'שגיאה'); return; }
+    showToast('success', 'עזבת את תחום העניין');
+    loadInterestGroupsForComm(communityId);
+  } catch(e) { showToast('error', 'שגיאה'); }
+}
+
+function openCreateGroupModal() {
+  const communityId = feedState.communityId;
+  if (!communityId) { showToast('error', 'בחר קהילה ספציפית לפני פתיחת תחום עניין'); return; }
+  createGroupCommunityId = communityId;
+  selectedGroupEmoji = '💬';
+  const comms = myConnectedCommunitiesCache || currentCommunities || [];
+  const comm = comms.find(c => c.id == communityId);
+  const labelEl = document.getElementById('create-group-comm-label');
+  if (labelEl) labelEl.textContent = `קהילה: ${comm?.name || communityId}`;
+  const nameEl = document.getElementById('new-group-name');
+  const descEl = document.getElementById('new-group-desc');
+  if (nameEl) nameEl.value = '';
+  if (descEl) descEl.value = '';
+  document.querySelectorAll('.group-emoji-opt').forEach(el => {
+    el.style.border = el.textContent.trim() === '💬' ? '2px solid #1D4ED8' : '2px solid transparent';
+  });
+  const modal = document.getElementById('modal-create-interest-group');
+  if (modal) { modal.style.display = 'flex'; }
+}
+
+function closeCreateGroupModal() {
+  const modal = document.getElementById('modal-create-interest-group');
+  if (modal) modal.style.display = 'none';
+}
+
+function selectGroupEmoji(el, emoji) {
+  selectedGroupEmoji = emoji;
+  document.querySelectorAll('.group-emoji-opt').forEach(e => {
+    e.style.border = e === el ? '2px solid #1D4ED8' : '2px solid transparent';
+  });
+}
+
+async function submitCreateGroup() {
+  const name = document.getElementById('new-group-name')?.value?.trim();
+  const desc = document.getElementById('new-group-desc')?.value?.trim();
+  if (!name) { showToast('error', 'שם התחום חובה'); return; }
+  try {
+    const res = await fetch(`${API}/community/groups`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        communityId: createGroupCommunityId,
+        name, description: desc, iconEmoji: selectedGroupEmoji,
+        familyId: currentGroup?.id
+      })
+    });
+    const data = await res.json();
+    if (!data.success) { showToast('error', data.error || 'שגיאה'); return; }
+    showToast('success', `תחום העניין "${name}" נפתח! 🎉`);
+    closeCreateGroupModal();
+    loadInterestGroupsForComm(createGroupCommunityId);
+  } catch(e) { showToast('error', 'שגיאה'); }
+}
+
+async function openGroupMembersModal(groupId) {
+  const modal = document.getElementById('modal-group-members');
+  const title = document.getElementById('group-members-title');
+  const membersList = document.getElementById('group-members-list');
+  const addSection = document.getElementById('group-members-add-section');
+  const addableList = document.getElementById('group-addable-list');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  membersList.innerHTML = '<p style="text-align:center;color:#9CA3AF;font-size:0.8rem">טוען...</p>';
+  try {
+    const res = await fetch(`${API}/community/groups/${groupId}/members?familyId=${currentGroup?.id}`);
+    const data = await res.json();
+    if (!data.success) { membersList.innerHTML = '<p style="color:#EF4444;font-size:0.8rem">שגיאה</p>'; return; }
+    title.textContent = `${data.group.icon_emoji || '💬'} ${data.group.name} — חברים`;
+    const isCreator = data.group.created_by_family_id === currentGroup?.id;
+    // חברים קיימים
+    membersList.innerHTML = data.members.map(m => `
+      <div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;border-bottom:1px solid #F3F4F6">
+        ${m.image_url ? `<img src="${m.image_url}" style="width:32px;height:32px;border-radius:50%;object-fit:cover">` : `<div style="width:32px;height:32px;border-radius:50%;background:#E5E7EB;display:flex;align-items:center;justify-content:center;font-size:1rem">👨‍👩‍👧</div>`}
+        <span style="flex:1;font-size:0.85rem;font-weight:700">${escHtml(fmtGroupName(m))}</span>
+        ${m.is_creator ? '<span style="font-size:0.65rem;background:#FEF9C3;color:#92400E;border-radius:6px;padding:0.1rem 0.4rem">יוצר</span>' : ''}
+        ${isCreator && !m.is_creator ? `<button onclick="removeFamilyFromGroup(${groupId},${m.id})" style="background:#FEF2F2;color:#EF4444;border:none;border-radius:8px;padding:0.2rem 0.55rem;font-size:0.7rem;font-weight:700;cursor:pointer">הסר</button>` : ''}
+      </div>
+    `).join('');
+    // הוספת משפחות (רק ליוצר)
+    if (isCreator && data.addable?.length) {
+      addSection.style.display = 'block';
+      addableList.innerHTML = data.addable.map(f => `
+        <div style="display:flex;align-items:center;gap:0.5rem;padding:0.3rem 0">
+          <span style="flex:1;font-size:0.82rem">${escHtml(fmtGroupName(f))}</span>
+          <button onclick="addFamilyToGroup(${groupId},${f.id})" style="background:#EFF6FF;color:#1D4ED8;border:none;border-radius:8px;padding:0.2rem 0.6rem;font-size:0.7rem;font-weight:700;cursor:pointer">הוסף</button>
+        </div>
+      `).join('');
+    } else {
+      addSection.style.display = 'none';
+    }
+    // שמור groupId על המודל לשימוש מאוחר
+    modal.dataset.groupId = groupId;
+  } catch(e) { membersList.innerHTML = '<p style="color:#EF4444;font-size:0.8rem">שגיאה</p>'; }
+}
+
+async function addFamilyToGroup(groupId, targetFamilyId) {
+  try {
+    const res = await fetch(`${API}/community/groups/${groupId}/add-family`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ familyId: currentGroup?.id, targetFamilyId })
+    });
+    const data = await res.json();
+    if (!data.success) { showToast('error', data.error || 'שגיאה'); return; }
+    showToast('success', 'משפחה נוספה ✓');
+    openGroupMembersModal(groupId);
+  } catch(e) { showToast('error', 'שגיאה'); }
+}
+
+async function removeFamilyFromGroup(groupId, targetFamilyId) {
+  if (!confirm('להסיר משפחה זו מהקבוצה?')) return;
+  try {
+    const res = await fetch(`${API}/community/groups/${groupId}/remove-family`, {
+      method: 'DELETE', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ familyId: currentGroup?.id, targetFamilyId })
+    });
+    const data = await res.json();
+    if (!data.success) { showToast('error', data.error || 'שגיאה'); return; }
+    showToast('success', 'משפחה הוסרה');
+    openGroupMembersModal(groupId);
+  } catch(e) { showToast('error', 'שגיאה'); }
+}
+
+// ===== חיפוש בפיד =====
+
+let feedSearchMode = false;
+
+async function runFeedSearch() {
+  const q = document.getElementById('feed-search-input')?.value?.trim();
+  if (!q) return;
+  feedSearchMode = true;
+  document.getElementById('feed-search-clear').style.display = 'inline-block';
+  const list = document.getElementById('feed-posts-list');
+  if (list) list.innerHTML = '<p style="text-align:center;color:#9CA3AF;padding:2rem;font-size:0.85rem">מחפש...</p>';
+  document.getElementById('feed-load-more').style.display = 'none';
+  try {
+    const params = new URLSearchParams({ q, familyId: currentGroup?.id });
+    if (feedState.communityId) params.set('communityId', feedState.communityId);
+    if (feedState.groupId) params.set('groupId', feedState.groupId);
+    const res = await fetch(`${API}/community/feed/search?${params}`);
+    const data = await res.json();
+    if (!data.success) { list.innerHTML = '<p style="text-align:center;color:#EF4444;padding:2rem">שגיאה בחיפוש</p>'; return; }
+    if (!data.posts?.length) {
+      list.innerHTML = `<p style="text-align:center;color:#9CA3AF;padding:2rem;font-size:0.85rem">לא נמצאו תוצאות עבור "<strong>${escHtml(q)}</strong>"</p>`;
+      return;
+    }
+    list.innerHTML = `<p style="font-size:0.75rem;color:#6B7280;padding:0.5rem 0.2rem">${data.posts.length} תוצאות עבור "${escHtml(q)}"</p>`;
+    data.posts.forEach(p => {
+      const card = document.createElement('div');
+      card.innerHTML = renderPostCard(p);
+      list.appendChild(card.firstElementChild || card);
+    });
+  } catch(e) {
+    if (list) list.innerHTML = '<p style="text-align:center;color:#EF4444;padding:2rem">שגיאה</p>';
+  }
+}
+
+function clearFeedSearch() {
+  feedSearchMode = false;
+  const inp = document.getElementById('feed-search-input');
+  if (inp) inp.value = '';
+  document.getElementById('feed-search-clear').style.display = 'none';
+  fetchFeedPosts(true);
 }
 
 // ===== END COMMUNITY FEED =====
