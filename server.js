@@ -5036,13 +5036,39 @@ app.get('/api/data/:userId', async (req, res) => {
         ]);
         group.admin_total_balance = adminBalRes.rows[0].total;
 
-        // Child balance: compute from transactions (income - expense) for non-ADMIN
-        if (user.role !== 'ADMIN') {
-            const childBalRes = await pool.query(
-                "SELECT COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE -amount END),0) as total FROM transactions WHERE user_id=$1",
-                [user.id]
-            );
-            user.computed_balance = childBalRes.rows[0].total;
+        // Parallel: child balance + weekly spend + community businesses (all independent of the Promise.all above)
+        const _startOfWeek = new Date(); _startOfWeek.setDate(_startOfWeek.getDate() - _startOfWeek.getDay());
+        const [childBalRes, spentRes, commBizRes] = await Promise.all([
+            user.role !== 'ADMIN'
+                ? pool.query("SELECT COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE -amount END),0) as total FROM transactions WHERE user_id=$1", [user.id])
+                : Promise.resolve(null),
+            user.role !== 'ADMIN'
+                ? pool.query("SELECT COALESCE(SUM(amount), 0) as spent FROM transactions WHERE user_id = $1 AND type = 'expense' AND date >= $2", [user.id, _startOfWeek])
+                : Promise.resolve(null),
+            group.community_id
+                ? pool.query(`SELECT cb.discount_pct, cb.created_at, b.name as business_name, b.id as business_id, b.group_code,
+                               c.name as comm_name, c.id as community_id,
+                               COALESCE(ss.logo_url, b.image_url) as logo_url
+                        FROM community_businesses cb
+                        JOIN family_groups b ON cb.business_id = b.id
+                        JOIN communities c ON cb.community_id = c.id
+                        LEFT JOIN store_settings ss ON ss.group_id = b.id
+                        WHERE cb.community_id = $1 AND cb.status = 'approved'`, [group.community_id])
+                : Promise.resolve(null)
+        ]);
+        if (childBalRes) user.computed_balance = childBalRes.rows[0].total;
+        const weeklyStats = spentRes ? { spent: spentRes.rows[0].spent, limit: user.allowance_amount } : null;
+        const community_businesses = commBizRes ? commBizRes.rows : [];
+        const community_updates = [];
+        if (commBizRes && group.type === 'FAMILY') {
+            commBizRes.rows.forEach(biz => {
+                community_updates.push({
+                    type: 'system', category: 'community', id: `biz_${biz.business_name}`,
+                    user_id: 0, user_name: 'קהילה',
+                    description: `הטבה חדשה בקהילת ${biz.comm_name}: ${biz.business_name} (הנחה: ${biz.discount_pct}%) 🛍️`,
+                    amount: 0, date: biz.created_at ? new Date(biz.created_at) : new Date()
+                });
+            });
         }
 
         // Best-price lookup: parallel individual queries (avoids slow DISTINCT ON + full-scan)
@@ -5067,49 +5093,6 @@ app.get('/api/data/:userId', async (req, res) => {
                     }
                 } catch(e) {}
             }));
-        }
-
-        // Quiz questions are loaded on-demand (not in poll) to reduce payload size
-        // Each bundle gets an empty questions array; frontend loads questions separately when needed
-
-        let weeklyStats = null;
-        if (user.role !== 'ADMIN') {
-            const startOfWeek = new Date(); startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-            const spentRes = await pool.query("SELECT COALESCE(SUM(amount), 0) as spent FROM transactions WHERE user_id = $1 AND type = 'expense' AND date >= $2", [user.id, startOfWeek]);
-            weeklyStats = { spent: spentRes.rows[0].spent, limit: user.allowance_amount };
-        }
-        
-        let community_updates = [];
-        let community_businesses = [];
-        
-        if (group.community_id) {
-            const commBizRes = await pool.query(`
-                SELECT cb.discount_pct, cb.created_at, b.name as business_name, b.id as business_id, b.group_code,
-                       c.name as comm_name, c.id as community_id,
-                       COALESCE(ss.logo_url, b.image_url) as logo_url
-                FROM community_businesses cb
-                JOIN family_groups b ON cb.business_id = b.id
-                JOIN communities c ON cb.community_id = c.id
-                LEFT JOIN store_settings ss ON ss.group_id = b.id
-                WHERE cb.community_id = $1 AND cb.status = 'approved'
-            `, [group.community_id]);
-            
-            community_businesses = commBizRes.rows; 
-            
-            if (group.type === 'FAMILY') {
-                commBizRes.rows.forEach(biz => {
-                    community_updates.push({
-                        type: 'system',
-                        category: 'community',
-                        id: `biz_${biz.business_name}`,
-                        user_id: 0,
-                        user_name: 'קהילה',
-                        description: `הטבה חדשה בקהילת ${biz.comm_name}: ${biz.business_name} (הנחה: ${biz.discount_pct}%) 🛍️`,
-                        amount: 0,
-                        date: biz.created_at ? new Date(biz.created_at) : new Date()
-                    });
-                });
-            }
         }
 
         const _elapsed = Date.now() - _t0;
@@ -8279,33 +8262,25 @@ app.get('/api/storefront/:code', async (req, res) => {
         const groupName = gRes.rows[0].name;
         const businessType = gRes.rows[0].business_type || 'other';
 
-        const sRes = await pool.query('SELECT * FROM store_settings WHERE group_id=$1', [groupId]);
+        const [sRes, cRes, commRes] = await Promise.all([
+            pool.query('SELECT * FROM store_settings WHERE group_id=$1', [groupId]),
+            pool.query('SELECT * FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY sort_order ASC, category, name', [groupId]),
+            req.query.communityId
+                ? pool.query(`SELECT c.name, cb.discount_pct, c.min_families,
+                               (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count
+                        FROM community_businesses cb
+                        JOIN communities c ON cb.community_id = c.id
+                        WHERE cb.business_id = $1 AND cb.community_id = $2 AND cb.status = 'approved'`,
+                    [groupId, req.query.communityId])
+                : Promise.resolve(null)
+        ]);
         const settings = sRes.rows.length > 0 ? sRes.rows[0] : { is_active: false, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '' };
-
-        const cRes = await pool.query('SELECT * FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY category, name', [groupId]);
-
         let communityData = null;
-        if (req.query.communityId) {
-            const commRes = await pool.query(`
-                SELECT c.name, cb.discount_pct, c.min_families,
-                       (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count
-                FROM community_businesses cb
-                JOIN communities c ON cb.community_id = c.id
-                WHERE cb.business_id = $1 AND cb.community_id = $2 AND cb.status = 'approved'
-            `, [groupId, req.query.communityId]);
-
-            if (commRes.rows.length > 0) {
-                const row = commRes.rows[0];
-                const minFamilies = parseInt(row.min_families) || 0;
-                const familyCount = parseInt(row.family_count) || 0;
-                communityData = {
-                    name: row.name,
-                    discount_pct: row.discount_pct,
-                    min_families: minFamilies,
-                    family_count: familyCount,
-                    discount_active: familyCount >= minFamilies
-                };
-            }
+        if (commRes && commRes.rows.length > 0) {
+            const row = commRes.rows[0];
+            const minFamilies = parseInt(row.min_families) || 0;
+            const familyCount = parseInt(row.family_count) || 0;
+            communityData = { name: row.name, discount_pct: row.discount_pct, min_families: minFamilies, family_count: familyCount, discount_active: familyCount >= minFamilies };
         }
 
         res.json({ success: true, groupId, groupName, businessType, settings, catalog: cRes.rows, communityData });
