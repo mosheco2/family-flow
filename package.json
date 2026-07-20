@@ -4,7 +4,7 @@
   "description": "Oneflow Life - server (Postgres-ready) + static public",
   "main": "server.js",
   "scripts": {
-    "start": "node --max-old-space-size=450 server.js"
+    "start": "node --max-old-space-size=350 server.js"
   },
   "dependencies": {
     "@google/genai": "^2.8.0",
