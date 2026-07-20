@@ -15030,10 +15030,9 @@ async function checkSLABreaches() {
     } catch(e) { console.error('SLA engine error:', e.message); }
 }
 
-setTimeout(runAlertEngine, 30000);
-setInterval(runAlertEngine, 5 * 60 * 1000);
-setTimeout(checkSLABreaches, 45000);
-setInterval(checkSLABreaches, 5 * 60 * 1000);
+// Delayed startup — give server 5 min to stabilize before running background jobs
+setTimeout(() => { runAlertEngine(); setInterval(runAlertEngine, 5 * 60 * 1000); }, 5 * 60 * 1000);
+setTimeout(() => { checkSLABreaches(); setInterval(checkSLABreaches, 5 * 60 * 1000); }, 6 * 60 * 1000);
 
 // =========================================================
 // עמודי אישור קבלה ציבוריים (ללא auth)
@@ -20123,7 +20122,7 @@ async function runRetentionCron() {
     }
 }
 // start cron after 1 min to let DB settle, then every 24h
-setTimeout(() => { runRetentionCron(); setInterval(runRetentionCron, CRON_INTERVAL_MS); }, 60000);
+setTimeout(() => { runRetentionCron(); setInterval(runRetentionCron, CRON_INTERVAL_MS); }, 8 * 60 * 1000);
 
 // ===== END BEAUTY & COSMETICS API =====
 
