@@ -15754,6 +15754,7 @@ async function submitNewPost() {
         list.insertAdjacentHTML('afterbegin', renderPostCard({
           ...data.post,
           author_name: fmtGroupName(currentGroup) || 'המשפחה שלי',
+          author_avatar: currentGroup?.image_url || currentGroup?.logo_url || null,
           author_user_name: fmtUserName(currentUser) || currentUser?.nickname || '',
           publisher_name: '',
           community_name: comms.find(c => c.id == communityId)?.name || '',
