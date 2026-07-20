@@ -1,10 +1,14 @@
 // Oneflow life BIZ - Business Logic Application
 
-// פונקציות עזר בסיסיות (מוגדרות גם ב-common.js אך business.html לא טוען אותה)
+// פונקציות עזר בסיסיות (מוגדרות גם ב-common.js/app.js אך business.html לא טוען אותן)
 function fmtUserName(u) {
     if (!u) return '';
     const full = [u.first_name, u.last_name].filter(Boolean).join(' ');
     return full || u.nickname || '';
+}
+function escHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 

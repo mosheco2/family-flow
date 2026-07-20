@@ -8919,6 +8919,105 @@ app.get('/api/biz/communities/my/:bizId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── BIZ COMMUNITY FEED POSTS ─────────────────────────────────────────────────
+app.get('/api/biz/feed/stats', async (req, res) => {
+    try {
+        const bizId = req.query.business_id;
+        if (!bizId) return res.status(400).json({ error: 'business_id required' });
+        const r = await pool.query(
+            `SELECT biz_post_status, COUNT(*) as cnt FROM community_posts WHERE business_id=$1 AND biz_post_status IS NOT NULL GROUP BY biz_post_status`,
+            [bizId]
+        );
+        const stats = { pending: 0, approved: 0, rejected: 0 };
+        r.rows.forEach(row => { if (stats[row.biz_post_status] !== undefined) stats[row.biz_post_status] = parseInt(row.cnt); });
+        res.json({ success: true, ...stats });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/biz/feed/posts', async (req, res) => {
+    try {
+        const bizId = req.query.business_id;
+        if (!bizId) return res.status(400).json({ error: 'business_id required' });
+        const r = await pool.query(
+            `SELECT cp.id, cp.content, cp.image_url, cp.post_type, cp.biz_post_status, cp.biz_rejection_reason, cp.biz_promo_url, cp.biz_valid_until, cp.created_at, c.name as community_name
+             FROM community_posts cp LEFT JOIN communities c ON c.id=cp.community_id
+             WHERE cp.business_id=$1 AND cp.biz_post_status IS NOT NULL ORDER BY cp.created_at DESC LIMIT 50`,
+            [bizId]
+        );
+        res.json({ success: true, posts: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/biz/feed/posts', async (req, res) => {
+    try {
+        const { business_id, community_id, content, image_url, post_type, promo_url, valid_until } = req.body;
+        if (!business_id || !content) return res.status(400).json({ error: 'חסר תוכן' });
+        const r = await pool.query(
+            `INSERT INTO community_posts (business_id, community_id, content, image_url, post_type, biz_promo_url, biz_valid_until, biz_post_status, created_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',NOW()) RETURNING id`,
+            [business_id, community_id || null, content, image_url || null, post_type || 'regular', promo_url || null, valid_until || null]
+        );
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/biz/feed/posts/:id', async (req, res) => {
+    try {
+        await pool.query(`DELETE FROM community_posts WHERE id=$1 AND biz_post_status='pending'`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA: list all biz posts for moderation
+app.get('/api/sa/community/biz-posts', async (req, res) => {
+    try {
+        const status = req.query.status || 'pending';
+        const r = await pool.query(
+            `SELECT cp.id, cp.content, cp.image_url, cp.post_type, cp.biz_post_status, cp.biz_rejection_reason, cp.biz_promo_url, cp.biz_valid_until, cp.created_at,
+                    c.name as community_name, fg.name as business_name
+             FROM community_posts cp
+             LEFT JOIN communities c ON c.id=cp.community_id
+             LEFT JOIN family_groups fg ON fg.id=cp.business_id
+             WHERE cp.biz_post_status=$1 ORDER BY cp.created_at DESC LIMIT 200`,
+            [status]
+        );
+        res.json({ success: true, posts: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sa/community/biz-posts/metrics', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT biz_post_status, COUNT(*) as cnt FROM community_posts WHERE biz_post_status IS NOT NULL GROUP BY biz_post_status`
+        );
+        const m = { pending: 0, approved: 0, rejected: 0 };
+        r.rows.forEach(row => { if (m[row.biz_post_status] !== undefined) m[row.biz_post_status] = parseInt(row.cnt); });
+        res.json({ success: true, ...m });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/sa/community/biz-posts/:id/approve', async (req, res) => {
+    try {
+        await pool.query(`UPDATE community_posts SET biz_post_status='approved' WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/sa/community/biz-posts/:id/reject', async (req, res) => {
+    try {
+        const { reason } = req.body;
+        await pool.query(`UPDATE community_posts SET biz_post_status='rejected', biz_rejection_reason=$1 WHERE id=$2`, [reason || '', req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/sa/community/biz-posts/:id/hide', async (req, res) => {
+    try {
+        await pool.query(`UPDATE community_posts SET is_hidden=true WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/biz/communities/available/:bizId', async (req, res) => {
     try {
         const result = await pool.query(`
