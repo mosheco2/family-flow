@@ -22843,22 +22843,22 @@ app.get('/api/community/feed', async (req, res) => {
   try {
     const { familyId, communityId, groupId, page=1, limit=20 } = req.query;
     const offset = (parseInt(page)-1) * parseInt(limit);
+    const params = [familyId, parseInt(limit), offset, familyId];
+    // $1=familyId (EXISTS), $2=limit, $3=offset, $4=familyId (filter)
     let communityFilter = '';
-    const params = [];
-    let pi = 1;
 
     if(communityId){
-      communityFilter = `AND cp.community_id=$${pi++}`;
-      params.push(communityId);
+      params.push(parseInt(communityId)); // $5
+      communityFilter = `AND cp.community_id=$5`;
     } else {
       communityFilter = `AND cp.community_id IN (
-        SELECT community_id FROM family_communities
-        WHERE group_id=$${pi++}
+        SELECT community_id FROM family_communities WHERE group_id=$4
       )`;
-      params.push(familyId);
     }
-    if(groupId){ communityFilter += ` AND cp.group_id=$${pi++}`; params.push(groupId); }
-    params.push(parseInt(limit), offset, familyId);
+    if(groupId){
+      params.push(parseInt(groupId)); // $5 or $6
+      communityFilter += ` AND cp.group_id=$${params.length}`;
+    }
 
     const posts = await pool.query(`
       SELECT
@@ -22871,7 +22871,7 @@ app.get('/api/community/feed', async (req, res) => {
         TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')) as publisher_name,
         EXISTS(
           SELECT 1 FROM community_post_likes
-          WHERE post_id=cp.id AND family_id=$${pi}
+          WHERE post_id=cp.id AND family_id=$1
         ) as liked_by_me
       FROM community_posts cp
       JOIN family_groups fg ON fg.id = cp.author_family_id
@@ -22883,7 +22883,7 @@ app.get('/api/community/feed', async (req, res) => {
       ORDER BY cp.is_pinned DESC,
                (cp.likes_count*3 + cp.comments_count*5 + cp.shares_count*4
                 + 100.0/(EXTRACT(EPOCH FROM (NOW()-cp.created_at))/3600 + 2)) DESC
-      LIMIT $${pi-2} OFFSET $${pi-1}
+      LIMIT $2 OFFSET $3
     `, params);
 
     res.json({ success:true, posts: posts.rows, hasMore: posts.rows.length === parseInt(limit) });
