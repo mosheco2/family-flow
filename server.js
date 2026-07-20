@@ -5,8 +5,10 @@ const { Pool } = require('pg');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { GoogleGenAI } = require('@google/genai');
+// Google AI — lazy loaded on first use to avoid startup memory spike
+let _GoogleGenerativeAI = null, _GoogleGenAI = null;
+function getGenAI() { if (!_GoogleGenerativeAI) { _GoogleGenerativeAI = require('@google/generative-ai').GoogleGenerativeAI; } return _GoogleGenerativeAI; }
+function getGenAIv2() { if (!_GoogleGenAI) { _GoogleGenAI = require('@google/genai').GoogleGenAI; } return _GoogleGenAI; }
 const nodemailer = require('nodemailer');
 
 // ─── SMS Service (Generic - Replace with Twilio/Mada/etc) ──────────────────────
@@ -75,8 +77,10 @@ app.use(express.static('public', {
 }));
 
 const apiKey = process.env.GEMINI_API_KEY || "";
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
-const genAIv2 = apiKey ? new GoogleGenAI({ apiKey }) : null;
+// genAI instances created lazily on first AI request
+let genAI = null, genAIv2 = null;
+function getGenAIInstance() { if (!genAI && apiKey) { const G = getGenAI(); genAI = new G(apiKey); } return genAI; }
+function getGenAIv2Instance() { if (!genAIv2 && apiKey) { const G = getGenAIv2(); genAIv2 = new G({ apiKey }); } return genAIv2; }
 
 // ============================================================
 // TWILIO SMS OTP CONFIGURATION & LOGIC
@@ -2746,7 +2750,7 @@ app.post('/api/ai/chat', verifySA, async (req, res) => {
     try {
         const { message } = req.body;
         
-        if (!genAI) {
+        if (!getGenAIInstance()) {
             return res.status(500).json({ success: false, error: 'מפתח Gemini אינו מוגדר בשרת.' });
         }
 
@@ -2775,7 +2779,7 @@ async function initDB() {
 }
 initDB();
         // יישור קו עם שאר המערכת: שימוש במודל 2.5 המעודכן שעובד על המפתח שלך
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
         
         const systemInstruction = `אתה עוזר AI ביצועי ואנליטי ברמת Expert למנהל העל (Super Admin) של מערכת Oneflow Life.
 בכל בקשה תקבל בלוק נתונים עדכני בפורמט JSON בשם "מידע פנימי בזמן אמת". הנתונים האלו הם אמת מוחלטת והם משקפים את מסד הנתונים כרגע.
@@ -2801,7 +2805,7 @@ initDB();
 app.post('/api/sa/ai/chat', verifySA, async (req, res) => {
     try {
         const { message, context = {} } = req.body;
-        if (!genAI) return res.status(500).json({ success: false, error: 'מפתח Gemini אינו מוגדר' });
+        if (!getGenAIInstance()) return res.status(500).json({ success: false, error: 'מפתח Gemini אינו מוגדר' });
 
         // ── auto-fetch relevant data based on keywords ──
         const msg = (message || '').toLowerCase();
@@ -2929,7 +2933,7 @@ app.post('/api/sa/ai/chat', verifySA, async (req, res) => {
         let rawReply;
         for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']) {
             try {
-                const result = await genAI.getGenerativeModel({ model: modelName }).generateContent(prompt);
+                const result = await getGenAIInstance().getGenerativeModel({ model: modelName }).generateContent(prompt);
                 rawReply = result.response.text();
                 break;
             } catch(e) {
@@ -5958,9 +5962,9 @@ app.post('/api/recipes/generate', async (req, res) => {
         const { groupId, mealType, diners, ignorePantry, customIngredients, pantryItems } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) return res.status(500).json({ error: 'מפתח API חסר בשרת' });
+        if (!getGenAIInstance()) return res.status(500).json({ error: 'מפתח API חסר בשרת' });
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
         let prompt = `You are a professional family chef. Create a delicious recipe in Hebrew for ${diners} people. Meal type: ${mealType}.\n`;
         if (ignorePantry) prompt += `The user wants to cook using ONLY these specific ingredients: ${customIngredients}.\n`;
         else prompt += `The user wants to cook using these specific items they have selected from their pantry: ${pantryItems}.\nTry to prioritize using these items. You can assume basic staples (salt, pepper, oil, water) are available.\n`;
@@ -5976,12 +5980,12 @@ app.post('/api/academy/ai-generate', async (req, res) => {
         const { ageGroup, topic, groupId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
 
         const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
         const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
         
         let prompt = "";
         if (gType === 'BUSINESS') {
@@ -6136,12 +6140,12 @@ app.post('/api/tasks/ai-generate', async (req, res) => {
         const { age, topic, groupId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
 
         const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
         const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
         
         let prompt = "";
         if (gType === 'BUSINESS') {
@@ -6174,9 +6178,9 @@ app.post('/api/ai/generate-image', async (req, res) => {
 
         // Use Gemini to build a contextual English prompt from the business name
         let finalPrompt;
-        if (type === 'banner' && businessName && genAI) {
+        if (type === 'banner' && businessName && getGenAIInstance()) {
             try {
-                const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+                const geminiModel = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.5-flash' });
                 const geminiResult = await geminiModel.generateContent(
                     `You are a professional image prompt engineer. Based on the business name "${businessName}", write a short English image generation prompt (max 30 words) for a wide banner background photo. Requirements: realistic photography style, relevant to the business type, vibrant colors, no text, no logos, no people faces. Return ONLY the prompt text.`
                 );
@@ -6244,7 +6248,7 @@ app.post('/api/goals/familai-advice', async (req, res) => {
         const { userId, goalId, groupId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
 
         const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
         const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
@@ -6254,7 +6258,7 @@ app.post('/api/goals/familai-advice', async (req, res) => {
         if (userRes.rows.length === 0 || goalRes.rows.length === 0) throw new Error('Data not found');
         const user = userRes.rows[0]; const goal = goalRes.rows[0]; const age = calculateAge(user.birth_year);
         
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
         
         let prompt = "";
         if (gType === 'BUSINESS') {
@@ -6273,13 +6277,13 @@ app.post('/api/budget/familai-insight', async (req, res) => {
         const { groupId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
 
         const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
         const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
 
         const txsRes = await pool.query(`SELECT t.amount, t.category, t.type, u.nickname FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id=$1 AND t.date >= date_trunc('month', CURRENT_DATE)`, [groupId]);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
         
         let prompt = "";
         if (gType === 'BUSINESS') {
@@ -6298,14 +6302,14 @@ app.post('/api/pantry/familai-insight', async (req, res) => {
         const { groupId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
 
         const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
         const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
 
         const pantryRes = await pool.query('SELECT item_name, quantity, unit, updated_at FROM pantry WHERE group_id=$1', [groupId]);
         const historyRes = await pool.query(`SELECT sti.item_name, sti.quantity, sti.unit, sti.price_per_unit, st.trip_date FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id WHERE st.group_id=$1 AND st.trip_date >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month')`, [groupId]);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
         
         let prompt = "";
         if (gType === 'BUSINESS') {
@@ -6324,7 +6328,7 @@ app.post('/api/forecast/familai-insight', async (req, res) => {
         const { groupId, period, mode, targetUserId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
         
         const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
         const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
@@ -6336,7 +6340,7 @@ app.post('/api/forecast/familai-insight', async (req, res) => {
             txsRes = await pool.query(`SELECT amount, category, type, is_recurring, description FROM transactions WHERE user_id=$1 AND is_recurring = TRUE`, [targetUserId]);
         }
         
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
         
         let prompt = "";
         if (gType === 'BUSINESS') {
@@ -6355,12 +6359,12 @@ app.post('/api/tasks/vision-verify', async (req, res) => {
         const { taskId, title, imageBase64, mimeType, groupId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
 
         const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
         const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
         
         let prompt = "";
         if (gType === 'BUSINESS') {
@@ -6399,9 +6403,9 @@ app.post('/api/shopping/scan-receipt', async (req, res) => {
 
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash", generationConfig: { responseMimeType: "application/json" } });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.0-flash", generationConfig: { responseMimeType: "application/json" } });
         const prompt = `You are 'familAI', an expert Israeli supermarket receipt parser.
 
 ## HOW ISRAELI RECEIPTS ARE STRUCTURED
@@ -6508,9 +6512,9 @@ app.post('/api/shopping/ai-generate-list', async (req, res) => {
         const groupId = uRes.rows[0].group_id;
         const hasTokens = await handleAITokens(groupId);
         if (!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) return res.json({ success: true, categories: FALLBACK });
+        if (!getGenAIInstance()) return res.json({ success: true, categories: FALLBACK });
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const model = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.0-flash' });
         const prompt = 'Generate a typical Israeli family weekly shopping list in Hebrew, for 6 categories: ירקות, פירות, שימורים, יבשים, דברי חלב, שתיה. 5-6 common items each. Units: vegetables/fruits use \'ק"ג\', liquids use \'ל\', others use \'יח\\\'\'. Quantities realistic for a family of 4. Product names in Hebrew only. Return ONLY valid JSON object (no markdown, no explanation): {"categories":[{"name":"ירקות","items":[{"name":"עגבניות","qty":1,"unit":"ק\\"ג"}]}]}';
 
         const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 18000));
@@ -6569,12 +6573,12 @@ app.post('/api/academy/tutor', async (req, res) => {
         const { question, wrongAnswer, correctAnswer, groupId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
 
         const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
         const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
         
         let prompt = "";
         if (gType === 'BUSINESS') {
@@ -6595,7 +6599,7 @@ app.get('/api/guide-config', (req, res) => {
 app.post('/api/guide/chat', async (req, res) => {
     try {
         const { question, guideType } = req.body;
-        if (!genAI) return res.status(500).json({ success: false, error: 'מפתח API חסר בשרת' });
+        if (!getGenAIInstance()) return res.status(500).json({ success: false, error: 'מפתח API חסר בשרת' });
 
         let guideText = "";
         let fileName = guideType === 'BIZ' ? 'biz-guide.html' : 'guide.html';
@@ -6606,7 +6610,7 @@ app.post('/api/guide/chat', async (req, res) => {
             guideText = guideType === 'BIZ' ? "Oneflow Life BIZ is a business management app." : "Oneflow Life is a family management app.";
         }
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
         
         let prompt = "";
         if (guideType === 'BIZ') {
@@ -8455,9 +8459,9 @@ app.post('/api/store/ai-desc', async (req, res) => {
         const { productName, groupId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
         const prompt = `כתוב לי פסקה קצרה ושיווקית מאוד (עד 2-3 משפטים) בעברית שתתאר את המוצר/מנה הבאה למכירה בחנות/מסעדה שלי: "${productName}". השתמש באימוג'ים ואל תשתמש במרכאות.`;
         const result = await model.generateContent(prompt);
         res.json({ success: true, description: result.response.text().trim() });
@@ -8469,9 +8473,9 @@ app.post('/api/store/ai-long-desc', async (req, res) => {
         const { productName, shortDesc, groupId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
         const shortDescHint = shortDesc ? ` (התיאור הקצר הקיים: "${shortDesc}")` : '';
         const prompt = `כתוב תיאור מורחב ומפורט בעברית עבור המוצר/מנה: "${productName}"${shortDescHint}.
 התיאור המורחב מיועד לדף המוצר בחנות/מסעדה ועליו לכלול:
@@ -8509,9 +8513,9 @@ app.post('/api/biz/chat-assistant', async (req, res) => {
         const { query, context, groupId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
 
         // Detect business type for specialised guidance
         let bizType = 'general';
@@ -10135,10 +10139,10 @@ app.post('/api/ai/generate-catalog', async (req, res) => {
         const { promptText, type, groupId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
 
         // Note: no responseMimeType — extract JSON manually for compatibility
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
         let sysPrompt = "";
 
         if (type === 'BUSINESS') {
@@ -11263,14 +11267,14 @@ app.post('/api/zone-manager/leads/:id/actions', verifyZoneManager, async (req, r
 // --- AI: יצירת באנר (SVG via text model — works with any Gemini API key) ---
 app.post('/api/zone-manager/ai/generate-banner', verifyZoneManager, async (req, res) => {
     try {
-        if (!genAI) return res.status(503).json({ error: 'AI לא זמין' });
+        if (!getGenAIInstance()) return res.status(503).json({ error: 'AI לא זמין' });
         const { title, campaignType } = req.body;
         const palette = campaignType === 'business'
             ? { c1: '#1e3a8a', c2: '#2563eb', c3: '#0ea5e9', accent: '#38bdf8' }
             : campaignType === 'family'
             ? { c1: '#4f46e5', c2: '#7c3aed', c3: '#db2777', accent: '#f472b6' }
             : { c1: '#064e3b', c2: '#059669', c3: '#10b981', accent: '#34d399' };
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const model = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.5-flash' });
         const prompt = `Generate a beautiful SVG marketing banner. Output ONLY valid SVG code, nothing else.
 Dimensions: width="1600" height="900". No text, no letters, no numbers.
 Use colors: ${palette.c1}, ${palette.c2}, ${palette.c3}, ${palette.accent}.
@@ -11283,7 +11287,7 @@ End with: </svg>`;
         try {
             result = await model.generateContent(prompt);
         } catch(e) {
-            const fallback = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+            const fallback = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.0-flash' });
             result = await fallback.generateContent(prompt);
         }
         const raw = result.response.text().trim();
@@ -11298,11 +11302,11 @@ End with: </svg>`;
 // --- AI: ניסוח טקסט קמפיין ---
 app.post('/api/zone-manager/ai/draft-campaign', verifyZoneManager, async (req, res) => {
     try {
-        if (!genAI) return res.status(503).json({ error: 'AI לא זמין' });
+        if (!getGenAIInstance()) return res.status(503).json({ error: 'AI לא זמין' });
         const { goal, audience, tone, campaignType, modules } = req.body;
         const modelName = 'gemini-2.5-flash';
         const fallbackModelName = 'gemini-1.5-flash';
-        let model = genAI.getGenerativeModel({ model: modelName });
+        let model = getGenAIInstance().getGenerativeModel({ model: modelName });
         const typeContexts = {
             business: `מנהל אזור משווק לבעלי עסקים מקומיים את פלטפורמת OneFlow כמערכת ניהול עסקי.
 OneFlow מציעה לעסק: מערכת קופה (POS), ניהול מלאי, חשבוניות, ניהול לקוחות (CRM), כלי שיווק, ניהול נוכחות ומשמרות, ניהול משלוחים, תזרים ותקציב — הכל במקום אחד.
@@ -11333,7 +11337,7 @@ ${goal ? `פרטים נוספים שסיפק מנהל האזור: ${goal}` : ''}
             result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json' } });
         } catch(primaryErr) {
             if (primaryErr.message && (primaryErr.message.includes('503') || primaryErr.message.includes('overloaded') || primaryErr.message.includes('high demand'))) {
-                model = genAI.getGenerativeModel({ model: fallbackModelName });
+                model = getGenAIInstance().getGenerativeModel({ model: fallbackModelName });
                 result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json' } });
             } else { throw primaryErr; }
         }
@@ -11346,13 +11350,13 @@ ${goal ? `פרטים נוספים שסיפק מנהל האזור: ${goal}` : ''}
 // --- AI: ניתוח לידים ---
 app.post('/api/zone-manager/ai/analyze-leads', verifyZoneManager, async (req, res) => {
     try {
-        if (!genAI) return res.status(503).json({ error: 'AI לא זמין' });
+        if (!getGenAIInstance()) return res.status(503).json({ error: 'AI לא זמין' });
         const { campaignId } = req.body;
         const camp = await pool.query('SELECT id FROM zm_campaigns WHERE id=$1 AND zone_manager_id=$2', [campaignId, req.zmSession.managerId]);
         if (!camp.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא' });
         const leadsRes = await pool.query('SELECT id, data FROM zm_campaign_leads WHERE campaign_id=$1 AND ai_score IS NULL LIMIT 50', [campaignId]);
         if (!leadsRes.rows.length) return res.json({ success: true, analyzed: 0 });
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { responseMimeType: 'application/json' } });
+        const model = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { responseMimeType: 'application/json' } });
         const leadsText = leadsRes.rows.map((l,i) => `${i+1}. ${JSON.stringify(l.data)}`).join('\n');
         const prompt = `נתח את הלידים הבאים שנכנסו דרך קמפיין לגיוס חברים לקהילה. לכל ליד תן ציון 1-10 (10=חם מאוד) וקצר הערה.
 לידים:
@@ -11372,12 +11376,12 @@ ${leadsText}
 // --- AI: הצעת תשובה לשיחה ---
 app.post('/api/zone-manager/ai/suggest-reply', verifyZoneManager, async (req, res) => {
     try {
-        if (!genAI) return res.status(503).json({ error: 'AI לא זמין' });
+        if (!getGenAIInstance()) return res.status(503).json({ error: 'AI לא זמין' });
         const { threadId } = req.body;
         const thread = await pool.query('SELECT * FROM zm_inbox_threads WHERE id=$1 AND zone_manager_id=$2', [threadId, req.zmSession.managerId]);
         if (!thread.rows.length) return res.status(404).json({ error: 'שיחה לא נמצאה' });
         const messages = await pool.query('SELECT * FROM zm_inbox_messages WHERE thread_id=$1 ORDER BY created_at DESC LIMIT 6', [threadId]);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const model = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.5-flash' });
         const history = messages.rows.reverse().map(m => `${m.sender_type === 'manager' ? 'מנהל אזור' : 'מנהל קהילה'}: ${m.content}`).join('\n');
         const prompt = `הינך מנהל אזור בפלטפורמת OneFlow. השיחה הבאה היא בינך לבין מנהל קהילה:\n\n${history}\n\nהצע תשובה מקצועית, קצרה וחמה בעברית. החזר רק את טקסט התשובה.`;
         const result = await model.generateContent(prompt);
@@ -12247,7 +12251,7 @@ app.post('/api/sa/community/banner-requests/:id/approve', verifySA, async (req, 
 // SA generates AI headline for a banner request
 app.post('/api/sa/community/banner-ai/:id', verifySA, async (req, res) => {
     try {
-        if (!genAI) return res.status(500).json({ error: 'AI לא זמין — חסר GEMINI_API_KEY' });
+        if (!getGenAIInstance()) return res.status(500).json({ error: 'AI לא זמין — חסר GEMINI_API_KEY' });
         const r = await pool.query(
             `SELECT cbr.*, cp.title, cp.content, cp.discount_pct,
              fg.name as business_name, c.name as community_name
@@ -12258,7 +12262,7 @@ app.post('/api/sa/community/banner-ai/:id', verifySA, async (req, res) => {
              WHERE cbr.id=$1`, [req.params.id]);
         if (!r.rows.length) return res.status(404).json({ error: 'לא נמצאה בקשה' });
         const item = r.rows[0];
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
         const prompt = `צור כותרת שיווקית קצרה (עד 10 מילים) בעברית לבאנר פרסומי קהילתי.
 מבצע: ${item.title}. ${item.content || ''} ${item.discount_pct > 0 ? `הנחה ${item.discount_pct}%.` : ''}
 עסק: ${item.business_name}. קהילה: ${item.community_name}.
@@ -13581,10 +13585,10 @@ app.post('/api/family/chat-assistant', async (req, res) => {
         const { query, context, groupId, userId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
 
         // אילוץ תשובה מובנית בפורמט JSON בלבד כדי שהשרת יוכל לקרוא פקודות
-        const model = genAI.getGenerativeModel({ 
+        const model = getGenAIInstance().getGenerativeModel({ 
             model: "gemini-2.5-flash", 
             generationConfig: { responseMimeType: "application/json" } 
         });
@@ -13967,9 +13971,9 @@ app.post('/api/sa/qa/runs', verifySA, async (req, res) => {
 app.post('/api/sa/ai/generate-qa', verifySA, async (req, res) => {
     try {
         const { taskTitle, taskDesc, module } = req.body;
-        if (!genAI) return res.json({ success: false, error: 'לא הוגדר מפתח API של Gemini בשרת' });
+        if (!getGenAIInstance()) return res.json({ success: false, error: 'לא הוגדר מפתח API של Gemini בשרת' });
 
-        const aiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const aiModel = getGenAIInstance().getGenerativeModel({ model: "gemini-1.5-flash" });
         const prompt = `
             You are a Senior QA Engineer for a SaaS platform called Oneflow Life.
             Based on the following software development task, generate a single, comprehensive QA test case in Hebrew.
@@ -18603,7 +18607,7 @@ app.post('/api/sport/inbox-member-message', async (req, res) => {
 
 // ─── AI: Generate personalised training plan ──────────────────────────────────
 app.post('/api/ai/sport/training-plan', async (req, res) => {
-    if (!genAI) return res.status(500).json({ error: 'מפתח Gemini חסר' });
+    if (!getGenAIInstance()) return res.status(500).json({ error: 'מפתח Gemini חסר' });
     const { memberName, memberPhone, fitnessGoal, currentFitness, availableDays, healthNotes, membershipType, groupId } = req.body;
     if (!groupId) return res.status(400).json({ error: 'groupId חובה' });
     const canUseAI = await handleAITokens(groupId, 'sport/training-plan');
@@ -18617,7 +18621,7 @@ app.post('/api/ai/sport/training-plan', async (req, res) => {
                 WHERE sm.group_id=$1 AND sm.member_phone=$2`, [groupId, memberPhone]);
             checkinCount = parseInt(cr.rows[0]?.count || 0);
         }
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const model = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.5-flash' });
         const jsonSchema = '{"summary":"תקציר","weeks":[{"weekNum":1,"goal":"מטרה","days":[{"day":"ראשון","focus":"קבוצת שרירים","exercises":[{"name":"שם","sets":3,"reps":"12","notes":""}],"duration":45}]}],"nutrition":["המלצה"],"safetyNotes":["הערה"]}';
         const prompt = `אתה מאמן כושר מקצועי. צור תוכנית אימונים שבועית מפורטת בעברית.
 פרטי המתאמן:
@@ -21044,13 +21048,13 @@ app.get('/api/reports/:groupId', async (req, res) => {
 
 // ─── AI: Parse PDF / image → extract product list ────────────────────────────
 app.post('/api/ai/parse-pdf', async (req, res) => {
-    if (!genAI) return res.status(500).json({ error: 'מפתח Gemini חסר' });
+    if (!getGenAIInstance()) return res.status(500).json({ error: 'מפתח Gemini חסר' });
     const { fileBase64, mimeType, groupId, context } = req.body;
     if (!groupId || !fileBase64) return res.status(400).json({ error: 'groupId וקובץ נדרשים' });
     const canUseAI = await handleAITokens(groupId, 'parse-pdf');
     if (!canUseAI) return res.status(429).json({ error: 'BATTERY_EMPTY' });
     try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const model = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.5-flash' });
         const contextHint = context === 'invoice' ? 'חשבונית ספק או תעודת משלוח'
             : context === 'pricelist' ? 'מחירון ספק'
             : context === 'menu' ? 'תפריט מסעדה'
