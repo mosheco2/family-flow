@@ -1106,27 +1106,28 @@
 
 <div id="content-community" class="hidden">
                     <div id="ad-slot-community-top" class="px-2 mb-3"><div class="relative w-full rounded-2xl h-16 overflow-hidden bg-slate-100 border border-dashed border-slate-200"><div id="ad-slot-community-top-ph" class="absolute inset-0 flex items-center justify-center text-slate-300 text-xs font-bold tracking-widest">פרסום</div><a id="ad-slot-community-top-link" href="#" target="_blank" class="hidden absolute inset-0 block"><img id="ad-slot-community-top-img" src="" alt="" class="w-full h-full object-cover"></a></div></div>
+                    <!-- ניווט קהילות — תמיד גלוי -->
+                    <div class="grid grid-cols-5 gap-2 mb-4" id="comm-nav-grid">
+                        <button onclick="switchFamCommunityTab('manage')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition text-[11px] font-bold">
+                            <i class="fa-solid fa-people-group text-base text-orange-400"></i>ניהול קהילות
+                        </button>
+                        <button onclick="switchFamCommunityTab('promos')" class="relative flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-pink-50 hover:text-pink-600 transition text-[11px] font-bold">
+                            <i class="fa-solid fa-percent text-base text-pink-400"></i>מבצעים
+                            <span id="comm-promos-count-badge" class="hidden bg-red-500 text-white text-[8px] font-black px-1 rounded-full absolute -top-1 -right-1 min-w-[16px] h-[16px] flex items-center justify-center"></span>
+                        </button>
+                        <button onclick="switchFamCommunityTab('news')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-600 transition text-[11px] font-bold">
+                            <i class="fa-solid fa-newspaper text-base text-sky-400"></i>חדשות
+                        </button>
+                        <button onclick="switchFamCommunityTab('benefits')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-teal-50 hover:text-teal-600 transition text-[11px] font-bold">
+                            <i class="fa-solid fa-tag text-base text-teal-400"></i>הטבות
+                        </button>
+                        <button onclick="switchFamCommunityTab('feed')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition text-[11px] font-bold">
+                            <i class="fa-solid fa-rss text-base text-blue-400"></i>פיד
+                        </button>
+                    </div>
+
                     <!-- View: Home (ברירת מחדל) -->
                     <div id="fam-comm-view-home" class="hidden">
-                        <!-- 4 כפתורים compact -->
-                        <div class="grid grid-cols-5 gap-2 mb-4">
-                            <button onclick="switchFamCommunityTab('manage')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition text-[11px] font-bold">
-                                <i class="fa-solid fa-people-group text-base text-orange-400"></i>ניהול קהילות
-                            </button>
-                            <button onclick="switchFamCommunityTab('promos')" class="relative flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-pink-50 hover:text-pink-600 transition text-[11px] font-bold">
-                                <i class="fa-solid fa-percent text-base text-pink-400"></i>מבצעים
-                                <span id="comm-promos-count-badge" class="hidden bg-red-500 text-white text-[8px] font-black px-1 rounded-full absolute -top-1 -right-1 min-w-[16px] h-[16px] flex items-center justify-center"></span>
-                            </button>
-                            <button onclick="switchFamCommunityTab('news')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-600 transition text-[11px] font-bold">
-                                <i class="fa-solid fa-newspaper text-base text-sky-400"></i>חדשות
-                            </button>
-                            <button onclick="switchFamCommunityTab('benefits')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-teal-50 hover:text-teal-600 transition text-[11px] font-bold">
-                                <i class="fa-solid fa-tag text-base text-teal-400"></i>הטבות
-                            </button>
-                            <button onclick="switchFamCommunityTab('feed')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition text-[11px] font-bold">
-                                <i class="fa-solid fa-rss text-base text-blue-400"></i>פיד
-                            </button>
-                        </div>
                         <!-- הודעה למשפחה ללא קהילה -->
                         <div id="comm-home-no-community" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 text-center">
                             <i class="fa-solid fa-house-flag text-2xl text-amber-400 mb-2 block"></i>
