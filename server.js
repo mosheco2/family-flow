@@ -22842,51 +22842,57 @@ app.get('/api/family/weekly-report/:groupId', async (req, res) => {
 app.get('/api/community/feed', async (req, res) => {
   try {
     const { familyId, communityId, groupId, page=1, limit=20 } = req.query;
-    const offset = (parseInt(page)-1) * parseInt(limit);
-    const params = [familyId, parseInt(limit), offset, familyId];
-    // $1=familyId (EXISTS), $2=limit, $3=offset, $4=familyId (filter)
-    let communityFilter = '';
+    const fid = parseInt(familyId) || 0;
+    const lim = parseInt(limit) || 20;
+    const off = (parseInt(page)-1) * lim;
 
-    if(communityId){
-      params.push(parseInt(communityId)); // $5
-      communityFilter = `AND cp.community_id=$5`;
-    } else {
-      communityFilter = `AND cp.community_id IN (
-        SELECT community_id FROM family_communities WHERE group_id=$4
-      )`;
+    // בניית WHERE דינמי
+    const conditions = ['cp.is_hidden=false'];
+    const params = [];
+
+    if (communityId) {
+      params.push(parseInt(communityId));
+      conditions.push(`cp.community_id=$${params.length}`);
+    } else if (fid) {
+      params.push(fid);
+      conditions.push(`cp.community_id IN (SELECT community_id FROM family_communities WHERE group_id=$${params.length})`);
     }
-    if(groupId){
-      params.push(parseInt(groupId)); // $5 or $6
-      communityFilter += ` AND cp.group_id=$${params.length}`;
+    if (groupId) {
+      params.push(parseInt(groupId));
+      conditions.push(`cp.group_id=$${params.length}`);
     }
+    params.push(fid, lim, off);
+    const pFid = params.length - 2; // index of fid param for EXISTS
+    const pLim = params.length - 1;
+    const pOff = params.length;
 
     const posts = await pool.query(`
       SELECT
         cp.*,
-        CASE WHEN fg.family_nickname IS NOT NULL AND fg.family_nickname != '' THEN fg.name || ' (' || fg.family_nickname || ')' ELSE fg.name END as author_name,
+        CASE WHEN fg.family_nickname IS NOT NULL AND fg.family_nickname != ''
+             THEN fg.name || ' (' || fg.family_nickname || ')'
+             ELSE fg.name END as author_name,
         fg.avatar_url as author_avatar,
         c.name as community_name,
         cig.name as group_name,
         cig.icon_emoji as group_icon,
-        (SELECT TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'')) FROM users WHERE group_id=cp.author_family_id AND role='ADMIN' LIMIT 1) as publisher_name,
-        EXISTS(
-          SELECT 1 FROM community_post_likes
-          WHERE post_id=cp.id AND family_id=$1
-        ) as liked_by_me
+        (SELECT TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,''))
+         FROM users WHERE group_id=cp.author_family_id AND role='ADMIN' LIMIT 1) as publisher_name,
+        EXISTS(SELECT 1 FROM community_post_likes
+               WHERE post_id=cp.id AND family_id=$${pFid}) as liked_by_me
       FROM community_posts cp
       JOIN family_groups fg ON fg.id = cp.author_family_id
       JOIN communities c ON c.id = cp.community_id
       LEFT JOIN community_interest_groups cig ON cig.id = cp.group_id
-      WHERE cp.is_hidden=false
-        ${communityFilter}
+      WHERE ${conditions.join(' AND ')}
       ORDER BY cp.is_pinned DESC,
                (cp.likes_count*3 + cp.comments_count*5 + cp.shares_count*4
                 + 100.0/(EXTRACT(EPOCH FROM (NOW()-cp.created_at))/3600 + 2)) DESC
-      LIMIT $2 OFFSET $3
+      LIMIT $${pLim} OFFSET $${pOff}
     `, params);
 
     res.json({ success:true, posts: posts.rows, hasMore: posts.rows.length === parseInt(limit) });
-  } catch(e){ res.status(500).json({ error:e.message }); }
+  } catch(e){ console.error('FEED ERROR:', e.message); res.status(500).json({ error:e.message }); }
 });
 
 // יצירת פוסט
