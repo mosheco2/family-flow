@@ -30662,6 +30662,54 @@ window.addComplexOption = function(stepIdx) {
     window.renderComplexStepsUI();
 };
 
+window.openCatalogPickerForStep = function(stepIdx) {
+    const catalog = (storeCatalogCache || []).filter(p => p.product_type !== 'complex_builder' && p.is_available !== false);
+    if (!catalog.length) { showToast('info', 'הקטלוג ריק'); return; }
+
+    // קיבוץ לפי קטגוריה
+    const byCategory = {};
+    catalog.forEach(p => {
+        const cat = p.category || 'כללי';
+        if (!byCategory[cat]) byCategory[cat] = [];
+        byCategory[cat].push(p);
+    });
+
+    let html = `<div id="cx-catalog-picker" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onclick="if(event.target===this)window.closeCatalogPicker()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+            <h3 class="font-bold text-slate-800 text-base">בחר מוצרים מהקטלוג</h3>
+            <button onclick="window.closeCatalogPicker()" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-500 transition"><i class="fa-solid fa-times text-sm"></i></button>
+        </div>
+        <div class="overflow-y-auto p-4 flex flex-col gap-4">`;
+
+    Object.entries(byCategory).forEach(([cat, items]) => {
+        html += `<div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">${escHtml(cat)}</p><div class="flex flex-col gap-1.5">`;
+        items.forEach(p => {
+            html += `<button type="button" onclick="window.addCatalogItemToStep(${stepIdx}, ${JSON.stringify(JSON.stringify({name: p.name, price: p.price || 0}))})"
+                class="flex items-center justify-between gap-3 w-full bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-xl px-3 py-2.5 transition group text-right">
+                <span class="font-bold text-slate-700 text-sm group-hover:text-emerald-700">${escHtml(p.name)}</span>
+                <span class="text-emerald-600 font-bold text-sm shrink-0">${p.price ? '₪' + Number(p.price).toLocaleString() : 'ללא מחיר'}</span>
+            </button>`;
+        });
+        html += `</div></div>`;
+    });
+
+    html += `</div></div></div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.closeCatalogPicker = function() {
+    const el = document.getElementById('cx-catalog-picker');
+    if (el) el.remove();
+};
+
+window.addCatalogItemToStep = function(stepIdx, itemJson) {
+    const item = JSON.parse(itemJson);
+    window.currentComplexStepsUI[stepIdx].options.push({ name: item.name, price: item.price || 0, note: '' });
+    window.closeCatalogPicker();
+    window.renderComplexStepsUI();
+};
+
 window.removeComplexOption = function(stepIdx, optIdx) {
     window.currentComplexStepsUI[stepIdx].options.splice(optIdx, 1);
     window.renderComplexStepsUI();
@@ -30737,7 +30785,10 @@ window.renderComplexStepsUI = function() {
             
             <div class="space-y-1">
                 ${optionsHtml}
-                <button type="button" onclick="window.addComplexOption(${stepIdx})" class="mt-2 w-full bg-emerald-50/50 border border-dashed border-emerald-300 text-emerald-700 py-2.5 rounded-xl text-xs font-bold hover:bg-emerald-100 transition shadow-sm"><i class="fa-solid fa-plus mr-1"></i> הוסף אפשרות בחירה לשלב זה</button>
+                <div class="mt-2 flex gap-2">
+                    <button type="button" onclick="window.addComplexOption(${stepIdx})" class="flex-1 bg-emerald-50/50 border border-dashed border-emerald-300 text-emerald-700 py-2.5 rounded-xl text-xs font-bold hover:bg-emerald-100 transition shadow-sm"><i class="fa-solid fa-plus mr-1"></i> הוסף אפשרות ידנית</button>
+                    <button type="button" onclick="window.openCatalogPickerForStep(${stepIdx})" class="flex-1 bg-blue-50 border border-dashed border-blue-300 text-blue-700 py-2.5 rounded-xl text-xs font-bold hover:bg-blue-100 transition shadow-sm"><i class="fa-solid fa-box-open mr-1"></i> הוסף מהקטלוג</button>
+                </div>
             </div>
         </div>`;
     });
