@@ -9899,3 +9899,194 @@ window.runSAFeedAI = async function() {
 window.refreshSAFeedStats = refreshSAFeedStats;
 window.loadSACommunityFeed = loadSACommunityFeed;
 window.switchSAFeedTab = window.switchSAFeedTab;
+
+// ===== SA BIZ COMMUNITY FEED =====
+let _saRejectPostId = null;
+
+window.switchSAContentTab = function(tab) {
+    switchViewTab('content', tab);
+    if (tab === 'biz-feed') loadSABizFeedSection();
+};
+
+async function initSABizFeedBadge() {
+    try {
+        const res = await fetch('/api/sa/community/biz-posts/pending-count');
+        const data = await res.json();
+        const badge = document.getElementById('sa-biz-posts-badge');
+        if (!badge) return;
+        if (data.count > 0) {
+            badge.textContent = data.count > 9 ? '9+' : data.count;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    } catch(e) {}
+}
+
+async function loadSABizFeedSection() {
+    await initSABizFeedBadge();
+    await loadSABizFeedMetrics();
+    await loadSABizFeedPosts('pending');
+}
+
+async function loadSABizFeedMetrics() {
+    try {
+        const [pendingRes, approvedRes, rejectedRes] = await Promise.all([
+            fetch('/api/sa/community/biz-posts?status=pending').then(r => r.json()),
+            fetch('/api/sa/community/biz-posts?status=approved').then(r => r.json()),
+            fetch('/api/sa/community/biz-posts?status=rejected').then(r => r.json()),
+        ]);
+        const el = document.getElementById('sa-biz-feed-metrics');
+        if (!el) return;
+        const pendingCount = pendingRes.pendingCount || pendingRes.posts?.length || 0;
+        el.innerHTML = `
+          <div style="background:white;border-radius:12px;padding:0.8rem;border:2px solid ${pendingCount>0?'#FED7AA':'#E0E0E0'};text-align:center">
+            <div style="font-size:1.6rem;font-weight:900;color:${pendingCount>0?'#D97706':'#94A3B8'}">${pendingCount}</div>
+            <div style="font-size:0.68rem;color:#94A3B8">ממתינים</div>
+          </div>
+          <div style="background:white;border-radius:12px;padding:0.8rem;border:1px solid #E0E0E0;text-align:center">
+            <div style="font-size:1.6rem;font-weight:900;color:#16A34A">${approvedRes.posts?.length || 0}</div>
+            <div style="font-size:0.68rem;color:#94A3B8">פעילים</div>
+          </div>
+          <div style="background:white;border-radius:12px;padding:0.8rem;border:1px solid #E0E0E0;text-align:center">
+            <div style="font-size:1.6rem;font-weight:900;color:#EF4444">${rejectedRes.posts?.length || 0}</div>
+            <div style="font-size:0.68rem;color:#94A3B8">נדחו</div>
+          </div>`;
+    } catch(e) {}
+}
+
+window.loadSABizFeedPosts = async function(status = 'pending') {
+    document.querySelectorAll('.sa-biz-filter').forEach(b => {
+        b.style.background = '#F3F4F6';
+        b.style.color = '#555';
+        b.style.borderColor = '#E0E0E0';
+    });
+    const activeBtn = document.getElementById(`sa-biz-filter-${status}`);
+    if (activeBtn) {
+        const colors = {
+            pending: { bg: '#FEF3C7', color: '#B45309', border: '#B45309' },
+            approved: { bg: '#F0FDF4', color: '#16A34A', border: '#16A34A' },
+            rejected: { bg: '#FEF2F2', color: '#EF4444', border: '#EF4444' },
+        };
+        const c = colors[status];
+        if (c) { activeBtn.style.background = c.bg; activeBtn.style.color = c.color; activeBtn.style.borderColor = c.border; }
+    }
+    const list = document.getElementById('sa-biz-feed-list');
+    if (!list) return;
+    list.innerHTML = '<div style="text-align:center;color:#94A3B8;padding:1rem">טוען...</div>';
+    try {
+        const res = await fetch(`/api/sa/community/biz-posts?status=${status}`);
+        const data = await res.json();
+        if (!data.posts?.length) {
+            list.innerHTML = `<div style="text-align:center;padding:2rem;color:#94A3B8">${
+                status==='pending' ? '✅ אין פוסטים ממתינים' :
+                status==='approved' ? 'אין פוסטים פעילים' : 'אין פוסטים שנדחו'}</div>`;
+            return;
+        }
+        const borderColor = { pending:'#FED7AA', approved:'#BBF7D0', rejected:'#FECACA' };
+        const bgColor = { pending:'#FFFBEB', approved:'#F0FDF4', rejected:'#FEF2F2' };
+        list.innerHTML = data.posts.map(p => `
+          <div style="background:white;border-radius:14px;border:1.5px solid ${borderColor[status]||'#E0E0E0'};margin-bottom:0.8rem;overflow:hidden">
+            <div style="padding:0.7rem 0.9rem;background:${bgColor[status]||'#F9FAFB'};display:flex;align-items:center;gap:0.6rem;border-bottom:1px solid #F0F0F0">
+              ${p.business_logo
+                ? `<img src="${p.business_logo}" style="width:32px;height:32px;border-radius:8px;object-fit:cover">`
+                : `<div style="width:32px;height:32px;border-radius:8px;background:#E0E0E0;display:flex;align-items:center;justify-content:center;font-size:1rem">🏪</div>`}
+              <div style="flex:1">
+                <div style="font-weight:700;font-size:0.85rem">${safeStr(p.business_name||'עסק')}</div>
+                <div style="font-size:0.7rem;color:#94A3B8">${safeStr(p.community_name||'')} · ${new Date(p.created_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
+              </div>
+              <div style="font-size:0.72rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:50px;background:${p.post_type==='promo'?'#FEF3C7':'#EFF6FF'};color:${p.post_type==='promo'?'#B45309':'#1D4ED8'}">${p.post_type==='promo'?'🏷️ מבצע':'📢 עדכון'}</div>
+            </div>
+            <div style="padding:0.7rem 0.9rem">
+              <div style="font-size:0.88rem;color:#1E293B;line-height:1.5;margin-bottom:0.5rem">${safeStr(p.content||'')}</div>
+              ${p.biz_valid_until ? `<div style="font-size:0.72rem;color:#94A3B8;margin-bottom:0.5rem">⌛ תוקף עד: ${new Date(p.biz_valid_until).toLocaleDateString('he-IL')}</div>` : ''}
+              ${p.biz_promo_url ? `<div style="font-size:0.72rem;color:#1D4ED8;margin-bottom:0.5rem">🔗 ${safeStr(p.biz_promo_url)}</div>` : ''}
+              ${p.image_url ? `<img src="${safeStr(p.image_url)}" style="width:100%;border-radius:8px;max-height:150px;object-fit:cover;margin-bottom:0.5rem">` : ''}
+              ${status === 'pending' ? `
+              <div style="display:flex;gap:0.5rem;margin-top:0.3rem">
+                <button onclick="approveSABizPost(${p.id})" style="flex:1;background:#16A34A;color:white;border:none;border-radius:10px;padding:0.65rem;font-weight:700;cursor:pointer;font-size:0.85rem">✅ אשר</button>
+                <button onclick="openSARejectModal(${p.id})" style="flex:1;background:#EF4444;color:white;border:none;border-radius:10px;padding:0.65rem;font-weight:700;cursor:pointer;font-size:0.85rem">❌ דחה</button>
+              </div>` : ''}
+              ${status === 'approved' ? `
+              <div style="display:flex;gap:0.5rem;margin-top:0.3rem">
+                <button onclick="hideSABizPost(${p.id})" style="background:#FEE2E2;color:#EF4444;border:none;border-radius:8px;padding:0.4rem 0.8rem;font-size:0.78rem;font-weight:700;cursor:pointer">🚫 הסתר</button>
+                <span style="font-size:0.75rem;color:#94A3B8;align-self:center">❤️ ${p.likes_count||0} · 💬 ${p.comments_count||0}</span>
+              </div>` : ''}
+            </div>
+          </div>`).join('');
+    } catch(e) {
+        list.innerHTML = '<div style="text-align:center;color:#EF4444">שגיאה בטעינה</div>';
+    }
+};
+
+window.approveSABizPost = async function(postId) {
+    try {
+        await fetch(`/api/sa/community/biz-posts/${postId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'approved' })
+        });
+        showToast('success', 'הפוסט אושר ויוצג בפיד ✅');
+        loadSABizFeedPosts('pending');
+        loadSABizFeedMetrics();
+        initSABizFeedBadge();
+    } catch(e) {}
+};
+
+window.openSARejectModal = function(postId) {
+    _saRejectPostId = postId;
+    document.querySelectorAll('input[name="reject-reason"]').forEach(r => r.checked = false);
+    const custom = document.getElementById('sa-reject-custom');
+    if (custom) { custom.style.display = 'none'; custom.value = ''; }
+    const modal = document.getElementById('sa-reject-modal');
+    if (modal) modal.style.display = 'flex';
+    document.querySelectorAll('input[name="reject-reason"]').forEach(r => {
+        r.onchange = () => {
+            if (custom) custom.style.display = r.value === 'other' ? 'block' : 'none';
+        };
+    });
+};
+
+window.closeSARejectModal = function() {
+    _saRejectPostId = null;
+    const modal = document.getElementById('sa-reject-modal');
+    if (modal) modal.style.display = 'none';
+};
+
+window.confirmSAReject = async function() {
+    const selected = document.querySelector('input[name="reject-reason"]:checked');
+    if (!selected) { alert('בחר סיבת דחייה'); return; }
+    let reason = selected.value;
+    if (reason === 'other') {
+        reason = document.getElementById('sa-reject-custom')?.value?.trim();
+        if (!reason) { alert('כתוב סיבה'); return; }
+    }
+    try {
+        await fetch(`/api/sa/community/biz-posts/${_saRejectPostId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'rejected', rejectionReason: reason })
+        });
+        closeSARejectModal();
+        showToast('info', 'הפוסט נדחה, העסק יקבל הודעה');
+        loadSABizFeedPosts('pending');
+        loadSABizFeedMetrics();
+        initSABizFeedBadge();
+    } catch(e) {}
+};
+
+window.hideSABizPost = async function(postId) {
+    if (!confirm('להסתיר את הפוסט מהפיד?')) return;
+    try {
+        await fetch(`/api/sa/community/posts/${postId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isHidden: true })
+        });
+        showToast('info', 'הפוסט הוסתר');
+        loadSABizFeedPosts('approved');
+    } catch(e) {}
+};
+
+// אתחול הבאדג' בטעינת הדף
+setTimeout(initSABizFeedBadge, 2000);

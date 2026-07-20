@@ -1423,6 +1423,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                       <button id="vtnav-content-branding" onclick="switchViewTab('content','branding')" style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-paint-roller" style="font-size:11px;"></i>מיתוג ולוגו</button>
                       <button id="vtnav-content-banners" onclick="switchViewTab('content','banners')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-bullhorn" style="font-size:11px;"></i>הודעות ובאנרים</button>
                       <button id="vtnav-content-settings" onclick="switchViewTab('content','settings')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-envelope" style="font-size:11px;"></i>הגדרות מייל</button>
+                      <button id="vtnav-content-biz-feed" onclick="switchSAContentTab('biz-feed')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;position:relative;">📰 פוסטים עסקיים<span id="sa-biz-posts-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#EF4444;color:white;border-radius:50%;width:16px;height:16px;font-size:0.6rem;font-weight:900;align-items:center;justify-content:center">0</span></button>
                     </div>
 
           <div id="vt-content-branding" class="vt-content">
@@ -1682,6 +1683,39 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     </button>
               </div>
           </div>
+
+          <!-- ===== BIZ COMMUNITY FEED POSTS ===== -->
+          <div id="vt-content-biz-feed" class="vt-content" style="display:none;">
+            <!-- מדדים -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.6rem;margin-bottom:1rem" id="sa-biz-feed-metrics"></div>
+            <!-- סינון סטטוס -->
+            <div style="display:flex;gap:0.4rem;margin-bottom:0.8rem;flex-wrap:wrap">
+              <button onclick="loadSABizFeedPosts('pending')" id="sa-biz-filter-pending" class="sa-biz-filter" style="background:#FEF3C7;color:#B45309;border:1.5px solid #B45309;border-radius:50px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:700;cursor:pointer">⏳ ממתינים</button>
+              <button onclick="loadSABizFeedPosts('approved')" id="sa-biz-filter-approved" class="sa-biz-filter" style="background:#F3F4F6;color:#555;border:1.5px solid #E0E0E0;border-radius:50px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:700;cursor:pointer">✅ פעילים</button>
+              <button onclick="loadSABizFeedPosts('rejected')" id="sa-biz-filter-rejected" class="sa-biz-filter" style="background:#F3F4F6;color:#555;border:1.5px solid #E0E0E0;border-radius:50px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:700;cursor:pointer">❌ נדחו</button>
+            </div>
+            <!-- רשימת פוסטים -->
+            <div id="sa-biz-feed-list"><div style="text-align:center;color:#94A3B8;padding:2rem">טוען...</div></div>
+            <!-- מודל דחייה -->
+            <div id="sa-reject-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:6000;align-items:center;justify-content:center">
+              <div style="background:white;border-radius:20px;padding:1.2rem;max-width:340px;width:90%">
+                <h3 style="font-size:0.95rem;font-weight:900;margin-bottom:0.8rem">❌ סיבת דחייה</h3>
+                <div style="display:flex;flex-direction:column;gap:0.4rem;margin-bottom:0.8rem" id="sa-reject-reasons">
+                  <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;cursor:pointer"><input type="radio" name="reject-reason" value="תוכן לא מתאים לקהילה"> תוכן לא מתאים לקהילה</label>
+                  <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;cursor:pointer"><input type="radio" name="reject-reason" value="מידע חסר או לא ברור"> מידע חסר או לא ברור</label>
+                  <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;cursor:pointer"><input type="radio" name="reject-reason" value="מחיר או הצעה לא אמיתית"> מחיר / הצעה לא אמיתית</label>
+                  <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;cursor:pointer"><input type="radio" name="reject-reason" value="כפילות עם מבצע קיים"> כפילות עם מבצע קיים</label>
+                  <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;cursor:pointer"><input type="radio" name="reject-reason" value="other"> סיבה אחרת:</label>
+                  <input id="sa-reject-custom" type="text" placeholder="כתוב סיבה..." style="width:100%;padding:0.5rem;border:1px solid #E0E0E0;border-radius:8px;font-size:0.85rem;display:none;box-sizing:border-box">
+                </div>
+                <div style="display:flex;gap:0.5rem">
+                  <button onclick="closeSARejectModal()" style="flex:1;background:#F3F4F6;border:none;border-radius:10px;padding:0.7rem;font-weight:700;cursor:pointer;color:#555">ביטול</button>
+                  <button onclick="confirmSAReject()" style="flex:1;background:#EF4444;color:white;border:none;border-radius:10px;padding:0.7rem;font-weight:700;cursor:pointer">דחה פוסט</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
                 </div>
 
                <div id="sa-view-clients" class="hidden space-y-8 fade-in">
