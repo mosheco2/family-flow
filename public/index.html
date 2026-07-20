@@ -1107,6 +1107,12 @@
 <div id="content-community" class="hidden">
                     <div id="ad-slot-community-top" class="px-2 mb-3"><div class="relative w-full rounded-2xl h-16 overflow-hidden bg-slate-100 border border-dashed border-slate-200"><div id="ad-slot-community-top-ph" class="absolute inset-0 flex items-center justify-center text-slate-300 text-xs font-bold tracking-widest">פרסום</div><a id="ad-slot-community-top-link" href="#" target="_blank" class="hidden absolute inset-0 block"><img id="ad-slot-community-top-img" src="" alt="" class="w-full h-full object-cover"></a></div></div>
                     <!-- ניווט קהילות — תמיד גלוי -->
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:0.3rem">
+                      <button id="notif-bell-btn" onclick="switchFamCommunityTab('notifications')" style="position:relative;background:none;border:none;font-size:1.4rem;cursor:pointer;padding:0.2rem 0.4rem">
+                        🔔
+                        <span id="notif-bell-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#EF4444;color:white;border-radius:50%;min-width:16px;height:16px;font-size:0.6rem;font-weight:900;align-items:center;justify-content:center;padding:0 3px"></span>
+                      </button>
+                    </div>
                     <div class="grid grid-cols-5 gap-2 mb-4" id="comm-nav-grid">
                         <button onclick="switchFamCommunityTab('manage')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition text-[11px] font-bold">
                             <i class="fa-solid fa-people-group text-base text-orange-400"></i>ניהול קהילות
@@ -1314,6 +1320,17 @@
                         </button>
                       </div>
 
+                    </div>
+
+                    <!-- View: Notifications (התראות) -->
+                    <div id="fam-comm-view-notifications" class="hidden pb-20">
+                      <div style="padding:1rem">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+                          <h3 style="font-weight:900;font-size:1rem">🔔 התראות</h3>
+                          <button onclick="markAllNotifsRead()" style="font-size:0.75rem;color:#3B82F6;background:none;border:none;cursor:pointer">סמן הכל כנקרא</button>
+                        </div>
+                        <div id="notifications-list"></div>
+                      </div>
                     </div>
 
                     <!-- מודל פרסום פוסט חדש -->

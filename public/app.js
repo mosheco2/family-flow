@@ -4543,7 +4543,7 @@ let myCashbackCache = []; // [{community_id, community_name, balance, total_earn
 
 function switchFamCommunityTab(tab) {
     localStorage.setItem('ofl_comm_tab', tab);
-    ['home', 'manage', 'benefits', 'promos', 'news', 'feed'].forEach(t => {
+    ['home', 'manage', 'benefits', 'promos', 'news', 'feed', 'notifications'].forEach(t => {
         const view = document.getElementById(`fam-comm-view-${t}`);
         if (view) view.classList.add('hidden');
     });
@@ -4554,6 +4554,7 @@ function switchFamCommunityTab(tab) {
     if (tab === 'promos') loadCommunityFeed();
     if (tab === 'benefits') renderFamCommunityBenefits();
     if (tab === 'feed') { loadFeedSection(); }
+    if (tab === 'notifications') { loadNotificationsTab(); }
     if (tab === 'news') {
         const communityId = myConnectedCommunitiesCache?.[0]?.id;
         if (communityId) loadCommunityArticles(communityId);
@@ -5408,14 +5409,14 @@ function renderFamilyCommunities() {
 
 
     // הצגת עמוד הבית של עולם הקהילות
-    const anyVisible = ['home','manage','benefits','promos','news','feed'].some(t => !getEl(`fam-comm-view-${t}`)?.classList.contains('hidden'));
+    const anyVisible = ['home','manage','benefits','promos','news','feed','notifications'].some(t => !getEl(`fam-comm-view-${t}`)?.classList.contains('hidden'));
     const requestedTab = localStorage.getItem('ofl_open_community_tab');
     if (requestedTab) {
         localStorage.removeItem('ofl_open_community_tab');
         switchFamCommunityTab(requestedTab);
     } else if (!anyVisible) {
         const savedCommTab = localStorage.getItem('ofl_comm_tab');
-        if (savedCommTab && ['home','manage','benefits','promos','news','feed'].includes(savedCommTab)) {
+        if (savedCommTab && ['home','manage','benefits','promos','news','feed','notifications'].includes(savedCommTab)) {
             switchFamCommunityTab(savedCommTab);
         } else {
             switchFamCommunityTab('home');
@@ -5424,6 +5425,9 @@ function renderFamilyCommunities() {
     // עדכון הודעת אין קהילה בבית
     const noCommunityEl = getEl('comm-home-no-community');
     if (noCommunityEl) noCommunityEl.classList.toggle('hidden', isConnected);
+    // טעינת ספירות לא נקראות
+    try { loadFeedUnreadCounts(); } catch(e) {}
+    try { loadNotifCount(); } catch(e) {}
 }
 
 // ============================================================
@@ -15416,6 +15420,7 @@ async function loadFeedSection(forceReload = false) {
   if (!forceReload && feedState.cachedHTML) {
     if (list) list.innerHTML = feedState.cachedHTML;
     renderFeedCommunityFilters();
+    markFeedRead(feedState.communityId || null);
     return;
   }
   feedState.page = 1;
@@ -15424,6 +15429,64 @@ async function loadFeedSection(forceReload = false) {
   if (list) list.innerHTML = '';
   renderFeedCommunityFilters();
   await fetchFeedPosts(true);
+  markFeedRead(feedState.communityId || null);
+}
+
+async function markFeedRead(communityId) {
+  try {
+    await fetch(`${API}/community/feed/mark-read`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ familyId: currentGroup?.id, communityId: communityId || null })
+    });
+    loadFeedUnreadCounts();
+  } catch(e) {}
+}
+
+async function loadFeedUnreadCounts() {
+  try {
+    if (!currentGroup?.id) return;
+    const res = await fetch(`${API}/community/feed/unread-counts?familyId=${currentGroup.id}`);
+    const data = await res.json();
+    if (!data.counts) return;
+    // עדכון תג "פיד"
+    const feedBtn = [...document.querySelectorAll('#comm-nav-grid button')].find(b => b.textContent.includes('פיד'));
+    if (feedBtn) {
+      let badge = feedBtn.querySelector('#feed-tab-badge');
+      if (data.total > 0) {
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.id = 'feed-tab-badge';
+          badge.style.cssText = 'position:absolute;top:-4px;right:-4px;background:#EF4444;color:white;border-radius:50%;min-width:16px;height:16px;font-size:0.6rem;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 3px';
+          feedBtn.style.position = 'relative';
+          feedBtn.appendChild(badge);
+        }
+        badge.textContent = data.total;
+        badge.style.display = 'flex';
+      } else if (badge) {
+        badge.style.display = 'none';
+      }
+    }
+    // עדכון כפתורי סינון קהילות
+    const comms = myConnectedCommunitiesCache || currentCommunities || [];
+    comms.forEach(c => {
+      const count = data.counts[c.id] || 0;
+      const btn = [...document.querySelectorAll('#feed-community-filter .feed-filter-btn')].find(b => b.textContent.trim() === c.name || b.dataset.commId == c.id);
+      if (btn) {
+        let badge = btn.querySelector('.comm-unread-badge');
+        if (count > 0) {
+          if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'comm-unread-badge';
+            badge.style.cssText = 'margin-right:4px;background:#EF4444;color:white;border-radius:50%;min-width:14px;height:14px;font-size:0.6rem;font-weight:900;display:inline-flex;align-items:center;justify-content:center;padding:0 2px';
+            btn.appendChild(badge);
+          }
+          badge.textContent = count;
+        } else if (badge) {
+          badge.remove();
+        }
+      }
+    });
+  } catch(e) {}
 }
 
 function renderFeedCommunityFilters() {
@@ -15618,7 +15681,7 @@ async function openFeedComments(postId) {
     list.innerHTML = data.comments.map(c => `
       <div style="margin-bottom:0.8rem">
         <div style="display:flex;gap:0.5rem;align-items:flex-start">
-          <div style="width:30px;height:30px;border-radius:50%;background:#EFF6FF;display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0">👤</div>
+          <div style="width:30px;height:30px;border-radius:50%;background:#EFF6FF;display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;overflow:hidden">${c.author_avatar ? `<img src="${c.author_avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : '👤'}</div>
           <div style="flex:1;background:#F8FAFF;border-radius:12px;padding:0.5rem 0.7rem">
             <div style="font-weight:700;font-size:0.78rem;color:#1D4ED8;margin-bottom:0.05rem">${escHtml(c.author_name)}</div>
             ${c.author_user_name ? `<div style="font-size:0.68rem;color:#64748B;margin-bottom:0.1rem">✍️ ${escHtml(c.author_user_name)}</div>` : ''}
@@ -15786,6 +15849,88 @@ function formatTimeAgo(dateStr) {
   if (diff < 3600) return `לפני ${Math.floor(diff / 60)} דקות`;
   if (diff < 86400) return `לפני ${Math.floor(diff / 3600)} שעות`;
   return `לפני ${Math.floor(diff / 86400)} ימים`;
+}
+
+// ===== התראות קהילה =====
+
+async function loadNotifCount() {
+  try {
+    if (!currentGroup?.id) return;
+    const res = await fetch(`${API}/community/notifications/count?familyId=${currentGroup.id}`);
+    const data = await res.json();
+    const badge = document.getElementById('notif-bell-badge');
+    if (!badge) return;
+    if (data.count > 0) {
+      badge.textContent = data.count;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+async function loadNotificationsTab() {
+  const container = document.getElementById('notifications-list');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;color:#94A3B8;padding:1rem">טוען...</div>';
+  try {
+    const res = await fetch(`${API}/community/notifications?familyId=${currentGroup?.id}&limit=30`);
+    const data = await res.json();
+    if (!data.notifications?.length) {
+      container.innerHTML = '<div style="text-align:center;color:#94A3B8;padding:2rem;font-size:0.85rem">אין התראות עדיין 🔔</div>';
+      return;
+    }
+    const actionLabels = {
+      like: '❤️ לייק על הפוסט שלכם',
+      comment: '💬 תגובה על הפוסט שלכם',
+      report: '🚩 דיווח על פוסט',
+      share: '↗️ שיתוף הפוסט שלכם'
+    };
+    container.innerHTML = data.notifications.map(n => `
+      <div onclick="openNotif(${n.id},${n.community_id},${n.post_id})"
+           style="background:${n.is_read ? '#F8FAFF' : '#EFF6FF'};border-radius:12px;padding:0.75rem;margin-bottom:0.5rem;cursor:pointer;border:1px solid ${n.is_read ? '#E2E8F0' : '#BFDBFE'}">
+        <div style="display:flex;gap:0.5rem;align-items:center">
+          <div style="width:36px;height:36px;border-radius:50%;background:#DBEAFE;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+            ${n.actor_family_avatar ? `<img src="${escHtml(n.actor_family_avatar)}" style="width:100%;height:100%;object-fit:cover">` : '👥'}
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:0.8rem;color:#1D4ED8">${actionLabels[n.action_type] || n.action_type}</div>
+            <div style="font-size:0.75rem;color:#475569">${escHtml(n.actor_family_name)}${n.actor_user_name ? ` — ${escHtml(n.actor_user_name)}` : ''}</div>
+            <div style="font-size:0.7rem;color:#94A3B8">${escHtml(n.community_name)} • ${formatTimeAgo(n.created_at)}</div>
+          </div>
+          ${!n.is_read ? '<div style="width:8px;height:8px;border-radius:50%;background:#3B82F6;flex-shrink:0"></div>' : ''}
+        </div>
+      </div>`).join('');
+    // סמן הכל כנקרא
+    await markAllNotifsRead();
+  } catch(e) {
+    container.innerHTML = '<div style="text-align:center;color:#EF4444;padding:1rem">שגיאה בטעינת התראות</div>';
+  }
+}
+
+async function openNotif(notifId, communityId, postId) {
+  try {
+    await fetch(`${API}/community/notifications/mark-read`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ familyId: currentGroup?.id, notificationId: notifId })
+    });
+  } catch(e) {}
+  if (communityId) {
+    feedState.communityId = communityId;
+    feedState.page = 1;
+    feedState.cachedHTML = '';
+  }
+  switchFamCommunityTab('feed');
+}
+
+async function markAllNotifsRead() {
+  try {
+    await fetch(`${API}/community/notifications/mark-read`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ familyId: currentGroup?.id })
+    });
+    loadNotifCount();
+  } catch(e) {}
 }
 
 // ===== END COMMUNITY FEED =====

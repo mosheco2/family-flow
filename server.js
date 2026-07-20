@@ -2174,6 +2174,29 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           UNIQUE(group_id, family_id)
         )
       `); } catch(e) { console.error('community_group_members:', e.message); }
+      try { await pool.query(`
+        CREATE TABLE IF NOT EXISTS community_feed_reads (
+          family_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          community_id INT REFERENCES communities(id) ON DELETE CASCADE,
+          last_read_at TIMESTAMP DEFAULT NOW(),
+          PRIMARY KEY (family_id, community_id)
+        )
+      `); } catch(e) { console.error('community_feed_reads:', e.message); }
+
+      try { await pool.query(`
+        CREATE TABLE IF NOT EXISTS community_notifications (
+          id SERIAL PRIMARY KEY,
+          target_family_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          actor_family_id INT REFERENCES family_groups(id) ON DELETE SET NULL,
+          actor_user_id INT REFERENCES users(id) ON DELETE SET NULL,
+          community_id INT REFERENCES communities(id) ON DELETE CASCADE,
+          post_id INT REFERENCES community_posts(id) ON DELETE CASCADE,
+          action_type VARCHAR(20),
+          is_read BOOLEAN DEFAULT false,
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `); } catch(e) { console.error('community_notifications:', e.message); }
+
       // ===== END COMMUNITY FEED SYSTEM =====
 
       client.release();
@@ -22934,6 +22957,118 @@ app.post('/api/community/posts', async (req, res) => {
   } catch(e){ res.status(500).json({ error:e.message }); }
 });
 
+// סימון פיד כנקרא
+app.post('/api/community/feed/mark-read', async (req, res) => {
+  try {
+    const { familyId, communityId } = req.body;
+    if (!familyId) return res.status(400).json({ error: 'familyId נדרש' });
+    if (communityId) {
+      await pool.query(
+        `INSERT INTO community_feed_reads (family_id, community_id, last_read_at)
+         VALUES ($1,$2,NOW())
+         ON CONFLICT (family_id, community_id) DO UPDATE SET last_read_at=NOW()`,
+        [familyId, communityId]
+      );
+    } else {
+      // סמן כל הקהילות
+      const comms = await pool.query(
+        `SELECT community_id FROM family_communities WHERE group_id=$1 AND status='approved'`, [familyId]
+      );
+      for (const row of comms.rows) {
+        await pool.query(
+          `INSERT INTO community_feed_reads (family_id, community_id, last_read_at)
+           VALUES ($1,$2,NOW())
+           ON CONFLICT (family_id, community_id) DO UPDATE SET last_read_at=NOW()`,
+          [familyId, row.community_id]
+        );
+      }
+    }
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ספירת פוסטים לא נקראו
+app.get('/api/community/feed/unread-counts', async (req, res) => {
+  try {
+    const { familyId } = req.query;
+    if (!familyId) return res.status(400).json({ error: 'familyId נדרש' });
+    const comms = await pool.query(
+      `SELECT community_id FROM family_communities WHERE group_id=$1 AND status='approved'`, [familyId]
+    );
+    const counts = {};
+    let total = 0;
+    for (const row of comms.rows) {
+      const cid = row.community_id;
+      const readRes = await pool.query(
+        `SELECT last_read_at FROM community_feed_reads WHERE family_id=$1 AND community_id=$2`, [familyId, cid]
+      );
+      let cnt = 0;
+      if (readRes.rows[0]) {
+        const r = await pool.query(
+          `SELECT COUNT(*) as cnt FROM community_posts WHERE community_id=$1 AND created_at > $2 AND is_hidden=false`,
+          [cid, readRes.rows[0].last_read_at]
+        );
+        cnt = parseInt(r.rows[0].cnt);
+      }
+      counts[cid] = cnt;
+      total += cnt;
+    }
+    res.json({ counts, total });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליפת התראות
+app.get('/api/community/notifications', async (req, res) => {
+  try {
+    const { familyId, limit = 30 } = req.query;
+    if (!familyId) return res.status(400).json({ error: 'familyId נדרש' });
+    const result = await pool.query(`
+      SELECT cn.*,
+        fg_actor.name as actor_family_name, fg_actor.image_url as actor_family_avatar,
+        c.name as community_name,
+        (SELECT TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,''))
+         FROM users WHERE id=cn.actor_user_id LIMIT 1) as actor_user_name
+      FROM community_notifications cn
+      JOIN family_groups fg_actor ON fg_actor.id = cn.actor_family_id
+      JOIN communities c ON c.id = cn.community_id
+      WHERE cn.target_family_id=$1
+      ORDER BY cn.created_at DESC LIMIT $2
+    `, [familyId, parseInt(limit)]);
+    res.json({ success: true, notifications: result.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ספירת התראות לא נקראות
+app.get('/api/community/notifications/count', async (req, res) => {
+  try {
+    const { familyId } = req.query;
+    if (!familyId) return res.status(400).json({ error: 'familyId נדרש' });
+    const r = await pool.query(
+      `SELECT COUNT(*) as cnt FROM community_notifications WHERE target_family_id=$1 AND is_read=false`, [familyId]
+    );
+    res.json({ count: parseInt(r.rows[0].cnt) });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// סימון התראות כנקראות
+app.post('/api/community/notifications/mark-read', async (req, res) => {
+  try {
+    const { familyId, notificationId } = req.body;
+    if (!familyId) return res.status(400).json({ error: 'familyId נדרש' });
+    if (notificationId) {
+      await pool.query(
+        `UPDATE community_notifications SET is_read=true WHERE id=$1 AND target_family_id=$2`,
+        [notificationId, familyId]
+      );
+    } else {
+      await pool.query(
+        `UPDATE community_notifications SET is_read=true WHERE target_family_id=$1`, [familyId]
+      );
+    }
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // לייק / ביטול לייק
 app.post('/api/community/posts/:id/like', async (req, res) => {
   try {
@@ -22957,6 +23092,16 @@ app.post('/api/community/posts/:id/like', async (req, res) => {
           [p.author_family_id, p.community_id]
         ); } catch(e){}
       }
+      // התראה לכותב הפוסט
+      try {
+        if (p && p.author_family_id && parseInt(p.author_family_id) !== parseInt(familyId)) {
+          await pool.query(
+            `INSERT INTO community_notifications (target_family_id, actor_family_id, community_id, post_id, action_type)
+             VALUES ($1,$2,$3,$4,'like')`,
+            [p.author_family_id, familyId, p.community_id, postId]
+          );
+        }
+      } catch(e) {}
       res.json({ success:true, liked:true });
     }
   } catch(e){ res.status(500).json({ error:e.message }); }
@@ -22988,6 +23133,17 @@ app.post('/api/community/posts/:id/comments', async (req, res) => {
       VALUES ($1,$2,$3,$4,$5) RETURNING *
     `, [req.params.id, parentCommentId||null, familyId, userId||null, content.trim()]);
     await pool.query('UPDATE community_posts SET comments_count=comments_count+1 WHERE id=$1', [req.params.id]);
+    // התראה לכותב הפוסט
+    try {
+      const p = (await pool.query('SELECT author_family_id, community_id FROM community_posts WHERE id=$1', [req.params.id])).rows[0];
+      if (p && p.author_family_id && parseInt(p.author_family_id) !== parseInt(familyId)) {
+        await pool.query(
+          `INSERT INTO community_notifications (target_family_id, actor_family_id, actor_user_id, community_id, post_id, action_type)
+           VALUES ($1,$2,$3,$4,$5,'comment')`,
+          [p.author_family_id, familyId, userId||null, p.community_id, req.params.id]
+        );
+      }
+    } catch(e) {}
     res.json({ success:true, comment: comment.rows[0] });
   } catch(e){ res.status(500).json({ error:e.message }); }
 });
