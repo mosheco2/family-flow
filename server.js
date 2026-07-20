@@ -3677,18 +3677,18 @@ async function runDailySnapshots() {
         console.log(`[SNAPSHOT] Starting daily snapshots for ${groups.rows.length} groups`);
         for (const g of groups.rows) {
             await takeGroupSnapshot(g.id, 'auto');
-            await new Promise(r => setTimeout(r, 200)); // throttle
+            await new Promise(r => setTimeout(r, 2000)); // throttle — reduce memory pressure
         }
         // מחיקת snapshots שפגו תוקף (גוארד אם expires_at עדיין לא קיים)
         await pool.query(`DELETE FROM group_snapshots WHERE expires_at IS NOT NULL AND expires_at < NOW()`).catch(()=>{});
         console.log(`[SNAPSHOT] Daily snapshots done`);
     } catch(e) { console.error('[SNAPSHOT DAILY]', e.message); }
 }
-// הפעלה 10 שניות אחרי עליית השרת, ואז כל 24 שעות
+// הפעלה 120 שניות אחרי עליית השרת (לאחר שהשרת מתייצב), ואז כל 24 שעות
 setTimeout(() => {
     runDailySnapshots();
     setInterval(runDailySnapshots, 24 * 60 * 60 * 1000);
-}, 10000);
+}, 120000);
 
 // רשימת snapshots לסביבה מסוימת
 app.get('/api/sa/groups/:id/snapshots', verifySA, async (req, res) => {
