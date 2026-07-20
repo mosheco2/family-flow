@@ -15542,7 +15542,7 @@ function renderPostCard(post) {
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:700;font-size:0.85rem;color:#111">${post.is_pinned ? '📌 ' : ''}${escHtml(post.author_name)}</div>
-        ${post.publisher_name ? `<div style="font-size:0.72rem;color:#475569;font-weight:600">✍️ ${escHtml(post.publisher_name)}</div>` : ''}
+        ${(post.author_user_name || post.publisher_name) ? `<div style="font-size:0.72rem;color:#475569;font-weight:600">✍️ ${escHtml(post.author_user_name || post.publisher_name)}</div>` : ''}
         <div style="font-size:0.7rem;color:#94A3B8">${post.community_name} · ${timeAgo}${post.group_name ? ` · <span style="color:#7C3AED">${post.group_icon||''}${post.group_name}</span>` : ''}</div>
       </div>
       <div style="background:${t.color}15;color:${t.color};border-radius:50px;padding:0.15rem 0.5rem;font-size:0.68rem;font-weight:700;white-space:nowrap">${t.icon} ${t.label}</div>
@@ -15620,7 +15620,8 @@ async function openFeedComments(postId) {
         <div style="display:flex;gap:0.5rem;align-items:flex-start">
           <div style="width:30px;height:30px;border-radius:50%;background:#EFF6FF;display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0">👤</div>
           <div style="flex:1;background:#F8FAFF;border-radius:12px;padding:0.5rem 0.7rem">
-            <div style="font-weight:700;font-size:0.78rem;color:#1D4ED8;margin-bottom:0.15rem">${escHtml(c.author_name)}</div>
+            <div style="font-weight:700;font-size:0.78rem;color:#1D4ED8;margin-bottom:0.05rem">${escHtml(c.author_name)}</div>
+            ${c.author_user_name ? `<div style="font-size:0.68rem;color:#64748B;margin-bottom:0.1rem">✍️ ${escHtml(c.author_user_name)}</div>` : ''}
             <div style="font-size:0.85rem;color:#1E293B">${escHtml(c.content)}</div>
           </div>
         </div>
@@ -15638,7 +15639,7 @@ async function submitComment(postId) {
   try {
     await fetch(`${API}/community/posts/${postId}/comments`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ familyId: currentGroup?.id, content })
+      body: JSON.stringify({ familyId: currentGroup?.id, userId: currentUser?.id, content })
     });
     input.value = '';
     openFeedComments(postId);
@@ -15736,6 +15737,7 @@ async function submitNewPost() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         familyId: currentGroup?.id,
+        userId: currentUser?.id,
         communityId: parseInt(communityId),
         postType: feedState.selectedPostType,
         content,
@@ -15752,7 +15754,8 @@ async function submitNewPost() {
         list.insertAdjacentHTML('afterbegin', renderPostCard({
           ...data.post,
           author_name: fmtGroupName(currentGroup) || 'המשפחה שלי',
-          publisher_name: fmtUserName(currentUser) || currentUser?.nickname || '',
+          author_user_name: fmtUserName(currentUser) || currentUser?.nickname || '',
+          publisher_name: '',
           community_name: comms.find(c => c.id == communityId)?.name || '',
           liked_by_me: false,
         }));

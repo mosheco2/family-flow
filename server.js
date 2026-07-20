@@ -2128,6 +2128,9 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
         )
       `); } catch(e) { console.error('community_posts:', e.message); }
 
+      try { await pool.query(`ALTER TABLE community_posts ADD COLUMN IF NOT EXISTS author_user_id INT REFERENCES users(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await pool.query(`ALTER TABLE community_post_comments ADD COLUMN IF NOT EXISTS author_user_id INT REFERENCES users(id) ON DELETE SET NULL`); } catch(e) {}
+
       try { await pool.query(`
         CREATE TABLE IF NOT EXISTS community_post_likes (
           id SERIAL PRIMARY KEY,
@@ -22876,6 +22879,8 @@ app.get('/api/community/feed', async (req, res) => {
         c.name as community_name,
         cig.name as group_name,
         cig.icon_emoji as group_icon,
+        (SELECT TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'') || CASE WHEN COALESCE(nickname,'')!='' THEN ' (' || nickname || ')' ELSE '' END)
+         FROM users WHERE id=cp.author_user_id LIMIT 1) as author_user_name,
         (SELECT TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,''))
          FROM users WHERE group_id=cp.author_family_id AND role='ADMIN' LIMIT 1) as publisher_name,
         EXISTS(SELECT 1 FROM community_post_likes
@@ -22898,7 +22903,7 @@ app.get('/api/community/feed', async (req, res) => {
 // יצירת פוסט
 app.post('/api/community/posts', async (req, res) => {
   try {
-    const { familyId, communityId, groupId, postType='general', content, imageUrl } = req.body;
+    const { familyId, communityId, groupId, postType='general', content, imageUrl, userId } = req.body;
     if(!content?.trim()) return res.status(400).json({ error: 'תוכן ריק' });
 
     const member = await pool.query(
@@ -22908,9 +22913,9 @@ app.post('/api/community/posts', async (req, res) => {
     if(!member.rows[0]) return res.status(403).json({ error: 'לא חבר בקהילה' });
 
     const post = await pool.query(`
-      INSERT INTO community_posts (author_family_id, community_id, group_id, post_type, content, image_url)
-      VALUES ($1,$2,$3,$4,$5,$6) RETURNING *
-    `, [familyId, communityId, groupId||null, postType, content.trim(), imageUrl||null]);
+      INSERT INTO community_posts (author_family_id, author_user_id, community_id, group_id, post_type, content, image_url)
+      VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *
+    `, [familyId, userId||null, communityId, groupId||null, postType, content.trim(), imageUrl||null]);
 
     try { await pool.query(
       `INSERT INTO flow_transactions (entity_id, entity_type, action_key, amount, community_id) VALUES ($1,'family','community_post',3,$2)`,
@@ -22961,7 +22966,9 @@ app.post('/api/community/posts/:id/like', async (req, res) => {
 app.get('/api/community/posts/:id/comments', async (req, res) => {
   try {
     const comments = await pool.query(`
-      SELECT c.*, fg.name as author_name, fg.image_url as author_avatar
+      SELECT c.*, fg.name as author_name, fg.image_url as author_avatar,
+        (SELECT TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'') || CASE WHEN COALESCE(nickname,'')!='' THEN ' (' || nickname || ')' ELSE '' END)
+         FROM users WHERE id=c.author_user_id LIMIT 1) as author_user_name
       FROM community_post_comments c
       JOIN family_groups fg ON fg.id=c.author_family_id
       WHERE c.post_id=$1 AND c.parent_comment_id IS NULL AND c.is_hidden=false
@@ -22974,12 +22981,12 @@ app.get('/api/community/posts/:id/comments', async (req, res) => {
 // הוספת תגובה
 app.post('/api/community/posts/:id/comments', async (req, res) => {
   try {
-    const { familyId, content, parentCommentId } = req.body;
+    const { familyId, userId, content, parentCommentId } = req.body;
     if(!content?.trim()) return res.status(400).json({ error: 'תוכן ריק' });
     const comment = await pool.query(`
-      INSERT INTO community_post_comments (post_id, parent_comment_id, author_family_id, content)
-      VALUES ($1,$2,$3,$4) RETURNING *
-    `, [req.params.id, parentCommentId||null, familyId, content.trim()]);
+      INSERT INTO community_post_comments (post_id, parent_comment_id, author_family_id, author_user_id, content)
+      VALUES ($1,$2,$3,$4,$5) RETURNING *
+    `, [req.params.id, parentCommentId||null, familyId, userId||null, content.trim()]);
     await pool.query('UPDATE community_posts SET comments_count=comments_count+1 WHERE id=$1', [req.params.id]);
     res.json({ success:true, comment: comment.rows[0] });
   } catch(e){ res.status(500).json({ error:e.message }); }
