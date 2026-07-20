@@ -2622,9 +2622,16 @@
                         <!-- קהילה -->
                         <div>
                             <label class="text-xs font-bold text-slate-500 block mb-1">קהילה</label>
-                            <select id="biz-post-community" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+                            <select id="biz-post-community" onchange="onBizCommunityChange(this.value)" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
                                 <option value="">כל הקהילות המחוברות</option>
                             </select>
+                        </div>
+                        <!-- תחום עניין (מוצג רק כשבוחרים קהילה ספציפית) -->
+                        <div id="biz-post-group-row" class="hidden">
+                            <label class="text-xs font-bold text-slate-500 block mb-1">תחום עניין <span class="font-normal text-slate-400">(אופציונלי)</span></label>
+                            <div id="biz-post-group-loading" class="hidden text-xs text-slate-400 py-1">טוען תחומי עניין...</div>
+                            <div id="biz-post-group-chips" class="flex flex-wrap gap-1.5 mt-1"></div>
+                            <input type="hidden" id="biz-post-group-id" value="">
                         </div>
                         <!-- תוכן -->
                         <div>
@@ -3948,7 +3955,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=202" defer></script>
+    <script src="business-app.js?v=203" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;

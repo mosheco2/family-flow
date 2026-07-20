@@ -8919,6 +8919,17 @@ app.get('/api/biz/communities/my/:bizId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── תחומי עניין של קהילה לעסק (ללא צורך בחברות) ────────────────────────────
+app.get('/api/biz/community/:communityId/groups', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT id, name, icon_emoji, members_count FROM community_interest_groups WHERE community_id=$1 ORDER BY members_count DESC`,
+            [req.params.communityId]
+        );
+        res.json({ success: true, groups: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── BIZ COMMUNITY FEED POSTS ─────────────────────────────────────────────────
 app.get('/api/biz/feed/stats', async (req, res) => {
     try {
@@ -8950,12 +8961,12 @@ app.get('/api/biz/feed/posts', async (req, res) => {
 
 app.post('/api/biz/feed/posts', async (req, res) => {
     try {
-        const { business_id, community_id, content, image_url, post_type, promo_url, valid_until } = req.body;
+        const { business_id, community_id, group_id, content, image_url, post_type, promo_url, valid_until } = req.body;
         if (!business_id || !content) return res.status(400).json({ error: 'חסר תוכן' });
         const r = await pool.query(
-            `INSERT INTO community_posts (business_id, community_id, content, image_url, post_type, biz_promo_url, biz_valid_until, biz_post_status, created_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',NOW()) RETURNING id`,
-            [business_id, community_id || null, content, image_url || null, post_type || 'regular', promo_url || null, valid_until || null]
+            `INSERT INTO community_posts (business_id, community_id, group_id, content, image_url, post_type, biz_promo_url, biz_valid_until, biz_post_status, created_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending',NOW()) RETURNING id`,
+            [business_id, community_id || null, group_id || null, content, image_url || null, post_type || 'regular', promo_url || null, valid_until || null]
         );
         res.json({ success: true, id: r.rows[0].id });
     } catch(e) { res.status(500).json({ error: e.message }); }

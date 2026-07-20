@@ -51729,6 +51729,53 @@ async function populateBizCommunitySelect() {
         cached.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
 }
 
+window.onBizCommunityChange = async function(communityId) {
+    const groupRow = document.getElementById('biz-post-group-row');
+    const chips = document.getElementById('biz-post-group-chips');
+    const loading = document.getElementById('biz-post-group-loading');
+    const hiddenId = document.getElementById('biz-post-group-id');
+    if (hiddenId) hiddenId.value = '';
+    if (!communityId) { if (groupRow) groupRow.classList.add('hidden'); return; }
+    if (groupRow) groupRow.classList.remove('hidden');
+    if (chips) chips.innerHTML = '';
+    if (loading) loading.classList.remove('hidden');
+    try {
+        const r = await fetch(`${API}/biz/community/${communityId}/groups`);
+        const d = await r.json();
+        if (loading) loading.classList.add('hidden');
+        if (!d.success || !d.groups || !d.groups.length) {
+            if (chips) chips.innerHTML = '<span class="text-xs text-slate-400">אין תחומי עניין בקהילה זו</span>';
+            return;
+        }
+        if (chips) chips.innerHTML = d.groups.map(g => `
+            <button type="button" data-gid="${g.id}" onclick="selectBizInterestGroup(this,${g.id})"
+                class="biz-ig-chip px-2.5 py-1 rounded-xl text-xs font-bold border border-slate-200 bg-slate-50 text-slate-600 transition hover:border-purple-400 hover:bg-purple-50 hover:text-purple-700 active:scale-95"
+                style="touch-action:manipulation;">
+                ${escHtml(g.icon_emoji || '💬')} ${escHtml(g.name)} <span class="text-[10px] font-normal text-slate-400">(${g.members_count})</span>
+            </button>`).join('');
+    } catch(e) {
+        if (loading) loading.classList.add('hidden');
+        if (chips) chips.innerHTML = '<span class="text-xs text-red-400">שגיאה בטעינת תחומי עניין</span>';
+    }
+};
+
+window.selectBizInterestGroup = function(btn, gid) {
+    const hiddenId = document.getElementById('biz-post-group-id');
+    const current = hiddenId ? hiddenId.value : '';
+    document.querySelectorAll('.biz-ig-chip').forEach(c => {
+        c.classList.remove('border-purple-500','bg-purple-50','text-purple-700');
+        c.classList.add('border-slate-200','bg-slate-50','text-slate-600');
+    });
+    if (String(current) === String(gid)) {
+        // toggle off
+        if (hiddenId) hiddenId.value = '';
+    } else {
+        if (hiddenId) hiddenId.value = gid;
+        btn.classList.remove('border-slate-200','bg-slate-50','text-slate-600');
+        btn.classList.add('border-purple-500','bg-purple-50','text-purple-700');
+    }
+};
+
 window.openBizFeedPostModal = function() {
     _bizFeedImageUrl = null;
     const modal = document.getElementById('biz-feed-post-modal');
@@ -51741,6 +51788,9 @@ window.openBizFeedPostModal = function() {
     const fileInput = document.getElementById('biz-post-image');
     if (fileInput) fileInput.value = '';
     selectBizPostType('regular');
+    document.getElementById('biz-post-group-row')?.classList.add('hidden');
+    const gid = document.getElementById('biz-post-group-id'); if(gid) gid.value = '';
+    const gchips = document.getElementById('biz-post-group-chips'); if(gchips) gchips.innerHTML = '';
     populateBizCommunitySelect();
     modal.classList.remove('hidden');
 };
@@ -51782,6 +51832,7 @@ window.submitBizFeedPost = async function() {
     if (!content) return showToast('error', 'נא להזין תוכן לפוסט');
     const postType = document.getElementById('biz-post-type-val')?.value || 'regular';
     const communityId = document.getElementById('biz-post-community')?.value || null;
+    const groupId = document.getElementById('biz-post-group-id')?.value || null;
     const promoUrl = document.getElementById('biz-post-promo-url')?.value.trim() || null;
     const validUntil = document.getElementById('biz-post-valid-until')?.value || null;
     try {
@@ -51791,6 +51842,7 @@ window.submitBizFeedPost = async function() {
             body: JSON.stringify({
                 business_id: currentGroup.id,
                 community_id: communityId ? parseInt(communityId) : null,
+                group_id: groupId ? parseInt(groupId) : null,
                 content,
                 post_type: postType,
                 image_url: _bizFeedImageUrl || null,
