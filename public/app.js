@@ -15750,7 +15750,8 @@ async function submitNewPost() {
       showToast('success', 'הפוסט פורסם! +3 Flw 🎉');
       const comms = myConnectedCommunitiesCache || currentCommunities || [];
       const list = document.getElementById('feed-posts-list');
-      if (list) {
+      const postMatchesFilter = !feedState.communityId || feedState.communityId == parseInt(communityId);
+      if (list && postMatchesFilter) {
         list.insertAdjacentHTML('afterbegin', renderPostCard({
           ...data.post,
           author_name: fmtGroupName(currentGroup) || 'המשפחה שלי',
@@ -15761,6 +15762,9 @@ async function submitNewPost() {
           liked_by_me: false,
         }));
         feedState.cachedHTML = list.innerHTML;
+      } else if (list) {
+        // הפוסט פורסם לקהילה אחרת מהמסנן הפעיל — טוען מחדש
+        loadFeedSection(true);
       }
     } else { showToast('error', data.error || 'שגיאה בפרסום'); }
   } catch(e) { showToast('error', 'שגיאה בפרסום'); }
