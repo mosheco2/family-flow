@@ -51,8 +51,8 @@ const port = process.env.PORT || 3000;
 
 app.use(compression());
 app.use(cors());
-app.use(express.json({limit: '50mb'}));
-app.use(express.urlencoded({limit: '50mb', extended: true}));
+app.use(express.json({limit: '5mb'}));
+app.use(express.urlencoded({limit: '5mb', extended: true}));
 // Serve WebP automatically when browser supports it and WebP version exists
 app.use((req, res, next) => {
     if (/\.(png|jpe?g)$/i.test(req.path) && (req.headers.accept || '').includes('image/webp')) {
@@ -750,6 +750,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_activity_log_group ON activity_log(group_id, created_at DESC)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_store_catalog_group ON store_catalog(group_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_store_orders_group_date ON store_orders(group_id, created_at DESC)`); } catch(e) {}
 
       // טבלאות מחולל סקרים
       try { await client.query(`CREATE TABLE IF NOT EXISTS surveys (
