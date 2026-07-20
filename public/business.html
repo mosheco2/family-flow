@@ -2521,6 +2521,14 @@
 
                 <!-- BIZ ADS TAB -->
                 <div id="content-biz-ads" class="hidden px-2 pt-2 pb-20 space-y-4">
+                    <!-- טאב-בר פנימי -->
+                    <div class="flex gap-2 mb-1">
+                        <button id="btn-biz-flow-main" onclick="switchBizFlowTab('main')" class="flex-1 py-2 rounded-2xl text-sm font-bold transition bg-purple-600 text-white">📣 פרסום באנרים</button>
+                        <button id="btn-biz-flow-feed" onclick="switchBizFlowTab('feed')" class="flex-1 py-2 rounded-2xl text-sm font-bold transition bg-slate-100 text-slate-600">📰 פיד קהילתי</button>
+                    </div>
+
+                    <!-- ===== תוכן: פרסום באנרים (קיים) ===== -->
+                    <div id="biz-flow-view-main">
                     <!-- מחשבון + הזמנה -->
                     <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-5">
                         <h3 class="font-black text-slate-800 text-base flex items-center gap-2 mb-4"><i class="fa-solid fa-rectangle-ad text-purple-500"></i> מחשבון פרסום FLOW</h3>
@@ -2570,6 +2578,79 @@
                     <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-5">
                         <h3 class="font-black text-slate-800 text-base flex items-center gap-2 mb-3"><i class="fa-solid fa-receipt text-green-500"></i> כרטסת עלויות</h3>
                         <div id="biz-billing-list" class="space-y-2"></div>
+                    </div>
+                    </div><!-- /biz-flow-view-main -->
+
+                    <!-- ===== תוכן: פיד קהילתי ===== -->
+                    <div id="biz-flow-view-feed" class="hidden space-y-4">
+
+                        <!-- כפתור פרסום פוסט -->
+                        <button onclick="openBizFeedPostModal()" class="w-full bg-gradient-to-l from-indigo-500 to-purple-600 text-white font-black py-3 rounded-2xl flex items-center justify-center gap-2 text-sm shadow">
+                            <i class="fa-solid fa-pen-to-square"></i> פרסם פוסט בפיד הקהילה
+                        </button>
+
+                        <!-- סטטיסטיקות -->
+                        <div id="biz-feed-stats" class="grid grid-cols-3 gap-2 text-center"></div>
+
+                        <!-- רשימת הפוסטים -->
+                        <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-4">
+                            <h3 class="font-black text-slate-800 text-sm flex items-center gap-2 mb-3"><i class="fa-solid fa-newspaper text-indigo-500"></i> הפוסטים שלי</h3>
+                            <div id="biz-feed-posts-list" class="space-y-3"></div>
+                        </div>
+                    </div><!-- /biz-flow-view-feed -->
+
+                </div>
+
+                <!-- modal: פרסום פוסט בפיד קהילתי -->
+                <div id="biz-feed-post-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-end justify-center">
+                    <div class="bg-white rounded-t-[2rem] shadow-2xl w-full max-w-lg p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-black text-slate-800 text-base">📰 פרסום פוסט בפיד קהילתי</h3>
+                            <button onclick="closeBizFeedPostModal()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <!-- סוג פוסט -->
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">סוג פוסט</label>
+                            <div class="flex gap-2 flex-wrap" id="biz-post-type-btns">
+                                <button onclick="selectBizPostType('regular')" data-type="regular" class="biz-pt-btn px-3 py-1.5 rounded-xl text-sm font-bold border border-slate-200 bg-slate-50 text-slate-600">📝 רגיל</button>
+                                <button onclick="selectBizPostType('promo')" data-type="promo" class="biz-pt-btn px-3 py-1.5 rounded-xl text-sm font-bold border border-slate-200 bg-slate-50 text-slate-600">🎁 מבצע</button>
+                                <button onclick="selectBizPostType('event')" data-type="event" class="biz-pt-btn px-3 py-1.5 rounded-xl text-sm font-bold border border-slate-200 bg-slate-50 text-slate-600">📅 אירוע</button>
+                                <button onclick="selectBizPostType('update')" data-type="update" class="biz-pt-btn px-3 py-1.5 rounded-xl text-sm font-bold border border-slate-200 bg-slate-50 text-slate-600">📢 עדכון</button>
+                            </div>
+                        </div>
+                        <input type="hidden" id="biz-post-type-val" value="regular">
+                        <!-- קהילה -->
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">קהילה</label>
+                            <select id="biz-post-community" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+                                <option value="">כל הקהילות המחוברות</option>
+                            </select>
+                        </div>
+                        <!-- תוכן -->
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">תוכן הפוסט *</label>
+                            <textarea id="biz-post-content" rows="4" placeholder="מה תרצה לשתף עם הקהילה?" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400 resize-none"></textarea>
+                        </div>
+                        <!-- תמונה -->
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">תמונה (אופציונלי)</label>
+                            <input type="file" id="biz-post-image" accept="image/*" onchange="previewBizPostImage(this)" class="text-xs">
+                            <img id="biz-post-image-preview" src="" alt="" class="hidden mt-2 rounded-xl max-h-32 object-cover">
+                        </div>
+                        <!-- קישור / URL מבצע -->
+                        <div id="biz-post-url-row" class="hidden">
+                            <label class="text-xs font-bold text-slate-500 block mb-1">קישור למבצע / אירוע</label>
+                            <input type="url" id="biz-post-promo-url" placeholder="https://..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+                        </div>
+                        <!-- תוקף -->
+                        <div id="biz-post-until-row" class="hidden">
+                            <label class="text-xs font-bold text-slate-500 block mb-1">תוקף עד</label>
+                            <input type="date" id="biz-post-valid-until" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+                        </div>
+                        <button onclick="submitBizFeedPost()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-2xl transition text-sm flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-paper-plane"></i> שלח לאישור
+                        </button>
+                        <p class="text-[10px] text-slate-400 text-center">הפוסט יועבר לאישור מנהל הקהילה לפני פרסום</p>
                     </div>
                 </div>
 

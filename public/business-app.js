@@ -51320,6 +51320,7 @@ let _bizAdFlowRate = 100; // 100 coins = ₪10, i.e. 10 coins = ₪1
 
 async function renderBizAdsTab() {
     if (!currentGroup) return;
+    switchBizFlowTab('main');
     await Promise.all([
         _loadBizAdSlots(),
         _loadBizAdOrders(),
@@ -51593,4 +51594,191 @@ window.confirmBizPayment = async function() {
             _loadBizBilling();
         } else showToast('error', d.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ============================================================
+// BIZ COMMUNITY FEED — פיד קהילתי לעסק
+// ============================================================
+
+let _bizFeedImageUrl = null;
+
+window.switchBizFlowTab = function(tab) {
+    const tabs = ['main', 'feed'];
+    tabs.forEach(t => {
+        const view = document.getElementById('biz-flow-view-' + t);
+        const btn = document.getElementById('btn-biz-flow-' + t);
+        if (!view || !btn) return;
+        if (t === tab) {
+            view.classList.remove('hidden');
+            btn.className = 'flex-1 py-2 rounded-2xl text-sm font-bold transition bg-purple-600 text-white';
+        } else {
+            view.classList.add('hidden');
+            btn.className = 'flex-1 py-2 rounded-2xl text-sm font-bold transition bg-slate-100 text-slate-600';
+        }
+    });
+    if (tab === 'feed') {
+        loadBizCommunityFeed();
+    }
+};
+
+async function loadBizCommunityFeed() {
+    if (!currentGroup) return;
+    await Promise.all([loadBizFeedStats(), loadBizFeedPosts()]);
+}
+
+async function loadBizFeedStats() {
+    try {
+        const r = await fetch(`${API}/biz/feed/stats?business_id=${currentGroup.id}`);
+        const d = await r.json();
+        if (!d.success) return;
+        const el = document.getElementById('biz-feed-stats');
+        if (!el) return;
+        const stats = [
+            { label: 'ממתינים לאישור', val: d.pending || 0, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
+            { label: 'פורסמו', val: d.approved || 0, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-100' },
+            { label: 'נדחו', val: d.rejected || 0, color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-100' },
+        ];
+        el.innerHTML = stats.map(s => `
+            <div class="${s.bg} border ${s.border} rounded-2xl p-3">
+                <div class="text-xl font-black ${s.color}">${s.val}</div>
+                <div class="text-[11px] text-slate-500 mt-0.5">${s.label}</div>
+            </div>
+        `).join('');
+    } catch(e) {}
+}
+
+async function loadBizFeedPosts() {
+    try {
+        const r = await fetch(`${API}/biz/feed/posts?business_id=${currentGroup.id}`);
+        const d = await r.json();
+        const el = document.getElementById('biz-feed-posts-list');
+        if (!el) return;
+        const posts = d.success ? d.posts : [];
+        if (!posts.length) {
+            el.innerHTML = '<p class="text-slate-400 text-sm text-center py-6">עדיין לא פרסמת פוסטים בפיד</p>';
+            return;
+        }
+        const statusLabel = { pending: '⏳ ממתין לאישור', approved: '✅ פורסם', rejected: '❌ נדחה' };
+        const statusColor = { pending: 'text-amber-600 bg-amber-50', approved: 'text-green-600 bg-green-50', rejected: 'text-red-600 bg-red-50' };
+        el.innerHTML = posts.map(p => `
+            <div class="border border-slate-100 rounded-2xl p-3 space-y-1.5">
+                <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm text-slate-700 flex-1 line-clamp-2">${escHtml(p.content || '')}</p>
+                    <span class="text-[11px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${statusColor[p.biz_post_status] || 'text-slate-500 bg-slate-50'}">${statusLabel[p.biz_post_status] || p.biz_post_status}</span>
+                </div>
+                ${p.biz_rejection_reason ? `<p class="text-xs text-red-500">סיבת דחייה: ${escHtml(p.biz_rejection_reason)}</p>` : ''}
+                <div class="flex items-center justify-between text-[11px] text-slate-400">
+                    <span>${p.community_name || ''}</span>
+                    <span>${p.created_at ? new Date(p.created_at).toLocaleDateString('he-IL') : ''}</span>
+                </div>
+                ${p.biz_post_status === 'pending' ? `<button onclick="deleteBizFeedPost(${p.id})" class="text-[11px] text-red-400 hover:text-red-600 transition">🗑 מחק בקשה</button>` : ''}
+            </div>
+        `).join('');
+    } catch(e) {}
+}
+
+function populateBizCommunitySelect() {
+    const sel = document.getElementById('biz-post-community');
+    if (!sel || !currentGroup) return;
+    const comms = currentGroup._communities || [];
+    sel.innerHTML = '<option value="">כל הקהילות המחוברות</option>' +
+        comms.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+}
+
+window.openBizFeedPostModal = function() {
+    _bizFeedImageUrl = null;
+    const modal = document.getElementById('biz-feed-post-modal');
+    if (!modal) return;
+    document.getElementById('biz-post-content').value = '';
+    document.getElementById('biz-post-promo-url').value = '';
+    document.getElementById('biz-post-valid-until').value = '';
+    const preview = document.getElementById('biz-post-image-preview');
+    if (preview) { preview.src = ''; preview.classList.add('hidden'); }
+    const fileInput = document.getElementById('biz-post-image');
+    if (fileInput) fileInput.value = '';
+    selectBizPostType('regular');
+    populateBizCommunitySelect();
+    modal.classList.remove('hidden');
+};
+
+window.closeBizFeedPostModal = function() {
+    document.getElementById('biz-feed-post-modal')?.classList.add('hidden');
+};
+
+window.selectBizPostType = function(type) {
+    document.getElementById('biz-post-type-val').value = type;
+    document.querySelectorAll('.biz-pt-btn').forEach(btn => {
+        if (btn.dataset.type === type) {
+            btn.className = 'biz-pt-btn px-3 py-1.5 rounded-xl text-sm font-bold border border-purple-400 bg-purple-50 text-purple-700';
+        } else {
+            btn.className = 'biz-pt-btn px-3 py-1.5 rounded-xl text-sm font-bold border border-slate-200 bg-slate-50 text-slate-600';
+        }
+    });
+    const showExtra = ['promo', 'event'].includes(type);
+    document.getElementById('biz-post-url-row').classList.toggle('hidden', !showExtra);
+    document.getElementById('biz-post-until-row').classList.toggle('hidden', !showExtra);
+};
+
+window.previewBizPostImage = function(input) {
+    const file = input.files?.[0];
+    const preview = document.getElementById('biz-post-image-preview');
+    if (!file || !preview) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        preview.src = e.target.result;
+        preview.classList.remove('hidden');
+        _bizFeedImageUrl = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+window.submitBizFeedPost = async function() {
+    if (!currentGroup) return;
+    const content = document.getElementById('biz-post-content')?.value.trim();
+    if (!content) return showToast('error', 'נא להזין תוכן לפוסט');
+    const postType = document.getElementById('biz-post-type-val')?.value || 'regular';
+    const communityId = document.getElementById('biz-post-community')?.value || null;
+    const promoUrl = document.getElementById('biz-post-promo-url')?.value.trim() || null;
+    const validUntil = document.getElementById('biz-post-valid-until')?.value || null;
+    try {
+        const r = await fetch(`${API}/biz/feed/post`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                business_id: currentGroup.id,
+                community_id: communityId ? parseInt(communityId) : null,
+                content,
+                post_type: postType,
+                image_url: _bizFeedImageUrl || null,
+                biz_promo_url: promoUrl,
+                biz_valid_until: validUntil
+            })
+        });
+        const d = await r.json();
+        if (d.success) {
+            showToast('success', 'הפוסט נשלח לאישור 📬');
+            closeBizFeedPostModal();
+            loadBizCommunityFeed();
+        } else {
+            showToast('error', d.error || 'שגיאה בשליחה');
+        }
+    } catch(e2) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.deleteBizFeedPost = async function(postId) {
+    if (!currentGroup) return;
+    if (!confirm('למחוק את הבקשה?')) return;
+    try {
+        const r = await fetch(`${API}/biz/feed/post/${postId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ business_id: currentGroup.id })
+        });
+        const d = await r.json();
+        if (d.success) {
+            showToast('success', 'הבקשה נמחקה');
+            loadBizFeedPosts();
+            loadBizFeedStats();
+        } else showToast('error', d.error || 'שגיאה');
+    } catch(e2) { showToast('error', 'שגיאת תקשורת'); }
 };
