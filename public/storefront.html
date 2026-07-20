@@ -1688,7 +1688,14 @@ window.renderCatalog = function() {
                 const orig = parseFloat(item.original_price);
                 const curr = parseFloat(item.price);
                 
-                if (orig && orig > curr && item.product_type !== 'complex_builder') {
+                // complex_builder with per_total mode: hide base price (0 is meaningless)
+                let _cxPriceMode = 'per_guest';
+                if (item.product_type === 'complex_builder' && item.options_text) {
+                    try { const _p = JSON.parse(item.options_text); _cxPriceMode = _p.priceMode || 'per_guest'; } catch(e) {}
+                }
+                const _hidePrice = item.product_type === 'complex_builder' && _cxPriceMode === 'per_total';
+
+                if (!_hidePrice && orig && orig > curr && item.product_type !== 'complex_builder') {
                     priceHtml = `
                         <div class="flex flex-col">
                             <span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold w-fit mb-1 border border-emerald-200">מחיר קהילה ✨</span>
@@ -1697,6 +1704,8 @@ window.renderCatalog = function() {
                                 <span class="font-black text-emerald-600 text-base">₪${curr}</span>
                             </div>
                         </div>`;
+                } else if (_hidePrice) {
+                    priceHtml = `<span class="text-[10px] font-bold text-slate-400">מחיר לפי בחירה</span>`;
                 } else {
                     priceHtml = `<span class="font-black text-slate-900 text-sm">₪${curr}</span>`;
                 }
