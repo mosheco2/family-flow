@@ -15687,7 +15687,10 @@ function openNewPostModal() {
   if (!modal) return;
   const sel = document.getElementById('new-post-community');
   const comms = myConnectedCommunitiesCache || currentCommunities || [];
-  if (sel) sel.innerHTML = comms.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  if (sel) {
+    sel.innerHTML = comms.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    if (feedState.communityId) sel.value = feedState.communityId;
+  }
   feedState.selectedPostType = 'general';
   feedState.newPostImageUrl = null;
   const contentEl = document.getElementById('new-post-content');
