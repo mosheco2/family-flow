@@ -5,6 +5,17 @@ const getEl = id => document.getElementById(id);
 const val = id => getEl(id) ? getEl(id).value : '';
 const safeStr = str => (str || '').toString().replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
+function fmtUserName(u) {
+  if (!u) return '';
+  const full = [u.first_name, u.last_name].filter(Boolean).join(' ');
+  return full || u.nickname || '';
+}
+function fmtGroupName(g) {
+  if (!g) return '';
+  const nickname = g.family_nickname || g.familyNickname || '';
+  return nickname ? `${g.name} (${nickname})` : (g.name || '');
+}
+
 let saToken = null;
 let saAllGroups = [];
 let saAllUsers = [];
