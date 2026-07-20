@@ -51677,10 +51677,20 @@ async function loadBizFeedPosts() {
     } catch(e) {}
 }
 
-function populateBizCommunitySelect() {
+async function populateBizCommunitySelect() {
     const sel = document.getElementById('biz-post-community');
     if (!sel || !currentGroup) return;
-    const comms = currentGroup._communities || [];
+    let comms = (window.myCommunityBusinessesCache || []).filter(c => c.status === 'approved');
+    if (!comms.length) {
+        try {
+            const r = await fetch(`${API}/biz/communities/my/${currentGroup.id}`);
+            const d = await r.json();
+            if (d.success && d.communities) {
+                window.myCommunityBusinessesCache = d.communities;
+                comms = d.communities.filter(c => c.status === 'approved');
+            }
+        } catch(e) {}
+    }
     sel.innerHTML = '<option value="">כל הקהילות המחוברות</option>' +
         comms.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
 }
