@@ -2399,7 +2399,7 @@ function switchTab(t) {
     const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active');
     window._currentBizTab = t;
     // Role dashboard: show instead of feed for role employees
-    if (t === 'feed' && currentUser && currentUser.employee_role_type && currentUser.role !== 'ADMIN' && !window._suppressRoleDash) {
+    if (t === 'feed' && currentUser && currentUser.employee_role_type && !window._suppressRoleDash) {
         const feed = getEl('content-feed'); if (feed) feed.classList.add('hidden');
         setTimeout(() => showRoleDashboard(currentUser.employee_role_type), 50);
     }
@@ -3813,7 +3813,14 @@ async function fetchData() {
             currentUser.balance = data.user.balance || 0;
             if (data.user.role !== undefined) currentUser.role = data.user.role;
             if (data.user.permissions !== undefined) currentUser.permissions = data.user.permissions;
-            if (data.user.employee_role_type !== undefined) currentUser.employee_role_type = data.user.employee_role_type;
+            if (data.user.employee_role_type !== undefined) {
+                const prevRoleType = currentUser.employee_role_type;
+                currentUser.employee_role_type = data.user.employee_role_type;
+                // אם תפקיד עודכן ואנחנו בטאב ראשי — מציג ממשק תפקיד אוטומטית
+                if (prevRoleType !== currentUser.employee_role_type && currentUser.employee_role_type && window._currentBizTab === 'feed') {
+                    setTimeout(() => { try { showRoleDashboard(currentUser.employee_role_type); } catch(e) {} }, 200);
+                }
+            }
         }
         
 if(data.group) {
