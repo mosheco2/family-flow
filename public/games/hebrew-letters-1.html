@@ -279,7 +279,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;color:
 <!-- TEST -->
 <div class="scr" id="scr-test">
   <div class="test-banner"><h2>🎯 מבחן!</h2><p id="test-sub">בואו נבדוק מה למדת</p></div>
-  <div style="position:relative;flex:1;overflow:hidden;background:linear-gradient(180deg,#1A1A2E,#0F3460)">
+  <div id="scr-test-arena" style="position:relative;flex:1;overflow:hidden;width:100%;background:linear-gradient(180deg,#1A1A2E,#0F3460)">
     <div class="arena-top">
       <div class="q-counter" id="test-q-counter">1/8</div>
       <div class="q-dots" id="test-dots"></div>
@@ -656,7 +656,7 @@ function startTest(num){
   document.getElementById('test-sub').textContent=`${GS.testQuestions.length} שאלות — עבור 80% להמשיך`;
   showScreen('scr-test');
   setTimeout(()=>{
-    const cont=document.querySelector('#scr-test > div');
+    const cont=document.getElementById('scr-test-arena');
     if(!cont)return;
     const W=cont.offsetWidth,H=cont.offsetHeight,r=document.getElementById('test-robot');
     if(!r)return;const rW=r.offsetWidth||130,rH=r.offsetHeight||180;
@@ -692,8 +692,9 @@ function handleTestZone(zoneIdx){
   if(GS.testAnswered)return;GS.testAnswered=true;
   const opt=GS.currentZones[zoneIdx];const correct=opt?.correct||false;
   const ci=GS.currentZones.findIndex(o=>o.correct);
-  const cont=document.querySelector('#scr-test > div');const r=document.getElementById('test-robot');
+  const cont=document.getElementById('scr-test-arena');const r=document.getElementById('test-robot');
   if(!cont||!r)return;
+  if(ci<0){GS.testAnswered=false;return;} // safety: no correct answer found
   const W=cont.offsetWidth,H=cont.offsetHeight;
   const rW=r.offsetWidth||130,rH=r.offsetHeight||180;
   // סמן לחיצת משתמש
