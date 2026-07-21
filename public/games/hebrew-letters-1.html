@@ -241,6 +241,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;color:
 <!-- ARENA -->
 <div class="scr" id="scr-arena">
   <div class="arena-top">
+    <button onclick="if(confirm('לצאת למפה? ההתקדמות ברמה זו לא תישמר'))showMap()" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:50px;padding:0.25rem 0.7rem;font-size:0.78rem;cursor:pointer">← מפה</button>
     <div class="q-counter" id="arena-q-counter">1/10</div>
     <div class="q-dots" id="arena-dots"></div>
     <div class="streak-badge" id="streak-badge">🔥 x0</div>
@@ -354,7 +355,7 @@ const LETTERS=[
   {l:'ב',name:'בית',  pron:'בֵּית',  emoji:'🏠',word:'בַּיִת',   tr:'House',     level:1},
   {l:'ג',name:'גימל',pron:'גִּימֶל',emoji:'🍦',word:'גְּלִידָה',tr:'Ice cream', level:1},
   {l:'ד',name:'דלת', pron:'דָּלֶת', emoji:'🐟',word:'דָּג',     tr:'Fish',      level:1},
-  {l:'ה',name:'הא',  pron:'הֵא',   emoji:'🦔',word:'קִיפּוֹד', tr:'Hedgehog',  level:1},
+  {l:'ה',name:'הא',  pron:'הֵא',   emoji:'⛰️',word:'הַר',      tr:'Mountain',  level:1},
   {l:'ו',name:'וו',  pron:'וָו',   emoji:'🌹',word:'וֶרֶד',    tr:'Rose',      level:1},
   {l:'ז',name:'זין', pron:'זַיִן', emoji:'🪰',word:'זְבוּב',   tr:'Fly',       level:2},
   {l:'ח',name:'חית', pron:'חֵית',  emoji:'🐱',word:'חָתוּל',   tr:'Cat',       level:2},
@@ -404,7 +405,7 @@ const GRAMMAR_QUESTIONS = [
 
 let childName='';
 const GS={
-  flw:0,streak:0,
+  flw:0,streak:0,gameSaved:false,
   levelsUnlocked:[true,false,false,false],
   levelsDone:[false,false,false,false],
   testsDone:[false,false,false,false],
@@ -737,12 +738,21 @@ function endGame(){
   document.getElementById('final-flw').textContent=GS.flw;
   const duration=Math.round((Date.now()-GS.startTime)/1000);
   const payload={type:'GAME_COMPLETE',userId:GS.userId,gameId:GS.gameId,score:pct,flwEarned:GS.flw,durationSeconds:duration,gameName:'עברית — מהאלף-בית'};
+  GS.gameSaved=true;
   if(window.parent!==window)window.parent.postMessage(payload,'*');
-  if(GS.userId)fetch('/api/kids/award-flw',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:GS.userId,gameId:GS.gameId,score:pct,flwEarned:GS.flw,durationSeconds:duration})}).catch(()=>{});
   showScreen('scr-result');
 }
 function playAgain(){GS.flw=0;GS.streak=0;GS.levelsUnlocked=[true,false,false,false];GS.levelsDone=[false,false,false,false];GS.testsDone=[false,false,false,false];document.getElementById('flw-count').textContent='0';document.getElementById('main-prog').style.width='0%';showMap();}
-function goHome(){if(window.parent!==window)window.parent.postMessage({type:'CLOSE_GAME'},'*');else window.history.back();}
+function goHome(){
+  if(window.parent!==window){
+    if(!GS.gameSaved&&GS.flw>0){
+      GS.gameSaved=true;
+      const dur=Math.round((Date.now()-GS.startTime)/1000);
+      window.parent.postMessage({type:'GAME_COMPLETE',userId:GS.userId,gameId:GS.gameId,score:0,flwEarned:GS.flw,durationSeconds:dur,gameName:'עברית'},'*');
+    }
+    setTimeout(()=>window.parent.postMessage({type:'CLOSE_GAME'},'*'),50);
+  }else{window.history.back();}
+}
 const st=document.createElement('style');st.textContent=`@keyframes flw-pop{0%{transform:scale(1)}50%{transform:scale(1.4)}100%{transform:scale(1)}}`;document.head.appendChild(st);
 GS.startTime=Date.now();
 </script>

@@ -13900,6 +13900,7 @@ window.addEventListener('message', async (event) => {
   if(!data?.type) return;
 
   if(data.type === 'GAME_COMPLETE') {
+    let roundResult = null;
     if(_activeAssignmentId) {
       try {
         const res = await fetch('/api/kids/use-round', {
@@ -13912,12 +13913,23 @@ window.addEventListener('message', async (event) => {
             flwEarned: data.flwEarned || 0
           })
         });
-        const result = await res.json();
-        showGameCompleteMessage(data, result);
+        roundResult = await res.json();
       } catch(err) {
         console.error('use-round error:', err);
       }
     }
+    // fallback: if no assignment or use-round failed, award FLW directly
+    if((data.flwEarned || 0) > 0 && (!roundResult || !roundResult.success)) {
+      const uid = data.userId || currentUser?.id;
+      if(uid) {
+        fetch('/api/kids/award-flw', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: uid, gameId: data.gameId, score: data.score || 0, flwEarned: data.flwEarned, durationSeconds: data.durationSeconds || 0 })
+        }).catch(() => {});
+      }
+    }
+    if(roundResult) showGameCompleteMessage(data, roundResult);
   }
 
   if(data.type === 'CLOSE_GAME') {
@@ -14891,6 +14903,12 @@ function openQuestPlayer(questId, title, questions, flwReward, passScore) {
   let currentQ = 0;
   let answers = [];
 
+  const SUBJECT_ICONS = {
+    math:'🔢', hebrew:'📖', english:'🔤', science:'🔬', history:'🏛️',
+    finance:'💰', geography:'🗺️', values:'💛', music:'🎵', health:'🏃',
+    technology:'💻', environment:'🌿'
+  };
+
   const overlay = document.createElement('div');
   overlay.id = 'quest-player';
   overlay.style.cssText = `
@@ -14898,51 +14916,71 @@ function openQuestPlayer(questId, title, questions, flwReward, passScore) {
     z-index:9999; display:flex; flex-direction:column;
   `;
 
+  function closeQuest() {
+    overlay.remove();
+    if(typeof loadKidAcademy === 'function') loadKidAcademy();
+  }
+
   function renderQ() {
     const q = questions[currentQ];
     const opts = q.options_json || [];
     const pct = Math.round((currentQ / questions.length) * 100);
+    const icon = SUBJECT_ICONS[q.subject] || '🎯';
+    const prevSelected = answers[currentQ];
 
     overlay.innerHTML = `
       <div style="
         background:linear-gradient(135deg,#F59E0B,#D97706);
-        padding:0.8rem 1rem;
-        display:flex;align-items:center;justify-content:space-between;
+        padding:0.7rem 1rem;
+        display:flex;align-items:center;justify-content:space-between;gap:0.5rem;
       ">
-        <span style="color:white;font-weight:700">${title}</span>
-        <span style="color:white;font-size:0.85rem">${currentQ+1}/${questions.length}</span>
+        <button onclick="document.getElementById('quest-player').remove();if(typeof loadKidAcademy==='function')loadKidAcademy();"
+          style="background:rgba(255,255,255,0.2);border:none;color:white;border-radius:50px;
+                 padding:0.3rem 0.8rem;font-size:0.82rem;cursor:pointer;flex-shrink:0">✕ סגור</button>
+        <span style="color:white;font-weight:700;font-size:0.9rem;flex:1;text-align:center">${title}</span>
+        <span style="color:white;font-size:0.82rem;flex-shrink:0">${currentQ+1}/${questions.length}</span>
       </div>
-      <div style="height:4px;background:#FDE68A">
-        <div style="height:100%;width:${pct}%;background:#D97706;transition:width 0.4s"></div>
+      <div style="height:5px;background:#FDE68A">
+        <div style="height:100%;width:${pct}%;background:#92400E;transition:width 0.4s"></div>
       </div>
       <div style="flex:1;overflow-y:auto;padding:1.2rem;max-width:500px;margin:0 auto;width:100%">
         <div style="background:white;border-radius:20px;padding:1.5rem;text-align:center;
                     box-shadow:0 4px 16px rgba(0,0,0,0.08);margin-bottom:1rem">
+          <div style="font-size:2.5rem;margin-bottom:0.5rem">${icon}</div>
           <div style="font-size:1.1rem;font-weight:700;line-height:1.5">${q.question_text}</div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem">
           ${opts.length > 0
             ? opts.map((opt, i) => `
-                <button onclick="selectAnswer(this,'${opt.replace(/'/g, "\\'")}',${i})"
+                <button onclick="selectAnswer(this,'${opt.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')"
                   class="quest-opt-btn"
-                  style="background:white;border:3px solid #E0E0E0;border-radius:16px;
+                  style="background:${prevSelected===opt?'#FEF3C7':'white'};border:3px solid ${prevSelected===opt?'#F59E0B':'#E0E0E0'};border-radius:16px;
                          padding:1rem 0.5rem;font-size:1rem;font-weight:700;cursor:pointer;
                          transition:all 0.2s;">${opt}</button>
               `).join('')
             : `<input id="quest-open-ans"
+                 value="${prevSelected || ''}"
                  placeholder="${q.answer_type === 'number' ? 'הכנס מספר...' : 'כתוב תשובה...'}"
                  type="${q.answer_type === 'number' ? 'number' : 'text'}"
                  style="grid-column:1/-1;padding:1rem;border:3px solid #E0E0E0;
                         border-radius:16px;font-size:1.1rem;text-align:center;">`
           }
         </div>
-        <button id="quest-next-btn" onclick="nextQuestQ()" style="display:none;
-          width:100%;margin-top:1rem;
-          background:linear-gradient(135deg,#F59E0B,#D97706);
-          color:white;border:none;border-radius:50px;
-          padding:0.9rem;font-size:1.1rem;font-weight:700;cursor:pointer">
-          ${currentQ < questions.length - 1 ? 'הבא ←' : '🏆 סיום!'}
-        </button>
+        <div style="display:flex;gap:0.6rem;margin-top:1rem">
+          ${currentQ > 0 ? `<button onclick="prevQuestQ()" style="
+            flex:0 0 auto;
+            background:white;border:2px solid #E0E0E0;border-radius:50px;
+            padding:0.9rem 1.2rem;font-size:0.95rem;font-weight:700;cursor:pointer;color:#666">
+            ← חזרה
+          </button>` : ''}
+          <button id="quest-next-btn" onclick="nextQuestQ()" style="display:${prevSelected||opts.length===0?'block':'none'};
+            flex:1;
+            background:linear-gradient(135deg,#F59E0B,#D97706);
+            color:white;border:none;border-radius:50px;
+            padding:0.9rem;font-size:1.1rem;font-weight:700;cursor:pointer">
+            ${currentQ < questions.length - 1 ? 'הבא ←' : '🏆 סיום!'}
+          </button>
+        </div>
       </div>
     `;
   }
@@ -14958,6 +14996,12 @@ function openQuestPlayer(questId, title, questions, flwReward, passScore) {
     const nb = document.getElementById('quest-next-btn');
     if(nb) nb.style.display = 'block';
   };
+
+  window.prevQuestQ = function() {
+    if(currentQ > 0) { currentQ--; renderQ(); }
+  };
+
+  window._questRetry = function() { currentQ=0; answers=[]; renderQ(); };
 
   window.nextQuestQ = async function() {
     const openInput = document.getElementById('quest-open-ans');
@@ -14999,6 +15043,11 @@ function openQuestPlayer(questId, title, questions, flwReward, passScore) {
           <div style="font-size:0.85rem;color:#999;margin-bottom:0.3rem">FLW שצברת</div>
           <div style="font-size:3rem;font-weight:900;color:#F59E0B">+${result.flwEarned} 🪙</div>
         </div>
+        ${!result.passed ? `<button onclick="window._questRetry&&window._questRetry()"
+          style="background:white;border:2px solid #E0E0E0;color:#333;
+                 border-radius:50px;padding:0.8rem 2rem;font-size:1rem;font-weight:700;cursor:pointer;margin-bottom:0.7rem">
+          🔄 נסה שוב
+        </button>` : ''}
         <button onclick="document.getElementById('quest-player').remove();if(typeof loadKidAcademy==='function')loadKidAcademy();"
           style="background:linear-gradient(135deg,#F59E0B,#D97706);color:white;border:none;
                  border-radius:50px;padding:1rem 3rem;font-size:1.2rem;font-weight:700;cursor:pointer">

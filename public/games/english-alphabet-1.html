@@ -429,6 +429,9 @@ body {
 
 <!-- ===== QUIZ ===== -->
 <div class="scr" id="scr-quiz">
+  <div style="display:flex;align-items:center;padding:0.3rem 0.8rem;background:rgba(0,168,150,0.08)">
+    <button onclick="if(confirm('לצאת למפה? ההתקדמות ברמה זו לא תישמר'))showMap()" style="background:rgba(0,0,0,0.06);border:none;border-radius:50px;padding:0.2rem 0.7rem;font-size:0.78rem;cursor:pointer;color:#333">← מפה</button>
+  </div>
   <div class="q-dots" id="q-dots"></div>
   <div class="robot-row">
     <img src="/games/assets/images/ROBOTAI.png" alt="רובוט" class="robot-sm" id="quiz-robot"
@@ -578,7 +581,7 @@ const WORDS = [
 // GAME STATE
 // ============================================================
 const GS = {
-  flw: 0, streak: 0,
+  flw: 0, streak: 0, gameSaved: false,
   levelsUnlocked: [true, false, false, false],
   levelsDone: [false, false, false, false],
   testsDone: [false, false, false, false],
@@ -1161,15 +1164,8 @@ function endGame() {
     durationSeconds:duration,
     gameName:'אנגלית — מהאלף-בית למילים'
   };
+  GS.gameSaved = true;
   if(window.parent!==window) window.parent.postMessage(payload,'*');
-  if(GS.userId){
-    fetch('/api/kids/award-flw',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({userId:GS.userId,gameId:GS.gameId,
-        score:pct,flwEarned:GS.flw,durationSeconds:duration})
-    }).catch(()=>{});
-  }
   showScreen('scr-result');
 }
 
@@ -1184,8 +1180,14 @@ function playAgain() {
 }
 
 function goHome() {
-  if(window.parent!==window) window.parent.postMessage({type:'CLOSE_GAME'},'*');
-  else window.history.back();
+  if(window.parent!==window){
+    if(!GS.gameSaved&&GS.flw>0){
+      GS.gameSaved=true;
+      const dur=Math.round((Date.now()-GS.startTime)/1000);
+      window.parent.postMessage({type:'GAME_COMPLETE',userId:GS.userId,gameId:GS.gameId,score:0,flwEarned:GS.flw,durationSeconds:dur,gameName:'אנגלית'},'*');
+    }
+    setTimeout(()=>window.parent.postMessage({type:'CLOSE_GAME'},'*'),50);
+  }else{window.history.back();}
 }
 
 // CSS animation for FLW counter
