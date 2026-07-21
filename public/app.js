@@ -13842,7 +13842,27 @@ window._openQuoteFromActivity = async function(quoteId) {
 
 let _activeAssignmentId = null;
 
-function openGame(assignmentId, gameFilePath, childName, flwPerRound, gameId, startLevel, financeAge, roundsTotal) {
+async function openGame(assignmentId, gameFilePath, childName, flwPerRound, gameId, startLevel, financeAge, roundsTotal) {
+  // בדיקת סיבוב חופשי יומי — רק כשאין הקצאה
+  if (!assignmentId && currentUser?.id && gameId) {
+    try {
+      const r = await fetch(`/api/kids/free-play-check?childUserId=${currentUser.id}&gameId=${gameId}`);
+      const d = await r.json();
+      if (!d.canPlay) {
+        const bl = document.createElement('div');
+        bl.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center';
+        bl.innerHTML = `<div style="background:white;border-radius:24px;padding:2rem 1.5rem;text-align:center;max-width:300px;direction:rtl">
+          <div style="font-size:3.5rem">🌙</div>
+          <div style="font-size:1.3rem;font-weight:700;margin:0.5rem 0;color:#1A2E35">כבר שיחקת היום!</div>
+          <div style="color:#888;font-size:0.95rem;margin-bottom:1.2rem;line-height:1.5">סיבוב חופשי אחד ביום — בוא חזור מחר לסיבוב נוסף 🌟</div>
+          <button onclick="this.closest('div[style]').remove()" style="background:linear-gradient(135deg,#00A896,#007A6E);color:white;border:none;border-radius:50px;padding:0.7rem 2rem;cursor:pointer;font-size:1rem;font-weight:700">אוקיי!</button>
+        </div>`;
+        document.body.appendChild(bl);
+        return;
+      }
+    } catch(e) { /* במקרה של שגיאה — מאפשרים לשחק */ }
+  }
+
   _activeAssignmentId = assignmentId;
 
   const overlay = document.createElement('div');

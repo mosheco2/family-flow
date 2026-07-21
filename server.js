@@ -1933,6 +1933,13 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           duration_seconds INT DEFAULT 0,
           played_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS kid_free_play_log (
+          id SERIAL PRIMARY KEY,
+          child_user_id INT REFERENCES users(id) ON DELETE CASCADE,
+          game_id INT,
+          played_date DATE NOT NULL DEFAULT CURRENT_DATE,
+          UNIQUE(child_user_id, game_id, played_date)
+      )`); } catch(e) {}
       // ─── GAME ASSIGNMENTS & QUESTS INFRASTRUCTURE ───────────────────────────
       try { await client.query(`
         CREATE TABLE IF NOT EXISTS game_assignments (
@@ -22373,6 +22380,19 @@ app.get('/api/kids/wallet/:userId', async (req, res) => {
 });
 
 // זיכוי FLW אחרי משחק
+// בדיקת זכאות לשחק חופשי היום
+app.get('/api/kids/free-play-check', async (req, res) => {
+    try {
+        const { childUserId, gameId } = req.query;
+        if (!childUserId || !gameId) return res.json({ canPlay: true });
+        const row = await pool.query(
+            'SELECT 1 FROM kid_free_play_log WHERE child_user_id=$1 AND game_id=$2 AND played_date=CURRENT_DATE',
+            [childUserId, gameId]
+        );
+        res.json({ canPlay: row.rowCount === 0 });
+    } catch(e) { res.json({ canPlay: true }); }
+});
+
 app.post('/api/kids/award-flw', async (req, res) => {
     try {
         const { userId, gameId, score, flwEarned, durationSeconds } = req.body;
@@ -22411,6 +22431,14 @@ app.post('/api/kids/award-flw', async (req, res) => {
         `, [userId, actualFlw]);
 
         const newWallet = await pool.query('SELECT balance_flw FROM flw_kid_wallets WHERE child_user_id=$1', [userId]);
+
+        // רושמים סיבוב חופשי יומי
+        if (gameId) {
+            await pool.query(
+                'INSERT INTO kid_free_play_log (child_user_id, game_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                [userId, gameId]
+            ).catch(() => {});
+        }
 
         res.json({
             success: true, flwEarned: actualFlw,
