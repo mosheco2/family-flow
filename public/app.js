@@ -13911,26 +13911,30 @@ window.addEventListener('message', async (event) => {
             assignmentId: _activeAssignmentId,
             childUserId: currentUser?.id,
             score: data.score || 0,
-            flwEarned: data.flwEarned || 0
+            flwEarned: data.flwEarned || 0,
+            levelIdx: data.levelIdx || 1
           })
         });
         roundResult = await res.json();
-      } catch(err) {
-        console.error('use-round error:', err);
-      }
+      } catch(err) { console.error('use-round error:', err); }
     }
-    // fallback: if no assignment or use-round failed, award FLW directly
+    // fallback: no assignment or use-round failed → award directly
     if((data.flwEarned || 0) > 0 && (!roundResult || !roundResult.success)) {
       const uid = data.userId || currentUser?.id;
       if(uid) {
-        fetch('/api/kids/award-flw', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: uid, gameId: data.gameId, score: data.score || 0, flwEarned: data.flwEarned, durationSeconds: data.durationSeconds || 0 })
-        }).catch(() => {});
+        fetch('/api/kids/award-flw', { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ userId:uid, gameId:data.gameId, score:data.score||0, flwEarned:data.flwEarned, durationSeconds:data.durationSeconds||0 })
+        }).catch(()=>{});
       }
     }
-    if(roundResult) showGameCompleteMessage(data, roundResult);
+    // שלח תוצאת סיבוב חזרה למשחק (iframe)
+    if(roundResult) {
+      const iframe = document.getElementById('game-iframe');
+      if(iframe?.contentWindow) {
+        iframe.contentWindow.postMessage({ type:'ROUND_RESULT', ...roundResult }, '*');
+      }
+    }
+    if(roundResult && !data.isLevelComplete) showGameCompleteMessage(data, roundResult);
   }
 
   if(data.type === 'CLOSE_GAME') {
@@ -13950,32 +13954,37 @@ function showGameCompleteMessage(gameData, roundResult) {
 
   const exhausted = roundResult.exhausted;
   const roundsLeft = roundResult.roundsLeft || 0;
+  const canAdvance = roundResult.canAdvance;
+  const flwEarned = roundResult.flwEarned ?? gameData.flwEarned ?? 0;
+  const scorePercent = roundResult.scorePercent ?? gameData.score ?? 0;
+
+  let emoji, title, sub;
+  if(exhausted) {
+    emoji='🏁'; title='כל הסיבובים הושלמו!'; sub='ההורה יכול להקצות סיבובים נוספים';
+  } else if(canAdvance) {
+    emoji='🚀'; title='מעולה! עברת! 🌟'; sub=`נשארו עוד ${roundsLeft} סיבובים`;
+  } else {
+    emoji='💪'; title=`${scorePercent}% — שחק שוב להשלים!`;
+    sub=`חזור על השלב לצבור את יתרת המטבעות (נשארו ${roundsLeft} סיבובים)`;
+  }
 
   msg.innerHTML = `
-    <div style="font-size:3rem;margin-bottom:0.5rem">${exhausted ? '🏁' : '🎉'}</div>
-    <div style="font-size:1.3rem;font-weight:900;margin-bottom:0.3rem">
-      ${exhausted ? 'כל הסיבובים הושלמו!' : 'כל הכבוד!'}
-    </div>
-    <div style="color:#7A9EA8;font-size:0.9rem;margin-bottom:1rem">
-      ${exhausted ? 'ההורה יכול להקצות סיבובים נוספים' : `נשארו עוד ${roundsLeft} סיבובים`}
-    </div>
-    <div style="
-      background:linear-gradient(135deg,#FF6B2B,#FF4500); color:white;
-      border-radius:50px; padding:0.5rem 1.5rem;
-      font-size:1.2rem; font-weight:900;
-      display:inline-block; margin-bottom:1.2rem;
-    ">+${gameData.flwEarned || 0} 🪙 FLW</div>
+    <div style="font-size:3rem;margin-bottom:0.5rem">${emoji}</div>
+    <div style="font-size:1.3rem;font-weight:900;margin-bottom:0.3rem">${title}</div>
+    <div style="color:#7A9EA8;font-size:0.85rem;margin-bottom:1rem">${sub}</div>
+    <div style="background:linear-gradient(135deg,#FF6B2B,#FF4500);color:white;
+      border-radius:50px;padding:0.5rem 1.5rem;font-size:1.2rem;font-weight:900;
+      display:inline-block;margin-bottom:1.2rem;">+${flwEarned} 🪙 FLW</div>
     <br>
     <button onclick="this.parentElement.remove();${exhausted ? 'closeGame()' : ''}"
-      style="
-        background:linear-gradient(135deg,#00A896,#007A6E);
-        color:white; border:none; border-radius:50px;
-        padding:0.7rem 2rem; font-size:1rem; cursor:pointer; font-weight:700;
-      ">${exhausted ? '🏠 חזרה' : '🎮 המשך לשחק'}</button>
+      style="background:linear-gradient(135deg,#00A896,#007A6E);color:white;border:none;
+        border-radius:50px;padding:0.7rem 2rem;font-size:1rem;cursor:pointer;font-weight:700;">
+      ${exhausted ? '🏠 חזרה' : canAdvance ? '🎮 המשך' : '🔄 שחק שוב'}
+    </button>
   `;
 
   document.body.appendChild(msg);
-  setTimeout(() => { if(msg.parentElement) msg.remove(); }, 5000);
+  setTimeout(() => { if(msg.parentElement) msg.remove(); }, 6000);
 }
 
 // ============================================================

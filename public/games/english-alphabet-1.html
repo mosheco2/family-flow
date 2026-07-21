@@ -592,7 +592,7 @@ const GS = {
   testAnswered: false, testFLW: 0, testNum: 1, testDots: [],
   userId: null, gameId: null, flwPerWin: 2,
   startTime: Date.now(),
-  assignedLevel: 0, assignedRoundsTotal: 0
+  assignedLevel: 0, assignedRoundsTotal: 0, levelFlwStart: 0
 };
 
 // ============================================================
@@ -621,6 +621,20 @@ window.addEventListener('message', e => {
       setTimeout(() => startLevel(e.data.startLevel - 1), 300);
     }
     if(e.data.roundsTotal) GS.assignedRoundsTotal = e.data.roundsTotal;
+  }
+  if(e.data?.type === 'ROUND_RESULT') {
+    const { canAdvance, flwEarned } = e.data;
+    if(typeof flwEarned === 'number') {
+      const expected = GS.flw - GS.levelFlwStart;
+      GS.flw = Math.max(0, GS.flw + (flwEarned - expected));
+      document.getElementById('flw-count').textContent = GS.flw;
+    }
+    if(canAdvance && GS.quizLevel < GS.levelsUnlocked.length) {
+      GS.levelsUnlocked[GS.quizLevel] = true;
+      GS.testsDone[GS.quizLevel - 1] = true;
+    }
+    renderMap();
+    GS.gameSaved = false;
   }
 });
 
@@ -853,6 +867,8 @@ function startQuiz(level) {
 
   GS.quizQuestions = shuffle(qs).slice(0,10);
   GS.quizDots      = new Array(GS.quizQuestions.length).fill('');
+  GS.levelFlwStart = GS.flw;
+  GS.gameSaved     = false;
   renderQuizQ();
   showScreen('scr-quiz');
 }
@@ -946,11 +962,28 @@ function nextQ() {
 function endQuiz() {
   GS.levelsDone[GS.quizLevel-1] = true;
   if(GS.quizLevel === 4){ endGame(); return; }
-  // אם יש הקצאה — פתח את הרמה הבאה ישירות
-  if(GS.assignedLevel > 0 && GS.quizLevel >= GS.assignedLevel && GS.quizLevel < GS.levelsUnlocked.length) {
-    GS.levelsUnlocked[GS.quizLevel] = true;
-    GS.testsDone[GS.quizLevel-1] = true;
+
+  if(GS.assignedLevel > 0) {
+    const total = GS.quizQuestions.length;
+    const scorePercent = total > 0 ? Math.round(GS.quizScore / total * 100) : 0;
+    const dur = Math.round((Date.now() - GS.startTime) / 1000);
+    GS.gameSaved = true;
+    if(window.parent !== window) {
+      window.parent.postMessage({
+        type: 'GAME_COMPLETE',
+        userId: GS.userId, gameId: GS.gameId,
+        score: scorePercent,
+        flwEarned: GS.flw - GS.levelFlwStart,
+        levelIdx: GS.quizLevel,
+        isLevelComplete: true,
+        durationSeconds: dur,
+        gameName: 'אנגלית — מהאלף-בית למילים'
+      }, '*');
+    }
+    showMap();
+    return;
   }
+
   addFLW(5);
   showMap();
 }
@@ -1120,14 +1153,15 @@ function nextTestQ() {
 function showTestResult() {
   const total  = GS.testQuestions.length;
   const pct    = Math.round(GS.testScore/total*100);
-  const passed = pct>=80;
+  const advanceThreshold = GS.assignedLevel > 0 ? 100 : 80;
+  const passed = pct >= advanceThreshold;
 
   const card = document.getElementById('test-result-card');
   card.className = 'test-result-card '+(passed?'test-pass':'test-fail');
   document.getElementById('test-result-title').textContent =
     passed ? '🎉 כל הכבוד! עברת!' : '😔 לא עברת הפעם';
   document.getElementById('test-result-sub').textContent =
-    `${GS.testScore} מתוך ${total} נכון (${pct}%) — נדרש 80%`;
+    `${GS.testScore} מתוך ${total} נכון (${pct}%) — נדרש ${advanceThreshold}%`;
 
   if(passed){
     addFLW(10);

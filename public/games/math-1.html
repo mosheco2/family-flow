@@ -464,7 +464,8 @@ const GS={
   currentLevel:1, testFLW:0, testNum:1,
   userId:null, gameId:null, flwPerWin:2,
   startTime:Date.now(),
-  assignedLevel:0, assignedRoundsTotal:0
+  assignedLevel:0, assignedRoundsTotal:0,
+  levelFlwStart:0 // FLW בתחילת הרמה הנוכחית
 };
 
 const ROBOT_HOME={x:0.5, y:0.42};
@@ -486,6 +487,23 @@ window.addEventListener('message',e=>{
       setTimeout(()=>showLevelIntro(e.data.startLevel-1),300);
     }
     if(e.data.roundsTotal) GS.assignedRoundsTotal=e.data.roundsTotal;
+  }
+  if(e.data?.type==='ROUND_RESULT'){
+    const {canAdvance, roundsLeft, flwEarned} = e.data;
+    // תקן FLW display לפי מה שהשרת אישר (anti-double)
+    if(typeof flwEarned==='number'){
+      const expected = GS.flw - GS.levelFlwStart;
+      const diff = flwEarned - expected;
+      GS.flw = Math.max(0, GS.flw + diff);
+      document.getElementById('flw-count').textContent = GS.flw;
+    }
+    // פתח רמה הבאה רק אם 100%
+    if(canAdvance && GS.currentLevel < GS.levelsUnlocked.length){
+      GS.levelsUnlocked[GS.currentLevel]=true;
+      GS.testsDone[GS.currentLevel-1]=true;
+    }
+    renderMap();
+    GS.gameSaved=false; // אפשר שמירה לסיבוב הבא
   }
 });
 function updateChildName(){
@@ -635,6 +653,7 @@ function startCurrentLevel(){startQuiz(GS.currentLevel);}
 // ============================================================
 function startQuiz(level){
   GS.currentLevel=level;GS.qIdx=0;GS.qScore=0;GS.answered=false;GS.streak=0;GS.mode='quiz';
+  GS.levelFlwStart=GS.flw; GS.gameSaved=false; // אתחול לכל רמה חדשה
   const qs=[];
   for(let i=0;i<10;i++){
     if(level===1) qs.push(genCounting());
@@ -722,12 +741,26 @@ function handleBucket(bucketIdx){
 function endQuiz(){
   GS.levelsDone[GS.currentLevel-1]=true;
   if(GS.currentLevel===4){endGame();return;}
-  // אם יש הקצאה — פתח את הרמה הבאה ישירות (ללא צורך במבחן)
-  if(GS.assignedLevel>0 && GS.currentLevel>=GS.assignedLevel && GS.currentLevel<GS.levelsUnlocked.length){
-    GS.levelsUnlocked[GS.currentLevel]=true;
-    GS.testsDone[GS.currentLevel-1]=true; // סמן מבחן כעבור כדי להציג כ"זמין"
+
+  const scorePercent=GS.questions.length>0?Math.round(GS.qScore/GS.questions.length*100):0;
+
+  if(GS.assignedLevel>0 && window.parent!==window){
+    // מצב הקצאה: שלח GAME_COMPLETE עם scorePercent ולאו levelIdx
+    // ROUND_RESULT יחזור ויעדכן את unlocked
+    const dur=Math.round((Date.now()-GS.startTime)/1000);
+    const levelFlwEarned=GS.flw-GS.levelFlwStart;
+    GS.gameSaved=true;
+    window.parent.postMessage({
+      type:'GAME_COMPLETE',userId:GS.userId,gameId:GS.gameId,
+      score:scorePercent,flwEarned:levelFlwEarned,
+      durationSeconds:dur,gameName:'מתמטיקה',
+      levelIdx:GS.currentLevel,isLevelComplete:true
+    },'*');
+    showMap(); // תציג מיד; ROUND_RESULT יעדכן unlocked
+  } else {
+    // משחק חופשי — התנהגות קיימת
+    addFLW(5);showMap();
   }
-  addFLW(5);showMap();
 }
 
 // ============================================================
@@ -748,11 +781,14 @@ function showTestResult(){
   box.className='test-result-box '+(passed?'test-pass':'test-fail');
   document.getElementById('test-res-title').textContent=passed?'🎉 כל הכבוד! עברת!':'😔 לא עברת הפעם';
   document.getElementById('test-res-sub').textContent=`${GS.qScore} מתוך ${total} נכון (${pct}%) — נדרש 80%`;
-  if(passed){addFLW(10);GS.testFLW+=10;GS.testsDone[GS.testNum-1]=true;if(GS.testNum<4)GS.levelsUnlocked[GS.testNum]=true;}
+  const advanceThreshold = GS.assignedLevel>0 ? 100 : 80;
+  const canAdvance = pct >= advanceThreshold;
+  if(canAdvance){addFLW(10);GS.testFLW+=10;GS.testsDone[GS.testNum-1]=true;if(GS.testNum<4)GS.levelsUnlocked[GS.testNum]=true;}
+  document.getElementById('test-res-sub').textContent=`${GS.qScore} מתוך ${total} נכון (${pct}%) — נדרש ${advanceThreshold}%`;
   document.getElementById('test-flw-earned').textContent=GS.testFLW;
   const btn=document.getElementById('test-continue-btn');
-  btn.textContent=passed?'🚀 המשך!':'🔄 נסה שוב';
-  btn.onclick=passed?()=>showMap():()=>startTest(GS.testNum);
+  btn.textContent=canAdvance?'🚀 המשך!':'🔄 נסה שוב';
+  btn.onclick=canAdvance?()=>showMap():()=>startTest(GS.testNum);
   showScreen('scr-test-result');
 }
 

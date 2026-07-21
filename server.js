@@ -330,6 +330,7 @@ pool.connect()
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
       try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS start_level INTEGER DEFAULT 1`); } catch(e) {}
       try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS finance_age INT DEFAULT NULL`); } catch(e) {}
+try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS level_progress JSONB DEFAULT '{}'`); } catch(e) {}
       try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image TEXT DEFAULT NULL`); } catch(e) {}
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS target_datetime VARCHAR(50)'); } catch(e) {}
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'); } catch(e) {}
@@ -22674,10 +22675,11 @@ app.get('/api/kids/assignments/:childId', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// סיום סיבוב משחק — ניכוי סיבוב
+// סיום סיבוב משחק — ניכוי סיבוב + FLW יחסי ואנטי-כפילות
 app.post('/api/kids/use-round', async (req, res) => {
   try {
-    const { assignmentId, childUserId, score, flwEarned } = req.body;
+    const { assignmentId, childUserId, score, flwEarned, levelIdx } = req.body;
+    const scorePercent = Math.min(100, Math.max(0, score || 0));
 
     const asgn = await pool.query(
       'SELECT * FROM game_assignments WHERE id=$1 AND child_user_id=$2',
@@ -22690,14 +22692,32 @@ app.post('/api/kids/use-round', async (req, res) => {
     if(a.rounds_used >= a.rounds_total)
       return res.status(400).json({ error: 'נגמרו הסיבובים', exhausted: true });
 
+    // חישוב FLW יחסי עם מניעת כפילות לפי רמה
+    const levelKey = String(levelIdx || a.start_level || 1);
+    const levelProgress = a.level_progress || {};
+    const lvl = levelProgress[levelKey] || { flwEarned: 0, bestScore: 0 };
+
+    const maxFlwPerLevel = a.flw_per_round || 10;
+    const canonicalFlw = Math.round(scorePercent / 100 * maxFlwPerLevel);
+    const actualFlw = Math.max(0, canonicalFlw - lvl.flwEarned);
+
+    // עדכן progress רמה
+    levelProgress[levelKey] = {
+      flwEarned: lvl.flwEarned + actualFlw,
+      bestScore: Math.max(lvl.bestScore, scorePercent)
+    };
+
+    const canAdvance = scorePercent >= 100;
     const newUsed = a.rounds_used + 1;
     const newStatus = newUsed >= a.rounds_total ? 'exhausted' : 'active';
 
     await pool.query(`
-      UPDATE game_assignments SET rounds_used=$1, status=$2 WHERE id=$3
-    `, [newUsed, newStatus, assignmentId]);
+      UPDATE game_assignments
+      SET rounds_used=$1, status=$2, level_progress=$3
+      WHERE id=$4
+    `, [newUsed, newStatus, JSON.stringify(levelProgress), assignmentId]);
 
-    if(flwEarned > 0) {
+    if(actualFlw > 0) {
       await pool.query(`
         INSERT INTO flw_kid_wallets
           (child_user_id, family_group_id, balance_flw, lifetime_flw)
@@ -22706,21 +22726,27 @@ app.post('/api/kids/use-round', async (req, res) => {
           balance_flw = flw_kid_wallets.balance_flw + $2,
           lifetime_flw = flw_kid_wallets.lifetime_flw + $2,
           updated_at = NOW()
-      `, [childUserId, flwEarned]);
+      `, [childUserId, actualFlw]);
+    }
 
+    if(scorePercent > 0 || actualFlw > 0) {
       await pool.query(`
         INSERT INTO game_sessions (child_user_id, game_id, score, flw_earned)
         VALUES ($1,$2,$3,$4)
-      `, [childUserId, a.game_id, score||0, flwEarned]);
+      `, [childUserId, a.game_id, scorePercent, actualFlw]).catch(()=>{});
     }
 
+    const roundsLeft = a.rounds_total - newUsed;
     res.json({
       success: true,
-      roundsLeft: a.rounds_total - newUsed,
+      flwEarned: actualFlw,
+      canAdvance,
+      roundsLeft,
       exhausted: newStatus === 'exhausted',
-      message: newStatus === 'exhausted'
-        ? 'כל הסיבובים נוצלו! 🎯'
-        : `נשארו עוד ${a.rounds_total - newUsed} סיבובים`
+      scorePercent,
+      message: canAdvance
+        ? (roundsLeft > 0 ? `מעולה! עברת לשלב הבא 🚀 (נשארו ${roundsLeft} סיבובים)` : 'כל הסיבובים הושלמו! 🎯')
+        : `${scorePercent}% — השלם 100% כדי להתקדם`
     });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
