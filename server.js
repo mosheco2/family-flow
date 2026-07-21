@@ -6862,8 +6862,11 @@ app.post('/api/store/catalog', async (req, res) => {
         const { groupId, name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription, kitchenStation, isComplimentary } = req.body;
 
         const countRes = await pool.query('SELECT COUNT(*) FROM store_catalog WHERE group_id=$1', [groupId]);
-        if (parseInt(countRes.rows[0].count) >= 50) {
-            return res.status(400).json({ error: 'הגעת למגבלת 50 המוצרים במסלול החינמי! שדרג למסלול PRO.' });
+        const grpPlan = await pool.query('SELECT plan, is_premium FROM family_groups WHERE id=$1', [groupId]);
+        const catalogPlan = grpPlan.rows[0]?.plan || (grpPlan.rows[0]?.is_premium ? 'enterprise' : 'standard');
+        const catalogLimit = catalogPlan === 'enterprise' ? 500 : catalogPlan === 'premium' ? 100 : 50;
+        if (parseInt(countRes.rows[0].count) >= catalogLimit) {
+            return res.status(400).json({ error: `הגעת למגבלת ${catalogLimit} המוצרים במסלול ${catalogPlan}. שדרג לתוכנית גבוהה יותר.` });
         }
 
         const result = await pool.query(
@@ -6908,7 +6911,7 @@ app.post('/api/store/catalog/bulk-import', async (req, res) => {
         const current = parseInt(countRes.rows[0].count);
         const grp = await pool.query('SELECT plan, is_premium FROM family_groups WHERE id=$1', [groupId]);
         const plan = grp.rows[0]?.plan || (grp.rows[0]?.is_premium ? 'enterprise' : 'standard');
-        const limit = plan === 'standard' ? 50 : 9999;
+        const limit = plan === 'enterprise' ? 500 : plan === 'premium' ? 100 : 50;
         const canAdd = Math.max(0, limit - current);
         const toInsert = products.slice(0, canAdd);
         if (!toInsert.length)
