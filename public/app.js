@@ -3020,6 +3020,191 @@ async function uploadKidProfileImage(kidId, input) {
   } catch(err) { showToast('error', 'שגיאה בהעלאה'); }
 }
 
+function showGameRulesPage() {
+  const overlay = document.createElement('div');
+  overlay.id = 'game-rules-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#F0FAFA;z-index:9998;overflow-y:auto;direction:rtl;font-family:inherit';
+
+  overlay.innerHTML = `
+    <div style="max-width:640px;margin:0 auto;padding:1.2rem 1rem 4rem">
+
+      <!-- כותרת -->
+      <div style="display:flex;align-items:center;gap:0.8rem;padding:1rem 0 1.5rem">
+        <button onclick="document.getElementById('game-rules-overlay').remove()"
+          style="background:rgba(0,168,150,0.12);border:none;border-radius:50px;padding:0.4rem 1rem;cursor:pointer;font-size:0.9rem;color:#007A6E;font-weight:700">
+          → חזרה
+        </button>
+        <div>
+          <div style="font-size:1.3rem;font-weight:800;color:#1A2E35">📖 כללי המשחקים</div>
+          <div style="font-size:0.82rem;color:#7A9EA8;margin-top:0.1rem">מדריך לקריאה אחת — הכל מסתדר ✨</div>
+        </div>
+      </div>
+
+      <!-- בלוק: מה זה FLW -->
+      <div style="background:white;border-radius:20px;padding:1.4rem;margin-bottom:1rem;box-shadow:0 2px 12px rgba(0,0,0,0.06)">
+        <div style="display:flex;align-items:center;gap:0.7rem;margin-bottom:0.8rem">
+          <div style="background:#FFF9E6;border-radius:12px;padding:0.5rem 0.8rem;font-size:1.6rem">🪙</div>
+          <div style="font-weight:800;font-size:1.05rem;color:#1A2E35">מה זה מטבעות FLW?</div>
+        </div>
+        <p style="color:#4A6572;font-size:0.9rem;line-height:1.7;margin:0">
+          FLW הם המטבעות הדיגיטליים שהילד צובר כשהוא לומד ומצליח במשחקים.
+          ככל שהילד עונה נכון יותר — מרוויח יותר מטבעות.
+          בהמשך אפשר להחליף אותם בפרסים שתגדיר.
+        </p>
+      </div>
+
+      <!-- בלוק: סיבוב חופשי -->
+      <div style="background:white;border-radius:20px;padding:1.4rem;margin-bottom:1rem;box-shadow:0 2px 12px rgba(0,0,0,0.06)">
+        <div style="display:flex;align-items:center;gap:0.7rem;margin-bottom:0.8rem">
+          <div style="background:#F0F7FF;border-radius:12px;padding:0.5rem 0.8rem;font-size:1.6rem">🌙</div>
+          <div style="font-weight:800;font-size:1.05rem;color:#1A2E35">משחק חופשי — פעם ביום</div>
+        </div>
+        <p style="color:#4A6572;font-size:0.9rem;line-height:1.7;margin:0 0 0.8rem">
+          כשהילד נכנס למשחק <strong>בלי שהקצת לו</strong> — זה נקרא "משחק חופשי".
+          כדי שזה יישאר מבוקר, <strong>מותר סיבוב חופשי אחד בלבד ביום לכל משחק</strong>.
+          אחרי שהילד שיחק — אם ינסה שוב באותו יום, יקבל הודעה "כבר שיחקת היום, חזור מחר".
+        </p>
+        <div style="background:#F0F7FF;border-radius:12px;padding:0.8rem 1rem;font-size:0.85rem;color:#3B82F6;line-height:1.6">
+          💡 <strong>טיפ:</strong> רוצה שהילד ישחק יותר? פשוט הקצה לו סיבובים נוספים — ראה "הקצאת משחק" למטה.
+        </div>
+      </div>
+
+      <!-- בלוק: הקצאת משחק -->
+      <div style="background:white;border-radius:20px;padding:1.4rem;margin-bottom:1rem;box-shadow:0 2px 12px rgba(0,0,0,0.06)">
+        <div style="display:flex;align-items:center;gap:0.7rem;margin-bottom:0.8rem">
+          <div style="background:#F5F3FF;border-radius:12px;padding:0.5rem 0.8rem;font-size:1.6rem">🎯</div>
+          <div style="font-weight:800;font-size:1.05rem;color:#1A2E35">כשאתה מקצה משחק לילד</div>
+        </div>
+        <p style="color:#4A6572;font-size:0.9rem;line-height:1.7;margin:0 0 1rem">
+          כשאתה נכנס ל"הקצה משחק לילד" ובוחר עבורו משחק, אתה קובע:
+        </p>
+        <div style="display:flex;flex-direction:column;gap:0.6rem">
+          <div style="display:flex;gap:0.8rem;align-items:flex-start">
+            <div style="background:#7C3AED;color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;flex-shrink:0;margin-top:2px">1</div>
+            <div style="color:#4A6572;font-size:0.9rem;line-height:1.6"><strong style="color:#1A2E35">מאיזה שלב להתחיל</strong> — הילד לא צריך לעבור מהתחלה, הוא מתחיל ישר מהנקודה שקבעת.</div>
+          </div>
+          <div style="display:flex;gap:0.8rem;align-items:flex-start">
+            <div style="background:#7C3AED;color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;flex-shrink:0;margin-top:2px">2</div>
+            <div style="color:#4A6572;font-size:0.9rem;line-height:1.6"><strong style="color:#1A2E35">כמה סיבובים מותרים</strong> — למשל 5 סיבובים. כשנגמרים, הילד לא יכול להמשיך עד שתוסיף עוד.</div>
+          </div>
+          <div style="display:flex;gap:0.8rem;align-items:flex-start">
+            <div style="background:#7C3AED;color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;flex-shrink:0;margin-top:2px">3</div>
+            <div style="color:#4A6572;font-size:0.9rem;line-height:1.6"><strong style="color:#1A2E35">כמה מטבעות שווה כל סיבוב</strong> — הילד יכול להרוויח עד הסכום הזה לפי כמה הצליח.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- בלוק: כמה מטבעות מרוויחים -->
+      <div style="background:white;border-radius:20px;padding:1.4rem;margin-bottom:1rem;box-shadow:0 2px 12px rgba(0,0,0,0.06)">
+        <div style="display:flex;align-items:center;gap:0.7rem;margin-bottom:0.8rem">
+          <div style="background:#FFF0E6;border-radius:12px;padding:0.5rem 0.8rem;font-size:1.6rem">📊</div>
+          <div style="font-weight:800;font-size:1.05rem;color:#1A2E35">כמה מטבעות מרוויחים בכל סיבוב?</div>
+        </div>
+        <p style="color:#4A6572;font-size:0.9rem;line-height:1.7;margin:0 0 0.8rem">
+          המטבעות מחושבים לפי הציון. אם הסיבוב שווה 10 מטבעות:
+        </p>
+        <div style="background:#FFF8F0;border-radius:14px;padding:1rem;display:flex;flex-direction:column;gap:0.5rem">
+          <div style="display:flex;justify-content:space-between;font-size:0.88rem;color:#4A6572">
+            <span>ציון 100% (כל התשובות נכונות)</span><strong style="color:#22C55E">10 מטבעות ✓</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.88rem;color:#4A6572">
+            <span>ציון 80%</span><strong style="color:#F59E0B">8 מטבעות</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.88rem;color:#4A6572">
+            <span>ציון 50%</span><strong style="color:#F59E0B">5 מטבעות</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.88rem;color:#4A6572">
+            <span>ציון 0% (כל התשובות שגויות)</span><strong style="color:#EF4444">0 מטבעות</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- בלוק: חזרה על שלב -->
+      <div style="background:white;border-radius:20px;padding:1.4rem;margin-bottom:1rem;box-shadow:0 2px 12px rgba(0,0,0,0.06)">
+        <div style="display:flex;align-items:center;gap:0.7rem;margin-bottom:0.8rem">
+          <div style="background:#F0FFF4;border-radius:12px;padding:0.5rem 0.8rem;font-size:1.6rem">🔄</div>
+          <div style="font-weight:800;font-size:1.05rem;color:#1A2E35">הילד חוזר על שלב שכבר שיחק — מה קורה?</div>
+        </div>
+        <p style="color:#4A6572;font-size:0.9rem;line-height:1.7;margin:0 0 0.8rem">
+          כל שלב שווה מקסימום X מטבעות — <strong>סכום כולל, לא פר ניסיון</strong>.
+          אם הילד כבר הרוויח חלק מהמטבעות של השלב, בחזרה הוא יקבל רק את ה<strong>הפרש שחסר</strong>.
+        </p>
+        <div style="background:#F0FFF4;border-radius:12px;padding:0.8rem 1rem;font-size:0.85rem;color:#16A34A;line-height:1.7">
+          <strong>דוגמה:</strong> שלב ששווה 10 מטבעות.<br>
+          בפעם הראשונה הילד עשה 60% ← קיבל 6 מטבעות.<br>
+          חזר ועשה 80% ← קיבל עוד 2 (כי כבר קיבל 6, המקסימום הוא 8).<br>
+          חזר ועשה 60% שוב ← לא קיבל כלום (כבר הגיע ל-60%).<br>
+          עשה 100% ← קיבל את ה-2 שנשארו להשלים 10.
+        </div>
+      </div>
+
+      <!-- בלוק: מעבר שלבים -->
+      <div style="background:white;border-radius:20px;padding:1.4rem;margin-bottom:1rem;box-shadow:0 2px 12px rgba(0,0,0,0.06)">
+        <div style="display:flex;align-items:center;gap:0.7rem;margin-bottom:0.8rem">
+          <div style="background:#EFF6FF;border-radius:12px;padding:0.5rem 0.8rem;font-size:1.6rem">🚀</div>
+          <div style="font-weight:800;font-size:1.05rem;color:#1A2E35">איך הילד עובר לשלב הבא?</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:0.8rem">
+          <div style="background:#F0FFF4;border-radius:14px;padding:1rem;text-align:center">
+            <div style="font-size:1.5rem;margin-bottom:0.3rem">🆓</div>
+            <div style="font-weight:700;font-size:0.85rem;color:#1A2E35;margin-bottom:0.3rem">משחק חופשי</div>
+            <div style="font-size:0.82rem;color:#16A34A;font-weight:700">80% ומעלה</div>
+            <div style="font-size:0.78rem;color:#4A6572;margin-top:0.2rem">כדי לעבור מבחן ולפתוח שלב</div>
+          </div>
+          <div style="background:#FFF0F0;border-radius:14px;padding:1rem;text-align:center">
+            <div style="font-size:1.5rem;margin-bottom:0.3rem">📋</div>
+            <div style="font-weight:700;font-size:0.85rem;color:#1A2E35;margin-bottom:0.3rem">עם הקצאה שלך</div>
+            <div style="font-size:0.82rem;color:#EF4444;font-weight:700">100% בדיוק</div>
+            <div style="font-size:0.78rem;color:#4A6572;margin-top:0.2rem">כדי לעבור מבחן ולפתוח שלב</div>
+          </div>
+        </div>
+        <p style="color:#4A6572;font-size:0.88rem;line-height:1.6;margin:0">
+          כשהילד לא הגיע לציון הנדרש — השלב הבא נשאר נעול. הוא יכול לנסות שוב עם הסיבובים שנותרו.
+        </p>
+      </div>
+
+      <!-- בלוק: יציאה באמצע -->
+      <div style="background:white;border-radius:20px;padding:1.4rem;margin-bottom:1rem;box-shadow:0 2px 12px rgba(0,0,0,0.06)">
+        <div style="display:flex;align-items:center;gap:0.7rem;margin-bottom:0.8rem">
+          <div style="background:#FFF9E6;border-radius:12px;padding:0.5rem 0.8rem;font-size:1.6rem">🏃</div>
+          <div style="font-weight:800;font-size:1.05rem;color:#1A2E35">הילד יוצא באמצע המשחק</div>
+        </div>
+        <p style="color:#4A6572;font-size:0.9rem;line-height:1.7;margin:0">
+          אם הילד לוחץ "חזרה לאקדמיה" באמצע — <strong>המטבעות שכבר הרוויח נשמרים אוטומטית</strong>.
+          הוא לא מפסיד כלום ממה שצבר עד אותה נקודה.
+          הסיבוב עצמו נחשב כ"נוצל" גם אם לא סיים.
+        </p>
+      </div>
+
+      <!-- בלוק: נגמרו הסיבובים -->
+      <div style="background:white;border-radius:20px;padding:1.4rem;margin-bottom:1rem;box-shadow:0 2px 12px rgba(0,0,0,0.06)">
+        <div style="display:flex;align-items:center;gap:0.7rem;margin-bottom:0.8rem">
+          <div style="background:#FFF0F0;border-radius:12px;padding:0.5rem 0.8rem;font-size:1.6rem">⏸️</div>
+          <div style="font-weight:800;font-size:1.05rem;color:#1A2E35">נגמרו הסיבובים שהקצית</div>
+        </div>
+        <p style="color:#4A6572;font-size:0.9rem;line-height:1.7;margin:0">
+          כשהילד מנצל את כל הסיבובים שהקצית לו — ההקצאה "נסגרת".
+          הילד רואה שאין לו יותר סיבובים ולא יכול להמשיך.
+          כדי שישחק שוב, פשוט הכנס ל"הקצה משחק לילד" ותוסיף עוד סיבובים.
+        </p>
+      </div>
+
+      <!-- כפתור סגירה תחתון -->
+      <div style="text-align:center;margin-top:2rem">
+        <button onclick="document.getElementById('game-rules-overlay').remove()"
+          style="background:linear-gradient(135deg,#00A896,#007A6E);color:white;border:none;
+                 border-radius:50px;padding:0.9rem 2.5rem;font-size:1rem;font-weight:700;
+                 cursor:pointer;box-shadow:0 4px 15px rgba(0,168,150,0.3)">
+          הבנתי, תודה! ✓
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  overlay.scrollTop = 0;
+}
+
 function renderAdminAcademy() {
     const list = getEl('admin-assignments-list'); if(!list || currentUser.role !== 'ADMIN') return;
     loadKidsOverview();
@@ -3066,6 +3251,21 @@ function renderAdminAcademy() {
             <div style="font-size:2.5rem;margin-bottom:0.4rem">✏️</div>
             <div style="font-weight:700;font-size:0.9rem;color:#92400E">בנה קווסט ידני</div>
             <div style="font-size:0.78rem;color:#B45309;margin-top:0.2rem">שאלות ותשובות בנושא שתבחר</div>
+          </div>
+          <div onclick="showGameRulesPage()" style="
+            grid-column:1/-1;
+            background:linear-gradient(135deg,#F0FAFA,#E0F5F3);
+            border:2px solid #00A896;border-radius:20px;padding:1rem 1.5rem;
+            cursor:pointer;transition:transform 0.2s;
+            display:flex;align-items:center;gap:1rem;
+          " onmouseover="this.style.transform='scale(1.01)'"
+             onmouseout="this.style.transform='scale(1)'">
+            <div style="font-size:2.2rem">📖</div>
+            <div>
+              <div style="font-weight:700;font-size:0.95rem;color:#007A6E">כללי המשחקים — מדריך להורה</div>
+              <div style="font-size:0.8rem;color:#00A896;margin-top:0.1rem">איך עובדות המטבעות, ההקצאות וההתקדמות — בשפה פשוטה</div>
+            </div>
+            <div style="margin-right:auto;font-size:1.1rem;color:#00A896">←</div>
           </div>
         `;
         if(list) list.parentElement.appendChild(cardsDiv);
