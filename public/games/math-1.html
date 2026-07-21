@@ -462,7 +462,8 @@ const GS={
   mode:'quiz', // 'quiz' | 'test'
   currentLevel:1, testFLW:0, testNum:1,
   userId:null, gameId:null, flwPerWin:2,
-  startTime:Date.now()
+  startTime:Date.now(),
+  assignedLevel:0, assignedRoundsTotal:0
 };
 
 const ROBOT_HOME={x:0.5, y:0.42};
@@ -479,8 +480,11 @@ window.addEventListener('message',e=>{
     if(e.data.childName){childName=e.data.childName;updateChildName();}
     if(e.data.characterUrl) document.querySelectorAll('img[alt="רובוט"]').forEach(i=>i.src=e.data.characterUrl);
     if(e.data.startLevel && e.data.startLevel > 1) {
-      for(let i=0;i<e.data.startLevel-1;i++) { if(i<GS.levelsUnlocked.length) GS.levelsUnlocked[i]=true; }
+      for(let i=0;i<e.data.startLevel;i++) { if(i<GS.levelsUnlocked.length) GS.levelsUnlocked[i]=true; }
+      GS.assignedLevel=e.data.startLevel;
+      setTimeout(()=>showLevelIntro(e.data.startLevel-1),300);
     }
+    if(e.data.roundsTotal) GS.assignedRoundsTotal=e.data.roundsTotal;
   }
 });
 function updateChildName(){
@@ -717,6 +721,11 @@ function handleBucket(bucketIdx){
 function endQuiz(){
   GS.levelsDone[GS.currentLevel-1]=true;
   if(GS.currentLevel===4){endGame();return;}
+  // אם יש הקצאה — פתח את הרמה הבאה ישירות (ללא צורך במבחן)
+  if(GS.assignedLevel>0 && GS.currentLevel>=GS.assignedLevel && GS.currentLevel<GS.levelsUnlocked.length){
+    GS.levelsUnlocked[GS.currentLevel]=true;
+    GS.testsDone[GS.currentLevel-1]=true; // סמן מבחן כעבור כדי להציג כ"זמין"
+  }
   addFLW(5);showMap();
 }
 

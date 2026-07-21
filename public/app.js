@@ -13842,7 +13842,7 @@ window._openQuoteFromActivity = async function(quoteId) {
 
 let _activeAssignmentId = null;
 
-function openGame(assignmentId, gameFilePath, childName, flwPerRound, gameId, startLevel, financeAge) {
+function openGame(assignmentId, gameFilePath, childName, flwPerRound, gameId, startLevel, financeAge, roundsTotal) {
   _activeAssignmentId = assignmentId;
 
   const overlay = document.createElement('div');
@@ -13882,6 +13882,7 @@ function openGame(assignmentId, gameFilePath, childName, flwPerRound, gameId, st
       gameId: gameId,
       assignmentId: assignmentId,
       startLevel: startLevel || 1,
+      roundsTotal: roundsTotal || 0,
       age: financeAge || null,
       token: localStorage.getItem('family_token') || ''
     }, '*');
@@ -14829,7 +14830,7 @@ async function loadKidAcademy() {
                 נשארו ${a.rounds_left} סיבובים · ${a.flw_per_round} FLW לסיבוב
               </div>
             </div>
-            <button onclick="openGame(${a.id},'${a.file_path}','${currentUser?.nickname}',${a.flw_per_round},${a.game_id},${a.start_level||1},${a.finance_age||'null'})"
+            <button onclick="openGame(${a.id},'${a.file_path}','${currentUser?.nickname}',${a.flw_per_round},${a.game_id},${a.start_level||1},${a.finance_age||'null'},${a.rounds_total||0})"
               ${a.rounds_left <= 0 ? 'disabled' : ''}
               style="
                 background:${a.rounds_left > 0 ? '#7C3AED' : '#9CA3AF'};

@@ -412,7 +412,8 @@ const GS={
   learnLevel:1,learnIdx:0,learnLetters:[],
   quizQuestions:[],quizIdx:0,quizScore:0,quizAnswered:false,quizLevel:1,quizDots:[],
   testQuestions:[],testIdx:0,testScore:0,testAnswered:false,testFLW:0,testNum:1,testDots:[],
-  currentZones:[],userId:null,gameId:null,flwPerWin:2,startTime:Date.now()
+  currentZones:[],userId:null,gameId:null,flwPerWin:2,startTime:Date.now(),
+  assignedLevel:0,assignedRoundsTotal:0
 };
 
 // ROBOT ZONE POSITIONS (fraction of arena W/H)
@@ -426,8 +427,11 @@ window.addEventListener('message',e=>{
     if(e.data.childName){childName=e.data.childName;updateChildName();}
     if(e.data.characterUrl) document.querySelectorAll('img[alt="רובוט"]').forEach(i=>i.src=e.data.characterUrl);
     if(e.data.startLevel && e.data.startLevel > 1) {
-      for(let i=0;i<e.data.startLevel-1;i++) { if(i<GS.levelsUnlocked.length) GS.levelsUnlocked[i]=true; }
+      for(let i=0;i<e.data.startLevel;i++) { if(i<GS.levelsUnlocked.length) GS.levelsUnlocked[i]=true; }
+      GS.assignedLevel=e.data.startLevel;
+      setTimeout(()=>startLevel(e.data.startLevel-1),300);
     }
+    if(e.data.roundsTotal) GS.assignedRoundsTotal=e.data.roundsTotal;
   }
 });
 function updateChildName(){
@@ -611,6 +615,11 @@ function handleZoneClick(zoneIdx){
 function endQuiz(){
   GS.levelsDone[GS.quizLevel-1]=true;
   if(GS.quizLevel===4){endGame();return;}
+  // אם יש הקצאה — פתח את הרמה הבאה ישירות
+  if(GS.assignedLevel>0 && GS.quizLevel>=GS.assignedLevel && GS.quizLevel<GS.levelsUnlocked.length){
+    GS.levelsUnlocked[GS.quizLevel]=true;
+    GS.testsDone[GS.quizLevel-1]=true;
+  }
   addFLW(5);showMap();
 }
 
