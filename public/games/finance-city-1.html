@@ -822,7 +822,8 @@ const GS={
   monthlyIncome:500,savings:0,
   userId:null,gameId:null,flwPerWin:3,
   startTime:Date.now(),selectedAge:null,
-  currentScenarios:[],eventShown:false
+  currentScenarios:[],eventShown:false,
+  assignedLevel:0,assignedRoundsTotal:0,levelFlwStart:0,gameSaved:false
 };
 
 window.addEventListener('message',e=>{
@@ -836,6 +837,17 @@ window.addEventListener('message',e=>{
     }
     if(e.data.characterUrl)
       document.querySelectorAll('img[alt="רובוט"]').forEach(i=>i.src=e.data.characterUrl);
+    GS.assignedLevel=e.data.startLevel||0;
+    GS.assignedRoundsTotal=e.data.roundsTotal||0;
+  }
+  if(e.data?.type==='ROUND_RESULT'){
+    const{flwEarned}=e.data;
+    if(typeof flwEarned==='number'){
+      const expected=GS.flw-GS.levelFlwStart;
+      GS.flw=Math.max(0,GS.flw+(flwEarned-expected));
+      document.getElementById('hud-flw').textContent=GS.flw;
+    }
+    GS.gameSaved=false;
   }
 });
 
@@ -1090,10 +1102,9 @@ function endGame(){
     <div class="stat-row"><span>🎁 בונוס FLW</span><span class="stat-val">+${bonusFlw}</span></div>`;
   const duration=Math.round((Date.now()-GS.startTime)/1000);
   const score=Math.round(overall*100);
-  const payload={type:'GAME_COMPLETE',userId:GS.userId,gameId:GS.gameId,score,flwEarned:GS.flw,durationSeconds:duration,gameName:'העיר שלי — כלכלה חכמה'};
+  const payload={type:'GAME_COMPLETE',userId:GS.userId,gameId:GS.gameId,score,flwEarned:GS.flw-GS.levelFlwStart,levelIdx:1,durationSeconds:duration,gameName:'העיר שלי — כלכלה חכמה'};
+  GS.gameSaved=true;
   if(window.parent!==window)window.parent.postMessage(payload,'*');
-  if(GS.userId)fetch('/api/kids/award-flw',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({userId:GS.userId,gameId:GS.gameId,score,flwEarned:GS.flw,durationSeconds:duration})}).catch(()=>{});
   showScreen('scr-result');
 }
 
@@ -1106,7 +1117,18 @@ function playAgain(){
   document.getElementById('btn-start').classList.remove('ready');
   showScreen('scr-intro');
 }
-function goHome(){if(window.parent!==window)window.parent.postMessage({type:'CLOSE_GAME'},'*');else window.history.back();}
+function goHome(){
+  if(window.parent!==window){
+    if(!GS.gameSaved&&GS.flw>0){
+      GS.gameSaved=true;
+      const dur=Math.round((Date.now()-GS.startTime)/1000);
+      window.parent.postMessage({type:'GAME_COMPLETE',userId:GS.userId,gameId:GS.gameId,
+        score:0,flwEarned:GS.flw-GS.levelFlwStart,levelIdx:1,
+        durationSeconds:dur,gameName:'העיר שלי — כלכלה חכמה'},'*');
+    }
+    setTimeout(()=>window.parent.postMessage({type:'CLOSE_GAME'},'*'),50);
+  }else window.history.back();
+}
 function showScreen(id){document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));document.getElementById(id).classList.add('on');}
 </script>
 </body>

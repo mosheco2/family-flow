@@ -490,7 +490,8 @@ const GS = {
   userId:null, gameId:null, flwPerWin:3,
   startTime:Date.now(), answered:false,
   slotHours:[], dragTask:null,
-  idleSayTimer:null
+  idleSayTimer:null,
+  assignedLevel:0, assignedRoundsTotal:0, levelFlwStart:0, gameSaved:false
 };
 
 // ============================================================
@@ -509,6 +510,17 @@ window.addEventListener('message', e => {
     }
     if(e.data.characterUrl)
       document.querySelectorAll('img[alt="רובוט"]').forEach(i => i.src = e.data.characterUrl);
+    GS.assignedLevel = e.data.startLevel || 0;
+    GS.assignedRoundsTotal = e.data.roundsTotal || 0;
+  }
+  if(e.data?.type === 'ROUND_RESULT') {
+    const { flwEarned } = e.data;
+    if(typeof flwEarned === 'number') {
+      const expected = GS.flw - GS.levelFlwStart;
+      GS.flw = Math.max(0, GS.flw + (flwEarned - expected));
+      document.getElementById('hud-flw').textContent = GS.flw;
+    }
+    GS.gameSaved = false;
   }
 });
 
@@ -957,12 +969,10 @@ function endGame(){
 
   const dur = Math.round((Date.now() - GS.startTime)/1000);
   const payload = {type:'GAME_COMPLETE', userId:GS.userId, gameId:GS.gameId,
-    score:pct, flwEarned:GS.flw, durationSeconds:dur, gameName:'היום של OF — ניהול זמן'};
+    score:pct, flwEarned:GS.flw - GS.levelFlwStart, levelIdx:1,
+    durationSeconds:dur, gameName:'היום של OF — ניהול זמן'};
+  GS.gameSaved = true;
   if(window.parent !== window) window.parent.postMessage(payload, '*');
-  if(GS.userId) fetch('/api/kids/award-flw', {method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({userId:GS.userId, gameId:GS.gameId, score:pct, flwEarned:GS.flw, durationSeconds:dur})
-  }).catch(()=>{});
 
   showScreen('scr-result');
 }
@@ -976,8 +986,16 @@ function playAgain(){
 }
 function goHome(){
   if(GS.idleSayTimer) clearInterval(GS.idleSayTimer);
-  if(window.parent !== window) window.parent.postMessage({type:'CLOSE_GAME'}, '*');
-  else window.history.back();
+  if(window.parent !== window) {
+    if(!GS.gameSaved && GS.flw > 0) {
+      GS.gameSaved = true;
+      const dur = Math.round((Date.now() - GS.startTime) / 1000);
+      window.parent.postMessage({type:'GAME_COMPLETE', userId:GS.userId, gameId:GS.gameId,
+        score:0, flwEarned:GS.flw - GS.levelFlwStart, levelIdx:1,
+        durationSeconds:dur, gameName:'היום של OF — ניהול זמן'}, '*');
+    }
+    setTimeout(() => window.parent.postMessage({type:'CLOSE_GAME'}, '*'), 50);
+  } else window.history.back();
 }
 </script>
 </body>
