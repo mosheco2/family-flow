@@ -2016,7 +2016,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
             ('העיר שלי — כלכלה חכמה', 'finance', 10, 16, 3, 30, 'games/finance-city-1.html', '🏙️', true),
             ('היום של OF — ניהול זמן', 'life', 6, 16, 2, 25, 'games/time-manager-1.html', '⏰', true),
             ('OF מגלה ישראל', 'geography', 7, 16, 2, 25, 'games/israel-geo-1.html', '🗺️', true),
-            ('OF לוג׳יק', 'logic', 5, 16, 2, 25, 'games/logic-puzzle-1.html', '🧩', true)
+            ('OF לוג׳יק', 'logic', 5, 16, 2, 25, 'games/logic-puzzle-1.html', '🧩', true),
+            ('OF חושב — טריוויה', 'general', 6, 16, 2, 20, 'games/trivia-1.html', '🧠', true)
           ON CONFLICT DO NOTHING
       `); } catch(e) {}
 

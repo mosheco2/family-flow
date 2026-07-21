@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OF חושב — טריוויה</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:linear-gradient(135deg,#1a1a4e 0%,#2d2d8a 100%);min-height:100vh;color:#fff;overflow-x:hidden}
+.screen{display:none;padding:16px;min-height:100vh}
+.screen.active{display:flex;flex-direction:column;align-items:center}
+
+/* INTRO */
+#intro{justify-content:flex-start;padding-top:20px}
+.logo{font-size:2.2rem;font-weight:900;color:#FFD600;text-shadow:0 0 20px #FFD60080;margin-bottom:4px}
+.logo-sub{font-size:.9rem;color:#aac;margin-bottom:20px}
+.section-title{font-size:.8rem;font-weight:700;color:#FFD600;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;align-self:flex-start;width:100%;max-width:420px}
+.age-row{display:flex;gap:10px;margin-bottom:18px;width:100%;max-width:420px}
+.age-btn{flex:1;padding:12px 6px;border-radius:14px;border:2px solid #4444aa;background:#ffffff10;color:#ccc;font-size:.95rem;font-weight:700;cursor:pointer;transition:all .2s}
+.age-btn.sel{background:#FFD60020;border-color:#FFD600;color:#FFD600}
+.topic-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%;max-width:420px;margin-bottom:20px}
+.topic-btn{padding:10px 4px;border-radius:12px;border:2px solid #4444aa;background:#ffffff08;color:#ccc;font-size:.8rem;font-weight:600;cursor:pointer;text-align:center;transition:all .2s}
+.topic-btn.sel{background:#00A89620;border-color:#00A896;color:#00A896}
+.start-btn{width:100%;max-width:420px;padding:16px;border-radius:16px;border:none;background:linear-gradient(135deg,#FFD600,#FF8C00);color:#1a1a4e;font-size:1.1rem;font-weight:900;cursor:pointer;transition:all .2s;margin-top:4px}
+.start-btn:disabled{opacity:.4;cursor:not-allowed}
+.start-btn:not(:disabled):hover{transform:translateY(-2px);box-shadow:0 6px 20px #FFD60060}
+
+/* GAME */
+#game{justify-content:flex-start;padding-top:12px}
+.hud{display:flex;justify-content:space-between;align-items:center;width:100%;max-width:440px;background:#ffffff10;border-radius:16px;padding:10px 16px;margin-bottom:12px}
+.hud-item{text-align:center}
+.hud-label{font-size:.6rem;color:#aac;letter-spacing:1px}
+.hud-val{font-size:1.1rem;font-weight:800;color:#FFD600}
+.progress-bar{width:100%;max-width:440px;height:6px;background:#ffffff20;border-radius:3px;margin-bottom:14px}
+.progress-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#00A896,#FFD600);transition:width .3s}
+.robot-wrap{position:relative;width:120px;height:130px;margin-bottom:10px}
+.robot-wrap svg.robot{width:120px;height:120px}
+.timer-ring{position:absolute;top:-14px;right:-14px;width:52px;height:52px}
+.bubble{max-width:440px;width:100%;background:#fff;color:#1a1a4e;border-radius:20px;padding:14px 18px;margin-bottom:14px;position:relative;box-shadow:0 4px 20px #00000040}
+.bubble::after{content:'';position:absolute;bottom:-12px;right:60px;border:12px solid transparent;border-top-color:#fff;border-bottom:none}
+.bubble-tag{font-size:.7rem;font-weight:800;color:#00A896;letter-spacing:1px;margin-bottom:4px}
+.bubble-q{font-size:1.05rem;font-weight:700;line-height:1.4}
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;max-width:440px}
+.ans-btn{padding:12px 10px;border-radius:14px;border:2px solid #4444aa;background:#ffffff08;color:#fff;font-size:.9rem;font-weight:600;cursor:pointer;text-align:center;transition:all .2s;display:flex;align-items:center;gap:8px}
+.ans-btn:hover:not(:disabled){border-color:#FFD600;background:#FFD60010}
+.ans-btn.correct{border-color:#00A896;background:#00A89630;color:#00A896}
+.ans-btn.wrong{border-color:#EF4444;background:#EF444420;color:#EF4444}
+.ans-letter{width:24px;height:24px;border-radius:50%;border:2px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;flex-shrink:0}
+.feedback-bar{width:100%;max-width:440px;background:#ffffff10;border-radius:14px;padding:10px 14px;margin-top:10px;display:none;font-size:.85rem;line-height:1.4}
+.feedback-bar.show{display:block}
+.feedback-bar.ok{border:2px solid #00A896;color:#00A896}
+.feedback-bar.nope{border:2px solid #EF4444;color:#EF4444}
+.fb-explain{color:#ccc;margin-top:4px;font-size:.8rem}
+.cont-btn{margin-top:8px;padding:8px 20px;border-radius:10px;border:none;background:#FFD600;color:#1a1a4e;font-weight:800;cursor:pointer;font-size:.85rem}
+.combo-toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#FFD600;color:#1a1a4e;border-radius:14px;padding:8px 20px;font-weight:800;font-size:1rem;display:none;z-index:200;animation:popIn .3s ease}
+@keyframes popIn{from{transform:translateX(-50%) scale(.5)}to{transform:translateX(-50%) scale(1)}}
+
+/* RESULT */
+#result{justify-content:center}
+.result-emoji{font-size:4rem;margin-bottom:8px}
+.result-title{font-size:1.8rem;font-weight:900;color:#FFD600;margin-bottom:4px}
+.result-stars{font-size:2rem;margin-bottom:16px}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:380px;margin-bottom:16px}
+.stat-card{background:#ffffff10;border-radius:14px;padding:12px;text-align:center}
+.stat-num{font-size:1.6rem;font-weight:900;color:#FFD600}
+.stat-lbl{font-size:.7rem;color:#aac;margin-top:2px}
+.flw-badge{background:linear-gradient(135deg,#FFD600,#FF8C00);color:#1a1a4e;border-radius:16px;padding:12px 24px;font-size:1.1rem;font-weight:900;margin-bottom:20px}
+.result-btns{display:flex;gap:12px;width:100%;max-width:380px}
+.result-btns button{flex:1;padding:14px;border-radius:14px;border:none;font-weight:800;font-size:.95rem;cursor:pointer}
+.btn-play{background:linear-gradient(135deg,#FFD600,#FF8C00);color:#1a1a4e}
+.btn-home{background:#ffffff20;color:#fff}
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div id="intro" class="screen active">
+  <div class="logo">🤖 OF חושב</div>
+  <div class="logo-sub">משחק הטריוויה של הרובוט החכם</div>
+
+  <div class="section-title">קבוצת גיל</div>
+  <div class="age-row">
+    <button class="age-btn" data-age="6" onclick="selectAge(6)">6–9</button>
+    <button class="age-btn" data-age="10" onclick="selectAge(10)">10–12</button>
+    <button class="age-btn" data-age="13" onclick="selectAge(13)">13–16</button>
+  </div>
+
+  <div class="section-title">בחר נושא</div>
+  <div class="topic-grid" id="topicGrid"></div>
+
+  <button class="start-btn" id="startBtn" disabled onclick="startGame()">בואו נחשוב! 🚀</button>
+</div>
+
+<!-- GAME -->
+<div id="game" class="screen">
+  <div class="hud">
+    <div class="hud-item"><div class="hud-label">שאלה</div><div class="hud-val" id="hud-q">1/10</div></div>
+    <div class="hud-item"><div class="hud-label">ניקוד</div><div class="hud-val" id="hud-score">0</div></div>
+    <div class="hud-item"><div class="hud-label">רצף</div><div class="hud-val" id="hud-streak">🔥0</div></div>
+    <div class="hud-item"><div class="hud-label">FLW</div><div class="hud-val" id="hud-flw">0</div></div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+
+  <div class="robot-wrap">
+    <svg class="robot" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <rect x="35" y="35" width="50" height="50" rx="10" fill="#1a1a6e"/>
+      <rect x="42" y="43" width="14" height="10" rx="4" fill="#00CFFF"/>
+      <rect x="64" y="43" width="14" height="10" rx="4" fill="#00CFFF"/>
+      <path d="M46 62 Q60 72 74 62" stroke="#00FF88" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <rect x="45" y="85" width="30" height="20" rx="6" fill="#2a2a8e"/>
+      <rect x="30" y="40" width="8" height="18" rx="4" fill="#2a2a8e"/>
+      <rect x="82" y="40" width="8" height="18" rx="4" fill="#2a2a8e"/>
+      <rect x="48" y="105" width="10" height="14" rx="4" fill="#2a2a8e"/>
+      <rect x="62" y="105" width="10" height="14" rx="4" fill="#2a2a8e"/>
+      <line x1="60" y1="35" x2="60" y2="20" stroke="#9B5DE5" stroke-width="3"/>
+      <circle cx="60" cy="16" r="5" fill="#9B5DE5"/>
+    </svg>
+    <svg class="timer-ring" id="timerRing" viewBox="0 0 52 52">
+      <circle cx="26" cy="26" r="20" fill="#1a1a4e" stroke="#ffffff20" stroke-width="4"/>
+      <circle id="timerArc" cx="26" cy="26" r="20" fill="none" stroke="#00A896" stroke-width="4"
+        stroke-dasharray="125.6" stroke-dashoffset="0" stroke-linecap="round"
+        transform="rotate(-90 26 26)" style="transition:stroke .3s"/>
+      <text id="timerText" x="26" y="31" text-anchor="middle" fill="#fff" font-size="13" font-weight="800">15</text>
+    </svg>
+  </div>
+
+  <div class="bubble">
+    <div class="bubble-tag" id="bubbleTag">נושא</div>
+    <div class="bubble-q" id="bubbleQ">שאלה תופיע כאן...</div>
+  </div>
+
+  <div class="answers" id="answersDiv"></div>
+  <div class="feedback-bar" id="feedbackBar">
+    <div id="fbText"></div>
+    <div class="fb-explain" id="fbExplain"></div>
+    <button class="cont-btn" onclick="nextQ()">המשך ▶</button>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div id="result" class="screen">
+  <div class="result-emoji" id="resEmoji">🏆</div>
+  <div class="result-title" id="resTitle">כל הכבוד!</div>
+  <div class="result-stars" id="resStars">⭐⭐⭐</div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-num" id="resCorrect">0</div><div class="stat-lbl">תשובות נכונות</div></div>
+    <div class="stat-card"><div class="stat-num" id="resStreak">0</div><div class="stat-lbl">רצף מקסימלי</div></div>
+    <div class="stat-card"><div class="stat-num" id="resAvgTime">0s</div><div class="stat-lbl">זמן ממוצע</div></div>
+    <div class="stat-card"><div class="stat-num" id="resScore">0</div><div class="stat-lbl">ניקוד סופי</div></div>
+  </div>
+  <div class="flw-badge" id="resFlw">🪙 +0 מטבעות FLW</div>
+  <div class="result-btns">
+    <button class="btn-play" onclick="restartGame()">שחק שוב 🔄</button>
+    <button class="btn-home" onclick="goHome()">חזרה 🏠</button>
+  </div>
+</div>
+
+<div class="combo-toast" id="comboToast"></div>
+
+<script>
+const TIMER_SEC = 15;
+const CIRCUMFERENCE = 125.6; // 2π×20
+const QUESTIONS_PER_GAME = 10;
+
+const TOPICS = [
+  {key:'mix',label:'ערבוב',emoji:'🎲'},
+  {key:'math',label:'מתמטיקה',emoji:'🔢'},
+  {key:'hebrew',label:'עברית',emoji:'📖'},
+  {key:'english',label:'אנגלית',emoji:'🇬🇧'},
+  {key:'science',label:'מדעים',emoji:'🔬'},
+  {key:'history',label:'היסטוריה',emoji:'🏛️'},
+  {key:'geo',label:'גיאוגרפיה',emoji:'🌍'},
+  {key:'nature',label:'טבע',emoji:'🌿'},
+  {key:'culture',label:'תרבות',emoji:'🎵'},
+  {key:'logic',label:'לוגיקה',emoji:'🧩'},
+  {key:'sport',label:'ספורט',emoji:'⚽'},
+  {key:'tech',label:'טכנולוגיה',emoji:'💻'}
+];
+
+// Question bank: Q[ageKey][topicKey] = [{q,a,opts,explain}]
+// ageKey: 6, 10, 13
+const QB = {
+  6:{
+    math:[
+      {q:'כמה רגליים יש לשלושה כלבים?',a:0,opts:['12','9','6','8'],explain:'כל כלב = 4 רגליים, 3×4=12'},
+      {q:'מה הוא המספר אחרי 19?',a:1,opts:['18','20','21','22'],explain:'19+1=20'},
+      {q:'3 + 7 = ?',a:2,opts:['9','11','10','8'],explain:'3+7 שווה 10'},
+      {q:'מה גדול יותר: 15 או 51?',a:1,opts:['15','51','שווים','אי אפשר לדעת'],explain:'51 > 15'},
+      {q:'חצי מ-8 הוא?',a:0,opts:['4','3','5','6'],explain:'8÷2=4'},
+      {q:'כמה פינות יש למשולש?',a:2,opts:['2','4','3','5'],explain:'למשולש יש 3 פינות'},
+      {q:'10 - 4 = ?',a:1,opts:['5','6','7','4'],explain:'10 פחות 4 שווה 6'},
+      {q:'2 × 5 = ?',a:3,opts:['7','8','9','10'],explain:'2 כפול 5 שווה 10'},
+    ],
+    hebrew:[
+      {q:'מה ההפך של גדול?',a:1,opts:['עצום','קטן','ענק','רחב'],explain:'ההפך של גדול הוא קטן'},
+      {q:'כמה אותיות יש בא-ב?',a:2,opts:['24','20','22','26'],explain:'יש 22 אותיות בעברית'},
+      {q:'מה הרבים של "כלב"?',a:0,opts:['כלבים','כלבות','כלביים','כלבן'],explain:'כלב → כלבים'},
+      {q:'איזו אות מגיעה ראשונה באלפבית?',a:1,opts:['בית','אלף','גימל','דלת'],explain:'אלף היא האות הראשונה'},
+    ],
+    science:[
+      {q:'כמה עונות יש בשנה?',a:2,opts:['3','2','4','5'],explain:'יש 4 עונות: אביב, קיץ, סתיו, חורף'},
+      {q:'מה צבע השמים בשעת היום?',a:0,opts:['כחול','ירוק','אדום','צהוב'],explain:'השמים כחולים בגלל פיזור האור'},
+      {q:'מה גדל מתוך זרע?',a:1,opts:['עץ לפני עלים','צמח','רק פרח','אבן'],explain:'מזרע צומח צמח'},
+      {q:'מי חי במים?',a:2,opts:['ארנב','עז','דג','עכבר'],explain:'דגים חיים במים'},
+    ],
+    mix:[
+      {q:'מה צבע השמש?',a:3,opts:['כחול','ירוק','לבן','צהוב'],explain:'השמש צהובה'},
+      {q:'כמה אצבעות יש ביד אחת?',a:0,opts:['5','4','6','7'],explain:'לכל יד 5 אצבעות'},
+      {q:'מה בירת ישראל?',a:1,opts:['תל אביב','ירושלים','חיפה','באר שבע'],explain:'ירושלים היא בירת ישראל'},
+      {q:'מה הגדול ביותר: פיל, כלב או חתול?',a:0,opts:['פיל','כלב','חתול','שווים'],explain:'הפיל הוא החיה הכי גדולה'},
+    ],
+    english:[
+      {q:'How do you say "כלב" in English?',a:0,opts:['Dog','Cat','Bird','Fish'],explain:'"כלב" באנגלית = Dog'},
+      {q:'How many letters in "HELLO"?',a:2,opts:['4','6','5','7'],explain:'H-E-L-L-O = 5 אותיות'},
+      {q:'What color is the sky? (in English)',a:1,opts:['Red','Blue','Green','Yellow'],explain:'השמים כחולים = Blue'},
+      {q:'What is 2+2 in English?',a:3,opts:['Three','Five','Six','Four'],explain:'2+2=4 = Four'},
+    ],
+    history:[
+      {q:'מי בנה את הפירמידות?',a:0,opts:['המצרים','הרומאים','היוונים','הסינים'],explain:'הפירמידות נבנו במצרים העתיקה'},
+      {q:'כמה שנים יש במאה?',a:1,opts:['10','100','1000','50'],explain:'מאה = 100 שנה'},
+    ],
+    geo:[
+      {q:'איזו ארץ גדולה יותר: ישראל או ברזיל?',a:1,opts:['ישראל','ברזיל','שוות','אי אפשר לדעת'],explain:'ברזיל גדולה בהרבה מישראל'},
+      {q:'מה הים שמקיף את ישראל ממערב?',a:2,opts:['ים סוף','האוקיינוס','הים התיכון','ים המלח'],explain:'הים התיכון נמצא מערבית לישראל'},
+    ],
+    nature:[
+      {q:'כמה רגליים לפרפר?',a:1,opts:['4','6','8','2'],explain:'לחרקים (כולל פרפרים) 6 רגליים'},
+      {q:'מה פרות אוכלות?',a:0,opts:['עשב','בשר','דגים','עצים'],explain:'פרות הן אוכלות עשב (צמחוניות)'},
+    ],
+    culture:[
+      {q:'כמה נוגנים בדרך כלל בצמד?',a:1,opts:['1','2','3','4'],explain:'צמד = שניים'},
+      {q:'מה כלי הנגינה שמנגנים עליו עם קשת?',a:2,opts:['גיטרה','חצוצרה','כינור','פסנתר'],explain:'כינור מנוגן עם קשת'},
+    ],
+    logic:[
+      {q:'אם יש לי 5 תפוחים ואני נותן 2, כמה נשאר?',a:2,opts:['4','2','3','1'],explain:'5-2=3'},
+      {q:'מה ממשיך: 2, 4, 6, ?',a:0,opts:['8','7','9','10'],explain:'כל מספר גדל ב-2'},
+    ],
+    sport:[
+      {q:'כמה שחקנים יש בקבוצת כדורגל?',a:1,opts:['10','11','12','9'],explain:'בכדורגל 11 שחקנים בכל קבוצה'},
+      {q:'איזה ספורט משחקים עם מחבט ורשת?',a:2,opts:['כדורסל','כדורגל','טניס','שחייה'],explain:'בטניס משתמשים במחבט ורשת'},
+    ],
+    tech:[
+      {q:'מה עושה מקלדת?',a:0,opts:['מקלידים אותיות','מציגה תמונות','מנגנת מוזיקה','מדפיסה'],explain:'מקלדת משמשת להקלדת אותיות ומספרים'},
+      {q:'מה צבע נורית ה"טעינה" בדרך כלל?',a:2,opts:['אדום','לבן','כתום/ירוק','כחול'],explain:'נורית טעינה בדרך כלל ירוקה או כתומה'},
+    ],
+  },
+  10:{
+    math:[
+      {q:'כמה הוא 7 × 8?',a:2,opts:['54','48','56','64'],explain:'7×8=56'},
+      {q:'מה שורש ריבועי של 144?',a:1,opts:['11','12','13','14'],explain:'12×12=144'},
+      {q:'25% מ-80 הוא?',a:0,opts:['20','25','15','30'],explain:'25% = רבע, 80÷4=20'},
+      {q:'מה הוא 2 בחזקת 5?',a:3,opts:['10','16','24','32'],explain:'2^5 = 2×2×2×2×2 = 32'},
+      {q:'האורך, הרוחב והגובה של קובייה בצלע 3 — מה הנפח?',a:1,opts:['9','27','18','6'],explain:'נפח = 3³ = 27'},
+    ],
+    hebrew:[
+      {q:'מה שם הספר הראשון בתנ"ך?',a:0,opts:['בראשית','שמות','ויקרא','במדבר'],explain:'הספר הראשון הוא בראשית'},
+      {q:'מה הפועל של "שמחה"?',a:2,opts:['משמח','לשמוח','שמח','ישמח'],explain:'שמחה ← לשמוח'},
+      {q:'מה הנסמך של "ספר ילדים"?',a:1,opts:['ספרי ילדים','ספר הילדים','ספרים לילדים','הספרים'],explain:'ספר ילדים → ספר הילדים'},
+    ],
+    english:[
+      {q:'What is the past tense of "go"?',a:0,opts:['Went','Gone','Goed','Going'],explain:'"Go" בעבר = Went'},
+      {q:'Choose the correct sentence:',a:2,opts:['He go to school','She goed home','They went to the park','I wented'],explain:'went הוא עבר של go'},
+    ],
+    science:[
+      {q:'כמה כוכבי לכת יש במערכת השמש?',a:1,opts:['7','8','9','10'],explain:'יש 8 כוכבי לכת (פלוטו הורד מהרשימה)'},
+      {q:'מה נוסחת המים?',a:0,opts:['H₂O','CO₂','NaCl','O₂'],explain:'מים = H₂O'},
+      {q:'אחד מהבאים הוא מוליך חשמל?',a:2,opts:['פלסטיק','עץ','נחושת','זכוכית'],explain:'נחושת היא מוליכה טובה של חשמל'},
+    ],
+    history:[
+      {q:'מתי הוקמה מדינת ישראל?',a:1,opts:['1947','1948','1949','1950'],explain:'ישראל הוקמה ב-1948'},
+      {q:'מי היה הנשיא הראשון של ישראל?',a:0,opts:['חיים וייצמן','דוד בן גוריון','לוי אשכול','משה שרת'],explain:'חיים וייצמן היה הנשיא הראשון; בן גוריון היה ראש ממשלה'},
+    ],
+    geo:[
+      {q:'מה הנהר הארוך ביותר בעולם?',a:2,opts:['אמזון','מיסיסיפי','ניל','קונגו'],explain:'הניל הוא הנהר הארוך ביותר'},
+      {q:'בה היבשת הגדולה ביותר?',a:0,opts:['אסיה','אפריקה','אמריקה','אירופה'],explain:'אסיה היא היבשת הגדולה ביותר'},
+    ],
+    nature:[
+      {q:'כמה לבבות יש לתמנון?',a:2,opts:['1','2','3','4'],explain:'לתמנון 3 לבבות'},
+      {q:'איזה בעל חיים ישן מחורף?',a:1,opts:['כלב','דוב','חתול','ארנב'],explain:'דובים ישנים בחורף (שינת חורף)'},
+    ],
+    culture:[
+      {q:'מי כתב את "רומיאו ויוליה"?',a:0,opts:['שייקספיר','מולייר','דיקנס','גתה'],explain:'שייקספיר כתב רומיאו ויוליה'},
+      {q:'כמה לוחות יש בפסנתר?',a:2,opts:['76','80','88','92'],explain:'פסנתר קלאסי = 88 מקשים'},
+    ],
+    logic:[
+      {q:'כל הגורים הם כלבים. כל הכלבים הם חיות. האם כל הגורים הם חיות?',a:0,opts:['כן','לא','אי אפשר לדעת','רק חלקם'],explain:'לוגיקה טרנזיטיבית: גור→כלב→חיה'},
+      {q:'מה ממשיך: 1, 1, 2, 3, 5, 8, ?',a:1,opts:['12','13','11','14'],explain:'סדרת פיבונאצ\'י: כל איבר = סכום שני קודמיו'},
+    ],
+    sport:[
+      {q:'כמה נקודות שווה שלש בכדורסל?',a:2,opts:['1','2','3','4'],explain:'זריקה מעבר לקו ה-3 שווה 3 נקודות'},
+      {q:'כמה ים שנה מרוץ בולדוג בדרך כלל מנוצח?',a:0,opts:['מרתון 42.195 ק"מ','20 ק"מ','30 ק"מ','50 ק"מ'],explain:'מרתון = 42.195 ק"מ'},
+    ],
+    tech:[
+      {q:'מה המשמעות של "CPU"?',a:1,opts:['Central Power Unit','Central Processing Unit','Computer Program Unit','Core Program Utility'],explain:'CPU = Central Processing Unit, יחידת העיבוד המרכזית'},
+      {q:'מה פרוטוקול האינטרנט שמשמש לגלישה מאובטחת?',a:2,opts:['HTTP','FTP','HTTPS','SMTP'],explain:'HTTPS הוא גרסת ה-HTTP המאובטחת'},
+    ],
+    mix:[
+      {q:'מה בירת צרפת?',a:0,opts:['פריז','לונדון','מדריד','ברלין'],explain:'פריז היא בירת צרפת'},
+      {q:'כמה שניות יש בדקה?',a:1,opts:['30','60','90','100'],explain:'דקה = 60 שניות'},
+    ],
+  },
+  13:{
+    math:[
+      {q:'מה הנגזרת של x²?',a:0,opts:['2x','x','2','x²'],explain:'נגזרת x² היא 2x לפי כלל החזקה'},
+      {q:'כמה אפשרויות לסדר 4 אנשים בשורה?',a:2,opts:['16','12','24','48'],explain:'4! = 4×3×2×1 = 24'},
+      {q:'sin(90°) = ?',a:1,opts:['0','1','-1','0.5'],explain:'sin(90°) = 1 מהגדרה'},
+      {q:'מה ערך π בקירוב?',a:0,opts:['3.14159','2.71828','1.41421','1.61803'],explain:'π ≈ 3.14159'},
+    ],
+    science:[
+      {q:'מה חוק ניוטון הראשון?',a:1,opts:['כוח = מסה × תאוצה','גוף נח נשאר נח אם לא פועל עליו כוח','לכל פעולה יש תגובה שווה ומנוגדת','אנרגיה לא נוצרת ולא נהרסת'],explain:'החוק הראשון = חוק האינרציה'},
+      {q:'מה מספר האלקטרונים שיכול להכיל המסלול הראשון?',a:0,opts:['2','8','18','32'],explain:'מסלול n=1 מכיל לכל היותר 2 אלקטרונים'},
+      {q:'מה הנוסחה הכימית של גלוקוז?',a:2,opts:['C₆H₁₂O₅','C₅H₁₀O₅','C₆H₁₂O₆','C₁₂H₂₂O₁₁'],explain:'גלוקוז = C₆H₁₂O₆'},
+    ],
+    history:[
+      {q:'מתי הייתה מלחמת העולם השנייה?',a:1,opts:['1914–1918','1939–1945','1936–1941','1941–1946'],explain:'מלה"ע ה-2: 1939–1945'},
+      {q:'מי ניסח את "הצהרת בלפור"?',a:0,opts:['ארתור ג\'יימס בלפור','וינסטון צ\'רצ\'יל','ג\'ורג\' וושינגטון','הרברט סמואל'],explain:'הצהרת בלפור 1917 נחתמה ע"י שר החוץ הבריטי בלפור'},
+    ],
+    english:[
+      {q:'Choose the correct sentence:',a:2,opts:['Neither of them are ready','Neither of them is ready not','Neither of them is ready','None of them are ready'],explain:'"Neither" + singular verb: "Neither of them is ready"'},
+      {q:'What does "ephemeral" mean?',a:1,opts:['Ancient','Short-lived','Enormous','Mysterious'],explain:'Ephemeral = short-lived, lasting for a very short time'},
+    ],
+    geo:[
+      {q:'מהי הארץ הקטנה ביותר בעולם?',a:0,opts:['הוותיקן','מונקו','סן מרינו','ליכטנשטיין'],explain:'הוותיקן היא המדינה הקטנה ביותר בעולם'},
+      {q:'איזו מדינה חולשת על שני קונטיננטים?',a:2,opts:['רוסיה','מצרים','טורקיה','קזחסטן'],explain:'טורקיה משתרעת על אירופה ואסיה'},
+    ],
+    hebrew:[
+      {q:'מהי "אנאפורה" בשירה?',a:1,opts:['חרוז בסוף שורה','חזרה על מילה בתחילת שורות','מטאפורה מורחבת','שבירת מקצב'],explain:'אנאפורה = חזרה על מילה/ביטוי בתחילת שורות'},
+      {q:'מהו "היפרבולה"?',a:0,opts:['הגזמה לשם דגש','תיאור מדויק','השוואה עם "כמו"','הפוך המילים'],explain:'היפרבולה = הגזמה מכוונת'},
+    ],
+    culture:[
+      {q:'מי ציירה את "גרניקה"?',a:2,opts:['מונה ליזה','דלי','פיקאסו','מאטיס'],explain:'גרניקה ציורו המפורסם של פבלו פיקאסו (1937)'},
+      {q:'מי חיבר את הסימפוניה התשיעית?',a:1,opts:['מוצרט','בטהובן','באך','שופן'],explain:'הסימפוניה ה-9 של בטהובן כוללת את "שמחה של ה"'},
+    ],
+    logic:[
+      {q:'אם כל A הם B, וכל B הם C, אז:',a:0,opts:['כל A הם C','כל C הם A','חלק מה-A הם C','אין קשר'],explain:'סילוגיזם: A⊆B, B⊆C → A⊆C'},
+      {q:'מה ממשיך: 2, 6, 12, 20, 30, ?',a:2,opts:['36','40','42','44'],explain:'ההפרשים: 4,6,8,10,12 → 30+12=42'},
+    ],
+    nature:[
+      {q:'מה מנגנון הבקרה העצמית של גוף האדם שמשמר טמפרטורה קבועה?',a:1,opts:['אוסמוסה','הומאוסטזיס','מטבוליזם','הורמונים'],explain:'הומאוסטזיס = שמירה על תנאים פנימיים קבועים'},
+      {q:'איזה עצב מחבר את הרשתית למוח?',a:0,opts:['עצב הראייה','עצב שמיעה','עצב פנים','עצב המוסיקה'],explain:'עצב הראייה (Optic nerve) מעביר מידע חזותי'},
+    ],
+    sport:[
+      {q:'כמה נקודות שווה "ace" בטניס?',a:2,opts:['15','0','ניקוד שלם','30'],explain:'Ace = נקודה ישירה מהגשה'},
+      {q:'מי החזיק בשיא ריצת 100 מ\' מ-2009?',a:0,opts:['אוסיין בולט','טיסון גיי','יוהן בלייק','אסאפה פאוול'],explain:'אוסיין בולט: 9.58 שניות (ברלין 2009)'},
+    ],
+    tech:[
+      {q:'מה ה-Big-O של חיפוש בינארי?',a:1,opts:['O(n)','O(log n)','O(n²)','O(1)'],explain:'חיפוש בינארי מחלק בכל צעד לחצי → O(log n)'},
+      {q:'מה ראשי התיבות DNS?',a:2,opts:['Digital Network Service','Data Name System','Domain Name System','Dynamic Node System'],explain:'DNS = Domain Name System'},
+    ],
+    mix:[
+      {q:'מה המספר האטומי של פחמן?',a:0,opts:['6','8','12','14'],explain:'פחמן (C) = מספר אטומי 6'},
+      {q:'מי כתב את "האחים קרמזוב"?',a:1,opts:['טולסטוי','דוסטויבסקי','צ\'כוב','גורקי'],explain:'פיודור דוסטויבסקי כתב "האחים קרמזוב"'},
+    ],
+  }
+};
+
+const GS = {
+  userId:null, gameId:'trivia-1', flwPerWin:2, childName:'',
+  age:null, topic:null,
+  questions:[], qIdx:0, flw:0, score:0, streak:0, maxStreak:0,
+  correct:0, totalTime:0,
+  assignedLevel:0, assignedRoundsTotal:0, levelFlwStart:0, gameSaved:false,
+  startTime:null, qStartTime:null,
+  timerInterval:null, timeLeft:0
+};
+
+// Build topic grid
+const grid = document.getElementById('topicGrid');
+TOPICS.forEach(t=>{
+  const b = document.createElement('button');
+  b.className='topic-btn';
+  b.dataset.key=t.key;
+  b.innerHTML=`${t.emoji}<br>${t.label}`;
+  b.onclick=()=>selectTopic(t.key);
+  grid.appendChild(b);
+});
+
+function selectAge(a){
+  GS.age=a;
+  document.querySelectorAll('.age-btn').forEach(b=>b.classList.toggle('sel',+b.dataset.age===a));
+  checkReady();
+}
+function selectTopic(k){
+  GS.topic=k;
+  document.querySelectorAll('.topic-btn').forEach(b=>b.classList.toggle('sel',b.dataset.key===k));
+  checkReady();
+}
+function checkReady(){
+  document.getElementById('startBtn').disabled=!(GS.age&&GS.topic);
+}
+
+function getQuestions(){
+  const ageKey = GS.age>=13?13:GS.age>=10?10:6;
+  let pool;
+  if(GS.topic==='mix'){
+    pool=[];
+    Object.keys(QB[ageKey]).forEach(k=>{ if(k!=='mix') pool.push(...(QB[ageKey][k]||[])); });
+  } else {
+    pool=[...(QB[ageKey][GS.topic]||QB[ageKey]['math'])];
+  }
+  // shuffle & pick
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  return pool.slice(0,QUESTIONS_PER_GAME);
+}
+
+function startGame(){
+  GS.questions=getQuestions();
+  GS.qIdx=0; GS.flw=GS.levelFlwStart; GS.score=0; GS.streak=0; GS.maxStreak=0;
+  GS.correct=0; GS.totalTime=0; GS.gameSaved=false;
+  GS.startTime=Date.now();
+  show('game');
+  loadQ();
+}
+
+function loadQ(){
+  const q=GS.questions[GS.qIdx];
+  document.getElementById('hud-q').textContent=`${GS.qIdx+1}/${GS.questions.length}`;
+  document.getElementById('hud-score').textContent=GS.score;
+  document.getElementById('hud-streak').textContent=`🔥${GS.streak}`;
+  document.getElementById('hud-flw').textContent=GS.flw;
+  document.getElementById('progressFill').style.width=`${(GS.qIdx/GS.questions.length)*100}%`;
+
+  const topicObj=TOPICS.find(t=>t.key===GS.topic)||TOPICS[0];
+  document.getElementById('bubbleTag').textContent=`${topicObj.emoji} ${topicObj.label}`;
+  document.getElementById('bubbleQ').textContent=q.q;
+
+  const letters=['א','ב','ג','ד'];
+  const div=document.getElementById('answersDiv');
+  div.innerHTML='';
+  q.opts.forEach((opt,i)=>{
+    const b=document.createElement('button');
+    b.className='ans-btn';
+    b.innerHTML=`<span class="ans-letter">${letters[i]}</span>${opt}`;
+    b.onclick=()=>answer(i);
+    div.appendChild(b);
+  });
+
+  const fb=document.getElementById('feedbackBar');
+  fb.className='feedback-bar';
+
+  GS.qStartTime=Date.now();
+  startTimer();
+}
+
+function startTimer(){
+  clearInterval(GS.timerInterval);
+  GS.timeLeft=TIMER_SEC;
+  updateTimerUI(TIMER_SEC);
+  GS.timerInterval=setInterval(()=>{
+    GS.timeLeft--;
+    updateTimerUI(GS.timeLeft);
+    if(GS.timeLeft<=0){ clearInterval(GS.timerInterval); handleTimeout(); }
+  },1000);
+}
+
+function updateTimerUI(t){
+  const offset=CIRCUMFERENCE*(1-t/TIMER_SEC);
+  const arc=document.getElementById('timerArc');
+  const txt=document.getElementById('timerText');
+  arc.style.strokeDashoffset=offset;
+  arc.style.stroke=t>10?'#00A896':t>5?'#FFD600':'#EF4444';
+  txt.textContent=t;
+}
+
+function handleTimeout(){
+  const q=GS.questions[GS.qIdx];
+  GS.streak=0;
+  document.querySelectorAll('.ans-btn').forEach((b,i)=>{
+    b.disabled=true;
+    if(i===q.a) b.classList.add('correct');
+  });
+  showFeedback(false, q.explain, 0);
+}
+
+function answer(idx){
+  clearInterval(GS.timerInterval);
+  const q=GS.questions[GS.qIdx];
+  const elapsed=Math.round((Date.now()-GS.qStartTime)/1000);
+  const timeLeft=Math.max(0,TIMER_SEC-elapsed);
+  GS.totalTime+=elapsed;
+  const correct=idx===q.a;
+
+  document.querySelectorAll('.ans-btn').forEach((b,i)=>{
+    b.disabled=true;
+    if(i===q.a) b.classList.add('correct');
+    else if(i===idx&&!correct) b.classList.add('wrong');
+  });
+
+  if(correct){
+    const timeBonus=Math.floor(timeLeft*0.5);
+    const pts=10+timeBonus;
+    GS.score+=pts;
+    GS.correct++;
+    GS.streak++;
+    if(GS.streak>GS.maxStreak) GS.maxStreak=GS.streak;
+    const flwGain=timeLeft<5?GS.flwPerWin+1:GS.flwPerWin;
+    GS.flw+=flwGain;
+    document.getElementById('hud-flw').textContent=GS.flw;
+    if(GS.streak>=3) showCombo(GS.streak);
+    showFeedback(true, q.explain, pts);
+  } else {
+    GS.streak=0;
+    showFeedback(false, q.explain, 0);
+  }
+}
+
+function showFeedback(ok, explain, pts){
+  const fb=document.getElementById('feedbackBar');
+  fb.className='feedback-bar show '+(ok?'ok':'nope');
+  document.getElementById('fbText').textContent=ok?`✅ נכון! +${pts} נקודות`:'❌ טעות...';
+  document.getElementById('fbExplain').textContent=explain;
+}
+
+function showCombo(streak){
+  const toast=document.getElementById('comboToast');
+  toast.textContent=`🔥 רצף × ${streak}! מדהים!`;
+  toast.style.display='block';
+  setTimeout(()=>{ toast.style.display='none'; },1500);
+}
+
+function nextQ(){
+  GS.qIdx++;
+  if(GS.qIdx>=GS.questions.length){ endGame(); return; }
+  loadQ();
+}
+
+function endGame(){
+  clearInterval(GS.timerInterval);
+  const dur=Math.round((Date.now()-GS.startTime)/1000);
+  const flwEarned=GS.flw-GS.levelFlwStart;
+  const pct=Math.round((GS.correct/GS.questions.length)*100);
+  const avgTime=GS.questions.length>0?Math.round(GS.totalTime/GS.questions.length):0;
+
+  // Result screen
+  const stars=pct>=80?'⭐⭐⭐':pct>=50?'⭐⭐':'⭐';
+  const emoji=pct>=80?'🏆':pct>=50?'😊':'🤔';
+  const title=pct>=80?'מדהים! רובוט אלוף!':pct>=50?'כל הכבוד!':'ממשיכים להתאמן!';
+  document.getElementById('resEmoji').textContent=emoji;
+  document.getElementById('resTitle').textContent=title;
+  document.getElementById('resStars').textContent=stars;
+  document.getElementById('resCorrect').textContent=`${GS.correct}/${GS.questions.length}`;
+  document.getElementById('resStreak').textContent=GS.maxStreak;
+  document.getElementById('resAvgTime').textContent=`${avgTime}s`;
+  document.getElementById('resScore').textContent=GS.score;
+  document.getElementById('resFlw').textContent=`🪙 +${flwEarned} מטבעות FLW`;
+
+  if(!GS.gameSaved){
+    GS.gameSaved=true;
+    if(window.parent!==window){
+      window.parent.postMessage({
+        type:'GAME_COMPLETE',
+        userId:GS.userId,
+        gameId:GS.gameId,
+        score:pct,
+        flwEarned:flwEarned,
+        durationSeconds:dur,
+        levelIdx:1,
+        isLevelComplete:true,
+        gameName:'OF חושב — טריוויה'
+      },'*');
+    }
+  }
+  show('result');
+}
+
+function restartGame(){
+  startGame();
+}
+
+function goHome(){
+  clearInterval(GS.timerInterval);
+  if(!GS.gameSaved&&GS.flw>GS.levelFlwStart&&window.parent!==window){
+    GS.gameSaved=true;
+    const dur=Math.round((Date.now()-GS.startTime)/1000);
+    const flwEarned=GS.flw-GS.levelFlwStart;
+    const pct=GS.questions.length>0?Math.round((GS.correct/GS.qIdx||1)*100):0;
+    window.parent.postMessage({
+      type:'GAME_COMPLETE',
+      userId:GS.userId,
+      gameId:GS.gameId,
+      score:pct,
+      flwEarned:flwEarned,
+      durationSeconds:dur,
+      levelIdx:1,
+      isLevelComplete:false,
+      gameName:'OF חושב — טריוויה'
+    },'*');
+    setTimeout(()=>{
+      window.parent.postMessage({type:'CLOSE_GAME'},'*');
+    },50);
+  } else {
+    if(window.parent!==window) window.parent.postMessage({type:'CLOSE_GAME'},'*');
+  }
+}
+
+function show(screenId){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(screenId).classList.add('active');
+}
+
+// postMessage INIT
+window.addEventListener('message',e=>{
+  const d=e.data;
+  if(!d||d.type!=='INIT') return;
+  GS.userId=d.userId||null;
+  if(d.gameId) GS.gameId=d.gameId;
+  if(d.flwReward) GS.flwPerWin=Math.max(1,Math.floor(d.flwReward/5));
+  if(d.childName) GS.childName=d.childName;
+  if(d.assignedLevel) GS.assignedLevel=d.assignedLevel;
+  if(d.assignedRoundsTotal) GS.assignedRoundsTotal=d.assignedRoundsTotal;
+  GS.levelFlwStart=GS.flw;
+
+  if(d.age){
+    const a=+d.age;
+    const mapped=a>=13?13:a>=10?10:6;
+    selectAge(mapped);
+  }
+  if(d.topic&&TOPICS.find(t=>t.key===d.topic)){
+    selectTopic(d.topic);
+    if(GS.age&&GS.topic) startGame();
+  }
+
+  if(d.type==='ROUND_RESULT'){
+    if(typeof d.flwDelta==='number') GS.flw+=d.flwDelta;
+    GS.gameSaved=false;
+  }
+});
+</script>
+</body>
+</html>
