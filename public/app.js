@@ -14155,7 +14155,14 @@ window.addEventListener('message', async (event) => {
       }
     }
     // הצג popup: תמיד בסיום רגיל, וגם בסיום-שלב אם נגמרו הסיבובים
-    if(roundResult && (!data.isLevelComplete || roundResult.exhausted)) showGameCompleteMessage(data, roundResult);
+    if(roundResult && (!data.isLevelComplete || roundResult.exhausted)) {
+      const earnedForAnim = roundResult.flwEarned ?? data.flwEarned ?? 0;
+      if(earnedForAnim > 0) {
+        playCoinAnimation(earnedForAnim, () => showGameCompleteMessage(data, roundResult));
+      } else {
+        showGameCompleteMessage(data, roundResult);
+      }
+    }
   }
 
   if(data.type === 'CLOSE_GAME') {
@@ -14163,6 +14170,149 @@ window.addEventListener('message', async (event) => {
     if(typeof loadKidAcademy === 'function') loadKidAcademy();
   }
 });
+
+// ─── אנימציית מטבעות — רובוט + מטבעות עפים לארנק ──────────────
+(function _injectCoinStyles(){
+  if(document.getElementById('_coin-anim-css')) return;
+  const s = document.createElement('style');
+  s.id = '_coin-anim-css';
+  s.textContent = `
+    @keyframes _robotPop {
+      0%  { transform:scale(0) rotate(-15deg); opacity:0; }
+      55% { transform:scale(1.22) rotate(6deg); opacity:1; }
+      75% { transform:scale(0.92) rotate(-3deg); }
+      100%{ transform:scale(1) rotate(0deg); }
+    }
+    @keyframes _robotFloat {
+      0%,100%{ transform:translateY(0px); }
+      50%    { transform:translateY(-14px); }
+    }
+    @keyframes _overlayIn  { from{opacity:0} to{opacity:1} }
+    @keyframes _overlayOut { from{opacity:1} to{opacity:0} }
+    @keyframes _badgePop {
+      0%  { transform:scale(0) translateY(20px); opacity:0; }
+      70% { transform:scale(1.1) translateY(-4px); opacity:1; }
+      100%{ transform:scale(1) translateY(0); opacity:1; }
+    }
+    @keyframes _walletPing {
+      0%  { transform:scale(1); }
+      35% { transform:scale(1.5); }
+      65% { transform:scale(0.88); }
+      100%{ transform:scale(1); }
+    }
+  `;
+  document.head.appendChild(s);
+})();
+
+function _launchCoin(fromX, fromY, toX, toY) {
+  const coin = document.createElement('div');
+  coin.textContent = '🪙';
+  const sx = fromX + (Math.random()-0.5)*70;
+  const sy = fromY + (Math.random()-0.5)*50;
+  coin.style.cssText = `position:fixed;left:${sx}px;top:${sy}px;font-size:1.7rem;z-index:100001;pointer-events:none;will-change:transform,left,top,opacity;`;
+  document.body.appendChild(coin);
+  const dur = 520 + Math.random()*220;
+  const cpx = sx + (toX-sx)*0.35 + (Math.random()-0.5)*110;
+  const cpy = Math.min(sy,toY) - 90 - Math.random()*70;
+  const t0 = performance.now();
+  (function frame(now){
+    const t = Math.min((now-t0)/dur, 1);
+    const e = t<0.5 ? 2*t*t : -1+(4-2*t)*t;
+    const x = (1-e)*(1-e)*sx + 2*(1-e)*e*cpx + e*e*toX;
+    const y = (1-e)*(1-e)*sy + 2*(1-e)*e*cpy + e*e*toY;
+    coin.style.left = x+'px'; coin.style.top = y+'px';
+    coin.style.transform = `scale(${1-e*0.45}) rotate(${e*680}deg)`;
+    coin.style.opacity = e>0.78 ? `${1-(e-0.78)*4.5}` : '1';
+    if(t<1) requestAnimationFrame(frame); else coin.remove();
+  })(t0);
+}
+
+function playCoinAnimation(flwEarned, callback) {
+  if(!document.getElementById('_coin-anim-css')){
+    (function _injectCoinStyles(){
+      const s=document.createElement('style');s.id='_coin-anim-css';document.head.appendChild(s);
+    })();
+  }
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position:fixed;inset:0;z-index:99998;
+    background:rgba(8,4,24,0.86);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    animation:_overlayIn 0.3s ease;
+  `;
+
+  const robotWrap = document.createElement('div');
+  robotWrap.style.cssText = `
+    animation:_robotPop 0.55s cubic-bezier(0.34,1.56,0.64,1) forwards;
+    filter:drop-shadow(0 0 38px rgba(255,210,40,0.55));
+    margin-bottom:1.4rem;
+  `;
+  robotWrap.innerHTML = `<svg width="150" height="168" viewBox="0 0 150 168" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="71" y="1" width="8" height="20" rx="4" fill="#A78BFA"/>
+    <circle cx="75" cy="1" r="9" fill="#7C3AED"/>
+    <rect x="22" y="22" width="106" height="76" rx="20" fill="#1E1B4B"/>
+    <rect x="24" y="24" width="102" height="72" rx="18" fill="#2D2A72"/>
+    <rect x="34" y="38" width="32" height="26" rx="10" fill="#0EA5E9" opacity="0.9"/>
+    <rect x="84" y="38" width="32" height="26" rx="10" fill="#0EA5E9" opacity="0.9"/>
+    <circle cx="50" cy="51" r="10" fill="white"/>
+    <circle cx="100" cy="51" r="10" fill="white"/>
+    <circle cx="53" cy="49" r="5" fill="#0C4A6E"/>
+    <circle cx="103" cy="49" r="5" fill="#0C4A6E"/>
+    <circle cx="55" cy="47" r="2" fill="white"/>
+    <circle cx="105" cy="47" r="2" fill="white"/>
+    <path d="M46 80 Q75 96 104 80" stroke="#34D399" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+    <rect x="26" y="102" width="98" height="58" rx="16" fill="#1E1B4B"/>
+    <rect x="28" y="104" width="94" height="54" rx="14" fill="#2D2A72"/>
+    <rect x="44" y="114" width="62" height="32" rx="10" fill="#0F0B2E"/>
+    <circle cx="65" cy="130" r="9" fill="#FBBF24"/>
+    <circle cx="85" cy="130" r="9" fill="#34D399"/>
+    <rect x="1" y="106" width="22" height="40" rx="11" fill="#2D2A72"/>
+    <rect x="127" y="106" width="22" height="40" rx="11" fill="#2D2A72"/>
+    <circle cx="12" cy="150" r="11" fill="#1E1B4B"/>
+    <circle cx="138" cy="150" r="11" fill="#1E1B4B"/>
+    <rect x="36" y="160" width="28" height="8" rx="4" fill="#1E1B4B"/>
+    <rect x="86" y="160" width="28" height="8" rx="4" fill="#1E1B4B"/>
+  </svg>`;
+
+  const badge = document.createElement('div');
+  badge.style.cssText = `
+    background:linear-gradient(135deg,#FF6B2B,#FF4500);
+    color:white;border-radius:50px;padding:0.65rem 2.2rem;
+    font-size:1.45rem;font-weight:900;letter-spacing:0.5px;
+    box-shadow:0 10px 35px rgba(255,107,43,0.55);
+    animation:_badgePop 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.7s both;
+  `;
+  badge.textContent = `+${flwEarned} 🪙 FLW kid`;
+
+  overlay.appendChild(robotWrap);
+  overlay.appendChild(badge);
+  document.body.appendChild(overlay);
+
+  // float animation after pop
+  setTimeout(() => {
+    robotWrap.style.animation = '_robotFloat 2.2s ease-in-out infinite';
+  }, 560);
+
+  const coinCount = Math.min(Math.max(flwEarned, 5), 16);
+  const walletEl = document.getElementById('kid-flw-balance');
+
+  setTimeout(() => {
+    const rr = robotWrap.getBoundingClientRect();
+    const wr = walletEl?.getBoundingClientRect();
+    const tx = wr ? wr.left + wr.width/2  : window.innerWidth*0.88;
+    const ty = wr ? wr.top  + wr.height/2 : 36;
+    const fx = rr.left + rr.width/2;
+    const fy = rr.top  + rr.height/2;
+    for(let i=0; i<coinCount; i++) setTimeout(()=>_launchCoin(fx,fy,tx,ty), i*110);
+
+    setTimeout(() => {
+      if(walletEl){ walletEl.style.animation='_walletPing 0.45s ease'; setTimeout(()=>{walletEl.style.animation='';},500); }
+      overlay.style.animation = '_overlayOut 0.4s ease forwards';
+      setTimeout(()=>{ overlay.remove(); if(callback) callback(); }, 420);
+    }, coinCount*110 + 680);
+  }, 950);
+}
 
 function showGameCompleteMessage(gameData, roundResult) {
   const msg = document.createElement('div');
