@@ -218,7 +218,7 @@ body{font-family:'Heebo',sans-serif;background:#1A1A2E;min-height:100vh;color:wh
     <div class="hud-budget">💰 <span class="amt" id="hud-budget">₪500</span></div>
     <div class="hud-month" id="hud-month">📅 חודש 1/5</div>
     <div class="hud-happiness" id="hud-happiness">❤️❤️❤️</div>
-    <div class="hud-flw"><div class="coin-mini">FLW</div><span id="hud-flw">0</span></div>
+    <div class="hud-flw"><div class="coin-mini">FLW kid</div><span id="hud-flw">0</span></div>
   </div>
   <div class="budget-bar-wrap">
     <div class="budget-bar-bg"><div class="budget-bar-fill" id="budget-bar" style="width:50%;background:var(--green)"></div></div>
@@ -264,8 +264,8 @@ body{font-family:'Heebo',sans-serif;background:#1A1A2E;min-height:100vh;color:wh
   <div style="font-size:2rem;margin:0.2rem 0" id="result-stars"></div>
   <div class="result-stats" id="result-stats"></div>
   <div class="flw-box-dark">
-    <div style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin-bottom:0.3rem">סה"כ FLW שצברת</div>
-    <div class="flw-big"><div class="big-coin">FLW</div><span id="result-flw">0</span></div>
+    <div style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin-bottom:0.3rem">סה"כ FLW kid שצברת</div>
+    <div class="flw-big"><div class="big-coin">FLW kid</div><span id="result-flw">0</span></div>
   </div>
   <button class="btn-start ready" style="margin-bottom:0.6rem" onclick="playAgain()">🔄 שחק שוב</button>
   <button style="background:transparent;color:rgba(255,255,255,0.35);border:2px solid rgba(255,255,255,0.12);
@@ -1099,7 +1099,7 @@ function endGame(){
     <div class="stat-row"><span>✅ החלטות טובות</span><span class="stat-val">${GS.goodDecisions}/${GS.totalDecisions}</span></div>
     <div class="stat-row"><span>😊 אושר</span><span class="stat-val">${'❤️'.repeat(GS.happiness)}</span></div>
     <div class="stat-row"><span>🏦 חיסכון כולל</span><span class="stat-val">₪${GS.savings}</span></div>
-    <div class="stat-row"><span>🎁 בונוס FLW</span><span class="stat-val">+${bonusFlw}</span></div>`;
+    <div class="stat-row"><span>🎁 בונוס FLW kid</span><span class="stat-val">+${bonusFlw}</span></div>`;
   const duration=Math.round((Date.now()-GS.startTime)/1000);
   const score=Math.round(overall*100);
   const payload={type:'GAME_COMPLETE',userId:GS.userId,gameId:GS.gameId,score,flwEarned:GS.flw-GS.levelFlwStart,levelIdx:1,durationSeconds:duration,gameName:'העיר שלי — כלכלה חכמה'};

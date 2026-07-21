@@ -264,7 +264,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overfl
       <div class="hud-energy-label">⚡ אנרגיה</div>
       <div class="hud-energy-bar"><div class="hud-energy-fill" id="energy-bar" style="width:80%;background:#22C55E"></div></div>
     </div>
-    <div class="hud-flw"><div class="coin-mini">FLW</div><span id="hud-flw">0</span></div>
+    <div class="hud-flw"><div class="coin-mini">FLW kid</div><span id="hud-flw">0</span></div>
     <div class="hud-score">✅ <span id="hud-score">0</span></div>
   </div>
 
@@ -298,8 +298,8 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overfl
   <div style="font-size:1.8rem;margin:0.2rem 0" id="result-stars"></div>
   <div class="result-stats" id="result-stats"></div>
   <div class="flw-box">
-    <div style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin-bottom:0.3rem">FLW שצברת</div>
-    <div class="flw-big"><div class="big-coin">FLW</div><span id="result-flw">0</span></div>
+    <div style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin-bottom:0.3rem">FLW kid שצברת</div>
+    <div class="flw-big"><div class="big-coin">FLW kid</div><span id="result-flw">0</span></div>
   </div>
   <button class="btn-replay" onclick="playAgain()">🔄 שחק שוב</button>
   <button class="btn-home" onclick="goHome()">🏠 חזרה לאקדמיה</button>
@@ -965,7 +965,7 @@ function endGame(){
     <div class="stat-row"><span>✅ מיקום נכון</span><span class="stat-val">${GS.goodCount}/${total}</span></div>
     <div class="stat-row"><span>⚡ אנרגיה סופית</span><span class="stat-val">${GS.energy}%</span></div>
     <div class="stat-row"><span>🎯 ציון</span><span class="stat-val">${pct}%</span></div>
-    <div class="stat-row"><span>🎁 בונוס FLW</span><span class="stat-val">+${bonus}</span></div>`;
+    <div class="stat-row"><span>🎁 בונוס FLW kid</span><span class="stat-val">+${bonus}</span></div>`;
 
   const dur = Math.round((Date.now() - GS.startTime)/1000);
   const payload = {type:'GAME_COMPLETE', userId:GS.userId, gameId:GS.gameId,

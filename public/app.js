@@ -2748,7 +2748,7 @@ async function loadKidsOverview() {
             </div>
             <div class="min-w-0">
               <div class="font-bold text-slate-800 text-xs truncate">${k.nickname}</div>
-              <div class="text-[10px] text-yellow-600 font-bold">🪙 ${flw} FLW</div>
+              <div class="text-[10px] text-yellow-600 font-bold">🪙 ${flw} FLW kid</div>
             </div>
           </div>
           <!-- סטטוס אתגרים -->
@@ -2869,7 +2869,7 @@ function openKidDetailModal(kidId) {
         <div class="flex gap-3 text-[10px] text-slate-500">
           ${opened ? `<span>📅 נפתח: <b>${opened}</b></span>` : ''}
           ${closed  ? `<span>✅ בוצע: <b>${closed}</b></span>`  : '<span class="text-orange-500 font-bold">⏳ פתוח</span>'}
-          ${q.flw_reward ? `<span class="mr-auto text-yellow-600 font-bold">🪙 ${q.flw_reward} FLW</span>` : ''}
+          ${q.flw_reward ? `<span class="mr-auto text-yellow-600 font-bold">🪙 ${q.flw_reward} FLW kid</span>` : ''}
         </div>
       </div>`;
   };
@@ -2898,7 +2898,7 @@ function openKidDetailModal(kidId) {
           </div>
           <h2 class="text-xl font-bold text-slate-800">${k.nickname}</h2>
           <div class="flex gap-3">
-            <span class="bg-yellow-50 border border-yellow-100 text-yellow-700 font-bold text-sm px-3 py-1 rounded-full">🪙 ${flw} FLW</span>
+            <span class="bg-yellow-50 border border-yellow-100 text-yellow-700 font-bold text-sm px-3 py-1 rounded-full">🪙 ${flw} FLW kid</span>
             ${open > 0
               ? `<span class="bg-orange-50 border border-orange-100 text-orange-700 font-bold text-sm px-3 py-1 rounded-full">🎯 ${open} משימה פתוחה</span>`
               : `<span class="bg-green-50 border border-green-100 text-green-700 font-bold text-sm px-3 py-1 rounded-full">✅ הכל בוצע</span>`}
@@ -3040,14 +3040,14 @@ function showGameRulesPage() {
         </div>
       </div>
 
-      <!-- בלוק: מה זה FLW -->
+      <!-- בלוק: מה זה FLW kid -->
       <div style="background:white;border-radius:20px;padding:1.4rem;margin-bottom:1rem;box-shadow:0 2px 12px rgba(0,0,0,0.06)">
         <div style="display:flex;align-items:center;gap:0.7rem;margin-bottom:0.8rem">
           <div style="background:#FFF9E6;border-radius:12px;padding:0.5rem 0.8rem;font-size:1.6rem">🪙</div>
-          <div style="font-weight:800;font-size:1.05rem;color:#1A2E35">מה זה מטבעות FLW?</div>
+          <div style="font-weight:800;font-size:1.05rem;color:#1A2E35">מה זה מטבעות FLW kid?</div>
         </div>
         <p style="color:#4A6572;font-size:0.9rem;line-height:1.7;margin:0">
-          FLW הם המטבעות הדיגיטליים שהילד צובר כשהוא לומד ומצליח במשחקים.
+          FLW kid הם המטבעות הדיגיטליים שהילד צובר כשהוא לומד ומצליח במשחקים.
           ככל שהילד עונה נכון יותר — מרוויח יותר מטבעות.
           בהמשך אפשר להחליף אותם בפרסים שתגדיר.
         </p>
@@ -14138,8 +14138,8 @@ window.addEventListener('message', async (event) => {
         roundResult = await res.json();
       } catch(err) { console.error('use-round error:', err); }
     }
-    // fallback: no assignment or use-round failed → award directly
-    if((data.flwEarned || 0) > 0 && (!roundResult || !roundResult.success)) {
+    // fallback: רק כשאין הקצאה פעילה — משחק חופשי בלבד
+    if((data.flwEarned || 0) > 0 && !_activeAssignmentId) {
       const uid = data.userId || currentUser?.id;
       if(uid) {
         fetch('/api/kids/award-flw', { method:'POST', headers:{'Content-Type':'application/json'},
@@ -14154,7 +14154,8 @@ window.addEventListener('message', async (event) => {
         iframe.contentWindow.postMessage({ type:'ROUND_RESULT', ...roundResult }, '*');
       }
     }
-    if(roundResult && !data.isLevelComplete) showGameCompleteMessage(data, roundResult);
+    // הצג popup: תמיד בסיום רגיל, וגם בסיום-שלב אם נגמרו הסיבובים
+    if(roundResult && (!data.isLevelComplete || roundResult.exhausted)) showGameCompleteMessage(data, roundResult);
   }
 
   if(data.type === 'CLOSE_GAME') {
@@ -14194,7 +14195,7 @@ function showGameCompleteMessage(gameData, roundResult) {
     <div style="color:#7A9EA8;font-size:0.85rem;margin-bottom:1rem">${sub}</div>
     <div style="background:linear-gradient(135deg,#FF6B2B,#FF4500);color:white;
       border-radius:50px;padding:0.5rem 1.5rem;font-size:1.2rem;font-weight:900;
-      display:inline-block;margin-bottom:1.2rem;">+${flwEarned} 🪙 FLW</div>
+      display:inline-block;margin-bottom:1.2rem;">+${flwEarned} 🪙 FLW kid</div>
     <br>
     <button onclick="this.parentElement.remove();${exhausted ? 'closeGame()' : ''}"
       style="background:linear-gradient(135deg,#00A896,#007A6E);color:white;border:none;
@@ -14545,7 +14546,7 @@ async function openAssignGameModal() {
           </select>
         </div>
 
-        <label style="font-size:0.85rem;font-weight:700;color:#555;display:block;margin-bottom:0.4rem">FLW לסיבוב מוצלח</label>
+        <label style="font-size:0.85rem;font-weight:700;color:#555;display:block;margin-bottom:0.4rem">FLW kid לסיבוב מוצלח</label>
         <input type="number" id="assign-flw" value="10" min="1" max="50"
           style="width:100%;padding:0.8rem;border:2px solid #E0E0E0;
                  border-radius:12px;font-size:1rem;margin-bottom:1.5rem;">
@@ -14724,7 +14725,7 @@ function openQuestWizard() {
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:1.2rem">
           <div>
-            <label style="font-size:0.82rem;font-weight:700;color:#555;display:block;margin-bottom:0.3rem">FLW לזכייה</label>
+            <label style="font-size:0.82rem;font-weight:700;color:#555;display:block;margin-bottom:0.3rem">FLW kid לזכייה</label>
             <input type="number" id="qw-flw" value="${questData.flwReward||15}" min="1" max="100"
               style="width:100%;padding:0.8rem;border:2px solid #E0E0E0;border-radius:12px;font-size:1rem">
           </div>
@@ -14818,7 +14819,7 @@ function openQuestWizard() {
           <strong>סיכום:</strong><br>
           📝 ${questData.title}<br>
           ❓ ${questQuestions.length} שאלות<br>
-          🪙 ${questData.flwReward} FLW לזכייה<br>
+          🪙 ${questData.flwReward} FLW kid לזכייה<br>
           🎯 ציון מינימום: ${questData.passScore}%
         </div>
         <div id="qw-share-row" style="margin-bottom:1.2rem">
@@ -15270,7 +15271,7 @@ function openQuestPlayer(questId, title, questions, flwReward, passScore) {
         </div>
         <div style="background:white;border-radius:20px;padding:1.5rem 2rem;
                     margin-bottom:1.5rem;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
-          <div style="font-size:0.85rem;color:#999;margin-bottom:0.3rem">FLW שצברת</div>
+          <div style="font-size:0.85rem;color:#999;margin-bottom:0.3rem">FLW kid שצברת</div>
           <div style="font-size:3rem;font-weight:900;color:#F59E0B">+${result.flwEarned} 🪙</div>
         </div>
         ${!result.passed ? `<button onclick="window._questRetry&&window._questRetry()"
@@ -15427,7 +15428,7 @@ window.filterQLib = async function() {
           <div style="display:flex;gap:0.6rem;margin-top:0.3rem;font-size:0.7rem;color:#9CA3AF">
             <span>⭐ ${parseFloat(q.rating_avg||0).toFixed(1)}</span>
             <span>🎯 ${q.use_count||0}</span>
-            <span>🪙 ${q.flw_reward} FLW</span>
+            <span>🪙 ${q.flw_reward} FLW kid</span>
             ${q.is_featured?'<span style="color:#D97706;font-weight:700">מומלץ</span>':''}
           </div>
         </div>
@@ -15625,7 +15626,7 @@ function renderWeeklyReport(report) {
         </div>
         <div style="text-align:center">
           <div style="font-family:'Fredoka One',sans-serif;font-size:1.8rem;color:#FFD600;line-height:1">${r.flwWeek}</div>
-          <div style="font-size:0.65rem;color:rgba(255,255,255,0.6)">FLW השבוע</div>
+          <div style="font-size:0.65rem;color:rgba(255,255,255,0.6)">FLW kid השבוע</div>
           <div style="font-size:0.72rem;font-weight:700;color:${deltaColor}">${delta>0?'+'+delta:delta} vs שבוע קודם</div>
         </div>
       </div>

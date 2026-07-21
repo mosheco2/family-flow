@@ -22791,6 +22791,7 @@ app.post('/api/kids/renew-assignment/:id', async (req, res) => {
       UPDATE game_assignments SET
         rounds_used = 0,
         rounds_total = COALESCE($1, rounds_total),
+        level_progress = '{}',
         status = 'active',
         assigned_at = NOW()
       WHERE id = $2

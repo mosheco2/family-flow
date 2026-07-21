@@ -214,14 +214,14 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;color:
   <div class="hdr-title">🔢 מתמטיקה</div>
   <div style="display:flex;align-items:center;gap:0.6rem">
     <div class="prog-wrap"><div class="prog-fill" id="main-prog" style="width:0%"></div></div>
-    <div class="flw-pill"><div class="coin-sm">FLW</div><span id="flw-count">0</span></div>
+    <div class="flw-pill"><div class="coin-sm">FLW kid</div><span id="flw-count">0</span></div>
   </div>
 </div>
 
 <!-- INTRO -->
 <div class="scr on" id="scr-intro">
   <img src="/games/assets/images/ROBOTAI.png" alt="רובוט" class="intro-robot" onerror="this.style.display='none'">
-  <div class="bubble" id="intro-bubble">שלום! אני OF! 🤖<br>היום נלמד מתמטיקה<br>ונרוויח מטבעות FLW! 🪙✨</div>
+  <div class="bubble" id="intro-bubble">שלום! אני OF! 🤖<br>היום נלמד מתמטיקה<br>ונרוויח מטבעות FLW kid! 🪙✨</div>
   <div class="intro-title">מתמטיקה עם OF!</div>
   <div style="color:var(--muted);font-size:0.88rem;margin-bottom:1.5rem;text-align:center">
     3 רמות מתגברות · זרוק לדלי הנכון!
@@ -234,7 +234,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;color:
   <div class="map-title">בחר רמה 🗺️</div>
   <div class="level-map" id="level-map"></div>
   <div style="font-size:0.78rem;color:var(--muted);text-align:center;margin-top:0.5rem;padding-bottom:1rem">
-    🪙 כל תשובה נכונה = 2 FLW · מבחן = 10 FLW בונוס
+    🪙 כל תשובה נכונה = 2 FLW kid · מבחן = 10 FLW kid בונוס
   </div>
 </div>
 
@@ -298,9 +298,9 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;color:
     <div class="test-res-sub" id="test-res-sub"></div>
   </div>
   <div class="flw-box" style="max-width:230px;padding:0.9rem">
-    <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.3rem">FLW שצברת</div>
+    <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.3rem">FLW kid שצברת</div>
     <div class="flw-big" style="font-size:1.8rem">
-      <div class="big-coin" style="width:34px;height:34px;font-size:0.62rem">FLW</div>
+      <div class="big-coin" style="width:34px;height:34px;font-size:0.62rem">FLW kid</div>
       <span id="test-flw-earned">0</span>
     </div>
   </div>
@@ -314,8 +314,8 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;color:
   <div style="color:var(--muted);font-size:0.88rem;margin-bottom:0.5rem" id="final-sub"></div>
   <div style="font-size:2.5rem;margin:0.3rem 0" id="final-stars"></div>
   <div class="flw-box">
-    <div style="font-size:0.82rem;color:var(--muted);margin-bottom:0.3rem">סה"כ FLW שצברת</div>
-    <div class="flw-big"><div class="big-coin">FLW</div><span id="final-flw">0</span></div>
+    <div style="font-size:0.82rem;color:var(--muted);margin-bottom:0.3rem">סה"כ FLW kid שצברת</div>
+    <div class="flw-big"><div class="big-coin">FLW kid</div><span id="final-flw">0</span></div>
   </div>
   <button class="btn-orange" style="width:100%;max-width:280px;margin-bottom:0.8rem" onclick="playAgain()">🔄 שחק שוב</button>
   <button class="btn-ghost" style="width:100%;max-width:280px" onclick="goHome()">🏠 חזרה לאקדמיה</button>
@@ -508,7 +508,7 @@ window.addEventListener('message',e=>{
 });
 function updateChildName(){
   const b=document.getElementById('intro-bubble');
-  if(b&&childName) b.innerHTML=`שלום <strong>${childName}</strong>! אני OF! 🤖<br>היום נלמד מתמטיקה<br>ונרוויח מטבעות FLW! 🪙✨`;
+  if(b&&childName) b.innerHTML=`שלום <strong>${childName}</strong>! אני OF! 🤖<br>היום נלמד מתמטיקה<br>ונרוויח מטבעות FLW kid! 🪙✨`;
 }
 
 // ============================================================
@@ -783,7 +783,13 @@ function showTestResult(){
   document.getElementById('test-res-sub').textContent=`${GS.qScore} מתוך ${total} נכון (${pct}%) — נדרש 80%`;
   const advanceThreshold = GS.assignedLevel>0 ? 100 : 80;
   const canAdvance = pct >= advanceThreshold;
-  if(canAdvance){addFLW(10);GS.testFLW+=10;GS.testsDone[GS.testNum-1]=true;if(GS.testNum<4)GS.levelsUnlocked[GS.testNum]=true;}
+  if(canAdvance){
+    addFLW(10);GS.testFLW+=10;GS.testsDone[GS.testNum-1]=true;if(GS.testNum<4)GS.levelsUnlocked[GS.testNum]=true;
+    if(GS.assignedLevel>0&&window.parent!==window){
+      const dur=Math.round((Date.now()-GS.startTime)/1000);
+      window.parent.postMessage({type:'GAME_COMPLETE',userId:GS.userId,gameId:GS.gameId,score:pct,flwEarned:10,levelIdx:GS.testNum,isLevelComplete:true,durationSeconds:dur,gameName:'מתמטיקה — ספירה עד כפל'},'*');
+    }
+  }
   document.getElementById('test-res-sub').textContent=`${GS.qScore} מתוך ${total} נכון (${pct}%) — נדרש ${advanceThreshold}%`;
   document.getElementById('test-flw-earned').textContent=GS.testFLW;
   const btn=document.getElementById('test-continue-btn');
@@ -805,11 +811,11 @@ function endGame(){
   else if(pct>=70){title='כל הכבוד! 🎉';stars='⭐⭐';}
   else{title='ניסיון טוב! 💪';stars='⭐';}
   document.getElementById('final-title').textContent=title;
-  document.getElementById('final-sub').textContent=`השלמת את כל רמות המתמטיקה! +20 FLW בונוס!`;
+  document.getElementById('final-sub').textContent=`השלמת את כל רמות המתמטיקה! +20 FLW kid בונוס!`;
   document.getElementById('final-stars').textContent=stars;
   document.getElementById('final-flw').textContent=GS.flw;
   const duration=Math.round((Date.now()-GS.startTime)/1000);
-  const payload={type:'GAME_COMPLETE',userId:GS.userId,gameId:GS.gameId,score:pct,flwEarned:GS.flw,durationSeconds:duration,gameName:'מתמטיקה — ספירה עד כפל'};
+  const payload={type:'GAME_COMPLETE',userId:GS.userId,gameId:GS.gameId,score:pct,flwEarned:GS.flw-GS.levelFlwStart,durationSeconds:duration,gameName:'מתמטיקה — ספירה עד כפל'};
   GS.gameSaved=true;
   if(window.parent!==window)window.parent.postMessage(payload,'*');
   showScreen('scr-result');
