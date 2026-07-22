@@ -180,7 +180,7 @@ const TOPICS = [
 
 // Question bank loaded from external JSON
 let QB = {};
-fetch('/games/trivia-questions.json').then(r=>r.json()).then(data=>{ QB=data; }).catch(()=>console.warn('QB load failed'));
+fetch('/games/trivia-questions.json?v=' + Date.now()).then(r=>r.json()).then(data=>{ QB=data; }).catch(()=>console.warn('QB load failed'));
 
 
 const GS = {
