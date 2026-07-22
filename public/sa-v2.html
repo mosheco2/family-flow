@@ -3777,5 +3777,57 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#0f172a;font-size:1
         </div>
     </div>
 
+<!-- ═══ Modal: פתיחת קריאה יזומה ═══ -->
+<div id="sa-new-ticket-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100000] flex items-center justify-center p-4 fade-in">
+    <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative border border-slate-200">
+        <button onclick="document.getElementById('sa-new-ticket-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <h3 class="text-lg font-black text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-headset text-indigo-500"></i> פתיחת קריאת שירות יזומה</h3>
+        <div class="space-y-4">
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <label class="text-xs font-bold text-slate-600 block mb-1">🔍 חיפוש לקוח לשיוך (שם משפחה / מייל / קוד)</label>
+                <div class="relative">
+                    <input type="text" id="new-ticket-group-search" oninput="searchNewTicketGroup(this.value)" class="modern-input py-2 px-3 text-xs bg-white w-full" placeholder="הקלד שם, מייל או מספר לקוח...">
+                    <button type="button" onclick="clearNewTicketGroup()" class="absolute left-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-400 text-xs"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div id="new-ticket-group-results" class="hidden mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-40 overflow-y-auto"></div>
+                <div id="new-ticket-group-selected" class="hidden mt-1.5 text-[10px] text-emerald-600 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5"><i class="fa-solid fa-check-circle"></i> <span id="new-ticket-group-label"></span></div>
+                <input type="hidden" id="new-ticket-group">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">נושא הקריאה</label>
+                <input type="text" id="new-ticket-subject" class="modern-input py-2 px-3 text-sm bg-slate-50" placeholder="כותרת קצרה לתקלה/בקשה">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">תיאור ופרטים</label>
+                <textarea id="new-ticket-desc" class="modern-input py-2 px-3 text-sm h-24 resize-none bg-slate-50" placeholder="פרט את הבעיה ככל הניתן..."></textarea>
+            </div>
+            <button onclick="submitNewTicket()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition shadow-md mt-2">פתח קריאה במערכת</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ Modal: פרופיל משתמש ═══ -->
+<div id="sa-profile-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100000] flex items-center justify-center p-4 fade-in">
+    <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative border border-slate-100">
+        <button onclick="document.getElementById('sa-profile-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <div class="flex flex-col items-center text-center border-b border-slate-100 pb-5 mb-4">
+            <div class="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-3xl shadow-md mb-3 border-4 border-white"><i class="fa-solid fa-user-astronaut"></i></div>
+            <h3 id="prof-user-name" class="text-lg font-black text-slate-800 leading-tight">מנהל מערכת</h3>
+            <span id="prof-user-role" class="text-[10px] bg-indigo-50 text-indigo-600 font-bold px-2.5 py-0.5 rounded-full mt-1.5 border border-indigo-100 uppercase tracking-wider">Super Admin</span>
+        </div>
+        <div class="space-y-3.5 my-4 text-right">
+            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                <span class="text-[10px] text-slate-400 font-bold block mb-0.5">כתובת אימייל</span>
+                <span id="prof-user-email" class="text-xs font-bold text-slate-700 font-mono">---</span>
+            </div>
+            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                <span class="text-[10px] text-slate-400 font-bold block mb-0.5">הרשאות גישה גלובליות</span>
+                <span id="prof-user-perms" class="text-xs font-bold text-emerald-600 flex items-center gap-1"><i class="fa-solid fa-circle-check text-[10px]"></i> גישת על מלאה (Master API)</span>
+            </div>
+        </div>
+        <button onclick="document.getElementById('sa-profile-modal').classList.add('hidden'); logoutSA();" class="w-full mt-4 bg-red-50 text-red-600 hover:bg-red-100 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2"><i class="fa-solid fa-sign-out-alt"></i> התנתק מהחשבון</button>
+    </div>
+</div>
+
 </body>
 </html>

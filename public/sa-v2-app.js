@@ -209,14 +209,27 @@ window.updateSADashboard = () => window.loadDashboardV2();
   /* ticket modal — loads data if saTicketsCache is empty */
   const _origTicket = window.openSATicketModal;
   window.openSATicketModal = async function(id) {
-    if (_origTicket) {
+    if (!_origTicket) { console.warn('[v2] openSATicketModal not found on window'); return; }
+    try {
       _origTicket(id);
+    } catch(e) {
+      console.error('[v2] openSATicketModal threw:', e);
+      /* if modal still hidden, try loading data first then retry */
       const modal = document.getElementById('sa-ticket-modal');
       if (modal && modal.classList.contains('hidden')) {
         if (typeof window.loadSATickets === 'function') {
           await window.loadSATickets();
-          _origTicket(id);
+          try { _origTicket(id); } catch(e2) { console.error('[v2] openSATicketModal retry threw:', e2); }
         }
+      }
+      return;
+    }
+    /* first call succeeded — check if modal is still hidden (cache was empty) */
+    const modal = document.getElementById('sa-ticket-modal');
+    if (modal && modal.classList.contains('hidden')) {
+      if (typeof window.loadSATickets === 'function') {
+        await window.loadSATickets();
+        try { _origTicket(id); } catch(e) { console.error('[v2] openSATicketModal retry threw:', e); }
       }
     }
   };
@@ -224,14 +237,25 @@ window.updateSADashboard = () => window.loadDashboardV2();
   /* group edit modal — loads data if saAllGroups is empty */
   const _origGroup = window.openSAEditGroupModal;
   window.openSAEditGroupModal = async function(id, name, email) {
-    if (_origGroup) {
+    if (!_origGroup) { console.warn('[v2] openSAEditGroupModal not found on window'); return; }
+    try {
       _origGroup(id, name, email);
+    } catch(e) {
+      console.error('[v2] openSAEditGroupModal threw:', e);
       const modal = document.getElementById('sa-edit-group-modal');
       if (modal && modal.classList.contains('hidden')) {
         if (typeof window.loadSAData === 'function') {
           await window.loadSAData();
-          _origGroup(id, name, email);
+          try { _origGroup(id, name, email); } catch(e2) { console.error('[v2] openSAEditGroupModal retry threw:', e2); }
         }
+      }
+      return;
+    }
+    const modal = document.getElementById('sa-edit-group-modal');
+    if (modal && modal.classList.contains('hidden')) {
+      if (typeof window.loadSAData === 'function') {
+        await window.loadSAData();
+        try { _origGroup(id, name, email); } catch(e) { console.error('[v2] openSAEditGroupModal retry threw:', e); }
       }
     }
   };
