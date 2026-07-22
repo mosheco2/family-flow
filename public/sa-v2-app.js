@@ -237,6 +237,22 @@ window.updateSADashboard = () => window.loadDashboardV2();
   };
 })();
 
+/* ─── DIAGNOSTICS ─────────────────────────────────────────────── */
+
+window._v2DiagSupport = function() {
+  const toast = (msg, type) => {
+    if (typeof showSAToast === 'function') showSAToast(type || 'info', msg);
+    else if (typeof showToast === 'function') showToast(type || 'info', msg);
+    else alert(msg);
+  };
+  const ticketsLen = (typeof saTicketsCache !== 'undefined' ? saTicketsCache : window.saTicketsCache || []).length;
+  const modal = document.getElementById('sa-ticket-modal');
+  const tbody = document.getElementById('sa-tickets-table-body');
+  const rowCount = tbody ? tbody.querySelectorAll('tr').length : -1;
+  const saTokenOk = !!(typeof saToken !== 'undefined' ? saToken : localStorage.getItem('ofl_sa_token'));
+  toast(`טיקטים בקאש: ${ticketsLen} | שורות בטבלה: ${rowCount} | טוקן: ${saTokenOk ? 'יש' : 'אין'} | מודל: ${modal ? 'קיים' : 'חסר'}`);
+};
+
 /* ─── GLOBAL SEARCH ───────────────────────────────────────────── */
 
 const SEARCH_MAP = [
