@@ -5043,7 +5043,9 @@ app.get('/api/data/:userId', async (req, res) => {
             pool.query('SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id = $1 OR g.target_user_id = $1', [user.id]),
             pool.query(`SELECT id, title, type, age_group, threshold, reward, created_by FROM quiz_bundles WHERE created_by = $1 OR created_by = 'SYSTEM' ORDER BY created_at DESC LIMIT 50`, [String(user.group_id)]),
             pool.query(`SELECT ua.*, qb.title, qb.type, qb.age_group, qb.threshold, qb.text_content, qb.reward as default_reward, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id LEFT JOIN users u ON ua.user_id = u.id WHERE ua.user_id = $1 OR $2 = 'ADMIN'`, [user.id, user.role]),
-            pool.query(`SELECT ga.*, g.title, g.subject, g.thumbnail_emoji, g.file_path, g.difficulty, (ga.rounds_total - COALESCE(ga.rounds_used,0)) as rounds_left FROM game_assignments ga JOIN games_catalog g ON g.id = ga.game_id WHERE ga.child_user_id = $1 AND ga.status = 'active' AND (ga.expires_at IS NULL OR ga.expires_at > NOW()) ORDER BY ga.assigned_at DESC`, [user.id])
+            user.role === 'ADMIN'
+              ? pool.query(`SELECT ga.*, g.title, g.subject, g.thumbnail_emoji, g.file_path, g.difficulty, (ga.rounds_total - COALESCE(ga.rounds_used,0)) as rounds_left, u.nickname as child_name FROM game_assignments ga JOIN games_catalog g ON g.id = ga.game_id LEFT JOIN users u ON u.id = ga.child_user_id WHERE ga.family_group_id = $1 AND ga.status = 'active' AND (ga.expires_at IS NULL OR ga.expires_at > NOW()) ORDER BY ga.assigned_at DESC`, [group.id])
+              : pool.query(`SELECT ga.*, g.title, g.subject, g.thumbnail_emoji, g.file_path, g.difficulty, (ga.rounds_total - COALESCE(ga.rounds_used,0)) as rounds_left FROM game_assignments ga JOIN games_catalog g ON g.id = ga.game_id WHERE ga.child_user_id = $1 AND ga.status = 'active' AND (ga.expires_at IS NULL OR ga.expires_at > NOW()) ORDER BY ga.assigned_at DESC`, [user.id])
         ]);
         group.admin_total_balance = adminBalRes.rows[0].total;
 

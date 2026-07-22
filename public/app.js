@@ -3274,7 +3274,32 @@ function renderAdminAcademy() {
             html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center hover:border-purple-100 transition"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div><div><h4 class="font-bold text-slate-700 text-sm">${safeStr(b.title)}</h4><p class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${cDate} • גיל ${b.age_group} • פרס: ₪${b.reward}</p></div></div><button onclick="previewBundleAsParent(${b.id})" class="bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-purple-100 transition">▶ נסה</button></div>`;
         }); html += '</div>';
     }
-    html += '<h4 class="font-bold text-slate-700 mb-3 border-t border-slate-200 pt-6">🎯 הקצאות אחרונות</h4>';
+    // משחקים מוקצים לילדים
+    const gameAssignments = window.kidGameAssignments || [];
+    html += '<h4 class="font-bold text-slate-700 mb-3 border-t border-slate-200 pt-6">🎮 משחקים מוקצים לילדים</h4>';
+    if (gameAssignments.length === 0) {
+        html += '<p class="text-sm text-slate-400 text-center bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200 mb-6">לא הוקצו משחקים עדיין.</p>';
+    } else {
+        html += '<div class="space-y-2 mb-6">';
+        gameAssignments.forEach(a => {
+            const aDate = a.assigned_at ? new Date(a.assigned_at).toLocaleDateString('he-IL') : '';
+            const roundsLeft = a.rounds_left ?? (a.rounds_total - (a.rounds_used || 0));
+            html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center gap-2">
+              <div class="flex items-center gap-2 flex-1 min-w-0">
+                <span style="font-size:1.6rem">${a.thumbnail_emoji || '🎮'}</span>
+                <div class="min-w-0">
+                  <p class="font-bold text-slate-700 text-sm truncate">${safeStr(a.title)}</p>
+                  <p class="text-[10px] text-slate-500 mt-0.5">👤 <span class="font-bold text-slate-700">${safeStr(a.child_name||'')}</span> • 📅 ${aDate} • ${roundsLeft}/${a.rounds_total} סיבובים</p>
+                </div>
+              </div>
+              <span class="text-[10px] font-bold px-2 py-1 rounded-lg ${roundsLeft > 0 ? 'text-green-600 bg-green-50' : 'text-slate-400 bg-slate-50'}">${roundsLeft > 0 ? '🟢 פעיל' : 'נגמר'}</span>
+            </div>`;
+        });
+        html += '</div>';
+    }
+
+    // מבחנים מוקצים
+    html += '<h4 class="font-bold text-slate-700 mb-3 border-t border-slate-200 pt-4">🎯 מבחנים מוקצים</h4>';
     if (!bundlesCache || bundlesCache.length === 0) { html += '<p class="text-sm text-slate-400 text-center bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200">לא הוקצו מבחנים לאף ילד עדיין.</p>'; } else {
         html += '<div class="space-y-2 mb-4">';
         bundlesCache.forEach(b => {
