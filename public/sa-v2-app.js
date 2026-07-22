@@ -208,8 +208,10 @@ window.updateSADashboard = () => window.loadDashboardV2();
 (function patchModals() {
   /* ticket modal — loads data if saTicketsCache is empty */
   const _origTicket = window.openSATicketModal;
+  console.log('[v2] patchModals: _origTicket captured =', typeof _origTicket);
   window.openSATicketModal = async function(id) {
-    if (!_origTicket) { console.warn('[v2] openSATicketModal not found on window'); return; }
+    console.log('[v2] openSATicketModal wrapper called, id=', id);
+    if (!_origTicket) { console.warn('[v2] openSATicketModal not found on window'); alert('[v2] openSATicketModal not found!'); return; }
     try {
       _origTicket(id);
     } catch(e) {
@@ -236,8 +238,10 @@ window.updateSADashboard = () => window.loadDashboardV2();
 
   /* group edit modal — loads data if saAllGroups is empty */
   const _origGroup = window.openSAEditGroupModal;
+  console.log('[v2] patchModals: _origGroup captured =', typeof _origGroup);
   window.openSAEditGroupModal = async function(id, name, email) {
-    if (!_origGroup) { console.warn('[v2] openSAEditGroupModal not found on window'); return; }
+    console.log('[v2] openSAEditGroupModal wrapper called, id=', id, '_origGroup=', typeof _origGroup);
+    if (!_origGroup) { console.warn('[v2] openSAEditGroupModal not found on window'); alert('[v2] openSAEditGroupModal not found!'); return; }
     try {
       _origGroup(id, name, email);
     } catch(e) {
