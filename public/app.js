@@ -1879,7 +1879,7 @@ function openAIModal() {
   getEl('ai-modal').classList.remove('hidden');
   const sel = getEl('ai-child-select');
   if(sel && membersCache) {
-    const children = membersCache.filter(m => m.role === 'CHILD');
+    const children = membersCache.filter(m => m.role !== 'ADMIN');
     sel.innerHTML = '<option value="" disabled selected>בחר ילד...</option>' +
       children.map(c => `<option value="${c.id}">${c.nickname || c.name || c.id}</option>`).join('');
   }
@@ -1908,7 +1908,7 @@ async function generateAIQuiz() {
                 else showToast('error', assignData.error || 'שגיאה בהקצאה');
                 fetchData();
             } else showToast('error', data.error || 'שגיאה ביצירת המבחן');
-        } catch(e) { showToast('error', 'תקלה בתקשורת עם השרת'); } finally { btn.disabled = false; btn.innerText = 'צור אתגר'; }
+        } catch(e) { console.error('generateAIQuiz error:', e); showToast('error', e?.message || 'תקלה בתקשורת עם השרת'); } finally { btn.disabled = false; btn.innerText = 'צור אתגר'; }
     });
 }
 
@@ -15051,7 +15051,7 @@ function openQuestWizard() {
         .then(r => r.json())
         .then(data => {
           const allMembers = Array.isArray(data) ? data : (data.members || []);
-          const children = allMembers.filter(m => m.role === 'CHILD');
+          const children = allMembers.filter(m => m.role !== 'ADMIN');
           const el = document.getElementById('qw-children-list');
           if(!el) return;
           el.innerHTML = children.length === 0
