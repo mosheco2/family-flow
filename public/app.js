@@ -1781,7 +1781,12 @@ async function fetchData() {
         window.communityUpdatesCache = Array.isArray(data.community_updates) ? data.community_updates : [];
         window.communityBusinessesCache = Array.isArray(data.community_businesses) ? data.community_businesses : [];
 
-        try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); if(currentUser.role !== 'CHILD') renderLibrary(); renderKidGames(); } } catch(e) {}
+        try {
+            const libSec = getEl('academy-library-section');
+            if (libSec) libSec.style.display = currentUser.role === 'CHILD' ? 'none' : '';
+            if (currentUser.role === 'ADMIN') renderAdminAcademy();
+            else { renderMyAssignments(bundlesCache); if(currentUser.role !== 'CHILD') renderLibrary(); renderKidGames(); }
+        } catch(e) {}
         try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
         try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
         try { if (data.group) renderSmBanner(data.group); } catch(e) {}
@@ -3292,7 +3297,10 @@ function renderAdminAcademy() {
                   <p class="text-[10px] text-slate-500 mt-0.5">👤 <span class="font-bold text-slate-700">${safeStr(a.child_name||'')}</span> • 📅 ${aDate} • ${roundsLeft}/${a.rounds_total} סיבובים</p>
                 </div>
               </div>
-              <span class="text-[10px] font-bold px-2 py-1 rounded-lg ${roundsLeft > 0 ? 'text-green-600 bg-green-50' : 'text-slate-400 bg-slate-50'}">${roundsLeft > 0 ? '🟢 פעיל' : 'נגמר'}</span>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button onclick="previewGameAsParent('${a.file_path}',${a.game_id},'${safeStr(a.title).replace(/'/g,"\\'")}');" class="bg-teal-50 text-teal-600 px-2 py-1 rounded-lg text-[10px] font-bold hover:bg-teal-100 transition">▶ נסה</button>
+                <span class="text-[10px] font-bold px-2 py-1 rounded-lg ${roundsLeft > 0 ? 'text-green-600 bg-green-50' : 'text-slate-400 bg-slate-50'}">${roundsLeft > 0 ? '🟢 פעיל' : 'נגמר'}</span>
+              </div>
             </div>`;
         });
         html += '</div>';
@@ -14154,9 +14162,16 @@ window._openQuoteFromActivity = async function(quoteId) {
 
 let _activeAssignmentId = null;
 
+async function previewGameAsParent(gameFilePath, gameId, gameTitle) {
+  window._parentGamePreview = true;
+  await openGame(null, gameFilePath, `👁️ ${currentUser?.nickname}`, 0, gameId, 1, null, 0);
+  const header = document.querySelector('#game-overlay span');
+  if (header) header.innerText = `👁️ תצוגת הורה: ${gameTitle || ''}`;
+}
+
 async function openGame(assignmentId, gameFilePath, childName, flwPerRound, gameId, startLevel, financeAge, roundsTotal) {
-  // בדיקת סיבוב חופשי יומי — רק כשאין הקצאה
-  if (!assignmentId && currentUser?.id && gameId) {
+  // בדיקת סיבוב חופשי יומי — רק כשאין הקצאה ולא תצוגת הורה
+  if (!assignmentId && !window._parentGamePreview && currentUser?.id && gameId) {
     try {
       const r = await fetch(`/api/kids/free-play-check?childUserId=${currentUser.id}&gameId=${gameId}`);
       const d = await r.json();
@@ -14226,6 +14241,7 @@ function closeGame() {
   if(overlay) overlay.remove();
   document.body.style.overflow = '';
   _activeAssignmentId = null;
+  window._parentGamePreview = false;
 }
 
 window.addEventListener('message', async (event) => {
@@ -14250,8 +14266,8 @@ window.addEventListener('message', async (event) => {
         roundResult = await res.json();
       } catch(err) { console.error('use-round error:', err); }
     }
-    // fallback: רק כשאין הקצאה פעילה — משחק חופשי בלבד
-    if((data.flwEarned || 0) > 0 && !_activeAssignmentId) {
+    // fallback: רק כשאין הקצאה פעילה ולא תצוגת הורה — משחק חופשי בלבד
+    if((data.flwEarned || 0) > 0 && !_activeAssignmentId && !window._parentGamePreview) {
       const uid = data.userId || currentUser?.id;
       if(uid) {
         fetch('/api/kids/award-flw', { method:'POST', headers:{'Content-Type':'application/json'},
@@ -15295,18 +15311,28 @@ function openQuestWizard() {
 // KID ACADEMY — רינדור משחקים מוקצים לילד (מ-cache)
 // ============================================================
 
-function renderKidGames() {
+function renderKidGames(assignments) {
   if (!currentUser || currentUser.role !== 'CHILD') return;
   const container = document.getElementById('kid-academy-content');
   if (!container) return;
 
-  const assignments = window.kidGameAssignments || [];
-  if (assignments.length === 0) { container.innerHTML = ''; return; }
+  const list = assignments || window.kidGameAssignments || [];
+  if (list.length === 0) {
+    // נסה לטעון מה-API אם הcache ריק
+    if (!assignments) {
+      fetch(`/api/kids/assignments/${currentUser.id}`)
+        .then(r => r.json())
+        .then(d => { if (d.assignments?.length) renderKidGames(d.assignments); })
+        .catch(() => {});
+    }
+    container.innerHTML = '';
+    return;
+  }
 
   let html = `<div style="font-weight:700;font-size:1rem;margin-bottom:0.7rem">🎮 המשחקים שלי</div>`;
-  assignments.forEach(a => {
+  list.forEach(a => {
     const assignDate = a.assigned_at ? `<span style="font-size:0.75rem;color:#7C3AED;opacity:0.7">📅 ${new Date(a.assigned_at).toLocaleDateString('he-IL')}</span>` : '';
-    const roundsLeft = a.rounds_left ?? (a.rounds_total - (a.rounds_used || 0));
+    const roundsLeft = a.rounds_left != null ? a.rounds_left : (a.rounds_total - (a.rounds_used || 0));
     html += `
       <div style="background:linear-gradient(135deg,#EDE9FE,#DDD6FE);border:2px solid #7C3AED;border-radius:16px;padding:1rem;margin-bottom:0.7rem;display:flex;align-items:center;gap:0.8rem;">
         <span style="font-size:2.5rem">${a.thumbnail_emoji || '🎮'}</span>
