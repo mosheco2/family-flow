@@ -215,23 +215,21 @@ window.updateSADashboard = () => window.loadDashboardV2();
     try {
       _origTicket(id);
     } catch(e) {
-      console.error('[v2] openSATicketModal threw:', e);
-      /* if modal still hidden, try loading data first then retry */
-      const modal = document.getElementById('sa-ticket-modal');
-      if (modal && modal.classList.contains('hidden')) {
-        if (typeof window.loadSATickets === 'function') {
-          await window.loadSATickets();
-          try { _origTicket(id); } catch(e2) { console.error('[v2] openSATicketModal retry threw:', e2); }
-        }
-      }
+      console.error('[v2] openSATicketModal threw:', e.message, e.stack);
+      alert('[v2] ERROR: ' + e.message);
       return;
     }
-    /* first call succeeded — check if modal is still hidden (cache was empty) */
+    /* check modal state after call */
     const modal = document.getElementById('sa-ticket-modal');
-    if (modal && modal.classList.contains('hidden')) {
+    const isHidden = modal ? modal.classList.contains('hidden') : null;
+    console.log('[v2] after _origTicket: modal hidden=', isHidden, 'loadSATickets type=', typeof window.loadSATickets);
+    if (isHidden) {
+      /* cache was empty — load and retry */
       if (typeof window.loadSATickets === 'function') {
         await window.loadSATickets();
-        try { _origTicket(id); } catch(e) { console.error('[v2] openSATicketModal retry threw:', e); }
+        try { _origTicket(id); } catch(e2) { console.error('[v2] retry threw:', e2); }
+      } else {
+        alert('[v2] loadSATickets not on window!');
       }
     }
   };
