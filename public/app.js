@@ -1838,6 +1838,43 @@ function showFamilAIModal(title, text) {
     else { getEl('familai-advisor-loading').classList.remove('hidden'); getEl('familai-advisor-content').classList.add('hidden'); }
 }
 
+function openContentPicker() {
+  const existing = document.getElementById('content-picker-modal');
+  if (existing) existing.remove();
+  const cards = [
+    { icon:'✨', title:'חידון AI', sub:'familAI בונה שאלות לפי נושא שתבחר', color:'#7C3AED', bg:'linear-gradient(135deg,#EDE9FE,#DDD6FE)', border:'#7C3AED', fn:'openAIModal()' },
+    { icon:'✏️', title:'קווסט ידני', sub:'כתוב שאלות ותשובות בעצמך', color:'#92400E', bg:'linear-gradient(135deg,#FEF3C7,#FDE68A)', border:'#F59E0B', fn:'openQuestWizard()' },
+    { icon:'🎮', title:'הקצה משחק', sub:'בחר משחק וקבע סיבובים לילד', color:'#065F46', bg:'linear-gradient(135deg,#D1FAE5,#A7F3D0)', border:'#10B981', fn:'openAssignGameModal()' },
+  ];
+  const modal = document.createElement('div');
+  modal.id = 'content-picker-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:#00000070;z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:24px;padding:1.5rem;width:100%;max-width:380px;box-shadow:0 20px 60px #0003;direction:rtl;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+        <h3 style="font-size:1.1rem;font-weight:800;color:#1e293b;">✨ יצירת תוכן חדש</h3>
+        <button onclick="document.getElementById('content-picker-modal').remove()" style="background:#f1f5f9;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:1rem;color:#64748b;">✕</button>
+      </div>
+      <p style="font-size:0.8rem;color:#64748b;margin-bottom:1rem;">בחר את סוג התוכן שתרצה ליצור ולהקצות לילד</p>
+      <div style="display:flex;flex-direction:column;gap:0.75rem;">
+        ${cards.map(c=>`
+          <div onclick="document.getElementById('content-picker-modal').remove();${c.fn}" style="
+            background:${c.bg};border:2px solid ${c.border};border-radius:16px;
+            padding:1rem 1.2rem;cursor:pointer;display:flex;align-items:center;gap:1rem;
+            transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+            <div style="font-size:2rem;flex-shrink:0;">${c.icon}</div>
+            <div>
+              <div style="font-weight:700;font-size:0.95rem;color:${c.color};">${c.title}</div>
+              <div style="font-size:0.78rem;color:${c.color};opacity:0.8;margin-top:2px;">${c.sub}</div>
+            </div>
+            <div style="margin-right:auto;font-size:1rem;color:${c.color};opacity:0.6;">←</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
 function openAIModal() { getEl('ai-modal').classList.remove('hidden'); }
 
 async function generateAIQuiz() {
@@ -3230,28 +3267,8 @@ function renderAdminAcademy() {
     if(!academyCards) {
         const cardsDiv = document.createElement('div');
         cardsDiv.id = 'academy-new-cards';
-        cardsDiv.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;margin-top:1.2rem;';
+        cardsDiv.style.cssText = 'display:grid;grid-template-columns:1fr;gap:0.7rem;margin-top:1.2rem;';
         cardsDiv.innerHTML = `
-          <div onclick="openAssignGameModal()" style="
-            background:linear-gradient(135deg,#EDE9FE,#DDD6FE);
-            border:2px solid #7C3AED;border-radius:20px;padding:1.2rem;
-            cursor:pointer;transition:transform 0.2s;text-align:center;
-          " onmouseover="this.style.transform='scale(1.02)'"
-             onmouseout="this.style.transform='scale(1)'">
-            <div style="font-size:2.5rem;margin-bottom:0.4rem">🎮</div>
-            <div style="font-weight:700;font-size:0.9rem;color:#5B21B6">הקצה משחק לילד</div>
-            <div style="font-size:0.78rem;color:#7C3AED;margin-top:0.2rem">בחר משחק וקבע סיבובים</div>
-          </div>
-          <div onclick="openQuestWizard()" style="
-            background:linear-gradient(135deg,#FEF3C7,#FDE68A);
-            border:2px solid #F59E0B;border-radius:20px;padding:1.2rem;
-            cursor:pointer;transition:transform 0.2s;text-align:center;
-          " onmouseover="this.style.transform='scale(1.02)'"
-             onmouseout="this.style.transform='scale(1)'">
-            <div style="font-size:2.5rem;margin-bottom:0.4rem">✏️</div>
-            <div style="font-weight:700;font-size:0.9rem;color:#92400E">בנה קווסט ידני</div>
-            <div style="font-size:0.78rem;color:#B45309;margin-top:0.2rem">שאלות ותשובות בנושא שתבחר</div>
-          </div>
           <div onclick="showGameRulesPage()" style="
             grid-column:1/-1;
             background:linear-gradient(135deg,#F0FAFA,#E0F5F3);
