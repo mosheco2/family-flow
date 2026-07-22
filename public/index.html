@@ -1944,7 +1944,9 @@
             <label class="text-xs font-bold text-slate-400">לאיזה גיל?</label>
             <select id="ai-age" class="modern-input mb-3 bg-white"><option value="6-8">גיל 6-8</option><option value="8-10">גיל 8-10</option><option value="10-13">גיל 10-13</option><option value="13-15">גיל 13-15</option><option value="15-18">גיל 15-18</option></select>
             <label class="text-xs font-bold text-slate-400">על מה המבחן?</label>
-            <input type="text" id="ai-topic" class="modern-input mb-6" placeholder="למשל: חיסכון, חיות, יזמות...">
+            <input type="text" id="ai-topic" class="modern-input mb-3" placeholder="למשל: חיסכון, חיות, יזמות...">
+            <label class="text-xs font-bold text-slate-400">לאיזה ילד?</label>
+            <select id="ai-child-select" class="modern-input mb-6 bg-white"><option value="" disabled selected>בחר ילד...</option></select>
             <div class="flex gap-3"><button onclick="document.getElementById('ai-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="generateAIQuiz()" id="btn-ai-gen" class="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold shadow-lg">צור אתגר</button></div>
         </div>
     </div>

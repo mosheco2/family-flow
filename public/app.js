@@ -1875,17 +1875,39 @@ function openContentPicker() {
   document.body.appendChild(modal);
 }
 
-function openAIModal() { getEl('ai-modal').classList.remove('hidden'); }
+function openAIModal() {
+  getEl('ai-modal').classList.remove('hidden');
+  const sel = getEl('ai-child-select');
+  if(sel && membersCache) {
+    const children = membersCache.filter(m => m.role === 'CHILD');
+    sel.innerHTML = '<option value="" disabled selected>בחר ילד...</option>' +
+      children.map(c => `<option value="${c.id}">${c.nickname || c.name || c.id}</option>`).join('');
+  }
+}
 
 async function generateAIQuiz() {
     executeWithAIWarning(async () => {
-        const btn = getEl('btn-ai-gen'); if(!val('ai-topic')) return showToast('error', 'נא להזין נושא'); btn.disabled = true; btn.innerText = 'familAI חושבת... ⏳';
+        const btn = getEl('btn-ai-gen');
+        if(!val('ai-topic')) return showToast('error', 'נא להזין נושא');
+        const childId = val('ai-child-select');
+        if(!childId) return showToast('error', 'נא לבחור ילד');
+        btn.disabled = true; btn.innerText = 'familAI חושבת... ⏳';
         try {
             const res = await fetch(`${API}/academy/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ageGroup: val('ai-age'), topic: val('ai-topic'), groupId: currentGroup.id }) });
             const data = await res.json();
             if(!handleAIResponseCheck(data)) return;
-            if(data.success) { showToast('success', 'מבחן ה-AI מוכן!'); getEl('ai-modal').classList.add('hidden'); getEl('ai-topic').value = ''; await fetchBundles(); openAssignModalSpecific(data.bundleId); fetchData(); } 
-            else showToast('error', data.error || 'שגיאה ביצירת המבחן');
+            if(data.success) {
+                showToast('success', 'מבחן ה-AI מוכן!');
+                getEl('ai-modal').classList.add('hidden');
+                getEl('ai-topic').value = '';
+                await fetchBundles();
+                // הקצה אוטומטית לילד שנבחר
+                const assignRes = await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, bundleId: data.bundleId, groupId: currentGroup.id }) });
+                const assignData = await assignRes.json();
+                if(assignData.success) showToast('success', '✅ האתגר הוקצה לילד בהצלחה!');
+                else showToast('error', assignData.error || 'שגיאה בהקצאה');
+                fetchData();
+            } else showToast('error', data.error || 'שגיאה ביצירת המבחן');
         } catch(e) { showToast('error', 'תקלה בתקשורת עם השרת'); } finally { btn.disabled = false; btn.innerText = 'צור אתגר'; }
     });
 }
@@ -14979,6 +15001,9 @@ function openQuestWizard() {
     }
 
     else if(wizardStep === 3) {
+      const communityId = currentGroup?.communityId || currentGroup?.community_id || null;
+      const communityName = currentGroup?.communityName || currentGroup?.community_name || 'הקהילה שלי';
+
       inner.innerHTML = `
         <h3 style="font-size:1.1rem;font-weight:900;margin-bottom:1.2rem">שלב 3 — לאיזה ילד?</h3>
         <div id="qw-children-list" style="margin-bottom:1.5rem">טוען ילדים...</div>
@@ -15021,9 +15046,6 @@ function openQuestWizard() {
           </button>
         </div>
       `;
-
-      const communityId = currentGroup?.communityId || currentGroup?.community_id || null;
-      const communityName = currentGroup?.communityName || currentGroup?.community_name || 'הקהילה שלי';
 
       fetch(`/api/group/members?groupId=${currentGroup?.id}`)
         .then(r => r.json())
@@ -15551,8 +15573,8 @@ async function openQuestLibrary() {
           <option value="newest">חדש ביותר</option>
         </select>
       </div>
-      <div id="qlib-list" style="min-height:200px;display:flex;align-items:center;justify-content:center">
-        <div style="color:#999">טוען...</div>
+      <div id="qlib-list" style="min-height:200px">
+        <div style="display:flex;align-items:center;justify-content:center;min-height:200px;color:#999">טוען...</div>
       </div>
     </div>
   `;
@@ -15567,7 +15589,7 @@ window.filterQLib = async function() {
   const sort = document.getElementById('qlib-sort')?.value || 'popular';
   const listEl = document.getElementById('qlib-list');
   if(!listEl) return;
-  listEl.innerHTML = '<div style="color:#999">טוען...</div>';
+  listEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:150px;color:#999">טוען...</div>';
 
   try {
     const params = new URLSearchParams({ sort });
