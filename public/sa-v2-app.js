@@ -76,9 +76,9 @@ window.loadDashboardV2 = async function() {
 
   try {
     const [dashRes, dataRes, commRes] = await Promise.all([
-      fetch('/api/sa/dashboard',    { headers: { 'x-sa-token': v2Token() } }),
-      fetch('/api/superadmin/data', { headers: { 'x-sa-token': v2Token() } }),
-      fetch('/api/sa/communities',  { headers: { 'x-sa-token': v2Token() } }),
+      fetch('/api/sa/dashboard',    { headers: { 'Authorization': v2Token() } }),
+      fetch('/api/superadmin/data', { headers: { 'Authorization': v2Token() } }),
+      fetch('/api/sa/communities',  { headers: { 'Authorization': v2Token() } }),
     ]);
 
     const dash = dashRes.ok ? await dashRes.json() : {};
