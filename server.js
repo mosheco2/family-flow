@@ -24291,6 +24291,20 @@ ${htmlSnippet ? `קטע מקוד HTML:\n\`\`\`\n${htmlSnippet.slice(0,2000)}\n\`
 });
 // ===== END DOCS META & REFRESH =====
 
+// ── Trivia questions JSON upload/download ────────────────────────────────────
+const TRIVIA_JSON_PATH = path.join(__dirname, 'public/games/trivia-questions.json');
+
+app.post('/api/sa/trivia-questions', verifySA, async (req, res) => {
+  try {
+    const data = req.body;
+    if (!data || (!data[6] && !data['6'])) return res.status(400).json({ success: false, error: 'Invalid QB structure' });
+    await fs.promises.writeFile(TRIVIA_JSON_PATH, JSON.stringify(data, null, 2), 'utf8');
+    res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // הפעלת השרת
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);

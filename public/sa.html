@@ -2953,6 +2953,24 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 <button id="vtnav-games-questlib" onclick="switchViewTab('games','questlib');loadSAQuestLib()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-book-open" style="font-size:11px;"></i>📚 ספריית קווסטים</button>
               </div>
 
+              <!-- כרטיס ניהול טריוויה -->
+              <div id="vt-games-list-trivia-card" class="vt-games bg-white rounded-2xl border border-purple-100 shadow-sm p-5 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-purple-100 flex items-center justify-center flex-shrink-0 text-2xl">🎯</div>
+                <div class="flex-1 min-w-0">
+                  <p class="font-bold text-slate-800">משחק טריוויה — לקסיקון שאלות</p>
+                  <p class="text-xs text-slate-500 mt-0.5">הורד את קובץ ה-JSON, ערוך שאלות, ולאחר מכן העלה מחדש</p>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                  <a href="/games/trivia-questions.json" download="trivia-questions.json" class="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-sm transition">
+                    <i class="fa-solid fa-download text-xs"></i> הורד JSON
+                  </a>
+                  <label class="flex items-center gap-1.5 px-4 py-2 bg-white border border-purple-200 hover:bg-purple-50 text-purple-700 rounded-xl font-bold text-sm transition cursor-pointer">
+                    <i class="fa-solid fa-upload text-xs"></i> העלה JSON
+                    <input type="file" accept=".json" class="hidden" onchange="uploadTriviaQuestions(event)">
+                  </label>
+                </div>
+              </div>
+
               <!-- רשימת משחקים -->
               <div id="vt-games-list" class="vt-games bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
                 <div class="flex justify-between items-center mb-4">

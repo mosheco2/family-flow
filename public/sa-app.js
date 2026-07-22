@@ -10090,3 +10090,43 @@ window.hideSABizPost = async function(postId) {
 
 // אתחול הבאדג' בטעינת הדף
 setTimeout(initSABizFeedBadge, 2000);
+
+// ── ניהול לקסיקון טריוויה ────────────────────────────────────────────────────
+async function uploadTriviaQuestions(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  let json;
+  try {
+    const text = await file.text();
+    json = JSON.parse(text);
+  } catch(e) {
+    alert('קובץ JSON לא תקין: ' + e.message);
+    event.target.value = '';
+    return;
+  }
+  if (!json[6] && !json['6']) {
+    alert('מבנה לא תקין — חסרה קבוצת גיל 6');
+    event.target.value = '';
+    return;
+  }
+  const btn = event.target.closest('label');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> מעלה...';
+  try {
+    const res = await fetch('/api/sa/trivia-questions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-sa-token': localStorage.getItem('ofl_sa_token') },
+      body: JSON.stringify(json)
+    });
+    if (!res.ok) throw new Error(await res.text());
+    btn.innerHTML = '<i class="fa-solid fa-check text-xs"></i> הועלה!';
+    btn.style.background = '#d1fae5';
+    btn.style.color = '#065f46';
+    btn.style.borderColor = '#6ee7b7';
+    setTimeout(() => { btn.innerHTML = orig; btn.style = ''; }, 3000);
+  } catch(e) {
+    alert('שגיאה בהעלאה: ' + e.message);
+    btn.innerHTML = orig;
+  }
+  event.target.value = '';
+}
