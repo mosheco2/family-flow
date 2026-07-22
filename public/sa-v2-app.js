@@ -63,9 +63,13 @@ window.v2NavTo = function(tabId, btnEl) {
   if (tabId === 'clients'  && typeof window.loadSAData     === 'function') window.loadSAData();
   if (tabId === 'support'  && typeof window.loadSATickets  === 'function') window.loadSATickets();
   if (tabId === 'comm'     && typeof window.loadSACommunities === 'function') window.loadSACommunities();
-  if (tabId === 'biz'      && typeof window.loadSABiz      === 'function') window.loadSABiz();
-  if (tabId === 'hr'       && typeof window.loadSAHR       === 'function') window.loadSAHR();
+  if (tabId === 'biz'      && typeof window.loadSACommunityData === 'function') window.loadSACommunityData();
+  if (tabId === 'hr'       && typeof window.loadSAHRData   === 'function') window.loadSAHRData();
   if (tabId === 'partners' && typeof window.loadSAPartners === 'function') window.loadSAPartners();
+  if (tabId === 'auditlog' && typeof window.loadAuditLog   === 'function') window.loadAuditLog();
+  if (tabId === 'archive'  && typeof window.loadArchive    === 'function') window.loadArchive();
+  if (tabId === 'content'  && typeof window.loadSAArticles === 'function') window.loadSAArticles();
+  if (tabId === 'inbox'    && typeof window.loadSABizFeedSection === 'function') window.loadSABizFeedSection();
 
   /* mobile: close sidebar */
   if (window.innerWidth < 768) {
@@ -201,17 +205,32 @@ window.loadSADashboard   = () => window.loadDashboardV2();
 window.updateSADashboard = () => window.loadDashboardV2();
 
 /* ─── PATCH: ensure ticket modal works even if cache is empty ─── */
-(function patchTicketModal() {
-  const _orig = window.openSATicketModal;
+(function patchModals() {
+  /* ticket modal — loads data if saTicketsCache is empty */
+  const _origTicket = window.openSATicketModal;
   window.openSATicketModal = async function(id) {
-    if (_orig) {
-      _orig(id);
-      /* if modal is still hidden, tickets weren't loaded yet — load and retry */
+    if (_origTicket) {
+      _origTicket(id);
       const modal = document.getElementById('sa-ticket-modal');
       if (modal && modal.classList.contains('hidden')) {
         if (typeof window.loadSATickets === 'function') {
           await window.loadSATickets();
-          _orig(id);
+          _origTicket(id);
+        }
+      }
+    }
+  };
+
+  /* group edit modal — loads data if saAllGroups is empty */
+  const _origGroup = window.openSAEditGroupModal;
+  window.openSAEditGroupModal = async function(id, name, email) {
+    if (_origGroup) {
+      _origGroup(id, name, email);
+      const modal = document.getElementById('sa-edit-group-modal');
+      if (modal && modal.classList.contains('hidden')) {
+        if (typeof window.loadSAData === 'function') {
+          await window.loadSAData();
+          _origGroup(id, name, email);
         }
       }
     }
