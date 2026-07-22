@@ -24085,6 +24085,142 @@ app.get('/api/community/feed/biz-promos', async (req, res) => {
 
 // ===== END BIZ COMMUNITY FEED POSTS =====
 
+// ===== DOCS META & REFRESH =====
+const DOCS_CONFIG = {
+  'spec-biz-environment': {
+    file: 'public/docs/spec-biz-environment.md',
+    label: 'אפיון סביבת עסקים',
+    scanFiles: ['public/business.html'],
+    apiPrefix: '/api/biz',
+  },
+  'spec-family-environment': {
+    file: 'public/docs/spec-family-environment.md',
+    label: 'אפיון סביבת משפחה',
+    scanFiles: ['public/index.html'],
+    apiPrefix: '/api/family',
+  },
+  'spec-zone-community': {
+    file: 'public/docs/spec-zone-community.md',
+    label: 'אפיון Zone Manager וקהילה',
+    scanFiles: [],
+    apiPrefix: '/api/zone',
+  },
+  'spec-super-admin': {
+    file: 'public/docs/spec-super-admin.md',
+    label: 'אפיון Super Admin',
+    scanFiles: ['public/sa.html'],
+    apiPrefix: '/api/sa',
+  },
+  'spec-qa-book': {
+    file: 'public/docs/spec-qa-book.md',
+    label: 'ספר QA',
+    scanFiles: [],
+    apiPrefix: null,
+  },
+};
+
+// GET /api/sa/docs/meta — returns mtime for each doc
+app.get('/api/sa/docs/meta', verifySA, (req, res) => {
+  const result = {};
+  for (const [key, cfg] of Object.entries(DOCS_CONFIG)) {
+    try {
+      const stat = fs.statSync(path.join(__dirname, cfg.file));
+      result[key] = { mtime: stat.mtime.toISOString() };
+    } catch(e) {
+      result[key] = { mtime: null };
+    }
+  }
+  res.json({ success: true, docs: result });
+});
+
+// POST /api/sa/docs/refresh/:doc — regenerate MD using Claude API
+app.post('/api/sa/docs/refresh/:doc', verifySA, async (req, res) => {
+  const { doc } = req.params;
+  const cfg = DOCS_CONFIG[doc];
+  if (!cfg) return res.status(404).json({ success: false, error: 'Unknown doc' });
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ success: false, error: 'No AI key' });
+
+  try {
+    const docPath = path.join(__dirname, cfg.file);
+    const existingMd = fs.existsSync(docPath) ? fs.readFileSync(docPath, 'utf8') : '';
+
+    // Extract relevant API routes from server.js
+    let apiRoutes = '';
+    if (cfg.apiPrefix) {
+      const serverLines = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8').split('\n');
+      const routeLines = serverLines.filter(l => {
+        const m = l.match(/app\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]+)/i);
+        return m && m[2].startsWith(cfg.apiPrefix);
+      });
+      apiRoutes = routeLines.slice(0, 120).join('\n');
+    }
+
+    // Extract structural snippets from scan files (first 300 lines of each)
+    let htmlSnippet = '';
+    for (const sf of cfg.scanFiles) {
+      const sfPath = path.join(__dirname, sf);
+      if (fs.existsSync(sfPath)) {
+        const lines = fs.readFileSync(sfPath, 'utf8').split('\n').slice(0, 300);
+        htmlSnippet += `\n--- ${sf} (first 300 lines) ---\n` + lines.join('\n');
+      }
+    }
+
+    const prompt = `אתה עוזר טכני של מערכת Family-Flow. המשימה שלך: עדכן את מסמך האפיון הבא כך שישקף את מצב הקוד הנוכחי.
+
+מסמך קיים (${existingMd.split('\n').length} שורות):
+\`\`\`
+${existingMd.slice(0, 8000)}
+\`\`\`
+
+נתיבי API נוכחיים (${cfg.apiPrefix}):
+\`\`\`
+${apiRoutes.slice(0, 3000)}
+\`\`\`
+
+${htmlSnippet ? `קטע מקוד HTML:\n\`\`\`\n${htmlSnippet.slice(0,2000)}\n\`\`\`` : ''}
+
+הנחיות:
+1. שמור על מבנה המסמך הקיים ועל פורמט Markdown
+2. עדכן את שורת "תאריך:" לתאריך היום (${new Date().toISOString().slice(0,10)})
+3. עדכן רשימת נתיבי API אם יש שינויים
+4. אל תמחק מידע קיים אלא אם הוא ברור שאינו נכון
+5. החזר את המסמך המלא המעודכן בלבד, ללא הסברים נוספים`;
+
+    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 8000,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (!aiRes.ok) {
+      const err = await aiRes.text();
+      return res.status(500).json({ success: false, error: `AI error: ${err.slice(0,200)}` });
+    }
+
+    const aiData = await aiRes.json();
+    const newContent = aiData.content?.[0]?.text || '';
+    if (!newContent || newContent.length < 100) {
+      return res.status(500).json({ success: false, error: 'Empty AI response' });
+    }
+
+    fs.writeFileSync(docPath, newContent, 'utf8');
+    const stat = fs.statSync(docPath);
+    res.json({ success: true, mtime: stat.mtime.toISOString() });
+  } catch(e) {
+    console.error('docs/refresh error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+// ===== END DOCS META & REFRESH =====
+
 // הפעלת השרת
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
