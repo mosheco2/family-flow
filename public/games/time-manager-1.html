@@ -16,11 +16,10 @@
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
 body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overflow:hidden}
 
-/* SCREENS */
 .scr{display:none;width:100%;height:100vh;flex-direction:column}
 .scr.on{display:flex}
 
-/* ===== INTRO ===== */
+/* INTRO */
 #scr-intro{align-items:center;justify-content:center;padding:1.2rem;text-align:center;
   background:linear-gradient(180deg,#0F172A,#1E1B4B,#1A3A5F)}
 .intro-robot{width:160px;filter:drop-shadow(0 10px 30px rgba(0,168,150,0.4));
@@ -43,7 +42,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overfl
 .btn-go.ready{opacity:1;pointer-events:all}
 .btn-go:active{transform:scale(0.96)}
 
-/* ===== LEARN ===== */
+/* LEARN */
 #scr-learn{background:linear-gradient(180deg,#0F172A,#1E3A5F);align-items:center}
 .learn-hdr{width:100%;padding:0.6rem 1rem;background:rgba(0,0,0,0.3);
   display:flex;align-items:center;justify-content:space-between}
@@ -64,16 +63,18 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overfl
 .clock-demo{display:flex;align-items:center;justify-content:center;gap:0.4rem;
   font-family:'Fredoka One',sans-serif;font-size:1.8rem;color:white;margin:0.5rem 0}
 .time-block{background:rgba(255,255,255,0.1);border-radius:8px;padding:0.2rem 0.5rem}
-.energy-demo{display:flex;gap:0.2rem;justify-content:center;margin:0.4rem 0;font-size:1.3rem}
+.schedule-demo{background:rgba(0,0,0,0.2);border-radius:12px;padding:0.7rem;margin:0.4rem 0;text-align:right}
+.sch-row{display:flex;justify-content:space-between;align-items:center;padding:0.25rem 0;
+  border-bottom:1px solid rgba(255,255,255,0.06);font-size:0.78rem;color:rgba(255,255,255,0.75)}
+.sch-row:last-child{border-bottom:none}
+.sch-time{color:var(--yellow);font-weight:700;font-size:0.73rem;font-family:'Fredoka One',sans-serif}
 .btn-next{background:linear-gradient(135deg,var(--teal),#007A6E);color:white;border:none;
   border-radius:50px;padding:0.8rem 2rem;font-family:'Fredoka One',sans-serif;
   font-size:1rem;cursor:pointer;width:100%}
 
-/* ===== GAME ===== */
+/* GAME */
 #scr-game{position:relative;overflow:hidden;
   background:linear-gradient(180deg,#87CEEB 0%,#B0E0FF 40%,#E8F8FF 70%,#90EE90 100%)}
-
-/* SUN/CLOUDS */
 #sun{position:absolute;top:8%;right:10%;font-size:2.5rem;animation:spin-slow 20s linear infinite;z-index:2}
 @keyframes spin-slow{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
 .cloud{position:absolute;font-size:1.8rem;opacity:0.7;z-index:2;animation:drift 15s linear infinite}
@@ -95,6 +96,17 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overfl
   display:flex;align-items:center;justify-content:center;font-size:0.5rem;font-weight:900;color:#333}
 .hud-score{font-size:0.8rem;font-weight:700;color:var(--dark)}
 
+/* QUESTION CARD (replaces floating task) */
+#question-card{position:absolute;top:54px;left:50%;transform:translateX(-50%);
+  z-index:25;background:white;border-radius:18px;
+  padding:0.9rem 1.1rem;min-width:200px;max-width:280px;width:85%;
+  box-shadow:0 6px 24px rgba(0,0,0,0.18);text-align:center}
+.qc-prompt{font-size:0.72rem;color:var(--muted);font-weight:700;margin-bottom:0.4rem}
+.qc-task{display:flex;align-items:center;justify-content:center;gap:0.5rem}
+.qc-icon{font-size:2rem}
+.qc-label{font-family:'Fredoka One',sans-serif;font-size:1.1rem;color:var(--dark)}
+.qc-hint{font-size:0.68rem;color:var(--purple);margin-top:0.3rem;font-weight:700}
+
 /* TIMELINE */
 #timeline-wrap{position:absolute;bottom:0;left:0;right:0;z-index:10;
   background:rgba(255,255,255,0.92);backdrop-filter:blur(8px);
@@ -108,29 +120,20 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overfl
 .time-slot-label{font-size:0.58rem;color:var(--muted);font-weight:700;position:absolute;bottom:2px}
 .time-slot-drop{width:32px;height:44px;border-radius:10px;border:2px dashed #D0D0D0;
   background:rgba(0,0,0,0.02);margin-bottom:16px;
-  display:flex;align-items:center;justify-content:center;transition:all 0.2s;font-size:1.3rem}
-.time-slot-drop.highlight{border-color:var(--teal);background:rgba(0,168,150,0.1);transform:scale(1.05)}
+  display:flex;align-items:center;justify-content:center;transition:all 0.2s;font-size:1.3rem;
+  cursor:pointer}
+.time-slot-drop.highlight{border-color:var(--teal);background:rgba(0,168,150,0.15);
+  transform:scale(1.1);border-style:solid}
+.time-slot-drop.best-slot{border-color:var(--yellow);background:rgba(255,214,0,0.15)}
 .time-slot-drop.filled{border-style:solid;border-color:transparent;background:white;
   box-shadow:0 2px 8px rgba(0,0,0,0.12)}
-.time-slot-drop.correct{border-color:var(--green);background:rgba(34,197,94,0.1);animation:slot-pop 0.4s ease}
+.time-slot-drop.correct{border-color:var(--green);background:rgba(34,197,94,0.15);animation:slot-pop 0.4s ease}
+.time-slot-drop.good-not-best{border-color:#F59E0B;background:rgba(245,158,11,0.1);animation:slot-pop 0.4s ease}
 .time-slot-drop.wrong{border-color:var(--red);background:rgba(239,68,68,0.1);animation:slot-shake 0.4s ease}
 @keyframes slot-pop{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
 @keyframes slot-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 
-/* FALLING TASKS */
-#tasks-area{position:absolute;top:52px;left:0;right:0;bottom:160px;z-index:15;pointer-events:none}
-.falling-task{position:absolute;cursor:grab;pointer-events:all;
-  background:white;border-radius:14px;padding:0.4rem 0.7rem;
-  box-shadow:0 4px 16px rgba(0,0,0,0.15);
-  display:flex;flex-direction:column;align-items:center;gap:0.1rem;
-  min-width:60px;touch-action:none;z-index:16;
-  transition:box-shadow 0.2s}
-.falling-task:active,.falling-task.dragging{box-shadow:0 8px 30px rgba(0,0,0,0.25);transform:scale(1.05);z-index:50}
-.ft-icon{font-size:1.6rem;line-height:1}
-.ft-label{font-size:0.6rem;font-weight:700;color:var(--dark);text-align:center;line-height:1.2}
-.ft-time{font-size:0.55rem;color:var(--muted)}
-
-/* ROBOT ON TIMELINE */
+/* ROBOT */
 #game-robot{position:absolute;bottom:155px;z-index:18;width:65px;
   filter:drop-shadow(0 4px 10px rgba(0,0,0,0.2));
   transition:left 0.5s cubic-bezier(0.34,1.56,0.64,1)}
@@ -141,7 +144,6 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overfl
 @keyframes r-warn{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
 @keyframes r-idle{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 
-/* SPEECH BUBBLE */
 #speech{position:absolute;bottom:225px;z-index:19;background:white;
   border-radius:12px;padding:0.4rem 0.7rem;font-size:0.75rem;font-weight:700;
   box-shadow:0 3px 12px rgba(0,0,0,0.15);max-width:160px;line-height:1.4;
@@ -153,22 +155,23 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overfl
 /* FEEDBACK */
 #feedback{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);
   z-index:40;background:white;border-radius:20px;padding:1.2rem 1.5rem;
-  max-width:280px;width:90%;text-align:center;color:var(--dark);
+  max-width:300px;width:92%;text-align:center;color:var(--dark);
   box-shadow:0 20px 60px rgba(0,0,0,0.2);transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1)}
 #feedback.show{transform:translate(-50%,-50%) scale(1)}
 .fb-icon{font-size:2.5rem;margin-bottom:0.3rem}
 .fb-title{font-family:'Fredoka One',sans-serif;font-size:1.2rem;margin-bottom:0.2rem}
-.fb-text{font-size:0.82rem;color:var(--muted);line-height:1.5;margin-bottom:0.3rem}
+.fb-text{font-size:0.82rem;color:#444;line-height:1.6;margin-bottom:0.3rem}
+.fb-best{font-size:0.78rem;color:var(--purple);font-weight:700;margin-bottom:0.5rem;
+  background:rgba(124,58,237,0.07);border-radius:8px;padding:0.35rem 0.6rem}
 .fb-energy{font-size:0.85rem;font-weight:700;margin-bottom:0.7rem}
 .fb-btn{background:linear-gradient(135deg,var(--teal),#007A6E);color:white;border:none;
   border-radius:50px;padding:0.65rem 2rem;font-family:'Fredoka One',sans-serif;
   font-size:0.95rem;cursor:pointer;width:100%}
 
-/* PARTICLES */
 .star-p{position:fixed;pointer-events:none;z-index:9999;font-size:1.2rem;animation:star-fly 1s ease-out forwards}
 @keyframes star-fly{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-80px) scale(0.2);opacity:0}}
 
-/* ===== RESULT ===== */
+/* RESULT */
 #scr-result{align-items:center;justify-content:center;padding:1.5rem;text-align:center;
   background:linear-gradient(180deg,#0F172A,#1E3A5F);overflow-y:auto}
 .result-title{font-family:'Fredoka One',sans-serif;font-size:1.9rem;
@@ -194,14 +197,13 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overfl
   padding:0.65rem 1.5rem;font-family:'Heebo',sans-serif;font-size:0.88rem;
   cursor:pointer;width:100%;max-width:260px}
 
-/* ENERGY TOAST */
 .energy-toast{position:absolute;top:58px;left:50%;transform:translateX(-50%);
   font-family:'Fredoka One',sans-serif;font-size:1rem;z-index:25;
   pointer-events:none;animation:e-float 1.5s ease-out forwards;white-space:nowrap;
   padding:0.2rem 0.7rem;border-radius:50px}
 @keyframes e-float{0%{transform:translateX(-50%) translateY(0);opacity:1}100%{transform:translateX(-50%) translateY(-45px);opacity:0}}
 
-@media(max-width:380px){.intro-title{font-size:1.7rem}.falling-task{min-width:52px}}
+@media(max-width:380px){.intro-title{font-size:1.7rem}}
 </style>
 </head>
 <body>
@@ -211,23 +213,23 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overfl
   <img src="/games/assets/images/ROBOTAI.png" alt="רובוט" class="intro-robot" onerror="this.style.display='none'">
   <div class="intro-title">⏰ היום של OF</div>
   <div class="intro-sub">
-    למד לנהל את הזמן שלך<br>
-    וסדר את היום כמו אלוף! 🏆
+    למד לסדר את לוח הזמנים שלך<br>
+    ולבנות יום מאוזן ומוצלח! 🏆
   </div>
   <div class="age-grid">
     <div class="age-card" onclick="selectAge(this,6)" data-age="6">
       <div class="ac-icon">🌱</div>
-      <div class="ac-label">6-9</div>
+      <div class="ac-label">6–9</div>
       <div class="ac-sub">יום בסיסי</div>
     </div>
     <div class="age-card" onclick="selectAge(this,10)" data-age="10">
       <div class="ac-icon">⚡</div>
-      <div class="ac-label">10-12</div>
-      <div class="ac-sub">תעדוף</div>
+      <div class="ac-label">10–12</div>
+      <div class="ac-sub">יום מאוזן</div>
     </div>
     <div class="age-card" onclick="selectAge(this,13)" data-age="13">
       <div class="ac-icon">🎯</div>
-      <div class="ac-label">13-16</div>
+      <div class="ac-label">13–16</div>
       <div class="ac-sub">ניהול מלא</div>
     </div>
   </div>
@@ -243,7 +245,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overfl
   <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:0.5rem">
     <div class="learn-card">
       <img src="/games/assets/images/ROBOTAI.png" alt="רובוט" class="learn-robot" onerror="this.style.display='none'">
-      <div class="learn-title" id="lt-title">מה זה ניהול זמן?</div>
+      <div class="learn-title" id="lt-title"></div>
       <div class="learn-text" id="lt-text"></div>
       <div class="learn-tip" id="lt-tip"></div>
       <div id="lt-demo"></div>
@@ -264,18 +266,26 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overfl
       <div class="hud-energy-label">⚡ אנרגיה</div>
       <div class="hud-energy-bar"><div class="hud-energy-fill" id="energy-bar" style="width:80%;background:#22C55E"></div></div>
     </div>
-    <div class="hud-flw"><div class="coin-mini">FLW kid</div><span id="hud-flw">0</span></div>
+    <div class="hud-flw"><div class="coin-mini">FLW</div><span id="hud-flw">0</span></div>
     <div class="hud-score">✅ <span id="hud-score">0</span></div>
   </div>
 
-  <div id="tasks-area"></div>
+  <!-- QUESTION CARD -->
+  <div id="question-card">
+    <div class="qc-prompt">באיזו שעה כדאי?</div>
+    <div class="qc-task">
+      <div class="qc-icon" id="qc-icon">🍳</div>
+      <div class="qc-label" id="qc-label">ארוחת בוקר</div>
+    </div>
+    <div class="qc-hint" id="qc-hint">לחץ על השעה בציר הזמן ↓</div>
+  </div>
 
   <img src="/games/assets/images/ROBOTAI.png" alt="רובוט"
        id="game-robot" class="idle" onerror="this.style.display='none'">
   <div id="speech"></div>
 
   <div id="timeline-wrap">
-    <div class="timeline-label" id="timeline-label">גרור את המשימה לשעה המתאימה</div>
+    <div class="timeline-label" id="timeline-label">בחר את השעה הנכונה</div>
     <div class="timeline-scroll">
       <div class="timeline-inner" id="timeline-inner"></div>
     </div>
@@ -285,6 +295,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overfl
     <div class="fb-icon" id="fb-icon">✅</div>
     <div class="fb-title" id="fb-title">כל הכבוד!</div>
     <div class="fb-text" id="fb-text"></div>
+    <div class="fb-best" id="fb-best" style="display:none"></div>
     <div class="fb-energy" id="fb-energy"></div>
     <button class="fb-btn" onclick="closeFeedback()">המשך ⏰</button>
   </div>
@@ -298,8 +309,8 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overfl
   <div style="font-size:1.8rem;margin:0.2rem 0" id="result-stars"></div>
   <div class="result-stats" id="result-stats"></div>
   <div class="flw-box">
-    <div style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin-bottom:0.3rem">FLW kid שצברת</div>
-    <div class="flw-big"><div class="big-coin">FLW kid</div><span id="result-flw">0</span></div>
+    <div style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin-bottom:0.3rem">FLW שצברת</div>
+    <div class="flw-big"><div class="big-coin">FLW</div><span id="result-flw">0</span></div>
   </div>
   <button class="btn-replay" onclick="playAgain()">🔄 שחק שוב</button>
   <button class="btn-home" onclick="goHome()">🏠 חזרה לאקדמיה</button>
@@ -307,175 +318,374 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);min-height:100vh;overfl
 
 <script>
 // ============================================================
-// LEARN CONTENT BY AGE
+// LEARN CONTENT
 // ============================================================
 const LEARN_STEPS = {
   6:[
-    {title:'מה זה זמן?',
-     text:'היום שלנו מתחיל בבוקר ומסתיים בלילה. בינתיים — יש הרבה דברים לעשות! ניהול זמן = לדעת מה לעשות ומתי.',
-     tip:'💡 טיפ: דברים חשובים — קודם! כיף — אחרי.',
-     demo:'<div class="clock-demo"><div class="time-block">🌅 7:00</div><span style="color:rgba(255,255,255,0.4)">עד</span><div class="time-block">🌙 21:00</div></div>'},
-    {title:'סדר הדברים חשוב!',
-     text:'אם תשחק לפני שתאכל — תהיה רעב ועצבני. אם תישן מאוחר — תהיה עייף בבוקר. לכל דבר יש שעה נכונה!',
-     tip:'🌟 קסם: כשמסדרים את היום — יש יותר זמן לכיף!',
-     demo:'<div style="display:flex;justify-content:center;gap:0.8rem;font-size:1.8rem;margin:0.4rem 0" dir="rtl">😴←🎮←📚←🍳</div>'},
-    {title:'בוא ננהל יום!',
-     text:'OF צריך עזרה לסדר את היום שלו. גרור כל משימה לשעה הנכונה בציר הזמן!',
+    {title:'הכרת הזמן',
+     text:'היום שלנו מתחיל בבוקר ומסתיים בלילה. יש לנו כ-14 שעות פעילות כל יום. ניהול זמן = לדעת מה לעשות ומתי, כדי שיהיה לנו זמן לכל מה שחשוב — ולימוד וגם כיף!',
+     tip:'💡 כלל ראשון: דברים חשובים — קודם. כיף — אחרי.',
+     demo:`<div class="schedule-demo">
+       <div class="sch-row"><span>☀️ בוקר מוקדם</span><span class="sch-time">7:00</span></div>
+       <div class="sch-row"><span>🏫 בית ספר (ישראל)</span><span class="sch-time">8:00</span></div>
+       <div class="sch-row"><span>🎮 כיף ומשחק</span><span class="sch-time">15:00</span></div>
+       <div class="sch-row"><span>🌙 שינה</span><span class="sch-time">20:00</span></div>
+     </div>`},
+    {title:'הסדר חשוב!',
+     text:'לכל פעילות יש שעה מתאימה. ארוחת בוקר — לפני בית ספר. שיעורי בית — לפני משחק. ארוחת ערב — עם המשפחה בערב. שינה — מוקדם, כדי לגדול!',
+     tip:'🌟 שינה מוקדמת בגיל 6–9 = המוח גדל ומתפתח בלילה!',
+     demo:`<div style="display:flex;justify-content:center;gap:0.6rem;font-size:1.7rem;margin:0.4rem 0">🍳→🏫→📚→🎮→🍕→🛁→😴</div><div style="font-size:0.7rem;color:rgba(255,255,255,0.5);text-align:center">סדר יום מומלץ לגיל 6–9</div>`},
+    {title:'בוא נסדר את היום!',
+     text:'OF צריך עזרה לסדר את לוח הזמנים שלו. תלחץ על השעה הנכונה בציר הזמן לכל פעילות. שים לב — בית הספר בישראל מתחיל ב-8:00 בבוקר!',
      tip:'⚡ שים לב למד האנרגיה — שינה מוקדמת = יותר אנרגיה מחר!',
-     demo:'<div style="text-align:center;font-size:2rem;margin:0.4rem 0">🎯</div>'},
+     demo:'<div style="text-align:center;font-size:2rem;margin:0.4rem 0">🎯 קליק על השעה!</div>'},
   ],
   10:[
     {title:'תעדוף — מה קודם?',
-     text:'לא כל דבר שווה. יש דברים חשובים-דחופים, חשובים-לא-דחופים, ויש... בזבוז זמן. ניהול זמן טוב = לדעת מה קודם.',
-     tip:'💡 כלל: חשוב + דחוף ← עכשיו. חשוב + לא דחוף ← תכנן. לא חשוב ← אחר כך או בכלל לא.',
-     demo:'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin:0.5rem 0;font-size:0.72rem"><div style="background:rgba(239,68,68,0.2);border-radius:8px;padding:0.4rem;text-align:center">🔥 דחוף+חשוב<br>עכשיו!</div><div style="background:rgba(59,130,246,0.2);border-radius:8px;padding:0.4rem;text-align:center">📋 חשוב<br>תכנן</div><div style="background:rgba(255,214,0,0.2);border-radius:8px;padding:0.4rem;text-align:center">⚡ דחוף<br>האצל</div><div style="background:rgba(156,163,175,0.2);border-radius:8px;padding:0.4rem;text-align:center">🗑️ לא חשוב<br>ויתור</div></div>'},
+     text:'יש לנו יותר משימות מזמן פנוי. ניהול זמן = לדעת מה קודם. בוקר = הכי טוב ללמוד. אחה"צ = ספורט וחברים. ערב = שיח משפחה ומנוחה.',
+     tip:'🧠 מחקרים מראים: המוח עובד הכי טוב 2-3 שעות אחרי הקימה. לכן — שיעורי בית ב-14-16!',
+     demo:`<div class="schedule-demo">
+       <div class="sch-row"><span>⏰ קימה + בוקר</span><span class="sch-time">6:30–7:00</span></div>
+       <div class="sch-row"><span>🏫 בית ספר</span><span class="sch-time">8:00–14:00</span></div>
+       <div class="sch-row"><span>📚 שיעורי בית</span><span class="sch-time">14:30–16:00</span></div>
+       <div class="sch-row"><span>🏃 ספורט/חברים</span><span class="sch-time">16:00–18:30</span></div>
+       <div class="sch-row"><span>🍕 ארוחת ערב</span><span class="sch-time">19:00</span></div>
+       <div class="sch-row"><span>😴 שינה</span><span class="sch-time">21:00–21:30</span></div>
+     </div>`},
     {title:'אנרגיה — משאב מוגבל',
-     text:'בכל יום יש לך כמות מסוימת של אנרגיה. כשמתאמצים — האנרגיה יורדת. כשנחים — עולה. צריך לנהל אותה חכם!',
-     tip:'🧠 מחקרים: המוח הכי חזק בבוקר. שיעורי בית קשים ← בוקר. כיף וחברים ← אחה"צ.',
-     demo:'<div class="energy-demo">⚡⚡⚡⚡⚡</div><div style="font-size:0.75rem;color:rgba(255,255,255,0.5);text-align:center">100% אנרגיה בבוקר</div>'},
-    {title:'זמן גנוב — הסכנה!',
-     text:'גלילה בטלפון, טלויזיה רקע, "עוד דקה אחת" — אלה גנבי הזמן הכי גדולים. הם קורים בלי שמרגישים!',
-     tip:'⏱️ כלל ה-25 דקות: עבוד 25 דקות ללא הפרעות, אז 5 דקות הפסקה. תנסה!',
-     demo:'<div style="text-align:center;font-size:1.6rem;margin:0.4rem 0">📱 "עוד דקה" = 45 דקות 😱</div>'},
+     text:'כמו סוללת טלפון — אנרגיית הגוף מתרוקנת לאורך היום. כשנחים ואוכלים — טוענים. כשמתאמצים — מוציאים. שינה טובה = ממלאים 100% לכל הלילה.',
+     tip:'📱 טלפון בשעת שינה = אנרגיה לא מלאה למחרת. כבה מסכים שעה לפני שינה!',
+     demo:`<div style="text-align:right;font-size:0.8rem;color:rgba(255,255,255,0.75);line-height:1.9">⚡⚡⚡⚡⚡ 100% — בבוקר אחרי שינה טובה<br>⚡⚡⚡⚡ 80% — אחרי ארוחת בוקר<br>⚡⚡ 40% — אחרי שיעורים + שיעורי בית<br>⚡ 20% — ערב מאוחר</div>`},
+    {title:'תכנן ותצליח!',
+     text:'לפנינו יום מלא פעילויות. תלחץ על השעה הנכונה לכל אחת. זכור: בית ספר ישראלי מתחיל ב-8:00, שיעורי בית — אחה"צ מוקדם, שינה ב-21:00-21:30.',
+     tip:'🎯 מטרה: לסדר את כל הפעילויות בשעות הנכונות!',
+     demo:'<div style="text-align:center;font-size:2rem;margin:0.4rem 0">🎯 לחץ על השעה!</div>'},
   ],
   13:[
     {title:'זמן = הנכס הכי יקר',
-     text:'כסף אפשר להרוויח חזרה. זמן — לא. כל שעה שעוברת לא חוזרת. מי שמנהל זמן טוב = מצליח יותר בחיים, לא כי הוא חכם יותר, אלא כי הוא ממקסם את השעות.',
-     tip:'📊 עובדה: בכל יום 24 שעות — לכולם. ההבדל = מה עושים איתן.',
-     demo:'<div style="font-size:1.8rem;text-align:center;margin:0.4rem 0">24h × 365 = 8,760 שעות/שנה</div>'},
-    {title:'טבלת תעדוף — 4 קופסאות',
-     text:'חלק כל משימה ל-4 קופסאות לפי דחיפות וחשיבות. זה המפתח לניהול יום מוצלח ולהספיק יותר.',
-     tip:'🎯 סוד: רוב האנשים מבלים זמן על "דחוף-לא חשוב". המצליחנים מבלים על "חשוב-לא דחוף".',
-     demo:'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin:0.5rem 0;font-size:0.72rem"><div style="background:rgba(239,68,68,0.2);border-radius:8px;padding:0.4rem;text-align:center">🔥 Q1: משבר<br>עכשיו</div><div style="background:rgba(34,197,94,0.2);border-radius:8px;padding:0.4rem;text-align:center">🌱 Q2: צמיחה<br>תכנן!</div><div style="background:rgba(255,214,0,0.2);border-radius:8px;padding:0.4rem;text-align:center">📞 Q3: הפרעות<br>האצל</div><div style="background:rgba(156,163,175,0.2);border-radius:8px;padding:0.4rem;text-align:center">📺 Q4: בזבוז<br>הפחת</div></div>'},
-    {title:'תכנון בבלוקים — שיטה חכמה',
-     text:'במקום רשימת משימות — קבע "בלוקים" ביומן. "8:00-10:00 = לימוד ביולוגיה". כשיש זמן שמור — עושים. בלי ויכוחים פנימיים.',
-     tip:'⚡ הרגל: כל לילה — תכנן 3 משימות חשובות למחרת. רק 3. לפני הכל.',
-     demo:'<div style="font-size:0.78rem;color:rgba(255,255,255,0.7);text-align:right;line-height:1.8;margin:0.3rem 0">📗 8:00-10:00 לימוד<br>🏃 16:00-17:00 ספורט<br>📱 20:00-21:00 חברים</div>'},
+     text:'כסף אפשר להרוויח חזרה. זמן — לא. כל יום יש 24 שעות — לכולם. ההבדל בין מי שמצליח לבין מי שלא הוא לא כישרון — זה ניהול זמן. מי שמתכנן — שולט בחיים שלו.',
+     tip:'📊 עובדה: רוב התלמידים מבזבזים 3-4 שעות ביום על מסכים ללא תכנון. בתכנון נכון — אפשר לחסוך 2 שעות ביום!',
+     demo:`<div class="schedule-demo">
+       <div class="sch-row"><span>⏰ קימה</span><span class="sch-time">7:00</span></div>
+       <div class="sch-row"><span>🏫 בית ספר</span><span class="sch-time">8:00–14:00</span></div>
+       <div class="sch-row"><span>🍱 צהריים + מנוחה</span><span class="sch-time">14:00–15:00</span></div>
+       <div class="sch-row"><span>🧠 לימוד מרוכז</span><span class="sch-time">15:00–17:00</span></div>
+       <div class="sch-row"><span>💪 ספורט</span><span class="sch-time">17:00–18:30</span></div>
+       <div class="sch-row"><span>🍕 ערב + משפחה</span><span class="sch-time">19:00–20:00</span></div>
+       <div class="sch-row"><span>📱 זמן חופשי/מסך</span><span class="sch-time">20:00–21:30</span></div>
+       <div class="sch-row"><span>😴 שינה</span><span class="sch-time">22:00–22:30</span></div>
+     </div>`},
+    {title:'4 קופסאות תעדוף',
+     text:'כל משימה שייכת לאחת מ-4 קופסאות. הטעות הכי שכיחה: להתעסק עם דחוף-לא-חשוב (הודעות, TikTok) ולהזניח את חשוב-לא-דחוף (לימוד, ספורט, שינה).',
+     tip:'🎯 סוד המצליחנים: הם מקדישים זמן לריבוע Q2 — חשוב אבל לא דחוף. שם קורה הצמיחה האמיתית.',
+     demo:`<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin:0.5rem 0;font-size:0.72rem">
+       <div style="background:rgba(239,68,68,0.2);border-radius:8px;padding:0.4rem;text-align:center">🔥 Q1: דחוף+חשוב<br><span style="color:rgba(255,255,255,0.6)">עכשיו!</span></div>
+       <div style="background:rgba(34,197,94,0.2);border-radius:8px;padding:0.4rem;text-align:center">🌱 Q2: חשוב<br><span style="color:rgba(255,255,255,0.6)">תכנן — כאן הצמיחה</span></div>
+       <div style="background:rgba(255,214,0,0.15);border-radius:8px;padding:0.4rem;text-align:center">📞 Q3: דחוף בלבד<br><span style="color:rgba(255,255,255,0.6)">האצל אם אפשר</span></div>
+       <div style="background:rgba(156,163,175,0.15);border-radius:8px;padding:0.4rem;text-align:center">📺 Q4: לא חשוב<br><span style="color:rgba(255,255,255,0.6)">הפחת מקסימום</span></div>
+     </div>`},
+    {title:'שלט ביום שלך!',
+     text:'עכשיו ניישם את הכל. בחר את השעה הנכונה לכל פעילות ביום. זכור: שינה לפחות 8 שעות בגיל 13-16, לימוד מרוכז לפני ספורט ומדיה, וזמן מסך — רק אחרי כל המשימות.',
+     tip:'⚡ כלל: כבה מסכים שעה לפני שינה. ריכוז ושינה = הכי חשובים לתפקוד!',
+     demo:'<div style="text-align:center;font-size:2rem;margin:0.4rem 0">🎯 לחץ על השעה!</div>'},
   ]
 };
 
 // ============================================================
 // TASKS BY AGE
 // ============================================================
+// SLOT_HOURS define the indices used in bestSlot and slots arrays
+// bestSlot = indices in the slot hours array = OPTIMAL placement
+// slots = actual hour values that are VALID (not penalized)
+
+const SLOT_HOURS_6  = [7,8,9,10,11,12,13,14,15,16,17,18,19,20,21];
+//  idx:              0  1  2  3  4  5  6  7  8  9  10 11 12 13 14
+
+const SLOT_HOURS_10 = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22];
+//  idx:              0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
+
+const SLOT_HOURS_13 = [7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23];
+//  idx:              0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
+
 const TASKS = {
+  // ===== AGE 6-9 =====
   6:[
-    {id:'breakfast',icon:'🍳',label:'ארוחת בוקר',time:'breakfast',bestSlot:[0,1],
-     slots:[7,8],energy:+10,flw:3,
-     fb:{good:'מושלם! ארוחת בוקר בשעה 7-8 = דלק למוח לכל היום!',bad:'ארוחת בוקר אחרי 9? המוח ייסבול מרעב בזמן הלימודים.'},
-     tip:'🍳 ארוחת בוקר = דלק למוח!'},
-    {id:'school',icon:'🏫',label:'בית ספר',time:'school',bestSlot:[2,3,4,5],
-     slots:[8,9,10,11,12,13],energy:-20,flw:5,
-     fb:{good:'בדיוק! בית ספר הוא בבוקר — המוח הכי ערני אז.',bad:'בית ספר לא מתחיל בשעה הזו. נסה בבוקר מוקדם יותר.'},
-     tip:'🏫 לימודים = בוקר!'},
-    {id:'lunch',icon:'🍱',label:'ארוחת צהריים',time:'lunch',bestSlot:[6,7],
-     slots:[13,14],energy:+15,flw:3,
-     fb:{good:'מיקמת בדיוק בשעה הנכונה! אחרי בית הספר הגוף צריך אנרגיה ומזון.',bad:'ארוחת הצהריים צריכה להגיע אחרי ארוחת הבוקר — לא לפניה! בדוק את הסדר.'},
-     tip:'🍱 אוכלים אחרי בי"ס!'},
-    {id:'homework',icon:'📚',label:'שיעורי בית',time:'homework',bestSlot:[7,8,9],
-     slots:[14,15,16],energy:-15,flw:5,
-     fb:{good:'כל הכבוד! שיעורי בית מוקדם = יותר זמן לכיף אחר כך!',bad:'שיעורי בית מאוחר מדי = עייפות + טעויות. נסה מוקדם יותר.'},
-     tip:'📚 שיעורי בית = אחה"צ מוקדם!'},
-    {id:'play',icon:'🎮',label:'משחק / כיף',time:'play',bestSlot:[9,10,11],
-     slots:[15,16,17,18],energy:-5,flw:4,
-     fb:{good:'נהדר! אחרי שיעורי בית — מגיע לך לשחק!',bad:'לשחק לפני שיעורי הבית? אחר כך יהיה קשה לחזור ללמוד.'},
-     tip:'🎮 כיף = אחרי שיעורים!'},
-    {id:'dinner',icon:'🍕',label:'ארוחת ערב',time:'dinner',bestSlot:[12,13],
-     slots:[18,19],energy:+10,flw:3,
-     fb:{good:'מצוין! ארוחת ערב ב-18-19 = זמן משפחתי מושלם.',bad:'ארוחת ערב בשעה הזו לא מתאימה. נסה 18-19.'},
-     tip:'🍕 ארוחת ערב = עם המשפחה!'},
-    {id:'bath',icon:'🛁',label:'מקלחת / אמבטיה',time:'bath',bestSlot:[13,14],
-     slots:[19,20],energy:+5,flw:3,
-     fb:{good:'מושלם! מקלחת לפני השינה = שינה טובה יותר.',bad:'מקלחת בזמן הזה? נסה קרוב לשינה.'},
-     tip:'🛁 מקלחת = לפני שינה!'},
-    {id:'sleep',icon:'😴',label:'שינה',time:'sleep',bestSlot:[14,15],
-     slots:[20,21],energy:+30,flw:6,
-     fb:{good:'מעולה! שינה ב-20-21 = 10 שעות שינה. המוח גדל בשינה!',bad:'כדאי לישון קצת יותר מוקדם — ילדים בגיל 6-9 צריכים 10 שעות שינה כדי לגדול ולהתרכז!'},
-     tip:'😴 שינה מוקדמת = גדילה + ריכוז!'},
+    {id:'breakfast',icon:'🍳',label:'ארוחת בוקר',
+     // SLOT_HOURS_6: 7=idx0, 8=idx1
+     bestSlot:[0,1], slots:[7,8], energy:+10, flw:3,
+     hint:'לפני בית ספר!',
+     fb:{
+       good:'מושלם! ארוחת בוקר לפני הצאת לבית ספר = דלק למוח לכל הבוקר. ילדים שאוכלים בוקר מתרכזים הרבה יותר טוב!',
+       ok:'ארוחת בוקר ב-8:00 סבירה, אבל עדיף ב-7:00 כדי שיהיה זמן לאכול בנחת לפני יציאה ב-8:00.',
+       bad:'ארוחת בוקר חייבת להיות לפני בית הספר! בישראל, בית ספר מתחיל ב-8:00. אכול ב-7:00-8:00.',
+       bestLabel:'7:00 לפני יציאה לבית ספר'
+     }},
+    {id:'school',icon:'🏫',label:'יציאה לבית ספר',
+     // In Israel, school starts at 8:00. The slot represents when you leave/arrive.
+     // SLOT_HOURS_6: 8=idx1 (best: leave at 8), 9 is ok (late arrival)
+     bestSlot:[1], slots:[7,8,9], energy:-20, flw:5,
+     hint:'בית ספר בישראל = 8:00!',
+     fb:{
+       good:'בדיוק! בית הספר בישראל מתחיל ב-8:00. יוצאים ב-8:00 (או לפני) ומגיעים בזמן. המוח הכי ערני בבוקר — לכן הלימודים הם בבוקר!',
+       ok:'7:00 — מוקדם מדי לצאת, אבל אם בית ספרך מתחיל מוקדם מאוד — בסדר.',
+       bad:'בית הספר בישראל מתחיל ב-8:00 בבוקר. הגעה מאוחרת = פספוס שיעורים. תכוון ל-8:00!',
+       bestLabel:'8:00 — שעת פתיחת בית ספר בישראל'
+     }},
+    {id:'lunch',icon:'🍱',label:'ארוחת צהריים',
+     // SLOT_HOURS_6: 13=idx6, 14=idx7
+     bestSlot:[6,7], slots:[13,14], energy:+15, flw:3,
+     hint:'אחרי חזרה מבית ספר!',
+     fb:{
+       good:'מצוין! ארוחת צהריים אחרי בית ספר, בין 13:00 ל-14:00 = הגוף מחכה לה ומנצל אותה הכי טוב.',
+       ok:'',
+       bad:'ארוחת צהריים באה אחרי בית הספר, לא לפניו. חזרה הביתה בשעה 13:00-14:00 → ואז אוכלים!',
+       bestLabel:'13:00-14:00 — אחרי חזרה מבית ספר'
+     }},
+    {id:'homework',icon:'📚',label:'שיעורי בית',
+     // SLOT_HOURS_6: 14=idx7, 15=idx8, 16=idx9
+     // Best: 14 or 15 (while energy still ok). 16 acceptable but less ideal.
+     bestSlot:[7,8], slots:[14,15,16], energy:-15, flw:5,
+     hint:'לפני המשחק!',
+     fb:{
+       good:'כל הכבוד! שיעורי בית ב-14:00-15:00 — עוד יש אנרגיה מהיום, וזה פותח את הערב לכיף בלי לחץ!',
+       ok:'16:00 — אפשרי, אבל הריכוז כבר יורד. עדיף קצת מוקדם יותר.',
+       bad:'שיעורי בית מאוחר מדי = עייפות, טעויות, ועצבים. עשה שיעורים ב-14:00-15:00 כשעוד יש כוח!',
+       bestLabel:'14:00-15:00 — כשיש עוד אנרגיה'
+     }},
+    {id:'play',icon:'🎮',label:'משחק ובילוי',
+     // SLOT_HOURS_6: 15=idx8, 16=idx9, 17=idx10
+     bestSlot:[8,9,10], slots:[15,16,17], energy:-5, flw:4,
+     hint:'אחרי שיעורי בית!',
+     fb:{
+       good:'נהדר! כיף ומשחק ב-15:00-17:00 — אחרי שיעורים = מגיע לך, ועוד יש זמן לפני ארוחת ערב!',
+       ok:'',
+       bad:'לשחק לפני שיעורי בית = קשה לחזור ללמוד אחר כך. שיעורים קודם → אז כיף ללא לחץ!',
+       bestLabel:'15:00-17:00 — אחרי שיעורי בית'
+     }},
+    {id:'dinner',icon:'🍕',label:'ארוחת ערב',
+     // SLOT_HOURS_6: 18=idx11, 19=idx12
+     bestSlot:[11,12], slots:[18,19], energy:+10, flw:3,
+     hint:'עם המשפחה!',
+     fb:{
+       good:'מצוין! ארוחת ערב ב-18:00-19:00 = זמן משפחה, מנוחה מהיום, ואנרגיה לשעות הערב.',
+       ok:'',
+       bad:'ארוחת ערב מתאימה ב-18:00-19:00 — אחרי פעילויות היום ולפני שגרת לילה.',
+       bestLabel:'18:00-19:00 — זמן משפחה'
+     }},
+    {id:'bath',icon:'🛁',label:'מקלחת / אמבטיה',
+     // For ages 6-9: bath BEFORE sleep, ideal at 19:00 (after dinner, before wind-down)
+     // SLOT_HOURS_6: 19=idx12, 20=idx13
+     bestSlot:[12], slots:[18,19,20], energy:+5, flw:3,
+     hint:'אחרי ארוחת ערב, לפני שינה!',
+     fb:{
+       good:'מושלם! מקלחת ב-19:00 — אחרי ארוחת ערב — מכינה את הגוף לשינה. טמפרטורת הגוף יורדת ומקל על ההירדמות!',
+       ok:'18:00 — מוקדם מדי (עוד לפני ארוחת ערב). 20:00 — מאוחר קצת, אבל בסדר. הכי טוב: 19:00.',
+       bad:'מקלחת מתאימה לסוף היום — ב-19:00 אחרי ארוחת ערב. לא 21:00 ומעלה.',
+       bestLabel:'19:00 — אחרי ארוחת ערב, לפני שינה'
+     }},
+    {id:'sleep',icon:'😴',label:'שינה',
+     // For ages 6-9: 20:00 is ideal (10 hours of sleep for 6:00 wake)
+     // SLOT_HOURS_6: 20=idx13, 21=idx14
+     bestSlot:[13], slots:[20,21], energy:+30, flw:6,
+     hint:'ילדים בגיל 6-9 = 10 שעות!',
+     fb:{
+       good:'מעולה! שינה ב-20:00 = 10-11 שעות שינה. בגיל 6-9 המוח והגוף גדלים בזמן השינה — זה חיוני!',
+       ok:'21:00 — מקובל, אבל עדיף ב-20:00-20:30. גיל 6-9 צריך 10 שעות שינה.',
+       bad:'גיל 6-9 צריך 10-11 שעות שינה! שינה ב-20:00-20:30 = קימה רעננה ב-7:00 ומוח חד לבית ספר.',
+       bestLabel:'20:00 — 10 שעות שינה לגדילה ולמידה'
+     }},
   ],
+
+  // ===== AGE 10-12 =====
   10:[
-    {id:'wake',icon:'⏰',label:'קום מוקדם',time:'morning',bestSlot:[0,1],
-     slots:[6,7],energy:+20,flw:4,
-     fb:{good:'מצוין! קימה מוקדמת = זמן רגוע לפני בית הספר. מפחיתה לחץ!',bad:'קום מוקדם לא אחרי 8. בוקר לחוץ = יום גרוע.'},
-     tip:'⏰ קום מוקדם = יום טוב יותר!'},
-    {id:'study',icon:'📖',label:'לימוד/שיעורי בית',time:'study',bestSlot:[2,3,4],
-     slots:[8,14,15,16],energy:-25,flw:6,
-     fb:{good:'חכם! הזמן הכי טוב ללימוד — בוקר (אחרי ארוחה) או מוקדם אחה"צ.',bad:'לימוד בשעה הזו פחות יעיל. נסה בוקר מוקדם או 14-16.'},
-     tip:'📖 מוח = הכי חזק בבוקר!'},
-    {id:'sport',icon:'🏃',label:'ספורט / פעילות',time:'sport',bestSlot:[7,8,9],
-     slots:[15,16,17,18],energy:-10,flw:5,
-     fb:{good:'מעולה! ספורט אחה"צ = פורק אנרגיה ומשפר ריכוז ללימוד אחר כך.',bad:'ספורט בשעה הזו לא אידיאלי. אחה"צ מוקדם עדיף.'},
-     tip:'🏃 ספורט = יותר ריכוז!'},
-    {id:'social',icon:'👫',label:'חברים / בילוי',time:'social',bestSlot:[8,9,10],
-     slots:[16,17,18,19],energy:-5,flw:4,
-     fb:{good:'נהדר! חברים אחרי שיעורי בית = ראש חופשי ליהנות!',bad:'חברים לפני שיעורי בית = קשה לחזור ללמוד אחר כך.'},
-     tip:'👫 חברים = אחרי שיעורים!'},
-    {id:'screen',icon:'📱',label:'מסך / טלפון',time:'screen',bestSlot:[10,11],
-     slots:[17,18,19],energy:-15,flw:3,
-     fb:{good:'טוב! מסך מוגבל ובשעות קבועות = שינה טובה יותר.',bad:'מסך לפני שינה פוגע בשינה. מסך לפני לימוד — מסיח דעת.'},
-     tip:'📱 מסך = בשעות קבועות בלבד!'},
-    {id:'sleep2',icon:'😴',label:'שינה',time:'sleep',bestSlot:[13,14,15],
-     slots:[21,22],energy:+35,flw:7,
-     fb:{good:'כל הכבוד! גיל 10-12 צריך 9-10 שעות שינה. ב-21-22 = מושלם.',bad:'כדאי לישון קצת מוקדם יותר — גיל 10-12 צריך 9-10 שעות שינה לריכוז ולמידה טובים.'},
-     tip:'😴 9-10 שעות שינה = חובה!'},
-    {id:'plan',icon:'📋',label:'תכנון המחרת',time:'plan',bestSlot:[12,13],
-     slots:[20,21],energy:0,flw:5,
-     fb:{good:'מעולה! 5 דקות תכנון = יום מחר הרבה יותר טוב. ככה עובדים המצליחנים!',bad:'תכנון מחר מוקדם מדי — נסה בערב, לפני שינה.'},
-     tip:'📋 תכנן ערב = יום מנצח!'},
-    {id:'read',icon:'📗',label:'קריאה',time:'read',bestSlot:[11,12],
-     slots:[19,20,21],energy:+5,flw:4,
-     fb:{good:'נהדר! קריאה לפני שינה = הירדמות קלה יותר ומוח חזק יותר.',bad:'קריאה = תמיד טוב, אבל לפני שינה עדיף. מרגיע ומלמד.'},
-     tip:'📗 קרא לפני שינה!'},
+    {id:'wake10',icon:'⏰',label:'קימה + שגרת בוקר',
+     // SLOT_HOURS_10: 6=idx0, 7=idx1
+     bestSlot:[0,1], slots:[6,7], energy:+20, flw:4,
+     hint:'מוקדם = יום טוב!',
+     fb:{
+       good:'מצוין! קימה ב-6:00-7:00 = זמן ארוחת בוקר בנחת + הכנת תיק + יציאה מסודרת לבית ספר. בלי לחץ!',
+       ok:'',
+       bad:'קימה מאוחרת = בית ספר בלחץ, בלי ארוחת בוקר. קום ב-6:30-7:00 כדי להתחיל יום טוב.',
+       bestLabel:'6:30-7:00 — זמן מנוחה לפני הצאת'
+     }},
+    {id:'school10',icon:'🏫',label:'בית ספר',
+     // SLOT_HOURS_10: 8=idx2, 9=idx3
+     // School in Israel starts at 8:00! Index 2 = hour 8
+     bestSlot:[2], slots:[8,9,10,11,12,13,14], energy:-20, flw:5,
+     hint:'ב-8:00 בישראל!',
+     fb:{
+       good:'נכון! בית ספר מתחיל ב-8:00 בישראל. הלימודים בבוקר = הכי יעיל, כי המוח ערני ורענן.',
+       ok:'',
+       bad:'בית הספר בישראל מתחיל ב-8:00 בבוקר. לא 9:00 ולא 10:00. ב-8:00 בדיוק!',
+       bestLabel:'8:00 — שעת פתיחת בית ספר'
+     }},
+    {id:'lunch10',icon:'🍱',label:'ארוחת צהריים',
+     // SLOT_HOURS_10: 14=idx8, 15=idx9
+     bestSlot:[8,9], slots:[13,14,15], energy:+15, flw:3,
+     hint:'אחרי חזרה מבית ספר!',
+     fb:{
+       good:'טוב! ארוחת צהריים ב-14:00-15:00 = אחרי הבית ספר, לפני שיעורי בית. הגוף מטעין אנרגיה!',
+       ok:'13:00 — מוקדם, אבל בסדר אם חוזרים מוקדם מבית ספר.',
+       bad:'ארוחת צהריים אחרי בית ספר — 14:00-15:00. לא לפני, ולא בלילה.',
+       bestLabel:'14:00-15:00 — אחרי בית ספר'
+     }},
+    {id:'homework10',icon:'📖',label:'שיעורי בית',
+     // SLOT_HOURS_10: 15=idx9, 16=idx10
+     bestSlot:[9,10], slots:[14,15,16,17], energy:-25, flw:6,
+     hint:'לפני ספורט וחברים!',
+     fb:{
+       good:'חכם! שיעורי בית ב-15:00-16:00 = עוד יש ריכוז ואנרגיה, ואחרי זה הערב חופשי לגמרי!',
+       ok:'17:00 — אפשרי, אבל הריכוז מתחיל לרדת. עדיף ב-15:00-16:00.',
+       bad:'שיעורי בית עדיף לפני ספורט וחברים — ב-15:00-16:00. כשמסיימים מוקדם, הערב שייך לך!',
+       bestLabel:'15:00-16:00 — ריכוז מיטבי'
+     }},
+    {id:'sport10',icon:'🏃',label:'ספורט / פעילות גופנית',
+     // SLOT_HOURS_10: 16=idx10, 17=idx11
+     bestSlot:[10,11], slots:[15,16,17,18], energy:-10, flw:5,
+     hint:'אחה"צ = אנרגיה!',
+     fb:{
+       good:'מעולה! ספורט ב-16:00-17:00 = שחרור אנרגיה, ריכוז טוב יותר בלילה, ושינה עמוקה יותר. הרגל בריא!',
+       ok:'18:00 — מאוחר קצת. ספורט צריך להסתיים לפחות שעתיים לפני שינה.',
+       bad:'ספורט אחרי 19:00 מפריע לשינה! ב-16:00-17:00 = אחרי שיעורים, לפני ארוחת ערב — מושלם.',
+       bestLabel:'16:00-17:00 — אחרי שיעורים, לפני ארוחת ערב'
+     }},
+    {id:'friends10',icon:'👫',label:'חברים ובילוי חברתי',
+     // SLOT_HOURS_10: 17=idx11, 18=idx12
+     bestSlot:[11,12], slots:[16,17,18,19], energy:+5, flw:4,
+     hint:'אחרי שיעורים + ספורט!',
+     fb:{
+       good:'נהדר! חברים ב-17:00-18:00 אחרי שיעורי בית וספורט = ראש חופשי לחלוטין. נהנים בלי לחץ!',
+       ok:'',
+       bad:'חברים לפני שיעורי בית = קשה מאוד לחזור ללמוד אחר כך. שיעורים + ספורט קודם, אחרי כן חברים!',
+       bestLabel:'17:00-18:00 — אחרי כל המשימות'
+     }},
+    {id:'dinner10',icon:'🍕',label:'ארוחת ערב',
+     // SLOT_HOURS_10: 19=idx13, 20=idx14
+     bestSlot:[13,14], slots:[18,19,20], energy:+10, flw:3,
+     hint:'עם המשפחה!',
+     fb:{
+       good:'טוב מאוד! ארוחת ערב ב-19:00-20:00 = זמן משפחה, שיחה על היום, מנוחה לפני לילה.',
+       ok:'18:00 — קצת מוקדם אם חברים/ספורט הסתיימו רק ב-18:00.',
+       bad:'ארוחת ערב ב-18:00-19:00 היא הזמן הנכון — לפני שגרת לילה ושינה.',
+       bestLabel:'19:00 — זמן משפחה ומנוחה'
+     }},
+    {id:'screen10',icon:'📱',label:'זמן מסך / טלפון',
+     // SLOT_HOURS_10: 19=idx13, 20=idx14
+     bestSlot:[13,14], slots:[18,19,20,21], energy:-15, flw:3,
+     hint:'עם הגבלת זמן!',
+     fb:{
+       good:'טוב! מסך ב-19:00-20:00 = אחרי כל המשימות, עם הגבלת זמן. מסיים שעה לפני שינה = שינה טובה.',
+       ok:'',
+       bad:'מסך לפני שיעורי בית = הפרעה ואיבוד זמן. מסך לפני שינה = קושי בהירדמות. שעה קבועה = 19:00-20:00.',
+       bestLabel:'19:00-20:00 — אחרי משימות, שעה לפני שינה'
+     }},
+    {id:'sleep10',icon:'😴',label:'שינה',
+     // SLOT_HOURS_10: 21=idx15, 22=idx16
+     // Age 10-12 needs 9-10 hours. Optimal: 21:00-21:30
+     bestSlot:[15], slots:[21,22], energy:+35, flw:7,
+     hint:'גיל 10-12 = 9-10 שעות!',
+     fb:{
+       good:'כל הכבוד! שינה ב-21:00 = 9-10 שעות לפני קימה ב-6:00-7:00. שינה טובה = ריכוז, זיכרון, ומצב רוח!',
+       ok:'22:00 — קצת מאוחר לגיל 10-12. נסה להקדים ב-30-60 דקות.',
+       bad:'גיל 10-12 צריך 9-10 שעות שינה! ב-21:00-21:30 = קימה רעננה ב-7:00. שינה לא מספיקה פוגעת בריכוז ב-40%!',
+       bestLabel:'21:00-21:30 — 9-10 שעות שינה'
+     }},
   ],
+
+  // ===== AGE 13-16 =====
   13:[
-    {id:'deep-work',icon:'🧠',label:'לימוד מרוכז',time:'deep',bestSlot:[0,1,2],
-     slots:[7,8,9,10],energy:-30,flw:7,
-     fb:{good:'מצוין! לימוד מרוכז בבוקר = הזמן שבו המוח הכי ממוקד וחד.',bad:'לימוד מרוכז אחה"צ? אחרי 14:00 המוח מתחיל להתעייף. קשה יותר להתרכז לאורך זמן.'},
-     tip:'🧠 לימוד קשה = בוקר!'},
-    {id:'exercise',icon:'💪',label:'אימון / ספורט',time:'exercise',bestSlot:[4,5,6],
-     slots:[6,14,15,16,17],energy:-20,flw:5,
-     fb:{good:'מושלם! ספורט בבוקר = אנרגיה וחיוביות לכל היום. ספורט אחה"צ = מוציא את הלחץ.',bad:'ספורט לפני שינה מפריע להירדמות. נסה קצת מוקדם יותר.'},
-     tip:'💪 ספורט = מגביר מוח!'},
-    {id:'admin',icon:'📧',label:'מיילים / מסרים',time:'admin',bestSlot:[3,4,7],
-     slots:[10,11,18,19],energy:-5,flw:3,
-     fb:{good:'חכם! מיילים ומסרים = פעילות "קלה". שמור לאחר עבודה עמוקה.',bad:'לפתוח מיילים/מסרים ראשון = להכנס להפרעות. קשה לצאת ולהתרכז.'},
-     tip:'📧 מסרים = לא ראשון!'},
-    {id:'learn-new',icon:'🎓',label:'למידה חדשה',time:'learn',bestSlot:[1,2,3],
-     slots:[8,9,10,14,15],energy:-25,flw:6,
-     fb:{good:'מעולה! למידת חומר חדש דורשת ריכוז מקסימלי — בוקר או אחה"צ מוקדם.',bad:'למידה חדשה בשעה הזו? העייפות תגרום לחזרה על אותו חומר שוב ושוב.'},
-     tip:'🎓 חומר חדש = כשאתה רענן!'},
-    {id:'social2',icon:'👥',label:'חברים / מדיה',time:'social',bestSlot:[8,9,10],
-     slots:[16,17,18,19,20],energy:+5,flw:4,
-     fb:{good:'טוב! חברים אחה"צ מאוחר = מרגע ומאזן את יום הלימודים.',bad:'חברים ומדיה חברתית בשעות הבוקר = הפרעה ליום. שמור לאחה"צ.'},
-     tip:'👥 חברים = אחה"צ מאוחר!'},
-    {id:'reflect',icon:'📓',label:'יומן / חשיבה על היום',time:'reflect',bestSlot:[11,12],
-     slots:[21,22],energy:+10,flw:5,
-     fb:{good:'מעולה! כתיבת יומן וחשיבה על היום לפני שינה = מסדרים את הראש ומתכננים מחר. הרגל של מצליחנים.',bad:'חשיבה על היום בשעה הזו? זה שייך לסוף היום — לפני שינה.'},
-     tip:'📓 יומן = מגביר הצלחה!'},
-    {id:'sleep3',icon:'😴',label:'שינה',time:'sleep',bestSlot:[13,14,15],
-     slots:[22,23],energy:+40,flw:8,
-     fb:{good:'כל הכבוד! גיל 13-16 צריך 8-9 שעות. ב-22-23 = יום מאוזן.',bad:'כדאי לישון מוקדם יותר — גיל 13-16 צריך 8-9 שעות. חוסר שינה גורם לירידה של 40% בריכוז!'},
-     tip:'😴 8-9 שעות = מוח חד!'},
-    {id:'nap',icon:'🛋️',label:'תנומת צהריים',time:'nap',bestSlot:[5,6],
-     slots:[13,14],energy:+20,flw:4,
-     fb:{good:'מדהים! 20 דקות תנומה ב-13-14 = הזנקת ביצועים של 34%. חברות גדולות כמו Google מעודדות זאת!',bad:'תנומה בשעה הזו לא אידיאלית. אחרי ארוחת הצהריים (13-14) = האפקטיבי ביותר.'},
-     tip:'🛋️ 20 דקות תנומה = +34% ריכוז!'},
-    {id:'plan2',icon:'🗓️',label:'תכנון יום מחר',time:'plan',bestSlot:[12,13],
-     slots:[21,22],energy:0,flw:5,
-     fb:{good:'מנצח! תכנון מחר = 10 דקות שחוסכות שעה. ראה את היום כתכנית, לא כתגובות.',bad:'תכנון מחר ראוי לסוף היום. כך תלך לישון בראש שקט.'},
-     tip:'🗓️ תכנן = שולט בזמן!'},
+    {id:'wake13',icon:'⏰',label:'קימה ושגרת בוקר',
+     // SLOT_HOURS_13: 7=idx0, 8=idx1
+     bestSlot:[0,1], slots:[7,8], energy:+20, flw:4,
+     hint:'מוקדם = יום פרודוקטיבי!',
+     fb:{
+       good:'מצוין! קימה ב-7:00 = שגרת בוקר מסודרת, ארוחת בוקר, ויציאה לבית ספר בלי לחץ. מוח ערני!',
+       ok:'',
+       bad:'קימה מאוחרת = יציאה לבית ספר בלחץ ובלי אוכל. קום ב-7:00 בדיוק.',
+       bestLabel:'7:00 — יום מסודר מתחיל בבוקר'
+     }},
+    {id:'school13',icon:'🏫',label:'בית ספר',
+     // SLOT_HOURS_13: 8=idx1
+     bestSlot:[1], slots:[8,9,10,11,12,13,14], energy:-20, flw:5,
+     hint:'ב-8:00 בישראל!',
+     fb:{
+       good:'נכון! בית ספר ב-8:00 — הלימודים בבוקר = זמן המוח שבו הוא הכי פרודוקטיבי לקליטת מידע.',
+       ok:'',
+       bad:'בית הספר בישראל מתחיל ב-8:00. לא 9:00, לא 10:00 — ב-8:00 בדיוק!',
+       bestLabel:'8:00 — שעת פתיחה רשמית'
+     }},
+    {id:'lunch13',icon:'🍱',label:'ארוחת צהריים + מנוחה',
+     // SLOT_HOURS_13: 14=idx7, 15=idx8
+     bestSlot:[7,8], slots:[14,15], energy:+15, flw:3,
+     hint:'אחרי בית ספר!',
+     fb:{
+       good:'טוב! ארוחת צהריים ב-14:00-15:00 + מנוחה קצרה של 20 דקות = הגוף מתאושש מהיום ומוכן ללמוד.',
+       ok:'',
+       bad:'אחרי בית ספר — אכול ונח מעט. ב-14:00-15:00 = הגוף מחכה לזה!',
+       bestLabel:'14:00-15:00 — אכול + נח מעט'
+     }},
+    {id:'deepwork',icon:'🧠',label:'לימוד מרוכז',
+     // SLOT_HOURS_13: 15=idx8, 16=idx9, 17=idx10
+     bestSlot:[8,9], slots:[14,15,16,17], energy:-30, flw:7,
+     hint:'כשהמוח רענן!',
+     fb:{
+       good:'מצוין! לימוד מרוכז ב-15:00-16:00 = אחרי ארוחה ומנוחה, לפני עייפות ערב. זמן פרודוקטיביות מקסימלי!',
+       ok:'17:00 — עדיין אפשרי, אבל הריכוז מתחיל לרדת. עדיף ב-15:00-16:00.',
+       bad:'לימוד מרוכז אחרי 18:00 = מוח עייף, טעויות רבות, תסכול. הזמן הכי יעיל: 15:00-17:00.',
+       bestLabel:'15:00-16:00 — שיא הריכוז אחר צהריים'
+     }},
+    {id:'sport13',icon:'💪',label:'ספורט / אימון',
+     // SLOT_HOURS_13: 17=idx10, 18=idx11
+     bestSlot:[10,11], slots:[16,17,18,19], energy:-20, flw:5,
+     hint:'אחרי לימוד!',
+     fb:{
+       good:'מעולה! ספורט ב-17:00-18:00 = שחרור לחץ מהיום, שיפור מצב רוח, ושינה עמוקה יותר בלילה. Win!',
+       ok:'',
+       bad:'ספורט לפני שינה (21:00+) מפריע לשינה. ספורט לפני לימוד — מוח עייף. המיקום הנכון: 17:00-19:00.',
+       bestLabel:'17:00-18:00 — אחרי לימוד, לפני ערב'
+     }},
+    {id:'social13',icon:'👥',label:'חברים / מדיה חברתית',
+     // SLOT_HOURS_13: 19=idx12, 20=idx13
+     bestSlot:[12,13], slots:[18,19,20,21], energy:+5, flw:4,
+     hint:'אחרי כל המשימות!',
+     fb:{
+       good:'טוב! חברים ומדיה ב-19:00-20:00 = אחרי לימוד וספורט, ראש חופשי לחלוטין. מגבילים ל-60-90 דקות.',
+       ok:'',
+       bad:'מדיה חברתית לפני לימוד = הפרעה קשה לריכוז. אחרי כל המשימות — אז תתחבר. ב-19:00+.',
+       bestLabel:'19:00-20:00 — אחרי כל המשימות'
+     }},
+    {id:'journal13',icon:'📓',label:'תכנון + חשיבה על היום',
+     // SLOT_HOURS_13: 21=idx14, 22=idx15
+     bestSlot:[14,15], slots:[20,21,22], energy:+10, flw:5,
+     hint:'לפני שינה!',
+     fb:{
+       good:'מעולה! 5-10 דקות חשיבה לפני שינה + תכנון מחר = ראש שקט, ירידה בחרדות, ויום מחר יותר ממוקד!',
+       ok:'',
+       bad:'תכנון מחר שייך לסוף היום — לפני שינה. כך הולכים לישון בראש שקט ומסודר.',
+       bestLabel:'21:00-22:00 — תכנן מחר, ישן טוב יותר'
+     }},
+    {id:'sleep13',icon:'😴',label:'שינה',
+     // SLOT_HOURS_13: 22=idx15, 23=idx16
+     // Age 13-16 needs 8-9 hours. Optimal: 22:00-22:30
+     bestSlot:[15], slots:[22,23], energy:+40, flw:8,
+     hint:'גיל 13-16 = 8-9 שעות!',
+     fb:{
+       good:'כל הכבוד! שינה ב-22:00 = 8-9 שעות לפני קימה ב-7:00. חוסר שינה פוגע ב-40% מהריכוז ומ-30% מהזיכרון!',
+       ok:'23:00 — מאוחר קצת לגיל 13-16. נסה להקדים לפחות ב-30 דקות.',
+       bad:'גיל 13-16 צריך 8-9 שעות שינה. שינה ב-22:00-22:30 = קימה רעננה ב-7:00. לא 23:30-24:00!',
+       bestLabel:'22:00-22:30 — 8-9 שעות שינה'
+     }},
   ]
 };
 
-// TIME SLOT HOURS
-const SLOT_HOURS_6  = [7,8,9,10,11,12,13,14,15,16,17,18,19,20,21];
-const SLOT_HOURS_10 = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22];
-const SLOT_HOURS_13 = [7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23];
-
+// ============================================================
 // ROBOT SAYINGS
+// ============================================================
 const ROBOT_SAYS = {
   good:['מעולה! ✨','בדיוק! 🎯','חכם! ⭐','כל הכבוד! 🏆','מנצח! 💪'],
-  bad: ['נסה שוב 💭','לא בדיוק...','חשוב שוב ⏰','אפשר טוב יותר!'],
-  idle:['גרור אותי לשעה הנכונה! 😄','מה השעה הנכונה? 🤔','גרור לציר הזמן! ⏳','תגרור אותי! 🎯']
+  ok:  ['כמעט! 👍','קרוב! 🎯','סביר, אבל יש עדיף 🤔'],
+  bad: ['נסה שוב 💭','לא בדיוק...','חשוב שוב ⏰','יש שעה יותר טובה!'],
+  idle:['לחץ על השעה הנכונה! 😄','מה השעה הנכונה? 🤔','בחר שעה בציר הזמן! ⏳']
 };
 
 // ============================================================
@@ -486,11 +696,10 @@ const GS = {
   age:6, learnStep:0, learnSteps:[],
   tasks:[], currentTask:null, tasksDone:0,
   energy:80, maxEnergy:100,
-  flw:0, score:0, goodCount:0,
+  flw:0, score:0, goodCount:0, okCount:0,
   userId:null, gameId:null, flwPerWin:3,
   startTime:Date.now(), answered:false,
-  slotHours:[], dragTask:null,
-  idleSayTimer:null,
+  slotHours:[], idleSayTimer:null,
   assignedLevel:0, assignedRoundsTotal:0, levelFlwStart:0, gameSaved:false
 };
 
@@ -527,7 +736,10 @@ window.addEventListener('message', e => {
 // ============================================================
 // HELPERS
 // ============================================================
-function showScreen(id){ document.querySelectorAll('.scr').forEach(s => s.classList.remove('on')); document.getElementById(id).classList.add('on'); }
+function showScreen(id){
+  document.querySelectorAll('.scr').forEach(s => s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+}
 function shuffle(a){ return [...a].sort(() => Math.random() - .5); }
 function rnd(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
 
@@ -579,7 +791,10 @@ function selectAge(el, age){
 }
 function autoSelectAge(age){
   document.querySelectorAll('.age-card').forEach(c => {
-    if(parseInt(c.dataset.age) === age){ c.classList.add('sel'); GS.age = age; document.getElementById('btn-go').classList.add('ready'); }
+    if(parseInt(c.dataset.age) === age){
+      c.classList.add('sel'); GS.age = age;
+      document.getElementById('btn-go').classList.add('ready');
+    }
   });
 }
 
@@ -597,7 +812,6 @@ function startLearn(){
 function renderLearn(){
   const s = GS.learnSteps;
   const cur = s[GS.learnStep];
-  // dots
   let dots = '';
   s.forEach((_,i) => {
     dots += `<div class="lsd ${i < GS.learnStep ? 'done' : i === GS.learnStep ? 'on' : ''}"></div>`;
@@ -622,7 +836,7 @@ function learnNext(){
 function startGame(){
   GS.tasks = shuffle([...(TASKS[GS.age] || TASKS[6])]);
   GS.slotHours = GS.age <= 9 ? SLOT_HOURS_6 : GS.age <= 12 ? SLOT_HOURS_10 : SLOT_HOURS_13;
-  GS.energy = 80; GS.flw = 0; GS.score = 0; GS.goodCount = 0;
+  GS.energy = 80; GS.flw = 0; GS.score = 0; GS.goodCount = 0; GS.okCount = 0;
   GS.tasksDone = 0; GS.answered = false;
 
   updateEnergy(0);
@@ -649,10 +863,7 @@ function buildTimeline(){
       <div class="time-slot-drop" id="slot-${h}" data-hour="${h}" data-idx="${i}"></div>
       <div class="time-slot-label">${h}:00</div>`;
     inner.appendChild(slot);
-    // drop zone listeners
-    const drop = slot.querySelector('.time-slot-drop');
-    drop.addEventListener('touchstart', onSlotTouch, {passive:false});
-    drop.addEventListener('click', () => onSlotClick(h));
+    slot.querySelector('.time-slot-drop').addEventListener('click', () => onSlotClick(h));
   });
 }
 
@@ -665,232 +876,136 @@ function showNextTask(){
   const task = GS.tasks[GS.tasksDone];
   GS.currentTask = task;
 
-  // clear old task elements
-  document.getElementById('tasks-area').innerHTML = '';
+  document.getElementById('qc-icon').textContent = task.icon;
+  document.getElementById('qc-label').textContent = task.label;
+  document.getElementById('qc-hint').textContent = task.hint || 'לחץ על השעה בציר הזמן ↓';
 
-  // create falling task card
-  const el = document.createElement('div');
-  el.className = 'falling-task';
-  el.id = 'current-task';
-  el.innerHTML = `<div class="ft-icon">${task.icon}</div><div class="ft-label">${task.label}</div>`;
+  document.getElementById('hud-time').textContent = `⏰ ${task.slots[0]}:00`;
 
-  // position in center top
-  const area = document.getElementById('tasks-area');
-  const aW = area.offsetWidth;
-  el.style.left = (aW/2 - 40) + 'px';
-  el.style.top = '20px';
-
-  area.appendChild(el);
-
-  // animate drop in
-  el.style.animation = 'task-drop 0.5s cubic-bezier(0.34,1.56,0.64,1)';
-  const styleEl = document.createElement('style');
-  styleEl.textContent = `@keyframes task-drop{from{transform:translateY(-80px) scale(0.5);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}`;
-  document.head.appendChild(styleEl);
-
-  // update HUD time
-  const firstSlot = task.slots[0];
-  document.getElementById('hud-time').textContent = `⏰ ${firstSlot}:00`;
-
-  // speech
-  sayRobot(task.tip || '?');
-
-  // drag/touch
-  initDrag(el);
-
-  // highlight valid slots
-  highlightSlots(task.slots);
+  sayRobot(task.hint || 'מתי הכי נכון? 🤔');
+  highlightSlots(task);
 }
 
-function highlightSlots(hours){
-  document.querySelectorAll('.time-slot-drop').forEach(s => s.classList.remove('highlight'));
-  hours.forEach(h => {
+function highlightSlots(task){
+  document.querySelectorAll('.time-slot-drop').forEach(s => {
+    s.classList.remove('highlight','best-slot','filled','correct','good-not-best','wrong');
+  });
+
+  // highlight valid slots
+  task.slots.forEach(h => {
     const el = document.getElementById(`slot-${h}`);
     if(el) el.classList.add('highlight');
   });
-  // scroll timeline to first slot
-  const firstEl = document.getElementById(`slot-${hours[0]}`);
-  if(firstEl) firstEl.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'});
-}
-
-// ============================================================
-// DRAG & TOUCH
-// ============================================================
-let _dragEl = null, _dragOffX = 0, _dragOffY = 0;
-
-function initDrag(el){
-  // touch
-  el.addEventListener('touchstart', e => {
-    e.preventDefault();
-    _dragEl = el;
-    el.classList.add('dragging');
-    const t = e.touches[0];
-    const r = el.getBoundingClientRect();
-    _dragOffX = t.clientX - r.left;
-    _dragOffY = t.clientY - r.top;
-  }, {passive:false});
-
-  document.addEventListener('touchmove', onTouchMove, {passive:false});
-  document.addEventListener('touchend', onTouchEnd, {passive:false});
-
-  // mouse (desktop)
-  el.addEventListener('mousedown', e => {
-    _dragEl = el;
-    el.classList.add('dragging');
-    _dragOffX = e.offsetX;
-    _dragOffY = e.offsetY;
+  // mark best slots distinctly
+  task.bestSlot.forEach(idx => {
+    const h = GS.slotHours[idx];
+    const el = document.getElementById(`slot-${h}`);
+    if(el){ el.classList.remove('highlight'); el.classList.add('best-slot'); }
   });
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mouseup', onMouseUp);
+
+  // scroll to show relevant slots
+  const firstValidEl = document.getElementById(`slot-${task.slots[0]}`);
+  if(firstValidEl) firstValidEl.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'});
 }
 
-function onTouchMove(e){
-  if(!_dragEl) return;
-  e.preventDefault();
-  const t = e.touches[0];
-  _dragEl.style.left = (t.clientX - _dragOffX) + 'px';
-  _dragEl.style.top  = (t.clientY - _dragOffY - document.getElementById('tasks-area').getBoundingClientRect().top) + 'px';
-}
-
-function onTouchEnd(e){
-  if(!_dragEl) return;
-  const t = e.changedTouches[0];
-  const dropTarget = findDropTarget(t.clientX, t.clientY);
-  if(dropTarget) handleDrop(parseInt(dropTarget.dataset.hour));
-  else snapBack();
-  _dragEl.classList.remove('dragging');
-  _dragEl = null;
-}
-
-function onMouseMove(e){
-  if(!_dragEl) return;
-  const area = document.getElementById('tasks-area').getBoundingClientRect();
-  _dragEl.style.left = (e.clientX - _dragOffX - area.left) + 'px';
-  _dragEl.style.top  = (e.clientY - _dragOffY - area.top) + 'px';
-}
-
-function onMouseUp(e){
-  if(!_dragEl) return;
-  const dropTarget = findDropTarget(e.clientX, e.clientY);
-  if(dropTarget) handleDrop(parseInt(dropTarget.dataset.hour));
-  else snapBack();
-  _dragEl.classList.remove('dragging');
-  _dragEl = null;
-}
-
-function findDropTarget(clientX, clientY){
-  // מחפש את ה-slot הכי קרוב ל-X של הגרירה בתחתית המסך
-  const slots = document.querySelectorAll('.time-slot-drop');
-  let best = null, bestDist = Infinity;
-  for(const slot of slots){
-    const r = slot.getBoundingClientRect();
-    const cx = r.left + r.width / 2;
-    const dist = Math.abs(clientX - cx);
-    // Y צריך להיות בתחום ה-timeline (200px אחרון)
-    const inY = clientY >= window.innerHeight - 220;
-    if(inY && dist < bestDist && dist < 50){
-      best = slot;
-      bestDist = dist;
-    }
-  }
-  return best;
-}
-
-function snapBack(){
-  if(!_dragEl) return;
-  const area = document.getElementById('tasks-area');
-  _dragEl.style.left = (area.offsetWidth/2 - 40) + 'px';
-  _dragEl.style.top = '20px';
-}
-
-// click on slot (alternative to drag)
+// ============================================================
+// SLOT CLICK
+// ============================================================
 function onSlotClick(hour){
   if(GS.answered || !GS.currentTask) return;
-  handleDrop(hour);
-}
-
-function onSlotTouch(e){
-  e.stopPropagation();
+  handleSlotChoice(hour);
 }
 
 // ============================================================
-// HANDLE DROP
+// EVALUATE ANSWER
 // ============================================================
-function handleDrop(hour){
+function handleSlotChoice(hour){
   if(GS.answered || !GS.currentTask) return;
   GS.answered = true;
   const task = GS.currentTask;
-  document.querySelectorAll('.time-slot-drop').forEach(s => s.classList.remove('highlight'));
+  document.querySelectorAll('.time-slot-drop').forEach(s =>
+    s.classList.remove('highlight','best-slot'));
 
   const slotIdx = GS.slotHours.indexOf(hour);
-  const isGood = task.bestSlot.includes(slotIdx);
-  const isValid = task.slots.includes(hour);
-  const slotEl = document.getElementById(`slot-${hour}`);
+  const isBest   = task.bestSlot.includes(slotIdx);
+  const isValid  = task.slots.includes(hour);
+  const slotEl   = document.getElementById(`slot-${hour}`);
 
-  if(isValid){
-    const taskEl = document.getElementById('current-task');
-    if(taskEl && slotEl){
-      taskEl.style.animation = 'none';
-      slotEl.innerHTML = `<span style="font-size:1.3rem">${task.icon}</span>`;
-      slotEl.classList.add(isGood ? 'correct' : 'filled');
-      taskEl.remove();
-    }
-
-    if(isGood){
-      GS.goodCount++;
-      GS.score++;
-      document.getElementById('hud-score').textContent = GS.score;
-      addFLW(GS.flwPerWin);
-      updateEnergy(task.energy);
-      const rect = slotEl.getBoundingClientRect();
-      spawnStars(rect.left + rect.width/2, rect.top);
-      robotHappy();
-      showFeedback(true, task, hour);
-    } else {
-      updateEnergy(Math.round(task.energy * 0.5));
-      robotWarn();
-      showFeedback(false, task, hour);
-    }
-  } else {
+  if(!isValid){
+    // Wrong — not in valid range
+    if(slotEl){ slotEl.classList.add('wrong'); setTimeout(() => slotEl.classList.remove('wrong'), 500); }
     GS.answered = false;
-    if(slotEl) slotEl.classList.add('wrong');
-    setTimeout(() => slotEl && slotEl.classList.remove('wrong'), 500);
-    snapBack();
-    sayRobot(`${hour}:00 לא מתאים ל${task.label}. נסה שעה אחרת! ⏰`);
+    sayRobot(`${hour}:00 לא מתאים כלל ל${task.label} 🤔`);
+    // Re-highlight
+    setTimeout(() => highlightSlots(task), 600);
     return;
+  }
+
+  // Place on timeline
+  if(slotEl){
+    slotEl.innerHTML = `<span style="font-size:1.3rem">${task.icon}</span>`;
+    slotEl.classList.add(isBest ? 'correct' : 'good-not-best');
+    slotEl.classList.remove('highlight','best-slot');
+  }
+
+  if(isBest){
+    GS.goodCount++;
+    GS.score++;
+    document.getElementById('hud-score').textContent = GS.score;
+    addFLW(GS.flwPerWin);
+    updateEnergy(task.energy);
+    if(slotEl){ const r = slotEl.getBoundingClientRect(); spawnStars(r.left+r.width/2, r.top); }
+    robotHappy();
+    showFeedback('best', task, hour);
+  } else {
+    // Valid but not optimal
+    GS.okCount++;
+    updateEnergy(Math.round(task.energy * 0.4));
+    addFLW(Math.max(1, Math.floor(GS.flwPerWin * 0.5)));
+    robotWarn();
+    showFeedback('ok', task, hour);
   }
 }
 
 // ============================================================
 // FEEDBACK
 // ============================================================
-function buildDynamicFeedback(good, task, hour){
-  // מבנה פידבק דינמי לפי השעה שנבחרה ומה היה כדאי
+function showFeedback(result, task, hour){
   const bestHours = task.bestSlot.map(i => GS.slotHours[i]).filter(Boolean);
-  const bestStr = bestHours.length ? bestHours.map(h => h+':00').join(' או ') : '';
-  if(good){
-    return task.fb.good + (task.energy > 0
-      ? ` השעה ${hour}:00 נותנת לך +${task.energy}⚡ אנרגיה!`
-      : task.energy < 0
-        ? ` בשעה ${hour}:00 תוציא ${Math.abs(task.energy)}⚡ — שים לב לאנרגיה.`
-        : '');
+  const bestStr   = bestHours.map(h => `${h}:00`).join(' או ');
+
+  let icon, title, text, bestNote;
+
+  if(result === 'best'){
+    icon  = '✅';
+    title = rnd(ROBOT_SAYS.good);
+    text  = task.fb.good;
+    bestNote = null;
   } else {
-    const better = bestStr ? ` השעה הטובה ביותר: ${bestStr}.` : '';
-    return `בחרת ${hour}:00 — ${task.fb.bad}${better}`;
+    // ok — valid but not best
+    icon  = '⚠️';
+    title = rnd(ROBOT_SAYS.ok);
+    text  = task.fb.ok || `${hour}:00 — אפשרי, אך לא הזמן האופטימלי.`;
+    bestNote = task.fb.bestLabel ? `⭐ הכי טוב: ${task.fb.bestLabel}` : `⭐ הכי טוב: ${bestStr}`;
   }
-}
 
-function showFeedback(good, task, hour){
-  document.getElementById('fb-icon').textContent = good ? '✅' : '⚠️';
-  document.getElementById('fb-title').textContent = good ? rnd(ROBOT_SAYS.good) : `${hour}:00 — אפשר טוב יותר`;
-  document.getElementById('fb-text').textContent = buildDynamicFeedback(good, task, hour);
+  document.getElementById('fb-icon').textContent    = icon;
+  document.getElementById('fb-title').textContent   = title;
+  document.getElementById('fb-text').textContent    = text;
 
-  const ef = document.getElementById('fb-energy');
-  const energyVal = good ? task.energy : Math.round(task.energy * 0.5);
+  const bestEl = document.getElementById('fb-best');
+  if(bestNote){ bestEl.textContent = bestNote; bestEl.style.display = ''; }
+  else { bestEl.style.display = 'none'; }
+
+  const energyEl = document.getElementById('fb-energy');
+  const energyVal = result === 'best' ? task.energy : Math.round(task.energy * 0.4);
   if(energyVal !== 0){
-    ef.textContent = energyVal > 0 ? `+${energyVal} ⚡ אנרגיה` : `${energyVal} ⚡ אנרגיה`;
-    ef.style.color = energyVal > 0 ? '#22C55E' : '#EF4444';
-  } else { ef.textContent = '⏰ ניהול זמן = כוח!'; ef.style.color = '#7A9EA8'; }
+    energyEl.textContent = energyVal > 0 ? `+${energyVal} ⚡ אנרגיה` : `${energyVal} ⚡ אנרגיה`;
+    energyEl.style.color = energyVal > 0 ? '#22C55E' : '#EF4444';
+  } else {
+    energyEl.textContent = '⏰ ניהול זמן = כוח!';
+    energyEl.style.color = '#7A9EA8';
+  }
 
   document.getElementById('feedback').classList.add('show');
 }
@@ -906,9 +1021,9 @@ function closeFeedback(){
 // ============================================================
 function initRobot(){
   const robot = document.getElementById('game-robot');
-  const game = document.getElementById('scr-game');
+  const game  = document.getElementById('scr-game');
   robot.style.left = (game.offsetWidth/2 - 32) + 'px';
-  robot.className = 'idle';
+  robot.className  = 'idle';
 }
 
 function robotHappy(){
@@ -924,20 +1039,19 @@ function robotWarn(){
 }
 
 function sayRobot(text){
-  const sp = document.getElementById('speech');
+  const sp    = document.getElementById('speech');
   const robot = document.getElementById('game-robot');
-  const rx = parseFloat(robot.style.left || '0');
-  sp.style.left = rx + 'px';
+  sp.style.left = parseFloat(robot.style.left || '0') + 'px';
   sp.textContent = text;
   sp.classList.add('show');
-  setTimeout(() => sp.classList.remove('show'), 2800);
+  setTimeout(() => sp.classList.remove('show'), 3000);
 }
 
 function startIdleRobotSays(){
   if(GS.idleSayTimer) clearInterval(GS.idleSayTimer);
   GS.idleSayTimer = setInterval(() => {
     if(!GS.answered && GS.currentTask) sayRobot(rnd(ROBOT_SAYS.idle));
-  }, 5000);
+  }, 5500);
 }
 
 // ============================================================
@@ -946,26 +1060,27 @@ function startIdleRobotSays(){
 function endGame(){
   if(GS.idleSayTimer) clearInterval(GS.idleSayTimer);
   const total = GS.tasks.length;
-  const pct = Math.round(GS.goodCount / total * 100);
-  let emoji, title, stars;
-  if(pct >= 80){ emoji='🏆'; title='יום מושלם! אלוף ניהול זמן!'; stars='⭐⭐⭐'; }
-  else if(pct >= 60){ emoji='🎉'; title='יום טוב! יש מה לשפר'; stars='⭐⭐'; }
-  else{ emoji='💪'; title='ניסיון טוב! נתרגל עוד'; stars='⭐'; }
+  const pct   = Math.round((GS.goodCount + GS.okCount * 0.5) / total * 100);
 
-  // bonus FLW
-  const bonus = Math.round(pct * 0.2);
+  let emoji, title, stars;
+  if(GS.goodCount === total){ emoji='🏆'; title='מושלם! אלוף ניהול זמן!'; stars='⭐⭐⭐'; }
+  else if(pct >= 70){ emoji='🎉'; title='יום טוב מאוד! ממשיכים להשתפר!'; stars='⭐⭐'; }
+  else{ emoji='💪'; title='ניסיון טוב! עוד קצת תרגול!'; stars='⭐'; }
+
+  const bonus = Math.round(pct * 0.15);
   GS.flw += bonus;
 
-  document.getElementById('result-emoji').textContent = emoji;
-  document.getElementById('result-title').textContent = title;
-  document.getElementById('result-sub').textContent = `סידרת ${total} משימות בהצלחה`;
-  document.getElementById('result-stars').textContent = stars;
-  document.getElementById('result-flw').textContent = GS.flw;
-  document.getElementById('result-stats').innerHTML = `
-    <div class="stat-row"><span>✅ מיקום נכון</span><span class="stat-val">${GS.goodCount}/${total}</span></div>
+  document.getElementById('result-emoji').textContent  = emoji;
+  document.getElementById('result-title').textContent  = title;
+  document.getElementById('result-sub').textContent    = `סידרת ${total} פעילויות ביום`;
+  document.getElementById('result-stars').textContent  = stars;
+  document.getElementById('result-flw').textContent    = GS.flw;
+  document.getElementById('result-stats').innerHTML    = `
+    <div class="stat-row"><span>✅ מיקום מושלם</span><span class="stat-val">${GS.goodCount}/${total}</span></div>
+    <div class="stat-row"><span>👍 מיקום סביר</span><span class="stat-val">${GS.okCount}/${total}</span></div>
     <div class="stat-row"><span>⚡ אנרגיה סופית</span><span class="stat-val">${GS.energy}%</span></div>
     <div class="stat-row"><span>🎯 ציון</span><span class="stat-val">${pct}%</span></div>
-    <div class="stat-row"><span>🎁 בונוס FLW kid</span><span class="stat-val">+${bonus}</span></div>`;
+    <div class="stat-row"><span>🎁 בונוס FLW</span><span class="stat-val">+${bonus}</span></div>`;
 
   const dur = Math.round((Date.now() - GS.startTime)/1000);
   const payload = {type:'GAME_COMPLETE', userId:GS.userId, gameId:GS.gameId,
@@ -978,18 +1093,19 @@ function endGame(){
 }
 
 function playAgain(){
-  GS.flw=0; GS.score=0; GS.energy=80; GS.goodCount=0; GS.tasksDone=0;
+  GS.flw=0; GS.score=0; GS.energy=80; GS.goodCount=0; GS.okCount=0; GS.tasksDone=0;
   GS.age=null; GS.currentTask=null;
   document.querySelectorAll('.age-card').forEach(c=>c.classList.remove('sel'));
   document.getElementById('btn-go').classList.remove('ready');
   showScreen('scr-intro');
 }
+
 function goHome(){
   if(GS.idleSayTimer) clearInterval(GS.idleSayTimer);
-  if(window.parent !== window) {
-    if(!GS.gameSaved && GS.flw > 0) {
+  if(window.parent !== window){
+    if(!GS.gameSaved && GS.flw > 0){
       GS.gameSaved = true;
-      const dur = Math.round((Date.now() - GS.startTime) / 1000);
+      const dur = Math.round((Date.now() - GS.startTime)/1000);
       window.parent.postMessage({type:'GAME_COMPLETE', userId:GS.userId, gameId:GS.gameId,
         score:0, flwEarned:GS.flw - GS.levelFlwStart, levelIdx:1,
         durationSeconds:dur, gameName:'היום של OF — ניהול זמן'}, '*');
