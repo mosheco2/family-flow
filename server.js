@@ -24117,6 +24117,27 @@ const DOCS_CONFIG = {
     scanFiles: [],
     apiPrefix: null,
   },
+  'spec-db-schema': {
+    file: 'public/docs/spec-db-schema.md',
+    label: 'סכמת DB מלאה',
+    scanFiles: [],
+    apiPrefix: null,
+    _refreshHint: 'db-schema',
+  },
+  'spec-api-complete': {
+    file: 'public/docs/spec-api-complete.md',
+    label: 'מפת API מלאה',
+    scanFiles: [],
+    apiPrefix: null,
+    _refreshHint: 'api-complete',
+  },
+  'spec-missing-modules': {
+    file: 'public/docs/spec-missing-modules.md',
+    label: 'מודולים מתקדמים',
+    scanFiles: [],
+    apiPrefix: null,
+    _refreshHint: 'missing-modules',
+  },
 };
 
 // GET /api/sa/docs/meta — returns mtime for each doc
@@ -24144,35 +24165,83 @@ app.post('/api/sa/docs/refresh/:doc', verifySA, async (req, res) => {
     const docPath = path.join(__dirname, cfg.file);
     const existingMd = fs.existsSync(docPath) ? fs.readFileSync(docPath, 'utf8') : '';
 
-    // Extract relevant API routes from server.js
-    let apiRoutes = '';
-    if (cfg.apiPrefix) {
-      const serverLines = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8').split('\n');
-      const routeLines = serverLines.filter(l => {
-        const m = l.match(/app\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]+)/i);
-        return m && m[2].startsWith(cfg.apiPrefix);
-      });
-      apiRoutes = routeLines.slice(0, 120).join('\n');
-    }
+    const serverJs = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+    const serverLines = serverJs.split('\n');
 
-    // Extract structural snippets from scan files (first 300 lines of each)
-    let htmlSnippet = '';
-    for (const sf of cfg.scanFiles) {
-      const sfPath = path.join(__dirname, sf);
-      if (fs.existsSync(sfPath)) {
-        const lines = fs.readFileSync(sfPath, 'utf8').split('\n').slice(0, 300);
-        htmlSnippet += `\n--- ${sf} (first 300 lines) ---\n` + lines.join('\n');
+    // Special refresh logic for the 3 new deep-scan docs
+    const hint = cfg._refreshHint;
+    let prompt;
+
+    if (hint === 'db-schema') {
+      const tables = serverLines
+        .filter(l => /CREATE TABLE\s+(IF NOT EXISTS\s+)?(\w+)/i.test(l))
+        .map(l => { const m = l.match(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?(\w+)/i); return m ? m[1] : null; })
+        .filter(Boolean).sort();
+      prompt = `אתה עוזר טכני של מערכת Family-Flow. עדכן את מסמך סכמת ה-DB הבא.
+
+מסמך קיים:
+\`\`\`
+${existingMd.slice(0, 6000)}
+\`\`\`
+
+רשימת כל הטבלאות בקוד כיום (${tables.length} טבלאות):
+${tables.join('\n')}
+
+הנחיות:
+1. עדכן את שורת "תאריך:" ל-${new Date().toISOString().slice(0,10)}
+2. עדכן את מספר הטבלאות בכותרת
+3. הוסף טבלאות חדשות שלא קיימות במסמך תחת הקבוצה המתאימה
+4. שמור על פורמט Markdown קיים
+5. החזר את המסמך המלא בלבד`;
+    } else if (hint === 'api-complete') {
+      const routes = serverLines
+        .filter(l => /app\.(get|post|put|patch|delete)\s*\(\s*['"`]/i.test(l))
+        .map(l => { const m = l.match(/app\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]+)/i); return m ? `${m[1].toUpperCase()} ${m[2]}` : null; })
+        .filter(Boolean).sort();
+      prompt = `אתה עוזר טכני של מערכת Family-Flow. עדכן את מסמך מפת ה-API המלאה.
+
+מסמך קיים:
+\`\`\`
+${existingMd.slice(0, 5000)}
+\`\`\`
+
+כל ה-routes בקוד כיום (${routes.length} endpoints):
+\`\`\`
+${routes.slice(0, 500).join('\n')}
+\`\`\`
+
+הנחיות:
+1. עדכן את שורת "תאריך:" ל-${new Date().toISOString().slice(0,10)}
+2. עדכן את מספר ה-endpoints הכולל
+3. הוסף routes חדשים שלא קיימים, תחת ה-domain המתאים
+4. שמור על פורמט טבלה Markdown
+5. החזר את המסמך המלא בלבד`;
+    } else {
+      // Standard refresh: read api routes + html snippets
+      let apiRoutes = '';
+      if (cfg.apiPrefix) {
+        const routeLines = serverLines.filter(l => {
+          const m = l.match(/app\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]+)/i);
+          return m && m[2].startsWith(cfg.apiPrefix);
+        });
+        apiRoutes = routeLines.slice(0, 120).join('\n');
       }
-    }
-
-    const prompt = `אתה עוזר טכני של מערכת Family-Flow. המשימה שלך: עדכן את מסמך האפיון הבא כך שישקף את מצב הקוד הנוכחי.
+      let htmlSnippet = '';
+      for (const sf of cfg.scanFiles) {
+        const sfPath = path.join(__dirname, sf);
+        if (fs.existsSync(sfPath)) {
+          const lines = fs.readFileSync(sfPath, 'utf8').split('\n').slice(0, 300);
+          htmlSnippet += `\n--- ${sf} (first 300 lines) ---\n` + lines.join('\n');
+        }
+      }
+      prompt = `אתה עוזר טכני של מערכת Family-Flow. המשימה שלך: עדכן את מסמך האפיון הבא כך שישקף את מצב הקוד הנוכחי.
 
 מסמך קיים (${existingMd.split('\n').length} שורות):
 \`\`\`
 ${existingMd.slice(0, 8000)}
 \`\`\`
 
-נתיבי API נוכחיים (${cfg.apiPrefix}):
+נתיבי API נוכחיים (${cfg.apiPrefix || 'כללי'}):
 \`\`\`
 ${apiRoutes.slice(0, 3000)}
 \`\`\`
@@ -24185,6 +24254,7 @@ ${htmlSnippet ? `קטע מקוד HTML:\n\`\`\`\n${htmlSnippet.slice(0,2000)}\n\`
 3. עדכן רשימת נתיבי API אם יש שינויים
 4. אל תמחק מידע קיים אלא אם הוא ברור שאינו נכון
 5. החזר את המסמך המלא המעודכן בלבד, ללא הסברים נוספים`;
+    }
 
     const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
