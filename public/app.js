@@ -3332,7 +3332,7 @@ function renderLibrary() {
         let libHtml = '';
         filtered.forEach(b => {
             const cDate = b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '';
-            libHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm mb-2 hover:border-blue-200 transition"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div><div><h4 class="font-bold text-slate-700 text-sm">${safeStr(b.title)}</h4><p class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${cDate} • גיל ${b.age_group} • ₪${b.reward}</p></div></div><button onclick="requestChallenge(${b.id})" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition shadow-sm">התחל</button></div>`;
+            libHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm mb-2 hover:border-blue-200 transition"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div><div><h4 class="font-bold text-slate-700 text-sm">${safeStr(b.title)}</h4><p class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${cDate} • גיל ${b.age_group} • ₪${b.reward}</p></div></div><button onclick="previewBundleAsParent(${b.id})" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition shadow-sm">▶ נסה</button></div>`;
         }); libList.innerHTML = libHtml;
     } catch(err) { console.error(err); }
 }
@@ -3383,12 +3383,19 @@ async function requestChallenge(bundleId = null) {
 }
 
 async function startQuiz(bundleId) {
-    const bundle = bundlesCache.find(b => b.bundle_id == bundleId); if(!bundle) return;
-    currentQuizData = bundle; currentQuestionIndex = 0; quizScore = 0; currentWrongAnswers = []; 
-    getEl('quiz-title').innerText = bundle.title; getEl('btn-tutor').classList.add('hidden'); 
-    const textContainer = getEl('quiz-text-container');
-    if (bundle.text_content) { textContainer.innerHTML = `<p>${bundle.text_content}</p>`; textContainer.classList.remove('hidden'); } else { textContainer.classList.add('hidden'); }
-    getEl('quiz-runner-modal').classList.remove('hidden'); renderQuestion();
+    const bundleMeta = bundlesCache.find(b => b.bundle_id == bundleId); if(!bundleMeta) return;
+    try {
+        const res = await fetch(`${API}/academy/bundles/${bundleMeta.bundle_id}`);
+        const data = await res.json();
+        if(!data.success || !data.bundle) return showToast('error', 'שגיאה בטעינת השאלות');
+        if(!data.bundle.questions || data.bundle.questions.length === 0) return showToast('error', 'אין שאלות במבחן זה');
+        currentQuizData = { ...bundleMeta, questions: data.bundle.questions, text_content: data.bundle.text_content };
+        currentQuestionIndex = 0; quizScore = 0; currentWrongAnswers = [];
+        getEl('quiz-title').innerText = bundleMeta.title; getEl('btn-tutor').classList.add('hidden');
+        const textContainer = getEl('quiz-text-container');
+        if (data.bundle.text_content) { textContainer.innerHTML = `<p>${data.bundle.text_content}</p>`; textContainer.classList.remove('hidden'); } else { textContainer.classList.add('hidden'); }
+        getEl('quiz-runner-modal').classList.remove('hidden'); renderQuestion();
+    } catch(e) { showToast('error', 'שגיאה בטעינת המבחן'); }
 }
 
 function renderQuestion() {
@@ -15267,15 +15274,13 @@ async function loadKidAcademy() {
   if(!container) return;
 
   try {
-    const [assignRes, questRes] = await Promise.all([
-      fetch(`/api/kids/assignments/${userId}`),
-      fetch(`/api/kids/quests/${userId}`)
+    const [assignRes, questRes] = await Promise.allSettled([
+      fetch(`/api/kids/assignments/${userId}`).then(r => r.json()),
+      fetch(`/api/kids/quests/${userId}`).then(r => r.json())
     ]);
-    const assignData = await assignRes.json();
-    const questData  = await questRes.json();
 
-    const assignments = assignData.assignments || [];
-    const quests      = questData.quests || [];
+    const assignments = assignRes.status === 'fulfilled' ? (assignRes.value.assignments || []) : [];
+    const quests      = questRes.status  === 'fulfilled' ? (questRes.value.quests   || []) : [];
 
     let html = '';
 
