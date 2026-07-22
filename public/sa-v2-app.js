@@ -215,6 +215,25 @@ function v2ShowModal(modalId) {
   if (toast) { document.body.appendChild(toast); toast.style.zIndex = '9999999'; }
 }
 
+/* ─── AUTO-FIX: watch for any fixed modal that loses 'hidden' ───── */
+(function watchModals() {
+  const obs = new MutationObserver(mutations => {
+    mutations.forEach(m => {
+      const el = m.target;
+      if (el.nodeType !== 1 || !el.id) return;
+      /* only act on fixed-positioned divs that just had 'hidden' removed */
+      const isFixed = el.style.position === 'fixed' ||
+                      el.classList.contains('fixed') ||
+                      (el.style.cssText && el.style.cssText.includes('position:fixed'));
+      if (!isFixed) return;
+      if (!el.classList.contains('hidden') && el.style.display !== 'flex') {
+        v2ShowModal(el.id);
+      }
+    });
+  });
+  obs.observe(document.body, { attributes: true, attributeFilter: ['class', 'style'], subtree: true });
+})();
+
 /* ─── PATCH: modals that need stacking-context escape ──────────── */
 (function patchModals() {
   /* ticket modal */
