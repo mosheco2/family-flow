@@ -1897,14 +1897,12 @@ async function generateAIQuiz() {
             const data = await res.json();
             if(!handleAIResponseCheck(data)) return;
             if(data.success) {
-                showToast('success', 'מבחן ה-AI מוכן!');
                 getEl('ai-modal').classList.add('hidden');
                 getEl('ai-topic').value = '';
-                await fetchBundles();
                 // הקצה אוטומטית לילד שנבחר
                 const assignRes = await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, bundleId: data.bundleId, groupId: currentGroup.id }) });
                 const assignData = await assignRes.json();
-                if(assignData.success) showToast('success', '✅ האתגר הוקצה לילד בהצלחה!');
+                if(assignData.success) showToast('success', '✅ האתגר נוצר והוקצה לילד בהצלחה!');
                 else showToast('error', assignData.error || 'שגיאה בהקצאה');
                 fetchData();
             } else showToast('error', data.error || 'שגיאה ביצירת המבחן');
@@ -14912,6 +14910,13 @@ function openQuestWizard() {
                  font-size:0.95rem;height:80px;resize:none;margin-bottom:0.8rem"
         >${questData.description||''}</textarea>
 
+        <label style="font-size:0.82rem;font-weight:700;color:#555;display:block;margin-bottom:0.3rem">לאיזה ילד? *</label>
+        <select id="qw-child-select"
+          style="width:100%;padding:0.8rem;border:2px solid #E0E0E0;border-radius:12px;font-size:1rem;margin-bottom:0.8rem">
+          <option value="" disabled ${!_selectedChildIdForQuest?'selected':''}>בחר ילד...</option>
+          ${(membersCache||[]).filter(m=>m.role!=='ADMIN').map(c=>`<option value="${c.id}" ${String(_selectedChildIdForQuest)===String(c.id)?'selected':''}>${c.avatar_emoji||'👦'} ${c.nickname||c.name||c.id}</option>`).join('')}
+        </select>
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:1.2rem">
           <div>
             <label style="font-size:0.82rem;font-weight:700;color:#555;display:block;margin-bottom:0.3rem">FLW kid לזכייה</label>
@@ -15090,6 +15095,9 @@ function openQuestWizard() {
   window.wizardNext1 = function() {
     const title = document.getElementById('qw-title')?.value.trim();
     if(!title) return alert('נא להזין שם לקווסט');
+    const childSel = document.getElementById('qw-child-select')?.value;
+    if(!childSel) return alert('נא לבחור ילד');
+    _selectedChildIdForQuest = childSel;
     questData = {
       title,
       subject: document.getElementById('qw-subject')?.value || 'general',
