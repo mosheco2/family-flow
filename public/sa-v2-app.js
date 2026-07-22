@@ -239,18 +239,30 @@ window.updateSADashboard = () => window.loadDashboardV2();
 
 /* ─── DIAGNOSTICS ─────────────────────────────────────────────── */
 
-window._v2DiagSupport = function() {
-  const toast = (msg, type) => {
-    if (typeof showSAToast === 'function') showSAToast(type || 'info', msg);
-    else if (typeof showToast === 'function') showToast(type || 'info', msg);
-    else alert(msg);
-  };
-  const ticketsLen = (typeof saTicketsCache !== 'undefined' ? saTicketsCache : window.saTicketsCache || []).length;
-  const modal = document.getElementById('sa-ticket-modal');
+window._v2DiagSupport = async function() {
   const tbody = document.getElementById('sa-tickets-table-body');
   const rowCount = tbody ? tbody.querySelectorAll('tr').length : -1;
-  const saTokenOk = !!(typeof saToken !== 'undefined' ? saToken : localStorage.getItem('ofl_sa_token'));
-  toast(`טיקטים בקאש: ${ticketsLen} | שורות בטבלה: ${rowCount} | טוקן: ${saTokenOk ? 'יש' : 'אין'} | מודל: ${modal ? 'קיים' : 'חסר'}`);
+  const spinner = tbody ? tbody.innerHTML.includes('fa-spin') : null;
+  const token = localStorage.getItem('ofl_sa_token') || '';
+  const modal = document.getElementById('sa-ticket-modal');
+
+  let apiStatus = '?';
+  try {
+    const r = await fetch('/api/superadmin/tickets', { headers: { 'Authorization': token } });
+    apiStatus = r.status + ' ' + (r.ok ? 'OK' : 'ERROR');
+    if (r.ok) {
+      const d = await r.json();
+      apiStatus += ' | ' + (d.tickets ? d.tickets.length + ' tickets' : JSON.stringify(d).slice(0,60));
+    }
+  } catch(e) { apiStatus = 'FETCH ERROR: ' + e.message; }
+
+  alert(
+    'שורות בטבלה: ' + rowCount + '\n' +
+    'ספינר פעיל: ' + spinner + '\n' +
+    'טוקן: ' + (token ? token.slice(0,20) + '...' : 'אין') + '\n' +
+    'מודל קיים: ' + !!modal + '\n' +
+    'API: ' + apiStatus
+  );
 };
 
 /* ─── GLOBAL SEARCH ───────────────────────────────────────────── */
