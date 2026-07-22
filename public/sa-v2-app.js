@@ -85,6 +85,9 @@ window.loadDashboardV2 = async function() {
     const data = dataRes.ok ? await dataRes.json() : {};
     const commData = commRes.ok ? await commRes.json() : {};
 
+    if (!dashRes.ok) console.warn('[v2 dash] /api/sa/dashboard status:', dashRes.status);
+    if (!dataRes.ok) console.warn('[v2 dash] /api/superadmin/data status:', dataRes.status);
+
     const s   = dash.stats   || data.stats || {};
     const pnd = dash.pending || {};
     const fl  = dash.flow    || {};

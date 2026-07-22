@@ -92,7 +92,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#0f172a;font-size:1
 #sa-sidebar [id^="btn-sa-group-"]{display:none!important}
 
 /* ── MAIN CONTENT ───────────────────── */
-#sa-main-content{margin-right:248px;flex:1;min-height:100vh;background:#f1f5f9;display:flex;flex-direction:column}
+#sa-main-content{margin-right:248px;flex:1;min-height:100vh;background:#f1f5f9;display:flex;flex-direction:column;min-width:0;overflow-x:hidden}
 
 /* ── TOP BAR ────────────────────────── */
 .v2-topbar{
@@ -119,7 +119,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#0f172a;font-size:1
 .v2-tb-btn:hover{background:rgba(6,182,212,0.1);border-color:rgba(6,182,212,0.3);color:#06b6d4}
 
 /* ── PAGE BODY ──────────────────────── */
-.v2-content{padding:1.5rem 1.75rem;flex:1}
+.v2-content{padding:1.5rem 1.75rem;flex:1;min-width:0;overflow-x:hidden}
 
 /* ── KPI CARDS ──────────────────────── */
 .v2-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.1rem;margin-bottom:1.25rem}
@@ -224,7 +224,31 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#0f172a;font-size:1
   #sa-main-content{margin-right:0!important}
   .v2-kpi-grid{grid-template-columns:1fr 1fr}
   .v2-bottom-grid{grid-template-columns:1fr}
-  .v2-content{padding:1rem}
+  .v2-content{padding:0.75rem}
+  /* topbar */
+  .v2-topbar{padding:0.6rem 0.75rem 0.6rem 3.5rem;gap:0.5rem}
+  .v2-search{max-width:none;flex:1}
+  .v2-topbar-title{display:none}
+  .v2-tb-btn{width:32px;height:32px}
+  /* inner view cards - allow scroll */
+  .v2-content>div>div{max-width:100%;overflow-x:hidden}
+  /* tables inside views scroll horizontally */
+  .v2-content table{min-width:500px}
+  .v2-content .overflow-x-auto{overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+  /* grid columns collapse */
+  .v2-content .grid-cols-2,.v2-content .md\\:grid-cols-2,.v2-content .lg\\:grid-cols-2{grid-template-columns:1fr!important}
+  .v2-content .grid-cols-3,.v2-content .md\\:grid-cols-3,.v2-content .lg\\:grid-cols-3{grid-template-columns:1fr!important}
+  .v2-content .grid-cols-4,.v2-content .md\\:grid-cols-4,.v2-content .lg\\:grid-cols-4{grid-template-columns:1fr 1fr!important}
+  .v2-content .lg\\:grid-cols-6{grid-template-columns:repeat(3,1fr)!important}
+  /* sub-nav tabs: horizontal scroll */
+  .v2-content [id^="vtnav-"]{overflow-x:auto!important;flex-wrap:nowrap!important;-webkit-overflow-scrolling:touch}
+  /* flex rows that should stack */
+  .v2-content .flex.flex-col.sm\\:flex-row{flex-direction:column!important}
+  /* kanban columns: horizontal scroll */
+  #sa-kanban-board{overflow-x:auto!important;flex-wrap:nowrap!important}
+  #sa-kanban-board>div{min-width:240px;flex-shrink:0}
+  /* hide wide content hints */
+  .v2-content .hidden.md\\:block{display:none!important}
 }
 
 /* notifications dropdown */
