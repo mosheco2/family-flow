@@ -204,72 +204,50 @@ document.head.appendChild(_spinStyle);
 window.loadSADashboard   = () => window.loadDashboardV2();
 window.updateSADashboard = () => window.loadDashboardV2();
 
-/* ─── PATCH: ensure ticket modal works even if cache is empty ─── */
+/* ─── helper: pop modal above stacking context ─────────────────── */
+function v2ShowModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (!modal || modal.classList.contains('hidden')) return;
+  if (modal.parentElement !== document.body) document.body.appendChild(modal);
+  modal.style.cssText = 'display:flex;position:fixed;inset:0;z-index:999999;';
+  /* ensure toast stays on top of modal */
+  const toast = document.getElementById('toast');
+  if (toast) { document.body.appendChild(toast); toast.style.zIndex = '9999999'; }
+}
+
+/* ─── PATCH: modals that need stacking-context escape ──────────── */
 (function patchModals() {
-  /* ticket modal — loads data if saTicketsCache is empty */
+  /* ticket modal */
   const _origTicket = window.openSATicketModal;
-  console.log('[v2] patchModals: _origTicket captured =', typeof _origTicket);
   window.openSATicketModal = async function(id) {
-    console.log('[v2] openSATicketModal wrapper called, id=', id);
-    if (!_origTicket) { console.warn('[v2] openSATicketModal not found on window'); alert('[v2] openSATicketModal not found!'); return; }
-    try {
-      _origTicket(id);
-    } catch(e) {
-      console.error('[v2] openSATicketModal threw:', e.message, e.stack);
-      alert('[v2] ERROR: ' + e.message);
-      return;
-    }
-    /* check modal state after call */
+    if (!_origTicket) return;
+    try { _origTicket(id); } catch(e) { console.error('[v2] openSATicketModal threw:', e); }
     const modal = document.getElementById('sa-ticket-modal');
-    const isHidden = modal ? modal.classList.contains('hidden') : null;
-    console.log('[v2] after _origTicket: modal hidden=', isHidden, 'loadSATickets type=', typeof window.loadSATickets);
-    if (isHidden) {
-      /* cache was empty — load and retry */
-      if (typeof window.loadSATickets === 'function') {
-        await window.loadSATickets();
-        try { _origTicket(id); } catch(e2) { console.error('[v2] retry threw:', e2); }
-      } else {
-        alert('[v2] loadSATickets not on window!');
-      }
+    if (modal && modal.classList.contains('hidden') && typeof window.loadSATickets === 'function') {
+      await window.loadSATickets();
+      try { _origTicket(id); } catch(e) {}
     }
-    /* move modal to top of body to escape any stacking context, then force visible */
-    if (modal && !modal.classList.contains('hidden')) {
-      if (modal.parentElement !== document.body) document.body.appendChild(modal);
-      modal.style.cssText = 'display:flex;position:fixed;inset:0;z-index:999999;';
-    }
+    v2ShowModal('sa-ticket-modal');
   };
 
-  /* group edit modal — loads data if saAllGroups is empty */
+  /* group edit modal */
   const _origGroup = window.openSAEditGroupModal;
-  console.log('[v2] patchModals: _origGroup captured =', typeof _origGroup);
   window.openSAEditGroupModal = async function(id, name, email) {
-    console.log('[v2] openSAEditGroupModal wrapper called, id=', id, '_origGroup=', typeof _origGroup);
-    if (!_origGroup) { console.warn('[v2] openSAEditGroupModal not found on window'); alert('[v2] openSAEditGroupModal not found!'); return; }
-    try {
-      _origGroup(id, name, email);
-    } catch(e) {
-      console.error('[v2] openSAEditGroupModal threw:', e);
-      const modal = document.getElementById('sa-edit-group-modal');
-      if (modal && modal.classList.contains('hidden')) {
-        if (typeof window.loadSAData === 'function') {
-          await window.loadSAData();
-          try { _origGroup(id, name, email); } catch(e2) { console.error('[v2] openSAEditGroupModal retry threw:', e2); }
-        }
-      }
-      return;
-    }
+    if (!_origGroup) return;
+    try { _origGroup(id, name, email); } catch(e) { console.error('[v2] openSAEditGroupModal threw:', e); }
     const modal = document.getElementById('sa-edit-group-modal');
-    if (modal && modal.classList.contains('hidden')) {
-      if (typeof window.loadSAData === 'function') {
-        await window.loadSAData();
-        try { _origGroup(id, name, email); } catch(e) { console.error('[v2] openSAEditGroupModal retry threw:', e); }
-      }
+    if (modal && modal.classList.contains('hidden') && typeof window.loadSAData === 'function') {
+      await window.loadSAData();
+      try { _origGroup(id, name, email); } catch(e) {}
     }
-    /* move modal to top of body to escape any stacking context */
-    if (modal && !modal.classList.contains('hidden')) {
-      if (modal.parentElement !== document.body) document.body.appendChild(modal);
-      modal.style.cssText = 'display:flex;position:fixed;inset:0;z-index:999999;';
-    }
+    v2ShowModal('sa-edit-group-modal');
+  };
+
+  /* new ticket modal */
+  const _origNewTicket = window.openNewTicketModal;
+  window.openNewTicketModal = function() {
+    if (_origNewTicket) try { _origNewTicket(); } catch(e) { console.error('[v2] openNewTicketModal threw:', e); }
+    v2ShowModal('sa-new-ticket-modal');
   };
 })();
 
