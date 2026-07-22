@@ -232,6 +232,13 @@ window.updateSADashboard = () => window.loadDashboardV2();
         alert('[v2] loadSATickets not on window!');
       }
     }
+    /* force modal visible regardless of CSS cascade */
+    if (modal && !modal.classList.contains('hidden')) {
+      modal.style.display = 'flex';
+      modal.style.position = 'fixed';
+      modal.style.inset = '0';
+      modal.style.zIndex = '99999';
+    }
   };
 
   /* group edit modal — loads data if saAllGroups is empty */
@@ -259,6 +266,13 @@ window.updateSADashboard = () => window.loadDashboardV2();
         await window.loadSAData();
         try { _origGroup(id, name, email); } catch(e) { console.error('[v2] openSAEditGroupModal retry threw:', e); }
       }
+    }
+    /* force modal visible */
+    if (modal && !modal.classList.contains('hidden')) {
+      modal.style.display = 'flex';
+      modal.style.position = 'fixed';
+      modal.style.inset = '0';
+      modal.style.zIndex = '99999';
     }
   };
 })();
