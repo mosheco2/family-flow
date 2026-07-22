@@ -232,12 +232,10 @@ window.updateSADashboard = () => window.loadDashboardV2();
         alert('[v2] loadSATickets not on window!');
       }
     }
-    /* force modal visible regardless of CSS cascade */
+    /* move modal to top of body to escape any stacking context, then force visible */
     if (modal && !modal.classList.contains('hidden')) {
-      modal.style.display = 'flex';
-      modal.style.position = 'fixed';
-      modal.style.inset = '0';
-      modal.style.zIndex = '99999';
+      if (modal.parentElement !== document.body) document.body.appendChild(modal);
+      modal.style.cssText = 'display:flex!important;position:fixed!important;inset:0!important;z-index:999999!important;';
     }
   };
 
@@ -267,12 +265,10 @@ window.updateSADashboard = () => window.loadDashboardV2();
         try { _origGroup(id, name, email); } catch(e) { console.error('[v2] openSAEditGroupModal retry threw:', e); }
       }
     }
-    /* force modal visible */
+    /* move modal to top of body to escape any stacking context */
     if (modal && !modal.classList.contains('hidden')) {
-      modal.style.display = 'flex';
-      modal.style.position = 'fixed';
-      modal.style.inset = '0';
-      modal.style.zIndex = '99999';
+      if (modal.parentElement !== document.body) document.body.appendChild(modal);
+      modal.style.cssText = 'display:flex!important;position:fixed!important;inset:0!important;z-index:999999!important;';
     }
   };
 })();
