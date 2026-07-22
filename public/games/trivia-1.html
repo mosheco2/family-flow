@@ -295,7 +295,7 @@ const QB = {
       {q:'מה עץ שנושר בסתיו?',a:0,opts:['עץ תפוח','עץ אורן','עץ דקל','עץ זית'],explain:'עץ תפוח נושר בסתיו (נשיר), בניגוד לאורן שירוק כל השנה'},
     ],
     culture:[
-      {q:'כמה נוגנים בדרך כלל בצמד?',a:1,opts:['1','2','3','4'],explain:'צמד = שניים'},
+      {q:'כמה נגנים יש בדואט (קבוצה של שניים)?',a:1,opts:['1','2','3','4'],explain:'דואט = שניים. דוגמה: פסנתר וכינור מנגנים ביחד.'},
       {q:'מה כלי הנגינה שמנגנים עליו עם קשת?',a:2,opts:['גיטרה','חצוצרה','כינור','פסנתר'],explain:'כינור מנוגן עם קשת'},
       {q:'מה תפקידו של במאי בסרט?',a:0,opts:['מנהל את הצילום','שר את השיר','כותב את הספר','עורך תמונות'],explain:'הבמאי מנהל את הצוות ואחראי על הסרט'},
       {q:'מה הצבע שנוצר מאדום וכחול?',a:1,opts:['ירוק','סגול','כתום','חום'],explain:'אדום + כחול = סגול'},
@@ -565,18 +565,18 @@ const QB = {
       {q:'מתי נפלה חומת ברלין?',a:0,opts:['1989','1990','1991','1988'],explain:'חומת ברלין נפלה ב-9 בנובמבר 1989'},
     ],
     english:[
-      {q:'Choose the correct sentence:',a:2,opts:['Neither of them are ready','Neither of them is ready not','Neither of them is ready','None of them are ready'],explain:'"Neither" + singular verb: "Neither of them is ready"'},
-      {q:'What does "ephemeral" mean?',a:1,opts:['Ancient','Short-lived','Enormous','Mysterious'],explain:'Ephemeral = short-lived, lasting for a very short time'},
-      {q:'What is a "metaphor"?',a:0,opts:['A direct comparison without "like/as"','A comparison using "like/as"','An exaggeration','A repeated sound'],explain:'Metaphor = direct comparison (e.g., "Life is a journey")'},
-      {q:'What does "ubiquitous" mean?',a:3,opts:['Rare','Ancient','Dangerous','Present everywhere'],explain:'Ubiquitous = found or present everywhere (כל מקום)'},
-      {q:'Which is correct: "fewer" or "less" for countable nouns?',a:0,opts:['Fewer','Less','Both','Neither'],explain:'"Fewer" for countables (fewer apples), "less" for uncountables (less water)'},
-      {q:'What is the subjunctive mood in "I wish I were rich"?',a:2,opts:['Simple past','Conditional','Subjunctive','Future'],explain:'Subjunctive: "I wish I were" (not "was") — expresses wishes/hypotheticals'},
-      {q:'What does "pragmatic" mean?',a:1,opts:['Theoretical','Practical, realistic','Emotional','Creative'],explain:'Pragmatic = practical, focused on results rather than theory'},
-      {q:'Identify the gerund: "Swimming is healthy."',a:0,opts:['Swimming','is','healthy','none'],explain:'Gerund = verb+ing used as a noun ("Swimming" is the subject)'},
-      {q:'What does "albeit" mean?',a:3,opts:['Therefore','However','Because','Although'],explain:'Albeit = although (גם אם, אף כי) — "It was good, albeit difficult"'},
-      {q:'Which sentence uses the passive voice?',a:1,opts:['She wrote the letter','The letter was written by her','She had written it','She writes daily'],explain:'Passive = subject receives the action: "The letter was written by her"'},
-      {q:'What does "mitigate" mean?',a:2,opts:['Worsen','Ignore','Reduce/lessen','Transfer'],explain:'Mitigate = to reduce the severity of something (להפחית, למתן)'},
-      {q:'What is an "oxymoron"?',a:0,opts:['Two contradictory terms together','Repetition of sounds','Extreme exaggeration','Hidden meaning'],explain:'Oxymoron = contradictory terms together (e.g., "deafening silence")'},
+      {q:'What is the past tense of "go"?',a:0,opts:['Went','Gone','Goed','Going'],explain:'"Go" בעבר לא סדיר = Went (She went to school)'},
+      {q:'What does "environment" mean in Hebrew?',a:2,opts:['ממשלה','עסק','סביבה','הצלחה'],explain:'Environment = סביבה. "We must protect our environment"'},
+      {q:'Choose the correct sentence:',a:1,opts:['She don\'t like cats','She doesn\'t like cats','She not like cats','She isn\'t like cats'],explain:'גוף שלישי יחיד (she/he) + does not (doesn\'t)'},
+      {q:'What does "to improve" mean?',a:0,opts:['להשתפר / לשפר','לעצור','לשכוח','לפחד'],explain:'To improve = להשתפר, להיות טוב יותר. "I want to improve my grades"'},
+      {q:'What is the plural of "person"?',a:3,opts:['Persons only','Peoples','Persones','People'],explain:'Person → People (רבים לא סדיר). "Many people live in Israel"'},
+      {q:'Fill in: "I ___ born in Israel."',a:1,opts:['am','was','were','be'],explain:'"Born" = עבר. I was born = נולדתי'},
+      {q:'What does "responsibility" mean?',a:2,opts:['חופש','כוח','אחריות','הצלחה'],explain:'Responsibility = אחריות. "Taking responsibility is important"'},
+      {q:'Which word means "important" in English?',a:0,opts:['Important','Impossible','Impure','Impolite'],explain:'Important = חשוב. "Education is very important"'},
+      {q:'What tense is: "She is studying now"?',a:1,opts:['Past','Present continuous','Future','Simple present'],explain:'is + verb-ing = Present continuous = הווה ממשיך. "She is studying RIGHT NOW"'},
+      {q:'What does "to achieve" mean?',a:3,opts:['לאבד','לעזור','לחכות','להשיג / להצליח'],explain:'To achieve = להשיג, להגיע ליעד. "I achieved my goal"'},
+      {q:'Complete: "If you study hard, you ___ succeed."',a:0,opts:['will','would','can was','did'],explain:'If + present → will + base verb (First conditional). "If you study, you will succeed"'},
+      {q:'What does "to volunteer" mean?',a:2,opts:['לצבוע','לחגוג','להתנדב','לנסוע'],explain:'To volunteer = להתנדב. "I volunteer at the animal shelter every weekend"'},
     ],
     geo:[
       {q:'מהי הארץ הקטנה ביותר בעולם?',a:0,opts:['הוותיקן','מונקו','סן מרינו','ליכטנשטיין'],explain:'הוותיקן היא המדינה הקטנה ביותר בעולם'},
@@ -733,7 +733,8 @@ function getQuestions(){
   let pool;
   if(GS.topic==='mix'){
     pool=[];
-    Object.keys(QB[ageKey]).forEach(k=>{ if(k!=='mix') pool.push(...(QB[ageKey][k]||[])); });
+    // אנגלית לא נכנסת לערבוב — רק בבחירה מפורשת של נושא אנגלית
+    Object.keys(QB[ageKey]).forEach(k=>{ if(k!=='mix' && k!=='english') pool.push(...(QB[ageKey][k]||[])); });
   } else {
     pool=[...(QB[ageKey][GS.topic]||QB[ageKey]['math'])];
   }
