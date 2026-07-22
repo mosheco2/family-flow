@@ -176,6 +176,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#0f172a;font-size:1
 /* ── QUICK ACTIONS ──────────────────── */
 .qa-list{padding:0.5rem 0.65rem;display:flex;flex-direction:column;gap:0.2rem}
 .qa-item{display:flex;align-items:center;gap:0.65rem;padding:0.65rem 0.75rem;border-radius:0.5rem;cursor:pointer;transition:background 0.14s;color:#374151;font-size:0.78rem;font-weight:600;font-family:Rubik,sans-serif;border:none;background:none;width:100%;text-align:right}
+.qa-item>span:first-of-type{flex:1;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .qa-item:hover{background:#f8fafc;color:#0f172a}
 .qa-item i{width:18px;text-align:center;font-size:0.78rem;color:#94a3b8;flex-shrink:0}
 .qa-item:hover i{color:#06b6d4}
@@ -560,7 +561,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#0f172a;font-size:1
             </div>
             <div class="qa-list">
               <button class="qa-item" onclick="v2NavTo('support',document.getElementById('v2-nav-support'))">
-                <i class="fa-solid fa-headset"></i><span>השטלטות ב...</span><span class="qa-arrow"><i class="fa-solid fa-chevron-left"></i></span>
+                <i class="fa-solid fa-headset"></i><span>טיפול בטיקטים</span><span class="qa-arrow"><i class="fa-solid fa-chevron-left"></i></span>
               </button>
               <button class="qa-item" onclick="v2NavTo('biz',document.getElementById('v2-nav-biz'))">
                 <i class="fa-solid fa-store"></i><span>אישור עסקים</span><span class="qa-arrow"><i class="fa-solid fa-chevron-left"></i></span>
@@ -3570,7 +3571,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#0f172a;font-size:1
                 </div>
             </div>
 
-    </div> <div id="sa-community-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+    <div id="sa-community-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto modal-scroll relative">
             <button onclick="document.getElementById('sa-community-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
             <h3 class="text-xl font-bold mb-4 text-slate-800 flex items-center gap-2"><i class="fa-solid fa-users-viewfinder text-orange-500"></i> ניהול קהילה: <span id="sa-edit-comm-title"></span></h3>
