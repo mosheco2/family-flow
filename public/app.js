@@ -3266,19 +3266,30 @@ function renderAdminAcademy() {
     const list = getEl('admin-assignments-list'); if(!list || currentUser.role !== 'ADMIN') return;
     loadKidsOverview();
     let html = '<h4 class="font-bold text-slate-700 mt-2 mb-3">📚 ספריית מבחנים למשפחה</h4>';
-    if (!allBundles || allBundles.length === 0) { html += '<p class="text-sm text-slate-400 mb-6 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200 text-center">אין מבחנים זמינים. לחץ על "יצירת אתגר familAI" למעלה!</p>'; } else {
+    if (!allBundles || allBundles.length === 0) { html += '<p class="text-sm text-slate-400 mb-6 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200 text-center">אין מבחנים זמינים. לחץ על "✨ תוכן חדש" למעלה!</p>'; } else {
         html += '<div class="space-y-2 mb-8">';
         allBundles.forEach(b => {
             const getIcon = (type) => type === 'math' ? '🔢' : (type === 'reading' ? '📖' : '📈'); const cDate = b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '';
-            html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center hover:border-blue-100 transition"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div><div><h4 class="font-bold text-slate-700 text-sm">${safeStr(b.title)}</h4><p class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${cDate} • גיל ${b.age_group} • פרס: ₪${b.reward}</p></div></div><button onclick="openAssignModalSpecific(${b.id})" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition">הקצה לילד</button></div>`;
+            html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center hover:border-purple-100 transition"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div><div><h4 class="font-bold text-slate-700 text-sm">${safeStr(b.title)}</h4><p class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${cDate} • גיל ${b.age_group} • פרס: ₪${b.reward}</p></div></div><button onclick="previewBundleAsParent(${b.id})" class="bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-purple-100 transition">▶ נסה</button></div>`;
         }); html += '</div>';
     }
-    html += '<h4 class="font-bold text-slate-700 mb-3 border-t border-slate-200 pt-6">🎯 מבחנים שהוקצו לאחרונה</h4>';
+    html += '<h4 class="font-bold text-slate-700 mb-3 border-t border-slate-200 pt-6">🎯 הקצאות אחרונות</h4>';
     if (!bundlesCache || bundlesCache.length === 0) { html += '<p class="text-sm text-slate-400 text-center bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200">לא הוקצו מבחנים לאף ילד עדיין.</p>'; } else {
         html += '<div class="space-y-2 mb-4">';
         bundlesCache.forEach(b => {
-            let statusColor = b.status === 'completed' ? 'text-green-500' : (b.status === 'failed' ? 'text-red-500' : 'text-orange-500'); let statusText = b.status === 'completed' ? 'הושלם' : (b.status === 'failed' ? 'נכשל' : 'ממתין'); const aDate = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
-            html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center"><div><p class="font-bold text-slate-700 text-sm">${safeStr(b.title)}</p><p class="text-[10px] text-slate-500 mt-0.5">הוקצה ל: <span class="font-bold text-slate-700">${safeStr(b.assignee_name)}</span> ב-${aDate}</p></div><span class="text-[10px] font-bold ${statusColor} bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">${statusText}</span></div>`;
+            const statusColor = b.status === 'completed' ? 'text-green-600 bg-green-50' : (b.status === 'failed' ? 'text-red-600 bg-red-50' : 'text-orange-600 bg-orange-50');
+            const statusText = b.status === 'completed' ? '✅ הושלם' : (b.status === 'failed' ? '❌ נכשל' : '⏳ ממתין');
+            const aDate = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
+            html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center gap-2">
+              <div class="flex-1 min-w-0">
+                <p class="font-bold text-slate-700 text-sm truncate">${safeStr(b.title)}</p>
+                <p class="text-[10px] text-slate-500 mt-0.5">👤 <span class="font-bold text-slate-700">${safeStr(b.assignee_name)}</span> • 📅 ${aDate}</p>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button onclick="previewBundleAsParent(${b.bundle_id})" class="bg-purple-50 text-purple-600 px-2 py-1 rounded-lg text-[10px] font-bold hover:bg-purple-100 transition">▶ נסה</button>
+                <span class="text-[10px] font-bold px-2 py-1 rounded-lg border border-slate-100 ${statusColor}">${statusText}</span>
+              </div>
+            </div>`;
         }); html += '</div>';
     } list.innerHTML = html;
 
@@ -3345,6 +3356,24 @@ function renderMyAssignments(bundles) {
     if (histCount > 0 && histCont) histCont.classList.remove('hidden'); else if(histCont) histCont.classList.add('hidden');
 }
 
+async function previewBundleAsParent(bundleId) {
+    try {
+        const res = await fetch(`${API}/academy/bundles/${bundleId}`);
+        const data = await res.json();
+        if(!data.success || !data.bundle) return showToast('error', 'שגיאה בטעינת המבחן');
+        const bundle = data.bundle;
+        if(!bundle.questions || bundle.questions.length === 0) return showToast('error', 'אין שאלות במבחן זה');
+        window._parentPreviewMode = true;
+        currentQuizData = { ...bundle, bundle_id: bundleId, custom_reward: null, default_reward: bundle.reward };
+        currentQuestionIndex = 0; quizScore = 0; currentWrongAnswers = [];
+        getEl('quiz-title').innerText = `👁️ תצוגת הורה: ${bundle.title}`;
+        getEl('btn-tutor').classList.add('hidden');
+        const textContainer = getEl('quiz-text-container');
+        if (bundle.text_content) { textContainer.innerHTML = `<p>${bundle.text_content}</p>`; textContainer.classList.remove('hidden'); } else { textContainer.classList.add('hidden'); }
+        getEl('quiz-runner-modal').classList.remove('hidden'); renderQuestion();
+    } catch(e) { showToast('error', 'שגיאה בטעינת המבחן'); }
+}
+
 async function requestChallenge(bundleId = null) {
     const btn = document.querySelector('#academy-user-view button'); if(btn) { btn.disabled = true; btn.innerText = 'מבקש...'; }
     try {
@@ -3380,14 +3409,24 @@ async function submitAnswer(selectedIdx) {
 async function finishQuiz() {
     const total = currentQuizData.questions.length; const finalScore = Math.round((quizScore / total) * 100); const passed = finalScore >= currentQuizData.threshold;
     getEl('question-container').classList.add('hidden'); getEl('quiz-text-container').classList.add('hidden'); getEl('quiz-result').classList.remove('hidden');
-    getEl('quiz-icon').innerHTML = passed ? '🏆' : '📚'; getEl('quiz-msg-title').innerText = passed ? 'כל הכבוד!' : 'לא נורא, אפשר לנסות שוב...'; getEl('quiz-msg-desc').innerText = passed ? `עברת את המבחן וזכית ב-₪${currentQuizData.custom_reward || currentQuizData.default_reward}` : `צריך ${currentQuizData.threshold}% כדי לעבור. נסה שוב!`; getEl('quiz-score-display').innerText = `ציון סופי: ${finalScore}%`;
-    if (!passed && currentWrongAnswers.length > 0) getEl('btn-tutor').classList.remove('hidden');
+    getEl('quiz-icon').innerHTML = passed ? '🏆' : '📚';
+    if (window._parentPreviewMode) {
+        getEl('quiz-msg-title').innerText = '👁️ תצוגת הורה — ללא צבירת מטבעות';
+        getEl('quiz-msg-desc').innerText = `ציון: ${finalScore}% • סף מעבר: ${currentQuizData.threshold}%`;
+    } else {
+        getEl('quiz-msg-title').innerText = passed ? 'כל הכבוד!' : 'לא נורא, אפשר לנסות שוב...';
+        getEl('quiz-msg-desc').innerText = passed ? `עברת את המבחן וזכית ב-₪${currentQuizData.custom_reward || currentQuizData.default_reward}` : `צריך ${currentQuizData.threshold}% כדי לעבור. נסה שוב!`;
+    }
+    getEl('quiz-score-display').innerText = `ציון סופי: ${finalScore}%`;
+    if (!passed && currentWrongAnswers.length > 0 && !window._parentPreviewMode) getEl('btn-tutor').classList.remove('hidden');
     if (passed) triggerConfetti();
-    await fetch(`${API}/academy/submit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: currentQuizData.bundle_id, score: finalScore, groupId: currentGroup.id }) });
-    fetchData(); 
+    if (!window._parentPreviewMode) {
+        await fetch(`${API}/academy/submit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: currentQuizData.bundle_id, score: finalScore, groupId: currentGroup.id }) });
+        fetchData();
+    }
 }
 
-function closeQuiz() { getEl('quiz-runner-modal').classList.add('hidden'); getEl('question-container').classList.remove('hidden'); getEl('quiz-result').classList.add('hidden'); }
+function closeQuiz() { window._parentPreviewMode = false; getEl('quiz-runner-modal').classList.add('hidden'); getEl('question-container').classList.remove('hidden'); getEl('quiz-result').classList.add('hidden'); }
 
 function filterSuggestions(v) { const list = getEl('suggestions'); list.innerHTML = ''; if (!v) { list.classList.add('hidden'); return; } const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(v)).slice(0, 8); if (filtered.length > 0) { list.classList.remove('hidden'); filtered.forEach(p => { const li = document.createElement('div'); li.className = 'suggestion-item'; li.innerHTML = `<div class="flex justify-between"><span>${p.name}</span><span class="text-[10px] text-slate-400">${p.category}</span></div>`; li.onclick = () => { getEl('shop-item').value = p.name; list.classList.add('hidden'); }; list.appendChild(li); }); } else { list.classList.add('hidden'); } }
 
