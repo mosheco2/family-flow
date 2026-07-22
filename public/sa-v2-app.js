@@ -59,6 +59,14 @@ window.v2NavTo = function(tabId, btnEl) {
   /* call original sa-app.js tab switcher */
   if (typeof window.switchSATab === 'function') window.switchSATab(tabId);
 
+  /* ensure data is loaded for tabs whose loaders aren't triggered by switchSATab */
+  if (tabId === 'clients'  && typeof window.loadSAData     === 'function') window.loadSAData();
+  if (tabId === 'support'  && typeof window.loadSATickets  === 'function') window.loadSATickets();
+  if (tabId === 'comm'     && typeof window.loadSACommunities === 'function') window.loadSACommunities();
+  if (tabId === 'biz'      && typeof window.loadSABiz      === 'function') window.loadSABiz();
+  if (tabId === 'hr'       && typeof window.loadSAHR       === 'function') window.loadSAHR();
+  if (tabId === 'partners' && typeof window.loadSAPartners === 'function') window.loadSAPartners();
+
   /* mobile: close sidebar */
   if (window.innerWidth < 768) {
     const sb = document.getElementById('sa-sidebar');
@@ -191,6 +199,24 @@ document.head.appendChild(_spinStyle);
 
 window.loadSADashboard   = () => window.loadDashboardV2();
 window.updateSADashboard = () => window.loadDashboardV2();
+
+/* ─── PATCH: ensure ticket modal works even if cache is empty ─── */
+(function patchTicketModal() {
+  const _orig = window.openSATicketModal;
+  window.openSATicketModal = async function(id) {
+    if (_orig) {
+      _orig(id);
+      /* if modal is still hidden, tickets weren't loaded yet — load and retry */
+      const modal = document.getElementById('sa-ticket-modal');
+      if (modal && modal.classList.contains('hidden')) {
+        if (typeof window.loadSATickets === 'function') {
+          await window.loadSATickets();
+          _orig(id);
+        }
+      }
+    }
+  };
+})();
 
 /* ─── GLOBAL SEARCH ───────────────────────────────────────────── */
 
