@@ -678,7 +678,7 @@ function switchTab(t) { 
         } catch(e) {}
     }
     if (t === 'home-maintenance') try { loadHomeMaintenance(); } catch(e) {}
-    if (t === 'academy') try { if(currentUser.role === 'CHILD') renderKidGames(); else renderLibrary(); } catch(e) {}
+    if (t === 'academy') try { if(currentUser.role === 'ADMIN') renderLibrary(); else renderKidGames(); } catch(e) {}
     if (t === 'bank') {
         if (currentUser && currentUser.role === 'CHILD') try { loadChildFlwWallet(); } catch(e) {}
         if (currentUser && currentUser.role === 'ADMIN') try { loadFlwKidParentPanel(); } catch(e) {}
@@ -1783,9 +1783,9 @@ async function fetchData() {
 
         try {
             const libSec = getEl('academy-library-section');
-            if (libSec) libSec.style.display = currentUser.role === 'CHILD' ? 'none' : '';
+            if (libSec) libSec.style.display = currentUser.role !== 'ADMIN' ? 'none' : '';
             if (currentUser.role === 'ADMIN') renderAdminAcademy();
-            else { renderMyAssignments(bundlesCache); if(currentUser.role !== 'CHILD') renderLibrary(); renderKidGames(); }
+            else { renderMyAssignments(bundlesCache); renderKidGames(); }
         } catch(e) {}
         try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
         try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
@@ -3375,7 +3375,7 @@ function renderMyAssignments(bundles) {
     const list = getEl('my-assignments-list'); const histList = getEl('academy-history-list'); const histCont = getEl('academy-history-container');
     if (!list) return; list.innerHTML = ''; if (histList) histList.innerHTML = ''; let histCount = 0; let actCount = 0;
     const libSection = getEl('academy-library-section');
-    if (libSection) libSection.style.display = currentUser?.role === 'CHILD' ? 'none' : '';
+    if (libSection) libSection.style.display = currentUser?.role !== 'ADMIN' ? 'none' : '';
     if(Array.isArray(bundles)) {
         bundles.forEach(b => {
             const reward = b.custom_reward !== null ? b.custom_reward : b.default_reward;
@@ -14162,9 +14162,10 @@ window._openQuoteFromActivity = async function(quoteId) {
 
 let _activeAssignmentId = null;
 
-async function previewGameAsParent(gameFilePath, gameId, gameTitle) {
+async function previewGameAsParent(gameFilePath, gameId, gameTitle, financeAge) {
   window._parentGamePreview = true;
-  await openGame(null, gameFilePath, `👁️ ${currentUser?.nickname}`, 0, gameId, 1, null, 0);
+  // העברת ערכים ריאליים כדי שהמשחק יאפשר אינטראקציה מלאה
+  await openGame(null, gameFilePath, currentUser?.nickname, 10, gameId, 1, financeAge||null, 3);
   const header = document.querySelector('#game-overlay span');
   if (header) header.innerText = `👁️ תצוגת הורה: ${gameTitle || ''}`;
 }
@@ -15312,7 +15313,7 @@ function openQuestWizard() {
 // ============================================================
 
 function renderKidGames(assignments) {
-  if (!currentUser || currentUser.role !== 'CHILD') return;
+  if (!currentUser || currentUser.role === 'ADMIN') return;
   const container = document.getElementById('kid-academy-content');
   if (!container) return;
 
