@@ -5035,14 +5035,15 @@ app.get('/api/data/:userId', async (req, res) => {
         const group = groupRes.rows[0];
 
         // Parallel fetch of all independent data (including admin balance)
-        const [adminBalRes, tasks, pantry, shoppingList, goals, allBundles, userBundles] = await Promise.all([
+        const [adminBalRes, tasks, pantry, shoppingList, goals, allBundles, userBundles, gameAssignments] = await Promise.all([
             pool.query("SELECT COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id = $1 AND u.role = 'ADMIN'", [group.id]),
             pool.query('SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1 ORDER BY t.created_at DESC LIMIT 200', [group.id]),
             pool.query('SELECT * FROM pantry WHERE group_id = $1 ORDER BY updated_at DESC', [group.id]),
             pool.query('SELECT sl.*, u.nickname as requester_name FROM shopping_list sl LEFT JOIN users u ON sl.requester_id = u.id WHERE sl.group_id = $1 ORDER BY sl.added_at DESC', [group.id]),
             pool.query('SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id = $1 OR g.target_user_id = $1', [user.id]),
             pool.query(`SELECT id, title, type, age_group, threshold, reward, created_by FROM quiz_bundles WHERE created_by = $1 OR created_by = 'SYSTEM' ORDER BY created_at DESC LIMIT 50`, [String(user.group_id)]),
-            pool.query(`SELECT ua.*, qb.title, qb.type, qb.age_group, qb.threshold, qb.text_content, qb.reward as default_reward, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id LEFT JOIN users u ON ua.user_id = u.id WHERE ua.user_id = $1 OR $2 = 'ADMIN'`, [user.id, user.role])
+            pool.query(`SELECT ua.*, qb.title, qb.type, qb.age_group, qb.threshold, qb.text_content, qb.reward as default_reward, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id LEFT JOIN users u ON ua.user_id = u.id WHERE ua.user_id = $1 OR $2 = 'ADMIN'`, [user.id, user.role]),
+            pool.query(`SELECT ga.*, g.title, g.subject, g.thumbnail_emoji, g.file_path, g.difficulty, (ga.rounds_total - COALESCE(ga.rounds_used,0)) as rounds_left FROM game_assignments ga JOIN games_catalog g ON g.id = ga.game_id WHERE ga.child_user_id = $1 AND ga.status = 'active' AND (ga.expires_at IS NULL OR ga.expires_at > NOW()) ORDER BY ga.assigned_at DESC`, [user.id])
         ]);
         group.admin_total_balance = adminBalRes.rows[0].total;
 
@@ -5110,6 +5111,7 @@ app.get('/api/data/:userId', async (req, res) => {
         res.json({
             user, group, tasks: tasks.rows, pantry: pantry.rows, shopping_list: shoppingList.rows,
             goals: goals.rows, quiz_bundles: userBundles.rows, all_bundles: allBundles.rows,
+            game_assignments: gameAssignments.rows,
             weekly_stats: weeklyStats, community_updates: community_updates, community_businesses: community_businesses
         });
     } catch (e) {

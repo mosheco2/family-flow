@@ -678,7 +678,7 @@ function switchTab(t) { 
         } catch(e) {}
     }
     if (t === 'home-maintenance') try { loadHomeMaintenance(); } catch(e) {}
-    if (t === 'academy' && currentUser && currentUser.role === 'CHILD') try { loadKidAcademy(); } catch(e) {}
+    if (t === 'academy') try { if(currentUser.role === 'CHILD') renderKidGames(); else renderLibrary(); } catch(e) {}
     if (t === 'bank') {
         if (currentUser && currentUser.role === 'CHILD') try { loadChildFlwWallet(); } catch(e) {}
         if (currentUser && currentUser.role === 'ADMIN') try { loadFlwKidParentPanel(); } catch(e) {}
@@ -1775,12 +1775,13 @@ async function fetchData() {
         
         allTasks = Array.isArray(data.tasks) ? data.tasks : []; bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
         if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
+        window.kidGameAssignments = Array.isArray(data.game_assignments) ? data.game_assignments : [];
         
         // שמירת עדכוני הקהילה והעסקים למטמון עבור הפיד והקהילות
         window.communityUpdatesCache = Array.isArray(data.community_updates) ? data.community_updates : [];
         window.communityBusinessesCache = Array.isArray(data.community_businesses) ? data.community_businesses : [];
 
-        try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); if(currentUser.role === 'CHILD') loadKidAcademy(); } } catch(e) {}
+        try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); if(currentUser.role !== 'CHILD') renderLibrary(); renderKidGames(); } } catch(e) {}
         try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
         try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
         try { if (data.group) renderSmBanner(data.group); } catch(e) {}
@@ -3340,12 +3341,15 @@ function renderLibrary() {
 function renderMyAssignments(bundles) {
     const list = getEl('my-assignments-list'); const histList = getEl('academy-history-list'); const histCont = getEl('academy-history-container');
     if (!list) return; list.innerHTML = ''; if (histList) histList.innerHTML = ''; let histCount = 0; let actCount = 0;
+    const libSection = getEl('academy-library-section');
+    if (libSection) libSection.style.display = currentUser?.role === 'CHILD' ? 'none' : '';
     if(Array.isArray(bundles)) {
         bundles.forEach(b => {
             const reward = b.custom_reward !== null ? b.custom_reward : b.default_reward;
             if (b.status === 'assigned') {
                 actCount++; let dMsg = ""; if (b.deadline) { const diff = Math.ceil((new Date(b.deadline) - new Date()) / (1000 * 60 * 60 * 24)); dMsg = diff > 0 ? `<span class="text-orange-500 font-bold bg-orange-50 px-1 rounded ml-2">עוד ${diff} ימים</span>` : `<span class="text-red-500 font-bold bg-red-50 px-1 rounded ml-2">איחור!</span>`; }
-                list.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center mb-3"><div class="flex-1"><h4 class="font-bold text-slate-800">${safeStr(b.title)}</h4><p class="text-xs text-slate-500 mt-1">תמריץ מעבר: ₪${reward} ${dMsg}</p></div><button onclick="startQuiz(${b.bundle_id})" class="bg-blue-600 text-white px-5 py-2 rounded-xl font-bold shadow hover:bg-blue-700 transition"><i class="fa-solid fa-play"></i> התחל</button></div>`;
+                const assignDateStr = b.assigned_at ? `<span class="text-slate-400">📅 ${new Date(b.assigned_at).toLocaleDateString('he-IL')}</span>` : '';
+                list.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center mb-3"><div class="flex-1"><h4 class="font-bold text-slate-800">${safeStr(b.title)}</h4><p class="text-xs text-slate-500 mt-1">תמריץ: ₪${reward} ${dMsg} ${assignDateStr}</p></div><button onclick="startQuiz(${b.bundle_id})" class="bg-blue-600 text-white px-5 py-2 rounded-xl font-bold shadow hover:bg-blue-700 transition"><i class="fa-solid fa-play"></i> התחל</button></div>`;
             } else {
                 histCount++; if(histList) { let sColor = b.status === 'completed' ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'; let sText = b.status === 'completed' ? 'הושלם' : 'נכשל';
                 histList.innerHTML += `<div class="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center mb-2"><div class="flex-1"><h4 class="font-bold text-slate-700 text-sm">${safeStr(b.title)}</h4><p class="text-[10px] text-slate-400 mt-1">ציון: ${b.score}% • תמריץ: ₪${b.status==='completed'?reward:0}</p></div><span class="text-[10px] font-bold px-2 py-1 rounded ${sColor}">${sText}</span></div>`; }
@@ -15260,6 +15264,40 @@ function openQuestWizard() {
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
   renderStep();
+}
+
+// ============================================================
+// KID ACADEMY — רינדור משחקים מוקצים לילד (מ-cache)
+// ============================================================
+
+function renderKidGames() {
+  if (!currentUser || currentUser.role !== 'CHILD') return;
+  const container = document.getElementById('kid-academy-content');
+  if (!container) return;
+
+  const assignments = window.kidGameAssignments || [];
+  if (assignments.length === 0) { container.innerHTML = ''; return; }
+
+  let html = `<div style="font-weight:700;font-size:1rem;margin-bottom:0.7rem">🎮 המשחקים שלי</div>`;
+  assignments.forEach(a => {
+    const assignDate = a.assigned_at ? `<span style="font-size:0.75rem;color:#7C3AED;opacity:0.7">📅 ${new Date(a.assigned_at).toLocaleDateString('he-IL')}</span>` : '';
+    const roundsLeft = a.rounds_left ?? (a.rounds_total - (a.rounds_used || 0));
+    html += `
+      <div style="background:linear-gradient(135deg,#EDE9FE,#DDD6FE);border:2px solid #7C3AED;border-radius:16px;padding:1rem;margin-bottom:0.7rem;display:flex;align-items:center;gap:0.8rem;">
+        <span style="font-size:2.5rem">${a.thumbnail_emoji || '🎮'}</span>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:0.95rem">${a.title}</div>
+          <div style="font-size:0.8rem;color:#7C3AED">נשארו ${roundsLeft} סיבובים · ${a.flw_per_round} FLW לסיבוב</div>
+          <div style="margin-top:0.2rem">${assignDate}</div>
+        </div>
+        <button onclick="openGame(${a.id},'${a.file_path}','${currentUser?.nickname}',${a.flw_per_round},${a.game_id},${a.start_level||1},${a.finance_age??null},${a.rounds_total||0})"
+          ${roundsLeft <= 0 ? 'disabled' : ''}
+          style="background:${roundsLeft > 0 ? '#7C3AED' : '#9CA3AF'};color:white;border:none;border-radius:50px;padding:0.5rem 1rem;font-size:0.85rem;font-weight:700;cursor:${roundsLeft > 0 ? 'pointer' : 'default'}">
+          ${roundsLeft > 0 ? '🎮 שחק' : 'נגמר'}
+        </button>
+      </div>`;
+  });
+  container.innerHTML = html;
 }
 
 // ============================================================
