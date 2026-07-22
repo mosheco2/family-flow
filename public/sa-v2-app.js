@@ -235,7 +235,7 @@ window.updateSADashboard = () => window.loadDashboardV2();
     /* move modal to top of body to escape any stacking context, then force visible */
     if (modal && !modal.classList.contains('hidden')) {
       if (modal.parentElement !== document.body) document.body.appendChild(modal);
-      modal.style.cssText = 'display:flex!important;position:fixed!important;inset:0!important;z-index:999999!important;';
+      modal.style.cssText = 'display:flex;position:fixed;inset:0;z-index:999999;';
     }
   };
 
@@ -268,7 +268,7 @@ window.updateSADashboard = () => window.loadDashboardV2();
     /* move modal to top of body to escape any stacking context */
     if (modal && !modal.classList.contains('hidden')) {
       if (modal.parentElement !== document.body) document.body.appendChild(modal);
-      modal.style.cssText = 'display:flex!important;position:fixed!important;inset:0!important;z-index:999999!important;';
+      modal.style.cssText = 'display:flex;position:fixed;inset:0;z-index:999999;';
     }
   };
 })();
