@@ -10115,7 +10115,7 @@ async function uploadTriviaQuestions(event) {
   try {
     const res = await fetch('/api/sa/trivia-questions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-sa-token': localStorage.getItem('ofl_sa_token') },
+      headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ofl_sa_token') },
       body: JSON.stringify(json)
     });
     if (!res.ok) throw new Error(await res.text());
