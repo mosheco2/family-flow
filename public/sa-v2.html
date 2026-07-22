@@ -2505,7 +2505,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#0f172a;font-size:1
                             return `${d.getDate()}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
                           }
                           function loadMeta(){
-                            fetch('/api/sa/docs/meta',{headers:{'x-sa-token':localStorage.getItem('ofl_sa_token')||''}})
+                            fetch('/api/sa/docs/meta',{headers:{'Authorization':localStorage.getItem('ofl_sa_token')||''}})
                               .then(r=>r.json()).then(data=>{
                                 if(!data.success) return;
                                 document.querySelectorAll('.doc-mtime').forEach(el=>{
@@ -2524,7 +2524,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#0f172a;font-size:1
                             btn.classList.add('opacity-60');
                             fetch('/api/sa/docs/refresh/'+docKey,{
                               method:'POST',
-                              headers:{'x-sa-token':localStorage.getItem('ofl_sa_token')||'','Content-Type':'application/json'}
+                              headers:{'Authorization':localStorage.getItem('ofl_sa_token')||'','Content-Type':'application/json'}
                             }).then(r=>r.json()).then(data=>{
                               if(data.success){
                                 const el=document.querySelector(`.doc-mtime[data-doc="${docKey}"]`);
