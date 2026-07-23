@@ -204,9 +204,22 @@ TOPICS.forEach(t=>{
   grid.appendChild(b);
 });
 
+function refreshTopicGrid(){
+  const ageKey = GS.age>=13?13:GS.age>=10?10:6;
+  const ageData = QB[ageKey] || {};
+  document.querySelectorAll('.topic-btn').forEach(b=>{
+    const k = b.dataset.key;
+    if(k==='mix'){b.style.display='';return;}
+    const hasQ = ageData[k] && ageData[k].length > 0;
+    b.style.display = hasQ ? '' : 'none';
+    if(!hasQ && GS.topic===k){ GS.topic=null; b.classList.remove('sel'); }
+  });
+}
+
 function selectAge(a){
   GS.age=a;
   document.querySelectorAll('.age-btn').forEach(b=>b.classList.toggle('sel',+b.dataset.age===a));
+  refreshTopicGrid();
   checkReady();
 }
 function selectTopic(k){
