@@ -3472,26 +3472,89 @@ function renderLibrary() {
     } catch(err) { console.error(err); }
 }
 
+function _acadDaysBadge(deadline) {
+    if (!deadline) return '';
+    const diff = Math.ceil((new Date(deadline) - new Date()) / (1000*60*60*24));
+    if (diff < 0)  return `<span class="text-[10px] font-black bg-red-100 text-red-600 px-2 py-0.5 rounded-full">⚠️ איחרת!</span>`;
+    if (diff <= 2) return `<span class="text-[10px] font-black bg-red-50 text-red-500 px-2 py-0.5 rounded-full">🔥 עוד ${diff} יום${diff!==1?'ים':''}</span>`;
+    if (diff <= 7) return `<span class="text-[10px] font-black bg-orange-50 text-orange-500 px-2 py-0.5 rounded-full">⏰ עוד ${diff} ימים</span>`;
+    return `<span class="text-[10px] font-bold bg-blue-50 text-blue-500 px-2 py-0.5 rounded-full">📅 עוד ${diff} ימים</span>`;
+}
+
 function renderMyAssignments(bundles) {
-    const list = getEl('my-assignments-list'); const histList = getEl('academy-history-list'); const histCont = getEl('academy-history-container');
-    if (!list) return; list.innerHTML = ''; if (histList) histList.innerHTML = ''; let histCount = 0; let actCount = 0;
+    const list = getEl('my-assignments-list');
+    const histList = getEl('academy-history-list');
+    const histCont = getEl('academy-history-container');
+    if (!list) return;
+    list.innerHTML = ''; if (histList) histList.innerHTML = '';
+    let histCount = 0, actCount = 0, totalEarn = 0;
     const libSection = getEl('academy-library-section');
     if (libSection) libSection.style.display = currentUser?.role !== 'ADMIN' ? 'none' : '';
-    if(Array.isArray(bundles)) {
+
+    // subject emoji map
+    const subjectEmoji = { math:'🔢', english:'🔤', reading:'📖', financial:'💰', science:'🔬', history:'🏛️', default:'📝' };
+
+    if (Array.isArray(bundles)) {
         bundles.forEach(b => {
             const reward = b.custom_reward !== null ? b.custom_reward : b.default_reward;
+            const emoji = subjectEmoji[b.type] || subjectEmoji.default;
             if (b.status === 'assigned') {
-                actCount++; let dMsg = ""; if (b.deadline) { const diff = Math.ceil((new Date(b.deadline) - new Date()) / (1000 * 60 * 60 * 24)); dMsg = diff > 0 ? `<span class="text-orange-500 font-bold bg-orange-50 px-1 rounded ml-2">עוד ${diff} ימים</span>` : `<span class="text-red-500 font-bold bg-red-50 px-1 rounded ml-2">איחור!</span>`; }
-                const assignDateStr = b.assigned_at ? `<span class="text-slate-400">📅 ${new Date(b.assigned_at).toLocaleDateString('he-IL')}</span>` : '';
-                list.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center mb-3"><div class="flex-1"><h4 class="font-bold text-slate-800">${safeStr(b.title)}</h4><p class="text-xs text-slate-500 mt-1">תמריץ: ₪${reward} ${dMsg} ${assignDateStr}</p></div><button onclick="startQuiz(${b.bundle_id})" class="bg-blue-600 text-white px-5 py-2 rounded-xl font-bold shadow hover:bg-blue-700 transition"><i class="fa-solid fa-play"></i> התחל</button></div>`;
+                actCount++; totalEarn += parseFloat(reward) || 0;
+                const daysBadge = _acadDaysBadge(b.deadline);
+                list.innerHTML += `
+                <div class="relative bg-white rounded-2xl border-2 border-amber-200 shadow-sm overflow-hidden mb-3">
+                    <div class="absolute top-0 right-0 bottom-0 w-1.5 bg-gradient-to-b from-amber-400 to-orange-400 rounded-r-2xl"></div>
+                    <div class="p-4 pr-5">
+                        <div class="flex items-start gap-3">
+                            <div class="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-2xl shrink-0 border border-amber-100">${emoji}</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-black text-slate-800 text-sm leading-tight mb-1">${safeStr(b.title)}</div>
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="text-xs font-black text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">💰 ₪${reward}</span>
+                                    ${daysBadge}
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="startQuiz(${b.bundle_id})"
+                            class="mt-3 w-full bg-gradient-to-l from-amber-500 to-orange-500 text-white py-2.5 rounded-xl font-black text-sm shadow-md shadow-amber-200 active:scale-95 transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-play text-xs"></i> התחל מבחן
+                        </button>
+                    </div>
+                </div>`;
             } else {
-                histCount++; if(histList) { let sColor = b.status === 'completed' ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'; let sText = b.status === 'completed' ? 'הושלם' : 'נכשל';
-                histList.innerHTML += `<div class="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center mb-2"><div class="flex-1"><h4 class="font-bold text-slate-700 text-sm">${safeStr(b.title)}</h4><p class="text-[10px] text-slate-400 mt-1">ציון: ${b.score}% • תמריץ: ₪${b.status==='completed'?reward:0}</p></div><span class="text-[10px] font-bold px-2 py-1 rounded ${sColor}">${sText}</span></div>`; }
+                histCount++;
+                if (histList) {
+                    const ok = b.status === 'completed';
+                    histList.innerHTML += `
+                    <div class="bg-white p-3 rounded-xl border border-slate-100 flex items-center gap-3 mb-2">
+                        <span class="text-xl">${ok ? '✅' : '❌'}</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-bold text-slate-700 text-sm truncate">${safeStr(b.title)}</div>
+                            <div class="text-[10px] text-slate-400">ציון: ${b.score}% ${ok ? `• קיבלת ₪${reward}` : ''}</div>
+                        </div>
+                        <span class="text-[10px] font-black px-2 py-1 rounded-lg ${ok ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}">${ok ? 'עבר! 🏆' : 'נסה שוב'}</span>
+                    </div>`;
+                }
             }
         });
     }
-    if (actCount === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין מטלות למידה פתוחות.</p>';
-    if (histCount > 0 && histCont) histCont.classList.remove('hidden'); else if(histCont) histCont.classList.add('hidden');
+
+    // כותרת סקשן מבחנים
+    if (actCount > 0) {
+        const header = `<div class="flex items-center gap-2 mb-3"><span class="text-base font-black text-slate-700">📝 מבחנים שלי</span><span class="bg-amber-100 text-amber-700 text-xs font-black px-2 py-0.5 rounded-full">${actCount}</span></div>`;
+        list.innerHTML = header + list.innerHTML;
+    } else {
+        list.innerHTML = `<div class="text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><div class="text-3xl mb-2">📭</div><p class="text-slate-400 text-sm font-bold">אין מבחנים פתוחים כרגע</p></div>`;
+    }
+
+    // hero stats
+    const statTasks = getEl('acad-stat-tasks');
+    const statEarn = getEl('acad-stat-earn');
+    if (statTasks) { statTasks.textContent = `📝 ${actCount} מבחנים`; }
+    if (statEarn && totalEarn > 0) { statEarn.textContent = `💰 עד ₪${totalEarn} לרווח`; statEarn.classList.remove('hidden'); }
+
+    if (histCount > 0 && histCont) histCont.classList.remove('hidden');
+    else if (histCont) histCont.classList.add('hidden');
 }
 
 async function previewBundleAsParent(bundleId) {
@@ -15413,44 +15476,40 @@ function openQuestWizard() {
 // KID ACADEMY — רינדור משחקים מוקצים לילד (מ-cache)
 // ============================================================
 
+function _gameProgressBar(roundsUsed, roundsTotal) {
+    const used = roundsUsed || 0;
+    const total = roundsTotal || 1;
+    const pct = Math.round((used / total) * 100);
+    const left = total - used;
+    const barColor = left === 0 ? '#9CA3AF' : left <= 2 ? '#EF4444' : left <= Math.ceil(total/2) ? '#F59E0B' : '#7C3AED';
+    return `
+        <div class="mt-2">
+            <div class="flex justify-between items-center mb-1">
+                <span class="text-[10px] font-bold text-slate-500">התקדמות</span>
+                <span class="text-[10px] font-black" style="color:${barColor}">${used}/${total} סיבובים</span>
+            </div>
+            <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full transition-all" style="width:${pct}%;background:${barColor}"></div>
+            </div>
+        </div>`;
+}
+
 function renderKidGames(assignments) {
-  if (!currentUser || currentUser.role === 'ADMIN') return;
-  const container = document.getElementById('kid-academy-content');
-  if (!container) return;
-
-  const list = assignments || window.kidGameAssignments || [];
-  if (list.length === 0) {
-    // נסה לטעון מה-API אם הcache ריק
-    if (!assignments) {
-      fetch(`/api/kids/assignments/${currentUser.id}`)
-        .then(r => r.json())
-        .then(d => { if (d.assignments?.length) renderKidGames(d.assignments); })
-        .catch(() => {});
+    if (!currentUser || currentUser.role === 'ADMIN') return;
+    const container = document.getElementById('kid-academy-content');
+    if (!container) return;
+    const list = assignments || window.kidGameAssignments || [];
+    if (list.length === 0) {
+        if (!assignments) {
+            fetch(`/api/kids/assignments/${currentUser.id}`)
+                .then(r => r.json())
+                .then(d => { if (d.assignments?.length) renderKidGames(d.assignments); })
+                .catch(() => {});
+        }
+        return;
     }
-    container.innerHTML = '';
-    return;
-  }
-
-  let html = `<div style="font-weight:700;font-size:1rem;margin-bottom:0.7rem">🎮 המשחקים שלי</div>`;
-  list.forEach(a => {
-    const assignDate = a.assigned_at ? `<span style="font-size:0.75rem;color:#7C3AED;opacity:0.7">📅 ${new Date(a.assigned_at).toLocaleDateString('he-IL')}</span>` : '';
-    const roundsLeft = a.rounds_left != null ? a.rounds_left : (a.rounds_total - (a.rounds_used || 0));
-    html += `
-      <div style="background:linear-gradient(135deg,#EDE9FE,#DDD6FE);border:2px solid #7C3AED;border-radius:16px;padding:1rem;margin-bottom:0.7rem;display:flex;align-items:center;gap:0.8rem;">
-        <span style="font-size:2.5rem">${a.thumbnail_emoji || '🎮'}</span>
-        <div style="flex:1">
-          <div style="font-weight:700;font-size:0.95rem">${a.title}</div>
-          <div style="font-size:0.8rem;color:#7C3AED">נשארו ${roundsLeft} סיבובים · ${a.flw_per_round} FLW לסיבוב</div>
-          <div style="margin-top:0.2rem">${assignDate}</div>
-        </div>
-        <button onclick="openGame(${a.id},'${a.file_path}','${currentUser?.nickname}',${a.flw_per_round},${a.game_id},${a.start_level||1},${a.finance_age??null},${a.rounds_total||0})"
-          ${roundsLeft <= 0 ? 'disabled' : ''}
-          style="background:${roundsLeft > 0 ? '#7C3AED' : '#9CA3AF'};color:white;border:none;border-radius:50px;padding:0.5rem 1rem;font-size:0.85rem;font-weight:700;cursor:${roundsLeft > 0 ? 'pointer' : 'default'}">
-          ${roundsLeft > 0 ? '🎮 שחק' : 'נגמר'}
-        </button>
-      </div>`;
-  });
-  container.innerHTML = html;
+    // פשוט עדכון המשחקים בתוך kid-academy-content (loadKidAcademy יטפל בקווסטים)
+    loadKidAcademy();
 }
 
 // ============================================================
@@ -15458,96 +15517,104 @@ function renderKidGames(assignments) {
 // ============================================================
 
 async function loadKidAcademy() {
-  const userId = currentUser?.id;
-  if(!userId) return;
+    const userId = currentUser?.id;
+    if (!userId || currentUser.role === 'ADMIN') return;
+    const container = document.getElementById('kid-academy-content');
+    if (!container) return;
 
-  const container = document.getElementById('kid-academy-content');
-  if(!container) return;
+    try {
+        const [assignRes, questRes] = await Promise.allSettled([
+            fetch(`/api/kids/assignments/${userId}`).then(r => r.json()),
+            fetch(`/api/kids/quests/${userId}`).then(r => r.json())
+        ]);
+        const assignments = assignRes.status === 'fulfilled' ? (assignRes.value.assignments || []) : [];
+        const quests      = questRes.status  === 'fulfilled' ? (questRes.value.quests   || []) : [];
 
-  try {
-    const [assignRes, questRes] = await Promise.allSettled([
-      fetch(`/api/kids/assignments/${userId}`).then(r => r.json()),
-      fetch(`/api/kids/quests/${userId}`).then(r => r.json())
-    ]);
+        let html = '';
 
-    const assignments = assignRes.status === 'fulfilled' ? (assignRes.value.assignments || []) : [];
-    const quests      = questRes.status  === 'fulfilled' ? (questRes.value.quests   || []) : [];
+        // ── משחקים ──
+        if (assignments.length > 0) {
+            html += `<div class="flex items-center gap-2 mb-3"><span class="text-base font-black text-slate-700">🎮 המשחקים שלי</span><span class="bg-violet-100 text-violet-700 text-xs font-black px-2 py-0.5 rounded-full">${assignments.length}</span></div>`;
+            assignments.forEach(a => {
+                const roundsLeft = a.rounds_left != null ? a.rounds_left : (a.rounds_total - (a.rounds_used || 0));
+                const roundsUsed = a.rounds_used || 0;
+                const roundsTotal = a.rounds_total || 0;
+                const canPlay = roundsLeft > 0;
+                const progressBar = roundsTotal > 0 ? _gameProgressBar(roundsUsed, roundsTotal) : '';
+                const leftBadge = canPlay
+                    ? (roundsLeft <= 2 ? `<span class="text-[10px] font-black bg-red-50 text-red-500 px-2 py-0.5 rounded-full">🔥 נשארו ${roundsLeft}</span>` : `<span class="text-[10px] font-black bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full">🎯 ${roundsLeft} סיבובים</span>`)
+                    : `<span class="text-[10px] font-black bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full">✅ הושלם</span>`;
+                const flwBadge = `<span class="text-[10px] font-black bg-yellow-50 text-yellow-600 border border-yellow-200 px-2 py-0.5 rounded-full">🪙 ${a.flw_per_round} FLW/סיבוב</span>`;
 
-    let html = '';
+                html += `
+                <div class="relative bg-white rounded-2xl border-2 ${canPlay ? 'border-violet-200' : 'border-slate-100'} shadow-sm overflow-hidden mb-3">
+                    <div class="absolute top-0 right-0 bottom-0 w-1.5 ${canPlay ? 'bg-gradient-to-b from-violet-500 to-purple-600' : 'bg-slate-200'} rounded-r-2xl"></div>
+                    <div class="p-4 pr-5">
+                        <div class="flex items-start gap-3">
+                            <div class="w-12 h-12 rounded-2xl ${canPlay ? 'bg-violet-50' : 'bg-slate-50'} flex items-center justify-center text-2xl shrink-0 border ${canPlay ? 'border-violet-100' : 'border-slate-100'}">${a.thumbnail_emoji || '🎮'}</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-black text-slate-800 text-sm leading-tight mb-1.5">${safeStr(a.title)}</div>
+                                <div class="flex items-center gap-1.5 flex-wrap">${leftBadge}${flwBadge}</div>
+                                ${progressBar}
+                            </div>
+                        </div>
+                        ${canPlay ? `
+                        <button onclick="openGame(${a.id},'${a.file_path}','${currentUser?.nickname}',${a.flw_per_round},${a.game_id},${a.start_level||1},${a.finance_age||'null'},${a.rounds_total||0})"
+                            class="mt-3 w-full text-white py-2.5 rounded-xl font-black text-sm shadow-md shadow-violet-200 active:scale-95 transition flex items-center justify-center gap-2"
+                            style="background:linear-gradient(135deg,#7C3AED,#6D28D9)">
+                            <span>🎮</span> שחק עכשיו!
+                        </button>` : `
+                        <div class="mt-3 w-full bg-slate-50 border border-slate-200 text-slate-400 py-2.5 rounded-xl font-bold text-sm text-center">✅ כל הסיבובים הושלמו!</div>`}
+                    </div>
+                </div>`;
+            });
 
-    if(assignments.length > 0) {
-      html += `<div style="font-weight:700;font-size:1rem;margin-bottom:0.7rem">🎮 המשחקים שלי</div>`;
-      assignments.forEach(a => {
-        html += `
-          <div style="
-            background:linear-gradient(135deg,#EDE9FE,#DDD6FE);
-            border:2px solid #7C3AED;border-radius:16px;
-            padding:1rem;margin-bottom:0.7rem;
-            display:flex;align-items:center;gap:0.8rem;
-          ">
-            <span style="font-size:2.5rem">${a.thumbnail_emoji || '🎮'}</span>
-            <div style="flex:1">
-              <div style="font-weight:700;font-size:0.95rem">${a.title}</div>
-              <div style="font-size:0.8rem;color:#7C3AED">
-                נשארו ${a.rounds_left} סיבובים · ${a.flw_per_round} FLW לסיבוב
-              </div>
-            </div>
-            <button onclick="openGame(${a.id},'${a.file_path}','${currentUser?.nickname}',${a.flw_per_round},${a.game_id},${a.start_level||1},${a.finance_age||'null'},${a.rounds_total||0})"
-              ${a.rounds_left <= 0 ? 'disabled' : ''}
-              style="
-                background:${a.rounds_left > 0 ? '#7C3AED' : '#9CA3AF'};
-                color:white;border:none;border-radius:50px;
-                padding:0.5rem 1rem;font-size:0.85rem;font-weight:700;
-                cursor:${a.rounds_left > 0 ? 'pointer' : 'default'};
-              ">${a.rounds_left > 0 ? '🎮 שחק' : 'נגמר'}</button>
-          </div>
-        `;
-      });
+            // עדכון hero stat
+            const statGames = getEl('acad-stat-games');
+            if (statGames) { statGames.textContent = `🎮 ${assignments.length} משחקים`; statGames.classList.remove('hidden'); }
+        }
+
+        // ── קווסטים ──
+        if (quests.length > 0) {
+            html += `<div class="flex items-center gap-2 mb-3 mt-2"><span class="text-base font-black text-slate-700">🎯 קווסטים</span><span class="bg-emerald-100 text-emerald-700 text-xs font-black px-2 py-0.5 rounded-full">${quests.length}</span></div>`;
+            quests.forEach(q => {
+                html += `
+                <div class="relative bg-white rounded-2xl border-2 border-emerald-200 shadow-sm overflow-hidden mb-3">
+                    <div class="absolute top-0 right-0 bottom-0 w-1.5 bg-gradient-to-b from-emerald-400 to-teal-500 rounded-r-2xl"></div>
+                    <div class="p-4 pr-5">
+                        <div class="flex items-start gap-3">
+                            <div class="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-2xl shrink-0 border border-emerald-100">🎯</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-black text-slate-800 text-sm leading-tight mb-1.5">${safeStr(q.title)}</div>
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="text-[10px] font-black bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full">🪙 ${q.flw_reward} FLW</span>
+                                    <span class="text-[10px] font-black bg-slate-50 text-slate-500 px-2 py-0.5 rounded-full">📋 ${q.question_count} שאלות</span>
+                                </div>
+                                ${q.description ? `<p class="text-xs text-slate-500 mt-1 leading-relaxed">${safeStr(q.description)}</p>` : ''}
+                            </div>
+                        </div>
+                        <button onclick="startQuest(${q.id},'${safeStr(q.title).replace(/'/g,"\\'")}',${q.flw_reward},${q.pass_score})"
+                            class="mt-3 w-full text-white py-2.5 rounded-xl font-black text-sm shadow-md shadow-emerald-200 active:scale-95 transition flex items-center justify-center gap-2"
+                            style="background:linear-gradient(135deg,#10B981,#059669)">
+                            <span>🚀</span> התחל קווסט!
+                        </button>
+                    </div>
+                </div>`;
+            });
+        }
+
+        if (assignments.length === 0 && quests.length === 0) {
+            html = `<div class="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <div class="text-4xl mb-2">🎮</div>
+                <p class="text-slate-500 font-bold text-sm">אין משחקים עדיין</p>
+                <p class="text-slate-400 text-xs mt-1">ההורה יקצה לך משחקים בקרוב!</p>
+            </div>`;
+        }
+
+        container.innerHTML = html;
+    } catch(e) {
+        console.error('loadKidAcademy error:', e);
     }
-
-    if(quests.length > 0) {
-      html += `<div style="font-weight:700;font-size:1rem;margin-top:1rem;margin-bottom:0.7rem">🎯 הקווסטים שלי</div>`;
-      quests.forEach(q => {
-        html += `
-          <div style="
-            background:linear-gradient(135deg,#FEF3C7,#FDE68A);
-            border:2px solid #F59E0B;border-radius:16px;
-            padding:1rem;margin-bottom:0.7rem;
-          ">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">
-              <div style="font-weight:700">${q.title}</div>
-              <span style="background:#F59E0B;color:white;border-radius:50px;
-                           padding:0.2rem 0.7rem;font-size:0.75rem;font-weight:700">
-                🪙 ${q.flw_reward} FLW
-              </span>
-            </div>
-            ${q.description ? `<div style="font-size:0.82rem;color:#92400E;margin-bottom:0.7rem">${q.description}</div>` : ''}
-            <button onclick="startQuest(${q.id},'${q.title}',${q.flw_reward},${q.pass_score})"
-              style="width:100%;background:#F59E0B;color:white;border:none;border-radius:50px;
-                     padding:0.6rem;font-weight:700;cursor:pointer;font-size:0.9rem">
-              🎯 התחל קווסט (${q.question_count} שאלות)
-            </button>
-          </div>
-        `;
-      });
-    }
-
-    if(assignments.length === 0 && quests.length === 0) {
-      html = `
-        <div style="text-align:center;padding:2rem;color:#999">
-          <div style="font-size:3rem;margin-bottom:0.5rem">🎮</div>
-          <div style="font-size:0.95rem">
-            אין משחקים או קווסטים כרגע<br>
-            <span style="font-size:0.85rem">ההורה יקצה לך בקרוב!</span>
-          </div>
-        </div>
-      `;
-    }
-
-    container.innerHTML = html;
-  } catch(e) {
-    console.error('loadKidAcademy error:', e);
-  }
 }
 
 async function startQuest(questId, title, flwReward, passScore) {
