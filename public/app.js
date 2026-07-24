@@ -2420,53 +2420,83 @@ async function movePantryToCart(pantryId, itemName, unit) { await fetch(`${API}/
 
 function renderChildTodo() {
     const todoSection = getEl('child-todo-section'); const todoList = getEl('child-todo-list');
-    if (!todoSection || !todoList) return; if (currentUser.role === 'ADMIN') { todoSection.classList.add('hidden'); return; }
-    const now = Date.now(); const oneDayMs = 24 * 60 * 60 * 1000;
+    if (!todoSection || !todoList) return;
+    if (currentUser.role === 'ADMIN') { todoSection.classList.add('hidden'); return; }
+
+    const now = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
     let allItems = [];
-    // Tasks
-    allTasks.filter(t => String(t.assigned_to) === String(currentUser.id) && t.status === 'pending').forEach(t => {
+
+    allTasks.filter(t => String(t.assigned_to) === String(currentUser.id) && t.status === 'pending'
+        && !(t.deadline && new Date(t.deadline).getTime() < now)).forEach(t => {
         const expiry = t.deadline ? new Date(t.deadline).getTime() : null;
         allItems.push({ type: 'task', title: t.title, expiry, assignDate: t.created_at ? new Date(t.created_at).getTime() : 0, reward: t.reward, rewardUnit: '₪' });
     });
-    // Quizzes
-    bundlesCache.filter(b => b.status === 'assigned').forEach(b => {
+
+    bundlesCache.filter(b => b.status === 'assigned'
+        && !(b.deadline && new Date(b.deadline).getTime() < now)).forEach(b => {
         const expiry = b.deadline ? new Date(b.deadline).getTime() : null;
         const reward = (b.custom_reward !== null && b.custom_reward !== undefined) ? b.custom_reward : b.default_reward;
         allItems.push({ type: 'quiz', title: b.title, expiry, assignDate: b.assigned_at ? new Date(b.assigned_at).getTime() : 0, reward, rewardUnit: '₪' });
     });
-    // Games
-    (window.kidGameAssignments || []).filter(g => (g.rounds_left || (g.rounds_total - (g.rounds_used||0))) > 0).forEach(g => {
+
+    (window.kidGameAssignments || []).filter(g =>
+        (g.rounds_left != null ? g.rounds_left : (g.rounds_total - (g.rounds_used||0))) > 0
+        && !(g.expires_at && new Date(g.expires_at).getTime() < now)).forEach(g => {
         const expiry = g.expires_at ? new Date(g.expires_at).getTime() : null;
         allItems.push({ type: 'game', title: g.title, expiry, assignDate: g.assigned_at ? new Date(g.assigned_at).getTime() : 0, reward: g.flw_per_round, rewardUnit: 'FLW' });
     });
+
     if (allItems.length === 0) { todoList.innerHTML = ''; todoSection.classList.add('hidden'); return; }
-    // Priority: expiring within 1 day → show 2 soonest; else 2 newest assigned
-    const expiring = allItems.filter(i => i.expiry && i.expiry - now <= oneDayMs && i.expiry > now - oneDayMs).sort((a,b) => a.expiry - b.expiry);
-    const chosen = expiring.length > 0 ? expiring.slice(0, 2) : allItems.sort((a,b) => b.assignDate - a.assignDate).slice(0, 2);
-    todoList.innerHTML = chosen.map(item => {
+
+    // פריטים שפג תוקפם בתוך יום (deadline קיים, טרם פג, ובמרחק עד 24 שעות)
+    const soonExpiring = allItems
+        .filter(i => i.expiry && i.expiry > now && (i.expiry - now) <= oneDayMs)
+        .sort((a, b) => a.expiry - b.expiry)
+        .slice(0, 2);
+
+    let chosen, sectionLabel;
+    if (soonExpiring.length > 0) {
+        chosen = soonExpiring;
+        sectionLabel = '<div class="flex items-center gap-2 mb-2"><span class="text-[11px] font-black text-orange-500 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">⚠️ עומד לפוג</span></div>';
+    } else {
+        chosen = allItems.sort((a, b) => b.assignDate - a.assignDate).slice(0, 2);
+        sectionLabel = '<div class="flex items-center gap-2 mb-2"><span class="text-[11px] font-black text-slate-500">✨ חדשים</span></div>';
+    }
+
+    const cards = chosen.map(item => {
         const { type, title, expiry, assignDate, reward, rewardUnit } = item;
-        let dMsg = ''; if (expiry) { const diff = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24)); dMsg = diff > 0 ? `<span class="text-orange-500"> • עוד ${diff} ימים</span>` : `<span class="text-red-500"> • פג תוקף!</span>`; }
+        let dMsg = '';
+        if (expiry) {
+            const diff = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+            dMsg = diff <= 0 ? ' • <span class="text-red-500">פג תוקף!</span>'
+                 : diff === 1 ? ' • <span class="text-red-500 font-black">⚡ נשאר יום אחד!</span>'
+                 : ' • <span class="text-orange-500">עוד ' + diff + ' ימים</span>';
+        }
         const aDateStr = assignDate ? new Date(assignDate).toLocaleDateString('he-IL') : '—';
         const tDateStr = expiry ? new Date(expiry).toLocaleDateString('he-IL') : '—';
-        const [border, bg, icon, tab] = type === 'task'
-            ? ['border-blue-100','hover:bg-blue-50','<i class="fa-solid fa-list-check text-blue-600"></i>','tasks']
-            : type === 'quiz'
-            ? ['border-purple-100','hover:bg-purple-50','<i class="fa-solid fa-graduation-cap text-purple-600"></i>','academy']
-            : ['border-violet-100','hover:bg-violet-50','<span>🎮</span>','academy'];
+        const typeMap = {
+            task:  ['border-blue-100','hover:bg-blue-50','<i class="fa-solid fa-list-check text-blue-600"></i>','tasks'],
+            quiz:  ['border-purple-100','hover:bg-purple-50','<i class="fa-solid fa-graduation-cap text-purple-600"></i>','academy'],
+            game:  ['border-violet-100','hover:bg-violet-50','<span class="text-lg">🎮</span>','academy']
+        };
+        const [border, bg, icon, tab] = typeMap[type] || typeMap.quiz;
+        const rewardStr = (rewardUnit === 'FLW' ? '🪙' : '₪') + reward + (rewardUnit === 'FLW' ? ' FLW' : '');
         return `<div class="bg-white p-3 rounded-2xl border ${border} shadow-sm flex justify-between items-center cursor-pointer ${bg} transition mb-2" onclick="switchTab('${tab}')">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100">${icon}</div>
                 <div>
                     <h4 class="font-bold text-slate-800 text-sm">${safeStr(title)}</h4>
-                    <p class="text-[10px] text-slate-500">${aDateStr} ← ${tDateStr} • ${rewardUnit === '₪' ? '₪' : '🪙'}${reward} ${rewardUnit === 'FLW' ? 'FLW' : ''}${dMsg}</p>
+                    <p class="text-[10px] text-slate-500">${aDateStr} ← ${tDateStr} • ${rewardStr}${dMsg}</p>
                 </div>
             </div>
             <i class="fa-solid fa-chevron-left text-slate-300"></i>
         </div>`;
     }).join('');
+
+    todoList.innerHTML = sectionLabel + cards;
     todoSection.classList.remove('hidden');
 }
-
 function renderChildDashboard() {
     const isChild = currentUser && currentUser.role !== 'ADMIN';
     const header = getEl('child-home-header');
