@@ -29311,15 +29311,21 @@ window.updatePOSQty = (idx, d) => { if(window.posCart[idx]) { window.posCart[idx
 window.posRemoveItem = (idx) => { window.posCart.splice(idx,1); window.renderPOSCart(); };
 window.clearPOSCart = async () => { if(await window._uiConfirm('לרוקן את הסל?')) { window.posCart = []; window.renderPOSCart(); document.getElementById('pos-customer-phone').value = ''; window.checkPOSCustomer(); } };
 
+window._posNewCustDebounce = null;
 window.checkPOSCustomer = function() {
-    const phone = document.getElementById('pos-customer-phone').value;
+    const raw = document.getElementById('pos-customer-phone').value;
+    const phone = raw.replace(/\D/g, '');
     const indicator = document.getElementById('pos-cust-indicator');
-    
+
+    // ביטול טיימר ויזאר קיים
+    if (window._posNewCustDebounce) { clearTimeout(window._posNewCustDebounce); window._posNewCustDebounce = null; }
+
     if (phone.length >= 9 && storeCustomersCache) {
-        const c = storeCustomersCache.find(x => x.phone === phone);
-        if (c) { 
-            window.posCurrentCustomer = c; 
-            if(indicator) {
+        // חיפוש עם normalize (מסיר תווים שאינם ספרות)
+        const c = storeCustomersCache.find(x => (x.phone || '').replace(/\D/g, '') === phone);
+        if (c) {
+            window.posCurrentCustomer = c;
+            if (indicator) {
                 const debt = window.getCustomerDebt(c.phone);
                 if (debt > 0) {
                     indicator.innerHTML = `<span class="text-red-700 bg-red-50 px-3 py-1.5 rounded-xl border border-red-200 flex items-center gap-1.5 shadow-sm text-xs mt-1"><i class="fa-solid fa-triangle-exclamation"></i> לקוח מזוהה (חוב: ₪${debt.toFixed(2)}): <strong>${safeStr(c.name)}</strong></span>`;
@@ -29330,9 +29336,31 @@ window.checkPOSCustomer = function() {
             }
             return;
         }
+        // לקוח לא נמצא — לאחר 1.2 שניות פתח ויזאר הוספת לקוח חדש
+        if (indicator) {
+            indicator.innerHTML = `<span class="text-slate-500 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center gap-1.5 shadow-sm text-xs mt-1"><i class="fa-solid fa-user-question"></i> מספר לא מוכר — <button onclick="window.openNewMemberFromPOS('${raw}')" class="text-indigo-600 font-bold underline mr-1">הוסף כלקוח חדש</button></span>`;
+            indicator.classList.remove('hidden');
+        }
+        // לא פותח ויזאר אוטומטי — הכפתור בלבד
+        window.posCurrentCustomer = null;
+        return;
     }
-    window.posCurrentCustomer = null; 
-    if(indicator) indicator.classList.add('hidden'); 
+    window.posCurrentCustomer = null;
+    if (indicator) indicator.classList.add('hidden');
+};
+
+window.openNewMemberFromPOS = function(phone) {
+    if (window._posNewCustDebounce) { clearTimeout(window._posNewCustDebounce); window._posNewCustDebounce = null; }
+    if (typeof window.fetchStoreCustomers === 'function') window.fetchStoreCustomers();
+    if (typeof window.openCustomerModal === 'function') {
+        window.openCustomerModal(null, 'details');
+        setTimeout(() => {
+            const phoneEl = document.getElementById('cust-phone');
+            if (phoneEl) phoneEl.value = phone;
+            const nameEl = document.getElementById('cust-name');
+            if (nameEl) nameEl.focus();
+        }, 200);
+    }
 };
 
 window.handlePosTenderClick = function() {
@@ -32271,6 +32299,7 @@ function cancelKioskHold() {
     if (ring) ring.classList.add('hidden');
 }
 
+window.startKioskExitFlow = function() { showKioskExitModal(); };
 function showKioskExitModal() {
     document.getElementById('kiosk-exit-password').value = '';
     document.getElementById('kiosk-exit-error').classList.add('hidden');
