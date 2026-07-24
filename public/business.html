@@ -6157,6 +6157,74 @@
     </div>
 </div>
 
+<!-- ═══════════════ ONEFLOW WIZARD ═══════════════ -->
+<div id="ofw-backdrop" class="hidden fixed inset-0 bg-black/60 z-[99998] flex items-center justify-center p-4" style="direction:rtl;" onclick="if(event.target===this)closeOneflowWizard()">
+  <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden flex flex-col" style="max-height:90vh;">
+    <!-- Header -->
+    <div class="bg-gradient-to-l from-violet-700 to-indigo-600 text-white px-5 py-4 flex items-center justify-between shrink-0">
+      <button onclick="closeOneflowWizard()" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white text-base leading-none hover:bg-white/30 transition">✕</button>
+      <div class="text-right">
+        <div class="font-black text-base" id="ofw-title">חשבון ONEFLOW ללקוח</div>
+        <div class="text-xs text-violet-200" id="ofw-subtitle">חיפוש לפי שם או טלפון</div>
+      </div>
+      <div class="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center text-xl">🔗</div>
+    </div>
+    <!-- Step dots -->
+    <div class="flex justify-center gap-2 py-3 bg-violet-50 border-b border-violet-100 shrink-0">
+      <span id="ofw-dot-1" class="w-2.5 h-2.5 rounded-full bg-violet-600 transition-all"></span>
+      <span id="ofw-dot-2" class="w-2.5 h-2.5 rounded-full bg-violet-200 transition-all"></span>
+      <span id="ofw-dot-3" class="w-2.5 h-2.5 rounded-full bg-violet-200 transition-all"></span>
+    </div>
+    <!-- Steps -->
+    <div class="overflow-y-auto flex-1 p-5">
+      <!-- Step 1: Search -->
+      <div id="ofw-step-1">
+        <p class="text-xs text-slate-500 mb-3 text-right">חפש לקוח לפי שם או טלפון — קודם במערכת המקומית, אח"כ ב-ONEFLOW</p>
+        <div class="flex gap-2 mb-3">
+          <button onclick="window._ofwSearch()" class="bg-violet-600 text-white rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-violet-700 transition shrink-0">חפש</button>
+          <input id="ofw-search-q" type="text" dir="rtl" placeholder="שם או מספר טלפון"
+            class="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-right text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
+            onkeydown="if(event.key==='Enter')window._ofwSearch()"/>
+        </div>
+        <div id="ofw-search-results" class="space-y-2"></div>
+        <div class="border-t border-slate-100 mt-4 pt-3">
+          <p class="text-xs text-slate-400 text-right mb-2">לא נמצא? צור חשבון חדש:</p>
+          <button onclick="window._ofwSelectNew()" class="w-full border-2 border-dashed border-violet-300 text-violet-700 font-bold rounded-xl py-2.5 text-sm hover:bg-violet-50 transition">
+            <i class="fa-solid fa-user-plus ml-1"></i> לקוח חדש ב-ONEFLOW
+          </button>
+        </div>
+      </div>
+      <!-- Step 2: Fill details -->
+      <div id="ofw-step-2" class="hidden">
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-bold text-slate-600 block mb-1 text-right">שם מלא *</label>
+            <input id="ofw-name" type="text" dir="rtl" placeholder="שם הלקוח"
+              class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"/>
+          </div>
+          <div>
+            <label class="text-xs font-bold text-slate-600 block mb-1 text-right">טלפון *</label>
+            <input id="ofw-phone" type="tel" dir="ltr" placeholder="050-0000000"
+              class="w-full border border-slate-200 rounded-xl px-4 py-3 text-left text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"/>
+          </div>
+          <div id="ofw-step2-info" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700 text-right"></div>
+          <div id="ofw-step2-err" class="hidden text-xs text-red-500 text-right"></div>
+          <button onclick="window._ofwSubmit()" id="ofw-submit-btn" class="w-full bg-violet-600 text-white font-black py-3.5 rounded-2xl text-sm hover:bg-violet-700 transition">
+            <i class="fa-solid fa-user-plus ml-1"></i> צור חשבון ONEFLOW וקשר ללקוח
+          </button>
+          <button onclick="window._ofwGoStep(1)" class="w-full bg-slate-100 text-slate-600 font-bold py-2.5 rounded-xl text-sm">← חזור לחיפוש</button>
+        </div>
+      </div>
+      <!-- Step 3: WhatsApp send -->
+      <div id="ofw-step-3" class="hidden">
+        <div id="ofw-result-card" class="bg-violet-50 border border-violet-200 rounded-2xl p-4 space-y-3 text-right"></div>
+        <button onclick="closeOneflowWizard()" class="w-full mt-3 bg-slate-100 text-slate-700 font-bold py-3 rounded-2xl text-sm">סגור</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ═══════════════ END ONEFLOW WIZARD ═══════════════ -->
+
 <div id="pill-hidden-restore" class="hidden fixed bottom-3 left-3 z-[90]">
   <button onclick="document.getElementById('floating-pill').style.opacity='';document.getElementById('floating-pill').style.pointerEvents='';sessionStorage.removeItem('pill_hidden');document.getElementById('pill-hidden-restore').classList.add('hidden')"
     class="w-10 h-10 bg-slate-800 text-white rounded-full shadow-xl flex items-center justify-center text-sm hover:bg-slate-700 transition" title="הצג עוזרת">
