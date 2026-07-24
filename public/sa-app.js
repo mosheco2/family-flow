@@ -10380,20 +10380,27 @@ function openLGControl(gameId, gameCode) {
         </div>
 
         <!-- TAB: Send to testers -->
-        <div id="lg-panel-send" class="hidden space-y-4">
-          <div class="text-xs text-slate-400">שלח את קישור המשחק למשתמשים קיימים לבדיקה, לפי חיפוש שם/טלפון</div>
-          <div class="flex gap-2">
-            <input id="lg-tester-search" placeholder="חפש שם משפחה או טלפון..." oninput="_lgSearchTesters(this.value)"
-              class="flex-1 bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-indigo-500">
+        <div id="lg-panel-send" class="hidden space-y-3">
+          <!-- Filter by source -->
+          <div class="flex gap-2 flex-wrap">
+            <button onclick="_lgFilterSource('')" class="lg-src-btn bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">הכל</button>
+            <button onclick="_lgFilterSource('self')" class="lg-src-btn bg-slate-700 text-slate-300 hover:bg-slate-600 px-3 py-1.5 rounded-lg text-xs transition">עצמאי</button>
+            <button onclick="_lgFilterSource('game:${gameCode}')" class="lg-src-btn bg-slate-700 text-slate-300 hover:bg-slate-600 px-3 py-1.5 rounded-lg text-xs transition">דרך משחק זה</button>
+            <button onclick="_lgFilterSource('referral:')" class="lg-src-btn bg-slate-700 text-slate-300 hover:bg-slate-600 px-3 py-1.5 rounded-lg text-xs transition">דרך חבר</button>
           </div>
-          <div id="lg-tester-results" class="space-y-2 max-h-64 overflow-y-auto"></div>
-          <div class="border-t border-slate-700 pt-3">
-            <div class="text-xs text-slate-400 mb-2">קישור להעתקה ידנית:</div>
-            <div class="flex gap-2">
-              <input value="${prodLink}" readonly class="flex-1 bg-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-indigo-400 outline-none">
-              <button onclick="navigator.clipboard.writeText('${prodLink}');this.textContent='✅';setTimeout(()=>this.textContent='העתק',2000)"
-                class="bg-slate-600 hover:bg-slate-500 text-white px-3 py-2 rounded-lg text-xs transition">העתק</button>
-            </div>
+          <!-- Search -->
+          <input id="lg-tester-search" placeholder="חפש שם, טלפון, או מקור הרשמה..." oninput="_lgSearchTesters(this.value)"
+            class="w-full bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-indigo-500">
+          <!-- Assign all visible -->
+          <button onclick="_lgAssignVisible(${gameId})" class="w-full bg-indigo-700 hover:bg-indigo-600 text-white py-2.5 rounded-lg text-xs font-bold transition">
+            📨 שלח הודעה פנימית לכל המוצגים
+          </button>
+          <div id="lg-tester-results" class="space-y-2 max-h-56 overflow-y-auto"></div>
+          <!-- Copy link -->
+          <div class="border-t border-slate-700 pt-3 flex gap-2">
+            <input value="${prodLink}" readonly class="flex-1 bg-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-indigo-400 outline-none">
+            <button onclick="navigator.clipboard.writeText('${prodLink}');this.textContent='✅';setTimeout(()=>this.textContent='העתק',2000)"
+              class="bg-slate-600 hover:bg-slate-500 text-white px-3 py-2 rounded-lg text-xs transition">העתק</button>
           </div>
         </div>
 
@@ -10402,6 +10409,9 @@ function openLGControl(gameId, gameCode) {
   document.body.appendChild(modal);
   window._lgCurrentGameCode = gameCode;
   window._lgCurrentGameLink = prodLink;
+  window._lgCurrentGameId = gameId;
+  _lgVisibleGroupIds = [];
+  _lgSourceFilter = '';
   _lgControlPoll(gameId, gameCode);
 }
 
@@ -10415,37 +10425,90 @@ function _lgTab(name) {
   });
 }
 
-async function _lgSearchTesters(q) {
-  const el = document.getElementById('lg-tester-results');
-  if (!q || q.length < 2) { el.innerHTML = ''; return; }
-  const groups = (window.saAllGroups || []).filter(g =>
-    g.type === 'FAMILY' && (g.name?.includes(q) || g.admin_email?.includes(q))
-  ).slice(0, 8);
-  const users = (window.saAllUsers || []).filter(u =>
-    u.phone?.includes(q) || u.nickname?.includes(q) || u.first_name?.includes(q)
-  ).slice(0, 8);
+let _lgVisibleGroupIds = [];
+let _lgSourceFilter = '';
+
+function _lgFilterSource(src) {
+  _lgSourceFilter = src;
+  document.querySelectorAll('.lg-src-btn').forEach(b => {
+    b.className = 'lg-src-btn bg-slate-700 text-slate-300 hover:bg-slate-600 px-3 py-1.5 rounded-lg text-xs transition';
+  });
+  event.target.className = 'lg-src-btn bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition';
+  _lgSearchTesters(document.getElementById('lg-tester-search')?.value || '');
+}
+
+function _lgBuildUserRows(users) {
   const link = window._lgCurrentGameLink || '';
-  const waBase = `https://wa.me/`;
-  if (!groups.length && !users.length) { el.innerHTML = '<div class="text-slate-400 text-xs">לא נמצאו תוצאות</div>'; return; }
+  _lgVisibleGroupIds = [];
   const rows = [];
   users.forEach(u => {
-    if (!u.phone) return;
-    const phone = u.phone.replace(/\D/g,'');
+    const group = (window.saAllGroups || []).find(g => g.id === u.group_id);
+    if (!group) return;
+    _lgVisibleGroupIds.push(group.id);
+    const phone = (u.phone || '').replace(/\D/g,'');
     const intlPhone = phone.startsWith('0') ? '972' + phone.slice(1) : phone;
-    const waText = encodeURIComponent(`היי ${u.nickname || ''}! שלחנו לך קישור לבדיקת המשחק החי שלנו:\n${link}`);
+    const waText = encodeURIComponent(`היי ${u.nickname || ''}! 🏆\nהוזמנת למשחק טריוויה חי ב-OneFlow Life!\nלחץ כאן להצטרפות:\n${link}`);
+    const srcBadge = u.registration_source && u.registration_source !== 'self'
+      ? `<span class="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded-full">${u.registration_source}</span>` : '';
     rows.push(`
-      <div class="flex items-center justify-between bg-slate-700 rounded-xl px-4 py-3">
-        <div>
-          <div class="text-sm font-medium">${u.nickname || ''} ${u.first_name || ''}</div>
-          <div class="text-xs text-slate-400">${u.phone}</div>
+      <div class="flex items-center justify-between bg-slate-700/80 rounded-xl px-3 py-2.5 gap-2">
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium truncate">${u.nickname || ''} ${u.first_name || ''} ${u.last_name || ''}</div>
+          <div class="flex items-center gap-1 flex-wrap mt-0.5">${srcBadge}${u.phone ? `<span class="text-xs text-slate-400">${u.phone}</span>` : '<span class="text-xs text-red-400">ללא טלפון</span>'}</div>
         </div>
-        <a href="${waBase}${intlPhone}?text=${waText}" target="_blank"
-          class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1">
-          <i class="fa-brands fa-whatsapp"></i> שלח
-        </a>
+        <div class="flex gap-1.5 shrink-0">
+          <button onclick="_lgSendInbox(${group.id})" title="שלח הודעה פנימית"
+            class="bg-indigo-700 hover:bg-indigo-600 text-white px-2 py-1.5 rounded-lg text-xs transition">📨</button>
+          ${phone ? `<a href="https://wa.me/${intlPhone}?text=${waText}" target="_blank"
+            class="bg-green-600 hover:bg-green-700 text-white px-2 py-1.5 rounded-lg text-xs transition flex items-center">
+            <i class="fa-brands fa-whatsapp"></i></a>` : ''}
+        </div>
       </div>`);
   });
-  el.innerHTML = rows.join('') || '<div class="text-slate-400 text-xs">אין טלפונים לשליחה</div>';
+  return rows;
+}
+
+async function _lgSearchTesters(q) {
+  const el = document.getElementById('lg-tester-results');
+  let users = (window.saAllUsers || []).filter(u => {
+    const g = (window.saAllGroups || []).find(gr => gr.id === u.group_id);
+    if (!g || g.type !== 'FAMILY') return false;
+    if (_lgSourceFilter) {
+      if (_lgSourceFilter === 'referral:') return (u.registration_source || '').startsWith('referral:');
+      return (u.registration_source || '') === _lgSourceFilter;
+    }
+    if (!q || q.length < 2) return !_lgSourceFilter ? false : true;
+    return u.phone?.includes(q) || u.nickname?.includes(q) || u.first_name?.includes(q) ||
+      u.last_name?.includes(q) || (u.registration_source || '').includes(q) || g.name?.includes(q);
+  });
+  if (!_lgSourceFilter && (!q || q.length < 2)) { el.innerHTML = '<div class="text-slate-400 text-xs text-center py-2">הקלד לחיפוש או בחר מקור למעלה</div>'; _lgVisibleGroupIds = []; return; }
+  users = users.slice(0, 20);
+  const rows = _lgBuildUserRows(users);
+  el.innerHTML = rows.length ? rows.join('') : '<div class="text-slate-400 text-xs text-center py-2">לא נמצאו תוצאות</div>';
+}
+
+async function _lgSendInbox(groupId) {
+  const saToken = localStorage.getItem('ofl_sa_token');
+  const gameId = window._lgCurrentGameId;
+  if (!gameId) return;
+  const r = await fetch(`/api/live-games/${gameId}/assign`, {
+    method: 'POST', headers: { 'Content-Type':'application/json', Authorization: saToken },
+    body: JSON.stringify({ groupIds: [groupId] })
+  });
+  const d = await r.json();
+  if (d.success) showToast('success', 'הודעה פנימית נשלחה ✓');
+  else showToast('error', d.error || 'שגיאה בשליחה');
+}
+
+async function _lgAssignVisible(gameId) {
+  if (!_lgVisibleGroupIds.length) return alert('אין קבוצות מוצגות לשליחה');
+  const saToken = localStorage.getItem('ofl_sa_token');
+  const r = await fetch(`/api/live-games/${gameId}/assign`, {
+    method: 'POST', headers: { 'Content-Type':'application/json', Authorization: saToken },
+    body: JSON.stringify({ groupIds: _lgVisibleGroupIds })
+  });
+  const d = await r.json();
+  showToast(d.success ? 'success' : 'error', d.success ? `נשלחה הודעה ל-${d.assigned} קבוצות ✓` : d.error || 'שגיאה');
 }
 
 let _lgCtrlPollInt = null;

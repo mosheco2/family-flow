@@ -24102,6 +24102,19 @@ app.get('/api/community/feed/search', async (req, res) => {
     `);
   } catch(e) {}
 
+  // live_game_assignments — שיוך משחק לקבוצות
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS live_game_assignments (
+        id SERIAL PRIMARY KEY,
+        game_id INT NOT NULL REFERENCES live_games(id) ON DELETE CASCADE,
+        group_id INT NOT NULL REFERENCES family_groups(id) ON DELETE CASCADE,
+        notified_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(game_id, group_id)
+      )
+    `);
+  } catch(e) {}
+
   // flow_config: referral_join if not exists
   try {
     await pool.query(`INSERT INTO flow_config (key, personal_amount, community_amount, description) VALUES ('referral_join', 20, 0, 'הפניית חבר שנרשם למערכת') ON CONFLICT (key) DO NOTHING`);
@@ -24730,6 +24743,57 @@ app.post('/api/sa/trivia-questions', verifySA, async (req, res) => {
 });
 
 // הפעלת השרת
+
+
+// שיוך משחק לקבוצות + שליחת התראה פנימית
+app.post('/api/live-games/:id/assign', verifySA, async (req, res) => {
+  try {
+    const gameId = req.params.id;
+    const { groupIds, message } = req.body;
+    if (!groupIds || !groupIds.length) return res.status(400).json({ error: 'חסרות קבוצות' });
+    const game = await pool.query('SELECT * FROM live_games WHERE id=$1', [gameId]);
+    if (!game.rows.length) return res.status(404).json({ error: 'משחק לא נמצא' });
+    const g = game.rows[0];
+    const link = `https://oneflowlife.co.il/game/${g.game_code}`;
+    const notifMsg = message || `🏆 הוזמנת למשחק טריוויה: "${g.title}"${g.prize ? ' · פרס: ' + g.prize : ''} → ${link}`;
+    let assigned = 0;
+    for (const gid of groupIds) {
+      try {
+        await pool.query(`INSERT INTO live_game_assignments (game_id, group_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [gameId, gid]);
+        await pool.query(
+          `INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key) VALUES ($1,'live_game',$2,$3)`,
+          [gid, notifMsg, `game:${g.game_code}`]
+        );
+        assigned++;
+      } catch(e) {}
+    }
+    res.json({ success: true, assigned });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// קבלת שיוכים של משחק
+app.get('/api/live-games/:id/assignments', verifySA, async (req, res) => {
+  try {
+    const rows = await pool.query(
+      `SELECT lga.group_id, fg.name, fg.admin_email FROM live_game_assignments lga
+       JOIN family_groups fg ON fg.id = lga.group_id
+       WHERE lga.game_id=$1 ORDER BY lga.notified_at DESC`, [req.params.id]);
+    res.json({ assignments: rows.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// משחקים פעילים/ממתינים לקבוצה (לממשק המשפחה)
+app.get('/api/family/live-games/:groupId', async (req, res) => {
+  try {
+    const rows = await pool.query(
+      `SELECT lg.id, lg.title, lg.prize, lg.business_name, lg.status, lg.game_code
+       FROM live_game_assignments lga
+       JOIN live_games lg ON lg.id = lga.game_id
+       WHERE lga.group_id=$1 AND lg.status IN ('waiting','active')
+       ORDER BY lga.notified_at DESC`, [req.params.groupId]);
+    res.json({ games: rows.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
 // ===== LIVE GAMES API =====
 
