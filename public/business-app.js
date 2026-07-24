@@ -11198,7 +11198,8 @@ window.cqInviteToOneflow = function() {
     const phone = (document.getElementById('cq-customer-phone')?.value || '').trim();
     const name = (document.getElementById('cq-customer-name')?.value || '').trim();
     document.getElementById('cq-oneflow-modal')?.remove();
-    const html = `<div id="cq-oneflow-modal" class="fixed inset-0 bg-slate-900/60 z-[99999] flex items-center justify-center p-4" style="direction:rtl;">
+    const zModal = window._isInFullscreenPOS ? 99999999 : 99999;
+    const html = `<div id="cq-oneflow-modal" class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4" style="direction:rtl;z-index:${zModal};">
         <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-5">
             <div class="flex items-center justify-between mb-3">
                 <h3 class="font-black text-slate-800 text-sm">🔗 קשר ל-OneFlow Life</h3>
@@ -44135,6 +44136,7 @@ window.openOneflowWizard = function(opts = {}) {
     document.getElementById('ofw-title').textContent = 'חשבון ONEFLOW ללקוח';
     document.getElementById('ofw-subtitle').textContent = 'חיפוש לפי שם או טלפון';
     bd.classList.remove('hidden');
+    bd.style.zIndex = window._isInFullscreenPOS ? '99999999' : '';
     document.getElementById('ofw-search-q').focus();
     // Auto-search if params given
     if (opts.phone || opts.name) setTimeout(() => window._ofwSearch(), 100);
@@ -44289,12 +44291,19 @@ window._ofwSelectCRM = function(stateKey) {
 };
 
 window._ofwSelectNew = function() {
-    document.getElementById('ofw-name').value = '';
-    document.getElementById('ofw-phone').value = '';
+    const searchQ = (document.getElementById('ofw-search-q')?.value || '').trim();
+    const isPhone = /^[0-9+\-\s]{7,}$/.test(searchQ.replace(/\D/g,'')) && searchQ.replace(/\D/g,'').length >= 7;
+    document.getElementById('ofw-name').value = isPhone ? '' : searchQ;
+    document.getElementById('ofw-phone').value = isPhone ? searchQ : (window._ofwState?.phone || '');
     document.getElementById('ofw-step2-info').classList.add('hidden');
     document.getElementById('ofw-step2-err').classList.add('hidden');
     window._ofwGoStep(2);
-    document.getElementById('ofw-name').focus();
+    // פוקוס על השדה הריק
+    const nameEl = document.getElementById('ofw-name');
+    const phoneEl = document.getElementById('ofw-phone');
+    if (nameEl && !nameEl.value) nameEl.focus();
+    else if (phoneEl && !phoneEl.value) phoneEl.focus();
+    else if (nameEl) nameEl.focus();
 };
 
 window._ofwSubmit = async function() {
