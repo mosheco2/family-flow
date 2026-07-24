@@ -66,14 +66,26 @@
 
     <!-- Register -->
     <div id="auth-register" class="hidden space-y-3">
-      <div class="bg-indigo-900/30 border border-indigo-700/40 rounded-xl px-4 py-3 text-xs text-indigo-300 mb-2">
+      <div class="bg-indigo-900/30 border border-indigo-700/40 rounded-xl px-4 py-3 text-xs text-indigo-300">
         ההרשמה יוצרת חשבון <strong>OneFlow Life</strong> בחינם — ניהול כסף משפחתי, קהילה ועוד.
       </div>
-      <input id="rg-name" placeholder="שם פרטי" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-      <input id="rg-family" placeholder="שם משפחה" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-      <input id="rg-phone" placeholder="טלפון" type="tel" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-      <input id="rg-pass" type="password" placeholder="סיסמה (לפחות 4 תווים)" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-      <button onclick="doRegister()" class="w-full brand-gradient py-4 rounded-xl font-bold text-sm transition shadow-lg mt-2">הרשמה וכניסה למשחק ▶</button>
+      <div class="grid grid-cols-2 gap-3">
+        <input id="rg-name" placeholder="שם פרטי *" class="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+        <input id="rg-family" placeholder="שם משפחה *" class="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+      </div>
+      <input id="rg-group-name" placeholder="שם הבית / המשפחה (לדוג׳: משפחת כהן) *" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+      <input id="rg-email" type="email" placeholder="מייל (לשחזור וניהול) *" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" dir="ltr">
+      <input id="rg-city" placeholder="עיר מגורים *" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+      <div class="grid grid-cols-2 gap-3">
+        <input id="rg-phone" placeholder="טלפון *" type="tel" class="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" dir="ltr">
+        <input id="rg-year" type="number" placeholder="שנת לידה *" min="1940" max="2015" class="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+      </div>
+      <input id="rg-pass" type="password" placeholder="סיסמה (לפחות 4 תווים) *" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+      <label class="flex items-start gap-2 text-xs text-slate-400 cursor-pointer">
+        <input id="rg-tos" type="checkbox" class="mt-0.5 w-4 h-4 accent-indigo-500 shrink-0">
+        <span>אני מסכים/ה ל<a href="/tos.html" target="_blank" class="text-indigo-400 underline">תנאי השימוש</a> ו<a href="/privacy.html" target="_blank" class="text-indigo-400 underline">מדיניות הפרטיות</a></span>
+      </label>
+      <button onclick="doRegister()" class="w-full brand-gradient py-4 rounded-xl font-bold text-sm transition shadow-lg">הרשמה וכניסה למשחק ▶</button>
     </div>
 
     <p id="auth-err" class="text-red-400 text-xs text-center mt-4 hidden"></p>
@@ -241,18 +253,26 @@ async function doLogin() {
 async function doRegister() {
   const firstName = document.getElementById('rg-name').value.trim();
   const lastName = document.getElementById('rg-family').value.trim();
+  const groupName = document.getElementById('rg-group-name').value.trim();
+  const email = document.getElementById('rg-email').value.trim();
+  const city = document.getElementById('rg-city').value.trim();
   const phone = document.getElementById('rg-phone').value.trim();
+  const birthYear = document.getElementById('rg-year').value.trim();
   const password = document.getElementById('rg-pass').value.trim();
-  if (!firstName || !lastName || !phone || !password) return showAuthErr('יש למלא את כל השדות');
+  const tos = document.getElementById('rg-tos').checked;
+  if (!firstName || !lastName || !groupName || !email || !city || !phone || !birthYear || !password)
+    return showAuthErr('יש למלא את כל השדות המסומנים *');
   if (password.length < 4) return showAuthErr('סיסמה חייבת להיות לפחות 4 תווים');
+  if (!tos) return showAuthErr('יש לאשר את תנאי השימוש');
   const r = await fetch('/api/groups', { method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
       type: 'FAMILY',
-      groupName: `משפחת ${lastName}`,
-      adminEmail: `game_${gameCode}_${Date.now()}@oneflow.temp`,
+      groupName,
+      adminEmail: email,
       adminNickname: `${firstName} ${lastName}`,
       firstName, lastName, password, phone,
-      city: 'לא צוין',
+      city,
+      birthYear: parseInt(birthYear),
       registrationSource: `game:${gameCode}`
     })
   });
