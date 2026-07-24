@@ -1801,7 +1801,236 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       )`); } catch(e) {}
       // ===== END LOGISTICS MODULE =====
 
-      // Performance indexes for /api/data/:userId hot path
+      
+
+// ══════════════════════════════════════════════════════════════════
+// SOLO & MEMBER — endpoints חדשים
+// ══════════════════════════════════════════════════════════════════
+
+// אישור חשבון SOLO בכניסה ראשונה (שינוי סיסמה + activation)
+app.post('/api/solo/activate', async (req, res) => {
+    const { groupId, userId, newPassword } = req.body;
+    if (!groupId || !userId || !newPassword || newPassword.length < 6)
+        return res.status(400).json({ error: 'נתונים חסרים או סיסמה קצרה מדי' });
+    try {
+        await pool.query(
+            `UPDATE family_groups SET account_status='active', solo_temp_password=NULL WHERE id=$1 AND account_status='pending_activation'`,
+            [groupId]
+        );
+        await pool.query(`UPDATE users SET password_hash=$1, must_change_password=false WHERE id=$2`, [newPassword, userId]);
+        // עדכון סטטוס הקישור לעסק לactive
+        await pool.query(
+            `UPDATE member_business_links SET status='active' WHERE member_group_id=$1 AND status='pending'`,
+            [groupId]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מצב חשבון SOLO — לבדיקה בכניסה
+app.get('/api/solo/status/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT account_status, plan, member_type, merged_into_group_id, frozen_at FROM family_groups WHERE id=$1`,
+            [req.params.groupId]
+        );
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const g = r.rows[0];
+        let daysLeft = null;
+        if (g.account_status === 'frozen' && g.frozen_at) {
+            daysLeft = Math.max(0, 30 - Math.floor((Date.now() - new Date(g.frozen_at).getTime()) / 86400000));
+        }
+        res.json({ ...g, days_until_archive: daysLeft });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליחת בקשת שיוך למשפחה
+app.post('/api/family/link-request', async (req, res) => {
+    const { requesterGroupId, targetPhone, role } = req.body;
+    if (!requesterGroupId || !targetPhone || !['parent','child','partner'].includes(role))
+        return res.status(400).json({ error: 'נתונים חסרים' });
+    try {
+        // אתר את חשבון היעד לפי טלפון
+        const uRes = await pool.query(
+            `SELECT u.group_id, fg.name, fg.account_status, fg.plan
+             FROM users u JOIN family_groups fg ON fg.id=u.group_id
+             WHERE u.phone=$1 AND fg.type='FAMILY' AND fg.account_status='active'
+             LIMIT 1`,
+            [targetPhone.replace(/\D/g,'')]
+        );
+        if (!uRes.rows.length) return res.status(404).json({ error: 'לא נמצא חשבון פעיל עם מספר זה' });
+        const target = uRes.rows[0];
+        if (String(target.group_id) === String(requesterGroupId))
+            return res.status(400).json({ error: 'לא ניתן לשייך את עצמך' });
+
+        // הוספת בקשה (ON CONFLICT — עדכן אם כבר קיים ודחוי)
+        await pool.query(
+            `INSERT INTO family_link_requests (requester_group_id, target_group_id, role, status, created_at)
+             VALUES ($1, $2, $3, 'pending', NOW())
+             ON CONFLICT (requester_group_id, target_group_id)
+             DO UPDATE SET role=$3, status='pending', created_at=NOW(), responded_at=NULL`,
+            [requesterGroupId, target.group_id, role]
+        );
+        res.json({ success: true, target_name: target.name.split(' ')[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// קבלת בקשות שיוך ממתינות לחשבון
+app.get('/api/family/link-requests/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT flr.id, flr.role, flr.created_at,
+                    fg.name as requester_name, fg.plan as requester_plan
+             FROM family_link_requests flr
+             JOIN family_groups fg ON fg.id = flr.requester_group_id
+             WHERE flr.target_group_id=$1 AND flr.status='pending'
+             ORDER BY flr.created_at DESC`,
+            [req.params.groupId]
+        );
+        res.json({ requests: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// אישור/דחייה של בקשת שיוך
+app.post('/api/family/link-request/:id/respond', async (req, res) => {
+    const { decision, targetGroupId } = req.body; // decision: 'approve'|'reject'
+    if (!['approve','reject'].includes(decision)) return res.status(400).json({ error: 'פעולה לא תקינה' });
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const rRes = await client.query(
+            `SELECT * FROM family_link_requests WHERE id=$1 AND target_group_id=$2 AND status='pending'`,
+            [req.params.id, targetGroupId]
+        );
+        if (!rRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'בקשה לא נמצאה' }); }
+        const req_row = rRes.rows[0];
+
+        await client.query(
+            `UPDATE family_link_requests SET status=$1, responded_at=NOW() WHERE id=$2`,
+            [decision === 'approve' ? 'approved' : 'rejected', req_row.id]
+        );
+
+        if (decision === 'approve') {
+            // קבלת נתוני שני הצדדים
+            const [reqGroup, tgtGroup] = await Promise.all([
+                client.query(`SELECT * FROM family_groups WHERE id=$1`, [req_row.requester_group_id]),
+                client.query(`SELECT * FROM family_groups WHERE id=$1`, [req_row.target_group_id])
+            ]);
+            const requester = reqGroup.rows[0];
+            const target = tgtGroup.rows[0];
+
+            // קביעת "הקולט" — המשפחה/MEMBER הוותיקה יותר, או ה-requester אם שניהם SOLO
+            const bothSolo = requester.plan === 'solo' && target.plan === 'solo';
+            let hostGroupId, guestGroupId;
+
+            if (bothSolo) {
+                // שניהם SOLO → יוצרים MEMBER חדש בעזרת ה-requester כ-ADMIN
+                const newCode = 'MB' + Date.now().toString().slice(-6);
+                const newName = requester.name || target.name;
+                const newGrpRes = await client.query(
+                    `INSERT INTO family_groups (name, group_code, type, member_type, plan, account_status, created_at)
+                     VALUES ($1, $2, 'FAMILY', 'member', 'member', 'active', NOW()) RETURNING id`,
+                    [newName, newCode]
+                );
+                hostGroupId = newGrpRes.rows[0].id;
+                guestGroupId = null; // שניהם עוברים
+            } else {
+                // אחד כבר MEMBER/STANDARD — הוא הקולט
+                hostGroupId = (requester.plan !== 'solo') ? requester.id : target.id;
+                guestGroupId = (hostGroupId === requester.id) ? target.id : requester.id;
+            }
+
+            const guestsToMerge = bothSolo ? [requester.id, target.id] : [guestGroupId];
+
+            for (const gId of guestsToMerge) {
+                // מיזוג ארנק FLW
+                const walletRes = await client.query(
+                    `SELECT balance_flw, lifetime_flw FROM flw_kid_wallets WHERE child_user_id IN (SELECT id FROM users WHERE group_id=$1) LIMIT 1`,
+                    [gId]
+                );
+                if (walletRes.rows.length) {
+                    const bal = parseFloat(walletRes.rows[0].balance_flw || 0);
+                    const life = parseFloat(walletRes.rows[0].lifetime_flw || 0);
+                    await client.query(
+                        `UPDATE flw_kid_wallets SET balance_flw=balance_flw+$1, lifetime_flw=lifetime_flw+$2
+                         WHERE child_user_id IN (SELECT id FROM users WHERE group_id=$3) LIMIT 1`,
+                        [bal, life, hostGroupId]
+                    );
+                }
+
+                // מיזוג היסטוריית הזמנות
+                await client.query(`UPDATE store_orders SET family_group_id=$1 WHERE family_group_id=$2`, [hostGroupId, gId]);
+                await client.query(`UPDATE transactions SET group_id=$1 WHERE group_id=$2`, [hostGroupId, gId]);
+                await client.query(`UPDATE member_business_links SET member_group_id=$1 WHERE member_group_id=$2 AND member_group_id NOT IN (SELECT member_group_id FROM member_business_links WHERE business_group_id IN (SELECT business_group_id FROM member_business_links WHERE member_group_id=$1))`, [hostGroupId, gId]);
+
+                // הקפאת חשבון האורח
+                await client.query(
+                    `UPDATE family_groups SET account_status='frozen', frozen_at=NOW(), merged_into_group_id=$1 WHERE id=$2`,
+                    [hostGroupId, gId]
+                );
+
+                // שדרוג קבוצה מ-SOLO ל-MEMBER אם נדרש
+                if (bothSolo) {
+                    await client.query(`UPDATE family_groups SET plan='member', member_type='member' WHERE id=$1`, [hostGroupId]);
+                }
+            }
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, decision });
+    } catch(e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    } finally { client.release(); }
+});
+
+// SA: הפשרת חשבון מוקפא
+app.post('/api/sa/groups/:id/unfreeze', verifySA, async (req, res) => {
+    try {
+        await pool.query(
+            `UPDATE family_groups SET account_status='active', frozen_at=NULL, merged_into_group_id=NULL WHERE id=$1`,
+            [req.params.id]
+        );
+        await logAudit('UNFREEZE_GROUP', 'GROUP', parseInt(req.params.id), '', {});
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA: רשימת חשבונות לפי account_status
+app.get('/api/sa/groups/by-status/:status', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT fg.id, fg.name, fg.plan, fg.member_type, fg.account_status, fg.frozen_at, fg.merged_into_group_id,
+                    fg2.name as merged_into_name,
+                    CASE WHEN fg.frozen_at IS NOT NULL THEN GREATEST(0, 30 - EXTRACT(DAY FROM NOW()-fg.frozen_at)::INT) END as days_left
+             FROM family_groups fg
+             LEFT JOIN family_groups fg2 ON fg2.id = fg.merged_into_group_id
+             WHERE fg.account_status=$1
+             ORDER BY fg.frozen_at DESC NULLS LAST`,
+            [req.params.status]
+        );
+        res.json({ groups: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// בדיקת כפילות SOLO pending לפני יצירה (עסק)
+app.get('/api/solo/pending-check', async (req, res) => {
+    const phone = (req.query.phone || '').replace(/\D/g,'');
+    if (!phone) return res.json({ exists: false });
+    try {
+        const r = await pool.query(
+            `SELECT fg.id, fg.name, fg.created_by_business_group_id
+             FROM users u JOIN family_groups fg ON fg.id=u.group_id
+             WHERE u.phone=$1 AND fg.account_status='pending_activation' AND fg.plan='solo'
+             LIMIT 1`,
+            [phone]
+        );
+        res.json({ exists: r.rows.length > 0, group: r.rows[0] || null });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// Performance indexes for /api/data/:userId hot path
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_users_group_id ON users(group_id)`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_tasks_group_id ON tasks(group_id)`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_pantry_group_id ON pantry(group_id)`); } catch(e) {}
@@ -4391,7 +4620,7 @@ app.post('/api/superadmin/groups/:id/premium', verifySA, async (req, res) => {
 app.post('/api/superadmin/groups/:id/plan', verifySA, async (req, res) => {
     try {
         const plan = req.body.plan;
-        if (!['standard', 'premium', 'enterprise'].includes(plan)) return res.status(400).json({ error: 'תוכנית לא תקינה' });
+        if (!['solo', 'member', 'standard', 'premium', 'enterprise'].includes(plan)) return res.status(400).json({ error: 'תוכנית לא תקינה' });
         const gid = req.params.id;
         const prevRow = await pool.query('SELECT name, plan FROM family_groups WHERE id=$1', [gid]);
         const prev = prevRow.rows[0];
@@ -4809,8 +5038,8 @@ app.post('/api/groups', async (req, res) => {
         const adminNickname = lastName ? `${firstName} ${lastName}`.trim() : firstName;
 
         const gRes = await dbClient.query(
-            `INSERT INTO family_groups (type, name, admin_email, group_code, community_id, family_nickname, last_name, city) VALUES ($1, $2, LOWER($3), $4, $5, $6, $7, $8) RETURNING *`, 
-            [req.body.type, req.body.groupName, reqEmail, code, commId, familyNickname, groupLastName, city]
+            `INSERT INTO family_groups (type, name, admin_email, group_code, community_id, family_nickname, last_name, city, plan, account_status) VALUES ($1, $2, LOWER($3), $4, $5, $6, $7, $8, $9, 'active') RETURNING *`, 
+            [req.body.type, req.body.groupName, reqEmail, code, commId, familyNickname, groupLastName, city, (req.body.type === 'BUSINESS' ? 'standard' : 'solo')]
         );
         const group = gRes.rows[0];
         const birthYear = parseInt(req.body.birthYear) || null;
@@ -18753,9 +18982,9 @@ app.post('/api/member/create-for-business', async (req, res) => {
             const groupName = `${name} - ONEFLOW`;
             const groupCode = 'M' + Date.now().toString().slice(-6);
             const groupR = await client.query(
-                `INSERT INTO family_groups (name, group_code, type, member_type, created_at)
-                 VALUES ($1, $2, 'FAMILY', 'member', NOW()) RETURNING id`,
-                [groupName, groupCode]
+                `INSERT INTO family_groups (name, group_code, type, member_type, plan, account_status, created_by_business_group_id, solo_temp_password, created_at)
+                 VALUES ($1, $2, 'FAMILY', 'member', 'solo', 'pending_activation', $3, $4, NOW()) RETURNING id`,
+                [groupName, groupCode, business_group_id, rawPassword]
             );
             memberGroupId = groupR.rows[0].id;
             rawPassword = Math.random().toString(36).slice(-8);
@@ -23716,7 +23945,48 @@ app.get('/api/community/feed/search', async (req, res) => {
 (async () => {
   try { await pool.query(`ALTER TABLE community_notifications ADD COLUMN IF NOT EXISTS ref_id INT`); } catch(e) {}
   try { await pool.query(`ALTER TABLE community_interest_groups ADD COLUMN IF NOT EXISTS icon_emoji VARCHAR(10) DEFAULT '💬'`); } catch(e) {}
+
+  // ── SOLO / MEMBER migrations ──
+  try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS account_status VARCHAR(30) DEFAULT 'active'`); } catch(e) {}
+  try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS frozen_at TIMESTAMPTZ`); } catch(e) {}
+  try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS merged_into_group_id INT REFERENCES family_groups(id)`); } catch(e) {}
+  try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS created_by_business_group_id INT`); } catch(e) {}
+  try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS solo_temp_password VARCHAR(50)`); } catch(e) {}
+
+  // טבלת בקשות שיוך משפחה
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS family_link_requests (
+        id SERIAL PRIMARY KEY,
+        requester_group_id INT NOT NULL REFERENCES family_groups(id),
+        target_group_id    INT NOT NULL REFERENCES family_groups(id),
+        role               VARCHAR(20) NOT NULL DEFAULT 'child',
+        status             VARCHAR(20) NOT NULL DEFAULT 'pending',
+        created_at         TIMESTAMPTZ DEFAULT NOW(),
+        responded_at       TIMESTAMPTZ,
+        UNIQUE(requester_group_id, target_group_id)
+      )
+    `);
+  } catch(e) {}
+
+  // מיגרציה: חשבונות "משפחה חבר" קיימים → plan='member'
+  try {
+    await pool.query(`UPDATE family_groups SET plan='member' WHERE member_type='member' AND (plan='standard' OR plan IS NULL)`);
+  } catch(e) {}
 })();
+
+// ── Cron: הקפאה → ארכיון אחרי 30 יום ──
+setInterval(async () => {
+  try {
+    await pool.query(`
+      UPDATE family_groups
+      SET account_status = 'archived'
+      WHERE account_status = 'frozen'
+        AND frozen_at IS NOT NULL
+        AND frozen_at < NOW() - INTERVAL '30 days'
+    `);
+  } catch(e) { console.error('cron freeze→archive:', e.message); }
+}, 6 * 60 * 60 * 1000); // כל 6 שעות
 
 // ===== SUPER ADMIN — COMMUNITY FEED =====
 
