@@ -10442,7 +10442,7 @@ function _lgBuildUserRows(users) {
   _lgVisibleGroupIds = [];
   const rows = [];
   users.forEach(u => {
-    const group = (window.saAllGroups || []).find(g => g.id === u.group_id);
+    const group = (saAllGroups || []).find(g => g.id === u.group_id);
     if (!group) return;
     _lgVisibleGroupIds.push(group.id);
     const phone = (u.phone || '').replace(/\D/g,'');
@@ -10470,8 +10470,8 @@ function _lgBuildUserRows(users) {
 
 async function _lgSearchTesters(q) {
   const el = document.getElementById('lg-tester-results');
-  let users = (window.saAllUsers || []).filter(u => {
-    const g = (window.saAllGroups || []).find(gr => gr.id === u.group_id);
+  let users = (saAllUsers || []).filter(u => {
+    const g = (saAllGroups || []).find(gr => gr.id === u.group_id);
     if (!g || g.type !== 'FAMILY') return false;
     if (_lgSourceFilter) {
       if (_lgSourceFilter === 'referral:') return (u.registration_source || '').startsWith('referral:');
