@@ -2025,7 +2025,22 @@ app.get('/api/solo/pending-check', async (req, res) => {
              LIMIT 1`,
             [phone]
         );
-        res.json({ exists: r.rows.length > 0, group: r.rows[0] || null });
+        const g = r.rows[0] || null;
+        res.json({ exists: !!g, groupId: g?.id || null, name: g?.name || null, status: g ? 'pending_activation' : null });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// חיפוש חשבון SOLO לפי טלפון (עבור בקשת חיבור)
+app.get('/api/solo/search-by-phone', async (req, res) => {
+    const phone = (req.query.phone || '').replace(/\D/g,'');
+    if (phone.length < 9) return res.json({ found: false });
+    try {
+        const r = await pool.query(
+            `SELECT fg.id, fg.name, fg.account_status, fg.plan, u.phone FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE u.phone=$1 AND fg.plan='solo' AND fg.account_status='active' AND fg.type='FAMILY' LIMIT 1`,
+            [phone]
+        );
+        const g = r.rows[0] || null;
+        res.json({ found: !!g, groupId: g?.id || null, name: g?.name || null, phone: g?.phone || phone });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

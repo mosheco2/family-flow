@@ -678,6 +678,7 @@ function switchTab(t) { 
         } catch(e) {}
     }
     if (t === 'home-maintenance') try { loadHomeMaintenance(); } catch(e) {}
+    if (t === 'members') try { renderSoloFamilyLinkSection(); } catch(e) {}
     if (t === 'academy') try { if(currentUser.role === 'ADMIN') renderLibrary(); else renderKidGames(); } catch(e) {}
     if (t === 'bank') {
         if (currentUser && currentUser.role === 'CHILD') try { loadChildFlwWallet(); } catch(e) {}
@@ -1603,6 +1604,10 @@ async function loadDashboard() {
             // בדוק אם משתמש חבר חייב לשנות סיסמה בכניסה ראשונה
             if (currentUser?.must_change_password) { showForcePasswordChange(); return; }
             const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; }
+            // בדיקת בקשות חיבור משפחה נכנסות (SOLO)
+            if (currentGroup?.plan === 'solo' && currentUser?.role === 'ADMIN') {
+                setTimeout(() => { try { checkIncomingLinkRequests(); } catch(e) {} }, 1500);
+            }
         };
         if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
     }
@@ -1693,6 +1698,137 @@ window._submitSoloActivation = async function() {
     } catch(e) {
         showErr('שגיאת תקשורת — נסה שוב');
         if (btn) { btn.disabled = false; btn.textContent = 'הפעל את החשבון שלי ✅'; }
+    }
+};
+
+// ─── SOLO: בקשות חיבור משפחה ────────────────────────────────────────────────
+
+async function checkIncomingLinkRequests() {
+    try {
+        const r = await fetch(`/api/family/link-requests/${currentGroup.id}`).then(x => x.json());
+        const pending = (r.requests || []).filter(req => req.status === 'pending');
+        if (pending.length > 0) showLinkRequestPopup(pending[0]);
+    } catch(e) {}
+}
+
+function showLinkRequestPopup(req) {
+    document.getElementById('solo-link-req-popup')?.remove();
+    const el = document.createElement('div');
+    el.id = 'solo-link-req-popup';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(15,23,42,0.7);display:flex;align-items:center;justify-content:center;padding:20px;direction:rtl;';
+    el.innerHTML = `
+        <div style="background:white;border-radius:24px;padding:28px 24px;width:100%;max-width:360px;text-align:right;">
+            <div style="text-align:center;margin-bottom:16px;">
+                <div style="font-size:40px;margin-bottom:8px;">🤝</div>
+                <div style="font-size:17px;font-weight:900;color:#1e293b;">הזמנה לאיחוד משפחות</div>
+                <div style="font-size:12px;color:#64748b;margin-top:6px;line-height:1.5;">
+                    <b>${safeStr(req.requester_name || 'חשבון אחר')}</b> מציע לאחד את חשבון ה-SOLO שלך למשפחה אחת.<br>
+                    לאחר האיחוד תהיו חשבון משפחה (MEMBER) משותף.
+                </div>
+            </div>
+            <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:14px;padding:12px 14px;font-size:11px;color:#92400e;margin-bottom:16px;line-height:1.5;">
+                ⚠️ לאחר האיחוד, חשבון ה-SOLO שלך יוקפא ל-30 יום ואז יוארכב. ההיסטוריה והמטבעות יעברו.
+            </div>
+            <div id="solo-link-req-err" style="display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:8px 12px;font-size:11px;color:#dc2626;margin-bottom:10px;"></div>
+            <div style="display:flex;gap:10px;margin-top:4px;">
+                <button onclick="window._respondLinkRequest(${req.id},'reject')" style="flex:1;background:#f1f5f9;color:#475569;border:none;border-radius:12px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;">דחה</button>
+                <button onclick="window._respondLinkRequest(${req.id},'approve')" style="flex:2;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;border:none;border-radius:12px;padding:12px;font-size:13px;font-weight:900;cursor:pointer;">אשר איחוד ✅</button>
+            </div>
+            <button onclick="document.getElementById('solo-link-req-popup').remove()" style="width:100%;margin-top:10px;background:transparent;border:none;color:#94a3b8;font-size:12px;cursor:pointer;">אחר כך</button>
+        </div>`;
+    document.body.appendChild(el);
+}
+
+window._respondLinkRequest = async function(reqId, action) {
+    const errEl = document.getElementById('solo-link-req-err');
+    const btns = document.querySelectorAll('#solo-link-req-popup button');
+    btns.forEach(b => b.disabled = true);
+    try {
+        const r = await fetch(`/api/family/link-request/${reqId}/respond`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, respondingGroupId: currentGroup.id })
+        }).then(x => x.json());
+        if (r.success) {
+            document.getElementById('solo-link-req-popup')?.remove();
+            if (action === 'approve') {
+                showToast('success', 'המשפחות אוחדו בהצלחה! 🎉');
+                setTimeout(() => window.location.reload(), 2000);
+            } else {
+                showToast('info', 'ההזמנה נדחתה');
+            }
+        } else {
+            if (errEl) { errEl.textContent = r.error || 'שגיאה'; errEl.style.display = 'block'; }
+            btns.forEach(b => b.disabled = false);
+        }
+    } catch(e) {
+        if (errEl) { errEl.textContent = 'שגיאת תקשורת'; errEl.style.display = 'block'; }
+        btns.forEach(b => b.disabled = false);
+    }
+};
+
+// פאנל חיפוש וחיבור ב-tab ניהול משפחה (SOLO בלבד)
+window.renderSoloFamilyLinkSection = function() {
+    const container = document.getElementById('admin-members-tools');
+    if (!container || currentGroup?.plan !== 'solo' || currentUser?.role !== 'ADMIN') return;
+    const existing = document.getElementById('solo-link-section');
+    if (existing) return;
+    const section = document.createElement('div');
+    section.id = 'solo-link-section';
+    section.className = 'bg-violet-50 border border-violet-200 rounded-2xl p-4 space-y-3';
+    section.innerHTML = `
+        <div class="flex items-center gap-2 mb-1">
+            <span class="text-lg">🔗</span>
+            <div>
+                <div class="font-black text-violet-800 text-sm">חיבור משפחות — SOLO</div>
+                <div class="text-xs text-violet-500">חפש חשבון SOLO אחר לאיחוד למשפחה (MEMBER)</div>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="window._soloLinkSearch()" class="shrink-0 bg-violet-600 text-white rounded-xl px-3 py-2 text-xs font-bold hover:bg-violet-700 transition">חפש</button>
+            <input id="solo-link-phone" type="tel" dir="ltr" placeholder="מספר טלפון של חשבון אחר"
+                class="flex-1 border border-violet-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
+                onkeydown="if(event.key==='Enter')window._soloLinkSearch()"/>
+        </div>
+        <div id="solo-link-results" class="space-y-2"></div>`;
+    container.prepend(section);
+};
+
+window._soloLinkSearch = async function() {
+    const phone = (document.getElementById('solo-link-phone')?.value || '').replace(/\D/g, '');
+    const resEl = document.getElementById('solo-link-results');
+    if (!resEl || phone.length < 9) { if(resEl) resEl.innerHTML = '<p class="text-xs text-red-400 text-right">הכנס מספר טלפון תקין</p>'; return; }
+    resEl.innerHTML = '<p class="text-xs text-slate-400 text-right py-1"><i class="fa-solid fa-spinner fa-spin ml-1"></i> מחפש...</p>';
+    try {
+        const r = await fetch(`/api/solo/search-by-phone?phone=${encodeURIComponent(phone)}`).then(x => x.json());
+        if (!r.found) {
+            resEl.innerHTML = '<p class="text-xs text-slate-400 text-right py-1">לא נמצא חשבון SOLO פעיל עם מספר זה</p>';
+            return;
+        }
+        resEl.innerHTML = `<div class="bg-white border border-violet-200 rounded-xl p-3 flex items-center justify-between">
+            <div>
+                <div class="font-bold text-slate-800 text-sm">${safeStr(r.name || 'חשבון SOLO')}</div>
+                <div class="text-xs text-slate-400">${safeStr(r.phone || phone)}</div>
+            </div>
+            <button onclick="window._sendLinkRequest(${r.groupId})" class="bg-violet-600 text-white text-xs font-bold px-3 py-2 rounded-xl hover:bg-violet-700 transition">שלח בקשת חיבור</button>
+        </div>`;
+    } catch(e) {
+        resEl.innerHTML = '<p class="text-xs text-red-400 text-right py-1">שגיאת תקשורת</p>';
+    }
+};
+
+window._sendLinkRequest = async function(targetGroupId) {
+    try {
+        const r = await fetch('/api/family/link-request', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requesterGroupId: currentGroup.id, targetGroupId })
+        }).then(x => x.json());
+        if (r.success) {
+            document.getElementById('solo-link-results').innerHTML = '<div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-700 font-bold text-right">✅ בקשת חיבור נשלחה — הצד השני יקבל הודעה בכניסה הבאה</div>';
+        } else {
+            document.getElementById('solo-link-results').innerHTML = `<p class="text-xs text-red-400 text-right py-1">${r.error || 'שגיאה בשליחת הבקשה'}</p>`;
+        }
+    } catch(e) {
+        document.getElementById('solo-link-results').innerHTML = '<p class="text-xs text-red-400 text-right py-1">שגיאת תקשורת</p>';
     }
 };
 
