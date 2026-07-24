@@ -29359,6 +29359,13 @@ window.openNewMemberFromPOS = function(phone) {
             if (phoneEl) phoneEl.value = phone;
             const nameEl = document.getElementById('cust-name');
             if (nameEl) nameEl.focus();
+            // הבטח שהמודל מעל מסך קופה מלא
+            const modal = document.getElementById('customer-modal');
+            if (modal) {
+                document.body.appendChild(modal);
+                modal.style.zIndex = '99999999';
+                modal.classList.remove('hidden');
+            }
         }, 200);
     }
 };
