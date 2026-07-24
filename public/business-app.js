@@ -44159,8 +44159,25 @@ window._ofwSearch = async function() {
             const ql = q.toLowerCase();
             localResults = cache.filter(c => (c.name||'').toLowerCase().includes(ql) || (c.phone||'').includes(q))
                 .slice(0, 6).map(c => ({ name: c.name||'', phone: c.phone||'', refId: c.id||null, hasOneflow: false, source: 'crm' }));
+        } else if (bizType === 'maintenance_repair') {
+            const ql = q.toLowerCase();
+            localResults = (window._serviceCallsCache || [])
+                .filter(c => (c.customer_name||c.family_name||'').toLowerCase().includes(ql) || (c.customer_phone||'').includes(q))
+                .reduce((acc, c) => {
+                    const phone = c.customer_phone || '';
+                    if (!acc.seen.has(phone + (c.customer_name||c.family_name||''))) {
+                        acc.seen.add(phone + (c.customer_name||c.family_name||''));
+                        acc.list.push({ name: c.customer_name || c.family_name || '', phone, refId: null, hasOneflow: !!(c.family_group_id), familyGroupId: c.family_group_id||null, source: 'crm' });
+                    }
+                    return acc;
+                }, { seen: new Set(), list: [] }).list.slice(0, 6);
+        } else if (bizType === 'professional') {
+            const ql = q.toLowerCase();
+            localResults = (window._professionalLeadsCache || [])
+                .filter(c => (c.name||'').toLowerCase().includes(ql) || (c.phone||'').includes(q))
+                .slice(0, 6).map(c => ({ name: c.name||'', phone: c.phone||'', refId: c.id||null, hasOneflow: false, source: 'crm' }));
         } else {
-            // store / general / maintenance / professional
+            // store / restaurant / cafe / general
             const r = await fetch(`/api/store/search-customers?q=${encodeURIComponent(q)}&groupId=${bizId}`).then(x => x.json());
             localResults = (r.customers || r.results || r || []).map(c => ({
                 name: c.name || c.company_name || '',
