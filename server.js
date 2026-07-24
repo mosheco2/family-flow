@@ -5913,23 +5913,31 @@ app.post('/api/academy/assign', async (req, res) => {
 });
 
 app.post('/api/academy/submit', async (req, res) => {
-    try {
-        const { userId, bundleId, score, groupId } = req.body;
-        const b = await pool.query('SELECT threshold, reward as default_reward FROM quiz_bundles WHERE id=$1', [bundleId]);
-        const ua = await pool.query(`SELECT id, custom_reward FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status='assigned' ORDER BY id DESC LIMIT 1`, [userId, bundleId]);
-        const passed = score >= b.rows[0].threshold; const status = passed ? 'completed' : 'failed';
-        await pool.query('BEGIN');
-        if (ua.rows.length > 0) {
-            await pool.query('UPDATE user_assignments SET status=$1, score=$2 WHERE id=$3', [status, score, ua.rows[0].id]);
-            if (passed) {
-                const rew = parseFloat(ua.rows[0].custom_reward) || parseFloat(b.rows[0].default_reward) || 0;
-                await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [rew, userId]);
-                await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'בונוס למידה מ-AI', 'academy', 'income')`, [userId, groupId, rew]);
-                await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) SELECT id, $1, $2, 'בונוס אקדמיה', 'academy', 'expense', FALSE FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1`, [groupId, rew]);
-            }
-        }
-        await pool.query('COMMIT'); res.json({success:true});
-    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
+    try {
+        const { userId, bundleId, score, groupId } = req.body;
+        const b = await pool.query('SELECT threshold, reward as default_reward FROM quiz_bundles WHERE id=$1', [bundleId]);
+        const ua = await pool.query(`SELECT id, custom_reward FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status='assigned' ORDER BY id DESC LIMIT 1`, [userId, bundleId]);
+        const passed = score >= b.rows[0].threshold; const status = passed ? 'completed' : 'failed';
+        await pool.query('BEGIN');
+        if (ua.rows.length > 0) {
+            await pool.query('UPDATE user_assignments SET status=$1, score=$2 WHERE id=$3', [status, score, ua.rows[0].id]);
+            if (passed) {
+                const rew = parseFloat(ua.rows[0].custom_reward) || parseFloat(b.rows[0].default_reward) || 0;
+                if (rew > 0) {
+                    // מזכה מטבעות פלואו קיד בארנק הילד
+                    await pool.query(`
+                        INSERT INTO flw_kid_wallets (child_user_id, family_group_id, balance_flw, lifetime_flw)
+                        SELECT $1, $2, $3, $3
+                        ON CONFLICT (child_user_id) DO UPDATE SET
+                            balance_flw  = flw_kid_wallets.balance_flw  + $3,
+                            lifetime_flw = flw_kid_wallets.lifetime_flw + $3,
+                            updated_at   = NOW()
+                    `, [userId, groupId, rew]);
+                }
+            }
+        }
+        await pool.query('COMMIT'); res.json({ success: true, passed, score });
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
 });
 
 // יצירת הכשרה / חפיפה ידנית ושמירה למאגר
