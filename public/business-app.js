@@ -9968,7 +9968,11 @@ window.renderStoreCustomers = function() {
                 ${c.notes ? `<div class="text-[10px] text-slate-400 max-w-[120px] truncate bg-slate-50 px-2 py-0.5 rounded border border-slate-100 hidden sm:block" title="${safeStr(c.notes)}">${safeStr(c.notes)}</div>` : ''}
                 <button onclick="event.stopPropagation(); if(typeof window.openCustomerModal === 'function') window.openCustomerModal(${c.id}, 'details')" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="עריכת פרטים"><i class="fa-solid fa-pen text-xs"></i></button>
                 <button onclick="event.stopPropagation(); window.deleteStoreCustomer(${c.id}, '${safeStr(c.name)}')" class="text-slate-400 hover:text-red-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="מחיקת לקוח"><i class="fa-solid fa-trash text-xs"></i></button>
-                <button onclick="event.stopPropagation(); window.showAddToOneflow('${safeStr(c.name).replace(/'/g,"\\'")}','${safeStr(c.phone||'').replace(/'/g,"\\'")}',null)" class="text-violet-500 hover:text-violet-700 bg-violet-50 px-2 h-8 rounded-lg flex items-center justify-center transition border border-violet-100 shadow-sm text-[10px] font-bold whitespace-nowrap" title="הוסף ל-ONEFLOW">🔗 ONEFLOW</button>
+                ${c.family_group_id
+                    ? (c.account_status === 'pending_activation'
+                        ? `<span class="text-[9px] font-bold bg-amber-100 text-amber-700 border border-amber-200 px-2 py-1 rounded-lg">⏳ SOLO ממתין</span>`
+                        : `<span class="text-[9px] font-bold bg-violet-100 text-violet-700 border border-violet-200 px-2 py-1 rounded-lg">🔗 SOLO פעיל</span>`)
+                    : `<button onclick="event.stopPropagation(); window.showAddToOneflow('${safeStr(c.name).replace(/'/g,"\\'")}','${safeStr(c.phone||'').replace(/'/g,"\\'")}',null)" class="text-violet-500 hover:text-violet-700 bg-violet-50 px-2 h-8 rounded-lg flex items-center justify-center transition border border-violet-100 shadow-sm text-[10px] font-bold whitespace-nowrap" title="פתח חשבון SOLO">🔗 SOLO</button>`}
             </div>
         </div>
         `;
@@ -44133,7 +44137,7 @@ window.openOneflowWizard = function(opts = {}) {
     document.getElementById('ofw-search-q').value = opts.phone || opts.name || '';
     document.getElementById('ofw-search-results').innerHTML = '';
     _ofwDots(1);
-    document.getElementById('ofw-title').textContent = 'חשבון ONEFLOW ללקוח';
+    document.getElementById('ofw-title').textContent = 'חשבון SOLO ללקוח';
     document.getElementById('ofw-subtitle').textContent = 'חיפוש לפי שם או טלפון';
     bd.classList.remove('hidden');
     bd.style.zIndex = window._isInFullscreenPOS ? '99999999' : '';
@@ -44316,6 +44320,17 @@ window._ofwSubmit = async function() {
     const btn = document.getElementById('ofw-submit-btn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-1"></i> יוצר חשבון...'; }
     try {
+        // בדיקת כפילות SOLO לפני יצירה
+        const phoneClean = phone.replace(/\D/g,'');
+        if (phoneClean.length >= 9) {
+            const pendingCheck = await fetch('/api/solo/pending-check?phone=' + encodeURIComponent(phoneClean)).then(x => x.json()).catch(() => ({}));
+            if (pendingCheck.exists) {
+                errEl.textContent = 'קיים כבר חשבון SOLO עם טלפון זה — ' + (pendingCheck.status === 'pending_activation' ? 'ממתין לאישור לקוח' : 'פעיל');
+                errEl.classList.remove('hidden');
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-user-plus ml-1"></i> פתח חשבון SOLO וקשר ללקוח'; }
+                return;
+            }
+        }
         const st = window._ofwState;
         const r = await fetch('/api/member/create-for-business', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -44329,7 +44344,7 @@ window._ofwSubmit = async function() {
         if (!r.success) {
             errEl.textContent = r.error || 'שגיאה ביצירת החשבון';
             errEl.classList.remove('hidden');
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-user-plus ml-1"></i> צור חשבון ONEFLOW וקשר ללקוח'; }
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-user-plus ml-1"></i> פתח חשבון SOLO וקשר ללקוח'; }
             return;
         }
         // קישור לקריאת שירות אם יש callId
@@ -44342,7 +44357,7 @@ window._ofwSubmit = async function() {
         window._ofwState._result = { ...r, name, phone };
         _ofwShowResult(r, name, phone);
     } catch(e) {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-user-plus ml-1"></i> צור חשבון ONEFLOW וקשר ללקוח'; }
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-user-plus ml-1"></i> פתח חשבון SOLO וקשר ללקוח'; }
         errEl.textContent = 'שגיאת תקשורת'; errEl.classList.remove('hidden');
     }
 };
@@ -44375,18 +44390,19 @@ function _ofwShowResult(r, name, phone) {
     const waPhone = phone.replace(/^0/, '972').replace(/\D/g, '');
     let cardHtml = '';
     if (r.is_new) {
-        const waText = encodeURIComponent(`שלום ${name} 👋\n\n${bizName} שמחים לצרף אותך אלינו!\n\nנוצר עבורך חשבון אישי ב-ONEFLOW LIFE:\n🔑 קוד: ${r.group_code}\n👤 שם: ${name}\n🔒 סיסמה: ${r.password}\n\n👉 כניסה: ${window.location.origin}\n\nנשמח לראות אותך! 🌟`);
-        cardHtml = `<div class="flex items-center gap-2 mb-2"><i class="fa-solid fa-circle-check text-violet-600 text-lg"></i><p class="font-black text-violet-800">חשבון ONEFLOW נוצר וקושר ✅</p></div>
+        const waText = encodeURIComponent(`שלום ${name} 👋\n\n${bizName} פתחו עבורך חשבון SOLO ב-ONEFLOW LIFE!\n\n🔑 קוד גישה: ${r.group_code}\n👤 שם: ${name}\n🔒 סיסמה זמנית: ${r.password}\n\n👉 כניסה ראשונה: ${window.location.origin}\nבכניסה הראשונה תתבקש לאשר את החשבון ולהגדיר סיסמה חדשה.\n\nנשמח לראות אותך! 🌟`);
+        cardHtml = `<div class="flex items-center gap-2 mb-2"><i class="fa-solid fa-circle-check text-violet-600 text-lg"></i><p class="font-black text-violet-800">חשבון SOLO נוצר ✅</p></div>
+        <div class="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700 mb-2 text-right">⏳ ממתין לאישור הלקוח בכניסה הראשונה</div>
         <div class="bg-white rounded-xl px-3 py-2 border border-violet-100 font-mono text-xs space-y-1 mb-3">
-            <div>קוד: <b>${r.group_code}</b></div><div>שם: <b>${safeStr(name)}</b></div><div>סיסמה: <b>${r.password}</b></div>
+            <div>קוד: <b>${r.group_code}</b></div><div>שם: <b>${safeStr(name)}</b></div><div>סיסמה זמנית: <b>${r.password}</b></div>
         </div>
-        <p class="text-xs text-violet-600 mb-2">הלקוח יקבל את פרטי הכניסה ויצטרך לאשר את הקישור לעסק שלך</p>
+        <p class="text-xs text-slate-500 mb-2">הלקוח יצטרך להיכנס עם הסיסמה הזמנית ולאשר את החשבון</p>
         <a href="https://wa.me/${waPhone}?text=${waText}" target="_blank" rel="noopener"
            class="flex items-center justify-center gap-2 w-full bg-[#25D366] text-white rounded-xl px-3 py-3 text-sm font-bold">
             <i class="fa-brands fa-whatsapp text-base"></i> שלח פרטי כניסה ב-WhatsApp
         </a>`;
     } else if (r.link_status === 'pending') {
-        const waText = encodeURIComponent(`שלום ${name} 👋\n\n${bizName} שמחים שאתה חלק ממשפחת ONEFLOW LIFE!\n\nכדי לאשר את הקישור לעסק, כנס לאפליקציה:\n👉 ${window.location.origin}\n\nנשמח לראות אותך! 🌟`);
+        const waText = encodeURIComponent(`שלום ${name} 👋\n\n${bizName} מבקשים לקשר אותך לעסק שלהם ב-ONEFLOW LIFE!\n\nלאישור הקישור, כנס לאפליקציה:\n👉 ${window.location.origin}\n\nנשמח לראות אותך! 🌟`);
         cardHtml = `<div class="flex items-center gap-2 mb-2"><i class="fa-solid fa-clock text-amber-500 text-lg"></i><p class="font-black text-amber-700">ממתין לאישור הלקוח ⏳</p></div>
         <p class="text-xs text-amber-600 mb-3">נשלחה בקשת קישור. הלקוח יצטרך לאשר אותה בדשבורד שלו.</p>
         ${r.group_code ? `<div class="text-xs text-slate-600 bg-white rounded-lg px-2 py-1 border border-amber-200 mb-3">קוד: <b class="font-mono">${r.group_code}</b></div>` : ''}
@@ -44399,7 +44415,7 @@ function _ofwShowResult(r, name, phone) {
     }
     document.getElementById('ofw-result-card').innerHTML = cardHtml;
     window._ofwGoStep(3);
-    document.getElementById('ofw-title').textContent = r.is_new ? 'החשבון נוצר! 🎉' : r.link_status === 'pending' ? 'ממתין לאישור ⏳' : 'קושר בהצלחה ✅';
+    document.getElementById('ofw-title').textContent = r.is_new ? 'חשבון SOLO נוצר! 🎉' : r.link_status === 'pending' ? 'ממתין לאישור ⏳' : 'קושר בהצלחה ✅';
     document.getElementById('ofw-subtitle').textContent = 'שלח את פרטי הגישה ללקוח';
 }
 

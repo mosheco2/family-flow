@@ -8420,7 +8420,7 @@ app.get('/api/store/customers/:groupId', async (req, res) => {
             // לקוחות הצעת מחיר: יש להם הצעה ממתינה או מאושרת
             result = await pool.query(`SELECT DISTINCT sc.* FROM store_customers sc JOIN store_orders so ON so.group_id=sc.group_id AND (so.customer_phone=sc.phone OR so.customer_name=sc.name) WHERE sc.group_id=$1 AND (so.status='quote' OR so.quote_status='approved') ORDER BY sc.name ASC`, [req.params.groupId]);
         } else {
-            result = await pool.query('SELECT * FROM store_customers WHERE group_id=$1 ORDER BY name ASC', [req.params.groupId]);
+            result = await pool.query('SELECT sc.*, fg.account_status FROM store_customers sc LEFT JOIN family_groups fg ON fg.id=sc.family_group_id WHERE sc.group_id=$1 ORDER BY sc.name ASC', [req.params.groupId]);
         }
         res.json({ success: true, customers: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
