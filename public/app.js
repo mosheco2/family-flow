@@ -14807,6 +14807,7 @@ async function loadChildFlwWallet() {
         if (el('kid-flw-lifetime')) el('kid-flw-lifetime').textContent = Math.floor(w.lifetime_flw || 0);
         if (el('kid-flw-redeemed')) el('kid-flw-redeemed').textContent = Math.floor(w.redeemed_flw || 0);
         if (el('kid-flw-value-ils')) el('kid-flw-value-ils').textContent = `₪${(balance * valueIls).toFixed(2)}`;
+        if (el('child-balance-display')) el('child-balance-display').textContent = `🪙${Math.floor(balance)}`;
 
         window._kidFlwBalance = balance;
         window._kidFlwValueIls = valueIls;
