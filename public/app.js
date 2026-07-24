@@ -2437,7 +2437,7 @@ function renderChildTodo() {
         && !(b.deadline && new Date(b.deadline).getTime() < now)).forEach(b => {
         const expiry = b.deadline ? new Date(b.deadline).getTime() : null;
         const reward = (b.custom_reward !== null && b.custom_reward !== undefined) ? b.custom_reward : b.default_reward;
-        allItems.push({ type: 'quiz', title: b.title, expiry, assignDate: b.assigned_at ? new Date(b.assigned_at).getTime() : 0, reward, rewardUnit: '₪' });
+        allItems.push({ type: 'quiz', title: b.title, expiry, assignDate: b.assigned_at ? new Date(b.assigned_at).getTime() : 0, reward, rewardUnit: 'מטבעות' });
     });
 
     (window.kidGameAssignments || []).filter(g =>
@@ -2481,7 +2481,7 @@ function renderChildTodo() {
             game:  ['border-violet-100','hover:bg-violet-50','<span class="text-lg">🎮</span>','academy']
         };
         const [border, bg, icon, tab] = typeMap[type] || typeMap.quiz;
-        const rewardStr = (rewardUnit === 'FLW' ? '🪙' : '₪') + reward + (rewardUnit === 'FLW' ? ' FLW' : '');
+        const rewardStr = rewardUnit === '₪' ? `₪${reward}` : `🪙${reward} מטבעות`;
         return `<div class="bg-white p-3 rounded-2xl border ${border} shadow-sm flex justify-between items-center cursor-pointer ${bg} transition mb-2" onclick="switchTab('${tab}')">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100">${icon}</div>
@@ -3628,7 +3628,7 @@ function renderMyAssignments(bundles) {
                             <div class="flex-1 min-w-0">
                                 <div class="font-black text-slate-800 text-sm leading-tight mb-1">${safeStr(b.title)}</div>
                                 <div class="flex items-center gap-1.5 flex-wrap">
-                                    <span class="text-xs font-black text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">💰 ₪${reward}</span>
+                                    <span class="text-xs font-black text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">🪙 ${reward} מטבעות</span>
                                     ${daysBadge}
                                 </div>
                                 <div class="text-[10px] text-slate-400 mt-1">הוקצה: ${aDateStr} • יעד: ${tDateStr}</div>
@@ -3660,7 +3660,7 @@ function renderMyAssignments(bundles) {
                         <span class="text-xl">${ok ? '✅' : '❌'}</span>
                         <div class="flex-1 min-w-0">
                             <div class="font-bold text-slate-700 text-sm truncate">${safeStr(b.title)}</div>
-                            <div class="text-[10px] text-slate-400">ציון: ${b.score}% ${ok ? `• קיבלת ₪${reward}` : ''}</div>
+                            <div class="text-[10px] text-slate-400">ציון: ${b.score}% ${ok ? `• קיבלת 🪙${reward} מטבעות` : ''}</div>
                         </div>
                         <span class="text-[10px] font-black px-2 py-1 rounded-lg ${ok ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}">${ok ? 'עבר! 🏆' : 'נסה שוב'}</span>
                     </div>`;
@@ -3681,7 +3681,7 @@ function renderMyAssignments(bundles) {
     const statTasks = getEl('acad-stat-tasks');
     const statEarn = getEl('acad-stat-earn');
     if (statTasks) { statTasks.textContent = `📝 ${actCount} מבחנים`; }
-    if (statEarn && totalEarn > 0) { statEarn.textContent = `💰 עד ₪${totalEarn} לרווח`; statEarn.classList.remove('hidden'); }
+    if (statEarn && totalEarn > 0) { statEarn.textContent = `🪙 עד ${totalEarn} מטבעות`; statEarn.classList.remove('hidden'); }
     _updateArchiveTab();
 
     if (histCount > 0 && histCont) histCont.classList.remove('hidden');
@@ -3754,7 +3754,7 @@ async function finishQuiz() {
         getEl('quiz-msg-desc').innerText = `ציון: ${finalScore}% • סף מעבר: ${currentQuizData.threshold}%`;
     } else {
         getEl('quiz-msg-title').innerText = passed ? 'כל הכבוד!' : 'לא נורא, אפשר לנסות שוב...';
-        getEl('quiz-msg-desc').innerText = passed ? `עברת את המבחן וזכית ב-₪${currentQuizData.custom_reward || currentQuizData.default_reward}` : `צריך ${currentQuizData.threshold}% כדי לעבור. נסה שוב!`;
+        getEl('quiz-msg-desc').innerText = passed ? `עברת את המבחן וזכית ב-🪙${currentQuizData.custom_reward || currentQuizData.default_reward} מטבעות!` : `צריך ${currentQuizData.threshold}% כדי לעבור. נסה שוב!`;
     }
     getEl('quiz-score-display').innerText = `ציון סופי: ${finalScore}%`;
     if (!passed && currentWrongAnswers.length > 0 && !window._parentPreviewMode) getEl('btn-tutor').classList.remove('hidden');
