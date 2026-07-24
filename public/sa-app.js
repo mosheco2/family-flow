@@ -10237,11 +10237,11 @@ async function openLGEditor(id) {
       <div class="p-5 space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div class="md:col-span-3"><label class="block text-xs text-slate-400 mb-1">שם האירוע / המשחק</label>
-            <input id="lg-title" value="${game?.title || ''}" class="w-full bg-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"></div>
+            <input id="lg-title" value="${game?.title || ''}" class="w-full bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-indigo-500"></div>
           <div><label class="block text-xs text-slate-400 mb-1">שם עסק (אופציונלי)</label>
-            <input id="lg-biz" value="${game?.business_name || ''}" class="w-full bg-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"></div>
+            <input id="lg-biz" value="${game?.business_name || ''}" class="w-full bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-indigo-500"></div>
           <div class="md:col-span-2"><label class="block text-xs text-slate-400 mb-1">פרס</label>
-            <input id="lg-prize" value="${game?.prize || ''}" class="w-full bg-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"></div>
+            <input id="lg-prize" value="${game?.prize || ''}" class="w-full bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-indigo-500"></div>
         </div>
         <div>
           <div class="flex items-center justify-between mb-3">
@@ -10273,13 +10273,13 @@ function _renderLGQuestions() {
         </div>
       </div>
       <input value="${q.question.replace(/"/g,'&quot;')}" onchange="window._lgQuestions[${i}].question=this.value"
-        placeholder="טקסט השאלה" class="w-full bg-slate-600 rounded-lg px-3 py-2 text-sm outline-none">
+        placeholder="טקסט השאלה" class="w-full bg-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none">
       <div class="grid grid-cols-2 gap-2">
         ${q.opts.map((opt, j) => `
           <div class="flex items-center gap-2">
             <input type="radio" name="correct-${i}" ${q.correct_index===j?'checked':''} onchange="window._lgQuestions[${i}].correct_index=${j}" class="accent-green-500 shrink-0">
             <input value="${opt.replace(/"/g,'&quot;')}" onchange="window._lgQuestions[${i}].opts[${j}]=this.value"
-              placeholder="תשובה ${j+1}" class="flex-1 bg-slate-600 rounded-lg px-2 py-1.5 text-xs outline-none ${q.correct_index===j?'ring-1 ring-green-500':''}">
+              placeholder="תשובה ${j+1}" class="flex-1 bg-slate-600 rounded-lg px-2 py-1.5 text-xs text-slate-100 placeholder-slate-500 outline-none ${q.correct_index===j?'ring-1 ring-green-500':''}">
           </div>`).join('')}
       </div>
     </div>`).join('');
@@ -10384,7 +10384,7 @@ function openLGControl(gameId, gameCode) {
           <div class="text-xs text-slate-400">שלח את קישור המשחק למשתמשים קיימים לבדיקה, לפי חיפוש שם/טלפון</div>
           <div class="flex gap-2">
             <input id="lg-tester-search" placeholder="חפש שם משפחה או טלפון..." oninput="_lgSearchTesters(this.value)"
-              class="flex-1 bg-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+              class="flex-1 bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-indigo-500">
           </div>
           <div id="lg-tester-results" class="space-y-2 max-h-64 overflow-y-auto"></div>
           <div class="border-t border-slate-700 pt-3">
