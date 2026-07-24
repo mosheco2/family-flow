@@ -10313,44 +10313,139 @@ function openLGControl(gameId, gameCode) {
   const modal = document.createElement('div');
   modal.id = 'lg-control-modal';
   modal.className = 'fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4';
-  const gameLink = `https://oneflowlife.co.il/game/${gameCode}`;
-  const waText = encodeURIComponent(`🏆 הצטרפו למשחק הטריוויה!\n${gameLink}`);
+  const localLink = `${window.location.origin}/game/${gameCode}`;
+  const prodLink = `https://oneflowlife.co.il/game/${gameCode}`;
+  const waText = encodeURIComponent(`🏆 הצטרפו למשחק הטריוויה!\n${prodLink}`);
   modal.innerHTML = `
-    <div class="bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl">
+    <div class="bg-slate-800 rounded-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto shadow-2xl">
       <div class="flex items-center justify-between p-5 border-b border-slate-700">
-        <h3 class="font-bold text-lg">ניהול משחק</h3>
+        <h3 class="font-bold text-lg">ניהול משחק · <span class="font-mono text-indigo-400">${gameCode}</span></h3>
         <button onclick="document.getElementById('lg-control-modal').remove()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
       <div class="p-5 space-y-4">
-        <!-- Link & QR -->
-        <div class="bg-slate-700 rounded-xl p-4">
-          <div class="text-xs text-slate-400 mb-1">קישור למשחק</div>
-          <div class="font-mono text-indigo-400 text-sm break-all mb-3">${gameLink}</div>
-          <div class="flex gap-2">
-            <button onclick="navigator.clipboard.writeText('${gameLink}');this.textContent='✅ הועתק!';setTimeout(()=>this.textContent='העתק קישור',2000)"
-              class="flex-1 bg-slate-600 hover:bg-slate-500 text-white py-2 rounded-lg text-xs transition">העתק קישור</button>
-            <a href="https://wa.me/?text=${waText}" target="_blank"
-              class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-xs text-center transition">שלח ב-WhatsApp</a>
+
+        <!-- Tabs -->
+        <div class="flex bg-slate-700 rounded-xl p-1 gap-1">
+          <button onclick="_lgTab('control')" id="lg-tab-control" class="flex-1 py-2 rounded-lg text-xs font-bold bg-indigo-600 text-white transition">🎮 שליטה</button>
+          <button onclick="_lgTab('preview')" id="lg-tab-preview" class="flex-1 py-2 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition">👁️ תצוגה מקדימה</button>
+          <button onclick="_lgTab('send')" id="lg-tab-send" class="flex-1 py-2 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition">📤 שליחה לניסיון</button>
+        </div>
+
+        <!-- TAB: Control -->
+        <div id="lg-panel-control">
+          <div class="bg-slate-700 rounded-xl p-4 mb-3">
+            <div class="text-xs text-slate-400 mb-1">קישור למשחק</div>
+            <div class="font-mono text-indigo-400 text-xs break-all mb-3">${prodLink}</div>
+            <div class="flex gap-2">
+              <button onclick="navigator.clipboard.writeText('${prodLink}');this.textContent='✅ הועתק!';setTimeout(()=>this.textContent='העתק קישור',2000)"
+                class="flex-1 bg-slate-600 hover:bg-slate-500 text-white py-2 rounded-lg text-xs transition">העתק קישור</button>
+              <a href="https://wa.me/?text=${waText}" target="_blank"
+                class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-xs text-center transition">📲 WhatsApp</a>
+            </div>
+          </div>
+          <div class="bg-slate-700 rounded-xl p-4 text-center mb-3">
+            <div class="text-3xl font-bold text-indigo-400" id="lg-ctrl-count">-</div>
+            <div class="text-xs text-slate-400">משתתפים מחוברים</div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <button onclick="_lgSetStatus(${gameId},'active')" class="bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl text-sm font-bold transition">▶ התחל משחק</button>
+            <button onclick="_lgNextQuestion(${gameId})" class="bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-sm font-bold transition">שאלה הבאה ▶</button>
+            <button onclick="_lgSetStatus(${gameId},'ended')" class="bg-slate-600 hover:bg-slate-500 text-white py-3 rounded-xl text-sm font-bold transition">סיים משחק</button>
+            <button onclick="_lgSetStatus(${gameId},'disabled')" class="bg-red-700 hover:bg-red-800 text-white py-3 rounded-xl text-sm font-bold transition">כבה משחק</button>
+          </div>
+          <div id="lg-ctrl-msg" class="text-center text-xs text-slate-400 mt-3"></div>
+        </div>
+
+        <!-- TAB: Preview -->
+        <div id="lg-panel-preview" class="hidden">
+          <div class="text-xs text-slate-400 mb-2">תצוגת שחקן בתוך הממשק — המשחק פועל בזמן אמת לפי הסטטוס הנוכחי</div>
+          <div class="flex gap-2 mb-3">
+            <button onclick="_lgSetStatus(${gameId},'waiting').then(()=>document.getElementById('lg-preview-frame').src=document.getElementById('lg-preview-frame').src)"
+              class="bg-slate-600 hover:bg-slate-500 text-white px-3 py-1.5 rounded-lg text-xs transition">אפס למצב המתנה</button>
+            <button onclick="_lgSetStatus(${gameId},'active').then(()=>setTimeout(()=>document.getElementById('lg-preview-frame').src=document.getElementById('lg-preview-frame').src,500))"
+              class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs transition">הפעל ← ראה תגובה</button>
+            <button onclick="document.getElementById('lg-preview-frame').src=document.getElementById('lg-preview-frame').src"
+              class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs transition">רענן תצוגה</button>
+          </div>
+          <div class="relative rounded-2xl overflow-hidden border-4 border-slate-600 shadow-2xl" style="height:560px">
+            <!-- Mobile frame simulation -->
+            <div class="absolute top-0 left-0 right-0 h-6 bg-slate-900 flex items-center justify-center z-10">
+              <div class="w-16 h-1.5 bg-slate-600 rounded-full"></div>
+            </div>
+            <iframe id="lg-preview-frame" src="${localLink}" class="w-full h-full border-0 pt-6" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+          </div>
+          <div class="text-center mt-2">
+            <a href="${localLink}" target="_blank" class="text-indigo-400 text-xs hover:underline">פתח בחלון נפרד ↗</a>
           </div>
         </div>
-        <!-- Participants counter -->
-        <div class="bg-slate-700 rounded-xl p-4 text-center">
-          <div class="text-3xl font-bold text-indigo-400" id="lg-ctrl-count">-</div>
-          <div class="text-xs text-slate-400">משתתפים מחוברים</div>
+
+        <!-- TAB: Send to testers -->
+        <div id="lg-panel-send" class="hidden space-y-4">
+          <div class="text-xs text-slate-400">שלח את קישור המשחק למשתמשים קיימים לבדיקה, לפי חיפוש שם/טלפון</div>
+          <div class="flex gap-2">
+            <input id="lg-tester-search" placeholder="חפש שם משפחה או טלפון..." oninput="_lgSearchTesters(this.value)"
+              class="flex-1 bg-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div id="lg-tester-results" class="space-y-2 max-h-64 overflow-y-auto"></div>
+          <div class="border-t border-slate-700 pt-3">
+            <div class="text-xs text-slate-400 mb-2">קישור להעתקה ידנית:</div>
+            <div class="flex gap-2">
+              <input value="${prodLink}" readonly class="flex-1 bg-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-indigo-400 outline-none">
+              <button onclick="navigator.clipboard.writeText('${prodLink}');this.textContent='✅';setTimeout(()=>this.textContent='העתק',2000)"
+                class="bg-slate-600 hover:bg-slate-500 text-white px-3 py-2 rounded-lg text-xs transition">העתק</button>
+            </div>
+          </div>
         </div>
-        <!-- Controls -->
-        <div class="grid grid-cols-2 gap-3">
-          <button onclick="_lgSetStatus(${gameId},'active')" class="bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl text-sm font-bold transition">▶ התחל משחק</button>
-          <button onclick="_lgNextQuestion(${gameId})" class="bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-sm font-bold transition">שאלה הבאה ▶</button>
-          <button onclick="_lgSetStatus(${gameId},'ended')" class="bg-slate-600 hover:bg-slate-500 text-white py-3 rounded-xl text-sm font-bold transition">סיים משחק</button>
-          <button onclick="_lgSetStatus(${gameId},'disabled')" class="bg-red-700 hover:bg-red-800 text-white py-3 rounded-xl text-sm font-bold transition">כבה משחק</button>
-        </div>
-        <div id="lg-ctrl-msg" class="text-center text-xs text-slate-400"></div>
+
       </div>
     </div>`;
   document.body.appendChild(modal);
-  // Poll participants
+  window._lgCurrentGameCode = gameCode;
+  window._lgCurrentGameLink = prodLink;
   _lgControlPoll(gameId, gameCode);
+}
+
+function _lgTab(name) {
+  ['control','preview','send'].forEach(t => {
+    document.getElementById(`lg-panel-${t}`).classList.toggle('hidden', t !== name);
+    const btn = document.getElementById(`lg-tab-${t}`);
+    if (btn) btn.className = t === name
+      ? 'flex-1 py-2 rounded-lg text-xs font-bold bg-indigo-600 text-white transition'
+      : 'flex-1 py-2 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition';
+  });
+}
+
+async function _lgSearchTesters(q) {
+  const el = document.getElementById('lg-tester-results');
+  if (!q || q.length < 2) { el.innerHTML = ''; return; }
+  const groups = (window.saAllGroups || []).filter(g =>
+    g.type === 'FAMILY' && (g.name?.includes(q) || g.admin_email?.includes(q))
+  ).slice(0, 8);
+  const users = (window.saAllUsers || []).filter(u =>
+    u.phone?.includes(q) || u.nickname?.includes(q) || u.first_name?.includes(q)
+  ).slice(0, 8);
+  const link = window._lgCurrentGameLink || '';
+  const waBase = `https://wa.me/`;
+  if (!groups.length && !users.length) { el.innerHTML = '<div class="text-slate-400 text-xs">לא נמצאו תוצאות</div>'; return; }
+  const rows = [];
+  users.forEach(u => {
+    if (!u.phone) return;
+    const phone = u.phone.replace(/\D/g,'');
+    const intlPhone = phone.startsWith('0') ? '972' + phone.slice(1) : phone;
+    const waText = encodeURIComponent(`היי ${u.nickname || ''}! שלחנו לך קישור לבדיקת המשחק החי שלנו:\n${link}`);
+    rows.push(`
+      <div class="flex items-center justify-between bg-slate-700 rounded-xl px-4 py-3">
+        <div>
+          <div class="text-sm font-medium">${u.nickname || ''} ${u.first_name || ''}</div>
+          <div class="text-xs text-slate-400">${u.phone}</div>
+        </div>
+        <a href="${waBase}${intlPhone}?text=${waText}" target="_blank"
+          class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1">
+          <i class="fa-brands fa-whatsapp"></i> שלח
+        </a>
+      </div>`);
+  });
+  el.innerHTML = rows.join('') || '<div class="text-slate-400 text-xs">אין טלפונים לשליחה</div>';
 }
 
 let _lgCtrlPollInt = null;
