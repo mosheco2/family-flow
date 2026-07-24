@@ -1974,7 +1974,7 @@ function saInlineToggleModule(groupId) { /* visual only - click שמור to save
 async function saUnfreezeGroup(groupId) {
     if (!confirm('לבטל הקפאה של חשבון זה? החשבון יחזור לסטטוס active.')) return;
     try {
-        const res = await fetch(`${API}/sa/groups/${groupId}/unfreeze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ saToken: localStorage.getItem('ofl_sa_token') }) });
+        const res = await fetch(`${API}/sa/groups/${groupId}/unfreeze`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken } });
         const data = await res.json();
         if (data.success) { showToast('success', 'הקפאה בוטלה בהצלחה'); await loadSAData(); }
         else showToast('error', data.error || 'שגיאה בביטול הקפאה');

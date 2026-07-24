@@ -1893,7 +1893,8 @@ app.get('/api/family/link-requests/:groupId', async (req, res) => {
 
 // אישור/דחייה של בקשת שיוך
 app.post('/api/family/link-request/:id/respond', async (req, res) => {
-    const { decision, targetGroupId } = req.body; // decision: 'approve'|'reject'
+    const decision = req.body.decision || req.body.action;
+    const targetGroupId = req.body.targetGroupId || req.body.respondingGroupId;
     if (!['approve','reject'].includes(decision)) return res.status(400).json({ error: 'פעולה לא תקינה' });
     const client = await pool.connect();
     try {
@@ -1927,10 +1928,13 @@ app.post('/api/family/link-request/:id/respond', async (req, res) => {
                 // שניהם SOLO → יוצרים MEMBER חדש בעזרת ה-requester כ-ADMIN
                 const newCode = 'MB' + Date.now().toString().slice(-6);
                 const newName = requester.name || target.name;
+                // admin_email מהמבקש
+                const reqAdminRes = await client.query(`SELECT admin_email, city FROM family_groups WHERE id=$1`, [req_row.requester_group_id]);
+                const reqAdmin = reqAdminRes.rows[0] || {};
                 const newGrpRes = await client.query(
-                    `INSERT INTO family_groups (name, group_code, type, member_type, plan, account_status, created_at)
-                     VALUES ($1, $2, 'FAMILY', 'member', 'member', 'active', NOW()) RETURNING id`,
-                    [newName, newCode]
+                    `INSERT INTO family_groups (name, group_code, type, member_type, plan, account_status, admin_email, city, created_at)
+                     VALUES ($1, $2, 'FAMILY', 'member', 'member', 'active', $3, $4, NOW()) RETURNING id`,
+                    [newName, newCode, reqAdmin.admin_email || null, reqAdmin.city || null]
                 );
                 hostGroupId = newGrpRes.rows[0].id;
                 guestGroupId = null; // שניהם עוברים
@@ -1957,6 +1961,12 @@ app.post('/api/family/link-request/:id/respond', async (req, res) => {
                         [bal, life, hostGroupId]
                     );
                 }
+
+                // מיזוג משתמשים (העברת users לקבוצה הקולטת)
+                await client.query(`UPDATE users SET group_id=$1 WHERE group_id=$2`, [hostGroupId, gId]);
+
+                // מיזוג ארנק FLW — העברה לקבוצה הקולטת
+                await client.query(`UPDATE flw_kid_wallets SET family_group_id=$1 WHERE family_group_id=$2`, [hostGroupId, gId]);
 
                 // מיזוג היסטוריית הזמנות
                 await client.query(`UPDATE store_orders SET family_group_id=$1 WHERE family_group_id=$2`, [hostGroupId, gId]);
@@ -5252,12 +5262,36 @@ app.post('/api/login', async (req, res) => {
         if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד שגוי. ודאו שאין רווחים מיותרים בסוף הקוד.' });
         
         const group = gRes.rows[0];
+
+        // חסימת חשבונות מוקפאים/ארכיב
+        if (group.account_status === 'archived') {
+            return res.status(403).json({ error: 'חשבון זה הועבר לארכיב. אנא פנה לתמיכה.', account_status: 'archived' });
+        }
+        if (group.account_status === 'frozen') {
+            const frozenAt = group.frozen_at ? new Date(group.frozen_at) : null;
+            const daysLeft = frozenAt ? Math.max(0, 30 - Math.floor((Date.now() - frozenAt.getTime()) / 86400000)) : 30;
+            return res.status(403).json({
+                error: 'חשבון זה הוקפא לאחר איחוד משפחות.',
+                account_status: 'frozen',
+                days_left: daysLeft
+            });
+        }
+
         const uRes = await pool.query('SELECT * FROM users WHERE group_id = $1 AND nickname = $2 AND password_hash = $3', [group.id, req.body.nickname, req.body.password]);
         
         if (uRes.rows.length === 0) return res.status(401).json({ error: 'כינוי או סיסמה שגויים' });
         if (uRes.rows[0].status !== 'active') return res.status(403).json({ error: 'חשבון ממתין לאישור מנהל' });
-        
-        res.json({ success: true, user: uRes.rows[0], group: group });
+
+        // שליפת שם העסק שיצר את החשבון (לחשבונות SOLO)
+        let createdByBusinessName = null;
+        if (group.created_by_business_group_id) {
+            try {
+                const bizRes = await pool.query('SELECT name FROM family_groups WHERE id=$1', [group.created_by_business_group_id]);
+                createdByBusinessName = bizRes.rows[0]?.name || null;
+            } catch(e) {}
+        }
+
+        res.json({ success: true, user: uRes.rows[0], group: { ...group, created_by_business_name: createdByBusinessName } });
     } catch (e) { 
         console.error("Login Error:", e);
         res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); 

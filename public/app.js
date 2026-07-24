@@ -563,6 +563,10 @@ async function handleLogin(e) {
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
             await loadDashboard();
             checkPostDeepLink();
+        } else if (data.account_status === 'frozen') {
+            showFrozenAccountScreen(data.days_left ?? 30);
+        } else if (data.account_status === 'archived') {
+            showToast('error', 'חשבון זה הועבר לארכיב. אנא פנה לתמיכה.');
         } else showToast('error', data.error); 
     } catch(e) { console.error('LOGIN ERROR:', e); showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); }
 }
@@ -1701,6 +1705,34 @@ window._submitSoloActivation = async function() {
     }
 };
 
+// ─── SOLO: חשבון מוקפא ───────────────────────────────────────────────────────
+
+function showFrozenAccountScreen(daysLeft) {
+    const existing = document.getElementById('frozen-account-overlay');
+    if (existing) existing.remove();
+    const el = document.createElement('div');
+    el.id = 'frozen-account-overlay';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0f172a;overflow-y:auto;padding:20px;direction:rtl;display:flex;align-items:center;justify-content:center;';
+    el.innerHTML = `
+        <div style="background:white;border-radius:24px;padding:28px 24px;width:100%;max-width:380px;text-align:right;">
+            <div style="text-align:center;margin-bottom:20px;">
+                <div style="font-size:48px;margin-bottom:8px;">❄️</div>
+                <div style="font-size:18px;font-weight:900;color:#1e293b;">החשבון הוקפא</div>
+                <div style="font-size:13px;color:#64748b;margin-top:8px;line-height:1.6;">חשבון SOLO זה אוחד למשפחה אחרת ולכן הוקפא.<br>כל ההיסטוריה והמטבעות הועברו לחשבון המשפחה.</div>
+            </div>
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:16px;padding:16px;margin-bottom:20px;text-align:center;">
+                <div style="font-size:28px;font-weight:900;color:#1d4ed8;margin-bottom:4px;">${daysLeft}</div>
+                <div style="font-size:12px;color:#3b82f6;font-weight:700;">ימים עד ארכיב סופי</div>
+                <div style="font-size:11px;color:#94a3b8;margin-top:6px;">לאחר מכן החשבון יועבר לארכיב ולא יהיה ניתן לגשת אליו</div>
+            </div>
+            <div style="background:#f8fafc;border-radius:14px;padding:14px;margin-bottom:20px;font-size:12px;color:#475569;line-height:1.6;">
+                💡 כדי לגשת למשפחה, כנס דרך קוד הקבוצה החדשה שקיבלת.
+            </div>
+            <button onclick="document.getElementById('frozen-account-overlay').remove()" style="width:100%;background:#f1f5f9;color:#475569;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;">סגור</button>
+        </div>`;
+    document.body.appendChild(el);
+}
+
 // ─── SOLO: בקשות חיבור משפחה ────────────────────────────────────────────────
 
 async function checkIncomingLinkRequests() {
@@ -1746,7 +1778,7 @@ window._respondLinkRequest = async function(reqId, action) {
     try {
         const r = await fetch(`/api/family/link-request/${reqId}/respond`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action, respondingGroupId: currentGroup.id })
+            body: JSON.stringify({ decision: action, targetGroupId: currentGroup.id })
         }).then(x => x.json());
         if (r.success) {
             document.getElementById('solo-link-req-popup')?.remove();
